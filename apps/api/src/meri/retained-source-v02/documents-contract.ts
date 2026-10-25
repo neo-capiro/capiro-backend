@@ -30,7 +30,8 @@ export const documentContractV02 = createClientDocumentsValidators({
         subject.scopes.some((scope: Record<string, unknown>) =>
           scope.tenantId !== subject.tenantId || scope.policyRevision !== subject.policyRevision) ||
         subject.tenantId !== binding.tenantId || subject.actorId !== binding.actorId ||
-        subject.kind !== 'client' || subject.entityType !== 'client' ||
+        (subject.kind === 'personal' ? subject.entityType !== 'user' || subject.entityIds[0] !== binding.actorId :
+          subject.kind !== 'client' || subject.entityType !== 'client') ||
         subject.entityIds.length !== 1 || subject.rosterVersionId !== null) fail();
   },
 });

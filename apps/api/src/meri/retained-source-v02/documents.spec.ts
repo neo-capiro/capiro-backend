@@ -28,9 +28,24 @@ function page(request: Record<string, unknown> = { clientId, documentId: 'doc-1'
 }
 const project = (data: unknown, request: Record<string, unknown> = { clientId, documentId: 'doc-1' }) =>
   projectDocumentRead(data, normalized(request), current, NO_DOCUMENT_PROVIDER_CALLS,
-    { resultSha256: digest(data), observedAt: '2026-10-18T10:00:00Z' });
+    { resultSha256: digest(data), observedAt: '2026-10-18T10:00:00Z' }) as {data: Record<string, any>};
 
 describe('complete pinned document 0.2 contract', () => {
+  it('preserves General actor lineage through document projection and cursor continuation', () => {
+    const personal={...subject,kind:'personal',entityType:'user',entityIds:[binding.actorId],
+      scopes:[{tenantId:binding.tenantId,kind:'private-user',resourceId:binding.actorId,policyRevision:subject.policyRevision}]};
+    const options={binding,subject:personal}, currentGeneral={...current,subject:personal};
+    const projectGeneral=(request:Record<string,unknown>)=>{const body=page(request);return projectDocumentRead(body,
+      documentContractV02.normalizeClientDocumentsInput(request,options),currentGeneral,NO_DOCUMENT_PROVIDER_CALLS,
+      {resultSha256:digest(body),observedAt:'2026-10-18T10:00:00Z'}) as {data:Record<string,any>;subject:unknown};};
+    const request={clientId,documentId:'doc-1',limit:5},first=projectGeneral(request);
+    expect(first.subject).toEqual(personal);
+    const next={...request,cursor:first.data.coverage.nextCursor};
+    expect(projectGeneral(next).data.coverage.characterStart).toBe(5);
+    expect(()=>projectGeneral({...next,clientId:id('b')})).toThrow();
+    expect(()=>documentContractV02.normalizeClientDocumentsInput({clientId:'named'},options)).toThrow();
+    expect(()=>documentContractV02.normalizeClientDocumentsInput(request,{...options,subject:{...personal,entityIds:['other']}})).toThrow();
+  });
   it('pins exact Meri PR158 document schema bytes', () => {
     expect(createHash('sha256').update(readFileSync(join(__dirname, 'client-documents.schema.json'))).digest('hex'))
       .toBe('71dd53119af2c0226372916e3645765687e8653da2f48b60d55c1a7a75c05247');

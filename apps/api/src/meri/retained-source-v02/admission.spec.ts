@@ -23,6 +23,19 @@ const admit = (operation = 'get_client_context', wire: unknown = protocol, conte
   assertRetainedSourceV02Admission(ctx, operation, wire, context, options);
 
 describe('ordinary Core retained source admission', () => {
+  it.each(['get_client_context','read_client_documents','meeting.read_client_meetings'])('admits explicit General %s without converting personal lineage into a client grant', operation => {
+    const held=correlation(), personal={...held,subject:{...held.subject,kind:'personal',entityType:'user',entityIds:[A],
+      scopes:[{kind:'private-user',tenantId:T,resourceId:A,policyRevision:P}]}};
+    expect(admit(operation,protocol,personal)).toMatchObject({clientId:C,input:{clientId:C},subject:personal.subject});
+    for(const input of [{clientId:'client name'},{clientId:null},{clientId:C,nested:{clientIds:[A]}},{clientId:C,conversationId:R}])
+      expect(()=>admit(operation,{input,metadata:null},personal)).toThrow(ForbiddenException);
+    for(const changed of [{...personal.subject,entityIds:[W]},{...personal.subject,actorId:W},{...personal.subject,tenantId:W},
+      {...personal.subject,scopes:[{kind:'private-user',tenantId:T,resourceId:W,policyRevision:P}]},
+      {...personal.subject,scopes:[...personal.subject.scopes,{kind:'client',tenantId:T,resourceId:C,policyRevision:P}]}])
+      expect(()=>admit(operation,protocol,{...personal,subject:changed})).toThrow(ForbiddenException);
+    for(const unallocated of ['read_monday_client_boards','meeting.list_upcoming_meetings','meeting.query_debriefs'])
+      expect(()=>admit(unallocated,protocol,personal)).toThrow(ForbiddenException);
+  });
   it('keeps all eleven source operations and derives the supported version from the route', () => {
     expect(RETAINED_SOURCE_V02_OPERATIONS.size).toBe(11);
     expect(RETAINED_SOURCE_V02_OPERATIONS.has('create_task')).toBe(false);

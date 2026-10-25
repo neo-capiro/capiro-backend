@@ -538,3 +538,21 @@ describe('Core meeting 0.2 owner projection', () => {
     expect(() => projectMeetingSourceV02(request)).toThrow('limitations');
   });
 });
+
+it('General meeting inventory and exact body retain personal lineage without relaxing source correlation', () => {
+  for (const request of [meetingInventory(), meetingSourceBody()]) {
+    const binding=request.authority.binding;
+    request.authority.subject={...request.authority.subject,kind:'personal',entityType:'user',entityIds:[binding.actorId],
+      scopes:[{tenantId:binding.tenantId,kind:'private-user',resourceId:binding.actorId,policyRevision:'policy-1'}]};
+    expect(projectMeetingSourceV02(request)).toMatchObject({subject:request.authority.subject,selection:{clientId}});
+    request.authority.subject.entityType='client';
+    expect(()=>projectMeetingSourceV02(request)).toThrow();
+    request.authority.subject.entityType='user';
+    request.authority.subject.entityIds=[id('f')];
+    expect(()=>projectMeetingSourceV02(request)).toThrow();
+  }
+  const bad=meetingSourceBody();
+  bad.authority.subject={...bad.authority.subject,kind:'personal',entityType:'user',entityIds:[bad.authority.binding.actorId]};
+  (bad.result as any).source.body='substituted';
+  expect(()=>projectMeetingSourceV02(bad)).toThrow();
+});

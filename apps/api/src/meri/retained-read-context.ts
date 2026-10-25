@@ -103,10 +103,14 @@ export function parseRetainedReadContext(ctx: Pick<TenantContext, 'tenantId' | '
 
 /** Selectors constrain the request; the domain reader still checks current
  * client walls, mailbox ownership and every returned resource. */
-export function assertRetainedReadSelectors(input: unknown, context: RetainedReadContext): void {
+export function assertRetainedReadSelectors(input: unknown, context: RetainedReadContext,
+  explicitClientId?: string): void {
   const clients = new Set(['clientId', 'client_id', 'clientIds', 'client_ids', 'clientRef', 'client', 'selectedClientId']);
   const conversations = new Set(['conversationId', 'conversation_id']);
-  const clientId = context.subject.kind === 'client' ? context.subject.entityIds[0] : null;
+  const selectedClientId = context.subject.kind === 'client' ? context.subject.entityIds[0] : null;
+  if (explicitClientId !== undefined && (!isUuid(explicitClientId) ||
+      selectedClientId !== null && selectedClientId !== explicitClientId)) throw refused();
+  const clientId = explicitClientId ?? selectedClientId;
   let count = 0;
   const walk = (value: unknown, depth: number): void => {
     if (++count > 4096 || depth > 12) throw refused();

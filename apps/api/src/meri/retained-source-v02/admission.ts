@@ -1,6 +1,6 @@
 import { ForbiddenException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
-import { MERI_RETAINED_SOURCE_TOOLS, canonicalSha256 } from '../../auth/read-delegation/read-delegation.contract.js';
+import { MERI_RETAINED_SOURCE_TOOLS, canonicalSha256, isUuid } from '../../auth/read-delegation/read-delegation.contract.js';
 import {
   parseRetainedReadContext, assertRetainedReadSelectors, retainedReadObject, retainedReadSnapshot,
   type RetainedReadContext,
@@ -9,6 +9,7 @@ import {
 export const RETAINED_SOURCE_V02_OPERATIONS: ReadonlySet<string> = MERI_RETAINED_SOURCE_TOOLS;
 const CLIENT_ONLY = new Set(['read_monday_client_boards', 'get_client_context',
   'meeting.list_upcoming_meetings', 'meeting.query_debriefs', 'meeting.read_client_meetings', 'read_client_documents']);
+const GENERAL_CLIENT_READS = new Set(['get_client_context', 'read_client_documents', 'meeting.read_client_meetings']);
 export type AuthenticatedRetainedSourceCorrelation = RetainedReadContext;
 
 export interface RetainedSourceV02Admission extends RetainedReadContext {
@@ -37,8 +38,11 @@ export function assertRetainedSourceV02Admission(
   const wire = retainedReadSnapshot(retainedReadObject(protocol, ['input', 'metadata']), 16_384);
   if (!wire.input || typeof wire.input !== 'object' || Array.isArray(wire.input)) throw refuse();
   const input = wire.input as Record<string, unknown>;
-  const clientId = context.subject.kind === 'client' ? context.subject.entityIds[0]! : null;
-  assertRetainedReadSelectors(input, context);
+  const explicitClientId = context.subject.kind === 'personal' && GENERAL_CLIENT_READS.has(operationId) ? input.clientId : undefined;
+  if (explicitClientId !== undefined && !isUuid(explicitClientId)) throw refuse();
+  const clientId = context.subject.kind === 'client' ? context.subject.entityIds[0]! :
+    typeof explicitClientId === 'string' ? explicitClientId : null;
+  assertRetainedReadSelectors(input, context, typeof explicitClientId === 'string' ? explicitClientId : undefined);
   if (CLIENT_ONLY.has(operationId) && (clientId === null || input.clientId !== clientId)) throw refuse();
   if (input.subject !== undefined) {
     const selected = retainedReadObject(input.subject, clientId === null ? ['kind'] : ['kind', 'entityId']);
