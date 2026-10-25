@@ -258,6 +258,7 @@ model Tenant {
   clientPersonCreateReceipts          ClientPersonCreateReceipt[]
   meetingCommandReceipts             MeetingCommandReceipt[]
   clientFileAccessReceipts           ClientFileAccessReceipt[]
+  prospectContactTransferReceipts    ProspectContactTransferReceipt[]
   clientFacilities                   ClientFacility[]
   clientActivityCommands             ClientActivityCommand[]
   clientActivity                     ClientActivity[]
@@ -4027,6 +4028,24 @@ model ClientSubmissionHistory {
 
   @@index([tenantId, clientId, capabilityId], map: "client_submission_history_tenant_client_cap_idx")
   @@map("client_submission_history")
+}
+
+/// Explicit contact carry-over history; never a synthesized conversion receipt.
+model ProspectContactTransferReceipt {
+  tenantId      String   @map("tenant_id") @db.Uuid
+  actorUserId   String   @map("actor_user_id") @db.Uuid
+  requestId     String   @map("request_id") @db.Uuid
+  prospectId    String   @map("prospect_id") @db.Uuid
+  clientId      String   @map("client_id") @db.Uuid
+  payloadDigest String   @map("payload_digest") @db.Char(64)
+  status        String
+  result        Json?    @map("result_jsonb")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, actorUserId, requestId], map: "prospect_contact_transfer_receipts_pkey")
+  @@map("prospect_contact_transfer_receipts")
 }
 
 /// Immutable access-change outcome independent of later file edits and deletion.
