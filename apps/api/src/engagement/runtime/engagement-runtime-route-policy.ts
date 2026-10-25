@@ -47,6 +47,7 @@ export const ENGAGEMENT_RUNTIME_ROUTE_POLICY = {
     extractAttachmentContext: { action: 'attachment_external_read' },
     attachmentContextSource: { action: 'attachment_external_read' },
     deleteAttachment: { action: 'attachment_external_write' },
+    copyProspectAttachment: { action: 'attachment_external_write' },
     generateCampaignEmail: { action: 'outreach_generate' },
     sendCampaignEmails: { action: 'outreach_send' },
     sendCampaignTest: { action: 'outreach_test_send', testMode: true },
