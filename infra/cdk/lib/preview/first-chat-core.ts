@@ -76,6 +76,7 @@ export interface FirstChatCoreImageBinding {
   listener: { guardPriority: 7 };
   deployment: { databaseHost: string; desiredCount: 1 };
   assets: { tenantIds: string[] };
+  ownerMemory: { tenantId: string };
 }
 
 function exactKeys(
@@ -116,6 +117,7 @@ export function firstChatCoreImageBinding(
       'listener',
       'deployment',
       'assets',
+      'ownerMemory',
     ],
     'First-chat image binding',
   );
@@ -156,6 +158,9 @@ export function firstChatCoreImageBinding(
     new Set(assets.tenantIds).size !== assets.tenantIds.length
   )
     throw new Error('One or two distinct explicit preview tenant identifiers required');
+  const ownerMemory = exactKeys(record.ownerMemory, ['tenantId'], 'Owner memory');
+  if (typeof ownerMemory.tenantId !== 'string' || !assets.tenantIds.includes(ownerMemory.tenantId))
+    throw new Error('One explicitly bound preview tenant required for owner memory');
   return record as unknown as FirstChatCoreImageBinding;
 }
 
@@ -286,12 +291,22 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
     });
     // Ordinary Files uses presigned POST, Head/GetObject and reviewed deletion.
     // Core retains actor/client/wall enforcement; IAM confines its storage owner.
+    const attachmentPrefixes = binding.assets.tenantIds.map(
+      (tenantId) => `tenants/${tenantId}/engagement/*`,
+    );
     serveTask.taskRole.addToPrincipalPolicy(
       new iam.PolicyStatement({
         actions: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'],
-        resources: binding.assets.tenantIds.map((tenantId) =>
-          assets.bucket.arnForObjects(`tenants/${tenantId}/engagement/*`),
-        ),
+        resources: attachmentPrefixes.map((prefix) => assets.bucket.arnForObjects(prefix)),
+      }),
+    );
+    // Missing keys can return HEAD 403. The canonical deletion helper uses an
+    // exact-key ListObjectsV2 fallback; this condition scopes that LIST request.
+    serveTask.taskRole.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: ['s3:ListBucket'],
+        resources: [assets.bucket.bucketArn],
+        conditions: { StringLike: { 's3:prefix': attachmentPrefixes } },
       }),
     );
     serveTask.taskRole.addToPrincipalPolicy(
@@ -329,6 +344,8 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
         CLERK_JWT_ISSUER: live.clerkIssuer,
         WEB_ORIGIN: 'https://portfolio-preview.app.capiro.ai',
         ASSETS_BUCKET: assets.bucket.bucketName,
+        MEMORY_GOVERNANCE_LIFECYCLE: 'enforce',
+        MEMORY_GOVERNANCE_TENANTS: binding.ownerMemory.tenantId,
         // Hearing-file authorization must consult the preview Intel owner on
         // the same clone, including its current access-lock metadata.
         TRACKER_APP_BASE_URL: `https://${FIRST_CHAT_CORE_HOST}`,

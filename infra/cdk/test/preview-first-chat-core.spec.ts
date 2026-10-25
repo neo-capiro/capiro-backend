@@ -27,6 +27,7 @@ const binding = {
   assets: {
     tenantIds: ['00000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000003'],
   },
+  ownerMemory: { tenantId: '00000000-0000-4000-8000-000000000002' },
 };
 function render(check: (s: any, g: any, a: any) => void) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'core-operator-'));
@@ -48,6 +49,8 @@ function render(check: (s: any, g: any, a: any) => void) {
 }
 test('qualified closed binding refuses historical schemas, extra policy and wrong image', () => {
   assert.deepEqual(firstChatCoreImageBinding(binding), binding);
+  const oneTenant = { ...binding, assets: { tenantIds: [binding.assets.tenantIds[0]] } };
+  assert.deepEqual(firstChatCoreImageBinding(oneTenant), oneTenant);
   assert.throws(() => firstChatCoreImageBinding(binding, null));
   for (const patch of [
     { sourceHead: 'a'.repeat(40) },
@@ -76,6 +79,18 @@ test('storage binding refuses implicit, empty, duplicate, wildcard and foreign s
     { tenantIds: binding.assets.tenantIds, bucketName: 'live-bucket' },
   ])
     assert.throws(() => firstChatCoreImageBinding({ ...binding, assets }));
+});
+test('owner memory binding refuses absent, global, multiple and unbound tenants', () => {
+  for (const ownerMemory of [
+    undefined,
+    {},
+    { tenantId: 'all' },
+    { tenantId: '*' },
+    { tenantId: binding.assets.tenantIds.join(',') },
+    { tenantId: '00000000-0000-4000-8000-000000000004' },
+    { tenantId: binding.ownerMemory.tenantId, all: true },
+  ])
+    assert.throws(() => firstChatCoreImageBinding({ ...binding, ownerMemory }));
 });
 test('production DB, scaling, guard moves and unbound service secret refuse', () => {
   for (const deployment of [
@@ -203,7 +218,6 @@ test('standard canonical authentication remains mandatory and background/externa
     assert.equal(e.PREVIEW_NATIVE_GETS_ENABLED, 'true');
     for (const n of [
       'MERI_TOOL_ALLOWLIST',
-      'MEMORY_GOVERNANCE_TENANTS',
       'MERI_EXECUTION_MAX_TURNS',
       'MERI_ROUTINE_MAX_COST_MICROUSD',
       'RETAINED_READS_ENABLED',
@@ -223,6 +237,14 @@ test('standard canonical authentication remains mandatory and background/externa
     assert.equal(e.ENGAGEMENT_BACKGROUND_OWNER, 'disabled');
     assert.equal(e.ENGAGEMENT_EXTERNAL_ACTIONS, 'disabled');
     assert.equal(e.ENGAGEMENT_ATTACHMENT_SCAN_REQUIRED, undefined);
+    assert.equal(e.MEMORY_GOVERNANCE_LIFECYCLE, 'enforce');
+    assert.equal(e.MEMORY_GOVERNANCE_TENANTS, binding.ownerMemory.tenantId);
+    for (const name of [
+      'MEMORY_GOVERNANCE_ENFORCE',
+      'MEMORY_GOVERNANCE_CENTER',
+      'MEMORY_CLIENT_REVIEW',
+    ])
+      assert.equal(e[name], undefined);
   }));
 test('ordinary Files receives only approved tenant engagement keys and the S3-scoped assets key', () =>
   render((s, _g, a) => {
@@ -260,7 +282,7 @@ test('ordinary Files receives only approved tenant engagement keys and the S3-sc
       ),
     );
     const statements = policies[0].Properties.PolicyDocument.Statement;
-    assert.equal(statements.length, 2);
+    assert.equal(statements.length, 3);
     assert.deepEqual(statements[0], {
       Effect: 'Allow',
       Action: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'],
@@ -272,6 +294,16 @@ test('ordinary Files receives only approved tenant engagement keys and the S3-sc
       })),
     });
     assert.deepEqual(statements[1], {
+      Effect: 'Allow',
+      Action: 's3:ListBucket',
+      Resource: { 'Fn::ImportValue': bucketArnExport.Export.Name },
+      Condition: {
+        StringLike: {
+          's3:prefix': binding.assets.tenantIds.map((id) => `tenants/${id}/engagement/*`),
+        },
+      },
+    });
+    assert.deepEqual(statements[2], {
       Effect: 'Allow',
       Action: ['kms:Decrypt', 'kms:GenerateDataKey'],
       Resource: { 'Fn::ImportValue': keyExport.Export.Name },
