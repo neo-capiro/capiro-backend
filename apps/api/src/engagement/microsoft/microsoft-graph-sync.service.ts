@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   HttpException,
   Injectable,
@@ -118,6 +119,7 @@ interface NotificationSyncQueueState {
 
 interface MicrosoftSyncState {
   health?: IntegrationSyncHealth;
+  calendarWindow?: MicrosoftSyncState['calendar'];
   calendar?: {
     cursor?: string | null;
     nextLink?: string | null;
@@ -375,49 +377,49 @@ export class MicrosoftGraphSyncService {
     return withMailboxSyncClaim(this.prisma, ctx.tenantId, connectionId, async () => {
       try {
         const { connection, token } = await this.loadConnection(ctx.tenantId, connectionId);
-        const accessToken = await this.getValidAccessToken(ctx.tenantId, connectionId, token);
-        const stats = emptyStats();
-        let nextUrl = calendarViewUrl(window.from, window.to);
-
-        for (let page = 0; page < MAX_CALENDAR_PAGES_PER_RUN && nextUrl; page += 1) {
-          stats.pages += 1;
-          const response = await this.graphGet<GraphDeltaResponse<GraphEvent>>(
-            nextUrl,
-            accessToken,
-            {
-              Prefer: 'outlook.timezone="UTC", odata.maxpagesize=50',
-            },
+        const state = readSyncState(connection.syncState);
+        const current = state.calendarWindow;
+        const sameWindow = current?.window?.from === window.from && current.window.to === window.to;
+        if (!sameWindow && (current?.nextLink || current?.pendingPage)) {
+          throw new ConflictException(
+            'Resume the unfinished calendar window before selecting a different range',
           );
-          for (const event of response.value ?? []) {
-            stats.scanned += 1;
-            const outcome = await this.persistGraphEvent(
-              ctx.tenantId,
-              connection.id,
-              event,
-              connection.accountEmail,
-            );
-            stats.matched += outcome === 'matched' ? 1 : 0;
-            stats.skipped += outcome === 'skipped' ? 1 : 0;
-            stats.removed += outcome === 'removed' ? 1 : 0;
-          }
-          nextUrl = response['@odata.nextLink'] ?? '';
-          if (!nextUrl || mailboxYieldRequested()) break;
         }
-
-        stats.hasMore = Boolean(nextUrl);
-        await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-          await assertMailboxSyncCurrent(tx, ctx.tenantId, connectionId);
-          return tx.integrationConnection.update({
-            where: { id: connectionId },
-            data: {
+        if (!sameWindow) state.calendarWindow = { window };
+        const accessToken = await this.getValidAccessToken(ctx.tenantId, connectionId, token);
+        const checkpoint = () =>
+          this.prisma
+            .withTenant(ctx.tenantId, (tx) =>
+              mergeMailboxSyncState(tx, ctx.tenantId, connectionId, {
+                calendarWindow: state.calendarWindow,
+              }),
+            )
+            .then(() => undefined);
+        const stats = await this.syncCalendar(
+          ctx.tenantId,
+          connection,
+          state,
+          accessToken,
+          { ...window, reset: !sameWindow },
+          checkpoint,
+          'calendarWindow',
+        );
+        await this.prisma.withTenant(ctx.tenantId, (tx) =>
+          mergeMailboxSyncState(
+            tx,
+            ctx.tenantId,
+            connectionId,
+            { calendarWindow: state.calendarWindow },
+            {
               status: EngagementConnectionStatus.connected,
               lastSyncAt: new Date(),
               lastError: null,
             },
-          });
-        });
+          ),
+        );
         return stats;
       } catch (err) {
+        if (err instanceof ConflictException) throw err;
         await this.markSyncError(ctx.tenantId, connectionId, err);
         throw err;
       }
@@ -990,17 +992,19 @@ export class MicrosoftGraphSyncService {
     accessToken: string,
     input: { reset?: boolean; from?: string; to?: string },
     checkpoint?: () => Promise<void>,
+    resource: 'calendar' | 'calendarWindow' = 'calendar',
   ): Promise<SyncStats> {
     const stats = emptyStats();
     if (mailboxYieldRequested()) return { ...stats, hasMore: true };
-    const current = state.calendar ?? {};
+    const current = state[resource] ?? {};
+    const calendarUrl = resource === 'calendarWindow' ? calendarViewUrl : calendarDeltaUrl;
     const window =
       !input.reset && current.window ? current.window : calendarWindow(input.from, input.to);
     let usedStoredCursor =
       !input.reset && Boolean(current.nextLink || current.cursor || current.deltaLink);
     let nextUrl = usedStoredCursor
       ? (current.nextLink || current.cursor || current.deltaLink)!
-      : calendarDeltaUrl(window.from, window.to);
+      : calendarUrl(window.from, window.to);
     let deltaLink: string | null = null;
     let pendingPage = input.reset ? undefined : current.pendingPage;
 
@@ -1024,7 +1028,7 @@ export class MicrosoftGraphSyncService {
             `calendar delta state expired for connection ${connection.id}; restarting from a fresh delta window`,
           );
           usedStoredCursor = false;
-          nextUrl = calendarDeltaUrl(window.from, window.to);
+          nextUrl = calendarUrl(window.from, window.to);
           deltaLink = null;
           continue;
         }
@@ -1048,7 +1052,7 @@ export class MicrosoftGraphSyncService {
         stats.matched += outcome === 'matched' ? 1 : 0;
         stats.skipped += outcome === 'skipped' ? 1 : 0;
         stats.removed += outcome === 'removed' ? 1 : 0;
-        state.calendar = {
+        state[resource] = {
           cursor: nextUrl,
           nextLink: nextUrl,
           deltaLink: usedStoredCursor ? (current.deltaLink ?? null) : null,
@@ -1062,11 +1066,21 @@ export class MicrosoftGraphSyncService {
       if (pendingPage) break;
       nextUrl = response['@odata.nextLink'] ?? '';
       deltaLink = response['@odata.deltaLink'] ?? null;
+      // Even an empty page advances the provider cursor. Save it before another request.
+      state[resource] = {
+        cursor: nextUrl || deltaLink || current.deltaLink || null,
+        nextLink: nextUrl || null,
+        deltaLink: deltaLink ?? current.deltaLink ?? null,
+        updatedAt: new Date().toISOString(),
+        window,
+        lastStats: { ...stats, hasMore: Boolean(nextUrl) },
+      };
+      await checkpoint?.();
       if (!nextUrl || mailboxYieldRequested()) break;
     }
 
     stats.hasMore = Boolean(nextUrl);
-    state.calendar = {
+    state[resource] = {
       cursor: nextUrl || deltaLink || current.deltaLink || null,
       nextLink: nextUrl || null,
       deltaLink: deltaLink ?? current.deltaLink ?? null,

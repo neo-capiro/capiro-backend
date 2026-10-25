@@ -533,6 +533,7 @@ export class GoogleSyncService {
         if (isGoneError(err) && useSyncToken) {
           // Do not carry the expired cycle's window forward — the next full
           // run has no continuation to resume, so it computes a fresh one.
+          stats.hasMore = true;
           state.calendar = {
             syncToken: null,
             pageToken: null,
@@ -578,6 +579,19 @@ export class GoogleSyncService {
       if (pendingPage) break;
       pageToken = response.nextPageToken ?? null;
       syncToken = response.nextSyncToken ?? syncToken;
+      // An empty page still consumes a cursor; retain its continuation before fetching again.
+      state.calendar = {
+        syncToken: useSyncToken
+          ? (syncToken ?? current.syncToken ?? null)
+          : pageToken
+            ? null
+            : syncToken,
+        pageToken,
+        updatedAt: new Date().toISOString(),
+        ...(window ? { window } : {}),
+        lastStats: { ...stats, hasMore: Boolean(pageToken) },
+      };
+      await checkpoint?.();
       if (!pageToken || mailboxYieldRequested()) break;
     }
 
