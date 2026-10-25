@@ -36,6 +36,7 @@ jest.mock('./outreach-send-intent.service.js', () => ({ OutreachSendIntentServic
 jest.mock('./runtime/engagement-runtime-policy.service.js', () => ({ EngagementRuntimePolicyService: class {} }));
 import { Test } from '@nestjs/testing';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { EngagementController } from './engagement.controller.js';
 import { MeetingPrepJobService } from './meeting-prep-job.service.js';
 import { OutreachJobService } from './outreach-job.service.js';
@@ -80,6 +81,64 @@ function fixture() {
 }
 
 describe('A1 Portfolio authoritative boundaries', () => {
+  it('verifies omitted-page positions and uses keyset reads for repeatable continuation', async () => {
+    const f = fixture();
+    f.service.decorateMeetings = jest.fn(async (_tx: unknown, _ctx: unknown, rows: unknown[]) => rows);
+    const boundary = { id: 'omitted-boundary', startsAt: now };
+    const continuationSkip = { count: 2,
+      boundarySha256: createHash('sha256').update(JSON.stringify([boundary.id, now.toISOString()])).digest('hex') };
+    f.tx.meeting.findMany.mockImplementation(async ({ select }: any) => select
+      ? [{ id: 'omitted-first', startsAt: new Date(now.getTime() - 1000) }, boundary] : []);
+    for (let attempt = 0; attempt < 2; attempt++) await f.service.listMeetings(ctx, { clientId: 'c1', limit: 2, continuationSkip });
+    expect(f.tx.meeting.findMany).toHaveBeenCalledTimes(4);
+    for (const index of [0, 2]) expect(f.tx.meeting.findMany.mock.calls[index][0]).toMatchObject({
+      select: { id: true, startsAt: true }, take: 2,
+    });
+    for (const index of [1, 3]) {
+      const query = f.tx.meeting.findMany.mock.calls[index][0];
+      expect(query).not.toHaveProperty('skip');
+      expect(query.where.AND[1]).toEqual({ OR: [
+        { startsAt: { gt: now } }, { startsAt: now, id: { gt: boundary.id } },
+      ] });
+    }
+    // Deletion/revocation can shorten the prefix; insertion/reordering or a
+    // newly visible row can change its boundary without changing its length.
+    for (const prefix of [
+      [{ id: 'later-authorized', startsAt: now }],
+      [{ id: 'newly-visible', startsAt: now }, { id: 'changed-boundary', startsAt: now }],
+    ]) {
+      f.tx.meeting.findMany.mockClear();
+      f.tx.meeting.findMany.mockResolvedValue(prefix);
+      await expect(f.service.listMeetings(ctx, { clientId: 'c1', limit: 2, continuationSkip })).rejects.toThrow('page changed');
+      expect(f.tx.meeting.findMany).toHaveBeenCalledTimes(1);
+    }
+    for (const denied of ['wall', 'member', 'client'] as const) {
+      const revoked = fixture(); revoked.state[denied] = false;
+      await expect(revoked.service.listMeetings(ctx, { clientId: 'c1', limit: 2, continuationSkip })).rejects.toThrow('Meeting not found');
+      expect(revoked.tx.meeting.findMany).not.toHaveBeenCalled();
+    }
+    for (const count of [0, -1, 1.5, 1001]) expect(() => f.service.listMeetings(ctx,
+      { clientId: 'c1', continuationSkip: { ...continuationSkip, count } })).toThrow('continuation is invalid');
+  });
+
+  it('does not offset past an authorized row after a preceding row disappears during continuation', async () => {
+    const f = fixture();
+    f.service.decorateMeetings = jest.fn(async (_tx: unknown, _ctx: unknown, rows: unknown[]) => rows);
+    const boundary = { id: 'omitted-boundary', startsAt: now };
+    const available = { id: 'later-authorized', startsAt: new Date(now.getTime() + 1000) };
+    const continuationSkip = { count: 1,
+      boundarySha256: createHash('sha256').update(JSON.stringify([boundary.id, now.toISOString()])).digest('hex') };
+    f.tx.meeting.findMany.mockImplementation(async (query: any) => {
+      if (query.select) return [boundary];
+      // The omitted row has now disappeared. An offset would lose available.
+      const remaining = [available];
+      if (query.skip) return remaining.slice(query.skip);
+      const after = query.where.AND[1]?.OR[0]?.startsAt?.gt;
+      return after ? remaining.filter(row => row.startsAt > after) : [];
+    });
+    await expect(f.service.listMeetings(ctx, { clientId: 'c1', limit: 2, continuationSkip })).resolves.toEqual([available]);
+  });
+
   it('PF-10 denies hidden/archived/revoked client and removed membership before notes/debrief reads', async () => {
     for (const action of ['getMeeting', 'listMeetingNotes', 'listMeetingDebriefs'] as const) {
       for (const deny of ['wall', 'client', 'member', 'owner'] as const) {

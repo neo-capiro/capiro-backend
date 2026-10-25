@@ -6314,13 +6314,16 @@ export class MeriToolsService {
     const limit = clampInt(input.limit, 1, 25, 8);
     if (clientId) clientId = await this.ensureClientVisible(ctx, clientId);
 
-    const results = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const results = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const deniedClientIds = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
+      if (clientId && deniedClientIds.includes(clientId)) throw new NotFoundException('Client not found');
+      const visibleClient = { OR: [{ clientId: null }, { clientId: { notIn: deniedClientIds } }] };
       const [clients, meetings, threads, messages, meriNotes, directoryNotes] = await Promise.all([
         tx.client.findMany({
           where: {
             tenantId: ctx.tenantId,
             status: { not: 'archived' },
-            ...(clientId ? { id: clientId } : {}),
+            id: clientId ?? { notIn: deniedClientIds },
             OR: [
               { name: { contains: query, mode: 'insensitive' } },
               { description: { contains: query, mode: 'insensitive' } },
@@ -6340,6 +6343,7 @@ export class MeriToolsService {
             status: { notIn: ['cancelled', 'canceled', 'deleted'] },
             // Ownership and text search are independent OR clauses; intersect both.
             AND: [
+              visibleClient,
               ownMeetingWhere(ctx.userId),
               { OR: [
                 { subject: { contains: query, mode: 'insensitive' } },
@@ -6369,6 +6373,7 @@ export class MeriToolsService {
             tenantId: ctx.tenantId,
             ...(clientId ? { clientId } : {}),
             ...ownMailThreadWhere(ctx.userId),
+            AND: [visibleClient],
             OR: [
               { subject: { contains: query, mode: 'insensitive' } },
               { snippet: { contains: query, mode: 'insensitive' } },
@@ -6389,7 +6394,7 @@ export class MeriToolsService {
           where: {
             tenantId: ctx.tenantId,
             ...ownMailMessageWhere(ctx.userId),
-            ...(clientId ? { thread: { clientId } } : {}),
+            thread: { ...(clientId ? { clientId } : {}), AND: [visibleClient] },
             OR: [
               { subject: { contains: query, mode: 'insensitive' } },
               { bodyText: { contains: query, mode: 'insensitive' } },
@@ -6416,6 +6421,7 @@ export class MeriToolsService {
             tenantId: ctx.tenantId,
             userId: ctx.userId,
             ...(clientId ? { clientId } : {}),
+            AND: [visibleClient],
             OR: [
               { title: { contains: query, mode: 'insensitive' } },
               { body: { contains: query, mode: 'insensitive' } },
@@ -6504,11 +6510,16 @@ export class MeriToolsService {
         .slice(0, limit * 3);
     });
 
+    // A wall may change while independent source reads are awaiting. Core's
+    // canonical wall owner decides again before any candidate text is released.
+    const currentDenied = new Set(await this.prisma.withTenantUser(ctx.tenantId, ctx.userId,
+      tx => fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId)));
+    if (clientId && currentDenied.has(clientId)) throw new NotFoundException('Client not found');
     return {
       tool: 'search_research_sources',
       query,
       generatedAt: new Date().toISOString(),
-      results,
+      results: results.filter(row => row.clientId === null || !currentDenied.has(row.clientId)),
     };
   }
 
@@ -8543,6 +8554,7 @@ export class MeriToolsService {
         from,
         to: toExclusive,
         limit: selection.limit + 1,
+        ...(selection.listSkip ? { continuationSkip: selection.listSkip } : {}),
         ...(selection.listAfter
           ? {
               cursor: {
@@ -8553,15 +8565,16 @@ export class MeriToolsService {
           : {}),
       });
       hasMore = meetings.length > selection.limit;
+      const sourcePage = meetings.slice(0, selection.limit);
       const settled = await Promise.allSettled(
-        meetings
-          .slice(0, selection.limit)
+        sourcePage
           .map((meeting) => this.meetingReadRow(ctx, clientId, meeting.id)),
       );
       rows = settled.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
       const omittedMeetings = settled.length - rows.length;
       await this.assertMeetingReadAllowed(ctx, clientId);
-      return buildMeetingListResult(ctx, selection, rows, hasMore, omittedMeetings);
+      return buildMeetingListResult(ctx, selection, rows, hasMore, omittedMeetings,
+        sourcePage.map(meeting => ({ id: meeting.id, startsAt: new Date(meeting.startsAt).toISOString() })));
     }
     await this.assertMeetingReadAllowed(ctx, clientId);
     return buildMeetingListResult(ctx, selection, rows, hasMore);

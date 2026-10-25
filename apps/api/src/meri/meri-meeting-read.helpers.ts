@@ -25,8 +25,10 @@ interface MeetingListCursor extends CursorScope {
   version: 1;
   kind: 'list';
   offset: number;
-  afterStartsAt: string;
-  afterId: string;
+  afterStartsAt: string | null;
+  afterId: string | null;
+  skippedCount?: number;
+  skippedBoundarySha256?: string;
 }
 
 interface MeetingBodyCursor extends CursorScope {
@@ -52,6 +54,7 @@ export interface MeetingReadSelection {
   cursor: MeetingReadCursor | null;
   listAfter: { startsAt: Date; id: string } | null;
   listOffset: number;
+  listSkip: { count: number; boundarySha256: string } | null;
 }
 
 export interface MeetingSourceInventory {
@@ -184,14 +187,17 @@ function decodeCursor(value: string): MeetingReadCursor {
       parsed.offset < 0
     )
       throw new Error('contract');
-    if (
-      parsed.kind === 'list' &&
-      (typeof parsed.afterId !== 'string' ||
-        !parsed.afterId ||
-        typeof parsed.afterStartsAt !== 'string' ||
-        !Number.isFinite(Date.parse(parsed.afterStartsAt)))
-    )
-      throw new Error('list');
+    if (parsed.kind === 'list') {
+      const skipped = parsed.skippedCount !== undefined;
+      if (skipped && (!Number.isSafeInteger(parsed.skippedCount) || parsed.skippedCount! < 1 ||
+        parsed.skippedCount! > 1000 || !/^[a-f0-9]{64}$/.test(parsed.skippedBoundarySha256 ?? '')))
+        throw new Error('skipped rows');
+      if (!skipped && parsed.skippedBoundarySha256 !== undefined) throw new Error('skipped rows');
+      const initialSkippedPage = skipped && parsed.afterId === null && parsed.afterStartsAt === null;
+      if (!initialSkippedPage && (typeof parsed.afterId !== 'string' || !parsed.afterId ||
+        typeof parsed.afterStartsAt !== 'string' || !Number.isFinite(Date.parse(parsed.afterStartsAt))))
+        throw new Error('list');
+    }
     if (
       parsed.kind === 'body' &&
       (typeof parsed.sourceVersion !== 'string' ||
@@ -239,6 +245,7 @@ export function parseMeetingReadInput(
   let cursor: MeetingReadCursor | null = null;
   let listAfter: MeetingReadSelection['listAfter'] = null;
   let listOffset = 0;
+  let listSkip: MeetingReadSelection['listSkip'] = null;
   if (cursorValue) {
     if (input.characterOffset !== undefined)
       throw new BadRequestException('Use cursor or characterOffset, not both');
@@ -253,8 +260,10 @@ export function parseMeetingReadInput(
       throw new BadRequestException('Meeting-list reads require a list cursor');
     if (cursor.kind === 'body') characterOffset = cursor.offset;
     else {
-      listAfter = { startsAt: new Date(cursor.afterStartsAt), id: cursor.afterId };
+      listAfter = cursor.afterId === null ? null : { startsAt: new Date(cursor.afterStartsAt!), id: cursor.afterId };
       listOffset = cursor.offset;
+      if (cursor.skippedCount !== undefined)
+        listSkip = { count: cursor.skippedCount, boundarySha256: cursor.skippedBoundarySha256! };
     }
   }
 
@@ -266,6 +275,7 @@ export function parseMeetingReadInput(
     cursor,
     listAfter,
     listOffset,
+    listSkip,
   };
 }
 
@@ -275,16 +285,30 @@ export function buildMeetingListResult(
   rows: MeetingReadRow[],
   hasMore: boolean,
   omittedMeetings = 0,
+  sourcePage: Array<Pick<MeetingReadRow, 'id' | 'startsAt'>> = rows,
 ) {
+  // Continue from the scanned source window, while keeping omitted identities
+  // out of the public cursor. Only a readable key and a bounded position leave
+  // Core; the domain owner checks the one-way boundary before advancing.
+  const readable = new Set(rows.map(row => row.id));
+  const lastReadableIndex = sourcePage.findLastIndex(row => readable.has(row.id));
+  const anchor = lastReadableIndex < 0 ? selection.listAfter : sourcePage[lastReadableIndex]!;
+  const skippedCount = sourcePage.length - lastReadableIndex - 1 +
+    (lastReadableIndex < 0 ? selection.listSkip?.count ?? 0 : 0);
+  if (hasMore && skippedCount > 1000)
+    throw new BadRequestException('Meeting continuation is too large; narrow the time window and restart');
+  const boundary = sourcePage[sourcePage.length - 1];
   const nextCursor =
-    hasMore && rows.length
+    hasMore && boundary
       ? encodeCursor({
           version: 1,
           kind: 'list',
           ...scopeFor(ctx, selection),
-          offset: selection.listOffset + rows.length,
-          afterStartsAt: rows[rows.length - 1]!.startsAt,
-          afterId: rows[rows.length - 1]!.id,
+          offset: selection.listOffset + sourcePage.length,
+          afterStartsAt: anchor ? new Date(anchor.startsAt).toISOString() : null,
+          afterId: anchor?.id ?? null,
+          ...(skippedCount ? { skippedCount,
+            skippedBoundarySha256: sha256(JSON.stringify([boundary.id, boundary.startsAt])) } : {}),
         })
       : null;
   const sourceInventoryComplete =

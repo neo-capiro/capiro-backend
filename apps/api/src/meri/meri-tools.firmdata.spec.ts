@@ -287,6 +287,56 @@ function makeMocks(
   };
 }
 
+describe('search_research_sources current client walls', () => {
+  function research() {
+    const m = makeMocks();
+    const empty = () => ({ findMany: jest.fn().mockResolvedValue([]) });
+    const sources = { meeting: empty(), mailThread: empty(), mailMessage: empty(), clioNote: empty(), directoryContactNote: empty() };
+    Object.assign(m.tx, sources);
+    return { ...m, sources };
+  }
+
+  it('refuses a selected walled client before any candidate-source query', async () => {
+    const m = research();
+    m.tx.$queryRawUnsafe.mockResolvedValue([{ id: 'client-1' }] as never);
+    await expect(m.service.execute(ctx, 'search_research_sources', { query: 'synthetic', clientId: 'client-1' })).rejects.toThrow('Client not found');
+    for (const source of Object.values(m.sources)) expect(source.findMany).not.toHaveBeenCalled();
+  });
+
+  it('excludes current walled clients from every client-linked branch before fetching candidates', async () => {
+    const m = research();
+    m.tx.client.findMany.mockResolvedValue([]);
+    m.tx.$queryRawUnsafe.mockResolvedValue([{ id: 'private-client' }] as never);
+    await m.service.execute(ctx, 'search_research_sources', { query: 'synthetic' });
+    expect(m.tx.client.findMany.mock.calls[0]![0]).toMatchObject({ where: { id: { notIn: ['private-client'] } } });
+    for (const source of [m.sources.meeting, m.sources.mailThread, m.sources.clioNote]) {
+      expect(source.findMany.mock.calls[0]![0]).toMatchObject({ where: { AND: expect.arrayContaining([
+        { OR: [{ clientId: null }, { clientId: { notIn: ['private-client'] } }] },
+      ]) } });
+    }
+    expect(m.sources.mailMessage.findMany.mock.calls[0]![0]).toMatchObject({ where: {
+      thread: { AND: [{ OR: [{ clientId: null }, { clientId: { notIn: ['private-client'] } }] }] },
+    } });
+    // Directory's canonical owner permits tenant notes; a client wall must not
+    // be replaced by a new invented Directory-note policy.
+    expect(m.sources.directoryContactNote.findMany.mock.calls[0]![0]).toMatchObject({ where: { tenantId: ctx.tenantId } });
+  });
+
+  it('withholds a candidate whose wall changed during source awaits and preserves valid empty results', async () => {
+    const m = research();
+    m.tx.client.findMany.mockResolvedValue([{ id: 'client-1', name: 'PRIVATE_SOURCE', description: 'private', updatedAt: new Date() }] as never);
+    m.tx.$queryRawUnsafe.mockResolvedValueOnce([]).mockResolvedValueOnce([{ id: 'client-1' }] as never);
+    const page = await m.service.execute(ctx, 'search_research_sources', { query: 'synthetic' }) as any;
+    expect(page.results).toEqual([]);
+    expect(JSON.stringify(page)).not.toContain('PRIVATE_SOURCE');
+    expect(m.tx.$queryRawUnsafe).toHaveBeenCalledTimes(2);
+    const empty = research(); empty.tx.client.findMany.mockResolvedValue([]);
+    await expect(empty.service.execute(ctx, 'search_research_sources', { query: 'synthetic' })).resolves.toMatchObject({ results: [] });
+    empty.sources.directoryContactNote.findMany.mockRejectedValue(new Error('Source unavailable'));
+    await expect(empty.service.execute(ctx, 'search_research_sources', { query: 'synthetic' })).rejects.toThrow('Source unavailable');
+  });
+});
+
 describe('read_client_meetings', () => {
   const meeting = (id: string, startsAt: string, clientId: string | null = 'client-1') => ({
     id,
@@ -612,6 +662,33 @@ describe('read_client_meetings', () => {
       omittedMeetings: 1,
     });
     expect(partial.coverage.note).not.toContain('No eligible authorized meetings');
+  });
+
+  it('continues an all-omitted meeting source page to a later authorized page', async () => {
+    const m = authorized();
+    const hidden = meeting('omitted-private-meeting', '2026-08-01T10:00:00.000Z');
+    const visible = meeting('later-visible-meeting', '2026-08-02T10:00:00.000Z');
+    m.engagement.listMeetings.mockResolvedValueOnce([hidden, visible]).mockResolvedValueOnce([visible]);
+    m.engagement.getClientMeeting.mockImplementation(async (_ctx, _client, id) => {
+      if (id === hidden.id) throw new Error('Meeting not found');
+      return visible;
+    });
+    const first = await m.service.execute(ctx, 'read_client_meetings', { clientId: 'client-1', limit: 1 }) as any;
+    expect(first.meetings).toEqual([]);
+    expect(first.coverage).toMatchObject({ omittedMeetings: 1, complete: false, meetingPaginationComplete: false });
+    expect(typeof first.coverage.nextCursor).toBe('string');
+    const decoded = Buffer.from(first.coverage.nextCursor.split(':')[1], 'base64url').toString();
+    expect(decoded).not.toContain(hidden.id);
+    expect(decoded).not.toContain('2026-08-01');
+    const second = await m.service.execute(ctx, 'read_client_meetings', {
+      clientId: 'client-1', limit: 1, cursor: first.coverage.nextCursor,
+    }) as any;
+    expect(m.engagement.listMeetings.mock.calls[1]![1]).toMatchObject({
+      continuationSkip: { count: 1, boundarySha256: expect.stringMatching(/^[a-f0-9]{64}$/) },
+    });
+    expect(second.meetings.map((item: { id: string }) => item.id)).toEqual([visible.id]);
+    expect(second.coverage.nextCursor).toBeNull();
+    expect(JSON.stringify(first.meetings) + JSON.stringify(second.meetings)).not.toContain(hidden.id);
   });
 
   it('denies extracted transcript bytes when the canonical parent changes during extraction', async () => {
