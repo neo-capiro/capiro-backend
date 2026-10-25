@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -225,6 +226,13 @@ export class NewsletterController {
     @Body() b: StageDto,
   ) {
     return this.service.stage(c, id, b.revision);
+  }
+  @Get('documents/:id/stages/:revision') stagedRevision(
+    @CurrentTenant() c: WorkspaceTenantContext,
+    @Param('id') id: string,
+    @Param('revision', ParseIntPipe) revision: number,
+  ) {
+    return this.service.stagedRevision(c, id, revision);
   }
   @Post('documents/:id/write') write(
     @CurrentTenant() c: WorkspaceTenantContext,

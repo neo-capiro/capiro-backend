@@ -1196,10 +1196,11 @@ export class DocumentAgentService {
     state: DocumentAgentState,
   ): Promise<void> {
     const newConfig = { ...existingConfig, documentAgent: state as unknown as Record<string, unknown> };
-    await this.prisma.wsDraft.update({
-      where: { id: draftId },
+    const saved = await this.prisma.wsDraft.updateMany({
+      where: { id: draftId, config: { equals: existingConfig as never } },
       data: { config: newConfig as never },
     });
+    if (saved.count !== 1) throw new ConflictException(REVISION_CONFLICT_CODE);
   }
 
   /**
