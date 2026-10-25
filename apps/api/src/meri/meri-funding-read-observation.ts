@@ -42,7 +42,7 @@ interface MeriClockReadObservation {
   readonly asOf: string;
 }
 export interface MeriEvidenceModeObservation {
-  readonly operationId: MeriEvidenceModeReadOperation;
+  readonly operationId: Exclude<MeriEvidenceModeReadOperation, 'search_sam_opportunities'>;
   readonly evidenceAccuracyMode: CapabilityRolloutMode;
 }
 export interface MeriCertificationObservation {
@@ -148,10 +148,9 @@ function canonicalSupportedLocale(value: unknown): value is string {
   } catch { return false; }
 }
 
-/** The observation supplies calculation inputs, never a principal or grant.
- * For these new operations only, require the middleware's admitted exact tool
- * target and original actor/tenant before consuming any private context. The
- * delegated tool allowlist remains closed until authority qualification. */
+/** Calculation inputs do not grant access. The existing authenticated Core
+ * principal and verified service admit native calls; any actual delegated
+ * call must additionally match its original immutable target. */
 function assertSecondPackageTarget(
   name: SecondPackageReadOperation,
   request: Request,
@@ -159,10 +158,19 @@ function assertSecondPackageTarget(
   grant?: MeriReadDelegationGrant,
 ): void {
   const target = `/api/clio/tools/${name}`;
-  if (!ctx || !grant || grant.kind !== 'tool' || grant.operation?.id !== name ||
-      grant.operation.version !== '0.2.0' || grant.tenantId !== ctx.tenantId ||
-      grant.actorId !== ctx.userId || request.method !== 'POST' ||
-      request.path !== target || (request.originalUrl ?? request.url) !== target ||
+  const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
+  if (!ctx || !uuid.test(ctx.tenantId) || !uuid.test(ctx.userId) || request.method !== 'POST' ||
+      request.path !== target || (request.originalUrl ?? request.url) !== target) {
+    throw new ForbiddenException('Read observation requires the exact authenticated target');
+  }
+  if (!grant) {
+    if (typeof request.headers.authorization !== 'string' || !/^Bearer \S+$/i.test(request.headers.authorization)) {
+      throw new ForbiddenException('Read observation requires native authentication');
+    }
+    return;
+  }
+  if (grant.kind !== 'tool' || grant.operation?.id !== name ||
+      grant.operation.version !== '0.2.0' || grant.tenantId !== ctx.tenantId || grant.actorId !== ctx.userId ||
       typeof grant.bodySha256 !== 'string' || !/^[a-f0-9]{64}$/u.test(grant.bodySha256) ||
       typeof grant.argumentsSha256 !== 'string' || !/^[a-f0-9]{64}$/u.test(grant.argumentsSha256)) {
     throw new ForbiddenException('Read observation requires the exact delegated target');
@@ -240,7 +248,7 @@ export function parseMeriReadObservation(name: string, rawBody: unknown, carrier
     ) {
       return invalid();
     }
-    if (isMeriEvidenceModeRead(name)) {
+    if (isMeriEvidenceModeRead(name) && name !== 'search_sam_opportunities') {
       if (!exactKeys(context, ['evidenceAccuracyMode']) ||
           !['off', 'shadow', 'enforce'].includes(context.evidenceAccuracyMode as string)) invalid();
       return Object.freeze({ operationId: name, evidenceAccuracyMode: context.evidenceAccuracyMode as CapabilityRolloutMode });

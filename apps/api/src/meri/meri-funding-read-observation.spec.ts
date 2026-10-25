@@ -15,6 +15,7 @@ import {
   MERI_EVIDENCE_MODE_READS,
   currentMeriEvidenceAccuracyMode,
 } from './meri-funding-read-observation.js';
+const modeOnlyReads = MERI_EVIDENCE_MODE_READS.filter(id => id !== 'search_sam_opportunities');
 
 // neo-capiro/meri-greenfield@b4daa4adf6e8269e7c341751db9a02bf6d4f062b,
 // packages/contracts/native-read-observation-0.2/test/golden.json,
@@ -373,7 +374,7 @@ describe('finite current-mode read observation', () => {
   afterEach(() => { process.env = originalEnv; });
 
   it('admits the exact independent Meri literal vectors and canonical raw-body hashes for all five arms', () => {
-    expect(MODE_VECTORS.map(v => v.operation.id)).toEqual([...MERI_EVIDENCE_MODE_READS]);
+    expect(MODE_VECTORS.map(v => v.operation.id)).toEqual(modeOnlyReads);
     for (const vector of MODE_VECTORS) {
       expect(createHash('sha256').update(vector.requestCanonicalJson, 'utf8').digest('hex')).toBe(vector.requestSha256);
       const decoded = Buffer.from(vector.carrier, 'base64url');
@@ -385,7 +386,7 @@ describe('finite current-mode read observation', () => {
     }
   });
 
-  it.each(MERI_EVIDENCE_MODE_READS)('compares and consumes all three actual enums for %s', name => {
+  it.each(modeOnlyReads)('compares and consumes all three actual enums for %s', name => {
     const vector = MODE_VECTORS.find(v => v.operation.id === name)!;
     for (const mode of ['off', 'shadow', 'enforce'] as const) {
       process.env.MERI_EVIDENCE_ACCURACY_MODE = mode;
@@ -424,7 +425,7 @@ describe('finite current-mode read observation', () => {
 
   it('keeps concurrent mode contexts request-local across asynchronous boundaries', async () => {
     process.env.MERI_EVIDENCE_ACCURACY_MODE = 'off';
-    await Promise.all(MERI_EVIDENCE_MODE_READS.map(operationId => withMeriReadObservation({operationId, evidenceAccuracyMode: 'off'}, async () => {
+    await Promise.all(modeOnlyReads.map(operationId => withMeriReadObservation({operationId, evidenceAccuracyMode: 'off'}, async () => {
       await Promise.resolve(); expect(currentMeriEvidenceAccuracyMode(operationId, tenantId)).toBe('off');
     })));
   });

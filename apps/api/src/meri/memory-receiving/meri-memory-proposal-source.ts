@@ -1,6 +1,6 @@
 import { types as nodeTypes } from 'node:util';
 import { ForbiddenException } from '@nestjs/common';
-import type { TenantContext } from '@capiro/shared';
+import { hasAtLeast, type TenantContext } from '@capiro/shared';
 import type { MeriPendingMemoryProposalRead } from '@capiro/shared/meri-read-outcome';
 import { clientMemoryAllowed } from '../../memory/memory-wall.helpers.js';
 import type { GovernedMemoryCandidateService } from '../../memory/governed-memory-candidate.service.js';
@@ -11,7 +11,7 @@ const denied = () => new ForbiddenException('Memory proposal page refused');
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export interface MemoryProposalSelection {
-  clientId: string;
+  clientId: string | null;
   cursor: string | null;
   limit: number;
 }
@@ -26,7 +26,7 @@ export function parseTaskBoundMemoryProposalSelection(raw: unknown): MemoryPropo
       !Object.getOwnPropertyDescriptor(raw, key)?.enumerable ||
       !('value' in Object.getOwnPropertyDescriptor(raw, key)!))) throw denied();
   const r = raw as Record<string, unknown>;
-  if (typeof r.clientId !== 'string' || !UUID.test(r.clientId) ||
+  if (!(r.clientId === null || typeof r.clientId === 'string' && UUID.test(r.clientId)) ||
       !(r.cursor === null || typeof r.cursor === 'string' &&
       r.cursor.length >= 1 && r.cursor.length <= 2048) ||
       !Number.isSafeInteger(r.limit) || (r.limit as number) < 1 || (r.limit as number) > 10) throw denied();
@@ -44,15 +44,31 @@ export async function readTaskBoundMemoryProposalPage(
 ): Promise<MeriPendingMemoryProposalRead> {
   const selection = parseTaskBoundMemoryProposalSelection(raw);
   if (!Number.isSafeInteger(deadlineMs) || now() >= deadlineMs) throw denied();
-  const wall = async () => {
-    const allowed = await prisma.withTenantUser(ctx.tenantId, ctx.userId,
-      (tx) => clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, selection.clientId));
-    if (!allowed) throw denied();
+  const current = async (clientIds: readonly string[]) => {
+    if (clientIds.length > 10 || clientIds.some(id => !UUID.test(id))) throw denied();
+    await prisma.withTenantUser(ctx.tenantId, ctx.userId, async tx => {
+      const member = await tx.tenantMembership.findFirst({
+        where: { tenantId: ctx.tenantId, userId: ctx.userId, status: 'active', tenant: { status: 'active' } },
+        select: { role: true },
+      });
+      if (!member || !hasAtLeast(member.role, 'standard_user')) throw denied();
+      for (const clientId of clientIds) {
+        const client = await tx.client.findFirst({
+          where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } }, select: { id: true },
+        });
+        if (!client || !await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId)) throw denied();
+      }
+    });
   };
-  await wall();
+  await current(selection.clientId === null ? [] : [selection.clientId]);
   const page = await readOwnPendingMemoryProposals(ctx,
     { clientId: selection.clientId, cursor: selection.cursor, limit: selection.limit }, owner);
-  await wall();
+  if (page.candidates.length > selection.limit) throw denied();
+  // General means the actor's own queue. Every returned client body still
+  // crosses its current wall; already restricted rows retain status only.
+  await current(selection.clientId === null
+    ? [...new Set(page.candidates.flatMap(row => !row.restricted && row.clientId !== null ? [row.clientId] : []))]
+    : [selection.clientId]);
   const complete = page.enabled && selection.cursor === null && page.nextCursor === null &&
     page.candidates.every((row) => !row.restricted && !row.contentTruncated && row.proposedText !== null);
   const reason = !page.enabled ? 'review_disabled' : complete
@@ -65,6 +81,6 @@ export async function readTaskBoundMemoryProposalPage(
       page.coverage.firstPage !== (selection.cursor === null) ||
       page.coverage.complete !== complete || page.coverage.reason !== reason ||
       page.candidates.some((row) => row.status !== 'pending' || row.approvedFact !== false) ||
-      page.candidates.some((row) => row.clientId !== null && row.clientId !== selection.clientId)) throw denied();
+      page.candidates.some((row) => selection.clientId !== null && row.clientId !== null && row.clientId !== selection.clientId)) throw denied();
   return page;
 }

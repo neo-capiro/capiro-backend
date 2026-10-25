@@ -84,6 +84,29 @@ describe('second-package Core producer observations', () => {
     }
   });
 
+  it('admits the existing native bearer path without a retired delegated grant', () => {
+    for (const name of Object.keys(bodyFor) as Operation[]) {
+      const req = request(name);req.headers.authorization = 'Bearer synthetic-native';verifyService(req);
+      expect(admitMeriReadObservation(name, bodyFor[name], req, { tenantId, userId }))
+        .toEqual({ operationId: name, ...contexts[name] });
+    }
+  });
+
+  it('keeps native service, principal, exact route and original body correlation mandatory', () => {
+    const name = 'get_state_rule_status';
+    for (const alter of [
+      (req: Request) => { req.headers.authorization = 'CapiroMeriRead synthetic'; },
+      (req: Request) => { req.method = 'GET'; },
+      (req: Request) => { req.originalUrl += '?scope=all'; },
+    ]) {
+      const req = request(name);req.headers.authorization = 'Bearer synthetic-native';verifyService(req);alter(req);
+      expect(() => admitMeriReadObservation(name, bodyFor[name], req, { tenantId, userId })).toThrow(ForbiddenException);
+    }
+    const req = request(name);req.headers.authorization = 'Bearer synthetic-native';verifyService(req);
+    expect(() => admitMeriReadObservation(name, bodyFor[name], req, { tenantId, userId: '' })).toThrow(ForbiddenException);
+    expect(() => admitMeriReadObservation(name, { query: 'different' }, req, { tenantId, userId })).toThrow(BadRequestException);
+  });
+
   it('requires a verified service identity AND the admitted run-bound target', () => {
     const name = 'get_certification_status';
     const req = request(name);

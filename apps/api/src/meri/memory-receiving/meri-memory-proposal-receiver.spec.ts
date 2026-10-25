@@ -35,10 +35,12 @@ const row = (id = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', createdAt = '2026-10-1
   proposal: { key: 'Preference', value: 'Use SMS', canonicalItem: null }, capabilities: { withdraw: true },
 });
 function deps(rows: unknown[] = [row()], enabled = true, nextCursor: string | null = null) {
+  const tx = { tenantMembership: { findFirst: jest.fn(async () => ({ role: 'standard_user' })) },
+    client: { findFirst: jest.fn(async () => ({ id: clientId })) } };
   const prisma = { withTenantUser: jest.fn(async (_tenant: string, _actor: string,
-    action: (tx: object) => Promise<unknown>) => action({})) };
+    action: (tx: object) => Promise<unknown>) => action(tx)) };
   const owner = { listOwnProposals: jest.fn(async () => ({ enabled, candidates: rows, nextCursor })) };
-  return { prisma: prisma as unknown as Pick<PrismaService, 'withTenantUser'>,
+  return { tx, prisma: prisma as unknown as Pick<PrismaService, 'withTenantUser'>,
     owner: owner as unknown as Pick<GovernedMemoryCandidateService, 'listOwnProposals'> };
 }
 
@@ -58,6 +60,51 @@ describe('ordinary memory proposal receiver', () => {
     expect(d.prisma.withTenantUser).toHaveBeenCalledTimes(2);
     expect(clientMemoryAllowed).toHaveBeenCalledTimes(2);
     expect(d.owner.listOwnProposals).toHaveBeenCalledWith(ctx, { clientId, limit: 5, status: 'pending' });
+  });
+
+  const general = () => { const held = correlation(); return { ...held, subject: { ...held.subject,
+    kind: 'personal', entityType: 'user', entityIds: [actorId],
+    scopes: [{ tenantId, kind: 'private-user', resourceId: actorId, policyRevision }] } }; };
+  const generalWire = { input: { ...input, clientId: null }, metadata: null };
+
+  it('reads the General actor queue while retaining current walls on client bodies', async () => {
+    const d = deps([row()]);
+    expect(await receive(d, generalWire, general())).toMatchObject({ scope: { tenantId, userId: actorId, clientId: null }, candidates: [{ clientId }] });
+    expect(d.owner.listOwnProposals).toHaveBeenCalledWith(ctx, { limit: 5, status: 'pending' });
+    expect(d.tx.tenantMembership.findFirst).toHaveBeenCalledTimes(2);
+    expect(clientMemoryAllowed).toHaveBeenCalledTimes(1);
+    expect(d.tx.client.findFirst).toHaveBeenCalledWith({ where: { id: clientId, tenantId, status: { not: 'archived' } }, select: { id: true } });
+  });
+
+  it('keeps General private and restricted rows while preserving continuation disclosure', async () => {
+    const d = deps([{ ...row(), scope: 'personal', clientId: null },
+      { ...row('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'), restricted: true, proposal: null }], true, 'next');
+    const page = await receive(d, generalWire, general());
+    expect(page.candidates[1]).toMatchObject({ restricted: true, proposedText: null, title: null });
+    expect(page.coverage.complete).toBe(false);expect(page.nextCursor).toBe('next');
+    expect(clientMemoryAllowed).not.toHaveBeenCalled();
+    expect(await receive(deps([]), { ...generalWire, input: { ...generalWire.input, cursor: 'next' } }, general()))
+      .toMatchObject({ coverage: { firstPage: false, complete: false } });
+  });
+
+  it('denies General client selection and another actor before reading the queue', async () => {
+    const wrong = general();wrong.subject.entityIds = [clientId];
+    for (const [raw, held] of [[wire, general()], [generalWire, wrong]] as const) {
+      const d = deps();await expect(receive(d, raw, held)).rejects.toThrow(ForbiddenException);
+      expect(d.owner.listOwnProposals).not.toHaveBeenCalled();
+    }
+  });
+
+  it('withholds General results on membership, active client or wall revocation', async () => {
+    for (const change of ['member-before', 'member-after', 'client', 'wall']) {
+      const d = deps();
+      if (change === 'member-before') d.tx.tenantMembership.findFirst.mockResolvedValueOnce(null as never);
+      if (change === 'member-after') d.tx.tenantMembership.findFirst.mockResolvedValueOnce({ role: 'standard_user' }).mockResolvedValueOnce(null as never);
+      if (change === 'client') d.tx.client.findFirst.mockResolvedValueOnce(null as never);
+      if (change === 'wall') jest.mocked(clientMemoryAllowed).mockResolvedValueOnce(false);
+      await expect(receive(d, generalWire, general())).rejects.toThrow(ForbiddenException);
+      expect(d.owner.listOwnProposals).toHaveBeenCalledTimes(change === 'member-before' ? 0 : 1);
+    }
   });
 
   it('refuses wrong service, selected client, actor, metadata, scope or normalization before owner access', async () => {
