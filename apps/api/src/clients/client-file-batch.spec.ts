@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { HttpException } from '@nestjs/common';
 jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class {} }));
 jest.mock('./client-ordered-owner.access.js', () => ({
   requireOwnerActor: jest.fn(async () => undefined),
@@ -29,6 +30,15 @@ const command = () => ({
     { id: second, expectedRevision: 0 },
   ],
 });
+async function failureOf(pending: Promise<unknown>): Promise<HttpException> {
+  try {
+    await pending;
+  } catch (error) {
+    expect(error).toBeInstanceOf(HttpException);
+    return error as HttpException;
+  }
+  throw new Error('Expected a request refusal');
+}
 function fixture() {
   let rows = [first, second].map((id) => ({
     id,
@@ -43,6 +53,9 @@ function fixture() {
   let receipts: Array<Record<string, unknown>> = [];
   const statements: Array<{ sql: string; values: unknown[] }> = [];
   let failUpdate: string | undefined;
+  let afterRollback: (() => Promise<void>) | undefined;
+  let failReceiptRead = false;
+  let failReceiptWrite = false;
   const tx = {
     $queryRaw: jest.fn(async (parts: TemplateStringsArray, ...values: unknown[]) => {
       const sql = parts.reduce(
@@ -53,7 +66,10 @@ function fixture() {
       statements.push({ sql, values });
       if (sql.includes('pg_advisory')) throw new Error('Prisma cannot deserialize void');
       if (sql.includes('FROM legiwatch_record_document')) return [];
-      if (sql.includes('FROM client_file_batch_move_receipts')) return receipts;
+      if (sql.includes('FROM client_file_batch_move_receipts')) {
+        if (failReceiptRead) throw new Error('synthetic unknown receipt read');
+        return receipts;
+      }
       if (sql.includes('FROM engagement_attachments')) return structuredClone(rows);
       if (sql.includes('UPDATE engagement_attachments')) {
         const id = values[3] as string;
@@ -72,6 +88,7 @@ function fixture() {
       if (sql.includes('pg_advisory') || sql.includes('set_config')) return 1;
       if (!sql.includes('INSERT INTO client_file_batch_move_receipts'))
         throw new Error('Unexpected write');
+      if (failReceiptWrite) throw new Error('synthetic unknown receipt write');
       receipts.push({
         clientId: values[1],
         payloadDigest: values[4],
@@ -89,6 +106,9 @@ function fixture() {
       } catch (error) {
         rows = before.rows;
         receipts = before.receipts;
+        const callback = afterRollback;
+        afterRollback = undefined;
+        await callback?.();
         throw error;
       }
     },
@@ -106,6 +126,15 @@ function fixture() {
     },
     failOn: (id: string) => {
       failUpdate = id;
+    },
+    afterRollback: (callback: () => Promise<void>) => {
+      afterRollback = callback;
+    },
+    failReceiptRead: () => {
+      failReceiptRead = true;
+    },
+    failReceiptWrite: () => {
+      failReceiptWrite = true;
     },
   };
 }
@@ -175,16 +204,108 @@ describe('batch file move owner (synthetic transaction, no database)', () => {
         h.rows[1]!.viewerUserIds = [actor];
       }
       await expect(h.service.move(ctx, client, command())).rejects.toThrow(
-        failure === 'stale'
-          ? 'changed'
-          : failure === 'hearing'
-            ? 'ACCESS_OR_VERSION_CHANGED'
-            : 'unavailable',
+        failure === 'hearing' ? 'ACCESS_OR_VERSION_CHANGED' : 'refused',
       );
       expect(h.statements.some((row) => row.sql.startsWith('\n          UPDATE'))).toBe(false);
-      expect(h.statements.some((row) => row.sql.includes('INSERT INTO'))).toBe(false);
+      expect(h.receipts).toHaveLength(failure === 'hearing' ? 0 : 1);
+      if (failure !== 'hearing')
+        expect(h.receipts[0]!.receipt).toMatchObject({ code: 'FILE_BATCH_MOVE_REFUSED' });
       expect(h.rows[0]!.folder).toBeNull();
     }
+  });
+
+  it('stores one terminal refusal and replays it after file availability/revisions change, without requiring those files', async () => {
+    const h = fixture();
+    h.rows[1]!.revision = 1;
+    const firstFailure = await failureOf(h.service.move(ctx, client, command()));
+    expect(firstFailure.getResponse()).toEqual({
+      schemaVersion: 1,
+      code: 'FILE_BATCH_MOVE_REFUSED',
+      requestId: command().requestId,
+      clientId: client,
+      payloadDigest: fileBatchDigest(command()),
+      status: 409,
+      message: 'The batch move was refused. Review current files before creating a new move.',
+    });
+    h.rows[1]!.revision = 0;
+    await expect(h.service.move(ctx, client, command())).rejects.toMatchObject({
+      response: firstFailure.getResponse(),
+    });
+    h.rows.splice(0);
+    const before = h.statements.length;
+    await expect(h.service.receipt(ctx, client, command().requestId)).rejects.toMatchObject({
+      response: firstFailure.getResponse(),
+    });
+    expect(
+      h.statements.slice(before).some((row) => row.sql.includes('engagement_attachments')),
+    ).toBe(false);
+    expect(requireOwnerClient).toHaveBeenCalledWith(h.tx, ctx, client, false, false, 'share');
+    expect(h.receipts).toHaveLength(1);
+    expect(h.statements.some((row) => row.sql.includes('UPDATE engagement_attachments'))).toBe(
+      false,
+    );
+  });
+
+  it('returns the original moved outcome if another exact attempt commits between rollback and terminalization', async () => {
+    const h = fixture();
+    h.rows[1]!.revision = 1;
+    let winner: unknown;
+    h.afterRollback(async () => {
+      h.rows[1]!.revision = 0;
+      winner = await h.service.move(ctx, client, command());
+    });
+    expect(await h.service.move(ctx, client, command())).toEqual(winner);
+    expect(h.receipts).toHaveLength(1);
+    expect(h.receipts[0]!.receipt).toMatchObject({ outcome: 'moved' });
+  });
+
+  it('never relabels an existing receipt or request collision as a no-write refusal', async () => {
+    const h = fixture();
+    await h.service.move(ctx, client, command());
+    h.rows[1]!.viewerMode = 'restricted';
+    const failure = await failureOf(h.service.move(ctx, client, command()));
+    expect(failure.getStatus()).toBe(404);
+    expect(failure.getResponse()).not.toHaveProperty('code', 'FILE_BATCH_MOVE_REFUSED');
+    const conflict = await failureOf(
+      h.service.move(ctx, client, { ...command(), folder: 'Other' }),
+    );
+    expect(conflict.getStatus()).toBe(409);
+    expect(conflict.getResponse()).not.toHaveProperty('code', 'FILE_BATCH_MOVE_REFUSED');
+    expect(h.receipts).toHaveLength(1);
+    expect(h.receipts[0]!.receipt).toMatchObject({ outcome: 'moved' });
+  });
+
+  it.each(['read', 'write'])(
+    'unknown terminal receipt %s failure never reports refusal',
+    async (kind) => {
+      const h = fixture();
+      h.rows[1]!.revision = 1;
+      if (kind === 'read') h.failReceiptRead();
+      else h.failReceiptWrite();
+      await expect(h.service.move(ctx, client, command())).rejects.toThrow(
+        `unknown receipt ${kind}`,
+      );
+      expect(h.receipts).toHaveLength(0);
+      expect(h.rows.map((row) => row.folder)).toEqual([null, null]);
+    },
+  );
+
+  it('refused receipt still requires current actor and client, and rejects damaged durable identity', async () => {
+    const h = fixture();
+    h.rows[1]!.revision = 1;
+    await expect(h.service.move(ctx, client, command())).rejects.toThrow('refused');
+    jest.mocked(requireOwnerClient).mockRejectedValueOnce(new Error('synthetic wall denied'));
+    await expect(h.service.receipt(ctx, client, command().requestId)).rejects.toThrow(
+      'wall denied',
+    );
+    jest.mocked(requireOwnerActor).mockRejectedValueOnce(new Error('synthetic actor denied'));
+    await expect(h.service.receipt(ctx, client, command().requestId)).rejects.toThrow(
+      'actor denied',
+    );
+    (h.receipts[0]!.receipt as { payloadDigest: string }).payloadDigest = 'f'.repeat(64);
+    await expect(h.service.receipt(ctx, client, command().requestId)).rejects.toThrow(
+      'could not be verified',
+    );
   });
   it('does not enter the file owner after current membership or client wall denial', async () => {
     const h = fixture();

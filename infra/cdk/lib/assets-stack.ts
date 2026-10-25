@@ -6,7 +6,7 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import { commonTags, type EnvConfig } from './config';
 
 export interface AssetsStackProps extends cdk.StackProps {
-  cfg: EnvConfig;
+  cfg: Pick<EnvConfig, 'envName' | 'appHost' | 'rootDomain' | 'protectFromDestroy'>;
 }
 
 /**

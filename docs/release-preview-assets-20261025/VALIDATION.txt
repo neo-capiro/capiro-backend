@@ -1,0 +1,116 @@
+Phase C ordinary Assets and scoped owner-memory preparation — 2026-10-25
+
+Base: 43fdd8928e517b1ce3a7a039f0fabeb8cf5fc5dd
+Base tree: 50c1214d60c17d29d9a61e5bbfea450489baa286
+Branch: codex/wave2-preview-assets-bindings-20261025
+Complete phase brief: PHASE-C-BRIEF.txt, saved before product edits; updated with
+Root's approved type-only commonTags exception and current c0411e2 standing rules.
+
+Existing AssetsStack now participates in the selected first-chat composition.
+Closed binding schema9 requires one or two distinct explicit preview tenant IDs.
+These are private operator inputs, not hard-coded customer IDs. Tests use synthetic
+fixtures only. The actual approved one-tenant input is now verified privately from
+one accepted test conversation/run and current active canonical Core membership.
+ownerMemory.tenantId selects exactly one explicit approved tenant; no global scope.
+Root authorized source/synthesis and draft PR; independent review and Root release
+allocation remain required before actual provisioning or service updates.
+
+Changed behavior and expected local CloudFormation delta
+- New stack Capiro-Portfolio-Preview-Assets: AssetsKey6C8A65AC (KMS key),
+  AssetsKeyAlias2371AE1C, AssetsBucket5CB76180, AssetsBucketPolicyFFACF6C4.
+  Existing canonical resource IDs, exact preview CORS, KMS rotation, private/TLS,
+  retained/versioned storage, bucket keys and lifecycle configuration preserved.
+  Stack termination protection enabled in the assembly.
+- Core: ASSETS_BUCKET from the canonical stack; new task-role default policy
+  ServeTaskTaskRoleDefaultPolicy46D4ED77; service depends on that policy.
+  S3 GetObject/PutObject/DeleteObject only on approved tenant engagement/* keys.
+  KMS Decrypt/GenerateDataKey only on the Assets key via S3 us-east-1.
+- ListBucket is allowed only on the canonical bucket with StringLike s3:prefix
+  matching the same explicit tenant engagement folders. This supports the paired
+  canonical deletion helper's exact-key ListObjectsV2 fallback after ambiguous
+  HEAD403. No unscoped list, IfExists, version deletion, tagging, multipart, other
+  storage-family or external-provider grant. File Workflows owns helper/tests;
+  this IAM change alone does not close the deletion contract.
+- Actual selected Core template composition is preserved, including existing
+  MeriRoutineSigningPolicy and all outputs. Image, RELEASE_SHA, secret binding,
+  database, network, DNS, listeners, scan policy and unrelated flags are unchanged.
+  Separate Root allocation adds existing MEMORY_GOVERNANCE_LIFECYCLE=enforce and
+  MEMORY_GOVERNANCE_TENANTS for exactly the privately verified tenant. The complete
+  source-contract/ticket/scope is in MEMORY-ADDENDUM.txt. No other memory flag changes.
+  Phase B route/classification changes are separately authored and required for
+  the working browser lifecycle. This change alone is not upload acceptance.
+
+Toolchain and checks (local, no AWS calls)
+Node24.22.1; reused C:/dev/c1-entry/infra/cdk/node_modules via owned junction;
+aws-cdk-lib2.271.0, constructs10.8.1, ts-node10.9.2, TypeScript5.9.3. No installs.
+From infra/cdk:
+1. node scripts/run-construct-tests.cjs --run preview-first-chat-core
+   Untouched base7/7 PASS; final candidate11/11 PASS,0 skipped. The final run includes
+   rejected global/multiple/unbound owner-memory inputs and exact scoped env flags.
+2. node node_modules/typescript/bin/tsc --noEmit --incremental false --strict
+   --noUncheckedIndexedAccess --skipLibCheck --esModuleInterop --resolveJsonModule
+   --target ES2022 --module commonjs --moduleResolution node
+   lib/preview/first-chat-core.ts test/preview-first-chat-core.spec.ts
+   PASS (imports include Assets/config); no broad package typecheck claimed.
+3. node node_modules/jest/bin/jest.js -c jest.jest-style.config.cjs --runInBand
+   --runTestsByPath test/assets-stack.client-logo.spec.ts
+   test/assets-stack.planner.spec.ts test/assets-stack.hearing-audio.spec.ts
+   PASS3 suites/4 tests from the initial type-only Assets correction; reused after
+   the later first-chat IAM/memory delta, with no Assets/config implementation change.
+4. Six distinct targeted mutants killed: remove ASSETS_BUCKET; broaden approved
+   tenant keys; remove KMS ViaService; remove the LIST prefix condition; widen
+   owner-memory to all; omit lifecycle activation. The unchanged bucket/KMS mutant
+   evidence is reused; all-tenant/LIST and memory mutants ran on their changed delta.
+   Each source restored byte-for-byte; no test count dropped.
+5. git diff --check PASS; selected source/test formatting PASS.
+6. Local CloudFormation synthesis PASS. The retained executed change-set template
+   selected-change-set-template.json is the Core43f baseline. The older sibling
+   selected-template.json represents the previous83ae source and was rejected by
+   the preparation source-pin check; it was not used for candidate preparation.
+
+Initial author-only test corrections: two incorrect expected CDK IDs/export lookups
+failed before correction; final tests pass. The missing-bucket mutant first failed
+with TypeError; the assertion now names the required export and kills it explicitly.
+Scoped typecheck initially failed on the known Assets EnvConfig shape until Root
+approved the type-only narrowing. These were not inherited product failures.
+
+Private local evidence is retained in Release work/release-20261025/private/
+ordinary-assets-preparation/: preparation.json, assets.template.json,
+core.source.template.json, core.selected.template.json, selected-diff.private.json,
+binding.private.json, construct-final.log, mutants.json and the three mutant logs.
+The original candidate directory remains immutable synthetic evidence. Current
+one-tenant bound templates are in sibling ordinary-assets-bound-preparation/ with
+preparation.json, binding.private.json, selected-diff.private.json and mutant logs.
+Private input/proof are in sibling preview-tenant-binding/. Exact hashes are in the
+current preparation.json and Release handoff; no private binding/template is committed.
+Actual source/template review remains required before provisioning/service updates.
+
+Deletion: schema8 acceptance removed; its sole remaining occurrence in this source
+and affected test is a refusal assertion. No application mechanism is replaced,
+no helper/caller removed, and no dead compatibility branch added. No manifests,
+lockfiles, migrations or runtime image source changed.
+
+NOT RUN: provisioning/change-set creation or execution, IAM simulation, browser
+upload/confirm/read/move/delete, model/provider operations, image build/scan, DB
+qualification or full suites. Existing closed image/runtime/DB gates remain closed.
+The separate Root-authorized identity metadata proof used read-only clone transactions
+and existing ordinary application credentials (strict TLS), plus caller verification
+and one existing app credential read. No content/broad scan/write/new credential.
+No scanner engine, new scanner prerequisite, false-clean claim or scan flag change.
+Required-scan quarantine/custody behavior and separate Meri-evidence rules remain.
+
+Operation rationale references:
+https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html
+https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html
+https://docs.aws.amazon.com/AmazonS3/latest/userguide/amazon-s3-policy-keys.html
+https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_condition_operators.html
+https://docs.aws.amazon.com/kms/latest/developerguide/conditions-kms.html#conditions-kms-via-service
+Supporting's exact b20d48c review found that ordinary reviewed deletion also requires
+missing-object recovery; the initial synthetic-only description was incorrect.
+HEAD has no Prefix parameter, so prefix-conditioned ListBucket is not assumed to
+convert403 into404. The paired helper must use an authorized, coherent LIST with
+Prefix equal to the retained full key and MaxKeys1, distinguish exact from suffix
+keys, and preserve ETag/IfMatch/receipts/uncertainty. Never treat403 alone, a present
+key, denied LIST, timeout or malformed response as successful deletion. This is
+documented-contract reasoning, not live S3 proof. General-purpose bucket lexical
+ordering supports the exact-key observation; no directory bucket is used here.

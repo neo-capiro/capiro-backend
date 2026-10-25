@@ -86,9 +86,15 @@ function classify(method: string, fullPath: string, ctrl: string, handler: strin
   if (ctrl === 'KrispNotetakerController') return method === 'GET' ? 'read' : 'write';
   if (ctrl === 'RecallWebhookController') return 'webhook';
   if (fullPath.startsWith('/api/internal/')) return 'internal_secret';
+  if (/^(Microsoft|Google)IntegrationActionsController$/.test(ctrl)) {
+    if (handler === 'readCalendarCommand') return 'read';
+    if (handler === 'runCalendarCommand') return 'sync';
+  }
   if (/^(Microsoft|Google)(IntegrationActions|Callbacks)Controller$/.test(ctrl)) return 'oauth';
   // This GET only reads the local intent under current mailbox/client authority.
   if (method === 'GET' && ctrl === 'EngagementController' && handler === 'singleMailIntent') return 'read';
+  // These receipt reads use only persisted current-authorized history, never storage.
+  if (method === 'GET' && ctrl === 'EngagementController' && ['readProspectAttachmentCopy', 'readAttachmentDeletion'].includes(handler)) return 'read';
   // Both handlers dispatch through the provider; test sends are not local writes.
   if (method === 'POST' && ctrl === 'NewsletterOutreachController' && ['send', 'test'].includes(handler)) return 'external_send';
   if (fullPath.includes('notetaker') && handler !== 'getNotetaker') return 'notetaker';

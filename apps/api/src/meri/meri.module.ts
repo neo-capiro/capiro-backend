@@ -4,7 +4,6 @@ import { ManagedMcpModule } from './managed-mcp.module.js';
 import { ConfigService } from '@nestjs/config';
 import { EngagementModule } from '../engagement/engagement.module.js';
 import { ClientDocumentsModule } from '../client-documents/client-documents.module.js';
-import { MeriClientFilingService } from './meri-client-filing.service.js';
 import { MeriJobDeliverablesController } from './meri-job-deliverables.controller.js';
 import { MeriJobDeliverablesService } from './meri-job-deliverables.service.js';
 import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module.js';
@@ -45,6 +44,8 @@ import { ObjectiveJobController } from './objective-job.controller.js';
 import { ConversationManagementController } from './conversation-management/controller.js';
 import { ConversationRetentionController } from './conversation-management/retention.controller.js';
 import { ObjectiveJobService } from './objective-job.service.js';
+import { RetainedReadDispatcher } from './retained-read-dispatch.js';
+import { MeriRoutineReadController, MeriRoutinesModule } from './routines/meri-routines.controller.js';
 import { ObjectiveJobReadSources } from './objective-job-read-sources.js';
 import { EngagementService } from '../engagement/engagement.service.js';
 import { ResearchPortfoliosService } from '../research-portfolios/research-portfolios.service.js';
@@ -52,6 +53,7 @@ import { ResearchPortfolioChangesService } from '../research-portfolios/research
 import { ResearchPortfolioReviewService } from '../research-portfolios/research-portfolio-review.service.js';
 import { ResearchPortfolioAnalyticsService } from '../research-portfolios/research-portfolio-analytics.service.js';
 import { InternalServiceGuard } from '../auth/internal-service.guard.js';
+import { ToolServiceSecretGuard } from '../auth/tool-service-secret.guard.js';
 import { GovernedMemoryCandidateService } from '../memory/governed-memory-candidate.service.js';
 import { MeriMemoryHelperController } from './memory-receiving/meri-memory-helper.controller.js';
 import { MeriSourceController } from './meri-source.controller.js';
@@ -99,10 +101,11 @@ import { MeriJobLeaseSweeper } from './meri-job-lease-sweeper.js';
 import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.proxy.js';
 import { MeriOtelLifecycleProvider } from './meri-otel-lifecycle.provider.js';
 
-import { meriExecutionKeyConfigProvider } from './execution-capability/meri-execution-authority.js';
-import { MeriExecutionReceiverService } from './execution-capability/meri-execution-receiver.service.js';
+import { NativeApprovalModule } from './native-approvals/native-approval.controller.js';
 @Module({
   imports: [
+    NativeApprovalModule,
+    MeriRoutinesModule,
     MeriFeatureFlagsModule,
     ManagedMcpModule,
     EngagementModule,
@@ -134,6 +137,7 @@ import { MeriExecutionReceiverService } from './execution-capability/meri-execut
     DistrictNexusModule,
   ],
   controllers: [
+    MeriRoutineReadController,
     ConversationManagementController,
     ConversationRetentionController,
     ObjectiveJobController,
@@ -152,6 +156,7 @@ import { MeriExecutionReceiverService } from './execution-capability/meri-execut
     MeriJobDeliverablesController,
   ],
   providers: [
+    ToolServiceSecretGuard,
     AutomaticClientContextService,
     InternalServiceGuard,
     { provide: ObjectiveJobReadSources, useFactory: (integrations: EngagementService, tools: MeriToolsService,
@@ -163,11 +168,9 @@ import { MeriExecutionReceiverService } from './execution-capability/meri-execut
     { provide: ObjectiveJobService, useFactory: (prisma: PrismaService, tools: MeriToolsService,
       memory: GovernedMemoryCandidateService, sources: ObjectiveJobReadSources) => new ObjectiveJobService(prisma, tools, memory, sources),
       inject: [PrismaService, MeriToolsService, GovernedMemoryCandidateService, ObjectiveJobReadSources] },
-    // D016 #9: Meri approved-execution receiver on create_task (503 until the
-    // MERI_EXECUTION_SIGNER_* key configuration is present).
-    meriExecutionKeyConfigProvider,
-    MeriExecutionReceiverService,
-    MeriClientFilingService,
+    { provide: RetainedReadDispatcher, useFactory: (prisma: PrismaService, tools: MeriToolsService,
+      memory: GovernedMemoryCandidateService, sources: ObjectiveJobReadSources) => new RetainedReadDispatcher(prisma, tools, memory, sources),
+      inject: [PrismaService, MeriToolsService, GovernedMemoryCandidateService, ObjectiveJobReadSources] },
     MeriJobDeliverablesService,
     MeriChatAttachmentReadService,
     MeriSourceService,

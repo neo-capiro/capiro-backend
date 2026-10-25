@@ -20,6 +20,10 @@ const ACTIONS = ['memory.propose', 'task.create', 'artifact.file'] as const;
 
 export interface NativeIdentity { tenantId: string; actorId: string }
 export interface NativeScope { tenantId: string; kind: string; resourceId: string; policyRevision: string }
+export interface NativeObjectReference {
+  objectId: string; versionId: string; sha256: string; bytes: number; scopes: NativeScope[];
+}
+export interface NativeArtifactFileArguments extends Record<string, unknown> { clientId: string; conversationId: string }
 export interface NativeRunBinding {
   tenantId: string; actorId: string; conversationId: string; runId: string;
   attemptId: string; workerId: string; writerFence: number;
@@ -48,6 +52,10 @@ function record(value: unknown, keys: readonly string[], field: string): Record<
   if (prototype !== Object.prototype && prototype !== null) throw invalid(field);
   const own = Reflect.ownKeys(value);
   if (own.length !== keys.length || own.some((key) => typeof key !== 'string' || !keys.includes(key))) throw invalid(field);
+  if (keys.some(key => {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    return !descriptor || !('value' in descriptor) || !descriptor.enumerable;
+  })) throw invalid(field);
   return value as Record<string, unknown>;
 }
 
@@ -93,16 +101,78 @@ export function parseScope(value: unknown, field: string): NativeScope {
   };
 }
 
+/** ObjectReference.versionId is an opaque storage version, not an ArtifactVersion UUID. */
+export function parseObjectReference(value: unknown, field = 'object'): NativeObjectReference {
+  const v = record(value, ['objectId', 'versionId', 'sha256', 'bytes', 'scopes'], field);
+  if (typeof v.objectId !== 'string' || !UUID.test(v.objectId.toLowerCase())) throw invalid(`${field}.objectId`);
+  if (typeof v.versionId !== 'string' || v.versionId.length < 1) throw invalid(`${field}.versionId`);
+  if (typeof v.sha256 !== 'string' || !HEX64.test(v.sha256)) throw invalid(`${field}.sha256`);
+  if (!Number.isSafeInteger(v.bytes) || (v.bytes as number) < 0) throw invalid(`${field}.bytes`);
+  if (!Array.isArray(v.scopes) || v.scopes.length < 1) throw invalid(`${field}.scopes`);
+  const scopes = Array.from(v.scopes, (scope, index) => parseScope(scope, `${field}.scopes[${index}]`));
+  if (new Set(scopes.map(scope => canonicalizeCoreRetainedJson(scope))).size !== scopes.length) throw invalid(`${field}.scopes`);
+  return { objectId: v.objectId, versionId: v.versionId, sha256: v.sha256, bytes: v.bytes as number, scopes };
+}
+
+export function parseArtifactFileAttachments(value: unknown, field = 'attachments'): NativeObjectReference[] {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 10) throw invalid(field);
+  const objects = Array.from(value, (item, index) => parseObjectReference(item, `${field}[${index}]`));
+  if (new Set(objects.map(object => object.objectId.toLowerCase())).size !== objects.length) throw invalid(field);
+  return objects;
+}
+
+export function parseArtifactFileArguments(value: unknown, field = 'arguments'): NativeArtifactFileArguments {
+  const args = record(value, ['clientId', 'conversationId'], field);
+  return { clientId: uuid(args.clientId, `${field}.clientId`), conversationId: uuid(args.conversationId, `${field}.conversationId`) };
+}
+
 function plainObject(value: unknown, field: string): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value) || nodeTypes.isProxy(value)) throw invalid(field);
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) throw invalid(field);
   return value as Record<string, unknown>;
+}
+
+function taskDueDay(value: unknown, field: string): string {
+  const day = dateTime(value, field, true);
+  if (new Date(Date.parse(day)).toISOString() !== day || Date.parse(day) % 86_400_000 !== 0) throw invalid(field);
+  return day;
+}
+
+export function parseTaskCreateArguments(value: unknown, field = 'arguments'): Record<string, unknown> {
+  const args = record(value, ['title', 'clientId', 'dueDate'], field);
+  const title = text(args.title, `${field}.title`, 1, 240);
+  if (title.trim() !== title) throw invalid(`${field}.title`);
+  if (args.clientId !== null) uuid(args.clientId, `${field}.clientId`);
+  if (args.dueDate !== null) taskDueDay(args.dueDate, `${field}.dueDate`);
+  return args;
+}
+
+/** Exact commands-0.2 TaskUpdateArguments: null/empty raw fields are omitted,
+ * never converted to clearing a date or an invented revision precondition. */
+export function parseTaskUpdateArguments(value: unknown, field = 'arguments'): Record<string, unknown> {
+  const args = record(value, ['taskId', 'mode', 'patch'], field);
+  uuid(args.taskId, `${field}.taskId`);
+  if (args.mode !== 'unconditional_patch') throw invalid(`${field}.mode`);
+  const patch = plainObject(args.patch, `${field}.patch`), keys = Object.keys(patch);
+  if (keys.length < 1 || keys.some(key => !['title', 'status', 'dueDate'].includes(key))) throw invalid(`${field}.patch`);
+  record(patch, keys, `${field}.patch`);
+  if (Object.hasOwn(patch, 'title')) {
+    const title = text(patch.title, `${field}.patch.title`, 1, 240);
+    if (title.trim() !== title) throw invalid(`${field}.patch.title`);
+  }
+  if (Object.hasOwn(patch, 'status') && !['todo', 'in_progress', 'done', 'blocked', 'canceled'].includes(patch.status as string))
+    throw invalid(`${field}.patch.status`);
+  if (Object.hasOwn(patch, 'dueDate')) taskDueDay(patch.dueDate, `${field}.patch.dueDate`);
+  return args;
 }
 
 function parseCommand(value: unknown, field: string): NativeCommand {
   const v = record(value, ['contractVersion', 'commandId', 'binding', 'action', 'arguments', 'attachments', 'scopes', 'idempotencyKey'], field);
   const document = v.contractVersion === '0.2.0' && v.action === 'document.draft';
-  if (!document && v.contractVersion !== '0.1.0') throw invalid(`${field}.contractVersion`);
-  if (!document && !ACTIONS.includes(v.action as (typeof ACTIONS)[number])) throw invalid(`${field}.action`);
+  const taskUpdate = v.contractVersion === '0.2.0' && v.action === 'task.update';
+  if (!document && !taskUpdate && v.contractVersion !== '0.1.0') throw invalid(`${field}.contractVersion`);
+  if (!document && !taskUpdate && !ACTIONS.includes(v.action as (typeof ACTIONS)[number])) throw invalid(`${field}.action`);
   if (!Array.isArray(v.attachments)) throw invalid(`${field}.attachments`);
   v.attachments.forEach((item, index) => plainObject(item, `${field}.attachments[${index}]`));
   if (!Array.isArray(v.scopes) || v.scopes.length < 1) throw invalid(`${field}.scopes`);
@@ -117,10 +187,24 @@ function parseCommand(value: unknown, field: string): NativeCommand {
     const title = text(args.title, `${field}.arguments.title`, 1, 200);
     if (title.trim() !== title || args.format !== 'docx' || v.attachments.length !== 0) throw invalid(`${field}.arguments`);
   }
+  if (taskUpdate || v.action === 'task.create') {
+    if (v.attachments.length !== 0) throw invalid(`${field}.attachments`);
+    args = taskUpdate ? parseTaskUpdateArguments(args, `${field}.arguments`) : parseTaskCreateArguments(args, `${field}.arguments`);
+  }
+  const binding = parseRunBinding(v.binding, `${field}.binding`);
+  let attachments = v.attachments;
+  if (v.action === 'artifact.file') {
+    args = parseArtifactFileArguments(args, `${field}.arguments`);
+    const objects = parseArtifactFileAttachments(attachments, `${field}.attachments`);
+    if (args.conversationId !== binding.conversationId || scopes.some(scope => scope.tenantId !== binding.tenantId) ||
+        objects.some(object => object.scopes.some(scope => scope.tenantId !== binding.tenantId)))
+      throw invalid(`${field}.filingProvenance`);
+    attachments = objects;
+  }
   return {
-    contractVersion: document ? '0.2.0' : '0.1.0', commandId: uuid(v.commandId, `${field}.commandId`),
-    binding: parseRunBinding(v.binding, `${field}.binding`), action: v.action as string,
-    arguments: args, attachments: v.attachments, scopes,
+    contractVersion: document || taskUpdate ? '0.2.0' : '0.1.0', commandId: uuid(v.commandId, `${field}.commandId`),
+    binding, action: v.action as string,
+    arguments: args, attachments, scopes,
     idempotencyKey: text(v.idempotencyKey, `${field}.idempotencyKey`, 1, 128),
   };
 }
@@ -143,7 +227,7 @@ export function parseApprovalProposal(value: unknown, field = 'proposal'): Nativ
   // Meri assertProposalIntegrity: hash binds the actual command, expiry follows
   // creation, and the required approver belongs to the command's tenant.
   if (nativeCanonicalSha256(v.command) !== proposal.commandSha256) throw invalid(`${field}.commandSha256`);
-  if (proposal.command.action === 'document.draft' && [proposal.createdAt, proposal.expiresAt]
+  if (['document.draft', 'task.update'].includes(proposal.command.action) && [proposal.createdAt, proposal.expiresAt]
       .some(value => new Date(Date.parse(value)).toISOString() !== value)) throw invalid(`${field}.timestamp`);
   if (Date.parse(proposal.expiresAt) <= Date.parse(proposal.createdAt)) throw invalid(`${field}.expiresAt`);
   if (proposal.requiredApprover.tenantId !== proposal.command.binding.tenantId) throw invalid(`${field}.requiredApprover`);

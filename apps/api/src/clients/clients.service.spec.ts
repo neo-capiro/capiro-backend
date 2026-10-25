@@ -58,7 +58,7 @@ describe('ClientsService.list — archived filtering', () => {
       client: { findMany: jest.fn(async () => [] as unknown[]) },
     };
     const prisma = {
-      withTenant: jest.fn(
+      withTenantRetry: jest.fn(
         async (_tenantId: string, run: (tx: unknown) => Promise<unknown>) =>
           run(tenantTx),
       ),

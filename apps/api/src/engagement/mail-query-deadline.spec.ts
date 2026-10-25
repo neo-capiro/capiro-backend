@@ -16,7 +16,8 @@ beforeEach(() => now.mockReset());
 
 test('all scans share the remaining deadline and the same tenant transaction', async () => {
   const f = fixture(); now.mockReturnValueOnce(100).mockReturnValueOnce(110).mockReturnValueOnce(1200).mockReturnValueOnce(10000);
-  const result = await withMailQueryDeadline(f.prisma, 'tenant-owned', async (query) => {
+  const result = await withMailQueryDeadline(f.prisma, 'tenant-owned', async (query, tx) => {
+    expect(tx).toBe(f.tx);
     const count = await query(Prisma.sql`SELECT 1`);
     const page = await query(Prisma.sql`SELECT 2`);
     const coverage = await query(Prisma.sql`SELECT 3`);

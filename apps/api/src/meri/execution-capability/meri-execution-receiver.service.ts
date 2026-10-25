@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Inject,
@@ -16,7 +17,7 @@ import { EngagementService } from '../../engagement/engagement.service.js';
 import { hasVerifiedToolServiceIdentity } from '../../auth/tool-service-secret.guard.js';
 import type { CoreEd25519KeyConfig } from '../../auth/core-ed25519-key-config.js';
 import type { MeriExecutionRequestIdentity } from '../../auth/meri-execution-request.js';
-import { UUID, nativeCanonicalSha256, sameJson } from '../native-approvals/native-approval.contract.js';
+import { UUID, nativeCanonicalSha256, sameJson, parseApprovalProposal, parseRunBinding, parseObjectReference } from '../native-approvals/native-approval.contract.js';
 import { nativeDecisionOf } from '../native-approvals/native-approval.service.js';
 import {
   MERI_EXECUTION_KEY_CONFIG,
@@ -26,6 +27,14 @@ import {
   meriExecutionTrust,
 } from './meri-execution-authority.js';
 import { readMeriAdmittedRun } from './meri-admitted-run.reader.js';
+import { NativeApprovalService } from '../native-approvals/native-approval.service.js';
+import { TenantContextMiddleware } from '../../tenant/tenant-context.middleware.js';
+import { receiveNativeTask } from './native-task-execution.js';
+import { receiveNativeArtifactFile } from './native-artifact-file-execution.js';
+import { prepareNativeArtifactFileAuthority } from './native-artifact-file-authority.js';
+import type { NativeAttachmentRegistration } from '../meri.service.js';
+import { MeriClientFilingService } from '../meri-client-filing.service.js';
+import { retainedReadObject, retainedReadSnapshot } from '../retained-read-context.js';
 import {
   taskClientWithinScopes,
   taskCreateArgumentsFromBody,
@@ -92,7 +101,72 @@ export class MeriExecutionReceiverService {
     private readonly prisma: PrismaService,
     private readonly engagement: EngagementService,
     @Optional() @Inject(MERI_EXECUTION_KEY_CONFIG) private readonly config: CoreEd25519KeyConfig | null = null,
+    @Optional() private readonly approvals?: NativeApprovalService,
+    @Optional() private readonly tenant?: TenantContextMiddleware,
+    @Optional() private readonly filing?: MeriClientFilingService,
   ) {}
+
+  nativeApproved(req: Request, ctx: TenantContext, body: unknown, mode: 'execute' | 'read') {
+    if (!hasVerifiedToolServiceIdentity(req)) throw forbidden();
+    const input = retainedReadSnapshot(body, 262144);
+    if ((input as { proposal?: { command?: { action?: unknown } } })?.proposal?.command?.action !== 'artifact.file') {
+      return this.nativeTask(req, ctx, input, mode);
+    }
+    if (!this.approvals || !this.tenant || !this.filing) throw new ServiceUnavailableException('Native filing unavailable');
+    return receiveNativeArtifactFile({ prisma: this.prisma, approvals: this.approvals, tenant: this.tenant,
+      filing: this.filing }, req, ctx, input, mode);
+  }
+
+  /** Idempotent DB-only custody for one exact approved original. */
+  async nativeAttachmentRegistration<T>(req: Request, ctx: TenantContext, raw: unknown,
+    register: (registration: NativeAttachmentRegistration) => Promise<T>): Promise<T> {
+    if (!hasVerifiedToolServiceIdentity(req)) throw forbidden();
+    if (!this.approvals || !this.tenant) throw new ServiceUnavailableException('Native filing unavailable');
+    if (typeof raw !== 'string' || Buffer.byteLength(raw, 'utf8') > 262144) throw new BadRequestException('Invalid native filing context');
+    let decoded: unknown;
+    try { decoded = JSON.parse(raw); } catch { throw new BadRequestException('Invalid native filing context'); }
+    const input = retainedReadSnapshot(retainedReadObject(decoded, ['proposal', 'binding', 'object']), 262144);
+    const proposal = parseApprovalProposal(input.proposal), binding = parseRunBinding(input.binding, 'binding');
+    const object = parseObjectReference(input.object);
+    if (!proposal.command.attachments.some(approved => sameJson(approved, object))) throw conflict('File differs from the approved original');
+    const { clientId, authorize, readCurrent } = await prepareNativeArtifactFileAuthority(
+      { prisma: this.prisma, approvals: this.approvals, tenant: this.tenant }, req, ctx, proposal, binding);
+    const digest = nativeCanonicalSha256(['meri-native-attachment-v1', ctx.tenantId, ctx.userId, clientId, object]);
+    const attachmentId = `${digest.slice(0, 8)}-${digest.slice(8, 12)}-5${digest.slice(13, 16)}-a${digest.slice(17, 20)}-${digest.slice(20, 32)}`;
+    const result = await this.prisma.withTenant(ctx.tenantId, async tx => {
+      const beforeWrite = async () => { if (!await authorize(tx, true)) throw conflict('Approved original registration refused'); };
+      await beforeWrite();
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended('capiro-meri-native-attachment:' || ${attachmentId}::text, 0::bigint))::text AS locked`;
+      await beforeWrite();
+      const stored = await register({ tx, attachmentId, object, beforeWrite });
+      await beforeWrite();
+      return stored;
+    });
+    const current = await readCurrent();
+    await this.prisma.withTenant(ctx.tenantId, async tx => {
+      if (!await authorize(tx, true) || current.expiresAtMs <= await meriExecutionDbNow(tx)) throw forbidden();
+      // Release only bytes visible after COMMIT, never the insert callback's
+      // provisional result. A deferred commit failure can otherwise leave no
+      // staged original even when the transaction client resolves successfully.
+      await tx.$queryRaw`SELECT id::text FROM clio_attachments WHERE id=${attachmentId}::uuid
+        AND tenant_id=${ctx.tenantId}::uuid AND user_id=${ctx.userId}::uuid FOR SHARE`;
+      const stored = await tx.clioAttachment.findFirst({ where: {
+        id: attachmentId, tenantId: ctx.tenantId, userId: ctx.userId, messageId: null,
+      }, select: { data: true, byteSize: true } });
+      if (!stored?.data || stored.byteSize !== object.bytes || stored.data.byteLength !== object.bytes ||
+          createHash('sha256').update(stored.data).digest('hex') !== object.sha256) {
+        throw new ServiceUnavailableException('Approved original registration was not retained');
+      }
+    });
+    return result;
+  }
+
+  /** Attended native tasks share this receiver's transaction and receipt owner. */
+  nativeTask(req: Request, ctx: TenantContext, body: unknown, mode: 'execute' | 'read') {
+    if (!this.approvals || !this.tenant) throw new ServiceUnavailableException('Native task execution unavailable');
+    return receiveNativeTask({ prisma: this.prisma, engagement: this.engagement, approvals: this.approvals,
+      tenant: this.tenant }, req, ctx, body, mode);
+  }
 
   async receive(
     req: Request,

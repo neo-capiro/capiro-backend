@@ -80,6 +80,9 @@ const LOCAL_SAFE_GENERATION_HANDLERS = new Set([
 const LOCAL_SAFE_ATTACHMENT_HANDLERS = new Set([
   'attachments',
   'approveMeetingAttachment',
+  'createAttachmentUploadUrl',
+  'confirmAttachment',
+  'deleteAttachment',
 ]);
 const LOCAL_SAFE_OAUTH_HANDLERS = new Set(['capabilities']);
 const LOCAL_SAFE_SEND_HANDLERS = new Set([
@@ -219,6 +222,20 @@ describe('Engagement runtime route coverage', () => {
 
   it('covers every externally sensitive route exactly', () => {
     expect(validateRegistry(ENGAGEMENT_RUNTIME_ROUTE_POLICY)).toEqual([]);
+  });
+
+  it.each([
+    ['createAttachmentUploadUrl', 'POST', '/api/engagement/attachments/upload-url'],
+    ['confirmAttachment', 'POST', '/api/engagement/attachments/confirm'],
+    ['deleteAttachment', 'DELETE', '/api/engagement/attachments/:id'],
+  ])('keeps the real internal storage route %s outside the outbound policy', (handler, method, routePath) => {
+    const route = ROUTE_MANIFEST.routes.find(
+      (entry) => entry.controller === 'EngagementController' && entry.handler === handler,
+    );
+    expect(route).toMatchObject({ method, path: routePath, classification: 'attachment' });
+    expect(externallySensitive(route!)).toBe(false);
+    expect(decoratorMetadata(route!)).toBeUndefined();
+    expect(runtimePolicyForHandler('EngagementController', handler!)).toBeUndefined();
   });
 
   it('classifies the local single-mail intent GET as a read without a send policy', () => {

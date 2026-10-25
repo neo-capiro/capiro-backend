@@ -107,12 +107,19 @@ describe('Engagement route manifest', () => {
     });
 
 
-    it('preserves all fourteen mailbox routes and their authenticated versus public boundaries', () => {
+    it('preserves mailbox and calendar command routes with their authenticated versus public boundaries', () => {
       const mailbox = routes.filter((route) => /^\/api\/engagement\/integrations\/(microsoft|google)\//.test(route.path));
-      expect(mailbox).toHaveLength(14);
+      expect(mailbox).toHaveLength(18);
+      expect(mailbox.filter((route) => route.classification === 'oauth')).toHaveLength(14);
+      for (const provider of ['microsoft', 'google']) {
+        const calendar = mailbox.filter((route) => route.path.startsWith(`/api/engagement/integrations/${provider}/`) && route.path.includes('/calendar-commands'));
+        expect(calendar.map((route) => [route.method, route.handler, route.classification])).toEqual([
+          ['POST', 'runCalendarCommand', 'sync'],
+          ['GET', 'readCalendarCommand', 'read'],
+        ]);
+      }
       expect(mailbox.filter((route) => route.controller.endsWith('CallbacksController'))).toHaveLength(4);
       for (const route of mailbox) {
-        expect(route.classification).toBe('oauth');
         expect(route.controllerGuards).toEqual([]);
         expect(route.controllerRoles).toEqual([]);
         const callback = route.controller.endsWith('CallbacksController');

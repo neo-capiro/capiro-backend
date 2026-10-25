@@ -40,6 +40,36 @@ function policy(serviceName: 'api' | 'engagement-api') {
 }
 
 describe('bounded Outreach V3 runtime authority', () => {
+  it.each(['api', 'engagement-api'] as const)(
+    'keeps all sends and workers disabled in integrations_only despite every V3 flag in %s',
+    (serviceName) => {
+      const runtime = new EngagementRuntimePolicyService({
+        serviceName,
+        processMode: 'shadow',
+        backgroundOwner: serviceName,
+        externalActions: 'integrations_only',
+        callbacksEnabled: true,
+        recallWebhookEnabled: false,
+      });
+      for (const action of [
+        'outreach_send',
+        'outreach_test_send',
+        'outreach_v3_send',
+        'outreach_v3_test_send',
+        'outreach_generate',
+        'outreach_reasoning',
+        'outreach_v3_generate',
+      ] as const) {
+        expect(runtime.externalActionAllowed(action, { testMode: true })).toBe(false);
+      }
+      expect(runtime.backgroundWorkersEnabled()).toBe(false);
+      expect(runtime.outreachV3SendIntentWorkerEnabled()).toBe(false);
+      expect(runtime.outreachV3FullGenerationWorkerEnabled()).toBe(false);
+      expect(() => runtime.assertOutreachV3SendIntentWorker()).toThrow();
+      expect(() => runtime.assertOutreachV3FullGenerationWorker()).toThrow();
+    },
+  );
+
   it('allows only the dedicated V3 action classes in engagement-api', () => {
     const runtime = policy('engagement-api');
 

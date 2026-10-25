@@ -53,6 +53,12 @@ compose_database_url() {
 
 select_writable_tmpdir
 
+# Preserve unconfigured startup; partial private-origin configuration refuses.
+if [ -n "${MERI_CONTROL_ORIGIN+x}${MERI_CONTROL_CA_BASE64+x}${MERI_CONTROL_CA_SHA256+x}" ]; then
+  NODE_EXTRA_CA_CERTS=$(node /app/apps/api/scripts/lib/meri-control-ca.cjs)
+  export NODE_EXTRA_CA_CERTS
+fi
+
 case "${1:-serve}" in
   migration-status)
     compose_database_url

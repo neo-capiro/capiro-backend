@@ -316,7 +316,9 @@ function assertReadFacts(request: MeetingV02ProjectionRequest): void {
       !same(subject.entityIds, [authority.binding.actorId])
     )
       refuse('personal meeting subject is not bound to the actor');
-  } else if (subject.kind !== 'client' || !same(subject.entityIds, [clientId])) {
+  } else if (operation === 'meeting.read_client_meetings' && subject.kind === 'personal' ?
+      subject.entityType !== 'user' || !same(subject.entityIds, [authority.binding.actorId]) :
+      subject.kind !== 'client' || !same(subject.entityIds, [clientId])) {
     refuse('meeting subject is not bound to the selected client');
   }
 }

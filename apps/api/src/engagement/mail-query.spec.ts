@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { normalizeMailReadFilters, queryMailMessages, type MailQueryOptions } from './mail-query.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
+import { NotFoundException } from '@nestjs/common';
 
 /** Canonical mailbox queries retain scope, literal lookup, bounded pages and honest coverage. */
 
@@ -79,13 +80,19 @@ function makeService(input: { count?: number; rows?: unknown[]; coverage?: unkno
     .mockResolvedValueOnce([{ n: input.count ?? 0 }])
     .mockResolvedValueOnce(input.rows ?? [])
     .mockResolvedValueOnce(input.coverage ?? []);
+  const tx = {
+    $queryRaw: queryRaw, $executeRaw: jest.fn().mockResolvedValue(0),
+    $queryRawUnsafe: jest.fn().mockResolvedValue([{ allowed: true }]),
+    tenantMembership: { findFirst: jest.fn().mockResolvedValue({ id: 'membership' }) },
+    client: { findFirst: jest.fn().mockResolvedValue({ id: 'client' }) },
+  };
   const prisma = {
     withTenant: (_tenantId: string, fn: (tx: unknown) => Promise<unknown>) =>
-      fn({ $queryRaw: queryRaw, $executeRaw: jest.fn().mockResolvedValue(0) }),
+      fn(tx),
   };
   const searchEmails: SearchEmails = (ctx, input, options) =>
     queryMailMessages(prisma as unknown as PrismaService, ctx, input, options);
-  return { searchEmails, queryRaw };
+  return { searchEmails, queryRaw, tx };
 }
 
 /** All parameter values bound into the nth $queryRaw call's Prisma.Sql. */
@@ -95,6 +102,65 @@ function boundValues(queryRaw: jest.Mock, call: number): unknown[] {
 }
 
 describe('canonical mailbox query', () => {
+  const clientId = '30000000-0000-4000-8000-000000000001';
+
+  it.each(['membership', 'wall', 'client'])('refuses current %s denial before count, page or coverage', async failure => {
+    const h = makeService({});
+    if (failure === 'membership') h.tx.tenantMembership.findFirst.mockResolvedValue(null);
+    if (failure === 'wall') h.tx.$queryRawUnsafe.mockResolvedValue([{ allowed: false }]);
+    if (failure === 'client') h.tx.client.findFirst.mockResolvedValue(null);
+    await expect(h.searchEmails(CTX, { query: 'synthetic', clientId })).rejects.toBeInstanceOf(NotFoundException);
+    expect(h.queryRaw).not.toHaveBeenCalled();
+    if (failure === 'membership') expect(h.tx.$queryRawUnsafe).not.toHaveBeenCalled();
+  });
+
+  it('checks current tenant membership and the selected client in the same query transaction', async () => {
+    const h = makeService({});
+    await h.searchEmails(CTX, { query: 'synthetic', clientId });
+    expect(h.tx.tenantMembership.findFirst).toHaveBeenCalledWith({ where: {
+      tenantId: CTX.tenantId, userId: CTX.userId, status: 'active', tenant: { status: 'active' },
+      role: { in: ['standard_user', 'user_admin', 'capiro_admin'] },
+    }, select: { id: true } });
+    expect(h.tx.$queryRawUnsafe).toHaveBeenCalledWith(expect.any(String), CTX.tenantId, clientId, CTX.userId);
+    expect(h.tx.client.findFirst).toHaveBeenCalledWith({ where: {
+      id: clientId, tenantId: CTX.tenantId, status: { not: 'archived' },
+    }, select: { id: true } });
+    expect(h.tx.client.findFirst.mock.invocationCallOrder[0]).toBeLessThan(h.queryRaw.mock.invocationCallOrder[0]!);
+  });
+
+  it('rechecks the selected client wall before a continuation can release another page', async () => {
+    const h = makeService({ count: 2, rows: [row()] });
+    const first = await h.searchEmails(CTX, { query: 'synthetic', clientId, limit: 1 });
+    expect(first.nextOffset).toBe(1);
+    h.tx.$queryRawUnsafe.mockResolvedValue([{ allowed: false }]);
+    await expect(h.searchEmails(CTX, { query: 'synthetic', clientId, limit: 1,
+      offset: first.nextOffset, asOf: first.asOf })).rejects.toBeInstanceOf(NotFoundException);
+    expect(h.queryRaw).toHaveBeenCalledTimes(3);
+  });
+
+  it('filters General associated clients before counts, pages and coverage while preserving client-less mail', async () => {
+    const h = makeService({ count: 1, rows: [row({ client_id: null, client_name: null })] });
+    const result = await h.searchEmails(CTX, {}, { allowUnfiltered: true });
+    expect(result.totalMatches).toBe(1);
+    expect(result.messages?.[0]?.client).toBeNull();
+    expect(h.tx.client.findFirst).not.toHaveBeenCalled();
+    expect(h.tx.$queryRawUnsafe).not.toHaveBeenCalled();
+    for (const [sql] of h.queryRaw.mock.calls as [Prisma.Sql][]) {
+      expect(sql.sql).toContain('t.client_id IS NULL OR EXISTS');
+      expect(sql.sql).toContain('mail_client.id = t.client_id AND mail_client.tenant_id = t.tenant_id');
+      expect(sql.sql).toContain("mail_client.status::text <> 'archived'");
+      expect(sql.sql).toContain('NOT mail_client.memory_wall OR EXISTS');
+      expect(sql.sql).toContain('wall_grant.tenant_id = mail_client.tenant_id');
+      expect(sql.sql).toContain('wall_grant.client_id = mail_client.id');
+      expect(sql.sql).toContain('wall_grant.user_id = c.created_by_user_id');
+      expect(sql.values).toContain(CTX.tenantId);
+      expect(sql.values).toContain(CTX.userId);
+    }
+    const coverageSql = (h.queryRaw.mock.calls[2][0] as Prisma.Sql).sql;
+    expect(coverageSql).toContain('t.id = m.thread_id AND t.tenant_id = m.tenant_id AND t.connection_id = m.connection_id');
+    expect(coverageSql.indexOf('t.client_id IS NULL OR EXISTS')).toBeLessThan(coverageSql.indexOf('GROUP BY'));
+  });
+
   it('keeps normalized filters distinct from validation refusals', () => {
     const filters = normalizeMailReadFilters({ query: '  exact term  ', withinDays: 14,
       folder: 'inbox', asOf: '2026-09-07T12:00:00Z' });

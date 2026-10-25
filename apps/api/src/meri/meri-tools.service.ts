@@ -578,16 +578,16 @@ export class MeriToolsService {
         admission.operation.version !== '0.3.0' ||
         ctx.tenantId !== admission.binding.tenantId ||
         ctx.userId !== admission.binding.actorId ||
-        admission.subject.kind !== 'client' || admission.subject.entityType !== 'client' ||
+        (admission.subject.kind === 'personal' ? admission.subject.entityType !== 'user' :
+          admission.subject.kind !== 'client' || admission.subject.entityType !== 'client') ||
         admission.subject.tenantId !== ctx.tenantId ||
         admission.subject.actorId !== ctx.userId ||
         admission.subject.entityIds.length !== 1 ||
-        admission.subject.entityIds[0] !== admission.clientId ||
+        admission.subject.entityIds[0] !== (admission.subject.kind === 'personal' ? ctx.userId : admission.clientId) ||
         admission.input.clientId !== admission.clientId ||
         Date.now() >= admission.hardExpiryMs)
       throw new ServiceUnavailableException('Retained client context source unavailable');
-    if (await this.ensureClientVisible(ctx, admission.clientId) !== admission.clientId)
-      throw new ServiceUnavailableException('Retained client context source unavailable');
+    await this.assertMeetingReadAllowed(ctx, admission.clientId);
     assertMeriToolRequestActive();
     const legacyInput: Record<string, unknown> = {
       clientId: admission.clientId,
@@ -605,8 +605,7 @@ export class MeriToolsService {
     }
     const startedAt = new Date().toISOString();
     const result = await this.getClientContext(ctx, legacyInput);
-    if (await this.ensureClientVisible(ctx, admission.clientId) !== admission.clientId)
-      throw new ServiceUnavailableException('Retained client context source unavailable');
+    await this.assertMeetingReadAllowed(ctx, admission.clientId);
     assertMeriToolRequestActive();
     if (Date.now() >= admission.hardExpiryMs)
       throw new ServiceUnavailableException('Retained client context source unavailable');
@@ -2405,10 +2404,12 @@ export class MeriToolsService {
         note: 'No client is linked to this conversation. Ask the user which client, or pass clientId.',
       };
     }
+    await this.assertMeetingReadAllowed(ctx, clientId);
     const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.client.findFirst({ where: { id: clientId }, select: { id: true, name: true } }),
     );
     if (!client) throw new NotFoundException('Client not found');
+    let page;
     try {
       const results = await this.clientKb.search(ctx.tenantId, {
         query,
@@ -2417,7 +2418,7 @@ export class MeriToolsService {
         kind: typeof input.kind === 'string' ? input.kind : undefined,
         limit: typeof input.limit === 'number' ? input.limit : undefined,
       });
-      return {
+      page = {
         tool: 'search_client_knowledge',
         generatedAt,
         clientId,
@@ -2429,7 +2430,7 @@ export class MeriToolsService {
       this.logger.warn(
         `search_client_knowledge failed [${clientId}]: ${err instanceof Error ? err.message : err}`,
       );
-      return {
+      page = {
         tool: 'search_client_knowledge',
         generatedAt,
         clientId,
@@ -2439,6 +2440,9 @@ export class MeriToolsService {
         note: 'Knowledge-base search is temporarily unavailable; fall back to get_client_context.',
       };
     }
+    // Access loss is not an embeddings outage and must not disclose the client name or an empty note.
+    await this.assertMeetingReadAllowed(ctx, clientId);
+    return page;
   }
 
   // ── run_analysis (F4): sandboxed Python over the no-egress runner ────────
@@ -3163,7 +3167,9 @@ export class MeriToolsService {
         clientId,
         section: 'facilities',
         query,
-        load: () => this.clientFacilities.listFacilities(ctx, clientId),
+        load: async () => (await this.clientFacilities.listFacilities(ctx, clientId))
+          // The geocode edit precondition belongs to the interactive facility API.
+          .map(({ geocodeCandidateRevision: _geocodeCandidateRevision, ...facility }) => facility),
         summarize: (facility) => ({
           id: facility.id,
           name: facility.name,
@@ -6308,13 +6314,16 @@ export class MeriToolsService {
     const limit = clampInt(input.limit, 1, 25, 8);
     if (clientId) clientId = await this.ensureClientVisible(ctx, clientId);
 
-    const results = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const results = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const deniedClientIds = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
+      if (clientId && deniedClientIds.includes(clientId)) throw new NotFoundException('Client not found');
+      const visibleClient = { OR: [{ clientId: null }, { clientId: { notIn: deniedClientIds } }] };
       const [clients, meetings, threads, messages, meriNotes, directoryNotes] = await Promise.all([
         tx.client.findMany({
           where: {
             tenantId: ctx.tenantId,
             status: { not: 'archived' },
-            ...(clientId ? { id: clientId } : {}),
+            id: clientId ?? { notIn: deniedClientIds },
             OR: [
               { name: { contains: query, mode: 'insensitive' } },
               { description: { contains: query, mode: 'insensitive' } },
@@ -6334,6 +6343,7 @@ export class MeriToolsService {
             status: { notIn: ['cancelled', 'canceled', 'deleted'] },
             // Ownership and text search are independent OR clauses; intersect both.
             AND: [
+              visibleClient,
               ownMeetingWhere(ctx.userId),
               { OR: [
                 { subject: { contains: query, mode: 'insensitive' } },
@@ -6363,6 +6373,7 @@ export class MeriToolsService {
             tenantId: ctx.tenantId,
             ...(clientId ? { clientId } : {}),
             ...ownMailThreadWhere(ctx.userId),
+            AND: [visibleClient],
             OR: [
               { subject: { contains: query, mode: 'insensitive' } },
               { snippet: { contains: query, mode: 'insensitive' } },
@@ -6383,7 +6394,7 @@ export class MeriToolsService {
           where: {
             tenantId: ctx.tenantId,
             ...ownMailMessageWhere(ctx.userId),
-            ...(clientId ? { thread: { clientId } } : {}),
+            thread: { ...(clientId ? { clientId } : {}), AND: [visibleClient] },
             OR: [
               { subject: { contains: query, mode: 'insensitive' } },
               { bodyText: { contains: query, mode: 'insensitive' } },
@@ -6410,6 +6421,7 @@ export class MeriToolsService {
             tenantId: ctx.tenantId,
             userId: ctx.userId,
             ...(clientId ? { clientId } : {}),
+            AND: [visibleClient],
             OR: [
               { title: { contains: query, mode: 'insensitive' } },
               { body: { contains: query, mode: 'insensitive' } },
@@ -6498,11 +6510,16 @@ export class MeriToolsService {
         .slice(0, limit * 3);
     });
 
+    // A wall may change while independent source reads are awaiting. Core's
+    // canonical wall owner decides again before any candidate text is released.
+    const currentDenied = new Set(await this.prisma.withTenantUser(ctx.tenantId, ctx.userId,
+      tx => fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId)));
+    if (clientId && currentDenied.has(clientId)) throw new NotFoundException('Client not found');
     return {
       tool: 'search_research_sources',
       query,
       generatedAt: new Date().toISOString(),
-      results,
+      results: results.filter(row => row.clientId === null || !currentDenied.has(row.clientId)),
     };
   }
 
@@ -7073,12 +7090,13 @@ export class MeriToolsService {
     if (
       ctx.tenantId !== admission.binding.tenantId ||
       ctx.userId !== admission.binding.actorId ||
-      admission.subject.kind !== 'client' || admission.clientId === null ||
-      admission.subject.entityType !== 'client' ||
+      admission.clientId === null ||
+      (operation === 'meeting.read_client_meetings' && admission.subject.kind === 'personal' ?
+        admission.subject.entityType !== 'user' : admission.subject.kind !== 'client' || admission.subject.entityType !== 'client') ||
       admission.subject.tenantId !== ctx.tenantId ||
       admission.subject.actorId !== ctx.userId ||
       admission.subject.entityIds.length !== 1 ||
-      admission.subject.entityIds[0] !== admission.clientId ||
+      admission.subject.entityIds[0] !== (admission.subject.kind === 'personal' ? ctx.userId : admission.clientId) ||
       admission.input.clientId !== admission.clientId ||
       Date.now() >= admission.hardExpiryMs ||
       ![
@@ -8172,7 +8190,9 @@ export class MeriToolsService {
   private async searchTrackedBills(ctx: TenantContext, input: Record<string, unknown>) {
     let clientId = requiredString(input, 'clientId', 80);
     clientId = await this.ensureClientVisible(ctx, clientId);
+    await this.assertMeetingReadAllowed(ctx, clientId);
     const bills = await this.intelligence.listTrackedBills(clientId, ctx.tenantId);
+    await this.assertMeetingReadAllowed(ctx, clientId);
     return {
       tool: 'search_tracked_bills',
       generatedAt: new Date().toISOString(),

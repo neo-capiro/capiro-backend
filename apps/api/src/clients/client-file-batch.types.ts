@@ -18,6 +18,17 @@ export interface FileBatchMoveReceipt {
   committedAt: string;
   files: Array<{ id: string; previousRevision: number; revision: number; folder: string | null }>;
 }
+/** Durable terminal no-write outcome for this exact command, stored in the existing receipt owner. */
+export interface FileBatchMoveRefusal {
+  schemaVersion: 1;
+  code: 'FILE_BATCH_MOVE_REFUSED';
+  requestId: string;
+  clientId: string;
+  payloadDigest: string;
+  status: 400 | 404 | 409;
+  message: string;
+}
+export type FileBatchMoveOutcome = FileBatchMoveReceipt | FileBatchMoveRefusal;
 const record = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== 'object' || Array.isArray(value))
     throw new BadRequestException('Invalid batch move command');

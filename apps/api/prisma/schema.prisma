@@ -211,6 +211,7 @@ model Tenant {
   savedOpportunitySearches           SavedOpportunitySearch[]
   opportunityBookmarks               OpportunityBookmark[]
   impersonationSessions              ImpersonationSession[]
+  calendarSyncCommands               CalendarSyncCommand[]
   engagementConnections              IntegrationConnection[]
   engagementConnectionTokens         IntegrationConnectionToken[]
   engagementContacts                 EngagementContact[]
@@ -256,6 +257,11 @@ model Tenant {
   clientSubmissionHistory            ClientSubmissionHistory[]
   clientPeople                       ClientPerson[]
   clientPersonCreateReceipts          ClientPersonCreateReceipt[]
+  meetingCommandReceipts             MeetingCommandReceipt[]
+  clientFileAccessReceipts           ClientFileAccessReceipt[]
+  clientFileDeletions                ClientFileDeletion[]
+  prospectContactTransferReceipts    ProspectContactTransferReceipt[]
+  prospectAttachmentCopies         ProspectAttachmentCopy[]
   clientFacilities                   ClientFacility[]
   clientActivityCommands             ClientActivityCommand[]
   clientActivity                     ClientActivity[]
@@ -2388,9 +2394,11 @@ model ClioMeriApprovalDecision {
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "clio_meri_approval_decisions_tenant_fkey")
   executionIssuances ClioMeriExecutionIssuance[]
+  executionConsumptions ClioMeriExecutionConsumption[]
   revocation         ClioMeriApprovalRevocation?
 
   @@id([tenantId, proposalId], map: "clio_meri_approval_decisions_pkey")
+  @@unique([tenantId, proposalId, commandSha256], map: "clio_meri_approval_decisions_command_key")
   @@map("clio_meri_approval_decisions")
 }
 
@@ -2683,13 +2691,14 @@ model ClioMeriExecutionConsumption {
   idempotencyKey  String    @map("idempotency_key") @db.VarChar(128)
   commandSha256   String    @map("command_sha256") @db.Char(64)
   argumentsSha256 String    @map("arguments_sha256") @db.Char(64)
-  jti             String    @db.Uuid
+  jti             String?   @db.Uuid
   state           String    @default("CLAIMED") @db.VarChar(9)
   result          Json?
   claimedAt       DateTime  @default(now()) @map("claimed_at") @db.Timestamptz(6)
   completedAt     DateTime? @map("completed_at") @db.Timestamptz(6)
 
-  issuance ClioMeriExecutionIssuance @relation(fields: [jti], references: [jti], onDelete: NoAction, onUpdate: NoAction, map: "clio_meri_execution_consumptions_jti_fkey")
+  issuance ClioMeriExecutionIssuance? @relation(fields: [jti], references: [jti], onDelete: NoAction, onUpdate: NoAction, map: "clio_meri_execution_consumptions_jti_fkey")
+  decision ClioMeriApprovalDecision @relation(fields: [tenantId, proposalId, commandSha256], references: [tenantId, proposalId, commandSha256], onDelete: NoAction, onUpdate: NoAction, map: "clio_meri_execution_consumptions_decision_fkey")
 
   @@id([tenantId, proposalId, idempotencyKey], map: "clio_meri_execution_consumptions_pkey")
   @@map("clio_meri_execution_consumptions")
@@ -4024,8 +4033,112 @@ model ClientSubmissionHistory {
   @@map("client_submission_history")
 }
 
-/// Consumed manual contact-create request. Retained independently of editable,
-/// deletable contact rows so a retry cannot recreate a removed contact.
+/// Explicit contact carry-over history; never a synthesized conversion receipt.
+model ProspectContactTransferReceipt {
+  tenantId      String   @map("tenant_id") @db.Uuid
+  actorUserId   String   @map("actor_user_id") @db.Uuid
+  requestId     String   @map("request_id") @db.Uuid
+  prospectId    String   @map("prospect_id") @db.Uuid
+  clientId      String   @map("client_id") @db.Uuid
+  payloadDigest String   @map("payload_digest") @db.Char(64)
+  status        String
+  result        Json?    @map("result_jsonb")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, actorUserId, requestId], map: "prospect_contact_transfer_receipts_pkey")
+  @@map("prospect_contact_transfer_receipts")
+}
+
+/// Exact independent prospect upload copies, including pending storage writes.
+model ProspectAttachmentCopy {
+  tenantId      String   @map("tenant_id") @db.Uuid
+  actorUserId   String   @map("actor_user_id") @db.Uuid
+  requestId     String   @map("request_id") @db.Uuid
+  prospectId    String   @map("prospect_id") @db.Uuid
+  clientId      String   @map("client_id") @db.Uuid
+  payloadDigest String   @map("payload_digest") @db.Char(64)
+  command       Json     @map("command_jsonb")
+  source        Json     @map("source_jsonb")
+  destinationId String   @unique @map("destination_id") @db.Uuid
+  bucket        String
+  objectKey     String   @map("object_key")
+  status        String
+  result        Json?    @map("result_jsonb")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt   DateTime? @map("completed_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, actorUserId, requestId])
+  @@unique([bucket, objectKey])
+  @@map("prospect_attachment_copies")
+}
+
+/// Recoverable file deletion independent of later attachment, client and actor deletion.
+/// The migration also uniquely claims the physical bucket/key stored in object_jsonb.
+model ClientFileDeletion {
+  tenantId        String    @map("tenant_id") @db.Uuid
+  actorUserId     String    @map("actor_user_id") @db.Uuid
+  requestId       String    @map("request_id") @db.Uuid
+  clientId        String    @map("client_id") @db.Uuid
+  attachmentId    String    @map("attachment_id") @db.Uuid
+  payloadDigest   String    @map("payload_digest") @db.Char(64)
+  command         Json      @map("command_jsonb")
+  source          Json      @map("source_jsonb")
+  object          Json      @map("object_jsonb")
+  claimedRevision Int       @map("claimed_revision")
+  status          String
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt     DateTime? @map("completed_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, actorUserId, requestId])
+  @@unique([tenantId, attachmentId])
+  @@map("client_file_deletions")
+}
+
+/// Immutable access-change outcome independent of later file edits and deletion.
+model ClientFileAccessReceipt {
+  tenantId      String   @map("tenant_id") @db.Uuid
+  actorUserId   String   @map("actor_user_id") @db.Uuid
+  requestId     String   @map("request_id") @db.Uuid
+  clientId      String   @map("client_id") @db.Uuid
+  payloadDigest String   @map("payload_digest") @db.Char(64)
+  operation     String
+  status        String
+  result        Json?    @map("result_jsonb")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, actorUserId, requestId], map: "client_file_access_receipts_pkey")
+  @@map("client_file_access_receipts")
+}
+
+/// Immutable historical outcome; current meeting/artifact existence is checked separately.
+model MeetingCommandReceipt {
+  tenantId           String   @map("tenant_id") @db.Uuid
+  actorUserId        String   @map("actor_user_id") @db.Uuid
+  requestId          String   @map("request_id") @db.Uuid
+  payloadDigest      String   @map("payload_digest") @db.Char(64)
+  operation          String
+  requestedMeetingId String?  @map("requested_meeting_id") @db.Uuid
+  expectedClientId   String?  @map("expected_client_id") @db.Uuid
+  clientIds          String[] @map("client_ids") @db.Uuid
+  status             String
+  result             Json?    @map("result_jsonb")
+  message            String?
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, actorUserId, requestId], map: "meeting_command_receipts_pkey")
+  @@map("meeting_command_receipts")
+}
+
 model ClientPersonCreateReceipt {
   tenantId      String   @map("tenant_id") @db.Uuid
   actorUserId   String   @map("actor_user_id") @db.Uuid
@@ -17574,4 +17687,25 @@ model EngagementPlanRevision {
 
   @@unique([tenantId, planId, version], map: "engagement_plan_revisions_version_key")
   @@map("engagement_plan_revisions")
+}
+
+model CalendarSyncCommand {
+  tenantId      String @map("tenant_id") @db.Uuid
+  actorUserId   String @map("actor_user_id") @db.Uuid
+  requestId     String @map("request_id") @db.Uuid
+  connectionId  String @map("connection_id") @db.Uuid
+  provider      String
+  accountId     String @map("account_id")
+  payloadDigest String @map("payload_digest") @db.Char(64)
+  command       Json @map("command_jsonb")
+  window        Json @map("window_jsonb")
+  progress      Json @map("progress_jsonb")
+  status        String
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  tenant        Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, actorUserId, requestId], map: "calendar_sync_commands_pkey")
+  @@index([tenantId, connectionId, status], map: "calendar_sync_commands_connection_idx")
+  @@map("calendar_sync_commands")
 }

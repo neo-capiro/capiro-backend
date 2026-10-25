@@ -15,7 +15,7 @@ const fail = (stored: StoredWorkReceipt): never => workFailure('RECEIPT_UNVERIFI
 
 /** A selected replay cannot attach selection to a bare historical v1 receipt. */
 export async function verifyObjectiveStrategySelectionWithinTx(tx: Tx, a: WorkAuthority, stored: StoredWorkReceipt,
-  request: ObjectiveStrategySelectionRequest): Promise<void> {
+  request: ObjectiveStrategySelectionRequest): Promise<string> {
   const rows = await tx.$queryRaw<Array<{ record: Row }>>`SELECT to_jsonb(i) AS record
     FROM client_objective_strategy_intakes i
     WHERE i.tenant_id=${a.tenantId}::uuid AND i.client_id=${a.clientId}::uuid AND i.objective_id=${a.objectiveId}::uuid
@@ -50,6 +50,9 @@ export async function verifyObjectiveStrategySelectionWithinTx(tx: Tx, a: WorkAu
       i.job_request_key !== objectiveStrategyRequestCodec.requestKey(a.tenantId, i.original_clerk_user_id, draft.requestId) ||
       !Number.isSafeInteger(deadline) || !Number.isSafeInteger(reserved) || reserved < Date.parse(r.committedAt) ||
       deadline <= reserved || !r.consent || deadline > Date.parse(r.consent.expiresAt)) return fail(stored);
+  // The immutable intake owns the original reservation identity on both the
+  // insertion path and exact-command recovery. Never derive it from a retry.
+  return i.generation_job_id;
 }
 
 /** Called only from the selected command's native receipt insertion transaction. */

@@ -12,7 +12,7 @@ const unavailable = () => new ServiceUnavailableException('Mail search is tempor
 export async function withMailQueryDeadline<T>(
   prisma: PrismaService,
   tenantId: string,
-  read: (query: <R>(sql: Prisma.Sql) => Promise<R>) => Promise<T>,
+  read: (query: <R>(sql: Prisma.Sql) => Promise<R>, tx: Prisma.TransactionClient) => Promise<T>,
 ): Promise<T> {
   try {
     return await prisma.withTenant(tenantId, async (tx) => {
@@ -25,7 +25,7 @@ export async function withMailQueryDeadline<T>(
         // from each receiving a fresh full budget.
         await tx.$executeRaw`SELECT set_config('statement_timeout', ${`${remaining}ms`}, true)`;
         return tx.$queryRaw<R>(sql);
-      });
+      }, tx);
     }, { timeoutMs: MAIL_READ_BUDGET_MS + 2_000 });
   } catch (error) {
     const failure = error as { code?: unknown; meta?: { code?: unknown } } | null;

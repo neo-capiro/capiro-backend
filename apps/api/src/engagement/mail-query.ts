@@ -5,6 +5,8 @@ import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { getMailSyncCoverage } from './mail-sync-coverage.js';
 import { withMailQueryDeadline } from './mail-query-deadline.js';
+import { requireMailReadScope } from './engagement-access.helpers.js';
+import { clientMemoryAllowedForRowOwnerSql } from '../memory/memory-wall.helpers.js';
 
 const MAIL_PROVIDERS = ['microsoft_365', 'google_workspace'];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -97,6 +99,16 @@ export function mailReadClientAssociation(clientId: string, emails: string[], as
   return Prisma.sql`(t.client_id=${clientId}::uuid ${emails.length ? Prisma.sql`OR ${activeMailAssociationMessage(emails, asOf)}` : Prisma.empty})`;
 }
 
+/** Fixed aliases t/c are the owned thread and connection in both result and inventory queries. */
+function mailReadClientVisibility() {
+  return Prisma.sql`(t.client_id IS NULL OR EXISTS (
+    SELECT 1 FROM clients mail_client
+    WHERE mail_client.id = t.client_id AND mail_client.tenant_id = t.tenant_id
+      AND mail_client.status::text <> 'archived'
+      AND (${Prisma.raw(clientMemoryAllowedForRowOwnerSql('mail_client', 'c', 'created_by_user_id'))})
+  ))`;
+}
+
 /** Static aliases m/c/t belong to the canonical Mail owners; all request values stay bound. */
 export function mailReadMessageWhere(ctx: TenantContext, filters: MailReadFilters, mailboxList?: Prisma.Sql[]) {
   const { query, from, participant, clientId, folder, asOf, windowStart } = filters;
@@ -104,6 +116,7 @@ export function mailReadMessageWhere(ctx: TenantContext, filters: MailReadFilter
   // The same tenant + connection-owner boundary as engagement-access.helpers.
   // Raw SQL is needed for literal fragment matching inside recipient JSON arrays.
   const conds: Prisma.Sql[] = [
+    mailReadClientVisibility(),
     Prisma.sql`m.tenant_id = ${ctx.tenantId}::uuid`,
     Prisma.sql`c.tenant_id = m.tenant_id`,
     Prisma.sql`t.tenant_id = m.tenant_id`,
@@ -184,7 +197,8 @@ export async function queryMailMessages(
     };
   }
   const where = mailReadMessageWhere(ctx, filters, mailboxList);
-  const { total, rows, coverage } = await withMailQueryDeadline(prisma, ctx.tenantId, async (query) => {
+  const { total, rows, coverage } = await withMailQueryDeadline(prisma, ctx.tenantId, async (query, tx) => {
+    await requireMailReadScope(tx, ctx, clientId || undefined);
     const counted = await query<Array<{ n: number }>>(Prisma.sql`
       SELECT count(DISTINCT (m.connection_id, COALESCE(NULLIF(m.metadata_jsonb->>'internetMessageId', ''), m.id::text)))::int AS n
       FROM mail_messages m
@@ -244,6 +258,9 @@ export async function queryMailMessages(
              max(COALESCE(m.received_at, m.sent_at)) AS newest_synced
       FROM engagement_connections c
       LEFT JOIN mail_messages m ON m.connection_id = c.id AND m.tenant_id = c.tenant_id AND m.removed_at IS NULL
+        AND EXISTS (SELECT 1 FROM mail_threads t
+          WHERE t.id = m.thread_id AND t.tenant_id = m.tenant_id AND t.connection_id = m.connection_id
+            AND ${mailReadClientVisibility()})
       WHERE c.tenant_id = ${ctx.tenantId}::uuid AND c.created_by_user_id = ${ctx.userId}::uuid
             AND c.provider::text IN (${Prisma.join(MAIL_PROVIDERS)})
             ${mailboxList ? Prisma.sql`AND c.id IN (${Prisma.join(mailboxList)})` : Prisma.empty}

@@ -1,5 +1,6 @@
--- UNALLOCATED / UNAPPLIED. Review and allocate centrally; never run against shared databases.
--- Requires existing Phase 4 (tenant_id,id) unique key on business_development_prospects.
+-- Root-allocated forward activation of the accepted prospect Contacts schema.
+-- Requires business_development_prospects(tenant_id,id) from existing Phase 4.
+-- Deliberately fails on pre-existing objects; root must reconcile catalog/history before deployment.
 CREATE TABLE business_development_prospect_contacts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,

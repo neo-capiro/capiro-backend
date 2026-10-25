@@ -11,7 +11,6 @@ import type { Request } from 'express';
 import type { TenantContext } from '@capiro/shared';
 import { ToolServiceSecretGuard } from '../../auth/tool-service-secret.guard.js';
 import { nativeCanonicalSha256, parseApprovalDecisionInput, parseApprovalRevokeInput } from './native-approval.contract.js';
-import { NativeApprovalMetadataVerifier } from './native-approval-metadata.js';
 import { NativeApprovalService } from './native-approval.service.js';
 
 const tenantId = '11111111-1111-4111-8111-111111111111';
@@ -23,11 +22,11 @@ const binding = {
   attemptId: '66666666-6666-4666-8666-666666666666', workerId: '77777777-7777-4777-8777-777777777777',
   writerFence: 3,
 };
-const scope = (policyRevision = 'policy-r1') => ({ tenantId, kind: 'client', resourceId: 'client-1', policyRevision });
+const scope = (policyRevision = 'policy-r1') => ({ tenantId, kind: 'client', resourceId: otherActor, policyRevision });
 function command(overrides: Record<string, unknown> = {}) {
   return {
     contractVersion: '0.1.0', commandId: '88888888-8888-4888-8888-888888888888', binding,
-    action: 'task.create', arguments: { title: 'Call the delegation' }, attachments: [],
+    action: 'task.create', arguments: { title: 'Call the delegation', clientId: null, dueDate: null }, attachments: [],
     scopes: [scope()], idempotencyKey: 'intent-1', ...overrides,
   };
 }
@@ -52,7 +51,7 @@ function verifiedRequest(verified = true): Request {
   return req;
 }
 
-function fixture(options: { metadata?: 'ok' | 'unavailable' | 'mismatch' | 'missing' | 'overflow'; raceOnCreate?: boolean } = {}) {
+function fixture(options: { metadata?: 'ok' | 'unavailable' | 'mismatch'; raceOnCreate?: boolean } = {}) {
   const rows = new Map<string, any>();
   const revocations = new Map<string, any>();
   const key = (where: any) => `${where.tenantId_proposalId.tenantId}:${where.tenantId_proposalId.proposalId}`;
@@ -64,21 +63,6 @@ function fixture(options: { metadata?: 'ok' | 'unavailable' | 'mismatch' | 'miss
     rows.set(`${data.tenantId}:${data.proposalId}`, { ...data });
     return { ...data };
   });
-  const metadataRow = (p: ReturnType<typeof proposal>) => ({
-    tenant_id: tenantId, conversation_id: binding.conversationId, run_id: binding.runId,
-    run_binding: p.command.binding,
-    prepared_approvals_overflow: options.metadata === 'overflow',
-    prepared_approvals: [{
-      proposal_id: p.proposalId, command_id: p.command.commandId,
-      idempotency_key: p.command.idempotencyKey, command_sha256: p.commandSha256,
-      record: {
-        proposalId: p.proposalId, commandId: p.command.commandId, idempotencyKey: p.command.idempotencyKey,
-        createdAt: p.createdAt, expiresAt: p.expiresAt, requiredApprover: p.requiredApprover,
-        binding: p.command.binding, scopes: p.command.scopes,
-      },
-    }],
-  });
-  let current: ReturnType<typeof proposal> | null = null;
   const tx = {
     clioMeriApprovalDecision: {
       findUnique: jest.fn(async ({ where }: any) => rows.get(key(where)) ?? null),
@@ -95,21 +79,21 @@ function fixture(options: { metadata?: 'ok' | 'unavailable' | 'mismatch' | 'miss
         return { count: data.length };
       }),
     },
-    $queryRaw: jest.fn(async () => {
-      if (options.metadata === 'unavailable') throw new Error('relation "meri_read_delegation_facts.run_facts_v1" does not exist');
-      if (options.metadata === 'missing') return [];
-      if (!current) return [];
-      const row = metadataRow(current);
-      if (options.metadata === 'mismatch') row.prepared_approvals[0]!.command_sha256 = '0'.repeat(64);
-      return [row];
-    }),
+    $queryRaw: jest.fn(async () => [{ locked: '' }]),
   };
   const prisma = { withTenant: jest.fn(async (_tenant: string, fn: (t: typeof tx) => unknown) => fn(tx)) };
-  const service = new NativeApprovalService(prisma as never, new NativeApprovalMetadataVerifier(prisma as never));
+  const metadata = { verify: jest.fn(async () => {
+    if (options.metadata === 'unavailable') throw new ServiceUnavailableException();
+    if (options.metadata === 'mismatch') throw new ConflictException();
+  }) };
+  const current = { read: jest.fn(async (_ctx: unknown, _req: unknown, input: any) => ({
+    principal: { tenantId, actorId }, conversationId: binding.conversationId,
+    selectedClientId: input.clientId, expiresAtMs: Date.now() + 60_000,
+  })) };
+  const service = new NativeApprovalService(prisma as never, metadata as never, current as never);
   return {
     service, rows, revocations, create, tx,
     record: (body: { proposal: ReturnType<typeof proposal>; decision: string; approver?: unknown; binding?: unknown }, req = verifiedRequest()) => {
-      current = body.proposal;
       return service.record(req, ctx, { approver: { tenantId, actorId }, binding, ...body });
     },
   };
@@ -207,10 +191,6 @@ describe('P-INT-10 approval/record', () => {
 
   it('fails closed when Meri approval metadata is unavailable or differs', async () => {
     await expect(fixture({ metadata: 'unavailable' }).record({ proposal: proposal(), decision: 'approved' }))
-      .rejects.toBeInstanceOf(ServiceUnavailableException);
-    await expect(fixture({ metadata: 'missing' }).record({ proposal: proposal(), decision: 'approved' }))
-      .rejects.toBeInstanceOf(ServiceUnavailableException);
-    await expect(fixture({ metadata: 'overflow' }).record({ proposal: proposal(), decision: 'approved' }))
       .rejects.toBeInstanceOf(ServiceUnavailableException);
     const mismatch = fixture({ metadata: 'mismatch' });
     await expect(mismatch.record({ proposal: proposal(), decision: 'approved' })).rejects.toBeInstanceOf(ConflictException);

@@ -1,0 +1,810 @@
+[
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clients/:clientId/objectives/:objectiveId/generation/strategy-commands",
+    "owner": "Objective governed Strategy intake existing FE operation"
+  },
+  {
+    "service": "core",
+    "method": "PATCH",
+    "path": "/api/me",
+    "owner": "Settings:me.update"
+  },
+  {
+    "service": "core",
+    "method": "PUT",
+    "path": "/api/me/email-signature",
+    "owner": "Mail"
+  },
+  {
+    "service": "core",
+    "method": "PUT",
+    "path": "/api/tenant-admin/contact-info",
+    "owner": "Settings:settings.contact.update"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/tenant-admin/team/invite",
+    "owner": "Settings:settings.team.invite"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/tenant-admin/team/invitations/:invitationId/resend",
+    "owner": "Settings:settings.team.resend"
+  },
+  {
+    "service": "core",
+    "method": "DELETE",
+    "path": "/api/tenant-admin/team/:userId",
+    "owner": "Settings:settings.team.remove"
+  },
+  {
+    "service": "core",
+    "method": "PUT",
+    "path": "/api/tenant-admin/team/:userId/role",
+    "owner": "Settings:settings.team.setRole"
+  },
+  {
+    "service": "core",
+    "method": "PUT",
+    "path": "/api/tenant-admin/team/:userId/billing-admin",
+    "owner": "Settings:settings.team.setBillingAdmin"
+  },
+  {
+    "service": "core",
+    "method": "PUT",
+    "path": "/api/tenant-admin/branding",
+    "owner": "Settings:settings.branding.update"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/tenant-admin/branding/sync",
+    "owner": "Settings:settings.branding.sync"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/tenant-admin/branding/logo/upload-url",
+    "owner": "Settings:settings.branding.logoUploadUrl"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/tenant-admin/branding/logo/confirm",
+    "owner": "Settings:settings.branding.logoConfirm"
+  },
+  {
+    "service": "onboard",
+    "method": "POST",
+    "path": "/onboard-api/billing/portal",
+    "owner": "Settings:settings.billing.portal"
+  },
+  {
+    "service": "onboard",
+    "method": "POST",
+    "path": "/onboard-api/billing/checkout",
+    "owner": "Settings:settings.billing.checkout"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/integrations",
+    "owner": "Mail"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/integrations/microsoft/start",
+    "owner": "Mail"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/integrations/google/start",
+    "owner": "Mail"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/integrations/microsoft/:connectionId/sync",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/integrations/microsoft/:connectionId/subscriptions",
+    "owner": "Mail"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/integrations/google/:connectionId/sync",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "DELETE",
+    "path": "/api/engagement/integrations/microsoft/:connectionId",
+    "owner": "Mail"
+  },
+  {
+    "service": "core",
+    "method": "DELETE",
+    "path": "/api/engagement/integrations/google/:connectionId",
+    "owner": "Mail"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/capiro-admin/quarantine/:type/:id/discard",
+    "owner": "Settings:settings.analyst.quarantine.discard"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/capiro-admin/quarantine/:type/:id/reprocess",
+    "owner": "Settings:settings.analyst.quarantine.reprocess"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/admin/program-elements/person-candidates/:id/resolve",
+    "owner": "Settings:settings.analyst.personCandidates.decide"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/admin/acquisition-personnel/merge-queue/:id/resolve",
+    "owner": "Settings:settings.analyst.personnelMerge.decide"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/programs/admin/match-queue/:id/resolve",
+    "owner": "Settings:settings.analyst.programMatches.decide"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/programs/admin/:programId/aliases",
+    "owner": "Settings:settings.analyst.aliases.add"
+  },
+  {
+    "service": "core",
+    "method": "PATCH",
+    "path": "/api/programs/admin/aliases/:id",
+    "owner": "Settings:settings.analyst.aliases.update"
+  },
+  {
+    "service": "core",
+    "method": "DELETE",
+    "path": "/api/programs/admin/aliases/:id",
+    "owner": "Settings:settings.analyst.aliases.delete"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/programs/admin/merge",
+    "owner": "Settings:settings.analyst.programs.merge"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/program-elements/admin/reconciliation-queue/:id/resolve",
+    "owner": "Settings:settings.analyst.reconciliation.resolve"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/program-elements/admin/reconciliation-queue/:id/approve",
+    "owner": "Settings:settings.analyst.reconciliation.approve"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/me/broadcasts/:id/acknowledge",
+    "owner": "Settings:me.broadcasts.acknowledge"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/capiro-admin/broadcasts",
+    "owner": "Settings:settings.hq.broadcasts.send"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/capiro-admin/broadcasts/:id/archive",
+    "owner": "Settings:settings.hq.broadcasts.archive"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/capiro-admin/tenants",
+    "owner": "Settings:settings.hq.tenants.create"
+  },
+  {
+    "service": "core",
+    "method": "DELETE",
+    "path": "/api/capiro-admin/tenants/:tenantId",
+    "owner": "Settings:settings.hq.tenants.delete"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/capiro-admin/tenants/:tenantId/admins/resend",
+    "owner": "Settings:settings.hq.tenants.resendInvitation"
+  },
+  {
+    "service": "onboard",
+    "method": "POST",
+    "path": "/onboard-api/admin/billing/tenants/:tenantId/comp",
+    "owner": "Settings:settings.hq.customers.comp"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/capiro-admin/tenants/:tenantId/ai-credential",
+    "owner": "Settings:settings.hq.ai.setCredential"
+  },
+  {
+    "service": "core",
+    "method": "DELETE",
+    "path": "/api/capiro-admin/tenants/:tenantId/ai-credential/:provider",
+    "owner": "Settings:settings.hq.ai.removeCredential"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/capiro-admin/tenants/:tenantId/ai-credential/model",
+    "owner": "Settings:settings.hq.ai.updateModel"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/intelligence/resolve-all",
+    "owner": "Settings:settings.mappings.resolveAll"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/intelligence/mappings/match-contractor-identifiers",
+    "owner": "Settings:settings.mappings.exactIdentifiers"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/intelligence/mappings/:clientId/resolve",
+    "owner": "Settings:settings.mappings.resolveClient"
+  },
+  {
+    "service": "core",
+    "method": "PATCH",
+    "path": "/api/intelligence/mappings/:mappingId",
+    "owner": "Settings:settings.mappings.confirmIndividual"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/intelligence/mappings/:clientId/manual",
+    "owner": "Settings:settings.mappings.manual"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/intelligence/mappings/:clientId/reject-candidate",
+    "owner": "Settings:settings.mappings.rejectContractorCandidate"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clients",
+    "owner": "Settings:settings.profiles.create"
+  },
+  {
+    "service": "core",
+    "method": "DELETE",
+    "path": "/api/clients/:clientId",
+    "owner": "Settings:settings.profiles.archive"
+  },
+  {
+    "service": "core",
+    "method": "PUT",
+    "path": "/api/clients/:clientId",
+    "owner": "Settings:settings.profiles.restore"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/me/support-requests",
+    "owner": "Settings:settings.support.create"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/integrations/microsoft/:connectionId/calendar-window",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/integrations/microsoft/notifications",
+    "owner": "Mail"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/mail/send",
+    "owner": "Mail"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/mail/rewrite",
+    "owner": "Mail"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clio/client-context/automatic",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clio/conversations/management/metadata",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clio/conversations/management/read",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clio/conversations/management/apply",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clio/conversations/management/summaries",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/internal/conversation-retention/read",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/internal/conversation-retention/finalize",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clio/memory/review/submit",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clio/memory/review/status",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clio/memory/read_target",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clio/memory/find_by_key",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clio/application-authority/artifact",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clio/approvals/native/record",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clio/approvals/native/decision",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clio/approvals/native/revoke",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clio/approvals/native/execution",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clio/routines/policy/check",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clio/routines/cancellation-proof",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clio/routines/unattended-grant",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/internal/objective-generation/current",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/internal/objective-generation/reads",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/internal/ai-credentials/resolve",
+    "owner": "Existing Intel API_BASE_URL callback"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/internal/tracker/summarize",
+    "owner": "Existing Intel API_BASE_URL callback"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/internal/legiwatch/published-record-refresh",
+    "owner": "Existing Intel API_BASE_URL callback"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/internal/legiwatch/news/page",
+    "owner": "Existing Intel API_BASE_URL callback"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/internal/legiwatch/record-brief-notification",
+    "owner": "Existing Intel API_BASE_URL callback"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/internal/legiwatch/hearing-publication-notification",
+    "owner": "Existing Intel API_BASE_URL callback"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/internal/legiwatch/agenda-notification",
+    "owner": "Existing Intel API_BASE_URL callback"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/internal/legiwatch/keyword-notification",
+    "owner": "Existing Intel API_BASE_URL callback"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/internal/legiwatch/bill-record-notification",
+    "owner": "Existing Intel API_BASE_URL callback"
+  },
+  {
+    "service": "strategy",
+    "method": "POST",
+    "path": "/strategy-api/internal/objective-canonical/generation-admissions",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "strategy",
+    "method": "POST",
+    "path": "/strategy-api/internal/objective-canonical/generation-requests",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "strategy",
+    "method": "POST",
+    "path": "/strategy-api/internal/objective-canonical/generation-acceptances",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "strategy",
+    "method": "POST",
+    "path": "/strategy-api/internal/objective-canonical/generation-completions",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "intel",
+    "method": "POST",
+    "path": "/intel-api/internal/hearing-record-retrieval",
+    "owner": "Core existing owner adapters"
+  },
+  {
+    "service": "intel",
+    "method": "POST",
+    "path": "/intel-api/internal/legiwatch/meri/read",
+    "owner": "Core existing owner adapters"
+  },
+  {
+    "service": "intel",
+    "method": "POST",
+    "path": "/intel-api/internal/legiwatch/meri/apply",
+    "owner": "Core existing owner adapters"
+  },
+  {
+    "service": "onboard",
+    "method": "POST",
+    "path": "/onboard-api/webhooks/stripe",
+    "owner": "Existing billing convergence callback"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clients/:clientId/people",
+    "owner": "Portfolio previously accepted route map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clients/:clientId/activity-commands",
+    "owner": "Portfolio previously accepted route map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clients/:clientId/activity-commands/:requestId/resume",
+    "owner": "Portfolio previously accepted route map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clients/:clientId/activity-commands/:requestId/undo",
+    "owner": "Portfolio previously accepted route map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clients/:clientId/objectives/operational-associations",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/directory/members/:memberId/note-commands",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/business-development/prospects/:prospectId/conversion-commands",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/business-development/prospects/:prospectId/convert",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/meetings",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "PUT",
+    "path": "/api/engagement/meetings/:meetingId",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/meetings/:meetingId/notes",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "PATCH",
+    "path": "/api/engagement/meetings/:meetingId/notes/:noteId",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/meetings/:meetingId/notes/:noteId/approve",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/meetings/:meetingId/debriefs",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "PATCH",
+    "path": "/api/engagement/meetings/:meetingId/debriefs/:debriefId",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/meetings/:meetingId/debriefs/:debriefId/approve",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/meetings/:meetingId/artifacts/share",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/meetings/:meetingId/artifacts/unshare",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "PATCH",
+    "path": "/api/clients/:clientId/files/:id/folder",
+    "owner": "Portfolio previously accepted route map"
+  },
+  {
+    "service": "core",
+    "method": "PATCH",
+    "path": "/api/clients/:clientId/files/:attachmentId/access",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "PATCH",
+    "path": "/api/clients/:clientId/files/access/folder",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "DELETE",
+    "path": "/api/engagement/attachments/:attachmentId",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "workspace",
+    "method": "POST",
+    "path": "/workspace-api/drafts/:draftId/documents/core-brief-copy",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "workspace",
+    "method": "POST",
+    "path": "/workspace-api/drafts/:draftId/documents/:docId/brief-copy-save",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clients/:clientId/files/batch-moves",
+    "owner": "Portfolio previously accepted route map"
+  },
+  {
+    "service": "core",
+    "method": "PUT",
+    "path": "/api/clients/:clientId/account-owners",
+    "owner": "Portfolio previously accepted route map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/internal/strategy/context/compile",
+    "owner": "ObjectiveCanonicalRequestService.publish -> StrategyContextPlaneClient.compile -> InternalStrategyContextController + InternalServiceGuard"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/internal/strategy/context/objective-check",
+    "owner": "ObjectiveCanonicalRequestService.publish and objectivePersistence.beforeTransaction -> StrategyContextPlaneClient.recheckObjective -> InternalStrategyContextController + InternalServiceGuard"
+  },
+  {
+    "service": "strategy",
+    "method": "POST",
+    "path": "/strategy-api/planner/strategy-materializations",
+    "owner": "ObjectivePlanSession.execute explicit action -> PlannerController.prepareStrategyPlan with tenant, planner-context, rollout and exact completed source authority"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/internal/routines/current",
+    "owner": "createRoutinesCoreClient.current -> MeriRoutineReadController + InternalServiceGuard with saved consent and current native occurrence authority"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/internal/routines/reads",
+    "owner": "createRoutineReadSource -> MeriRoutineReadController + InternalServiceGuard with saved consent, native execution and current Core source authorization"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/meeting-commands",
+    "owner": "Portfolio exact meeting command -> EngagementController.meetingCommand -> transactional executeMeetingCommand under current tenant authority"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clio/approvals/native/execute",
+    "owner": "Meri createCoreApprovalForwarder.executeTask -> Core native approval task receiver with original proposal custody and current attended authority"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clio/approvals/native/execution/read",
+    "owner": "Meri createCoreApprovalForwarder.readTaskExecution -> Core native approval outcome reader with original proposal custody and current attended authority"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/business-development/prospects/:prospectId/contacts/transfers",
+    "owner": "Portfolio explicit contact transfer -> ProspectContactsController -> immutable receipt under current source/client authority"
+  },
+  {
+    "service": "workspace",
+    "method": "POST",
+    "path": "/workspace-api/prospects/:prospectId/clients/:clientId/brief-copies",
+    "owner": "Portfolio reviewed saved brief -> ClientBriefCopyController -> private client draft and immutable receipt under current source/client authority"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/attachments/prospect-copies",
+    "owner": "Portfolio reviewed prospect upload -> EngagementController -> private client attachment copy and immutable receipt under current source/client authority"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/integrations/microsoft/:connectionId/calendar-commands"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/integrations/google/:connectionId/calendar-commands"
+  }
+]

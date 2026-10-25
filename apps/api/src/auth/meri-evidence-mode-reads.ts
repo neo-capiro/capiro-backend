@@ -7,6 +7,7 @@ export const MERI_EVIDENCE_MODE_READS = [
   'search_program_elements',
   'get_program_element',
   'get_pe_budget_timeline',
+  'search_sam_opportunities',
 ] as const;
 export type MeriEvidenceModeReadOperation = (typeof MERI_EVIDENCE_MODE_READS)[number];
 

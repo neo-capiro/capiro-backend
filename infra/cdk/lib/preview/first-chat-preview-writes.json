@@ -1,0 +1,449 @@
+{
+  "note": "Finite existing Wave2 owner paths; each expression names one complete path. Includes all 27 Portfolio 22:46 pairs and the actual Objective read-source transport. Backend authorization remains mandatory.",
+  "corePostAddition": "^/api/admin/acquisition-personnel/merge-queue/[A-Za-z0-9_-]+/resolve$",
+  "groups": [
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/admin/program-elements/person-candidates/[A-Za-z0-9_-]+/resolve$",
+        "^/api/business-development/prospects/[A-Za-z0-9_-]+/conversion-commands$",
+        "^/api/business-development/prospects/[A-Za-z0-9_-]+/convert$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/capiro-admin/broadcasts$",
+        "^/api/capiro-admin/broadcasts/[A-Za-z0-9_-]+/archive$",
+        "^/api/capiro-admin/quarantine/[A-Za-z0-9_-]+/[A-Za-z0-9_-]+/discard$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/capiro-admin/quarantine/[A-Za-z0-9_-]+/[A-Za-z0-9_-]+/reprocess$",
+        "^/api/capiro-admin/tenants$",
+        "^/api/capiro-admin/tenants/[A-Za-z0-9_-]+/admins/resend$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/capiro-admin/tenants/[A-Za-z0-9_-]+/ai-credential$",
+        "^/api/capiro-admin/tenants/[A-Za-z0-9_-]+/ai-credential/model$",
+        "^/api/clients$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/clients/[A-Za-z0-9_-]+/activity-commands$",
+        "^/api/clients/[A-Za-z0-9_-]+/activity-commands/[A-Za-z0-9_-]+/resume$",
+        "^/api/clients/[A-Za-z0-9_-]+/activity-commands/[A-Za-z0-9_-]+/undo$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/clients/[A-Za-z0-9_-]+/files/batch-moves$",
+        "^/api/clients/[A-Za-z0-9_-]+/objectives/operational-associations$",
+        "^/api/clients/[A-Za-z0-9_-]+/people$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/clio/application-authority/artifact$",
+        "^/api/clio/approvals/native/decision$",
+        "^/api/clio/approvals/native/execution$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/clio/approvals/native/record$",
+        "^/api/clio/approvals/native/revoke$",
+        "^/api/clio/client-context/automatic$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/clio/conversations/management/apply$",
+        "^/api/clio/conversations/management/metadata$",
+        "^/api/clio/conversations/management/read$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/clio/conversations/management/summaries$",
+        "^/api/clio/memory/find_by_key$",
+        "^/api/clio/memory/read_target$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/clio/memory/review/status$",
+        "^/api/clio/memory/review/submit$",
+        "^/api/clio/routines/cancellation-proof$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/clio/routines/policy/check$",
+        "^/api/clio/routines/unattended-grant$",
+        "^/api/directory/members/[A-Za-z0-9_-]+/note-commands$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/engagement/integrations$",
+        "^/api/engagement/integrations/google/[A-Za-z0-9_-]+/sync$",
+        "^/api/engagement/integrations/google/start$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/engagement/integrations/microsoft/[A-Za-z0-9_-]+/calendar-window$",
+        "^/api/engagement/integrations/microsoft/[A-Za-z0-9_-]+/subscriptions$",
+        "^/api/engagement/integrations/microsoft/[A-Za-z0-9_-]+/sync$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/engagement/integrations/microsoft/notifications$",
+        "^/api/engagement/integrations/microsoft/start$",
+        "^/api/engagement/mail/rewrite$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/engagement/mail/send$",
+        "^/api/engagement/meetings$",
+        "^/api/engagement/meetings/[A-Za-z0-9_-]+/artifacts/share$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/engagement/meetings/[A-Za-z0-9_-]+/artifacts/unshare$",
+        "^/api/engagement/meetings/[A-Za-z0-9_-]+/debriefs$",
+        "^/api/engagement/meetings/[A-Za-z0-9_-]+/debriefs/[A-Za-z0-9_-]+/approve$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/engagement/meetings/[A-Za-z0-9_-]+/notes$",
+        "^/api/engagement/meetings/[A-Za-z0-9_-]+/notes/[A-Za-z0-9_-]+/approve$",
+        "^/api/intelligence/mappings/[A-Za-z0-9_-]+/manual$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/intelligence/mappings/[A-Za-z0-9_-]+/reject-candidate$",
+        "^/api/intelligence/mappings/[A-Za-z0-9_-]+/resolve$",
+        "^/api/intelligence/mappings/match-contractor-identifiers$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/intelligence/resolve-all$",
+        "^/api/internal/ai-credentials/resolve$",
+        "^/api/internal/conversation-retention/finalize$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/internal/conversation-retention/read$",
+        "^/api/internal/legiwatch/agenda-notification$",
+        "^/api/internal/legiwatch/bill-record-notification$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/internal/legiwatch/hearing-publication-notification$",
+        "^/api/internal/legiwatch/keyword-notification$",
+        "^/api/internal/legiwatch/news/page$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/internal/legiwatch/published-record-refresh$",
+        "^/api/internal/legiwatch/record-brief-notification$",
+        "^/api/internal/objective-generation/current$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/internal/objective-generation/reads$",
+        "^/api/internal/tracker/summarize$",
+        "^/api/me/broadcasts/[A-Za-z0-9_-]+/acknowledge$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/me/support-requests$",
+        "^/api/program-elements/admin/reconciliation-queue/[A-Za-z0-9_-]+/approve$",
+        "^/api/program-elements/admin/reconciliation-queue/[A-Za-z0-9_-]+/resolve$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/programs/admin/[A-Za-z0-9_-]+/aliases$",
+        "^/api/programs/admin/match-queue/[A-Za-z0-9_-]+/resolve$",
+        "^/api/programs/admin/merge$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/tenant-admin/branding/logo/confirm$",
+        "^/api/tenant-admin/branding/logo/upload-url$",
+        "^/api/tenant-admin/branding/sync$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/tenant-admin/team/invitations/[A-Za-z0-9_-]+/resend$",
+        "^/api/tenant-admin/team/invite$",
+        "^/api/clients/[A-Za-z0-9_-]+/objectives/[A-Za-z0-9_-]+/generation/strategy-commands$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "PUT",
+      "pathRegexes": [
+        "^/api/clients/[A-Za-z0-9_-]+$",
+        "^/api/clients/[A-Za-z0-9_-]+/account-owners$",
+        "^/api/engagement/meetings/[A-Za-z0-9_-]+$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "PUT",
+      "pathRegexes": [
+        "^/api/me/email-signature$",
+        "^/api/tenant-admin/branding$",
+        "^/api/tenant-admin/contact-info$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "PUT",
+      "pathRegexes": [
+        "^/api/tenant-admin/team/[A-Za-z0-9_-]+/billing-admin$",
+        "^/api/tenant-admin/team/[A-Za-z0-9_-]+/role$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "PATCH",
+      "pathRegexes": [
+        "^/api/clients/[A-Za-z0-9_-]+/files/[A-Za-z0-9_-]+/access$",
+        "^/api/clients/[A-Za-z0-9_-]+/files/[A-Za-z0-9_-]+/folder$",
+        "^/api/clients/[A-Za-z0-9_-]+/files/access/folder$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "PATCH",
+      "pathRegexes": [
+        "^/api/engagement/meetings/[A-Za-z0-9_-]+/debriefs/[A-Za-z0-9_-]+$",
+        "^/api/engagement/meetings/[A-Za-z0-9_-]+/notes/[A-Za-z0-9_-]+$",
+        "^/api/intelligence/mappings/[A-Za-z0-9_-]+$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "PATCH",
+      "pathRegexes": ["^/api/me$", "^/api/programs/admin/aliases/[A-Za-z0-9_-]+$"]
+    },
+    {
+      "service": "core",
+      "method": "DELETE",
+      "pathRegexes": [
+        "^/api/capiro-admin/tenants/[A-Za-z0-9_-]+$",
+        "^/api/capiro-admin/tenants/[A-Za-z0-9_-]+/ai-credential/[A-Za-z0-9_-]+$",
+        "^/api/clients/[A-Za-z0-9_-]+$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "DELETE",
+      "pathRegexes": [
+        "^/api/engagement/attachments/[A-Za-z0-9_-]+$",
+        "^/api/engagement/integrations/google/[A-Za-z0-9_-]+$",
+        "^/api/engagement/integrations/microsoft/[A-Za-z0-9_-]+$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "DELETE",
+      "pathRegexes": [
+        "^/api/programs/admin/aliases/[A-Za-z0-9_-]+$",
+        "^/api/tenant-admin/team/[A-Za-z0-9_-]+$"
+      ]
+    },
+    {
+      "service": "strategy",
+      "method": "POST",
+      "pathRegexes": [
+        "^/strategy-api/internal/objective-canonical/generation-acceptances$",
+        "^/strategy-api/internal/objective-canonical/generation-admissions$",
+        "^/strategy-api/internal/objective-canonical/generation-completions$"
+      ]
+    },
+    {
+      "service": "strategy",
+      "method": "POST",
+      "pathRegexes": ["^/strategy-api/internal/objective-canonical/generation-requests$"]
+    },
+    {
+      "service": "workspace",
+      "method": "POST",
+      "pathRegexes": [
+        "^/workspace-api/drafts/[A-Za-z0-9_-]+/documents/[A-Za-z0-9_-]+/brief-copy-save$",
+        "^/workspace-api/drafts/[A-Za-z0-9_-]+/documents/core-brief-copy$"
+      ]
+    },
+    {
+      "service": "intel",
+      "method": "POST",
+      "pathRegexes": [
+        "^/intel-api/internal/hearing-record-retrieval$",
+        "^/intel-api/internal/legiwatch/meri/apply$",
+        "^/intel-api/internal/legiwatch/meri/read$"
+      ]
+    },
+    {
+      "service": "onboard",
+      "method": "POST",
+      "pathRegexes": [
+        "^/onboard-api/admin/billing/tenants/[A-Za-z0-9_-]+/comp$",
+        "^/onboard-api/billing/checkout$",
+        "^/onboard-api/billing/portal$"
+      ]
+    },
+    {
+      "service": "onboard",
+      "method": "POST",
+      "pathRegexes": ["^/onboard-api/webhooks/stripe$"]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/internal/strategy/context/compile$",
+        "^/api/internal/strategy/context/objective-check$"
+      ]
+    },
+    {
+      "service": "strategy",
+      "method": "POST",
+      "pathRegexes": ["^/strategy-api/planner/strategy-materializations$"]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": ["^/api/internal/routines/current$", "^/api/internal/routines/reads$"]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/engagement/meeting-commands$",
+        "^/api/clio/approvals/native/execute$",
+        "^/api/clio/approvals/native/execution/read$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/business-development/prospects/[A-Za-z0-9_-]+/contacts/transfers$"
+      ]
+    },
+    {
+      "service": "workspace",
+      "method": "POST",
+      "pathRegexes": [
+        "^/workspace-api/prospects/[A-Za-z0-9_-]+/clients/[A-Za-z0-9_-]+/brief-copies$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": ["^/api/engagement/attachments/prospect-copies$"]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/engagement/integrations/(microsoft|google)/[0-9a-fA-F-]{36}/calendar-commands$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/engagement/attachments/upload-url$",
+        "^/api/engagement/attachments/confirm$",
+        "^/api/memory/candidates/[A-Za-z0-9_-]+/owner-decision$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/memory/version-candidates/[A-Za-z0-9_-]+/approve$",
+        "^/api/memory/version-candidates/[A-Za-z0-9_-]+/reject$",
+        "^/api/memory/items/[A-Za-z0-9_-]+/review-correction$"
+      ]
+    }
+  ]
+}

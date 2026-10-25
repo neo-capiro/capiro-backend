@@ -14,6 +14,7 @@ import { MeriToolsService } from './meri-tools.service';
 import { withMeriToolExecutionControl } from './meri-tool-request-control';
 import type { TenantContext } from '@capiro/shared';
 import { CLIENT_PROFILE_SECTIONS } from './meri-client-context.helpers';
+import { ClientFacilitiesService } from '../clients/client-facilities.service';
 
 const gatewayAsOf = '2026-10-18T12:00:00.000Z';
 const startedAt = '2026-10-18T12:00:01.000Z';
@@ -27,6 +28,7 @@ const defs = profileSchema.$defs as Record<string, Record<string, any>>;
 /** Build only scalar boilerplate from Meri's byte-pinned schema. */
 function fields(schemaOrName: string | Record<string, any>): any {
   const schema = typeof schemaOrName === 'string' ? defs[schemaOrName] : schemaOrName;
+  if (!schema) throw new Error('Unknown synthetic profile schema');
   if (schema.$ref) return schema.$ref.startsWith('#/$defs/') ? fields(schema.$ref.split('/').at(-1)!) : null;
   if (schema.const !== undefined) return schema.const;
   if (schema.enum) return schema.enum[0];
@@ -151,6 +153,51 @@ describe('retained client-context 0.3.0 projection', () => {
     expect((result as any).context.client).not.toHaveProperty('accountOwnerVersion');
     expect(context.client.accountOwnerVersion).toBe(7);
   });
+
+  it.each(['summary', 'full'] as const)(
+    'releases %s facilities from the real owner without its mutation precondition', async (representation) => {
+      const input = fixture();
+      const facility = { ...fields('ProfileClientFacility'), id: fillerId, tenantId, clientId };
+      const facilities = Object.create(ClientFacilitiesService.prototype) as ClientFacilitiesService;
+      Object.assign(facilities, { prisma: { withTenant: async (_tenant: string, read: any) => read({
+        client: { findFirst: async () => ({ id: clientId }) },
+        clientFacility: { findMany: async () => [facility] },
+      }) } });
+      const ctx = { tenantId, userId: fillerId } as TenantContext;
+      const publicFacility = (await facilities.listFacilities(ctx, clientId))[0]!;
+      expect(publicFacility.geocodeCandidateRevision).toMatch(/^v1:[a-f0-9]{64}$/);
+      const service = Object.create(MeriToolsService.prototype) as MeriToolsService;
+      Object.assign(service, {
+        ensureClientVisible: async () => clientId,
+        prisma: { withTenantUser: async () => [] },
+        engagement: { clientContext: async () => (input.source as any).context },
+        clientCapabilities: { listCapabilities: async () => [], listClientHistory: async () => [] },
+        clientPeople: { listPeople: async () => [] },
+        clientFacilities: facilities,
+        clientAdvocacy: {
+          listMatters: async () => [], listRecords: async () => ({ items: [], total: 0, hasMore: false }),
+        },
+      });
+      const deadlineAt = Date.now() + 30_000;
+      const admission = {
+        operation: input.operation,
+        binding: { tenantId, actorId: fillerId },
+        subject: { kind: 'client', entityType: 'client', entityIds: [clientId], tenantId, actorId: fillerId },
+        clientId, input: { ...(input.normalizedInput as Record<string, unknown>), section: 'facilities', representation },
+        hardExpiryMs: deadlineAt,
+        normalizationContext: { asOf: gatewayAsOf, clientResolution: input.clientResolution },
+      } as unknown as RetainedSourceV02Admission;
+      const result = await withMeriToolExecutionControl(
+        { signal: new AbortController().signal, deadlineAt },
+        () => readRetainedSourceV02(admission, ctx, service),
+      ) as any;
+      expect(result.profileSections.facilities).toMatchObject({ status: 'complete', total: 1, returned: 1, representation });
+      expect(result.profile.facilities[0]).not.toHaveProperty('geocodeCandidateRevision');
+      if (representation === 'full') expect(result.profile.facilities).toEqual([facility]);
+      expect(publicFacility.geocodeCandidateRevision).toMatch(/^v1:[a-f0-9]{64}$/);
+      expect(facility).not.toHaveProperty('geocodeCandidateRevision');
+    },
+  );
 
   it.each([
     { operation: { id: 'get_client_context', version: '0.2.0' } },

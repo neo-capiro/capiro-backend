@@ -102,13 +102,17 @@ describe('ordinary memory proposal continuation source', () => {
     decidedAt: null, restricted: false, proposal: { key: 'Preference', value: 'Use SMS', canonicalItem: null },
     capabilities: { withdraw: true } };
   const prisma = () => ({ withTenantUser: jest.fn(async (_tenant: string, _actor: string,
-    action: (tx: object) => Promise<unknown>) => action({})) });
+    action: (tx: object) => Promise<unknown>) => action({
+      tenantMembership: { findFirst: async () => ({ role: 'standard_user' }) },
+      client: { findFirst: async () => ({ id: clientId }) },
+    })) });
   const owner = (rows = [row], nextCursor: string | null = null) => ({
     listOwnProposals: jest.fn(async () => ({ enabled: true, candidates: rows, nextCursor })),
   });
 
   it('accepts only the closed normalized selection for the selected client', () => {
     expect(parseTaskBoundMemoryProposalSelection(selection)).toEqual(selection);
+    expect(parseTaskBoundMemoryProposalSelection({ ...selection, clientId: null })).toEqual({ ...selection, clientId: null });
     expect(() => parseTaskBoundMemoryProposalSelection({ ...selection, actorId })).toThrow(ForbiddenException);
     expect(() => parseTaskBoundMemoryProposalSelection({ ...selection, cursor: '' })).toThrow(ForbiddenException);
     expect(() => parseTaskBoundMemoryProposalSelection({ ...selection, limit: 11 })).toThrow(ForbiddenException);

@@ -369,7 +369,7 @@ export function awsEnv(cfg: EnvConfig): cdk.Environment {
   return { account: cfg.account, region: cfg.region };
 }
 
-export function commonTags(cfg: EnvConfig): Record<string, string> {
+export function commonTags(cfg: Pick<EnvConfig, 'envName'>): Record<string, string> {
   return {
     Project: 'capiro',
     Environment: cfg.envName,

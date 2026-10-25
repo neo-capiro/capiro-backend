@@ -14,13 +14,16 @@ import {
   parseApprovalDecisionInput,
   parseApprovalRecordInput,
   parseApprovalRevokeInput,
+  parseArtifactFileArguments,
+  parseArtifactFileAttachments,
   sameJson,
   type NativeApprovalDecision,
   type NativeApprovalReceipt,
   type NativeScope,
+  UUID,
 } from './native-approval.contract.js';
 import { NativeApprovalMetadataVerifier } from './native-approval-metadata.js';
-import { lockMeriExecutionProposal } from '../execution-capability/meri-execution-authority.js';
+import { lockMeriExecutionProposal, meriExecutionClientsVisible } from '../execution-capability/meri-execution-authority.js';
 import { ApplicationCurrentService } from '../../auth/application-current.service.js';
 import type { NativeApprovalProposal } from './native-approval.contract.js';
 
@@ -42,6 +45,12 @@ interface DecisionRow {
 }
 
 const forbidden = () => new ForbiddenException('Native approval refused');
+
+export interface NativePreparedAuthority {
+  selectedClientId: string | null;
+  policyRevision: string;
+  expiresAtMs: number;
+}
 
 /**
  * P-INT-10 approval owner (Meri `apps/control/intents/native-approvals.mjs`,
@@ -69,19 +78,13 @@ export class NativeApprovalService {
     if (!sameJson(input.approver, proposal.requiredApprover)) throw forbidden();
     if (binding.tenantId !== ctx.tenantId || binding.actorId !== ctx.userId) throw forbidden();
     if (!sameJson(input.binding, binding)) throw new ConflictException('Approval binding differs from the proposal');
-    if (!['task.create', 'document.draft'].includes(proposal.command.action)) throw new ConflictException('Approval action is not supported');
     const now = Date.now();
     const createdAtMs = Date.parse(proposal.createdAt);
     const expiresAtMs = Date.parse(proposal.expiresAt);
     if (expiresAtMs <= now) throw new ConflictException('Approval proposal expired');
     if (createdAtMs > now + CREATED_AT_SKEW_MS) throw new ConflictException('Approval proposal is not yet valid');
-    const policyRevision = singlePolicyRevision(proposal.command.scopes, binding.tenantId);
-    if (proposal.command.action === 'document.draft') await this.currentDocument(req, ctx, proposal);
-    await this.metadata.verify(proposal);
-    if (proposal.command.action === 'document.draft') {
-      await this.currentDocument(req, ctx, proposal);
-      if (Date.parse(proposal.expiresAt) <= Date.now()) throw new ConflictException('Approval proposal expired');
-    }
+    const { policyRevision } = await this.verifyPrepared(req, ctx, proposal);
+    if (Date.parse(proposal.expiresAt) <= Date.now()) throw new ConflictException('Approval proposal expired');
 
     const create: DecisionRow = {
       tenantId: ctx.tenantId,
@@ -102,20 +105,59 @@ export class NativeApprovalService {
     return receipt(stored, await this.revoked(stored.tenantId, stored.proposalId));
   }
 
-  private async currentDocument(req: Request, ctx: TenantContext, proposal: NativeApprovalProposal) {
+  /** Shared preflight for approval and the existing effect/receipt receiver.
+   * The original preparation binding stays immutable, even after its run ends.
+   * Liveness is intentionally checked by the mutation caller, not historical
+   * receipt reads. Current attended identity and retained metadata are required. */
+  async verifyPrepared(req: Request, ctx: TenantContext, proposal: NativeApprovalProposal): Promise<NativePreparedAuthority> {
+    if (!hasVerifiedToolServiceIdentity(req)) throw forbidden();
+    const { binding } = proposal.command;
+    if (binding.tenantId !== ctx.tenantId || binding.actorId !== ctx.userId ||
+        proposal.requiredApprover.tenantId !== ctx.tenantId || proposal.requiredApprover.actorId !== ctx.userId) throw forbidden();
+    if (!['task.create', 'task.update', 'document.draft', 'artifact.file'].includes(proposal.command.action))
+      throw new ConflictException('Approval action is not supported');
+    const policyRevision = singlePolicyRevision(proposal.command.scopes, binding.tenantId);
+    await this.currentPrepared(req, ctx, proposal);
+    await this.metadata.verify(proposal);
+    const observed = await this.currentPrepared(req, ctx, proposal);
+    return { selectedClientId: observed.selectedClientId, policyRevision, expiresAtMs: observed.expiresAtMs };
+  }
+
+  private async currentPrepared(req: Request, ctx: TenantContext, proposal: NativeApprovalProposal) {
     if (!this.current) throw new ServiceUnavailableException('Current approval authority unavailable');
     const { binding, scopes } = proposal.command;
     const clients = scopes.filter(scope => scope.kind === 'client');
     if (clients.length > 1) throw forbidden();
     const clientId = clients[0]?.resourceId ?? null;
+    if (clientId !== null && !UUID.test(clientId)) throw forbidden();
     if (clientId === null && (scopes.length !== 1 || scopes[0]!.kind !== 'private-user' ||
         scopes[0]!.resourceId !== binding.actorId)) throw forbidden();
+    if (proposal.command.action === 'artifact.file') {
+      const destination = parseArtifactFileArguments(proposal.command.arguments);
+      const objects = parseArtifactFileAttachments(proposal.command.attachments);
+      // Native filing is bounded to the conversation's selected client. Object
+      // scopes are exact preparation correlations, never grants of access.
+      if (clientId === null || scopes.length !== 1 || destination.clientId !== clientId ||
+          destination.conversationId !== binding.conversationId || objects.some(object => !sameJson(object.scopes, scopes)))
+        throw forbidden();
+    }
     // The selector is checked against the persisted owned conversation by the
     // canonical current owner; a proposal scope is never an authorization grant.
     const observed = await this.current.read(ctx, req, { conversationId: binding.conversationId, clientId });
     if (observed.principal.tenantId !== ctx.tenantId || observed.principal.actorId !== ctx.userId ||
         observed.conversationId !== binding.conversationId || observed.selectedClientId !== clientId ||
         observed.expiresAtMs <= Date.now()) throw forbidden();
+    if (proposal.command.action === 'task.create') {
+      const destination = proposal.command.arguments.clientId;
+      if (destination !== null && (typeof destination !== 'string' || !UUID.test(destination) ||
+          (clientId !== null && destination !== clientId))) throw forbidden();
+      // General may explicitly select an accessible destination. Omitted
+      // clientId remains personal even in a client conversation.
+      if (clientId === null && typeof destination === 'string' &&
+          !await this.prisma.withTenant(ctx.tenantId, tx => meriExecutionClientsVisible(tx, ctx.tenantId, ctx.userId, [destination])))
+        throw forbidden();
+    }
+    return observed;
   }
 
   async decision(req: Request, ctx: TenantContext, raw: unknown): Promise<NativeApprovalReceipt> {

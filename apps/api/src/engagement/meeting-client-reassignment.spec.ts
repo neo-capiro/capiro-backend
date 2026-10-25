@@ -35,7 +35,11 @@ function harness(options: { clientId?: string | null; isInternal?: boolean; fail
   const tx: Row = {
     tenantMembership: { findFirst: jest.fn(async () => ({role: ctx.role})) },
     $queryRawUnsafe: jest.fn(async () => [{allowed: true}]),
-    $queryRaw: jest.fn(async () => { events.push('lock'); return [{ id: 'm1' }]; }),
+    $queryRaw: jest.fn(async (query: any) => {
+      const sql = Array.isArray(query) ? query.join('') : query.sql;
+      if (sql?.includes('client_file_deletions')) return [{ present: false }];
+      events.push('lock'); return [{ id: 'm1' }];
+    }),
     $executeRaw: jest.fn(async () => 1),
     meeting: {
       findFirst: jest.fn(async (_args: Row) => { events.push('read'); return options.missingMeeting ? null : { ...state.meeting }; }),
@@ -221,7 +225,8 @@ describe('meeting client reassignment', () => {
     } else {
       await h.service.createAttachmentFromBuffer(ctx, { ...input, buffer: Buffer.from('test') });
     }
-    expect(h.events).toEqual(['lock', 'read', 'create']);
+    // Confirm now admits the current parent before storage, then locks/rechecks it at insertion.
+    expect(h.events).toEqual(kind === 'confirm' ? ['read', 'lock', 'read', 'create'] : ['lock', 'read', 'create']);
     expect(h.state.engagementAttachment[1].clientId).toBeNull();
     expect(h.index).not.toHaveBeenCalled();
   });

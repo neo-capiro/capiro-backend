@@ -1,13 +1,12 @@
-# Reserved migration source — not a Prisma deploy directory
+# Reserved migration source â€” not a Prisma deploy directory
 
-These four SQL files were moved byte-for-byte from the frozen `backend-import` tree `4ac54093d3dc477e08249ded10bc7a07972637e6` (published commit `51e265bd5b5170abffb32a62ffc39a52a788fe60`). They are absent from Fable's 546 FINISHED names and their inspected Core consumers are closed under source defaults. They are not deleted, executed, or approved for activation.
+The original four SQL files were moved byte-for-byte from the frozen `backend-import` tree `4ac54093d3dc477e08249ded10bc7a07972637e6` (published commit `51e265bd5b5170abffb32a62ffc39a52a788fe60`). They are absent from Fable's 546 FINISHED names and their inspected Core consumers are closed under source defaults. Three remain reserved. Prospect Contacts has been promoted under root allocation to `../migrations/20281024120000_portfolio_prospect_contacts/migration.sql`; its SQL DDL is unchanged, and the superseded reserved copy is removed. This source promotion does not authorize database execution.
 
 See [the complete inventory](../../../../docs/core-migration-cleanup-20261021/README.md) for consumers, flags, limits and the unresolved migrations still in `migrations/`. The deploy folder remains blocked; moving these four is not a claim that the remaining folder is deployable.
 
 | Directory | Original and retained SQL SHA256 |
 |---|---|
 | `20281011020000_portfolio_prospect_stages` | `fc3aeb539b0e75f2c1024346eb9b745ee185474e5ba4ed8ea3ff9a02da932f78` |
-| `20281011030000_prospect_contacts` | `473e30271d7f851582a5c74e201ce40b7b7dcb411ca5597fda9088b4c341d20d` |
 | `20281016010000_client_objective_workload_delegations` | `dd762e2a5c721261525f36ac80f70b232b62fc09f0171fa3fbd5a12d4d442430` |
 | `20281018060000_meri_read_delegation` | `f6f6cf95c67ba0b3b1cf15191297989fe33111d4b4e370ad0118f91740a4fabe` |
 

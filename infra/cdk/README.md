@@ -136,3 +136,56 @@ pnpm --filter @capiro/infra-cdk exec cdk destroy --all $CTX
 - **Custom domain for the API**, path-based routing under `app.capiro.ai`
   means there's no separate `api.*` hostname. Splitting in the future requires
   adding a listener rule + DNS record.
+
+## Dedicated first-chat preview edge
+
+`bin/preview-first-chat-core.ts --render-edge <fresh-output-directory>` renders
+`Capiro-Preview-Services-Edge` without DNS. It uses the existing Core VPC, public
+subnets, ALB security group and issued certificate. Every shared listener rule,
+including the retained priority-7 guard, stays unchanged. The new listener denies
+unallocated requests and forwards only the finite existing method/path pairs in
+`first-chat-preview-writes.json`; the test fixture records their caller owners.
+The new ALB retains the existing 4000-second idle timeout and associates with the
+same existing WAF ACL. It does not change that ACL or the shared ALB association.
+Each new write expression names one complete path, grouped only by service and
+method; the dedicated edge has room without compressing unrelated path names.
+
+Apply the edge before updating the existing Core service. Core retains its old
+target and imports the new Core target export. The edge's three satellite
+`ServiceLoadBalancers` outputs contain the exact old-plus-new bindings for the
+existing Strategy, Workspace and Intel services; update them through their
+existing service owner. No service, IAM role, image, database or live target is
+created or modified by the edge stack itself.
+
+The edge also creates one preview backend client security group and grants that
+identity HTTPS access to the existing Meri private ALB. It has no inbound rule
+and only TCP 443 egress to that ALB. Core imports the identity; apply the exact
+`StrategySecurityGroups` output to the existing preview Strategy service while
+preserving its existing subnets and private-IP setting. Never grant the shared
+`ServiceSg` access to the private ALB or attach the new identity to other services.
+
+Core's task and `StrategyMeriControlEnvironment` output name the existing
+`https://control.meri-preview.internal` origin and its public CA. The checked-in
+CA contains no private key; its SHA-256 pin is over certificate DER. Both service
+entrypoints validate the origin, complete configuration, CA validity and pin,
+write a unique file under writable `TMPDIR`, and export `NODE_EXTRA_CA_CERTS`
+before starting the application. Absent configuration preserves startup;
+partial configuration or conflicting existing extra-CA setup refuses. Both
+services require their new reviewed images before applying this environment.
+Strategy's image closure now also includes
+`apps/api/scripts/lib/meri-control-ca.cjs`. Keep the existing version-pinned
+internal service secret; this HTTP/TLS binding needs no new secret or IAM grant.
+
+`--render-edge-with-dns <fresh-output-directory>` additionally renders the
+separate `Capiro-Preview-Services-Dns` stack. Apply that stack **last**, after the
+new targets are healthy and authenticated positive/negative route checks pass.
+It adds only the exact first-chat preview A alias; the existing wildcard remains.
+Use the original hostname/SNI with the new ALB for pre-cutover checks. Retain old
+target attachments and shared rules through the transition. Reverting the exact
+alias restores the existing guarded wildcard route; coordinate FE mode rollback.
+
+Onboard's retained preview target is currently empty. Its existing task uses a
+live Stripe key and must not be started unchanged. Test-mode credentials, prices,
+webhook binding, reviewed image and a preview-only service are activation
+prerequisites. No billing route ever falls back to the production Onboard target.
+Meri remains on its existing separate hostname and service.

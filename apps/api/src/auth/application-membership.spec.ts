@@ -39,7 +39,7 @@ function load(text: string, ports: Record<string, unknown>, useVmIntrinsics = fa
     module, exports: module.exports, Date, Reflect, Promise, Number,
     ...(useVmIntrinsics ? {} : { Object, Array }),
     String, Boolean, RegExp, Math, JSON, Map, Set, WeakMap, Error, TypeError,
-    Buffer, setTimeout, clearTimeout,
+    Buffer, process, setTimeout, clearTimeout,
     require(id: string) {
       if (Object.hasOwn(ports, id)) return ports[id];
       throw new Error(`Unexpected actual-owner runtime import: ${id}`);
@@ -59,8 +59,8 @@ function load(text: string, ports: Record<string, unknown>, useVmIntrinsics = fa
 const sharedSource = ts.createSourceFile('shared-index.ts', readFileSync(resolve(root, 'packages/shared/src/index.ts'), 'utf8'), ts.ScriptTarget.ES2022);
 const sharedDeclarations = sharedSource.statements.filter((statement) =>
   (ts.isVariableStatement(statement) && statement.declarationList.declarations.some((declaration) => ['ROLE_RANK', 'CLERK_ADMIN_ROLE_KEYS'].includes(declaration.name.getText(sharedSource))))
-  || (ts.isFunctionDeclaration(statement) && statement.name?.text === 'isClerkOrgAdminRole'));
-if (sharedDeclarations.length !== 3) throw new Error('Canonical role declarations are missing');
+  || (ts.isFunctionDeclaration(statement) && ['isClerkOrgAdminRole', 'isTenantAdmin'].includes(statement.name?.text ?? '')));
+if (sharedDeclarations.length !== 4) throw new Error('Canonical role declarations are missing');
 const canonicalRoles = load(sharedDeclarations.map((statement) => statement.getText(sharedSource)).join('\n'), {});
 const sharedWall = load(readFileSync(resolve(root, 'packages/shared/src/client-memory-wall.ts'), 'utf8'), {});
 const shared = { ...canonicalRoles, ...sharedWall, TENANT_HEADER: 'x-capiro-tenant', authDeniedEvent: () => ({}) };
@@ -70,6 +70,9 @@ const authority = load(source('auth/application-authority.ts'), {
 const wall = load(source('memory/memory-wall.helpers.ts'), { '@capiro/shared': shared });
 const roleMapping = load(source('auth/clerk-role.util.ts'), { '@capiro/shared': shared });
 const previewNativeReadMode = load(source('auth/preview-native-read-mode.ts'), { './mounted-request-path.js': mountedRequest });
+const signedMemoryHttpGate = load(source('auth/read-delegation/signed-memory-http-gate.ts'), {
+  '../mounted-request-path.js': mountedRequest, '@nestjs/common': nest,
+});
 const retainedNativeAuthority = load(source('auth/retained-native-authority.ts'), {
   '@nestjs/common': nest, '@capiro/shared': shared, 'node:util': { types: nodeTypes },
 });
@@ -83,6 +86,7 @@ const tenantOwner = load(source('tenant/tenant-context.middleware.ts'), {
   '../auth/core-ed25519-key-config.js': executionKeyConfig,
   '../auth/meri-execution-request.js': executionRequest,
   '../auth/read-delegation/read-delegation-request.js': readDelegationRequest,
+  '../auth/read-delegation/signed-memory-http-gate.js': signedMemoryHttpGate,
   '../auth/mounted-request-path.js': mountedRequest,
 });
 // The actual canonical governed-memory policy (type-only imports), not a stub.
@@ -262,6 +266,18 @@ function sessionCacheClock() {
 }
 
 describe('Current application membership through actual canonical owners', () => {
+  it.each(['user_admin', 'capiro_admin'])('projects canonical tenant-settings administration for current %s', async (role) => {
+    const h = await fixture({ role });
+    expect(await h.read()).toMatchObject({ role, permissions: ['memory.propose.firm', 'tenant.settings.manage'] });
+    expect(h.writes).toEqual([]);
+  });
+
+  it('refuses an admin demotion during the canonical roster read before releasing permissions', async () => {
+    const h = await fixture({ role: 'user_admin' });
+    h.onRoster(() => { h.member.role = 'standard_user'; });
+    await expect(h.read()).rejects.toMatchObject({ status: 409 });
+  });
+
   it('returns only current active authority, canonical sorted clients and original expiry bounds', async () => {
     const h = await fixture();
     const startedAt = Date.now();

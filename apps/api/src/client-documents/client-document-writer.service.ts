@@ -29,9 +29,12 @@ export class ClientDocumentWriterService {
   createAttachmentFromBuffer = (
     ctx: Parameters<EngagementService['createAttachmentFromBuffer']>[0],
     input: Parameters<EngagementService['createAttachmentFromBuffer']>[1],
+    internal?: Parameters<EngagementService['createAttachmentFromBuffer']>[2],
   ): ReturnType<EngagementService['createAttachmentFromBuffer']> => {
     this.runtime.assertExternalAction('attachment_external_write');
-    return this.engagement.createAttachmentFromBuffer(ctx, input);
+    return internal
+      ? this.engagement.createAttachmentFromBuffer(ctx, input, internal)
+      : this.engagement.createAttachmentFromBuffer(ctx, input);
   };
 
   supersedeAttachment = (

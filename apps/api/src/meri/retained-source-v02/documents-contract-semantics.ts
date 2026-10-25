@@ -1,5 +1,4 @@
-// Semantic port of Meri PR158 052f9865 client-documents-validation.mjs
-// Source SHA-256: a545d51cda2e8d430ebb66f739524f55fc243ac87a923ea96dc140bab50c10e9
+// Semantic port of Meri retrieval-0.2/client-documents-validation.mjs, including explicit General client selectors.
 // Pure private client document list/read contract, independently described from
 // pinned producer projections. No byte reader, extractor, provider, grant or
 // cursor-signing service. A supplied binding, cursor or hash proves no access.
@@ -29,8 +28,7 @@ export function createClientDocumentsValidators({validateShape, assertSubject, c
   function context(raw: unknown) {
     const value=snapshotOperationData(raw);
     validateShape('ClientDocumentsContext',value);assertSubject(value.subject,value.binding);
-    if (value.subject.kind !== 'client' || value.subject.entityType !== 'client' || value.subject.entityIds.length !== 1)
-      fail('One current client subject required');
+    if (!['client','personal'].includes(value.subject.kind)) fail('One current client or personal subject required');
     return value;
   }
   function cursor(value: string, clientId: string, documentId: string, query: string) {
@@ -47,7 +45,9 @@ export function createClientDocumentsValidators({validateShape, assertSubject, c
     const input=snapshotOperationData(raw), ctx=context(options);
     validateShape('ClientDocumentsInput',input);
     const clientId=optionalText(input,'clientId',80);
-    if (clientId === null || clientId !== ctx.subject.entityIds[0]) fail('Document client selector differs from current subject');
+    if (clientId === null) fail('Explicit document client selector required');
+    if (ctx.subject.kind === 'personal' ? !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(clientId ?? '') :
+        clientId === null || clientId !== ctx.subject.entityIds[0]) fail('Document client selector differs from current subject');
     const documentId=optionalText(input,'documentId',80), query=optionalText(input,'query',240) ?? '';
     const token=optionalText(input,'cursor',4096), mode=documentId===null?'list':'read';
     const limit=input.limit ?? (documentId===null?25:5000);

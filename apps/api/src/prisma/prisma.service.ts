@@ -216,7 +216,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   async withTenantRetry<T>(
     tenantId: string,
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
-    opts?: { timeoutMs?: number; retries?: number },
+    opts?: { timeoutMs?: number; isolationLevel?: Prisma.TransactionIsolationLevel; retries?: number },
   ): Promise<T> {
     const maxRetries = opts?.retries ?? 3;
     for (let attempt = 0; ; attempt += 1) {

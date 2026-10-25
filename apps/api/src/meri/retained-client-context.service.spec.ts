@@ -18,10 +18,9 @@ function admission(): RetainedSourceV02Admission {
       attemptId: '66666666-6666-4666-8666-666666666666',
       workerId: '77777777-7777-4777-8777-777777777777', writerFence: 1 },
     subject: { kind: 'client', entityType: 'client', entityIds: [clientId], tenantId, actorId,
-      authorizationDecisionId: '88888888-8888-4888-8888-888888888888',
       policyRevision: 'policy-1', scopes: [], rosterVersionId: null },
     input: { clientId, section: null, afterId: null, limit: 25, representation: 'summary' },
-    metadata: null, normalizationContext: {
+    metadata: null, policyRevision: 'policy-1', normalizationContext: {
       asOf: '2026-10-18T10:00:00.000Z',
     }, argumentsSha256: 'a'.repeat(64), requestSha256: 'b'.repeat(64),
     clientId, hardExpiryMs: Date.now() + 30_000,
@@ -34,13 +33,13 @@ const run = <T>(fn: () => Promise<T>) => withMeriToolExecutionControl(
 describe('inert retained client context 0.3 owner read window', () => {
   it('brackets every canonical profile read and rechecks the selected-client wall', async () => {
     const sequence: string[] = [];
-    const ensureClientVisible = jest.fn(async () => { sequence.push('wall'); return clientId; });
+    const assertMeetingReadAllowed = jest.fn(async () => { sequence.push('wall'); return clientId; });
     const getClientContext = jest.fn(async () => {
       sequence.push('canonical');
       return { tool: 'get_client_context', generatedAt: new Date().toISOString(), profile: {} };
     });
     const service = Object.create(MeriToolsService.prototype) as MeriToolsService;
-    Object.assign(service, { ensureClientVisible, getClientContext });
+    Object.assign(service, { assertMeetingReadAllowed, getClientContext });
     const source = await run(() => service.readRetainedClientContextSourceV03(ctx, admission()));
     expect(sequence).toEqual(['wall', 'canonical', 'wall']);
     expect(source.result).toMatchObject({ tool: 'get_client_context' });
@@ -63,23 +62,23 @@ describe('inert retained client context 0.3 owner read window', () => {
   });
 
   it('refuses a changed selected-client wall after the canonical read', async () => {
-    const ensureClientVisible = jest.fn()
+    const assertMeetingReadAllowed = jest.fn()
       .mockResolvedValueOnce(clientId)
-      .mockResolvedValueOnce('99999999-9999-4999-8999-999999999999');
+      .mockRejectedValueOnce(new ServiceUnavailableException('Client not found'));
     const getClientContext = jest.fn(async () => ({ tool: 'get_client_context' }));
     const service = Object.create(MeriToolsService.prototype) as MeriToolsService;
-    Object.assign(service, { ensureClientVisible, getClientContext });
+    Object.assign(service, { assertMeetingReadAllowed, getClientContext });
     await expect(run(() => service.readRetainedClientContextSourceV03(ctx, admission())))
       .rejects.toBeInstanceOf(ServiceUnavailableException);
     expect(getClientContext).toHaveBeenCalledTimes(1);
-    expect(ensureClientVisible).toHaveBeenCalledTimes(2);
+    expect(assertMeetingReadAllowed).toHaveBeenCalledTimes(2);
   });
 
   it('translates a normalized continuation to a scoped canonical cursor', async () => {
     const getClientContext = jest.fn(async (_ctx: TenantContext, _input: Record<string, unknown>) =>
       ({ tool: 'get_client_context' }));
     const service = Object.create(MeriToolsService.prototype) as MeriToolsService;
-    Object.assign(service, { ensureClientVisible: jest.fn(async () => clientId), getClientContext });
+    Object.assign(service, { assertMeetingReadAllowed: jest.fn(async () => clientId), getClientContext });
     const request = admission();
     request.input = { clientId, section: 'people', afterId: 'person-27', limit: 10, representation: 'full' };
     await run(() => service.readRetainedClientContextSourceV03(ctx, request));

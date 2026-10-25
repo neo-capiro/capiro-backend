@@ -64,14 +64,47 @@ describe('first-chat client records exact native admission', () => {
     expect(firstChatClientPreviewDecision(req(method, path), true)).toBe('preview');
   });
   it.each([
-    ['PATCH', `/api/clients/${id}`], ['POST', '/api/clients/bulk-import'],
-    ['PUT', `/api/client-account-owners/${id}`], ['GET', '/api/billing/summary'],
-    ['POST', `/api/clients/${id}/logo/confirm`], ['PUT', `/api/clients/${id}/profile-notes`],
+    ['PATCH', `/api/clients/${id}`], ['POST', `/api/clients/${id}/account-owners`],
+    ['GET', '/api/clients/not-a-uuid/account-owners'], ['PUT', '/api/clients/not-a-uuid'],
     ['POST', '/api/clients?includeArchived=true'], ['GET', '/api/clients?tenantId=other'],
     ['GET', '/api/clients?includeArchived=true&includeArchived=false'],
     ['GET', '/api/clients/'], ['GET', '/api/clients/not-a-uuid'],
-  ])('keeps unallocated methods, children and ambiguous input held %s %s', (method, path) => {
+  ])('keeps native near misses and ambiguous input held %s %s', (method, path) => {
     expect(firstChatClientPreviewDecision(req(method, path), true)).toBe('not-found');
+  });
+  it.each([
+    ['POST', '/api/clients/bulk-import'], ['PUT', `/api/client-account-owners/${id}`],
+    ['GET', '/api/billing/summary'], ['POST', `/api/clients/${id}/logo/confirm`],
+    ['PUT', `/api/clients/${id}/profile-notes`],
+    ['POST', `/api/clients/${id}/people`], ['GET', `/api/clients/${id}/people`],
+    ['GET', `/api/clients/${id}/people/requests/${id}`],
+    ['POST', `/api/clients/${id}/activity-commands`],
+    ['GET', `/api/clients/${id}/activity-commands/${id}`],
+    ['POST', `/api/clients/${id}/activity-commands/${id}/resume`],
+    ['POST', `/api/clients/${id}/activity-commands/${id}/undo`],
+    ['GET', `/api/clients/${id}/activity-commands/${id}/undo`],
+    ['PATCH', `/api/clients/${id}/files/${id}/folder`],
+    ['GET', `/api/clients/${id}/files?limit=25&cursor=next`],
+  ])('delegates canonical ordinary routes to authentication %s %s', (method, target) => {
+    expect(firstChatClientPreviewDecision(req(method, target), true)).toBe('unrelated');
+  });
+  it.each([
+    `/api/clients/${id}/%61ccount-owners`, `/api/clients/${id}/ACCOUNT-OWNERS`,
+    `/api/clients/${id}/people/`, `/api/clients/${id}//people`,
+    `/api/clients/${id}/../people`, `/api/clients/${id}/people%2frequests`,
+  ])('does not delegate ambiguous nested paths (%s)', target => {
+    expect(firstChatClientPreviewDecision(req('GET', target), true)).toBe('not-found');
+  });
+  it('preserves host, raw-target and mode checks before ordinary delegation', () => {
+    const target = `/api/clients/${id}/people`;
+    expect(firstChatClientPreviewDecision(req('POST', target), false)).toBe('unavailable');
+    expect(firstChatClientPreviewDecision(rosterRequest('POST', target, `${host}:443`), true)).toBe('not-found');
+    expect(firstChatClientPreviewDecision(rosterRequest('POST', target, host, target,
+      [host, 'ordinary.example']), true)).toBe('not-found');
+    expect(firstChatClientPreviewDecision(rosterRequest('POST', `https://${host}${target}`, host, target), true))
+      .toBe('not-found');
+    expect(firstChatClientPreviewDecision(rosterRequest('POST', target, host, '/api/clients'), true))
+      .toBe('not-found');
   });
   it('rejects duplicate, disguised and absolute-form authority and unavailable mode', () => {
     const current = req('POST', '/api/clients');

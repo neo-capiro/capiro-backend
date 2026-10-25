@@ -246,6 +246,29 @@ describe('combined current authority registered HTTP boundary', () => {
   beforeEach(async () => { f = await fixture(); });
   afterEach(async () => { await f?.app.close(); });
 
+  it.each(['user_admin', 'capiro_admin'])('projects settings authority through both routes and removes it after %s demotion', async (role) => {
+    f.membership.role = role;
+    const membership = await f.request('membership', {});
+    const current = await f.request('current', input);
+    expect([membership.statusCode, current.statusCode]).toEqual([200, 200]);
+    for (const response of [membership, current]) {
+      expect(response.body.role).toBe(role);
+      expect(response.body.permissions).toEqual(['memory.propose.firm', 'tenant.settings.manage']);
+    }
+    expect(current.body.membershipRevision).toBe(membership.body.membershipRevision);
+
+    f.membership.role = 'standard_user';
+    const demotedMembership = await f.request('membership', {});
+    const demotedCurrent = await f.request('current', input);
+    expect([demotedMembership.statusCode, demotedCurrent.statusCode]).toEqual([200, 200]);
+    for (const response of [demotedMembership, demotedCurrent]) {
+      expect(response.body.role).toBe('standard_user');
+      expect(response.body.permissions).toEqual(['memory.propose.firm']);
+      expect(response.body.membershipRevision).not.toBe(membership.body.membershipRevision);
+    }
+    expect((await f.request('current', { ...input, expect: { membershipRevision: current.body.membershipRevision } })).statusCode).toBe(409);
+  });
+
   it('equals the three existing receipts for the same identity, membership, wall and prospect state', async () => {
     f.prospectScope();
     const identity = await f.request('identity', {});

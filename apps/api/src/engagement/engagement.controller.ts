@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   Headers,
+  Header,
   HttpCode,
   Optional,
   NotFoundException,
@@ -220,6 +221,10 @@ class CreateMeetingDto {
 }
 
 class UpdateMeetingDto {
+  @IsOptional()
+  @IsDateString()
+  expectedRevision?: string;
+
   @IsOptional()
   @IsUUID()
   clientId?: string | null;
@@ -2091,6 +2096,19 @@ export class EngagementController {
     return this.service.createMeeting(ctx, body);
   }
 
+  @Post('meeting-commands')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  meetingCommand(@CurrentTenant() ctx: TenantContext, @Body() body: unknown) {
+    return this.service.executeMeetingCommand(ctx, body);
+  }
+
+  @Get('meeting-commands/:requestId')
+  @Header('Cache-Control', 'no-store')
+  meetingCommandReceipt(@CurrentTenant() ctx: TenantContext, @Param('requestId') requestId: string) {
+    return this.service.readMeetingCommand(ctx, requestId);
+  }
+
   @Put('meetings/:id')
   updateMeeting(
     @CurrentTenant() ctx: TenantContext,
@@ -2900,7 +2918,6 @@ export class EngagementController {
   }
 
   @Post('attachments/upload-url')
-  @EngagementRuntimeAction('attachment_external_write')
   createAttachmentUploadUrl(
     @CurrentTenant() ctx: TenantContext,
     @Body() body: AttachmentUploadDto,
@@ -2909,7 +2926,6 @@ export class EngagementController {
   }
 
   @Post('attachments/confirm')
-  @EngagementRuntimeAction('attachment_external_write')
   confirmAttachment(@CurrentTenant() ctx: TenantContext, @Body() body: ConfirmAttachmentDto) {
     return this.service.confirmAttachment(ctx, body);
   }
@@ -2972,9 +2988,30 @@ export class EngagementController {
     };
   }
 
+  @Post('attachments/prospect-copies')
+  @EngagementRuntimeAction('attachment_external_write')
+  @HttpCode(200)
+  @Header('Cache-Control', 'private, no-store')
+  copyProspectAttachment(@CurrentTenant() ctx: TenantContext, @Body() input: unknown) {
+    return this.service.copyProspectAttachment(ctx, input);
+  }
+
+  @Get('attachments/prospect-copies/:requestId')
+  @Header('Cache-Control', 'private, no-store')
+  readProspectAttachmentCopy(@CurrentTenant() ctx: TenantContext, @Param('requestId') requestId: string) {
+    return this.service.readProspectAttachmentCopy(ctx, requestId);
+  }
+
+  @Get('attachments/deletions/:requestId')
+  @Header('Cache-Control', 'private, no-store')
+  readAttachmentDeletion(@CurrentTenant() ctx: TenantContext, @Param('requestId') requestId: string) {
+    return this.service.readAttachmentDeletion(ctx, requestId);
+  }
+
   @Delete('attachments/:id')
-  deleteAttachment(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
-    return this.service.deleteAttachment(ctx, id);
+  @Header('Cache-Control', 'private, no-store')
+  deleteAttachment(@CurrentTenant() ctx: TenantContext, @Param('id') id: string, @Body() input: unknown) {
+    return this.service.deleteReviewedAttachment(ctx, id, input);
   }
 
   @Get('campaigns')

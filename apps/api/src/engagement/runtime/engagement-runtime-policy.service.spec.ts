@@ -1,12 +1,15 @@
 import { describe, it, expect } from '@jest/globals';
 import { EngagementRuntimePolicyService } from './engagement-runtime-policy.service.js';
-import type { EngagementExternalAction } from './engagement-runtime.types.js';
+import type {
+  EngagementExternalAction,
+  EngagementExternalActionMode,
+} from './engagement-runtime.types.js';
 
 function makePolicy(config: {
   serviceName: 'api' | 'engagement-api';
   processMode: 'shadow' | 'active';
   backgroundOwner: 'api' | 'engagement-api' | 'disabled';
-  externalActions: 'disabled' | 'test_only' | 'enabled';
+  externalActions: EngagementExternalActionMode;
   callbacksEnabled: boolean;
   recallWebhookEnabled: boolean;
 }) {
@@ -171,6 +174,47 @@ describe('EngagementRuntimePolicyService', () => {
     });
     it('denies outreach_generate in test_only mode', () => {
       expect(policy.externalActionAllowed('outreach_generate', { testMode: true })).toBe(false);
+    });
+  });
+
+  describe.each(['api', 'engagement-api'] as const)('integrations_only in %s', (serviceName) => {
+    const policy = makePolicy({
+      serviceName,
+      processMode: 'shadow',
+      backgroundOwner: 'disabled',
+      externalActions: 'integrations_only',
+      callbacksEnabled: true,
+      recallWebhookEnabled: false,
+    });
+    it.each([
+      'integration_oauth_start',
+      'integration_oauth_callback',
+      'integration_sync',
+      'integration_subscription',
+      'integration_notification',
+    ] as const)('allows %s', (action) => {
+      expect(policy.externalActionAllowed(action)).toBe(true);
+      expect(() => policy.assertExternalAction(action)).not.toThrow();
+    });
+    it.each([
+      'outreach_send',
+      'outreach_test_send',
+      'outreach_v3_send',
+      'outreach_v3_test_send',
+      'outreach_generate',
+      'outreach_reasoning',
+      'outreach_v3_generate',
+      'meeting_prep_generate',
+      'meeting_debrief_generate',
+      'integration_disconnect',
+      'notetaker_dispatch',
+      'notetaker_remove',
+      'attachment_external_read',
+      'attachment_external_write',
+      'internal_ai_credential_resolve',
+    ] as const)('denies %s even with testMode', (action) => {
+      expect(policy.externalActionAllowed(action, { testMode: true })).toBe(false);
+      expect(() => policy.assertExternalAction(action, { testMode: true })).toThrow();
     });
   });
 

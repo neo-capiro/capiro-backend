@@ -1,4 +1,8 @@
 import { assertSingleMailAuthority } from './single-mail-authority.js';
+import { requireOwnerClient } from '../clients/client-ordered-owner.access.js';
+import { assertFileKeyNotDeleted, deleteClientFile, readClientFileDelete, type ClientFileDeleteOwner } from './attachments/client-file-delete.js';
+import { copyProspectFile, readProspectFileCopy } from './attachments/prospect-file-copy.js';
+import { prospectCopyPrefix } from './attachments/prospect-file-copy.input.js';
 import { integrationStatusProjection } from './integration-health.js';
 import { SingleMailLedger, singleMailHash } from './single-mail-ledger.js';
 import {
@@ -184,6 +188,10 @@ import { resolveTenantAuditorMode } from '../common/auditor-mode.js';
 import { dateBoundsInZone } from '../intelligence/time-bounds.js';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import { currentMeetingActor, visibleMeetingClientWhere, assertMeetingClient } from './meeting-resource-authority.js';
+import {
+  commitMeetingCommand, readMeetingCommand, meetingCommandResult, type MeetingExecution,
+} from './meeting-command.js';
+import { parseMeetingCommand, type MeetingCommand } from './meeting-command.input.js';
 import { projectMeetingArtifactMetadata, type MeetingArtifactMetadata } from './meeting-artifact-metadata.js';
 
 export interface CreateIntegrationInput {
@@ -200,7 +208,7 @@ export interface MeetingAttendeeInput {
 }
 
 export interface CreateMeetingInput {
-  clientId?: string;
+  clientId?: string | null;
   subject: string;
   description?: string;
   location?: string;
@@ -284,6 +292,17 @@ export interface SendSingleMailInput {
   appendSignature?: boolean;
   threadId?: string;
   attachmentIds?: string[];
+}
+
+/** Internal native filing boundary; the caller owns commit and durable receipt state. */
+export interface NativeClientDocumentWrite {
+  tx: Prisma.TransactionClient;
+  /** Recheck current authority and hold its locks on tx through the caller's commit. */
+  beforeWrite: () => Promise<void>;
+  /** The caller runs these only after its domain and receipt transaction commits. */
+  afterCommit: Array<() => void>;
+  /** SHA-256 of the full approved immutable ObjectReference, including storage version. */
+  immutableObjectIdentity: string;
 }
 
 export interface AttachmentUploadInput {
@@ -1321,9 +1340,8 @@ export class EngagementService {
       attachments: { s3Configured: Boolean(this.bucket), maxBytes: MAX_ATTACHMENT_BYTES },
       outreach: {
         emailDraftHandoff: true,
-        campaignSendingConfigured: true,
-        campaignSendingProvider: 'microsoft_365',
-        campaignSendingScopes: ['Mail.Send'],
+        // Campaign provider, grants and runtime eligibility must be resolved
+        // for the selected owned mailbox, not asserted as global capabilities.
       },
       integrations: {
         microsoft365: {
@@ -1501,17 +1519,100 @@ export class EngagementService {
     });
   }
 
-  async createMeeting(ctx: TenantContext, input: CreateMeetingInput) {
+  async executeMeetingCommand(ctx: TenantContext, raw: unknown) {
+    const afterCommit: Array<() => void> = [];
+    const command = parseMeetingCommand(raw);
+    const outcome = await commitMeetingCommand(this.prisma, ctx, command,
+      (tx, current, admitted) => this.runMeetingCommand(current, admitted, { tx, afterCommit }),
+      command.operation === 'note-create' ? { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS } : undefined,
+    );
+    if (outcome.fresh) for (const effect of afterCommit) effect();
+    return outcome.receipt;
+  }
+
+  readMeetingCommand(ctx: TenantContext, requestId: string) {
+    return readMeetingCommand(this.prisma, ctx, requestId);
+  }
+
+  private meetingTransaction<T>(
+    ctx: TenantContext,
+    execution: MeetingExecution | undefined,
+    work: (tx: Prisma.TransactionClient) => Promise<T>,
+    options?: { timeoutMs: number },
+  ): Promise<T> {
+    return execution ? work(execution.tx) : this.prisma.withTenant(ctx.tenantId, work, options);
+  }
+
+  private async runMeetingCommand(
+    ctx: TenantContext, command: MeetingCommand, execution: MeetingExecution,
+  ) {
+    let meetingId = command.meetingId;
+    let artifactId = command.artifact?.id ?? undefined;
+    if (command.operation === 'create' || command.operation === 'update') {
+      const { assignClient, clientId, ...fields } = command.meeting!;
+      const input = { ...fields, ...(assignClient ? { clientId } : {}) };
+      if (command.operation === 'create') {
+        const created = await this.createMeeting(ctx, {
+          ...fields,
+          description: fields.description ?? undefined,
+          location: fields.location ?? undefined,
+          ...(assignClient ? { clientId } : {}),
+        }, execution);
+        if (!created) throw new ServiceUnavailableException('Created meeting result unavailable');
+        meetingId = created.id;
+      } else {
+        await this.updateMeeting(ctx, meetingId!, {
+          ...input, expectedRevision: command.expectedRevision!,
+        }, execution);
+      }
+    } else if (command.operation === 'share' || command.operation === 'unshare') {
+      const refs = command.artifacts.map(({ type, id }) => ({ type, id }));
+      if (command.operation === 'share') await this.shareArtifacts(ctx, meetingId!, refs, execution);
+      else await this.unshareArtifacts(ctx, meetingId!, refs, execution);
+    } else {
+      const input = {
+        body: command.artifact!.body!, confidential: command.artifact!.confidential!,
+      };
+      switch (command.operation) {
+        case 'note-create':
+          artifactId = (await this.createMeetingNote(ctx, meetingId!, input, execution)).id;
+          break;
+        case 'debrief-create':
+          artifactId = (await this.createMeetingDebrief(ctx, meetingId!, input, execution)).id;
+          break;
+        case 'note-update':
+          await this.updateMeetingNote(ctx, meetingId!, artifactId!, {
+            ...input, expectedRevision: command.artifact!.revision!,
+          }, execution);
+          break;
+        case 'debrief-update':
+          await this.updateMeetingDebrief(ctx, meetingId!, artifactId!, {
+            ...input, expectedRevision: command.artifact!.revision!,
+          }, execution);
+          break;
+        case 'note-approve':
+          await this.approveMeetingNote(ctx, meetingId!, artifactId!, execution);
+          break;
+        case 'debrief-approve':
+          await this.approveMeetingDebrief(ctx, meetingId!, artifactId!, execution);
+          break;
+      }
+    }
+    return meetingCommandResult(execution.tx, ctx, command, meetingId!, artifactId);
+  }
+
+  async createMeeting(ctx: TenantContext, input: CreateMeetingInput, execution?: MeetingExecution) {
     const startsAt = parseDate(input.startsAt, 'startsAt');
     const endsAt = parseDate(input.endsAt, 'endsAt');
     if (endsAt < startsAt) throw new BadRequestException('endsAt must be after startsAt');
 
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    return this.meetingTransaction(ctx, execution, async (tx) => {
+      ctx = await currentMeetingActor(tx, ctx);
       const attendeeEmails = (input.attendees ?? [])
         .map((attendee) => attendee.email)
         .filter((email): email is string => Boolean(email));
 
-      const autoAssociation = input.clientId
+      const autoAssociation = input.clientId !== undefined
         ? {
             clientId: input.clientId,
             score: 1,
@@ -1524,6 +1625,7 @@ export class EngagementService {
             attendeeEmails: [...attendeeEmails, input.organizerEmail ?? ''],
           });
 
+      await assertMeetingClient(tx, ctx, autoAssociation.clientId);
       const contactsByEmail = await this.upsertAttendeeContacts(
         tx,
         ctx.tenantId,
@@ -1576,9 +1678,9 @@ export class EngagementService {
     });
   }
 
-  async updateMeeting(ctx: TenantContext, id: string, input: UpdateMeetingInput) {
+  async updateMeeting(ctx: TenantContext, id: string, input: UpdateMeetingInput, execution?: MeetingExecution) {
     const attachmentIds: string[] = [];
-    const result = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const result = await this.meetingTransaction(ctx, execution, async (tx) => {
       ctx = await currentMeetingActor(tx, ctx);
       if ('clientId' in input || input.expectedRevision)
         await this.lockMeetingClientAssignment(tx, ctx, id);
@@ -1661,7 +1763,9 @@ export class EngagementService {
     // Only enqueue after the entire association transaction committed. Old-client
     // chunks were removed synchronously; failed indexing cannot leave old evidence.
     for (const attachmentId of attachmentIds) {
-      this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, attachmentId);
+      const index = () => this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, attachmentId);
+      if (execution) execution.afterCommit.push(index);
+      else index();
     }
     return result;
   }
@@ -1865,9 +1969,9 @@ export class EngagementService {
    * shared, Meeting.visibility flips to 'shared' (first-sharer-wins) — it is a
    * derived summary field, not independently settable once this flag is on.
    */
-  async shareArtifacts(ctx: TenantContext, meetingId: string, refs: ArtifactRef[]) {
+  async shareArtifacts(ctx: TenantContext, meetingId: string, refs: ArtifactRef[], execution?: MeetingExecution) {
     if (!refs.length) throw new BadRequestException('artifacts must not be empty');
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    return this.meetingTransaction(ctx, execution, async (tx) => {
       ctx = await currentMeetingActor(tx, ctx);
       await this.lockMeetingClientAssignment(tx, ctx, meetingId);
       const meeting = await tx.meeting.findFirst({
@@ -1937,9 +2041,9 @@ export class EngagementService {
    * Once no artifact on the meeting remains shared, Meeting.visibility resets
    * to 'private'.
    */
-  async unshareArtifacts(ctx: TenantContext, meetingId: string, refs: ArtifactRef[]) {
+  async unshareArtifacts(ctx: TenantContext, meetingId: string, refs: ArtifactRef[], execution?: MeetingExecution) {
     if (!refs.length) throw new BadRequestException('artifacts must not be empty');
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    return this.meetingTransaction(ctx, execution, async (tx) => {
       ctx = await currentMeetingActor(tx, ctx);
       await this.lockMeetingClientAssignment(tx, ctx, meetingId);
       const meeting = await tx.meeting.findFirst({
@@ -5771,8 +5875,8 @@ export class EngagementService {
     return tx.meetingPrep.create({data:{tenantId:ctx.tenantId,meetingId:input.meetingId,clientId:null,status:'edited',summary:input.summary,agenda:input.agenda,followUps:input.followUps,talkingPoints:[],risks:[],emailEvidence:[],provider:null,model:null,sharedAt:null,sharedByUserId:null,editedByUserId:ctx.userId,generatedFrom:{schemaVersion:'research_portfolio_institutional_v1',briefing:true,artifactId:artifact.id,meetingId:input.meetingId,actorUserId:ctx.userId,reviewStatus:'unreviewed_draft'}}});
   }
 
-  async updateTask(ctx: TenantContext, id: string, input: UpdateTaskInput) {
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+  async updateTask(ctx: TenantContext, id: string, input: UpdateTaskInput, internal?: { tx: Prisma.TransactionClient }) {
+    const write = async (tx: Prisma.TransactionClient) => {
       const task=await ensureExists(tx.engagementTask.findUnique({ where: { id } }), 'Task not found');
       await assertOwnedResearchPortfolioTask(tx,ctx,task);
       if(task.sourceType===RESEARCH_PORTFOLIO_TASK_SOURCE&&'ownerUserId' in input&&input.ownerUserId!==ctx.userId)throw new BadRequestException('Private Research Portfolio tasks remain owned by their creator');
@@ -5788,17 +5892,19 @@ export class EngagementService {
           ...('status' in input ? { status: input.status } : {}),
         },
       });
-    });
+    };
+    return internal ? write(internal.tx) : this.prisma.withTenant(ctx.tenantId, write);
   }
 
   async createMeetingNote(
     ctx: TenantContext,
     meetingId: string,
     input: { body: string; confidential?: boolean; accessLevel?: string; approved?: boolean },
+    execution?: MeetingExecution,
   ) {
     const encrypted = this.notesCrypto.encrypt(input.body);
-    return this.prisma.withTenant(
-      ctx.tenantId,
+    return this.meetingTransaction(
+      ctx, execution,
       async (tx) => {
         ctx = await currentMeetingActor(tx, ctx);
         await this.lockMeetingClientAssignment(tx, ctx, meetingId);
@@ -5840,10 +5946,12 @@ export class EngagementService {
       accessLevel?: string;
       expectedRevision?: string;
     },
+    execution?: MeetingExecution,
   ) {
     const encrypted = this.notesCrypto.encrypt(input.body);
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    return this.meetingTransaction(ctx, execution, async (tx) => {
       ctx = await currentMeetingActor(tx, ctx);
+      await this.lockMeetingClientAssignment(tx, ctx, meetingId);
       const parent = await this.ensureOwnMeeting(tx, ctx, meetingId);
       await assertMeetingClient(tx, ctx, parent.clientId);
       const note = await tx.meetingNote.findFirst({
@@ -5897,9 +6005,10 @@ export class EngagementService {
     ctx: TenantContext,
     meetingId: string,
     input: { body: string; confidential?: boolean; accessLevel?: string; approved?: boolean },
+    execution?: MeetingExecution,
   ) {
     const encrypted = this.notesCrypto.encrypt(input.body);
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    return this.meetingTransaction(ctx, execution, async (tx) => {
       ctx = await currentMeetingActor(tx, ctx);
       await this.lockMeetingClientAssignment(tx, ctx, meetingId);
       const meeting = await tx.meeting.findFirst({
@@ -5936,10 +6045,12 @@ export class EngagementService {
       accessLevel?: string;
       expectedRevision?: string;
     },
+    execution?: MeetingExecution,
   ) {
     const encrypted = this.notesCrypto.encrypt(input.body);
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    return this.meetingTransaction(ctx, execution, async (tx) => {
       ctx = await currentMeetingActor(tx, ctx);
+      await this.lockMeetingClientAssignment(tx, ctx, meetingId);
       const parent = await this.ensureOwnMeeting(tx, ctx, meetingId);
       await assertMeetingClient(tx, ctx, parent.clientId);
       const debrief = await tx.meetingDebrief.findFirst({
@@ -6000,9 +6111,10 @@ export class EngagementService {
    * Library and for sharing. Reuses the same owner-guard + author/admin edit
    * check as updateMeetingDebrief.
    */
-  async approveMeetingDebrief(ctx: TenantContext, meetingId: string, debriefId: string) {
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+  async approveMeetingDebrief(ctx: TenantContext, meetingId: string, debriefId: string, execution?: MeetingExecution) {
+    return this.meetingTransaction(ctx, execution, async (tx) => {
       ctx = await currentMeetingActor(tx, ctx);
+      await this.lockMeetingClientAssignment(tx, ctx, meetingId);
       const parent = await this.ensureOwnMeeting(tx, ctx, meetingId);
       await assertMeetingClient(tx, ctx, parent.clientId);
       const debrief = await tx.meetingDebrief.findFirst({
@@ -6030,9 +6142,10 @@ export class EngagementService {
    * for sharing. Same owner-guard + author/admin edit check as
    * updateMeetingNote/approveMeetingDebrief.
    */
-  async approveMeetingNote(ctx: TenantContext, meetingId: string, noteId: string) {
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+  async approveMeetingNote(ctx: TenantContext, meetingId: string, noteId: string, execution?: MeetingExecution) {
+    return this.meetingTransaction(ctx, execution, async (tx) => {
       ctx = await currentMeetingActor(tx, ctx);
+      await this.lockMeetingClientAssignment(tx, ctx, meetingId);
       const parent = await this.ensureOwnMeeting(tx, ctx, meetingId);
       await assertMeetingClient(tx, ctx, parent.clientId);
       const note = await tx.meetingNote.findFirst({
@@ -7541,6 +7654,8 @@ export class EngagementService {
     // ownership isolation is unchanged.
     await this.validateAttachmentParents(ctx, input);
 
+    await this.assertAttachmentUploadClientAccess(ctx, input);
+
     const safeName = safeFileName(input.fileName);
     const intent = input.prospectId
       ? await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
@@ -7587,6 +7702,7 @@ export class EngagementService {
       await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
         requireProspectScope(tx, ctx, input.prospectId!, 'write'),
       );
+    else await this.assertAttachmentUploadClientAccess(ctx, input);
     return {
       ...presigned,
       s3Key,
@@ -7598,6 +7714,8 @@ export class EngagementService {
 
   async confirmAttachment(ctx: TenantContext, input: ConfirmAttachmentInput) {
     if (!this.bucket) throw new ServiceUnavailableException('ASSETS_BUCKET is not configured');
+    if (input.s3Key.startsWith(prospectCopyPrefix(ctx.tenantId)))
+      throw new BadRequestException('A recorded prospect copy must finish through its copy request');
     // Re-checked here (not just at presign) — confirm is a separate call and
     // must not record a contentType the presign path would have rejected.
     if (!isAllowedAttachmentContentType(input.contentType)) {
@@ -7616,11 +7734,12 @@ export class EngagementService {
           )
         : null;
     if (prospective?.replay) return prospective.replay;
+    await this.validateAttachmentParents(ctx, input);
+    await this.assertAttachmentUploadClientAccess(ctx, input);
     const head = await this.s3
       .send(new HeadObjectCommand({ Bucket: this.bucket, Key: input.s3Key }))
       .catch(() => null);
     if (!head) throw new BadRequestException('Uploaded attachment not found in S3');
-    await this.validateAttachmentParents(ctx, input);
 
     // ── Phase 1 §3.h1 — verify the bytes, don't trust the claims ────────────
     //
@@ -7672,8 +7791,11 @@ export class EngagementService {
       // duplicating one uploaded object into several attachment records.
       const bound = await prospectUploadForConfirm(tx, ctx, input, this.bucket!);
       await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${input.s3Key}))`);
+      await assertFileKeyNotDeleted(tx, ctx, this.bucket!, input.s3Key);
       if (bound?.replay) return bound.replay;
       const clientId = await this.attachmentClientAtWrite(tx, ctx, input);
+      if (clientId && !input.prospectId)
+        await requireOwnerClient(tx, ctx, clientId, false, false, 'share');
       const replay = await tx.engagementAttachment.findFirst({
         where: { tenantId: ctx.tenantId, s3Key: input.s3Key },
       });
@@ -8195,6 +8317,7 @@ export class EngagementService {
       untrustedUpload?: boolean;
       privateToUploader?: boolean;
     },
+    internal?: NativeClientDocumentWrite,
   ): Promise<{
     id: string;
     fileName: string;
@@ -8204,6 +8327,13 @@ export class EngagementService {
     indexedAt?: Date | null;
     reused?: boolean;
   }> {
+    if (internal) {
+      if (!input.idempotencyKey || !/^[a-f0-9]{64}$/.test(internal.immutableObjectIdentity) ||
+          !input.clientId || input.meetingId || input.privateToUploader || input.untrustedUpload !== true) {
+        throw new BadRequestException('Native client filing requires an immutable object identity and original upload.');
+      }
+      input = { ...input, buffer: Buffer.from(input.buffer) };
+    }
     if (!this.bucket) throw new ServiceUnavailableException('ASSETS_BUCKET is not configured');
     if (!isAllowedAttachmentContentType(input.contentType)) {
       throw new BadRequestException(
@@ -8213,10 +8343,17 @@ export class EngagementService {
     if (input.buffer.byteLength > MAX_ATTACHMENT_BYTES) {
       throw new BadRequestException(`Attachment must be <= ${MAX_ATTACHMENT_BYTES} bytes`);
     }
-    await this.validateAttachmentParents(ctx, {
-      clientId: input.clientId ?? undefined,
-      meetingId: input.meetingId ?? undefined,
-    });
+    if (internal) await internal.beforeWrite();
+    else await this.validateAttachmentParents(ctx, {
+        clientId: input.clientId ?? undefined,
+        meetingId: input.meetingId ?? undefined,
+      });
+    const inWriteTransaction = <T>(write: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> =>
+      internal ? write(internal.tx) : this.prisma.withTenant(ctx.tenantId, write);
+    const byteHash = createHash('sha256').update(input.buffer).digest('hex');
+    if (internal && input.sourceContentHash != null && input.sourceContentHash !== byteHash) {
+      throw new BadRequestException('The original file digest does not match its approved source.');
+    }
     const safeName = safeFileName(input.fileName);
     // The content digest is part of the identity: retries cannot overwrite an
     // existing document with different bytes. A deterministic primary key and
@@ -8225,7 +8362,10 @@ export class EngagementService {
     const digest = input.idempotencyKey
       ? createHash('sha256')
           .update(
-            JSON.stringify([
+            JSON.stringify(internal ? [
+              'native-client-document-v1', ctx.tenantId, ctx.userId, input.clientId,
+              internal.immutableObjectIdentity, byteHash,
+            ] : [
               'client-document-v1',
               ctx.tenantId,
               ctx.userId,
@@ -8234,7 +8374,7 @@ export class EngagementService {
               input.idempotencyKey,
               input.contentType,
               input.privateToUploader ?? false,
-              createHash('sha256').update(input.buffer).digest('hex'),
+              byteHash,
             ]),
           )
           .digest('hex')
@@ -8242,10 +8382,20 @@ export class EngagementService {
     const stableId = digest
       ? `${digest.slice(0, 8)}-${digest.slice(8, 12)}-5${digest.slice(13, 16)}-a${digest.slice(17, 20)}-${digest.slice(20, 32)}`
       : null;
+    const s3Key = stableId
+      ? `tenants/${ctx.tenantId}/engagement/${stableId}/document`
+      : `tenants/${ctx.tenantId}/engagement/${randomUUID()}/${safeName}`;
+    if (internal) {
+      await internal.tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`capiro-client-document:${stableId}`}, 0))`);
+      await internal.beforeWrite();
+      await internal.tx.$executeRaw(Prisma.sql`SELECT id FROM engagement_attachments
+        WHERE tenant_id=${ctx.tenantId}::uuid AND id=${stableId}::uuid FOR UPDATE`);
+      await internal.beforeWrite();
+    }
     if (stableId) {
-      const existing = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      const existing = await inWriteTransaction((tx) =>
         tx.engagementAttachment.findFirst({
-          where: {
+          where: internal ? { id: stableId } : {
             id: stableId,
             tenantId: ctx.tenantId,
             uploadedByUserId: ctx.userId,
@@ -8253,7 +8403,18 @@ export class EngagementService {
           },
         }),
       );
-      if (existing)
+      if (existing) {
+        if (internal) {
+          await internal.beforeWrite();
+          if (existing.tenantId !== ctx.tenantId || existing.uploadedByUserId !== ctx.userId ||
+              existing.clientId !== input.clientId || existing.byteSize !== input.buffer.byteLength ||
+              existing.calculatedSha256 !== byteHash || existing.sourceContentHash !== byteHash ||
+              existing.bucket !== this.bucket || existing.s3Key !== s3Key ||
+              existing.supersededByAttachmentId ||
+              !['ready', 'legacy_ready', 'quarantined', 'blocked'].includes(existing.lifecycleStatus)) {
+            throw new ConflictException('The retained client document cannot be reused.');
+          }
+        }
         return {
           id: existing.id,
           fileName: existing.fileName,
@@ -8263,10 +8424,8 @@ export class EngagementService {
           indexedAt: existing.indexedAt,
           reused: true,
         };
+      }
     }
-    const s3Key = stableId
-      ? `tenants/${ctx.tenantId}/engagement/${stableId}/document`
-      : `tenants/${ctx.tenantId}/engagement/${randomUUID()}/${safeName}`;
     const verifiedContentType = input.untrustedUpload
       ? this.attachmentContent.detectContentType(input.buffer)
       : null;
@@ -8277,23 +8436,46 @@ export class EngagementService {
     ) {
       throw new BadRequestException('The original file contents do not match its document type.');
     }
-    await this.s3.send(
-      new PutObjectCommand({
-        Bucket: this.bucket,
-        Key: s3Key,
-        Body: input.buffer,
-        ContentType: input.contentType,
-      }),
-    );
+    const checksum = Buffer.from(byteHash, 'hex').toString('base64');
+    if (internal) await internal.beforeWrite();
+    try {
+      await this.s3.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: s3Key,
+          Body: input.buffer,
+          ContentType: input.contentType,
+          ...(internal ? { IfNoneMatch: '*', ChecksumSHA256: checksum } : {}),
+        }),
+      );
+    } catch (error) {
+      const precondition = error as { name?: string; $metadata?: { httpStatusCode?: number } };
+      if (!internal || (precondition?.$metadata?.httpStatusCode !== 412 && precondition?.name !== 'PreconditionFailed')) {
+        throw error;
+      }
+      await internal.beforeWrite();
+      // A prior PUT may have succeeded before its database transaction failed.
+      // Observe the exact object; missing/ambiguous HEAD never authorizes overwrite.
+      const existingObject = await this.s3.send(new HeadObjectCommand({
+        Bucket: this.bucket, Key: s3Key, ChecksumMode: 'ENABLED',
+      }));
+      await internal.beforeWrite();
+      if (existingObject.ContentLength !== input.buffer.byteLength ||
+          existingObject.ChecksumSHA256 !== checksum || existingObject.ContentType !== input.contentType) {
+        throw new ConflictException('The retained storage object does not match the original file.');
+      }
+    }
+    if (internal) await internal.beforeWrite();
     const initialScan = input.untrustedUpload
       ? await this.scanner.getStatus(this.bucket, s3Key)
       : null;
+    if (internal) await internal.beforeWrite();
     const scanReady =
       initialScan === 'clean' ||
       (initialScan === 'scanner_not_required' && !this.scanner.scanRequired);
-    const attachment = await this.prisma
-      .withTenant(ctx.tenantId, async (tx) => {
+    const attachment = await inWriteTransaction(async (tx) => {
         const clientId = await this.attachmentClientAtWrite(tx, ctx, input);
+        if (internal) await internal.beforeWrite();
         const data = {
           ...(stableId ? { id: stableId } : {}),
           tenantId: ctx.tenantId,
@@ -8308,7 +8490,7 @@ export class EngagementService {
           sourceEntityType: input.sourceEntityType ?? null,
           sourceEntityId: input.sourceEntityId ?? null,
           sourceVersion: input.sourceVersion ?? null,
-          sourceContentHash: input.sourceContentHash ?? null,
+          sourceContentHash: internal ? byteHash : input.sourceContentHash ?? null,
           uploadedByUserId: ctx.userId,
           ...(input.privateToUploader
             ? { viewerMode: 'restricted', viewerUserIds: [ctx.userId] }
@@ -8321,7 +8503,7 @@ export class EngagementService {
                     ? 'quarantined'
                     : 'blocked',
                 verifiedContentType,
-                calculatedSha256: this.attachmentContent.sha256(input.buffer),
+                calculatedSha256: internal ? byteHash : this.attachmentContent.sha256(input.buffer),
                 scanProvider: this.scanner.providerName,
                 scanStatus: initialScan,
                 scanResultAt: initialScan === 'pending' ? null : new Date(),
@@ -8329,16 +8511,18 @@ export class EngagementService {
               }
             : {}),
         };
-        return stableId
-          ? tx.engagementAttachment.upsert({ where: { id: stableId }, create: data, update: {} })
-          : tx.engagementAttachment.create({ data });
+        return internal
+          ? tx.engagementAttachment.create({ data })
+          : stableId
+            ? tx.engagementAttachment.upsert({ where: { id: stableId }, create: data, update: {} })
+            : tx.engagementAttachment.create({ data });
       })
       .catch(async (error: unknown) => {
         // Prisma may emulate an upsert when tenant predicates are injected. The
         // primary key still prevents duplicates; recover the concurrent winner
         // after that transaction rolled back instead of reporting a false failure.
         if (
-          stableId &&
+          !internal && stableId &&
           error instanceof Prisma.PrismaClientKnownRequestError &&
           error.code === 'P2002'
         ) {
@@ -8357,7 +8541,9 @@ export class EngagementService {
         throw error;
       });
     if (attachment.clientId && !input.privateToUploader && (!input.untrustedUpload || scanReady)) {
-      this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, attachment.id);
+      const index = () => this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, attachment.id);
+      if (internal) internal.afterCommit.push(index);
+      else index();
     }
     return {
       id: attachment.id,
@@ -8368,6 +8554,51 @@ export class EngagementService {
       indexedAt: attachment.indexedAt,
       reused: false,
     };
+  }
+
+  async copyProspectAttachment(ctx: TenantContext, input: unknown) {
+    return copyProspectFile({ prisma: this.prisma, s3: this.s3, bucket: this.bucket,
+      content: this.attachmentContent, scanner: this.scanner, allowedType: isAllowedAttachmentContentType }, ctx, input);
+  }
+
+  async readProspectAttachmentCopy(ctx: TenantContext, requestId: string) {
+    return readProspectFileCopy({ prisma: this.prisma }, ctx, requestId);
+  }
+
+  /** Public client deletion consumes a reviewed command; internal writers retain their owner. */
+  async deleteReviewedAttachment(ctx: TenantContext, id: string, input: unknown) {
+    const empty = input == null || (typeof input === 'object' && !Array.isArray(input) && Object.keys(input).length === 0);
+    if (empty) {
+      const row = await this.prisma.withTenant(ctx.tenantId, tx => tx.engagementAttachment.findFirst({
+        where: { tenantId: ctx.tenantId, id }, select: { clientId: true, prospectId: true },
+      }));
+      if (row?.clientId && !row.prospectId) throw new BadRequestException('Review the current client file before requesting deletion');
+      return this.deleteAttachment(ctx, id, true);
+    }
+    const owner: ClientFileDeleteOwner = {
+      prisma: this.prisma, s3: this.s3, bucket: this.bucket,
+      purgeChunks: (tx, tenantId, attachmentId) => this.clientKb.purgeAttachmentChunks(tx, tenantId, attachmentId),
+      parents: async (tx, current, row) => {
+        if (row.meetingId) {
+          await this.lockMeetingClientAssignment(tx, current, row.meetingId);
+          // Hold the calendar owner's identity stable along with the parent.
+          await tx.$queryRaw`SELECT c.id FROM engagement_connections c JOIN meetings m ON m.connection_id=c.id
+            WHERE m.tenant_id=${current.tenantId}::uuid AND m.id=${row.meetingId}::uuid FOR SHARE OF c`;
+          const meeting = await this.ensureOwnMeeting(tx, current, row.meetingId);
+          if (meeting.clientId !== row.clientId) throw new ConflictException('The reviewed client file changed');
+        }
+        if (row.mailMessageId) {
+          await tx.$queryRaw`SELECT m.id FROM mail_messages m JOIN engagement_connections c ON c.id=m.connection_id
+            WHERE m.tenant_id=${current.tenantId}::uuid AND m.id=${row.mailMessageId}::uuid FOR SHARE OF m,c`;
+          await this.ensureOwnMailMessage(tx, current, row.mailMessageId);
+        }
+      },
+    };
+    return deleteClientFile(owner, ctx, id, input);
+  }
+
+  async readAttachmentDeletion(ctx: TenantContext, requestId: string) {
+    return readClientFileDelete({ prisma: this.prisma }, ctx, requestId);
   }
 
   /**
@@ -8383,8 +8614,8 @@ export class EngagementService {
    * the row as `delete_failed` — inaccessible to every consumer (the readiness
    * gate rejects it) but visible to reconciliation, which can retry.
    */
-  async deleteAttachment(ctx: TenantContext, id: string) {
-    return this.deleteAttachmentGuarded(ctx, id);
+  async deleteAttachment(ctx: TenantContext, id: string, requireNonClient = false) {
+    return this.deleteAttachmentGuarded(ctx, id, undefined, requireNonClient);
   }
 
   /** Internal owned-fixture erasure; never bound by a controller or DTO. */
@@ -8401,12 +8632,15 @@ export class EngagementService {
     ctx: TenantContext,
     id: string,
     guard?: SyntheticDocumentDeletionGuard,
+    requireNonClient = false,
   ) {
     let attachment = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const row = await tx.engagementAttachment.findFirst({
         where: { id, tenantId: ctx.tenantId },
       });
       if (!row) throw new NotFoundException('Attachment not found');
+      if (requireNonClient && row.clientId && !row.prospectId)
+        throw new BadRequestException('Review the current client file before requesting deletion');
       return row;
     });
     await assertProspectAttachmentAccess(this.prisma, ctx, attachment, 'delete');
@@ -8434,6 +8668,17 @@ export class EngagementService {
       fixtureIntent = claimed.intent;
     } else
       await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${attachment.s3Key}))`;
+        await assertFileKeyNotDeleted(tx, ctx, attachment.bucket, attachment.s3Key);
+        if (requireNonClient) {
+          // A parent reassignment may have happened after the public route's read.
+          const [current] = await tx.$queryRaw<Array<{ clientId: string | null; prospectId: string | null }>>`
+            SELECT client_id::text AS "clientId",prospect_id::text AS "prospectId" FROM engagement_attachments
+            WHERE tenant_id=${ctx.tenantId}::uuid AND id=${id}::uuid FOR UPDATE`;
+          if (!current) throw new NotFoundException('Attachment not found');
+          if (current.clientId && !current.prospectId)
+            throw new BadRequestException('Review the current client file before requesting deletion');
+        }
         await assertProspectAttachmentInTx(tx, ctx, attachment, 'delete');
         return tx.engagementAttachment.updateMany({
           where: { id, tenantId: ctx.tenantId },
@@ -9022,13 +9267,13 @@ export class EngagementService {
       // any message (case-insensitive). The recipient lists are JSONB arrays of
       // {email,name}, which Prisma can't filter with `in`, so resolve matching
       // thread ids via a raw query.
-      const rows = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
-        SELECT DISTINCT mt.id
-        FROM mail_threads mt
-        JOIN mail_messages mm ON mm.thread_id = mt.id
-        WHERE mt.tenant_id = ${tenantId}::uuid
-          AND mm.tenant_id = ${tenantId}::uuid
-          ${since ? Prisma.sql`AND mt.last_message_at >= ${since}` : Prisma.empty}
+      // Find the small matching message set before resolving its tenant-owned
+      // threads. Joining first can scan every thread under its RLS predicate,
+      // exhausting the transaction before the actual profile read begins.
+      const matches = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+        SELECT DISTINCT mm.thread_id AS id
+        FROM mail_messages mm
+        WHERE mm.tenant_id = ${tenantId}::uuid
           AND (
             lower(mm.from_email) = ANY(${emails})
             OR EXISTS (
@@ -9041,6 +9286,14 @@ export class EngagementService {
             )
           )
       `);
+      const rows = matches.length ? await tx.mailThread.findMany({
+        where: {
+          tenantId,
+          id: { in: matches.map((row) => row.id) },
+          ...(since ? { lastMessageAt: { gte: since } } : {}),
+        },
+        select: { id: true },
+      }) : [];
       if (rows.length) {
         or.push({ id: { in: rows.map((r) => r.id) } });
       } else {
@@ -9145,6 +9398,19 @@ export class EngagementService {
         throw new BadRequestException('Meeting belongs to a different client');
       }
     }
+  }
+
+  private async assertAttachmentUploadClientAccess(
+    ctx: TenantContext,
+    input: { prospectId?: string | null; clientId?: string | null; meetingId?: string | null },
+  ) {
+    if (input.prospectId || (!input.clientId && !input.meetingId)) return;
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const clientId = input.meetingId
+        ? (await this.ensureOwnMeeting(tx, ctx, input.meetingId)).clientId
+        : input.clientId;
+      if (clientId) await requireOwnerClient(tx, ctx, clientId, false, false, 'share');
+    });
   }
 
   private async validateAttachmentParents(
@@ -9408,15 +9674,42 @@ export class EngagementService {
     });
     if (!begun.created) return this.getSingleMailIntent(ctx, requestKey);
     // Commit pending, then atomically claim under current authority before any provider call.
-    const claimed = await ledger.claim(ctx, begun.intent, async (tx) => {
-      await this.assertSingleMailPreflight(ctx, { ...input, senderConnectionId: connection.id }, tx);
-      await this.assertSingleMailAttachmentsInTx(ctx, input, tx);
-      const current = await tx.integrationConnection.findFirst({
-        where: { ...ownedSendingMailboxWhere(ctx), id: connection.id, accountEmail: sender.email },
-        select: { id: true },
+    let claimed: boolean;
+    let preflightRefusal: unknown;
+    try {
+      claimed = await ledger.claim(ctx, begun.intent, async (tx) => {
+        try {
+          await this.assertSingleMailPreflight(ctx, { ...input, senderConnectionId: connection.id }, tx);
+          await this.assertSingleMailAttachmentsInTx(ctx, input, tx);
+          const current = await tx.integrationConnection.findFirst({
+            where: { ...ownedSendingMailboxWhere(ctx), id: connection.id, accountEmail: sender.email },
+            select: { id: true },
+          });
+          if (!current) throw new NotFoundException('Sending mailbox not found');
+        } catch (error) {
+          if (
+            error instanceof BadRequestException ||
+            error instanceof ForbiddenException ||
+            error instanceof NotFoundException
+          )
+            preflightRefusal = error;
+          throw error;
+        }
       });
-      if (!current) throw new NotFoundException('Sending mailbox not found');
-    });
+    } catch (error) {
+      // A transaction/commit error is not a preflight verdict. Only the exact
+      // callback refusal plus a committed pending CAS proves no dispatch won.
+      if (
+        !preflightRefusal || error !== preflightRefusal ||
+        !(await ledger.rejectPending(ctx, begun.intent))
+      )
+        throw error;
+      throw new BadRequestException({
+        error: 'MAIL_SEND_REJECTED', requestKey,
+        intentId: begun.intent.id, state: 'failed', retryable: false,
+        message: 'This message was not sent because its final checks failed. Review current access, mailbox and attachments before starting a new send.',
+      });
+    }
     if (!claimed) return this.getSingleMailIntent(ctx, requestKey);
 
     let sendResult: EngagementMailSendResult;

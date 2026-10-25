@@ -104,7 +104,8 @@ suite('memory backfill lifecycle at the actual PostgreSQL source/write boundary'
         slug text NOT NULL, sections_jsonb jsonb NOT NULL, visibility text NOT NULL DEFAULT 'tenant',
         status text NOT NULL DEFAULT 'active', governed_status text DEFAULT 'active',
         conflict_status text DEFAULT 'none', controlling_item_id uuid, legal_hold boolean DEFAULT false,
-        expires_at timestamptz, valid_until timestamptz, updated_at timestamptz DEFAULT now());
+        effective_from timestamptz, expires_at timestamptz, valid_until timestamptz,
+        updated_at timestamptz DEFAULT now());
       CREATE TABLE context_embeddings(tenant_id uuid,client_id uuid,owner_user_id uuid,
         source_type text,source_id text,model text,content_text text,content_hash text,embedding vector,
         updated_at timestamptz DEFAULT now(), UNIQUE(tenant_id,source_type,source_id,model));
@@ -442,11 +443,13 @@ suite('memory backfill lifecycle at the actual PostgreSQL source/write boundary'
       await run;
     }
   });
-  test('client purge preserves a held source and its projections committed after initial source locks', async () => {
+  test.each(['source locks', 'held snapshot'])('client purge preserves a held source inserted after %s', async (boundary) => {
     await service.backfillCurrentTenant();
     const heldItem = randomUUID();
     const heldClio = randomUUID();
-    let insertedAfterLocks = false;
+    let insertion: Promise<void> | undefined;
+    let inserted = false;
+    let insertWaited = false;
     const purgePrisma = {
       withSystem: async (fn: (tx: unknown) => Promise<unknown>) => {
         await writer.query('BEGIN');
@@ -456,7 +459,9 @@ suite('memory backfill lifecycle at the actual PostgreSQL source/write boundary'
             ...tx,
             $queryRaw: async (strings: TemplateStringsArray, ...values: unknown[]) => {
               const rows = await tx.$queryRaw(strings, ...values);
-              if (stringsSql(strings, values).text.includes('ORDER BY id FOR UPDATE')) {
+              const sql = stringsSql(strings, values).text;
+              if (!insertion && sql.includes(boundary === 'source locks' ? 'ORDER BY id FOR UPDATE' : 'AND legal_hold = true')) {
+                insertion = (async () => {
                 await mutation.query('BEGIN');
                 try {
                   await mutation.query(
@@ -474,10 +479,21 @@ suite('memory backfill lifecycle at the actual PostgreSQL source/write boundary'
                     [tenant, clientId, heldItem],
                   );
                   await mutation.query('COMMIT');
-                  insertedAfterLocks = true;
+                  inserted = true;
                 } catch (error) {
                   await mutation.query('ROLLBACK');
                   throw error;
+                }
+                })();
+                // Do not await the writer inside the purge transaction: the
+                // admission lock must hold it until that transaction commits.
+                for (let i = 0; i < 100 && !inserted && !insertWaited; i++) {
+                  const state = (await db.query(
+                    'SELECT wait_event_type FROM pg_stat_activity WHERE pid=$1',
+                    [(mutation as any).processID],
+                  )).rows[0];
+                  insertWaited = state?.wait_event_type === 'Lock';
+                  if (!inserted && !insertWaited) await new Promise(resolve => setTimeout(resolve, 10));
                 }
               }
               return rows;
@@ -497,16 +513,64 @@ suite('memory backfill lifecycle at the actual PostgreSQL source/write boundary'
       { userId: actor, role: 'user_admin' },
       { dryRun: false, reason: 'isolated concurrent legal-hold regression' },
     );
-    expect(insertedAfterLocks).toBe(true);
+    await insertion;
+    expect(insertWaited).toBe(true);
+    expect(inserted).toBe(true);
     expect((await db.query('SELECT id FROM memory_items')).rows).toEqual([{ id: heldItem }]);
     expect((await db.query('SELECT source_id FROM context_embeddings')).rows).toEqual([
       { source_id: heldItem },
     ]);
     expect((await db.query('SELECT id FROM clio_memory')).rows).toEqual([{ id: heldClio }]);
-    expect(result.heldBack).toBe(1);
+    // This newly held row is admitted after the purge's reported selection.
+    expect(result.heldBack).toBe(0);
     expect(result.deleted.memoryItems).toBe(1);
     expect(result.deleted.embeddings).toBe(1);
     expect(result.deleted.clioMemory).toBe(0);
+  });
+  test('client purge waits for a row-lock writer to finish its hold update', async () => {
+    await mutation.query('BEGIN');
+    await mutation.query('SELECT id FROM memory_items WHERE id=$1 FOR UPDATE', [item]);
+    const owner = {
+      withSystem: async (fn: (tx: unknown) => Promise<unknown>) => {
+        await writer.query('BEGIN');
+        try {
+          const result = await fn(port(writer));
+          await writer.query('COMMIT');
+          return result;
+        } catch (error) {
+          await writer.query('ROLLBACK');
+          throw error;
+        }
+      },
+    };
+    const purge = new MemoryPurgeService(owner as never).purgeClient(
+      tenant, clientId, { userId: actor, role: 'user_admin' },
+      { dryRun: false, reason: 'isolated row-lock upgrade regression' },
+    ).then(result => ({ result, error: null }), error => ({ result: null, error }));
+    try {
+      let waiting = false;
+      for (let i = 0; i < 100 && !waiting; i++) {
+        const state = (await db.query(
+          'SELECT wait_event_type FROM pg_stat_activity WHERE pid=$1',
+          [(writer as any).processID],
+        )).rows[0];
+        waiting = state?.wait_event_type === 'Lock';
+        if (!waiting) await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      expect(waiting).toBe(true);
+      // This UPDATE used to deadlock against the purge's granted table lock.
+      await mutation.query('UPDATE memory_items SET legal_hold=true WHERE id=$1', [item]);
+      await mutation.query('COMMIT');
+      const completed = await purge;
+      expect(completed.error).toBeNull();
+      expect(completed.result?.heldBack).toBe(1);
+      expect((await db.query(
+        'SELECT legal_hold FROM memory_items WHERE id=$1', [item],
+      )).rows).toEqual([{ legal_hold: true }]);
+    } finally {
+      await mutation.query('ROLLBACK');
+      await purge;
+    }
   });
   test.each(['compatibility', 'strict', 'client purge', 'scheduled expiry'])(
     '%s deletion locks the source before its embedding and cannot deadlock the writer',

@@ -287,6 +287,56 @@ function makeMocks(
   };
 }
 
+describe('search_research_sources current client walls', () => {
+  function research() {
+    const m = makeMocks();
+    const empty = () => ({ findMany: jest.fn().mockResolvedValue([]) });
+    const sources = { meeting: empty(), mailThread: empty(), mailMessage: empty(), clioNote: empty(), directoryContactNote: empty() };
+    Object.assign(m.tx, sources);
+    return { ...m, sources };
+  }
+
+  it('refuses a selected walled client before any candidate-source query', async () => {
+    const m = research();
+    m.tx.$queryRawUnsafe.mockResolvedValue([{ id: 'client-1' }] as never);
+    await expect(m.service.execute(ctx, 'search_research_sources', { query: 'synthetic', clientId: 'client-1' })).rejects.toThrow('Client not found');
+    for (const source of Object.values(m.sources)) expect(source.findMany).not.toHaveBeenCalled();
+  });
+
+  it('excludes current walled clients from every client-linked branch before fetching candidates', async () => {
+    const m = research();
+    m.tx.client.findMany.mockResolvedValue([]);
+    m.tx.$queryRawUnsafe.mockResolvedValue([{ id: 'private-client' }] as never);
+    await m.service.execute(ctx, 'search_research_sources', { query: 'synthetic' });
+    expect(m.tx.client.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id: { notIn: ['private-client'] } }) }));
+    for (const source of [m.sources.meeting, m.sources.mailThread, m.sources.clioNote]) {
+      expect(source.findMany.mock.calls[0]![0]).toMatchObject({ where: { AND: expect.arrayContaining([
+        { OR: [{ clientId: null }, { clientId: { notIn: ['private-client'] } }] },
+      ]) } });
+    }
+    expect(m.sources.mailMessage.findMany.mock.calls[0]![0]).toMatchObject({ where: {
+      thread: { AND: [{ OR: [{ clientId: null }, { clientId: { notIn: ['private-client'] } }] }] },
+    } });
+    // Directory's canonical owner permits tenant notes; a client wall must not
+    // be replaced by a new invented Directory-note policy.
+    expect(m.sources.directoryContactNote.findMany.mock.calls[0]![0]).toMatchObject({ where: { tenantId: ctx.tenantId } });
+  });
+
+  it('withholds a candidate whose wall changed during source awaits and preserves valid empty results', async () => {
+    const m = research();
+    m.tx.client.findMany.mockResolvedValue([{ id: 'client-1', name: 'PRIVATE_SOURCE', description: 'private', updatedAt: new Date() }] as never);
+    m.tx.$queryRawUnsafe.mockResolvedValueOnce([]).mockResolvedValueOnce([{ id: 'client-1' }] as never);
+    const page = await m.service.execute(ctx, 'search_research_sources', { query: 'synthetic' }) as any;
+    expect(page.results).toEqual([]);
+    expect(JSON.stringify(page)).not.toContain('PRIVATE_SOURCE');
+    expect(m.tx.$queryRawUnsafe).toHaveBeenCalledTimes(2);
+    const empty = research(); empty.tx.client.findMany.mockResolvedValue([]);
+    await expect(empty.service.execute(ctx, 'search_research_sources', { query: 'synthetic' })).resolves.toMatchObject({ results: [] });
+    empty.sources.directoryContactNote.findMany.mockRejectedValue(new Error('Source unavailable'));
+    await expect(empty.service.execute(ctx, 'search_research_sources', { query: 'synthetic' })).rejects.toThrow('Source unavailable');
+  });
+});
+
 describe('read_client_meetings', () => {
   const meeting = (id: string, startsAt: string, clientId: string | null = 'client-1') => ({
     id,

@@ -253,8 +253,9 @@ describe('Meri execution issuance (POST /api/clio/approvals/native/execution)', 
     const w = world();
     jest.mocked(w.metadata.verify).mockImplementation(async (candidate, tx) => {
       expect(candidate).toEqual(w.proposal);
-      expect(tx).toBe(w.tx);
-      expect(w.state.locks).toBe(1);
+      expect(tx).toBeUndefined();
+      expect(w.state.locks).toBe(0);
+      return undefined;
     });
     const receipt = await issue(w);
     expect(Object.keys(receipt)).toEqual(['execution', 'credential', 'checkedAtMs', 'expiresAtMs']);

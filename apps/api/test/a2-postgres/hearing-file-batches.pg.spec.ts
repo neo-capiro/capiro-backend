@@ -164,7 +164,7 @@ describe('PF16 actual Core transaction + independent Intel owner HTTP read', () 
         h.files.move(c, client, kind === 'revision' ? command() : move()),
       ).rejects.toThrow();
       expect((await state()).files.map((f) => f.folder)).toEqual([null, null]);
-      expect((await state()).receipts).toBe(0);
+      expect((await state()).receipts).toBe(['file', 'revision'].includes(kind) ? 1 : 0);
     }
   });
   it('revocation between owner discovery and lock/recheck refuses all files, as does owner unavailability', async () => {
@@ -210,7 +210,9 @@ describe('PF16 actual Core transaction + independent Intel owner HTTP read', () 
       });
       await expect(h.files.move(ctx, client, move())).rejects.toThrow();
       expect((await state()).files.map((f) => f.folder)).toEqual([null, null]);
-      expect((await state()).receipts).toBe(0);
+      expect((await state()).receipts).toBe(
+        ['missing', 'foreign-folder', 'too-many-folders'].includes(kind) ? 1 : 0,
+      );
     }
   });
   it('concurrent same-request replay commits once; competing folder moves have one winner', async () => {
@@ -227,6 +229,6 @@ describe('PF16 actual Core transaction + independent Intel owner HTTP read', () 
     ]);
     expect(results.filter((r) => r.value)).toHaveLength(1);
     expect(results.filter((r) => r.error?.status === 409)).toHaveLength(1);
-    expect((await state()).receipts).toBe(1);
+    expect((await state()).receipts).toBe(2);
   });
 });

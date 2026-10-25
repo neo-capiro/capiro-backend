@@ -41,13 +41,40 @@ export class MicrosoftIntegrationActionsController {
     private readonly runtime: EngagementRuntimePolicyService,
   ) {}
 
+  @Post(':connectionId/calendar-commands')
+  @UseGuards(RolesGuard)
+  @Roles('standard_user')
+  @EngagementRuntimeAction('integration_sync')
+  runCalendarCommand(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('connectionId') connectionId: string,
+    @Body() input: unknown,
+  ) {
+    return this.graphSync.runCalendarCommand(ctx, connectionId, input);
+  }
+
+  @Get(':connectionId/calendar-commands/:requestId')
+  @UseGuards(RolesGuard)
+  @Roles('standard_user')
+  readCalendarCommand(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('connectionId') connectionId: string,
+    @Param('requestId') requestId: string,
+  ) {
+    return this.graphSync.readCalendarCommand(ctx, connectionId, requestId);
+  }
+
   @Get('capabilities')
   @UseGuards(RolesGuard)
   @Roles('standard_user')
   capabilities() {
     const capabilities = this.oauth.capabilities();
     const subscriptionsConfigured = this.graphSync.subscriptionsConfigurable;
-    return { ...capabilities, subscriptionsConfigured, actions: integrationActions(capabilities.configured, subscriptionsConfigured, this.runtime) };
+    return {
+      ...capabilities,
+      subscriptionsConfigured,
+      actions: integrationActions(capabilities.configured, subscriptionsConfigured, this.runtime),
+    };
   }
 
   @Delete(':connectionId')

@@ -37,7 +37,11 @@ export class ToolServiceSecretGuard implements CanActivate {
   constructor(private readonly config: ConfigService<AppConfig, true>) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const request = context.switchToHttp().getRequest<Request>();
+    return this.verifyRequest(context.switchToHttp().getRequest<Request>());
+  }
+
+  /** Multipart's optional native context is available only after interception. */
+  verifyRequest(request: Request): boolean {
     verifiedServiceRequests.delete(request);
     const environment = this.config.get('NODE_ENV', { infer: true });
     const productionLike = environment === 'staging' || environment === 'production';

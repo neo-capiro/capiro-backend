@@ -22,6 +22,7 @@ interface BoundaryMetadata {
 
 export const MICROSOFT_GRAPH_RUNTIME_METHODS = {
   syncConnection: { action: 'integration_sync' },
+  runCalendarCommand: { action: 'integration_sync' },
   syncConnectionByTenant: { action: 'integration_sync' },
   syncCalendarWindow: { action: 'integration_sync' },
   configureSubscriptions: { action: 'integration_subscription' },
@@ -44,6 +45,7 @@ export const GOOGLE_TOKEN_RUNTIME_METHODS = {
 
 export const GOOGLE_SYNC_RUNTIME_METHODS = {
   syncConnection: { action: 'integration_sync' },
+  runCalendarCommand: { action: 'integration_sync' },
   syncConnectionByTenant: { action: 'integration_sync' },
 } as const satisfies Readonly<Record<string, BoundaryMetadata>>;
 

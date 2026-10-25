@@ -98,7 +98,7 @@ function assertProposalResult(page: MeriPendingMemoryProposalRead, selection: Me
         !['firm', 'client', 'personal'].includes(String(row.scope)) ||
         !(row.clientId === null || typeof row.clientId === 'string' && RETRIEVAL_UUID.test(row.clientId)) ||
         (row.scope === 'client') !== (row.clientId !== null) ||
-        row.clientId !== null && row.clientId !== selection.clientId ||
+        selection.clientId !== null && row.clientId !== null && row.clientId !== selection.clientId ||
         !boundText(row.sourceKind, 256, 1) || typeof row.restricted !== 'boolean' ||
         !(row.title === null || boundText(row.title, 200)) ||
         !(row.proposedText === null || boundText(row.proposedText, 2000)) ||
@@ -139,10 +139,9 @@ export async function receiveMemoryProposalPage(options: {
     prisma, owner, now = Date.now } = options;
   const context = parseRetainedReadContext(ctx, correlation, verifiedServiceIdentity);
   const wire = exact(retainedReadSnapshot(raw, 16_384), ['input', 'metadata']);
-  if (wire.metadata !== null || context.normalizationContext !== null ||
-      context.subject.kind !== 'client') throw denied();
+  if (wire.metadata !== null || context.normalizationContext !== null) throw denied();
   const selection = parseTaskBoundMemoryProposalSelection(wire.input);
-  if (selection.clientId !== context.subject.entityIds[0]) throw denied();
+  if (selection.clientId !== (context.subject.kind === 'client' ? context.subject.entityIds[0] : null)) throw denied();
   assertRetainedReadSelectors(selection, context);
   const result = await readTaskBoundMemoryProposalPage(ctx, selection, deadlineMs, prisma, owner, now);
   const page = snapshotPage(result);

@@ -10,7 +10,7 @@ export const objectiveStrategyRequestCodec = createObjectiveStrategyRequestCodec
 });
 export type ObjectiveStrategySelection = { type: ObjectiveStrategyDraftRequest['type']; generationRequestId: string };
 export type ObjectiveStrategySelectionRequest = { schemaVersion: 2; work: WorkRequest; selection: ObjectiveStrategySelection };
-export type ObjectiveStrategySelectionReceipt = { schemaVersion: 2; commandReceipt: WorkReceipt; selection: ObjectiveStrategySelection };
+export type ObjectiveStrategySelectionReceipt = { schemaVersion: 2; commandReceipt: WorkReceipt; selection: ObjectiveStrategySelection; generationJobId: string };
 
 function closed(raw: unknown, keys: string[]): Record<string, unknown> {
   if (!raw || typeof raw !== 'object' || nodeTypes.isProxy(raw) || Array.isArray(raw) ||

@@ -15,8 +15,8 @@ const CLIENT_RECORD_PATHS: Readonly<Record<string, RegExp>> = {
   DELETE: new RegExp(`^/api/clients/${CLIENT_ID}$`),
 };
 
-/** Native client records share the existing first-chat session owner. Reserve
- * the complete route family before ordinary provisioning can see near misses. */
+/** Native client records share the existing first-chat session owner. Canonical
+ * nested routes use ordinary authentication; malformed native requests do not. */
 export function firstChatClientPreviewDecision(req: Request, enabled: boolean): CoreRosterPreviewDecision {
   const target = req.originalUrl ?? req.url;
   const parsedPath = mountedRequestPath(req);
@@ -37,7 +37,17 @@ export function firstChatClientPreviewDecision(req: Request, enabled: boolean): 
   const queryStart = target.indexOf('?');
   const rawPath = queryStart === -1 ? target : target.slice(0, queryStart);
   const method = req.method === 'HEAD' ? 'GET' : req.method;
-  if (rawPath !== parsedPath || !CLIENT_RECORD_PATHS[method]?.test(rawPath)) return 'not-found';
+  if (rawPath !== parsedPath ||
+      !/^\/api\/(?:clients|client-account-owners|billing)(?:\/[a-z0-9_-]+)*$/.test(rawPath)) return 'not-found';
+  if (!CLIENT_RECORD_PATHS[method]?.test(rawPath)) {
+    // Keep alternate methods and malformed IDs on native handlers reserved.
+    // Other canonical paths still pass through the ordinary tenant resolver;
+    // this selector never authorizes their controllers or client operations.
+    const nativePath = Object.values(CLIENT_RECORD_PATHS).some(pattern => pattern.test(rawPath));
+    const nativeClient = ['GET', 'PUT', 'DELETE'].includes(method) &&
+      /^\/api\/clients\/[^/]+(?:\/account-owners)?$/.test(rawPath);
+    return nativePath || nativeClient ? 'not-found' : 'unrelated';
+  }
   if (queryStart !== -1 && (method !== 'GET' || rawPath !== '/api/clients' ||
       !boundedRosterQuery(target.slice(queryStart + 1)))) return 'not-found';
   return 'preview';

@@ -98,6 +98,81 @@ const tenantFlag = (crossUser: boolean) => ({
   },
 });
 
+describe('createMeeting current authority', () => {
+  const input = {
+    subject: 'Synthetic meeting',
+    startsAt: '2026-10-24T12:00:00Z',
+    endsAt: '2026-10-24T13:00:00Z',
+  };
+  function createHarness(reason?: 'member' | 'client' | 'wall', associated: string | null = null) {
+    let contactsWritten = 0;
+    let meetingsWritten = 0;
+    const service = serviceWith({
+      ...decorateStubs,
+      ...(reason === 'member' ? { tenantMembership: { findFirst: async () => null } } : {}),
+      client: { findFirst: async () => (reason === 'client' ? null : { id: 'c1' }) },
+      $queryRawUnsafe: async () => [{ allowed: reason !== 'wall' }],
+      meeting: {
+        create: async ({ data }: { data: Record<string, unknown> }) => {
+          meetingsWritten += 1;
+          return meetingRow(data);
+        },
+      },
+    });
+    Object.assign(service, {
+      association: {
+        associate: async () => ({
+          clientId: associated,
+          score: 0,
+          reason: 'Synthetic',
+          signals: {},
+        }),
+      },
+      upsertAttendeeContacts: async () => {
+        contactsWritten += 1;
+        return new Map();
+      },
+    });
+    return { service, writes: () => ({ contactsWritten, meetingsWritten }) };
+  }
+  test.each(['member', 'client', 'wall'] as const)(
+    'refuses current %s denial before contact/meeting writes',
+    async (reason) => {
+      const h = createHarness(reason);
+      await expect(h.service.createMeeting(ctx, { ...input, clientId: 'c1' })).rejects.toThrow(
+        'Meeting not found',
+      );
+      expect(h.writes()).toEqual({ contactsWritten: 0, meetingsWritten: 0 });
+    },
+  );
+  test('checks an automatically associated client before writes', async () => {
+    const h = createHarness('wall', 'c1');
+    await expect(h.service.createMeeting(ctx, input)).rejects.toThrow('Meeting not found');
+    expect(h.writes()).toEqual({ contactsWritten: 0, meetingsWritten: 0 });
+  });
+  test('an explicitly reviewed no-client create does not auto-associate', async () => {
+    const h = createHarness(undefined, 'c1');
+    await expect(h.service.createMeeting(ctx, { ...input, clientId: null })).resolves.toMatchObject({
+      clientId: null,
+      createdByUserId: ctx.userId,
+    });
+    expect(h.writes()).toEqual({ contactsWritten: 1, meetingsWritten: 1 });
+  });
+  test.each(['manual', 'automatic', 'unassociated'])(
+    'preserves an authorized %s create',
+    async (mode) => {
+      const h = createHarness(undefined, mode === 'automatic' ? 'c1' : null);
+      await expect(
+        h.service.createMeeting(ctx, mode === 'manual' ? { ...input, clientId: 'c1' } : input),
+      ).resolves.toMatchObject({
+        clientId: mode === 'unassociated' ? null : 'c1',
+        createdByUserId: ctx.userId,
+      });
+      expect(h.writes()).toEqual({ contactsWritten: 1, meetingsWritten: 1 });
+    },
+  );
+});
+
 describe('getClientMeeting', () => {
   test('resolves a null-client meeting through the canonical contact association and current wall', async () => {
     let meetingWhere: Record<string, unknown> | undefined;

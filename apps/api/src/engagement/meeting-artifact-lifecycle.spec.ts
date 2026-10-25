@@ -70,6 +70,34 @@ function serviceWith(
 }
 
 describe('note existence is not approval', () => {
+  test.each(['note-create', 'debrief-create'] as const)(
+    'the %s command preserves its existing transaction budget',
+    async (operation) => {
+      let capturedOpts: { timeoutMs?: number } | undefined;
+      const stop = new Error('Synthetic transaction admission stop');
+      const service = serviceWith({}, {
+        prisma: {
+          withTenant: async (_tenant: string, _work: unknown, opts?: { timeoutMs?: number }) => {
+            capturedOpts = opts;
+            throw stop;
+          },
+        },
+      });
+      await expect(service.executeMeetingCommand(ctx, {
+        schemaVersion: 1,
+        requestId: '00000000-0000-4000-8000-000000000003',
+        operation,
+        meetingId: '00000000-0000-4000-8000-000000000005',
+        expectedClientId: null,
+        expectedRevision: '2026-10-24T12:00:00.000Z',
+        meeting: null,
+        artifact: { id: null, revision: null, body: 'Synthetic note', confidential: true },
+        artifacts: [],
+      })).rejects.toBe(stop);
+      expect(capturedOpts).toEqual(operation === 'note-create' ? { timeoutMs: 20_000 } : undefined);
+    },
+  );
+
   test('createMeetingNote never forces status — new notes rely on the column DEFAULT (draft)', async () => {
     let createArgs: { data: Record<string, unknown> } | undefined;
     const service = serviceWith({

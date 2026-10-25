@@ -50,7 +50,7 @@ describe('closed native mode observation', () => {
 
   it.each([null, [], {}, { ...input, tenantId }, { ...input, evidenceAccuracyMode: 'off' },
     { ...input, requestSha256: 'A'.repeat(64) }, { ...input, requestSha256: 'a'.repeat(64) + '\n' }, { ...input, operation: { ...input.operation, surface: 'chat' } },
-    { ...input, operation: { id: 'search_sam_opportunities', version: '0.2.0' } },
+    { ...input, operation: { id: 'search_sam_opportunities_suffix', version: '0.2.0' } },
     { ...input, operation: { id: 'search_client_knowledge', version: '0.2.0' } },
     { ...input, operation: { id: 'search_federal_grants', version: '0.1.0' } },
   ])('refuses malformed/foreign input before membership I/O: %p', async raw => {

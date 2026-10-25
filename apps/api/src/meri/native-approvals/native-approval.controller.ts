@@ -1,5 +1,5 @@
-import { Body, Controller, Header, HttpCode, Module, Post, Req, UseGuards } from '@nestjs/common';
-import type { Request } from 'express';
+import { Body, Controller, Header, HttpCode, Module, Post, Req, Res, UseGuards } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import type { TenantContext } from '@capiro/shared';
 import { CurrentTenant } from '../../tenant/current-tenant.decorator.js';
 import { Roles } from '../../auth/roles.decorator.js';
@@ -11,6 +11,11 @@ import { NativeApprovalMetadataVerifier } from './native-approval-metadata.js';
 import { NativeExecutionService } from './native-execution.service.js';
 import { meriExecutionKeyConfigProvider, meriExecutionSignerProvider } from '../execution-capability/meri-execution-authority.js';
 import { ApplicationAuthorityModule } from '../../auth/application-authority.module.js';
+import { EngagementModule } from '../../engagement/engagement.module.js';
+import { TenantModule } from '../../tenant/tenant.module.js';
+import { MeriExecutionReceiverService } from '../execution-capability/meri-execution-receiver.service.js';
+import { ClientDocumentsModule } from '../../client-documents/client-documents.module.js';
+import { MeriClientFilingService } from '../meri-client-filing.service.js';
 
 /** Bodies and receipts are the native provider operations `approval/record`
  * and `approval/decision` byte-for-byte; revoke also carries Meri's approver.
@@ -19,7 +24,25 @@ import { ApplicationAuthorityModule } from '../../auth/application-authority.mod
 @UseGuards(RolesGuard, ToolServiceSecretGuard)
 @Roles('standard_user')
 export class NativeApprovalController {
-  constructor(private readonly approvals: NativeApprovalService, private readonly executions: NativeExecutionService) {}
+  constructor(private readonly approvals: NativeApprovalService, private readonly executions: NativeExecutionService,
+    private readonly receiver: MeriExecutionReceiverService) {}
+
+  @Post('execute')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  executeTask(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
+    return this.receiver.nativeApproved(req, ctx, body, 'execute');
+  }
+
+  @Post('execution/read')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  async readTask(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown,
+    @Res() response: Response) {
+    // Nest's ordinary null return becomes an empty body. The native reader
+    // distinguishes canonical JSON null (no execution) from a malformed reply.
+    return response.json(await this.receiver.nativeApproved(req, ctx, body, 'read'));
+  }
 
   @Post('record')
   @HttpCode(200)
@@ -54,11 +77,12 @@ export class NativeApprovalController {
 }
 
 @Module({
-  imports: [PrismaModule, ApplicationAuthorityModule],
+  imports: [PrismaModule, ApplicationAuthorityModule, EngagementModule, TenantModule, ClientDocumentsModule],
   controllers: [NativeApprovalController],
   providers: [
-    NativeApprovalService, NativeApprovalMetadataVerifier, ToolServiceSecretGuard, NativeExecutionService,
+    NativeApprovalService, NativeApprovalMetadataVerifier, ToolServiceSecretGuard, NativeExecutionService, MeriExecutionReceiverService, MeriClientFilingService,
     meriExecutionKeyConfigProvider, meriExecutionSignerProvider,
   ],
+  exports: [MeriExecutionReceiverService, MeriClientFilingService],
 })
 export class NativeApprovalModule {}

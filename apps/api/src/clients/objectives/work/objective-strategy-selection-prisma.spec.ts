@@ -38,7 +38,8 @@ function fixture() {
 }
 describe('immutable native selected Strategy replay', () => {
   test('reads the original companion under exact native receipt scope without updates or row locks', async () => {
-    const f = fixture(); await verifyObjectiveStrategySelectionWithinTx(f.tx, a, f.stored, f.selected);
+    const f = fixture();
+    await expect(verifyObjectiveStrategySelectionWithinTx(f.tx, a, f.stored, f.selected)).resolves.toBe(f.row.generation_job_id);
     const [parts, ...values] = f.tx.$queryRaw.mock.calls[0];
     expect(parts.join('?')).toContain('FROM client_objective_strategy_intakes');
     expect(parts.join('?')).not.toMatch(/FOR\s+(SHARE|UPDATE)/);
@@ -60,6 +61,10 @@ describe('immutable native selected Strategy replay', () => {
   test.each(['consent_id', 'command_receipt_id', 'actor_membership_id', 'source_revision_id', 'canonical_project_id',
     'request_fingerprint', 'job_request_key', 'original_clerk_user_id'])('refuses corrupted native %s lineage', async field => {
     const f = fixture(); f.row[field] = field.endsWith('_id') ? id(30) : 'corrupted';
+    await expect(verifyObjectiveStrategySelectionWithinTx(f.tx, a, f.stored, f.selected)).rejects.toMatchObject({ code: 'RECEIPT_UNVERIFIABLE' });
+  });
+  test.each([null, 'not-a-job-id', id(17) + '\n'])('refuses invalid stored generation identity %s', async generationJobId => {
+    const f = fixture(); f.row.generation_job_id = generationJobId;
     await expect(verifyObjectiveStrategySelectionWithinTx(f.tx, a, f.stored, f.selected)).rejects.toMatchObject({ code: 'RECEIPT_UNVERIFIABLE' });
   });
   test('does not extend the original job ceiling past the native consent', async () => {

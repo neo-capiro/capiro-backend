@@ -3,15 +3,31 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { previewFirstChatCoreApplication } from '../lib/preview/first-chat-core';
+import { previewFirstChatEdgeApplication } from '../lib/preview/first-chat-preview-edge';
 
 const usage =
-  'Usage: preview-first-chat-core --render <image-binding.json> <fresh-output-directory> | --help';
+  'Usage: preview-first-chat-core --render <image-binding.json> <fresh-output-directory> | --render-edge <fresh-output-directory> | --render-edge-with-dns <fresh-output-directory> | --help';
 
 /** Renders a source proposal. No AWS call, task, migration, or image build. */
 export function main(args: string[]): number {
   if (args.length === 1 && args[0] === '--help') {
     console.log(usage);
     return 0;
+  }
+  if (args.length === 2 && ['--render-edge', '--render-edge-with-dns'].includes(args[0]!)) {
+    try {
+      const output = path.resolve(args[1]!);
+      if (fs.lstatSync(output, { throwIfNoEntry: false }) !== undefined)
+        throw new Error('Fresh output directory required');
+      previewFirstChatEdgeApplication(output, args[0] === '--render-edge-with-dns').app.synth();
+      console.log(
+        'Rendered dedicated preview edge only. Apply DNS last. No AWS operation performed.',
+      );
+      return 0;
+    } catch {
+      console.error('Preview edge rendering refused; invalid output or source');
+      return 2;
+    }
   }
   if (args.length !== 3 || args[0] !== '--render') {
     console.error(usage);

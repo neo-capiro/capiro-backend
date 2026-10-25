@@ -102,14 +102,16 @@ const mondayOutputShape = mondayAjv.compile({
   $ref: `${mondaySchema.$id}#/$defs/ClientKnowledgeMondayOutput`,
 });
 
-function assertCurrentClient(input: JsonObject, current: TrustedClientReadContext): string {
+function assertCurrentClient(input: JsonObject, current: TrustedClientReadContext, allowPersonal = false): string {
   const { binding, subject, selectedClientId } = current;
   if (!uuid(input.clientId) || !uuid(selectedClientId) || input.clientId !== selectedClientId ||
     !uuid(binding?.tenantId) || !nonempty(binding?.actorId) ||
-    subject?.kind !== 'client' || subject.entityType !== 'client' ||
+    (allowPersonal && subject?.kind === 'personal' ? subject.entityType !== 'user' :
+      subject?.kind !== 'client' || subject.entityType !== 'client') ||
     subject.tenantId !== binding.tenantId || subject.actorId !== binding.actorId ||
     !Array.isArray(subject.entityIds) || subject.entityIds.length !== 1 ||
-    subject.entityIds[0] !== selectedClientId) fail('Current client subject or selector is missing');
+    subject.entityIds[0] !== (allowPersonal && subject.kind === 'personal' ? binding.actorId : selectedClientId))
+    fail('Current client subject or selector is missing');
   return selectedClientId;
 }
 
@@ -217,7 +219,7 @@ export function assertDocumentPricing(evidence: DocumentPricingEvidence | undefi
 /** Keep the public Meri selector unchanged for the canonical Core document handler. */
 export function prepareDocumentRead(input: JsonObject, current: TrustedClientReadContext,
   evidence: DocumentExecutionPolicy | undefined): JsonObject {
-  const clientId = assertCurrentClient(input, current);
+  const clientId = assertCurrentClient(input, current, true);
   if (!providerCallsForbidden(evidence)) assertDocumentPricing(evidence as DocumentPricingEvidence | undefined);
   const allowed = ['mode', 'clientId', 'documentId', 'query', 'section', 'characterOffset', 'limit', 'cursor', 'cursorBinding', 'listAfter'];
   if (Object.keys(input).some((key) => !allowed.includes(key)) ||

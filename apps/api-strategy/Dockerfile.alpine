@@ -122,6 +122,7 @@ COPY --chown=capiro:capiro --from=production-dependencies /workspace/apps/api-st
 COPY --chown=capiro:capiro --from=build /workspace/tsconfig.base.json /app/tsconfig.base.json
 COPY --chown=capiro:capiro --from=build /workspace/apps/api-strategy/tsconfig.json /app/apps/api-strategy/tsconfig.json
 COPY --chown=capiro:capiro apps/api-strategy/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY --chown=capiro:capiro apps/api/scripts/lib/meri-control-ca.cjs /app/apps/api/scripts/lib/meri-control-ca.cjs
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 COPY scripts/qualification/alpine-service-probe.cjs scripts/qualification/alpine-dependency-compatibility.cjs /qualification/
