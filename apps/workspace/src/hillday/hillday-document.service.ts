@@ -1,5 +1,12 @@
 import { admitHillDayDocument } from './hillday-access.js';
-import { createHash } from 'node:crypto';
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  hkdfSync,
+  randomBytes,
+  randomUUID,
+} from 'node:crypto';
 import { isHeldDraftClientAssociation } from '../drafts/draft-client-access.js';
 import {
   BadRequestException,
@@ -75,6 +82,10 @@ interface MeetingRow {
   updatedAt: Date;
 }
 
+/**
+ * Clients-list page tokens carry only the last row's own name and id — values
+ * the caller already received in that page — so they stay readable.
+ */
 export function encodeCursor(value: Record<string, string>): string {
   return Buffer.from(JSON.stringify(value), 'utf8').toString('base64url');
 }
@@ -86,6 +97,63 @@ export function decodeCursor(raw: string | undefined): Record<string, string> | 
     const out: Record<string, string> = {};
     for (const [k, v] of Object.entries(parsed)) if (typeof v === 'string') out[k] = v;
     return out;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Library page tokens are sealed with the service's existing opaque-token
+ * secret — the owner that already signs Hill Day export URLs — because a keyset
+ * position can be a row the actor is not allowed to read: a readable
+ * (signed or plain) payload would disclose that row's id and timestamp even on
+ * an empty page. AES-256-GCM under a key derived from that existing secret adds
+ * no new secret, config key, schema or server-side state.
+ */
+const LIBRARY_CURSOR_KEY = Buffer.from(
+  hkdfSync(
+    'sha256',
+    process.env.WORKSPACE_EXPORT_SIGNING_SECRET ??
+      process.env.INTERNAL_SERVICE_SECRET ??
+      randomUUID(),
+    'capiro/workspace/hillday/library',
+    'cursor-v1',
+    32,
+  ),
+);
+const CURSOR_IV_BYTES = 12;
+const CURSOR_TAG_BYTES = 16;
+
+function sealLibraryCursor(payload: Record<string, string>): string {
+  const iv = randomBytes(CURSOR_IV_BYTES);
+  const cipher = createCipheriv('aes-256-gcm', LIBRARY_CURSOR_KEY, iv);
+  const body = Buffer.concat([cipher.update(JSON.stringify(payload), 'utf8'), cipher.final()]);
+  return Buffer.concat([iv, cipher.getAuthTag(), body]).toString('base64url');
+}
+
+/** Opens a sealed library token; anything unauthenticated, foreign or stale is unusable. */
+function openLibraryCursor(raw: string | undefined): Record<string, string> | null {
+  if (!raw) return null;
+  try {
+    const sealed = Buffer.from(raw, 'base64url');
+    if (sealed.length <= CURSOR_IV_BYTES + CURSOR_TAG_BYTES) return null;
+    const decipher = createDecipheriv(
+      'aes-256-gcm',
+      LIBRARY_CURSOR_KEY,
+      sealed.subarray(0, CURSOR_IV_BYTES),
+    );
+    decipher.setAuthTag(sealed.subarray(CURSOR_IV_BYTES, CURSOR_IV_BYTES + CURSOR_TAG_BYTES));
+    const parsed: unknown = JSON.parse(
+      Buffer.concat([
+        decipher.update(sealed.subarray(CURSOR_IV_BYTES + CURSOR_TAG_BYTES)),
+        decipher.final(),
+      ]).toString('utf8'),
+    );
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(parsed as Record<string, unknown>))
+      if (typeof v === 'string') out[k] = v;
+    return out.v === '1' ? out : null;
   } catch {
     return null;
   }
@@ -298,16 +366,19 @@ export class HillDayDocumentService {
     if (opts.clientId && !isUuid(opts.clientId)) throw new NotFoundException('Client not found');
     const clientId = opts.clientId ?? null;
 
-    // A cursor continues only the filter set that produced it; replayed under
-    // different filters it would silently skip newer matching rows. Cursors
-    // issued before filters were bound carry no `f` and still continue.
+    // A cursor continues only the caller and filter set that produced it, and
+    // its position is sealed: replayed elsewhere it would either skip newer
+    // matching rows or disclose a row the caller may not read. Tokens issued
+    // before sealing (or under another secret) are simply unusable.
     const signature = libraryFilterSignature({ clientId, status, kind, scope, q });
-    const cursor = decodeCursor(opts.cursor);
-    const at = cursor?.u ? new Date(cursor.u) : null;
+    const cursor = openLibraryCursor(opts.cursor);
+    const bound =
+      cursor?.t === tenantId && cursor?.a === actorId && cursor?.f === signature ? cursor : null;
+    const at = bound?.u ? new Date(bound.u) : null;
     const before = at && !Number.isNaN(at.getTime()) ? at : null;
-    const beforeId = before ? (cursor?.i ?? null) : null;
+    const beforeId = before ? (bound?.i ?? null) : null;
     const cursorWhere =
-      before && beforeId && (!cursor?.f || cursor.f === signature)
+      before && beforeId
         ? {
             OR: [{ updatedAt: { lt: before } }, { updatedAt: before, id: { lt: beforeId } }],
           }
@@ -423,7 +494,14 @@ export class HillDayDocumentService {
     const last = window[window.length - 1];
     const nextCursor =
       rows.length > limit && last
-        ? encodeCursor({ u: last.updatedAt, i: last.id, f: signature })
+        ? sealLibraryCursor({
+            v: '1',
+            t: tenantId,
+            a: actorId,
+            u: last.updatedAt,
+            i: last.id,
+            f: signature,
+          })
         : null;
     return { items, nextCursor };
   }

@@ -5,12 +5,7 @@ import request from 'supertest';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { HillDayContextService } from './hillday-context.service.js';
 import { HillDayController } from './hillday.controller.js';
-import {
-  HillDayDocumentService,
-  decodeCursor,
-  encodeCursor,
-  libraryFilterSignature,
-} from './hillday-document.service.js';
+import { HillDayDocumentService, encodeCursor } from './hillday-document.service.js';
 import { HillDayExportService } from './hillday-export.service.js';
 import { HillDayGenerationService } from './hillday-generation.service.js';
 import { HillDayResolutionService } from './hillday-resolution.service.js';
@@ -307,20 +302,71 @@ describe('Workspace library query filters', () => {
     });
     expect(continued.items.map((row) => row.id)).toEqual(['mine-old']);
     expect(calls.drafts.at(-1)?.where.OR).toBeDefined();
-    expect(decodeCursor(mine.nextCursor!)?.f).toBe(
-      libraryFilterSignature({ clientId: null, status: null, kind: 'all', scope: 'mine', q: null }),
-    );
   });
 
-  it('ignores malformed, unparsable and incomplete cursors instead of failing or skipping rows', async () => {
+  it('seals the page token, so a page that skips denied rows discloses nothing', async () => {
+    const deniedAt = '2026-09-14T12:00:00Z';
+    const secondDeniedAt = '2026-09-14T11:00:00Z';
+    const { service } = harness({
+      drafts: [
+        draftRow('denied-newest', 'Hidden newest', deniedAt),
+        draftRow('denied-second', 'Hidden second', secondDeniedAt),
+        draftRow('visible-oldest', 'Visible oldest', '2026-09-14T10:00:00Z'),
+      ],
+      deniedDrafts: ['denied-newest', 'denied-second'],
+    });
+    const first = await service.listDocuments(TENANT, ACTOR, { limit: '2' });
+    expect(first.items).toEqual([]);
+    expect(first.nextCursor).toEqual(expect.any(String));
+
+    // The empty page still continues to the next authorized row...
+    const token = first.nextCursor!;
+    const second = await service.listDocuments(TENANT, ACTOR, { limit: '2', cursor: token });
+    expect(second.items.map((row) => row.id)).toEqual(['visible-oldest']);
+    expect(second.nextCursor).toBeNull();
+
+    // ...while the rows it skipped stay private: neither the token nor its
+    // decoded bytes carry their ids or update timestamps.
+    const decoded = Buffer.from(token, 'base64url').toString('utf8');
+    for (const value of [
+      'denied-newest',
+      'denied-second',
+      new Date(deniedAt).toISOString(),
+      new Date(secondDeniedAt).toISOString(),
+    ]) {
+      expect(token).not.toContain(value);
+      expect(decoded).not.toContain(value);
+    }
+  });
+
+  it('binds a sealed token to the caller that was issued it', async () => {
     const { service, calls } = harness({
       drafts: [
         draftRow('newest', 'Newest', '2026-09-14T12:00:00Z'),
         draftRow('older', 'Older', '2026-09-14T11:00:00Z'),
       ],
     });
+    const mine = await service.listDocuments(TENANT, ACTOR, { limit: '1' });
+    await service.listDocuments(TENANT, ACTOR, { limit: '1', cursor: mine.nextCursor! });
+    expect(calls.drafts.at(-1)?.where.OR).toBeDefined();
+
+    await service.listDocuments(TENANT, 'other-actor', { limit: '1', cursor: mine.nextCursor! });
+    expect(calls.drafts.at(-1)?.where.OR).toBeUndefined();
+  });
+
+  it('ignores tampered, unsealed, malformed and incomplete cursors instead of failing or skipping rows', async () => {
+    const { service, calls } = harness({
+      drafts: [
+        draftRow('newest', 'Newest', '2026-09-14T12:00:00Z'),
+        draftRow('older', 'Older', '2026-09-14T11:00:00Z'),
+      ],
+    });
+    const issued = (await service.listDocuments(TENANT, ACTOR, { limit: '1' })).nextCursor!;
+    const tampered = `${issued.slice(0, 5)}${issued[5] === 'A' ? 'B' : 'A'}${issued.slice(6)}`;
     for (const cursor of [
       'not-base64!!',
+      tampered,
+      // The pre-correction readable format is not accepted either.
       encodeCursor({ u: 'not-a-date', i: 'newest' }),
       encodeCursor({ u: '2026-09-14T12:00:00.000Z' }),
       encodeCursor({ u: '2026-09-14T12:00:00.000Z', i: 'newest', f: 'stale' }),
