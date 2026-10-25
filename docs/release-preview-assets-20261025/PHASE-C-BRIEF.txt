@@ -1,0 +1,173 @@
+## 1. Claude handles the harness
+
+The quality bar is Claude's own. Answer quality comes from the whole harness, not only the model: its system prompt, built-in tools, subagents, skills, context management and compaction, and session handling.
+
+- Run `@anthropic-ai/claude-agent-sdk` with its **full harness** and the Claude Code system-prompt preset, plus a short Capiro/Meri append. Don't replace the preset with our own prose.
+- Do not rebuild what the SDK or AWS already does: model calls, retries, streaming, the tool loop, context management and compaction, session resume/fork, per-run turn and spend limits, AWS credentials.
+- The real Claude SDK calls Bedrock directly using its narrowly scoped AgentCore runtime IAM role. Preserve the full preset, native tools, subagents and all 14 skills.
+- Capiro data reaches Claude as **tools** (rule 4), not as a custom retrieval layer around the model.
+
+Spec and plan: `phases/wave2/WAVE2-00-CLAUDE-NATIVE-HARNESS-SPEC.md`. It is **Wave 2 item 0**, and it comes before every other item that touches the runner, the proxy or authority.
+
+## 2. Simple, standard architecture
+
+```text
+browser -> control (current access, conversation/run ownership, durable events)
+        -> AgentCore Runtime V1 (isolated conversation session; actual Claude SDK) -> Bedrock
+                                      -> tool gateway -> Core
+control -> existing durable SDK SessionStore and artifact owners
+control -> Temporal for required durable runs, schedules and background work
+```
+
+- **Core is the gatekeeper for Capiro data.** Tenant, member, client and wall rules remain server-side in Core. Check current access at admission and actual tool/data/artifact access; revocation must also prevent use of previously loaded privileged context. Do not duplicate policy in the harness.
+- Reuse one isolated environment only for the same immutable tenant/actor/conversation and approved General/client scope. Serialize turns; stop idle compute and restore exact SDK transcripts and artifacts from their durable owners. A Runtime session ID is not authorization or durable storage.
+- Keep the SDK's per-run turn/spend limits and one canonical tenant cap/usage owner. Preserve required durable runs, schedules, consent, outcomes and uncertain-write fences; neither SDK Task tools nor a warm process replaces Temporal durability.
+- **No custom warm pool, per-turn ECS task requirement, model proxy, duplicated per-hop authority, credential-minting service or spend-reservation ledger.** Use standard Runtime V1; no V2 snapshot machinery or second SDK implementation.
+- Before adding a mechanism, identify the standard feature or existing owner it uses. Before deleting a wrapper, prove the retained lower-layer behavior with meaningful positive/negative tests. Do not remove canonical authorization, idempotency or durable outcomes as “extra security.”
+
+## 3. Leave no dead code behind
+
+A change is not done until what it replaced is gone.
+
+1. **Delete in the same PR** everything the change makes unused: code, tests, fixtures, docs, config keys, env vars, feature flags, IAM statements, ALB rules, secrets, task definitions, CloudFormation resources, kit steps, alarms and metric filters. Applied database migrations are history: never edit them. Drop tables only through a separately reviewed forward migration after a snapshot; this hosting migration does not itself authorize schema/data removal.
+2. **Temporary diagnostics come out before merge** of the fix they were added for. A log line stays only as named product telemetry that someone reads.
+3. **No code behind a flag nothing turns on.** The "source-complete, activation-held" status is retired for code we don't intend to ship. Dark features need an owner and a date, or they are deleted.
+4. **No** commented-out code, `legacy` or `_old` copies, compatibility shims for removed things, or "superseded" stubs.
+5. **Show proof in the PR:** list the identifiers, files and resources deleted, with a search proving no executable/active caller remains; label immutable historical references, and explain any drop in test count.
+6. **Old plan tickets for removed mechanisms are closed as superseded**, not implemented and left dormant. See `source-of-truth/SUPERSEDED-BY-ITEM-0.md`.
+7. **Reuse before write.** Use SDK, AWS and library features first. Custom code needs one line saying what the standard option couldn't do.
+
+## 4. Capiro data must keep working
+
+- Capiro data is served to Claude as tools. Core remains the source: today's read families call Core at `/api/clio/tools/<operation>`, and the new tools call the same endpoints.
+- Tools are hosted by **control** (the existing tool gateway) so the runner never holds the Core service secret (`x-internal-service-secret`). The runner gets only a short-lived per-run token for control, scoped to tenant, user, client, conversation and run.
+- Reuse the existing read handlers under `apps/gateway/sources/*` and their typed schemas. Delete the authority, relay and measurement wrappers around them.
+- Parity: every read family that works today must be reachable as a tool with the same results and the same permission outcomes. A parity checklist is part of the item 0 spec.
+- Negative tests are mandatory: another tenant's data, another client's data, and walled data must not be retrievable, through chat or through tools. A General chat reads across the clients the user can already see, with each client's wall enforced per result (FINAL-PLAN decision 2).
+- The original read-only first cut is historical. Neo subsequently authorized preview client-record writes and autonomous Wave 2 completion. Activate accepted writes through their existing authenticated domain/intent owners and receipts, with the actual route/configuration and effect semantics verified. This does not authorize the assistant to send external mail without the user's specific send instruction.
+
+
+FROM: Release | TO: Root and Supporting Services | TYPE: implementation brief | RE: Phase C ordinary Assets
+
+Current authority and exact source
+Root explicitly allocated SOURCE/CHANGESET PREPARATION after the finite acceptance window closed. Author Release; independent exact-source/template reviewer Supporting Services; Root alone accepts/integrates and allocates actual rollout. Source edits and local dry-run/synthesis are authorized. No provisioning/update until independent review and Root release allocation. No self-acceptance, merge, deployment or automatic upload retest. Current xhigh allocation supersedes historical Ultra wording. No new agents/chats/automations.
+
+Repository neo-capiro/capiro-backend. Base 43fdd8928e517b1ce3a7a039f0fabeb8cf5fc5dd, tree 50c1214d60c17d29d9a61e5bbfea450489baa286; clean source and remote branch refreshed before work. Isolated branch codex/wave2-preview-assets-bindings-20261025, checkout C:/dev/wave2-preview-assets-bindings-20261025. Integration branch is backend-import, never main. A draft based on the frozen batch branch isolates this delta; Root owns later integration order.
+
+Ownership and sequencing
+Release owns infra/cdk/lib/preview/first-chat-core.ts, existing infra/cdk/lib/assets-stack.ts, affected CDK tests and this brief. File Workflows owns the four Phase B production files (controller, route policy, governed factory, preview-write registry) and their tests. Integration owns Phase A frontend native-token forwarding. Do not edit their files. Root approved the named-file exception for type-only commonTags parameter narrowing in infra/cdk/lib/config.ts; its sole purpose is to let existing AssetsStack accept only the configuration it reads without fabricating a Clerk issuer. No runtime config/issuer behavior changes.
+
+Current scanner ruling
+Root's independent plan review supersedes historical proposed real-scanner gates. No unconditional new engine is required by ordinary Files acceptance. Preserve selected scan-required default and existing scanner_not_required/unscanned disclosure; never claim clean without actual verdict. Required-scan quarantine/custody/read denial remains unchanged. Meri upload-to-evidence has its own stricter contract. No GuardDuty, scanner adapter, scan flag, schema or API owner edit is allocated.
+
+Concrete implementation
+Reuse the existing AssetsStack as Capiro-Portfolio-Preview-Assets, account967807252336/us-east-1. Preserve existing AssetsKey/alias/AssetsBucket identities; retain SSE-KMS, rotation, bucket keys, TLS-only/private/versioned/retained storage, and exact https://portfolio-preview.app.capiro.ai CORS. No DataStack, network stack, secondary storage system or Meri artifact bucket. Expose only its bucket/key references to the existing FirstChatCoreServiceStack.
+Require explicit private approved preview tenant identifiers in the closed image binding; reject missing/empty/wildcard/duplicate/invalid identifiers and old schema. Bind ASSETS_BUCKET on Core. Task-role object access is only tenants/<approved-tenant>/engagement/* for ordinary upload/confirm/read/delete. Grant only operations demonstrated by existing code; KMS GenerateDataKey/Decrypt only on AssetsKey through S3 in us-east-1. No unscoped bucket enumeration, broad tenants/*, branding/help/hearing/document grants or grantApiAccess blanket helper. Existing Core role, execution role, service, listener rules, images, selected flags, source pins, guard and DB stay intact.
+Deploy preparation must start from the actual selected Core14 template, preserving MeriRoutineSigningPolicy and its outputs added by the existing release composition. The standalone raw Core synth intentionally does not own that signing policy. Seal source and local template differences without publishing private tenant/secret-version bindings. Later order: reviewed Assets create, reviewed Core binding/task update together with separately reviewed Phase B routes/classifications. DNS already complete; no DNS change.
+
+Evidence and checks
+Actual named resource receipt below is current input, not an implementation result. No source-based provisioning claim. Retained toolchain: Node24.22.1; C:/dev/c1-entry/infra/cdk/node_modules resolves aws-cdk-lib2.271.0, constructs10.8.1, ts-node10.9.2, TypeScript5.9.3. Reuse by process NODE_PATH/owned junction only; no installs or donor changes. No shared services/DB/reset/image/model/provider work.
+Before product edits record existing selected construct tests. Meaningful new assertions: absent Assets binding fails; exact tenant-only object grants and S3-only key use; no extraneous resource or IAM authority; retained resource IDs and task config; Assets encryption/CORS/retention. Mutation checks remove ASSETS_BUCKET, broaden a tenant prefix, and remove KMS ViaService; relevant assertions must fail. No new tests merely restating an implementation helper. Scoped typecheck may include imported code; compare inherited failures with untouched base and report them rather than expand scope. Selected existing Assets tests preserve non-preview behavior after type narrowing. No whole-suite/image/DB qualification repeats.
+Done for this phase: brief saved before product edits; exact source/tree and changed paths; local focused commands/results/mutants; minimal local templates with expected resources and preserved actual signing policy; draft PR pushed and attached; request Supporting review and hand off to Root. Actual CloudFormation provisioning, updated Core service, successful browser upload/read/delete and full Wave2 acceptance remain open, requiring separate authorized rollout and named finite acceptance allocation. No extra scanner gate.
+
+Process and supersession
+Sources: current host/repo AGENTS; Meri STANDING-REQUIREMENTS sections1-4 above; WAVE-2-HANDOVER; PROCESS6.1/6.2 exact brief/change-list requirements interpreted under its explicit historical-process supersession; current WORKFLOW and Root allocation; source-of-truth/SUPERSEDED-BY-ITEM-0.md. E-scenario behavior remains binding while removed model proxy, per-operation authority/minting, reservation ledger, warm pool and Temporal issuer mechanisms must not be recreated. Core remains canonical authority. This bounded infrastructure delta replaces no application mechanism; old schema refusal is explicit versioning, not a compatibility shim. Retain existing deletion/transaction/custody behavior under File Workflows' independent tests. No dropped test count, hidden failure or generalized readiness claim.
+
+Verbatim bounded tickets (historical holds overridden only by current authorized scope)
+#### PF-01 · P0 prerequisite · Qualify ordinary Portfolio deployment separately from the restricted preview
+
+**Evidence:** [backend-policy.server.ts](https://github.com/neo-capiro/capiro-frontend/blob/4f9a7e8dcaa9ba03494dc5a49559daf70cea5100/apps/web/src/shared/preview/backend-policy.server.ts); [read-config.server.ts](https://github.com/neo-capiro/capiro-frontend/blob/4f9a7e8dcaa9ba03494dc5a49559daf70cea5100/apps/web/src/shared/preview/read-config.server.ts); [PreviewClientCatalog.tsx](https://github.com/neo-capiro/capiro-frontend/blob/4f9a7e8dcaa9ba03494dc5a49559daf70cea5100/apps/web/src/features/portfolio/index/PreviewClientCatalog.tsx). Main's qualified roster pin is b97a3286; PR115/111 advances it to 50475125 but keeps activation held. PreviewClientCatalog intentionally has no profile click/selection/detail/edit.
+
+**Root cause:** Source-only preview admission and exact-host/source pairing are narrower than the fully implemented ordinary product. That is an intentional containment boundary, not a requirement to expand the preview to deliver the ordinary product. Broad API configuration cannot substitute for selected-client/native auth qualification.
+
+**Bounded work:** Root has approved one exact first-chat Core preview owner for client-record CRUD/detail/account-owner reads and writes, with canonical online membership, role, client-wall and capacity enforcement. Frontend uses the existing first-chat target/source pair and explicit client-write flag; keep the legacy preview routing marker for Meri compatibility. Do not relax the reserved roster guard or enable unrelated logo, profile-note, import or provider writes through a global flag. Qualify each remaining ordinary product workflow through its own canonical owner; the approved client slice does not complete them.
+
+**Dependencies:** Parent shared proxy/config plan X-01; PF-10/11 meeting corrections; exact migrations and source/image custody; separate owner approval for any deployment/access change and, independently, any preview-policy expansion.
+
+**Acceptance:** Verify current signed-in role, foreign tenant, hidden/revoked client, archived client, changed identity, capacity/owner concurrency and malformed requests against the exact serving cohort. Unadmitted methods/paths fail before upstream dispatch. Client writes must not break first-chat or broaden reserved roster access. Source and historical build receipts do not replace real service and deployed acceptance.
+
+#### PF-13 · P1 reliability · Several ordinary mutations have only mounted/session uncertainty fences, not durable attributable receipts
+
+**Evidence:** [mutations.ts](https://github.com/neo-capiro/capiro-frontend/blob/4f9a7e8dcaa9ba03494dc5a49559daf70cea5100/apps/web/src/features/portfolio/calendar/mutations.ts); [api.ts](https://github.com/neo-capiro/capiro-frontend/blob/4f9a7e8dcaa9ba03494dc5a49559daf70cea5100/apps/web/src/features/portfolio/calendar/artifacts/api.ts); [api.ts](https://github.com/neo-capiro/capiro-frontend/blob/4f9a7e8dcaa9ba03494dc5a49559daf70cea5100/apps/web/src/features/portfolio/calendar/sharing/api.ts); [api.ts](https://github.com/neo-capiro/capiro-frontend/blob/4f9a7e8dcaa9ba03494dc5a49559daf70cea5100/apps/web/src/features/portfolio/calendar/sync/api.ts); [contact-create-attempt.ts](https://github.com/neo-capiro/capiro-frontend/blob/4f9a7e8dcaa9ba03494dc5a49559daf70cea5100/apps/web/src/features/portfolio/relationships/contact-create-attempt.ts); [mutations.ts](https://github.com/neo-capiro/capiro-frontend/blob/4f9a7e8dcaa9ba03494dc5a49559daf70cea5100/apps/web/src/features/portfolio/files/mutations.ts); [actions.ts](https://github.com/neo-capiro/capiro-frontend/blob/4f9a7e8dcaa9ba03494dc5a49559daf70cea5100/apps/web/src/features/portfolio/client-profile/quick-log/actions.ts). By contrast [command-actions.ts](https://github.com/neo-capiro/capiro-frontend/blob/4f9a7e8dcaa9ba03494dc5a49559daf70cea5100/apps/web/src/features/portfolio/client-profile/quick-log/command-actions.ts) already has command receipt recovery.
+
+**Root cause:** Some handlers deliberately freeze an uncertain write in mounted state, and some reconcile only current state via GET. That avoids immediate unsafe retry but does not identify whether this exact command succeeded after navigation/reload, nor prove attribution under concurrent edits.
+
+**Bounded work:** Inventory by actual mutation and add only missing command protocols: meeting create/update/reassign; notes/debrief create/edit/approval/sharing; externally consequential calendar sync; client contact create; plain Quick Log create; file metadata/access/delete where current state is insufficient. Server accepts immutable command ID + actor/client/resource/version + payload digest, commits receipt with the mutation, exposes authenticated lookup, and handles same-key/same-payload replay versus conflict. UI stores a minimal scoped journal before dispatch and recovers the same command; never stores bearer tokens. Distinguish definitive refusal, accepted, completed, and unknown/provider-pending. Existing durable prep/ActivityCommand/prospect upload/Objective protocols should not be replaced.
+
+**Dependencies:** Owner-specific DB transaction or provider reconciliation capability. For external actions, a DB receipt cannot falsely guarantee provider completion.
+
+**Acceptance:** Lost response before/after commit, reload, multi-tab, session renewal, duplicate click and concurrent conflicting edit yield one intended write or an explicit unresolved outcome. Changed payload with same ID refuses; arbitrary fresh retries never recreate uncertain work; current-state match alone is labeled observation, not historical receipt.
+
+
+Matching master scenarios (verbatim, select affected checks only)
+| E05 | Session expiry and transient Core503 | Retryable unavailable differs from revoked identity; no unauthorized bytes or false success |
+| E06 | Sign-out/tenant/client change with stored draft/intent | Old data/credentials/receipts cannot cross the new identity or client |
+| E26 | Attachment upload/read/file | Bytes/hash/MIME/size/scan/current custody tied to exact actor/client; rejected file never appears usable |
+| E43 | Mixed versions/frontends/contracts | Explicit version/source refusal or accepted backward compatibility; no silently misparsed approvals/output |
+| E44 | Inaccessible/empty/stale provider data | Truthful unavailable/no-results distinction, no fabricated success/evidence |
+| E45 | Canonical cross-module handoff | Portfolio/Workspace/Settings context preserved with entity IDs; effect appears in receiving module after reload |
+
+Actual named-owner evidence
+Ordinary Assets — bounded actual-state verification
+25 October 2026, completed17:09:24 UTC
+
+The named ordinary preview Assets resources are not provisioned. This updates
+the earlier retained-evidence preparation; it does not reopen completed image,
+source or rollout gates, and it does not authorize a deployment.
+
+Actual named-owner results, verified in account967807252336/us-east-1:
+
+- Capiro-Portfolio-Preview-Assets: CloudFormation DescribeStacks returned the
+  explicit error that this named stack does not exist.
+- capiro-preview-tenant-assets-967807252336: HeadBucket returned404; the subsequent
+  exact-bucket GetBucketLocation returned NoSuchBucket. No objects were listed or read.
+- alias/capiro/preview/assets: KMS DescribeKey returned NotFoundException for this
+  exact alias. No account-wide key search was performed; other keys are not assessed.
+- The named Core service still references task14 with the expected43f source and
+  image00e145a3. Actual task metadata has no ASSETS_BUCKET environment or secret
+  reference and no environmentFiles. External actions remain disabled.
+- The actual Core task role has one inline policy, zero attached managed policies,
+  and only kms:Sign in the retrieved policy action set. There is no S3 attachment
+  or assets-key data grant in that role's current policies. Resource policies for
+  unrelated buckets and organization-wide policies were not audited.
+- ENGAGEMENT_ATTACHMENT_SCAN_REQUIRED is not explicitly injected. Exact43f source
+  currently selects the null scanner and defaults scan-required to false, as the
+  earlier source report records. No scanner plan inventory or new scanner selection
+  was attempted. Independent Review owns the exact retained scanner requirement;
+  GuardDuty or other scanner implementation is not allocated by this verification.
+
+Smallest concrete storage/config delta for the grouped repair:
+
+1. Provision the existing canonical AssetsStack as Capiro-Portfolio-Preview-Assets
+   using the existing preview configuration. Preserve its KMS/TLS/public-access,
+   versioning, retention and exact preview-origin CORS. Reuse its source owner;
+   do not deploy archived synthetic templates, the whole historical backend/data
+   composition, or substitute Meri artifact/shared dev storage.
+2. Bind the existing first-chat Core owner to that stack's actual bucket/key outputs
+   and inject ASSETS_BUCKET. Add only the reviewed ordinary attachment S3 operations
+   on approved preview tenant engagement prefixes plus the corresponding assets-key
+   data permissions. Tenant identifiers remain private inputs. Preserve canonical
+   client/wall/custody checks and confirmation identity.
+3. Combine that storage wiring with Integration/File Workflows' exact route and
+   bounded internal-attachment policy repair. Keep broad external provider actions
+   disabled. Scanner requirement/readiness follows Independent Review's result;
+   no new scanner or scan/auth bypass is proposed for execution here.
+
+Root has closed the16:23:37 acceptance window, but actual rollout still waits for
+exact reviewed candidates. No source edit, provisioning, storage/object/userdata
+read, upload, provider call, model prompt or cloud mutation occurred. This was10
+named read-only AWS requests including caller verification; no broad resource or
+account inventory. No health/test/provenance gate was repeated.
+
+Private raw command receipts and current binding summary:
+work/release-20261025/private/ordinary-assets-actual/
+binding-summary.json SHA256
+cd47dc6f35abd78e34d8031ce270e49f2f439f5ca06942dc550a687321548379
+
+Earlier source/IaC preparation remains in ORDINARY-UPLOAD-STORAGE-PREP.txt.
+Its scanner resource example was a candidate only; it is not current approval
+to implement or provision a scanner. No full readiness or upload success is claimed.
+
+Current rules acknowledged: pushed revision c0411e2cd20c35b3a8619817a4fec25ef7047aba at C:/dev/wave2-handoff-20261025-docs/docs/handover/20261022/STANDING-REQUIREMENTS.md loaded including provenance. Sections1-4 unchanged. Root Ultra orchestrates; authors/reviewers xhigh. Neo reaffirmed full SDK harness on Runtime V1 direct to Bedrock, control gateway to canonical Core, tenant isolation and durable user/firm memory. No SDK/hosting replacement or broad rewrite.
+
+Root-allocated review correction: ordinary product deletion also needs reliable missing-object observation. File Workflows owns the canonical helper/spec exact-key ListObjectsV2 fallback on HEAD403. Release adds ListBucket only with StringLike s3:prefix matching the same explicit approved engagement folders. No403-alone success and no assumption that prefix-conditioned LIST permission changes HEAD status. Supporting reviews the paired exact heads; ordinary upload ACL finding remains separately blocking.
