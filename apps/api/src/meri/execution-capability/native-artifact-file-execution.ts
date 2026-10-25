@@ -100,8 +100,18 @@ export async function receiveNativeArtifactFile(ports: Ports, req: Request, ctx:
   const release = async (outcome: NativeArtifactFileOutcome | null | undefined) => {
     const current = await readCurrent();
     await ports.prisma.withTenant(ctx.tenantId, async tx => {
-      await authorize(tx, false);
-      if (outcome) await ports.filing.assertNativeOutcomeCurrent(tx, ctx, clientId, outcome.result.files);
+      const decision = await authorize(tx, false);
+      if (outcome) {
+        // Completion can fail at COMMIT after its callback produced a result.
+        // Release only the exact receipt retained in a subsequent transaction.
+        const stored = await receipt(tx);
+        if (!decision || !stored || stored.state !== 'COMPLETED' || stored.jti !== null ||
+            stored.commandSha256 !== proposal.commandSha256 || stored.argumentsSha256 !== argumentsSha256 ||
+            !stored.result || !stored.completedAt) throw conflict();
+        const durable = outcomeOf(stored.result, proposal, hash(nativeDecisionOf(decision)), decision.decidedAt, stored.completedAt);
+        if (!sameJson(durable, outcome)) throw conflict();
+        await ports.filing.assertNativeOutcomeCurrent(tx, ctx, clientId, durable.result.files);
+      }
       if (current.expiresAtMs <= await meriExecutionDbNow(tx)) throw denied();
     });
     if (outcome === undefined) return null;

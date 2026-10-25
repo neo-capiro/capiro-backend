@@ -33,6 +33,7 @@ function fixture(count = 2) {
   const state = { now: NOW, member: true, tenantActive: true, role: 'standard_user', wall: true, session: true,
     conversation: true, selectedClientId: id(7) as string | null, conversationOwner: id(2), principalTenant: id(1),
     revoked: false, decisionPresent: true, failPut: 0, failCreate: 0, failComplete: false, failCommit: false,
+    dropCompletionCommit: false,
     scans: ['clean', 'pending'], afterPut: undefined as undefined | (() => void),
     beforeRelease: undefined as undefined | (() => void), afterRegistrationWrite: undefined as undefined | (() => void),
     afterCommit: undefined as undefined | (() => Promise<void>) };
@@ -104,6 +105,8 @@ function fixture(count = 2) {
     let result: any;
     try { result = await run(tx);
       if (state.failCommit && documents.size > beforeDocuments.size) throw Error('Database commit uncertain');
+      if (state.dropCompletionCommit && beforeReceipts.get('receipt')?.state === 'CLAIMED' &&
+          receipts.get('receipt')?.state === 'COMPLETED') restore(receipts, beforeReceipts);
       restore(committedReceipts, copyMap(receipts)); restore(committedDocuments, copyMap(documents));
     } catch (error) { restore(documents, beforeDocuments); restore(receipts, beforeReceipts); restore(stages, beforeStages); throw error; }
     finally { unlock(); }
@@ -259,6 +262,26 @@ describe('native artifact filing execution through document custody', () => {
     const result: any = await f.read(); expect(result.state).toBe('OUTCOME');
     expect(result.outcome.result.files.every((file: any) => file.reused)).toBe(true);
     expect(f.receipts.get('receipt').state).toBe('COMPLETED'); expect(f.s3.send).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(['execute', 'read'])('withholds provisional completion after silent COMMIT rollback during %s', async mode => {
+    const f = fixture();
+    if (mode === 'read') {
+      f.state.failComplete = true;
+      expect(await f.execute()).toEqual({ status: 'indeterminate' });
+      f.state.failComplete = false;
+    }
+    f.state.dropCompletionCommit = true;
+    if (mode === 'execute') expect(await f.execute()).toEqual({ status: 'indeterminate' });
+    else await expect(f.read()).rejects.toThrow();
+    expect(f.committedReceipts.get('receipt').state).toBe('CLAIMED');
+    expect(f.documents.size).toBe(2); expect(f.storage.size).toBe(2);
+    f.state.dropCompletionCommit = false;
+    const recovered: any = await f.read();
+    expect(recovered.state).toBe('OUTCOME');
+    expect(recovered.outcome).toEqual(f.committedReceipts.get('receipt').result);
+    expect(f.committedReceipts.get('receipt').state).toBe('COMPLETED');
+    expect(f.s3.send).toHaveBeenCalledTimes(2);
   });
 
   it('allows only the claim winner to dispatch concurrent requests', async () => {
