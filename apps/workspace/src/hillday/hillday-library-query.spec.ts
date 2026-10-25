@@ -66,6 +66,11 @@ const TENANT = 'tenant';
 const ACTOR = 'actor';
 const CLIENT = '11111111-1111-4111-8111-111111111111';
 
+/** Flips one character in the middle of a sealed token, leaving it well-formed. */
+function tamperedToken(token: string): string {
+  return `${token.slice(0, 5)}${token[5] === 'A' ? 'B' : 'A'}${token.slice(6)}`;
+}
+
 function draftRow(id: string, docTitle: string, iso: string, over: Partial<Row> = {}): Row {
   return {
     id,
@@ -96,14 +101,17 @@ function hillRow(id: string, name: string, iso: string, over: Partial<Row> = {})
   };
 }
 
-function harness(options: {
-  hill?: Row[];
-  drafts?: Row[];
-  shared?: string[];
-  deniedDrafts?: string[];
-  wallAllowed?: boolean;
-  clients?: Map<string, { name: string; wallAllowed: boolean }>;
-}) {
+function harness(
+  options: {
+    hill?: Row[];
+    drafts?: Row[];
+    shared?: string[];
+    deniedDrafts?: string[];
+    wallAllowed?: boolean;
+    clients?: Map<string, { name: string; wallAllowed: boolean }>;
+  },
+  Service: typeof HillDayDocumentService = HillDayDocumentService,
+) {
   const hill = options.hill ?? [];
   const drafts = options.drafts ?? [];
   const denied = new Set(options.deniedDrafts ?? []);
@@ -149,7 +157,7 @@ function harness(options: {
   const collaborators = {
     sourceAccess: jest.fn(async (_tenantId: string, draftId: string) => !denied.has(draftId)),
   };
-  const service = new HillDayDocumentService(
+  const service = new Service(
     prisma as never,
     source as never,
     {} as never,
@@ -354,6 +362,61 @@ describe('Workspace library query filters', () => {
     expect(calls.drafts.at(-1)?.where.OR).toBeUndefined();
   });
 
+  it('continues a page across independent instances when the secret arrives after module import', async () => {
+    // The app imports this module before ConfigModule.forRoot loads `.env`, so a
+    // key captured at import would ignore a secret configured before the first
+    // request and each instance would seal tokens its siblings cannot open.
+    let Sibling: typeof HillDayDocumentService | undefined;
+    jest.isolateModules(() => {
+      Sibling = (
+        require('./hillday-document.service.js') as typeof import('./hillday-document.service.js')
+      ).HillDayDocumentService;
+    });
+    const previous = process.env.WORKSPACE_EXPORT_SIGNING_SECRET;
+    process.env.WORKSPACE_EXPORT_SIGNING_SECRET = 'synthetic-configured-cursor-secret';
+    try {
+      const drafts = [
+        draftRow('newest', 'Newest', '2026-09-14T12:00:00Z'),
+        draftRow('older', 'Older', '2026-09-14T11:00:00Z'),
+      ];
+      const first = harness({ drafts });
+      const page = await first.service.listDocuments(TENANT, ACTOR, { limit: '1' });
+      expect(page.items.map((row) => row.id)).toEqual(['newest']);
+
+      // The sibling instance was evaluated as its own module copy before the
+      // secret arrived; it still continues the page instead of restarting it.
+      const second = harness({ drafts }, Sibling!);
+      const next = await second.service.listDocuments(TENANT, ACTOR, {
+        limit: '1',
+        cursor: page.nextCursor!,
+      });
+      expect(next.items.map((row) => row.id)).toEqual(['older']);
+      expect(second.calls.drafts.at(-1)?.where.OR).toBeDefined();
+
+      // An instance configured with a different secret, and a corrupt token,
+      // still cannot continue it.
+      process.env.WORKSPACE_EXPORT_SIGNING_SECRET = 'synthetic-other-cursor-secret';
+      const foreign = harness({ drafts });
+      const foreignPage = await foreign.service.listDocuments(TENANT, ACTOR, {
+        limit: '1',
+        cursor: page.nextCursor!,
+      });
+      expect(foreignPage.items.map((row) => row.id)).toEqual(['newest']);
+      expect(foreign.calls.drafts.at(-1)?.where.OR).toBeUndefined();
+
+      const corrupt = tamperedToken(page.nextCursor!);
+      const corruptPage = await second.service.listDocuments(TENANT, ACTOR, {
+        limit: '1',
+        cursor: corrupt,
+      });
+      expect(corruptPage.items.map((row) => row.id)).toEqual(['newest']);
+      expect(second.calls.drafts.at(-1)?.where.OR).toBeUndefined();
+    } finally {
+      if (previous === undefined) delete process.env.WORKSPACE_EXPORT_SIGNING_SECRET;
+      else process.env.WORKSPACE_EXPORT_SIGNING_SECRET = previous;
+    }
+  });
+
   it('ignores tampered, unsealed, malformed and incomplete cursors instead of failing or skipping rows', async () => {
     const { service, calls } = harness({
       drafts: [
@@ -362,7 +425,7 @@ describe('Workspace library query filters', () => {
       ],
     });
     const issued = (await service.listDocuments(TENANT, ACTOR, { limit: '1' })).nextCursor!;
-    const tampered = `${issued.slice(0, 5)}${issued[5] === 'A' ? 'B' : 'A'}${issued.slice(6)}`;
+    const tampered = tamperedToken(issued);
     for (const cursor of [
       'not-base64!!',
       tampered,

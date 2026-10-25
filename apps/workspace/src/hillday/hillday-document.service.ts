@@ -103,6 +103,23 @@ export function decodeCursor(raw: string | undefined): Record<string, string> | 
 }
 
 /**
+ * Derives the library cursor key. Call this from the service's own construction
+ * (the lifecycle HillDayExportService already uses for its signing secret), never
+ * at module import: AppModule imports this module before ConfigModule.forRoot
+ * loads `.env` into process.env, so an import-time key would capture the random
+ * fallback and every instance would seal tokens no sibling instance can open.
+ */
+function libraryCursorKey(
+  secret = process.env.WORKSPACE_EXPORT_SIGNING_SECRET ??
+    process.env.INTERNAL_SERVICE_SECRET ??
+    randomUUID(),
+): Buffer {
+  return Buffer.from(
+    hkdfSync('sha256', secret, 'capiro/workspace/hillday/library', 'cursor-v1', 32),
+  );
+}
+
+/**
  * Library page tokens are sealed with the service's existing opaque-token
  * secret — the owner that already signs Hill Day export URLs — because a keyset
  * position can be a row the actor is not allowed to read: a readable
@@ -110,38 +127,23 @@ export function decodeCursor(raw: string | undefined): Record<string, string> | 
  * an empty page. AES-256-GCM under a key derived from that existing secret adds
  * no new secret, config key, schema or server-side state.
  */
-const LIBRARY_CURSOR_KEY = Buffer.from(
-  hkdfSync(
-    'sha256',
-    process.env.WORKSPACE_EXPORT_SIGNING_SECRET ??
-      process.env.INTERNAL_SERVICE_SECRET ??
-      randomUUID(),
-    'capiro/workspace/hillday/library',
-    'cursor-v1',
-    32,
-  ),
-);
 const CURSOR_IV_BYTES = 12;
 const CURSOR_TAG_BYTES = 16;
 
-function sealLibraryCursor(payload: Record<string, string>): string {
+function sealLibraryCursor(key: Buffer, payload: Record<string, string>): string {
   const iv = randomBytes(CURSOR_IV_BYTES);
-  const cipher = createCipheriv('aes-256-gcm', LIBRARY_CURSOR_KEY, iv);
+  const cipher = createCipheriv('aes-256-gcm', key, iv);
   const body = Buffer.concat([cipher.update(JSON.stringify(payload), 'utf8'), cipher.final()]);
   return Buffer.concat([iv, cipher.getAuthTag(), body]).toString('base64url');
 }
 
 /** Opens a sealed library token; anything unauthenticated, foreign or stale is unusable. */
-function openLibraryCursor(raw: string | undefined): Record<string, string> | null {
+function openLibraryCursor(key: Buffer, raw: string | undefined): Record<string, string> | null {
   if (!raw) return null;
   try {
     const sealed = Buffer.from(raw, 'base64url');
     if (sealed.length <= CURSOR_IV_BYTES + CURSOR_TAG_BYTES) return null;
-    const decipher = createDecipheriv(
-      'aes-256-gcm',
-      LIBRARY_CURSOR_KEY,
-      sealed.subarray(0, CURSOR_IV_BYTES),
-    );
+    const decipher = createDecipheriv('aes-256-gcm', key, sealed.subarray(0, CURSOR_IV_BYTES));
     decipher.setAuthTag(sealed.subarray(CURSOR_IV_BYTES, CURSOR_IV_BYTES + CURSOR_TAG_BYTES));
     const parsed: unknown = JSON.parse(
       Buffer.concat([
@@ -306,6 +308,11 @@ export function classifyEvents(
 @Injectable()
 export class HillDayDocumentService {
   private readonly logger = new Logger(HillDayDocumentService.name);
+  /**
+   * Sealed at construction — after the app's ConfigModule has loaded `.env`,
+   * which is the same lifecycle HillDayExportService's signing secret uses.
+   */
+  private readonly cursorKey = libraryCursorKey();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -371,7 +378,7 @@ export class HillDayDocumentService {
     // matching rows or disclose a row the caller may not read. Tokens issued
     // before sealing (or under another secret) are simply unusable.
     const signature = libraryFilterSignature({ clientId, status, kind, scope, q });
-    const cursor = openLibraryCursor(opts.cursor);
+    const cursor = openLibraryCursor(this.cursorKey, opts.cursor);
     const bound =
       cursor?.t === tenantId && cursor?.a === actorId && cursor?.f === signature ? cursor : null;
     const at = bound?.u ? new Date(bound.u) : null;
@@ -494,7 +501,7 @@ export class HillDayDocumentService {
     const last = window[window.length - 1];
     const nextCursor =
       rows.length > limit && last
-        ? sealLibraryCursor({
+        ? sealLibraryCursor(this.cursorKey, {
             v: '1',
             t: tenantId,
             a: actorId,
