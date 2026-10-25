@@ -1,5 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { type INestApplication, ValidationPipe } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import request from 'supertest';
+import { ClientBriefCopyController } from '../../../workspace/src/documents/client-brief-copy.controller.js';
+import { TenantGuard } from '../../../workspace/src/auth/tenant.guard.js';
 import { fixture, id, tenant, actor, client, ctx, foreign, release, settled } from './fixture.js';
 import { PrismaService as WorkspacePrisma } from '../../../workspace/src/prisma/prisma.service.js';
 import { DraftsService } from '../../../workspace/src/drafts/drafts.service.js';
@@ -14,6 +19,7 @@ import {
 } from '../../../workspace/src/documents/prospect-brief-copy-contract.js';
 
 let h: Awaited<ReturnType<typeof fixture>>, workspace: WorkspacePrisma, drafts: DraftsService;
+let app: INestApplication;
 const prospect = id(1400),
   brief = id(1401),
   version = id(1402),
@@ -98,7 +104,32 @@ beforeAll(async () => {
     workspace = new WorkspacePrisma({ datasources: { db: { url: h.appUrl } } });
     await workspace.$connect();
     drafts = new DraftsService(workspace, new CollaboratorsService(workspace, {} as never));
+    const module = await Test.createTestingModule({
+      controllers: [ClientBriefCopyController],
+      providers: [
+        { provide: WorkspacePrisma, useValue: workspace },
+        { provide: DraftsService, useValue: drafts },
+      ],
+    })
+      .overrideGuard(TenantGuard)
+      .useValue({
+        canActivate: (context: any) => {
+          context.switchToHttp().getRequest().tenantContext = {
+            tenantId: tenant,
+            clerkUserId: ctx.clerkUserId,
+          };
+          return true;
+        },
+      })
+      .compile();
+    app = module.createNestApplication({ logger: false });
+    app.setGlobalPrefix('workspace-api');
+    app.useGlobalPipes(
+      new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true }),
+    );
+    await app.init();
   } catch (error) {
+    await app?.close();
     await workspace?.$disconnect();
     await h.close();
     throw error;
@@ -128,6 +159,7 @@ beforeEach(async () => {
   ]);
 });
 afterAll(async () => {
+  await app?.close();
   await workspace?.$disconnect();
   await h?.close();
 });
@@ -177,12 +209,23 @@ it('deletion preserves an attributable consumed receipt and never resurrects the
   expect(await counts()).toEqual({ ...empty, receipts: 1 });
 });
 it.each(['ws_doc_version', 'ws_source_action'])(
-  'rolls back every destination row when %s insertion fails',
+  'rolls back every destination row on %s failure, including deferred COMMIT rejection',
   async (table) => {
+    const trigger =
+      table === 'ws_source_action'
+        ? `CREATE CONSTRAINT TRIGGER synthetic_failure AFTER INSERT ON ${table} DEFERRABLE INITIALLY DEFERRED`
+        : `CREATE TRIGGER synthetic_failure BEFORE INSERT ON ${table}`;
     await h.sql(`CREATE FUNCTION synthetic_brief_fail() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic failure'; END $$;
-    CREATE TRIGGER synthetic_failure BEFORE INSERT ON ${table} FOR EACH ROW EXECUTE FUNCTION synthetic_brief_fail()`);
+    ${trigger} FOR EACH ROW EXECUTE FUNCTION synthetic_brief_fail()`);
     try {
-      await expect(save()).rejects.toThrow();
+      if (table === 'ws_source_action') {
+        // The callback produces a result before the deferred trigger rejects
+        // COMMIT. A rolled-back receipt must never become completed HTTP200.
+        await request(app.getHttpServer())
+          .post(`/workspace-api/prospects/${prospect}/clients/${client}/brief-copies`)
+          .send(input)
+          .expect(500);
+      } else await expect(save()).rejects.toThrow();
       expect(await counts()).toEqual(empty);
     } finally {
       await h.sql(
