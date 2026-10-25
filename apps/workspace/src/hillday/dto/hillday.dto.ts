@@ -15,7 +15,31 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { COVER_FACT_KEYS, SUMMARY_COLUMN_KEYS, type CoverFactKey, type SummaryColumnKey } from '../hillday.types.js';
+import {
+  COVER_FACT_KEYS,
+  LIBRARY_KINDS,
+  LIBRARY_SCOPES,
+  SUMMARY_COLUMN_KEYS,
+  type CoverFactKey,
+  type LibraryKind,
+  type LibraryScope,
+  type SummaryColumnKey,
+} from '../hillday.types.js';
+
+/**
+ * Library list query (`GET /hillday/documents`). `limit` and `cursor` stay
+ * strings — the list clamps/parses them itself (an out-of-range limit is
+ * clamped, not rejected) so existing callers keep their behavior.
+ */
+export class ListLibraryQueryDto {
+  @IsOptional() @IsString() @MaxLength(64) clientId?: string;
+  @IsOptional() @IsString() @MaxLength(30) status?: string;
+  @IsOptional() @IsIn(LIBRARY_KINDS) kind?: LibraryKind;
+  @IsOptional() @IsIn(LIBRARY_SCOPES) scope?: LibraryScope;
+  @IsOptional() @IsString() @MaxLength(200) q?: string;
+  @IsOptional() @IsString() @MaxLength(500) cursor?: string;
+  @IsOptional() @IsString() @MaxLength(64) limit?: string;
+}
 
 export class CreateHillDayDocumentDto {
   @IsString() @Length(1, 128) blueprintId!: string;

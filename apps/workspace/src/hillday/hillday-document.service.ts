@@ -1,4 +1,5 @@
 import { admitHillDayDocument } from './hillday-access.js';
+import { createHash } from 'node:crypto';
 import { isHeldDraftClientAssociation } from '../drafts/draft-client-access.js';
 import {
   BadRequestException,
@@ -41,7 +42,10 @@ import type {
   ClientsResponse,
   DocumentSectionView,
   HillDayDocumentView,
+  LibraryKind,
+  LibraryQuery,
   LibraryRow,
+  LibraryScope,
   MeetingContextRecord,
   MeetingResolution,
   MeetingSection,
@@ -91,6 +95,26 @@ export function clampLimit(raw: string | number | undefined, fallback = 25): num
   const n = typeof raw === 'number' ? raw : Number.parseInt(String(raw ?? ''), 10);
   if (!Number.isFinite(n) || n <= 0) return fallback;
   return Math.min(MAX_PAGE, n);
+}
+
+/**
+ * Fingerprint of the library filter set a cursor was issued under. A cursor
+ * continues only its own filter set, so the filters are hashed into the token
+ * instead of being carried (and leaked) in it as readable text.
+ */
+export function libraryFilterSignature(filters: {
+  clientId: string | null;
+  status: string | null;
+  kind: LibraryKind;
+  scope: LibraryScope;
+  q: string | null;
+}): string {
+  return createHash('sha256')
+    .update(
+      [filters.clientId, filters.status, filters.kind, filters.scope, filters.q].join('\u0000'),
+    )
+    .digest('hex')
+    .slice(0, 16);
 }
 
 /** Monday (YYYY-MM-DD) of the week containing `iso` in `timeZone`. */
@@ -259,34 +283,50 @@ export class HillDayDocumentService {
   async listDocuments(
     tenantId: string,
     actorId: string,
-    opts: { clientId?: string; status?: string; kind?: string; cursor?: string; limit?: string },
+    opts: LibraryQuery,
   ): Promise<Page<LibraryRow>> {
     const limit = clampLimit(opts.limit);
-    // `kind=hillday` lists Hill Day packets only; any other value keeps the
-    // merged library of Hill Day packets and workspace drafts.
-    const hillDayOnly = opts.kind === 'hillday';
-    const cursor = decodeCursor(opts.cursor);
-    const before = cursor?.u ? new Date(cursor.u) : null;
-    const beforeId = cursor?.i ?? null;
+    // `kind=hillday` lists Hill Day packets only, `kind=draft` workspace drafts
+    // only; `all` (the default) keeps the merged library.
+    const kind = opts.kind ?? 'all';
+    // Ownership narrowing over rows the actor may already see — it never widens.
+    const scope = opts.scope ?? 'all';
+    // Bounded search over the row's own name (Hill Day document name / draft
+    // title). Filtering in SQL is what makes a hit on a later page reachable.
+    const q = opts.q?.trim() || null;
+    const status = opts.status || null;
     if (opts.clientId && !isUuid(opts.clientId)) throw new NotFoundException('Client not found');
     const clientId = opts.clientId ?? null;
-    let clientName: string | null = null;
-    if (clientId) {
-      const userId = await this.source.resolveUserId(actorId);
-      const client = await this.source.getClient(tenantId, userId, clientId);
-      if (!client?.wallAllowed) throw new NotFoundException('Client not found');
-      clientName = client?.name ?? null;
-    }
+
+    // A cursor continues only the filter set that produced it; replayed under
+    // different filters it would silently skip newer matching rows. Cursors
+    // issued before filters were bound carry no `f` and still continue.
+    const signature = libraryFilterSignature({ clientId, status, kind, scope, q });
+    const cursor = decodeCursor(opts.cursor);
+    const at = cursor?.u ? new Date(cursor.u) : null;
+    const before = at && !Number.isNaN(at.getTime()) ? at : null;
+    const beforeId = before ? (cursor?.i ?? null) : null;
     const cursorWhere =
-      before && beforeId
+      before && beforeId && (!cursor?.f || cursor.f === signature)
         ? {
             OR: [{ updatedAt: { lt: before } }, { updatedAt: before, id: { lt: beforeId } }],
           }
         : {};
 
+    if (clientId) {
+      const userId = await this.source.resolveUserId(actorId);
+      const client = await this.source.getClient(tenantId, userId, clientId);
+      if (!client?.wallAllowed) throw new NotFoundException('Client not found');
+    }
+
     const HILL_STATUSES = ['draft', 'generating', 'generated', 'partial', 'delivered'];
-    const hillStatus = opts.status && HILL_STATUSES.includes(opts.status) ? opts.status : null;
-    const hill = opts.status && !hillStatus
+    const hillStatus = status && HILL_STATUSES.includes(status) ? status : null;
+    // Hill Day packets are owner-private, so a `shared` scope can never match
+    // one, and a status outside their vocabulary matches none of them.
+    const includeHill = kind !== 'draft' && scope !== 'shared' && (!status || hillStatus !== null);
+    const includeDrafts = kind !== 'hillday';
+
+    const hill = !includeHill
       ? []
       : await this.prisma.wsHillDayDocument.findMany({
       where: {
@@ -294,18 +334,19 @@ export class HillDayDocumentService {
         ownerId: actorId,
         ...(clientId ? { clientId } : {}),
         ...(hillStatus ? { status: hillStatus as never } : {}),
+        ...(q ? { name: { contains: q, mode: 'insensitive' as const } } : {}),
         ...cursorWhere,
       },
       orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
     });
-    const shared = hillDayOnly
+    const shared = !includeDrafts
       ? []
       : await this.prisma.wsCollaborator.findMany({
       where: { tenantId, subjectId: actorId, status: 'active' },
       select: { draftId: true },
     });
-    const drafts = hillDayOnly
+    const drafts = !includeDrafts
       ? []
       : await this.prisma.wsDraft.findMany({
       where: {
@@ -313,11 +354,18 @@ export class HillDayDocumentService {
         // available only in the unfiltered owner library for recovery.
         prospectId: null,
         tenantId,
-        AND: [{ OR: [{ ownerId: actorId }, { id: { in: shared.map((r) => r.draftId) } }] }],
+        AND: [
+          scope === 'mine'
+            ? { ownerId: actorId }
+            : scope === 'shared'
+              ? { ownerId: { not: actorId }, id: { in: shared.map((r) => r.draftId) } }
+              : { OR: [{ ownerId: actorId }, { id: { in: shared.map((r) => r.draftId) } }] },
+        ],
         ...(clientId ? { clientId } : {}),
-        ...(opts.status && (opts.status === 'draft' || opts.status === 'complete')
-          ? { status: opts.status }
-          : opts.status
+        ...(q ? { docTitle: { contains: q, mode: 'insensitive' as const } } : {}),
+        ...(status && (status === 'draft' || status === 'complete')
+          ? { status }
+          : status
             ? { id: { in: [] } }
             : {}),
         ...cursorWhere,
@@ -373,7 +421,10 @@ export class HillDayDocumentService {
       for (const row of batch) if (row) items.push(row);
     }
     const last = window[window.length - 1];
-    const nextCursor = rows.length > limit && last ? encodeCursor({ u: last.updatedAt, i: last.id }) : null;
+    const nextCursor =
+      rows.length > limit && last
+        ? encodeCursor({ u: last.updatedAt, i: last.id, f: signature })
+        : null;
     return { items, nextCursor };
   }
 

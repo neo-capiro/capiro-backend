@@ -36,7 +36,12 @@ describe('Workspace library private drafts', () => {
     release(false);
     const page = await pending;
     expect(page.items.map((d) => d.id)).toEqual(['y-visible']);
-    expect(decodeCursor(page.nextCursor!)).toEqual({ u: updatedAt.toISOString(), i: 'y-visible' });
+    // Cursors are bound to the filter set that issued them (`f`).
+    expect(decodeCursor(page.nextCursor!)).toEqual({
+      u: updatedAt.toISOString(),
+      i: 'y-visible',
+      f: expect.any(String),
+    });
   });
   it('filters owner/active collaboration in SQL and revoked source access before returning metadata', async () => {
     const updatedAt = new Date('2026-09-14T10:00:00Z');
@@ -66,7 +71,11 @@ describe('Workspace library private drafts', () => {
     );
     const page = await service.listDocuments('tenant', 'actor', { limit: '1' });
     expect(page.items).toEqual([]);
-    expect(decodeCursor(page.nextCursor!)).toEqual({ u: updatedAt.toISOString(), i: 'revoked' });
+    expect(decodeCursor(page.nextCursor!)).toEqual({
+      u: updatedAt.toISOString(),
+      i: 'revoked',
+      f: expect.any(String),
+    });
     expect(prisma.wsCollaborator.findMany).toHaveBeenCalledWith({
       where: { tenantId: 'tenant', subjectId: 'actor', status: 'active' },
       select: { draftId: true },
@@ -137,7 +146,11 @@ describe('Workspace library private drafts', () => {
       ['hillday', id('h3')],
       ['hillday', id('h2')],
     ]);
-    expect(decodeCursor(page.nextCursor!)).toEqual({ u: '2026-09-14T11:00:00.000Z', i: id('h2') });
+    expect(decodeCursor(page.nextCursor!)).toEqual({
+      u: '2026-09-14T11:00:00.000Z',
+      i: id('h2'),
+      f: expect.any(String),
+    });
     expect(prisma.wsDraft.findMany).not.toHaveBeenCalled();
     expect(prisma.wsCollaborator.findMany).not.toHaveBeenCalled();
     expect(collaborators.sourceAccess).not.toHaveBeenCalled();
