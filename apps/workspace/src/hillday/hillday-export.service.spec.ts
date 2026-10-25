@@ -1,8 +1,28 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, ServiceUnavailableException } from '@nestjs/common';
 import { inflateSync } from 'node:zlib';
 import { HillDayExportService } from './hillday-export.service.js';
 import type { HillDayDocumentView } from './hillday.types.js';
+
+/** The dedicated export signing key is the only key exports may use. */
+const SIGNING_KEY = 'synthetic-export-signing-key';
+
+/**
+ * Runs `run` with `WORKSPACE_EXPORT_SIGNING_SECRET` set to a synthetic value
+ * (`undefined` removes it), restoring the previous state afterwards. The service
+ * resolves the key at construction, so the value must be set before it is built.
+ */
+async function withSigningKey<T>(key: string | undefined, run: () => Promise<T> | T): Promise<T> {
+  const previous = process.env.WORKSPACE_EXPORT_SIGNING_SECRET;
+  if (key === undefined) delete process.env.WORKSPACE_EXPORT_SIGNING_SECRET;
+  else process.env.WORKSPACE_EXPORT_SIGNING_SECRET = key;
+  try {
+    return await run();
+  } finally {
+    if (previous === undefined) delete process.env.WORKSPACE_EXPORT_SIGNING_SECRET;
+    else process.env.WORKSPACE_EXPORT_SIGNING_SECRET = previous;
+  }
+}
 
 /** Read the first page's standard-font text from PDFKit's actual content stream. */
 function firstPageText(pdf: Buffer): string {
@@ -152,34 +172,178 @@ describe('HillDayExportService.renderPdf', () => {
     } };
     const documents = { assertDoc: async () => ({ ownerId: 'owner' }), get: async () => draft };
     const bridge = { branding: async () => ({ ok: false }) };
-    const service = new HillDayExportService(prisma as never, documents as never, bridge as never);
-    const result = await service.create('tenant', 'owner', draft.id, 'letter');
-    expect(result.status).toBe('failed');
-    expect(result.error).toContain('Cover facts');
-    expect(result.url).toBeNull();
-    expect(prisma.wsHillDayExport.update).toHaveBeenCalledTimes(1);
-    expect(prisma.wsHillDayExport.update.mock.calls[0]?.[0].data).not.toHaveProperty('file');
+    await withSigningKey(SIGNING_KEY, async () => {
+      const service = new HillDayExportService(
+        prisma as never,
+        documents as never,
+        bridge as never,
+      );
+      const result = await service.create('tenant', 'owner', draft.id, 'letter');
+      expect(result.status).toBe('failed');
+      expect(result.error).toContain('Cover facts');
+      expect(result.url).toBeNull();
+      expect(prisma.wsHillDayExport.update).toHaveBeenCalledTimes(1);
+      expect(prisma.wsHillDayExport.update.mock.calls[0]?.[0].data).not.toHaveProperty('file');
+    });
   });
 });
 
+/** A stored, ready export plus the admission double its download path needs. */
+function readyExport() {
+  const file = Buffer.from('%PDF-1.7 test');
+  const row = {
+    id: 'exp-1',
+    tenantId: 'tenant',
+    actorId: 'owner',
+    documentId: 'doc-1',
+    status: 'ready',
+    pageSize: 'letter',
+    file,
+    filename: 'x.pdf',
+    sizeBytes: file.length,
+    error: null,
+    createdAt: new Date('2026-10-25T12:00:00Z'),
+  };
+  const prisma = { wsHillDayExport: { findFirst: jest.fn(async () => row) } };
+  const documents = { assertDoc: async () => ({ ownerId: 'owner' }) };
+  return { file, prisma, documents };
+}
+
 describe('HillDayExportService signed URLs', () => {
   it('serves the stored bytes for a valid signature and refuses tampering or expiry', async () => {
-    const file = Buffer.from('%PDF-1.7 test');
-    const prisma = {
-      wsHillDayExport: {
-        findFirst: jest.fn(async () => ({ id: 'exp-1', tenantId: 'tenant', actorId: 'owner', documentId: 'doc-1', status: 'ready', file, filename: 'x.pdf' })),
-      },
-    };
-    const documents = { assertDoc: async () => ({ ownerId: 'owner' }) };
-    const service = new HillDayExportService(prisma as never, documents as never, {} as never);
+    await withSigningKey(SIGNING_KEY, async () => {
+      const { file, prisma, documents } = readyExport();
+      const service = new HillDayExportService(prisma as never, documents as never, {} as never);
+      const exp = Date.now() + 60_000;
+      const path = service.signedPath('doc-1', 'exp-1', exp);
+      const sig = new URL(`https://x${path}`).searchParams.get('sig')!;
+      const served = await service.file('doc-1', 'exp-1', String(exp), sig);
+      expect(served.buffer.equals(file)).toBe(true);
+      expect(served.filename).toBe('x.pdf');
+      await expect(
+        service.file('doc-1', 'exp-1', String(exp), sig.replace(/^./, sig[0] === 'a' ? 'b' : 'a')),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(
+        service.file('doc-1', 'exp-1', String(Date.now() - 1), sig),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.file('doc-2', 'exp-1', String(exp), sig)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
+  });
+});
+
+describe('HillDayExportService signing configuration', () => {
+  it('refuses grant creation before any render or persisted export when the dedicated key is missing', async () => {
+    await withSigningKey(undefined, async () => {
+      const draft = view(1);
+      const row = {
+        id: 'exp-1',
+        documentId: draft.id,
+        format: 'pdf',
+        pageSize: 'letter',
+        status: 'queued',
+        filename: null,
+        sizeBytes: null,
+        error: null,
+        createdAt: new Date(),
+      };
+      const prisma = {
+        wsHillDayExport: { create: jest.fn(async () => row), update: jest.fn(async () => row) },
+      };
+      const documents = { assertDoc: async () => ({ ownerId: 'owner' }), get: async () => draft };
+      const bridge = { branding: async () => ({ ok: false }) };
+      const service = new HillDayExportService(
+        prisma as never,
+        documents as never,
+        bridge as never,
+      );
+      await expect(service.create('tenant', 'owner', draft.id, 'letter')).rejects.toBeInstanceOf(
+        ServiceUnavailableException,
+      );
+      expect(prisma.wsHillDayExport.create).not.toHaveBeenCalled();
+      expect(prisma.wsHillDayExport.update).not.toHaveBeenCalled();
+    });
+  });
+
+  it('refuses a blank dedicated key even when the internal service secret is configured', async () => {
+    const previousInternal = process.env.INTERNAL_SERVICE_SECRET;
+    process.env.INTERNAL_SERVICE_SECRET = 'synthetic-internal-service-secret';
+    try {
+      await withSigningKey('   ', async () => {
+        const { prisma, documents } = readyExport();
+        const service = new HillDayExportService(prisma as never, documents as never, {} as never);
+        const exp = String(Date.now() + 60_000);
+        await expect(service.file('doc-1', 'exp-1', exp, 'sig')).rejects.toBeInstanceOf(
+          ServiceUnavailableException,
+        );
+        expect(() => service.signedPath('doc-1', 'exp-1', Number(exp))).toThrow(
+          ServiceUnavailableException,
+        );
+      });
+    } finally {
+      if (previousInternal === undefined) delete process.env.INTERNAL_SERVICE_SECRET;
+      else process.env.INTERNAL_SERVICE_SECRET = previousInternal;
+    }
+  });
+
+  it('mints no grant for a ready export when the dedicated key is missing', async () => {
+    await withSigningKey(undefined, async () => {
+      const { prisma, documents } = readyExport();
+      const service = new HillDayExportService(prisma as never, documents as never, {} as never);
+      const view = await service.get('tenant', 'doc-1', 'exp-1', 'owner');
+      expect(view.status).toBe('ready');
+      expect(view.url).toBeNull();
+      expect(view.expiresAt).toBeNull();
+      // The grant minter itself refuses, so nothing can sign around this.
+      expect(() => service.signedPath('doc-1', 'exp-1', Date.now() + 60_000)).toThrow(
+        ServiceUnavailableException,
+      );
+    });
+  });
+
+  it('keeps a signature valid across independently constructed instances and a restart', async () => {
+    await withSigningKey(SIGNING_KEY, async () => {
+      const exp = Date.now() + 60_000;
+      const first = readyExport();
+      const second = readyExport();
+      const issuing = new HillDayExportService(
+        first.prisma as never,
+        first.documents as never,
+        {} as never,
+      );
+      const restarted = new HillDayExportService(
+        second.prisma as never,
+        second.documents as never,
+        {} as never,
+      );
+      const path = issuing.signedPath('doc-1', 'exp-1', exp);
+      const sig = new URL(`https://x${path}`).searchParams.get('sig')!;
+      expect(restarted.signedPath('doc-1', 'exp-1', exp)).toBe(path);
+      await expect(restarted.file('doc-1', 'exp-1', String(exp), sig)).resolves.toEqual({
+        buffer: first.file,
+        filename: 'x.pdf',
+      });
+    });
+  });
+
+  it('refuses a signature minted under a different dedicated key', async () => {
     const exp = Date.now() + 60_000;
-    const path = service.signedPath('doc-1', 'exp-1', exp);
+    const path = await withSigningKey(SIGNING_KEY, () => {
+      const { prisma, documents } = readyExport();
+      return new HillDayExportService(prisma as never, documents as never, {} as never).signedPath(
+        'doc-1',
+        'exp-1',
+        exp,
+      );
+    });
     const sig = new URL(`https://x${path}`).searchParams.get('sig')!;
-    const served = await service.file('doc-1', 'exp-1', String(exp), sig);
-    expect(served.buffer.equals(file)).toBe(true);
-    expect(served.filename).toBe('x.pdf');
-    await expect(service.file('doc-1', 'exp-1', String(exp), sig.replace(/^./, sig[0] === 'a' ? 'b' : 'a'))).rejects.toBeInstanceOf(ForbiddenException);
-    await expect(service.file('doc-1', 'exp-1', String(Date.now() - 1), sig)).rejects.toBeInstanceOf(ForbiddenException);
-    await expect(service.file('doc-2', 'exp-1', String(exp), sig)).rejects.toBeInstanceOf(ForbiddenException);
+    await withSigningKey('synthetic-other-export-signing-key', async () => {
+      const { prisma, documents } = readyExport();
+      const other = new HillDayExportService(prisma as never, documents as never, {} as never);
+      await expect(other.file('doc-1', 'exp-1', String(exp), sig)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
   });
 });
