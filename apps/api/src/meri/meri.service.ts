@@ -81,7 +81,8 @@ import {
   aggSuffix,
 } from '../memory/kg-cache-enrich.helpers.js';
 import { MeriToolsService } from './meri-tools.service.js';
-import { readPersistedPng } from './meri-artifact-integrity.js';
+import { readPersistedPng, sha256Bytes } from './meri-artifact-integrity.js';
+import type { NativeObjectReference } from './native-approvals/native-approval.contract.js';
 import { MeriContextPlaneService } from './meri-context-plane.service.js';
 import { RESEARCH_SAFE_READ_ARTIFACT_KIND } from './meri-research-durable-result.js';
 import {
@@ -191,6 +192,13 @@ import {
   RESEARCH_REPORT_BODY_WITHHELD,
 } from './meri-research-replay-authorization.js';
 import { publicResearchSourceTool } from './meri-report-provenance.js';
+
+export interface NativeAttachmentRegistration {
+  tx: Prisma.TransactionClient;
+  attachmentId: string;
+  object: NativeObjectReference;
+  beforeWrite: () => Promise<void>;
+}
 
 interface CreateConversationInput {
   clientId?: string;
@@ -3471,6 +3479,58 @@ export class MeriService implements MeriTurnMaintenance {
       .slice(0, take);
   }
 
+  /** Raw native filing custody. The receiver owns stable identity, locks and commit. */
+  async registerNativeAttachment(
+    ctx: TenantContext,
+    file: { buffer: Buffer; mimetype: string; originalname: string; size: number },
+    internal: NativeAttachmentRegistration,
+  ): Promise<Awaited<ReturnType<MeriService['uploadAttachment']>>> {
+    const bytes = Buffer.from(file.buffer), filename = file.originalname || 'untitled';
+    const sha256 = sha256Bytes(bytes), expectedHash = internal.object.sha256, expectedBytes = internal.object.bytes;
+    const validation = validateAttachment({ contentType: file.mimetype, byteSize: bytes.length, filename });
+    if (!validation.ok || validation.kind === 'unsupported') {
+      throw new BadRequestException(validation.reason ?? 'Unsupported attachment type');
+    }
+    const magic = verifyMagicBytes(validation.kind, new Uint8Array(bytes.subarray(0, 256)));
+    if (!magic.ok) throw new BadRequestException(magic.reason ?? 'File contents do not match its type');
+    if (sha256 !== expectedHash || bytes.length !== expectedBytes) {
+      throw new BadRequestException('The original file does not match the approved object.');
+    }
+    await internal.beforeWrite();
+    if (validation.kind === 'xlsx') {
+      try {
+        await validateMeriXlsxPackage(Buffer.from(bytes));
+      } catch {
+        throw new BadRequestException('The original file is not a valid macro-free Excel workbook.');
+      }
+      await internal.beforeWrite();
+    }
+    const mediaType = validation.kind === 'image' ? imageMediaTypeFromSniff(magic.sniffed)
+      : validation.kind === 'pdf' ? 'application/pdf'
+        : validation.kind === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          : validation.kind === 'pptx' ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+            : validation.kind === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+              : 'text/plain';
+    const existing = await internal.tx.clioAttachment.findFirst({ where: { id: internal.attachmentId } });
+    await internal.beforeWrite();
+    if (existing && (existing.tenantId !== ctx.tenantId || existing.userId !== ctx.userId || existing.messageId !== null ||
+        existing.byteSize !== bytes.length || !existing.data || existing.data.byteLength !== bytes.length ||
+        sha256Bytes(existing.data) !== sha256 || existing.kind !== validation.kind || existing.mediaType !== mediaType)) {
+      throw new ConflictException('The retained upload does not match the approved original file.');
+    }
+    const row = existing ?? await internal.tx.clioAttachment.create({ data: {
+      id: internal.attachmentId, tenantId: ctx.tenantId, userId: ctx.userId, messageId: null,
+      filename, kind: validation.kind, status: 'pending', mediaType, byteSize: bytes.length, data: bytes,
+      pages: null, textContent: null,
+      reason: 'Original file registered for approved filing; text extraction was not run.',
+    } });
+    return {
+      id: row.id, filename: row.filename, kind: row.kind, status: row.status as AttachmentStatus,
+      pages: row.pages, truncated: row.status === 'truncated', reason: row.reason,
+      chars: row.textContent?.length ?? 0, sha256, bytes: bytes.length,
+    };
+  }
+
   /**
    * Ingest an uploaded attachment for chat use (P2-7 + assistant-parity F1).
    *
@@ -3502,9 +3562,13 @@ export class MeriService implements MeriTurnMaintenance {
     truncated: boolean;
     reason: string | null;
     chars: number;
+    sha256?: string;
+    bytes?: number;
     contentState?: string;
     limitation?: string | null;
   }> {
+    // Keep the original independent of the caller and asynchronous parsers.
+    const originalBytes = Buffer.from(file.buffer);
     const enforceContentState =
       resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat') === 'enforce';
     const filename = file.originalname || 'untitled';
@@ -3521,22 +3585,23 @@ export class MeriService implements MeriTurnMaintenance {
 
     const validation = validateAttachment({
       contentType: file.mimetype,
-      byteSize: file.buffer.length,
+      byteSize: originalBytes.length,
       filename,
     });
     if (!validation.ok) {
       return reject(validation.kind, validation.reason ?? 'Invalid attachment');
     }
-    const magic = verifyMagicBytes(validation.kind, new Uint8Array(file.buffer.subarray(0, 256)));
+    const magic = verifyMagicBytes(validation.kind, new Uint8Array(originalBytes.subarray(0, 256)));
     if (!magic.ok) {
       return reject(validation.kind, magic.reason ?? 'File contents do not match its type');
     }
     if (validation.kind === 'unsupported') {
       return reject(validation.kind, 'Unsupported attachment type');
     }
+    const receipt = { sha256: sha256Bytes(originalBytes), bytes: originalBytes.length };
     if (validation.kind === 'xlsx') {
       try {
-        await validateMeriXlsxPackage(file.buffer);
+        await validateMeriXlsxPackage(Buffer.from(originalBytes));
       } catch (error) {
         const reason =
           error instanceof MeriXlsxValidationError && error.code === 'macro_content'
@@ -3561,7 +3626,7 @@ export class MeriService implements MeriTurnMaintenance {
       .catch(() => {});
 
     if (validation.kind === 'image') {
-      if (file.buffer.length > MAX_IMAGE_BYTES) {
+      if (originalBytes.length > MAX_IMAGE_BYTES) {
         return reject(
           'image',
           `Images must be at most ${Math.round(MAX_IMAGE_BYTES / 1024 / 1024)}MB for vision input`,
@@ -3577,14 +3642,15 @@ export class MeriService implements MeriTurnMaintenance {
             kind: 'image',
             status: 'image_ready',
             mediaType,
-            byteSize: file.buffer.length,
-            data: file.buffer,
+            byteSize: originalBytes.length,
+            data: originalBytes,
           },
           select: { id: true },
         }),
       );
       return {
         id: row.id,
+        ...receipt,
         filename,
         kind: 'image',
         status: 'image_ready',
@@ -3598,7 +3664,7 @@ export class MeriService implements MeriTurnMaintenance {
     let resolved: Awaited<ReturnType<typeof extractMeriDocument>>;
     try {
       resolved = await extractMeriDocument({
-        bytes: file.buffer,
+        bytes: Buffer.from(originalBytes),
         kind: validation.kind,
         tenantId: ctx.tenantId,
         userId: ctx.userId,
@@ -3613,7 +3679,7 @@ export class MeriService implements MeriTurnMaintenance {
     const pages = resolved.pages;
     if (resolved.status === 'scanned' || resolved.status === 'unsupported') {
       if (enforceContentState) {
-        const row = await this.createAttachmentRow(ctx, file, filename, validation.kind, resolved);
+        const row = await this.createAttachmentRow(ctx, originalBytes, filename, validation.kind, resolved);
         const content = describeAttachmentContentState({
           status: resolved.status,
           textContent: null,
@@ -3623,6 +3689,7 @@ export class MeriService implements MeriTurnMaintenance {
         });
         return {
           id: row.id,
+          ...receipt,
           filename,
           kind: validation.kind,
           status: resolved.status,
@@ -3645,7 +3712,7 @@ export class MeriService implements MeriTurnMaintenance {
         chars: 0,
       };
     }
-    const row = await this.createAttachmentRow(ctx, file, filename, validation.kind, resolved);
+    const row = await this.createAttachmentRow(ctx, originalBytes, filename, validation.kind, resolved);
     const content = describeAttachmentContentState({
       status: resolved.status,
       textContent: resolved.text,
@@ -3655,6 +3722,7 @@ export class MeriService implements MeriTurnMaintenance {
     });
     return {
       id: row.id,
+      ...receipt,
       filename,
       kind: validation.kind,
       status: resolved.status,
@@ -3670,7 +3738,7 @@ export class MeriService implements MeriTurnMaintenance {
 
   private createAttachmentRow(
     ctx: TenantContext,
-    file: { buffer: Buffer; mimetype: string; originalname: string; size: number },
+    buffer: Buffer,
     filename: string,
     kind: Exclude<import('./meri-attachment.helpers.js').AttachmentKind, 'image' | 'unsupported'>,
     resolved: Awaited<ReturnType<typeof extractMeriDocument>>,
@@ -3693,8 +3761,8 @@ export class MeriService implements MeriTurnMaintenance {
                   : kind === 'xlsx'
                     ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
                     : 'text/plain',
-          byteSize: file.buffer.length,
-          data: file.buffer,
+          byteSize: buffer.length,
+          data: buffer,
           pages: resolved.pages,
           textContent: resolved.text,
           reason: resolved.reason,

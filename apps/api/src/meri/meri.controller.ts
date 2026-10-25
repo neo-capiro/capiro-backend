@@ -368,6 +368,7 @@ export class MeriController {
     @Optional() private readonly readDelegationPrisma?: PrismaService,
     @Optional() private readonly memoryCandidateOwner?: GovernedMemoryCandidateService,
     @Optional() private readonly automaticClientContext?: AutomaticClientContextService,
+    @Optional() private readonly toolServiceIdentity?: ToolServiceSecretGuard,
   ) {}
 
   @Post('client-context/automatic')
@@ -894,8 +895,17 @@ export class MeriController {
     @CurrentTenant() ctx: TenantContext,
     @UploadedFile()
     file: { buffer: Buffer; mimetype: string; originalname: string; size: number } | undefined,
+    @Body('filing') filing?: unknown,
+    @Req() req?: Request,
   ) {
     if (!file) throw new BadRequestException('No file uploaded');
+    if (filing !== undefined) {
+      if (!this.executionReceiver || !this.toolServiceIdentity) throw new ServiceUnavailableException('Native filing unavailable');
+      if (!req) throw new ForbiddenException('Internal service required');
+      this.toolServiceIdentity.verifyRequest(req);
+      return this.executionReceiver.nativeAttachmentRegistration(req, ctx, filing,
+        registration => this.service.registerNativeAttachment(ctx, file, registration));
+    }
     return this.service.uploadAttachment(ctx, file);
   }
 

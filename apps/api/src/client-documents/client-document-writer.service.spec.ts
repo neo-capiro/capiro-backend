@@ -103,4 +103,20 @@ describe('ClientDocumentWriterService runtime boundary', () => {
       readAttachmentBytes: { action: 'attachment_external_read' },
     });
   });
+
+  it('forwards the internal native transaction and commit hooks through the governed port', async () => {
+    const createAttachmentFromBuffer = jest.fn(async () => ({ id: 'document' }));
+    const internal = { tx: {} as never, beforeWrite: jest.fn(async () => {}),
+      afterCommit: [] as Array<() => void>, immutableObjectIdentity: 'a'.repeat(64) };
+    const input = { clientId: 'client', fileName: 'original.txt', contentType: 'text/plain',
+      buffer: Buffer.from('original'), idempotencyKey: 'object', untrustedUpload: true };
+    const service = new ClientDocumentWriterService({ createAttachmentFromBuffer } as never, activePolicy());
+    await service.createAttachmentFromBuffer(ctx, input, internal);
+    expect(createAttachmentFromBuffer).toHaveBeenCalledWith(ctx, input, internal);
+
+    const shadow = new ClientDocumentWriterService({ createAttachmentFromBuffer } as never, shadowPolicy());
+    expect(() => shadow.createAttachmentFromBuffer(ctx, input, internal)).toThrow(ServiceUnavailableException);
+    expect(createAttachmentFromBuffer).toHaveBeenCalledTimes(1);
+    expect(internal.beforeWrite).not.toHaveBeenCalled();
+  });
 });

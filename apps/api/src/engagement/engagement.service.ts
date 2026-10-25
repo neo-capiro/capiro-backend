@@ -290,6 +290,17 @@ export interface SendSingleMailInput {
   attachmentIds?: string[];
 }
 
+/** Internal native filing boundary; the caller owns commit and durable receipt state. */
+export interface NativeClientDocumentWrite {
+  tx: Prisma.TransactionClient;
+  /** Recheck current authority and hold its locks on tx through the caller's commit. */
+  beforeWrite: () => Promise<void>;
+  /** The caller runs these only after its domain and receipt transaction commits. */
+  afterCommit: Array<() => void>;
+  /** SHA-256 of the full approved immutable ObjectReference, including storage version. */
+  immutableObjectIdentity: string;
+}
+
 export interface AttachmentUploadInput {
   prospectId?: string;
   requestId?: string;
@@ -8293,6 +8304,7 @@ export class EngagementService {
       untrustedUpload?: boolean;
       privateToUploader?: boolean;
     },
+    internal?: NativeClientDocumentWrite,
   ): Promise<{
     id: string;
     fileName: string;
@@ -8302,6 +8314,13 @@ export class EngagementService {
     indexedAt?: Date | null;
     reused?: boolean;
   }> {
+    if (internal) {
+      if (!input.idempotencyKey || !/^[a-f0-9]{64}$/.test(internal.immutableObjectIdentity) ||
+          !input.clientId || input.meetingId || input.privateToUploader || input.untrustedUpload !== true) {
+        throw new BadRequestException('Native client filing requires an immutable object identity and original upload.');
+      }
+      input = { ...input, buffer: Buffer.from(input.buffer) };
+    }
     if (!this.bucket) throw new ServiceUnavailableException('ASSETS_BUCKET is not configured');
     if (!isAllowedAttachmentContentType(input.contentType)) {
       throw new BadRequestException(
@@ -8311,10 +8330,17 @@ export class EngagementService {
     if (input.buffer.byteLength > MAX_ATTACHMENT_BYTES) {
       throw new BadRequestException(`Attachment must be <= ${MAX_ATTACHMENT_BYTES} bytes`);
     }
-    await this.validateAttachmentParents(ctx, {
-      clientId: input.clientId ?? undefined,
-      meetingId: input.meetingId ?? undefined,
-    });
+    if (internal) await internal.beforeWrite();
+    else await this.validateAttachmentParents(ctx, {
+        clientId: input.clientId ?? undefined,
+        meetingId: input.meetingId ?? undefined,
+      });
+    const inWriteTransaction = <T>(write: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> =>
+      internal ? write(internal.tx) : this.prisma.withTenant(ctx.tenantId, write);
+    const byteHash = createHash('sha256').update(input.buffer).digest('hex');
+    if (internal && input.sourceContentHash != null && input.sourceContentHash !== byteHash) {
+      throw new BadRequestException('The original file digest does not match its approved source.');
+    }
     const safeName = safeFileName(input.fileName);
     // The content digest is part of the identity: retries cannot overwrite an
     // existing document with different bytes. A deterministic primary key and
@@ -8323,7 +8349,10 @@ export class EngagementService {
     const digest = input.idempotencyKey
       ? createHash('sha256')
           .update(
-            JSON.stringify([
+            JSON.stringify(internal ? [
+              'native-client-document-v1', ctx.tenantId, ctx.userId, input.clientId,
+              internal.immutableObjectIdentity, byteHash,
+            ] : [
               'client-document-v1',
               ctx.tenantId,
               ctx.userId,
@@ -8332,7 +8361,7 @@ export class EngagementService {
               input.idempotencyKey,
               input.contentType,
               input.privateToUploader ?? false,
-              createHash('sha256').update(input.buffer).digest('hex'),
+              byteHash,
             ]),
           )
           .digest('hex')
@@ -8340,10 +8369,20 @@ export class EngagementService {
     const stableId = digest
       ? `${digest.slice(0, 8)}-${digest.slice(8, 12)}-5${digest.slice(13, 16)}-a${digest.slice(17, 20)}-${digest.slice(20, 32)}`
       : null;
+    const s3Key = stableId
+      ? `tenants/${ctx.tenantId}/engagement/${stableId}/document`
+      : `tenants/${ctx.tenantId}/engagement/${randomUUID()}/${safeName}`;
+    if (internal) {
+      await internal.tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`capiro-client-document:${stableId}`}, 0))`);
+      await internal.beforeWrite();
+      await internal.tx.$executeRaw(Prisma.sql`SELECT id FROM engagement_attachments
+        WHERE tenant_id=${ctx.tenantId}::uuid AND id=${stableId}::uuid FOR UPDATE`);
+      await internal.beforeWrite();
+    }
     if (stableId) {
-      const existing = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      const existing = await inWriteTransaction((tx) =>
         tx.engagementAttachment.findFirst({
-          where: {
+          where: internal ? { id: stableId } : {
             id: stableId,
             tenantId: ctx.tenantId,
             uploadedByUserId: ctx.userId,
@@ -8351,7 +8390,18 @@ export class EngagementService {
           },
         }),
       );
-      if (existing)
+      if (existing) {
+        if (internal) {
+          await internal.beforeWrite();
+          if (existing.tenantId !== ctx.tenantId || existing.uploadedByUserId !== ctx.userId ||
+              existing.clientId !== input.clientId || existing.byteSize !== input.buffer.byteLength ||
+              existing.calculatedSha256 !== byteHash || existing.sourceContentHash !== byteHash ||
+              existing.bucket !== this.bucket || existing.s3Key !== s3Key ||
+              existing.supersededByAttachmentId ||
+              !['ready', 'legacy_ready', 'quarantined', 'blocked'].includes(existing.lifecycleStatus)) {
+            throw new ConflictException('The retained client document cannot be reused.');
+          }
+        }
         return {
           id: existing.id,
           fileName: existing.fileName,
@@ -8361,10 +8411,8 @@ export class EngagementService {
           indexedAt: existing.indexedAt,
           reused: true,
         };
+      }
     }
-    const s3Key = stableId
-      ? `tenants/${ctx.tenantId}/engagement/${stableId}/document`
-      : `tenants/${ctx.tenantId}/engagement/${randomUUID()}/${safeName}`;
     const verifiedContentType = input.untrustedUpload
       ? this.attachmentContent.detectContentType(input.buffer)
       : null;
@@ -8375,23 +8423,46 @@ export class EngagementService {
     ) {
       throw new BadRequestException('The original file contents do not match its document type.');
     }
-    await this.s3.send(
-      new PutObjectCommand({
-        Bucket: this.bucket,
-        Key: s3Key,
-        Body: input.buffer,
-        ContentType: input.contentType,
-      }),
-    );
+    const checksum = Buffer.from(byteHash, 'hex').toString('base64');
+    if (internal) await internal.beforeWrite();
+    try {
+      await this.s3.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: s3Key,
+          Body: input.buffer,
+          ContentType: input.contentType,
+          ...(internal ? { IfNoneMatch: '*', ChecksumSHA256: checksum } : {}),
+        }),
+      );
+    } catch (error) {
+      const precondition = error as { name?: string; $metadata?: { httpStatusCode?: number } };
+      if (!internal || (precondition?.$metadata?.httpStatusCode !== 412 && precondition?.name !== 'PreconditionFailed')) {
+        throw error;
+      }
+      await internal.beforeWrite();
+      // A prior PUT may have succeeded before its database transaction failed.
+      // Observe the exact object; missing/ambiguous HEAD never authorizes overwrite.
+      const existingObject = await this.s3.send(new HeadObjectCommand({
+        Bucket: this.bucket, Key: s3Key, ChecksumMode: 'ENABLED',
+      }));
+      await internal.beforeWrite();
+      if (existingObject.ContentLength !== input.buffer.byteLength ||
+          existingObject.ChecksumSHA256 !== checksum || existingObject.ContentType !== input.contentType) {
+        throw new ConflictException('The retained storage object does not match the original file.');
+      }
+    }
+    if (internal) await internal.beforeWrite();
     const initialScan = input.untrustedUpload
       ? await this.scanner.getStatus(this.bucket, s3Key)
       : null;
+    if (internal) await internal.beforeWrite();
     const scanReady =
       initialScan === 'clean' ||
       (initialScan === 'scanner_not_required' && !this.scanner.scanRequired);
-    const attachment = await this.prisma
-      .withTenant(ctx.tenantId, async (tx) => {
+    const attachment = await inWriteTransaction(async (tx) => {
         const clientId = await this.attachmentClientAtWrite(tx, ctx, input);
+        if (internal) await internal.beforeWrite();
         const data = {
           ...(stableId ? { id: stableId } : {}),
           tenantId: ctx.tenantId,
@@ -8406,7 +8477,7 @@ export class EngagementService {
           sourceEntityType: input.sourceEntityType ?? null,
           sourceEntityId: input.sourceEntityId ?? null,
           sourceVersion: input.sourceVersion ?? null,
-          sourceContentHash: input.sourceContentHash ?? null,
+          sourceContentHash: internal ? byteHash : input.sourceContentHash ?? null,
           uploadedByUserId: ctx.userId,
           ...(input.privateToUploader
             ? { viewerMode: 'restricted', viewerUserIds: [ctx.userId] }
@@ -8419,7 +8490,7 @@ export class EngagementService {
                     ? 'quarantined'
                     : 'blocked',
                 verifiedContentType,
-                calculatedSha256: this.attachmentContent.sha256(input.buffer),
+                calculatedSha256: internal ? byteHash : this.attachmentContent.sha256(input.buffer),
                 scanProvider: this.scanner.providerName,
                 scanStatus: initialScan,
                 scanResultAt: initialScan === 'pending' ? null : new Date(),
@@ -8427,16 +8498,18 @@ export class EngagementService {
               }
             : {}),
         };
-        return stableId
-          ? tx.engagementAttachment.upsert({ where: { id: stableId }, create: data, update: {} })
-          : tx.engagementAttachment.create({ data });
+        return internal
+          ? tx.engagementAttachment.create({ data })
+          : stableId
+            ? tx.engagementAttachment.upsert({ where: { id: stableId }, create: data, update: {} })
+            : tx.engagementAttachment.create({ data });
       })
       .catch(async (error: unknown) => {
         // Prisma may emulate an upsert when tenant predicates are injected. The
         // primary key still prevents duplicates; recover the concurrent winner
         // after that transaction rolled back instead of reporting a false failure.
         if (
-          stableId &&
+          !internal && stableId &&
           error instanceof Prisma.PrismaClientKnownRequestError &&
           error.code === 'P2002'
         ) {
@@ -8455,7 +8528,9 @@ export class EngagementService {
         throw error;
       });
     if (attachment.clientId && !input.privateToUploader && (!input.untrustedUpload || scanReady)) {
-      this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, attachment.id);
+      const index = () => this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, attachment.id);
+      if (internal) internal.afterCommit.push(index);
+      else index();
     }
     return {
       id: attachment.id,

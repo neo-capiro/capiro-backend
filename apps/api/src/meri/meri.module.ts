@@ -4,7 +4,6 @@ import { ManagedMcpModule } from './managed-mcp.module.js';
 import { ConfigService } from '@nestjs/config';
 import { EngagementModule } from '../engagement/engagement.module.js';
 import { ClientDocumentsModule } from '../client-documents/client-documents.module.js';
-import { MeriClientFilingService } from './meri-client-filing.service.js';
 import { MeriJobDeliverablesController } from './meri-job-deliverables.controller.js';
 import { MeriJobDeliverablesService } from './meri-job-deliverables.service.js';
 import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module.js';
@@ -54,6 +53,7 @@ import { ResearchPortfolioChangesService } from '../research-portfolios/research
 import { ResearchPortfolioReviewService } from '../research-portfolios/research-portfolio-review.service.js';
 import { ResearchPortfolioAnalyticsService } from '../research-portfolios/research-portfolio-analytics.service.js';
 import { InternalServiceGuard } from '../auth/internal-service.guard.js';
+import { ToolServiceSecretGuard } from '../auth/tool-service-secret.guard.js';
 import { GovernedMemoryCandidateService } from '../memory/governed-memory-candidate.service.js';
 import { MeriMemoryHelperController } from './memory-receiving/meri-memory-helper.controller.js';
 import { MeriSourceController } from './meri-source.controller.js';
@@ -156,6 +156,7 @@ import { NativeApprovalModule } from './native-approvals/native-approval.control
     MeriJobDeliverablesController,
   ],
   providers: [
+    ToolServiceSecretGuard,
     AutomaticClientContextService,
     InternalServiceGuard,
     { provide: ObjectiveJobReadSources, useFactory: (integrations: EngagementService, tools: MeriToolsService,
@@ -170,7 +171,6 @@ import { NativeApprovalModule } from './native-approvals/native-approval.control
     { provide: RetainedReadDispatcher, useFactory: (prisma: PrismaService, tools: MeriToolsService,
       memory: GovernedMemoryCandidateService, sources: ObjectiveJobReadSources) => new RetainedReadDispatcher(prisma, tools, memory, sources),
       inject: [PrismaService, MeriToolsService, GovernedMemoryCandidateService, ObjectiveJobReadSources] },
-    MeriClientFilingService,
     MeriJobDeliverablesService,
     MeriChatAttachmentReadService,
     MeriSourceService,

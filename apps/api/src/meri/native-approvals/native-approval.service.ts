@@ -14,6 +14,8 @@ import {
   parseApprovalDecisionInput,
   parseApprovalRecordInput,
   parseApprovalRevokeInput,
+  parseArtifactFileArguments,
+  parseArtifactFileAttachments,
   sameJson,
   type NativeApprovalDecision,
   type NativeApprovalReceipt,
@@ -112,7 +114,7 @@ export class NativeApprovalService {
     const { binding } = proposal.command;
     if (binding.tenantId !== ctx.tenantId || binding.actorId !== ctx.userId ||
         proposal.requiredApprover.tenantId !== ctx.tenantId || proposal.requiredApprover.actorId !== ctx.userId) throw forbidden();
-    if (!['task.create', 'task.update', 'document.draft'].includes(proposal.command.action))
+    if (!['task.create', 'task.update', 'document.draft', 'artifact.file'].includes(proposal.command.action))
       throw new ConflictException('Approval action is not supported');
     const policyRevision = singlePolicyRevision(proposal.command.scopes, binding.tenantId);
     await this.currentPrepared(req, ctx, proposal);
@@ -130,6 +132,15 @@ export class NativeApprovalService {
     if (clientId !== null && !UUID.test(clientId)) throw forbidden();
     if (clientId === null && (scopes.length !== 1 || scopes[0]!.kind !== 'private-user' ||
         scopes[0]!.resourceId !== binding.actorId)) throw forbidden();
+    if (proposal.command.action === 'artifact.file') {
+      const destination = parseArtifactFileArguments(proposal.command.arguments);
+      const objects = parseArtifactFileAttachments(proposal.command.attachments);
+      // Native filing is bounded to the conversation's selected client. Object
+      // scopes are exact preparation correlations, never grants of access.
+      if (clientId === null || scopes.length !== 1 || destination.clientId !== clientId ||
+          destination.conversationId !== binding.conversationId || objects.some(object => !sameJson(object.scopes, scopes)))
+        throw forbidden();
+    }
     // The selector is checked against the persisted owned conversation by the
     // canonical current owner; a proposal scope is never an authorization grant.
     const observed = await this.current.read(ctx, req, { conversationId: binding.conversationId, clientId });

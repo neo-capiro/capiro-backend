@@ -14,6 +14,8 @@ import { ApplicationAuthorityModule } from '../../auth/application-authority.mod
 import { EngagementModule } from '../../engagement/engagement.module.js';
 import { TenantModule } from '../../tenant/tenant.module.js';
 import { MeriExecutionReceiverService } from '../execution-capability/meri-execution-receiver.service.js';
+import { ClientDocumentsModule } from '../../client-documents/client-documents.module.js';
+import { MeriClientFilingService } from '../meri-client-filing.service.js';
 
 /** Bodies and receipts are the native provider operations `approval/record`
  * and `approval/decision` byte-for-byte; revoke also carries Meri's approver.
@@ -29,14 +31,14 @@ export class NativeApprovalController {
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
   executeTask(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
-    return this.receiver.nativeTask(req, ctx, body, 'execute');
+    return this.receiver.nativeApproved(req, ctx, body, 'execute');
   }
 
   @Post('execution/read')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
   readTask(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
-    return this.receiver.nativeTask(req, ctx, body, 'read');
+    return this.receiver.nativeApproved(req, ctx, body, 'read');
   }
 
   @Post('record')
@@ -72,12 +74,12 @@ export class NativeApprovalController {
 }
 
 @Module({
-  imports: [PrismaModule, ApplicationAuthorityModule, EngagementModule, TenantModule],
+  imports: [PrismaModule, ApplicationAuthorityModule, EngagementModule, TenantModule, ClientDocumentsModule],
   controllers: [NativeApprovalController],
   providers: [
-    NativeApprovalService, NativeApprovalMetadataVerifier, ToolServiceSecretGuard, NativeExecutionService, MeriExecutionReceiverService,
+    NativeApprovalService, NativeApprovalMetadataVerifier, ToolServiceSecretGuard, NativeExecutionService, MeriExecutionReceiverService, MeriClientFilingService,
     meriExecutionKeyConfigProvider, meriExecutionSignerProvider,
   ],
-  exports: [MeriExecutionReceiverService],
+  exports: [MeriExecutionReceiverService, MeriClientFilingService],
 })
 export class NativeApprovalModule {}

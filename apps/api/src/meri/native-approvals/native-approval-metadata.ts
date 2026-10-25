@@ -2,7 +2,8 @@ import { ConflictException, Injectable, Optional, ServiceUnavailableException } 
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import {
-  nativeCanonicalSha256, parseRunBinding, parseTaskCreateArguments, parseTaskUpdateArguments, sameJson, UUID,
+  nativeCanonicalSha256, parseArtifactFileArguments, parseArtifactFileAttachments, parseRunBinding,
+  parseTaskCreateArguments, parseTaskUpdateArguments, sameJson, UUID,
   type NativeApprovalProposal,
 } from './native-approval.contract.js';
 
@@ -23,6 +24,7 @@ function closed(value: unknown, required: readonly string[], optional: readonly 
 function normalizedInput(proposal: NativeApprovalProposal, request: unknown, commandContext: unknown) {
   const c = proposal.command;
   let args: Record<string, unknown>;
+  let attachments: unknown[] = [];
   if (c.action === 'document.draft') {
     const context = closed(commandContext, ['binding', 'scopes']);
     if (!sameJson(context, { binding: c.binding, scopes: c.scopes })) throw mismatch();
@@ -64,15 +66,30 @@ function normalizedInput(proposal: NativeApprovalProposal, request: unknown, com
         : key === 'dueDate' && value.length === 10 ? `${value}T00:00:00.000Z` : value;
     }
     args = parseTaskUpdateArguments({ taskId: raw.taskId.trim().toLowerCase(), mode: 'unconditional_patch', patch });
+  } else if (c.action === 'artifact.file') {
+    const context = closed(commandContext, ['binding', 'destination']);
+    const destination = closed(context.destination, ['clientId', 'conversationId']);
+    const raw = closed(request, ['clientId', 'conversationId', 'objects']);
+    if (!sameJson(context.binding, c.binding)) throw mismatch();
+    for (const key of ['clientId', 'conversationId']) {
+      if (typeof destination[key] !== 'string' || !UUID.test((destination[key] as string).toLowerCase()) ||
+          typeof raw[key] !== 'string' || (raw[key] as string).toLowerCase() !== (destination[key] as string).toLowerCase()) throw mismatch();
+    }
+    args = parseArtifactFileArguments({ clientId: (destination.clientId as string).toLowerCase(),
+      conversationId: (destination.conversationId as string).toLowerCase() });
+    const objects = parseArtifactFileAttachments(raw.objects);
+    if (args.conversationId !== c.binding.conversationId ||
+        objects.some(object => !sameJson(object.scopes, c.scopes))) throw mismatch();
+    attachments = objects;
   } else throw mismatch();
-  if (!sameJson(args, c.arguments) || c.attachments.length !== 0) throw mismatch();
-  return { arguments: args, attachments: [] };
+  if (!sameJson(args, c.arguments) || !sameJson(attachments, c.attachments)) throw mismatch();
+  return { arguments: args, attachments };
 }
 
 /** The initial binding proves preparation custody. Later generations, a started
- * turn, or its admission expiry do not revoke an explicit Core task approval. */
+ * turn, or its admission expiry do not revoke an explicit Core approval. */
 function initialPreparation(value: unknown, proposal: NativeApprovalProposal): void {
-  if (!['task.create', 'task.update'].includes(proposal.command.action)) throw mismatch();
+  if (!['task.create', 'task.update', 'artifact.file'].includes(proposal.command.action)) throw mismatch();
   const p = closed(value, ['kind', 'record', 'recordSha256', 'generation', 'latestGeneration', 'started']);
   const r = closed(p.record, ['schemaVersion', 'state', 'binding', 'selectedClientId', 'policyRevision', 'versions',
     'configurationSha256', 'expiresAtMs', 'createdAtMs']);
@@ -107,11 +124,12 @@ function verifyReadback(actual: unknown, proposal: NativeApprovalProposal): void
     const r = closed(m.record, ['operation', 'action', 'binding', 'request', 'inputSha256', 'commandId',
       'idempotencyKey', 'proposalId', 'scopes', 'createdAt', 'expiresAt', 'requiredApprover']);
     const c = proposal.command;
-    const operation = c.action === 'document.draft' ? 'create_word' : c.action === 'task.create' ? 'create_task' : 'update_task';
-    // A task effect may already have committed before its preparation run
+    const operation = c.action === 'document.draft' ? 'create_word' : c.action === 'task.create' ? 'create_task'
+      : c.action === 'artifact.file' ? 'save_chat_attachments' : 'update_task';
+    // An effect may already have committed before its preparation run
     // subsequently failed. Retained metadata remains valid for reconciliation.
     const states = ['queued', 'starting', 'running', 'paused', 'waiting-for-approval', 'completed',
-      ...(c.action === 'task.create' || c.action === 'task.update' ? ['failed'] : [])];
+      ...(['task.create', 'task.update', 'artifact.file'].includes(c.action) ? ['failed'] : [])];
     const input = normalizedInput(proposal, r.request, m.commandContext);
     const expected = { operation: { id: operation, version: '0.2.0' }, action: c.action,
       binding: c.binding, request: r.request, inputSha256: nativeCanonicalSha256(input),

@@ -1,9 +1,13 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { createHash } from 'node:crypto';
+import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { ClientDocumentWriterService } from '../client-documents/client-document-writer.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { fetchDeniedClientIds } from '../memory/memory-wall.helpers.js';
 import { assertMeriToolRequestActive } from './meri-tool-request-control.js';
+import { nativeCanonicalSha256, type NativeObjectReference } from './native-approvals/native-approval.contract.js';
+import type { NativeClientDocumentWrite } from '../engagement/engagement.service.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 type FileReceipt = {
@@ -17,6 +21,24 @@ type FileReceipt = {
   reused?: boolean;
 };
 
+export type NativeFileObservation = Omit<FileReceipt, 'attachmentId'> & { object: NativeObjectReference };
+export type NativeFilingSource = { object: NativeObjectReference; buffer: Buffer; fileName: string; contentType: string };
+const nativeSource = 'meri_native_artifact';
+const unavailable = () => new NotFoundException('Approved file is not currently available');
+
+function nativeObservation(object: NativeObjectReference, clientId: string, document: {
+  id: string; fileName: string; lifecycleStatus?: string; indexedAt?: Date | null; reused?: boolean;
+}): NativeFileObservation {
+  const status = document.lifecycleStatus === 'quarantined' ? 'pending'
+    : ['ready', 'legacy_ready'].includes(document.lifecycleStatus ?? '') ? 'saved' : 'failed';
+  return { object, fileName: document.fileName, status, documentId: document.id,
+    location: `/clients?clientId=${clientId}&tab=files&attachmentId=${encodeURIComponent(document.id)}`,
+    indexingStatus: status === 'saved' ? document.indexedAt ? 'indexed' : 'pending' : 'not_indexed',
+    reused: document.reused === true,
+    ...(status === 'pending' ? { reason: 'The original file is stored; document scanning is still pending.' }
+      : status === 'failed' ? { reason: 'The file was stored but is unavailable under the document readiness policy.' } : {}) };
+}
+
 /** Chat filing is an adapter into the existing client Documents lifecycle. */
 @Injectable()
 export class MeriClientFilingService {
@@ -24,6 +46,66 @@ export class MeriClientFilingService {
     private readonly prisma: PrismaService,
     private readonly documents: ClientDocumentWriterService,
   ) {}
+
+  /** Native custody uses genuine owned staged bytes, without inventing a user message. */
+  async nativeSources(ctx: TenantContext, mappings: { attachmentId: string; object: NativeObjectReference }[]): Promise<NativeFilingSource[]> {
+    return this.prisma.withTenant(ctx.tenantId, async tx => {
+      const rows = await tx.clioAttachment.findMany({ where: { tenantId: ctx.tenantId, userId: ctx.userId,
+        messageId: null, id: { in: mappings.map(value => value.attachmentId) } } });
+      return mappings.map(({ attachmentId, object }) => {
+        const row = rows.find(value => value.id === attachmentId);
+        if (!row?.data || !row.mediaType) throw unavailable();
+        const buffer = Buffer.from(row.data);
+        if (buffer.length > 10 * 1024 * 1024 || buffer.length !== object.bytes || row.byteSize !== object.bytes ||
+            createHash('sha256').update(buffer).digest('hex') !== object.sha256) throw unavailable();
+        return { object, buffer, fileName: row.filename, contentType: row.mediaType };
+      });
+    });
+  }
+
+  /** The original object/version/hash, not the transient upload ID, identifies the document. */
+  async saveNativeSource(ctx: TenantContext, clientId: string, source: NativeFilingSource,
+    execution: Omit<NativeClientDocumentWrite, 'immutableObjectIdentity'>): Promise<NativeFileObservation> {
+    const identity = nativeCanonicalSha256(source.object);
+    if (source.buffer.length !== source.object.bytes || createHash('sha256').update(source.buffer).digest('hex') !== source.object.sha256) throw unavailable();
+    const document = await this.documents.createAttachmentFromBuffer(ctx, {
+      clientId, fileName: source.fileName, contentType: source.contentType, buffer: source.buffer,
+      source: nativeSource, sourceEntityType: nativeSource, sourceEntityId: identity,
+      sourceContentHash: source.object.sha256, idempotencyKey: `meri-native-artifact:${identity}`, untrustedUpload: true,
+    }, { ...execution, immutableObjectIdentity: identity });
+    if (!document.id) throw new ConflictException('Approved file outcome unknown');
+    return nativeObservation(source.object, clientId, document);
+  }
+
+  /** Read-only proof of existing effects; absence is never evidence that S3 did not write. */
+  async nativeObservations(tx: Prisma.TransactionClient, ctx: TenantContext, clientId: string,
+    objects: NativeObjectReference[]): Promise<NativeFileObservation[] | null> {
+    const identities = objects.map(nativeCanonicalSha256);
+    await tx.$queryRaw`SELECT id::text FROM engagement_attachments
+      WHERE tenant_id=${ctx.tenantId}::uuid AND client_id=${clientId}::uuid
+        AND uploaded_by_user_id=${ctx.userId}::uuid AND source=${nativeSource}
+        AND source_entity_type=${nativeSource} AND source_entity_id=ANY(${identities}::text[])
+      ORDER BY id FOR SHARE`;
+    const rows = await tx.engagementAttachment.findMany({ where: { tenantId: ctx.tenantId, clientId,
+      uploadedByUserId: ctx.userId, source: nativeSource, sourceEntityType: nativeSource,
+      sourceEntityId: { in: identities } }, take: objects.length + 1 });
+    const observations: NativeFileObservation[] = [];
+    for (const object of objects) {
+      const matches = rows.filter(row => row.sourceEntityId === nativeCanonicalSha256(object));
+      if (matches.length === 0) return null;
+      const row = matches[0]!;
+      if (matches.length !== 1 || row.sourceContentHash !== object.sha256 || row.calculatedSha256 !== object.sha256 ||
+          row.byteSize !== object.bytes || row.supersededByAttachmentId || row.lifecycleStatus.startsWith('delete_')) throw unavailable();
+      observations.push(nativeObservation(object, clientId, { ...row, reused: true }));
+    }
+    return observations;
+  }
+
+  async assertNativeOutcomeCurrent(tx: Prisma.TransactionClient, ctx: TenantContext, clientId: string,
+    files: NativeFileObservation[]) {
+    const current = await this.nativeObservations(tx, ctx, clientId, files.map(file => file.object));
+    if (!current || current.some((file, index) => file.documentId !== files[index]!.documentId)) throw unavailable();
+  }
 
   private async destination(ctx: TenantContext, clientId: string, conversationId?: string) {
     if (!UUID.test(clientId) || (conversationId && !UUID.test(conversationId))) {

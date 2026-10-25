@@ -23,11 +23,13 @@ class FocusedEngagementModule {}
 function fixture(general = false, action = 'document.draft') {
   const state = { member:true, wall:true, destinationVisible:true, receipt:true, status:'active', actorId:id(2), clientId:general ? null : id(7), unavailable:false };
   const scopes = [{ tenantId:id(1), kind:general ? 'private-user' : 'client', resourceId:general ? id(2) : id(7), policyRevision:'policy1' }];
-  const command: NativeCommand = { contractVersion:action === 'task.create' ? '0.1.0' : '0.2.0', commandId:id(8), binding, action,
+  const command: NativeCommand = { contractVersion:action === 'task.create' || action === 'artifact.file' ? '0.1.0' : '0.2.0', commandId:id(8), binding, action,
     arguments:action === 'task.create' ? {title:'Reviewed task',clientId:null,dueDate:null}
       : action === 'task.update' ? {taskId:id(11),mode:'unconditional_patch',patch:{status:'todo'}}
+        : action === 'artifact.file' ? {clientId:id(7),conversationId:binding.conversationId}
         : {preparationSha256:'a'.repeat(64),artifactRequestSha256:'b'.repeat(64),sourceContextSha256:'c'.repeat(64),baseVersionId:null,title:'Reviewed draft',format:'docx'},
-    attachments:[],scopes,idempotencyKey:'document-draft-1' };
+    attachments:action === 'artifact.file' ? [{objectId:id(170),versionId:'opaque-storage-version',sha256:'f'.repeat(64),bytes:128,scopes}] : [],
+    scopes,idempotencyKey:'document-draft-1' };
   const proposal = { proposalId:id(9),command,commandSha256:hash(command),createdAt:new Date(Date.now()-1000).toISOString(),
     expiresAt:new Date(Date.now()+60000).toISOString(),requiredApprover:{tenantId:id(1),actorId:id(2)} };
   const rows = new Map<string,any>(), revoked = new Set<string>();
@@ -66,11 +68,13 @@ function fixture(general = false, action = 'document.draft') {
     .canActivate({switchToHttp:()=>({getRequest:()=>req})} as unknown as ExecutionContext);
   const ctx = {tenantId:id(1),userId:id(2),role:'standard_user'} as TenantContext;
   const response = () => ({schemaVersion:1,commandSha256:proposal.commandSha256,
-    metadata:{record:{operation:{id:action === 'task.create' ? 'create_task' : action === 'task.update' ? 'update_task' : 'create_word',version:'0.2.0'},action:command.action,binding,
-      request:action === 'task.create' ? {title:'  Reviewed task  '} : action === 'task.update' ? {taskId:id(11),status:' OPEN ',title:null,dueDate:''} : command.arguments,
-      inputSha256:hash({arguments:command.arguments,attachments:[]}),commandId:command.commandId,idempotencyKey:command.idempotencyKey,
+    metadata:{record:{operation:{id:action === 'task.create' ? 'create_task' : action === 'task.update' ? 'update_task' : action === 'artifact.file' ? 'save_chat_attachments' : 'create_word',version:'0.2.0'},action:command.action,binding,
+      request:action === 'task.create' ? {title:'  Reviewed task  '} : action === 'task.update' ? {taskId:id(11),status:' OPEN ',title:null,dueDate:''}
+        : action === 'artifact.file' ? {...command.arguments,objects:command.attachments} : command.arguments,
+      inputSha256:hash({arguments:command.arguments,attachments:command.attachments}),commandId:command.commandId,idempotencyKey:command.idempotencyKey,
       proposalId:proposal.proposalId,scopes:command.scopes,createdAt:proposal.createdAt,expiresAt:proposal.expiresAt,requiredApprover:proposal.requiredApprover},
-      commandContext:action === 'task.create' ? {binding,clientResolution:null} : action === 'task.update' ? {binding} : {binding,scopes:command.scopes},commandSha256:proposal.commandSha256},
+      commandContext:action === 'task.create' ? {binding,clientResolution:null} : action === 'task.update' ? {binding}
+        : action === 'artifact.file' ? {binding,destination:command.arguments} : {binding,scopes:command.scopes},commandSha256:proposal.commandSha256},
     run:{binding,scopes:command.scopes,state:'completed',versions:{test:'fixture'}}});
   const fetcher = jest.spyOn(globalThis,'fetch').mockImplementation(async(url,init)=>{
     expect(String(url)).toBe('https://control.synthetic.invalid/v1/internal/approval-metadata/read');
@@ -154,6 +158,66 @@ describe.each(['task.create','task.update'])('native %s approval through current
     expect(f.fetcher).not.toHaveBeenCalled();expect(f.rows.size).toBe(0);
   });
 });
+describe('native artifact filing approval through canonical current authority',()=>{
+  it.each(['completed-run','initial-binding'])('records one decision for exact selected-client %s custody',async custody=>{
+    const f=fixture(false,'artifact.file');
+    if(custody==='initial-binding')f.fetcher.mockImplementation(async()=>Response.json(initialResponse(f)));
+    const first=await f.record();
+    expect(first.decision).toMatchObject({decision:'approved',commandSha256:f.proposal.commandSha256,policyRevision:'policy1'});
+    const repeat=await f.service.record(f.req,f.ctx,{proposal:f.proposal,decision:'rejected',approver:f.proposal.requiredApprover,binding});
+    expect(repeat.decision).toEqual(first.decision);expect(f.rows.size).toBe(1);
+    expect(f.membership.readInTransaction).toHaveBeenCalledTimes(4);
+    expect(f.tx.$queryRaw).not.toHaveBeenCalled();
+  });
+  it.each(['general','destination','object-scope','extra-scope','member','wall','actor','client','inactive'])
+    ('rejects changed %s before private metadata or decision',async kind=>{
+      const f=fixture(kind==='general','artifact.file');
+      if(kind==='destination')f.command.arguments.clientId=id(99);
+      if(kind==='object-scope')(f.command.attachments[0] as any).scopes=[{...f.command.scopes[0],resourceId:id(99)}];
+      if(kind==='extra-scope')f.command.scopes.push({tenantId:id(1),kind:'document',resourceId:id(20),policyRevision:'policy1'});
+      if(kind==='member')f.state.member=false;if(kind==='wall')f.state.wall=false;if(kind==='actor')f.state.actorId=id(99);
+      if(kind==='client')f.state.clientId=id(99);if(kind==='inactive')f.state.status='archived';
+      f.proposal.commandSha256=hash(f.command);
+      await expect(f.record()).rejects.toBeInstanceOf(ForbiddenException);
+      expect(f.fetcher).not.toHaveBeenCalled();expect(f.rows.size).toBe(0);
+    });
+  it.each(['member','wall','client','session'])('rechecks current %s after metadata I/O',async kind=>{
+    const f=fixture(false,'artifact.file');
+    f.fetcher.mockImplementationOnce(async()=>{const response=f.response();
+      if(kind==='member')f.state.member=false;if(kind==='wall')f.state.wall=false;if(kind==='client')f.state.clientId=id(99);
+      if(kind==='session')f.identity.expiresAtMs=Date.now()-1;
+      return Response.json(response);
+    });
+    await expect(f.record()).rejects.toBeInstanceOf(ForbiddenException);expect(f.rows.size).toBe(0);
+  });
+  it('retains original custody after initial expiry, supersession and a started turn',async()=>{
+    const f=fixture(false,'artifact.file'),response=initialResponse(f);
+    response.preparation.latestGeneration=2;response.preparation.started=true;
+    response.preparation.record.expiresAtMs=Date.parse(f.proposal.createdAt);
+    response.preparation.recordSha256=hash(response.preparation.record);
+    f.fetcher.mockImplementation(async()=>Response.json(response));
+    await expect(f.service.verifyPrepared(f.req,f.ctx,parseApprovalProposal(f.proposal))).resolves.toEqual({
+      selectedClientId:id(7),policyRevision:'policy1',expiresAtMs:f.identity.expiresAtMs,
+    });
+  });
+  it('permits retained failed-run metadata for historical reads but refuses a new expired decision',async()=>{
+    const f=fixture(false,'artifact.file');f.proposal.createdAt=new Date(Date.now()-120000).toISOString();
+    f.proposal.expiresAt=new Date(Date.now()-60000).toISOString();
+    f.fetcher.mockImplementation(async()=>{const response=f.response();response.run.state='failed';return Response.json(response);});
+    await expect(f.service.verifyPrepared(f.req,f.ctx,parseApprovalProposal(f.proposal))).resolves.toMatchObject({selectedClientId:id(7)});
+    await expect(f.record()).rejects.toBeInstanceOf(ConflictException);expect(f.rows.size).toBe(0);
+  });
+  it('preserves the existing revocation lock and original decision binding',async()=>{
+    const f=fixture(false,'artifact.file');await f.record();
+    const body={proposalId:f.proposal.proposalId,commandSha256:f.proposal.commandSha256,binding,approver:f.proposal.requiredApprover};
+    expect((await f.service.revoke(f.req,f.ctx,body)).revoked).toBe(true);
+    expect(f.tx.$queryRaw).toHaveBeenCalledTimes(1);
+    await expect(f.service.record(f.req,f.ctx,{proposal:f.proposal,decision:'approved',approver:body.approver,
+      binding:{...binding,runId:id(99)}})).rejects.toBeInstanceOf(ConflictException);
+    expect(f.rows.size).toBe(1);
+  });
+});
+
 describe('native task create selected destination',()=>{
   it.each(['allowed','walled','changed-wall'])('checks General explicit client through the existing client wall predicate (%s)',async kind=>{
     const f=fixture(true,'task.create');f.command.arguments.clientId=id(7);f.proposal.commandSha256=hash(f.command);
