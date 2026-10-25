@@ -114,8 +114,28 @@ describe('EngagementRuntimeGuard', () => {
   it('denies a registry route even when its decorator is accidentally absent', () => {
     const guard = new EngagementRuntimeGuard(reflector, makePolicy());
     expect(() =>
-      guard.canActivate(contextFor('EngagementController', 'deleteAttachment')),
+      guard.canActivate(contextFor('EngagementController', 'copyProspectAttachment')),
     ).toThrow();
+  });
+
+  it.each(['createAttachmentUploadUrl', 'confirmAttachment', 'deleteAttachment'])(
+    'admits internal storage handler %s with external actions disabled',
+    (handler) => {
+      const guard = new EngagementRuntimeGuard(reflector, makePolicy());
+      expect(guard.canActivate(contextFor('EngagementController', handler))).toBe(true);
+    },
+  );
+
+  it.each([
+    'extractAttachmentText',
+    'extractAttachmentContext',
+    'copyProspectAttachment',
+    'prepPdfAttachment',
+    'sendSingleMail',
+    'generateBatchEmails',
+  ])('retains external-action refusal for %s', (handler) => {
+    const guard = new EngagementRuntimeGuard(reflector, makePolicy());
+    expect(() => guard.canActivate(contextFor('EngagementController', handler))).toThrow();
   });
 
   it('denies the internal provider-credential route in shadow mode', () => {

@@ -32,8 +32,6 @@ describe('EngagementService runtime boundary', () => {
       sendCampaign: { action: 'outreach_send' },
       sendCampaignEmails: { action: 'outreach_send' },
       sendCampaignTest: { action: 'outreach_test_send', testMode: true },
-      createAttachmentUploadUrl: { action: 'attachment_external_write' },
-      confirmAttachment: { action: 'attachment_external_write' },
       extractAttachmentText: { action: 'attachment_external_read' },
       deleteAttachment: { action: 'attachment_external_write' },
       deleteSyntheticFixtureAttachment: { action: 'attachment_external_write' },
@@ -79,4 +77,27 @@ describe('EngagementService runtime boundary', () => {
     expect(guarded.capabilities()).toEqual({ ok: true });
     expect(capabilities).toHaveBeenCalledTimes(1);
   });
+
+  it.each(['createAttachmentUploadUrl', 'confirmAttachment', 'deleteReviewedAttachment'])(
+    'preserves the owner result, context and refusal for internal storage method %s',
+    async (methodName) => {
+      const ctx = { tenantId: 'synthetic-tenant', userId: 'synthetic-actor' };
+      const input = { requestId: 'synthetic-command' };
+      const receipt = { status: 'pending', requestId: input.requestId };
+      const refusal = new Error('canonical owner refused current access');
+      const implementation = jest.fn(async function (this: unknown) {
+        expect(this).toBe(raw);
+        return receipt;
+      });
+      const raw = { [methodName]: implementation } as unknown as EngagementService;
+      const guarded = guardEngagementServiceRuntime(raw, shadowPolicy()) as unknown as Record<
+        string,
+        (...args: unknown[]) => Promise<unknown>
+      >;
+      await expect(guarded[methodName]!(ctx, input)).resolves.toBe(receipt);
+      expect(implementation).toHaveBeenCalledWith(ctx, input);
+      implementation.mockRejectedValueOnce(refusal);
+      await expect(guarded[methodName]!(ctx, input)).rejects.toBe(refusal);
+    },
+  );
 });

@@ -225,7 +225,8 @@ describe('meeting client reassignment', () => {
     } else {
       await h.service.createAttachmentFromBuffer(ctx, { ...input, buffer: Buffer.from('test') });
     }
-    expect(h.events).toEqual(['lock', 'read', 'create']);
+    // Confirm now admits the current parent before storage, then locks/rechecks it at insertion.
+    expect(h.events).toEqual(kind === 'confirm' ? ['read', 'lock', 'read', 'create'] : ['lock', 'read', 'create']);
     expect(h.state.engagementAttachment[1].clientId).toBeNull();
     expect(h.index).not.toHaveBeenCalled();
   });

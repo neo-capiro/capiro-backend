@@ -384,3 +384,198 @@ describe('prospect attachment lifecycle (synthetic only)', () => {
     expect((h.service as any).s3.send).not.toHaveBeenCalled();
   });
 });
+
+describe('ordinary client attachment upload access (synthetic only)', () => {
+  const clientId = '77777777-7777-4777-8777-777777777777';
+  const ordinaryCtx = { ...ctx, clerkUserId: 'synthetic-upload-actor' };
+  const ordinaryInput = {
+    clientId,
+    fileName: 'ordinary.txt',
+    contentType: 'text/plain',
+    contentLength: bytes.length,
+  };
+  const key = `tenants/${ctx.tenantId}/engagement/ordinary/ordinary.txt`;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.mocked(createPresignedPost).mockImplementation(async () => ({
+      url: 'https://synthetic.invalid', fields: {},
+    }));
+  });
+
+  function ordinary() {
+    const state = { member: true, foreign: false, archived: false, wall: false, grant: false };
+    const rows: any[] = [];
+    const member = () => state.member ? { role: ordinaryCtx.role } : null;
+    const tx = {
+      tenantMembership: { findFirst: jest.fn(async ({ where }: any) => {
+        expect(where).toMatchObject({
+          tenantId: ctx.tenantId, userId: ctx.userId, status: 'active',
+          user: { clerkUserId: ordinaryCtx.clerkUserId }, tenant: { status: 'active' },
+        });
+        return member();
+      }) },
+      client: { findFirst: jest.fn(async ({ where }: any) =>
+        where.id === clientId && where.tenantId === ctx.tenantId && !state.foreign
+          ? { id: clientId } : null,
+      ) },
+      meeting: { findFirst: jest.fn(async ({ where }: any) => {
+        expect(where.tenantId).toBe(ctx.tenantId);
+        expect(where.OR).toContainEqual({ createdByUserId: ctx.userId });
+        return { id: where.id, clientId };
+      }) },
+      $queryRaw: jest.fn(async (query: any, ...values: unknown[]) => {
+        const sql = Array.isArray(query) ? query.join('') : query.sql;
+        const params = Array.isArray(query) ? values : query.values;
+        if (sql.includes('account_owner_version')) {
+          expect(params.slice(0, 2)).toEqual([ctx.tenantId, clientId]);
+          return state.foreign || state.archived ? [] : [{ version: 1, primary: null }];
+        }
+        if (sql.includes('FROM tenant_memberships')) return member() ? [member()] : [];
+        if (sql.includes('client_file_deletions')) return [{ present: false }];
+        if (sql.includes('FROM client_memory_access')) return [];
+        throw new Error('Unexpected ordinary upload query');
+      }),
+      $queryRawUnsafe: jest.fn(async (sql: string, ...values: unknown[]) => {
+        expect(sql).toContain('AS allowed');
+        expect(values).toEqual([ctx.tenantId, clientId, ctx.userId]);
+        return [{ allowed: !state.wall || state.grant }];
+      }),
+      $executeRaw: jest.fn(async () => 1),
+      engagementAttachment: {
+        findFirst: jest.fn(async () => rows[0] ?? null),
+        create: jest.fn(async ({ data }: any) => {
+          const row = { id: '55555555-5555-4555-8555-555555555555', ...data };
+          rows.push(row);
+          return row;
+        }),
+      },
+    };
+    const service = Object.create(EngagementService.prototype) as EngagementService;
+    const send = jest.fn(async () => ({ ContentLength: bytes.length }));
+    const read = jest.fn(async () => bytes);
+    const scan = jest.fn(async () => 'clean');
+    const index = jest.fn();
+    Object.assign(service, {
+      prisma: { withTenant: jest.fn(async (tenant: string, work: (db: typeof tx) => unknown) => {
+        expect(tenant).toBe(ctx.tenantId);
+        return work(tx);
+      }) },
+      bucket: 'synthetic-bucket', s3: { send }, readAttachmentBytes: read,
+      scanner: { getStatus: scan, providerName: 'synthetic', scanRequired: true },
+      attachmentContent: {
+        sha256: (value: Buffer) => createHash('sha256').update(value).digest('hex'),
+        detectContentType: () => 'text/plain', contentTypeConflicts: () => false,
+      },
+      clientKb: { indexAttachmentFireAndForget: index }, logger: { warn: jest.fn() },
+    });
+    return {
+      state, rows, tx, send, read, scan, index, service,
+      upload: () => service.createAttachmentUploadUrl(ordinaryCtx, ordinaryInput),
+      confirm: () => service.confirmAttachment(ordinaryCtx, { ...ordinaryInput, s3Key: key }),
+    };
+  }
+
+  it.each([false, true])('admits an authorized ordinary client with wall=%s', async (wall) => {
+    const h = ordinary();
+    h.state.wall = wall;
+    h.state.grant = wall;
+    await expect(h.upload()).resolves.toMatchObject({ url: 'https://synthetic.invalid' });
+    await expect(h.confirm()).resolves.toMatchObject({ clientId, uploadedByUserId: ctx.userId });
+    expect(h.rows).toHaveLength(1);
+    expect(h.index).toHaveBeenCalledTimes(1);
+    expect(h.tx.$queryRawUnsafe).toHaveBeenCalled();
+  });
+
+  it.each(['upload', 'confirm'] as const)('%s refuses a walled client before any storage effect', async (operation) => {
+    const h = ordinary();
+    h.state.wall = true;
+    await expect(h[operation]()).rejects.toMatchObject({ status: 404 });
+    expect(createPresignedPost).not.toHaveBeenCalled();
+    expect(h.send).not.toHaveBeenCalled();
+    expect(h.read).not.toHaveBeenCalled();
+    expect(h.scan).not.toHaveBeenCalled();
+    expect(h.rows).toEqual([]);
+    expect(h.index).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['upload', 'foreign'], ['confirm', 'foreign'],
+    ['upload', 'archived'], ['confirm', 'archived'],
+    ['upload', 'member'], ['confirm', 'member'],
+  ] as const)('%s refuses current %s denial before storage', async (operation, denial) => {
+    const h = ordinary();
+    if (denial === 'member') h.state.member = false;
+    else h.state[denial] = true;
+    await expect(h[operation]()).rejects.toMatchObject({ status: denial === 'member' ? 403 : 404 });
+    expect(createPresignedPost).not.toHaveBeenCalled();
+    expect(h.send).not.toHaveBeenCalled();
+    expect(h.read).not.toHaveBeenCalled();
+    expect(h.rows).toEqual([]);
+    expect(h.index).not.toHaveBeenCalled();
+  });
+
+  it('does not return a signed upload after its client grant is revoked during signing', async () => {
+    const h = ordinary();
+    h.state.wall = true;
+    h.state.grant = true;
+    jest.mocked(createPresignedPost).mockImplementationOnce(async () => {
+      h.state.grant = false;
+      return { url: 'https://synthetic.invalid', fields: {} };
+    });
+    await expect(h.upload()).rejects.toMatchObject({ status: 404 });
+    expect(createPresignedPost).toHaveBeenCalledTimes(1);
+    expect(h.rows).toEqual([]);
+  });
+
+  it.each(['grant', 'member'] as const)('rechecks %s after scanning before the confirm insert', async (revoked) => {
+    const h = ordinary();
+    h.state.wall = true;
+    h.state.grant = true;
+    h.scan.mockImplementationOnce(async () => {
+      h.state[revoked] = false;
+      return 'clean';
+    });
+    await expect(h.confirm()).rejects.toMatchObject({ status: revoked === 'member' ? 403 : 404 });
+    expect(h.scan).toHaveBeenCalledTimes(1);
+    expect(h.tx.engagementAttachment.create).not.toHaveBeenCalled();
+    expect(h.index).not.toHaveBeenCalled();
+  });
+
+  it('rechecks the client before replaying a previously confirmed ordinary attachment', async () => {
+    const h = ordinary();
+    h.state.wall = true;
+    h.state.grant = true;
+    const first = await h.confirm();
+    await expect(h.confirm()).resolves.toEqual(first);
+    expect(h.rows).toHaveLength(1);
+    h.state.grant = false;
+    h.send.mockClear();
+    await expect(h.confirm()).rejects.toMatchObject({ status: 404 });
+    expect(h.send).not.toHaveBeenCalled();
+    expect(h.rows).toHaveLength(1);
+  });
+
+  it('does not return a confirmation replay after scan-time client revocation', async () => {
+    const h = ordinary();
+    h.state.wall = true;
+    h.state.grant = true;
+    await h.confirm();
+    h.scan.mockImplementationOnce(async () => {
+      h.state.grant = false;
+      return 'clean';
+    });
+    await expect(h.confirm()).rejects.toMatchObject({ status: 404 });
+    expect(h.rows).toHaveLength(1);
+    expect(h.index).toHaveBeenCalledTimes(1);
+  });
+
+  it('checks a meeting-derived client before returning an upload URL', async () => {
+    const h = ordinary();
+    h.state.wall = true;
+    await expect(h.service.createAttachmentUploadUrl(ordinaryCtx, {
+      ...ordinaryInput, clientId: undefined, meetingId: '88888888-8888-4888-8888-888888888888',
+    })).rejects.toMatchObject({ status: 404 });
+    expect(createPresignedPost).not.toHaveBeenCalled();
+  });
+});

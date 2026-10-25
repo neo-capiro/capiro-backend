@@ -27,6 +27,52 @@ function render(includeDns: boolean, check: (edge: any, dns: any) => void) {
 const ofType = (template: any, type: string): any[] =>
   Object.values(template.Resources).filter((resource: any) => resource.Type === type);
 
+function routeDestination(rules: any[], method: string, pathname: string, hostname = host) {
+  for (const rule of rules) {
+    const condition = (field: string) => rule.Conditions.find((c: any) => c.Field === field);
+    if (
+      !condition('host-header').HostHeaderConfig.Values.includes(hostname) ||
+      !condition('http-request-method').HttpRequestMethodConfig.Values.includes(method)
+    ) continue;
+    const paths = condition('path-pattern').PathPatternConfig;
+    const matches = paths.RegexValues
+      ? paths.RegexValues.some((regex: string) => new RegExp(regex).test(pathname))
+      : paths.Values.some((glob: string) => pathname.startsWith(glob.slice(0, -1)));
+    if (matches) return rule.Actions[0].TargetGroupArn;
+  }
+  return null;
+}
+
+test('six internal file and owner-memory POST admissions stay finite and preview-only', () =>
+  render(false, (edge) => {
+    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map((r) => r.Properties);
+    for (const pathname of [
+      '/api/engagement/attachments/upload-url',
+      '/api/engagement/attachments/confirm',
+      '/api/memory/candidates/synthetic-candidate_1/owner-decision',
+      '/api/memory/version-candidates/synthetic-version_1/approve',
+      '/api/memory/version-candidates/synthetic-version_1/reject',
+      '/api/memory/items/synthetic-item_1/review-correction',
+    ]) {
+      assert.deepEqual(routeDestination(rules, 'POST', pathname), { Ref: 'CoreTarget' }, pathname);
+      for (const method of ['PUT', 'PATCH', 'OPTIONS', 'TRACE'])
+        assert.equal(routeDestination(rules, method, pathname), null, `${method} ${pathname}`);
+      for (const hostname of ['app.capiro.ai', 'arbitrary.invalid'])
+        assert.equal(routeDestination(rules, 'POST', pathname, hostname), null);
+      for (const neighbor of [`${pathname}/unallocated`, `${pathname}-extra`, `/extra${pathname}`])
+        assert.equal(routeDestination(rules, 'POST', neighbor), null, neighbor);
+    }
+    for (const pathname of [
+      '/api/memory/candidates/invalid.id/owner-decision',
+      '/api/memory/candidates/parent/child/owner-decision',
+      '/api/memory/version-candidates//approve',
+      '/api/memory/items/invalid.id/review-correction',
+      '/api/engagement/attachments/prospect-copies/synthetic-file',
+      '/api/engagement/attachments/unallocated',
+      '/api/unallocated',
+    ]) assert.equal(routeDestination(rules, 'POST', pathname), null, pathname);
+  }));
+
 test('dedicated edge reuses only existing network/certificate and has no shared-listener mutation', () =>
   render(false, (edge, dns) => {
     assert.equal(dns, null);
@@ -135,7 +181,7 @@ test('finite method/path routes admit their owners and reject unintended cross-p
     const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map(
       (r) => r.Properties,
     );
-    assert.equal(rules.length, 56);
+    assert.equal(rules.length, 58);
     for (const rule of rules) {
       assert.deepEqual(rule.ListenerArn, { Ref: 'PreviewHttps' });
       const conditions = rule.Conditions;
@@ -151,20 +197,7 @@ test('finite method/path routes admit their owners and reject unintended cross-p
       assert.ok(expressions.every((p: string) => p.length <= 128));
     }
     function destination(method: string, pathname: string, hostname = host) {
-      for (const rule of rules) {
-        const condition = (field: string) => rule.Conditions.find((c: any) => c.Field === field);
-        if (
-          !condition('host-header').HostHeaderConfig.Values.includes(hostname) ||
-          !condition('http-request-method').HttpRequestMethodConfig.Values.includes(method)
-        )
-          continue;
-        const p = condition('path-pattern').PathPatternConfig;
-        const matches = p.RegexValues
-          ? p.RegexValues.some((regex: string) => new RegExp(regex).test(pathname))
-          : p.Values.some((glob: string) => pathname.startsWith(glob.slice(0, -1)));
-        if (matches) return rule.Actions[0].TargetGroupArn;
-      }
-      return null;
+      return routeDestination(rules, method, pathname, hostname);
     }
     const concrete = (route: string) =>
       route.replace(/:[A-Za-z]+/g, '11111111-1111-4111-8111-111111111111');

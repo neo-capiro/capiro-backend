@@ -1,5 +1,10 @@
 import { ConflictException } from '@nestjs/common';
-import { DeleteObjectCommand, HeadObjectCommand, type S3Client } from '@aws-sdk/client-s3';
+import {
+  DeleteObjectCommand,
+  HeadObjectCommand,
+  ListObjectsV2Command,
+  type S3Client,
+} from '@aws-sdk/client-s3';
 
 export interface FileDeleteObject {
   bucket: string;
@@ -36,6 +41,31 @@ function exactEtag(etag: unknown): etag is string {
   return typeof etag === 'string' && etag.trim().length > 0 && etag.trim() !== '*';
 }
 
+async function listedTargetAbsent(s3: S3Client, bucket: string, key: string): Promise<boolean> {
+  const listed = await storageRequest((abortSignal) =>
+    s3.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: key, MaxKeys: 1 }), { abortSignal }),
+  );
+  const contents = listed.Contents ?? [];
+  if (
+    listed.$metadata.httpStatusCode !== 200 ||
+    listed.Name !== bucket ||
+    listed.Prefix !== key ||
+    listed.MaxKeys !== 1 ||
+    typeof listed.IsTruncated !== 'boolean' ||
+    !Array.isArray(contents) ||
+    contents.length > 1 ||
+    listed.KeyCount !== contents.length ||
+    (listed.CommonPrefixes?.length ?? 0) !== 0 ||
+    (listed.IsTruncated && (contents.length === 0 || !listed.NextContinuationToken)) ||
+    contents.some((object) => typeof object.Key !== 'string' || !object.Key.startsWith(key))
+  )
+    return false;
+  // General-purpose S3 buckets sort keys lexicographically: the exact key precedes
+  // every longer prefix neighbor. No delimiter, StartAfter or pagination can skip it.
+  // Listing is absence evidence only; its ETag never authorizes deletion.
+  return contents[0]?.Key !== key;
+}
+
 /** Capture the current object identity for the domain owner to retain before deletion. */
 export async function inspectFileDeleteObject(
   s3: S3Client,
@@ -49,6 +79,10 @@ export async function inspectFileDeleteObject(
     );
   } catch (error) {
     if (missingObject(error)) return { bucket, key, etag: null };
+    const status = (error as { $metadata?: { httpStatusCode?: number } } | null)?.$metadata
+      ?.httpStatusCode;
+    if (status === 403 && (await listedTargetAbsent(s3, bucket, key)))
+      return { bucket, key, etag: null };
     throw error;
   }
   if (!exactEtag(object.ETag)) throw new Error('File storage did not return an exact object ETag');
