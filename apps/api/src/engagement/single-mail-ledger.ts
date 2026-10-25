@@ -110,6 +110,19 @@ export class SingleMailLedger {
     });
   }
 
+  /** Only a definite refusal inside claim's authorization callback may use this.
+   * The pending CAS locks out a concurrent claim; sending/unknown are never reset. */
+  async rejectPending(ctx: TenantContext, intent: SingleMailIntent): Promise<boolean> {
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const changed = await tx.$executeRaw(Prisma.sql`
+        UPDATE single_mail_intents SET state='failed',
+          provider_evidence='{"code":"MAIL_PREFLIGHT_REJECTED"}'::jsonb, updated_at=now()
+        WHERE id=${intent.id}::uuid AND tenant_id=${ctx.tenantId}::uuid
+          AND actor_id=${ctx.userId}::uuid AND state='pending'`);
+      return changed === 1;
+    });
+  }
+
   /** Outcome writes intentionally do not recheck current client access after provider dispatch. */
   async outcome(
     ctx: TenantContext,
