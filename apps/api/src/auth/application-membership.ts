@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { TenantRole } from '@capiro/shared';
+import { isTenantAdmin, type TenantRole } from '@capiro/shared';
 import { evaluateGovernedMemoryAuthorization } from '../memory/memory-authorization.policy.js';
 
 /** A current observation. Neither this revision nor this receipt grants access. */
@@ -46,15 +46,17 @@ export function applicationMembershipRevision(snapshot: ApplicationMembershipSna
 export const APPLICATION_FIRM_MEMORY_PROPOSAL = 'memory.propose.firm';
 
 /**
- * Permission facts derived from the canonical governed-memory policy for the
- * member's current role (firm `propose` is a tenant-member read/propose right;
- * review and publication stay with Core's review owner). Re-derived on every
- * read and covered by `membershipRevision` through the role. Never a grant.
+ * Permission facts derived from the canonical governed-memory and tenant-admin
+ * policies for the member's current role. Memory review/publication stay with
+ * Core's review owner. Re-derived on every read and covered by
+ * `membershipRevision` through the role. Never a grant.
  */
 export function applicationMembershipPermissions(role: TenantRole, actorId: string): string[] {
   const firm = evaluateGovernedMemoryAuthorization({
     userId: actorId, role, operation: 'propose', ethicalWallAllowed: true,
     subject: { memoryClass: 'institutional_authoritative', scope: 'firm' },
   });
-  return firm.allowed ? [APPLICATION_FIRM_MEMORY_PROPOSAL] : [];
+  const permissions = firm.allowed ? [APPLICATION_FIRM_MEMORY_PROPOSAL] : [];
+  if (isTenantAdmin(role)) permissions.push('tenant.settings.manage');
+  return permissions;
 }
