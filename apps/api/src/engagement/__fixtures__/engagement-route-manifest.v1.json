@@ -4002,6 +4002,110 @@
         "svixSignature"
       ],
       "classification": "webhook"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/integrations/google/:connectionId/calendar-commands",
+      "controller": "GoogleIntegrationActionsController",
+      "handler": "runCalendarCommand",
+      "sourceFile": "apps/api/src/engagement/google/google-integration-actions.controller.ts",
+      "sourceLine": 34,
+      "controllerGuards": [],
+      "handlerGuards": [
+        "RolesGuard"
+      ],
+      "controllerRoles": [],
+      "handlerRoles": [
+        "standard_user"
+      ],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "unknown",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "connectionId",
+        "input"
+      ],
+      "classification": "sync"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/integrations/google/:connectionId/calendar-commands/:requestId",
+      "controller": "GoogleIntegrationActionsController",
+      "handler": "readCalendarCommand",
+      "sourceFile": "apps/api/src/engagement/google/google-integration-actions.controller.ts",
+      "sourceLine": 46,
+      "controllerGuards": [],
+      "handlerGuards": [
+        "RolesGuard"
+      ],
+      "controllerRoles": [],
+      "handlerRoles": [
+        "standard_user"
+      ],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "connectionId",
+        "requestId"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/integrations/microsoft/:connectionId/calendar-commands",
+      "controller": "MicrosoftIntegrationActionsController",
+      "handler": "runCalendarCommand",
+      "sourceFile": "apps/api/src/engagement/microsoft/microsoft-integration-actions.controller.ts",
+      "sourceLine": 44,
+      "controllerGuards": [],
+      "handlerGuards": [
+        "RolesGuard"
+      ],
+      "controllerRoles": [],
+      "handlerRoles": [
+        "standard_user"
+      ],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "unknown",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "connectionId",
+        "input"
+      ],
+      "classification": "sync"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/integrations/microsoft/:connectionId/calendar-commands/:requestId",
+      "controller": "MicrosoftIntegrationActionsController",
+      "handler": "readCalendarCommand",
+      "sourceFile": "apps/api/src/engagement/microsoft/microsoft-integration-actions.controller.ts",
+      "sourceLine": 56,
+      "controllerGuards": [],
+      "handlerGuards": [
+        "RolesGuard"
+      ],
+      "controllerRoles": [],
+      "handlerRoles": [
+        "standard_user"
+      ],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "connectionId",
+        "requestId"
+      ],
+      "classification": "read"
     }
   ]
 }

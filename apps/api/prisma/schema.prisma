@@ -211,6 +211,7 @@ model Tenant {
   savedOpportunitySearches           SavedOpportunitySearch[]
   opportunityBookmarks               OpportunityBookmark[]
   impersonationSessions              ImpersonationSession[]
+  calendarSyncCommands               CalendarSyncCommand[]
   engagementConnections              IntegrationConnection[]
   engagementConnectionTokens         IntegrationConnectionToken[]
   engagementContacts                 EngagementContact[]
@@ -17686,4 +17687,25 @@ model EngagementPlanRevision {
 
   @@unique([tenantId, planId, version], map: "engagement_plan_revisions_version_key")
   @@map("engagement_plan_revisions")
+}
+
+model CalendarSyncCommand {
+  tenantId      String @map("tenant_id") @db.Uuid
+  actorUserId   String @map("actor_user_id") @db.Uuid
+  requestId     String @map("request_id") @db.Uuid
+  connectionId  String @map("connection_id") @db.Uuid
+  provider      String
+  accountId     String @map("account_id")
+  payloadDigest String @map("payload_digest") @db.Char(64)
+  command       Json @map("command_jsonb")
+  window        Json @map("window_jsonb")
+  progress      Json @map("progress_jsonb")
+  status        String
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  tenant        Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, actorUserId, requestId], map: "calendar_sync_commands_pkey")
+  @@index([tenantId, connectionId, status], map: "calendar_sync_commands_connection_idx")
+  @@map("calendar_sync_commands")
 }

@@ -135,7 +135,7 @@ test('finite method/path routes admit their owners and reject unintended cross-p
     const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map(
       (r) => r.Properties,
     );
-    assert.equal(rules.length, 55);
+    assert.equal(rules.length, 56);
     for (const rule of rules) {
       assert.deepEqual(rule.ListenerArn, { Ref: 'PreviewHttps' });
       const conditions = rule.Conditions;
@@ -232,6 +232,17 @@ test('finite method/path routes admit their owners and reject unintended cross-p
       target('core'),
     );
     assert.equal(destination('POST', '/api/engagement/attachments/prospect-copies/11111111-1111-4111-8111-111111111111'), null);
+    for (const provider of ['microsoft', 'google']) {
+      const route =
+        '/api/engagement/integrations/' +
+        provider +
+        '/11111111-1111-4111-8111-111111111111/calendar-commands';
+      assert.deepEqual(
+        destination('GET', route + '/22222222-2222-4222-8222-222222222222'),
+        target('core'),
+      );
+      assert.equal(destination('POST', route + '/22222222-2222-4222-8222-222222222222'), null);
+    }
     assert.equal(destination('POST', '/api/clio/application-authority/history-release'), null);
     assert.deepEqual(
       destination(

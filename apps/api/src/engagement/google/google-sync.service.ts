@@ -1,3 +1,13 @@
+import {
+  hasPendingCalendarCommand,
+  readCalendarCommand,
+  runCalendarCommand,
+} from '../calendar-sync-command.js';
+import {
+  commitCalendarSkip,
+  type CalendarCheckpoint,
+  type CalendarItemCommit,
+} from '../calendar-checkpoint.js';
 // ============================================================================
 // ⛔ CHANGE-CONTROL: AUTHENTICATION / EMAIL INTEGRATION — APPROVAL REQUIRED
 // ----------------------------------------------------------------------------
@@ -369,6 +379,41 @@ export class GoogleSyncService {
     private readonly googleToken: GoogleTokenService,
   ) {}
 
+  readCalendarCommand(ctx: TenantContext, connectionId: string, requestId: string) {
+    return readCalendarCommand(this.prisma, ctx, connectionId, 'google_workspace', requestId);
+  }
+
+  runCalendarCommand(ctx: TenantContext, connectionId: string, input: unknown) {
+    return runCalendarCommand(
+      this.prisma,
+      ctx,
+      connectionId,
+      'google_workspace',
+      input,
+      async (execution) => {
+        const { token } = await this.googleToken.loadConnection(ctx.tenantId, connectionId);
+        const accessToken = await this.googleToken.getValidAccessToken(
+          ctx.tenantId,
+          connectionId,
+          token,
+        );
+        const state: GoogleSyncState = { calendar: execution.progress };
+        const checkpoint: CalendarCheckpoint = (tx, verifyOnly) =>
+          execution.checkpoint(state.calendar ?? {}, tx, verifyOnly);
+        await this.syncCalendar(
+          ctx.tenantId,
+          execution.connection,
+          state,
+          accessToken,
+          execution.window,
+          checkpoint,
+          true,
+        );
+        await checkpoint();
+      },
+    );
+  }
+
   async syncConnection(
     ctx: TenantContext,
     connectionId: string,
@@ -399,6 +444,9 @@ export class GoogleSyncService {
           token,
         );
         const state = readSyncState(connection.syncState);
+        const calendarHeld =
+          input.calendar !== false &&
+          (await hasPendingCalendarCommand(this.prisma, tenantId, connectionId));
         const {
           result: batches,
           health,
@@ -407,9 +455,11 @@ export class GoogleSyncService {
           state.health,
           input,
           () =>
-            this.syncCalendar(tenantId, connection, state, accessToken, input, () =>
-              this.checkpointSyncProgress(tenantId, connectionId, state),
-            ),
+            calendarHeld
+              ? Promise.resolve({ ...emptyStats(), hasMore: true })
+              : this.syncCalendar(tenantId, connection, state, accessToken, input, () =>
+                  this.checkpointSyncProgress(tenantId, connectionId, state),
+                ),
           () => this.syncMail(tenantId, connection, state, accessToken, input),
         );
         state.health = health;
@@ -459,10 +509,11 @@ export class GoogleSyncService {
     connection: IntegrationConnection,
     state: GoogleSyncState,
     accessToken: string,
-    input: { reset?: boolean },
-    checkpoint?: () => Promise<void>,
+    input: { reset?: boolean; from?: string; to?: string },
+    checkpoint?: CalendarCheckpoint,
+    atomicItems = false,
   ): Promise<SyncStats> {
-    const stats = emptyStats();
+    const stats = { ...emptyStats(), ...(atomicItems ? state.calendar?.lastStats : {}) };
     if (mailboxYieldRequested()) return { ...stats, hasMore: true };
     const current = state.calendar ?? {};
     // Older builds persisted `window` even for sync-token pagination and could
@@ -509,11 +560,11 @@ export class GoogleSyncService {
         `Google Calendar pageToken for connection ${connection.id} has no stored window; discarding and restarting from page one`,
       );
       pageToken = null;
-      window = calendarWindow();
+      window = input.from && input.to ? { from: input.from, to: input.to } : calendarWindow();
     } else {
       // Explicit reset, or no full-window continuation exists (first run, or
       // a prior cycle already completed) — safe to compute a fresh window.
-      window = calendarWindow();
+      window = input.from && input.to ? { from: input.from, to: input.to } : calendarWindow();
     }
 
     for (let page = 0; page < MAX_CALENDAR_PAGES_PER_RUN; page += 1) {
@@ -545,6 +596,15 @@ export class GoogleSyncService {
         throw err;
       }
 
+      state.calendar = {
+        syncToken: useSyncToken ? (current.syncToken ?? null) : null,
+        pageToken,
+        ...(window ? { window } : {}),
+        pendingPage: response,
+        updatedAt: new Date().toISOString(),
+        lastStats: { ...stats, hasMore: true },
+      };
+      await checkpoint?.();
       pendingPage = undefined;
       const events = response.items ?? [];
       for (let index = 0; index < events.length; index += 1) {
@@ -554,26 +614,35 @@ export class GoogleSyncService {
         }
         const event = events[index]!;
         stats.scanned += 1;
+        const before = { ...stats };
+        const consume = async (
+          tx: Prisma.TransactionClient | undefined,
+          outcome: 'matched' | 'skipped' | 'removed',
+        ) => {
+          stats.matched = before.matched + (outcome === 'matched' ? 1 : 0);
+          stats.skipped = before.skipped + (outcome === 'skipped' ? 1 : 0);
+          stats.removed = before.removed + (outcome === 'removed' ? 1 : 0);
+          // Commit the completed prefix before starting another potentially slow item.
+          // An empty suffix retains the final-page token until it is promoted below.
+          state.calendar = {
+            syncToken: useSyncToken ? (current.syncToken ?? null) : null,
+            pageToken,
+            pendingPage: { ...response, items: events.slice(index + 1) },
+            ...(window ? { window } : {}),
+            updatedAt: new Date().toISOString(),
+            lastStats: { ...stats, hasMore: true },
+          };
+          await checkpoint?.(tx);
+        };
         const outcome = await this.persistCalendarEvent(
           tenantId,
           connection.id,
           event,
           connection.accountEmail,
+          ...(atomicItems ? [consume] : []),
         );
-        stats.matched += outcome === 'matched' ? 1 : 0;
-        stats.skipped += outcome === 'skipped' ? 1 : 0;
-        stats.removed += outcome === 'removed' ? 1 : 0;
-        // Commit the completed prefix before starting another potentially slow item.
-        // An empty suffix retains the final-page token until it is promoted below.
-        state.calendar = {
-          syncToken: useSyncToken ? (current.syncToken ?? null) : null,
-          pageToken,
-          pendingPage: { ...response, items: events.slice(index + 1) },
-          ...(window ? { window } : {}),
-          updatedAt: new Date().toISOString(),
-          lastStats: { ...stats, hasMore: true },
-        };
-        await checkpoint?.();
+        if (atomicItems) await checkpoint?.(undefined, true);
+        else await consume(undefined, outcome);
       }
 
       if (pendingPage) break;
@@ -644,25 +713,27 @@ export class GoogleSyncService {
     connectionId: string,
     event: CalendarEvent,
     accountEmail?: string | null,
+    commit?: CalendarItemCommit,
   ): Promise<'matched' | 'skipped' | 'removed'> {
-    if (!event.id) return 'skipped';
+    if (!event.id) return commitCalendarSkip(this.prisma, tenantId, commit);
     if (event.status === 'cancelled') {
       await this.prisma.withTenant(tenantId, async (tx) => {
         await assertMailboxSyncCurrent(tx, tenantId, connectionId);
-        return tx.meeting.updateMany({
+        await tx.meeting.updateMany({
           where: { tenantId, source: EngagementSource.google, externalId: event.id },
           data: {
             status: 'deleted',
             metadata: { googleStatus: 'cancelled' } as Prisma.InputJsonValue,
           },
         });
+        await commit?.(tx, 'removed');
       });
       return 'removed';
     }
 
     const startsAt = parseCalendarDateTime(event.start);
     const endsAt = parseCalendarDateTime(event.end);
-    if (!startsAt || !endsAt) return 'skipped';
+    if (!startsAt || !endsAt) return commitCalendarSkip(this.prisma, tenantId, commit);
 
     return this.prisma.withTenantRetry(
       tenantId,
@@ -710,6 +781,7 @@ export class GoogleSyncService {
         // Resurrection guard: a previously-deleted meeting must not be
         // revived when a full calendar refresh re-encounters its id.
         if (existing?.status === 'deleted' && event.status !== 'cancelled') {
+          await commit?.(tx, 'skipped');
           return 'skipped';
         }
         const ownEmail = accountEmail?.trim().toLowerCase();
@@ -809,6 +881,7 @@ export class GoogleSyncService {
             },
           });
         }
+        await commit?.(tx, 'matched');
         return 'matched' as const;
       },
       { timeoutMs: GOOGLE_SYNC_TX_TIMEOUT_MS },

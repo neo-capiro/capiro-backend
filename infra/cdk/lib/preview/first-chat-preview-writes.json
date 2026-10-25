@@ -419,6 +419,13 @@
       "service": "core",
       "method": "POST",
       "pathRegexes": ["^/api/engagement/attachments/prospect-copies$"]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/engagement/integrations/(microsoft|google)/[0-9a-fA-F-]{36}/calendar-commands$"
+      ]
     }
   ]
 }

@@ -796,5 +796,15 @@
     "method": "POST",
     "path": "/api/engagement/attachments/prospect-copies",
     "owner": "Portfolio reviewed prospect upload -> EngagementController -> private client attachment copy and immutable receipt under current source/client authority"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/integrations/microsoft/:connectionId/calendar-commands"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/integrations/google/:connectionId/calendar-commands"
   }
 ]

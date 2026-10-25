@@ -75,6 +75,7 @@ export const ENGAGEMENT_RUNTIME_ROUTE_POLICY = {
     cancelIntent: { action: 'outreach_v3_send' },
   },
   MicrosoftIntegrationActionsController: {
+    runCalendarCommand: { action: 'integration_sync' },
     disconnect: { action: 'integration_disconnect' },
     start: { action: 'integration_oauth_start' },
     sync: { action: 'integration_sync' },
@@ -87,6 +88,7 @@ export const ENGAGEMENT_RUNTIME_ROUTE_POLICY = {
     callback: { action: 'integration_oauth_callback', requiresCallbacks: true },
   },
   GoogleIntegrationActionsController: {
+    runCalendarCommand: { action: 'integration_sync' },
     syncConnection: { action: 'integration_sync' },
     disconnect: { action: 'integration_disconnect' },
     start: { action: 'integration_oauth_start' },

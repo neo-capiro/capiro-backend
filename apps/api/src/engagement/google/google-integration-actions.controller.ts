@@ -31,12 +31,38 @@ export class GoogleIntegrationActionsController {
     private readonly runtime: EngagementRuntimePolicyService,
   ) {}
 
+  @Post(':connectionId/calendar-commands')
+  @UseGuards(RolesGuard)
+  @Roles('standard_user')
+  @EngagementRuntimeAction('integration_sync')
+  runCalendarCommand(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('connectionId') connectionId: string,
+    @Body() input: unknown,
+  ) {
+    return this.sync.runCalendarCommand(ctx, connectionId, input);
+  }
+
+  @Get(':connectionId/calendar-commands/:requestId')
+  @UseGuards(RolesGuard)
+  @Roles('standard_user')
+  readCalendarCommand(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('connectionId') connectionId: string,
+    @Param('requestId') requestId: string,
+  ) {
+    return this.sync.readCalendarCommand(ctx, connectionId, requestId);
+  }
+
   @Get('capabilities')
   @UseGuards(RolesGuard)
   @Roles('standard_user')
   capabilities() {
     const capabilities = this.oauth.capabilities();
-    return { ...capabilities, actions: integrationActions(capabilities.configured, false, this.runtime) };
+    return {
+      ...capabilities,
+      actions: integrationActions(capabilities.configured, false, this.runtime),
+    };
   }
 
   @Post(':connectionId/sync')

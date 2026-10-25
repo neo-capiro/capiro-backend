@@ -1,4 +1,14 @@
 import {
+  hasPendingCalendarCommand,
+  readCalendarCommand,
+  runCalendarCommand,
+} from '../calendar-sync-command.js';
+import {
+  commitCalendarSkip,
+  type CalendarCheckpoint,
+  type CalendarItemCommit,
+} from '../calendar-checkpoint.js';
+import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
@@ -358,6 +368,44 @@ export class MicrosoftGraphSyncService {
     this.notificationUrl = config.get('MICROSOFT_GRAPH_NOTIFICATION_URL', { infer: true });
   }
 
+  readCalendarCommand(ctx: TenantContext, connectionId: string, requestId: string) {
+    return readCalendarCommand(this.prisma, ctx, connectionId, 'microsoft_365', requestId);
+  }
+
+  runCalendarCommand(ctx: TenantContext, connectionId: string, input: unknown) {
+    return runCalendarCommand(
+      this.prisma,
+      ctx,
+      connectionId,
+      'microsoft_365',
+      input,
+      async (execution) => {
+        const { token } = await this.loadConnection(ctx.tenantId, connectionId);
+        const accessToken = await this.getValidAccessToken(ctx.tenantId, connectionId, token);
+        const state: MicrosoftSyncState = {
+          [execution.explicitWindow ? 'calendarWindow' : 'calendar']: execution.progress,
+        };
+        const checkpoint: CalendarCheckpoint = (tx, verifyOnly) =>
+          execution.checkpoint(
+            state[execution.explicitWindow ? 'calendarWindow' : 'calendar'] ?? {},
+            tx,
+            verifyOnly,
+          );
+        await this.syncCalendar(
+          ctx.tenantId,
+          execution.connection,
+          state,
+          accessToken,
+          execution.window,
+          checkpoint,
+          execution.explicitWindow ? 'calendarWindow' : 'calendar',
+          true,
+        );
+        await checkpoint();
+      },
+    );
+  }
+
   async syncConnection(
     ctx: TenantContext,
     connectionId: string,
@@ -376,6 +424,8 @@ export class MicrosoftGraphSyncService {
     const window = calendarWindow(input.from, input.to);
     return withMailboxSyncClaim(this.prisma, ctx.tenantId, connectionId, async () => {
       try {
+        if (await hasPendingCalendarCommand(this.prisma, ctx.tenantId, connectionId))
+          throw new ConflictException('Recover the unfinished calendar request first');
         const { connection, token } = await this.loadConnection(ctx.tenantId, connectionId);
         const state = readSyncState(connection.syncState);
         const current = state.calendarWindow;
@@ -920,6 +970,9 @@ export class MicrosoftGraphSyncService {
         const { connection, token } = await this.loadConnection(tenantId, connectionId);
         const accessToken = await this.getValidAccessToken(tenantId, connectionId, token);
         const state = readSyncState(connection.syncState);
+        const calendarHeld =
+          input.calendar !== false &&
+          (await hasPendingCalendarCommand(this.prisma, tenantId, connectionId));
         const {
           result: batches,
           health,
@@ -928,9 +981,11 @@ export class MicrosoftGraphSyncService {
           state.health,
           input,
           () =>
-            this.syncCalendar(tenantId, connection, state, accessToken, input, () =>
-              this.checkpointSyncProgress(tenantId, connectionId, state, 'calendar'),
-            ),
+            calendarHeld
+              ? Promise.resolve({ ...emptyStats(), hasMore: true })
+              : this.syncCalendar(tenantId, connection, state, accessToken, input, () =>
+                  this.checkpointSyncProgress(tenantId, connectionId, state, 'calendar'),
+                ),
           () =>
             this.syncMail(tenantId, connection, state, accessToken, input, () =>
               this.checkpointSyncProgress(tenantId, connectionId, state, 'mail'),
@@ -991,10 +1046,11 @@ export class MicrosoftGraphSyncService {
     state: MicrosoftSyncState,
     accessToken: string,
     input: { reset?: boolean; from?: string; to?: string },
-    checkpoint?: () => Promise<void>,
+    checkpoint?: CalendarCheckpoint,
     resource: 'calendar' | 'calendarWindow' = 'calendar',
+    atomicItems = false,
   ): Promise<SyncStats> {
-    const stats = emptyStats();
+    const stats = { ...emptyStats(), ...(atomicItems ? state[resource]?.lastStats : {}) };
     if (mailboxYieldRequested()) return { ...stats, hasMore: true };
     const current = state[resource] ?? {};
     const calendarUrl = resource === 'calendarWindow' ? calendarViewUrl : calendarDeltaUrl;
@@ -1034,6 +1090,16 @@ export class MicrosoftGraphSyncService {
         }
         throw err;
       }
+      state[resource] = {
+        cursor: nextUrl,
+        nextLink: nextUrl,
+        deltaLink: current.deltaLink ?? null,
+        window,
+        pendingPage: response,
+        updatedAt: new Date().toISOString(),
+        lastStats: { ...stats, hasMore: true },
+      };
+      await checkpoint?.();
       pendingPage = undefined;
       const events = response.value ?? [];
       for (let index = 0; index < events.length; index += 1) {
@@ -1043,25 +1109,34 @@ export class MicrosoftGraphSyncService {
         }
         const event = events[index]!;
         stats.scanned += 1;
+        const before = { ...stats };
+        const consume = async (
+          tx: Prisma.TransactionClient | undefined,
+          outcome: 'matched' | 'skipped' | 'removed',
+        ) => {
+          stats.matched = before.matched + (outcome === 'matched' ? 1 : 0);
+          stats.skipped = before.skipped + (outcome === 'skipped' ? 1 : 0);
+          stats.removed = before.removed + (outcome === 'removed' ? 1 : 0);
+          state[resource] = {
+            cursor: nextUrl,
+            nextLink: nextUrl,
+            deltaLink: usedStoredCursor ? (current.deltaLink ?? null) : null,
+            pendingPage: { ...response, value: events.slice(index + 1) },
+            window,
+            updatedAt: new Date().toISOString(),
+            lastStats: { ...stats, hasMore: true },
+          };
+          await checkpoint?.(tx);
+        };
         const outcome = await this.persistGraphEvent(
           tenantId,
           connection.id,
           event,
           connection.accountEmail,
+          ...(atomicItems ? [consume] : []),
         );
-        stats.matched += outcome === 'matched' ? 1 : 0;
-        stats.skipped += outcome === 'skipped' ? 1 : 0;
-        stats.removed += outcome === 'removed' ? 1 : 0;
-        state[resource] = {
-          cursor: nextUrl,
-          nextLink: nextUrl,
-          deltaLink: usedStoredCursor ? (current.deltaLink ?? null) : null,
-          pendingPage: { ...response, value: events.slice(index + 1) },
-          window,
-          updatedAt: new Date().toISOString(),
-          lastStats: { ...stats, hasMore: true },
-        };
-        await checkpoint?.();
+        if (atomicItems) await checkpoint?.(undefined, true);
+        else await consume(undefined, outcome);
       }
       if (pendingPage) break;
       nextUrl = response['@odata.nextLink'] ?? '';
@@ -1451,8 +1526,9 @@ export class MicrosoftGraphSyncService {
     connectionId: string,
     event: GraphEvent,
     accountEmail?: string | null,
+    commit?: CalendarItemCommit,
   ): Promise<'matched' | 'skipped' | 'removed'> {
-    if (!event.id) return 'skipped';
+    if (!event.id) return commitCalendarSkip(this.prisma, tenantId, commit);
     // The calendarView delta stream surfaces the bare seriesMaster object
     // alongside real occurrence/exception instances for any recurring series
     // with changes in range. It is not a meeting instance — start/end reflect
@@ -1462,7 +1538,7 @@ export class MicrosoftGraphSyncService {
     // DST boundary the anchor date didn't. Graph's own guidance is to expand
     // occurrences client-side from the pattern, never render seriesMaster as
     // an instance. singleInstance/occurrence/exception all persist as before.
-    if (event.type === 'seriesMaster') return 'skipped';
+    if (event.type === 'seriesMaster') return commitCalendarSkip(this.prisma, tenantId, commit);
     // Sparse expanded occurrences: Graph sometimes returns occurrence shells
     // with only id/start/end/type/seriesMasterId and an empty subject. These
     // are not real calendar items (no organizer, no attendees, no body) and
@@ -1476,25 +1552,26 @@ export class MicrosoftGraphSyncService {
       !event.bodyPreview &&
       !event.onlineMeeting?.joinUrl
     ) {
-      return 'skipped';
+      return commitCalendarSkip(this.prisma, tenantId, commit);
     }
     if (event['@removed']) {
       await this.prisma.withTenant(tenantId, async (tx) => {
         await assertMailboxSyncCurrent(tx, tenantId, connectionId);
-        return tx.meeting.updateMany({
+        await tx.meeting.updateMany({
           where: { tenantId, source: EngagementSource.outlook, externalId: event.id },
           data: {
             status: 'deleted',
             metadata: { graphRemoved: event['@removed'] } as Prisma.InputJsonValue,
           },
         });
+        await commit?.(tx, 'removed');
       });
       return 'removed';
     }
 
     const startsAt = parseGraphDateTime(event.start?.dateTime);
     const endsAt = parseGraphDateTime(event.end?.dateTime);
-    if (!startsAt || !endsAt) return 'skipped';
+    if (!startsAt || !endsAt) return commitCalendarSkip(this.prisma, tenantId, commit);
 
     // Dedupe by normalized email: Graph invites can list the same address twice
     // (required+optional, DL expansion), and meeting_attendees has a UNIQUE
@@ -1573,6 +1650,7 @@ export class MicrosoftGraphSyncService {
         // (via @removed from a Graph delta), do not revive it when a full
         // calendar refresh re-encounters the event id.
         if (existing?.status === 'deleted' && !event.isCancelled) {
+          await commit?.(tx, 'skipped');
           return 'skipped';
         }
         const hasManualOverride = existing
@@ -1684,6 +1762,7 @@ export class MicrosoftGraphSyncService {
             },
           });
         }
+        await commit?.(tx, 'matched');
         return 'matched' as const;
       },
       { timeoutMs: GRAPH_SYNC_TX_TIMEOUT_MS },
