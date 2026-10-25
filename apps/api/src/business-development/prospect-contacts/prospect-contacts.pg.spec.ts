@@ -40,7 +40,7 @@ const input = {
   requestId,
 };
 const sql = readFileSync(
-  resolve(__dirname, '../../../../../docs/portfolio-prospect-contacts/UNALLOCATED-proposal.sql'),
+  resolve(__dirname, '../../../prisma/migrations/20281024120000_portfolio_prospect_contacts/migration.sql'),
   'utf8',
 );
 const { PGlite } = require('@electric-sql/pglite') as { PGlite: new () => PGliteEngine };
@@ -96,7 +96,7 @@ describe('Prospect contacts: actual service SQL on ephemeral PostgreSQL', () => 
     await db.exec('RESET ROLE');
   });
 
-  test('proposal is LF exact, additive and tenant-safe through composite FK', async () => {
+  test('forward Contacts schema is LF exact, additive and tenant-safe through composite FK', async () => {
     expect(sql).not.toContain('\r');
     expect(
       (await db.query('SELECT count(*)::int AS n FROM business_development_prospects')).rows,

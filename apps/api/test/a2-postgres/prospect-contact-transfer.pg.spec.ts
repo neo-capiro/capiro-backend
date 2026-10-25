@@ -87,12 +87,12 @@ beforeAll(async () => {
           EXECUTE format('GRANT SELECT,INSERT,UPDATE,DELETE ON %I TO capiro_app',t);
         END LOOP;
       END $$;`);
-    // The existing prospect Contacts prerequisite remains root-owned/reserved.
+    // Apply the deployed forward Contacts prerequisite, not an out-of-ledger proposal.
     await h.sql(
       readFileSync(
         resolve(
           __dirname,
-          '../../prisma/reserved-migrations/20281011030000_prospect_contacts/migration.sql',
+          '../../prisma/migrations/20281024120000_portfolio_prospect_contacts/migration.sql',
         ),
         'utf8',
       ),
