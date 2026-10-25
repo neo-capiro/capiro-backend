@@ -1,4 +1,4 @@
-import { DeleteObjectCommand, HeadObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, HeadObjectCommand, ListObjectsV2Command, S3Client } from '@aws-sdk/client-s3';
 import {
   inspectFileDeleteObject,
   removeFileDeleteObject,
@@ -10,7 +10,7 @@ const snapshot: FileDeleteObject = {
   key: 'folder/reviewed file+name.txt',
   etag: '"reviewed-etag"',
 };
-type Request = { method: string; path: string; headers: Record<string, string> };
+type Request = { method: string; path: string; headers: Record<string, string>; query: Record<string, unknown> };
 type Response = { statusCode: number; headers: Record<string, string>; body: Buffer };
 type Step = (request: Request, signal?: AbortSignal) => Response | Promise<Response>;
 const response = (
@@ -29,6 +29,17 @@ const present =
 const failure = (status: number, name: string) => () =>
   response(status, { 'x-amzn-errortype': name }, `<Error><Code>${name}</Code></Error>`);
 const missing = () => failure(404, 'NotFound');
+const denied = () => failure(403, 'AccessDenied');
+const xml = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+const listing = (keys: string[] = [], truncated = false) =>
+  `<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">` +
+  `<Name>${xml(snapshot.bucket)}</Name><Prefix>${xml(snapshot.key)}</Prefix><MaxKeys>1</MaxKeys>` +
+  `<KeyCount>${keys.length}</KeyCount><IsTruncated>${truncated}</IsTruncated>` +
+  (truncated ? '<NextContinuationToken>synthetic-next</NextContinuationToken>' : '') +
+  keys.map((key) => `<Contents><Key>${xml(key)}</Key><ETag>&quot;untrusted-list-etag&quot;</ETag></Contents>`).join('') +
+  '</ListBucketResult>';
+const listed = (keys: string[] = [], truncated = false): Step => () =>
+  response(200, {}, listing(keys, truncated));
 const clients: S3Client[] = [];
 
 function storage(...steps: Step[]) {
@@ -85,7 +96,7 @@ test('inspects an object and reuses the supplied client for exact conditional de
   expect(h.destroy).not.toHaveBeenCalled();
 });
 
-test.each(['NotFound', 'NoSuchKey'])('only strict 404 %s records absence', async (name) => {
+test.each(['NotFound', 'NoSuchKey'])('strict 404 %s records absence without listing', async (name) => {
   const h = storage(failure(404, name), failure(404, name));
   const retained = await inspectFileDeleteObject(h.s3, snapshot.bucket, snapshot.key);
   expect(retained).toEqual({ ...snapshot, etag: null });
@@ -186,9 +197,9 @@ test.each([
   [404, 'InvalidRequest'],
   [403, 'NotFound'],
 ] as const)('HEAD %s %s is never absence', async (status, name) => {
-  const h = storage(failure(status, name));
+  const h = storage(failure(status, name), ...(status === 403 ? [failure(status, name)] : []));
   await expect(h.remove()).rejects.toMatchObject({ name, $metadata: { httpStatusCode: status } });
-  expect(h.handle).toHaveBeenCalledTimes(1);
+  expect(h.handle).toHaveBeenCalledTimes(status === 403 ? 2 : 1);
 });
 
 test.each([
@@ -207,9 +218,9 @@ test.each([
 test.each([() => response(204), failure(412, 'PreconditionFailed')])(
   'a failed absence verification remains an error after a successful or conflicted delete',
   async (deletion) => {
-    const h = storage(present(), deletion, failure(403, 'AccessDenied'));
+    const h = storage(present(), deletion, denied(), denied());
     await expect(h.remove()).rejects.toMatchObject({ name: 'AccessDenied' });
-    expect(h.handle).toHaveBeenCalledTimes(3);
+    expect(h.handle).toHaveBeenCalledTimes(4);
   },
 );
 
@@ -253,7 +264,7 @@ test('the recorded key and ETag are fixed before awaiting storage', async () => 
   });
 });
 
-test.each(['HEAD', 'DELETE', 'verification'])(
+test.each(['HEAD', 'DELETE', 'verification', 'LIST'])(
   'a stalled %s is aborted and cannot resolve as absence',
   async (phase) => {
     jest.useFakeTimers();
@@ -273,7 +284,9 @@ test.each(['HEAD', 'DELETE', 'verification'])(
         ? [stall]
         : phase === 'DELETE'
           ? [present(), stall]
-          : [present(), () => response(204), stall]),
+          : phase === 'LIST'
+            ? [denied(), stall]
+            : [present(), () => response(204), stall]),
     );
     const result = expect(h.remove()).rejects.toMatchObject({ name: 'TimeoutError' });
     await started;
@@ -283,3 +296,88 @@ test.each(['HEAD', 'DELETE', 'verification'])(
     expect(jest.getTimerCount()).toBe(0);
   },
 );
+
+test.each([{ keys: [] }, { keys: [snapshot.key + '.neighbor'] }])(
+  'HEAD403 with a coherent exact-prefix list $keys proves only target absence',
+  async ({ keys }) => {
+    const h = storage(denied(), listed(keys));
+    await expect(inspectFileDeleteObject(h.s3, snapshot.bucket, snapshot.key)).resolves.toEqual({
+      ...snapshot, etag: null,
+    });
+    expect(h.send.mock.calls[1]![0]).toBeInstanceOf(ListObjectsV2Command);
+    expect(h.send.mock.calls[1]![0].input).toEqual({ Bucket: snapshot.bucket, Prefix: snapshot.key, MaxKeys: 1 });
+    expect(h.handle.mock.calls.map(([request]) => request.method)).toEqual(['HEAD', 'GET']);
+    const request = h.handle.mock.calls[1]![0];
+    expect(request.path).toBe('/synthetic-bucket/');
+    expect(request.query).toMatchObject({ 'list-type': '2', prefix: snapshot.key, 'max-keys': '1' });
+    for (const excluded of ['delimiter', 'start-after', 'continuation-token'])
+      expect(request.query).not.toHaveProperty(excluded);
+  },
+);
+
+test('a first prefix neighbor proves exact-key absence even when further neighbors are truncated', async () => {
+  const h = storage(denied(), listed([snapshot.key + '.neighbor'], true));
+  await expect(h.remove()).resolves.toBeUndefined();
+  expect(h.handle).toHaveBeenCalledTimes(2);
+});
+
+test.each([false, true])('an exact listed target (truncated=%s) never supplies delete authority or absence', async (truncated) => {
+  const h = storage(denied(), listed([snapshot.key], truncated));
+  await expect(h.remove()).rejects.toMatchObject({ name: 'AccessDenied', $metadata: { httpStatusCode: 403 } });
+  expect(h.handle.mock.calls.map(([request]) => request.method)).toEqual(['HEAD', 'GET']);
+});
+
+test.each([
+  ['denied', failure(403, 'AccessDenied')],
+  ['server error', failure(500, 'InternalError')],
+  ['missing bucket', failure(404, 'NoSuchBucket')],
+] as const)('HEAD403 followed by LIST %s remains an error', async (_name, step) => {
+  const h = storage(denied(), step);
+  await expect(h.remove()).rejects.toThrow();
+  expect(h.handle.mock.calls.map(([request]) => request.method)).toEqual(['HEAD', 'GET']);
+});
+
+test.each([
+  ['empty response', ''],
+  ['missing fields', '<ListBucketResult/>'],
+  ['wrong bucket', listing().replace(snapshot.bucket, 'other-bucket')],
+  ['wrong prefix', listing().replace(xml(snapshot.key), 'other-prefix')],
+  ['wrong maximum', listing().replace('<MaxKeys>1', '<MaxKeys>2')],
+  ['missing count', listing().replace('<KeyCount>0</KeyCount>', '')],
+  ['inconsistent count', listing().replace('<KeyCount>0', '<KeyCount>1')],
+  ['missing truncated flag', listing().replace('<IsTruncated>false</IsTruncated>', '')],
+  ['empty truncated listing', listing([], true)],
+  ['missing continuation token', listing([snapshot.key + '.neighbor'], true).replace('<NextContinuationToken>synthetic-next</NextContinuationToken>', '')],
+  ['outside prefix', listing(['different-key'])],
+  ['missing object key', listing([snapshot.key]).replace(`<Key>${xml(snapshot.key)}</Key>`, '')],
+  ['too many results', listing([snapshot.key + '.a', snapshot.key + '.b'])],
+  ['delimiter groups', listing().replace('</ListBucketResult>', '<CommonPrefixes><Prefix>group/</Prefix></CommonPrefixes></ListBucketResult>')],
+])('HEAD403 with incoherent LIST %s cannot prove absence', async (_name, body) => {
+  const h = storage(denied(), () => response(200, {}, body));
+  await expect(h.remove()).rejects.toThrow();
+  expect(h.handle.mock.calls.map(([request]) => request.method)).toEqual(['HEAD', 'GET']);
+});
+
+test.each([() => response(204), failure(412, 'PreconditionFailed')])(
+  'after a successful or conflicted conditional delete, HEAD403 plus LIST absence completes readback',
+  async (deletion) => {
+    const h = storage(present(), deletion, denied(), listed());
+    await expect(h.remove()).resolves.toBeUndefined();
+    expect(h.handle.mock.calls.map(([request]) => request.method)).toEqual(['HEAD', 'DELETE', 'HEAD', 'GET']);
+    expect(h.handle.mock.calls[1]![0].headers['if-match']).toBe(snapshot.etag);
+  },
+);
+
+test('a listed target after a conditional conflict remains pending without another delete', async () => {
+  const h = storage(present(), failure(412, 'PreconditionFailed'), denied(), listed([snapshot.key]));
+  await expect(h.remove()).rejects.toMatchObject({ name: 'AccessDenied' });
+  expect(h.handle.mock.calls.map(([request]) => request.method)).toEqual(['HEAD', 'DELETE', 'HEAD', 'GET']);
+});
+
+test('a retry after lost delete acknowledgement can prove absence through HEAD403 and bounded LIST', async () => {
+  const lost = new Error('Lost delete acknowledgement');
+  const h = storage(present(), () => { throw lost; }, denied(), listed());
+  await expect(h.remove()).rejects.toBe(lost);
+  await expect(h.remove()).resolves.toBeUndefined();
+  expect(h.handle.mock.calls.map(([request]) => request.method)).toEqual(['HEAD', 'DELETE', 'HEAD', 'GET']);
+});
