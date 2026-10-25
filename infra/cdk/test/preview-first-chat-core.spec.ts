@@ -14,7 +14,7 @@ import {
 } from '../lib/preview/first-chat-core';
 const pins = FIRST_CHAT_CORE_IMAGE_PINS;
 const binding = {
-  schemaVersion: 8,
+  schemaVersion: 9,
   ...pins,
   internalServiceSecretArn:
     'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/internal-service-secret-6cEZG4',
@@ -24,12 +24,21 @@ const binding = {
     databaseHost: 'capiro-newstack-preview-clone.cluster-csryw28ai752.us-east-1.rds.amazonaws.com',
     desiredCount: 1,
   },
+  assets: {
+    tenantIds: ['00000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000003'],
+  },
 };
-function render(check: (s: any, g: any) => void) {
+function render(check: (s: any, g: any, a: any) => void) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'core-operator-'));
   try {
-    const { service, guard } = previewFirstChatCoreApplication(binding, dir);
-    check(Template.fromStack(service).toJSON(), Template.fromStack(guard).toJSON());
+    const { service, guard, assets, app } = previewFirstChatCoreApplication(binding, dir);
+    assert.equal(assets.terminationProtection, true);
+    check(
+      Template.fromStack(service).toJSON(),
+      Template.fromStack(guard).toJSON(),
+      Template.fromStack(assets).toJSON(),
+    );
+    app.synth();
   } finally {
     const real = fs.realpathSync(dir);
     assert.equal(fs.lstatSync(dir).isSymbolicLink(), false);
@@ -46,12 +55,27 @@ test('qualified closed binding refuses historical schemas, extra policy and wron
     { schemaVersion: 5 },
     { schemaVersion: 6 },
     { schemaVersion: 7 },
+    { schemaVersion: 8 },
     { profile: {} },
     { signers: {} },
     { retainedTrust: null },
     { previewTenantId: '00000000-0000-4000-8000-000000000002' },
   ])
     assert.throws(() => firstChatCoreImageBinding({ ...binding, ...patch }));
+});
+test('storage binding refuses implicit, empty, duplicate, wildcard and foreign storage configuration', () => {
+  for (const assets of [
+    undefined,
+    null,
+    {},
+    { tenantIds: [] },
+    { tenantIds: ['*'] },
+    { tenantIds: ['../another-prefix'] },
+    { tenantIds: [binding.assets.tenantIds[0], binding.assets.tenantIds[0]] },
+    { tenantIds: [...binding.assets.tenantIds, '00000000-0000-4000-8000-000000000004'] },
+    { tenantIds: binding.assets.tenantIds, bucketName: 'live-bucket' },
+  ])
+    assert.throws(() => firstChatCoreImageBinding({ ...binding, assets }));
 });
 test('production DB, scaling, guard moves and unbound service secret refuse', () => {
   for (const deployment of [
@@ -76,7 +100,7 @@ test('production DB, scaling, guard moves and unbound service secret refuse', ()
   ])
     assert.throws(() => firstChatCoreImageBinding({ ...binding, ...patch }));
 });
-test('nine live resource IDs and both outputs survive with no extra rule or signing policy', () =>
+test('nine live resource IDs and both outputs survive with only the Assets task policy added', () =>
   render((s) => {
     assert.deepEqual(
       Object.keys(s.Resources).sort(),
@@ -84,6 +108,7 @@ test('nine live resource IDs and both outputs survive with no extra rule or sign
         'ServeExecutionRole9B512BDC',
         'ServeExecutionRoleDefaultPolicyBD488DD2',
         'ServeTaskTaskRoleD6B44EC7',
+        'ServeTaskTaskRoleDefaultPolicy46D4ED77',
         'ServeTaskF1990141',
         'ServeLogBCB89CA4',
         'CoreTarget234133C4',
@@ -197,6 +222,110 @@ test('standard canonical authentication remains mandatory and background/externa
       assert.equal(e[n], 'false');
     assert.equal(e.ENGAGEMENT_BACKGROUND_OWNER, 'disabled');
     assert.equal(e.ENGAGEMENT_EXTERNAL_ACTIONS, 'disabled');
+    assert.equal(e.ENGAGEMENT_ATTACHMENT_SCAN_REQUIRED, undefined);
+  }));
+test('ordinary Files receives only approved tenant engagement keys and the S3-scoped assets key', () =>
+  render((s, _g, a) => {
+    const env = Object.fromEntries(
+      s.Resources.ServeTaskF1990141.Properties.ContainerDefinitions[0].Environment.map(
+        (entry: any) => [entry.Name, entry.Value],
+      ),
+    );
+    const bucketId = Object.keys(a.Resources).find(
+      (id) => a.Resources[id].Type === 'AWS::S3::Bucket',
+    );
+    const keyId = Object.keys(a.Resources).find((id) => a.Resources[id].Type === 'AWS::KMS::Key');
+    const bucketExport = Object.values(a.Outputs).find(
+      (o: any) => o.Export && o.Value.Ref === bucketId,
+    ) as any;
+    const keyExport = Object.values(a.Outputs).find(
+      (o: any) => o.Export && o.Value['Fn::GetAtt']?.[0] === keyId,
+    ) as any;
+    const bucketArnExport = Object.values(a.Outputs).find(
+      (o: any) => o.Export && o.Value['Fn::GetAtt']?.[0] === bucketId,
+    ) as any;
+    assert.ok(bucketExport, 'Core must reference the canonical bucket name');
+    assert.ok(keyExport, 'Core must reference the canonical assets key');
+    assert.ok(bucketArnExport, 'Core must reference the canonical bucket ARN');
+    assert.deepEqual(env.ASSETS_BUCKET, { 'Fn::ImportValue': bucketExport.Export.Name });
+    const policies = Object.values(s.Resources).filter(
+      (r: any) =>
+        r.Type === 'AWS::IAM::Policy' &&
+        r.Properties.Roles.some((role: any) => role.Ref === 'ServeTaskTaskRoleD6B44EC7'),
+    ) as any[];
+    assert.equal(policies.length, 1);
+    assert.ok(
+      s.Resources.HeldCoreServiceA6CD0E1D.DependsOn.includes(
+        'ServeTaskTaskRoleDefaultPolicy46D4ED77',
+      ),
+    );
+    const statements = policies[0].Properties.PolicyDocument.Statement;
+    assert.equal(statements.length, 2);
+    assert.deepEqual(statements[0], {
+      Effect: 'Allow',
+      Action: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'],
+      Resource: binding.assets.tenantIds.map((id) => ({
+        'Fn::Join': [
+          '',
+          [{ 'Fn::ImportValue': bucketArnExport.Export.Name }, `/tenants/${id}/engagement/*`],
+        ],
+      })),
+    });
+    assert.deepEqual(statements[1], {
+      Effect: 'Allow',
+      Action: ['kms:Decrypt', 'kms:GenerateDataKey'],
+      Resource: { 'Fn::ImportValue': keyExport.Export.Name },
+      Condition: { StringEquals: { 'kms:ViaService': 's3.us-east-1.amazonaws.com' } },
+    });
+    const execution = JSON.stringify(s.Resources.ServeExecutionRoleDefaultPolicyBD488DD2);
+    assert.equal(execution.includes('s3:'), false);
+    assert.equal(execution.includes(keyExport.Export.Name), false);
+  }));
+test('canonical Assets remain private, encrypted, retained, versioned and limited to the preview browser origin', () =>
+  render((_s, _g, a) => {
+    const resources = Object.values(a.Resources) as any[];
+    assert.deepEqual(resources.map((r) => r.Type).sort(), [
+      'AWS::KMS::Alias',
+      'AWS::KMS::Key',
+      'AWS::S3::Bucket',
+      'AWS::S3::BucketPolicy',
+    ]);
+    const bucket = resources.find((r) => r.Type === 'AWS::S3::Bucket');
+    const key = resources.find((r) => r.Type === 'AWS::KMS::Key');
+    assert.equal(bucket.Properties.BucketName, 'capiro-preview-tenant-assets-967807252336');
+    assert.equal(bucket.DeletionPolicy, 'Retain');
+    assert.equal(bucket.UpdateReplacePolicy, 'Retain');
+    assert.equal(key.DeletionPolicy, 'Retain');
+    assert.equal(key.UpdateReplacePolicy, 'Retain');
+    assert.equal(key.Properties.EnableKeyRotation, true);
+    assert.equal(
+      resources.find((r) => r.Type === 'AWS::KMS::Alias').Properties.AliasName,
+      'alias/capiro/preview/assets',
+    );
+    assert.deepEqual(bucket.Properties.PublicAccessBlockConfiguration, {
+      BlockPublicAcls: true,
+      BlockPublicPolicy: true,
+      IgnorePublicAcls: true,
+      RestrictPublicBuckets: true,
+    });
+    assert.deepEqual(bucket.Properties.VersioningConfiguration, { Status: 'Enabled' });
+    const encryption = bucket.Properties.BucketEncryption.ServerSideEncryptionConfiguration[0];
+    assert.equal(encryption.BucketKeyEnabled, true);
+    assert.equal(encryption.ServerSideEncryptionByDefault.SSEAlgorithm, 'aws:kms');
+    assert.deepEqual(bucket.Properties.CorsConfiguration.CorsRules[0].AllowedOrigins, [
+      'https://portfolio-preview.app.capiro.ai',
+    ]);
+    assert.deepEqual(bucket.Properties.CorsConfiguration.CorsRules[0].AllowedMethods, [
+      'PUT',
+      'POST',
+      'GET',
+      'HEAD',
+    ]);
+    const policy = resources.find((r) => r.Type === 'AWS::S3::BucketPolicy').Properties
+      .PolicyDocument.Statement;
+    assert.equal(policy.length, 1);
+    assert.equal(policy[0].Effect, 'Deny');
+    assert.deepEqual(policy[0].Condition, { Bool: { 'aws:SecureTransport': 'false' } });
   }));
 test('bounded P1 POST and unchanged P2 GET/HEAD fit ALB and leave Strategy P3 alone', () =>
   render((s) => {

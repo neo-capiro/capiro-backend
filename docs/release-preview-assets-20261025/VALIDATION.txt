@@ -1,0 +1,90 @@
+Phase C ordinary Assets source and local template preparation — 2026-10-25
+
+Base: 43fdd8928e517b1ce3a7a039f0fabeb8cf5fc5dd
+Base tree: 50c1214d60c17d29d9a61e5bbfea450489baa286
+Branch: codex/wave2-preview-assets-bindings-20261025
+Complete phase brief: PHASE-C-BRIEF.txt, saved before product edits; updated with
+Root's approved type-only commonTags exception and current c0411e2 standing rules.
+
+Existing AssetsStack now participates in the selected first-chat composition.
+Closed binding schema9 requires one or two distinct explicit preview tenant IDs.
+These are private operator inputs, not hard-coded customer IDs. Tests use synthetic
+fixtures only. Actual approved private binding remains a separate deployment input.
+Root authorized source/synthesis and draft PR; independent review and Root release
+allocation remain required before actual provisioning or service updates.
+
+Changed behavior and expected local CloudFormation delta
+- New stack Capiro-Portfolio-Preview-Assets: AssetsKey6C8A65AC (KMS key),
+  AssetsKeyAlias2371AE1C, AssetsBucket5CB76180, AssetsBucketPolicyFFACF6C4.
+  Existing canonical resource IDs, exact preview CORS, KMS rotation, private/TLS,
+  retained/versioned storage, bucket keys and lifecycle configuration preserved.
+  Stack termination protection enabled in the assembly.
+- Core: ASSETS_BUCKET from the canonical stack; new task-role default policy
+  ServeTaskTaskRoleDefaultPolicy46D4ED77; service depends on that policy.
+  S3 GetObject/PutObject/DeleteObject only on approved tenant engagement/* keys.
+  KMS Decrypt/GenerateDataKey only on the Assets key via S3 us-east-1.
+- No ListBucket, version deletion, tagging, multipart, other storage-family or
+  external-provider grant. Current ordinary upload/confirm/read/delete code uses
+  presigned POST, Head/GetObject and DeleteObject without version IDs. Synthetic
+  document cleanup/retention is a different existing owner and is not activated.
+- Actual selected Core template composition is preserved, including existing
+  MeriRoutineSigningPolicy and all outputs. Image, RELEASE_SHA, secret binding,
+  database, network, DNS, listeners, scan policy and other flags are unchanged.
+  Phase B route/classification changes are separately authored and required for
+  the working browser lifecycle. This change alone is not upload acceptance.
+
+Toolchain and checks (local, no AWS calls)
+Node24.22.1; reused C:/dev/c1-entry/infra/cdk/node_modules via owned junction;
+aws-cdk-lib2.271.0, constructs10.8.1, ts-node10.9.2, TypeScript5.9.3. No installs.
+From infra/cdk:
+1. node scripts/run-construct-tests.cjs --run preview-first-chat-core
+   Untouched base7/7 PASS; final candidate10/10 PASS,0 skipped.
+2. node node_modules/typescript/bin/tsc --noEmit --incremental false --strict
+   --noUncheckedIndexedAccess --skipLibCheck --esModuleInterop --resolveJsonModule
+   --target ES2022 --module commonjs --moduleResolution node
+   lib/preview/first-chat-core.ts test/preview-first-chat-core.spec.ts
+   PASS (imports include Assets/config); no broad package typecheck claimed.
+3. node node_modules/jest/bin/jest.js -c jest.jest-style.config.cjs --runInBand
+   --runTestsByPath test/assets-stack.client-logo.spec.ts
+   test/assets-stack.planner.spec.ts test/assets-stack.hearing-audio.spec.ts
+   PASS3 suites/4 tests; retained non-preview callers remain valid.
+4. Three targeted mutants killed by assertion failures: remove ASSETS_BUCKET;
+   broaden approved tenant keys to all tenants; remove KMS ViaService restriction.
+   Each source restored byte-for-byte; no test count dropped.
+5. git diff --check PASS; selected source/test formatting PASS.
+6. Local CloudFormation synthesis PASS. The retained executed change-set template
+   selected-change-set-template.json is the Core43f baseline. The older sibling
+   selected-template.json represents the previous83ae source and was rejected by
+   the preparation source-pin check; it was not used for candidate preparation.
+
+Initial author-only test corrections: two incorrect expected CDK IDs/export lookups
+failed before correction; final tests pass. The missing-bucket mutant first failed
+with TypeError; the assertion now names the required export and kills it explicitly.
+Scoped typecheck initially failed on the known Assets EnvConfig shape until Root
+approved the type-only narrowing. These were not inherited product failures.
+
+Private local evidence is retained in Release work/release-20261025/private/
+ordinary-assets-preparation/: preparation.json, assets.template.json,
+core.source.template.json, core.selected.template.json, selected-diff.private.json,
+binding.private.json, construct-final.log, mutants.json and the three mutant logs.
+Current local templates use synthetic tenant inputs and are not deployable release
+bindings. Exact hashes are in preparation.json and the Release handoff; no private
+binding or synthesized template is committed. Later real-binding review is required.
+
+Deletion: schema8 acceptance removed; its sole remaining occurrence in this source
+and affected test is a refusal assertion. No application mechanism is replaced,
+no helper/caller removed, and no dead compatibility branch added. No manifests,
+lockfiles, migrations or runtime image source changed.
+
+NOT RUN: provisioning/change-set creation or execution, IAM simulation, browser
+upload/confirm/read/move/delete, model/provider operations, image build/scan, DB
+qualification or full suites. Existing closed image/runtime/DB gates remain closed.
+No scanner engine, new scanner prerequisite, false-clean claim or scan flag change.
+Required-scan quarantine/custody behavior and separate Meri-evidence rules remain.
+
+Operation rationale references:
+https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html
+https://docs.aws.amazon.com/kms/latest/developerguide/conditions-kms.html#conditions-kms-via-service
+HeadObject uses GetObject; missing-object status is permission dependent and is not
+claimed to be404 with this policy. Ordinary missing upload confirmation refuses;
+the separate synthetic cleanup readback's404 semantics are outside this allocation.

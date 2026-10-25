@@ -7,6 +7,7 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as secrets from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
+import { AssetsStack } from '../assets-stack';
 import routes from './first-chat-core-routes.json';
 import {
   PREVIEW_EDGE_CORE_TARGET_EXPORT,
@@ -30,6 +31,7 @@ export const FIRST_CHAT_CORE_HOST = 'first-chat-preview.app-dev.capiro.ai';
 export const FIRST_CHAT_CORE_GUARD_PRIORITY = 7;
 export const FIRST_CHAT_CORE_GUARD_STACK_NAME = 'Capiro-Preview-First-Chat-Core-Guard';
 export const FIRST_CHAT_CORE_GUARD_RULE_EXPORT = 'Capiro-Preview-First-Chat-Core-Guard-RuleArn';
+export const FIRST_CHAT_ASSETS_STACK_NAME = 'Capiro-Portfolio-Preview-Assets';
 const account = '967807252336';
 const region = 'us-east-1';
 const env = { account, region };
@@ -66,13 +68,14 @@ export const FIRST_CHAT_CORE_POST_PATHS: readonly string[] = Object.freeze([...r
 export const FIRST_CHAT_CORE_GET_PATHS: readonly string[] = Object.freeze([...routes.get]);
 
 export interface FirstChatCoreImageBinding {
-  schemaVersion: 8;
+  schemaVersion: 9;
   sourceHead: string;
   imageDigest: string;
   internalServiceSecretArn: string;
   internalServiceSecretVersionId: string;
   listener: { guardPriority: 7 };
   deployment: { databaseHost: string; desiredCount: 1 };
+  assets: { tenantIds: string[] };
 }
 
 function exactKeys(
@@ -112,12 +115,13 @@ export function firstChatCoreImageBinding(
       'internalServiceSecretVersionId',
       'listener',
       'deployment',
+      'assets',
     ],
     'First-chat image binding',
   );
   if (
     !pins ||
-    record.schemaVersion !== 8 ||
+    record.schemaVersion !== 9 ||
     !/^[0-9a-f]{40}$/.test(pins.sourceHead) ||
     !/^sha256:[0-9a-f]{64}$/.test(pins.imageDigest) ||
     record.sourceHead !== pins.sourceHead ||
@@ -139,6 +143,19 @@ export function firstChatCoreImageBinding(
   const deployment = exactKeys(record.deployment, ['databaseHost', 'desiredCount'], 'Deployment');
   if (deployment.databaseHost !== live.dbHost || deployment.desiredCount !== 1)
     throw new Error('Persistent preview clone and desired count 1 required');
+  const assets = exactKeys(record.assets, ['tenantIds'], 'Assets');
+  if (
+    !Array.isArray(assets.tenantIds) ||
+    assets.tenantIds.length < 1 ||
+    assets.tenantIds.length > 2 ||
+    assets.tenantIds.some(
+      (id) =>
+        typeof id !== 'string' ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id),
+    ) ||
+    new Set(assets.tenantIds).size !== assets.tenantIds.length
+  )
+    throw new Error('One or two distinct explicit preview tenant identifiers required');
   return record as unknown as FirstChatCoreImageBinding;
 }
 
@@ -184,7 +201,12 @@ export class FirstChatCoreGuardStack extends cdk.Stack {
 }
 
 export class FirstChatCoreServiceStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, binding: FirstChatCoreImageBinding) {
+  constructor(
+    scope: Construct,
+    id: string,
+    binding: FirstChatCoreImageBinding,
+    assets: AssetsStack,
+  ) {
     super(scope, id, {
       env,
       description:
@@ -262,6 +284,23 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
         operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
       },
     });
+    // Ordinary Files uses presigned POST, Head/GetObject and reviewed deletion.
+    // Core retains actor/client/wall enforcement; IAM confines its storage owner.
+    serveTask.taskRole.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'],
+        resources: binding.assets.tenantIds.map((tenantId) =>
+          assets.bucket.arnForObjects(`tenants/${tenantId}/engagement/*`),
+        ),
+      }),
+    );
+    serveTask.taskRole.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: ['kms:Decrypt', 'kms:GenerateDataKey'],
+        resources: [assets.key.keyArn],
+        conditions: { StringEquals: { 'kms:ViaService': `s3.${region}.amazonaws.com` } },
+      }),
+    );
     const serveLog = new logs.LogGroup(this, 'ServeLog', {
       logGroupName: '/capiro/preview-first-chat/core',
       retention: logs.RetentionDays.TWO_WEEKS,
@@ -289,6 +328,7 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
         DB_NAME: 'capiro',
         CLERK_JWT_ISSUER: live.clerkIssuer,
         WEB_ORIGIN: 'https://portfolio-preview.app.capiro.ai',
+        ASSETS_BUCKET: assets.bucket.bucketName,
         // Hearing-file authorization must consult the preview Intel owner on
         // the same clone, including its current access-lock metadata.
         TRACKER_APP_BASE_URL: `https://${FIRST_CHAT_CORE_HOST}`,
@@ -434,12 +474,27 @@ export function previewFirstChatCoreApplication(
 ) {
   const binding = firstChatCoreImageBinding(input, pins);
   const app = new cdk.App({ outdir });
+  const assets = new AssetsStack(app, FIRST_CHAT_ASSETS_STACK_NAME, {
+    env,
+    terminationProtection: true,
+    cfg: {
+      envName: 'preview',
+      appHost: 'portfolio-preview.app.capiro.ai',
+      rootDomain: 'portfolio-preview.app.capiro.ai',
+      protectFromDestroy: true,
+    },
+  });
   const guard = new FirstChatCoreGuardStack(
     app,
     FIRST_CHAT_CORE_GUARD_STACK_NAME,
     binding.listener.guardPriority,
   );
-  const service = new FirstChatCoreServiceStack(app, 'Capiro-Preview-First-Chat-Core', binding);
+  const service = new FirstChatCoreServiceStack(
+    app,
+    'Capiro-Preview-First-Chat-Core',
+    binding,
+    assets,
+  );
   service.addStackDependency(guard);
-  return { app, guard, service, binding };
+  return { app, guard, service, assets, binding };
 }
