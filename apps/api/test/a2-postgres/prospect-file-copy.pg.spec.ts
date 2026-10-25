@@ -124,7 +124,7 @@ beforeEach(async () => {
   await h.sql(
     `INSERT INTO engagement_attachments(id,tenant_id,prospect_id,uploaded_by_user_id,file_name,content_type,byte_size,bucket,s3_key,
     calculated_sha256,lifecycle_status,scan_status,viewer_mode,viewer_user_ids)
-    VALUES($1,$2,$3,$4,'Reviewed.txt','text/plain',$5,'synthetic-bucket','synthetic-source',$6,'ready','clean','restricted',ARRAY[$4::text])`,
+    VALUES($1,$2,$3,$4,'Reviewed.txt','text/plain',$5,'synthetic-bucket','synthetic-source',$6,'ready','clean','restricted',ARRAY[$4::uuid::text])`,
     [sourceId, tenant, prospect, actor, bytes.length, checksum],
   );
   await h.sql(
