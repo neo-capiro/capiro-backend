@@ -39,6 +39,7 @@ describe('durable meeting prep jobs', () => {
           status: 'confirmed',
         }),
       },
+      client: { findFirst: jest.fn().mockResolvedValue({ id: 'client' }) },
       meetingPrepJob: {
         findUnique: jest.fn(async () => row),
         findFirst: jest.fn(async () => row),
@@ -116,6 +117,115 @@ describe('durable meeting prep jobs', () => {
         }),
       }),
     );
+  });
+  test.each(['false', undefined])(
+    'returns the persisted cancellation receipt after the generation flag becomes %s',
+    async (flag) => {
+      const h = harness();
+      await h.service.submit(ctx as never, 'meeting', {});
+      if (flag === undefined) delete process.env.MEETING_PREP_COMPREHENSIVE_ENABLED;
+      else process.env.MEETING_PREP_COMPREHENSIVE_ENABLED = flag;
+
+      const cancelled = await h.service.cancel(ctx as never, 'meeting', 'job');
+
+      expect(cancelled).toMatchObject({
+        jobId: 'job',
+        meetingId: 'meeting',
+        status: 'cancelled',
+        stage: 'cancelled',
+      });
+      expect(cancelled).not.toHaveProperty('input');
+      expect(await h.tx.meetingPrepJob.findFirst()).toMatchObject({
+        status: 'cancelled',
+        leaseToken: null,
+        leaseUntil: null,
+      });
+      expect(h.tx.meetingPrepJob.findFirst).toHaveBeenCalledWith({
+        where: { tenantId: 'tenant', userId: 'actor', meetingId: 'meeting', id: 'job' },
+        orderBy: { createdAt: 'desc' },
+      });
+    },
+  );
+  test.each(['membership', 'meeting', 'client wall'])(
+    'refuses cancellation before writing after loss of %s access',
+    async (boundary) => {
+      const h = harness();
+      await h.service.submit(ctx as never, 'meeting', {});
+      process.env.MEETING_PREP_COMPREHENSIVE_ENABLED = 'false';
+      if (boundary === 'membership') h.tx.tenantMembership.findFirst.mockResolvedValue(null);
+      else if (boundary === 'meeting') h.tx.meeting.findFirst.mockResolvedValue(null);
+      else {
+        h.tx.meeting.findFirst.mockResolvedValue({ clientId: 'client', isInternal: false });
+        h.tx.client.findFirst.mockResolvedValue(null);
+      }
+
+      await expect(h.service.cancel(ctx as never, 'meeting', 'job')).rejects.toThrow();
+
+      expect(h.tx.meetingPrepJob.updateMany).not.toHaveBeenCalled();
+      expect(await h.tx.meetingPrepJob.findFirst()).toMatchObject({ status: 'queued' });
+    },
+  );
+  test.each(['membership', 'meeting', 'client wall'])(
+    'withholds the committed cancellation receipt after loss of %s access',
+    async (boundary) => {
+      const h = harness();
+      await h.service.submit(ctx as never, 'meeting', {});
+      process.env.MEETING_PREP_COMPREHENSIVE_ENABLED = 'false';
+      if (boundary === 'membership') {
+        h.tx.tenantMembership.findFirst
+          .mockResolvedValueOnce({ role: 'standard_user' })
+          .mockResolvedValue(null);
+      } else if (boundary === 'meeting') {
+        h.tx.meeting.findFirst
+          .mockResolvedValueOnce({ clientId: null, isInternal: true })
+          .mockResolvedValue(null);
+      } else {
+        h.tx.meeting.findFirst.mockResolvedValue({ clientId: 'client', isInternal: false });
+        h.tx.client.findFirst.mockResolvedValueOnce({ id: 'client' }).mockResolvedValue(null);
+      }
+
+      await expect(h.service.cancel(ctx as never, 'meeting', 'job')).rejects.toThrow();
+
+      expect(h.tx.meetingPrepJob.findFirst).not.toHaveBeenCalled();
+      expect(await h.tx.meetingPrepJob.findFirst()).toMatchObject({ status: 'cancelled' });
+    },
+  );
+  test('does not fabricate cancellation when the persisted job is already terminal', async () => {
+    const h = harness();
+    await h.service.submit(ctx as never, 'meeting', {});
+    await h.tx.meetingPrepJob.updateMany({ data: { status: 'completed', prepId: 'saved-prep' } });
+    h.tx.meetingPrepJob.updateMany.mockResolvedValue({ count: 0 });
+    process.env.MEETING_PREP_COMPREHENSIVE_ENABLED = 'false';
+
+    expect(await h.service.cancel(ctx as never, 'meeting', 'job')).toMatchObject({
+      status: 'completed',
+      prepId: 'saved-prep',
+    });
+  });
+  test('does not return a receipt after a cancellation commit failure', async () => {
+    const h = harness();
+    await h.service.submit(ctx as never, 'meeting', {});
+    h.prisma.withTenantUser.mockImplementationOnce(async (_tenant, _actor, run) => {
+      await run(h.tx);
+      throw new Error('commit failed');
+    });
+    process.env.MEETING_PREP_COMPREHENSIVE_ENABLED = 'false';
+
+    await expect(h.service.cancel(ctx as never, 'meeting', 'job')).rejects.toThrow('commit failed');
+
+    expect(h.tx.meetingPrepJob.findFirst).not.toHaveBeenCalled();
+  });
+  test('preserves an unknown outcome when post-commit readback fails', async () => {
+    const h = harness();
+    await h.service.submit(ctx as never, 'meeting', {});
+    h.tx.meetingPrepJob.findFirst.mockRejectedValueOnce(new Error('readback unavailable'));
+    process.env.MEETING_PREP_COMPREHENSIVE_ENABLED = 'false';
+
+    await expect(h.service.cancel(ctx as never, 'meeting', 'job')).rejects.toThrow(
+      'readback unavailable',
+    );
+
+    expect(await h.tx.meetingPrepJob.findFirst()).toMatchObject({ status: 'cancelled' });
   });
   test('revoked membership cannot start or inspect jobs', async () => {
     const h = harness();

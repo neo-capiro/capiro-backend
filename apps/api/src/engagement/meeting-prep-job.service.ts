@@ -125,6 +125,10 @@ export class MeetingPrepJobService {
 
   async get(ctx: TenantContext, meetingId: string, jobId?: string) {
     if (!meetingPrepEnabled()) return null;
+    return this.readJob(ctx, meetingId, jobId);
+  }
+
+  private async readJob(ctx: TenantContext, meetingId: string, jobId?: string) {
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       await this.authorize(tx, ctx, meetingId, undefined, true);
       const job = await tx.meetingPrepJob.findFirst({
@@ -182,7 +186,9 @@ export class MeetingPrepJobService {
         data: { status: 'cancelled', stage: 'cancelled', leaseToken: null, leaseUntil: null },
       });
     });
-    return this.get(ctx, meetingId, jobId);
+    // The committed write proved table access; generation may now be disabled.
+    // Recheck current access and return the persisted outcome, not a synthetic receipt.
+    return this.readJob(ctx, meetingId, jobId);
   }
 
   async resume(ctx: TenantContext, meetingId: string, jobId: string) {
