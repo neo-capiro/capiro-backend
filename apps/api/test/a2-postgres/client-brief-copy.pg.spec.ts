@@ -226,7 +226,7 @@ it.each(['ws_doc_version', 'ws_source_action'])(
         await request(app.getHttpServer())
           .post(`/workspace-api/prospects/${prospect}/clients/${client}/brief-copies`)
           .send(input)
-          .expect(500);
+          .expect(503);
       } else await expect(save()).rejects.toThrow();
       expect(await counts()).toEqual(empty);
     } finally {

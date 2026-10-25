@@ -65,6 +65,7 @@ function harness() {
     failVersion: false,
     failReceipt: false,
     lostResponse: false,
+    deferredRollback: false,
   };
   const key = (t: string, a: string, k: string) => JSON.stringify([t, a, k]);
   const tx: any = {
@@ -210,6 +211,8 @@ function harness() {
         Object.assign(state, before);
         throw error;
       }
+      if (controls.deferredRollback && state.receipts.size > before.receipts.size)
+        Object.assign(state, before);
       if (controls.lostResponse) {
         controls.lostResponse = false;
         throw Error('commit response lost');
@@ -296,6 +299,15 @@ test('lost commit acknowledgement recovers the same private draft and initial ve
   expect(await h.save()).toEqual(await h.read());
   expect(h.state.drafts).toHaveLength(1);
   expect(h.state.versions).toHaveLength(1);
+});
+test('a callback result followed by deferred rollback is not a completed copy', async () => {
+  const h = harness();
+  h.controls.deferredRollback = true;
+  await expect(h.save()).rejects.toMatchObject({ status: 503 });
+  expect(h.state.receipts.size).toBe(0);
+  expect(h.state.drafts).toEqual([]);
+  h.controls.deferredRollback = false;
+  expect((await h.save()).status).toBe('completed');
 });
 test.each(['failVersion', 'failReceipt'])(
   'rolls back draft, document, context and version on %s',

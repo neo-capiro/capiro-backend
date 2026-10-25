@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import {
   prospectResourceScope,
   prospectBriefVersionIdentity,
@@ -178,7 +183,7 @@ export async function copyBriefToClient(
   ids(tenantId, actorId, prospectId, clientId, command.requestId);
   const digest = clientBriefCopyDigest(tenantId, actorId, command),
     key = sourceKey(prospectId, clientId, command.requestId);
-  return transaction(prisma, async (tx) => {
+  const result = await transaction(prisma, async (tx) => {
     await tx.$executeRaw`SELECT set_config('app.current_tenant',${tenantId},true)`;
     await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${JSON.stringify(['client-brief-copy', tenantId, actorId, key])},0))::text`;
     const current = await scope(prisma, tx, tenantId, actorId, prospectId, clientId);
@@ -277,6 +282,22 @@ export async function copyBriefToClient(
       command.requestId,
       (await saved(tx, tenantId, actorId, key))!,
     );
+  });
+  // A Prisma callback result is not proof that COMMIT succeeded: deferred
+  // constraints may reject it after the callback returns. Require the immutable
+  // receipt on a separate transaction before acknowledging a completed copy.
+  return transaction(prisma, async (tx) => {
+    await tx.$executeRaw`SELECT set_config('app.current_tenant',${tenantId},true)`;
+    await scope(prisma, tx, tenantId, actorId, prospectId, clientId);
+    const persisted = await saved(tx, tenantId, actorId, key);
+    if (
+      !persisted ||
+      persisted.inputHash !== digest ||
+      persisted.draftId !== result.draftId ||
+      persisted.contextItemId !== result.contextItemId
+    )
+      throw new ServiceUnavailableException('The saved brief copy has not been confirmed');
+    return response(tx, tenantId, actorId, prospectId, clientId, command.requestId, persisted);
   });
 }
 export async function readClientBriefCopy(
