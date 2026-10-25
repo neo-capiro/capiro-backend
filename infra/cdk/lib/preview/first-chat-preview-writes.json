@@ -414,6 +414,11 @@
       "pathRegexes": [
         "^/workspace-api/prospects/[A-Za-z0-9_-]+/clients/[A-Za-z0-9_-]+/brief-copies$"
       ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": ["^/api/engagement/attachments/prospect-copies$"]
     }
   ]
 }

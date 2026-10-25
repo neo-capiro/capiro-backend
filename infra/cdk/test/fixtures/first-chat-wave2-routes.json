@@ -790,5 +790,11 @@
     "method": "POST",
     "path": "/workspace-api/prospects/:prospectId/clients/:clientId/brief-copies",
     "owner": "Portfolio reviewed saved brief -> ClientBriefCopyController -> private client draft and immutable receipt under current source/client authority"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/attachments/prospect-copies",
+    "owner": "Portfolio reviewed prospect upload -> EngagementController -> private client attachment copy and immutable receipt under current source/client authority"
   }
 ]
