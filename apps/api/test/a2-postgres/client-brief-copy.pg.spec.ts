@@ -75,7 +75,9 @@ beforeAll(async () => {
       DO $$ DECLARE t text; BEGIN FOREACH t IN ARRAY ARRAY['business_development_prospects','business_development_briefs','business_development_brief_versions'] LOOP
         EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY',t); EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY',t);
         EXECUTE format('CREATE POLICY tenant_isolation ON %I USING(tenant_id=current_tenant_id()) WITH CHECK(tenant_id=current_tenant_id())',t);
-        EXECUTE format('GRANT SELECT ON %I TO capiro_app',t);
+        -- PostgreSQL row-locking SELECT also requires UPDATE privilege. Core's
+        -- ordinary app role has this under forced tenant RLS.
+        EXECUTE format('GRANT SELECT,UPDATE ON %I TO capiro_app',t);
       END LOOP; END $$;
       -- Workspace's established withSystem identity reader sets this GUC and
       -- retains explicit tenant/Clerk predicates; all resource reads stay scoped.
