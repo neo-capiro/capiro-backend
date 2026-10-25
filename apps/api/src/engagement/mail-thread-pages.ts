@@ -2,13 +2,13 @@ import { BadRequestException, ConflictException, NotFoundException } from '@nest
 import { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
-import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
-import { ownMailThreadWhere } from './engagement-access.helpers.js';
+import { ownMailThreadWhere, requireMailReadScope } from './engagement-access.helpers.js';
 import { activeMailMessageWhere } from './mail-message-state.js';
 import { getMailSyncCoverage } from './mail-sync-coverage.js';
 import { createMailBodySection } from './mail-body-section.js';
 import { normalizeMailReadRecipients, mailReadClientAssociation, activeMailAssociationMessage } from './mail-query.js';
+export { requireMailReadScope } from './engagement-access.helpers.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const unavailable = () => new NotFoundException('Mail thread not found');
@@ -89,21 +89,6 @@ function threadPage(ctx: TenantContext, threadId: string, clientId: string | und
     })).toString('base64url') };
 }
 
-/** Same transaction as the page; a stale request context cannot outlive removal or suspension. */
-export async function requireMailReadScope(tx: Prisma.TransactionClient, ctx: TenantContext, clientId?: string) {
-  const member = await tx.tenantMembership.findFirst({ where: {
-    tenantId: ctx.tenantId, userId: ctx.userId, status: 'active', tenant: { status: 'active' },
-    role: { in: ['standard_user', 'user_admin', 'capiro_admin'] },
-  }, select: { id: true } });
-  if (!member) throw unavailable();
-  if (!clientId) return;
-  if (!(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId))) throw unavailable();
-  const client = await tx.client.findFirst({ where: {
-    id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' },
-  }, select: { id: true } });
-  if (!client) throw unavailable();
-}
-
 const messageSelect = {
   id: true, tenantId: true, threadId: true, connectionId: true, subject: true,
   fromEmail: true, fromName: true, toRecipients: true, ccRecipients: true,
@@ -135,6 +120,10 @@ export async function readMailThreadPage(prisma: PrismaService, ctx: TenantConte
     });
     if (!thread || !thread.connection || thread.connection.tenantId !== ctx.tenantId ||
         thread.connection.createdByUserId !== ctx.userId) throw unavailable();
+    // General and contact-associated reads must honor the thread's actual client,
+    // even when the caller did not select it or selected a different client.
+    if (thread.clientId && thread.clientId !== (clientId ?? association?.clientId))
+      await requireMailReadScope(tx, ctx, thread.clientId);
     if (association) {
       const emails = [...new Set([...(await association.profileEmails(tx, association.clientId)), ...association.recipients])];
       const proof = await tx.$queryRaw<Array<{ allowed: boolean }>>(Prisma.sql`SELECT EXISTS (

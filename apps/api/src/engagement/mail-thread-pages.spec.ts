@@ -11,7 +11,7 @@ const ids = {
 const ctx = { tenantId: ids.tenant, userId: ids.actor } as TenantContext;
 const asOf = '2026-10-01T12:00:00.000Z';
 function harness() {
-  const thread = { id: ids.thread, tenantId: ids.tenant, clientId: ids.client, connectionId: ids.box,
+  const thread = { id: ids.thread, tenantId: ids.tenant, clientId: ids.client as string | null, connectionId: ids.box,
     updatedAt: new Date('2026-09-30T12:00:00Z'), connection: {
       id: ids.box, tenantId: ids.tenant, createdByUserId: ids.actor, accountEmail: 'owner@example.test',
       provider: 'google_workspace', status: 'connected', lastSyncAt: null, syncState: {},
@@ -31,6 +31,40 @@ function harness() {
 }
 
 describe('bounded canonical thread pages', () => {
+  it.each(['wall', 'client'])('refuses General access to an actual associated client with current %s denial', async failure => {
+    const h = harness();
+    if (failure === 'wall') h.tx.$queryRawUnsafe.mockResolvedValue([{ allowed: false }]);
+    if (failure === 'client') h.tx.client.findFirst.mockResolvedValue(null as any);
+    await expect(readMailThreadPage(h.prisma as any, ctx, ids.thread, undefined, [ids.box], { asOf }))
+      .rejects.toBeInstanceOf(NotFoundException);
+    expect(h.tx.$queryRawUnsafe).toHaveBeenCalledWith(expect.any(String), ids.tenant, ids.client, ids.actor);
+    expect(h.tx.mailMessage.count).not.toHaveBeenCalled();
+    expect(h.tx.mailMessage.findMany).not.toHaveBeenCalled();
+  });
+
+  it('keeps visible client-linked and unassociated owned threads readable in General', async () => {
+    const h = harness();
+    await readMailThreadPage(h.prisma as any, ctx, ids.thread, undefined, [ids.box], { asOf });
+    expect(h.tx.$queryRawUnsafe).toHaveBeenCalledWith(expect.any(String), ids.tenant, ids.client, ids.actor);
+    h.tx.$queryRawUnsafe.mockClear();
+    h.thread.clientId = null;
+    await readMailThreadPage(h.prisma as any, ctx, ids.thread, undefined, [ids.box], { asOf });
+    expect(h.tx.$queryRawUnsafe).not.toHaveBeenCalled();
+    expect(h.tx.mailMessage.findMany).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not let contact association with a visible client bypass the actual thread client wall', async () => {
+    const h = harness();
+    const selectedClient = '30000000-0000-4000-8000-000000000002';
+    h.tx.$queryRawUnsafe.mockResolvedValueOnce([{ allowed: true }]).mockResolvedValueOnce([{ allowed: false }]);
+    await expect(readMailThreadHttpPage(h.prisma as any, ctx, ids.thread, undefined,
+      { asOf, associationClientId: selectedClient }, async () => ['synthetic@example.test']))
+      .rejects.toBeInstanceOf(NotFoundException);
+    expect(h.tx.$queryRawUnsafe).toHaveBeenNthCalledWith(1, expect.any(String), ids.tenant, selectedClient, ids.actor);
+    expect(h.tx.$queryRawUnsafe).toHaveBeenNthCalledWith(2, expect.any(String), ids.tenant, ids.client, ids.actor);
+    expect(h.tx.mailMessage.findMany).not.toHaveBeenCalled();
+  });
+
   it('selects only the requested bounded messages under a current read transaction and existing walls', async () => {
     const h = harness(); const page = await h.read();
     expect(h.prisma.withTenant).toHaveBeenCalledWith(ids.tenant, expect.any(Function),

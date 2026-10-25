@@ -11,7 +11,9 @@
  * closes; keep them here and import them.
  */
 import { Prisma } from '@prisma/client';
+import { NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
+import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import { activeMailMessageWhere, activeMailThreadWhere } from './mail-message-state.js';
 
 /**
@@ -76,6 +78,22 @@ export function ownMailMessageWhere(userId: string): Prisma.MailMessageWhereInpu
     connection: { createdByUserId: userId },
     ...activeMailMessageWhere(),
   };
+}
+
+/** Same transaction as the page; a stale request context cannot outlive removal or suspension. */
+export async function requireMailReadScope(tx: Prisma.TransactionClient, ctx: TenantContext, clientId?: string) {
+  const unavailable = () => new NotFoundException('Mail thread not found');
+  const member = await tx.tenantMembership.findFirst({ where: {
+    tenantId: ctx.tenantId, userId: ctx.userId, status: 'active', tenant: { status: 'active' },
+    role: { in: ['standard_user', 'user_admin', 'capiro_admin'] },
+  }, select: { id: true } });
+  if (!member) throw unavailable();
+  if (!clientId) return;
+  if (!(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId))) throw unavailable();
+  const client = await tx.client.findFirst({ where: {
+    id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' },
+  }, select: { id: true } });
+  if (!client) throw unavailable();
 }
 
 /**
