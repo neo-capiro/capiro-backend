@@ -257,6 +257,7 @@ model Tenant {
   clientPeople                       ClientPerson[]
   clientPersonCreateReceipts          ClientPersonCreateReceipt[]
   meetingCommandReceipts             MeetingCommandReceipt[]
+  clientFileAccessReceipts           ClientFileAccessReceipt[]
   clientFacilities                   ClientFacility[]
   clientActivityCommands             ClientActivityCommand[]
   clientActivity                     ClientActivity[]
@@ -4028,8 +4029,24 @@ model ClientSubmissionHistory {
   @@map("client_submission_history")
 }
 
-/// Consumed manual contact-create request. Retained independently of editable,
-/// deletable contact rows so a retry cannot recreate a removed contact.
+/// Immutable access-change outcome independent of later file edits and deletion.
+model ClientFileAccessReceipt {
+  tenantId      String   @map("tenant_id") @db.Uuid
+  actorUserId   String   @map("actor_user_id") @db.Uuid
+  requestId     String   @map("request_id") @db.Uuid
+  clientId      String   @map("client_id") @db.Uuid
+  payloadDigest String   @map("payload_digest") @db.Char(64)
+  operation     String
+  status        String
+  result        Json?    @map("result_jsonb")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, actorUserId, requestId], map: "client_file_access_receipts_pkey")
+  @@map("client_file_access_receipts")
+}
+
 /// Immutable historical outcome; current meeting/artifact existence is checked separately.
 model MeetingCommandReceipt {
   tenantId           String   @map("tenant_id") @db.Uuid

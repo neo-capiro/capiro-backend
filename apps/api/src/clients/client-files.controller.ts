@@ -4,22 +4,12 @@ import {
   Controller,
   Get,
   Header,
-  NotFoundException,
+  Injectable,
   Param,
+  ParseUUIDPipe,
   Patch,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ArrayUnique,
-  IsArray,
-  IsIn,
-  IsOptional,
-  IsString,
-  IsUUID,
-  MaxLength,
-  ValidateIf,
-} from 'class-validator';
-import { Injectable } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { CLIENT_STORAGE_QUOTA_BYTES } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -27,25 +17,13 @@ import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { requireOwnerClient } from './client-ordered-owner.access.js';
-
-/**
- * Client file folders + per-file view access (Figma `907:2810` / Move to Folder
- * modal `907:3355` / Files "who can view").
- *
- * Deliberately narrow: upload, delete, presign and confirm all stay with the
- * engagement attachment API that already owns them. This adds only the folder
- * metadata and the view-access ACL the CRM needs, so there is one attachment
- * pipeline and one stored object per file.
- *
- * View access:
- *  - `viewerMode: 'all'` (default) — every tenant member can see the file.
- *  - `viewerMode: 'restricted'` — only `viewerUserIds` (plus the uploader, who
- *    always retains access) can see it in the Files list / download it.
- * Folder-level "who can view" is applied by rewriting every attachment that
- * currently carries that folder label — folders are labels, not a table.
- */
-
-export type ViewerMode = 'all' | 'restricted';
+import { lockFileAccessRows } from './client-file-access-authority.js';
+import {
+  commitFileAccess,
+  getFileAccessReceipt,
+  FILE_ACCESS_TRANSACTION_TIMEOUT_MS,
+} from './client-file-access-command.js';
+import { parseFileAccessCommand } from './client-file-access-input.js';
 
 type StorageUsage = {
   clientId: string;
@@ -123,9 +101,11 @@ export class ClientFilesService {
   /** Folder tree with counts, including the unfiled group. */
   async folders(ctx: TenantContext, clientId: string) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await requireOwnerClient(tx, ctx, clientId, false, false, 'share');
       const rows = await tx.engagementAttachment.groupBy({
         by: ['folder'],
-        where: { prospectId: null,
+        where: {
+          prospectId: null,
           tenantId: ctx.tenantId,
           clientId,
           // A restricted file the caller cannot view is not "in" the folder for them.
@@ -139,156 +119,44 @@ export class ClientFilesService {
     });
   }
 
-  /**
-   * Move a file between folders. Rewrites metadata only — the S3 object is
-   * untouched, so a file referenced from a capability or strategy keeps one
-   * canonical copy.
-   */
-  async move(ctx: TenantContext, clientId: string, attachmentId: string, folder: string | null) {
-    const normalized = folder?.trim() || null;
-    if (normalized && normalized.length > 120) {
-      throw new BadRequestException('Folder name is too long');
-    }
-
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const existing = await tx.engagementAttachment.findFirst({
-        where: { prospectId: null, id: attachmentId, tenantId: ctx.tenantId, clientId },
-        select: { id: true, viewerMode: true, viewerUserIds: true, uploadedByUserId: true },
-      });
-      if (!existing) throw new NotFoundException('File not found for this client');
-      if (!this.canView(ctx.userId, existing)) {
-        throw new NotFoundException('File not found for this client');
-      }
-
-      return tx.engagementAttachment.update({
-        where: { id: attachmentId },
-        data: { folder: normalized },
-        select: {
-          id: true,
-          fileName: true,
-          folder: true,
-          viewerMode: true,
-          viewerUserIds: true,
-        },
-      });
-    });
-  }
-
-  /** Read the view-access ACL for one file. */
+  /** Access reads return the revision the user actually reviewed. */
   async getAccess(ctx: TenantContext, clientId: string, attachmentId: string) {
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const row = await tx.engagementAttachment.findFirst({
-        where: { prospectId: null, id: attachmentId, tenantId: ctx.tenantId, clientId },
-        select: {
-          id: true,
-          fileName: true,
-          folder: true,
-          viewerMode: true,
-          viewerUserIds: true,
-          uploadedByUserId: true,
-        },
-      });
-      if (!row) throw new NotFoundException('File not found for this client');
-      if (!this.canView(ctx.userId, row)) {
-        throw new NotFoundException('File not found for this client');
-      }
-      return {
-        id: row.id,
-        fileName: row.fileName,
-        folder: row.folder,
-        viewerMode: row.viewerMode as ViewerMode,
-        viewerUserIds: row.viewerUserIds,
-        uploadedByUserId: row.uploadedByUserId,
-      };
-    });
+    return this.prisma.withTenant(
+      ctx.tenantId,
+      async (tx) => {
+        const [row] = await lockFileAccessRows(tx, ctx, clientId, [attachmentId]);
+        return {
+          id: row!.id,
+          fileName: row!.fileName,
+          folder: row!.folder,
+          metadataRevision: row!.metadataRevision,
+          viewerMode: row!.viewerMode,
+          viewerUserIds: row!.viewerUserIds,
+          uploadedByUserId: row!.uploadedByUserId,
+        };
+      },
+      { timeoutMs: FILE_ACCESS_TRANSACTION_TIMEOUT_MS },
+    );
   }
 
-  /**
-   * Set who on the team can view a single file. `viewerMode: 'all'` clears the
-   * restricted list (it is meaningless under that mode). Restricted lists are
-   * de-duplicated and must only contain active tenant members.
-   */
-  async setAccess(
-    ctx: TenantContext,
-    clientId: string,
-    attachmentId: string,
-    viewerMode: ViewerMode,
-    viewerUserIds: string[],
-  ) {
-    const normalizedIds =
-      viewerMode === 'all' ? [] : [...new Set(viewerUserIds.map((id) => id.trim()).filter(Boolean))];
-
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const existing = await tx.engagementAttachment.findFirst({
-        where: { prospectId: null, id: attachmentId, tenantId: ctx.tenantId, clientId },
-        select: { id: true, viewerMode: true, viewerUserIds: true, uploadedByUserId: true },
-      });
-      if (!existing) throw new NotFoundException('File not found for this client');
-      if (!this.canView(ctx.userId, existing)) {
-        throw new NotFoundException('File not found for this client');
-      }
-
-      if (normalizedIds.length) {
-        await this.assertTenantMembers(tx, ctx.tenantId, normalizedIds);
-      }
-
-      return tx.engagementAttachment.update({
-        where: { id: attachmentId },
-        data: { viewerMode, viewerUserIds: normalizedIds },
-        select: {
-          id: true,
-          fileName: true,
-          folder: true,
-          viewerMode: true,
-          viewerUserIds: true,
-          uploadedByUserId: true,
-        },
-      });
-    });
+  setAccess(ctx: TenantContext, clientId: string, attachmentId: string, raw: unknown) {
+    const command = parseFileAccessCommand(clientId, raw);
+    if (command.operation !== 'file-access' || command.files[0]!.id !== attachmentId)
+      throw new BadRequestException('The reviewed file does not match this route');
+    return commitFileAccess(this.prisma, ctx, clientId, command);
   }
 
-  /**
-   * Apply the same ACL to every file currently carrying `folder` (or the
-   * unfiled group when `folder` is null). Folders are labels on attachments —
-   * there is no folder table — so "folder access" is bulk file access.
-   */
-  async setFolderAccess(
-    ctx: TenantContext,
-    clientId: string,
-    folder: string | null,
-    viewerMode: ViewerMode,
-    viewerUserIds: string[],
-  ) {
-    const normalizedFolder = folder?.trim() || null;
-    const normalizedIds =
-      viewerMode === 'all' ? [] : [...new Set(viewerUserIds.map((id) => id.trim()).filter(Boolean))];
-
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      if (normalizedIds.length) {
-        await this.assertTenantMembers(tx, ctx.tenantId, normalizedIds);
-      }
-
-      const result = await tx.engagementAttachment.updateMany({
-        where: { prospectId: null,
-          tenantId: ctx.tenantId,
-          clientId,
-          folder: normalizedFolder,
-          // Only rewrite files the caller can already see — never a vehicle for
-          // changing ACLs on restricted files the caller is not on.
-          OR: this.visibleWhere(ctx.userId),
-        },
-        data: { viewerMode, viewerUserIds: normalizedIds },
-      });
-      return {
-        folder: normalizedFolder,
-        viewerMode,
-        viewerUserIds: normalizedIds,
-        updated: result.count,
-      };
-    });
+  setFolderAccess(ctx: TenantContext, clientId: string, raw: unknown) {
+    const command = parseFileAccessCommand(clientId, raw);
+    if (command.operation !== 'folder-access')
+      throw new BadRequestException('A reviewed folder access change is required');
+    return commitFileAccess(this.prisma, ctx, clientId, command);
   }
 
-  /** Prisma `OR` clause: all-mode files, or restricted files listing the user / uploaded by them. */
+  accessReceipt(ctx: TenantContext, clientId: string, requestId: string) {
+    return getFileAccessReceipt(this.prisma, ctx, clientId, requestId);
+  }
+
   private visibleWhere(userId: string) {
     return [
       { viewerMode: 'all' },
@@ -296,66 +164,6 @@ export class ClientFilesService {
       { uploadedByUserId: userId },
     ];
   }
-
-  private canView(
-    userId: string,
-    row: { viewerMode: string; viewerUserIds: string[]; uploadedByUserId: string | null },
-  ): boolean {
-    if (row.viewerMode !== 'restricted') return true;
-    if (row.uploadedByUserId && row.uploadedByUserId === userId) return true;
-    return row.viewerUserIds.includes(userId);
-  }
-
-  private async assertTenantMembers(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    tx: any,
-    tenantId: string,
-    userIds: string[],
-  ) {
-    // Same rule account-team assignment enforces: only ACTIVE members of this
-    // tenant. Membership lives on tenant_memberships, not users.
-    const members = await tx.tenantMembership.findMany({
-      where: { tenantId, userId: { in: userIds }, status: 'active' },
-      select: { userId: true },
-    });
-    const found = new Set(members.map((m: { userId: string }) => m.userId));
-    const missing = userIds.filter((id) => !found.has(id));
-    if (missing.length) {
-      throw new BadRequestException(
-        'File viewers must be active members of this tenant',
-      );
-    }
-  }
-}
-
-class MoveFileDto {
-  // `null` is meaningful: it returns the file to the unfiled group.
-  @IsOptional()
-  @ValidateIf((_, value) => value !== null)
-  @IsString()
-  @MaxLength(120)
-  folder?: string | null;
-}
-
-class SetAccessDto {
-  @IsIn(['all', 'restricted'])
-  viewerMode!: ViewerMode;
-
-  /** Required when restricted; ignored (and cleared) when mode is 'all'. */
-  @IsOptional()
-  @IsArray()
-  @ArrayUnique()
-  @IsUUID('4', { each: true })
-  viewerUserIds?: string[];
-}
-
-class SetFolderAccessDto extends SetAccessDto {
-  // `null` = the unfiled group.
-  @IsOptional()
-  @ValidateIf((_, value) => value !== null)
-  @IsString()
-  @MaxLength(120)
-  folder?: string | null;
 }
 
 @Controller('clients/:clientId/files')
@@ -366,64 +174,57 @@ export class ClientFilesController {
 
   @Get('storage-usage')
   @Header('Cache-Control', 'no-store')
-  storageUsage(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
+  storageUsage(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId', ParseUUIDPipe) clientId: string,
+  ) {
     return this.service.storageUsage(ctx, clientId);
   }
 
   @Get('folders')
-  folders(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
+  @Header('Cache-Control', 'no-store')
+  folders(@CurrentTenant() ctx: TenantContext, @Param('clientId', ParseUUIDPipe) clientId: string) {
     return this.service.folders(ctx, clientId);
   }
 
-  // Folder-level access MUST be registered before `:attachmentId/*` so Nest does
-  // not treat the literal "access" as an attachment id.
-  @Patch('access/folder')
-  setFolderAccess(
+  @Get('access/commands/:requestId')
+  @Header('Cache-Control', 'no-store')
+  accessReceipt(
     @CurrentTenant() ctx: TenantContext,
-    @Param('clientId') clientId: string,
-    @Body() body: SetFolderAccessDto,
+    @Param('clientId', ParseUUIDPipe) clientId: string,
+    @Param('requestId') requestId: string,
   ) {
-    return this.service.setFolderAccess(
-      ctx,
-      clientId,
-      body.folder ?? null,
-      body.viewerMode,
-      body.viewerUserIds ?? [],
-    );
+    return this.service.accessReceipt(ctx, clientId, requestId);
   }
 
-  @Patch(':attachmentId/folder')
-  move(
+  @Patch('access/folder')
+  @Header('Cache-Control', 'no-store')
+  setFolderAccess(
     @CurrentTenant() ctx: TenantContext,
-    @Param('clientId') clientId: string,
-    @Param('attachmentId') attachmentId: string,
-    @Body() body: MoveFileDto,
+    @Param('clientId', ParseUUIDPipe) clientId: string,
+    @Body() body: unknown,
   ) {
-    return this.service.move(ctx, clientId, attachmentId, body.folder ?? null);
+    return this.service.setFolderAccess(ctx, clientId, body);
   }
 
   @Get(':attachmentId/access')
+  @Header('Cache-Control', 'no-store')
   getAccess(
     @CurrentTenant() ctx: TenantContext,
-    @Param('clientId') clientId: string,
-    @Param('attachmentId') attachmentId: string,
+    @Param('clientId', ParseUUIDPipe) clientId: string,
+    @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
   ) {
     return this.service.getAccess(ctx, clientId, attachmentId);
   }
 
   @Patch(':attachmentId/access')
+  @Header('Cache-Control', 'no-store')
   setAccess(
     @CurrentTenant() ctx: TenantContext,
-    @Param('clientId') clientId: string,
+    @Param('clientId', ParseUUIDPipe) clientId: string,
     @Param('attachmentId') attachmentId: string,
-    @Body() body: SetAccessDto,
+    @Body() body: unknown,
   ) {
-    return this.service.setAccess(
-      ctx,
-      clientId,
-      attachmentId,
-      body.viewerMode,
-      body.viewerUserIds ?? [],
-    );
+    return this.service.setAccess(ctx, clientId, attachmentId, body);
   }
 }
