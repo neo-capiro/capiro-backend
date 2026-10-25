@@ -243,6 +243,11 @@ test('finite method/path routes admit their owners and reject unintended cross-p
       );
       assert.equal(destination('POST', route + '/22222222-2222-4222-8222-222222222222'), null);
     }
+    assert.deepEqual(
+      destination('GET', '/api/engagement/attachments/deletions/11111111-1111-4111-8111-111111111111'),
+      target('core'),
+    );
+    assert.equal(destination('DELETE', '/api/engagement/attachments/deletions/11111111-1111-4111-8111-111111111111'), null);
     assert.equal(destination('POST', '/api/clio/application-authority/history-release'), null);
     assert.deepEqual(
       destination(
