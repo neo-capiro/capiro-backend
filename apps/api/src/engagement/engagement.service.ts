@@ -1537,12 +1537,14 @@ export class EngagementService {
       const { assignClient, clientId, ...fields } = command.meeting!;
       const input = { ...fields, ...(assignClient ? { clientId } : {}) };
       if (command.operation === 'create') {
-        meetingId = (await this.createMeeting(ctx, {
+        const created = await this.createMeeting(ctx, {
           ...fields,
           description: fields.description ?? undefined,
           location: fields.location ?? undefined,
           ...(assignClient ? { clientId } : {}),
-        }, execution)).id;
+        }, execution);
+        if (!created) throw new ServiceUnavailableException('Created meeting result unavailable');
+        meetingId = created.id;
       } else {
         await this.updateMeeting(ctx, meetingId!, {
           ...input, expectedRevision: command.expectedRevision!,
@@ -5858,8 +5860,8 @@ export class EngagementService {
     return tx.meetingPrep.create({data:{tenantId:ctx.tenantId,meetingId:input.meetingId,clientId:null,status:'edited',summary:input.summary,agenda:input.agenda,followUps:input.followUps,talkingPoints:[],risks:[],emailEvidence:[],provider:null,model:null,sharedAt:null,sharedByUserId:null,editedByUserId:ctx.userId,generatedFrom:{schemaVersion:'research_portfolio_institutional_v1',briefing:true,artifactId:artifact.id,meetingId:input.meetingId,actorUserId:ctx.userId,reviewStatus:'unreviewed_draft'}}});
   }
 
-  async updateTask(ctx: TenantContext, id: string, input: UpdateTaskInput) {
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+  async updateTask(ctx: TenantContext, id: string, input: UpdateTaskInput, internal?: { tx: Prisma.TransactionClient }) {
+    const write = async (tx: Prisma.TransactionClient) => {
       const task=await ensureExists(tx.engagementTask.findUnique({ where: { id } }), 'Task not found');
       await assertOwnedResearchPortfolioTask(tx,ctx,task);
       if(task.sourceType===RESEARCH_PORTFOLIO_TASK_SOURCE&&'ownerUserId' in input&&input.ownerUserId!==ctx.userId)throw new BadRequestException('Private Research Portfolio tasks remain owned by their creator');
@@ -5875,7 +5877,8 @@ export class EngagementService {
           ...('status' in input ? { status: input.status } : {}),
         },
       });
-    });
+    };
+    return internal ? write(internal.tx) : this.prisma.withTenant(ctx.tenantId, write);
   }
 
   async createMeetingNote(

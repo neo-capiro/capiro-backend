@@ -26,6 +26,9 @@ import {
   meriExecutionTrust,
 } from './meri-execution-authority.js';
 import { readMeriAdmittedRun } from './meri-admitted-run.reader.js';
+import { NativeApprovalService } from '../native-approvals/native-approval.service.js';
+import { TenantContextMiddleware } from '../../tenant/tenant-context.middleware.js';
+import { receiveNativeTask } from './native-task-execution.js';
 import {
   taskClientWithinScopes,
   taskCreateArgumentsFromBody,
@@ -92,7 +95,16 @@ export class MeriExecutionReceiverService {
     private readonly prisma: PrismaService,
     private readonly engagement: EngagementService,
     @Optional() @Inject(MERI_EXECUTION_KEY_CONFIG) private readonly config: CoreEd25519KeyConfig | null = null,
+    @Optional() private readonly approvals?: NativeApprovalService,
+    @Optional() private readonly tenant?: TenantContextMiddleware,
   ) {}
+
+  /** Attended native tasks share this receiver's transaction and receipt owner. */
+  nativeTask(req: Request, ctx: TenantContext, body: unknown, mode: 'execute' | 'read') {
+    if (!this.approvals || !this.tenant) throw new ServiceUnavailableException('Native task execution unavailable');
+    return receiveNativeTask({ prisma: this.prisma, engagement: this.engagement, approvals: this.approvals,
+      tenant: this.tenant }, req, ctx, body, mode);
+  }
 
   async receive(
     req: Request,

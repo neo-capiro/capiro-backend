@@ -11,6 +11,9 @@ import { NativeApprovalMetadataVerifier } from './native-approval-metadata.js';
 import { NativeExecutionService } from './native-execution.service.js';
 import { meriExecutionKeyConfigProvider, meriExecutionSignerProvider } from '../execution-capability/meri-execution-authority.js';
 import { ApplicationAuthorityModule } from '../../auth/application-authority.module.js';
+import { EngagementModule } from '../../engagement/engagement.module.js';
+import { TenantModule } from '../../tenant/tenant.module.js';
+import { MeriExecutionReceiverService } from '../execution-capability/meri-execution-receiver.service.js';
 
 /** Bodies and receipts are the native provider operations `approval/record`
  * and `approval/decision` byte-for-byte; revoke also carries Meri's approver.
@@ -19,7 +22,22 @@ import { ApplicationAuthorityModule } from '../../auth/application-authority.mod
 @UseGuards(RolesGuard, ToolServiceSecretGuard)
 @Roles('standard_user')
 export class NativeApprovalController {
-  constructor(private readonly approvals: NativeApprovalService, private readonly executions: NativeExecutionService) {}
+  constructor(private readonly approvals: NativeApprovalService, private readonly executions: NativeExecutionService,
+    private readonly receiver: MeriExecutionReceiverService) {}
+
+  @Post('execute')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  executeTask(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
+    return this.receiver.nativeTask(req, ctx, body, 'execute');
+  }
+
+  @Post('execution/read')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  readTask(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
+    return this.receiver.nativeTask(req, ctx, body, 'read');
+  }
 
   @Post('record')
   @HttpCode(200)
@@ -54,11 +72,12 @@ export class NativeApprovalController {
 }
 
 @Module({
-  imports: [PrismaModule, ApplicationAuthorityModule],
+  imports: [PrismaModule, ApplicationAuthorityModule, EngagementModule, TenantModule],
   controllers: [NativeApprovalController],
   providers: [
-    NativeApprovalService, NativeApprovalMetadataVerifier, ToolServiceSecretGuard, NativeExecutionService,
+    NativeApprovalService, NativeApprovalMetadataVerifier, ToolServiceSecretGuard, NativeExecutionService, MeriExecutionReceiverService,
     meriExecutionKeyConfigProvider, meriExecutionSignerProvider,
   ],
+  exports: [MeriExecutionReceiverService],
 })
 export class NativeApprovalModule {}

@@ -2389,9 +2389,11 @@ model ClioMeriApprovalDecision {
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "clio_meri_approval_decisions_tenant_fkey")
   executionIssuances ClioMeriExecutionIssuance[]
+  executionConsumptions ClioMeriExecutionConsumption[]
   revocation         ClioMeriApprovalRevocation?
 
   @@id([tenantId, proposalId], map: "clio_meri_approval_decisions_pkey")
+  @@unique([tenantId, proposalId, commandSha256], map: "clio_meri_approval_decisions_command_key")
   @@map("clio_meri_approval_decisions")
 }
 
@@ -2684,13 +2686,14 @@ model ClioMeriExecutionConsumption {
   idempotencyKey  String    @map("idempotency_key") @db.VarChar(128)
   commandSha256   String    @map("command_sha256") @db.Char(64)
   argumentsSha256 String    @map("arguments_sha256") @db.Char(64)
-  jti             String    @db.Uuid
+  jti             String?   @db.Uuid
   state           String    @default("CLAIMED") @db.VarChar(9)
   result          Json?
   claimedAt       DateTime  @default(now()) @map("claimed_at") @db.Timestamptz(6)
   completedAt     DateTime? @map("completed_at") @db.Timestamptz(6)
 
-  issuance ClioMeriExecutionIssuance @relation(fields: [jti], references: [jti], onDelete: NoAction, onUpdate: NoAction, map: "clio_meri_execution_consumptions_jti_fkey")
+  issuance ClioMeriExecutionIssuance? @relation(fields: [jti], references: [jti], onDelete: NoAction, onUpdate: NoAction, map: "clio_meri_execution_consumptions_jti_fkey")
+  decision ClioMeriApprovalDecision @relation(fields: [tenantId, proposalId, commandSha256], references: [tenantId, proposalId, commandSha256], onDelete: NoAction, onUpdate: NoAction, map: "clio_meri_execution_consumptions_decision_fkey")
 
   @@id([tenantId, proposalId, idempotencyKey], map: "clio_meri_execution_consumptions_pkey")
   @@map("clio_meri_execution_consumptions")

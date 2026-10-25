@@ -101,10 +101,10 @@ import { MeriJobLeaseSweeper } from './meri-job-lease-sweeper.js';
 import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.proxy.js';
 import { MeriOtelLifecycleProvider } from './meri-otel-lifecycle.provider.js';
 
-import { meriExecutionKeyConfigProvider } from './execution-capability/meri-execution-authority.js';
-import { MeriExecutionReceiverService } from './execution-capability/meri-execution-receiver.service.js';
+import { NativeApprovalModule } from './native-approvals/native-approval.controller.js';
 @Module({
   imports: [
+    NativeApprovalModule,
     MeriRoutinesModule,
     MeriFeatureFlagsModule,
     ManagedMcpModule,
@@ -170,10 +170,6 @@ import { MeriExecutionReceiverService } from './execution-capability/meri-execut
     { provide: RetainedReadDispatcher, useFactory: (prisma: PrismaService, tools: MeriToolsService,
       memory: GovernedMemoryCandidateService, sources: ObjectiveJobReadSources) => new RetainedReadDispatcher(prisma, tools, memory, sources),
       inject: [PrismaService, MeriToolsService, GovernedMemoryCandidateService, ObjectiveJobReadSources] },
-    // D016 #9: Meri approved-execution receiver on create_task (503 until the
-    // MERI_EXECUTION_SIGNER_* key configuration is present).
-    meriExecutionKeyConfigProvider,
-    MeriExecutionReceiverService,
     MeriClientFilingService,
     MeriJobDeliverablesService,
     MeriChatAttachmentReadService,

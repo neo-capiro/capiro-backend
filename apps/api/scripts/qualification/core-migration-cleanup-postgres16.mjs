@@ -17,6 +17,9 @@ const paths = {
   originalReceipt: '20281018020000_clio_meri_memory_submissions',
   scope: '20281018080000_clio_memory_scope_unique',
   receipt: '20281018090000_clio_meri_memory_submissions_content_free',
+  approvalDecision: '20281018010000_clio_meri_approval_decisions',
+  executionReceipt: '20281018040000_clio_meri_execution_authority',
+  nativeReceipt: '20281024090000_native_task_receipt_binding',
 };
 const sources = Object.fromEntries(Object.entries(paths).map(([key, name]) => [
   key, readFileSync(new URL(`../../prisma/migrations/${name}/migration.sql`, import.meta.url)),
@@ -222,10 +225,128 @@ function receiptCases() {
   }
 }
 
+function nativeReceiptCases() {
+  const table = 'clio_meri_execution_consumptions';
+  const proposal = client;
+  const otherTenant = '44444444-4444-4444-8444-444444444444';
+  const otherProposal = '55555555-5555-4555-8555-555555555555';
+  const issuance = '66666666-6666-4666-8666-666666666666';
+  const otherIssuance = '77777777-7777-4777-8777-777777777777';
+  const command = 'a'.repeat(64), different = 'b'.repeat(64);
+  const insertReceipt = (key, { tenantId = tenant, proposalId = proposal,
+    digest = command, jti = 'NULL' } = {}) => `INSERT INTO ${table}
+    (tenant_id,proposal_id,idempotency_key,command_sha256,arguments_sha256,jti)
+    VALUES ('${tenantId}','${proposalId}','${key}','${digest}','${command}',${jti});`;
+  const complete = (key, extra = '') => `UPDATE ${table} SET
+    state='COMPLETED',result='{"ok":true}',completed_at=clock_timestamp()${extra}
+    WHERE idempotency_key='${key}';`;
+  const app = (statement, tenantId = tenant) => `SET ROLE capiro_app;
+    SET app.tenant_id='${tenantId}'; ${statement}`;
+  sql('postgres', 'CREATE ROLE capiro_app NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;');
+  for (const [name, mismatchedHistory] of [
+    ['native_receipt_exact', false], ['native_receipt_mismatched_history', true],
+  ]) {
+    newDatabase(name, `CREATE FUNCTION rls_bypass() RETURNS boolean LANGUAGE sql AS 'SELECT false';
+      CREATE FUNCTION current_tenant_id() RETURNS uuid LANGUAGE sql AS
+        $$SELECT NULLIF(current_setting('app.tenant_id',true),'')::uuid$$;
+      CREATE TABLE tenants(id uuid PRIMARY KEY);
+      INSERT INTO tenants VALUES ('${tenant}'),('${otherTenant}');`);
+    sql(name, sources.approvalDecision);
+    sql(name, sources.executionReceipt);
+    sql(name, `INSERT INTO clio_meri_approval_decisions
+      (tenant_id,proposal_id,command_sha256,decision,decided_at,expires_at,
+       approver_user_id,policy_revision,binding_actor_user_id,conversation_id,run_id)
+      VALUES ('${tenant}','${proposal}','${command}','approved',now(),now()+interval '1 hour',
+        '${user}','fixture','${user}','${user}','${user}'),
+        ('${otherTenant}','${otherProposal}','${different}','approved',now(),now()+interval '1 hour',
+        '${user}','fixture','${user}','${user}','${user}');
+      INSERT INTO clio_meri_execution_issuances
+      (jti,tenant_id,proposal_id,run_id,attempt_id,request_id,request_sha256,
+       command_sha256,decision_sha256,arguments_sha256,idempotency_key,
+       executor_binding,budgets,allocation_sha256,qualification,signer_issuer,
+       signer_key_id,iat_seconds,exp_seconds)
+      SELECT jti,'${tenant}','${proposal}','${user}','${user}','${user}',
+        '${command}','${command}','${command}','${command}','legacy',
+        '{}','{}','${command}','{}','fixture','fixture',1,2
+      FROM (VALUES ('${issuance}'::uuid),('${otherIssuance}'::uuid)) AS fixture(jti);
+      ${insertReceipt('legacy', { digest: mismatchedHistory ? different : command, jti: `'${issuance}'` })}`);
+    const before = query(name, `SELECT row_to_json(r)::text FROM ${table} r;`);
+    const oldTrigger = query(name, "SELECT pg_get_functiondef('clio_meri_execution_consumption_transition()'::regprocedure);");
+    const result = sql(name, sources.nativeReceipt, false);
+    if (mismatchedHistory) {
+      rejects(result, '23503', `${table}_decision_fkey`);
+      assert.equal(query(name, `SELECT attnotnull FROM pg_attribute
+        WHERE attrelid='${table}'::regclass AND attname='jti';`), 't');
+      assert.equal(query(name, `SELECT count(*) FROM pg_constraint WHERE conname IN
+        ('clio_meri_approval_decisions_command_key','${table}_decision_fkey');`), '0');
+      assert.equal(query(name, "SELECT pg_get_functiondef('clio_meri_execution_consumption_transition()'::regprocedure);"), oldTrigger);
+      assert.equal(query(name, `SELECT row_to_json(r)::text FROM ${table} r;`), before);
+      receipt.cases.push({ name, passed: true });
+      continue;
+    }
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(query(name, `SELECT row_to_json(r)::text FROM ${table} r;`), before);
+    assert.equal(query(name, `SELECT attnotnull FROM pg_attribute
+      WHERE attrelid='${table}'::regclass AND attname='jti';`), 'f');
+    assert.equal(query(name, `SELECT count(*) FROM pg_constraint WHERE conname IN
+      ('clio_meri_approval_decisions_command_key','${table}_decision_fkey',
+       '${table}_jti_fkey','${table}_pkey','${table}_state_check') AND convalidated;`), '5');
+    sql(name, app(insertReceipt('native')));
+    assert.equal(query(name, app(`SELECT jti IS NULL FROM ${table} WHERE idempotency_key='native';`)), 'SET\nSET\nt');
+    rejects(sql(name, insertReceipt('native'), false), '23505', `${table}_pkey`);
+    for (const options of [
+      { proposalId: otherProposal }, { tenantId: otherTenant }, { digest: different },
+    ]) rejects(sql(name, insertReceipt('wrong-binding', options), false), '23503', `${table}_decision_fkey`);
+    rejects(sql(name, insertReceipt('missing-issuance', { jti: `'${otherProposal}'` }), false), '23503', `${table}_jti_fkey`);
+    for (const change of [
+      `tenant_id='${otherTenant}'`, `proposal_id='${otherProposal}'`,
+      "idempotency_key='renamed'", `command_sha256='${different}'`,
+      `arguments_sha256='${different}'`, `jti='${issuance}'`,
+      "claimed_at=claimed_at+interval '1 second'",
+    ]) rejects(sql(name, complete('native', `,${change}`), false), '23514', 'may only complete once');
+    for (const jti of ['NULL', `'${otherIssuance}'`])
+      rejects(sql(name, complete('legacy', `,jti=${jti}`), false), '23514', 'may only complete once');
+    rejects(sql(name, `UPDATE ${table} SET state=NULL WHERE idempotency_key='native';`, false), '23514', 'may only complete once');
+    rejects(sql(name, `UPDATE ${table} SET state='COMPLETED' WHERE idempotency_key='native';`, false), '23514', `${table}_state_check`);
+    rejects(sql(name, `UPDATE ${table} SET result='{}' WHERE idempotency_key='native';`, false), '23514', 'may only complete once');
+    sql(name, app(complete('native')));
+    sql(name, app(complete('legacy')));
+    assert.equal(query(name, `SELECT count(*) FROM ${table} WHERE state='COMPLETED' AND result='{"ok":true}'::jsonb;`), '2');
+    rejects(sql(name, app(complete('native')), false), '23514', 'may only complete once');
+    rejects(sql(name, `UPDATE ${table} SET state='CLAIMED',result=NULL,completed_at=NULL WHERE idempotency_key='native';`, false), '23514', 'may only complete once');
+    receipt.cases.push({ name: 'native_receipt_binding_immutability_and_legacy_completion', passed: true });
+
+    assert.equal(query(name, `SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE oid='${table}'::regclass;`), 't');
+    assert.equal(query(name, app(`SELECT count(*) FROM ${table};`, otherTenant)), 'SET\nSET\n0');
+    rejects(sql(name, app(insertReceipt('foreign', { tenantId: otherTenant, proposalId: otherProposal, digest: different })), false), '42501', 'row-level security policy');
+    const grants = JSON.parse(query(name, `SELECT json_build_object(
+      'select',has_table_privilege('capiro_app','${table}','SELECT'),
+      'insert',has_table_privilege('capiro_app','${table}','INSERT'),
+      'update',has_table_privilege('capiro_app','${table}','UPDATE'),
+      'delete',has_table_privilege('capiro_app','${table}','DELETE'),
+      'truncate',has_table_privilege('capiro_app','${table}','TRUNCATE'),
+      'completion',has_column_privilege('capiro_app','${table}','completed_at','UPDATE')
+        AND has_column_privilege('capiro_app','${table}','state','UPDATE')
+        AND has_column_privilege('capiro_app','${table}','result','UPDATE'),
+      'binding',has_column_privilege('capiro_app','${table}','jti','UPDATE'));`));
+    assert.deepEqual(grants, { select: true, insert: true, update: false,
+      delete: false, truncate: false, completion: true, binding: false });
+    for (const statement of [
+      `UPDATE ${table} SET jti=NULL;`, `DELETE FROM ${table};`, `TRUNCATE ${table};`,
+      "UPDATE clio_meri_execution_issuances SET signer_issuer='changed';",
+      'DELETE FROM clio_meri_execution_issuances;',
+    ]) rejects(sql(name, app(statement), false), '42501', 'permission denied');
+    receipt.cases.push({ name: 'native_receipt_tenant_rls_and_preserved_grants', passed: true });
+  }
+}
+
 try {
-  const [image] = JSON.parse(docker(['image', 'inspect', 'postgres:16']).stdout);
+  const postgresImage = process.env.CAPIRO_POSTGRES_FIXTURE_IMAGE || 'postgres:16';
+  assert.ok(['postgres:16', 'pgvector/pgvector:pg16'].includes(postgresImage),
+    'Only the standard or preserved PostgreSQL16 fixture image is allowed');
+  const [image] = JSON.parse(docker(['image', 'inspect', postgresImage]).stdout);
   assert.match(image.Id, /^sha256:[a-f0-9]{64}$/);
-  receipt.image = { requested: 'postgres:16', id: image.Id, repoDigests: image.RepoDigests ?? [] };
+  receipt.image = { requested: postgresImage, id: image.Id, repoDigests: image.RepoDigests ?? [] };
   const name = `core108-fixtures-${randomUUID()}`;
   receipt.containerName = name;
   containerLifecycle = ownedPostgresContainer({
@@ -249,6 +370,7 @@ try {
   ownerCases();
   scopeCases();
   receiptCases();
+  nativeReceiptCases();
   receipt.passed = true;
 } catch (error) {
   receipt.error = error instanceof Error ? error.message : String(error);
