@@ -2918,7 +2918,6 @@ export class EngagementController {
   }
 
   @Post('attachments/upload-url')
-  @EngagementRuntimeAction('attachment_external_write')
   createAttachmentUploadUrl(
     @CurrentTenant() ctx: TenantContext,
     @Body() body: AttachmentUploadDto,
@@ -2927,7 +2926,6 @@ export class EngagementController {
   }
 
   @Post('attachments/confirm')
-  @EngagementRuntimeAction('attachment_external_write')
   confirmAttachment(@CurrentTenant() ctx: TenantContext, @Body() body: ConfirmAttachmentDto) {
     return this.service.confirmAttachment(ctx, body);
   }
@@ -3011,7 +3009,6 @@ export class EngagementController {
   }
 
   @Delete('attachments/:id')
-  @EngagementRuntimeAction('attachment_external_write')
   @Header('Cache-Control', 'private, no-store')
   deleteAttachment(@CurrentTenant() ctx: TenantContext, @Param('id') id: string, @Body() input: unknown) {
     return this.service.deleteReviewedAttachment(ctx, id, input);

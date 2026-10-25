@@ -1,4 +1,5 @@
 import { type INestApplication, ValidationPipe } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { EngagementController } from '../engagement.controller.js';
@@ -6,6 +7,9 @@ import { EngagementService } from '../engagement.service.js';
 import { parseClientFileDelete, fileDeleteUuid } from './client-file-delete.input.js';
 import { deleteClientFile, readClientFileDelete } from './client-file-delete.js';
 import { ENGAGEMENT_RUNTIME_ACTION_KEY } from '../runtime/engagement-runtime-action.decorator.js';
+import { EngagementRuntimeGuard } from '../runtime/engagement-runtime.guard.js';
+import { EngagementRuntimePolicyService } from '../runtime/engagement-runtime-policy.service.js';
+import { guardEngagementServiceRuntime } from '../governed-engagement.factory.js';
 
 jest.mock('./client-file-delete.js', () => ({
   deleteClientFile: jest.fn(),
@@ -39,16 +43,28 @@ const service = {
   readAttachmentDeletion: EngagementService.prototype.readAttachmentDeletion,
 };
 beforeAll(async () => {
+  const runtimePolicy = new EngagementRuntimePolicyService({
+    serviceName: 'api',
+    processMode: 'active',
+    backgroundOwner: 'disabled',
+    externalActions: 'disabled',
+    callbacksEnabled: false,
+    recallWebhookEnabled: false,
+  });
   const tokens = Reflect.getMetadata('design:paramtypes', EngagementController) as any[];
   const module = await Test.createTestingModule({
     controllers: [EngagementController],
     providers: tokens.map((token) => ({
       provide: token,
-      useValue: token === EngagementService ? service : {},
+      useValue:
+        token === EngagementService
+          ? guardEngagementServiceRuntime(service as unknown as EngagementService, runtimePolicy)
+          : {},
     })),
   }).compile();
   app = module.createNestApplication({ logger: false });
   app.setGlobalPrefix('api');
+  app.useGlobalGuards(new EngagementRuntimeGuard(new Reflector(), runtimePolicy));
   app.use((req: any, _res: any, next: () => void) => {
     req.tenantContext = context;
     next();
@@ -87,14 +103,14 @@ beforeEach(() => {
       }) as any,
   );
 });
-test('mounted DELETE keeps reviewed body, exact route ID, trusted actor, runtime write action and no-store', async () => {
+test('mounted DELETE reaches the reviewed owner with external actions disabled, trusted actor and no-store', async () => {
+  const result = await request(app.getHttpServer()).delete(route).send(command).expect(200);
   expect(
     Reflect.getMetadata(
       ENGAGEMENT_RUNTIME_ACTION_KEY,
       EngagementController.prototype.deleteAttachment,
     ),
-  ).toMatchObject({ action: 'attachment_external_write' });
-  const result = await request(app.getHttpServer()).delete(route).send(command).expect(200);
+  ).toBeUndefined();
   expect(result.headers['cache-control']).toBe('private, no-store');
   expect(deleteClientFile).toHaveBeenCalledWith(
     expect.objectContaining({ bucket: 'synthetic-bucket', prisma: service.prisma }),

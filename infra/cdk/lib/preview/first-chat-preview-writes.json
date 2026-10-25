@@ -426,6 +426,24 @@
       "pathRegexes": [
         "^/api/engagement/integrations/(microsoft|google)/[0-9a-fA-F-]{36}/calendar-commands$"
       ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/engagement/attachments/upload-url$",
+        "^/api/engagement/attachments/confirm$",
+        "^/api/memory/candidates/[A-Za-z0-9_-]+/owner-decision$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/memory/version-candidates/[A-Za-z0-9_-]+/approve$",
+        "^/api/memory/version-candidates/[A-Za-z0-9_-]+/reject$",
+        "^/api/memory/items/[A-Za-z0-9_-]+/review-correction$"
+      ]
     }
   ]
 }

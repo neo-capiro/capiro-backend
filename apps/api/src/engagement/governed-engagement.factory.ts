@@ -42,8 +42,6 @@ const RUNTIME_ACTION_BY_METHOD: Readonly<Record<string, RuntimeMethodMetadata>> 
   sendCampaign: { action: 'outreach_send' },
   sendCampaignEmails: { action: 'outreach_send' },
   sendCampaignTest: { action: 'outreach_test_send', testMode: true },
-  createAttachmentUploadUrl: { action: 'attachment_external_write' },
-  confirmAttachment: { action: 'attachment_external_write' },
   createAttachmentFromBuffer: { action: 'attachment_external_write' },
   supersedeAttachment: { action: 'attachment_external_write' },
   deleteAttachment: { action: 'attachment_external_write' },
