@@ -57,6 +57,7 @@ const ledger = {
   assertRequest: jest.fn(),
   begin: jest.fn(),
   claim: jest.fn(),
+  rejectPending: jest.fn(),
   outcome: jest.fn(),
   receipt: jest.fn(),
   view: jest.fn(),
@@ -106,6 +107,7 @@ function fixture() {
     },
   );
   ledger.outcome.mockResolvedValue(undefined);
+  ledger.rejectPending.mockResolvedValue(true);
   return { tx, service };
 }
 async function api(service: unknown) {
@@ -140,12 +142,16 @@ describe('single mail direct service boundary', () => {
     try {
       const { requestKey: _key, ...withoutKey } = input;
       const response = await fetch(`${base}/engagement/mail/send`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withoutKey),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(withoutKey),
       });
       expect(response.status).toBe(400);
       expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
       expect(ledger.begin).not.toHaveBeenCalled();
-    } finally { await app.close(); }
+    } finally {
+      await app.close();
+    }
   });
   test.each(['client', 'member', 'mailbox'])(
     'direct HTTP send and recovery reject inaccessible %s without attachments or provider calls',
@@ -182,15 +188,40 @@ describe('single mail direct service boundary', () => {
       h.tx.$queryRawUnsafe.mockResolvedValue([{ allowed: false }]);
       return undefined;
     });
-    await expect(h.service.sendSingleMail(ctx, input)).rejects.toThrow('Client not found');
+    await expect(h.service.sendSingleMail(ctx, input)).rejects.toMatchObject({
+      response: {
+        error: 'MAIL_SEND_REJECTED',
+        state: 'failed',
+        requestKey: input.requestKey,
+        retryable: false,
+      },
+    });
+    expect(ledger.rejectPending).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ id: 'intent' }),
+    );
     expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
   });
   test('an attachment removed during byte loading cannot cross the provider boundary', async () => {
     const h = fixture();
     Object.assign(h.tx, { engagementAttachment: { findMany: jest.fn().mockResolvedValue([]) } });
-    h.service.loadGraphAttachments.mockResolvedValue([{ name: 'private.txt', contentType: 'text/plain', contentBytes: 'cHJpdmF0ZQ==' }]);
-    await expect(h.service.sendSingleMail(ctx, { ...input, attachmentIds: ['44444444-4444-4444-8444-444444444444'] }))
-      .rejects.toMatchObject({ response: { error: 'ATTACHMENT_MISSING' } });
+    h.service.loadGraphAttachments.mockResolvedValue([
+      { name: 'private.txt', contentType: 'text/plain', contentBytes: 'cHJpdmF0ZQ==' },
+    ]);
+    await expect(
+      h.service.sendSingleMail(ctx, {
+        ...input,
+        attachmentIds: ['44444444-4444-4444-8444-444444444444'],
+      }),
+    ).rejects.toMatchObject({
+      response: {
+        error: 'MAIL_SEND_REJECTED',
+        state: 'failed',
+        requestKey: input.requestKey,
+        retryable: false,
+      },
+    });
+    expect(ledger.rejectPending).toHaveBeenCalledTimes(1);
     expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
   });
   test('a duplicate existing intent returns owned status without a second provider call', async () => {
@@ -203,10 +234,67 @@ describe('single mail direct service boundary', () => {
     expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
     expect(ledger.begin).not.toHaveBeenCalled();
   });
+  test.each(['member', 'mailbox'])(
+    'final %s refusal records a committed safe rejection without dispatch',
+    async (kind) => {
+      const h = fixture();
+      h.service.loadGraphAttachments.mockImplementation(async () => {
+        if (kind === 'member') h.tx.tenantMembership.findFirst.mockResolvedValue(null);
+        else
+          h.tx.integrationConnection.findFirst
+            .mockResolvedValueOnce({ id: 'mailbox' })
+            .mockResolvedValue(null);
+      });
+      await expect(h.service.sendSingleMail(ctx, input)).rejects.toMatchObject({
+        response: { error: 'MAIL_SEND_REJECTED', state: 'failed', requestKey: input.requestKey },
+      });
+      expect(ledger.rejectPending).toHaveBeenCalledTimes(1);
+      expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
+    },
+  );
+  test.each(['unavailable', 'claim commit', 'typed claim commit'])(
+    '%s uncertainty cannot be classified as a final preflight rejection',
+    async (phase) => {
+      const h = fixture();
+      const { NotFoundException } = require('@nestjs/common');
+      const failure =
+        phase === 'typed claim commit'
+          ? new NotFoundException('commit outcome lost')
+          : new Error('unavailable');
+      if (phase === 'unavailable')
+        h.service.loadGraphAttachments.mockImplementation(async () => {
+          h.tx.client.findFirst.mockRejectedValue(failure);
+        });
+      else
+        ledger.claim.mockImplementation(async (_ctx, _intent, authorize) => {
+          await authorize(h.tx);
+          throw failure;
+        });
+      await expect(h.service.sendSingleMail(ctx, input)).rejects.toBe(failure);
+      expect(ledger.rejectPending).not.toHaveBeenCalled();
+      expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
+    },
+  );
+  test.each(['lost CAS', 'lost rejection commit'])(
+    '%s cannot return a safe-failure receipt',
+    async (phase) => {
+      const h = fixture();
+      h.service.loadGraphAttachments.mockImplementation(async () => {
+        h.tx.client.findFirst.mockResolvedValue(null);
+      });
+      if (phase === 'lost CAS') ledger.rejectPending.mockResolvedValue(false);
+      else ledger.rejectPending.mockRejectedValue(new Error('rejection commit outcome lost'));
+      const failure = await h.service.sendSingleMail(ctx, input).catch((error: unknown) => error);
+      expect(failure).toBeInstanceOf(Error);
+      expect(failure.response?.error).not.toBe('MAIL_SEND_REJECTED');
+      expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
+    },
+  );
   test('dispatch failure records unknown and never retries the provider', async () => {
     const h = fixture();
     await expect(h.service.sendSingleMail(ctx, input)).rejects.toThrow();
     expect(h.service.mailSender.sendMail).toHaveBeenCalledTimes(1);
+    expect(ledger.rejectPending).not.toHaveBeenCalled();
     expect(ledger.outcome).toHaveBeenCalledWith(
       ctx,
       expect.objectContaining({ id: 'intent' }),

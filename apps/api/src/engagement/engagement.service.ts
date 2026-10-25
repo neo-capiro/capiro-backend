@@ -9654,15 +9654,42 @@ export class EngagementService {
     });
     if (!begun.created) return this.getSingleMailIntent(ctx, requestKey);
     // Commit pending, then atomically claim under current authority before any provider call.
-    const claimed = await ledger.claim(ctx, begun.intent, async (tx) => {
-      await this.assertSingleMailPreflight(ctx, { ...input, senderConnectionId: connection.id }, tx);
-      await this.assertSingleMailAttachmentsInTx(ctx, input, tx);
-      const current = await tx.integrationConnection.findFirst({
-        where: { ...ownedSendingMailboxWhere(ctx), id: connection.id, accountEmail: sender.email },
-        select: { id: true },
+    let claimed: boolean;
+    let preflightRefusal: unknown;
+    try {
+      claimed = await ledger.claim(ctx, begun.intent, async (tx) => {
+        try {
+          await this.assertSingleMailPreflight(ctx, { ...input, senderConnectionId: connection.id }, tx);
+          await this.assertSingleMailAttachmentsInTx(ctx, input, tx);
+          const current = await tx.integrationConnection.findFirst({
+            where: { ...ownedSendingMailboxWhere(ctx), id: connection.id, accountEmail: sender.email },
+            select: { id: true },
+          });
+          if (!current) throw new NotFoundException('Sending mailbox not found');
+        } catch (error) {
+          if (
+            error instanceof BadRequestException ||
+            error instanceof ForbiddenException ||
+            error instanceof NotFoundException
+          )
+            preflightRefusal = error;
+          throw error;
+        }
       });
-      if (!current) throw new NotFoundException('Sending mailbox not found');
-    });
+    } catch (error) {
+      // A transaction/commit error is not a preflight verdict. Only the exact
+      // callback refusal plus a committed pending CAS proves no dispatch won.
+      if (
+        !preflightRefusal || error !== preflightRefusal ||
+        !(await ledger.rejectPending(ctx, begun.intent))
+      )
+        throw error;
+      throw new BadRequestException({
+        error: 'MAIL_SEND_REJECTED', requestKey,
+        intentId: begun.intent.id, state: 'failed', retryable: false,
+        message: 'This message was not sent because its final checks failed. Review current access, mailbox and attachments before starting a new send.',
+      });
+    }
     if (!claimed) return this.getSingleMailIntent(ctx, requestKey);
 
     let sendResult: EngagementMailSendResult;
