@@ -7,7 +7,7 @@ import { MemoryPurgeService } from './memory-purge.service.js';
  * issues the cross-store deletes, legal-held rows are excluded, every statement
  * is tenant-scoped, and the action is audited.
  */
-type Recorded = { executed: string[]; queried: string[]; audits: Array<Record<string, unknown>> };
+type Recorded = { executed: string[]; queried: string[]; statements: string[]; audits: Array<Record<string, unknown>> };
 
 const receiptRelation = {
   relationKind: 'r', persistence: 'p', rowSecurityEnabled: true,
@@ -37,12 +37,13 @@ function makeService(opts?: {
   svc: MemoryPurgeService;
   rec: Recorded;
 } {
-  const rec: Recorded = { executed: [], queried: [], audits: [] };
+  const rec: Recorded = { executed: [], queried: [], statements: [], audits: [] };
   const held = opts?.held ?? [];
   const tx = {
     $queryRaw: (strings: TemplateStringsArray) => {
       const sql = strings.join('?');
       rec.queried.push(sql);
+      rec.statements.push(sql);
       if (/SELECT 1 FROM clio_meri_memory_submissions/.test(sql)) {
         if (opts?.receiptReadError) return Promise.reject(opts.receiptReadError);
         return Promise.resolve([]);
@@ -64,6 +65,7 @@ function makeService(opts?: {
     },
     $executeRaw: (strings: TemplateStringsArray) => {
       rec.executed.push(strings.join('?'));
+      rec.statements.push(strings.join('?'));
       return Promise.resolve(1);
     },
     auditLog: {
@@ -105,9 +107,12 @@ describe('MemoryPurgeService.purgeClient', () => {
   it('execute issues the cross-store deletes and audits a purge action', async () => {
     const { svc, rec } = makeService();
     const result = await svc.purgeClient(T, C, actor, { dryRun: false, reason: 'offboarding' });
-    // context_embeddings, memory_edges, memory_items, clio_memory,
-    // memory_candidate, client_memory_access = 6 deletes.
-    expect(rec.executed).toHaveLength(6);
+    // The admission lock precedes the existing six cross-store deletes.
+    expect(rec.executed.filter(sql => /DELETE FROM/.test(sql))).toHaveLength(6);
+    expect(rec.executed[0]).toBe('LOCK TABLE memory_items IN SHARE ROW EXCLUSIVE MODE');
+    const admission = rec.statements.indexOf(rec.executed[0]!);
+    expect(admission).toBeLessThan(rec.statements.findIndex(sql => /ORDER BY id FOR UPDATE/.test(sql)));
+    expect(admission).toBeLessThan(rec.statements.findIndex(sql => /legal_hold = true/.test(sql)));
     expect(result.dryRun).toBe(false);
     expect(rec.audits[0]?.action).toBe('memory.purge_client');
     expect(result.receiptPayloadDispositionHold).toBe(false);
@@ -197,7 +202,7 @@ describe('MemoryPurgeService.purgeClient', () => {
   it('every delete is tenant-scoped (no cross-tenant reach)', async () => {
     const { svc, rec } = makeService();
     await svc.purgeClient(T, C, actor, { dryRun: false, reason: 'x' });
-    for (const sql of rec.executed) {
+    for (const sql of rec.executed.filter(statement => /DELETE FROM/.test(statement))) {
       expect(sql).toMatch(/tenant_id = /);
     }
   });

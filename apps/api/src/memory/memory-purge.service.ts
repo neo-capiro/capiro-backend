@@ -113,6 +113,13 @@ export class MemoryPurgeService {
         );
       }
 
+      // Row locks cannot prevent a new legal-held item from being inserted
+      // after the held-set read. Serialize memory-item writes for this short
+      // offboarding transaction so its clio source and projection cannot be
+      // swept while the new held item survives. Reads remain available; the
+      // existing transaction timeout bounds lock waits and releases on failure.
+      if (!dryRun) await tx.$executeRaw`LOCK TABLE memory_items IN SHARE ROW EXCLUSIVE MODE`;
+
       // Match embedding writers: source rows first, then their projections.
       // Execute deletes only this locked set; dry-run remains read-only.
       const lockedItems = dryRun ? null : await tx.$queryRaw<Array<{ id: string }>>`

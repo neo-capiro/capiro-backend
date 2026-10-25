@@ -442,11 +442,13 @@ suite('memory backfill lifecycle at the actual PostgreSQL source/write boundary'
       await run;
     }
   });
-  test('client purge preserves a held source and its projections committed after initial source locks', async () => {
+  test.each(['source locks', 'held snapshot'])('client purge preserves a held source inserted after %s', async (boundary) => {
     await service.backfillCurrentTenant();
     const heldItem = randomUUID();
     const heldClio = randomUUID();
-    let insertedAfterLocks = false;
+    let insertion: Promise<void> | undefined;
+    let inserted = false;
+    let insertWaited = false;
     const purgePrisma = {
       withSystem: async (fn: (tx: unknown) => Promise<unknown>) => {
         await writer.query('BEGIN');
@@ -456,7 +458,9 @@ suite('memory backfill lifecycle at the actual PostgreSQL source/write boundary'
             ...tx,
             $queryRaw: async (strings: TemplateStringsArray, ...values: unknown[]) => {
               const rows = await tx.$queryRaw(strings, ...values);
-              if (stringsSql(strings, values).text.includes('ORDER BY id FOR UPDATE')) {
+              const sql = stringsSql(strings, values).text;
+              if (!insertion && sql.includes(boundary === 'source locks' ? 'ORDER BY id FOR UPDATE' : 'AND legal_hold = true')) {
+                insertion = (async () => {
                 await mutation.query('BEGIN');
                 try {
                   await mutation.query(
@@ -474,10 +478,21 @@ suite('memory backfill lifecycle at the actual PostgreSQL source/write boundary'
                     [tenant, clientId, heldItem],
                   );
                   await mutation.query('COMMIT');
-                  insertedAfterLocks = true;
+                  inserted = true;
                 } catch (error) {
                   await mutation.query('ROLLBACK');
                   throw error;
+                }
+                })();
+                // Do not await the writer inside the purge transaction: the
+                // admission lock must hold it until that transaction commits.
+                for (let i = 0; i < 100 && !inserted && !insertWaited; i++) {
+                  const state = (await db.query(
+                    'SELECT wait_event_type FROM pg_stat_activity WHERE pid=$1',
+                    [(mutation as any).processID],
+                  )).rows[0];
+                  insertWaited = state?.wait_event_type === 'Lock';
+                  if (!inserted && !insertWaited) await new Promise(resolve => setTimeout(resolve, 10));
                 }
               }
               return rows;
@@ -497,13 +512,16 @@ suite('memory backfill lifecycle at the actual PostgreSQL source/write boundary'
       { userId: actor, role: 'user_admin' },
       { dryRun: false, reason: 'isolated concurrent legal-hold regression' },
     );
-    expect(insertedAfterLocks).toBe(true);
+    await insertion;
+    expect(insertWaited).toBe(true);
+    expect(inserted).toBe(true);
     expect((await db.query('SELECT id FROM memory_items')).rows).toEqual([{ id: heldItem }]);
     expect((await db.query('SELECT source_id FROM context_embeddings')).rows).toEqual([
       { source_id: heldItem },
     ]);
     expect((await db.query('SELECT id FROM clio_memory')).rows).toEqual([{ id: heldClio }]);
-    expect(result.heldBack).toBe(1);
+    // This newly held row is admitted after the purge's reported selection.
+    expect(result.heldBack).toBe(0);
     expect(result.deleted.memoryItems).toBe(1);
     expect(result.deleted.embeddings).toBe(1);
     expect(result.deleted.clioMemory).toBe(0);
