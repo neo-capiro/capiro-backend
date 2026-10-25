@@ -55,7 +55,7 @@ const counts = async () =>
   (SELECT count(*)::int FROM client_file_deletions) AS receipts,
   (SELECT count(*)::int FROM engagement_attachments WHERE id=$1) AS files,
   (SELECT count(*)::int FROM context_embeddings WHERE tenant_id=$2 AND source_type='client_doc_chunk'
-    AND (source_id=$1::text OR source_id LIKE $1::text||':%')) AS chunks,
+    AND (source_id=$1::uuid::text OR source_id LIKE $1::uuid::text||':%')) AS chunks,
   (SELECT count(*)::int FROM audit_logs WHERE action='client.file.deleted') AS audits`,
       [attachmentId, tenant],
     )
