@@ -35,7 +35,11 @@ function harness(options: { clientId?: string | null; isInternal?: boolean; fail
   const tx: Row = {
     tenantMembership: { findFirst: jest.fn(async () => ({role: ctx.role})) },
     $queryRawUnsafe: jest.fn(async () => [{allowed: true}]),
-    $queryRaw: jest.fn(async () => { events.push('lock'); return [{ id: 'm1' }]; }),
+    $queryRaw: jest.fn(async (query: any) => {
+      const sql = Array.isArray(query) ? query.join('') : query.sql;
+      if (sql?.includes('client_file_deletions')) return [{ present: false }];
+      events.push('lock'); return [{ id: 'm1' }];
+    }),
     $executeRaw: jest.fn(async () => 1),
     meeting: {
       findFirst: jest.fn(async (_args: Row) => { events.push('read'); return options.missingMeeting ? null : { ...state.meeting }; }),

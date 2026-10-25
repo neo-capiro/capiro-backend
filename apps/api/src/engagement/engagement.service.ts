@@ -1,4 +1,5 @@
 import { assertSingleMailAuthority } from './single-mail-authority.js';
+import { assertFileKeyNotDeleted, deleteClientFile, readClientFileDelete, type ClientFileDeleteOwner } from './attachments/client-file-delete.js';
 import { copyProspectFile, readProspectFileCopy } from './attachments/prospect-file-copy.js';
 import { prospectCopyPrefix } from './attachments/prospect-file-copy.input.js';
 import { integrationStatusProjection } from './integration-health.js';
@@ -7785,6 +7786,7 @@ export class EngagementService {
       // duplicating one uploaded object into several attachment records.
       const bound = await prospectUploadForConfirm(tx, ctx, input, this.bucket!);
       await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${input.s3Key}))`);
+      await assertFileKeyNotDeleted(tx, ctx, this.bucket!, input.s3Key);
       if (bound?.replay) return bound.replay;
       const clientId = await this.attachmentClientAtWrite(tx, ctx, input);
       const replay = await tx.engagementAttachment.findFirst({
@@ -8556,6 +8558,42 @@ export class EngagementService {
     return readProspectFileCopy({ prisma: this.prisma }, ctx, requestId);
   }
 
+  /** Public client deletion consumes a reviewed command; internal writers retain their owner. */
+  async deleteReviewedAttachment(ctx: TenantContext, id: string, input: unknown) {
+    const empty = input == null || (typeof input === 'object' && !Array.isArray(input) && Object.keys(input).length === 0);
+    if (empty) {
+      const row = await this.prisma.withTenant(ctx.tenantId, tx => tx.engagementAttachment.findFirst({
+        where: { tenantId: ctx.tenantId, id }, select: { clientId: true, prospectId: true },
+      }));
+      if (row?.clientId && !row.prospectId) throw new BadRequestException('Review the current client file before requesting deletion');
+      return this.deleteAttachment(ctx, id, true);
+    }
+    const owner: ClientFileDeleteOwner = {
+      prisma: this.prisma, s3: this.s3, bucket: this.bucket,
+      purgeChunks: (tx, tenantId, attachmentId) => this.clientKb.purgeAttachmentChunks(tx, tenantId, attachmentId),
+      parents: async (tx, current, row) => {
+        if (row.meetingId) {
+          await this.lockMeetingClientAssignment(tx, current, row.meetingId);
+          // Hold the calendar owner's identity stable along with the parent.
+          await tx.$queryRaw`SELECT c.id FROM engagement_connections c JOIN meetings m ON m.connection_id=c.id
+            WHERE m.tenant_id=${current.tenantId}::uuid AND m.id=${row.meetingId}::uuid FOR SHARE OF c`;
+          const meeting = await this.ensureOwnMeeting(tx, current, row.meetingId);
+          if (meeting.clientId !== row.clientId) throw new ConflictException('The reviewed client file changed');
+        }
+        if (row.mailMessageId) {
+          await tx.$queryRaw`SELECT m.id FROM mail_messages m JOIN engagement_connections c ON c.id=m.connection_id
+            WHERE m.tenant_id=${current.tenantId}::uuid AND m.id=${row.mailMessageId}::uuid FOR SHARE OF m,c`;
+          await this.ensureOwnMailMessage(tx, current, row.mailMessageId);
+        }
+      },
+    };
+    return deleteClientFile(owner, ctx, id, input);
+  }
+
+  async readAttachmentDeletion(ctx: TenantContext, requestId: string) {
+    return readClientFileDelete({ prisma: this.prisma }, ctx, requestId);
+  }
+
   /**
    * Delete an attachment RECOVERABLY (Phase 1 §3.h4).
    *
@@ -8569,8 +8607,8 @@ export class EngagementService {
    * the row as `delete_failed` — inaccessible to every consumer (the readiness
    * gate rejects it) but visible to reconciliation, which can retry.
    */
-  async deleteAttachment(ctx: TenantContext, id: string) {
-    return this.deleteAttachmentGuarded(ctx, id);
+  async deleteAttachment(ctx: TenantContext, id: string, requireNonClient = false) {
+    return this.deleteAttachmentGuarded(ctx, id, undefined, requireNonClient);
   }
 
   /** Internal owned-fixture erasure; never bound by a controller or DTO. */
@@ -8587,12 +8625,15 @@ export class EngagementService {
     ctx: TenantContext,
     id: string,
     guard?: SyntheticDocumentDeletionGuard,
+    requireNonClient = false,
   ) {
     let attachment = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const row = await tx.engagementAttachment.findFirst({
         where: { id, tenantId: ctx.tenantId },
       });
       if (!row) throw new NotFoundException('Attachment not found');
+      if (requireNonClient && row.clientId && !row.prospectId)
+        throw new BadRequestException('Review the current client file before requesting deletion');
       return row;
     });
     await assertProspectAttachmentAccess(this.prisma, ctx, attachment, 'delete');
@@ -8620,6 +8661,17 @@ export class EngagementService {
       fixtureIntent = claimed.intent;
     } else
       await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${attachment.s3Key}))`;
+        await assertFileKeyNotDeleted(tx, ctx, attachment.bucket, attachment.s3Key);
+        if (requireNonClient) {
+          // A parent reassignment may have happened after the public route's read.
+          const [current] = await tx.$queryRaw<Array<{ clientId: string | null; prospectId: string | null }>>`
+            SELECT client_id::text AS "clientId",prospect_id::text AS "prospectId" FROM engagement_attachments
+            WHERE tenant_id=${ctx.tenantId}::uuid AND id=${id}::uuid FOR UPDATE`;
+          if (!current) throw new NotFoundException('Attachment not found');
+          if (current.clientId && !current.prospectId)
+            throw new BadRequestException('Review the current client file before requesting deletion');
+        }
         await assertProspectAttachmentInTx(tx, ctx, attachment, 'delete');
         return tx.engagementAttachment.updateMany({
           where: { id, tenantId: ctx.tenantId },

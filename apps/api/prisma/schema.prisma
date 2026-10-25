@@ -258,6 +258,7 @@ model Tenant {
   clientPersonCreateReceipts          ClientPersonCreateReceipt[]
   meetingCommandReceipts             MeetingCommandReceipt[]
   clientFileAccessReceipts           ClientFileAccessReceipt[]
+  clientFileDeletions                ClientFileDeletion[]
   prospectContactTransferReceipts    ProspectContactTransferReceipt[]
   prospectAttachmentCopies         ProspectAttachmentCopy[]
   clientFacilities                   ClientFacility[]
@@ -4072,6 +4073,30 @@ model ProspectAttachmentCopy {
   @@id([tenantId, actorUserId, requestId])
   @@unique([bucket, objectKey])
   @@map("prospect_attachment_copies")
+}
+
+/// Recoverable file deletion independent of later attachment, client and actor deletion.
+/// The migration also uniquely claims the physical bucket/key stored in object_jsonb.
+model ClientFileDeletion {
+  tenantId        String    @map("tenant_id") @db.Uuid
+  actorUserId     String    @map("actor_user_id") @db.Uuid
+  requestId       String    @map("request_id") @db.Uuid
+  clientId        String    @map("client_id") @db.Uuid
+  attachmentId    String    @map("attachment_id") @db.Uuid
+  payloadDigest   String    @map("payload_digest") @db.Char(64)
+  command         Json      @map("command_jsonb")
+  source          Json      @map("source_jsonb")
+  object          Json      @map("object_jsonb")
+  claimedRevision Int       @map("claimed_revision")
+  status          String
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt     DateTime? @map("completed_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, actorUserId, requestId])
+  @@unique([tenantId, attachmentId])
+  @@map("client_file_deletions")
 }
 
 /// Immutable access-change outcome independent of later file edits and deletion.

@@ -144,6 +144,37 @@ function harness() {
 
 describe('prospect attachment lifecycle (synthetic only)', () => {
   beforeEach(() => jest.clearAllMocks());
+  it('bodyless public deletion rechecks client reassignment under the attachment lock', async () => {
+    const h = harness();
+    const upload = await h.upload(), row = await h.confirm(upload.s3Key);
+    (h.service as any).s3.send.mockClear();
+    (h.tx.$queryRaw as jest.Mock).mockImplementation(async (parts: TemplateStringsArray) =>
+      parts.join('').includes('FROM engagement_attachments')
+        ? [{ clientId: '77777777-7777-4777-8777-777777777777', prospectId: null }]
+        : [{ present: false }]);
+    await expect(h.service.deleteReviewedAttachment(ctx, row.id, undefined)).rejects.toMatchObject({ status: 400 });
+    expect((h.service as any).s3.send).not.toHaveBeenCalled();
+    expect(h.tx.engagementAttachment.updateMany).not.toHaveBeenCalled();
+    expect(h.rows).toHaveLength(1);
+  });
+  it('confirmation cannot create a new row for a key retained by deletion recovery', async () => {
+    const h = harness();
+    const upload = await h.upload();
+    (h.tx.$queryRaw as jest.Mock).mockResolvedValue([{ present: true }]);
+    await expect(h.confirm(upload.s3Key)).rejects.toMatchObject({ status: 409 });
+    expect(h.tx.engagementAttachment.create).not.toHaveBeenCalled();
+    expect(h.rows).toHaveLength(0);
+  });
+  it('legacy deletion cannot consume an object already claimed by exact deletion recovery', async () => {
+    const h = harness();
+    const upload = await h.upload(), row = await h.confirm(upload.s3Key);
+    (h.service as any).s3.send.mockClear();
+    (h.tx.$queryRaw as jest.Mock).mockResolvedValue([{ present: true }]);
+    await expect(h.service.deleteAttachment(ctx, row.id)).rejects.toMatchObject({ status: 409 });
+    expect((h.service as any).s3.send).not.toHaveBeenCalled();
+    expect(h.rows).toHaveLength(1);
+    expect(h.tx.engagementAttachment.delete).not.toHaveBeenCalled();
+  });
   it('public confirm cannot adopt an object reserved for an independent client copy', async () => {
     const h = harness();
     await expect(h.confirm(`tenants/${ctx.tenantId}/engagement/prospect-client-copies/${requestId}/document`,

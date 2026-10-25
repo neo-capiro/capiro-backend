@@ -9,8 +9,8 @@ const CONTRACT_SHA256 = '0bec7b2b97a421e898e60c39094253c3f64df00392072b47e482aa0
 // SHA-256 of the pinned Git-archive schema after only the image-local generator
 // target rewrite. A Windows CRLF checkout is not the admitted build input.
 const IMAGE_LOCAL_PRISMA_SCHEMA_SHA256 = Object.freeze({
-  arm64: '8d04ca0ac84301387de08efbcde34164179c4e4c0c5f831b460e1abf43387be1',
-  x64: 'e9535023739e5969b678b55ea5c1dde380b41f9cd398dd718ff350e86cbd2fd9',
+  arm64: '8237ebfb8d2c150671ba8f290b129040d819380ccf2445f9848f849a5dc6473d',
+  x64: '515c31125386d44150335feb9892c7cbc08057ff572c942fffb4da4e4ee90a09',
 });
 const vendorWasm = {
   'pdfjs-dist@5.4.296': {

@@ -3004,9 +3004,17 @@ export class EngagementController {
     return this.service.readProspectAttachmentCopy(ctx, requestId);
   }
 
+  @Get('attachments/deletions/:requestId')
+  @Header('Cache-Control', 'private, no-store')
+  readAttachmentDeletion(@CurrentTenant() ctx: TenantContext, @Param('requestId') requestId: string) {
+    return this.service.readAttachmentDeletion(ctx, requestId);
+  }
+
   @Delete('attachments/:id')
-  deleteAttachment(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
-    return this.service.deleteAttachment(ctx, id);
+  @EngagementRuntimeAction('attachment_external_write')
+  @Header('Cache-Control', 'private, no-store')
+  deleteAttachment(@CurrentTenant() ctx: TenantContext, @Param('id') id: string, @Body() input: unknown) {
+    return this.service.deleteReviewedAttachment(ctx, id, input);
   }
 
   @Get('campaigns')
