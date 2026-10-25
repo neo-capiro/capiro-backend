@@ -77,6 +77,8 @@ function harness() {
     failAudit: false,
     failReceipt: false,
     loseResponse: false,
+    deferredRollback: false,
+    afterCommit: undefined as undefined | (() => void),
     afterClientLock: undefined as undefined | (() => void),
     afterRollback: undefined as undefined | (() => Promise<void>),
   };
@@ -228,6 +230,9 @@ function harness() {
         controls.loseResponse = false;
         throw Error('commit response lost');
       }
+      if (controls.deferredRollback && state.receipts.size > before.receipts.size)
+        Object.assign(state, before);
+      if (state.receipts.size > before.receipts.size) controls.afterCommit?.();
       return result;
     },
   };
@@ -378,6 +383,33 @@ test('indexing happens only after a fresh committed create, never on link/skip/r
   await h.service.transfer(ctx, prospectId, input());
   expect(h.kb.indexPersonFireAndForget).toHaveBeenCalledTimes(1);
   expect(h.kb.indexPersonFireAndForget).toHaveBeenCalledWith(ctx.tenantId, h.state.people[1]!.id);
+});
+test.each(['completed', 'refused'])(
+  'deferred %s receipt rollback is uncertain and cannot start indexing',
+  async (status) => {
+    const h = harness();
+    if (status === 'refused') h.state.sources[0]!.version++;
+    h.controls.deferredRollback = true;
+    await expect(h.service.transfer(ctx, prospectId, input())).rejects.toMatchObject({
+      status: 503,
+    });
+    expect(h.state.receipts.size).toBe(0);
+    expect(h.state.people).toHaveLength(1);
+    expect(h.state.audits).toBe(0);
+    expect(h.kb.indexPersonFireAndForget).not.toHaveBeenCalled();
+    h.controls.deferredRollback = false;
+    expect((await h.service.transfer(ctx, prospectId, input())).status).toBe(status);
+  },
+);
+test('post-commit revocation holds the response and indexing without rewriting a completed receipt', async () => {
+  const h = harness();
+  h.controls.afterCommit = () => {
+    h.controls.member = false;
+  };
+  await expect(h.service.transfer(ctx, prospectId, input())).rejects.toMatchObject({ status: 403 });
+  expect(h.state.receipts.size).toBe(1);
+  expect([...h.state.receipts.values()][0]!.status).toBe('completed');
+  expect(h.kb.indexPersonFireAndForget).not.toHaveBeenCalled();
 });
 test('a reused per-person create request is never adopted by a different transfer after deletion', async () => {
   const h = harness();

@@ -1,4 +1,10 @@
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { isDeepStrictEqual } from 'node:util';
 import { prospectResourceScope, type TenantContext } from '@capiro/shared';
 import type { Prisma } from '@prisma/client';
 import type { PrismaService } from '../../prisma/prisma.service.js';
@@ -183,8 +189,9 @@ export async function commitContactTransfer(
   const command = parseContactTransfer(prospectId, raw),
     digest = contactTransferDigest(ctx, command);
   let admittedOriginal = false;
+  let outcome: { receipt: ReturnType<typeof view>; createdIds: string[] };
   try {
-    return await prisma.withTenant(
+    outcome = await prisma.withTenant(
       ctx.tenantId,
       async (tx) => {
         await lockRequest(tx, ctx, command.requestId);
@@ -228,7 +235,7 @@ export async function commitContactTransfer(
       throw error;
     // Only this original transaction's known rollback can produce a refusal.
     // Ambiguous transport/DB errors leave recovery pending; a concurrent commit wins.
-    return prisma.withTenant(ctx.tenantId, async (tx) => {
+    outcome = await prisma.withTenant(ctx.tenantId, async (tx) => {
       await lockRequest(tx, ctx, command.requestId);
       await requireOwnerActor(tx, ctx);
       const previous = await saved(tx, ctx, command.requestId);
@@ -240,6 +247,22 @@ export async function commitContactTransfer(
       };
     });
   }
+  // Verify outside the original-operation catch: failed readback is uncertainty,
+  // never evidence that the original operation rolled back and may be refused.
+  // Deferred COMMIT failures can otherwise return the callback's false result.
+  return prisma.withTenant(
+    ctx.tenantId,
+    async (tx) => {
+      await requireOwnerActor(tx, ctx);
+      await scope(tx, ctx, command.prospectId, command.clientId);
+      const persisted = await saved(tx, ctx, command.requestId);
+      if (!persisted || !isDeepStrictEqual(view(ctx, persisted), outcome.receipt))
+        throw new ServiceUnavailableException('The contact transfer has not been confirmed');
+      match(persisted, command, digest);
+      return { receipt: view(ctx, persisted), createdIds: outcome.createdIds };
+    },
+    { timeoutMs: 30_000 },
+  );
 }
 export async function readContactTransfer(
   prisma: PrismaService,

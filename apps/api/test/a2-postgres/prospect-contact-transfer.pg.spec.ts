@@ -328,6 +328,33 @@ it('unconverted or differently linked prospects cannot carry over to a selected 
   await expect(save()).rejects.toMatchObject({ status: 404 });
   expect((await counts()).receipts).toBe(0);
 });
+it.each(['completed', 'refused'])(
+  'deferred %s receipt failure never acknowledges an uncommitted transfer',
+  async (status) => {
+    if (status === 'refused')
+      await h.sql('UPDATE business_development_prospect_contacts SET version=2 WHERE id=$1', [
+        sources[0],
+      ]);
+    await h.sql(`CREATE FUNCTION synthetic_transfer_commit_fail() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic deferred transfer failure'; END $$;
+    CREATE CONSTRAINT TRIGGER synthetic_transfer_commit_fail AFTER INSERT ON prospect_contact_transfer_receipts
+      DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION synthetic_transfer_commit_fail()`);
+    try {
+      await expect(save()).rejects.toMatchObject({ status: 503 });
+      expect(await counts()).toEqual({
+        receipts: 0,
+        creates: 0,
+        people: 1,
+        audits: 0,
+        source_versions: status === 'refused' ? 4 : 3,
+      });
+    } finally {
+      await h.sql(
+        'DROP TRIGGER synthetic_transfer_commit_fail ON prospect_contact_transfer_receipts; DROP FUNCTION synthetic_transfer_commit_fail()',
+      );
+    }
+    expect((await save()).receipt.status).toBe(status);
+  },
+);
 it('enforces immutable results, null-safe shapes, app grants, RLS and repeat migration', async () => {
   const result = await save();
   for (const statement of [
