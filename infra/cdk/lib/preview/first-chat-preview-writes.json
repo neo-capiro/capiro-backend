@@ -400,6 +400,13 @@
         "^/api/clio/approvals/native/execute$",
         "^/api/clio/approvals/native/execution/read$"
       ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/business-development/prospects/[A-Za-z0-9_-]+/contacts/transfers$"
+      ]
     }
   ]
 }

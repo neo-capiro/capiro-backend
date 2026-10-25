@@ -778,5 +778,11 @@
     "method": "POST",
     "path": "/api/clio/approvals/native/execution/read",
     "owner": "Meri createCoreApprovalForwarder.readTaskExecution -> Core native approval outcome reader with original proposal custody and current attended authority"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/business-development/prospects/:prospectId/contacts/transfers",
+    "owner": "Portfolio explicit contact transfer -> ProspectContactsController -> immutable receipt under current source/client authority"
   }
 ]

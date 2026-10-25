@@ -135,7 +135,7 @@ test('finite method/path routes admit their owners and reject unintended cross-p
     const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map(
       (r) => r.Properties,
     );
-    assert.equal(rules.length, 52);
+    assert.equal(rules.length, 53);
     for (const rule of rules) {
       assert.deepEqual(rule.ListenerArn, { Ref: 'PreviewHttps' });
       const conditions = rule.Conditions;
@@ -218,6 +218,13 @@ test('finite method/path routes admit their owners and reject unintended cross-p
     assert.deepEqual(destination('POST', '/api/clio/conversations/bootstrap'), target('core'));
     assert.deepEqual(
       destination('GET', '/api/engagement/meeting-commands/11111111-1111-4111-8111-111111111111'),
+      target('core'),
+    );
+    assert.deepEqual(
+      destination(
+        'GET',
+        '/api/business-development/prospects/11111111-1111-4111-8111-111111111111/contacts/transfers/22222222-2222-4222-8222-222222222222',
+      ),
       target('core'),
     );
     assert.equal(destination('POST', '/api/clio/application-authority/history-release'), null);
