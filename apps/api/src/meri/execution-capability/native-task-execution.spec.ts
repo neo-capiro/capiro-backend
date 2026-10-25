@@ -15,7 +15,7 @@ const id = (n: number) => `10000000-0000-4000-8000-${n.toString(16).padStart(12,
 const NOW = Date.parse('2026-10-24T12:00:00.000Z');
 const config = { get: (key: string) => key === 'INTERNAL_SERVICE_SECRET' ? 'synthetic-secret' : key === 'NODE_ENV' ? 'production' : true };
 function fixture(update = false, general = false, personal = false) {
-  const state = { now: NOW, member: true, wall: true, session: true, conversation: true, bootstrap: true, revoked: false, complete: true, loseResponse: false };
+  const state = { now: NOW, member: true, wall: true, session: true, conversation: true, bootstrap: true, hasDecision: true, revoked: false, complete: true, loseResponse: false };
   const ctx: any = { tenantId: id(1), userId: id(2), clerkUserId: 'user_fixture', tenantSlug: 'fixture', role: 'standard_user' };
   const binding = { tenantId: id(1), actorId: id(2), conversationId: id(3), runId: id(4), attemptId: id(5), workerId: id(6), writerFence: 1 };
   const selectedClientId = general ? null : id(7), taskClientId = personal ? null : id(7);
@@ -41,7 +41,7 @@ function fixture(update = false, general = false, personal = false) {
     tenantMembership: { findFirst: jest.fn(async () => state.member ? { role: 'standard_user', tenant: { status: 'active' } } : null) },
     clioConversation: { findFirst: jest.fn(async () => state.conversation ? { id: id(3), tenantId: id(1), userId: id(2), clientId: selectedClientId, status: 'active', metadata: null, archivedAt: null } : null) },
     clioConversationBootstrapReceipt: { findFirst: jest.fn(async () => state.bootstrap ? { requestId: id(99) } : null) },
-    clioMeriApprovalDecision: { findUnique: jest.fn(async () => decision) },
+    clioMeriApprovalDecision: { findUnique: jest.fn(async () => state.hasDecision ? decision : null) },
     clioMeriApprovalRevocation: { findUnique: jest.fn(async () => state.revoked ? {} : null) },
     clioMeriExecutionConsumption: {
       findUnique: jest.fn(async () => receipts.get('receipt') ?? null),
@@ -65,15 +65,16 @@ function fixture(update = false, general = false, personal = false) {
     if (state.loseResponse && receipts.size) throw new Error('Response lost after commit');
     return { selectedClientId, policyRevision: 'policy1', expiresAtMs: state.now + 60000 };
   }) };
-  const tenant: any = { readApplicationAuthoritySession: jest.fn(async () => ({ readCurrent: jest.fn(async () => {
+  const readCurrent = jest.fn(async () => {
     if (!state.session) throw new Error('Session revoked');
     return { principal: { tenantId: id(1), actorId: id(2) }, identityRevision: 'a'.repeat(64), expiresAtMs: state.now + 60000 };
-  }) })) };
+  });
+  const tenant: any = { readApplicationAuthoritySession: jest.fn(async () => ({ readCurrent })) };
   const service = new MeriExecutionReceiverService(prisma, engagement, null, approvals, tenant);
   const req: any = { headers: { 'x-internal-service-secret': 'synthetic-secret' }, method: 'POST', path: '/api/clio/approvals/native/execute' };
   new ToolServiceSecretGuard(config as never).canActivate({ switchToHttp: () => ({ getRequest: () => req }) } as never);
   const body = { proposal, binding };
-  return { state, ctx, binding, command, proposal, decision, tasks, receipts, tx, prisma, approvals, tenant, service, req, body,
+  return { state, ctx, binding, command, proposal, decision, tasks, receipts, tx, prisma, approvals, tenant, readCurrent, service, req, body,
     execute: () => service.nativeTask(req, ctx, body, 'execute'), read: () => service.nativeTask(req, ctx, body, 'read') };
 }
 
@@ -141,10 +142,95 @@ describe('native task execution and historical receipt owner', () => {
     expect(f.receipts.get('receipt').state).toBe('COMPLETED');
     expect(f.tx.engagementTask.create).toHaveBeenCalledTimes(1);
   });
-  it('reads an absent receipt without execution, including after proposal expiry', async () => {
+  it.each([false, true])('keeps an unexpired absent read null with current session checks, decision=%s', async hasDecision => {
+    const f = fixture(); f.state.hasDecision = hasDecision;
+    expect(await f.read()).toBeNull();
+    expect(f.readCurrent).toHaveBeenCalledTimes(4); expect(f.prisma.withTenant).toHaveBeenCalledTimes(2);
+    expect(f.tasks.size).toBe(0); expect(f.receipts.size).toBe(0);
+  });
+  it.each([false, true])('returns the exact expired absence proof at the final database clock, decision=%s', async hasDecision => {
+    const f = fixture(); f.state.hasDecision = hasDecision; f.state.now = Date.parse(f.proposal.expiresAt);
+    f.approvals.verifyPrepared.mockImplementationOnce(async () => ({ selectedClientId: id(7), policyRevision: 'policy1', expiresAtMs: f.state.now + 60000 }));
+    f.approvals.verifyPrepared.mockImplementationOnce(async () => {
+      f.state.now += 17;
+      return { selectedClientId: id(7), policyRevision: 'policy1', expiresAtMs: f.state.now + 60000 };
+    });
+    expect(await f.read()).toEqual({ state: 'NOT_EXECUTED', proposalId: f.proposal.proposalId,
+      commandSha256: f.proposal.commandSha256, idempotencyKey: f.command.idempotencyKey,
+      binding: f.binding, reason: 'expired', checkedAt: new Date(f.state.now).toISOString() });
+    const locks = f.tx.$queryRaw.mock.calls.filter(([sql]: [TemplateStringsArray]) => sql.join('').includes('pg_advisory_xact_lock'));
+    expect(locks).toHaveLength(2); expect(locks[0].slice(1)).toEqual([f.ctx.tenantId, f.proposal.proposalId]);
+    expect(locks[1]).toEqual(locks[0]);
+    expect(f.tx.clioMeriExecutionConsumption.findUnique).toHaveBeenCalledTimes(2);
+    expect(f.tasks.size).toBe(0); expect(f.receipts.size).toBe(0);
+    await expect(f.execute()).rejects.toThrow(); expect(f.tx.engagementTask.create).not.toHaveBeenCalled();
+  });
+  it('keeps an initially unexpired absent observation null when metadata I/O crosses expiry', async () => {
+    const f = fixture();
+    f.approvals.verifyPrepared.mockImplementationOnce(async () => ({ selectedClientId: id(7), policyRevision: 'policy1', expiresAtMs: NOW + 120000 }));
+    f.approvals.verifyPrepared.mockImplementationOnce(async () => {
+      f.state.now += 60000;
+      return { selectedClientId: id(7), policyRevision: 'policy1', expiresAtMs: f.state.now + 60000 };
+    });
+    expect(await f.read()).toBeNull(); expect(f.receipts.size).toBe(0);
+  });
+  it.each(['initial', 'release'])('refuses an absent no-decision read with an expired attended session at %s', async stage => {
+    const f = fixture(); f.state.hasDecision = false;
+    f.readCurrent.mockImplementation(async () => ({ principal: { tenantId: id(1), actorId: id(2) }, identityRevision: 'a'.repeat(64),
+      expiresAtMs: f.readCurrent.mock.calls.length >= (stage === 'initial' ? 2 : 4) ? NOW : NOW + 60000 }));
+    await expect(f.read()).rejects.toThrow('authority refused');
+    expect(f.tx.engagementTask.create).not.toHaveBeenCalled(); expect(f.receipts.size).toBe(0);
+  });
+  it.each(['member', 'wall', 'session', 'conversation', 'bootstrap', 'identity', 'principal', 'metadata-expiry', 'policy', 'selection'])('withholds an absent no-decision read after final %s loss', async kind => {
+    const f = fixture(false, true); f.state.hasDecision = false; f.state.now += 60000;
+    f.approvals.verifyPrepared.mockImplementationOnce(async () => ({ selectedClientId: null, policyRevision: 'policy1', expiresAtMs: f.state.now + 60000 }));
+    f.approvals.verifyPrepared.mockImplementationOnce(async () => {
+      if (['member', 'wall', 'session', 'conversation', 'bootstrap'].includes(kind)) (f.state as any)[kind] = false;
+      if (kind === 'identity' || kind === 'principal') f.readCurrent.mockResolvedValue({ principal: { tenantId: id(1), actorId: kind === 'principal' ? id(99) : id(2) },
+        identityRevision: kind === 'identity' ? 'b'.repeat(64) : 'a'.repeat(64), expiresAtMs: f.state.now + 60000 });
+      return { selectedClientId: kind === 'selection' ? id(7) : null, policyRevision: kind === 'policy' ? 'policy2' : 'policy1',
+        expiresAtMs: kind === 'metadata-expiry' ? f.state.now : f.state.now + 60000 };
+    });
+    await expect(f.read()).rejects.toThrow(); expect(f.tasks.size).toBe(0); expect(f.receipts.size).toBe(0);
+  });
+  it.each(['CLAIMED', 'COMPLETED'])('never releases an absence proof when a %s receipt appears before the final lock', async state => {
     const f = fixture(); f.state.now += 60000;
-    expect(await f.read()).toBeNull(); expect(f.tasks.size).toBe(0);
-    await expect(f.execute()).rejects.toThrow(); expect(f.receipts.size).toBe(0);
+    f.approvals.verifyPrepared.mockImplementationOnce(async () => ({ selectedClientId: id(7), policyRevision: 'policy1', expiresAtMs: f.state.now + 60000 }));
+    f.approvals.verifyPrepared.mockImplementationOnce(async () => {
+      f.receipts.set('receipt', { state });
+      return { selectedClientId: id(7), policyRevision: 'policy1', expiresAtMs: f.state.now + 60000 };
+    });
+    await expect(f.read()).rejects.toThrow('differs'); expect(f.tx.engagementTask.create).not.toHaveBeenCalled();
+  });
+  it.each(['appeared', 'disappeared', 'changed'])('refuses an absent read when the original decision %s during metadata I/O', async kind => {
+    const f = fixture(); f.state.hasDecision = kind !== 'appeared'; f.state.now += 60000;
+    f.approvals.verifyPrepared.mockImplementationOnce(async () => ({ selectedClientId: id(7), policyRevision: 'policy1', expiresAtMs: f.state.now + 60000 }));
+    f.approvals.verifyPrepared.mockImplementationOnce(async () => {
+      if (kind === 'changed') f.decision.decidedAt = new Date(NOW - 4000);
+      else f.state.hasDecision = kind === 'appeared';
+      return { selectedClientId: id(7), policyRevision: 'policy1', expiresAtMs: f.state.now + 60000 };
+    });
+    await expect(f.read()).rejects.toThrow('differs'); expect(f.receipts.size).toBe(0);
+  });
+  it.each(['rejected', 'command', 'binding', 'expiry', 'future-decision'])('does not reinterpret a retained %s decision as expired absence', async kind => {
+    const f = fixture(); f.state.now += 60000;
+    if (kind === 'rejected') f.decision.decision = 'rejected'; if (kind === 'command') f.decision.commandSha256 = '0'.repeat(64);
+    if (kind === 'binding') f.decision.runId = id(99); if (kind === 'expiry') f.decision.expiresAt = new Date(NOW);
+    if (kind === 'future-decision') f.decision.decidedAt = new Date(f.state.now + 1);
+    await expect(f.read()).rejects.toThrow('differs'); expect(f.receipts.size).toBe(0);
+  });
+  it.each(['initial', 'release'])('checks task.update access for an absent no-decision read at %s', async stage => {
+    const f = fixture(true, true, true); f.state.hasDecision = false; f.state.now += 60000;
+    if (stage === 'initial') f.tasks.get(id(10)).ownerUserId = id(99);
+    else {
+      f.approvals.verifyPrepared.mockImplementationOnce(async () => ({ selectedClientId: null, policyRevision: 'policy1', expiresAtMs: f.state.now + 60000 }));
+      f.approvals.verifyPrepared.mockImplementationOnce(async () => {
+        f.tasks.get(id(10)).ownerUserId = id(99);
+        return { selectedClientId: null, policyRevision: 'policy1', expiresAtMs: f.state.now + 60000 };
+      });
+    }
+    await expect(f.read()).rejects.toThrow('authority refused'); expect(f.tx.engagementTask.update).not.toHaveBeenCalled();
+    expect(f.receipts.size).toBe(0);
   });
   it.each(['revoked', 'expired', 'rejected', 'future-decision'])('refuses fresh %s commands without a receipt or task', async kind => {
     const f = fixture(); if (kind === 'revoked') f.state.revoked = true;
@@ -172,7 +258,8 @@ describe('native task execution and historical receipt owner', () => {
     expect(f.receipts.size).toBe(0); expect(update ? f.tasks.get(id(10)).title : f.tasks.size).toBe(update ? 'Original title' : 0);
   });
   it('never executes an orphaned CLAIMED receipt', async () => {
-    const f = fixture(); f.receipts.set('receipt', { jti: null, commandSha256: f.proposal.commandSha256, argumentsSha256: hash(f.command.arguments), state: 'CLAIMED' });
+    const f = fixture(); f.state.now += 60000;
+    f.receipts.set('receipt', { jti: null, commandSha256: f.proposal.commandSha256, argumentsSha256: hash(f.command.arguments), state: 'CLAIMED' });
     await expect(f.execute()).rejects.toThrow('outcome unknown'); await expect(f.read()).rejects.toThrow('outcome unknown');
     expect(f.tasks.size).toBe(0);
   });
@@ -191,7 +278,7 @@ describe('native task execution and historical receipt owner', () => {
     await expect(f.service.nativeTask(f.req, f.ctx, { ...f.body, binding: { ...f.binding, writerFence: 2 } }, 'execute')).rejects.toThrow();
     expect(f.prisma.withTenant).not.toHaveBeenCalled();
   });
-  it('mounts the exact execute/read routes with real service and role guards', async () => {
+  it.each([false, true])('mounts the exact execute/read routes with real guards, expired absence=%s', async expiredAbsence => {
     const f = fixture(), module = await Test.createTestingModule({ controllers: [NativeApprovalController], providers: [
       RolesGuard, ToolServiceSecretGuard, { provide: ConfigService, useValue: config },
       { provide: NativeApprovalService, useValue: {} }, { provide: NativeExecutionService, useValue: {} },
@@ -200,9 +287,12 @@ describe('native task execution and historical receipt owner', () => {
     const app = module.createNestApplication(); app.setGlobalPrefix('api'); app.use((req: any, _res: unknown, next: () => void) => { req.tenantContext = f.ctx; next(); }); await app.init();
     try {
       await request(app.getHttpServer()).post('/api/clio/approvals/native/execute').send(f.body).expect(403);
-      const sent = await request(app.getHttpServer()).post('/api/clio/approvals/native/execute').set('x-internal-service-secret', 'synthetic-secret').send(f.body).expect(200);
+      if (expiredAbsence) f.state.now += 60000;
+      const sent = expiredAbsence ? null : await request(app.getHttpServer()).post('/api/clio/approvals/native/execute').set('x-internal-service-secret', 'synthetic-secret').send(f.body).expect(200);
       const found = await request(app.getHttpServer()).post('/api/clio/approvals/native/execution/read').set('x-internal-service-secret', 'synthetic-secret').send(f.body).expect(200);
-      expect(found.body).toEqual({ state: 'OUTCOME', outcome: sent.body.outcome });
+      expect(found.body).toEqual(expiredAbsence ? { state: 'NOT_EXECUTED', proposalId: f.proposal.proposalId,
+        commandSha256: f.proposal.commandSha256, idempotencyKey: f.command.idempotencyKey,
+        binding: f.binding, reason: 'expired', checkedAt: new Date(f.state.now).toISOString() } : { state: 'OUTCOME', outcome: sent!.body.outcome });
     } finally { await app.close(); }
   });
 });

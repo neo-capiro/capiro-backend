@@ -1,5 +1,5 @@
 import { ConflictException, ForbiddenException, ServiceUnavailableException } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import type { ClioMeriApprovalDecision, Prisma } from '@prisma/client';
 import type { Request } from 'express';
 import { ROLE_RANK, type TenantContext, type TenantRole } from '@capiro/shared';
 import type { PrismaService } from '../../prisma/prisma.service.js';
@@ -22,6 +22,10 @@ export type NativeTaskOutcome = {
   execution: { kind: 'native-task'; proposalId: string; commandSha256: string; idempotencyKey: string;
     binding: NativeRunBinding; completedAt: string; approvalDecisionSha256: string };
   result: TaskResult;
+};
+export type NativeTaskNotExecuted = {
+  state: 'NOT_EXECUTED'; proposalId: string; commandSha256: string; idempotencyKey: string;
+  binding: NativeRunBinding; reason: 'expired'; checkedAt: string;
 };
 const denied = () => new ForbiddenException('Native task authority refused');
 const conflict = () => new ConflictException('Native task command differs from its retained decision or outcome');
@@ -87,8 +91,7 @@ export async function receiveNativeTask(ports: Ports, req: Request, ctx: TenantC
   const session = await ports.tenant.readApplicationAuthoritySession(req, ctx);
   const { command } = proposal, args = command.arguments;
   const key = { tenantId: ctx.tenantId, proposalId: proposal.proposalId, idempotencyKey: command.idempotencyKey };
-  const result = await ports.prisma.withTenant(ctx.tenantId, async tx => {
-    await lockMeriExecutionProposal(tx, ctx.tenantId, proposal.proposalId);
+  const currentAuthority = async (tx: Prisma.TransactionClient) => {
     await tx.$queryRaw`SELECT id::text FROM users WHERE id=${ctx.userId}::uuid FOR SHARE`;
     await tx.$queryRaw`SELECT id::text FROM tenants WHERE id=${ctx.tenantId}::uuid FOR SHARE`;
     await tx.$queryRaw`SELECT id::text FROM tenant_memberships WHERE tenant_id=${ctx.tenantId}::uuid AND user_id=${ctx.userId}::uuid FOR SHARE`;
@@ -110,24 +113,36 @@ export async function receiveNativeTask(ports: Ports, req: Request, ctx: TenantC
       clients.push(args.clientId);
     }
     await visibleClients(tx, ctx, clients);
-    const decision = await tx.clioMeriApprovalDecision.findUnique({ where: { tenantId_proposalId: { tenantId: ctx.tenantId, proposalId: proposal.proposalId } } });
-    const existing = await tx.clioMeriExecutionConsumption.findUnique({ where: { tenantId_proposalId_idempotencyKey: key } });
-    if (!decision) {
-      if (mode === 'read' && !existing) return null;
-      throw conflict();
-    }
+    return identity;
+  };
+  const assertDecision = (decision: ClioMeriApprovalDecision) => {
     if (decision.commandSha256 !== proposal.commandSha256 || decision.decision !== 'approved' ||
         decision.approverUserId !== ctx.userId || decision.bindingActorUserId !== ctx.userId ||
         decision.conversationId !== binding.conversationId || decision.runId !== binding.runId ||
         decision.policyRevision !== prepared.policyRevision || decision.expiresAt.getTime() !== Date.parse(proposal.expiresAt) ||
         decision.decidedAt.getTime() < Date.parse(proposal.createdAt)) throw conflict();
-    const decisionSha = hash(nativeDecisionOf(decision));
+  };
+  const result = await ports.prisma.withTenant(ctx.tenantId, async tx => {
+    await lockMeriExecutionProposal(tx, ctx.tenantId, proposal.proposalId);
+    const identity = await currentAuthority(tx);
+    const decision = await tx.clioMeriApprovalDecision.findUnique({ where: { tenantId_proposalId: { tenantId: ctx.tenantId, proposalId: proposal.proposalId } } });
+    const existing = await tx.clioMeriExecutionConsumption.findUnique({ where: { tenantId_proposalId_idempotencyKey: key } });
     const assertSession = async () => {
       const current = await session.readCurrent(tx), now = await meriExecutionDbNow(tx);
       if (!sameJson(current.principal, identity.principal) || current.identityRevision !== identity.identityRevision ||
           Math.min(identity.expiresAtMs, current.expiresAtMs, prepared.expiresAtMs) <= now) throw denied();
       return now;
     };
+    if (decision) assertDecision(decision);
+    if (mode === 'read' && !existing) {
+      if (command.action === 'task.update') await currentTask(tx, ctx, args.taskId as string, prepared.selectedClientId);
+      const now = await assertSession();
+      if (decision && decision.decidedAt.getTime() > now) throw conflict();
+      return { kind: 'absent' as const, expired: now >= Date.parse(proposal.expiresAt),
+        decisionSha256: decision ? hash(nativeDecisionOf(decision)) : null, identityRevision: identity.identityRevision };
+    }
+    if (!decision) throw conflict();
+    const decisionSha = hash(nativeDecisionOf(decision));
     if (existing) {
       if (existing.jti !== null || existing.commandSha256 !== proposal.commandSha256 || existing.argumentsSha256 !== hash(args)) throw conflict();
       if (existing.state !== 'COMPLETED' || !existing.result || !existing.completedAt) throw unknown();
@@ -139,7 +154,6 @@ export async function receiveNativeTask(ports: Ports, req: Request, ctx: TenantC
       await assertSession();
       return outcome;
     }
-    if (mode === 'read') return null;
     const revocation = await tx.clioMeriApprovalRevocation.findUnique({ where: { tenantId_proposalId: { tenantId: ctx.tenantId, proposalId: proposal.proposalId } } });
     const assertFresh = (now: number) => {
       if (revocation || now < Math.max(Date.parse(proposal.createdAt), decision.decidedAt.getTime()) ||
@@ -171,7 +185,28 @@ export async function receiveNativeTask(ports: Ports, req: Request, ctx: TenantC
   // Metadata retention and the attended session remain current at release.
   const released = await ports.approvals.verifyPrepared(req, ctx, proposal);
   if (prepared.selectedClientId !== released.selectedClientId || prepared.policyRevision !== released.policyRevision) throw denied();
-  if (result !== null) await ports.prisma.withTenant(ctx.tenantId, async tx => {
+  if ('kind' in result) return ports.prisma.withTenant(ctx.tenantId, async tx => {
+    // Absence is terminal only after expiry and a second locked observation,
+    // after the final external metadata/current check. Never infer it from a timeout.
+    await lockMeriExecutionProposal(tx, ctx.tenantId, proposal.proposalId);
+    const identity = await currentAuthority(tx);
+    const decision = await tx.clioMeriApprovalDecision.findUnique({ where: { tenantId_proposalId: { tenantId: ctx.tenantId, proposalId: proposal.proposalId } } });
+    const existing = await tx.clioMeriExecutionConsumption.findUnique({ where: { tenantId_proposalId_idempotencyKey: key } });
+    if (existing) throw conflict();
+    if (decision) assertDecision(decision);
+    if ((decision ? hash(nativeDecisionOf(decision)) : null) !== result.decisionSha256) throw conflict();
+    if (command.action === 'task.update') await currentTask(tx, ctx, args.taskId as string, prepared.selectedClientId);
+    const current = await session.readCurrent(tx), now = await meriExecutionDbNow(tx);
+    if (!sameJson(current.principal, identity.principal) || current.identityRevision !== identity.identityRevision ||
+        current.identityRevision !== result.identityRevision ||
+        Math.min(identity.expiresAtMs, current.expiresAtMs, prepared.expiresAtMs, released.expiresAtMs) <= now) throw denied();
+    if (decision && decision.decidedAt.getTime() > now) throw conflict();
+    if (!result.expired) return null;
+    if (now < Date.parse(proposal.expiresAt)) throw conflict();
+    return { state: 'NOT_EXECUTED', proposalId: proposal.proposalId, commandSha256: proposal.commandSha256,
+      idempotencyKey: command.idempotencyKey, binding, reason: 'expired', checkedAt: new Date(now).toISOString() } satisfies NativeTaskNotExecuted;
+  });
+  await ports.prisma.withTenant(ctx.tenantId, async tx => {
     // A General proposal carries no destination client in its scopes. Recheck
     // the actual task after the last external metadata/current lookup as well.
     const current = await session.readCurrent(tx);
@@ -181,5 +216,5 @@ export async function receiveNativeTask(ports: Ports, req: Request, ctx: TenantC
     await currentTask(tx, ctx, result.result.id, prepared.selectedClientId);
     if (Math.min(current.expiresAtMs, released.expiresAtMs) <= await meriExecutionDbNow(tx)) throw denied();
   });
-  return result === null ? null : mode === 'read' ? { state: 'OUTCOME' as const, outcome: result } : { status: 'observed' as const, outcome: result };
+  return mode === 'read' ? { state: 'OUTCOME' as const, outcome: result } : { status: 'observed' as const, outcome: result };
 }
