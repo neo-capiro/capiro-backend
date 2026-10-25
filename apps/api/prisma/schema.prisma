@@ -259,6 +259,7 @@ model Tenant {
   meetingCommandReceipts             MeetingCommandReceipt[]
   clientFileAccessReceipts           ClientFileAccessReceipt[]
   prospectContactTransferReceipts    ProspectContactTransferReceipt[]
+  prospectAttachmentCopies         ProspectAttachmentCopy[]
   clientFacilities                   ClientFacility[]
   clientActivityCommands             ClientActivityCommand[]
   clientActivity                     ClientActivity[]
@@ -4046,6 +4047,31 @@ model ProspectContactTransferReceipt {
 
   @@id([tenantId, actorUserId, requestId], map: "prospect_contact_transfer_receipts_pkey")
   @@map("prospect_contact_transfer_receipts")
+}
+
+/// Exact independent prospect upload copies, including pending storage writes.
+model ProspectAttachmentCopy {
+  tenantId      String   @map("tenant_id") @db.Uuid
+  actorUserId   String   @map("actor_user_id") @db.Uuid
+  requestId     String   @map("request_id") @db.Uuid
+  prospectId    String   @map("prospect_id") @db.Uuid
+  clientId      String   @map("client_id") @db.Uuid
+  payloadDigest String   @map("payload_digest") @db.Char(64)
+  command       Json     @map("command_jsonb")
+  source        Json     @map("source_jsonb")
+  destinationId String   @unique @map("destination_id") @db.Uuid
+  bucket        String
+  objectKey     String   @map("object_key")
+  status        String
+  result        Json?    @map("result_jsonb")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt   DateTime? @map("completed_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, actorUserId, requestId])
+  @@unique([bucket, objectKey])
+  @@map("prospect_attachment_copies")
 }
 
 /// Immutable access-change outcome independent of later file edits and deletion.

@@ -2990,6 +2990,20 @@ export class EngagementController {
     };
   }
 
+  @Post('attachments/prospect-copies')
+  @EngagementRuntimeAction('attachment_external_write')
+  @HttpCode(200)
+  @Header('Cache-Control', 'private, no-store')
+  copyProspectAttachment(@CurrentTenant() ctx: TenantContext, @Body() input: unknown) {
+    return this.service.copyProspectAttachment(ctx, input);
+  }
+
+  @Get('attachments/prospect-copies/:requestId')
+  @Header('Cache-Control', 'private, no-store')
+  readProspectAttachmentCopy(@CurrentTenant() ctx: TenantContext, @Param('requestId') requestId: string) {
+    return this.service.readProspectAttachmentCopy(ctx, requestId);
+  }
+
   @Delete('attachments/:id')
   deleteAttachment(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
     return this.service.deleteAttachment(ctx, id);

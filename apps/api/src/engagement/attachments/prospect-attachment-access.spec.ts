@@ -144,6 +144,14 @@ function harness() {
 
 describe('prospect attachment lifecycle (synthetic only)', () => {
   beforeEach(() => jest.clearAllMocks());
+  it('public confirm cannot adopt an object reserved for an independent client copy', async () => {
+    const h = harness();
+    await expect(h.confirm(`tenants/${ctx.tenantId}/engagement/prospect-client-copies/${requestId}/document`,
+      { prospectId: undefined, clientId: prospectId })).rejects.toMatchObject({ status: 400 });
+    expect(h.rows).toHaveLength(0);
+    expect(h.prisma.withTenant).not.toHaveBeenCalled();
+    expect((h.service as any).s3.send).not.toHaveBeenCalled();
+  });
   it('commits an actor/origin-bound intent before signing exact checksum and length', async () => {
     const h = harness();
     const result = await h.upload();

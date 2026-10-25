@@ -1,4 +1,6 @@
 import { assertSingleMailAuthority } from './single-mail-authority.js';
+import { copyProspectFile, readProspectFileCopy } from './attachments/prospect-file-copy.js';
+import { prospectCopyPrefix } from './attachments/prospect-file-copy.input.js';
 import { integrationStatusProjection } from './integration-health.js';
 import { SingleMailLedger, singleMailHash } from './single-mail-ledger.js';
 import {
@@ -7707,6 +7709,8 @@ export class EngagementService {
 
   async confirmAttachment(ctx: TenantContext, input: ConfirmAttachmentInput) {
     if (!this.bucket) throw new ServiceUnavailableException('ASSETS_BUCKET is not configured');
+    if (input.s3Key.startsWith(prospectCopyPrefix(ctx.tenantId)))
+      throw new BadRequestException('A recorded prospect copy must finish through its copy request');
     // Re-checked here (not just at presign) — confirm is a separate call and
     // must not record a contentType the presign path would have rejected.
     if (!isAllowedAttachmentContentType(input.contentType)) {
@@ -8541,6 +8545,15 @@ export class EngagementService {
       indexedAt: attachment.indexedAt,
       reused: false,
     };
+  }
+
+  async copyProspectAttachment(ctx: TenantContext, input: unknown) {
+    return copyProspectFile({ prisma: this.prisma, s3: this.s3, bucket: this.bucket,
+      content: this.attachmentContent, scanner: this.scanner, allowedType: isAllowedAttachmentContentType }, ctx, input);
+  }
+
+  async readProspectAttachmentCopy(ctx: TenantContext, requestId: string) {
+    return readProspectFileCopy({ prisma: this.prisma }, ctx, requestId);
   }
 
   /**
