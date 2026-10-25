@@ -291,7 +291,8 @@ export function buildMeetingListResult(
   // out of the public cursor. Only a readable key and a bounded position leave
   // Core; the domain owner checks the one-way boundary before advancing.
   const readable = new Set(rows.map(row => row.id));
-  const lastReadableIndex = sourcePage.findLastIndex(row => readable.has(row.id));
+  let lastReadableIndex = sourcePage.length - 1;
+  while (lastReadableIndex >= 0 && !readable.has(sourcePage[lastReadableIndex]!.id)) lastReadableIndex--;
   const anchor = lastReadableIndex < 0 ? selection.listAfter : sourcePage[lastReadableIndex]!;
   const skippedCount = sourcePage.length - lastReadableIndex - 1 +
     (lastReadableIndex < 0 ? selection.listSkip?.count ?? 0 : 0);
