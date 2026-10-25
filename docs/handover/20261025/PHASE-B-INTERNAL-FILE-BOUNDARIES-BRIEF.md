@@ -1,14 +1,3 @@
-# Phase B implementation allocation — File Workflows UI
-
-Root dispatched this implementation on 25 October 2026. This allocation supersedes the proposed-owner and read-only status in the retained full brief below. Owner: File Workflows UI; Integration owns Phase A. Root assigns independent review and shipping; Release owns storage/scanner and AWS. Draft PR only; no merge, deployment, live probe, subagent, install, schema change or broad sweep. Current direct xhigh allocation supersedes historical model/role wording.
-
-Repository: neo-capiro/capiro-backend. Branch: codex/wave2-internal-file-boundaries-20261025. Worktree: C:/dev/wave2-internal-file-boundaries-20261025. Exact base: 43fdd8928e517b1ce3a7a039f0fabeb8cf5fc5dd; base tree: 50c1214d60c17d29d9a61e5bbfea450489baa286. Stack this draft on codex/wave2-batch-core-20261025 (PR133); preserve the frozen donor and all other worktrees. Sparse checkout includes API, CDK, packages and scripts; no reusable environment is deleted or recreated.
-
-Scope: Phase B only, using the four production paths and exact six POST expressions below. Narrow runtime/coverage/edge regressions plus the affected client-file-delete HTTP regression are allowed. No engagement.service.ts, scanner, first-chat-core.ts, policy service/types/modes, auth, manifests/lockfiles or schema edits. Keep generic deleteAttachment and every remaining provider/cleanup classification. Existing absence and finite-registry patterns suffice; no new mechanism is needed.
-
-Verification: selected Jest runtime/route/service and retained file authority/custody/scan/delete tests using existing dependencies; finite synthesized edge behavior and negative neighbors/host/methods; restore-classification and route omission/broadening mutants. Report inherited failures separately and scoped type/lint availability. Preserve exact commands, counts and run/not-run evidence. Commit this complete standalone brief alongside the implementation. Root receives exact base/head/tree, changed paths and deletion proof; independent exact-head ACCEPT and Release/Acceptance gates remain external to this author.
-
-## Full retained Integration repair brief
 ## 1. Claude handles the harness
 
 The quality bar is Claude's own. Answer quality comes from the whole harness, not only the model: its system prompt, built-in tools, subagents, skills, context management and compaction, and session handling.
@@ -57,6 +46,18 @@ A change is not done until what it replaced is gone.
 - Negative tests are mandatory: another tenant's data, another client's data, and walled data must not be retrievable, through chat or through tools. A General chat reads across the clients the user can already see, with each client's wall enforced per result (FINAL-PLAN decision 2).
 - The original read-only first cut is historical. Neo subsequently authorized preview client-record writes and autonomous Wave 2 completion. Activate accepted writes through their existing authenticated domain/intent owners and receipts, with the actual route/configuration and effect semantics verified. This does not authorize the assistant to send external mail without the user's specific send instruction.
 
+# Phase B implementation allocation — File Workflows UI
+
+Root dispatched this implementation on 25 October 2026. This allocation supersedes the proposed-owner and read-only status in the retained full brief below. Owner: File Workflows UI; Integration owns Phase A. Root assigns independent review and shipping; Release owns storage/scanner and AWS. Draft PR only; no merge, deployment, live probe, subagent, install, schema change or broad sweep. Current direct xhigh allocation supersedes historical model/role wording.
+
+Repository: neo-capiro/capiro-backend. Branch: codex/wave2-internal-file-boundaries-20261025. Worktree: C:/dev/wave2-internal-file-boundaries-20261025. Exact base: 43fdd8928e517b1ce3a7a039f0fabeb8cf5fc5dd; base tree: 50c1214d60c17d29d9a61e5bbfea450489baa286. Stack this draft on codex/wave2-batch-core-20261025 (PR133); preserve the frozen donor and all other worktrees. Sparse checkout includes API, CDK, packages and scripts; no reusable environment is deleted or recreated.
+
+Scope: Phase B only, using the four production paths and exact six POST expressions below. Narrow runtime/coverage/edge regressions plus the affected client-file-delete HTTP regression are allowed. No engagement.service.ts, scanner, first-chat-core.ts, policy service/types/modes, auth, manifests/lockfiles or schema edits. Keep generic deleteAttachment and every remaining provider/cleanup classification. Existing absence and finite-registry patterns suffice; no new mechanism is needed.
+
+Verification: selected Jest runtime/route/service and retained file authority/custody/scan/delete tests using existing dependencies; finite synthesized edge behavior and negative neighbors/host/methods; restore-classification and route omission/broadening mutants. Report inherited failures separately and scoped type/lint availability. Preserve exact commands, counts and run/not-run evidence. Commit this complete standalone brief alongside the implementation. Root receives exact base/head/tree, changed paths and deletion proof; independent exact-head ACCEPT and Release/Acceptance gates remain external to this author.
+
+Standing requirements revision loaded in full: meri-greenfield c0411e2cd20c35b3a8619817a4fec25ef7047aba, docs/handover/20261022/STANDING-REQUIREMENTS.md, including its instruction/engineering provenance correction. Sections1–4 above are unchanged. Direct Neo instructions establish authority; engineering interpretations and an approved document label do not independently approve new scope. This Phase B follows Root's existing direct allocation. Full Claude Agent SDK harness on standard AgentCore Runtime V1 direct to Bedrock, the control tool gateway, canonical Core, tenant isolation and durable user/firm memory remain unchanged. Root orchestrates at Ultra; author/reviewer work is xhigh. No new approval or qualification gate is introduced. The Core repository has no .github/pull_request_template.md at the sealed base.
+## Full retained Integration repair brief (standing sections1–4 retained verbatim above)
 FROM: Integration | TO: Root | TYPE: proposed PROCESS6.1 repair brief | RE: enabled workflow boundary repairs
 Status: READ-ONLY COMPARISON COMPLETE; PROPOSED DISPATCH SCOPE. This document is not an implementation dispatch, deploy authorization or live acceptance result. No product file has been edited. Root's latest instruction authorizes the ordinary internal-storage classification in principle and requests this concrete per-phase brief before dispatch. The no-deploy window is retained until Root/Release expressly closes it.
 
