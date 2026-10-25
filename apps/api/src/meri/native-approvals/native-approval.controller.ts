@@ -1,5 +1,5 @@
-import { Body, Controller, Header, HttpCode, Module, Post, Req, UseGuards } from '@nestjs/common';
-import type { Request } from 'express';
+import { Body, Controller, Header, HttpCode, Module, Post, Req, Res, UseGuards } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import type { TenantContext } from '@capiro/shared';
 import { CurrentTenant } from '../../tenant/current-tenant.decorator.js';
 import { Roles } from '../../auth/roles.decorator.js';
@@ -37,8 +37,11 @@ export class NativeApprovalController {
   @Post('execution/read')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
-  readTask(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
-    return this.receiver.nativeApproved(req, ctx, body, 'read');
+  async readTask(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown,
+    @Res() response: Response) {
+    // Nest's ordinary null return becomes an empty body. The native reader
+    // distinguishes canonical JSON null (no execution) from a malformed reply.
+    return response.json(await this.receiver.nativeApproved(req, ctx, body, 'read'));
   }
 
   @Post('record')

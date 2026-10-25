@@ -145,6 +145,18 @@ export class MeriExecutionReceiverService {
     const current = await readCurrent();
     await this.prisma.withTenant(ctx.tenantId, async tx => {
       if (!await authorize(tx, true) || current.expiresAtMs <= await meriExecutionDbNow(tx)) throw forbidden();
+      // Release only bytes visible after COMMIT, never the insert callback's
+      // provisional result. A deferred commit failure can otherwise leave no
+      // staged original even when the transaction client resolves successfully.
+      await tx.$queryRaw`SELECT id::text FROM clio_attachments WHERE id=${attachmentId}::uuid
+        AND tenant_id=${ctx.tenantId}::uuid AND user_id=${ctx.userId}::uuid FOR SHARE`;
+      const stored = await tx.clioAttachment.findFirst({ where: {
+        id: attachmentId, tenantId: ctx.tenantId, userId: ctx.userId, messageId: null,
+      }, select: { data: true, byteSize: true } });
+      if (!stored?.data || stored.byteSize !== object.bytes || stored.data.byteLength !== object.bytes ||
+          createHash('sha256').update(stored.data).digest('hex') !== object.sha256) {
+        throw new ServiceUnavailableException('Approved original registration was not retained');
+      }
     });
     return result;
   }

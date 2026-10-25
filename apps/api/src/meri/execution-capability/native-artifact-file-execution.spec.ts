@@ -336,6 +336,11 @@ describe('native artifact filing execution through document custody', () => {
     app.use((req: any, _res: unknown, next: () => void) => { req.tenantContext = f.ctx; next(); }); await app.init();
     try {
       await request(app.getHttpServer()).post('/api/clio/approvals/native/execute').send(f.body).expect(403);
+      const absent = await request(app.getHttpServer()).post('/api/clio/approvals/native/execution/read')
+        .set('x-internal-service-secret', 'synthetic-secret').send(f.readBody).expect(200);
+      expect(absent.headers['cache-control']).toBe('no-store');
+      expect(absent.headers['content-type']).toMatch(/^application\/json/);
+      expect(absent.text).toBe('null'); expect(absent.body).toBeNull();
       const result = await request(app.getHttpServer()).post('/api/clio/approvals/native/execute').set('x-internal-service-secret', 'synthetic-secret').send(f.body).expect(200);
       expect(result.headers['cache-control']).toBe('no-store'); expect(result.body.outcome.execution.kind).toBe('native-artifact-file');
       const read = await request(app.getHttpServer()).post('/api/clio/approvals/native/execution/read').set('x-internal-service-secret', 'synthetic-secret').send(f.readBody).expect(200);
@@ -347,6 +352,21 @@ describe('native artifact filing execution through document custody', () => {
 describe('native original registration reuses filing authority', () => {
   beforeEach(() => jest.spyOn(Date, 'now').mockReturnValue(NOW));
   afterEach(() => jest.restoreAllMocks());
+
+  it.each(['missing', 'changed'] as const)('does not acknowledge a %s staged original after the write transaction', async mode => {
+    const f = fixture(1); f.stages.clear();
+    f.state.afterCommit = async () => {
+      f.state.afterCommit = undefined;
+      if (mode === 'missing') f.stages.clear();
+      else for (const row of f.stages.values()) row.data = Buffer.from('different retained bytes');
+    };
+    await expect(f.register()).rejects.toThrow('registration was not retained');
+    expect(f.receipts.size).toBe(0); expect(f.s3.send).not.toHaveBeenCalled();
+    if (mode === 'missing') {
+      await expect(f.register()).resolves.toMatchObject({ sha256: f.objects[0]!.sha256, bytes: f.bytes[0]!.length });
+      expect(f.stages.size).toBe(1);
+    }
+  });
 
   it('registers the same approved original once across concurrent retries and a later proposal', async () => {
     const f = fixture(1); f.stages.clear();
