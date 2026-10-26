@@ -48,6 +48,38 @@ import { EventEmitter } from 'node:events';
 import { withMeriToolRequestControl } from './meri-tool-request-control.js';
 import { withMeriFundingReadObservation, withMeriReadObservation } from './meri-funding-read-observation.js';
 
+describe('public SQL native tools', () => {
+  function service() {
+    const runPublicSql = jest.fn().mockResolvedValue([{ total: '9007199254740993.01' }]);
+    const create = jest.fn().mockResolvedValue({});
+    return { runPublicSql, create, tools: Object.assign(Object.create(MeriToolsService.prototype), {
+      analyticsDb: { runPublicSql }, prisma: { withSystem: (run: (tx: unknown) => unknown) => run({ meriAnalyticsQueryLog: { create } }) },
+      logger: { error: jest.fn() },
+    }) as MeriToolsService };
+  }
+  it('dispatches logical metadata through the existing native tool registry', async () => {
+    const { tools, runPublicSql } = service();
+    const result = await tools.execute({} as never, 'describe_capiro_data', { relations: ['program_element_projects'] });
+    expect(result).toMatchObject({ version: '0.1.0', ok: true, relations: [{ name: 'program_element_projects' }] });
+    expect(runPublicSql).not.toHaveBeenCalled();
+  });
+  it('executes compiled public SQL through its existing owner and audit seam', async () => {
+    const { tools, runPublicSql, create } = service();
+    const result = await tools.execute({ tenantId: 'synthetic-tenant', userId: 'synthetic-user' } as never, 'query_capiro_data', {
+      sql: 'SELECT SUM(b.amount) AS total FROM program_element_budget_positions b WHERE b.pe_code=$1', parameters: ['0600001A'],
+    });
+    expect(result).toMatchObject({ version: '0.1.0', ok: true, rows: [{ total: '9007199254740993.01' }], rowCount: 1 });
+    expect(runPublicSql).toHaveBeenCalledWith(expect.objectContaining({ params: ['0600001A'], relationsUsed: ['program_element_budget_positions'] }));
+    expect(create).toHaveBeenCalledWith({ data: expect.objectContaining({ datasetKey: 'public_sql', rowCount: 1, params: ['0600001A'] }) });
+  });
+  it('refuses private SQL before execution or query audit', async () => {
+    const { tools, runPublicSql, create } = service();
+    expect(await tools.execute({} as never, 'query_capiro_data', { sql: 'SELECT c.id FROM clients c', parameters: [] }))
+      .toMatchObject({ ok: false, error: { code: 'UNKNOWN_RELATION' } });
+    expect(runPublicSql).not.toHaveBeenCalled(); expect(create).not.toHaveBeenCalled();
+  });
+});
+
 describe('buyer workspace Meri tool', () => {
   it('passes a pinned read through without changing coverage or unsupported gaps', async () => {
     const payload = {
@@ -155,6 +187,8 @@ const EXPECTED_TOOLS = [
   // GAO/CRS, FEC, news — never tenant-private data).
   'list_global_datasets',
   'query_global_data',
+  'describe_capiro_data',
+  'query_capiro_data',
   'search_sec_filings',
   'search_fara_registrations',
   'search_federal_grants',
@@ -377,6 +411,7 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   find_path_to: ['to'],
   search_memory: ['query'],
   query_global_data: ['dataset', 'select'],
+  query_capiro_data: ['sql', 'parameters'],
   resolve_entity: ['query'],
   get_bill_status: ['billId'],
   read_bill_text: ['billId'],
