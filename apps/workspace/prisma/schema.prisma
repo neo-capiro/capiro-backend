@@ -869,6 +869,23 @@ model WsProspectDraftReceipt {
 }
 
 
+/// Exact create/save outcome only; no document FK or cascade can erase the request fence.
+model WsNewsletterWriteReceipt {
+  tenantId String @map("tenant_id") @db.Uuid
+  actorId String @map("actor_id")
+  requestId String @map("request_id") @db.Uuid
+  operation String
+  documentId String @map("document_id") @db.Uuid
+  previousRevision Int? @map("previous_revision")
+  revision Int
+  inputHash String @map("input_hash") @db.VarChar(64)
+  contentHash String @map("content_hash") @db.VarChar(64)
+  sourceClientIds String[] @map("source_client_ids") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@id([tenantId, actorId, requestId], map: "ws_newsletter_write_receipt_pkey")
+  @@map("ws_newsletter_write_receipt")
+}
+
 model WsNewsletterDocument {
   id String @id @default(uuid()) @db.Uuid
   tenantId String @map("tenant_id") @db.Uuid

@@ -27,7 +27,7 @@ const makeRow = () => ({
   status: 'draft',
   updatedAt: new Date(),
   config: defaultNewsletterConfig(),
-  design: governmentAffairsNewsletter(),
+  design: JSON.parse(JSON.stringify(governmentAffairsNewsletter())),
 });
 function fixture() {
   const document = {
@@ -117,7 +117,15 @@ function fixture() {
         wsNewsletterReviewEmailRequest: emailRequests,
         wsNewsletterInvitation: invitations,
         wsNewsletterReviewer: reviewers,
-        $queryRaw: jest.fn().mockResolvedValue([{ id }]),
+        $executeRaw: jest.fn().mockResolvedValue(1),
+        $queryRaw: jest.fn(async (sql: TemplateStringsArray, ...args: any[]) => {
+          if (!sql.join('').includes('ws_newsletter_write_receipt')) return [{ id }];
+          if (!sql.join('').includes('INSERT')) return [];
+          const [, , request_id, operation, document_id, previous_revision, revision,
+            input_hash, content_hash, source_client_ids] = args;
+          return [{ request_id, operation, document_id, previous_revision, revision,
+            input_hash, content_hash, source_client_ids, created_at: new Date() }];
+        }),
       }),
     ),
   };
@@ -378,6 +386,7 @@ describe('newsletter authoring boundary', () => {
     f.stage.upsert.mockResolvedValue({ id, documentId: id, revision: row.revision, name: row.name, createdAt: new Date() });
     expect((await f.service.get(ctx, id)).ownerId).toBe('document_owner');
     await f.service.save(ctx, id, {
+      requestId: '55555555-5555-4555-8555-555555555555',
       revision: 3,
       name: 'Author revision',
       design: row.design,
@@ -423,6 +432,7 @@ describe('newsletter authoring boundary', () => {
     f.source.newsletterMember.mockResolvedValue(null);
     await expect(
       f.service.save(ctx, id, {
+        requestId: '55555555-5555-4555-8555-555555555555',
         revision: 3,
         name: 'Edit',
         design: row.design,
@@ -447,6 +457,7 @@ describe('newsletter authoring boundary', () => {
     f.document.updateMany.mockResolvedValue({ count: 0 });
     await expect(
       f.service.save(ctx, id, {
+        requestId: '55555555-5555-4555-8555-555555555555',
         revision: 3,
         name: 'Edit',
         design: row.design,
@@ -553,6 +564,7 @@ describe('newsletter authoring boundary', () => {
     f.document.updateMany.mockResolvedValue({ count: 0 });
     await expect(
       f.service.save(ctx, id, {
+        requestId: '55555555-5555-4555-8555-555555555555',
         revision: 2,
         name: row.name,
         design: row.design,
@@ -661,9 +673,10 @@ describe('newsletter authoring boundary', () => {
     f.document.updateMany.mockResolvedValue({ count: 1 });
     f.source.getClient.mockResolvedValue({ wallAllowed: true });
     await f.service.save(ctx, id, {
+      requestId: '55555555-5555-4555-8555-555555555555',
       revision: 3,
       name: row.name,
-      design: governmentAffairsNewsletter(),
+      design: JSON.parse(JSON.stringify(governmentAffairsNewsletter())),
       config: defaultNewsletterConfig(),
     });
     expect(f.document.updateMany.mock.calls[0][0].data.design.sourceClientIds).toContain(id);
@@ -703,9 +716,10 @@ describe('newsletter authoring boundary', () => {
     f.document.findFirst.mockResolvedValue(null);
     await expect(
       f.service.save(ctx, id, {
+        requestId: '55555555-5555-4555-8555-555555555555',
         revision: 3,
         name: 'Edit',
-        design: governmentAffairsNewsletter(),
+        design: JSON.parse(JSON.stringify(governmentAffairsNewsletter())),
         config: defaultNewsletterConfig(),
       }),
     ).rejects.toBeInstanceOf(NotFoundException);

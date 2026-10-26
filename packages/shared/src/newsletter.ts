@@ -675,6 +675,30 @@ export interface NewsletterCampaignConfig {
   plainText: string;
   plainTextAuto: boolean;
 }
+export interface NewsletterCreateRequest {
+  requestId: string;
+  name?: string;
+  templateId?: string;
+}
+export interface NewsletterSaveRequest {
+  requestId: string;
+  revision: number;
+  name: string;
+  design: NewsletterDesign;
+  config: NewsletterCampaignConfig;
+}
+/** Content-free exact committed write, never a substitute for current document access. */
+export interface NewsletterWriteReceipt {
+  requestId: string;
+  operation: 'create' | 'save';
+  documentId: string;
+  previousRevision: number | null;
+  revision: number;
+  inputHash: string;
+  contentHash: string;
+  hashFormat: 'newsletter-write-jcs-v1';
+  createdAt: string;
+}
 export interface NewsletterCampaign {
   id: string;
   name: string;

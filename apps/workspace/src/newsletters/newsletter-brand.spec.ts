@@ -52,11 +52,20 @@ function fixture() {
     wsNewsletterBrandKit: brand,
     wsNewsletterAsset: asset,
     wsNewsletterDocument: document,
-    $transaction: jest.fn(async (fn) => fn({ wsNewsletterBrandKit: brand })),
+    $transaction: jest.fn(async (fn) => fn({ wsNewsletterBrandKit: brand, wsNewsletterDocument: document,
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      $queryRaw: jest.fn(async (sql: TemplateStringsArray, ...args: any[]) => {
+        if (!sql.join('').includes('INSERT')) return [];
+        const [, , request_id, operation, document_id, previous_revision, revision,
+          input_hash, content_hash, source_client_ids] = args;
+        return [{ request_id, operation, document_id, previous_revision, revision,
+          input_hash, content_hash, source_client_ids, created_at: new Date() }];
+      }),
+    })),
   };
   const service = new NewsletterService(
     prisma as never,
-    {} as never,
+    { newsletterMember: async () => ({ role: 'standard_user' }) } as never,
     {} as never,
     { get: () => 'https://app.capiro.ai' } as never,
     {} as never,
@@ -132,7 +141,9 @@ describe('newsletter Brand Kit', () => {
     f.kit.fonts.heading = `${font.family}, Arial, sans-serif`;
     f.kit.buttons[0]!.background = '#123456';
     f.kit.primaryButtonId = f.kit.buttons[0]!.id;
-    const doc = await f.service.create(ctx, {});
+    Object.assign(f.document, { findFirst: jest.fn(async () => f.document.create.mock.results[0]?.value) });
+    const receipt = await f.service.create(ctx, { requestId: '55555555-5555-4555-8555-555555555555' });
+    const doc = await f.service.get(ctx, receipt.documentId);
     visitNewsletterBlocks(doc.design, (block) => {
       if (block.kind === 'logo')
         expect(block).toMatchObject({

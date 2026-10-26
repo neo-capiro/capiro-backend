@@ -6,6 +6,7 @@ import type {
   NewsletterDesign,
   NewsletterPreview,
   NewsletterStage,
+  NewsletterWriteReceipt,
 } from './newsletter.js';
 import {
   NEWSLETTER_BLOCK_KINDS,
@@ -756,7 +757,7 @@ function resourceIdentity(
     ],
   );
 }
-/** Create, GET and CAS-save all return the same direct campaign shape; no wrapper is accepted. */
+/** Current document content only. It is not an acknowledgement of an earlier write. */
 export function parseNewsletterCampaign(
   value: unknown,
   expected?: Pick<NewsletterReceiveIdentity, 'documentId' | 'revision' | 'clientId'>,
@@ -764,6 +765,64 @@ export function parseNewsletterCampaign(
   return receive(value, campaign, (value) =>
     resourceIdentity(row(value, '$'), 'documentId', expected, true),
   );
+}
+export type NewsletterWriteBinding = {
+  requestId: string;
+  inputHash?: string;
+  contentHash?: string;
+} & ({ operation: 'create' } | { operation: 'save'; documentId: string; previousRevision: number });
+/** A committed receipt is usable only with the retained request binding. GET null
+ * is handled separately by the caller; absence is never a permission to redispatch. */
+export function parseNewsletterWriteReceipt(
+  value: unknown,
+  expected: NewsletterWriteBinding,
+): NewsletterReceiveResult<NewsletterWriteReceipt> {
+  const hash: Rule = (value, path) => {
+    if (typeof value !== 'string' || !/^[a-f0-9]{64}$/.test(value)) refuse(path);
+  };
+  const fields = {
+    requestId: workspaceUuid,
+    operation: literal('create', 'save'),
+    documentId: workspaceUuid,
+    previousRevision: nullable(revision),
+    revision,
+    inputHash: hash,
+    contentHash: hash,
+    hashFormat: literal('newsletter-write-jcs-v1'),
+    createdAt: timestamp,
+  };
+  return receive(value, object(fields), (value) => {
+    const receipt = row(value, '$');
+    for (const key of Object.keys(receipt))
+      if (!Object.prototype.hasOwnProperty.call(fields, key)) refuse(`$.${key}`);
+    if (receipt.operation === 'create') {
+      if (receipt.previousRevision !== null || receipt.revision !== 1) refuse('$.revision');
+    } else if (
+      typeof receipt.previousRevision !== 'number' ||
+      receipt.revision !== receipt.previousRevision + 1
+    )
+      refuse('$.revision');
+    const binding = row(snapshot(expected), '$expected');
+    object(
+      { requestId: workspaceUuid, operation: literal('create', 'save') },
+      { inputHash: hash, contentHash: hash },
+    )(binding, '$expected');
+    const keys = ['requestId', 'operation', 'inputHash', 'contentHash'];
+    if (binding.operation === 'save') {
+      object({ documentId: workspaceUuid, previousRevision: revision })(binding, '$expected');
+      keys.push('documentId', 'previousRevision');
+    }
+    for (const key of Object.keys(binding)) {
+      if (!keys.includes(key)) refuse(`$expected.${key}`);
+      const wanted = binding[key],
+        actual = receipt[key];
+      const equal =
+        key === 'requestId' || key === 'documentId'
+          ? String(wanted).toLowerCase() === String(actual).toLowerCase()
+          : wanted === actual;
+      if (!equal) refuse(`$.${key}`, 'identity_mismatch');
+    }
+  });
 }
 export function parseNewsletterDocumentList(
   value: unknown,
