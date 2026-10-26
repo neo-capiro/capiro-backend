@@ -745,8 +745,8 @@ export class MicrosoftGraphSyncService {
    * loss). Creating the draft first mints a Graph message id BEFORE anything is
    * delivered, so an ambiguous send is reconcilable by id instead of by guesswork.
    *
-   * Token resolution, `assertConnectionAccess`, scopes, and every sync method are
-   * untouched. `saveToSentItems` semantics are preserved: the draft-send operation
+   * Token resolution, `assertConnectionAccess` and OAuth scopes remain unchanged.
+   * Reply-source hydration uses the existing sync path. The draft-send operation
    * files the message in Sent Items by definition.
    */
   async sendMail(
@@ -1368,7 +1368,7 @@ export class MicrosoftGraphSyncService {
               tenantId,
               connection.id,
               folder.displayPath,
-              await this.hydrateGraphMessageBody(accessToken, message, { tenantId, connectionId: connection.id }),
+              await this.hydrateGraphMessageBody(accessToken, message),
               usedStoredCursor ? cursorSyncMode : 'backfill',
             );
             stats.matched += outcome === 'matched' ? 1 : 0;
@@ -2110,7 +2110,6 @@ export class MicrosoftGraphSyncService {
   private async hydrateGraphMessageBody(
     accessToken: string,
     message: GraphMessage,
-    mailbox?: { tenantId: string; connectionId: string },
   ): Promise<GraphMessage> {
     if (!message.id || message['@removed']) return message;
     try {

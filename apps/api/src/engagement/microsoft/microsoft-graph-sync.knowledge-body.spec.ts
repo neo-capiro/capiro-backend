@@ -111,7 +111,7 @@ describe('MicrosoftGraphSyncService persistGraphMessage — Knowledge Plane body
       internetMessageHeaders: [{ name: 'Message-ID', value: '<source@acme.com>' }], body: { contentType: 'text', content: FULL_BODY } });
     const raw = { id: 'default-A', conversationId: 'conv-1', subject: 'Subject', from, body: { contentType: 'text', content: 'Prior full body' },
       graphReplySource: { schema: 'forged', defaultId: 'forged', identity: {} } };
-    const hydrated = await patch.hydrateGraphMessageBody('synthetic', raw, { tenantId: 'tenant-1', connectionId: 'conn-1' });
+    const hydrated = await patch.hydrateGraphMessageBody('synthetic', raw);
     await patch.persistGraphMessage('tenant-1', 'conn-1', 'inbox', hydrated, 'incremental');
     const created = upsert.mock.calls[0][0].create;
     expect(created.externalId).toBe('default-A'); expect(created.bodyText).toBe(FULL_BODY);
