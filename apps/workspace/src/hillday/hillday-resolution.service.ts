@@ -1,4 +1,5 @@
 import { admitHillDayDocument } from './hillday-access.js';
+import { projectMeetingFacts } from './meeting-facts.js';
 import {
   BadRequestException,
   ForbiddenException,
@@ -22,6 +23,7 @@ import type {
   CalendarAttendee,
   CalendarEvent,
   DocumentResolution,
+  DocumentResolutionRead,
   MeetingResolution,
   OfficeRef,
   ResolvedAttendee,
@@ -72,7 +74,7 @@ export class HillDayResolutionService {
     private readonly bridge: DirectoryBridgeClient,
   ) {}
 
-  async getResolution(tenantId: string, documentId: string, actorId: string): Promise<DocumentResolution> {
+  async getResolution(tenantId: string, documentId: string, actorId: string): Promise<DocumentResolutionRead> {
     const doc = await this.assertDocument(tenantId, documentId, actorId);
     const meetings = await this.prisma.wsHillDayMeeting.findMany({
       where: { tenantId, documentId },
@@ -85,6 +87,7 @@ export class HillDayResolutionService {
       documentId,
       status: (doc.resolutionStatus as 'clean' | 'partial' | null) ?? (resolved.length ? 'partial' : 'partial'),
       meetings: resolved,
+      meetingFacts: meetings.map(projectMeetingFacts),
       sources: mergeSources(resolved.flatMap((r) => r.sources)),
       resolvedAt: resolved.reduce<string | null>(
         (acc, r) => (acc && acc > r.resolvedAt ? acc : r.resolvedAt),
