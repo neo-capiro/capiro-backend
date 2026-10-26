@@ -1,12 +1,12 @@
+import { describe, it, expect } from '@jest/globals';
 import { ConflictException } from '@nestjs/common';
 import { TemplateStudioService } from './template-studio.service.js';
 import { TemplateValidator } from './template-validator.js';
 import type { WorkspaceBlueprintDefinition } from './template-definition.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
-import type { CollaboratorsService } from '../collaborators/collaborators.service.js';
 
 /**
- * Template Studio service contract tests. Mocks PrismaService + Collaborators
+ * Template Studio service contract tests. Mocks PrismaService
  * in-memory — no live model provider, no DB. Covers:
  *  - blueprint draft creation
  *  - publish immutability (PATCH after publish → 409)
@@ -92,7 +92,7 @@ interface MockVersionRow {
   retiredAt: Date | null;
 }
 
-function makePrismaMock(opts: { firmAdmin?: string } = {}) {
+function makePrismaMock() {
   const blueprints = new Map<string, MockBlueprintRow>();
   const versions = new Map<string, MockVersionRow>();
   let seq = 1;
@@ -187,11 +187,14 @@ function makePrismaMock(opts: { firmAdmin?: string } = {}) {
         where,
         data,
       }: {
-        where: { id: string };
+        where: { id: string; blueprintId?: string; status?: string; definitionHash?: string };
         data: Record<string, unknown>;
       }) => {
         const v = versions.get(where.id);
-        if (!v) throw new Error('version not found');
+        if (!v || (where.blueprintId && v.blueprintId !== where.blueprintId) ||
+            (where.status && v.status !== where.status) ||
+            (where.definitionHash && v.definitionHash !== where.definitionHash))
+          throw Object.assign(new Error('version changed'), { code: 'P2025' });
         const updated = { ...v, ...(data as Partial<MockVersionRow>) };
         // publishedAt/retiredAt come through as Date in data
         versions.set(v.id, updated as MockVersionRow);
@@ -203,29 +206,16 @@ function makePrismaMock(opts: { firmAdmin?: string } = {}) {
         return { ...updated };
       },
     },
-    $queryRaw: async () => {
-      // Returns the firmAdmin setting for the tenant — admin check.
-      return [{ settings_jsonb: opts.firmAdmin ? { firmAdmin: opts.firmAdmin } : null }];
-    },
   };
 
   return { prisma, blueprints, versions };
 }
 
-function makeCollaboratorsMock() {
-  return {
-    resolveRole: async () => 'owner' as const,
-    assertCan: async () => 'owner' as const,
-  } as unknown as CollaboratorsService;
-}
-
-function makeService(opts: { firmAdmin?: string } = {}) {
-  const { prisma } = makePrismaMock(opts);
-  const collaborators = makeCollaboratorsMock();
+function makeService() {
+  const { prisma } = makePrismaMock();
   const validator = new TemplateValidator();
   const service = new TemplateStudioService(
     prisma as unknown as PrismaService,
-    collaborators,
     validator,
   );
   return { service, prisma, validator };
@@ -235,7 +225,7 @@ function makeService(opts: { firmAdmin?: string } = {}) {
 
 describe('TemplateStudioService', () => {
   it('creates a blueprint and a draft version for any member', async () => {
-    const { service } = makeService({ firmAdmin: ADMIN });
+    const { service } = makeService();
     const bp = await service.createBlueprint(TENANT, ADMIN, {
       slug: 'ndaa-just',
       name: 'NDAA Justification',
@@ -268,7 +258,7 @@ describe('TemplateStudioService', () => {
   });
 
   it('publishes a version and makes it immutable (PATCH after publish → 409)', async () => {
-    const { service } = makeService({ firmAdmin: ADMIN });
+    const { service } = makeService();
     const bp = await service.createBlueprint(TENANT, ADMIN, {
       slug: 'ndaa-pub',
       name: 'Pub',
@@ -306,7 +296,7 @@ describe('TemplateStudioService', () => {
   });
 
   it('rejects publish when the sample test fails (required intake unanswered → 422)', async () => {
-    const { service } = makeService({ firmAdmin: ADMIN });
+    const { service } = makeService();
     const bp = await service.createBlueprint(TENANT, ADMIN, {
       slug: 'ndaa-fail',
       name: 'Fail',
@@ -322,7 +312,7 @@ describe('TemplateStudioService', () => {
   });
 
   it('clones a blueprint into a new draft version with the same definition', async () => {
-    const { service } = makeService({ firmAdmin: ADMIN });
+    const { service } = makeService();
     const bp = await service.createBlueprint(TENANT, ADMIN, {
       slug: 'ndaa-clone',
       name: 'Clone',
@@ -345,7 +335,7 @@ describe('TemplateStudioService', () => {
   });
 
   it('keeps an existing document pinned to its version after a new version publishes (hash comparison)', async () => {
-    const { service, validator } = makeService({ firmAdmin: ADMIN });
+    const { service, validator } = makeService();
     const bp = await service.createBlueprint(TENANT, ADMIN, {
       slug: 'ndaa-pin',
       name: 'Pin',

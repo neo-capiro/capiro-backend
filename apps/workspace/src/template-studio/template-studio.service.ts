@@ -2,15 +2,12 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
-  Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { CollaboratorsService } from '../collaborators/collaborators.service.js';
-import type { ResolvedRole } from '../collaborators/role-policy.js';
-import { canRead } from '../collaborators/role-policy.js';
 import type {
+  Prisma,
   WsBlueprint,
   WsBlueprintVersion,
   WsBlueprintScope,
@@ -51,26 +48,37 @@ import type {
  */
 @Injectable()
 export class TemplateStudioService {
-  private readonly logger = new Logger(TemplateStudioService.name);
-
   constructor(
     private readonly prisma: PrismaService,
-    private readonly collaborators: CollaboratorsService,
     private readonly validator: TemplateValidator,
   ) {}
 
   // ── Authorization ───────────────────────────────────────────────────────
 
-  /**
-   * Read gate: any tenant collaborator. Blueprints aren't drafts, so we treat
-   * "tenant member" (proven by TenantGuard) as sufficient; the collaborators
-   * service is consulted when a draftId context exists. Here we simply confirm
-   * the actor resolved to a tenant (non-null role bucket) via canRead(null)→
-   * false being the only deny, but TenantGuard already guarantees membership,
-   * so this is a no-op guard kept for symmetry with the rest of the engine.
-   */
-  private assertReadable(role: ResolvedRole): void {
-    if (!canRead(role)) throw new ForbiddenException('Read access denied');
+  private async writableBlueprint(tenantId: string, blueprintId: string, actorId: string) {
+    const blueprint = await this.getBlueprint(tenantId, blueprintId);
+    if (blueprint.tenantId === null && blueprint.ownerId !== actorId)
+      throw new ForbiddenException('Only the original owner can change a global blueprint');
+    return blueprint;
+  }
+
+  /** Bind each write to the version that was checked; publication cannot race a draft edit. */
+  private async updateCurrentVersion(version: WsBlueprintVersion, data: Prisma.WsBlueprintVersionUpdateInput) {
+    try {
+      return await this.prisma.wsBlueprintVersion.update({
+        where: {
+          id: version.id,
+          blueprintId: version.blueprintId,
+          status: version.status,
+          definitionHash: version.definitionHash,
+        },
+        data,
+      });
+    } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025')
+        throw new ConflictException('Blueprint version changed; read it again before saving');
+      throw error;
+    }
   }
 
   // ── Blueprint CRUD ─────────────────────────────────────────────────────
@@ -176,7 +184,7 @@ export class TemplateStudioService {
     clerkUserId: string,
     _dto: CreateVersionDto,
   ): Promise<WsBlueprintVersion> {
-    const blueprint = await this.getBlueprint(tenantId, blueprintId);
+    const blueprint = await this.writableBlueprint(tenantId, blueprintId, clerkUserId);
     const versions = await this.prisma.wsBlueprintVersion.findMany({
       where: { blueprintId },
       orderBy: { version: 'desc' },
@@ -211,7 +219,7 @@ export class TemplateStudioService {
     clerkUserId: string,
     dto: CloneBlueprintDto,
   ): Promise<WsBlueprintVersion> {
-    const blueprint = await this.getBlueprint(tenantId, blueprintId);
+    const blueprint = await this.writableBlueprint(tenantId, blueprintId, clerkUserId);
     const source = dto.fromVersionId
       ? await this.getVersion(tenantId, blueprintId, dto.fromVersionId)
       : await this.prisma.wsBlueprintVersion.findFirst({
@@ -250,6 +258,7 @@ export class TemplateStudioService {
     clerkUserId: string,
     dto: UpdateVersionDto,
   ): Promise<WsBlueprintVersion> {
+    await this.writableBlueprint(tenantId, blueprintId, clerkUserId);
     const version = await this.getVersion(tenantId, blueprintId, versionId);
     if (version.status !== 'draft') {
       throw new ConflictException(
@@ -258,10 +267,9 @@ export class TemplateStudioService {
     }
     const definition = dto.definition as unknown as WorkspaceBlueprintDefinition;
     const hash = this.validator.computeDefinitionHash(definition);
-    return this.prisma.wsBlueprintVersion.update({
-      where: { id: versionId },
-      data: { definition: dto.definition as never, definitionHash: hash },
-    }) as Promise<WsBlueprintVersion>;
+    return this.updateCurrentVersion(version, {
+      definition: dto.definition as never, definitionHash: hash,
+    });
   }
 
   // ── Test run (deterministic, no permanent doc) ──────────────────────────
@@ -359,6 +367,7 @@ export class TemplateStudioService {
     versionId: string,
     clerkUserId: string,
   ): Promise<WsBlueprintVersion> {
+    await this.writableBlueprint(tenantId, blueprintId, clerkUserId);
     const version = await this.getVersion(tenantId, blueprintId, versionId);
     if (version.status !== 'draft') {
       throw new ConflictException(
@@ -380,14 +389,11 @@ export class TemplateStudioService {
     await this.testVersion(tenantId, blueprintId, versionId, { answers: {} });
 
     const hash = this.validator.computeDefinitionHash(definition);
-    return this.prisma.wsBlueprintVersion.update({
-      where: { id: versionId },
-      data: {
-        status: 'published' as WsBlueprintVersionStatus,
-        definitionHash: hash,
-        publishedAt: new Date(),
-      },
-    }) as Promise<WsBlueprintVersion>;
+    return this.updateCurrentVersion(version, {
+      status: 'published' as WsBlueprintVersionStatus,
+      definitionHash: hash,
+      publishedAt: new Date(),
+    });
   }
 
   /** Retire a published version. Any authenticated tenant member. */
@@ -397,16 +403,16 @@ export class TemplateStudioService {
     versionId: string,
     clerkUserId: string,
   ): Promise<WsBlueprintVersion> {
+    await this.writableBlueprint(tenantId, blueprintId, clerkUserId);
     const version = await this.getVersion(tenantId, blueprintId, versionId);
     if (version.status !== 'published') {
       throw new ConflictException(
         `Blueprint version is ${version.status}; only published versions can be retired`,
       );
     }
-    return this.prisma.wsBlueprintVersion.update({
-      where: { id: versionId },
-      data: { status: 'retired' as WsBlueprintVersionStatus, retiredAt: new Date() },
-    }) as Promise<WsBlueprintVersion>;
+    return this.updateCurrentVersion(version, {
+      status: 'retired' as WsBlueprintVersionStatus, retiredAt: new Date(),
+    });
   }
 
   // ── Compare ────────────────────────────────────────────────────────────

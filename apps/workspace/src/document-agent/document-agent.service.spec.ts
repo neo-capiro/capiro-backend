@@ -328,10 +328,10 @@ describe('DocumentAgentService', () => {
       const state = createInitialAgentState();
       state.revision = 1;
       state.blueprintPin = {
-        blueprintId: 'bp-1',
-        versionId: 'bv-1',
+        blueprintId: '11111111-1111-4111-8111-111111111111',
+        versionId: '22222222-2222-4222-8222-222222222222',
         version: 1,
-        definitionHash: 'hash',
+        definitionHash: 'a'.repeat(64),
       };
       prisma._drafts.set('draft-1', {
         id: 'draft-1',
@@ -339,9 +339,14 @@ describe('DocumentAgentService', () => {
         ownerId: 'user-1',
         config: { documentAgent: state },
       });
-      prisma._blueprintVersions.set('bv-1', {
-        id: 'bv-1',
+      prisma._blueprintVersions.set(state.blueprintPin.versionId, {
+        id: state.blueprintPin.versionId,
+        blueprintId: state.blueprintPin.blueprintId,
         tenantId: 'tenant-1',
+        version: 1,
+        definitionHash: state.blueprintPin.definitionHash,
+        status: 'published',
+        publishedAt: new Date(),
         definition: { sections: [] },
       });
       const result = await service.generateOutline('tenant-1', 'draft-1', 'user-1', 1);
