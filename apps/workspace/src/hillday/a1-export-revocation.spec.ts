@@ -1,4 +1,4 @@
-import { describe, expect, it, jest } from '@jest/globals';
+import { afterAll, beforeAll, describe, expect, it, jest } from '@jest/globals';
 import { HillDayDocumentService } from './hillday-document.service.js';
 import { HillDayExportService } from './hillday-export.service.js';
 import { HillDaySourceService } from './hillday-source.service.js';
@@ -6,6 +6,18 @@ import { HillDaySourceService } from './hillday-source.service.js';
 // These tests serve already-rendered bytes. No renderer, provider or database
 // executes; the document admission and membership/client guards remain real.
 jest.mock('pdfkit', () => ({ __esModule: true, default: jest.fn() }), { virtual: true });
+
+/** Export signing is configured here (synthetic); what is under test is current access. */
+const SIGNING_KEY = 'synthetic-export-signing-key';
+let previousSigningKey: string | undefined;
+beforeAll(() => {
+  previousSigningKey = process.env.WORKSPACE_EXPORT_SIGNING_SECRET;
+  process.env.WORKSPACE_EXPORT_SIGNING_SECRET = SIGNING_KEY;
+});
+afterAll(() => {
+  if (previousSigningKey === undefined) delete process.env.WORKSPACE_EXPORT_SIGNING_SECRET;
+  else process.env.WORKSPACE_EXPORT_SIGNING_SECRET = previousSigningKey;
+});
 
 const TENANT = '11111111-1111-4111-8111-111111111111';
 const CLIENT = '22222222-2222-4222-8222-222222222222';
