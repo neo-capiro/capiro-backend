@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { CollaboratorsController } from './collaborators.controller.js';
+import { CollaboratorsController, CollaboratorInvitationEmailController } from './collaborators.controller.js';
 import { CollaboratorsService } from './collaborators.service.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 
@@ -11,7 +11,7 @@ import { NotificationsModule } from '../notifications/notifications.module.js';
  */
 @Module({
   imports: [NotificationsModule],
-  controllers: [CollaboratorsController],
+  controllers: [CollaboratorsController, CollaboratorInvitationEmailController],
   providers: [CollaboratorsService],
   exports: [CollaboratorsService],
 })
