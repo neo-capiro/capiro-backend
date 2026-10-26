@@ -57,9 +57,14 @@ const ledger = {
   outcome: jest.fn(),
   receipt: jest.fn(),
   view: jest.fn(),
+  acceptedInTx: jest.fn(),
+  receiptInTx: jest.fn(),
 };
 jest.doMock('./single-mail-ledger.js', () => ({
-  SingleMailLedger: jest.fn(() => ledger),
+  SingleMailLedger: Object.assign(jest.fn(() => ledger), {
+    acceptedInTx: (...args: unknown[]) => ledger.acceptedInTx(...args),
+    receiptInTx: (...args: unknown[]) => ledger.receiptInTx(...args),
+  }),
   singleMailHash: () => 'hash',
 }));
 const { EngagementService } =
@@ -134,6 +139,83 @@ beforeEach(() => {
   ledger.validateKey.mockImplementation((key) => key);
 });
 describe('single mail direct service boundary', () => {
+  function graphReceiptFixture(syncFirst: boolean, loseCommit = false) {
+    const h = fixture();
+    const intentId = '44444444-4444-4444-8444-444444444444';
+    const identity = { intentId, immutableId: 'Immutable-A', conversationId: 'conversation', observed: syncFirst };
+    const connection = { id: 'mailbox', provider: 'microsoft_365', accountEmail: 'sender@example.test',
+      status: 'connected', createdByUserId: 'actor' };
+    const thread = { id: 'stable-thread', tenantId: 'tenant', connectionId: 'mailbox', source: 'outlook', externalId: 'conversation' };
+    const providerMessage = { id: 'stable-message', connectionId: 'mailbox', threadId: thread.id, thread,
+      source: 'outlook', externalId: 'default-sent', bodyText: 'Authoritative full body',
+      metadata: { folder: 'sentitems', bodyCompleteness: 'full', mailboxSyncMode: 'incremental', graphMailIdentity: identity } };
+    const accepted = { ok: true, provider: 'microsoft_graph', providerImmutableMessageId: identity.immutableId,
+      providerConversationId: identity.conversationId, correlationId: intentId };
+    const intent: any = { id: intentId, state: 'accepted', actor_id: 'actor', connection_id: 'mailbox',
+      client_id: input.clientId, request_key: input.requestKey, snapshot: { senderEmail: 'sender@example.test' },
+      provider_evidence: accepted, receipt: null };
+    const tx: any = h.tx;
+    tx.$queryRaw = jest.fn().mockResolvedValue([{ id: 'mailbox' }]);
+    tx.$executeRaw = jest.fn().mockResolvedValue(1);
+    tx.integrationConnection.findFirst.mockResolvedValue(connection);
+    tx.mailThread = { upsert: jest.fn().mockResolvedValue(thread) };
+    tx.mailMessage = {
+      findMany: jest.fn().mockResolvedValue(syncFirst ? [providerMessage] : []),
+      upsert: jest.fn(async ({ create }: any) => ({ id: 'stable-message', ...create })),
+      update: jest.fn(async ({ data }: any) => ({ ...providerMessage, ...data })),
+    };
+    tx.engagementAttachment = { updateMany: jest.fn().mockResolvedValue({ count: 1 }) };
+    h.service.findCampaignSendConnection.mockResolvedValue(connection);
+    h.service.mailSender.sendMail.mockResolvedValue(accepted);
+    h.service.assertSingleMailAttachmentsInTx = jest.fn().mockResolvedValue(undefined);
+    h.service.loadGraphAttachments.mockResolvedValue([{ name: 'f.txt', contentType: 'text/plain', contentBytes: 'Zg==' }]);
+    ledger.begin.mockResolvedValue({ created: true, intent });
+    ledger.acceptedInTx.mockResolvedValue(intent);
+    ledger.read.mockResolvedValueOnce(null).mockImplementation(async () => intent);
+    ledger.view.mockImplementation((row) => ({ state: row.state, retryable: false, ...row.receipt }));
+    let inside = false;
+    ledger.receiptInTx.mockImplementation(async (actualTx, _tenant, _intent, receipt) => {
+      expect(inside).toBe(true); expect(actualTx).toBe(tx); intent.receipt = receipt;
+    });
+    h.service.prisma.withTenant = async (_tenant: string, run: any) => {
+      inside = true; const before = intent.receipt;
+      try {
+        const out = await run(tx);
+        if (loseCommit && intent.receipt !== before) throw Error('Commit unavailable');
+        return out;
+      } catch (error) { intent.receipt = before; throw error; }
+      finally { inside = false; }
+    };
+    return { ...h, tx, intent, providerMessage };
+  }
+  test.each([false, true])('ML-04 receipt transaction retains stable message/files when syncFirst=%s', async (syncFirst) => {
+    const h = graphReceiptFixture(syncFirst);
+    const sent = await h.service.sendSingleMail(ctx, { ...input, attachmentIds: ['file-id'] });
+    expect(sent).toMatchObject({ state: 'accepted', messageId: 'stable-message', threadId: 'stable-thread',
+      mailboxConfirmation: syncFirst ? 'confirmed' : 'pending', retryable: false });
+    expect(h.tx.engagementAttachment.updateMany).toHaveBeenCalledWith({
+      where: { tenantId: 'tenant', id: { in: ['file-id'] }, mailMessageId: null }, data: { mailMessageId: 'stable-message' },
+    });
+    expect(ledger.receipt).not.toHaveBeenCalled();
+    expect(ledger.receiptInTx).toHaveBeenCalledTimes(1);
+    expect(h.service.mailSender.sendMail).toHaveBeenCalledTimes(1);
+    if (syncFirst) {
+      expect(h.tx.mailMessage.upsert).not.toHaveBeenCalled();
+      expect(h.tx.mailThread.upsert).not.toHaveBeenCalled();
+      expect(h.tx.mailMessage.update).toHaveBeenCalledWith({ where: { id: 'stable-message', connectionId: 'mailbox' }, data: { hasAttachments: true } });
+      expect(h.providerMessage.bodyText).toBe('Authoritative full body');
+      expect(h.providerMessage.metadata).toMatchObject({ mailboxSyncMode: 'incremental', bodyCompleteness: 'full' });
+    }
+  });
+  test('ML-04 lost receipt transaction retains provider acceptance without publishing confirmation', async () => {
+    const h = graphReceiptFixture(true, true);
+    await expect(h.service.sendSingleMail(ctx, { ...input, attachmentIds: ['file-id'] }))
+      .rejects.toMatchObject({ response: { error: 'MAIL_SEND_RECEIPT_UNAVAILABLE', retryable: false } });
+    expect(h.intent.receipt).toBeNull();
+    expect(ledger.outcome).toHaveBeenCalledWith(ctx, h.intent, 'accepted', expect.anything());
+    expect(h.service.mailSender.sendMail).toHaveBeenCalledTimes(1);
+    expect(ledger.receipt).not.toHaveBeenCalled();
+  });
   test('ML-21 HTTP aggregate refusal is durable and actionable before sending transition or provider', async () => {
     const h = fixture();
     h.service.findCampaignSendConnection.mockResolvedValue({

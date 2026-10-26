@@ -24,6 +24,8 @@ export interface EngagementMailSendResult {
   providerThreadId?: string;
   /** Microsoft Graph draft message id, created before the send. */
   providerDraftId?: string;
+  /** Graph ID explicitly returned with Prefer: IdType="ImmutableId". Never infer from a legacy draft ID. */
+  providerImmutableMessageId?: string;
   /**
    * Microsoft Graph `conversationId`, read off the created draft.
    *
@@ -53,6 +55,7 @@ export class AmbiguousMailSendError extends Error {
     message: string,
     readonly correlationId: string,
     readonly providerDraftId?: string,
+    readonly providerImmutableMessageId?: string,
   ) {
     super(message);
     this.name = 'AmbiguousMailSendError';

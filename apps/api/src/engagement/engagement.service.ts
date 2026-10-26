@@ -6,6 +6,10 @@ import { prospectCopyPrefix } from './attachments/prospect-file-copy.input.js';
 import { integrationStatusProjection } from './integration-health.js';
 import { SingleMailLedger, singleMailHash } from './single-mail-ledger.js';
 import {
+  acceptedGraphReceiptInTx, graphReceiptMessageInTx, graphSendIdentity,
+  lockMailReceiptWrites, storedGraphIdentity,
+} from './microsoft/microsoft-mail-receipt.js';
+import {
   assertProspectParent,
   beginProspectUpload,
   prospectUploadForConfirm,
@@ -9779,7 +9783,10 @@ export class EngagementService {
       }
       await ledger.outcome(ctx, begun.intent, 'unknown', {
         code: error instanceof AmbiguousMailSendError ? 'MAIL_SEND_OUTCOME_UNKNOWN' : 'MAIL_SEND_FAILED',
-        ...(error instanceof AmbiguousMailSendError ? { providerDraftId: error.providerDraftId ?? null } : {}),
+        ...(error instanceof AmbiguousMailSendError ? {
+          providerDraftId: error.providerDraftId ?? null,
+          ...(error.providerImmutableMessageId ? { providerImmutableMessageId: error.providerImmutableMessageId } : {}),
+        } : {}),
       }).catch(() => undefined); // A lost outcome write leaves durable 'sending', also fenced.
       if (error instanceof AmbiguousMailSendError) {
         // At-most-once send: the outcome is genuinely undetermined (timeout /
@@ -9813,6 +9820,15 @@ export class EngagementService {
     });
 
     const providerSlug = sendProviderSlug(connection.provider);
+    // This prospective slice covers new compose with a proven provider conversation.
+    // Existing reply-thread mismatches and legacy/untyped IDs remain unresolved.
+    const graphIdentity = input.threadId ? null : graphSendIdentity(sendResult);
+    const makeReceipt = (threadId: string, messageId: string, confirmed = false) => ({
+      ok: true as const, threadId, messageId, provider: providerSlug,
+      senderConnectionId: connection.id, senderEmail: sender.email, senderName: sender.name,
+      signaturePolicy: 'actor' as const, signatureAppended: Boolean(signature.signatureHtml),
+      ...(graphIdentity ? { mailboxConfirmation: confirmed ? 'confirmed' : 'pending' } : {}),
+    });
     const now = new Date();
     const participants = [
       { email: sender.email, name: sender.name, role: 'from' },
@@ -9834,9 +9850,8 @@ export class EngagementService {
     // message's real id as `providerMessageId`, the exact id `google-sync` keys on.
     //
     // ONLY `providerMessageId` counts here. Graph never sets it — its `sendMail`
-    // returns nothing addressable (`POST /me/sendMail` has an empty body, and a
-    // draft's item id changes when the send moves it out of Drafts), so all it
-    // can offer is `providerInternetMessageId`, the RFC 5322 Message-ID. That is
+    // returns no default-format sent item ID. Its new explicitly typed immutable
+    // ID is reconciled with authenticated sync separately; the RFC Message-ID is
     // NOT a Graph item id, and keying an `outlook` row on it is strictly worse
     // than falling back to `manual`: the inbound sync keys on the item id and
     // stores the internetMessageId only inside `metadata_jsonb`, so the two keys
@@ -9889,12 +9904,20 @@ export class EngagementService {
     const threadExternalId = providerThreadKey ?? `manual:${randomUUID()}`;
 
     const { thread, message } = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      let syncedReceipt = null;
+      if (graphIdentity) {
+        if (graphIdentity.intentId !== begun.intent.id) throw new NotFoundException('Mail receipt identity mismatch');
+        await lockMailReceiptWrites(tx, ctx.tenantId);
+        const accepted = await acceptedGraphReceiptInTx(tx, ctx.tenantId, connection.id, graphIdentity);
+        if (!accepted) throw new NotFoundException('Accepted mail receipt not found');
+        syncedReceipt = await graphReceiptMessageInTx(tx, ctx.tenantId, connection.id, graphIdentity);
+      }
       // Reply path: verify the thread is this caller's own (same-tenant AND
       // same-connection-owner, the exact gate `listMailThreads`/`getMailThread`
       // read through) before touching it — a bare `update({ where: { id } })`
       // would let a same-tenant user append to a colleague's thread, and a
       // wrong id would surface as a raw Prisma P2025 instead of a 404.
-      const thread = input.threadId
+      const thread = syncedReceipt?.thread ?? (input.threadId
         ? await (async () => {
             const existing = await tx.mailThread.findFirst({
               where: {
@@ -9942,7 +9965,7 @@ export class EngagementService {
             // thread: sync owns the conversation's own metadata, and a manual
             // client association must not be silently overwritten by a send.
             update: { lastMessageAt: now, snippet: snippetFromHtml(body.content) },
-          });
+          }));
       // Provider IDs are dedup keys, never grants to another connection's rows.
       // Throw inside the transaction so a collision rolls back the upsert touch.
       if (thread.connectionId !== connection.id) {
@@ -9976,6 +9999,7 @@ export class EngagementService {
         // never reaches it.
         hasAttachments: sentWithAttachments,
         metadata: {
+          ...(graphIdentity ? { graphMailIdentity: graphIdentity } : {}),
           personIds: input.personIds ?? [],
           senderConnectionId: connection.id,
           signaturePolicy: 'actor',
@@ -10001,7 +10025,11 @@ export class EngagementService {
       // silently drops the message out of the knowledge outbox. Every other
       // field in `messageData` is a column the provider sync owns, so
       // `hasAttachments` is the only thing left worth asserting here.
-      const message = await tx.mailMessage.upsert({
+      const message = syncedReceipt
+        ? sentWithAttachments
+          ? await tx.mailMessage.update({ where: { id: syncedReceipt.id, connectionId: connection.id }, data: { hasAttachments: true } })
+          : syncedReceipt
+        : await tx.mailMessage.upsert({
         where: {
           connectionId: connection.id,
           threadId: thread.id,
@@ -10032,6 +10060,10 @@ export class EngagementService {
           data: { mailMessageId: message.id },
         });
       }
+      if (graphIdentity) {
+        await SingleMailLedger.receiptInTx(tx, ctx.tenantId, begun.intent.id,
+          makeReceipt(thread.id, message.id, storedGraphIdentity(message.metadata)?.observed === true));
+      }
       return { thread, message };
     }).catch(() => {
       // Provider acceptance is irreversible. A local receipt failure is not a
@@ -10046,18 +10078,7 @@ export class EngagementService {
       });
     });
 
-    const receipt = {
-      ok: true as const,
-      threadId: thread.id,
-      messageId: message.id,
-      provider: providerSlug,
-      senderConnectionId: connection.id,
-      senderEmail: sender.email,
-      senderName: sender.name,
-      signaturePolicy: 'actor' as const,
-      signatureAppended: Boolean(signature.signatureHtml),
-    };
-    await ledger.receipt(ctx, begun.intent, receipt);
+    if (!graphIdentity) await ledger.receipt(ctx, begun.intent, makeReceipt(thread.id, message.id));
     return this.getSingleMailIntent(ctx, requestKey);
   }
 

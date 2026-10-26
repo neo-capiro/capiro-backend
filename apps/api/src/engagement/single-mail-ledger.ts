@@ -14,6 +14,7 @@ export type SingleMailIntent = {
   state: SingleMailState;
   snapshot: Record<string, unknown>;
   receipt: Record<string, unknown> | null;
+  provider_evidence?: Record<string, unknown> | null;
 };
 
 /** Hash a canonical request, including Bcc, mailbox, reply, signature policy and attachments. */
@@ -52,7 +53,7 @@ export class SingleMailLedger {
     this.validateKey(requestKey);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const rows = await tx.$queryRaw<SingleMailIntent[]>(Prisma.sql`
-        SELECT id, request_key, request_hash, connection_id, client_id, state, snapshot, receipt
+        SELECT id, request_key, request_hash, connection_id, client_id, state, snapshot, receipt, provider_evidence
         FROM single_mail_intents WHERE tenant_id=${ctx.tenantId}::uuid
           AND actor_id=${ctx.userId}::uuid AND request_key=${requestKey}::uuid`);
       return rows[0] ?? null;
@@ -146,6 +147,31 @@ export class SingleMailLedger {
         WHERE id=${intent.id}::uuid AND tenant_id=${ctx.tenantId}::uuid
           AND actor_id=${ctx.userId}::uuid AND state='accepted'`);
     });
+  }
+
+  /** Existing receipt owner, used inside the caller's local message/file transaction. */
+  static async receiptInTx(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    intentId: string,
+    receipt: Record<string, unknown>,
+  ): Promise<void> {
+    const changed = await tx.$executeRaw(Prisma.sql`
+      UPDATE single_mail_intents SET receipt=${JSON.stringify(receipt)}::jsonb, updated_at=now()
+      WHERE id=${intentId}::uuid AND tenant_id=${tenantId}::uuid AND state='accepted'`);
+    if (changed !== 1) throw new ConflictException('Mail receipt could not be recorded');
+  }
+
+  /** Read-only provider reconciliation never claims, resets or dispatches an intent. */
+  static async acceptedInTx(
+    tx: Prisma.TransactionClient, tenantId: string, connectionId: string, intentId: string,
+  ): Promise<(SingleMailIntent & { actor_id: string }) | null> {
+    const rows = await tx.$queryRaw<Array<SingleMailIntent & { actor_id: string }>>(Prisma.sql`
+      SELECT id, actor_id, request_key, request_hash, connection_id, client_id, state,
+        snapshot, receipt, provider_evidence
+      FROM single_mail_intents WHERE id=${intentId}::uuid AND tenant_id=${tenantId}::uuid
+        AND connection_id=${connectionId}::uuid AND state='accepted' FOR UPDATE`);
+    return rows[0] ?? null;
   }
 
   view(row: SingleMailIntent) {

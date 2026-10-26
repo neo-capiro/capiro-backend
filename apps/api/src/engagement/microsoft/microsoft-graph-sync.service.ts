@@ -1,4 +1,10 @@
 import { buildMicrosoftSendPayload } from './microsoft-send-payload.js';
+import {
+  acceptedGraphReceiptInTx, GRAPH_IMMUTABLE_ID_HEADERS, graphObservedIdentity,
+  graphReceiptMessageInTx, graphReceiptMetadata, lockMailReceiptWrites as lockTenantForGraphSync,
+  storedGraphIdentity, type GraphMailIdentity,
+} from './microsoft-mail-receipt.js';
+import { SingleMailLedger } from '../single-mail-ledger.js';
 export { sanitizeGraphHeaderValue } from './microsoft-send-payload.js';
 import {
   hasPendingCalendarCommand,
@@ -267,7 +273,9 @@ interface GraphItemBody {
   content?: string | null;
 }
 
+const graphReceiptIdentity = Symbol('authenticatedGraphReceiptIdentity');
 interface GraphMessage {
+  [graphReceiptIdentity]?: GraphMailIdentity;
   id?: string;
   conversationId?: string | null;
   internetMessageId?: string | null;
@@ -749,7 +757,7 @@ export class MicrosoftGraphSyncService {
       id?: unknown;
       internetMessageId?: unknown;
       conversationId?: unknown;
-    }>('/me/messages', accessToken, buildMicrosoftSendPayload(input));
+    }>('/me/messages', accessToken, buildMicrosoftSendPayload(input), GRAPH_IMMUTABLE_ID_HEADERS);
 
     const draftId = typeof draft?.id === 'string' ? draft.id.trim() : '';
     if (!draftId) {
@@ -762,10 +770,9 @@ export class MicrosoftGraphSyncService {
     const internetMessageId =
       typeof draft?.internetMessageId === 'string' ? draft.internetMessageId.trim() : '';
     // Graph assigns `conversationId` when the draft is CREATED and keeps it
-    // across the send, so it is readable here and still correct afterwards —
-    // which the draft's own `id` is not (the item moves to Sent Items and is
-    // re-issued). Absent or non-string leaves it unset and the caller falls
-    // back to its old behaviour; it is never guessed.
+    // across the send. The separately typed immutable message ID also survives
+    // a folder move within this mailbox. Absent conversation identity leaves
+    // the caller's existing fallback intact; it is never guessed.
     const conversationId =
       typeof draft?.conversationId === 'string' ? draft.conversationId.trim() : '';
 
@@ -775,12 +782,14 @@ export class MicrosoftGraphSyncService {
         `/me/messages/${encodeURIComponent(draftId)}/send`,
         accessToken,
         undefined,
+        GRAPH_IMMUTABLE_ID_HEADERS,
       );
     } catch (err) {
       if (isAmbiguousGraphSendFailure(err)) {
         throw new AmbiguousMailSendError(
           'Outlook did not confirm whether this message was sent; verify Sent Items before resending.',
           correlationId,
+          draftId,
           draftId,
         );
       }
@@ -796,6 +805,7 @@ export class MicrosoftGraphSyncService {
       ok: true,
       provider: 'microsoft_graph',
       providerDraftId: draftId,
+      providerImmutableMessageId: draftId,
       ...(internetMessageId ? { providerInternetMessageId: internetMessageId } : {}),
       ...(conversationId ? { providerConversationId: conversationId } : {}),
       correlationId,
@@ -1323,7 +1333,7 @@ export class MicrosoftGraphSyncService {
               tenantId,
               connection.id,
               folder.displayPath,
-              await this.hydrateGraphMessageBody(accessToken, message),
+              await this.hydrateGraphMessageBody(accessToken, message, { tenantId, connectionId: connection.id }),
               usedStoredCursor ? cursorSyncMode : 'backfill',
             );
             stats.matched += outcome === 'matched' ? 1 : 0;
@@ -1829,7 +1839,7 @@ export class MicrosoftGraphSyncService {
       async (tx) => {
         await lockTenantForGraphSync(tx, tenantId);
         await assertMailboxSyncCurrent(tx, tenantId, connectionId);
-        const existingMessage = await tx.mailMessage.findUnique({
+        let existingMessage = await tx.mailMessage.findUnique({
           where: {
             tenantId_source_externalId: {
               tenantId,
@@ -1849,6 +1859,23 @@ export class MicrosoftGraphSyncService {
             },
           },
         });
+        const identity = message[graphReceiptIdentity] ?? storedGraphIdentity(existingMessage?.metadata);
+        const receiptIntent = identity?.observed
+          ? await acceptedGraphReceiptInTx(tx, tenantId, connectionId, identity) : null;
+        const receiptMessage = receiptIntent && identity
+          ? await graphReceiptMessageInTx(tx, tenantId, connectionId, identity) : null;
+        if (receiptMessage) {
+          if (existingMessage && existingMessage.id !== receiptMessage.id) throw new MailboxIdentityMismatchError();
+          if (receiptMessage.source !== EngagementSource.outlook || receiptMessage.externalId !== message.id) {
+            // Promote the manual receipt, or follow this same immutable item to
+            // its new default Graph ID. Local URLs and every FK stay unchanged.
+            await tx.mailMessage.update({
+              where: { id: receiptMessage.id, connectionId },
+              data: { source: EngagementSource.outlook, externalId: message.id },
+            });
+          }
+          existingMessage = receiptMessage;
+        }
         const existingThread = existingMessage?.thread
           ? existingMessage.thread
           : await tx.mailThread.findUnique({
@@ -1945,7 +1972,7 @@ export class MicrosoftGraphSyncService {
               select: { id: true },
             });
 
-        await tx.mailMessage.upsert({
+        const savedMessage = await tx.mailMessage.upsert({
           where: {
             connectionId,
             tenantId_source_externalId: {
@@ -1971,6 +1998,7 @@ export class MicrosoftGraphSyncService {
             removedReason: null,
             raw: storedRaw as Prisma.InputJsonValue,
             metadata: {
+              ...graphReceiptMetadata(existingMessage?.metadata, identity),
               folder,
               webLink: message.webLink ?? null,
               internetMessageId: message.internetMessageId ?? null,
@@ -2000,6 +2028,7 @@ export class MicrosoftGraphSyncService {
             removedReason: null,
             raw: storedRaw as Prisma.InputJsonValue,
             metadata: {
+              ...graphReceiptMetadata(existingMessage?.metadata, identity),
               folder,
               webLink: message.webLink ?? null,
               internetMessageId: message.internetMessageId ?? null,
@@ -2010,6 +2039,14 @@ export class MicrosoftGraphSyncService {
             } as Prisma.InputJsonValue,
           },
         });
+
+        if (receiptIntent?.receipt) {
+          if (receiptIntent.receipt.messageId !== savedMessage.id || receiptIntent.receipt.threadId !== thread.id)
+            throw new MailboxIdentityMismatchError();
+          await SingleMailLedger.receiptInTx(tx, tenantId, receiptIntent.id, {
+            ...receiptIntent.receipt, mailboxConfirmation: 'confirmed',
+          });
+        }
 
         // Everyone on this message becomes a known correspondent. Calendar
         // attendees were already harvested; mail never was, so the contact
@@ -2037,17 +2074,28 @@ export class MicrosoftGraphSyncService {
   private async hydrateGraphMessageBody(
     accessToken: string,
     message: GraphMessage,
+    mailbox?: { tenantId: string; connectionId: string },
   ): Promise<GraphMessage> {
     if (!message.id || message['@removed']) return message;
-    if (resolveGraphAuthoritativeBody(message).bodyCompleteness === 'full') {
+    const known = mailbox ? await this.prisma.withTenant(mailbox.tenantId, (tx) => tx.mailMessage.findFirst({
+      where: { tenantId: mailbox.tenantId, connectionId: mailbox.connectionId,
+        source: EngagementSource.outlook, externalId: message.id }, select: { id: true },
+    })) : true;
+    const needsIdentity = !known;
+    if (!needsIdentity && resolveGraphAuthoritativeBody(message).bodyCompleteness === 'full') {
       return message;
     }
     try {
-      const detailed = await this.graphGet<Pick<GraphMessage, 'id' | 'body'>>(
-        `/me/messages/${encodeURIComponent(message.id)}?$select=id,body`,
+      const detailed = await this.graphGet<Pick<GraphMessage, 'id' | 'body' | 'conversationId'> & {
+        isDraft?: boolean; internetMessageHeaders?: unknown;
+      }>(
+        `/me/messages/${encodeURIComponent(message.id)}?$select=${needsIdentity ? 'id,body,conversationId,isDraft,internetMessageHeaders' : 'id,body'}`,
         accessToken,
+        needsIdentity ? GRAPH_IMMUTABLE_ID_HEADERS : {},
       );
-      return { ...message, body: detailed.body ?? message.body };
+      const identity = needsIdentity ? graphObservedIdentity(detailed) : null;
+      return { ...message, body: detailed.body ?? message.body,
+        ...(identity ? { [graphReceiptIdentity]: identity } : {}) };
     } catch (err) {
       if (isMessageGoneError(err)) return message;
       throw err;
@@ -2279,12 +2327,12 @@ export class MicrosoftGraphSyncService {
     return this.graphFetch<T>('GET', url, accessToken, undefined, headers);
   }
 
-  private async graphPost<T>(url: string, accessToken: string, body: unknown): Promise<T> {
-    return this.graphFetch<T>('POST', url, accessToken, body);
+  private async graphPost<T>(url: string, accessToken: string, body: unknown, headers: Record<string, string> = {}): Promise<T> {
+    return this.graphFetch<T>('POST', url, accessToken, body, headers);
   }
 
-  private async graphPostNoContent(url: string, accessToken: string, body: unknown): Promise<void> {
-    await this.graphFetch<void>('POST', url, accessToken, body, {}, false);
+  private async graphPostNoContent(url: string, accessToken: string, body: unknown, headers: Record<string, string> = {}): Promise<void> {
+    await this.graphFetch<void>('POST', url, accessToken, body, headers, false);
   }
 
   private async graphDelete(url: string, accessToken: string): Promise<void> {
@@ -2506,36 +2554,6 @@ async function hasManualAssociationOverride(
 function hasManualAssociationSignal(value: Prisma.JsonValue | null | undefined) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   return (value as Record<string, unknown>).manual === true;
-}
-
-/**
- * Serialize a tenant's Microsoft Graph sync write transactions across the whole
- * cluster via a transaction-scoped Postgres advisory lock.
- *
- * The production failure was a storm of deadlocks (40P01) and 5s transaction
- * timeouts caused by SEVERAL syncs of the same mailbox running at once — a
- * webhook burst, a manual "Sync now", and the calendar-window endpoint all
- * firing while the user retried. Each per-event/message transaction upserts the
- * same tenant-scoped rows (engagement_contacts on (tenant,email); meetings /
- * mail_threads / mail_messages on (tenant,source,externalId)), so concurrent
- * transactions took those locks in conflicting orders and deadlocked.
- *
- * Keying the lock on the tenant forces those write transactions to run one at a
- * time, which makes the deadlock structurally impossible regardless of how many
- * syncs race. It is held only for the short write txn (auto-released on
- * commit/rollback), never across the Graph HTTP calls. An in-process guard
- * could not do this because prod runs multiple API tasks behind the ALB.
- */
-async function lockTenantForGraphSync(tx: Prisma.TransactionClient, tenantId: string) {
-  // PROVIDER-NEUTRAL key (was `msgraph-sync:` before the Google integration):
-  // the Google sync (google-sync.service.ts lockTenantForEngagementSync) uses
-  // the SAME `engagement-sync:<tenant>` key, so an Outlook sync and a Gmail sync
-  // for the same tenant serialize against each other. Both providers upsert the
-  // same tenant-scoped rows (engagement_contacts on (tenant,email); meetings /
-  // mail_threads / mail_messages on (tenant,source,externalId)) — a per-provider
-  // key would reintroduce the cross-provider deadlock this lock exists to prevent.
-  const lockKey = `engagement-sync:${tenantId}`;
-  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
 }
 
 async function upsertContacts(
