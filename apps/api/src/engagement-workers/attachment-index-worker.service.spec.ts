@@ -26,6 +26,8 @@ import { EngagementWorkersModule } from './engagement-workers.module.js';
           if (key === 'CLIO_CLIENT_KB_ENABLED') return true;
           if (key === 'ENGAGEMENT_ATTACHMENT_SCAN_REQUIRED') return true;
           if (key === 'ASSETS_BUCKET') return 'mg06-spec-bucket';
+          if (key === 'OPENAI_MODEL') return 'gpt-6-astra';
+          if (key === 'ANTHROPIC_MODEL') return 'claude-sonnet-5';
           // Inert external resources: never dialled by this test.
           if (key.endsWith('_BASE_URL') || key.endsWith('_URL')) return 'https://mount.invalid';
           if (key.endsWith('_API_KEY') || key.endsWith('_SECRET') || key.endsWith('_TOKEN')) {
@@ -213,23 +215,24 @@ describe('attachment indexing resumer', () => {
       await moduleRef.close();
     });
 
-    it('loads the ACTUAL EngagementWorkersModule and declares the direct EmbeddingsModule import', async () => {
-      // Importing this module used to be impossible in any owned environment: the
-      // chain died on the missing @capiro/defense-domain ./pe-read export. With the
-      // supplied workspace artifacts it loads, so the module's real metadata is
-      // readable here and the splice below is the module's own declaration, not a
-      // recreated provider list.
-      expect(typeof EngagementWorkersModule).toBe('function');
-      const imports = Reflect.getMetadata('imports', EngagementWorkersModule) as unknown[];
-      expect(imports).toContain(EmbeddingsModule);
-      const providers = Reflect.getMetadata('providers', EngagementWorkersModule) as unknown[];
-      expect(providers).toContain(AttachmentIndexWorkerService);
-
-      // Mounting the WHOLE module graph is NOT attempted here: its constructors
-      // read the environment-backed config (first blockers observed: RECALL_API_BASE_URL,
-      // then the AI-credentials key at ai-credential-resolver.service.ts:47), which is
-      // environment qualification owned by Release, not an external-resource override.
-      // The DI splice itself is proven at provider level by the tests in this describe.
+    it('mounts the actual EngagementWorkersModule and resolves its index worker', async () => {
+      // Qualify the actual graph, including its direct EmbeddingsModule edge.
+      // Removing that import must fail DI, not merely a metadata assertion.
+      const moduleRef = await Test.createTestingModule({
+        imports: [ConfigStubModule, EngagementWorkersModule],
+      })
+        .overrideProvider(PrismaService)
+        .useValue({ withTenant: jest.fn(), withSystem: jest.fn() })
+        .overrideProvider(EngagementRuntimePolicyService)
+        .useValue(runtimeStub())
+        .compile();
+      try {
+        expect(moduleRef.get(AttachmentIndexWorkerService)).toBeInstanceOf(AttachmentIndexWorkerService);
+        expect(moduleRef.get(ClientKbService)).toBeInstanceOf(ClientKbService);
+      } finally {
+        // No app.init: constructor/DI qualification never starts background work.
+        await moduleRef.close();
+      }
     });
 
     it('cannot resolve the worker without EmbeddingsModule — the splice this shell depends on', async () => {

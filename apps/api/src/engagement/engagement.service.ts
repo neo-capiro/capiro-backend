@@ -8474,6 +8474,12 @@ export class EngagementService {
       initialScan === 'clean' ||
       (initialScan === 'scanner_not_required' && !this.scanner.scanRequired);
     const attachment = await inWriteTransaction(async (tx) => {
+        // The absent-row index cleanup holds this same identity lock until its
+        // purge commits. Ordinary deterministic retries must coordinate too:
+        // otherwise a recreated row can be indexed between absence and purge.
+        if (stableId && !internal) {
+          await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`capiro-client-document:${stableId}`}, 0))`);
+        }
         const clientId = await this.attachmentClientAtWrite(tx, ctx, input);
         if (internal) await internal.beforeWrite();
         const data = {
