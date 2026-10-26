@@ -19,11 +19,13 @@ import {
   hashOutreachTemplateSpecV1,
   OutreachTemplateVariablesMissingError,
   parseOutreachTemplateSpecV1,
+  publishOutreachTemplateInputSchema,
   substituteOutreachTemplateVariables,
   templateSpecFromCampaign,
   type OutreachTemplateDefaultsPolicyField,
   type OutreachTemplateScope,
   type OutreachTemplateSpecV1,
+  type PublishOutreachTemplateInput,
 } from './outreach-template.contract.js';
 import { compileOutreachTemplateBatch } from './outreach-template.compiler.js';
 import {
@@ -578,11 +580,52 @@ export class OutreachTemplateService {
     }
   }
 
-  async publish(ctx: TenantContext, templateId: string) {
+  async publish(ctx: TenantContext, templateId: string, input: PublishOutreachTemplateInput) {
+    const parsed = publishOutreachTemplateInputSchema.safeParse(input);
+    if (!parsed.success) {
+      throw new OutreachCommandError(
+        'OUTREACH_COMMAND_INVALID',
+        'An expected draft version is required.',
+        400,
+      );
+    }
+    const { expectedDraftVersionId } = parsed.data;
     try {
       return await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
         const template = await this.templates.lockManaged(tx, ctx, templateId);
         assertSharedPublicationAuthority(ctx, template.scope);
+        if (template.clientId)
+          await this.authorizeClientWithinTx(tx, ctx, template.clientId, 'publish');
+        if (template.status !== 'active') {
+          throw new OutreachCommandError(
+            'OUTREACH_TEMPLATE_FORBIDDEN',
+            'Archived templates cannot be published.',
+            409,
+          );
+        }
+        const expected = await this.templates.getVersion(tx, ctx, expectedDraftVersionId);
+        if (expected.templateId !== template.id || expected.lifecycle === 'superseded') {
+          throw new OutreachCommandError(
+            'OUTREACH_TEMPLATE_VERSION_IMMUTABLE',
+            'The requested draft is no longer current.',
+            409,
+          );
+        }
+        if (expected.lifecycle === 'published') {
+          return {
+            templateId: template.id,
+            version: this.verifyVersion(expected),
+            published: true,
+            replayed: true,
+          };
+        }
+        if (template.currentDraftVersionId !== expectedDraftVersionId) {
+          throw new OutreachCommandError(
+            'OUTREACH_TEMPLATE_VERSION_IMMUTABLE',
+            'The draft changed before publication.',
+            409,
+          );
+        }
         const version = await this.templates.publishDraft(tx, ctx, template);
         await this.templates.recordAudit(tx, ctx, {
           id: randomUUID(),
@@ -596,6 +639,7 @@ export class OutreachTemplateService {
           templateId: template.id,
           version: this.verifyVersion(version),
           published: true,
+          replayed: false,
         };
       });
     } catch (error) {
@@ -684,6 +728,12 @@ export class OutreachTemplateService {
 
     try {
       return await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+        await this.templates.lockApplicationRequest(tx, ctx, input.requestKey);
+        const existing = await this.templates.findApplicationByRequestKey(
+          tx,
+          ctx,
+          input.requestKey,
+        );
         const template = await this.templates.getVisible(tx, ctx, templateId, clientId);
         if (template.status !== 'active') {
           throw new OutreachCommandError(
@@ -700,7 +750,8 @@ export class OutreachTemplateService {
           );
         }
         if (clientId) await this.authorizeClientWithinTx(tx, ctx, clientId, 'usePublished');
-        if (!template.publishedVersionId) {
+        const templateVersionId = existing?.templateVersionId ?? template.publishedVersionId;
+        if (!templateVersionId) {
           throw new OutreachCommandError(
             'OUTREACH_TEMPLATE_NOT_PUBLISHED',
             'Publish this template before using it.',
@@ -708,26 +759,15 @@ export class OutreachTemplateService {
           );
         }
 
-        const version = await this.templates.getVersion(tx, ctx, template.publishedVersionId);
-        if (version.lifecycle !== 'published' || version.templateId !== template.id) {
-          throw new OutreachCommandError(
-            'OUTREACH_STATE_CORRUPT',
-            'The template publication pointer is invalid.',
-            500,
-          );
-        }
-        const verified = this.verifyVersion(version);
-
         const fingerprint = computeTemplateApplicationFingerprint({
           actorUserId: ctx.userId,
           templateId: template.id,
-          templateVersionId: version.id,
+          templateVersionId,
           clientId,
           title,
           variableValues,
         });
 
-        const existing = await this.templates.findApplicationByRequestKey(tx, ctx, input.requestKey);
         if (existing) {
           if (existing.requestFingerprint !== fingerprint) {
             throw new OutreachCommandError(
@@ -736,6 +776,7 @@ export class OutreachTemplateService {
               409,
             );
           }
+          await this.authorizeSessionWithinTx(tx, ctx, existing.sessionId);
           return {
             sessionId: existing.sessionId,
             stateVersion: existing.resultingStateVersion,
@@ -748,6 +789,16 @@ export class OutreachTemplateService {
             receipt: existing.receiptJsonb,
           };
         }
+
+        const version = await this.templates.getVersion(tx, ctx, templateVersionId);
+        if (version.lifecycle !== 'published' || version.templateId !== template.id) {
+          throw new OutreachCommandError(
+            'OUTREACH_STATE_CORRUPT',
+            'The template publication pointer is invalid.',
+            500,
+          );
+        }
+        const verified = this.verifyVersion(version);
 
         let resolvedSpec: OutreachTemplateSpecV1;
         try {
@@ -763,7 +814,12 @@ export class OutreachTemplateService {
           }
           throw error;
         }
-        const receipt = buildTemplateApplicationReceipt(template, verified, resolvedSpec, variableValues);
+        const receipt = buildTemplateApplicationReceipt(
+          template,
+          verified,
+          resolvedSpec,
+          variableValues,
+        );
 
         const blank = createBlankCampaignSpecV1();
         const session = await this.state.createSessionWithinTx(tx, ctx, {
@@ -779,14 +835,11 @@ export class OutreachTemplateService {
           clientId,
         });
         const batch = this.commands.parseNormalizeAndValidateBatch(rawBatch);
-        const result = await this.commands.applyBatchWithinTx(
-          tx,
-          ctx,
-          session.id,
-          batch,
-          { source: 'user_control', prelockedSession: session },
-        );
-        const { application, replayed } = await this.templates.recordApplication(tx, ctx, {
+        const result = await this.commands.applyBatchWithinTx(tx, ctx, session.id, batch, {
+          source: 'user_control',
+          prelockedSession: session,
+        });
+        const { application } = await this.templates.recordApplication(tx, ctx, {
           applicationId: randomUUID(),
           template,
           version,
@@ -804,18 +857,18 @@ export class OutreachTemplateService {
           templateVersionId: version.id,
           scope: template.scope,
           outcome: 'allowed',
-          safeMetadata: { replayed },
+          safeMetadata: { replayed: false },
         });
         return {
-          sessionId: replayed ? application.sessionId : session.id,
-          stateVersion: replayed ? application.resultingStateVersion : result.stateVersion,
+          sessionId: session.id,
+          stateVersion: result.stateVersion,
           templateId: template.id,
           templateVersionId: version.id,
           applicationId: application.id,
-          replayed,
+          replayed: false,
           requiresLiveTargets: true,
           requiresLiveContext: true,
-          receipt: replayed ? application.receiptJsonb : receipt,
+          receipt,
         };
       });
     } catch (error) {
@@ -831,9 +884,26 @@ export class OutreachTemplateService {
    * not an error.
    */
   async getProvenance(ctx: TenantContext, sessionId: string) {
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
-      this.templates.getProvenanceForSession(tx, ctx, sessionId),
-    );
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      await this.authorizeSessionWithinTx(tx, ctx, sessionId);
+      const provenance = await this.templates.getProvenanceForSession(tx, ctx, sessionId);
+      if (!provenance) return null;
+      const { templateClientId, ...receipt } = provenance;
+      if (templateClientId)
+        await this.authorizeClientWithinTx(tx, ctx, templateClientId, 'getProvenance');
+      return receipt;
+    });
+  }
+
+  private async authorizeSessionWithinTx(
+    tx: Parameters<OutreachSessionService['loadCurrentSpecWithinTx']>[0],
+    ctx: TenantContext,
+    sessionId: string,
+  ) {
+    const spec = await this.sessions.loadCurrentSpecWithinTx(tx, ctx, sessionId);
+    for (const client of spec.sponsor.clientRefs) {
+      await this.authorizeClientWithinTx(tx, ctx, client.clientId, 'templateReceipt');
+    }
   }
 
   /** Reads the client outside any open transaction (list/get path). */

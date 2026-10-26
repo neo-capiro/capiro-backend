@@ -91,6 +91,7 @@ function buildHarness() {
     updateMetadata: jest.fn(),
     archive: jest.fn(async () => undefined),
     findApplicationByRequestKey: jest.fn(async () => null),
+    lockApplicationRequest: jest.fn(async () => undefined),
     recordApplication: jest.fn(),
     recordAudit: jest.fn(async () => undefined),
     getProvenanceForSession: jest.fn(async () => null),

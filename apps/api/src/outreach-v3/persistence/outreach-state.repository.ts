@@ -221,8 +221,9 @@ export class OutreachStateRepository {
   async listOwnedSessions(
     tx: Prisma.TransactionClient,
     ctx: TenantContext,
-    input: { limit: number; offset: number; includeArchived: boolean },
+    input: { limit: number; offset: number; includeArchived: boolean; search?: string | null },
   ): Promise<OutreachSessionListRow[]> {
+    const search = input.search?.trim() || null;
     // The spec join is LEFT and additionally tenant-predicated in its own ON
     // clause: a session whose current state version is somehow unreadable must
     // still appear in the list rather than silently disappear from the user's
@@ -264,6 +265,12 @@ export class OutreachStateRepository {
       WHERE s.tenant_id = CAST(${ctx.tenantId} AS uuid)
         AND s.created_by_user_id = CAST(${ctx.userId} AS uuid)
         AND (${input.includeArchived} OR s.status <> 'archived')
+        AND (
+          CAST(${search} AS text) IS NULL
+          OR strpos(lower(COALESCE(s.title, '')), lower(${search})) > 0
+          OR strpos(lower(COALESCE(v.spec_jsonb -> 'goal' ->> 'topic', '')), lower(${search})) > 0
+          OR strpos(lower(COALESCE(v.spec_jsonb -> 'goal' ->> 'goal', '')), lower(${search})) > 0
+        )
       ORDER BY s.updated_at DESC, s.id DESC
       LIMIT ${input.limit}
       OFFSET ${input.offset}

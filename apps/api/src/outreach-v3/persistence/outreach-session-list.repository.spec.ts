@@ -49,7 +49,7 @@ describe('OutreachStateRepository.listOwnedSessions', () => {
   const list = (
     repository: OutreachStateRepository,
     tx: Prisma.TransactionClient,
-    over: Partial<{ limit: number; offset: number; includeArchived: boolean }> = {},
+    over: Partial<{ limit: number; offset: number; includeArchived: boolean; search: string }> = {},
   ) =>
     repository.listOwnedSessions(tx, ctx, {
       limit: 25,
@@ -81,7 +81,26 @@ describe('OutreachStateRepository.listOwnedSessions', () => {
     expect(seen.sql).toContain('s.tenant_id = CAST(');
     expect(seen.sql).toContain('s.created_by_user_id = CAST(');
     expect(seen.sql).toContain("s.status <> 'archived'");
-    expect(seen.values).toEqual([ctx.tenantId, ctx.userId, true, 10, 5]);
+    expect(seen.values).toEqual([ctx.tenantId, ctx.userId, true, null, null, null, null, 10, 5]);
+  });
+
+  it('filters literal title/topic/goal search before pagination, including beyond the first 100', async () => {
+    const { repository, tx, seen } = harness([]);
+    await list(repository, tx, { search: '  50%_\\ topic  ', limit: 25, offset: 100 });
+    const where = seen.sql.slice(seen.sql.indexOf('WHERE'), seen.sql.indexOf('ORDER BY'));
+    expect(where).toContain("strpos(lower(COALESCE(s.title, '')), lower(?)) > 0");
+    expect(where).toContain("strpos(lower(COALESCE(v.spec_jsonb -> 'goal' ->> 'topic', '')), lower(?)) > 0");
+    expect(where).toContain("strpos(lower(COALESCE(v.spec_jsonb -> 'goal' ->> 'goal', '')), lower(?)) > 0");
+    expect(where).not.toContain('ILIKE');
+    expect(seen.values).toEqual([ctx.tenantId, ctx.userId, false, ...Array(4).fill('50%_\\ topic'), 25, 100]);
+    expect(seen.sql.indexOf('ORDER BY')).toBeLessThan(seen.sql.indexOf('LIMIT'));
+  });
+
+  it('treats whitespace search as the existing unfiltered query', async () => {
+    const { repository, tx, seen } = harness([]);
+    await list(repository, tx, { search: '   ' });
+    expect(seen.values).toEqual([ctx.tenantId, ctx.userId, false, null, null, null, null, 25, 0]);
+    expect(seen.sql).toContain('CAST(? AS text) IS NULL');
   });
 
   it('reads draft-vs-sent from the artifact root, scoped to tenant and the reserved type', async () => {
