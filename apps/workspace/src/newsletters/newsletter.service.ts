@@ -49,6 +49,9 @@ import {
   type NewsletterSavedSurvey,
   type NewsletterPreview,
   type NewsletterStage,
+  type NewsletterCreateRequest,
+  type NewsletterSaveRequest,
+  type NewsletterWriteReceipt,
 } from '@capiro/shared/newsletter';
 import {
   renderNewsletterDesign,
@@ -64,6 +67,10 @@ import {
   validateNewsletterSurveyDefinition,
 } from './newsletter-validation.js';
 import { validateNewsletterBrandKit, newsletterFontFormat } from './newsletter-brand-validation.js';
+import {
+  commitNewsletterRequest, newsletterReceiptView, newsletterRequestId, newsletterWriteHash,
+  readNewsletterReceipt, type NewsletterReceiptRow,
+} from './newsletter-write-receipt.js';
 
 interface Identity {
   tenantId: string;
@@ -219,50 +226,106 @@ export class NewsletterService {
     );
     return { items: visible.filter(Boolean) };
   }
-  async create(ctx: Identity, input: { name?: string; templateId?: string }) {
-    let design = governmentAffairsNewsletter();
-    const config = defaultNewsletterConfig();
-    if (input.templateId && /^(layout:[1-4]|code:html)$/.test(input.templateId)) {
-      design = createNewsletterLayout(
-        Number(input.templateId.split(':')[1]) || 1,
-        input.templateId === 'code:html',
-      );
-    } else if (input.templateId && input.templateId !== 'bp_weekly_newsletter') {
-      if (!isUuid(input.templateId)) throw new NotFoundException('Saved template not found');
-      const template = await this.prisma.wsNewsletterLibraryItem.findFirst({
-        where: { id: input.templateId, kind: 'template', ...this.scope(ctx) },
-      });
-      if (!template) throw new NotFoundException('Saved template not found');
-      const payload = template.payload as unknown as {
-        design?: unknown;
-        config?: NewsletterCampaignConfig;
-      };
-      design = validateNewsletterDesign(payload.design || template.payload);
-      await this.assertDesignClients(ctx, design);
-      if (payload.config) {
-        config.company = payload.config.company;
-        config.mailingAddress = payload.config.mailingAddress;
-        config.permissionReminder = payload.config.permissionReminder;
-      }
-    }
-    if (
-      !input.templateId ||
-      input.templateId === 'bp_weekly_newsletter' ||
-      /^(layout:[1-4]|code:html)$/.test(input.templateId)
-    ) {
-      const kit = await this.brandKit(ctx);
-      if (kit.revision > 1 || kit.primaryLogoId || kit.primaryButtonId || kit.fonts.uploaded.length)
-        applyNewsletterBrandKit(design, kit);
-    }
-    const row = await this.prisma.wsNewsletterDocument.create({
-      data: {
-        ...this.scope(ctx),
-        name: text(input.name || 'Weekly newsletter', 'Name'),
-        design: json(design),
-        config: json(config),
-      },
+  private async assertWriteMember(ctx: Identity) {
+    if (!(await this.source.newsletterMember(ctx.tenantId, ctx.clerkUserId)))
+      throw new NotFoundException('Newsletter not found');
+  }
+  private async releaseWriteReceipt(ctx: Identity, receipt: NewsletterReceiptRow) {
+    await this.assertWriteMember(ctx);
+    // Recovery must never activate an invitation or return a later read as write proof.
+    await this.row(ctx, receipt.document_id, false);
+    for (const clientId of receipt.source_client_ids) await this.assertClient(ctx, clientId);
+    return newsletterReceiptView(receipt);
+  }
+  async writeReceipt(ctx: Identity, requestId: string): Promise<NewsletterWriteReceipt | null> {
+    const key = newsletterRequestId(requestId);
+    await this.assertWriteMember(ctx);
+    const receipt = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.current_tenant',${ctx.tenantId},true)`;
+      return readNewsletterReceipt(tx, ctx, key);
     });
-    return this.view(row);
+    return receipt ? this.releaseWriteReceipt(ctx, receipt) : null;
+  }
+  async create(ctx: Identity, input: NewsletterCreateRequest): Promise<NewsletterWriteReceipt> {
+    const requestId = newsletterRequestId(input.requestId);
+    const name = text(input.name === undefined ? 'Weekly newsletter' : input.name, 'Name');
+    if (
+      input.templateId !== undefined &&
+      (typeof input.templateId !== 'string' || input.templateId.length > 100)
+    )
+      throw new BadRequestException('Choose a valid newsletter template.');
+    const inputHash = newsletterWriteHash({
+      operation: 'create',
+      name: input.name ?? null,
+      templateId: input.templateId ?? null,
+    });
+    await this.assertWriteMember(ctx);
+    const receipt = await commitNewsletterRequest(
+      this.prisma,
+      ctx,
+      { requestId, operation: 'create', inputHash },
+      async (tx) => {
+        let design = governmentAffairsNewsletter();
+        const config = defaultNewsletterConfig();
+        if (input.templateId && /^(layout:[1-4]|code:html)$/.test(input.templateId)) {
+          design = createNewsletterLayout(
+            Number(input.templateId.split(':')[1]) || 1,
+            input.templateId === 'code:html',
+          );
+        } else if (input.templateId && input.templateId !== 'bp_weekly_newsletter') {
+          if (!isUuid(input.templateId)) throw new NotFoundException('Saved template not found');
+          const template = await this.prisma.wsNewsletterLibraryItem.findFirst({
+            where: { id: input.templateId, kind: 'template', ...this.scope(ctx) },
+          });
+          if (!template) throw new NotFoundException('Saved template not found');
+          const payload = template.payload as unknown as {
+            design?: unknown;
+            config?: NewsletterCampaignConfig;
+          };
+          design = validateNewsletterDesign(payload.design || template.payload);
+          await this.assertDesignClients(ctx, design);
+          if (payload.config) {
+            config.company = payload.config.company;
+            config.mailingAddress = payload.config.mailingAddress;
+            config.permissionReminder = payload.config.permissionReminder;
+          }
+        }
+        if (
+          !input.templateId ||
+          input.templateId === 'bp_weekly_newsletter' ||
+          /^(layout:[1-4]|code:html)$/.test(input.templateId)
+        ) {
+          const kit = await this.brandKit(ctx);
+          if (
+            kit.revision > 1 ||
+            kit.primaryLogoId ||
+            kit.primaryButtonId ||
+            kit.fonts.uploaded.length
+          )
+            applyNewsletterBrandKit(design, kit);
+        }
+        const row = await tx.wsNewsletterDocument.create({
+          data: {
+            ...this.scope(ctx),
+            name,
+            design: json(design),
+            config: json(config),
+          },
+        });
+        return {
+          id: row.id,
+          revision: row.revision,
+          previousRevision: null,
+          contentHash: newsletterWriteHash({
+            name: row.name,
+            design: json(row.design),
+            config: json(row.config),
+          }),
+          sourceClientIds: newsletterSourceClients(design, config.clientId),
+        };
+      },
+    );
+    return this.releaseWriteReceipt(ctx, receipt);
   }
   async get(ctx: Identity, id: string) {
     return this.view(await this.row(ctx, id));
@@ -270,36 +333,76 @@ export class NewsletterService {
   async save(
     ctx: Identity,
     id: string,
-    input: { revision: number; name: string; design: unknown; config: unknown },
-  ) {
-    const previous = await this.row(ctx, id);
-    const design = validateNewsletterDesign(input.design);
-    const config = validateNewsletterConfig(input.config);
-    design.sourceClientIds = [
-      ...new Set([
-        ...newsletterSourceClients(
-          previous.design as unknown as NewsletterDesign,
-          (previous.config as unknown as NewsletterCampaignConfig).clientId,
-        ),
-        ...newsletterSourceClients(design, config.clientId),
-      ]),
-    ];
-    await this.assertDesignClients(ctx, design, config.clientId);
-    const result = await this.prisma.wsNewsletterDocument.updateMany({
-      where: { id, ...this.documentWriteScope(ctx, previous), revision: input.revision },
-      data: {
-        name: text(input.name, 'Name'),
-        design: json(design),
-        config: json(config),
-        revision: { increment: 1 },
-        status: 'draft',
-      },
+    input: Pick<NewsletterSaveRequest, 'requestId' | 'revision' | 'name'> & {
+      design: unknown;
+      config: unknown;
+    },
+  ): Promise<NewsletterWriteReceipt> {
+    const requestId = newsletterRequestId(input.requestId);
+    if (!isUuid(id)) throw new NotFoundException('Newsletter not found');
+    if (!Number.isSafeInteger(input.revision) || input.revision < 1 || input.revision >= 2147483647)
+      throw new BadRequestException('Choose a valid saved revision.');
+    const name = text(input.name, 'Name');
+    const inputHash = newsletterWriteHash({
+      operation: 'save',
+      documentId: id.toLowerCase(),
+      revision: input.revision,
+      name: input.name,
+      design: input.design,
+      config: input.config,
     });
-    if (result.count !== 1)
-      throw new ConflictException(
-        'This newsletter changed in another tab. Reload it before saving. Your unsaved edits are still in this tab.',
-      );
-    return this.get(ctx, id);
+    await this.assertWriteMember(ctx);
+    const receipt = await commitNewsletterRequest(
+      this.prisma,
+      ctx,
+      {
+        requestId, operation: 'save', inputHash,
+        documentId: id.toLowerCase(), previousRevision: input.revision,
+      },
+      async (tx) => {
+        const previous = await this.row(ctx, id, false);
+        const design = validateNewsletterDesign(input.design);
+        const config = validateNewsletterConfig(input.config);
+        design.sourceClientIds = [
+          ...new Set([
+            ...newsletterSourceClients(
+              previous.design as unknown as NewsletterDesign,
+              (previous.config as unknown as NewsletterCampaignConfig).clientId,
+            ),
+            ...newsletterSourceClients(design, config.clientId),
+          ]),
+        ];
+        await this.assertDesignClients(ctx, design, config.clientId);
+        const result = await tx.wsNewsletterDocument.updateMany({
+          where: { id, ...this.documentWriteScope(ctx, previous), revision: input.revision },
+          data: {
+            name,
+            design: json(design),
+            config: json(config),
+            revision: { increment: 1 },
+            status: 'draft',
+          },
+        });
+        if (result.count === 0) {
+          // Keep current-access failures and unexplained zero updates generic/fenced.
+          await this.assertWriteMember(ctx);
+          const current = await this.row(ctx, id, false);
+          if (current.revision !== input.revision) return null;
+        }
+        if (result.count !== 1)
+          throw new ConflictException(
+            'This newsletter changed in another tab. Reload it before saving. Your unsaved edits are still in this tab.',
+          );
+        return {
+          id: id.toLowerCase(),
+          revision: input.revision + 1,
+          previousRevision: input.revision,
+          contentHash: newsletterWriteHash({ name, design: json(design), config: json(config) }),
+          sourceClientIds: newsletterSourceClients(design, config.clientId),
+        };
+      },
+    );
+    return this.releaseWriteReceipt(ctx, receipt);
   }
   async library(ctx: Identity, kind: 'template' | 'section') {
     const rows = await this.prisma.wsNewsletterLibraryItem.findMany({

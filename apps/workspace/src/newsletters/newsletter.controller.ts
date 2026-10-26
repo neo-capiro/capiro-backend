@@ -40,10 +40,12 @@ import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { NewsletterService } from './newsletter.service.js';
 class CreateDto {
+  @IsUUID() requestId!: string;
   @IsOptional() @IsString() @MaxLength(200) name?: string;
   @IsOptional() @IsString() @MaxLength(100) templateId?: string;
 }
 class SaveDto {
+  @IsUUID() requestId!: string;
   @IsInt() @Min(1) revision!: number;
   @IsString() @MaxLength(200) name!: string;
   @IsObject() design!: object;
@@ -189,6 +191,12 @@ export class NewsletterController {
   }
   @Post('documents') create(@CurrentTenant() c: WorkspaceTenantContext, @Body() b: CreateDto) {
     return this.service.create(c, b);
+  }
+  @Get('write-requests/:requestId') writeReceipt(
+    @CurrentTenant() c: WorkspaceTenantContext,
+    @Param('requestId') requestId: string,
+  ) {
+    return this.service.writeReceipt(c, requestId);
   }
   @Get('documents/:id/surveys') surveys(
     @CurrentTenant() c: WorkspaceTenantContext,
