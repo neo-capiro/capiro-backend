@@ -50,5 +50,6 @@ import { PublicHearingAudioAccessService } from './capture/public-hearing-audio-
     HearingAnalysisService,
     PublicHearingAudioAccessService,
   ],
+  exports: [PublicHearingAudioAccessService],
 })
 export class HearingModule {}

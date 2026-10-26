@@ -19,7 +19,13 @@ export async function readPassiveMemoryPage(ctx: TenantContext, raw: unknown,
       !Number.isSafeInteger(deadlineMs) || now() >= deadlineMs) throw denied();
   const wire = parsePassiveMemoryWire(raw);
   assertRetainedReadSelectors(wire.input, context);
-  const result = retainedReadSnapshot(await readPassiveMemorySource(ctx, wire, tools), 1_048_576);
+  const source = await readPassiveMemorySource(ctx, wire, tools);
+  // The trusted owner returns internal records (Dates and optional undefined
+  // fields). Snapshot their ordinary HTTP JSON representation, not JS objects.
+  let result: unknown;
+  try {
+    result = retainedReadSnapshot(JSON.parse(JSON.stringify(source)), 1_048_576);
+  } catch { throw denied(); }
   if (!result || typeof result !== 'object' || Array.isArray(result)) throw denied();
   const page = result as Record<string, unknown>;
   if (!(page.error === 'Provide a search query.' && Object.keys(page).length === 1)) {

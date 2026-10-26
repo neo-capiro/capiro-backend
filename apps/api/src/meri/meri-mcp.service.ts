@@ -32,6 +32,7 @@ import {
   type McpCatalogEntry,
 } from './meri-mcp.catalog.js';
 import { isFundingOpportunitiesFeatureEnabled } from '../funding-opportunities/funding-opportunities-flag.guard.js';
+import { approvedConnectedRead, connectedInputSchema, type ConnectedAppReadSelection } from './connected-app-read.contract.js';
 import {
   bridgeMcpTool,
   filterAllowedMcpTools,
@@ -78,6 +79,11 @@ export interface McpBridgedSchemasResult {
   schemas: BridgedTool[];
   failures: McpRegistryFailure[];
   registryUnavailable: boolean;
+}
+
+export interface McpReadOptions {
+  structuredRead?: boolean;
+  connectedRead?: { connectionId: string; revision: string };
 }
 
 interface UserMcpRegistry {
@@ -756,11 +762,70 @@ export class MeriMcpService {
 
   // ── Execution (routed from the agentic loop) ─────────────────────────────
 
+  /** Finite catalog reads over the existing registry; no custom connector passthrough. */
+  async connectedReadSelections(ctx: TenantContext): Promise<Array<ConnectedAppReadSelection & { bridgedName: string }>> {
+    if (!this.enabled()) return [];
+    const registry = await this.registryFor(ctx);
+    const selections: Array<ConnectedAppReadSelection & { bridgedName: string }> = [];
+    for (const schema of registry.schemas) {
+      assertMeriToolRequestActive();
+      const entry = registry.byBridgedName.get(schema.name);
+      if (!entry || !entry.readOnly) continue;
+      try {
+        const admitted = await this.assertConnectedReadCurrent(ctx, entry.serverId, schema.name);
+        selections.push({ connectionId: entry.serverId, provider: admitted.provider,
+          tool: entry.toolName, bridgedName: schema.name, ...connectedInputSchema(schema.input_schema) });
+      } catch (error) {
+        if (!(error instanceof BadRequestException || error instanceof NotFoundException)) throw error;
+      }
+      if (selections.length === 100) break;
+    }
+    return selections;
+  }
+
+  async connectedReadUnavailableState(ctx: TenantContext, connectionId: string, provider: string, tool: string) {
+    const [server] = await this.visibleServers(ctx, { where: { id: connectionId } });
+    if (!server || !server.enabled || approvedConnectedRead(server.catalogId, tool) !== provider)
+      return 'unavailable' as const;
+    if (server.authType === 'oauth' && server.connectionStatus === 'needs_reauth') return 'permission_required' as const;
+    if (server.authType === 'oauth' && ['disconnected', 'pending'].includes(server.connectionStatus)) return 'disconnected' as const;
+    return 'unavailable' as const;
+  }
+
+  /** Fresh canonical row/feature/allowlist checks, also used AFTER provider I/O. */
+  async assertConnectedReadCurrent(ctx: TenantContext, connectionId: string, bridgedName: string) {
+    if (!this.enabled()) throw new BadRequestException('Connected read unavailable');
+    const registry = await this.registryFor(ctx);
+    const entry = registry.byBridgedName.get(bridgedName);
+    const [server] = await this.visibleServers(ctx, { where: { id: connectionId, enabled: true } });
+    if (!entry || entry.serverId !== connectionId || !entry.readOnly || !server ||
+        server.name !== entry.serverName || !asStringArray(server.toolAllowlist).includes(entry.toolName) ||
+        !asStringArray(server.readOnlyTools).includes(entry.toolName)) throw new NotFoundException('Connected read unavailable');
+    const provider = approvedConnectedRead(server.catalogId, entry.toolName);
+    if (!provider || server.transport !== 'http' ||
+        server.authType === 'oauth' && server.connectionStatus !== 'connected')
+      throw new BadRequestException('Connected read requires a current connection');
+    const managed = managedAppDefinition(server.catalogId);
+    const catalog = server.catalogId ? getCatalogEntry(server.catalogId) : undefined;
+    if (managed) {
+      if (entry.managedAppId !== managed.id || server.endpoint !== managed.endpoint ||
+          server.name !== managed.catalogId || server.scope !== 'user' || server.ownerUserId !== ctx.userId ||
+          server.authType !== 'oauth' || !this.oauth.isConfigured() ||
+          !managedAppAvailable(managed.id, { tenantId: ctx.tenantId, userId: ctx.userId }))
+        throw new BadRequestException('Connected read unavailable');
+    } else if (entry.managedAppId || !catalog || server.endpoint !== catalog.endpoint ||
+        server.authType !== catalog.authType ||
+        catalog.requiresFeature && !await this.featureEnabled(ctx.tenantId, catalog.requiresFeature)) {
+      throw new BadRequestException('Connected read unavailable');
+    }
+    return { provider, revision: server.updatedAt.toISOString() };
+  }
+
   async executeBridged(
     ctx: TenantContext,
     bridgedName: string,
     input: Record<string, unknown>,
-    options?: { structuredRead?: boolean },
+    options?: McpReadOptions,
   ): Promise<{
     tool: string;
     server: string;
@@ -783,6 +848,13 @@ export class MeriMcpService {
       where: { id: entry.serverId, enabled: true },
     });
     if (!server) throw new NotFoundException('MCP server not found or disabled');
+    if (options?.connectedRead) {
+      const expected = options.connectedRead;
+      const current = await this.assertConnectedReadCurrent(ctx, expected.connectionId, bridgedName);
+      if (server.id !== expected.connectionId || current.revision !== expected.revision ||
+          server.updatedAt.toISOString() !== expected.revision)
+        throw new ForbiddenException('Connected read connection changed');
+    }
     if (server.authType === 'oauth' && server.connectionStatus !== 'connected') {
       throw new BadRequestException('Please reconnect this app to continue.');
     }

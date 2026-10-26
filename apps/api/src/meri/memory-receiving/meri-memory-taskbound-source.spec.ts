@@ -8,6 +8,7 @@ jest.mock('../../memory/memory-wall.helpers.js', () => ({
 
 import { clientMemoryAllowed } from '../../memory/memory-wall.helpers.js';
 import { readPassiveMemoryPage } from './meri-memory-page-source.js';
+import { projectMemoryContent } from '../meri-memory-content.helpers.js';
 import { parseTaskBoundMemoryProposalSelection, readTaskBoundMemoryProposalPage } from './meri-memory-proposal-source.js';
 
 const tenantId = '11111111-1111-4111-8111-111111111111';
@@ -73,6 +74,33 @@ describe('ordinary passive memory source', () => {
     }
   });
 
+  it('snapshots the actual personal-memory projection as its HTTP JSON representation', async () => {
+    const held = correlation();
+    const general = { ...held, subject: { ...held.subject, kind: 'personal', entityType: 'user', entityIds: [actorId],
+      scopes: [{ tenantId, kind: 'private-user', resourceId: actorId, policyRevision }] } };
+    const updatedAt = new Date('2026-10-26T15:38:22.183Z');
+    const record = projectMemoryContent(ctx, {
+      domain: 'institutional_knowledge', recordId: workerId, updatedAt,
+      payload: { scope: 'user_private', clientId: null, key: 'Synthetic preference',
+        value: 'Use concise summaries.', governance: { status: 'approved' } },
+      provenance: { source: 'memory_items', sourceVersion: 'synthetic-v1' },
+    }, {});
+    expect(record.updatedAt).toBe(updatedAt);
+    expect(Object.hasOwn(record, 'entityRef')).toBe(true);
+    expect(record.entityRef).toBeUndefined();
+    const source = { tool: 'search_memory', records: [record], results: [{ id: workerId }] };
+    const read = jest.fn(async () => source);
+    const result = await readPassiveMemoryPage(ctx, memoryWire(null), general, true, nowMs + 5_000,
+      { executeFromAuthenticatedUser: read } as never, () => nowMs);
+    expect(result).toEqual(JSON.parse(JSON.stringify(source)));
+    expect(result).toMatchObject({ records: [{ updatedAt: updatedAt.toISOString(),
+      payload: { scope: 'user_private', value: 'Use concise summaries.' } }] });
+    expect((result as typeof source).records[0]).not.toHaveProperty('entityRef');
+    expect(read).toHaveBeenCalledWith(ctx, 'search_memory', memoryWire(null).input);
+    record.payload.value = 'Changed after return';
+    expect(result).toMatchObject({ records: [{ payload: { value: 'Use concise summaries.' } }] });
+  });
+
   it('withholds duplicated/overfull/malformed owner records and output after expiry', async () => {
     for (const records of [[{ recordId: workerId }, { recordId: workerId }],
       [{ recordId: 'not-a-record' }], Array.from({ length: 4 }, () => ({ recordId: workerId }))]) {
@@ -91,6 +119,22 @@ describe('ordinary passive memory source', () => {
     const read = jest.fn(async () => empty);
     expect(await readPassiveMemoryPage(ctx, memoryWire(), correlation(), true, nowMs + 5_000,
       { executeFromAuthenticatedUser: read } as never, () => nowMs)).toEqual(empty);
+  });
+
+  it('still refuses unrepresentable or oversized owner output and non-JSON request context', async () => {
+    const cyclic: Record<string, unknown> = { ...page };
+    cyclic.self = cyclic;
+    for (const source of [cyclic, { ...page, extra: 1n },
+      { ...page, extra: 'x'.repeat(1_048_576) }, { ...page, extra: '\ud800' }]) {
+      const read = jest.fn(async () => source);
+      await expect(readPassiveMemoryPage(ctx, memoryWire(), correlation(), true, nowMs + 5_000,
+        { executeFromAuthenticatedUser: read } as never, () => nowMs)).rejects.toThrow(ForbiddenException);
+    }
+    const read = jest.fn(async () => page);
+    const held = { ...correlation(), extra: undefined };
+    await expect(readPassiveMemoryPage(ctx, memoryWire(), held, true, nowMs + 5_000,
+      { executeFromAuthenticatedUser: read } as never, () => nowMs)).rejects.toThrow(ForbiddenException);
+    expect(read).not.toHaveBeenCalled();
   });
 });
 

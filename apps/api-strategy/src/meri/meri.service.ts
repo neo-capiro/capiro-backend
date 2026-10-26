@@ -1,3 +1,4 @@
+import { factCitations, FACT_UUID_RE } from '../context/fact-citations.js';
 import {
   BadRequestException,
   ConflictException,
@@ -102,12 +103,6 @@ type VerifierNodeSource = {
  *  op validation to this pipeline), so the discriminator itself must be
  *  validated here. */
 const PLAN_EDIT_OPS = ['add', 'update', 'remove', 'retime'] as const;
-
-/** Stage E: node provenance refs of this shape cite a Steward fact. */
-const FACT_REF_RE = /^fact:(.+)$/;
-/** sp_context_fact.id is uuid-typed — a non-UUID citation is unknown by definition
- *  (and would P2023 the `in` query if passed through). */
-const FACT_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Phase 2: plain-language names for the Steward's REQUIRED_TEMPLATE_KEYS, used
@@ -1352,22 +1347,7 @@ export class MeriService {
     nodes: Array<{ id?: string | null; title: unknown; provenance?: unknown }>,
     clientId: string | null,
   ): Promise<Violation[]> {
-    const citations: Array<{ factId: string; nodeId: string | null; nodeTitle: string }> = [];
-    for (const node of nodes) {
-      const prov = node.provenance as { sources?: unknown } | null | undefined;
-      const sources = Array.isArray(prov?.sources)
-        ? (prov.sources as Array<{ ref?: unknown }>)
-        : [];
-      for (const s of sources) {
-        const m = typeof s?.ref === 'string' ? FACT_REF_RE.exec(s.ref) : null;
-        if (!m) continue;
-        citations.push({
-          factId: m[1]!,
-          nodeId: node.id ?? null,
-          nodeTitle: String(node.title ?? ''),
-        });
-      }
-    }
+    const citations = factCitations(nodes);
     if (citations.length === 0) return [];
 
     const queryIds = [
@@ -1566,17 +1546,11 @@ function nodesForFactCitation(
   nodes: Array<{ id?: string | null; provenance?: unknown }>,
 ): (factId: string) => string[] {
   const byFact = new Map<string, string[]>();
-  for (const node of nodes) {
-    if (!node.id) continue;
-    const prov = node.provenance as { sources?: unknown } | null | undefined;
-    const sources = Array.isArray(prov?.sources) ? (prov!.sources as Array<{ ref?: unknown }>) : [];
-    for (const s of sources) {
-      const m = typeof s?.ref === 'string' ? FACT_REF_RE.exec(s.ref) : null;
-      if (!m) continue;
-      const list = byFact.get(m[1]!) ?? [];
-      list.push(node.id);
-      byFact.set(m[1]!, list);
-    }
+  for (const { factId, nodeId } of factCitations(nodes)) {
+    if (!nodeId) continue;
+    const list = byFact.get(factId) ?? [];
+    list.push(nodeId);
+    byFact.set(factId, list);
   }
   return (factId: string) => byFact.get(factId) ?? [];
 }

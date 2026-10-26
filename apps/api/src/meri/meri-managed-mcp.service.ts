@@ -437,7 +437,7 @@ export class MeriManagedMcpService {
     ctx: TenantContext,
     toolName: string,
     input: Record<string, unknown>,
-    options?: { structuredRead?: boolean },
+    options?: { structuredRead?: boolean; connectedRead?: { connectionId: string; revision: string } },
   ): Promise<unknown> {
     assertMeriToolRequestActive();
     const schemas = await this.schemasForMeriV3(ctx);
