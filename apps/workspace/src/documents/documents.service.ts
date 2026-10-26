@@ -11,6 +11,7 @@ import { CollaboratorsService } from '../collaborators/collaborators.service.js'
 import { canEdit, canRead } from '../collaborators/role-policy.js';
 import type { CreateDocumentDto, UpdateDocumentDto } from './dto/document.dto.js';
 import { meriImportText } from './meri-import-text.js';
+import { withDraftWrite } from '../drafts/draft-write.js';
 import {
   prospectBriefCopyState,
   copyProspectBrief,
@@ -131,7 +132,7 @@ export class DocumentsService {
 
   async add(tenantId: string, draftId: string, actorId: string, dto: CreateDocumentDto) {
     const draft = await this.assertDraft(tenantId, draftId);
-    return withProspectDraft(this.prisma, draft, actorId, canEdit, 'write', async (db) => {
+    return withDraftWrite(this.prisma, draft, actorId, async (db) => {
       await this.assertCanEdit(tenantId, draftId, actorId);
       const count = await db.wsDocument.count({ where: { tenantId, draftId } });
       const doc = await db.wsDocument.create({
@@ -156,14 +157,14 @@ export class DocumentsService {
     dto: UpdateDocumentDto,
   ) {
     const draft = await this.assertDraft(tenantId, draftId);
-    return withProspectDraft(this.prisma, draft, actorId, canEdit, 'write', async (db) => {
+    return withDraftWrite(this.prisma, draft, actorId, async (db) => {
       await this.assertCanEdit(tenantId, draftId, actorId);
       if (draft.prospectId) await assertNoBoundBriefCopy(db, tenantId, draftId, docId);
       const existing = await db.wsDocument.findFirst({
         where: { id: docId, tenantId, draftId },
       });
       if (!existing) throw new NotFoundException('Document not found');
-      return db.wsDocument.update({
+      const updated = await db.wsDocument.update({
         where: { id: docId },
         data: {
           ...(dto.name !== undefined ? { name: dto.name } : {}),
@@ -171,6 +172,8 @@ export class DocumentsService {
           ...(dto.body !== undefined ? { body: dto.body as never } : {}),
         },
       });
+      await db.wsDraft.update({ where: { id: draftId, tenantId }, data: { lastEditedById: actorId } });
+      return updated;
     });
   }
 
@@ -181,7 +184,7 @@ export class DocumentsService {
     actorId: string,
   ): Promise<{ deleted: boolean }> {
     const draft = await this.assertDraft(tenantId, draftId);
-    return withProspectDraft(this.prisma, draft, actorId, canEdit, 'write', async (db) => {
+    return withDraftWrite(this.prisma, draft, actorId, async (db) => {
       await this.assertCanEdit(tenantId, draftId, actorId);
       if (draft.prospectId) await assertNoBoundBriefCopy(db, tenantId, draftId, docId);
       const existing = await db.wsDocument.findFirst({

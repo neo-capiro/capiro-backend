@@ -14,6 +14,7 @@ import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { DraftsService } from './drafts.service.js';
 import { CreateDraftDto, UpdateDraftDto, ListDraftsQueryDto } from './dto/draft.dto.js';
+import { SaveDraftDto } from './dto/save-draft.dto.js';
 
 /** Drafts CRUD + autosave (Phase 3, AC-3.3). All tenant-scoped. */
 @Controller('drafts')
@@ -36,6 +37,16 @@ export class DraftsController {
     // actorId gates the read: only the owner or an active collaborator may open
     // a draft (404 otherwise — documents are private until shared).
     return this.drafts.byId(ctx.tenantId, id, ctx.clerkUserId);
+  }
+
+  @Get(':id/state')
+  currentState(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('id') id: string) {
+    return this.drafts.currentState(ctx.tenantId, id, ctx.clerkUserId);
+  }
+
+  @Post(':id/save')
+  save(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('id') id: string, @Body() dto: SaveDraftDto) {
+    return this.drafts.save(ctx.tenantId, id, ctx.clerkUserId, dto);
   }
 
   /** PATCH = autosave target (debounced partial config/body/sections). */

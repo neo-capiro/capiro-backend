@@ -9,7 +9,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { isEmail } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { Prisma } from '../../generated/prisma-client/index.js';
@@ -47,6 +47,8 @@ import {
   type NewsletterCampaignConfig,
   type NewsletterRecipient,
   type NewsletterSavedSurvey,
+  type NewsletterPreview,
+  type NewsletterStage,
 } from '@capiro/shared/newsletter';
 import {
   renderNewsletterDesign,
@@ -104,8 +106,8 @@ export class NewsletterService {
   private scope(ctx: Identity) {
     return { tenantId: ctx.tenantId, ownerId: ctx.clerkUserId };
   }
-  private async row(ctx: Identity, id: string) {
-    const { row, role } = await this.reviewRow(ctx, id);
+  private async row(ctx: Identity, id: string, activateInvitations = true) {
+    const { row, role } = await this.reviewRow(ctx, id, activateInvitations);
     if (row.ownerId !== ctx.clerkUserId && role !== 'editor')
       throw new NotFoundException('Newsletter not found');
     return row;
@@ -646,8 +648,14 @@ export class NewsletterService {
     ctx: Identity,
     id: string,
     input: { recipient?: NewsletterRecipient; liveMergeTags?: boolean } = {},
-  ) {
+  ): Promise<NewsletterPreview> {
     const document = await this.get(ctx, id);
+    return this.renderPreview(document, input);
+  }
+  private renderPreview(
+    document: NewsletterCampaign,
+    input: { recipient?: NewsletterRecipient; liveMergeTags?: boolean } = {},
+  ): NewsletterPreview {
     const options = {
       sanitizeHtml: sanitizeNewsletterHtml,
       recipient: input.recipient,
@@ -655,13 +663,50 @@ export class NewsletterService {
       publicUrl: this.env.get<string>('WEB_PUBLIC_URL') || 'https://app.capiro.ai',
       editor: !input.recipient,
     };
+    const html = renderNewsletterDesign(document.design, document.config, options);
+    const plainText = newsletterPlainText(document.design, document.config, options);
     return {
-      html: renderNewsletterDesign(document.design, document.config, options),
-      plainText: newsletterPlainText(document.design, document.config, options),
+      documentId: document.id,
+      revision: document.revision,
+      renderHash: createHash('sha256').update(JSON.stringify({ html, plainText })).digest('hex'),
+      hashFormat: 'newsletter-render-json-v1',
+      html,
+      plainText,
       checks: this.checks(document.design, document.config),
     };
   }
+  /** Read-only recovery of an exact committed handoff. Current membership,
+   * editor access and every client retained by that snapshot still apply. */
+  async stagedRevision(ctx: Identity, id: string, revision: number): Promise<NewsletterStage | null> {
+    if (!Number.isSafeInteger(revision) || revision < 1)
+      throw new BadRequestException('Choose a valid saved revision.');
+    if (!(await this.source.newsletterMember(ctx.tenantId, ctx.clerkUserId)))
+      throw new NotFoundException('Newsletter not found');
+    await this.row(ctx, id, false);
+    const stage = await this.prisma.wsNewsletterStage.findFirst({
+      where: { ...this.scope(ctx), documentId: id, revision },
+    });
+    if (!stage) return null;
+    await this.assertDesignClients(
+      ctx,
+      stage.design as unknown as NewsletterDesign,
+      (stage.config as unknown as NewsletterCampaignConfig).clientId,
+    );
+    return this.stageView(stage);
+  }
+  private stageView(stage: { id: string; documentId: string; revision: number; name: string; createdAt: Date }): NewsletterStage {
+    return {
+      id: stage.id,
+      documentId: stage.documentId,
+      revision: stage.revision,
+      name: stage.name,
+      createdAt: stage.createdAt.toISOString(),
+      route: `/engagement/outreach?newsletterStage=${encodeURIComponent(stage.id)}`,
+    };
+  }
   async stage(ctx: Identity, id: string, revision: number) {
+    const prior = await this.stagedRevision(ctx, id, revision);
+    if (prior) return prior;
     const document = await this.get(ctx, id);
     if (revision !== document.revision)
       throw new ConflictException('Save the latest design before staging.');
@@ -670,7 +715,7 @@ export class NewsletterService {
     );
     if (errors.length)
       throw new BadRequestException(errors.map((c) => c.label + ': ' + c.detail).join(' '));
-    const preview = await this.preview(ctx, id);
+    const preview = this.renderPreview(document);
     const stage = await this.prisma.$transaction(async (tx) => {
       // Claim this exact revision atomically. A racing edit makes the handoff stale.
       const claimed = await tx.wsNewsletterDocument.updateMany({
@@ -696,14 +741,7 @@ export class NewsletterService {
         },
       });
     });
-    return {
-      id: stage.id,
-      documentId: id,
-      revision,
-      name: stage.name,
-      createdAt: stage.createdAt.toISOString(),
-      route: `/engagement/outreach?newsletterStage=${encodeURIComponent(stage.id)}`,
-    };
+    return this.stageView(stage);
   }
   async comments(ctx: Identity, id: string) {
     await this.reviewRow(ctx, id);
@@ -938,7 +976,7 @@ export class NewsletterService {
     if (!result.count) throw new NotFoundException('Comment not found');
     return this.comments(ctx, id);
   }
-  private async reviewRow(ctx: Identity, id: string) {
+  private async reviewRow(ctx: Identity, id: string, activateInvitations = true) {
     if (!isUuid(id)) throw new NotFoundException('Newsletter not found');
     const row = await this.prisma.wsNewsletterDocument.findFirst({
       where: { id, tenantId: ctx.tenantId },
@@ -949,7 +987,7 @@ export class NewsletterService {
       let grant = await this.prisma.wsNewsletterReviewer.findFirst({
         where: { documentId: id, tenantId: ctx.tenantId, userId: ctx.clerkUserId },
       });
-      if (!grant) {
+      if (!grant && activateInvitations) {
         await this.activateInvitations(ctx, row);
         grant = await this.prisma.wsNewsletterReviewer.findFirst({
           where: { documentId: id, tenantId: ctx.tenantId, userId: ctx.clerkUserId },
