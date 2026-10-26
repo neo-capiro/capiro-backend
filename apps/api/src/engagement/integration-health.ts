@@ -100,6 +100,20 @@ export function integrationStatusProjection(connection: ConnectionProjectionInpu
   const subscriptions = Array.isArray(webhooks.subscriptions) ? webhooks.subscriptions.map(object) : [];
   const coverage = getMailSyncCoverage(connection);
   const health = healthProjection(state.health);
+  const resources = subscriptions
+    .filter((row) => ['me/events', 'me/messages'].includes(String(row.resource)))
+    .map((row) => ({
+      resource: String(row.resource), expiresAt: instant(row.expirationDateTime),
+      lastRenewedAt: instant(row.lastRenewedAt), needsReauthorization: row.needsReauthorization === true,
+    }));
+  // The stored webhooks.configured flag is written only by the renewal path itself, so a worker
+  // that is not running leaves it stale-true after every subscription has lapsed. Derive readiness
+  // from the recorded resources with the same predicate configureSubscriptionsByTenant writes that
+  // flag with, so Settings cannot keep claiming realtime is configured past expiry.
+  const configured = (['me/events', 'me/messages'] as const).every((resource) =>
+    resources.some((item) => item.resource === resource && !item.needsReauthorization &&
+      item.expiresAt !== null && Date.parse(item.expiresAt) > Date.now()),
+  );
   return {
     id: connection.id, provider: connection.provider, accountEmail: connection.accountEmail,
     displayName: connection.displayName, status: connection.status, scopes: connection.scopes,
@@ -108,13 +122,10 @@ export function integrationStatusProjection(connection: ConnectionProjectionInpu
     permissions: { requestedScopes, grantedScopes: lastVerifiedAt ? scopes(verification.grantedScopes) : null, lastVerifiedAt },
     health, mailCoverage: coverage,
     subscriptions: {
-      configured: webhooks.configured === true,
+      configured,
       updatedAt: instant(webhooks.updatedAt), lastNotificationAt: instant(webhooks.lastNotificationAt),
       lastLifecycleEvent: ['missed', 'subscriptionRemoved', 'reauthorizationRequired'].includes(String(webhooks.lastLifecycleEvent)) ? String(webhooks.lastLifecycleEvent) : null,
-      resources: subscriptions.filter((row) => ['me/events', 'me/messages'].includes(String(row.resource))).map((row) => ({
-        resource: String(row.resource), expiresAt: instant(row.expirationDateTime),
-        lastRenewedAt: instant(row.lastRenewedAt), needsReauthorization: row.needsReauthorization === true,
-      })),
+      resources,
     },
   };
 }
