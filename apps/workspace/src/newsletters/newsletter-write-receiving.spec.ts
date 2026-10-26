@@ -1,6 +1,8 @@
 import {
   parseNewsletterCampaign,
   parseNewsletterWriteReceipt,
+  parseNewsletterSaveRefusal,
+  type NewsletterSaveRefusal,
   type NewsletterWriteReceipt,
 } from '@capiro/shared/newsletter';
 
@@ -19,6 +21,64 @@ const receipt: NewsletterWriteReceipt = {
   hashFormat: 'newsletter-write-jcs-v1',
   createdAt: '2026-10-26T00:00:00.000Z',
 };
+const refusal: NewsletterSaveRefusal = {
+  code: 'NEWSLETTER_SAVE_CAS_REFUSED',
+  disposition: 'not_committed',
+  ...save,
+};
+it('CAS refusal binds the acknowledged attempt and preserves the exact content-free body', () => {
+  const got = parseNewsletterSaveRefusal(refusal, save);
+  expect(got).toEqual({ ok: true, value: refusal });
+  if (got.ok) expect(got.value).not.toBe(refusal);
+  expect(
+    parseNewsletterSaveRefusal(refusal, { ...save, documentId: documentId.toUpperCase() }).ok,
+  ).toBe(true);
+  expect(parseNewsletterWriteReceipt(refusal, save).ok).toBe(false);
+});
+it('CAS refusal rejects generic errors, absence, partial/extra data and every mismatched binding', () => {
+  for (const body of [
+    null,
+    undefined,
+    {},
+    receipt,
+    { statusCode: 409, message: 'Conflict' },
+    { ...refusal, disposition: 'unknown' },
+    { ...refusal, code: 'CONFLICT' },
+    { ...refusal, statusCode: 409 },
+    { ...refusal, inputHash: 'a'.repeat(64) },
+  ])
+    expect(parseNewsletterSaveRefusal(body, save).ok).toBe(false);
+  for (const key of Object.keys(refusal)) {
+    const missing = { ...refusal };
+    delete missing[key as keyof NewsletterSaveRefusal];
+    expect(parseNewsletterSaveRefusal(missing, save).ok).toBe(false);
+    expect(parseNewsletterSaveRefusal({ ...refusal, [key]: null }, save).ok).toBe(false);
+  }
+  for (const binding of [
+    { ...save, requestId: documentId },
+    { ...save, documentId: requestId },
+    { ...save, previousRevision: 2 },
+    { ...save, operation: 'create' },
+    { ...save, extra: true },
+    { ...save, previousRevision: 0 },
+    { ...save, requestId: 'bad' },
+  ])
+    expect(parseNewsletterSaveRefusal(refusal, binding as never).ok).toBe(false);
+  // @ts-expect-error A no-write acknowledgement cannot be used without its retained binding.
+  expect(parseNewsletterSaveRefusal(refusal).ok).toBe(false);
+  for (const key of Object.keys(save)) {
+    const missing = { ...save };
+    delete missing[key as keyof typeof save];
+    expect(parseNewsletterSaveRefusal(refusal, missing as never).ok).toBe(false);
+  }
+});
+it('CAS refusal rejects unsafe data and expectation accessors without executing them', () => {
+  const getter = jest.fn();
+  const hostile = Object.defineProperty({}, 'requestId', { get: getter, enumerable: true });
+  expect(parseNewsletterSaveRefusal(hostile, save).ok).toBe(false);
+  expect(parseNewsletterSaveRefusal(refusal, hostile as never).ok).toBe(false);
+  expect(getter).not.toHaveBeenCalled();
+});
 it('receives only exact create/save bindings and clones the content-free receipt', () => {
   const got = parseNewsletterWriteReceipt(receipt, save);
   expect(got).toEqual({ ok: true, value: receipt });

@@ -8,6 +8,7 @@ import type {
   NewsletterPreview,
   NewsletterStage,
   NewsletterWriteReceipt,
+  NewsletterSaveRefusal,
 } from './newsletter.js';
 import {
   NEWSLETTER_BLOCK_KINDS,
@@ -846,6 +847,38 @@ export function parseNewsletterWriteReceipt(
         key === 'requestId' || key === 'documentId'
           ? String(wanted).toLowerCase() === String(actual).toLowerCase()
           : wanted === actual;
+      if (!equal) refuse(`$.${key}`, 'identity_mismatch');
+    }
+  });
+}
+/** Only the matched acknowledged attempt may be retired. Generic errors/absence are unknown. */
+export function parseNewsletterSaveRefusal(
+  value: unknown,
+  expected: Pick<NewsletterSaveRefusal, 'requestId' | 'operation' | 'documentId' | 'previousRevision'>,
+): NewsletterReceiveResult<NewsletterSaveRefusal> {
+  const bindingFields = {
+    requestId: workspaceUuid,
+    operation: literal('save'),
+    documentId: workspaceUuid,
+    previousRevision: revision,
+  };
+  const fields = {
+    code: literal('NEWSLETTER_SAVE_CAS_REFUSED'),
+    disposition: literal('not_committed'),
+    ...bindingFields,
+  };
+  return receive(value, object(fields), (value) => {
+    const refusal = row(value, '$');
+    for (const key of Object.keys(refusal))
+      if (!Object.prototype.hasOwnProperty.call(fields, key)) refuse(`$.${key}`);
+    const binding = row(snapshot(expected), '$expected');
+    object(bindingFields)(binding, '$expected');
+    for (const key of Object.keys(binding)) {
+      if (!Object.prototype.hasOwnProperty.call(bindingFields, key)) refuse(`$expected.${key}`);
+      const equal =
+        key === 'requestId' || key === 'documentId'
+          ? String(binding[key]).toLowerCase() === String(refusal[key]).toLowerCase()
+          : binding[key] === refusal[key];
       if (!equal) refuse(`$.${key}`, 'identity_mismatch');
     }
   });

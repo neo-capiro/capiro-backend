@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
-import type { NewsletterWriteReceipt } from '@capiro/shared/newsletter';
+import type { NewsletterSaveRefusal, NewsletterWriteReceipt } from '@capiro/shared/newsletter';
 import type { Prisma } from '../../generated/prisma-client/index.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { isUuid } from '../hillday/hillday-source.service.js';
@@ -66,19 +66,17 @@ export async function commitNewsletterRequest(
   ctx: NewsletterWriteIdentity,
   request: {
     requestId: string;
-    operation: 'create' | 'save';
     inputHash: string;
-    documentId?: string;
-  },
+  } & ({ operation: 'create' } | { operation: 'save'; documentId: string; previousRevision: number }),
   write: (tx: Prisma.TransactionClient) => Promise<{
     id: string;
     revision: number;
     previousRevision: number | null;
     contentHash: string;
     sourceClientIds: string[];
-  }>,
+  } | null>,
 ): Promise<NewsletterReceiptRow> {
-  return prisma.$transaction(
+  const result = await prisma.$transaction(
     async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.current_tenant',${ctx.tenantId},true)`;
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${JSON.stringify(['newsletter-write', ctx.tenantId, ctx.clerkUserId, request.requestId])},0))`;
@@ -87,7 +85,7 @@ export async function commitNewsletterRequest(
         if (
           prior.operation !== request.operation ||
           prior.input_hash !== request.inputHash ||
-          (request.documentId !== undefined && prior.document_id !== request.documentId)
+          (request.operation === 'save' && prior.document_id !== request.documentId)
         )
           throw new ConflictException(
             'This newsletter requestId is already bound to different inputs.',
@@ -95,6 +93,9 @@ export async function commitNewsletterRequest(
         return prior;
       }
       const saved = await write(tx);
+      // A fresh zero-update save has no document/receipt write. Settle this transaction
+      // successfully before exposing that fact; callback/commit/rollback errors stay unknown.
+      if (saved === null) return null;
       const [receipt] = await tx.$queryRaw<
         NewsletterReceiptRow[]
       >`INSERT INTO ws_newsletter_write_receipt
@@ -107,4 +108,17 @@ export async function commitNewsletterRequest(
     },
     { timeout: 30000 },
   );
+  if (result === null) {
+    if (request.operation !== 'save') throw new Error('Unexpected empty newsletter create result');
+    const refusal: NewsletterSaveRefusal = {
+      code: 'NEWSLETTER_SAVE_CAS_REFUSED',
+      disposition: 'not_committed',
+      requestId: request.requestId,
+      operation: 'save',
+      documentId: request.documentId,
+      previousRevision: request.previousRevision,
+    };
+    throw new ConflictException(refusal);
+  }
+  return result;
 }
