@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -17,6 +18,7 @@ import type { WorkspaceBlueprintDefinition } from './template-definition.js';
 import type { WorkspaceBlueprintSampleTest } from '@capiro/shared/workspace-template-studio';
 import { TemplateValidator } from './template-validator.js';
 import type {
+  BlueprintVersionExpectationDto,
   CloneBlueprintDto,
   CompareVersionsResult,
   CreateBlueprintDto,
@@ -61,6 +63,11 @@ export class TemplateStudioService {
     if (blueprint.tenantId === null && blueprint.ownerId !== actorId)
       throw new ForbiddenException('Only the original owner can change a global blueprint');
     return blueprint;
+  }
+
+  private assertExpectedDefinitionHash(version: WsBlueprintVersion, expectedHash?: string): void {
+    if (expectedHash !== undefined && expectedHash !== version.definitionHash)
+      throw new ConflictException('Blueprint definition changed; read it again before saving');
   }
 
   /** Bind each write to the version that was checked; publication cannot race a draft edit. */
@@ -221,6 +228,8 @@ export class TemplateStudioService {
     dto: CloneBlueprintDto,
   ): Promise<WsBlueprintVersion> {
     const blueprint = await this.writableBlueprint(tenantId, blueprintId, clerkUserId);
+    if (dto.expectedDefinitionHash !== undefined && !dto.fromVersionId)
+      throw new BadRequestException('Select a source version when supplying its definition hash');
     const source = dto.fromVersionId
       ? await this.getVersion(tenantId, blueprintId, dto.fromVersionId)
       : await this.prisma.wsBlueprintVersion.findFirst({
@@ -228,6 +237,7 @@ export class TemplateStudioService {
           orderBy: { version: 'desc' },
         });
     if (!source) throw new NotFoundException('No source version to clone');
+    this.assertExpectedDefinitionHash(source, dto.expectedDefinitionHash);
     const versions = await this.prisma.wsBlueprintVersion.findMany({
       where: { blueprintId },
       orderBy: { version: 'desc' },
@@ -261,6 +271,7 @@ export class TemplateStudioService {
   ): Promise<WsBlueprintVersion> {
     await this.writableBlueprint(tenantId, blueprintId, clerkUserId);
     const version = await this.getVersion(tenantId, blueprintId, versionId);
+    this.assertExpectedDefinitionHash(version, dto.expectedDefinitionHash);
     if (version.status !== 'draft') {
       throw new ConflictException(
         `Blueprint version is ${version.status} and cannot be edited`,
@@ -367,9 +378,11 @@ export class TemplateStudioService {
     blueprintId: string,
     versionId: string,
     clerkUserId: string,
+    dto: BlueprintVersionExpectationDto = {},
   ): Promise<WsBlueprintVersion> {
     await this.writableBlueprint(tenantId, blueprintId, clerkUserId);
     const version = await this.getVersion(tenantId, blueprintId, versionId);
+    this.assertExpectedDefinitionHash(version, dto.expectedDefinitionHash);
     if (version.status !== 'draft') {
       throw new ConflictException(
         `Blueprint version is ${version.status}; only draft versions can be published`,
@@ -403,9 +416,11 @@ export class TemplateStudioService {
     blueprintId: string,
     versionId: string,
     clerkUserId: string,
+    dto: BlueprintVersionExpectationDto = {},
   ): Promise<WsBlueprintVersion> {
     await this.writableBlueprint(tenantId, blueprintId, clerkUserId);
     const version = await this.getVersion(tenantId, blueprintId, versionId);
+    this.assertExpectedDefinitionHash(version, dto.expectedDefinitionHash);
     if (version.status !== 'published') {
       throw new ConflictException(
         `Blueprint version is ${version.status}; only published versions can be retired`,

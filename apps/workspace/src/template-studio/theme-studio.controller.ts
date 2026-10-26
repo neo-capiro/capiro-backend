@@ -4,6 +4,7 @@ import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { ThemeStudioService } from './theme-studio.service.js';
 import {
+  ThemeVersionExpectationDto,
   CreateThemeDto,
   SaveThemeDraftDto,
   CreateThemeVersionDto,
@@ -81,12 +82,14 @@ export class ThemeStudioController {
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('themeId') themeId: string,
     @Param('versionId') versionId: string,
+    @Body() dto: ThemeVersionExpectationDto = {},
   ) {
     return this.themeStudio.publishVersion(
       ctx.tenantId,
       themeId,
       versionId,
       ctx.clerkUserId,
+      dto,
     );
   }
 
@@ -96,12 +99,14 @@ export class ThemeStudioController {
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('themeId') themeId: string,
     @Param('versionId') versionId: string,
+    @Body() dto: ThemeVersionExpectationDto = {},
   ) {
     return this.themeStudio.retireVersion(
       ctx.tenantId,
       themeId,
       versionId,
       ctx.clerkUserId,
+      dto,
     );
   }
 }

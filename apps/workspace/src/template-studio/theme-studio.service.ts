@@ -11,7 +11,7 @@ import type {
   WsThemeVersion,
   WsThemeVersionStatus,
 } from '../../generated/prisma-client/index.js';
-import type { CreateThemeDto, SaveThemeDraftDto, CreateThemeVersionDto } from './dto/theme.dto.js';
+import type { CreateThemeDto, SaveThemeDraftDto, CreateThemeVersionDto, ThemeVersionExpectationDto } from './dto/theme.dto.js';
 
 /**
  * Theme Studio — document theme CRUD with versioned, immutable published
@@ -135,6 +135,7 @@ export class ThemeStudioService {
     dto: SaveThemeDraftDto,
   ): Promise<WsThemeVersion> {
     const version = await this.getVersion(tenantId, themeId, versionId);
+    this.assertExpectedSettingsHash(version, dto.expectedSettingsHash);
     if (version.status !== 'draft') {
       throw new ConflictException(
         `Theme version is ${version.status} and cannot be edited`,
@@ -153,8 +154,10 @@ export class ThemeStudioService {
     themeId: string,
     versionId: string,
     clerkUserId: string,
+    dto: ThemeVersionExpectationDto = {},
   ): Promise<WsThemeVersion> {
     const version = await this.getVersion(tenantId, themeId, versionId);
+    this.assertExpectedSettingsHash(version, dto.expectedSettingsHash);
     if (version.status !== 'draft') {
       throw new ConflictException(
         `Theme version is ${version.status}; only draft versions can be published`,
@@ -175,8 +178,10 @@ export class ThemeStudioService {
     themeId: string,
     versionId: string,
     clerkUserId: string,
+    dto: ThemeVersionExpectationDto = {},
   ): Promise<WsThemeVersion> {
     const version = await this.getVersion(tenantId, themeId, versionId);
+    this.assertExpectedSettingsHash(version, dto.expectedSettingsHash);
     if (version.status !== 'published') {
       throw new ConflictException(
         `Theme version is ${version.status}; only published versions can be retired`,
@@ -189,6 +194,11 @@ export class ThemeStudioService {
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────
+
+  private assertExpectedSettingsHash(version: WsThemeVersion, expectedHash?: string): void {
+    if (expectedHash !== undefined && expectedHash !== version.settingsHash)
+      throw new ConflictException('Theme settings changed; read them again before saving');
+  }
 
   /** A draft edit cannot land after publication, or publish a different checked hash. */
   private async updateCurrentVersion(

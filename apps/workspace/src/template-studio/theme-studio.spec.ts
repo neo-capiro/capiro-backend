@@ -1,5 +1,8 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { ThemeStudioService } from './theme-studio.service.js';
+import { validate } from 'class-validator';
+import { SaveThemeDraftDto, ThemeVersionExpectationDto } from './dto/theme.dto.js';
+import { ThemeStudioController } from './theme-studio.controller.js';
 
 function fixture(status = 'draft') {
   let row = {
@@ -119,5 +122,68 @@ describe('Theme version conditional writes', () => {
     await expect(
       f.service.saveDraft('tenant', 'theme', 'version', { settings: {} }),
     ).rejects.toThrow('write failed');
+  });
+});
+
+const expectedActions: Array<
+  [string, (service: ThemeStudioService, hash: string) => Promise<unknown>]
+> = [
+  [
+    'save',
+    (service, expectedSettingsHash) =>
+      service.saveDraft('tenant', 'theme', 'version', { settings: {}, expectedSettingsHash }),
+  ],
+  [
+    'publish',
+    (service, expectedSettingsHash) =>
+      service.publishVersion('tenant', 'theme', 'version', 'member', { expectedSettingsHash }),
+  ],
+  [
+    'retire',
+    (service, expectedSettingsHash) =>
+      service.retireVersion('tenant', 'theme', 'version', 'member', { expectedSettingsHash }),
+  ],
+];
+describe('Theme displayed-settings precondition', () => {
+  it('admits omitted/matching request preconditions and refuses null or malformed hashes', async () => {
+    for (const dto of [
+      new ThemeVersionExpectationDto(),
+      Object.assign(new SaveThemeDraftDto(), { settings: {} }),
+    ]) {
+      expect(await validate(dto, { whitelist: true, forbidNonWhitelisted: true })).toEqual([]);
+      Object.assign(dto, { expectedSettingsHash: 'a'.repeat(64) });
+      expect(await validate(dto, { whitelist: true, forbidNonWhitelisted: true })).toEqual([]);
+      for (const invalid of [null, '', 'short', 'A'.repeat(64), 1]) {
+        Object.assign(dto, { expectedSettingsHash: invalid });
+        expect(
+          (await validate(dto)).some((error) => error.property === 'expectedSettingsHash'),
+        ).toBe(true);
+      }
+    }
+  });
+  it('forwards lifecycle request bodies through the existing controller', () => {
+    const service = { publishVersion: jest.fn(), retireVersion: jest.fn() };
+    const controller = new ThemeStudioController(service as never);
+    const dto = { expectedSettingsHash: 'a'.repeat(64) },
+      ctx = { tenantId: 'tenant', clerkUserId: 'member', role: null };
+    controller.publishVersion(ctx, 'theme', 'version', dto);
+    controller.retireVersion(ctx, 'theme', 'version', dto);
+    expect(service.publishVersion).toHaveBeenCalledWith(
+      'tenant',
+      'theme',
+      'version',
+      'member',
+      dto,
+    );
+    expect(service.retireVersion).toHaveBeenCalledWith('tenant', 'theme', 'version', 'member', dto);
+  });
+  it.each(expectedActions)('refuses stale displayed hash before %s writes', async (name, act) => {
+    const f = fixture(name === 'retire' ? 'published' : 'draft');
+    await expect(act(f.service, 'stale-hash')).rejects.toBeInstanceOf(ConflictException);
+    expect(f.db.wsThemeVersion.update).not.toHaveBeenCalled();
+  });
+  it.each(expectedActions)('accepts exact displayed hash for %s', async (name, act) => {
+    const f = fixture(name === 'retire' ? 'published' : 'draft');
+    await expect(act(f.service, f.current().settingsHash)).resolves.toBeDefined();
   });
 });
