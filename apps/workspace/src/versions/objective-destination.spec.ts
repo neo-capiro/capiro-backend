@@ -31,7 +31,7 @@ function harness() {
     if (text.includes('FROM tenant_memberships')) return state.member && params[1] === clerkUserId ? [{ userId }] : [];
     if (text.includes('FROM tenants t')) return state.objectiveScope && state.tenant && state.member && state.client ? [{ userId, memoryWall: state.memoryWall }] : [];
     if (text.includes('FROM tenants ')) return state.tenant && params[0] === tenantId ? [{ id: tenantId }] : [];
-    if (text.includes('FROM ws_draft')) return state.draft && String(params[1]).toLowerCase() === draftId ? [{ ownerId: state.ownerId, prospectId: state.prospectId, config: state.currentConfig, client: state.clientDisplay }] : [];
+    if (text.includes('FROM ws_draft')) return state.draft && String(params[1]).toLowerCase() === draftId ? [{ ownerId: state.ownerId, prospectId: state.prospectId, config: state.currentConfig, client: state.clientDisplay, clientId }] : [];
     if (text.includes('FROM ws_source_action')) return state.sourceType ? [{ sourceType: state.sourceType }] : [];
     if (text.includes('FROM ws_collaborator')) return state.role ? [{ role: state.role }] : [];
     if (text.includes('FROM ws_doc_version')) return state.version && String(params[1]).toLowerCase() === draftId && String(params[2]).toLowerCase() === versionId ? [{ id: versionId, snapshot: state.snapshot, authorId: 'user_original', authorKind: 'person', createdAt: new Date('2026-10-12T00:00:00Z') }] : [];
@@ -55,6 +55,33 @@ function harness() {
 }
 
 describe('canonical saved Workspace revision Objective destination', () => {
+  it('publishes the same explicit projection identity through selected revision and Objective reads', async () => {
+    const h = harness();
+    h.state.snapshot.config.product = 'Newsletter';
+    h.state.snapshot.documents[0].body.newsletter = {
+      subject: 'Email subject — 日本語', preview: '', firmName: '', mailingAddress: '',
+      blocks: [{ id: 'text', kind: 'paragraph', text: 'The authored body.' }],
+    };
+    const selected = await h.service.outreachRevision(tenantId, draftId, versionId, clerkUserId);
+    const destination = await h.resolve();
+    expect(selected.contentSkeleton).toEqual({ subject: 'Email subject — 日本語', body: 'The authored body.', slots: [] });
+    expect(selected.projectionVersion).toBe('workspace-newsletter-plaintext-v2');
+    expect(selected.projectionHash).toBe(hash({ projectionVersion: 'workspace-newsletter-plaintext-v2', contentSkeleton: selected.contentSkeleton }));
+    expect(destination.projectionHash).toBe(selected.projectionHash);
+    expect(selected.snapshotHash).toBe(hash(h.state.snapshot));
+    expect(selected).toMatchObject({ authorId: 'user_original', savedAt: '2026-10-12T00:00:00.000Z', clientId });
+    expect(selected).not.toHaveProperty('projectionJson'); expect(selected).not.toHaveProperty('snapshotJson');
+  });
+  it('retains generic saved document projection and attribution', async () => {
+    const h = harness(); const selected = await h.service.outreachRevision(tenantId, draftId, versionId, clerkUserId);
+    expect(selected.projectionVersion).toBe('workspace-outreach-plaintext-v1');
+    expect(selected.contentSkeleton).toEqual({ subject: 'Saved work', body: 'Update\nExact saved prose.', slots: [] });
+    expect(selected.projectionHash).toMatch(/^[0-9a-f]{64}$/);
+  });
+  it('refuses a selected Newsletter with a missing authored body rather than returning derived text', async () => {
+    const h = harness(); h.state.snapshot.config.product = 'Newsletter';
+    await expect(h.service.outreachRevision(tenantId, draftId, versionId, clerkUserId)).rejects.toBeInstanceOf(NotFoundException);
+  });
   it('binds exact saved version and parent to current Objective revision in one read-only transaction', async () => {
     const h = harness(); const result = await h.resolve();
     expect(result.destination).toEqual({ kind: 'workspace_saved_revision', resourceId: versionId, draftId, clientId, objectiveId, objectiveVersion: 3, objectiveRevisionId });
@@ -152,6 +179,14 @@ describe('saved revision Objective destination transport', () => {
     const response = await request(app.getHttpServer()).get(path).query(query);
     expect(response.status).toBe(200); expect(response.headers['cache-control']).toBe('private, no-store');
     expect(response.body.destination.resourceId).toBe(versionId);
+  });
+  it('exposes projection identity on the actual selected-revision GET route', async () => {
+    const response = await request(app.getHttpServer()).get(`/workspace-api/drafts/${draftId}/versions/${versionId}/outreach-revision`);
+    expect(response.status).toBe(200);
+    expect(response.body.projectionVersion).toBe('workspace-outreach-plaintext-v1');
+    expect(response.body.projectionHash).toBe(hash({ projectionVersion: 'workspace-outreach-plaintext-v1', contentSkeleton: response.body.contentSkeleton }));
+    expect(response.body.snapshotHash).toBe(hash(snapshot));
+    expect(response.body).not.toHaveProperty('projectionJson');
   });
   it.each(['clientId', 'objectiveId', 'objectiveVersion'])('requires query field %s', async (field) => {
     const data = { ...query }; delete (data as any)[field]; expect((await request(app.getHttpServer()).get(path).query(data)).status).toBe(400);

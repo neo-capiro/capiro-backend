@@ -74,15 +74,22 @@ export class OutreachCommandEngineService {
       versionId: z.string().guid().transform((s) => s.toLowerCase()),
       snapshotHash: z.string().regex(/^[0-9a-f]{64}$/),
       expectedStateVersion: z.number().int().positive(),
-    }).strict().parse(input);
+      projectionVersion: z.enum(['workspace-outreach-plaintext-v1', 'workspace-newsletter-plaintext-v2']).optional(),
+      projectionHash: z.string().regex(/^[0-9a-f]{64}$/).optional(),
+    }).strict().refine((value) => (value.projectionVersion === undefined) === (value.projectionHash === undefined),
+      'Projection version and hash must be supplied together.').parse(input);
     sessionId = z.string().guid().parse(sessionId).toLowerCase();
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const session = await this.repository.lockOwnedSession(tx, ctx, sessionId);
+      const prior = await this.repository.findBatchResult(tx, ctx, session.id, selected.requestId);
       let revision;
       try {
         revision = await workspaceSavedOutreachRevisionWithinTx(tx, {
           tenantId: ctx.tenantId, clerkUserId: ctx.clerkUserId, userId: ctx.userId,
           draftId: selected.draftId, versionId: selected.versionId,
+          // A pre-existing unpinned request used v1. Never reinterpret that
+          // request using a new projection, even when the saved body is Newsletter.
+          ...(prior ? { projectionVersion: selected.projectionVersion ?? 'workspace-outreach-plaintext-v1' as const } : {}),
         });
       } catch (error) {
         if (error instanceof WorkspaceRevisionUnavailable) throw unauthorizedReference('saved Workspace');
@@ -91,6 +98,11 @@ export class OutreachCommandEngineService {
       const snapshotHash = createHash('sha256').update(revision.snapshotJson).digest('hex');
       if (snapshotHash !== selected.snapshotHash) {
         throw new OutreachCommandError('OUTREACH_STATE_CONFLICT', 'The selected saved revision hash does not match. Refresh the selection.', 409);
+      }
+      const projectionHash = createHash('sha256').update(revision.projectionJson).digest('hex');
+      if ((selected.projectionVersion && (selected.projectionVersion !== revision.projectionVersion || selected.projectionHash !== projectionHash)) ||
+          (!selected.projectionVersion && revision.projectionVersion !== 'workspace-outreach-plaintext-v1')) {
+        throw new OutreachCommandError('OUTREACH_STATE_CONFLICT', 'Confirm the exact saved projection version and hash before staging.', 409);
       }
       const current = await this.repository.loadStateVersion(tx, ctx, session.id, session.currentStateVersion);
       const spec = this.parseAndVerifyState(current.specJsonb, current.specHash);
@@ -111,8 +123,9 @@ export class OutreachCommandEngineService {
         authorId: revision.authorId, authorKind: revision.authorKind,
         expectedStateVersion: selected.expectedStateVersion,
         commandHash: hashNormalizedOutreachCommandBatch(batch),
+        // Keep historical unpinned provenance byte-equivalent for exact replay.
+        ...(selected.projectionVersion ? { projectionVersion: revision.projectionVersion, projectionHash } : {}),
       };
-      const prior = await this.repository.findBatchResult(tx, ctx, session.id, batch.batchId);
       if (prior) {
         const staging = (prior.safeMetadataJsonb as { savedRevisionStaging?: unknown } | null)?.savedRevisionStaging;
         // Generic command IDs and staging IDs share the existing durable unique
