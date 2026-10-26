@@ -4,6 +4,7 @@ import type {
   NewsletterCampaignConfig,
   NewsletterCheck,
   NewsletterDesign,
+  NewsletterPreview,
   NewsletterStage,
 } from './newsletter.js';
 import {
@@ -53,12 +54,8 @@ export interface OutreachDraftVersionDto {
 export interface NewsletterDocumentList {
   items: NewsletterCampaign[];
 }
-/** Saved-state rendering; the owner does not return a document/revision token here. */
-export interface NewsletterPreview {
-  html: string;
-  plainText: string;
-  checks: NewsletterCheck[];
-}
+/** Unbound rendering remains usable as content, never as an exact saved-revision receipt. */
+export type NewsletterPreviewContent = Pick<NewsletterPreview, 'html' | 'plainText' | 'checks'>;
 export type NewsletterJson =
   null | boolean | number | string | NewsletterJson[] | NewsletterJsonObject;
 export interface NewsletterJsonObject {
@@ -777,9 +774,49 @@ export function parseNewsletterDocumentList(
 export function parseNewsletterChecks(value: unknown): NewsletterReceiveResult<NewsletterCheck[]> {
   return receive(value, array(check));
 }
-/** HTML is wire text here. Rendering in a browser still requires the consumer's sanitation boundary. */
-export function parseNewsletterPreview(value: unknown): NewsletterReceiveResult<NewsletterPreview> {
-  return receive(value, object({ html: text, plainText: text, checks: array(check) }));
+/**
+ * Supply both expected fields to receive a pinned preview. The one-argument form preserves
+ * unpinned content compatibility and does not claim a saved revision. Any supplied pin must
+ * be complete and valid. The digest is the producer's receipt, not a client-recomputed hash.
+ * HTML remains wire text and still requires the consumer's sanitation boundary.
+ */
+export function parseNewsletterPreview(
+  value: unknown,
+  expected: Pick<NewsletterPreview, 'documentId' | 'revision'>,
+): NewsletterReceiveResult<NewsletterPreview>;
+export function parseNewsletterPreview(
+  value: unknown,
+): NewsletterReceiveResult<NewsletterPreviewContent>;
+export function parseNewsletterPreview(
+  value: unknown,
+  expected?: Pick<NewsletterPreview, 'documentId' | 'revision'>,
+): NewsletterReceiveResult<NewsletterPreviewContent> {
+  return receive(
+    value,
+    (value, path) => {
+      object({ html: text, plainText: text, checks: array(check) })(value, path);
+      const preview = row(value, path);
+      if (
+        expected !== undefined ||
+        ['documentId', 'revision', 'renderHash', 'hashFormat'].some((key) =>
+          Object.prototype.hasOwnProperty.call(preview, key),
+        )
+      )
+        object({
+          documentId: workspaceUuid,
+          revision,
+          renderHash: (value, path) => {
+            if (typeof value !== 'string' || !/^[a-f\d]{64}$/.test(value)) refuse(path);
+          },
+          hashFormat: literal('newsletter-render-json-v1'),
+        })(value, path);
+    },
+    (value) => {
+      if (expected === undefined) return;
+      object({ documentId: workspaceUuid, revision })(snapshot(expected), '$expected');
+      identity(row(value, '$'), expected, ['documentId', 'revision']);
+    },
+  );
 }
 export function parseNewsletterHtmlCheck(
   value: unknown,
