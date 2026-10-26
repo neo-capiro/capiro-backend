@@ -10,6 +10,7 @@ import {
   Optional,
   NotFoundException,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Put,
@@ -583,6 +584,12 @@ class MeetingLibraryQueryDto {
   @IsInt()
   @Min(1)
   limit?: number;
+}
+
+class ReadTaskQueryDto {
+  @IsOptional()
+  @IsUUID()
+  clientId?: string;
 }
 
 class CreateTaskDto {
@@ -2908,6 +2915,16 @@ export class EngagementController {
   @Post('tasks')
   createTask(@CurrentTenant() ctx: TenantContext, @Body() body: CreateTaskDto) {
     return this.service.createTask(ctx, body);
+  }
+
+  @Get('tasks/:id')
+  @Header('Cache-Control', 'no-store')
+  task(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Query() query: ReadTaskQueryDto,
+  ) {
+    return this.service.readTask(ctx, id, query.clientId);
   }
 
   @Patch('tasks/:id')

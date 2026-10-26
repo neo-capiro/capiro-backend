@@ -5164,6 +5164,42 @@ export class EngagementService {
     });
   }
 
+  /** Current Workspace destination for an EngagementTask receipt, independent of list pagination. */
+  async readTask(ctx: TenantContext, taskId: string, expectedClientId?: string) {
+    // General mode retains all current client/source checks, including Portfolio grants.
+    const page = await this.readMeriTasksExact(ctx, {
+      clientId: null,
+      taskId,
+      status: null,
+      openOnly: false,
+      dueBefore: null,
+      offset: 0,
+      limit: 1,
+    });
+    const task = page.rows[0];
+    if (
+      page.sourceStatus !== 'healthy' ||
+      page.rows.length !== 1 ||
+      !task ||
+      task.id !== taskId ||
+      task.tenantId !== ctx.tenantId ||
+      (expectedClientId !== undefined && task.clientId !== expectedClientId) ||
+      (task.clientId === null &&
+        task.ownerUserId !== ctx.userId &&
+        !(task.ownerUserId === null && task.createdByUserId === ctx.userId))
+    )
+      throw new NotFoundException('Task not found');
+    return {
+      id: task.id,
+      title: task.title,
+      status: task.status,
+      dueDate: task.dueDate?.toISOString() ?? null,
+      clientId: task.clientId,
+      client: task.client,
+      updatedAt: task.updatedAt.toISOString(),
+    };
+  }
+
   /** Canonical Meri task owner with exact counts, assignment filters and current wall checks. */
   async readMeriTasksExact(
     ctx: TenantContext,
