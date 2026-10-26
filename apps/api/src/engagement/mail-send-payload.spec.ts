@@ -4,8 +4,10 @@ import { EngagementProvider } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { EngagementMailSender, type EngagementSendMailInput } from './mail-sender.service.js';
 import { AmbiguousMailSendError, isDefiniteMailSendRejection } from './mail-send-result.js';
-import { GmailSendService, buildGmailRawMessage } from './google/gmail-send.service.js';
+import { GmailSendService, buildGmailRawMessage, buildGmailSendPayload } from './google/gmail-send.service.js';
+import { assertMailPayloadSize } from './mail-send-payload.js';
 import { MicrosoftGraphSyncService } from './microsoft/microsoft-graph-sync.service.js';
+import { buildMicrosoftReplyPayload } from './microsoft/microsoft-send-payload.js';
 
 const GRAPH_LIMIT = 4_000_000;
 const GMAIL_LIMIT = 36_700_160;
@@ -111,6 +113,19 @@ function gmailBoundary(delta: number) {
 }
 
 describe('ML-21 aggregate encoded request preflight', () => {
+  test('native Outlook measures the standard-base64 MIME envelope, including Unicode signature and files', async () => {
+    const h = harness();
+    const reply = { kind: 'microsoft_graph' as const, immutableId: 'original', conversationId: 'conversation', changeKey: 'version',
+      subject: base.subject, fromEmail: 'to@example.test', senderEmail: 'to@example.test', toEmail: 'to@example.test', replyTo: [],
+      inReplyTo: '<original@example.test>', references: '<original@example.test>' };
+    const input = { ...base, reply, correlationId: '11111111-1111-4111-8111-111111111111', body: '<p>你好</p><footer>Signature é</footer>',
+      attachments: [attachment(1_200_000, 'Résumé 📎.pdf'), attachment(1_200_000, 'second.pdf')] };
+    expect(Buffer.byteLength(buildMicrosoftReplyPayload(input))).toBeGreaterThan(GRAPH_LIMIT);
+    await expectSizeRefusal(h, EngagementProvider.microsoft_365, input);
+    const small = { ...input, attachments: [attachment(8)] };
+    expect(() => assertMailPayloadSize(EngagementProvider.microsoft_365, small)).not.toThrow();
+    expect(Buffer.from(buildMicrosoftReplyPayload(small), 'base64').toString()).toContain('In-Reply-To: <original@example.test>');
+  });
   test('the Graph wire shape retains all recipients, attachments, signature and safe correlation', async () => {
     const h = harness();
     const input = {
@@ -145,6 +160,31 @@ describe('ML-21 aggregate encoded request preflight', () => {
       { path: '/me/messages/synthetic-draft/send' },
     ]);
     expect(h.fetcher).not.toHaveBeenCalled();
+  });
+
+  test('native Gmail references and thread identity are included at the complete envelope boundary', () => {
+    // Serializer stress fixture; ordinary HTTP body/file ceilings remain unchanged.
+    const reply = { messageId: 'original', threadId: 't'.repeat(2048), inReplyTo: '<original@example.test>',
+      references: '<ancestor@example.test> <original@example.test>', fromEmail: 'to@example.test',
+      toEmail: 'to@example.test', subject: 'Original subject' };
+    const input = { ...base, subject: reply.subject, reply, body: '<p>你好</p><footer>Signature é</footer>',
+      attachments: [attachment(20_000_000, 'Résumé 📎.pdf')] };
+    const wireBytes = (value: EngagementSendMailInput) => Buffer.byteLength(JSON.stringify(buildGmailSendPayload(value)));
+    // Increasing the ASCII body by57bytes adds one complete76-character base64
+    // line. Locate the request boundary using the real serializer, not a copy.
+    let low = 0, high = 1_000_000;
+    while (low + 1 < high) {
+      const middle = Math.floor((low + high) / 2);
+      if (wireBytes({ ...input, body: input.body + 'a'.repeat(middle) }) <= GMAIL_LIMIT) low = middle;
+      else high = middle;
+    }
+    const accepted = { ...input, body: input.body + 'a'.repeat(low) };
+    expect(wireBytes(accepted)).toBeLessThanOrEqual(GMAIL_LIMIT);
+    expect(() => assertMailPayloadSize(EngagementProvider.google_workspace, accepted)).not.toThrow();
+    const refused = { ...accepted, body: accepted.body + 'a' };
+    expect(wireBytes(refused)).toBeGreaterThan(GMAIL_LIMIT);
+    expect(() => assertMailPayloadSize(EngagementProvider.google_workspace, refused)).toThrow(BadRequestException);
+    expect(() => assertMailPayloadSize(EngagementProvider.google_workspace, { ...refused, reply: undefined })).not.toThrow();
   });
 
   test('Graph rejects combined individually valid files before draft creation or token work', async () => {

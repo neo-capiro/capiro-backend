@@ -3,6 +3,42 @@ import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import { ownMailThreadWhere } from './engagement-access.helpers.js';
+import { activeMailMessageWhere } from './mail-message-state.js';
+import { prepareMailReply, REPLY_UNAVAILABLE } from './single-mail-reply.js';
+
+/** Known owned addresses only. A bounded result is not a claim of all provider aliases. */
+export async function replySelfEmails(tx: Prisma.TransactionClient, ctx: TenantContext): Promise<string[]> {
+  const mailboxes = await tx.integrationConnection.findMany({
+    where: { tenantId: ctx.tenantId, createdByUserId: ctx.userId }, select: { accountEmail: true }, take: 101,
+  });
+  const actor = await tx.user.findUnique({ where: { id: ctx.userId }, select: { email: true } });
+  if (mailboxes.length > 100 || !actor?.email) throw new BadRequestException(REPLY_UNAVAILABLE);
+  return [actor.email, ...mailboxes.flatMap(box => box.accountEmail ? [box.accountEmail] : [])];
+}
+
+/** Uses the same current message/connection owners as ordinary mail admission. */
+export async function resolveSingleMailReply(tx: Prisma.TransactionClient, ctx: TenantContext, input: {
+  operation?: 'reply'; originalMessageId?: string; originalUpdatedAt?: string; threadId?: string;
+  senderConnectionId?: string; subject: string; to: Array<{ email: string }>;
+  cc?: Array<{ email: string }>; bcc?: Array<{ email: string }>;
+}) {
+  if (input.operation !== 'reply' || !input.originalMessageId || !input.originalUpdatedAt ||
+      !input.threadId || !input.senderConnectionId || input.to.length !== 1 || input.cc?.length || input.bcc?.length)
+    throw new BadRequestException(REPLY_UNAVAILABLE);
+  const source = await tx.mailMessage.findFirst({
+    where: { id: input.originalMessageId, tenantId: ctx.tenantId, threadId: input.threadId,
+      connectionId: input.senderConnectionId, ...activeMailMessageWhere(),
+      thread: { tenantId: ctx.tenantId, ...ownMailThreadWhere(ctx.userId) } },
+    include: { thread: { include: { connection: true } } },
+  });
+  if (!source?.thread.connection || source.thread.connection.tenantId !== ctx.tenantId ||
+      source.thread.connection.createdByUserId !== ctx.userId) throw new NotFoundException('Original mail message not found');
+  const reply = prepareMailReply(source, source.thread, source.thread.connection, await replySelfEmails(tx, ctx));
+  if (!reply || reply.context.originalUpdatedAt !== input.originalUpdatedAt ||
+      reply.context.subject !== input.subject || reply.provider.toEmail !== input.to[0]?.email.trim().toLowerCase())
+    throw new BadRequestException('This original or its reply recipients changed. Review the original again.');
+  return reply;
+}
 
 export type SingleMailAssociations = {
   clientId?: string;
