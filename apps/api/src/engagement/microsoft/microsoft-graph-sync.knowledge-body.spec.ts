@@ -103,6 +103,25 @@ describe('resolveGraphAuthoritativeBody', () => {
 });
 
 describe('MicrosoftGraphSyncService persistGraphMessage — Knowledge Plane body', () => {
+  test('captures authenticated immutable reply identity while retaining the delta ID and authoritative body', async () => {
+    const { service, upsert } = setup(), patch = service as any;
+    const from = { emailAddress: { address: 'a@acme.com' } };
+    patch.graphGet = jest.fn().mockResolvedValue({ id: 'Immutable-A', conversationId: 'conv-1', changeKey: 'version-1', isDraft: false,
+      subject: 'Subject', from, sender: from, replyTo: [], internetMessageId: '<source@acme.com>',
+      internetMessageHeaders: [{ name: 'Message-ID', value: '<source@acme.com>' }], body: { contentType: 'text', content: FULL_BODY } });
+    const raw = { id: 'default-A', conversationId: 'conv-1', subject: 'Subject', from, body: { contentType: 'text', content: 'Prior full body' },
+      graphReplySource: { schema: 'forged', defaultId: 'forged', identity: {} } };
+    const hydrated = await patch.hydrateGraphMessageBody('synthetic', raw);
+    await patch.persistGraphMessage('tenant-1', 'conn-1', 'inbox', hydrated, 'incremental');
+    const created = upsert.mock.calls[0][0].create;
+    expect(created.externalId).toBe('default-A'); expect(created.bodyText).toBe(FULL_BODY);
+    expect(created.raw.graphReplySource).toMatchObject({ schema: 'graph-native-reply/1', defaultId: 'default-A',
+      identity: { kind: 'microsoft_graph', immutableId: 'Immutable-A', changeKey: 'version-1', replyTo: [] } });
+    expect(created.raw.body).toEqual({ contentType: 'text' });
+    expect(patch.graphGet).toHaveBeenCalledWith(expect.stringContaining('/me/messages/default-A?'), 'synthetic', { Prefer: 'IdType="ImmutableId"' });
+    await patch.persistGraphMessage('tenant-1', 'conn-1', 'inbox', raw, 'incremental');
+    expect(upsert.mock.calls[1][0].create.raw.graphReplySource).toBeUndefined();
+  });
   test('persists the authoritative Graph body and an explicit full completeness marker', async () => {
     const { service, association, upsert } = setup();
     const outcome = await (service as unknown as { persistGraphMessage: Persist }).persistGraphMessage(
