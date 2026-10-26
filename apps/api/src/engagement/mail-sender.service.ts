@@ -4,6 +4,7 @@ import type { TenantContext } from '@capiro/shared';
 import { MicrosoftGraphSyncService } from './microsoft/microsoft-graph-sync.service.js';
 import { GmailSendService } from './google/gmail-send.service.js';
 import type { EngagementMailSendResult } from './mail-send-result.js';
+import { assertMailPayloadSize } from './mail-send-payload.js';
 import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 
 /**
@@ -104,6 +105,12 @@ export class EngagementMailSender {
       testMode: runtimeAction === 'outreach_test_send' || runtimeAction === 'outreach_v3_test_send',
     });
     const providerInput: EngagementSendMailInput = { ...input, runtimeAction };
+    // Callers already rendered the body/signature and loaded exact attachment
+    // bytes. Measure the owning serializer's complete request before the adapter
+    // can refresh credentials, create a draft, upload anything or send. This
+    // local refusal proves no provider acceptance; dispatched failures keep their
+    // existing ambiguous-outcome classification and are never retried here.
+    assertMailPayloadSize(connection.provider, providerInput);
     if (connection.provider === EngagementProvider.google_workspace) {
       return this.gmailSend.sendMail(ctx, connection.id, providerInput);
     }

@@ -159,7 +159,8 @@ import {
   type RenderedOutreachBody,
 } from './outreach-email-renderer.js';
 import { MeetingNotesCryptoService } from './meeting-notes-crypto.service.js';
-import { EngagementMailSender, sendProviderSlug } from './mail-sender.service.js';
+import { EngagementMailSender, sendProviderSlug, type EngagementSendMailInput } from './mail-sender.service.js';
+import { assertMailPayloadSize } from './mail-send-payload.js';
 import { AmbiguousMailSendError, isDefiniteMailSendRejection, type EngagementMailSendResult } from './mail-send-result.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { docChunkSourceIdPrefix } from '../embeddings/client-kb.helpers.js';
@@ -9681,6 +9682,15 @@ export class EngagementService {
       input.attachmentIds,
       input.clientId ?? null,
     );
+    const mailInput: EngagementSendMailInput = {
+      subject: input.subject,
+      body: body.content,
+      bodyContentType: 'HTML',
+      toRecipients: input.to.map((r) => ({ email: r.email, name: r.name ?? null })),
+      ccRecipients: (input.cc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })),
+      bccRecipients: (input.bcc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })),
+      attachments,
+    };
     // Derived from what actually got attached, not from the request's id list:
     // `loadGraphAttachments` throws rather than silently dropping a file, so
     // these agree — but the resolved list is the one that describes the email
@@ -9701,6 +9711,7 @@ export class EngagementService {
       },
     });
     if (!begun.created) return this.getSingleMailIntent(ctx, requestKey);
+    const dispatchInput = { ...mailInput, correlationId: begun.intent.id };
     // Commit pending, then atomically claim under current authority before any provider call.
     let claimed: boolean;
     let preflightRefusal: unknown;
@@ -9714,6 +9725,10 @@ export class EngagementService {
             select: { id: true },
           });
           if (!current) throw new NotFoundException('Sending mailbox not found');
+          // Only this request key's creator can reject its prepared payload.
+          // The callback runs before the pending-to-sending transition; a
+          // committed rejectPending CAS is required before reporting certainty.
+          assertMailPayloadSize(connection.provider, dispatchInput);
         } catch (error) {
           if (
             error instanceof BadRequestException ||
@@ -9732,35 +9747,34 @@ export class EngagementService {
         !(await ledger.rejectPending(ctx, begun.intent))
       )
         throw error;
+      const details = error instanceof BadRequestException ? error.getResponse() : null;
+      const sizeRefusal = details && typeof details === 'object' && 'code' in details && details.code === 'MAIL_PAYLOAD_TOO_LARGE'
+        ? details : null;
       throw new BadRequestException({
+        message: 'This message was not sent because its final checks failed. Review current access, mailbox and attachments before starting a new send.',
+        ...sizeRefusal,
         error: 'MAIL_SEND_REJECTED', requestKey,
         intentId: begun.intent.id, state: 'failed', retryable: false,
-        message: 'This message was not sent because its final checks failed. Review current access, mailbox and attachments before starting a new send.',
       });
     }
     if (!claimed) return this.getSingleMailIntent(ctx, requestKey);
 
     let sendResult: EngagementMailSendResult;
     try {
-      sendResult = await this.mailSender.sendMail(ctx, connection, {
-        correlationId: begun.intent.id,
-        subject: input.subject,
-        body: body.content,
-        bodyContentType: 'HTML',
-        toRecipients: input.to.map((r) => ({ email: r.email, name: r.name ?? null })),
-        ccRecipients: (input.cc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })),
-        bccRecipients: (input.bcc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })),
-        attachments,
-      });
+      sendResult = await this.mailSender.sendMail(ctx, connection, dispatchInput);
     } catch (error) {
       // Conservatively fence every dispatched failure. Only a separate, explicit
       // reconciliation may establish a safely rejected outcome; never reset it.
       if (isDefiniteMailSendRejection(error)) {
-        await ledger.outcome(ctx, begun.intent, 'failed', { code: 'MAIL_SEND_REJECTED' });
+        const details = error instanceof BadRequestException ? error.getResponse() : null;
+        const sizeRefusal = details && typeof details === 'object' && 'code' in details && details.code === 'MAIL_PAYLOAD_TOO_LARGE'
+          ? details : null;
+        await ledger.outcome(ctx, begun.intent, 'failed', { code: sizeRefusal ? 'MAIL_PAYLOAD_TOO_LARGE' : 'MAIL_SEND_REJECTED' });
         throw new BadRequestException({
+          message: 'The mailbox rejected this message before acceptance. Review the error before starting a new send.',
+          ...sizeRefusal,
           error: 'MAIL_SEND_REJECTED', requestKey: requestKey,
           intentId: begun.intent.id, state: 'failed', retryable: false,
-          message: 'The mailbox rejected this message before acceptance. Review the error before starting a new send.',
         });
       }
       await ledger.outcome(ctx, begun.intent, 'unknown', {
