@@ -1,13 +1,17 @@
 import { describe, expect, it } from '@jest/globals';
 import {
   LEASE_LOST_REASON,
+  PROVIDER_UNCERTAIN_REASON,
+  claimFence,
   finalLifecycle,
   isTerminalLifecycle,
+  isUncertainProviderReason,
   jobQuality,
   recoverInterruptedUnits,
   requeueFailedUnits,
   retryableUnits,
   runnableUnits,
+  unitStateForFailure,
 } from './hillday-job-state.js';
 import type { JobUnit } from './hillday.types.js';
 
@@ -101,5 +105,44 @@ describe('WS-10 durable job state — lifecycle and quality', () => {
   it('treats only complete, failed and cancelled as terminal', () => {
     expect(['complete', 'failed', 'cancelled'].map(isTerminalLifecycle)).toEqual([true, true, true]);
     expect(['queued', 'running'].map(isTerminalLifecycle)).toEqual([false, false]);
+  });
+});
+
+describe('WS-10 durable job state — claim fencing', () => {
+  it('fences on the holder AND the claim generation, so a later claim in the same process cannot match', () => {
+    const first = claimFence('job-1', { holder: 'worker-1', attempt: 1 });
+    const later = claimFence('job-1', { holder: 'worker-1', attempt: 2 });
+    // Same process (holder), a new claim: the fence must still differ, otherwise a
+    // superseded invocation would keep writing over its own successor.
+    expect(first).not.toEqual(later);
+    expect(first).toMatchObject({ id: 'job-1', leaseHolder: 'worker-1', attemptCount: 1, status: 'running' });
+    expect(later).toMatchObject({ attemptCount: 2 });
+  });
+
+  it('fences on the running status, so a terminal job cannot be written again', () => {
+    expect(claimFence('job-1', { holder: 'w', attempt: 3 }).status).toBe('running');
+  });
+});
+
+describe('WS-10 durable job state — provider uncertainty', () => {
+  it('parks a transport-uncertain failure as unknown instead of re-runnable failed', () => {
+    expect(unitStateForFailure(PROVIDER_UNCERTAIN_REASON)).toBe('unknown');
+    expect(unitStateForFailure('provider_timeout')).toBe('unknown');
+  });
+
+  it('keeps a definitive provider refusal as failed', () => {
+    expect(unitStateForFailure('provider_unavailable')).toBe('failed');
+    expect(unitStateForFailure(null)).toBe('failed');
+    expect(unitStateForFailure(undefined)).toBe('failed');
+  });
+
+  it('classifies only genuinely ambiguous reasons as uncertain', () => {
+    expect(isUncertainProviderReason(PROVIDER_UNCERTAIN_REASON)).toBe(true);
+    expect(isUncertainProviderReason('provider_unavailable')).toBe(false);
+    expect(isUncertainProviderReason(null)).toBe(false);
+  });
+
+  it('never makes an uncertain unit automatically runnable', () => {
+    expect(runnableUnits([unit('m-1', unitStateForFailure(PROVIDER_UNCERTAIN_REASON))])).toEqual([]);
   });
 });
