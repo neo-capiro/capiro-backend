@@ -6,6 +6,7 @@
   "types": "./dist/index.d.ts",
   "typesVersions": {
     "*": {
+      "workspace-template-studio": ["dist/workspace-template-studio.d.ts"],
       "core-retained-read-request": ["dist/core-retained-read-request.d.ts"],
       "core-retained-authority-probe": ["dist/core-retained-authority-probe.d.ts"],
       "core-retained-authority-http": ["dist/core-retained-authority-http.d.ts"],
@@ -59,6 +60,12 @@
     }
   },
   "exports": {
+    "./workspace-template-studio": {
+      "types": "./dist/workspace-template-studio.d.ts",
+      "require": "./dist/workspace-template-studio.js",
+      "import": "./dist/workspace-template-studio.js",
+      "default": "./dist/workspace-template-studio.js"
+    },
     "./core-retained-read-request": {
       "types": "./dist/core-retained-read-request.d.ts",
       "require": "./dist/core-retained-read-request.js",
