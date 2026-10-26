@@ -96,15 +96,17 @@ function fixture() {
   service.mailSender = { sendMail: jest.fn().mockRejectedValue(new Error('socket closed')) };
   ledger.read.mockResolvedValue(null);
   ledger.begin.mockResolvedValue({ created: true, intent: { id: 'intent' } });
+  const sendingTransition = jest.fn();
   ledger.claim.mockImplementation(
     async (_ctx: unknown, _intent: unknown, authorize: (tx: unknown) => Promise<void>) => {
       await authorize(tx);
+      sendingTransition();
       return true;
     },
   );
   ledger.outcome.mockResolvedValue(undefined);
   ledger.rejectPending.mockResolvedValue(true);
-  return { tx, service };
+  return { tx, service, sendingTransition };
 }
 async function api(service: unknown) {
   const dependencies: unknown[] = Reflect.getMetadata('design:paramtypes', EngagementController);
@@ -132,7 +134,7 @@ beforeEach(() => {
   ledger.validateKey.mockImplementation((key) => key);
 });
 describe('single mail direct service boundary', () => {
-  test('ML-21 HTTP aggregate refusal is actionable before any pending intent, claim or provider', async () => {
+  test('ML-21 HTTP aggregate refusal is durable and actionable before sending transition or provider', async () => {
     const h = fixture();
     h.service.findCampaignSendConnection.mockResolvedValue({
       id: 'mailbox',
@@ -155,22 +157,24 @@ describe('single mail direct service boundary', () => {
       });
       expect(response.status).toBe(400);
       expect(await response.json()).toMatchObject({
-        error: 'MAIL_PAYLOAD_TOO_LARGE',
+        error: 'MAIL_SEND_REJECTED',
         code: 'MAIL_PAYLOAD_TOO_LARGE',
         requestKey: input.requestKey,
-        phase: 'preflight',
+        intentId: 'intent',
+        state: 'failed',
         retryable: false,
         message: expect.stringContaining('Reduce the message or attachments'),
       });
-      expect(ledger.begin).not.toHaveBeenCalled();
-      expect(ledger.claim).not.toHaveBeenCalled();
+      expect(ledger.begin).toHaveBeenCalledTimes(1);
+      expect(ledger.rejectPending).toHaveBeenCalledWith(ctx, { id: 'intent' });
+      expect(h.sendingTransition).not.toHaveBeenCalled();
       expect(ledger.outcome).not.toHaveBeenCalled();
       expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
     } finally {
       await app.close();
     }
   });
-  test('ML-21 includes the rendered Unicode signature in its pre-intent aggregate budget', async () => {
+  test('ML-21 includes the rendered Unicode signature before the sending transition', async () => {
     const h = fixture();
     h.service.findCampaignSendConnection.mockResolvedValue({
       id: 'mailbox',
@@ -190,14 +194,114 @@ describe('single mail direct service boundary', () => {
     await expect(h.service.sendSingleMail(ctx, input)).rejects.toMatchObject({
       response: {
         code: 'MAIL_PAYLOAD_TOO_LARGE',
-        phase: 'preflight',
+        error: 'MAIL_SEND_REJECTED',
+        intentId: 'intent',
+        state: 'failed',
         requestKey: input.requestKey,
       },
     });
-    expect(ledger.begin).not.toHaveBeenCalled();
-    expect(ledger.claim).not.toHaveBeenCalled();
+    expect(ledger.begin).toHaveBeenCalledTimes(1);
+    expect(ledger.rejectPending).toHaveBeenCalledWith(ctx, { id: 'intent' });
+    expect(h.sendingTransition).not.toHaveBeenCalled();
     expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
   });
+  test.each(['sending', 'oversized'] as const)(
+    'ML-21 concurrent same-key signature change preserves the %s winner',
+    async (winner) => {
+      const h = fixture();
+      h.service.findCampaignSendConnection.mockResolvedValue({
+        id: 'mailbox', provider: 'microsoft_365', accountEmail: 'sender@example.test',
+      });
+      h.service.loadGraphAttachments.mockResolvedValue([{
+        name: 'report.pdf', contentType: 'application/pdf',
+        contentBytes: Buffer.alloc(2_999_000).toString('base64'),
+      }]);
+      let releaseReads!: () => void;
+      const bothRead = new Promise<void>((resolve) => { releaseReads = resolve; });
+      let reads = 0;
+      ledger.read.mockImplementation(async () => {
+        if (++reads === 2) releaseReads();
+        await bothRead;
+        return null;
+      });
+      let releaseSecond!: () => void;
+      const ownerReached = new Promise<void>((resolve) => { releaseSecond = resolve; });
+      const largeSignature = `<p>${'é'.repeat(2_000)}</p>`;
+      h.service.resolveSenderSignatureHtml
+        .mockResolvedValueOnce({ signatureHtml: winner === 'oversized' ? largeSignature : null })
+        .mockImplementationOnce(async () => {
+          await ownerReached;
+          return { signatureHtml: winner === 'sending' ? largeSignature : null };
+        });
+      let state = 'pending';
+      // Model the existing unique-key winner: only the creator may reach claim.
+      ledger.begin
+        .mockResolvedValueOnce({ created: true, intent: { id: 'intent' } })
+        .mockImplementation(async () => ({ created: false, intent: { id: 'intent', state } }));
+      ledger.rejectPending.mockImplementation(async () => {
+        state = 'failed';
+        return true;
+      });
+      let finishProvider: ((error: Error) => void) | undefined;
+      h.service.mailSender.sendMail.mockImplementation(() => {
+        state = 'sending';
+        releaseSecond();
+        if (winner === 'oversized') return Promise.reject(new Error('unexpected dispatch'));
+        return new Promise((_resolve, reject) => { finishProvider = reject; });
+      });
+      h.service.getSingleMailIntent = jest.fn(async () => ({
+        state, intentId: 'intent', requestKey: input.requestKey, retryable: false,
+      }));
+      const sameInput = { ...input, appendSignature: true };
+      const first = h.service.sendSingleMail(ctx, sameInput)
+        .catch((error: unknown) => error)
+        .finally(releaseSecond);
+      const duplicate = await h.service.sendSingleMail(ctx, sameInput)
+        .catch((error: unknown) => error);
+      finishProvider?.(new Error('synthetic provider acknowledgement lost'));
+      const firstResult = await first;
+      expect(ledger.begin).toHaveBeenCalledTimes(2);
+      expect(ledger.claim).toHaveBeenCalledTimes(1);
+      if (winner === 'sending') {
+        expect(duplicate).toMatchObject({ state: 'sending', requestKey: input.requestKey });
+        expect(ledger.rejectPending).not.toHaveBeenCalled();
+        expect(h.sendingTransition).toHaveBeenCalledTimes(1);
+        expect(h.service.mailSender.sendMail).toHaveBeenCalledTimes(1);
+        expect(ledger.outcome).toHaveBeenCalledWith(ctx, { id: 'intent' }, 'unknown', expect.anything());
+        expect(firstResult).toMatchObject({ response: { error: 'MAIL_SEND_OUTCOME_UNKNOWN' } });
+      } else {
+        expect(firstResult).toMatchObject({ response: {
+          error: 'MAIL_SEND_REJECTED', code: 'MAIL_PAYLOAD_TOO_LARGE',
+          state: 'failed', intentId: 'intent', requestKey: input.requestKey,
+        } });
+        expect(duplicate).toMatchObject({ state: 'failed', requestKey: input.requestKey });
+        expect(ledger.rejectPending).toHaveBeenCalledTimes(1);
+        expect(h.sendingTransition).not.toHaveBeenCalled();
+        expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
+      }
+    },
+  );
+  test.each(['lost CAS', 'lost rejection commit'])(
+    'ML-21 %s cannot turn size refusal into definite non-delivery',
+    async (phase) => {
+      const h = fixture();
+      h.service.findCampaignSendConnection.mockResolvedValue({
+        id: 'mailbox', provider: 'microsoft_365', accountEmail: 'sender@example.test',
+      });
+      h.service.loadGraphAttachments.mockResolvedValue([
+        { name: 'report.pdf', contentType: 'application/pdf', contentBytes: Buffer.alloc(3_000_000).toString('base64') },
+      ]);
+      if (phase === 'lost CAS') ledger.rejectPending.mockResolvedValue(false);
+      else ledger.rejectPending.mockRejectedValue(new Error('rejection commit outcome lost'));
+      const failure = await h.service.sendSingleMail(ctx, input).catch((error: unknown) => error);
+      expect(ledger.rejectPending).toHaveBeenCalledTimes(1);
+      expect(failure).toBeInstanceOf(Error);
+      expect(failure.response?.error).not.toBe('MAIL_SEND_REJECTED');
+      expect(failure.response?.phase).not.toBe('preflight');
+      expect(h.sendingTransition).not.toHaveBeenCalled();
+      expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
+    },
+  );
   test('ML-21 accepted mail preserves the canonical rendered body and signature', async () => {
     const h = fixture();
     h.service.resolveSenderSignatureHtml.mockResolvedValue({ signatureHtml: '<p>Signature é</p>' });

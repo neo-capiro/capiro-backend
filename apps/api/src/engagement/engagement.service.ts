@@ -9683,9 +9683,6 @@ export class EngagementService {
       input.clientId ?? null,
     );
     const mailInput: EngagementSendMailInput = {
-      // Both IDs are validated UUIDs, with identical encoded header length.
-      // The pending ledger ID replaces this value only after size admission.
-      correlationId: requestKey,
       subject: input.subject,
       body: body.content,
       bodyContentType: 'HTML',
@@ -9694,18 +9691,6 @@ export class EngagementService {
       bccRecipients: (input.bcc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })),
       attachments,
     };
-    try {
-      assertMailPayloadSize(connection.provider, mailInput);
-    } catch (error) {
-      const details = error instanceof BadRequestException ? error.getResponse() : null;
-      if (details && typeof details === 'object' && 'code' in details && details.code === 'MAIL_PAYLOAD_TOO_LARGE') {
-        throw new BadRequestException({
-          ...details, error: 'MAIL_PAYLOAD_TOO_LARGE', requestKey,
-          phase: 'preflight', retryable: false,
-        });
-      }
-      throw error;
-    }
     // Derived from what actually got attached, not from the request's id list:
     // `loadGraphAttachments` throws rather than silently dropping a file, so
     // these agree — but the resolved list is the one that describes the email
@@ -9726,6 +9711,7 @@ export class EngagementService {
       },
     });
     if (!begun.created) return this.getSingleMailIntent(ctx, requestKey);
+    const dispatchInput = { ...mailInput, correlationId: begun.intent.id };
     // Commit pending, then atomically claim under current authority before any provider call.
     let claimed: boolean;
     let preflightRefusal: unknown;
@@ -9739,6 +9725,10 @@ export class EngagementService {
             select: { id: true },
           });
           if (!current) throw new NotFoundException('Sending mailbox not found');
+          // Only this request key's creator can reject its prepared payload.
+          // The callback runs before the pending-to-sending transition; a
+          // committed rejectPending CAS is required before reporting certainty.
+          assertMailPayloadSize(connection.provider, dispatchInput);
         } catch (error) {
           if (
             error instanceof BadRequestException ||
@@ -9757,20 +9747,21 @@ export class EngagementService {
         !(await ledger.rejectPending(ctx, begun.intent))
       )
         throw error;
+      const details = error instanceof BadRequestException ? error.getResponse() : null;
+      const sizeRefusal = details && typeof details === 'object' && 'code' in details && details.code === 'MAIL_PAYLOAD_TOO_LARGE'
+        ? details : null;
       throw new BadRequestException({
+        message: 'This message was not sent because its final checks failed. Review current access, mailbox and attachments before starting a new send.',
+        ...sizeRefusal,
         error: 'MAIL_SEND_REJECTED', requestKey,
         intentId: begun.intent.id, state: 'failed', retryable: false,
-        message: 'This message was not sent because its final checks failed. Review current access, mailbox and attachments before starting a new send.',
       });
     }
     if (!claimed) return this.getSingleMailIntent(ctx, requestKey);
 
     let sendResult: EngagementMailSendResult;
     try {
-      sendResult = await this.mailSender.sendMail(ctx, connection, {
-        ...mailInput,
-        correlationId: begun.intent.id,
-      });
+      sendResult = await this.mailSender.sendMail(ctx, connection, dispatchInput);
     } catch (error) {
       // Conservatively fence every dispatched failure. Only a separate, explicit
       // reconciliation may establish a safely rejected outcome; never reset it.
