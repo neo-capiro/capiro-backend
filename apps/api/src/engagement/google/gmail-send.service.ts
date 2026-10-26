@@ -19,6 +19,7 @@ import type { TenantContext } from '@capiro/shared';
 import { GoogleTokenService } from './google-token.service.js';
 import { mailboxProviderRequest } from '../mailbox-provider-transport.js';
 import type { EngagementSendMailInput } from '../mail-sender.service.js';
+import { gmailReplyIdentity, REPLY_UNAVAILABLE } from '../single-mail-reply.js';
 import {
   AmbiguousMailSendError,
   definiteMailSendRejection,
@@ -60,8 +61,25 @@ export class GmailSendService {
       token,
     );
 
-    const raw = buildGmailRawMessage(input);
+    const request = buildGmailSendPayload(input);
     const correlationId = input.correlationId ?? '';
+    if (input.reply) {
+      // Read-only source proof immediately before the sole send. No GET failure
+      // can fall through to dispatch. This does not make provider deletion atomic.
+      const query = new URLSearchParams({ format: 'metadata' });
+      for (const name of ['From', 'Reply-To', 'Subject', 'Message-ID', 'References']) query.append('metadataHeaders', name);
+      const original = await mailboxProviderRequest(async signal => {
+        const response = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(input.reply!.messageId)}?${query}`, {
+          method: 'GET', signal, headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (response.status === 404 || response.status === 410)
+          throw definiteMailSendRejection(new BadRequestException(REPLY_UNAVAILABLE));
+        if (!response.ok) throw new ServiceUnavailableException('The original message could not be verified. No reply was dispatched.');
+        return response.json();
+      });
+      if (JSON.stringify(gmailReplyIdentity(original)) !== JSON.stringify(input.reply))
+        throw definiteMailSendRejection(new BadRequestException('The original message changed. Review it again before replying.'));
+    }
 
     // The request may die on the wire AFTER the body was transmitted, in which
     // case Gmail may already have accepted the message. That is genuinely
@@ -80,7 +98,7 @@ export class GmailSendService {
             Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ raw }),
+          body: JSON.stringify(request),
         });
         const payload = response.ok
           ? await response.json().catch(() => {
@@ -188,6 +206,10 @@ export function buildGmailRawMessage(input: EngagementSendMailInput): string {
   const bcc = formatAddressList(input.bccRecipients ?? []);
   if (bcc) headers.push(`Bcc: ${bcc}`);
   headers.push(`Subject: ${encodeHeaderValue(input.subject ?? '')}`);
+  if (input.reply) {
+    headers.push(`In-Reply-To: ${input.reply.inReplyTo}`);
+    headers.push(`References: ${input.reply.references}`);
+  }
   headers.push('MIME-Version: 1.0');
   // Phase 0 — outbound-only correlation so a message in Sent Items can be tied
   // back to its outreach_deliveries row. Sanitized through the same CR/LF strip
@@ -237,6 +259,15 @@ export function buildGmailRawMessage(input: EngagementSendMailInput): string {
   }
 
   return Buffer.from(mime, 'utf8').toString('base64url');
+}
+
+/** One complete request serializer shared by admission sizing and provider dispatch. */
+export function buildGmailSendPayload(input: EngagementSendMailInput) {
+  if (input.reply && (input.subject !== input.reply.subject || input.toRecipients.length !== 1 ||
+      input.toRecipients[0]?.email.toLowerCase() !== input.reply.toEmail || input.ccRecipients?.length || input.bccRecipients?.length ||
+      /[\r\n]/.test(input.reply.inReplyTo + input.reply.references)))
+    throw definiteMailSendRejection(new BadRequestException(REPLY_UNAVAILABLE));
+  return { raw: buildGmailRawMessage(input), ...(input.reply ? { threadId: input.reply.threadId } : {}) };
 }
 
 function wrapBase64(b64: string): string {

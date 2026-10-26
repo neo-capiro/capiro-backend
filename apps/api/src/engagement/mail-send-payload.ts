@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { EngagementProvider } from '@prisma/client';
-import { buildGmailRawMessage } from './google/gmail-send.service.js';
+import { buildGmailSendPayload } from './google/gmail-send.service.js';
 import { definiteMailSendRejection } from './mail-send-result.js';
 import type { EngagementSendMailInput } from './mail-sender.service.js';
 import { buildMicrosoftSendPayload } from './microsoft/microsoft-send-payload.js';
@@ -19,7 +19,8 @@ export function assertMailPayloadSize(
   input: EngagementSendMailInput,
 ): void {
   const google = provider === EngagementProvider.google_workspace;
-  const payload = google ? { raw: buildGmailRawMessage(input) } : buildMicrosoftSendPayload(input);
+  if (input.reply && !google) throw definiteMailSendRejection(new BadRequestException('Native reply is unavailable for this mailbox.'));
+  const payload = google ? buildGmailSendPayload(input) : buildMicrosoftSendPayload(input);
   const maxBytes = google ? GMAIL_REQUEST_MAX_BYTES : GRAPH_REQUEST_MAX_BYTES;
   if (Buffer.byteLength(JSON.stringify(payload), 'utf8') > maxBytes) {
     throw definiteMailSendRejection(

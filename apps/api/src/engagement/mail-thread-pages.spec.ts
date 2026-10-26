@@ -89,6 +89,44 @@ describe('bounded canonical thread pages', () => {
       asOf, coverage: { backfillComplete: false, captureRepair: 'required' } });
     expect(page.messages[0]!.bodyText).toBe('Stored exact body 😀');
   });
+  it.each(['supported', 'connection bound', 'missing actor', 'DB error'])('selected original %s keeps reply eligibility additive and raw metadata private', async eligibility => {
+    const h = harness();
+    Object.assign(h.thread, { source: 'google', externalId: 'provider-thread' });
+    Object.assign(h.tx, {
+      integrationConnection: { findMany: jest.fn(async () => [{ accountEmail: 'owner@example.test' }]) },
+      user: { findUnique: jest.fn(async () => ({ email: 'actor@example.test' })) },
+    });
+    const source = { id: ids.message, threadId: ids.thread, connectionId: ids.box, source: 'google',
+      externalId: 'provider-message', removedAt: null, subject: 'Exact subject', fromEmail: 'contact@example.test',
+      updatedAt: new Date('2026-09-30T11:00:00Z'), bodyText: 'Exact incoming body', raw: {
+        id: 'provider-message', threadId: 'provider-thread', labelIds: ['INBOX'], payload: { headers: [
+          { name: 'From', value: 'contact@example.test' }, { name: 'Reply-To', value: 'reply@example.test' },
+          { name: 'Subject', value: 'Exact subject' }, { name: 'Message-ID', value: '<original@example.test>' },
+        ] },
+      } };
+    h.tx.mailMessage.findMany.mockResolvedValue([source]); h.tx.mailMessage.count.mockResolvedValue(1);
+    const tx = h.tx as any;
+    if (eligibility === 'connection bound') tx.integrationConnection.findMany.mockResolvedValue(Array.from({ length: 101 }, () => ({ accountEmail: 'owner@example.test' })));
+    if (eligibility === 'missing actor') tx.user.findUnique.mockResolvedValue({ email: null });
+    if (eligibility === 'DB error') {
+      const failure = new Error('synthetic database unavailable'); tx.user.findUnique.mockRejectedValue(failure);
+      await expect(readMailThreadHttpPage(h.prisma as any, ctx, ids.thread, ids.client, { asOf, messageId: ids.message })).rejects.toBe(failure);
+      return;
+    }
+    const page = await readMailThreadHttpPage(h.prisma as any, ctx, ids.thread, ids.client, { asOf, messageId: ids.message });
+    expect(page.messages[0]?.bodyText).toBe(source.bodyText);
+    if (eligibility === 'supported') expect(page.messages[0]).toMatchObject({ bodyText: source.bodyText, replyContext: {
+      supported: true, originalMessageId: ids.message, originalUpdatedAt: source.updatedAt.toISOString(),
+      senderConnectionId: ids.box, subject: source.subject, to: [{ email: 'reply@example.test' }],
+    } });
+    else expect(page.messages[0]?.replyContext).toMatchObject({ supported: false });
+    expect(JSON.stringify(page)).not.toContain('provider-message');
+    expect(JSON.stringify(page)).not.toContain('<original@example.test>');
+    expect(page.messages[0]).not.toHaveProperty('raw'); expect(page).not.toHaveProperty('externalId');
+    source.raw.labelIds = ['SENT'];
+    const unsupported = await readMailThreadHttpPage(h.prisma as any, ctx, ids.thread, ids.client, { asOf, messageId: ids.message });
+    expect(unsupported.messages[0]?.replyContext).toMatchObject({ supported: false });
+  });
   it('continues with the exact asOf, scope and limit and stops at the final page', async () => {
     const h = harness(); const first = await h.read();
     h.tx.mailMessage.findMany.mockResolvedValueOnce([{ id: '4', bodyText: 'four' }, { id: '5', bodyText: 'five' }]);

@@ -352,6 +352,18 @@ class SingleMailRecipientDto {
 }
 
 class SendSingleMailDto {
+  @IsOptional()
+  @IsIn(['reply'])
+  operation?: 'reply';
+
+  @IsOptional()
+  @IsUUID()
+  originalMessageId?: string;
+
+  @IsOptional()
+  @IsDateString()
+  originalUpdatedAt?: string;
+
   @IsUUID()
   requestKey!: string;
   @ValidateIf((_object, value) => value !== undefined)
@@ -426,7 +438,7 @@ class SendSingleMailDto {
   @IsBoolean()
   appendSignature?: boolean;
 
-  /** Reply within an existing thread instead of starting a new one. */
+  /** Original local thread; native replies also require exact original message identity. */
   @IsOptional()
   @IsUUID()
   threadId?: string;

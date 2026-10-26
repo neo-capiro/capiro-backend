@@ -6,6 +6,7 @@ import { GmailSendService } from './google/gmail-send.service.js';
 import type { EngagementMailSendResult } from './mail-send-result.js';
 import { assertMailPayloadSize } from './mail-send-payload.js';
 import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
+import type { GmailReplyIdentity } from './single-mail-reply.js';
 
 /**
  * Provider-neutral outbound-email payload. Structurally identical to
@@ -19,6 +20,8 @@ export type EngagementSendRuntimeAction =
   | 'outreach_v3_test_send';
 
 export interface EngagementSendMailInput {
+  /** Server-resolved source only; never accepted as provider identity from the browser. */
+  reply?: GmailReplyIdentity;
   /** Internal-only marker consumed by guarded provider adapters. */
   runtimeAction?: EngagementSendRuntimeAction;
   subject: string;
