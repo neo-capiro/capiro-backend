@@ -1,6 +1,7 @@
 import type { AnalyticsDbService } from './analytics-db.service.js';
 import { PUBLIC_SQL_LIMITS, PUBLIC_SQL_RELATIONS, publicSqlRelation } from './public-sql-registry.js';
 import { compilePublicSql, PublicSqlError } from './sql-query-compiler.js';
+import { packSqlRows } from './sql-query-output.js';
 
 const version = '0.1.0' as const;
 function failure(error: unknown, generatedAt: string) {
@@ -42,17 +43,7 @@ export async function queryCapiroData(input: unknown, db: Pick<AnalyticsDbServic
       coverage: { basis: 'query_bounded' as const, sourceUniverseComplete: false as const, sqlLimit: compiled.sqlLimit,
         relations: compiled.relationsUsed.map((name) => ({ name, sourceAsOf: null, sourceVersion: null,
           limitations: publicSqlRelation(name)!.coverage.limitations })) } };
-    // Reserve the largest row-count spelling and false (one byte longer than true).
-    // Each row is encoded once, never repeatedly stringify a large shrinking result.
-    const envelopeBytes = bytes({ ...result, rowCount: compiled.rowLimit });
-    let usedBytes = envelopeBytes;
-    for (const row of candidates) {
-      const rowBytes = bytes(row) + (rows.length ? 1 : 0);
-      if (usedBytes + rowBytes > PUBLIC_SQL_LIMITS.maxOutputBytes) { result.byteTruncated = true; break; }
-      rows.push(row); usedBytes += rowBytes;
-    }
-    result.rowCount = rows.length;
-    if (bytes(result) > PUBLIC_SQL_LIMITS.maxOutputBytes) throw new PublicSqlError('OUTPUT_LIMIT', 'Query metadata exceeds the output budget.');
+    packSqlRows(result, candidates, compiled.rowLimit, PUBLIC_SQL_LIMITS.maxOutputBytes);
     return result;
   } catch (error) { return failure(error, generatedAt); }
 }

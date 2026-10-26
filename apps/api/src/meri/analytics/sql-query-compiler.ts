@@ -1,5 +1,5 @@
 import { Parser } from 'node-sql-parser';
-import { PUBLIC_SQL_LIMITS, PUBLIC_SQL_RELATIONS, publicSqlRelation, type PublicSqlColumn } from './public-sql-registry.js';
+import { PUBLIC_SQL_LIMITS, PUBLIC_SQL_RELATIONS, type PublicSqlColumn, type PublicSqlField, type PublicSqlRelationship } from './public-sql-registry.js';
 
 export type PublicSqlErrorCode = 'INVALID_QUERY' | 'UNSUPPORTED_SQL' | 'UNKNOWN_RELATION' | 'UNKNOWN_FIELD' |
   'PARAMETER_MISMATCH' | 'SOURCE_UNAVAILABLE' | 'QUERY_TIMEOUT' | 'OUTPUT_LIMIT';
@@ -10,6 +10,15 @@ export type PublicSqlParameter = string | number | boolean | null;
 export interface CompiledPublicSql {
   sql: string; params: PublicSqlParameter[]; columns: PublicSqlColumn[];
   relationsUsed: string[]; rowLimit: number; sqlLimit: number | null;
+}
+/** Supplied by a fixed server owner, never by a query request or mutable registration API. */
+export type SqlCompilerRelationship = Omit<PublicSqlRelationship, 'fields' | 'referencedFields'> & {
+  readonly fields: readonly string[]; readonly referencedFields: readonly string[];
+};
+export interface SqlCompilerRelation {
+  readonly name: string; readonly schema: 'public' | 'meri_private'; readonly table: string;
+  readonly fields: readonly PublicSqlField[]; readonly primaryKey: readonly string[];
+  readonly relationships: readonly SqlCompilerRelationship[]; readonly predicate?: string;
 }
 type Node = Record<string, unknown>;
 type Origin = { relation: string; field: string };
@@ -45,16 +54,6 @@ function columnName(value: unknown): string {
 function cleanColumn(field: Field): PublicSqlColumn {
   return { name: field.name, type: field.type, nullable: field.nullable, ...(field.unit ? { unit: field.unit } : {}) };
 }
-function canonicalTargets(origin: Origin): string[] {
-  const relation = publicSqlRelation(origin.relation)!;
-  const targets = [`${origin.relation}.${origin.field}`];
-  for (const relationship of relation.relationships) {
-    const i = relationship.fields.indexOf(origin.field);
-    if (i >= 0) targets.push(`${relationship.referencedRelation}.${relationship.referencedFields[i]}`);
-  }
-  return targets;
-}
-
 /** A small, exhaustive PostgreSQL AST language. Unknown nodes/properties fail closed. */
 class Compiler {
   readonly parameters = new Set<number>();
@@ -62,9 +61,24 @@ class Compiler {
   private nodes = 0;
   private cteCount = 0;
   private depth = 0;
+  constructor(private readonly registry: readonly SqlCompilerRelation[]) {}
+
+  private relation(name: string): SqlCompilerRelation | undefined {
+    return this.registry.find((relation) => relation.name === name);
+  }
+
+  private canonicalTargets(origin: Origin): string[] {
+    const relation = this.relation(origin.relation)!;
+    const targets = [`${origin.relation}.${origin.field}`];
+    for (const relationship of relation.relationships) {
+      const i = relationship.fields.indexOf(origin.field);
+      if (i >= 0) targets.push(`${relationship.referencedRelation}.${relationship.referencedFields[i]}`);
+    }
+    return targets;
+  }
 
   private boundCast(parameter: Node, field: Field): Node {
-    const storageType = field.origin && publicSqlRelation(field.origin.relation)!.fields.find((f) => f.name === field.origin!.field)?.parameterType;
+    const storageType = field.origin && this.relation(field.origin.relation)!.fields.find((f) => f.name === field.origin!.field)?.parameterType;
     const dataType = storageType ?? ({ string: 'TEXT', integer: 'BIGINT', decimal: 'NUMERIC', boolean: 'BOOLEAN', date: 'DATE', timestamp: 'TIMESTAMPTZ' } as const)[field.type];
     // PostgreSQL receives explicit Prisma parameter types. Cast only the bound node,
     // using server-owned types; values never become SQL text or JS numeric conversions.
@@ -142,21 +156,41 @@ class Compiler {
       if (n.operator !== '=') fail('UNSUPPORTED_SQL', 'Join on published keys with equality.');
       const l = this.column(n.left, scope), r = this.column(n.right, scope);
       if (!l.origin || !r.origin || l.alias === r.alias || (l.alias !== current && r.alias !== current) ||
-        !canonicalTargets(l.origin).some((target) => canonicalTargets(r.origin!).includes(target)))
+        !this.canonicalTargets(l.origin).some((target) => this.canonicalTargets(r.origin!).includes(target)))
         fail('UNSUPPORTED_SQL', 'Join fields must share a published canonical key.');
       // Same-name descriptive columns are not keys, even within a self join.
       const keyField = (f: Field): boolean => {
-        const relation = publicSqlRelation(f.origin!.relation)!;
+        const relation = this.relation(f.origin!.relation)!;
         return relation.primaryKey.includes(f.origin!.field) || relation.relationships.some((r) => r.fields.includes(f.origin!.field));
       };
       if (!keyField(l) || !keyField(r)) fail('UNSUPPORTED_SQL', 'Join fields must be canonical keys.');
       pairs.push([l, r]);
     };
     visit(value, 0);
+    this.privateCompositeJoins(pairs);
     for (const [l, r] of pairs) if (l.origin!.field === 'project_code' || r.origin!.field === 'project_code') {
       if (!pairs.some(([a, b]) => a.origin!.field === 'pe_code' && b.origin!.field === 'pe_code' &&
         ((a.alias === l.alias && b.alias === r.alias) || (a.alias === r.alias && b.alias === l.alias))))
         fail('UNSUPPORTED_SQL', 'Project identity also requires pe_code.');
+    }
+  }
+
+  private privateCompositeJoins(pairs: [Field, Field][]): void {
+    // Relationship correctness only. Database views and the current owner enforce visibility.
+    // Keep the accepted public join language unchanged.
+    for (const pair of pairs) for (const [source, target] of [pair, [pair[1], pair[0]]] as [Field, Field][]) {
+      const relation = this.relation(source.origin!.relation)!;
+      if (relation.schema !== 'meri_private') continue;
+      for (const link of relation.relationships) {
+        const index = link.fields.indexOf(source.origin!.field);
+        if (index < 0 || link.referencedRelation !== target.origin!.relation ||
+            link.referencedFields[index] !== target.origin!.field) continue;
+        const complete = link.fields.every((field, i) => pairs.some(([a, b]) =>
+          [[a, b], [b, a]].some(([left, right]) => left!.alias === source.alias && right!.alias === target.alias &&
+            left!.origin!.relation === source.origin!.relation && right!.origin!.relation === target.origin!.relation &&
+            left!.origin!.field === field && right!.origin!.field === link.referencedFields[i])));
+        if (!complete) fail('UNSUPPORTED_SQL', 'Join on every field of the published composite relationship.');
+      }
     }
   }
 
@@ -176,7 +210,7 @@ class Compiler {
         if (++this.cteCount > 8) fail('UNSUPPORTED_SQL', 'Too many CTEs.');
         const cte = node(value); keys(cte, ['name', 'stmt', 'columns']); absent(cte.columns);
         const name = named(cte.name);
-        if (ctes.has(name) || publicSqlRelation(name)) fail('UNSUPPORTED_SQL', 'CTEs cannot shadow published relations or other CTEs.');
+        if (ctes.has(name) || this.relation(name)) fail('UNSUPPORTED_SQL', 'CTEs cannot shadow published relations or other CTEs.');
         ctes.set(name, this.select(cte.stmt, ctes, level + 1).fields);
       }
     }
@@ -188,7 +222,7 @@ class Compiler {
       if (scope.has(alias)) fail('UNSUPPORTED_SQL', 'Duplicate relation alias.');
       let fields = ctes.get(table);
       if (!fields) {
-        const relation = publicSqlRelation(table);
+        const relation = this.relation(table);
         if (!relation) fail('UNKNOWN_RELATION', 'Use a relation published by describe_capiro_data.');
         this.relations.add(table);
         fields = new Map(relation.fields.map((field) => [field.name, { ...cleanColumn(field), origin: { relation: table, field: field.name } }]));
@@ -240,6 +274,11 @@ class Compiler {
 }
 
 export function compilePublicSql(input: unknown): CompiledPublicSql {
+  return compileScopedSql(input, PUBLIC_SQL_RELATIONS.map((relation) => ({ ...relation, schema: 'public' as const })));
+}
+
+/** The caller is a server-owned public/private wrapper; requests cannot select this registry. */
+export function compileScopedSql(input: unknown, registry: readonly SqlCompilerRelation[]): CompiledPublicSql {
   const request = node(input); keys(request, ['sql', 'parameters', 'rowLimit']);
   if (typeof request.sql !== 'string' || !request.sql.trim() || Buffer.byteLength(request.sql, 'utf8') > PUBLIC_SQL_LIMITS.maxSqlBytes)
     fail('INVALID_QUERY', 'SQL must contain 1 to 16384 UTF-8 bytes.');
@@ -256,13 +295,13 @@ export function compilePublicSql(input: unknown): CompiledPublicSql {
     if (ast.length !== 1) fail('UNSUPPORTED_SQL', 'Exactly one SELECT is required.');
     ast = ast[0];
   }
-  const compiler = new Compiler(), selected = compiler.select(ast);
+  const compiler = new Compiler(registry), selected = compiler.select(ast);
   if (compiler.parameters.size !== request.parameters.length || request.parameters.some((_, i) => !compiler.parameters.has(i + 1)))
     fail('PARAMETER_MISMATCH', 'Every supplied parameter must be referenced, consecutively from $1.');
-  const relationsUsed = PUBLIC_SQL_RELATIONS.filter((relation) => compiler.relations.has(relation.name)).map((relation) => relation.name);
+  const relationsUsed = registry.filter((relation) => compiler.relations.has(relation.name)).map((relation) => relation.name);
   const projections = relationsUsed.map((name) => {
-    const relation = publicSqlRelation(name)!;
-    return `${name} AS (SELECT ${relation.fields.map((f) => `"${f.name}"`).join(', ')} FROM public."${relation.table}"${relation.predicate ? ` WHERE ${relation.predicate}` : ''})`;
+    const relation = registry.find((relation) => relation.name === name)!;
+    return `${name} AS (SELECT ${relation.fields.map((f) => `"${f.name}"`).join(', ')} FROM ${relation.schema}."${relation.table}"${relation.predicate ? ` WHERE ${relation.predicate}` : ''})`;
   });
   // These AST nodes come only from reviewed registry projections, never caller fragments.
   const trusted = node(parser.astify(`WITH ${projections.join(', ')} SELECT 1`, dialect));

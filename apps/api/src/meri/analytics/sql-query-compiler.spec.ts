@@ -1,4 +1,4 @@
-import { compilePublicSql, PublicSqlError } from './sql-query-compiler.js';
+import { compilePublicSql, compileScopedSql, PublicSqlError, type SqlCompilerRelation } from './sql-query-compiler.js';
 
 describe('authored PostgreSQL SELECT compiler', () => {
   const compile = (sql: string, parameters: unknown[] = [], rowLimit?: number) => compilePublicSql({ sql, parameters, ...(rowLimit ? { rowLimit } : {}) });
@@ -92,5 +92,45 @@ describe('authored PostgreSQL SELECT compiler', () => {
     expect(() => compile(`SELECT b.id FROM congress_bills b /* ${'字'.repeat(6000)} */`)).toThrow(PublicSqlError);
     expect(() => compile('SELECT b.id FROM congress_bills b WHERE b.id=$1', ['字'.repeat(11000)])).toThrow(PublicSqlError);
     expect(() => compile('SELECT b.id FROM congress_bills b', Array(65).fill(null))).toThrow(PublicSqlError);
+  });
+});
+
+describe('server-selected private relation set', () => {
+  // Synthetic projection metadata, not the unallocated client-owner production registry.
+  const fields = (names: string[]) => names.map((name) => ({ name, type: 'string' as const, nullable: false, description: name, parameterType: 'UUID' as const }));
+  const registry: readonly SqlCompilerRelation[] = [
+    { name: 'client_objectives', schema: 'meri_private', table: 'client_objectives', fields: fields(['id', 'client_id']), primaryKey: ['client_id', 'id'], relationships: [] },
+    { name: 'client_activity', schema: 'meri_private', table: 'client_activity', fields: fields(['id', 'client_id', 'objective_id']), primaryKey: ['id'],
+      relationships: [{ fields: ['client_id', 'objective_id'], referencedRelation: 'client_objectives', referencedFields: ['client_id', 'id'], cardinality: 'many_to_one', integrity: 'soft' }] },
+  ];
+  it('uses the same SELECT/CTE/join/bind compiler with private physical views', () => {
+    const query = compileScopedSql({ sql: `WITH linked AS (SELECT a.id, a.client_id, a.objective_id FROM client_activity a)
+      SELECT a.id FROM linked a INNER JOIN client_objectives o ON a.objective_id=o.id AND a.client_id=o.client_id
+      WHERE o.client_id=$1 AND a.id>$2 ORDER BY a.id LIMIT 25`, parameters: ['10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002'] }, registry);
+    expect(query.sql).toContain('"meri_private"."client_activity"');
+    expect(query.sql).toContain('CAST($2 AS UUID)');
+    expect(query.sql).not.toContain('FROM "public"');
+    expect(query.relationsUsed).toEqual(['client_objectives', 'client_activity']);
+    expect(query.sqlLimit).toBe(25);
+  });
+  it.each(['a.objective_id=o.id', 'a.client_id=o.client_id'])('requires the whole private relationship: %s', (on) => {
+    expect(() => compileScopedSql({ sql: `SELECT a.id FROM client_activity a LEFT JOIN client_objectives o ON ${on}`, parameters: [] }, registry))
+      .toThrow('Join on every field of the published composite relationship.');
+  });
+  it('keeps the public wrapper fixed and refuses public/private mixing in either direction', () => {
+    const input = { sql: 'SELECT o.id FROM client_objectives o', parameters: [] };
+    expect(() => compilePublicSql(input)).toThrow(PublicSqlError);
+    expect(() => compileScopedSql({ sql: 'SELECT b.id FROM congress_bills b', parameters: [] }, registry)).toThrow(PublicSqlError);
+    expect(() => compileScopedSql({ sql: 'SELECT o.id FROM client_objectives o INNER JOIN congress_bills b ON o.id=b.id', parameters: [] }, registry)).toThrow(PublicSqlError);
+    expect(() => compilePublicSql({ ...input, registry })).toThrow(PublicSqlError);
+  });
+  it.each([
+    'SELECT a.metadata_jsonb FROM client_activity a',
+    'SELECT a.id FROM meri_private.client_activity a',
+    "SELECT set_config('app.current_user', $1, true) AS id FROM client_activity",
+    'SET ROLE capiro_app; SELECT a.id FROM client_activity a',
+    'SELECT a.id FROM client_activity a FOR UPDATE',
+  ])('retains the closed grammar for private input: %s', (sql) => {
+    expect(() => compileScopedSql({ sql, parameters: [] }, registry)).toThrow(PublicSqlError);
   });
 });

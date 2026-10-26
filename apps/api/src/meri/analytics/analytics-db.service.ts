@@ -2,26 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
 import type { CompiledQuery } from './query-spec-compiler.js';
 import { PublicSqlError, type CompiledPublicSql } from './sql-query-compiler.js';
-import { publicSqlRelation, type PublicSqlColumn } from './public-sql-registry.js';
-
-/** New SQL transport is exact; the legacy QuerySpec normalizer below remains unchanged. */
-export function normalizePublicSqlRow(row: Record<string, unknown>, columns: PublicSqlColumn[]): Record<string, string | boolean | null> {
-  const out: Record<string, string | boolean | null> = {};
-  if (Object.keys(row).length !== columns.length) throw new PublicSqlError('SOURCE_UNAVAILABLE', 'Unexpected public query result.');
-  for (const column of columns) {
-    const value = row[column.name];
-    if (value === null && column.nullable) { out[column.name] = null; continue; }
-    if (column.type === 'boolean' && typeof value === 'boolean') { out[column.name] = value; continue; }
-    if ((column.type === 'date' || column.type === 'timestamp') && value instanceof Date && Number.isFinite(value.getTime())) {
-      out[column.name] = column.type === 'date' ? value.toISOString().slice(0, 10) : value.toISOString(); continue;
-    }
-    if (typeof value === 'string' && (column.type === 'string' ||
-      (column.type === 'integer' && /^-?\d+$/.test(value)) ||
-      (column.type === 'decimal' && /^-?\d+(?:\.\d+)?$/.test(value)))) { out[column.name] = value; continue; }
-    throw new PublicSqlError('SOURCE_UNAVAILABLE', 'Unexpected public query result type.');
-  }
-  return out;
-}
+import { publicSqlRelation } from './public-sql-registry.js';
+import { normalizeSqlRow as normalizePublicSqlRow } from './sql-query-output.js';
+export { normalizeSqlRow as normalizePublicSqlRow } from './sql-query-output.js';
 
 // Fixed owner check, independent of configured username. Never use caller-authored SQL here.
 const PUBLIC_SQL_ROLE_CHECK = `SELECT (
