@@ -1,3 +1,4 @@
+import { preserveWatchSources, requireSavedWatchAccess } from './watch-source-dependencies.js';
 import {
   BadRequestException,
   ConflictException,
@@ -267,6 +268,7 @@ export class RunsService {
             ? (run.findings as Record<string, unknown>)
             : {};
         data.findings = { ...prev, ...dto.findings } as Prisma.InputJsonValue;
+        preserveWatchSources(run.findings, data.findings);
       }
 
       // Compare-and-swap: include the state we validated against in the WHERE
@@ -301,10 +303,12 @@ export class RunsService {
     });
   }
 
-  async get(tenantId: string, id: string) {
-    const run = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.spAgentRun.findFirst({ where: { id } }),
-    );
+  async get(tenantId: string, id: string, userId?: string) {
+    const run = await this.prisma.withTenant(tenantId, async (tx) => {
+      const found = await tx.spAgentRun.findFirst({ where: { id } });
+      await requireSavedWatchAccess(tx, tenantId, userId, found?.findings);
+      return found;
+    });
     if (!run) throw new NotFoundException('Run not found');
     // F10: attach the structured blocker projection (additive field).
     return { ...run, blocker: projectExecutionBlocker(run) };
@@ -336,7 +340,7 @@ export class RunsService {
    * never be used to bypass a live run.
    */
   async markFailed(tenantId: string, userId: string, runId: string, reason?: string) {
-    const run = await this.get(tenantId, runId);
+    const run = await this.get(tenantId, runId, userId);
     if (!isActionAllowed(run.state, 'mark_failed')) {
       throw new ConflictException(
         `run is ${run.state} — it cannot be marked failed (${reasonForState(run.state)})`,
@@ -364,7 +368,7 @@ export class RunsService {
    * plan/execute path drives it with no special-casing.
    */
   async retry(tenantId: string, userId: string, runId: string) {
-    const prior = await this.get(tenantId, runId);
+    const prior = await this.get(tenantId, runId, userId);
     const attempt = prior.attempt + 1;
     // Base key = the key with any prior `#n` suffix stripped, so attempt 4 keys
     // off the original node+kind rather than compounding suffixes.
@@ -480,11 +484,11 @@ export class RunsService {
    * Every attempt for one logical execution (the `exec:<nodeId>:<kind>` family),
    * oldest first — the audit's consolidated run history / "compare attempts".
    */
-  async listAttempts(tenantId: string, runId: string) {
-    const run = await this.get(tenantId, runId);
+  async listAttempts(tenantId: string, runId: string, userId?: string) {
+    const run = await this.get(tenantId, runId, userId);
     const baseKey = run.idempotencyKey.replace(/#\d+$/, '');
-    return this.prisma.withTenant(tenantId, (tx) =>
-      tx.spAgentRun.findMany({
+    return this.prisma.withTenant(tenantId, async (tx) => {
+      const rows = await tx.spAgentRun.findMany({
         // baseKey and every `baseKey#n`. `startsWith` alone would also match a
         // DIFFERENT kind whose key is a prefix extension, so the family is
         // narrowed to exactly the base key or the base key + '#'.
@@ -493,13 +497,15 @@ export class RunsService {
         },
         orderBy: [{ attempt: 'asc' }, { createdAt: 'asc' }],
         take: 50,
-      }),
-    );
+      });
+      for (const row of rows) await requireSavedWatchAccess(tx, tenantId, userId, row.findings);
+      return rows;
+    });
   }
 
   /** The allowed-next-actions list + plain-words reason for a run's state. */
-  async policyFor(tenantId: string, runId: string) {
-    const run = await this.get(tenantId, runId);
+  async policyFor(tenantId: string, runId: string, userId?: string) {
+    const run = await this.get(tenantId, runId, userId);
     const policy = RUN_STATE_POLICY[run.state];
     return {
       runId,
@@ -550,7 +556,7 @@ export class RunsService {
       .slice(0, take);
   }
 
-  async listForMission(tenantId: string, missionId: string, opts: { take?: number } = {}) {
+  async listForMission(tenantId: string, missionId: string, opts: { take?: number } = {}, userId?: string) {
     const take = Math.min(Math.max(opts.take ?? 50, 1), 100);
     return this.prisma.withTenant(tenantId, async (tx) => {
       const mission = await tx.spAgentMission.findFirst({
@@ -558,11 +564,13 @@ export class RunsService {
         select: { id: true },
       });
       if (!mission) throw new NotFoundException('Mission not found');
-      return tx.spAgentRun.findMany({
+      const rows = await tx.spAgentRun.findMany({
         where: { missionId },
         orderBy: { createdAt: 'desc' },
         take,
       });
+      for (const row of rows) await requireSavedWatchAccess(tx, tenantId, userId, row.findings);
+      return rows;
     });
   }
 }

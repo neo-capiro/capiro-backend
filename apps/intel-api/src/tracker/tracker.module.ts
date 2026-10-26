@@ -4,6 +4,7 @@ import { ResearchDeadlineService } from './research/research-deadline.service.js
 import { StatuteMonitorService } from './research/statute-monitor.service.js';
 
 import { Module } from '@nestjs/common';
+import { HearingModule } from '../hearing/hearing.module.js';
 
 import { ResearchController, ResearchSourceController } from './research/research.controller.js';
 
@@ -82,7 +83,7 @@ import { ClientBriefContextClient } from '../hearing/client-brief-context.client
  * IntelAlertModule provides the SESv2 email sender for test alerts.
  */
 @Module({
-  imports: [SourceDataModule, IntelAlertModule],
+  imports: [SourceDataModule, IntelAlertModule, HearingModule],
   controllers: [
     ResearchController,
     Phase8Controller,

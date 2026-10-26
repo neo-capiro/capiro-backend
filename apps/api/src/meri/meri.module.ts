@@ -42,6 +42,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriController } from './meri.controller.js';
 import { ObjectiveJobController } from './objective-job.controller.js';
 import { ConversationManagementController } from './conversation-management/controller.js';
+import { HearingMediaController } from './hearing-media/controller.js';
 import { ConversationRetentionController } from './conversation-management/retention.controller.js';
 import { ObjectiveJobService } from './objective-job.service.js';
 import { RetainedReadDispatcher } from './retained-read-dispatch.js';
@@ -146,6 +147,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
   controllers: [
     MeriRoutineReadController,
     ConversationManagementController,
+    HearingMediaController,
     ConversationRetentionController,
     ObjectiveJobController,
     // Register the fixed signed callback before tools/:name in this module.

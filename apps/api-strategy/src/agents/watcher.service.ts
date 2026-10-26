@@ -1,3 +1,5 @@
+import { requireWatchSourceAccess } from './watch-source-access.js';
+import { watchSourceSnapshot, watchSourceRunKey, watchSourceFindings, sameWatchSources, storedWatchSources, type WatchSourceSnapshot } from './watch-source-dependencies.js';
 import { createHash } from 'node:crypto';
 import {
   BadRequestException,
@@ -268,7 +270,13 @@ export class WatcherService {
     // rechecking here would just be a racy pre-read.)
 
     const today = isoDate(new Date())!;
-    const idempotencyKey = opts.idempotencyKey ?? `watch:${missionId}:${today}`;
+    const authorityActor = userId ?? mission.createdByUserId;
+    const source = await this.prisma.withTenant(tenantId, async (tx) => {
+      const snapshot = await watchSourceSnapshot(tx, tenantId, strategyId);
+      if (snapshot) await requireWatchSourceAccess(tx, tenantId, snapshot.clientId, authorityActor);
+      return snapshot;
+    });
+    const idempotencyKey = watchSourceRunKey(opts.idempotencyKey ?? `watch:${missionId}:${today}`, source);
     // createRun enforces mission-active + (tenantId, idempotencyKey) dedup: a
     // replayed key returns the EXISTING run unchanged. Trigger: an explicit
     // opts.trigger wins; the fallback follows the caller shape (userId null =
@@ -289,6 +297,19 @@ export class WatcherService {
         `run for '${idempotencyKey}' is already ${run.state} — pass a fresh idempotencyKey to re-check`,
       );
     }
+    if (refresh && source) {
+      // A source-bound review keeps the findings that produced its proposals.
+      // A different dependency snapshot necessarily has a different run key.
+      if (!sameWatchSources(storedWatchSources(run.findings), source))
+        throw new ConflictException('Saved source check does not match this revision');
+      await this.prisma.withTenant(tenantId, async (tx) => {
+        await requireWatchSourceAccess(tx, tenantId, source.clientId, authorityActor);
+        if (!sameWatchSources(source, await watchSourceSnapshot(tx, tenantId, strategyId)))
+          throw new ConflictException('Cited sources changed. Run the check again.');
+      });
+      return { runId: run.id, findings: (run.findings as unknown as { findings: Finding[] }).findings,
+        changeSetsProposed: [] };
+    }
     if (run.state === 'queued') {
       await this.runs.transition(tenantId, userId, run.id, { to: 'planning' } as TransitionRunDto);
     }
@@ -304,6 +325,8 @@ export class WatcherService {
         run.id,
         strategyId,
         today,
+        source,
+        authorityActor,
       );
 
       // Persist findings on the run. Fresh path: planning -> ready_for_review
@@ -316,6 +339,7 @@ export class WatcherService {
         // check is running must still make that check stale.
         checkedAt: new Date(phaseStart).toISOString(),
         findings,
+        ...(source ? { sourceDependencies: source } : {}),
       };
       if (refresh) {
         await this.refreshFindings(tenantId, userId, run.id, payload);
@@ -360,6 +384,8 @@ export class WatcherService {
     runId: string,
     strategyId: string,
     today: string,
+    source: WatchSourceSnapshot | null,
+    authorityActor: string | null,
   ): Promise<{ findings: Finding[]; changeSetsProposed: string[] }> {
     // Grounding BEFORE anything else (house rule from ChangeSetsService.apply:
     // grounding reads open their own withTenant txs — never nest them).
@@ -413,6 +439,7 @@ export class WatcherService {
       artifactMismatches: computeArtifactMismatches(nodes, strategy.artifacts),
     });
 
+    findings.push(...watchSourceFindings(source));
     const changeSetsProposed = await this.proposeChangeSets(
       tenantId,
       userId,
@@ -420,6 +447,8 @@ export class WatcherService {
       strategyId,
       findings,
       expectedSnapshot,
+      source,
+      authorityActor,
     );
     return { findings, changeSetsProposed };
   }
@@ -501,11 +530,13 @@ export class WatcherService {
     strategyId: string,
     findings: Finding[],
     expectedSnapshot: string,
+    source: WatchSourceSnapshot | null,
+    authorityActor: string | null,
   ): Promise<string[]> {
     const actionable = findings.filter(
       (f) => Array.isArray(f.proposedOps) && f.proposedOps.length > 0,
     );
-    if (actionable.length === 0) return [];
+    if (actionable.length === 0 && !source) return [];
 
     // ONE tx for the dedup read AND the creates, serialized per strategy by
     // SELECT ... FOR UPDATE on the strategy row (the same lock + raw-SQL shape
@@ -522,6 +553,7 @@ export class WatcherService {
     // side effect: a mid-batch create failure rolls the WHOLE batch back —
     // a run's proposals land atomically instead of leaving a partial set.
     const { ids, refreshes } = await this.inTx(tenantId, userId, async (tx) => {
+      const observed = await watchSourceSnapshot(tx, tenantId, strategyId, true);
       const locked = await tx.$queryRaw<Array<{ id: string }>>`
         SELECT id FROM sp_strategy
         WHERE id = ${strategyId}::uuid AND tenant_id = ${tenantId}::uuid
@@ -543,6 +575,17 @@ export class WatcherService {
         );
       }
 
+      if (!sameWatchSources(source, observed) ||
+          !sameWatchSources(observed, await watchSourceSnapshot(tx, tenantId, strategyId)))
+        throw new ConflictException('Cited sources changed during the Watch check. Run the check again.');
+      if (source) {
+        await requireWatchSourceAccess(tx, tenantId, source.clientId, authorityActor);
+        // Atomically bind the run before any proposal can reference it.
+        const bound = await tx.spAgentRun.updateMany({ where: { id: runId, state: 'planning' },
+          data: { findings: { sourceDependencies: source, findings } as unknown as Prisma.InputJsonValue } });
+        if (bound.count !== 1) throw new ConflictException('Watch run changed before its source check was saved');
+      }
+
       // Same head total order ChangeSetsService.headOf pins (and apply's stale
       // guard checks) against: createdAt desc, id desc.
       const head = await tx.spVersion.findFirst({
@@ -553,7 +596,7 @@ export class WatcherService {
       const headId = head?.id ?? null;
       const open = await tx.spChangeSet.findMany({
         where: { strategyId, status: { in: ['proposed', 'approved'] } },
-        select: { id: true, status: true, summary: true, ops: true, strategyVersionId: true },
+        select: { id: true, status: true, summary: true, ops: true, strategyVersionId: true, runId: true },
       });
       // Phase 3: permanent dismissals, loaded inside this SAME strategy-locked
       // tx so a concurrent dismiss can't race a propose into re-creating the
@@ -571,6 +614,8 @@ export class WatcherService {
       const openByMarker = new Map<string, { id: string; status: string; ops: unknown }>();
       for (const r of open) {
         if (r.strategyVersionId !== headId) continue;
+        const boundRun = r.runId ? await tx.spAgentRun.findFirst({ where: { id: r.runId } }) : null;
+        if (!sameWatchSources(storedWatchSources(boundRun?.findings), source)) continue;
         const m = parseWatchMarker(r.summary);
         if (m) openByMarker.set(m, { id: r.id, status: String(r.status), ops: r.ops });
       }
@@ -598,7 +643,7 @@ export class WatcherService {
           // row in place so a late apply never retimes into the past.
           // stableJson: jsonb does not preserve key order, so compare
           // key-order-independently or every same-day re-run would "differ".
-          if (existing.status === 'proposed' && stableJson(existing.ops) !== stableJson(ops)) {
+          if (!source && existing.status === 'proposed' && stableJson(existing.ops) !== stableJson(ops)) {
             refreshes.push({
               id: existing.id,
               summary: `${marker} ${f.message}`.slice(0, 500),

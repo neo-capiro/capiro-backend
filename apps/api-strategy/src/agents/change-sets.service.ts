@@ -1,3 +1,4 @@
+import { watchSourceSnapshot, requireWatchProposalSources, storedWatchSources, requireWatchProposalAccess } from './watch-source-dependencies.js';
 import {
   BadRequestException,
   ConflictException,
@@ -184,6 +185,10 @@ export class ChangeSetsService {
     return run(async (tx) => {
       const cs = await tx.spChangeSet.findFirst({ where: { id } });
       if (!cs || cs.status !== 'proposed') return false;
+      if (cs.watchKey && cs.runId) {
+        const boundRun = await tx.spAgentRun.findFirst({ where: { id: cs.runId } });
+        if (storedWatchSources(boundRun?.findings)) return false;
+      }
       const head = await this.headOf(tx, cs.strategyId);
       if (!head || head.id !== cs.strategyVersionId) return false;
       const res = await tx.spChangeSet.updateMany({
@@ -204,7 +209,7 @@ export class ChangeSetsService {
     });
   }
 
-  async list(tenantId: string, opts: { strategyId?: string; status?: string } = {}) {
+  async list(tenantId: string, opts: { strategyId?: string; status?: string } = {}, userId?: string) {
     // ?status= is raw client input — validate against the enum here so a bogus
     // value 400s instead of surfacing as a PrismaClientValidationError 500.
     if (opts.status && !(Object.values(SpChangeSetStatus) as string[]).includes(opts.status)) {
@@ -212,22 +217,30 @@ export class ChangeSetsService {
         `Invalid status '${opts.status}' — expected one of: ${Object.values(SpChangeSetStatus).join(', ')}`,
       );
     }
-    return this.prisma.withTenant(tenantId, (tx) =>
-      tx.spChangeSet.findMany({
+    return this.prisma.withTenant(tenantId, async (tx) => {
+      const rows = await tx.spChangeSet.findMany({
         where: {
           ...(opts.strategyId ? { strategyId: opts.strategyId } : {}),
           ...(opts.status ? { status: opts.status as SpChangeSetStatus } : {}),
         },
         orderBy: { createdAt: 'desc' },
         take: 100,
-      }),
-    );
+      });
+      const visible = [];
+      for (const row of rows) {
+        try { await requireWatchProposalAccess(tx, tenantId, userId, row); visible.push(row); }
+        catch (error) { if (!(error instanceof NotFoundException)) throw error; }
+      }
+      return visible;
+    });
   }
 
-  async get(tenantId: string, id: string) {
-    const cs = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.spChangeSet.findFirst({ where: { id } }),
-    );
+  async get(tenantId: string, id: string, userId?: string) {
+    const cs = await this.prisma.withTenant(tenantId, async (tx) => {
+      const row = await tx.spChangeSet.findFirst({ where: { id } });
+      if (row) await requireWatchProposalAccess(tx, tenantId, userId, row);
+      return row;
+    });
     if (!cs) throw new NotFoundException('Change-set not found');
     return cs;
   }
@@ -237,6 +250,7 @@ export class ChangeSetsService {
       await this.lockForReview(tx, tenantId, id);
       const cs = await tx.spChangeSet.findFirst({ where: { id } });
       if (!cs) throw new NotFoundException('Change-set not found');
+      await requireWatchProposalAccess(tx, tenantId, userId, cs);
       if (cs.status !== 'proposed') {
         throw new ConflictException(
           `Change-set is ${cs.status} — only a proposed change-set can be approved`,
@@ -292,6 +306,7 @@ export class ChangeSetsService {
       await this.lockForReview(tx, tenantId, id);
       const cs = await tx.spChangeSet.findFirst({ where: { id } });
       if (!cs) throw new NotFoundException('Change-set not found');
+      await requireWatchProposalAccess(tx, tenantId, userId, cs);
       if (cs.status !== 'proposed' && cs.status !== 'approved') {
         throw new ConflictException(
           `Change-set is ${cs.status} — only proposed/approved can be rejected`,
@@ -369,10 +384,12 @@ export class ChangeSetsService {
       // lock only after the winner commits, so its headOf sees the new version
       // and takes the stale/409 path instead. Lock order is always
       // change-set -> strategy, so concurrent applies cannot deadlock.
+      const sources = cs.watchKey ? await watchSourceSnapshot(tx, tenantId, cs.strategyId, true) : null;
       await tx.$queryRaw`
         SELECT id FROM sp_strategy
         WHERE id = ${cs.strategyId}::uuid AND tenant_id = ${tenantId}::uuid
         FOR UPDATE`;
+      await requireWatchProposalSources(tx, tenantId, userId, cs, sources);
 
       const head = await this.headOf(tx, cs.strategyId);
       if (!head || head.id !== cs.strategyVersionId) {
@@ -491,6 +508,7 @@ export class ChangeSetsService {
     const cs = await this.prisma.withTenant(tenantId, async (tx) => {
       const row = await tx.spChangeSet.findFirst({ where: { id } });
       if (!row) throw new NotFoundException('Change-set not found');
+      await requireWatchProposalAccess(tx, tenantId, userId, row);
       if (row.status !== 'applied') {
         throw new ConflictException(
           `Change-set is ${row.status} — only an applied change-set can be undone`,
