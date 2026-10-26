@@ -778,12 +778,33 @@ model WsHillDayJob {
   tenantId    String    @map("tenant_id") @db.Uuid
   documentId  String    @map("document_id") @db.Uuid
   actorId     String    @map("actor_id")
-  // queued | running | complete | failed
+  // queued | running | complete | failed | cancelled
   status      String    @default("queued")
-  // [{ meetingId, state, sectionId, reason, at }]
+  // Exact start request identity (WS-10): replaying the same document+requestId
+  // returns this same job instead of creating a second one. Null for jobs
+  // created by the historical no-body caller.
+  requestId   String?   @map("request_id") @db.Uuid
+  // Every start identity this job SATISFIED — the creating request plus any
+  // request that arrived while this job was already active and was answered by
+  // it. Postgres text[]; a replay of any of them resolves to this job, so a lost
+  // start response can be recovered instead of reissuing the work.
+  requestIds  String[]  @default([]) @map("request_ids")
+  // [{ meetingId, state, sectionId, reason, at }] — state is
+  // queued | running | done | failed | unknown. `unknown` means the provider
+  // call may have been issued but its outcome was lost with the worker's lease;
+  // only a deliberate retry re-runs it.
   units       Json      @default("[]")
   // Ordered SSE replay log: [{ seq, event, data }]
   events      Json      @default("[]")
+  // Conditional single-worker claim (WS-10): a worker takes the job only while
+  // it is queued or its lease has expired, and renews leaseExpiresAt per unit.
+  leaseHolder     String?   @map("lease_holder")
+  leaseExpiresAt  DateTime? @map("lease_expires_at")
+  attemptCount    Int       @default(0) @map("attempt_count")
+  // Honest cancellation: recorded when requested. A running job keeps `running`
+  // until the worker observes it between units — an in-flight provider call
+  // cannot be recalled.
+  cancelRequestedAt DateTime? @map("cancel_requested_at")
   quality     Float?
   error       String?
   startedAt   DateTime? @map("started_at")
@@ -793,7 +814,11 @@ model WsHillDayJob {
 
   document WsHillDayDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
+  /// One job per explicit start request per document.
+  @@unique([tenantId, documentId, requestId], map: "ws_hillday_job_request_key")
   @@index([tenantId, documentId, createdAt])
+  /// Claim discovery: queued rows and running rows with a lapsed lease.
+  @@index([status, leaseExpiresAt], map: "ws_hillday_job_claim_idx")
   @@map("ws_hillday_job")
 }
 
