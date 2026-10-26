@@ -56,7 +56,7 @@ describe('governed owner published-record reads', () => {
       brief,
       run,
       workflow,
-      controller: new HearingRecordRetrievalController(workflow as never),
+      controller: new HearingRecordRetrievalController(workflow as never, {} as never),
     };
   }
   it('accepts the earlier approval as of the requested date after a later renewal', async () => {
