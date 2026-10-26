@@ -1175,6 +1175,7 @@ export function newsletterBlockVisible(
 
 /** Pure receiving parsers and canonical read envelopes; no action is performed by parsing. */
 export * from './newsletter-receiving.js';
+export * from './newsletter-collaboration-receiving.js';
 export { parseNewsletterBrandKit, parseNewsletterFont } from './newsletter-brand-receiving.js';
 
 export {
