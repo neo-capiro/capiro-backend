@@ -45,6 +45,11 @@ class CreateOutreachV3SessionDto {
 
 class ListOutreachV3SessionsQueryDto {
   @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  search?: string;
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)

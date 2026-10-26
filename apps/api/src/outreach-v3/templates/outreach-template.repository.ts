@@ -62,6 +62,8 @@ export interface OutreachTemplateApplicationRow {
 }
 
 export interface OutreachTemplateProvenanceRow {
+  /** Internal authorization input; removed by the service before returning the public receipt. */
+  templateClientId: string | null;
   sessionId: string;
   templateId: string;
   templateName: string;
@@ -72,16 +74,6 @@ export interface OutreachTemplateProvenanceRow {
   appliedByUserId: string;
   appliedAt: Date;
   receiptJsonb: unknown;
-}
-
-/** Postgres unique_violation. Used to detect and replay a losing idempotent race. */
-const UNIQUE_VIOLATION = '23505';
-
-function isUniqueViolation(error: unknown): boolean {
-  const code = (error as { code?: unknown; meta?: { code?: unknown } } | null)?.code;
-  if (code === UNIQUE_VIOLATION || code === 'P2002') return true;
-  const message = error instanceof Error ? error.message : '';
-  return message.includes(UNIQUE_VIOLATION) || message.includes('outreach_v3_template_applications');
 }
 
 function templateNotFound(): OutreachCommandError {
@@ -693,6 +685,16 @@ export class OutreachTemplateRepository {
     return rows[0] ?? null;
   }
 
+  /** Serialize a request before creating its session; the existing application is its receipt. */
+  async lockApplicationRequest(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    requestKey: string,
+  ) {
+    const key = `outreach-template-use:${ctx.tenantId.toLowerCase()}:${ctx.userId.toLowerCase()}:${requestKey.toLowerCase()}`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
+  }
+
   /** Powers the "From template · name · vN" marker and the receipt panel on
    * an already-open campaign (closeout runbook 7.6/7.7) — read-only, joins
    * across the append-only provenance/application/template tables. */
@@ -706,6 +708,7 @@ export class OutreachTemplateRepository {
         p.session_id AS "sessionId",
         p.template_id AS "templateId",
         t.name AS "templateName",
+        t.client_id AS "templateClientId",
         p.template_version_id AS "templateVersionId",
         v.version_number AS "versionNumber",
         v.content_hash AS "contentHash",
@@ -724,15 +727,8 @@ export class OutreachTemplateRepository {
     return rows[0] ?? null;
   }
 
-  /**
-   * Inserts the application + its session provenance row. If a CONCURRENT
-   * call already committed the same (tenant, actor, request_key) — the
-   * "losing" side of an idempotent race — the unique constraint on
-   * outreach_v3_template_applications raises 23505 here rather than letting
-   * a duplicate campaign through. That violation is caught and converted into
-   * a lookup of the winner so the loser can replay it instead of surfacing a
-   * raw database error (closeout runbook 3.8).
-   */
+  /** Insert the application and provenance after lockApplicationRequest + receipt lookup.
+   * Database failures abort the whole transaction, including the new session. */
   async recordApplication(
     tx: Prisma.TransactionClient,
     ctx: TenantContext,
@@ -750,46 +746,31 @@ export class OutreachTemplateRepository {
   ): Promise<{ application: OutreachTemplateApplicationRow; replayed: boolean }> {
     const commandBatchJson = JSON.stringify(input.commandBatch);
     const receiptJson = JSON.stringify(input.receipt);
-    let application: OutreachTemplateApplicationRow | undefined;
-    try {
-      const rows = await tx.$queryRaw<OutreachTemplateApplicationRow[]>`
-        INSERT INTO outreach_v3_template_applications (
-          id, tenant_id, template_id, template_version_id, session_id,
-          applied_by_user_id, request_key, request_fingerprint, command_batch_jsonb,
-          template_content_hash, resulting_state_version, receipt_jsonb
-        ) VALUES (
-          CAST(${input.applicationId} AS uuid), CAST(${ctx.tenantId} AS uuid),
-          CAST(${input.template.id} AS uuid), CAST(${input.version.id} AS uuid),
-          CAST(${input.sessionId} AS uuid), CAST(${ctx.userId} AS uuid),
-          CAST(${input.requestKey} AS uuid), ${input.requestFingerprint}, CAST(${commandBatchJson} AS jsonb),
-          ${input.version.contentHash}, ${input.resultingStateVersion}, CAST(${receiptJson} AS jsonb)
-        )
-        RETURNING
-          id,
-          template_id AS "templateId",
-          template_version_id AS "templateVersionId",
-          session_id AS "sessionId",
-          request_key AS "requestKey",
-          request_fingerprint AS "requestFingerprint",
-          template_content_hash AS "templateContentHash",
-          resulting_state_version AS "resultingStateVersion",
-          receipt_jsonb AS "receiptJsonb",
-          created_at AS "createdAt"
-      `;
-      application = rows[0];
-    } catch (error) {
-      if (!isUniqueViolation(error)) throw error;
-      const winner = await this.findApplicationByRequestKey(tx, ctx, input.requestKey);
-      if (!winner) throw error;
-      if (winner.requestFingerprint !== input.requestFingerprint) {
-        throw new OutreachCommandError(
-          'OUTREACH_TEMPLATE_REQUEST_REUSE',
-          'This template request key was already used for a different request.',
-          409,
-        );
-      }
-      return { application: winner, replayed: true };
-    }
+    const rows = await tx.$queryRaw<OutreachTemplateApplicationRow[]>`
+      INSERT INTO outreach_v3_template_applications (
+        id, tenant_id, template_id, template_version_id, session_id,
+        applied_by_user_id, request_key, request_fingerprint, command_batch_jsonb,
+        template_content_hash, resulting_state_version, receipt_jsonb
+      ) VALUES (
+        CAST(${input.applicationId} AS uuid), CAST(${ctx.tenantId} AS uuid),
+        CAST(${input.template.id} AS uuid), CAST(${input.version.id} AS uuid),
+        CAST(${input.sessionId} AS uuid), CAST(${ctx.userId} AS uuid),
+        CAST(${input.requestKey} AS uuid), ${input.requestFingerprint}, CAST(${commandBatchJson} AS jsonb),
+        ${input.version.contentHash}, ${input.resultingStateVersion}, CAST(${receiptJson} AS jsonb)
+      )
+      RETURNING
+        id,
+        template_id AS "templateId",
+        template_version_id AS "templateVersionId",
+        session_id AS "sessionId",
+        request_key AS "requestKey",
+        request_fingerprint AS "requestFingerprint",
+        template_content_hash AS "templateContentHash",
+        resulting_state_version AS "resultingStateVersion",
+        receipt_jsonb AS "receiptJsonb",
+        created_at AS "createdAt"
+    `;
+    const application = rows[0];
     if (!application) throw new Error('OUTREACH_TEMPLATE_APPLICATION_CREATE_FAILED');
     await tx.$executeRaw`
       INSERT INTO outreach_v3_session_template_provenance (

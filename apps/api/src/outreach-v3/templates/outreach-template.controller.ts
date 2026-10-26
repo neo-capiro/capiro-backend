@@ -156,6 +156,11 @@ class UseTemplateDto {
   variableValues?: Record<string, string>;
 }
 
+class PublishTemplateDto {
+  @IsUUID()
+  expectedDraftVersionId!: string;
+}
+
 @Controller('engagement/outreach-v3/templates')
 @UseGuards(OutreachV3StateGuard, RolesGuard)
 @UseFilters(OutreachV3ExceptionFilter)
@@ -239,8 +244,9 @@ export class OutreachTemplateController {
   publish(
     @CurrentTenant() ctx: TenantContext,
     @Param('templateId', ParseUUIDPipe) templateId: string,
+    @Body() body: PublishTemplateDto,
   ) {
-    return this.templates.publish(ctx, templateId);
+    return this.templates.publish(ctx, templateId, body);
   }
 
   @Post(':templateId/use')
