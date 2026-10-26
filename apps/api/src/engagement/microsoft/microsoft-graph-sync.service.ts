@@ -1,4 +1,5 @@
-import { buildMicrosoftSendPayload } from './microsoft-send-payload.js';
+import { assertMicrosoftReplyDraft, buildMicrosoftReplyPayload, buildMicrosoftSendPayload } from './microsoft-send-payload.js';
+import { graphReplyIdentity, type GraphReplyIdentity, type MailReplyIdentity, REPLY_UNAVAILABLE } from '../single-mail-reply.js';
 import {
   acceptedGraphReceiptInTx, GRAPH_IMMUTABLE_ID_HEADERS, graphObservedIdentity,
   graphReceiptMessageInTx, graphReceiptMetadata, lockMailReceiptWrites as lockTenantForGraphSync,
@@ -274,8 +275,10 @@ interface GraphItemBody {
 }
 
 const graphReceiptIdentity = Symbol('authenticatedGraphReceiptIdentity');
+const graphReplySource = Symbol('authenticatedGraphReplySource');
 interface GraphMessage {
   [graphReceiptIdentity]?: GraphMailIdentity;
+  [graphReplySource]?: GraphReplyIdentity;
   id?: string;
   conversationId?: string | null;
   internetMessageId?: string | null;
@@ -292,6 +295,10 @@ interface GraphMessage {
   toRecipients?: GraphRecipient[];
   ccRecipients?: GraphRecipient[];
   bccRecipients?: GraphRecipient[];
+  replyTo?: GraphRecipient[];
+  isDraft?: boolean;
+  changeKey?: string;
+  internetMessageHeaders?: unknown;
   '@removed'?: { reason?: string };
 }
 
@@ -315,6 +322,7 @@ interface GraphNotification {
 }
 
 export interface MicrosoftGraphSendMailInput {
+  reply?: MailReplyIdentity;
   subject: string;
   body: string;
   /** Graph message body type. Defaults to 'Text' for back-compat; outreach
@@ -747,9 +755,25 @@ export class MicrosoftGraphSyncService {
     input: MicrosoftGraphSendMailInput,
   ): Promise<EngagementMailSendResult> {
     await this.assertConnectionAccess(ctx, connectionId);
-    const { token } = await this.loadConnection(ctx.tenantId, connectionId);
+    const { token, connection } = await this.loadConnection(ctx.tenantId, connectionId);
     const accessToken = await this.getValidAccessToken(ctx.tenantId, connectionId, token);
     const correlationId = input.correlationId ?? '';
+    const reply = input.reply;
+    if (reply && reply.kind !== 'microsoft_graph') throw definiteMailSendRejection(new BadRequestException(REPLY_UNAVAILABLE));
+    const payload = reply ? buildMicrosoftReplyPayload(input) : buildMicrosoftSendPayload(input);
+    if (reply) {
+      let original: unknown;
+      try {
+        original = await this.graphGet(`/me/messages/${encodeURIComponent(reply.immutableId)}?$select=id,conversationId,changeKey,isDraft,subject,from,sender,replyTo,internetMessageId,internetMessageHeaders`,
+          accessToken, GRAPH_IMMUTABLE_ID_HEADERS, 65536);
+      } catch (error) {
+        if (error instanceof GraphHttpError && [404, 410].includes(error.graphStatus))
+          throw definiteMailSendRejection(new BadRequestException(REPLY_UNAVAILABLE));
+        throw error;
+      }
+      if (JSON.stringify(graphReplyIdentity(original)) !== JSON.stringify(reply))
+        throw definiteMailSendRejection(new BadRequestException('The original changed. Review it again before replying.'));
+    }
 
     // 1. Create the draft. A clear failure here is an ORDINARY provider failure:
     //    nothing has been delivered, so the caller may fix and retry.
@@ -757,7 +781,8 @@ export class MicrosoftGraphSyncService {
       id?: unknown;
       internetMessageId?: unknown;
       conversationId?: unknown;
-    }>('/me/messages', accessToken, buildMicrosoftSendPayload(input), GRAPH_IMMUTABLE_ID_HEADERS);
+    }>(reply ? `/me/messages/${encodeURIComponent(reply.immutableId)}/createReply` : '/me/messages',
+      accessToken, payload, GRAPH_IMMUTABLE_ID_HEADERS, reply ? 'mime' : 'json');
 
     const draftId = typeof draft?.id === 'string' ? draft.id.trim() : '';
     if (!draftId) {
@@ -775,6 +800,16 @@ export class MicrosoftGraphSyncService {
     // the caller's existing fallback intact; it is never guessed.
     const conversationId =
       typeof draft?.conversationId === 'string' ? draft.conversationId.trim() : '';
+    if (reply) {
+      if (!conversationId || draftId !== draft.id || conversationId !== draft.conversationId ||
+          /[\x00-\x20]/.test(draftId + conversationId) || draftId.length > 4096 || conversationId.length > 4096 || !connection.accountEmail)
+        throw new ServiceUnavailableException('Outlook reply draft identity is unavailable. Do not resend this request.');
+      const checked = await this.graphGet(`/me/messages/${encodeURIComponent(draftId)}?$select=id,conversationId,isDraft,subject,body,from,sender,toRecipients,ccRecipients,bccRecipients,replyTo,hasAttachments,internetMessageHeaders`,
+        accessToken, { Prefer: `IdType="ImmutableId", outlook.body-content-type="${(input.bodyContentType ?? 'Text').toLowerCase()}"` }, 262144);
+      const files = await this.graphGet(`/me/messages/${encodeURIComponent(draftId)}/attachments?$top=${(input.attachments?.length ?? 0) + 1}`,
+        accessToken, GRAPH_IMMUTABLE_ID_HEADERS, 5_500_000);
+      assertMicrosoftReplyDraft(input, checked, files, { id: draftId, conversationId }, connection.accountEmail);
+    }
 
     // 2. Send the draft. From here the outcome may be genuinely undetermined.
     try {
@@ -1807,7 +1842,8 @@ export class MicrosoftGraphSyncService {
     const ccRecipients = recipients(message.ccRecipients);
     const bccRecipients = recipients(message.bccRecipients);
     const authoritative = resolveGraphAuthoritativeBody(message);
-    const storedRaw = stripGraphMessageBodyContent(message);
+    const storedRaw = { ...stripGraphMessageBodyContent(message), graphReplySource: message[graphReplySource]
+      ? { schema: 'graph-native-reply/1', defaultId: message.id, identity: message[graphReplySource] } : undefined };
     const participantEmails = [
       fromEmail ?? '',
       ...toRecipients.map((recipient) => recipient.email),
@@ -1935,7 +1971,7 @@ export class MicrosoftGraphSyncService {
                 snippet: clean(message.bodyPreview),
                 participants: participantJson as Prisma.InputJsonValue,
                 lastMessageAt,
-                raw: storedRaw as Prisma.InputJsonValue,
+                raw: storedRaw as unknown as Prisma.InputJsonValue,
                 metadata: {
                   webLink: message.webLink ?? null,
                   folders: unique([folder, ...readFolders(existingThread)]),
@@ -1960,7 +1996,7 @@ export class MicrosoftGraphSyncService {
                 snippet: clean(message.bodyPreview),
                 participants: participantJson as Prisma.InputJsonValue,
                 lastMessageAt,
-                raw: storedRaw as Prisma.InputJsonValue,
+                raw: storedRaw as unknown as Prisma.InputJsonValue,
                 metadata: {
                   webLink: message.webLink ?? null,
                   folders: [folder],
@@ -1996,7 +2032,7 @@ export class MicrosoftGraphSyncService {
             hasAttachments: Boolean(message.hasAttachments),
             removedAt: null,
             removedReason: null,
-            raw: storedRaw as Prisma.InputJsonValue,
+            raw: storedRaw as unknown as Prisma.InputJsonValue,
             metadata: {
               ...graphReceiptMetadata(existingMessage?.metadata, identity),
               folder,
@@ -2026,7 +2062,7 @@ export class MicrosoftGraphSyncService {
             hasAttachments: Boolean(message.hasAttachments),
             removedAt: null,
             removedReason: null,
-            raw: storedRaw as Prisma.InputJsonValue,
+            raw: storedRaw as unknown as Prisma.InputJsonValue,
             metadata: {
               ...graphReceiptMetadata(existingMessage?.metadata, identity),
               folder,
@@ -2077,24 +2113,16 @@ export class MicrosoftGraphSyncService {
     mailbox?: { tenantId: string; connectionId: string },
   ): Promise<GraphMessage> {
     if (!message.id || message['@removed']) return message;
-    const known = mailbox ? await this.prisma.withTenant(mailbox.tenantId, (tx) => tx.mailMessage.findFirst({
-      where: { tenantId: mailbox.tenantId, connectionId: mailbox.connectionId,
-        source: EngagementSource.outlook, externalId: message.id }, select: { id: true },
-    })) : true;
-    const needsIdentity = !known;
-    if (!needsIdentity && resolveGraphAuthoritativeBody(message).bodyCompleteness === 'full') {
-      return message;
-    }
     try {
-      const detailed = await this.graphGet<Pick<GraphMessage, 'id' | 'body' | 'conversationId'> & {
-        isDraft?: boolean; internetMessageHeaders?: unknown;
-      }>(
-        `/me/messages/${encodeURIComponent(message.id)}?$select=${needsIdentity ? 'id,body,conversationId,isDraft,internetMessageHeaders' : 'id,body'}`,
+      // One bounded GET per existing hydration call; default delta IDs/checkpoints remain unchanged.
+      const detailed = await this.graphGet<GraphMessage>(
+        `/me/messages/${encodeURIComponent(message.id)}?$select=id,body,conversationId,changeKey,isDraft,subject,from,sender,replyTo,internetMessageId,internetMessageHeaders`,
         accessToken,
-        needsIdentity ? GRAPH_IMMUTABLE_ID_HEADERS : {},
+        GRAPH_IMMUTABLE_ID_HEADERS,
       );
-      const identity = needsIdentity ? graphObservedIdentity(detailed) : null;
+      const identity = graphObservedIdentity(detailed), reply = graphReplyIdentity(detailed);
       return { ...message, body: detailed.body ?? message.body,
+        ...(reply ? { [graphReplySource]: reply } : {}),
         ...(identity ? { [graphReceiptIdentity]: identity } : {}) };
     } catch (err) {
       if (isMessageGoneError(err)) return message;
@@ -2323,12 +2351,13 @@ export class MicrosoftGraphSyncService {
     url: string,
     accessToken: string,
     headers: Record<string, string> = {},
+    maxResponseBytes?: number,
   ): Promise<T> {
-    return this.graphFetch<T>('GET', url, accessToken, undefined, headers);
+    return this.graphFetch<T>('GET', url, accessToken, undefined, headers, true, 1, { maxResponseBytes });
   }
 
-  private async graphPost<T>(url: string, accessToken: string, body: unknown, headers: Record<string, string> = {}): Promise<T> {
-    return this.graphFetch<T>('POST', url, accessToken, body, headers);
+  private async graphPost<T>(url: string, accessToken: string, body: unknown, headers: Record<string, string> = {}, encoding: 'json' | 'mime' = 'json'): Promise<T> {
+    return this.graphFetch<T>('POST', url, accessToken, body, headers, true, 1, { encoding });
   }
 
   private async graphPostNoContent(url: string, accessToken: string, body: unknown, headers: Record<string, string> = {}): Promise<void> {
@@ -2347,7 +2376,11 @@ export class MicrosoftGraphSyncService {
     headers: Record<string, string> = {},
     parseJson = true,
     attempt = 1,
+    options: { encoding?: 'json' | 'mime'; maxResponseBytes?: number } = {},
   ): Promise<T> {
+    const mime = options.encoding === 'mime';
+    if (mime && (method !== 'POST' || typeof body !== 'string' || !/^[A-Za-z0-9+/]*={0,2}$/.test(body)))
+      throw new BadRequestException('Invalid native reply MIME');
     return mailboxProviderRequest(async (signal) => {
       const target = url.startsWith('https://') ? url : `${GRAPH_BASE_URL}${url}`;
       const response = await fetch(target, {
@@ -2356,10 +2389,10 @@ export class MicrosoftGraphSyncService {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           Accept: 'application/json',
-          ...(body ? { 'Content-Type': 'application/json' } : {}),
+          ...(body ? { 'Content-Type': mime ? 'text/plain' : 'application/json' } : {}),
           ...headers,
         },
-        body: body ? JSON.stringify(body) : undefined,
+        body: body ? mime ? body as string : JSON.stringify(body) : undefined,
       });
 
       // Only reads are replay-safe. The caller's durable intent owns mutation retries.
@@ -2367,11 +2400,15 @@ export class MicrosoftGraphSyncService {
         const retryAfter = Number(response.headers.get('retry-after') ?? '0');
         if (retryAfter > 0 && retryAfter <= 10 && attempt < MAX_RETRYABLE_ATTEMPTS) {
           await mailboxRetryDelay(retryAfter * 1000);
-          return this.graphFetch(method, url, accessToken, body, headers, parseJson, attempt + 1);
+          return this.graphFetch(method, url, accessToken, body, headers, parseJson, attempt + 1, options);
         }
       }
 
       if (!response.ok) {
+        if (options.maxResponseBytes) {
+          await response.body?.cancel();
+          throw new GraphHttpError('Outlook reply verification unavailable', response.status);
+        }
         const text = await response.text().catch(() => '');
         // §g5 carries the real status through so a SEND caller can tell a
         // confirmed 4xx rejection apart from a 5xx Graph never definitively
@@ -2385,6 +2422,20 @@ export class MicrosoftGraphSyncService {
       }
       if (!parseJson || response.status === 202 || response.status === 204) {
         return undefined as T;
+      }
+      if (options.maxResponseBytes) {
+        const reader = response.body?.getReader();
+        if (!reader) throw new ServiceUnavailableException('Outlook reply verification unavailable');
+        const chunks: Uint8Array[] = []; let size = 0;
+        try {
+          for (;;) {
+            const item = await reader.read(); if (item.done) break;
+            size += item.value.length;
+            if (size > options.maxResponseBytes) { await reader.cancel(); throw new ServiceUnavailableException('Outlook reply verification exceeded its byte limit'); }
+            chunks.push(item.value);
+          }
+        } finally { reader.releaseLock(); }
+        return JSON.parse(Buffer.concat(chunks).toString('utf8')) as T;
       }
       return (await response.json()) as T;
     });

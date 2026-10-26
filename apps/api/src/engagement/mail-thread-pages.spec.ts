@@ -31,6 +31,25 @@ function harness() {
 }
 
 describe('bounded canonical thread pages', () => {
+  it('Outlook selected-body context stays additive, private and unavailable when capture is missing', async () => {
+    const h = harness(), tx = h.tx as any;
+    Object.assign(h.thread, { source: 'outlook', externalId: 'conversation' }); h.thread.connection.provider = 'microsoft_365';
+    tx.integrationConnection = { findMany: jest.fn(async () => [{ accountEmail: 'owner@example.test' }]) };
+    tx.user = { findUnique: jest.fn(async () => ({ email: 'actor@example.test' })) };
+    const source: any = { id: ids.message, threadId: ids.thread, connectionId: ids.box, source: 'outlook', externalId: 'default-source',
+      removedAt: null, subject: 'Subject', fromEmail: 'contact@example.test', updatedAt: new Date('2026-09-30T11:00:00Z'), bodyText: 'Stored exact body',
+      raw: { graphReplySource: { schema: 'graph-native-reply/1', defaultId: 'default-source', identity: {
+        kind: 'microsoft_graph', immutableId: 'Immutable-Source', conversationId: 'conversation', changeKey: 'version',
+        subject: 'Subject', fromEmail: 'contact@example.test', senderEmail: 'contact@example.test', toEmail: 'contact@example.test', replyTo: [],
+        inReplyTo: '<source@example.test>', references: '<source@example.test>' } } } };
+    tx.mailMessage.findMany.mockResolvedValue([source]); tx.mailMessage.count.mockResolvedValue(1);
+    const read = () => readMailThreadHttpPage(h.prisma as any, ctx, ids.thread, ids.client, { asOf, messageId: ids.message });
+    const supported = await read();
+    expect(supported.messages[0]?.replyContext).toMatchObject({ supported: true, to: [{ email: 'contact@example.test' }] });
+    expect(JSON.stringify(supported)).not.toMatch(/Immutable-Source|default-source|changeKey|source@example/);
+    delete source.raw.graphReplySource;
+    expect((await read()).messages[0]).toMatchObject({ bodyText: 'Stored exact body', replyContext: { supported: false } });
+  });
   it.each(['wall', 'client'])('refuses General access to an actual associated client with current %s denial', async failure => {
     const h = harness();
     if (failure === 'wall') h.tx.$queryRawUnsafe.mockResolvedValue([{ allowed: false }]);

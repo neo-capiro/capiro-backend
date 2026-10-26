@@ -9852,9 +9852,9 @@ export class EngagementService {
     });
 
     const providerSlug = sendProviderSlug(connection.provider);
-    // This prospective slice covers new compose with a proven provider conversation.
-    // Existing reply-thread mismatches and legacy/untyped IDs remain unresolved.
-    const graphIdentity = input.threadId ? null : graphSendIdentity(sendResult);
+    // A native Graph reply carries the same typed accepted identity as ordinary compose.
+    // Legacy thread hints never qualify as reply proof.
+    const graphIdentity = input.threadId && reply?.provider.kind !== 'microsoft_graph' ? null : graphSendIdentity(sendResult);
     const makeReceipt = (threadId: string, messageId: string, confirmed = false) => ({
       ok: true as const, threadId, messageId, provider: providerSlug,
       ...(reply ? { operation: 'reply', originalMessageId: reply.context.originalMessageId,
@@ -9939,7 +9939,8 @@ export class EngagementService {
 
     const { thread, message } = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       if (reply) {
-        if (!providerThreadKey || !sendResult.providerMessageId) throw new Error('Accepted reply identity unavailable');
+        if (!providerThreadKey || (reply.provider.kind === 'microsoft_graph' ? !graphIdentity : !sendResult.providerMessageId))
+          throw new Error('Accepted reply identity unavailable');
         await lockMailReceiptWrites(tx, ctx.tenantId);
       }
       let syncedReceipt = null;

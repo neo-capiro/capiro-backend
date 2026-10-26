@@ -7,6 +7,7 @@ import { AmbiguousMailSendError, isDefiniteMailSendRejection } from './mail-send
 import { GmailSendService, buildGmailRawMessage, buildGmailSendPayload } from './google/gmail-send.service.js';
 import { assertMailPayloadSize } from './mail-send-payload.js';
 import { MicrosoftGraphSyncService } from './microsoft/microsoft-graph-sync.service.js';
+import { buildMicrosoftReplyPayload } from './microsoft/microsoft-send-payload.js';
 
 const GRAPH_LIMIT = 4_000_000;
 const GMAIL_LIMIT = 36_700_160;
@@ -112,6 +113,19 @@ function gmailBoundary(delta: number) {
 }
 
 describe('ML-21 aggregate encoded request preflight', () => {
+  test('native Outlook measures the standard-base64 MIME envelope, including Unicode signature and files', async () => {
+    const h = harness();
+    const reply = { kind: 'microsoft_graph' as const, immutableId: 'original', conversationId: 'conversation', changeKey: 'version',
+      subject: base.subject, fromEmail: 'to@example.test', senderEmail: 'to@example.test', toEmail: 'to@example.test', replyTo: [],
+      inReplyTo: '<original@example.test>', references: '<original@example.test>' };
+    const input = { ...base, reply, correlationId: '11111111-1111-4111-8111-111111111111', body: '<p>你好</p><footer>Signature é</footer>',
+      attachments: [attachment(1_200_000, 'Résumé 📎.pdf'), attachment(1_200_000, 'second.pdf')] };
+    expect(Buffer.byteLength(buildMicrosoftReplyPayload(input))).toBeGreaterThan(GRAPH_LIMIT);
+    await expectSizeRefusal(h, EngagementProvider.microsoft_365, input);
+    const small = { ...input, attachments: [attachment(8)] };
+    expect(() => assertMailPayloadSize(EngagementProvider.microsoft_365, small)).not.toThrow();
+    expect(Buffer.from(buildMicrosoftReplyPayload(small), 'base64').toString()).toContain('In-Reply-To: <original@example.test>');
+  });
   test('the Graph wire shape retains all recipients, attachments, signature and safe correlation', async () => {
     const h = harness();
     const input = {
