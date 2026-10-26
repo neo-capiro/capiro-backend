@@ -7,6 +7,7 @@ import { TemplateStudioService } from './template-studio.service.js';
 // class constructors for @Body() metatype. `import type` erases them and
 // forbidNonWhitelisted then rejects every legitimate field as unknown.
 import {
+  BlueprintVersionExpectationDto,
   CloneBlueprintDto,
   CreateBlueprintDto,
   CreateVersionDto,
@@ -118,12 +119,14 @@ export class TemplateStudioController {
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('blueprintId') blueprintId: string,
     @Param('versionId') versionId: string,
+    @Body() dto: BlueprintVersionExpectationDto = {},
   ) {
     return this.studio.publishVersion(
       ctx.tenantId,
       blueprintId,
       versionId,
       ctx.clerkUserId,
+      dto,
     );
   }
 
@@ -133,12 +136,14 @@ export class TemplateStudioController {
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('blueprintId') blueprintId: string,
     @Param('versionId') versionId: string,
+    @Body() dto: BlueprintVersionExpectationDto = {},
   ) {
     return this.studio.retireVersion(
       ctx.tenantId,
       blueprintId,
       versionId,
       ctx.clerkUserId,
+      dto,
     );
   }
 
