@@ -12,6 +12,9 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { createHash } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
+import { resolveBlueprintPin } from '../template-studio/blueprint-pin.js';
+import { createInitialAgentState } from '../document-agent/document-agent-state.js';
 import type { Prisma } from '../../generated/prisma-client/index.js';
 import { preparationWorkspace } from './preparation-content.js';
 import { editorialWorkspace } from './editorial-content.js';
@@ -72,6 +75,11 @@ export class DraftsService {
     if (!dto.prospectId && !clientId && dto.client?.trim())
       throw new ConflictException('Select an explicit client UUID; a client name cannot establish association');
     const canonicalClient = await requireDraftClient(this.prisma, db, tenantId, ownerId, clientId);
+    if (dto.prospectId && dto.blueprintPin)
+      throw new ConflictException('Blueprint selection is supported on ordinary drafts');
+    const blueprint = dto.blueprintPin
+      ? await resolveBlueprintPin(db, tenantId, dto.blueprintPin)
+      : undefined;
     const product = dto.product ?? '';
     const meta = product ? WSC.meta(product) : null;
     const sections = product ? WSC.suggestedSections(product) : [];
@@ -103,6 +111,13 @@ export class DraftsService {
       anonymize: false,
       letterhead: { custom: false, firmName: '', firmAddr: '' },
     };
+    if (blueprint) {
+      const agent = createInitialAgentState();
+      agent.blueprintPin = blueprint.pin;
+      agent.phase = 'design';
+      agent.revision = 1;
+      config.documentAgent = agent;
+    }
 
     const draft = await db.wsDraft.create({
       data: {
@@ -424,6 +439,9 @@ export class DraftsService {
       const canonicalClient = current.prospectId && clientId === null
         ? undefined
         : await requireDraftClient(this.prisma, db, tenantId, actorId, clientId);
+      if (dto.config && Object.prototype.hasOwnProperty.call(dto.config, 'documentAgent') &&
+          !isDeepStrictEqual(dto.config.documentAgent, (current.config as Record<string, unknown>)?.documentAgent))
+        throw new ConflictException('Change agent state through the document-agent endpoint');
       const mergedConfig: Record<string, unknown> = {
         ...(current.config as Record<string, unknown>),
         ...(dto.config ?? {}),

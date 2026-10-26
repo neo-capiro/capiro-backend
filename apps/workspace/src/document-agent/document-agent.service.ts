@@ -21,6 +21,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { resolveBlueprintPin } from '../template-studio/blueprint-pin.js';
 import { CollaboratorsService } from '../collaborators/collaborators.service.js';
 import { canEdit, canRead, canReview, type ResolvedRole } from '../collaborators/role-policy.js';
 import { GenerationService } from '../generation/generation.service.js';
@@ -176,7 +177,7 @@ export class DocumentAgentService {
       initial.phase = 'blueprint';
     }
     if (init.blueprintPin) {
-      initial.blueprintPin = init.blueprintPin;
+      initial.blueprintPin = (await resolveBlueprintPin(this.prisma, tenantId, init.blueprintPin)).pin;
       initial.phase = 'design';
     }
     if (init.theme) {
@@ -212,9 +213,16 @@ export class DocumentAgentService {
       status?: string;
     },
   ): Promise<{ state: DocumentAgentState }> {
+    let blueprintPin: DocumentAgentState['blueprintPin'] = null;
+    if (patch.blueprintPin) {
+      // Establish document access before resolving a requested catalog resource;
+      // the mutation owner rechecks current access/revision before persistence.
+      await this.loadDraft(tenantId, draftId, actorId, canEdit);
+      blueprintPin = (await resolveBlueprintPin(this.prisma, tenantId, patch.blueprintPin)).pin;
+    }
     return this.withMutationLock(tenantId, draftId, actorId, canEdit, expectedRevision, (state) => {
       if (patch.documentType) state.documentType = patch.documentType;
-      if (patch.blueprintPin) state.blueprintPin = patch.blueprintPin as unknown as DocumentAgentState['blueprintPin'];
+      if (blueprintPin) state.blueprintPin = blueprintPin;
       if (patch.theme) state.theme = patch.theme as unknown as DocumentAgentState['theme'];
       if (patch.goal) state.goal = patch.goal as unknown as DocumentAgentState['goal'];
       if (patch.generation?.mode) state.generation.mode = patch.generation.mode;
@@ -718,12 +726,9 @@ export class DocumentAgentService {
       throw new ConflictException('A blueprint must be pinned before generating an outline.');
     }
     // Load the blueprint version definition.
-    const blueprintVersion = await this.prisma.wsBlueprintVersion.findFirst({
-      where: { id: state.blueprintPin.versionId, tenantId },
-    });
-    if (!blueprintVersion) {
-      throw new ConflictException('Pinned blueprint version not found.');
-    }
+    const { version: blueprintVersion } = await resolveBlueprintPin(
+      this.prisma, tenantId, state.blueprintPin, 'retained',
+    );
     const definition = blueprintVersion.definition as {
       sections?: Array<{ id: string; title: string; purpose: string; instructions: string; required: boolean; lockedByDefault: boolean; targetWords: { min: number; max: number }; evidenceRules: string[] }>;
     };

@@ -32,6 +32,8 @@ export class CreateDraftDto {
   @IsOptional() @IsString() client?: string;
   @IsOptional() @IsUUID() clientId?: string | null;
   @IsOptional() @IsString() docTitle?: string;
+  // Explicit published-version selection; the domain owner validates every pin field.
+  @IsOptional() @IsObject() blueprintPin?: Record<string, unknown>;
 }
 
 export class UpdateDraftDto {
