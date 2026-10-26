@@ -22,7 +22,7 @@ generator client {
   // shared pnpm monorepo. Import via `../generated/prisma-client`.
   output          = "../generated/prisma-client"
   previewFeatures = ["postgresqlExtensions"]
-  binaryTargets   = ["native", "linux-arm64-openssl-3.0.x"]
+  binaryTargets   = ["native", "linux-musl-arm64-openssl-3.0.x"]
 }
 
 datasource db {
