@@ -112,15 +112,12 @@ async function ownerResponse(response: Response) {
   }
 }
 
-/** Reuse the governed exact-record read and Intel's permission/signing owner. */
-export async function readSavedHearingMedia(
-  prisma: PrismaService,
+async function assertCurrentSource(
   tools: Pick<MeriToolsService, 'executeFromAuthenticatedUser'>,
   ctx: TenantContext,
-  raw: unknown,
-  fetchImpl: typeof fetch = fetch,
+  input: ReturnType<typeof readHearingMediaRequest>,
 ) {
-  const input = readHearingMediaRequest(raw);
+  assertMeriToolRequestActive();
   const result = (await tools.executeFromAuthenticatedUser(
     ctx,
     'search_committee_hearings',
@@ -140,6 +137,10 @@ export async function readSavedHearingMedia(
     record.provenance?.contentHash !== input.source.contentHash
   )
     throw new ConflictException('Saved hearing record changed or is unavailable');
+}
+
+async function currentActor(prisma: PrismaService, ctx: TenantContext) {
+  assertMeriToolRequestActive();
   const actor = await prisma.withTenantUser(
     ctx.tenantId,
     ctx.userId,
@@ -149,8 +150,22 @@ export async function readSavedHearingMedia(
       >`SELECT u.clerk_user_id AS actor FROM users u JOIN tenant_memberships m ON m.user_id=u.id
       WHERE u.id=${ctx.userId}::uuid AND m.tenant_id=${ctx.tenantId}::uuid AND m.status::text='active'`,
   );
-  if (!actor[0]?.actor) throw new ForbiddenException('Current hearing access unavailable');
   assertMeriToolRequestActive();
+  if (!actor[0]?.actor) throw new ForbiddenException('Current hearing access unavailable');
+  return actor[0].actor;
+}
+
+/** Reuse the governed exact-record read and Intel's permission/signing owner. */
+export async function readSavedHearingMedia(
+  prisma: PrismaService,
+  tools: Pick<MeriToolsService, 'executeFromAuthenticatedUser'>,
+  ctx: TenantContext,
+  raw: unknown,
+  fetchImpl: typeof fetch = fetch,
+) {
+  const input = readHearingMediaRequest(raw);
+  await assertCurrentSource(tools, ctx, input);
+  const actor = await currentActor(prisma, ctx);
   const secret = process.env.INTERNAL_SERVICE_SECRET;
   if (!secret) throw new ServiceUnavailableException('Hearing media owner unavailable');
   const source = { hearingId: input.selection.hearingId, ...input.source };
@@ -167,13 +182,17 @@ export async function readSavedHearingMedia(
       headers: { 'content-type': 'application/json', 'x-internal-service-secret': secret },
       body: JSON.stringify({
         tenantId: ctx.tenantId,
-        actor: actor[0].actor,
+        actor,
         eventId: source.hearingId,
         playback: input.playback,
       }),
     },
   );
   const media = await ownerResponse(response);
+  // Owner I/O cannot carry an earlier permission or record version into release.
+  await assertCurrentSource(tools, ctx, input);
+  if ((await currentActor(prisma, ctx)) !== actor)
+    throw new ForbiddenException('Current hearing access unavailable');
   assertMeriToolRequestActive();
   return { schemaVersion: 'capiro.hearing-media-read/1' as const, source, media };
 }

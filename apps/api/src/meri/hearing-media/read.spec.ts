@@ -67,6 +67,7 @@ it('binds current authorized source identity and forwards only the saved hearing
       'search_committee_hearings',
       f.input.selection,
     );
+    expect(f.tools.executeFromAuthenticatedUser).toHaveBeenCalledTimes(2);
     expect(f.prisma.withTenantUser).toHaveBeenCalledWith('tenant', 'actor', expect.any(Function));
     const [url, init] = f.fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toMatch(/\/intel-api\/internal\/hearing-record-retrieval\/media$/);
@@ -77,6 +78,74 @@ it('binds current authorized source identity and forwards only the saved hearing
       playback,
     });
     expect(init.redirect).toBe('error');
+  }
+});
+
+it('withholds owner media when client/wall or actor access changes during the owner call', async () => {
+  for (const change of [
+    (f) =>
+      f.tools.executeFromAuthenticatedUser.mockRejectedValueOnce(new Error('client wall denied')),
+    (f) => f.actor.mockResolvedValueOnce([]),
+    (f) => f.actor.mockResolvedValueOnce([{ actor: 'replacement-actor' }]),
+  ] as Array<(f: ReturnType<typeof fixture>) => void>) {
+    const f = fixture();
+    const ownerReply = f.fetchImpl.getMockImplementation()!;
+    f.fetchImpl.mockImplementationOnce(async () => {
+      change(f);
+      return ownerReply();
+    });
+    await expect(f.read()).rejects.toThrow();
+    expect(f.fetchImpl).toHaveBeenCalledTimes(1);
+  }
+});
+
+it('withholds owner media when the exact saved source changes during the owner call', async () => {
+  for (const change of [
+    (f) => {
+      f.result.records[0]!.recordId = 'replacement-record';
+    },
+    (f) => {
+      f.result.records[0]!.provenance.hearingId = 'replacement-hearing';
+    },
+    (f) => {
+      f.result.records[0]!.provenance.contentHash = 'b'.repeat(64);
+    },
+    (f) => {
+      f.result.records = [];
+    },
+  ] as Array<(f: ReturnType<typeof fixture>) => void>) {
+    const f = fixture();
+    const ownerReply = f.fetchImpl.getMockImplementation()!;
+    f.fetchImpl.mockImplementationOnce(async () => {
+      change(f);
+      return ownerReply();
+    });
+    await expect(f.read()).rejects.toThrow('Saved hearing record');
+    expect(f.fetchImpl).toHaveBeenCalledTimes(1);
+  }
+});
+
+it('stops release if cancellation arrives during either final access check', async () => {
+  for (const during of ['source', 'actor']) {
+    const f = fixture(),
+      controller = new AbortController();
+    if (during === 'source') {
+      f.tools.executeFromAuthenticatedUser
+        .mockResolvedValueOnce(f.result)
+        .mockImplementationOnce(async () => {
+          controller.abort();
+          return f.result;
+        });
+    } else {
+      f.actor.mockResolvedValueOnce([{ actor: 'clerk-actor' }]).mockImplementationOnce(async () => {
+        controller.abort();
+        return [{ actor: 'clerk-actor' }];
+      });
+    }
+    await expect(
+      withMeriToolExecutionControl({ signal: controller.signal }, f.read),
+    ).rejects.toThrow();
+    expect(f.fetchImpl).toHaveBeenCalledTimes(1);
   }
 });
 it('withholds media for another source, hearing, content version or missing record', async () => {
