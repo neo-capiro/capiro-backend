@@ -19,6 +19,22 @@ const helper = require(join(repoRoot, 'scripts/testing/a1-disposable-postgres.cj
     repoRoot: string; coreSchemaPath: string; workspaceSchemaPath: string; extraModels: string;
   }): Promise<{ url: string; schema: string; cleanup(): Promise<void> }>;
 };
+
+/**
+ * A safely quoted identifier for the fixture's OWNED schema.
+ *
+ * The disposable helper generates `a1_native_<24 hex>`; anything that does not
+ * look like a plain identifier is REFUSED rather than interpolated into SQL.
+ * The installed pg Client ignores Prisma's `?schema=` parameter, so this is what
+ * actually binds a raw seed/migration session to the intended schema.
+ */
+function ownedSchema(schema: string): string {
+  if (!/^[a-z][a-z0-9_]{0,62}$/.test(schema)) {
+    throw new Error(`refusing to bind unexpected schema name: ${schema}`);
+  }
+  return `"${schema}"`;
+}
+
 const readiness = helper.nativePostgresReadiness({ repoRoot });
 // Registered even when skipped: a missing disposable PG16 is never a native pass.
 const native = readiness.available ? describe : describe.skip;
@@ -48,7 +64,11 @@ type Harness = Awaited<ReturnType<Runtime['createHillDayJobHarness']>>;
  */
 native(`WS-10 Hill Day durable job lifecycle PostgreSQL16${readiness.available ? '' : ` [SKIP: ${readiness.reason}]`}`, () => {
   let database: Awaited<ReturnType<typeof helper.createDisposableSchema>> | undefined;
-  let seed: { query(text: string, values?: unknown[]): Promise<unknown>; connect(): Promise<void>; end(): Promise<void> };
+  let seed: {
+    query(text: string, values?: unknown[]): Promise<{ rows: Array<Record<string, unknown>> }>;
+    connect(): Promise<void>;
+    end(): Promise<void>;
+  };
   let h: Harness | undefined;
   let runtime: Runtime;
 
@@ -69,34 +89,51 @@ native(`WS-10 Hill Day durable job lifecycle PostgreSQL16${readiness.available ?
     });
 
     // 2. Pre-migration rows, ordinary role, base columns only.
+    //
+    // The installed pg Client does NOT forward Prisma's `?schema=` URL parameter
+    // (confirmed: schemaParameterForwarded=false, startupOptions=null), so this
+    // raw session must be bound to the fixture's OWNED schema explicitly. The
+    // schema name is validated before it is quoted into SQL, and the binding is
+    // verified with `current_schema()` rather than assumed.
     const { Client } = require(require.resolve('pg', { paths: [join(repoRoot, 'apps/api')] }));
     seed = new Client({ connectionString: database.url }) as never;
-    await seed.connect();
-    const { WS10_IDS } = require('./support/hillday-job-postgres-harness.js') as Runtime;
-    const { tenantId, documentId, meeting1, meeting2, legacyJobId } = WS10_IDS;
-    const legacyUnits = JSON.stringify([
-      { meetingId: meeting1, state: 'running', sectionId: meeting1, reason: null, at: new Date().toISOString() },
-      { meetingId: meeting2, state: 'queued', sectionId: meeting2, reason: null, at: new Date().toISOString() },
-    ]);
-    await seed.query(
-      `INSERT INTO ws_hillday_job (id, tenant_id, document_id, actor_id, status, units, events, created_at, updated_at)
+    try {
+      await seed.connect();
+      await seed.query(`SET search_path TO ${ownedSchema(database.schema)}`);
+      const bound = await seed.query('SELECT current_schema() AS schema');
+      const current = (bound.rows[0] as { schema: string }).schema;
+      if (current !== database.schema) {
+        throw new Error(`raw session bound to ${current}, expected ${database.schema}`);
+      }
+      const { WS10_IDS } = require('./support/hillday-job-postgres-harness.js') as Runtime;
+      const { tenantId, documentId, meeting1, meeting2, legacyJobId } = WS10_IDS;
+      const legacyUnits = JSON.stringify([
+        { meetingId: meeting1, state: 'running', sectionId: meeting1, reason: null, at: new Date().toISOString() },
+        { meetingId: meeting2, state: 'queued', sectionId: meeting2, reason: null, at: new Date().toISOString() },
+      ]);
+      await seed.query(
+        `INSERT INTO ws_hillday_job (id, tenant_id, document_id, actor_id, status, units, events, created_at, updated_at)
        VALUES ($1::uuid, $2::uuid, $3::uuid, 'user_ws10_owner', 'running', $4::jsonb, '[]'::jsonb, NOW() - INTERVAL '1 hour', NOW())`,
-      [legacyJobId, tenantId, documentId, legacyUnits],
-    );
-    await seed.query(
-      `INSERT INTO ws_hillday_job (id, tenant_id, document_id, actor_id, status, units, events, created_at, updated_at)
+        [legacyJobId, tenantId, documentId, legacyUnits],
+      );
+      await seed.query(
+        `INSERT INTO ws_hillday_job (id, tenant_id, document_id, actor_id, status, units, events, created_at, updated_at)
        VALUES (gen_random_uuid(), $1::uuid, $2::uuid, 'user_ws10_owner', 'queued', '[]'::jsonb, '[]'::jsonb, NOW(), NOW())`,
-      [tenantId, documentId],
-    );
-    await seed.query(
-      `INSERT INTO ws_hillday_job (id, tenant_id, document_id, actor_id, status, units, events, created_at, updated_at)
+        [tenantId, documentId],
+      );
+      await seed.query(
+        `INSERT INTO ws_hillday_job (id, tenant_id, document_id, actor_id, status, units, events, created_at, updated_at)
        VALUES (gen_random_uuid(), $1::uuid, $2::uuid, 'user_ws10_owner', 'complete', '[]'::jsonb, '[]'::jsonb, NOW(), NOW())`,
-      [tenantId, documentId],
-    );
+        [tenantId, documentId],
+      );
 
-    // 3. The exact additive SQL, once, through the ordinary role.
-    await seed.query(readFileSync(MIGRATION_SQL, 'utf8'));
-    await seed.end();
+      // 3. The exact additive SQL, once, through the ordinary role.
+      await seed.query(readFileSync(MIGRATION_SQL, 'utf8'));
+    } finally {
+      // Closed on setup FAILURE as well as success: a half-seeded schema must not
+      // leave the session holding this disposable database open.
+      await seed.end().catch(() => undefined);
+    }
 
     // 4. The same schema, now carrying both legacy rows and the new columns.
     runtime = require('./support/hillday-job-postgres-harness.js') as Runtime;
@@ -117,6 +154,35 @@ native(`WS-10 Hill Day durable job lifecycle PostgreSQL16${readiness.available ?
 
   const unitState = (units: unknown, meetingId: string) =>
     (units as JobUnit[]).find((u) => u.meetingId === meetingId)!;
+
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  /** A real second connection, bound to this fixture's OWNED schema. */
+  async function rawSession() {
+    const { Client } = require(require.resolve('pg', { paths: [join(repoRoot, 'apps/api')] }));
+    const client = new Client({ connectionString: h!.url });
+    await client.connect();
+    await client.query(`SET search_path TO ${ownedSchema(database!.schema)}`);
+    return client as { query(text: string, values?: unknown[]): Promise<{ rows: Array<Record<string, unknown>> }>; end(): Promise<void> };
+  }
+
+  /**
+   * Wait until the service's REAL section write is genuinely blocked on a lock —
+   * i.e. its publication transaction holds the claim row and is waiting for the
+   * meeting row. This is a readiness probe on the same database, not a delay.
+   */
+  async function publicationIsBlocked(on: { query(text: string, values?: unknown[]): Promise<{ rows: Array<Record<string, unknown>> }> }) {
+    for (let attempt = 0; attempt < 200; attempt += 1) {
+      const { rows } = await on.query(
+        `SELECT count(*)::int AS blocked FROM pg_stat_activity
+          WHERE datname = current_database() AND wait_event_type = 'Lock'
+            AND query ILIKE '%ws_hillday_meeting%'`,
+      );
+      if ((rows[0]!.blocked as number) > 0) return true;
+      await sleep(25);
+    }
+    return false;
+  }
 
   test('the migration applied to the accepted base schema adds every new column and index', async () => {
     const columns = await h!.db.$queryRaw<Array<{ column_name: string; is_nullable: string }>>`
@@ -154,12 +220,29 @@ native(`WS-10 Hill Day durable job lifecycle PostgreSQL16${readiness.available ?
     expect((await h!.leaseOf(job.id))!.attemptCount).toBe(1);
   });
 
-  test('an expired lease lets another worker re-claim the job', async () => {
-    const job = await h!.createJob({ units: [h!.unit(h!.ids.meeting1, 'queued')] as never });
-    await h!.worker.claim(job.id);
-    await h!.expireLease(job.id);
+  test('an expired lease on a genuinely RUNNING job lets another worker re-claim it', async () => {
+    // A real in-flight attempt: claiming it first would run it to a terminal
+    // state, and terminal jobs are intentionally not claimable — so the stalled
+    // attempt is seeded as the running row it would be in production.
+    const job = await h!.createJob({
+      status: 'running', leaseHolder: 'stalled-worker-1', attemptCount: 4,
+      leaseExpiresAt: new Date(Date.now() - 5_000),
+      units: [h!.unit(h!.ids.meeting1, 'running'), h!.unit(h!.ids.meeting2, 'queued')] as never,
+    });
+    const before = await h!.leaseOf(job.id);
+    expect(before!.status).toBe('running');
+    expect(before!.leaseExpiresAt!.getTime()).toBeLessThan(Date.now());
+
     expect(await h!.secondWorker.claim(job.id)).not.toBe('busy');
-    expect((await h!.leaseOf(job.id))!.attemptCount).toBe(2);
+
+    const after = await h!.leaseOf(job.id);
+    expect(after!.attemptCount).toBe(5);
+    expect(after!.leaseHolder).toBeTruthy();
+    // The expired holder's in-flight unit is parked, never re-issued...
+    expect(unitState(after!.units, h!.ids.meeting1).state).toBe('unknown');
+    expect(h!.dispatches.some((body) => body.includes('WS10 meeting 1'))).toBe(false);
+    // ...while the queued unit runs once under the new holder.
+    expect(h!.dispatches.filter((body) => body.includes('WS10 meeting 2'))).toHaveLength(1);
   });
 
   test('a pre-migration running row with NO lease is recoverable, and its in-flight unit is never replayed', async () => {
@@ -320,5 +403,134 @@ native(`WS-10 Hill Day durable job lifecycle PostgreSQL16${readiness.available ?
     expect(latest.job?.jobId).toBe(active.id);
     await expect(h!.generation.latestJob(h!.ids.otherTenantId, h!.owner, h!.ids.documentId))
       .rejects.toMatchObject({ status: 404 });
+  });
+
+  test('two concurrent starts with the SAME request produce one job', async () => {
+    const { tenantId, owner, documentId, requestId } = { tenantId: h!.ids.tenantId, owner: h!.owner, documentId: h!.ids.documentId, requestId: h!.ids.requestId };
+    const [first, second] = await Promise.all([
+      h!.generation.start(tenantId, owner, documentId, requestId),
+      h!.generation.start(tenantId, owner, documentId, requestId),
+    ]);
+    expect(first.jobId).toBe(second.jobId);
+    const rows = await h!.db.wsHillDayJob.findMany({ where: { documentId, requestId } });
+    expect(rows).toHaveLength(1);
+  });
+
+  test('two concurrent starts with DIFFERENT requests produce one job bound to both identities', async () => {
+    const { tenantId, owner, documentId } = { tenantId: h!.ids.tenantId, owner: h!.owner, documentId: h!.ids.documentId };
+    const [first, second] = await Promise.all([
+      h!.generation.start(tenantId, owner, documentId, h!.ids.requestId),
+      h!.generation.start(tenantId, owner, documentId, h!.ids.replayRequestId),
+    ]);
+    expect(first.jobId).toBe(second.jobId);
+    expect((await h!.leaseOf(first.jobId))!.requestIds).toEqual(
+      expect.arrayContaining([h!.ids.requestId, h!.ids.replayRequestId]),
+    );
+  });
+
+  test('a queued cancellation racing a claim never dispatches and ends cancelled', async () => {
+    const job = await h!.createJob({ units: [h!.unit(h!.ids.meeting1, 'queued')] as never });
+    const [cancel, claim] = await Promise.all([
+      h!.generation.requestCancel(h!.ids.tenantId, h!.owner, h!.ids.documentId, job.id),
+      h!.worker.claim(job.id),
+    ]);
+    // Whichever order the two writers win in, the job is cancelled and the
+    // provider is never called for work that was cancelled.
+    expect(['cancelled', 'running']).toContain(cancel.status);
+    expect(claim === 'busy').toBe(false);
+    expect(h!.dispatches).toEqual([]);
+    expect((await h!.leaseOf(job.id))!.status).toBe('cancelled');
+  });
+
+  test('a deliberate retry hands the re-queued work to exactly one claim', async () => {
+    const job = await h!.createJob({
+      status: 'complete', quality: 0.5,
+      units: [{ ...h!.unit(h!.ids.meeting1, 'failed'), reason: 'provider_error' }] as never,
+    });
+    const retried = await h!.generation.retryFailedUnits(h!.ids.tenantId, h!.owner, h!.ids.documentId, job.id);
+    expect(retried.status).toBe('queued');
+
+    // The conditional re-queue is what makes the row claimable again, and only
+    // one of two racing replicas may take it.
+    const [a, b] = await Promise.all([h!.worker.claim(job.id), h!.secondWorker.claim(job.id)]);
+    expect([a, b].filter((r) => r === 'busy')).toHaveLength(1);
+    expect(h!.dispatches.filter((body) => body.includes('WS10 meeting 1'))).toHaveLength(1);
+    expect(unitState((await h!.leaseOf(job.id))!.units, h!.ids.meeting1).state).toBe('done');
+  });
+
+  test('a manual edit made while the provider call is out wins over the generated text', async () => {
+    const job = await h!.createJob({ units: [h!.unit(h!.ids.meeting1, 'queued')] as never });
+    h!.whileProviderCallIsOut(async () => {
+      await h!.db.wsHillDayMeeting.update({
+        where: { id: h!.ids.meeting1 },
+        data: {
+          section: {
+            sectionId: h!.ids.meeting1, focus: 'HAND EDIT', background: 'HAND EDIT', unsupported: [],
+            edited: { focus: true, background: true, at: new Date().toISOString() },
+          } as never,
+        },
+      });
+    });
+
+    await h!.worker.claim(job.id);
+
+    const meeting = await h!.db.wsHillDayMeeting.findUnique({ where: { id: h!.ids.meeting1 } });
+    expect((meeting!.section as { focus?: string }).focus).toBe('HAND EDIT');
+    expect(unitState((await h!.leaseOf(job.id))!.units, h!.ids.meeting1).reason).toBe('edited_preserved');
+  });
+
+  test('publication is serialized with takeover: a successor cannot claim the job while the section write waits', async () => {
+    const job = await h!.createJob({ units: [h!.unit(h!.ids.meeting1, 'queued')] as never });
+    const locker = await rawSession();
+    const probe = await rawSession();
+    let locked = false;
+    try {
+      // An independent transaction takes the meeting row the publication needs,
+      // and A's lease is expired while A is still inside its provider call.
+      h!.whileProviderCallIsOut(async () => {
+        await locker.query('BEGIN');
+        await locker.query('SELECT id FROM ws_hillday_meeting WHERE id = $1::uuid FOR UPDATE', [h!.ids.meeting1]);
+        locked = true;
+        await h!.expireLease(job.id);
+      });
+
+      const runA = h!.worker.claim(job.id);
+      // Wait until A's REAL section write is blocked on that row: A now holds
+      // the claim row inside its publication transaction.
+      expect(locked).toBe(true);
+      expect(await publicationIsBlocked(probe)).toBe(true);
+
+      let takeoverSettled = false;
+      const takeover = h!.secondWorker.claim(job.id).then((result) => {
+        takeoverSettled = true;
+        return result;
+      });
+      // The takeover changes the claim row, so it must WAIT for that
+      // transaction: it cannot slip between the claim check and the write.
+      await sleep(250);
+      expect(takeoverSettled).toBe(false);
+
+      await locker.query('COMMIT');
+      locked = false;
+      const aResult = await runA;
+      const takeoverResult = await takeover;
+
+      // A published while it still held the claim...
+      const meeting = await h!.db.wsHillDayMeeting.findUnique({ where: { id: h!.ids.meeting1 } });
+      expect((meeting!.section as { focus?: string }).focus).toBe('Synthetic focus');
+      // ...the successor then took the claim over and parked A's in-flight unit
+      // without ever re-issuing its provider call.
+      expect(aResult).toBe('running');
+      expect(takeoverResult).not.toBe('busy');
+      expect(h!.dispatches.filter((body) => body.includes('WS10 meeting 1'))).toHaveLength(1);
+      const row = await h!.leaseOf(job.id);
+      expect(row!.attemptCount).toBe(2);
+      expect(unitState(row!.units, h!.ids.meeting1).state).toBe('unknown');
+      expect(unitState(row!.units, h!.ids.meeting1).reason).toBe(LEASE_LOST_REASON);
+    } finally {
+      if (locked) await locker.query('COMMIT').catch(() => undefined);
+      await locker.end().catch(() => undefined);
+      await probe.end().catch(() => undefined);
+    }
   });
 });

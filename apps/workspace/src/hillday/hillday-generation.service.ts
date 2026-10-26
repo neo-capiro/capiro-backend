@@ -559,6 +559,7 @@ export class HillDayGenerationService {
   ): Promise<JobStatus['status']> {
     const state: JobState = { id: jobId, units: [], events: [], seq: 0 };
     let documentId: string | null = null;
+    let tenantOfJob: string | null = null;
     let claimLost = false;
     try {
       const job = await this.prisma.wsHillDayJob.findUnique({ where: { id: jobId } });
@@ -567,6 +568,7 @@ export class HillDayGenerationService {
       // Narrow once: the closures below must see a non-null document id.
       const docId: string = job.documentId;
       documentId = docId;
+      tenantOfJob = tenantId;
       state.units = (job.units as JobUnit[] | null) ?? [];
       state.events = (job.events as JobEvent[] | null) ?? [];
       state.seq = state.events.reduce((max, e) => Math.max(max, e.seq), 0);
@@ -637,11 +639,25 @@ export class HillDayGenerationService {
           return;
         }
         const result = await this.generateUnit(tenantId, meeting, shared);
-        // Fenced publication: the section lands only while we still hold the
-        // claim AND the section was not hand-edited while the call was out.
+        // Current access is re-established at the PUBLICATION boundary, after the
+        // provider call: a revoked wall or a non-owner must not publish a result
+        // produced while access was allowed, and that is checked here rather than
+        // inferred from still holding the lease.
+        await this.assertDoc(tenantId, docId, actorId);
+        // Fenced publication: the claim check and the section write are
+        // serialized against takeover inside this call.
         const publication = await this.publishUnit(jobId, claim, meeting.id, result.section, result.sourceSet);
         if (publication === 'lost') {
           claimLost = true;
+          return;
+        }
+        if (publication === 'missing') {
+          await this.emit(state, claim, 'unit', {
+            meetingId: meeting.id,
+            state: 'failed',
+            sectionId: meeting.id,
+            reason: 'meeting_removed',
+          });
           return;
         }
         if (publication === 'edited') {
@@ -682,19 +698,13 @@ export class HillDayGenerationService {
         event: 'complete',
         data: { documentId: docId, cancelled, sections: total, failed, quality, at: completedAt.toISOString() },
       });
-      if (!(await this.persistClaimed(jobId, claim, {
-        status: lifecycle,
-        quality,
-        completedAt,
-        units: state.units,
-        events: state.events,
-      }))) {
-        this.logger.warn(`Hill Day job ${jobId}: claim superseded before the terminal write`);
-        return 'running';
-      }
-      await this.prisma.wsHillDayDocument.update({
-        where: { id: docId },
-        data: {
+      if (!(await this.finalizeClaimed(
+        jobId,
+        claim,
+        tenantId,
+        docId,
+        { status: lifecycle, quality, completedAt, units: state.units, events: state.events },
+        {
           status: failed > 0 ? 'partial' : 'generated',
           generatedAt: completedAt,
           provenance: {
@@ -707,7 +717,10 @@ export class HillDayGenerationService {
             quality,
           } as never,
         },
-      });
+      ))) {
+        this.logger.warn(`Hill Day job ${jobId}: claim superseded before the terminal write`);
+        return 'running';
+      }
       return lifecycle;
     } catch (err) {
       const message = (err as Error).message;
@@ -720,20 +733,21 @@ export class HillDayGenerationService {
         event: cancelled ? 'complete' : 'failed',
         data: { documentId, reason: message, cancelled, at: new Date().toISOString() },
       });
-      // Fenced too: a superseded holder must not fail the NEW holder's job.
-      const published = await this.persistClaimed(jobId, claim, {
+      // Fenced too: a superseded holder must not fail the NEW holder's job. The
+      // terminal job state and the document state commit together, so a failure
+      // between them cannot leave a terminal job with stale document state.
+      const failureData = {
         status: lifecycle,
         error: cancelled ? null : message,
         quality: jobQuality(state.units),
         completedAt: new Date(),
         units: state.units,
         events: state.events,
-      }).catch(() => false);
-      if (published && documentId) {
-        await this.prisma.wsHillDayDocument
-          .update({ where: { id: documentId }, data: { status: 'partial' } })
-          .catch(() => undefined);
-      }
+      };
+      const published = tenantOfJob && documentId
+        ? await this.finalizeClaimed(jobId, claim, tenantOfJob, documentId, failureData, { status: 'partial' })
+            .catch(() => false)
+        : await this.persistClaimed(jobId, claim, failureData).catch(() => false);
       return published ? lifecycle : 'running';
     }
   }
@@ -756,11 +770,24 @@ export class HillDayGenerationService {
   }
 
   /**
-   * Publish one generated unit's section + source provenance through a SINGLE
-   * conditional statement that enforces both gates at once: the write lands only
-   * while this claim is still the current running owner, and only while the
-   * section has not been hand-edited while the provider call was out. `edited`
-   * means a manual edit won and the generated text must be dropped.
+   * Publish one generated unit's section + source provenance.
+   *
+   * The claim check and the section write are serialized against takeover inside
+   * ONE short transaction, in the same lock order the rest of the lifecycle uses
+   * (document -> job -> meeting):
+   *
+   *   1. the JOB ROW is locked with `FOR UPDATE` — the very row a takeover
+   *      changes — so a publication that has already started cannot commit after
+   *      another worker has taken the claim over, and a takeover cannot commit
+   *      between this check and the write. A read-only `EXISTS` predicate would
+   *      only see a snapshot.
+   *   2. the meeting row is locked and its CURRENT persisted section is read
+   *      explicitly, so the manual-edit protection is a real read of the stored
+   *      section rather than an inference from the lease.
+   *
+   * Provider work happens outside this transaction. `edited` means a manual edit
+   * won and the generated text must be dropped; `missing` means the meeting row
+   * is gone; `lost` means the claim is no longer ours.
    */
   private async publishUnit(
     jobId: string,
@@ -768,30 +795,63 @@ export class HillDayGenerationService {
     meetingId: string,
     section: MeetingSection,
     sourceSet: SourceSet,
-  ): Promise<'published' | 'edited' | 'lost'> {
-    const affected = await this.prisma.$executeRaw`
-      UPDATE ws_hillday_meeting
-         SET section = ${JSON.stringify(section)}::jsonb,
-             source_set = ${JSON.stringify(sourceSet)}::jsonb
-       WHERE id = ${meetingId}::uuid
-         AND (section -> 'edited' ->> 'focus') IS DISTINCT FROM 'true'
-         AND (section -> 'edited' ->> 'background') IS DISTINCT FROM 'true'
-         AND EXISTS (
-           SELECT 1 FROM ws_hillday_job
-            WHERE id = ${jobId}::uuid
-              AND lease_holder = ${claim.holder}
-              AND attempt_count = ${claim.attempt}
-              AND status = 'running'
-         )
-    `;
-    if (affected === 1) return 'published';
-    // No row written: either the claim is gone, or a manual edit appeared. The
-    // claim check decides, and neither case may overwrite what is persisted.
-    const held = await this.prisma.wsHillDayJob.findFirst({
-      where: claimFence(jobId, claim),
-      select: { id: true },
+  ): Promise<'published' | 'edited' | 'missing' | 'lost'> {
+    return this.prisma.$transaction(async (tx) => {
+      const owned = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM ws_hillday_job
+         WHERE id = ${jobId}::uuid
+           AND lease_holder = ${claim.holder}
+           AND attempt_count = ${claim.attempt}
+           AND status = 'running'
+         FOR UPDATE
+      `;
+      if (!owned.length) return 'lost' as const;
+
+      const rows = await tx.$queryRaw<Array<{ section: unknown }>>`
+        SELECT section FROM ws_hillday_meeting WHERE id = ${meetingId}::uuid FOR UPDATE
+      `;
+      if (!rows.length) return 'missing' as const;
+      const persisted = rows[0]!.section as MeetingSection | null;
+      if (persisted?.edited?.focus || persisted?.edited?.background) return 'edited' as const;
+
+      await tx.$executeRaw`
+        UPDATE ws_hillday_meeting
+           SET section = ${JSON.stringify(section)}::jsonb,
+               source_set = ${JSON.stringify(sourceSet)}::jsonb
+         WHERE id = ${meetingId}::uuid
+      `;
+      return 'published' as const;
     });
-    return held ? 'edited' : 'lost';
+  }
+
+  /**
+   * Commit the terminal job state AND the owning document's status/provenance in
+   * ONE transaction, so a crash or a database failure cannot leave a committed
+   * terminal job with stale document state, and a late finalization cannot
+   * overwrite a document state that a new start or a deliberate retry set.
+   *
+   * Lock order matches the rest of the lifecycle: the owning document first (the
+   * lock start/retry/cancel already take), then the claim fence on the job row.
+   * Provider work is not inside this transaction.
+   */
+  private async finalizeClaimed(
+    jobId: string,
+    claim: JobClaim,
+    tenantId: string,
+    documentId: string,
+    jobData: Record<string, unknown>,
+    documentData: Record<string, unknown>,
+  ): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      await lockDocument(tx, tenantId, documentId);
+      const { count } = await tx.wsHillDayJob.updateMany({
+        where: claimFence(jobId, claim),
+        data: jobData as never,
+      });
+      if (count !== 1) return false;
+      await tx.wsHillDayDocument.update({ where: { id: documentId }, data: documentData as never });
+      return true;
+    });
   }
 
   /** Has cancellation been requested for this job? */
@@ -993,19 +1053,36 @@ export class HillDayGenerationService {
         section = unavailableSection(meeting.id, result.reason, [...flags, { kind: 'generation_failed', detail: result.detail }], generatedAt, shared.credential.model);
       } else {
         let parsed = parseUnitOutput(result.text);
+        // The repair call's own outcome must survive: if it timed out or lost its
+        // acknowledgement we do NOT know whether the provider was charged, so its
+        // reason is kept and the unit is parked UNKNOWN rather than reported as a
+        // definitive parsing failure. `provider_output_unparseable` is reserved
+        // for an ACKNOWLEDGED answer that really is unparseable.
+        let repairFailure: string | null = null;
         if (!parsed) {
-          const retry = await this.callModel(
+          const repair = await this.callModel(
             shared.credential,
             prompt.system,
             `${prompt.user}\n\nReturn ONLY the JSON object described in the instructions — no prose.`,
           );
-          parsed = retry.ok ? parseUnitOutput(retry.text) : null;
+          if (repair.ok) parsed = parseUnitOutput(repair.text);
+          else repairFailure = repair.reason;
         }
         if (!parsed) {
+          const reason = repairFailure ?? 'provider_output_unparseable';
           section = unavailableSection(
             meeting.id,
-            'provider_output_unparseable',
-            [...flags, { kind: 'generation_failed', detail: 'The model did not return the expected JSON.' }],
+            reason,
+            [
+              ...flags,
+              {
+                kind: 'generation_failed',
+                detail:
+                  reason === 'provider_output_unparseable'
+                    ? 'The model did not return the expected JSON.'
+                    : `The formatting repair call did not return a usable answer (${reason}).`,
+              },
+            ],
             generatedAt,
             shared.credential.model,
           );

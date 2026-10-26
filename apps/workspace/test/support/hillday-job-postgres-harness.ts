@@ -120,7 +120,7 @@ export async function createHillDayJobHarness(url: string) {
   const worker = new HillDayJobWorkerService(db, generation);
 
   return {
-    db, generation, worker, dispatches,
+    db, generation, worker, dispatches, url,
     /** A second, independent worker process id — the contested replica. */
     secondWorker: new HillDayJobWorkerService(db, generation),
     ids: WS10_IDS,

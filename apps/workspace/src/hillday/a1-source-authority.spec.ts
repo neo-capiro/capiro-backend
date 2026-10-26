@@ -106,6 +106,14 @@ function fixture() {
       })),
     },
   };
+  // The interactive-transaction client Prisma hands the callback exposes the
+  // same model delegates as the root client, so this fixture does too: the
+  // terminal job write and the document write now commit through one callback.
+  Object.assign(tx, {
+    wsHillDayJob: db.wsHillDayJob,
+    wsHillDayDocument: db.wsHillDayDocument,
+    wsHillDayMeeting: db.wsHillDayMeeting,
+  });
   const source = new HillDaySourceService(db as never);
   const documents = new HillDayDocumentService(db as never, source, {} as never, {} as never);
   const generation = new HillDayGenerationService(db as never, source, {} as never);

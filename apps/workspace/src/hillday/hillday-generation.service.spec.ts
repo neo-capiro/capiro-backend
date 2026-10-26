@@ -279,34 +279,96 @@ describe('HillDayGenerationService — accepted-then-disconnected provider bound
     }]);
     const document = { id: DOC_ID, tenantId: TENANT, ownerId: OWNER, clientId: 'client-1', timeZone: 'UTC', lookbackDays: 90 };
     const raw: string[] = [];
-    const prisma = {
+    const published: Input = { section: null, writes: 0 };
+    /** Ordered record of the writes that actually reach the store. */
+    const journal: string[] = [];
+    const fails = { documentWrite: false };
+    /** Mirrors the database: the claim exists only while that exact claim is current. */
+    const claimHeld = () => store.jobs[0]!.leaseHolder === 'w'
+      && store.jobs[0]!.attemptCount === 1
+      && store.jobs[0]!.status === 'running';
+    const fencedJobWrite = store.delegate.updateMany;
+    store.delegate.updateMany = jest.fn(async (args: never) => {
+      const result = await fencedJobWrite(args);
+      if ((result as { count: number }).count === 1) journal.push('job-write');
+      return result;
+    }) as never;
+    const tx = {
       wsHillDayJob: store.delegate,
+      wsHillDayDocument: {
+        update: jest.fn(async () => {
+          if (fails.documentWrite) throw new Error('document write failed');
+          journal.push('document-write');
+          return document;
+        }),
+      },
+      wsHillDayMeeting: { findUnique: jest.fn(async () => ({ documentId: DOC_ID })) },
       $executeRaw: jest.fn(async (parts: TemplateStringsArray) => {
-        raw.push(parts.join('$PARAM'));
+        const sql = parts.join('$PARAM');
+        raw.push(sql);
+        if (sql.includes('FROM ws_hillday_document')) journal.push('lock-document');
+        if (sql.includes('UPDATE ws_hillday_meeting')) published.writes += 1;
         return 1;
       }),
-      wsHillDayDocument: { findFirst: jest.fn(async () => document), update: jest.fn(async () => document) },
+      $queryRaw: jest.fn(async (parts: TemplateStringsArray) => {
+        const sql = parts.join('$PARAM');
+        raw.push(sql);
+        if (sql.includes('FROM ws_hillday_job')) return claimHeld() ? [{ id: 'job-1' }] : [];
+        if (sql.includes('FROM ws_hillday_meeting')) return [{ section: published.section }];
+        return [];
+      }),
+    };
+    const prisma = {
+      ...tx,
+      // PostgreSQL semantics: the whole callback is one transaction, so a throw
+      // rolls every write inside it back.
+      $transaction: jest.fn(async (fn: (client: typeof tx) => Promise<unknown>) => {
+        const snapshot = JSON.parse(JSON.stringify(store.jobs)) as Array<Record<string, unknown>>;
+        const commit = journal.length;
+        journal.push('tx-open');
+        try {
+          const result = await fn(tx);
+          journal.push('tx-close');
+          return result;
+        } catch (error) {
+          store.jobs.length = 0;
+          store.jobs.push(...snapshot);
+          journal.length = commit;
+          throw error;
+        }
+      }),
+      wsHillDayDocument: { findFirst: jest.fn(async () => document), update: tx.wsHillDayDocument.update },
       wsHillDayMeeting: {
         findMany: jest.fn(async () => [{
-          id: MEETING_ID, eventId: 'e-1', ordinal: 0, context: null, resolution: null, section: null,
+          id: MEETING_ID, eventId: 'e-1', ordinal: 0, context: null, resolution: null,
+          section: published.section,
           event: { eventId: 'e-1', subject: 'Meeting', startsAt: '2026-10-26T13:00:00.000Z', endsAt: '2026-10-26T13:30:00.000Z' },
         }]),
         update: jest.fn(async () => ({})),
-        findUnique: jest.fn(async () => ({ documentId: DOC_ID })),
+        findUnique: tx.wsHillDayMeeting.findUnique,
       },
     };
     const credentials = {
       resolveAnthropic: jest.fn(async () => ({ provider: 'anthropic' as const, secret: 'sk-test', model: 'claude-sonnet-4-6', usedTenantKey: false })),
     };
-    const service = new HillDayGenerationService(
-      prisma as never,
-      { requireClient: jest.fn(async () => ({ id: 'client-1' })), resolveUserId: jest.fn(async () => null), tenantName: jest.fn(async () => 'Firm'), getClient: jest.fn(async () => null), listStrategies: jest.fn(async () => []), listThreads: jest.fn(async () => []), threadMessages: jest.fn(async () => []), priorMeetings: jest.fn(async () => []) } as never,
-      credentials as never,
-    );
-    return { service, prisma, jobs: store.jobs, raw };
+    const source = {
+      requireClient: jest.fn(async () => ({ id: 'client-1' })),
+      resolveUserId: jest.fn(async () => null),
+      tenantName: jest.fn(async () => 'Firm'),
+      getClient: jest.fn(async () => ({ name: 'Client', sectorTag: null, description: null, productDescription: null })),
+      listStrategies: jest.fn(async () => []),
+      listThreads: jest.fn(async () => []),
+      threadMessages: jest.fn(async () => []),
+      priorMeetings: jest.fn(async () => []),
+    };
+    const service = new HillDayGenerationService(prisma as never, source as never, credentials as never);
+    return { service, source, prisma, jobs: store.jobs, raw, published, journal, fails, claimHeld };
   }
 
-  const ANSWER = { ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: '{"focus":"f","background":"b","unsupported":[]}' }] }) };
+  type Input = { section: unknown; writes: number };
+
+  const UNIT_JSON = '{"focus":"f","background":"b","unsupported":[]}';
+  const ANSWER = { ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: UNIT_JSON }] }) };
 
   it('never issues a second provider call after a transport drop, and parks the unit unknown', async () => {
     const h = runHarness();
@@ -326,33 +388,38 @@ describe('HillDayGenerationService — accepted-then-disconnected provider bound
     expect(units[0]!.reason).toBe('provider_uncertain');
   });
 
-  it('fences the section publication on the current claim and the unedited section', async () => {
+  it('locks the job row before writing the section, so publication serializes with takeover', async () => {
     const h = runHarness();
     global.fetch = (async () => ANSWER) as unknown as typeof fetch;
 
     await h.service.runClaimedJob('job-1', { holder: 'w', attempt: 1 }, async () => true);
 
-    const publish = h.raw.find((sql) => sql.includes('UPDATE ws_hillday_meeting'))!;
-    expect(publish).toBeDefined();
-    // One statement enforces BOTH gates: the still-current claim, and a section
-    // that has not been hand-edited while the call was out.
-    expect(publish).toContain('lease_holder = $PARAM');
-    expect(publish).toContain('attempt_count = $PARAM');
-    expect(publish).toContain('EXISTS');
-    expect(publish).toContain("edited");
+    const jobLock = h.raw.findIndex((sql) => sql.includes('FROM ws_hillday_job') && sql.includes('FOR UPDATE'));
+    const meetingLock = h.raw.findIndex((sql) => sql.includes('FROM ws_hillday_meeting') && sql.includes('FOR UPDATE'));
+    const sectionWrite = h.raw.findIndex((sql) => sql.includes('UPDATE ws_hillday_meeting'));
+    expect(jobLock).toBeGreaterThanOrEqual(0);
+    // The claim's own row is locked FIRST — the row a takeover changes — and the
+    // section write only happens after it, inside the same transaction.
+    expect(meetingLock).toBeGreaterThan(jobLock);
+    expect(sectionWrite).toBeGreaterThan(meetingLock);
+    expect(h.published.writes).toBe(1);
+  });
+
+  it('drops the generated section when the user edited it while the call was out', async () => {
+    const h = runHarness();
+    // A manual edit landed while the provider call was out.
+    h.published.section = { sectionId: MEETING_ID, edited: { focus: true, background: false, at: 'x' } };
+    global.fetch = (async () => ANSWER) as unknown as typeof fetch;
+
+    await h.service.runClaimedJob('job-1', { holder: 'w', attempt: 1 }, async () => true);
+
+    expect(h.published.writes).toBe(0);
+    const units = h.jobs[0]!.units as Array<{ state: string; reason: string | null }>;
+    expect(units[0]!.reason).toBe('edited_preserved');
   });
 
   it('drops a late provider result once its claim was taken over mid-call, and does not terminalize', async () => {
     const h = runHarness();
-    const refused: Array<Record<string, unknown>> = [];
-    // Mimic the database: a fenced write only lands while the claim is current.
-    h.prisma.wsHillDayJob.updateMany = jest.fn(async (args: { data: Record<string, unknown> }) => {
-      const held = h.jobs[0]!.leaseHolder === 'w' && h.jobs[0]!.attemptCount === 1;
-      if (held) Object.assign(h.jobs[0]!, args.data);
-      else refused.push(args.data);
-      return { count: held ? 1 : 0 };
-    }) as never;
-    h.prisma.$executeRaw = jest.fn(async () => (h.jobs[0]!.leaseHolder === 'w' ? 1 : 0)) as never;
     global.fetch = (async () => {
       // Another claim takes the job over while this provider call is out.
       h.jobs[0]!.leaseHolder = 'other-worker';
@@ -363,10 +430,86 @@ describe('HillDayGenerationService — accepted-then-disconnected provider bound
     const lifecycle = await h.service.runClaimedJob('job-1', { holder: 'w', attempt: 1 }, async () => true);
 
     expect(lifecycle).toBe('running');
-    // The late success was refused, not published over the new holder...
-    expect(refused.every((data) => !data.status)).toBe(true);
+    expect(h.claimHeld()).toBe(false);
+    // The late success was neither published nor terminalized...
+    expect(h.published.writes).toBe(0);
     expect(h.jobs[0]!.status).toBe('running');
     // ...and the unit never advanced past the pre-takeover running marker.
     expect((h.jobs[0]!.units as Array<{ state: string }>)[0]!.state).toBe('running');
+  });
+
+  it('keeps an uncertain FORMAT-REPAIR outcome instead of reporting a parsing failure', async () => {
+    const h = runHarness();
+    let calls = 0;
+    global.fetch = (async () => {
+      calls += 1;
+      if (calls === 1) {
+        // Acknowledged, but not the JSON the unit expects: a repair call follows.
+        return { ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: 'I could not comply.' }] }) };
+      }
+      // The repair call is accepted, then the connection drops.
+      throw new Error('socket hang up');
+    }) as unknown as typeof fetch;
+
+    await h.service.runClaimedJob('job-1', { holder: 'w', attempt: 1 }, async () => true);
+
+    // Exactly two dispatches: the first answer plus ONE repair, and no third call.
+    expect(calls).toBe(2);
+    const units = h.jobs[0]!.units as Array<{ state: string; reason: string | null }>;
+    expect(units[0]!.state).toBe('unknown');
+    expect(units[0]!.reason).toBe('provider_uncertain');
+  });
+
+  it('refuses to publish when current access is revoked while the provider call is out', async () => {
+    const h = runHarness();
+    let wallAllowed = true;
+    (h.source.requireClient as jest.Mock).mockImplementation(async () => {
+      if (!wallAllowed) throw new NotFoundException('Client not found');
+      return { id: 'client-1' };
+    });
+    global.fetch = (async () => {
+      // Admission passed; the wall is revoked while THIS unit's call is out.
+      wallAllowed = false;
+      return ANSWER;
+    }) as unknown as typeof fetch;
+
+    const lifecycle = await h.service.runClaimedJob('job-1', { holder: 'w', attempt: 1 }, async () => true);
+
+    // The unit was generated, but access is re-checked at the publication
+    // boundary, so its text is never published and the job fails honestly.
+    expect(h.published.writes).toBe(0);
+    expect(lifecycle).toBe('failed');
+  });
+
+  it('finalizes the terminal job and the owning document in ONE transaction, document lock first', async () => {
+    const h = runHarness();
+    global.fetch = (async () => ANSWER) as unknown as typeof fetch;
+
+    const lifecycle = await h.service.runClaimedJob('job-1', { holder: 'w', attempt: 1 }, async () => true);
+
+    expect(lifecycle).toBe('complete');
+    // The owning document's admission lock (the lock start/retry already take),
+    // then the fenced terminal job write, then the document status — all inside
+    // ONE transaction, which closes only after both writes.
+    expect(h.journal.slice(h.journal.lastIndexOf('lock-document'))).toEqual([
+      'lock-document',
+      'job-write',
+      'document-write',
+      'tx-close',
+    ]);
+  });
+
+  it('leaves no committed terminal job when the owning-document write fails', async () => {
+    const h = runHarness();
+    h.fails.documentWrite = true;
+    global.fetch = (async () => ANSWER) as unknown as typeof fetch;
+
+    const lifecycle = await h.service.runClaimedJob('job-1', { holder: 'w', attempt: 1 }, async () => true);
+
+    // The finalization transaction rolled back: no terminal job was committed
+    // against a document that never moved, and the run does not claim success.
+    expect(h.journal).not.toContain('document-write');
+    expect(h.jobs[0]!.status).toBe('running');
+    expect(lifecycle).toBe('running');
   });
 });
