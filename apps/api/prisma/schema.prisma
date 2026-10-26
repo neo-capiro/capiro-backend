@@ -17427,6 +17427,22 @@ model NewsletterRecipientAccess {
 }
 
 
+/// Ordinary invitation opt-in receipt. The invitation UUID is the one-attempt
+/// key; no FK cascade may erase an unknown/accepted result on decline/removal.
+model WorkspaceCollaboratorEmailDelivery {
+  id          String   @id @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  draftId     String   @map("draft_id") @db.Uuid
+  requestedBy String   @map("requested_by")
+  status      String   @db.VarChar(32)
+  messageId   String?  @map("message_id")
+  errorCode   String?  @map("error_code") @db.VarChar(64)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  @@index([tenantId, draftId])
+  @@map("workspace_collaborator_email_deliveries")
+}
+
 model NewsletterReviewEmailDelivery {
   id String @id @db.Uuid
   tenantId String @map("tenant_id") @db.Uuid

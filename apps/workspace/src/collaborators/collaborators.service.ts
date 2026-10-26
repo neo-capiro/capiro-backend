@@ -26,7 +26,7 @@ import type { InviteCollaboratorDto, UpdateCollaboratorDto } from './dto/collabo
  * Invite resolution (Q-COL-invite):
  *  - INTERNAL teammate — the web app resolved a tenant member (GET
  *    /api/tenant-members, which the engine cannot reach) to a Clerk user id and
- *    passes `subjectId`. The row is `active` immediately.
+ *    passes `subjectId`. The row stays pending until the invitee accepts.
  *  - EXTERNAL client SME — a raw `email`. The row is `pending` and tagged for
  *    the client portal. The Clerk org-invite for externals is a later phase; see
  *    the TODO in `invite()`.
@@ -147,6 +147,47 @@ export class CollaboratorsService {
     return role;
   }
 
+  /** Mail is a separate explicit action. API owns its delivery receipt; this
+   * owner supplies current invitation data and canonical source policy. A
+   * pending invitation is not a document-read grant. */
+  async emailContext(tenantId: string, draftId: string, invitationId: string, actorId: string) {
+    if ((await this.resolveRole(tenantId, draftId, actorId)) !== 'owner')
+      throw new NotFoundException('Invitation not found');
+    const draft = await this.assertDraft(tenantId, draftId);
+    const invitation = await withProspectDraft(this.prisma, draft, actorId, canManageCollaborators, 'read',
+      db => db.wsCollaborator.findFirst({ where: { id: invitationId, tenantId, draftId } }));
+    const identity = { tenantId, draftId, invitationId, actorId };
+    const unavailable = (reason: string) => ({ ...identity, invitation: null, reason });
+    // Status remains readable by the current authorized owner after removal;
+    // the API receipt has no cascading invitation foreign key.
+    if (!invitation) return unavailable('InvitationUnavailable');
+    if (!invitation.subjectId) return unavailable('ExternalRecipientUnsupported');
+    if (invitation.status !== 'pending' || invitation.invitedById !== actorId || draft.ownerId !== actorId)
+      return unavailable('InvitationNotPending');
+    if (!(await this.sourceAccess(tenantId, draftId, invitation.subjectId)))
+      return unavailable('RecipientAccessUnavailable');
+    const members = await this.prisma.withSystem(tx => tx.$queryRaw<Array<{
+      subjectId: string; email: string; name: string;
+    }>>`
+      SELECT u.clerk_user_id AS "subjectId", u.email::text AS email,
+        COALESCE(NULLIF(trim(concat_ws(' ',u.first_name,u.last_name)),''),'A teammate') AS name
+      FROM users u JOIN tenant_memberships m ON m.user_id=u.id
+      JOIN tenants t ON t.id=m.tenant_id
+      WHERE m.tenant_id=${tenantId}::uuid AND m.status::text='active' AND t.status::text='active'
+        AND m.role::text IN ('standard_user','user_admin','capiro_admin')
+        AND u.clerk_user_id IN (${actorId},${invitation.subjectId})`);
+    const recipient = members.find(member => member.subjectId === invitation.subjectId);
+    const author = members.find(member => member.subjectId === actorId);
+    if (!author || !recipient || recipient.subjectId === actorId ||
+        !/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(recipient.email) || recipient.email.length > 320)
+      return unavailable('RecipientAccessUnavailable');
+    return { ...identity, reason: null, invitation: {
+      recipientId: recipient.subjectId, email: recipient.email, recipientName: recipient.name,
+      authorName: author.name, title: draft.docTitle, role: invitation.role,
+      updatedAt: invitation.updatedAt.toISOString(), clientId: draft.clientId, prospectId: draft.prospectId,
+    } };
+  }
+
   /** List collaborators (active + pending) plus the synthetic Owner first. */
   async list(tenantId: string, draftId: string, actorId?: string) {
     const draft = await this.assertDraft(tenantId, draftId);
@@ -177,7 +218,7 @@ export class CollaboratorsService {
     });
   }
 
-  /** Invite a collaborator. Internal (subjectId) → active; external (email) → pending. */
+  /** Both internal and external invitations start pending. */
   async invite(tenantId: string, draftId: string, inviterId: string, dto: InviteCollaboratorDto) {
     const draft = await this.assertDraft(tenantId, draftId);
     return withProspectDraft(
@@ -195,7 +236,7 @@ export class CollaboratorsService {
         }
 
         if (subjectId) {
-          // Internal teammate — active now. Cannot invite the owner as a collaborator.
+          // Internal teammate. Cannot invite the owner as a collaborator.
           if (subjectId === draft.ownerId) {
             throw new BadRequestException('This person is the document owner');
           }
