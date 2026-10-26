@@ -241,6 +241,7 @@ export class WatchReviewService {
     }
 
     let recheckFailed = false;
+    let checkedRunId: string | undefined;
     try {
       const baseKey = watchSourceRunKey(`recheck:${mission.id}:${headId}:${today}:${lastEditedAt?.getTime() ?? 0}`, snapshot.sources);
       // Resolve this check's own retry family. A newer scheduled run may be
@@ -264,10 +265,11 @@ export class WatchReviewService {
           ? `${baseKey}:retry:${previousAttempt.id}`
           : previousAttempt.idempotencyKey
         : baseKey;
-      await this.watcher.runCheckNow(tenantId, userId, mission.id, {
+      const checked = await this.watcher.runCheckNow(tenantId, userId, mission.id, {
         idempotencyKey,
         trigger: 'manual',
       });
+      checkedRunId = checked.runId;
     } catch (err) {
       this.logger.warn(
         `[strategy:${strategyId}] Watch revalidate check FAILED (reason:${reason}): ${(err as Error).message}`,
@@ -275,7 +277,7 @@ export class WatchReviewService {
       recheckFailed = true;
     }
 
-    if (recheckFailed) {
+    if (recheckFailed || checkedRunId === undefined) {
       const state = await this.prisma.withTenant(tenantId, (tx) =>
         this.loadState(tx, strategyId, null, tenantId, userId),
       );
@@ -291,12 +293,13 @@ export class WatchReviewService {
       };
     }
 
+    const successfulRunId = checkedRunId;
     const recheck = await this.prisma.withTenantUser(tenantId, userId, (tx) =>
-      this.reconcile(tx, tenantId, userId, strategyId, headId, openProposals),
+      this.reconcile(tx, tenantId, userId, strategyId, headId, openProposals, successfulRunId),
     );
     const droppedDeleted = recheck.dropped.filter((d) => d.targetDeleted).length;
     this.logger.log(
-      `[strategy:${strategyId} head:${headId}] Watch revalidate complete (reason:${reason}): ` +
+      `[strategy:${strategyId} head:${headId}] Watch revalidate ${recheck.state} (reason:${reason}): ` +
         `${recheck.unchanged.length} unchanged, ${recheck.updated.length} updated, ` +
         `${recheck.dropped.length} dropped (${droppedDeleted} deleted-target) in ${Date.now() - t0}ms`,
     );
@@ -330,6 +333,7 @@ export class WatchReviewService {
       ops: unknown;
       runId?: string | null;
     }>,
+    successfulRunId: string,
   ): Promise<Omit<WatchRecheckResult, 'elapsedMs'>> {
     // Reconciliation also updates existing proposals. Take their locks before
     // the strategy lock, matching accept/apply; the opposite order deadlocks
@@ -345,6 +349,9 @@ export class WatchReviewService {
         WHERE id = ${id}::uuid AND tenant_id = ${tenantId}::uuid
         FOR UPDATE`;
     }
+    // Hold the cited document/fact rows through lineage writes. Document
+    // reassignment takes source locks before strategy, so preserve that order.
+    const lockedSources = await watchSourceSnapshot(tx, tenantId, strategyId, true);
     await tx.$queryRaw`
       SELECT id FROM sp_strategy
       WHERE id = ${strategyId}::uuid AND tenant_id = ${tenantId}::uuid
@@ -374,6 +381,19 @@ export class WatchReviewService {
     }
     const sources = await watchSourceSnapshot(tx, tenantId, strategyId);
     if (sources) await requireWatchSourceAccess(tx, tenantId, sources.clientId, userId);
+    const checkedRun = await tx.spAgentRun.findFirst({
+      where: { id: successfulRunId, tenantId, strategyId },
+      select: { state: true, createdAt: true, findings: true },
+    });
+    // Only the successful check may resolve an issue. A newer source read is
+    // not evidence that a finding disappeared from that check's inputs.
+    if (
+      !successfulCheckTime(checkedRun) ||
+      !sameWatchSources(storedWatchSources(checkedRun?.findings), sources) ||
+      !sameWatchSources(lockedSources, sources)
+    ) {
+      return { state: 'failed', unchanged: [], updated: [], dropped: [] };
+    }
     const sourcesFor = async (runId?: string | null) => storedWatchSources(
       runId ? (await tx.spAgentRun.findFirst({ where: { id: runId } }))?.findings : null);
     const currentRows = [];

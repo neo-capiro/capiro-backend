@@ -871,6 +871,32 @@ describe('MO14 exact cited-source refresh', () => {
     return { store, ...services, runId: result.runId, proposalId: result.changeSetsProposed[0]! };
   }
 
+  it('fails reconciliation without dropping proposals when a source changes after a successful check', async () => {
+    const { store, svc, watcher, proposalId, runId } = await pendingSource();
+    const oldProposal = structuredClone(store.changeSets.get(proposalId)!);
+    const oldFindings = structuredClone(store.runs.get(runId)!.findings);
+    const check = watcher.runCheckNow.bind(watcher);
+    jest.spyOn(watcher, 'runCheckNow').mockImplementationOnce(async (...args) => {
+      const result = await check(...args);
+      store.sourceFacts.get(SOURCE_FACT)!.state = 'stale';
+      return result;
+    });
+
+    const state = await svc.revalidate(T, U, SID, 'manual-check');
+    expect(state.lastRecheck).toMatchObject({ state: 'failed', unchanged: [], updated: [], dropped: [] });
+    expect(store.changeSets.get(proposalId)).toEqual(oldProposal);
+    expect(store.runs.get(runId)!.findings).toEqual(oldFindings);
+    expect(store.nodes.get('N1')!.status).toBe('in_progress');
+    expect(store.activity.some(row => row.action === 'watch.proposal_dropped')).toBe(false);
+
+    // A later check can reconcile the new source revision without losing the
+    // original proposal's lineage to a false "no longer an issue" decision.
+    const retry = await svc.revalidate(T, U, SID, 'manual-check');
+    expect(retry.lastRecheck?.state).toBe('complete');
+    expect(retry.pendingCount).toBe(1);
+    expect(store.changeSets.get(retry.proposals[0]!.id)!.replacesChangeSetId).toBe(proposalId);
+  });
+
   it('keeps unchanged citations idempotent and ignores uncited document changes', async () => {
     const { store, watcher, runId } = await pendingSource();
     const before = JSON.stringify(store.runs.get(runId)!.findings);
@@ -2087,6 +2113,13 @@ describe('Phase 6 §4 — revalidate under concurrency', () => {
     const store = makeStore();
     const { svc, watcher, csId } = await seedOneOpenProposal(store, { id: 'N1' });
     seedVersion(store, 'v2', new Date());
+    // The mocked check has completed and persisted its successful run.
+    const previousRun = store.runs.get(store.changeSets.get(csId)!.runId as string)!;
+    store.runs.set('checked', {
+      ...previousRun,
+      id: 'checked',
+      findings: { checkedOn: daysFromToday(0), checkedAt: new Date().toISOString(), findings: [] },
+    });
     jest
       .spyOn(watcher, 'runCheckNow')
       .mockResolvedValue({ runId: 'checked', findings: [], changeSetsProposed: [] });
