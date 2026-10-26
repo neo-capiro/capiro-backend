@@ -14,6 +14,7 @@ const MIGRATION_SQL = join(
 );
 
 const helper = require(join(repoRoot, 'scripts/testing/a1-disposable-postgres.cjs')) as {
+  disposableConfiguration(): { url: string; database: string } | null;
   nativePostgresReadiness(options: { repoRoot: string }): { available: boolean; reason: string };
   createDisposableSchema(options: {
     repoRoot: string; coreSchemaPath: string; workspaceSchemaPath: string; extraModels: string;
@@ -104,6 +105,28 @@ native(`WS-10 Hill Day durable job lifecycle PostgreSQL16${readiness.available ?
   let runtime: Runtime;
 
   beforeAll(async () => {
+    // Prisma 5.22 uses only the owned schema in search_path. Release installs
+    // these existing base extensions in the implicitly searched pg_catalog of
+    // its fresh disposable DB; the ordinary test role never installs/moves them.
+    const config = helper.disposableConfiguration();
+    if (!config) throw new Error('WS10 requires the explicit disposable PostgreSQL configuration');
+    const { Client } = require(require.resolve('pg', { paths: [join(repoRoot, 'apps/api')] }));
+    const extensions = new Client({ connectionString: config.url, connectionTimeoutMillis: 3000, query_timeout: 3000, ssl: false });
+    try {
+      await extensions.connect();
+      const required = ['citext', 'vector', 'pg_trgm', 'uuid-ossp'];
+      const { rows } = await extensions.query(
+        `SELECT e.extname AS name, n.nspname AS schema
+         FROM pg_catalog.pg_extension e JOIN pg_catalog.pg_namespace n ON n.oid = e.extnamespace
+         WHERE e.extname = ANY($1::text[])`, [required],
+      );
+      if (required.some((name) => !rows.some((row: { name: string; schema: string }) => row.name === name && row.schema === 'pg_catalog'))) {
+        throw new Error('WS10 fixture requires citext, vector, pg_trgm and uuid-ossp in pg_catalog of the fresh disposable DB before base creation');
+      }
+    } finally {
+      await extensions.end().catch(() => undefined);
+    }
+
     // 1. Accepted base datamodel, both schemas, read from the pinned commit.
     const base = mkdtempSync(join(tmpdir(), 'ws10-base-'));
     const gitFile = (path: string, into: string) => {
@@ -126,7 +149,6 @@ native(`WS-10 Hill Day durable job lifecycle PostgreSQL16${readiness.available ?
     // raw session must be bound to the fixture's OWNED schema explicitly. The
     // schema name is validated before it is quoted into SQL, and the binding is
     // verified with `current_schema()` rather than assumed.
-    const { Client } = require(require.resolve('pg', { paths: [join(repoRoot, 'apps/api')] }));
     seed = new Client({ connectionString: database.url }) as never;
     try {
       await seed.connect();
