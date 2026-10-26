@@ -174,6 +174,10 @@ export interface NewsletterOutreachTest {
   senderConnectionId: string;
   versionId: string;
 }
+export interface NewsletterPrepareResult {
+  versions: NewsletterOutreachVersion[];
+  excluded: string[];
+}
 export interface NewsletterOutreachRecord {
   id: string;
   /** The persisted Core field is a string, not a closed UI lifecycle enum. */
@@ -1093,6 +1097,24 @@ export function parseNewsletterOutreachRecord(
       }
     },
   );
+}
+/** Preparation imports immutable versions; it does not queue or deliver mail. */
+export function parseNewsletterPrepareResult(
+  value: unknown,
+  expected: { recordId: string },
+): NewsletterReceiveResult<NewsletterPrepareResult> {
+  return receive(value, object({ versions: array(draftVersion, 500), excluded: strings }), (value) => {
+    const binding = row(snapshot(expected), '$expected');
+    uuid(binding.recordId!, '$expected.recordId');
+    const seen = new Set<string>();
+    for (const [index, item] of (row(value, '$').versions as NewsletterJsonObject[]).entries()) {
+      const id = (item.id as string).toLowerCase();
+      if ((item.outreachRecordId as string).toLowerCase() !== (binding.recordId as string).toLowerCase())
+        refuse(`$.versions.${index}.outreachRecordId`, 'identity_mismatch');
+      if (seen.has(id)) refuse(`$.versions.${index}.id`);
+      seen.add(id);
+    }
+  });
 }
 /** Unrelated metadata is deliberately projected away. Null/absent metadata has no rich hint. */
 export function parseNewsletterReservedMetadata(
