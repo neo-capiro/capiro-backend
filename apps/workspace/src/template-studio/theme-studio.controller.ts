@@ -4,6 +4,7 @@ import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { ThemeStudioService } from './theme-studio.service.js';
 import {
+  ThemeVersionExpectationDto,
   CreateThemeDto,
   SaveThemeDraftDto,
   CreateThemeVersionDto,
@@ -44,6 +45,16 @@ export class ThemeStudioController {
     return this.themeStudio.getTheme(ctx.tenantId, themeId);
   }
 
+  /** GET /template-studio/themes/:themeId/versions/:versionId — exact saved version. */
+  @Get(':themeId/versions/:versionId')
+  getVersion(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('themeId') themeId: string,
+    @Param('versionId') versionId: string,
+  ) {
+    return this.themeStudio.getVersion(ctx.tenantId, themeId, versionId);
+  }
+
   /** POST /template-studio/themes/:themeId/versions — new draft version. */
   @Post(':themeId/versions')
   createVersion(
@@ -71,12 +82,14 @@ export class ThemeStudioController {
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('themeId') themeId: string,
     @Param('versionId') versionId: string,
+    @Body() dto: ThemeVersionExpectationDto = {},
   ) {
     return this.themeStudio.publishVersion(
       ctx.tenantId,
       themeId,
       versionId,
       ctx.clerkUserId,
+      dto,
     );
   }
 
@@ -86,12 +99,14 @@ export class ThemeStudioController {
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('themeId') themeId: string,
     @Param('versionId') versionId: string,
+    @Body() dto: ThemeVersionExpectationDto = {},
   ) {
     return this.themeStudio.retireVersion(
       ctx.tenantId,
       themeId,
       versionId,
       ctx.clerkUserId,
+      dto,
     );
   }
 }

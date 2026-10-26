@@ -1,5 +1,6 @@
 /** Pure receiving contracts. These parsers validate wire data, never authorize an action. */
 import { savedSurvey } from './newsletter-survey-receiving.js';
+import { newsletterAssetUrl } from './newsletter-asset-url-receiving.js';
 import type {
   NewsletterCampaign,
   NewsletterCampaignConfig,
@@ -475,29 +476,7 @@ const assetFields = {
     if (typeof value !== 'string' || value.length > 200) refuse(path);
   },
   mimeType: literal('image/png', 'image/jpeg', 'image/gif', 'image/webp'),
-  url: (value: NewsletterJson, path: string) => {
-    if (typeof value !== 'string' || !/^https?:\/\/[^/]/i.test(value) || /[\s\\]/.test(value))
-      refuse(path);
-    let url: URL;
-    try {
-      url = new URL(value);
-    } catch {
-      refuse(path);
-    }
-    // The configured public base may include a port/path. Do not hardcode its origin,
-    // infer ownership from its token, or turn receiving into permission to fetch it.
-    const suffix = /\/workspace-api\/newsletters\/assets\/file\/[a-f0-9]{64}$/;
-    if (
-      !['http:', 'https:'].includes(url.protocol) ||
-      url.username ||
-      url.password ||
-      url.search ||
-      url.hash ||
-      !suffix.test(value) ||
-      !suffix.test(url.pathname)
-    )
-      refuse(path);
-  },
+  url: newsletterAssetUrl,
 };
 const assetItem: Rule = (value, path) => {
   object(assetFields)(value, path);
