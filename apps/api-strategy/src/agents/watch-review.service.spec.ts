@@ -1,5 +1,6 @@
+import { storedWatchSources } from './watch-source-dependencies.js';
 import { describe, expect, it, jest } from '@jest/globals';
-import { BadRequestException, ConflictException, Logger } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException, Logger } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma-client/index.js';
 import { WatchReviewService } from './watch-review.service.js';
 import { StrategyConversationService } from '../meri/strategy-conversation.service.js';
@@ -141,6 +142,9 @@ function findFirstGeneric(
 // ---- store -----------------------------------------------------------------
 
 function makeStore() {
+  const sourceFacts = new Map<string, Rec>();
+  const sourceDocuments = new Map<string, Rec>();
+  const sourceAccess = { member: true, client: true, wall: true };
   const strategies = new Map<string, Rec>();
   const nodes = new Map<string, Rec>();
   const versions = new Map<string, Rec>();
@@ -160,6 +164,9 @@ function makeStore() {
   const nodesFor = (sid: string) => [...nodes.values()].filter((n) => n.strategyId === sid);
   const liveNodesFor = (sid: string) => nodesFor(sid).filter((n) => n.archivedAt == null);
   return {
+    sourceFacts,
+    sourceDocuments,
+    sourceAccess,
     strategies,
     nodes,
     versions,
@@ -584,6 +591,14 @@ function makeTx(store: Store, heldLocks: Array<() => void> = []) {
 
   return {
     spStrategy,
+    spContextFact: {
+      findMany: async ({ where }: { where: Record<string, unknown> }) =>
+        [...store.sourceFacts.values()].filter((row) => matches(row, where)),
+    },
+    spContextDocument: {
+      findMany: async ({ where }: { where: Record<string, unknown> }) =>
+        [...store.sourceDocuments.values()].filter((row) => matches(row, where)),
+    },
     spNode,
     spVersion,
     spAgentMission,
@@ -594,6 +609,13 @@ function makeTx(store: Store, heldLocks: Array<() => void> = []) {
     spActivityLog,
     spEventOutbox,
     $queryRaw,
+    $queryRawUnsafe: async (sql: string) => {
+      if (sql.includes('FROM clients')) return store.sourceAccess.client ? [{ id: 'C1', allowed: store.sourceAccess.wall }] : [];
+      if (sql.includes('FROM tenant_memberships')) return store.sourceAccess.member ? [{ userId: U }] : [];
+      if (sql.includes('FROM client_memory_access')) return store.sourceAccess.wall ? [{ id: 'grant' }] : [];
+      if (sql.includes('FROM sp_context_document') || sql.includes('FROM sp_context_fact')) return [];
+      throw new Error(`unmodelled source authority query: ${sql}`);
+    },
   } as unknown as Prisma.TransactionClient;
 }
 
@@ -642,12 +664,6 @@ function makeService(store: Store, opts: { realConversation?: boolean } = {}) {
 
   const versioning = new VersioningService();
   const runs = new RunsService(prisma, versioning);
-  const changeSets = new ChangeSetsService(
-    prisma,
-    versioning,
-    {} as unknown as VersionService,
-    {} as unknown as MeriService,
-  );
 
   const groundingValue = {
     fiscal: {
@@ -724,6 +740,7 @@ function makeService(store: Store, opts: { realConversation?: boolean } = {}) {
     },
   );
   const meri = { grounding, applyEditSet, verifyAppliedPlan } as unknown as MeriService;
+  const changeSets = new ChangeSetsService(prisma, versioning, {} as unknown as VersionService, meri);
 
   const healthValue = {
     status: 'ok' as const,
@@ -762,6 +779,9 @@ function makeService(store: Store, opts: { realConversation?: boolean } = {}) {
   return {
     svc,
     watcher,
+    runs,
+    changeSets,
+    steward,
     applyEditSet,
     verifyAppliedPlan,
     grounding,
@@ -803,6 +823,204 @@ async function seedOneOpenProposal(
 }
 
 // ==== Scenario 5 =================================================================
+
+const SOURCE_FACT = '10000000-0000-4000-8000-000000000001';
+const SOURCE_DOCUMENT = '10000000-0000-4000-8000-000000000002';
+function seedCitedSource(store: Store) {
+  store.sourceDocuments.set(SOURCE_DOCUMENT, {
+    id: SOURCE_DOCUMENT, tenantId: T, clientId: 'C1', scope: 'strategy', scopeRef: SID,
+    state: 'active', checksum: 'a'.repeat(64), supersedesId: null, validUntil: null,
+  });
+  store.sourceFacts.set(SOURCE_FACT, {
+    id: SOURCE_FACT, tenantId: T, documentId: SOURCE_DOCUMENT, clientId: 'C1',
+    sourceRef: 'heading:assumptions', state: 'active',
+  });
+  seedNode(store, { id: 'N1', startsOn: daysFromToday(20), ownerUserId: U,
+    provenance: { sources: [{ ref: `fact:${SOURCE_FACT}` }] } });
+}
+
+describe('MO14 exact cited-source refresh', () => {
+  it('rechecks a same-day unchanged plan after its cited document supersedes', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedCitedSource(store);
+    const { svc, watcher } = makeService(store);
+    const first = await watcher.runCheckNow(T, U, MID);
+    const baseline = JSON.stringify(store.runs.get(first.runId)!.findings);
+    const nodeBefore = JSON.stringify(store.nodes.get('N1'));
+    // The existing document owner commits these two changes atomically. It
+    // does not edit the strategy or its version when a source is replaced.
+    store.sourceDocuments.get(SOURCE_DOCUMENT)!.state = 'superseded';
+    store.sourceFacts.get(SOURCE_FACT)!.state = 'stale';
+    const checked = await svc.revalidate(T, U, SID, 'panel-open');
+    expect(store.runs.size).toBe(2);
+    expect((checked as any).sourceFindings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'cited-source-stale', nodeIds: ['N1'] }),
+    ]));
+    expect(JSON.stringify(store.runs.get(first.runId)!.findings)).toBe(baseline);
+    expect(JSON.stringify(store.nodes.get('N1'))).toBe(nodeBefore);
+    expect(store.versions.size).toBe(1);
+  });
+  async function pendingSource() {
+    const store = makeStore(); seedStrategy(store); seedMission(store); seedCitedSource(store);
+    Object.assign(store.nodes.get('N1')!, { startsOn: daysFromToday(-14), endsOn: daysFromToday(-7), status: 'in_progress' });
+    const services = makeService(store);
+    const result = await services.watcher.runCheckNow(T, U, MID);
+    expect(result.changeSetsProposed).toHaveLength(1);
+    return { store, ...services, runId: result.runId, proposalId: result.changeSetsProposed[0]! };
+  }
+
+  it('keeps unchanged citations idempotent and ignores uncited document changes', async () => {
+    const { store, watcher, runId } = await pendingSource();
+    const before = JSON.stringify(store.runs.get(runId)!.findings);
+    store.sourceDocuments.set('uncited', { id: 'uncited', tenantId: T, clientId: 'C1', state: 'superseded' });
+    const repeated = await watcher.runCheckNow(T, U, MID);
+    expect(repeated.runId).toBe(runId);
+    expect(store.runs.size).toBe(1);
+    expect(store.changeSets.size).toBe(1);
+    expect(JSON.stringify(store.runs.get(runId)!.findings)).toBe(before);
+  });
+
+  it.each(['superseded', 'archived'])('detects a cited document becoming %s without changing content', async state => {
+    const { store, svc, runId } = await pendingSource();
+    const before = JSON.stringify(store.nodes.get('N1'));
+    store.sourceDocuments.get(SOURCE_DOCUMENT)!.state = state;
+    const result = await svc.revalidate(T, U, SID, 'panel-open');
+    expect(result.sourceFindings[0]?.code).toBe('cited-source-stale');
+    expect(store.runs.size).toBe(2);
+    expect(store.runs.get(runId)!.state).toBe('ready_for_review');
+    expect(JSON.stringify(store.nodes.get('N1'))).toBe(before);
+  });
+
+  it('detects same-document re-extraction and an expired document', async () => {
+    const { store, svc } = await pendingSource();
+    store.sourceFacts.get(SOURCE_FACT)!.state = 'superseded';
+    await svc.revalidate(T, U, SID, 'panel-open');
+    expect(store.runs.size).toBe(2);
+    store.sourceDocuments.get(SOURCE_DOCUMENT)!.validUntil = new Date(daysFromToday(-1));
+    const state = await svc.revalidate(T, U, SID, 'panel-open');
+    expect(store.runs.size).toBe(3);
+    expect(state.sourceFindings[0]?.code).toBe('cited-source-stale');
+  });
+
+  it('preserves pending proposal lineage, reissues after a source change, and rejects the old proposal', async () => {
+    const { store, svc, proposalId, runId } = await pendingSource();
+    const old = structuredClone(store.changeSets.get(proposalId)!);
+    const findings = structuredClone(store.runs.get(runId)!.findings);
+    store.sourceFacts.get(SOURCE_FACT)!.state = 'stale';
+    await expect(svc.acceptOne(T, U, proposalId)).rejects.toThrow(ConflictException);
+    const state = await svc.revalidate(T, U, SID, 'panel-open');
+    expect(state.pendingCount).toBe(1);
+    const replacement = store.changeSets.get(state.proposals[0]!.id)!;
+    expect(replacement.id).not.toBe(proposalId);
+    expect(replacement.runId).not.toBe(runId);
+    expect(replacement.replacesChangeSetId).toBe(proposalId);
+    expect(store.changeSets.get(proposalId)).toMatchObject({ runId, ops: old.ops, status: 'superseded', supersededByChangeSetId: replacement.id });
+    expect(store.runs.get(runId)!.findings).toEqual(findings);
+  });
+
+  it.each(['one', 'batch', 'generic'])('blocks changed-source acceptance through %s', async path => {
+    const { store, svc, changeSets, proposalId, applyEditSet } = await pendingSource();
+    if (path === 'generic') await changeSets.approve(T, U, proposalId, {});
+    store.sourceFacts.get(SOURCE_FACT)!.state = 'stale';
+    const accept = path === 'one' ? svc.acceptOne(T, U, proposalId)
+      : path === 'batch' ? svc.acceptAll(T, U, SID, 'v1', [proposalId])
+      : changeSets.apply(T, U, proposalId);
+    await expect(accept).rejects.toThrow(ConflictException);
+    expect(applyEditSet).not.toHaveBeenCalled();
+    expect(store.versions.size).toBe(1);
+  });
+
+  it.each(['wall', 'member', 'client'] as const)('fails closed on current %s revocation for read, recheck, cadence and accept', async guard => {
+    const { store, svc, watcher, runs, changeSets, proposalId, runId, applyEditSet } = await pendingSource();
+    store.sourceAccess[guard] = false;
+    await expect(svc.getState(T, SID, U)).rejects.toThrow(NotFoundException);
+    await expect(svc.revalidate(T, U, SID, 'panel-open')).rejects.toThrow(NotFoundException);
+    await expect(watcher.runCheckNow(T, null, MID)).rejects.toThrow(NotFoundException);
+    await expect(svc.acceptOne(T, U, proposalId)).rejects.toThrow(NotFoundException);
+    await expect(runs.get(T, runId, U)).rejects.toThrow(NotFoundException);
+    await expect(changeSets.get(T, proposalId, U)).rejects.toThrow(NotFoundException);
+    expect(await changeSets.list(T, {}, U)).toEqual([]);
+    expect(await svc.getPendingCounts(T, U)).toEqual({});
+    expect(applyEditSet).not.toHaveBeenCalled();
+    expect(store.runs.size).toBe(1);
+  });
+
+  it('allows the current granted member and rejects a scheduler without a current sponsor', async () => {
+    const { store, watcher, svc, proposalId } = await pendingSource();
+    expect((await svc.getState(T, SID, U)).pendingCount).toBe(1);
+    await expect(watcher.runCheckNow(T, null, MID)).resolves.toBeDefined();
+    store.missions.get(MID)!.createdByUserId = null;
+    await expect(watcher.runCheckNow(T, null, MID)).rejects.toThrow(NotFoundException);
+    const applied = await svc.acceptOne(T, U, proposalId);
+    expect(applied.state.lastRecheck?.state).toBe('complete');
+  });
+
+  it.each(['tenantId', 'clientId', 'scopeRef'])('does not disclose a fact from another %s', async field => {
+    const store = makeStore(); seedStrategy(store); seedMission(store); seedCitedSource(store);
+    if (field === 'scopeRef') store.sourceDocuments.get(SOURCE_DOCUMENT)!.scopeRef = 'other-strategy';
+    else store.sourceFacts.get(SOURCE_FACT)![field] = 'foreign';
+    const { watcher } = makeService(store);
+    const result = await watcher.runCheckNow(T, U, MID);
+    const saved = storedWatchSources(store.runs.get(result.runId)!.findings)!;
+    expect(saved.dependencies[0]).toMatchObject({ documentId: null, checksum: null, sourceRef: null, factState: 'unavailable' });
+    expect(result.findings).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'cited-source-stale' })]));
+  });
+
+  it('fails the check if sources change between its read and proposal publication', async () => {
+    const store = makeStore(); seedStrategy(store); seedMission(store); seedCitedSource(store);
+    const { watcher, steward } = makeService(store);
+    jest.spyOn(steward, 'health').mockImplementationOnce(async () => {
+      store.sourceFacts.get(SOURCE_FACT)!.state = 'stale';
+      return {} as any;
+    });
+    await expect(watcher.runCheckNow(T, U, MID)).rejects.toThrow(ConflictException);
+    expect(store.changeSets.size).toBe(0);
+  });
+
+  it('rechecks authority before publishing a computed source review', async () => {
+    const store = makeStore(); seedStrategy(store); seedMission(store); seedCitedSource(store);
+    const { watcher, steward } = makeService(store);
+    const original = steward.health.bind(steward);
+    jest.spyOn(steward, 'health').mockImplementationOnce(async (...args) => {
+      const health = await original(...args);
+      store.sourceAccess.wall = false;
+      return health;
+    });
+    await expect(watcher.runCheckNow(T, U, MID)).rejects.toThrow(NotFoundException);
+    expect(store.changeSets.size).toBe(0);
+    expect(store.versions.size).toBe(1);
+  });
+
+  it('reissues a source-bound calendar proposal on a later day without rewriting its old ops', async () => {
+    const { store, svc, proposalId } = await pendingSource();
+    const oldOps = structuredClone(store.changeSets.get(proposalId)!.ops);
+    jest.useFakeTimers().setSystemTime(new Date(Date.now() + 86400000));
+    try {
+      await expect(svc.acceptOne(T, U, proposalId)).rejects.toThrow(ConflictException);
+      const state = await svc.revalidate(T, U, SID, 'panel-open');
+      expect(state.pendingCount).toBe(1);
+      expect(state.proposals[0]!.id).not.toBe(proposalId);
+      expect(store.changeSets.get(proposalId)!.ops).toEqual(oldOps);
+      expect(store.changeSets.get(state.proposals[0]!.id)!.ops).not.toEqual(oldOps);
+    } finally { jest.useRealTimers(); }
+  });
+
+  it('keeps fingerprints valid through jsonb key ordering and rejects a rewritten saved snapshot', async () => {
+    const { store, runId, runs } = await pendingSource();
+    const original = store.runs.get(runId)!.findings as any;
+    function reverse(value: any): any {
+      if (Array.isArray(value)) return value.map(reverse);
+      if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).reverse().map(key => [key, reverse(value[key])]));
+      return value;
+    }
+    const reordered = reverse(original);
+    expect(storedWatchSources(reordered)?.fingerprint).toBe(storedWatchSources(original)?.fingerprint);
+    await expect(runs.transition(T, U, runId, { to: 'completed', findings: { sourceDependencies: null } } as any)).rejects.toThrow(ConflictException);
+    expect(store.runs.get(runId)!.findings).toEqual(original);
+  });
+});
 
 describe('WatchReviewService.acceptOne — single accept', () => {
   it('cuts exactly ONE version, writes exactly ONE watch.change_applied event (no generic changeset.approved/applied rows), and applies the retime', async () => {

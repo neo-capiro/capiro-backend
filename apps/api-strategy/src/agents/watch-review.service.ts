@@ -1,3 +1,5 @@
+import { requireWatchSourceAccess } from './watch-source-access.js';
+import { watchSourceSnapshot, watchSourceRunKey, watchSourceFindings, sameWatchSources, storedWatchSources, requireWatchProposalSources } from './watch-source-dependencies.js';
 import {
   BadRequestException,
   ConflictException,
@@ -55,22 +57,22 @@ export class WatchReviewService {
 
   // ---- Step 1: read current review state -------------------------------------
 
-  async getState(tenantId: string, strategyId: string): Promise<WatchReviewState> {
-    return this.prisma.withTenant(tenantId, (tx) => this.loadState(tx, strategyId, null));
+  async getState(tenantId: string, strategyId: string, userId?: string): Promise<WatchReviewState> {
+    return this.prisma.withTenant(tenantId, (tx) => this.loadState(tx, strategyId, null, tenantId, userId));
   }
 
   /**
    * Phase 4 §6: per-strategy pending counts for the library's weekly nudge, in
-   * a FIXED small number of queries regardless of strategy count — never one
-   * getState()-shaped round-trip per row. Mirrors loadState's own current-head
+   * fixed table passes for ordinary proposals. Source-bound proposals also
+   * validate their cited sources and current access. Mirrors loadState's current-head
    * + non-dismissed + non-deleted-target filter so the nudge count matches
    * what the panel shows when the strategy is actually opened.
    */
-  async getPendingCounts(tenantId: string): Promise<Record<string, number>> {
+  async getPendingCounts(tenantId: string, userId?: string): Promise<Record<string, number>> {
     return this.prisma.withTenant(tenantId, async (tx) => {
       const openRows = await tx.spChangeSet.findMany({
         where: { status: 'proposed', watchKey: { not: null } },
-        select: { strategyId: true, watchKey: true, strategyVersionId: true, ops: true },
+        select: { strategyId: true, watchKey: true, strategyVersionId: true, ops: true, runId: true },
       });
       if (openRows.length === 0) return {};
 
@@ -106,6 +108,9 @@ export class WatchReviewService {
         liveIdsByStrategy.set(n.strategyId, set);
       }
 
+      // Resolve only existing open source-bound reviews, never scan clients or documents.
+      const sourceRuns = new Map<string, Awaited<ReturnType<typeof tx.spAgentRun.findFirst>>>();
+      const visibleSources = new Map<string, boolean>();
       const counts: Record<string, number> = {};
       for (const row of openRows) {
         if (!row.watchKey || row.strategyVersionId !== headByStrategy.get(row.strategyId)) continue;
@@ -113,6 +118,24 @@ export class WatchReviewService {
         const liveIds = liveIdsByStrategy.get(row.strategyId);
         const targetIds = extractNodeIds(row.ops);
         if (targetIds.some((id) => !liveIds?.has(id))) continue;
+        if (row.runId) {
+          if (!sourceRuns.has(row.runId)) sourceRuns.set(row.runId,
+            await tx.spAgentRun.findFirst({ where: { id: row.runId } }));
+          const source = storedWatchSources(sourceRuns.get(row.runId)?.findings);
+          if (source) {
+            if (!visibleSources.has(source.fingerprint)) {
+              try {
+                await requireWatchSourceAccess(tx, tenantId, source.clientId, userId);
+                visibleSources.set(source.fingerprint, sameWatchSources(source,
+                  await watchSourceSnapshot(tx, tenantId, row.strategyId)));
+              } catch (error) {
+                if (!(error instanceof NotFoundException)) throw error;
+                visibleSources.set(source.fingerprint, false);
+              }
+            }
+            if (!visibleSources.get(source.fingerprint)) continue;
+          }
+        }
         counts[row.strategyId] = (counts[row.strategyId] ?? 0) + 1;
       }
       return counts;
@@ -161,7 +184,7 @@ export class WatchReviewService {
       const mission = await findWatchMission(tx, strategyId);
       const openProposals = await tx.spChangeSet.findMany({
         where: { strategyId, status: 'proposed', watchKey: { not: null } },
-        select: { id: true, watchKey: true, strategyVersionId: true, ops: true },
+        select: { id: true, watchKey: true, strategyVersionId: true, ops: true, runId: true },
       });
       const latestRun = mission
         ? await tx.spAgentRun.findFirst({
@@ -170,7 +193,10 @@ export class WatchReviewService {
             select: { id: true, createdAt: true, state: true, findings: true },
           })
         : null;
+      const sources = await watchSourceSnapshot(tx, tenantId, strategyId);
+      if (sources) await requireWatchSourceAccess(tx, tenantId, sources.clientId, userId);
       return {
+        sources,
         lastEditedAt: strategy.lastEditedAt,
         headId: head.id,
         mission,
@@ -184,6 +210,7 @@ export class WatchReviewService {
     const checkedAt = successfulCheckTime(latestRun);
     const today = isoDate(new Date())!;
     const runIsFresh =
+      sameWatchSources(storedWatchSources(latestRun?.findings), snapshot.sources) &&
       checkedAt !== null &&
       isoDate(checkedAt) === today &&
       (!lastEditedAt || checkedAt > lastEditedAt);
@@ -199,7 +226,7 @@ export class WatchReviewService {
         }`,
       );
       const state = await this.prisma.withTenant(tenantId, (tx) =>
-        this.loadState(tx, strategyId, null),
+        this.loadState(tx, strategyId, null, tenantId, userId),
       );
       return {
         ...state,
@@ -215,7 +242,7 @@ export class WatchReviewService {
 
     let recheckFailed = false;
     try {
-      const baseKey = `recheck:${mission.id}:${headId}:${today}:${lastEditedAt?.getTime() ?? 0}`;
+      const baseKey = watchSourceRunKey(`recheck:${mission.id}:${headId}:${today}:${lastEditedAt?.getTime() ?? 0}`, snapshot.sources);
       // Resolve this check's own retry family. A newer scheduled run may be
       // unrelated; falling back to baseKey after a successful retry would reopen
       // the failed ancestor and permanently break subsequent manual checks.
@@ -250,7 +277,7 @@ export class WatchReviewService {
 
     if (recheckFailed) {
       const state = await this.prisma.withTenant(tenantId, (tx) =>
-        this.loadState(tx, strategyId, null),
+        this.loadState(tx, strategyId, null, tenantId, userId),
       );
       return {
         ...state,
@@ -275,7 +302,7 @@ export class WatchReviewService {
     );
 
     const finalState = await this.prisma.withTenant(tenantId, (tx) =>
-      this.loadState(tx, strategyId, null),
+      this.loadState(tx, strategyId, null, tenantId, userId),
     );
     return { ...finalState, lastRecheck: { ...recheck, elapsedMs: Date.now() - t0 } };
   }
@@ -301,6 +328,7 @@ export class WatchReviewService {
       watchKey: string | null;
       strategyVersionId: string;
       ops: unknown;
+      runId?: string | null;
     }>,
   ): Promise<Omit<WatchRecheckResult, 'elapsedMs'>> {
     // Reconciliation also updates existing proposals. Take their locks before
@@ -336,7 +364,7 @@ export class WatchReviewService {
         watchKey: { not: null },
         strategyVersionId: newHeadId,
       },
-      select: { id: true, watchKey: true, ops: true },
+      select: { id: true, watchKey: true, ops: true, runId: true },
     });
     // A concurrent check can insert a proposal before our strategy lock.
     // Do not acquire new proposal locks while holding that lock, and do not
@@ -344,7 +372,15 @@ export class WatchReviewService {
     if (newHeadId !== preHeadId || freshRows.some((row) => !lockedIds.has(row.id))) {
       return { state: 'failed', unchanged: [], updated: [], dropped: [] };
     }
-    const freshByKey = new Map(freshRows.filter((r) => r.watchKey).map((r) => [r.watchKey!, r]));
+    const sources = await watchSourceSnapshot(tx, tenantId, strategyId);
+    if (sources) await requireWatchSourceAccess(tx, tenantId, sources.clientId, userId);
+    const sourcesFor = async (runId?: string | null) => storedWatchSources(
+      runId ? (await tx.spAgentRun.findFirst({ where: { id: runId } }))?.findings : null);
+    const currentRows = [];
+    for (const row of freshRows) {
+      if (sameWatchSources(await sourcesFor(row.runId), sources)) currentRows.push(row);
+    }
+    const freshByKey = new Map(currentRows.filter((r) => r.watchKey).map((r) => [r.watchKey!, r]));
 
     const liveIds = new Set(
       (
@@ -362,7 +398,7 @@ export class WatchReviewService {
     for (const old of preProposals) {
       if (!old.watchKey) continue;
 
-      if (old.strategyVersionId === newHeadId) {
+      if (old.strategyVersionId === newHeadId && sameWatchSources(await sourcesFor(old.runId), sources)) {
         // Already current before AND after this recheck: runCheckNow's own
         // dedup either left the row untouched or refreshed it IN PLACE — same
         // id, nothing to supersede. Re-read (a concurrent accept/dismiss may
@@ -460,10 +496,12 @@ export class WatchReviewService {
       // Serialize the permanent dismissal with the watcher's proposal/dedup
       // read. Otherwise a concurrent check can reissue the finding after this
       // transaction records that it must never be proposed again.
+      const sources = await watchSourceSnapshot(tx, tenantId, cs.strategyId, true);
       await tx.$queryRaw`
         SELECT id FROM sp_strategy
         WHERE id = ${cs.strategyId}::uuid AND tenant_id = ${tenantId}::uuid
         FOR UPDATE`;
+      await requireWatchProposalSources(tx, tenantId, userId, cs, sources);
       await tx.spWatchDismissal.upsert({
         where: {
           tenantId_strategyId_watchKey: {
@@ -500,7 +538,7 @@ export class WatchReviewService {
     this.logger.log(
       `[strategy:${strategyId}] Watch proposal permanently dismissed (change-set ${proposalId})`,
     );
-    return this.getState(tenantId, strategyId);
+    return this.getState(tenantId, strategyId, userId);
   }
 
   // ---- Step 5: accept one and recheck -----------------------------------------
@@ -536,10 +574,12 @@ export class WatchReviewService {
 
       // Lock order change-set -> strategy, matching ChangeSetsService.apply
       // and WatcherService.proposeChangeSets everywhere else in this module.
+      const sources = await watchSourceSnapshot(tx, tenantId, cs.strategyId, true);
       await tx.$queryRaw`
         SELECT id FROM sp_strategy
         WHERE id = ${cs.strategyId}::uuid AND tenant_id = ${tenantId}::uuid
         FOR UPDATE`;
+      await requireWatchProposalSources(tx, tenantId, userId, cs, sources);
 
       const head = await tx.spVersion.findFirst({
         where: { strategyId: cs.strategyId },
@@ -721,6 +761,7 @@ export class WatchReviewService {
           WHERE id = ${id}::uuid AND tenant_id = ${tenantId}::uuid
           FOR UPDATE`;
       }
+      const sources = await watchSourceSnapshot(tx, tenantId, strategyId, true);
       await tx.$queryRaw`
         SELECT id FROM sp_strategy
         WHERE id = ${strategyId}::uuid AND tenant_id = ${tenantId}::uuid
@@ -732,6 +773,7 @@ export class WatchReviewService {
         throw new NotFoundException('One or more proposals were not found for this tenant');
       }
       for (const r of rows) {
+        await requireWatchProposalSources(tx, tenantId, userId, r, sources);
         if (r.strategyId !== strategyId) {
           throw new BadRequestException('All proposals must belong to the requested strategy');
         }
@@ -864,6 +906,8 @@ export class WatchReviewService {
     tx: Tx,
     strategyId: string,
     lastRecheck: WatchRecheckResult | null,
+    tenantId: string,
+    userId?: string,
   ): Promise<WatchReviewState> {
     const strategy = await tx.spStrategy.findFirst({
       where: { id: strategyId },
@@ -886,7 +930,8 @@ export class WatchReviewService {
           select: { createdAt: true, state: true, findings: true },
         })
       : null;
-    const findingsByKey = extractFindingsByKey(latestRun?.findings);
+    const sources = await watchSourceSnapshot(tx, tenantId, strategyId);
+    if (sources) await requireWatchSourceAccess(tx, tenantId, sources.clientId, userId);
 
     const dismissals = await tx.spWatchDismissal.findMany({
       where: { strategyId },
@@ -924,7 +969,11 @@ export class WatchReviewService {
       // Deleted-target: the proposal can no longer apply (applyEdit would
       // throw "referenced an unknown node") — vanish silently, no error card.
       if (targetIds.some((id) => !liveNodeIds.has(id))) continue;
-      const finding = findingsByKey.get(cs.watchKey);
+      const boundRun = cs.runId ? await tx.spAgentRun.findFirst({ where: { id: cs.runId } }) : null;
+      const boundSources = storedWatchSources(boundRun?.findings);
+      if (boundSources) await requireWatchSourceAccess(tx, tenantId, boundSources.clientId, userId);
+      if (!sameWatchSources(boundSources, sources)) continue;
+      const finding = extractFindingsByKey(boundRun?.findings ?? latestRun?.findings).get(cs.watchKey);
       const primaryNodeTitle = targetIds
         .map((id) => nodeTitleById.get(id))
         .find((t): t is string => !!t);
@@ -960,6 +1009,7 @@ export class WatchReviewService {
             nextRunAt: mission.nextRunAt ? mission.nextRunAt.toISOString() : null,
           }
         : null,
+      sourceFindings: watchSourceFindings(sources),
       pendingCount: rows.length,
       proposals: rows.map((r) => buildProposalCard(r.cs, r.finding, r.primaryNodeTitle)),
       lastRecheck: lastRecheck ?? null,
@@ -996,6 +1046,7 @@ export interface WatchReviewState {
   } | null;
   pendingCount: number;
   proposals: WatchProposalCard[];
+  sourceFindings: Finding[];
   lastRecheck?: WatchRecheckResult | null;
 }
 
