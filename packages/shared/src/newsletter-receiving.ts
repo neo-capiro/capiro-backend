@@ -102,6 +102,12 @@ export type NewsletterSectionLibraryItem = Omit<
 export interface NewsletterLibraryList {
   items: NewsletterSectionLibraryItem[];
 }
+/** A saved template has design content and optional legacy company/footer configuration. */
+export type NewsletterTemplateLibraryItem = Omit<NewsletterLibraryItem, 'section' | 'design'> &
+  Required<Pick<NewsletterLibraryItem, 'design'>>;
+export interface NewsletterTemplateLibraryList {
+  items: NewsletterTemplateLibraryItem[];
+}
 /** An owned image item, including an upload response; never an upload-request receipt. */
 export interface NewsletterAssetItem {
   id: string;
@@ -437,6 +443,26 @@ const libraryItem: Rule = (value, path) => {
   object(libraryItemFields)(value, path);
   for (const key of Object.keys(row(value, path)))
     if (!Object.prototype.hasOwnProperty.call(libraryItemFields, key)) refuse(`${path}.${key}`);
+};
+const templateItemFields = {
+  id: libraryItemFields.id!,
+  name: libraryItemFields.name!,
+  folder: libraryItemFields.folder!,
+  updatedAt: libraryItemFields.updatedAt!,
+  design,
+};
+// These are the existing config text guards, restricted to the producer's saved footer subset.
+const templateConfigFields = { company: text, mailingAddress: text, permissionReminder: text };
+const templateConfig: Rule = (value, path) => {
+  object(templateConfigFields)(value, path);
+  for (const key of Object.keys(row(value, path)))
+    if (!Object.prototype.hasOwnProperty.call(templateConfigFields, key)) refuse(`${path}.${key}`);
+};
+const templateItem: Rule = (value, path) => {
+  object(templateItemFields, { config: templateConfig })(value, path);
+  for (const key of Object.keys(row(value, path)))
+    if (key !== 'config' && !Object.prototype.hasOwnProperty.call(templateItemFields, key))
+      refuse(`${path}.${key}`);
 };
 const assetFields = {
   id: workspaceUuid,
@@ -819,6 +845,39 @@ export function parseNewsletterLibraryList(
     object({ items: array(libraryItem, 500) }),
     (value) => {
       for (const key of Object.keys(row(value, '$'))) if (key !== 'items') refuse(`$.${key}`);
+    },
+    500,
+  );
+}
+/** Acknowledged template content only. No document/request identity or save revision is echoed. */
+export function parseNewsletterTemplateItem(
+  value: unknown,
+  expected?: { id: string },
+): NewsletterReceiveResult<NewsletterTemplateLibraryItem> {
+  return receive(value, templateItem, (parsed) => {
+    if (expected === undefined) return;
+    const binding = row(snapshot(expected), '$expected');
+    object({ id: workspaceUuid })(binding, '$expected');
+    for (const key of Object.keys(binding)) if (key !== 'id') refuse(`$expected.${key}`);
+    if ((binding.id as string).toLowerCase() !== (row(parsed, '$').id as string).toLowerCase())
+      refuse('$.id', 'identity_mismatch');
+  });
+}
+/** Current visible templates, at most 500; never pagination, completeness or lost-write proof. */
+export function parseNewsletterTemplateList(
+  value: unknown,
+): NewsletterReceiveResult<NewsletterTemplateLibraryList> {
+  return receive(
+    value,
+    object({ items: array(templateItem, 500) }),
+    (parsed) => {
+      for (const key of Object.keys(row(parsed, '$'))) if (key !== 'items') refuse(`$.${key}`);
+      const seen = new Set<string>();
+      (row(parsed, '$').items as NewsletterJsonObject[]).forEach((item, index) => {
+        const id = (item.id as string).toLowerCase();
+        if (seen.has(id)) refuse(`$.items.${index}.id`);
+        seen.add(id);
+      });
     },
     500,
   );
