@@ -19,11 +19,22 @@ import {
   toThreadRef,
 } from './hillday-context.service.js';
 import { HillDaySourceService, type MessageRow, type StrategyRow } from './hillday-source.service.js';
+import {
+  LEASE_LOST_REASON,
+  finalLifecycle,
+  jobQuality,
+  recoverInterruptedUnits,
+  requeueFailedUnits,
+  runnableUnits,
+} from './hillday-job-state.js';
 import type {
   CalendarEvent,
   JobEvent,
+  JobLifecycle,
+  JobStartResult,
   JobStatus,
   JobUnit,
+  LatestJobResponse,
   MeetingContextRecord,
   MeetingResolution,
   MeetingSection,
@@ -39,6 +50,14 @@ const UNIT_MAX_TOKENS = 1600;
 /** Two units in flight: keeps a 12-meeting week under a minute without 429s. */
 const UNIT_CONCURRENCY = 2;
 const MAX_UNSUPPORTED_FLAGS = 5;
+
+/** Every persisted job lifecycle value, for normalizing a row read back. */
+const JOB_LIFECYCLES: readonly JobLifecycle[] = ['queued', 'running', 'complete', 'failed', 'cancelled'];
+
+/** The lifecycle a start call reports for an existing job, from the stored string. */
+function startStatus(raw: string): JobLifecycle {
+  return (JOB_LIFECYCLES as readonly string[]).includes(raw) ? (raw as JobLifecycle) : 'queued';
+}
 
 interface SharedRunContext {
   firmName: string;
@@ -104,12 +123,18 @@ function sleep(ms: number): Promise<void> {
  *
  * Progress is persisted on the job row (units + an ordered event log) so the
  * SSE stream and the poll fallback read the same truth.
+ *
+ * Durability (WS-10): the job row is the only owner of job identity and
+ * progress. A start request is bound to a `requestId`, an already-active job is
+ * returned rather than invalidated, and the job is executed by the durable
+ * {@link HillDayJobWorkerService} after a race-free lease claim — never by an
+ * in-process dispatch. A worker that loses its lease stops without writing, and
+ * a unit whose provider call may already have been issued is parked as
+ * `unknown` (never auto-replayed) for a deliberate retry.
  */
 @Injectable()
 export class HillDayGenerationService {
   private readonly logger = new Logger(HillDayGenerationService.name);
-  /** Documents with a run in flight in THIS process (single-task service). */
-  private readonly inFlight = new Set<string>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -117,9 +142,32 @@ export class HillDayGenerationService {
     private readonly credentials: AiCredentialService,
   ) {}
 
-  async start(tenantId: string, actorId: string, documentId: string): Promise<{ jobId: string; status: 'queued' | 'running' }> {
+  /**
+   * Request-bound durable start (WS-10).
+   *
+   * The job row is the only source of job identity. An identical
+   * document + `requestId` returns the SAME job, and an already-active job is
+   * returned rather than invalidated — a second replica must never kill work
+   * another replica is running. Nothing executes here: the row is created
+   * `queued` and the durable worker claims it.
+   */
+  async start(
+    tenantId: string,
+    actorId: string,
+    documentId: string,
+    requestId?: string,
+  ): Promise<JobStartResult> {
     const doc = await this.assertDoc(tenantId, documentId, actorId);
     if (doc.ownerId !== actorId) throw new ForbiddenException('Only the document owner can generate it');
+
+    // Exact start identity: replaying the same request returns the same job.
+    if (requestId) {
+      const replayed = await this.prisma.wsHillDayJob.findFirst({
+        where: { tenantId, documentId, requestId },
+      });
+      if (replayed) return { jobId: replayed.id, status: startStatus(replayed.status) };
+    }
+
     const meetings = await this.prisma.wsHillDayMeeting.findMany({
       where: { tenantId, documentId },
       orderBy: { ordinal: 'asc' },
@@ -127,20 +175,10 @@ export class HillDayGenerationService {
     });
     if (!meetings.length) throw new BadRequestException('Select at least one meeting before generating');
 
-    const active = await this.prisma.wsHillDayJob.findFirst({
-      where: { tenantId, documentId, status: { in: ['queued', 'running'] } },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (active) {
-      if (this.inFlight.has(documentId)) {
-        return { jobId: active.id, status: active.status as 'queued' | 'running' };
-      }
-      // A job row left behind by a restart: nothing is running it, fail it honestly.
-      await this.prisma.wsHillDayJob.update({
-        where: { id: active.id },
-        data: { status: 'failed', error: 'interrupted', completedAt: new Date() },
-      });
-    }
+    // Whoever already holds the document's job keeps it; whether it is still
+    // alive is decided by its lease, not by a process-local Set.
+    const active = await this.activeJob(tenantId, documentId);
+    if (active) return { jobId: active.id, status: startStatus(active.status) };
 
     const now = new Date().toISOString();
     const units: JobUnit[] = meetings.map((m) => ({
@@ -151,17 +189,19 @@ export class HillDayGenerationService {
       at: now,
     }));
     const job = await this.prisma.wsHillDayJob.create({
-      data: { tenantId, documentId, actorId, status: 'queued', units: units as never, events: [] as never },
+      data: {
+        tenantId,
+        documentId,
+        actorId,
+        status: 'queued',
+        requestId: requestId ?? null,
+        units: units as never,
+        events: [] as never,
+      },
     });
     await this.prisma.wsHillDayDocument.update({
       where: { id: documentId },
       data: { status: 'generating' },
-    });
-    this.inFlight.add(documentId);
-    setImmediate(() => {
-      this.run(job.id, tenantId, documentId, actorId).catch((err) => {
-        this.logger.error(`Hill Day job ${job.id} crashed: ${(err as Error).message}`);
-      });
     });
     return { jobId: job.id, status: 'queued' };
   }
@@ -170,6 +210,126 @@ export class HillDayGenerationService {
     await this.assertDoc(tenantId, documentId, actorId);
     const job = await this.prisma.wsHillDayJob.findFirst({ where: { id: jobId, tenantId, documentId } });
     if (!job) throw new NotFoundException('Generation job not found');
+    return this.toJobStatus(job, documentId);
+  }
+
+  /**
+   * Authorized latest-job read (WS-10). The wizard reloads with this instead of
+   * keeping a job id in local state: an active job always wins, otherwise the
+   * newest finished job is returned so a reload renders the real outcome.
+   */
+  async latestJob(tenantId: string, actorId: string, documentId: string): Promise<LatestJobResponse> {
+    await this.assertDoc(tenantId, documentId, actorId);
+    const active = await this.activeJob(tenantId, documentId);
+    const job =
+      active ??
+      (await this.prisma.wsHillDayJob.findFirst({
+        where: { tenantId, documentId },
+        orderBy: { createdAt: 'desc' },
+      }));
+    return { job: job ? this.toJobStatus(job, documentId) : null };
+  }
+
+  /**
+   * Deliberate retry of the units that are safe to retry: definitively failed
+   * units, and units whose outcome was lost with a lease (`unknown`). Units
+   * already `done` — including sections the user edited by hand — are never
+   * re-queued, so successful content and manual edits survive.
+   */
+  async retryFailedUnits(
+    tenantId: string,
+    actorId: string,
+    documentId: string,
+    jobId: string,
+  ): Promise<JobStatus> {
+    const doc = await this.assertDoc(tenantId, documentId, actorId);
+    if (doc.ownerId !== actorId) throw new ForbiddenException('Only the document owner can retry its generation');
+    const job = await this.prisma.wsHillDayJob.findFirst({ where: { id: jobId, tenantId, documentId } });
+    if (!job) throw new NotFoundException('Generation job not found');
+    if (job.status === 'queued' || job.status === 'running') {
+      throw new ConflictException('This generation job is still running');
+    }
+
+    const { units, requeued } = requeueFailedUnits((job.units as JobUnit[] | null) ?? [], new Date().toISOString());
+    if (!requeued.length) return this.toJobStatus(job, documentId);
+
+    const updated = await this.prisma.wsHillDayJob.update({
+      where: { id: jobId },
+      data: {
+        status: 'queued',
+        units: units as never,
+        quality: null,
+        error: null,
+        cancelRequestedAt: null,
+        completedAt: null,
+      },
+    });
+    await this.prisma.wsHillDayDocument.update({
+      where: { id: documentId },
+      data: { status: 'generating' },
+    });
+    return this.toJobStatus(updated, documentId);
+  }
+
+  /**
+   * Record a cancellation. Honest by construction: a job that has not been
+   * claimed yet has no provider work to stop, so it is cancelled outright; a
+   * `running` job keeps its status and gains `cancelRequestedAt`, the worker
+   * stops before the NEXT unit, and the call already in flight completes.
+   */
+  async requestCancel(
+    tenantId: string,
+    actorId: string,
+    documentId: string,
+    jobId: string,
+  ): Promise<JobStatus> {
+    const doc = await this.assertDoc(tenantId, documentId, actorId);
+    if (doc.ownerId !== actorId) throw new ForbiddenException('Only the document owner can cancel its generation');
+    const job = await this.prisma.wsHillDayJob.findFirst({ where: { id: jobId, tenantId, documentId } });
+    if (!job) throw new NotFoundException('Generation job not found');
+
+    if (job.status === 'queued') {
+      const cancelled = await this.prisma.wsHillDayJob.update({
+        where: { id: jobId },
+        data: { status: 'cancelled', cancelRequestedAt: new Date(), completedAt: new Date() },
+      });
+      await this.prisma.wsHillDayDocument
+        .update({ where: { id: documentId }, data: { status: 'partial' } })
+        .catch(() => undefined);
+      return this.toJobStatus(cancelled, documentId);
+    }
+    if (job.status === 'running') {
+      const marked = await this.prisma.wsHillDayJob.update({
+        where: { id: jobId },
+        data: { cancelRequestedAt: new Date() },
+      });
+      return this.toJobStatus(marked, documentId);
+    }
+    // Already terminal: cancelling is a no-op, reported as-is.
+    return this.toJobStatus(job, documentId);
+  }
+
+  /** The one active job for a document (queued or running), or null. */
+  private async activeJob(tenantId: string, documentId: string) {
+    return this.prisma.wsHillDayJob.findFirst({
+      where: { tenantId, documentId, status: { in: ['queued', 'running'] } },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  private toJobStatus(
+    job: {
+      id: string;
+      status: string;
+      units: unknown;
+      quality: number | null;
+      error: string | null;
+      cancelRequestedAt: Date | null;
+      startedAt: Date | null;
+      completedAt: Date | null;
+    },
+    documentId: string,
+  ): JobStatus {
     return {
       jobId: job.id,
       documentId,
@@ -177,6 +337,7 @@ export class HillDayGenerationService {
       units: (job.units as JobUnit[] | null) ?? [],
       quality: job.quality,
       error: job.error,
+      cancelRequestedAt: job.cancelRequestedAt?.toISOString() ?? null,
       startedAt: job.startedAt?.toISOString() ?? null,
       completedAt: job.completedAt?.toISOString() ?? null,
     };
@@ -205,7 +366,11 @@ export class HillDayGenerationService {
   ): Promise<{ section: MeetingSection; sourceSet: SourceSet }> {
     const doc = await this.assertDoc(tenantId, documentId, actorId);
     if (doc.ownerId !== actorId) throw new ForbiddenException('Only the document owner can regenerate it');
-    if (this.inFlight.has(documentId)) throw new ConflictException('A generation job is already running');
+    // The durable job row is the truth: a process-local Set cannot see a job
+    // another replica is running.
+    if (await this.activeJob(tenantId, documentId)) {
+      throw new ConflictException('A generation job is already running');
+    }
     const meeting = (await this.prisma.wsHillDayMeeting.findFirst({
       where: { id: sectionId, tenantId, documentId },
     })) as MeetingRow | null;
@@ -268,28 +433,83 @@ export class HillDayGenerationService {
     return { text: result.text };
   }
 
-  // ── run loop ──────────────────────────────────────────────────────────────
+  // ── run loop (durable worker entry point) ──────────────────────────────────
 
-  private async run(jobId: string, tenantId: string, documentId: string, actorId: string): Promise<void> {
+  /**
+   * Execute one claimed job — the durable worker's entry point, called after a
+   * race-free lease claim. `renew` extends this worker's lease and returns
+   * false once another worker owns the job, in which case this pass stops
+   * WITHOUT writing a terminal status (the new holder owns the outcome).
+   *
+   * Restart safety: units already `done` are kept, units a previous holder left
+   * `running` become `unknown` — their provider call may have been issued and
+   * charged, so replaying them is not safe — and only `queued` units run.
+   */
+  async runClaimedJob(jobId: string, renew: () => Promise<boolean>): Promise<JobStatus['status']> {
     const state: JobState = { id: jobId, units: [], events: [], seq: 0 };
+    let documentId: string | null = null;
+    let leaseLost = false;
     try {
       const job = await this.prisma.wsHillDayJob.findUnique({ where: { id: jobId } });
-      if (!job) return;
+      if (!job) return 'failed';
+      const { tenantId, actorId } = job;
+      // Narrow once: the closures below must see a non-null document id.
+      const docId: string = job.documentId;
+      documentId = docId;
       state.units = (job.units as JobUnit[] | null) ?? [];
-      const doc = await this.assertDoc(tenantId, documentId, actorId);
+      state.events = (job.events as JobEvent[] | null) ?? [];
+      state.seq = state.events.reduce((max, e) => Math.max(max, e.seq), 0);
+
+      // Whatever a previous holder left in flight is parked, not replayed.
+      const recovered = recoverInterruptedUnits(state.units, new Date().toISOString());
+      if (recovered.recovered.length) {
+        state.units = recovered.units;
+        for (const meetingId of recovered.recovered) {
+          await this.emit(state, 'unit', {
+            meetingId,
+            state: 'unknown',
+            sectionId: meetingId,
+            reason: LEASE_LOST_REASON,
+          });
+        }
+        this.logger.warn(
+          `Hill Day job ${jobId}: parked ${recovered.recovered.length} unit(s) as unknown after a lost lease`,
+        );
+      }
+
+      // Current access at admission; re-checked per unit below.
+      const doc = await this.assertDoc(tenantId, docId, actorId);
       await this.prisma.wsHillDayJob.update({
         where: { id: jobId },
-        data: { status: 'running', startedAt: new Date() },
+        data: { status: 'running', startedAt: job.startedAt ?? new Date(), units: state.units as never },
       });
       const meetings = (await this.prisma.wsHillDayMeeting.findMany({
-        where: { tenantId, documentId },
+        where: { tenantId, documentId: docId },
         orderBy: { ordinal: 'asc' },
       })) as MeetingRow[];
+      const byMeetingId = new Map(meetings.map((m) => [m.id, m]));
       const shared = await this.sharedContext(tenantId, actorId, doc);
 
-      let failed = 0;
-      await forEachBounded(meetings, UNIT_CONCURRENCY, async (meeting) => {
-        await this.assertDoc(tenantId, documentId, actorId);
+      await forEachBounded(runnableUnits(state.units), UNIT_CONCURRENCY, async (unit) => {
+        const meeting = byMeetingId.get(unit.meetingId);
+        if (!meeting) {
+          // The meeting was removed after the job was queued: fail that unit only.
+          await this.emit(state, 'unit', {
+            meetingId: unit.meetingId,
+            state: 'failed',
+            sectionId: unit.meetingId,
+            reason: 'meeting_removed',
+          });
+          return;
+        }
+        // Heartbeat. Once the lease is gone another worker owns this job.
+        if (!(await renew())) {
+          leaseLost = true;
+          return;
+        }
+        // Cancellation is observed BETWEEN units: the call already in flight finishes.
+        if (await this.cancelRequested(jobId)) return;
+        await this.assertDoc(tenantId, docId, actorId);
         const section = meeting.section as MeetingSection | null;
         if (section?.edited?.focus || section?.edited?.background) {
           // Edited sections are excluded from bulk regeneration (requirements §6 PATCH).
@@ -303,28 +523,32 @@ export class HillDayGenerationService {
         }
         await this.emit(state, 'unit', { meetingId: meeting.id, state: 'running', sectionId: meeting.id });
         const result = await this.generateUnit(tenantId, meeting, shared);
-        if (result.section.status === 'done') {
-          await this.emit(state, 'unit', { meetingId: meeting.id, state: 'done', sectionId: meeting.id });
-        } else {
-          failed += 1;
-          await this.emit(state, 'unit', {
-            meetingId: meeting.id,
-            state: 'failed',
-            sectionId: meeting.id,
-            reason: result.section.reason ?? 'unknown',
-          });
-        }
+        const done = result.section.status === 'done';
+        await this.emit(state, 'unit', {
+          meetingId: meeting.id,
+          state: done ? 'done' : 'failed',
+          sectionId: meeting.id,
+          reason: done ? undefined : (result.section.reason ?? 'unknown'),
+        });
       });
 
-      const total = meetings.length;
-      const quality = total ? Number(((total - failed) / total).toFixed(2)) : 0;
+      if (leaseLost) {
+        this.logger.warn(`Hill Day job ${jobId}: lease lost mid-run; stopping without a terminal status`);
+        return 'running';
+      }
+
+      const cancelled = await this.cancelRequested(jobId);
+      const lifecycle = finalLifecycle(cancelled);
+      const total = state.units.length;
+      const failed = state.units.filter((u) => u.state !== 'done').length;
+      const quality = jobQuality(state.units);
       const completedAt = new Date();
       await this.prisma.wsHillDayJob.update({
         where: { id: jobId },
-        data: { status: 'complete', quality, completedAt },
+        data: { status: lifecycle, quality, completedAt },
       });
       await this.prisma.wsHillDayDocument.update({
-        where: { id: documentId },
+        where: { id: docId },
         data: {
           status: failed > 0 ? 'partial' : 'generated',
           generatedAt: completedAt,
@@ -339,23 +563,59 @@ export class HillDayGenerationService {
           } as never,
         },
       });
-      await this.emit(state, 'complete', { documentId, sections: total, failed, quality });
+      await this.emit(
+        state,
+        'complete',
+        { documentId: docId, cancelled, sections: total, failed, quality },
+        lifecycle,
+      );
+      return lifecycle;
     } catch (err) {
       const message = (err as Error).message;
       this.logger.error(`Hill Day job ${jobId} failed: ${message}`);
+      const cancelled = await this.cancelRequested(jobId).catch(() => false);
+      const lifecycle: JobStatus['status'] = cancelled ? 'cancelled' : 'failed';
       await this.prisma.wsHillDayJob
-        .update({ where: { id: jobId }, data: { status: 'failed', error: message, completedAt: new Date() } })
+        .update({
+          where: { id: jobId },
+          data: {
+            status: lifecycle,
+            error: cancelled ? null : message,
+            quality: jobQuality(state.units),
+            completedAt: new Date(),
+          },
+        })
         .catch(() => undefined);
-      await this.prisma.wsHillDayDocument
-        .update({ where: { id: documentId }, data: { status: 'partial' } })
-        .catch(() => undefined);
-      await this.emit(state, 'failed', { documentId, reason: message }).catch(() => undefined);
-    } finally {
-      this.inFlight.delete(documentId);
+      if (documentId) {
+        await this.prisma.wsHillDayDocument
+          .update({ where: { id: documentId }, data: { status: 'partial' } })
+          .catch(() => undefined);
+      }
+      await this.emit(
+        state,
+        cancelled ? 'complete' : 'failed',
+        { documentId, reason: message, cancelled },
+        lifecycle,
+      ).catch(() => undefined);
+      return lifecycle;
     }
   }
 
-  private async emit(state: JobState, event: JobEvent['event'], data: Record<string, unknown>): Promise<void> {
+  /** Has cancellation been requested for this job? */
+  private async cancelRequested(jobId: string): Promise<boolean> {
+    const row = await this.prisma.wsHillDayJob.findUnique({
+      where: { id: jobId },
+      select: { cancelRequestedAt: true },
+    });
+    return Boolean(row?.cancelRequestedAt);
+  }
+
+  private async emit(
+    state: JobState,
+    event: JobEvent['event'],
+    data: Record<string, unknown>,
+    lifecycle?: JobLifecycle,
+  ): Promise<void> {
     state.seq += 1;
     const at = new Date().toISOString();
     const payload: JobEvent = { seq: state.seq, event, data: { ...data, at } };
@@ -373,7 +633,8 @@ export class HillDayGenerationService {
       if (idx >= 0) state.units[idx] = next;
       else state.units.push(next);
     }
-    const status = event === 'complete' ? 'complete' : event === 'failed' ? 'failed' : 'running';
+    // An explicit lifecycle (e.g. `cancelled`) wins over the event's own mapping.
+    const status = lifecycle ?? (event === 'complete' ? 'complete' : event === 'failed' ? 'failed' : 'running');
     await this.prisma.wsHillDayJob.update({
       where: { id: state.id },
       data: { units: state.units as never, events: state.events as never, status },

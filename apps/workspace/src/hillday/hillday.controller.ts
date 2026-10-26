@@ -19,6 +19,7 @@ import {
   AddManualMeetingDto,
   CreateExportDto,
   CreateHillDayDocumentDto,
+  GenerateHillDayDto,
   ListLibraryQueryDto,
   PatchHillDayDocumentDto,
   PutMeetingContextDto,
@@ -225,9 +226,30 @@ export class HillDayController {
 
   // ── Generation ────────────────────────────────────────────────────────────
 
+  /**
+   * Start (or re-attach to) the document's generation job. The optional
+   * `requestId` is the exact start identity: replaying the same document +
+   * requestId returns the same job, and an already-active job is returned
+   * rather than invalidated.
+   */
   @Post('documents/:id/generate')
-  generate(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('id') id: string) {
-    return this.generation.start(ctx.tenantId, ctx.clerkUserId, id);
+  generate(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('id') id: string,
+    @Body() dto: GenerateHillDayDto,
+  ) {
+    // The body is optional: the historical no-body caller has no request identity.
+    return this.generation.start(ctx.tenantId, ctx.clerkUserId, id, dto?.requestId);
+  }
+
+  /**
+   * The document's latest job — the active one when there is one, otherwise the
+   * newest finished job. This is the reload/resume read: the wizard does not
+   * need a job id held in local state.
+   */
+  @Get('documents/:id/generation')
+  latestGeneration(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('id') id: string) {
+    return this.generation.latestJob(ctx.tenantId, ctx.clerkUserId, id);
   }
 
   @Get('documents/:id/generate/:jobId')
@@ -237,6 +259,33 @@ export class HillDayController {
     @Param('jobId') jobId: string,
   ) {
     return this.generation.jobStatus(ctx.tenantId, id, jobId, ctx.clerkUserId);
+  }
+
+  /**
+   * Deliberate retry of the units that are safe to retry (failed or `unknown`).
+   * Successful sections and hand-edited sections are never re-run.
+   */
+  @Post('documents/:id/generate/:jobId/retry')
+  retryGeneration(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('id') id: string,
+    @Param('jobId') jobId: string,
+  ) {
+    return this.generation.retryFailedUnits(ctx.tenantId, ctx.clerkUserId, id, jobId);
+  }
+
+  /**
+   * Request cancellation. A queued job is cancelled outright; a running job
+   * reports `cancelRequestedAt` while it stays `running`, because the provider
+   * call already in flight cannot be recalled.
+   */
+  @Post('documents/:id/generate/:jobId/cancel')
+  cancelGeneration(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('id') id: string,
+    @Param('jobId') jobId: string,
+  ) {
+    return this.generation.requestCancel(ctx.tenantId, ctx.clerkUserId, id, jobId);
   }
 
   /**
@@ -278,7 +327,7 @@ export class HillDayController {
         res.write(`id: ${ev.seq}\nevent: ${ev.event}\ndata: ${JSON.stringify(ev.data)}\n\n`);
         lastSeq = ev.seq;
       }
-      if (status === 'complete' || status === 'failed') break;
+      if (status === 'complete' || status === 'failed' || status === 'cancelled') break;
       ticks += 1;
       if (ticks % 15 === 0) res.write(': keep-alive\n\n');
       await sleep(SSE_POLL_MS);

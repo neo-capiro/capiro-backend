@@ -51,13 +51,20 @@ function fixture() {
     },
   ]);
   const tx = { $executeRaw: jest.fn(async () => 1), $queryRaw: clientRead };
+  // The job's persisted `units` array is now the durable record of what still
+  // has to run, so a test that exercises the run loop seeds it.
+  const units: unknown[] = [];
   const job = {
     id: 'job',
+    tenantId: TENANT,
+    documentId: DOCUMENT,
+    actorId: ACTOR,
     status: 'running',
-    units: [],
+    units,
     events: [],
     quality: null,
     error: null,
+    cancelRequestedAt: null,
     startedAt: null,
     completedAt: null,
   };
@@ -95,7 +102,7 @@ function fixture() {
   const documents = new HillDayDocumentService(db as never, source, {} as never, {} as never);
   const generation = new HillDayGenerationService(db as never, source, {} as never);
   const exports = new HillDayExportService(db as never, documents, {} as never);
-  return { state, db, source, documents, generation, exports, membershipRead, clientRead };
+  return { state, db, source, documents, generation, exports, membershipRead, clientRead, job };
 }
 
 afterEach(() => {
@@ -164,10 +171,19 @@ describe('A1 real Hill Day source admission', () => {
       section: null,
     }));
     h.db.wsHillDayMeeting.findMany.mockResolvedValue(meetings);
+    // The durable job already holds the six selected meetings as queued units.
+    h.job.units.push(
+      ...meetings.map((meeting) => ({
+        meetingId: meeting.id, state: 'queued', sectionId: meeting.id, reason: null,
+        at: '2026-10-26T00:00:00.000Z',
+      })),
+    );
     // Only context composition/model output are seams. The run loop and every
     // assertDoc -> requireClient -> getClient admission are the real services.
+    // `renew` is the lease heartbeat the durable worker supplies; here it always
+    // succeeds so the test isolates the mid-run wall revocation.
     const internal = h.generation as unknown as {
-      run(job: string, tenant: string, document: string, actor: string): Promise<void>;
+      runClaimedJob(job: string, renew: () => Promise<boolean>): Promise<string>;
       sharedContext(): Promise<unknown>;
       generateUnit(
         tenant: string,
@@ -189,7 +205,7 @@ describe('A1 real Hill Day source admission', () => {
       await firstBatch;
       return { section: { status: 'done' } };
     });
-    await internal.run('job', TENANT, DOCUMENT, ACTOR);
+    await internal.runClaimedJob('job', async () => true);
     expect(started.sort()).toEqual(['meeting-1', 'meeting-2']);
     expect(h.db.wsHillDayJob.update).toHaveBeenCalledWith(
       expect.objectContaining({

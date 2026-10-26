@@ -146,3 +146,13 @@ export class PatchHillDayDocumentDto {
 export class CreateExportDto {
   @IsOptional() @IsIn(['letter', 'a4']) pageSize?: 'letter' | 'a4';
 }
+
+/**
+ * `POST /hillday/documents/:id/generate` (WS-10). The body stays optional so
+ * the historical no-body caller keeps working; when a `requestId` is supplied it
+ * becomes the job's exact start identity, and replaying the same document +
+ * requestId returns the same job instead of starting a second one.
+ */
+export class GenerateHillDayDto {
+  @IsOptional() @IsUUID() requestId?: string;
+}

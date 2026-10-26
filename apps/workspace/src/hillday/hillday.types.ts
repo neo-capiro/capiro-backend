@@ -279,7 +279,7 @@ export interface SourceSet {
   promptChars: number;
 }
 
-export type UnitState = 'queued' | 'running' | 'done' | 'failed';
+export type UnitState = 'queued' | 'running' | 'done' | 'failed' | 'unknown';
 
 export interface JobUnit {
   meetingId: string;
@@ -288,6 +288,12 @@ export interface JobUnit {
   reason: string | null;
   at: string;
 }
+
+/**
+ * Durable job lifecycle. `cancelled` is a real terminal state: a job that was
+ * cancelled and observed reports it instead of `complete`.
+ */
+export type JobLifecycle = 'queued' | 'running' | 'complete' | 'failed' | 'cancelled';
 
 export interface JobEvent {
   seq: number;
@@ -298,12 +304,40 @@ export interface JobEvent {
 export interface JobStatus {
   jobId: string;
   documentId: string;
-  status: 'queued' | 'running' | 'complete' | 'failed';
+  status: JobLifecycle;
   units: JobUnit[];
   quality: number | null;
   error: string | null;
+  /**
+   * When cancellation was requested. While the job is still `running` this is
+   * the honest "requested" signal: a provider call already in flight cannot be
+   * recalled, so the job only becomes `cancelled` once the worker observes this
+   * between units.
+   */
+  cancelRequestedAt: string | null;
   startedAt: string | null;
   completedAt: string | null;
+}
+
+/** Exact start identity of `POST /hillday/documents/:id/generate`. */
+export interface JobStartRequest {
+  requestId?: string;
+}
+
+/** The durable job a start call returned; the caller follows this id. */
+export interface JobStartResult {
+  jobId: string;
+  /**
+   * The job's lifecycle. A replayed request returns whatever the job now is,
+   * so a retry after a lost response reports `complete` rather than pretending
+   * the work is still queued.
+   */
+  status: JobLifecycle;
+}
+
+/** `GET /hillday/documents/:id/generation` — authorized latest-job read. */
+export interface LatestJobResponse {
+  job: JobStatus | null;
 }
 
 // ── Document model ──────────────────────────────────────────────────────────
