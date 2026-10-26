@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { defaultNewsletterConfig, governmentAffairsNewsletter } from '@capiro/shared/newsletter';
+import { defaultNewsletterConfig, governmentAffairsNewsletter, parseNewsletterSaveRefusal } from '@capiro/shared/newsletter';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { NewsletterService } from '../src/newsletters/newsletter.service.js';
 
@@ -364,10 +364,11 @@ native(`WS15 atomic newsletter write receipts [${readiness.reason}]`, () => {
   it('retains actual revision CAS when two different save requests overlap', async () => {
     const created = await service().create(ctx, createInput()),
       input = await saveInput(created.documentId),
+      other = { ...input, requestId: randomUUID() },
       gate = (saveGate = barrier());
     const pending = Promise.allSettled([
       service().save(ctx, created.documentId, input),
-      service().save(ctx, created.documentId, { ...input, requestId: randomUUID() }),
+      service().save(ctx, created.documentId, other),
     ]);
     try {
       await reached(gate, pending);
@@ -381,6 +382,16 @@ native(`WS15 atomic newsletter write receipts [${readiness.reason}]`, () => {
     expect(result.find((r) => r.status === 'rejected')).toMatchObject({
       reason: expect.any(ConflictException),
     });
+    const rejected = result.findIndex((r) => r.status === 'rejected');
+    const outcome = result[rejected];
+    if (outcome?.status !== 'rejected') throw new Error('Missing native CAS refusal');
+    const loser = [input, other][rejected]!;
+    const binding = { requestId: loser.requestId, operation: 'save' as const,
+      documentId: created.documentId, previousRevision: loser.revision };
+    expect(outcome.reason.getResponse()).toEqual({ code: 'NEWSLETTER_SAVE_CAS_REFUSED',
+      disposition: 'not_committed', ...binding });
+    expect(parseNewsletterSaveRefusal(outcome.reason.getResponse(), binding).ok).toBe(true);
+    expect(await service().writeReceipt(ctx, loser.requestId)).toBeNull();
     expect(
       (await db!.wsNewsletterDocument.findUniqueOrThrow({ where: { id: created.documentId } }))
         .revision,

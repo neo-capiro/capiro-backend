@@ -355,7 +355,10 @@ export class NewsletterService {
     const receipt = await commitNewsletterRequest(
       this.prisma,
       ctx,
-      { requestId, operation: 'save', inputHash, documentId: id.toLowerCase() },
+      {
+        requestId, operation: 'save', inputHash,
+        documentId: id.toLowerCase(), previousRevision: input.revision,
+      },
       async (tx) => {
         const previous = await this.row(ctx, id, false);
         const design = validateNewsletterDesign(input.design);
@@ -380,6 +383,12 @@ export class NewsletterService {
             status: 'draft',
           },
         });
+        if (result.count === 0) {
+          // Keep current-access failures and unexplained zero updates generic/fenced.
+          await this.assertWriteMember(ctx);
+          const current = await this.row(ctx, id, false);
+          if (current.revision !== input.revision) return null;
+        }
         if (result.count !== 1)
           throw new ConflictException(
             'This newsletter changed in another tab. Reload it before saving. Your unsaved edits are still in this tab.',

@@ -699,6 +699,15 @@ export interface NewsletterWriteReceipt {
   hashFormat: 'newsletter-write-jcs-v1';
   createdAt: string;
 }
+/** Acknowledged zero-write save attempt, never a durable request-key or replay guarantee. */
+export interface NewsletterSaveRefusal {
+  code: 'NEWSLETTER_SAVE_CAS_REFUSED';
+  disposition: 'not_committed';
+  requestId: string;
+  operation: 'save';
+  documentId: string;
+  previousRevision: number;
+}
 export interface NewsletterCampaign {
   id: string;
   name: string;

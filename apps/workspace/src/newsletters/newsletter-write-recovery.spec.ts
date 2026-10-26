@@ -16,6 +16,7 @@ import {
   defaultNewsletterConfig,
   governmentAffairsNewsletter,
   parseNewsletterWriteReceipt,
+  parseNewsletterSaveRefusal,
 } from '@capiro/shared/newsletter';
 
 const ctx = { tenantId: '11111111-1111-4111-8111-111111111111', clerkUserId: 'synthetic-owner' };
@@ -45,7 +46,17 @@ function fixture() {
   let rows = new Map<string, Row>(),
     receipts = new Map<string, any>(),
     queue = Promise.resolve();
-  const state = { member: true, editor: false, denied: false, failReceipt: false, loseAck: false };
+  const state = {
+    member: true,
+    editor: false,
+    denied: false,
+    failReceipt: false,
+    loseAck: false,
+    zeroUpdate: false,
+    revokeAtUpdate: false,
+    settlementError: null as string | null,
+    beforeSettle: null as (() => Promise<void>) | null,
+  };
   const prisma = {
     wsNewsletterDocument: {
       findFirst: jest.fn(async ({ where }: any) => {
@@ -115,7 +126,10 @@ function fixture() {
             }),
             updateMany: jest.fn(async ({ where, data }: any) => {
               const row = next.get(where.id);
+              if (state.revokeAtUpdate) state.member = false;
               if (
+                state.zeroUpdate ||
+                state.revokeAtUpdate ||
                 !row ||
                 row.tenantId !== where.tenantId ||
                 row.ownerId !== where.ownerId ||
@@ -134,6 +148,8 @@ function fixture() {
           },
         };
         const result = await fn(tx);
+        await state.beforeSettle?.();
+        if (state.settlementError) throw new Error(state.settlementError);
         rows = next;
         receipts = saved;
         if (state.loseAck) {
@@ -209,12 +225,10 @@ it('returns the exact save receipt after a later revision, never the current doc
     created = await f.owner().create(ctx, f.createInput());
   const first = f.saveInput(f.rows().get(created.documentId)!);
   const receipt = await f.owner().save(ctx, created.documentId, first);
-  await f
-    .owner()
-    .save(ctx, created.documentId, {
-      ...f.saveInput(f.rows().get(created.documentId)!),
-      name: 'Later',
-    });
+  await f.owner().save(ctx, created.documentId, {
+    ...f.saveInput(f.rows().get(created.documentId)!),
+    name: 'Later',
+  });
   expect(await f.owner().save(ctx, created.documentId, first)).toEqual(receipt);
   expect(await f.owner().writeReceipt(ctx, first.requestId)).toEqual(receipt);
   expect((await f.owner().get(ctx, created.documentId)).revision).toBe(3);
@@ -241,16 +255,126 @@ it('returns the exact save receipt after a later revision, never the current doc
 it('keeps different save requests subject to the same revision CAS', async () => {
   const f = fixture(),
     created = await f.owner().create(ctx, f.createInput()),
-    input = f.saveInput(f.rows().get(created.documentId)!);
+    input = f.saveInput(f.rows().get(created.documentId)!),
+    other = { ...input, requestId: randomUUID() };
   const results = await Promise.allSettled([
     f.owner().save(ctx, created.documentId, input),
-    f.owner().save(ctx, created.documentId, { ...input, requestId: randomUUID() }),
+    f.owner().save(ctx, created.documentId, other),
   ]);
   expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
   expect(results.find((r) => r.status === 'rejected')).toMatchObject({
     reason: expect.any(ConflictException),
   });
+  const rejected = results.findIndex((r) => r.status === 'rejected');
+  const outcome = results[rejected];
+  if (outcome?.status !== 'rejected') throw new Error('Missing CAS refusal');
+  const loser = [input, other][rejected]!;
+  expect(
+    parseNewsletterSaveRefusal(outcome.reason.getResponse(), {
+      requestId: loser.requestId,
+      operation: 'save',
+      documentId: created.documentId,
+      previousRevision: loser.revision,
+    }).ok,
+  ).toBe(true);
+  expect(await f.owner().writeReceipt(ctx, loser.requestId)).toBeNull();
+  expect(f.receipts().size).toBe(2);
   expect(f.rows().get(created.documentId)!.revision).toBe(2);
+});
+it('CAS refusal waits for positive no-write transaction settlement', async () => {
+  const f = fixture(),
+    created = await f.owner().create(ctx, f.createInput());
+  const input = f.saveInput(f.rows().get(created.documentId)!);
+  await f.owner().save(ctx, created.documentId, input);
+  let entered!: () => void, release!: () => void, refusal: unknown;
+  const reached = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const wait = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  f.state.beforeSettle = async () => {
+    entered();
+    await wait;
+  };
+  const stale = { ...input, requestId: randomUUID() };
+  const pending = f
+    .owner()
+    .save(ctx, created.documentId, stale)
+    .catch((error) => {
+      refusal = error;
+      return error;
+    });
+  try {
+    await reached;
+    expect(refusal).toBeUndefined();
+    expect(f.receipts().size).toBe(2);
+  } finally {
+    release();
+  }
+  const result = await pending;
+  expect(result).toBeInstanceOf(ConflictException);
+  expect(result.getResponse()).toEqual({
+    code: 'NEWSLETTER_SAVE_CAS_REFUSED',
+    disposition: 'not_committed',
+    requestId: stale.requestId,
+    operation: 'save',
+    documentId: created.documentId,
+    previousRevision: 1,
+  });
+});
+it('CAS settlement errors, request-key mismatch, current access and unexplained zero stay fenced', async () => {
+  const f = fixture(),
+    created = await f.owner().create(ctx, f.createInput());
+  const input = f.saveInput(f.rows().get(created.documentId)!);
+  await f.owner().save(ctx, created.documentId, input);
+  const stale = { ...input, requestId: randomUUID() };
+  const binding = {
+    operation: 'save' as const,
+    requestId: stale.requestId,
+    documentId: created.documentId,
+    previousRevision: stale.revision,
+  };
+  for (const message of ['COMMIT_ACK_LOST', 'ROLLBACK_ACK_LOST']) {
+    f.state.settlementError = message;
+    const error = await f
+      .owner()
+      .save(ctx, created.documentId, stale)
+      .catch((error) => error);
+    expect(error.message).toBe(message);
+    expect(parseNewsletterSaveRefusal(error, binding).ok).toBe(false);
+  }
+  f.state.settlementError = null;
+  const mismatch = await f
+    .owner()
+    .save(ctx, created.documentId, { ...input, name: 'Mismatch' })
+    .catch((error) => error);
+  expect(mismatch).toBeInstanceOf(ConflictException);
+  expect(
+    parseNewsletterSaveRefusal(mismatch.getResponse(), { ...binding, requestId: input.requestId })
+      .ok,
+  ).toBe(false);
+  const current = f.saveInput(f.rows().get(created.documentId)!);
+  f.state.zeroUpdate = true;
+  const unexplained = await f
+    .owner()
+    .save(ctx, created.documentId, current)
+    .catch((error) => error);
+  expect(unexplained).toBeInstanceOf(ConflictException);
+  expect(
+    parseNewsletterSaveRefusal(unexplained.getResponse(), {
+      ...binding,
+      requestId: current.requestId,
+      previousRevision: current.revision,
+    }).ok,
+  ).toBe(false);
+  f.state.zeroUpdate = false;
+  f.state.revokeAtUpdate = true;
+  await expect(f.owner().save(ctx, created.documentId, stale)).rejects.toBeInstanceOf(
+    NotFoundException,
+  );
+  expect(f.rows().get(created.documentId)!.revision).toBe(2);
+  expect(f.receipts().size).toBe(2);
 });
 it('rolls back the document mutation if its receipt cannot persist, for create and save', async () => {
   const f = fixture();
@@ -339,12 +463,10 @@ it('keeps create/save namespaces bound under the same actor request fence', asyn
     input = f.createInput(),
     created = await f.owner().create(ctx, input);
   await expect(
-    f
-      .owner()
-      .save(ctx, created.documentId, {
-        ...f.saveInput(f.rows().get(created.documentId)!),
-        requestId: input.requestId,
-      }),
+    f.owner().save(ctx, created.documentId, {
+      ...f.saveInput(f.rows().get(created.documentId)!),
+      requestId: input.requestId,
+    }),
   ).rejects.toBeInstanceOf(ConflictException);
 });
 it('mounts required request IDs, exact receipts and read-only lookup through the real controller/DTO', async () => {
@@ -394,6 +516,30 @@ it('mounts required request IDs, exact receipts and read-only lookup through the
       .send(save)
       .expect(200);
     expect(saved.body).toMatchObject({ operation: 'save', requestId: save.requestId, revision: 2 });
+    const stale = { ...save, requestId: randomUUID() };
+    const refused = await http()
+      .patch(path + '/documents/' + created.body.documentId)
+      .send(stale)
+      .expect(409);
+    const binding = {
+      requestId: stale.requestId,
+      operation: 'save' as const,
+      documentId: created.body.documentId,
+      previousRevision: stale.revision,
+    };
+    expect(refused.body).toEqual({
+      code: 'NEWSLETTER_SAVE_CAS_REFUSED',
+      disposition: 'not_committed',
+      ...binding,
+    });
+    expect(parseNewsletterSaveRefusal(refused.body, binding).ok).toBe(true);
+    const mismatch = await http()
+      .patch(path + '/documents/' + created.body.documentId)
+      .send({ ...save, name: 'Different binding' })
+      .expect(409);
+    expect(
+      parseNewsletterSaveRefusal(mismatch.body, { ...binding, requestId: save.requestId }).ok,
+    ).toBe(false);
     await http()
       .post(path + '/documents')
       .send({ ...input, name: 'Changed' })
