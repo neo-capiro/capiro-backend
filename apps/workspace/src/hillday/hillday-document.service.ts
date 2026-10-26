@@ -551,7 +551,12 @@ export class HillDayDocumentService {
   async patch(tenantId: string, actorId: string, documentId: string, dto: PatchHillDayDocumentDto) {
     const doc = await this.assertOwner(tenantId, actorId, documentId);
     const data: Record<string, unknown> = {};
-    if (dto.name !== undefined) data.name = dto.name.trim();
+    const conditionalEdit = dto.name !== undefined || dto.firstPage !== undefined;
+    if (dto.name !== undefined) {
+      const name = dto.name.trim();
+      if (!name) throw new BadRequestException('Document name must not be blank');
+      data.name = name;
+    }
     if (dto.lookbackDays !== undefined) data.lookbackDays = dto.lookbackDays;
     if (dto.status !== undefined) {
       if (dto.status === 'delivered' && doc.status !== 'generated' && doc.status !== 'partial' && doc.status !== 'delivered') {
@@ -559,18 +564,22 @@ export class HillDayDocumentService {
       }
       data.status = dto.status === 'draft' ? (doc.generatedAt ? 'generated' : 'draft') : dto.status;
     }
-    if (dto.firstPage !== undefined) {
-      if (doc.status === 'generating') throw new ConflictException('Wait for generation to finish before editing the first page');
+    if (conditionalEdit) {
+      if (doc.status === 'generating') throw new ConflictException('Wait for generation to finish before renaming or editing the first page');
       if (!dto.expectedUpdatedAt || !Number.isFinite(Date.parse(dto.expectedUpdatedAt))) {
-        throw new BadRequestException('expectedUpdatedAt is required when saving the first page');
+        throw new BadRequestException('expectedUpdatedAt is required when renaming or saving the first page');
       }
+    }
+    if (dto.firstPage !== undefined) {
       const meetings = await this.prisma.wsHillDayMeeting.findMany({ where: { tenantId, documentId }, select: { id: true } });
       const firstPage = validateFirstPage(dto.firstPage, new Set(meetings.map((m) => m.id)));
       data.firstPage = firstPage === null ? Prisma.DbNull : firstPage;
     }
-    if (dto.section || dto.firstPage !== undefined) {
+    if (dto.section || conditionalEdit) {
       // Touch the parent so list order, quality queries and edit concurrency agree.
       data.updatedAt = new Date(Math.max(Date.now(), doc.updatedAt.getTime() + 1));
+    }
+    if (dto.section || dto.firstPage !== undefined) {
       if (doc.status === 'delivered') {
         const failed = await this.prisma.wsHillDayMeeting.findFirst({
           where: { tenantId, documentId, section: { path: ['status'], equals: 'unavailable' } }, select: { id: true },
@@ -616,12 +625,12 @@ export class HillDayDocumentService {
         };
         await tx.wsHillDayMeeting.update({ where: { id: meeting.id }, data: { section: next as never } });
       }
-      if (dto.firstPage !== undefined) {
+      if (conditionalEdit) {
         const saved = await tx.wsHillDayDocument.updateMany({
           where: { id: documentId, tenantId, ownerId: actorId, updatedAt: new Date(dto.expectedUpdatedAt!), status: { not: 'generating' } },
           data: data as never,
         });
-        if (saved.count !== 1) throw new ConflictException('This document changed. Reload it before saving the first page again');
+        if (saved.count !== 1) throw new ConflictException('This document changed. Reload it before renaming or saving the first page again');
       } else if (Object.keys(data).length) {
         await tx.wsHillDayDocument.update({ where: { id: documentId }, data: data as never });
       }

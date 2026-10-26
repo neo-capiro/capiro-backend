@@ -68,8 +68,8 @@ function harness() {
   const wsHillDayDocument = {
     findFirst: jest.fn(async ({ where }: { where: { id: string; tenantId: string } }) => where.id === doc.id && where.tenantId === doc.tenantId ? doc : null),
     update: jest.fn(async ({ data }: { data: Record<string, unknown> }) => Object.assign(doc, data)),
-    updateMany: jest.fn(async ({ where, data }: { where: { updatedAt: Date }; data: Record<string, unknown> }) => {
-      if (where.updatedAt.getTime() !== doc.updatedAt.getTime() || doc.status === 'generating') return { count: 0 };
+    updateMany: jest.fn(async ({ where, data }: { where: { id: string; tenantId: string; ownerId: string; updatedAt: Date; status: { not: string } }; data: Record<string, unknown> }) => {
+      if (where.id !== doc.id || where.tenantId !== doc.tenantId || where.ownerId !== doc.ownerId || where.updatedAt.getTime() !== doc.updatedAt.getTime() || doc.status === where.status.not) return { count: 0 };
       Object.assign(doc, data, data.firstPage === Prisma.DbNull ? { firstPage: null } : {});
       return { count: 1 };
     }),
@@ -87,8 +87,8 @@ function harness() {
       Object.assign(doc, savedDoc); meetings.forEach((m, i) => { m.section = savedSections[i]!; }); throw err;
     }
   }) };
-  const source = { tenantName: async () => 'Firm', userDisplays: async () => new Map([['owner', { name: 'Owner', initials: 'O' }]]), getClient: async () => ({ hasLogo: false }), requireClient: async () => ({ hasLogo: false }) };
-  return { service: new HillDayDocumentService(prisma as never, source as never, {} as never, {} as never), doc, meetings, prisma };
+  const source = { tenantName: async () => 'Firm', userDisplays: async () => new Map([['owner', { name: 'Owner', initials: 'O' }]]), getClient: async () => ({ hasLogo: false }), requireClient: jest.fn(async () => ({ hasLogo: false })) };
+  return { service: new HillDayDocumentService(prisma as never, source as never, {} as never, {} as never), doc, meetings, prisma, source };
 }
 
 describe('HillDayDocumentService first-page saves', () => {
@@ -103,7 +103,7 @@ describe('HillDayDocumentService first-page saves', () => {
     expect(saved.summaryColumns).toEqual(['time', 'member', 'room']);
     expect(saved.updatedAt).not.toBe(before);
     expect(JSON.stringify(meetings)).toBe(sourceBefore);
-    await service.patch('tenant', 'owner', '33333333-3333-4333-8333-333333333333', { name: 'Renamed' });
+    await service.patch('tenant', 'owner', '33333333-3333-4333-8333-333333333333', { name: 'Renamed', expectedUpdatedAt: saved.updatedAt });
     // Generation replaces provenance, which must never contain the user edits.
     doc.provenance = { model: 'new model' };
     const reopened = await service.get('tenant', '33333333-3333-4333-8333-333333333333', 'owner');
@@ -156,5 +156,104 @@ describe('HillDayDocumentService first-page saves', () => {
     const reopened = await service.get('tenant', '33333333-3333-4333-8333-333333333333', 'owner');
     expect(reopened.firstPage?.rows).toEqual([]);
     await expect(service.patch('tenant', 'owner', '33333333-3333-4333-8333-333333333333', { firstPage: reopened.firstPage, expectedUpdatedAt: reopened.updatedAt })).resolves.toMatchObject({ cover: { title: edited.title } });
+  });
+});
+
+describe('HillDayDocumentService name saves', () => {
+  it('renames only the library name with an owner/tenant/version predicate and a monotonic timestamp', async () => {
+    const { service, doc, meetings, prisma, source } = harness();
+    doc.status = 'delivered';
+    doc.firstPage = edited;
+    const before = { ...doc };
+    const sectionsBefore = JSON.stringify(meetings);
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(doc.updatedAt.getTime() - 1000);
+    try {
+      const saved = await service.patch('tenant', 'owner', doc.id, { name: '  Renamed packet  ', expectedUpdatedAt: before.updatedAt.toISOString() });
+      expect(prisma.wsHillDayDocument.updateMany).toHaveBeenCalledWith({
+        where: { id: doc.id, tenantId: 'tenant', ownerId: 'owner', updatedAt: before.updatedAt, status: { not: 'generating' } },
+        data: { name: 'Renamed packet', updatedAt: new Date(before.updatedAt.getTime() + 1) },
+      });
+      expect(prisma.wsHillDayDocument.update).not.toHaveBeenCalled();
+      expect(doc).toEqual({ ...before, name: 'Renamed packet', updatedAt: new Date(before.updatedAt.getTime() + 1) });
+      expect(saved).toMatchObject({ name: 'Renamed packet', status: 'delivered', firstPage: edited, cover: { title: edited.title } });
+      expect(JSON.stringify(meetings)).toBe(sectionsBefore);
+      expect(source.requireClient).toHaveBeenCalledWith('tenant', 'owner', 'client');
+      await expect(service.patch('tenant', 'owner', doc.id, { name: 'Stale rename', expectedUpdatedAt: before.updatedAt.toISOString() })).rejects.toBeInstanceOf(ConflictException);
+      expect(doc.name).toBe('Renamed packet');
+      // Two distinct accepted snapshots still advance if the wall clock is behind both.
+      const second = await service.patch('tenant', 'owner', doc.id, { name: 'Next name', expectedUpdatedAt: saved.updatedAt });
+      expect(second.updatedAt).toBe(new Date(before.updatedAt.getTime() + 2).toISOString());
+    } finally { clock.mockRestore(); }
+  });
+
+  it('leaves an absent first-page override absent and the default cover title unchanged', async () => {
+    const { service, doc } = harness();
+    const saved = await service.patch('tenant', 'owner', doc.id, { name: 'New library name', expectedUpdatedAt: doc.updatedAt.toISOString() });
+    expect(saved.firstPage).toBeNull();
+    expect(saved.cover.title).toBe('Hill Day Schedule');
+  });
+
+  it('refuses a second rename from the same snapshot without overwriting the first name', async () => {
+    const { service, doc } = harness();
+    const baseline = doc.updatedAt.toISOString();
+    await service.patch('tenant', 'owner', doc.id, { name: 'Accepted name', expectedUpdatedAt: baseline });
+    await expect(service.patch('tenant', 'owner', doc.id, { name: 'Stale name', expectedUpdatedAt: baseline })).rejects.toBeInstanceOf(ConflictException);
+    expect(doc.name).toBe('Accepted name');
+  });
+
+  it.each([undefined, '', 'not-a-timestamp'])('rejects a missing/invalid rename baseline %s before mutation', async (expectedUpdatedAt) => {
+    const { service, doc, prisma } = harness();
+    await expect(service.patch('tenant', 'owner', doc.id, { name: 'Renamed', expectedUpdatedAt })).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(doc.name).toBe('Schedule');
+  });
+
+  it('rejects a whitespace-only name before mutation', async () => {
+    const { service, doc, prisma } = harness();
+    await expect(service.patch('tenant', 'owner', doc.id, { name: ' \t\n ', expectedUpdatedAt: doc.updatedAt.toISOString() })).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it.each([['other-tenant', 'owner'], ['tenant', 'other-owner']])('refuses rename outside %s/%s', async (tenantId, actorId) => {
+    const { service, doc, prisma } = harness();
+    await expect(service.patch(tenantId!, actorId!, doc.id, { name: 'Renamed', expectedUpdatedAt: doc.updatedAt.toISOString() })).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('preserves the current client access check and refuses generation in progress', async () => {
+    const { service, doc, prisma, source } = harness();
+    source.requireClient.mockRejectedValueOnce(new NotFoundException('Client not found'));
+    await expect(service.patch('tenant', 'owner', doc.id, { name: 'Renamed', expectedUpdatedAt: doc.updatedAt.toISOString() })).rejects.toBeInstanceOf(NotFoundException);
+    doc.status = 'generating';
+    await expect(service.patch('tenant', 'owner', doc.id, { name: 'Renamed', expectedUpdatedAt: doc.updatedAt.toISOString() })).rejects.toBeInstanceOf(ConflictException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it.each(['ownerId', 'tenantId', 'status'] as const)('refuses a %s change between admission and the conditional update', async (field) => {
+    const { service, doc, prisma } = harness();
+    const baseline = doc.updatedAt.toISOString();
+    const runTransaction = prisma.$transaction.getMockImplementation()!;
+    prisma.$transaction.mockImplementationOnce(async (run) => {
+      doc[field] = field === 'status' ? 'generating' : 'another-owner-or-tenant';
+      return runTransaction(run);
+    });
+    await expect(service.patch('tenant', 'owner', doc.id, { name: 'Renamed', expectedUpdatedAt: baseline })).rejects.toBeInstanceOf(ConflictException);
+    expect(doc.name).toBe('Schedule');
+    expect(doc.updatedAt.toISOString()).toBe(baseline);
+  });
+
+  it('commits name and first-page together, then rolls back a stale name/first-page/section edit', async () => {
+    const { service, doc, meetings } = harness();
+    const baseline = doc.updatedAt.toISOString();
+    const saved = await service.patch('tenant', 'owner', doc.id, { name: 'First rename', firstPage: edited, expectedUpdatedAt: baseline });
+    expect(saved).toMatchObject({ name: 'First rename', firstPage: edited });
+    const before = JSON.stringify(doc);
+    const sectionsBefore = JSON.stringify(meetings);
+    await expect(service.patch('tenant', 'owner', doc.id, {
+      name: 'Lost rename', firstPage: null, expectedUpdatedAt: baseline,
+      section: { sectionId: 'meeting-1', focus: 'Lost content' },
+    })).rejects.toBeInstanceOf(ConflictException);
+    expect(JSON.stringify(doc)).toBe(before);
+    expect(JSON.stringify(meetings)).toBe(sectionsBefore);
   });
 });

@@ -139,7 +139,7 @@ export class PatchHillDayDocumentDto {
   @IsOptional() @IsIn(['draft', 'delivered']) status?: 'draft' | 'delivered';
   @IsOptional() @IsInt() @Min(7) @Max(365) lookbackDays?: number;
   @IsOptional() @ValidateNested() @Type(() => FirstPageEditsDto) firstPage?: FirstPageEditsDto | null;
-  /** Required for a first-page replacement/reset; rejects stale full replacements. */
+  /** Required for name edits and first-page replacement/reset; rejects stale edits. */
   @IsOptional() @IsISO8601() expectedUpdatedAt?: string;
 }
 
