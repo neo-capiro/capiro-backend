@@ -1178,6 +1178,8 @@ export * from './newsletter-receiving.js';
 export * from './newsletter-collaboration-receiving.js';
 export * from './newsletter-delivery-receiving.js';
 export * from './newsletter-asset-management-receiving.js';
+export * from './newsletter-stock-receiving.js';
+export * from './newsletter-tool-receiving.js';
 export { parseNewsletterBrandKit, parseNewsletterFont } from './newsletter-brand-receiving.js';
 
 export {
