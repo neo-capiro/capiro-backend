@@ -41,6 +41,37 @@ const native = readiness.available ? describe : describe.skip;
 
 type Runtime = typeof import('./support/hillday-job-postgres-harness.js');
 type Harness = Awaited<ReturnType<Runtime['createHillDayJobHarness']>>;
+type RawSession = {
+  query(text: string, values?: unknown[]): Promise<{ rows: Array<Record<string, unknown>> }>;
+  end(): Promise<void>;
+};
+
+function barrier() {
+  let reached!: () => void;
+  let release!: () => void;
+  const ready = new Promise<void>((resolve) => { reached = resolve; });
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  return { ready, release, arrive: async () => { reached(); await released; } };
+}
+
+function track<T>(pending: Promise<unknown>[], promise: Promise<T>): Promise<T> {
+  pending.push(promise);
+  void promise.catch(() => undefined); // cleanup awaits every task even after an assertion fails
+  return promise;
+}
+
+async function reached(gate: ReturnType<typeof barrier>, task: Promise<unknown>) {
+  let timer!: ReturnType<typeof setTimeout>;
+  try {
+    await Promise.race([
+      gate.ready,
+      task.then(() => { throw new Error('operation ended before its fixture barrier'); }),
+      new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('fixture barrier not reached')), 3_000); }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 /**
  * WS-10 real-PostgreSQL cases.
@@ -145,11 +176,7 @@ native(`WS-10 Hill Day durable job lifecycle PostgreSQL16${readiness.available ?
   }, 60_000);
 
   beforeEach(async () => {
-    // Only the jobs created by a case are cleared; the seeded legacy row is
-    // re-armed in place so its pre-migration provenance survives.
-    await h!.db.wsHillDayJob.deleteMany({ where: { NOT: { id: h!.ids.legacyJobId } } });
-    h!.dispatches.length = 0;
-    h!.providerRecovers();
+    await h!.reset();
   });
 
   const unitState = (units: unknown, meetingId: string) =>
@@ -158,12 +185,19 @@ native(`WS-10 Hill Day durable job lifecycle PostgreSQL16${readiness.available ?
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
   /** A real second connection, bound to this fixture's OWNED schema. */
-  async function rawSession() {
+  async function rawSession(): Promise<RawSession> {
     const { Client } = require(require.resolve('pg', { paths: [join(repoRoot, 'apps/api')] }));
     const client = new Client({ connectionString: h!.url });
-    await client.connect();
-    await client.query(`SET search_path TO ${ownedSchema(database!.schema)}`);
-    return client as { query(text: string, values?: unknown[]): Promise<{ rows: Array<Record<string, unknown>> }>; end(): Promise<void> };
+    try {
+      await client.connect();
+      await client.query(`SET search_path TO ${ownedSchema(database!.schema)}`);
+      const { rows } = await client.query('SELECT current_schema() AS schema');
+      if (rows[0]?.schema !== database!.schema) throw new Error('raw fixture session schema mismatch');
+      return client as RawSession;
+    } catch (error) {
+      await client.end().catch(() => undefined);
+      throw error;
+    }
   }
 
   /**
@@ -171,30 +205,32 @@ native(`WS-10 Hill Day durable job lifecycle PostgreSQL16${readiness.available ?
    * i.e. its publication transaction holds the claim row and is waiting for the
    * meeting row. This is a readiness probe on the same database, not a delay.
    */
-  async function publicationIsBlocked(on: { query(text: string, values?: unknown[]): Promise<{ rows: Array<Record<string, unknown>> }> }) {
-    for (let attempt = 0; attempt < 200; attempt += 1) {
+  async function blockedQuery(on: RawSession, table: string, blocker?: number): Promise<number> {
+    for (let attempt = 0; attempt < 120; attempt += 1) {
       const { rows } = await on.query(
-        `SELECT count(*)::int AS blocked FROM pg_stat_activity
+        `SELECT pid FROM pg_stat_activity
           WHERE datname = current_database() AND wait_event_type = 'Lock'
-            AND query ILIKE '%ws_hillday_meeting%'`,
+            AND usename = current_user AND pid <> pg_backend_pid()
+            AND query ILIKE $1 AND ($2::int IS NULL OR $2 = ANY(pg_blocking_pids(pid)))`,
+        [`%${table}%`, blocker ?? null],
       );
-      if ((rows[0]!.blocked as number) > 0) return true;
+      if (rows.length) return rows[0]!.pid as number;
       await sleep(25);
     }
-    return false;
+    throw new Error(`no blocked ${table} statement observed`);
   }
 
   test('the migration applied to the accepted base schema adds every new column and index', async () => {
     const columns = await h!.db.$queryRaw<Array<{ column_name: string; is_nullable: string }>>`
       SELECT column_name, is_nullable FROM information_schema.columns
-       WHERE table_name = 'ws_hillday_job' AND column_name IN
+       WHERE table_schema = current_schema() AND table_name = 'ws_hillday_job' AND column_name IN
          ('request_id', 'request_ids', 'lease_holder', 'lease_expires_at', 'attempt_count', 'cancel_requested_at')
     `;
     expect(columns.map((c) => c.column_name).sort()).toEqual(
       ['attempt_count', 'cancel_requested_at', 'lease_expires_at', 'lease_holder', 'request_id', 'request_ids'].sort(),
     );
     const indexes = await h!.db.$queryRaw<Array<{ indexname: string }>>`
-      SELECT indexname FROM pg_indexes WHERE tablename = 'ws_hillday_job'
+      SELECT indexname FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'ws_hillday_job'
     `;
     expect(indexes.map((i) => i.indexname)).toEqual(
       expect.arrayContaining(['ws_hillday_job_request_key', 'ws_hillday_job_claim_idx']),
@@ -246,6 +282,8 @@ native(`WS-10 Hill Day durable job lifecycle PostgreSQL16${readiness.available ?
   });
 
   test('a pre-migration running row with NO lease is recoverable, and its in-flight unit is never replayed', async () => {
+    // Re-arm the same pre-migration row; reset parked it to keep other cases isolated.
+    await h!.db.wsHillDayJob.update({ where: { id: h!.ids.legacyJobId }, data: { status: 'running' } });
     // The legacy row was seeded before the migration; it has never had a lease.
     const legacy = await h!.db.wsHillDayJob.findUnique({ where: { id: h!.ids.legacyJobId } });
     expect(legacy!.leaseExpiresAt).toBeNull();
@@ -428,35 +466,84 @@ native(`WS-10 Hill Day durable job lifecycle PostgreSQL16${readiness.available ?
     );
   });
 
-  test('a queued cancellation racing a claim never dispatches and ends cancelled', async () => {
+  test('cancel-first makes the later claim busy and dispatches nothing', async () => {
     const job = await h!.createJob({ units: [h!.unit(h!.ids.meeting1, 'queued')] as never });
-    const [cancel, claim] = await Promise.all([
-      h!.generation.requestCancel(h!.ids.tenantId, h!.owner, h!.ids.documentId, job.id),
-      h!.worker.claim(job.id),
-    ]);
-    // Whichever order the two writers win in, the job is cancelled and the
-    // provider is never called for work that was cancelled.
-    expect(['cancelled', 'running']).toContain(cancel.status);
-    expect(claim === 'busy').toBe(false);
+    const cancel = await h!.generation.requestCancel(h!.ids.tenantId, h!.owner, h!.ids.documentId, job.id);
+    expect(cancel.status).toBe('cancelled');
+    expect(await h!.worker.claim(job.id)).toBe('busy');
     expect(h!.dispatches).toEqual([]);
     expect((await h!.leaseOf(job.id))!.status).toBe('cancelled');
   });
 
-  test('a deliberate retry hands the re-queued work to exactly one claim', async () => {
+  test('a claim between the queued read and cancel CAS preserves the already-started call', async () => {
+    const job = await h!.createJob({ units: [h!.unit(h!.ids.meeting1, 'queued')] as never });
+    const cancelRead = barrier();
+    const provider = barrier();
+    const pending: Promise<unknown>[] = [];
+    h!.steps.afterJobRead = async (row) => {
+      if (row?.id === job.id && row.status === 'queued') {
+        delete h!.steps.afterJobRead;
+        await cancelRead.arrive();
+      }
+    };
+    h!.whileProviderCallIsOut(provider.arrive);
+    try {
+      const cancel = track(pending, h!.generation.requestCancel(h!.ids.tenantId, h!.owner, h!.ids.documentId, job.id));
+      await reached(cancelRead, cancel);
+      const run = track(pending, h!.worker.claim(job.id));
+      await reached(provider, run);
+      expect(h!.dispatches).toHaveLength(1);
+      cancelRead.release();
+      const requested = await cancel;
+      expect(requested.status).toBe('running');
+      expect(requested.cancelRequestedAt).not.toBeNull();
+      expect((await h!.leaseOf(job.id))!.status).toBe('running');
+      provider.release();
+      expect(await run).toBe('cancelled');
+      expect((await h!.leaseOf(job.id))!.status).toBe('cancelled');
+      expect(h!.dispatches).toHaveLength(1);
+    } finally {
+      cancelRead.release();
+      provider.release();
+      delete h!.steps.afterJobRead;
+      await Promise.allSettled(pending);
+    }
+  }, 20_000);
+
+  test('a claim during the retry transaction cannot consume an uncommitted requeue', async () => {
     const job = await h!.createJob({
       status: 'complete', quality: 0.5,
       units: [{ ...h!.unit(h!.ids.meeting1, 'failed'), reason: 'provider_error' }] as never,
     });
-    const retried = await h!.generation.retryFailedUnits(h!.ids.tenantId, h!.owner, h!.ids.documentId, job.id);
-    expect(retried.status).toBe('queued');
-
-    // The conditional re-queue is what makes the row claimable again, and only
-    // one of two racing replicas may take it.
-    const [a, b] = await Promise.all([h!.worker.claim(job.id), h!.secondWorker.claim(job.id)]);
-    expect([a, b].filter((r) => r === 'busy')).toHaveLength(1);
-    expect(h!.dispatches.filter((body) => body.includes('WS10 meeting 1'))).toHaveLength(1);
-    expect(unitState((await h!.leaseOf(job.id))!.units, h!.ids.meeting1).state).toBe('done');
-  });
+    const requeued = barrier();
+    const pending: Promise<unknown>[] = [];
+    h!.steps.afterJobWrite = async (data, count) => {
+      if (data.status === 'queued' && count === 1) {
+        delete h!.steps.afterJobWrite;
+        await requeued.arrive();
+      }
+    };
+    try {
+      const retry = track(pending, h!.generation.retryFailedUnits(h!.ids.tenantId, h!.owner, h!.ids.documentId, job.id));
+      await reached(requeued, retry);
+      // Another connection sees the committed terminal row while retry is open.
+      expect((await h!.leaseOf(job.id))!.status).toBe('complete');
+      expect(await h!.worker.claim(job.id)).toBe('busy');
+      expect(h!.dispatches).toEqual([]);
+      requeued.release();
+      expect((await retry).status).toBe('queued');
+      const [a, b] = await Promise.all([
+        track(pending, h!.worker.claim(job.id)), track(pending, h!.secondWorker.claim(job.id)),
+      ]);
+      expect([a, b].filter((r) => r === 'busy')).toHaveLength(1);
+      expect(h!.dispatches.filter((body) => body.includes('WS10 meeting 1'))).toHaveLength(1);
+      expect(unitState((await h!.leaseOf(job.id))!.units, h!.ids.meeting1).state).toBe('done');
+    } finally {
+      requeued.release();
+      delete h!.steps.afterJobWrite;
+      await Promise.allSettled(pending);
+    }
+  }, 20_000);
 
   test('a manual edit made while the provider call is out wins over the generated text', async () => {
     const job = await h!.createJob({ units: [h!.unit(h!.ids.meeting1, 'queued')] as never });
@@ -481,34 +568,34 @@ native(`WS-10 Hill Day durable job lifecycle PostgreSQL16${readiness.available ?
 
   test('publication is serialized with takeover: a successor cannot claim the job while the section write waits', async () => {
     const job = await h!.createJob({ units: [h!.unit(h!.ids.meeting1, 'queued')] as never });
-    const locker = await rawSession();
-    const probe = await rawSession();
+    let locker: RawSession | undefined;
+    let probe: RawSession | undefined;
     let locked = false;
+    const provider = barrier();
+    const pending: Promise<unknown>[] = [];
     try {
+      locker = await rawSession();
+      probe = await rawSession();
+      const lockerPid = (await locker.query('SELECT pg_backend_pid() AS pid')).rows[0]!.pid as number;
       // An independent transaction takes the meeting row the publication needs,
       // and A's lease is expired while A is still inside its provider call.
       h!.whileProviderCallIsOut(async () => {
-        await locker.query('BEGIN');
-        await locker.query('SELECT id FROM ws_hillday_meeting WHERE id = $1::uuid FOR UPDATE', [h!.ids.meeting1]);
+        await locker!.query('BEGIN');
         locked = true;
+        await locker!.query('SELECT id FROM ws_hillday_meeting WHERE id = $1::uuid FOR UPDATE', [h!.ids.meeting1]);
         await h!.expireLease(job.id);
+        await provider.arrive();
       });
 
-      const runA = h!.worker.claim(job.id);
-      // Wait until A's REAL section write is blocked on that row: A now holds
-      // the claim row inside its publication transaction.
+      const runA = track(pending, h!.worker.claim(job.id));
+      await reached(provider, runA);
       expect(locked).toBe(true);
-      expect(await publicationIsBlocked(probe)).toBe(true);
-
-      let takeoverSettled = false;
-      const takeover = h!.secondWorker.claim(job.id).then((result) => {
-        takeoverSettled = true;
-        return result;
-      });
-      // The takeover changes the claim row, so it must WAIT for that
-      // transaction: it cannot slip between the claim check and the write.
-      await sleep(250);
-      expect(takeoverSettled).toBe(false);
+      provider.release();
+      const publisherPid = await blockedQuery(probe, 'ws_hillday_meeting', lockerPid);
+      const takeover = track(pending, h!.secondWorker.claim(job.id));
+      // Observe B's real claim UPDATE waiting specifically for A's transaction.
+      // Removing A's job lock cannot satisfy this barrier.
+      await blockedQuery(probe, 'ws_hillday_job', publisherPid);
 
       await locker.query('COMMIT');
       locked = false;
@@ -518,6 +605,7 @@ native(`WS-10 Hill Day durable job lifecycle PostgreSQL16${readiness.available ?
       // A published while it still held the claim...
       const meeting = await h!.db.wsHillDayMeeting.findUnique({ where: { id: h!.ids.meeting1 } });
       expect((meeting!.section as { focus?: string }).focus).toBe('Synthetic focus');
+      expect(meeting!.sourceSet).not.toBeNull();
       // ...the successor then took the claim over and parked A's in-flight unit
       // without ever re-issuing its provider call.
       expect(aResult).toBe('running');
@@ -528,9 +616,84 @@ native(`WS-10 Hill Day durable job lifecycle PostgreSQL16${readiness.available ?
       expect(unitState(row!.units, h!.ids.meeting1).state).toBe('unknown');
       expect(unitState(row!.units, h!.ids.meeting1).reason).toBe(LEASE_LOST_REASON);
     } finally {
-      if (locked) await locker.query('COMMIT').catch(() => undefined);
-      await locker.end().catch(() => undefined);
-      await probe.end().catch(() => undefined);
+      provider.release();
+      if (locked) await locker?.query('ROLLBACK').catch(() => undefined);
+      await Promise.allSettled(pending);
+      await locker?.end().catch(() => undefined);
+      await probe?.end().catch(() => undefined);
+    }
+  }, 20_000);
+
+  test.each(['start', 'retry'] as const)('terminal publication serializes with a new %s on the document', async (next) => {
+    const job = await h!.createJob({ units: [h!.unit(h!.ids.meeting1, 'queued')] as never });
+    await h!.db.wsHillDayDocument.update({ where: { id: h!.ids.documentId }, data: { status: 'generating' } });
+    if (next === 'retry') h!.providerAcceptsThenDrops();
+    const terminal = barrier();
+    const pending: Promise<unknown>[] = [];
+    let probe: RawSession | undefined;
+    h!.steps.beforeDocumentWrite = async (data) => {
+      if (data.status === 'generated' || data.status === 'partial') {
+        delete h!.steps.beforeDocumentWrite;
+        await terminal.arrive();
+      }
+    };
+    try {
+      probe = await rawSession();
+      const run = track(pending, h!.worker.claim(job.id));
+      await reached(terminal, run);
+      // The terminal job write is uncommitted until its document write lands.
+      expect((await h!.leaseOf(job.id))!.status).toBe('running');
+      expect((await h!.db.wsHillDayDocument.findUniqueOrThrow({ where: { id: h!.ids.documentId } })).status).toBe('generating');
+      const successor = track(pending, next === 'start'
+        ? h!.generation.start(h!.ids.tenantId, h!.owner, h!.ids.documentId, h!.ids.requestId)
+        : h!.generation.retryFailedUnits(h!.ids.tenantId, h!.owner, h!.ids.documentId, job.id));
+      await blockedQuery(probe, 'ws_hillday_document');
+      terminal.release();
+      expect(await run).toBe('complete');
+      const result = await successor;
+      expect(result.status).toBe('queued');
+      expect(result.jobId === job.id).toBe(next === 'retry');
+      expect((await h!.leaseOf(result.jobId))!.status).toBe('queued');
+      expect((await h!.db.wsHillDayDocument.findUniqueOrThrow({ where: { id: h!.ids.documentId } })).status).toBe('generating');
+      expect(h!.dispatches).toHaveLength(1);
+    } finally {
+      terminal.release();
+      delete h!.steps.beforeDocumentWrite;
+      await Promise.allSettled(pending);
+      await probe?.end().catch(() => undefined);
+    }
+  }, 20_000);
+
+  test('document-write faults roll back both success and catch terminal transactions in PostgreSQL', async () => {
+    const job = await h!.createJob({ units: [h!.unit(h!.ids.meeting1, 'queued')] as never });
+    await h!.db.wsHillDayDocument.update({ where: { id: h!.ids.documentId }, data: { status: 'generating' } });
+    const terminalWrites: string[] = [];
+    let documentAttempts = 0;
+    h!.steps.afterJobWrite = async (data, count) => {
+      if (count === 1 && (data.status === 'complete' || data.status === 'failed')) terminalWrites.push(data.status);
+    };
+    h!.steps.beforeDocumentWrite = async () => {
+      documentAttempts += 1;
+      throw new Error('fixture injected document-write failure');
+    };
+    try {
+      expect(await h!.worker.claim(job.id)).toBe('running');
+      expect(terminalWrites).toEqual(['complete', 'failed']);
+      expect(documentAttempts).toBe(2);
+      const row = await h!.leaseOf(job.id);
+      expect(row!.status).toBe('running');
+      expect((row!.events as Array<{ event: string }>).every((event) => event.event === 'unit')).toBe(true);
+      expect(unitState(row!.units, h!.ids.meeting1).state).toBe('done');
+      const document = await h!.db.wsHillDayDocument.findUniqueOrThrow({ where: { id: h!.ids.documentId } });
+      expect(document.status).toBe('generating');
+      expect(document.generatedAt).toBeNull();
+      expect(document.provenance).toBeNull();
+      const meeting = await h!.db.wsHillDayMeeting.findUniqueOrThrow({ where: { id: h!.ids.meeting1 } });
+      expect((meeting.section as { focus: string }).focus).toBe('Synthetic focus');
+      expect(h!.dispatches).toHaveLength(1);
+    } finally {
+      delete h!.steps.afterJobWrite;
+      delete h!.steps.beforeDocumentWrite;
     }
   });
 });
