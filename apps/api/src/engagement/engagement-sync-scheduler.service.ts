@@ -70,9 +70,11 @@ export class EngagementSyncSchedulerService implements OnModuleInit, OnModuleDes
   }
 
   onModuleInit(): void {
-    // Engagement API Phase 1 — fail-closed runtime policy check.
-    // In shadow mode the scheduler must not start any timer.
-    if (!this.runtimePolicy.backgroundWorkersEnabled()) {
+    // Fail-closed runtime policy check. The named check admits only this
+    // scheduler under the explicit API-owner integrations_only exception;
+    // every other worker and every disabled/engagement-api shadow posture
+    // remains blocked.
+    if (!this.runtimePolicy.backgroundWorkersEnabled('engagement-sync-scheduler')) {
       this.logger.log(
         'engagement-sync-scheduler disabled by runtime policy ' +
           `(service=${this.runtimePolicy.snapshot().serviceName} ` +

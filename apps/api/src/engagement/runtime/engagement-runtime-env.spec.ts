@@ -87,7 +87,6 @@ describe('engagement runtime environment preflight', () => {
 
     it.each([
       ['ENGAGEMENT_PROCESS_MODE', 'active'],
-      ['ENGAGEMENT_BACKGROUND_OWNER', 'api'],
       ['ENGAGEMENT_BACKGROUND_OWNER', 'engagement-api'],
       ['ENGAGEMENT_RECALL_WEBHOOK_ENABLED', 'true'],
     ])('rejects an armed %s=%s in either bootstrap', (field, value) => {
@@ -100,6 +99,64 @@ describe('engagement runtime environment preflight', () => {
           }),
         ).toThrow(/integrations_only requires/);
       }
+    });
+
+    it.each(['false', 'true'] as const)(
+      'accepts the explicit API background owner with callbacks=%s',
+      (callbacks) => {
+        expect(
+          resolveEngagementRuntimeEnvironment({
+            ...env,
+            CAPIRO_SERVICE_NAME: 'api',
+            ENGAGEMENT_BACKGROUND_OWNER: 'api',
+            ENGAGEMENT_CALLBACKS_ENABLED: callbacks,
+          }),
+        ).toMatchObject({
+          serviceName: 'api',
+          processMode: 'shadow',
+          backgroundOwner: 'api',
+          externalActions: 'integrations_only',
+          callbacksEnabled: callbacks === 'true',
+          recallWebhookEnabled: false,
+        });
+      },
+    );
+
+    it('rejects the API background owner on the engagement-api service', () => {
+      expect(() =>
+        resolveEngagementRuntimeEnvironment({
+          ...env,
+          CAPIRO_SERVICE_NAME: 'engagement-api',
+          ENGAGEMENT_BACKGROUND_OWNER: 'api',
+        }),
+      ).toThrow(/integrations_only requires/);
+    });
+
+    it.each([undefined, '', '  '])(
+      'rejects an omitted or blank API background owner (%s) instead of inheriting the live default',
+      (owner) => {
+        expect(() =>
+          resolveEngagementRuntimeEnvironment({
+            ...env,
+            CAPIRO_SERVICE_NAME: 'api',
+            ENGAGEMENT_BACKGROUND_OWNER: owner,
+          }),
+        ).toThrow(/integrations_only requires/);
+      },
+    );
+
+    it.each([
+      ['ENGAGEMENT_PROCESS_MODE', 'active'],
+      ['ENGAGEMENT_RECALL_WEBHOOK_ENABLED', 'true'],
+    ])('rejects %s=%s on the explicit API owner posture', (field, value) => {
+      expect(() =>
+        resolveEngagementRuntimeEnvironment({
+          ...env,
+          CAPIRO_SERVICE_NAME: 'api',
+          ENGAGEMENT_BACKGROUND_OWNER: 'api',
+          [field]: value,
+        }),
+      ).toThrow(/integrations_only requires/);
     });
 
     it('does not accept a bare mode flip with active defaults', () => {

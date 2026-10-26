@@ -196,6 +196,11 @@ describe('EngagementRuntimePolicyService', () => {
       expect(policy.externalActionAllowed(action)).toBe(true);
       expect(() => policy.assertExternalAction(action)).not.toThrow();
     });
+    it('keeps named background work disabled for the disabled owner', () => {
+      expect(policy.backgroundWorkersEnabled()).toBe(false);
+      expect(policy.backgroundWorkersEnabled('engagement-sync-scheduler')).toBe(false);
+      expect(() => policy.assertBackgroundOwner('engagement-sync-scheduler')).toThrow();
+    });
     it.each([
       'outreach_send',
       'outreach_test_send',
@@ -215,6 +220,55 @@ describe('EngagementRuntimePolicyService', () => {
     ] as const)('denies %s even with testMode', (action) => {
       expect(policy.externalActionAllowed(action, { testMode: true })).toBe(false);
       expect(() => policy.assertExternalAction(action, { testMode: true })).toThrow();
+    });
+  });
+
+  describe('integrations_only named worker exception', () => {
+    const policy = makePolicy({
+      serviceName: 'api',
+      processMode: 'shadow',
+      backgroundOwner: 'api',
+      externalActions: 'integrations_only',
+      callbacksEnabled: true,
+      recallWebhookEnabled: false,
+    });
+
+    it('admits only the exact engagement-sync-scheduler name on the API owner', () => {
+      expect(policy.backgroundWorkersEnabled('engagement-sync-scheduler')).toBe(true);
+      expect(() => policy.assertBackgroundOwner('engagement-sync-scheduler')).not.toThrow();
+    });
+
+    it('keeps the generic no-argument predicate false', () => {
+      expect(policy.backgroundWorkersEnabled()).toBe(false);
+      expect(() => policy.assertBackgroundOwner('')).toThrow();
+    });
+
+    it.each([
+      'engagement-outreach-scheduler',
+      'engagement-sync-scheduler-v2',
+      'outreach-v3-full-generation',
+      'outreach-v3-send-intent',
+      'engagement-notetaker-reconcile',
+      'meeting-prep-worker',
+      'krisp-notetaker-worker',
+      'mailbox-indexing-worker',
+    ])('denies the other worker name %s', (workerName) => {
+      expect(policy.backgroundWorkersEnabled(workerName)).toBe(false);
+      expect(() => policy.assertBackgroundOwner(workerName)).toThrow();
+    });
+
+    it('keeps both V3 worker methods denied in this posture', () => {
+      expect(policy.outreachV3FullGenerationWorkerEnabled()).toBe(false);
+      expect(policy.outreachV3SendIntentWorkerEnabled()).toBe(false);
+    });
+
+    it('keeps sends denied while sync and subscription renewal remain allowed', () => {
+      expect(policy.externalActionAllowed('integration_sync')).toBe(true);
+      expect(policy.externalActionAllowed('integration_subscription')).toBe(true);
+      expect(policy.externalActionAllowed('outreach_send')).toBe(false);
+      expect(policy.externalActionAllowed('outreach_test_send', { testMode: true })).toBe(false);
+      expect(policy.externalActionAllowed('outreach_v3_send', { testMode: true })).toBe(false);
+      expect(policy.externalActionAllowed('outreach_v3_test_send', { testMode: true })).toBe(false);
     });
   });
 
