@@ -78,6 +78,7 @@ test('Outlook receives every To/Cc/Bcc recipient and both exact attachments', as
 interface Call {
   url: string;
   body: unknown;
+  headers?: Record<string, string>;
 }
 
 function makeService(opts: {
@@ -92,13 +93,13 @@ function makeService(opts: {
   patch.assertConnectionAccess = async () => {};
   patch.loadConnection = async () => ({ token: {} });
   patch.getValidAccessToken = async () => 'access-token';
-  patch.graphPost = async (url: string, _t: string, body: unknown) => {
-    calls.push({ url, body });
+  patch.graphPost = async (url: string, _t: string, body: unknown, headers: Record<string, string>) => {
+    calls.push({ url, body, headers });
     if (opts.draftThrows) throw opts.draftThrows;
     return opts.draftResponse ?? { id: 'draft-1', internetMessageId: '<abc@contoso.com>' };
   };
-  patch.graphPostNoContent = async (url: string, _t: string, body: unknown) => {
-    calls.push({ url, body });
+  patch.graphPostNoContent = async (url: string, _t: string, body: unknown, headers: Record<string, string>) => {
+    calls.push({ url, body, headers });
     if (opts.sendThrows) throw opts.sendThrows;
   };
   return { service, calls };
@@ -158,9 +159,13 @@ describe('sendMail — create draft then send', () => {
       ok: true,
       provider: 'microsoft_graph',
       providerDraftId: 'draft-1',
+      providerImmutableMessageId: 'draft-1',
       providerInternetMessageId: '<abc@contoso.com>',
       correlationId: CORRELATION,
     });
+    expect(h.calls.map((call) => call.headers)).toEqual([
+      { Prefer: 'IdType="ImmutableId"' }, { Prefer: 'IdType="ImmutableId"' },
+    ]);
   });
 
   test('the draft carries the X-Capiro-Delivery-Id internetMessageHeader', async () => {
@@ -225,6 +230,7 @@ describe('sendMail — create draft then send', () => {
     expect(caught).toBeInstanceOf(AmbiguousMailSendError);
     const err = caught as AmbiguousMailSendError;
     expect(err.providerDraftId).toBe('draft-1');
+    expect(err.providerImmutableMessageId).toBe('draft-1');
     expect(err.correlationId).toBe(CORRELATION);
     // Carries ids only — never message content.
     expect(err.message).not.toContain('Hello');
