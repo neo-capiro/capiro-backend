@@ -381,30 +381,59 @@ export class ClientKbService {
       ? chunkDocumentText(text)
       : [`Image or non-text attachment: ${attachment.fileName}`];
     const contentTruncated = Boolean(extraction?.truncated) || chunks.length >= KB_MAX_CHUNKS_PER_DOC;
-    for (let i = 0; i < chunks.length; i += 1) {
-      let sourceCurrent = true;
-      await embedAndUpsert(this.prisma, {
-        tenantId,
-        clientId: attachment.clientId,
-        sourceType: 'client_doc_chunk',
-        sourceId: docChunkSourceId(attachmentId, i),
-        text: normalize(
-          buildDocChunkText({
-            clientName,
-            fileName: attachment.fileName,
-            chunk: chunks[i] ?? '',
-            chunkIndex: i,
-            chunkCount: chunks.length,
-            meetingSubject,
-          }),
-        ),
-        bypassRls: true,
-        beforeWrite: async (tx) => {
-          sourceCurrent = await this.lockAttachmentSnapshot(tx, tenantId, attachment);
-          return sourceCurrent;
-        },
+    try {
+      for (let i = 0; i < chunks.length; i += 1) {
+        let sourceCurrent = true;
+        await embedAndUpsert(this.prisma, {
+          tenantId,
+          clientId: attachment.clientId,
+          sourceType: 'client_doc_chunk',
+          sourceId: docChunkSourceId(attachmentId, i),
+          text: normalize(
+            buildDocChunkText({
+              clientName,
+              fileName: attachment.fileName,
+              chunk: chunks[i] ?? '',
+              chunkIndex: i,
+              chunkCount: chunks.length,
+              meetingSubject,
+            }),
+          ),
+          bypassRls: true,
+          beforeWrite: async (tx) => {
+            sourceCurrent = await this.lockAttachmentSnapshot(tx, tenantId, attachment);
+            return sourceCurrent;
+          },
+        });
+        if (!sourceCurrent) return;
+      }
+    } catch (error) {
+      // The purge above already committed, so this run's chunks are the only
+      // searchable residue. A failed write must leave neither a half-written
+      // index nor the previous run's completed extraction advertised on the
+      // row. Same source lock as the happy path: a document that changed, was
+      // reassigned or was revoked while the provider failed keeps its newer
+      // state and its owner's cleanup.
+      await this.prisma.withTenant(tenantId, async (tx) => {
+        if (!(await this.lockAttachmentSnapshot(tx, tenantId, attachment))) return;
+        await this.purgeAttachmentChunks(tx, tenantId, attachmentId);
+        await tx.engagementAttachment.update({
+          where: { id: attachmentId },
+          data: {
+            indexedAt: null,
+            extractionStatus: 'failed',
+            extractionMetadata: {
+              chars: text?.length ?? 0,
+              contentScope: text ? 'extractable_text_only' : 'metadata_only',
+              truncated: contentTruncated,
+              indexedChunks: 0,
+              reason: 'index_write_failed',
+              extractedAt: new Date().toISOString(),
+            },
+          },
+        });
       });
-      if (!sourceCurrent) return;
+      throw error;
     }
 
     // Stamp content as indexed (Meetings v2 §5) — reached only after the
