@@ -74,13 +74,8 @@ export async function createHillDayJobHarness(url: string) {
   await db.$connect();
   const legacy = await db.wsHillDayJob.findUniqueOrThrow({ where: { id: WS10_IDS.legacyJobId } });
 
-  await db.wsHillDayDocument.create({
-    data: {
-      id: documentId, tenantId, ownerId: OWNER, blueprintSlug: 'hill-day',
-      clientId, clientName: 'WS10 disposable client', name: 'WS10 disposable packet',
-      timeZone: 'America/New_York', lookbackDays: 90,
-    },
-  });
+  // The primary document already exists: the int-spec seeds it before legacy
+  // jobs against the accepted base's document_id FK, before the migration.
   await db.wsHillDayDocument.create({
     data: {
       id: otherDocumentId, tenantId: WS10_IDS.otherTenantId, ownerId: OWNER, blueprintSlug: 'hill-day',

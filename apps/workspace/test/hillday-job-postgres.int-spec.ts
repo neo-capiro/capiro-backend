@@ -159,7 +159,16 @@ native(`WS-10 Hill Day durable job lifecycle PostgreSQL16${readiness.available ?
         throw new Error(`raw session bound to ${current}, expected ${database.schema}`);
       }
       const { WS10_IDS } = require('./support/hillday-job-postgres-harness.js') as Runtime;
-      const { tenantId, documentId, meeting1, meeting2, legacyJobId } = WS10_IDS;
+      const { tenantId, clientId, documentId, meeting1, meeting2, legacyJobId } = WS10_IDS;
+      // The base job FK already requires this canonical fixture document.
+      // updated_at is Prisma-managed, so a raw pre-migration insert supplies it.
+      await seed.query(
+        `INSERT INTO ws_hillday_document
+         (id, tenant_id, owner_id, blueprint_slug, client_id, client_name, name, time_zone, lookback_days, updated_at)
+         VALUES ($1::uuid, $2::uuid, 'user_ws10_owner', 'hill-day', $3::uuid,
+                 'WS10 disposable client', 'WS10 disposable packet', 'America/New_York', 90, NOW())`,
+        [documentId, tenantId, clientId],
+      );
       const legacyUnits = JSON.stringify([
         { meetingId: meeting1, state: 'running', sectionId: meeting1, reason: null, at: new Date().toISOString() },
         { meetingId: meeting2, state: 'queued', sectionId: meeting2, reason: null, at: new Date().toISOString() },
