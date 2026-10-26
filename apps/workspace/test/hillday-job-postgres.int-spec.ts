@@ -461,9 +461,13 @@ native(`WS-10 Hill Day durable job lifecycle PostgreSQL16${readiness.available ?
     await expect(h!.generation.retryFailedUnits(h!.ids.tenantId, h!.owner, h!.ids.documentId, active.id))
       .rejects.toMatchObject({ status: 409 });
 
+    // The no-op leg needs no other active job for this same document.
+    await h!.db.wsHillDayJob.delete({ where: { id: active.id } });
     const clean = await h!.createJob({ status: 'complete', units: [h!.unit(h!.ids.meeting1, 'done')] as never });
     const unchanged = await h!.generation.retryFailedUnits(h!.ids.tenantId, h!.owner, h!.ids.documentId, clean.id);
     expect(unchanged.status).toBe('complete');
+    expect(unchanged.units).toEqual(clean.units);
+    expect(h!.dispatches).toEqual([]);
   });
 
   test('the latest-job read returns the active job and never crosses the tenant boundary', async () => {
@@ -594,7 +598,10 @@ native(`WS-10 Hill Day durable job lifecycle PostgreSQL16${readiness.available ?
 
     const meeting = await h!.db.wsHillDayMeeting.findUnique({ where: { id: h!.ids.meeting1 } });
     expect((meeting!.section as { focus?: string }).focus).toBe('HAND EDIT');
-    expect(unitState((await h!.leaseOf(job.id))!.units, h!.ids.meeting1).reason).toBe('edited_preserved');
+    expect(unitState((await h!.leaseOf(job.id))!.units, h!.ids.meeting1)).toMatchObject({
+      state: 'done', reason: 'edited_during_generation',
+    });
+    expect(h!.dispatches).toHaveLength(1);
   });
 
   test('publication is serialized with takeover: a successor cannot claim the job while the section write waits', async () => {
