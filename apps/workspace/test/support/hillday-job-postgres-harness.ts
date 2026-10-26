@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../../src/prisma/prisma.service.js';
 import { HillDayGenerationService } from '../../src/hillday/hillday-generation.service.js';
 import { HillDayJobWorkerService } from '../../src/hillday/hillday-job-worker.service.js';
@@ -71,6 +72,7 @@ export async function createHillDayJobHarness(url: string) {
   }) as unknown as typeof fetch;
 
   await db.$connect();
+  const legacy = await db.wsHillDayJob.findUniqueOrThrow({ where: { id: WS10_IDS.legacyJobId } });
 
   await db.wsHillDayDocument.create({
     data: {
@@ -116,11 +118,67 @@ export async function createHillDayJobHarness(url: string) {
     resolveAnthropic: async () => ({ provider: 'anthropic' as const, secret: 'synthetic-no-network', model: 'synthetic', usedTenantKey: false }),
   };
 
-  const generation = new HillDayGenerationService(db, source as never, credentials as never);
+  // Test-only barriers surround REAL queries in the service's REAL transactions.
+  // They never replace SQL, returned rows, conditional updates or commit/rollback.
+  const steps: {
+    afterJobRead?: (row: { id?: string; status?: string } | null) => Promise<void>;
+    afterJobWrite?: (data: Prisma.WsHillDayJobUpdateManyMutationInput, count: number) => Promise<void>;
+    beforeDocumentWrite?: (data: Prisma.WsHillDayDocumentUpdateInput) => Promise<void>;
+  } = {};
+  const observed = db.$extends({
+    query: {
+      wsHillDayJob: {
+        async findFirst({ args, query }) {
+          const row = await query(args);
+          await steps.afterJobRead?.(row);
+          return row;
+        },
+        async updateMany({ args, query }) {
+          const result = await query(args);
+          await steps.afterJobWrite?.(args.data, result.count);
+          return result;
+        },
+      },
+      wsHillDayDocument: {
+        async update({ args, query }) {
+          await steps.beforeDocumentWrite?.(args.data);
+          return query(args);
+        },
+      },
+    },
+  });
+  const generation = new HillDayGenerationService(observed as unknown as PrismaService, source as never, credentials as never);
   const worker = new HillDayJobWorkerService(db, generation);
 
   return {
-    db, generation, worker, dispatches, url,
+    db, generation, worker, dispatches, url, steps,
+    async reset() {
+      delete steps.afterJobRead;
+      delete steps.afterJobWrite;
+      delete steps.beforeDocumentWrite;
+      onDispatch = null;
+      dispatches.length = 0;
+      providerBehaviour = 'ok';
+      await db.wsHillDayJob.deleteMany({ where: { NOT: { id: WS10_IDS.legacyJobId } } });
+      // Preserve the actual pre-migration row and its original units/createdAt.
+      // Park it between cases so it cannot become another case's active job.
+      await db.wsHillDayJob.update({
+        where: { id: legacy.id },
+        data: {
+          status: 'complete', leaseHolder: null, leaseExpiresAt: null, attemptCount: 0,
+          requestId: null, requestIds: [], cancelRequestedAt: null, quality: null, error: null,
+          startedAt: null, completedAt: null,
+          units: legacy.units as Prisma.InputJsonValue, events: legacy.events as Prisma.InputJsonValue,
+        },
+      });
+      await db.wsHillDayDocument.update({
+        where: { id: documentId },
+        data: { status: 'draft', generatedAt: null, provenance: Prisma.DbNull },
+      });
+      await db.wsHillDayMeeting.updateMany({
+        where: { documentId }, data: { section: Prisma.DbNull, sourceSet: Prisma.DbNull },
+      });
+    },
     /** A second, independent worker process id — the contested replica. */
     secondWorker: new HillDayJobWorkerService(db, generation),
     ids: WS10_IDS,
