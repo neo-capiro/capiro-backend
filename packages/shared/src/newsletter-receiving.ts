@@ -3,6 +3,7 @@ import type {
   NewsletterCampaign,
   NewsletterCampaignConfig,
   NewsletterCheck,
+  NewsletterComment,
   NewsletterDesign,
   NewsletterLibraryItem,
   NewsletterPreview,
@@ -64,6 +65,23 @@ export type NewsletterSectionLibraryItem = Omit<
 > & Required<Pick<NewsletterLibraryItem, 'section'>>;
 export interface NewsletterLibraryList {
   items: NewsletterSectionLibraryItem[];
+}
+/** Actual persisted comment wire, including the service's document and tenant fields. */
+export interface NewsletterReviewComment extends NewsletterComment {
+  tenantId: string;
+  documentId: string;
+}
+/** Current take-500 collection; neither completeness nor an acknowledged comment write. */
+export interface NewsletterComments {
+  items: NewsletterReviewComment[];
+}
+/** Saved rendered content and current role, never an editable campaign or revision receipt. */
+export interface NewsletterReview {
+  id: string;
+  name: string;
+  role: 'owner' | 'editor' | 'commenter' | 'viewer';
+  html: string;
+  comments: NewsletterReviewComment[];
 }
 /** Unbound rendering remains usable as content, never as an exact saved-revision receipt. */
 export type NewsletterPreviewContent = Pick<NewsletterPreview, 'html' | 'plainText' | 'checks'>;
@@ -600,6 +618,49 @@ const libraryItem: Rule = (value, path) => {
   for (const key of Object.keys(row(value, path)))
     if (!Object.prototype.hasOwnProperty.call(libraryItemFields, key)) refuse(`${path}.${key}`);
 };
+const commentFields = {
+  id: workspaceUuid,
+  tenantId: workspaceUuid,
+  documentId: workspaceUuid,
+  campaignId: workspaceUuid,
+  authorId: text,
+  authorName: text,
+  blockId: nullable((value, path) => {
+    if (typeof value !== 'string' || value.length > 100) refuse(path);
+  }),
+  parentId: nullable(workspaceUuid),
+  message: (value: NewsletterJson, path: string) => {
+    if (typeof value !== 'string' || !value.trim() || value.length > 10000) refuse(path);
+  },
+  resolved: bool,
+  createdAt: timestamp,
+};
+const comment: Rule = (value, path) => {
+  object(commentFields)(value, path);
+  for (const key of Object.keys(row(value, path)))
+    if (!Object.prototype.hasOwnProperty.call(commentFields, key)) refuse(`${path}.${key}`);
+};
+const reviewFields = {
+  id: workspaceUuid,
+  name: (value: NewsletterJson, path: string) => {
+    if (typeof value !== 'string' || !value.trim() || value.length > 200) refuse(path);
+  },
+  role: literal('owner', 'editor', 'commenter', 'viewer'),
+  html: text,
+  comments: array(comment, 500),
+};
+function bindReviewComments(items: NewsletterJson, path: string, expected: unknown): string {
+  const binding = row(snapshot(expected), '$expected');
+  object({ documentId: workspaceUuid })(binding, '$expected');
+  for (const key of Object.keys(binding)) if (key !== 'documentId') refuse(`$expected.${key}`);
+  const documentId = (binding.documentId as string).toLowerCase();
+  (items as NewsletterJsonObject[]).forEach((item, index) => {
+    for (const key of ['documentId', 'campaignId'])
+      if ((item[key] as string).toLowerCase() !== documentId)
+        refuse(`${path}.${index}.${key}`, 'identity_mismatch');
+  });
+  return documentId;
+}
 const config = object({
   clientId: nullable(workspaceUuid),
   clientName: text,
@@ -907,6 +968,30 @@ export function parseNewsletterLibraryList(
     },
     500,
   );
+}
+/** Current review only. Core still owns access; consumers must sanitize displayed HTML. */
+export function parseNewsletterReview(
+  value: unknown,
+  expected: { documentId: string },
+): NewsletterReceiveResult<NewsletterReview> {
+  return receive(value, object(reviewFields), (value) => {
+    const review = row(value, '$');
+    for (const key of Object.keys(review))
+      if (!Object.prototype.hasOwnProperty.call(reviewFields, key)) refuse(`$.${key}`);
+    const documentId = bindReviewComments(review.comments!, '$.comments', expected);
+    if ((review.id as string).toLowerCase() !== documentId) refuse('$.id', 'identity_mismatch');
+  });
+}
+/** A current bounded read cannot settle an unknown comment mutation or imply mail delivery. */
+export function parseNewsletterComments(
+  value: unknown,
+  expected: { documentId: string },
+): NewsletterReceiveResult<NewsletterComments> {
+  return receive(value, object({ items: array(comment, 500) }), (value) => {
+    const comments = row(value, '$');
+    for (const key of Object.keys(comments)) if (key !== 'items') refuse(`$.${key}`);
+    bindReviewComments(comments.items!, '$.items', expected);
+  });
 }
 export function parseNewsletterChecks(value: unknown): NewsletterReceiveResult<NewsletterCheck[]> {
   return receive(value, array(check));
