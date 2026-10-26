@@ -38,7 +38,7 @@ RUN cd apps/intel-api && pnpm exec prisma generate
 RUN pnpm --filter @capiro/intel-api build
 
 FROM build AS qualification
-RUN apk add --no-cache ffmpeg=8.1.2-r0
+RUN apk add --no-cache ffmpeg=8.1.3-r0
 COPY apps/intel-api/jest* apps/intel-api/
 COPY apps/intel-api/test apps/intel-api/test
 COPY apps/intel-api/scripts apps/intel-api/scripts
@@ -84,7 +84,7 @@ RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack 
  && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 RUN addgroup -S -g 1001 capiro \
  && adduser -S -D -H -u 1001 -G capiro -s /sbin/nologin capiro \
- && apk add --no-cache wget ca-certificates dumb-init openssl "zlib>=1.3.2-r1" "musl>=1.2.6-r3" "musl-utils>=1.2.6-r3" ffmpeg=8.1.2-r0
+ && apk add --no-cache wget ca-certificates dumb-init openssl "zlib>=1.3.2-r1" "musl>=1.2.6-r3" "musl-utils>=1.2.6-r3" ffmpeg=8.1.3-r0
 RUN mkdir -p /app/tmp /tmp \
  && chmod 1777 /tmp \
  && chown capiro:capiro /app/tmp
