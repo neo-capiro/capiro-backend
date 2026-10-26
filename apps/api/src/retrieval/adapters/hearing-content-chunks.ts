@@ -13,14 +13,21 @@ export const hearingContentRecordId = (key: string, hash: string, part?: number)
 export const encodeHearingContentCursor = (cursor: HearingContentCursor) =>
   `hearing:${Buffer.from(JSON.stringify(cursor)).toString('base64url')}`;
 
-export function parseHearingContentCursor(value: string): HearingContentCursor | null {
+export function parseHearingContentCursor(
+  value: string,
+  family: 'ordinary' | 'published-record' = 'ordinary',
+): HearingContentCursor | null {
   if (!value.startsWith('hearing:')) return null;
   try {
     const cursor = JSON.parse(
       Buffer.from(value.slice(8), 'base64url').toString('utf8'),
     ) as HearingContentCursor;
+    // The reader selects its key family; a cursor cannot widen an ordinary scan.
+    const allowedKey = family === 'published-record'
+      ? /^(published|briefs|reconciliation):/
+      : /^(event|official|segment|insight|relevance):/;
     if (
-      !/^(event|official|segment|insight|relevance):/.test(cursor.key) ||
+      !allowedKey.test(cursor.key) ||
       cursor.key.length > 300 ||
       !Number.isSafeInteger(cursor.part) ||
       cursor.part < 1 ||

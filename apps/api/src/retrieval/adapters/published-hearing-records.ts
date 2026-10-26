@@ -135,7 +135,7 @@ export async function retrievePublishedHearingRecords(
       let part = 0;
       if (cursor) {
         try {
-          const parsed = parseHearingContentCursor(cursor);
+          const parsed = parseHearingContentCursor(cursor, 'published-record');
           if (
             !parsed ||
             parsed.key !== key ||
