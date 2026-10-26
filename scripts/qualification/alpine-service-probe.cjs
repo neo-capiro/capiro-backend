@@ -122,8 +122,8 @@ if (service === 'workspace') {
   assert.equal(assertEngagementRuntimeEnvironment(process.env).serviceName, 'engagement-api');
 } else {
   local('./dist/hearing/capture/ffmpeg-audio-command.js');
-  assert.match(run('ffmpeg', ['-version']), /^ffmpeg version 8\.1\.2/);
-  assert.match(run('ffprobe', ['-version']), /^ffprobe version 8\.1\.2/);
+  assert.match(run('ffmpeg', ['-version']), /^ffmpeg version 8\.1\.3/);
+  assert.match(run('ffprobe', ['-version']), /^ffprobe version 8\.1\.3/);
   const protocols = run('ffmpeg', ['-hide_banner', '-protocols']);
   for (const protocol of ['https', 'tls', 'tcp', 'crypto', 'pipe']) {
     assert(new RegExp(`^\\s*${protocol}\\s*$`, 'm').test(protocols), `missing ${protocol} protocol`);
