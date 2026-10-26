@@ -56,6 +56,7 @@ import { MeriV3InternalServiceGuard } from './meri-v3-internal-service.guard.js'
 import { MeriService } from './meri.service.js';
 import type { MeriRuntimeService } from './meri-runtime.contract.js';
 import { MeriToolsService } from './meri-tools.service.js';
+import { MeriPrivateSqlService } from './meri-private-sql.service.js';
 import { AutomaticClientContextService } from './automatic-client-context.service.js';
 import { MeriResearchService } from './meri-research.service.js';
 import { MERI_JOB_KINDS, type MeriJobKind } from './meri-job.js';
@@ -369,6 +370,7 @@ export class MeriController {
     @Optional() private readonly memoryCandidateOwner?: GovernedMemoryCandidateService,
     @Optional() private readonly automaticClientContext?: AutomaticClientContextService,
     @Optional() private readonly toolServiceIdentity?: ToolServiceSecretGuard,
+    @Optional() private readonly privateSql?: MeriPrivateSqlService,
   ) {}
 
   @Post('client-context/automatic')
@@ -575,6 +577,12 @@ export class MeriController {
   ) {
     // These normalized reads use the same user/service boundary as ordinary
     // tools. Correlation is request data; canonical owners authorize resources.
+    if ((name === 'describe_capiro_data' || name === 'query_capiro_data') && body?.source === 'client_records') {
+      assertMeriToolAllowed(name);
+      assertOrdinaryToolPathAllowed(name);
+      if (!this.privateSql) throw new ServiceUnavailableException('Private query access unavailable');
+      return withMeriToolRequestControl(req, () => this.privateSql!.read(ctx, req, name, body));
+    }
     if (name === MEMORY_PROPOSAL_OPERATION.id) {
       const prisma = this.readDelegationPrisma;
       const owner = this.memoryCandidateOwner;

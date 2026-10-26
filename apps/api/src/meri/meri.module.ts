@@ -72,6 +72,8 @@ import { MERI_TURN_MAINTENANCE } from './meri-turn-maintenance.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { MeriBizDevToolsService } from './meri-bizdev-tools.service.js';
 import { AnalyticsDbService } from './analytics/analytics-db.service.js';
+import { PrivateSqlDbService } from './analytics/private-sql-db.service.js';
+import { MeriPrivateSqlService } from './meri-private-sql.service.js';
 import {
   createGovernedMeriToolsService,
   RAW_MERI_TOOLS_SERVICE,
@@ -206,6 +208,8 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
       ],
     },
     AnalyticsDbService,
+    PrivateSqlDbService,
+    MeriPrivateSqlService,
     // Phase 4 — Meri business-development prospect tools. Optional in
     // MeriToolsService (one optional constructor param) so non-DI specs keep
     // constructing the tools service positionally without it.
