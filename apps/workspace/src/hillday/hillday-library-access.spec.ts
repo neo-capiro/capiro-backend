@@ -1,4 +1,18 @@
-import { HillDayDocumentService, decodeCursor } from './hillday-document.service.js';
+import { HillDayDocumentService } from './hillday-document.service.js';
+
+/**
+ * A library page token must carry no readable row position: the sealed bytes are
+ * ciphertext, so neither the row a page skipped nor any id/timestamp appears in
+ * the token or in its base64url decoding.
+ */
+function expectCursorRevealsNothing(token: string | null, values: string[]) {
+  expect(token).toEqual(expect.any(String));
+  const decoded = Buffer.from(token!, 'base64url').toString('utf8');
+  for (const value of values) {
+    expect(token!).not.toContain(value);
+    expect(decoded).not.toContain(value);
+  }
+}
 
 describe('Workspace library private drafts', () => {
   it('checks source access concurrently so one held source does not block checking ordinary drafts', async () => {
@@ -36,7 +50,8 @@ describe('Workspace library private drafts', () => {
     release(false);
     const page = await pending;
     expect(page.items.map((d) => d.id)).toEqual(['y-visible']);
-    expect(decodeCursor(page.nextCursor!)).toEqual({ u: updatedAt.toISOString(), i: 'y-visible' });
+    // The token it returns is opaque — the denied row it scanned is not readable.
+    expectCursorRevealsNothing(page.nextCursor, ['z-held', updatedAt.toISOString()]);
   });
   it('filters owner/active collaboration in SQL and revoked source access before returning metadata', async () => {
     const updatedAt = new Date('2026-09-14T10:00:00Z');
@@ -66,7 +81,8 @@ describe('Workspace library private drafts', () => {
     );
     const page = await service.listDocuments('tenant', 'actor', { limit: '1' });
     expect(page.items).toEqual([]);
-    expect(decodeCursor(page.nextCursor!)).toEqual({ u: updatedAt.toISOString(), i: 'revoked' });
+    // Empty page, but the skipped revoked row must not be readable in the token.
+    expectCursorRevealsNothing(page.nextCursor, ['revoked', updatedAt.toISOString()]);
     expect(prisma.wsCollaborator.findMany).toHaveBeenCalledWith({
       where: { tenantId: 'tenant', subjectId: 'actor', status: 'active' },
       select: { draftId: true },
@@ -137,7 +153,7 @@ describe('Workspace library private drafts', () => {
       ['hillday', id('h3')],
       ['hillday', id('h2')],
     ]);
-    expect(decodeCursor(page.nextCursor!)).toEqual({ u: '2026-09-14T11:00:00.000Z', i: id('h2') });
+    expectCursorRevealsNothing(page.nextCursor, [id('h2'), id('h1')]);
     expect(prisma.wsDraft.findMany).not.toHaveBeenCalled();
     expect(prisma.wsCollaborator.findMany).not.toHaveBeenCalled();
     expect(collaborators.sourceAccess).not.toHaveBeenCalled();

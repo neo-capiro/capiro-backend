@@ -404,6 +404,30 @@ export interface QualityResponse {
   computedAt: string;
 }
 
+// ── Library query ───────────────────────────────────────────────────────────
+
+/** `all` merges Hill Day packets and workspace drafts; the others select one. */
+export const LIBRARY_KINDS = ['all', 'hillday', 'draft'] as const;
+export type LibraryKind = (typeof LIBRARY_KINDS)[number];
+
+/** Ownership narrowing over the rows the actor may already see. */
+export const LIBRARY_SCOPES = ['all', 'mine', 'shared'] as const;
+export type LibraryScope = (typeof LIBRARY_SCOPES)[number];
+
+/**
+ * Authorized server-side library query. `q` matches the row's own name (Hill Day
+ * document name / draft title); `clientId` is the canonical Core client id.
+ */
+export interface LibraryQuery {
+  clientId?: string;
+  status?: string;
+  kind?: LibraryKind;
+  scope?: LibraryScope;
+  q?: string;
+  cursor?: string;
+  limit?: string;
+}
+
 export interface LibraryRow {
   id: string;
   kind: 'hillday' | 'draft';
