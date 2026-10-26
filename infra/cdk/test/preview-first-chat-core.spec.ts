@@ -9,12 +9,29 @@ import {
   FIRST_CHAT_CORE_HOST,
   FIRST_CHAT_CORE_IMAGE_PINS,
   FIRST_CHAT_CORE_POST_PATHS,
-  firstChatCoreImageBinding,
+  firstChatCoreImageBinding as parseBinding,
+  type FirstChatCoreImagePins,
   previewFirstChatCoreApplication,
 } from '../lib/preview/first-chat-core';
-const pins = FIRST_CHAT_CORE_IMAGE_PINS;
+const pins = {
+  ...FIRST_CHAT_CORE_IMAGE_PINS,
+  queryDatabases: {
+    analytics: {
+      secretArn: 'arn:aws:secretsmanager:us-east-1:967807252336:secret:synthetic/analytics-ABC123',
+      secretVersionId: '00000000-0000-4000-8000-000000000011',
+    },
+    private: {
+      secretArn: 'arn:aws:secretsmanager:us-east-1:967807252336:secret:synthetic/private-DEF456',
+      secretVersionId: '00000000-0000-4000-8000-000000000012',
+    },
+  },
+};
+const firstChatCoreImageBinding = (
+  input: unknown,
+  expected: FirstChatCoreImagePins | null = pins,
+) => parseBinding(input, expected);
 const binding = {
-  schemaVersion: 9,
+  schemaVersion: 10,
   ...pins,
   internalServiceSecretArn:
     'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/internal-service-secret-6cEZG4',
@@ -32,7 +49,7 @@ const binding = {
 function render(check: (s: any, g: any, a: any) => void) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'core-operator-'));
   try {
-    const { service, guard, assets, app } = previewFirstChatCoreApplication(binding, dir);
+    const { service, guard, assets, app } = previewFirstChatCoreApplication(binding, dir, pins);
     assert.equal(assets.terminationProtection, true);
     check(
       Template.fromStack(service).toJSON(),
@@ -59,6 +76,7 @@ test('qualified closed binding refuses historical schemas, extra policy and wron
     { schemaVersion: 6 },
     { schemaVersion: 7 },
     { schemaVersion: 8 },
+    { schemaVersion: 9 },
     { profile: {} },
     { signers: {} },
     { retainedTrust: null },
@@ -115,6 +133,89 @@ test('production DB, scaling, guard moves and unbound service secret refuse', ()
   ])
     assert.throws(() => firstChatCoreImageBinding({ ...binding, ...patch }));
 });
+test('query activation requires qualified distinct identities, exact versions and no extra fields', () => {
+  assert.throws(() => parseBinding(binding)); // No live query identities have been allocated in source.
+  const { queryDatabases, ...missing } = binding;
+  assert.throws(() => firstChatCoreImageBinding(missing));
+  const { analytics, private: privateQuery } = pins.queryDatabases;
+  for (const queryDatabases of [
+    undefined,
+    {},
+    { analytics },
+    { analytics, private: privateQuery, url: 'postgresql://bad' },
+    { analytics: privateQuery, private: analytics },
+    { analytics: { ...analytics, secretVersionId: 'AWSCURRENT' }, private: privateQuery },
+    {
+      analytics: {
+        ...analytics,
+        secretArn: analytics.secretArn.replace('967807252336', '111111111111'),
+      },
+      private: privateQuery,
+    },
+    { analytics: { ...analytics, username: 'capiro_app' }, private: privateQuery },
+  ])
+    assert.throws(() => firstChatCoreImageBinding({ ...binding, queryDatabases }));
+  for (const queryDatabases of [
+    { analytics, private: analytics },
+    { analytics: { ...analytics, secretVersionId: 'AWSCURRENT' }, private: privateQuery },
+    {
+      analytics: {
+        ...analytics,
+        secretArn: analytics.secretArn.replace('967807252336', '111111111111'),
+      },
+      private: privateQuery,
+    },
+  ])
+    assert.throws(() =>
+      firstChatCoreImageBinding({ ...binding, queryDatabases }, { ...pins, queryDatabases }),
+    );
+});
+
+test('both query clients use the clone, TLS and four versioned execution-role secrets only', () =>
+  render((s) => {
+    const container = s.Resources.ServeTaskF1990141.Properties.ContainerDefinitions[0];
+    const environment = Object.fromEntries(
+      container.Environment.map((entry: any) => [entry.Name, entry.Value]),
+    );
+    const secretFields = Object.fromEntries(
+      container.Secrets.map((entry: any) => [entry.Name, entry.ValueFrom]),
+    );
+    for (const [prefix, credential] of [
+      ['ANALYTICS_DB', pins.queryDatabases.analytics],
+      ['PRIVATE_QUERY_DB', pins.queryDatabases.private],
+    ] as const) {
+      assert.equal(environment[`${prefix}_HOST`], binding.deployment.databaseHost);
+      assert.equal(environment[`${prefix}_NAME`], 'capiro');
+      assert.equal(environment[`${prefix}_PORT`], '5432');
+      assert.equal(environment[`${prefix}_SSLMODE`], 'require');
+      for (const [name, field] of [
+        ['USER', 'username'],
+        ['PASSWORD', 'password'],
+      ]) {
+        assert.equal(environment[`${prefix}_${name}`], undefined);
+        assert.equal(
+          secretFields[`${prefix}_${name}`],
+          `${credential.secretArn}:${field}::${credential.secretVersionId}`,
+        );
+      }
+      const policies =
+        s.Resources.ServeExecutionRoleDefaultPolicyBD488DD2.Properties.PolicyDocument.Statement;
+      assert.ok(
+        policies.some(
+          (statement: any) =>
+            ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'].every((action) =>
+              statement.Action.includes(action),
+            ) && [statement.Resource].flat().includes(credential.secretArn),
+        ),
+      );
+      assert.equal(
+        JSON.stringify(s.Resources.ServeTaskTaskRoleDefaultPolicy46D4ED77).includes(
+          credential.secretArn,
+        ),
+        false,
+      );
+    }
+  }));
 test('nine live resource IDs and both outputs survive with only the Assets task policy added', () =>
   render((s) => {
     assert.deepEqual(

@@ -4332,7 +4332,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'describe_capiro_data',
     description:
-      'Describe the published public PostgreSQL relations for query_capiro_data: exact fields, types, canonical identity/join keys, funding units and grain, coverage limitations and unknown source freshness. Call before authoring SQL; do not guess fields. Metadata does not establish live grants or complete ingestion.',
+      'Describe the published PostgreSQL relations for query_capiro_data: public by default, or client_records within the current authorized interactive General/client scope. Returns exact fields, types, canonical identity/join keys, funding units and grain, coverage limitations and unknown source freshness. Call before authoring SQL; do not guess fields. Metadata does not establish live grants or complete ingestion.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
@@ -4340,7 +4340,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'query_capiro_data',
     description:
-      'Run an authored PostgreSQL SELECT over the relations published by describe_capiro_data, with separately bound scalar $1/$2 parameters, INNER/LEFT canonical-key joins, nonrecursive CTEs, DISTINCT, COUNT/SUM/AVG/MIN/MAX, GROUP BY and ORDER BY. Exact decimal/int64 parameters must be strings. Default rowLimit 200, max 1000; full result is bounded to 256 KiB. Numeric results are exact strings. Counts describe query results, never source completeness. Respect cycle/fiscal-year/value-kind and PE-versus-project grain; use specialized readers for decisive source text or consolidated funding.',
+      'Run an authored PostgreSQL SELECT over public/default or currently authorized client_records relations published by describe_capiro_data, with separately bound scalar $1/$2 parameters, INNER/LEFT canonical-key joins, nonrecursive CTEs, DISTINCT, COUNT/SUM/AVG/MIN/MAX, GROUP BY and ORDER BY. Private records require the current interactive scope; saved jobs cannot request them. Exact decimal/int64 parameters must be strings. Default rowLimit 200, max 1000; full result is bounded to 256 KiB. Numeric results are exact strings. Counts describe query results, never source completeness. Respect cycle/fiscal-year/value-kind and PE-versus-project grain; use specialized readers for decisive source text or consolidated funding.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],

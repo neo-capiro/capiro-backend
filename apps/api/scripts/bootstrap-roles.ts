@@ -12,6 +12,12 @@
  *   * `capiro_pe_promoter`    — PROMOTER_USER / PROMOTER_PASSWORD. Optional.
  *   * `capiro_analytics_ro`   — ANALYTICS_USER / ANALYTICS_PASSWORD. Optional.
  *
+ * --query-readers selects only capiro_analytics_ro and capiro_private_query_ro,
+ * requiring both complete credential pairs and DB_SSL_CA_FILE. This mode uses
+ * strict certificate/hostname verification and one password-update transaction;
+ * APP/PROMOTER inputs are refused. Run only after the reviewed role migrations.
+ * A post-commit login failure requires operator reconciliation, not a blind retry.
+ *
  * The promoter and analytics roles are optional so this task keeps working in
  * environments where their secrets have not been provisioned yet. Creating
  * the promoter secret and passing it to this task is Workstream N; migration
@@ -28,23 +34,13 @@
  * @cleanup-smoke noArgsExit=2 helpExit=0
  */
 import { config as dotenvConfig } from 'dotenv';
+import { readFileSync } from 'node:fs';
 import { Client } from 'pg';
 
-const usage = 'Usage: tsx scripts/bootstrap-roles.ts --run';
-const argv = process.argv.slice(2);
-if ((argv.length === 1 && argv[0] === '--help') ||
-    (argv.length === 2 && argv[0] === '--run' && argv[1] === '--help')) {
-  console.log(usage);
-  process.exit(0);
-}
-if (argv.length !== 1 || argv[0] !== '--run') {
-  console.error(usage);
-  process.exit(2);
-}
-dotenvConfig();
+const usage = 'Usage: tsx scripts/bootstrap-roles.ts --run [--query-readers]';
 
-function required(name: string): string {
-  const v = process.env[name];
+function required(name: string, env: NodeJS.ProcessEnv): string {
+  const v = env[name];
   if (!v) throw new Error(`Missing env var ${name}`);
   return v;
 }
@@ -66,14 +62,34 @@ interface RoleRotation {
   password: string;
 }
 
-/** Roles to rotate: the app role always, the promoter role when provisioned. */
-function plannedRotations(): RoleRotation[] {
+/** Legacy app/optional roles, or the two explicit ordinary query roles only. */
+function plannedRotations(env: NodeJS.ProcessEnv, queryOnly: boolean): RoleRotation[] {
+  if (queryOnly) {
+    if (
+      ['APP_USER', 'APP_PASSWORD', 'PROMOTER_USER', 'PROMOTER_PASSWORD'].some(
+        (key) => env[key] !== undefined,
+      )
+    )
+      throw new Error('Query-only bootstrap refuses application and promoter credentials');
+    return (
+      [
+        ['ANALYTICS', 'capiro_analytics_ro'],
+        ['PRIVATE_QUERY', 'capiro_private_query_ro'],
+      ] as const
+    ).map(([prefix, expected]) => {
+      const user = required(`${prefix}_USER`, env);
+      const password = required(`${prefix}_PASSWORD`, env);
+      if (user !== expected || password === '***')
+        throw new Error('Exact ordinary query role and unmasked password required');
+      return { label: prefix, user, password };
+    });
+  }
   const rotations: RoleRotation[] = [
-    { label: 'app', user: required('APP_USER'), password: required('APP_PASSWORD') },
+    { label: 'app', user: required('APP_USER', env), password: required('APP_PASSWORD', env) },
   ];
 
-  const promoterUser = process.env.PROMOTER_USER;
-  const promoterPassword = process.env.PROMOTER_PASSWORD;
+  const promoterUser = env.PROMOTER_USER;
+  const promoterPassword = env.PROMOTER_PASSWORD;
   if (promoterUser && promoterPassword) {
     rotations.push({ label: 'pe-promoter', user: promoterUser, password: promoterPassword });
   } else if (promoterUser || promoterPassword) {
@@ -82,8 +98,8 @@ function plannedRotations(): RoleRotation[] {
     throw new Error('PROMOTER_USER and PROMOTER_PASSWORD must be supplied together');
   }
 
-  const analyticsUser = process.env.ANALYTICS_USER;
-  const analyticsPassword = process.env.ANALYTICS_PASSWORD;
+  const analyticsUser = env.ANALYTICS_USER;
+  const analyticsPassword = env.ANALYTICS_PASSWORD;
   if (analyticsUser && analyticsPassword) {
     rotations.push({ label: 'analytics-ro', user: analyticsUser, password: analyticsPassword });
   } else if (analyticsUser || analyticsPassword) {
@@ -93,13 +109,46 @@ function plannedRotations(): RoleRotation[] {
   return rotations;
 }
 
-async function main() {
-  const host = required('DB_HOST');
-  const port = parseInt(required('DB_PORT'), 10);
-  const database = required('DB_NAME');
-  const masterUser = required('MASTER_USER');
-  const masterPassword = required('MASTER_PASSWORD');
-  const rotations = plannedRotations();
+export async function bootstrapRoles(
+  argv: string[],
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<number> {
+  if (
+    (argv.length === 1 && argv[0] === '--help') ||
+    (argv.length === 2 && argv[0] === '--run' && argv[1] === '--help')
+  ) {
+    console.log(usage);
+    return 0;
+  }
+  const queryOnly = argv.length === 2 && argv[0] === '--run' && argv[1] === '--query-readers';
+  if (!queryOnly && !(argv.length === 1 && argv[0] === '--run')) {
+    console.error(usage);
+    return 2;
+  }
+  if (!queryOnly) dotenvConfig();
+  const host = required('DB_HOST', env);
+  const port = queryOnly
+    ? Number(required('DB_PORT', env))
+    : parseInt(required('DB_PORT', env), 10);
+  const database = required('DB_NAME', env);
+  const masterUser = required('MASTER_USER', env);
+  const masterPassword = required('MASTER_PASSWORD', env);
+  const rotations = plannedRotations(env, queryOnly);
+  if (
+    queryOnly &&
+    (!Number.isInteger(port) ||
+      port < 1 ||
+      port > 65535 ||
+      env.NODE_TLS_REJECT_UNAUTHORIZED === '0')
+  )
+    throw new Error('Query bootstrap requires a valid port and strict TLS');
+  const ssl = queryOnly
+    ? {
+        rejectUnauthorized: true,
+        ca: readFileSync(required('DB_SSL_CA_FILE', env), 'utf8'),
+        servername: host,
+      }
+    : { rejectUnauthorized: false };
 
   // eslint-disable-next-line no-console
   console.log(`Rotating ${rotations.map((r) => r.user).join(', ')} (db=${database} host=${host})`);
@@ -110,10 +159,64 @@ async function main() {
     database,
     user: masterUser,
     password: masterPassword,
-    ssl: { rejectUnauthorized: false },
+    ssl,
+    ...(queryOnly
+      ? { connectionTimeoutMillis: 5000, statement_timeout: 8000, query_timeout: 10000 }
+      : {}),
   });
-  await client.connect();
+  async function verifyRotation(rotation: RoleRotation) {
+    // Verify the role can authenticate by re-connecting under it.
+    const verify = new Client({
+      host,
+      port,
+      database,
+      user: rotation.user,
+      password: rotation.password,
+      ssl,
+      ...(queryOnly
+        ? { connectionTimeoutMillis: 5000, statement_timeout: 8000, query_timeout: 10000 }
+        : {}),
+    });
+    try {
+      await verify.connect();
+      const r = await verify.query('SELECT current_user, current_database()');
+      if (
+        queryOnly &&
+        (r.rows.length !== 1 ||
+          r.rows[0].current_user !== rotation.user ||
+          r.rows[0].current_database !== database)
+      )
+        throw new Error('Query role login verification failed');
+      // eslint-disable-next-line no-console
+      console.log(
+        `Verified login as ${r.rows[0].current_user} on ${r.rows[0].current_database} (${rotation.label})`,
+      );
+    } finally {
+      await verify.end();
+    }
+  }
+  let transaction = false;
   try {
+    await client.connect();
+    if (queryOnly) {
+      // Inspect both fixed roles before either password changes. Migration owns roles/grants.
+      const checked = await client.query(
+        `SELECT rolname FROM pg_catalog.pg_roles
+        WHERE rolname = ANY($1::text[]) AND rolcanlogin AND NOT rolsuper AND NOT rolbypassrls
+          AND NOT rolcreatedb AND NOT rolcreaterole AND NOT rolreplication
+          AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_auth_members WHERE member = pg_roles.oid)`,
+        [rotations.map((rotation) => rotation.user)],
+      );
+      if (
+        checked.rows.length !== 2 ||
+        rotations.some((rotation) => !checked.rows.some((row) => row.rolname === rotation.user))
+      )
+        throw new Error('Both ordinary query roles must already exist');
+      await client.query('BEGIN');
+      transaction = true;
+      await client.query("SET LOCAL statement_timeout = '8000ms'");
+      await client.query("SET LOCAL lock_timeout = '1000ms'");
+    }
     for (const rotation of rotations) {
       const role = escapeSqlIdent(rotation.user);
       const pw = escapeSqlLiteral(rotation.password);
@@ -121,9 +224,9 @@ async function main() {
       // The role must already exist: it is created by a migration, never here.
       // Creating roles from this task would give it exactly the privilege the
       // Phase 7 boundary says no runtime task should hold.
-      const exists = await client.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [
-        rotation.user,
-      ]);
+      const exists = queryOnly
+        ? { rowCount: 1 }
+        : await client.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [rotation.user]);
       if (exists.rowCount === 0) {
         throw new Error(
           `role ${rotation.user} does not exist — run the migration that creates it first`,
@@ -131,31 +234,38 @@ async function main() {
       }
 
       await client.query(`ALTER ROLE "${role}" PASSWORD '${pw}'`);
-
-      // Verify the role can authenticate by re-connecting under it.
-      const verify = new Client({
-        host,
-        port,
-        database,
-        user: rotation.user,
-        password: rotation.password,
-        ssl: { rejectUnauthorized: false },
-      });
-      await verify.connect();
-      const r = await verify.query('SELECT current_user, current_database()');
-      // eslint-disable-next-line no-console
-      console.log(
-        `Verified login as ${r.rows[0].current_user} on ${r.rows[0].current_database} (${rotation.label})`,
-      );
-      await verify.end();
+      if (!queryOnly) await verifyRotation(rotation);
     }
+    if (queryOnly) {
+      await client.query('COMMIT');
+      transaction = false;
+    }
+
+    if (queryOnly) for (const rotation of rotations) await verifyRotation(rotation);
+    return 0;
+  } catch (error) {
+    if (transaction) await client.query('ROLLBACK').catch(() => undefined);
+    // Driver errors can contain password-bearing ALTER text. Never emit them for this mode.
+    if (queryOnly)
+      throw new Error('Query role bootstrap failed; inspect restricted operator evidence');
+    throw error;
   } finally {
-    await client.end();
+    try {
+      await client.end();
+    } catch (error) {
+      if (queryOnly) throw new Error('Query role bootstrap connection cleanup failed');
+      throw error;
+    }
   }
 }
 
-main().catch((err) => {
-  // eslint-disable-next-line no-console
-  console.error(err);
-  process.exit(1);
-});
+if (require.main === module)
+  bootstrapRoles(process.argv.slice(2))
+    .then((code) => {
+      process.exitCode = code;
+    })
+    .catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error(err);
+      process.exit(1);
+    });
