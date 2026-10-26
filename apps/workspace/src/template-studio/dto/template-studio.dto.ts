@@ -1,4 +1,12 @@
-import { IsObject, IsString, IsOptional, IsBoolean, Min } from 'class-validator';
+import { IsObject, IsString, IsOptional, Matches, Min, ValidateIf } from 'class-validator';
+
+/** Optional precondition captured from the version the editor actually displayed. */
+export class BlueprintVersionExpectationDto {
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsString()
+  @Matches(/^[a-f\d]{64}$/)
+  expectedDefinitionHash?: string;
+}
 
 /** DTO for creating a new blueprint (POST /template-studio/blueprints). */
 export class CreateBlueprintDto {
@@ -33,7 +41,7 @@ export class CreateVersionDto {
 
 /** DTO for updating a draft version's definition
  *  (PATCH /blueprints/:id/versions/:versionId). */
-export class UpdateVersionDto {
+export class UpdateVersionDto extends BlueprintVersionExpectationDto {
   @IsObject()
   definition!: Record<string, unknown>;
 
@@ -44,7 +52,7 @@ export class UpdateVersionDto {
 
 /** DTO for cloning a blueprint into a new draft version
  *  (POST /blueprints/:id/clone). Clones the latest version's definition. */
-export class CloneBlueprintDto {
+export class CloneBlueprintDto extends BlueprintVersionExpectationDto {
   @IsString()
   @IsOptional()
   note?: string;

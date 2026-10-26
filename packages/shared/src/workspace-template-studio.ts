@@ -16,9 +16,27 @@ import {
   type ReceiveResult,
   type Rule,
 } from './json-receiving.js';
+import {
+  workspaceBlueprintSampleRule,
+  type WorkspaceBlueprintSampleTest,
+  type WorkspaceBlueprintStatus,
+} from './workspace-template-definition.js';
+export type {
+  AnswerSource,
+  IntakeCondition,
+  IntakeQuestion,
+  BlueprintSection,
+  EvidencePolicy,
+  ContentRules,
+  BlueprintTheme,
+  WorkspaceBlueprintDefinition,
+  WorkspaceBlueprintSampleTest,
+  WorkspaceBlueprintStatus,
+} from './workspace-template-definition.js';
+export { parseWorkspaceBlueprintDefinition } from './workspace-template-definition.js';
+export * from './workspace-template-design.js';
 
 export type WorkspaceBlueprintReadResult<T> = ReceiveResult<T>;
-export type WorkspaceBlueprintStatus = 'draft' | 'published' | 'retired';
 export interface WorkspaceBlueprintMetadata {
   id: string;
   tenantId: string | null;
@@ -304,4 +322,78 @@ export function parseWorkspaceBlueprintCompare(
       })),
     },
   };
+}
+
+/** Content is deliberately unrefined: draft creation stores {}, and incomplete drafts are editable. */
+export interface WorkspaceBlueprintContentVersion extends WorkspaceBlueprintVersionMetadata {
+  definition: Record<string, unknown>;
+}
+export function parseWorkspaceBlueprintContentVersion(
+  value: unknown,
+  expected: { blueprintId: string; versionId?: string },
+): WorkspaceBlueprintReadResult<WorkspaceBlueprintContentVersion> {
+  return receive<WorkspaceBlueprintContentVersion>(
+    value,
+    (item, path) => {
+      versionRule(item, path);
+      object({ definition: object({}) })(item, path);
+    },
+    (item) => {
+      const wanted = snapshot(expected);
+      object({ blueprintId: workspaceUuid }, { versionId: workspaceUuid })(wanted, '$expected');
+      const identity = row(wanted, '$expected');
+      sameId(row(item, '$').blueprintId!, identity.blueprintId!, '$.blueprintId');
+      if (identity.versionId !== undefined) sameId(row(item, '$').id!, identity.versionId, '$.id');
+    },
+  );
+}
+
+/** The POST parent result has no versions collection. This is not a create-idempotency receipt. */
+export function parseWorkspaceBlueprintCreated(
+  value: unknown,
+  expected: { slug: string; product: string },
+): WorkspaceBlueprintReadResult<WorkspaceBlueprintMetadata> {
+  const result = receive<WorkspaceBlueprintMetadata>(value, object(metadataFields), (item) => {
+    const wanted = snapshot(expected);
+    object({ slug: text, product: text })(wanted, '$expected');
+    const identity = row(wanted, '$expected'),
+      actual = row(item, '$');
+    if (
+      actual.slug !== identity.slug ||
+      actual.product !== identity.product ||
+      actual.scope !== 'firm' ||
+      actual.tenantId === null
+    )
+      refuse('$', 'identity_mismatch');
+  });
+  return result.ok ? { ok: true, value: metadata(result.value) } : result;
+}
+
+export function parseWorkspaceBlueprintSampleTest(
+  value: unknown,
+  expected: WorkspaceBlueprintVersionReadIdentity & { definitionHash: string },
+): WorkspaceBlueprintReadResult<WorkspaceBlueprintSampleTest> {
+  return receive<WorkspaceBlueprintSampleTest>(
+    value,
+    (item, path) => {
+      workspaceBlueprintSampleRule(item, path);
+      object({ blueprintId: workspaceUuid, versionId: workspaceUuid, definitionHash: hash })(
+        item,
+        path,
+      );
+    },
+    (item) => {
+      const wanted = snapshot(expected);
+      object({ blueprintId: workspaceUuid, versionId: workspaceUuid, definitionHash: hash })(
+        wanted,
+        '$expected',
+      );
+      const identity = row(wanted, '$expected'),
+        actual = row(item, '$');
+      sameId(actual.blueprintId!, identity.blueprintId!, '$.blueprintId');
+      sameId(actual.versionId!, identity.versionId!, '$.versionId');
+      if (actual.definitionHash !== identity.definitionHash)
+        refuse('$.definitionHash', 'identity_mismatch');
+    },
+  );
 }
