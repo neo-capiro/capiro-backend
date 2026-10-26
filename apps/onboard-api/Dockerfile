@@ -3,22 +3,20 @@
 # Build context: REPOSITORY ROOT (not apps/onboard-api).
 #   docker buildx build --platform linux/arm64 -f apps/onboard-api/Dockerfile -t capiro-onboard-api:local .
 #
-# Multi-stage, mirroring apps/intel-api:
-#   1. base    pnpm + corepack on slim node
+# Multi-stage build:
+#   1. base    pnpm + corepack on Alpine node
 #   2. build   install + prisma generate + compile API + build the SPA
 #   3. prod-deps fresh frozen production install, including the migration CLI
-#   4. runtime minimal node slim, non-root user
+#   4. runtime Alpine node, non-root user
 #
 # Owns onboard_* tables; the `migrate` mode runs `prisma migrate deploy` at
 # task launch (forward-only), same pattern as apps/api and apps/intel-api.
 
-ARG NODE_VERSION=24.22.1
-
-# Base image is pulled from AWS's ECR Public Docker Hub mirror to avoid Docker
-# Hub's anonymous pull rate limit. Functionally identical to node:<tag>-bookworm-slim.
+# Official Node Alpine preview candidate, pinned to the qualified image index.
+# Upstream ARM64 musl builds are not tested before release; retain ARM64 image qualification.
 
 # -------- base ----------------------------------------------------------------
-FROM public.ecr.aws/docker/library/node:${NODE_VERSION}-bookworm-slim AS base
+FROM docker.io/library/node:24.22.1-alpine3.24@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
@@ -26,9 +24,7 @@ WORKDIR /workspace
 
 # -------- build ---------------------------------------------------------------
 FROM base AS build
-RUN apt-get update \
- && apt-get install -y --no-install-recommends openssl ca-certificates \
- && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache openssl ca-certificates
 
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* tsconfig.base.json ./
 COPY apps/onboard-api/package.json apps/onboard-api/package.json
@@ -61,9 +57,7 @@ RUN pnpm --filter @capiro/onboard-web build
 # A fresh stage cannot retain the build store when pnpm requests confirmation
 # to replace an existing install. The generated native client stays in build.
 FROM base AS prod-deps
-RUN apt-get update \
- && apt-get install -y --no-install-recommends openssl ca-certificates \
- && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache openssl ca-certificates
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY apps/onboard-api/package.json apps/onboard-api/package.json
 COPY packages/shared/package.json packages/shared/package.json
@@ -73,14 +67,12 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
       --filter=@capiro/onboard-api... --filter=@capiro/shared... --filter=@capiro/auth...
 
 # -------- runtime -------------------------------------------------------------
-FROM public.ecr.aws/docker/library/node:${NODE_VERSION}-bookworm-slim AS runtime
+FROM docker.io/library/node:24.22.1-alpine3.24@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS runtime
 ENV NODE_ENV=production
 ENV NODE_OPTIONS=--enable-source-maps
-RUN groupadd --system --gid 1001 capiro \
- && useradd --system --uid 1001 --gid capiro --shell /usr/sbin/nologin capiro \
- && apt-get update \
- && apt-get install -y --no-install-recommends wget ca-certificates dumb-init openssl \
- && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache ca-certificates dumb-init openssl zlib \
+ && addgroup -S -g 1001 capiro \
+ && adduser -S -D -H -u 1001 -G capiro -s /sbin/nologin capiro
 # Entrypoint modes invoke node directly, including Prisma migrate. Runtime
 # package managers and their own dependencies are not part of that closure.
 RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /opt/yarn-* \
