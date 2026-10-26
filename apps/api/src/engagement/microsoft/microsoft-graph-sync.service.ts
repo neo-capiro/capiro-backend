@@ -1,3 +1,5 @@
+import { buildMicrosoftSendPayload } from './microsoft-send-payload.js';
+export { sanitizeGraphHeaderValue } from './microsoft-send-payload.js';
 import {
   hasPendingCalendarCommand,
   readCalendarCommand,
@@ -740,15 +742,6 @@ export class MicrosoftGraphSyncService {
     const { token } = await this.loadConnection(ctx.tenantId, connectionId);
     const accessToken = await this.getValidAccessToken(ctx.tenantId, connectionId, token);
     const correlationId = input.correlationId ?? '';
-    const toGraphRecipients = (list: Array<{ email: string; name?: string | null }> | undefined) =>
-      (list ?? []).map((recipient) => ({
-        emailAddress: {
-          address: recipient.email,
-          ...(recipient.name ? { name: recipient.name } : {}),
-        },
-      }));
-
-    const correlationHeader = sanitizeGraphHeaderValue(input.correlationId);
 
     // 1. Create the draft. A clear failure here is an ORDINARY provider failure:
     //    nothing has been delivered, so the caller may fix and retry.
@@ -756,35 +749,7 @@ export class MicrosoftGraphSyncService {
       id?: unknown;
       internetMessageId?: unknown;
       conversationId?: unknown;
-    }>('/me/messages', accessToken, {
-      subject: input.subject,
-      body: {
-        contentType: input.bodyContentType ?? 'Text',
-        content: input.body,
-      },
-      toRecipients: toGraphRecipients(input.toRecipients),
-      ...(input.ccRecipients?.length
-        ? { ccRecipients: toGraphRecipients(input.ccRecipients) }
-        : {}),
-      ...(input.bccRecipients?.length
-        ? { bccRecipients: toGraphRecipients(input.bccRecipients) }
-        : {}),
-      ...(input.attachments?.length
-        ? {
-            attachments: input.attachments.map((a) => ({
-              '@odata.type': '#microsoft.graph.fileAttachment',
-              name: a.name,
-              contentType: a.contentType,
-              contentBytes: a.contentBytes,
-            })),
-          }
-        : {}),
-      ...(correlationHeader
-        ? {
-            internetMessageHeaders: [{ name: 'X-Capiro-Delivery-Id', value: correlationHeader }],
-          }
-        : {}),
-    });
+    }>('/me/messages', accessToken, buildMicrosoftSendPayload(input));
 
     const draftId = typeof draft?.id === 'string' ? draft.id.trim() : '';
     if (!draftId) {
@@ -3003,16 +2968,4 @@ export class GraphHttpError extends ServiceUnavailableException {
   ) {
     super(message);
   }
-}
-
-/**
- * Allow only id-safe characters in the X-Capiro-Delivery-Id header value. A UUID
- * passes through untouched; anything containing CR/LF or header punctuation is
- * dropped rather than escaped — no legitimate delivery id needs them.
- */
-export function sanitizeGraphHeaderValue(value: string | undefined): string | null {
-  if (!value) return null;
-  const clean = value.trim();
-  if (!clean || clean.length > 80) return null;
-  return /^[A-Za-z0-9._:-]+$/.test(clean) ? clean : null;
 }
