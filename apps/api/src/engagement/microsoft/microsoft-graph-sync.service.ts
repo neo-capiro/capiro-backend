@@ -72,6 +72,8 @@ import {
   type SyncableMailFolder,
 } from './microsoft-mail-folders.util.js';
 import { TokenCryptoService } from './token-crypto.service.js';
+import { readMicrosoftTeams } from './microsoft-teams-read.js';
+import { TeamsReadUnavailable, type TeamsReadOperation } from './microsoft-teams-contract.js';
 import {
   AmbiguousMailSendError,
   definiteMailSendRejection,
@@ -370,6 +372,30 @@ export class MicrosoftGraphSyncService {
 
   readCalendarCommand(ctx: TenantContext, connectionId: string, requestId: string) {
     return readCalendarCommand(this.prisma, ctx, connectionId, 'microsoft_365', requestId);
+  }
+
+  /** Fixed read-only Teams operations; OAuth consent and connection ownership stay unchanged. */
+  readTeams(ctx: TenantContext, operation: TeamsReadOperation, input: unknown) {
+    return readMicrosoftTeams(this.prisma, ctx, operation, input, {
+      token: async (connectionId, snapshot, grantedScope) => {
+        // The existing Outlook token owner refreshes its canonical resource set.
+        // This read must not use that refresh to request any previously absent grant.
+        if (!hasRequiredResourceScopes(snapshot.scopes))
+          throw new TeamsReadUnavailable('reconnect_required');
+        const accessToken = await this.getValidAccessToken(
+          ctx.tenantId, connectionId, snapshot, [grantedScope],
+        );
+        const { token: current } = await this.loadConnection(ctx.tenantId, connectionId);
+        if (this.tokenCrypto.decrypt({
+          ciphertext: current.accessTokenCiphertext,
+          iv: current.accessTokenIv,
+          authTag: current.accessTokenAuthTag,
+        }) !== accessToken)
+          throw new TeamsReadUnavailable('source_changed');
+        return { accessToken, snapshot: current };
+      },
+      get: (url, accessToken) => this.graphGet<unknown>(url, accessToken),
+    });
   }
 
   runCalendarCommand(ctx: TenantContext, connectionId: string, input: unknown) {
@@ -2101,6 +2127,7 @@ export class MicrosoftGraphSyncService {
     tenantId: string,
     connectionId: string,
     token: IntegrationConnectionToken,
+    alreadyGrantedScopes: readonly string[] = [],
   ): Promise<string> {
     await this.prisma.withTenant(tenantId, async (tx) => {
       await assertMailboxSyncCurrent(tx, tenantId, connectionId);
@@ -2145,7 +2172,9 @@ export class MicrosoftGraphSyncService {
     try {
       result = await msal.acquireTokenByRefreshToken({
         refreshToken,
-        scopes: MICROSOFT_SCOPES,
+        // Teams passes only a scope confirmed on this token by its current read admission.
+        // Existing Outlook callers and interactive consent retain MICROSOFT_SCOPES unchanged.
+        scopes: [...MICROSOFT_SCOPES, ...alreadyGrantedScopes],
       });
     } catch (error) {
       if (requiresInteractiveMicrosoftConsent(error)) {
