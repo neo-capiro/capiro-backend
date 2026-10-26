@@ -1,10 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { CollaboratorsService } from './collaborators.service.js';
 import { canManageCollaborators, canRead } from './role-policy.js';
 import { InviteCollaboratorDto, UpdateCollaboratorDto } from './dto/collaborator.dto.js';
+import { PreparationSourceGuard } from '../drafts/preparation-source.guard.js';
 
 /**
  * Collaborators on a work product (the WsDraft), surfaced in the UI as "this
@@ -91,5 +92,21 @@ export class CollaboratorsController {
       'Only the document owner can remove collaborators',
     );
     return this.collaborators.remove(ctx.tenantId, draftId, id, ctx.clerkUserId);
+  }
+}
+
+/** Service-to-service read only; browser routes retain TenantGuard. */
+@Controller('internal/workspace/collaborator-invitations')
+@UseGuards(PreparationSourceGuard)
+export class CollaboratorInvitationEmailController {
+  constructor(private readonly collaborators: CollaboratorsService) {}
+
+  @Post('email-context')
+  context(@Body() body: { tenantId?: unknown; draftId?: unknown; invitationId?: unknown; actorId?: unknown }) {
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!body || ![body.tenantId, body.draftId, body.invitationId].every(value => typeof value === 'string' && uuid.test(value)) ||
+        typeof body.actorId !== 'string' || !body.actorId.trim() || body.actorId.length > 200)
+      throw new BadRequestException('Invitation identity required');
+    return this.collaborators.emailContext(body.tenantId as string, body.draftId as string, body.invitationId as string, body.actorId);
   }
 }
