@@ -1719,6 +1719,30 @@ model EngagementAttachment {
   /// { chars, truncated, pageLimitHit, rowLimitHit, timedOut, extractedAt … }
   extractionMetadata  Json      @default("{}") @map("extraction_metadata_jsonb")
 
+  // ── MG-06 — durable attachment indexing attempt (claim + source epoch) ────
+  /// Monotonic, attachment-specific source epoch. Bumped by the
+  /// engagement_attachments_index_source_generation trigger only when a
+  /// SOURCE-affecting column changes — never by claim or indexing-status
+  /// writes. An attempt records the epoch it claimed and must match it again
+  /// for every purge, chunk publish and stamp, so a stale attempt cannot write
+  /// over newer work, including after an A→B→A association change (which the
+  /// client/meeting/S3 tuple alone cannot distinguish). metadataRevision is
+  /// deliberately NOT reused for this: its existing trigger fires on every
+  /// column change, including the indexing writes themselves.
+  indexSourceGeneration Int       @default(0) @map("index_source_generation")
+  /// Token of the indexing attempt that currently owns this attachment.
+  /// NULL = no attempt holds it. Claim acquisition is a compare-and-set on
+  /// this token plus the lease expiry, so one attachment has at most one live
+  /// attempt and every write by a losing attempt is refused.
+  indexClaimToken       String?   @map("index_claim_token") @db.Uuid
+  /// Lease expiry of the current attempt. An expired claim is recoverable by
+  /// the next attempt, so abrupt process loss cannot strand the document.
+  indexClaimExpiresAt   DateTime? @map("index_claim_expires_at") @db.Timestamptz(6)
+  /// When this attachment is next due for an indexing attempt (NULL = nothing
+  /// outstanding): set to the lease expiry while claimed, cleared by a
+  /// completed or excluded attempt, moved forward by a bounded retry.
+  indexNextAttemptAt    DateTime? @map("index_next_attempt_at") @db.Timestamptz(6)
+
   // ── Phase 2 §d — per-artifact approval + sharing (2026-08) ────────────────
   // Attachments never had an approval concept before this: a Meri-generated or
   // user-uploaded file was never gated on anything. Single-user approval (Neo
@@ -1755,6 +1779,8 @@ model EngagementAttachment {
   @@index([tenantId, mailMessageId], map: "engagement_attachments_tenant_mail_message_idx")
   @@index([tenantId, lifecycleStatus, createdAt], map: "engagement_attachments_tenant_lifecycle_created_idx")
   @@index([tenantId, sharedAt], map: "engagement_attachments_tenant_shared_idx")
+  // MG-06: bounded due-attachment discovery for the indexing worker.
+  @@index([indexNextAttemptAt], map: "engagement_attachments_index_next_attempt_idx")
   @@map("engagement_attachments")
 }
 
