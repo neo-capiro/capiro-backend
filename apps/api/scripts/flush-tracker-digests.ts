@@ -49,7 +49,7 @@ async function main() {
     const svc = app.get(TrackerAlertService);
     const res = await svc.flushDigests(cadence);
     // console.log so the summary survives the ['warn','error'] boot log-level.
-    console.log(`done. cadence=${cadence} flushed=${res.flushed} sent=${res.sent}`);
+    console.log(JSON.stringify({ event: 'TRACKER_DIGEST_OUTCOMES', cadence, ...res }));
   } finally {
     await app.close();
   }

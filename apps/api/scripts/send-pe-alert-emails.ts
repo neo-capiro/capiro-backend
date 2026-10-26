@@ -25,12 +25,12 @@
  * 'all'. Unset/empty = fully dark (no emails, watchlist stamping still runs).
  * Flip the canary by setting it to the capiro-internal tenant id.
  *
- * Send watermark: commit runs wrap in runWithSyncRun('send-pe-alert-emails');
- * the window starts at the last successful run (capped at 48h back) so a
- * same-day re-run cannot double-email earlier alerts.
+ * BEST-EFFORT NON-RETRY: the existing SyncRun consumes [since, startedAt)
+ * before provider I/O. Failed/unknown recipients and crashes do not replay
+ * that window. SES acceptance is not delivery. A first upgraded run fences
+ * legacy windows whose unbounded tail cannot be reconstructed safely.
  */
 import { config as dotenvConfig } from 'dotenv';
-import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import {
   digestForUser,
@@ -40,15 +40,15 @@ import {
   type PeAlertItem,
 } from '../src/program-element/pe-alerts/pe-alert-email.js';
 import { aggregateTenantScopedPeAlertWatches } from '../src/program-element/pe-alerts/tenant-watch-aggregation.js';
+import type { RunCounts } from '../src/ingestion/sync-run.helper.js';
 import {
-  lastSuccessfulWatermark,
-  runWithSyncRun,
-  type RunCounts,
-} from '../src/ingestion/sync-run.helper.js';
-
-dotenvConfig();
-
-const SYNC_SOURCE = 'send-pe-alert-emails';
+  peEmailWindow,
+  peEmailWindowStats,
+  runPeEmailWindow,
+  sendPeEmailBatch,
+  type PeEmailWindow,
+} from './lib/pe-alert-email-delivery.js';
+import type { EmailSendOutcome } from '../src/tracker/notifications/tracker-email.service.js';
 const flag = (name: string): boolean => process.argv.includes(`--${name}`);
 const argVal = (name: string): string | undefined => {
   const i = process.argv.indexOf(`--${name}`);
@@ -70,6 +70,14 @@ function canaryTenants(): { all: boolean; ids: Set<string> } {
 }
 
 async function main(): Promise<void> {
+  dotenvConfig();
+  if (flag('help')) {
+    console.log('Usage: send-pe-alert-emails [--hours <positive number>] [--commit]');
+    console.log(
+      'Best-effort NON-RETRY: consumes a window before sending; acceptance is not delivery. Exit 2: usage; 1: job failure; 0: completed/disabled/dry run (inspect recipient outcomes).',
+    );
+    return;
+  }
   if (!process.env.DATABASE_URL) {
     console.error('Usage: send-pe-alert-emails [--hours <n>] [--commit] (requires DATABASE_URL)');
     process.exitCode = 2;
@@ -77,8 +85,12 @@ async function main(): Promise<void> {
   }
   const commit = flag('commit');
   const hours = Number(argVal('hours') ?? 25);
+  if (!Number.isFinite(hours) || hours <= 0 || hours > 48) {
+    console.error('--hours must be a positive number no greater than 48');
+    process.exitCode = 2;
+    return;
+  }
   const prisma = new PrismaService();
-  await prisma.onModuleInit();
 
   const appBaseUrl = process.env.TRACKER_APP_BASE_URL ?? 'https://app.capiro.ai';
   const from = process.env.TRACKER_ALERT_EMAIL_FROM ?? 'alerts@capiro.ai';
@@ -95,12 +107,9 @@ async function main(): Promise<void> {
     critical: number;
   }
 
-  const run = async (): Promise<RunCounts> => {
+  const run = async (window: PeEmailWindow): Promise<RunCounts> => {
     const canary = canaryTenants();
-    const watermark = await lastSuccessfulWatermark(prisma, SYNC_SOURCE);
-    const floor = new Date(Date.now() - hours * 3600 * 1000);
-    const cap = new Date(Date.now() - 48 * 3600 * 1000);
-    const since = watermark ? new Date(Math.max(watermark.getTime(), cap.getTime())) : floor;
+    const { since, until } = window;
 
     // Phase A — all DB reads + watchlist stamping inside one bypass-RLS
     // transaction; build the email plan but send NOTHING here. Sending is
@@ -108,7 +117,7 @@ async function main(): Promise<void> {
     // (connection-pool + long-transaction hazard at scale).
     const { summary, queued } = await prisma.withSystem(async (tx) => {
       const rawAlerts = await tx.intelligenceChange.findMany({
-        where: { detectedAt: { gte: since }, relatedPeCodes: { isEmpty: false } },
+        where: { detectedAt: { gte: since, lt: until }, relatedPeCodes: { isEmpty: false } },
         select: {
           id: true,
           changeType: true,
@@ -134,6 +143,8 @@ async function main(): Promise<void> {
       const summary = {
         mode: commit ? 'COMMIT' : 'DRY_RUN',
         since: since.toISOString(),
+        until: until.toISOString(),
+        delivery_policy: 'best_effort_non_retry',
         alerts: alerts.length,
         canary: canary.all ? 'all' : [...canary.ids],
         watchlist_links_added: 0,
@@ -248,53 +259,69 @@ async function main(): Promise<void> {
       return { summary, queued };
     });
 
-    // Phase B — send outside any transaction. Best-effort: a failed send is
-    // logged, never aborts the batch, and the IntelligenceChange rows remain
-    // the durable record.
-    let sent = 0;
-    if (commit && queued.length > 0) {
-      const ses = new SESv2Client({ region });
-      for (const e of queued) {
-        try {
-          await ses.send(
-            new SendEmailCommand({
-              FromEmailAddress: from,
-              Destination: { ToAddresses: [e.to] },
-              Content: {
-                Simple: {
-                  Subject: { Data: e.subject, Charset: 'UTF-8' },
-                  Body: {
-                    Html: { Data: e.html, Charset: 'UTF-8' },
-                    Text: { Data: e.text, Charset: 'UTF-8' },
-                  },
-                },
-              },
-            }),
-          );
-          sent += 1;
-        } catch (err) {
-          console.error(`[send-pe-alert-emails] send to ${e.to} failed: ${(err as Error).message}`);
-        }
-      }
-    }
-
-    console.log(JSON.stringify({ ...summary, emails_sent: sent }, null, 2));
+    // Phase B — no transaction is held over SES. SyncRun already consumed this
+    // exact window; even a failed final receipt cannot replay its recipients.
+    let outcomes: EmailSendOutcome[] = [];
+    if (commit && queued.length > 0)
+      outcomes = await sendPeEmailBatch(queued, from, region, async (current) => {
+        if (!window.runId) throw new Error('PE email window has no durable claim');
+        await prisma.syncRun.update({
+          where: { id: window.runId },
+          data: {
+            stats: {
+              ...peEmailWindowStats(window),
+              recipients: current.map((outcome, index) => ({ recipient: index + 1, ...outcome })),
+            },
+          },
+        });
+      });
+    const accepted = outcomes.filter((outcome) => outcome.status === 'accepted').length;
+    const failed = outcomes.filter((outcome) => outcome.status === 'failed').length;
+    const unknown = outcomes.filter((outcome) => outcome.status === 'outcome_unknown').length;
+    const recipients = summary.emails.map((email, index) => ({
+      ...email,
+      status: outcomes[index]?.status ?? 'not_attempted',
+    }));
+    console.log(
+      JSON.stringify(
+        { ...summary, emails: recipients, accepted, failed, outcome_unknown: unknown },
+        null,
+        2,
+      ),
+    );
     if (!commit) console.log('DRY RUN — re-run with --commit to stamp + send.');
-    return { inserted: sent, updated: summary.watchlist_links_added, skipped: 0, errors: 0 };
+    return {
+      inserted: accepted,
+      updated: summary.watchlist_links_added,
+      skipped: 0,
+      errors: failed + unknown,
+      errorMessage:
+        failed + unknown
+          ? 'Best-effort NON-RETRY: some recipient acceptances failed or remain unknown; consumed window will not replay'
+          : undefined,
+      stats: {
+        accepted,
+        failed,
+        outcome_unknown: unknown,
+        recipients: outcomes.map((outcome, index) => ({ recipient: index + 1, ...outcome })),
+      },
+    };
   };
 
   try {
+    await prisma.onModuleInit();
     if (commit) {
-      await runWithSyncRun(prisma, SYNC_SOURCE, run);
+      await runPeEmailWindow(prisma, hours, run);
     } else {
-      await run();
+      await run(await prisma.withSystem((tx) => peEmailWindow(tx, new Date(), hours)));
     }
   } finally {
     await prisma.onModuleDestroy();
   }
 }
 
-void main().catch((e) => {
-  console.error('[send-pe-alert-emails] fatal', (e as Error)?.stack ?? e);
-  process.exit(1);
-});
+if (require.main === module)
+  void main().catch((e) => {
+    console.error('[send-pe-alert-emails] fatal', (e as Error)?.stack ?? e);
+    process.exit(1);
+  });
