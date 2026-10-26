@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   NotFoundException,
   Param,
   Post,
@@ -175,26 +176,30 @@ export class ResearchPortfolioSharePublicController {
   constructor(private readonly share: ResearchPortfolioShareService) {}
 
   @Get(':token')
+  @Header('Cache-Control', 'no-store')
+  @Header('Referrer-Policy', 'no-referrer')
   availability(@Param('token') token: string): Promise<ResearchPortfolioShareAvailabilityDto> {
     return this.share.availability(token);
   }
 
   @Post(':token/pin')
+  @Header('Cache-Control', 'no-store')
+  @Header('Referrer-Policy', 'no-referrer')
   verifyPin(
     @Param('token') token: string,
     @Body() dto: ResearchPortfolioSharePinDto,
     @Req() req: Request,
   ): Promise<ResearchPortfolioShareViewSessionDto> {
-    const forwarded = req.headers['x-forwarded-for'];
-    const address =
-      (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(',')[0]?.trim() ||
-      req.ip ||
-      'unknown';
+    // Express owns proxy trust. Do not accept a caller's raw forwarded prefix.
+    // The durable per-link lock is primary; a gateway may share this address.
+    const address = req.ip || 'unknown';
     return this.share.verifyPin(token, dto?.pin, address);
   }
 
   /** POST so the short-lived view token travels in the body, never in the address or a log line. */
   @Post(':token/dashboard')
+  @Header('Cache-Control', 'no-store')
+  @Header('Referrer-Policy', 'no-referrer')
   dashboard(
     @Param('token') token: string,
     @Body() dto: ResearchPortfolioShareViewDto,

@@ -303,7 +303,8 @@ export class TenantContextMiddleware implements NestMiddleware {
       '/api/public/research-share',
     ];
     if (bypassPaths.some((bypassPath) => isBypassPath(bypassPath, path, originalUrl, baseUrl))) {
-      if (!originalUrl.includes('/newsletter-public/')) this.logger.log(
+      if (!originalUrl.includes('/newsletter-public/') &&
+          !isBypassPath('/api/public/research-share', path, originalUrl, baseUrl)) this.logger.log(
         `Bypassing tenant context for public/external route (path=${path}, originalUrl=${originalUrl}, baseUrl=${baseUrl})`,
       );
       next();

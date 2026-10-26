@@ -72,7 +72,7 @@ CREATE TABLE research_portfolio_share_links (
   CONSTRAINT research_portfolio_share_links_client_fkey FOREIGN KEY (tenant_id, client_id)
     REFERENCES clients(tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT research_portfolio_share_links_design_fkey FOREIGN KEY (tenant_id, design_id)
-    REFERENCES research_portfolio_dashboard_designs(tenant_id, id) ON DELETE SET NULL,
+    REFERENCES research_portfolio_dashboard_designs(tenant_id, id) ON DELETE SET NULL (design_id),
   -- Fixed one-week lifetime, never extended.
   CHECK (expires_at = published_at + INTERVAL '7 days')
 );

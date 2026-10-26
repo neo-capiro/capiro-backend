@@ -106,6 +106,19 @@ function harness(
         Object.assign(row, data, { version: row.version + 1, updatedAt: new Date() });
         return row;
       }),
+      updateMany: jest.fn(async ({ where, data }: any) => {
+        const row = state.designs.find(
+          (d: any) => d.id === where.id && d.version === where.version,
+        );
+        if (!row) return { count: 0 };
+        Object.assign(row, data, { version: row.version + 1, updatedAt: new Date() });
+        return { count: 1 };
+      }),
+      findFirstOrThrow: jest.fn(async ({ where }: any) => {
+        const row = state.designs.find((d: any) => d.id === where.id);
+        if (!row) throw new Error('missing design');
+        return row;
+      }),
     },
     researchPortfolioShareLink: {
       findUnique: jest.fn(async ({ where }: any) =>
@@ -170,10 +183,30 @@ function harness(
     tenantMembership: { findFirst: jest.fn().mockResolvedValue({ status: 'active' }) },
     $queryRawUnsafe: jest.fn().mockResolvedValue([{ allowed: true }]),
   };
+  let pendingLock = Promise.resolve();
+  const transaction = async (fn: any) => {
+    let release: (() => void) | undefined;
+    const scoped = {
+      ...tx,
+      $queryRaw: jest.fn(async () => {
+        const previous = pendingLock;
+        pendingLock = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        await previous;
+        return [{ id: portfolioId }];
+      }),
+    };
+    try {
+      return await fn(scoped);
+    } finally {
+      release?.();
+    }
+  };
   const prisma: any = {
-    withTenant: jest.fn(async (_tenantId: string, fn: any) => fn(tx)),
-    withTenantUser: jest.fn(async (_t: string, _u: string, fn: any) => fn(tx)),
-    withSystem: jest.fn(async (fn: any) => fn(tx)),
+    withTenant: jest.fn(async (_tenantId: string, fn: any) => transaction(fn)),
+    withTenantUser: jest.fn(async (_t: string, _u: string, fn: any) => transaction(fn)),
+    withSystem: jest.fn(async (fn: any) => transaction(fn)),
   };
   const analytics: any = {
     snapshot: jest.fn().mockResolvedValue({
@@ -224,22 +257,20 @@ function harness(
     }),
   };
   const phase11: any = {
-    getFit: jest
-      .fn()
-      .mockResolvedValue({
-        portfolioId,
-        clientFits: [
-          {
-            clientId,
-            clientName: 'Client One',
-            fitScore: 62,
-            availability: 'available',
-            basis: null,
-            refreshedAt: '2026-10-20T00:00:00.000Z',
-          },
-        ],
-        calculatedAt: '2026-10-20T00:00:00.000Z',
-      }),
+    getFit: jest.fn().mockResolvedValue({
+      portfolioId,
+      clientFits: [
+        {
+          clientId,
+          clientName: 'Client One',
+          fitScore: 62,
+          availability: 'available',
+          basis: null,
+          refreshedAt: '2026-10-20T00:00:00.000Z',
+        },
+      ],
+      calculatedAt: '2026-10-20T00:00:00.000Z',
+    }),
   };
   const service = new ResearchPortfolioShareService(prisma, analytics, changes, phase11);
   return { service, tx, state, prisma };
@@ -436,5 +467,151 @@ describe('recipient access', () => {
     await expect(h.service.dashboard(token, session.viewToken)).rejects.toThrow(/not available/);
     const next = await h.service.verifyPin(token, '654321', '203.0.113.9');
     expect((await h.service.dashboard(token, next.viewToken)).snapshot.name).toBe('Q4');
+  });
+  it('counts concurrent wrong PINs under the same lock and commits failures before refusal', async () => {
+    const { h, token } = await published();
+    const outcomes = await Promise.allSettled(
+      Array.from({ length: 6 }, (_, i) => h.service.verifyPin(token, '999999', `synthetic-${i}`)),
+    );
+    expect(outcomes.every((r) => r.status === 'rejected')).toBe(true);
+    expect(h.state.links[0].failedPinAttempts).toBe(5);
+    expect(h.state.links[0].lockedUntil).toBeInstanceOf(Date);
+    await expect(h.service.verifyPin(token, '123456', 'synthetic-valid')).rejects.toThrow(
+      /not available/,
+    );
+    expect(h.state.links[0].openCount).toBe(0);
+  });
+  it.each(['revoke', 'disable', 'pin'] as const)(
+    'rechecks a public lookup queued behind %s',
+    async (change) => {
+      const { h, token } = await published('owner');
+      const session = await h.service.verifyPin(token, '123456', 'synthetic');
+      const entered = deferred(),
+        resume = deferred();
+      h.tx.researchPortfolio.findFirst.mockImplementationOnce(async () => {
+        entered.resolve();
+        await resume.promise;
+        return {
+          id: portfolioId,
+          revision: 4,
+          grants: [{ role: 'owner' }],
+          clientLinks: [{ clientId }],
+        };
+      });
+      const mutation =
+        change === 'revoke'
+          ? h.service.revokeLink(ctx, portfolioId, h.state.links[0].id)
+          : change === 'disable'
+            ? h.service.disableSharing(ctx, portfolioId)
+            : h.service.changePin(ctx, portfolioId, { pin: '654321' });
+      await entered.promise;
+      const read = h.service.dashboard(token, session.viewToken);
+      const verify = h.service.verifyPin(token, '123456', 'synthetic-next');
+      const readResult = expect(read).rejects.toThrow(/not available/);
+      const verifyResult = expect(verify).rejects.toThrow(/not available/);
+      resume.resolve();
+      await mutation;
+      await Promise.all([readResult, verifyResult]);
+    },
+  );
+  it('does not expose availability while sharing is disabled', async () => {
+    const { h, token } = await published();
+    h.state.setting.enabled = false;
+    expect(await h.service.availability(token)).toEqual({ available: false });
+  });
+  it('starts a new failure window after the timed lock has expired', async () => {
+    const { h, token } = await published();
+    Object.assign(h.state.links[0], {
+      failedPinAttempts: 5,
+      lockedUntil: new Date(Date.now() - 1),
+    });
+    await expect(h.service.verifyPin(token, '000000', 'synthetic')).rejects.toThrow(
+      /not available/,
+    );
+    expect(h.state.links[0].failedPinAttempts).toBe(1);
+    expect(h.state.links[0].lockedUntil).toBeNull();
+  });
+});
+
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
+describe('concurrent sharing mutations', () => {
+  const input = { operationKey: 'same-operation', snapshotId, designId, clientId, branding: true };
+  it('serializes publish with disable so reenable cannot revive an escaped link', async () => {
+    const h = harness({ enabled: true, pin: '123456' });
+    const entered = deferred(),
+      resume = deferred();
+    h.tx.client.findFirst.mockImplementationOnce(async () => {
+      entered.resolve();
+      await resume.promise;
+      return { name: 'Client One' };
+    });
+    const publishing = h.service.publishLink(ctx, portfolioId, input);
+    await entered.promise;
+    const disabling = h.service.disableSharing(ctx, portfolioId);
+    resume.resolve();
+    const first = await publishing;
+    await disabling;
+    await h.service.enableSharing(ctx, portfolioId, { pin: '654321' });
+    expect(await h.service.availability(first.token!)).toEqual({ available: false });
+    expect(h.state.links[0].revokedAt).toBeInstanceOf(Date);
+  });
+  it('serializes same-key publication and refuses changed design or branding', async () => {
+    const h = harness({ enabled: true, pin: '123456' });
+    const links = await Promise.all([
+      h.service.publishLink(ctx, portfolioId, input),
+      h.service.publishLink(ctx, portfolioId, input),
+    ]);
+    expect(h.state.links).toHaveLength(1);
+    expect(links.map((link) => link.replayed).sort()).toEqual([false, true]);
+    await expect(
+      h.service.publishLink(ctx, portfolioId, { ...input, branding: false }),
+    ).rejects.toThrow(/different link/);
+    await expect(
+      h.service.publishLink(ctx, portfolioId, { ...input, designId: 'other-design' }),
+    ).rejects.toThrow(/different link/);
+  });
+  it('lets only one editor save an expected design version and refuses missing versions', async () => {
+    const h = harness({ enabled: true, pin: '123456' });
+    const results = await Promise.allSettled(
+      ['A', 'B'].map((name) =>
+        h.service.saveDesign(ctx, portfolioId, designId, {
+          name,
+          layout: layout as any,
+          expectedVersion: 3,
+        }),
+      ),
+    );
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter((r) => r.status === 'rejected')).toHaveLength(1);
+    expect(h.state.designs[0].version).toBe(4);
+    await expect(
+      h.service.saveDesign(ctx, portfolioId, designId, { name: 'C', layout: layout as any }),
+    ).rejects.toThrow(/expectedVersion/);
+  });
+  it('refuses an atomic design update that loses its version predicate', async () => {
+    const h = harness();
+    h.tx.researchPortfolioDashboardDesign.updateMany.mockResolvedValueOnce({ count: 0 });
+    await expect(
+      h.service.saveDesign(ctx, portfolioId, designId, {
+        name: 'A',
+        layout: layout as any,
+        expectedVersion: 3,
+      }),
+    ).rejects.toThrow(/saved this design first/);
+    expect(h.state.events).toHaveLength(0);
+  });
+  it('rejects malformed widgets and does not repeat a phone widget', () => {
+    expect(() => validateLayout({ columns: 12, widgets: [null] })).toThrow(/must be an object/);
+    expect(validateLayout({ ...layout, phoneOrder: ['header', 'header'] }).phoneOrder).toEqual([
+      'header',
+      'totals',
+    ]);
   });
 });

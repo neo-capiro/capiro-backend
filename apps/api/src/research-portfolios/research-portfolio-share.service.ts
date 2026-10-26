@@ -103,6 +103,8 @@ export function validateLayout(input: unknown): ResearchPortfolioDashboardLayout
     throw new BadRequestException(`A dashboard holds at most ${MAX_WIDGETS} widgets`);
   const ids = new Set<string>();
   const widgets: ResearchPortfolioDashboardWidgetDto[] = layout.widgets.map((raw) => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw))
+      throw new BadRequestException('Each widget must be an object');
     const widget = raw as Partial<ResearchPortfolioDashboardWidgetDto>;
     if (
       typeof widget.id !== 'string' ||
@@ -149,7 +151,11 @@ export function validateLayout(input: unknown): ResearchPortfolioDashboardLayout
     }
   }
   const phoneOrder = Array.isArray(layout.phoneOrder)
-    ? layout.phoneOrder.filter((id): id is string => typeof id === 'string' && ids.has(id))
+    ? [
+        ...new Set(
+          layout.phoneOrder.filter((id): id is string => typeof id === 'string' && ids.has(id)),
+        ),
+      ]
     : [];
   const ordered = [
     ...phoneOrder,
@@ -191,6 +197,7 @@ export class ResearchPortfolioShareService {
   ): Promise<ResearchPortfolioShareSettingsDto> {
     const pinHash = hashPin(this.requirePin(input.pin));
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await this.lockPortfolio(tx, ctx.tenantId, portfolioId);
       const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'owner');
       if (portfolio.lifecycle === 'archived')
         throw new ConflictException('Archived portfolios cannot be shared');
@@ -220,6 +227,7 @@ export class ResearchPortfolioShareService {
   ): Promise<ResearchPortfolioShareSettingsDto> {
     const pinHash = hashPin(this.requirePin(input.pin));
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await this.lockPortfolio(tx, ctx.tenantId, portfolioId);
       const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'owner');
       const setting = await tx.researchPortfolioShareSetting.findUnique({ where: { portfolioId } });
       if (!setting?.enabled) throw new ConflictException('Turn sharing on before changing the PIN');
@@ -242,6 +250,7 @@ export class ResearchPortfolioShareService {
     portfolioId: string,
   ): Promise<ResearchPortfolioShareSettingsDto> {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await this.lockPortfolio(tx, ctx.tenantId, portfolioId);
       const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'owner');
       const setting = await tx.researchPortfolioShareSetting.findUnique({ where: { portfolioId } });
       if (!setting) return this.settingsDto(tx, ctx.tenantId, portfolioId);
@@ -288,6 +297,7 @@ export class ResearchPortfolioShareService {
       throw new BadRequestException('Design name must be between 1 and 200 characters');
     const layout = validateLayout(input.layout);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await this.lockPortfolio(tx, ctx.tenantId, portfolioId);
       const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'editor');
       const data = {
         name,
@@ -296,17 +306,31 @@ export class ResearchPortfolioShareService {
       };
       let row;
       if (designId) {
+        if (!Number.isSafeInteger(input.expectedVersion) || input.expectedVersion! < 1)
+          throw new BadRequestException('An expectedVersion is required to update a design');
         const existing = await tx.researchPortfolioDashboardDesign.findFirst({
           where: { id: designId, tenantId: ctx.tenantId, portfolioId },
         });
         if (!existing) throw new NotFoundException('Dashboard design not found');
-        if (input.expectedVersion !== undefined && existing.version !== input.expectedVersion)
+        if (existing.version !== input.expectedVersion)
           throw new ConflictException(
             'Someone else saved this design first. Reload it before saving again.',
           );
-        row = await tx.researchPortfolioDashboardDesign.update({
-          where: { id: designId },
+        const saved = await tx.researchPortfolioDashboardDesign.updateMany({
+          where: {
+            id: designId,
+            tenantId: ctx.tenantId,
+            portfolioId,
+            version: input.expectedVersion,
+          },
           data: { ...data, version: { increment: 1 } },
+        });
+        if (saved.count !== 1)
+          throw new ConflictException(
+            'Someone else saved this design first. Reload it before saving again.',
+          );
+        row = await tx.researchPortfolioDashboardDesign.findFirstOrThrow({
+          where: { id: designId, tenantId: ctx.tenantId, portfolioId },
         });
       } else {
         row = await tx.researchPortfolioDashboardDesign.create({
@@ -367,6 +391,7 @@ export class ResearchPortfolioShareService {
     const fit = await this.phase11.getFit(ctx, portfolioId);
     const changes = await this.changes.listChanges(ctx, portfolioId, null, 50);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await this.lockPortfolio(tx, ctx.tenantId, portfolioId);
       const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'editor');
       const replay = await tx.researchPortfolioShareLink.findUnique({
         where: {
@@ -378,7 +403,9 @@ export class ResearchPortfolioShareService {
         if (
           replay.portfolioId !== portfolioId ||
           replay.snapshotId !== input.snapshotId ||
-          replay.clientId !== input.clientId
+          replay.clientId !== input.clientId ||
+          replay.designId !== input.designId ||
+          replay.branding !== branding
         )
           throw new ConflictException('This publish operation key was used for a different link');
         return { link: this.linkDto(replay), token: null, replayed: true };
@@ -509,6 +536,7 @@ export class ResearchPortfolioShareService {
     linkId: string,
   ): Promise<ResearchPortfolioShareLinkDto> {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await this.lockPortfolio(tx, ctx.tenantId, portfolioId);
       const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'editor');
       return this.revokeRow(tx, ctx, portfolioId, portfolio.revision, linkId);
     });
@@ -524,6 +552,7 @@ export class ResearchPortfolioShareService {
         select: { portfolioId: true },
       });
       if (!row) throw new NotFoundException('Share link not found');
+      await this.lockPortfolio(tx, ctx.tenantId, row.portfolioId);
       const portfolio = await tx.researchPortfolio.findFirst({
         where: { id: row.portfolioId, tenantId: ctx.tenantId },
         select: { revision: true },
@@ -535,8 +564,9 @@ export class ResearchPortfolioShareService {
   // ---------------------------------------------------------------- public (link + PIN, no session)
 
   async availability(token: string): Promise<ResearchPortfolioShareAvailabilityDto> {
-    const row = await this.findLiveLink(token);
-    return { available: row !== null };
+    return this.prisma.withSystem(async (tx) => ({
+      available: (await this.findLiveLink(tx, token)) !== null,
+    }));
   }
 
   async verifyPin(
@@ -545,29 +575,25 @@ export class ResearchPortfolioShareService {
     address: string,
   ): Promise<ResearchPortfolioShareViewSessionDto> {
     this.throttleAddress(address);
-    const row = await this.findLiveLink(token);
-    if (!row) throw unavailable();
-    const setting = await this.prisma.withSystem((tx) =>
-      tx.researchPortfolioShareSetting.findUnique({ where: { portfolioId: row.portfolioId } }),
-    );
-    if (!setting?.enabled || !setting.pinHash) throw unavailable();
-    if (typeof pin !== 'string' || !PIN_PATTERN.test(pin) || !verifyPin(pin, setting.pinHash)) {
-      const failures = row.failedPinAttempts + 1;
-      await this.prisma.withSystem((tx) =>
-        tx.researchPortfolioShareLink.update({
+    const session = await this.prisma.withSystem(async (tx) => {
+      const live = await this.findLiveLink(tx, token);
+      if (!live) return null;
+      const { row, pinHash } = live;
+      if (typeof pin !== 'string' || !PIN_PATTERN.test(pin) || !verifyPin(pin, pinHash)) {
+        const failures = (row.lockedUntil ? 0 : row.failedPinAttempts) + 1;
+        await tx.researchPortfolioShareLink.update({
           where: { id: row.id },
           data: {
             failedPinAttempts: failures,
             lockedUntil:
               failures >= SHARE_PIN_MAX_FAILURES ? new Date(Date.now() + SHARE_PIN_LOCK_MS) : null,
           },
-        }),
-      );
-      throw unavailable();
-    }
-    const exp = Date.now() + SHARE_VIEW_SESSION_MS;
-    await this.prisma.withSystem((tx) =>
-      tx.researchPortfolioShareLink.update({
+        });
+        // A throw here would roll back the failed attempt and defeat the lockout.
+        return null;
+      }
+      const exp = Math.min(Date.now() + SHARE_VIEW_SESSION_MS, row.expiresAt.getTime());
+      await tx.researchPortfolioShareLink.update({
         where: { id: row.id },
         data: {
           failedPinAttempts: 0,
@@ -575,27 +601,23 @@ export class ResearchPortfolioShareService {
           openCount: { increment: 1 },
           lastOpenedAt: new Date(),
         },
-      }),
-    );
-    return {
-      viewToken: this.signView(row.id, exp, setting.pinHash, row.tokenHash),
-      expiresAt: new Date(exp).toISOString(),
-    };
+      });
+      return {
+        viewToken: this.signView(row.id, exp, pinHash, row.tokenHash),
+        expiresAt: new Date(exp).toISOString(),
+      };
+    });
+    if (!session) throw unavailable();
+    return session;
   }
 
   async dashboard(token: string, viewToken: string): Promise<ResearchPortfolioShareDashboardDto> {
-    const row = await this.findLiveLink(token);
-    if (!row) throw unavailable();
-    const setting = await this.prisma.withSystem((tx) =>
-      tx.researchPortfolioShareSetting.findUnique({ where: { portfolioId: row.portfolioId } }),
-    );
-    if (
-      !setting?.enabled ||
-      !setting.pinHash ||
-      !this.verifyView(viewToken, row.id, setting.pinHash, row.tokenHash)
-    )
-      throw unavailable();
-    return row.payload as unknown as ResearchPortfolioShareDashboardDto;
+    return this.prisma.withSystem(async (tx) => {
+      const live = await this.findLiveLink(tx, token);
+      if (!live || !this.verifyView(viewToken, live.row.id, live.pinHash, live.row.tokenHash))
+        throw unavailable();
+      return live.row.payload as unknown as ResearchPortfolioShareDashboardDto;
+    });
   }
 
   // ---------------------------------------------------------------- internals
@@ -626,12 +648,23 @@ export class ResearchPortfolioShareService {
     }
   }
 
-  private async findLiveLink(token: string) {
+  /** All share operations lock the existing portfolio before settings/link rows.
+   * Public lookup only identifies the lock; current authority is reread afterwards. */
+  private async lockPortfolio(tx: Tx, tenantId: string, portfolioId: string): Promise<void> {
+    await tx.$queryRaw`SELECT id FROM research_portfolios
+      WHERE tenant_id = ${tenantId}::uuid AND id = ${portfolioId}::uuid FOR UPDATE`;
+  }
+
+  private async findLiveLink(tx: Tx, token: string) {
     if (typeof token !== 'string' || !/^[0-9a-f]{64}$/.test(token)) return null;
     const tokenHash = sha256(token);
-    const row = await this.prisma.withSystem((tx) =>
-      tx.researchPortfolioShareLink.findUnique({ where: { tokenHash } }),
-    );
+    const identity = await tx.researchPortfolioShareLink.findUnique({
+      where: { tokenHash },
+      select: { tenantId: true, portfolioId: true },
+    });
+    if (!identity) return null;
+    await this.lockPortfolio(tx, identity.tenantId, identity.portfolioId);
+    const row = await tx.researchPortfolioShareLink.findUnique({ where: { tokenHash } });
     if (!row) return null;
     const stored = Buffer.from(row.tokenHash, 'hex'),
       given = Buffer.from(tokenHash, 'hex');
@@ -639,7 +672,11 @@ export class ResearchPortfolioShareService {
     const now = Date.now();
     if (row.revokedAt || row.expiresAt.getTime() <= now) return null;
     if (row.lockedUntil && row.lockedUntil.getTime() > now) return null;
-    return row;
+    const setting = await tx.researchPortfolioShareSetting.findUnique({
+      where: { portfolioId: row.portfolioId },
+    });
+    if (!setting?.enabled || !setting.pinHash) return null;
+    return { row, pinHash: setting.pinHash };
   }
 
   /** The view token is keyed on the PIN hash and the link token hash: a PIN change or a new link ends every session. */
