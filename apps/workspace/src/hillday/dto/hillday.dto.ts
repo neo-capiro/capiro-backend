@@ -145,6 +145,8 @@ export class PatchHillDayDocumentDto {
 
 export class CreateExportDto {
   @IsOptional() @IsIn(['letter', 'a4']) pageSize?: 'letter' | 'a4';
+  /** Retain before POST; exact replay/readback never starts another render. */
+  @IsOptional() @IsUUID() requestId?: string;
 }
 
 /**

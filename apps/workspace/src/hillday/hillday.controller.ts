@@ -383,7 +383,16 @@ export class HillDayController {
     @Param('id') id: string,
     @Body() dto: CreateExportDto,
   ) {
-    return this.exports.create(ctx.tenantId, ctx.clerkUserId, id, dto.pageSize ?? 'letter');
+    return this.exports.create(ctx.tenantId, ctx.clerkUserId, id, dto.pageSize ?? 'letter', dto.requestId);
+  }
+
+  @Get('documents/:id/exports/requests/:requestId')
+  getExportRequest(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('id') id: string,
+    @Param('requestId') requestId: string,
+  ) {
+    return this.exports.getRequest(ctx.tenantId, id, requestId, ctx.clerkUserId);
   }
 
   @Get('documents/:id/exports/:exportId')

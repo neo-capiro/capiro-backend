@@ -827,6 +827,13 @@ model WsHillDayExport {
   tenantId   String    @map("tenant_id") @db.Uuid
   documentId String    @map("document_id") @db.Uuid
   actorId    String    @map("actor_id")
+  // Nullable for historical non-recoverable requests; no synthetic backfill.
+  requestId String? @map("request_id") @db.Uuid
+  requestHash String? @map("request_hash") @db.VarChar(64)
+  // Digest of captured assembled input, NOT a whole-document revision number.
+  renderInputSha256 String? @map("render_input_sha256") @db.VarChar(64)
+  contentSha256 String? @map("content_sha256") @db.VarChar(64)
+  sourceUpdatedAt DateTime? @map("source_updated_at")
   format     String    @default("pdf")
   pageSize   String    @default("letter") @map("page_size")
   // queued | ready | failed
@@ -842,6 +849,7 @@ model WsHillDayExport {
   document WsHillDayDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, documentId])
+  @@unique([tenantId, actorId, requestId], map: "ws_hillday_export_request_key")
   @@map("ws_hillday_export")
 }
 
