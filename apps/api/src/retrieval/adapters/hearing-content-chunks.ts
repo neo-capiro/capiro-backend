@@ -40,6 +40,14 @@ export function parseHearingContentCursor(
   }
 }
 
+/** Keep the fixed part grid, moving a cut back only when it bisects one scalar. */
+function scalarBoundary(text: string, offset: number): number {
+  const end = Math.min(offset, text.length);
+  const before = text.charCodeAt(end - 1), after = text.charCodeAt(end);
+  return before >= 0xd800 && before <= 0xdbff && after >= 0xdc00 && after <= 0xdfff
+    ? end - 1 : end;
+}
+
 /** Bound serialized content, including metadata and escaped text. Splitting the
  * complete JSON payload also preserves arbitrarily long intelligence fields,
  * witnesses and entities without inventing format-specific omissions. */
@@ -64,20 +72,21 @@ export function hearingContentChunks(payload: KnowledgeJsonObject) {
       || (typeof value === 'string' && value.length <= 240)) attribution[key] = value;
   }
   for (let part = 0; part < chunkCount; part += 1) {
-    const start = part * 2000;
+    const start = scalarBoundary(content, part * 2000);
+    const end = scalarBoundary(content, (part + 1) * 2000);
     chunks.push({
       kind: 'hearing_evidence_json_chunk',
-      originalKind: typeof payload.kind === 'string' ? payload.kind.slice(0, 80) : null,
+      originalKind: typeof payload.kind === 'string' ? payload.kind.slice(0, scalarBoundary(payload.kind, 80)) : null,
       ...attribution,
-      title: typeof payload.title === 'string' ? payload.title.slice(0, 240) : 'Hearing evidence',
+      title: typeof payload.title === 'string' ? payload.title.slice(0, scalarBoundary(payload.title, 240)) : 'Hearing evidence',
       sourceUrl:
         typeof payload.sourceUrl === 'string' && payload.sourceUrl.length <= 1000
           ? payload.sourceUrl
           : null,
       contentFormat: 'json_fragment',
-      text: content.slice(start, start + 2000),
+      text: content.slice(start, end),
       characterStart: start,
-      characterEnd: Math.min(start + 2000, content.length),
+      characterEnd: end,
       totalCharacters: content.length,
       chunk: part + 1,
       chunkCount,
