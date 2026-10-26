@@ -9950,29 +9950,7 @@ export class EngagementService {
         if (!accepted) throw new NotFoundException('Accepted mail receipt not found');
         syncedReceipt = await graphReceiptMessageInTx(tx, ctx.tenantId, connection.id, graphIdentity);
       }
-      // Reply path: verify the thread is this caller's own (same-tenant AND
-      // same-connection-owner, the exact gate `listMailThreads`/`getMailThread`
-      // read through) before touching it — a bare `update({ where: { id } })`
-      // would let a same-tenant user append to a colleague's thread, and a
-      // wrong id would surface as a raw Prisma P2025 instead of a 404.
-      const thread = syncedReceipt?.thread ?? (input.threadId && !reply
-        ? await (async () => {
-            const existing = await tx.mailThread.findFirst({
-              where: {
-                id: input.threadId,
-                tenantId: ctx.tenantId,
-                connectionId: connection.id,
-                ...ownMailThreadWhere(ctx.userId),
-              },
-              select: { id: true },
-            });
-            if (!existing) throw new NotFoundException('Mail thread not found');
-            return tx.mailThread.update({
-              where: { id: existing.id, connectionId: connection.id },
-              data: { lastMessageAt: now, snippet: snippetFromHtml(body.content) },
-            });
-          })()
-        : await tx.mailThread.upsert({
+      const thread = syncedReceipt?.thread ?? await tx.mailThread.upsert({
             // Upsert, not create: keyed on the provider's conversation id, a
             // thread can already exist locally — sync may have seen an earlier
             // message in this same conversation. A `create` would then trip
@@ -10003,7 +9981,7 @@ export class EngagementService {
             // thread: sync owns the conversation's own metadata, and a manual
             // client association must not be silently overwritten by a send.
             update: { lastMessageAt: now, snippet: snippetFromHtml(body.content) },
-          }));
+          });
       // Provider IDs are dedup keys, never grants to another connection's rows.
       // Throw inside the transaction so a collision rolls back the upsert touch.
       if (thread.connectionId !== connection.id) {
