@@ -5,14 +5,14 @@
 #
 # Multi-stage, mirroring apps/intel-api:
 #   1. base    pnpm + corepack on slim node
-#   2. build   install + prisma generate + compile API + build the SPA,
-#              then prune dev deps in place
-#   3. runtime minimal node slim, non-root user, copies the pruned workspace
+#   2. build   install + prisma generate + compile API + build the SPA
+#   3. prod-deps fresh frozen production install, including the migration CLI
+#   4. runtime minimal node slim, non-root user
 #
 # Owns onboard_* tables; the `migrate` mode runs `prisma migrate deploy` at
 # task launch (forward-only), same pattern as apps/api and apps/intel-api.
 
-ARG NODE_VERSION=20.16.0
+ARG NODE_VERSION=24.22.1
 
 # Base image is pulled from AWS's ECR Public Docker Hub mirror to avoid Docker
 # Hub's anonymous pull rate limit. Functionally identical to node:<tag>-bookworm-slim.
@@ -57,10 +57,19 @@ RUN cd apps/onboard-api && pnpm exec prisma generate
 RUN pnpm --filter @capiro/onboard-api build
 RUN pnpm --filter @capiro/onboard-web build
 
-# Prune dev dependencies in place (keeps the .pnpm store intact for the
-# generated Prisma client).
+# -------- prod-deps -----------------------------------------------------------
+# A fresh stage cannot retain the build store when pnpm requests confirmation
+# to replace an existing install. The generated native client stays in build.
+FROM base AS prod-deps
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openssl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY apps/onboard-api/package.json apps/onboard-api/package.json
+COPY packages/shared/package.json packages/shared/package.json
+COPY packages/auth/package.json packages/auth/package.json
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile --prod \
+    CI=true pnpm install --frozen-lockfile --prod \
       --filter=@capiro/onboard-api... --filter=@capiro/shared... --filter=@capiro/auth...
 
 # -------- runtime -------------------------------------------------------------
@@ -72,13 +81,18 @@ RUN groupadd --system --gid 1001 capiro \
  && apt-get update \
  && apt-get install -y --no-install-recommends wget ca-certificates dumb-init openssl \
  && rm -rf /var/lib/apt/lists/*
+# Entrypoint modes invoke node directly, including Prisma migrate. Runtime
+# package managers and their own dependencies are not part of that closure.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /opt/yarn-* \
+ && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+    /usr/local/bin/yarn /usr/local/bin/yarnpkg /usr/local/bin/pnpm /usr/local/bin/pnpx
 RUN mkdir -p /app/tmp /tmp \
  && chmod 1777 /tmp \
  && chown capiro:capiro /app/tmp
 ENV TMPDIR=/app/tmp
 WORKDIR /app
 
-COPY --chown=capiro:capiro --from=build /workspace/node_modules /app/node_modules
+COPY --chown=capiro:capiro --from=prod-deps /workspace/node_modules /app/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/packages/shared/dist /app/packages/shared/dist
 COPY --chown=capiro:capiro --from=build /workspace/packages/shared/package.json /app/packages/shared/package.json
 COPY --chown=capiro:capiro --from=build /workspace/packages/auth/dist /app/packages/auth/dist
@@ -86,9 +100,9 @@ COPY --chown=capiro:capiro --from=build /workspace/packages/auth/package.json /a
 # @capiro/auth is consumed UNBUNDLED (nest build, not the orchestrator's
 # webpack) — its dist resolves @nestjs/*+@clerk/backend through its own pnpm
 # symlink dir, which must ship or the service dies at boot (MODULE_NOT_FOUND).
-COPY --chown=capiro:capiro --from=build /workspace/packages/auth/node_modules /app/packages/auth/node_modules
+COPY --chown=capiro:capiro --from=prod-deps /workspace/packages/auth/node_modules /app/packages/auth/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/dist /app/apps/onboard-api/dist
-COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/node_modules /app/apps/onboard-api/node_modules
+COPY --chown=capiro:capiro --from=prod-deps /workspace/apps/onboard-api/node_modules /app/apps/onboard-api/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/package.json /app/apps/onboard-api/package.json
 COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/generated /app/apps/onboard-api/generated
 COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/prisma /app/apps/onboard-api/prisma
