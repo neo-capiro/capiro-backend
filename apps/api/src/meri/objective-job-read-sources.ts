@@ -12,6 +12,8 @@ import { retainedReadObject } from './retained-read-context.js';
 import { CONNECTED_APP_READ_OPERATIONS } from './connected-app-read.contract.js';
 import type { ConnectedAppReadService } from './connected-app-read.service.js';
 import { assertMeriToolAllowed } from './meri-tool-allowlist.js';
+import type { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-graph-sync.service.js';
+import { TEAMS_READ_OPERATIONS, parseTeamsInput, type TeamsReadOperation } from '../engagement/microsoft/microsoft-teams-contract.js';
 
 const refused = () => new ForbiddenException('Objective job source refused');
 const uuid = (value: unknown): value is string => typeof value === 'string' &&
@@ -26,16 +28,23 @@ export class ObjectiveJobReadSources {
     private readonly changes: Pick<ResearchPortfolioChangesService, 'listChanges'>,
     private readonly reviews: Pick<ResearchPortfolioReviewService, 'listReviews' | 'getAnnualReview'>,
     private readonly analytics: Pick<ResearchPortfolioAnalyticsService, 'snapshot'>,
-    private readonly connected?: Pick<ConnectedAppReadService, 'read'>) {}
+    private readonly connected?: Pick<ConnectedAppReadService, 'read'>,
+    private readonly teams?: Pick<MicrosoftGraphSyncService, 'readTeams'>) {}
 
   handles(operation: string): boolean {
-    return [...CONNECTED_APP_READ_OPERATIONS, 'job.readMailboxes', 'job.resolveClientReference', 'job.readMode',
+    return [...CONNECTED_APP_READ_OPERATIONS, ...TEAMS_READ_OPERATIONS, 'job.readMailboxes', 'job.resolveClientReference', 'job.readMode',
       'get_research_portfolio', 'get_research_portfolio_changes', 'job.readResearchEvidenceSource'].includes(operation);
   }
 
   async read(ctx: TenantContext, clientId: string | null, operation: string, input: unknown): Promise<unknown> {
     // Preserve the minimum role on the existing integration/RP controllers.
     if (!Number.isFinite(ROLE_RANK[ctx.role]) || ROLE_RANK[ctx.role] < ROLE_RANK.standard_user) throw refused();
+    if ((TEAMS_READ_OPERATIONS as readonly string[]).includes(operation)) {
+      assertMeriToolAllowed(operation);
+      const request = parseTeamsInput(operation as TeamsReadOperation, input);
+      if (!this.teams || (request.clientId ?? null) !== clientId) throw refused();
+      return this.teams.readTeams(ctx, operation as TeamsReadOperation, request);
+    }
     if ((CONNECTED_APP_READ_OPERATIONS as readonly string[]).includes(operation)) {
       assertMeriToolAllowed(operation);
       if (!this.connected || !input || typeof input !== 'object' ||

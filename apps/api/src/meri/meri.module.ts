@@ -106,6 +106,7 @@ import { ApplicationAuthorityModule } from '../auth/application-authority.module
 import { ContextSecurityScopeModule } from '../context/context-security-scope.module.js';
 import { ConnectedAppReadService } from './connected-app-read.service.js';
 import { ConnectedAppReadController } from './connected-app-read.controller.js';
+import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-graph-sync.service.js';
 @Module({
   imports: [
     ApplicationAuthorityModule,
@@ -169,10 +170,11 @@ import { ConnectedAppReadController } from './connected-app-read.controller.js';
     InternalServiceGuard,
     { provide: ObjectiveJobReadSources, useFactory: (integrations: EngagementService, tools: MeriToolsService,
       portfolios: ResearchPortfoliosService, changes: ResearchPortfolioChangesService,
-      reviews: ResearchPortfolioReviewService, analytics: ResearchPortfolioAnalyticsService, connected: ConnectedAppReadService) =>
-      new ObjectiveJobReadSources(integrations, tools, portfolios, changes, reviews, analytics, connected),
+      reviews: ResearchPortfolioReviewService, analytics: ResearchPortfolioAnalyticsService, connected: ConnectedAppReadService,
+      teams: MicrosoftGraphSyncService) =>
+      new ObjectiveJobReadSources(integrations, tools, portfolios, changes, reviews, analytics, connected, teams),
       inject: [EngagementService, MeriToolsService, ResearchPortfoliosService, ResearchPortfolioChangesService,
-        ResearchPortfolioReviewService, ResearchPortfolioAnalyticsService, ConnectedAppReadService] },
+        ResearchPortfolioReviewService, ResearchPortfolioAnalyticsService, ConnectedAppReadService, MicrosoftGraphSyncService] },
     { provide: ObjectiveJobService, useFactory: (prisma: PrismaService, tools: MeriToolsService,
       memory: GovernedMemoryCandidateService, sources: ObjectiveJobReadSources) => new ObjectiveJobService(prisma, tools, memory, sources),
       inject: [PrismaService, MeriToolsService, GovernedMemoryCandidateService, ObjectiveJobReadSources] },
