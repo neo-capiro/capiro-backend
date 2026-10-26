@@ -2361,6 +2361,8 @@ export class NewsletterService {
       .join('\n')
       .trim();
     if (!generated) throw new ServiceUnavailableException('Writing assistance returned no text.');
+    // A provider response can outlive the author's document or source-client access.
+    await this.row(ctx, id);
     return { text: generated };
   }
 }
