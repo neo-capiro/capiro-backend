@@ -46,6 +46,7 @@ function harness(
     snapshotFails?: boolean;
     retrievalEvidence?: string;
     compileFails?: boolean;
+    concurrentEditAtWrite?: number;
   } = {},
 ): Harness {
   const sections = opts.sections ?? ['Overview', 'Request'];
@@ -60,6 +61,7 @@ function harness(
   const promptCounts = new Map<string, number>();
   const promptBodies = new Map<string, string>();
   const compileCalls: Array<Record<string, unknown>> = [];
+  let writeCount = 0;
 
   const prisma = {
     wsDraft: {
@@ -76,7 +78,11 @@ function harness(
         context: [],
         documents: [{ id: 'doc-1', name: 'White paper', ordinal: 0, body: { blocks: [] } }],
       }),
-      updateMany: async ({ data }: { data: { config: Record<string, unknown> } }) => {
+      updateMany: async ({ where, data }: { where: { config?: { equals: unknown } }; data: { config: Record<string, unknown> } }) => {
+        if (++writeCount === opts.concurrentEditAtWrite)
+          config = { ...config, sectionContent: { Overview: 'Newer manual content' } };
+        if (where.config && JSON.stringify(where.config.equals) !== JSON.stringify(config))
+          return { count: 0 };
         config = { ...data.config };
         return { count: 1 };
       },
@@ -217,6 +223,12 @@ function runOf(result: GenerationRunResult): GenerationRunSummary {
 }
 
 describe('GenerationService generation runs', () => {
+  it.each([1, 2])('preserves a manual edit that wins before generation write %s', async (concurrentEditAtWrite) => {
+    const h = harness({ concurrentEditAtWrite });
+    await expect(h.service.generateAllSectionsInProcess(TENANT, DRAFT, 'clerk_owner'))
+      .rejects.toThrow('could not be saved durably');
+    expect(h.config().sectionContent).toEqual({ Overview: 'Newer manual content' });
+  });
   it('reports complete when every requested section succeeds', async () => {
     const h = harness();
     const run = runOf(await h.service.generateAllSectionsInProcess(TENANT, DRAFT, 'clerk_owner'));

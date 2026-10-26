@@ -192,7 +192,7 @@ export class LifecycleService {
             tenantId: tenant.id,
             ...rendered,
           });
-          if (!result.skipped) summary.remindersSent += 1;
+          if (result.sent) summary.remindersSent += 1;
         } catch (err) {
           this.logger.warn(`Trial reminder ${bucket} to ${to} failed: ${(err as Error).message}`);
         }
@@ -273,7 +273,7 @@ export class LifecycleService {
               tenantId: tenant.id,
               ...rendered,
             });
-            if (!result.skipped) summary.backstopNudges += 1;
+            if (result.sent) summary.backstopNudges += 1;
           } catch {
             /* resend next run */
           }
@@ -399,7 +399,7 @@ export class LifecycleService {
               tenantId: tenant.id,
               ...rendered,
             });
-            if (!result.skipped) summary.retentionWarnings += 1;
+            if (result.sent) summary.retentionWarnings += 1;
           } catch {
             /* retry next run */
           }

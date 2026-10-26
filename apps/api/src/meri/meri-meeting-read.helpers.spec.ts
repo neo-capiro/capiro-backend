@@ -67,6 +67,48 @@ const meeting = {
 };
 
 describe('read_client_meetings canonical pagination and proof', () => {
+  it('continues repeated empty source pages without encoding omitted identities or dates', () => {
+    const selection = parseMeetingReadInput(ctx, { clientId, limit: 1 }, clientId);
+    const omitted = row('omitted-private-first', '2026-09-01T10:00:00.000Z');
+    const first = buildMeetingListResult(ctx, selection, [], true, 1, [omitted]);
+    expect(first.coverage).toMatchObject({ complete: false, partial: true, meetingPaginationComplete: false });
+    expect(first.meetings).toEqual([]);
+    const decoded = Buffer.from(first.coverage.nextCursor!.split(':')[1]!, 'base64url').toString();
+    expect(decoded).not.toContain(omitted.id);
+    expect(decoded).not.toContain(omitted.startsAt);
+    const next = parseMeetingReadInput(ctx, { clientId, limit: 1, cursor: first.coverage.nextCursor }, clientId);
+    expect(next.listAfter).toBeNull();
+    expect(next.listSkip).toEqual({ count: 1,
+      boundarySha256: createHash('sha256').update(JSON.stringify([omitted.id, omitted.startsAt])).digest('hex') });
+    const secondOmitted = row('omitted-private-second', '2026-09-02T10:00:00.000Z');
+    const second = buildMeetingListResult(ctx, next, [], true, 1, [secondOmitted]);
+    const third = parseMeetingReadInput(ctx, { clientId, limit: 1, cursor: second.coverage.nextCursor }, clientId);
+    expect(third.listSkip?.count).toBe(2);
+    expect(third.listOffset).toBe(2);
+    const available = row('later-authorized', '2026-09-03T10:00:00.000Z');
+    const last = buildMeetingListResult(ctx, third, [available], false);
+    expect(last.meetings).toEqual([available]);
+    expect(last.coverage).toMatchObject({ nextCursor: null, complete: false, meetingPaginationComplete: true });
+  });
+
+  it('retains a readable keyset anchor and bounds omitted-prefix continuation', () => {
+    const selection = parseMeetingReadInput(ctx, { clientId, limit: 2 }, clientId);
+    const visible = row('readable', '2026-09-01T10:00:00.000Z');
+    const hidden = row('hidden', '2026-09-02T10:00:00.000Z');
+    const page = buildMeetingListResult(ctx, selection, [visible], true, 1, [visible, hidden]);
+    const next = parseMeetingReadInput(ctx, { clientId, cursor: page.coverage.nextCursor }, clientId);
+    expect(next.listAfter).toEqual({ id: visible.id, startsAt: new Date(visible.startsAt) });
+    expect(next.listSkip?.count).toBe(1);
+    const decoded = JSON.parse(Buffer.from(page.coverage.nextCursor!.split(':')[1]!, 'base64url').toString());
+    expect(JSON.stringify(decoded)).not.toContain(hidden.id);
+    for (const invalid of [0, -1, 1001, 1.5]) {
+      const cursor = 'client-meetings:' + Buffer.from(JSON.stringify({ ...decoded, skippedCount: invalid })).toString('base64url');
+      expect(() => parseMeetingReadInput(ctx, { clientId, cursor }, clientId)).toThrow('invalid');
+    }
+    expect(() => buildMeetingListResult(ctx, { ...next, listSkip: { ...next.listSkip!, count: 1000 } },
+      [], true, 1, [hidden])).toThrow('narrow the time window');
+  });
+
   it('pages more than one meeting and keeps a calendar event without transcript explicit', () => {
     const selection = parseMeetingReadInput(ctx, { clientId, limit: 2 }, clientId);
     const first = buildMeetingListResult(

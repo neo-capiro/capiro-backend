@@ -53,10 +53,11 @@ function makeMockPrisma(): PrismaService & {
         if (d.tenantId !== where.tenantId) return null;
         return { ...d, config: d.config ?? {} };
       }),
-      update: jest.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+      updateMany: jest.fn(async ({ where, data }: { where: { id: string; config?: { equals: unknown } }; data: Record<string, unknown> }) => {
         const existing = drafts.get(where.id);
-        if (existing) drafts.set(where.id, { ...existing, ...data });
-        return drafts.get(where.id);
+        if (!existing || (where.config && JSON.stringify(existing.config ?? {}) !== JSON.stringify(where.config.equals))) return { count: 0 };
+        drafts.set(where.id, { ...existing, ...data });
+        return { count: 1 };
       }),
     },
     wsAgentMessage: {
@@ -236,6 +237,20 @@ describe('DocumentAgentService', () => {
   });
 
   describe('patchAgentState', () => {
+    it('cannot replace newer ordinary content after loading its agent revision', async () => {
+      setupDraft(prisma);
+      (prisma.wsDraft.findFirst as any).mockImplementationOnce(async () => {
+        const before = structuredClone(prisma._drafts.get('draft-1'));
+        const current = prisma._drafts.get('draft-1')!;
+        prisma._drafts.set('draft-1', { ...current, config: {
+          ...(current.config as object), sectionContent: { Overview: 'Newer manual content' },
+        } });
+        return before;
+      });
+      await expect(service.patchAgentState('tenant-1', 'draft-1', 'user-1', 1, { phase: 'blueprint' }))
+        .rejects.toThrow(ConflictException);
+      expect(prisma._drafts.get('draft-1')?.config).toMatchObject({ sectionContent: { Overview: 'Newer manual content' } });
+    });
     it('patches state with valid expectedRevision', async () => {
       setupDraft(prisma);
       const result = await service.patchAgentState(

@@ -19,6 +19,7 @@ import {
   AddManualMeetingDto,
   CreateExportDto,
   CreateHillDayDocumentDto,
+  ListLibraryQueryDto,
   PatchHillDayDocumentDto,
   PutMeetingContextDto,
   RefineSectionTextDto,
@@ -69,15 +70,8 @@ export class HillDayController {
   }
 
   @Get('documents')
-  listDocuments(
-    @CurrentTenant() ctx: WorkspaceTenantContext,
-    @Query('clientId') clientId?: string,
-    @Query('status') status?: string,
-    @Query('kind') kind?: string,
-    @Query('cursor') cursor?: string,
-    @Query('limit') limit?: string,
-  ) {
-    return this.documents.listDocuments(ctx.tenantId, ctx.clerkUserId, { clientId, status, kind, cursor, limit });
+  listDocuments(@CurrentTenant() ctx: WorkspaceTenantContext, @Query() query: ListLibraryQueryDto) {
+    return this.documents.listDocuments(ctx.tenantId, ctx.clerkUserId, query);
   }
 
   @Post('documents')

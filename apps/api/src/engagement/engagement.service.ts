@@ -1420,9 +1420,14 @@ export class EngagementService {
       recipientEmails?: string[];
       limit?: number;
       cursor?: { startsAt: string; id: string };
+      continuationSkip?: { count: number; boundarySha256: string };
     },
   ) {
     const { from, to } = toDateWindow(query);
+    const skip = query.continuationSkip;
+    if (skip && (!query.clientId || !Number.isSafeInteger(skip.count) || skip.count < 1 ||
+      skip.count > 1000 || !/^[a-f0-9]{64}$/.test(skip.boundarySha256)))
+      throw new BadRequestException('Meeting continuation is invalid');
     const cursorStartsAt = query.cursor ? parseDate(query.cursor.startsAt, 'cursor') : null;
     const cursorWhere: Prisma.MeetingWhereInput = cursorStartsAt
       ? {
@@ -1458,7 +1463,24 @@ export class EngagementService {
         ctx.tenantId,
         query.clientId,
       );
-      const where: Prisma.MeetingWhereInput = { AND: [baseWhere, clientAssociationWhere] };
+      let where: Prisma.MeetingWhereInput = { AND: [baseWhere, clientAssociationWhere] };
+      if (skip) {
+        // Read only keys for the omitted prefix. A changed position refuses for
+        // restart instead of silently skipping a later currently authorized row.
+        const prefix = await tx.meeting.findMany({ where,
+          select: { id: true, startsAt: true },
+          orderBy: [{ startsAt: 'asc' }, { id: 'asc' }], take: skip.count });
+        const boundary = prefix[prefix.length - 1];
+        if (prefix.length !== skip.count || !boundary ||
+          createHash('sha256').update(JSON.stringify([boundary.id, boundary.startsAt.toISOString()])).digest('hex') !== skip.boundarySha256)
+          throw new BadRequestException('Meeting page changed; restart the read');
+        // Keyset after the verified boundary is stable if a preceding row is
+        // deleted between these awaits; an offset query would skip extra rows.
+        where = { AND: [where, { OR: [
+          { startsAt: { gt: boundary.startsAt } },
+          { startsAt: boundary.startsAt, id: { gt: boundary.id } },
+        ] }] };
+      }
 
       const rows = await tx.meeting.findMany({
         where,

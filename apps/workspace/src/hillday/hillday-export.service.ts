@@ -1,5 +1,12 @@
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import PDFDocument from 'pdfkit';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { DirectoryBridgeClient } from './directory-bridge.client.js';
@@ -44,11 +51,20 @@ export interface ExportView {
 
 type PdfDoc = InstanceType<typeof PDFDocument>;
 
+/**
+ * The dedicated export signing key, resolved at construction (never at module
+ * import) and only from its own configuration key. Exports fail closed without
+ * it: no service-secret fallback and no per-process random key, so one
+ * signature is valid on every replica and after a restart.
+ */
+function configuredSigningKey(): string | null {
+  return process.env.WORKSPACE_EXPORT_SIGNING_SECRET?.trim() || null;
+}
+
 @Injectable()
 export class HillDayExportService {
   private readonly logger = new Logger(HillDayExportService.name);
-  private readonly signingSecret =
-    process.env.WORKSPACE_EXPORT_SIGNING_SECRET ?? process.env.INTERNAL_SERVICE_SECRET ?? randomUUID();
+  private readonly signingKey = configuredSigningKey();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -62,6 +78,9 @@ export class HillDayExportService {
     documentId: string,
     pageSize: 'letter' | 'a4',
   ): Promise<ExportView> {
+    // Refuse before the export row and the render: without the dedicated key no
+    // grant can be issued, so there is no export worth persisting or rendering.
+    this.requireSigningKey();
     const doc = await this.documents.assertDoc(tenantId, documentId, actorId);
     if (doc.ownerId !== actorId) throw new ForbiddenException('Only the document owner can export it');
     const view = await this.documents.get(tenantId, documentId, actorId);
@@ -95,6 +114,8 @@ export class HillDayExportService {
     const row = await this.prisma.wsHillDayExport.findFirst({ where: { id: exportId, tenantId, documentId } });
     if (!row) throw new NotFoundException('Export not found');
     await this.documents.assertDoc(tenantId, documentId, actorId);
+    // Admission and status stay readable; a grant is minted only under the
+    // dedicated key, so renewal cannot silently sign with anything else.
     return this.toView(row);
   }
 
@@ -105,6 +126,9 @@ export class HillDayExportService {
     exp: string,
     sig: string,
   ): Promise<{ buffer: Buffer; filename: string }> {
+    // No key means no signature can be minted or checked; refuse the download
+    // before reporting a misleading expiry/signature failure.
+    this.requireSigningKey();
     const expiresAt = Number.parseInt(exp, 10);
     if (!Number.isFinite(expiresAt) || expiresAt < Date.now()) {
       throw new ForbiddenException('This download link has expired');
@@ -126,8 +150,21 @@ export class HillDayExportService {
     return `/workspace-api/hillday/files/${documentId}/${exportId}?exp=${expiresAt}&sig=${sig}`;
   }
 
+  /**
+   * The dedicated key, or a bounded export-capability failure. Everything that
+   * mints or verifies a grant goes through here, so a missing key refuses the
+   * export capability only — other Workspace routes stay up. Key material never
+   * appears in the error.
+   */
+  private requireSigningKey(): string {
+    if (!this.signingKey) {
+      throw new ServiceUnavailableException('Hill Day export signing is not configured');
+    }
+    return this.signingKey;
+  }
+
   private sign(documentId: string, exportId: string, expiresAt: number): string {
-    return createHmac('sha256', this.signingSecret)
+    return createHmac('sha256', this.requireSigningKey())
       .update(`${documentId}:${exportId}:${expiresAt}`)
       .digest('hex');
   }
@@ -143,7 +180,9 @@ export class HillDayExportService {
     createdAt: Date;
   }): ExportView {
     const ready = row.status === 'ready';
-    const expiresAt = ready ? Date.now() + SIGNED_URL_TTL_MS : null;
+    // A grant exists only under the dedicated key: without it the export stays
+    // visible but no signed URL (and no expiry promise) is minted.
+    const expiresAt = ready && this.signingKey ? Date.now() + SIGNED_URL_TTL_MS : null;
     return {
       exportId: row.id,
       documentId: row.documentId,

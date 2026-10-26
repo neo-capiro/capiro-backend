@@ -276,9 +276,8 @@ model OnboardItInvite {
   @@map("onboard_it_invite")
 }
 
-/// Outbound onboarding/lifecycle email log. `dedupeKey` makes every send
-/// idempotent (e.g. "trial_d25:<tenantId>:<periodKey>") so cron double-runs
-/// can never double-send.
+/// Durable claim made before a single provider attempt. Unknown outcomes never
+/// retry automatically. Historical sentAt is the log/claim time, not delivery.
 model OnboardEmailLog {
   id           String   @id @default(uuid()) @db.Uuid
   tenantId     String?  @map("tenant_id") @db.Uuid
@@ -287,6 +286,8 @@ model OnboardEmailLog {
   dedupeKey    String   @unique @map("dedupe_key")
   toEmail      String   @map("to_email")
   sesMessageId String?  @map("ses_message_id")
+  status       String   @default("outcome_unknown")
+  requestHash  String?   @map("request_hash")
   sentAt       DateTime @default(now()) @map("sent_at") @db.Timestamptz(6)
 
   @@index([tenantId, kind])
