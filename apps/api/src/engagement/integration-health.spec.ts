@@ -94,6 +94,30 @@ test('scope projection uses actual returned grants and omits private provider st
   expect(projected).not.toHaveProperty('syncState');
 });
 
+test('a lapsed or reauthorization-required subscription set is never projected as configured', () => {
+  const lapsed = new Date(Date.now() - 60_000).toISOString();
+  const valid = new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString();
+  const sub = (resource: string, expirationDateTime: string, needsReauthorization = false) => ({
+    id: `private-${resource}`, resource, clientState: 'private-signed-state',
+    expirationDateTime, createdAt: at, needsReauthorization,
+  });
+  const configured = (subscriptions: unknown[], stored: boolean) =>
+    integrationStatusProjection(
+      { ...row, syncState: { webhooks: { configured: stored, subscriptions } } },
+      [],
+    ).subscriptions.configured;
+
+  // Both resources expired: the renewal path is the only writer of the stored flag, so a worker
+  // that is not running leaves it stale-true while realtime delivery is already dead.
+  expect(configured([sub('me/events', lapsed), sub('me/messages', lapsed)], true)).toBe(false);
+  // One resource needing reauthorization is not a configured pair.
+  expect(configured([sub('me/events', valid), sub('me/messages', valid, true)], true)).toBe(false);
+  // A single recorded resource cannot stand in for the pair.
+  expect(configured([sub('me/events', valid)], true)).toBe(false);
+  // Readiness is the recorded resources, not the flag written at the end of the last renewal.
+  expect(configured([sub('me/events', valid), sub('me/messages', valid)], false)).toBe(true);
+});
+
 test('a last connection sync cannot stand in for mail freshness', () => {
   const projected = integrationStatusProjection(row, []);
   expect(projected.mailCoverage.lastMailSyncAt).toBeNull();

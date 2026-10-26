@@ -1,0 +1,145 @@
+## 1. Claude handles the harness
+
+The quality bar is Claude's own. Answer quality comes from the whole harness, not only the model: its system prompt, built-in tools, subagents, skills, context management and compaction, and session handling.
+
+- Run `@anthropic-ai/claude-agent-sdk` with its **full harness** and the Claude Code system-prompt preset, plus a short Capiro/Meri append. Don't replace the preset with our own prose.
+- Do not rebuild what the SDK or AWS already does: model calls, retries, streaming, the tool loop, context management and compaction, session resume/fork, per-run turn and spend limits, AWS credentials.
+- The real Claude SDK calls Bedrock directly using its narrowly scoped AgentCore runtime IAM role. Preserve the full preset, native tools, subagents and all 14 skills.
+- Capiro data reaches Claude as **tools** (rule 4), not as a custom retrieval layer around the model.
+
+Spec and plan: `phases/wave2/WAVE2-00-CLAUDE-NATIVE-HARNESS-SPEC.md`. It is **Wave 2 item 0**, and it comes before every other item that touches the runner, the proxy or authority.
+
+## 2. Simple, standard architecture
+
+```text
+browser -> control (current access, conversation/run ownership, durable events)
+        -> AgentCore Runtime V1 (isolated conversation session; actual Claude SDK) -> Bedrock
+                                      -> tool gateway -> Core
+control -> existing durable SDK SessionStore and artifact owners
+control -> Temporal for required durable runs, schedules and background work
+```
+
+- **Core is the gatekeeper for Capiro data.** Tenant, member, client and wall rules remain server-side in Core. Check current access at admission and actual tool/data/artifact access; revocation must also prevent use of previously loaded privileged context. Do not duplicate policy in the harness.
+- Reuse one isolated environment only for the same immutable tenant/actor/conversation and approved General/client scope. Serialize turns; stop idle compute and restore exact SDK transcripts and artifacts from their durable owners. A Runtime session ID is not authorization or durable storage.
+- Keep the SDK's per-run turn/spend limits and one canonical tenant cap/usage owner. Preserve required durable runs, schedules, consent, outcomes and uncertain-write fences; neither SDK Task tools nor a warm process replaces Temporal durability.
+- **No custom warm pool, per-turn ECS task requirement, model proxy, duplicated per-hop authority, credential-minting service or spend-reservation ledger.** Use standard Runtime V1; no V2 snapshot machinery or second SDK implementation.
+- Before adding a mechanism, identify the standard feature or existing owner it uses. Before deleting a wrapper, prove the retained lower-layer behavior with meaningful positive/negative tests. Do not remove canonical authorization, idempotency or durable outcomes as “extra security.”
+
+## 3. Leave no dead code behind
+
+A change is not done until what it replaced is gone.
+
+1. **Delete in the same PR** everything the change makes unused: code, tests, fixtures, docs, config keys, env vars, feature flags, IAM statements, ALB rules, secrets, task definitions, CloudFormation resources, kit steps, alarms and metric filters. Applied database migrations are history: never edit them. Drop tables only through a separately reviewed forward migration after a snapshot; this hosting migration does not itself authorize schema/data removal.
+2. **Temporary diagnostics come out before merge** of the fix they were added for. A log line stays only as named product telemetry that someone reads.
+3. **No code behind a flag nothing turns on.** The "source-complete, activation-held" status is retired for code we don't intend to ship. Dark features need an owner and a date, or they are deleted.
+4. **No** commented-out code, `legacy` or `_old` copies, compatibility shims for removed things, or "superseded" stubs.
+5. **Show proof in the PR:** list the identifiers, files and resources deleted, with a search proving no executable/active caller remains; label immutable historical references, and explain any drop in test count.
+6. **Old plan tickets for removed mechanisms are closed as superseded**, not implemented and left dormant. See `source-of-truth/SUPERSEDED-BY-ITEM-0.md`.
+7. **Reuse before write.** Use SDK, AWS and library features first. Custom code needs one line saying what the standard option couldn't do.
+
+## 4. Capiro data must keep working
+
+- Capiro data is served to Claude as tools. Core remains the source: today's read families call Core at `/api/clio/tools/<operation>`, and the new tools call the same endpoints.
+- Tools are hosted by **control** (the existing tool gateway) so the runner never holds the Core service secret (`x-internal-service-secret`). The runner gets only a short-lived per-run token for control, scoped to tenant, user, client, conversation and run.
+- Reuse the existing read handlers under `apps/gateway/sources/*` and their typed schemas. Delete the authority, relay and measurement wrappers around them.
+- Parity: every read family that works today must be reachable as a tool with the same results and the same permission outcomes. A parity checklist is part of the item 0 spec.
+- Negative tests are mandatory: another tenant's data, another client's data, and walled data must not be retrievable, through chat or through tools. A General chat reads across the clients the user can already see, with each client's wall enforced per result (FINAL-PLAN decision 2).
+- The original read-only first cut is historical. Neo subsequently authorized preview client-record writes and autonomous Wave 2 completion. Activate accepted writes through their existing authenticated domain/intent owners and receipts, with the actual route/configuration and effect semantics verified. This does not authorize the assistant to send external mail without the user's specific send instruction.
+
+# Wave 2 Outlook / Microsoft 365 connection, sync and subscription recovery — PROCESS 6.1 brief
+
+FROM: Root via Schedule Worker launcher | TO: ONE fresh Hermes Outlook author | TYPE: PROCESS6.1 brief | RE: Existing Outlook/Microsoft365 connection, sync and subscription recovery (Wave2 A2, lane A)
+
+## Allocation and ownership
+
+Sole writable checkout: `C:/dev/hermes-outlook-repair-20261026`. Repository `neo-capiro/capiro-backend`; branch `hermes/outlook-connection-sync-20261026`; base `722f094cf60e40b2fb270bb5c1e06bf66d795c42`; tree `7c835628164a28c967d4dd0ebd5037e67255b2e2`; integration target `backend-import`. Reference checkouts `C:/dev/wave2-visible-mail-core` (Core), refreshed Meri main `87dc649e829779d5f47e1a0cc5b0e939e0c729d2` and frontend main `d285e659f2bfbc00bfbd464b8c6f07dfba898d5d` are read-only. Root-supplied deployed Core source `929acd023c29d9073cbf9d5c5105eba8c3252948` is a source pin, not deployed evidence. Root orchestrates; Hermes authors and creates a DRAFT PR only; a separate Codex reviewer reviews the exact head with PROCESS6.2; Root gates/merges; existing Release alone performs cloud, database, image publication, rollout and rollback. General email, conversation admission and history recovery are excluded here and belong to the separate Control5xx owner.
+
+Bounded ownership: existing Core Outlook/Microsoft365 provider readiness/configuration, OAuth capability projection, sync/scheduler and subscription renewal/lifecycle owners, plus focused tests and existing deployment/configuration documentation where causally necessary. Shared `engagement.service.ts`, controller/module wiring or configuration only for a concrete localized integration correction. No frontend work, no Fable parity reruns, no send/reply, no consent, no token/secret inspection, no credential/config mutation, no DB/cloud/provider calls, no deployment.
+
+## Observed normal-user path and evidence limits
+
+Root used normal signed-in `/settings/integrations` and reported one connected Microsoft365 account, degraded Mail coverage, last sync about 3 days earlier, configured backfill marked complete but no last complete batch, Mail/Calendar subscriptions expired 2026-10-24 with no renewal, realtime configured but missed lifecycle, provider-not-configured server copy and disabled recovery actions. These are attributed browser observations, not proved secret/config values or a proved cause.
+
+Correction established from Root's private evidence `MERI-MAIL-INTEGRATION-STATUS-20261025.png`: the "provider not configured on the server" copy and the disabled action are on the **Gmail / Google Workspace** card ("No accounts registered." + disabled "Administrator setup required"), not on the Microsoft card. The Microsoft 365 card shows the connected row with "Mail coverage: degraded. Configured backfill completed.", "Mail: no batch result recorded. Last complete batch: Not recorded.", "Calendar: no batch result recorded. Last complete batch: Not recorded.", "Next scheduled sync: 10/22/2026, 1:29:49 PM." and "Realtime notifications: configured. Last notification: Not recorded."
+
+## Applicable master tickets (verbatim, retained requirements)
+
+#### ML-12 — Separate requested scopes, actual grants and runtime capability
+**P2 confirmed observability/contract gap; owner: OAuth backend + Settings.**
+
+Canonical requested scopes are written to token/connection rows. Microsoft refresh logs insufficient resource scopes but can keep connected; Google initial denial check is good but refresh stamps canonical scopes. Settings permissions can therefore look authoritative when they are not. OAuth “configured” does not include notification URL/runtime eligibility. Generic Engagement capabilities also hardcode campaignSendingProvider=microsoft_365 despite Gmail routing.
+
+**Tasks:** represent requested/granted/last-verified scope separately, classify missing read/send/calendar permissions, and provide actionable reconnect/admin-consent reasons. Extend existing capabilities with per-action configured/allowed/held reason and Microsoft push readiness. Correct generic provider metadata or deprecate unused misleading fields, without replacing provider-specific endpoints.
+
+**Acceptance:** partial Google consent, older Microsoft token missing Mail.ReadWrite/Send, scope revoked after connection, runtime shadow, missing notification URL, valid Gmail-only sender. No optimistic “permissions granted” claim from requested list alone. Dependencies ML-01/13.
+
+#### ML-13 — Preserve permanent reconnect state through sync failure
+**P1 confirmed status-transition bug; owner: both provider sync/token services.**
+
+**Tasks:** use typed sync/token errors and a single transition policy distinguishing transient, needs-reconnect, mailbox-not-enabled, permission-denied and disconnected. Preserve terminal/reconnect state and stop automated redemption until owner reconnects; retain safe diagnostics. Let UI retry transient sync without forcing new OAuth, but not invalid grants.
+
+**Acceptance:** real top-level sync invocation with fake token exchange invalid_grant/consent required, not only token-service unit test. Final row remains reconnect-required, excluded from scheduler claims; reconnect restores scheduled eligibility. Dependencies ML-12/17.
+
+#### ML-14 — Report mail-specific partial health and backfill progress
+**P2 confirmed truthfulness gap; owner: sync backend + Settings.**
+
+**Tasks:** persist/return per-resource attempted/succeeded/error/lastSuccess/continuation state; distinguish connected authorization from sync health. Show partial mail failure, catch-up in progress, last complete mail sync, scope/window, auto-sync schedule and explicit safe retry. Preserve durable continuations; do not loop unboundedly in browser. Make manual reset a clearly distinct advanced action with server authority and recovery evidence.
+
+**Acceptance:** calendar success/mail429, mail success/calendar failure, page/quota cap, failed record, expired history/delta reset, empty mailbox, deleted folder and long initial catch-up. UI never equates connection timestamp with complete mail coverage. Dependencies ML-13/16.
+
+#### ML-15 — Complete Microsoft subscription lifecycle recovery
+**P1 confirmed lifecycle gap; owner: Graph integration + runtime operations.**
+
+**Tasks:** invalidate/remove the exact removed subscription ID, implement provider-supported reauthorization/renewal or deliberate recreate-and-retire, serialize per-mailbox resource subscription reconciliation, and persist each resource outcome so partial creation does not leak untracked subscriptions. Expose expiry, last notification, last renewal, lifecycle failure and periodic fallback health. Preserve signed clientState matching. Reconcile missed notifications via cursor sync. Decide whether process-local notification queue plus periodic repair satisfies the product SLA; add durable queue only if required.
+
+**Acceptance:** removed while unexpired, missed, reauthorizationRequired, one of two resources fails, duplicate callback, forged clientState, wrong subscription/tenant, concurrent scheduler/manual renewal, restart after accepted notification. Later authorized live challenge/expiry recovery test. Dependencies ML-01/10/16.
+
+#### ML-16 — Bound provider calls and make sync claim lifetime match execution
+**P1 residual reliability risk; owner: provider transport + sync scheduler.**
+
+**Tasks:** introduce per-call and total sync budgets into existing transports; classify send timeout as unknown, read timeout as retryable. Give each sync a durable claim token/version or equivalent serialization across manual/scheduler/webhook entry points; cursor/state commit must reject stale owners. Release/reschedule transient work safely, retain pending page state, and use bounded jitter/backoff rather than resetting all mailboxes together. Refresh/network cancellation should not advance cursors.
+
+**Acceptance:** never-resolving fetch, process crash, lease overrun, manual+webhook+scheduler concurrency, stale state commit, multi-replica renewal, disconnect during work. Other mailboxes progress; no regression of cursor/removal state. Dependencies ML-13/15.
+
+Matching Meri master scenarios (verbatim):
+
+| E21 | Mail list/search/thread | Correct connected account/tenant/client policy, truthful unsupported attachments and no read→send escalation |
+| E44 | Inaccessible/empty/stale provider data | Truthful unavailable/no-results distinction, no fabricated success/evidence |
+
+## Completed source diagnosis and qualification — 26 October 2026 UTC
+
+Base/tree/branch re-verified locally at 00:22Z: `722f094cf60e40b2fb270bb5c1e06bf66d795c42` / `7c835628164a28c967d4dd0ebd5037e67255b2e2` / `hermes/outlook-connection-sync-20261026`, clean worktree. Engagement source is byte-identical between the deployed pin `929acd023` and `722f094c`: `git diff --stat 929acd023..722f094c -- apps/api/src/engagement` is empty, and the only 722f delta is one `updateReplacePolicy` line in `infra/cdk/lib/preview/first-chat-core.ts` plus a docs file. No accepted engagement repair was regressed in source.
+
+**Stale connection: what the displayed timestamp does and does not establish (corrected 2026-10-26, Fable, after the independent PROCESS 6.2 review).** `Next scheduled sync: 10/22/2026, 1:29:49 PM` is a `nextSyncAt` value. The claim release in `mailbox-sync-claim.ts:142-164` writes `nextSyncAt` for every syncable (`connected`/`error`) connection after BOTH successful and failed claimed work: a success uses `successIntervalMinutes + jitter`, a failure uses the shorter 15-minute interval and also sets `status='error'`; the claim acquisition itself also writes `nextSyncAt = now + MAILBOX_CLAIM_MS` while the claim is held. A stale displayed `nextSyncAt` therefore shows only that no claim release has rewritten it since that time; it does not prove whether the last claimed work succeeded or failed, how many claims occurred before it, or that no other worker exists. The earlier wording ("written only after a SUCCESSFUL scheduled sync", "has not been claimed for ~3 days") is withdrawn. What the source does establish: Microsoft subscription renewal is not an independent timer — `engagement-sync-scheduler.service.ts:159-174` runs `configureSubscriptionsByTenant` only INSIDE a claimed scheduled sync — so a connection that is not being claimed by any running worker is also not renewing, and the recorded Mail/Calendar subscriptions can lapse while "Last notification" stays unrecorded.
+
+**Competing causes still open (configuration, not source).** H1 the serving task's Engagement posture disables background workers and/or carries no Microsoft OAuth settings — both preview Core task definitions do exactly this by design (`infra/cdk/lib/preview/first-chat-core.ts:360-374` and `infra/cdk/lib/preview/services-stack.ts:219-231` set `ENGAGEMENT_BACKGROUND_OWNER=disabled` and inject none of the Microsoft/OAuth settings), and `engagement-runtime-policy.service.ts:62-66` then never starts the scheduler, whereas the live main API injects all six Microsoft/OAuth settings and host-correct callback URLs (`compute-stack.ts:661-680`, `767-768`) and keeps the permissive posture defaults; H2 the worker runs but the connection is excluded from claims (no active membership row, or a stale `oauthAttempt.expiresAt` fence); H3 `ENGAGEMENT_AUTO_SYNC` is off on the serving task. A single bounded, non-secret observation request (posture flags plus presence booleans for the seven Microsoft/OAuth setting names on the serving task) separates them; it was raised rather than guessed, and no cloud/log/DB/provider read was performed here.
+
+**Defect fixed in this change (in-lane, locally provable).** Settings claimed "Realtime notifications: configured" while every recorded subscription was expired, because `integrationStatusProjection` reported the stored `webhooks.configured` flag verbatim. That flag is written only by the renewal path itself (`microsoft-graph-sync.service.ts:594-601`, `618-628`), so a worker that is not running leaves it stale-true indefinitely. The projection now derives readiness from the recorded per-resource subscriptions using the same predicate the renewal path writes the flag with — reuse, no new field, endpoint, flag or schema change. `integration-health.ts` is consumed only by `engagement.service.ts:1374` (the Settings integrations inventory), so no gating or authority behavior changes.
+
+**Commands, UTC, exits.** All from `C:/dev/hermes-outlook-repair-20261026`, Node `v24.22.1` (`C:/Program Files/nodejs/node.exe`), Jest via `node --experimental-vm-modules node_modules/jest/bin/jest.js --forceExit --runInBand`.
+- 00:25:11Z base spec `src/engagement/integration-health.spec.ts` → exit 0, 12 passed (baseline green).
+- 00:26:05Z base + new regression only → exit 1, `1 failed, 12 passed, 13 total`: "a lapsed or reauthorization-required subscription set is never projected as configured" — `Expected: false, Received: true` for a fully expired pair. Original/base failure demonstrated.
+- 00:26:31Z after the fix → exit 0, `13 passed, 13 total`.
+- 00:26:43Z lane suite (integration-health, engagement-integrations, microsoft-subscription-lifecycle.a2, microsoft-provider-contract, engagement-sync-scheduler.service, mail-sync-health.a2, mail-sync-coverage, mail-sync-reconnect.a2) → `7 passed, 1 failed`, `116 passed, 2 failed, 118 total`.
+- 00:28:02Z the 2 failures isolated to `mail-sync-reconnect.a2.spec.ts` "Microsoft calendar-window mailbox absence stays retryable (reconnected: false|true)" (calendar-window path, unrelated to this projection).
+- 00:29:30Z with both changed files stashed at the untouched base: `mail-sync-reconnect.a2.spec.ts` → exit 1, `2 failed, 32 passed, 34 total`, identical test names. **Inherited, not caused by this change.** Stash restored; worktree re-verified.
+
+**Typecheck / build / lint.** `tsc --noEmit -p apps/api/tsconfig.json` (TypeScript 5.9.3, `--max-old-space-size=8192`): head `1175` errors (exit 2), untouched base `1175` errors (exit 2) — identical, and `0` of them name `integration-health`. The inherited failures are workspace-dependency junction drift (`Cannot find module '@nestjs/common'` / `'class-transformer'` in `apps/api-strategy`, `Module '"@capiro/shared"' has no exported member 'internalServiceSecretMatches'`, `Property 'guid' does not exist on type 'ZodString'`, `'metadataRevision' does not exist on type 'EngagementAttachmentSelect'`), so the full-project build/typecheck is not runnable in this checkout; the launcher's dependency junctions are unchanged and were not repaired. `nest build` fails for the same reason (708 errors at head). **Lint: NOT RUN** — `eslint` is not installed in this checkout or at the workspace root (only the transitive `eslint-scope`), and installing is out of scope. `prettier --check` is not this repository's gate: an untouched control file (`mail-sync-coverage.ts`) reports the same style warnings, so it proves nothing about this change; the edited code follows the file's existing style and `git diff --check` exits 0.
+
+**Deletion proof.** Nothing was replaced or made unused, so nothing was deleted; the removed expression `configured: webhooks.configured === true` was replaced in place by the derived `configured` binding, and the previously inline `resources` mapping was hoisted to a local of the same shape (the projection's output shape is unchanged). `webhooks.configured` remains written and read by its canonical owner in `microsoft-graph-sync.service.ts`. No config key, env var, flag, IAM statement, task definition or migration changed. Test count rose 12 → 13 in `integration-health.spec.ts`; no test was removed or weakened.
+
+**Not run / blocked gates.** No live Microsoft renewal, notification or challenge; no live cursor progress; no Settings acceptance by a human; no browser requalification; no provider/DB/cloud call; no deployment, image build or migration. The deployed task posture is now observed (below) rather than pending; the optional log/DB portions of the request were not allocated or executed. Rollback is `git revert` of this commit — source-only, no state, schema, resource or configuration effect.
+
+**Confirmed deployment observation (Release, 2026-10-26T00:27:11Z) — bounded current task posture (corrected 2026-10-26, Fable).** The single bounded request returned the serving task identity and its non-secret posture: the normal Settings Core API routes to `capiro-preview-first-chat-core` task definition 15 at source `929acd023c29d9073cbf9d5c5105eba8c3252948`, with `CAPIRO_SERVICE_NAME=api`, `ENGAGEMENT_PROCESS_MODE=shadow`, `ENGAGEMENT_BACKGROUND_OWNER=disabled`, `ENGAGEMENT_EXTERNAL_ACTIONS=disabled`, `ENGAGEMENT_CALLBACKS_ENABLED=false`, `ENGAGEMENT_AUTO_SYNC` absent and `ENGAGEMENT_SYNC_INTERVAL_MINUTES` absent; and all eight of `MICROSOFT_CLIENT_ID`, `MICROSOFT_TENANT_ID`, `MICROSOFT_CERT_THUMBPRINT`, `MICROSOFT_CERT_PRIVATE_KEY`, `OAUTH_STATE_SECRET`, `OAUTH_TOKEN_ENCRYPTION_KEY`, `MICROSOFT_GRAPH_NOTIFICATION_URL` and `MICROSOFT_REDIRECT_URI` absent as task-definition environment or secret bindings, with no `environmentFiles`. That matches the posture `infra/cdk/lib/preview/first-chat-core.ts:360-374` renders. Receipt: `C:/Users/Administrator/Documents/Codex/2026-10-25/wave2-visible-release/outputs/OUTLOOK-CORE-RUNTIME-POSTURE.json`, SHA-256 `ff6e22fec11b1b89a1fc73bace1d67d95437c422fee9f8147ffa34f1fafd66f2`.
+
+What this proves: the currently serving preview Core task has background ownership disabled, external actions disabled and callbacks disabled, and binds none of the requested Microsoft/OAuth names, so THIS task's Engagement scheduler does not start (`runtime/engagement-runtime-policy.service.ts` `backgroundWorkersEnabled()`), and this task cannot run Microsoft sync or renewal. What it does not prove: that credentials are invalid or absent everywhere (the names are absent as bindings on this task definition only), the connection's historical claim history, the historical cause of the stale sync and lapsed subscriptions, or the absence of another compatible worker elsewhere. H1 (serving task posture) is confirmed as a current fact; H2 (per-connection exclusion from claims: inactive membership row, `oauthAttempt.expiresAt` fence) and H3 (`ENGAGEMENT_AUTO_SYNC` off on whichever task would own sync) remain unverified for the historical period and are not settled by this review. The observation authorizes none of: enabling external actions, reconnecting, resetting, changing OAuth consent, or mutating cloud configuration. The earlier conclusion "H1 is the cause ... H2/H3 are therefore not the cause" is withdrawn. The "provider not configured on the server" copy in the retained screenshot is on the Gmail card, not the Microsoft card.
+
+**Bounded configuration carryover for the Wave 3 orchestrator and Release (replaces the earlier "exact configuration repair"; corrected 2026-10-26, Fable).** Activation is a posture/scope change owned by the Wave 3 orchestrator and the sole Release operator; nothing below was applied, and this document grants no authority to apply it. The minimal activation goes through the existing runtime/provider owners only (`engagement-runtime-env.ts` posture fields, `engagement-sync-scheduler.service.ts`, `microsoft-oauth.service.ts` / `microsoft-graph-sync.service.ts`), with these invariants:
+
+1. **One background owner.** Exactly one task may carry `ENGAGEMENT_BACKGROUND_OWNER=<its own CAPIRO_SERVICE_NAME>` together with `ENGAGEMENT_AUTO_SYNC=true` (and an explicit `ENGAGEMENT_SYNC_INTERVAL_MINUTES` if the default 20 is not wanted). Before designating it, Release confirms no other task in the account already claims this tenant's connections. `integrations_only` is not a sync posture: `backgroundWorkersEnabled()` returns false under it, so it cannot renew or sync.
+2. **Account mapping and token-key compatibility preserved.** The existing connection row stores tokens encrypted under the key the connection was created with. Any task that reads or refreshes them must bind the SAME `OAUTH_TOKEN_ENCRYPTION_KEY` material and the SAME Microsoft app registration (`MICROSOFT_CLIENT_ID`/`MICROSOFT_TENANT_ID` and certificate) that issued the stored grant. A new key or a different app registration makes retained tokens unusable and forces a reconnect; neither is authorized by this carryover.
+3. **Registered callback routing, not UI-host routing.** `MICROSOFT_REDIRECT_URI` and `MICROSOFT_GRAPH_NOTIFICATION_URL` must be the endpoints registered on the Microsoft app and actually reachable by Microsoft at the Core API that owns this connection; the host serving the UI is not that endpoint by itself, and the `app.capiro.ai` schema defaults are only correct where that API is reachable there. Release resolves the registered endpoints from the existing app registration and verifies reachability before enabling callbacks; the observed `ENGAGEMENT_CALLBACKS_ENABLED=false` posture is part of that review.
+4. **Outbound send stays denied.** This repair is read/sync recovery. The posture chosen must keep Mail send, campaign send and every other outbound Engagement action denied for this preview; where the existing posture fields cannot express "background sync on, outbound send off" for the chosen task, that is a Neo-level policy decision, not a Release default. No `Mail.Send` consent is prescribed; re-consent is conditional only on a demonstrated missing or invalid grant for the existing read/sync operation.
+5. **Verification before claims.** After any activation, the Settings projection (this PR), the per-resource subscription expiry and the actual claim/renewal receipts are the evidence; a healthy task is not a sync receipt.
+
+**Next owner.** The Wave 3 orchestrator routes the exact-head PROCESS 6.2 re-review of this documentation and decides whether and where to activate; Release alone changes configuration; Acceptance proves live renewal and coverage.
