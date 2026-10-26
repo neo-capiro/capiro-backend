@@ -324,6 +324,11 @@ export class HillDayResolutionService {
     const findAttendee = (): ResolvedAttendee | undefined =>
       dto.attendeeId ? attendees.find((a) => a.attendeeId === dto.attendeeId) : undefined;
 
+    if (
+      (dto.kind === 'assign_staffer' || dto.kind === 'manual_attendee') &&
+      dto.attendeeId !== undefined && !findAttendee()
+    ) throw new NotFoundException('Attendee not found');
+
     switch (dto.kind) {
       case 'assign_staffer': {
         if (!dto.stafferId) throw new BadRequestException('stafferId is required');

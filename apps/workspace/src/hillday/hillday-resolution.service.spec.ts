@@ -246,6 +246,109 @@ describe('HillDayResolutionService.correct', () => {
     return h;
   }
 
+  const pickedStaffer: BridgeStaffer = {
+    id: 'staff-canonical', fullName: 'Synthetic Directory Staffer', title: 'Legislative Assistant',
+    roles: ['Legislative Assistant'], issueAreas: ['Defense'], email: 'staffer@example.test',
+    officeLocation: 'Canonical office', member: courtney,
+  };
+
+  it.each(['assign_staffer', 'manual_attendee'] as const)(
+    'WS11 rejects a supplied unknown or other-meeting attendee before side effects: %s', async (kind) => {
+      const h = await resolved();
+      const before = JSON.stringify(h.meetings);
+      const foreignId = h.meetings[1]!.resolution!.attendees[0]!.attendeeId;
+      h.prisma.wsHillDayMeeting.update.mockClear();
+      h.prisma.wsHillDayDocument.update.mockClear();
+      for (const attendeeId of ['att_missing', foreignId, '', null]) {
+        await expect(h.service.correct('t', 'user-1', h.doc.id, 'm-2', {
+          kind, attendeeId: attendeeId as string, stafferId: 'selected-staffer', name: 'Manual name',
+        })).rejects.toMatchObject({ status: 404, message: 'Attendee not found' });
+      }
+      expect(h.bridge.staffer).not.toHaveBeenCalled();
+      expect(h.source.upsertEngagementContact).not.toHaveBeenCalled();
+      expect(h.prisma.wsHillDayMeeting.update).not.toHaveBeenCalled();
+      expect(h.prisma.wsHillDayDocument.update).not.toHaveBeenCalled();
+      expect(JSON.stringify(h.meetings)).toBe(before);
+    },
+  );
+
+  it.each(['assign_staffer', 'manual_attendee'] as const)(
+    'WS11 replaces a valid attendee without appending and preserves stored meeting facts: %s', async (kind) => {
+      const h = await resolved();
+      const before = JSON.parse(JSON.stringify(h.meetings[0]!));
+      const target = before.resolution.attendees[0];
+      h.bridge.staffer.mockResolvedValue({ ok: true, data: { staffer: pickedStaffer } });
+      const result = await h.service.correct('t', 'user-1', h.doc.id, 'm-2', {
+        kind, attendeeId: target.attendeeId, stafferId: 'selected-staffer', name: 'Manual name', role: 'Manual role',
+      });
+      expect(result.resolution.attendees).toHaveLength(before.resolution.attendees.length);
+      const saved = result.resolution.attendees.find((a) => a.attendeeId === target.attendeeId)!;
+      expect(saved.address).toBe(target.address);
+      expect(saved).toMatchObject(kind === 'assign_staffer'
+        ? { stafferId: pickedStaffer.id, name: pickedStaffer.fullName, role: pickedStaffer.title,
+          issueAreas: pickedStaffer.issueAreas, directoryOffice: { memberId: courtney.id }, manual: false }
+        : { stafferId: null, name: 'Manual name', role: 'Manual role', manual: true });
+      if (kind === 'assign_staffer') expect(h.bridge.staffer).toHaveBeenCalledWith('selected-staffer');
+      else expect(h.bridge.staffer).not.toHaveBeenCalled();
+      expect(h.meetings[0]!.resolution).toEqual(result.resolution);
+      expect(result.event).toEqual(before.event);
+      expect(h.meetings[0]!.event).toEqual(before.event);
+    },
+  );
+
+  it.each(['assign_staffer', 'manual_attendee'] as const)(
+    'WS11 retains omitted attendeeId append and returns the stored new identity: %s', async (kind) => {
+      const h = await resolved();
+      const previous = JSON.parse(JSON.stringify(h.meetings[0]!.resolution!.attendees));
+      h.bridge.staffer.mockResolvedValue({ ok: true, data: { staffer: pickedStaffer } });
+      const result = await h.service.correct('t', 'user-1', h.doc.id, 'm-2', {
+        kind, stafferId: 'selected-staffer', name: 'Manual name',
+      });
+      expect(result.resolution.attendees.slice(0, previous.length)).toEqual(previous);
+      expect(result.resolution.attendees).toHaveLength(previous.length + 1);
+      const added = result.resolution.attendees[previous.length]!;
+      expect(added.attendeeId).toMatch(/^att_m_[a-f0-9]{8}$/);
+      expect(added.address).toBeNull();
+      expect(added.stafferId).toBe(kind === 'assign_staffer' ? pickedStaffer.id : null);
+      expect(added.manual).toBe(kind === 'manual_attendee');
+      expect(h.meetings[0]!.resolution!.attendees[previous.length]).toEqual(added);
+    },
+  );
+
+  it.each(['unavailable', 'missing'] as const)(
+    'WS11 keeps Directory %s non-writing for a valid attendee target', async (outcome) => {
+      const h = await resolved();
+      const before = JSON.stringify(h.meetings);
+      h.bridge.staffer.mockResolvedValue(outcome === 'unavailable'
+        ? { ok: false, status: 'unavailable', detail: 'Synthetic outage' }
+        : { ok: true, data: { staffer: null } });
+      h.prisma.wsHillDayMeeting.update.mockClear();
+      h.prisma.wsHillDayDocument.update.mockClear();
+      await expect(h.service.correct('t', 'user-1', h.doc.id, 'm-2', {
+        kind: 'assign_staffer', attendeeId: h.meetings[0]!.resolution!.attendees[0]!.attendeeId,
+        stafferId: 'selected-staffer',
+      })).rejects.toMatchObject({ status: outcome === 'unavailable' ? 503 : 404 });
+      expect(h.prisma.wsHillDayMeeting.update).not.toHaveBeenCalled();
+      expect(h.prisma.wsHillDayDocument.update).not.toHaveBeenCalled();
+      expect(JSON.stringify(h.meetings)).toBe(before);
+    },
+  );
+
+  it('WS11 retains owner and current sponsor admission before attendee validation', async () => {
+    const h = await resolved();
+    h.prisma.wsHillDayMeeting.update.mockClear();
+    h.prisma.wsHillDayDocument.update.mockClear();
+    const dto = { kind: 'assign_staffer' as const, attendeeId: 'att_missing', stafferId: 'selected-staffer' };
+    await expect(h.service.correct('t', 'intruder', h.doc.id, 'm-2', dto))
+      .rejects.toMatchObject({ status: 404, message: 'Document not found' });
+    h.source.requireClient.mockRejectedValueOnce(new Error('Current sponsor access denied'));
+    await expect(h.service.correct('t', 'user-1', h.doc.id, 'm-2', dto))
+      .rejects.toThrow('Current sponsor access denied');
+    expect(h.bridge.staffer).not.toHaveBeenCalled();
+    expect(h.prisma.wsHillDayMeeting.update).not.toHaveBeenCalled();
+    expect(h.prisma.wsHillDayDocument.update).not.toHaveBeenCalled();
+  });
+
   it('applies a manual attendee (name + role) and marks it confirmed', async () => {
     const { service, meetings } = await resolved();
     const attendeeId = meetings[0]!.resolution!.attendees[0]!.attendeeId;
