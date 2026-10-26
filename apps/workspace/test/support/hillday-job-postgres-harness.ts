@@ -8,18 +8,21 @@ import { HillDayJobWorkerService } from '../../src/hillday/hillday-job-worker.se
  * {@link HillDayJobWorkerService} claim/renew logic and the real
  * {@link HillDayGenerationService} job transitions.
  *
- * Only two things are substituted, and both are named here:
+ * Two things are substituted, and both are named here:
  *  - the Hill Day source/authority port (`requireClient`), because document
- *    admission and the client wall are already covered by the existing
+ *    admission and the client wall are covered by the existing
  *    a1-source-authority / a1-authority specs — this suite is about the durable
- *    claim, lease, cancellation and retry state machine, not the wall;
- *  - the model credential, which is null so NO provider call is ever issued.
- *    A unit execution is therefore observable as a write to its meeting row,
- *    which is how "a second process must not issue the paid call again" is
- *    measured without any provider.
+ *    claim, lease, fencing, cancellation and retry state machine;
+ *  - the PROVIDER, through an injected synthetic dispatch boundary. Every call
+ *    the service would make to the real model is recorded and answered locally
+ *    with a synthetic success, so "how many provider calls were issued for this
+ *    unit" is observable directly (a database write is not a proxy for that:
+ *    one transport retry could issue two calls before one write).
  *
- * Uses the preserved disposable-schema helper only through
- * `scripts/testing/a1-disposable-postgres.cjs` (see the int-spec).
+ * The schema the cases run against is created from the ACCEPTED BASE datamodel
+ * by the int-spec, seeded with pre-migration rows, and then has this PR's exact
+ * migration SQL applied ONCE — so the same schema carries both legacy rows and
+ * the new columns, which is the real rollout shape.
  */
 export const WS10_IDS = {
   tenantId: '00000000-0000-4000-8000-0000000000a1',
@@ -27,24 +30,45 @@ export const WS10_IDS = {
   clientId: '00000000-0000-4000-8000-0000000000b1',
   documentId: '00000000-0000-4000-8000-0000000000c1',
   otherDocumentId: '00000000-0000-4000-8000-0000000000c2',
+  meeting1: '00000000-0000-4000-8000-0000000000e1',
+  meeting2: '00000000-0000-4000-8000-0000000000e2',
   requestId: '00000000-0000-4000-8000-0000000000d1',
   replayRequestId: '00000000-0000-4000-8000-0000000000d2',
+  /** A job row seeded BEFORE the migration: running, with no lease at all. */
+  legacyJobId: '00000000-0000-4000-8000-0000000000f1',
 } as const;
 
 const OWNER = 'user_ws10_owner';
 
+/** The synthetic provider answer: a valid unit payload, returned locally. */
+export const SYNTHETIC_UNIT_TEXT = JSON.stringify({ focus: 'Synthetic focus', background: 'Synthetic background', unsupported: [] });
+
 export async function createHillDayJobHarness(url: string) {
   const db = new PrismaService({ datasources: { db: { url } } });
-  const { tenantId, otherTenantId, clientId, documentId, otherDocumentId, requestId, replayRequestId } = WS10_IDS;
+  const { tenantId, clientId, documentId, otherDocumentId } = WS10_IDS;
 
-  /** Counts meeting writes: one per executed unit, i.e. one per would-be paid call. */
-  const executions: string[] = [];
-  db.$use(async (params, next) => {
-    if (params.model === 'WsHillDayMeeting' && params.action === 'update') {
-      executions.push(String((params.args as { where?: { id?: string } })?.where?.id ?? 'unknown'));
+  /**
+   * The synthetic provider boundary. Each entry is the request body actually
+   * sent, so a case can assert exactly which meeting was dispatched and how many
+   * times — and can make the "call" fail after the provider accepted it.
+   */
+  const dispatches: string[] = [];
+  let providerBehaviour: 'ok' | 'accepted-then-dropped' = 'ok';
+  /** Runs while a provider call is out — used to take the claim over mid-call. */
+  let onDispatch: (() => Promise<void>) | null = null;
+  const realFetch = global.fetch;
+  global.fetch = (async (_url: string, init?: { body?: string }) => {
+    dispatches.push(String(init?.body ?? ''));
+    const hook = onDispatch;
+    onDispatch = null;
+    if (hook) await hook();
+    if (providerBehaviour === 'accepted-then-dropped') {
+      // The request reached the provider and was accepted; the connection then
+      // dropped before we could read the answer.
+      throw new Error('socket hang up');
     }
-    return next(params);
-  });
+    return { ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: SYNTHETIC_UNIT_TEXT }] }) };
+  }) as unknown as typeof fetch;
 
   await db.$connect();
 
@@ -57,19 +81,21 @@ export async function createHillDayJobHarness(url: string) {
   });
   await db.wsHillDayDocument.create({
     data: {
-      id: otherDocumentId, tenantId: otherTenantId, ownerId: OWNER, blueprintSlug: 'hill-day',
+      id: otherDocumentId, tenantId: WS10_IDS.otherTenantId, ownerId: OWNER, blueprintSlug: 'hill-day',
       clientId, clientName: 'WS10 other tenant client', name: 'WS10 other tenant packet',
       timeZone: 'America/New_York', lookbackDays: 90,
     },
   });
 
-  // Two selected meetings, so a job has two units to resume/park independently.
-  for (const [index, id] of ['m-ws10-1', 'm-ws10-2'].entries()) {
+  for (const [index, id] of [[0, WS10_IDS.meeting1], [1, WS10_IDS.meeting2]] as const) {
     await db.wsHillDayMeeting.create({
       data: {
-        id: `00000000-0000-4000-8000-0000000000e${index + 1}`,
-        tenantId, documentId, eventId: id, ordinal: index,
-        event: { eventId: id, subject: `WS10 meeting ${index + 1}`, startsAt: '2026-10-26T13:00:00.000Z', endsAt: '2026-10-26T13:30:00.000Z' },
+        id, tenantId, documentId, eventId: `evt-ws10-${index + 1}`, ordinal: index,
+        // The subject is unique per meeting so a dispatch can be attributed.
+        event: {
+          eventId: `evt-ws10-${index + 1}`, subject: `WS10 meeting ${index + 1}`,
+          startsAt: '2026-10-26T13:00:00.000Z', endsAt: '2026-10-26T13:30:00.000Z',
+        },
       },
     });
   }
@@ -84,37 +110,56 @@ export async function createHillDayJobHarness(url: string) {
     threadMessages: async () => [],
     priorMeetings: async () => [],
   };
-  // No credential: generateUnit never reaches a provider.
-  const credentials = { resolveAnthropic: async () => null };
+  // A synthetic credential so units actually reach the injected provider
+  // boundary; there is no real key and no network call.
+  const credentials = {
+    resolveAnthropic: async () => ({ provider: 'anthropic' as const, secret: 'synthetic-no-network', model: 'synthetic', usedTenantKey: false }),
+  };
 
   const generation = new HillDayGenerationService(db, source as never, credentials as never);
   const worker = new HillDayJobWorkerService(db, generation);
 
   return {
-    db, generation, worker, executions,
+    db, generation, worker, dispatches,
     /** A second, independent worker process id — the contested replica. */
     secondWorker: new HillDayJobWorkerService(db, generation),
     ids: WS10_IDS,
     owner: OWNER,
-    async close() { await db.$disconnect(); },
+    /** Make the next provider call drop the connection after acceptance. */
+    providerAcceptsThenDrops() { providerBehaviour = 'accepted-then-dropped'; },
+    providerRecovers() { providerBehaviour = 'ok'; },
+    /** Run this while the next provider call is out (e.g. take the claim over). */
+    whileProviderCallIsOut(hook: () => Promise<void>) { onDispatch = hook; },
+    async close() {
+      global.fetch = realFetch;
+      await db.$disconnect();
+    },
+    unit(meetingId: string, state: 'queued' | 'running' | 'done' | 'failed' | 'unknown') {
+      return { meetingId, state, sectionId: meetingId, reason: null, at: new Date().toISOString() };
+    },
     async createJob(overrides: Record<string, unknown> = {}) {
       return db.wsHillDayJob.create({
         data: {
           tenantId, documentId, actorId: OWNER, status: 'queued',
-          units: [
-            { meetingId: '00000000-0000-4000-8000-0000000000e1', state: 'queued', sectionId: '00000000-0000-4000-8000-0000000000e1', reason: null, at: new Date().toISOString() },
-            { meetingId: '00000000-0000-4000-8000-0000000000e2', state: 'queued', sectionId: '00000000-0000-4000-8000-0000000000e2', reason: null, at: new Date().toISOString() },
-          ] as never,
+          units: [this.unit(WS10_IDS.meeting1, 'queued'), this.unit(WS10_IDS.meeting2, 'queued')] as never,
           ...overrides,
         } as never,
       });
     },
     async leaseOf(jobId: string) {
-      return db.wsHillDayJob.findUnique({ where: { id: jobId }, select: { status: true, leaseHolder: true, leaseExpiresAt: true, attemptCount: true, cancelRequestedAt: true, units: true } });
+      return db.wsHillDayJob.findUnique({
+        where: { id: jobId },
+        select: { status: true, leaseHolder: true, leaseExpiresAt: true, attemptCount: true, cancelRequestedAt: true, units: true, events: true, requestIds: true, quality: true },
+      });
     },
     async expireLease(jobId: string) {
       return db.$executeRaw`
         UPDATE ws_hillday_job SET lease_expires_at = NOW() - INTERVAL '1 second' WHERE id = ${jobId}::uuid
+      `;
+    },
+    async clearLease(jobId: string) {
+      return db.$executeRaw`
+        UPDATE ws_hillday_job SET lease_expires_at = NULL, lease_holder = NULL WHERE id = ${jobId}::uuid
       `;
     },
   };

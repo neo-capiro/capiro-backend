@@ -1,4 +1,4 @@
-import { Logger, Module, type OnModuleInit } from '@nestjs/common';
+import { Logger, Module, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { CollaboratorsModule } from '../collaborators/collaborators.module.js';
 import { AiCredentialService } from '../generation/ai-credential.service.js';
 import { DirectoryBridgeClient } from './directory-bridge.client.js';
@@ -32,7 +32,7 @@ import { HillDayFileController } from './hillday-file.controller.js';
     AiCredentialService,
   ],
 })
-export class HillDayModule implements OnModuleInit {
+export class HillDayModule implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(HillDayModule.name);
 
   constructor(private readonly jobWorker: HillDayJobWorkerService) {}
@@ -46,5 +46,13 @@ export class HillDayModule implements OnModuleInit {
   onModuleInit(): void {
     this.logger.log('Starting durable Hill Day job worker poller');
     this.jobWorker.startPoller(5_000);
+  }
+
+  /**
+   * Stop the poller and refuse further claims on teardown, so a shutting-down
+   * process does not keep taking on jobs with a timer it owns.
+   */
+  onModuleDestroy(): void {
+    this.jobWorker.stopPoller();
   }
 }

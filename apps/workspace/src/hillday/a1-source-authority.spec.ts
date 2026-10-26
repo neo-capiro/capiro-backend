@@ -65,6 +65,8 @@ function fixture() {
     quality: null,
     error: null,
     cancelRequestedAt: null,
+    leaseHolder: 'test-worker',
+    attemptCount: 1,
     startedAt: null,
     completedAt: null,
   };
@@ -72,6 +74,9 @@ function fixture() {
     withSystem: async (read: (value: { $queryRaw: typeof membershipRead }) => Promise<unknown>) =>
       read({ $queryRaw: membershipRead }),
     $transaction: async (read: (value: typeof tx) => Promise<unknown>) => read(tx),
+    // Section/source publication is one conditional statement; the fixture
+    // supplies the "one row written while the claim still held" outcome.
+    $executeRaw: jest.fn(async () => 1),
     wsHillDayDocument: {
       findFirst: jest.fn(async () => document),
       findMany: jest.fn(async () => [document]),
@@ -82,6 +87,9 @@ function fixture() {
       findFirst: jest.fn(async () => job),
       findUnique: jest.fn(async () => job),
       update: jest.fn(async () => job),
+      // Fenced writes: `updateMany` carries the claim predicate and reports
+      // whether this claim is still current.
+      updateMany: jest.fn(async () => ({ count: 1 })),
     },
     wsHillDayExport: {
       findFirst: jest.fn(async () => ({
@@ -183,7 +191,7 @@ describe('A1 real Hill Day source admission', () => {
     // `renew` is the lease heartbeat the durable worker supplies; here it always
     // succeeds so the test isolates the mid-run wall revocation.
     const internal = h.generation as unknown as {
-      runClaimedJob(job: string, renew: () => Promise<boolean>): Promise<string>;
+      runClaimedJob(job: string, claim: { holder: string; attempt: number }, renew: () => Promise<boolean>): Promise<string>;
       sharedContext(): Promise<unknown>;
       generateUnit(
         tenant: string,
@@ -205,10 +213,15 @@ describe('A1 real Hill Day source admission', () => {
       await firstBatch;
       return { section: { status: 'done' } };
     });
-    await internal.runClaimedJob('job', async () => true);
+    await internal.runClaimedJob('job', { holder: 'test-worker', attempt: 1 }, async () => true);
     expect(started.sort()).toEqual(['meeting-1', 'meeting-2']);
-    expect(h.db.wsHillDayJob.update).toHaveBeenCalledWith(
+    // The failure is published through the claim FENCE, so a superseded holder
+    // could never write this over a successor's job.
+    expect(h.db.wsHillDayJob.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: expect.objectContaining({
+          id: 'job', leaseHolder: 'test-worker', attemptCount: 1, status: 'running',
+        }),
         data: expect.objectContaining({ status: 'failed' }),
       }),
     );

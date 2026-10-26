@@ -784,6 +784,11 @@ model WsHillDayJob {
   // returns this same job instead of creating a second one. Null for jobs
   // created by the historical no-body caller.
   requestId   String?   @map("request_id") @db.Uuid
+  // Every start identity this job SATISFIED — the creating request plus any
+  // request that arrived while this job was already active and was answered by
+  // it. Postgres text[]; a replay of any of them resolves to this job, so a lost
+  // start response can be recovered instead of reissuing the work.
+  requestIds  String[]  @default([]) @map("request_ids")
   // [{ meetingId, state, sectionId, reason, at }] — state is
   // queued | running | done | failed | unknown. `unknown` means the provider
   // call may have been issued but its outcome was lost with the worker's lease;

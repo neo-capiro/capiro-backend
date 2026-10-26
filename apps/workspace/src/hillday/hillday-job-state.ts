@@ -19,6 +19,60 @@ export type { JobLifecycle, UnitState };
 /** Why a unit is parked instead of re-run: the provider may have been charged. */
 export const LEASE_LOST_REASON = 'lease_lost_provider_uncertain';
 
+/** A provider call whose outcome we cannot know: it may have been accepted and charged. */
+export const PROVIDER_UNCERTAIN_REASON = 'provider_uncertain';
+
+/**
+ * Failure reasons that do NOT prove the provider refused the work. A thrown
+ * transport error or a timeout happens after the request may already have been
+ * accepted and charged, so those units must be parked, never automatically
+ * replayed.
+ */
+export const UNCERTAIN_PROVIDER_REASONS: readonly string[] = [
+  PROVIDER_UNCERTAIN_REASON,
+  'provider_timeout',
+];
+
+/** True when a failure reason leaves the provider outcome genuinely unknown. */
+export function isUncertainProviderReason(reason: string | null | undefined): boolean {
+  return reason != null && UNCERTAIN_PROVIDER_REASONS.includes(reason);
+}
+
+/**
+ * Unit state for a failed unit: `unknown` when the provider outcome is
+ * uncertain (never auto-replayed, only a deliberate retry re-runs it),
+ * otherwise a definitive `failed`.
+ */
+export function unitStateForFailure(reason: string | null | undefined): UnitState {
+  return isUncertainProviderReason(reason) ? 'unknown' : 'failed';
+}
+
+/**
+ * The identity of ONE claim: the lease holder plus the claim generation
+ * (`attempt_count`, bumped by the conditional claim). A holder id alone is
+ * process-wide, so a later claim by the SAME process would be indistinguishable
+ * from the previous invocation; the attempt makes every claim unique.
+ */
+export interface JobClaim {
+  holder: string;
+  attempt: number;
+}
+
+/**
+ * The where-clause that fences every write a claim performs. A write built on
+ * this predicate only lands while the claim is still the job's current,
+ * running owner — a superseded holder (same process or another) matches
+ * nothing and must stop rather than publish a late result.
+ */
+export function claimFence(jobId: string, claim: JobClaim) {
+  return {
+    id: jobId,
+    leaseHolder: claim.holder,
+    attemptCount: claim.attempt,
+    status: 'running',
+  };
+}
+
 /**
  * Recover units a previous lease holder left `running`. Their outcome is
  * genuinely unknown — the process died after the call may have been issued —
