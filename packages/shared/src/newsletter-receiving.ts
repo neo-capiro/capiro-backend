@@ -66,6 +66,27 @@ export type NewsletterSectionLibraryItem = Omit<
 export interface NewsletterLibraryList {
   items: NewsletterSectionLibraryItem[];
 }
+/** An owned image item, including an upload response; never an upload-request receipt. */
+export interface NewsletterAssetItem {
+  id: string;
+  name: string;
+  mimeType: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp';
+  /** Managed public capability URL; syntax supplies neither origin trust nor current access. */
+  url: string;
+}
+/** One requested page. Rows and total are separate current reads, not an atomic snapshot. */
+export interface NewsletterAssetList {
+  page: number;
+  pageSize: 10 | 25 | 50 | 100;
+  total: number;
+  items: NewsletterAssetItem[];
+}
+export interface NewsletterAssetDetails extends NewsletterAssetItem {
+  createdAt: string;
+  sizeBytes: number;
+  revisionNumber: number;
+  currentRevision: boolean;
+}
 /** Actual persisted comment wire, including the service's document and tenant fields. */
 export interface NewsletterReviewComment extends NewsletterComment {
   tenantId: string;
@@ -618,6 +639,57 @@ const libraryItem: Rule = (value, path) => {
   for (const key of Object.keys(row(value, path)))
     if (!Object.prototype.hasOwnProperty.call(libraryItemFields, key)) refuse(`${path}.${key}`);
 };
+const assetFields = {
+  id: workspaceUuid,
+  name: (value: NewsletterJson, path: string) => {
+    // upload sanitizes the original filename but can leave it empty or whitespace-only.
+    if (typeof value !== 'string' || value.length > 200) refuse(path);
+  },
+  mimeType: literal('image/png', 'image/jpeg', 'image/gif', 'image/webp'),
+  url: (value: NewsletterJson, path: string) => {
+    if (typeof value !== 'string' || !/^https?:\/\/[^/]/i.test(value) || /[\s\\]/.test(value))
+      refuse(path);
+    let url: URL;
+    try {
+      url = new URL(value);
+    } catch {
+      refuse(path);
+    }
+    // The configured public base may include a port/path. Do not hardcode its origin,
+    // infer ownership from its token, or turn receiving into permission to fetch it.
+    const suffix = /\/workspace-api\/newsletters\/assets\/file\/[a-f0-9]{64}$/;
+    if (
+      !['http:', 'https:'].includes(url.protocol) ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash ||
+      !suffix.test(value) ||
+      !suffix.test(url.pathname)
+    )
+      refuse(path);
+  },
+};
+const assetItem: Rule = (value, path) => {
+  object(assetFields)(value, path);
+  for (const key of Object.keys(row(value, path)))
+    if (!Object.prototype.hasOwnProperty.call(assetFields, key)) refuse(`${path}.${key}`);
+};
+const assetDetailFields = {
+  ...assetFields,
+  createdAt: timestamp,
+  sizeBytes: (value: NewsletterJson, path: string) => {
+    if (
+      typeof value !== 'number' ||
+      !Number.isSafeInteger(value) ||
+      value < 1 ||
+      value > 10 * 1024 * 1024
+    )
+      refuse(path);
+  },
+  revisionNumber: revision,
+  currentRevision: bool,
+};
 const commentFields = {
   id: workspaceUuid,
   tenantId: workspaceUuid,
@@ -968,6 +1040,50 @@ export function parseNewsletterLibraryList(
     },
     500,
   );
+}
+/** Acknowledged item content only: no request identity, replay safety or inferred upload outcome. */
+export function parseNewsletterAssetItem(
+  value: unknown,
+): NewsletterReceiveResult<NewsletterAssetItem> {
+  return receive(value, assetItem);
+}
+export function parseNewsletterAssetList(
+  value: unknown,
+): NewsletterReceiveResult<NewsletterAssetList> {
+  const fields = {
+    page: (value: NewsletterJson, path: string) => {
+      if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1 || value > 100_000)
+        refuse(path);
+    },
+    pageSize: literal(10, 25, 50, 100),
+    total: (value: NewsletterJson, path: string) => {
+      if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) refuse(path);
+    },
+    items: array(assetItem, 100),
+  };
+  return receive(value, object(fields), (value) => {
+    const page = row(value, '$');
+    for (const key of Object.keys(page))
+      if (!Object.prototype.hasOwnProperty.call(fields, key)) refuse(`$.${key}`);
+    if ((page.items as NewsletterJson[]).length > (page.pageSize as number))
+      refuse('$.items', 'limit_exceeded');
+  });
+}
+/** The requested asset UUID is mandatory; its public URL token is a different identifier. */
+export function parseNewsletterAssetDetails(
+  value: unknown,
+  expected: { assetId: string },
+): NewsletterReceiveResult<NewsletterAssetDetails> {
+  return receive(value, object(assetDetailFields), (value) => {
+    const details = row(value, '$');
+    for (const key of Object.keys(details))
+      if (!Object.prototype.hasOwnProperty.call(assetDetailFields, key)) refuse(`$.${key}`);
+    const binding = row(snapshot(expected), '$expected');
+    object({ assetId: workspaceUuid })(binding, '$expected');
+    for (const key of Object.keys(binding)) if (key !== 'assetId') refuse(`$expected.${key}`);
+    if ((details.id as string).toLowerCase() !== (binding.assetId as string).toLowerCase())
+      refuse('$.id', 'identity_mismatch');
+  });
 }
 /** Current review only. Core still owns access; consumers must sanitize displayed HTML. */
 export function parseNewsletterReview(
