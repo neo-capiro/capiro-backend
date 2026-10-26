@@ -162,6 +162,19 @@ export interface DocumentResolution {
   resolvedAt: string | null;
 }
 
+/** Saved facts for one stored meeting, including meetings not yet resolved. */
+export interface MeetingFacts {
+  meetingId: string;
+  eventId: string;
+  /** Null when the stored snapshot is missing, invalid or belongs to another event. */
+  facts: Pick<CalendarEvent, 'subject' | 'startsAt' | 'endsAt' | 'timeZone' | 'location'> | null;
+}
+
+/** GET resolution only; POST continues to return DocumentResolution. */
+export interface DocumentResolutionRead extends DocumentResolution {
+  meetingFacts: MeetingFacts[];
+}
+
 // ── Carry-over context ──────────────────────────────────────────────────────
 
 export interface CarrySelection {
