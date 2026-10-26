@@ -1,8 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../../config/config.schema.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { TrackerEmailService } from './tracker-email.service.js';
+import { TrackerEmailService, type EmailSendResult } from './tracker-email.service.js';
 import { SmsService } from '../sms/sms.service.js';
 import { clearsMateriality, type TrackerAlertEvent } from './tracker-notification.types.js';
 import { renderAlertEmail, renderDigestEmail, renderTestEmail } from './tracker-email.templates.js';
@@ -49,8 +49,6 @@ function isWithinQuietHours(start: string | null, end: string | null): boolean {
  */
 @Injectable()
 export class TrackerAlertService {
-  private readonly logger = new Logger(TrackerAlertService.name);
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly email: TrackerEmailService,
@@ -196,7 +194,7 @@ export class TrackerAlertService {
             pref.userId,
             alertId,
             'email',
-            'sending',
+            'outcome_unknown',
           );
           if (logId) {
             const { subject, html, text } = renderAlertEmail({
@@ -204,7 +202,7 @@ export class TrackerAlertService {
               url: this.boardUrl(event.clientId),
             });
             const res = await this.email.send(pref.emailAddress, subject, html, text);
-            await this.updateLog(event.tenantId, logId, res.sent ? 'sent' : 'failed', {
+            await this.updateLog(event.tenantId, logId, res.status, {
               providerMessageId: res.messageId,
               error: res.error,
             });
@@ -255,11 +253,19 @@ export class TrackerAlertService {
 
   /**
    * Drain queued digest alerts for a cadence and deliver one summary per
-   * (user, channel). Marks rows flushed; idempotent on the per-event
-   * NotificationLog already written at enqueue time.
+   * (tenant, client, user, channel). Commit the existing queued claim and consume
+   * its queue row BEFORE provider I/O. A crash or lost receipt remains unknown
+   * and can never be selected for another automatic send.
    */
-  async flushDigests(cadence: 'daily' | 'weekly'): Promise<{ flushed: number; sent: number }> {
-    if (!this.config.get('TRACKER_ALERTS_ENABLED', { infer: true })) return { flushed: 0, sent: 0 };
+  async flushDigests(cadence: 'daily' | 'weekly') {
+    const totals = {
+      flushed: 0,
+      accepted: 0,
+      failed: 0,
+      outcome_unknown: 0,
+      suppressed: 0,
+    };
+    if (!this.config.get('TRACKER_ALERTS_ENABLED', { infer: true })) return totals;
 
     // Cross-tenant drain (scheduled worker path).
     const rows = await this.prisma.withSystem((tx) =>
@@ -269,9 +275,9 @@ export class TrackerAlertService {
         take: 5000,
       }),
     );
-    if (!rows.length) return { flushed: 0, sent: 0 };
+    if (!rows.length) return totals;
 
-    // Group by tenant|user|channel, carrying the resolved fields (not just a key).
+    // Each client's current preferences govern only that client's queued alerts.
     interface Group {
       tenantId: string;
       userId: string;
@@ -281,7 +287,7 @@ export class TrackerAlertService {
     }
     const groups = new Map<string, Group>();
     for (const r of rows) {
-      const key = `${r.tenantId}|${r.userId}|${r.channel}`;
+      const key = `${r.tenantId}|${r.clientId}|${r.userId}|${r.channel}`;
       const g =
         groups.get(key) ??
         ({
@@ -295,22 +301,53 @@ export class TrackerAlertService {
       groups.set(key, g);
     }
 
-    let sent = 0;
     for (const { tenantId, userId, channel, clientId, rows: batch } of groups.values()) {
-      const events = batch.map((b) => b.payload as unknown as TrackerAlertEvent);
+      const claim = await this.prisma.withTenant(tenantId, async (tx) => {
+        const owned: typeof batch = [];
+        // Stable lock order lets overlapping drainers compete on the existing
+        // unique NotificationLog rows without acquiring them in opposite order.
+        for (const row of [...batch].sort((a, b) => a.alertId.localeCompare(b.alertId))) {
+          const won = await tx.notificationLog.updateMany({
+            where: { tenantId, clientId, userId, channel, alertId: row.alertId, status: 'queued' },
+            data: {
+              status: 'outcome_unknown',
+              error: 'Digest attempt claimed; acceptance unconfirmed',
+            },
+          });
+          if (won.count === 1) owned.push(row);
+        }
+        const consumed = await tx.alertDigestQueue.updateMany({
+          where: {
+            tenantId,
+            clientId,
+            userId,
+            channel,
+            flushed: false,
+            id: { in: batch.map((row) => row.id) },
+          },
+          data: { flushed: true },
+        });
+        return { owned, flushed: consumed.count };
+      });
+      const claimed = claim.owned;
+      totals.flushed += claim.flushed;
+      if (!claimed.length) continue;
+      const events = claimed.map((b) => b.payload as unknown as TrackerAlertEvent);
+      let result: EmailSendResult | { status: 'suppressed'; messageId?: string; error?: string } = {
+        status: 'suppressed',
+      };
       try {
         if (channel === 'email') {
           const pref = await this.prisma.withTenant(tenantId, (tx) =>
             tx.alertPreference.findFirst({ where: { userId, clientId } }),
           );
-          if (pref?.emailEnabled && pref.emailAddress) {
+          if (pref?.emailEnabled && pref.emailAddress && pref.emailCadence === cadence) {
             const { subject, html, text } = renderDigestEmail(
               events,
               cadence,
               this.boardUrl(clientId),
             );
-            const res = await this.email.send(pref.emailAddress, subject, html, text);
-            if (res.sent) sent += 1;
+            result = await this.email.send(pref.emailAddress, subject, html, text);
           }
         } else if (channel === 'sms') {
           const pref = await this.prisma.withTenant(tenantId, (tx) =>
@@ -323,22 +360,38 @@ export class TrackerAlertService {
                 320,
               );
             const res = await this.sms.send(pref.smsPhone, body);
-            if (res.sent) sent += 1;
+            result = {
+              status: res.sent ? 'accepted' : res.dormant ? 'suppressed' : 'failed',
+              messageId: res.providerMessageId,
+              error: res.error,
+            };
           }
         }
-      } catch (e) {
-        this.logger.error(`Digest flush failed for ${userId}/${channel}: ${(e as Error).message}`);
+      } catch {
+        result = { status: 'outcome_unknown', error: 'Digest acceptance could not be confirmed' };
       }
-      // Mark this batch flushed regardless (a failed send is logged; we don't
-      // want a poison row to re-send forever).
-      await this.prisma.withSystem((tx) =>
-        tx.alertDigestQueue.updateMany({
-          where: { id: { in: batch.map((b) => b.id) } },
-          data: { flushed: true },
+      // A failed receipt write leaves the pre-send unknown claim intact. Never
+      // convert it to queued or undo the consumed queue rows.
+      await this.prisma.withTenant(tenantId, (tx) =>
+        tx.notificationLog.updateMany({
+          where: {
+            tenantId,
+            clientId,
+            userId,
+            channel,
+            alertId: { in: claimed.map((row) => row.alertId) },
+            status: 'outcome_unknown',
+          },
+          data: {
+            status: result.status,
+            providerMessageId: result.messageId ?? null,
+            error: result.error ?? null,
+          },
         }),
       );
+      totals[result.status] += 1;
     }
-    return { flushed: rows.length, sent };
+    return totals;
   }
 
   /**
@@ -376,7 +429,7 @@ export class TrackerAlertService {
           this.boardUrl(clientId),
         );
         const res = await this.email.send(to, subject, html, text);
-        out.push({ channel, status: res.sent ? 'sent' : 'failed' });
+        out.push({ channel, status: res.status });
         continue;
       }
       if (channel === 'sms') {
