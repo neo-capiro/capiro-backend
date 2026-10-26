@@ -1,3 +1,4 @@
+import { NEWSLETTER_SURVEY_SECTION_TYPES } from './newsletter-survey-receiving.js';
 /** The workspace newsletter's persisted design contract, shared by editor and API. */
 import { newsletterCatalogStyle } from './newsletter-fonts.js';
 export const NEWSLETTER_TEMPLATE_ID = 'bp_weekly_newsletter';
@@ -170,16 +171,6 @@ export interface NewsletterVideoSettings {
   sourceUrl: string;
   paddingLinked?: boolean;
 }
-export const NEWSLETTER_SURVEY_SECTION_TYPES = [
-  ['introduction', 'Introduction'],
-  ['radio', 'Radio Buttons'],
-  ['checkbox', 'Checkboxes'],
-  ['range', 'Range'],
-  ['text', 'Open Text'],
-  ['email', 'Email'],
-  ['contact', 'Contact Information'],
-  ['content', 'Content Block'],
-] as const;
 export type NewsletterSurveySectionType = (typeof NEWSLETTER_SURVEY_SECTION_TYPES)[number][0];
 export interface NewsletterSurveyQuestion {
   id: string;
@@ -1185,3 +1176,10 @@ export function newsletterBlockVisible(
 /** Pure receiving parsers and canonical read envelopes; no action is performed by parsing. */
 export * from './newsletter-receiving.js';
 export { parseNewsletterBrandKit, parseNewsletterFont } from './newsletter-brand-receiving.js';
+
+export {
+  NEWSLETTER_SURVEY_SECTION_TYPES,
+  parseNewsletterSurveyDraft,
+  parseNewsletterSurveyDraftList,
+} from './newsletter-survey-receiving.js';
+export type { NewsletterSurveyDraftList } from './newsletter-survey-receiving.js';

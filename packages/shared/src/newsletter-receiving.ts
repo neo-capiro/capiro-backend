@@ -1,4 +1,5 @@
 /** Pure receiving contracts. These parsers validate wire data, never authorize an action. */
+import { savedSurvey } from './newsletter-survey-receiving.js';
 import type {
   NewsletterCampaign,
   NewsletterCampaignConfig,
@@ -16,7 +17,6 @@ import {
   NEWSLETTER_SOCIAL_PLATFORMS,
   NEWSLETTER_SOCIAL_SHARE_PLATFORMS,
   NEWSLETTER_SOCIAL_ICON_STYLES,
-  NEWSLETTER_SURVEY_SECTION_TYPES,
 } from './newsletter.js';
 
 import {
@@ -195,15 +195,6 @@ export interface NewsletterReceiveIdentity {
   revision?: number;
   clientId?: string | null;
 }
-// An embedded saved-survey snapshot is not a resource lookup or a stage capability.
-const SAVED_SURVEY_ID = /^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i;
-const savedSurveyId: Rule = (value, path) => {
-  if (typeof value !== 'string' || !SAVED_SURVEY_ID.test(value)) refuse(path);
-};
-const savedSurveyTime: Rule = (value, path) => {
-  if (typeof value !== 'string' || value.length > 40 || !Number.isFinite(Date.parse(value)))
-    refuse(path);
-};
 const strings = array(text);
 const clients = array(uuid, 100);
 const style = object(
@@ -312,50 +303,6 @@ const social = object(
     }),
   },
 );
-const question = object(
-  {
-    id: text,
-    type: vocabulary(() => NEWSLETTER_SURVEY_SECTION_TYPES.map(([key]) => key)),
-    prompt: text,
-    required: bool,
-    options: array(text, 30),
-    other: bool,
-    range: object({
-      min: number,
-      max: number,
-      display: literal('numbers', 'stars', 'emojis', 'hearts'),
-    }),
-    contactField: literal('firstName', 'lastName', 'age', 'gender', 'address'),
-    askToSubscribe: bool,
-    imageUrl: text,
-    alt: text,
-    videoUrl: text,
-  },
-  { introductionType: nullable(literal('text', 'image', 'video')) },
-);
-const surveyDefinition = object({
-  version: literal(1),
-  questions: array(question, 30),
-  title: text,
-  description: text,
-  logoUrl: text,
-  submitLabel: text,
-  confirmation: text,
-  closedMessage: text,
-  requiredMessage: text,
-  background: text,
-  buttonColor: text,
-  buttonTextColor: text,
-});
-const savedSurvey = object({
-  id: savedSurveyId,
-  name: text,
-  revision,
-  status: literal('draft'),
-  updatedAt: savedSurveyTime,
-  sourceClientIds: array(workspaceUuid, 100),
-  definition: surveyDefinition,
-});
 const blockShape = object(
   {
     id: text,
