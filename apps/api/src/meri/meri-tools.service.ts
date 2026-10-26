@@ -95,6 +95,7 @@ import {
 } from '../engagement/engagement-access.helpers.js';
 import { LdaIntelService } from '../lda-intel/lda-intel.service.js';
 import { AnalyticsDbService } from './analytics/analytics-db.service.js';
+import { describeCapiroData, queryCapiroData } from './analytics/public-sql-query.js';
 import { listDatasetSummaries } from './analytics/global-dataset-registry.js';
 import {
   compileQuerySpec,
@@ -1330,6 +1331,17 @@ export class MeriToolsService {
         page: int('Page number'),
       }),
       list_global_datasets: obj({}),
+      describe_capiro_data: { ...obj({
+        relations: { type: 'array', minItems: 1, maxItems: 8, uniqueItems: true,
+          items: str('Logical public relation name; omit to describe the published set.') },
+      }), additionalProperties: false },
+      query_capiro_data: { ...obj({
+        sql: { type: 'string', minLength: 1, maxLength: 16384,
+          description: 'Authored PostgreSQL SELECT using described public relations, joins, aggregates and nonrecursive CTEs. Bind values as $1, $2, etc.' },
+        parameters: { type: 'array', maxItems: 64, items: { type: ['string', 'number', 'boolean', 'null'] },
+          description: 'Separately bound scalar values. Exact decimals/int64 values must be strings. Maximum serialized UTF-8 size 32768 bytes.' },
+        rowLimit: { type: 'integer', minimum: 1, maximum: 1000, default: 200 },
+      }, ['sql', 'parameters']), additionalProperties: false },
       query_global_data: obj(
         {
           dataset: str('Dataset key from list_global_datasets, e.g. "lda_registrations"'),
@@ -2773,6 +2785,8 @@ export class MeriToolsService {
       resolve_entity: () => this.resolveEntity(input),
       search_lda_filings: () => this.searchLdaFilings(input),
       list_global_datasets: () => this.listGlobalDatasets(),
+      describe_capiro_data: () => describeCapiroData(input),
+      query_capiro_data: () => this.queryCapiroData(ctx, input),
       query_global_data: () => this.queryGlobalData(ctx, input),
       search_sec_filings: () => this.searchSecFilings(input),
       search_fara_registrations: () => this.searchFaraRegistrations(input),
@@ -4298,6 +4312,23 @@ export class MeriToolsService {
       generatedAt: new Date().toISOString(),
       datasets: listDatasetSummaries(),
     };
+  }
+
+  private queryCapiroData(ctx: TenantContext, input: Record<string, unknown>) {
+    return queryCapiroData(input, { runPublicSql: async (compiled) => {
+      const startedAt = Date.now();
+      const audit = { sql: compiled.sql, params: compiled.params, datasetKey: 'public_sql' };
+      try {
+        const rows = await this.analyticsDb.runPublicSql(compiled);
+        await this.recordAnalyticsQuery(ctx, audit, Math.min(rows.length, compiled.rowLimit), Date.now() - startedAt, null);
+        return rows;
+      } catch (error) {
+        // Execution errors are already sanitized by the dedicated analytics owner.
+        await this.recordAnalyticsQuery(ctx, audit, null, Date.now() - startedAt,
+          error instanceof Error ? error.message : 'Public query failed.');
+        throw error;
+      }
+    } });
   }
 
   private async queryGlobalData(ctx: TenantContext, input: Record<string, unknown>) {
