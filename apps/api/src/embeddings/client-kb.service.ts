@@ -1,12 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { randomUUID } from 'node:crypto';
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import mammoth from 'mammoth';
 import type { Prisma } from '@prisma/client';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { extractPdfText } from '../meri/meri-attachment-extract.js';
-import { AttachmentContentService, type AttachmentReadinessRow } from '../engagement/attachment-content.service.js';
+import {
+  AttachmentContentService,
+  type AttachmentReadinessRow,
+} from '../engagement/attachment-content.service.js';
 import { ownMailMessageWhere, ownMeetingWhere } from '../engagement/engagement-access.helpers.js';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import {
@@ -42,7 +46,36 @@ type AttachmentIndexSnapshot = {
   supersededByAttachmentId: string | null;
   fileName: string;
   contentType: string | null;
+  indexClaimToken: string | null;
+  indexSourceGeneration: number;
 };
+
+/** Identity of the one indexing attempt that owns an attachment (MG-06). */
+type AttachmentIndexClaim = { token: string; generation: number };
+
+/** Visible result of one indexing attempt. */
+export type AttachmentIndexOutcome = 'indexed' | 'metadata_only' | 'skipped';
+
+/**
+ * MG-06 lease for one attachment attempt. A live claim blocks a second attempt
+ * on the same attachment; an expired claim is claimable, so abrupt process loss
+ * is recovered by the next attempt without a second job store or queue.
+ */
+const ATTACHMENT_INDEX_CLAIM_MS = 5 * 60_000;
+/** Bounded delay before a failed or deferred row becomes due again. */
+const ATTACHMENT_INDEX_RETRY_MS = 15 * 60_000;
+/** Bounded batch for one due-discovery sweep. */
+const ATTACHMENT_INDEX_SWEEP_BATCH = 25;
+
+/**
+ * The per-document identity lock the idempotent creation path already takes
+ * (`EngagementService.createAttachmentFromBuffer`). Reused here so residual
+ * cleanup for an absent row cannot race a re-created document with the same
+ * identity; not a new lock or resource.
+ */
+function clientDocumentIdentityLockKey(attachmentId: string): string {
+  return `capiro-client-document:${attachmentId}`;
+}
 
 const attachmentReadiness = new AttachmentContentService();
 
@@ -82,46 +115,88 @@ export class ClientKbService {
   }
 
   private documentReady(row: AttachmentReadinessRow): boolean {
-    return ['ready', 'legacy_ready'].includes(row.lifecycleStatus)
-      && attachmentReadiness.readiness(row,
-        this.config.get('ENGAGEMENT_ATTACHMENT_SCAN_REQUIRED', { infer: true })).usable;
+    return (
+      ['ready', 'legacy_ready'].includes(row.lifecycleStatus) &&
+      attachmentReadiness.readiness(
+        row,
+        this.config.get('ENGAGEMENT_ATTACHMENT_SCAN_REQUIRED', { infer: true }),
+      ).usable
+    );
   }
 
   private canIndexDocument(row: AttachmentIndexSnapshot): boolean {
     // This shared index is consumed without a document-specific user context.
     // Private source bodies stay in the authorized document reader.
-    return row.viewerMode === 'all' && row.supersededByAttachmentId === null
-      && this.documentReady({ ...row, contentType: row.contentType ?? '' });
+    return (
+      row.viewerMode === 'all' &&
+      row.supersededByAttachmentId === null &&
+      this.documentReady({ ...row, contentType: row.contentType ?? '' })
+    );
   }
 
-  private async visibleDocuments(tx: Prisma.TransactionClient, tenantId: string,
-    clientId: string, userId?: string, limit?: number) {
+  /** Canonical "belongs in the shared index" test: the existing readiness and
+   * visibility rule plus a client to scope the evidence to. Used both by the
+   * claim fence and by the exclusion cleanup, so discovery and execution cannot
+   * disagree about what is indexable. The predicate form narrows clientId to a
+   * string for the caller, replacing the old early-return narrowing. */
+  private isIndexable(
+    row: AttachmentIndexSnapshot,
+  ): row is AttachmentIndexSnapshot & { clientId: string } {
+    return row.clientId !== null && this.canIndexDocument(row);
+  }
+
+  private async visibleDocuments(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    clientId: string,
+    userId?: string,
+    limit?: number,
+  ) {
     if (!userId) return [];
     // Snapshot reads need only five filenames. Exclude unusable rows before
     // applying that bound so newer quarantined files cannot crowd them out.
     // The canonical readiness check below remains authoritative.
-    const readinessFilter: Prisma.EngagementAttachmentWhereInput = limit === undefined ? {} : {
-      lifecycleStatus: { in: ['ready', 'legacy_ready'] },
-      ...(this.config.get('ENGAGEMENT_ATTACHMENT_SCAN_REQUIRED', { infer: true })
-        ? { scanStatus: 'clean' }
-        : { OR: [{ scanStatus: null }, { scanStatus: { not: 'threat' } }] }),
-    };
+    const readinessFilter: Prisma.EngagementAttachmentWhereInput =
+      limit === undefined
+        ? {}
+        : {
+            lifecycleStatus: { in: ['ready', 'legacy_ready'] },
+            ...(this.config.get('ENGAGEMENT_ATTACHMENT_SCAN_REQUIRED', { infer: true })
+              ? { scanStatus: 'clean' }
+              : { OR: [{ scanStatus: null }, { scanStatus: { not: 'threat' } }] }),
+          };
     const rows = await tx.engagementAttachment.findMany({
-      where: { prospectId: null, tenantId, clientId, supersededByAttachmentId: null,
+      where: {
+        prospectId: null,
+        tenantId,
+        clientId,
+        supersededByAttachmentId: null,
         ...readinessFilter,
         AND: [
-          { OR: [{ viewerMode: 'all' }, { viewerMode: 'restricted', viewerUserIds: { has: userId } },
-            { uploadedByUserId: userId }] },
+          {
+            OR: [
+              { viewerMode: 'all' },
+              { viewerMode: 'restricted', viewerUserIds: { has: userId } },
+              { uploadedByUserId: userId },
+            ],
+          },
           { OR: [{ meetingId: null }, { meeting: ownMeetingWhere(userId) }] },
           { OR: [{ mailMessageId: null }, { mailMessage: ownMailMessageWhere(userId) }] },
         ],
       },
-      select: { id: true, fileName: true, createdAt: true, contentType: true,
-        lifecycleStatus: true, scanStatus: true, verifiedContentType: true },
+      select: {
+        id: true,
+        fileName: true,
+        createdAt: true,
+        contentType: true,
+        lifecycleStatus: true,
+        scanStatus: true,
+        verifiedContentType: true,
+      },
       orderBy: { createdAt: 'desc' },
       ...(limit === undefined ? {} : { take: limit }),
     });
-    return rows.filter(row => this.documentReady({ ...row, contentType: row.contentType ?? '' }));
+    return rows.filter((row) => this.documentReady({ ...row, contentType: row.contentType ?? '' }));
   }
 
   // ── Fire-and-forget lifecycle hooks (called from write paths) ───────────
@@ -286,8 +361,19 @@ export class ClientKbService {
    * embed each chunk. Images index by filename + meeting context only (v1).
    * Always purges first so a re-uploaded/changed doc never leaves stale
    * chunks behind.
+   *
+   * Every entry point — the immediate save hook, an awaited caller, the admin
+   * reindex/backfill and the recovery worker — converges here, and every one of
+   * them takes the same per-attachment claim first. That claim, not the
+   * short source-row lock, is what serializes a whole attempt: the row lock ends
+   * before the S3 and provider work, so it can fence a changed source but not an
+   * overlapping attempt.
    */
-  async indexAttachment(tenantId: string, attachmentId: string): Promise<void> {
+  async indexAttachment(tenantId: string, attachmentId: string): Promise<AttachmentIndexOutcome> {
+    // Read WITH the claim columns: the epoch this snapshot was taken at is what
+    // binds the attempt to the revision it actually reads below, so a source
+    // change between this read and the claim cannot be mistaken for the revision
+    // whose filename/MIME/client/s3 identity this snapshot carries.
     const attachment = await this.prisma.withTenant(tenantId, (tx) =>
       tx.engagementAttachment.findFirst({
         where: { prospectId: null, id: attachmentId },
@@ -303,31 +389,56 @@ export class ClientKbService {
           lifecycleStatus: true,
           scanStatus: true,
           supersededByAttachmentId: true,
+          indexClaimToken: true,
+          indexSourceGeneration: true,
         },
       }),
     );
     if (!attachment) {
-      await this.purge(tenantId, 'client_doc_chunk', attachmentId);
-      return;
+      // The row is gone: only the residual chunks of that exact document identity
+      // may be removed, and only after absence is re-checked inside the purge
+      // transaction while holding the same per-document advisory identity the
+      // idempotent creation path takes, so a re-created document is never purged
+      // by a stale run.
+      await this.purgeAbsentAttachmentChunks(tenantId, attachmentId);
+      return 'skipped';
     }
-    if (!this.canIndexDocument(attachment)) {
-      await this.purge(tenantId, 'client_doc_chunk', attachmentId);
-      return;
+    if (!this.isIndexable(attachment)) {
+      // Excluded: the locked exclusion path re-reads the row, refuses if it moved
+      // on or became indexable again, and makes the visible status truthful in the
+      // same transaction as the purge. No provider call happens for these rows.
+      await this.excludeFromIndex(tenantId, attachmentId, attachment);
+      return 'skipped';
     }
-    if (!attachment.clientId) {
-      await this.prisma.withTenant(tenantId, async (tx) => {
-        if (await this.lockAttachmentSnapshot(tx, tenantId, attachment)) {
-          await this.purgeAttachmentChunks(tx, tenantId, attachmentId);
-        }
-      });
-      return;
+    // One attachment, one live attempt. A second entry arriving while this claim
+    // is live writes nothing at all, instead of racing the purge and the stamp.
+    const claim = await this.claimAttachmentIndex(tenantId, attachmentId);
+    if (!claim) return 'skipped';
+    // The claim returns whichever epoch exists NOW. If the row's source moved
+    // between the read above and this claim, this snapshot is a stale revision
+    // (a pre-claim A→B→A change is indistinguishable from the old snapshot by the
+    // returned generation alone), so this attempt publishes nothing and hands its
+    // own claim back for an immediate re-read.
+    if (claim.generation !== Number(attachment.indexSourceGeneration)) {
+      await this.yieldAttachmentClaim(tenantId, attachmentId, claim);
+      return 'skipped';
     }
     const quota = await this.countClientChunks(tenantId, attachment.clientId);
     if (quota >= KB_MAX_CHUNKS_PER_CLIENT) {
       this.logger.warn(
         `KB chunk quota reached for client ${attachment.clientId} (${quota}); skipping ${attachmentId}`,
       );
-      return;
+      // Deferred, not completed: the row stays visibly unfinished and moves to
+      // the back of the due order instead of monopolising discovery.
+      await this.prisma.withTenant(tenantId, async (tx) => {
+        if (!(await this.lockAttachmentSnapshot(tx, tenantId, attachment, claim))) return;
+        await this.releaseAttachmentClaim(
+          tx,
+          attachmentId,
+          new Date(Date.now() + ATTACHMENT_INDEX_RETRY_MS),
+        );
+      });
+      return 'skipped';
     }
 
     const clientName = await this.clientName(tenantId, attachment.clientId);
@@ -346,125 +457,386 @@ export class ClientKbService {
     // Clear a prior success before any operation which may fail. Filename-only
     // embeddings are useful for discovery but are not searchable document text.
     const started = await this.prisma.withTenant(tenantId, async (tx) => {
-      if (!(await this.lockAttachmentSnapshot(tx, tenantId, attachment))) return false;
+      if (!(await this.lockAttachmentSnapshot(tx, tenantId, attachment, claim))) return false;
       await tx.engagementAttachment.update({
-        where: { id: attachmentId }, data: { indexedAt: null },
+        where: { id: attachmentId },
+        data: { indexedAt: null },
       });
       return true;
     });
-    if (!started) return;
+    if (!started) {
+      await this.yieldAttachmentClaim(tenantId, attachmentId, claim);
+      return 'skipped';
+    }
     let extraction: Awaited<ReturnType<ClientKbService['extractAttachmentTextForKb']>>;
     try {
       extraction = await this.extractAttachmentTextForKb(attachment);
     } catch (error) {
-      await this.prisma.withTenant(tenantId, async (tx) => {
-        if (!(await this.lockAttachmentSnapshot(tx, tenantId, attachment))) return;
-        await tx.engagementAttachment.update({
-          where: { id: attachmentId }, data: {
-            indexedAt: null, extractionStatus: 'failed',
-            extractionMetadata: { chars: 0, contentScope: 'unavailable', reason: 'text_extraction_failed' },
+      const stamped = await this.prisma.withTenant(tenantId, async (tx) => {
+        if (!(await this.lockAttachmentSnapshot(tx, tenantId, attachment, claim))) return false;
+        await this.releaseAttachmentClaim(
+          tx,
+          attachmentId,
+          new Date(Date.now() + ATTACHMENT_INDEX_RETRY_MS),
+          {
+            indexedAt: null,
+            extractionStatus: 'failed',
+            extractionMetadata: {
+              chars: 0,
+              contentScope: 'unavailable',
+              reason: 'text_extraction_failed',
+            },
           },
-        });
+        );
+        return true;
       });
+      if (!stamped) await this.yieldAttachmentClaim(tenantId, attachmentId, claim);
       throw error;
     }
     // Retain previous chunks if S3/parsing failed. Only replace evidence once
     // its current bytes were actually read (including a confirmed empty result).
     const current = await this.prisma.withTenant(tenantId, async (tx) => {
-      if (!(await this.lockAttachmentSnapshot(tx, tenantId, attachment))) return false;
+      if (!(await this.lockAttachmentSnapshot(tx, tenantId, attachment, claim))) return false;
       await this.purgeAttachmentChunks(tx, tenantId, attachmentId);
       return true;
     });
-    if (!current) return;
+    if (!current) {
+      await this.yieldAttachmentClaim(tenantId, attachmentId, claim);
+      return 'skipped';
+    }
     const text = extraction?.text?.trim() || null;
     const chunks = text
       ? chunkDocumentText(text)
       : [`Image or non-text attachment: ${attachment.fileName}`];
-    const contentTruncated = Boolean(extraction?.truncated) || chunks.length >= KB_MAX_CHUNKS_PER_DOC;
-    for (let i = 0; i < chunks.length; i += 1) {
-      let sourceCurrent = true;
-      await embedAndUpsert(this.prisma, {
-        tenantId,
-        clientId: attachment.clientId,
-        sourceType: 'client_doc_chunk',
-        sourceId: docChunkSourceId(attachmentId, i),
-        text: normalize(
-          buildDocChunkText({
-            clientName,
-            fileName: attachment.fileName,
-            chunk: chunks[i] ?? '',
-            chunkIndex: i,
-            chunkCount: chunks.length,
-            meetingSubject,
-          }),
-        ),
-        bypassRls: true,
-        beforeWrite: async (tx) => {
-          sourceCurrent = await this.lockAttachmentSnapshot(tx, tenantId, attachment);
-          return sourceCurrent;
-        },
+    const contentTruncated =
+      Boolean(extraction?.truncated) || chunks.length >= KB_MAX_CHUNKS_PER_DOC;
+    try {
+      for (let i = 0; i < chunks.length; i += 1) {
+        let sourceCurrent = true;
+        await embedAndUpsert(this.prisma, {
+          tenantId,
+          clientId: attachment.clientId,
+          sourceType: 'client_doc_chunk',
+          sourceId: docChunkSourceId(attachmentId, i),
+          text: normalize(
+            buildDocChunkText({
+              clientName,
+              fileName: attachment.fileName,
+              chunk: chunks[i] ?? '',
+              chunkIndex: i,
+              chunkCount: chunks.length,
+              meetingSubject,
+            }),
+          ),
+          bypassRls: true,
+          beforeWrite: async (tx) => {
+            sourceCurrent = await this.lockAttachmentSnapshot(tx, tenantId, attachment, claim);
+            return sourceCurrent;
+          },
+        });
+        if (!sourceCurrent) {
+          await this.yieldAttachmentClaim(tenantId, attachmentId, claim);
+          return 'skipped';
+        }
+      }
+    } catch (error) {
+      // This run failed after its purge committed, so its partial chunks are the
+      // only residue. Cleanup and the failure stamp both require THIS attempt to
+      // still own the claim and the source epoch it claimed: a newer attempt's
+      // completed index, chunks and metadata are never deleted or overwritten by
+      // a losing attempt's late error. That attempt identity — not the source
+      // tuple, which a completing attempt does not change — is what the
+      // overlapping-attempt race needs.
+      const cleaned = await this.prisma.withTenant(tenantId, async (tx) => {
+        if (!(await this.lockAttachmentSnapshot(tx, tenantId, attachment, claim))) return false;
+        await this.purgeAttachmentChunks(tx, tenantId, attachmentId);
+        await this.releaseAttachmentClaim(
+          tx,
+          attachmentId,
+          new Date(Date.now() + ATTACHMENT_INDEX_RETRY_MS),
+          {
+            indexedAt: null,
+            extractionStatus: 'failed',
+            extractionMetadata: {
+              chars: text?.length ?? 0,
+              contentScope: text ? 'extractable_text_only' : 'metadata_only',
+              truncated: contentTruncated,
+              indexedChunks: 0,
+              reason: 'index_write_failed',
+              extractedAt: new Date().toISOString(),
+            },
+          },
+        );
+        return true;
       });
-      if (!sourceCurrent) return;
+      // A stale attempt that no longer owns the row still gives its OWN claim
+      // back — the token filter is in the statement, so a newer attempt's claim
+      // is untouched — and marks the row due, so the new revision is retried at
+      // once instead of waiting out the lease.
+      if (!cleaned) await this.yieldAttachmentClaim(tenantId, attachmentId, claim);
+      throw error;
     }
 
-    // Stamp content as indexed (Meetings v2 §5) — reached only after the
-    // whole chunk loop succeeds, so the two early returns above (missing/no-client,
-    // quota exceeded) correctly leave indexedAt null. Drives the Documents-tab
-    // per-file "Indexed" badge. withTenant (not withSystem): the row is
-    // tenant-scoped and RLS must allow the UPDATE for this tenant.
-    await this.prisma.withTenant(tenantId, async (tx) => {
-      if (!(await this.lockAttachmentSnapshot(tx, tenantId, attachment))) return;
-      await tx.engagementAttachment.update({
-        where: { id: attachmentId },
-        data: {
-          indexedAt: text ? new Date() : null,
-          extractionStatus: !text ? 'empty' : contentTruncated ? 'truncated' : 'extracted',
-          extractionMetadata: {
-            chars: text?.length ?? 0,
-            contentScope: text ? 'extractable_text_only' : 'metadata_only',
-            truncated: contentTruncated,
-            indexedChunks: text ? chunks.length : 0,
-            pages: extraction?.pages ?? null, pagesRead: extraction?.pagesRead ?? null,
-            needsVisualRead: !text && /pdf/i.test(attachment.contentType ?? attachment.fileName),
-            note: text
-              ? 'Text indexed; images and diagrams require a visual page read.'
-              : 'Only file metadata is searchable. Document contents have not been read.',
-            extractedAt: new Date().toISOString(),
-          },
+    // Stamp content as indexed (Meetings v2 §5) — reached only after the whole
+    // chunk loop succeeds AND only while this attempt still owns the claim, so
+    // the early returns above (missing/no-client, quota exceeded) correctly leave
+    // indexedAt null. Drives the Documents-tab per-file "Indexed" badge.
+    // withTenant (not withSystem): the row is tenant-scoped and RLS must allow
+    // the UPDATE for this tenant. Releasing the claim in the same write keeps a
+    // released claim and a truthful status from ever disagreeing, and a
+    // completed attempt leaves nothing due.
+    const stamped = await this.prisma.withTenant(tenantId, async (tx) => {
+      if (!(await this.lockAttachmentSnapshot(tx, tenantId, attachment, claim))) return false;
+      await this.releaseAttachmentClaim(tx, attachmentId, null, {
+        indexedAt: text ? new Date() : null,
+        extractionStatus: !text ? 'empty' : contentTruncated ? 'truncated' : 'extracted',
+        extractionMetadata: {
+          chars: text?.length ?? 0,
+          contentScope: text ? 'extractable_text_only' : 'metadata_only',
+          truncated: contentTruncated,
+          indexedChunks: text ? chunks.length : 0,
+          pages: extraction?.pages ?? null,
+          pagesRead: extraction?.pagesRead ?? null,
+          needsVisualRead: !text && /pdf/i.test(attachment.contentType ?? attachment.fileName),
+          note: text
+            ? 'Text indexed; images and diagrams require a visual page read.'
+            : 'Only file metadata is searchable. Document contents have not been read.',
+          extractedAt: new Date().toISOString(),
         },
       });
+      return true;
     });
+    if (!stamped) return 'skipped';
+    return text ? 'indexed' : 'metadata_only';
+  }
+
+  /**
+   * Bounded due-attachment recovery for the indexing worker (MG-06).
+   *
+   * Discovery is a privileged tenant-blind read that returns identifiers only;
+   * every execution below re-reads the current canonical guards inside the
+   * tenant transaction, so a stale candidate can never be indexed on a stale
+   * assumption. Finite batch, deterministic due order, no whole-client
+   * backfill.
+   *
+   * The due predicate is the persisted work marker, so it survives a crash, a
+   * lost callback or a restart without depending on any in-process timer; only
+   * rows with something genuinely outstanding are selected:
+   *   - an outstanding retry (a due marker that was pushed forward), or
+   *   - work that was never finished: no searchable stamp, no completed
+   *     metadata-only result. That covers the initial upload row and a run that
+   *     died after clearing its prior success.
+   * Deliberately ineligible rows are excluded by the deterministic half of the
+   * predicate (no client, prospect, superseded, not all-viewer, not ready), and
+   * a live claim excludes the attempt already working the row.
+   */
+  async runDueAttachmentIndexSweep(
+    limit = ATTACHMENT_INDEX_SWEEP_BATCH,
+    options?: { shouldContinue?: () => boolean },
+  ): Promise<{ selected: number; indexed: number; metadataOnly: number; failed: number }> {
+    const result = { selected: 0, indexed: 0, metadataOnly: 0, failed: 0 };
+    if (!this.enabled()) return result;
+    const batch = Math.min(Math.max(Math.floor(limit), 1), ATTACHMENT_INDEX_SWEEP_BATCH);
+    const scanRequired = this.config.get('ENGAGEMENT_ATTACHMENT_SCAN_REQUIRED', { infer: true });
+    const due = await this.prisma.withSystem(
+      (tx) =>
+        tx.$queryRawUnsafe<Array<{ tenantId: string; id: string }>>(
+          // The readiness half of the predicate is the SAME rule execution
+          // enforces (documentReady/isIndexable). Without it a batch of
+          // scan-rejected rows would sit at the front of NULLS FIRST order for
+          // ever and starve the eligible work behind them.
+          `SELECT tenant_id AS "tenantId", id FROM engagement_attachments
+            WHERE prospect_id IS NULL AND client_id IS NOT NULL
+              AND superseded_by_attachment_id IS NULL AND viewer_mode = 'all'
+              AND lifecycle_status IN ('ready', 'legacy_ready')
+              AND (
+                ($1::boolean AND scan_status = 'clean')
+                OR (NOT $1::boolean AND (scan_status IS NULL OR scan_status <> 'threat'))
+              )
+              AND (index_claim_token IS NULL OR index_claim_expires_at <= clock_timestamp())
+              AND (
+                (index_next_attempt_at IS NOT NULL AND index_next_attempt_at <= clock_timestamp())
+                OR (index_next_attempt_at IS NULL AND indexed_at IS NULL
+                    AND coalesce(extraction_status, '') <> 'empty')
+              )
+            ORDER BY index_next_attempt_at ASC NULLS FIRST, created_at ASC, id ASC
+            LIMIT ${batch}`,
+          scanRequired,
+        ),
+      { readOnly: true },
+    );
+    result.selected = due.length;
+    for (const row of due) {
+      // Between documents only: a shutdown observed here never lets the next
+      // claim start. Work already begun finishes normally, or its lease recovers
+      // it after the process is gone.
+      if (options?.shouldContinue && !options.shouldContinue()) break;
+      try {
+        const outcome = await this.indexAttachment(row.tenantId, row.id);
+        if (outcome === 'indexed') result.indexed += 1;
+        else if (outcome === 'metadata_only') result.metadataOnly += 1;
+      } catch (error) {
+        // One failing document never stops the rest of the batch.
+        result.failed += 1;
+        this.logger.warn(`KB due index failed [${row.id}]: ${(error as Error).message}`);
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Read the attachment row FOR UPDATE with every field this indexer's fences
+   * compare. One statement serves the attempt lock AND the exclusion cleanup, so
+   * both are decided by the same current row and the same SQL contract.
+   */
+  private async lockedAttachmentRow(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    attachmentId: string,
+  ): Promise<AttachmentIndexSnapshot | undefined> {
+    const rows = await tx.$queryRawUnsafe<AttachmentIndexSnapshot[]>(
+      `SELECT id, client_id AS "clientId", meeting_id AS "meetingId", s3_key AS "s3Key",
+              viewer_mode AS "viewerMode", lifecycle_status AS "lifecycleStatus",
+              scan_status AS "scanStatus", superseded_by_attachment_id AS "supersededByAttachmentId",
+              file_name AS "fileName", content_type AS "contentType",
+              index_claim_token AS "indexClaimToken",
+              index_source_generation AS "indexSourceGeneration"
+        FROM engagement_attachments WHERE tenant_id = $1::uuid AND id = $2::uuid AND prospect_id IS NULL FOR UPDATE`,
+      tenantId,
+      attachmentId,
+    );
+    return rows[0];
   }
 
   /** Parent first, then attachment: same lock order as meeting reassignment.
    * Keep these locks until the caller's write/purge/stamp commits. Checking
    * before S3 or embedding calls would leave a window for an old job to write
-   * its previous client's evidence after reassignment already purged it. */
+   * its previous client's evidence after reassignment already purged it.
+   *
+   * With `claim`, this is also the MG-06 attempt fence: the write is allowed
+   * only when the row still carries this attempt's claim token AND the source
+   * epoch it claimed. A newer attempt (different token) or any source change
+   * since the claim — including an A→B→A association change, which the
+   * client/meeting/s3 tuple alone cannot see — makes every later purge, chunk
+   * publish and stamp by the older attempt fail closed. */
   private async lockAttachmentSnapshot(
     tx: Prisma.TransactionClient,
     tenantId: string,
     snapshot: AttachmentIndexSnapshot,
+    claim?: AttachmentIndexClaim,
   ): Promise<boolean> {
     if (snapshot.meetingId) {
-      const meetings = await tx.$queryRawUnsafe<Array<{ clientId: string | null; isInternal: boolean }>>(
+      const meetings = await tx.$queryRawUnsafe<
+        Array<{ clientId: string | null; isInternal: boolean }>
+      >(
         `SELECT client_id AS "clientId", is_internal AS "isInternal" FROM meetings
           WHERE tenant_id = $1::uuid AND id = $2::uuid FOR UPDATE`,
-        tenantId, snapshot.meetingId,
+        tenantId,
+        snapshot.meetingId,
       );
-      if (!meetings[0] || meetings[0].clientId !== snapshot.clientId
-        || (snapshot.clientId !== null && meetings[0].isInternal)) return false;
+      if (
+        !meetings[0] ||
+        meetings[0].clientId !== snapshot.clientId ||
+        (snapshot.clientId !== null && meetings[0].isInternal)
+      )
+        return false;
     }
-    const attachments = await tx.$queryRawUnsafe<AttachmentIndexSnapshot[]>(
-      `SELECT id, client_id AS "clientId", meeting_id AS "meetingId", s3_key AS "s3Key",
-              viewer_mode AS "viewerMode", lifecycle_status AS "lifecycleStatus",
-              scan_status AS "scanStatus", superseded_by_attachment_id AS "supersededByAttachmentId",
-              file_name AS "fileName", content_type AS "contentType"
-        FROM engagement_attachments WHERE tenant_id = $1::uuid AND id = $2::uuid AND prospect_id IS NULL FOR UPDATE`,
-      tenantId, snapshot.id,
+    const current = await this.lockedAttachmentRow(tx, tenantId, snapshot.id);
+    if (!(
+      current &&
+      this.canIndexDocument(current) &&
+      current.clientId === snapshot.clientId &&
+      current.meetingId === snapshot.meetingId &&
+      current.s3Key === snapshot.s3Key
+    ))
+      return false;
+    if (!claim) return true;
+    return (
+      current.indexClaimToken === claim.token &&
+      Number(current.indexSourceGeneration) === claim.generation
     );
-    const current = attachments[0];
-    return Boolean(current && this.canIndexDocument(current) && current.clientId === snapshot.clientId
-      && current.meetingId === snapshot.meetingId && current.s3Key === snapshot.s3Key);
+  }
+
+  /**
+   * Take (or renew) this attachment's indexing claim. Compare-and-set on the
+   * token plus the lease: a NULL token or an expired lease is claimable, so one
+   * attachment has at most one live attempt and an abandoned claim is
+   * recoverable. The source epoch is read back in the same statement, so the
+   * claim and the epoch it is fenced to are one atomic observation. A NULL
+   * return means another attempt holds a live claim and this caller writes
+   * nothing.
+   *
+   * Not a queue and not a second store: the attachment row itself is the
+   * durable owner, as it already is for readiness, extraction status and the
+   * searchable marker.
+   */
+  private async claimAttachmentIndex(
+    tenantId: string,
+    attachmentId: string,
+  ): Promise<AttachmentIndexClaim | null> {
+    const token = randomUUID();
+    const rows = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.$queryRawUnsafe<Array<{ token: string | null; generation: number }>>(
+        `UPDATE engagement_attachments
+            SET index_claim_token = $2::uuid,
+                index_claim_expires_at = clock_timestamp() + ($3::bigint * INTERVAL '1 millisecond'),
+                index_next_attempt_at = clock_timestamp() + ($3::bigint * INTERVAL '1 millisecond')
+          WHERE tenant_id = $1::uuid AND id = $4::uuid AND prospect_id IS NULL
+            AND (index_claim_token IS NULL OR index_claim_expires_at <= clock_timestamp())
+          RETURNING index_claim_token AS "token", index_source_generation AS "generation"`,
+        tenantId,
+        token,
+        ATTACHMENT_INDEX_CLAIM_MS,
+        attachmentId,
+      ),
+    );
+    const claimed = rows[0];
+    return claimed?.token ? { token: claimed.token, generation: Number(claimed.generation) } : null;
+  }
+
+  /**
+   * Finish this attempt in the caller's transaction: release the claim in the
+   * SAME write as the state it produced, so a released claim and a truthful
+   * status can never disagree. `status` carries the visible outcome; the due
+   * marker is NULL for a completed or excluded attempt and pushed forward for a
+   * bounded retry.
+   */
+  private async releaseAttachmentClaim(
+    tx: Prisma.TransactionClient,
+    attachmentId: string,
+    nextAttemptAt: Date | null,
+    status?: Prisma.EngagementAttachmentUpdateInput,
+  ): Promise<void> {
+    await tx.engagementAttachment.update({
+      where: { id: attachmentId },
+      data: {
+        ...(status ?? {}),
+        indexClaimToken: null,
+        indexClaimExpiresAt: null,
+        indexNextAttemptAt: nextAttemptAt,
+      },
+    });
+  }
+
+  /**
+   * Hand this attempt's claim back when the source moved under it. The token is
+   * part of the filter, so only the current owner can release: a newer
+   * attempt's token never matches and its claim, chunks and stamp stay
+   * untouched. Releasing schedules an immediate re-check instead of waiting out
+   * the lease, and the persisted due marker — not the caller's callback — is
+   * what makes that recovery durable.
+   */
+  private async yieldAttachmentClaim(
+    tenantId: string,
+    attachmentId: string,
+    claim: AttachmentIndexClaim,
+  ): Promise<void> {
+    await this.prisma.withTenant(tenantId, (tx) =>
+      tx.engagementAttachment.updateMany({
+        where: { id: attachmentId, indexClaimToken: claim.token },
+        data: { indexClaimToken: null, indexClaimExpiresAt: null, indexNextAttemptAt: new Date() },
+      }),
+    );
   }
 
   /** Canonical document index cleanup. Caller holds the attachment row lock;
@@ -483,6 +855,63 @@ export class ClientKbService {
       attachmentId,
       docChunkSourceIdPrefix(attachmentId),
     );
+  }
+
+  /**
+   * Residual cleanup for a document whose row no longer exists.
+   *
+   * Absence is re-checked INSIDE this transaction, and the same per-document
+   * advisory identity the idempotent creation path takes is held first. The
+   * idempotent create path reuses a document's id, so without both of those a
+   * stale run could delete the chunks of a document that was deleted and
+   * re-created with the same identity.
+   */
+  private async purgeAbsentAttachmentChunks(tenantId: string, attachmentId: string): Promise<void> {
+    await this.prisma.withTenant(tenantId, async (tx) => {
+      await tx.$executeRawUnsafe(
+        'SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))',
+        clientDocumentIdentityLockKey(attachmentId),
+      );
+      const present = await tx.$queryRawUnsafe<Array<{ present: boolean }>>(
+        `SELECT EXISTS (SELECT 1 FROM engagement_attachments
+                         WHERE tenant_id = $1::uuid AND id = $2::uuid) AS present`,
+        tenantId,
+        attachmentId,
+      );
+      // Reappeared while this run was in flight: that is a newer document's
+      // evidence, and its own attempt owns it.
+      if (present[0]?.present === true) return;
+      await this.purgeAttachmentChunks(tx, tenantId, attachmentId);
+    });
+  }
+
+  /**
+   * Cleanup for a row that must NOT be in the shared index: restricted, not
+   * lifecycle-ready, not scan-usable, superseded, or without a client.
+   *
+   * Runs under the row lock and refuses whenever the row moved on — gone, or
+   * indexable again, or carrying a different client/s3 identity than the snapshot
+   * this call read. That is what stops a paused stale exclusion from deleting a
+   * newer attempt's completed index. A legitimate purge writes the truthful
+   * visible state in the SAME transaction (`indexedAt` cleared, nothing claiming a
+   * current index), and no provider call happens on this path at all.
+   */
+  private async excludeFromIndex(
+    tenantId: string,
+    attachmentId: string,
+    snapshot: AttachmentIndexSnapshot,
+  ): Promise<void> {
+    await this.prisma.withTenant(tenantId, async (tx) => {
+      const current = await this.lockedAttachmentRow(tx, tenantId, attachmentId);
+      if (!current) return;
+      if (this.isIndexable(current)) return;
+      if (current.clientId !== snapshot.clientId || current.s3Key !== snapshot.s3Key) return;
+      await this.purgeAttachmentChunks(tx, tenantId, attachmentId);
+      await tx.engagementAttachment.update({
+        where: { id: attachmentId },
+        data: { indexedAt: null },
+      });
+    });
   }
 
   /** Read current canonical index residue in the caller's tenant transaction. */
@@ -525,10 +954,10 @@ export class ClientKbService {
     );
     const bytes = Buffer.from(await res.Body!.transformToByteArray());
     if (isText) return { text: bytes.toString('utf8'), truncated: false };
-    if (isDocx) return { text: (await mammoth.extractRawText({ buffer: bytes })).value, truncated: false };
+    if (isDocx)
+      return { text: (await mammoth.extractRawText({ buffer: bytes })).value, truncated: false };
     const extracted = await extractPdfText(bytes);
-    return { ...extracted,
-      truncated: extracted.truncated || extracted.unreadablePages.length > 0 };
+    return { ...extracted, truncated: extracted.truncated || extracted.unreadablePages.length > 0 };
   }
 
   // ── Purge / status / backfill ────────────────────────────────────────────
@@ -661,8 +1090,14 @@ export class ClientKbService {
     const vector = await embedText(normalize(input.query));
     const literal = vectorLiteral(vector);
     const rows = await this.prisma.withTenant(tenantId, async (tx) => {
-      if (!await clientMemoryAllowed(tx, tenantId, input.userId ?? null, input.clientId)) return [];
-      const allowedDocuments = await this.visibleDocuments(tx, tenantId, input.clientId, input.userId);
+      if (!(await clientMemoryAllowed(tx, tenantId, input.userId ?? null, input.clientId)))
+        return [];
+      const allowedDocuments = await this.visibleDocuments(
+        tx,
+        tenantId,
+        input.clientId,
+        input.userId,
+      );
       return tx.$queryRawUnsafe<
         Array<{ source_type: string; source_id: string; content_text: string; score: number }>
       >(
@@ -681,7 +1116,7 @@ export class ClientKbService {
           input.clientId,
           EMBEDDING_MODEL,
           kindFilter,
-          allowedDocuments.map(document => document.id),
+          allowedDocuments.map((document) => document.id),
         ] as unknown[]),
       );
     });
@@ -703,7 +1138,12 @@ export class ClientKbService {
   /** Always-on KB snapshot for client-scoped conversations (≤~1.2k tokens). */
   async buildSnapshot(tenantId: string, clientId: string, userId?: string): Promise<string | null> {
     if (!this.enabled()) return null;
-    if (!await this.prisma.withTenant(tenantId, tx => clientMemoryAllowed(tx, tenantId, userId ?? null, clientId))) return null;
+    if (
+      !(await this.prisma.withTenant(tenantId, (tx) =>
+        clientMemoryAllowed(tx, tenantId, userId ?? null, clientId),
+      ))
+    )
+      return null;
     const client = await this.prisma.withTenant(tenantId, (tx) =>
       tx.client.findFirst({
         where: { id: clientId },
@@ -740,8 +1180,9 @@ export class ClientKbService {
           },
         }),
       ),
-      this.prisma.withTenant(tenantId, tx =>
-        this.visibleDocuments(tx, tenantId, clientId, userId, 5)),
+      this.prisma.withTenant(tenantId, (tx) =>
+        this.visibleDocuments(tx, tenantId, clientId, userId, 5),
+      ),
     ]);
     return buildKbSnapshot({ client, people, facilities, recentDocs });
   }

@@ -13,7 +13,11 @@ function fixture() {
     s3Key: 'tenant/doc', fileName: 'Evidence.txt', contentType: 'text/plain',
     viewerMode: 'all', lifecycleStatus: 'ready', scanStatus: 'clean', supersededByAttachmentId: null };
   const state = { attachment: { ...snapshot }, meeting: { clientId: 'client-1' as string | null, isInternal: false },
-    chunks: [] as string[], indexedAt: null as Date | null };
+    chunks: [] as string[], indexedAt: null as Date | null,
+    // MG-06 attempt state: the claim token this attempt took, and the source
+    // epoch. A reassignment is a source change, so it moves the epoch — which is
+    // what tells an attempt its work is stale after an A→B→A change.
+    claimToken: null as string | null, generation: 0 };
   const operations: string[] = [];
   let inTransaction = false;
   let afterEmbeddingCommit: (() => void) | undefined;
@@ -21,6 +25,7 @@ function fixture() {
     expect(inTransaction).toBe(true);
     operations.push('stamp');
     state.indexedAt = data.indexedAt;
+    if ('indexClaimToken' in data) state.claimToken = data.indexClaimToken as string | null;
     return {};
   });
   const execute = jest.fn(async (sql: string, ...values: unknown[]) => {
@@ -29,15 +34,35 @@ function fixture() {
     if (sql.includes('INSERT INTO')) { operations.push('insert'); state.chunks.push(String(values[1])); }
     return 1;
   });
-  const query = jest.fn(async (sql: string) => {
+  const query = jest.fn(async (sql: string, ...params: unknown[]) => {
     expect(inTransaction).toBe(true);
+    if (sql.includes('SET index_claim_token')) {
+      state.claimToken = String(params[1]);
+      return [{ token: state.claimToken, generation: state.generation }];
+    }
     expect(sql).toContain('FOR UPDATE');
     if (sql.includes('FROM meetings')) { operations.push('lock-meeting'); return [{ ...state.meeting }]; }
     operations.push('lock-attachment');
-    return [{ ...state.attachment }];
+    return [{ ...state.attachment, indexClaimToken: state.claimToken, indexSourceGeneration: state.generation }];
   });
   const tx = { $queryRawUnsafe: query, $executeRawUnsafe: execute,
-    engagementAttachment: { findFirst: jest.fn().mockResolvedValue(snapshot), update },
+    engagementAttachment: {
+      // The snapshot read now carries the claim/epoch the fences compare.
+      findFirst: jest.fn(async () => ({
+        ...snapshot,
+        clientId: state.attachment.clientId,
+        indexClaimToken: state.claimToken,
+        indexSourceGeneration: state.generation,
+      })),
+      update,
+      updateMany: jest.fn(async ({ where, data }) => {
+        expect(inTransaction).toBe(true);
+        const filter = where as { indexClaimToken?: string };
+        if (filter.indexClaimToken !== undefined && filter.indexClaimToken !== state.claimToken) return { count: 0 };
+        if ('indexClaimToken' in data) state.claimToken = data.indexClaimToken as string | null;
+        return { count: 1 };
+      }),
+    },
     meeting: { findFirst: jest.fn().mockResolvedValue({ subject: 'Meeting' }) } };
   async function transaction(fn: (value: typeof tx) => Promise<unknown>) {
     expect(inTransaction).toBe(false);
@@ -60,6 +85,7 @@ function fixture() {
     state.attachment.clientId = clientId;
     state.chunks = [];
     state.indexedAt = null;
+    state.generation += 1;
   }
   return { service, state, operations, extract, execute, query, update, reassign,
     afterCommit: (fn: () => void) => { afterEmbeddingCommit = fn; } };

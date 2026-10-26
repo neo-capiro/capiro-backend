@@ -17,7 +17,20 @@ function fixture() {
     s3Key: 'tenant/doc',
     viewerMode: 'all', lifecycleStatus: 'ready', scanStatus: 'clean', supersededByAttachmentId: null,
   };
-  const findFirst = jest.fn().mockResolvedValue(attachment);
+  // MG-06 attempt claim: the CAS and every later lock read the same row state.
+  const claim = { token: null as string | null, generation: 0 };
+  const query = jest.fn(async (sql: string, ...params: unknown[]) => {
+    if (sql.includes('SET index_claim_token')) {
+      claim.token = String(params[1]);
+      return [{ token: claim.token, generation: claim.generation }];
+    }
+    return [{ ...attachment, indexClaimToken: claim.token, indexSourceGeneration: claim.generation }];
+  });
+  const findFirst = jest.fn(async () => ({
+    ...attachment,
+    indexClaimToken: claim.token,
+    indexSourceGeneration: claim.generation,
+  }));
   const extractAttachmentTextForKb = jest.fn();
   const purge = jest.fn().mockResolvedValue(undefined);
   const service = Object.create(ClientKbService.prototype) as ClientKbService;
@@ -26,8 +39,8 @@ function fixture() {
     prisma: {
       withTenant: jest.fn(async (_tenant, fn) =>
         fn({
-          engagementAttachment: { findFirst, update },
-          $queryRawUnsafe: jest.fn().mockResolvedValue([attachment]),
+          engagementAttachment: { findFirst, update, updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+          $queryRawUnsafe: query,
           $executeRawUnsafe: purge,
         }),
       ),
@@ -54,7 +67,7 @@ describe('client document indexing readability', () => {
     expect(embedAndUpsert).toHaveBeenCalledTimes(1);
     expect(f.update).toHaveBeenLastCalledWith({
       where: { id: 'document-1' },
-      data: {
+      data: expect.objectContaining({
         indexedAt: null,
         extractionStatus: 'empty',
         extractionMetadata: expect.objectContaining({
@@ -64,7 +77,7 @@ describe('client document indexing readability', () => {
           needsVisualRead: true,
           pages: 22,
         }),
-      },
+      }),
     });
   });
 
@@ -79,7 +92,7 @@ describe('client document indexing readability', () => {
     await f.service.indexAttachment('tenant', 'document-1');
     expect(f.update).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        data: {
+        data: expect.objectContaining({
           indexedAt: expect.any(Date),
           extractionStatus: 'truncated',
           extractionMetadata: expect.objectContaining({
@@ -89,7 +102,7 @@ describe('client document indexing readability', () => {
             truncated: true,
             pagesRead: 150,
           }),
-        },
+        }),
       }),
     );
   });

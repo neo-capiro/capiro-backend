@@ -5,6 +5,7 @@ import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { EngagementService, type NativeClientDocumentWrite } from './engagement.service.js';
 import { AttachmentContentService } from './attachment-content.service.js';
+import { ClientKbService } from '../embeddings/client-kb.service.js';
 
 const ctx = { tenantId: 'tenant-one', userId: 'user-one' } as TenantContext;
 const input = { clientId: 'client-one', fileName: 'brief.txt', contentType: 'text/plain',
@@ -55,6 +56,68 @@ const preconditionFailed = () => Object.assign(new Error('Object already exists'
 });
 
 describe('canonical client document retry and scan boundary', () => {
+  it('serializes ordinary deterministic recreation behind an observed-absent index purge', async () => {
+    const h = harness();
+    const first = await h.service.createAttachmentFromBuffer(ctx, input);
+    h.rows.clear(); // A deleted document can be retried with the same stable id.
+    let chunks = false;
+    let unlock!: () => void, observed!: () => void, resume!: () => void, reached!: () => void;
+    const held = new Promise<void>(resolve => { unlock = resolve; });
+    const absence = new Promise<void>(resolve => { observed = resolve; });
+    const continuePurge = new Promise<void>(resolve => { resume = resolve; });
+    const creationReached = new Promise<void>(resolve => { reached = resolve; });
+    let cleanupHasLock = false;
+    h.clientKb.indexAttachmentFireAndForget.mockImplementation(() => {
+      chunks = true;
+      h.rows.get(first.id)!.indexedAt = new Date();
+    });
+    const originalUpsert = h.tx.engagementAttachment.upsert.getMockImplementation()!;
+    h.tx.engagementAttachment.upsert.mockImplementation(async args => {
+      const row = await originalUpsert(args);
+      reached(); // The regression reaches INSERT without waiting for the lock.
+      return row;
+    });
+    h.tx.$executeRaw.mockImplementation(async query => {
+      expect(query.values).toEqual([`capiro-client-document:${first.id}`]);
+      reached();
+      if (cleanupHasLock) await held;
+      return 1;
+    });
+    const kb = Object.create(ClientKbService.prototype) as ClientKbService;
+    Object.assign(kb, { prisma: { withTenant: async (_tenant: string, fn: (tx: unknown) => unknown) => {
+      try {
+        return await fn({
+          engagementAttachment: h.tx.engagementAttachment,
+          $executeRawUnsafe: async (sql: string, key: string) => {
+            if (sql.includes('pg_advisory_xact_lock')) {
+              expect(key).toBe(`capiro-client-document:${first.id}`);
+              cleanupHasLock = true;
+            } else if (sql.trimStart().startsWith('DELETE')) chunks = false;
+            return 1;
+          },
+          $queryRawUnsafe: async () => {
+            const present = h.rows.has(first.id);
+            observed(); await continuePurge;
+            return [{ present }];
+          },
+        });
+      } finally { if (cleanupHasLock) unlock(); }
+    } } });
+    const cleanup = kb.indexAttachment(ctx.tenantId, first.id);
+    await absence;
+    const recreate = h.service.createAttachmentFromBuffer(ctx, input);
+    await creationReached;
+    // With the lock removed, the ordinary upsert has already recreated the row.
+    const recreatedBeforePurge = h.rows.has(first.id);
+    resume();
+    await cleanup;
+    const saved = await recreate;
+    expect(recreatedBeforePurge).toBe(false);
+    expect(saved.id).toBe(first.id);
+    expect(chunks).toBe(true);
+    expect(h.rows.get(first.id)!.indexedAt).toBeInstanceOf(Date);
+  });
+
   it('uses one durable document and object key for concurrent retries', async () => {
     const { service, rows, s3 } = harness();
     const [first, concurrent] = await Promise.all([
