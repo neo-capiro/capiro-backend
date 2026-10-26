@@ -1,12 +1,13 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import PDFDocument from 'pdfkit';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { DirectoryBridgeClient } from './directory-bridge.client.js';
@@ -38,6 +39,12 @@ const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 export interface ExportView {
   exportId: string;
   documentId: string;
+  /** Null for historical callers which did not supply an exact request identity. */
+  requestId: string | null;
+  /** The assembled render input, not an immutable whole-document revision. */
+  renderInputSha256: string | null;
+  contentSha256: string | null;
+  sourceUpdatedAt: string | null;
   status: 'queued' | 'ready' | 'failed';
   format: 'pdf';
   pageSize: 'letter' | 'a4';
@@ -77,36 +84,92 @@ export class HillDayExportService {
     actorId: string,
     documentId: string,
     pageSize: 'letter' | 'a4',
+    requestId?: string,
   ): Promise<ExportView> {
     // Refuse before the export row and the render: without the dedicated key no
     // grant can be issued, so there is no export worth persisting or rendering.
     this.requireSigningKey();
     const doc = await this.documents.assertDoc(tenantId, documentId, actorId);
     if (doc.ownerId !== actorId) throw new ForbiddenException('Only the document owner can export it');
-    const view = await this.documents.get(tenantId, documentId, actorId);
-    const row = await this.prisma.wsHillDayExport.create({
-      data: { tenantId, documentId, actorId, format: 'pdf', pageSize, status: 'queued' },
+    if (requestId !== undefined) this.assertRequestId(requestId);
+    const requestHash = requestId === undefined ? null : createHash('sha256')
+      .update(JSON.stringify({ documentId, format: 'pdf', pageSize })).digest('hex');
+    const existing = requestId === undefined ? null : await this.prisma.wsHillDayExport.findFirst({
+      where: { tenantId, actorId, requestId },
     });
+    if (existing) {
+      if (existing.documentId !== documentId || existing.requestHash !== requestHash)
+        throw new ConflictException('Export request was already used with different inputs');
+      await this.documents.assertDoc(tenantId, documentId, actorId);
+      return this.toView(existing);
+    }
+    // Only the successful insert owns this render. An unknown insert outcome is
+    // recovered by request readback, never by an automatic second render.
+    const row = await this.prisma.wsHillDayExport.create({
+      data: { tenantId, documentId, actorId, requestId: requestId ?? null, requestHash, format: 'pdf', pageSize, status: 'queued' },
+    }).catch(async (error: unknown) => {
+      if (requestId === undefined || (error as { code?: string })?.code !== 'P2002') throw error;
+      const winner = await this.prisma.wsHillDayExport.findFirst({ where: { tenantId, actorId, requestId } });
+      if (!winner) throw error;
+      if (winner.documentId !== documentId || winner.requestHash !== requestHash)
+        throw new ConflictException('Export request was already used with different inputs');
+      return null;
+    });
+    if (!row) {
+      const recovered = await this.getRequest(tenantId, documentId, requestId!, actorId);
+      if (!recovered) throw new NotFoundException('Export request is no longer available');
+      return recovered;
+    }
+
+    // Hill Day assembles saved document/meeting rows, with no immutable document
+    // revision. Freeze that actual input and bind it separately from PDF bytes.
+    const view = JSON.parse(JSON.stringify(await this.documents.get(tenantId, documentId, actorId))) as HillDayDocumentView;
+    const branding = await this.fetchBranding(tenantId, view.client.id);
+    const renderInputSha256 = createHash('sha256').update(JSON.stringify({
+      format: 'hillday-render-input-v1', view, pageSize,
+      logoSha256: branding.clientLogo ? createHash('sha256').update(branding.clientLogo).digest('hex') : null,
+    })).digest('hex');
+    let buffer: Buffer;
     try {
-      const branding = await this.fetchBranding(tenantId, view.client.id);
-      const buffer = await this.renderPdf(view, { pageSize, logo: branding.clientLogo });
-      const filename = `${safeFilename(view.name)}.pdf`;
-      await this.documents.assertDoc(tenantId, documentId, actorId);
-      const ready = await this.prisma.wsHillDayExport.update({
-        where: { id: row.id },
-        data: { status: 'ready', file: buffer, sizeBytes: buffer.length, filename, readyAt: new Date() },
-      });
-      await this.documents.assertDoc(tenantId, documentId, actorId);
-      return this.toView(ready);
+      buffer = await this.renderPdf(view, { pageSize, logo: branding.clientLogo });
     } catch (err) {
-      if (err instanceof NotFoundException || err instanceof ForbiddenException) throw err;
       this.logger.error(`Hill Day export ${row.id} failed: ${(err as Error).message}`);
+      await this.documents.assertDoc(tenantId, documentId, actorId);
       const failed = await this.prisma.wsHillDayExport.update({
         where: { id: row.id },
-        data: { status: 'failed', error: (err as Error).message.slice(0, 500) },
+        data: { status: 'failed', error: (err as Error).message.slice(0, 500), renderInputSha256, sourceUpdatedAt: new Date(view.updatedAt) },
       });
+      await this.documents.assertDoc(tenantId, documentId, actorId);
       return this.toView(failed);
     }
+    // A lost acknowledgement here may mean READY committed. It must never run
+    // the render-failure handler and overwrite that durable result as failed.
+    await this.documents.assertDoc(tenantId, documentId, actorId);
+    const ready = await this.prisma.wsHillDayExport.update({
+      where: { id: row.id },
+      data: {
+        status: 'ready', file: buffer, sizeBytes: buffer.length,
+        filename: `${safeFilename(view.name)}.pdf`, readyAt: new Date(),
+        renderInputSha256, sourceUpdatedAt: new Date(view.updatedAt),
+        contentSha256: createHash('sha256').update(buffer).digest('hex'),
+      },
+    });
+    await this.documents.assertDoc(tenantId, documentId, actorId);
+    return this.toView(ready);
+  }
+
+  /** Null is absence of a receipt, never permission to reissue the request. */
+  async getRequest(tenantId: string, documentId: string, requestId: string, actorId: string): Promise<ExportView | null> {
+    this.assertRequestId(requestId);
+    await this.documents.assertDoc(tenantId, documentId, actorId);
+    const row = await this.prisma.wsHillDayExport.findFirst({ where: { tenantId, documentId, actorId, requestId } });
+    await this.documents.assertDoc(tenantId, documentId, actorId);
+    return row ? this.toView(row) : null;
+  }
+
+  private assertRequestId(requestId: string): void {
+    if (typeof requestId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId))
+      throw new BadRequestException('A valid export requestId is required');
   }
 
   async get(tenantId: string, documentId: string, exportId: string, actorId: string): Promise<ExportView> {
@@ -178,6 +241,10 @@ export class HillDayExportService {
     sizeBytes: number | null;
     error: string | null;
     createdAt: Date;
+    requestId?: string | null;
+    renderInputSha256?: string | null;
+    contentSha256?: string | null;
+    sourceUpdatedAt?: Date | null;
   }): ExportView {
     const ready = row.status === 'ready';
     // A grant exists only under the dedicated key: without it the export stays
@@ -186,6 +253,10 @@ export class HillDayExportService {
     return {
       exportId: row.id,
       documentId: row.documentId,
+      requestId: row.requestId ?? null,
+      renderInputSha256: row.renderInputSha256 ?? null,
+      contentSha256: row.contentSha256 ?? null,
+      sourceUpdatedAt: row.sourceUpdatedAt?.toISOString() ?? null,
       status: row.status as ExportView['status'],
       format: 'pdf',
       pageSize: row.pageSize === 'a4' ? 'a4' : 'letter',
