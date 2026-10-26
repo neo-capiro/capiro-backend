@@ -301,7 +301,10 @@
     {
       "service": "core",
       "method": "PATCH",
-      "pathRegexes": ["^/api/me$", "^/api/programs/admin/aliases/[A-Za-z0-9_-]+$"]
+      "pathRegexes": [
+        "^/api/me$",
+        "^/api/programs/admin/aliases/[A-Za-z0-9_-]+$"
+      ]
     },
     {
       "service": "core",
@@ -341,7 +344,9 @@
     {
       "service": "strategy",
       "method": "POST",
-      "pathRegexes": ["^/strategy-api/internal/objective-canonical/generation-requests$"]
+      "pathRegexes": [
+        "^/strategy-api/internal/objective-canonical/generation-requests$"
+      ]
     },
     {
       "service": "workspace",
@@ -372,7 +377,9 @@
     {
       "service": "onboard",
       "method": "POST",
-      "pathRegexes": ["^/onboard-api/webhooks/stripe$"]
+      "pathRegexes": [
+        "^/onboard-api/webhooks/stripe$"
+      ]
     },
     {
       "service": "core",
@@ -385,12 +392,17 @@
     {
       "service": "strategy",
       "method": "POST",
-      "pathRegexes": ["^/strategy-api/planner/strategy-materializations$"]
+      "pathRegexes": [
+        "^/strategy-api/planner/strategy-materializations$"
+      ]
     },
     {
       "service": "core",
       "method": "POST",
-      "pathRegexes": ["^/api/internal/routines/current$", "^/api/internal/routines/reads$"]
+      "pathRegexes": [
+        "^/api/internal/routines/current$",
+        "^/api/internal/routines/reads$"
+      ]
     },
     {
       "service": "core",
@@ -418,13 +430,58 @@
     {
       "service": "core",
       "method": "POST",
-      "pathRegexes": ["^/api/engagement/attachments/prospect-copies$"]
+      "pathRegexes": [
+        "^/api/engagement/attachments/prospect-copies$"
+      ]
     },
     {
       "service": "core",
       "method": "POST",
       "pathRegexes": [
         "^/api/engagement/integrations/(microsoft|google)/[0-9a-fA-F-]{36}/calendar-commands$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/internal/workspace/context/compile$",
+        "^/api/internal/workspace/context/authorize-client$",
+        "^/api/internal/workspace/context/resolve-client$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/internal/memory/candidates$",
+        "^/api/internal/directory/match-emails$",
+        "^/api/engagement/outreach$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/clio/attachments/resolve-text$",
+        "^/api/engagement/attachments/[0-9a-fA-F-]{36}/context-text$",
+        "^/api/engagement/attachments/[0-9a-fA-F-]{36}/context-source$"
+      ]
+    },
+    {
+      "service": "workspace",
+      "method": "POST",
+      "pathRegexes": [
+        "^/workspace-api/drafts$",
+        "^/workspace-api/drafts/[0-9a-fA-F-]{36}/versions$"
+      ]
+    },
+    {
+      "service": "workspace",
+      "method": "PATCH",
+      "pathRegexes": [
+        "^/workspace-api/drafts/[0-9a-fA-F-]{36}$",
+        "^/workspace-api/drafts/[0-9a-fA-F-]{36}/documents/[0-9a-fA-F-]{36}$"
       ]
     },
     {
@@ -443,6 +500,65 @@
         "^/api/memory/version-candidates/[A-Za-z0-9_-]+/approve$",
         "^/api/memory/version-candidates/[A-Za-z0-9_-]+/reject$",
         "^/api/memory/items/[A-Za-z0-9_-]+/review-correction$"
+      ]
+    },
+    {
+      "id": "Wave3WorkspaceQualifiedWrites",
+      "service": "workspace",
+      "method": "POST",
+      "pathRegexes": [
+        "^/workspace-api/drafts/[0-9a-fA-F-]{36}/save$",
+        "^/workspace-api/hillday/documents$",
+        "^/workspace-api/hillday/documents/[0-9a-fA-F-]{36}/exports$"
+      ]
+    },
+    {
+      "id": "FinishedNewsletterPosts",
+      "service": "workspace",
+      "method": "POST",
+      "pathRegexes": [
+        "^/workspace-api/newsletters/documents$",
+        "^/workspace-api/newsletters/assets$",
+        "^/workspace-api/newsletters/documents/[0-9a-fA-F-]{36}/(preview|stage|library)$"
+      ]
+    },
+    {
+      "id": "FinishedNewsletterSave",
+      "service": "workspace",
+      "method": "PATCH",
+      "pathRegexes": [
+        "^/workspace-api/newsletters/documents/[0-9a-fA-F-]{36}$"
+      ]
+    },
+    {
+      "id": "FinishedNewsletterOpen",
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/engagement/newsletters/stages/[0-9a-fA-F-]{36}/open$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/(sharing/(enable|pin|disable)|dashboard-designs|share-links)$",
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/share-links/[A-Za-z0-9_-]+/revoke$",
+        "^/api/research-share-links/[A-Za-z0-9_-]+/revoke$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/public/research-share/[0-9a-f]{64}/(pin|dashboard)$"
+      ]
+    },
+    {
+      "service": "core",
+      "method": "PUT",
+      "pathRegexes": [
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/dashboard-designs/[A-Za-z0-9_-]+$"
       ]
     }
   ]

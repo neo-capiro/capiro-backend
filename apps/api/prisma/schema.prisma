@@ -388,6 +388,9 @@ model Tenant {
   researchPortfolioOutputReceipts         ResearchPortfolioOutputClientFileReceipt[]
   researchPortfolioBookmarks              ResearchPortfolioBookmark[]
   researchPortfolioTourStates             ResearchPortfolioTourState[]
+  researchPortfolioShareSettings          ResearchPortfolioShareSetting[]
+  researchPortfolioShareLinks             ResearchPortfolioShareLink[]
+  researchPortfolioDashboardDesigns       ResearchPortfolioDashboardDesign[]
   researchPortfolioReviewNotes            ResearchPortfolioReviewNote[]
 
   @@map("tenants")
@@ -1055,6 +1058,7 @@ model Client {
   bizdevProspects          BusinessDevelopmentProspect[]       @relation("BizDevProspectLinkedClient")
   researchPortfolioFitVersions ResearchPortfolioFitVersion[]
   researchPortfolioLinks   ResearchPortfolioClientLink[]
+  researchPortfolioShareLinks ResearchPortfolioShareLink[]
 
   @@unique([tenantId, id], map: "clients_tenant_id_key")
   @@index([tenantId], map: "clients_tenant_idx")
@@ -15945,6 +15949,12 @@ enum ResearchPortfolioEventKind {
   import_created
   import_action
   review_note_added
+  share_enabled
+  share_disabled
+  share_pin_changed
+  share_design_saved
+  share_link_published
+  share_link_revoked
 
   @@map("research_portfolio_event_kind")
 }
@@ -16000,6 +16010,9 @@ model ResearchPortfolio {
   @@index([tenantId, ownerUserId], map: "research_portfolios_tenant_owner_idx")
   @@map("research_portfolios")
   clientFilingJobs ResearchPortfolioClientFilingJob[]
+  shareSetting     ResearchPortfolioShareSetting?
+  shareLinks       ResearchPortfolioShareLink[]
+  dashboardDesigns ResearchPortfolioDashboardDesign[]
 }
 
 model ResearchPortfolioGrant {
@@ -17750,4 +17763,88 @@ model CalendarSyncCommand {
   @@id([tenantId, actorUserId, requestId], map: "calendar_sync_commands_pkey")
   @@index([tenantId, connectionId, status], map: "calendar_sync_commands_connection_idx")
   @@map("calendar_sync_commands")
+}
+
+/// Client share links (Research Portfolios): sharing is off until an Owner turns it on
+/// with a PIN. The PIN is stored only as a salted scrypt hash and applies to every link
+/// of the portfolio; changing it ends every open viewing session.
+model ResearchPortfolioShareSetting {
+  tenantId        String    @map("tenant_id") @db.Uuid
+  portfolioId     String    @map("portfolio_id") @db.Uuid
+  enabled         Boolean   @default(false)
+  pinHash         String?   @map("pin_hash") @db.VarChar(256)
+  pinUpdatedAt    DateTime? @map("pin_updated_at") @db.Timestamptz(6)
+  updatedByUserId String    @map("updated_by_user_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+
+  @@id([tenantId, portfolioId], map: "research_portfolio_share_settings_pkey")
+  @@unique([portfolioId], map: "research_portfolio_share_settings_portfolio_key")
+  @@map("research_portfolio_share_settings")
+}
+
+/// A saved, versioned drag-and-drop dashboard layout. The layout is copied into each
+/// published link, so later design edits never change what a recipient sees.
+model ResearchPortfolioDashboardDesign {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  portfolioId     String   @map("portfolio_id") @db.Uuid
+  name            String   @db.VarChar(200)
+  version         Int      @default(1)
+  layout          Json
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+  updatedByUserId String   @map("updated_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant    Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio            @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  links     ResearchPortfolioShareLink[]
+
+  @@unique([tenantId, id], map: "research_portfolio_dashboard_designs_tenant_id_key")
+  @@index([tenantId, portfolioId, updatedAt(sort: Desc)], map: "research_portfolio_dashboard_designs_portfolio_idx")
+  @@map("research_portfolio_dashboard_designs")
+}
+
+/// One published link = one client, one snapshot, one frozen dashboard payload.
+/// Only the token hash is stored; the token is shown once. Expiry is fixed at one week.
+model ResearchPortfolioShareLink {
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  portfolioId       String    @map("portfolio_id") @db.Uuid
+  clientId          String    @map("client_id") @db.Uuid
+  snapshotId        String    @map("snapshot_id") @db.Uuid
+  snapshotName      String    @map("snapshot_name") @db.VarChar(200)
+  designId          String?   @map("design_id") @db.Uuid
+  designVersion     Int       @map("design_version")
+  branding          Boolean   @default(false)
+  operationKey      String    @map("operation_key") @db.VarChar(128)
+  tokenHash         String    @map("token_hash") @db.Char(64)
+  payload           Json
+  payloadHash       String    @map("payload_hash") @db.Char(64)
+  publishedByUserId String    @map("published_by_user_id") @db.Uuid
+  publishedAt       DateTime  @default(now()) @map("published_at") @db.Timestamptz(6)
+  expiresAt         DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt         DateTime? @map("revoked_at") @db.Timestamptz(6)
+  revokedByUserId   String?   @map("revoked_by_user_id") @db.Uuid
+  revokeReason      String?   @map("revoke_reason") @db.VarChar(64)
+  openCount         Int       @default(0) @map("open_count")
+  lastOpenedAt      DateTime? @map("last_opened_at") @db.Timestamptz(6)
+  failedPinAttempts Int       @default(0) @map("failed_pin_attempts")
+  lockedUntil       DateTime? @map("locked_until") @db.Timestamptz(6)
+
+  tenant    Tenant                            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio                 @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  client    Client                            @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade)
+  design    ResearchPortfolioDashboardDesign? @relation(fields: [tenantId, designId], references: [tenantId, id], onDelete: SetNull)
+
+  @@unique([tenantId, id], map: "research_portfolio_share_links_tenant_id_key")
+  @@unique([tenantId, operationKey], map: "research_portfolio_share_links_operation_key")
+  @@unique([tokenHash], map: "research_portfolio_share_links_token_hash_key")
+  @@index([tenantId, portfolioId, publishedAt(sort: Desc)], map: "research_portfolio_share_links_portfolio_idx")
+  @@index([tenantId, expiresAt], map: "research_portfolio_share_links_expiry_idx")
+  @@map("research_portfolio_share_links")
 }

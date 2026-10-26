@@ -186,6 +186,9 @@ export class AppModule implements NestModule {
         { path: '/api/engagement/newsletter-public/(.*)', method: RequestMethod.ALL },
         { path: '/api/internal/(.*)', method: RequestMethod.ALL },
         { path: 'api/internal/(.*)', method: RequestMethod.ALL },
+        // Research Portfolio client share links: the recipient has the link and a PIN, no session.
+        { path: '/api/public/research-share/(.*)', method: RequestMethod.ALL },
+        { path: 'api/public/research-share/(.*)', method: RequestMethod.ALL },
       )
       .forRoutes('*');
 

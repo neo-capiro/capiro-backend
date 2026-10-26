@@ -43,6 +43,45 @@ function routeDestination(rules: any[], method: string, pathname: string, hostna
   return null;
 }
 
+test('sharing writes admit only the exact owner and public capability routes', () =>
+  render(false, (edge) => {
+    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map((r) => r.Properties);
+    const owner = '/api/research-portfolios/synthetic-portfolio_1';
+    const token = 'a'.repeat(64);
+    const routes: [string, string][] = [
+      ...['enable', 'pin', 'disable'].map((action): [string, string] => ['POST', `${owner}/sharing/${action}`]),
+      ['POST', `${owner}/dashboard-designs`],
+      ['POST', `${owner}/share-links`],
+      ['POST', `${owner}/share-links/synthetic-link_1/revoke`],
+      ['POST', '/api/research-share-links/synthetic-link_1/revoke'],
+      ['POST', `/api/public/research-share/${token}/pin`],
+      ['POST', `/api/public/research-share/${token}/dashboard`],
+      ['PUT', `${owner}/dashboard-designs/synthetic-design_1`],
+    ];
+    for (const [method, pathname] of routes) {
+      assert.deepEqual(routeDestination(rules, method, pathname), { Ref: 'CoreTarget' });
+      for (const other of ['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE'].filter((m) => m !== method))
+        assert.equal(routeDestination(rules, other, pathname), null, `${other} ${pathname}`);
+      for (const hostname of ['app.capiro.ai', 'arbitrary.invalid'])
+        assert.equal(routeDestination(rules, method, pathname, hostname), null);
+      for (const neighbor of [`${pathname}/extra`, `${pathname}.invalid`, `/extra${pathname}`])
+        assert.equal(routeDestination(rules, method, neighbor), null, neighbor);
+    }
+    for (const pathname of [
+      `${owner}/sharing/unallocated`, `${owner}/dashboard-designs/synthetic-design_1`,
+      '/api/research-portfolios/invalid.id/sharing/enable',
+      `/api/public/research-share/${'a'.repeat(63)}/pin`,
+      `/api/public/research-share/${'g'.repeat(64)}/pin`,
+      `/api/public/research-share/${token}/unallocated`,
+    ]) assert.equal(routeDestination(rules, 'POST', pathname), null, pathname);
+    for (const [id, priority] of Object.entries({
+      Wave3WorkspaceQualifiedWrites: 64, FinishedNewsletterPosts: 65,
+      FinishedNewsletterSave: 66, FinishedNewsletterOpen: 67,
+      Wave2Writes63: 68, Wave2Writes64: 69, Wave2Writes65: 70,
+    })) assert.equal(edge.Resources[id].Properties.Priority, priority, id);
+    assert.equal(new Set(rules.map((r) => r.Priority)).size, rules.length);
+  }));
+
 test('six internal file and owner-memory POST admissions stay finite and preview-only', () =>
   render(false, (edge) => {
     const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map((r) => r.Properties);
@@ -181,7 +220,7 @@ test('finite method/path routes admit their owners and reject unintended cross-p
     const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map(
       (r) => r.Properties,
     );
-    assert.equal(rules.length, 58);
+    assert.equal(rules.length, 70);
     for (const rule of rules) {
       assert.deepEqual(rule.ListenerArn, { Ref: 'PreviewHttps' });
       const conditions = rule.Conditions;

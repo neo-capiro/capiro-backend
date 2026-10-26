@@ -211,7 +211,7 @@ export class FirstChatPreviewEdgeStack extends cdk.Stack {
       forward(`${owner}Reads`, owner!, ['GET', 'HEAD'], [`/${prefix}/*`], false);
     }
     writes.groups.forEach((group, index) =>
-      forward(`Wave2Writes${index + 1}`, group.service, [group.method], group.pathRegexes, true),
+      forward('id' in group ? group.id ?? `Wave2Writes${index + 1}` : `Wave2Writes${index + 1}`, group.service, [group.method], group.pathRegexes, true),
     );
     new cdk.CfnOutput(this, 'DnsName', { value: alb.attrDnsName, exportName: dnsExport });
     new cdk.CfnOutput(this, 'HostedZoneId', {
