@@ -3,6 +3,7 @@ import { canonicalWorkspaceSnapshot, workspaceSavedOutreachRevisionWithinTx, wor
 import type { TenantContext, ResourceScopeTransaction } from '@capiro/shared';
 import { OutreachCommandEngineService } from './outreach-command-engine.service.js';
 import { createBlankCampaignSpecV1, hashCampaignSpecV1 } from '../state/outreach-campaign-spec.v1.js';
+import { hashNormalizedOutreachCommandBatch } from '../state/outreach-command-normalization.js';
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const ctx = { tenantId: id(1), userId: id(2), clerkUserId: 'user_test', tenantSlug: 'test', role: 'standard_user' } as TenantContext;
@@ -16,6 +17,7 @@ function harness(client = false) {
     source: false, prospectId: null as string | null, versionExists: true, draftExists: true,
     memoryWall: true, grant: true, clientExists: true, authorized: true,
     clientDisplay: null as string | null, currentConfig: client ? { clientId } : {}, snapshot: structuredClone(snapshot) as any,
+    currentClientId: client ? clientId : null as string | null,
     session: { id: sessionId, tenantId: ctx.tenantId, createdByUserId: ctx.userId, status: 'active', currentStateVersion: 1 },
     spec: createBlankCampaignSpecV1(), events: [] as any[], writes: 0,
   };
@@ -31,7 +33,7 @@ function harness(client = false) {
       if (text.includes('FROM client_memory_access')) return state.grant ? [{ id: 'grant' }] : [];
       if (text.includes('FROM tenants ')) return state.tenant && params[0] === ctx.tenantId ? [{ id: ctx.tenantId }] : [];
       if (text.includes('FROM tenant_memberships')) return state.member && params[0] === ctx.tenantId && params[1] === ctx.clerkUserId && (params[2] == null || params[2] === ctx.userId) ? [{ userId: ctx.userId }] : [];
-      if (text.includes('FROM ws_draft')) return state.draftExists && params[1] === draftId ? [{ ownerId: state.ownerId, prospectId: state.prospectId, config: state.currentConfig, client: state.clientDisplay }] : [];
+      if (text.includes('FROM ws_draft')) return state.draftExists && params[1] === draftId ? [{ ownerId: state.ownerId, prospectId: state.prospectId, config: state.currentConfig, client: state.clientDisplay, clientId: state.currentClientId }] : [];
       if (text.includes('FROM ws_source_action')) return state.source ? [{ sourceType: 'legiwatch_editorial' }] : [];
       if (text.includes('FROM ws_collaborator')) return state.role ? [{ role: state.role }] : [];
       if (text.includes('FROM ws_doc_version')) return state.versionExists && params[1] === draftId && params[2] === versionId ? [{ id: versionId, snapshot: state.snapshot, authorId: 'user_original', authorKind: 'person', createdAt: new Date('2026-10-12T00:00:00Z') }] : [];
@@ -70,8 +72,148 @@ function harness(client = false) {
   const service = new OutreachCommandEngineService(prisma as any, repository as any, authorization as any, {} as any, {} as any);
   const input = () => ({ requestId, draftId, versionId, snapshotHash: hash(state.snapshot), expectedStateVersion: 1 });
   const stage = (override = {}, actor = ctx, selectedSession = sessionId) => service.stageSavedNewsletter(actor, selectedSession, { ...input(), ...override });
-  return { state, tx, sql, service, stage, input, repository, authorization, prisma };
+  const read = () => workspaceSavedOutreachRevisionWithinTx(tx as unknown as ResourceScopeTransaction, { ...ctx, draftId, versionId });
+  const pinned = async () => {
+    const revision = await read();
+    return { projectionVersion: revision.projectionVersion, projectionHash: createHash('sha256').update(revision.projectionJson).digest('hex') };
+  };
+  return { state, tx, sql, service, stage, input, read, pinned, repository, authorization, prisma };
 }
+
+function newsletterSnapshot() {
+  return {
+    ...structuredClone(snapshot), docTitle: 'Document label', config: { product: 'Newsletter', clientId: null },
+    documents: [{ id: id(8), body: {
+      blocks: [{ id: 'derived', title: '', content: 'Original derived text.' }],
+      newsletter: { subject: '  Résumé — 日本語  ', preview: '', firmName: '', mailingAddress: '',
+        blocks: [{ id: 'text', kind: 'paragraph', text: 'Hello café\r\n日本語  ' }] },
+    } }],
+  };
+}
+
+/** Literal historical projection and existing event schema; no v2 helper is used. */
+function seedOriginalReceipt(h: ReturnType<typeof harness>) {
+  const batch = h.service.parseNormalizeAndValidateBatch({ batchId: requestId, expectedStateVersion: 1,
+    commands: [{ type: 'SET_CONTENT_SKELETON', schemaVersion: 1,
+      payload: { value: { subject: 'Document label', body: 'Original derived text.', slots: [] } } }],
+  });
+  const provenance = {
+    kind: 'workspace_saved_newsletter_v1', requestHash: hash({ tenantId: ctx.tenantId, actorUserId: ctx.userId, sessionId, ...h.input() }),
+    requestId, draftId, versionId, snapshotHash: hash(h.state.snapshot), hashFormat: 'workspace-snapshot-canonical-json-v1',
+    clientId: null, savedAt: '2026-10-12T00:00:00.000Z', authorId: 'user_original', authorKind: 'person',
+    expectedStateVersion: 1, commandHash: hashNormalizedOutreachCommandBatch(batch),
+  };
+  h.state.session.currentStateVersion = 2;
+  h.state.events.push({ id: id(100), eventType: 'command_batch_result', commandBatchId: requestId,
+    payloadHash: provenance.commandHash, safeMetadataJsonb: { status: 'applied', stateVersion: 2,
+      specHash: 'a'.repeat(64), changed: true, commandCount: 1, savedRevisionStaging: provenance } });
+  return provenance;
+}
+
+describe('WS13 explicit saved Newsletter projection', () => {
+  it('stages the exact returned normalized authored subject/plaintext and records its identity', async () => {
+    const h = harness(); h.state.snapshot = newsletterSnapshot();
+    const revision = await h.read(); const selected = await h.pinned();
+    expect(revision.contentSkeleton).toEqual({ subject: 'Résumé — 日本語', body: 'Hello café\n日本語', slots: [] });
+    expect(selected.projectionVersion).toBe('workspace-newsletter-plaintext-v2');
+    expect(selected.projectionHash).toBe('18fecd93ba5bf68d1e79bb02f08cb722a7e47b70f69238879a215cc62001fd42');
+    expect(revision.projectionJson).toBe('{"contentSkeleton":{"body":"Hello café\\n日本語","slots":[],"subject":"Résumé — 日本語"},"projectionVersion":"workspace-newsletter-plaintext-v2"}');
+    const first = await h.stage(selected);
+    expect(h.state.spec.contentSkeleton).toEqual(revision.contentSkeleton);
+    expect(first.staged).toMatchObject({ ...selected, snapshotHash: hash(h.state.snapshot), authorId: 'user_original' });
+    const retry = await h.stage(selected);
+    expect(retry.staged).toEqual(first.staged); expect(retry.receiptId).toBe(first.receiptId);
+    expect(retry.replayed).toBe(true); expect(h.state.writes).toBe(1);
+  });
+  it('refuses a first unpinned Newsletter request and a mismatched projection without writing', async () => {
+    const h = harness(); h.state.snapshot = newsletterSnapshot();
+    await expect(h.stage()).rejects.toMatchObject({ code: 'OUTREACH_STATE_CONFLICT' });
+    await expect(h.stage({ ...await h.pinned(), projectionHash: '0'.repeat(64) })).rejects.toMatchObject({ code: 'OUTREACH_STATE_CONFLICT' });
+    await expect(h.stage({ ...await h.pinned(), projectionVersion: 'workspace-outreach-plaintext-v1' })).rejects.toMatchObject({ code: 'OUTREACH_STATE_CONFLICT' });
+    expect(h.state.writes).toBe(0);
+  });
+  it('returns the original unpinned v1 receipt even though the chooser now returns v2', async () => {
+    const h = harness(); h.state.snapshot = newsletterSnapshot(); const original = seedOriginalReceipt(h);
+    expect((await h.read()).contentSkeleton.subject).toBe('Résumé — 日本語');
+    const result = await h.stage();
+    expect(result.staged).toEqual(original); expect(result.staged).not.toHaveProperty('projectionVersion');
+    expect(result.specHash).toBe('a'.repeat(64)); expect(result.replayed).toBe(true); expect(h.state.writes).toBe(0);
+    await expect(h.stage(await h.pinned())).rejects.toMatchObject({ code: 'OUTREACH_COMMAND_ID_REUSE' });
+  });
+  it('does not reinterpret an original receipt when its Newsletter shape is invalid under v2', async () => {
+    const h = harness(); h.state.snapshot = newsletterSnapshot(); delete h.state.snapshot.documents[0].body.newsletter.subject;
+    const original = seedOriginalReceipt(h);
+    await expect(h.read()).rejects.toThrow(); expect((await h.stage()).staged).toEqual(original);
+    expect(h.state.writes).toBe(0);
+  });
+  it('preserves an empty authored subject and exactly 8000 characters of body', async () => {
+    const h = harness(); h.state.snapshot = newsletterSnapshot();
+    h.state.snapshot.documents[0].body.newsletter.subject = '';
+    h.state.snapshot.documents[0].body.newsletter.blocks[0].text = 'é'.repeat(8000);
+    await h.stage(await h.pinned());
+    expect(h.state.spec.contentSkeleton).toEqual({ subject: '', body: 'é'.repeat(8000), slots: [] });
+  });
+  it('stages a pinned client Newsletter only into its one currently authorized sponsor', async () => {
+    const h = harness(true); h.state.snapshot = newsletterSnapshot(); h.state.snapshot.config.clientId = clientId;
+    const selected = await h.pinned(); const first = await h.stage(selected);
+    expect(first.staged).toMatchObject({ clientId, ...selected });
+    expect(h.authorization.authorizeClientWithinTx).toHaveBeenCalledWith(h.tx, expect.anything(), clientId);
+    h.state.spec.sponsor = { kind: 'multi_client', label: null, clientRefs: [{ clientId }, { clientId: id(99) }] };
+    await expect(h.stage(selected)).rejects.toMatchObject({ code: 'OUTREACH_REFERENCE_UNAUTHORIZED' });
+    expect(h.state.writes).toBe(1);
+  });
+  it.each(['missing', 'null', 'subject', 'empty', 'image', 'oversized', 'kind', 'duplicate', 'slot', 'control', 'unknown-field', 'two-newsletters'])('refuses %s saved Newsletter without generic fallback or truncation', async (kind) => {
+    const h = harness(); h.state.snapshot = newsletterSnapshot(); const doc = h.state.snapshot.documents[0];
+    const body = doc.body.newsletter;
+    if (kind === 'missing') delete doc.body.newsletter;
+    if (kind === 'null') doc.body.newsletter = null;
+    if (kind === 'subject') body.subject = 42;
+    if (kind === 'empty') body.blocks = [];
+    if (kind === 'image') body.blocks = [{ id: 'image', kind: 'image', text: 'Image caption', href: 'https://example.invalid/image.png' }];
+    if (kind === 'oversized') body.blocks[0].text = 'x'.repeat(8001);
+    if (kind === 'kind') body.blocks[0].kind = 'unknown';
+    if (kind === 'duplicate') body.blocks.push({ ...body.blocks[0] });
+    if (kind === 'slot') body.blocks[0].text = '{{injected_slot}}';
+    if (kind === 'control') body.blocks[0].text = 'bad\u0000text';
+    if (kind === 'unknown-field') body.html = '<b>unverified</b>';
+    if (kind === 'two-newsletters') h.state.snapshot.documents.push(structuredClone(doc));
+    await expect(h.read()).rejects.toThrow();
+    await expect(h.stage({ projectionVersion: 'workspace-newsletter-plaintext-v2', projectionHash: '0'.repeat(64) })).rejects.toMatchObject({ code: 'OUTREACH_REFERENCE_UNAUTHORIZED' });
+    expect(h.state.writes).toBe(0);
+  });
+  it('keeps literal code and button text while omitting image and layout blocks', async () => {
+    const h = harness(); h.state.snapshot = newsletterSnapshot();
+    h.state.snapshot.documents[0].body.newsletter.blocks = [
+      { id: 'code', kind: 'code', text: '<strong>Literal & text</strong>' },
+      { id: 'image', kind: 'image', text: 'Not plaintext' },
+      { id: 'divider', kind: 'divider', text: 'Not plaintext' },
+      { id: 'button', kind: 'button', text: 'Read', href: 'https://example.invalid/brief' },
+    ];
+    expect((await h.read()).contentSkeleton.body).toBe('<strong>Literal & text</strong>\n\nRead: https://example.invalid/brief');
+  });
+  it.each(['column-only', 'json-only', 'saved-other'])('holds %s canonical association disagreement on read and staging', async (kind) => {
+    const h = harness(kind !== 'column-only');
+    if (kind === 'column-only') h.state.currentClientId = clientId;
+    if (kind === 'json-only') h.state.currentClientId = null;
+    if (kind === 'saved-other') h.state.snapshot.config.clientId = id(99);
+    await expect(h.read()).rejects.toThrow();
+    await expect(h.stage()).rejects.toMatchObject({ code: 'OUTREACH_REFERENCE_UNAUTHORIZED' });
+    expect(h.state.writes).toBe(0);
+  });
+  it.each(['source', 'sponsor', 'association'])('rechecks changed %s before a pinned replay', async (scope) => {
+    const h = harness(); h.state.snapshot = newsletterSnapshot(); const selected = await h.pinned(); await h.stage(selected);
+    if (scope === 'source') h.state.source = true;
+    if (scope === 'sponsor') h.state.spec.sponsor = { kind: 'client', label: null, clientRefs: [{ clientId }] };
+    if (scope === 'association') h.state.currentClientId = clientId;
+    await expect(h.stage(selected)).rejects.toMatchObject({ code: 'OUTREACH_REFERENCE_UNAUTHORIZED' });
+    expect(h.state.writes).toBe(1);
+  });
+  it('rejects partial or unknown projection contracts before opening a transaction', async () => {
+    const h = harness();
+    for (const selected of [{ projectionHash: '0'.repeat(64) }, { projectionVersion: 'workspace-newsletter-plaintext-v2' }, { projectionVersion: 'other', projectionHash: '0'.repeat(64) }]) await expect(h.stage(selected)).rejects.toThrow();
+    expect(h.prisma.withTenantUser).not.toHaveBeenCalled();
+  });
+});
 
 describe('saved newsletter staging through canonical Workspace and Outreach owners', () => {
   it('pins saved snapshot and author provenance in the one durable command receipt', async () => {

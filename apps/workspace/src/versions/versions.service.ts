@@ -89,8 +89,9 @@ export class VersionsService {
       return await this.prisma.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT set_config('app.current_tenant',${tenantId},true)`;
         const revision = await workspaceSavedOutreachRevisionWithinTx(tx, { tenantId, draftId, versionId, clerkUserId });
-        const { snapshotJson, ...selected } = revision;
-        return { ...selected, snapshotHash: createHash('sha256').update(snapshotJson).digest('hex'), hashFormat: 'workspace-snapshot-canonical-json-v1' };
+        const { snapshotJson, projectionJson, ...selected } = revision;
+        return { ...selected, snapshotHash: createHash('sha256').update(snapshotJson).digest('hex'), hashFormat: 'workspace-snapshot-canonical-json-v1',
+          projectionHash: createHash('sha256').update(projectionJson).digest('hex') };
       });
     } catch (error) {
       if (error instanceof WorkspaceRevisionUnavailable) throw new NotFoundException('Saved revision unavailable for staging');
@@ -118,11 +119,12 @@ export class VersionsService {
         const objective = await requireClientObjectiveDestinationRevision(
           tx, { tenantId, clerkUserId }, binding,
         );
-        const { snapshotJson, ...selected } = revision;
+        const { snapshotJson, projectionJson, ...selected } = revision;
         return {
           ...selected,
           snapshotHash: createHash('sha256').update(snapshotJson).digest('hex'),
           hashFormat: 'workspace-snapshot-canonical-json-v1',
+          projectionHash: createHash('sha256').update(projectionJson).digest('hex'),
           destination: {
             kind: 'workspace_saved_revision' as const,
             resourceId: revision.versionId,

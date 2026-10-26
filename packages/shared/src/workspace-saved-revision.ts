@@ -36,6 +36,8 @@ export async function workspaceSavedOutreachRevisionWithinTx(
     userId?: string;
     draftId: string;
     versionId: string;
+    /** Original algorithm only for an existing staging receipt's exact replay. */
+    projectionVersion?: 'workspace-outreach-plaintext-v1' | 'workspace-newsletter-plaintext-v2';
   },
 ) {
   const unavailable = () => {
@@ -65,9 +67,16 @@ export async function workspaceSavedOutreachRevisionWithinTx(
   if (!member) unavailable();
   await tx.$queryRawUnsafe(`SELECT set_config('app.current_user',$1,true)`, member!.userId);
   const [draft] = await tx.$queryRawUnsafe<
-    Array<{ ownerId: string; prospectId: string | null; config: unknown; client: string | null }>
+    Array<{
+      ownerId: string;
+      prospectId: string | null;
+      config: unknown;
+      client: string | null;
+      clientId: string | null;
+    }>
   >(
-    `SELECT owner_id AS "ownerId",prospect_id::text AS "prospectId",config,client FROM ws_draft
+    `SELECT owner_id AS "ownerId",prospect_id::text AS "prospectId",config,client,
+       client_id::text AS "clientId" FROM ws_draft
      WHERE tenant_id=$1::uuid AND id=$2::uuid FOR SHARE`,
     input.tenantId,
     input.draftId,
@@ -117,18 +126,22 @@ export async function workspaceSavedOutreachRevisionWithinTx(
   const snap = object(version!.snapshot),
     cfg = object(snap.config);
   const clientId = cfg.clientId ?? null;
-  const currentClientId = object(draft!.config).clientId ?? null;
+  const currentClientId = draft!.clientId;
+  const configuredClientId = object(draft!.config).clientId ?? null;
   // Declarative context only: Core still checks the live client/wall and exact
   // session sponsor. Free-text draft.client never participates in authority.
   if (clientId !== null && (typeof clientId !== 'string' || !UUID.test(clientId))) unavailable();
   if (
-    currentClientId !== null &&
-    (typeof currentClientId !== 'string' || !UUID.test(currentClientId))
+    [currentClientId, configuredClientId].some(
+      (id) => id !== null && (typeof id !== 'string' || !UUID.test(id)),
+    )
   )
     unavailable();
   if (
     (typeof clientId === 'string' ? clientId.toLowerCase() : null) !==
-    (typeof currentClientId === 'string' ? currentClientId.toLowerCase() : null)
+      (typeof currentClientId === 'string' ? currentClientId.toLowerCase() : null) ||
+    (typeof configuredClientId === 'string' ? configuredClientId.toLowerCase() : null) !==
+      (typeof currentClientId === 'string' ? currentClientId.toLowerCase() : null)
   )
     unavailable();
   if (
@@ -158,18 +171,34 @@ export async function workspaceSavedOutreachRevisionWithinTx(
   }
   const documents = snap.documents;
   if (!Array.isArray(documents) || !documents.length || documents.length > 100) unavailable();
-  const body = (documents as unknown[])
-    .map((raw, index) => {
-      const doc = object(raw);
-      return workspaceDocumentText(doc.body, index === 0 ? cfg : {});
-    })
-    .filter(Boolean)
-    .join('\n\n');
-  const subject = typeof snap.docTitle === 'string' ? snap.docTitle : '';
+  const newsletters = (documents as unknown[]).filter((doc) =>
+    Object.prototype.hasOwnProperty.call(object(object(doc).body), 'newsletter'),
+  );
+  const isNewsletter = cfg.product === 'Newsletter' || newsletters.length > 0;
+  const projectionVersion =
+    input.projectionVersion ??
+    (isNewsletter ? 'workspace-newsletter-plaintext-v2' : 'workspace-outreach-plaintext-v1');
+  // v1 remains immutable for historical staging requests. The chooser defaults
+  // to v2 for Newsletter and cannot fall back to generic blocks on malformed data.
+  const projected =
+    projectionVersion === 'workspace-newsletter-plaintext-v2'
+      ? newsletterPlainText(newsletters)
+      : {
+          body: (documents as unknown[])
+            .map((raw, index) => {
+              const doc = object(raw);
+              return workspaceDocumentText(doc.body, index === 0 ? cfg : {});
+            })
+            .filter(Boolean)
+            .join('\n\n'),
+          subject: typeof snap.docTitle === 'string' ? snap.docTitle : '',
+        };
+  const { body, subject } = projected;
   // SET_CONTENT_SKELETON is a literal user-authored projection here. A saved
   // document containing slot syntax cannot silently acquire template semantics.
   if (!body || body.length > 8_000 || subject.length > 400 || /\{\{|\}\}/.test(body + subject))
     unavailable();
+  const contentSkeleton = { subject, body, slots: [] };
   return {
     draftId: input.draftId.toLowerCase(),
     versionId: version!.id.toLowerCase(),
@@ -179,8 +208,74 @@ export async function workspaceSavedOutreachRevisionWithinTx(
     snapshot: version!.snapshot,
     snapshotJson,
     clientId: typeof clientId === 'string' ? clientId.toLowerCase() : null,
-    contentSkeleton: { subject, body, slots: [] },
+    contentSkeleton,
+    projectionVersion,
+    // SHA-256 of these UTF-8 canonical bytes is computed by the server caller,
+    // just like snapshotJson. Keep Node crypto out of the shared browser barrel.
+    projectionJson: canonicalWorkspaceSnapshot({ projectionVersion, contentSkeleton }),
   };
+}
+
+/** Basic Newsletter's saved authored fields, never the derived generic blocks.
+ * Lengths are UTF-16 code units, as in the existing skeleton contract. Subject
+ * trim and CRLF/body trailing-space normalization match that command owner.
+ * Images/logos/layout and preview/firm footer metadata are not plaintext blocks.
+ */
+function newsletterPlainText(documents: unknown[]): { subject: string; body: string } {
+  const refuse = (): never => {
+    throw new WorkspaceRevisionUnavailable();
+  };
+  if (documents.length !== 1) refuse();
+  const saved = object(object(object(documents[0]).body).newsletter);
+  const fields = { subject: 400, preview: 500, firmName: 200, mailingAddress: 500 };
+  if (Object.keys(saved).some((key) => ![...Object.keys(fields), 'blocks'].includes(key))) refuse();
+  for (const [key, max] of Object.entries(fields)) {
+    if (typeof saved[key] !== 'string' || (saved[key] as string).length > max) refuse();
+  }
+  if (!Array.isArray(saved.blocks) || saved.blocks.length > 100) refuse();
+  const ids = new Set<string>();
+  const body = (saved.blocks as unknown[])
+    .map((raw) => {
+      const block = object(raw);
+      if (
+        Object.keys(block).some((key) => !['id', 'kind', 'text', 'href'].includes(key)) ||
+        typeof block.id !== 'string' ||
+        !block.id ||
+        block.id.length > 64 ||
+        ids.has(block.id) ||
+        typeof block.kind !== 'string' ||
+        ![
+          'heading',
+          'paragraph',
+          'button',
+          'divider',
+          'spacer',
+          'image',
+          'social',
+          'logo',
+          'code',
+        ].includes(block.kind) ||
+        typeof block.text !== 'string' ||
+        block.text.length > 20_000 ||
+        (block.href !== undefined && (typeof block.href !== 'string' || block.href.length > 2048))
+      )
+        refuse();
+      ids.add(block.id as string);
+      if (['image', 'logo', 'divider', 'spacer'].includes(block.kind as string)) return '';
+      return block.kind === 'button' && block.href
+        ? `${block.text}: ${block.href}`
+        : (block.text as string);
+    })
+    .filter(Boolean)
+    .join('\n\n');
+  if (
+    body.length > 8_000 ||
+    /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/u.test(body + saved.subject)
+  )
+    refuse();
+  const normalized = body.replace(/\r\n?/g, '\n').trimEnd();
+  if (!normalized.trim()) refuse();
+  return { subject: (saved.subject as string).replace(/\r\n?/g, '\n').trim(), body: normalized };
 }
 
 function object(value: unknown): Record<string, unknown> {
