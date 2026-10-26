@@ -4,6 +4,7 @@ import type {
   NewsletterCampaignConfig,
   NewsletterCheck,
   NewsletterDesign,
+  NewsletterLibraryItem,
   NewsletterPreview,
   NewsletterStage,
   NewsletterWriteReceipt,
@@ -55,6 +56,14 @@ export interface OutreachDraftVersionDto {
 }
 export interface NewsletterDocumentList {
   items: NewsletterCampaign[];
+}
+/** The section endpoint never returns template design/config or a write receipt. */
+export type NewsletterSectionLibraryItem = Omit<
+  NewsletterLibraryItem,
+  'design' | 'config' | 'section'
+> & Required<Pick<NewsletterLibraryItem, 'section'>>;
+export interface NewsletterLibraryList {
+  items: NewsletterSectionLibraryItem[];
 }
 /** Unbound rendering remains usable as content, never as an exact saved-revision receipt. */
 export type NewsletterPreviewContent = Pick<NewsletterPreview, 'html' | 'plainText' | 'checks'>;
@@ -533,29 +542,10 @@ const emailStyles = object({
   mobileImage: style,
   mobileLogo: style,
 });
-const design: Rule = (value, path) => {
-  object(
-    {
-      version: literal(1),
-      styles: emailStyles,
-      sections: array(
-        object(
-          {
-            id: text,
-            name: text,
-            style,
-            blocks: array(blockShape, 200),
-          },
-          { sourceClientIds: clients, fonts },
-        ),
-        50,
-      ),
-    },
-    // Save unions current and historical authorized clients after request normalization.
-    // Persisted root provenance therefore uses the explicit receiving array budget.
-    { sourceClientIds: array(workspaceUuid, NEWSLETTER_RECEIVE_LIMITS.arrayLength), fonts },
-  )(value, path);
-  const record = row(value, path);
+const sectionFields = { id: text, name: text, style, blocks: array(blockShape, 200) };
+const sectionShape = object(sectionFields, { sourceClientIds: clients, fonts });
+/** Share recursion and the aggregate block budget between document and library receiving. */
+function sectionBlockInspector(): Rule {
   let count = 0;
   const visitBlock = (value: NewsletterJson, path: string, depth: number): void => {
     if (++count > 500 || depth > 6) refuse(path, 'limit_exceeded');
@@ -568,11 +558,47 @@ const design: Rule = (value, path) => {
       ),
     );
   };
-  (record.sections as NewsletterJsonObject[]).forEach((section, index) =>
-    (section.blocks as NewsletterJson[]).forEach((block, blockIndex) =>
-      visitBlock(block, `${path}.sections.${index}.blocks.${blockIndex}`, 0),
-    ),
+  return (value, path) => {
+    (row(value, path).blocks as NewsletterJson[]).forEach((block, index) =>
+      visitBlock(block, `${path}.blocks.${index}`, 0),
+    );
+  };
+}
+const design: Rule = (value, path) => {
+  object(
+    { version: literal(1), styles: emailStyles, sections: array(sectionShape, 50) },
+    // Save unions current and historical authorized clients after request normalization.
+    // Persisted root provenance therefore uses the explicit receiving array budget.
+    { sourceClientIds: array(workspaceUuid, NEWSLETTER_RECEIVE_LIMITS.arrayLength), fonts },
+  )(value, path);
+  const inspect = sectionBlockInspector();
+  (row(value, path).sections as NewsletterJson[]).forEach((section, index) =>
+    inspect(section, `${path}.sections.${index}`),
   );
+};
+const librarySection: Rule = (value, path) => {
+  // saveLibrary copies document-wide client/font unions, not just this section's inputs.
+  object(sectionFields, {
+    sourceClientIds: array(workspaceUuid, NEWSLETTER_RECEIVE_LIMITS.arrayLength),
+    fonts: array(font, NEWSLETTER_RECEIVE_LIMITS.arrayLength),
+  })(value, path);
+  sectionBlockInspector()(value, path);
+};
+const libraryItemFields: Record<string, Rule> = {
+  id: workspaceUuid,
+  name: (value, path) => {
+    if (typeof value !== 'string' || !value.trim() || value.length > 200) refuse(path);
+  },
+  folder: (value, path) => {
+    if (typeof value !== 'string' || value.length > 100) refuse(path);
+  },
+  updatedAt: timestamp,
+  section: librarySection,
+};
+const libraryItem: Rule = (value, path) => {
+  object(libraryItemFields)(value, path);
+  for (const key of Object.keys(row(value, path)))
+    if (!Object.prototype.hasOwnProperty.call(libraryItemFields, key)) refuse(`${path}.${key}`);
 };
 const config = object({
   clientId: nullable(workspaceUuid),
@@ -862,6 +888,25 @@ export function parseNewsletterDocumentList(
 ): NewsletterReceiveResult<NewsletterDocumentList> {
   // Each list member can be a full independently bounded document.
   return receive(value, object({ items: array(campaign, 100) }), undefined, 100);
+}
+/** Current saved-section content only; templates and causal write receipts are not admitted. */
+export function parseNewsletterLibraryItem(
+  value: unknown,
+): NewsletterReceiveResult<NewsletterSectionLibraryItem> {
+  return receive(value, libraryItem);
+}
+/** The current visible collection, at most 500 rows. No pagination or lost-write proof. */
+export function parseNewsletterLibraryList(
+  value: unknown,
+): NewsletterReceiveResult<NewsletterLibraryList> {
+  return receive(
+    value,
+    object({ items: array(libraryItem, 500) }),
+    (value) => {
+      for (const key of Object.keys(row(value, '$'))) if (key !== 'items') refuse(`$.${key}`);
+    },
+    500,
+  );
 }
 export function parseNewsletterChecks(value: unknown): NewsletterReceiveResult<NewsletterCheck[]> {
   return receive(value, array(check));
