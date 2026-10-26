@@ -159,7 +159,8 @@ import {
   type RenderedOutreachBody,
 } from './outreach-email-renderer.js';
 import { MeetingNotesCryptoService } from './meeting-notes-crypto.service.js';
-import { EngagementMailSender, sendProviderSlug } from './mail-sender.service.js';
+import { EngagementMailSender, sendProviderSlug, type EngagementSendMailInput } from './mail-sender.service.js';
+import { assertMailPayloadSize } from './mail-send-payload.js';
 import { AmbiguousMailSendError, isDefiniteMailSendRejection, type EngagementMailSendResult } from './mail-send-result.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { docChunkSourceIdPrefix } from '../embeddings/client-kb.helpers.js';
@@ -9681,6 +9682,30 @@ export class EngagementService {
       input.attachmentIds,
       input.clientId ?? null,
     );
+    const mailInput: EngagementSendMailInput = {
+      // Both IDs are validated UUIDs, with identical encoded header length.
+      // The pending ledger ID replaces this value only after size admission.
+      correlationId: requestKey,
+      subject: input.subject,
+      body: body.content,
+      bodyContentType: 'HTML',
+      toRecipients: input.to.map((r) => ({ email: r.email, name: r.name ?? null })),
+      ccRecipients: (input.cc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })),
+      bccRecipients: (input.bcc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })),
+      attachments,
+    };
+    try {
+      assertMailPayloadSize(connection.provider, mailInput);
+    } catch (error) {
+      const details = error instanceof BadRequestException ? error.getResponse() : null;
+      if (details && typeof details === 'object' && 'code' in details && details.code === 'MAIL_PAYLOAD_TOO_LARGE') {
+        throw new BadRequestException({
+          ...details, error: 'MAIL_PAYLOAD_TOO_LARGE', requestKey,
+          phase: 'preflight', retryable: false,
+        });
+      }
+      throw error;
+    }
     // Derived from what actually got attached, not from the request's id list:
     // `loadGraphAttachments` throws rather than silently dropping a file, so
     // these agree — but the resolved list is the one that describes the email
@@ -9743,24 +9768,22 @@ export class EngagementService {
     let sendResult: EngagementMailSendResult;
     try {
       sendResult = await this.mailSender.sendMail(ctx, connection, {
+        ...mailInput,
         correlationId: begun.intent.id,
-        subject: input.subject,
-        body: body.content,
-        bodyContentType: 'HTML',
-        toRecipients: input.to.map((r) => ({ email: r.email, name: r.name ?? null })),
-        ccRecipients: (input.cc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })),
-        bccRecipients: (input.bcc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })),
-        attachments,
       });
     } catch (error) {
       // Conservatively fence every dispatched failure. Only a separate, explicit
       // reconciliation may establish a safely rejected outcome; never reset it.
       if (isDefiniteMailSendRejection(error)) {
-        await ledger.outcome(ctx, begun.intent, 'failed', { code: 'MAIL_SEND_REJECTED' });
+        const details = error instanceof BadRequestException ? error.getResponse() : null;
+        const sizeRefusal = details && typeof details === 'object' && 'code' in details && details.code === 'MAIL_PAYLOAD_TOO_LARGE'
+          ? details : null;
+        await ledger.outcome(ctx, begun.intent, 'failed', { code: sizeRefusal ? 'MAIL_PAYLOAD_TOO_LARGE' : 'MAIL_SEND_REJECTED' });
         throw new BadRequestException({
+          message: 'The mailbox rejected this message before acceptance. Review the error before starting a new send.',
+          ...sizeRefusal,
           error: 'MAIL_SEND_REJECTED', requestKey: requestKey,
           intentId: begun.intent.id, state: 'failed', retryable: false,
-          message: 'The mailbox rejected this message before acceptance. Review the error before starting a new send.',
         });
       }
       await ledger.outcome(ctx, begun.intent, 'unknown', {

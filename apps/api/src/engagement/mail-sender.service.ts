@@ -1,19 +1,11 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { EngagementProvider } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { MicrosoftGraphSyncService } from './microsoft/microsoft-graph-sync.service.js';
-import { GmailSendService, buildGmailRawMessage } from './google/gmail-send.service.js';
-import { definiteMailSendRejection, type EngagementMailSendResult } from './mail-send-result.js';
-import { buildMicrosoftSendPayload } from './microsoft/microsoft-send-payload.js';
+import { GmailSendService } from './google/gmail-send.service.js';
+import type { EngagementMailSendResult } from './mail-send-result.js';
+import { assertMailPayloadSize } from './mail-send-payload.js';
 import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
-
-// Graph documents a 4 MB write-request ceiling; use decimal bytes conservatively.
-// https://learn.microsoft.com/en-us/graph/use-the-api#http-methods
-const GRAPH_REQUEST_MAX_BYTES = 4_000_000;
-// Google's messages.send media limit is 35 MiB. Apply that limit conservatively
-// to the larger JSON request envelope, including MIME's outer base64url encoding.
-// https://gmail.googleapis.com/$discovery/rest?version=v1
-const GMAIL_REQUEST_MAX_BYTES = 36_700_160;
 
 /**
  * Provider-neutral outbound-email payload. Structurally identical to
@@ -118,21 +110,7 @@ export class EngagementMailSender {
     // can refresh credentials, create a draft, upload anything or send. This
     // local refusal proves no provider acceptance; dispatched failures keep their
     // existing ambiguous-outcome classification and are never retried here.
-    const google = connection.provider === EngagementProvider.google_workspace;
-    const payload = google
-      ? { raw: buildGmailRawMessage(providerInput) }
-      : buildMicrosoftSendPayload(providerInput);
-    const maxBytes = google ? GMAIL_REQUEST_MAX_BYTES : GRAPH_REQUEST_MAX_BYTES;
-    if (Buffer.byteLength(JSON.stringify(payload), 'utf8') > maxBytes) {
-      throw definiteMailSendRejection(
-        new BadRequestException({
-          code: 'MAIL_PAYLOAD_TOO_LARGE',
-          provider: sendProviderSlug(connection.provider),
-          maxBytes,
-          message: `Email exceeds the ${google ? 'Gmail' : 'Outlook'} request size limit after encoding. Reduce the message or attachments, or use an authorized document link.`,
-        }),
-      );
-    }
+    assertMailPayloadSize(connection.provider, providerInput);
     if (connection.provider === EngagementProvider.google_workspace) {
       return this.gmailSend.sendMail(ctx, connection.id, providerInput);
     }
