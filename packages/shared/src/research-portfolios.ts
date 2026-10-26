@@ -26,7 +26,13 @@ export type ResearchPortfolioEventKind =
   | 'annual_reopened'
   | 'import_created'
   | 'import_action'
-  | 'review_note_added';
+  | 'review_note_added'
+  | 'share_enabled'
+  | 'share_disabled'
+  | 'share_pin_changed'
+  | 'share_design_saved'
+  | 'share_link_published'
+  | 'share_link_revoked';
 
 export interface ResearchPortfolioSummaryDto {
   id: string;
@@ -1058,4 +1064,181 @@ export interface ResearchPortfolioTourStateDto {
   tourVersion: string;
   status: 'active' | 'dismissed' | 'completed';
   completedAt: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Client share links: PIN-protected, one-week, frozen dashboard at a Capiro link.
+// ---------------------------------------------------------------------------
+
+export type ResearchPortfolioDashboardWidgetKind =
+  | 'header'
+  | 'key_totals'
+  | 'funding_table'
+  | 'client_fit'
+  | 'changes'
+  | 'subjects'
+  | 'sources'
+  | 'snapshot_comparison'
+  | 'commentary'
+  | 'image';
+
+/** One widget on the 12-column grid. Positions and sizes are grid units. */
+export interface ResearchPortfolioDashboardWidgetDto {
+  id: string;
+  kind: ResearchPortfolioDashboardWidgetKind;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  settings: Readonly<Record<string, unknown>>;
+}
+
+export interface ResearchPortfolioDashboardLayoutDto {
+  columns: 12;
+  widgets: readonly ResearchPortfolioDashboardWidgetDto[];
+  /** Widget ids in the order a phone (single column) shows them. */
+  phoneOrder: readonly string[];
+}
+
+export interface ResearchPortfolioDashboardDesignDto {
+  id: string;
+  portfolioId: string;
+  name: string;
+  version: number;
+  layout: ResearchPortfolioDashboardLayoutDto;
+  createdByUserId: string;
+  updatedByUserId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SaveResearchPortfolioDashboardDesignDto {
+  name: string;
+  layout: ResearchPortfolioDashboardLayoutDto;
+  /** Required when updating an existing design; the save is refused if it is stale. */
+  expectedVersion?: number;
+}
+
+export interface ResearchPortfolioShareSettingsDto {
+  portfolioId: string;
+  enabled: boolean;
+  pinSet: boolean;
+  pinUpdatedAt: string | null;
+  activeLinkCount: number;
+  updatedAt: string | null;
+}
+
+export interface EnableResearchPortfolioSharingDto {
+  /** 6 to 12 digits. Stored only as a salted hash. */
+  pin: string;
+}
+
+export interface ChangeResearchPortfolioSharePinDto {
+  pin: string;
+}
+
+export type ResearchPortfolioShareLinkStatus = 'active' | 'expired' | 'revoked';
+
+export interface ResearchPortfolioShareLinkDto {
+  id: string;
+  portfolioId: string;
+  clientId: string;
+  clientName: string;
+  snapshotId: string;
+  snapshotName: string;
+  designId: string | null;
+  designVersion: number;
+  branding: boolean;
+  status: ResearchPortfolioShareLinkStatus;
+  publishedByUserId: string;
+  publishedAt: string;
+  expiresAt: string;
+  revokedAt: string | null;
+  openCount: number;
+  lastOpenedAt: string | null;
+  failedPinAttempts: number;
+}
+
+export interface PublishResearchPortfolioShareLinkDto {
+  operationKey: string;
+  snapshotId: string;
+  designId: string;
+  clientId: string;
+  branding: boolean;
+}
+
+/** The token is returned once; the server keeps only its hash. */
+export interface ResearchPortfolioShareLinkPublishedDto {
+  link: ResearchPortfolioShareLinkDto;
+  token: string | null;
+  replayed: boolean;
+}
+
+/** Everything a recipient can see. Built at publish time and never recomputed. */
+export interface ResearchPortfolioShareDashboardDto {
+  schemaVersion: 1;
+  portfolioName: string;
+  portfolioPurpose: string | null;
+  asOf: string;
+  preparedFor: { clientName: string };
+  branding: { firmName: string; logoAvailable: boolean } | null;
+  layout: ResearchPortfolioDashboardLayoutDto;
+  data: {
+    totals: readonly ResearchPortfolioCompatibleTotalDto[];
+    contributions: readonly ResearchPortfolioContributionDto[];
+    coverage: ResearchPortfolioAnalyticsDto['coverage'];
+    limitations: readonly string[];
+    subjects: readonly {
+      id: string;
+      targetKind: ResearchPortfolioMemberKind;
+      targetId: string;
+      label: string | null;
+      disposition: ResearchPortfolioMemberDisposition;
+    }[];
+    sources: readonly { id: string }[];
+    clientFit: {
+      availability: ResearchPortfolioFitAvailability;
+      fitScore: number | null;
+      basis: ResearchPortfolioFitBasisDto | null;
+      refreshedAt: string | null;
+    } | null;
+    changes: readonly {
+      id: string;
+      eventKind: string;
+      occurredAt: string;
+      summary: string;
+    }[];
+    comparison: {
+      snapshotId: string;
+      snapshotName: string;
+      capturedAt: string;
+      totals: readonly ResearchPortfolioCompatibleTotalDto[];
+    } | null;
+  };
+  snapshot: {
+    id: string;
+    name: string;
+    capturedAt: string;
+    portfolioRevision: number;
+    calculationVersion: string;
+  };
+  publishedAt: string;
+  expiresAt: string;
+}
+
+export interface ResearchPortfolioSharePinDto {
+  pin: string;
+}
+
+export interface ResearchPortfolioShareViewSessionDto {
+  viewToken: string;
+  expiresAt: string;
+}
+
+export interface ResearchPortfolioShareAvailabilityDto {
+  available: boolean;
+}
+
+export interface ResearchPortfolioShareViewDto {
+  viewToken: string;
 }

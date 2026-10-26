@@ -17,10 +17,22 @@ import { ResearchPortfolioMeriToolsService } from './research-portfolio-meri-too
 import { ResearchPortfolioMeriScopeService } from './research-portfolio-meri-scope.service.js';
 import { ResearchPortfolioPhase11Service } from './research-portfolio-phase11.service.js';
 import { ResearchContextsController } from './research-contexts.controller.js';
+import { ResearchPortfolioShareService } from './research-portfolio-share.service.js';
+import {
+  ResearchPortfolioShareController,
+  ResearchPortfolioShareAdminController,
+  ResearchPortfolioSharePublicController,
+} from './research-portfolio-share.controller.js';
 
 @Module({
   imports: [EngagementModule, PrismaModule, DefenseResearchModule, ClientDocumentsModule],
-  controllers: [ResearchPortfoliosController, ResearchContextsController],
+  controllers: [
+    ResearchPortfoliosController,
+    ResearchContextsController,
+    ResearchPortfolioShareController,
+    ResearchPortfolioShareAdminController,
+    ResearchPortfolioSharePublicController,
+  ],
   providers: [
     ResearchPortfolioInstitutionalService,
     ResearchPortfolioWatchWorkerService,
@@ -34,6 +46,7 @@ import { ResearchContextsController } from './research-contexts.controller.js';
     ResearchPortfolioMeriToolsService,
     ResearchPortfolioMeriScopeService,
     ResearchPortfolioPhase11Service,
+    ResearchPortfolioShareService,
   ],
   exports: [
     ResearchPortfolioInstitutionalService,

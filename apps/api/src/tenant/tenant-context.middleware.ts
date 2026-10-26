@@ -298,6 +298,9 @@ export class TenantContextMiddleware implements NestMiddleware {
       // app.module.ts `.exclude()` misses because setGlobalPrefix('api')
       // shifts the matcher — this internal list is the mechanism that works.
       '/api/internal',
+      // Research Portfolio client share links: authorized by the link token and the
+      // portfolio PIN (ResearchPortfolioShareService), never by a Clerk session.
+      '/api/public/research-share',
     ];
     if (bypassPaths.some((bypassPath) => isBypassPath(bypassPath, path, originalUrl, baseUrl))) {
       if (!originalUrl.includes('/newsletter-public/')) this.logger.log(
