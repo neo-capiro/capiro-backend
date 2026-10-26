@@ -55,6 +55,31 @@ export async function assertSingleMailAuthority(
   input: SingleMailAssociations,
   associatedThreadWhere: (clientId: string) => Promise<Prisma.MailThreadWhereInput>,
 ): Promise<void> {
+  return assertSingleMailAccess(tx, ctx, input, associatedThreadWhere, ownMailThreadWhere(ctx.userId));
+}
+
+/** Durable reads require current authority and the retained original thread, not an active body. */
+export async function assertSingleMailIntentReadAuthority(
+  tx: Prisma.TransactionClient,
+  ctx: TenantContext,
+  input: Pick<SingleMailAssociations, 'clientId' | 'threadId' | 'senderConnectionId'>,
+  associatedThreadWhere: (clientId: string) => Promise<Prisma.MailThreadWhereInput>,
+): Promise<void> {
+  return assertSingleMailAccess(tx, ctx, {
+    clientId: input.clientId, threadId: input.threadId,
+    senderConnectionId: input.senderConnectionId, to: [],
+  }, associatedThreadWhere, {
+    connection: { createdByUserId: ctx.userId },
+  });
+}
+
+async function assertSingleMailAccess(
+  tx: Prisma.TransactionClient,
+  ctx: TenantContext,
+  input: SingleMailAssociations,
+  associatedThreadWhere: (clientId: string) => Promise<Prisma.MailThreadWhereInput>,
+  threadOwnerWhere: Prisma.MailThreadWhereInput,
+): Promise<void> {
   const member = await tx.tenantMembership.findFirst({
     where: { tenantId: ctx.tenantId, userId: ctx.userId, status: 'active' },
     select: { id: true },
@@ -94,7 +119,7 @@ export async function assertSingleMailAuthority(
   }
   if (input.threadId) {
     const thread = await tx.mailThread.findFirst({
-      where: { id: input.threadId, tenantId: ctx.tenantId, ...ownMailThreadWhere(ctx.userId) },
+      where: { id: input.threadId, tenantId: ctx.tenantId, ...threadOwnerWhere },
       select: { id: true, clientId: true, connectionId: true },
     });
     if (!thread) throw new NotFoundException('Mail thread not found');
@@ -110,7 +135,7 @@ export async function assertSingleMailAuthority(
         !(await tx.mailThread.findFirst({
           where: {
             AND: [
-              { id: thread.id, tenantId: ctx.tenantId, ...ownMailThreadWhere(ctx.userId) },
+              { id: thread.id, tenantId: ctx.tenantId, ...threadOwnerWhere },
               await associatedThreadWhere(input.clientId),
             ],
           },

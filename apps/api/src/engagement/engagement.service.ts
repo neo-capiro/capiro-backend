@@ -1,4 +1,4 @@
-import { assertSingleMailAuthority, resolveSingleMailReply } from './single-mail-authority.js';
+import { assertSingleMailAuthority, assertSingleMailIntentReadAuthority, resolveSingleMailReply } from './single-mail-authority.js';
 import { REPLY_UNAVAILABLE, type PreparedMailReply } from './single-mail-reply.js';
 import { requireOwnerClient } from '../clients/client-ordered-owner.access.js';
 import { assertFileKeyNotDeleted, deleteClientFile, readClientFileDelete, type ClientFileDeleteOwner } from './attachments/client-file-delete.js';
@@ -9646,11 +9646,11 @@ export class EngagementService {
     const ledger = new SingleMailLedger(this.prisma);
     const row = await ledger.read(ctx, requestKey);
     if (!row) throw new NotFoundException('Mail intent not found');
-    await this.assertSingleMailPreflight(ctx, {
+    await this.prisma.withTenant(ctx.tenantId, (tx) => assertSingleMailIntentReadAuthority(tx, ctx, {
       clientId: row.client_id ?? undefined,
       threadId: typeof row.snapshot.threadId === 'string' ? row.snapshot.threadId : undefined,
-      senderConnectionId: row.connection_id, to: [], subject: '', bodyHtml: '',
-    });
+      senderConnectionId: row.connection_id,
+    }, (clientId) => this.clientMailThreadAssociationWhere(tx, ctx.tenantId, clientId)));
     return ledger.view(row);
   }
 
@@ -9670,13 +9670,14 @@ export class EngagementService {
   async sendSingleMail(ctx: TenantContext, input: SendSingleMailInput) {
     const ledger = new SingleMailLedger(this.prisma);
     const requestKey = ledger.validateKey(input.requestKey);
-    await this.assertSingleMailPreflight(ctx, input);
     const requestHash = singleMailHash(input);
     const existing = await ledger.read(ctx, requestKey);
     if (existing) {
+      // Exact-key recovery reads current authority without preparing or claiming a new send.
       ledger.assertRequest(existing, requestHash);
       return this.getSingleMailIntent(ctx, requestKey);
     }
+    await this.assertSingleMailPreflight(ctx, input);
     let senderConnectionId = input.senderConnectionId;
     // Authorization must precede the irreversible provider call. The transaction
     // below checks again before persistence, but rejecting there alone is too

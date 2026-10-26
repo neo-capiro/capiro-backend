@@ -1,4 +1,4 @@
-import { assertSingleMailAuthority } from './single-mail-authority.js';
+import { assertSingleMailAuthority, assertSingleMailIntentReadAuthority } from './single-mail-authority.js';
 import { SingleMailLedger, singleMailHash } from './single-mail-ledger.js';
 import type { TenantContext } from '@capiro/shared';
 
@@ -33,6 +33,8 @@ function authorityFixture() {
     tx,
     association,
     run: (value = input) => assertSingleMailAuthority(tx as never, ctx, value, association),
+    read: (value: { clientId?: string; threadId?: string; senderConnectionId?: string } = input) =>
+      assertSingleMailIntentReadAuthority(tx as never, ctx, value, association),
   };
 }
 
@@ -92,6 +94,57 @@ describe('ML-07 current single-mail admission', () => {
         },
       }),
     );
+  });
+});
+
+describe('durable single-mail intent read authority', () => {
+  test.each([undefined, 'client'])('retained %s thread metadata survives removal of its last active message', async clientId => {
+    const h = authorityFixture();
+    h.tx.mailThread.findFirst.mockImplementation(async (query: any) => query.where.messages ? null : {
+      id: 'thread', clientId: clientId ?? null, connectionId: 'mailbox',
+    });
+    await expect(h.read({ clientId, threadId: 'thread', senderConnectionId: 'mailbox' })).resolves.toBeUndefined();
+    expect(h.tx.mailThread.findFirst).toHaveBeenCalledWith({
+      where: { id: 'thread', tenantId: ctx.tenantId, connection: { createdByUserId: ctx.userId } },
+      select: { id: true, clientId: true, connectionId: true },
+    });
+    expect(h.tx.tenantMembership.findFirst).toHaveBeenCalledWith({
+      where: { tenantId: ctx.tenantId, userId: ctx.userId, status: 'active' }, select: { id: true },
+    });
+    expect(h.tx.integrationConnection.findFirst).toHaveBeenCalledWith({
+      where: { id: 'mailbox', tenantId: ctx.tenantId, createdByUserId: ctx.userId }, select: { id: true },
+    });
+    expect(h.tx.clientPerson.findMany).not.toHaveBeenCalled();
+    await expect(h.run()).rejects.toThrow('Mail thread not found');
+  });
+  test.each(['member', 'mailbox', 'client', 'wall', 'thread', 'wrong-mailbox', 'different-client'])(
+    'retained status still refuses missing or changed %s', async kind => {
+      const h = authorityFixture();
+      if (kind === 'member') h.tx.tenantMembership.findFirst.mockResolvedValue(null);
+      if (kind === 'mailbox') h.tx.integrationConnection.findFirst.mockResolvedValue(null);
+      if (kind === 'client') h.tx.client.findFirst.mockResolvedValue(null);
+      if (kind === 'wall') h.tx.$queryRawUnsafe.mockResolvedValue([{ allowed: false }]);
+      if (kind === 'thread') h.tx.mailThread.findFirst.mockResolvedValue(null);
+      if (kind === 'wrong-mailbox') h.tx.mailThread.findFirst.mockResolvedValue({ id: 'thread', clientId: 'client', connectionId: 'other' });
+      if (kind === 'different-client') h.tx.mailThread.findFirst.mockResolvedValue({ id: 'thread', clientId: 'other', connectionId: 'mailbox' });
+      await expect(h.read()).rejects.toThrow();
+    },
+  );
+  test('General status checks the retained original thread current client wall', async () => {
+    const h = authorityFixture(); h.tx.$queryRawUnsafe.mockResolvedValue([{ allowed: false }]);
+    await expect(h.read({ threadId: 'thread', senderConnectionId: 'mailbox' })).rejects.toThrow('Client not found');
+    expect(h.tx.client.findFirst).toHaveBeenCalledWith({
+      where: { id: 'client', tenantId: ctx.tenantId, status: { not: 'archived' } }, select: { id: true },
+    });
+  });
+  test('null-client retained metadata still needs current Portfolio association', async () => {
+    const h = authorityFixture();
+    h.tx.mailThread.findFirst.mockResolvedValueOnce({ id: 'thread', clientId: null, connectionId: 'mailbox' }).mockResolvedValueOnce(null);
+    await expect(h.read()).rejects.toThrow('Mail thread not found');
+    expect(h.association).toHaveBeenCalledWith('client');
+    expect(h.tx.mailThread.findFirst).toHaveBeenLastCalledWith({ where: { AND: [
+      { id: 'thread', tenantId: ctx.tenantId, connection: { createdByUserId: ctx.userId } }, { id: 'thread' },
+    ] }, select: { id: true } });
   });
 });
 
