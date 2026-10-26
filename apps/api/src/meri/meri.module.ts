@@ -103,8 +103,15 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
 import { MeriOtelLifecycleProvider } from './meri-otel-lifecycle.provider.js';
 
 import { NativeApprovalModule } from './native-approvals/native-approval.controller.js';
+import { ApplicationAuthorityModule } from '../auth/application-authority.module.js';
+import { ContextSecurityScopeModule } from '../context/context-security-scope.module.js';
+import { ConnectedAppReadService } from './connected-app-read.service.js';
+import { ConnectedAppReadController } from './connected-app-read.controller.js';
+import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-graph-sync.service.js';
 @Module({
   imports: [
+    ApplicationAuthorityModule,
+    ContextSecurityScopeModule,
     NativeApprovalModule,
     MeriRoutinesModule,
     MeriFeatureFlagsModule,
@@ -145,6 +152,7 @@ import { NativeApprovalModule } from './native-approvals/native-approval.control
     ObjectiveJobController,
     // Register the fixed signed callback before tools/:name in this module.
     MeriMemoryHelperController,
+    ConnectedAppReadController,
     MeriController,
     MeriSourceController,
     MeriSkillsController,
@@ -158,15 +166,17 @@ import { NativeApprovalModule } from './native-approvals/native-approval.control
     MeriJobDeliverablesController,
   ],
   providers: [
+    ConnectedAppReadService,
     ToolServiceSecretGuard,
     AutomaticClientContextService,
     InternalServiceGuard,
     { provide: ObjectiveJobReadSources, useFactory: (integrations: EngagementService, tools: MeriToolsService,
       portfolios: ResearchPortfoliosService, changes: ResearchPortfolioChangesService,
-      reviews: ResearchPortfolioReviewService, analytics: ResearchPortfolioAnalyticsService) =>
-      new ObjectiveJobReadSources(integrations, tools, portfolios, changes, reviews, analytics),
+      reviews: ResearchPortfolioReviewService, analytics: ResearchPortfolioAnalyticsService, connected: ConnectedAppReadService,
+      teams: MicrosoftGraphSyncService) =>
+      new ObjectiveJobReadSources(integrations, tools, portfolios, changes, reviews, analytics, connected, teams),
       inject: [EngagementService, MeriToolsService, ResearchPortfoliosService, ResearchPortfolioChangesService,
-        ResearchPortfolioReviewService, ResearchPortfolioAnalyticsService] },
+        ResearchPortfolioReviewService, ResearchPortfolioAnalyticsService, ConnectedAppReadService, MicrosoftGraphSyncService] },
     { provide: ObjectiveJobService, useFactory: (prisma: PrismaService, tools: MeriToolsService,
       memory: GovernedMemoryCandidateService, sources: ObjectiveJobReadSources) => new ObjectiveJobService(prisma, tools, memory, sources),
       inject: [PrismaService, MeriToolsService, GovernedMemoryCandidateService, ObjectiveJobReadSources] },
