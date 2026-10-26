@@ -4,7 +4,17 @@ import {
   MinLength,
   MaxLength,
   IsObject,
+  Matches,
+  ValidateIf,
 } from 'class-validator';
+
+/** Optional precondition captured from the saved theme version displayed to the editor. */
+export class ThemeVersionExpectationDto {
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsString()
+  @Matches(/^[a-f\d]{64}$/)
+  expectedSettingsHash?: string;
+}
 
 /** Create a new document theme. */
 export class CreateThemeDto {
@@ -14,7 +24,7 @@ export class CreateThemeDto {
 }
 
 /** Save (update) a draft theme version's settings. */
-export class SaveThemeDraftDto {
+export class SaveThemeDraftDto extends ThemeVersionExpectationDto {
   @IsObject() settings!: Record<string, unknown>;
 }
 

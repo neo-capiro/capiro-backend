@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   OutreachStateRepository,
@@ -63,8 +64,18 @@ export class OutreachSessionService {
 
   async listSessions(
     ctx: TenantContext,
-    input: { limit?: number; offset?: number; includeArchived?: boolean } = {},
+    input: { limit?: number; offset?: number; includeArchived?: boolean; search?: string } = {},
   ) {
+    if (
+      input.search !== undefined &&
+      (typeof input.search !== 'string' || input.search.length > 160)
+    ) {
+      throw new OutreachCommandError(
+        'OUTREACH_COMMAND_INVALID',
+        'Search exceeds the allowed length or is not text.',
+        400,
+      );
+    }
     const limit = Math.min(Math.max(input.limit ?? 25, 1), 100);
     const offset = Math.max(input.offset ?? 0, 0);
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
@@ -72,6 +83,7 @@ export class OutreachSessionService {
         limit,
         offset,
         includeArchived: input.includeArchived ?? false,
+        search: input.search?.trim() || null,
       }),
     );
   }
@@ -96,6 +108,22 @@ export class OutreachSessionService {
         pendingProposalCount,
       };
     });
+  }
+
+  /** Read the verified current state while serializing sponsor edits with this read. */
+  async loadCurrentSpecWithinTx(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    sessionId: string,
+  ) {
+    const session = await this.repository.lockOwnedSession(tx, ctx, sessionId);
+    const version = await this.repository.loadStateVersion(
+      tx,
+      ctx,
+      session.id,
+      session.currentStateVersion,
+    );
+    return this.parseAndVerifyVersion(version);
   }
 
   async getObjectiveDestination(

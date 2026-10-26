@@ -1,60 +1,47 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
-import { IsString, IsInt, Min, IsOptional } from 'class-validator';
+import { Body, Controller, Delete, Get, Headers, Param, Post, UseGuards } from '@nestjs/common';
+import { IsUUID } from 'class-validator';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { BrandAssetService } from './brand-asset.service.js';
 
-/** Register a brand asset after S3 upload. */
+/** The existing engagement upload + confirm flow owns bytes and scanning. */
 export class RegisterBrandAssetDto {
-  @IsString() objectKey!: string;
-  @IsString() filename!: string;
-  @IsString() mimeType!: string;
-  @IsInt() @Min(0) sizeBytes!: number;
-  @IsString() url!: string;
+  @IsUUID() attachmentId!: string;
 }
 
-/** Optional query for listing assets scoped to a theme version. */
-export class ListBrandAssetsDto {
-  @IsOptional() @IsString() themeVersionId?: string;
-}
-
-/**
- * Brand Asset Controller — firm mark / logo upload registration (GAPS §16).
- * The client uploads to S3 via the existing presigned-URL pipeline, then
- * registers the asset here. Mounted under /workspace-api/template-studio/assets.
- */
 @Controller('template-studio/assets')
 @UseGuards(TenantGuard)
 export class BrandAssetController {
   constructor(private readonly brandAsset: BrandAssetService) {}
 
   @Get()
-  list(@CurrentTenant() ctx: WorkspaceTenantContext) {
-    return this.brandAsset.list(ctx.tenantId);
+  list(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Headers('authorization') authorization: string | undefined,
+  ) {
+    return this.brandAsset.list(ctx.tenantId, authorization);
   }
 
   @Post()
   register(
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Body() dto: RegisterBrandAssetDto,
+    @Headers('authorization') authorization: string | undefined,
   ) {
-    return this.brandAsset.register(ctx.tenantId, ctx.clerkUserId, dto);
+    return this.brandAsset.register(ctx.tenantId, ctx.clerkUserId, dto.attachmentId, authorization);
+  }
+
+  @Get('uploads')
+  uploads(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Headers('authorization') authorization: string | undefined,
+  ) {
+    return this.brandAsset.listUploads(ctx.tenantId, authorization);
   }
 
   @Delete(':assetId')
-  remove(
-    @CurrentTenant() ctx: WorkspaceTenantContext,
-    @Param('assetId') assetId: string,
-  ) {
+  remove(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('assetId') assetId: string) {
     return this.brandAsset.remove(ctx.tenantId, assetId);
   }
 }

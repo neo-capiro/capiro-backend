@@ -1,5 +1,6 @@
 /** Pure receiving contracts. These parsers validate wire data, never authorize an action. */
 import { savedSurvey } from './newsletter-survey-receiving.js';
+import { newsletterAssetUrl } from './newsletter-asset-url-receiving.js';
 import type {
   NewsletterCampaign,
   NewsletterCampaignConfig,
@@ -172,6 +173,10 @@ export interface NewsletterOutreachTest {
   requestKey: string;
   senderConnectionId: string;
   versionId: string;
+}
+export interface NewsletterPrepareResult {
+  versions: NewsletterOutreachVersion[];
+  excluded: string[];
 }
 export interface NewsletterOutreachRecord {
   id: string;
@@ -471,29 +476,7 @@ const assetFields = {
     if (typeof value !== 'string' || value.length > 200) refuse(path);
   },
   mimeType: literal('image/png', 'image/jpeg', 'image/gif', 'image/webp'),
-  url: (value: NewsletterJson, path: string) => {
-    if (typeof value !== 'string' || !/^https?:\/\/[^/]/i.test(value) || /[\s\\]/.test(value))
-      refuse(path);
-    let url: URL;
-    try {
-      url = new URL(value);
-    } catch {
-      refuse(path);
-    }
-    // The configured public base may include a port/path. Do not hardcode its origin,
-    // infer ownership from its token, or turn receiving into permission to fetch it.
-    const suffix = /\/workspace-api\/newsletters\/assets\/file\/[a-f0-9]{64}$/;
-    if (
-      !['http:', 'https:'].includes(url.protocol) ||
-      url.username ||
-      url.password ||
-      url.search ||
-      url.hash ||
-      !suffix.test(value) ||
-      !suffix.test(url.pathname)
-    )
-      refuse(path);
-  },
+  url: newsletterAssetUrl,
 };
 const assetItem: Rule = (value, path) => {
   object(assetFields)(value, path);
@@ -1114,6 +1097,24 @@ export function parseNewsletterOutreachRecord(
       }
     },
   );
+}
+/** Preparation imports immutable versions; it does not queue or deliver mail. */
+export function parseNewsletterPrepareResult(
+  value: unknown,
+  expected: { recordId: string },
+): NewsletterReceiveResult<NewsletterPrepareResult> {
+  return receive(value, object({ versions: array(draftVersion, 500), excluded: strings }), (value) => {
+    const binding = row(snapshot(expected), '$expected');
+    uuid(binding.recordId!, '$expected.recordId');
+    const seen = new Set<string>();
+    for (const [index, item] of (row(value, '$').versions as NewsletterJsonObject[]).entries()) {
+      const id = (item.id as string).toLowerCase();
+      if ((item.outreachRecordId as string).toLowerCase() !== (binding.recordId as string).toLowerCase())
+        refuse(`$.versions.${index}.outreachRecordId`, 'identity_mismatch');
+      if (seen.has(id)) refuse(`$.versions.${index}.id`);
+      seen.add(id);
+    }
+  });
 }
 /** Unrelated metadata is deliberately projected away. Null/absent metadata has no rich hint. */
 export function parseNewsletterReservedMetadata(

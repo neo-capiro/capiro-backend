@@ -3,6 +3,13 @@ import { ConflictException, ForbiddenException, NotFoundException } from '@nestj
 import { TemplateStudioService } from './template-studio.service.js';
 import { TemplateValidator } from './template-validator.js';
 import type { WorkspaceBlueprintDefinition } from './template-definition.js';
+import { validate } from 'class-validator';
+import {
+  BlueprintVersionExpectationDto,
+  CloneBlueprintDto,
+  UpdateVersionDto,
+} from './dto/template-studio.dto.js';
+import { TemplateStudioController } from './template-studio.controller.js';
 
 const tenant = 'tenant-one',
   owner = 'original-author',
@@ -200,5 +207,92 @@ describe('Blueprint immutable version writes', () => {
     await expect(
       h.service.retireVersion(tenant, 'blueprint', 'version', member),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+});
+
+const expectedActions: Array<
+  [string, (service: TemplateStudioService, hash: string) => Promise<unknown>]
+> = [
+  [
+    'save',
+    (service, expectedDefinitionHash) =>
+      service.updateVersion(tenant, 'blueprint', 'version', member, {
+        definition: definition as unknown as Record<string, unknown>,
+        expectedDefinitionHash,
+      }),
+  ],
+  [
+    'clone',
+    (service, expectedDefinitionHash) =>
+      service.cloneBlueprint(tenant, 'blueprint', member, {
+        fromVersionId: 'version',
+        expectedDefinitionHash,
+      }),
+  ],
+  [
+    'publish',
+    (service, expectedDefinitionHash) =>
+      service.publishVersion(tenant, 'blueprint', 'version', member, { expectedDefinitionHash }),
+  ],
+  [
+    'retire',
+    (service, expectedDefinitionHash) =>
+      service.retireVersion(tenant, 'blueprint', 'version', member, { expectedDefinitionHash }),
+  ],
+];
+describe('Blueprint displayed-definition precondition', () => {
+  it('admits omitted/matching request preconditions and refuses null or malformed hashes', async () => {
+    for (const dto of [
+      new BlueprintVersionExpectationDto(),
+      new CloneBlueprintDto(),
+      Object.assign(new UpdateVersionDto(), { definition: {} }),
+    ]) {
+      expect(await validate(dto, { whitelist: true, forbidNonWhitelisted: true })).toEqual([]);
+      Object.assign(dto, { expectedDefinitionHash: 'a'.repeat(64) });
+      expect(await validate(dto, { whitelist: true, forbidNonWhitelisted: true })).toEqual([]);
+      for (const invalid of [null, '', 'short', 'A'.repeat(64), 1]) {
+        Object.assign(dto, { expectedDefinitionHash: invalid });
+        expect(
+          (await validate(dto)).some((error) => error.property === 'expectedDefinitionHash'),
+        ).toBe(true);
+      }
+    }
+  });
+  it('forwards lifecycle request bodies through the existing controller', async () => {
+    const service = { publishVersion: jest.fn(), retireVersion: jest.fn() };
+    const controller = new TemplateStudioController(service as never);
+    const dto = { expectedDefinitionHash: 'a'.repeat(64) },
+      ctx = { tenantId: tenant, clerkUserId: member, role: null };
+    controller.publishVersion(ctx, 'blueprint', 'version', dto);
+    controller.retireVersion(ctx, 'blueprint', 'version', dto);
+    expect(service.publishVersion).toHaveBeenCalledWith(
+      tenant,
+      'blueprint',
+      'version',
+      member,
+      dto,
+    );
+    expect(service.retireVersion).toHaveBeenCalledWith(tenant, 'blueprint', 'version', member, dto);
+  });
+  it.each(expectedActions)('refuses stale displayed hash before %s writes', async (name, act) => {
+    const h = fixture('firm', name === 'retire' ? 'published' : 'draft');
+    await expect(act(h.service, 'f'.repeat(64))).rejects.toBeInstanceOf(ConflictException);
+    expect(h.db.wsBlueprintVersion.create).not.toHaveBeenCalled();
+    expect(h.db.wsBlueprintVersion.update).not.toHaveBeenCalled();
+    expect(h.db.wsBlueprintVersion.findMany).not.toHaveBeenCalled();
+  });
+  it.each(expectedActions)('accepts the exact displayed hash for %s', async (name, act) => {
+    const h = fixture('firm', name === 'retire' ? 'published' : 'draft');
+    await expect(act(h.service, h.current().definitionHash)).resolves.toBeDefined();
+  });
+  it('requires the explicit source version for hash-bound cloning', async () => {
+    const h = fixture('firm');
+    await expect(
+      h.service.cloneBlueprint(tenant, 'blueprint', member, {
+        expectedDefinitionHash: h.current().definitionHash,
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(h.db.wsBlueprintVersion.findFirst).not.toHaveBeenCalled();
+    expect(h.db.wsBlueprintVersion.create).not.toHaveBeenCalled();
   });
 });

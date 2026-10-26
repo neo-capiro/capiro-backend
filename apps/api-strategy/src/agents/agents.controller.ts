@@ -120,7 +120,7 @@ export class AgentsController {
 
   @Get('missions/:id/runs')
   listRuns(@CurrentTenant() tc: AuthTenantContext, @Param('id') id: string) {
-    return this.runs.listForMission(tc.tenantId, id);
+    return this.runs.listForMission(tc.tenantId, id, {}, tc.clerkUserId);
   }
 
   /**
@@ -136,7 +136,7 @@ export class AgentsController {
 
   @Get('runs/:id')
   getRun(@CurrentTenant() tc: AuthTenantContext, @Param('id') id: string) {
-    return this.runs.get(tc.tenantId, id);
+    return this.runs.get(tc.tenantId, id, tc.clerkUserId);
   }
 
   @Post('runs/:id/transition')
@@ -250,14 +250,14 @@ export class AgentsController {
   @Get('execution/runs/:id/policy')
   @UseGuards(ExecutionAgentGuard)
   runPolicy(@CurrentTenant() tc: AuthTenantContext, @Param('id') id: string) {
-    return this.runs.policyFor(tc.tenantId, id);
+    return this.runs.policyFor(tc.tenantId, id, tc.clerkUserId);
   }
 
   /** Every attempt in this run's family, oldest first (compare attempts). */
   @Get('execution/runs/:id/attempts')
   @UseGuards(ExecutionAgentGuard)
   runAttempts(@CurrentTenant() tc: AuthTenantContext, @Param('id') id: string) {
-    return this.runs.listAttempts(tc.tenantId, id);
+    return this.runs.listAttempts(tc.tenantId, id, tc.clerkUserId);
   }
 
   /**
@@ -348,12 +348,12 @@ export class AgentsController {
     return this.changeSets.list(tc.tenantId, {
       strategyId: strategyId || undefined,
       status: status || undefined,
-    });
+    }, tc.clerkUserId);
   }
 
   @Get('change-sets/:id')
   getChangeSet(@CurrentTenant() tc: AuthTenantContext, @Param('id') id: string) {
-    return this.changeSets.get(tc.tenantId, id);
+    return this.changeSets.get(tc.tenantId, id, tc.clerkUserId);
   }
 
   @Post('change-sets/:id/approve')
@@ -418,7 +418,7 @@ export class AgentsController {
   @Get('watch/pending-counts')
   @UseGuards(StrategyWatcherGuard)
   getWatchPendingCounts(@CurrentTenant() tc: AuthTenantContext) {
-    return this.watchReview.getPendingCounts(tc.tenantId);
+    return this.watchReview.getPendingCounts(tc.tenantId, tc.clerkUserId);
   }
 
   /** The panel's read state: current-head Watch proposals only, sorted, with
@@ -426,7 +426,7 @@ export class AgentsController {
   @Get('watch/strategies/:strategyId')
   @UseGuards(StrategyWatcherGuard)
   getWatchState(@CurrentTenant() tc: AuthTenantContext, @Param('strategyId') strategyId: string) {
-    return this.watchReview.getState(tc.tenantId, strategyId);
+    return this.watchReview.getState(tc.tenantId, strategyId, tc.clerkUserId);
   }
 
   /** Panel-open (or manual "Check now") revalidation: fast no-op when

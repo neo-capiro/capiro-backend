@@ -10,6 +10,11 @@ import { outreachStyleSampleInputV1Schema } from '../state/outreach-style-sample
 export const OUTREACH_TEMPLATE_SPEC_VERSION = 'outreach_v3_template_v1' as const;
 export const OUTREACH_TEMPLATE_SCOPES = ['private', 'firm', 'client'] as const;
 
+export const publishOutreachTemplateInputSchema = z.object({
+  expectedDraftVersionId: z.string().uuid().transform((value) => value.toLowerCase()),
+}).strict();
+export type PublishOutreachTemplateInput = z.input<typeof publishOutreachTemplateInputSchema>;
+
 // Team/coalition scope and a release-controlled system/Capiro origin are
 // explicitly deferred (closeout runbook 3.3/6.3): neither has a real
 // membership/seed model yet, so adding them here would either fabricate
