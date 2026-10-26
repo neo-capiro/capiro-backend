@@ -14,6 +14,8 @@ Digest groups include tenant, client, user and channel. Current email enablement
 
 Final email logs and manual test responses expose `accepted`, `failed` or `outcome_unknown`. The digest result and existing CLI report these counts and suppression through `TRACKER_DIGEST_OUTCOMES`, replacing the ambiguous `sent` summary. Old `sent` records are historical; there is no delivery confirmation or automatic unknown-to-queued transition.
 
+The shared email service retains the existing `sent` boolean for its LegiWatch caller: true means the SDK call resolved, even without a receipt, and false means it threw. Tracker uses only `status`; the boolean does not establish acceptance or delivery. LegiWatch's existing retry/lease behavior remains outside this repair and can still retry uncertain failures. This repair does not establish a global mail non-retry guarantee.
+
 ## PE: best-effort NON-RETRY
 
 `send-pe-alert-emails --commit` consumes a half-open `[since, run.startedAt)` window on its existing SyncRun row before preparation or sending. A short PostgreSQL advisory transaction lock serializes that boundary; no transaction spans SES. The next eligible window starts after the latest consumed boundary regardless of the prior run's success, errors or crash. The existing 48-hour cap remains. Alerts at the upper boundary belong to the next window.

@@ -25,7 +25,11 @@ describe('Tracker SES acceptance evidence', () => {
 
   it('bounds SDK attempts and reports provider acceptance, never delivery', async () => {
     mockSend.mockResolvedValue({ MessageId: 'synthetic-receipt' });
-    await expect(send()).resolves.toEqual({ status: 'accepted', messageId: 'synthetic-receipt' });
+    await expect(send()).resolves.toEqual({
+      status: 'accepted',
+      messageId: 'synthetic-receipt',
+      sent: true,
+    });
     expect(SESv2Client).toHaveBeenCalledWith({ region: 'us-east-1', maxAttempts: 1 });
     expect(mockSend).toHaveBeenCalledTimes(1);
   });
@@ -43,6 +47,7 @@ describe('Tracker SES acceptance evidence', () => {
       );
       await expect(send()).resolves.toEqual({
         status: 'failed',
+        sent: false,
         error: 'SES rejected the request',
       });
       expect(mockSend).toHaveBeenCalledTimes(1);
@@ -57,7 +62,7 @@ describe('Tracker SES acceptance evidence', () => {
         $metadata: { httpStatusCode },
       }),
     );
-    expect((await send()).status).toBe('outcome_unknown');
+    expect(await send()).toMatchObject({ status: 'outcome_unknown', sent: false });
     expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
@@ -65,13 +70,13 @@ describe('Tracker SES acceptance evidence', () => {
     'does not infer rejection from a transport or untyped exception',
     async (cause) => {
       mockSend.mockRejectedValue(cause);
-      expect((await send()).status).toBe('outcome_unknown');
+      expect(await send()).toMatchObject({ status: 'outcome_unknown', sent: false });
     },
   );
 
   it('does not invent acceptance when a success response has no message id', async () => {
     mockSend.mockResolvedValue({});
-    expect((await send()).status).toBe('outcome_unknown');
+    expect(await send()).toMatchObject({ status: 'outcome_unknown', sent: true });
     service.onModuleDestroy();
     expect(mockDestroy).toHaveBeenCalled();
   });

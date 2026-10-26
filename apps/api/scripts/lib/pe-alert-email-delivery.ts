@@ -5,7 +5,7 @@ import { runWithSyncRun, type RunCounts } from '../../src/ingestion/sync-run.hel
 import {
   sesEmailAcceptance,
   sesEmailFailure,
-  type EmailSendResult,
+  type EmailSendOutcome,
 } from '../../src/tracker/notifications/tracker-email.service.js';
 
 const SOURCE = 'send-pe-alert-emails';
@@ -118,9 +118,9 @@ export async function sendPeEmailBatch(
   emails: PeQueuedEmail[],
   from: string,
   region: string,
-  record: (outcomes: EmailSendResult[]) => Promise<void>,
-): Promise<EmailSendResult[]> {
-  const outcomes: EmailSendResult[] = emails.map(() => ({ status: 'outcome_unknown' }));
+  record: (outcomes: EmailSendOutcome[]) => Promise<void>,
+): Promise<EmailSendOutcome[]> {
+  const outcomes: EmailSendOutcome[] = emails.map(() => ({ status: 'outcome_unknown' }));
   await record(outcomes);
   const ses = new SESv2Client({ region, maxAttempts: 1 });
   try {

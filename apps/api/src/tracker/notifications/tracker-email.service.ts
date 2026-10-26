@@ -3,14 +3,19 @@ import { SESv2Client, SESv2ServiceException, SendEmailCommand } from '@aws-sdk/c
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../../config/config.schema.js';
 
-export interface EmailSendResult {
+export interface EmailSendOutcome {
   status: 'accepted' | 'failed' | 'outcome_unknown';
   messageId?: string;
   error?: string;
 }
 
+export interface EmailSendResult extends EmailSendOutcome {
+  /** Legacy LegiWatch contract: SDK call resolved, not proof of delivery or a receipt. */
+  sent: boolean;
+}
+
 /** A parsed SES rejection proves failure; a timeout, lost response or 5xx does not. */
-export function sesEmailFailure(cause: unknown): EmailSendResult {
+export function sesEmailFailure(cause: unknown): EmailSendOutcome {
   const status =
     cause instanceof SESv2ServiceException ? cause.$metadata.httpStatusCode : undefined;
   return status !== undefined && status >= 400 && status < 500 && status !== 408
@@ -18,7 +23,7 @@ export function sesEmailFailure(cause: unknown): EmailSendResult {
     : { status: 'outcome_unknown', error: 'SES acceptance could not be confirmed' };
 }
 
-export function sesEmailAcceptance(messageId: string | undefined): EmailSendResult {
+export function sesEmailAcceptance(messageId: string | undefined): EmailSendOutcome {
   return messageId?.trim()
     ? { status: 'accepted', messageId }
     : { status: 'outcome_unknown', error: 'SES acceptance receipt missing' };
@@ -54,11 +59,11 @@ export class TrackerEmailService implements OnModuleDestroy {
           },
         }),
       );
-      return sesEmailAcceptance(res.MessageId);
+      return { ...sesEmailAcceptance(res.MessageId), sent: true };
     } catch (e) {
       const result = sesEmailFailure(e);
       this.logger.warn(`Tracker SES outcome: ${result.status}`);
-      return result;
+      return { ...result, sent: false };
     }
   }
 

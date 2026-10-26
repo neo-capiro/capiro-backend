@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../../config/config.schema.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { TrackerEmailService, type EmailSendResult } from './tracker-email.service.js';
+import { TrackerEmailService, type EmailSendOutcome } from './tracker-email.service.js';
 import { SmsService } from '../sms/sms.service.js';
 import { clearsMateriality, type TrackerAlertEvent } from './tracker-notification.types.js';
 import { renderAlertEmail, renderDigestEmail, renderTestEmail } from './tracker-email.templates.js';
@@ -333,9 +333,10 @@ export class TrackerAlertService {
       totals.flushed += claim.flushed;
       if (!claimed.length) continue;
       const events = claimed.map((b) => b.payload as unknown as TrackerAlertEvent);
-      let result: EmailSendResult | { status: 'suppressed'; messageId?: string; error?: string } = {
-        status: 'suppressed',
-      };
+      let result: EmailSendOutcome | { status: 'suppressed'; messageId?: string; error?: string } =
+        {
+          status: 'suppressed',
+        };
       try {
         if (channel === 'email') {
           const pref = await this.prisma.withTenant(tenantId, (tx) =>

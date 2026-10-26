@@ -48,7 +48,7 @@ import {
   sendPeEmailBatch,
   type PeEmailWindow,
 } from './lib/pe-alert-email-delivery.js';
-import type { EmailSendResult } from '../src/tracker/notifications/tracker-email.service.js';
+import type { EmailSendOutcome } from '../src/tracker/notifications/tracker-email.service.js';
 const flag = (name: string): boolean => process.argv.includes(`--${name}`);
 const argVal = (name: string): string | undefined => {
   const i = process.argv.indexOf(`--${name}`);
@@ -261,7 +261,7 @@ async function main(): Promise<void> {
 
     // Phase B — no transaction is held over SES. SyncRun already consumed this
     // exact window; even a failed final receipt cannot replay its recipients.
-    let outcomes: EmailSendResult[] = [];
+    let outcomes: EmailSendOutcome[] = [];
     if (commit && queued.length > 0)
       outcomes = await sendPeEmailBatch(queued, from, region, async (current) => {
         if (!window.runId) throw new Error('PE email window has no durable claim');
