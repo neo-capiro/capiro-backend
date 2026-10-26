@@ -21,6 +21,7 @@ interface BoundaryMetadata {
 }
 
 export const MICROSOFT_GRAPH_RUNTIME_METHODS = {
+  readTeams: { action: 'integration_sync' },
   syncConnection: { action: 'integration_sync' },
   runCalendarCommand: { action: 'integration_sync' },
   syncConnectionByTenant: { action: 'integration_sync' },
