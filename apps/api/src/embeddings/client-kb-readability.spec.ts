@@ -26,7 +26,11 @@ function fixture() {
     }
     return [{ ...attachment, indexClaimToken: claim.token, indexSourceGeneration: claim.generation }];
   });
-  const findFirst = jest.fn().mockResolvedValue(attachment);
+  const findFirst = jest.fn(async () => ({
+    ...attachment,
+    indexClaimToken: claim.token,
+    indexSourceGeneration: claim.generation,
+  }));
   const extractAttachmentTextForKb = jest.fn();
   const purge = jest.fn().mockResolvedValue(undefined);
   const service = Object.create(ClientKbService.prototype) as ClientKbService;

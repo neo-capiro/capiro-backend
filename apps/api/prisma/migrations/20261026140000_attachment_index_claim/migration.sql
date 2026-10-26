@@ -47,6 +47,14 @@ DECLARE
 BEGIN
   IF (to_jsonb(NEW) - ignored) IS DISTINCT FROM (to_jsonb(OLD) - ignored) THEN
     NEW.index_source_generation := OLD.index_source_generation + 1;
+    -- A real source change is new work FOR THE CURRENT REVISION, so it is
+    -- persisted on the row itself. Recovery therefore never depends on a writer's
+    -- after-commit callback: a completed metadata-only document whose association
+    -- is reassigned, or a document whose scan verdict finally arrives, is due
+    -- again because its own row says so. Unchanged rows are untouched, and the
+    -- attempt's own claim/status writes never reach this branch, so nothing
+    -- schedules a retry loop for itself.
+    NEW.index_next_attempt_at := clock_timestamp();
   ELSE
     NEW.index_source_generation := OLD.index_source_generation;
   END IF;

@@ -18,7 +18,9 @@ function document(id: string, overrides: Record<string, unknown> = {}) {
     contentType: 'text/plain', lifecycleStatus: 'ready', scanStatus: 'clean',
     viewerMode: 'all', viewerUserIds: [] as string[], uploadedByUserId: OWNER,
     supersededByAttachmentId: null, meetingId: null, mailMessageId: null,
-    s3Key: `${TENANT}/${id}`, createdAt: new Date(), ...overrides };
+    s3Key: `${TENANT}/${id}`, createdAt: new Date(),
+    // MG-06 attempt state the fences read.
+    indexClaimToken: null, indexSourceGeneration: 0, ...overrides };
 }
 
 function fixture() {
@@ -51,6 +53,9 @@ function fixture() {
   });
   const query = jest.fn(async (sql: string, ...parameters: unknown[]) => {
     if (sql.includes('AS allowed')) return [{ allowed: wallAllowed }];
+    // The MG-06 exclusion cleanup re-reads the row under FOR UPDATE before it
+    // purges, so the fixture serves that lock with the current row.
+    if (sql.includes('FOR UPDATE')) return rows.filter(row => row.id === parameters[1]);
     expect(sql).toContain("source_type <> 'client_doc_chunk' OR split_part(source_id, ':', 1) = ANY($5::text[])");
     const allowed = parameters[4] as string[];
     // The index includes OLD content for every fixture, including now-private,

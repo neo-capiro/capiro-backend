@@ -60,7 +60,11 @@ function fixture() {
       withTenant: jest.fn(async (_tenant: string, fn: (tx: unknown) => Promise<unknown>) =>
         fn({
           engagementAttachment: {
-            findFirst: jest.fn().mockResolvedValue(attachment),
+            findFirst: jest.fn(async () => ({
+              ...attachment,
+              indexClaimToken: state.token,
+              indexSourceGeneration: state.generation,
+            })),
             update,
             updateMany: jest.fn().mockResolvedValue({ count: 1 }),
           },

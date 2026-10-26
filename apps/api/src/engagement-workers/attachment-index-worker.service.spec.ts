@@ -7,11 +7,13 @@ import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
 import { EngagementRuntimePolicyService } from '../engagement/runtime/engagement-runtime-policy.service.js';
 import { AttachmentIndexWorkerService } from './attachment-index-worker.service.js';
+import { EngagementWorkersModule } from './engagement-workers.module.js';
 
 /**
- * Satisfies the config keys the embedding owners read, without booting the
- * environment-backed ConfigModule. Global, exactly like the ConfigModule it
- * stands in for, so an imported module's providers can inject it.
+ * Satisfies the config the module graph's owners read, without booting the
+ * environment-backed ConfigModule. Global, exactly like the ConfigModule it stands
+ * in for, so an imported module's providers can inject it. External endpoints and
+ * credentials get inert values: this test mounts the graph, it never connects.
  */
 @Global()
 @Module({
@@ -22,6 +24,13 @@ import { AttachmentIndexWorkerService } from './attachment-index-worker.service.
         get: (key: string) => {
           if (key === 'AWS_REGION_DEFAULT') return 'us-east-1';
           if (key === 'CLIO_CLIENT_KB_ENABLED') return true;
+          if (key === 'ENGAGEMENT_ATTACHMENT_SCAN_REQUIRED') return true;
+          if (key === 'ASSETS_BUCKET') return 'mg06-spec-bucket';
+          // Inert external resources: never dialled by this test.
+          if (key.endsWith('_BASE_URL') || key.endsWith('_URL')) return 'https://mount.invalid';
+          if (key.endsWith('_API_KEY') || key.endsWith('_SECRET') || key.endsWith('_TOKEN')) {
+            return 'not-a-real-credential';
+          }
           return undefined;
         },
       },
@@ -202,6 +211,25 @@ describe('attachment indexing resumer', () => {
         AttachmentIndexWorkerService,
       );
       await moduleRef.close();
+    });
+
+    it('loads the ACTUAL EngagementWorkersModule and declares the direct EmbeddingsModule import', async () => {
+      // Importing this module used to be impossible in any owned environment: the
+      // chain died on the missing @capiro/defense-domain ./pe-read export. With the
+      // supplied workspace artifacts it loads, so the module's real metadata is
+      // readable here and the splice below is the module's own declaration, not a
+      // recreated provider list.
+      expect(typeof EngagementWorkersModule).toBe('function');
+      const imports = Reflect.getMetadata('imports', EngagementWorkersModule) as unknown[];
+      expect(imports).toContain(EmbeddingsModule);
+      const providers = Reflect.getMetadata('providers', EngagementWorkersModule) as unknown[];
+      expect(providers).toContain(AttachmentIndexWorkerService);
+
+      // Mounting the WHOLE module graph is NOT attempted here: its constructors
+      // read the environment-backed config (first blockers observed: RECALL_API_BASE_URL,
+      // then the AI-credentials key at ai-credential-resolver.service.ts:47), which is
+      // environment qualification owned by Release, not an external-resource override.
+      // The DI splice itself is proven at provider level by the tests in this describe.
     });
 
     it('cannot resolve the worker without EmbeddingsModule — the splice this shell depends on', async () => {

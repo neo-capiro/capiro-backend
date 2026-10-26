@@ -56,7 +56,12 @@ export class AttachmentIndexWorkerService implements OnModuleInit, OnModuleDestr
     this.running = true;
     try {
       this.runtime.assertBackgroundOwner('attachment-index');
-      const result = await this.kb.runDueAttachmentIndexSweep();
+      const result = await this.kb.runDueAttachmentIndexSweep(undefined, {
+        // Observed BETWEEN documents: a destroy during an active batch never lets
+        // the next claim start, and work already begun finishes or its lease
+        // recovers it.
+        shouldContinue: () => !this.stopping,
+      });
       if (result.selected > 0) {
         this.logger.log(
           `attachment index sweep: selected=${result.selected} indexed=${result.indexed} ` +

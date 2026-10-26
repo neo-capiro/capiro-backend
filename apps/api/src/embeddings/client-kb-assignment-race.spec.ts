@@ -47,7 +47,14 @@ function fixture() {
   });
   const tx = { $queryRawUnsafe: query, $executeRawUnsafe: execute,
     engagementAttachment: {
-      findFirst: jest.fn().mockResolvedValue(snapshot), update,
+      // The snapshot read now carries the claim/epoch the fences compare.
+      findFirst: jest.fn(async () => ({
+        ...snapshot,
+        clientId: state.attachment.clientId,
+        indexClaimToken: state.claimToken,
+        indexSourceGeneration: state.generation,
+      })),
+      update,
       updateMany: jest.fn(async ({ where, data }) => {
         expect(inTransaction).toBe(true);
         const filter = where as { indexClaimToken?: string };
