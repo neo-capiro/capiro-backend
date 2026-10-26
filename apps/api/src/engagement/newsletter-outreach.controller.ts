@@ -65,6 +65,20 @@ export class NewsletterOutreachController {
   @Get(':id') get(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
     return this.service.get(ctx, id);
   }
+  @Get(':id/send-requests/:requestKey') sendRequest(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('requestKey') requestKey: string,
+  ) {
+    return this.service.sendRequest(ctx, id, requestKey);
+  }
+  @Get(':id/send-intents/:intentId') sendStatus(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('intentId') intentId: string,
+  ) {
+    return this.service.sendStatus(ctx, id, intentId);
+  }
   @Post(':id/prepare') prepare(
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,

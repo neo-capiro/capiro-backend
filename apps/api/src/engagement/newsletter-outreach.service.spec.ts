@@ -78,7 +78,10 @@ function harness() {
     importNewsletterVersion: jest.fn().mockResolvedValue({ id: 'version-1', sendable: true }),
     listForOutreach: jest.fn().mockResolvedValue([]),
   };
-  const intents = { createIntent: jest.fn().mockResolvedValue({ intentId: 'intent-1' }) };
+  const intents = {
+    createIntent: jest.fn().mockResolvedValue({ intentId: 'intent-1' }),
+    getIntent: jest.fn().mockResolvedValue({ id: 'intent-1', status: 'unknown' }),
+  };
   const runtime = { assertExternalAction: jest.fn() };
   const service = new NewsletterOutreachService(
     prisma as never,
@@ -300,6 +303,127 @@ describe('Workspace newsletter Outreach handoff', () => {
     expect(result.excluded).toEqual(['former@example.test']);
     expect(result.versions[0]?.recipientEmail).toBe('client@example.test');
   });
+  test('reload finds the durable send even when the convenience metadata write failed', async () => {
+    const h = harness();
+    h.tx.outreachSendIntent.findFirst.mockResolvedValue({ id: 'committed-intent' });
+    expect((await h.service.get(ctx, recordId)).intentId).toBe('committed-intent');
+    expect(h.tx.outreachSendIntent.findFirst).toHaveBeenCalledWith({
+      where: {
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        outreachRecordId: recordId,
+        testMode: false,
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: { id: true },
+    });
+    expect(h.intents.createIntent).not.toHaveBeenCalled();
+  });
+  test('exact absent request is read-only and still checks current record access', async () => {
+    const h = harness();
+    expect(await h.service.sendRequest(ctx, recordId, 'original-request')).toEqual({
+      outreachRecordId: recordId,
+      requestKey: 'original-request',
+      intent: null,
+    });
+    expect(h.tx.outreachSendIntent.findFirst.mock.calls[0]![0].where).toEqual({
+      tenantId: ctx.tenantId,
+      userId: ctx.userId,
+      outreachRecordId: recordId,
+      requestKey: 'original-request',
+    });
+    expect(h.intents.createIntent).not.toHaveBeenCalled();
+    h.engagement.getOutreachRecord.mockRejectedValue(new NotFoundException());
+    await expect(h.service.sendRequest(ctx, recordId, 'original-request')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+  test('recovers a committed request after metadata loss without posting again', async () => {
+    const h = harness();
+    Object.assign(h.row.metadata, {
+      newsletterVersionIds: ['version-1'],
+      newsletterSenderId: 'mailbox',
+    });
+    h.engagement.updateOutreachRecord.mockRejectedValue(new Error('metadata unavailable'));
+    await expect(
+      h.service.send(ctx, recordId, {
+        requestKey: 'original-request',
+        senderConnectionId: 'mailbox',
+        versionIds: ['version-1'],
+      }),
+    ).rejects.toThrow('metadata unavailable');
+    h.tx.outreachSendIntent.findFirst.mockResolvedValue(storedSend());
+    expect(await h.service.sendRequest(ctx, recordId, 'original-request')).toEqual({
+      outreachRecordId: recordId,
+      requestKey: 'original-request',
+      intent: {
+        id: 'intent-1',
+        status: 'unknown',
+        senderConnectionId: 'mailbox',
+        versionIds: ['version-1'],
+      },
+    });
+    expect(h.intents.createIntent).toHaveBeenCalledTimes(1);
+    expect(h.engagement.updateOutreachRecord).toHaveBeenCalledTimes(1);
+  });
+  test.each(['tenant', 'stage', 'format', 'artifactTenant', 'record', 'author'])(
+    'refuses a mismatched immutable version %s before returning delivery data',
+    async (field) => {
+      const h = harness();
+      const stored = storedSend();
+      const version = stored.deliveries[0]!.draftVersion;
+      if (field === 'tenant') version.tenantId = 'foreign';
+      if (field === 'stage') version.newsletterStageId = 'foreign';
+      if (field === 'format') version.contentFormat = 'outreach';
+      if (field === 'artifactTenant') version.artifact.tenantId = 'foreign';
+      if (field === 'record') version.artifact.outreachRecordId = 'foreign';
+      if (field === 'author') version.artifact.createdByUserId = 'foreign';
+      h.tx.outreachSendIntent.findFirst.mockResolvedValue(stored);
+      await expect(h.service.sendRequest(ctx, recordId, 'original-request')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(h.intents.getIntent).not.toHaveBeenCalled();
+    },
+  );
+  test('checks revoked source access before and after private delivery loading', async () => {
+    const h = harness();
+    h.stage.config.clientId = recordId;
+    h.row.clientId = recordId as never;
+    h.tx.$queryRaw.mockImplementation(async (sql: TemplateStringsArray) =>
+      sql.join(' ').includes('FROM ws_newsletter_stage') ? [h.stage] : [{ allowed: false }],
+    );
+    await expect(h.service.sendRequest(ctx, recordId, 'original-request')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(h.intents.getIntent).not.toHaveBeenCalled();
+    const fresh = harness();
+    fresh.tx.outreachSendIntent.findFirst.mockResolvedValue(storedSend());
+    fresh.intents.getIntent.mockImplementation(async () => {
+      fresh.engagement.getOutreachRecord.mockRejectedValue(new NotFoundException());
+      return { id: 'intent-1', status: 'unknown' };
+    });
+    await expect(
+      fresh.service.sendRequest(ctx, recordId, 'original-request'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+  test('known-ID status is scoped to the record and a missing ID is not a successful status', async () => {
+    const h = harness();
+    await expect(h.service.sendStatus(ctx, recordId, stageId)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(h.tx.outreachSendIntent.findFirst.mock.calls[0]![0].where).toEqual({
+      tenantId: ctx.tenantId,
+      userId: ctx.userId,
+      outreachRecordId: recordId,
+      id: stageId,
+    });
+    h.tx.outreachSendIntent.findFirst.mockResolvedValue(storedSend());
+    expect((await h.service.sendStatus(ctx, recordId, stageId)).intent?.status).toBe('unknown');
+    for (const key of ['short', 'a'.repeat(129), ' original-request'])
+      await expect(h.service.sendRequest(ctx, recordId, key)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+  });
   test('previewing never publishes a private recipient archive', async () => {
     const h = harness();
     await expect(h.service.publicArchive('a'.repeat(64))).rejects.toBeInstanceOf(NotFoundException);
@@ -328,6 +452,15 @@ describe('Workspace newsletter Outreach handoff', () => {
     expect(h.drafts.importNewsletterVersion).not.toHaveBeenCalled();
   });
 });
+function storedSend() {
+  return {
+    id: 'intent-1', requestKey: 'original-request', senderConnectionId: 'mailbox',
+    deliveries: [{ draftVersionId: 'version-1', draftVersion: {
+      tenantId: ctx.tenantId, newsletterStageId: stageId, contentFormat: 'workspace_newsletter',
+      artifact: { tenantId: ctx.tenantId, outreachRecordId: recordId, createdByUserId: ctx.userId },
+    } }],
+  };
+}
 describe('newsletter destination and HTML boundaries', () => {
   test('normalizes addresses, rejects duplicates and shared recipient capabilities', () => {
     expect(

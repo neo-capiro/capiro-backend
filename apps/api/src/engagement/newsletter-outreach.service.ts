@@ -307,6 +307,20 @@ export class NewsletterOutreachService {
             }),
           )
         : [];
+    // An intent commits before the convenience metadata write. Read the durable
+    // owner so a reload also recovers a send whose metadata acknowledgement was lost.
+    const latestSend = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.outreachSendIntent.findFirst({
+        where: {
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          outreachRecordId: id,
+          testMode: false,
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        select: { id: true },
+      }),
+    );
     return {
       id: row.id,
       status: row.status,
@@ -326,7 +340,7 @@ export class NewsletterOutreachService {
             ]
           : [];
       }),
-      intentId: metadata?.newsletterIntentId ?? null,
+      intentId: latestSend?.id ?? metadata?.newsletterIntentId ?? null,
       excluded: metadata?.newsletterExcluded ?? [],
       tests: tests.flatMap((test) =>
         test.deliveries
@@ -342,6 +356,89 @@ export class NewsletterOutreachService {
   }
   async prepare(ctx: TenantContext, id: string, input: NewsletterPrepareInput) {
     return this.mutation(ctx, id, () => this.prepareCurrent(ctx, id, input));
+  }
+  /** Read only: absence is an observation, never permission to redispatch. */
+  async sendRequest(ctx: TenantContext, id: string, requestKey: string) {
+    if (requestKey.length < 8 || requestKey.length > 128 || requestKey !== requestKey.trim())
+      throw new BadRequestException(
+        'requestKey must be 8–128 characters without outer whitespace.',
+      );
+    return this.readSend(ctx, id, { requestKey });
+  }
+  async sendStatus(ctx: TenantContext, id: string, intentId: string) {
+    if (!uuid.test(intentId)) throw new NotFoundException('Send intent not found');
+    const result = await this.readSend(ctx, id, { id: intentId });
+    if (!result.intent) throw new NotFoundException('Send intent not found');
+    return result;
+  }
+  private async readSend(
+    ctx: TenantContext,
+    id: string,
+    selector: { requestKey: string } | { id: string },
+  ) {
+    const { row, stage } = await this.record(ctx, id);
+    const intent = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.outreachSendIntent.findFirst({
+        where: {
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          outreachRecordId: row.id,
+          ...selector,
+        },
+        select: {
+          id: true,
+          requestKey: true,
+          senderConnectionId: true,
+          deliveries: {
+            select: {
+              draftVersionId: true,
+              draftVersion: {
+                select: {
+                  tenantId: true,
+                  newsletterStageId: true,
+                  contentFormat: true,
+                  artifact: {
+                    select: { tenantId: true, outreachRecordId: true, createdByUserId: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+      }),
+    );
+    if (!intent)
+      return {
+        outreachRecordId: row.id,
+        requestKey: 'requestKey' in selector ? selector.requestKey : null,
+        intent: null,
+      };
+    if (
+      !intent.deliveries.length ||
+      intent.deliveries.some(
+        ({ draftVersion: version }) =>
+          version.tenantId !== ctx.tenantId ||
+          version.newsletterStageId !== stage.id ||
+          version.contentFormat !== 'workspace_newsletter' ||
+          version.artifact.tenantId !== ctx.tenantId ||
+          version.artifact.outreachRecordId !== row.id ||
+          version.artifact.createdByUserId !== ctx.userId,
+      )
+    )
+      throw new NotFoundException('Newsletter send intent not found');
+    const status = await this.sendIntents.getIntent(ctx, intent.id);
+    // The generic intent reader serves other callers. This newsletter route also
+    // rechecks current source/client access after loading the private delivery data.
+    await this.record(ctx, row.id);
+    return {
+      outreachRecordId: row.id,
+      requestKey: intent.requestKey,
+      intent: {
+        ...status,
+        senderConnectionId: intent.senderConnectionId,
+        versionIds: intent.deliveries.map((delivery) => delivery.draftVersionId),
+      },
+    };
   }
   private async prepareCurrent(ctx: TenantContext, id: string, input: NewsletterPrepareInput) {
     const { row, stage } = await this.record(ctx, id);
