@@ -43,9 +43,9 @@ test('outbound network negative control rejects before connecting', () => {
 
 test('exact parent-scoped dependency closure', () => {
   version(from('express'), 'proxy-addr', '2.0.8');
-  version(from('@nestjs/platform-express'), 'multer', '2.4.0');
+  version(from('@nestjs/platform-express'), 'multer', '2.5.0');
   for (const parent of [from('express'), from('@nestjs/platform-express')]) {
-    version(parent, 'body-parser', '1.20.6');
+    version(parent, 'body-parser', '1.20.9');
     version(Module.createRequire(parent.resolve('body-parser')), 'qs', '6.16.0');
   }
   version(from('express'), 'qs', '6.16.0');
@@ -446,8 +446,8 @@ if (service === 'engagement-api') {
   });
 
   test('Cheerio nested Undici handles loopback redirects, parsing and failure; direct Undici unchanged', { timeout: 8_000 }, async () => {
-    version(from('cheerio'), 'undici', '7.29.1');
-    version(local, 'undici', '6.28.1');
+    version(from('cheerio'), 'undici', '7.30.1');
+    version(local, 'undici', '6.29.1');
     const cheerio = local('cheerio');
     const server = http.createServer((req, res) => {
       if (req.url === '/redirect') {
