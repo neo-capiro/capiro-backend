@@ -1,4 +1,5 @@
 /** Pure receiving contracts. These parsers validate wire data, never authorize an action. */
+import { savedSurvey } from './newsletter-survey-receiving.js';
 import type {
   NewsletterCampaign,
   NewsletterCampaignConfig,
@@ -16,7 +17,6 @@ import {
   NEWSLETTER_SOCIAL_PLATFORMS,
   NEWSLETTER_SOCIAL_SHARE_PLATFORMS,
   NEWSLETTER_SOCIAL_ICON_STYLES,
-  NEWSLETTER_SURVEY_SECTION_TYPES,
 } from './newsletter.js';
 
 import {
@@ -101,6 +101,12 @@ export type NewsletterSectionLibraryItem = Omit<
   Required<Pick<NewsletterLibraryItem, 'section'>>;
 export interface NewsletterLibraryList {
   items: NewsletterSectionLibraryItem[];
+}
+/** A saved template has design content and optional legacy company/footer configuration. */
+export type NewsletterTemplateLibraryItem = Omit<NewsletterLibraryItem, 'section' | 'design'> &
+  Required<Pick<NewsletterLibraryItem, 'design'>>;
+export interface NewsletterTemplateLibraryList {
+  items: NewsletterTemplateLibraryItem[];
 }
 /** An owned image item, including an upload response; never an upload-request receipt. */
 export interface NewsletterAssetItem {
@@ -195,15 +201,6 @@ export interface NewsletterReceiveIdentity {
   revision?: number;
   clientId?: string | null;
 }
-// An embedded saved-survey snapshot is not a resource lookup or a stage capability.
-const SAVED_SURVEY_ID = /^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i;
-const savedSurveyId: Rule = (value, path) => {
-  if (typeof value !== 'string' || !SAVED_SURVEY_ID.test(value)) refuse(path);
-};
-const savedSurveyTime: Rule = (value, path) => {
-  if (typeof value !== 'string' || value.length > 40 || !Number.isFinite(Date.parse(value)))
-    refuse(path);
-};
 const strings = array(text);
 const clients = array(uuid, 100);
 const style = object(
@@ -312,50 +309,6 @@ const social = object(
     }),
   },
 );
-const question = object(
-  {
-    id: text,
-    type: vocabulary(() => NEWSLETTER_SURVEY_SECTION_TYPES.map(([key]) => key)),
-    prompt: text,
-    required: bool,
-    options: array(text, 30),
-    other: bool,
-    range: object({
-      min: number,
-      max: number,
-      display: literal('numbers', 'stars', 'emojis', 'hearts'),
-    }),
-    contactField: literal('firstName', 'lastName', 'age', 'gender', 'address'),
-    askToSubscribe: bool,
-    imageUrl: text,
-    alt: text,
-    videoUrl: text,
-  },
-  { introductionType: nullable(literal('text', 'image', 'video')) },
-);
-const surveyDefinition = object({
-  version: literal(1),
-  questions: array(question, 30),
-  title: text,
-  description: text,
-  logoUrl: text,
-  submitLabel: text,
-  confirmation: text,
-  closedMessage: text,
-  requiredMessage: text,
-  background: text,
-  buttonColor: text,
-  buttonTextColor: text,
-});
-const savedSurvey = object({
-  id: savedSurveyId,
-  name: text,
-  revision,
-  status: literal('draft'),
-  updatedAt: savedSurveyTime,
-  sourceClientIds: array(workspaceUuid, 100),
-  definition: surveyDefinition,
-});
 const blockShape = object(
   {
     id: text,
@@ -490,6 +443,26 @@ const libraryItem: Rule = (value, path) => {
   object(libraryItemFields)(value, path);
   for (const key of Object.keys(row(value, path)))
     if (!Object.prototype.hasOwnProperty.call(libraryItemFields, key)) refuse(`${path}.${key}`);
+};
+const templateItemFields = {
+  id: libraryItemFields.id!,
+  name: libraryItemFields.name!,
+  folder: libraryItemFields.folder!,
+  updatedAt: libraryItemFields.updatedAt!,
+  design,
+};
+// These are the existing config text guards, restricted to the producer's saved footer subset.
+const templateConfigFields = { company: text, mailingAddress: text, permissionReminder: text };
+const templateConfig: Rule = (value, path) => {
+  object(templateConfigFields)(value, path);
+  for (const key of Object.keys(row(value, path)))
+    if (!Object.prototype.hasOwnProperty.call(templateConfigFields, key)) refuse(`${path}.${key}`);
+};
+const templateItem: Rule = (value, path) => {
+  object(templateItemFields, { config: templateConfig })(value, path);
+  for (const key of Object.keys(row(value, path)))
+    if (key !== 'config' && !Object.prototype.hasOwnProperty.call(templateItemFields, key))
+      refuse(`${path}.${key}`);
 };
 const assetFields = {
   id: workspaceUuid,
@@ -872,6 +845,39 @@ export function parseNewsletterLibraryList(
     object({ items: array(libraryItem, 500) }),
     (value) => {
       for (const key of Object.keys(row(value, '$'))) if (key !== 'items') refuse(`$.${key}`);
+    },
+    500,
+  );
+}
+/** Acknowledged template content only. No document/request identity or save revision is echoed. */
+export function parseNewsletterTemplateItem(
+  value: unknown,
+  expected?: { id: string },
+): NewsletterReceiveResult<NewsletterTemplateLibraryItem> {
+  return receive(value, templateItem, (parsed) => {
+    if (expected === undefined) return;
+    const binding = row(snapshot(expected), '$expected');
+    object({ id: workspaceUuid })(binding, '$expected');
+    for (const key of Object.keys(binding)) if (key !== 'id') refuse(`$expected.${key}`);
+    if ((binding.id as string).toLowerCase() !== (row(parsed, '$').id as string).toLowerCase())
+      refuse('$.id', 'identity_mismatch');
+  });
+}
+/** Current visible templates, at most 500; never pagination, completeness or lost-write proof. */
+export function parseNewsletterTemplateList(
+  value: unknown,
+): NewsletterReceiveResult<NewsletterTemplateLibraryList> {
+  return receive(
+    value,
+    object({ items: array(templateItem, 500) }),
+    (parsed) => {
+      for (const key of Object.keys(row(parsed, '$'))) if (key !== 'items') refuse(`$.${key}`);
+      const seen = new Set<string>();
+      (row(parsed, '$').items as NewsletterJsonObject[]).forEach((item, index) => {
+        const id = (item.id as string).toLowerCase();
+        if (seen.has(id)) refuse(`$.items.${index}.id`);
+        seen.add(id);
+      });
     },
     500,
   );
