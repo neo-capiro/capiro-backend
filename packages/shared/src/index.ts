@@ -4330,6 +4330,22 @@ export const MERI_CAPABILITY_REGISTRY = [
     surfaces: ['full_chat'],
   },
   {
+    name: 'describe_capiro_data',
+    description:
+      'Describe the published public PostgreSQL relations for query_capiro_data: exact fields, types, canonical identity/join keys, funding units and grain, coverage limitations and unknown source freshness. Call before authoring SQL; do not guess fields. Metadata does not establish live grants or complete ingestion.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'query_capiro_data',
+    description:
+      'Run an authored PostgreSQL SELECT over the relations published by describe_capiro_data, with separately bound scalar $1/$2 parameters, INNER/LEFT canonical-key joins, nonrecursive CTEs, DISTINCT, COUNT/SUM/AVG/MIN/MAX, GROUP BY and ORDER BY. Exact decimal/int64 parameters must be strings. Default rowLimit 200, max 1000; full result is bounded to 256 KiB. Numeric results are exact strings. Counts describe query results, never source completeness. Respect cycle/fiscal-year/value-kind and PE-versus-project grain; use specialized readers for decisive source text or consolidated funding.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
     name: 'query_global_data',
     description:
       'Run an aggregate query (counts, distinct counts, sums, group-bys) over one global reference dataset — the tool for questions like "how many active LDA registrations do we have" or "which agency posted the most grants this year" that a fixed search_X tool cannot answer. Structured only: pick a dataset from list_global_datasets, a `select` list of raw fields and/or aggregates (count, count_distinct, sum, avg, min, max — max 12 entries), optional `filters`, `groupBy`, `orderBy`, and `limit`. Every field name must come from that dataset\'s field list; unknown fields are rejected before anything runs. `lda_registrations` additionally accepts `asOfDate` (default: now) to ask what registration status looked like as of a given date, e.g. year-end. This tool never writes anything and never touches tenant-private data — it only reaches the reviewed global-dataset allowlist.',

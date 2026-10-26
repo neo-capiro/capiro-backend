@@ -1,6 +1,29 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
 import type { CompiledQuery } from './query-spec-compiler.js';
+import { PublicSqlError, type CompiledPublicSql } from './sql-query-compiler.js';
+import { publicSqlRelation } from './public-sql-registry.js';
+import { normalizeSqlRow as normalizePublicSqlRow } from './sql-query-output.js';
+export { normalizeSqlRow as normalizePublicSqlRow } from './sql-query-output.js';
+
+// Fixed owner check, independent of configured username. Never use caller-authored SQL here.
+const PUBLIC_SQL_ROLE_CHECK = `SELECT (
+  current_user = 'capiro_analytics_ro' AND session_user = 'capiro_analytics_ro'
+  AND current_setting('transaction_read_only') = 'on'
+  AND NOT r.rolsuper AND NOT r.rolbypassrls AND NOT r.rolcreaterole
+  AND NOT r.rolcreatedb AND NOT r.rolreplication
+  AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_auth_members m WHERE m.member = r.oid)
+  AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_database d WHERE d.datdba = r.oid)
+  AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_namespace n WHERE n.nspowner = r.oid)
+  AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_class c WHERE c.relowner = r.oid)
+  AND NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relkind IN ('r','p','v','m','f') AND n.nspname NOT IN ('pg_catalog','information_schema')
+    AND n.nspname NOT LIKE 'pg_toast%' AND n.nspname NOT LIKE 'pg_temp%'
+    AND (pg_catalog.has_table_privilege(current_user, c.oid, 'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+      OR pg_catalog.has_any_column_privilege(current_user, c.oid, 'INSERT,UPDATE,REFERENCES'))
+  )
+) AS allowed FROM pg_catalog.pg_roles r WHERE r.rolname = current_user`;
 
 /**
  * Raw `$queryRawUnsafe` rows carry driver types the rest of the tool
@@ -114,6 +137,43 @@ export class AnalyticsDbService {
       { timeout: timeoutMs + 2_000 },
     );
     return rows.map(normalizeRow);
+  }
+
+  /** Only compiler-produced SQL, using this owner's dedicated public reader connection. */
+  async runPublicSql(compiled: CompiledPublicSql): Promise<Record<string, string | boolean | null>[]> {
+    try {
+      const client = this.getClient();
+      const rows = await client.$transaction(async (tx) => {
+        // READ ONLY must precede the first query. All settings are fixed, never model-controlled.
+        await tx.$executeRawUnsafe('SET TRANSACTION READ ONLY');
+        await tx.$executeRawUnsafe('SET LOCAL search_path = pg_catalog');
+        await tx.$executeRawUnsafe("SET LOCAL statement_timeout = '8000ms'");
+        await tx.$executeRawUnsafe("SET LOCAL lock_timeout = '1000ms'");
+        await tx.$executeRawUnsafe("SET LOCAL idle_in_transaction_session_timeout = '10000ms'");
+        await tx.$executeRawUnsafe("SET LOCAL timezone = 'UTC'");
+        const role = await tx.$queryRawUnsafe<{ allowed: boolean }[]>(PUBLIC_SQL_ROLE_CHECK);
+        if (role.length !== 1 || role[0]?.allowed !== true) throw new PublicSqlError('SOURCE_UNAVAILABLE', 'The public reader role is unavailable.');
+        for (const name of compiled.relationsUsed) {
+          const relation = publicSqlRelation(name);
+          if (!relation) throw new PublicSqlError('SOURCE_UNAVAILABLE', 'A published relation is unavailable.');
+          const grant = await tx.$queryRawUnsafe<{ allowed: boolean | null }[]>(
+            'SELECT pg_catalog.has_table_privilege(current_user, pg_catalog.to_regclass($1), \'SELECT\') AS allowed', `public.${relation.table}`);
+          if (grant.length !== 1 || grant[0]?.allowed !== true) throw new PublicSqlError('SOURCE_UNAVAILABLE', 'A published relation or its read grant is unavailable.');
+        }
+        return tx.$queryRawUnsafe<Record<string, unknown>[]>(compiled.sql, ...compiled.params);
+      }, { timeout: 10000, maxWait: 2000 });
+      return rows.map((row) => normalizePublicSqlRow(row, compiled.columns));
+    } catch (error) {
+      if (error instanceof PublicSqlError) throw error;
+      // Driver details may contain SQL/connection information. Only fixed public errors cross this boundary.
+      const code = (error as { code?: unknown; meta?: { code?: unknown } } | null)?.code;
+      const dbCode = (error as { meta?: { code?: unknown } } | null)?.meta?.code;
+      if (code === 'P2028' || ['57014', '55P03'].includes(String(dbCode ?? code)))
+        throw new PublicSqlError('QUERY_TIMEOUT', 'The public query exceeded its execution time limit. Narrow the query.');
+      if (['42803', '42804', '42883', '22P02', '22003', '22007', '22008', '22023'].includes(String(dbCode ?? code)))
+        throw new PublicSqlError('INVALID_QUERY', 'Check field and parameter types, supported aggregates, and GROUP BY fields.');
+      throw new PublicSqlError('SOURCE_UNAVAILABLE', 'Public data is currently unavailable.');
+    }
   }
 
   async onModuleDestroy(): Promise<void> {
