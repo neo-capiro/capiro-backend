@@ -14,6 +14,7 @@ import type {
   WsBlueprintVersionStatus,
 } from '../../generated/prisma-client/index.js';
 import type { WorkspaceBlueprintDefinition } from './template-definition.js';
+import type { WorkspaceBlueprintSampleTest } from '@capiro/shared/workspace-template-studio';
 import { TemplateValidator } from './template-validator.js';
 import type {
   CloneBlueprintDto,
@@ -284,12 +285,7 @@ export class TemplateStudioService {
     blueprintId: string,
     versionId: string,
     dto: TestVersionDto,
-  ): Promise<{
-    passed: boolean;
-    intake: Record<string, unknown>;
-    outline: Array<{ id: string; title: string; targetWords: { min: number; max: number } }>;
-    errors: string[];
-  }> {
+  ): Promise<WorkspaceBlueprintSampleTest> {
     const version = await this.getVersion(tenantId, blueprintId, versionId);
     if (version.status === 'published' || version.status === 'retired') {
       throw new ConflictException(
@@ -345,7 +341,12 @@ export class TemplateStudioService {
         errors: testErrors,
       });
     }
-    return { passed: true, intake, outline, errors: [] };
+    return {
+      blueprintId: version.blueprintId,
+      versionId: version.id,
+      definitionHash: version.definitionHash,
+      passed: true, intake, outline, errors: [],
+    };
   }
 
   // ── Publish / Retire ───────────────────────────────────────────────────

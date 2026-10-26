@@ -6,6 +6,7 @@ import {
 import { createHash } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type {
+  Prisma,
   WsTheme,
   WsThemeVersion,
   WsThemeVersionStatus,
@@ -104,7 +105,7 @@ export class ThemeStudioService {
     clerkUserId: string,
     dto: CreateThemeVersionDto,
   ): Promise<WsThemeVersion> {
-    const theme = await this.getTheme(tenantId, themeId);
+    await this.getTheme(tenantId, themeId);
     const versions = await this.prisma.wsThemeVersion.findMany({
       where: { themeId },
       orderBy: { version: 'desc' },
@@ -140,13 +141,10 @@ export class ThemeStudioService {
       );
     }
     const settingsHash = this.computeSettingsHash(dto.settings);
-    return this.prisma.wsThemeVersion.update({
-      where: { id: versionId },
-      data: {
-        settings: dto.settings as never,
-        settingsHash,
-      },
-    }) as Promise<WsThemeVersion>;
+    return this.updateCurrentVersion(version, {
+      settings: dto.settings as never,
+      settingsHash,
+    });
   }
 
   /** Publish a draft version. Published versions are immutable. */
@@ -164,14 +162,11 @@ export class ThemeStudioService {
     }
     const settings = version.settings as Record<string, unknown>;
     const settingsHash = this.computeSettingsHash(settings);
-    return this.prisma.wsThemeVersion.update({
-      where: { id: versionId },
-      data: {
-        status: 'published' as WsThemeVersionStatus,
-        settingsHash,
-        publishedAt: new Date(),
-      },
-    }) as Promise<WsThemeVersion>;
+    return this.updateCurrentVersion(version, {
+      status: 'published' as WsThemeVersionStatus,
+      settingsHash,
+      publishedAt: new Date(),
+    });
   }
 
   /** Retire a published version. */
@@ -187,16 +182,36 @@ export class ThemeStudioService {
         `Theme version is ${version.status}; only published versions can be retired`,
       );
     }
-    return this.prisma.wsThemeVersion.update({
-      where: { id: versionId },
-      data: {
-        status: 'retired' as WsThemeVersionStatus,
-        retiredAt: new Date(),
-      },
-    }) as Promise<WsThemeVersion>;
+    return this.updateCurrentVersion(version, {
+      status: 'retired' as WsThemeVersionStatus,
+      retiredAt: new Date(),
+    });
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────
+
+  /** A draft edit cannot land after publication, or publish a different checked hash. */
+  private async updateCurrentVersion(
+    version: WsThemeVersion,
+    data: Prisma.WsThemeVersionUpdateInput,
+  ) {
+    try {
+      return await this.prisma.wsThemeVersion.update({
+        where: {
+          id: version.id,
+          themeId: version.themeId,
+          tenantId: version.tenantId,
+          status: version.status,
+          settingsHash: version.settingsHash,
+        },
+        data,
+      });
+    } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025')
+        throw new ConflictException('Theme version changed; read it again before saving');
+      throw error;
+    }
+  }
 
   /** Content-addressed hash of the settings JSON. */
   private computeSettingsHash(settings: Record<string, unknown>): string {

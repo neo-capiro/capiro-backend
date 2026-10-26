@@ -44,6 +44,16 @@ export class ThemeStudioController {
     return this.themeStudio.getTheme(ctx.tenantId, themeId);
   }
 
+  /** GET /template-studio/themes/:themeId/versions/:versionId — exact saved version. */
+  @Get(':themeId/versions/:versionId')
+  getVersion(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('themeId') themeId: string,
+    @Param('versionId') versionId: string,
+  ) {
+    return this.themeStudio.getVersion(ctx.tenantId, themeId, versionId);
+  }
+
   /** POST /template-studio/themes/:themeId/versions — new draft version. */
   @Post(':themeId/versions')
   createVersion(
