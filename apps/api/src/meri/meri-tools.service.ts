@@ -8554,6 +8554,7 @@ export class MeriToolsService {
         from,
         to: toExclusive,
         limit: selection.limit + 1,
+        ...(selection.listSkip ? { continuationSkip: selection.listSkip } : {}),
         ...(selection.listAfter
           ? {
               cursor: {
@@ -8564,15 +8565,16 @@ export class MeriToolsService {
           : {}),
       });
       hasMore = meetings.length > selection.limit;
+      const sourcePage = meetings.slice(0, selection.limit);
       const settled = await Promise.allSettled(
-        meetings
-          .slice(0, selection.limit)
+        sourcePage
           .map((meeting) => this.meetingReadRow(ctx, clientId, meeting.id)),
       );
       rows = settled.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
       const omittedMeetings = settled.length - rows.length;
       await this.assertMeetingReadAllowed(ctx, clientId);
-      return buildMeetingListResult(ctx, selection, rows, hasMore, omittedMeetings);
+      return buildMeetingListResult(ctx, selection, rows, hasMore, omittedMeetings,
+        sourcePage.map(meeting => ({ id: meeting.id, startsAt: new Date(meeting.startsAt).toISOString() })));
     }
     await this.assertMeetingReadAllowed(ctx, clientId);
     return buildMeetingListResult(ctx, selection, rows, hasMore);

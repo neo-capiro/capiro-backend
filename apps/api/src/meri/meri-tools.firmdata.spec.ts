@@ -664,6 +664,33 @@ describe('read_client_meetings', () => {
     expect(partial.coverage.note).not.toContain('No eligible authorized meetings');
   });
 
+  it('continues an all-omitted meeting source page to a later authorized page', async () => {
+    const m = authorized();
+    const hidden = meeting('omitted-private-meeting', '2026-08-01T10:00:00.000Z');
+    const visible = meeting('later-visible-meeting', '2026-08-02T10:00:00.000Z');
+    m.engagement.listMeetings.mockResolvedValueOnce([hidden, visible]).mockResolvedValueOnce([visible]);
+    m.engagement.getClientMeeting.mockImplementation(async (_ctx, _client, id) => {
+      if (id === hidden.id) throw new Error('Meeting not found');
+      return visible;
+    });
+    const first = await m.service.execute(ctx, 'read_client_meetings', { clientId: 'client-1', limit: 1 }) as any;
+    expect(first.meetings).toEqual([]);
+    expect(first.coverage).toMatchObject({ omittedMeetings: 1, complete: false, meetingPaginationComplete: false });
+    expect(typeof first.coverage.nextCursor).toBe('string');
+    const decoded = Buffer.from(first.coverage.nextCursor.split(':')[1], 'base64url').toString();
+    expect(decoded).not.toContain(hidden.id);
+    expect(decoded).not.toContain('2026-08-01');
+    const second = await m.service.execute(ctx, 'read_client_meetings', {
+      clientId: 'client-1', limit: 1, cursor: first.coverage.nextCursor,
+    }) as any;
+    expect(m.engagement.listMeetings.mock.calls[1]![1]).toMatchObject({
+      continuationSkip: { count: 1, boundarySha256: expect.stringMatching(/^[a-f0-9]{64}$/) },
+    });
+    expect(second.meetings.map((item: { id: string }) => item.id)).toEqual([visible.id]);
+    expect(second.coverage.nextCursor).toBeNull();
+    expect(JSON.stringify(first.meetings) + JSON.stringify(second.meetings)).not.toContain(hidden.id);
+  });
+
   it('denies extracted transcript bytes when the canonical parent changes during extraction', async () => {
     const m = authorized();
     let parentCurrent = true;
