@@ -66,6 +66,11 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     CI=true pnpm install --frozen-lockfile --prod \
       --filter=@capiro/onboard-api... --filter=@capiro/shared... --filter=@capiro/auth...
 
+# Initialize CLI engines in the production store that is copied to runtime.
+# The build-stage generated client carries its query engine, not migrate's schema engine.
+RUN PRISMA_CLI_BINARY_TARGETS=linux-musl-arm64-openssl-3.0.x \
+    pnpm --filter @capiro/onboard-api exec prisma --version
+
 # -------- runtime -------------------------------------------------------------
 FROM docker.io/library/node:24.22.1-alpine3.24@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS runtime
 ENV NODE_ENV=production
