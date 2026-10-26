@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Header,
   Headers,
   Post,
   UnauthorizedException,
@@ -9,23 +10,67 @@ import {
 import { timingSafeEqual } from 'node:crypto';
 import { HearingRecordWorkflowService } from './hearing-record-workflow.service.js';
 import { object, text } from '../tracker/reports/report-domain.js';
+import { PublicHearingAudioAccessService } from './capture/public-hearing-audio-access.service.js';
+
+function requireOwnerService(supplied: string | undefined) {
+  const secret = process.env.INTERNAL_SERVICE_SECRET,
+    a = Buffer.from(supplied ?? ''),
+    b = Buffer.from(secret ?? '');
+  if (!secret || !a.length || a.length !== b.length || !timingSafeEqual(a, b))
+    throw new UnauthorizedException();
+}
 
 /** Owner service read seam for the existing governed API retrieval adapter.
  * The API derives the actor from its authenticated user; this route is not a
  * replacement for the Clerk tenant guard on any user-facing route. */
 @Controller('internal/hearing-record-retrieval')
 export class HearingRecordRetrievalController {
-  constructor(readonly records: HearingRecordWorkflowService) {}
+  constructor(
+    readonly records: HearingRecordWorkflowService,
+    readonly audio: PublicHearingAudioAccessService,
+  ) {}
+  @Post('media')
+  @Header('Cache-Control', 'private, no-store')
+  async media(
+    @Headers('x-internal-service-secret') supplied: string | undefined,
+    @Body() input: unknown,
+  ) {
+    requireOwnerService(supplied);
+    const body = object(input);
+    if (Object.keys(body).sort().join() !== 'actor,eventId,playback,tenantId')
+      throw new BadRequestException('BOUNDED_MEDIA_REQUEST_REQUIRED');
+    const ctx = {
+      tenantId: text(body.tenantId, 100),
+      clerkUserId: text(body.actor, 200),
+      role: null,
+    };
+    const hearingId = text(body.eventId, 200);
+    await this.records.authorize(ctx);
+    if (body.playback === null)
+      return { manifest: await this.audio.manifest(ctx, hearingId), playback: null };
+    const playback = object(body.playback);
+    if (
+      Object.keys(playback).sort().join() !== 'epochId,positionMs' ||
+      !Number.isSafeInteger(playback.positionMs) ||
+      Number(playback.positionMs) < 0 ||
+      Number(playback.positionMs) > 86400000
+    )
+      throw new BadRequestException('VALID_MEDIA_POSITION_REQUIRED');
+    const epochId = text(playback.epochId, 200);
+    return {
+      manifest: null,
+      playback: {
+        epochId,
+        ...(await this.audio.playback(ctx, hearingId, epochId, Number(playback.positionMs))),
+      },
+    };
+  }
   @Post()
   async retrieve(
     @Headers('x-internal-service-secret') supplied: string | undefined,
     @Body() input: unknown,
   ) {
-    const secret = process.env.INTERNAL_SERVICE_SECRET,
-      a = Buffer.from(supplied ?? ''),
-      b = Buffer.from(secret ?? '');
-    if (!secret || !a.length || a.length !== b.length || !timingSafeEqual(a, b))
-      throw new UnauthorizedException();
+    requireOwnerService(supplied);
     const body = object(input),
       ctx = { tenantId: text(body.tenantId, 100), clerkUserId: text(body.actor, 200), role: null },
       eventId = text(body.eventId, 200);
