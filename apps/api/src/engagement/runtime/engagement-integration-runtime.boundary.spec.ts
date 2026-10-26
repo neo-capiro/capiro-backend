@@ -305,4 +305,114 @@ describe('Engagement integration runtime boundaries', () => {
     );
     expect(handleCallback).not.toHaveBeenCalled();
   });
+
+  describe('explicit API owner integrations_only', () => {
+    const policy = (callbacksEnabled = true) =>
+      new EngagementRuntimePolicyService({
+        serviceName: 'api',
+        processMode: 'shadow',
+        backgroundOwner: 'api',
+        externalActions: 'integrations_only',
+        callbacksEnabled,
+        recallWebhookEnabled: false,
+      });
+
+    beforeEach(() => {
+      jest.replaceProperty(process, 'env', {
+        ...process.env,
+        OUTREACH_V3_STATE_ENABLED: 'true',
+        OUTREACH_V3_DRAFTS_ENABLED: 'true',
+        OUTREACH_V3_SEND_ENABLED: 'true',
+        OUTREACH_V3_GENERATION_ENABLED: 'true',
+        OUTREACH_V3_FULL_GENERATION_ENABLED: 'true',
+        OUTREACH_V3_REASONING_ENABLED: 'true',
+      });
+    });
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('allows guarded sync and subscription renewal through the existing boundaries', async () => {
+      const sync = jest.fn(async () => ({ completed: true }));
+      const subscriptions = jest.fn(async () => ({ configured: true }));
+      const google = guardGoogleSyncService(
+        { syncConnection: sync } as unknown as GoogleSyncService,
+        policy(),
+      );
+      const graph = guardMicrosoftGraphSyncService(
+        {
+          syncConnection: sync,
+          configureSubscriptions: subscriptions,
+        } as unknown as MicrosoftGraphSyncService,
+        policy(),
+      );
+      await expect(google.syncConnection({} as never, 'test-connection')).resolves.toEqual({
+        completed: true,
+      });
+      await expect(graph.syncConnection({} as never, 'test-connection')).resolves.toEqual({
+        completed: true,
+      });
+      await expect(graph.configureSubscriptions({} as never, 'test-connection')).resolves.toEqual({
+        configured: true,
+      });
+      expect(sync).toHaveBeenCalledTimes(2);
+      expect(subscriptions).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      'outreach_send',
+      'outreach_test_send',
+      'outreach_v3_send',
+      'outreach_v3_test_send',
+    ] as const)(
+      'denies %s before either provider sees a send, with every V3 send flag enabled',
+      (runtimeAction) => {
+        const sendMail = jest.fn();
+        const google = guardGmailSendService({ sendMail } as unknown as GmailSendService, policy());
+        const microsoft = guardMicrosoftGraphSyncService(
+          { sendMail } as unknown as MicrosoftGraphSyncService,
+          policy(),
+        );
+        for (const sender of [google, microsoft]) {
+          expect(() =>
+            sender.sendMail({} as never, 'test-connection', {
+              runtimeAction,
+              testMode: true,
+            } as never),
+          ).toThrow(ServiceUnavailableException);
+        }
+        expect(sendMail).not.toHaveBeenCalled();
+      },
+    );
+
+    it('keeps callbacks off unless explicitly enabled', () => {
+      const handleCallback = jest.fn();
+      const google = guardGoogleOAuthService(
+        { handleCallback } as unknown as GoogleOAuthService,
+        policy(false),
+      );
+      expect(() =>
+        google.handleCallback({ code: 'synthetic-code', state: 'synthetic-state' }),
+      ).toThrow(ServiceUnavailableException);
+      expect(handleCallback).not.toHaveBeenCalled();
+    });
+
+    it('denies disconnect before either provider can revoke a grant', () => {
+      const disconnect = jest.fn();
+      const google = guardGoogleOAuthService(
+        { disconnect } as unknown as GoogleOAuthService,
+        policy(),
+      );
+      const microsoft = guardMicrosoftOAuthService(
+        { disconnect } as unknown as MicrosoftOAuthService,
+        policy(),
+      );
+      for (const oauth of [google, microsoft]) {
+        expect(() => oauth.disconnect({} as never, 'test-connection')).toThrow(
+          ServiceUnavailableException,
+        );
+      }
+      expect(disconnect).not.toHaveBeenCalled();
+    });
+  });
 });

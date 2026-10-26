@@ -2,22 +2,38 @@ import { EngagementSyncSchedulerService } from './engagement-sync-scheduler.serv
 import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 import { harness } from './mailbox-oauth.a1-fixture.js';
 
-const runtimePolicy = {
-  backgroundWorkersEnabled: () => true,
-  assertBackgroundOwner: () => {},
-  assertExternalAction: () => {},
-  assertCallbacksEnabled: () => {},
-  externalActionAllowed: () => true,
-  snapshot: () => ({
+function activeApiPolicy(): EngagementRuntimePolicyService {
+  return new EngagementRuntimePolicyService({
     serviceName: 'api',
     processMode: 'active',
     backgroundOwner: 'api',
     externalActions: 'enabled',
     callbacksEnabled: true,
     recallWebhookEnabled: true,
-  }),
-  isRecallWebhookEnabled: () => true,
-} as unknown as EngagementRuntimePolicyService;
+  });
+}
+
+function integrationsOnlyApiOwnerPolicy(): EngagementRuntimePolicyService {
+  return new EngagementRuntimePolicyService({
+    serviceName: 'api',
+    processMode: 'shadow',
+    backgroundOwner: 'api',
+    externalActions: 'integrations_only',
+    callbacksEnabled: true,
+    recallWebhookEnabled: false,
+  });
+}
+
+function disabledEngagementApiPolicy(): EngagementRuntimePolicyService {
+  return new EngagementRuntimePolicyService({
+    serviceName: 'engagement-api',
+    processMode: 'shadow',
+    backgroundOwner: 'disabled',
+    externalActions: 'integrations_only',
+    callbacksEnabled: false,
+    recallWebhookEnabled: false,
+  });
+}
 
 /**
  * Unit tests for the auto-sync scheduler's tick: provider dispatch, the
@@ -42,6 +58,7 @@ function makeScheduler(opts: {
   msSyncThrows?: boolean;
   msSubsThrows?: boolean;
   subscriptionsConfigurable?: boolean;
+  policy?: EngagementRuntimePolicyService;
 }) {
   const claims = harness();
   const template = structuredClone(claims.rows.get('connection-A'));
@@ -84,7 +101,7 @@ function makeScheduler(opts: {
     microsoft as never,
     google as never,
     config as never,
-    runtimePolicy,
+    opts.policy ?? activeApiPolicy(),
   );
   return { service, microsoft, google, queryRaw, claims };
 }
@@ -233,5 +250,62 @@ describe('EngagementSyncSchedulerService', () => {
     await service.tick();
     expect(microsoft.syncConnectionByTenant).not.toHaveBeenCalled();
     expect(google.syncConnectionByTenant).not.toHaveBeenCalled();
+  });
+
+  it('starts and syncs both providers under the explicit API owner integrations_only policy', async () => {
+    const clearSpy = jest.spyOn(global, 'clearInterval');
+    const policy = integrationsOnlyApiOwnerPolicy();
+    const { service, microsoft, google, queryRaw } = makeScheduler({
+      policy,
+      claimed: [
+        conn({ id: 'ms-1', provider: 'microsoft_365' }),
+        conn({ id: 'g-1', provider: 'google_workspace', tenant_id: 'tenant-2' }),
+      ],
+    });
+    expect(policy.backgroundWorkersEnabled('engagement-sync-scheduler')).toBe(true);
+    expect(policy.backgroundWorkersEnabled()).toBe(false);
+    service.onModuleInit();
+    expect((service as unknown as { timer?: unknown }).timer).toBeDefined();
+    await service.tick();
+    expect(queryRaw).toHaveBeenCalled();
+    expect(microsoft.syncConnectionByTenant).toHaveBeenCalledWith('tenant-1', 'ms-1');
+    expect(microsoft.configureSubscriptionsByTenant).toHaveBeenCalledWith('tenant-1', 'ms-1');
+    expect(google.syncConnectionByTenant).toHaveBeenCalledWith('tenant-2', 'g-1');
+    service.onModuleDestroy();
+    expect(clearSpy).toHaveBeenCalled();
+    clearSpy.mockRestore();
+  });
+
+  it('does not arm the timer and refuses to tick when the policy denies this worker', async () => {
+    const policy = disabledEngagementApiPolicy();
+    const { service, microsoft, google, queryRaw } = makeScheduler({ policy });
+    service.onModuleInit();
+    expect((service as unknown as { timer?: unknown }).timer).toBeUndefined();
+    await expect(service.tick()).rejects.toThrow(/disabled/i);
+    expect(queryRaw).not.toHaveBeenCalled();
+    expect(microsoft.syncConnectionByTenant).not.toHaveBeenCalled();
+    expect(google.syncConnectionByTenant).not.toHaveBeenCalled();
+  });
+
+  it('refuses a mismatched owner even when the posture is otherwise valid', async () => {
+    const policy = new EngagementRuntimePolicyService({
+      serviceName: 'engagement-api',
+      processMode: 'shadow',
+      backgroundOwner: 'api',
+      externalActions: 'integrations_only',
+      callbacksEnabled: true,
+      recallWebhookEnabled: false,
+    });
+    const { service, microsoft, queryRaw } = makeScheduler({ policy });
+    await expect(service.tick()).rejects.toThrow();
+    expect(queryRaw).not.toHaveBeenCalled();
+    expect(microsoft.syncConnectionByTenant).not.toHaveBeenCalled();
+  });
+
+  it('does not arm the timer when the kill switch is off under the API owner policy', () => {
+    const { service } = makeScheduler({ policy: integrationsOnlyApiOwnerPolicy(), enabled: false });
+    service.onModuleInit();
+    expect((service as unknown as { timer?: unknown }).timer).toBeUndefined();
+    service.onModuleDestroy();
   });
 });

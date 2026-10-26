@@ -70,8 +70,11 @@ export const ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT =
  * provider, opens a database connection, or starts a worker.
  *
  * Existing shadow/active postures remain unchanged. The integrations_only
- * action mode adds a bounded Mail posture with no background or Recall ownership;
- * callbacks can be enabled explicitly for isolated test OAuth/subscriptions.
+ * action mode adds a bounded Mail posture with no background or Recall ownership
+ * by default; callbacks can be enabled explicitly for isolated test
+ * OAuth/subscriptions. One named exception is admitted: serviceName=api with an
+ * explicitly set ENGAGEMENT_BACKGROUND_OWNER=api may run only the existing
+ * engagement-sync-scheduler under the runtime policy.
  *
  *   SHADOW (default): every one of processMode/backgroundOwner/
  *   externalActions/callbacksEnabled/recallWebhookEnabled is at its inert
@@ -144,10 +147,24 @@ export function resolveEngagementRuntimeEnvironment(
           'ENGAGEMENT_CALLBACKS_ENABLED=true or false; the live callback default must not arm it.',
       );
     }
-    if (processMode !== 'shadow' || backgroundOwner !== 'disabled' || recallWebhookEnabled) {
+    // The disabled owner remains the default bounded posture. The single
+    // admitted exception is an explicitly owned API sync posture: the main API
+    // service with ENGAGEMENT_BACKGROUND_OWNER set explicitly to 'api'. An
+    // omitted or blank owner resolves to the live 'api' default and must not
+    // arm that exception.
+    const ownerWasExplicit =
+      raw.ENGAGEMENT_BACKGROUND_OWNER != null &&
+      String(raw.ENGAGEMENT_BACKGROUND_OWNER).trim() !== '';
+    const explicitApiOwner = serviceName === 'api' && ownerWasExplicit && backgroundOwner === 'api';
+    if (
+      processMode !== 'shadow' ||
+      (backgroundOwner !== 'disabled' && !explicitApiOwner) ||
+      recallWebhookEnabled
+    ) {
       throw new Error(
         'ENGAGEMENT_EXTERNAL_ACTIONS=integrations_only requires ' +
-          'ENGAGEMENT_PROCESS_MODE=shadow, ENGAGEMENT_BACKGROUND_OWNER=disabled and ' +
+          'ENGAGEMENT_PROCESS_MODE=shadow, ENGAGEMENT_BACKGROUND_OWNER=disabled ' +
+          "(or an explicit 'api' for CAPIRO_SERVICE_NAME=api) and " +
           'ENGAGEMENT_RECALL_WEBHOOK_ENABLED=false. Callbacks remain explicitly configured.',
       );
     }

@@ -59,10 +59,20 @@ export class EngagementRuntimePolicyService {
     };
   }
 
-  backgroundWorkersEnabled(): boolean {
-    if (this.externalActionsMode === 'integrations_only') return false;
+  /**
+   * Whether background work may run in this process. The optional worker name
+   * narrows the `integrations_only` posture: only the existing
+   * `engagement-sync-scheduler` is admitted, and only on the explicitly owned
+   * API sync posture. A no-argument call keeps the generic meaning (false in
+   * `integrations_only`).
+   */
+  backgroundWorkersEnabled(workerName?: string): boolean {
     if (this.backgroundOwner === 'disabled') return false;
-    return this.backgroundOwner === this.serviceName;
+    if (this.backgroundOwner !== this.serviceName) return false;
+    if (this.externalActionsMode === 'integrations_only') {
+      return this.serviceName === 'api' && workerName === 'engagement-sync-scheduler';
+    }
+    return true;
   }
 
   /**
@@ -112,7 +122,7 @@ export class EngagementRuntimePolicyService {
   }
 
   assertBackgroundOwner(workerName: string): void {
-    if (!this.backgroundWorkersEnabled()) {
+    if (!this.backgroundWorkersEnabled(workerName)) {
       this.logger.log(
         `${workerName} disabled by engagement runtime policy ` +
           `(service=${this.serviceName} owner=${this.backgroundOwner} mode=${this.processMode})`,
