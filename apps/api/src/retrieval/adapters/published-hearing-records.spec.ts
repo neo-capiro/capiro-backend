@@ -145,6 +145,47 @@ describe('published hearing exact-record continuation', () => {
   });
 
   it.each<View>(['published', 'briefs', 'reconciliation'])(
+    'reassembles Unicode %s pages with stable content hash and part cursors',
+    async (view) => {
+      const f = harness(view),
+        unicode = 'x' + '😀'.repeat(5000);
+      if (f.owner) {
+        f.owner.payload.records[0]!.evidence.text = unicode;
+        if ('contentHash' in f.owner) f.owner.contentHash = hash(f.owner.payload);
+      } else f.row.evidence.text = unicode;
+      let cursor: string | undefined,
+        joined = '',
+        part = 0,
+        contentHash: unknown;
+      do {
+        const result = await f.read(cursor),
+          record = result.records[0]!;
+        const fragment = record.payload as Record<string, unknown>;
+        contentHash ??= record.provenance.contentHash;
+        expect(Buffer.from(fragment.text as string, 'utf8').toString('utf8')).toBe(fragment.text);
+        expect(fragment.characterStart).toBe(joined.length);
+        joined += fragment.text as string;
+        expect(fragment.characterEnd).toBe(joined.length);
+        expect(record.recordId).toBe(`${view}:synthetic-record:${contentHash}:${part}`);
+        expect(result.coverageComplete).toBe(false);
+        cursor = result.nextCursor;
+        if (cursor)
+          expect(parseHearingContentCursor(cursor, 'published-record')).toEqual({
+            key: `${view}:synthetic-record`,
+            hash: contentHash,
+            part: part + 1,
+          });
+        expect(++part).toBeLessThan(20);
+      } while (cursor);
+      expect(createHash('sha256').update(joined).digest('hex')).toBe(contentHash);
+      const packet = JSON.parse(joined);
+      expect(f.owner ? packet.payload.records[0].evidence.text : packet.evidence.text).toBe(
+        unicode,
+      );
+    },
+  );
+
+  it.each<View>(['published', 'briefs', 'reconciliation'])(
     'continues %s through the final exact fragment',
     async (view) => {
       const f = harness(view);
