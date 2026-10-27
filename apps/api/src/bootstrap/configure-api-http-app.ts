@@ -18,7 +18,7 @@ import { meriReadDelegationRawBody } from '../auth/read-delegation/read-delegati
  *   3. CORS
  *   4. raw webhook parsers (Clerk, Recall)
  *      and optional fixed Objective decision entity capture
- *   5. special email-signature and artifact-version JSON parsers
+ *   5. special email-signature, artifact-version and import JSON parsers
  *   6. default JSON parser
  *   7. ValidationPipe
  *   8. PrismaClientExceptionFilter
@@ -165,12 +165,17 @@ export function configureApiHttpApp(
   // Limit the larger parser to this exact POST route; authorization and the
   // writer's text-length check still run after parsing.
   const artifactVersionJson = json({ limit: 3_100_000 });
+  // A permitted 5 MiB CSV needs up to 6,990,508 base64 characters plus its
+  // import metadata. The import service retains its decoded-file bound.
+  const researchImportJson = json({ limit: 7_100_000 });
   app.use((req: Request, res: Response, next: NextFunction) => {
-    if (
-      req.method === 'POST' &&
-      /^\/api\/clio\/artifacts\/[A-Za-z0-9_-]+\/version$/.test(req.path)
-    ) {
-      return artifactVersionJson(req, res, next);
+    if (req.method === 'POST') {
+      if (/^\/api\/clio\/artifacts\/[A-Za-z0-9_-]+\/version$/.test(req.path)) {
+        return artifactVersionJson(req, res, next);
+      }
+      if (/^\/api\/research-portfolios\/[A-Za-z0-9_-]+\/imports$/.test(req.path)) {
+        return researchImportJson(req, res, next);
+      }
     }
     next();
   });

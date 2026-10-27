@@ -4,6 +4,7 @@ import {
   type CanActivate, type ExecutionContext, type INestApplication,
 } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { createHash } from 'node:crypto';
 import type { Request } from 'express';
 import request from 'supertest';
 import { configureApiHttpApp } from './configure-api-http-app.js';
@@ -13,6 +14,8 @@ import { configureApiHttpApp } from './configure-api-http-app.js';
 const PATH = '/api/clio/artifacts/00000000-0000-4000-8000-000000000001/version';
 const LIMIT = 3_100_000;
 const ORIGIN = 'https://os.capiro.ai';
+const IMPORT_PATH = '/api/research-portfolios/00000000-0000-4000-8000-000000000002/imports';
+const IMPORT_LIMIT = 7_100_000;
 
 class ParserProbeGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
@@ -32,6 +35,17 @@ class ParserProbeController {
   @UseGuards(ParserProbeGuard)
   version(@Req() req: Request) { return summary(req); }
 
+  @Post('research-portfolios/:id/imports')
+  @UseGuards(ParserProbeGuard)
+  upload(@Req() req: Request) {
+    const decoded = Buffer.from(req.body.contentBase64, 'base64');
+    return {
+      base64Length: req.body.contentBase64.length,
+      decodedBytes: decoded.length,
+      decodedSha256: createHash('sha256').update(decoded).digest('hex'),
+    };
+  }
+
   @Post('parser-probe/json')
   ordinary(@Req() req: Request) { return summary(req); }
 
@@ -43,7 +57,7 @@ class ParserProbeController {
 @Module({ controllers: [ParserProbeController] })
 class ParserProbeModule {}
 
-describe('canonical artifact-version JSON parser', () => {
+describe('canonical artifact-version and import JSON parsers', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
@@ -124,6 +138,55 @@ describe('canonical artifact-version JSON parser', () => {
 
   it('keeps malformed JSON rejected', async () => {
     expect((await post('{"bodyText":')).status).toBe(400);
+  });
+
+  it('accepts a 5 MiB CSV base64 envelope without changing its bytes', async () => {
+    const header = Buffer.from('subject_id,label\nsubject-1,');
+    const csv = Buffer.concat([
+      header, Buffer.alloc(5 * 1024 * 1024 - header.length - 1, 'a'), Buffer.from('\n'),
+    ]);
+    const contentBase64 = csv.toString('base64');
+    expect(contentBase64.length).toBe(6_990_508);
+    const body = JSON.stringify({
+      contentBase64, fileName: 'synthetic.csv', mediaType: 'text/csv',
+      worksheetKind: 'membership', schemaVersion: 1, expectedRevision: 1,
+      operationKey: 'synthetic-parser-only',
+    });
+    expect(Buffer.byteLength(body)).toBeLessThan(IMPORT_LIMIT);
+    const res = await post(body, IMPORT_PATH);
+    expect(res.status).toBe(201);
+    expect(res.body).toEqual({
+      base64Length: 6_990_508, decodedBytes: 5 * 1024 * 1024,
+      decodedSha256: createHash('sha256').update(csv).digest('hex'),
+    });
+  });
+
+  it('accepts exactly 7,100,000 import JSON bytes and refuses the next byte', async () => {
+    const body = JSON.stringify({ contentBase64: Buffer.from('header\nrow\n').toString('base64') });
+    const atLimit = body + ' '.repeat(IMPORT_LIMIT - Buffer.byteLength(body));
+    expect(Buffer.byteLength(atLimit)).toBe(IMPORT_LIMIT);
+    expect((await post(atLimit, IMPORT_PATH)).status).toBe(201);
+    const over = await post(atLimit + ' ', IMPORT_PATH);
+    expect(over.status).toBe(413);
+    expect(over.headers['access-control-allow-origin']).toBe(ORIGIN);
+  });
+
+  it.each([
+    `${IMPORT_PATH}/`, `${IMPORT_PATH}/job/apply`, `${IMPORT_PATH}/extra`,
+    IMPORT_PATH.replace('/imports', '/import'),
+    IMPORT_PATH.replace('/imports', '/members'),
+  ])('keeps the 1 MiB default for import neighbor %s', async (path) => {
+    expect((await post(JSON.stringify({ contentBase64: 'A'.repeat(1024 * 1024) }), path)).status).toBe(413);
+  });
+
+  it('does not widen another method or skip the upload route guard', async () => {
+    const body = JSON.stringify({ contentBase64: 'A'.repeat(1024 * 1024) });
+    const wrongMethod = await request(app.getHttpServer()).put(IMPORT_PATH)
+      .set('Content-Type', 'application/json').send(body);
+    expect(wrongMethod.status).toBe(413);
+    const refused = await request(app.getHttpServer()).post(IMPORT_PATH)
+      .set('Content-Type', 'application/json').send(body);
+    expect(refused.status).toBe(403);
   });
 
   it.each(['clerk', 'recall', 'tango'])('preserves exact raw %s webhook bytes and their 1 MiB bound', async (receiver) => {

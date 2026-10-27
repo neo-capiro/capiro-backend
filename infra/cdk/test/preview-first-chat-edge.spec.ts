@@ -134,7 +134,7 @@ test('sharing prerequisites admit only portfolio creation and exact snapshot/cli
       '/api/research-portfolios//client-links', '/api/research-portfolios/invalid.id/client-links',
       '/api/research-portfolios/parent/child/client-links', `${owner}/client-links/synthetic-client`,
       `${owner}/snapshots/synthetic-snapshot`, `${owner}/subscriptions`, `${owner}/rules`,
-      `${owner}/archive`, `${owner}/members`, `${owner}/imports`,
+      `${owner}/archive`, `${owner}/members`, `${owner}/imports/synthetic-job_1/apply`,
     ]) assert.equal(routeDestination(rules, 'POST', pathname), null, pathname);
     const added = edge.Resources.Wave2Writes66.Properties;
     assert.equal(added.Priority, 71);
@@ -191,6 +191,40 @@ test('artifact version POST admits only its exact Core route on the preview host
     for (const [id, priority] of Object.entries({
       Wave2Writes66: 71, SavedWorkspaceReads: 72, SavedStrategyReads: 73, Wave2Writes69: 74,
     })) assert.equal(edge.Resources[id].Properties.Priority, priority, id);
+  }));
+
+test('research portfolio import uploads admit only the exact Core POST on the preview host', () =>
+  render(false, (edge) => {
+    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map((r) => r.Properties);
+    const pathname = '/api/research-portfolios/11111111-1111-4111-8111-111111111111/imports';
+    assert.deepEqual(routeDestination(rules, 'POST', pathname), { Ref: 'CoreTarget' });
+    for (const method of ['PUT', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE'])
+      assert.equal(routeDestination(rules, method, pathname), null, `${method} ${pathname}`);
+    for (const hostname of ['app.capiro.ai', 'arbitrary.invalid'])
+      assert.equal(routeDestination(rules, 'POST', pathname, hostname), null);
+    for (const neighbor of [
+      `${pathname}/`, `${pathname}/extra`, `${pathname}.invalid`, `/extra${pathname}`,
+      '/api/research-portfolios//imports', '/api/research-portfolios/invalid.id/imports',
+      '/api/research-portfolios/parent/child/imports', '/api/research-portfolios/imports',
+    ]) assert.equal(routeDestination(rules, 'POST', neighbor), null, neighbor);
+    for (const action of ['preview', 'apply', 'pause', 'resume', 'cancel', 'retry', 'reconcile', 'compensate'])
+      assert.equal(routeDestination(rules, 'POST', `${pathname}/synthetic-job_1/${action}`), null);
+    for (const method of ['GET', 'HEAD'])
+      assert.deepEqual(routeDestination(rules, method, `${pathname}/synthetic-job_1`),
+        { Ref: 'CoreTarget' });
+    const added = edge.Resources.ResearchPortfolioImportUploads.Properties;
+    assert.equal(added.Priority, 76);
+    assert.deepEqual(added.ListenerArn, { Ref: 'PreviewHttps' });
+    assert.deepEqual(added.Actions, [{ TargetGroupArn: { Ref: 'CoreTarget' }, Type: 'forward' }]);
+    assert.deepEqual(
+      added.Conditions.find((c: any) => c.Field === 'http-request-method').HttpRequestMethodConfig.Values,
+      ['POST'],
+    );
+    assert.deepEqual(
+      added.Conditions.find((c: any) => c.Field === 'path-pattern').PathPatternConfig.RegexValues,
+      ['^/api/research-portfolios/[A-Za-z0-9_-]+/imports$'],
+    );
+    assert.equal(edge.Resources.ArtifactVersions.Properties.Priority, 75);
   }));
 
 test('six internal file and owner-memory POST admissions stay finite and preview-only', () =>
@@ -331,7 +365,7 @@ test('finite method/path routes admit their owners and reject unintended cross-p
     const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map(
       (r) => r.Properties,
     );
-    assert.equal(rules.length, 75);
+    assert.equal(rules.length, 76);
     for (const rule of rules) {
       assert.deepEqual(rule.ListenerArn, { Ref: 'PreviewHttps' });
       const conditions = rule.Conditions;

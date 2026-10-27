@@ -596,6 +596,14 @@
       "pathRegexes": [
         "^/api/clio/artifacts/[A-Za-z0-9_-]+/version$"
       ]
+    },
+    {
+      "id": "ResearchPortfolioImportUploads",
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/imports$"
+      ]
     }
   ]
 }
