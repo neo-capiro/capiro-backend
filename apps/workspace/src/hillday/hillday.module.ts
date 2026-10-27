@@ -20,6 +20,7 @@ import { HillDayFileController } from './hillday-file.controller.js';
 @Module({
   imports: [CollaboratorsModule],
   controllers: [HillDayController, HillDayFileController],
+  exports: [HillDayDocumentService],
   providers: [
     HillDaySourceService,
     DirectoryBridgeClient,
