@@ -87,7 +87,7 @@ describe('relevance fixed action adapter', () => {
     expect((await f.owner.read(f.ctx, f.req, observation)).status).toBe('outcome_unknown');
     expect(f.proposals.approveAndExecute).not.toHaveBeenCalled();
     f.proposals.readLegiwatch.mockResolvedValue({
-      request: { suggestionId: id } as typeof request,
+      request: { suggestionId: id } as unknown as typeof request,
       status: 'proposed',
     });
     await expect(
