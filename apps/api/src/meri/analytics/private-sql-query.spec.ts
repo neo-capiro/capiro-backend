@@ -5,7 +5,7 @@ import { PublicSqlError } from './sql-query-compiler.js';
 
 // Synthetic metadata only. The client domain owner supplies the production projections in slice B.
 function descriptors(): PrivateSqlRelation[] {
-  return ['client_objectives', 'client_activity'].map((name) => ({
+  return ['client_objectives', 'client_activity', 'client_team_roster', 'client_account_owners', 'client_targets', 'client_profiles', 'client_profile_codes', 'client_people', 'client_contacts', 'client_engagement_tasks', 'client_action_items', 'client_tracked_bills', 'client_outreach_campaigns', 'client_campaign_recipients'].map((name) => ({
     name,
     table: name,
     schema: 'meri_private',
@@ -58,7 +58,7 @@ describe('private SQL fixed composition and bounded envelopes', () => {
       scope: { kind: 'client_records', clientId: null },
     });
     if (!result.ok) throw new Error('expected metadata');
-    expect(result.relations.map((r) => r.name)).toEqual(['client_objectives', 'client_activity']);
+    expect(result.relations.map((r) => r.name)).toEqual(['client_objectives', 'client_activity', 'client_team_roster', 'client_account_owners', 'client_targets', 'client_profiles', 'client_profile_codes', 'client_people', 'client_contacts', 'client_engagement_tasks', 'client_action_items', 'client_tracked_bills', 'client_outreach_campaigns', 'client_campaign_recipients']);
     for (const relation of result.relations) {
       expect(relation).not.toHaveProperty('schema');
       expect(relation).not.toHaveProperty('table');
