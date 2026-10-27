@@ -67,7 +67,6 @@ function fixture() {
       if (!row) throw new NotFoundException();
       return row;
     }),
-    assertOutreachSdkBudget: jest.fn(async () => {}),
     prepareOutreachSdkInput: jest.fn(async (_ctx: unknown, input: any) => ({
       request: { ...input, items: input.contextItems },
       enrichment: { channels: [], auditLedger: [] },

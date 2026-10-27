@@ -308,7 +308,6 @@ export class OutreachCampaignService {
     if (existing) return publicBinding(existing);
     if (unit.item.status !== 'sdk_pending')
       throw new ConflictException('Generation cannot be restarted');
-    await this.engagement.assertOutreachSdkBudget(ctx);
     const { request, enrichment } = await this.gatewayInput(ctx, unit, authHeader);
     const prepared = await this.gateway.executeSdk(ctx, request, enrichment, { phase: 'prepare' });
     if (!('kind' in prepared) || prepared.kind !== 'sdk_prepared') {

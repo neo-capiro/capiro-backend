@@ -304,13 +304,6 @@ export const configSchema = z.object({
   // Existing bounded concurrent recipient-unit capacity, reused by the SDK owner.
   OUTREACH_V3_GENERATION_CONCURRENCY: z.coerce.number().int().min(1).max(16).default(4),
 
-  // Per-tenant daily outreach token ceiling (plan W3.4 / A7): total (input +
-  // output) AI tokens across outreach generation workflows in the current UTC
-  // day. Soft-warn at 80% (generation proceeds, wizard shows a banner), hard-stop
-  // at 100% (typed 429 the wizard renders). Default is generous (6M ≈ 5M in / 1M
-  // out); set 0 to disable the ceiling entirely.
-  OUTREACH_DAILY_TOKEN_BUDGET: z.coerce.number().int().nonnegative().default(6_000_000),
-
   // Existing durable send worker remains independently configured.
   OUTREACH_ASYNC_SEND: z
     .string()

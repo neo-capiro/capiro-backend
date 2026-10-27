@@ -866,13 +866,6 @@ export function isAllowedAttachmentContentType(contentType: string): boolean {
 }
 const REPORT_STATUSES: ReportStatus[] = ['auto', 'not_started', 'in_progress', 'complete'];
 
-/** AiUsageEvent workflows counted against the daily outreach token budget (W3.4). */
-const OUTREACH_BUDGET_WORKFLOWS = [
-  'outreach_campaign',
-  'outreach_draft',
-  'template_preview',
-  'campaign_email',
-] as const;
 const OUTBOUND_CAMPAIGN_VARIABLES = [
   'current_date_time',
   'attendee_names',
@@ -1096,7 +1089,6 @@ export class EngagementService {
   private readonly bucket?: string;
   private readonly openAiApiKey?: string;
   private readonly attachmentPdfVision = new AttachmentPdfVisionReader();
-  private readonly outreachDailyTokenBudget: number;
   /** Phase 0: immutable versioned drafts + durable send intents (default off). */
   private readonly versionedOutreach: boolean;
   /** Phase 0: refuse a REAL send of a pre-v2-prompt draft (default off). */
@@ -1132,7 +1124,6 @@ export class EngagementService {
   ) {
     this.bucket = config.get('ASSETS_BUCKET', { infer: true });
     this.openAiApiKey = config.get('OPENAI_API_KEY', { infer: true });
-    this.outreachDailyTokenBudget = config.get('OUTREACH_DAILY_TOKEN_BUDGET', { infer: true });
     this.versionedOutreach = config.get('ENGAGEMENT_VERSIONED_OUTREACH', { infer: true });
     this.externalSendV2Required = config.get('ENGAGEMENT_EXTERNAL_SEND_V2_REQUIRED', {
       infer: true,
@@ -1243,47 +1234,6 @@ export class EngagementService {
       );
     }
     return record.id;
-  }
-
-  /**
-   * Per-tenant daily outreach token budget status (plan W3.4 / A7). Sums today's
-   * (UTC) input+output tokens across outreach generation workflows and compares
-   * to OUTREACH_DAILY_TOKEN_BUDGET. Best-effort: any read failure fails OPEN (no
-   * block) — a metering hiccup must never wedge outreach. Budget 0 = disabled.
-   */
-  private async outreachBudgetStatus(ctx: TenantContext): Promise<{
-    used: number;
-    budget: number;
-    ratio: number;
-    hardStop: boolean;
-    softWarn: boolean;
-  }> {
-    const budget = this.outreachDailyTokenBudget;
-    if (!budget || budget <= 0) {
-      return { used: 0, budget: 0, ratio: 0, hardStop: false, softWarn: false };
-    }
-    try {
-      const now = new Date();
-      const startOfDay = new Date(
-        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-      );
-      const agg = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.aiUsageEvent.aggregate({
-          where: {
-            tenantId: ctx.tenantId,
-            workflow: { in: [...OUTREACH_BUDGET_WORKFLOWS] },
-            createdAt: { gte: startOfDay },
-          },
-          _sum: { inputTokens: true, outputTokens: true },
-        }),
-      );
-      const used = (agg._sum.inputTokens ?? 0) + (agg._sum.outputTokens ?? 0);
-      const ratio = used / budget;
-      return { used, budget, ratio, hardStop: used >= budget, softWarn: ratio >= 0.8 };
-    } catch (err) {
-      this.logger.warn(`Outreach budget check failed (failing open): ${(err as Error).message}`);
-      return { used: 0, budget, ratio: 0, hardStop: false, softWarn: false };
-    }
   }
 
   /**
@@ -3810,11 +3760,6 @@ export class EngagementService {
     await this.recordAiUsage(ctx, 'talking_points', talkingPoints);
 
     return { talkingPoints };
-  }
-
-  async assertOutreachSdkBudget(ctx: TenantContext): Promise<void> {
-    if ((await this.outreachBudgetStatus(ctx)).hardStop) throw new HttpException({ statusCode: 429,
-      error: 'OUTREACH_TOKEN_BUDGET_EXCEEDED', message: 'Your organization has reached its daily outreach AI limit.' }, 429);
   }
 
   async prepareOutreachSdkInput(ctx: TenantContext, input: GenerateBatchEmailInput, authHeader?: string) {
