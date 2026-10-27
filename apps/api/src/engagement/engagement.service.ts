@@ -1,4 +1,5 @@
-import { assertSingleMailAuthority } from './single-mail-authority.js';
+import { assertSingleMailAuthority, assertSingleMailIntentReadAuthority, resolveSingleMailReply } from './single-mail-authority.js';
+import { REPLY_UNAVAILABLE, type PreparedMailReply } from './single-mail-reply.js';
 import { requireOwnerClient } from '../clients/client-ordered-owner.access.js';
 import { assertFileKeyNotDeleted, deleteClientFile, readClientFileDelete, type ClientFileDeleteOwner } from './attachments/client-file-delete.js';
 import { copyProspectFile, readProspectFileCopy } from './attachments/prospect-file-copy.js';
@@ -282,6 +283,9 @@ export interface SingleMailRecipientInput {
 }
 
 export interface SendSingleMailInput {
+  operation?: 'reply';
+  originalMessageId?: string;
+  originalUpdatedAt?: string;
   /** Stable per reviewed message, reused for lookup after timeout/reload. */
   requestKey?: string;
   /** Exact caller-owned sending mailbox. Replies must use their originating connection. */
@@ -5160,6 +5164,42 @@ export class EngagementService {
     });
   }
 
+  /** Current Workspace destination for an EngagementTask receipt, independent of list pagination. */
+  async readTask(ctx: TenantContext, taskId: string, expectedClientId?: string) {
+    // General mode retains all current client/source checks, including Portfolio grants.
+    const page = await this.readMeriTasksExact(ctx, {
+      clientId: null,
+      taskId,
+      status: null,
+      openOnly: false,
+      dueBefore: null,
+      offset: 0,
+      limit: 1,
+    });
+    const task = page.rows[0];
+    if (
+      page.sourceStatus !== 'healthy' ||
+      page.rows.length !== 1 ||
+      !task ||
+      task.id !== taskId ||
+      task.tenantId !== ctx.tenantId ||
+      (expectedClientId !== undefined && task.clientId !== expectedClientId) ||
+      (task.clientId === null &&
+        task.ownerUserId !== ctx.userId &&
+        !(task.ownerUserId === null && task.createdByUserId === ctx.userId))
+    )
+      throw new NotFoundException('Task not found');
+    return {
+      id: task.id,
+      title: task.title,
+      status: task.status,
+      dueDate: task.dueDate?.toISOString() ?? null,
+      clientId: task.clientId,
+      client: task.client,
+      updatedAt: task.updatedAt.toISOString(),
+    };
+  }
+
   /** Canonical Meri task owner with exact counts, assignment filters and current wall checks. */
   async readMeriTasksExact(
     ctx: TenantContext,
@@ -9606,11 +9646,11 @@ export class EngagementService {
     const ledger = new SingleMailLedger(this.prisma);
     const row = await ledger.read(ctx, requestKey);
     if (!row) throw new NotFoundException('Mail intent not found');
-    await this.assertSingleMailPreflight(ctx, {
+    await this.prisma.withTenant(ctx.tenantId, (tx) => assertSingleMailIntentReadAuthority(tx, ctx, {
       clientId: row.client_id ?? undefined,
       threadId: typeof row.snapshot.threadId === 'string' ? row.snapshot.threadId : undefined,
-      senderConnectionId: row.connection_id, to: [], subject: '', bodyHtml: '',
-    });
+      senderConnectionId: row.connection_id,
+    }, (clientId) => this.clientMailThreadAssociationWhere(tx, ctx.tenantId, clientId)));
     return ledger.view(row);
   }
 
@@ -9630,13 +9670,14 @@ export class EngagementService {
   async sendSingleMail(ctx: TenantContext, input: SendSingleMailInput) {
     const ledger = new SingleMailLedger(this.prisma);
     const requestKey = ledger.validateKey(input.requestKey);
-    await this.assertSingleMailPreflight(ctx, input);
     const requestHash = singleMailHash(input);
     const existing = await ledger.read(ctx, requestKey);
     if (existing) {
+      // Exact-key recovery reads current authority without preparing or claiming a new send.
       ledger.assertRequest(existing, requestHash);
       return this.getSingleMailIntent(ctx, requestKey);
     }
+    await this.assertSingleMailPreflight(ctx, input);
     let senderConnectionId = input.senderConnectionId;
     // Authorization must precede the irreversible provider call. The transaction
     // below checks again before persistence, but rejecting there alone is too
@@ -9669,6 +9710,18 @@ export class EngagementService {
       throw error;
     });
     const sender = mailboxSender(connection);
+    let reply: PreparedMailReply | undefined;
+    let replyRefusal: unknown;
+    if (input.operation || input.threadId || input.originalMessageId || input.originalUpdatedAt) {
+      try {
+        reply = await this.prisma.withTenant(ctx.tenantId, tx => resolveSingleMailReply(tx, ctx, input));
+      } catch (error) {
+        // Only the unique begin owner may publish a definite rejection. A competing
+        // request with the same key may already be sending an earlier source revision.
+        if (!(error instanceof BadRequestException || error instanceof NotFoundException)) throw error;
+        replyRefusal = error;
+      }
+    }
     const signature = await this.resolveSenderSignatureHtml(ctx, input.appendSignature);
     // Same render pipeline every campaign send uses: sanitize the editor HTML
     // against the outbound allowlist (renderOutreachBody), then append the
@@ -9687,6 +9740,7 @@ export class EngagementService {
       input.clientId ?? null,
     );
     const mailInput: EngagementSendMailInput = {
+      ...(reply ? { reply: reply.provider } : {}),
       subject: input.subject,
       body: body.content,
       bodyContentType: 'HTML',
@@ -9705,6 +9759,9 @@ export class EngagementService {
       clientId: input.clientId ?? null,
       snapshot: {
         senderConnectionId: connection.id, senderEmail: sender.email,
+        ...(input.operation ? { operation: input.operation, originalMessageId: input.originalMessageId,
+          originalUpdatedAt: input.originalUpdatedAt, replyIdentity: reply?.provider ?? null } : {}),
+        attachmentIds: input.attachmentIds ?? [],
         threadId: input.threadId ?? null, to: input.to, cc: input.cc ?? [], bcc: input.bcc ?? [],
         subject: input.subject, body: body.content, signaturePolicy: 'actor',
         signatureAppended: Boolean(signature.signatureHtml),
@@ -9723,6 +9780,14 @@ export class EngagementService {
       claimed = await ledger.claim(ctx, begun.intent, async (tx) => {
         try {
           await this.assertSingleMailPreflight(ctx, { ...input, senderConnectionId: connection.id }, tx);
+          if (replyRefusal) throw replyRefusal;
+          if (reply) {
+            const currentReply = await resolveSingleMailReply(tx, ctx, input);
+            if (JSON.stringify(currentReply) !== JSON.stringify(reply))
+              throw new BadRequestException('This original changed. Review the original again.');
+          } else if (input.threadId || input.operation || input.originalMessageId || input.originalUpdatedAt) {
+            throw new BadRequestException(REPLY_UNAVAILABLE);
+          }
           await this.assertSingleMailAttachmentsInTx(ctx, input, tx);
           const current = await tx.integrationConnection.findFirst({
             where: { ...ownedSendingMailboxWhere(ctx), id: connection.id, accountEmail: sender.email },
@@ -9755,7 +9820,9 @@ export class EngagementService {
       const sizeRefusal = details && typeof details === 'object' && 'code' in details && details.code === 'MAIL_PAYLOAD_TOO_LARGE'
         ? details : null;
       throw new BadRequestException({
-        message: 'This message was not sent because its final checks failed. Review current access, mailbox and attachments before starting a new send.',
+        message: input.threadId
+          ? 'This reply was not sent because its original or final checks changed. Reopen the original message and review current access, mailbox and attachments.'
+          : 'This message was not sent because its final checks failed. Review current access, mailbox and attachments before starting a new send.',
         ...sizeRefusal,
         error: 'MAIL_SEND_REJECTED', requestKey,
         intentId: begun.intent.id, state: 'failed', retryable: false,
@@ -9775,7 +9842,9 @@ export class EngagementService {
           ? details : null;
         await ledger.outcome(ctx, begun.intent, 'failed', { code: sizeRefusal ? 'MAIL_PAYLOAD_TOO_LARGE' : 'MAIL_SEND_REJECTED' });
         throw new BadRequestException({
-          message: 'The mailbox rejected this message before acceptance. Review the error before starting a new send.',
+          message: input.threadId
+            ? 'The mailbox refused this reply before acceptance. Reopen the original message and review it before starting a new send.'
+            : 'The mailbox rejected this message before acceptance. Review the error before starting a new send.',
           ...sizeRefusal,
           error: 'MAIL_SEND_REJECTED', requestKey: requestKey,
           intentId: begun.intent.id, state: 'failed', retryable: false,
@@ -9820,11 +9889,13 @@ export class EngagementService {
     });
 
     const providerSlug = sendProviderSlug(connection.provider);
-    // This prospective slice covers new compose with a proven provider conversation.
-    // Existing reply-thread mismatches and legacy/untyped IDs remain unresolved.
-    const graphIdentity = input.threadId ? null : graphSendIdentity(sendResult);
+    // A native Graph reply carries the same typed accepted identity as ordinary compose.
+    // Legacy thread hints never qualify as reply proof.
+    const graphIdentity = input.threadId && reply?.provider.kind !== 'microsoft_graph' ? null : graphSendIdentity(sendResult);
     const makeReceipt = (threadId: string, messageId: string, confirmed = false) => ({
       ok: true as const, threadId, messageId, provider: providerSlug,
+      ...(reply ? { operation: 'reply', originalMessageId: reply.context.originalMessageId,
+        originalThreadId: input.threadId, originalUpdatedAt: reply.context.originalUpdatedAt } : {}),
       senderConnectionId: connection.id, senderEmail: sender.email, senderName: sender.name,
       signaturePolicy: 'actor' as const, signatureAppended: Boolean(signature.signatureHtml),
       ...(graphIdentity ? { mailboxConfirmation: confirmed ? 'confirmed' : 'pending' } : {}),
@@ -9904,6 +9975,11 @@ export class EngagementService {
     const threadExternalId = providerThreadKey ?? `manual:${randomUUID()}`;
 
     const { thread, message } = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      if (reply) {
+        if (!providerThreadKey || (reply.provider.kind === 'microsoft_graph' ? !graphIdentity : !sendResult.providerMessageId))
+          throw new Error('Accepted reply identity unavailable');
+        await lockMailReceiptWrites(tx, ctx.tenantId);
+      }
       let syncedReceipt = null;
       if (graphIdentity) {
         if (graphIdentity.intentId !== begun.intent.id) throw new NotFoundException('Mail receipt identity mismatch');
@@ -9912,29 +9988,7 @@ export class EngagementService {
         if (!accepted) throw new NotFoundException('Accepted mail receipt not found');
         syncedReceipt = await graphReceiptMessageInTx(tx, ctx.tenantId, connection.id, graphIdentity);
       }
-      // Reply path: verify the thread is this caller's own (same-tenant AND
-      // same-connection-owner, the exact gate `listMailThreads`/`getMailThread`
-      // read through) before touching it — a bare `update({ where: { id } })`
-      // would let a same-tenant user append to a colleague's thread, and a
-      // wrong id would surface as a raw Prisma P2025 instead of a 404.
-      const thread = syncedReceipt?.thread ?? (input.threadId
-        ? await (async () => {
-            const existing = await tx.mailThread.findFirst({
-              where: {
-                id: input.threadId,
-                tenantId: ctx.tenantId,
-                connectionId: connection.id,
-                ...ownMailThreadWhere(ctx.userId),
-              },
-              select: { id: true },
-            });
-            if (!existing) throw new NotFoundException('Mail thread not found');
-            return tx.mailThread.update({
-              where: { id: existing.id, connectionId: connection.id },
-              data: { lastMessageAt: now, snippet: snippetFromHtml(body.content) },
-            });
-          })()
-        : await tx.mailThread.upsert({
+      const thread = syncedReceipt?.thread ?? await tx.mailThread.upsert({
             // Upsert, not create: keyed on the provider's conversation id, a
             // thread can already exist locally — sync may have seen an earlier
             // message in this same conversation. A `create` would then trip
@@ -9965,7 +10019,7 @@ export class EngagementService {
             // thread: sync owns the conversation's own metadata, and a manual
             // client association must not be silently overwritten by a send.
             update: { lastMessageAt: now, snippet: snippetFromHtml(body.content) },
-          }));
+          });
       // Provider IDs are dedup keys, never grants to another connection's rows.
       // Throw inside the transaction so a collision rolls back the upsert touch.
       if (thread.connectionId !== connection.id) {
@@ -10060,7 +10114,7 @@ export class EngagementService {
           data: { mailMessageId: message.id },
         });
       }
-      if (graphIdentity) {
+      if (graphIdentity || reply) {
         await SingleMailLedger.receiptInTx(tx, ctx.tenantId, begun.intent.id,
           makeReceipt(thread.id, message.id, storedGraphIdentity(message.metadata)?.observed === true));
       }
@@ -10078,7 +10132,7 @@ export class EngagementService {
       });
     });
 
-    if (!graphIdentity) await ledger.receipt(ctx, begun.intent, makeReceipt(thread.id, message.id));
+    if (!graphIdentity && !reply) await ledger.receipt(ctx, begun.intent, makeReceipt(thread.id, message.id));
     return this.getSingleMailIntent(ctx, requestKey);
   }
 

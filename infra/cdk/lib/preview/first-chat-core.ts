@@ -20,6 +20,12 @@ import {
 export interface FirstChatCoreImagePins {
   readonly sourceHead: string;
   readonly imageDigest: string;
+  /** Release-qualified identities only. Absent pins keep SQL activation closed. */
+  readonly queryDatabases?: FirstChatCoreQueryDatabases;
+}
+export interface FirstChatCoreQueryDatabases {
+  readonly analytics: { readonly secretArn: string; readonly secretVersionId: string };
+  readonly private: { readonly secretArn: string; readonly secretVersionId: string };
 }
 /** Exact qualified API image. Operator changes do not rebuild or relabel it. */
 export const FIRST_CHAT_CORE_IMAGE_PINS: FirstChatCoreImagePins = {
@@ -68,7 +74,7 @@ export const FIRST_CHAT_CORE_POST_PATHS: readonly string[] = Object.freeze([...r
 export const FIRST_CHAT_CORE_GET_PATHS: readonly string[] = Object.freeze([...routes.get]);
 
 export interface FirstChatCoreImageBinding {
-  schemaVersion: 9;
+  schemaVersion: 10;
   sourceHead: string;
   imageDigest: string;
   internalServiceSecretArn: string;
@@ -77,6 +83,7 @@ export interface FirstChatCoreImageBinding {
   deployment: { databaseHost: string; desiredCount: 1 };
   assets: { tenantIds: string[] };
   ownerMemory: { tenantId: string };
+  queryDatabases: FirstChatCoreQueryDatabases;
 }
 
 function exactKeys(
@@ -102,6 +109,32 @@ function guardedPriority(value: number): number {
   return value;
 }
 
+function queryDatabaseBinding(value: unknown, pins: FirstChatCoreQueryDatabases | undefined) {
+  const input = exactKeys(value, ['analytics', 'private'], 'Query databases');
+  const expected = exactKeys(pins, ['analytics', 'private'], 'Qualified query databases');
+  for (const name of ['analytics', 'private']) {
+    const credential = exactKeys(input[name], ['secretArn', 'secretVersionId'], name);
+    const qualified = exactKeys(expected[name], ['secretArn', 'secretVersionId'], name);
+    if (
+      typeof qualified.secretArn !== 'string' ||
+      !new RegExp(
+        `^arn:aws:secretsmanager:${region}:${account}:secret:[A-Za-z0-9/_+=.@-]+-[A-Za-z0-9]{6}$`,
+      ).test(qualified.secretArn) ||
+      qualified.secretArn === live.dbAppSecretArn ||
+      typeof qualified.secretVersionId !== 'string' ||
+      !/^[A-Za-z0-9-]{32,64}$/.test(qualified.secretVersionId) ||
+      credential.secretArn !== qualified.secretArn ||
+      credential.secretVersionId !== qualified.secretVersionId
+    )
+      throw new Error('Exact qualified query credential identity and immutable version required');
+  }
+  if (
+    (input.analytics as { secretArn: string }).secretArn ===
+    (input.private as { secretArn: string }).secretArn
+  )
+    throw new Error('Distinct analytics and private query credentials required');
+}
+
 export function firstChatCoreImageBinding(
   input: unknown,
   pins: FirstChatCoreImagePins | null = FIRST_CHAT_CORE_IMAGE_PINS,
@@ -118,12 +151,13 @@ export function firstChatCoreImageBinding(
       'deployment',
       'assets',
       'ownerMemory',
+      'queryDatabases',
     ],
     'First-chat image binding',
   );
   if (
     !pins ||
-    record.schemaVersion !== 9 ||
+    record.schemaVersion !== 10 ||
     !/^[0-9a-f]{40}$/.test(pins.sourceHead) ||
     !/^sha256:[0-9a-f]{64}$/.test(pins.imageDigest) ||
     record.sourceHead !== pins.sourceHead ||
@@ -161,6 +195,7 @@ export function firstChatCoreImageBinding(
   const ownerMemory = exactKeys(record.ownerMemory, ['tenantId'], 'Owner memory');
   if (typeof ownerMemory.tenantId !== 'string' || !assets.tenantIds.includes(ownerMemory.tenantId))
     throw new Error('One explicitly bound preview tenant required for owner memory');
+  queryDatabaseBinding(record.queryDatabases, pins.queryDatabases);
   return record as unknown as FirstChatCoreImageBinding;
 }
 
@@ -257,6 +292,16 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
       'InternalServiceSecret',
       binding.internalServiceSecretArn,
     );
+    const analyticsCredential = secrets.Secret.fromSecretCompleteArn(
+      this,
+      'AnalyticsQueryCredential',
+      binding.queryDatabases.analytics.secretArn,
+    );
+    const privateCredential = secrets.Secret.fromSecretCompleteArn(
+      this,
+      'PrivateQueryCredential',
+      binding.queryDatabases.private.secretArn,
+    );
     const image = ecs.ContainerImage.fromRegistry(
       `${account}.dkr.ecr.${region}.amazonaws.com/${imageRepoName}@${binding.imageDigest}`,
     );
@@ -269,6 +314,8 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
     clerk.grantRead(serveExecutionRole);
     clerkWebhook.grantRead(serveExecutionRole);
     serviceIdentity.grantRead(serveExecutionRole);
+    analyticsCredential.grantRead(serveExecutionRole);
+    privateCredential.grantRead(serveExecutionRole);
     serveExecutionRole.addToPolicy(
       new iam.PolicyStatement({
         actions: ['kms:Decrypt'],
@@ -343,6 +390,14 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
         DB_HOST: live.dbHost,
         DB_PORT: '5432',
         DB_NAME: 'capiro',
+        ANALYTICS_DB_HOST: binding.deployment.databaseHost,
+        ANALYTICS_DB_PORT: '5432',
+        ANALYTICS_DB_NAME: 'capiro',
+        ANALYTICS_DB_SSLMODE: 'require',
+        PRIVATE_QUERY_DB_HOST: binding.deployment.databaseHost,
+        PRIVATE_QUERY_DB_PORT: '5432',
+        PRIVATE_QUERY_DB_NAME: 'capiro',
+        PRIVATE_QUERY_DB_SSLMODE: 'require',
         CLERK_JWT_ISSUER: live.clerkIssuer,
         WEB_ORIGIN: 'https://portfolio-preview.app.capiro.ai',
         ASSETS_BUCKET: assets.bucket.bucketName,
@@ -374,6 +429,26 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
       secrets: {
         DB_USER: ecs.Secret.fromSecretsManager(appCredential, 'username'),
         DB_PASSWORD: ecs.Secret.fromSecretsManager(appCredential, 'password'),
+        ANALYTICS_DB_USER: ecs.Secret.fromSecretsManagerVersion(
+          analyticsCredential,
+          { versionId: binding.queryDatabases.analytics.secretVersionId },
+          'username',
+        ),
+        ANALYTICS_DB_PASSWORD: ecs.Secret.fromSecretsManagerVersion(
+          analyticsCredential,
+          { versionId: binding.queryDatabases.analytics.secretVersionId },
+          'password',
+        ),
+        PRIVATE_QUERY_DB_USER: ecs.Secret.fromSecretsManagerVersion(
+          privateCredential,
+          { versionId: binding.queryDatabases.private.secretVersionId },
+          'username',
+        ),
+        PRIVATE_QUERY_DB_PASSWORD: ecs.Secret.fromSecretsManagerVersion(
+          privateCredential,
+          { versionId: binding.queryDatabases.private.secretVersionId },
+          'password',
+        ),
         CLERK_SECRET_KEY: ecs.Secret.fromSecretsManager(clerk),
         CLERK_WEBHOOK_SIGNING_SECRET: ecs.Secret.fromSecretsManager(clerkWebhook),
         INTERNAL_SERVICE_SECRET: ecs.Secret.fromSecretsManagerVersion(serviceIdentity, {

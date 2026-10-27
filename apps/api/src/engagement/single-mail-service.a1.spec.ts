@@ -138,6 +138,202 @@ beforeEach(() => {
   jest.clearAllMocks();
   ledger.validateKey.mockImplementation((key) => key);
 });
+
+describe('native reply through the existing single-mail owner', () => {
+  function replyFixture(graph = false) {
+    const h = fixture(), tx = h.tx as any;
+    const connection = { id: input.senderConnectionId, tenantId: 'tenant', createdByUserId: 'actor',
+      provider: 'google_workspace', status: 'connected', accountEmail: 'sender@example.test' };
+    const originalThread = { id: '44444444-4444-4444-8444-444444444444', tenantId: 'tenant', clientId: input.clientId,
+      connectionId: connection.id, source: 'google', externalId: 'original-provider-thread', connection };
+    const source = { id: '55555555-5555-4555-8555-555555555555', threadId: originalThread.id,
+      connectionId: connection.id, source: 'google', externalId: 'original-provider-message', removedAt: null,
+      subject: input.subject, fromEmail: 'target@example.test', updatedAt: new Date('2026-10-26T20:00:00Z'),
+      raw: { id: 'original-provider-message', threadId: originalThread.externalId, labelIds: ['INBOX'], payload: { headers: [
+        { name: 'Subject', value: input.subject }, { name: 'From', value: 'target@example.test' },
+        { name: 'Message-ID', value: '<original@example.test>' },
+      ] } }, thread: originalThread };
+    const replyInput = { ...input, operation: 'reply' as const, threadId: originalThread.id,
+      originalMessageId: source.id, originalUpdatedAt: source.updatedAt.toISOString() };
+    const resultThread = { ...originalThread, id: '66666666-6666-4666-8666-666666666666', externalId: 'actual-provider-thread' };
+    const intent: any = { id: 'intent', request_key: input.requestKey, state: 'pending', connection_id: connection.id,
+      client_id: input.clientId, snapshot: { threadId: originalThread.id }, receipt: null };
+    tx.integrationConnection.findFirst.mockResolvedValue(connection);
+    tx.integrationConnection.findMany = jest.fn().mockResolvedValue([{ accountEmail: connection.accountEmail }]);
+    tx.user = { findUnique: jest.fn().mockResolvedValue({ email: 'actor@example.test' }) };
+    tx.$executeRaw = jest.fn().mockResolvedValue(1);
+    tx.mailThread = { findFirst: jest.fn().mockResolvedValue(originalThread), upsert: jest.fn().mockResolvedValue(resultThread) };
+    tx.mailMessage = { findFirst: jest.fn().mockImplementation(async () => ({ ...structuredClone(source), updatedAt: new Date(source.updatedAt) })),
+      upsert: jest.fn(async ({ create }: any) => ({ id: 'sent-local', ...create })) };
+    h.service.findCampaignSendConnection.mockResolvedValue(connection);
+    h.service.assertSingleMailAttachmentsInTx = jest.fn().mockResolvedValue(undefined);
+    h.service.mailSender.sendMail.mockResolvedValue({ ok: true, provider: 'gmail', providerMessageId: 'sent-provider',
+      providerThreadId: resultThread.externalId, correlationId: intent.id });
+    ledger.begin.mockImplementation(async (_ctx, begun) => { intent.snapshot = begun.snapshot; return { created: true, intent }; });
+    ledger.outcome.mockImplementation(async (_ctx, _intent, state) => { intent.state = state; });
+    ledger.receiptInTx.mockImplementation(async (_tx, _tenant, _id, receipt) => { intent.receipt = receipt; });
+    ledger.read.mockResolvedValueOnce(null).mockImplementation(async () => intent);
+    ledger.view.mockImplementation(row => ({ state: row.state, requestKey: row.request_key, ...row.receipt }));
+    if (graph) {
+      connection.provider = 'microsoft_365'; originalThread.source = 'outlook'; resultThread.source = 'outlook'; source.source = 'outlook';
+      const identity = { kind: 'microsoft_graph', immutableId: 'immutable-original', conversationId: originalThread.externalId,
+        changeKey: 'source-version', subject: input.subject, fromEmail: 'target@example.test', senderEmail: 'target@example.test',
+        toEmail: 'target@example.test', replyTo: [], inReplyTo: '<original@example.test>', references: '<original@example.test>' };
+      (source as any).raw = { graphReplySource: { schema: 'graph-native-reply/1', defaultId: source.externalId, identity } };
+      intent.id = '77777777-7777-4777-8777-777777777777'; intent.actor_id = 'actor';
+      tx.$queryRaw = jest.fn().mockResolvedValue([{ id: connection.id }]);
+      tx.mailMessage.findMany = jest.fn().mockResolvedValue([]);
+      ledger.acceptedInTx.mockResolvedValue(intent);
+      ledger.outcome.mockImplementation(async (_ctx, _intent, state, evidence) => { intent.state = state; intent.provider_evidence = evidence; });
+      h.service.mailSender.sendMail.mockResolvedValue({ ok: true, provider: 'microsoft_graph', providerImmutableMessageId: 'immutable-sent',
+        providerConversationId: resultThread.externalId, correlationId: intent.id });
+    }
+    return { ...h, tx, source, replyInput, resultThread, intent };
+  }
+  test('Outlook commits the returned conversation and origin after accepted source deletion', async () => {
+    const h = replyFixture(true), accepted = await h.service.mailSender.sendMail();
+    const retainedThread = h.tx.mailThread.findFirst.getMockImplementation();
+    let activeOriginal = true;
+    h.tx.mailThread.findFirst.mockImplementation((query: any) =>
+      query.where.messages && !activeOriginal ? null : retainedThread(query));
+    h.service.mailSender.sendMail.mockClear().mockImplementation(async () => {
+      activeOriginal = false;
+      h.tx.mailMessage.findFirst.mockResolvedValue(null); return accepted;
+    });
+    const result = await h.service.sendSingleMail(ctx, h.replyInput);
+    expect(result).toMatchObject({ state: 'accepted', operation: 'reply', threadId: h.resultThread.id,
+      originalThreadId: h.replyInput.threadId, originalMessageId: h.source.id, mailboxConfirmation: 'pending' });
+    expect(h.service.mailSender.sendMail).toHaveBeenCalledTimes(1);
+    expect(h.intent.snapshot.replyIdentity).toMatchObject({ kind: 'microsoft_graph', immutableId: 'immutable-original' });
+    expect(ledger.acceptedInTx).toHaveBeenCalledTimes(1);
+    expect(ledger.receiptInTx).toHaveBeenCalledTimes(1);
+    expect(h.tx.mailThread.upsert.mock.calls[0][0].where.tenantId_source_externalId.externalId).toBe('actual-provider-thread');
+  });
+  test.each(['pending', 'sending', 'unknown', 'accepted'])(
+    '%s same-key recovery uses retained thread authority without preparing another reply', async state => {
+      const h = replyFixture(true);
+      h.intent.state = state;
+      ledger.read.mockReset().mockResolvedValue(h.intent);
+      h.tx.mailThread.findFirst.mockImplementation(async (query: any) => query.where.messages ? null : {
+        id: h.replyInput.threadId, clientId: input.clientId, connectionId: input.senderConnectionId,
+      });
+      h.tx.mailMessage.findFirst.mockResolvedValue(null);
+      expect(await h.service.sendSingleMail(ctx, h.replyInput)).toMatchObject({ state });
+      expect(await h.service.getSingleMailIntent(ctx, input.requestKey)).toMatchObject({ state });
+      expect(ledger.assertRequest).toHaveBeenCalledWith(h.intent, 'hash');
+      expect(h.tx.mailMessage.findFirst).not.toHaveBeenCalled();
+      expect(h.service.findCampaignSendConnection).not.toHaveBeenCalled();
+      expect(h.service.resolveSenderSignatureHtml).not.toHaveBeenCalled();
+      expect(h.service.loadGraphAttachments).not.toHaveBeenCalled();
+      expect(ledger.begin).not.toHaveBeenCalled();
+      expect(ledger.claim).not.toHaveBeenCalled();
+      expect(ledger.outcome).not.toHaveBeenCalled();
+      expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
+    },
+  );
+  test('same-key recovery rejects changed content before returning the stored receipt', async () => {
+    const h = replyFixture(true);
+    h.intent.request_hash = 'different';
+    ledger.read.mockReset().mockResolvedValue(h.intent);
+    const { SingleMailLedger } = jest.requireActual('./single-mail-ledger.js');
+    ledger.assertRequest.mockImplementationOnce((row, hash) => SingleMailLedger.prototype.assertRequest(row, hash));
+    await expect(h.service.sendSingleMail(ctx, h.replyInput)).rejects.toThrow('already binds different content');
+    expect(ledger.view).not.toHaveBeenCalled();
+    expect(ledger.begin).not.toHaveBeenCalled();
+    expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
+  });
+  test.each(['member', 'mailbox', 'client', 'wall', 'thread'])(
+    'same-key recovery still refuses revoked or missing %s authority', async kind => {
+      const h = replyFixture(true); h.intent.state = 'accepted';
+      ledger.read.mockReset().mockResolvedValue(h.intent);
+      if (kind === 'member') h.tx.tenantMembership.findFirst.mockResolvedValue(null);
+      if (kind === 'mailbox') h.tx.integrationConnection.findFirst.mockResolvedValue(null);
+      if (kind === 'client') h.tx.client.findFirst.mockResolvedValue(null);
+      if (kind === 'wall') h.tx.$queryRawUnsafe.mockResolvedValue([{ allowed: false }]);
+      if (kind === 'thread') h.tx.mailThread.findFirst.mockResolvedValue(null);
+      await expect(h.service.sendSingleMail(ctx, h.replyInput)).rejects.toThrow();
+      await expect(h.service.getSingleMailIntent(ctx, input.requestKey)).rejects.toThrow();
+      expect(ledger.view).not.toHaveBeenCalled(); expect(ledger.begin).not.toHaveBeenCalled();
+      expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
+    },
+  );
+  test('a fresh reply still refuses an original thread with no active messages', async () => {
+    const h = replyFixture(true);
+    h.tx.mailThread.findFirst.mockImplementation(async (query: any) => query.where.messages ? null : {
+      id: h.replyInput.threadId, clientId: input.clientId, connectionId: input.senderConnectionId,
+    });
+    await expect(h.service.sendSingleMail(ctx, h.replyInput)).rejects.toThrow('Mail thread not found');
+    expect(ledger.begin).not.toHaveBeenCalled(); expect(ledger.claim).not.toHaveBeenCalled();
+    expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
+  });
+  test.each(['version', 'payload'])('Outlook %s refusal is before sending with a committed failed owner', async kind => {
+    const h = replyFixture(true);
+    if (kind === 'version') {
+      const changed = structuredClone(h.source); (changed.raw as any).graphReplySource.identity.changeKey = 'changed';
+      h.tx.mailMessage.findFirst.mockResolvedValueOnce(h.source).mockResolvedValue(changed);
+    } else h.service.resolveSenderSignatureHtml.mockResolvedValue({ signatureHtml: '<p>' + 'é'.repeat(1_200_000) + '</p>' });
+    await expect(h.service.sendSingleMail(ctx, h.replyInput)).rejects.toMatchObject({ response: { error: 'MAIL_SEND_REJECTED', state: 'failed' } });
+    expect(ledger.rejectPending).toHaveBeenCalledTimes(1); expect(h.sendingTransition).not.toHaveBeenCalled();
+    expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
+  });
+  test('Outlook unknown and same-key winner never recreate a reply draft', async () => {
+    const h = replyFixture(true); h.intent.state = 'unknown'; h.tx.mailMessage.findFirst.mockResolvedValue(null);
+    ledger.begin.mockResolvedValue({ created: false, intent: h.intent });
+    expect(await h.service.sendSingleMail(ctx, h.replyInput)).toMatchObject({ state: 'unknown' });
+    expect(ledger.claim).not.toHaveBeenCalled(); expect(ledger.rejectPending).not.toHaveBeenCalled();
+    expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
+  });
+  test('preserves the reviewed body and source, and commits actual conversation/origin receipt together', async () => {
+    const h = replyFixture(); const result = await h.service.sendSingleMail(ctx, h.replyInput);
+    expect(h.service.mailSender.sendMail).toHaveBeenCalledTimes(1);
+    expect(h.service.mailSender.sendMail.mock.calls[0][2]).toMatchObject({ body: '<p>Private</p>', reply: {
+      messageId: 'original-provider-message', threadId: 'original-provider-thread', inReplyTo: '<original@example.test>' } });
+    expect(result).toMatchObject({ state: 'accepted', operation: 'reply', threadId: h.resultThread.id,
+      originalThreadId: h.replyInput.threadId, originalMessageId: h.source.id, originalUpdatedAt: h.replyInput.originalUpdatedAt });
+    expect(ledger.receiptInTx).toHaveBeenCalledTimes(1); expect(ledger.receipt).not.toHaveBeenCalled();
+    expect(h.tx.mailThread.upsert.mock.calls[0][0].where.tenantId_source_externalId.externalId).toBe('actual-provider-thread');
+    expect(h.tx.mailMessage.upsert.mock.calls[0][0].update).toEqual({});
+    expect(h.intent.snapshot).toMatchObject({ operation: 'reply', originalMessageId: h.source.id, attachmentIds: [] });
+  });
+  test.each(['revision', 'removed', 'recipients', 'legacy'])('%s refusal has a durable failed owner and zero sending/provider', async change => {
+    const h = replyFixture();
+    if (change === 'revision') h.replyInput.originalUpdatedAt = '2026-10-26T19:00:00.000Z';
+    if (change === 'removed') h.tx.mailMessage.findFirst.mockResolvedValue(null);
+    if (change === 'recipients') h.replyInput.to = [{ email: 'different@example.test' }];
+    if (change === 'legacy') delete (h.replyInput as any).operation;
+    await expect(h.service.sendSingleMail(ctx, h.replyInput)).rejects.toMatchObject({ response: {
+      error: 'MAIL_SEND_REJECTED', requestKey: input.requestKey, intentId: 'intent', state: 'failed', retryable: false,
+      message: expect.stringContaining('Reopen the original message') } });
+    expect(h.sendingTransition).not.toHaveBeenCalled(); expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
+    expect(ledger.rejectPending).toHaveBeenCalledTimes(1);
+  });
+  test('rechecks source bytes at claim even if its stored timestamp did not advance', async () => {
+    const h = replyFixture(); const changed = structuredClone(h.source); changed.updatedAt = new Date(h.source.updatedAt); changed.raw.payload.headers[2]!.value = '<changed@example.test>';
+    h.tx.mailMessage.findFirst.mockResolvedValueOnce(h.source).mockResolvedValue(changed);
+    await expect(h.service.sendSingleMail(ctx, h.replyInput)).rejects.toMatchObject({ response: { error: 'MAIL_SEND_REJECTED' } });
+    expect(h.sendingTransition).not.toHaveBeenCalled(); expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
+  });
+  test.each(['lost CAS', 'lost commit'])('source refusal with %s cannot publish definite outcome', async phase => {
+    const h = replyFixture(); h.tx.mailMessage.findFirst.mockResolvedValue(null);
+    if (phase === 'lost CAS') ledger.rejectPending.mockResolvedValue(false);
+    else ledger.rejectPending.mockRejectedValue(new Error('synthetic commit failure'));
+    let error: any; try { await h.service.sendSingleMail(ctx, h.replyInput); } catch (caught) { error = caught; }
+    expect(error?.response?.error).not.toBe('MAIL_SEND_REJECTED'); expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
+  });
+  test('a concurrent same-key winner is returned before this caller can reject its changed original', async () => {
+    const h = replyFixture(); h.tx.mailMessage.findFirst.mockResolvedValue(null); h.intent.state = 'sending';
+    ledger.begin.mockResolvedValue({ created: false, intent: h.intent });
+    expect(await h.service.sendSingleMail(ctx, h.replyInput)).toMatchObject({ state: 'sending' });
+    expect(ledger.rejectPending).not.toHaveBeenCalled(); expect(ledger.claim).not.toHaveBeenCalled();
+    expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
+  });
+  test('accepted reply without returned conversation stays accepted without a fabricated receipt', async () => {
+    const h = replyFixture(); h.service.mailSender.sendMail.mockResolvedValue({ ok: true, provider: 'gmail', providerMessageId: 'sent-provider' });
+    await expect(h.service.sendSingleMail(ctx, h.replyInput)).rejects.toMatchObject({ response: { error: 'MAIL_SEND_RECEIPT_UNAVAILABLE', retryable: false } });
+    expect(h.intent.state).toBe('accepted'); expect(ledger.receiptInTx).not.toHaveBeenCalled();
+    expect(h.tx.mailMessage.upsert).not.toHaveBeenCalled();
+  });
+});
 describe('single mail direct service boundary', () => {
   function graphReceiptFixture(syncFirst: boolean, loseCommit = false) {
     const h = fixture();

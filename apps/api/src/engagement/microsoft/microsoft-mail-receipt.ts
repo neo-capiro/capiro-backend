@@ -3,6 +3,7 @@ import { SingleMailLedger } from '../single-mail-ledger.js';
 import { lockMailboxConnection } from '../mailbox-oauth-authority.js';
 import { MailboxIdentityMismatchError } from '../mailbox-identity-mismatch.js';
 import type { EngagementMailSendResult } from '../mail-send-result.js';
+import { hasGraphReplySnapshot } from '../single-mail-reply.js';
 
 export const GRAPH_IMMUTABLE_ID_HEADERS = { Prefer: 'IdType="ImmutableId"' };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -118,7 +119,8 @@ export async function acceptedGraphReceiptInTx(
     evidence.correlationId !== identity.intentId ||
     evidence.providerImmutableMessageId !== identity.immutableId ||
     evidence.providerConversationId !== identity.conversationId ||
-    intent.snapshot.threadId
+    ((intent.snapshot.threadId || intent.snapshot.operation || intent.snapshot.originalMessageId || intent.snapshot.replyIdentity) &&
+      !hasGraphReplySnapshot(intent.snapshot, connectionId))
   )
     return null;
   if (

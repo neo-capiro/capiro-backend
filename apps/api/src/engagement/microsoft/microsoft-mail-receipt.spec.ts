@@ -213,6 +213,32 @@ function fixture(
 }
 
 describe('ML-04 exact Graph receipt identity', () => {
+  const replySnapshot = () => ({ senderEmail: 'sender@example.test', senderConnectionId: CONNECTION, operation: 'reply',
+    threadId: '55555555-5555-4555-8555-555555555555', originalMessageId: '66666666-6666-4666-8666-666666666666',
+    originalUpdatedAt: '2026-10-26T20:00:00.000Z', subject: 'Original subject', to: [{ email: 'person@example.test' }], cc: [], bcc: [],
+    replyIdentity: { kind: 'microsoft_graph', immutableId: 'Immutable-Original', conversationId: 'original-conversation',
+      changeKey: 'version', subject: 'Original subject', fromEmail: 'person@example.test', senderEmail: 'person@example.test',
+      toEmail: 'person@example.test', replyTo: [], inReplyTo: '<original@example.test>', references: '<original@example.test>' } });
+  test('typed accepted native reply reconciles a different returned conversation without requiring the deleted original', async () => {
+    const h = fixture(); h.intent.snapshot = replySnapshot();
+    await h.ingest();
+    expect(h.rows()).toHaveLength(1); expect(h.rows()[0].id).toBe('message-local');
+    expect(h.intent.receipt.mailboxConfirmation).toBe('confirmed');
+    expect(h.files[0]!.mailMessageId).toBe('message-local'); expect(h.jobs[0]!.mailMessageId).toBe('message-local');
+    expect(h.service.graphPost).not.toHaveBeenCalled();
+  });
+  test.each(['legacy', 'mailbox', 'recipient', 'untyped', 'unknown'])('native %s proof cannot promote or adopt a receipt', async failure => {
+    const h = fixture(); h.intent.snapshot = replySnapshot();
+    if (failure === 'legacy') delete h.intent.snapshot.replyIdentity;
+    if (failure === 'mailbox') h.intent.snapshot.senderConnectionId = ACTOR;
+    if (failure === 'recipient') h.intent.snapshot.to[0].email = 'other@example.test';
+    if (failure === 'untyped') delete h.intent.snapshot.replyIdentity.kind;
+    if (failure === 'unknown') h.intent.state = 'unknown';
+    await h.ingest();
+    expect(h.intent.receipt.mailboxConfirmation).toBe('pending');
+    expect(h.rows().find(row => row.id === 'message-local').source).toBe('manual');
+    expect(h.service.graphPost).not.toHaveBeenCalled();
+  });
   test('legacy draft and RFC identifiers are not immutable proof', () => {
     expect(graphSendIdentity({ ...result, providerImmutableMessageId: undefined })).toBeNull();
     expect(graphObservedIdentity(detail)).toMatchObject({
@@ -262,7 +288,8 @@ describe('ML-04 exact Graph receipt identity', () => {
     expect(h.service.graphPost).not.toHaveBeenCalled();
     await h.ingest();
     expect(h.rows()).toHaveLength(1);
-    expect(h.service.graphGet).toHaveBeenCalledTimes(1);
+    // Each hydration refreshes authenticated reply evidence even for a full-body row.
+    expect(h.service.graphGet).toHaveBeenCalledTimes(2);
   });
   test('sync before acceptance retains observation without inventing a receipt or accepting sending', async () => {
     const h = fixture({ receipt: false, state: 'sending' });

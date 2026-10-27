@@ -8,6 +8,8 @@ import { activeMailMessageWhere } from './mail-message-state.js';
 import { getMailSyncCoverage } from './mail-sync-coverage.js';
 import { createMailBodySection } from './mail-body-section.js';
 import { normalizeMailReadRecipients, mailReadClientAssociation, activeMailAssociationMessage } from './mail-query.js';
+import { prepareMailReply, REPLY_UNAVAILABLE, type MailReplyContext } from './single-mail-reply.js';
+import { replySelfEmails } from './single-mail-authority.js';
 export { requireMailReadScope } from './engagement-access.helpers.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -110,7 +112,7 @@ export async function readMailThreadPage(prisma: PrismaService, ctx: TenantConte
       where: { id: threadId, tenantId: ctx.tenantId, ...(clientId ? { clientId } : {}),
         ...(boxes ? { connectionId: { in: boxes } } : {}), ...ownMailThreadWhere(ctx.userId) },
       select: {
-        id: true, tenantId: true, clientId: true, connectionId: true, subject: true,
+        id: true, tenantId: true, clientId: true, connectionId: true, subject: true, source: true, externalId: true,
         snippet: true, participants: true, lastMessageAt: true, createdAt: true, updatedAt: true,
         client: { select: { id: true, name: true, website: true, primaryContactName: true,
           primaryContactEmail: true, intakeData: true } },
@@ -148,8 +150,27 @@ export async function readMailThreadPage(prisma: PrismaService, ctx: TenantConte
       ...(page.messageId ? { id: page.messageId } : {}),
     };
     const totalMessages = await tx.mailMessage.count({ where });
-    const messages = await tx.mailMessage.findMany({ where, orderBy: chronologicalOrder,
-      select: messageSelect, take: page.limit, skip: page.offset });
+    const rows = await tx.mailMessage.findMany({ where, orderBy: chronologicalOrder,
+      select: { ...messageSelect, ...(page.messageId ? { raw: true, source: true, externalId: true } as const : {}) },
+      take: page.limit, skip: page.offset });
+    const messages = rows.map(message => ({ ...message, replyContext: undefined as MailReplyContext | undefined }));
+    if (page.messageId) {
+      for (const message of messages) {
+        message.replyContext = { supported: false, reason: REPLY_UNAVAILABLE };
+        const source = { ...message, source: message.source ?? '', externalId: message.externalId ?? '' };
+        const candidate = prepareMailReply(source, thread, thread.connection, []);
+        if (candidate) {
+          try {
+            const reply = prepareMailReply(source, thread, thread.connection, await replySelfEmails(tx, ctx));
+            if (reply) message.replyContext = reply.context;
+          } catch (error) {
+            // Eligibility is additive to the ordinary read. Only this bounded
+            // self-address refusal degrades to unsupported; DB failures propagate.
+            if (!(error instanceof BadRequestException && error.message === REPLY_UNAVAILABLE)) throw error;
+          }
+        }
+      }
+    }
     const hasMore = page.offset + messages.length < totalMessages;
     const nextOffset = hasMore && messages.length && page.offset + messages.length <= 10000
       ? page.offset + messages.length : null;
@@ -181,13 +202,13 @@ export async function readMailThreadHttpPage(prisma: PrismaService, ctx: TenantC
       !/^[a-f0-9]{64}$/.test(input.expectedBodySha256))) throw invalid();
   const thread = await readMailThreadPage(prisma, ctx, threadId, clientId, undefined, input, association);
   if (input.messageId && thread.messages.length !== 1) throw unavailable();
-  const { client: _client, ...result } = thread;
+  const { client: _client, source: _source, externalId: _externalId, ...result } = thread;
   return { ...result, messages: thread.messages.map(message => {
     const body = message.bodyText ?? '';
     const bodySha256 = createHash('sha256').update(body, 'utf8').digest('hex');
     if (input.expectedBodySha256 !== undefined && input.expectedBodySha256 !== bodySha256) throw changed();
     const section = createMailBodySection(body, bodyOffset, maxCharacters);
-    const { metadata, ...fields } = message;
+    const { metadata, raw: _raw, source: _messageSource, externalId: _messageExternalId, ...fields } = message;
     return { ...fields, ...section, bodySha256,
       bodyStoredPresent: message.bodyText !== null,
       bodyCompleteness: metadata && typeof metadata === 'object' && !Array.isArray(metadata) &&

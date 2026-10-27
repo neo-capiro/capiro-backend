@@ -11,9 +11,11 @@ import type { TenantContext } from '@capiro/shared';
 import {
   GmailSendService,
   buildGmailRawMessage,
+  buildGmailSendPayload,
   sanitizeCorrelationId,
 } from './gmail-send.service.js';
-import { AmbiguousMailSendError } from '../mail-send-result.js';
+import { AmbiguousMailSendError, isDefiniteMailSendRejection } from '../mail-send-result.js';
+import { gmailReplyIdentity } from '../single-mail-reply.js';
 import { MAILBOX_CALL_TIMEOUT_MS } from '../mailbox-provider-transport.js';
 
 const ctx: TenantContext = {
@@ -93,6 +95,69 @@ function jsonResponse(body: unknown, status = 200): Response {
     text: async () => JSON.stringify(body),
   } as unknown as Response;
 }
+
+describe('Gmail native reply', () => {
+  const original = () => ({ id: 'original-id', threadId: 'original-thread', labelIds: ['INBOX'], payload: { headers: [
+    { name: 'From', value: 'a@x.com' }, { name: 'Subject', value: INPUT.subject },
+    { name: 'Message-ID', value: '<original@x.com>' }, { name: 'References', value: '<ancestor@x.com>' },
+  ] } });
+  test('reads only the exact original then sends one fully threaded request with unchanged content', async () => {
+    const source = original(), reply = gmailReplyIdentity(source)!;
+    const requests: Array<{ url: string; init: RequestInit }> = [];
+    const h = makeService((async (url: string, init: RequestInit) => {
+      requests.push({ url, init });
+      return jsonResponse(init.method === 'GET' ? source : { id: 'sent-id', threadId: 'returned-thread' });
+    }) as never);
+    try {
+      const result = await h.service.sendMail(ctx, 'box', { ...INPUT, reply });
+      expect(result).toMatchObject({ providerMessageId: 'sent-id', providerThreadId: 'returned-thread' });
+      expect(requests.map(r => r.init.method)).toEqual(['GET', 'POST']);
+      expect(requests[0]!.url).toContain('/messages/original-id?format=metadata');
+      const request = JSON.parse(requests[1]!.init.body as string);
+      expect(request.threadId).toBe('original-thread');
+      const mime = decodeRaw(request.raw);
+      expect(mime).toContain('In-Reply-To: <original@x.com>\r\nReferences: <ancestor@x.com> <original@x.com>');
+      expect(mime.split('\r\n\r\n')[1]).toBe(decodeRaw(buildGmailRawMessage(INPUT)).split('\r\n\r\n')[1]);
+      expect(mime).toContain(`X-Capiro-Delivery-Id: ${INPUT.correlationId}`);
+    } finally { h.restore(); }
+  });
+  test.each(['missing', 'removed', 'thread', 'headers', 'read-failure', 'unreadable'])('%s original never dispatches send', async failure => {
+    const source = original(), reply = gmailReplyIdentity(source)!;
+    const requests: RequestInit[] = [];
+    if (failure === 'removed') source.labelIds.push('TRASH');
+    if (failure === 'thread') source.threadId = 'other-thread';
+    if (failure === 'headers') source.payload.headers[0]!.value = 'other@x.com';
+    const h = makeService((async (_url: string, init: RequestInit) => {
+      requests.push(init);
+      if (failure === 'read-failure') throw new Error('synthetic read failure');
+      if (failure === 'unreadable') return { ok: true, status: 200, json: async () => { throw new Error('bad JSON'); } } as unknown as Response;
+      return jsonResponse(source, failure === 'missing' ? 404 : 200);
+    }) as never);
+    try {
+      let error: unknown;
+      try { await h.service.sendMail(ctx, 'box', { ...INPUT, reply }); } catch (caught) { error = caught; }
+      expect(error).toBeDefined(); expect(requests.map(r => r.method)).toEqual(['GET']);
+      expect(isDefiniteMailSendRejection(error)).toBe(!['read-failure', 'unreadable'].includes(failure));
+    } finally { h.restore(); }
+  });
+  test('ambiguous reply send is never replayed and retains the same sole POST', async () => {
+    const source = original(); const requests: RequestInit[] = [];
+    const h = makeService((async (_url: string, init: RequestInit) => {
+      requests.push(init); if (init.method === 'POST') throw new TypeError('fetch failed');
+      return jsonResponse(source);
+    }) as never);
+    try {
+      await expect(h.service.sendMail(ctx, 'box', { ...INPUT, reply: gmailReplyIdentity(source)! })).rejects.toBeInstanceOf(AmbiguousMailSendError);
+      expect(requests.map(r => r.method)).toEqual(['GET', 'POST']);
+    } finally { h.restore(); }
+  });
+  test('the complete serializer refuses changed recipients/subject or injected reference headers', () => {
+    const input = { ...INPUT, reply: gmailReplyIdentity(original())! };
+    for (const changed of [ { subject: 'Changed' }, { ccRecipients: [{ email: 'extra@x.com' }] },
+      { reply: { ...input.reply, references: '<x@x.com>\r\nBcc: other@x.com' } } ])
+      expect(() => buildGmailSendPayload({ ...input, ...changed })).toThrow();
+  });
+});
 
 describe('sanitizeCorrelationId', () => {
   test('a UUID passes through unchanged', () => {

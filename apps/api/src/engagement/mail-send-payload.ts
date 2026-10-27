@@ -1,9 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
 import { EngagementProvider } from '@prisma/client';
-import { buildGmailRawMessage } from './google/gmail-send.service.js';
+import { buildGmailSendPayload } from './google/gmail-send.service.js';
 import { definiteMailSendRejection } from './mail-send-result.js';
 import type { EngagementSendMailInput } from './mail-sender.service.js';
-import { buildMicrosoftSendPayload } from './microsoft/microsoft-send-payload.js';
+import { buildMicrosoftReplyPayload, buildMicrosoftSendPayload } from './microsoft/microsoft-send-payload.js';
 
 // Graph documents a 4 MB write-request ceiling; use decimal bytes conservatively.
 // https://learn.microsoft.com/en-us/graph/use-the-api#http-methods
@@ -19,9 +19,9 @@ export function assertMailPayloadSize(
   input: EngagementSendMailInput,
 ): void {
   const google = provider === EngagementProvider.google_workspace;
-  const payload = google ? { raw: buildGmailRawMessage(input) } : buildMicrosoftSendPayload(input);
+  const payload = google ? buildGmailSendPayload(input) : input.reply ? buildMicrosoftReplyPayload(input) : buildMicrosoftSendPayload(input);
   const maxBytes = google ? GMAIL_REQUEST_MAX_BYTES : GRAPH_REQUEST_MAX_BYTES;
-  if (Buffer.byteLength(JSON.stringify(payload), 'utf8') > maxBytes) {
+  if (Buffer.byteLength(typeof payload === 'string' ? payload : JSON.stringify(payload), 'utf8') > maxBytes) {
     throw definiteMailSendRejection(
       new BadRequestException({
         code: 'MAIL_PAYLOAD_TOO_LARGE',
