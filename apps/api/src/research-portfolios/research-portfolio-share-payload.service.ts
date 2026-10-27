@@ -13,6 +13,7 @@ import type {
   ResearchPortfolioFitBasisDto,
   ResearchPortfolioFinancialBasisDto,
   ResearchPortfolioDashboardLayoutDto,
+  ResearchPortfolioDashboardWidgetDto,
   ResearchPortfolioShareDashboardDto,
   ResearchPortfolioSnapshotDto,
   TenantContext,
@@ -46,8 +47,20 @@ const EVENT_KINDS = [
   'import_created',
   'import_action',
 ] as const;
-const FINANCIAL_WIDGETS = new Set(['key_totals', 'funding_table', 'sources']);
+const FINANCIAL_WIDGETS = new Set([
+  'key_totals',
+  'funding_table',
+  'sources',
+  'snapshot_comparison',
+]);
 const RECIPIENT_SETTINGS = new Set(['title', 'subtitle', 'text', 'caption', 'limit', 'snapshotId']);
+const BASIS_SELECTION_WIDGETS = new Set([
+  'key_totals',
+  'funding_table',
+  'sources',
+  'snapshot_comparison',
+]);
+const SUBJECT_SELECTION_WIDGETS = new Set(['funding_table', 'subjects', 'sources']);
 // These are the public evidence owners implemented by DefenseResearchService.resolveEvidence.
 // A caller-authored source-family label alone never establishes public provenance.
 const PUBLIC_EVIDENCE_OWNERS = new Set([
@@ -150,6 +163,80 @@ function financialTotals(snapshot: ResearchPortfolioSnapshotDto) {
   }));
 }
 
+/** View selectors refer only to admitted frozen data; they never filter the source-access check. */
+function recipientSettings(
+  widget: ResearchPortfolioDashboardWidgetDto,
+  snapshot: ResearchPortfolioSnapshotDto,
+  contributionBases: readonly ResearchPortfolioFinancialBasisDto[],
+  comparisonBases: readonly ResearchPortfolioFinancialBasisDto[],
+): Record<string, unknown> {
+  const raw = widget.settings;
+  const settings: Record<string, unknown> = Object.fromEntries(
+    Object.entries(raw).filter(
+      ([key, value]) =>
+        RECIPIENT_SETTINGS.has(key) &&
+        (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'),
+    ),
+  );
+  const bases = [
+    ...snapshot.projection.totals.map((total) => total.basis),
+    ...contributionBases,
+    ...(widget.kind === 'snapshot_comparison' ? comparisonBases : []),
+  ];
+  if (Object.hasOwn(raw, 'fundingFiscalYear')) {
+    if (
+      !BASIS_SELECTION_WIDGETS.has(widget.kind) ||
+      !Number.isSafeInteger(raw.fundingFiscalYear) ||
+      !bases.some((basis) => basis.fundingFiscalYear === raw.fundingFiscalYear)
+    )
+      refusal(widget.id, 'the selected fiscal year is not in this frozen data');
+    settings.fundingFiscalYear = raw.fundingFiscalYear;
+  }
+  if (Object.hasOwn(raw, 'basisKey')) {
+    const key = (basis: ResearchPortfolioFinancialBasisDto) =>
+      JSON.stringify([
+        basis.fundingFiscalYear,
+        basis.stage,
+        basis.metric,
+        basis.unit,
+        basis.currency,
+        basis.priceBasis,
+        basis.requestEdition,
+        basis.knownAt,
+      ]);
+    if (
+      !BASIS_SELECTION_WIDGETS.has(widget.kind) ||
+      typeof raw.basisKey !== 'string' ||
+      !bases.some((basis) => key(basis) === raw.basisKey)
+    )
+      refusal(widget.id, 'the selected basis is not in this frozen data');
+    settings.basisKey = raw.basisKey;
+  }
+  if (Object.hasOwn(raw, 'subjectIds')) {
+    const subjects = new Set(
+      snapshot.membership
+        .filter((member) => member.disposition === 'included')
+        .map((member) => member.id),
+    );
+    if (
+      !SUBJECT_SELECTION_WIDGETS.has(widget.kind) ||
+      !Array.isArray(raw.subjectIds) ||
+      raw.subjectIds.length > subjects.size ||
+      raw.subjectIds.some((id) => typeof id !== 'string' || !subjects.has(id)) ||
+      new Set(raw.subjectIds).size !== raw.subjectIds.length
+    )
+      refusal(widget.id, 'the selected subjects are not in this frozen data');
+    // An absent selector means all subjects; an explicit empty array means none.
+    settings.subjectIds = [...raw.subjectIds];
+  }
+  if (Object.hasOwn(raw, 'showSources')) {
+    if (widget.kind !== 'funding_table' || typeof raw.showSources !== 'boolean')
+      refusal(widget.id, 'source-column visibility must be a funding-table boolean');
+    settings.showSources = raw.showSources;
+  }
+  return settings;
+}
+
 @Injectable()
 export class ResearchPortfolioSharePayloadService {
   constructor(
@@ -200,16 +287,6 @@ export class ResearchPortfolioSharePayloadService {
       )
         refusal(widget.id, 'an external image is not a frozen asset; use the firm logo');
     }
-    // Opaque editor state must never become hidden recipient data.
-    for (const widget of layout.widgets) {
-      widget.settings = Object.fromEntries(
-        Object.entries(widget.settings).filter(
-          ([key, value]) =>
-            RECIPIENT_SETTINGS.has(key) &&
-            (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'),
-        ),
-      );
-    }
     const snapshot = await this.analytics.snapshot(ctx, portfolioId, input.snapshotId);
     const client = await tx.client.findFirst({
       where: { tenantId: ctx.tenantId, id: input.clientId },
@@ -255,6 +332,19 @@ export class ResearchPortfolioSharePayloadService {
         })
       : [];
     const comparison = await this.comparison(ctx, portfolioId, snapshot, layout);
+    // Admit every source before preserving display selectors. Hiding a row or source
+    // column cannot make restricted content publishable, or remove it from the payload.
+    const contributionBases = financial.contributions.flatMap((entry) =>
+      entry.basis ? [entry.basis] : [],
+    );
+    for (const widget of layout.widgets) {
+      widget.settings = recipientSettings(
+        widget,
+        snapshot,
+        contributionBases,
+        comparison?.totals.map((total) => total.basis) ?? [],
+      );
+    }
     const headerWidget = layout.widgets.find(
       (widget) => widget.kind === 'header' || widget.kind === 'image',
     );

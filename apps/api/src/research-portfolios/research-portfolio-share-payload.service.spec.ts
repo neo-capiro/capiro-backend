@@ -156,10 +156,176 @@ function fixture() {
     freezeLogoForSharing: jest.fn().mockResolvedValue({ dataUrl: 'data:image/png;base64,YQ==' }),
   };
   const service = new ResearchPortfolioSharePayloadService(analytics, evidence, branding);
-  return { service, tx, snapshot, design, evidence, branding };
+  return { service, tx, snapshot, design, evidence, branding, analytics };
 }
 
 describe('exact research sharing payload', () => {
+  it('does not admit a selector from an excluded contribution that is absent from the recipient ledger', async () => {
+    const h = fixture();
+    h.snapshot.projection.contributions.push({
+      ...h.snapshot.projection.contributions[0],
+      contributionId: 'excluded',
+      disposition: 'excluded',
+      basis: { ...h.snapshot.projection.contributions[0].basis, fundingFiscalYear: 2035 },
+    });
+    h.design.layout.widgets[0].settings = { fundingFiscalYear: 2035 };
+    await expect(h.service.prepare(ctx, 'portfolio', input, h.tx)).rejects.toThrow(
+      'Widget totals cannot be published: the selected fiscal year is not in this frozen data',
+    );
+  });
+
+  it('admits both frozen sides when comparison is the only financial widget', async () => {
+    const h = fixture();
+    const earlier = structuredClone(h.snapshot);
+    earlier.id = 'earlier';
+    earlier.capturedAt = '2026-09-01T00:00:00.000Z';
+    earlier.projection.totals[0].value = '4.01';
+    earlier.projection.contributions[0].value = '4.01';
+    h.analytics.snapshot.mockImplementation(
+      async (_ctx: unknown, _portfolio: string, id: string) =>
+        id === 'earlier' ? earlier : h.snapshot,
+    );
+    h.analytics.listSnapshots.mockResolvedValue([earlier]);
+    h.design.layout.widgets = [
+      {
+        id: 'compare',
+        kind: 'snapshot_comparison',
+        x: 0,
+        y: 0,
+        w: 12,
+        h: 2,
+        settings: { snapshotId: 'earlier', fundingFiscalYear: 2027 },
+      },
+    ];
+    const { payload } = await h.service.prepare(ctx, 'portfolio', input, h.tx);
+    expect(payload.dashboard.data.totals[0]?.value).toBe('12.01');
+    expect(payload.dashboard.data.comparison?.totals[0]?.value).toBe('4.01');
+    expect(h.evidence.resolveEvidence).toHaveBeenCalledTimes(2);
+    h.evidence.resolveEvidence.mockRejectedValueOnce(new Error('current source denied'));
+    await expect(h.service.prepare(ctx, 'portfolio', input, h.tx)).rejects.toThrow(
+      'Widget compare cannot be published: a frozen source is restricted or no longer accessible',
+    );
+  });
+
+  it('retains frozen financial and subject selectors without altering the admitted ledger', async () => {
+    const h = fixture();
+    const basisKey = JSON.stringify([
+      2027,
+      'request',
+      'budget_authority',
+      'usd_millions',
+      'USD',
+      null,
+      null,
+      null,
+    ]);
+    h.design.layout.widgets[0] = {
+      id: 'funding',
+      kind: 'funding_table',
+      x: 0,
+      y: 0,
+      w: 6,
+      h: 2,
+      settings: { fundingFiscalYear: 2027, basisKey, subjectIds: ['member'], showSources: false },
+    };
+    const first = await h.service.prepare(ctx, 'portfolio', input, h.tx);
+    expect(first.payload.dashboard.layout.widgets[0]?.settings).toEqual({
+      fundingFiscalYear: 2027,
+      basisKey,
+      subjectIds: ['member'],
+      showSources: false,
+    });
+    expect(first.payload.dashboard.data.contributions[0]?.value).toBe('12.01');
+    expect(first.payload.dashboard.data.sources).toHaveLength(1);
+    expect(first.payload.dashboard.data.totals).toEqual(h.snapshot.projection.totals);
+    h.design.layout.widgets[0].settings.subjectIds = [];
+    const empty = await h.service.prepare(ctx, 'portfolio', input, h.tx);
+    expect(empty.payload.dashboard.layout.widgets[0]?.settings.subjectIds).toEqual([]);
+    expect(empty.payload.dashboard.data.contributions).toEqual(
+      first.payload.dashboard.data.contributions,
+    );
+    expect(empty.previewHash).not.toBe(first.previewHash);
+    delete h.design.layout.widgets[0].settings.subjectIds;
+    expect(
+      (await h.service.prepare(ctx, 'portfolio', input, h.tx)).payload.dashboard.layout.widgets[0]
+        ?.settings,
+    ).not.toHaveProperty('subjectIds');
+  });
+
+  it.each([
+    ['funding_table', { fundingFiscalYear: 2035 }],
+    ['funding_table', { fundingFiscalYear: '2027' }],
+    ['funding_table', { basisKey: 'arbitrary' }],
+    ['funding_table', { subjectIds: ['hidden'] }],
+    ['subjects', { subjectIds: ['foreign'] }],
+    ['subjects', { subjectIds: 'member' }],
+    ['subjects', { subjectIds: ['member', 'member'] }],
+    ['key_totals', { subjectIds: ['member'] }],
+    ['snapshot_comparison', { subjectIds: [] }],
+    ['funding_table', { showSources: 'false' }],
+    ['subjects', { showSources: false }],
+    ['subjects', { fundingFiscalYear: 2027 }],
+  ])(
+    'refuses unsupported or foreign selectors on %s instead of silently dropping them',
+    async (kind, settings) => {
+      const h = fixture();
+      h.design.layout.widgets[0] = { id: 'selected', kind, x: 0, y: 0, w: 6, h: 2, settings };
+      await expect(h.service.prepare(ctx, 'portfolio', input, h.tx)).rejects.toThrow(
+        'Widget selected cannot be published',
+      );
+    },
+  );
+
+  it('admits the exact same-basis selectors on totals and source rows without recomputing amounts', async () => {
+    const h = fixture();
+    const basisKey = JSON.stringify([
+      2027,
+      'request',
+      'budget_authority',
+      'usd_millions',
+      'USD',
+      null,
+      null,
+      null,
+    ]);
+    h.design.layout.widgets[0].settings = { fundingFiscalYear: 2027, basisKey };
+    h.design.layout.widgets[1] = {
+      id: 'evidence',
+      kind: 'sources',
+      x: 6,
+      y: 0,
+      w: 6,
+      h: 2,
+      settings: { fundingFiscalYear: 2027, basisKey, subjectIds: ['member'] },
+    };
+    const { payload } = await h.service.prepare(ctx, 'portfolio', input, h.tx);
+    expect(payload.dashboard.layout.widgets[0]?.settings).toEqual({
+      fundingFiscalYear: 2027,
+      basisKey,
+    });
+    expect(payload.dashboard.layout.widgets[1]?.settings.subjectIds).toEqual(['member']);
+    expect(payload.dashboard.data.totals[0]?.value).toBe('12.01');
+    expect(payload.dashboard.data.sources).toHaveLength(1);
+  });
+
+  it('refuses restricted evidence even when every subject and the source column are hidden', async () => {
+    const h = fixture();
+    h.design.layout.widgets[0] = {
+      id: 'funding',
+      kind: 'funding_table',
+      x: 0,
+      y: 0,
+      w: 6,
+      h: 2,
+      settings: { subjectIds: [], showSources: false },
+    };
+    h.evidence.resolveEvidence.mockRejectedValueOnce(new Error('denied'));
+    await expect(h.service.prepare(ctx, 'portfolio', input, h.tx)).rejects.toThrow(
+      'Widget funding cannot be published: a frozen source is restricted or no longer accessible',
+    );
+    expect(h.evidence.resolveEvidence).toHaveBeenCalledWith(source.evidenceRefId);
+  });
+
   it('uses captured research, selected-client immutable fit and evidence allowlist', async () => {
     const h = fixture();
     const { payload } = await h.service.prepare(ctx, 'portfolio', input, h.tx);
