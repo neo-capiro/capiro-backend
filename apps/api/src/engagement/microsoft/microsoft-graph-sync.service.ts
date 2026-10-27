@@ -2272,7 +2272,7 @@ export class MicrosoftGraphSyncService {
         'Microsoft returned a different account or insufficient permissions; reconnect Microsoft 365',
       );
     }
-    await this.persistRefreshedAccessToken(tenantId, connectionId, result, token, msal);
+    await this.persistRefreshedAccessToken(tenantId, connectionId, result, token, msal, refreshToken);
     return result.accessToken;
   }
 
@@ -2303,6 +2303,7 @@ export class MicrosoftGraphSyncService {
     result: AuthenticationResult,
     snapshot: IntegrationConnectionToken,
     msal: ConfidentialClientApplication,
+    redeemedRefreshToken: string,
   ) {
     const encrypted = this.tokenCrypto.encrypt(result.accessToken);
     // Actual returned grants remain distinct from the requested scope catalog.
@@ -2311,7 +2312,13 @@ export class MicrosoftGraphSyncService {
     // this account) and persist it, so we advance the token chain instead of replaying the original
     // refresh token from connect time forever.
     const rotatedRefresh = this.extractRotatedRefreshToken(msal, snapshot.homeAccountId);
-    const refreshEnvelope = rotatedRefresh ? this.tokenCrypto.encrypt(rotatedRefresh) : null;
+    // The row carries one keyVersion for all of its envelopes, so both are written
+    // from the active key in this single update. Rotation extraction is best-effort
+    // (it yields nothing when the cache has no matching entry), so when it finds
+    // nothing the refresh token this successful exchange just redeemed is encrypted
+    // under the active key instead of leaving the stored envelope under the previous
+    // key while key_version advances - that mix cannot be read at the next refresh.
+    const refreshEnvelope = this.tokenCrypto.encrypt(rotatedRefresh ?? redeemedRefreshToken);
     await this.prisma.withTenant(tenantId, async (tx) => {
       await assertMailboxSyncCurrent(tx, tenantId, connectionId);
       const current = await admitMailboxRefresh(
@@ -2327,13 +2334,9 @@ export class MicrosoftGraphSyncService {
           accessTokenCiphertext: encrypted.ciphertext,
           accessTokenIv: encrypted.iv,
           accessTokenAuthTag: encrypted.authTag,
-          ...(refreshEnvelope
-            ? {
-                refreshTokenCiphertext: refreshEnvelope.ciphertext,
-                refreshTokenIv: refreshEnvelope.iv,
-                refreshTokenAuthTag: refreshEnvelope.authTag,
-              }
-            : {}),
+          refreshTokenCiphertext: refreshEnvelope.ciphertext,
+          refreshTokenIv: refreshEnvelope.iv,
+          refreshTokenAuthTag: refreshEnvelope.authTag,
           keyVersion: this.tokenCrypto.getKeyVersion(),
           scopes: persistedScopes,
           expiresAt: result.expiresOn ?? new Date(Date.now() + 60 * 60 * 1000),
