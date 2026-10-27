@@ -21,6 +21,7 @@ interface BoundaryMetadata {
 }
 
 export const MICROSOFT_GRAPH_RUNTIME_METHODS = {
+  readIncomingFiles: { action: 'integration_sync' },
   readTeams: { action: 'integration_sync' },
   syncConnection: { action: 'integration_sync' },
   runCalendarCommand: { action: 'integration_sync' },
@@ -57,6 +58,7 @@ export const GOOGLE_OAUTH_RUNTIME_METHODS = {
 } as const satisfies Readonly<Record<string, BoundaryMetadata>>;
 
 export const GMAIL_SEND_RUNTIME_METHODS = {
+  readIncomingFiles: { action: 'integration_sync' },
   sendMail: { action: 'outreach_send' },
 } as const satisfies Readonly<Record<string, BoundaryMetadata>>;
 

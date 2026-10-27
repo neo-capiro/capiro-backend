@@ -1,3 +1,4 @@
+import { parseNativeMailArguments } from '../execution-capability/native-mail-command.js';
 import { ConflictException, Injectable, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
@@ -30,6 +31,10 @@ function normalizedInput(proposal: NativeApprovalProposal, request: unknown, com
     if (!sameJson(context, { binding: c.binding, scopes: c.scopes })) throw mismatch();
     if (!sameJson(request, c.arguments)) throw mismatch();
     args = c.arguments;
+  } else if (c.action === 'mail.send') {
+    const context = closed(commandContext, ['binding']);
+    if (!sameJson(context.binding, c.binding)) throw mismatch();
+    args = parseNativeMailArguments(request);
   } else if (c.action === 'task.create') {
     const context = closed(commandContext, ['binding', 'clientResolution']);
     if (!sameJson(context.binding, c.binding)) throw mismatch();
@@ -89,7 +94,7 @@ function normalizedInput(proposal: NativeApprovalProposal, request: unknown, com
 /** The initial binding proves preparation custody. Later generations, a started
  * turn, or its admission expiry do not revoke an explicit Core approval. */
 function initialPreparation(value: unknown, proposal: NativeApprovalProposal): void {
-  if (!['task.create', 'task.update', 'artifact.file'].includes(proposal.command.action)) throw mismatch();
+  if (!['task.create', 'task.update', 'artifact.file', 'mail.send'].includes(proposal.command.action)) throw mismatch();
   const p = closed(value, ['kind', 'record', 'recordSha256', 'generation', 'latestGeneration', 'started']);
   const r = closed(p.record, ['schemaVersion', 'state', 'binding', 'selectedClientId', 'policyRevision', 'versions',
     'configurationSha256', 'expiresAtMs', 'createdAtMs']);
@@ -124,12 +129,12 @@ function verifyReadback(actual: unknown, proposal: NativeApprovalProposal): void
     const r = closed(m.record, ['operation', 'action', 'binding', 'request', 'inputSha256', 'commandId',
       'idempotencyKey', 'proposalId', 'scopes', 'createdAt', 'expiresAt', 'requiredApprover']);
     const c = proposal.command;
-    const operation = c.action === 'document.draft' ? 'create_word' : c.action === 'task.create' ? 'create_task'
+    const operation = c.action === 'mail.send' ? 'mail_send' : c.action === 'document.draft' ? 'create_word' : c.action === 'task.create' ? 'create_task'
       : c.action === 'artifact.file' ? 'save_chat_attachments' : 'update_task';
     // An effect may already have committed before its preparation run
     // subsequently failed. Retained metadata remains valid for reconciliation.
     const states = ['queued', 'starting', 'running', 'paused', 'waiting-for-approval', 'completed',
-      ...(['task.create', 'task.update', 'artifact.file'].includes(c.action) ? ['failed'] : [])];
+      ...(['task.create', 'task.update', 'artifact.file', 'mail.send'].includes(c.action) ? ['failed'] : [])];
     const input = normalizedInput(proposal, r.request, m.commandContext);
     const expected = { operation: { id: operation, version: '0.2.0' }, action: c.action,
       binding: c.binding, request: r.request, inputSha256: nativeCanonicalSha256(input),

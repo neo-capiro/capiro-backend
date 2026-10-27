@@ -38,6 +38,7 @@ import {
   Length,
   Max,
   MaxLength,
+  Matches,
   Min,
   MinLength,
   ValidateNested,
@@ -354,8 +355,13 @@ class SingleMailRecipientDto {
 
 class SendSingleMailDto {
   @IsOptional()
-  @IsIn(['reply'])
-  operation?: 'reply';
+  @IsIn(['reply', 'reply_all', 'forward'])
+  operation?: 'reply' | 'reply_all' | 'forward';
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[a-f0-9]{64}$/)
+  originalBodySha256?: string;
 
   @IsOptional()
   @IsUUID()

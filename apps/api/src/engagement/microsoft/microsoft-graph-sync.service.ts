@@ -1,3 +1,6 @@
+import { incomingProviderGet, readIncomingProviderFiles, type IncomingProviderSource, type IncomingImportSelection } from '../mail-incoming-files.js';
+import { graphForwardBody, type MailForwardInput } from '../mail-forward-source.js';
+import { capturedGraphReplyRecipients, type MailReplyRecipients, type PreparedReplyAll } from '../mail-reply-recipients.js';
 import { assertMicrosoftReplyDraft, buildMicrosoftReplyPayload, buildMicrosoftSendPayload } from './microsoft-send-payload.js';
 import { graphReplyIdentity, type GraphReplyIdentity, type MailReplyIdentity, REPLY_UNAVAILABLE } from '../single-mail-reply.js';
 import {
@@ -276,9 +279,11 @@ interface GraphItemBody {
 
 const graphReceiptIdentity = Symbol('authenticatedGraphReceiptIdentity');
 const graphReplySource = Symbol('authenticatedGraphReplySource');
+const graphReplyRecipients = Symbol('authenticatedGraphReplyRecipients');
 interface GraphMessage {
   [graphReceiptIdentity]?: GraphMailIdentity;
   [graphReplySource]?: GraphReplyIdentity;
+  [graphReplyRecipients]?: MailReplyRecipients;
   id?: string;
   conversationId?: string | null;
   internetMessageId?: string | null;
@@ -323,6 +328,8 @@ interface GraphNotification {
 
 export interface MicrosoftGraphSendMailInput {
   reply?: MailReplyIdentity;
+  replyAll?: PreparedReplyAll;
+  forward?: MailForwardInput;
   subject: string;
   body: string;
   /** Graph message body type. Defaults to 'Text' for back-compat; outreach
@@ -404,12 +411,15 @@ export class MicrosoftGraphSyncService {
           ctx.tenantId, connectionId, snapshot, [grantedScope],
         );
         const { token: current } = await this.loadConnection(ctx.tenantId, connectionId);
-        if (this.tokenCrypto.decrypt({
-          ciphertext: current.accessTokenCiphertext,
-          iv: current.accessTokenIv,
-          authTag: current.accessTokenAuthTag,
-        }) !== accessToken)
-          throw new TeamsReadUnavailable('source_changed');
+        const storedAccessToken = this.tokenCrypto.decrypt(
+          {
+            ciphertext: current.accessTokenCiphertext,
+            iv: current.accessTokenIv,
+            authTag: current.accessTokenAuthTag,
+          },
+          current.keyVersion,
+        );
+        if (storedAccessToken !== accessToken) throw new TeamsReadUnavailable('source_changed');
         return { accessToken, snapshot: current };
       },
       get: (url, accessToken) => this.graphGet<unknown>(url, accessToken),
@@ -706,11 +716,14 @@ export class MicrosoftGraphSyncService {
       if (subscriptions.length === 0) return 0;
       // Disconnect has already disabled and fenced the row. Do not refresh or
       // re-enable it merely to perform best-effort upstream cleanup.
-      const accessToken = this.tokenCrypto.decrypt({
-        ciphertext: token.accessTokenCiphertext,
-        iv: token.accessTokenIv,
-        authTag: token.accessTokenAuthTag,
-      });
+      const accessToken = this.tokenCrypto.decrypt(
+        {
+          ciphertext: token.accessTokenCiphertext,
+          iv: token.accessTokenIv,
+          authTag: token.accessTokenAuthTag,
+        },
+        token.keyVersion,
+      );
       for (const subscription of subscriptions.slice(0, 2)) {
         try {
           await this.graphDelete(
@@ -758,21 +771,30 @@ export class MicrosoftGraphSyncService {
     const { token, connection } = await this.loadConnection(ctx.tenantId, connectionId);
     const accessToken = await this.getValidAccessToken(ctx.tenantId, connectionId, token);
     const correlationId = input.correlationId ?? '';
-    const reply = input.reply;
-    if (reply && reply.kind !== 'microsoft_graph') throw definiteMailSendRejection(new BadRequestException(REPLY_UNAVAILABLE));
+    const reply = input.reply ?? input.forward?.source;
+    if ((input.replyAll && !reply) || (reply && reply.kind !== 'microsoft_graph')) throw definiteMailSendRejection(new BadRequestException(REPLY_UNAVAILABLE));
     const payload = reply ? buildMicrosoftReplyPayload(input) : buildMicrosoftSendPayload(input);
     if (reply) {
       let original: unknown;
       try {
-        original = await this.graphGet(`/me/messages/${encodeURIComponent(reply.immutableId)}?$select=id,conversationId,changeKey,isDraft,subject,from,sender,replyTo,internetMessageId,internetMessageHeaders`,
+        original = await this.graphGet(`/me/messages/${encodeURIComponent(reply.immutableId)}?$select=id,conversationId,changeKey,isDraft,subject,from,sender,replyTo,internetMessageId,internetMessageHeaders${input.replyAll ? ',toRecipients,ccRecipients' : ''}${input.forward ? ',body,hasAttachments' : ''}`,
           accessToken, GRAPH_IMMUTABLE_ID_HEADERS, 65536);
       } catch (error) {
         if (error instanceof GraphHttpError && [404, 410].includes(error.graphStatus))
           throw definiteMailSendRejection(new BadRequestException(REPLY_UNAVAILABLE));
         throw error;
       }
-      if (JSON.stringify(graphReplyIdentity(original)) !== JSON.stringify(reply))
+      if (JSON.stringify(graphReplyIdentity(original)) !== JSON.stringify(reply) ||
+          (input.replyAll && JSON.stringify(capturedGraphReplyRecipients(original)) !== JSON.stringify(input.replyAll.original)))
         throw definiteMailSendRejection(new BadRequestException('The original changed. Review it again before replying.'));
+      if (input.forward) {
+        // Graph hasAttachments does not include inline files. An empty complete
+        // attachment page, not that boolean alone, proves this bounded forward.
+        const files = await this.graphGet(`/me/messages/${encodeURIComponent(reply.immutableId)}/attachments?$select=id&$top=1`,
+          accessToken, GRAPH_IMMUTABLE_ID_HEADERS, 16384);
+        if (JSON.stringify(graphForwardBody(original, files)) !== JSON.stringify(input.forward.body))
+          throw definiteMailSendRejection(new BadRequestException('The original body or incoming files changed. No forward was sent.'));
+      }
     }
 
     // 1. Create the draft. A clear failure here is an ORDINARY provider failure:
@@ -781,7 +803,7 @@ export class MicrosoftGraphSyncService {
       id?: unknown;
       internetMessageId?: unknown;
       conversationId?: unknown;
-    }>(reply ? `/me/messages/${encodeURIComponent(reply.immutableId)}/createReply` : '/me/messages',
+    }>(reply ? `/me/messages/${encodeURIComponent(reply.immutableId)}/${input.forward ? 'createForward' : input.replyAll ? 'createReplyAll' : 'createReply'}` : '/me/messages',
       accessToken, payload, GRAPH_IMMUTABLE_ID_HEADERS, reply ? 'mime' : 'json');
 
     const draftId = typeof draft?.id === 'string' ? draft.id.trim() : '';
@@ -1843,7 +1865,11 @@ export class MicrosoftGraphSyncService {
     const bccRecipients = recipients(message.bccRecipients);
     const authoritative = resolveGraphAuthoritativeBody(message);
     const storedRaw = { ...stripGraphMessageBodyContent(message), graphReplySource: message[graphReplySource]
-      ? { schema: 'graph-native-reply/1', defaultId: message.id, identity: message[graphReplySource] } : undefined };
+      ? { schema: 'graph-native-reply/1', defaultId: message.id, identity: message[graphReplySource] } : undefined,
+      graphReplyRecipients: message[graphReplySource] && message[graphReplyRecipients]
+        ? { schema: 'graph-native-reply-recipients/1', defaultId: message.id,
+          immutableId: message[graphReplySource].immutableId, changeKey: message[graphReplySource].changeKey,
+          recipients: message[graphReplyRecipients] } : undefined };
     const participantEmails = [
       fromEmail ?? '',
       ...toRecipients.map((recipient) => recipient.email),
@@ -2115,18 +2141,31 @@ export class MicrosoftGraphSyncService {
     try {
       // One bounded GET per existing hydration call; default delta IDs/checkpoints remain unchanged.
       const detailed = await this.graphGet<GraphMessage>(
-        `/me/messages/${encodeURIComponent(message.id)}?$select=id,body,conversationId,changeKey,isDraft,subject,from,sender,replyTo,internetMessageId,internetMessageHeaders`,
+        `/me/messages/${encodeURIComponent(message.id)}?$select=id,body,conversationId,changeKey,isDraft,subject,from,sender,replyTo,toRecipients,ccRecipients,internetMessageId,internetMessageHeaders`,
         accessToken,
         GRAPH_IMMUTABLE_ID_HEADERS,
       );
       const identity = graphObservedIdentity(detailed), reply = graphReplyIdentity(detailed);
+      const recipients = capturedGraphReplyRecipients(detailed);
       return { ...message, body: detailed.body ?? message.body,
         ...(reply ? { [graphReplySource]: reply } : {}),
+        ...(reply && recipients ? { [graphReplyRecipients]: recipients } : {}),
         ...(identity ? { [graphReceiptIdentity]: identity } : {}) };
     } catch (err) {
       if (isMessageGoneError(err)) return message;
       throw err;
     }
+  }
+
+  /** Read-only fixed file routes. No send, draft creation, subscriptions or sync state writes. */
+  async readIncomingFiles(ctx: TenantContext, connectionId: string, source: IncomingProviderSource,
+    selection: IncomingImportSelection | undefined, allowedType: (mime: string) => boolean) {
+    if (source.provider !== 'microsoft_graph') throw new BadRequestException('Mailbox provider mismatch');
+    await this.assertConnectionAccess(ctx, connectionId);
+    const { connection, token } = await this.loadConnection(ctx.tenantId, connectionId);
+    if (connection.status !== 'connected') throw new ForbiddenException('The connected mailbox is no longer available.');
+    const accessToken = await this.getValidAccessToken(ctx.tenantId, connectionId, token);
+    return readIncomingProviderFiles(source, (url, headers) => incomingProviderGet(url, accessToken, headers), selection, allowedType);
   }
 
   private async loadConnection(tenantId: string, connectionId: string) {
@@ -2187,11 +2226,14 @@ export class MicrosoftGraphSyncService {
     }
     const hasRequiredScopes = hasRequiredResourceScopes(token.scopes);
     if (hasRequiredScopes && token.expiresAt.getTime() > Date.now() + TOKEN_REFRESH_SKEW_MS) {
-      return this.tokenCrypto.decrypt({
-        ciphertext: token.accessTokenCiphertext,
-        iv: token.accessTokenIv,
-        authTag: token.accessTokenAuthTag,
-      });
+      return this.tokenCrypto.decrypt(
+        {
+          ciphertext: token.accessTokenCiphertext,
+          iv: token.accessTokenIv,
+          authTag: token.accessTokenAuthTag,
+        },
+        token.keyVersion,
+      );
     }
 
     this.assertTokenRefreshConfigured();
@@ -2202,11 +2244,14 @@ export class MicrosoftGraphSyncService {
       );
     }
 
-    const refreshToken = this.tokenCrypto.decrypt({
-      ciphertext: token.refreshTokenCiphertext,
-      iv: token.refreshTokenIv,
-      authTag: token.refreshTokenAuthTag,
-    });
+    const refreshToken = this.tokenCrypto.decrypt(
+      {
+        ciphertext: token.refreshTokenCiphertext,
+        iv: token.refreshTokenIv,
+        authTag: token.refreshTokenAuthTag,
+      },
+      token.keyVersion,
+    );
     const msal = this.buildMsalClient();
     let result: AuthenticationResult | null;
     try {
@@ -2239,7 +2284,7 @@ export class MicrosoftGraphSyncService {
         'Microsoft returned a different account or insufficient permissions; reconnect Microsoft 365',
       );
     }
-    await this.persistRefreshedAccessToken(tenantId, connectionId, result, token, msal);
+    await this.persistRefreshedAccessToken(tenantId, connectionId, result, token, msal, refreshToken);
     return result.accessToken;
   }
 
@@ -2270,6 +2315,7 @@ export class MicrosoftGraphSyncService {
     result: AuthenticationResult,
     snapshot: IntegrationConnectionToken,
     msal: ConfidentialClientApplication,
+    redeemedRefreshToken: string,
   ) {
     const encrypted = this.tokenCrypto.encrypt(result.accessToken);
     // Actual returned grants remain distinct from the requested scope catalog.
@@ -2278,7 +2324,13 @@ export class MicrosoftGraphSyncService {
     // this account) and persist it, so we advance the token chain instead of replaying the original
     // refresh token from connect time forever.
     const rotatedRefresh = this.extractRotatedRefreshToken(msal, snapshot.homeAccountId);
-    const refreshEnvelope = rotatedRefresh ? this.tokenCrypto.encrypt(rotatedRefresh) : null;
+    // The row carries one keyVersion for all of its envelopes, so both are written
+    // from the active key in this single update. Rotation extraction is best-effort
+    // (it yields nothing when the cache has no matching entry), so when it finds
+    // nothing the refresh token this successful exchange just redeemed is encrypted
+    // under the active key instead of leaving the stored envelope under the previous
+    // key while key_version advances - that mix cannot be read at the next refresh.
+    const refreshEnvelope = this.tokenCrypto.encrypt(rotatedRefresh ?? redeemedRefreshToken);
     await this.prisma.withTenant(tenantId, async (tx) => {
       await assertMailboxSyncCurrent(tx, tenantId, connectionId);
       const current = await admitMailboxRefresh(
@@ -2294,13 +2346,9 @@ export class MicrosoftGraphSyncService {
           accessTokenCiphertext: encrypted.ciphertext,
           accessTokenIv: encrypted.iv,
           accessTokenAuthTag: encrypted.authTag,
-          ...(refreshEnvelope
-            ? {
-                refreshTokenCiphertext: refreshEnvelope.ciphertext,
-                refreshTokenIv: refreshEnvelope.iv,
-                refreshTokenAuthTag: refreshEnvelope.authTag,
-              }
-            : {}),
+          refreshTokenCiphertext: refreshEnvelope.ciphertext,
+          refreshTokenIv: refreshEnvelope.iv,
+          refreshTokenAuthTag: refreshEnvelope.authTag,
           keyVersion: this.tokenCrypto.getKeyVersion(),
           scopes: persistedScopes,
           expiresAt: result.expiresOn ?? new Date(Date.now() + 60 * 60 * 1000),

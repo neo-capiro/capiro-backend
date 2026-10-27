@@ -1,6 +1,14 @@
-import { GOOGLE_SCOPES, GoogleOAuthService } from './google/google-oauth.service.js';
+import {
+  GOOGLE_SCOPES,
+  GOOGLE_USERINFO_URL,
+  GoogleOAuthService,
+} from './google/google-oauth.service.js';
 import { MicrosoftOAuthService } from './microsoft/microsoft-oauth.service.js';
 import { MICROSOFT_SCOPES } from './microsoft/microsoft-oauth-constants.js';
+
+/** The fetch this test file had before any substitution, so the fixture's own
+ *  provider stub can leave every other URL on its previous implementation. */
+const originalFetch = globalThis.fetch;
 
 export const tenant = '00000000-0000-4000-8000-000000000001';
 export const actor = '00000000-0000-4000-8000-000000000002';
@@ -168,6 +176,8 @@ export function harness(provider: 'microsoft_365' | 'google_workspace' = 'micros
     email: 'a@example.invalid',
     refresh: undefined as string | undefined,
   };
+  // Models a provider that withholds verification of the returned address.
+  let emailVerified = true;
   let afterExchange: (() => void | Promise<void>) | undefined;
   const exchange = jest.fn(async () => {
     await afterExchange?.();
@@ -197,9 +207,33 @@ export function harness(provider: 'microsoft_365' | 'google_workspace' = 'micros
       access_token: 'returned-access',
       refresh_token: account.refresh,
       scope: GOOGLE_SCOPES.join(' '),
-      id_token: `fake.${Buffer.from(JSON.stringify({ sub: account.id, email: account.email })).toString('base64url')}.fake`,
+      // Google also returns an id_token. Its payload is unsigned text, so it must
+      // never influence binding; this decoy is deliberately unmatchable.
+      id_token: `decoy.${Buffer.from(
+        JSON.stringify({ sub: 'decoy-account', email: 'decoy@example.invalid' }),
+      ).toString('base64url')}.decoy`,
     };
   };
+  if (provider === 'google_workspace') {
+    // Mailbox identity is bound from Google's verified UserInfo lookup, so the
+    // bounded provider transport is the one call substituted here: the real request,
+    // its claim checks and its refusals all run in these tests. Every other URL keeps
+    // whatever implementation was already installed (a spec's own loopback calls).
+    jest
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input, init) => {
+        if (String(input) !== GOOGLE_USERINFO_URL) return originalFetch(input, init);
+        return new Response(
+          JSON.stringify({
+            sub: returned.id,
+            email: returned.email,
+            email_verified: emailVerified,
+            name: null,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      });
+  }
   service.revokeGoogleGrant = jest.fn();
   const start = async (input: any = { connectionId: 'connection-A' }) => {
     const result = await service.start(ctx, input);
@@ -220,6 +254,9 @@ export function harness(provider: 'microsoft_365' | 'google_workspace' = 'micros
     },
     setReturned: (value: typeof returned) => {
       returned = value;
+    },
+    setEmailVerified: (value: boolean) => {
+      emailVerified = value;
     },
     afterExchange: (hook: () => void | Promise<void>) => {
       afterExchange = hook;

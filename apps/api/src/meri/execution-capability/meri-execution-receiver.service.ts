@@ -1,3 +1,4 @@
+import { receiveNativeMail } from './native-mail-execution.js';
 import { createHash } from 'node:crypto';
 import {
   BadRequestException,
@@ -54,6 +55,20 @@ export const MERI_EXECUTION_TOOL = 'create_task';
  * orchestrator path unchanged.
  */
 export function assertOrdinaryToolPathAllowed(name: string, profile: string | undefined = process.env.CORE_DEPLOYMENT_PROFILE): void {
+  // These native writes execute only through their current proposal decision.
+  // Internal approved-owner calls do not enter this ordinary HTTP route.
+  if (name === 'apply_legiwatch_suggestion' || name === 'save_legiwatch_relevance') {
+    throw new ForbiddenException('LegiWatch proposal decision required');
+  }
+  if (name === 'watch_action') {
+    throw new ForbiddenException('Watch proposal decision required');
+  }
+  if (name === 'save_business_development_brief') {
+    throw new ForbiddenException('Business-development brief proposal decision required');
+  }
+  if (name === 'prepare_legiwatch_briefing' || name === 'save_legislative_research') {
+    throw new ForbiddenException('Legislative document proposal decision required');
+  }
   if (profile === 'first-chat-preview' && name === MERI_EXECUTION_TOOL) {
     throw new ForbiddenException('Approved execution capability required');
   }
@@ -109,6 +124,10 @@ export class MeriExecutionReceiverService {
   nativeApproved(req: Request, ctx: TenantContext, body: unknown, mode: 'execute' | 'read') {
     if (!hasVerifiedToolServiceIdentity(req)) throw forbidden();
     const input = retainedReadSnapshot(body, 262144);
+    if ((input as { proposal?: { command?: { action?: unknown } } })?.proposal?.command?.action === 'mail.send') {
+      if (!this.approvals || !this.tenant) throw new ServiceUnavailableException('Native mail unavailable');
+      return receiveNativeMail({ prisma: this.prisma, engagement: this.engagement, approvals: this.approvals, tenant: this.tenant }, req, ctx, input, mode);
+    }
     if ((input as { proposal?: { command?: { action?: unknown } } })?.proposal?.command?.action !== 'artifact.file') {
       return this.nativeTask(req, ctx, input, mode);
     }

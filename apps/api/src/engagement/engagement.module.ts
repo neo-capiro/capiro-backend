@@ -1,3 +1,5 @@
+import { MailIncomingFilesController } from './mail-incoming-files.controller.js';
+import { MailIncomingFilesService } from './mail-incoming-files.service.js';
 import { ManagedMcpModule } from '../meri/managed-mcp.module.js';
 import { KrispNotetakerService } from './krisp/krisp-notetaker.service.js';
 import { KrispNotetakerController } from './krisp/krisp-notetaker.controller.js';
@@ -108,8 +110,9 @@ import {
     QualityTelemetryModule,
     EvaluationModule,
   ],
-  controllers: [EngagementController, EngagementPlansController, OutcomeController, KrispNotetakerController, NewsletterOutreachController, NewsletterPublicController],
+  controllers: [MailIncomingFilesController, EngagementController, EngagementPlansController, OutcomeController, KrispNotetakerController, NewsletterOutreachController, NewsletterPublicController],
   providers: [
+    MailIncomingFilesService,
     EngagementPlansService,
     KrispNotetakerService,
     {

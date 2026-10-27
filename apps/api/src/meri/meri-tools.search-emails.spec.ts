@@ -51,12 +51,22 @@ describe('Meri canonical mailbox tools', () => {
       }],
     });
 
-    const result = await tools.getEmailThread(ctx, { threadId });
+    const context = {supported:true,operation:'reply_all',originalMessageId:messageId,
+      originalUpdatedAt:'2026-09-28T00:01:00.000Z',senderConnectionId:'44444444-4444-4444-8444-444444444444',
+      subject:'Canonical source',to:[{email:'sender@example.com'}],cc:[{email:'copy@example.com'}]};
+    const source=await tools.engagement.getMailThread();source.messages[0].replyAllContext=context;
+    source.messages[0].replyContext={supported:false,reason:'Unavailable'};
+    source.messages[0].raw={providerSecret:'must-not-leak'};
+    const result = await tools.getEmailThread(ctx, { threadId, messageId });
+    expect(result.messages[0].nativeActions).toEqual([{mode:'reply_all',senderConnectionId:context.senderConnectionId,
+      senderEmail:'owner@example.com',subject:context.subject,to:['sender@example.com'],cc:['copy@example.com'],
+      original:{threadId,messageId,updatedAt:context.originalUpdatedAt,bodySha256:null}}]);
+    expect(result.messages[0].raw).toBeUndefined();
 
     expect(currentOwnerResultAuthorizesReplay('get_email_thread', result, structuredClone(result)))
       .toBe(true);
     expect(result.messages[0].sourceProof.bodySha256).toMatch(/^[a-f0-9]{64}$/);
-    expect(tools.engagement.getMailThread).toHaveBeenCalledWith(ctx, threadId, undefined, undefined, { messageId: undefined, messageOffset: 0, limit: 3 });
+    expect(tools.engagement.getMailThread).toHaveBeenCalledWith(ctx, threadId, undefined, undefined, { messageId, messageOffset: 0, limit: 3 });
   });
 
   it('reads stored details beyond the inventory preview through the canonical authorized thread reader', async () => {

@@ -799,7 +799,9 @@ export class EvidenceSourceService {
         where: { id: attachmentId, tenantId: ctx.tenantId, prospectId: null },
       }),
     );
-    if (!row) {
+    // This resolver has no current mailbox/viewer authority. Private imported
+    // mail files must not enter generation by tenant + attachment ID alone.
+    if (!row || row.source === 'incoming_mail') {
       return {
         failures: [
           sourceFailure(

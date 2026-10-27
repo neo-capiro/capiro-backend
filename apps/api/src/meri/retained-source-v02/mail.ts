@@ -446,10 +446,37 @@ function threadPage(binding: JsonObject, subject: JsonObject, selection: JsonObj
       instant(sourceProof.messageUpdatedAt, 'thread.record_version');
     const section = {start, endExclusive, totalCodeUnits: totalUnits,
       unit: 'utf16-code-unit', text: bodyText, hasMore: more};
+    // Optional proposal context is admitted only for an exact selected original.
+    // The canonical sender reauthorizes it and its current bytes before claim.
+    let nativeActions: unknown[] | undefined;
+    if (messageId !== null && Array.isArray(row.nativeActions) && row.nativeActions.length) {
+      const modes = new Set<string>();
+      nativeActions = row.nativeActions.map(value => {
+        const action = object(value, 'thread.native_action');
+        const original = object(action.original, 'thread.native_original');
+        const mode = string(action.mode, 'thread.native_mode');
+        if (modes.has(mode) || action.senderConnectionId !== mailboxId ||
+            original.threadId !== threadId || original.messageId !== id ||
+            original.updatedAt !== recordVersionId || recordVersionId === null ||
+            mode === 'forward' && (original.bodySha256 !== contentSha256 ||
+              typeof action.originalBodyText !== 'string' || textHash(action.originalBodyText) !== contentSha256) ||
+            mode !== 'forward' && original.bodySha256 !== null)
+          refuse('thread.native_lineage');
+        const recipients = [...array(action.to, 'thread.native_to'), ...array(action.cc, 'thread.native_cc')];
+        if (new Set(recipients).size !== recipients.length ||
+            mode === 'reply' && (array(action.to, 'thread.native_to').length !== 1 || array(action.cc, 'thread.native_cc').length !== 0) ||
+            mode === 'reply_all' && array(action.to, 'thread.native_to').length === 0 ||
+            mode === 'forward' && (recipients.length !== 0 || (action.originalBodyText as string).length > 6000) ||
+            mode !== 'forward' && Object.hasOwn(action, 'originalBodyText')) refuse('thread.native_recipients');
+        modes.add(mode); return action;
+      });
+    }
+
     messages.push({sourceId: 'mail', mailboxId, threadId, messageId: id,
       recordVersionId, citationId: null, contentSha256, scopes: rowScope,
       removed: false, connectionStatus: row.connectionStatus,
-      bodyCompleteness: row.bodyCompleteness, readHandle, section});
+      bodyCompleteness: row.bodyCompleteness, readHandle, section,
+      ...(nativeActions ? {nativeActions} : {})});
     if (more) nextBodyOffsets.push({messageId: id, bodyOffset: endExclusive});
   }
   return {

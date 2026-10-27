@@ -4610,6 +4610,14 @@ export const MERI_CAPABILITY_REGISTRY = [
     surfaces: ['full_chat'],
   },
   {
+    name: 'watch_action',
+    description:
+      'Subscribe, pause, resume, unsubscribe or change delivery for a canonical watch owned by a business family (legiwatch keyword, business development prospect, defense budget target, or client watchlist). Governed proposal required. Current authority, existing watch identity and owner-specific versioning are rechecked; human context and manual removals prevail.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
     name: 'search_crs_reports',
     description:
       'Search Congressional Research Service (CRS) reports and analyses. Filter by keyword, topic, or author.',
@@ -5176,7 +5184,7 @@ export type MeriCapabilityName = MeriCapability['name'];
 // execute through the older context-only local dispatcher.
 export type MeriLocalCapability = Exclude<
   Extract<MeriCapability, { backend: 'meri' }>,
-  { name: 'read_saved_record' | 'read_saved_strategy_records' }
+  { name: 'read_saved_record' | 'read_saved_strategy_records' | 'get_legiwatch_review' | 'preview_legiwatch_relevance' | 'get_florida_budget_project' | 'compare_florida_budget_amounts' | 'compare_legislative_versions' }
 >;
 
 /** Compatibility projections; never maintain an independent name/description list. */
@@ -5186,7 +5194,7 @@ export const MERI_TOOL_MANIFEST: Readonly<Record<string, string>> = Object.fromE
 
 export const MERI_CORE_TOOL_DEFINITIONS = MERI_CAPABILITY_REGISTRY.filter(
   (tool): tool is MeriLocalCapability => tool.backend === 'meri' &&
-    tool.name !== 'read_saved_record' && tool.name !== 'read_saved_strategy_records',
+    tool.name !== 'read_saved_record' && tool.name !== 'read_saved_strategy_records' && tool.name !== 'get_legiwatch_review' && tool.name !== 'preview_legiwatch_relevance' && tool.name !== 'get_florida_budget_project' && tool.name !== 'compare_florida_budget_amounts' && tool.name !== 'compare_legislative_versions',
 ).map(({ name, description }) => ({ name, description }));
 
 export const MERI_FEDERAL_MARKET_TOOL_DEFINITIONS = MERI_CAPABILITY_REGISTRY.filter(

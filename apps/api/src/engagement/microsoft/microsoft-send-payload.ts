@@ -1,19 +1,20 @@
+import { forwardSubject, storedForwardBody } from '../mail-forward-source.js';
+import { replyRecipientsMatch } from '../mail-reply-recipients.js';
 import type { MicrosoftGraphSendMailInput } from './microsoft-graph-sync.service.js';
 import { BadRequestException } from '@nestjs/common';
 import { buildMailMime } from '../mail-mime.js';
 import { REPLY_UNAVAILABLE, storedGraphReplyIdentity } from '../single-mail-reply.js';
 import { definiteMailSendRejection } from '../mail-send-result.js';
 
-/** Graph createReply accepts standard base64 MIME as text/plain, not a JSON string. */
+/** Graph native reply/forward draft actions accept base64 MIME as text/plain. */
 export function buildMicrosoftReplyPayload(input: MicrosoftGraphSendMailInput): string {
-  const reply = storedGraphReplyIdentity(input.reply);
+  const reply = storedGraphReplyIdentity(input.reply ?? input.forward?.source);
+  const forward = input.forward ? storedForwardBody(input.forward.body) : null;
   if (
     !reply ||
-    input.subject !== reply.subject ||
-    input.toRecipients.length !== 1 ||
-    input.toRecipients[0]?.email.toLowerCase() !== reply.toEmail ||
-    input.ccRecipients?.length ||
-    input.bccRecipients?.length ||
+    (input.forward ? !forward || Boolean(input.reply || input.replyAll) || input.subject !== forwardSubject(reply.subject) ||
+      !input.toRecipients.length || input.toRecipients.length > 50 || (input.ccRecipients?.length ?? 0) > 10 || Boolean(input.bccRecipients?.length)
+      : input.subject !== reply.subject || !replyRecipientsMatch(reply.toEmail, input.replyAll, input.toRecipients, input.ccRecipients, input.bccRecipients)) ||
     (input.attachments?.length ?? 0) > 5 ||
     !sanitizeGraphHeaderValue(input.correlationId)
   )
@@ -43,7 +44,7 @@ export function assertMicrosoftReplyDraft(
   const lower = (value: unknown) => (typeof value === 'string' ? value.toLowerCase() : null);
   const row = object(draft),
     files = object(attachments),
-    reply = storedGraphReplyIdentity(input.reply);
+    reply = storedGraphReplyIdentity(input.reply ?? input.forward?.source);
   const emails = (value: unknown) =>
     Array.isArray(value) ? value.map((v) => object(object(v).emailAddress).address) : null;
   const headers = Array.isArray(row.internetMessageHeaders)
@@ -57,6 +58,7 @@ export function assertMicrosoftReplyDraft(
   };
   if (
     !reply ||
+    (!input.forward && !replyRecipientsMatch(reply.toEmail, input.replyAll, input.toRecipients, input.ccRecipients, input.bccRecipients)) ||
     row.id !== identity.id ||
     row.conversationId !== identity.conversationId ||
     row.isDraft !== true ||
@@ -65,15 +67,16 @@ export function assertMicrosoftReplyDraft(
     lower(object(row.body).contentType) !== (input.bodyContentType ?? 'Text').toLowerCase() ||
     JSON.stringify(
       emails(row.toRecipients)?.map((v: unknown) => (typeof v === 'string' ? v.toLowerCase() : v)),
-    ) !== JSON.stringify([reply.toEmail]) ||
-    JSON.stringify(emails(row.ccRecipients)) !== '[]' ||
+    ) !== JSON.stringify(input.toRecipients.map(recipient => recipient.email.trim().toLowerCase())) ||
+    JSON.stringify(emails(row.ccRecipients)?.map((value: unknown) => lower(value))) !==
+      JSON.stringify((input.ccRecipients ?? []).map(recipient => recipient.email.trim().toLowerCase())) ||
     JSON.stringify(emails(row.bccRecipients)) !== '[]' ||
     JSON.stringify(emails(row.replyTo)) !== '[]' ||
     lower(object(object(row.from).emailAddress).address) !== senderEmail.toLowerCase() ||
     lower(object(object(row.sender).emailAddress).address) !== senderEmail.toLowerCase() ||
     !header('x-capiro-delivery-id', input.correlationId!) ||
-    !header('in-reply-to', reply.inReplyTo) ||
-    !header('references', reply.references) ||
+    (input.forward ? headers.some(h => ['in-reply-to', 'references'].includes(String(h.name).toLowerCase()))
+      : !header('in-reply-to', reply.inReplyTo) || !header('references', reply.references)) ||
     files['@odata.nextLink'] ||
     !Array.isArray(files.value) ||
     files.value.length !== (input.attachments?.length ?? 0) ||
