@@ -361,7 +361,7 @@
       "method": "POST",
       "pathRegexes": [
         "^/intel-api/internal/hearing-record-retrieval$",
-        "^/intel-api/internal/legiwatch/meri/apply$",
+        "^/intel-api/internal/legiwatch/meri/(apply|watch)$",
         "^/intel-api/internal/legiwatch/meri/read$"
       ]
     },
