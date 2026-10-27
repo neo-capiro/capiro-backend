@@ -55,6 +55,11 @@ export const MERI_EXECUTION_TOOL = 'create_task';
  * orchestrator path unchanged.
  */
 export function assertOrdinaryToolPathAllowed(name: string, profile: string | undefined = process.env.CORE_DEPLOYMENT_PROFILE): void {
+  // These native writes execute only through their current proposal decision.
+  // Internal approved-owner calls do not enter this ordinary HTTP route.
+  if (name === 'apply_legiwatch_suggestion' || name === 'save_legiwatch_relevance') {
+    throw new ForbiddenException('LegiWatch proposal decision required');
+  }
   if (profile === 'first-chat-preview' && name === MERI_EXECUTION_TOOL) {
     throw new ForbiddenException('Approved execution capability required');
   }
