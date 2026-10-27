@@ -2790,3 +2790,19 @@ describe('Legislative document composed actual proposal owner', () => {
     expect(h.tools.execute).toHaveBeenCalledTimes(1);
   });
 });
+
+
+it('typed direct note access occupies its appended slot and the actual ledger retains one canonical receipt', async () => {
+  const body = 'Private normalized note';
+  const h = harness({ row: null, executeResult: { tool: 'save_note', status: 'saved', note: { id: PROPOSAL, body }, clientId: null } });
+  h.setPolicy({ outcome: 'PASS', reasons: ['Internal note'] });
+  const access = { scope: { conversationId: RP_CONVERSATION, selectedClientId: null, identityRevision: 'a'.repeat(64), membershipRevision: 'b'.repeat(64), contextRevision: 'c'.repeat(64) }, mode: 'execute' as const, clientIds: [], assertCurrent: jest.fn(async () => {}) };
+  const request = { tool: 'save_note', input: { body, conversationId: RP_CONVERSATION }, conversationId: RP_CONVERSATION, surface: 'chat' as const, requireApproval: false };
+  const result = await h.service.create(ctx, request, undefined, undefined, undefined, undefined, undefined, undefined, access);
+  expect(result.disposition).toBe('executed');expect(h.tools.execute).toHaveBeenCalledTimes(1);
+  const receipt = await h.service.readNote(ctx, result.proposal.proposalId, { ...access, mode: 'observe' });
+  expect(receipt.status).toBe('succeeded');expect(receipt.receipt).toMatchObject({ destination: 'general', noteId: PROPOSAL });
+  expect(JSON.stringify(receipt)).not.toContain(body);
+  const repeat = await h.service.readNote(ctx, result.proposal.proposalId, { ...access, mode: 'observe' });
+  expect(repeat).toEqual(receipt);expect(h.tools.execute).toHaveBeenCalledTimes(1);
+});

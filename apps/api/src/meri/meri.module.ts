@@ -78,6 +78,8 @@ import { MeriContextPacketController } from './meri-context-packet.controller.js
 import { BizdevActionController } from './bizdev-action.controller.js';
 import { BizdevActionService } from './bizdev-action.service.js';
 import { MeriActionProposalService } from './meri-action-proposal.service.js';
+import { NoteActionController } from './note-action.controller.js';
+import { NoteActionService } from './note-action.service.js';
 import { LegiwatchActionController } from './legiwatch-action.controller.js';
 import { LegiwatchActionService } from './legiwatch-action.service.js';
 import { LegislativeDocumentActionController } from './legislative-document-action.controller.js';
@@ -172,7 +174,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     DefenseBudgetClientWatchModule,
     DistrictNexusModule,
   ],
-  controllers: [LegislativeComparisonController, ClientRecordActionController,
+  controllers: [NoteActionController, LegislativeComparisonController, ClientRecordActionController,
     MeriRoutineReadController,
     ConversationManagementController,
     HearingMediaController,
@@ -210,6 +212,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     BizdevWatchAdapter,
     ClientWatchlistAdapter,
     KeywordWatchAdapter,
+    NoteActionService,
     ConnectedAppReadService,
     SavedRecordReadService,
     LegiwatchReviewService,

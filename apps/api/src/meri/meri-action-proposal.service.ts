@@ -1,4 +1,5 @@
 import { CLIENT_RECORD_SCOPE_KEY, assertClientRecordAccess, clientRecordFingerprint, clientRecordReceipt, clientRecordRequest, isClientRecordAction, publicClientRecordPreview, readClientRecordScope, type ClientRecordAccess } from './client-record-action.contract.js';
+import { NOTE_ACTION_SCOPE_KEY, assertNoteActionAccess, isNoteAction, noteActionFingerprint, noteActionReceipt, noteActionRequest, noteExecutionFailure, publicNoteActionPreview, readNoteScope, type NoteActionAccess } from './note-action.contract.js';
 import { timingSafeEqual } from 'node:crypto';
 import {
   LEGIWATCH_ACTION,
@@ -541,9 +542,9 @@ export class MeriActionProposalService {
   }
 
   private toPublic(row: MeriActionProposal): PublicMeriActionProposal {
-    const preview = publicWatchPreview(publicLegislativeDocumentPreview(publicClientRecordPreview(publicLegiwatchPreview(
+    const preview = publicNoteActionPreview(publicWatchPreview(publicLegislativeDocumentPreview(publicClientRecordPreview(publicLegiwatchPreview(
       publicBizdevPreview(publicResearchPortfolioProposalPreview(row.preview)),
-    )))) as unknown as MeriActionPreview;
+    ))))) as unknown as MeriActionPreview;
     return {
       proposalId: row.id,
       status: row.status as MeriActionProposalStatus,
@@ -686,6 +687,7 @@ export class MeriActionProposalService {
     bizdevAccess?: BizdevProposalAccess,
     legislativeDocumentAccess?: LegislativeDocumentProposalAccess,
     watchAccess?: WatchProposalAccess,
+    noteAccess?: NoteActionAccess,
   ): Promise<MeriActionAuthorityResult> {
     assertMeriToolRequestActive();
     this.assertEnabled();
@@ -732,6 +734,14 @@ export class MeriActionProposalService {
         : undefined;
     if (watchScope && (request.surface !== 'chat' || request.requireApproval !== true))
       throw new BadRequestException('Watch actions require explicit approval');
+    // Only the typed note path binds a scope; the model-driven save_note call keeps
+    // its existing authority at the tool layer (unchanged behavior).
+    const noteScope =
+      isNoteAction(tool) && noteAccess
+        ? await assertNoteActionAccess(noteAccess, request.conversationId, tool, input)
+        : undefined;
+    if (noteScope && (request.surface !== 'chat' || request.requireApproval === true))
+      throw new BadRequestException('Note actions execute directly and are never an approval');
     if (isResearchPortfolioProposalTool(tool)) {
       await authorizeResearchPortfolioProposalConversation(
         this.prisma,
@@ -769,7 +779,7 @@ export class MeriActionProposalService {
           tool,
         legiwatchFingerprint(
           tool,
-          clientRecordFingerprint(tool, watchFingerprint(tool, researchPortfolioProposalFingerprintInput(tool, input, proposalTurn), watchScope), clientRecordScope),
+          clientRecordFingerprint(tool, watchFingerprint(tool, noteActionFingerprint(tool, researchPortfolioProposalFingerprintInput(tool, input, proposalTurn), noteScope), watchScope), clientRecordScope),
           legiwatchScope,
         ),
         bizdevScope,
@@ -845,6 +855,10 @@ export class MeriActionProposalService {
     if (watchScope) {
       storedPreview[WATCH_SCOPE_KEY] = watchScope;
       await watchAccess!.assertCurrent();
+    }
+    if (noteScope) {
+      storedPreview[NOTE_ACTION_SCOPE_KEY] = noteScope;
+      await noteAccess!.assertCurrent();
     }
     const rpCheckpoint = isResearchPortfolioProposalTool(tool)
       ? await authorizeResearchPortfolioProposalConversation(
@@ -943,9 +957,13 @@ export class MeriActionProposalService {
         });
         return { disposition: 'failed', proposal: this.toPublic(failed), executionResult: result };
       }
+      // The typed note receipt is only recorded when the request bound a scope.
+      const noteReceipt = noteScope ? noteActionReceipt(tool, result, input) : undefined;
       const completed = await this.finalize(ctx, row.id, {
         status: 'succeeded',
-        resultSummary: resultSummary(result),
+        resultSummary: noteReceipt
+          ? ({ noteReceipt } as unknown as Prisma.InputJsonValue)
+          : resultSummary(result),
       });
       return {
         disposition: 'executed',
@@ -953,7 +971,8 @@ export class MeriActionProposalService {
         executionResult: result,
       };
     } catch (error) {
-      const failure = classifyExecutionFailure(tool, error);
+      const classified = classifyExecutionFailure(tool, error);
+      const failure = noteExecutionFailure(tool, classified) ?? classified;
       const failed = await this.finalize(ctx, row.id, {
         status: failure.status,
         errorCode: bounded(failure.code, 120),
@@ -1109,7 +1128,7 @@ export class MeriActionProposalService {
       }),
     );
     // Governed LegiWatch receipts require their current conversation authority.
-    return rows.filter((row) => !isLegiwatchAction(row.tool) && !isClientRecordAction(row.tool) && row.tool !== BIZDEV_BRIEF_ACTION && !isLegislativeDocumentTool(row.tool) && row.tool !== WATCH_ACTION).map((row) => this.toPublic(row));
+    return rows.filter((row) => !isLegiwatchAction(row.tool) && !isClientRecordAction(row.tool) && row.tool !== BIZDEV_BRIEF_ACTION && !isLegislativeDocumentTool(row.tool) && row.tool !== WATCH_ACTION && !isNoteAction(row.tool)).map((row) => this.toPublic(row));
   }
 
   /** The watch twin of readLegiwatch: same authority, same ledger, no second identity. */
@@ -1118,7 +1137,7 @@ export class MeriActionProposalService {
     await this.reconcileStaleExecuting(ctx);
     await this.expireStale(ctx);
     const row = await this.owned(ctx, proposalId);
-    if (row.tool !== WATCH_ACTION) throw new NotFoundException('Watch proposal not found');
+    if (row.tool !== WATCH_ACTION && !isNoteAction(row.tool)) throw new NotFoundException('Watch proposal not found');
     await assertWatchAccess(access, row.conversationId, row.input, row.preview);
     return {
       version: '0.1.0' as const,
@@ -1239,6 +1258,46 @@ export class MeriActionProposalService {
     };
   }
 
+  /**
+   * Read-only release of a native note result. Current authority is rechecked
+   * before the receipt is released, so a revoked session cannot harvest a saved
+   * note, and the recorded receipt is released exactly as persisted — no body
+   * text, no invented navigation and no "indexed" claim for a stored document.
+   */
+  async readNote(ctx: TenantContext, proposalId: string, access: NoteActionAccess) {
+    this.assertEnabled();
+    await this.reconcileStaleExecuting(ctx);
+    await this.expireStale(ctx);
+    const row = await this.owned(ctx, proposalId);
+    if (!isNoteAction(row.tool)) throw new NotFoundException('Note proposal not found');
+    await assertNoteActionAccess(
+      access,
+      row.conversationId,
+      row.tool,
+      row.input,
+      row.preview,
+      TERMINAL_STATUSES.has(row.status as MeriActionProposalStatus),
+      true,
+    );
+    return {
+      version: '0.1.0' as const,
+      proposalId: row.id,
+      status: row.status as MeriActionProposalStatus,
+      policyOutcome: row.policyDecision,
+      request: noteActionRequest(row.input),
+      context: readNoteScope(row.preview),
+      createdAt: row.createdAt.toISOString(),
+      expiresAt: row.expiresAt.toISOString(),
+      receipt:
+        row.status === 'succeeded'
+          ? ((row.resultSummary as Record<string, unknown>)?.noteReceipt ?? null)
+          : null,
+      ...(row.status === 'succeeded'
+        ? {}
+        : { errorCode: row.lastErrorCode ?? null, errorMessage: row.lastErrorMessage ?? null }),
+    };
+  }
+
   private async owned(ctx: TenantContext, proposalId: string): Promise<MeriActionProposal> {
     const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.meriActionProposal.findFirst({
@@ -1356,6 +1415,7 @@ export class MeriActionProposalService {
     bizdevAccess?: BizdevProposalAccess,
     legislativeDocumentAccess?: LegislativeDocumentProposalAccess,
     watchAccess?: WatchProposalAccess,
+    noteAccess?: NoteActionAccess,
   ): Promise<PublicMeriActionProposal> {
     this.assertEnabled();
     await this.reconcileStaleExecuting(ctx);
@@ -1383,6 +1443,9 @@ export class MeriActionProposalService {
       row.tool === WATCH_ACTION
         ? await assertWatchAccess(watchAccess, row.conversationId, row.input, row.preview)
         : undefined;
+    const noteScope = isNoteAction(row.tool)
+      ? await assertNoteActionAccess(noteAccess, row.conversationId, row.tool, row.input, row.preview)
+      : undefined;
     const status = row.status as MeriActionProposalStatus;
     if (TERMINAL_STATUSES.has(status) || status === 'executing') return this.toPublic(row);
     if (!CLAIMABLE_STATUSES.includes(status)) return this.toPublic(row);
@@ -1451,7 +1514,7 @@ export class MeriActionProposalService {
           row.tool,
         legiwatchFingerprint(
           row.tool,
-          clientRecordFingerprint(row.tool, watchFingerprint(row.tool, researchPortfolioProposalFingerprintInput(row.tool, canonical, proposalTurn), watchScope), clientRecordScope),
+          clientRecordFingerprint(row.tool, watchFingerprint(row.tool, noteActionFingerprint(row.tool, researchPortfolioProposalFingerprintInput(row.tool, canonical, proposalTurn), noteScope), watchScope), clientRecordScope),
           legiwatchScope,
         ),
         bizdevScope,
@@ -1508,6 +1571,7 @@ export class MeriActionProposalService {
     if (bizdevScope) await bizdevAccess!.assertCurrent();
     if (legislativeDocumentScope) await legislativeDocumentAccess!.assertCurrent();
     if (watchScope) await watchAccess!.assertCurrent();
+    if (noteScope) await noteAccess!.assertCurrent();
     const claimed = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       if (
         rpCheckpoint &&
@@ -1609,7 +1673,7 @@ export class MeriActionProposalService {
                 code: 'watch_outcome_unknown',
                 message: 'No confirmed watch receipt; do not repeat the effect.',
               }
-            : classifyExecutionFailure(row.tool, error);
+            : (noteExecutionFailure(row.tool, classifyExecutionFailure(row.tool, error)) ?? classifyExecutionFailure(row.tool, error));
 
 
       return this.toPublic(
@@ -1630,6 +1694,7 @@ export class MeriActionProposalService {
     bizdevAccess?: BizdevProposalAccess,
     legislativeDocumentAccess?: LegislativeDocumentProposalAccess,
     watchAccess?: WatchProposalAccess,
+    noteAccess?: NoteActionAccess,
   ): Promise<PublicMeriActionProposal> {
     this.assertEnabled();
     const row = await this.owned(ctx, proposalId);
@@ -1649,6 +1714,8 @@ export class MeriActionProposalService {
       );
     if (row.tool === WATCH_ACTION)
       await assertWatchAccess(watchAccess, row.conversationId, row.input, row.preview);
+    if (isNoteAction(row.tool))
+      await assertNoteActionAccess(noteAccess, row.conversationId, row.tool, row.input, row.preview);
     const status = row.status as MeriActionProposalStatus;
     if (!CLAIMABLE_STATUSES.includes(status)) return this.toPublic(row);
     const updated = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
