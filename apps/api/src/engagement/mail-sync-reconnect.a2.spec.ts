@@ -378,6 +378,9 @@ test.each([false, true])(
   'Microsoft calendar-window mailbox absence stays retryable (reconnected: %s)',
   async (reconnected) => {
     const h = syncHarness('microsoft_365');
+    // The shared harness stubs syncCalendar. Restore this owner so the injected
+    // graphGet failure actually reaches calendar-window error/claim handling.
+    h.service.syncCalendar = MicrosoftGraphSyncService.prototype['syncCalendar'].bind(h.service);
     h.row().token.expiresAt = new Date(Date.now() + 3_600_000);
     const oldState = structuredClone(h.row().syncState);
     h.service.graphGet = jest.fn().mockResolvedValue({ value: [] });
