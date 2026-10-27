@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
 import { LEGIWATCH_ACTION, type LegiwatchProposalAccess } from './legiwatch-action.contract.js';
 import { randomUUID } from 'node:crypto';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { BIZDEV_BRIEF_ACTION, BIZDEV_SCOPE_KEY, bizdevBriefReceipt, type BizdevProposalAccess } from './bizdev-action.contract.js';
+import { BRIEF_SECTION_KEYS } from '../business-development/bizdev-brief.types.js';
 import { PrismaClient, type MeriActionProposal } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { CAPIRO_COMPLIANCE_POLICY_VERSION, computeActionFingerprintV2 } from '@capiro/meriv2-core';
@@ -2660,5 +2662,88 @@ describe('MeriActionProposalService — native client record actions', () => {
     expect((await h.service.readClientRecord(ctx, PROPOSAL, fresh)).receipt).toMatchObject({ outcome: 'created', client: { id: RP_CLIENT } });
     await expect(h.service.readClientRecord(ctx, PROPOSAL, { ...fresh, clientIds: [] })).rejects.toThrow();
     expect(h.tools.execute).toHaveBeenCalledTimes(1);
+  });
+});
+
+
+describe('Bizdev saved brief actual proposal owner', () => {
+  const input = {
+    conversationId: RP_CONVERSATION,
+    expectedVersionNumber: 3,
+    requestKey: 'saved-brief-current-request',
+    sections: Object.fromEntries(BRIEF_SECTION_KEYS.map((key) => [key, { text: key, citationIndexes: [] }])),
+  };
+  const request = () => ({ tool: BIZDEV_BRIEF_ACTION, input, conversationId: RP_CONVERSATION, surface: 'chat' as const, requireApproval: true });
+  function access(): BizdevProposalAccess {
+    return { scope: { conversationId: RP_CONVERSATION, prospectId: RP_PORTFOLIO, prospectName: 'Synthetic prospect', canonicalOrganizationId: null, linkedClientId: null, scopeVersion: 'a'.repeat(64) }, assertCurrent: jest.fn().mockResolvedValue(undefined) };
+  }
+  const result = () => ({
+    tool: BIZDEV_BRIEF_ACTION, status: 'saved', generatedAt: '2026-10-27T00:00:00.000Z',
+    brief: { id: PROPOSAL, title: 'Saved brief', status: 'draft', currentVersionNumber: 4, updatedAt: '2026-10-27T00:00:00.000Z' },
+    version: { id: OTHER_RP_CONVERSATION, versionNumber: 4, createdAt: '2026-10-27T00:00:00.000Z', citationCount: 0 },
+    reused: false, prospectName: 'Synthetic prospect',
+  });
+  it('prepares zero effects, releases the exact receipt only through current scope and never replays', async () => {
+    const h = harness({ row: null, executeResult: result() }), a = access();
+    const p = await h.service.create(ctx, request(), undefined, undefined, undefined, a);
+    expect(p.disposition).toBe('pending_approval');
+    expect(h.tools.execute).not.toHaveBeenCalled();
+    expect(JSON.stringify(p)).not.toContain(BIZDEV_SCOPE_KEY);
+    expect(await h.service.list(ctx, RP_CONVERSATION)).toEqual([]);
+    expect((await h.service.readBizdev(ctx, PROPOSAL, a)).receipt).toBeNull();
+    expect((await h.service.approveAndExecute(ctx, PROPOSAL, undefined, undefined, a)).status).toBe('succeeded');
+    expect((await h.service.readBizdev(ctx, PROPOSAL, a)).receipt).toEqual(bizdevBriefReceipt(result(), input));
+    await h.service.approveAndExecute(ctx, PROPOSAL, undefined, undefined, a);
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
+    expect(h.tools.execute).toHaveBeenCalledWith(ctx, BIZDEV_BRIEF_ACTION, input, { actionProposalId: PROPOSAL });
+    (a.assertCurrent as jest.Mock).mockRejectedValue(new Error('revoked'));
+    await expect(h.service.readBizdev(ctx, PROPOSAL, a)).rejects.toThrow('revoked');
+  });
+  it.each([
+    new ConflictException({ code: 'BIZDEV_BRIEF_VERSION_CONFLICT', message: 'This brief was updated by someone else since you loaded it.' }),
+    new BadRequestException({ code: 'BIZDEV_BRIEF_CITATION_REJECTED', message: 'Some citations could not be matched to the authorized dossier evidence for this brief.' }),
+    new BadRequestException({ code: 'BIZDEV_BRIEF_SECTIONS_INVALID', message: 'The submitted brief sections do not match the brief contract.' }),
+    new ConflictException({ code: 'BIZDEV_BRIEF_IDEMPOTENCY_MISMATCH', message: 'This idempotency key was already used for a different brief save.' }),
+  ])('persists the real canonical pre-effect refusal: %s', async (error) => {
+    const h = harness({ row: null, executeError: error }), a = access();
+    await h.service.create(ctx, request(), undefined, undefined, undefined, a);
+    const observed = await h.service.approveAndExecute(ctx, PROPOSAL, undefined, undefined, a);
+    expect(observed.status).toBe('failed_terminal');
+    expect(h.getRow()?.lastErrorCode).toBe((error.getResponse() as { code: string }).code);
+    expect(h.getRow()?.lastErrorMessage).toBe(error.message);
+    expect((await h.service.readBizdev(ctx, PROPOSAL, a)).receipt).toBeNull();
+    await h.service.approveAndExecute(ctx, PROPOSAL, undefined, undefined, a);
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
+  });
+  it.each([
+    new BadRequestException('Response mapping failed'),
+    new ServiceUnavailableException({ code: 'BIZDEV_BRIEF_VERSION_CONFLICT', message: 'Transport response unavailable' }),
+    new Error('response lost after commit'),
+  ])('retains ambiguous UNKNOWN without replay: %s', async (error) => {
+    const h = harness({ row: null, executeError: error }), a = access();
+    await h.service.create(ctx, request(), undefined, undefined, undefined, a);
+    expect((await h.service.approveAndExecute(ctx, PROPOSAL, undefined, undefined, a)).status).toBe('outcome_unknown');
+    expect(h.getRow()?.lastErrorCode).toBe('bizdev_brief_outcome_unknown');
+    expect((await h.service.readBizdev(ctx, PROPOSAL, a)).receipt).toBeNull();
+    await h.service.approveAndExecute(ctx, PROPOSAL, undefined, undefined, a);
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
+  });
+  it('refuses missing or changed authority and honors dismissal without executing', async () => {
+    const h = harness({ row: null }), a = access();
+    await expect(h.service.create(ctx, request())).rejects.toThrow('access required');
+    await h.service.create(ctx, request(), undefined, undefined, undefined, a);
+    const stale = { ...a, scope: { ...a.scope, scopeVersion: 'b'.repeat(64) } };
+    await expect(h.service.approveAndExecute(ctx, PROPOSAL, undefined, undefined, stale)).rejects.toThrow('authority changed');
+    await expect(h.service.readBizdev(ctx, PROPOSAL, stale)).rejects.toThrow('authority changed');
+    await h.service.dismiss(ctx, PROPOSAL, undefined, undefined, a);
+    await h.service.approveAndExecute(ctx, PROPOSAL, undefined, undefined, a);
+    expect((await h.service.readBizdev(ctx, PROPOSAL, a)).status).toBe('dismissed');
+    expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+  it('losing the canonical claim does not execute a second effect', async () => {
+    const h = harness({ row: null, forceClaimLoss: true }), a = access();
+    await h.service.create(ctx, request(), undefined, undefined, undefined, a);
+    expect((await h.service.approveAndExecute(ctx, PROPOSAL, undefined, undefined, a)).status).toBe('executing');
+    expect(h.tools.execute).not.toHaveBeenCalled();
   });
 });

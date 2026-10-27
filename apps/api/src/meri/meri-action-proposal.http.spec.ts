@@ -204,7 +204,7 @@ describe('MeriV2 Phase 0 HTTP adversarial boundary', () => {
     );
   });
 
-  it('direct LegiWatch writes require their proposal even with service identity in standard or unset profiles', async () => {
+  it('direct governed writes require their proposal even with service identity in standard or unset profiles', async () => {
     const profile = process.env.CORE_DEPLOYMENT_PROFILE;
     const allowlist = process.env.MERI_TOOL_ALLOWLIST;
     try {
@@ -212,7 +212,7 @@ describe('MeriV2 Phase 0 HTTP adversarial boundary', () => {
       for (const current of ['standard', undefined]) {
         if (current === undefined) delete process.env.CORE_DEPLOYMENT_PROFILE;
         else process.env.CORE_DEPLOYMENT_PROFILE = current;
-        for (const name of ['apply_legiwatch_suggestion', 'save_legiwatch_relevance']) {
+        for (const name of ['apply_legiwatch_suggestion', 'save_legiwatch_relevance', 'save_business_development_brief']) {
           await request(app.getHttpServer())
             .post(`/api/clio/tools/${name}`)
             .set('x-internal-service-secret', SECRET)

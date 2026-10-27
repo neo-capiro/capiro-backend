@@ -26,6 +26,7 @@ import {
 } from './bizdev-action.contract.js';
 import {
   BadRequestException,
+  HttpException,
   Injectable,
   NotFoundException,
   ServiceUnavailableException,
@@ -476,11 +477,16 @@ function classifyExecutionFailure(
     : { status: 'failed_terminal', code: rawCode ?? 'execution_failed', message };
 }
 
-/** The saved-version owner's pre-effect refusal rule lives in the action
- * contract (and is unit-tested there); this path only supplies the owner's own
- * classification of the failure. */
+/** The saved-version owner throws Nest exceptions with its typed refusal code
+ * in the response body. Preserve that code only for this action; the contract
+ * still admits only its finite pre-effect refusals and keeps ambiguity UNKNOWN. */
 function bizdevBriefExecutionFailure(error: unknown) {
-  return classifyBizdevBriefFailure(classifyExecutionFailure(BIZDEV_BRIEF_ACTION, error));
+  const classified = classifyExecutionFailure(BIZDEV_BRIEF_ACTION, error);
+  const response = error instanceof HttpException ? error.getResponse() : null;
+  const code = response && typeof response === 'object' && 'code' in response && typeof response.code === 'string'
+    ? response.code
+    : classified.code;
+  return classifyBizdevBriefFailure({ ...classified, code });
 }
 
 function confirmedScheduleCreation(tool: string, result: unknown): boolean {
