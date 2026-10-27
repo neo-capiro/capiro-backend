@@ -1,3 +1,4 @@
+import { incomingProviderGet, readIncomingProviderFiles, type IncomingProviderSource, type IncomingImportSelection } from '../mail-incoming-files.js';
 import { gmailForwardBody, storedForwardBody, forwardSubject, readForwardSourceJson } from '../mail-forward-source.js';
 import { capturedGmailReplyRecipients, replyRecipientsMatch } from '../mail-reply-recipients.js';
 // ============================================================================
@@ -37,6 +38,17 @@ export class GmailSendService {
   private readonly logger = new Logger(GmailSendService.name);
 
   constructor(private readonly googleToken: GoogleTokenService) {}
+
+  /** Read-only file discovery/import transport; existing token owner and runtime guard remain canonical. */
+  async readIncomingFiles(ctx: TenantContext, connectionId: string, source: IncomingProviderSource,
+    selection: IncomingImportSelection | undefined, allowedType: (mime: string) => boolean) {
+    if (source.provider !== 'gmail') throw new BadRequestException('Mailbox provider mismatch');
+    const { connection, token } = await this.googleToken.loadConnection(ctx.tenantId, connectionId);
+    if (connection.createdByUserId !== ctx.userId || connection.status !== 'connected')
+      throw new ForbiddenException('The connected mailbox is no longer available.');
+    const accessToken = await this.googleToken.getValidAccessToken(ctx.tenantId, connectionId, token);
+    return readIncomingProviderFiles(source, (url, headers) => incomingProviderGet(url, accessToken, headers), selection, allowedType);
+  }
 
   /**
    * Send through the caller's own Gmail mailbox.

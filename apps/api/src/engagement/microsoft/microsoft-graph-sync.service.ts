@@ -1,3 +1,4 @@
+import { incomingProviderGet, readIncomingProviderFiles, type IncomingProviderSource, type IncomingImportSelection } from '../mail-incoming-files.js';
 import { graphForwardBody, type MailForwardInput } from '../mail-forward-source.js';
 import { capturedGraphReplyRecipients, type MailReplyRecipients, type PreparedReplyAll } from '../mail-reply-recipients.js';
 import { assertMicrosoftReplyDraft, buildMicrosoftReplyPayload, buildMicrosoftSendPayload } from './microsoft-send-payload.js';
@@ -2154,6 +2155,17 @@ export class MicrosoftGraphSyncService {
       if (isMessageGoneError(err)) return message;
       throw err;
     }
+  }
+
+  /** Read-only fixed file routes. No send, draft creation, subscriptions or sync state writes. */
+  async readIncomingFiles(ctx: TenantContext, connectionId: string, source: IncomingProviderSource,
+    selection: IncomingImportSelection | undefined, allowedType: (mime: string) => boolean) {
+    if (source.provider !== 'microsoft_graph') throw new BadRequestException('Mailbox provider mismatch');
+    await this.assertConnectionAccess(ctx, connectionId);
+    const { connection, token } = await this.loadConnection(ctx.tenantId, connectionId);
+    if (connection.status !== 'connected') throw new ForbiddenException('The connected mailbox is no longer available.');
+    const accessToken = await this.getValidAccessToken(ctx.tenantId, connectionId, token);
+    return readIncomingProviderFiles(source, (url, headers) => incomingProviderGet(url, accessToken, headers), selection, allowedType);
   }
 
   private async loadConnection(tenantId: string, connectionId: string) {

@@ -66,6 +66,7 @@ import {
   canEditEncryptedEntry,
   canReadEncryptedEntry,
   ownMailMessageWhere,
+  requireMailReadScope,
   ownMailThreadWhere,
   ownMeetingWhere,
   ownOutreachRecordWhere,
@@ -309,6 +310,11 @@ export interface SendSingleMailInput {
 export interface NativeSingleMailAuthorization {
   provenance: Record<string, unknown>;
   authorize: (tx: Prisma.TransactionClient, payload: { attachments: Array<{ name: string; contentType: string; bytes: number; sha256: string }> }) => Promise<void>;
+}
+
+/** Internal incoming-file owner rechecks its selected original, with locks only at persistence. */
+export interface IncomingMailAttachmentWrite {
+  beforeWrite: (tx?: Prisma.TransactionClient) => Promise<void>;
 }
 
 /** Internal native filing boundary; the caller owns commit and durable receipt state. */
@@ -8024,6 +8030,7 @@ export class EngagementService {
     const accessibleRows = [];
     for (const row of rows) {
       try {
+        if (row.source === 'incoming_mail') await this.validateAttachmentParents(ctx, row);
         await assertHearingRecordDocumentAccess(this.prisma, ctx, row);
         await assertProspectAttachmentAccess(this.prisma, ctx, row);
         accessibleRows.push(row);
@@ -8053,6 +8060,7 @@ export class EngagementService {
           ...(verdict.disclosure ? { scanDisclosure: verdict.disclosure } : {}),
         };
         await assertProspectAttachmentAccess(this.prisma, ctx, row);
+        if (row.source === 'incoming_mail') await this.validateAttachmentParents(ctx, row);
         return result;
       }),
     );
@@ -8102,6 +8110,7 @@ export class EngagementService {
     await this.validateAttachmentParents(ctx, {
       clientId: attachment.clientId ?? undefined,
       meetingId: attachment.meetingId ?? undefined,
+      ...(attachment.source === 'incoming_mail' ? { source: attachment.source, mailMessageId: attachment.mailMessageId } : {}),
     });
 
     // Phase 1 §3.h1 — readiness gate BEFORE the bytes are read at all.
@@ -8110,6 +8119,7 @@ export class EngagementService {
 
     options.signal?.throwIfAborted();
     const bytes = await this.readAttachmentBytes(attachment.s3Key, options.signal);
+    if (attachment.source === 'incoming_mail') await this.validateAttachmentParents(ctx, attachment);
     options.signal?.throwIfAborted();
     const contentHash = this.attachmentContent.sha256(bytes);
     const contentType = attachment.contentType || 'application/octet-stream';
@@ -8377,6 +8387,7 @@ export class EngagementService {
     input: {
       clientId?: string | null;
       meetingId?: string | null;
+      mailMessageId?: string;
       fileName: string;
       contentType: string;
       buffer: Buffer;
@@ -8393,6 +8404,7 @@ export class EngagementService {
       privateToUploader?: boolean;
     },
     internal?: NativeClientDocumentWrite,
+    incomingMail?: IncomingMailAttachmentWrite,
   ): Promise<{
     id: string;
     fileName: string;
@@ -8402,6 +8414,13 @@ export class EngagementService {
     indexedAt?: Date | null;
     reused?: boolean;
   }> {
+    if (input.mailMessageId || incomingMail) {
+      if (!input.mailMessageId || !incomingMail || internal || input.meetingId ||
+          !input.idempotencyKey || input.source !== 'incoming_mail' || !input.privateToUploader || !input.untrustedUpload)
+        throw new BadRequestException('Incoming mail files require their current selected-message owner.');
+      input = { ...input, buffer: Buffer.from(input.buffer) };
+      await incomingMail.beforeWrite();
+    }
     if (internal) {
       if (!input.idempotencyKey || !/^[a-f0-9]{64}$/.test(internal.immutableObjectIdentity) ||
           !input.clientId || input.meetingId || input.privateToUploader || input.untrustedUpload !== true) {
@@ -8422,11 +8441,15 @@ export class EngagementService {
     else await this.validateAttachmentParents(ctx, {
         clientId: input.clientId ?? undefined,
         meetingId: input.meetingId ?? undefined,
+        mailMessageId: input.mailMessageId,
       });
     const inWriteTransaction = <T>(write: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> =>
-      internal ? write(internal.tx) : this.prisma.withTenant(ctx.tenantId, write);
+      internal ? write(internal.tx) : this.prisma.withTenant(ctx.tenantId, async tx => {
+        if (incomingMail) await incomingMail.beforeWrite(tx);
+        return write(tx);
+      });
     const byteHash = createHash('sha256').update(input.buffer).digest('hex');
-    if (internal && input.sourceContentHash != null && input.sourceContentHash !== byteHash) {
+    if ((internal || incomingMail) && input.sourceContentHash != null && input.sourceContentHash !== byteHash) {
       throw new BadRequestException('The original file digest does not match its approved source.');
     }
     const safeName = safeFileName(input.fileName);
@@ -8460,6 +8483,20 @@ export class EngagementService {
     const s3Key = stableId
       ? `tenants/${ctx.tenantId}/engagement/${stableId}/document`
       : `tenants/${ctx.tenantId}/engagement/${randomUUID()}/${safeName}`;
+    const assertIncomingReceipt = (row: {
+      tenantId: string; uploadedByUserId: string | null; clientId: string | null; mailMessageId: string | null;
+      source: string; sourceEntityId: string | null; sourceContentHash: string | null; calculatedSha256: string | null;
+      supersededByAttachmentId: string | null; viewerMode: string; viewerUserIds: string[]; byteSize: number | null;
+      fileName: string; contentType: string; bucket: string; s3Key: string; lifecycleStatus: string;
+    }) => {
+      if (incomingMail && (row.tenantId !== ctx.tenantId || row.uploadedByUserId !== ctx.userId ||
+          row.clientId !== (input.clientId ?? null) || row.mailMessageId !== input.mailMessageId || row.source !== 'incoming_mail' ||
+          row.sourceEntityId !== input.sourceEntityId || row.sourceContentHash !== byteHash || row.calculatedSha256 !== byteHash ||
+          row.supersededByAttachmentId || row.viewerMode !== 'restricted' || row.viewerUserIds.length !== 1 || row.viewerUserIds[0] !== ctx.userId ||
+          row.byteSize !== input.buffer.length || row.fileName !== input.fileName || row.contentType !== input.contentType ||
+          row.bucket !== this.bucket || row.s3Key !== s3Key || !['ready', 'legacy_ready', 'quarantined', 'blocked'].includes(row.lifecycleStatus)))
+        throw new ConflictException('The retained incoming file cannot be reused.');
+    };
     if (internal) {
       await internal.tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`capiro-client-document:${stableId}`}, 0))`);
       await internal.beforeWrite();
@@ -8479,6 +8516,7 @@ export class EngagementService {
         }),
       );
       if (existing) {
+        assertIncomingReceipt(existing);
         if (internal) {
           await internal.beforeWrite();
           if (existing.tenantId !== ctx.tenantId || existing.uploadedByUserId !== ctx.userId ||
@@ -8513,6 +8551,7 @@ export class EngagementService {
     }
     const checksum = Buffer.from(byteHash, 'hex').toString('base64');
     if (internal) await internal.beforeWrite();
+    if (incomingMail) await incomingMail.beforeWrite();
     try {
       await this.s3.send(
         new PutObjectCommand({
@@ -8520,27 +8559,30 @@ export class EngagementService {
           Key: s3Key,
           Body: input.buffer,
           ContentType: input.contentType,
-          ...(internal ? { IfNoneMatch: '*', ChecksumSHA256: checksum } : {}),
+          ...(internal || incomingMail ? { IfNoneMatch: '*', ChecksumSHA256: checksum } : {}),
         }),
       );
     } catch (error) {
       const precondition = error as { name?: string; $metadata?: { httpStatusCode?: number } };
-      if (!internal || (precondition?.$metadata?.httpStatusCode !== 412 && precondition?.name !== 'PreconditionFailed')) {
+      if ((!internal && !incomingMail) || (precondition?.$metadata?.httpStatusCode !== 412 && precondition?.name !== 'PreconditionFailed')) {
         throw error;
       }
-      await internal.beforeWrite();
+      if (internal) await internal.beforeWrite();
+      if (incomingMail) await incomingMail.beforeWrite();
       // A prior PUT may have succeeded before its database transaction failed.
       // Observe the exact object; missing/ambiguous HEAD never authorizes overwrite.
       const existingObject = await this.s3.send(new HeadObjectCommand({
         Bucket: this.bucket, Key: s3Key, ChecksumMode: 'ENABLED',
       }));
-      await internal.beforeWrite();
+      if (internal) await internal.beforeWrite();
+      if (incomingMail) await incomingMail.beforeWrite();
       if (existingObject.ContentLength !== input.buffer.byteLength ||
           existingObject.ChecksumSHA256 !== checksum || existingObject.ContentType !== input.contentType) {
         throw new ConflictException('The retained storage object does not match the original file.');
       }
     }
     if (internal) await internal.beforeWrite();
+    if (incomingMail) await incomingMail.beforeWrite();
     const initialScan = input.untrustedUpload
       ? await this.scanner.getStatus(this.bucket, s3Key)
       : null;
@@ -8562,6 +8604,7 @@ export class EngagementService {
           tenantId: ctx.tenantId,
           clientId,
           meetingId: input.meetingId ?? null,
+          ...(input.mailMessageId ? { mailMessageId: input.mailMessageId } : {}),
           fileName: input.fileName,
           contentType: input.contentType,
           byteSize: input.buffer.byteLength,
@@ -8607,7 +8650,7 @@ export class EngagementService {
           error instanceof Prisma.PrismaClientKnownRequestError &&
           error.code === 'P2002'
         ) {
-          const winner = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+          const winner = await inWriteTransaction((tx) =>
             tx.engagementAttachment.findFirst({
               where: {
                 id: stableId,
@@ -8621,6 +8664,7 @@ export class EngagementService {
         }
         throw error;
       });
+    assertIncomingReceipt(attachment);
     if (attachment.clientId && !input.privateToUploader && (!input.untrustedUpload || scanReady)) {
       const index = () => this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, attachment.id);
       if (internal) internal.afterCommit.push(index);
@@ -9497,6 +9541,7 @@ export class EngagementService {
   private async validateAttachmentParents(
     ctx: TenantContext,
     input: {
+      source?: string;
       prospectId?: string | null;
       clientId?: string | null;
       meetingId?: string | null;
@@ -9520,6 +9565,16 @@ export class EngagementService {
       }
       if (input.mailMessageId) {
         await this.ensureOwnMailMessage(tx, ctx, input.mailMessageId);
+      }
+      if (input.source === 'incoming_mail') {
+        if (!input.mailMessageId) throw new NotFoundException('Mail attachment not found');
+        await requireMailReadScope(tx, ctx, input.clientId ?? undefined);
+        const parent = await tx.mailMessage.findFirst({ where: { id: input.mailMessageId, tenantId: ctx.tenantId,
+          ...ownMailMessageWhere(ctx.userId), thread: ownMailThreadWhere(ctx.userId) },
+          select: { thread: { select: { clientId: true } } } });
+        if (!parent) throw new NotFoundException('Mail attachment not found');
+        if (parent.thread.clientId && parent.thread.clientId !== input.clientId)
+          await requireMailReadScope(tx, ctx, parent.thread.clientId);
       }
     });
   }
