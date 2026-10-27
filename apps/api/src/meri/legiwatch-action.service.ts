@@ -33,7 +33,7 @@ export class LegiwatchActionService {
     private readonly current: ApplicationCurrentService,
     private readonly proposals: MeriActionProposalService,
   ) {}
-  private async access(
+  async access(
     ctx: TenantContext,
     req: Request,
     context: z.infer<typeof legiwatchSelectionSchema> &

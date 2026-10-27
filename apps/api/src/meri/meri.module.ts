@@ -1,4 +1,6 @@
 import { LegislativeComparisonController } from './legislative-comparison.controller.js';
+import { LegiwatchRelevanceController } from './legiwatch-relevance.controller.js';
+import { LegiwatchRelevanceActionService } from './legiwatch-relevance-action.service.js';
 import { LegiwatchReviewController } from './legiwatch-review.controller.js';
 import { LegiwatchReviewService } from './legiwatch-review.service.js';
 import { prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
@@ -166,6 +168,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     ConnectedAppReadController,
     SavedRecordReadController,
     LegiwatchReviewController,
+    LegiwatchRelevanceController,
     SavedStrategyReadController,
     LegiwatchActionController,
     MeriController,
@@ -185,6 +188,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     ConnectedAppReadService,
     SavedRecordReadService,
     LegiwatchReviewService,
+    LegiwatchRelevanceActionService,
     SavedStrategyReadService,
     ToolServiceSecretGuard,
     AutomaticClientContextService,

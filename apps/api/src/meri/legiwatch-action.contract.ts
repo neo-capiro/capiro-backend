@@ -1,3 +1,4 @@
+import { RELEVANCE_SAVE, parseRelevanceSave, relevanceReceipt } from './legiwatch-relevance.contract.js';
 import { createHash } from 'node:crypto';
 import {
   BadRequestException,
@@ -60,9 +61,10 @@ export async function assertLegiwatchAccess(
   conversationId: string | null | undefined,
   input: unknown,
   preview?: unknown,
+  tool: string = LEGIWATCH_ACTION,
 ) {
   const scope = legiwatchScopeSchema.safeParse(access?.scope),
-    request = legiwatchRequest(input);
+    request = legiwatchActionRequest(tool, input);
   if (
     !scope.success ||
     !access ||
@@ -91,7 +93,7 @@ export function legiwatchFingerprint(
   input: Record<string, unknown>,
   scope?: LegiwatchScope,
 ) {
-  return tool === LEGIWATCH_ACTION ? { ...input, [LEGIWATCH_SCOPE_KEY]: scope } : input;
+  return isLegiwatchAction(tool) ? { ...input, [LEGIWATCH_SCOPE_KEY]: scope } : input;
 }
 export function publicLegiwatchPreview(preview: Record<string, unknown>): Record<string, unknown> {
   const { [LEGIWATCH_SCOPE_KEY]: _scope, ...publicPreview } = preview;
@@ -145,4 +147,18 @@ export function legiwatchReceipt(result: unknown, input: unknown) {
   )
     throw new ServiceUnavailableException('LegiWatch durable outcome unavailable');
   return { request, ...parsed.data };
+}
+
+/** Finite operations sharing the existing current-authority and approval owner. */
+export const isLegiwatchAction = (tool: string) => tool === LEGIWATCH_ACTION || tool === RELEVANCE_SAVE;
+export function legiwatchActionRequest(tool: string, input: unknown) {
+  if (tool === LEGIWATCH_ACTION) return legiwatchRequest(input);
+  if (tool === RELEVANCE_SAVE) {
+    const raw = input as Record<string, unknown> | null;
+    return parseRelevanceSave(raw && { ...raw, clientId: raw.clientId ?? null });
+  }
+  throw new BadRequestException('Unsupported LegiWatch action');
+}
+export function legiwatchActionReceipt(tool: string, result: unknown, input: unknown) {
+  return tool === RELEVANCE_SAVE ? relevanceReceipt(result, legiwatchActionRequest(tool, input)) : legiwatchReceipt(result, input);
 }

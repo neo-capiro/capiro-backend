@@ -76,7 +76,7 @@ export class LegiwatchReviewService {
       throw denied();
     if (req.headers['x-capiro-impersonate-tenant'] !== undefined || !ctx.clerkUserId)
       throw denied();
-    const input = parse(retainedReadSnapshot(raw, 8192));
+    const input = parse(retainedReadSnapshot(raw, operation === 'preview_legiwatch_relevance' ? 16384 : 8192));
     const context = parseRetainedReadContext(
       ctx,
       readRetainedReadHeader(req),

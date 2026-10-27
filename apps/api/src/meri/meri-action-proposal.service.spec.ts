@@ -2556,3 +2556,47 @@ describe('LegiWatch governed suggestion bridge', () => {
     expect(race.tools.execute).not.toHaveBeenCalled();
   });
 });
+
+describe('LegiWatch relevance governed owner', () => {
+  const input = { folderId: RP_PORTFOLIO, jurisdiction: 'US', sessionKey: '119', fields: ['title'], billId: 'hr1-119',
+    explanation: 'Source-backed relevance for review.', documentId: 'hr1-119:title', start: 0, end: 4, quote: 'bill',
+    previewHash: 'a'.repeat(64), requestKey: 'stable-relevance-operation' };
+  const request = () => ({ tool: 'save_legiwatch_relevance', input, conversationId: RP_CONVERSATION, surface: 'chat' as const, requireApproval: true });
+  const access = (): LegiwatchProposalAccess => ({ scope: { conversationId: RP_CONVERSATION, selectedClientId: null,
+    identityRevision: 'a'.repeat(64), membershipRevision: 'b'.repeat(64), contextRevision: 'c'.repeat(64) }, assertCurrent: jest.fn().mockResolvedValue(undefined) });
+  const result = () => ({ tool: 'save_legiwatch_relevance', result: { binding: createHash('sha256').update(JSON.stringify([input.previewHash, input.requestKey])).digest('hex'),
+    suggestionId: OTHER_RP_CONVERSATION, version: 1, origin: 'semantic', state: 'pending' } });
+  it('prepares zero effects, preserves exact pending receipt and never repeats a successful save', async () => {
+    const h = harness({ row: null, executeResult: result() }), a = access();
+    const p = await h.service.create(ctx, request(), undefined, a);
+    expect(p.disposition).toBe('pending_approval'); expect(h.tools.execute).not.toHaveBeenCalled();
+    expect(p.proposal.preview.fields).toEqual({ ...input, fields: 'title' });
+    expect(p.proposal.preview.label).toBe('Save pending LegiWatch relevance suggestion');
+    await h.service.approveAndExecute(ctx, p.proposal.proposalId, a);
+    const observed = await h.service.readLegiwatch(ctx, p.proposal.proposalId, a);
+    expect(observed.receipt).toEqual({ request: { ...input, clientId: null }, outcome: 'suggested', payload: result().result });
+    await h.service.approveAndExecute(ctx, p.proposal.proposalId, a); expect(h.tools.execute).toHaveBeenCalledTimes(1);
+    expect(await h.service.list(ctx, RP_CONVERSATION)).toEqual([]);
+  });
+  it.each(['lost', 'mismatched'])('keeps %s save UNKNOWN and does not replay', async (kind) => {
+    const h = harness({ row: null, ...(kind === 'lost' ? { executeError: new Error('response lost') } : { executeResult: { ...result(), result: { ...result().result, binding: 'b'.repeat(64) } } }) }), a = access();
+    const p = await h.service.create(ctx, request(), undefined, a);
+    expect((await h.service.approveAndExecute(ctx, p.proposal.proposalId, a)).status).toBe('outcome_unknown');
+    expect((await h.service.approveAndExecute(ctx, p.proposal.proposalId, a)).status).toBe('outcome_unknown');
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
+  });
+  it('refuses changed current scope and legacy approval without an owner callback', async () => {
+    const h = harness({ row: null }), a = access(), p = await h.service.create(ctx, request(), undefined, a);
+    await expect(h.service.approveAndExecute(ctx, p.proposal.proposalId)).rejects.toThrow('access required');
+    await expect(h.service.approveAndExecute(ctx, p.proposal.proposalId, { ...a, scope: { ...a.scope, membershipRevision: 'f'.repeat(64) } })).rejects.toThrow('authority changed');
+    expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+  it('refuses PASS instead of automatically saving and honors cancellation and lost claim', async () => {
+    const h = harness({ row: null }), a = access(); h.setPolicy({ outcome: 'PASS', reasons: ['allowed'] });
+    await expect(h.service.create(ctx, request(), undefined, a)).rejects.toThrow('approval_not_applicable'); expect(h.tools.execute).not.toHaveBeenCalled();
+    const dismiss = harness({ row: null }), p = await dismiss.service.create(ctx, request(), undefined, a);
+    expect((await dismiss.service.dismiss(ctx, p.proposal.proposalId, a)).status).toBe('dismissed'); expect(dismiss.tools.execute).not.toHaveBeenCalled();
+    const race = harness({ row: null, forceClaimLoss: true }), q = await race.service.create(ctx, request(), undefined, a);
+    expect((await race.service.approveAndExecute(ctx, q.proposal.proposalId, a)).status).toBe('executing'); expect(race.tools.execute).not.toHaveBeenCalled();
+  });
+});

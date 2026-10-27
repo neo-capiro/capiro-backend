@@ -943,12 +943,6 @@ export class MeriToolsService {
         },
         ['jurisdiction', 'sessionKey', 'title', 'analysis', 'documents', 'citations', 'requestKey'],
       ),
-      preview_legiwatch_relevance: obj(relevanceInput, [
-        'folderId',
-        'jurisdiction',
-        'sessionKey',
-        'billId',
-      ]),
       save_legiwatch_relevance: obj(
         {
           ...relevanceInput,
@@ -2750,7 +2744,6 @@ export class MeriToolsService {
       search_legislative_research: legiwatch,
       get_legal_reference: legiwatch,
       save_legislative_research: legiwatch,
-      preview_legiwatch_relevance: legiwatch,
       save_legiwatch_relevance: legiwatch,
       apply_legiwatch_suggestion: legiwatch,
       get_research_evidence: () => getResearchEvidence(ctx, input, this.prisma),
