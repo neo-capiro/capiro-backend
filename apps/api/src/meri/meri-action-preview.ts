@@ -32,6 +32,30 @@ const TOOL_LABELS: Record<string, string> = {
   draft_policy_memo: 'Draft policy memo',
   publish_research_portfolio_share_link: 'Publish client share link',
   revoke_research_portfolio_share_link: 'Revoke client share link',
+  manage_research_portfolio: 'Run a Research Portfolio management action',
+  create_research_portfolio_snapshot: 'Create a Research Portfolio snapshot',
+  request_research_portfolio_output: 'Request a Research Portfolio CSV output',
+  save_research_portfolio_output_to_client: 'Save a Research Portfolio output to Client Files',
+  watch_research_portfolio: 'Watch this Research Portfolio',
+  update_research_portfolio_change_state: 'Update a Research Portfolio change state',
+  create_research_portfolio_bookmark: 'Bookmark a Research Portfolio item',
+  add_research_portfolio_review_note: 'Add a Research Portfolio review note',
+  prepare_research_portfolio_brief: 'Prepare a Research Portfolio brief draft',
+  prepare_research_portfolio_meeting: 'Prepare a Research Portfolio meeting draft',
+};
+
+/** Bounded, display-only facts of the ten MO-05 Research Portfolio actions; keys and body text stay server-side. */
+const RESEARCH_PORTFOLIO_ACTION_FIELDS: Record<string, readonly string[]> = {
+  manage_research_portfolio: ['action'],
+  create_research_portfolio_snapshot: ['name', 'expectedRevision'],
+  request_research_portfolio_output: ['snapshotId'],
+  save_research_portfolio_output_to_client: ['outputId', 'clientId'],
+  watch_research_portfolio: [],
+  update_research_portfolio_change_state: ['eventId', 'action', 'expectedRevision'],
+  create_research_portfolio_bookmark: ['targetKind', 'targetId', 'label'],
+  add_research_portfolio_review_note: ['reviewId', 'expectedRevision'],
+  prepare_research_portfolio_brief: [],
+  prepare_research_portfolio_meeting: ['meetingId'],
 };
 
 const PROFILE_FIELD_KEYS = [
@@ -103,6 +127,16 @@ export function buildMeriActionPreview(args: {
   } else if (tool === 'revoke_research_portfolio_share_link') {
     addField(fields, 'linkId', input.linkId);
     fields.effect = 'This link will stop working on the next request.';
+  } else if (Object.hasOwn(RESEARCH_PORTFOLIO_ACTION_FIELDS, tool)) {
+    for (const key of RESEARCH_PORTFOLIO_ACTION_FIELDS[tool]) addField(fields, key, input[key]);
+    if (tool === 'prepare_research_portfolio_meeting' && Array.isArray(input.selectedReviewIds))
+      counts.selectedReviews = input.selectedReviewIds.length;
+    if (tool === 'manage_research_portfolio' && input.parameters && typeof input.parameters === 'object')
+      counts.parameters = Object.keys(input.parameters as Record<string, unknown>).length;
+    fields.effect =
+      tool === 'prepare_research_portfolio_brief' || tool === 'prepare_research_portfolio_meeting'
+        ? 'An owner-private, unreviewed editable draft is created. Nothing is sent.'
+        : 'Core applies this action once to the current Research Portfolio after you confirm.';
   }
 
   for (const key of [
