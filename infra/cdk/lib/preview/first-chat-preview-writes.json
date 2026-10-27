@@ -581,6 +581,13 @@
       "service": "strategy",
       "method": "POST",
       "pathRegexes": ["^/strategy-api/saved-reads$"]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/engagement/mail/threads/[0-9a-fA-F-]{36}/messages/[0-9a-fA-F-]{36}/files/import$"
+      ]
     }
   ]
 }
