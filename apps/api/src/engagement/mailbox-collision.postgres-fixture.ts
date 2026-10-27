@@ -58,9 +58,12 @@ function oauth(
     exchangeCode: async () => ({
       access_token: 'fixture-access', refresh_token: 'fixture-refresh', expires_in: 3600,
       scope: GOOGLE_SCOPES.join(' '),
-      id_token: `fixture.${Buffer.from(JSON.stringify({
-        sub: 'same-provider-account', email: accountEmail,
-      })).toString('base64url')}.fixture`,
+    }),
+    // Identity now comes from Google's verified UserInfo lookup. This lineage test
+    // substitutes that port with the same synthetic account as before; the
+    // request/claim contract itself is covered by the OAuth identity spec.
+    lookupVerifiedGoogleIdentity: async () => ({
+      sub: 'same-provider-account', email: accountEmail, name: null,
     }),
   });
 }

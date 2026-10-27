@@ -63,6 +63,16 @@ function syncHarness(provider: Provider) {
     return new Response('{}');
   });
   if (provider === 'google_workspace') {
+    // The mailbox identity a reconnect callback must bind is a port this suite is not
+    // testing: its single provider transport stub above answers the token endpoint so
+    // the fetch-call assertions stay about token redemption. The verified UserInfo
+    // request/claim contract is covered by google-oauth.identity.spec.ts and the a1
+    // fixture, which substitute that transport instead.
+    h.service.lookupVerifiedGoogleIdentity = async () => ({
+      sub: 'account-A',
+      email: 'a@example.invalid',
+      name: null,
+    });
     exchange.mockImplementation(async () => undefined as never);
     fetch.mockResolvedValue(
       new Response(
