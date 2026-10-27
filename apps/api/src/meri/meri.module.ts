@@ -70,6 +70,8 @@ import { MeriSkillsController } from './meri-skills.controller.js';
 import { MeriActionProposalController } from './meri-action-proposal.controller.js';
 import { MeriAnalysisArtifactController } from './meri-analysis-artifact.controller.js';
 import { MeriContextPacketController } from './meri-context-packet.controller.js';
+import { BizdevActionController } from './bizdev-action.controller.js';
+import { BizdevActionService } from './bizdev-action.service.js';
 import { MeriActionProposalService } from './meri-action-proposal.service.js';
 import { LegiwatchActionController } from './legiwatch-action.controller.js';
 import { LegiwatchActionService } from './legiwatch-action.service.js';
@@ -173,6 +175,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     LegiwatchRelevanceController,
     SavedStrategyReadController,
     LegiwatchActionController,
+    BizdevActionController,
     MeriController,
     MeriSourceController,
     MeriSkillsController,
@@ -195,6 +198,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     ToolServiceSecretGuard,
     AutomaticClientContextService,
     InternalServiceGuard,
+    BizdevActionService,
     { provide: ObjectiveJobReadSources, useFactory: (integrations: EngagementService, tools: MeriToolsService,
       portfolios: ResearchPortfoliosService, changes: ResearchPortfolioChangesService,
       reviews: ResearchPortfolioReviewService, analytics: ResearchPortfolioAnalyticsService, connected: ConnectedAppReadService,

@@ -188,7 +188,7 @@ async function fixture() {
   );
   const ledger: { saved: boolean } = { saved: false };
   const proposals = {
-    create: jest.fn(async (_ctx, body, _turn, _legiwatch, access) => {
+    create: jest.fn(async (_ctx, body, _turn, _legiwatch, _clientRecord, access) => {
       await access.assertCurrent();
       await during();
       return { disposition: 'pending_approval', proposal: { proposalId: id('20') } };
@@ -204,11 +204,11 @@ async function fixture() {
         receipt: ledger.saved ? receipt : null,
       };
     }),
-    approveAndExecute: jest.fn(async (_ctx, _id2, _legiwatch, access) => {
+    approveAndExecute: jest.fn(async (_ctx, _id2, _legiwatch, _clientRecord, access) => {
       await access.assertCurrent();
       ledger.saved = true;
     }),
-    dismiss: jest.fn(async (_ctx, _id2, _legiwatch, access) => {
+    dismiss: jest.fn(async (_ctx, _id2, _legiwatch, _clientRecord, access) => {
       await access.assertCurrent();
     }),
   };
@@ -348,7 +348,7 @@ test('mounted prepare resolves the persisted prospect scope and only creates one
     expect(r.status).toBe(200);
     expect(r.body.status).toBe('proposed');
     expect(f.proposals.create).toHaveBeenCalledTimes(1);
-    const [ctx, body, , legiwatchArg, access] = f.proposals.create.mock.calls[0]!;
+    const [ctx, body, , legiwatchArg, clientRecordArg, access] = f.proposals.create.mock.calls[0]!;
     expect(ctx.tenantId).toBe(tenantId);
     expect(body).toMatchObject({
       tool: 'save_business_development_brief',
@@ -357,6 +357,7 @@ test('mounted prepare resolves the persisted prospect scope and only creates one
       conversationId,
     });
     expect(legiwatchArg).toBeUndefined();
+    expect(clientRecordArg).toBeUndefined();
     expect(access.scope).toMatchObject({ conversationId, prospectId, prospectName: 'Synthetic Prospect' });
     expect(body.input.conversationId).toBe(conversationId);
     expect(body.input.expectedVersionNumber).toBe(2);

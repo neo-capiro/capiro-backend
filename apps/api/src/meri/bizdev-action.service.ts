@@ -137,6 +137,7 @@ export class BizdevActionService {
       },
       undefined,
       undefined,
+      undefined,
       access,
     );
     await access.assertCurrent();
@@ -158,8 +159,8 @@ export class BizdevActionService {
     if (!parsed.success) throw new BadRequestException('Invalid business-development brief decision');
     const { context, proposalId, decision: choice } = parsed.data,
       access = await this.access(ctx, req, context.conversationId, context);
-    if (choice === 'approved') await this.proposals.approveAndExecute(ctx, proposalId, undefined, access);
-    else await this.proposals.dismiss(ctx, proposalId, undefined, access);
+    if (choice === 'approved') await this.proposals.approveAndExecute(ctx, proposalId, undefined, undefined, access);
+    else await this.proposals.dismiss(ctx, proposalId, undefined, undefined, access);
     const result = await this.proposals.readBizdev(ctx, proposalId, access);
     await access.assertCurrent();
     return result;
