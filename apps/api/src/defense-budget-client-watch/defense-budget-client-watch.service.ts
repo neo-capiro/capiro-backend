@@ -3,6 +3,7 @@ import type { TenantContext } from '@capiro/shared';
 import type { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { requireOwnerClient } from '../clients/client-ordered-owner.access.js';
 
 export type BudgetWatchTargetType = 'program' | 'pe' | 'project' | 'capability';
 type Decision = 'acknowledged' | 'dismissed';
@@ -27,7 +28,7 @@ export class DefenseBudgetClientWatchService {
     const targetKey = requiredText(input.targetKey, 'Target key', 160);
     const clientReason = requiredText(input.clientReason, 'Client reason', 2000);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await this.assertClient(tx, ctx.tenantId, input.clientId);
+      await requireOwnerClient(tx, ctx, input.clientId);
       const watch = await tx.defenseBudgetClientWatch.create({ data: {
         tenantId: ctx.tenantId, clientId: input.clientId, targetType: input.targetType,
         targetKey, clientReason, createdByUserId: ctx.userId,
@@ -42,7 +43,7 @@ export class DefenseBudgetClientWatchService {
 
   async list(ctx: TenantContext, clientId: string) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await this.assertClient(tx, ctx.tenantId, clientId);
+      await requireOwnerClient(tx, ctx, clientId, false, false, 'share');
       return tx.defenseBudgetClientWatch.findMany({
         where: { tenantId: ctx.tenantId, clientId },
         include: { events: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] } },
@@ -53,7 +54,7 @@ export class DefenseBudgetClientWatchService {
 
   async setSubscribed(ctx: TenantContext, input: { clientId: string; watchId: string; subscribed: boolean }) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await this.assertWatch(tx, ctx.tenantId, input.clientId, input.watchId);
+      await this.assertWatch(tx, ctx, input.clientId, input.watchId);
       const latest = await tx.defenseBudgetClientWatchEvent.findFirst({
         where: { tenantId: ctx.tenantId, clientId: input.clientId, watchId: input.watchId,
           eventType: { in: ['subscribed', 'unsubscribed', 'resubscribed'] } },
@@ -77,7 +78,7 @@ export class DefenseBudgetClientWatchService {
     const logicalEventKey = requiredText(input.logicalEventKey, 'Logical event key', 200);
     const materialReason = requiredText(input.materialReason, 'Material reason', 2000);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await this.assertWatch(tx, ctx.tenantId, input.clientId, input.watchId);
+      await this.assertWatch(tx, ctx, input.clientId, input.watchId);
       const prior = await tx.defenseBudgetClientWatchEvent.findFirst({
         where: { tenantId: ctx.tenantId, clientId: input.clientId, watchId: input.watchId, logicalEventKey },
       });
@@ -100,7 +101,7 @@ export class DefenseBudgetClientWatchService {
       throw new BadRequestException('Unsupported decision');
     }
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await this.assertWatch(tx, ctx.tenantId, input.clientId, input.watchId);
+      await this.assertWatch(tx, ctx, input.clientId, input.watchId);
       const update = await tx.defenseBudgetClientWatchEvent.findFirst({ where: {
         id: input.updateEventId, tenantId: ctx.tenantId, clientId: input.clientId,
         watchId: input.watchId, eventType: 'material_update',
@@ -122,15 +123,10 @@ export class DefenseBudgetClientWatchService {
     });
   }
 
-  private async assertClient(tx: Prisma.TransactionClient, tenantId: string, clientId: string) {
-    const client = await tx.client.findFirst({ where: { id: clientId, tenantId }, select: { id: true } });
-    if (!client) throw new NotFoundException('Client not found');
-  }
-
-  private async assertWatch(tx: Prisma.TransactionClient, tenantId: string, clientId: string, watchId: string) {
-    await this.assertClient(tx, tenantId, clientId);
+  private async assertWatch(tx: Prisma.TransactionClient, ctx: TenantContext, clientId: string, watchId: string) {
+    await requireOwnerClient(tx, ctx, clientId);
     const watch = await tx.defenseBudgetClientWatch.findFirst({
-      where: { id: watchId, tenantId, clientId }, select: { id: true },
+      where: { id: watchId, tenantId: ctx.tenantId, clientId }, select: { id: true },
     });
     if (!watch) throw new NotFoundException('Watch not found');
   }
