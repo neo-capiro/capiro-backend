@@ -1,3 +1,4 @@
+import { forwardBody } from './mail-forward-source.js';
 // Exercise the actual service boundary. Unrelated document/AI/provider constructors
 // are mocked; current admission and the send orchestration remain production code.
 jest.doMock('@nestjs/throttler', () => ({ Throttle: () => () => {} }), { virtual: true });
@@ -191,6 +192,32 @@ describe('native reply through the existing single-mail owner', () => {
     return { ...h, tx, source, replyInput, resultThread, intent };
   }
 
+  test.each([false, true])('forward binds complete original text and durable receipt without replay, graph=%s', async graph => {
+    const h = replyFixture(graph), body = forwardBody('Exact original <text> 😀')!;
+    Object.assign(h.source, { bodyText: body.bodyText, hasAttachments: false, metadata: { bodyCompleteness: 'full', bodyContentType: 'text' } });
+    if (graph) Object.assign(h.source.raw, { body: { contentType: 'text' }, hasAttachments: false });
+    else Object.assign(h.source.raw.payload, { mimeType: 'text/plain', filename: '' });
+    const forwardInput = { ...h.replyInput, operation: 'forward' as const, subject: `Fwd: ${h.replyInput.subject}`,
+      originalBodySha256: body.bodySha256, to: [{ email: 'new@example.test' }] };
+    const result = await h.service.sendSingleMail(ctx, forwardInput);
+    expect(result).toMatchObject({ state: 'accepted', operation: 'forward', originalBodySha256: body.bodySha256 });
+    const payload = h.service.mailSender.sendMail.mock.calls[0][2];
+    expect(payload.forward.body).toEqual(body); expect(payload.reply).toBeUndefined();
+    expect(payload.body).toContain('Exact original &lt;text&gt; 😀');
+    expect(await h.service.sendSingleMail(ctx, forwardInput)).toMatchObject({ state: 'accepted', operation: 'forward' });
+    expect(h.service.mailSender.sendMail).toHaveBeenCalledTimes(1);
+  });
+  test('forward body change under the same timestamp cannot win a sending claim', async () => {
+    const h = replyFixture(), body = forwardBody('Reviewed original')!;
+    Object.assign(h.source, { bodyText: body.bodyText, hasAttachments: false, metadata: { bodyCompleteness: 'full' } });
+    Object.assign(h.source.raw.payload, { mimeType: 'text/plain', filename: '' });
+    const forwardInput = { ...h.replyInput, operation: 'forward' as const, subject: `Fwd: ${h.replyInput.subject}`, originalBodySha256: body.bodySha256 };
+    const begin = ledger.begin.getMockImplementation()!;
+    ledger.begin.mockImplementation(async (...args) => { const result = await begin(...args); Object.assign(h.source, { bodyText: 'Changed original' }); return result; });
+    await expect(h.service.sendSingleMail(ctx, forwardInput)).rejects.toMatchObject({ response: { error: 'MAIL_SEND_REJECTED', state: 'failed' } });
+    expect(h.sendingTransition).not.toHaveBeenCalled(); expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
+    expect(ledger.rejectPending).toHaveBeenCalledTimes(1);
+  });
   test.each([false, true])('reply-all binds reviewed To/Cc and durable origin, graph=%s', async graph => {
     const h = replyFixture(graph), original = { to: ['sender@example.test', 'other@example.test'], cc: ['copy@example.test'] };
     if (graph) (h.source.raw as any).graphReplyRecipients = { schema: 'graph-native-reply-recipients/1', defaultId: h.source.externalId,

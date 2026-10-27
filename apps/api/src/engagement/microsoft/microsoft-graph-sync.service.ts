@@ -1,3 +1,4 @@
+import { graphForwardBody, type MailForwardInput } from '../mail-forward-source.js';
 import { capturedGraphReplyRecipients, type MailReplyRecipients, type PreparedReplyAll } from '../mail-reply-recipients.js';
 import { assertMicrosoftReplyDraft, buildMicrosoftReplyPayload, buildMicrosoftSendPayload } from './microsoft-send-payload.js';
 import { graphReplyIdentity, type GraphReplyIdentity, type MailReplyIdentity, REPLY_UNAVAILABLE } from '../single-mail-reply.js';
@@ -327,6 +328,7 @@ interface GraphNotification {
 export interface MicrosoftGraphSendMailInput {
   reply?: MailReplyIdentity;
   replyAll?: PreparedReplyAll;
+  forward?: MailForwardInput;
   subject: string;
   body: string;
   /** Graph message body type. Defaults to 'Text' for back-compat; outreach
@@ -762,13 +764,13 @@ export class MicrosoftGraphSyncService {
     const { token, connection } = await this.loadConnection(ctx.tenantId, connectionId);
     const accessToken = await this.getValidAccessToken(ctx.tenantId, connectionId, token);
     const correlationId = input.correlationId ?? '';
-    const reply = input.reply;
+    const reply = input.reply ?? input.forward?.source;
     if ((input.replyAll && !reply) || (reply && reply.kind !== 'microsoft_graph')) throw definiteMailSendRejection(new BadRequestException(REPLY_UNAVAILABLE));
     const payload = reply ? buildMicrosoftReplyPayload(input) : buildMicrosoftSendPayload(input);
     if (reply) {
       let original: unknown;
       try {
-        original = await this.graphGet(`/me/messages/${encodeURIComponent(reply.immutableId)}?$select=id,conversationId,changeKey,isDraft,subject,from,sender,replyTo,internetMessageId,internetMessageHeaders${input.replyAll ? ',toRecipients,ccRecipients' : ''}`,
+        original = await this.graphGet(`/me/messages/${encodeURIComponent(reply.immutableId)}?$select=id,conversationId,changeKey,isDraft,subject,from,sender,replyTo,internetMessageId,internetMessageHeaders${input.replyAll ? ',toRecipients,ccRecipients' : ''}${input.forward ? ',body,hasAttachments' : ''}`,
           accessToken, GRAPH_IMMUTABLE_ID_HEADERS, 65536);
       } catch (error) {
         if (error instanceof GraphHttpError && [404, 410].includes(error.graphStatus))
@@ -778,6 +780,14 @@ export class MicrosoftGraphSyncService {
       if (JSON.stringify(graphReplyIdentity(original)) !== JSON.stringify(reply) ||
           (input.replyAll && JSON.stringify(capturedGraphReplyRecipients(original)) !== JSON.stringify(input.replyAll.original)))
         throw definiteMailSendRejection(new BadRequestException('The original changed. Review it again before replying.'));
+      if (input.forward) {
+        // Graph hasAttachments does not include inline files. An empty complete
+        // attachment page, not that boolean alone, proves this bounded forward.
+        const files = await this.graphGet(`/me/messages/${encodeURIComponent(reply.immutableId)}/attachments?$select=id&$top=1`,
+          accessToken, GRAPH_IMMUTABLE_ID_HEADERS, 16384);
+        if (JSON.stringify(graphForwardBody(original, files)) !== JSON.stringify(input.forward.body))
+          throw definiteMailSendRejection(new BadRequestException('The original body or incoming files changed. No forward was sent.'));
+      }
     }
 
     // 1. Create the draft. A clear failure here is an ORDINARY provider failure:
@@ -786,7 +796,7 @@ export class MicrosoftGraphSyncService {
       id?: unknown;
       internetMessageId?: unknown;
       conversationId?: unknown;
-    }>(reply ? `/me/messages/${encodeURIComponent(reply.immutableId)}/${input.replyAll ? 'createReplyAll' : 'createReply'}` : '/me/messages',
+    }>(reply ? `/me/messages/${encodeURIComponent(reply.immutableId)}/${input.forward ? 'createForward' : input.replyAll ? 'createReplyAll' : 'createReply'}` : '/me/messages',
       accessToken, payload, GRAPH_IMMUTABLE_ID_HEADERS, reply ? 'mime' : 'json');
 
     const draftId = typeof draft?.id === 'string' ? draft.id.trim() : '';

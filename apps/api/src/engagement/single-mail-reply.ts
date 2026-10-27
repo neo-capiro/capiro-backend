@@ -1,4 +1,10 @@
 import {
+  prepareForwardBody,
+  storedForwardBody,
+  forwardSubject,
+  type MailForwardBody,
+} from './mail-forward-source.js';
+import {
   mailReplyAddress as address,
   capturedGmailReplyRecipients,
   storedReplyRecipients,
@@ -47,7 +53,9 @@ export type MailReplyIdentity = GmailReplyIdentity | GraphReplyIdentity;
 export type MailReplyContext =
   | {
       supported: true;
-      operation: 'reply' | 'reply_all';
+      operation: 'reply' | 'reply_all' | 'forward';
+      originalBodySha256?: string;
+      originalBodyText?: string;
       originalMessageId: string;
       originalUpdatedAt: string;
       senderConnectionId: string;
@@ -60,6 +68,7 @@ export type PreparedMailReply = {
   context: Extract<MailReplyContext, { supported: true }>;
   provider: MailReplyIdentity;
   replyAll?: PreparedReplyAll;
+  forward?: MailForwardBody;
 };
 
 /** Only an authenticated GET made with immutable-ID Prefer may supply this detail. */
@@ -178,7 +187,7 @@ export function hasGraphReplySnapshot(value: unknown, connectionId: string): boo
     Array.isArray(snapshot.to) && snapshot.to.length === 1 ? object(snapshot.to[0]).email : null;
   return Boolean(
     reply &&
-    ['reply', 'reply_all'].includes(String(snapshot.operation)) &&
+    ['reply', 'reply_all', 'forward'].includes(String(snapshot.operation)) &&
     snapshot.senderConnectionId === connectionId &&
     typeof snapshot.threadId === 'string' &&
     uuid.test(snapshot.threadId) &&
@@ -187,13 +196,19 @@ export function hasGraphReplySnapshot(value: unknown, connectionId: string): boo
     typeof snapshot.originalUpdatedAt === 'string' &&
     Number.isFinite(Date.parse(snapshot.originalUpdatedAt)) &&
     new Date(snapshot.originalUpdatedAt).toISOString() === snapshot.originalUpdatedAt &&
-    snapshot.subject === reply.subject &&
-    (snapshot.operation === 'reply_all'
-      ? validReplyAllSnapshot(snapshot, reply.toEmail)
-      : typeof recipient === 'string' &&
-        recipient.toLowerCase() === reply.toEmail &&
-        Array.isArray(snapshot.cc) &&
-        snapshot.cc.length === 0) &&
+    snapshot.subject ===
+      (snapshot.operation === 'forward' ? forwardSubject(reply.subject) : reply.subject) &&
+    (snapshot.operation === 'forward'
+      ? Boolean(
+          storedForwardBody(snapshot.forward) &&
+          object(snapshot.forward).bodySha256 === snapshot.originalBodySha256,
+        )
+      : snapshot.operation === 'reply_all'
+        ? validReplyAllSnapshot(snapshot, reply.toEmail)
+        : typeof recipient === 'string' &&
+          recipient.toLowerCase() === reply.toEmail &&
+          Array.isArray(snapshot.cc) &&
+          snapshot.cc.length === 0) &&
     Array.isArray(snapshot.bcc) &&
     snapshot.bcc.length === 0,
   );
@@ -386,4 +401,34 @@ function validReplyAllSnapshot(snapshot: Record<string, unknown>, replyTo: strin
     JSON.stringify(list(snapshot.to)) === JSON.stringify(proof.to) &&
     JSON.stringify(list(snapshot.cc)) === JSON.stringify(proof.cc),
   );
+}
+
+/** No preview, HTML, incoming files or implicit recipients enter the first forward slice. */
+export function prepareMailForward(
+  source: Parameters<typeof prepareMailReply>[0] & {
+    bodyText: unknown;
+    metadata: unknown;
+    hasAttachments: boolean;
+  },
+  thread: Parameters<typeof prepareMailReply>[1],
+  connection: Parameters<typeof prepareMailReply>[2],
+  selfEmails: readonly string[],
+): PreparedMailReply | null {
+  const base = prepareMailReply(source, thread, connection, selfEmails);
+  const body = base ? prepareForwardBody(source, base.provider.kind === 'microsoft_graph') : null;
+  const subject = base ? forwardSubject(base.provider.subject) : null;
+  if (!base || !body || !subject) return null;
+  return {
+    ...base,
+    forward: body,
+    context: {
+      ...base.context,
+      operation: 'forward',
+      subject,
+      to: [],
+      cc: [],
+      originalBodyText: body.bodyText,
+      originalBodySha256: body.bodySha256,
+    },
+  };
 }

@@ -19,7 +19,7 @@ export function assertMailPayloadSize(
   input: EngagementSendMailInput,
 ): void {
   const google = provider === EngagementProvider.google_workspace;
-  const payload = google ? buildGmailSendPayload(input) : input.reply ? buildMicrosoftReplyPayload(input) : buildMicrosoftSendPayload(input);
+  const payload = google ? buildGmailSendPayload(input) : (input.reply || input.forward) ? buildMicrosoftReplyPayload(input) : buildMicrosoftSendPayload(input);
   const maxBytes = google ? GMAIL_REQUEST_MAX_BYTES : GRAPH_REQUEST_MAX_BYTES;
   if (Buffer.byteLength(typeof payload === 'string' ? payload : JSON.stringify(payload), 'utf8') > maxBytes) {
     throw definiteMailSendRejection(

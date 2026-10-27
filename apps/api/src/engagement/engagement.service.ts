@@ -1,3 +1,4 @@
+import { forwardedMessageHtml } from './mail-forward-source.js';
 import { assertSingleMailAuthority, assertSingleMailIntentReadAuthority, resolveSingleMailReply } from './single-mail-authority.js';
 import { REPLY_UNAVAILABLE, type PreparedMailReply } from './single-mail-reply.js';
 import { requireOwnerClient } from '../clients/client-ordered-owner.access.js';
@@ -283,7 +284,8 @@ export interface SingleMailRecipientInput {
 }
 
 export interface SendSingleMailInput {
-  operation?: 'reply' | 'reply_all';
+  operation?: 'reply' | 'reply_all' | 'forward';
+  originalBodySha256?: string;
   originalMessageId?: string;
   originalUpdatedAt?: string;
   /** Stable per reviewed message, reused for lookup after timeout/reload. */
@@ -9712,7 +9714,7 @@ export class EngagementService {
     const sender = mailboxSender(connection);
     let reply: PreparedMailReply | undefined;
     let replyRefusal: unknown;
-    if (input.operation || input.threadId || input.originalMessageId || input.originalUpdatedAt) {
+    if (input.operation || input.threadId || input.originalMessageId || input.originalUpdatedAt || input.originalBodySha256) {
       try {
         reply = await this.prisma.withTenant(ctx.tenantId, tx => resolveSingleMailReply(tx, ctx, input));
       } catch (error) {
@@ -9727,7 +9729,7 @@ export class EngagementService {
     // against the outbound allowlist (renderOutreachBody), then append the
     // (already-sanitized) signature — the result always sends as HTML.
     const body = appendOutreachSignature(
-      renderOutreachBody(trimTrailingEmptyHtml(input.bodyHtml)),
+      renderOutreachBody(trimTrailingEmptyHtml(input.bodyHtml) + (reply?.forward ? forwardedMessageHtml(reply.provider, reply.forward) : '')),
       signature.signatureHtml,
     );
     // Same resolver the campaign path uses (loadGraphAttachments): loads each
@@ -9740,7 +9742,7 @@ export class EngagementService {
       input.clientId ?? null,
     );
     const mailInput: EngagementSendMailInput = {
-      ...(reply ? { reply: reply.provider, ...(reply.replyAll ? { replyAll: reply.replyAll } : {}) } : {}),
+      ...(reply?.forward ? { forward: { source: reply.provider, body: reply.forward } } : reply ? { reply: reply.provider, ...(reply.replyAll ? { replyAll: reply.replyAll } : {}) } : {}),
       subject: input.subject,
       body: body.content,
       bodyContentType: 'HTML',
@@ -9760,7 +9762,7 @@ export class EngagementService {
       snapshot: {
         senderConnectionId: connection.id, senderEmail: sender.email,
         ...(input.operation ? { operation: input.operation, originalMessageId: input.originalMessageId,
-          originalUpdatedAt: input.originalUpdatedAt, replyIdentity: reply?.provider ?? null, ...(reply?.replyAll ? { replyAll: reply.replyAll } : {}) } : {}),
+          originalUpdatedAt: input.originalUpdatedAt, originalBodySha256: input.originalBodySha256, replyIdentity: reply?.provider ?? null, ...(reply?.forward ? { forward: reply.forward } : {}), ...(reply?.replyAll ? { replyAll: reply.replyAll } : {}) } : {}),
         attachmentIds: input.attachmentIds ?? [],
         threadId: input.threadId ?? null, to: input.to, cc: input.cc ?? [], bcc: input.bcc ?? [],
         subject: input.subject, body: body.content, signaturePolicy: 'actor',
@@ -9785,7 +9787,7 @@ export class EngagementService {
             const currentReply = await resolveSingleMailReply(tx, ctx, input);
             if (JSON.stringify(currentReply) !== JSON.stringify(reply))
               throw new BadRequestException('This original changed. Review the original again.');
-          } else if (input.threadId || input.operation || input.originalMessageId || input.originalUpdatedAt) {
+          } else if (input.threadId || input.operation || input.originalMessageId || input.originalUpdatedAt || input.originalBodySha256) {
             throw new BadRequestException(REPLY_UNAVAILABLE);
           }
           await this.assertSingleMailAttachmentsInTx(ctx, input, tx);
@@ -9895,7 +9897,7 @@ export class EngagementService {
     const makeReceipt = (threadId: string, messageId: string, confirmed = false) => ({
       ok: true as const, threadId, messageId, provider: providerSlug,
       ...(reply ? { operation: reply.context.operation, originalMessageId: reply.context.originalMessageId,
-        originalThreadId: input.threadId, originalUpdatedAt: reply.context.originalUpdatedAt } : {}),
+        originalThreadId: input.threadId, originalUpdatedAt: reply.context.originalUpdatedAt, ...(reply.forward ? { originalBodySha256: reply.forward.bodySha256 } : {}) } : {}),
       senderConnectionId: connection.id, senderEmail: sender.email, senderName: sender.name,
       signaturePolicy: 'actor' as const, signatureAppended: Boolean(signature.signatureHtml),
       ...(graphIdentity ? { mailboxConfirmation: confirmed ? 'confirmed' : 'pending' } : {}),
