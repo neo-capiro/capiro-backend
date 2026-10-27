@@ -157,6 +157,42 @@ test('sharing prerequisites admit only portfolio creation and exact snapshot/cli
         condition.HttpRequestMethodConfig?.Values.length ?? 0), 0), 5);
   }));
 
+test('artifact version POST admits only its exact Core route on the preview host', () =>
+  render(false, (edge) => {
+    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map((r) => r.Properties);
+    const pathname = '/api/clio/artifacts/11111111-1111-4111-8111-111111111111/version';
+    assert.deepEqual(routeDestination(rules, 'POST', pathname), { Ref: 'CoreTarget' });
+    for (const method of ['PUT', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE'])
+      assert.equal(routeDestination(rules, method, pathname), null, `${method} ${pathname}`);
+    for (const hostname of ['app.capiro.ai', 'arbitrary.invalid'])
+      assert.equal(routeDestination(rules, 'POST', pathname, hostname), null);
+    for (const neighbor of [
+      `${pathname}/`, `${pathname}/extra`, `${pathname}.invalid`, `/extra${pathname}`,
+      '/api/clio/artifacts//version', '/api/clio/artifacts/invalid.id/version',
+      '/api/clio/artifacts/parent/child/version', '/api/clio/artifacts/synthetic-artifact_1',
+      '/api/clio/artifacts/synthetic-artifact_1/versions',
+    ]) assert.equal(routeDestination(rules, 'POST', neighbor), null, neighbor);
+    for (const method of ['GET', 'HEAD'])
+      assert.deepEqual(routeDestination(rules, method,
+        '/api/research-portfolios/synthetic-portfolio_1/drafts/synthetic-artifact_1'),
+      { Ref: 'CoreTarget' });
+    const added = edge.Resources.ArtifactVersions.Properties;
+    assert.equal(added.Priority, 75);
+    assert.deepEqual(added.ListenerArn, { Ref: 'PreviewHttps' });
+    assert.deepEqual(added.Actions, [{ TargetGroupArn: { Ref: 'CoreTarget' }, Type: 'forward' }]);
+    assert.deepEqual(
+      added.Conditions.find((c: any) => c.Field === 'http-request-method').HttpRequestMethodConfig.Values,
+      ['POST'],
+    );
+    assert.deepEqual(
+      added.Conditions.find((c: any) => c.Field === 'path-pattern').PathPatternConfig.RegexValues,
+      ['^/api/clio/artifacts/[A-Za-z0-9_-]+/version$'],
+    );
+    for (const [id, priority] of Object.entries({
+      Wave2Writes66: 71, SavedWorkspaceReads: 72, SavedStrategyReads: 73, Wave2Writes69: 74,
+    })) assert.equal(edge.Resources[id].Properties.Priority, priority, id);
+  }));
+
 test('six internal file and owner-memory POST admissions stay finite and preview-only', () =>
   render(false, (edge) => {
     const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map((r) => r.Properties);
@@ -295,7 +331,7 @@ test('finite method/path routes admit their owners and reject unintended cross-p
     const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map(
       (r) => r.Properties,
     );
-    assert.equal(rules.length, 71);
+    assert.equal(rules.length, 75);
     for (const rule of rules) {
       assert.deepEqual(rule.ListenerArn, { Ref: 'PreviewHttps' });
       const conditions = rule.Conditions;

@@ -588,6 +588,14 @@
       "pathRegexes": [
         "^/api/engagement/mail/threads/[0-9a-fA-F-]{36}/messages/[0-9a-fA-F-]{36}/files/import$"
       ]
+    },
+    {
+      "id": "ArtifactVersions",
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/clio/artifacts/[A-Za-z0-9_-]+/version$"
+      ]
     }
   ]
 }
