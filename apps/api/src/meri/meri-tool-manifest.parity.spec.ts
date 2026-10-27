@@ -49,6 +49,13 @@ import { FederalMarketMeriToolsService } from '../federal-spending/federal-marke
 import { FEDERAL_MARKET_MERI_TOOL_DEFINITIONS } from '../federal-spending/federal-market-meri-tools.service.js';
 import { MeriToolsService, TOOL_DEFINITIONS } from './meri-tools.service.js';
 
+// Fixed HTTP controllers need the original interactive request; the older
+// context-only dispatcher must neither advertise nor execute them.
+const fixedReads = new Set(['read_saved_record', 'read_saved_strategy_records']);
+const localManifest = Object.fromEntries(
+  Object.entries(MERI_TOOL_MANIFEST).filter(([name]) => !fixedReads.has(name)),
+);
+
 describe('complete native API capability manifest', () => {
   it('the governed service advertises the same complete capability surface in its manifest and schemas', () => {
     const raw = Object.create(MeriToolsService.prototype) as MeriToolsService;
@@ -70,7 +77,7 @@ describe('complete native API capability manifest', () => {
       })
       .map((tool) => tool.name)
       .sort();
-    expect(manifestNames).toEqual(Object.keys(MERI_TOOL_MANIFEST).sort());
+    expect(manifestNames).toEqual(Object.keys(localManifest).sort());
     expect(schemaNames).toEqual(manifestNames);
   });
 
@@ -79,7 +86,11 @@ describe('complete native API capability manifest', () => {
     const actual = Object.fromEntries(
       definitions.map(({ name, description }) => [name, description]),
     );
-    expect(actual).toEqual(MERI_TOOL_MANIFEST);
+    expect(actual).toEqual(localManifest);
+    for (const name of fixedReads) {
+      expect(MERI_TOOL_MANIFEST[name]).toBeTruthy();
+      expect(actual[name]).toBeUndefined();
+    }
     expect(Object.keys(actual)).toHaveLength(definitions.length);
   });
 
@@ -95,7 +106,7 @@ describe('complete native API capability manifest', () => {
     // above still equals the manifest, while every call routes to a service
     // that does not implement it. That is the invariant worth pinning.
     const registryNames = (backend: MeriToolBackend) =>
-      MERI_CAPABILITY_REGISTRY.filter((tool) => tool.backend === backend)
+      MERI_CAPABILITY_REGISTRY.filter((tool) => tool.backend === backend && !fixedReads.has(tool.name))
         .map((tool) => tool.name)
         .sort();
     expect(TOOL_DEFINITIONS.map((tool) => tool.name).sort()).toEqual(registryNames('meri'));
