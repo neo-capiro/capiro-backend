@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { DefenseResearchController } from './defense-research.controller.js';
 import { DefenseResearchService } from './defense-research.service.js';
+import { DefenseBudgetEvidenceLocatorService } from './defense-budget-evidence-locator.service.js';
 
 import { DefenseSavedComparisonsService } from './defense-saved-comparisons.service.js';
 import { DefenseSavedComparisonsController } from './defense-saved-comparisons.controller.js';
@@ -9,7 +10,11 @@ import { DefenseSavedComparisonsController } from './defense-saved-comparisons.c
 @Module({
   imports: [PrismaModule],
   controllers: [DefenseResearchController, DefenseSavedComparisonsController],
-  providers: [DefenseResearchService, DefenseSavedComparisonsService],
+  providers: [
+    DefenseResearchService,
+    DefenseSavedComparisonsService,
+    DefenseBudgetEvidenceLocatorService,
+  ],
   exports: [DefenseResearchService, DefenseSavedComparisonsService],
 })
 export class DefenseResearchModule {}

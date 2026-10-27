@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readPublicPESemanticSuggestions } from './defense-research-semantic.js';
 import { parseCanonicalDecimalString } from '../defense-budget/contracts/decimal-string.js';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import type {
   TenantContext,
   DefenseContextDocumentDetailDto,
@@ -46,6 +46,9 @@ import type {
   DefenseProductCoverageDenominatorDto,
 } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { coverageRecordedOutcome } from './defense-coverage-outcomes.js';
+import { occurrenceSpan, unavailableLocator } from './defense-evidence-locators.js';
+import { DefenseBudgetEvidenceLocatorService } from './defense-budget-evidence-locator.service.js';
 
 type SubjectType = DefenseDossierDto['subject']['type'];
 type ComparisonSubjectType = SubjectType | 'context_document';
@@ -62,7 +65,10 @@ const EXPECTED_DOSSIER_FIELDS = [
 
 @Injectable()
 export class DefenseResearchService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly budgetLocators?: DefenseBudgetEvidenceLocatorService,
+  ) {}
 
   async dossier(subjectType: string, subjectId: string): Promise<DefenseDossierDto> {
     const type = this.subjectType(subjectType);
@@ -1052,16 +1058,19 @@ export class DefenseResearchService {
     };
   }
 
-  async productCoverage(filters: {
-    perimeter?: string;
-    component?: string;
-    account?: string;
-    family?: string;
-    fiscalYear?: number;
-    edition?: string;
-    stage?: string;
-    detail?: string;
-  }): Promise<DefenseProductCoverageResponseDto> {
+  async productCoverage(
+    filters: {
+      perimeter?: string;
+      component?: string;
+      account?: string;
+      family?: string;
+      fiscalYear?: number;
+      edition?: string;
+      stage?: string;
+      detail?: string;
+    },
+    ctx?: TenantContext,
+  ): Promise<DefenseProductCoverageResponseDto> {
     if (
       filters.fiscalYear !== undefined &&
       (!Number.isInteger(filters.fiscalYear) ||
@@ -1073,8 +1082,12 @@ export class DefenseResearchService {
       ...(filters.account || filters.edition
         ? {
             AND: [
-              ...(filters.account ? [{ metadata: { path: ['account'], equals: filters.account } }] : []),
-              ...(filters.edition ? [{ metadata: { path: ['edition'], equals: filters.edition } }] : []),
+              ...(filters.account
+                ? [{ metadata: { path: ['account'], equals: filters.account } }]
+                : []),
+              ...(filters.edition
+                ? [{ metadata: { path: ['edition'], equals: filters.edition } }]
+                : []),
             ],
           }
         : {}),
@@ -1106,6 +1119,8 @@ export class DefenseResearchService {
             sourceDocumentId: true,
             contentSha256: true,
             observationState: true,
+            revisionKind: true,
+            lastSeenAt: true,
             supersededByObservationId: true,
           },
         },
@@ -1161,6 +1176,24 @@ export class DefenseResearchService {
         ]),
       ),
     ];
+    const resolutions =
+      ctx?.tenantId && scoped.length
+        ? await this.prisma.withTenant(
+            ctx.tenantId,
+            (tx) =>
+              tx.defenseBudgetReviewResolution.findMany({
+                where: {
+                  tenantId: ctx.tenantId,
+                  expectedSourceId: { in: scoped.map((source) => source.id) },
+                },
+                distinct: ['expectedSourceId'],
+                orderBy: { resolvedAt: 'desc' },
+                select: { expectedSourceId: true, decision: true, resolvedAt: true },
+              }),
+            { readOnly: true },
+          )
+        : [];
+    const resolutionBySource = new Map(resolutions.map((row) => [row.expectedSourceId, row]));
     const environment =
       process.env.APP_ENV?.trim() || process.env.CAPIRO_ENVIRONMENT?.trim() || 'unknown';
     const [candidates, pointer] = await Promise.all([
@@ -1259,6 +1292,7 @@ export class DefenseResearchService {
         qualified: qualifiedDocuments.size,
         published: currentDocuments.filter((id) => publishedIds.has(id)).length,
         outcome: 'unknown',
+        recordedOutcome: coverageRecordedOutcome(source, resolutionBySource.get(source.id)),
         limitations: [
           'Numerators describe observed physical documents; the complete eligible population is unattested.',
           ...(source.optional ? ['This catalog slot is optional.'] : []),
@@ -1277,7 +1311,9 @@ export class DefenseResearchService {
         'Coverage is a customer-safe aggregate and excludes internal queues, adapter identifiers, and operator ownership.',
         'No cohort is labelled complete while its denominator is unknown.',
         ...(truncated
-          ? ['This response is limited to 500 matching catalog slots; additional matching slots are omitted.']
+          ? [
+              'This response is limited to 500 matching catalog slots; additional matching slots are omitted.',
+            ]
           : []),
         'Account, edition, and detail are shown only when represented by source metadata or a physical bundle manifest.',
       ],
@@ -1540,6 +1576,63 @@ export class DefenseResearchService {
       orderBy: { createdAt: 'desc' },
     });
     return rows.map((row) => this.referenceDto(row));
+  }
+
+  /** Native inspector enrichment leaves internal publication evidence payloads unchanged. */
+  async readEvidenceDetails(evidenceRefId: string): Promise<DefenseEvidenceRefDto> {
+    const ref = await this.resolveEvidence(evidenceRefId);
+    let details = unavailableLocator(
+      'No additional retained native locator is available for this source.',
+    );
+    if (evidenceRefId.startsWith('context-occurrence:')) {
+      const row = await this.prisma.defenseReferenceOccurrence.findUnique({
+        where: { id: this.evidenceUuid(evidenceRefId, 'context-occurrence:') },
+        include: { revision: true, document: true, section: true },
+      });
+      if (
+        !row ||
+        !row.document.eligible ||
+        row.document.qualification !== 'qualified' ||
+        row.revision.documentId !== row.documentId ||
+        row.revisionId !== ref.sourceRevisionId ||
+        row.revision.contentHash !== ref.contentHash
+      )
+        throw new NotFoundException('Evidence reference not found');
+      const span = occurrenceSpan(row);
+      details = {
+        ...details,
+        availability: span ? 'available' : 'unavailable',
+        textSpan: span,
+        reason: span
+          ? null
+          : 'The recorded occurrence has no verified span in its exact retained section.',
+      };
+    } else {
+      const prefix = ['procurement-source:', 'pe-position:', 'project-position:'].find((value) =>
+        evidenceRefId.startsWith(value),
+      );
+      if (prefix && this.budgetLocators) {
+        const id = this.evidenceUuid(evidenceRefId, prefix);
+        const row =
+          prefix === 'procurement-source:'
+            ? await this.prisma.procurementLineSource.findUnique({
+                where: { id },
+                select: { metadata: true },
+              })
+            : prefix === 'pe-position:'
+              ? await this.prisma.programElementBudgetPosition.findUnique({
+                  where: { id },
+                  select: { metadata: true },
+                })
+              : await this.prisma.programElementProjectBudgetPosition.findUnique({
+                  where: { id },
+                  select: { metadata: true },
+                });
+        if (!row) throw new NotFoundException('Evidence reference not found');
+        details = await this.budgetLocators.read(ref, row.metadata);
+      }
+    }
+    return { ...ref, nativeLocator: { ...ref.nativeLocator, details } };
   }
 
   async resolveEvidence(evidenceRefId: string): Promise<DefenseEvidenceRefDto> {
@@ -1923,17 +2016,24 @@ export class DefenseResearchService {
       document &&
       document.id === row.sourceDocumentId &&
       document.supersededByDocumentId === null &&
-      typeof document.sha256 === 'string' && /^[a-f0-9]{64}$/i.test(document.sha256) &&
+      typeof document.sha256 === 'string' &&
+      /^[a-f0-9]{64}$/i.test(document.sha256) &&
       archiveString(document.archiveBucket) &&
       archiveString(document.archiveS3Key) &&
       archiveString(document.archiveVersionId) &&
-      document.archivedAt instanceof Date && Number.isFinite(document.archivedAt.getTime()) &&
+      document.archivedAt instanceof Date &&
+      Number.isFinite(document.archivedAt.getTime()) &&
       document.archivedAt <= now &&
       (document.retainUntil == null ||
-        (document.retainUntil instanceof Date && Number.isFinite(document.retainUntil.getTime()) &&
-          document.retainUntil > now && document.retainUntil > document.archivedAt)) &&
-      Number.isFinite(row.confidence) && row.confidence >= 0.9 && row.confidence <= 1 &&
-      Number.isInteger(row.pageNumber) && (row.pageNumber ?? 0) > 0 &&
+        (document.retainUntil instanceof Date &&
+          Number.isFinite(document.retainUntil.getTime()) &&
+          document.retainUntil > now &&
+          document.retainUntil > document.archivedAt)) &&
+      Number.isFinite(row.confidence) &&
+      row.confidence >= 0.9 &&
+      row.confidence <= 1 &&
+      Number.isInteger(row.pageNumber) &&
+      (row.pageNumber ?? 0) > 0 &&
       (document.pageCount === null ||
         (Number.isInteger(document.pageCount) && (row.pageNumber ?? 0) <= document.pageCount));
     return this.dossierResult(
@@ -2466,6 +2566,8 @@ export class DefenseResearchService {
       sourceRevisionId: row.revisionId,
       sourceSectionId: row.sectionId,
       exactSpan: row.exactSpan,
+      startOffset: occurrenceSpan(row)?.start ?? null,
+      endOffset: occurrenceSpan(row)?.end ?? null,
       originalWording: row.originalWording,
       referenceType: row.referenceType,
       targetCandidates: row.targetCandidates,

@@ -228,7 +228,7 @@ export class DefenseResearchController {
 
   @Get('evidence/:evidenceRefId')
   evidence(@Param('evidenceRefId') evidenceRefId: string): Promise<DefenseEvidenceRefDto> {
-    return this.service.resolveEvidence(evidenceRefId);
+    return this.service.readEvidenceDetails(evidenceRefId);
   }
 
   @Get('search')
@@ -252,6 +252,7 @@ export class DefenseResearchController {
 
   @Get('product-coverage')
   productCoverage(
+    @CurrentTenant() ctx: TenantContext,
     @Query('perimeter') perimeter?: string,
     @Query('component') component?: string,
     @Query('account') account?: string,
@@ -261,15 +262,18 @@ export class DefenseResearchController {
     @Query('stage') stage?: string,
     @Query('detail') detail?: string,
   ): Promise<DefenseProductCoverageResponseDto> {
-    return this.service.productCoverage({
-      perimeter,
-      component,
-      account,
-      family,
-      fiscalYear: fiscalYear ? Number.parseInt(fiscalYear, 10) : undefined,
-      edition,
-      stage,
-      detail,
-    });
+    return this.service.productCoverage(
+      {
+        perimeter,
+        component,
+        account,
+        family,
+        fiscalYear: fiscalYear ? Number.parseInt(fiscalYear, 10) : undefined,
+        edition,
+        stage,
+        detail,
+      },
+      ctx,
+    );
   }
 }
