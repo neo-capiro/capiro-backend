@@ -4,6 +4,7 @@ import { S3Client, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'node:crypto';
+import { Readable } from 'node:stream';
 import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -14,7 +15,9 @@ const UPLOAD_TTL_MS = 300_000;
 
 function extension(contentType: string): string | null {
   return ALLOWED_MIME.has(contentType)
-    ? contentType === 'image/svg+xml' ? 'svg' : contentType.split('/')[1] ?? null
+    ? contentType === 'image/svg+xml'
+      ? 'svg'
+      : (contentType.split('/')[1] ?? null)
     : null;
 }
 
@@ -23,8 +26,12 @@ function ownedLogoKey(tenantId: string, key: string, contentType: string, allowL
   const ext = extension(contentType);
   if (!ext || !key.startsWith(prefix)) return false;
   const filename = key.slice(prefix.length);
-  return (allowLegacy && filename === `logo.${ext}`) ||
-    new RegExp(`^logo-\\d{13}-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\.${ext}$`).test(filename);
+  return (
+    (allowLegacy && filename === `logo.${ext}`) ||
+    new RegExp(
+      `^logo-\\d{13}-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\.${ext}$`,
+    ).test(filename)
+  );
 }
 
 @Injectable()
@@ -59,8 +66,17 @@ export class BrandingService {
     if (!tenant) return null;
     // Treat persisted metadata as untrusted too: old generic writes could
     // store arbitrary bucket keys. Never return or sign those keys.
-    if (tenant.logoS3Key && !ownedLogoKey(ctx.tenantId, tenant.logoS3Key, tenant.logoContentType ?? '', true)) {
-      return { ...tenant, logoS3Key: null, logoContentType: null, logoUploadedAt: null, logoUrl: null };
+    if (
+      tenant.logoS3Key &&
+      !ownedLogoKey(ctx.tenantId, tenant.logoS3Key, tenant.logoContentType ?? '', true)
+    ) {
+      return {
+        ...tenant,
+        logoS3Key: null,
+        logoContentType: null,
+        logoUploadedAt: null,
+        logoUrl: null,
+      };
     }
     const logoUrl = tenant.logoS3Key ? await this.signedGetUrl(tenant.logoS3Key) : null;
     return { ...tenant, logoUrl };
@@ -74,9 +90,7 @@ export class BrandingService {
    */
   async createLogoUploadUrl(ctx: TenantContext, contentType: string, contentLength: number) {
     if (!this.bucket) {
-      throw new BadRequestException(
-        'Asset uploads are not configured (ASSETS_BUCKET unset)',
-      );
+      throw new BadRequestException('Asset uploads are not configured (ASSETS_BUCKET unset)');
     }
     if (!ALLOWED_MIME.has(contentType)) {
       throw new BadRequestException(`Unsupported content type: ${contentType}`);
@@ -122,11 +136,15 @@ export class BrandingService {
       .send(new HeadObjectCommand({ Bucket: this.bucket, Key: s3Key }))
       .catch(() => null);
     if (!head) throw new BadRequestException('Object not found at the given key');
-    if (head.ContentType !== contentType ||
-        !Number.isSafeInteger(head.ContentLength) || !head.ContentLength ||
-        head.ContentLength < 1 || head.ContentLength > MAX_BYTES ||
-        head.Metadata?.['tenant-id'] !== ctx.tenantId ||
-        head.Metadata?.['upload-issued-at'] !== issuedAt) {
+    if (
+      head.ContentType !== contentType ||
+      !Number.isSafeInteger(head.ContentLength) ||
+      !head.ContentLength ||
+      head.ContentLength < 1 ||
+      head.ContentLength > MAX_BYTES ||
+      head.Metadata?.['tenant-id'] !== ctx.tenantId ||
+      head.Metadata?.['upload-issued-at'] !== issuedAt
+    ) {
       throw new BadRequestException('Invalid logo upload');
     }
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
@@ -150,12 +168,56 @@ export class BrandingService {
     });
   }
 
+  /**
+   * A short-lived signed address of the tenant's confirmed logo, for surfaces
+   * that have no signed-in context (a client share link after its PIN). Only an
+   * owned, well-formed key is ever signed; anything else reads as "no logo".
+   */
+  async signedLogoUrlForTenant(tenantId: string, ttlSeconds = 300): Promise<string | null> {
+    const tenant = await this.prisma.withSystem((tx) =>
+      tx.tenant.findUnique({
+        where: { id: tenantId },
+        select: { logoS3Key: true, logoContentType: true },
+      }),
+    );
+    if (!tenant?.logoS3Key) return null;
+    if (!ownedLogoKey(tenantId, tenant.logoS3Key, tenant.logoContentType ?? '', true)) return null;
+    return this.signedGetUrl(tenant.logoS3Key, ttlSeconds);
+  }
+
+  /** Capture approved bytes in the frozen share payload, including for legacy mutable logo keys. */
+  async freezeLogoForSharing(tenantId: string, key: string, contentType: string): Promise<{ dataUrl: string }> {
+    if (!this.bucket || !ownedLogoKey(tenantId, key, contentType, true))
+      throw new BadRequestException('Branding unavailable');
+    const result = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
+    const body = result.Body;
+    if (!(body instanceof Readable)) {
+      // Node's S3 runtime returns a Readable; discard any other SDK stream before refusing.
+      if (body) await body.transformToWebStream().cancel();
+      throw new BadRequestException('Branding unavailable');
+    }
+    const chunks: Buffer[] = [];
+    let bytes = 0;
+    try {
+      if (result.ContentType !== contentType || !result.ContentLength || result.ContentLength > MAX_BYTES)
+        throw new BadRequestException('Invalid logo size or type');
+      for await (const chunk of body) {
+        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+        bytes += buffer.length;
+        if (bytes > MAX_BYTES) throw new BadRequestException('Logo is too large');
+        chunks.push(buffer);
+      }
+      if (!bytes || bytes !== result.ContentLength) throw new BadRequestException('Incomplete logo');
+      return { dataUrl: `data:${contentType};base64,${Buffer.concat(chunks).toString('base64')}` };
+    } finally {
+      body.destroy();
+    }
+  }
+
   private async signedGetUrl(s3Key: string, ttlSeconds = 300): Promise<string | null> {
     if (!this.bucket) return null;
-    return getSignedUrl(
-      this.s3,
-      new GetObjectCommand({ Bucket: this.bucket, Key: s3Key }),
-      { expiresIn: ttlSeconds },
-    );
+    return getSignedUrl(this.s3, new GetObjectCommand({ Bucket: this.bucket, Key: s3Key }), {
+      expiresIn: ttlSeconds,
+    });
   }
 }

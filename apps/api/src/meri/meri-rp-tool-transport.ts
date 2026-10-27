@@ -10,6 +10,7 @@ import {
   ResearchPortfolioMeriScopeService,
 } from '../research-portfolios/research-portfolio-meri-scope.service.js';
 import { isResearchPortfolioProposalTool } from './meri-rp-proposal-binding.js';
+import { meriReadDelegationOf } from '../auth/read-delegation/read-delegation-request.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -86,6 +87,21 @@ export function admitMeriResearchPortfolioToolTransport(
   }
   if (!provided || !secretMatches(provided, expected)) {
     throw new ForbiddenException('This route requires a valid internal service identity');
+  }
+  // This one read receives a flat, signed body from the existing native read
+  // transport. Scope comes only from the middleware's verified request grant.
+  const delegated = meriReadDelegationOf(req);
+  if (name === 'get_research_portfolio_share_links' && delegated) {
+    if (delegated.kind !== 'tool' || delegated.operation?.id !== name ||
+        delegated.tenantId !== ctx.tenantId || delegated.actorId !== ctx.userId ||
+        !object(rawBody) || Object.keys(rawBody).length !== 1 ||
+        rawBody.conversationId !== delegated.conversationId)
+      throw new ForbiddenException('Research share read delegation does not match');
+    return {
+      input: { conversationId: delegated.conversationId },
+      scope: Object.freeze({ tenantId: ctx.tenantId, userId: ctx.userId,
+        conversationId: delegated.conversationId, selectedClientId: delegated.clientId }),
+    };
   }
   const envelope = parseEnvelope(rawBody);
   if (

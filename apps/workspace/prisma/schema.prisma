@@ -250,22 +250,48 @@ model WsApprovalRequest {
 }
 
 model WsShareLink {
-  id          String    @id @default(uuid()) @db.Uuid
-  tenantId    String    @map("tenant_id") @db.Uuid
-  draftId     String    @map("draft_id") @db.Uuid
-  createdById String    @map("created_by_id")
-  tokenHash   String    @map("token_hash")
-  versionId   String?   @map("version_id") @db.Uuid
-  label       String?
-  expiresAt   DateTime? @map("expires_at")
-  revokedAt   DateTime? @map("revoked_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  kind              String    @default("workspace_document")
+  resourceId        String    @map("resource_id") @db.Uuid
+  draftId           String?   @map("draft_id") @db.Uuid
+  createdById       String    @map("created_by_id")
+  tokenHash         String    @map("token_hash")
+  versionId         String?   @map("version_id") @db.Uuid
+  label             String?
+  operationKey      String?   @map("operation_key") @db.VarChar(128)
+  requestHash       String?   @map("request_hash") @db.Char(64)
+  payload           Json?
+  payloadHash       String?   @map("payload_hash") @db.Char(64)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt         DateTime? @map("expires_at") @db.Timestamptz(6)
+  revokedAt         DateTime? @map("revoked_at") @db.Timestamptz(6)
+  portfolioId       String?   @map("portfolio_id") @db.Uuid
+  clientId          String?   @map("client_id") @db.Uuid
+  snapshotId        String?   @map("snapshot_id") @db.Uuid
+  snapshotName      String?   @map("snapshot_name") @db.VarChar(200)
+  designId          String?   @map("design_id") @db.Uuid
+  designVersion     Int?      @map("design_version")
+  branding          Boolean   @default(false)
+  publishedByUserId String?   @map("published_by_user_id") @db.Uuid
+  publishedAt       DateTime? @map("published_at") @db.Timestamptz(6)
+  revokedByUserId   String?   @map("revoked_by_user_id") @db.Uuid
+  revokeReason      String?   @map("revoke_reason") @db.VarChar(64)
+  openCount         Int       @default(0) @map("open_count")
+  lastOpenedAt      DateTime? @map("last_opened_at") @db.Timestamptz(6)
+  failedPinAttempts Int       @default(0) @map("failed_pin_attempts")
+  lockedUntil       DateTime? @map("locked_until") @db.Timestamptz(6)
 
-  draft WsDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  draft WsDraft? @relation(fields: [draftId], references: [id], onDelete: Cascade)
   guestComments WsGuestComment[]
 
   @@index([tenantId, draftId])
   @@index([tokenHash])
+  @@unique([tokenHash], map: "ws_share_link_token_hash_key")
+  @@unique([tenantId, id], map: "ws_share_link_tenant_id_key")
+  @@unique([tenantId, kind, resourceId, operationKey], map: "ws_share_link_operation_key")
+  @@index([tenantId, portfolioId, publishedAt(sort: Desc)], map: "ws_share_link_portfolio_idx")
+  @@index([tenantId, expiresAt], map: "ws_share_link_expiry_idx")
   @@map("ws_share_link")
 }
 

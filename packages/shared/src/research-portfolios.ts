@@ -1122,6 +1122,8 @@ export interface SaveResearchPortfolioDashboardDesignDto {
 export interface ResearchPortfolioShareSettingsDto {
   portfolioId: string;
   enabled: boolean;
+  /** The workspace-wide switch (FR-16.42); when off, nothing can be published or opened. */
+  tenantEnabled: boolean;
   pinSet: boolean;
   pinUpdatedAt: string | null;
   activeLinkCount: number;
@@ -1159,12 +1161,24 @@ export interface ResearchPortfolioShareLinkDto {
   failedPinAttempts: number;
 }
 
-export interface PublishResearchPortfolioShareLinkDto {
-  operationKey: string;
+export interface PreviewResearchPortfolioShareDto {
   snapshotId: string;
   designId: string;
   clientId: string;
   branding: boolean;
+}
+
+export interface PublishResearchPortfolioShareLinkDto extends PreviewResearchPortfolioShareDto {
+  operationKey: string;
+  previewHash: string;
+  expectedDesignVersion: number;
+}
+
+export interface ResearchPortfolioSharePreviewDto {
+  dashboard: ResearchPortfolioShareDashboardDto;
+  previewHash: string;
+  designVersion: number;
+  logoUrl: string | null;
 }
 
 /** The token is returned once; the server keeps only its hash. */
@@ -1195,7 +1209,7 @@ export interface ResearchPortfolioShareDashboardDto {
       label: string | null;
       disposition: ResearchPortfolioMemberDisposition;
     }[];
-    sources: readonly { id: string }[];
+    sources: readonly ({ id: string } & Partial<import('./defense-research.js').DefenseEvidenceRefDto>)[];
     clientFit: {
       availability: ResearchPortfolioFitAvailability;
       fitScore: number | null;
@@ -1241,4 +1255,21 @@ export interface ResearchPortfolioShareAvailabilityDto {
 
 export interface ResearchPortfolioShareViewDto {
   viewToken: string;
+}
+
+/** Workspace-wide client sharing switch, administered by tenant administrators. */
+export interface ResearchPortfolioTenantSharingDto {
+  enabled: boolean;
+  activeLinkCount: number;
+  updatedAt: string | null;
+  updatedByUserId: string | null;
+}
+
+export interface SetResearchPortfolioTenantSharingDto {
+  enabled: boolean;
+}
+
+/** A short-lived signed address of the firm logo for a recipient; null when branding is off or no logo exists. */
+export interface ResearchPortfolioShareLogoDto {
+  url: string | null;
 }

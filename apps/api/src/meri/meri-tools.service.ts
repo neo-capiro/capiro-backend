@@ -778,6 +778,33 @@ export class MeriToolsService {
     },
     ['conversationId', 'operationKey', 'confirmed'],
   ),
+      get_research_portfolio_share_links: obj(
+        { conversationId: str('Exact current Research Portfolio chat conversation UUID') },
+        ['conversationId'],
+      ),
+      publish_research_portfolio_share_link: obj(
+        {
+          conversationId: str('Exact current Research Portfolio chat conversation UUID'),
+          operationKey: str('Stable idempotency key for this intended link'),
+          snapshotId: str('Exact immutable snapshot UUID the recipient will see'),
+          designId: str('Exact dashboard design UUID of this portfolio'),
+          previewHash: str('Server-returned hash of the exact reviewed share preview'),
+          expectedDesignVersion: { type: 'integer', minimum: 1, description: 'Server-returned reviewed design version' },
+          clientId: str('Exact linked, currently authorized client UUID the link is prepared for'),
+          branding: {
+            type: 'boolean',
+            description: 'Show the firm name and logo on the dashboard',
+          },
+        },
+        ['conversationId', 'operationKey', 'snapshotId', 'designId', 'clientId', 'branding', 'previewHash', 'expectedDesignVersion'],
+      ),
+      revoke_research_portfolio_share_link: obj(
+        {
+          conversationId: str('Exact current Research Portfolio chat conversation UUID'),
+          linkId: str('Exact share link UUID of this portfolio'),
+        },
+        ['conversationId', 'linkId'],
+      ),
       prepare_research_portfolio_meeting: obj(
     {
       conversationId: str('Exact current Research Portfolio chat UUID'),
@@ -2754,6 +2781,9 @@ export class MeriToolsService {
       get_research_portfolio_operations: () => researchPortfolio('get_research_portfolio_operations'),
       prepare_research_portfolio_brief: () => researchPortfolio('prepare_research_portfolio_brief'),
       prepare_research_portfolio_meeting: () => researchPortfolio('prepare_research_portfolio_meeting'),
+      get_research_portfolio_share_links: () => researchPortfolio('get_research_portfolio_share_links'),
+      publish_research_portfolio_share_link: () => researchPortfolio('publish_research_portfolio_share_link'),
+      revoke_research_portfolio_share_link: () => researchPortfolio('revoke_research_portfolio_share_link'),
       search_legiwatch_news: legiwatch,
       get_florida_budget_project: legiwatch,
       compare_florida_budget_amounts: legiwatch,

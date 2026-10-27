@@ -25,6 +25,7 @@ import { ResearchPortfolioReviewService } from './research-portfolio-review.serv
 import { ResearchPortfolioRulesService } from './research-portfolio-rules.service.js';
 import { ResearchPortfolioPhase11Service } from './research-portfolio-phase11.service.js';
 import { ResearchPortfolioImportService } from './research-portfolio-import.service.js';
+import { ResearchPortfolioShareService } from './research-portfolio-share.service.js';
 
 const requiredText = (input: Record<string, unknown>, key: string): string => {
   const value = input[key];
@@ -85,7 +86,10 @@ export type ResearchPortfolioMeriToolName =
   | 'get_research_portfolio_imports'
   | 'get_research_portfolio_operations'
   | 'prepare_research_portfolio_brief'
-  | 'prepare_research_portfolio_meeting';
+  | 'prepare_research_portfolio_meeting'
+  | 'get_research_portfolio_share_links'
+  | 'publish_research_portfolio_share_link'
+  | 'revoke_research_portfolio_share_link';
 
 const NAMES = new Set<ResearchPortfolioMeriToolName>([
   'manage_research_portfolio',
@@ -107,6 +111,9 @@ const NAMES = new Set<ResearchPortfolioMeriToolName>([
   'get_research_portfolio_operations',
   'prepare_research_portfolio_brief',
   'prepare_research_portfolio_meeting',
+  'get_research_portfolio_share_links',
+  'publish_research_portfolio_share_link',
+  'revoke_research_portfolio_share_link',
 ]);
 
 export function isResearchPortfolioMeriTool(name: string): name is ResearchPortfolioMeriToolName {
@@ -129,6 +136,7 @@ export class ResearchPortfolioMeriToolsService {
     @Optional() private readonly imports?: ResearchPortfolioImportService,
     @Optional() private readonly institutional?: ResearchPortfolioInstitutionalService,
     @Optional() private readonly savedComparisons?: DefenseSavedComparisonsService,
+    @Optional() private readonly share?: ResearchPortfolioShareService,
   ) {}
 
   async execute(
@@ -136,7 +144,7 @@ export class ResearchPortfolioMeriToolsService {
     name: ResearchPortfolioMeriToolName,
     input: Record<string, unknown>,
   ): Promise<unknown> {
-    const portfolioId = await this.authorizeScope(ctx, input);
+    const { portfolioId, selectedClientId } = await this.authorizeScope(ctx, input);
     switch (name) {
       case 'manage_research_portfolio':
         return executeResearchPortfolioManagement(
@@ -269,13 +277,55 @@ export class ResearchPortfolioMeriToolsService {
         const prepared = validateResearchPortfolioInstitutionalInput(input, kind);
         return this.institutional.prepare(ctx, { ...prepared, kind });
       }
+      case 'get_research_portfolio_share_links': {
+        const share = this.requireShare();
+        const [sharing, links] = await Promise.all([
+          share.getSettings(ctx, portfolioId),
+          share.listLinks(ctx, portfolioId),
+        ]);
+        const current = await this.authorizeScope(ctx, input);
+        if (current.portfolioId !== portfolioId || current.selectedClientId !== selectedClientId)
+          throw new BadRequestException('The conversation scope changed. Refresh before listing shares');
+        const visible = selectedClientId ? links.filter(link => link.clientId === selectedClientId) : links;
+        return { sharing: { ...sharing, activeLinkCount: visible.filter(link => link.status === 'active').length }, links: visible };
+      }
+      case 'publish_research_portfolio_share_link': {
+        if (typeof input.branding !== 'boolean') {
+          throw new BadRequestException('branding must be true or false');
+        }
+        const published = await this.requireShare().publishLink(ctx, portfolioId, {
+          operationKey: requiredText(input, 'operationKey'),
+          snapshotId: requiredText(input, 'snapshotId'),
+          designId: requiredText(input, 'designId'),
+          clientId: requiredText(input, 'clientId'),
+          branding: input.branding,
+          expectedDesignVersion: requiredInteger(input, 'expectedDesignVersion'),
+          previewHash: requiredText(input, 'previewHash'),
+        });
+        // The address is shown once to the signed-in user, who passes it on themselves;
+        // Meri never sends the link or the PIN anywhere, and the PIN is never readable.
+        return {
+          link: published.link,
+          replayed: published.replayed,
+          sharePath: published.token ? `/share/${published.token}` : null,
+          shownOnce: true,
+        };
+      }
+      case 'revoke_research_portfolio_share_link':
+        return this.requireShare().revokeLink(ctx, portfolioId, requiredText(input, 'linkId'));
     }
+  }
+
+  private requireShare(): ResearchPortfolioShareService {
+    if (!this.share)
+      throw new ServiceUnavailableException('Research Portfolio client sharing is unavailable');
+    return this.share;
   }
 
   private async authorizeScope(
     ctx: TenantContext,
     input: Record<string, unknown>,
-  ): Promise<string> {
+  ): Promise<{ portfolioId: string; selectedClientId: string | null }> {
     for (const key of AUTHORITY_KEYS) {
       if (key in input) {
         throw new BadRequestException(`${key} is controlled by the server and may not be supplied`);
@@ -290,7 +340,7 @@ export class ResearchPortfolioMeriToolsService {
           userId: ctx.userId,
           archivedAt: null,
         },
-        select: { metadata: true },
+        select: { metadata: true, clientId: true },
       }),
     );
     if (!conversation) throw new NotFoundException('Meri conversation not found');
@@ -302,6 +352,6 @@ export class ResearchPortfolioMeriToolsService {
     if (!scope) {
       throw new BadRequestException('This conversation is not scoped to a Research Portfolio');
     }
-    return scope.researchPortfolioId;
+    return { portfolioId: scope.researchPortfolioId, selectedClientId: conversation.clientId ?? null };
   }
 }

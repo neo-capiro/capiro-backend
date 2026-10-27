@@ -12,7 +12,7 @@ function makeMockPrisma() {
   const docVersions = new Map<string, Record<string, unknown>>();
   const guestComments = new Map<string, Record<string, unknown>>();
 
-  return {
+  const prisma = {
     _shareLinks: shareLinks,
     _drafts: drafts,
     _docVersions: docVersions,
@@ -32,14 +32,19 @@ function makeMockPrisma() {
           if (where.tenantId && v.tenantId !== where.tenantId) continue;
           if (where.draftId && v.draftId !== where.draftId) continue;
           if (where.label && v.label !== where.label) continue;
-          return v;
+          if ((where as any).kind && (v.kind ?? 'workspace_document') !== (where as any).kind) continue;
+          if ((where as any).resourceId && (v.resourceId ?? v.draftId) !== (where as any).resourceId) continue;
+          if ('operationKey' in where && (v.operationKey ?? null) !== (where as any).operationKey) continue;
+          return { kind: 'workspace_document', resourceId: v.draftId, ...v };
         }
         return null;
       }),
-      findMany: jest.fn(async ({ where }: { where: { tokenHash?: string } }) => {
-        if (!where.tokenHash) return Array.from(shareLinks.values());
-        return Array.from(shareLinks.values()).filter((v) => v.tokenHash === where.tokenHash);
-      }),
+      findMany: jest.fn(async ({ where }: { where: Record<string, unknown> }) =>
+        Array.from(shareLinks.values()).filter(v => Object.entries(where).every(([key, value]) => {
+          const actual = key === 'kind' ? v.kind ?? 'workspace_document' : ['operationKey', 'requestHash', 'revokedAt'].includes(key) ? v[key] ?? null : v[key];
+          return actual === value;
+        })),
+      ),
       create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => {
         const id = 'share-' + shareLinks.size;
         shareLinks.set(id, { id, ...data });
@@ -78,7 +83,16 @@ function makeMockPrisma() {
         ),
       ),
     },
-  } as unknown as Record<string, unknown>
+  } as unknown as Record<string, unknown>;
+  prisma.$queryRaw = jest.fn(async () => []);
+  let tail = Promise.resolve();
+  prisma.$transaction = jest.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
+    const previous = tail; let release!: () => void;
+    tail = new Promise<void>(resolve => { release = resolve; });
+    await previous;
+    try { return await fn(prisma); } finally { release(); }
+  });
+  return prisma;
 }
 
 function makeMockCollaborators() {
@@ -96,6 +110,38 @@ describe('ShareLinkService', () => {
   beforeEach(() => {
     prisma = makeMockPrisma();
     service = new ShareLinkService(prisma as never, makeMockCollaborators() as never);
+  });
+
+  it('keeps a display label separate from an operation key and serializes retries', async () => {
+    (prisma as any)._drafts.set('draft-1', { id: 'draft-1', tenantId: 'tenant-1', config: { sections: ['Body'], sectionContent: { Body: 'x'.repeat(4500) } } });
+    const params = { label: 'For client', idempotencyKey: 'request-one', versionId: 'current-version', expiresInDays: 7 };
+    const results = await Promise.all([service.createShareLink('tenant-1', 'draft-1', 'owner', params), service.createShareLink('tenant-1', 'draft-1', 'owner', params)]);
+    expect(results.filter(result => result.token.length === 64)).toHaveLength(1);
+    expect(results.map(result => result.shareId)).toEqual([results[0].shareId, results[0].shareId]);
+    const rows = [...(prisma as any)._shareLinks.values()];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ label: 'For client', operationKey: 'request-one', kind: 'workspace_document' });
+    expect(rows[0].payload.sections[0].content).toHaveLength(4500);
+    await expect(service.createShareLink('tenant-1', 'draft-1', 'owner', { ...params, expiresInDays: 8 })).rejects.toThrow('different immutable request');
+    await expect(service.createShareLink('tenant-1', 'draft-1', 'owner', { ...params, label: 'Different display label' })).rejects.toThrow('different immutable request');
+    expect((prisma as any)._shareLinks.size).toBe(1);
+  });
+
+  it('refuses ambiguous legacy label retries and unsupported complete content before insertion', async () => {
+    (prisma as any)._drafts.set('draft-1', { id: 'draft-1', tenantId: 'tenant-1', config: {} });
+    (prisma as any)._shareLinks.set('legacy', { id: 'legacy', tenantId: 'tenant-1', draftId: 'draft-1', label: 'old-key' });
+    await expect(service.createShareLink('tenant-1', 'draft-1', 'owner', { versionId: 'current-version', idempotencyKey: 'old-key' })).rejects.toThrow('legacy share');
+    (prisma as any)._drafts.get('draft-1').config = { mainBlocks: [{ type: 'photo', src: 'private-object' }] };
+    await expect(service.createShareLink('tenant-1', 'draft-1', 'owner', { versionId: 'current-version', idempotencyKey: 'new-key' })).rejects.toThrow('unsupported photo block');
+    expect((prisma as any)._shareLinks.size).toBe(1);
+  });
+
+  it('never admits a research portfolio capability to document reads or comments', async () => {
+    const token = 'a'.repeat(64);
+    (prisma as any)._shareLinks.set('research', { id: 'research', tenantId: 'tenant-1', kind: 'research_portfolio', resourceId: 'portfolio', tokenHash: service.hashToken(token), expiresAt: new Date(Date.now() + 10000) });
+    await expect(service.getByToken(token)).rejects.toThrow('not found');
+    await expect(service.addGuestComment(token, 'Must not persist', 'Guest')).rejects.toThrow('not found');
+    expect((prisma as any)._guestComments.size).toBe(0);
   });
 
   it('creates a share link and returns the token once', async () => {
@@ -118,7 +164,7 @@ describe('ShareLinkService', () => {
   });
 
   it('returns 404 for expired share links', async () => {
-    const token = 'expired-token';
+    const token = '0000000000000000000000000000000000000000000000000000000000000001';
     const tokenHash = service.hashToken(token);
     (prisma as any)._shareLinks.set('share-1', {
       id: 'share-1',
@@ -138,7 +184,7 @@ describe('ShareLinkService', () => {
   });
 
   it('returns 404 for revoked share links', async () => {
-    const token = 'revoked-token';
+    const token = '0000000000000000000000000000000000000000000000000000000000000004';
     const tokenHash = service.hashToken(token);
     (prisma as any)._shareLinks.set('share-2', {
       id: 'share-2',
@@ -158,7 +204,7 @@ describe('ShareLinkService', () => {
   });
 
   it('sanitizes public payload (no tenantId)', async () => {
-    const token = 'valid-token';
+    const token = '0000000000000000000000000000000000000000000000000000000000000005';
     const tokenHash = service.hashToken(token);
     (prisma as any)._shareLinks.set('share-3', {
       id: 'share-3',
@@ -201,7 +247,7 @@ describe('ShareLinkService', () => {
   });
 
   it('serves the frozen version snapshot, not the live draft, when versionId is pinned', async () => {
-    const token = 'pinned-token';
+    const token = '0000000000000000000000000000000000000000000000000000000000000003';
     const tokenHash = service.hashToken(token);
     (prisma as any)._shareLinks.set('share-4', {
       id: 'share-4',
@@ -235,7 +281,7 @@ describe('ShareLinkService', () => {
 
   it('persists a guest comment durably with a real 429 when rate-limited', async () => {
     (prisma as any)._drafts.set('draft-1', { id: 'draft-1', tenantId: 'tenant-1', prospectId: null });
-    const token = 'guest-comment-token';
+    const token = '0000000000000000000000000000000000000000000000000000000000000002';
     const tokenHash = service.hashToken(token);
     (prisma as any)._shareLinks.set('share-5', {
       id: 'share-5',

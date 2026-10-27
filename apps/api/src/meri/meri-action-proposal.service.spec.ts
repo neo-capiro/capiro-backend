@@ -1352,6 +1352,97 @@ describe('MeriActionProposalService — Research Portfolio conversation binding'
     return row;
   }
 
+  const shareInput = {
+    conversationId: RP_CONVERSATION,
+    operationKey: 'share:once',
+    snapshotId: PROPOSAL,
+    designId: RP_PORTFOLIO,
+    clientId: RP_CLIENT,
+    branding: false,
+  };
+  const sharePath = `/share/${'a'.repeat(64)}`;
+  const publishedShare = {
+    link: { id: PROPOSAL, expiresAt: '2026-11-03T00:00:00.000Z' },
+    replayed: false,
+    sharePath,
+    shownOnce: true,
+  };
+  const shareRow = () =>
+    rpRow({ tool: 'publish_research_portfolio_share_link', input: shareInput });
+
+  it('share publish returns the address once to the winning approval, without persisting it', async () => {
+    const h = harness({ row: shareRow(), executeResult: publishedShare });
+    const first = await h.service.approveAndExecute(ctx, PROPOSAL);
+    expect(first.status).toBe('succeeded');
+    expect(first.oneTimeResult).toEqual({ sharePath, shownOnce: true });
+    expect(h.authorizeScope).toHaveBeenCalled();
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(h.getRow())).not.toContain(sharePath);
+    expect(JSON.stringify(h.tx.meriActionProposal.updateMany.mock.calls)).not.toContain(sharePath);
+    expect(JSON.stringify(h.tx.complianceCheck.create.mock.calls)).not.toContain(sharePath);
+    expect(
+      JSON.stringify((h.policyPacks.recordDecisionInTx as jest.Mock).mock.calls),
+    ).not.toContain(sharePath);
+    const retry = await h.service.approveAndExecute(ctx, PROPOSAL);
+    expect(retry.status).toBe('succeeded');
+    expect(retry.oneTimeResult).toBeUndefined();
+    expect(JSON.stringify(await h.service.list(ctx, RP_CONVERSATION))).not.toContain(sharePath);
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it('share publish gives no address to the concurrent approval that loses the claim', async () => {
+    const h = harness({ row: shareRow(), executeResult: publishedShare });
+    const results = await Promise.all([
+      h.service.approveAndExecute(ctx, PROPOSAL),
+      h.service.approveAndExecute(ctx, PROPOSAL),
+    ]);
+    expect(results.filter((value) => value.oneTimeResult)).toHaveLength(1);
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['other actor', { ...ctx, userId: OTHER_RP_CLIENT }],
+    ['other tenant', { ...ctx, tenantId: OTHER_RP_CLIENT }],
+  ])('share publish refuses %s before executing or revealing an address', async (_label, actor) => {
+    const h = harness({ row: shareRow(), executeResult: publishedShare });
+    await expect(h.service.approveAndExecute(actor, PROPOSAL)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+
+  it('share publish refuses stale conversation authority before executing', async () => {
+    const h = harness({
+      row: shareRow(),
+      executeResult: publishedShare,
+      scopeError: new NotFoundException(),
+    });
+    await expect(h.service.approveAndExecute(ctx, PROPOSAL)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { ...publishedShare, replayed: true },
+    { ...publishedShare, sharePath: null },
+    { ...publishedShare, sharePath: 'https://example.test/other' },
+    { ...publishedShare, sharePath: `${sharePath}?extra=1` },
+    { ...publishedShare, shownOnce: false },
+  ])(
+    'share publish does not expose replayed or malformed one-time results',
+    async (executeResult) => {
+      const h = harness({ row: shareRow(), executeResult });
+      expect((await h.service.approveAndExecute(ctx, PROPOSAL)).oneTimeResult).toBeUndefined();
+      expect(JSON.stringify(h.getRow())).not.toContain(sharePath);
+    },
+  );
+
+  it('share publish response field is unavailable to other tools', async () => {
+    const h = harness({ row: rpRow(), executeResult: publishedShare });
+    expect((await h.service.approveAndExecute(ctx, PROPOSAL)).oneTimeResult).toBeUndefined();
+  });
+
   it.each([
     ['PASS', 'executed', 'succeeded', 1],
     ['WARN', 'pending_approval', 'proposed', 0],

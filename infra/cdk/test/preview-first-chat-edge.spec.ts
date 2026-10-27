@@ -54,8 +54,11 @@ test('sharing writes admit only the exact owner and public capability routes', (
       ['POST', `${owner}/share-links`],
       ['POST', `${owner}/share-links/synthetic-link_1/revoke`],
       ['POST', '/api/research-share-links/synthetic-link_1/revoke'],
+      ['POST', '/api/research-share-links/settings'],
       ['POST', `/api/public/research-share/${token}/pin`],
       ['POST', `/api/public/research-share/${token}/dashboard`],
+      ['POST', `/api/public/research-share/${token}/logo`],
+      ['POST', `${owner}/share-preview`],
       ['PUT', `${owner}/dashboard-designs/synthetic-design_1`],
     ];
     for (const [method, pathname] of routes) {
@@ -72,6 +75,10 @@ test('sharing writes admit only the exact owner and public capability routes', (
       '/api/research-portfolios/invalid.id/sharing/enable',
       `/api/public/research-share/${'a'.repeat(63)}/pin`,
       `/api/public/research-share/${'g'.repeat(64)}/pin`,
+      `/api/public/research-share/${'a'.repeat(63)}/logo`,
+      `/api/public/research-share/${'g'.repeat(64)}/logo`,
+      '/api/research-share-links/settings/extra',
+      '/api/research-share-links/invalid.id/revoke',
       `/api/public/research-share/${token}/unallocated`,
     ]) assert.equal(routeDestination(rules, 'POST', pathname), null, pathname);
     for (const [id, priority] of Object.entries({
