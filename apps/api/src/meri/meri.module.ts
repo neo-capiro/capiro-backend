@@ -1,3 +1,6 @@
+import { LegislativeComparisonController } from './legislative-comparison.controller.js';
+import { LegiwatchReviewController } from './legiwatch-review.controller.js';
+import { LegiwatchReviewService } from './legiwatch-review.service.js';
 import { prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 import { Module } from '@nestjs/common';
 import { ManagedMcpModule } from './managed-mcp.module.js';
@@ -152,7 +155,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     BusinessDevelopmentModule,
     DistrictNexusModule,
   ],
-  controllers: [
+  controllers: [LegislativeComparisonController,
     MeriRoutineReadController,
     ConversationManagementController,
     HearingMediaController,
@@ -162,6 +165,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     MeriMemoryHelperController,
     ConnectedAppReadController,
     SavedRecordReadController,
+    LegiwatchReviewController,
     SavedStrategyReadController,
     LegiwatchActionController,
     MeriController,
@@ -180,6 +184,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     LegiwatchActionService,
     ConnectedAppReadService,
     SavedRecordReadService,
+    LegiwatchReviewService,
     SavedStrategyReadService,
     ToolServiceSecretGuard,
     AutomaticClientContextService,

@@ -843,16 +843,6 @@ export class MeriToolsService {
         },
         ['fiscalYear'],
       ),
-      compare_florida_budget_amounts: obj(
-        {
-          ...legiwatchScope,
-          leftId: str('Exact amount observation'),
-          leftRevision: str('Exact document revision'),
-          rightId: str('Exact amount observation'),
-          rightRevision: str('Exact document revision'),
-        },
-        ['leftId', 'leftRevision', 'rightId', 'rightRevision'],
-      ),
       prepare_legiwatch_briefing: obj(
         {
           ...legiwatchScope,
@@ -930,18 +920,6 @@ export class MeriToolsService {
         },
         ['jurisdiction', 'view'],
       ),
-      compare_legislative_versions: obj(
-        {
-          ...legiwatchScope,
-          leftId: str('Exact left document ID'),
-          leftRevision: str('Exact left revision hash'),
-          rightId: str('Exact right document ID'),
-          rightRevision: str('Exact right revision hash'),
-          allowCrossBill: { type: 'boolean' },
-          rightSessionKey: str('Explicit right session for cross-session comparison'),
-        },
-        ['jurisdiction', 'sessionKey', 'leftId', 'leftRevision', 'rightId', 'rightRevision'],
-      ),
       save_legislative_research: obj(
         {
           ...legiwatchScope,
@@ -973,14 +951,6 @@ export class MeriToolsService {
           },
         },
         ['jurisdiction', 'sessionKey', 'title', 'analysis', 'documents', 'citations', 'requestKey'],
-      ),
-      get_legiwatch_review: obj(
-        {
-          ...legiwatchScope,
-          view: { type: 'string', enum: ['folders', 'suggestions', 'rules', 'workflows'] },
-          cursor: str('Opaque next cursor for this exact folder and session'),
-        },
-        ['view'],
       ),
       preview_legiwatch_relevance: obj(relevanceInput, [
         'folderId',
@@ -2786,12 +2756,9 @@ export class MeriToolsService {
       revoke_research_portfolio_share_link: () => researchPortfolio('revoke_research_portfolio_share_link'),
       search_legiwatch_news: legiwatch,
       get_florida_budget_project: legiwatch,
-      compare_florida_budget_amounts: legiwatch,
       prepare_legiwatch_briefing: legiwatch,
-      get_legiwatch_review: legiwatch,
       search_legislative_research: legiwatch,
       get_legal_reference: legiwatch,
-      compare_legislative_versions: legiwatch,
       save_legislative_research: legiwatch,
       preview_legiwatch_relevance: legiwatch,
       save_legiwatch_relevance: legiwatch,
