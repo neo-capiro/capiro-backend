@@ -2,6 +2,9 @@
 -- grants before applying. This migration creates no role grants and changes no
 -- applied migration. Prisma's historic Workspace timestamp columns contain UTC.
 BEGIN;
+-- The retired RP table forces RLS even for its non-superuser migration owner.
+-- This trusted copy must see every tenant; the bypass clears with this transaction.
+SET LOCAL app.bypass_rls = 'on';
 LOCK TABLE ws_share_link, research_portfolio_share_links IN ACCESS EXCLUSIVE MODE;
 
 DO $$ BEGIN
