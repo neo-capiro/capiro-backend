@@ -48,6 +48,21 @@ describe('cold routine-management authority', () => {
     expect(decide(selection())).toMatchObject({ authorized: true, limits: null, destinationResolution: null, current: current() });
     for (const mode of ['pause', 'delete']) expect(decide(selection('cancel_scheduled_task', { scheduleId, mode, note: 'Stop future firings', running: 'leave', runs: [] })).authorized).toBe(true);
   });
+  it('uses the canonical scope policyRevision ceiling at bootstrap', () => {
+    expect(routineManagementCurrent({ body: { clientId, policyRevision: 'p'.repeat(128) }, principal, membership, nowMs: NOW }).scopes[0]!.policyRevision).toHaveLength(128);
+    expect(() => routineManagementCurrent({ body: { clientId, policyRevision: 'p'.repeat(129) }, principal, membership, nowMs: NOW })).toThrow(BadRequestException);
+  });
+  it('reauthorizes every legacy resource scope while keeping the client anchor narrow and General exact', () => {
+    const value = selection('cancel_scheduled_task'), legacy = [...current().scopes, { ...current().scopes[0]!, resourceId: foreign }];
+    value.currentSchedule!.projection.scopes = legacy; value.currentSchedule!.projectionSha256 = hash(value.currentSchedule!.projection);
+    const allowed = { ...membership, clientIds: [clientId, foreign] };
+    expect(decide(value, allowed).current.scopes).toEqual(current().scopes);
+    expect(() => decide(value, membership)).toThrow(ForbiddenException);
+    value.currentSchedule!.projection.scopes = [legacy[1]!]; value.currentSchedule!.projectionSha256 = hash(value.currentSchedule!.projection);
+    expect(() => decide(value, allowed)).toThrow(ForbiddenException);
+    value.current = current(null); value.currentSchedule!.projection.scopes = [...current(null).scopes, ...legacy]; value.currentSchedule!.projectionSha256 = hash(value.currentSchedule!.projection);
+    expect(() => decide(value, allowed)).toThrow(ForbiddenException);
+  });
   it.each(['schedule_task', 'update_scheduled_task'])('refuses execution operation %s', operation => expect(() => decide(selection(operation))).toThrow(BadRequestException));
   it('refuses current-work cancellation, selected runs and a fake execution binding', () => {
     expect(() => decide(selection('cancel_scheduled_task', { scheduleId, mode: 'pause', note: 'Stop future firings', running: 'request_cancel', runs: [] }))).toThrow(BadRequestException);
@@ -63,6 +78,10 @@ describe('cold routine-management authority', () => {
       intentSha256: 'd'.repeat(64), taskInstruction: null, projection: projection(), policy: null,
       cancel: { mode: 'delete', note: 'Stop future firings', running: 'leave', runs: [] } };
     expect(() => decide(mismatch)).toThrow(BadRequestException);
+    const wrongSchedule = selection('cancel_scheduled_task');
+    wrongSchedule.scheduleBinding = { intent: { intentId, operation: 'cancel_scheduled_task', projection: { ...projection(), scheduleId: foreign },
+      cancel: { mode: 'pause', note: 'Stop future firings', running: 'leave', runs: [] } } };
+    expect(() => decide(wrongSchedule)).toThrow(BadRequestException);
   });
   it('binds current membership, selected scope, context revision and every described row before release', () => {
     expect(() => decide(selection(), { ...membership, membershipRevision: 'c'.repeat(64) })).toThrow(ForbiddenException);
@@ -112,9 +131,11 @@ describe('guarded management route and existing consent owner', () => {
     expect(await f.service.managementCurrent(request, ctx, { clientId, policyRevision })).toMatchObject({ kind: 'routine-management', principal });
     expect(f.member.read).toHaveBeenCalledTimes(1); expect(f.prisma.withTenant).not.toHaveBeenCalled();
   });
-  it.each(['pause', 'delete'])('records only existing exact approved %s consent revocation at before_claim', async mode => {
+  it.each<["pause" | "delete", boolean]>([['pause', false], ['delete', false], ['pause', true], ['delete', true]])('records only existing exact approved %s consent revocation at before_claim (legacy scopes=%s)', async (mode, legacy) => {
     jest.spyOn(Date, 'now').mockReturnValue(NOW); const f = fixture(), value = selection('cancel_scheduled_task', { scheduleId, mode, note: 'Stop future firings', running: 'leave', runs: [] });
-    const p = { ...projection(), state: mode === 'pause' ? 'paused' : 'cancelled' };
+    const resourceScopes = legacy ? [...current().scopes, { ...current().scopes[0]!, resourceId: foreign }] : current().scopes;
+    if (legacy) { f.member.read.mockResolvedValue({ ...membership, clientIds: [clientId, foreign] }); value.currentSchedule!.projection.scopes = resourceScopes; value.currentSchedule!.projectionSha256 = hash(value.currentSchedule!.projection); }
+    const p = { ...projection(), scopes: resourceScopes, state: mode === 'pause' ? 'paused' : 'cancelled' };
     const intent = { intentId, operation: value.operation, expectedGeneration: 1, generation: 2, previousProjectionSha256: hash(projection()), projection: p,
       configuration: null, cancel: { mode, note: 'Stop future firings', running: 'leave', runs: [] } };
     const approval = { proposalId: intentId, commandSha256: hash(intent), decision: 'approved', decidedAt: new Date(NOW - 1000).toISOString(), expiresAt: new Date(NOW + 10000).toISOString(), approver: principal, policyRevision };
@@ -127,5 +148,6 @@ describe('guarded management route and existing consent owner', () => {
     const bad = clone(value); (bad.scheduleBinding as { approval: { approver: { actorId: string } } }).approval.approver.actorId = foreign;
     await expect(f.service.managementPolicyCheck(verifiedRequest(), ctx, body(bad))).rejects.toBeInstanceOf(ForbiddenException);
     expect(f.revocations).toHaveLength(1);
+    if (legacy) { f.member.read.mockResolvedValue(membership); await expect(f.service.managementPolicyCheck(verifiedRequest(), ctx, body(value))).rejects.toBeInstanceOf(ForbiddenException); expect(f.revocations).toHaveLength(1); }
   });
 });

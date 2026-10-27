@@ -120,10 +120,12 @@ export class MeriRoutinesService {
   async managementPolicyCheck(req: Request, ctx: TenantContext, raw: unknown) {
     if (!hasVerifiedToolServiceIdentity(req)) throw forbidden();
     // Reject execution operations before reading membership, model configuration or recording an event.
-    parseRoutineManagementSelection(parseSelectionRequest(raw).selection);
+    const selected = parseRoutineManagementSelection(parseSelectionRequest(raw).selection);
     const membership = await this.currentMembership(req, ctx), principal = { tenantId: ctx.tenantId, actorId: ctx.userId }, nowMs = Date.now();
     const receipt = decideRoutineManagementPolicy({ body: raw, principal, membership, nowMs });
-    const eventInput = { selection: parseSelectionRequest(raw).selection, principal, scopes: receipt.current.scopes, limits: null };
+    // Policy just reauthorized the original complete projection scope set. The
+    // session's single selected-client anchor never becomes execution authority.
+    const eventInput = { selection: parseSelectionRequest(raw).selection, principal, scopes: selected.proposal?.scopes ?? receipt.current.scopes, limits: null };
     const event = routineConsentEvent({ ...eventInput, nowMs });
     if (event) await this.recordConsentEvent(ctx, event, eventInput, receipt.expiresAtMs);
     return receipt;

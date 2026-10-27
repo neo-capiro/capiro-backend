@@ -153,7 +153,7 @@ export function parseSelectionRequest(value: unknown): { selection: unknown; sel
 /** A cold routines page has no execution binding. These selectors never create one. */
 export function parseRoutineManagementScope(value: unknown): { clientId: string | null; policyRevision: string } {
   const v = record(value, ['clientId', 'policyRevision'], [], 'management scope');
-  if (typeof v.policyRevision !== 'string' || !v.policyRevision || v.policyRevision.length > 256) throw invalid('policyRevision');
+  if (typeof v.policyRevision !== 'string' || !v.policyRevision || v.policyRevision.length > 128) throw invalid('policyRevision');
   return { clientId: v.clientId === null ? null : uuid(v.clientId, 'clientId'), policyRevision: v.policyRevision };
 }
 
@@ -207,6 +207,7 @@ export function parseRoutineManagementSelection(value: unknown): RoutineManageme
       const intent = record(b.intent, ['intentId', 'operation', 'projection'], ['expectedGeneration', 'generation', 'previousProjectionSha256', 'configuration', 'cancel', 'taskInstructionSha256'], 'management intent');
       if (intent.operation !== 'cancel_scheduled_task') throw invalid('management intent operation');
       matchingCancel(intent.cancel);
+      if (projectionRef(intent.projection, 'management intent projection').scheduleId !== uuid(r.scheduleId, 'scheduleId')) throw invalid('management intent scheduleId');
     }
     if (b.resource && typeof b.resource === 'object' && Object.hasOwn(b.resource, 'scheduleId')) resource = projectionRef(b.resource, 'resource');
   }

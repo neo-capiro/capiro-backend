@@ -1,7 +1,7 @@
 /** Current owner/scope observation and narrow policy for management without a conversation or model run. */
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { nativeCanonicalSha256, type NativeIdentity } from '../native-approvals/native-approval.contract.js';
-import { ROUTINE_RECEIPT_MAX_MS, type RoutineMembershipFacts } from './meri-routine-policy.js';
+import { ROUTINE_RECEIPT_MAX_MS, assertRoutineScopes, type RoutineMembershipFacts } from './meri-routine-policy.js';
 import { parseRoutineManagementScope, parseRoutineManagementSelection, parseSelectionRequest, type RoutineManagementCurrent } from './meri-routines.contract.js';
 
 export interface RoutineManagementMembership extends RoutineMembershipFacts { membershipRevision: string }
@@ -31,9 +31,16 @@ export function decideRoutineManagementPolicy(input: { body: unknown; principal:
   const { checkedAtMs, expiresAtMs, ...expected } = fresh;
   if (!same(current, expected)) throw denied();
   for (const resource of [selection.currentSchedule, selection.proposal, selection.resource]) {
-    if (resource !== null && (!same(resource.owner, input.principal) || !same(resource.scopes, fresh.scopes) ||
-        selection.request.scheduleId !== null && resource.scheduleId !== selection.request.scheduleId)) throw denied();
+    if (resource === null) continue;
+    if (!same(resource.owner, input.principal) || selection.request.scheduleId !== null && resource.scheduleId !== selection.request.scheduleId) throw denied();
+    if (fresh.selectedClientId === null) { if (!same(resource.scopes, fresh.scopes)) throw denied(); }
+    else {
+      assertRoutineScopes(resource.scopes, input.membership);
+      if (!resource.scopes.some(scope => same(scope, fresh.scopes[0])) || resource.scopes.some(scope => scope.policyRevision !== fresh.scopes[0]!.policyRevision ||
+          scope.kind === 'private-user' && scope.resourceId !== input.principal.actorId)) throw denied();
+    }
   }
+  if (selection.currentSchedule && selection.proposal && !same(selection.currentSchedule.scopes, selection.proposal.scopes)) throw denied();
   return { authorized: true as const, selectionSha256, current: expected as RoutineManagementCurrent,
     destinationResolution: null, limits: null, checkedAtMs, expiresAtMs };
 }
