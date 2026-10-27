@@ -1,3 +1,4 @@
+import { WatchActionNotApplied } from './watch-action.contract.js';
 /**
  * MO-06 family leaf: the ClientWatchlist (tracker watchlist) watch, whose canonical
  * owner is apps/intel-api/src/tracker/tracker-watchlist.controller.ts +
@@ -18,7 +19,7 @@
  *  - unsubscribe is NOT offered here. There is no owner operation that removes a
  *    watchlist, so advertising an `unsubscribe` verb would be a fabricated delete.
  */
-import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import {
   type WatchAdapterEffect,
   type WatchFamily,
@@ -59,7 +60,7 @@ export class ClientWatchlistAdapter {
     options: { actionProposalId: string },
   ): Promise<WatchAdapterEffect> {
     if (!this.operations.includes(request.operation))
-      throw new BadRequestException('Unsupported watch operation for this owner');
+      throw new WatchActionNotApplied('Unsupported watch operation for this owner');
     const answer = await this.call(
       ctx,
       'watch_apply',
@@ -78,7 +79,7 @@ export class ClientWatchlistAdapter {
     strict = true,
   ): Promise<unknown | null> {
     if (target.clientId === null)
-      throw new BadRequestException('Client watchlist requires the exact client');
+      throw new WatchActionNotApplied('Client watchlist requires the exact client');
     const actor = requireClerkActor(ctx);
     const answer = await callIntelWatchOwner({
       tenantId: ctx.tenantId,

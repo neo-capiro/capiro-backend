@@ -4,7 +4,11 @@
  * are reached through a synthetic fetch and the two same-app owners through their
  * real service interfaces with synthetic state.
  */
-import { BadRequestException, ForbiddenException, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { BizDevWatchService } from '../../business-development/bizdev-watch.service.js';
 import { DefenseBudgetClientWatchService } from '../../defense-budget-client-watch/defense-budget-client-watch.service.js';
@@ -45,7 +49,10 @@ interface Call {
 
 function intelOwner(respond: (payload: any) => { status?: number; body?: unknown }) {
   const calls: Call[] = [];
-  (globalThis as unknown as { fetch: unknown }).fetch = async (url: string, init: { body: string }) => {
+  (globalThis as unknown as { fetch: unknown }).fetch = async (
+    url: string,
+    init: { body: string },
+  ) => {
     const payload = JSON.parse(init.body);
     calls.push({ url, payload });
     const result = respond(payload),
@@ -99,7 +106,11 @@ describe('MO-06 watch capability matrix', () => {
       request({ family: 'defense_budget_target', targetKind: 'pe', operation: 'pause' }),
     ).toThrow(BadRequestException);
     expect(() =>
-      request({ family: 'client_watchlist', targetKind: 'client_tracker_watchlist', operation: 'unsubscribe' }),
+      request({
+        family: 'client_watchlist',
+        targetKind: 'client_tracker_watchlist',
+        operation: 'unsubscribe',
+      }),
     ).toThrow(BadRequestException);
     expect(() => request({ targetKind: 'hearing_watchlist' })).toThrow(BadRequestException);
   });
@@ -128,7 +139,12 @@ describe('LegiWatch keyword family leaf', () => {
       targetKind: 'keyword_rule',
       targetKey: 'rule-1',
     });
-    expect(state).toMatchObject({ identity: 'rule-1', state: 'paused', version: 4, deliveryEnabled: false });
+    expect(state).toMatchObject({
+      identity: 'rule-1',
+      state: 'paused',
+      version: 4,
+      deliveryEnabled: false,
+    });
     expect(calls).toHaveLength(1);
     expect(calls[0]!.payload).toMatchObject({ tool: 'watch_inspect', family: 'legiwatch_keyword' });
   });
@@ -136,9 +152,16 @@ describe('LegiWatch keyword family leaf', () => {
   it('refuses activation without the owner preview run, before any owner call', async () => {
     const calls = intelOwner(() => ({ body: {} }));
     await expect(
-      adapter.apply(ctx, request({ operation: 'subscribe', expectedVersion: 1 }), {
-        actionProposalId: 'proposal-1',
-      }),
+      adapter.apply(
+        ctx,
+        {
+          ...request({ operation: 'subscribe', expectedVersion: 1, sourceRevision: 'preview' }),
+          sourceRevision: null,
+        },
+        {
+          actionProposalId: 'proposal-1',
+        },
+      ),
     ).rejects.toThrow(BadRequestException);
     expect(calls).toHaveLength(0);
   });
@@ -146,9 +169,13 @@ describe('LegiWatch keyword family leaf', () => {
   it('refuses a delivery switch without an explicit value', async () => {
     const calls = intelOwner(() => ({ body: {} }));
     await expect(
-      adapter.apply(ctx, request({ operation: 'set_delivery', enabled: null }), {
-        actionProposalId: 'proposal-1',
-      }),
+      adapter.apply(
+        ctx,
+        { ...request({ operation: 'set_delivery', enabled: true }), enabled: null },
+        {
+          actionProposalId: 'proposal-1',
+        },
+      ),
     ).rejects.toThrow(BadRequestException);
     expect(calls).toHaveLength(0);
   });
@@ -179,11 +206,15 @@ describe('LegiWatch keyword family leaf', () => {
       alreadyInState: false,
     });
     expect(effect.receipt?.binding).toBe(watchBinding(input));
-    expect(watchReceipt({ tool: WATCH_ACTION, result: effect.receipt }, input).request).toEqual(input);
+    expect(watchReceipt({ tool: WATCH_ACTION, result: effect.receipt }, input).request).toEqual(
+      input,
+    );
   });
 
   it('reports a partially applied unsubscribe as UNKNOWN, never as an applied change', async () => {
-    intelOwner(() => ({ body: { version: 1, applied: false, partial: true, acknowledgement: null } }));
+    intelOwner(() => ({
+      body: { version: 1, applied: false, partial: true, acknowledgement: null },
+    }));
     const input = request({ operation: 'unsubscribe' });
     const effect = await adapter.apply(ctx, input, { actionProposalId: 'proposal-1' });
     expect(effect.receipt).toBeNull();
@@ -220,7 +251,14 @@ describe('LegiWatch keyword family leaf', () => {
     intelOwner(() => ({
       body: {
         version: 1,
-        target: { identity: 'rule-1', state: 'archived', version: 1, deliveryEnabled: null, clientId: null, facts: {} },
+        target: {
+          identity: 'rule-1',
+          state: 'archived',
+          version: 1,
+          deliveryEnabled: null,
+          clientId: null,
+          facts: {},
+        },
       },
     }));
     await expect(
@@ -269,7 +307,12 @@ describe('client watchlist family leaf', () => {
       targetKind: 'client_tracker_watchlist',
       targetKey: CLIENT,
     });
-    expect(state).toMatchObject({ identity: CLIENT, state: 'active', version: 7, deliveryEnabled: true });
+    expect(state).toMatchObject({
+      identity: CLIENT,
+      state: 'active',
+      version: 7,
+      deliveryEnabled: true,
+    });
     expect(calls[0]!.payload).toMatchObject({ tool: 'watch_inspect', input: { clientId: CLIENT } });
   });
 
@@ -301,7 +344,14 @@ describe('business development prospect family leaf', () => {
           watch:
             priorStatus === null
               ? null
-              : { status: priorStatus, categories: [], ownerUserId: 'user-1', mutedUntil: null, createdAt: 'a', updatedAt: 'b' },
+              : {
+                  status: priorStatus,
+                  categories: [],
+                  ownerUserId: 'user-1',
+                  mutedUntil: null,
+                  createdAt: 'a',
+                  updatedAt: 'b',
+                },
           sources: [],
           lastCompletedCheckAt: null,
         };
@@ -309,7 +359,14 @@ describe('business development prospect family leaf', () => {
       async activateWatch() {
         calls.push('activateWatch');
         return {
-          watch: { status: statusAfter, categories: [], ownerUserId: 'user-1', mutedUntil: null, createdAt: 'a', updatedAt: 'b' },
+          watch: {
+            status: statusAfter,
+            categories: [],
+            ownerUserId: 'user-1',
+            mutedUntil: null,
+            createdAt: 'a',
+            updatedAt: 'b',
+          },
           sources: [],
           lastCompletedCheckAt: null,
         };
@@ -317,7 +374,14 @@ describe('business development prospect family leaf', () => {
       async updateWatch(_ctx: TenantContext, _prospectId: string, input: { status?: string }) {
         calls.push(`updateWatch:${input.status}`);
         return {
-          watch: { status: statusAfter, categories: [], ownerUserId: 'user-1', mutedUntil: null, createdAt: 'a', updatedAt: 'b' },
+          watch: {
+            status: statusAfter,
+            categories: [],
+            ownerUserId: 'user-1',
+            mutedUntil: null,
+            createdAt: 'a',
+            updatedAt: 'b',
+          },
           sources: [],
           lastCompletedCheckAt: null,
         };
@@ -381,7 +445,11 @@ describe('defense budget target family leaf', () => {
             targetType: 'pe',
             targetKey: '0603270A',
             events: [
-              { id: 'event-1', eventType: 'subscribed', createdAt: new Date('2026-01-01T00:00:00.000Z') },
+              {
+                id: 'event-1',
+                eventType: 'subscribed',
+                createdAt: new Date('2026-01-01T00:00:00.000Z'),
+              },
             ],
           },
         ]
@@ -397,7 +465,10 @@ describe('defense budget target family leaf', () => {
       },
       async setSubscribed(_ctx: TenantContext, input: { watchId: string; subscribed: boolean }) {
         calls.push(`setSubscribed:${input.subscribed}`);
-        return { id: input.subscribed ? 'event-2' : 'event-3', eventType: input.subscribed ? 'resubscribed' : 'unsubscribed' };
+        return {
+          id: input.subscribed ? 'event-2' : 'event-3',
+          eventType: input.subscribed ? 'resubscribed' : 'unsubscribed',
+        };
       },
     } as unknown as DefenseBudgetClientWatchService;
     return { adapter: new DefenseBudgetWatchAdapter(service), calls };
@@ -419,7 +490,11 @@ describe('defense budget target family leaf', () => {
     );
     expect(calls).not.toContain('subscribe');
     expect(calls).toContain('setSubscribed:true');
-    expect(effect.receipt).toMatchObject({ identity: 'watch-1', state: 'active', eventId: 'event-2' });
+    expect(effect.receipt).toMatchObject({
+      identity: 'watch-1',
+      state: 'active',
+      eventId: 'event-2',
+    });
   });
 
   it('creates once for a target with no existing watch and requires the owner reason', async () => {
@@ -427,14 +502,17 @@ describe('defense budget target family leaf', () => {
     await expect(
       adapter.apply(
         ctx,
-        request({
-          family: 'defense_budget_target',
-          clientId: CLIENT,
-          targetKind: 'pe',
-          targetKey: '0603270A',
-          operation: 'subscribe',
+        {
+          ...request({
+            family: 'defense_budget_target',
+            clientId: CLIENT,
+            targetKind: 'pe',
+            targetKey: '0603270A',
+            operation: 'subscribe',
+            reason: 'Review',
+          }),
           reason: null,
-        }),
+        },
         { actionProposalId: 'proposal-1' },
       ),
     ).rejects.toThrow(BadRequestException);
@@ -483,7 +561,12 @@ describe('registry and executor', () => {
   );
 
   it('holds exactly one leaf per canonical owner and refuses an unknown family', () => {
-    for (const family of ['legiwatch_keyword', 'business_development_prospect', 'defense_budget_target', 'client_watchlist'] as const)
+    for (const family of [
+      'legiwatch_keyword',
+      'business_development_prospect',
+      'defense_budget_target',
+      'client_watchlist',
+    ] as const)
       expect(registry.adapter(family).family).toBe(family);
     expect(() => registry.adapter('hearing_watchlist' as never)).toThrow(BadRequestException);
   });
@@ -521,3 +604,26 @@ describe('registry and executor', () => {
     expect(unknown.receipt).toBeNull();
   });
 });
+
+it.each([
+  { operation: 'subscribe', sourceRevision: null },
+  { operation: 'set_delivery', enabled: null },
+  {
+    family: 'defense_budget_target',
+    clientId: CLIENT,
+    targetKind: 'pe',
+    operation: 'subscribe',
+    reason: null,
+  },
+  {
+    family: 'client_watchlist',
+    clientId: null,
+    targetKind: 'client_tracker_watchlist',
+    operation: 'subscribe',
+  },
+] as Partial<WatchRequest>[])(
+  'refuses incomplete owner input before an approval claim: %p',
+  (selection) => {
+    expect(() => request(selection)).toThrow(BadRequestException);
+  },
+);

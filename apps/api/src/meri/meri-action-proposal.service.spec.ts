@@ -1,3 +1,4 @@
+import { WatchActionNotApplied } from './watch-actions/watch-action.contract.js';
 import { LEGISLATIVE_DOCUMENT_SCOPE_KEY, legislativeDocumentReceipt, legislativeDocumentRequest, type LegislativeDocumentProposalAccess } from './legislative-document-action.contract.js';
 import { createHash } from 'node:crypto';
 import { LEGIWATCH_ACTION, type LegiwatchProposalAccess } from './legiwatch-action.contract.js';
@@ -2805,4 +2806,20 @@ it('typed direct note access occupies its appended slot and the actual ledger re
   expect(JSON.stringify(receipt)).not.toContain(body);
   const repeat = await h.service.readNote(ctx, result.proposal.proposalId, { ...access, mode: 'observe' });
   expect(repeat).toEqual(receipt);expect(h.tools.execute).toHaveBeenCalledTimes(1);
+});
+
+describe('watch pre-effect refusals retain a terminal truthful receipt', () => {
+  it.each([
+    [new WatchActionNotApplied('Watch owner target has no subscription to change'), 'failed_terminal', 'watch_not_applied'],
+    [new Error('response lost after dispatch'), 'outcome_unknown', 'watch_outcome_unknown'],
+  ] as const)('distinguishes %s from a lost effect acknowledgement', async (error, status, code) => {
+    const h = harness({ row: null, executeError: error });
+    const input = { family: 'legiwatch_keyword', clientId: null, targetKind: 'keyword_rule', targetKey: 'rule-1', operation: 'pause', expectedVersion: 4, sourceRevision: null, reason: null, enabled: null, requestKey: 'watch-closeout-123' };
+    const access = { scope: { conversationId: RP_CONVERSATION, selectedClientId: null, identityRevision: 'a'.repeat(64), membershipRevision: 'b'.repeat(64), contextRevision: 'c'.repeat(64) }, assertCurrent: async () => {} };
+    await h.service.create(ctx, { tool: 'watch_action', input, conversationId: RP_CONVERSATION, surface: 'chat', requireApproval: true }, undefined, undefined, undefined, undefined, undefined, access);
+    const result = await h.service.approveAndExecute(ctx, PROPOSAL, undefined, undefined, undefined, undefined, access);
+    expect(result.status).toBe(status); expect(result.error?.code).toBe(code);
+    await h.service.approveAndExecute(ctx, PROPOSAL, undefined, undefined, undefined, undefined, access);
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
+  });
 });

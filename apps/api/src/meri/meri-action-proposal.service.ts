@@ -1,3 +1,4 @@
+import { WatchActionNotApplied } from './watch-actions/watch-action.contract.js';
 import { CLIENT_RECORD_SCOPE_KEY, assertClientRecordAccess, clientRecordFingerprint, clientRecordReceipt, clientRecordRequest, isClientRecordAction, publicClientRecordPreview, readClientRecordScope, type ClientRecordAccess } from './client-record-action.contract.js';
 import { NOTE_ACTION_SCOPE_KEY, assertNoteActionAccess, isNoteAction, noteActionFingerprint, noteActionReceipt, noteActionRequest, noteExecutionFailure, publicNoteActionPreview, readNoteScope, type NoteActionAccess } from './note-action.contract.js';
 import { timingSafeEqual } from 'node:crypto';
@@ -1668,7 +1669,9 @@ export class MeriActionProposalService {
                   'No confirmed legislative document receipt; observe the same request key and do not repeat the effect.',
               }
             : row.tool === WATCH_ACTION
-            ? {
+            ? error instanceof WatchActionNotApplied
+              ? { status: 'failed_terminal' as const, code: 'watch_not_applied', message: error.message }
+              : {
                 status: 'outcome_unknown' as const,
                 code: 'watch_outcome_unknown',
                 message: 'No confirmed watch receipt; do not repeat the effect.',

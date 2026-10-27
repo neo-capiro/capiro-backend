@@ -20,7 +20,7 @@
  *    wall is the conversation/proposal scope bound by the ledger plus that owner
  *    check — not a domain-enforced client/prospect equivalence.
  */
-import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import {
   DefenseBudgetClientWatchService,
@@ -28,6 +28,7 @@ import {
 } from '../../defense-budget-client-watch/defense-budget-client-watch.service.js';
 import {
   WATCH_SUPPORTED_OPERATIONS,
+  WatchActionNotApplied,
   type WatchAdapterEffect,
   type WatchFamily,
   type WatchOperation,
@@ -79,7 +80,7 @@ export class DefenseBudgetWatchAdapter {
     if (request.operation === 'subscribe') return this.subscribe(ctx, request);
     const found = await this.find(ctx, request);
     if (found === undefined)
-      throw new BadRequestException('Watch owner target has no subscription to change');
+      throw new WatchActionNotApplied('Watch owner target has no subscription to change');
     const event = await this.watch.setSubscribed(ctx, {
       clientId: this.clientId(request),
       watchId: found.id,
@@ -94,17 +95,22 @@ export class DefenseBudgetWatchAdapter {
       eventId: event.id,
       // The owner returns its existing latest event when the desired state already
       // holds, and a NEW event (resubscribed/unsubscribed) when it changed.
-      alreadyInState: event.eventType === (request.operation === 'resume' ? 'subscribed' : 'unsubscribed'),
+      alreadyInState:
+        event.eventType === (request.operation === 'resume' ? 'subscribed' : 'unsubscribed'),
     });
   }
 
   private async subscribe(ctx: TenantContext, request: WatchRequest): Promise<WatchAdapterEffect> {
     const clientId = this.clientId(request);
     const reason = request.reason?.trim();
-    if (!reason) throw new BadRequestException('Watch owner client reason required');
+    if (!reason) throw new WatchActionNotApplied('Watch owner client reason required');
     const existing = await this.find(ctx, request);
     if (existing !== undefined) {
-      const event = await this.watch.setSubscribed(ctx, { clientId, watchId: existing.id, subscribed: true });
+      const event = await this.watch.setSubscribed(ctx, {
+        clientId,
+        watchId: existing.id,
+        subscribed: true,
+      });
       if (!event) throw new ServiceUnavailableException('Watch owner acknowledgement incomplete');
       return watchEffectOf(request, {
         identity: existing.id,
@@ -121,7 +127,8 @@ export class DefenseBudgetWatchAdapter {
       targetKey: request.targetKey,
       clientReason: reason,
     });
-    if (!created?.id) throw new ServiceUnavailableException('Watch owner acknowledgement incomplete');
+    if (!created?.id)
+      throw new ServiceUnavailableException('Watch owner acknowledgement incomplete');
     return watchEffectOf(request, {
       identity: created.id,
       state: 'active',
@@ -151,7 +158,7 @@ export class DefenseBudgetWatchAdapter {
 
   private clientId(target: WatchTarget): string {
     if (target.clientId === null)
-      throw new BadRequestException('Defense budget watch requires the exact client');
+      throw new WatchActionNotApplied('Defense budget watch requires the exact client');
     return target.clientId;
   }
 }

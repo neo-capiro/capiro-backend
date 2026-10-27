@@ -57,8 +57,19 @@ export type WatchOperation = (typeof WATCH_OPERATIONS)[number];
  */
 export const WATCH_SUPPORTED_OPERATIONS: Readonly<Record<WatchFamily, readonly WatchOperation[]>> =
   Object.freeze({
-    legiwatch_keyword: Object.freeze(['subscribe', 'pause', 'resume', 'unsubscribe', 'set_delivery'] as const),
-    business_development_prospect: Object.freeze(['subscribe', 'pause', 'resume', 'unsubscribe'] as const),
+    legiwatch_keyword: Object.freeze([
+      'subscribe',
+      'pause',
+      'resume',
+      'unsubscribe',
+      'set_delivery',
+    ] as const),
+    business_development_prospect: Object.freeze([
+      'subscribe',
+      'pause',
+      'resume',
+      'unsubscribe',
+    ] as const),
     defense_budget_target: Object.freeze(['subscribe', 'resume', 'unsubscribe'] as const),
     // The tracker watchlist has one delivery lever (the actor's email/sms alert
     // preferences), so `subscribe` and `resume` are the same owner effect and only
@@ -75,16 +86,30 @@ export const WATCH_TARGET_KINDS: Readonly<Record<WatchFamily, readonly string[]>
 });
 
 /** Exact owner state vocabulary: LegiWatch keyword rules also report `needs_review`. */
-export const WATCH_WATCHED_STATES = ['active', 'paused', 'needs_review', 'ended', 'unsubscribed'] as const;
+export const WATCH_WATCHED_STATES = [
+  'active',
+  'paused',
+  'needs_review',
+  'ended',
+  'unsubscribed',
+] as const;
 
 const uuid = z
   .string()
   .uuid()
   .regex(/^[a-f0-9-]+$/);
 const digest = z.string().regex(/^[a-f0-9]{64}$/);
-const targetKey = z.string().min(1).max(180).regex(/^[A-Za-z0-9._:-]+$/);
+const targetKey = z
+  .string()
+  .min(1)
+  .max(180)
+  .regex(/^[A-Za-z0-9._:-]+$/);
 /** Opaque canonical owner token (rule id, watch id, preview run id, …). Never Meri-minted. */
-const token = z.string().min(1).max(180).regex(/^[A-Za-z0-9._:-]+$/);
+const token = z
+  .string()
+  .min(1)
+  .max(180)
+  .regex(/^[A-Za-z0-9._:-]+$/);
 
 export const watchRequestSchema = z
   .object({
@@ -118,6 +143,9 @@ export const watchRequestSchema = z
   })
   .strict();
 export type WatchRequest = z.infer<typeof watchRequestSchema>;
+
+/** Only local checks made before any owner mutation may use this refusal. */
+export class WatchActionNotApplied extends BadRequestException {}
 
 export const watchSelectionSchema = z
   .object({ conversationId: uuid, selectedClientId: uuid.nullable() })
@@ -153,6 +181,24 @@ export function watchRequestOf(input: unknown): WatchRequest {
     throw new BadRequestException('Unsupported watch operation for this owner');
   if (!WATCH_TARGET_KINDS[parsed.data.family].includes(parsed.data.targetKind))
     throw new BadRequestException('Unsupported watch target kind for this owner');
+  const request = parsed.data;
+  if (
+    ['client_watchlist', 'defense_budget_target'].includes(request.family) &&
+    request.clientId === null
+  )
+    throw new BadRequestException('Watch owner requires the exact client');
+  if (
+    request.family === 'defense_budget_target' &&
+    request.operation === 'subscribe' &&
+    !request.reason?.trim()
+  )
+    throw new BadRequestException('Watch owner client reason required');
+  if (request.family === 'legiwatch_keyword') {
+    if (['subscribe', 'resume'].includes(request.operation) && request.sourceRevision === null)
+      throw new BadRequestException('Watch owner preview run required');
+    if (request.operation === 'set_delivery' && request.enabled === null)
+      throw new BadRequestException('Watch owner delivery switch value required');
+  }
   return parsed.data;
 }
 
@@ -200,11 +246,7 @@ export function readWatchScope(preview: unknown): WatchScope {
   return parsed.data;
 }
 
-export function watchFingerprint(
-  tool: string,
-  input: Record<string, unknown>,
-  scope?: WatchScope,
-) {
+export function watchFingerprint(tool: string, input: Record<string, unknown>, scope?: WatchScope) {
   return tool === WATCH_ACTION ? { ...input, [WATCH_SCOPE_KEY]: scope } : input;
 }
 
@@ -259,7 +301,8 @@ export type WatchReceiptPayload = z.infer<typeof watchReceiptSchema>;
  */
 export function watchReceiptPayload(value: unknown): WatchReceiptPayload {
   const parsed = watchReceiptSchema.safeParse(value);
-  if (!parsed.success) throw new ServiceUnavailableException('Watch owner acknowledgement incomplete');
+  if (!parsed.success)
+    throw new ServiceUnavailableException('Watch owner acknowledgement incomplete');
   return parsed.data;
 }
 
