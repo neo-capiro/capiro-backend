@@ -1,3 +1,4 @@
+import { receiveNativeMail } from './native-mail-execution.js';
 import { createHash } from 'node:crypto';
 import {
   BadRequestException,
@@ -109,6 +110,10 @@ export class MeriExecutionReceiverService {
   nativeApproved(req: Request, ctx: TenantContext, body: unknown, mode: 'execute' | 'read') {
     if (!hasVerifiedToolServiceIdentity(req)) throw forbidden();
     const input = retainedReadSnapshot(body, 262144);
+    if ((input as { proposal?: { command?: { action?: unknown } } })?.proposal?.command?.action === 'mail.send') {
+      if (!this.approvals || !this.tenant) throw new ServiceUnavailableException('Native mail unavailable');
+      return receiveNativeMail({ prisma: this.prisma, engagement: this.engagement, approvals: this.approvals, tenant: this.tenant }, req, ctx, input, mode);
+    }
     if ((input as { proposal?: { command?: { action?: unknown } } })?.proposal?.command?.action !== 'artifact.file') {
       return this.nativeTask(req, ctx, input, mode);
     }

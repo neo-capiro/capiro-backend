@@ -76,7 +76,7 @@ describe('mail retained 0.2 source projection', () => {
       'mail-base.schema.json': 'e3de878198bbd557843ac440e48664ad5175eecd99f7ec932021ffc465bf8c5b',
       'mail-common.schema.json': '943f59f53f33e09405d8f3350798d33d624c97d37e00c029ea4c14c8ba6e185b',
       'mail-retrieval.schema.json': '6058aa0d735b595a093907eec8bf7e4e8f4eb96952f497caa3c1eb00f3ad1a8c',
-      'mail.schema.json': 'd45681f76ba5f5d7f65b7385ab1e1c3deb9626d4166e55fc6039e88bc3d804e6',
+      'mail.schema.json': 'e2be34336f7c9f370c3f9e3b8db7f99e92c2d16399716266f1e27eb6819811aa',
     };
     for (const [name, expected] of Object.entries(files))
       expect(createHash('sha256').update(readFileSync(join(__dirname, name))).digest('hex')).toBe(expected);
@@ -136,6 +136,34 @@ describe('mail retained 0.2 source projection', () => {
     expect(() => projectMailRetainedSourceV02(noBody)).toThrow(unavailable('thread.body_length'));
     const noBodyHash = thread(); delete (noBodyHash.ownerResult as any).messages[0].sourceProof.bodySha256;
     expect(() => projectMailRetainedSourceV02(noBodyHash)).toThrow(unavailable('thread.body_hash'));
+  });
+
+  it('adds only exact canonical selected-message proposal context without raw provider identity', () => {
+    const input = thread(), owner = input.ownerResult as any;
+    (input.selection as any).messageId = messageId; owner.messageId = messageId;
+    const action = {mode:'reply_all',senderConnectionId:mailboxId,senderEmail:'owner@example.test',
+      subject:'Source subject',to:['sender@example.test'],cc:['copy@example.test'],
+      original:{threadId,messageId,updatedAt:anchor,bodySha256:null}};
+    owner.messages[0].nativeActions = [action];
+    expect((projectMailRetainedSourceV02(input) as any).messages[0].nativeActions).toEqual([action]);
+    (input.selection as any).messageId = null; owner.messageId = null;
+    expect((projectMailRetainedSourceV02(input) as any).messages[0].nativeActions).toBeUndefined();
+    (input.selection as any).messageId = messageId; owner.messageId = messageId;
+    action.original.messageId = id('f');
+    expect(() => projectMailRetainedSourceV02(input)).toThrow(unavailable('thread.native_lineage'));
+  });
+
+  it('binds complete forward text to current body hash and omits unavailable actions', () => {
+    const input = thread(), owner = input.ownerResult as any;
+    (input.selection as any).messageId = messageId; owner.messageId = messageId;
+    owner.messages[0].nativeActions=[];
+    expect((projectMailRetainedSourceV02(input) as any).messages[0].nativeActions).toBeUndefined();
+    const action={mode:'forward',senderConnectionId:mailboxId,senderEmail:'owner@example.test',subject:'Fwd: source',to:[],cc:[],
+      original:{threadId,messageId,updatedAt:anchor,bodySha256:owner.messages[0].sourceProof.bodySha256},originalBodyText:'A😀Z'};
+    owner.messages[0].nativeActions=[action];
+    expect((projectMailRetainedSourceV02(input) as any).messages[0].nativeActions).toEqual([action]);
+    action.originalBodyText='changed';
+    expect(() => projectMailRetainedSourceV02(input)).toThrow(unavailable('thread.native_lineage'));
   });
 
   it('uses Meri scalar-safe UTF-16 positions for astral and beyond-end reads', () => {

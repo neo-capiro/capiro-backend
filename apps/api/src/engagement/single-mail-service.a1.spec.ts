@@ -969,3 +969,34 @@ describe('single mail direct service boundary', () => {
     expect(ledger.receipt).toHaveBeenCalled();
   });
 });
+
+
+describe('native approved caller at the existing single-mail boundary', () => {
+  it('retains command provenance and authorizes after payload validation before the sending transition', async () => {
+    const { service, sendingTransition } = fixture();
+    const provenance = { commandSha256: 'a'.repeat(64), proposalId: input.requestKey };
+    const authorize = jest.fn(async (_tx, payload) => {
+      expect(sendingTransition).not.toHaveBeenCalled(); expect(service.mailSender.sendMail).not.toHaveBeenCalled();
+      expect(payload).toEqual({ attachments: [] });
+    });
+    await expect(service.sendSingleMail(ctx, input, { provenance, authorize })).rejects.toThrow();
+    expect(authorize).toHaveBeenCalledTimes(1); expect(sendingTransition).toHaveBeenCalledTimes(1);
+    expect(ledger.begin.mock.calls[0][1].snapshot.nativeApproval).toEqual(provenance);
+  });
+  it('commits a definite failed attempt when current native approval refuses before sending', async () => {
+    const { service, sendingTransition } = fixture();
+    const { ForbiddenException } = require('@nestjs/common');
+    const authorize = jest.fn(async () => { throw new ForbiddenException('Approval revoked'); });
+    await expect(service.sendSingleMail(ctx, input, { provenance: { commandSha256: 'b'.repeat(64) }, authorize }))
+      .rejects.toMatchObject({ response: expect.objectContaining({ state: 'failed', error: 'MAIL_SEND_REJECTED' }) });
+    expect(sendingTransition).not.toHaveBeenCalled(); expect(service.mailSender.sendMail).not.toHaveBeenCalled();
+    expect(ledger.rejectPending).toHaveBeenCalledTimes(1);
+  });
+  it('does not invoke native claim authorization or provider on existing-key recovery', async () => {
+    const { service } = fixture(); ledger.read.mockResolvedValue({ state: 'unknown' });
+    service.getSingleMailIntent = jest.fn().mockResolvedValue({ state: 'unknown' });
+    const authorize = jest.fn();
+    expect(await service.sendSingleMail(ctx, input, { provenance: { commandSha256: 'c'.repeat(64) }, authorize })).toEqual({ state: 'unknown' });
+    expect(authorize).not.toHaveBeenCalled(); expect(ledger.claim).not.toHaveBeenCalled(); expect(service.mailSender.sendMail).not.toHaveBeenCalled();
+  });
+});

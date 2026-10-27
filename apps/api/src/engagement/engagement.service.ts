@@ -305,6 +305,12 @@ export interface SendSingleMailInput {
   attachmentIds?: string[];
 }
 
+/** Trusted internal caller only: no HTTP DTO accepts this approval or callback. */
+export interface NativeSingleMailAuthorization {
+  provenance: Record<string, unknown>;
+  authorize: (tx: Prisma.TransactionClient, payload: { attachments: Array<{ name: string; contentType: string; bytes: number; sha256: string }> }) => Promise<void>;
+}
+
 /** Internal native filing boundary; the caller owns commit and durable receipt state. */
 export interface NativeClientDocumentWrite {
   tx: Prisma.TransactionClient;
@@ -9669,10 +9675,10 @@ export class EngagementService {
     });
   }
 
-  async sendSingleMail(ctx: TenantContext, input: SendSingleMailInput) {
+  async sendSingleMail(ctx: TenantContext, input: SendSingleMailInput, native?: NativeSingleMailAuthorization) {
     const ledger = new SingleMailLedger(this.prisma);
     const requestKey = ledger.validateKey(input.requestKey);
-    const requestHash = singleMailHash(input);
+    const requestHash = singleMailHash(native ? { input, nativeApproval: native.provenance } : input);
     const existing = await ledger.read(ctx, requestKey);
     if (existing) {
       // Exact-key recovery reads current authority without preparing or claiming a new send.
@@ -9760,6 +9766,7 @@ export class EngagementService {
       requestKey: requestKey, requestHash, connectionId: connection.id,
       clientId: input.clientId ?? null,
       snapshot: {
+        ...(native ? { nativeApproval: native.provenance } : {}),
         senderConnectionId: connection.id, senderEmail: sender.email,
         ...(input.operation ? { operation: input.operation, originalMessageId: input.originalMessageId,
           originalUpdatedAt: input.originalUpdatedAt, originalBodySha256: input.originalBodySha256, replyIdentity: reply?.provider ?? null, ...(reply?.forward ? { forward: reply.forward } : {}), ...(reply?.replyAll ? { replyAll: reply.replyAll } : {}) } : {}),
@@ -9800,6 +9807,12 @@ export class EngagementService {
           // The callback runs before the pending-to-sending transition; a
           // committed rejectPending CAS is required before reporting certainty.
           assertMailPayloadSize(connection.provider, dispatchInput);
+          // The canonical approved caller holds its current decision/session locks
+          // through this same pending-to-sending commit, never through provider I/O.
+          if (native) await native.authorize(tx, { attachments: (attachments ?? []).map(a => {
+            const bytes = Buffer.from(a.contentBytes, 'base64');
+            return { name: a.name, contentType: a.contentType, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
+          }) });
         } catch (error) {
           if (
             error instanceof BadRequestException ||

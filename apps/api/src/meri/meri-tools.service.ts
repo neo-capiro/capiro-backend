@@ -6986,6 +6986,23 @@ export class MeriToolsService {
               : null,
         bodyText: section.bodyText,
         bodyStoredPresent: message.bodyText !== null,
+        // Exact selected-message eligibility comes from the canonical mail owner.
+        // These fields describe a proposal input, never permission to dispatch.
+        ...(messageId && typeof thread.connectionEmail === 'string' ? {
+          nativeActions: [message.replyContext, message.replyAllContext, message.forwardContext]
+            .filter((action): action is Extract<NonNullable<typeof message.replyContext>, { supported: true }> => action?.supported === true)
+            .map(action => ({
+              mode: action.operation,
+              senderConnectionId: action.senderConnectionId,
+              senderEmail: thread.connectionEmail!.trim().toLowerCase(),
+              subject: action.subject,
+              to: action.to.map(recipient => recipient.email),
+              cc: (action.cc ?? []).map(recipient => recipient.email),
+              original: { threadId, messageId: action.originalMessageId,
+                updatedAt: action.originalUpdatedAt, bodySha256: action.originalBodySha256 ?? null },
+              ...(action.operation === 'forward' ? { originalBodyText: action.originalBodyText } : {}),
+            })),
+        } : {}),
         removed: message.removedAt === null ? false : true,
         connectionStatus: thread.connectionStatus,
         bodyOffset: section.bodyOffset,
