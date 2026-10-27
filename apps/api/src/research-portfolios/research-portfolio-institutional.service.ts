@@ -66,7 +66,8 @@ export class ResearchPortfolioInstitutionalService {
         typeof artifact.bodyText !== 'string'
       )
         throw new NotFoundException('Research Portfolio draft not found');
-      if (Buffer.byteLength(artifact.bodyText, 'utf8') > 500000)
+      // Match the canonical artifact-version writer's UTF-16 code-unit ceiling.
+      if (artifact.bodyText.length > 500_000)
         throw new PayloadTooLargeException(
           'Research Portfolio draft exceeds the editable draft limit',
         );

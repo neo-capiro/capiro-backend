@@ -420,6 +420,20 @@ describe('provider-free private RP institutional preparations', () => {
 });
 
 describe('native Research Portfolio saved-draft opening', () => {
+  it('reopens non-ASCII edits up to the canonical writer code-unit limit and refuses longer bodies', async () => {
+    const f = fixture();
+    const receipt = await f.service.prepare(ctx, f.input);
+    const bodyText = '界'.repeat(500_000);
+    expect(Buffer.byteLength(bodyText, 'utf8')).toBeGreaterThan(500_000);
+    f.artifacts[0].bodyText = bodyText;
+    expect((await f.service.readDraft(ctx, f.portfolio.id, receipt.artifactId)).bodyText).toBe(
+      bodyText,
+    );
+    f.artifacts[0].bodyText += 'x';
+    await expect(f.service.readDraft(ctx, f.portfolio.id, receipt.artifactId)).rejects.toThrow(
+      'exceeds the editable draft limit',
+    );
+  });
   it('reads the exact owned draft through its current portfolio without refreshing its captured sources', async () => {
     const f = fixture();
     const receipt = await f.service.prepare(ctx, f.input);
