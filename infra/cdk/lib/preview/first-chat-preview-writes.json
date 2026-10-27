@@ -569,6 +569,18 @@
         "^/api/research-portfolios/[A-Za-z0-9_-]+/snapshots$",
         "^/api/research-portfolios/[A-Za-z0-9_-]+/client-links$"
       ]
+    },
+    {
+      "id": "SavedWorkspaceReads",
+      "service": "workspace",
+      "method": "POST",
+      "pathRegexes": ["^/workspace-api/saved-records/read$"]
+    },
+    {
+      "id": "SavedStrategyReads",
+      "service": "strategy",
+      "method": "POST",
+      "pathRegexes": ["^/strategy-api/saved-reads$"]
     }
   ]
 }

@@ -52,7 +52,7 @@ export class VersionsService {
    * create/restore. The optional actor signature is retained; audited production
    * callers (VersionsController and GenerationRunWorker) supply the actor.
    */
-  private async loadDraft(
+  private async admitDraft(
     tenantId: string,
     draftId: string,
     actorId?: string,
@@ -75,6 +75,16 @@ export class VersionsService {
       );
     }
     await assertProspectDraft(this.prisma, origin, actorId, predicate);
+    return origin;
+  }
+
+  private async loadDraft(
+    tenantId: string,
+    draftId: string,
+    actorId?: string,
+    predicate: (role: ResolvedRole) => boolean = canRead,
+  ) {
+    await this.admitDraft(tenantId, draftId, actorId, predicate);
     const draft = await this.prisma.wsDraft.findFirst({
       where: { id: draftId, tenantId },
       include: { documents: { orderBy: { ordinal: 'asc' } } },
@@ -160,6 +170,20 @@ export class VersionsService {
         orderBy: { createdAt: 'desc' },
       }),
     );
+  }
+
+  /** Exact saved read through the same current source/collaborator authority
+   * as history. No other version or live document body is loaded as output. */
+  async getSaved(tenantId: string, draftId: string, versionId: string, actorId: string) {
+    if (!actorId) throw new NotFoundException('Draft not found');
+    const origin = await this.admitDraft(tenantId, draftId, actorId, canRead);
+    return withProspectDraft(this.prisma, origin, actorId, canRead, 'read', async (db) => {
+      const version = await db.wsDocVersion.findFirst({
+        where: { tenantId, draftId, id: versionId },
+      });
+      if (!version) throw new NotFoundException('Version not found');
+      return version;
+    });
   }
 
   /**

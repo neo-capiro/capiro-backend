@@ -24,6 +24,7 @@ import { DeliveryModule } from './delivery/delivery.module.js';
 import { QuickDraftModule } from './quick-draft/quick-draft.module.js';
 import { HillDayModule } from './hillday/hillday.module.js';
 import { NewsletterModule } from './newsletters/newsletter.module.js';
+import { WorkspaceSavedReadsModule } from './saved-records/workspace-saved-reads.module.js';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { NewsletterModule } from './newsletters/newsletter.module.js';
     // /workspace-api/hillday/*: six-step wizard backend + document editor API.
     HillDayModule,
     NewsletterModule,
+    WorkspaceSavedReadsModule,
   ],
 })
 export class AppModule {}

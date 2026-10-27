@@ -43,6 +43,28 @@ function routeDestination(rules: any[], method: string, pathname: string, hostna
   return null;
 }
 
+test('saved owner POSTs and the Strategy client-check binding remain preview-only', () =>
+  render(false, (edge) => {
+    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map((r) => r.Properties);
+    for (const [pathname, target] of [
+      ['/workspace-api/saved-records/read', 'WorkspaceTarget'],
+      ['/strategy-api/saved-reads', 'StrategyTarget'],
+    ]) {
+      assert.deepEqual(routeDestination(rules, 'POST', pathname), { Ref: target });
+      for (const method of ['PUT', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE'])
+        assert.equal(routeDestination(rules, method, pathname), null);
+      for (const hostname of ['app.capiro.ai', 'arbitrary.invalid'])
+        assert.equal(routeDestination(rules, 'POST', pathname, hostname), null);
+      for (const neighbor of [`${pathname}/extra`, `${pathname}.invalid`, `/extra${pathname}`])
+        assert.equal(routeDestination(rules, 'POST', neighbor), null);
+    }
+    assert.equal(edge.Resources.SavedWorkspaceReads.Properties.Priority, 72);
+    assert.equal(edge.Resources.SavedStrategyReads.Properties.Priority, 73);
+    assert.equal(edge.Resources.Wave2Writes66.Properties.Priority, 71);
+    assert.equal(edge.Outputs.StrategySavedReadEnvironment.Value,
+      JSON.stringify({ API_INTERNAL_URL: `https://${host}` }));
+  }));
+
 test('sharing writes admit only the exact owner and public capability routes', () =>
   render(false, (edge) => {
     const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map((r) => r.Properties);

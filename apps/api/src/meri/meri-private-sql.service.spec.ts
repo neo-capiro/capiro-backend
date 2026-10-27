@@ -177,12 +177,12 @@ describe('interactive private query binding', () => {
       expect(f.db.runPrivateSql).toHaveBeenCalledTimes(1);
     },
   );
-  it('checks describe currentness and keeps all 46 owner fields without physical metadata', async () => {
+  it('checks describe currentness and keeps all 193 owner fields without physical metadata', async () => {
     const f = fixture(),
       page = await f.read({ source: 'client_records' }, 'describe_capiro_data');
     expect(page.ok).toBe(true);
     if (!page.ok || !('relations' in page)) throw Error('metadata expected');
-    expect(page.relations.map((r) => r.fields.length)).toEqual([23, 23]);
+    expect(page.relations.map((r) => r.fields.length)).toEqual([23, 23, 11, 10, 14, 18, 4, 16, 12, 11, 22, 8, 11, 10]);
     expect(JSON.stringify(page)).not.toContain('parameterType');
     const denied = fixture();
     denied.setDuring(async () => {

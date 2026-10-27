@@ -185,11 +185,14 @@ class Compiler {
         const index = link.fields.indexOf(source.origin!.field);
         if (index < 0 || link.referencedRelation !== target.origin!.relation ||
             link.referencedFields[index] !== target.origin!.field) continue;
-        const complete = link.fields.every((field, i) => pairs.some(([a, b]) =>
-          [[a, b], [b, a]].some(([left, right]) => left!.alias === source.alias && right!.alias === target.alias &&
-            left!.origin!.relation === source.origin!.relation && right!.origin!.relation === target.origin!.relation &&
+        const complete = (from: Field, to: Field): boolean => link.fields.every((field, i) => pairs.some(([a, b]) =>
+          [[a, b], [b, a]].some(([left, right]) => left!.alias === from.alias && right!.alias === to.alias &&
+            left!.origin!.relation === from.origin!.relation && right!.origin!.relation === to.origin!.relation &&
             left!.origin!.field === field && right!.origin!.field === link.referencedFields[i])));
-        if (!complete) fail('UNSUPPORTED_SQL', 'Join on every field of the published composite relationship.');
+        // A shared client key in a self relationship has two possible orientations.
+        // Require the complete declared edge in one orientation, not a reciprocal cycle.
+        if (!complete(source, target) && !(relation.name === link.referencedRelation && complete(target, source)))
+          fail('UNSUPPORTED_SQL', 'Join on every field of the published composite relationship.');
       }
     }
   }

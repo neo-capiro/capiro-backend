@@ -263,6 +263,8 @@ test('qualified ARM task uses persistent clone, version-pinned canonical secret 
     assert.equal(e.RELEASE_SHA, pins.sourceHead);
     assert.equal(e.DB_HOST, binding.deployment.databaseHost);
     assert.equal(e.TRACKER_APP_BASE_URL, `https://${FIRST_CHAT_CORE_HOST}`);
+    assert.equal(e.WORKSPACE_API_BASE_URL, `https://${FIRST_CHAT_CORE_HOST}`);
+    assert.equal(e.STRATEGY_API_BASE_URL, `https://${FIRST_CHAT_CORE_HOST}`);
     assert.equal(e.MERI_CONTROL_ORIGIN, 'https://control.meri-preview.internal');
     assert.equal(
       e.MERI_CONTROL_CA_SHA256,
