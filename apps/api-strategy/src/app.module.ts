@@ -12,6 +12,7 @@ import { MeriModule } from './meri/meri.module.js';
 import { AgentsModule } from './agents/agents.module.js';
 import { ContextModule } from './context/context.module.js';
 import { PlannerModule } from './planner/planner.module.js';
+import { SavedReadsModule } from './saved-reads/saved-reads.module.js';
 
 /**
  * Root module for the api-strategy service.
@@ -39,6 +40,7 @@ import { PlannerModule } from './planner/planner.module.js';
     AgentsModule,
     ContextModule,
     PlannerModule,
+    SavedReadsModule,
   ],
 })
 export class AppModule {}
