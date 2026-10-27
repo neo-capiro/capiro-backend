@@ -257,8 +257,7 @@ describe('EngagementRuntimePolicyService', () => {
       expect(() => policy.assertBackgroundOwner(workerName)).toThrow();
     });
 
-    it('keeps both V3 worker methods denied in this posture', () => {
-      expect(policy.outreachV3FullGenerationWorkerEnabled()).toBe(false);
+    it('keeps the V3 send worker denied in this posture', () => {
       expect(policy.outreachV3SendIntentWorkerEnabled()).toBe(false);
     });
 

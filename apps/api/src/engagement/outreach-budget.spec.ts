@@ -77,15 +77,3 @@ describe('outreachBudgetStatus (W3.4)', () => {
     expect(s.softWarn).toBe(false);
   });
 });
-
-describe('generateBatchEmails budget hard-stop', () => {
-  test('throws a 429-style error before generating when over budget', async () => {
-    const service = serviceWithUsage(1000, { inputTokens: 1000, outputTokens: 100 });
-    await expect(
-      service.generateBatchEmails(ctx, {
-        templateId: 'system-outreach-message',
-        recipients: [{ email: 'a@mail.house.gov', name: 'A' }],
-      }),
-    ).rejects.toMatchObject({ status: 429 });
-  });
-});

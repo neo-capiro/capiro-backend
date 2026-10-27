@@ -1,4 +1,4 @@
-import { bootstrapConversation as bootstrapNativeConversation } from './meri-conversation-bootstrap.js';
+import { bootstrapConversation as bootstrapNativeConversation, isOutreachGenerationConversation } from './meri-conversation-bootstrap.js';
 import { assertLegacyManagementAllowed } from './conversation-management/service.js';
 import { isResearchPortfolioArtifact, authorizeResearchPortfolioArtifact, authorizeResearchPortfolioConversation } from '../research-portfolios/research-portfolio-artifact-authority.js';
 import { prepareAnthropicRequest, anthropicResponseText } from '@capiro/shared/ai-model-policy';
@@ -387,6 +387,7 @@ export class MeriService implements MeriTurnMaintenance {
       // holds portfolio access; ordinary conversations pass through unchanged.
       const visible: typeof rows = [];
       for (const conversation of rows) {
+        if (isOutreachGenerationConversation(conversation)) continue;
         try {
           await authorizeResearchPortfolioConversation(tx, ctx, conversation);
           visible.push(conversation);
@@ -846,7 +847,9 @@ export class MeriService implements MeriTurnMaintenance {
   }
 
   private async ensureConversation(ctx: TenantContext, conversationId: string) {
-    return loadOwnedActiveClioConversation(this.prisma, ctx, conversationId);
+    const conversation = await loadOwnedActiveClioConversation(this.prisma, ctx, conversationId);
+    if (isOutreachGenerationConversation(conversation)) throw new NotFoundException('Meri conversation not found');
+    return conversation;
   }
 
   private async ensureConversationAnyStatus(ctx: TenantContext, conversationId: string) {
@@ -862,7 +865,7 @@ export class MeriService implements MeriTurnMaintenance {
       if (row) await authorizeResearchPortfolioConversation(tx, ctx, row);
       return row;
     });
-    if (!conversation) throw new NotFoundException('Meri conversation not found');
+    if (!conversation || isOutreachGenerationConversation(conversation)) throw new NotFoundException('Meri conversation not found');
     return conversation;
   }
 

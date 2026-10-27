@@ -12,15 +12,11 @@ import type { EngagementExternalAction } from './runtime/engagement-runtime.type
 
 export const RAW_ENGAGEMENT_SERVICE = Symbol('RAW_ENGAGEMENT_SERVICE');
 
-type GenerateDraft = EngagementService['generateOutreachDraft'];
-type GenerateBatch = EngagementService['generateBatchEmails'];
 type GenerateMeetingPrep = EngagementService['generateMeetingPrep'];
 type GenerateMeetingDebrief = EngagementService['generateMeetingDebriefDraft'];
 
 interface GovernedEngagementMethods {
   loadUserVoiceBlock: (ctx: TenantContext, clientId: string | null) => Promise<string | null>;
-  generateOutreachDraft: GenerateDraft;
-  generateBatchEmails: GenerateBatch;
   generateMeetingPrep: GenerateMeetingPrep;
   generateMeetingDebriefDraft: GenerateMeetingDebrief;
 }
@@ -31,11 +27,7 @@ interface RuntimeMethodMetadata {
 }
 
 const RUNTIME_ACTION_BY_METHOD: Readonly<Record<string, RuntimeMethodMetadata>> = {
-  previewAiTemplate: { action: 'outreach_generate' },
   generateTalkingPoints: { action: 'outreach_generate' },
-  generateBatchEmails: { action: 'outreach_generate' },
-  generateOutreachDraft: { action: 'outreach_generate' },
-  generateCampaignEmail: { action: 'outreach_generate' },
   generateMeetingPrep: { action: 'meeting_prep_generate' },
   generateMeetingDebriefDraft: { action: 'meeting_debrief_generate' },
   sendBatchEmails: { action: 'outreach_send' },
@@ -105,15 +97,8 @@ export function createGovernedEngagementService(
     throw new Error('phase26_engagement_context_plane_required');
   };
 
-  const generateDraft = methods.generateOutreachDraft.bind(service);
-  const generateBatch = methods.generateBatchEmails.bind(service);
   const generateMeetingPrep = methods.generateMeetingPrep.bind(service);
   const generateMeetingDebrief = methods.generateMeetingDebriefDraft.bind(service);
-
-  methods.generateOutreachDraft = ((...args: Parameters<GenerateDraft>) =>
-    boundary.guard(() => generateDraft(...args))) as GenerateDraft;
-  methods.generateBatchEmails = ((...args: Parameters<GenerateBatch>) =>
-    boundary.guard(() => generateBatch(...args))) as GenerateBatch;
 
   methods.generateMeetingPrep = (async (
     ctx: TenantContext,

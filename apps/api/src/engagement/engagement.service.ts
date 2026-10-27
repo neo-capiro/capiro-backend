@@ -3064,143 +3064,6 @@ export class EngagementService {
     throw new Error('phase26_engagement_context_plane_required');
   }
 
-  async generateOutreachDraft(
-    ctx: TenantContext,
-    id: string,
-    input: {
-      objective?: string;
-      direction?: 'on-behalf' | 'to-clients';
-      recipients?: OutreachRecipientInput[];
-      contextPool?: OutreachContextPoolItemInput[];
-      promptTemplate?: string;
-      metadata?: Record<string, unknown>;
-    },
-  ) {
-    const record = await this.getOutreachRecord(ctx, id);
-    if (record.status !== 'draft') {
-      throw new BadRequestException('Only draft outreach can be regenerated');
-    }
-
-    const direction = normalizeOutreachDirection(
-      input.direction ?? readMetadataString(record.metadata, 'direction'),
-    );
-    const contextPool = normalizeOutreachContextPool(
-      input.contextPool ?? readMetadataUnknown(record.metadata, 'contextPool'),
-    );
-    const recipients = applyOutreachDirection(
-      normalizeOutreachRecipients(input.recipients ?? record.recipients),
-      direction,
-    );
-    if ((record.type === 'campaign' || record.type === 'outbound_campaign') && !recipients.length) {
-      throw new BadRequestException('At least one recipient is required before drafting');
-    }
-    const generatedAt = new Date();
-    const requestMetadata =
-      record.type === 'outbound_campaign'
-        ? {
-            ...(input.metadata ?? {}),
-            outboundCurrentDateTime:
-              readString(input.metadata?.outboundCurrentDateTime) || generatedAt.toISOString(),
-          }
-        : record.type === 'campaign'
-          ? {
-              ...(input.metadata ?? {}),
-              campaignCurrentDateTime:
-                readString(input.metadata?.campaignCurrentDateTime) || generatedAt.toISOString(),
-              campaignCurrentDateTimeDisplay: formatCurrentDateTime(
-                readString(input.metadata?.campaignCurrentDateTime) || generatedAt.toISOString(),
-              ),
-            }
-          : input.metadata;
-    const promptTemplate =
-      input.promptTemplate ?? readMetadataString(record.metadata, 'promptTemplate') ?? null;
-    const objective = input.objective ?? readMetadataString(record.metadata, 'objective');
-    const existingBody = outboundTemplateBody(record, requestMetadata) ?? record.body ?? null;
-
-    // Phase 20: the live single-record regenerate route uses the same governed
-    // GenerationGateway / Context Plane seam as Classic batch and Outreach V3.
-    /**
-     * Phase 26 cutover: the governed GenerationGateway is the ONLY generation
-     * path. The former flag-off branch below this point compiled an ungoverned
-     * ContextPacket through the shared compiler and called the provider without
-     * a Context Plane packet; it has been removed rather than left reachable.
-     */
-    const templateId = promptTemplate || 'system-outreach-message';
-    const gatewayRecipients: OutreachRecipientInput[] = recipients.length
-      ? recipients
-      : [{ name: record.client?.name ?? 'Recipient' }];
-    const batch = await this.generateBatchEmailsViaGateway(
-      ctx,
-      {
-        ...(record.client?.id ? { clientId: record.client.id } : {}),
-        templateId,
-        outreachRecordId: this.versionedOutreach ? id : undefined,
-        recipients: gatewayRecipients,
-        ...(objective ? { objective } : {}),
-        tone: 'professional',
-        direction,
-        audienceKind: gatewayRecipients.length > 1 ? 'group' : 'individual',
-        ...(existingBody?.trim()
-          ? {
-              ...(record.subject ? { existingSubject: record.subject } : {}),
-              existingBody,
-              ...(objective ? { reviseInstruction: objective } : {}),
-            }
-          : {}),
-      },
-      { versionedRecordId: this.versionedOutreach ? id : null },
-    );
-    const generated = batch.results[0];
-    if (!generated || generated.status === 'error' || !generated.body?.trim()) {
-      throw new BadRequestException(
-        generated?.error ?? 'Governed generation could not produce a draft.',
-      );
-    }
-    const draftSubject =
-      record.type === 'campaign'
-        ? resolveGeneratedCampaignDraft(
-            generated.subject,
-            recipients,
-            mergeJsonObjects(record.metadata, requestMetadata ?? {}),
-          )
-        : generated.subject;
-    const draftBody =
-      record.type === 'campaign'
-        ? resolveGeneratedCampaignDraft(
-            generated.body,
-            recipients,
-            mergeJsonObjects(record.metadata, requestMetadata ?? {}),
-          )
-        : generated.body;
-    const nextMetadata = mergeJsonObjects(
-      mergeJsonObjects(record.metadata, {
-        ...(requestMetadata ?? {}),
-        objective: objective ?? null,
-        promptTemplate,
-        clioContextNote: generated.contextNote,
-        ai: {
-          provider: generated.manifest?.provider ?? null,
-          model: generated.manifest?.model ?? null,
-          generatedAt: generatedAt.toISOString(),
-          promptSpecVersion: generated.manifest?.promptSpecVersion ?? 'v2.2-gateway',
-          generatedSubject: draftSubject ?? null,
-          generatedBody: draftBody ?? null,
-          contextPacketId: generated.manifest?.contextPacketId ?? null,
-        },
-      }),
-      { direction, contextPool },
-    );
-    return this.updateOutreachRecord(ctx, id, {
-      direction,
-      subject: draftSubject,
-      body: draftBody,
-      recipients,
-      contextPool,
-      metadata: nextMetadata,
-      lastStep: Math.max(record.lastStep, 5),
-    });
-  }
-
   async openOutreachInConnectedEmail(ctx: TenantContext, id: string) {
     const record = await this.getOutreachRecord(ctx, id);
     if (record.type === 'campaign') {
@@ -3772,57 +3635,6 @@ export class EngagementService {
     });
   }
 
-  async previewAiTemplate(ctx: TenantContext, id: string) {
-    const systemTemplate = SYSTEM_AI_TEMPLATES.find((t) => t.id === id);
-    let templatePrompt: string;
-    let templateName: string;
-
-    if (systemTemplate) {
-      templatePrompt = systemTemplate.prompt;
-      templateName = systemTemplate.name;
-    } else {
-      // Phase 0 §3.h1: custom templates are OWNER-private, exactly like the
-      // list/update/delete paths already are. Without `userId` this read was
-      // tenant-wide, so any colleague's private prompt could be previewed by id.
-      // A foreign id returns the SAME not-found as a nonexistent one — ownership
-      // is never disclosed.
-      const dbTemplate = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.outreachAiTemplate.findFirst({
-          where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
-        }),
-      );
-      if (!dbTemplate) throw new NotFoundException('AI template not found');
-      templatePrompt = dbTemplate.prompt;
-      templateName = dbTemplate.name;
-    }
-
-    const mockRecipient = {
-      name: 'Jane Smith',
-      title: 'Legislative Director',
-      office: 'House Committee on Science, Space, and Technology',
-      chamber: 'House',
-      state: 'TX',
-      district: '21',
-      party: 'R',
-      committee: 'House Science, Space, and Technology Committee',
-    };
-
-    const generated = await this.ai.generateOutreachDraft(
-      {
-        workflow: 'campaign',
-        client: { name: 'Sample Client Organization', industry: 'Technology' },
-        recipients: [mockRecipient],
-        context: { preview: true, templateName },
-        promptTemplate: 'custom',
-        objective: templatePrompt,
-      },
-      ctx,
-    );
-    await this.recordAiUsage(ctx, 'template_preview', generated);
-
-    return { subject: generated.subject, body: generated.body, templateName };
-  }
-
   async getOutreachInsights(ctx: TenantContext, query: { clientId?: string }) {
     const clientId = query.clientId?.trim() || null;
 
@@ -4000,71 +3812,43 @@ export class EngagementService {
     return { talkingPoints };
   }
 
-  async generateBatchEmails(
-    ctx: TenantContext,
-    input: GenerateBatchEmailInput,
-    /**
-     * HP-05 (Gate L): the inbound request's own Authorization header, forwarded
-     * unmodified so an 'intel' context item can be rehydrated from intel-api's
-     * packet endpoint under the SAME identity that authenticated this call — see
-     * AlertPacketClientService. Not part of GenerateBatchEmailInput's validated
-     * body; threaded as its own parameter from the controller.
-     */
-    authHeader?: string,
-  ) {
-    const {
-      templateId,
-      insights,
-      additionalContext,
-      tone,
-      clientId,
-      contextItems,
-      direction,
-      audienceKind,
-      existingSubject,
-      existingBody,
-      reviseInstruction,
-    } = input;
+  async assertOutreachSdkBudget(ctx: TenantContext): Promise<void> {
+    if ((await this.outreachBudgetStatus(ctx)).hardStop) throw new HttpException({ statusCode: 429,
+      error: 'OUTREACH_TOKEN_BUDGET_EXCEEDED', message: 'Your organization has reached its daily outreach AI limit.' }, 429);
+  }
 
-    // Phase 0: with versioning on, every generated draft becomes an immutable
-    // audited row under a durable OutreachRecord. Validate that parent ONCE,
-    // before spending a single AI call — if the record is missing/foreign/sent
-    // there is nowhere safe to persist the result.
-    const versioned = this.versionedOutreach;
-    const versionedRecordId = versioned
-      ? await this.assertOwnedDraftRecord(ctx, input.outreachRecordId)
-      : null;
-
-    // Daily token budget gate (W3.4): hard-stop before spending anything when the
-    // tenant has hit its ceiling for the day; a typed 429 the wizard renders with
-    // the admin contact. (Soft-warn at 80% rides back on the response below.)
-    const budget = await this.outreachBudgetStatus(ctx);
-    if (budget.hardStop) {
-      throw new HttpException(
-        {
-          statusCode: HttpStatus.TOO_MANY_REQUESTS,
-          error: 'OUTREACH_TOKEN_BUDGET_EXCEEDED',
-          message:
-            'Your organization has reached its daily outreach AI limit. Drafting resets at 00:00 UTC — contact your Capiro admin to raise the limit.',
-        },
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
+  async prepareOutreachSdkInput(ctx: TenantContext, input: GenerateBatchEmailInput, authHeader?: string) {
+    const record = await this.getOutreachRecord(ctx, input.outreachRecordId ?? '');
+    if (record.status !== 'draft' || record.clientId !== (input.clientId ?? null) || input.recipients.length !== 1)
+      throw new BadRequestException('Outreach generation does not match the saved campaign');
+    assertGatewayContextContract(input.contextItems ?? []);
+    const items = (input.contextItems ?? []).map(normalizeSelectedContextItem);
+    const recipient = input.recipients[0]!;
+    let templatePrompt: string | undefined = SYSTEM_AI_TEMPLATES.find(t => t.id === input.templateId)?.prompt;
+    if (!templatePrompt && input.templateId) {
+      const template = await this.prisma.withTenant(ctx.tenantId, tx => tx.outreachAiTemplate.findFirst({
+        where: { id: input.templateId, tenantId: ctx.tenantId, userId: ctx.userId },
+      }));
+      if (!template) throw new NotFoundException('Template not found');
+      templatePrompt = template.prompt;
     }
-
-    /**
-     * Phase 26 cutover: batch generation runs through the governed gateway
-     * unconditionally. The legacy branch that used to follow (its own prompt
-     * assembly, auditor and sendability decision, fed by an ungoverned
-     * ContextPacket) has been removed, so there is no reachable Outreach
-     * generation path that skips the Context Plane.
-     */
-    return this.generateBatchEmailsViaGateway(ctx, input, {
-      versionedRecordId,
-      budgetWarning: budget.softWarn
-        ? `Your organization has used ${Math.round(budget.ratio * 100)}% of today's outreach AI limit.`
-        : undefined,
-      authHeader,
+    const client = record.clientId ? await this.prisma.withTenant(ctx.tenantId, tx => tx.client.findFirst({
+      where: { id: record.clientId!, tenantId: ctx.tenantId },
+    })) : null;
+    const clientBrief = client ? renderGatewayClientBrief(pruneForAi(client)) : null;
+    const matches = recipient.email ? await this.directory.findContactsByEmails([recipient.email], 1) : [];
+    const directoryByEmail = new Map(matches.map(m => [m.attendeeEmail.toLowerCase(), m]));
+    const isGroup = input.audienceKind === 'group';
+    const request = this.toGatewayRequest({ input, items, templatePrompt: templatePrompt ?? 'Write a clear message following the main idea and selected context.',
+      recipient, index: 0, directoryByEmail, isGroup, isReviseSingle: Boolean(input.existingBody),
+      versionedRecordId: record.id, pinned: input.pinnedIdentity ?? null, authHeader });
+    const enrichment = await this.buildGatewayEnrichment(ctx, { clientId: record.clientId,
+      clientBrief, clientName: client?.name ?? null, recipient,
+      directoryMatch: recipient.email ? directoryByEmail.get(recipient.email.toLowerCase()) ?? null : null,
+      isGroup, insights: [], additionalContext: null, items,
+      trackedBillIds: record.clientId ? await this.outreachTrackedBillIds(ctx, record.clientId) : [],
     });
+    return { request, enrichment };
   }
 
   /**
@@ -4077,191 +3861,6 @@ export class EngagementService {
    * moved behind the gateway, which is the point of the section. What is left here
    * is the data-loading this service already owned.
    */
-  private async generateBatchEmailsViaGateway(
-    ctx: TenantContext,
-    input: GenerateBatchEmailInput,
-    opts: {
-      versionedRecordId: string | null;
-      budgetWarning?: string;
-      /**
-       * HP-05 (Gate L): the inbound request's Authorization header, threaded all
-       * the way to EvidenceSourceService so an 'intel' item is rehydrated from
-       * intel-api under the caller's own identity.
-       *
-       * This USED to stop here, which was survivable only because
-       * ENGAGEMENT_GENERATION_GATEWAY defaulted off. It is not survivable with the
-       * gateway on: AlertPacketClientService returns null without a header,
-       * resolveIntelAlert records that as a CRITICAL failure, and
-       * GenerationGatewayService blocks any draft with a critical failure — so
-       * every LegiWatch-grounded draft would have come back empty. Threaded as
-       * part of enabling the gateway (generate() -> compileOutreachPacket ->
-       * resolveSelectedItems).
-       */
-      authHeader?: string;
-    },
-  ): Promise<{ results: OutreachBatchDraftResult[]; budgetWarning?: string }> {
-    const {
-      templateId,
-      insights,
-      additionalContext,
-      mainIdea,
-      tone,
-      clientId,
-      contextItems,
-      direction,
-      audienceKind,
-      existingSubject,
-      existingBody,
-      reviseInstruction,
-    } = input;
-
-    // §3.b1: reject a stale client still shipping external bodies, rather than
-    // ignoring the field and letting the caller believe it was used.
-    assertGatewayContextContract(contextItems ?? []);
-    const items = (contextItems ?? []).map(normalizeSelectedContextItem);
-
-    const isGroup = audienceKind === 'group';
-    const isReviseSingle = Boolean(existingBody) && input.recipients.length === 1;
-    const recipients = dedupeOutreachRecipients(input.recipients);
-
-    // Template resolution is unchanged: a system template is global, a custom one
-    // is owner-scoped (Phase 0 §3.h1).
-    const systemTemplate = SYSTEM_AI_TEMPLATES.find((t) => t.id === templateId);
-    let templatePrompt: string;
-    if (systemTemplate) {
-      templatePrompt = systemTemplate.prompt;
-    } else {
-      const dbTemplate = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.outreachAiTemplate.findFirst({
-          where: { id: templateId, tenantId: ctx.tenantId, userId: ctx.userId },
-        }),
-      );
-      if (!dbTemplate) throw new NotFoundException('Template not found');
-      templatePrompt = dbTemplate.prompt;
-      await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.outreachAiTemplate.update({
-          where: { id: templateId },
-          data: { usageCount: { increment: 1 } },
-        }),
-      );
-    }
-
-    // ---- Client-level context, resolved ONCE ----
-    let clientBrief: string | null = null;
-    let clientName: string | null = null;
-    if (clientId) {
-      const [row, relationship] = await Promise.all([
-        this.prisma.withTenant(ctx.tenantId, (tx) =>
-          tx.client.findFirst({ where: { id: clientId, tenantId: ctx.tenantId } }),
-        ),
-        this.clientContext(ctx, clientId).catch(() => null),
-      ]);
-      if (row) {
-        clientName = row.name;
-        const pruned = pruneForAi(row);
-        clientBrief = renderGatewayClientBrief(pruned);
-      }
-      if (relationship) {
-        const snapshot = renderClientRelationshipSnapshot(relationship);
-        if (snapshot) clientBrief = [clientBrief, snapshot].filter(Boolean).join('\n\n');
-      }
-    }
-
-    // Directory profiles for the whole batch in ONE scan (unchanged approach).
-    const batchRecipientEmails = unique(
-      recipients.map((r) => r.email?.trim().toLowerCase() ?? '').filter(Boolean),
-    );
-    const directoryByEmail = new Map<string, DirectoryEmailMatch>();
-    if (batchRecipientEmails.length) {
-      const matches = await this.directory
-        .findContactsByEmails(batchRecipientEmails, Math.max(batchRecipientEmails.length, 200))
-        .catch(() => [] as DirectoryEmailMatch[]);
-      for (const match of matches) {
-        const key = match.attendeeEmail.toLowerCase();
-        if (!directoryByEmail.has(key)) directoryByEmail.set(key, match);
-      }
-    }
-
-    const trackedBillIds = clientId
-      ? await this.outreachTrackedBillIds(ctx, clientId).catch(() => [])
-      : [];
-
-    // ---- Pin ONE provider/model for the whole campaign (§3.k) ----
-    const identity = await this.gateway.resolvePinnedIdentity(ctx, {});
-    if (!identity) {
-      throw new ServiceUnavailableException(
-        'Outreach drafting is not configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY (or a tenant AI key).',
-      );
-    }
-    const pinned = input.pinnedIdentity ?? identity.pinned;
-
-    // ---- Per-recipient generation ----
-    const generateOne = async (
-      recipient: OutreachRecipientInput,
-      index: number,
-    ): Promise<OutreachBatchDraftResult> => {
-      const recipientId =
-        recipient.id?.toString() ||
-        recipient.directoryContactId?.toString() ||
-        recipient.email?.toString() ||
-        recipient.name?.toString() ||
-        String(index);
-      const generationKeys = resolveGenerationKeys(recipient, recipientId);
-
-      const request = this.toGatewayRequest({
-        input,
-        items,
-        templatePrompt,
-        recipient,
-        index,
-        directoryByEmail,
-        isGroup,
-        isReviseSingle,
-        versionedRecordId: opts.versionedRecordId,
-        pinned,
-        ...(opts.authHeader ? { authHeader: opts.authHeader } : {}),
-      });
-
-      const enrichment = await this.buildGatewayEnrichment(ctx, {
-        clientId: clientId ?? null,
-        clientBrief,
-        clientName,
-        recipient,
-        directoryMatch: recipient.email
-          ? (directoryByEmail.get(recipient.email.trim().toLowerCase()) ?? null)
-          : null,
-        isGroup,
-        insights: insights ?? [],
-        additionalContext: additionalContext ?? null,
-        items,
-        trackedBillIds,
-      });
-
-      const result = await this.gateway.generate(ctx, request, enrichment, identity.creds);
-      return this.toBatchResult(result, recipientId, generationKeys);
-    };
-
-    // Warm the prompt cache on recipient #1 before fanning out: the gateway's
-    // static prefix is byte-stable per campaign, so its cache WRITE must land
-    // before drafts 2..N read it.
-    const OUTREACH_GEN_CONCURRENCY = 4;
-    let results: OutreachBatchDraftResult[];
-    if (recipients.length > 1) {
-      const head = await generateOne(recipients[0]!, 0);
-      const tail = await mapWithConcurrency(
-        recipients.slice(1),
-        OUTREACH_GEN_CONCURRENCY,
-        (recipient, i) => generateOne(recipient, i + 1),
-      );
-      results = [head, ...tail];
-    } else {
-      results = [await generateOne(recipients[0]!, 0)];
-    }
-
-    return { results, ...(opts.budgetWarning ? { budgetWarning: opts.budgetWarning } : {}) };
-  }
-
-  /** Assemble a GenerationRequest for one recipient slot. */
   private toGatewayRequest(o: {
     input: GenerateBatchEmailInput;
     items: OutreachSelectedContextItemInput[];
@@ -10781,129 +10380,6 @@ export class EngagementService {
     return { ok: true };
   }
 
-  async generateCampaignEmail(ctx: TenantContext, id: string, input: { customContext?: string }) {
-    const campaign = await this.getCampaign(ctx, id);
-    const sourceContext = (campaign.sourceContext ?? {}) as Record<string, unknown>;
-    const meetingId = typeof sourceContext.meetingId === 'string' ? sourceContext.meetingId : null;
-    const debriefId = typeof sourceContext.debriefId === 'string' ? sourceContext.debriefId : null;
-    const customContext =
-      typeof sourceContext.customContext === 'string'
-        ? sourceContext.customContext
-        : typeof input.customContext === 'string'
-          ? input.customContext
-          : null;
-
-    const [meeting, debrief, prep] = await Promise.all([
-      meetingId ? this.getMeeting(ctx, meetingId).catch(() => null) : Promise.resolve(null),
-      debriefId
-        ? this.prisma
-            .withTenant(ctx.tenantId, (tx) =>
-              tx.meetingDebrief.findFirst({
-                where: { id: debriefId, tenantId: ctx.tenantId },
-              }),
-            )
-            .catch(() => null)
-        : Promise.resolve(null),
-      meetingId
-        ? this.prisma
-            .withTenant(ctx.tenantId, async (tx) => {
-              const candidate = await tx.meetingPrep.findFirst({
-                where: { meetingId, tenantId: ctx.tenantId },
-                orderBy: { createdAt: 'desc' },
-              });
-              await assertSavedMeetingPrepAccess(tx, ctx, candidate?.generatedFrom);
-              return candidate;
-            })
-            .catch(() => null)
-        : Promise.resolve(null),
-    ]);
-
-    const clientId = campaign.clientId;
-    const client = clientId ? await this.clientContext(ctx, clientId).catch(() => null) : null;
-    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const current = await tx.engagementCampaign.findFirst({
-        where: { id, tenantId: ctx.tenantId }, select: { clientId: true },
-      });
-      if (!current || current.clientId !== campaign.clientId)
-        throw new NotFoundException('Campaign not found');
-      const associatedClients = [current.clientId, meeting?.clientId ?? null,
-        debrief?.clientId ?? null, prep?.clientId ?? null];
-      for (const linkedMeetingId of new Set([meeting?.id, debrief?.meetingId, prep?.meetingId])) {
-        if (!linkedMeetingId) continue;
-        const parent = await tx.meeting.findFirst({
-          where: { id: linkedMeetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
-          select: { clientId: true },
-        });
-        if (!parent) throw new NotFoundException('Campaign source meeting not found');
-        if (meeting?.id === linkedMeetingId && parent.clientId !== meeting.clientId)
-          throw new NotFoundException('Campaign source meeting not found');
-        associatedClients.push(parent.clientId);
-      }
-      await this.assertOutreachClientsReadable(
-        tx, ctx, associatedClients.filter((value): value is string => value !== null),
-        'Campaign not found',
-      );
-      if (prep) await assertSavedMeetingPrepAccess(tx, ctx, prep.generatedFrom);
-    }, { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS });
-    const firstRecipient = campaign.recipients[0] ?? null;
-    // Phase 26 cutover: campaign follow-up context is always governed. This was
-    // flag-gated, so with the flag off the provider was called with the raw
-    // custom context and no Context Plane packet at all.
-    const governed = await this.gateway.resolveGovernedContext(ctx, {
-      clientId: clientId ?? null,
-      recipientName: firstRecipient?.name ?? null,
-      recipientEmail: firstRecipient?.email ?? null,
-      objective: customContext ?? 'Draft the campaign follow-up email.',
-    });
-    const campaignContext =
-      [customContext, governed.promptBlock].filter(Boolean).join('\n\n') || null;
-
-    const result = await this.ai.generateCampaignEmail(
-      {
-        campaign: pruneForAi(campaign),
-        client: client ? pruneForAi(client) : null,
-        meeting: meeting ? pruneForAi(meeting) : null,
-        debrief: debrief ? pruneForAi(debrief) : null,
-        prep: prep ? pruneForAi(prep) : null,
-        recipients: campaign.recipients.map((r) => ({
-          name: r.name,
-          email: r.email,
-          title: r.title,
-          office: r.office,
-        })),
-        campaignType: campaign.type,
-        customContext: campaignContext,
-      },
-      ctx,
-    );
-    await this.recordAiUsage(ctx, 'campaign_email', result);
-
-    return this.updateCampaign(ctx, id, {
-      subject: result.subject,
-      body: result.body,
-      metadata: {
-        aiGenerated: {
-          provider: result.provider,
-          model: result.model,
-          at: new Date().toISOString(),
-        },
-      },
-    }, campaign.clientId);
-  }
-
-  /**
-   * COMPATIBILITY ROUTE (Phase 0 §3.d2) — the EngagementCampaign send.
-   *
-   * A third raw-body external-send path, on its own
-   * EngagementCampaign/EngagementCampaignRecipient tables, with no first-party web
-   * caller at the time of writing. Closed under the same flag anyway: an
-   * authenticated, callable route that mails arbitrary stored text to real
-   * recipients is a bypass whether or not our own UI happens to use it.
-   *
-   * sendCampaignTest() below is deliberately NOT gated — it delivers only to the
-   * authenticated user's own mailbox, touches no external recipient, and stays
-   * useful during the cutover (same rule as sendBatchEmails' testMode).
-   */
   async sendCampaignEmails(ctx: TenantContext, id: string) {
     if (this.versionedOutreach) {
       throw new BadRequestException(

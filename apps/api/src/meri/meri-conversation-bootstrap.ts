@@ -77,7 +77,7 @@ async function replay(prisma: PrismaService, ctx: TenantContext, input: Bootstra
 /** One transaction creates both native conversation and immutable request binding. */
 export async function bootstrapConversation(
   prisma: PrismaService, ctx: TenantContext, raw: unknown,
-  profile: () => Promise<{ email: string | null }>, metadata: { brand: string; runtime: string },
+  profile: () => Promise<{ email: string | null }>, metadata: { brand: string; runtime: string; purpose?: 'outreach_generation' },
 ) {
   const input = parseBootstrapConversationInput(raw);
   const existing = await replay(prisma, ctx, input);
@@ -103,4 +103,11 @@ export async function bootstrapConversation(
     if (winner) return winner;
     throw error;
   }
+}
+
+/** Internal operation sessions do not belong to ordinary Meri history or editors. */
+export function isOutreachGenerationConversation(conversation: { metadata: unknown }): boolean {
+  const metadata = conversation.metadata;
+  return !!metadata && typeof metadata === 'object' && !Array.isArray(metadata) &&
+    (metadata as Record<string, unknown>).purpose === 'outreach_generation';
 }

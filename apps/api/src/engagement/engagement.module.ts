@@ -1,3 +1,6 @@
+import { CapabilitiesModule } from '../capabilities/capabilities.module.js';
+import { OutreachCampaignController } from './outreach-campaign.controller.js';
+import { OutreachCampaignService } from './outreach-campaign.service.js';
 import { ManagedMcpModule } from '../meri/managed-mcp.module.js';
 import { KrispNotetakerService } from './krisp/krisp-notetaker.service.js';
 import { KrispNotetakerController } from './krisp/krisp-notetaker.controller.js';
@@ -63,14 +66,11 @@ import { AttachmentScannerService } from './attachment-scanner.service.js';
 import { OutreachTruthService } from './generation/outreach-truth.service.js';
 import { EvidenceSourceService } from './generation/evidence-source.service.js';
 import { EvidencePacketService } from './generation/evidence-packet.service.js';
-import { AuthorStyleProfileService } from './generation/author-style-profile.service.js';
 import { MessagePlanService } from './generation/message-plan.service.js';
 import { GenerationVerifierService } from './generation/generation-verifier.service.js';
 import { GenerationGatewayService } from './generation/generation-gateway.service.js';
-import { OutreachEvaluationRunner } from './generation/outreach-evaluation.runner.js';
 import { AlertPacketClientService } from './generation/alert-packet-client.service.js';
 import { OutreachContextPlaneService } from './generation/outreach-context-plane.service.js';
-import { OutreachV3LivePreviewService } from './generation/outreach-v3-live-preview.service.js';
 import { EngagementRuntimeModule } from './runtime/engagement-runtime.module.js';
 import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 import { guardEngagementAiService } from './runtime/engagement-ai-runtime.boundary.js';
@@ -95,6 +95,7 @@ import {
 
 @Module({
   imports: [
+    CapabilitiesModule,
     PrismaModule,
     ManagedMcpModule,
     DirectoryModule,
@@ -108,8 +109,9 @@ import {
     QualityTelemetryModule,
     EvaluationModule,
   ],
-  controllers: [EngagementController, EngagementPlansController, OutcomeController, KrispNotetakerController, NewsletterOutreachController, NewsletterPublicController],
+  controllers: [OutreachCampaignController, EngagementController, EngagementPlansController, OutcomeController, KrispNotetakerController, NewsletterOutreachController, NewsletterPublicController],
   providers: [
+    OutreachCampaignService,
     EngagementPlansService,
     KrispNotetakerService,
     {
@@ -246,14 +248,11 @@ import {
     OutreachTruthService,
     EvidenceSourceService,
     EvidencePacketService,
-    AuthorStyleProfileService,
     MessagePlanService,
     GenerationVerifierService,
-    OutreachEvaluationRunner,
     GenerationGatewayService,
     AlertPacketClientService,
     OutreachContextPlaneService,
-    OutreachV3LivePreviewService,
   ],
   exports: [
     KrispNotetakerService,
@@ -274,7 +273,6 @@ import {
     OutreachSendIntentService,
     GenerationGatewayService,
     EvidencePacketService,
-    OutreachV3LivePreviewService,
   ],
 })
 export class EngagementModule {}

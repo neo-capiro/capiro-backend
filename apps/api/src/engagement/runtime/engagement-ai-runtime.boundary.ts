@@ -5,11 +5,7 @@ import { EngagementRuntimePolicyService } from './engagement-runtime-policy.serv
 const AI_ACTION_BY_METHOD: Readonly<Record<string, EngagementExternalAction>> = {
   generateMeetingPrep: 'meeting_prep_generate',
   generateMeetingDebrief: 'meeting_debrief_generate',
-  generateOutreachDraft: 'outreach_generate',
   generateTalkingPoints: 'outreach_generate',
-  generateCampaignEmail: 'outreach_generate',
-  resolveOutreachCredentials: 'outreach_generate',
-  resolveOutreachV3Credentials: 'outreach_v3_generate',
 };
 
 /**

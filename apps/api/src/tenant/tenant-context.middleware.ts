@@ -81,6 +81,10 @@ interface ApplicationAuthorityRequestProvenance {
 // actual request object; there is no reusable/durable authorization receipt.
 const applicationAuthorityRequests = new WeakMap<Request, ApplicationAuthorityRequestProvenance>();
 const MERI_CONTROL_POST_PATHS = new Set([
+  '/engagement/outreach/sdk/claim',
+  '/engagement/outreach/sdk/read',
+  '/engagement/outreach/sdk/complete',
+  '/engagement/outreach/sdk/fail',
   '/clio/application-authority/identity',
   '/clio/application-authority/context',
   '/clio/application-authority/membership',

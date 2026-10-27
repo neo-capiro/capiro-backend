@@ -43,8 +43,6 @@ function fakeService() {
   const steering: string[] = [];
   const raw = {
     loadUserVoiceBlock: jest.fn().mockResolvedValue('LEGACY COMPILER'),
-    generateOutreachDraft: jest.fn(),
-    generateBatchEmails: jest.fn(),
     generateMeetingPrep: jest.fn(async function (
       this: { loadUserVoiceBlock: (value: TenantContext, id: string) => Promise<string | null> },
       value: TenantContext,
@@ -152,8 +150,6 @@ describe('createGovernedEngagementService Phase 24', () => {
     } as unknown as EngagementAiService);
     const raw = {
       loadUserVoiceBlock: jest.fn().mockResolvedValue('LEGACY COMPILER'),
-      generateOutreachDraft: jest.fn(),
-      generateBatchEmails: jest.fn(),
       generateMeetingPrep: jest.fn(),
       generateMeetingDebriefDraft: jest.fn(async function (
         this: { loadUserVoiceBlock: (value: TenantContext, id: string) => Promise<string | null> },

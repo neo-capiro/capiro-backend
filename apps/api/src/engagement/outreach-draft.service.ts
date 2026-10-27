@@ -36,6 +36,7 @@ import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
 import type { DraftAuditCheckDto, OutreachDraftVersionDto } from '@capiro/shared/newsletter';
 import type { LedgerEntry } from '@capiro/meriv2-core';
+import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   OutreachAuditUnavailableError,
@@ -57,6 +58,9 @@ export type DraftEditKind = 'manual' | 'improve' | 'revert';
 
 export interface UpsertGeneratedVersionInput {
   outreachRecordId: string;
+  expectedCampaignRevision?: number;
+  expectedArtifactVersion?: number;
+  generationJobId?: string;
   /** The wizard's GenerationTargetKey — the stable identity of this draft slot. */
   generationKey: string;
   recipientKey: string;
@@ -109,6 +113,7 @@ export interface DraftVersionSummaryDto {
 }
 
 export interface OutreachDraftArtifactDto {
+  recipientSnapshot: Record<string, unknown>;
   id: string;
   outreachRecordId: string;
   generationKey: string;
@@ -188,8 +193,23 @@ export class OutreachDraftService {
   ): Promise<OutreachDraftVersionDto> {
     const created = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await this.assertRecordOwned(tx, ctx, input.outreachRecordId);
+      if (input.expectedCampaignRevision !== undefined) {
+        const rows = await tx.$queryRaw<Array<{ metadata_jsonb: Record<string, unknown>; client_id: string | null }>>`
+          SELECT metadata_jsonb, client_id FROM outreach_records
+          WHERE id=${input.outreachRecordId}::uuid AND tenant_id=${ctx.tenantId}::uuid AND created_by_user_id=${ctx.userId}::uuid
+            AND deleted_at IS NULL AND status='draft' FOR UPDATE`;
+        const workflow = rows[0]?.metadata_jsonb.workflow as { revision?: number } | undefined;
+        if (rows[0]?.client_id && !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, rows[0].client_id))) throw new NotFoundException('Client not found');
+        if (workflow?.revision !== input.expectedCampaignRevision) throw new ConflictException('Campaign changed during generation');
+        if (input.generationJobId) {
+          await tx.$queryRaw`SELECT id FROM outreach_jobs WHERE id=${input.generationJobId}::uuid AND tenant_id=${ctx.tenantId}::uuid FOR UPDATE`;
+          const job = await tx.outreachJob.findFirst({ where: { id: input.generationJobId, tenantId: ctx.tenantId, userId: ctx.userId, status: { not: 'canceled' } } });
+          if (!job) throw new ConflictException('Outreach generation was canceled');
+        }
+      }
       const artifactId = await this.findOrCreateArtifactId(tx, ctx, input);
       const nextVersion = await this.lockAndBumpArtifact(tx, ctx, artifactId);
+      if (input.expectedArtifactVersion !== undefined && nextVersion - 1 !== input.expectedArtifactVersion) throw new ConflictException('Draft changed during generation');
       const row = await tx.outreachDraftVersion.create({
         data: {
           tenantId: ctx.tenantId,
@@ -585,6 +605,7 @@ export class OutreachDraftService {
           generationKey: true,
           recipientKey: true,
           audienceKind: true,
+          recipientSnapshot: true,
           currentVersion: true,
           versions: {
             orderBy: { version: 'desc' },
@@ -601,6 +622,7 @@ export class OutreachDraftService {
         generationKey: a.generationKey,
         recipientKey: a.recipientKey,
         audienceKind: a.audienceKind,
+        recipientSnapshot: (a.recipientSnapshot ?? {}) as Record<string, unknown>,
         currentVersion: a.currentVersion,
         current: current ? toVersionDto(current) : null,
         history: a.versions.map(toVersionSummary),
@@ -875,11 +897,15 @@ export class OutreachDraftService {
   ): Promise<void> {
     const record = await tx.outreachRecord.findFirst({
       where: { id: outreachRecordId, tenantId: ctx.tenantId, deletedAt: null },
-      select: { id: true, createdByUserId: true },
+      select: { id: true, createdByUserId: true, clientId: true },
     });
     // Identical 404 for missing and foreign records — no existence leak.
     if (!record || record.createdByUserId !== ctx.userId) {
       throw new NotFoundException('Outreach draft record not found');
+    }
+    if (record.clientId) {
+      const client = await tx.client.findFirst({ where: { id: record.clientId, tenantId: ctx.tenantId, status: { not: 'archived' } }, select: { id: true } });
+      if (!client || !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, record.clientId))) throw new NotFoundException('Outreach draft record not found');
     }
   }
 
@@ -894,9 +920,13 @@ export class OutreachDraftService {
         outreachRecordId: input.outreachRecordId,
         generationKey: input.generationKey,
       },
-      select: { id: true },
+      select: { id: true, recipientSnapshot: true },
     });
-    if (existing) return existing.id;
+    if (existing) {
+      if (input.expectedCampaignRevision !== undefined && recipientEnvelopeKey(existing.recipientSnapshot) !== recipientEnvelopeKey(input.recipientSnapshot))
+        throw new ConflictException('This draft belongs to a different recipient envelope. Remove and add the recipient again before generating.');
+      return existing.id;
+    }
     const created = await tx.outreachDraftArtifact.create({
       data: {
         tenantId: ctx.tenantId,
@@ -952,6 +982,7 @@ export class OutreachDraftService {
           generationKey: true,
           recipientKey: true,
           audienceKind: true,
+          recipientSnapshot: true,
           currentVersion: true,
           versions: { orderBy: { version: 'desc' }, select: VERSION_SELECT },
         },
@@ -965,6 +996,7 @@ export class OutreachDraftService {
       generationKey: a.generationKey,
       recipientKey: a.recipientKey,
       audienceKind: a.audienceKind,
+      recipientSnapshot: (a.recipientSnapshot ?? {}) as Record<string, unknown>,
       currentVersion: a.currentVersion,
       current: current ? toVersionDto(current) : null,
       history: a.versions.map(toVersionSummary),
@@ -1054,4 +1086,12 @@ function toVersionSummary(row: VersionRow): DraftVersionSummaryDto {
     approvalStatus: row.approvalStatus as DraftApprovalStatus,
     createdAt: row.createdAt.toISOString(),
   };
+}
+
+/** Artifacts retain their original envelope for every immutable version. */
+function recipientEnvelopeKey(value: unknown): string {
+  const snapshot = (value ?? {}) as Record<string, unknown>;
+  const emails = (values: unknown) => (Array.isArray(values) ? values : []).map(v => String(v ?? '').trim().toLowerCase()).sort();
+  const group = Array.isArray(snapshot.groupMembers) ? snapshot.groupMembers.map(m => (m as Record<string, unknown>).email) : [];
+  return JSON.stringify({ to: emails(group.length ? group : [snapshot.email]), cc: emails(snapshot.cc), bcc: emails(snapshot.bcc) });
 }
