@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { governedMemoryLifecycleEnabled } from './memory-governance-lifecycle.helpers.js';
+import { describeMemoryRecallContent } from './memory-recall-content.helpers.js';
 import { governedRecallEligibilitySql } from './memory-recall-suppression.helpers.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -12,6 +13,7 @@ const UTC_MICROSECOND = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\.(\d{6})Z$/;
 interface OwnerItemRow {
   id: string;
   title: string;
+  sourceType: string | null;
   clientId: string | null;
   sections: unknown;
   updatedAt: string;
@@ -21,6 +23,10 @@ export interface OwnerMemoryItem {
   id: string;
   title: string;
   value: string;
+  /** Canonical presentation only; title and value retain the correction source. */
+  displayTitle: string;
+  contentStatus: ReturnType<typeof describeMemoryRecallContent>['contentStatus'];
+  contentLimitation: string | null;
   scope: 'user_private';
   clientId: string | null;
   /** Exact PostgreSQL UTC microsecond token for a subsequent correction pin. */
@@ -58,11 +64,13 @@ export class MemoryOwnerItemsService {
     if (!governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE)) {
       throw new ServiceUnavailableException('Governed memory owner items are unavailable.');
     }
-    const previewRoster = input.visibleClientIds === undefined ? null : JSON.stringify(input.visibleClientIds);
+    const previewRoster =
+      input.visibleClientIds === undefined ? null : JSON.stringify(input.visibleClientIds);
 
     const rows = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
       tx.$queryRaw<OwnerItemRow[]>(Prisma.sql`
         SELECT mi.id::text AS id, mi.title, mi.client_id::text AS "clientId",
+               mi.source_type AS "sourceType",
                mi.sections_jsonb AS sections,
                to_char(mi.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "updatedAt"
         FROM memory_items mi
@@ -100,14 +108,25 @@ export class MemoryOwnerItemsService {
     );
 
     const visible = rows.slice(0, limit);
-    const items = visible.map((row): OwnerMemoryItem => ({
-      id: row.id,
-      title: row.title,
-      value: sectionsText(row.sections),
-      scope: 'user_private',
-      clientId: row.clientId,
-      updatedAt: row.updatedAt,
-    }));
+    const items = visible.map((row): OwnerMemoryItem => {
+      const value = sectionsText(row.sections);
+      const content = describeMemoryRecallContent({
+        title: row.title,
+        value,
+        sourceType: row.sourceType,
+      });
+      return {
+        id: row.id,
+        title: row.title,
+        value,
+        displayTitle: content.title,
+        contentStatus: content.contentStatus,
+        contentLimitation: content.contentLimitation,
+        scope: 'user_private',
+        clientId: row.clientId,
+        updatedAt: row.updatedAt,
+      };
+    });
     const last = visible.at(-1);
     return {
       schemaVersion: 1,
