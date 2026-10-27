@@ -217,8 +217,11 @@ export async function readMailThreadHttpPage(prisma: PrismaService, ctx: TenantC
     if (input.expectedBodySha256 !== undefined && input.expectedBodySha256 !== bodySha256) throw changed();
     const section = createMailBodySection(body, bodyOffset, maxCharacters);
     const { metadata, raw: _raw, source: _messageSource, externalId: _messageExternalId, ...fields } = message;
+    const provenance = metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {};
     return { ...fields, ...section, bodySha256,
       bodyStoredPresent: message.bodyText !== null,
+      folder: typeof provenance.folder === 'string' ? provenance.folder : null,
+      internetMessageId: typeof provenance.internetMessageId === 'string' ? provenance.internetMessageId : null,
       bodyCompleteness: metadata && typeof metadata === 'object' && !Array.isArray(metadata) &&
         typeof metadata.bodyCompleteness === 'string' && ['full', 'preview', 'truncated'].includes(metadata.bodyCompleteness)
         ? metadata.bodyCompleteness : 'unknown' };

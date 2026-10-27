@@ -294,3 +294,27 @@ describe('bounded canonical thread pages', () => {
   });
 
 });
+
+it('returns folder and Internet Message-ID provenance while withholding raw metadata', async () => {
+  const h = harness();
+  (h.tx.mailMessage.findMany as any).mockResolvedValue([
+    {
+      id: ids.message,
+      bodyText: 'Original',
+      metadata: {
+        folder: 'inbox',
+        internetMessageId: '<original@example.test>',
+        bodyCompleteness: 'full',
+        privateInternal: 'hidden',
+      },
+    },
+  ]);
+  const result = await readMailThreadHttpPage(h.prisma as any, ctx, ids.thread, ids.client, {
+    asOf,
+  });
+  expect(result.messages[0]).toMatchObject({
+    folder: 'inbox',
+    internetMessageId: '<original@example.test>',
+  });
+  expect(JSON.stringify(result)).not.toContain('privateInternal');
+});
