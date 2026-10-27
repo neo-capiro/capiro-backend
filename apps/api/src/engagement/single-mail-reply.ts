@@ -1,3 +1,11 @@
+import {
+  mailReplyAddress as address,
+  capturedGmailReplyRecipients,
+  storedReplyRecipients,
+  prepareReplyAllRecipients,
+  storedPreparedReplyAll,
+  type PreparedReplyAll,
+} from './mail-reply-recipients.js';
 /** Bounded reply projection shared by the canonical reader, admission and Gmail adapter. */
 export const REPLY_UNAVAILABLE =
   'Native reply is unavailable for this original. Reply from your mailbox.';
@@ -11,17 +19,6 @@ const providerId = (value: unknown): value is string =>
   value.length <= 2048 &&
   !/[\x00-\x20]/.test(value);
 const messageId = /^<[^<>\s@\x00-\x1f]+@[^<>\s@\x00-\x1f]+>$/;
-
-// Intentionally supports one unambiguous address. Complex lists are unsupported,
-// never partially parsed into a different recipient. No alias identity is inferred.
-function address(value: string): string | null {
-  const match = /^(?:[^<>@,;\r\n]*<([^<>]+)>|([^<>]+))$/.exec(value.trim());
-  const email = (match?.[1] ?? match?.[2] ?? '').trim().toLowerCase();
-  return email.length <= 254 &&
-    /^[a-z0-9.!#$%&'*+\-/=?^_`{|}~]+@[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}$/i.test(email)
-    ? email
-    : null;
-}
 
 export type GmailReplyIdentity = {
   kind?: 'gmail';
@@ -50,17 +47,19 @@ export type MailReplyIdentity = GmailReplyIdentity | GraphReplyIdentity;
 export type MailReplyContext =
   | {
       supported: true;
-      operation: 'reply';
+      operation: 'reply' | 'reply_all';
       originalMessageId: string;
       originalUpdatedAt: string;
       senderConnectionId: string;
       subject: string;
-      to: [{ email: string }];
+      to: Array<{ email: string }>;
+      cc?: Array<{ email: string }>;
     }
   | { supported: false; reason: string };
 export type PreparedMailReply = {
   context: Extract<MailReplyContext, { supported: true }>;
   provider: MailReplyIdentity;
+  replyAll?: PreparedReplyAll;
 };
 
 /** Only an authenticated GET made with immutable-ID Prefer may supply this detail. */
@@ -179,7 +178,7 @@ export function hasGraphReplySnapshot(value: unknown, connectionId: string): boo
     Array.isArray(snapshot.to) && snapshot.to.length === 1 ? object(snapshot.to[0]).email : null;
   return Boolean(
     reply &&
-    snapshot.operation === 'reply' &&
+    ['reply', 'reply_all'].includes(String(snapshot.operation)) &&
     snapshot.senderConnectionId === connectionId &&
     typeof snapshot.threadId === 'string' &&
     uuid.test(snapshot.threadId) &&
@@ -189,10 +188,12 @@ export function hasGraphReplySnapshot(value: unknown, connectionId: string): boo
     Number.isFinite(Date.parse(snapshot.originalUpdatedAt)) &&
     new Date(snapshot.originalUpdatedAt).toISOString() === snapshot.originalUpdatedAt &&
     snapshot.subject === reply.subject &&
-    typeof recipient === 'string' &&
-    recipient.toLowerCase() === reply.toEmail &&
-    Array.isArray(snapshot.cc) &&
-    snapshot.cc.length === 0 &&
+    (snapshot.operation === 'reply_all'
+      ? validReplyAllSnapshot(snapshot, reply.toEmail)
+      : typeof recipient === 'string' &&
+        recipient.toLowerCase() === reply.toEmail &&
+        Array.isArray(snapshot.cc) &&
+        snapshot.cc.length === 0) &&
     Array.isArray(snapshot.bcc) &&
     snapshot.bcc.length === 0,
   );
@@ -328,4 +329,61 @@ export function prepareMailReply(
       to: [{ email: provider.toEmail }],
     },
   };
+}
+
+/** Reply-all is additive: the one-recipient source identity and old receipts stay unchanged. */
+export function prepareMailReplyAll(
+  source: Parameters<typeof prepareMailReply>[0],
+  thread: Parameters<typeof prepareMailReply>[1],
+  connection: Parameters<typeof prepareMailReply>[2],
+  selfEmails: readonly string[],
+): PreparedMailReply | null {
+  const base = prepareMailReply(source, thread, connection, selfEmails);
+  if (!base) return null;
+  let original;
+  if (base.provider.kind === 'microsoft_graph') {
+    const capture = object(object(source.raw).graphReplyRecipients);
+    if (
+      capture.schema !== 'graph-native-reply-recipients/1' ||
+      capture.defaultId !== source.externalId ||
+      capture.immutableId !== base.provider.immutableId ||
+      capture.changeKey !== base.provider.changeKey
+    )
+      return null;
+    original = storedReplyRecipients(capture.recipients);
+  } else original = capturedGmailReplyRecipients(source.raw);
+  const replyAll = original
+    ? prepareReplyAllRecipients(original, base.provider.toEmail, [
+        ...selfEmails,
+        connection.accountEmail!,
+      ])
+    : null;
+  if (!replyAll) return null;
+  return {
+    ...base,
+    replyAll,
+    context: {
+      ...base.context,
+      operation: 'reply_all',
+      to: replyAll.to.map((email) => ({ email })),
+      cc: replyAll.cc.map((email) => ({ email })),
+    },
+  };
+}
+
+function validReplyAllSnapshot(snapshot: Record<string, unknown>, replyTo: string): boolean {
+  const proof = storedPreparedReplyAll(snapshot.replyAll);
+  const list = (value: unknown) =>
+    Array.isArray(value)
+      ? value.map((v) => {
+          const email = object(v).email;
+          return typeof email === 'string' ? email.trim().toLowerCase() : null;
+        })
+      : null;
+  return Boolean(
+    proof &&
+    proof.to[0] === replyTo &&
+    JSON.stringify(list(snapshot.to)) === JSON.stringify(proof.to) &&
+    JSON.stringify(list(snapshot.cc)) === JSON.stringify(proof.cc),
+  );
 }

@@ -1,3 +1,4 @@
+import { capturedGraphReplyRecipients, type MailReplyRecipients, type PreparedReplyAll } from '../mail-reply-recipients.js';
 import { assertMicrosoftReplyDraft, buildMicrosoftReplyPayload, buildMicrosoftSendPayload } from './microsoft-send-payload.js';
 import { graphReplyIdentity, type GraphReplyIdentity, type MailReplyIdentity, REPLY_UNAVAILABLE } from '../single-mail-reply.js';
 import {
@@ -276,9 +277,11 @@ interface GraphItemBody {
 
 const graphReceiptIdentity = Symbol('authenticatedGraphReceiptIdentity');
 const graphReplySource = Symbol('authenticatedGraphReplySource');
+const graphReplyRecipients = Symbol('authenticatedGraphReplyRecipients');
 interface GraphMessage {
   [graphReceiptIdentity]?: GraphMailIdentity;
   [graphReplySource]?: GraphReplyIdentity;
+  [graphReplyRecipients]?: MailReplyRecipients;
   id?: string;
   conversationId?: string | null;
   internetMessageId?: string | null;
@@ -323,6 +326,7 @@ interface GraphNotification {
 
 export interface MicrosoftGraphSendMailInput {
   reply?: MailReplyIdentity;
+  replyAll?: PreparedReplyAll;
   subject: string;
   body: string;
   /** Graph message body type. Defaults to 'Text' for back-compat; outreach
@@ -759,19 +763,20 @@ export class MicrosoftGraphSyncService {
     const accessToken = await this.getValidAccessToken(ctx.tenantId, connectionId, token);
     const correlationId = input.correlationId ?? '';
     const reply = input.reply;
-    if (reply && reply.kind !== 'microsoft_graph') throw definiteMailSendRejection(new BadRequestException(REPLY_UNAVAILABLE));
+    if ((input.replyAll && !reply) || (reply && reply.kind !== 'microsoft_graph')) throw definiteMailSendRejection(new BadRequestException(REPLY_UNAVAILABLE));
     const payload = reply ? buildMicrosoftReplyPayload(input) : buildMicrosoftSendPayload(input);
     if (reply) {
       let original: unknown;
       try {
-        original = await this.graphGet(`/me/messages/${encodeURIComponent(reply.immutableId)}?$select=id,conversationId,changeKey,isDraft,subject,from,sender,replyTo,internetMessageId,internetMessageHeaders`,
+        original = await this.graphGet(`/me/messages/${encodeURIComponent(reply.immutableId)}?$select=id,conversationId,changeKey,isDraft,subject,from,sender,replyTo,internetMessageId,internetMessageHeaders${input.replyAll ? ',toRecipients,ccRecipients' : ''}`,
           accessToken, GRAPH_IMMUTABLE_ID_HEADERS, 65536);
       } catch (error) {
         if (error instanceof GraphHttpError && [404, 410].includes(error.graphStatus))
           throw definiteMailSendRejection(new BadRequestException(REPLY_UNAVAILABLE));
         throw error;
       }
-      if (JSON.stringify(graphReplyIdentity(original)) !== JSON.stringify(reply))
+      if (JSON.stringify(graphReplyIdentity(original)) !== JSON.stringify(reply) ||
+          (input.replyAll && JSON.stringify(capturedGraphReplyRecipients(original)) !== JSON.stringify(input.replyAll.original)))
         throw definiteMailSendRejection(new BadRequestException('The original changed. Review it again before replying.'));
     }
 
@@ -781,7 +786,7 @@ export class MicrosoftGraphSyncService {
       id?: unknown;
       internetMessageId?: unknown;
       conversationId?: unknown;
-    }>(reply ? `/me/messages/${encodeURIComponent(reply.immutableId)}/createReply` : '/me/messages',
+    }>(reply ? `/me/messages/${encodeURIComponent(reply.immutableId)}/${input.replyAll ? 'createReplyAll' : 'createReply'}` : '/me/messages',
       accessToken, payload, GRAPH_IMMUTABLE_ID_HEADERS, reply ? 'mime' : 'json');
 
     const draftId = typeof draft?.id === 'string' ? draft.id.trim() : '';
@@ -1843,7 +1848,11 @@ export class MicrosoftGraphSyncService {
     const bccRecipients = recipients(message.bccRecipients);
     const authoritative = resolveGraphAuthoritativeBody(message);
     const storedRaw = { ...stripGraphMessageBodyContent(message), graphReplySource: message[graphReplySource]
-      ? { schema: 'graph-native-reply/1', defaultId: message.id, identity: message[graphReplySource] } : undefined };
+      ? { schema: 'graph-native-reply/1', defaultId: message.id, identity: message[graphReplySource] } : undefined,
+      graphReplyRecipients: message[graphReplySource] && message[graphReplyRecipients]
+        ? { schema: 'graph-native-reply-recipients/1', defaultId: message.id,
+          immutableId: message[graphReplySource].immutableId, changeKey: message[graphReplySource].changeKey,
+          recipients: message[graphReplyRecipients] } : undefined };
     const participantEmails = [
       fromEmail ?? '',
       ...toRecipients.map((recipient) => recipient.email),
@@ -2115,13 +2124,15 @@ export class MicrosoftGraphSyncService {
     try {
       // One bounded GET per existing hydration call; default delta IDs/checkpoints remain unchanged.
       const detailed = await this.graphGet<GraphMessage>(
-        `/me/messages/${encodeURIComponent(message.id)}?$select=id,body,conversationId,changeKey,isDraft,subject,from,sender,replyTo,internetMessageId,internetMessageHeaders`,
+        `/me/messages/${encodeURIComponent(message.id)}?$select=id,body,conversationId,changeKey,isDraft,subject,from,sender,replyTo,toRecipients,ccRecipients,internetMessageId,internetMessageHeaders`,
         accessToken,
         GRAPH_IMMUTABLE_ID_HEADERS,
       );
       const identity = graphObservedIdentity(detailed), reply = graphReplyIdentity(detailed);
+      const recipients = capturedGraphReplyRecipients(detailed);
       return { ...message, body: detailed.body ?? message.body,
         ...(reply ? { [graphReplySource]: reply } : {}),
+        ...(reply && recipients ? { [graphReplyRecipients]: recipients } : {}),
         ...(identity ? { [graphReceiptIdentity]: identity } : {}) };
     } catch (err) {
       if (isMessageGoneError(err)) return message;

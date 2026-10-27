@@ -8,7 +8,7 @@ import { activeMailMessageWhere } from './mail-message-state.js';
 import { getMailSyncCoverage } from './mail-sync-coverage.js';
 import { createMailBodySection } from './mail-body-section.js';
 import { normalizeMailReadRecipients, mailReadClientAssociation, activeMailAssociationMessage } from './mail-query.js';
-import { prepareMailReply, REPLY_UNAVAILABLE, type MailReplyContext } from './single-mail-reply.js';
+import { prepareMailReply, prepareMailReplyAll, REPLY_UNAVAILABLE, type MailReplyContext } from './single-mail-reply.js';
 import { replySelfEmails } from './single-mail-authority.js';
 export { requireMailReadScope } from './engagement-access.helpers.js';
 
@@ -153,15 +153,19 @@ export async function readMailThreadPage(prisma: PrismaService, ctx: TenantConte
     const rows = await tx.mailMessage.findMany({ where, orderBy: chronologicalOrder,
       select: { ...messageSelect, ...(page.messageId ? { raw: true, source: true, externalId: true } as const : {}) },
       take: page.limit, skip: page.offset });
-    const messages = rows.map(message => ({ ...message, replyContext: undefined as MailReplyContext | undefined }));
+    const messages = rows.map(message => ({ ...message, replyContext: undefined as MailReplyContext | undefined, replyAllContext: undefined as MailReplyContext | undefined }));
     if (page.messageId) {
       for (const message of messages) {
         message.replyContext = { supported: false, reason: REPLY_UNAVAILABLE };
+        message.replyAllContext = { supported: false, reason: REPLY_UNAVAILABLE };
         const source = { ...message, source: message.source ?? '', externalId: message.externalId ?? '' };
         const candidate = prepareMailReply(source, thread, thread.connection, []);
         if (candidate) {
           try {
-            const reply = prepareMailReply(source, thread, thread.connection, await replySelfEmails(tx, ctx));
+            const selfEmails = await replySelfEmails(tx, ctx);
+            const reply = prepareMailReply(source, thread, thread.connection, selfEmails);
+            const replyAll = prepareMailReplyAll(source, thread, thread.connection, selfEmails);
+            if (replyAll) message.replyAllContext = replyAll.context;
             if (reply) message.replyContext = reply.context;
           } catch (error) {
             // Eligibility is additive to the ordinary read. Only this bounded

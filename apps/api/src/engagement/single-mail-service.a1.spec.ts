@@ -190,6 +190,34 @@ describe('native reply through the existing single-mail owner', () => {
     }
     return { ...h, tx, source, replyInput, resultThread, intent };
   }
+
+  test.each([false, true])('reply-all binds reviewed To/Cc and durable origin, graph=%s', async graph => {
+    const h = replyFixture(graph), original = { to: ['sender@example.test', 'other@example.test'], cc: ['copy@example.test'] };
+    if (graph) (h.source.raw as any).graphReplyRecipients = { schema: 'graph-native-reply-recipients/1', defaultId: h.source.externalId,
+      immutableId: 'immutable-original', changeKey: 'source-version', recipients: original };
+    else h.source.raw.payload.headers.push({ name: 'To', value: original.to.join(', ') }, { name: 'Cc', value: original.cc.join(', ') });
+    const allInput = { ...h.replyInput, operation: 'reply_all' as const, to: [...h.replyInput.to, { email: 'other@example.test' }], cc: [{ email: 'copy@example.test' }] };
+    const result = await h.service.sendSingleMail(ctx, allInput);
+    expect(result).toMatchObject({ state: 'accepted', operation: 'reply_all', originalMessageId: h.source.id, originalThreadId: h.replyInput.threadId });
+    expect(h.service.mailSender.sendMail).toHaveBeenCalledTimes(1);
+    expect(h.service.mailSender.sendMail.mock.calls[0][2]).toMatchObject({ replyAll: { original, to: ['target@example.test', 'other@example.test'], cc: ['copy@example.test'] } });
+    expect(h.intent.snapshot.replyAll).toEqual(h.service.mailSender.sendMail.mock.calls[0][2].replyAll);
+    expect(await h.service.sendSingleMail(ctx, allInput)).toMatchObject({ state: 'accepted', operation: 'reply_all' });
+    expect(h.service.mailSender.sendMail).toHaveBeenCalledTimes(1);
+  });
+  test.each(['caller-recipient', 'claim-recipient'])('reply-all %s drift has zero sending transition and provider calls', async change => {
+    const h = replyFixture();
+    h.source.raw.payload.headers.push({ name: 'To', value: 'sender@example.test, other@example.test' }, { name: 'Cc', value: 'copy@example.test' });
+    const allInput = { ...h.replyInput, operation: 'reply_all' as const, to: [...h.replyInput.to, { email: 'other@example.test' }], cc: [{ email: 'copy@example.test' }] };
+    if (change === 'caller-recipient') allInput.cc[0]!.email = 'unreviewed@example.test';
+    else {
+      const originalBegin = ledger.begin.getMockImplementation()!;
+      ledger.begin.mockImplementation(async (...args) => { const result = await originalBegin(...args); h.source.raw.payload.headers.find(row => row.name === 'Cc')!.value = 'changed@example.test'; return result; });
+    }
+    await expect(h.service.sendSingleMail(ctx, allInput)).rejects.toMatchObject({ response: { error: 'MAIL_SEND_REJECTED', state: 'failed' } });
+    expect(h.sendingTransition).not.toHaveBeenCalled(); expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
+    expect(ledger.rejectPending).toHaveBeenCalledTimes(1);
+  });
   test('Outlook commits the returned conversation and origin after accepted source deletion', async () => {
     const h = replyFixture(true), accepted = await h.service.mailSender.sendMail();
     const retainedThread = h.tx.mailThread.findFirst.getMockImplementation();

@@ -1,10 +1,11 @@
+import { replyRecipientsMatch } from './mail-reply-recipients.js';
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import { ownMailThreadWhere } from './engagement-access.helpers.js';
 import { activeMailMessageWhere } from './mail-message-state.js';
-import { prepareMailReply, REPLY_UNAVAILABLE } from './single-mail-reply.js';
+import { prepareMailReply, prepareMailReplyAll, REPLY_UNAVAILABLE } from './single-mail-reply.js';
 
 /** Known owned addresses only. A bounded result is not a claim of all provider aliases. */
 export async function replySelfEmails(tx: Prisma.TransactionClient, ctx: TenantContext): Promise<string[]> {
@@ -18,12 +19,12 @@ export async function replySelfEmails(tx: Prisma.TransactionClient, ctx: TenantC
 
 /** Uses the same current message/connection owners as ordinary mail admission. */
 export async function resolveSingleMailReply(tx: Prisma.TransactionClient, ctx: TenantContext, input: {
-  operation?: 'reply'; originalMessageId?: string; originalUpdatedAt?: string; threadId?: string;
+  operation?: 'reply' | 'reply_all'; originalMessageId?: string; originalUpdatedAt?: string; threadId?: string;
   senderConnectionId?: string; subject: string; to: Array<{ email: string }>;
   cc?: Array<{ email: string }>; bcc?: Array<{ email: string }>;
 }) {
-  if (input.operation !== 'reply' || !input.originalMessageId || !input.originalUpdatedAt ||
-      !input.threadId || !input.senderConnectionId || input.to.length !== 1 || input.cc?.length || input.bcc?.length)
+  if (!['reply', 'reply_all'].includes(input.operation ?? '') || !input.originalMessageId || !input.originalUpdatedAt ||
+      !input.threadId || !input.senderConnectionId || !input.to.length || input.bcc?.length)
     throw new BadRequestException(REPLY_UNAVAILABLE);
   const source = await tx.mailMessage.findFirst({
     where: { id: input.originalMessageId, tenantId: ctx.tenantId, threadId: input.threadId,
@@ -33,9 +34,9 @@ export async function resolveSingleMailReply(tx: Prisma.TransactionClient, ctx: 
   });
   if (!source?.thread.connection || source.thread.connection.tenantId !== ctx.tenantId ||
       source.thread.connection.createdByUserId !== ctx.userId) throw new NotFoundException('Original mail message not found');
-  const reply = prepareMailReply(source, source.thread, source.thread.connection, await replySelfEmails(tx, ctx));
+  const reply = (input.operation === 'reply_all' ? prepareMailReplyAll : prepareMailReply)(source, source.thread, source.thread.connection, await replySelfEmails(tx, ctx));
   if (!reply || reply.context.originalUpdatedAt !== input.originalUpdatedAt ||
-      reply.context.subject !== input.subject || reply.provider.toEmail !== input.to[0]?.email.trim().toLowerCase())
+      reply.context.subject !== input.subject || !replyRecipientsMatch(reply.provider.toEmail, reply.replyAll, input.to, input.cc, input.bcc))
     throw new BadRequestException('This original or its reply recipients changed. Review the original again.');
   return reply;
 }

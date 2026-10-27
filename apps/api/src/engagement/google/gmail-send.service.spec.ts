@@ -419,3 +419,21 @@ describe('sendMail — result contract', () => {
     },
   );
 });
+
+
+test.each([false, true])('Gmail reply-all checks current visible recipients before sole send, changed=%s', async changed => {
+  const source = { id: 'original-id', threadId: 'original-thread', labelIds: ['INBOX'], payload: { headers: [
+    { name: 'From', value: 'a@x.com' }, { name: 'Subject', value: INPUT.subject }, { name: 'Message-ID', value: '<original@x.com>' },
+    { name: 'To', value: 'sender@example.test, other@example.test' }, { name: 'Cc', value: changed ? 'changed@example.test' : 'copy@example.test' },
+  ] } };
+  const reply = gmailReplyIdentity(source)!, replyAll = { original: { to: ['sender@example.test', 'other@example.test'], cc: ['copy@example.test'] }, to: ['a@x.com', 'other@example.test'], cc: ['copy@example.test'] };
+  const requests: Array<{ url: string; init: RequestInit }> = [];
+  const h = makeService((async (url: string, init: RequestInit) => { requests.push({ url, init }); return jsonResponse(init.method === 'GET' ? source : { id: 'sent-id', threadId: 'actual-thread' }); }) as never);
+  try {
+    const call = h.service.sendMail(ctx, 'box', { ...INPUT, reply, replyAll, toRecipients: replyAll.to.map(email => ({ email })), ccRecipients: replyAll.cc.map(email => ({ email })) });
+    if (changed) await expect(call).rejects.toThrow(); else await expect(call).resolves.toMatchObject({ providerMessageId: 'sent-id' });
+    expect(requests.map(row => row.init.method)).toEqual(changed ? ['GET'] : ['GET', 'POST']);
+    expect(requests[0]!.url).toContain('metadataHeaders=To'); expect(requests[0]!.url).toContain('metadataHeaders=Cc');
+    if (!changed) { const payload = JSON.parse(requests[1]!.init.body as string); expect(payload.threadId).toBe('original-thread'); expect(decodeRaw(payload.raw)).toContain('Cc: copy@example.test'); }
+  } finally { h.restore(); }
+});

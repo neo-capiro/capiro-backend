@@ -1,3 +1,4 @@
+import { capturedGmailReplyRecipients, replyRecipientsMatch } from '../mail-reply-recipients.js';
 // ============================================================================
 // ⛔ CHANGE-CONTROL: AUTHENTICATION / EMAIL INTEGRATION — APPROVAL REQUIRED
 // ----------------------------------------------------------------------------
@@ -70,7 +71,7 @@ export class GmailSendService {
       // Read-only source proof immediately before the sole send. No GET failure
       // can fall through to dispatch. This does not make provider deletion atomic.
       const query = new URLSearchParams({ format: 'metadata' });
-      for (const name of ['From', 'Reply-To', 'Subject', 'Message-ID', 'References']) query.append('metadataHeaders', name);
+      for (const name of ['From', 'Reply-To', 'Subject', 'Message-ID', 'References', ...(input.replyAll ? ['To', 'Cc'] : [])]) query.append('metadataHeaders', name);
       const original = await mailboxProviderRequest(async signal => {
         const response = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(reply.messageId)}?${query}`, {
           method: 'GET', signal, headers: { Authorization: `Bearer ${accessToken}` },
@@ -80,7 +81,8 @@ export class GmailSendService {
         if (!response.ok) throw new ServiceUnavailableException('The original message could not be verified. No reply was dispatched.');
         return response.json();
       });
-      if (JSON.stringify(gmailReplyIdentity(original)) !== JSON.stringify(reply))
+      if (JSON.stringify(gmailReplyIdentity(original)) !== JSON.stringify(reply) ||
+          (input.replyAll && JSON.stringify(capturedGmailReplyRecipients(original)) !== JSON.stringify(input.replyAll.original)))
         throw definiteMailSendRejection(new BadRequestException('The original message changed. Review it again before replying.'));
     }
 
@@ -203,9 +205,8 @@ export function buildGmailRawMessage(input: EngagementSendMailInput): string {
 
 /** One complete request serializer shared by admission sizing and provider dispatch. */
 export function buildGmailSendPayload(input: EngagementSendMailInput) {
-  if (input.reply?.kind === 'microsoft_graph') throw definiteMailSendRejection(new BadRequestException(REPLY_UNAVAILABLE));
-  if (input.reply && (input.subject !== input.reply.subject || input.toRecipients.length !== 1 ||
-      input.toRecipients[0]?.email.toLowerCase() !== input.reply.toEmail || input.ccRecipients?.length || input.bccRecipients?.length ||
+  if ((input.replyAll && !input.reply) || input.reply?.kind === 'microsoft_graph') throw definiteMailSendRejection(new BadRequestException(REPLY_UNAVAILABLE));
+  if (input.reply && (input.subject !== input.reply.subject || !replyRecipientsMatch(input.reply.toEmail, input.replyAll, input.toRecipients, input.ccRecipients, input.bccRecipients) ||
       /[\r\n]/.test(input.reply.inReplyTo + input.reply.references)))
     throw definiteMailSendRejection(new BadRequestException(REPLY_UNAVAILABLE));
   return { raw: buildGmailRawMessage(input), ...(input.reply ? { threadId: input.reply.threadId } : {}) };

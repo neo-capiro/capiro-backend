@@ -1,3 +1,4 @@
+import type { PreparedReplyAll } from './mail-reply-recipients.js';
 import { Injectable } from '@nestjs/common';
 import { EngagementProvider } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
@@ -22,6 +23,7 @@ export type EngagementSendRuntimeAction =
 export interface EngagementSendMailInput {
   /** Server-resolved source only; never accepted as provider identity from the browser. */
   reply?: MailReplyIdentity;
+  replyAll?: PreparedReplyAll;
   /** Internal-only marker consumed by guarded provider adapters. */
   runtimeAction?: EngagementSendRuntimeAction;
   subject: string;

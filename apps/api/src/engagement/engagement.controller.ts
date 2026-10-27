@@ -354,8 +354,8 @@ class SingleMailRecipientDto {
 
 class SendSingleMailDto {
   @IsOptional()
-  @IsIn(['reply'])
-  operation?: 'reply';
+  @IsIn(['reply', 'reply_all'])
+  operation?: 'reply' | 'reply_all';
 
   @IsOptional()
   @IsUUID()

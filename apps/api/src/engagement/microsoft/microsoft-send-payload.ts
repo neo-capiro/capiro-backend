@@ -1,3 +1,4 @@
+import { replyRecipientsMatch } from '../mail-reply-recipients.js';
 import type { MicrosoftGraphSendMailInput } from './microsoft-graph-sync.service.js';
 import { BadRequestException } from '@nestjs/common';
 import { buildMailMime } from '../mail-mime.js';
@@ -10,10 +11,7 @@ export function buildMicrosoftReplyPayload(input: MicrosoftGraphSendMailInput): 
   if (
     !reply ||
     input.subject !== reply.subject ||
-    input.toRecipients.length !== 1 ||
-    input.toRecipients[0]?.email.toLowerCase() !== reply.toEmail ||
-    input.ccRecipients?.length ||
-    input.bccRecipients?.length ||
+    !replyRecipientsMatch(reply.toEmail, input.replyAll, input.toRecipients, input.ccRecipients, input.bccRecipients) ||
     (input.attachments?.length ?? 0) > 5 ||
     !sanitizeGraphHeaderValue(input.correlationId)
   )
@@ -57,6 +55,7 @@ export function assertMicrosoftReplyDraft(
   };
   if (
     !reply ||
+    !replyRecipientsMatch(reply.toEmail, input.replyAll, input.toRecipients, input.ccRecipients, input.bccRecipients) ||
     row.id !== identity.id ||
     row.conversationId !== identity.conversationId ||
     row.isDraft !== true ||
@@ -65,8 +64,9 @@ export function assertMicrosoftReplyDraft(
     lower(object(row.body).contentType) !== (input.bodyContentType ?? 'Text').toLowerCase() ||
     JSON.stringify(
       emails(row.toRecipients)?.map((v: unknown) => (typeof v === 'string' ? v.toLowerCase() : v)),
-    ) !== JSON.stringify([reply.toEmail]) ||
-    JSON.stringify(emails(row.ccRecipients)) !== '[]' ||
+    ) !== JSON.stringify(input.toRecipients.map(recipient => recipient.email.trim().toLowerCase())) ||
+    JSON.stringify(emails(row.ccRecipients)?.map((value: unknown) => lower(value))) !==
+      JSON.stringify((input.ccRecipients ?? []).map(recipient => recipient.email.trim().toLowerCase())) ||
     JSON.stringify(emails(row.bccRecipients)) !== '[]' ||
     JSON.stringify(emails(row.replyTo)) !== '[]' ||
     lower(object(object(row.from).emailAddress).address) !== senderEmail.toLowerCase() ||

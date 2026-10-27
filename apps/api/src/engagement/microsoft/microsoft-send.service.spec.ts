@@ -364,3 +364,24 @@ describe('sendMail — create draft then send', () => {
     expect(h.calls[1]!.url).toBe(`/me/messages/${encodeURIComponent('AAMk/id+with=chars')}/send`);
   });
 });
+
+
+test.each(['accepted', 'source-cc', 'draft-cc', 'send-503'])('Outlook reply-all %s retains exact action, recipient proof and no retry', async phase => {
+  const h = makeReplyService();
+  const original = { to: ['sender@example.test', 'other@example.test'], cc: ['copy@example.test'] };
+  const replyAll = { original, to: ['a@x.com', 'other@example.test'], cc: ['copy@example.test'] };
+  const recipients = (emails: string[]) => emails.map(address => ({ emailAddress: { address } }));
+  Object.assign(h.original, { toRecipients: recipients(original.to), ccRecipients: recipients(original.cc) });
+  h.draft.toRecipients = recipients(replyAll.to); h.draft.ccRecipients = recipients(replyAll.cc);
+  const input = { ...h.input, replyAll, toRecipients: replyAll.to.map(email => ({ email })), ccRecipients: replyAll.cc.map(email => ({ email })) };
+  if (phase === 'source-cc') (h.original as any).ccRecipients = recipients(['changed@example.test']);
+  if (phase === 'draft-cc') h.draft.ccRecipients = recipients(['changed@example.test']);
+  if (phase === 'send-503') (h.service as any).graphPostNoContent = async (url: string) => { h.calls.push({ url, body: null }); throw new GraphHttpError('Unavailable', 503); };
+  if (phase === 'accepted') {
+    expect(await h.service.sendMail(ctx, 'conn-1', input)).toMatchObject({ providerImmutableMessageId: 'draft-1' });
+    const mime = Buffer.from(h.calls[0]!.body as string, 'base64').toString();
+    expect(mime).toContain('To: a@x.com, other@example.test'); expect(mime).toContain('Cc: copy@example.test');
+  } else await expect(h.service.sendMail(ctx, 'conn-1', input)).rejects.toThrow();
+  expect(h.calls.map(row => row.url)).toEqual(phase === 'source-cc' ? [] : phase === 'draft-cc' ? ['/me/messages/original-immutable/createReplyAll'] : ['/me/messages/original-immutable/createReplyAll', '/me/messages/draft-1/send']);
+  expect(h.reads[0].url).toContain(',toRecipients,ccRecipients');
+});

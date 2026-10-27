@@ -283,7 +283,7 @@ export interface SingleMailRecipientInput {
 }
 
 export interface SendSingleMailInput {
-  operation?: 'reply';
+  operation?: 'reply' | 'reply_all';
   originalMessageId?: string;
   originalUpdatedAt?: string;
   /** Stable per reviewed message, reused for lookup after timeout/reload. */
@@ -9740,7 +9740,7 @@ export class EngagementService {
       input.clientId ?? null,
     );
     const mailInput: EngagementSendMailInput = {
-      ...(reply ? { reply: reply.provider } : {}),
+      ...(reply ? { reply: reply.provider, ...(reply.replyAll ? { replyAll: reply.replyAll } : {}) } : {}),
       subject: input.subject,
       body: body.content,
       bodyContentType: 'HTML',
@@ -9760,7 +9760,7 @@ export class EngagementService {
       snapshot: {
         senderConnectionId: connection.id, senderEmail: sender.email,
         ...(input.operation ? { operation: input.operation, originalMessageId: input.originalMessageId,
-          originalUpdatedAt: input.originalUpdatedAt, replyIdentity: reply?.provider ?? null } : {}),
+          originalUpdatedAt: input.originalUpdatedAt, replyIdentity: reply?.provider ?? null, ...(reply?.replyAll ? { replyAll: reply.replyAll } : {}) } : {}),
         attachmentIds: input.attachmentIds ?? [],
         threadId: input.threadId ?? null, to: input.to, cc: input.cc ?? [], bcc: input.bcc ?? [],
         subject: input.subject, body: body.content, signaturePolicy: 'actor',
@@ -9894,7 +9894,7 @@ export class EngagementService {
     const graphIdentity = input.threadId && reply?.provider.kind !== 'microsoft_graph' ? null : graphSendIdentity(sendResult);
     const makeReceipt = (threadId: string, messageId: string, confirmed = false) => ({
       ok: true as const, threadId, messageId, provider: providerSlug,
-      ...(reply ? { operation: 'reply', originalMessageId: reply.context.originalMessageId,
+      ...(reply ? { operation: reply.context.operation, originalMessageId: reply.context.originalMessageId,
         originalThreadId: input.threadId, originalUpdatedAt: reply.context.originalUpdatedAt } : {}),
       senderConnectionId: connection.id, senderEmail: sender.email, senderName: sender.name,
       signaturePolicy: 'actor' as const, signatureAppended: Boolean(signature.signatureHtml),
