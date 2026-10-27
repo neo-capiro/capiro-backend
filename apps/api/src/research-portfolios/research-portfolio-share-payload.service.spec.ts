@@ -98,13 +98,11 @@ function fixture() {
   const tx: any = {
     $queryRawUnsafe: jest.fn().mockResolvedValue([{ allowed: true }]),
     researchPortfolio: {
-      findFirst: jest
-        .fn()
-        .mockResolvedValue({
-          name: 'Current changed name',
-          grants: [{ role: 'owner' }],
-          clientLinks: [{ clientId: 'one' }, { clientId: 'two' }],
-        }),
+      findFirst: jest.fn().mockResolvedValue({
+        name: 'Current changed name',
+        grants: [{ role: 'owner' }],
+        clientLinks: [{ clientId: 'one' }, { clientId: 'two' }],
+      }),
     },
     researchPortfolioDashboardDesign: { findFirst: jest.fn(async () => design) },
     client: {
@@ -116,14 +114,12 @@ function fixture() {
       findFirst: jest.fn().mockResolvedValue({ role: 'capiro_admin', status: 'active' }),
     },
     tenant: {
-      findUnique: jest
-        .fn()
-        .mockResolvedValue({
-          name: 'Firm',
-          logoS3Key: 'logo',
-          logoContentType: 'image/png',
-          settings: {},
-        }),
+      findUnique: jest.fn().mockResolvedValue({
+        name: 'Firm',
+        logoS3Key: 'logo',
+        logoContentType: 'image/png',
+        settings: {},
+      }),
     },
     clientMemoryPolicy: { findUnique: jest.fn().mockResolvedValue(null) },
     clientMemoryGrant: { findFirst: jest.fn().mockResolvedValue(null) },
@@ -141,16 +137,14 @@ function fixture() {
       })),
     },
     researchPortfolioEvent: {
-      findMany: jest
-        .fn()
-        .mockResolvedValue([
-          {
-            id: 'event',
-            eventKind: 'member_added',
-            occurredAt: new Date('2026-09-30T00:00:00.000Z'),
-            payload: { clientName: 'Do not expose' },
-          },
-        ]),
+      findMany: jest.fn().mockResolvedValue([
+        {
+          id: 'event',
+          eventKind: 'member_added',
+          occurredAt: new Date('2026-09-30T00:00:00.000Z'),
+          payload: { clientName: 'Do not expose' },
+        },
+      ]),
     },
   };
   const analytics: any = {
@@ -259,5 +253,15 @@ describe('exact research sharing payload', () => {
     await expect(h.service.prepare(ctx, 'portfolio', input, h.tx)).rejects.toThrow(
       'Widget picture cannot be published',
     );
+  });
+  it('refuses oversized full content instead of truncating and drops hidden editor settings', async () => {
+    const h = fixture();
+    h.design.layout.widgets[0].settings.privateClient = { name: 'Other client' };
+    const prepared = await h.service.prepare(ctx, 'portfolio', input, h.tx);
+    expect(JSON.stringify(prepared.payload)).not.toContain('Other client');
+    h.branding.freezeLogoForSharing.mockResolvedValue({ dataUrl: 'x'.repeat(4 * 1024 * 1024) });
+    await expect(
+      h.service.prepare(ctx, 'portfolio', { ...input, branding: true }, h.tx),
+    ).rejects.toThrow('full frozen dashboard exceeds');
   });
 });

@@ -193,7 +193,7 @@ export class BrandingService {
     const body = result.Body;
     if (!(body instanceof Readable)) {
       // Node's S3 runtime returns a Readable; discard any other SDK stream before refusing.
-      if (body) await body.transformToByteArray();
+      if (body) await body.transformToWebStream().cancel();
       throw new BadRequestException('Branding unavailable');
     }
     const chunks: Buffer[] = [];

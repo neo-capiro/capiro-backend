@@ -47,6 +47,7 @@ const EVENT_KINDS = [
   'import_action',
 ] as const;
 const FINANCIAL_WIDGETS = new Set(['key_totals', 'funding_table', 'sources']);
+const RECIPIENT_SETTINGS = new Set(['title', 'subtitle', 'text', 'caption', 'limit', 'snapshotId']);
 
 function refusal(widgetId: string, detail: string): never {
   throw new ConflictException(`Widget ${widgetId} cannot be published: ${detail}`);
@@ -169,6 +170,16 @@ export class ResearchPortfolioSharePayloadService {
         widget.settings.url.trim()
       )
         refusal(widget.id, 'an external image is not a frozen asset; use the firm logo');
+    }
+    // Opaque editor state must never become hidden recipient data.
+    for (const widget of layout.widgets) {
+      widget.settings = Object.fromEntries(
+        Object.entries(widget.settings).filter(
+          ([key, value]) =>
+            RECIPIENT_SETTINGS.has(key) &&
+            (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'),
+        ),
+      );
     }
     const snapshot = await this.analytics.snapshot(ctx, portfolioId, input.snapshotId);
     const client = await tx.client.findFirst({
@@ -394,8 +405,8 @@ export class ResearchPortfolioSharePayloadService {
         [source.id, source.sourceRevisionId, source.contentHash].filter(Boolean),
       ),
     );
-    for (const source of snapshot.versions.sources) {
-      if (typeof source.id === 'string' && !known.has(source.id))
+    for (const sourceId of contributions.flatMap((entry) => entry.sourceRevisionIds)) {
+      if (!known.has(sourceId))
         refusal(widgetId, 'a frozen source is restricted or cannot be verified');
     }
     return { contributions, sources: [...sources.values()] };
