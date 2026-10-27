@@ -109,6 +109,8 @@ import { ApplicationAuthorityModule } from '../auth/application-authority.module
 import { ContextSecurityScopeModule } from '../context/context-security-scope.module.js';
 import { ConnectedAppReadService } from './connected-app-read.service.js';
 import { ConnectedAppReadController } from './connected-app-read.controller.js';
+import { SavedStrategyReadController } from './saved-strategy-read.controller.js';
+import { SavedStrategyReadService } from './saved-strategy-read.service.js';
 import { SavedRecordReadController } from './saved-record-read.controller.js';
 import { SavedRecordReadService } from './saved-record-read.service.js';
 import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-graph-sync.service.js';
@@ -158,6 +160,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     MeriMemoryHelperController,
     ConnectedAppReadController,
     SavedRecordReadController,
+    SavedStrategyReadController,
     MeriController,
     MeriSourceController,
     MeriSkillsController,
@@ -173,6 +176,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
   providers: [
     ConnectedAppReadService,
     SavedRecordReadService,
+    SavedStrategyReadService,
     ToolServiceSecretGuard,
     AutomaticClientContextService,
     InternalServiceGuard,

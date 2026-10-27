@@ -1181,6 +1181,8 @@ export const configSchema = z.object({
   // Internal Workspace owner, authenticated by the existing service secret.
   // Absence fails closed before any provider call.
   WORKSPACE_API_BASE_URL: z.string().url().optional(),
+  // Trusted Strategy owner for original-user saved reads; absent configuration refuses.
+  STRATEGY_API_BASE_URL: z.string().url().optional(),
   // Newsletter comment emails are dormant until both newsletter migrations
   // and the verified SES sender are configured in this environment.
   NEWSLETTER_REVIEW_EMAIL_ENABLED: z

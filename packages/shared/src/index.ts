@@ -4370,6 +4370,22 @@ export const MERI_CAPABILITY_REGISTRY = [
     surfaces: ['full_chat'],
   },
   {
+    name: 'read_saved_record',
+    description:
+      'Read saved Workspace library/documents/versions/comments, exact saved-version content, saved Hill Day/newsletter state or existing staging projections; or authorized Core billing/usage/contact/own LegiWatch saved records. Choose exact source/kind/selectors. Current user-session authority is rechecked by each domain. Whole bounded data includes source limits, not provider facts or complete inventory. No writes, invitations, staging, render, generation, send or arbitrary settings. Saved versions never fall back to current content. Research Portfolio and semantic search excluded.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'read_saved_strategy_records',
+    description:
+      'Read saved Planner projects, tasks and events, full saved Strategy or Objective versions, or Strategy activity summaries for one authorized client. Uses the original interactive user session and current client permission; exact selectors and bounded cursor pages. Saved snapshots are preserved. Activity summaries do not include node history or before/after bodies. No generation, mutation, approval, provider call, Research Portfolio or semantic search.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
     name: 'query_global_data',
     description:
       'Run an aggregate query (counts, distinct counts, sums, group-bys) over one global reference dataset — the tool for questions like "how many active LDA registrations do we have" or "which agency posted the most grants this year" that a fixed search_X tool cannot answer. Structured only: pick a dataset from list_global_datasets, a `select` list of raw fields and/or aggregates (count, count_distinct, sum, avg, min, max — max 12 entries), optional `filters`, `groupBy`, `orderBy`, and `limit`. Every field name must come from that dataset\'s field list; unknown fields are rejected before anything runs. `lda_registrations` additionally accepts `asOfDate` (default: now) to ask what registration status looked like as of a given date, e.g. year-end. This tool never writes anything and never touches tenant-private data — it only reaches the reviewed global-dataset allowlist.',
