@@ -699,6 +699,16 @@ export class ResearchPortfoliosController {
 
   // --- Phase 11: review notes ---
 
+  @Get(':id/reviews/:reviewId/notes')
+  async listReviewNotes(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('reviewId') reviewId: string,
+  ): Promise<readonly ResearchPortfolioReviewNoteDto[]> {
+    ensurePortfolioId(id);
+    return this.phase11.listReviewNotes(ctx, id, reviewId);
+  }
+
   @Post(':id/reviews/:reviewId/notes')
   async addReviewNote(
     @CurrentTenant() ctx: TenantContext,

@@ -227,16 +227,22 @@ export class ResearchPortfolioChangesService {
           ? existing
           : await tx.researchPortfolioSubscription.update({
               where: { id: existing.id },
-              data: { active: true },
+              data: {
+                active: true,
+                leaseOwner: null,
+                leaseUntil: null,
+                leaseFence: { increment: 1 },
+                ...(await this.currentBaseline(tx, ctx.tenantId, portfolioId, portfolio.revision)),
+              },
             });
         return this.subscriptionDto(restored);
       }
-      const baseline = await tx.researchPortfolioEvent.findFirst({
-        where: { tenantId: ctx.tenantId, portfolioId },
-        orderBy: [{ occurredAt: 'desc' }, { id: 'desc' }],
-        select: { id: true, aggregateRevision: true, occurredAt: true },
-      });
-      const completedAt = new Date();
+      const baseline = await this.currentBaseline(
+        tx,
+        ctx.tenantId,
+        portfolioId,
+        portfolio.revision,
+      );
       const row = await tx.researchPortfolioSubscription.create({
         data: {
           tenantId: ctx.tenantId,
@@ -246,13 +252,7 @@ export class ResearchPortfolioChangesService {
           targetId: input.targetId,
           channel: input.channel,
           cadence: input.cadence,
-          baselineEventId: baseline?.id ?? null,
-          baselineRevision: baseline?.aggregateRevision ?? portfolio.revision,
-          baselineCompletedAt: completedAt,
-          checkpoint: {
-            quietFirstBaseline: true,
-            observedThrough: baseline?.occurredAt?.toISOString() ?? completedAt.toISOString(),
-          },
+          ...baseline,
         },
       });
       return this.subscriptionDto(row);
@@ -269,6 +269,8 @@ export class ResearchPortfolioChangesService {
       throw new BadRequestException('Unsupported subscription channel');
     if (input.cadence && !CADENCES.has(input.cadence))
       throw new BadRequestException('Unsupported subscription cadence');
+    if (input.active !== undefined && typeof input.active !== 'boolean')
+      throw new BadRequestException('Subscription active must be a boolean');
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');
       const deniedClientIds = await this.deniedClientIds(tx, ctx);
@@ -284,6 +286,12 @@ export class ResearchPortfolioChangesService {
       const row = await tx.researchPortfolioSubscription.update({
         where: { id: existing.id },
         data: {
+          ...(input.active !== undefined && input.active !== existing.active
+            ? { leaseOwner: null, leaseUntil: null, leaseFence: { increment: 1 } }
+            : {}),
+          ...(input.active === true && !existing.active
+            ? await this.currentBaseline(tx, ctx.tenantId, portfolioId, portfolio.revision)
+            : {}),
           ...(input.active === undefined ? {} : { active: input.active }),
           ...(input.channel ? { channel: input.channel } : {}),
           ...(input.cadence ? { cadence: input.cadence } : {}),
@@ -301,6 +309,24 @@ export class ResearchPortfolioChangesService {
       throw new BadRequestException('Unsupported subscription channel');
     if (!CADENCES.has(input.cadence))
       throw new BadRequestException('Unsupported subscription cadence');
+  }
+
+  private async currentBaseline(tx: any, tenantId: string, portfolioId: string, revision: number) {
+    const baseline = await tx.researchPortfolioEvent.findFirst({
+      where: { tenantId, portfolioId },
+      orderBy: [{ occurredAt: 'desc' }, { id: 'desc' }],
+      select: { id: true, aggregateRevision: true, occurredAt: true },
+    });
+    const completedAt = new Date();
+    return {
+      baselineEventId: baseline?.id ?? null,
+      baselineRevision: baseline?.aggregateRevision ?? revision,
+      baselineCompletedAt: completedAt,
+      checkpoint: {
+        quietFirstBaseline: true,
+        observedThrough: baseline?.occurredAt?.toISOString() ?? completedAt.toISOString(),
+      },
+    };
   }
 
   private async deniedClientIds(tx: any, ctx: TenantContext): Promise<ReadonlySet<string>> {

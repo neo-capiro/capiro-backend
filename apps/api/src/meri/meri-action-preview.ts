@@ -1,3 +1,4 @@
+import { isReadOnlyResearchPortfolioManagementAction } from '../research-portfolios/research-portfolio-management.js';
 export interface MeriActionPreview {
   label: string;
   riskTier: string | null;
@@ -121,22 +122,38 @@ export function buildMeriActionPreview(args: {
   const counts: Record<string, number> = {};
 
   if (tool === 'publish_research_portfolio_share_link') {
-    for (const key of ['snapshotId', 'designId', 'clientId', 'branding', 'previewHash', 'expectedDesignVersion']) addField(fields, key, input[key]);
+    for (const key of [
+      'snapshotId',
+      'designId',
+      'clientId',
+      'branding',
+      'previewHash',
+      'expectedDesignVersion',
+    ])
+      addField(fields, key, input[key]);
     fields.expiresAfterHours = 168;
     fields.delivery = 'You copy the link and share it yourself. Nothing is sent.';
   } else if (tool === 'revoke_research_portfolio_share_link') {
     addField(fields, 'linkId', input.linkId);
     fields.effect = 'This link will stop working on the next request.';
   } else if (Object.hasOwn(RESEARCH_PORTFOLIO_ACTION_FIELDS, tool)) {
-    for (const key of RESEARCH_PORTFOLIO_ACTION_FIELDS[tool] ?? []) addField(fields, key, input[key]);
+    for (const key of RESEARCH_PORTFOLIO_ACTION_FIELDS[tool] ?? [])
+      addField(fields, key, input[key]);
     if (tool === 'prepare_research_portfolio_meeting' && Array.isArray(input.selectedReviewIds))
       counts.selectedReviews = input.selectedReviewIds.length;
-    if (tool === 'manage_research_portfolio' && input.parameters && typeof input.parameters === 'object')
+    if (
+      tool === 'manage_research_portfolio' &&
+      input.parameters &&
+      typeof input.parameters === 'object'
+    )
       counts.parameters = Object.keys(input.parameters as Record<string, unknown>).length;
     fields.effect =
       tool === 'prepare_research_portfolio_brief' || tool === 'prepare_research_portfolio_meeting'
         ? 'An owner-private, unreviewed editable draft is created. Nothing is sent.'
-        : 'Core applies this action once to the current Research Portfolio after you confirm.';
+        : tool === 'manage_research_portfolio' &&
+            isReadOnlyResearchPortfolioManagementAction(input.action)
+          ? 'Read the current Research Portfolio. Nothing is changed.'
+          : 'Core applies this action once to the current Research Portfolio after you confirm.';
   }
 
   for (const key of [
@@ -164,7 +181,10 @@ export function buildMeriActionPreview(args: {
   ]) {
     const value = input[key];
     if (Array.isArray(value)) {
-      const visible = value.filter((entry) => typeof entry === 'string').slice(0, 10).join(', ');
+      const visible = value
+        .filter((entry) => typeof entry === 'string')
+        .slice(0, 10)
+        .join(', ');
       if (visible) fields[key] = short(visible, 320) ?? visible;
     } else {
       addField(fields, key, value);
@@ -206,9 +226,10 @@ export function buildMeriActionPreview(args: {
   const irreversible = leavesFirm || tool === 'forget_memory';
 
   return {
-    label: tool === 'create_word' && input.format === 'pdf'
-      ? 'Create PDF document'
-      : TOOL_LABELS[tool] ?? `Run ${tool}`,
+    label:
+      tool === 'create_word' && input.format === 'pdf'
+        ? 'Create PDF document'
+        : (TOOL_LABELS[tool] ?? `Run ${tool}`),
     riskTier: args.riskTier ?? null,
     leavesFirm,
     reversible: !irreversible,

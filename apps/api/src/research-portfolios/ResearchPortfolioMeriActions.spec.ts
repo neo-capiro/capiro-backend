@@ -207,7 +207,7 @@ const cases = [
     },
     ids: [],
     global: false,
-    readOnly: true,
+    readOnly: false,
   },
   {
     action: 'rule_publish',

@@ -514,7 +514,7 @@ const actions = {
       'qualificationPolicy',
       'candidates',
     ],
-    readOnly: true,
+    readOnly: false,
     ids: [],
   },
   rule_publish: {
@@ -1282,6 +1282,19 @@ const actions = {
   },
 } as const;
 export const researchPortfolioManagementActions = Object.keys(actions);
+export function isReadOnlyResearchPortfolioManagementInput(raw: unknown): boolean {
+  const input = parseResearchPortfolioManagementInput(raw);
+  return isReadOnlyResearchPortfolioManagementAction(input.action);
+}
+
+export function isReadOnlyResearchPortfolioManagementAction(action: unknown): boolean {
+  return (
+    typeof action === 'string' &&
+    Object.prototype.hasOwnProperty.call(actions, action) &&
+    actions[action as keyof typeof actions].readOnly
+  );
+}
+
 export const researchPortfolioManagementSchema = {
   type: 'object',
   additionalProperties: false,

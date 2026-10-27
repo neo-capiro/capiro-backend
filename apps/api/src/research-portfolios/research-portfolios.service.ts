@@ -29,7 +29,7 @@ import type {
   ResolveResearchPortfolioMemberDto,
   UpdateResearchPortfolioDto,
 } from '@capiro/shared';
-import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
+import { clientMemoryAllowed, fetchDeniedClientIds } from '../memory/memory-wall.helpers.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { readCanonicalResearchTarget } from './research-portfolio-targets.js';
 
@@ -130,11 +130,11 @@ export class ResearchPortfoliosService {
         },
       });
       const visibleClientLinks = [];
-      const deniedClientIds: string[] = [];
+      const deniedClientIds = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
       for (const link of row.clientLinks) {
         if (await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, link.clientId)) {
           visibleClientLinks.push(link);
-        } else deniedClientIds.push(link.clientId);
+        }
       }
       const visibleEvents = deniedClientIds.length
         ? row.events.filter((event) => {
@@ -174,6 +174,8 @@ export class ResearchPortfoliosService {
   ): Promise<ResearchPortfolioMutationReceiptDto> {
     this.validateIdempotencyKey(input.idempotencyKey);
     const name = this.validateName(input.name);
+    if (input.mode !== undefined && !['manual', 'rules', 'hybrid'].includes(input.mode))
+      throw new BadRequestException('Invalid portfolio mode');
     const operationFingerprint = fingerprint('portfolio.create', { ...input, name });
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const replay = await this.replay(tx, ctx, input.idempotencyKey, operationFingerprint);
@@ -216,6 +218,8 @@ export class ResearchPortfoliosService {
     id: string,
     input: UpdateResearchPortfolioDto,
   ): Promise<ResearchPortfolioMutationReceiptDto> {
+    if (input.mode !== undefined && !['manual', 'rules', 'hybrid'].includes(input.mode))
+      throw new BadRequestException('Invalid portfolio mode');
     const normalized = {
       ...input,
       ...(input.name !== undefined ? { name: this.validateName(input.name) } : {}),
@@ -549,6 +553,8 @@ export class ResearchPortfoliosService {
       throw new BadRequestException('decisions must contain between 1 and 100 items');
     }
     const decisions = input.decisions.map((decision) => {
+      if (!['included', 'excluded'].includes(decision.disposition))
+        throw new BadRequestException('Member disposition must be included or excluded');
       const reason = decision.reason?.trim();
       if (!reason) throw new BadRequestException('Every member decision requires a reason');
       return { ...decision, reason };
@@ -570,10 +576,20 @@ export class ResearchPortfoliosService {
             portfolioId: id,
             id: { in: decisions.map(({ memberId }) => memberId) },
           },
-          select: { id: true, targetId: true },
+          select: { id: true, targetId: true, disposition: true, unresolvedInput: true },
         });
         if (rows.length !== decisions.length)
           throw new NotFoundException('Portfolio member not found');
+        if (
+          rows.some(
+            (row) =>
+              (row.disposition === 'unresolved' || row.unresolvedInput != null) &&
+              decisions.some(
+                (decision) => decision.memberId === row.id && decision.disposition === 'included',
+              ),
+          )
+        )
+          throw new ConflictException('Resolve unresolved members before including them');
         const targetById = new Map(rows.map((row) => [row.id, row.targetId]));
         for (const decision of decisions) {
           await tx.researchPortfolioMember.update({
@@ -620,7 +636,7 @@ export class ResearchPortfoliosService {
           where: { id: memberId, tenantId: ctx.tenantId, portfolioId: id },
         });
         if (!member) throw new NotFoundException('Portfolio member not found');
-        if (member.disposition !== 'unresolved') {
+        if (member.disposition !== 'unresolved' && member.unresolvedInput == null) {
           throw new ConflictException('Only unresolved members can be resolved');
         }
         await tx.researchPortfolioMember.update({
