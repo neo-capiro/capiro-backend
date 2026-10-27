@@ -120,6 +120,8 @@ import { MeriV3InternalServiceGuard } from './meri-v3-internal-service.guard.js'
 import { MeriV3ProxyService } from './meriv3-proxy.service.js';
 import { MeriConversationEvidenceService } from './meri-conversation-evidence.service.js';
 import { MeriChatAttachmentReadService } from './meri-chat-attachment-read.service.js';
+import { MeriChatAttachmentSourceService } from './meri-chat-attachment-source.js';
+import { MeriChatAttachmentSourceController } from './meri-chat-attachment-source.controller.js';
 import { MeriV3SettingsController } from './meriv3-settings.controller.js';
 import { MeriV3VisualAnalysisService } from './meri-v3-visual-analysis.service.js';
 import { MeriVNextLibraryController } from './meri-vnext-library.controller.js';
@@ -175,7 +177,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     DefenseBudgetClientWatchModule,
     DistrictNexusModule,
   ],
-  controllers: [NoteActionController, LegislativeComparisonController, ClientRecordActionController,
+  controllers: [MeriChatAttachmentSourceController, NoteActionController, LegislativeComparisonController, ClientRecordActionController,
     MeriRoutineReadController,
     ConversationManagementController,
     HearingMediaController,
@@ -239,6 +241,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
       inject: [PrismaService, MeriToolsService, GovernedMemoryCandidateService, ObjectiveJobReadSources] },
     MeriJobDeliverablesService,
     MeriChatAttachmentReadService,
+    MeriChatAttachmentSourceService,
     MeriSourceService,
     MeriContextPlaneService,
     MeriContextPlaneRuntimeService,

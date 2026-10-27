@@ -8,6 +8,8 @@ export interface MeriChatAttachmentReadScope {
   userId: string;
   conversationId: string;
   selectedClientId: string | null;
+  /** Native v2 source observation; never a credential or substitute for current source checks. */
+  sourceObservation?: { asOf: string; expiresAtMs: number; conversationVersion: string };
 }
 
 const scopeStorage = new AsyncLocalStorage<MeriChatAttachmentReadScope>();
@@ -20,5 +22,7 @@ export function withMeriChatAttachmentReadScope<T>(
   scope: MeriChatAttachmentReadScope,
   run: () => T,
 ): T {
-  return scopeStorage.run(Object.freeze({ ...scope }), run);
+  return scopeStorage.run(Object.freeze({ ...scope, ...(scope.sourceObservation ? {
+    sourceObservation: Object.freeze({ ...scope.sourceObservation }),
+  } : {}) }), run);
 }
