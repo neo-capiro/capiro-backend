@@ -82,6 +82,43 @@ test('sharing writes admit only the exact owner and public capability routes', (
     assert.equal(new Set(rules.map((r) => r.Priority)).size, rules.length);
   }));
 
+test('sharing prerequisites admit only portfolio creation and exact snapshot POST routes', () =>
+  render(false, (edge) => {
+    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map((r) => r.Properties);
+    const owner = '/api/research-portfolios/synthetic-portfolio_1';
+    const routes = ['/api/research-portfolios', `${owner}/snapshots`];
+    for (const pathname of routes) {
+      assert.deepEqual(routeDestination(rules, 'POST', pathname), { Ref: 'CoreTarget' }, pathname);
+      for (const method of ['PUT', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE'])
+        assert.equal(routeDestination(rules, method, pathname), null, `${method} ${pathname}`);
+      for (const hostname of ['app.capiro.ai', 'arbitrary.invalid'])
+        assert.equal(routeDestination(rules, 'POST', pathname, hostname), null);
+      for (const neighbor of [`${pathname}/`, `${pathname}/extra`, `${pathname}.invalid`, `/extra${pathname}`])
+        assert.equal(routeDestination(rules, 'POST', neighbor), null, neighbor);
+      // Existing GET/HEAD reads remain admitted independently of this POST rule.
+      for (const method of ['GET', 'HEAD'])
+        assert.deepEqual(routeDestination(rules, method, pathname), { Ref: 'CoreTarget' });
+    }
+    for (const pathname of [
+      '/api/research-portfolios//snapshots', '/api/research-portfolios/invalid.id/snapshots',
+      '/api/research-portfolios/parent/child/snapshots', '/api/research-portfolios/templates',
+      `${owner}/snapshots/synthetic-snapshot`, `${owner}/subscriptions`, `${owner}/rules`,
+      `${owner}/archive`, `${owner}/members`, `${owner}/imports`,
+    ]) assert.equal(routeDestination(rules, 'POST', pathname), null, pathname);
+    const added = edge.Resources.Wave2Writes66.Properties;
+    assert.equal(added.Priority, 71);
+    assert.deepEqual(added.ListenerArn, { Ref: 'PreviewHttps' });
+    assert.deepEqual(added.Actions, [{ TargetGroupArn: { Ref: 'CoreTarget' }, Type: 'forward' }]);
+    assert.deepEqual(
+      added.Conditions.find((c: any) => c.Field === 'http-request-method').HttpRequestMethodConfig.Values,
+      ['POST'],
+    );
+    assert.deepEqual(
+      added.Conditions.find((c: any) => c.Field === 'path-pattern').PathPatternConfig.RegexValues,
+      ['^/api/research-portfolios$', '^/api/research-portfolios/[A-Za-z0-9_-]+/snapshots$'],
+    );
+  }));
+
 test('six internal file and owner-memory POST admissions stay finite and preview-only', () =>
   render(false, (edge) => {
     const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map((r) => r.Properties);
@@ -220,7 +257,7 @@ test('finite method/path routes admit their owners and reject unintended cross-p
     const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map(
       (r) => r.Properties,
     );
-    assert.equal(rules.length, 70);
+    assert.equal(rules.length, 71);
     for (const rule of rules) {
       assert.deepEqual(rule.ListenerArn, { Ref: 'PreviewHttps' });
       const conditions = rule.Conditions;

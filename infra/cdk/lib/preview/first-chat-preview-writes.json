@@ -560,6 +560,14 @@
       "pathRegexes": [
         "^/api/research-portfolios/[A-Za-z0-9_-]+/dashboard-designs/[A-Za-z0-9_-]+$"
       ]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/research-portfolios$",
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/snapshots$"
+      ]
     }
   ]
 }
