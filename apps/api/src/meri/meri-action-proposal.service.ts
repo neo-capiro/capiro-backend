@@ -764,7 +764,7 @@ export class MeriActionProposalService {
       policyContextHash: decision.contextHash,
     });
     const clientName = await this.resolveClientName(ctx, input);
-    const preview = buildMeriActionPreview({
+    const preview: Omit<MeriActionPreview, 'fields'> & { fields: Record<string, unknown> } = buildMeriActionPreview({
       tool,
       input,
       riskTier: decision.tier ?? null,
