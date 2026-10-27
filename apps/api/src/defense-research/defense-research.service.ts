@@ -1543,9 +1543,15 @@ export class DefenseResearchService {
   }
 
   async resolveEvidence(evidenceRefId: string): Promise<DefenseEvidenceRefDto> {
-    if (evidenceRefId.startsWith('context-occurrence:'))
-      return (await this.referenceOccurrence(evidenceRefId.slice('context-occurrence:'.length)))
-        .evidenceRef;
+    if (evidenceRefId.startsWith('context-occurrence:')) {
+      const row = await this.prisma.defenseReferenceOccurrence.findUnique({
+        where: { id: this.evidenceUuid(evidenceRefId, 'context-occurrence:') },
+        include: { revision: true, document: true, section: true },
+      });
+      if (!row || !row.document.eligible || row.document.qualification !== 'qualified')
+        throw new NotFoundException('Evidence reference not found');
+      return this.referenceDto(row).evidenceRef;
+    }
     if (evidenceRefId.startsWith('federal-register-reference:'))
       return (await this.referenceOccurrence(evidenceRefId)).evidenceRef;
     if (evidenceRefId.startsWith('context-compare:')) {

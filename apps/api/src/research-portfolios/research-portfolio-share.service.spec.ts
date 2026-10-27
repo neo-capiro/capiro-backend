@@ -936,4 +936,50 @@ describe('Fable sharing authority and admitted provenance', () => {
     expect(h.state.links).toHaveLength(0);
     expect(h.evidence.resolveEvidence).not.toHaveBeenCalled();
   });
+  it.each(['ineligible', 'unqualified', 'qualified'])(
+    'checks current %s context-occurrence admission without changing diagnostic reads',
+    async (condition) => {
+      const h = harness({ role: 'editor', enabled: true, pin: '123456' });
+      const occurrenceId = 'ed202609-2800-4000-8000-000000009091';
+      const row: any = {
+        id: occurrenceId,
+        revisionId: 'ed202609-2800-4000-8000-000000009092',
+        documentId: 'ed202609-2800-4000-8000-000000009093',
+        document: {
+          eligible: true,
+          qualification: 'qualified',
+          family: 'policy',
+          publisher: 'Official publisher',
+          sourceUrl: 'https://www.govinfo.gov/example',
+        },
+        revision: {
+          sourceDocumentId: 'ed202609-2800-4000-8000-000000009094',
+          contentHash: 'a'.repeat(64),
+          version: 'v1',
+          observedAt: new Date('2026-10-01T00:00:00.000Z'),
+        },
+        section: { nativeLocator: 'section-1' },
+      };
+      const owner = new DefenseResearchService({
+        defenseReferenceOccurrence: { findUnique: async () => row },
+      } as any);
+      const snapshot: any = await h.analytics.snapshot();
+      snapshot.projection.contributions[0].evidence = [
+        await owner.resolveEvidence('context-occurrence:' + occurrenceId),
+      ];
+      snapshot.projection.contributions[0].sourceRevisionIds = [row.revisionId];
+      row.document.eligible = condition !== 'ineligible';
+      row.document.qualification = condition === 'unqualified' ? 'candidate' : 'qualified';
+      h.evidence.resolveEvidence.mockImplementation((id: string) => owner.resolveEvidence(id));
+      // The authenticated diagnostic owner still exposes the stored occurrence.
+      expect((await owner.referenceOccurrence(occurrenceId)).id).toBe(occurrenceId);
+      if (condition === 'qualified') {
+        await h.publish(input);
+        expect(h.state.links).toHaveLength(1);
+      } else {
+        await expect(h.publish(input)).rejects.toThrow('Widget totals cannot be published');
+        expect(h.state.links).toHaveLength(0);
+      }
+    },
+  );
 });
