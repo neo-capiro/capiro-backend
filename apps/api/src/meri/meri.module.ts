@@ -1,4 +1,6 @@
 import { LegislativeComparisonController } from './legislative-comparison.controller.js';
+import { ClientRecordActionController } from './client-record-action.controller.js';
+import { ClientRecordActionService } from './client-record-action.service.js';
 import { LegiwatchRelevanceController } from './legiwatch-relevance.controller.js';
 import { LegiwatchRelevanceActionService } from './legiwatch-relevance-action.service.js';
 import { LegiwatchReviewController } from './legiwatch-review.controller.js';
@@ -157,7 +159,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     BusinessDevelopmentModule,
     DistrictNexusModule,
   ],
-  controllers: [LegislativeComparisonController,
+  controllers: [LegislativeComparisonController, ClientRecordActionController,
     MeriRoutineReadController,
     ConversationManagementController,
     HearingMediaController,
@@ -183,7 +185,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     MeriVNextLibraryController,
     MeriJobDeliverablesController,
   ],
-  providers: [
+  providers: [ClientRecordActionService,
     LegiwatchActionService,
     ConnectedAppReadService,
     SavedRecordReadService,

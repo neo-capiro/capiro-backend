@@ -1955,12 +1955,12 @@ describe('MeriActionProposalService — Research Portfolio conversation binding'
   });
 
   it('leaves an ordinary non-RP proposal path unaffected', async () => {
-    const h = harness({ row: null, executeResult: { ok: true, clientId: RP_CLIENT } });
+    const h = harness({ row: null, executeResult: { tool: 'save_note', status: 'saved', note: { id: PROPOSAL } } });
     h.setPolicy({ outcome: 'PASS', reasons: ['Ordinary write'] });
 
     const result = await h.service.create(ctx, {
-      tool: 'update_client_profile',
-      input: { clientId: RP_CLIENT, name: 'Acme' },
+      tool: 'save_note',
+      input: { body: 'Ordinary note' },
       surface: 'chat',
     });
 
@@ -2598,5 +2598,67 @@ describe('LegiWatch relevance governed owner', () => {
     expect((await dismiss.service.dismiss(ctx, p.proposal.proposalId, a)).status).toBe('dismissed'); expect(dismiss.tools.execute).not.toHaveBeenCalled();
     const race = harness({ row: null, forceClaimLoss: true }), q = await race.service.create(ctx, request(), undefined, a);
     expect((await race.service.approveAndExecute(ctx, q.proposal.proposalId, a)).status).toBe('executing'); expect(race.tools.execute).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('MeriActionProposalService — native client record actions', () => {
+  const scope = { conversationId: RP_CONVERSATION, selectedClientId: null,
+    identityRevision: 'a'.repeat(64), membershipRevision: 'b'.repeat(64), contextRevision: 'c'.repeat(64) };
+  const access = () => ({ scope: { ...scope }, mode: 'execute' as const, clientIds: [RP_CLIENT], assertCurrent: jest.fn().mockResolvedValue(undefined) });
+  const input = { clientId: RP_CLIENT, description: 'Approved', people: [{ name: 'Person' }] };
+  const output = { tool: 'update_client_profile', updated: true, clientId: RP_CLIENT, clientName: 'Sample', fieldsWritten: ['description'],
+    facilitiesCreated: [], capabilitiesCreated: [], peopleCreated: [], peopleUpdated: ['Person'], skipped: [], rowErrors: ['facility failed'] };
+  const request = { tool: 'update_client_profile', input, conversationId: RP_CONVERSATION, surface: 'chat' as const, requireApproval: true };
+  it('requires current authority before storing client writes, including PASS and wrong selected client', async () => {
+    const h = harness({ row: null });
+    await expect(h.service.create(ctx, request)).rejects.toThrow();
+    const a = access(); a.clientIds = [];
+    await expect(h.service.create(ctx, request, undefined, undefined, a)).rejects.toThrow();
+    h.setPolicy({ outcome: 'PASS', reasons: ['Changed policy'] });
+    await expect(h.service.create(ctx, request, undefined, undefined, access())).rejects.toThrow('meri_action_approval_not_applicable');
+    expect(h.getRow()).toBeNull(); expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+  it('keeps partial merged profile receipt and reads own-change revision without revalidating old decisions', async () => {
+    const h = harness({ row: null, executeResult: output }), a = access();
+    await h.service.create(ctx, request, undefined, undefined, a);
+    expect(await h.service.list(ctx, RP_CONVERSATION)).toEqual([]);
+    const done = await h.service.approveAndExecute(ctx, PROPOSAL, undefined, a);
+    expect(done.status).toBe('succeeded');
+    const fresh = { ...a, scope: { ...scope, membershipRevision: 'd'.repeat(64) }, mode: 'observe' as const };
+    const read = await h.service.readClientRecord(ctx, PROPOSAL, fresh);
+    expect(read.receipt).toMatchObject({ outcome: 'partially_updated', peopleUpdated: ['Person'], rowErrors: ['facility failed'] });
+    expect(read.context).toEqual(scope);
+    await expect(h.service.approveAndExecute(ctx, PROPOSAL, undefined, fresh)).rejects.toThrow();
+    await expect(h.service.readClientRecord(ctx, PROPOSAL, { ...fresh, clientIds: [] })).rejects.toThrow();
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
+  });
+  it('does not execute or reuse authority after membership changes before claim', async () => {
+    const h = harness({ row: null, executeResult: output }), a = access();
+    await h.service.create(ctx, request, undefined, undefined, a);
+    const stale = { ...a, scope: { ...scope, membershipRevision: 'd'.repeat(64) } };
+    await expect(h.service.approveAndExecute(ctx, PROPOSAL, undefined, stale)).rejects.toThrow();
+    a.assertCurrent.mockRejectedValue(new Error('actual current denied'));
+    await expect(h.service.approveAndExecute(ctx, PROPOSAL, undefined, a)).rejects.toThrow();
+    expect(h.tools.execute).not.toHaveBeenCalled(); expect(h.getRow()?.status).toBe('proposed');
+  });
+  it('stores UNKNOWN for missing receipt or lost response and never retries its effect', async () => {
+    for (const error of [false, true]) {
+      const h = harness({ row: null, ...(error ? { executeError: new Error('lost') } : { executeResult: { updated: true } }) }), a = access();
+      await h.service.create(ctx, request, undefined, undefined, a);
+      expect((await h.service.approveAndExecute(ctx, PROPOSAL, undefined, a)).status).toBe('outcome_unknown');
+      await h.service.readClientRecord(ctx, PROPOSAL, { ...a, mode: 'observe' });
+      await h.service.approveAndExecute(ctx, PROPOSAL, undefined, a);
+      expect(h.tools.execute).toHaveBeenCalledTimes(1);
+    }
+  });
+  it('keeps newly created client receipt private until the canonical current roster includes that client', async () => {
+    const h = harness({ row: null, executeResult: { created: true, client: { id: RP_CLIENT, name: 'New client', website: null }, ldaMatch: null } }), a = access();
+    await h.service.create(ctx, { ...request, tool: 'create_client', input: { name: 'New client', skipLdaCheck: true } }, undefined, undefined, a);
+    await h.service.approveAndExecute(ctx, PROPOSAL, undefined, a);
+    const fresh = { ...a, mode: 'observe' as const, scope: { ...scope, membershipRevision: 'd'.repeat(64) } };
+    expect((await h.service.readClientRecord(ctx, PROPOSAL, fresh)).receipt).toMatchObject({ outcome: 'created', client: { id: RP_CLIENT } });
+    await expect(h.service.readClientRecord(ctx, PROPOSAL, { ...fresh, clientIds: [] })).rejects.toThrow();
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
   });
 });
