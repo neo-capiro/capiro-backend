@@ -128,7 +128,7 @@ export function buildMeriActionPreview(args: {
     addField(fields, 'linkId', input.linkId);
     fields.effect = 'This link will stop working on the next request.';
   } else if (Object.hasOwn(RESEARCH_PORTFOLIO_ACTION_FIELDS, tool)) {
-    for (const key of RESEARCH_PORTFOLIO_ACTION_FIELDS[tool]) addField(fields, key, input[key]);
+    for (const key of RESEARCH_PORTFOLIO_ACTION_FIELDS[tool] ?? []) addField(fields, key, input[key]);
     if (tool === 'prepare_research_portfolio_meeting' && Array.isArray(input.selectedReviewIds))
       counts.selectedReviews = input.selectedReviewIds.length;
     if (tool === 'manage_research_portfolio' && input.parameters && typeof input.parameters === 'object')
