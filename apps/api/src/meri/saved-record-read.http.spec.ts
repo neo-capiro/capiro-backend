@@ -8,6 +8,7 @@ import { BillingController } from '../billing/billing.controller.js';
 import { BillingAdminGuard } from '../billing/billing-admin.guard.js';
 import { BillingService } from '../billing/billing.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { TenantContextMiddleware } from '../tenant/tenant-context.middleware.js';
 import { SavedRecordReadController } from './saved-record-read.controller.js';
 import { SavedRecordReadService } from './saved-record-read.service.js';
 import {
@@ -21,7 +22,19 @@ const tenantId = '11111111-1111-4111-8111-111111111111';
 const actorId = '22222222-2222-4222-8222-222222222222';
 const versionId = '33333333-3333-4333-8333-333333333333';
 const secret = 'synthetic-read-service';
-const ctx = { tenantId, userId: actorId, clerkUserId: 'user_current', role: 'user_admin' };
+jest.mock('@clerk/backend', () => ({
+  __esModule: true,
+  createClerkClient: () => ({}),
+  verifyToken: async () => ({}),
+}));
+
+const ctx = {
+  tenantId,
+  tenantSlug: 'current-org',
+  userId: actorId,
+  clerkUserId: 'user_current',
+  role: 'user_admin',
+};
 const summary = {
   billingEnabled: true,
   status: 'active',
@@ -54,19 +67,78 @@ const version = envelope('saved_version', {
 });
 
 async function fixture() {
-  const state = { member: true, billingAdmin: true, role: 'user_admin' };
+  const state = {
+    member: true,
+    billingAdmin: true,
+    role: 'user_admin',
+    preview: false,
+    currentSlug: ctx.tenantSlug,
+  };
+  const middleware = new TenantContextMiddleware(
+    {
+      verifySessionToken: async () => ({
+        sub: ctx.clerkUserId,
+        org_id: 'org_current',
+        capiro_tenant_id: tenantId,
+        sid: 'session_current',
+        exp: Math.floor(Date.now() / 1000) + 600,
+      }),
+      assertActiveApplicationAuthoritySession: async () => ({}),
+    } as any,
+    {
+      withSystem: async (run: (tx: unknown) => unknown) =>
+        run({
+          user: {
+            findUnique: async () => ({ id: actorId, clerkUserId: ctx.clerkUserId }),
+            update: async () => ({}),
+          },
+          tenant: {
+            findUnique: async () => ({
+              id: tenantId,
+              clerkOrgId: 'org_current',
+              slug: state.currentSlug,
+              status: 'active',
+            }),
+          },
+          tenantMembership: {
+            findMany: async () =>
+              state.member
+                ? [
+                    {
+                      id: 'membership_current',
+                      tenantId,
+                      role: state.role,
+                      status: 'active',
+                      tenant: {
+                        id: tenantId,
+                        clerkOrgId: 'org_current',
+                        slug: state.currentSlug,
+                        status: 'active',
+                      },
+                    },
+                  ]
+                : [],
+            findUnique: async () => ({ status: state.member ? 'active' : 'suspended' }),
+          },
+          auditLog: { create: async () => ({}) },
+        }),
+    } as any,
+    { run: (_ctx: unknown, next: () => void) => next() } as any,
+  );
   const getSummary = jest.fn(async () => summary);
   const config = {
     get: (name: string) =>
-      (
-        ({
-          API_PORT: 4000,
-          WORKSPACE_API_BASE_URL: 'http://workspace.synthetic',
-          NODE_ENV: 'production',
-          MERI_TOOLS_REQUIRE_SERVICE_SECRET: true,
-          INTERNAL_SERVICE_SECRET: secret,
-        }) as Record<string, unknown>
-      )[name],
+      name === 'PREVIEW_NATIVE_GETS_ENABLED'
+        ? state.preview
+        : (
+            {
+              API_PORT: 4000,
+              WORKSPACE_API_BASE_URL: 'http://workspace.synthetic',
+              NODE_ENV: 'production',
+              MERI_TOOLS_REQUIRE_SERVICE_SECRET: true,
+              INTERNAL_SERVICE_SECRET: secret,
+            } as Record<string, unknown>
+          )[name],
   };
   const module = await Test.createTestingModule({
     controllers: [SavedRecordReadController, BillingController],
@@ -98,7 +170,8 @@ async function fixture() {
   await app.init();
   const router = app.getHttpAdapter().getInstance()._router;
   // Same socket-free Nest route seam as the existing private SQL HTTP gate.
-  // Tenant middleware is unchanged; inject its admitted context at this seam.
+  // Only the outer already-admitted tool context is injected. Forwarded Core
+  // GETs execute the real tenant resolver before their canonical route guards.
   async function dispatch(
     path: string,
     method: string,
@@ -140,9 +213,23 @@ async function fixture() {
       originalUrl: path,
       body,
       headers,
-      tenantContext: { ...ctx, role: state.role },
+      rawHeaders: ['Host', headers.host ?? '127.0.0.1:4000'],
+      hostname: headers.host ?? '127.0.0.1',
+      baseUrl: '',
+      header: (name: string) => headers[name.toLowerCase()],
+      ...(method === 'POST' ? { tenantContext: { ...ctx, role: state.role } } : {}),
       res: response,
     });
+    if (method === 'GET') {
+      try {
+        await middleware.use(request, response, () => {});
+      } catch (error) {
+        response
+          .status((error as { getStatus?: () => number }).getStatus?.() ?? 500)
+          .json({ message: 'Owner authentication refused' });
+        return response;
+      }
+    }
     const layer = router.stack.find(
       (item: any) => item.route?.path === path && item.route.methods[method.toLowerCase()],
     );
@@ -157,7 +244,7 @@ async function fixture() {
       redirect: 'error',
       headers: {
         authorization: 'Bearer synthetic-current',
-        'x-capiro-tenant': tenantId,
+        'x-capiro-tenant': ctx.tenantSlug,
         accept: 'application/json',
       },
     });
@@ -186,11 +273,15 @@ async function fixture() {
 }
 
 describe('saved-record mounted fixed-route bridge', () => {
+  const priorPreview = process.env.PREVIEW_NATIVE_GETS_ENABLED;
   let f: Awaited<ReturnType<typeof fixture>>;
   beforeEach(async () => {
+    process.env.PREVIEW_NATIVE_GETS_ENABLED = 'false';
     f = await fixture();
   });
   afterEach(async () => {
+    if (priorPreview === undefined) delete process.env.PREVIEW_NATIVE_GETS_ENABLED;
+    else process.env.PREVIEW_NATIVE_GETS_ENABLED = priorPreview;
     jest.restoreAllMocks();
     await f.app.close();
   });
@@ -210,6 +301,29 @@ describe('saved-record mounted fixed-route bridge', () => {
       else f.state.role = 'standard_user';
       expect((await f.send()).statusCode).toBe(403);
       expect(f.getSummary).not.toHaveBeenCalled();
+    },
+  );
+  it('uses the real tenant resolver in preview billing and refuses a stale outer tenant slug', async () => {
+    f.state.preview = true;
+    process.env.PREVIEW_NATIVE_GETS_ENABLED = 'true';
+    expect((await f.send()).statusCode).toBe(200);
+    expect(f.fetchSpy.mock.calls[0]![1]!.headers).toHaveProperty(
+      'host',
+      'first-chat-preview.app-dev.capiro.ai',
+    );
+    f.state.currentSlug = 'different-current-org';
+    expect((await f.send()).statusCode).toBe(403);
+    expect(f.getSummary).toHaveBeenCalledTimes(1);
+  });
+  it.each(['core', 'workspace'])(
+    'refuses impersonated %s reads before any transport',
+    async (source) => {
+      const body =
+        source === 'core' ? { source, kind: 'billing_summary' } : { source, kind: 'newsletters' };
+      expect((await f.send(body, { 'x-capiro-impersonate-tenant': 'other-org' })).statusCode).toBe(
+        403,
+      );
+      expect(f.fetchSpy).not.toHaveBeenCalled();
     },
   );
   it.each<Record<string, string>>([

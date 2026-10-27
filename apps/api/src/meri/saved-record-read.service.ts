@@ -68,6 +68,10 @@ export class SavedRecordReadService {
   constructor(private readonly config: ConfigService<AppConfig, true>) {}
 
   async read(ctx: TenantContext, raw: unknown, request: Pick<Request, 'headers'>) {
+    // Both destinations authenticate the original user session. Neither bridge
+    // carries an impersonation session, so never read a different signed-in org.
+    if (request.headers['x-capiro-impersonate-tenant'])
+      throw new ForbiddenException('Return to your signed-in organization to read saved records.');
     const parsed = requestSchema.safeParse(raw);
     if (!parsed.success) throw new BadRequestException('Choose a supported saved-record read.');
     const authorization = request.headers.authorization;
@@ -125,7 +129,16 @@ export class SavedRecordReadService {
         headers: {
           authorization,
           accept: 'application/json',
-          ...(source === 'core' ? { 'x-capiro-tenant': ctx.tenantId } : {}),
+          ...(source === 'core'
+            ? {
+                'x-capiro-tenant': ctx.tenantSlug,
+                // The URL stays loopback. The exact server-owned Host selects
+                // the existing preview middleware; caller Host is never forwarded.
+                ...(this.config.get('PREVIEW_NATIVE_GETS_ENABLED', { infer: true })
+                  ? { host: 'first-chat-preview.app-dev.capiro.ai' }
+                  : {}),
+              }
+            : {}),
           ...(body ? { 'content-type': 'application/json' } : {}),
         },
         ...(body ? { body } : {}),
