@@ -1159,6 +1159,7 @@ export interface ResearchPortfolioShareLinkDto {
   openCount: number;
   lastOpenedAt: string | null;
   failedPinAttempts: number;
+  lockedUntil: string | null;
 }
 
 export interface PreviewResearchPortfolioShareDto {
@@ -1209,7 +1210,9 @@ export interface ResearchPortfolioShareDashboardDto {
       label: string | null;
       disposition: ResearchPortfolioMemberDisposition;
     }[];
-    sources: readonly ({ id: string } & Partial<import('./defense-research.js').DefenseEvidenceRefDto>)[];
+    sources: readonly ({ id: string } & Partial<
+      import('./defense-research.js').DefenseEvidenceRefDto
+    >)[];
     clientFit: {
       availability: ResearchPortfolioFitAvailability;
       fitScore: number | null;

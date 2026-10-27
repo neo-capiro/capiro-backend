@@ -285,11 +285,24 @@ export class ResearchPortfolioMeriToolsService {
         ]);
         const current = await this.authorizeScope(ctx, input);
         if (current.portfolioId !== portfolioId || current.selectedClientId !== selectedClientId)
-          throw new BadRequestException('The conversation scope changed. Refresh before listing shares');
-        const visible = selectedClientId ? links.filter(link => link.clientId === selectedClientId) : links;
-        return { sharing: { ...sharing, activeLinkCount: visible.filter(link => link.status === 'active').length }, links: visible };
+          throw new BadRequestException(
+            'The conversation scope changed. Refresh before listing shares',
+          );
+        const visible = selectedClientId
+          ? links.filter((link) => link.clientId === selectedClientId)
+          : links;
+        return {
+          sharing: {
+            ...sharing,
+            activeLinkCount: visible.filter((link) => link.status === 'active').length,
+          },
+          links: visible,
+        };
       }
       case 'publish_research_portfolio_share_link': {
+        const clientId = requiredText(input, 'clientId');
+        if (selectedClientId && clientId !== selectedClientId)
+          throw new BadRequestException('The share must belong to the conversation client');
         if (typeof input.branding !== 'boolean') {
           throw new BadRequestException('branding must be true or false');
         }
@@ -297,7 +310,7 @@ export class ResearchPortfolioMeriToolsService {
           operationKey: requiredText(input, 'operationKey'),
           snapshotId: requiredText(input, 'snapshotId'),
           designId: requiredText(input, 'designId'),
-          clientId: requiredText(input, 'clientId'),
+          clientId,
           branding: input.branding,
           expectedDesignVersion: requiredInteger(input, 'expectedDesignVersion'),
           previewHash: requiredText(input, 'previewHash'),
@@ -312,7 +325,12 @@ export class ResearchPortfolioMeriToolsService {
         };
       }
       case 'revoke_research_portfolio_share_link':
-        return this.requireShare().revokeLink(ctx, portfolioId, requiredText(input, 'linkId'));
+        return this.requireShare().revokeLink(
+          ctx,
+          portfolioId,
+          requiredText(input, 'linkId'),
+          selectedClientId,
+        );
     }
   }
 
@@ -352,6 +370,9 @@ export class ResearchPortfolioMeriToolsService {
     if (!scope) {
       throw new BadRequestException('This conversation is not scoped to a Research Portfolio');
     }
-    return { portfolioId: scope.researchPortfolioId, selectedClientId: conversation.clientId ?? null };
+    return {
+      portfolioId: scope.researchPortfolioId,
+      selectedClientId: conversation.clientId ?? null,
+    };
   }
 }
