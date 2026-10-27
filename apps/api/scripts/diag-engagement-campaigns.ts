@@ -15,13 +15,15 @@
  * usage from `diag:outreach-usage` (workflow 'campaign_email') for the fullest
  * picture, and surface the logging gap to Ninja before deletion (see the plan).
  *
- * SAFE: aggregate reads only, no writes. Reads the tables directly (not RLS-scoped)
- * so it summarizes every tenant. Exits non-zero on error.
+ * SAFE: aggregate reads only, no writes. Uses the existing explicit system
+ * transaction so tenant RLS cannot silently hide rows from the report.
+ * Exits non-zero on error.
  */
-import { PrismaClient } from '@prisma/client';
+import { PrismaService } from '../src/prisma/prisma.service.js';
 
-async function main(): Promise<void> {
-  const usage = 'Usage: apps/api/scripts/diag-engagement-campaigns.ts requires DATABASE_URL (database configuration is required)';
+export async function main(): Promise<void> {
+  const usage =
+    'Usage: apps/api/scripts/diag-engagement-campaigns.ts requires DATABASE_URL (database configuration is required)';
   const args = process.argv.slice(2);
   if (args.length === 1 && args[0] === '--help') {
     console.log(usage);
@@ -35,20 +37,24 @@ async function main(): Promise<void> {
     console.error(usage);
     process.exit(2);
   }
-  const prisma = new PrismaClient();
+  const prisma = new PrismaService();
   try {
-    const [campaigns, recipients, tenants] = await Promise.all([
-      prisma.engagementCampaign.groupBy({
-        by: ['tenantId', 'status'],
-        _count: { _all: true },
-        _max: { updatedAt: true },
-      }),
-      prisma.engagementCampaignRecipient.groupBy({
-        by: ['tenantId'],
-        _count: { _all: true },
-      }),
-      prisma.tenant.findMany({ select: { id: true, slug: true } }),
-    ]);
+    const [campaigns, recipients, tenants] = await prisma.withSystem(
+      (tx) =>
+        Promise.all([
+          tx.engagementCampaign.groupBy({
+            by: ['tenantId', 'status'],
+            _count: { _all: true },
+            _max: { updatedAt: true },
+          }),
+          tx.engagementCampaignRecipient.groupBy({
+            by: ['tenantId'],
+            _count: { _all: true },
+          }),
+          tx.tenant.findMany({ select: { id: true, slug: true } }),
+        ]),
+      { readOnly: true },
+    );
 
     if (!campaigns.length) {
       // eslint-disable-next-line no-console
