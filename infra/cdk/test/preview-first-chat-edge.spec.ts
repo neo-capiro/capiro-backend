@@ -82,11 +82,11 @@ test('sharing writes admit only the exact owner and public capability routes', (
     assert.equal(new Set(rules.map((r) => r.Priority)).size, rules.length);
   }));
 
-test('sharing prerequisites admit only portfolio creation and exact snapshot POST routes', () =>
+test('sharing prerequisites admit only portfolio creation and exact snapshot/client-link POST routes', () =>
   render(false, (edge) => {
     const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map((r) => r.Properties);
     const owner = '/api/research-portfolios/synthetic-portfolio_1';
-    const routes = ['/api/research-portfolios', `${owner}/snapshots`];
+    const routes = ['/api/research-portfolios', `${owner}/snapshots`, `${owner}/client-links`];
     for (const pathname of routes) {
       assert.deepEqual(routeDestination(rules, 'POST', pathname), { Ref: 'CoreTarget' }, pathname);
       for (const method of ['PUT', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE'])
@@ -102,6 +102,8 @@ test('sharing prerequisites admit only portfolio creation and exact snapshot POS
     for (const pathname of [
       '/api/research-portfolios//snapshots', '/api/research-portfolios/invalid.id/snapshots',
       '/api/research-portfolios/parent/child/snapshots', '/api/research-portfolios/templates',
+      '/api/research-portfolios//client-links', '/api/research-portfolios/invalid.id/client-links',
+      '/api/research-portfolios/parent/child/client-links', `${owner}/client-links/synthetic-client`,
       `${owner}/snapshots/synthetic-snapshot`, `${owner}/subscriptions`, `${owner}/rules`,
       `${owner}/archive`, `${owner}/members`, `${owner}/imports`,
     ]) assert.equal(routeDestination(rules, 'POST', pathname), null, pathname);
@@ -115,8 +117,15 @@ test('sharing prerequisites admit only portfolio creation and exact snapshot POS
     );
     assert.deepEqual(
       added.Conditions.find((c: any) => c.Field === 'path-pattern').PathPatternConfig.RegexValues,
-      ['^/api/research-portfolios$', '^/api/research-portfolios/[A-Za-z0-9_-]+/snapshots$'],
+      [
+        '^/api/research-portfolios$',
+        '^/api/research-portfolios/[A-Za-z0-9_-]+/snapshots$',
+        '^/api/research-portfolios/[A-Za-z0-9_-]+/client-links$',
+      ],
     );
+    assert.equal(added.Conditions.reduce((count: number, condition: any) => count +
+      (condition.PathPatternConfig?.RegexValues.length ?? condition.HostHeaderConfig?.Values.length ??
+        condition.HttpRequestMethodConfig?.Values.length ?? 0), 0), 5);
   }));
 
 test('six internal file and owner-memory POST admissions stay finite and preview-only', () =>
