@@ -16,9 +16,10 @@
  *    this boundary, an unconfirmed acknowledgement is reported as UNKNOWN and is
  *    never blind-resent, and the canonical proposal claim remains the Core ledger's
  *    (id, fingerprint);
- *  - the owner's `assertClient` only checks that a tenant client exists. The client
- *    wall is the conversation/proposal scope bound by the ledger plus that owner
- *    check — not a domain-enforced client/prospect equivalence.
+ *  - the owner's `assertClient` delegates to the canonical current-client check
+ *    inside its transaction, including membership, archive and wall admission.
+ *    The ledger also binds conversation/proposal scope; neither boundary treats
+ *    a prospect as a domain-equivalent client.
  */
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
