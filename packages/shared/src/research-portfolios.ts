@@ -1066,6 +1066,26 @@ export interface ResearchPortfolioTourStateDto {
   completedAt: string | null;
 }
 
+export interface ResearchPortfolioDraftDto {
+  artifactId: string;
+  portfolioId: string;
+  conversationId: string;
+  parentArtifactId: string | null;
+  title: string;
+  kind: 'research_portfolio_brief' | 'research_portfolio_meeting';
+  contentType: 'text/markdown';
+  bodyText: string;
+  reviewStatus: 'unreviewed_draft' | 'unreviewed_edit';
+  createdAt: string;
+  childVersions: readonly {
+    artifactId: string;
+    title: string;
+    createdAt: string;
+    reviewStatus: 'unreviewed_draft' | 'unreviewed_edit';
+  }[];
+  childVersionsHasMore: boolean;
+}
+
 // ---------------------------------------------------------------------------
 // Client share links: PIN-protected, one-week, frozen dashboard at a Capiro link.
 // ---------------------------------------------------------------------------
