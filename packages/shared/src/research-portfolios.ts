@@ -1161,12 +1161,24 @@ export interface ResearchPortfolioShareLinkDto {
   failedPinAttempts: number;
 }
 
-export interface PublishResearchPortfolioShareLinkDto {
-  operationKey: string;
+export interface PreviewResearchPortfolioShareDto {
   snapshotId: string;
   designId: string;
   clientId: string;
   branding: boolean;
+}
+
+export interface PublishResearchPortfolioShareLinkDto extends PreviewResearchPortfolioShareDto {
+  operationKey: string;
+  previewHash: string;
+  expectedDesignVersion: number;
+}
+
+export interface ResearchPortfolioSharePreviewDto {
+  dashboard: ResearchPortfolioShareDashboardDto;
+  previewHash: string;
+  designVersion: number;
+  logoUrl: string | null;
 }
 
 /** The token is returned once; the server keeps only its hash. */
@@ -1197,7 +1209,7 @@ export interface ResearchPortfolioShareDashboardDto {
       label: string | null;
       disposition: ResearchPortfolioMemberDisposition;
     }[];
-    sources: readonly { id: string }[];
+    sources: readonly ({ id: string } & Partial<import('./defense-research.js').DefenseEvidenceRefDto>)[];
     clientFit: {
       availability: ResearchPortfolioFitAvailability;
       fitScore: number | null;

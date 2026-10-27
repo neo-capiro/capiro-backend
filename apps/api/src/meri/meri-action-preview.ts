@@ -97,7 +97,7 @@ export function buildMeriActionPreview(args: {
   const counts: Record<string, number> = {};
 
   if (tool === 'publish_research_portfolio_share_link') {
-    for (const key of ['snapshotId', 'designId', 'branding']) addField(fields, key, input[key]);
+    for (const key of ['snapshotId', 'designId', 'clientId', 'branding', 'previewHash', 'expectedDesignVersion']) addField(fields, key, input[key]);
     fields.expiresAfterHours = 168;
     fields.delivery = 'You copy the link and share it yourself. Nothing is sent.';
   } else if (tool === 'revoke_research_portfolio_share_link') {

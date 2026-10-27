@@ -1360,7 +1360,7 @@ describe('MeriActionProposalService — Research Portfolio conversation binding'
     clientId: RP_CLIENT,
     branding: false,
   };
-  const sharePath = `/share/research/${'a'.repeat(64)}`;
+  const sharePath = `/share/${'a'.repeat(64)}`;
   const publishedShare = {
     link: { id: PROPOSAL, expiresAt: '2026-11-03T00:00:00.000Z' },
     replayed: false,

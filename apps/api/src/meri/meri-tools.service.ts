@@ -788,13 +788,15 @@ export class MeriToolsService {
           operationKey: str('Stable idempotency key for this intended link'),
           snapshotId: str('Exact immutable snapshot UUID the recipient will see'),
           designId: str('Exact dashboard design UUID of this portfolio'),
+          previewHash: str('Server-returned hash of the exact reviewed share preview'),
+          expectedDesignVersion: { type: 'integer', minimum: 1, description: 'Server-returned reviewed design version' },
           clientId: str('Exact linked, currently authorized client UUID the link is prepared for'),
           branding: {
             type: 'boolean',
             description: 'Show the firm name and logo on the dashboard',
           },
         },
-        ['conversationId', 'operationKey', 'snapshotId', 'designId', 'clientId', 'branding'],
+        ['conversationId', 'operationKey', 'snapshotId', 'designId', 'clientId', 'branding', 'previewHash', 'expectedDesignVersion'],
       ),
       revoke_research_portfolio_share_link: obj(
         {

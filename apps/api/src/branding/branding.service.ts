@@ -4,6 +4,7 @@ import { S3Client, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'node:crypto';
+import { Readable } from 'node:stream';
 import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -182,6 +183,35 @@ export class BrandingService {
     if (!tenant?.logoS3Key) return null;
     if (!ownedLogoKey(tenantId, tenant.logoS3Key, tenant.logoContentType ?? '', true)) return null;
     return this.signedGetUrl(tenant.logoS3Key, ttlSeconds);
+  }
+
+  /** Capture approved bytes in the frozen share payload, including for legacy mutable logo keys. */
+  async freezeLogoForSharing(tenantId: string, key: string, contentType: string): Promise<{ dataUrl: string }> {
+    if (!this.bucket || !ownedLogoKey(tenantId, key, contentType, true))
+      throw new BadRequestException('Branding unavailable');
+    const result = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
+    const body = result.Body;
+    if (!(body instanceof Readable)) {
+      // Node's S3 runtime returns a Readable; discard any other SDK stream before refusing.
+      if (body) await body.transformToByteArray();
+      throw new BadRequestException('Branding unavailable');
+    }
+    const chunks: Buffer[] = [];
+    let bytes = 0;
+    try {
+      if (result.ContentType !== contentType || !result.ContentLength || result.ContentLength > MAX_BYTES)
+        throw new BadRequestException('Invalid logo size or type');
+      for await (const chunk of body) {
+        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+        bytes += buffer.length;
+        if (bytes > MAX_BYTES) throw new BadRequestException('Logo is too large');
+        chunks.push(buffer);
+      }
+      if (!bytes || bytes !== result.ContentLength) throw new BadRequestException('Incomplete logo');
+      return { dataUrl: `data:${contentType};base64,${Buffer.concat(chunks).toString('base64')}` };
+    } finally {
+      body.destroy();
+    }
   }
 
   private async signedGetUrl(s3Key: string, ttlSeconds = 300): Promise<string | null> {

@@ -133,7 +133,7 @@ export class ResearchPortfolioAnalyticsService {
         basis,
         membership,
         projection,
-        structureVersions: { portfolioRevision: portfolio.revision, memberRevisions: membership.map(({ id, revision }) => ({ id, revision })) },
+        structureVersions: { portfolioName: portfolio.name, portfolioPurpose: portfolio.purpose ?? null, portfolioRevision: portfolio.revision, memberRevisions: membership.map(({ id, revision }) => ({ id, revision })) },
         ruleVersions,
         decisionVersions,
         templateVersions,

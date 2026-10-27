@@ -301,10 +301,12 @@ export class TenantContextMiddleware implements NestMiddleware {
       // Research Portfolio client share links: authorized by the link token and the
       // portfolio PIN (ResearchPortfolioShareService), never by a Clerk session.
       '/api/public/research-share',
+      '/api/public/share',
     ];
     if (bypassPaths.some((bypassPath) => isBypassPath(bypassPath, path, originalUrl, baseUrl))) {
       if (!originalUrl.includes('/newsletter-public/') &&
-          !isBypassPath('/api/public/research-share', path, originalUrl, baseUrl)) this.logger.log(
+          !isBypassPath('/api/public/research-share', path, originalUrl, baseUrl) &&
+          !isBypassPath('/api/public/share', path, originalUrl, baseUrl)) this.logger.log(
         `Bypassing tenant context for public/external route (path=${path}, originalUrl=${originalUrl}, baseUrl=${baseUrl})`,
       );
       next();

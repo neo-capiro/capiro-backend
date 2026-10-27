@@ -7,6 +7,8 @@ describe('client filing action preview', () => {
       input: {
         snapshotId: 'snapshot-a',
         designId: 'design-a',
+        previewHash: 'a'.repeat(64),
+        expectedDesignVersion: 3,
         clientId: 'client-a',
         branding: false,
         operationKey: 'internal-operation',
@@ -23,6 +25,8 @@ describe('client filing action preview', () => {
       fields: {
         snapshotId: 'snapshot-a',
         designId: 'design-a',
+        previewHash: 'a'.repeat(64),
+        expectedDesignVersion: 3,
         branding: false,
         expiresAfterHours: 168,
         delivery: 'You copy the link and share it yourself. Nothing is sent.',

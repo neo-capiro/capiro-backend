@@ -18,6 +18,8 @@ import { ResearchPortfolioMeriToolsService } from './research-portfolio-meri-too
 import { ResearchPortfolioMeriScopeService } from './research-portfolio-meri-scope.service.js';
 import { ResearchPortfolioPhase11Service } from './research-portfolio-phase11.service.js';
 import { ResearchContextsController } from './research-contexts.controller.js';
+import { ResearchPortfolioSharePayloadService } from './research-portfolio-share-payload.service.js';
+import { ResearchPortfolioShareDispatchController } from './research-portfolio-share.controller.js';
 import { ResearchPortfolioShareService } from './research-portfolio-share.service.js';
 import {
   ResearchPortfolioShareController,
@@ -39,6 +41,7 @@ import {
     ResearchPortfolioShareController,
     ResearchPortfolioShareAdminController,
     ResearchPortfolioSharePublicController,
+    ResearchPortfolioShareDispatchController,
   ],
   providers: [
     ResearchPortfolioInstitutionalService,
@@ -54,6 +57,7 @@ import {
     ResearchPortfolioMeriScopeService,
     ResearchPortfolioPhase11Service,
     ResearchPortfolioShareService,
+    ResearchPortfolioSharePayloadService,
   ],
   exports: [
     ResearchPortfolioInstitutionalService,

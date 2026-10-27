@@ -16,6 +16,8 @@ import type {
   ChangeResearchPortfolioSharePinDto,
   EnableResearchPortfolioSharingDto,
   PublishResearchPortfolioShareLinkDto,
+  PreviewResearchPortfolioShareDto,
+  ResearchPortfolioSharePreviewDto,
   ResearchPortfolioDashboardDesignDto,
   ResearchPortfolioShareAvailabilityDto,
   ResearchPortfolioShareDashboardDto,
@@ -125,6 +127,28 @@ export class ResearchPortfolioShareController {
     return this.share.listLinks(ctx, id);
   }
 
+  @Post(':id/share-preview')
+  @Header('Cache-Control', 'no-store')
+  preview(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() dto: PreviewResearchPortfolioShareDto,
+  ): Promise<ResearchPortfolioSharePreviewDto> {
+    ensureUuid(id, 'Research portfolio');
+    return this.share.previewLink(ctx, id, dto);
+  }
+
+  @Get(':id/share-links/operations/:operationKey')
+  @Header('Cache-Control', 'no-store')
+  operation(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('operationKey') operationKey: string,
+  ): Promise<{ link: ResearchPortfolioShareLinkDto | null }> {
+    ensureUuid(id, 'Research portfolio');
+    return this.share.lookupPublishOperation(ctx, id, operationKey);
+  }
+
   @Post(':id/share-links')
   publish(
     @CurrentTenant() ctx: TenantContext,
@@ -226,10 +250,26 @@ export class ResearchPortfolioSharePublicController {
 
   /** Firm logo for a branded link; the same view token as the dashboard. */
   @Post(':token/logo')
+  @Header('Cache-Control', 'no-store')
+  @Header('Referrer-Policy', 'no-referrer')
   logo(
     @Param('token') token: string,
     @Body() dto: ResearchPortfolioShareViewDto,
   ): Promise<ResearchPortfolioShareLogoDto> {
     return this.share.logo(token, dto?.viewToken ?? '');
+  }
+}
+
+/** A single public entry point dispatches the existing Workspace share-link kinds. */
+@Controller('public/share')
+export class ResearchPortfolioShareDispatchController {
+  constructor(private readonly share: ResearchPortfolioShareService) {}
+
+  @Get(':token')
+  @Header('Cache-Control', 'no-store')
+  @Header('Referrer-Policy', 'no-referrer')
+  @Header('X-Robots-Tag', 'noindex, nofollow')
+  kind(@Param('token') token: string) {
+    return this.share.publicKind(token);
   }
 }
