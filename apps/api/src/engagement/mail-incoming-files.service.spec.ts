@@ -150,7 +150,7 @@ describe('incoming file current owner and existing durable attachment writer',()
     const row=[...f.rows.values()][0];row.lifecycleStatus='ready';row.scanStatus='clean';
     expect((await f.writer.listAttachments(ctx,{mailMessageId:selected.messageId}))[0].downloadUrl).toBe('synthetic-download');
     f.writer.createAttachmentDownloadUrl.mockClear();f.setMember(false);
-    await expect(f.writer.listAttachments(ctx,{mailMessageId:selected.messageId})).rejects.toThrow('not found');
+    expect(await f.writer.listAttachments(ctx,{mailMessageId:selected.messageId})).toEqual([]);
     expect(f.writer.createAttachmentDownloadUrl).not.toHaveBeenCalled();
   });
   it('current parent wall denies import and existing incoming-file URL release through canonical predicate',async()=>{
@@ -159,7 +159,7 @@ describe('incoming file current owner and existing durable attachment writer',()
     await expect(f.service.read(ctx,selected)).rejects.toThrow('not found');
     const old=f.tx.mailMessage.findFirst.getMockImplementation()!;
     f.tx.mailMessage.findFirst.mockImplementation(async()=>({...await old(),thread:{clientId:uuid(7)}}));
-    await expect(f.writer.listAttachments(ctx,{mailMessageId:selected.messageId})).rejects.toThrow('not found');
+    expect(await f.writer.listAttachments(ctx,{mailMessageId:selected.messageId})).toEqual([]);
     expect(f.tx.$queryRawUnsafe).toHaveBeenCalled();expect(f.writer.createAttachmentDownloadUrl).not.toHaveBeenCalled();
   });
   it('does not reuse a retained file after its private ACL or provenance changed',async()=>{
@@ -167,6 +167,22 @@ describe('incoming file current owner and existing durable attachment writer',()
     [...f.rows.values()][0].viewerUserIds.push(uuid(8));
     await expect(f.service.read(ctx,selected,pick)).rejects.toThrow('cannot be reused');
     expect(f.writer.s3.send).toHaveBeenCalledTimes(1);
+  });
+  it('omits only the revoked incoming file and retains ordinary client documents',async()=>{
+    const f=fixture(),pick=await selection(f);await f.service.read(ctx,selected,pick);
+    const incoming=[...f.rows.values()][0];
+    f.rows.set(uuid(90),{...incoming,id:uuid(90),source:'upload',mailMessageId:null,sourceEntityType:null,sourceEntityId:null,lifecycleStatus:'ready'});
+    f.setActive(false);
+    const rows=await f.writer.listAttachments(ctx,{clientId:uuid(7)});
+    expect(rows.map((row:any)=>row.id)).toEqual([uuid(90)]);
+    expect(f.writer.createAttachmentDownloadUrl).toHaveBeenCalledTimes(1);
+  });
+  it('omits an incoming row revoked during signing but does not swallow operational errors',async()=>{
+    const f=fixture(),pick=await selection(f);f.setScan('clean');await f.service.read(ctx,selected,pick);
+    f.writer.createAttachmentDownloadUrl.mockImplementation(async()=>{f.setActive(false);return 'private-url';});
+    expect(await f.writer.listAttachments(ctx,{clientId:uuid(7)})).toEqual([]);
+    f.setActive(true);f.tx.tenantMembership.findFirst.mockRejectedValue(new Error('synthetic database failure'));
+    await expect(f.writer.listAttachments(ctx,{clientId:uuid(7)})).rejects.toThrow('synthetic database failure');
   });
   it('rejects spoofed provider selectors and noncanonical original revision at the input boundary',()=>{
     expect(()=>incomingMailSelection({...selected,providerId:'guessed'})).toThrow();

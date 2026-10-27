@@ -8035,11 +8035,12 @@ export class EngagementService {
         await assertProspectAttachmentAccess(this.prisma, ctx, row);
         accessibleRows.push(row);
       } catch (error) {
+        if (row.source === 'incoming_mail' && error instanceof NotFoundException) continue;
         if (row.sourceEntityType !== 'hearing_record_brief' && !row.prospectId) throw error;
         // A removed private context must not leak its title or signed bytes.
       }
     }
-    return Promise.all(
+    const listed = await Promise.all(
       accessibleRows.map(async (row) => {
         // Phase 1 §3.h1 — no download URL for a file that may not be used, and an
         // explicit disclosure when it was never actually scanned. A signed URL for
@@ -8060,10 +8061,20 @@ export class EngagementService {
           ...(verdict.disclosure ? { scanDisclosure: verdict.disclosure } : {}),
         };
         await assertProspectAttachmentAccess(this.prisma, ctx, row);
-        if (row.source === 'incoming_mail') await this.validateAttachmentParents(ctx, row);
+        if (row.source === 'incoming_mail') {
+          try {
+            await this.validateAttachmentParents(ctx, row);
+          } catch (error) {
+            // Current access can change while signing. Never release that row,
+            // but preserve unrelated documents and propagate operational errors.
+            if (error instanceof NotFoundException) return null;
+            throw error;
+          }
+        }
         return result;
       }),
     );
+    return listed.filter((row): row is NonNullable<typeof row> => row !== null);
   }
 
   async extractAttachmentText(
