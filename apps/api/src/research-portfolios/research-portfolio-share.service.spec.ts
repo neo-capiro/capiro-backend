@@ -1,3 +1,4 @@
+import { DefenseResearchService } from '../defense-research/defense-research.service.js';
 import { ResearchPortfolioSharePayloadService } from './research-portfolio-share-payload.service.js';
 import {
   ResearchPortfolioShareService,
@@ -313,26 +314,23 @@ function harness(
     freezeLogoForSharing: jest.fn().mockResolvedValue({ dataUrl: 'data:image/png;base64,YQ==' }),
   };
   tx.researchPortfolioFitVersion = {
-    findFirst: jest
-      .fn()
-      .mockResolvedValue({
-        createdAt: new Date('2026-10-20T00:00:00.000Z'),
-        projection: { fitScore: 62, availability: 'available', basis: null },
-      }),
+    findFirst: jest.fn().mockResolvedValue({
+      createdAt: new Date('2026-10-20T00:00:00.000Z'),
+      projection: { fitScore: 62, availability: 'available', basis: null },
+    }),
   };
   tx.researchPortfolioEvent.findMany = jest.fn(async () => [
     { id: 'e1', eventKind: 'member_added', occurredAt: new Date('2026-10-19T00:00:00.000Z') },
   ]);
   const evidence: any = {
-    resolveEvidence: jest
-      .fn()
-      .mockResolvedValue({
-        evidenceRefId: 'context-search-revision:src-1',
-        sourceDocumentId: 'doc',
-        sourceRevisionId: 'src-1',
-        contentHash: 'hash',
-        nativeLocator: { page: null, section: null, occurrenceId: null },
-      }),
+    resolveEvidence: jest.fn().mockResolvedValue({
+      evidenceRefId: 'context-search-revision:src-1',
+      sourceDocumentId: 'doc',
+      sourceRevisionId: 'src-1',
+      sourceFamily: 'budget',
+      contentHash: 'hash',
+      nativeLocator: { page: null, section: null, occurrenceId: null },
+    }),
   };
   const payloads = new ResearchPortfolioSharePayloadService(analytics, evidence, branding);
   const service = new ResearchPortfolioShareService(
@@ -366,7 +364,7 @@ function harness(
     reviewed.set(input.operationKey, bound);
     return result;
   };
-  return { service, tx, state, prisma, analytics, branding, publish, review };
+  return { service, tx, state, prisma, analytics, branding, publish, review, evidence };
 }
 
 describe('PIN hashing', () => {
@@ -886,4 +884,102 @@ describe('workspace switch, comparison and logo', () => {
     const plainSession = await h.service.verifyPin(plain.token!, '123456', '203.0.113.6');
     expect(await h.service.logo(plain.token!, plainSession.viewToken)).toEqual({ url: null });
   });
+});
+
+describe('Fable sharing authority and admitted provenance', () => {
+  const input = { operationKey: 'guarded-link', snapshotId, designId, clientId, branding: false };
+  it('refuses another selected client and a newly denied client before revoke', async () => {
+    const h = harness({ role: 'editor', enabled: true, pin: '123456' });
+    await h.publish(input);
+    const linkId = h.state.links[0].id;
+    await expect(
+      h.service.revokeLink(ctx, portfolioId, linkId, 'different-client'),
+    ).rejects.toThrow('Share link not found');
+    h.tx.$queryRawUnsafe.mockResolvedValue([{ allowed: false }]);
+    await expect(h.service.revokeLink(ctx, portfolioId, linkId, clientId)).rejects.toThrow(
+      'no longer available',
+    );
+    expect(h.state.links[0].revokedAt).toBeNull();
+  });
+  it.each(['ineligible', 'unqualified', 'missing'])(
+    'uses the real public evidence owner to refuse %s sources and writes no link',
+    async (condition) => {
+      const h = harness({ role: 'editor', enabled: true, pin: '123456' });
+      const revisionId = 'ed202609-2800-4000-8000-000000009090';
+      const snapshot: any = await h.analytics.snapshot();
+      snapshot.projection.contributions[0].evidence[0].evidenceRefId =
+        'context-search-revision:' + revisionId;
+      const owner = new DefenseResearchService({
+        defenseContextDocumentRevision: {
+          findUnique: async () =>
+            condition === 'missing'
+              ? null
+              : {
+                  id: revisionId,
+                  document: {
+                    eligible: condition !== 'ineligible',
+                    qualification: condition === 'unqualified' ? 'candidate' : 'qualified',
+                  },
+                },
+        },
+      } as any);
+      h.evidence.resolveEvidence.mockImplementation((id: string) => owner.resolveEvidence(id));
+      await expect(h.publish(input)).rejects.toThrow('Widget totals cannot be published');
+      expect(h.state.links).toHaveLength(0);
+    },
+  );
+  it('refuses an unknown frozen family even when a resolver could return a row', async () => {
+    const h = harness({ role: 'editor', enabled: true, pin: '123456' });
+    const snapshot: any = await h.analytics.snapshot();
+    snapshot.projection.contributions[0].evidence[0].sourceFamily = 'unknown';
+    await expect(h.publish(input)).rejects.toThrow('Widget totals cannot be published');
+    expect(h.state.links).toHaveLength(0);
+    expect(h.evidence.resolveEvidence).not.toHaveBeenCalled();
+  });
+  it.each(['ineligible', 'unqualified', 'qualified'])(
+    'checks current %s context-occurrence admission without changing diagnostic reads',
+    async (condition) => {
+      const h = harness({ role: 'editor', enabled: true, pin: '123456' });
+      const occurrenceId = 'ed202609-2800-4000-8000-000000009091';
+      const row: any = {
+        id: occurrenceId,
+        revisionId: 'ed202609-2800-4000-8000-000000009092',
+        documentId: 'ed202609-2800-4000-8000-000000009093',
+        document: {
+          eligible: true,
+          qualification: 'qualified',
+          family: 'policy',
+          publisher: 'Official publisher',
+          sourceUrl: 'https://www.govinfo.gov/example',
+        },
+        revision: {
+          sourceDocumentId: 'ed202609-2800-4000-8000-000000009094',
+          contentHash: 'a'.repeat(64),
+          version: 'v1',
+          observedAt: new Date('2026-10-01T00:00:00.000Z'),
+        },
+        section: { nativeLocator: 'section-1' },
+      };
+      const owner = new DefenseResearchService({
+        defenseReferenceOccurrence: { findUnique: async () => row },
+      } as any);
+      const snapshot: any = await h.analytics.snapshot();
+      snapshot.projection.contributions[0].evidence = [
+        await owner.resolveEvidence('context-occurrence:' + occurrenceId),
+      ];
+      snapshot.projection.contributions[0].sourceRevisionIds = [row.revisionId];
+      row.document.eligible = condition !== 'ineligible';
+      row.document.qualification = condition === 'unqualified' ? 'candidate' : 'qualified';
+      h.evidence.resolveEvidence.mockImplementation((id: string) => owner.resolveEvidence(id));
+      // The authenticated diagnostic owner still exposes the stored occurrence.
+      expect((await owner.referenceOccurrence(occurrenceId)).id).toBe(occurrenceId);
+      if (condition === 'qualified') {
+        await h.publish(input);
+        expect(h.state.links).toHaveLength(1);
+      } else {
+        await expect(h.publish(input)).rejects.toThrow('Widget totals cannot be published');
+        expect(h.state.links).toHaveLength(0);
+      }
+    },
+  );
 });

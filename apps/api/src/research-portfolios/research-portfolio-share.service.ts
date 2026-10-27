@@ -4,7 +4,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  scrypt,
+  scryptSync,
+  timingSafeEqual,
+} from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import {
   WorkspaceShareLifecycle,
@@ -101,6 +108,18 @@ export function verifyPin(pin: string, stored: string): boolean {
   const [scheme, n, salt, hash] = stored.split('$');
   if (scheme !== 'scrypt' || !n || !salt || !hash) return false;
   const candidate = scryptSync(pin, salt, 64, { N: Number(n) });
+  const expected = Buffer.from(hash, 'hex');
+  return candidate.length === expected.length && timingSafeEqual(candidate, expected);
+}
+
+async function verifyPublicPin(pin: string, stored: string): Promise<boolean> {
+  const [scheme, n, salt, hash] = stored.split('$');
+  if (scheme !== 'scrypt' || Number(n) !== SCRYPT_N || !salt || !hash) return false;
+  const candidate = await new Promise<Buffer>((resolve, reject) => {
+    scrypt(pin, salt, 64, { N: SCRYPT_N }, (error, result) =>
+      error ? reject(error) : resolve(result),
+    );
+  });
   const expected = Buffer.from(hash, 'hex');
   return candidate.length === expected.length && timingSafeEqual(candidate, expected);
 }
@@ -538,11 +557,20 @@ export class ResearchPortfolioShareService {
     ctx: TenantContext,
     portfolioId: string,
     linkId: string,
+    selectedClientId: string | null = null,
   ): Promise<ResearchPortfolioShareLinkDto> {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await this.lockPortfolio(tx, ctx.tenantId, portfolioId);
       const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'editor');
-      return this.revokeRow(tx, ctx, portfolioId, portfolio.revision, linkId);
+      return this.revokeRow(
+        tx,
+        ctx,
+        portfolioId,
+        portfolio.revision,
+        linkId,
+        false,
+        selectedClientId,
+      );
     });
   }
 
@@ -561,7 +589,7 @@ export class ResearchPortfolioShareService {
         where: { id: row.portfolioId, tenantId: ctx.tenantId },
         select: { revision: true },
       });
-      return this.revokeRow(tx, ctx, row.portfolioId, portfolio?.revision ?? 0, linkId);
+      return this.revokeRow(tx, ctx, row.portfolioId, portfolio?.revision ?? 0, linkId, true);
     });
   }
 
@@ -580,10 +608,14 @@ export class ResearchPortfolioShareService {
   ): Promise<ResearchPortfolioShareViewSessionDto> {
     this.throttleAddress(address);
     const session = await this.prisma.withSystem(async (tx) => {
-      const live = await this.findLiveLink(tx, token);
+      const live = await this.findLiveLink(tx, token, true);
       if (!live) return null;
       const { row, pinHash } = live;
-      if (typeof pin !== 'string' || !PIN_PATTERN.test(pin) || !verifyPin(pin, pinHash)) {
+      if (
+        typeof pin !== 'string' ||
+        !PIN_PATTERN.test(pin) ||
+        !(await verifyPublicPin(pin, pinHash))
+      ) {
         const failures = (row.lockedUntil ? 0 : row.failedPinAttempts) + 1;
         await this.shareLinks(tx).update({
           where: { id: row.id },
@@ -704,12 +736,18 @@ export class ResearchPortfolioShareService {
       WHERE tenant_id = ${tenantId}::uuid AND id = ${portfolioId}::uuid FOR UPDATE`;
   }
 
-  private async findLiveLink(tx: Tx, token: string) {
+  private async findLiveLink(tx: Tx, token: string, pinAttempt = false) {
     const lifecycle = this.shareLinks(tx);
     const identity = await lifecycle.byToken(token);
     if (!identity) return null;
-    await this.lockTenant(tx, identity.tenantId);
-    await this.lockPortfolio(tx, identity.tenantId, identity.portfolioId);
+    // Concurrent public reads share locks; settings, PIN rotation and revocation
+    // still take the exclusive owner locks. Failed PIN counters serialize per link.
+    await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${identity.tenantId}::uuid FOR SHARE`;
+    await tx.$queryRaw`SELECT id FROM research_portfolios
+      WHERE tenant_id = ${identity.tenantId}::uuid AND id = ${identity.portfolioId}::uuid FOR SHARE`;
+    if (pinAttempt)
+      await tx.$queryRaw`SELECT id FROM ws_share_link
+      WHERE tenant_id = ${identity.tenantId}::uuid AND id = ${identity.id}::uuid FOR UPDATE`;
     const row = await lifecycle.byToken(token);
     if (!row || !lifecycle.isLive(row)) return null;
     const now = Date.now();
@@ -775,12 +813,17 @@ export class ResearchPortfolioShareService {
     portfolioId: string,
     revision: number,
     linkId: string,
+    tenantAdministrator = false,
+    selectedClientId: string | null = null,
   ): Promise<ResearchPortfolioShareLinkDto> {
     const row = await this.shareLinks(tx).findFirst({
       where: { id: linkId, tenantId: ctx.tenantId, portfolioId },
       include: { client: { select: { name: true } } },
     });
     if (!row) throw new NotFoundException('Share link not found');
+    if (selectedClientId && row.clientId !== selectedClientId)
+      throw new NotFoundException('Share link not found');
+    if (!tenantAdministrator) await assertResearchPortfolioClientAccess(tx, ctx, [row.clientId]);
     if (row.revokedAt) return this.linkDto(row);
     const updated = await this.shareLinks(tx).revoke(
       row,
@@ -874,6 +917,7 @@ export class ResearchPortfolioShareService {
     openCount: number;
     lastOpenedAt: Date | null;
     failedPinAttempts: number;
+    lockedUntil: Date | null;
     client: { name: string };
   }): ResearchPortfolioShareLinkDto {
     const status = row.revokedAt
@@ -899,6 +943,7 @@ export class ResearchPortfolioShareService {
       openCount: row.openCount,
       lastOpenedAt: asIso(row.lastOpenedAt),
       failedPinAttempts: row.failedPinAttempts,
+      lockedUntil: asIso(row.lockedUntil),
     };
   }
 }

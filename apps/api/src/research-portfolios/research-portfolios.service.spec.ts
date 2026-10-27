@@ -498,3 +498,58 @@ describe('Research portfolio grant mutation serialization', () => {
     expect(h.tx.researchPortfolioEvent.create).not.toHaveBeenCalled();
   });
 });
+
+describe('Fable closeout portfolio boundaries', () => {
+  it('filters historical events for a denied client after its link has been removed', async () => {
+    const h = harness('viewer');
+    h.tx.$queryRawUnsafe.mockResolvedValue([{ id: clientId }]);
+    h.tx.researchPortfolio.findUniqueOrThrow.mockResolvedValue({
+      id: portfolioId,
+      name: 'Research',
+      mode: 'manual',
+      lifecycle: 'active',
+      revision: 2,
+      ownerUserId: userId,
+      createdAt: now,
+      updatedAt: now,
+      grants: [],
+      clientLinks: [],
+      members: [],
+      _count: { members: 0, clientLinks: 0 },
+      events: [
+        { id: 'hidden', occurredAt: now, payload: { clientId, clientName: 'Walled' } },
+        { id: 'visible', occurredAt: now, payload: { targetId: 'public-member' } },
+      ],
+    } as any);
+    const result = await h.service.detail(ctx, portfolioId);
+    expect(result.recentEvents.map((event) => event.id)).toEqual(['visible']);
+    expect(JSON.stringify(result)).not.toContain('Walled');
+  });
+  it.each(['unresolved', 'excluded'])('requires resolution before including a preserved unresolved member (%s)', async disposition => {
+    const h = harness();
+    h.tx.researchPortfolioMember.findMany.mockResolvedValue([
+      { id: clientId, targetId: 'missing', disposition, unresolvedInput: { original: 'missing' } },
+    ]);
+    await expect(
+      h.service.decideMembers(ctx, portfolioId, {
+        idempotencyKey: 'resolve-first',
+        expectedRevision: 1,
+        decisions: [{ memberId: clientId, disposition: 'included', reason: 'Keep' }],
+      } as any),
+    ).rejects.toThrow('Resolve unresolved');
+    expect(h.tx.researchPortfolioMember.update).not.toHaveBeenCalled();
+  });
+  it('refuses unsupported portfolio modes before persistence', async () => {
+    const h = harness();
+    await expect(
+      h.service.create(ctx, { name: 'Test', mode: 'invalid', idempotencyKey: 'mode' } as any),
+    ).rejects.toThrow('Invalid portfolio mode');
+    await expect(
+      h.service.update(ctx, portfolioId, {
+        mode: 'invalid',
+        idempotencyKey: 'mode',
+        expectedRevision: 1,
+      } as any),
+    ).rejects.toThrow('Invalid portfolio mode');
+  });
+});

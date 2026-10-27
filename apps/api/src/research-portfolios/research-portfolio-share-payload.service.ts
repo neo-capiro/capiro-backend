@@ -48,6 +48,28 @@ const EVENT_KINDS = [
 ] as const;
 const FINANCIAL_WIDGETS = new Set(['key_totals', 'funding_table', 'sources']);
 const RECIPIENT_SETTINGS = new Set(['title', 'subtitle', 'text', 'caption', 'limit', 'snapshotId']);
+// These are the public evidence owners implemented by DefenseResearchService.resolveEvidence.
+// A caller-authored source-family label alone never establishes public provenance.
+const PUBLIC_EVIDENCE_OWNERS = new Set([
+  'context-occurrence',
+  'federal-register-reference',
+  'context-compare',
+  'context-search-revision',
+  'context-search',
+  'office-source',
+  'office',
+  'office-program-path',
+  'office-program',
+  'person-role',
+  'program-alias',
+  'acquisition-search',
+  'pe-source',
+  'project',
+  'procurement-source',
+  'pe-position',
+  'project-position',
+  'milestone-period',
+]);
 
 function refusal(widgetId: string, detail: string): never {
   throw new ConflictException(`Widget ${widgetId} cannot be published: ${detail}`);
@@ -56,13 +78,20 @@ function refusal(widgetId: string, detail: string): never {
 /** Copy the public evidence contract, never arbitrary properties from stored JSON. */
 function frozenEvidence(raw: Readonly<Record<string, unknown>>): DefenseEvidenceRefDto | null {
   if (typeof raw.evidenceRefId !== 'string' || !raw.evidenceRefId) return null;
+  if (
+    !PUBLIC_EVIDENCE_OWNERS.has(raw.evidenceRefId.split(':', 1)[0]!) ||
+    typeof raw.sourceFamily !== 'string' ||
+    !raw.sourceFamily.trim() ||
+    raw.sourceFamily.trim().toLowerCase() === 'unknown'
+  )
+    return null;
   const nullable = (key: string) => (typeof raw[key] === 'string' ? (raw[key] as string) : null);
   const locator = raw.nativeLocator as Record<string, unknown> | null;
   return {
     evidenceRefId: raw.evidenceRefId,
     sourceDocumentId: nullable('sourceDocumentId'),
     sourceRevisionId: nullable('sourceRevisionId'),
-    sourceFamily: typeof raw.sourceFamily === 'string' ? raw.sourceFamily : 'unknown',
+    sourceFamily: raw.sourceFamily,
     publisher: nullable('publisher'),
     sourceUrl: nullable('sourceUrl'),
     nativeLocator: {
@@ -358,7 +387,14 @@ export class ResearchPortfolioSharePayloadService {
         }
         if (
           current.availability === 'unavailable' ||
-          !['sourceDocumentId', 'sourceRevisionId', 'contentHash', 'nativeLocator'].every(
+          ![
+            'evidenceRefId',
+            'sourceFamily',
+            'sourceDocumentId',
+            'sourceRevisionId',
+            'contentHash',
+            'nativeLocator',
+          ].every(
             (key) =>
               stableJson(current[key as keyof DefenseEvidenceRefDto] ?? null) ===
               stableJson(frozen[key as keyof DefenseEvidenceRefDto] ?? null),

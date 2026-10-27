@@ -81,6 +81,15 @@ function fixture() {
           : [],
     },
     clioArtifact: {
+      findMany: async ({ where, take }: any) =>
+        artifacts
+          .filter(
+            (row) =>
+              row.tenantId === where.tenantId &&
+              row.userId === where.userId &&
+              row.parentArtifactId === where.parentArtifactId,
+          )
+          .slice(0, take),
       findFirst: async ({ where }: any) =>
         artifacts.find(
           (row) =>
@@ -89,7 +98,12 @@ function fixture() {
             (where.id ? row.id === where.id : row.metadata.operationKey === where.metadata.equals),
         ),
       create: async ({ data }: any) => {
-        const row = { ...data, id: id(9470 + artifacts.length), parentArtifactId: null };
+        const row = {
+          ...data,
+          id: id(9470 + artifacts.length),
+          parentArtifactId: null,
+          createdAt: new Date('2026-10-27T12:00:00Z'),
+        };
         artifacts.push(row);
         return row;
       },
@@ -403,4 +417,69 @@ describe('provider-free private RP institutional preparations', () => {
     ).rejects.toThrow('distinct');
     expect(f.artifacts).toEqual([]);
   });
+});
+
+describe('native Research Portfolio saved-draft opening', () => {
+  it('reopens non-ASCII edits up to the canonical writer code-unit limit and refuses longer bodies', async () => {
+    const f = fixture();
+    const receipt = await f.service.prepare(ctx, f.input);
+    const bodyText = '界'.repeat(500_000);
+    expect(Buffer.byteLength(bodyText, 'utf8')).toBeGreaterThan(500_000);
+    f.artifacts[0].bodyText = bodyText;
+    expect((await f.service.readDraft(ctx, f.portfolio.id, receipt.artifactId)).bodyText).toBe(
+      bodyText,
+    );
+    f.artifacts[0].bodyText += 'x';
+    await expect(f.service.readDraft(ctx, f.portfolio.id, receipt.artifactId)).rejects.toThrow(
+      'exceeds the editable draft limit',
+    );
+  });
+  it('reads the exact owned draft through its current portfolio without refreshing its captured sources', async () => {
+    const f = fixture();
+    const receipt = await f.service.prepare(ctx, f.input);
+    const opened = await f.service.readDraft(ctx, f.portfolio.id, receipt.artifactId);
+    expect(opened).toMatchObject({
+      artifactId: receipt.artifactId,
+      portfolioId: f.portfolio.id,
+      conversationId: f.conversation.id,
+      kind: 'research_portfolio_meeting',
+      bodyText: f.artifacts[0].bodyText,
+      contentType: 'text/markdown',
+      reviewStatus: 'unreviewed_draft',
+      parentArtifactId: null,
+    });
+    f.artifacts.push({
+      ...f.artifacts[0],
+      id: id(9995),
+      parentArtifactId: receipt.artifactId,
+      bodyText: 'Saved edit after lost response',
+      metadata: { ...f.artifacts[0].metadata, reviewStatus: 'unreviewed_edit' },
+    });
+    const recovered = await f.service.readDraft(ctx, f.portfolio.id, receipt.artifactId);
+    expect(recovered.childVersions).toEqual([
+      expect.objectContaining({ artifactId: id(9995), reviewStatus: 'unreviewed_edit' }),
+    ]);
+    expect((await f.service.readDraft(ctx, f.portfolio.id, id(9995))).bodyText).toBe(
+      'Saved edit after lost response',
+    );
+    expect(opened).not.toHaveProperty('metadata');
+    expect(opened).not.toHaveProperty('sourceLineage');
+    await expect(f.service.readDraft(ctx, id(9999), receipt.artifactId)).rejects.toThrow(
+      'draft not found',
+    );
+    await expect(
+      f.service.readDraft({ ...ctx, userId: id(9998) }, f.portfolio.id, receipt.artifactId),
+    ).rejects.toThrow('draft not found');
+  });
+  it.each(['grant', 'membership', 'conversation'])(
+    'refuses native opening after current %s authority is lost',
+    async (boundary) => {
+      const f = fixture();
+      const receipt = await f.service.prepare(ctx, f.input);
+      if (boundary === 'grant') f.setGrant(false);
+      if (boundary === 'membership') f.setMember(false);
+      if (boundary === 'conversation') f.conversation.clientId = id(9997);
+      await expect(f.service.readDraft(ctx, f.portfolio.id, receipt.artifactId)).rejects.toThrow();
+    },
+  );
 });

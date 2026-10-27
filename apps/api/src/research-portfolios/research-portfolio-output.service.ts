@@ -236,7 +236,13 @@ export class ResearchPortfolioOutputService {
     };
     const requestHash = sha256(stable(normalized));
     const identifiers = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');
+      await tx.$queryRaw(
+        Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${ctx.tenantId + ':output:' + input.operationKey}, 0))`,
+      );
+      await tx.$queryRaw(
+        Prisma.sql`SELECT id FROM research_portfolios WHERE id = ${portfolioId}::uuid AND tenant_id = ${ctx.tenantId}::uuid FOR UPDATE`,
+      );
+      const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'editor');
       const replay = await tx.researchPortfolioOutputRequest.findUnique({
         where: {
           tenantId_operationKey: { tenantId: ctx.tenantId, operationKey: input.operationKey },
@@ -244,12 +250,18 @@ export class ResearchPortfolioOutputService {
         include: { jobs: { orderBy: { createdAt: 'desc' }, take: 1 } },
       });
       if (replay) {
-        if (replay.requestHash !== requestHash || replay.portfolioId !== portfolioId)
+        if (
+          replay.requestedByUserId !== ctx.userId ||
+          replay.requestHash !== requestHash ||
+          replay.portfolioId !== portfolioId
+        )
           throw new ConflictException('This output operation key was used for different content');
         const job = replay.jobs[0];
         if (!job) throw new ConflictException('Output request has no durable job');
         return { jobId: job.id, replay: true };
       }
+      if (portfolio.lifecycle === 'archived')
+        throw new ConflictException('Archived portfolios are read-only');
       if (normalized.snapshotId) {
         const snapshot = await tx.researchPortfolioSnapshot.findFirst({
           where: { id: normalized.snapshotId, portfolioId },
@@ -312,7 +324,9 @@ export class ResearchPortfolioOutputService {
     jobId: string,
   ): Promise<ResearchPortfolioOutputJobDto> {
     await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');
+      const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'editor');
+      if (portfolio.lifecycle === 'archived')
+        throw new ConflictException('Archived portfolios are read-only');
       const row = await tx.researchPortfolioOutputJob.findFirst({
         where: { id: jobId, portfolioId },
       });
@@ -352,7 +366,9 @@ export class ResearchPortfolioOutputService {
     jobId: string,
   ): Promise<ResearchPortfolioOutputJobDto> {
     const retryable = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');
+      const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'editor');
+      if (portfolio.lifecycle === 'archived')
+        throw new ConflictException('Archived portfolios are read-only');
       const row = await tx.researchPortfolioOutputJob.findFirst({
         where: { id: jobId, portfolioId },
       });
@@ -379,10 +395,12 @@ export class ResearchPortfolioOutputService {
     ctx: TenantContext,
     portfolioId: string,
     jobId: string,
-    requiredRole: 'viewer' | 'editor' = 'viewer',
+    requiredRole: 'editor' = 'editor',
   ): Promise<ResearchPortfolioOutputJobDto> {
     await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, requiredRole);
+      const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, requiredRole);
+      if (portfolio.lifecycle === 'archived')
+        throw new ConflictException('Archived portfolios are read-only');
       const row = await tx.researchPortfolioOutputJob.findFirst({
         where: { id: jobId, portfolioId, tenantId: ctx.tenantId },
         include: {
@@ -495,7 +513,7 @@ export class ResearchPortfolioOutputService {
     portfolioId: string,
     outputId: string,
     input: SaveResearchPortfolioOutputToClientDto,
-    requiredRole: 'viewer' | 'editor' = 'viewer',
+    requiredRole: 'editor' = 'editor',
     reconciliationOnly = false,
   ): Promise<ResearchPortfolioClientFileReceiptDto> {
     if (!input.operationKey || input.operationKey.length > 128)
@@ -515,6 +533,8 @@ export class ResearchPortfolioOutputService {
       });
       if (!membership) throw new NotFoundException('Active tenant membership required');
       const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, requiredRole);
+      if (portfolio.lifecycle === 'archived')
+        throw new ConflictException('Archived portfolios are read-only');
       if (!portfolio.clientLinks.some((link: any) => link.clientId === input.clientId))
         throw new NotFoundException('Linked client not found');
       await assertResearchPortfolioClientAccess(tx, ctx, [input.clientId]);

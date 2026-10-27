@@ -12,9 +12,10 @@
  * `unsubscribe` stops the owner's future work (rule paused + delivery switch off) and
  * says exactly that.
  */
-import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import {
   WATCH_SUPPORTED_OPERATIONS,
+  WatchActionNotApplied,
   type WatchAdapterEffect,
   type WatchFamily,
   type WatchOperation,
@@ -64,7 +65,7 @@ export class KeywordWatchAdapter {
         // The owner accepts activation only against its own complete current
         // preview run (COMPLETE_CURRENT_PREVIEW_REQUIRED) from a now-baseline.
         if (request.sourceRevision === null)
-          throw new BadRequestException('Watch owner preview run required');
+          throw new WatchActionNotApplied('Watch owner preview run required');
         return {
           ...base,
           operation: request.operation,
@@ -76,10 +77,10 @@ export class KeywordWatchAdapter {
         return { ...base, operation: request.operation };
       case 'set_delivery':
         if (request.enabled === null)
-          throw new BadRequestException('Watch owner delivery switch value required');
+          throw new WatchActionNotApplied('Watch owner delivery switch value required');
         return { ...base, operation: request.operation, enabled: request.enabled };
       default:
-        throw new BadRequestException('Unsupported watch operation for this owner');
+        throw new WatchActionNotApplied('Unsupported watch operation for this owner');
     }
   }
 

@@ -22,6 +22,7 @@ function harness(selectedClientId: string | null = 'one') {
       { id: 'b', clientId: 'two', status: 'active' },
       { id: 'c', clientId: 'one', status: 'revoked' },
     ]),
+    revokeLink: jest.fn().mockResolvedValue({ id: 'a' }),
     publishLink: jest
       .fn()
       .mockResolvedValue({ link: { id: 'a' }, token: 'a'.repeat(64), replayed: false }),
@@ -97,4 +98,20 @@ it('passes the exact reviewed publication binding and returns the canonical one-
     previewHash: 'b'.repeat(64),
   });
   expect(result).toMatchObject({ sharePath: `/share/${'a'.repeat(64)}`, shownOnce: true });
+});
+
+it('refuses another client before publication and binds revocation to the current selection', async () => {
+  const h = harness();
+  await expect(
+    h.service.execute(ctx, 'publish_research_portfolio_share_link', {
+      conversationId,
+      clientId: 'two',
+    }),
+  ).rejects.toThrow('conversation client');
+  expect(h.share.publishLink).not.toHaveBeenCalled();
+  await h.service.execute(ctx, 'revoke_research_portfolio_share_link', {
+    conversationId,
+    linkId: 'a',
+  });
+  expect(h.share.revokeLink).toHaveBeenCalledWith(ctx, 'portfolio', 'a', 'one');
 });

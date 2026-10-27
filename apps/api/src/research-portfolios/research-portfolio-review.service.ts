@@ -28,6 +28,7 @@ import type {
   TenantContext,
 } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { addResearchPortfolioReviewNote } from './research-portfolio-review-notes.js';
 import { readCanonicalResearchTarget } from './research-portfolio-targets.js';
 
 type Tx = Prisma.TransactionClient;
@@ -1533,7 +1534,7 @@ export class ResearchPortfolioReviewService {
     });
 
     if (!grant) {
-      throw new ForbiddenException('You do not have access to this portfolio');
+      throw new NotFoundException('Research portfolio not found');
     }
 
     const userRoleLevel = ROLE_LEVEL[grant.role as RequiredRole] ?? 0;
@@ -1718,101 +1719,26 @@ export class ResearchPortfolioReviewService {
     reviewId: string,
     input: { note: string; operationKey: string },
   ): Promise<ResearchPortfolioReviewMutationReceiptDto> {
-    const note = input.note?.trim();
-    if (!note || note.length === 0) {
-      throw new BadRequestException('Note is required');
-    }
-    if (note.length > 5000) {
-      throw new BadRequestException('Note must be less than 5000 characters');
-    }
-    const operationKey = input.operationKey?.trim();
-    if (!operationKey || operationKey.length === 0) {
-      throw new BadRequestException('operationKey is required');
-    }
-
-    return this.prisma.withTenant(
-      ctx.tenantId,
-      async (tx): Promise<ResearchPortfolioReviewMutationReceiptDto> => {
-        await this.loadAuthorized(tx, ctx, portfolioId, 'viewer');
-        const isArchived = await this.isPortfolioArchived(tx, ctx.tenantId, portfolioId);
-        if (isArchived) {
-          throw new BadRequestException('Cannot add notes to reviews for archived portfolio');
-        }
-
-        const existing = await tx.researchPortfolioEvent.findFirst({
-          where: { tenantId: ctx.tenantId, idempotencyKey: operationKey },
-        });
-        if (existing) {
-          const payload = existing.payload as any;
-          if (payload?.noteId) {
-            return {
-              portfolioId: existing.portfolioId,
-              actorUserId: existing.actorUserId,
-              occurredAt: asIso(existing.occurredAt),
-              outcomes: [
-                {
-                  reviewId,
-                  status: 'note_added',
-                  revision: null,
-                  noteId: payload.noteId,
-                  message: null,
-                },
-              ],
-            };
-          }
-          throw new ConflictException('Idempotency key was already used for a different operation');
-        }
-
-        const review = await tx.researchPortfolioReview.findUnique({
-          where: { id: reviewId, tenantId: ctx.tenantId, portfolioId },
-        });
-        if (!review) {
-          throw new NotFoundException('Review not found');
-        }
-
-        const noteRecord = await tx.researchPortfolioReviewNote.create({
-          data: {
-            tenantId: ctx.tenantId,
-            portfolioId,
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const result = await addResearchPortfolioReviewNote(tx, ctx, portfolioId, reviewId, {
+        body: input.note,
+        idempotencyKey: input.operationKey,
+      });
+      return {
+        portfolioId,
+        actorUserId: ctx.userId,
+        occurredAt: asIso(result.event.occurredAt),
+        outcomes: [
+          {
             reviewId,
-            authorUserId: ctx.userId,
-            body: note,
+            status: 'note_added',
+            revision: result.reviewRevision,
+            noteId: result.note.id,
+            message: null,
           },
-        });
-
-        await this.bumpPortfolioRevision(tx, ctx.tenantId, portfolioId, review.revision);
-
-        const event = await tx.researchPortfolioEvent.create({
-          data: {
-            tenantId: ctx.tenantId,
-            portfolioId,
-            eventKind: 'review_note_added',
-            aggregateRevision: await this.getPortfolioRevision(tx, ctx.tenantId, portfolioId),
-            actorUserId: ctx.userId,
-            idempotencyKey: operationKey,
-            payloadFingerprint: createHash('sha256')
-              .update(JSON.stringify({ operation: 'review.note', reviewId, noteId: noteRecord.id }))
-              .digest('hex'),
-            payload: { noteId: noteRecord.id, reviewId },
-          },
-        });
-
-        return {
-          portfolioId,
-          actorUserId: ctx.userId,
-          occurredAt: asIso(event.occurredAt),
-          outcomes: [
-            {
-              reviewId,
-              status: 'note_added',
-              revision: review.revision,
-              noteId: noteRecord.id,
-              message: null,
-            },
-          ],
-        };
-      },
-    );
+        ],
+      };
+    });
   }
 
   private reviewDto(review: any): ResearchPortfolioReviewDto {

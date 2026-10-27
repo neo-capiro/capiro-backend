@@ -170,7 +170,7 @@ export class AnalyticsDbService {
       const dbCode = (error as { meta?: { code?: unknown } } | null)?.meta?.code;
       if (code === 'P2028' || ['57014', '55P03'].includes(String(dbCode ?? code)))
         throw new PublicSqlError('QUERY_TIMEOUT', 'The public query exceeded its execution time limit. Narrow the query.');
-      if (['42803', '42804', '42883', '22P02', '22003', '22007', '22008', '22023'].includes(String(dbCode ?? code)))
+      if (['42803', '42804', '42883', '42P08', '42P18', '22P02', '22003', '22007', '22008', '22023'].includes(String(dbCode ?? code)))
         throw new PublicSqlError('INVALID_QUERY', 'Check field and parameter types, supported aggregates, and GROUP BY fields.');
       throw new PublicSqlError('SOURCE_UNAVAILABLE', 'Public data is currently unavailable.');
     }

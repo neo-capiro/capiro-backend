@@ -1066,6 +1066,26 @@ export interface ResearchPortfolioTourStateDto {
   completedAt: string | null;
 }
 
+export interface ResearchPortfolioDraftDto {
+  artifactId: string;
+  portfolioId: string;
+  conversationId: string;
+  parentArtifactId: string | null;
+  title: string;
+  kind: 'research_portfolio_brief' | 'research_portfolio_meeting';
+  contentType: 'text/markdown';
+  bodyText: string;
+  reviewStatus: 'unreviewed_draft' | 'unreviewed_edit';
+  createdAt: string;
+  childVersions: readonly {
+    artifactId: string;
+    title: string;
+    createdAt: string;
+    reviewStatus: 'unreviewed_draft' | 'unreviewed_edit';
+  }[];
+  childVersionsHasMore: boolean;
+}
+
 // ---------------------------------------------------------------------------
 // Client share links: PIN-protected, one-week, frozen dashboard at a Capiro link.
 // ---------------------------------------------------------------------------
@@ -1159,6 +1179,7 @@ export interface ResearchPortfolioShareLinkDto {
   openCount: number;
   lastOpenedAt: string | null;
   failedPinAttempts: number;
+  lockedUntil: string | null;
 }
 
 export interface PreviewResearchPortfolioShareDto {
@@ -1209,7 +1230,9 @@ export interface ResearchPortfolioShareDashboardDto {
       label: string | null;
       disposition: ResearchPortfolioMemberDisposition;
     }[];
-    sources: readonly ({ id: string } & Partial<import('./defense-research.js').DefenseEvidenceRefDto>)[];
+    sources: readonly ({ id: string } & Partial<
+      import('./defense-research.js').DefenseEvidenceRefDto
+    >)[];
     clientFit: {
       availability: ResearchPortfolioFitAvailability;
       fitScore: number | null;

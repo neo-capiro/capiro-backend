@@ -1,5 +1,30 @@
 export type DefenseResearchAvailability = 'available' | 'partial' | 'unavailable';
 
+export interface DefenseEvidenceLocatorDetailsDto {
+  availability: DefenseResearchAvailability;
+  reason: string | null;
+  printedPage: string | null;
+  tableLabel: string | null;
+  rowLabel: string | null;
+  columnLabel: string | null;
+  textSpan: { start: number; end: number } | null;
+  boundingBox: {
+    x0: number;
+    y0: number;
+    x1: number;
+    y1: number;
+    coordinateSystem: 'pdf_points' | 'pixels' | 'normalized_0_1';
+    pageWidth?: number;
+    pageHeight?: number;
+  } | null;
+  structuredElement: {
+    companionByteSha256: string;
+    elementPath: string;
+    elementId?: string;
+  } | null;
+  sourceSpanHash: string | null;
+}
+
 export interface DefenseEvidenceRefDto {
   evidenceRefId: string;
   sourceDocumentId: string | null;
@@ -7,7 +32,12 @@ export interface DefenseEvidenceRefDto {
   sourceFamily: string;
   publisher: string | null;
   sourceUrl: string | null;
-  nativeLocator: { page: number | null; section: string | null; occurrenceId: string | null };
+  nativeLocator: {
+    page: number | null;
+    section: string | null;
+    occurrenceId: string | null;
+    details?: DefenseEvidenceLocatorDetailsDto;
+  };
   contentHash: string | null;
   edition: string | null;
   observedAt: string | null;
@@ -166,6 +196,8 @@ export interface DefenseReferenceOccurrenceDto {
   sourceRevisionId: string;
   sourceSectionId: string | null;
   exactSpan: string;
+  startOffset?: number | null;
+  endOffset?: number | null;
   originalWording: string;
   referenceType: string;
   targetCandidates: readonly { type: string; id: string; label: string }[];
@@ -594,6 +626,34 @@ export interface DefenseProductCoverageRowDto {
   published: number;
   outcome: 'complete' | 'partial' | 'unavailable' | 'unknown';
   limitations: readonly string[];
+  recordedOutcome?: DefenseCoverageRecordedOutcomeDto;
+}
+
+export interface DefenseCoverageRecordedOutcomeDto {
+  sourceState: string | null;
+  lastObservation: { state: string; revisionKind: string; observedAt: string } | null;
+  lastGovernedResolution: {
+    decision: 'expected' | 'not_filed' | 'published' | 'withdrawn' | 'unavailable';
+    resolvedAt: string;
+  } | null;
+  reason: string | null;
+}
+
+/** A recorded event side is historical evidence, not current publication admission. */
+export interface DefenseFederalEvidenceSideDto {
+  availability: DefenseResearchAvailability;
+  reason: string | null;
+  revisionId: string | null;
+  contentHash: string | null;
+  extractionHash: string | null;
+  sourceUrl: string | null;
+  locator: string | null;
+  textSpan: { start: number; end: number } | null;
+  evidence: string | null;
+  languageHash: string | null;
+  qualificationState: string | null;
+  publishedAt: string | null;
+  sourceModifiedAt: string | null;
 }
 
 export interface DefenseProductCoverageResponseDto {

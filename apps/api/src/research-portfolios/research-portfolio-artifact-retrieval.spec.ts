@@ -55,6 +55,10 @@ function fixture() {
     'ensureConversation',
     'ensureConversationAnyStatus',
     'authorizedResearchPortfolioHistory',
+    'authorizeOrdinaryConversationSummary',
+    'authorizeOrdinaryReportMessages',
+    'authorizeOrdinaryReportMessage',
+    'authorizeOrdinaryReportArtifact',
   ])
     service[key] = (MeriService.prototype as any)[key].bind(service);
   return {

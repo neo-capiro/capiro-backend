@@ -36,6 +36,42 @@ describe('client filing action preview', () => {
       expect(JSON.stringify(preview)).not.toContain(hidden);
   });
 
+  it('labels every MO-05 Research Portfolio action and shows only its bounded facts', () => {
+    const snapshot = buildMeriActionPreview({
+      tool: 'create_research_portfolio_snapshot',
+      input: { conversationId: 'conversation-a', name: 'Q1 review', expectedRevision: 3, operationKey: 'meri-rp-' + 'a'.repeat(64) },
+      reason: 'Confirm the snapshot.',
+    });
+    expect(snapshot).toMatchObject({
+      label: 'Create a Research Portfolio snapshot',
+      leavesFirm: false,
+      reversible: true,
+      fields: { name: 'Q1 review', expectedRevision: 3 },
+    });
+    expect(JSON.stringify(snapshot)).not.toContain('meri-rp-');
+    const manage = buildMeriActionPreview({
+      tool: 'manage_research_portfolio',
+      input: { conversationId: 'conversation-a', action: 'portfolio_archive', parameters: { expectedRevision: 3, idempotencyKey: 'meri-rp-' + 'b'.repeat(64) }, confirmed: true },
+      reason: 'Confirm the management action.',
+    });
+    expect(manage).toMatchObject({ label: 'Run a Research Portfolio management action', fields: { action: 'portfolio_archive' }, counts: { parameters: 2 } });
+    expect(JSON.stringify(manage)).not.toContain('meri-rp-');
+    const note = buildMeriActionPreview({
+      tool: 'add_research_portfolio_review_note',
+      input: { conversationId: 'conversation-a', reviewId: 'review-a', body: 'Private note body', expectedRevision: 2, operationKey: 'meri-rp-' + 'c'.repeat(64) },
+      reason: 'Confirm the note.',
+    });
+    expect(note.fields).toMatchObject({ reviewId: 'review-a', expectedRevision: 2 });
+    expect(JSON.stringify(note)).not.toContain('Private note body');
+    const meeting = buildMeriActionPreview({
+      tool: 'prepare_research_portfolio_meeting',
+      input: { conversationId: 'conversation-a', confirmed: true, selectedReviewIds: ['review-a', 'review-b'], operationKey: 'meri-rp-' + 'd'.repeat(64) },
+      reason: 'Confirm the draft.',
+    });
+    expect(meeting).toMatchObject({ label: 'Prepare a Research Portfolio meeting draft', counts: { selectedReviews: 2 } });
+    expect(meeting.fields.effect).toContain('Nothing is sent');
+  });
+
   it('identifies the exact link and immediate effect before revocation', () => {
     const preview = buildMeriActionPreview({
       tool: 'revoke_research_portfolio_share_link',
