@@ -74,6 +74,8 @@ export interface PublicMeriActionProposal {
   policyCode: string | null;
   attemptCount: number;
   resultSummary: unknown;
+  /** Only the winning publish approval response carries this address; never stored or replayed. */
+  oneTimeResult?: { sharePath: string; shownOnce: true };
   error?: { code: string | null; message: string | null };
   approvedAt?: string | null;
   approvedBy?: string | null;
@@ -110,6 +112,23 @@ const TERMINAL_STATUSES = new Set<MeriActionProposalStatus>([
 ]);
 const CLAIMABLE_STATUSES: MeriActionProposalStatus[] = ['proposed', 'failed_retryable'];
 const EXTERNAL_SEND_TOOLS = new Set(['send_email', 'reply_email']);
+
+function oneTimeResearchShareResult(
+  tool: string,
+  result: unknown,
+): PublicMeriActionProposal['oneTimeResult'] {
+  if (tool !== 'publish_research_portfolio_share_link' || !result || typeof result !== 'object')
+    return undefined;
+  const published = result as Record<string, unknown>;
+  if (
+    published.replayed !== false ||
+    published.shownOnce !== true ||
+    typeof published.sharePath !== 'string' ||
+    !/^\/share\/research\/[0-9a-f]{64}$/.test(published.sharePath)
+  )
+    return undefined;
+  return { sharePath: published.sharePath, shownOnce: true };
+}
 
 function bounded(value: unknown, max: number): string | null {
   if (value === null || value === undefined) return null;
@@ -1210,12 +1229,18 @@ export class MeriActionProposalService {
             resultSummary: resultSummary(result),
           }),
         );
-      return this.toPublic(
+      const completed = this.toPublic(
         await this.finalize(ctx, row.id, {
           status: 'succeeded',
           resultSummary: resultSummary(result),
         }),
       );
+      // FR-16.19: the publish secret belongs only to the successful response.
+      // Keep it out of durable action summaries, history, and approval retries.
+      const oneTimeResult = completed.status === 'succeeded'
+        ? oneTimeResearchShareResult(row.tool, result)
+        : undefined;
+      return oneTimeResult ? { ...completed, oneTimeResult } : completed;
     } catch (error) {
       const failure = classifyExecutionFailure(row.tool, error);
       return this.toPublic(

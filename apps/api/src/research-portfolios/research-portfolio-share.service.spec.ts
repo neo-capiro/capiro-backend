@@ -432,6 +432,42 @@ describe('publishing', () => {
 });
 
 describe('recipient access', () => {
+  it('lists only currently visible clients and rechecks walls on every owner read', async () => {
+    const h = harness({ enabled: true, pin: '123456' });
+    const published = await h.service.publishLink(ctx, portfolioId, {
+      operationKey: 'list-walls',
+      snapshotId,
+      designId,
+      clientId,
+      branding: false,
+    });
+    const deniedClientId = 'ed202609-2800-4000-8000-000000009003';
+    h.tx.researchPortfolioShareLink.findMany.mockResolvedValue([
+      { ...h.state.links[0], client: { name: 'Visible client' } },
+      {
+        ...h.state.links[0],
+        id: 'hidden-link',
+        clientId: deniedClientId,
+        client: { name: 'Hidden client' },
+      },
+    ]);
+    h.tx.$queryRawUnsafe.mockImplementation(
+      async (_sql: string, tenant: string, target: string, actor: string) => [
+        { allowed: tenant === ctx.tenantId && actor === ctx.userId && target === clientId },
+      ],
+    );
+    const listed = await h.service.listLinks(ctx, portfolioId);
+    expect(listed).toHaveLength(1);
+    expect(listed[0]?.clientName).toBe('Visible client');
+    for (const hidden of [deniedClientId, 'hidden-link', 'Hidden client'])
+      expect(JSON.stringify(listed)).not.toContain(hidden);
+    h.tx.$queryRawUnsafe.mockResolvedValue([{ allowed: false }]);
+    expect(await h.service.listLinks(ctx, portfolioId)).toEqual([]);
+    // The owner list is current-authorized; an existing public capability still
+    // follows only its manual-revoke, PIN, workspace-switch and expiry rules.
+    expect(await h.service.availability(published.token!)).toEqual({ available: true });
+  });
+
   async function published(role: 'owner' | 'editor' = 'editor') {
     const h = harness({ role, enabled: true, pin: '123456' });
     const { token } = await h.service.publishLink(ctx, portfolioId, {

@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Logger,
   Param,
   ParseUUIDPipe,
@@ -138,6 +139,8 @@ export class MeriActionProposalController {
 
   /** Browser approval carries only the opaque proposal id and an optional note. */
   @Post(':proposalId/approve')
+  @Header('Cache-Control', 'no-store')
+  @Header('Referrer-Policy', 'no-referrer')
   approve(
     @CurrentTenant() ctx: TenantContext,
     @Param('proposalId', new ParseUUIDPipe({ version: '4' })) proposalId: string,

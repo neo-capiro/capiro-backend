@@ -27,7 +27,7 @@ import type {
   SetResearchPortfolioTenantSharingDto,
   ResearchPortfolioEventKind,
 } from '@capiro/shared';
-import { tenantFeatureEnabled } from '@capiro/shared';
+import { clientMemoryAllowed, tenantFeatureEnabled } from '@capiro/shared';
 import { BrandingService } from '../branding/branding.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
@@ -410,7 +410,12 @@ export class ResearchPortfolioShareService {
         include: { client: { select: { name: true } } },
         orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
       });
-      return rows.map((row) => this.linkDto(row));
+      const visibleClients = new Set<string>();
+      for (const clientId of new Set(rows.map((row) => row.clientId))) {
+        if (await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId))
+          visibleClients.add(clientId);
+      }
+      return rows.filter((row) => visibleClients.has(row.clientId)).map((row) => this.linkDto(row));
     });
   }
 

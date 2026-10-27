@@ -30,6 +30,8 @@ const TOOL_LABELS: Record<string, string> = {
   create_powerpoint: 'Create presentation',
   create_meeting_brief: 'Create meeting brief',
   draft_policy_memo: 'Draft policy memo',
+  publish_research_portfolio_share_link: 'Publish client share link',
+  revoke_research_portfolio_share_link: 'Revoke client share link',
 };
 
 const PROFILE_FIELD_KEYS = [
@@ -93,6 +95,15 @@ export function buildMeriActionPreview(args: {
   const { tool, input } = args;
   const fields: Record<string, string | number | boolean> = {};
   const counts: Record<string, number> = {};
+
+  if (tool === 'publish_research_portfolio_share_link') {
+    for (const key of ['snapshotId', 'designId', 'branding']) addField(fields, key, input[key]);
+    fields.expiresAfterHours = 168;
+    fields.delivery = 'You copy the link and share it yourself. Nothing is sent.';
+  } else if (tool === 'revoke_research_portfolio_share_link') {
+    addField(fields, 'linkId', input.linkId);
+    fields.effect = 'This link will stop working on the next request.';
+  }
 
   for (const key of [
     'to',
