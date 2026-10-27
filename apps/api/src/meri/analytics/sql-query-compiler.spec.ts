@@ -1,4 +1,5 @@
 import { compilePublicSql, compileScopedSql, PublicSqlError, type SqlCompilerRelation } from './sql-query-compiler.js';
+import { normalizeSqlRow } from './sql-query-output.js';
 
 describe('authored PostgreSQL SELECT compiler', () => {
   const compile = (sql: string, parameters: unknown[] = [], rowLimit?: number) => compilePublicSql({ sql, parameters, ...(rowLimit ? { rowLimit } : {}) });
@@ -30,6 +31,18 @@ describe('authored PostgreSQL SELECT compiler', () => {
     const query = compile('SELECT b.congress, COUNT(*) AS total FROM congress_bills b GROUP BY b.congress ORDER BY total DESC');
     expect(query.columns).toEqual([{ name: 'congress', type: 'integer', nullable: false }, { name: 'total', type: 'integer', nullable: false }]);
     expect(query.sql).toContain('"total"::text');
+  });
+  it('preserves timestamp microseconds after filtering and aggregation, including CTE aliases', () => {
+    const query = compile(`WITH stamps AS (SELECT b.last_synced_at AS stamp FROM congress_bills b WHERE b.last_synced_at>$1)
+      SELECT MAX(s.stamp) AS latest FROM stamps s`, ['2026-10-27T01:02:03.123456Z']);
+    expect(query.sql).toContain(`pg_catalog.to_char("latest", 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "latest"`);
+    expect(query.sql).toContain('MAX("s".stamp)');
+    expect(query.params).toEqual(['2026-10-27T01:02:03.123456Z']);
+    expect(normalizeSqlRow({ latest: '2026-10-27T01:02:03.123456Z' }, query.columns))
+      .toEqual({ latest: '2026-10-27T01:02:03.123456Z' });
+    expect(normalizeSqlRow({ latest: null }, query.columns)).toEqual({ latest: null });
+    for (const lossy of [new Date('2026-10-27T01:02:03.123456Z'), '2026-10-27T01:02:03.123Z', 'infinity', 1793062923123])
+      expect(() => normalizeSqlRow({ latest: lossy }, query.columns)).toThrow(PublicSqlError);
   });
   it('filters retired PEs in the fixed physical projection', () => {
     expect(compile('SELECT p.pe_code FROM program_elements p').sql).toContain('retired_at IS NULL');

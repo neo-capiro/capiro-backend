@@ -314,7 +314,15 @@ export function compileScopedSql(input: unknown, registry: readonly SqlCompilerR
   try { sql = parser.sqlify(statement as never, dialect); } catch { return fail('UNSUPPORTED_SQL', 'Cannot regenerate supported PostgreSQL SELECT.'); }
   const columns = [...selected.fields.values()].map(cleanColumn);
   // PostgreSQL casts exact numeric output to text before Prisma can convert it.
-  const projection = columns.map((column) => `"${column.name}"${['integer', 'decimal'].includes(column.type) ? '::text' : ''} AS "${column.name}"`).join(', ');
+  const projection = columns.map((column) => {
+    const name = `"${column.name}"`;
+    // Both SQL owners set the transaction timezone to UTC. Format in PostgreSQL
+    // before the driver can truncate microseconds to JavaScript Date precision.
+    const value = column.type === 'timestamp'
+      ? `pg_catalog.to_char(${name}, 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`
+      : `${name}${['integer', 'decimal'].includes(column.type) ? '::text' : ''}`;
+    return `${value} AS ${name}`;
+  }).join(', ');
   return { sql: `SELECT ${projection} FROM (${sql}) AS "__capiro_result" LIMIT ${Number(rowLimit) + 1}`,
     params: [...request.parameters] as PublicSqlParameter[], columns, relationsUsed, rowLimit: Number(rowLimit), sqlLimit: selected.limit };
 }
