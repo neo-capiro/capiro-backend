@@ -544,14 +544,14 @@
       "pathRegexes": [
         "^/api/research-portfolios/[A-Za-z0-9_-]+/(sharing/(enable|pin|disable)|dashboard-designs|share-links)$",
         "^/api/research-portfolios/[A-Za-z0-9_-]+/share-links/[A-Za-z0-9_-]+/revoke$",
-        "^/api/research-share-links/[A-Za-z0-9_-]+/revoke$"
+        "^/api/research-share-links/(settings|[A-Za-z0-9_-]+/revoke)$"
       ]
     },
     {
       "service": "core",
       "method": "POST",
       "pathRegexes": [
-        "^/api/public/research-share/[0-9a-f]{64}/(pin|dashboard)$"
+        "^/api/public/research-share/[0-9a-f]{64}/(pin|dashboard|logo)$"
       ]
     },
     {
