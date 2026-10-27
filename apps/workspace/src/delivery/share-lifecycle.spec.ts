@@ -105,6 +105,45 @@ describe('canonical Workspace share lifecycle', () => {
 });
 
 describe('full Workspace publication projection', () => {
+  it('uses the canonical Workspace entity and inline text conversion', () => {
+    const result = projectSharedWorkspaceDocument({
+      docTitle: 'A &amp; B',
+      config: {
+        mainBlocks: [
+          { type: 'section', content: '<p>A &amp; B</p><p>First<b>second</b>&nbsp;third</p>' },
+        ],
+      },
+    });
+    expect(result.docTitle).toBe('A & B');
+    expect(result.sections[0]?.content).toBe('A & B\nFirst second third');
+  });
+
+  it.each([
+    { config: { product: 'Newsletter' }, documents: [{ body: {} }] },
+    { config: {}, documents: [{ body: { newsletter: { subject: 'Authored content' } } }] },
+  ])('refuses authored Newsletter content before falling back to generic blocks', (saved) => {
+    expect(() =>
+      projectSharedWorkspaceDocument({
+        ...saved,
+        config: {
+          ...saved.config,
+          sections: ['Summary'],
+          sectionContent: { Summary: 'Derived fallback' },
+          mainBlocks: [{ type: 'section', content: 'More fallback' }],
+        },
+      }),
+    ).toThrow('newsletter');
+  });
+
+  it('refuses an unsupported authored primary body instead of silently omitting it', () => {
+    expect(() =>
+      projectSharedWorkspaceDocument({
+        config: { mainBlocks: [{ type: 'section', content: 'Generic fallback' }] },
+        documents: [{ body: { unsupportedAuthoredContent: 'Must not disappear' } }],
+      }),
+    ).toThrow('unsupported primary body');
+  });
+
   it('keeps content beyond2000 characters and includes text/table blocks and packet documents', () => {
     const full = 'a'.repeat(4500);
     const result = projectSharedWorkspaceDocument({

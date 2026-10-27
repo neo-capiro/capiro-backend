@@ -103,6 +103,14 @@ CREATE POLICY ws_share_link_kind_isolation ON ws_share_link
   WITH CHECK (kind = 'workspace_document' OR rls_bypass() OR tenant_id = current_tenant_id());
 
 -- Retain the old ledger as immutable migration evidence; never run dual writers.
+-- Detach parent actions before making the ledger immutable: their historical
+-- CASCADE/SET NULL writes would otherwise abort deletion of a live parent.
+-- The canonical ws_share_link table retains the live portfolio/client/design FKs.
+ALTER TABLE research_portfolio_share_links
+  DROP CONSTRAINT research_portfolio_share_links_tenant_id_fkey,
+  DROP CONSTRAINT research_portfolio_share_links_portfolio_fkey,
+  DROP CONSTRAINT research_portfolio_share_links_client_fkey,
+  DROP CONSTRAINT research_portfolio_share_links_design_fkey;
 CREATE FUNCTION reject_retired_research_share_write() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN RAISE EXCEPTION 'Research shares now use the canonical ws_share_link lifecycle'; END $$;
 CREATE TRIGGER research_share_retired_write BEFORE INSERT OR UPDATE OR DELETE

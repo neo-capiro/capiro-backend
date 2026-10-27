@@ -1,4 +1,5 @@
 import { ConflictException } from '@nestjs/common';
+import { workspaceHtmlToPlainText } from '@capiro/shared';
 
 export interface SharedWorkspaceDocument {
   schemaVersion: 1;
@@ -21,16 +22,29 @@ function text(value: unknown, location: string): string {
       `Cannot share ${location}: embedded media has no complete frozen projection`,
     );
   // Text is rendered as text by recipients, never inserted as HTML.
-  return value
-    .replace(/<\s*(?:br\s*\/|br|\/p|\/div|\/li|\/h[1-6])\s*>/gi, '\n')
-    .replace(/<[^>]*>/g, '')
-    .trim();
+  return workspaceHtmlToPlainText(value);
 }
 
 export function projectSharedWorkspaceDocument(snapshotValue: unknown): SharedWorkspaceDocument {
   const snapshot = record(snapshotValue);
   const config = record(snapshot.config);
   const sections: SharedWorkspaceDocument['sections'] = [];
+  if (snapshot.documents !== undefined && !Array.isArray(snapshot.documents))
+    throw new ConflictException('Cannot share document: unsupported packet structure');
+  const documents = Array.isArray(snapshot.documents) ? snapshot.documents : [];
+  if (
+    config.product === 'Newsletter' ||
+    documents.some((doc) =>
+      Object.prototype.hasOwnProperty.call(record(record(doc).body), 'newsletter'),
+    )
+  )
+    throw new ConflictException(
+      'Cannot share this newsletter until its complete frozen projection is supported',
+    );
+  if (
+    Object.keys(record(record(documents[0]).body)).some((key) => !['title', 'blocks'].includes(key))
+  )
+    throw new ConflictException('Cannot share document: unsupported primary body');
   if (config.anonymize === true)
     throw new ConflictException(
       'Cannot share this anonymized document until its reviewed full-content projection is supported',
@@ -88,13 +102,8 @@ export function projectSharedWorkspaceDocument(snapshotValue: unknown): SharedWo
     throw new ConflictException(
       'Cannot share this document kind: no supported complete content projection',
     );
-  if (snapshot.documents !== undefined && !Array.isArray(snapshot.documents))
-    throw new ConflictException('Cannot share document: unsupported packet structure');
   // The first document is the editor's vestigial primary row, also excluded by export.service.
-  for (const [index, value] of (Array.isArray(snapshot.documents)
-    ? snapshot.documents.slice(1)
-    : []
-  ).entries()) {
+  for (const [index, value] of documents.slice(1).entries()) {
     const doc = record(value),
       body = record(doc.body);
     if (Object.keys(body).some((key) => !['title', 'blocks'].includes(key)))
