@@ -389,7 +389,6 @@ model Tenant {
   researchPortfolioBookmarks              ResearchPortfolioBookmark[]
   researchPortfolioTourStates             ResearchPortfolioTourState[]
   researchPortfolioShareSettings          ResearchPortfolioShareSetting[]
-  researchPortfolioShareLinks             WsShareLink[]
   researchPortfolioDashboardDesigns       ResearchPortfolioDashboardDesign[]
   researchPortfolioReviewNotes            ResearchPortfolioReviewNote[]
 
@@ -17844,7 +17843,6 @@ model WsShareLink {
   failedPinAttempts Int       @default(0) @map("failed_pin_attempts")
   lockedUntil       DateTime? @map("locked_until") @db.Timestamptz(6)
 
-  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   portfolio ResearchPortfolio? @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
   client Client? @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade)
   design ResearchPortfolioDashboardDesign? @relation(fields: [tenantId, designId], references: [tenantId, id], onDelete: SetNull)
