@@ -23,6 +23,7 @@ import {
   ServiceUnavailableException,
   UseGuards,
 } from '@nestjs/common';
+import type { WorkspaceTenantContext } from '../../auth/tenant-context.js';
 import { object } from '../reports/report-domain.js';
 import { WorkflowSourceGuard } from '../keywords/internal-workflow.controller.js';
 import { KeywordRuleService, checkedVersion } from '../keywords/keyword-rule.service.js';
@@ -106,7 +107,7 @@ export class WatchMeriController {
       !/^[0-9a-f-]{36}$/i.test(b.tenantId)
     )
       throw new BadRequestException('CANONICAL_ACTOR_SCOPE_REQUIRED');
-    const ctx = { tenantId: b.tenantId, clerkUserId: b.actor, role: null };
+    const ctx: WorkspaceTenantContext = { tenantId: b.tenantId, clerkUserId: b.actor, role: null };
     const inspect = b.tool === 'watch_inspect';
     if (!inspect && b.tool !== 'watch_apply') throw new BadRequestException('UNKNOWN_WATCH_TOOL');
     if (b.family === 'legiwatch_keyword')
@@ -116,7 +117,7 @@ export class WatchMeriController {
     throw new BadRequestException('UNKNOWN_WATCH_FAMILY');
   }
 
-  private async loaded(ctx: never, input: Record<string, unknown>) {
+  private async loaded(ctx: WorkspaceTenantContext, input: Record<string, unknown>) {
     const ruleId = text(input.ruleId, 'rule');
     await this.rules.authorize(ctx);
     const requested = typeof input.clientId === 'string' ? input.clientId : null;
@@ -151,12 +152,12 @@ export class WatchMeriController {
     };
   }
 
-  private async keywordInspect(ctx: never, input: Record<string, unknown>) {
+  private async keywordInspect(ctx: WorkspaceTenantContext, input: Record<string, unknown>) {
     const { rule, clientId, folderCount } = await this.loaded(ctx, input);
     return { version: 1, target: this.keywordTarget(rule, clientId, folderCount) };
   }
 
-  private async keywordApply(ctx: never, input: Record<string, unknown>) {
+  private async keywordApply(ctx: WorkspaceTenantContext, input: Record<string, unknown>) {
     const operation = text(input.operation, 'operation') as Operation;
     if (!KEYWORD_OPERATIONS.includes(operation))
       throw new BadRequestException('UNSUPPORTED_WATCH_OPERATION');
@@ -234,14 +235,14 @@ export class WatchMeriController {
     return acknowledge(after, { state: 'paused', delivery: false });
   }
 
-  private async reload(ctx: never, ruleId: string) {
+  private async reload(ctx: WorkspaceTenantContext, ruleId: string) {
     return this.rules.reports.folders.withActor(ctx, (tx) => this.rules.get(tx, ctx, ruleId));
   }
 
-  private async watchlistLoad(ctx: never, input: Record<string, unknown>) {
+  private async watchlistLoad(ctx: WorkspaceTenantContext, input: Record<string, unknown>) {
     const clientId = text(input.clientId, 'client');
-    const tenantId = (ctx as { tenantId: string }).tenantId,
-      actor = (ctx as { clerkUserId: string }).clerkUserId;
+    const tenantId = ctx.tenantId,
+      actor = ctx.clerkUserId;
     const [view, prefs, revisions] = await Promise.all([
       this.watchlists.getWatchlist(tenantId, clientId, {}),
       this.watchlists.getAlertPrefs(tenantId, clientId, actor) as Promise<AlertPrefRow>,
@@ -250,7 +251,7 @@ export class WatchMeriController {
     return { clientId, tenantId, actor, view, prefs, revisions };
   }
 
-  private async watchlistInspect(ctx: never, input: Record<string, unknown>) {
+  private async watchlistInspect(ctx: WorkspaceTenantContext, input: Record<string, unknown>) {
     const { clientId, view, prefs, revisions } = await this.watchlistLoad(ctx, input);
     return {
       version: 1,
@@ -278,7 +279,7 @@ export class WatchMeriController {
     };
   }
 
-  private async watchlistApply(ctx: never, input: Record<string, unknown>) {
+  private async watchlistApply(ctx: WorkspaceTenantContext, input: Record<string, unknown>) {
     const operation = text(input.operation, 'operation') as Operation;
     if (!WATCHLIST_OPERATIONS.includes(operation))
       throw new BadRequestException('UNSUPPORTED_WATCH_OPERATION');
