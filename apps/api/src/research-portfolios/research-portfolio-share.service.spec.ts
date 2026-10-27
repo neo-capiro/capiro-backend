@@ -478,9 +478,9 @@ describe('publishing', () => {
     expect(recovered.link?.id).toBe(first.link.id);
     expect(JSON.stringify(recovered)).not.toContain(first.token);
     h.tx.$queryRawUnsafe.mockResolvedValue([{ allowed: false }]);
-    expect(await h.service.lookupPublishOperation(ctx, portfolioId, input.operationKey)).toEqual({
-      link: null,
-    });
+    await expect(
+      h.service.lookupPublishOperation(ctx, portfolioId, input.operationKey),
+    ).rejects.toThrow();
     h.tx.$queryRawUnsafe.mockResolvedValue([{ allowed: true }]);
     expect(await h.service.lookupPublishOperation(ctx, portfolioId, 'absent')).toEqual({
       link: null,

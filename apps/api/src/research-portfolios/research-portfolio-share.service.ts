@@ -511,8 +511,8 @@ export class ResearchPortfolioShareService {
         where: { tenantId: ctx.tenantId, resourceId: portfolioId, operationKey },
         include: { client: { select: { name: true } } },
       });
-      if (!row || !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, row.clientId)))
-        return { link: null };
+      if (!row) return { link: null };
+      await assertResearchPortfolioClientAccess(tx, ctx, [row.clientId]);
       return { link: this.linkDto(row) };
     });
   }

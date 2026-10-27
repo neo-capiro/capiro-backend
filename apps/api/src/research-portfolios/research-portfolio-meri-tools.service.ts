@@ -297,8 +297,6 @@ export class ResearchPortfolioMeriToolsService {
           operationKey: requiredText(input, 'operationKey'),
           snapshotId: requiredText(input, 'snapshotId'),
           designId: requiredText(input, 'designId'),
-          previewHash: requiredText(input, 'previewHash'),
-          expectedDesignVersion: Number(input.expectedDesignVersion),
           clientId: requiredText(input, 'clientId'),
           branding: input.branding,
           expectedDesignVersion: requiredInteger(input, 'expectedDesignVersion'),
