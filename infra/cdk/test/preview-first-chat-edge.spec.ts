@@ -58,6 +58,7 @@ test('sharing writes admit only the exact owner and public capability routes', (
       ['POST', `/api/public/research-share/${token}/pin`],
       ['POST', `/api/public/research-share/${token}/dashboard`],
       ['POST', `/api/public/research-share/${token}/logo`],
+      ['POST', `${owner}/share-preview`],
       ['PUT', `${owner}/dashboard-designs/synthetic-design_1`],
     ];
     for (const [method, pathname] of routes) {
