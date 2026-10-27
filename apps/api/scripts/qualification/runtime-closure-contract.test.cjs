@@ -7,6 +7,28 @@ const crypto = require('node:crypto');
 const { verifyInstalledClosure, readPackage, readContract, walkRuntime, artifactOwner, lockedWasmEvidence, resolveDependency } = require('./runtime-closure-contract.cjs');
 const { inspectArtifact } = require('./alpine-runtime-probe.cjs');
 const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
+test('repository production contract is admitted by the default frozen pin', t => {
+  const root = path.resolve(__dirname, '../../../..');
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'repository-runtime-contract-'));
+  t.after(() => fs.rmSync(temp, { recursive: true, force: true }));
+  const imageRoot = path.join(temp, 'app'), qualificationRoot = path.join(temp, 'qualification');
+  // The release archive contains LF Git text, even from a Windows checkout.
+  const archiveText = relative => fs.readFileSync(path.join(root, relative), 'utf8').replace(/\r\n/g, '\n');
+  const contractText = archiveText('docs/runtime-production-closure-20261014/RUNTIME-CLOSURE-CONTRACT.json');
+  const contractFile = path.join(qualificationRoot, 'RUNTIME-CLOSURE-CONTRACT.json');
+  write(contractFile, contractText);
+  for (const file of Object.keys(JSON.parse(contractText).inputSHA256)) {
+    const destination = file === 'package.json' ? path.join(qualificationRoot, 'root-package.json') :
+      file === 'pnpm-lock.yaml' ? path.join(qualificationRoot, file) : path.join(imageRoot, file);
+    write(destination, archiveText(file));
+  }
+  const options = { contractFile, imageRoot, qualificationRoot };
+  // Unlike synthetic fixtures, exercise the real default without supplying expectedSHA256.
+  assert.equal(readContract(options).contractSHA256, hash(contractText));
+  assert.throws(() => readContract({ ...options,
+    expectedSHA256: 'a38f5d6c7f0f567eb0fd300257895d3e57eb50c0faee50bdd9247b3daae68e00',
+  }), /frozen contract hash/, 'the previously shipped stale pin must still be refused');
+});
 function write(file, value) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, typeof value === 'string' || Buffer.isBuffer(value) ? value : JSON.stringify(value) + '\n');
