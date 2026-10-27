@@ -1,0 +1,28 @@
+# MM16 completed legacy report reads
+
+## 1. Scope and source
+Incremental MM16 source continuation from merged Core `00f6d045a0fd2abb60f7735a453655ce3aef903b`. The confirmed product decision is read-only access to every currently authorized completed legacy report under its original identities. This does not complete the new seven-section report recipe, frontend receiving, or all Wave5 work.
+
+## 2. Existing owner and behavior
+Two GET routes, `/api/clio/completed-reports` and `/api/clio/completed-reports/:id`, enter the existing MeriResearchService. Eligibility requires the stored session's `status=complete` and a retained report artifact. The existing getReportMarkdown owner rejects held/internal artifacts and rechecks retained producer/source authorization. Its ensureSession gate still owns tenant, actor, current client wall and originating conversation. The bridge never calls listSessions/getSession, which can settle job approvals, or render/file/create/stream/research execution. Original session/artifact IDs and saved Markdown are returned; no report is regenerated or migrated. A completed report is not a claim that pending job approval actions have settled.
+
+## 3. Paging and current access
+Candidate windows query the existing session table by tenant/actor, optional exact client or General, completion/output eligibility, creation-time cutoff and descending creation-time/ID keyset. At most `limit+1` metadata rows and twice `limit` current report checks run per page (limit 1–25). Current denied/held/source-proof-refused rows are omitted; unclassified backend errors fail the page. An empty visible page can carry a continuation, with no hidden IDs/counts/totals. Each admitted row is checked again before release. Scope changes and report replacement refuse release.
+
+## 4. Cursor and compatibility
+A purpose-specific AES-GCM continuation uses a domain-separated key derived from the existing INTERNAL_SERVICE_SECRET. Its encrypted candidate position does not reveal skipped identities. Tenant/actor/query/limit/cutoff and one-hour expiry are correlated; the token is a selector, never authority. No new secret, schema, migration, ledger, package, provider or legacy runtime activation. All prior routes and existing helper bodies are unchanged. A missing adequate configured secret refuses continuation instead of returning a false terminal page.
+
+## 5. Verification
+Canonical Node 24.22.1; retained dependencies are read-only links. Targeted completed-report tests and existing report-read-authorization regressions exercise pagination across63 original IDs, an all-denied page then authorized rows, tamper/cross-actor/client/expiry, release revocation, held/incomplete reports, current wall checks, unknown backend failures, report replacement and no settlement/producer effects. Exact-base witness aliases only the MeriResearchService import to untouched00f6: the positive route case fails because the dedicated read method does not exist. Source was never substituted. Final check counts/terminal receipts are in the external author receipt.
+
+## 6. Type/tooling limits
+Bounded candidate TypeScript and untouched00f6 baseline both exit2 with the same30 diagnostics after root-path normalization, all in inherited generated shared/Prisma-dependent imports. No candidate-specific diagnostic remains. No global TypeScript PASS is claimed and no generated dependency was changed. Root reported a separate qualified Linux cache also has inherited full-type diagnostics; no second broad campaign was run. New files pass Prettier and the exact diff passes whitespace checks. ESLint is not present in the retained Core dependency tree; no install or tooling change.
+
+## 7. Independent review and integration
+Independent exact-source review follows this freeze. A5's separate Core attachment controller registration is an additive meri.module.ts composition concern; no attachment files are touched. Whole-repository source/image/DB qualification, integration and deployment remain the coordinator's responsibility.
+
+## 8. Remaining requirements
+Frontend read-only library/render/download receiving and the confirmed seven-section native cited Word recipe remain active. Legacy read failures stay withheld; no historical job is resumed. Current source-backed and asset-bearing revision bridge, upload/native history consumers and other M5 requirements remain open. No live acceptance is claimed.
+
+## 9. Evidence and cleanup
+External receipts/logs live under the orchestrator work directory with prefix `wave5-legacy-reports-`. Only the five owned Core source/test paths plus this handoff change. The exact base witness worktree is clean and retained. No target, browser, model, DB, build, provider, package or remote publication action occurred.
