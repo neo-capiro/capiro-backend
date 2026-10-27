@@ -566,7 +566,8 @@
       "method": "POST",
       "pathRegexes": [
         "^/api/research-portfolios$",
-        "^/api/research-portfolios/[A-Za-z0-9_-]+/snapshots$"
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/snapshots$",
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/client-links$"
       ]
     }
   ]
