@@ -25,6 +25,7 @@ import { ResearchPortfolioReviewService } from './research-portfolio-review.serv
 import { ResearchPortfolioRulesService } from './research-portfolio-rules.service.js';
 import { ResearchPortfolioPhase11Service } from './research-portfolio-phase11.service.js';
 import { ResearchPortfolioImportService } from './research-portfolio-import.service.js';
+import { ResearchPortfolioShareService } from './research-portfolio-share.service.js';
 
 const requiredText = (input: Record<string, unknown>, key: string): string => {
   const value = input[key];
@@ -85,7 +86,10 @@ export type ResearchPortfolioMeriToolName =
   | 'get_research_portfolio_imports'
   | 'get_research_portfolio_operations'
   | 'prepare_research_portfolio_brief'
-  | 'prepare_research_portfolio_meeting';
+  | 'prepare_research_portfolio_meeting'
+  | 'get_research_portfolio_share_links'
+  | 'publish_research_portfolio_share_link'
+  | 'revoke_research_portfolio_share_link';
 
 const NAMES = new Set<ResearchPortfolioMeriToolName>([
   'manage_research_portfolio',
@@ -107,6 +111,9 @@ const NAMES = new Set<ResearchPortfolioMeriToolName>([
   'get_research_portfolio_operations',
   'prepare_research_portfolio_brief',
   'prepare_research_portfolio_meeting',
+  'get_research_portfolio_share_links',
+  'publish_research_portfolio_share_link',
+  'revoke_research_portfolio_share_link',
 ]);
 
 export function isResearchPortfolioMeriTool(name: string): name is ResearchPortfolioMeriToolName {
@@ -129,6 +136,7 @@ export class ResearchPortfolioMeriToolsService {
     @Optional() private readonly imports?: ResearchPortfolioImportService,
     @Optional() private readonly institutional?: ResearchPortfolioInstitutionalService,
     @Optional() private readonly savedComparisons?: DefenseSavedComparisonsService,
+    @Optional() private readonly share?: ResearchPortfolioShareService,
   ) {}
 
   async execute(
@@ -269,7 +277,43 @@ export class ResearchPortfolioMeriToolsService {
         const prepared = validateResearchPortfolioInstitutionalInput(input, kind);
         return this.institutional.prepare(ctx, { ...prepared, kind });
       }
+      case 'get_research_portfolio_share_links': {
+        const share = this.requireShare();
+        const [sharing, links] = await Promise.all([
+          share.getSettings(ctx, portfolioId),
+          share.listLinks(ctx, portfolioId),
+        ]);
+        return { sharing, links };
+      }
+      case 'publish_research_portfolio_share_link': {
+        if (typeof input.branding !== 'boolean') {
+          throw new BadRequestException('branding must be true or false');
+        }
+        const published = await this.requireShare().publishLink(ctx, portfolioId, {
+          operationKey: requiredText(input, 'operationKey'),
+          snapshotId: requiredText(input, 'snapshotId'),
+          designId: requiredText(input, 'designId'),
+          clientId: requiredText(input, 'clientId'),
+          branding: input.branding,
+        });
+        // The address is shown once to the signed-in user, who passes it on themselves;
+        // Meri never sends the link or the PIN anywhere, and the PIN is never readable.
+        return {
+          link: published.link,
+          replayed: published.replayed,
+          sharePath: published.token ? `/share/research/${published.token}` : null,
+          shownOnce: true,
+        };
+      }
+      case 'revoke_research_portfolio_share_link':
+        return this.requireShare().revokeLink(ctx, portfolioId, requiredText(input, 'linkId'));
     }
+  }
+
+  private requireShare(): ResearchPortfolioShareService {
+    if (!this.share)
+      throw new ServiceUnavailableException('Research Portfolio client sharing is unavailable');
+    return this.share;
   }
 
   private async authorizeScope(

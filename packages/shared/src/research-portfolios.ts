@@ -1122,6 +1122,8 @@ export interface SaveResearchPortfolioDashboardDesignDto {
 export interface ResearchPortfolioShareSettingsDto {
   portfolioId: string;
   enabled: boolean;
+  /** The workspace-wide switch (FR-16.42); when off, nothing can be published or opened. */
+  tenantEnabled: boolean;
   pinSet: boolean;
   pinUpdatedAt: string | null;
   activeLinkCount: number;
@@ -1241,4 +1243,21 @@ export interface ResearchPortfolioShareAvailabilityDto {
 
 export interface ResearchPortfolioShareViewDto {
   viewToken: string;
+}
+
+/** Workspace-wide client sharing switch, administered by tenant administrators. */
+export interface ResearchPortfolioTenantSharingDto {
+  enabled: boolean;
+  activeLinkCount: number;
+  updatedAt: string | null;
+  updatedByUserId: string | null;
+}
+
+export interface SetResearchPortfolioTenantSharingDto {
+  enabled: boolean;
+}
+
+/** A short-lived signed address of the firm logo for a recipient; null when branding is off or no logo exists. */
+export interface ResearchPortfolioShareLogoDto {
+  url: string | null;
 }

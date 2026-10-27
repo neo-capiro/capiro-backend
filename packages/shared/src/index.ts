@@ -4155,6 +4155,30 @@ export const MERI_CAPABILITY_REGISTRY = [
     surfaces: ['full_chat'],
   },
   {
+    name: 'get_research_portfolio_share_links',
+    description:
+      'List the client share links of the current Research Portfolio with their client, snapshot, design version, status, expiry, open count and failed PIN attempts, plus whether sharing is on. Never returns link addresses or the PIN.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'publish_research_portfolio_share_link',
+    description:
+      'Publish a one-week, PIN-protected client share link for the current Research Portfolio from an exact snapshot, dashboard design and linked client. Sharing must already be on with a PIN set in the portfolio. Returns the link address exactly once for the signed-in user to pass on themselves; Meri never sends the link or the PIN to anyone. Requires user approval.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'revoke_research_portfolio_share_link',
+    description:
+      'Revoke one client share link of the current Research Portfolio immediately; the recipient then sees only that the link is not available. Requires user approval.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
     name: 'get_research_evidence',
     description:
       'Read immutable attachment evidence for your research session, with source IDs, completeness/status and paging; verify supplied attachments before citing them.',
