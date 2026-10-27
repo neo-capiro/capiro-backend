@@ -588,21 +588,16 @@ export class MeriResearchService {
               reportArtifactId: { not: null },
               ...(clientId === undefined ? {} : { clientId }),
               createdAt: { lte: new Date(asOf) },
-              ...(after
-                ? {
-                    OR: [
-                      { createdAt: { lt: new Date(after.createdAt) } },
-                      { createdAt: new Date(after.createdAt), id: { lt: after.id } },
-                    ],
-                  }
-                : {}),
+              ...(after ? { id: { lt: after.id } } : {}),
             },
-            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+            // Immutable ID order avoids projecting timestamptz(6) through a
+            // millisecond Date cursor. This is a complete list, not a newest-first feed.
+            orderBy: [{ id: 'desc' }],
             take,
-            select: { id: true, createdAt: true },
+            select: { id: true },
           }),
         );
-        return rows.map((row) => ({ id: row.id, createdAt: row.createdAt.toISOString() }));
+        return rows;
       },
       read: async (id) => {
         try {

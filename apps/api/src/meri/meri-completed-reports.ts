@@ -25,7 +25,6 @@ export interface CompletedReport extends CompletedReportSummary {
 }
 
 export interface CompletedReportPosition {
-  createdAt: string;
   id: string;
 }
 
@@ -106,8 +105,7 @@ function decode(token: string, secret: string | undefined): Cursor {
       !iso(value.asOf) ||
       !Number.isSafeInteger(value.expiresAt) ||
       !value.after ||
-      Object.keys(value.after).sort().join() !== 'createdAt,id' ||
-      !iso(value.after.createdAt) ||
+      Object.keys(value.after).join() !== 'id' ||
       typeof value.after.id !== 'string' ||
       !UUID.test(value.after.id)
     )
@@ -195,12 +193,18 @@ export async function completedReportPage({
     admitted: CompletedReportSummary[] = [];
   for (const row of page) {
     const value = await read(row.id);
-    if (value) admitted.push(value);
+    if (value?.id === row.id) admitted.push({ ...value });
   }
   const reports: CompletedReportSummary[] = [];
   for (const row of admitted) {
     const value = await read(row.id);
-    if (value) reports.push(value);
+    if (
+      value &&
+      value.id === row.id &&
+      value.artifactId === row.artifactId &&
+      value.clientId === row.clientId
+    )
+      reports.push(value);
   }
   const last = page.at(-1);
   const nextCursor =
@@ -214,7 +218,7 @@ export async function completedReportPage({
             limit: query.limit,
             asOf,
             expiresAt: cursor?.expiresAt ?? start + LIFETIME_MS,
-            after: last,
+            after: { id: last.id },
           },
           secret,
         )

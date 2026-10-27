@@ -125,6 +125,18 @@ describe('completed legacy report continuation', () => {
     await expect(f.page(completedReportQuery({}))).rejects.toThrow('backend unavailable');
   });
 
+  it.each(['id', 'artifactId', 'clientId'] as const)(
+    'withholds a report whose %s changes between admission and release',
+    async (field) => {
+      const f = pageFixture(1);
+      const original = (await f.read(id(1)))!;
+      f.read
+        .mockResolvedValueOnce(original)
+        .mockResolvedValueOnce({ ...original, [field]: id(2000) });
+      expect((await f.page(completedReportQuery({}))).reports).toEqual([]);
+    },
+  );
+
   it('requires configured continuation encryption and refuses unsupported query fields', async () => {
     const f = pageFixture(12);
     await expect(f.page(completedReportQuery({}), { secret: undefined })).rejects.toBeInstanceOf(
@@ -196,6 +208,80 @@ function ownerFixture() {
 }
 
 describe('existing Core completed-report owner', () => {
+  it('traverses the actual candidate query without losing distinct database microseconds', async () => {
+    const f = ownerFixture();
+    const micros = BigInt(Date.parse(date)) * 1000n;
+    const rows = Array.from({ length: 63 }, (_, i) => ({
+      id: id(i + 1),
+      createdAt: new Date(date),
+      databaseMicros: micros + BigInt((i + 1) * 7),
+    }));
+    type Query = {
+      where: {
+        createdAt: { lte: Date };
+        id?: { lt: string };
+        OR?: Array<{ createdAt: Date | { lt: Date }; id?: { lt: string } }>;
+      };
+      orderBy: Array<{ createdAt?: string; id?: string }>;
+      take: number;
+    };
+    const candidates = jest.fn(async ({ where, orderBy, take }: Query) => {
+      // Synthetic database comparator retains microseconds while Prisma's Date
+      // projection intentionally has only milliseconds, like timestamptz(6).
+      const matching = rows.filter(
+        (row) =>
+          row.databaseMicros <= BigInt(where.createdAt.lte.getTime()) * 1000n &&
+          (!where.id || row.id < where.id.lt) &&
+          (!where.OR ||
+            where.OR.some((term) => {
+              const before =
+                term.createdAt instanceof Date
+                  ? row.databaseMicros === BigInt(term.createdAt.getTime()) * 1000n
+                  : row.databaseMicros < BigInt(term.createdAt.lt.getTime()) * 1000n;
+              return before && (!term.id || row.id < term.id.lt);
+            })),
+      );
+      matching.sort((a, b) =>
+        orderBy[0]?.createdAt
+          ? Number(b.databaseMicros - a.databaseMicros)
+          : b.id.localeCompare(a.id),
+      );
+      return matching.slice(0, take).map(({ id: rowId, createdAt }) => ({ id: rowId, createdAt }));
+    });
+    Object.assign(f.tx.clioResearchSession, { findMany: candidates });
+    jest.spyOn(f.service, 'readCompletedReport').mockImplementation(async (_ctx, recordId) => ({
+      id: recordId,
+      artifactId: id(1000),
+      title: 'Saved original',
+      kind: 'research',
+      clientId: null,
+      createdAt: date,
+      updatedAt: date,
+      markdown: 'Original text',
+    }));
+    const found: string[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await f.service.readCompletedReports(
+        ctx,
+        completedReportQuery({
+          limit: '10',
+          ...(cursor ? { cursor } : {}),
+        }),
+      );
+      found.push(...page.reports.map((row) => row.id));
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor);
+    expect(found).toEqual(
+      rows
+        .map((row) => row.id)
+        .sort()
+        .reverse(),
+    );
+    expect(candidates).toHaveBeenCalledTimes(7);
+    expect(candidates.mock.calls.every(([query]) => query.take === 11)).toBe(true);
+  });
+
   it('reads exact saved text and identities through real ensureSession/getReportMarkdown without settlement or generation', async () => {
     const f = ownerFixture(),
       controller = new MeriCompletedReportsController(f.service);
