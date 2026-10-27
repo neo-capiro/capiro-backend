@@ -124,7 +124,7 @@ function oneTimeResearchShareResult(
     published.replayed !== false ||
     published.shownOnce !== true ||
     typeof published.sharePath !== 'string' ||
-    !/^\/share\/research\/[0-9a-f]{64}$/.test(published.sharePath)
+    !/^\/share\/(?:research\/)?[0-9a-f]{64}$/.test(published.sharePath)
   )
     return undefined;
   return { sharePath: published.sharePath, shownOnce: true };

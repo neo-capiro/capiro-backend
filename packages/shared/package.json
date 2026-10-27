@@ -6,6 +6,7 @@
   "types": "./dist/index.d.ts",
   "typesVersions": {
     "*": {
+      "workspace-share-lifecycle": ["dist/workspace-share-lifecycle.d.ts"],
       "workspace-template-studio": ["dist/workspace-template-studio.d.ts"],
       "core-retained-read-request": ["dist/core-retained-read-request.d.ts"],
       "core-retained-authority-probe": ["dist/core-retained-authority-probe.d.ts"],
@@ -60,6 +61,12 @@
     }
   },
   "exports": {
+    "./workspace-share-lifecycle": {
+      "types": "./dist/workspace-share-lifecycle.d.ts",
+      "require": "./dist/workspace-share-lifecycle.js",
+      "import": "./dist/workspace-share-lifecycle.js",
+      "default": "./dist/workspace-share-lifecycle.js"
+    },
     "./workspace-template-studio": {
       "types": "./dist/workspace-template-studio.d.ts",
       "require": "./dist/workspace-template-studio.js",

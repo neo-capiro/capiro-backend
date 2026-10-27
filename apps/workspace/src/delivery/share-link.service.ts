@@ -15,8 +15,20 @@ import {
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CollaboratorsService } from '../collaborators/collaborators.service.js';
 import { canRead, canManageCollaborators } from '../collaborators/role-policy.js';
-import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
-import type { WsShareLink } from '../../generated/prisma-client/index.js';
+import {
+  WorkspaceShareLifecycle,
+  ShareOperationConflict,
+  hashWorkspaceShareToken,
+  type WorkspaceSharePersistence,
+  type WorkspaceShareRecord,
+} from '@capiro/shared/workspace-share-lifecycle';
+import {
+  projectSharedWorkspaceDocument,
+  type SharedWorkspaceDocument,
+} from './share-document-projection.js';
+import type { WsShareLink, Prisma } from '../../generated/prisma-client/index.js';
+
+type DocumentShareRow = WsShareLink & WorkspaceShareRecord & { draftId: string };
 
 @Injectable()
 export class ShareLinkService {
@@ -35,31 +47,31 @@ export class ShareLinkService {
    * timing-safe comparison. Shared by the public read path and the guest-
    * comment write path so both enforce the same revocation/expiry rules.
    */
-  private async findLiveLinkByToken(token: string): Promise<WsShareLink> {
-    const tokenHash = this.hashToken(token);
-    const links = await this.prisma.wsShareLink.findMany({ where: { tokenHash } });
+  private lifecycle(prisma: Pick<Prisma.TransactionClient, 'wsShareLink'> = this.prisma) {
+    return new WorkspaceShareLifecycle(
+      prisma.wsShareLink as unknown as WorkspaceSharePersistence<DocumentShareRow>,
+      'workspace_document',
+    );
+  }
 
-    let link: WsShareLink | undefined;
-    for (const l of links) {
-      if (l.tokenHash.length === tokenHash.length) {
-        const a = Buffer.from(l.tokenHash, 'hex');
-        const b = Buffer.from(tokenHash, 'hex');
-        if (timingSafeEqual(a, b)) {
-          link = l;
-          break;
-        }
-      }
-    }
-    if (!link) throw new NotFoundException('Share link not found');
-    if (link.revokedAt) throw new NotFoundException('Share link has been revoked');
-    if (link.expiresAt && link.expiresAt.getTime() < Date.now()) {
-      throw new NotFoundException('Share link has expired');
-    }
-    const origin = await this.prisma.wsDraft.findFirst({ where: { id: link.draftId, tenantId: link.tenantId }, select: { prospectId: true } });
+  private async findLiveLinkByToken(token: string): Promise<DocumentShareRow> {
+    const lifecycle = this.lifecycle();
+    const link = await lifecycle.byToken(token);
+    if (!link || !lifecycle.isLive(link) || !link.draftId)
+      throw new NotFoundException('Share link not found, expired or revoked');
+    const origin = await this.prisma.wsDraft.findFirst({
+      where: { id: link.draftId, tenantId: link.tenantId },
+      select: { prospectId: true },
+    });
     if (!origin || origin.prospectId) throw new NotFoundException('Share link not found');
     // A grant is revoked when its issuing actor loses current source access.
     // It never falls back to an authenticated tenant-only read.
-    await this.collaborators.assertCan(link.tenantId, link.draftId, link.createdById, canManageCollaborators);
+    await this.collaborators.assertCan(
+      link.tenantId,
+      link.draftId,
+      link.createdById,
+      canManageCollaborators,
+    );
     await releaseVersion(this.prisma, link.tenantId, link.draftId, link.versionId, false);
     return link;
   }
@@ -73,69 +85,96 @@ export class ShareLinkService {
     createdById: string,
     params: { label?: string; expiresInDays?: number; versionId?: string; idempotencyKey?: string },
   ): Promise<{ shareId: string; token: string; expiresAt: string | null }> {
-    denyProspectTransfer(await this.prisma.wsDraft.findFirst({ where: { tenantId: tenantId, id: draftId }, select: { prospectId: true } }));
-
-    await this.collaborators.assertCan(tenantId, draftId, createdById, canManageCollaborators);
-    const { version } = await releaseVersion(this.prisma, tenantId, draftId, params.versionId);
-
-    // Idempotency check.
-    if (params.idempotencyKey) {
-      const existing = await this.prisma.wsShareLink.findFirst({
-        where: { tenantId, draftId, label: params.idempotencyKey },
+    if (
+      params.idempotencyKey !== undefined &&
+      (!params.idempotencyKey || params.idempotencyKey.length > 128)
+    )
+      throw new ConflictException('Share operation key must contain 1 to 128 characters');
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM ws_draft WHERE tenant_id = ${tenantId}::uuid AND id = ${draftId}::uuid FOR UPDATE`;
+        denyProspectTransfer(
+          await tx.wsDraft.findFirst({
+            where: { tenantId, id: draftId },
+            select: { prospectId: true },
+          }),
+        );
+        await this.collaborators.assertCan(tenantId, draftId, createdById, canManageCollaborators);
+        const { version } = await releaseVersion(tx, tenantId, draftId, params.versionId);
+        const lifecycle = this.lifecycle(tx);
+        // A historical display label may have been used as a key by the old API.
+        // Its request cannot be reconstructed safely. Never create a duplicate or
+        // reinterpret a human label as authority to replay a different revision.
+        if (params.idempotencyKey) {
+          const legacy = await lifecycle.findMany({
+            where: { tenantId, draftId, operationKey: null, requestHash: null },
+          });
+          if (
+            legacy.some(
+              (row) => row.versionId === version.id || row.label === params.idempotencyKey,
+            )
+          )
+            throw new ConflictException(
+              'This operation may refer to a legacy share. Reconcile the existing share or save and review a new revision',
+            );
+        }
+        const payload = projectSharedWorkspaceDocument(version.snapshot);
+        const result = await lifecycle.publish({
+          tenantId,
+          resourceId: draftId,
+          createdById,
+          operationKey: params.idempotencyKey,
+          request: {
+            versionId: version.id,
+            label: params.label ?? null,
+            expiresInDays: params.expiresInDays ?? null,
+          },
+          payload,
+          expiresInDays: params.expiresInDays,
+          data: { draftId, versionId: version.id, label: params.label ?? null },
+        });
+        return {
+          shareId: result.row.id,
+          token: result.token ?? '',
+          expiresAt: result.row.expiresAt?.toISOString() ?? null,
+        };
       });
-      if (existing) {
-        if (existing.versionId !== version.id) throw new ConflictException('Share request belongs to a different saved revision');
-        return { shareId: existing.id, token: '', expiresAt: existing.expiresAt?.toISOString() ?? null };
-      }
+    } catch (error) {
+      if (error instanceof ShareOperationConflict || error instanceof RangeError)
+        throw new ConflictException(error.message);
+      throw error;
     }
-
-    const token = randomBytes(32).toString('hex');
-    const tokenHash = this.hashToken(token);
-    const expiresAt = params.expiresInDays
-      ? new Date(Date.now() + params.expiresInDays * 24 * 60 * 60 * 1000)
-      : null;
-
-    await this.collaborators.assertCan(tenantId, draftId, createdById, canManageCollaborators);
-    await releaseVersion(this.prisma, tenantId, draftId, version.id);
-    const link = await this.prisma.wsShareLink.create({
-      data: {
-        tenantId,
-        draftId,
-        createdById,
-        tokenHash,
-        versionId: params.versionId,
-        label: params.label ?? params.idempotencyKey,
-        expiresAt,
-      },
-    });
-
-    return { shareId: link.id, token, expiresAt: expiresAt?.toISOString() ?? null };
   }
 
   /**
    * Revoke a share link.
    */
-  async revoke(tenantId: string, draftId: string, shareLinkId: string, actorId: string): Promise<void> {
-    denyProspectTransfer(await this.prisma.wsDraft.findFirst({ where: { tenantId: tenantId, id: draftId }, select: { prospectId: true } }));
+  async revoke(
+    tenantId: string,
+    draftId: string,
+    shareLinkId: string,
+    actorId: string,
+  ): Promise<void> {
+    denyProspectTransfer(
+      await this.prisma.wsDraft.findFirst({
+        where: { tenantId: tenantId, id: draftId },
+        select: { prospectId: true },
+      }),
+    );
 
     await this.collaborators.assertCan(tenantId, draftId, actorId, canManageCollaborators);
-    const link = await this.prisma.wsShareLink.findFirst({
+    const link = await this.lifecycle().findFirst({
       where: { id: shareLinkId, tenantId, draftId },
     });
     if (!link) throw new NotFoundException('Share link not found');
-    await this.prisma.wsShareLink.update({
-      where: { id: shareLinkId },
-      data: { revokedAt: new Date() },
-    });
+    await this.lifecycle().revoke(link);
   }
 
   /**
    * Look up a share link by token. Returns the link + sanitized payload.
    * 404 if not found, expired, or revoked.
    */
-  async getByToken(
-    token: string,
-  ): Promise<{
+  async getByToken(token: string): Promise<{
     draftId: string;
     versionId: string | null;
     docTitle: string;
@@ -143,42 +182,29 @@ export class ShareLinkService {
   }> {
     const link = await this.findLiveLinkByToken(token);
 
-    // Load the draft and sanitize the payload.
-    const draft = await this.prisma.wsDraft.findFirst({
-      where: { prospectId: null, id: link.draftId, tenantId: link.tenantId },
-    });
-    if (!draft) throw new NotFoundException('Document not found');
-
-    // A share link pinned to a version must ALWAYS serve that frozen snapshot,
-    // never the live (possibly since-edited) draft — otherwise editing the draft
-    // after sharing silently changes what a client already viewing the link sees.
-    let config: Record<string, unknown>;
-    let docTitle: string;
-    if (link.versionId) {
-      const version = await this.prisma.wsDocVersion.findFirst({
-        where: { id: link.versionId, tenantId: link.tenantId, draftId: link.draftId },
-      });
-      if (!version) throw new NotFoundException('Share link is pinned to a version that no longer exists');
-      const snapshot = (version.snapshot as { docTitle?: string; config?: unknown }) ?? {};
-      config = (snapshot.config as Record<string, unknown>) ?? {};
-      docTitle = snapshot.docTitle ?? draft.docTitle;
+    // New rows store the exact safe projection. Older links are projected in full
+    // from their pinned revision; unsupported historical shapes fail closed.
+    let payload: SharedWorkspaceDocument;
+    if (
+      link.payload &&
+      (link.payload as unknown as SharedWorkspaceDocument).kind === 'workspace_document'
+    ) {
+      payload = link.payload as unknown as SharedWorkspaceDocument;
     } else {
-      config = (draft.config as Record<string, unknown>) ?? {};
-      docTitle = draft.docTitle;
+      const { version } = await releaseVersion(
+        this.prisma,
+        link.tenantId,
+        link.draftId,
+        link.versionId,
+        false,
+      );
+      payload = projectSharedWorkspaceDocument(version.snapshot);
     }
-    const sections = (config.sections as string[]) ?? [];
-    const sectionContent = (config.sectionContent as Record<string, string>) ?? {};
-
-    // Sanitized: no tenantId, no internal context, no private source text, no model prompts.
     return {
-      draftId: '', // no tenantId leak
+      draftId: '',
       versionId: link.versionId,
-      docTitle,
-      sections: sections.map((id) => ({
-        id,
-        title: id,
-        content: this.sanitize(sectionContent[id] ?? ''),
-      })),
+      docTitle: payload.docTitle,
+      sections: payload.sections,
     };
   }
 
@@ -203,11 +229,7 @@ export class ShareLinkService {
    * pure echo — `{ ok: true, text }` with no durable write — invisible to the
    * internal team. Real 429 (not a 200 with an `error` field) when rate-limited.
    */
-  async addGuestComment(
-    token: string,
-    text: string,
-    name?: string,
-  ): Promise<{ ok: true }> {
+  async addGuestComment(token: string, text: string, name?: string): Promise<{ ok: true }> {
     const link = await this.findLiveLinkByToken(token);
     const tokenHash = this.hashToken(token);
     if (!this.checkRateLimit(tokenHash)) {
@@ -253,7 +275,10 @@ export class ShareLinkService {
    * for the /workspace/shares page). Returns non-revoked links with the
    * associated draft title and guest-comment count.
    */
-  async listShares(tenantId: string, actorId: string): Promise<{
+  async listShares(
+    tenantId: string,
+    actorId: string,
+  ): Promise<{
     shares: Array<{
       id: string;
       draftId: string;
@@ -264,7 +289,7 @@ export class ShareLinkService {
       guestCommentCount: number;
     }>;
   }> {
-    const links = await this.prisma.wsShareLink.findMany({
+    const links = await this.lifecycle().findMany({
       where: { tenantId, revokedAt: null },
       orderBy: { createdAt: 'desc' },
     });
@@ -273,7 +298,14 @@ export class ShareLinkService {
     const draftIds = [...new Set(links.map((l) => l.draftId))];
     const drafts = await this.prisma.wsDraft.findMany({
       where: { prospectId: null, id: { in: draftIds }, tenantId },
-      select: { id: true, docTitle: true, clientId: true, client: true, config: true, prospectId: true },
+      select: {
+        id: true,
+        docTitle: true,
+        clientId: true,
+        client: true,
+        config: true,
+        prospectId: true,
+      },
     });
     const draftMap = new Map<string, string>();
     for (const draft of drafts) {
@@ -284,23 +316,26 @@ export class ShareLinkService {
 
     const commentCounts = await this.prisma.wsGuestComment.groupBy({
       by: ['shareLinkId'],
-      where: { tenantId, shareLinkId: { in: links.filter(l => draftMap.has(l.draftId)).map((l) => l.id) } },
+      where: {
+        tenantId,
+        shareLinkId: { in: links.filter((l) => draftMap.has(l.draftId)).map((l) => l.id) },
+      },
       _count: { _all: true },
     });
-    const commentMap = new Map(
-      commentCounts.map((c) => [c.shareLinkId, c._count._all]),
-    );
+    const commentMap = new Map(commentCounts.map((c) => [c.shareLinkId, c._count._all]));
 
     return {
-      shares: links.filter(link => draftMap.has(link.draftId)).map((link) => ({
-        id: link.id,
-        draftId: link.draftId,
-        draftTitle: draftMap.get(link.draftId) ?? 'Untitled',
-        label: link.label,
-        createdAt: link.createdAt.toISOString(),
-        expiresAt: link.expiresAt?.toISOString() ?? null,
-        guestCommentCount: commentMap.get(link.id) ?? 0,
-      })),
+      shares: links
+        .filter((link) => draftMap.has(link.draftId))
+        .map((link) => ({
+          id: link.id,
+          draftId: link.draftId,
+          draftTitle: draftMap.get(link.draftId) ?? 'Untitled',
+          label: link.label,
+          createdAt: link.createdAt.toISOString(),
+          expiresAt: link.expiresAt?.toISOString() ?? null,
+          guestCommentCount: commentMap.get(link.id) ?? 0,
+        })),
     };
   }
 
@@ -318,6 +353,6 @@ export class ShareLinkService {
    * Hash a token using sha256.
    */
   hashToken(token: string): string {
-    return createHash('sha256').update(token, 'utf8').digest('hex');
+    return hashWorkspaceShareToken(token);
   }
 }

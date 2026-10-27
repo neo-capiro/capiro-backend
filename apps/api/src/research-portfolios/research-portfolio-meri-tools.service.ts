@@ -144,7 +144,7 @@ export class ResearchPortfolioMeriToolsService {
     name: ResearchPortfolioMeriToolName,
     input: Record<string, unknown>,
   ): Promise<unknown> {
-    const portfolioId = await this.authorizeScope(ctx, input);
+    const { portfolioId, selectedClientId } = await this.authorizeScope(ctx, input);
     switch (name) {
       case 'manage_research_portfolio':
         return executeResearchPortfolioManagement(
@@ -283,7 +283,11 @@ export class ResearchPortfolioMeriToolsService {
           share.getSettings(ctx, portfolioId),
           share.listLinks(ctx, portfolioId),
         ]);
-        return { sharing, links };
+        const current = await this.authorizeScope(ctx, input);
+        if (current.portfolioId !== portfolioId || current.selectedClientId !== selectedClientId)
+          throw new BadRequestException('The conversation scope changed. Refresh before listing shares');
+        const visible = selectedClientId ? links.filter(link => link.clientId === selectedClientId) : links;
+        return { sharing: { ...sharing, activeLinkCount: visible.filter(link => link.status === 'active').length }, links: visible };
       }
       case 'publish_research_portfolio_share_link': {
         if (typeof input.branding !== 'boolean') {
@@ -295,13 +299,15 @@ export class ResearchPortfolioMeriToolsService {
           designId: requiredText(input, 'designId'),
           clientId: requiredText(input, 'clientId'),
           branding: input.branding,
+          expectedDesignVersion: requiredInteger(input, 'expectedDesignVersion'),
+          previewHash: requiredText(input, 'previewHash'),
         });
         // The address is shown once to the signed-in user, who passes it on themselves;
         // Meri never sends the link or the PIN anywhere, and the PIN is never readable.
         return {
           link: published.link,
           replayed: published.replayed,
-          sharePath: published.token ? `/share/research/${published.token}` : null,
+          sharePath: published.token ? `/share/${published.token}` : null,
           shownOnce: true,
         };
       }
@@ -319,7 +325,7 @@ export class ResearchPortfolioMeriToolsService {
   private async authorizeScope(
     ctx: TenantContext,
     input: Record<string, unknown>,
-  ): Promise<string> {
+  ): Promise<{ portfolioId: string; selectedClientId: string | null }> {
     for (const key of AUTHORITY_KEYS) {
       if (key in input) {
         throw new BadRequestException(`${key} is controlled by the server and may not be supplied`);
@@ -334,7 +340,7 @@ export class ResearchPortfolioMeriToolsService {
           userId: ctx.userId,
           archivedAt: null,
         },
-        select: { metadata: true },
+        select: { metadata: true, clientId: true },
       }),
     );
     if (!conversation) throw new NotFoundException('Meri conversation not found');
@@ -346,6 +352,6 @@ export class ResearchPortfolioMeriToolsService {
     if (!scope) {
       throw new BadRequestException('This conversation is not scoped to a Research Portfolio');
     }
-    return scope.researchPortfolioId;
+    return { portfolioId: scope.researchPortfolioId, selectedClientId: conversation.clientId ?? null };
   }
 }

@@ -6,11 +6,22 @@ import {
 } from '@nestjs/common';
 import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { Prisma } from '@prisma/client';
+import {
+  WorkspaceShareLifecycle,
+  workspaceShareRequestHash,
+  RESEARCH_SHARE_LIFETIME_MS,
+  type WorkspaceSharePersistence,
+  type WorkspaceShareRecord,
+} from '@capiro/shared/workspace-share-lifecycle';
+import { validateLayout } from './research-portfolio-dashboard-layout.js';
+export { validateLayout } from './research-portfolio-dashboard-layout.js';
+import { ResearchPortfolioSharePayloadService } from './research-portfolio-share-payload.service.js';
 import type {
   TenantContext,
   ChangeResearchPortfolioSharePinDto,
   EnableResearchPortfolioSharingDto,
   PublishResearchPortfolioShareLinkDto,
+  PreviewResearchPortfolioShareDto,
   ResearchPortfolioDashboardDesignDto,
   ResearchPortfolioDashboardLayoutDto,
   ResearchPortfolioDashboardWidgetDto,
@@ -39,42 +50,37 @@ import { ResearchPortfolioChangesService } from './research-portfolio-changes.se
 import { ResearchPortfolioPhase11Service } from './research-portfolio-phase11.service.js';
 
 type Tx = Prisma.TransactionClient;
+// The canonical table's kind check guarantees these columns for research rows.
+type ResearchShareRow = WorkspaceShareRecord & {
+  portfolioId: string;
+  clientId: string;
+  snapshotId: string;
+  snapshotName: string;
+  designId: string | null;
+  designVersion: number;
+  branding: boolean;
+  payload: unknown;
+  payloadHash: string;
+  publishedByUserId: string;
+  publishedAt: Date;
+  expiresAt: Date;
+  revokedByUserId: string | null;
+  revokeReason: string | null;
+  openCount: number;
+  lastOpenedAt: Date | null;
+  failedPinAttempts: number;
+  lockedUntil: Date | null;
+  client: { name: string };
+};
 
 /** Fixed by decision: a link lives exactly one week, never extended. */
-export const SHARE_LINK_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
+export const SHARE_LINK_LIFETIME_MS = RESEARCH_SHARE_LIFETIME_MS;
 /** A viewing session after a correct PIN; the PIN is asked again afterwards. */
 export const SHARE_VIEW_SESSION_MS = 30 * 60 * 1000;
 export const SHARE_PIN_MAX_FAILURES = 5;
 export const SHARE_PIN_LOCK_MS = 15 * 60 * 1000;
 const PIN_PATTERN = /^[0-9]{6,12}$/;
 const SCRYPT_N = 16384;
-const GRID_COLUMNS = 12;
-const MAX_WIDGETS = 40;
-const WIDGET_KINDS: ReadonlySet<ResearchPortfolioDashboardWidgetKind> = new Set([
-  'header',
-  'key_totals',
-  'funding_table',
-  'client_fit',
-  'changes',
-  'subjects',
-  'sources',
-  'snapshot_comparison',
-  'commentary',
-  'image',
-]);
-/** Portfolio history kinds a recipient may see. Grants, client links and sharing itself stay internal. */
-const RECIPIENT_EVENT_KINDS: ReadonlySet<string> = new Set([
-  'member_added',
-  'member_decided',
-  'member_excluded',
-  'member_reinstated',
-  'member_resolved',
-  'rule_published',
-  'review_updated',
-  'annual_reopened',
-  'import_created',
-  'import_action',
-]);
 /** Workspace-wide switch (FR-16.42), stored with the other tenant feature flags; on unless an administrator turns it off. */
 export const TENANT_SHARING_FLAG = 'researchSharing.enabled';
 export function researchSharingEnabled(settings: unknown): boolean {
@@ -84,7 +90,6 @@ const UNAVAILABLE = 'This link is not available';
 /** One message for missing, expired, revoked and locked links: the page never reveals which. */
 const unavailable = () => new NotFoundException(UNAVAILABLE);
 const asIso = (value: Date | null | undefined) => (value ? value.toISOString() : null);
-const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
 
 export function hashPin(pin: string): string {
   const salt = randomBytes(16).toString('hex');
@@ -100,80 +105,6 @@ export function verifyPin(pin: string, stored: string): boolean {
   return candidate.length === expected.length && timingSafeEqual(candidate, expected);
 }
 
-export function validateLayout(input: unknown): ResearchPortfolioDashboardLayoutDto {
-  const layout = input as Partial<ResearchPortfolioDashboardLayoutDto> | null;
-  if (
-    !layout ||
-    typeof layout !== 'object' ||
-    layout.columns !== GRID_COLUMNS ||
-    !Array.isArray(layout.widgets)
-  )
-    throw new BadRequestException('Dashboard layout must have 12 columns and a widgets array');
-  if (layout.widgets.length > MAX_WIDGETS)
-    throw new BadRequestException(`A dashboard holds at most ${MAX_WIDGETS} widgets`);
-  const ids = new Set<string>();
-  const widgets: ResearchPortfolioDashboardWidgetDto[] = layout.widgets.map((raw) => {
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw))
-      throw new BadRequestException('Each widget must be an object');
-    const widget = raw as Partial<ResearchPortfolioDashboardWidgetDto>;
-    if (
-      typeof widget.id !== 'string' ||
-      !/^[A-Za-z0-9_-]{1,64}$/.test(widget.id) ||
-      ids.has(widget.id)
-    )
-      throw new BadRequestException('Each widget needs a unique id');
-    ids.add(widget.id);
-    if (!WIDGET_KINDS.has(widget.kind as ResearchPortfolioDashboardWidgetKind))
-      throw new BadRequestException(`Unknown widget kind: ${String(widget.kind)}`);
-    const { x, y, w, h } = widget;
-    if (
-      ![x, y, w, h].every((value) => Number.isInteger(value)) ||
-      x! < 0 ||
-      y! < 0 ||
-      w! < 1 ||
-      h! < 1 ||
-      x! + w! > GRID_COLUMNS
-    )
-      throw new BadRequestException(`Widget ${widget.id} must fit the 12-column grid`);
-    const settings =
-      widget.settings && typeof widget.settings === 'object' && !Array.isArray(widget.settings)
-        ? widget.settings
-        : {};
-    if (JSON.stringify(settings).length > 4000)
-      throw new BadRequestException(`Widget ${widget.id} settings are too large`);
-    return {
-      id: widget.id,
-      kind: widget.kind as ResearchPortfolioDashboardWidgetKind,
-      x: x!,
-      y: y!,
-      w: w!,
-      h: h!,
-      settings,
-    };
-  });
-  // Widgets may not overlap: the editor refuses an invalid drop, and the server refuses an invalid save.
-  for (let i = 0; i < widgets.length; i += 1) {
-    for (let j = i + 1; j < widgets.length; j += 1) {
-      const a = widgets[i]!,
-        b = widgets[j]!;
-      if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h)
-        throw new BadRequestException(`Widgets ${a.id} and ${b.id} overlap`);
-    }
-  }
-  const phoneOrder = Array.isArray(layout.phoneOrder)
-    ? [
-        ...new Set(
-          layout.phoneOrder.filter((id): id is string => typeof id === 'string' && ids.has(id)),
-        ),
-      ]
-    : [];
-  const ordered = [
-    ...phoneOrder,
-    ...widgets.map((w) => w.id).filter((id) => !phoneOrder.includes(id)),
-  ];
-  return { columns: GRID_COLUMNS, widgets, phoneOrder: ordered };
-}
-
 @Injectable()
 export class ResearchPortfolioShareService {
   /** PIN attempts per network address, in addition to the per-link lock. */
@@ -187,6 +118,7 @@ export class ResearchPortfolioShareService {
     private readonly changes: ResearchPortfolioChangesService,
     private readonly phase11: ResearchPortfolioPhase11Service,
     private readonly branding: BrandingService,
+    private readonly payloads: ResearchPortfolioSharePayloadService,
   ) {}
 
   // ---------------------------------------------------------------- settings
@@ -208,6 +140,7 @@ export class ResearchPortfolioShareService {
   ): Promise<ResearchPortfolioShareSettingsDto> {
     const pinHash = hashPin(this.requirePin(input.pin));
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await this.lockTenant(tx, ctx.tenantId);
       await this.lockPortfolio(tx, ctx.tenantId, portfolioId);
       const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'owner');
       if (portfolio.lifecycle === 'archived')
@@ -247,7 +180,7 @@ export class ResearchPortfolioShareService {
         where: { portfolioId },
         data: { pinHash, pinUpdatedAt: new Date(), updatedByUserId: ctx.userId },
       });
-      await tx.researchPortfolioShareLink.updateMany({
+      await this.shareLinks(tx).updateMany({
         where: { tenantId: ctx.tenantId, portfolioId, revokedAt: null },
         data: { failedPinAttempts: 0, lockedUntil: null },
       });
@@ -267,7 +200,7 @@ export class ResearchPortfolioShareService {
       const setting = await tx.researchPortfolioShareSetting.findUnique({ where: { portfolioId } });
       if (!setting) return this.settingsDto(tx, ctx.tenantId, portfolioId);
       const now = new Date();
-      const revoked = await tx.researchPortfolioShareLink.updateMany({
+      const revoked = await this.shareLinks(tx).updateMany({
         where: { tenantId: ctx.tenantId, portfolioId, revokedAt: null },
         data: { revokedAt: now, revokedByUserId: ctx.userId, revokeReason: 'sharing_disabled' },
       });
@@ -296,7 +229,7 @@ export class ResearchPortfolioShareService {
     if (typeof input?.enabled !== 'boolean')
       throw new BadRequestException('enabled must be true or false');
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${ctx.tenantId}::uuid FOR UPDATE`;
+      await this.lockTenant(tx, ctx.tenantId);
       const tenant = await tx.tenant.findUnique({
         where: { id: ctx.tenantId },
         select: { settings: true },
@@ -405,7 +338,7 @@ export class ResearchPortfolioShareService {
   ): Promise<readonly ResearchPortfolioShareLinkDto[]> {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');
-      const rows = await tx.researchPortfolioShareLink.findMany({
+      const rows = await this.shareLinks(tx).findMany({
         where: { tenantId: ctx.tenantId, portfolioId },
         include: { client: { select: { name: true } } },
         orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
@@ -424,7 +357,7 @@ export class ResearchPortfolioShareService {
     ctx: TenantContext,
   ): Promise<readonly ResearchPortfolioShareLinkDto[]> {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const rows = await tx.researchPortfolioShareLink.findMany({
+      const rows = await this.shareLinks(tx).findMany({
         where: { tenantId: ctx.tenantId, revokedAt: null, expiresAt: { gt: new Date() } },
         include: { client: { select: { name: true } } },
         orderBy: [{ expiresAt: 'asc' }, { id: 'asc' }],
@@ -443,27 +376,36 @@ export class ResearchPortfolioShareService {
     if (!input.snapshotId || !input.designId || !input.clientId)
       throw new BadRequestException('A snapshot, a dashboard design and a client are required');
     const branding = input.branding === true;
-    // Reads that build the frozen payload use the existing owners (each re-checks current access).
-    const snapshot = await this.analytics.snapshot(ctx, portfolioId, input.snapshotId);
-    const comparison = await this.previousSnapshotTotals(ctx, portfolioId, snapshot);
-    const fit = await this.phase11.getFit(ctx, portfolioId);
-    const changes = await this.changes.listChanges(ctx, portfolioId, null, 50);
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      await this.lockTenant(tx, ctx.tenantId);
       await this.lockPortfolio(tx, ctx.tenantId, portfolioId);
       const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'editor');
-      const replay = await tx.researchPortfolioShareLink.findUnique({
+      const replay = await this.shareLinks(tx).findFirst({
         where: {
-          tenantId_operationKey: { tenantId: ctx.tenantId, operationKey: input.operationKey },
+          tenantId: ctx.tenantId,
+          resourceId: portfolioId,
+          operationKey: input.operationKey,
         },
         include: { client: { select: { name: true } } },
       });
+      const request = {
+        portfolioId,
+        snapshotId: input.snapshotId,
+        clientId: input.clientId,
+        designId: input.designId,
+        branding,
+        expectedDesignVersion: input.expectedDesignVersion,
+        previewHash: input.previewHash,
+      };
       if (replay) {
+        await assertResearchPortfolioClientAccess(tx, ctx, [replay.clientId]);
         if (
           replay.portfolioId !== portfolioId ||
           replay.snapshotId !== input.snapshotId ||
           replay.clientId !== input.clientId ||
           replay.designId !== input.designId ||
-          replay.branding !== branding
+          replay.branding !== branding ||
+          (replay.requestHash !== null && replay.requestHash !== workspaceShareRequestHash(request))
         )
           throw new ConflictException('This publish operation key was used for a different link');
         return { link: this.linkDto(replay), token: null, replayed: true };
@@ -481,111 +423,114 @@ export class ResearchPortfolioShareService {
       )
         throw new BadRequestException('The client must be linked to this portfolio');
       await assertResearchPortfolioClientAccess(tx, ctx, [input.clientId]);
-      const design = await tx.researchPortfolioDashboardDesign.findFirst({
-        where: { id: input.designId, tenantId: ctx.tenantId, portfolioId },
-      });
-      if (!design) throw new NotFoundException('Dashboard design not found');
-      const client = await tx.client.findFirst({
-        where: { tenantId: ctx.tenantId, id: input.clientId },
-        select: { name: true },
-      });
-      if (!client) throw new NotFoundException('Client not found');
-      const tenant = branding
-        ? await tx.tenant.findUnique({
-            where: { id: ctx.tenantId },
-            select: { name: true, logoS3Key: true },
-          })
-        : null;
-      const layout = validateLayout(design.layout);
-      this.assertWidgetsPublishable(layout, {
-        fitKnown: fit.clientFits.some((entry) => entry.clientId === input.clientId),
-      });
+      const prepared = await this.payloads.prepare(ctx, portfolioId, input, tx);
+      if (
+        input.expectedDesignVersion !== prepared.designVersion ||
+        input.previewHash !== prepared.previewHash
+      )
+        throw new ConflictException(
+          'The reviewed dashboard changed. Preview it again before publishing',
+        );
       const publishedAt = new Date();
       const expiresAt = new Date(publishedAt.getTime() + SHARE_LINK_LIFETIME_MS);
-      const clientFit = fit.clientFits.find((entry) => entry.clientId === input.clientId) ?? null;
-      const payload: ResearchPortfolioShareDashboardDto = {
-        schemaVersion: 1,
-        portfolioName: portfolio.name,
-        portfolioPurpose: portfolio.purpose ?? null,
-        asOf: snapshot.capturedAt,
-        preparedFor: { clientName: client.name },
-        branding: tenant
-          ? { firmName: tenant.name, logoAvailable: Boolean(tenant.logoS3Key) }
-          : null,
-        layout,
-        data: {
-          totals: snapshot.projection.totals,
-          contributions: snapshot.projection.contributions,
-          coverage: snapshot.projection.coverage,
-          limitations: snapshot.limitations,
-          subjects: snapshot.membership.map((member) => ({
-            id: member.id,
-            targetKind: member.targetKind,
-            targetId: member.targetId,
-            label: member.label,
-            disposition: member.disposition,
-          })),
-          sources: snapshot.versions.sources.map((source) => ({
-            id: String((source as { id?: unknown }).id ?? ''),
-          })),
-          clientFit: clientFit
-            ? {
-                availability: clientFit.availability ?? 'unavailable',
-                fitScore: clientFit.fitScore,
-                basis: clientFit.basis ?? null,
-                refreshedAt: clientFit.refreshedAt,
-              }
-            : null,
-          changes: changes.items
-            .filter((change) => RECIPIENT_EVENT_KINDS.has(change.eventKind))
-            .map((change) => ({
-              id: change.id,
-              eventKind: change.eventKind,
-              occurredAt: change.occurredAt,
-              summary: change.eventKind.replaceAll('_', ' '),
-            })),
-          comparison,
+      const payload = {
+        ...prepared.payload,
+        dashboard: {
+          ...prepared.payload.dashboard,
+          publishedAt: publishedAt.toISOString(),
+          expiresAt: expiresAt.toISOString(),
         },
-        snapshot: {
-          id: snapshot.id,
-          name: snapshot.name,
-          capturedAt: snapshot.capturedAt,
-          portfolioRevision: snapshot.portfolioRevision,
-          calculationVersion: snapshot.calculationVersion,
-        },
-        publishedAt: publishedAt.toISOString(),
-        expiresAt: expiresAt.toISOString(),
       };
-      const token = randomBytes(32).toString('hex');
-      const row = await tx.researchPortfolioShareLink.create({
+      if (Buffer.byteLength(JSON.stringify(payload), 'utf8') > 8 * 1024 * 1024)
+        throw new BadRequestException(
+          'The complete shared content exceeds the 8 MiB publication limit',
+        );
+      const { row, token } = await this.shareLinks(tx).publish({
+        tenantId: ctx.tenantId,
+        resourceId: portfolioId,
+        createdById: ctx.userId,
+        operationKey: input.operationKey,
+        request,
+        payload,
+        now: publishedAt,
         data: {
-          tenantId: ctx.tenantId,
           portfolioId,
           clientId: input.clientId,
-          snapshotId: snapshot.id,
-          snapshotName: snapshot.name,
-          designId: design.id,
-          designVersion: design.version,
+          snapshotId: input.snapshotId,
+          snapshotName: prepared.snapshotName,
+          designId: input.designId,
+          designVersion: prepared.designVersion,
           branding,
-          operationKey: input.operationKey,
-          tokenHash: sha256(token),
-          payload: payload as unknown as Prisma.InputJsonValue,
-          payloadHash: sha256(JSON.stringify(payload)),
           publishedByUserId: ctx.userId,
           publishedAt,
-          expiresAt,
         },
         include: { client: { select: { name: true } } },
       });
       await this.appendEvent(tx, ctx, portfolioId, portfolio.revision, 'share_link_published', {
         linkId: row.id,
         clientId: input.clientId,
-        snapshotId: snapshot.id,
-        designId: design.id,
-        designVersion: design.version,
+        snapshotId: input.snapshotId,
+        designId: input.designId,
+        designVersion: prepared.designVersion,
         branding,
       });
       return { link: this.linkDto(row), token, replayed: false };
+    });
+  }
+
+  async previewLink(
+    ctx: TenantContext,
+    portfolioId: string,
+    input: PreviewResearchPortfolioShareDto,
+  ) {
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      await this.lockTenant(tx, ctx.tenantId);
+      await this.lockPortfolio(tx, ctx.tenantId, portfolioId);
+      await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'editor');
+      await this.assertTenantSharing(tx, ctx.tenantId);
+      const prepared = await this.payloads.prepare(ctx, portfolioId, input, tx);
+      return {
+        dashboard: prepared.payload.dashboard,
+        previewHash: prepared.previewHash,
+        designVersion: prepared.designVersion,
+        logoUrl: prepared.payload.logoBinding?.dataUrl ?? null,
+      };
+    });
+  }
+
+  async lookupPublishOperation(
+    ctx: TenantContext,
+    portfolioId: string,
+    operationKey: string,
+  ): Promise<{ link: ResearchPortfolioShareLinkDto | null }> {
+    if (!operationKey || operationKey.length > 128)
+      throw new BadRequestException('Invalid operation key');
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'editor');
+      const row = await this.shareLinks(tx).findFirst({
+        where: { tenantId: ctx.tenantId, resourceId: portfolioId, operationKey },
+        include: { client: { select: { name: true } } },
+      });
+      if (!row || !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, row.clientId)))
+        return { link: null };
+      return { link: this.linkDto(row) };
+    });
+  }
+
+  async publicKind(
+    token: string,
+  ): Promise<{ available: boolean; kind?: 'workspace_document' | 'research_portfolio' }> {
+    return this.prisma.withSystem(async (tx) => {
+      if (await this.findLiveLink(tx, token))
+        return { available: true, kind: 'research_portfolio' as const };
+      const documents = new WorkspaceShareLifecycle(
+        tx.wsShareLink as unknown as WorkspaceSharePersistence<WorkspaceShareRecord>,
+        'workspace_document',
+      );
+      const row = await documents.byToken(token);
+      return row && documents.isLive(row)
+        ? { available: true, kind: 'workspace_document' as const }
+        : { available: false };
     });
   }
 
@@ -606,7 +551,7 @@ export class ResearchPortfolioShareService {
     linkId: string,
   ): Promise<ResearchPortfolioShareLinkDto> {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const row = await tx.researchPortfolioShareLink.findFirst({
+      const row = await this.shareLinks(tx).findFirst({
         where: { id: linkId, tenantId: ctx.tenantId },
         select: { portfolioId: true },
       });
@@ -640,7 +585,7 @@ export class ResearchPortfolioShareService {
       const { row, pinHash } = live;
       if (typeof pin !== 'string' || !PIN_PATTERN.test(pin) || !verifyPin(pin, pinHash)) {
         const failures = (row.lockedUntil ? 0 : row.failedPinAttempts) + 1;
-        await tx.researchPortfolioShareLink.update({
+        await this.shareLinks(tx).update({
           where: { id: row.id },
           data: {
             failedPinAttempts: failures,
@@ -652,7 +597,7 @@ export class ResearchPortfolioShareService {
         return null;
       }
       const exp = Math.min(Date.now() + SHARE_VIEW_SESSION_MS, row.expiresAt.getTime());
-      await tx.researchPortfolioShareLink.update({
+      await this.shareLinks(tx).update({
         where: { id: row.id },
         data: {
           failedPinAttempts: 0,
@@ -675,7 +620,13 @@ export class ResearchPortfolioShareService {
       const live = await this.findLiveLink(tx, token);
       if (!live || !this.verifyView(viewToken, live.row.id, live.pinHash, live.row.tokenHash))
         throw unavailable();
-      return live.row.payload as unknown as ResearchPortfolioShareDashboardDto;
+      const stored = live.row.payload as {
+        schemaVersion?: number;
+        dashboard?: ResearchPortfolioShareDashboardDto;
+      };
+      return stored.schemaVersion === 2 && stored.dashboard
+        ? stored.dashboard
+        : (live.row.payload as ResearchPortfolioShareDashboardDto);
     });
   }
 
@@ -688,10 +639,27 @@ export class ResearchPortfolioShareService {
       return found.row;
     });
     if (!live.branding) return { url: null };
+    const stored = live.payload as {
+      schemaVersion?: number;
+      logoBinding?: { dataUrl: string } | null;
+    };
+    if (stored.schemaVersion === 2) return { url: stored.logoBinding?.dataUrl ?? null };
+    // Only legacy schema-1 links retain their historic logo lookup behavior.
     return { url: await this.branding.signedLogoUrlForTenant(live.tenantId) };
   }
 
   // ---------------------------------------------------------------- internals
+
+  private shareLinks(tx: Tx): WorkspaceShareLifecycle<ResearchShareRow> {
+    return new WorkspaceShareLifecycle(
+      tx.wsShareLink as unknown as WorkspaceSharePersistence<ResearchShareRow>,
+      'research_portfolio',
+    );
+  }
+
+  private async lockTenant(tx: Tx, tenantId: string): Promise<void> {
+    await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${tenantId}::uuid FOR UPDATE`;
+  }
 
   private async assertTenantSharing(tx: Tx, tenantId: string): Promise<void> {
     const tenant = await tx.tenant.findUnique({
@@ -708,7 +676,7 @@ export class ResearchPortfolioShareService {
   ): Promise<ResearchPortfolioTenantSharingDto> {
     const [tenant, activeLinkCount] = await Promise.all([
       tx.tenant.findUnique({ where: { id: tenantId }, select: { settings: true } }),
-      tx.researchPortfolioShareLink.count({
+      this.shareLinks(tx).count({
         where: { tenantId, revokedAt: null, expiresAt: { gt: new Date() } },
       }),
     ]);
@@ -723,49 +691,10 @@ export class ResearchPortfolioShareService {
     };
   }
 
-  /** The latest earlier snapshot of the same portfolio feeds the comparison widget; none when this is the first. */
-  private async previousSnapshotTotals(
-    ctx: TenantContext,
-    portfolioId: string,
-    current: { id: string; capturedAt: string },
-  ): Promise<ResearchPortfolioShareDashboardDto['data']['comparison']> {
-    const earlier = (await this.analytics.listSnapshots(ctx, portfolioId))
-      .filter((entry) => entry.id !== current.id && entry.capturedAt < current.capturedAt)
-      .sort((a, b) => (a.capturedAt < b.capturedAt ? 1 : -1))[0];
-    if (!earlier) return null;
-    const detail = await this.analytics.snapshot(ctx, portfolioId, earlier.id);
-    return {
-      snapshotId: detail.id,
-      snapshotName: detail.name,
-      capturedAt: detail.capturedAt,
-      totals: detail.projection.totals,
-    };
-  }
-
   private requirePin(pin: unknown): string {
     if (typeof pin !== 'string' || !PIN_PATTERN.test(pin))
       throw new BadRequestException('The PIN must be 6 to 12 digits');
     return pin;
-  }
-
-  private assertWidgetsPublishable(
-    layout: ResearchPortfolioDashboardLayoutDto,
-    facts: { fitKnown: boolean },
-  ): void {
-    if (layout.widgets.length === 0)
-      throw new BadRequestException('Add at least one widget before publishing');
-    for (const widget of layout.widgets) {
-      if (widget.kind === 'client_fit' && !facts.fitKnown)
-        throw new ConflictException(
-          `Widget ${widget.id} (client fit) cannot be published: no fit result exists for this client yet`,
-        );
-      if (
-        widget.kind === 'image' &&
-        typeof widget.settings['url'] === 'string' &&
-        !/^https:\/\//.test(widget.settings['url'] as string)
-      )
-        throw new BadRequestException(`Widget ${widget.id} (image) must use an https address`);
-    }
   }
 
   /** All share operations lock the existing portfolio before settings/link rows.
@@ -776,21 +705,14 @@ export class ResearchPortfolioShareService {
   }
 
   private async findLiveLink(tx: Tx, token: string) {
-    if (typeof token !== 'string' || !/^[0-9a-f]{64}$/.test(token)) return null;
-    const tokenHash = sha256(token);
-    const identity = await tx.researchPortfolioShareLink.findUnique({
-      where: { tokenHash },
-      select: { tenantId: true, portfolioId: true },
-    });
+    const lifecycle = this.shareLinks(tx);
+    const identity = await lifecycle.byToken(token);
     if (!identity) return null;
+    await this.lockTenant(tx, identity.tenantId);
     await this.lockPortfolio(tx, identity.tenantId, identity.portfolioId);
-    const row = await tx.researchPortfolioShareLink.findUnique({ where: { tokenHash } });
-    if (!row) return null;
-    const stored = Buffer.from(row.tokenHash, 'hex'),
-      given = Buffer.from(tokenHash, 'hex');
-    if (stored.length !== given.length || !timingSafeEqual(stored, given)) return null;
+    const row = await lifecycle.byToken(token);
+    if (!row || !lifecycle.isLive(row)) return null;
     const now = Date.now();
-    if (row.revokedAt || row.expiresAt.getTime() <= now) return null;
     if (row.lockedUntil && row.lockedUntil.getTime() > now) return null;
     const setting = await tx.researchPortfolioShareSetting.findUnique({
       where: { portfolioId: row.portfolioId },
@@ -854,17 +776,17 @@ export class ResearchPortfolioShareService {
     revision: number,
     linkId: string,
   ): Promise<ResearchPortfolioShareLinkDto> {
-    const row = await tx.researchPortfolioShareLink.findFirst({
+    const row = await this.shareLinks(tx).findFirst({
       where: { id: linkId, tenantId: ctx.tenantId, portfolioId },
       include: { client: { select: { name: true } } },
     });
     if (!row) throw new NotFoundException('Share link not found');
     if (row.revokedAt) return this.linkDto(row);
-    const updated = await tx.researchPortfolioShareLink.update({
-      where: { id: linkId },
-      data: { revokedAt: new Date(), revokedByUserId: ctx.userId, revokeReason: 'manual' },
-      include: { client: { select: { name: true } } },
-    });
+    const updated = await this.shareLinks(tx).revoke(
+      row,
+      { revokedByUserId: ctx.userId, revokeReason: 'manual' },
+      { client: { select: { name: true } } },
+    );
     await this.appendEvent(tx, ctx, portfolioId, revision, 'share_link_revoked', { linkId });
     return this.linkDto(updated);
   }
@@ -896,7 +818,7 @@ export class ResearchPortfolioShareService {
   ): Promise<ResearchPortfolioShareSettingsDto> {
     const [setting, activeLinkCount, tenant] = await Promise.all([
       tx.researchPortfolioShareSetting.findUnique({ where: { portfolioId } }),
-      tx.researchPortfolioShareLink.count({
+      this.shareLinks(tx).count({
         where: { tenantId, portfolioId, revokedAt: null, expiresAt: { gt: new Date() } },
       }),
       tx.tenant.findUnique({ where: { id: tenantId }, select: { settings: true } }),

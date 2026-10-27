@@ -1,3 +1,4 @@
+import { ResearchPortfolioSharePayloadService } from './research-portfolio-share-payload.service.js';
 import {
   ResearchPortfolioShareService,
   SHARE_LINK_LIFETIME_MS,
@@ -121,7 +122,7 @@ function harness(
         return row;
       }),
     },
-    researchPortfolioShareLink: {
+    wsShareLink: {
       findUnique: jest.fn(async ({ where }: any) =>
         withClient(
           state.links.find(
@@ -133,7 +134,11 @@ function harness(
         ),
       ),
       findFirst: jest.fn(async ({ where }: any) =>
-        withClient(state.links.find((l: any) => l.id === where.id) ?? null),
+        withClient(
+          state.links.find((l: any) =>
+            Object.entries(where).every(([key, value]) => l[key] === value),
+          ) ?? null,
+        ),
       ),
       findMany: jest.fn(async () => state.links.map(withClient)),
       count: jest.fn(
@@ -191,6 +196,7 @@ function harness(
     const scoped = {
       ...tx,
       $queryRaw: jest.fn(async () => {
+        if (release) return [{ id: portfolioId }];
         const previous = pendingLock;
         pendingLock = new Promise<void>((resolve) => {
           release = resolve;
@@ -235,7 +241,31 @@ function harness(
             contributionCount: 1,
           },
         ],
-        contributions: [],
+        contributions: [
+          {
+            contributionId: 'c1',
+            memberId: 'm1',
+            targetKind: 'program',
+            targetId: 'P1',
+            label: 'Program one',
+            basis: { fundingFiscalYear: 2027, stage: 'request' },
+            value: '12.5',
+            disposition: 'included',
+            sourceDisposition: 'observed',
+            reason: 'Observed',
+            sourceRevisionIds: ['src-1'],
+            evidence: [
+              {
+                evidenceRefId: 'context-search-revision:src-1',
+                sourceDocumentId: 'doc',
+                sourceRevisionId: 'src-1',
+                sourceFamily: 'budget',
+                contentHash: 'hash',
+                nativeLocator: { page: null, section: null, occurrenceId: null },
+              },
+            ],
+          },
+        ],
         coverage: {
           eligibleMembers: 1,
           supportedMembers: 1,
@@ -245,7 +275,10 @@ function harness(
           unavailableMembers: 0,
         },
       },
-      versions: { sources: [{ id: 'src-1' }] },
+      versions: {
+        structure: { portfolioName: 'Portfolio', portfolioPurpose: 'Why' },
+        sources: [{ id: 'src-1' }],
+      },
       limitations: [],
     }),
   };
@@ -277,9 +310,63 @@ function harness(
   };
   const branding: any = {
     signedLogoUrlForTenant: jest.fn().mockResolvedValue('https://signed.example/logo.png'),
+    freezeLogoForSharing: jest.fn().mockResolvedValue({ dataUrl: 'data:image/png;base64,YQ==' }),
   };
-  const service = new ResearchPortfolioShareService(prisma, analytics, changes, phase11, branding);
-  return { service, tx, state, prisma, analytics, branding };
+  tx.researchPortfolioFitVersion = {
+    findFirst: jest
+      .fn()
+      .mockResolvedValue({
+        createdAt: new Date('2026-10-20T00:00:00.000Z'),
+        projection: { fitScore: 62, availability: 'available', basis: null },
+      }),
+  };
+  tx.researchPortfolioEvent.findMany = jest.fn(async () => [
+    { id: 'e1', eventKind: 'member_added', occurredAt: new Date('2026-10-19T00:00:00.000Z') },
+  ]);
+  const evidence: any = {
+    resolveEvidence: jest
+      .fn()
+      .mockResolvedValue({
+        evidenceRefId: 'context-search-revision:src-1',
+        sourceDocumentId: 'doc',
+        sourceRevisionId: 'src-1',
+        contentHash: 'hash',
+        nativeLocator: { page: null, section: null, occurrenceId: null },
+      }),
+  };
+  const payloads = new ResearchPortfolioSharePayloadService(analytics, evidence, branding);
+  const service = new ResearchPortfolioShareService(
+    prisma,
+    analytics,
+    changes,
+    phase11,
+    branding,
+    payloads,
+  );
+  const review = async (input: any) => {
+    const preview = await service.previewLink(ctx, portfolioId, input);
+    return {
+      ...input,
+      expectedDesignVersion: preview.designVersion,
+      previewHash: preview.previewHash,
+    };
+  };
+  const reviewed = new Map<string, any>();
+  const publish = async (input: any) => {
+    const bound = input.previewHash
+      ? input
+      : reviewed.has(input.operationKey)
+        ? {
+            ...input,
+            expectedDesignVersion: reviewed.get(input.operationKey).expectedDesignVersion,
+            previewHash: reviewed.get(input.operationKey).previewHash,
+          }
+        : await review(input);
+    const result = await service.publishLink(ctx, portfolioId, bound);
+    reviewed.set(input.operationKey, bound);
+    return result;
+  };
+  return { service, tx, state, prisma, analytics, branding, publish, review };
 }
 
 describe('PIN hashing', () => {
@@ -379,13 +466,54 @@ describe('sharing settings', () => {
 
 describe('publishing', () => {
   const input = { operationKey: 'op-1', snapshotId, designId, clientId, branding: true };
+  it('requires the exact reviewed content and reconciles a committed operation without a capability', async () => {
+    const h = harness({ role: 'editor', enabled: true, pin: '123456' });
+    const bound = await h.review(input);
+    await expect(
+      h.service.publishLink(ctx, portfolioId, { ...bound, previewHash: '0'.repeat(64) }),
+    ).rejects.toThrow('reviewed dashboard changed');
+    expect(h.state.links).toHaveLength(0);
+    const first = await h.service.publishLink(ctx, portfolioId, bound);
+    const recovered = await h.service.lookupPublishOperation(ctx, portfolioId, input.operationKey);
+    expect(recovered.link?.id).toBe(first.link.id);
+    expect(JSON.stringify(recovered)).not.toContain(first.token);
+    h.tx.$queryRawUnsafe.mockResolvedValue([{ allowed: false }]);
+    expect(await h.service.lookupPublishOperation(ctx, portfolioId, input.operationKey)).toEqual({
+      link: null,
+    });
+    h.tx.$queryRawUnsafe.mockResolvedValue([{ allowed: true }]);
+    expect(await h.service.lookupPublishOperation(ctx, portfolioId, 'absent')).toEqual({
+      link: null,
+    });
+  });
+
+  it('dispatches a live research capability without revealing dashboard content before PIN', async () => {
+    const h = harness({ enabled: true, pin: '123456' });
+    const first = await h.publish(input);
+    expect(await h.service.publicKind(first.token!)).toEqual({
+      available: true,
+      kind: 'research_portfolio',
+    });
+    await h.service.disableSharing(ctx, portfolioId);
+    expect(await h.service.publicKind(first.token!)).toEqual({ available: false });
+    expect(await h.service.publicKind('f'.repeat(64))).toEqual({ available: false });
+  });
   it('refuses to publish before sharing is on', async () => {
     const h = harness({ role: 'editor' });
-    await expect(h.service.publishLink(ctx, portfolioId, input)).rejects.toThrow(/Turn sharing on/);
+    await expect(h.publish(input)).rejects.toThrow(/Turn sharing on/);
   });
   it('freezes the payload, returns the token once, expires in exactly one week and replays idempotently', async () => {
     const h = harness({ role: 'editor', enabled: true, pin: '123456' });
-    const first = await h.service.publishLink(ctx, portfolioId, input);
+    h.state.designs[0].layout = {
+      ...layout,
+      widgets: [
+        ...layout.widgets,
+        { id: 'fit', kind: 'client_fit', x: 6, y: 2, w: 6, h: 3, settings: {} },
+        { id: 'changes', kind: 'changes', x: 0, y: 5, w: 6, h: 3, settings: {} },
+      ],
+      phoneOrder: ['header', 'totals', 'fit', 'changes'],
+    };
+    const first = await h.publish(input);
     expect(first.replayed).toBe(false);
     expect(first.token).toMatch(/^[0-9a-f]{64}$/);
     expect(first.link).toMatchObject({
@@ -400,41 +528,40 @@ describe('publishing', () => {
     ).toBe(SHARE_LINK_LIFETIME_MS);
     const row = h.state.links[0];
     expect(row.tokenHash).not.toEqual(first.token);
-    expect(row.payload.branding).toEqual({ firmName: 'Firm', logoAvailable: true });
-    expect(row.payload.preparedFor).toEqual({ clientName: 'Client One' });
-    expect(row.payload.data.clientFit).toMatchObject({ fitScore: 62 });
+    expect(row.payload.dashboard.branding).toEqual({ firmName: 'Firm', logoAvailable: true });
+    expect(row.payload.dashboard.preparedFor).toEqual({ clientName: 'Client One' });
+    expect(row.payload.dashboard.data.clientFit).toMatchObject({ fitScore: 62 });
     // Grants, client links and sharing events never reach a recipient.
-    expect(row.payload.data.changes.map((c: any) => c.eventKind)).toEqual(['member_added']);
-    const again = await h.service.publishLink(ctx, portfolioId, input);
+    expect(row.payload.dashboard.data.changes.map((c: any) => c.eventKind)).toEqual([
+      'member_added',
+    ]);
+    const again = await h.publish(input);
     expect(again).toMatchObject({ replayed: true, token: null });
     expect(h.state.links).toHaveLength(1);
     await expect(
-      h.service.publishLink(ctx, portfolioId, {
+      h.publish({
         ...input,
         clientId: 'ed202609-2800-4000-8000-000000009099',
       }),
     ).rejects.toThrow(/different link/);
   });
-  it('refuses a client fit widget when no fit exists for that client', async () => {
+  it('publishes an explicitly unavailable client fit when no frozen fit exists', async () => {
     const h = harness({ role: 'editor', enabled: true, pin: '123456' });
     h.state.designs[0].layout = {
       columns: 12,
       widgets: [{ id: 'fit', kind: 'client_fit', x: 0, y: 0, w: 6, h: 3, settings: {} }],
       phoneOrder: ['fit'],
     };
-    (h.service['phase11'] as any).getFit.mockResolvedValue({
-      portfolioId,
-      clientFits: [],
-      calculatedAt: '2026-10-20T00:00:00.000Z',
-    });
-    await expect(h.service.publishLink(ctx, portfolioId, input)).rejects.toThrow(/client fit/);
+    h.tx.researchPortfolioFitVersion.findFirst.mockResolvedValue(null);
+    await h.publish(input);
+    expect(h.state.links[0].payload.dashboard.data.clientFit).toBeNull();
   });
 });
 
 describe('recipient access', () => {
   it('lists only currently visible clients and rechecks walls on every owner read', async () => {
     const h = harness({ enabled: true, pin: '123456' });
-    const published = await h.service.publishLink(ctx, portfolioId, {
+    const published = await h.publish({
       operationKey: 'list-walls',
       snapshotId,
       designId,
@@ -442,7 +569,7 @@ describe('recipient access', () => {
       branding: false,
     });
     const deniedClientId = 'ed202609-2800-4000-8000-000000009003';
-    h.tx.researchPortfolioShareLink.findMany.mockResolvedValue([
+    h.tx.wsShareLink.findMany.mockResolvedValue([
       { ...h.state.links[0], client: { name: 'Visible client' } },
       {
         ...h.state.links[0],
@@ -470,7 +597,7 @@ describe('recipient access', () => {
 
   async function published(role: 'owner' | 'editor' = 'editor') {
     const h = harness({ role, enabled: true, pin: '123456' });
-    const { token } = await h.service.publishLink(ctx, portfolioId, {
+    const { token } = await h.publish({
       operationKey: 'op-2',
       snapshotId,
       designId,
@@ -589,12 +716,13 @@ describe('concurrent sharing mutations', () => {
     const h = harness({ enabled: true, pin: '123456' });
     const entered = deferred(),
       resume = deferred();
+    const bound = await h.review(input);
     h.tx.client.findFirst.mockImplementationOnce(async () => {
       entered.resolve();
       await resume.promise;
       return { name: 'Client One' };
     });
-    const publishing = h.service.publishLink(ctx, portfolioId, input);
+    const publishing = h.publish(bound);
     await entered.promise;
     const disabling = h.service.disableSharing(ctx, portfolioId);
     resume.resolve();
@@ -606,18 +734,13 @@ describe('concurrent sharing mutations', () => {
   });
   it('serializes same-key publication and refuses changed design or branding', async () => {
     const h = harness({ enabled: true, pin: '123456' });
-    const links = await Promise.all([
-      h.service.publishLink(ctx, portfolioId, input),
-      h.service.publishLink(ctx, portfolioId, input),
-    ]);
+    const links = await Promise.all([h.publish(input), h.publish(input)]);
     expect(h.state.links).toHaveLength(1);
     expect(links.map((link) => link.replayed).sort()).toEqual([false, true]);
-    await expect(
-      h.service.publishLink(ctx, portfolioId, { ...input, branding: false }),
-    ).rejects.toThrow(/different link/);
-    await expect(
-      h.service.publishLink(ctx, portfolioId, { ...input, designId: 'other-design' }),
-    ).rejects.toThrow(/different link/);
+    await expect(h.publish({ ...input, branding: false })).rejects.toThrow(/different link/);
+    await expect(h.publish({ ...input, designId: 'other-design' })).rejects.toThrow(
+      /different link/,
+    );
   });
   it('lets only one editor save an expected design version and refuses missing versions', async () => {
     const h = harness({ enabled: true, pin: '123456' });
@@ -668,13 +791,13 @@ describe('workspace switch, comparison and logo', () => {
     await expect(h.service.enableSharing(ctx, portfolioId, { pin: '123456' })).rejects.toThrow(
       /switched off/,
     );
-    await expect(h.service.publishLink(ctx, portfolioId, input)).rejects.toThrow(/switched off/);
+    await expect(h.publish(input)).rejects.toThrow(/switched off/);
     expect((await h.service.getSettings(ctx, portfolioId)).tenantEnabled).toBe(false);
   });
 
   it('stops existing links while the switch is off and records who flipped it', async () => {
     const h = harness({ enabled: true, pin: '123456' });
-    const { token } = await h.service.publishLink(ctx, portfolioId, input);
+    const { token } = await h.publish(input);
     expect(await h.service.availability(token!)).toEqual({ available: true });
     const admin = { ...ctx, role: 'user_admin' };
     const switched = await h.service.setTenantSharing(admin, { enabled: false });
@@ -693,8 +816,8 @@ describe('workspace switch, comparison and logo', () => {
 
   it('freezes the previous snapshot totals into the comparison, and none for a first snapshot', async () => {
     const h = harness({ enabled: true, pin: '123456' });
-    const first = await h.service.publishLink(ctx, portfolioId, input);
-    expect(h.state.links[0].payload.data.comparison).toBeNull();
+    const first = await h.publish(input);
+    expect(h.state.links[0].payload.dashboard.data.comparison).toBeNull();
     const earlierId = 'ed202609-2800-4000-8000-000000009021';
     const current = await h.analytics.snapshot();
     h.analytics.listSnapshots.mockResolvedValue([
@@ -716,13 +839,29 @@ describe('workspace switch, comparison and logo', () => {
           }
         : current,
     );
-    const second = await h.service.publishLink(ctx, portfolioId, {
+    h.state.designs[0].layout = {
+      ...layout,
+      widgets: [
+        ...layout.widgets,
+        {
+          id: 'compare',
+          kind: 'snapshot_comparison',
+          x: 6,
+          y: 2,
+          w: 6,
+          h: 3,
+          settings: { snapshotId: earlierId },
+        },
+      ],
+      phoneOrder: ['header', 'totals', 'compare'],
+    };
+    const second = await h.publish({
       ...input,
       operationKey: 'op-y',
     });
     expect(second.replayed).toBe(false);
     expect(first.link.id).not.toBe(second.link.id);
-    expect(h.state.links[1].payload.data.comparison).toEqual({
+    expect(h.state.links[1].payload.dashboard.data.comparison).toEqual({
       snapshotId: earlierId,
       snapshotName: 'Q3',
       capturedAt: '2026-09-20T00:00:00.000Z',
@@ -732,8 +871,8 @@ describe('workspace switch, comparison and logo', () => {
 
   it('serves the firm logo only to a live view session of a branded link', async () => {
     const h = harness({ enabled: true, pin: '123456' });
-    const branded = await h.service.publishLink(ctx, portfolioId, input);
-    const plain = await h.service.publishLink(ctx, portfolioId, {
+    const branded = await h.publish(input);
+    const plain = await h.publish({
       ...input,
       operationKey: 'op-plain',
       branding: false,
@@ -741,9 +880,9 @@ describe('workspace switch, comparison and logo', () => {
     await expect(h.service.logo(branded.token!, 'nope')).rejects.toThrow(/not available/);
     const session = await h.service.verifyPin(branded.token!, '123456', '203.0.113.6');
     expect(await h.service.logo(branded.token!, session.viewToken)).toEqual({
-      url: 'https://signed.example/logo.png',
+      url: 'data:image/png;base64,YQ==',
     });
-    expect(h.branding.signedLogoUrlForTenant).toHaveBeenCalledWith(ctx.tenantId);
+    expect(h.branding.signedLogoUrlForTenant).not.toHaveBeenCalled();
     const plainSession = await h.service.verifyPin(plain.token!, '123456', '203.0.113.6');
     expect(await h.service.logo(plain.token!, plainSession.viewToken)).toEqual({ url: null });
   });
