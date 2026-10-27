@@ -696,6 +696,15 @@
       "pathRegexes": [
         "^/api/program-elements/[A-Za-z0-9]{1,30}/watch$"
       ]
+    },
+    {
+      "id": "ResearchPortfolioBulkAndResolve",
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/reviews/bulk$",
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/members/[A-Za-z0-9_-]+/resolve$"
+      ]
     }
   ]
 }

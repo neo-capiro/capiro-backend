@@ -228,8 +228,8 @@ test('research portfolio import uploads admit only the exact Core POST on the pr
 
 test('recovered native research controls admit their finite user routes only', () =>
   render(false, (edge) => {
-    // Fixed frontend 1281d906 native operations, independently enumerated from
-    // the registry/callers; Core f7b3 remains the user/tenant authorization owner.
+    // Fixed frontend 1281d906 native operations plus the authorized bulk-review
+    // and member-resolution controls. Core remains the authorization owner.
     const id = '11111111-1111-4111-8111-111111111111';
     const child = '22222222-2222-4222-8222-222222222222';
     const portfolio = `/api/research-portfolios/${id}`;
@@ -260,8 +260,10 @@ test('recovered native research controls admit their finite user routes only', (
         .map((kind): [string, string] => ['DELETE', `${portfolio}/${kind}/${child}`]),
       ['PUT', `${portfolio}/grants/${child}`],
       ['POST', '/api/program-elements/0603270A/watch'],
+      ['POST', `${portfolio}/reviews/bulk`],
+      ['POST', `${portfolio}/members/${child}/resolve`],
     ];
-    assert.equal(writes.length, 43);
+    assert.equal(writes.length, 45);
     const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map((r) => r.Properties);
     for (const [method, pathname] of writes) {
       assert.deepEqual(routeDestination(rules, method, pathname), { Ref: 'CoreTarget' }, `${method} ${pathname}`);
@@ -283,7 +285,8 @@ test('recovered native research controls admit their finite user routes only', (
       `${portfolio}/operations/${child}/cancel`, `${portfolio}/reviews/${child}/delete`,
       `${portfolio}/watch-conversion/reconcile`, `${comparison}/delete`,
       `${comparison}/versions/${child}/publish`, `${portfolio}/annual-review/refresh`,
-      `${portfolio}/reviews/bulk`, `${portfolio}/members/${child}/resolve`,
+      `${portfolio}/reviews/bulk/decisions`, `${portfolio}/members/${child}/resolve-all`,
+      `${portfolio}/reviews/bulk-delete`, `${portfolio}/members/resolve`,
       '/api/research-portfolios/templates', '/api/program-elements/0603270A/watch/extra',
       `/api/program-elements/${'A'.repeat(31)}/watch`,
       `/api/research-portfolios/tour-state/${'v'.repeat(65)}`,
@@ -295,6 +298,7 @@ test('recovered native research controls admit their finite user routes only', (
       'ResearchSavedComparisonPosts', 'ResearchPortfolioPatches',
       'ResearchPortfolioChangeState', 'ResearchPortfolioRemovals',
       'ResearchPortfolioGrants', 'ResearchProgramElementWatch',
+      'ResearchPortfolioBulkAndResolve',
     ];
     additions.forEach((name, index) => {
       const added = edge.Resources[name].Properties;
@@ -452,7 +456,7 @@ test('finite method/path routes admit their owners and reject unintended cross-p
     const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map(
       (r) => r.Properties,
     );
-    assert.equal(rules.length, 86);
+    assert.equal(rules.length, 87);
     for (const rule of rules) {
       assert.deepEqual(rule.ListenerArn, { Ref: 'PreviewHttps' });
       const conditions = rule.Conditions;
