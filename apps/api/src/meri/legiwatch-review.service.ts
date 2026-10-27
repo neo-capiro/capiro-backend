@@ -58,6 +58,7 @@ export class LegiwatchReviewService {
       | 'get_legiwatch_review'
       | 'preview_legiwatch_relevance'
       | 'compare_florida_budget_amounts'
+      | 'get_florida_budget_project'
       | 'compare_legislative_versions',
     raw: unknown,
     parse: (value: unknown) => T,
@@ -68,6 +69,7 @@ export class LegiwatchReviewService {
         'get_legiwatch_review',
         'preview_legiwatch_relevance',
         'compare_florida_budget_amounts',
+        'get_florida_budget_project',
         'compare_legislative_versions',
       ].includes(operation)
     )
@@ -80,7 +82,19 @@ export class LegiwatchReviewService {
       readRetainedReadHeader(req),
       hasVerifiedToolServiceIdentity(req),
     );
-    const normalized = retainedReadObject(context.normalizationContext, ['legiwatchReviewScope']);
+    const normalized = retainedReadObject(
+      context.normalizationContext,
+      operation === 'get_florida_budget_project'
+        ? ['legiwatchReviewScope', 'asOf']
+        : ['legiwatchReviewScope'],
+    );
+    if (
+      operation === 'get_florida_budget_project' &&
+      (typeof normalized.asOf !== 'string' ||
+        !Number.isFinite(Date.parse(normalized.asOf)) ||
+        new Date(normalized.asOf).toISOString() !== normalized.asOf)
+    )
+      throw denied();
     const scope = retainedReadObject(normalized.legiwatchReviewScope, [
       'clientId',
       'identityRevision',

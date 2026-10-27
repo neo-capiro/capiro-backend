@@ -51,7 +51,7 @@ import { MeriToolsService, TOOL_DEFINITIONS } from './meri-tools.service.js';
 
 // Fixed HTTP controllers need the original interactive request; the older
 // context-only dispatcher must neither advertise nor execute them.
-const fixedReads = new Set(['read_saved_record', 'read_saved_strategy_records', 'get_legiwatch_review', 'compare_florida_budget_amounts', 'compare_legislative_versions']);
+const fixedReads = new Set(['read_saved_record', 'read_saved_strategy_records', 'get_legiwatch_review', 'get_florida_budget_project', 'compare_florida_budget_amounts', 'compare_legislative_versions']);
 const localManifest = Object.fromEntries(
   Object.entries(MERI_TOOL_MANIFEST).filter(([name]) => !fixedReads.has(name)),
 );

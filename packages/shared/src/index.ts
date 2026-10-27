@@ -5176,7 +5176,7 @@ export type MeriCapabilityName = MeriCapability['name'];
 // execute through the older context-only local dispatcher.
 export type MeriLocalCapability = Exclude<
   Extract<MeriCapability, { backend: 'meri' }>,
-  { name: 'read_saved_record' | 'read_saved_strategy_records' | 'get_legiwatch_review' | 'compare_florida_budget_amounts' | 'compare_legislative_versions' }
+  { name: 'read_saved_record' | 'read_saved_strategy_records' | 'get_legiwatch_review' | 'get_florida_budget_project' | 'compare_florida_budget_amounts' | 'compare_legislative_versions' }
 >;
 
 /** Compatibility projections; never maintain an independent name/description list. */
@@ -5186,7 +5186,7 @@ export const MERI_TOOL_MANIFEST: Readonly<Record<string, string>> = Object.fromE
 
 export const MERI_CORE_TOOL_DEFINITIONS = MERI_CAPABILITY_REGISTRY.filter(
   (tool): tool is MeriLocalCapability => tool.backend === 'meri' &&
-    tool.name !== 'read_saved_record' && tool.name !== 'read_saved_strategy_records' && tool.name !== 'get_legiwatch_review' && tool.name !== 'compare_florida_budget_amounts' && tool.name !== 'compare_legislative_versions',
+    tool.name !== 'read_saved_record' && tool.name !== 'read_saved_strategy_records' && tool.name !== 'get_legiwatch_review' && tool.name !== 'get_florida_budget_project' && tool.name !== 'compare_florida_budget_amounts' && tool.name !== 'compare_legislative_versions',
 ).map(({ name, description }) => ({ name, description }));
 
 export const MERI_FEDERAL_MARKET_TOOL_DEFINITIONS = MERI_CAPABILITY_REGISTRY.filter(

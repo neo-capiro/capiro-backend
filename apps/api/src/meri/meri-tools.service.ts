@@ -834,15 +834,6 @@ export class MeriToolsService {
         },
         ['view'],
       ),
-      get_florida_budget_project: obj(
-        {
-          ...legiwatchScope,
-          fiscalYear: str('Fiscal year such as 2026-27'),
-          projectId: str('Typed canonical project ID'),
-          offset: { type: 'integer', minimum: 0 },
-        },
-        ['fiscalYear'],
-      ),
       prepare_legiwatch_briefing: obj(
         {
           ...legiwatchScope,
@@ -2755,7 +2746,6 @@ export class MeriToolsService {
       publish_research_portfolio_share_link: () => researchPortfolio('publish_research_portfolio_share_link'),
       revoke_research_portfolio_share_link: () => researchPortfolio('revoke_research_portfolio_share_link'),
       search_legiwatch_news: legiwatch,
-      get_florida_budget_project: legiwatch,
       prepare_legiwatch_briefing: legiwatch,
       search_legislative_research: legiwatch,
       get_legal_reference: legiwatch,

@@ -21,6 +21,10 @@ import { assertMeriToolAllowed } from './meri-tool-allowlist.js';
 import { withMeriToolRequestControl } from './meri-tool-request-control.js';
 import { LegiwatchReviewService } from './legiwatch-review.service.js';
 import {
+  parseFloridaBudgetRead,
+  receiveFloridaBudgetRead,
+} from './florida-budget-read.contract.js';
+import {
   parseBudgetComparison,
   parseVersionComparison,
   receiveBudgetComparison,
@@ -32,6 +36,25 @@ import {
 @Roles('standard_user')
 export class LegislativeComparisonController {
   constructor(private readonly owner: LegiwatchReviewService) {}
+
+  @Post('get_florida_budget_project')
+  @HttpCode(200)
+  @Header('Cache-Control', 'private, no-store')
+  projects(@CurrentTenant() ctx: TenantContext, @Body() body: unknown, @Req() req: Request) {
+    assertMeriToolAllowed('get_florida_budget_project');
+    if (!hasVerifiedToolServiceIdentity(req))
+      throw new ForbiddenException('Internal service required');
+    return withMeriToolRequestControl(req, () =>
+      this.owner.readOwner(
+        ctx,
+        req,
+        'get_florida_budget_project',
+        body,
+        parseFloridaBudgetRead,
+        receiveFloridaBudgetRead,
+      ),
+    );
+  }
 
   @Post('compare_florida_budget_amounts')
   @HttpCode(200)

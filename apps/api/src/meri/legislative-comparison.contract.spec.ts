@@ -12,6 +12,10 @@ import {
   receiveBudgetComparison,
   receiveVersionComparison,
 } from './legislative-comparison.contract.js';
+import {
+  parseFloridaBudgetRead,
+  receiveFloridaBudgetRead,
+} from './florida-budget-read.contract.js';
 
 const pair = {
   clientId: null,
@@ -20,6 +24,56 @@ const pair = {
   rightId: 'right',
   rightRevision: 'r2',
 };
+
+describe('Florida prerequisite source read', () => {
+  const input = {
+    q: '',
+    fiscalYear: '2026-27',
+    projectId: 'project',
+    offset: 0,
+    sessionKey: '',
+    folderId: null,
+    clientId: null,
+  };
+  const page = () => ({
+    scope: { jurisdiction: 'FL', sessionKey: '', folderId: null, clientId: null },
+    fiscalYear: '2026-27',
+    projects: [],
+    documents: [],
+    events: [],
+    nextOffset: null,
+    amounts: [
+      {
+        id: 'exact-observation',
+        observation: {
+          sourceRevision: 'revision-1',
+          minorUnits: '900719925474099300',
+          stage: 'request',
+          basis: 'recurring',
+        },
+      },
+    ],
+    notice:
+      'Selected publisher evidence. Requests and chamber alternatives are not awards. No statewide aggregate is inferred.',
+  });
+  it('preserves exact observation identifiers, revisions and stored qualifiers', () => {
+    expect(receiveFloridaBudgetRead(parseFloridaBudgetRead(input), page()).result).toEqual(page());
+  });
+  it('refuses a substituted fiscal year or client scope before release', () => {
+    expect(() => receiveFloridaBudgetRead(input, { ...page(), fiscalYear: '2027-28' })).toThrow();
+    expect(() =>
+      receiveFloridaBudgetRead(input, {
+        ...page(),
+        scope: { ...page().scope, clientId: '20000000-0000-4000-8000-000000000009' },
+      }),
+    ).toThrow();
+  });
+  it('requires finite normalized selectors and the actual project continuation bound', () => {
+    expect(() => parseFloridaBudgetRead({ ...input, offset: '1' })).toThrow();
+    expect(() => parseFloridaBudgetRead({ ...input, clientId: 'friendly name' })).toThrow();
+    expect(() => receiveFloridaBudgetRead(input, { ...page(), nextOffset: 100 })).toThrow();
+  });
+});
 const amount: BudgetAmount = {
   id: 'left',
   projectId: 'project',
