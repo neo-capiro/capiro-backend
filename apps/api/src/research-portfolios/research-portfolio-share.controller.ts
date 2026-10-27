@@ -21,11 +21,14 @@ import type {
   ResearchPortfolioShareDashboardDto,
   ResearchPortfolioShareLinkDto,
   ResearchPortfolioShareLinkPublishedDto,
+  ResearchPortfolioShareLogoDto,
   ResearchPortfolioSharePinDto,
   ResearchPortfolioShareSettingsDto,
   ResearchPortfolioShareViewDto,
   ResearchPortfolioShareViewSessionDto,
+  ResearchPortfolioTenantSharingDto,
   SaveResearchPortfolioDashboardDesignDto,
+  SetResearchPortfolioTenantSharingDto,
 } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -156,6 +159,20 @@ export class ResearchPortfolioShareAdminController {
     return this.share.listTenantActiveLinks(ctx);
   }
 
+  /** Workspace-wide switch (FR-16.42). */
+  @Get('settings')
+  tenantSharing(@CurrentTenant() ctx: TenantContext): Promise<ResearchPortfolioTenantSharingDto> {
+    return this.share.getTenantSharing(ctx);
+  }
+
+  @Post('settings')
+  setTenantSharing(
+    @CurrentTenant() ctx: TenantContext,
+    @Body() dto: SetResearchPortfolioTenantSharingDto,
+  ): Promise<ResearchPortfolioTenantSharingDto> {
+    return this.share.setTenantSharing(ctx, dto);
+  }
+
   @Post(':linkId/revoke')
   revoke(
     @CurrentTenant() ctx: TenantContext,
@@ -205,5 +222,14 @@ export class ResearchPortfolioSharePublicController {
     @Body() dto: ResearchPortfolioShareViewDto,
   ): Promise<ResearchPortfolioShareDashboardDto> {
     return this.share.dashboard(token, dto?.viewToken ?? '');
+  }
+
+  /** Firm logo for a branded link; the same view token as the dashboard. */
+  @Post(':token/logo')
+  logo(
+    @Param('token') token: string,
+    @Body() dto: ResearchPortfolioShareViewDto,
+  ): Promise<ResearchPortfolioShareLogoDto> {
+    return this.share.logo(token, dto?.viewToken ?? '');
   }
 }

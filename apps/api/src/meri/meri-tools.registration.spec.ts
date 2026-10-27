@@ -46,7 +46,10 @@ import { MeriToolsService, TOOL_DEFINITIONS } from './meri-tools.service.js';
 import { MERI_CAPABILITY_REGISTRY } from '@capiro/shared';
 import { EventEmitter } from 'node:events';
 import { withMeriToolRequestControl } from './meri-tool-request-control.js';
-import { withMeriFundingReadObservation, withMeriReadObservation } from './meri-funding-read-observation.js';
+import {
+  withMeriFundingReadObservation,
+  withMeriReadObservation,
+} from './meri-funding-read-observation.js';
 
 describe('public SQL native tools', () => {
   function service() {
@@ -160,6 +163,9 @@ const EXPECTED_TOOLS = [
   'manage_research_portfolio',
   'prepare_research_portfolio_brief',
   'prepare_research_portfolio_meeting',
+  'get_research_portfolio_share_links',
+  'publish_research_portfolio_share_link',
+  'revoke_research_portfolio_share_link',
   // Client knowledge base (assistant-parity F5)
   'search_client_knowledge',
   // Analysis sandbox (assistant-parity F4; pilot-gated per tenant)
@@ -362,6 +368,16 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   manage_research_portfolio: ['conversationId', 'action', 'parameters'],
   prepare_research_portfolio_brief: ['conversationId', 'operationKey', 'confirmed'],
   prepare_research_portfolio_meeting: ['conversationId', 'operationKey', 'confirmed'],
+  get_research_portfolio_share_links: ['conversationId'],
+  publish_research_portfolio_share_link: [
+    'conversationId',
+    'operationKey',
+    'snapshotId',
+    'designId',
+    'clientId',
+    'branding',
+  ],
+  revoke_research_portfolio_share_link: ['conversationId', 'linkId'],
   search_client_knowledge: ['query'],
   run_analysis: ['code'],
   search_public_web: ['query'],
@@ -723,10 +739,12 @@ describe('Meri tool registration', () => {
     const actor = { tenantId: 'tenant-1', userId: 'user-1' } as const;
     const asOf = '2026-10-17T12:34:56.789Z';
     const findFirst = jest.fn(async () => ({ id: 'client-1', name: 'Civic Client' }));
-    const withTenant = jest.fn(async (
-      _tenantId: string,
-      read: (tx: { client: { findFirst: typeof findFirst } }) => Promise<unknown>,
-    ) => read({ client: { findFirst } }));
+    const withTenant = jest.fn(
+      async (
+        _tenantId: string,
+        read: (tx: { client: { findFirst: typeof findFirst } }) => Promise<unknown>,
+      ) => read({ client: { findFirst } }),
+    );
     const search = jest.fn(async () => [{ id: 'kb-1' }]);
     const warn = jest.fn();
     const service = Object.assign(Object.create(MeriToolsService.prototype), {
@@ -737,38 +755,64 @@ describe('Meri tool registration', () => {
     const observed = <T>(run: () => T): T =>
       withMeriReadObservation({ operationId: 'search_client_knowledge', asOf }, run);
 
-    await expect(observed(() => service.execute(actor as never, 'search_client_knowledge', {
-      query: '  Civic & energ\u00eda \ud83c\udf31  ',
-    }))).resolves.toMatchObject({
-      tool: 'search_client_knowledge', generatedAt: asOf, results: [],
+    await expect(
+      observed(() =>
+        service.execute(actor as never, 'search_client_knowledge', {
+          query: '  Civic & energ\u00eda \ud83c\udf31  ',
+        }),
+      ),
+    ).resolves.toMatchObject({
+      tool: 'search_client_knowledge',
+      generatedAt: asOf,
+      results: [],
       note: expect.stringContaining('No client is linked'),
     });
     expect(withTenant).not.toHaveBeenCalled();
     expect(search).not.toHaveBeenCalled();
 
-    const input = { query: '  Civic & energ\u00eda \ud83c\udf31  ', clientId: 'client-1', kind: 'client_doc_chunk', limit: 5 };
-    await expect(observed(() => service.execute(actor as never, 'search_client_knowledge', input)))
-      .resolves.toMatchObject({ generatedAt: asOf, query: 'Civic & energ\u00eda \ud83c\udf31', results: [{ id: 'kb-1' }] });
+    const input = {
+      query: '  Civic & energ\u00eda \ud83c\udf31  ',
+      clientId: 'client-1',
+      kind: 'client_doc_chunk',
+      limit: 5,
+    };
+    await expect(
+      observed(() => service.execute(actor as never, 'search_client_knowledge', input)),
+    ).resolves.toMatchObject({
+      generatedAt: asOf,
+      query: 'Civic & energ\u00eda \ud83c\udf31',
+      results: [{ id: 'kb-1' }],
+    });
     expect(withTenant).toHaveBeenCalledWith(actor.tenantId, expect.any(Function));
-    expect(findFirst).toHaveBeenCalledWith({ where: { id: input.clientId }, select: { id: true, name: true } });
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { id: input.clientId },
+      select: { id: true, name: true },
+    });
     expect(search).toHaveBeenCalledWith(actor.tenantId, {
-      query: 'Civic & energ\u00eda \ud83c\udf31', clientId: input.clientId,
-      userId: actor.userId, kind: input.kind, limit: input.limit,
+      query: 'Civic & energ\u00eda \ud83c\udf31',
+      clientId: input.clientId,
+      userId: actor.userId,
+      kind: input.kind,
+      limit: input.limit,
     });
 
     search.mockResolvedValueOnce([]);
-    await expect(observed(() => service.execute(actor as never, 'search_client_knowledge', input)))
-      .resolves.toMatchObject({ generatedAt: asOf, results: [] });
+    await expect(
+      observed(() => service.execute(actor as never, 'search_client_knowledge', input)),
+    ).resolves.toMatchObject({ generatedAt: asOf, results: [] });
     search.mockRejectedValueOnce(new Error('KB unavailable'));
-    await expect(observed(() => service.execute(actor as never, 'search_client_knowledge', input)))
-      .resolves.toMatchObject({
-        generatedAt: asOf, results: [],
-        note: expect.stringContaining('temporarily unavailable'),
-      });
+    await expect(
+      observed(() => service.execute(actor as never, 'search_client_knowledge', input)),
+    ).resolves.toMatchObject({
+      generatedAt: asOf,
+      results: [],
+      note: expect.stringContaining('temporarily unavailable'),
+    });
     expect(warn).toHaveBeenCalledTimes(1);
 
-    await expect(service.execute(actor as never, 'search_client_knowledge', { query: 'legacy' }))
-      .resolves.toMatchObject({ generatedAt: expect.any(String), results: [] });
+    await expect(
+      service.execute(actor as never, 'search_client_knowledge', { query: 'legacy' }),
+    ).resolves.toMatchObject({ generatedAt: expect.any(String), results: [] });
   });
 
   it('keeps KB validation and missing-client lookup as execution failures', async () => {
@@ -776,19 +820,36 @@ describe('Meri tool registration', () => {
     const findFirst = jest.fn(async () => null);
     const search = jest.fn();
     const service = Object.assign(Object.create(MeriToolsService.prototype), {
-      prisma: { withTenant: async (_tenantId: string, read: (tx: unknown) => Promise<unknown>) =>
-        read({ client: { findFirst } }) },
+      prisma: {
+        withTenant: async (_tenantId: string, read: (tx: unknown) => Promise<unknown>) =>
+          read({ client: { findFirst } }),
+      },
       clientKb: { search },
     }) as MeriToolsService;
-    const observed = <T>(run: () => T): T => withMeriReadObservation({
-      operationId: 'search_client_knowledge', asOf: '2026-10-17T12:34:56.789Z',
-    }, run);
-    await expect(observed(() => service.execute(actor as never, 'search_client_knowledge', {
-      query: '   ', clientId: 'client-1',
-    }))).rejects.toThrow('query is required');
-    await expect(observed(() => service.execute(actor as never, 'search_client_knowledge', {
-      query: 'Civic', clientId: 'client-1',
-    }))).rejects.toThrow('Client not found');
+    const observed = <T>(run: () => T): T =>
+      withMeriReadObservation(
+        {
+          operationId: 'search_client_knowledge',
+          asOf: '2026-10-17T12:34:56.789Z',
+        },
+        run,
+      );
+    await expect(
+      observed(() =>
+        service.execute(actor as never, 'search_client_knowledge', {
+          query: '   ',
+          clientId: 'client-1',
+        }),
+      ),
+    ).rejects.toThrow('query is required');
+    await expect(
+      observed(() =>
+        service.execute(actor as never, 'search_client_knowledge', {
+          query: 'Civic',
+          clientId: 'client-1',
+        }),
+      ),
+    ).rejects.toThrow('Client not found');
     expect(search).not.toHaveBeenCalled();
   });
 

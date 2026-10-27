@@ -1,4 +1,5 @@
 import { EngagementModule } from '../engagement/engagement.module.js';
+import { BrandingModule } from '../branding/branding.module.js';
 import { ResearchPortfolioInstitutionalService } from './research-portfolio-institutional.service.js';
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module.js';
@@ -25,7 +26,13 @@ import {
 } from './research-portfolio-share.controller.js';
 
 @Module({
-  imports: [EngagementModule, PrismaModule, DefenseResearchModule, ClientDocumentsModule],
+  imports: [
+    EngagementModule,
+    PrismaModule,
+    DefenseResearchModule,
+    ClientDocumentsModule,
+    BrandingModule,
+  ],
   controllers: [
     ResearchPortfoliosController,
     ResearchContextsController,

@@ -19,11 +19,16 @@ import type {
   ResearchPortfolioShareDashboardDto,
   ResearchPortfolioShareLinkDto,
   ResearchPortfolioShareLinkPublishedDto,
+  ResearchPortfolioShareLogoDto,
   ResearchPortfolioShareSettingsDto,
   ResearchPortfolioShareViewSessionDto,
+  ResearchPortfolioTenantSharingDto,
   SaveResearchPortfolioDashboardDesignDto,
+  SetResearchPortfolioTenantSharingDto,
   ResearchPortfolioEventKind,
 } from '@capiro/shared';
+import { tenantFeatureEnabled } from '@capiro/shared';
+import { BrandingService } from '../branding/branding.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   assertResearchPortfolioClientAccess,
@@ -70,6 +75,11 @@ const RECIPIENT_EVENT_KINDS: ReadonlySet<string> = new Set([
   'import_created',
   'import_action',
 ]);
+/** Workspace-wide switch (FR-16.42), stored with the other tenant feature flags; on unless an administrator turns it off. */
+export const TENANT_SHARING_FLAG = 'researchSharing.enabled';
+export function researchSharingEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, TENANT_SHARING_FLAG, true);
+}
 const UNAVAILABLE = 'This link is not available';
 /** One message for missing, expired, revoked and locked links: the page never reveals which. */
 const unavailable = () => new NotFoundException(UNAVAILABLE);
@@ -176,6 +186,7 @@ export class ResearchPortfolioShareService {
     private readonly analytics: ResearchPortfolioAnalyticsService,
     private readonly changes: ResearchPortfolioChangesService,
     private readonly phase11: ResearchPortfolioPhase11Service,
+    private readonly branding: BrandingService,
   ) {}
 
   // ---------------------------------------------------------------- settings
@@ -201,6 +212,7 @@ export class ResearchPortfolioShareService {
       const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'owner');
       if (portfolio.lifecycle === 'archived')
         throw new ConflictException('Archived portfolios cannot be shared');
+      await this.assertTenantSharing(tx, ctx.tenantId);
       const now = new Date();
       await tx.researchPortfolioShareSetting.upsert({
         where: { portfolioId },
@@ -267,6 +279,46 @@ export class ResearchPortfolioShareService {
         revokedLinks: revoked.count,
       });
       return this.settingsDto(tx, ctx.tenantId, portfolioId);
+    });
+  }
+
+  // ---------------------------------------------------------------- tenant switch (administrators)
+
+  async getTenantSharing(ctx: TenantContext): Promise<ResearchPortfolioTenantSharingDto> {
+    return this.prisma.withTenant(ctx.tenantId, (tx) => this.tenantSharingDto(tx, ctx.tenantId));
+  }
+
+  /** Off means no link can be published and every existing link stops answering until it is on again. */
+  async setTenantSharing(
+    ctx: TenantContext,
+    input: SetResearchPortfolioTenantSharingDto,
+  ): Promise<ResearchPortfolioTenantSharingDto> {
+    if (typeof input?.enabled !== 'boolean')
+      throw new BadRequestException('enabled must be true or false');
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${ctx.tenantId}::uuid FOR UPDATE`;
+      const tenant = await tx.tenant.findUnique({
+        where: { id: ctx.tenantId },
+        select: { settings: true },
+      });
+      if (!tenant) throw new NotFoundException('Tenant not found');
+      const settings = (tenant.settings ?? {}) as Record<string, unknown>;
+      const clioFeatureFlags = {
+        ...((settings.clioFeatureFlags ?? {}) as Record<string, unknown>),
+        [TENANT_SHARING_FLAG]: input.enabled,
+      };
+      const researchSharing = { updatedAt: new Date().toISOString(), updatedByUserId: ctx.userId };
+      await tx.tenant.update({
+        where: { id: ctx.tenantId },
+        data: {
+          settings: {
+            ...settings,
+            clioFeatureFlags,
+            researchSharing,
+          } as unknown as Prisma.InputJsonValue,
+        },
+      });
+      return this.tenantSharingDto(tx, ctx.tenantId);
     });
   }
 
@@ -388,6 +440,7 @@ export class ResearchPortfolioShareService {
     const branding = input.branding === true;
     // Reads that build the frozen payload use the existing owners (each re-checks current access).
     const snapshot = await this.analytics.snapshot(ctx, portfolioId, input.snapshotId);
+    const comparison = await this.previousSnapshotTotals(ctx, portfolioId, snapshot);
     const fit = await this.phase11.getFit(ctx, portfolioId);
     const changes = await this.changes.listChanges(ctx, portfolioId, null, 50);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
@@ -412,6 +465,7 @@ export class ResearchPortfolioShareService {
       }
       if (portfolio.lifecycle === 'archived')
         throw new ConflictException('Archived portfolios cannot be shared');
+      await this.assertTenantSharing(tx, ctx.tenantId);
       const setting = await tx.researchPortfolioShareSetting.findUnique({ where: { portfolioId } });
       if (!setting?.enabled || !setting.pinHash)
         throw new ConflictException('Turn sharing on and set a PIN before publishing a link');
@@ -485,7 +539,7 @@ export class ResearchPortfolioShareService {
               occurredAt: change.occurredAt,
               summary: change.eventKind.replaceAll('_', ' '),
             })),
-          comparison: null,
+          comparison,
         },
         snapshot: {
           id: snapshot.id,
@@ -620,7 +674,68 @@ export class ResearchPortfolioShareService {
     });
   }
 
+  /** The firm logo for a recipient who holds a live view session, only when the link was published with branding. */
+  async logo(token: string, viewToken: string): Promise<ResearchPortfolioShareLogoDto> {
+    const live = await this.prisma.withSystem(async (tx) => {
+      const found = await this.findLiveLink(tx, token);
+      if (!found || !this.verifyView(viewToken, found.row.id, found.pinHash, found.row.tokenHash))
+        throw unavailable();
+      return found.row;
+    });
+    if (!live.branding) return { url: null };
+    return { url: await this.branding.signedLogoUrlForTenant(live.tenantId) };
+  }
+
   // ---------------------------------------------------------------- internals
+
+  private async assertTenantSharing(tx: Tx, tenantId: string): Promise<void> {
+    const tenant = await tx.tenant.findUnique({
+      where: { id: tenantId },
+      select: { settings: true },
+    });
+    if (!researchSharingEnabled(tenant?.settings))
+      throw new ConflictException('Client sharing is switched off for this workspace');
+  }
+
+  private async tenantSharingDto(
+    tx: Tx,
+    tenantId: string,
+  ): Promise<ResearchPortfolioTenantSharingDto> {
+    const [tenant, activeLinkCount] = await Promise.all([
+      tx.tenant.findUnique({ where: { id: tenantId }, select: { settings: true } }),
+      tx.researchPortfolioShareLink.count({
+        where: { tenantId, revokedAt: null, expiresAt: { gt: new Date() } },
+      }),
+    ]);
+    const settings = (tenant?.settings ?? {}) as Record<string, unknown>;
+    const audit = settings.researchSharing as
+      { updatedAt?: unknown; updatedByUserId?: unknown } | undefined;
+    return {
+      enabled: researchSharingEnabled(settings),
+      activeLinkCount,
+      updatedAt: typeof audit?.updatedAt === 'string' ? audit.updatedAt : null,
+      updatedByUserId: typeof audit?.updatedByUserId === 'string' ? audit.updatedByUserId : null,
+    };
+  }
+
+  /** The latest earlier snapshot of the same portfolio feeds the comparison widget; none when this is the first. */
+  private async previousSnapshotTotals(
+    ctx: TenantContext,
+    portfolioId: string,
+    current: { id: string; capturedAt: string },
+  ): Promise<ResearchPortfolioShareDashboardDto['data']['comparison']> {
+    const earlier = (await this.analytics.listSnapshots(ctx, portfolioId))
+      .filter((entry) => entry.id !== current.id && entry.capturedAt < current.capturedAt)
+      .sort((a, b) => (a.capturedAt < b.capturedAt ? 1 : -1))[0];
+    if (!earlier) return null;
+    const detail = await this.analytics.snapshot(ctx, portfolioId, earlier.id);
+    return {
+      snapshotId: detail.id,
+      snapshotName: detail.name,
+      capturedAt: detail.capturedAt,
+      totals: detail.projection.totals,
+    };
+  }
 
   private requirePin(pin: unknown): string {
     if (typeof pin !== 'string' || !PIN_PATTERN.test(pin))
@@ -676,6 +791,11 @@ export class ResearchPortfolioShareService {
       where: { portfolioId: row.portfolioId },
     });
     if (!setting?.enabled || !setting.pinHash) return null;
+    const tenant = await tx.tenant.findUnique({
+      where: { id: row.tenantId },
+      select: { settings: true },
+    });
+    if (!researchSharingEnabled(tenant?.settings)) return null;
     return { row, pinHash: setting.pinHash };
   }
 
@@ -769,15 +889,17 @@ export class ResearchPortfolioShareService {
     tenantId: string,
     portfolioId: string,
   ): Promise<ResearchPortfolioShareSettingsDto> {
-    const [setting, activeLinkCount] = await Promise.all([
+    const [setting, activeLinkCount, tenant] = await Promise.all([
       tx.researchPortfolioShareSetting.findUnique({ where: { portfolioId } }),
       tx.researchPortfolioShareLink.count({
         where: { tenantId, portfolioId, revokedAt: null, expiresAt: { gt: new Date() } },
       }),
+      tx.tenant.findUnique({ where: { id: tenantId }, select: { settings: true } }),
     ]);
     return {
       portfolioId,
       enabled: setting?.enabled ?? false,
+      tenantEnabled: researchSharingEnabled(tenant?.settings),
       pinSet: Boolean(setting?.pinHash),
       pinUpdatedAt: asIso(setting?.pinUpdatedAt),
       activeLinkCount,

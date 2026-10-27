@@ -57,6 +57,7 @@ function harness(
       },
     ],
     events: [] as any[],
+    tenant: { name: 'Firm', logoS3Key: 'tenants/x/logo.png', settings: {} as any },
   };
   const withClient = (row: any) => (row ? { ...row, client: { name: 'Client One' } } : row);
   const tx: any = {
@@ -178,7 +179,8 @@ function harness(
     },
     client: { findFirst: jest.fn().mockResolvedValue({ name: 'Client One' }) },
     tenant: {
-      findUnique: jest.fn().mockResolvedValue({ name: 'Firm', logoS3Key: 'tenants/x/logo.png' }),
+      findUnique: jest.fn(async () => state.tenant),
+      update: jest.fn(async ({ data }: any) => Object.assign(state.tenant, data)),
     },
     tenantMembership: { findFirst: jest.fn().mockResolvedValue({ status: 'active' }) },
     $queryRawUnsafe: jest.fn().mockResolvedValue([{ allowed: true }]),
@@ -209,6 +211,7 @@ function harness(
     withSystem: jest.fn(async (fn: any) => transaction(fn)),
   };
   const analytics: any = {
+    listSnapshots: jest.fn().mockResolvedValue([]),
     snapshot: jest.fn().mockResolvedValue({
       id: snapshotId,
       name: 'Q4',
@@ -272,8 +275,11 @@ function harness(
       calculatedAt: '2026-10-20T00:00:00.000Z',
     }),
   };
-  const service = new ResearchPortfolioShareService(prisma, analytics, changes, phase11);
-  return { service, tx, state, prisma };
+  const branding: any = {
+    signedLogoUrlForTenant: jest.fn().mockResolvedValue('https://signed.example/logo.png'),
+  };
+  const service = new ResearchPortfolioShareService(prisma, analytics, changes, phase11, branding);
+  return { service, tx, state, prisma, analytics, branding };
 }
 
 describe('PIN hashing', () => {
@@ -613,5 +619,96 @@ describe('concurrent sharing mutations', () => {
       'header',
       'totals',
     ]);
+  });
+});
+
+describe('workspace switch, comparison and logo', () => {
+  const input = { operationKey: 'op-x', snapshotId, designId, clientId, branding: true };
+  const off = { clioFeatureFlags: { 'researchSharing.enabled': false } };
+
+  it('refuses to turn sharing on or publish while the workspace switch is off', async () => {
+    const h = harness({ enabled: true, pin: '123456' });
+    h.state.tenant.settings = off;
+    await expect(h.service.enableSharing(ctx, portfolioId, { pin: '123456' })).rejects.toThrow(
+      /switched off/,
+    );
+    await expect(h.service.publishLink(ctx, portfolioId, input)).rejects.toThrow(/switched off/);
+    expect((await h.service.getSettings(ctx, portfolioId)).tenantEnabled).toBe(false);
+  });
+
+  it('stops existing links while the switch is off and records who flipped it', async () => {
+    const h = harness({ enabled: true, pin: '123456' });
+    const { token } = await h.service.publishLink(ctx, portfolioId, input);
+    expect(await h.service.availability(token!)).toEqual({ available: true });
+    const admin = { ...ctx, role: 'user_admin' };
+    const switched = await h.service.setTenantSharing(admin, { enabled: false });
+    expect(switched).toMatchObject({ enabled: false, updatedByUserId: ctx.userId });
+    expect(h.state.tenant.settings.clioFeatureFlags['researchSharing.enabled']).toBe(false);
+    expect(await h.service.availability(token!)).toEqual({ available: false });
+    await expect(h.service.verifyPin(token!, '123456', '203.0.113.5')).rejects.toThrow(
+      /not available/,
+    );
+    await h.service.setTenantSharing(admin, { enabled: true });
+    expect(await h.service.availability(token!)).toEqual({ available: true });
+    await expect(h.service.setTenantSharing(admin, { enabled: 'yes' as any })).rejects.toThrow(
+      /true or false/,
+    );
+  });
+
+  it('freezes the previous snapshot totals into the comparison, and none for a first snapshot', async () => {
+    const h = harness({ enabled: true, pin: '123456' });
+    const first = await h.service.publishLink(ctx, portfolioId, input);
+    expect(h.state.links[0].payload.data.comparison).toBeNull();
+    const earlierId = 'ed202609-2800-4000-8000-000000009021';
+    const current = await h.analytics.snapshot();
+    h.analytics.listSnapshots.mockResolvedValue([
+      { id: snapshotId, capturedAt: current.capturedAt },
+      { id: earlierId, capturedAt: '2026-09-20T00:00:00.000Z' },
+      { id: 'later', capturedAt: '2026-11-20T00:00:00.000Z' },
+    ]);
+    h.analytics.snapshot.mockImplementation(async (_c: any, _p: any, id: string) =>
+      id === earlierId
+        ? {
+            ...current,
+            id: earlierId,
+            name: 'Q3',
+            capturedAt: '2026-09-20T00:00:00.000Z',
+            projection: {
+              ...current.projection,
+              totals: [{ ...current.projection.totals[0], value: '10.0' }],
+            },
+          }
+        : current,
+    );
+    const second = await h.service.publishLink(ctx, portfolioId, {
+      ...input,
+      operationKey: 'op-y',
+    });
+    expect(second.replayed).toBe(false);
+    expect(first.link.id).not.toBe(second.link.id);
+    expect(h.state.links[1].payload.data.comparison).toEqual({
+      snapshotId: earlierId,
+      snapshotName: 'Q3',
+      capturedAt: '2026-09-20T00:00:00.000Z',
+      totals: [{ ...current.projection.totals[0], value: '10.0' }],
+    });
+  });
+
+  it('serves the firm logo only to a live view session of a branded link', async () => {
+    const h = harness({ enabled: true, pin: '123456' });
+    const branded = await h.service.publishLink(ctx, portfolioId, input);
+    const plain = await h.service.publishLink(ctx, portfolioId, {
+      ...input,
+      operationKey: 'op-plain',
+      branding: false,
+    });
+    await expect(h.service.logo(branded.token!, 'nope')).rejects.toThrow(/not available/);
+    const session = await h.service.verifyPin(branded.token!, '123456', '203.0.113.6');
+    expect(await h.service.logo(branded.token!, session.viewToken)).toEqual({
+      url: 'https://signed.example/logo.png',
+    });
+    expect(h.branding.signedLogoUrlForTenant).toHaveBeenCalledWith(ctx.tenantId);
+    const plainSession = await h.service.verifyPin(plain.token!, '123456', '203.0.113.6');
+    expect(await h.service.logo(plain.token!, plainSession.viewToken)).toEqual({ url: null });
   });
 });
