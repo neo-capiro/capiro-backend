@@ -17,6 +17,7 @@ import { ConfigService } from '@nestjs/config';
 import { EngagementModule } from '../engagement/engagement.module.js';
 import { ClientDocumentsModule } from '../client-documents/client-documents.module.js';
 import { MeriJobDeliverablesController } from './meri-job-deliverables.controller.js';
+import { MeriCompletedReportsController } from './meri-completed-reports.controller.js';
 import { MeriJobDeliverablesService } from './meri-job-deliverables.service.js';
 import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module.js';
 // Phase 4 server-only slice: one-way import. BD exports the scope service;
@@ -202,6 +203,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     MeriMcpOAuthController,
     MeriVNextLibraryController,
     MeriJobDeliverablesController,
+    MeriCompletedReportsController,
   ],
   providers: [ClientRecordActionService,
     LegiwatchActionService,
