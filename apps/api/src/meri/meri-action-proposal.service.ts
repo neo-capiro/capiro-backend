@@ -176,7 +176,7 @@ function bounded(value: unknown, max: number): string | null {
     .replace(/[\r\n\t]+/g, ' ')
     .trim();
   if (!text) return null;
-  return text.length <= max ? text : `${text.slice(0, max - 1)}â€¦`;
+  return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
 }
 
 function constantTimeHexEqual(expected: string, actual: string): boolean {
@@ -1022,7 +1022,7 @@ export class MeriActionProposalService {
    * runs the same conservative expiry transition as list()
    * (proposed/approved/failed_retryable, expiresAt <= now) restricted to those
    * exact owned IDs, then returns only the requested owner rows' current status.
-   * It performs bounded owner-scoped maintenance and a read only â€” it never
+   * It performs bounded owner-scoped maintenance and a read only — it never
    * creates, approves, executes or reconciles an action, and an empty set does
    * no maintenance and no unbounded scan. Execution authority stays with the
    * existing proposal paths, and it is deliberately not gated by

@@ -636,7 +636,7 @@ describe('MeriActionProposalService', () => {
   });
 
   // This simulates ONLY the losing side's outcome (forceClaimLoss hardcodes the
-  // mocked updateMany to return count:0) â€” it does not fire two concurrent
+  // mocked updateMany to return count:0) — it does not fire two concurrent
   // requests, so it doesn't itself prove the claim is atomic. That guarantee
   // rests on the real code issuing a single Postgres UPDATE with a
   // status-in-claimable WHERE guard (meri-action-proposal.service.ts's claim
@@ -1320,7 +1320,7 @@ describe('MeriActionProposalService', () => {
   });
 });
 
-describe('MeriActionProposalService â€” Research Portfolio conversation binding', () => {
+describe('MeriActionProposalService — Research Portfolio conversation binding', () => {
   const snapshotInput = {
     conversationId: RP_CONVERSATION,
     operationKey: 'snapshot:scope-test',
@@ -1973,7 +1973,7 @@ describe('MeriActionProposalService â€” Research Portfolio conversation bin
   });
 });
 
-describe('MeriActionProposalService â€” retries retain the original policy authority', () => {
+describe('MeriActionProposalService — retries retain the original policy authority', () => {
   const input = { clientId: TENANT, conversationId: PROPOSAL, attachmentIds: [USER, PROPOSAL] };
   const partialReceipt = {
     tool: 'save_chat_attachments',
@@ -2120,7 +2120,7 @@ describe('MeriActionProposalService â€” retries retain the original policy 
   });
 });
 
-describe('MeriActionProposalService â€” note storage and readiness', () => {
+describe('MeriActionProposalService — note storage and readiness', () => {
   it('reports a durably stored note as pending indexing while keeping execution succeeded', async () => {
     const h = harness({
       row: null,
@@ -2322,7 +2322,7 @@ describe('MeriActionProposalService.list', () => {
 
 const rpClaimDatabaseUrl = process.env.RP_PROPOSAL_CLAIM_TEST_DATABASE_URL;
 const rpClaimPostgresSuite = rpClaimDatabaseUrl ? describe : describe.skip;
-rpClaimPostgresSuite('RP proposal conversation claim fence â€” PostgreSQL', () => {
+rpClaimPostgresSuite('RP proposal conversation claim fence — PostgreSQL', () => {
   const schema = `rp_claim_${randomUUID().replaceAll('-', '')}`;
   const tenantId = randomUUID();
   const userId = randomUUID();
@@ -2605,7 +2605,7 @@ describe('LegiWatch relevance governed owner', () => {
 });
 
 
-describe('MeriActionProposalService â€” native client record actions', () => {
+describe('MeriActionProposalService — native client record actions', () => {
   const scope = { conversationId: RP_CONVERSATION, selectedClientId: null,
     identityRevision: 'a'.repeat(64), membershipRevision: 'b'.repeat(64), contextRevision: 'c'.repeat(64) };
   const access = () => ({ scope: { ...scope }, mode: 'execute' as const, clientIds: [RP_CLIENT], assertCurrent: jest.fn().mockResolvedValue(undefined) });

@@ -49,7 +49,7 @@ function tenantContext(headers: Record<string, unknown>): TenantContext {
  * from the authenticated request into the service call, and that whatever the
  * service decides maps to the right HTTP status/body without leaking a
  * different code for "not yours" vs "doesn't exist". It does NOT prove the
- * service's own tenant/user isolation query logic is correct â€” `approve`'s
+ * service's own tenant/user isolation query logic is correct — `approve`'s
  * mock reimplements that check by hand, so a regression in the real
  * `owned()`/`approveAndExecute` scoping would not fail here. That proof lives
  * in meri-action-proposal.service.spec.ts, against the real service.
