@@ -75,6 +75,8 @@ import { BizdevActionService } from './bizdev-action.service.js';
 import { MeriActionProposalService } from './meri-action-proposal.service.js';
 import { LegiwatchActionController } from './legiwatch-action.controller.js';
 import { LegiwatchActionService } from './legiwatch-action.service.js';
+import { LegislativeDocumentActionController } from './legislative-document-action.controller.js';
+import { LegislativeDocumentActionService } from './legislative-document-action.service.js';
 import { MeriPolicyPackService } from './meri-policy-pack.service.js';
 import { TenantCanariedMeriPolicyPackService } from './meri-policy-pack-rollout.service.js';
 import { MeriPolicyPackController } from './meri-policy-pack.controller.js';
@@ -176,6 +178,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     SavedStrategyReadController,
     LegiwatchActionController,
     BizdevActionController,
+    LegislativeDocumentActionController,
     MeriController,
     MeriSourceController,
     MeriSkillsController,
@@ -190,6 +193,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
   ],
   providers: [ClientRecordActionService,
     LegiwatchActionService,
+    LegislativeDocumentActionService,
     ConnectedAppReadService,
     SavedRecordReadService,
     LegiwatchReviewService,

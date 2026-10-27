@@ -3,6 +3,7 @@ import { UUID_V4_RE, requiredString, optionalString, clampInt } from './meri-too
 import { executeMeriLocalDispatch, type MeriLocalDispatchRegistry } from './meri-local-dispatch.js';
 import { assertTextArtifactCurrentProposal, type TextArtifactCurrentAction } from './meri-text-artifact-current-proposal.js';
 import { researchPortfolioManagementSchema, parseResearchPortfolioManagementInput } from '../research-portfolios/research-portfolio-management.js';
+import { isLegislativeDocumentTool, parseLegislativeDocumentInput } from './legislative-document-action.contract.js';
 import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
 import {
   deadlineStatus as structuredDeadlineStatus,
@@ -920,11 +921,17 @@ export class MeriToolsService {
           documents: {
             type: 'array',
             maxItems: 10,
-            items: obj({ id: str('Exact document ID'), revision: str('Selected revision hash') }, [
-              'id',
-              'revision',
-            ]),
+            items: obj(
+              {
+                id: str('Exact document ID'),
+                revision: str('Selected revision hash'),
+                sessionKey: str('Explicit session key when this document belongs to another session'),
+              },
+              ['id', 'revision'],
+            ),
           },
+          allowCrossBill: { type: 'boolean' },
+          rightSessionKey: str('Explicit allowed session key for a cross-session document'),
           citations: {
             type: 'array',
             maxItems: 100,
@@ -2374,6 +2381,12 @@ export class MeriToolsService {
   this.requireResearchPortfolioTools();
   return parseResearchPortfolioManagementInput(rawInput);
 }
+    // These two effects have one canonical owner-specific parser: it carries the declared 150-citation
+    // briefing bound and the research owner's session/cross-bill contract, which the generic
+    // 100-element array ceiling and closed property list cannot express.
+    if (isLegislativeDocumentTool(normalizedName)) {
+      return parseLegislativeDocumentInput(normalizedName, rawInput);
+    }
     const definition = this.anthropicToolSchemas().find((tool) => tool.name === normalizedName);
     if (!definition) throw new BadRequestException(`Unknown Meri tool: ${normalizedName}`);
     return validateMeriWriteToolInput(
@@ -2625,6 +2638,12 @@ export class MeriToolsService {
       return { ok: false, reason: (e as Error).message };
     }
   }
+  /** Only the owner's own selection id; a missing id is reported as absent, never invented. */
+  private selectionIdOf(result: unknown): string | null {
+    const value = (result as { selectionId?: unknown } | null)?.selectionId;
+    return typeof value === 'string' && value.length > 0 && value.length <= 200 ? value : null;
+  }
+
   private async legiwatchTool(ctx: TenantContext, name: string, input: Record<string, unknown>) {
     const secret = process.env.INTERNAL_SERVICE_SECRET;
     if (!secret || !ctx.clerkUserId)
@@ -2673,12 +2692,51 @@ export class MeriToolsService {
       return {
         tool: name,
         result,
+        selectionId: this.selectionIdOf(result),
         documentId: draft.draftId,
         location,
         status: 'saved',
         reused: draft.replayed === true,
         message: 'Private briefing draft saved in Workspace.',
       };
+    }
+    if (name === 'save_legislative_research') {
+      // ResearchService.saveResearch/createWorkspace either returns the exported draft or only saves the
+      // canonical selection (workspace_not_configured). Both are real outcomes; neither is upgraded here.
+      const draft = (
+        result as { draft?: { state?: unknown; draftId?: unknown; replayed?: unknown } } | null
+      )?.draft;
+      const selectionId = this.selectionIdOf(result);
+      if (
+        draft?.state === 'complete' &&
+        typeof draft.draftId === 'string' &&
+        /^[a-zA-Z0-9-]{1,100}$/.test(draft.draftId)
+      )
+        return {
+          tool: name,
+          result,
+          selectionId,
+          documentId: draft.draftId,
+          location: '/workspace/draft/' + encodeURIComponent(draft.draftId),
+          status: 'saved',
+          reused: draft.replayed === true,
+          message: 'Reviewed research draft saved in Workspace.',
+        };
+      if ((result as { state?: unknown } | null)?.state === 'saved' && draft === undefined)
+        return {
+          tool: name,
+          result,
+          selectionId,
+          documentId: null,
+          location: null,
+          status: 'selection_saved',
+          reused: false,
+          message:
+            'Canonical research selection saved; no Workspace document was returned for this draft.',
+        };
+      throw new BadGatewayException(
+        'Research draft receipt unavailable; observe the same request key before retrying',
+      );
     }
     return {
       tool: name,

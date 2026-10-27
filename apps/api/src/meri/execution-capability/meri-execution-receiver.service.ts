@@ -63,6 +63,9 @@ export function assertOrdinaryToolPathAllowed(name: string, profile: string | un
   if (name === 'save_business_development_brief') {
     throw new ForbiddenException('Business-development brief proposal decision required');
   }
+  if (name === 'prepare_legiwatch_briefing' || name === 'save_legislative_research') {
+    throw new ForbiddenException('Legislative document proposal decision required');
+  }
   if (profile === 'first-chat-preview' && name === MERI_EXECUTION_TOOL) {
     throw new ForbiddenException('Approved execution capability required');
   }

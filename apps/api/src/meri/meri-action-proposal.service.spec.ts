@@ -1,3 +1,4 @@
+import { LEGISLATIVE_DOCUMENT_SCOPE_KEY, legislativeDocumentReceipt, legislativeDocumentRequest, type LegislativeDocumentProposalAccess } from './legislative-document-action.contract.js';
 import { createHash } from 'node:crypto';
 import { LEGIWATCH_ACTION, type LegiwatchProposalAccess } from './legiwatch-action.contract.js';
 import { randomUUID } from 'node:crypto';
@@ -635,7 +636,7 @@ describe('MeriActionProposalService', () => {
   });
 
   // This simulates ONLY the losing side's outcome (forceClaimLoss hardcodes the
-  // mocked updateMany to return count:0) — it does not fire two concurrent
+  // mocked updateMany to return count:0) â€” it does not fire two concurrent
   // requests, so it doesn't itself prove the claim is atomic. That guarantee
   // rests on the real code issuing a single Postgres UPDATE with a
   // status-in-claimable WHERE guard (meri-action-proposal.service.ts's claim
@@ -1319,7 +1320,7 @@ describe('MeriActionProposalService', () => {
   });
 });
 
-describe('MeriActionProposalService — Research Portfolio conversation binding', () => {
+describe('MeriActionProposalService â€” Research Portfolio conversation binding', () => {
   const snapshotInput = {
     conversationId: RP_CONVERSATION,
     operationKey: 'snapshot:scope-test',
@@ -1972,7 +1973,7 @@ describe('MeriActionProposalService — Research Portfolio conversation binding'
   });
 });
 
-describe('MeriActionProposalService — retries retain the original policy authority', () => {
+describe('MeriActionProposalService â€” retries retain the original policy authority', () => {
   const input = { clientId: TENANT, conversationId: PROPOSAL, attachmentIds: [USER, PROPOSAL] };
   const partialReceipt = {
     tool: 'save_chat_attachments',
@@ -2119,7 +2120,7 @@ describe('MeriActionProposalService — retries retain the original policy autho
   });
 });
 
-describe('MeriActionProposalService — note storage and readiness', () => {
+describe('MeriActionProposalService â€” note storage and readiness', () => {
   it('reports a durably stored note as pending indexing while keeping execution succeeded', async () => {
     const h = harness({
       row: null,
@@ -2321,7 +2322,7 @@ describe('MeriActionProposalService.list', () => {
 
 const rpClaimDatabaseUrl = process.env.RP_PROPOSAL_CLAIM_TEST_DATABASE_URL;
 const rpClaimPostgresSuite = rpClaimDatabaseUrl ? describe : describe.skip;
-rpClaimPostgresSuite('RP proposal conversation claim fence — PostgreSQL', () => {
+rpClaimPostgresSuite('RP proposal conversation claim fence â€” PostgreSQL', () => {
   const schema = `rp_claim_${randomUUID().replaceAll('-', '')}`;
   const tenantId = randomUUID();
   const userId = randomUUID();
@@ -2604,7 +2605,7 @@ describe('LegiWatch relevance governed owner', () => {
 });
 
 
-describe('MeriActionProposalService — native client record actions', () => {
+describe('MeriActionProposalService â€” native client record actions', () => {
   const scope = { conversationId: RP_CONVERSATION, selectedClientId: null,
     identityRevision: 'a'.repeat(64), membershipRevision: 'b'.repeat(64), contextRevision: 'c'.repeat(64) };
   const access = () => ({ scope: { ...scope }, mode: 'execute' as const, clientIds: [RP_CLIENT], assertCurrent: jest.fn().mockResolvedValue(undefined) });
@@ -2745,5 +2746,47 @@ describe('Bizdev saved brief actual proposal owner', () => {
     await h.service.create(ctx, request(), undefined, undefined, undefined, a);
     expect((await h.service.approveAndExecute(ctx, PROPOSAL, undefined, undefined, a)).status).toBe('executing');
     expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('Legislative document composed actual proposal owner', () => {
+  function access(): LegislativeDocumentProposalAccess {
+    return { scope: { conversationId: RP_CONVERSATION, selectedClientId: null, identityRevision: 'a'.repeat(64), membershipRevision: 'b'.repeat(64), contextRevision: 'c'.repeat(64) }, assertCurrent: jest.fn().mockResolvedValue(undefined) };
+  }
+  const briefing = { folderId: RP_PORTFOLIO, template: 'research_update', title: 'Brief', analysis: 'Source analysis', cutoff: '2026-10-27T00:00:00.000Z', timezone: 'UTC', sources: [{ kind: 'bill', id: 'source', revision: '1' }], citations: [{ kind: 'bill', id: 'source', revision: '1', locator: 'section1', start: 0, end: 5, quote: 'quote' }], requestKey: 'briefing-composition-request' };
+  const research = { jurisdiction: 'US', sessionKey: '119', title: 'Research', analysis: 'Source analysis', documents: [{ id: 'source', revision: '1' }], citations: [{ documentId: 'source', revision: '1', locator: 'section1', start: 0, end: 5, quote: 'quote' }], requestKey: 'research-composition-request' };
+  it.each([
+    ['prepare_legiwatch_briefing', briefing, 'saved', 'complete'],
+    ['save_legislative_research', research, 'selection_saved', 'selection_only'],
+  ] as const)('retains %s current owner, canonical null scopes, exact %s receipt and no replay', async (tool, input, status, effect) => {
+    const result = { tool, status, selectionId: 'selected-source', documentId: status === 'saved' ? 'draft-1' : null, location: status === 'saved' ? '/workspace/draft/draft-1' : null, reused: false };
+    const h = harness({ row: null, executeResult: result }), a = access();
+    const p = await h.service.create(ctx, { tool, input, conversationId: RP_CONVERSATION, surface: 'chat', requireApproval: true }, undefined, undefined, undefined, undefined, a);
+    expect(p.disposition).toBe('pending_approval');
+    expect(JSON.stringify(p)).not.toContain(LEGISLATIVE_DOCUMENT_SCOPE_KEY);
+    expect(h.tools.execute).not.toHaveBeenCalled();
+    expect(await h.service.list(ctx, RP_CONVERSATION)).toEqual([]);
+    const prepared = await h.service.readLegislativeDocument(ctx, PROPOSAL, a);
+    expect(prepared.request).toEqual(legislativeDocumentRequest(tool, input));
+    expect(prepared.request.clientId).toBeNull();
+    expect(prepared.receipt).toBeNull();
+    const stale = { ...a, scope: { ...a.scope, contextRevision: 'd'.repeat(64) } };
+    await expect(h.service.approveAndExecute(ctx, PROPOSAL, undefined, undefined, undefined, stale)).rejects.toThrow('authority changed');
+    await h.service.approveAndExecute(ctx, PROPOSAL, undefined, undefined, undefined, a);
+    const observed = await h.service.readLegislativeDocument(ctx, PROPOSAL, a);
+    expect(observed.effect).toBe(effect);
+    expect(observed.receipt).toEqual(legislativeDocumentReceipt(tool, result, input));
+    await h.service.approveAndExecute(ctx, PROPOSAL, undefined, undefined, undefined, a);
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
+    expect(h.tools.execute).toHaveBeenCalledWith(ctx, tool, input, { actionProposalId: PROPOSAL });
+  });
+  it('unconfirmed legislative effect remains UNKNOWN and never repeats the write', async () => {
+    const h = harness({ row: null, executeError: new Error('response lost') }), a = access();
+    await h.service.create(ctx, { tool: 'save_legislative_research', input: research, conversationId: RP_CONVERSATION, surface: 'chat', requireApproval: true }, undefined, undefined, undefined, undefined, a);
+    expect((await h.service.approveAndExecute(ctx, PROPOSAL, undefined, undefined, undefined, a)).status).toBe('outcome_unknown');
+    expect(await h.service.readLegislativeDocument(ctx, PROPOSAL, a)).toMatchObject({ effect: 'unknown', receipt: null });
+    await h.service.approveAndExecute(ctx, PROPOSAL, undefined, undefined, undefined, a);
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
   });
 });
