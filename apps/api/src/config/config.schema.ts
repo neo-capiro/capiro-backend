@@ -772,6 +772,14 @@ export const configSchema = z.object({
   OAUTH_TOKEN_ENCRYPTION_KEY: z.string().optional(),
   OAUTH_TOKEN_ENCRYPTION_KEY_VERSION: z.string().default('v1'),
 
+  // Optional bounded rotation window for OAuth token decryption: the ONE previous key
+  // plus the version that key was written under. TokenCryptoService selects the key
+  // named by a token row's persisted keyVersion, so this pair only has to cover rows
+  // written before the rotation. Set both or neither; the previous version must differ
+  // from the active one. Remove both once every row carries the active version.
+  OAUTH_TOKEN_ENCRYPTION_PREVIOUS_KEY: z.string().optional(),
+  OAUTH_TOKEN_ENCRYPTION_PREVIOUS_KEY_VERSION: z.string().optional(),
+
   // 32-byte base64 or hex key for AES-256-GCM at-rest encryption of
   // per-tenant AI provider keys (tenant_ai_credentials). Dedicated key —
   // do not reuse the notes/OAuth keys, so a compromise stays contained.
