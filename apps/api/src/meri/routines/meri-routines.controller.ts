@@ -24,6 +24,20 @@ import { createCoreKmsSigner, readCoreEd25519KeyConfig, type CoreEd25519Purpose 
 export class MeriRoutinesController {
   constructor(private readonly routines: MeriRoutinesService) {}
 
+  @Post('management/current')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  managementCurrent(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
+    return this.routines.managementCurrent(req, ctx, body);
+  }
+
+  @Post('management/policy/check')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  managementPolicyCheck(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
+    return this.routines.managementPolicyCheck(req, ctx, body);
+  }
+
   @Post('policy/check')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')

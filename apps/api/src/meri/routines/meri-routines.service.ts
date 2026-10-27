@@ -23,8 +23,9 @@ import { ApplicationMembershipService } from '../../auth/application-membership.
 import type { CoreEd25519Signer } from '../../auth/core-ed25519-signer.js';
 import { nativeCanonicalSha256, type NativeScope } from '../native-approvals/native-approval.contract.js';
 import { meriExecutionClientsVisible, meriExecutionDbNow } from '../execution-capability/meri-execution-authority.js';
-import { decideRoutinePolicy, readRoutinePolicyLimits, type RoutineLimits, type RoutineMembershipFacts } from './meri-routine-policy.js';
-import { parseSelectionRequest } from './meri-routines.contract.js';
+import { decideRoutinePolicy, readRoutinePolicyLimits, type RoutineLimits } from './meri-routine-policy.js';
+import { parseSelectionRequest, parseRoutineManagementScope, parseRoutineManagementSelection } from './meri-routines.contract.js';
+import { routineManagementCurrent, decideRoutineManagementPolicy, type RoutineManagementMembership } from './meri-routine-management.js';
 import {
   ROUTINE_CONSENT_MAX_SECONDS,
   issueRoutineFiringGrant,
@@ -108,7 +109,27 @@ export class MeriRoutinesService {
       }));
   }
 
-  /** Wire A: answers Meri `runtime-context.mjs` policy() exactly; records consent at an approved Execute's `before_claim`. */
+  /** Current signed-in management scope, independent of conversation/model admission. */
+  async managementCurrent(req: Request, ctx: TenantContext, raw: unknown) {
+    if (!hasVerifiedToolServiceIdentity(req)) throw forbidden();
+    parseRoutineManagementScope(raw);
+    const membership = await this.currentMembership(req, ctx);
+    return routineManagementCurrent({ body: raw, principal: { tenantId: ctx.tenantId, actorId: ctx.userId }, membership, nowMs: Date.now() });
+  }
+
+  async managementPolicyCheck(req: Request, ctx: TenantContext, raw: unknown) {
+    if (!hasVerifiedToolServiceIdentity(req)) throw forbidden();
+    // Reject execution operations before reading membership, model configuration or recording an event.
+    parseRoutineManagementSelection(parseSelectionRequest(raw).selection);
+    const membership = await this.currentMembership(req, ctx), principal = { tenantId: ctx.tenantId, actorId: ctx.userId }, nowMs = Date.now();
+    const receipt = decideRoutineManagementPolicy({ body: raw, principal, membership, nowMs });
+    const eventInput = { selection: parseSelectionRequest(raw).selection, principal, scopes: receipt.current.scopes, limits: null };
+    const event = routineConsentEvent({ ...eventInput, nowMs });
+    if (event) await this.recordConsentEvent(ctx, event, eventInput, receipt.expiresAtMs);
+    return receipt;
+  }
+
+  /** Execution policy keeps its existing configured maxima and run-bound wire. */
   async policyCheck(req: Request, ctx: TenantContext, raw: unknown) {
     if (!hasVerifiedToolServiceIdentity(req)) throw forbidden();
     let limits: RoutineLimits | null;
@@ -284,13 +305,13 @@ export class MeriRoutinesService {
   }
 
   /** The canonical current-membership receipt is the owner's current rights. */
-  private async currentMembership(req: Request, ctx: TenantContext): Promise<RoutineMembershipFacts> {
+  private async currentMembership(req: Request, ctx: TenantContext): Promise<RoutineManagementMembership> {
     const deadlineMs = Date.now() + MEMBERSHIP_READ_MS;
     const receipt = await this.membership.read(req, ctx, {
       deadlineMs,
       assertActive() { if (Date.now() >= deadlineMs) throw new ServiceUnavailableException('Current membership unavailable'); },
     });
-    return { tenantId: receipt.tenantId, actorId: receipt.actorId, clientIds: receipt.clientIds, expiresAtMs: receipt.expiresAtMs };
+    return { tenantId: receipt.tenantId, actorId: receipt.actorId, clientIds: receipt.clientIds, membershipRevision: receipt.membershipRevision, expiresAtMs: receipt.expiresAtMs };
   }
 }
 
