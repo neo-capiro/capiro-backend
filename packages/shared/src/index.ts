@@ -4372,7 +4372,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'read_saved_record',
     description:
-      'Read saved Workspace library/documents/versions/comments, exact saved-version content, saved Hill Day/newsletter state or existing staging projections; or authorized Core billing/usage/contact/own LegiWatch saved records. Choose exact source/kind/selectors. Current user-session authority is rechecked by each domain. Whole bounded data includes source limits, not provider facts or complete inventory. No writes, invitations, staging, render, generation, send or arbitrary settings. Saved versions never fall back to current content. Research Portfolio and semantic search excluded.',
+      'Read saved Workspace library/documents/versions/comments, exact saved-version content, saved Hill Day/newsletter state or existing staging projections; or authorized Core billing/usage/contact/own LegiWatch saved records. General supports every kind; selected-client conversations require an explicit matching library or LegiWatch client filter, and other kinds require General. Choose exact source/kind/selectors. Current user-session authority is rechecked by each domain. Whole bounded data includes source limits, not provider facts or complete inventory. No writes, invitations, staging, render, generation, send or arbitrary settings. Saved versions never fall back to current content. Research Portfolio and semantic search excluded.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
@@ -5172,13 +5172,21 @@ export const MERI_CAPABILITY_REGISTRY = [
 export type MeriCapability = (typeof MERI_CAPABILITY_REGISTRY)[number];
 export type MeriCapabilityName = MeriCapability['name'];
 
+// These fixed HTTP owners require the original interactive request and cannot
+// execute through the older context-only local dispatcher.
+export type MeriLocalCapability = Exclude<
+  Extract<MeriCapability, { backend: 'meri' }>,
+  { name: 'read_saved_record' | 'read_saved_strategy_records' }
+>;
+
 /** Compatibility projections; never maintain an independent name/description list. */
 export const MERI_TOOL_MANIFEST: Readonly<Record<string, string>> = Object.fromEntries(
   MERI_CAPABILITY_REGISTRY.map(({ name, description }) => [name, description]),
 );
 
 export const MERI_CORE_TOOL_DEFINITIONS = MERI_CAPABILITY_REGISTRY.filter(
-  (tool): tool is Extract<MeriCapability, { backend: 'meri' }> => tool.backend === 'meri',
+  (tool): tool is MeriLocalCapability => tool.backend === 'meri' &&
+    tool.name !== 'read_saved_record' && tool.name !== 'read_saved_strategy_records',
 ).map(({ name, description }) => ({ name, description }));
 
 export const MERI_FEDERAL_MARKET_TOOL_DEFINITIONS = MERI_CAPABILITY_REGISTRY.filter(

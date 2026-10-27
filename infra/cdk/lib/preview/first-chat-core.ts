@@ -406,6 +406,8 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
         // Hearing-file authorization must consult the preview Intel owner on
         // the same clone, including its current access-lock metadata.
         TRACKER_APP_BASE_URL: `https://${FIRST_CHAT_CORE_HOST}`,
+        WORKSPACE_API_BASE_URL: `https://${FIRST_CHAT_CORE_HOST}`,
+        STRATEGY_API_BASE_URL: `https://${FIRST_CHAT_CORE_HOST}`,
         RELEASE_SHA: binding.sourceHead,
         // Standard Core authorization; the additional service identity is mandatory.
         CORE_DEPLOYMENT_PROFILE: 'standard',
