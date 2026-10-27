@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { LEGIWATCH_ACTION, type LegiwatchProposalAccess } from './legiwatch-action.contract.js';
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaClient, type MeriActionProposal } from '@prisma/client';
@@ -663,7 +665,11 @@ describe('MeriActionProposalService', () => {
   });
 
   it('retains text artifact effect identity in the durable proposal result without copying document bytes', async () => {
-    const input = { format: 'txt', title: 'Aster Synthetic Briefing', text: 'Synthetic Aster briefing v1\n' };
+    const input = {
+      format: 'txt',
+      title: 'Aster Synthetic Briefing',
+      text: 'Synthetic Aster briefing v1\n',
+    };
     const effect = {
       ok: true,
       artifactId: '44444444-4444-4444-8444-444444444444',
@@ -2399,5 +2405,154 @@ rpClaimPostgresSuite('RP proposal conversation claim fence — PostgreSQL', () =
     await expect(
       lock(db, context, conversationId, { metadata: checkpointMetadata, clientId }),
     ).resolves.toBe(false);
+  });
+});
+
+describe('LegiWatch governed suggestion bridge', () => {
+  const input = {
+    folderId: RP_PORTFOLIO,
+    jurisdiction: 'US',
+    sessionKey: '119',
+    suggestionId: OTHER_RP_CONVERSATION,
+    expectedVersion: 3,
+    requestKey: 'stable-legiwatch-operation',
+    action: 'add',
+  };
+  function access(): LegiwatchProposalAccess {
+    return {
+      scope: {
+        conversationId: RP_CONVERSATION,
+        selectedClientId: null,
+        identityRevision: 'a'.repeat(64),
+        membershipRevision: 'b'.repeat(64),
+        contextRevision: 'c'.repeat(64),
+      },
+      assertCurrent: jest.fn().mockResolvedValue(undefined),
+    };
+  }
+  function result(outcome = 'added') {
+    return {
+      tool: LEGIWATCH_ACTION,
+      result: {
+        outcome,
+        payload: {
+          binding: createHash('sha256')
+            .update(
+              JSON.stringify({
+                id: input.suggestionId,
+                expected: input.expectedVersion,
+                action: input.action,
+              }),
+            )
+            .digest('hex'),
+          suggestionId: input.suggestionId,
+          decisionId: PROPOSAL,
+          version: 4,
+          action: input.action,
+        },
+      },
+    };
+  }
+  const request = () => ({
+    tool: LEGIWATCH_ACTION,
+    input,
+    conversationId: RP_CONVERSATION,
+    surface: 'chat' as const,
+    requireApproval: true,
+  });
+  it('prepares without an effect, retains the canonical receipt and replays no execution', async () => {
+    const h = harness({ row: null, executeResult: result() }),
+      a = access();
+    const p = await h.service.create(ctx, request(), undefined, a);
+    expect(p.disposition).toBe('pending_approval');
+    expect(h.tools.execute).not.toHaveBeenCalled();
+    expect(p.proposal.preview.fields).toEqual(input);
+    expect(JSON.stringify(p)).not.toContain('__meriLegiwatch');
+    await h.service.approveAndExecute(ctx, p.proposal.proposalId, a);
+    const observed = await h.service.readLegiwatch(ctx, p.proposal.proposalId, a);
+    expect(observed.status).toBe('succeeded');
+    expect(observed.receipt).toEqual({ request: { ...input, clientId: null }, ...result().result });
+    await h.service.approveAndExecute(ctx, p.proposal.proposalId, a);
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
+  });
+  it('refuses PASS policy and legacy preparation before creating or executing', async () => {
+    const h = harness({ row: null });
+    h.setPolicy({ outcome: 'PASS', reasons: ['allowed'] });
+    await expect(h.service.create(ctx, request(), undefined, access())).rejects.toThrow(
+      'approval_not_applicable',
+    );
+    await expect(h.service.create(ctx, request())).rejects.toThrow('access required');
+    expect(h.tx.meriActionProposal.create).not.toHaveBeenCalled();
+    expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+  it('pins immutable context and refuses legacy approval plus changed current access', async () => {
+    const h = harness({ row: null }),
+      a = access();
+    const p = await h.service.create(ctx, request(), undefined, a);
+    await expect(h.service.approveAndExecute(ctx, p.proposal.proposalId)).rejects.toThrow(
+      'access required',
+    );
+    await expect(
+      h.service.approveAndExecute(ctx, p.proposal.proposalId, {
+        ...a,
+        scope: { ...a.scope, contextRevision: 'd'.repeat(64) },
+      }),
+    ).rejects.toThrow('authority changed');
+    (a.assertCurrent as jest.Mock).mockRejectedValue(new Error('revoked'));
+    await expect(h.service.approveAndExecute(ctx, p.proposal.proposalId, a)).rejects.toThrow(
+      'revoked',
+    );
+    expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+  it('does not release current receipt through the unscoped legacy history route', async () => {
+    const h = harness({ row: null }),
+      a = access();
+    await h.service.create(ctx, request(), undefined, a);
+    expect(await h.service.list(ctx, RP_CONVERSATION)).toEqual([]);
+  });
+  it.each(['stale', 'excluded', 'held', 'undo_conflict'])(
+    'preserves handled %s rather than claiming a change applied',
+    async (outcome) => {
+      const h = harness({ row: null, executeResult: result(outcome) }),
+        a = access();
+      const p = await h.service.create(ctx, request(), undefined, a);
+      await h.service.approveAndExecute(ctx, p.proposal.proposalId, a);
+      expect((await h.service.readLegiwatch(ctx, p.proposal.proposalId, a)).receipt).toMatchObject({
+        outcome,
+      });
+    },
+  );
+  it.each([new Error('response lost'), null])(
+    'unknown response or malformed receipt never redispatches',
+    async (error) => {
+      const h = harness({
+          row: null,
+          ...(error
+            ? { executeError: error }
+            : { executeResult: { tool: LEGIWATCH_ACTION, result: { outcome: 'added' } } }),
+        }),
+        a = access();
+      const p = await h.service.create(ctx, request(), undefined, a);
+      expect((await h.service.approveAndExecute(ctx, p.proposal.proposalId, a)).status).toBe(
+        'outcome_unknown',
+      );
+      expect((await h.service.approveAndExecute(ctx, p.proposal.proposalId, a)).status).toBe(
+        'outcome_unknown',
+      );
+      expect(h.tools.execute).toHaveBeenCalledTimes(1);
+    },
+  );
+  it('dismissal has no effect and a losing claim does not execute', async () => {
+    const h = harness({ row: null }),
+      a = access();
+    const p = await h.service.create(ctx, request(), undefined, a);
+    expect((await h.service.dismiss(ctx, p.proposal.proposalId, a)).status).toBe('dismissed');
+    expect(h.tools.execute).not.toHaveBeenCalled();
+    const race = harness({ row: null, forceClaimLoss: true });
+    const q = await race.service.create(ctx, request(), undefined, a);
+    expect((await race.service.approveAndExecute(ctx, q.proposal.proposalId, a)).status).toBe(
+      'executing',
+    );
+    expect(race.tools.execute).not.toHaveBeenCalled();
   });
 });
