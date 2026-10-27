@@ -410,12 +410,15 @@ export class MicrosoftGraphSyncService {
           ctx.tenantId, connectionId, snapshot, [grantedScope],
         );
         const { token: current } = await this.loadConnection(ctx.tenantId, connectionId);
-        if (this.tokenCrypto.decrypt({
-          ciphertext: current.accessTokenCiphertext,
-          iv: current.accessTokenIv,
-          authTag: current.accessTokenAuthTag,
-        }) !== accessToken)
-          throw new TeamsReadUnavailable('source_changed');
+        const storedAccessToken = this.tokenCrypto.decrypt(
+          {
+            ciphertext: current.accessTokenCiphertext,
+            iv: current.accessTokenIv,
+            authTag: current.accessTokenAuthTag,
+          },
+          current.keyVersion,
+        );
+        if (storedAccessToken !== accessToken) throw new TeamsReadUnavailable('source_changed');
         return { accessToken, snapshot: current };
       },
       get: (url, accessToken) => this.graphGet<unknown>(url, accessToken),
@@ -712,11 +715,14 @@ export class MicrosoftGraphSyncService {
       if (subscriptions.length === 0) return 0;
       // Disconnect has already disabled and fenced the row. Do not refresh or
       // re-enable it merely to perform best-effort upstream cleanup.
-      const accessToken = this.tokenCrypto.decrypt({
-        ciphertext: token.accessTokenCiphertext,
-        iv: token.accessTokenIv,
-        authTag: token.accessTokenAuthTag,
-      });
+      const accessToken = this.tokenCrypto.decrypt(
+        {
+          ciphertext: token.accessTokenCiphertext,
+          iv: token.accessTokenIv,
+          authTag: token.accessTokenAuthTag,
+        },
+        token.keyVersion,
+      );
       for (const subscription of subscriptions.slice(0, 2)) {
         try {
           await this.graphDelete(
@@ -2208,11 +2214,14 @@ export class MicrosoftGraphSyncService {
     }
     const hasRequiredScopes = hasRequiredResourceScopes(token.scopes);
     if (hasRequiredScopes && token.expiresAt.getTime() > Date.now() + TOKEN_REFRESH_SKEW_MS) {
-      return this.tokenCrypto.decrypt({
-        ciphertext: token.accessTokenCiphertext,
-        iv: token.accessTokenIv,
-        authTag: token.accessTokenAuthTag,
-      });
+      return this.tokenCrypto.decrypt(
+        {
+          ciphertext: token.accessTokenCiphertext,
+          iv: token.accessTokenIv,
+          authTag: token.accessTokenAuthTag,
+        },
+        token.keyVersion,
+      );
     }
 
     this.assertTokenRefreshConfigured();
@@ -2223,11 +2232,14 @@ export class MicrosoftGraphSyncService {
       );
     }
 
-    const refreshToken = this.tokenCrypto.decrypt({
-      ciphertext: token.refreshTokenCiphertext,
-      iv: token.refreshTokenIv,
-      authTag: token.refreshTokenAuthTag,
-    });
+    const refreshToken = this.tokenCrypto.decrypt(
+      {
+        ciphertext: token.refreshTokenCiphertext,
+        iv: token.refreshTokenIv,
+        authTag: token.refreshTokenAuthTag,
+      },
+      token.keyVersion,
+    );
     const msal = this.buildMsalClient();
     let result: AuthenticationResult | null;
     try {

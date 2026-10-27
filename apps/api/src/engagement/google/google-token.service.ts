@@ -103,11 +103,14 @@ export class GoogleTokenService {
       );
     });
     if (token.expiresAt.getTime() > Date.now() + TOKEN_REFRESH_SKEW_MS) {
-      return this.tokenCrypto.decrypt({
-        ciphertext: token.accessTokenCiphertext,
-        iv: token.accessTokenIv,
-        authTag: token.accessTokenAuthTag,
-      });
+      return this.tokenCrypto.decrypt(
+        {
+          ciphertext: token.accessTokenCiphertext,
+          iv: token.accessTokenIv,
+          authTag: token.accessTokenAuthTag,
+        },
+        token.keyVersion,
+      );
     }
 
     this.assertConfigured();
@@ -117,11 +120,14 @@ export class GoogleTokenService {
         'Google refresh token is missing; reconnect Google Workspace',
       );
     }
-    const refreshToken = this.tokenCrypto.decrypt({
-      ciphertext: token.refreshTokenCiphertext,
-      iv: token.refreshTokenIv,
-      authTag: token.refreshTokenAuthTag,
-    });
+    const refreshToken = this.tokenCrypto.decrypt(
+      {
+        ciphertext: token.refreshTokenCiphertext,
+        iv: token.refreshTokenIv,
+        authTag: token.refreshTokenAuthTag,
+      },
+      token.keyVersion,
+    );
 
     const body = new URLSearchParams({
       client_id: this.clientId!,

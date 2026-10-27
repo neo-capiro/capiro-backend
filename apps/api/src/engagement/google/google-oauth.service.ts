@@ -327,17 +327,23 @@ export class GoogleOAuthService {
       let revoke: string | undefined;
       try {
         if (token?.refreshTokenCiphertext && token.refreshTokenIv && token.refreshTokenAuthTag) {
-          revoke = this.tokenCrypto.decrypt({
-            ciphertext: token.refreshTokenCiphertext,
-            iv: token.refreshTokenIv,
-            authTag: token.refreshTokenAuthTag,
-          });
+          revoke = this.tokenCrypto.decrypt(
+            {
+              ciphertext: token.refreshTokenCiphertext,
+              iv: token.refreshTokenIv,
+              authTag: token.refreshTokenAuthTag,
+            },
+            token.keyVersion,
+          );
         } else if (token) {
-          revoke = this.tokenCrypto.decrypt({
-            ciphertext: token.accessTokenCiphertext,
-            iv: token.accessTokenIv,
-            authTag: token.accessTokenAuthTag,
-          });
+          revoke = this.tokenCrypto.decrypt(
+            {
+              ciphertext: token.accessTokenCiphertext,
+              iv: token.accessTokenIv,
+              authTag: token.accessTokenAuthTag,
+            },
+            token.keyVersion,
+          );
         }
       } catch {
         this.logger.warn(
