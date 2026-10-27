@@ -133,8 +133,7 @@ test('sharing prerequisites admit only portfolio creation and exact snapshot/cli
       '/api/research-portfolios/parent/child/snapshots', '/api/research-portfolios/templates',
       '/api/research-portfolios//client-links', '/api/research-portfolios/invalid.id/client-links',
       '/api/research-portfolios/parent/child/client-links', `${owner}/client-links/synthetic-client`,
-      `${owner}/snapshots/synthetic-snapshot`, `${owner}/subscriptions`, `${owner}/rules`,
-      `${owner}/archive`, `${owner}/members`, `${owner}/imports/synthetic-job_1/apply`,
+      `${owner}/snapshots/synthetic-snapshot`,
     ]) assert.equal(routeDestination(rules, 'POST', pathname), null, pathname);
     const added = edge.Resources.Wave2Writes66.Properties;
     assert.equal(added.Priority, 71);
@@ -207,7 +206,7 @@ test('research portfolio import uploads admit only the exact Core POST on the pr
       '/api/research-portfolios//imports', '/api/research-portfolios/invalid.id/imports',
       '/api/research-portfolios/parent/child/imports', '/api/research-portfolios/imports',
     ]) assert.equal(routeDestination(rules, 'POST', neighbor), null, neighbor);
-    for (const action of ['preview', 'apply', 'pause', 'resume', 'cancel', 'retry', 'reconcile', 'compensate'])
+    for (const action of ['approve', 'delete', 'publish'])
       assert.equal(routeDestination(rules, 'POST', `${pathname}/synthetic-job_1/${action}`), null);
     for (const method of ['GET', 'HEAD'])
       assert.deepEqual(routeDestination(rules, method, `${pathname}/synthetic-job_1`),
@@ -225,6 +224,94 @@ test('research portfolio import uploads admit only the exact Core POST on the pr
       ['^/api/research-portfolios/[A-Za-z0-9_-]+/imports$'],
     );
     assert.equal(edge.Resources.ArtifactVersions.Properties.Priority, 75);
+  }));
+
+test('recovered native research controls admit their finite user routes only', () =>
+  render(false, (edge) => {
+    // Fixed frontend 1281d906 native operations, independently enumerated from
+    // the registry/callers; Core f7b3 remains the user/tenant authorization owner.
+    const id = '11111111-1111-4111-8111-111111111111';
+    const child = '22222222-2222-4222-8222-222222222222';
+    const portfolio = `/api/research-portfolios/${id}`;
+    const comparison = `/api/defense-budget/saved-comparisons/${id}`;
+    const writes: [string, string][] = [
+      ...['archive', 'restore', 'members', 'members/decisions', 'bookmarks',
+        'subscriptions', 'outputs', 'rules', 'rules/preview', 'fit/refresh',
+        'watch-conversion/preview', 'watch-conversion/apply']
+        .map((suffix): [string, string] => ['POST', `${portfolio}/${suffix}`]),
+      ...['assign', 'decision', 'notes']
+        .map((action): [string, string] => ['POST', `${portfolio}/reviews/${child}/${action}`]),
+      ...['preview', 'apply', 'pause', 'resume', 'cancel', 'retry', 'reconcile', 'compensate']
+        .map((action): [string, string] => ['POST', `${portfolio}/imports/${child}/${action}`]),
+      ...['cancel', 'retry', 'reconcile']
+        .map((action): [string, string] => ['POST', `${portfolio}/output-jobs/${child}/${action}`]),
+      ['POST', `${portfolio}/outputs/${child}/client-files`],
+      ['POST', `${portfolio}/operations/${child}/reconcile`],
+      ['POST', '/api/research-portfolios/tour-state/research-portfolios-v1'],
+      ['POST', '/api/defense-budget/saved-comparisons'],
+      ...['versions', 'archive', 'restore']
+        .map((action): [string, string] => ['POST', `${comparison}/${action}`]),
+      ['POST', `${comparison}/versions/${child}/add-selection-to-portfolio`],
+      ['PATCH', portfolio],
+      ['PATCH', `${portfolio}/bookmarks/${child}`],
+      ['PATCH', `${portfolio}/subscriptions/${child}`],
+      ['PATCH', `${portfolio}/changes/${child}/state`],
+      ...['bookmarks', 'client-links', 'grants']
+        .map((kind): [string, string] => ['DELETE', `${portfolio}/${kind}/${child}`]),
+      ['PUT', `${portfolio}/grants/${child}`],
+      ['POST', '/api/program-elements/0603270A/watch'],
+    ];
+    assert.equal(writes.length, 43);
+    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map((r) => r.Properties);
+    for (const [method, pathname] of writes) {
+      assert.deepEqual(routeDestination(rules, method, pathname), { Ref: 'CoreTarget' }, `${method} ${pathname}`);
+      for (const wrongMethod of ['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE']) {
+        if (writes.some(([m, p]) => m === wrongMethod && p === pathname)) continue;
+        assert.equal(routeDestination(rules, wrongMethod, pathname), null, `${wrongMethod} ${pathname}`);
+      }
+      for (const hostname of ['app.capiro.ai', 'arbitrary.invalid'])
+        assert.equal(routeDestination(rules, method, pathname, hostname), null);
+      // A dot is valid inside the terminal tour-version parameter.
+      const suffix = pathname.startsWith('/api/research-portfolios/tour-state/') ? '!' : '.invalid';
+      for (const neighbor of [`${pathname}/`, `${pathname}/extra`, `${pathname}${suffix}`, `/extra${pathname}`])
+        assert.equal(routeDestination(rules, method, neighbor), null, `${method} ${neighbor}`);
+    }
+    assert.deepEqual(routeDestination(rules, 'POST', '/api/program-elements/1234AB12/watch'), { Ref: 'CoreTarget' });
+    assert.deepEqual(routeDestination(rules, 'POST', '/api/research-portfolios/tour-state/research.v1'), { Ref: 'CoreTarget' });
+    for (const pathname of [
+      `${portfolio}/imports/${child}/approve`, `${portfolio}/output-jobs/${child}/apply`,
+      `${portfolio}/operations/${child}/cancel`, `${portfolio}/reviews/${child}/delete`,
+      `${portfolio}/watch-conversion/reconcile`, `${comparison}/delete`,
+      `${comparison}/versions/${child}/publish`, `${portfolio}/annual-review/refresh`,
+      `${portfolio}/reviews/bulk`, `${portfolio}/members/${child}/resolve`,
+      '/api/research-portfolios/templates', '/api/program-elements/0603270A/watch/extra',
+      `/api/program-elements/${'A'.repeat(31)}/watch`,
+      `/api/research-portfolios/tour-state/${'v'.repeat(65)}`,
+    ]) assert.equal(routeDestination(rules, 'POST', pathname), null, pathname);
+
+    const additions = [
+      'ResearchPortfolioLifecyclePosts', 'ResearchPortfolioReviewRulePosts',
+      'ResearchPortfolioWorkflowPosts', 'ResearchPortfolioJobPosts',
+      'ResearchSavedComparisonPosts', 'ResearchPortfolioPatches',
+      'ResearchPortfolioChangeState', 'ResearchPortfolioRemovals',
+      'ResearchPortfolioGrants', 'ResearchProgramElementWatch',
+    ];
+    additions.forEach((name, index) => {
+      const added = edge.Resources[name].Properties;
+      assert.equal(added.Priority, 77 + index);
+      assert.deepEqual(added.ListenerArn, { Ref: 'PreviewHttps' });
+      assert.deepEqual(added.Actions, [{ TargetGroupArn: { Ref: 'CoreTarget' }, Type: 'forward' }]);
+      const paths = added.Conditions.find((c: any) => c.Field === 'path-pattern').PathPatternConfig.RegexValues;
+      for (const regex of paths) {
+        assert.ok(regex.startsWith('^') && regex.endsWith('$') && regex.length <= 128);
+        for (const otherOwner of [
+          '/api/internal/research-portfolios/recompute', '/api/clio/tools/manage_research_portfolio',
+          `/api/public/research-share/${'a'.repeat(64)}/pin`,
+        ]) assert.equal(new RegExp(regex).test(otherOwner), false, `${name} ${otherOwner}`);
+      }
+    });
+    assert.equal(edge.Resources.ArtifactVersions.Properties.Priority, 75);
+    assert.equal(edge.Resources.ResearchPortfolioImportUploads.Properties.Priority, 76);
   }));
 
 test('six internal file and owner-memory POST admissions stay finite and preview-only', () =>
@@ -365,7 +452,7 @@ test('finite method/path routes admit their owners and reject unintended cross-p
     const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map(
       (r) => r.Properties,
     );
-    assert.equal(rules.length, 76);
+    assert.equal(rules.length, 86);
     for (const rule of rules) {
       assert.deepEqual(rule.ListenerArn, { Ref: 'PreviewHttps' });
       const conditions = rule.Conditions;
