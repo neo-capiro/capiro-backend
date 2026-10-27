@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -163,6 +164,10 @@ export class LegiwatchReviewService {
       if ([401, 403].includes(response.status)) throw denied();
       if (response.status === 404) throw new NotFoundException('LegiWatch selection unavailable');
       if (response.status === 400) throw new BadRequestException('LegiWatch selection refused');
+      if (response.status === 409)
+        throw new ConflictException(
+          'LegiWatch selection changed; read the current source revision',
+        );
       throw unavailable();
     }
     if (!/^application\/json(?:;|$)/i.test(response.headers.get('content-type') ?? '')) {

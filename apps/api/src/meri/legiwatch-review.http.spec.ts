@@ -504,13 +504,20 @@ describe('current-bound LegiWatch review', () => {
     expect(r.body).not.toHaveProperty('data');
     expect(f.fetchSpy).toHaveBeenCalledTimes(1);
   });
-  it('keeps denial distinct from empty results, without leaking owner errors', async () => {
-    f.setOutput(new Response('private details', { status: 403 }));
-    const r = await f.send();
-    expect(r.statusCode).toBe(403);
-    expect(JSON.stringify(r.body)).not.toContain('private details');
-    expect(f.fetchSpy).toHaveBeenCalledTimes(1);
-  });
+  it.each([403, 409])(
+    'keeps owner %s distinct from empty results, without leaking owner errors',
+    async (status) => {
+      f.setOutput(new Response('private details', { status }));
+      const r = await f.send();
+      expect(r.statusCode).toBe(status);
+      if (status === 409)
+        expect(r.body.message).toBe(
+          'LegiWatch selection changed; read the current source revision',
+        );
+      expect(JSON.stringify(r.body)).not.toContain('private details');
+      expect(f.fetchSpy).toHaveBeenCalledTimes(1);
+    },
+  );
   it('rejects authority/destination injection before transport', async () => {
     expect((await f.send({ ...query, url: 'http://other.synthetic', tenantId })).statusCode).toBe(
       400,
