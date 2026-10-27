@@ -98,6 +98,8 @@ import { LdaIntelService } from '../lda-intel/lda-intel.service.js';
 import { AnalyticsDbService } from './analytics/analytics-db.service.js';
 import { describeCapiroData, queryCapiroData } from './analytics/public-sql-query.js';
 import { listDatasetSummaries } from './analytics/global-dataset-registry.js';
+import { watchRequestOf } from './watch-actions/watch-action.contract.js';
+import { WatchActionRegistry } from './watch-actions/watch-action.registry.js';
 import {
   compileQuerySpec,
   parseQuerySpecInput,
@@ -426,6 +428,7 @@ export class MeriToolsService {
     @Optional() private readonly researchPortfolioScope?: ResearchPortfolioMeriScopeService,
     @Optional() private readonly federalMarket?: FederalMarketService,
     @Optional() private readonly governedMemoryCandidates?: GovernedMemoryCandidateService,
+    @Optional() private readonly watchActionRegistry?: WatchActionRegistry,
   ) {}
 
   manifest() {
@@ -987,6 +990,20 @@ export class MeriToolsService {
           'requestKey',
           'action',
         ],
+      ),
+      watch_action: obj(
+        {
+          family: { type: 'string', enum: ['legiwatch_keyword', 'business_development_prospect', 'defense_budget_target', 'client_watchlist'] },
+          clientId: str('Client UUID or null'),
+          targetKind: str('Exact target kind per family'),
+          targetKey: str('Exact canonical target key the owner uses'),
+          operation: { type: 'string', enum: ['subscribe', 'pause', 'resume', 'unsubscribe', 'set_delivery'] },
+          expectedVersion: { type: 'integer', minimum: 1, description: 'Exact canonical version/CAS token the owner requires' },
+          sourceRevision: str('Exact owner-required source/preview token when demanded, or null'),
+          reason: str('Owner-required free-text justification, or null'),
+          enabled: { type: 'boolean', description: 'set_delivery target switch, or null' },
+        },
+        ['family', 'targetKind', 'targetKey', 'operation', 'expectedVersion'],
       ),
       get_research_evidence: obj(
         {
@@ -2644,6 +2661,26 @@ export class MeriToolsService {
     return typeof value === 'string' && value.length > 0 && value.length <= 200 ? value : null;
   }
 
+  /**
+   * Approved watch proposal effect. One canonical owner call through the family leaf; the
+   * owner confirmation (or its absence) is what the ledger stores — there is no Meri-owned
+   * watch identity, no blind resend, and an unconfirmed write stays UNKNOWN.
+   */
+  private async watchActionTool(
+    ctx: TenantContext,
+    input: Record<string, unknown>,
+    actionProposalId?: string,
+  ) {
+    if (!this.watchActionRegistry) throw new BadGatewayException('Watch owner adapter unavailable');
+    if (!actionProposalId)
+      throw new BadRequestException('watch_action requires an approved action proposal');
+    const request = watchRequestOf(input);
+    const effect = await this.watchActionRegistry.adapter(request.family).apply(ctx, request, {
+      actionProposalId,
+    });
+    return { tool: 'watch_action' as const, generatedAt: new Date().toISOString(), result: effect.receipt };
+  }
+
   private async legiwatchTool(ctx: TenantContext, name: string, input: Record<string, unknown>) {
     const secret = process.env.INTERNAL_SERVICE_SECRET;
     if (!secret || !ctx.clerkUserId)
@@ -2869,6 +2906,7 @@ export class MeriToolsService {
       draft_policy_memo: () => this.draftPolicyMemo(ctx, input),
       save_note: () => this.saveNote(ctx, input),
       save_chat_attachments: () => this.saveChatAttachments(ctx, input),
+      watch_action: () => this.watchActionTool(ctx, input, execution?.actionProposalId),
       send_email: () => this.sendEmail(ctx, input, execution?.actionProposalId),
       list_emails: () => this.listEmails(ctx, input),
       search_emails: () => this.searchEmails(ctx, input),

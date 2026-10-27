@@ -15,6 +15,7 @@ import { ResearchService } from './research/research.service.js';
 
 import { KeywordController } from './keywords/keyword.controller.js';
 import { KeywordMeriController } from './keywords/keyword-meri.controller.js';
+import { WatchMeriController } from './watch-actions/watch-meri.controller.js';
 import { SemanticSuggestionService } from './keywords/semantic-suggestion.service.js';
 import { KeywordRuleService } from './keywords/keyword-rule.service.js';
 import { KeywordDeliveryService } from './keywords/keyword-delivery.service.js';
@@ -93,6 +94,7 @@ import { ClientBriefContextClient } from '../hearing/client-brief-context.client
 
     KeywordController,
     KeywordMeriController,
+    WatchMeriController,
     InternalWorkflowController,
     WorkflowSourceController,
     HearingRecordRetrievalController,

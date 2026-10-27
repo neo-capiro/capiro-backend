@@ -4610,6 +4610,14 @@ export const MERI_CAPABILITY_REGISTRY = [
     surfaces: ['full_chat'],
   },
   {
+    name: 'watch_action',
+    description:
+      'Subscribe, pause, resume, unsubscribe or change delivery for a canonical watch owned by a business family (legiwatch keyword, business development prospect, defense budget target, or client watchlist). Governed proposal required. Current authority, existing watch identity and owner-specific versioning are rechecked; human context and manual removals prevail.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
     name: 'search_crs_reports',
     description:
       'Search Congressional Research Service (CRS) reports and analyses. Filter by keyword, topic, or author.',

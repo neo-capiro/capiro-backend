@@ -37,6 +37,17 @@ import {
   type LegislativeDocumentProposalAccess,
 } from './legislative-document-action.contract.js';
 import {
+  WATCH_ACTION,
+  WATCH_SCOPE_KEY,
+  assertWatchAccess,
+  watchFingerprint,
+  publicWatchPreview,
+  watchReceipt,
+  watchRequestOf,
+  readWatchScope,
+  type WatchProposalAccess,
+} from './watch-actions/watch-action.contract.js';
+import {
   BadRequestException,
   HttpException,
   Injectable,
@@ -530,9 +541,9 @@ export class MeriActionProposalService {
   }
 
   private toPublic(row: MeriActionProposal): PublicMeriActionProposal {
-    const preview = publicLegislativeDocumentPreview(publicClientRecordPreview(publicLegiwatchPreview(
+    const preview = publicWatchPreview(publicLegislativeDocumentPreview(publicClientRecordPreview(publicLegiwatchPreview(
       publicBizdevPreview(publicResearchPortfolioProposalPreview(row.preview)),
-    ))) as unknown as MeriActionPreview;
+    )))) as unknown as MeriActionPreview;
     return {
       proposalId: row.id,
       status: row.status as MeriActionProposalStatus,
@@ -674,6 +685,7 @@ export class MeriActionProposalService {
     clientRecordAccess?: ClientRecordAccess,
     bizdevAccess?: BizdevProposalAccess,
     legislativeDocumentAccess?: LegislativeDocumentProposalAccess,
+    watchAccess?: WatchProposalAccess,
   ): Promise<MeriActionAuthorityResult> {
     assertMeriToolRequestActive();
     this.assertEnabled();
@@ -714,6 +726,12 @@ export class MeriActionProposalService {
       (request.surface !== 'chat' || request.requireApproval !== true)
     )
       throw new BadRequestException('Legislative document effects require explicit approval');
+    const watchScope =
+      tool === WATCH_ACTION
+        ? await assertWatchAccess(watchAccess, request.conversationId, input)
+        : undefined;
+    if (watchScope && (request.surface !== 'chat' || request.requireApproval !== true))
+      throw new BadRequestException('Watch actions require explicit approval');
     if (isResearchPortfolioProposalTool(tool)) {
       await authorizeResearchPortfolioProposalConversation(
         this.prisma,
@@ -751,7 +769,7 @@ export class MeriActionProposalService {
           tool,
         legiwatchFingerprint(
           tool,
-          clientRecordFingerprint(tool, researchPortfolioProposalFingerprintInput(tool, input, proposalTurn), clientRecordScope),
+          clientRecordFingerprint(tool, watchFingerprint(tool, researchPortfolioProposalFingerprintInput(tool, input, proposalTurn), watchScope), clientRecordScope),
           legiwatchScope,
         ),
         bizdevScope,
@@ -786,6 +804,22 @@ export class MeriActionProposalService {
       preview.label = briefing.label;
       preview.fields = briefing.fields;
     }
+    if (watchScope) {
+      preview.label = 'Apply watch change';
+      // The exact canonical target, verb and version; the client scope stays in the
+      // proposal scope instead of being repeated in the public preview.
+      const watchRequest = watchRequestOf(input);
+      preview.fields = {
+        family: watchRequest.family,
+        targetKind: watchRequest.targetKind,
+        targetKey: watchRequest.targetKey,
+        operation: watchRequest.operation,
+        expectedVersion: watchRequest.expectedVersion,
+        ...(watchRequest.sourceRevision === null ? {} : { sourceRevision: watchRequest.sourceRevision }),
+        ...(watchRequest.reason === null ? {} : { reason: watchRequest.reason }),
+        ...(watchRequest.enabled === null ? {} : { enabled: watchRequest.enabled }),
+      };
+    }
     const storedPreview = storeResearchPortfolioProposalTurnScope(
       tool,
       preview as unknown as Record<string, unknown>,
@@ -807,6 +841,10 @@ export class MeriActionProposalService {
     if (legislativeDocumentScope) {
       storedPreview[LEGISLATIVE_DOCUMENT_SCOPE_KEY] = legislativeDocumentScope;
       await legislativeDocumentAccess!.assertCurrent();
+    }
+    if (watchScope) {
+      storedPreview[WATCH_SCOPE_KEY] = watchScope;
+      await watchAccess!.assertCurrent();
     }
     const rpCheckpoint = isResearchPortfolioProposalTool(tool)
       ? await authorizeResearchPortfolioProposalConversation(
@@ -1071,7 +1109,30 @@ export class MeriActionProposalService {
       }),
     );
     // Governed LegiWatch receipts require their current conversation authority.
-    return rows.filter((row) => !isLegiwatchAction(row.tool) && !isClientRecordAction(row.tool) && row.tool !== BIZDEV_BRIEF_ACTION && !isLegislativeDocumentTool(row.tool)).map((row) => this.toPublic(row));
+    return rows.filter((row) => !isLegiwatchAction(row.tool) && !isClientRecordAction(row.tool) && row.tool !== BIZDEV_BRIEF_ACTION && !isLegislativeDocumentTool(row.tool) && row.tool !== WATCH_ACTION).map((row) => this.toPublic(row));
+  }
+
+  /** The watch twin of readLegiwatch: same authority, same ledger, no second identity. */
+  async readWatch(ctx: TenantContext, proposalId: string, access: WatchProposalAccess) {
+    this.assertEnabled();
+    await this.reconcileStaleExecuting(ctx);
+    await this.expireStale(ctx);
+    const row = await this.owned(ctx, proposalId);
+    if (row.tool !== WATCH_ACTION) throw new NotFoundException('Watch proposal not found');
+    await assertWatchAccess(access, row.conversationId, row.input, row.preview);
+    return {
+      version: '0.1.0' as const,
+      proposalId: row.id,
+      status: row.status as MeriActionProposalStatus,
+      request: watchRequestOf(row.input),
+      context: readWatchScope(row.preview),
+      createdAt: row.createdAt.toISOString(),
+      expiresAt: row.expiresAt.toISOString(),
+      receipt:
+        row.status === 'succeeded'
+          ? ((row.resultSummary as Record<string, unknown>)?.watchReceipt ?? null)
+          : null,
+    };
   }
 
   async readLegiwatch(ctx: TenantContext, proposalId: string, access: LegiwatchProposalAccess) {
@@ -1294,6 +1355,7 @@ export class MeriActionProposalService {
     clientRecordAccess?: ClientRecordAccess,
     bizdevAccess?: BizdevProposalAccess,
     legislativeDocumentAccess?: LegislativeDocumentProposalAccess,
+    watchAccess?: WatchProposalAccess,
   ): Promise<PublicMeriActionProposal> {
     this.assertEnabled();
     await this.reconcileStaleExecuting(ctx);
@@ -1317,6 +1379,10 @@ export class MeriActionProposalService {
           row.preview,
         )
       : undefined;
+    const watchScope =
+      row.tool === WATCH_ACTION
+        ? await assertWatchAccess(watchAccess, row.conversationId, row.input, row.preview)
+        : undefined;
     const status = row.status as MeriActionProposalStatus;
     if (TERMINAL_STATUSES.has(status) || status === 'executing') return this.toPublic(row);
     if (!CLAIMABLE_STATUSES.includes(status)) return this.toPublic(row);
@@ -1385,7 +1451,7 @@ export class MeriActionProposalService {
           row.tool,
         legiwatchFingerprint(
           row.tool,
-          clientRecordFingerprint(row.tool, researchPortfolioProposalFingerprintInput(row.tool, canonical, proposalTurn), clientRecordScope),
+          clientRecordFingerprint(row.tool, watchFingerprint(row.tool, researchPortfolioProposalFingerprintInput(row.tool, canonical, proposalTurn), watchScope), clientRecordScope),
           legiwatchScope,
         ),
         bizdevScope,
@@ -1441,6 +1507,7 @@ export class MeriActionProposalService {
     if (clientRecordScope) await clientRecordAccess!.assertCurrent();
     if (bizdevScope) await bizdevAccess!.assertCurrent();
     if (legislativeDocumentScope) await legislativeDocumentAccess!.assertCurrent();
+    if (watchScope) await watchAccess!.assertCurrent();
     const claimed = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       if (
         rpCheckpoint &&
@@ -1505,10 +1572,11 @@ export class MeriActionProposalService {
       const bizdevReceiptOutcome =
         row.tool === BIZDEV_BRIEF_ACTION ? bizdevBriefReceipt(result, canonical) : undefined;
       const legislativeReceipt = isLegislativeDocumentTool(row.tool) ? legislativeDocumentReceipt(row.tool, result, canonical) : undefined;
+      const watchReceiptOutcome = row.tool === WATCH_ACTION ? watchReceipt(result, canonical) : undefined;
       const completed = this.toPublic(
         await this.finalize(ctx, row.id, {
           status: 'succeeded',
-          resultSummary: clientReceipt ? { clientRecordReceipt: clientReceipt } : receipt ? { legiwatchReceipt: receipt } : bizdevReceiptOutcome ? { bizdevBriefReceipt: bizdevReceiptOutcome } : legislativeReceipt ? { legislativeDocumentReceipt: legislativeReceipt } : resultSummary(result),
+          resultSummary: clientReceipt ? { clientRecordReceipt: clientReceipt } : receipt ? { legiwatchReceipt: receipt } : bizdevReceiptOutcome ? { bizdevBriefReceipt: bizdevReceiptOutcome } : legislativeReceipt ? { legislativeDocumentReceipt: legislativeReceipt } : watchReceiptOutcome ? { watchReceipt: watchReceiptOutcome } : resultSummary(result),
         }),
       );
       // FR-16.19: the publish secret belongs only to the successful response.
@@ -1535,7 +1603,14 @@ export class MeriActionProposalService {
                 message:
                   'No confirmed legislative document receipt; observe the same request key and do not repeat the effect.',
               }
+            : row.tool === WATCH_ACTION
+            ? {
+                status: 'outcome_unknown' as const,
+                code: 'watch_outcome_unknown',
+                message: 'No confirmed watch receipt; do not repeat the effect.',
+              }
             : classifyExecutionFailure(row.tool, error);
+
 
       return this.toPublic(
         await this.finalize(ctx, row.id, {
@@ -1554,6 +1629,7 @@ export class MeriActionProposalService {
     clientRecordAccess?: ClientRecordAccess,
     bizdevAccess?: BizdevProposalAccess,
     legislativeDocumentAccess?: LegislativeDocumentProposalAccess,
+    watchAccess?: WatchProposalAccess,
   ): Promise<PublicMeriActionProposal> {
     this.assertEnabled();
     const row = await this.owned(ctx, proposalId);
@@ -1571,6 +1647,8 @@ export class MeriActionProposalService {
         row.input,
         row.preview,
       );
+    if (row.tool === WATCH_ACTION)
+      await assertWatchAccess(watchAccess, row.conversationId, row.input, row.preview);
     const status = row.status as MeriActionProposalStatus;
     if (!CLAIMABLE_STATUSES.includes(status)) return this.toPublic(row);
     const updated = await this.prisma.withTenant(ctx.tenantId, async (tx) => {

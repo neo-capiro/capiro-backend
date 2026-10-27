@@ -60,6 +60,9 @@ export function assertOrdinaryToolPathAllowed(name: string, profile: string | un
   if (name === 'apply_legiwatch_suggestion' || name === 'save_legiwatch_relevance') {
     throw new ForbiddenException('LegiWatch proposal decision required');
   }
+  if (name === 'watch_action') {
+    throw new ForbiddenException('Watch proposal decision required');
+  }
   if (name === 'save_business_development_brief') {
     throw new ForbiddenException('Business-development brief proposal decision required');
   }

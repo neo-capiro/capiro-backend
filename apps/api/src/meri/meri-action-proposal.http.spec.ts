@@ -212,7 +212,7 @@ describe('MeriV2 Phase 0 HTTP adversarial boundary', () => {
       for (const current of ['standard', undefined]) {
         if (current === undefined) delete process.env.CORE_DEPLOYMENT_PROFILE;
         else process.env.CORE_DEPLOYMENT_PROFILE = current;
-        for (const name of ['apply_legiwatch_suggestion', 'save_legiwatch_relevance', 'save_business_development_brief', 'prepare_legiwatch_briefing', 'save_legislative_research']) {
+        for (const name of ['apply_legiwatch_suggestion', 'save_legiwatch_relevance', 'save_business_development_brief', 'prepare_legiwatch_briefing', 'save_legislative_research', 'watch_action']) {
           await request(app.getHttpServer())
             .post(`/api/clio/tools/${name}`)
             .set('x-internal-service-secret', SECRET)
