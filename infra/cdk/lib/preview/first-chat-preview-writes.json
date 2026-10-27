@@ -588,6 +588,123 @@
       "pathRegexes": [
         "^/api/engagement/mail/threads/[0-9a-fA-F-]{36}/messages/[0-9a-fA-F-]{36}/files/import$"
       ]
+    },
+    {
+      "id": "ArtifactVersions",
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/clio/artifacts/[A-Za-z0-9_-]+/version$"
+      ]
+    },
+    {
+      "id": "ResearchPortfolioImportUploads",
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/imports$"
+      ]
+    },
+    {
+      "id": "ResearchPortfolioLifecyclePosts",
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/(archive|restore)$",
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/members(/decisions)?$",
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/(bookmarks|subscriptions|outputs)$"
+      ]
+    },
+    {
+      "id": "ResearchPortfolioReviewRulePosts",
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/rules(/preview)?$",
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/reviews/[A-Za-z0-9_-]+/(assign|decision|notes)$",
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/fit/refresh$"
+      ]
+    },
+    {
+      "id": "ResearchPortfolioWorkflowPosts",
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/watch-conversion/(preview|apply)$",
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/operations/[A-Za-z0-9_-]+/reconcile$",
+        "^/api/research-portfolios/tour-state/[A-Za-z0-9._-]{1,64}$"
+      ]
+    },
+    {
+      "id": "ResearchPortfolioJobPosts",
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/imports/[A-Za-z0-9_-]+/(preview|apply|pause|resume|cancel|retry|reconcile|compensate)$",
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/output-jobs/[A-Za-z0-9_-]+/(cancel|retry|reconcile)$",
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/outputs/[A-Za-z0-9_-]+/client-files$"
+      ]
+    },
+    {
+      "id": "ResearchSavedComparisonPosts",
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/defense-budget/saved-comparisons$",
+        "^/api/defense-budget/saved-comparisons/[A-Za-z0-9_-]+/(versions|archive|restore)$",
+        "^/api/defense-budget/saved-comparisons/[A-Za-z0-9_-]+/versions/[A-Za-z0-9_-]+/add-selection-to-portfolio$"
+      ]
+    },
+    {
+      "id": "ResearchPortfolioPatches",
+      "service": "core",
+      "method": "PATCH",
+      "pathRegexes": [
+        "^/api/research-portfolios/[A-Za-z0-9_-]+$",
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/bookmarks/[A-Za-z0-9_-]+$",
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/subscriptions/[A-Za-z0-9_-]+$"
+      ]
+    },
+    {
+      "id": "ResearchPortfolioChangeState",
+      "service": "core",
+      "method": "PATCH",
+      "pathRegexes": [
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/changes/[A-Za-z0-9_-]+/state$"
+      ]
+    },
+    {
+      "id": "ResearchPortfolioRemovals",
+      "service": "core",
+      "method": "DELETE",
+      "pathRegexes": [
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/(bookmarks|client-links|grants)/[A-Za-z0-9_-]+$"
+      ]
+    },
+    {
+      "id": "ResearchPortfolioGrants",
+      "service": "core",
+      "method": "PUT",
+      "pathRegexes": [
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/grants/[A-Za-z0-9_-]+$"
+      ]
+    },
+    {
+      "id": "ResearchProgramElementWatch",
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/program-elements/[A-Za-z0-9]{1,30}/watch$"
+      ]
+    },
+    {
+      "id": "ResearchPortfolioBulkAndResolve",
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/reviews/bulk$",
+        "^/api/research-portfolios/[A-Za-z0-9_-]+/members/[A-Za-z0-9_-]+/resolve$"
+      ]
     }
   ]
 }
