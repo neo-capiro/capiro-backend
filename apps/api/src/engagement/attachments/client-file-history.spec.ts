@@ -28,6 +28,16 @@ const prospectId = id(9);
 const mailMessageId = id(50);
 const hash = (n: number) => String(n % 10).repeat(64);
 
+/**
+ * Truthful fixture access: these are synthetic rows indexed by design, so a missing
+ * entry is a test-authoring bug and fails loudly rather than reading as undefined.
+ */
+function at<T>(list: readonly T[], index: number): T {
+  const value = list[index];
+  if (value === undefined) throw new Error(`synthetic fixture entry ${index} is missing`);
+  return value;
+}
+
 type Row = {
   id: string;
   tenantId: string;
@@ -227,16 +237,16 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
     const rows = chain(12);
     const h = harness(rows);
     // Anchored on an OLD version, not the head: the whole chain is still reconstructed.
-    const anchor = rows[3].id;
+    const anchor = at(rows, 3).id;
     const first = await h.service.listAttachmentHistory(ctx, { attachmentId: anchor, pageSize: 5 });
     expect(first.versionCount).toBe(12);
     expect(first.offset).toBe(0);
     expect(first.hasMore).toBe(true);
-    expect(first.originalId).toBe(rows[0].id);
-    expect(first.headId).toBe(rows[11].id);
+    expect(first.originalId).toBe(at(rows, 0).id);
+    expect(first.headId).toBe(at(rows, 11).id);
     expect(first.versions.map((v) => v.attachmentId)).toEqual(rows.slice(0, 5).map((r) => r.id));
     expect(first.versions[0]).toMatchObject({ versionIndex: 1, isOriginal: true, isCurrent: false });
-    expect(first.versions[0].supersededByAttachmentId).toBe(rows[1].id);
+    expect(at(first.versions, 0).supersededByAttachmentId).toBe(at(rows, 1).id);
 
     const second = await h.service.listAttachmentHistory(ctx, {
       attachmentId: anchor,
@@ -269,17 +279,17 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
     // identical chain (the Core equivalent of surviving an owner restart), and an
     // anchor on the head reaches the same original.
     const restarted = await harness(rows).service.listAttachmentHistory(ctx, {
-      attachmentId: rows[11].id,
+      attachmentId: at(rows, 11).id,
       pageSize: 5,
     });
     expect(restarted.versions).toEqual(first.versions);
-    expect(restarted.originalId).toBe(rows[0].id);
+    expect(restarted.originalId).toBe(at(rows, 0).id);
   });
 
   it('releases metadata only: no bytes, no signed read, no budget or model work, and no write', async () => {
     const rows = chain(3);
     const h = harness(rows);
-    const page = await h.service.listAttachmentHistory(ctx, { attachmentId: rows[2].id });
+    const page = await h.service.listAttachmentHistory(ctx, { attachmentId: at(rows, 2).id });
     expect(page.versions.map((v) => v.attachmentId)).toEqual(rows.map((r) => r.id));
     expect(JSON.stringify(page)).not.toMatch(/s3Key|downloadUrl|previewUrl|bucket/);
     expect((h.service as any).readAttachmentBytes).not.toHaveBeenCalled();
@@ -298,7 +308,7 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
     const rows = chain(4);
     const before = JSON.parse(JSON.stringify(rows));
     const h = harness(rows);
-    const page = await h.service.listAttachmentHistory(ctx, { attachmentId: rows[0].id });
+    const page = await h.service.listAttachmentHistory(ctx, { attachmentId: at(rows, 0).id });
     expect(page.versions.map((v) => [v.attachmentId, v.contentHash, v.byteSize, v.fileName])).toEqual(
       rows.map((r) => [r.id, r.calculatedSha256, r.byteSize, r.fileName]),
     );
@@ -310,14 +320,14 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
   it('checks current access for every version before any metadata is assembled', async () => {
     // The middle version is hidden from this actor: no list, no partial chain, no metadata.
     const rows = chain(3);
-    rows[1].viewerMode = 'restricted';
-    rows[1].viewerUserIds = [otherUser];
+    at(rows, 1).viewerMode = 'restricted';
+    at(rows, 1).viewerUserIds = [otherUser];
     // Restricted means restricted for this actor too — the uploader keeps access by the
     // canonical predicate, so the hidden member must be somebody else's version.
-    rows[1].uploadedByUserId = id(5);
+    at(rows, 1).uploadedByUserId = id(5);
     const h = harness(rows);
     const denied = await refusal(() =>
-      h.service.listAttachmentHistory(ctx, { attachmentId: rows[0].id }),
+      h.service.listAttachmentHistory(ctx, { attachmentId: at(rows, 0).id }),
     );
     expect(denied.status).toBe(404);
     expect(denied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
@@ -327,10 +337,10 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
 
   it('refuses a version that belongs to another tenant', async () => {
     const rows = chain(2);
-    rows[1].tenantId = otherTenant;
+    at(rows, 1).tenantId = otherTenant;
     const h = harness(rows);
     const denied = await refusal(() =>
-      h.service.listAttachmentHistory(ctx, { attachmentId: rows[0].id }),
+      h.service.listAttachmentHistory(ctx, { attachmentId: at(rows, 0).id }),
     );
     expect(denied.status).toBe(404);
     expect(denied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
@@ -351,13 +361,13 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
     const deniedHarness = harness(rows);
     deniedHarness.state.mailVisible = false;
     const denied = await refusal(() =>
-      deniedHarness.service.listAttachmentHistory(ctx, { attachmentId: rows[2].id }),
+      deniedHarness.service.listAttachmentHistory(ctx, { attachmentId: at(rows, 2).id }),
     );
     expect(denied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
 
     const allowedHarness = harness(rows);
     const page = await allowedHarness.service.listAttachmentHistory(ctx, {
-      attachmentId: rows[2].id,
+      attachmentId: at(rows, 2).id,
     });
     // Each version keeps its own source; nothing is rewritten to the head's scope.
     expect(page.versions.map((v) => v.source)).toEqual([
@@ -377,7 +387,7 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
     h.state.mailThreadClientId = id(8);
     h.state.wallAllowed = false;
     const denied = await refusal(() =>
-      h.service.listAttachmentHistory(ctx, { attachmentId: rows[1].id }),
+      h.service.listAttachmentHistory(ctx, { attachmentId: at(rows, 1).id }),
     );
     expect(denied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
   });
@@ -385,14 +395,14 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
   it('releases a prospect chain through the canonical prospect scope owner', async () => {
     const rows = chain(3, () => ({ prospectId, clientId: null, source: 'manual' }));
     const allowed = harness(rows);
-    const page = await allowed.service.listAttachmentHistory(ctx, { attachmentId: rows[0].id });
+    const page = await allowed.service.listAttachmentHistory(ctx, { attachmentId: at(rows, 0).id });
     expect(page.versionCount).toBe(3);
     expect(page.versions.every((v) => v.source === 'manual')).toBe(true);
 
     const deniedHarness = harness(rows);
     deniedHarness.state.prospectScope = 'denied';
     const denied = await refusal(() =>
-      deniedHarness.service.listAttachmentHistory(ctx, { attachmentId: rows[0].id }),
+      deniedHarness.service.listAttachmentHistory(ctx, { attachmentId: at(rows, 0).id }),
     );
     expect(denied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
   });
@@ -403,7 +413,7 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
     // Three members are authorized before the page is built; the release recheck then fails.
     h.state.revokeAfterVisibilityChecks = 3;
     const denied = await refusal(() =>
-      h.service.listAttachmentHistory(ctx, { attachmentId: rows[0].id, pageSize: 3 }),
+      h.service.listAttachmentHistory(ctx, { attachmentId: at(rows, 0).id, pageSize: 3 }),
     );
     expect(denied.status).toBe(404);
     expect(denied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
@@ -412,22 +422,22 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
 
   it('refuses missing, cyclic and branched chains as honestly unavailable', async () => {
     const missing = chain(3);
-    missing[1].supersededByAttachmentId = id(500); // successor row does not exist
+    at(missing, 1).supersededByAttachmentId = id(500); // successor row does not exist
     const missingDenied = await refusal(() =>
-      harness(missing).service.listAttachmentHistory(ctx, { attachmentId: missing[0].id }),
+      harness(missing).service.listAttachmentHistory(ctx, { attachmentId: at(missing, 0).id }),
     );
     expect(missingDenied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
 
     const cyclic = chain(3);
-    cyclic[2].supersededByAttachmentId = cyclic[1].id; // v3 -> v2 -> v3
+    at(cyclic, 2).supersededByAttachmentId = at(cyclic, 1).id; // v3 -> v2 -> v3
     const cyclicDenied = await refusal(() =>
-      harness(cyclic).service.listAttachmentHistory(ctx, { attachmentId: cyclic[0].id }),
+      harness(cyclic).service.listAttachmentHistory(ctx, { attachmentId: at(cyclic, 0).id }),
     );
     expect(cyclicDenied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
 
     // Two versions claim the same successor: a fork, refused from either end.
     const branched = [...chain(2), version(3, { supersededByAttachmentId: id(102) })];
-    for (const anchor of [branched[0].id, branched[1].id]) {
+    for (const anchor of [at(branched, 0).id, at(branched, 1).id]) {
       const branchedDenied = await refusal(() =>
         harness(branched).service.listAttachmentHistory(ctx, { attachmentId: anchor }),
       );
@@ -439,7 +449,7 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
     const oversized = chain(CLIENT_FILE_HISTORY_MAX_VERSIONS + 5);
     const denied = await refusal(() =>
       harness(oversized).service.listAttachmentHistory(ctx, {
-        attachmentId: oversized[oversized.length - 1].id,
+        attachmentId: at(oversized, oversized.length - 1).id,
       }),
     );
     expect(denied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
@@ -449,13 +459,13 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
     const rows = chain(4);
     const h = harness(rows);
     const first = await h.service.listAttachmentHistory(ctx, {
-      attachmentId: rows[0].id,
+      attachmentId: at(rows, 0).id,
       pageSize: 2,
     });
     const good = first.nextCursor!;
 
     const garbage = await refusal(() =>
-      h.service.listAttachmentHistory(ctx, { attachmentId: rows[0].id, cursor: 'not-a-cursor', pageSize: 2 }),
+      h.service.listAttachmentHistory(ctx, { attachmentId: at(rows, 0).id, cursor: 'not-a-cursor', pageSize: 2 }),
     );
     expect(garbage.status).toBe(400);
     expect(garbage.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_CURSOR_INVALID' });
@@ -464,7 +474,7 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
     extraKey.scope = 'widened';
     const widened = await refusal(() =>
       h.service.listAttachmentHistory(ctx, {
-        attachmentId: rows[0].id,
+        attachmentId: at(rows, 0).id,
         cursor: reencode(extraKey),
         pageSize: 2,
       }),
@@ -476,7 +486,7 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
     forged.digest = hash(9);
     const forgedDenied = await refusal(() =>
       h.service.listAttachmentHistory(ctx, {
-        attachmentId: rows[0].id,
+        attachmentId: at(rows, 0).id,
         cursor: reencode(forged),
         pageSize: 2,
       }),
@@ -485,26 +495,26 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
     expect(forgedDenied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_CURSOR_STALE' });
 
     const reanchoredDenied = await refusal(() =>
-      h.service.listAttachmentHistory(ctx, { attachmentId: rows[1].id, cursor: good, pageSize: 2 }),
+      h.service.listAttachmentHistory(ctx, { attachmentId: at(rows, 1).id, cursor: good, pageSize: 2 }),
     );
     expect(reanchoredDenied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_CURSOR_STALE' });
 
     const resizedDenied = await refusal(() =>
-      h.service.listAttachmentHistory(ctx, { attachmentId: rows[0].id, cursor: good, pageSize: 3 }),
+      h.service.listAttachmentHistory(ctx, { attachmentId: at(rows, 0).id, cursor: good, pageSize: 3 }),
     );
     expect(resizedDenied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_CURSOR_STALE' });
 
     // The chain changed under the cursor: its head is no longer the one it was minted for.
     const minted = await h.service.listAttachmentHistory(ctx, {
-      attachmentId: rows[0].id,
+      attachmentId: at(rows, 0).id,
       pageSize: 2,
     });
     expect(minted.hasMore).toBe(true);
-    rows[3].supersededByAttachmentId = id(700);
+    at(rows, 3).supersededByAttachmentId = id(700);
     rows.push(version(5, { id: id(700) }));
     const changed = await refusal(() =>
       h.service.listAttachmentHistory(ctx, {
-        attachmentId: rows[0].id,
+        attachmentId: at(rows, 0).id,
         cursor: minted.nextCursor!,
         pageSize: 2,
       }),
@@ -518,7 +528,7 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
     const h = harness(rows);
     for (const pageSize of [0, -1, 2.5, CLIENT_FILE_HISTORY_MAX_PAGE_SIZE + 1, Number('abc')]) {
       const denied = await refusal(() =>
-        h.service.listAttachmentHistory(ctx, { attachmentId: rows[0].id, pageSize }),
+        h.service.listAttachmentHistory(ctx, { attachmentId: at(rows, 0).id, pageSize }),
       );
       expect(denied.status).toBe(400);
       expect(denied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_PAGE_SIZE_INVALID' });
@@ -529,12 +539,12 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
 
   it('reports readiness per version without turning history into a read grant', async () => {
     const rows = chain(2);
-    rows[0].lifecycleStatus = 'quarantined';
-    rows[0].scanStatus = 'pending';
+    at(rows, 0).lifecycleStatus = 'quarantined';
+    at(rows, 0).scanStatus = 'pending';
     const h = harness(rows);
-    const page = await h.service.listAttachmentHistory(ctx, { attachmentId: rows[1].id });
+    const page = await h.service.listAttachmentHistory(ctx, { attachmentId: at(rows, 1).id });
     expect(page.versions[0]).toMatchObject({ usable: false, blockedReason: 'ATTACHMENT_NOT_READY' });
     expect(page.versions[1]).toMatchObject({ usable: true });
-    expect(page.versions[1].blockedReason).toBeUndefined();
+    expect(at(page.versions, 1).blockedReason).toBeUndefined();
   });
 });

@@ -162,12 +162,36 @@ typecheck is therefore the type witness:
   guards in the new helper (`predecessors[0]`, `backwards[0]`, `claimants[0]`, `forwards[index]`, the
   chain head and `chain[0]`): behavior-preserving guards that return the same
   `CLIENT_FILE_HISTORY_UNAVAILABLE` refusal, with the full author suite re-run afterwards.
-- Remaining known diagnostics are **test-only**: 43 `TS2532` strict-index reads in
-  `client-file-history.spec.ts` (the same class the repo already tolerates in
-  `identity-contacts.spec.ts`, `conversation-management/list.spec.ts`,
-  `workspace-collab-email.service.spec.ts`, `conversation-management/retention.spec.ts`). They do not
-  affect the behavioral result; an attempt to remove them mechanically was reverted rather than shipped,
-  because it changed the file's syntax. No whole-repo repair was attempted.
+### Owned-spec strict-index correction (43 test diagnostics, corrected)
+
+The 43 `TS2532` diagnostics in this candidate's own new spec were this work's own debt, not the repo's
+inherited baseline, and they are corrected here — with checked access, no `ts-ignore`, and no change to
+`strict` / `noUncheckedIndexedAccess` / the project config:
+
+- every indexed fixture read now goes through
+  `function at<T>(list: readonly T[], index: number): T` which returns the entry only after checking it
+  exists and otherwise throws `synthetic fixture entry <n> is missing`; all assertions and expected values
+  are unchanged;
+- the rewrite was driven by tsc's own diagnostics and is position-exact:
+  `DIAGNOSTICS_SEEN=43`, `REWRITTEN=43`, `UNMATCHED=0` (a diagnostic whose column did not start a simple
+  `ident[...]` expression would have been reported and left alone rather than guessed — none was, and the
+  object-keyed read `row[key as keyof Row]` inside the mock was not a reported expression and is untouched);
+- the owned suites pass on the corrected bytes: exit 0, 2 suites, **19 tests passed**.
+
+Type re-verification of the corrected spec is **NOT** claimed. The attempts, honestly:
+
+- a focused project (`files` = the two owned specs, extending `apps/api/tsconfig.json`, 4 GB heap) aborted
+  with exit 134 / `FATAL ERROR: Ineffective mark-compacts near heap limit` and emitted **0** diagnostics —
+  an abort, not a clean result;
+- at 8 GB the same config completed (exit 2) but reported **76,415** diagnostics, because the parent
+  config's `include` is still inherited alongside `files` and pulls the sibling projects
+  (`../api-strategy/*`, `../intel-api/*`) — so it is not a focused program and its output is not usable as
+  owned-file evidence;
+- the last clean owned-production evidence remains the broad run described above
+  (`client-file-history.ts` 0, `engagement.service.ts` 0, `engagement.controller.ts` 0).
+- exact remedy for a follow-up: add `"include": []` (or an empty `exclude` plus `files`) to the focused
+  config, or re-run the broad check with `--max-old-space-size=12288`, then confirm
+  `client-file-history.spec.ts` reports 0. No whole-repo repair was attempted.
 
 ## Remaining acceptance (not this slice)
 
