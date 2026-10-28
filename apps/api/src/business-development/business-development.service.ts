@@ -415,7 +415,7 @@ export class BusinessDevelopmentService {
             tenantId: ctx.tenantId,
             canonicalEntityId: input.canonicalEntityId,
             displayName,
-            stage: input.stage ?? 'identified',
+            stage: input.stage ?? DEFAULT_PROSPECT_STAGE,
             domain: input.domain ?? null,
             website: input.website ?? null,
             description: input.description ?? null,
@@ -455,7 +455,7 @@ export class BusinessDevelopmentService {
           serviceHypothesis: input.serviceHypothesis ?? null,
           geography: input.geography ?? null,
           ownerUserId: input.ownerUserId ?? ctx.userId,
-          stage: input.stage ?? 'identified',
+          stage: input.stage ?? DEFAULT_PROSPECT_STAGE,
           createdByUserId: ctx.userId,
         },
         select: prospectSelect,
@@ -470,7 +470,7 @@ export class BusinessDevelopmentService {
         {
           displayName,
           unresolved: true,
-          stage: input.stage ?? 'identified',
+          stage: input.stage ?? DEFAULT_PROSPECT_STAGE,
         },
       );
       return created;
