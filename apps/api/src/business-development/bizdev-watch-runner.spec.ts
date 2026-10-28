@@ -13,6 +13,7 @@ import {
   type BizDevWatchClaimCandidate,
   type BizDevWatchSourceEventSink,
 } from './bizdev-watch-runner.js';
+import { createSourceEventDispositionSink } from './bizdev-watch-source-event.js';
 
 /**
  * Focused runner contract for the Phase 5 DB-only evaluator (current API:
@@ -199,8 +200,14 @@ function makeHarness(
     discovered?: BizDevWatchClaimCandidate[];
     /** Force every checked finalizeState updateMany to match ZERO rows. */
     staleFinalToken?: boolean;
-    /** Alert dedupeKey already present (duplicate replay). */
-    existingAlerts?: Array<{ dedupeKey: string }>;
+    /** Alert row already present (duplicate replay, or a durable MB-05 backlog with fixed keys). */
+    existingAlerts?: Array<{
+      dedupeKey: string;
+      id?: string;
+      firstObservedAt?: Date;
+      recordId?: string;
+      fingerprint?: string;
+    }>;
     /** MB-05 delivery owner offered the pass's alerts (absent = no egress at all). */
     sourceEvents?: BizDevWatchSourceEventSink | null;
   } = {},
@@ -226,17 +233,17 @@ function makeHarness(
 
   const alerts: AlertRow[] = [
     ...(opts.existingAlerts ?? []).map((a, i) => ({
-      id: `existing-${i}`,
+      id: a.id ?? `existing-${i}`,
       tenantId,
       watchId,
       prospectId,
       dedupeKey: a.dedupeKey,
-      fingerprint: 'existing',
+      fingerprint: a.fingerprint ?? 'existing',
       category: 'contract_award',
       sourceFamily: family,
-      recordId: 'CONT_A1',
+      recordId: a.recordId ?? 'CONT_A1',
       title: 'existing',
-      firstObservedAt: new Date('2026-09-20T23:00:00.000Z'),
+      firstObservedAt: a.firstObservedAt ?? new Date('2026-09-20T23:00:00.000Z'),
     })),
   ];
   const deliveries: DeliveryRow[] = [];
@@ -349,14 +356,52 @@ function makeHarness(
               a.dedupeKey === where.dedupeKey,
           ) ?? null,
       ),
-      // MB-05 bounded durable reconciliation: the newest canonical alerts of this watch, exactly the
-      // bounded read the runner issues (order by firstObservedAt desc, take the per-source bound).
+      // MB-05 durable reconciliation: the OLDEST-FIRST keyset page the runner issues — strictly AFTER
+      // the durable (firstObservedAt, id) cursor pair, ascending, bounded by the per-source take. The
+      // predicate is derived from the runner's own WHERE so the fake cannot silently drift from it.
       findMany: jest.fn(
-        async ({ where, take }: { where: { tenantId: string; watchId: string }; take?: number }) =>
-          [...alerts]
-            .filter((a) => a.tenantId === where.tenantId && a.watchId === where.watchId)
-            .sort((a, b) => b.firstObservedAt.getTime() - a.firstObservedAt.getTime())
-            .slice(0, take ?? alerts.length),
+        async ({
+          where,
+          take,
+          orderBy,
+        }: {
+          where: {
+            tenantId: string;
+            watchId: string;
+            OR?: Array<Record<string, any>>;
+          };
+          take?: number;
+          orderBy?: Array<Record<string, string>>;
+        }) => {
+          let rows = alerts.filter(
+            (a) => a.tenantId === where.tenantId && a.watchId === where.watchId,
+          );
+          if (Array.isArray(where.OR) && where.OR.length > 0) {
+            // The two clauses are an OR-UNION: strictly-after-instant, or the equal-instant id tie-break.
+            const afterAt = where.OR.map((c) => c?.firstObservedAt?.gt).find(
+              (v): v is Date => v instanceof Date,
+            );
+            const tie = where.OR.find(
+              (c) => c?.firstObservedAt instanceof Date && typeof c?.id?.gt === 'string',
+            );
+            rows = rows.filter(
+              (a) =>
+                (afterAt != null && a.firstObservedAt.getTime() > afterAt.getTime()) ||
+                (tie != null &&
+                  a.firstObservedAt.getTime() === (tie.firstObservedAt as Date).getTime() &&
+                  a.id > (tie.id.gt as string)),
+            );
+          }
+          const ascending = orderBy?.[0]?.firstObservedAt === 'asc';
+          const sorted = [...rows].sort((a, b) =>
+            ascending
+              ? a.firstObservedAt.getTime() - b.firstObservedAt.getTime() ||
+                a.id.localeCompare(b.id)
+              : b.firstObservedAt.getTime() - a.firstObservedAt.getTime() ||
+                b.id.localeCompare(a.id),
+          );
+          return sorted.slice(0, take ?? sorted.length);
+        },
       ),
     },
     businessDevelopmentAlertDelivery: {
@@ -1940,5 +1985,277 @@ describe('runBizDevWatchEvaluation — MB-05 delivery + bounded durable reconcil
       occurredAtMs: restarted.alerts[0]!.firstObservedAt.getTime(),
     }]);
     expect(recovered.sourceEvents).toEqual({ offered: 1, dispatched: 1, queued: 0, deduped: 0, refused: 0, unknown: 0, skipped: 0 });
+  });
+});
+
+
+describe('runBizDevWatchEvaluation — MB-05 oldest-first durable delivery recovery', () => {
+  /** One durable alert row with a FIXED keyset (id + instant) so pagination is observable. */
+  const backlog = (count: number) =>
+    Array.from({ length: count }, (_, i) => ({
+      dedupeKey: `BK-${i + 1}`,
+      id: `id-${i + 1}`,
+      firstObservedAt: new Date(`2026-09-0${i + 1}T00:00:00.000Z`),
+    }));
+
+  /** The persisted recovery cursor (null until a page is definitively answered). */
+  const cursorOf = (h: ReturnType<typeof makeHarness>) =>
+    (h.state.baselineState as { scan?: { delivery?: unknown } } | null)?.scan?.delivery ?? null;
+
+  const offeredIds: string[][] = [];
+  /** The durable baseline carried between the passes of one scenario. */
+  let sharedBaseline: unknown = null;
+  /** A per-alert owner: the exact disposition for each offered alert, keyed by alert id. */
+  const perAlert = (state: (alertId: string) => string) => async (
+    alerts: readonly { alertId: string }[],
+  ) => {
+    offeredIds.push(alerts.map((a) => a.alertId));
+    return { dispositions: alerts.map((a) => ({ alertId: a.alertId, state: state(a.alertId) })) };
+  };
+
+  beforeEach(() => {
+    offeredIds.length = 0;
+  });
+
+  test('a backlog larger than one page is walked OLDEST-FIRST through the durable cursor', async () => {
+    const seeded = backlog(5);
+    // maxRecords 2 = a two-alert page: the read must return the two OLDEST alerts, never the newest two.
+    const first = makeHarness({ maxRecords: 2, existingAlerts: seeded, sourceEvents: perAlert(() => 'DISPATCHED') });
+    const m = await first.run();
+    expect(offeredIds).toEqual([['id-1', 'id-2']]);
+    expect(m.sourceEvents).toEqual({ offered: 2, dispatched: 2, queued: 0, deduped: 0, refused: 0, unknown: 0, skipped: 0 });
+    expect(cursorOf(first)).toEqual({ version: 1, cursorAtMs: seeded[1]!.firstObservedAt.getTime(), cursorId: 'id-2', pagesDone: 1 });
+
+    // The next evaluation resumes STRICTLY AFTER the acknowledged page: the third/fourth oldest, no repeat.
+    const second = makeHarness({
+      maxRecords: 2,
+      existingAlerts: seeded,
+      existingBaseline: first.state.baselineState as never,
+      sourceEvents: perAlert(() => 'DISPATCHED'),
+    });
+    await second.run();
+    // Only the SECOND page is offered next: the durable cursor resumed strictly after id-2.
+    expect(offeredIds.at(-1)).toEqual(['id-3', 'id-4']);
+    expect(cursorOf(second)).toEqual({ version: 1, cursorAtMs: seeded[3]!.firstObservedAt.getTime(), cursorId: 'id-4', pagesDone: 2 });
+
+    // And the final, partially-filled page drains the rest exactly once.
+    const third = makeHarness({
+      maxRecords: 2,
+      existingAlerts: seeded,
+      existingBaseline: second.state.baselineState as never,
+      sourceEvents: perAlert(() => 'DISPATCHED'),
+    });
+    await third.run();
+    expect(offeredIds.at(-1)).toEqual(['id-5']);
+    expect(cursorOf(third)).toEqual({ version: 1, cursorAtMs: seeded[4]!.firstObservedAt.getTime(), cursorId: 'id-5', pagesDone: 3 });
+  });
+
+  test('an UNKNOWN oldest alert HOLDS the cursor and the same page is re-offered, never skipped', async () => {
+    const seeded = backlog(3);
+    const options = { maxRecords: 2, existingAlerts: seeded } as const;
+    // Two consecutive evaluations whose OLDEST alert is UNKNOWN: identical page, identical hold.
+    for (const pass of [0, 1]) {
+      const h = makeHarness({
+        ...options,
+        existingBaseline: pass === 0 ? undefined : (sharedBaseline as never),
+        // a2 is definitively answered, but an unresolved OLDER alert must not be stepped over
+        sourceEvents: perAlert((alertId) => (alertId === 'id-1' ? 'UNKNOWN' : 'DISPATCHED')),
+      });
+      const m = await h.run();
+      expect(m.sourceEvents).toEqual({ offered: 2, dispatched: 1, queued: 0, deduped: 0, refused: 0, unknown: 1, skipped: 0 });
+      expect(cursorOf(h)).toBeNull();
+      sharedBaseline = h.state.baselineState;
+    }
+    // The page never advanced: both passes offered exactly the oldest two.
+    expect(offeredIds).toEqual([['id-1', 'id-2'], ['id-1', 'id-2']]);
+
+    // Once the oldest alert is definitively answered, the very next evaluation accepts the whole page.
+    const healed = makeHarness({
+      ...options,
+      existingBaseline: sharedBaseline as never,
+      sourceEvents: perAlert(() => 'DISPATCHED'),
+    });
+    await healed.run();
+    expect(cursorOf(healed)).toEqual({ version: 1, cursorAtMs: seeded[1]!.firstObservedAt.getTime(), cursorId: 'id-2', pagesDone: 1 });
+  });
+  test('equal firstObservedAt rows advance by the id tie-break and are never re-offered', async () => {
+    const at = new Date('2026-09-01T00:00:00.000Z');
+    const tied = [
+      { dedupeKey: 'TIE-A', id: 'aaa', firstObservedAt: at },
+      { dedupeKey: 'TIE-B', id: 'bbb', firstObservedAt: at },
+    ];
+    const first = makeHarness({ maxRecords: 1, existingAlerts: tied, sourceEvents: perAlert(() => 'DISPATCHED') });
+    await first.run();
+    expect(offeredIds).toEqual([['aaa']]);
+    expect(cursorOf(first)).toEqual({ version: 1, cursorAtMs: at.getTime(), cursorId: 'aaa', pagesDone: 1 });
+
+    // Same instant, later id: the equal-instant tie-break resumes at 'bbb' rather than repeating 'aaa'.
+    const second = makeHarness({
+      maxRecords: 1,
+      existingAlerts: tied,
+      existingBaseline: first.state.baselineState as never,
+      sourceEvents: perAlert(() => 'DISPATCHED'),
+    });
+    await second.run();
+    expect(offeredIds.at(-1)).toEqual(['bbb']);
+  });
+
+  test('a new arrival waits behind the backlog instead of jumping the durable cursor', async () => {
+    const seeded = backlog(3);
+    const first = makeHarness({ maxRecords: 2, existingAlerts: seeded, sourceEvents: perAlert(() => 'DISPATCHED') });
+    await first.run();
+    // The newest alert (id-3) is NOT delivered while two older alerts are still ahead of it.
+    expect(offeredIds).toEqual([['id-1', 'id-2']]);
+
+    const second = makeHarness({
+      maxRecords: 2,
+      existingAlerts: seeded,
+      existingBaseline: first.state.baselineState as never,
+      sourceEvents: perAlert(() => 'DISPATCHED'),
+    });
+    await second.run();
+    expect(offeredIds.at(-1)).toEqual(['id-3']);
+  });
+
+  test('a concurrent evaluator that takes the lease DURING the bounded call blocks the cursor advance', async () => {
+    const seeded = backlog(1);
+    const holder: { h?: ReturnType<typeof makeHarness> } = {};
+    const before = makeHarness({ maxRecords: 2, existingAlerts: seeded, sourceEvents: async (alerts) => {
+      // The bounded delivery call is in flight while a NEWER evaluator claims the source-state row —
+      // exactly the window the retained lease exists for. Nothing this stale worker writes may land.
+      if (holder.h) holder.h.state.leaseToken = 'concurrent-worker';
+      return { dispositions: alerts.map((a) => ({ alertId: a.alertId, state: 'DISPATCHED' })) };
+    } });
+    holder.h = before;
+    const m = await before.run();
+
+    // Meri's answer is still counted honestly (the delivery really happened) …
+    expect(m.sourceEvents).toEqual({ offered: 1, dispatched: 1, queued: 0, deduped: 0, refused: 0, unknown: 0, skipped: 0 });
+    // … but the durable cursor did NOT advance, and the newer evaluator's lease was not clobbered.
+    expect(cursorOf(before)).toBeNull();
+    // The committed baseline legitimately landed (the page itself finalized BEFORE the bounded call);
+    // what must NOT exist is the recovery cursor this worker had no lease left to write.
+    expect((before.state.baselineState as { scan?: Record<string, unknown> }).scan?.delivery).toBeUndefined();
+    expect(before.state.leaseToken).toBe('concurrent-worker');
+  });
+
+  test('a definite no-effect (no approved routine) disposition advances, unlike UNKNOWN', async () => {
+    const seeded = backlog(2);
+    const skipped = makeHarness({ maxRecords: 2, existingAlerts: seeded, sourceEvents: perAlert((alertId) => (alertId === 'id-1' ? 'SKIPPED' : 'DISPATCHED')) });
+    const m = await skipped.run();
+    expect(m.sourceEvents).toEqual({ offered: 2, dispatched: 1, queued: 0, deduped: 0, refused: 0, unknown: 0, skipped: 1 });
+    // SKIPPED is Meri's own definite "no approved routine for this pair": terminal, so the page advances.
+    expect(cursorOf(skipped)).toEqual({ version: 1, cursorAtMs: seeded[1]!.firstObservedAt.getTime(), cursorId: 'id-2', pagesDone: 1 });
+  });
+
+  test('an aggregate-only owner acknowledges a page only when it accounts for every alert and none is UNKNOWN', async () => {
+    const seeded = backlog(2);
+    const partial = makeHarness({
+      maxRecords: 2,
+      existingAlerts: seeded,
+      sourceEvents: async () => ({ offered: 2, dispatched: 1, queued: 0, deduped: 0, refused: 0, unknown: 1, skipped: 0 }),
+    });
+    await partial.run();
+    expect(cursorOf(partial)).toBeNull();
+
+    const inconsistent = makeHarness({
+      maxRecords: 2,
+      existingAlerts: seeded,
+      sourceEvents: async () => ({ offered: 1, dispatched: 1, queued: 0, deduped: 0, refused: 0, unknown: 0, skipped: 0 }),
+    });
+    await inconsistent.run();
+    // An owner that did not account for every offered alert cannot acknowledge the page.
+    expect(cursorOf(inconsistent)).toBeNull();
+
+    const complete = makeHarness({
+      maxRecords: 2,
+      existingAlerts: seeded,
+      sourceEvents: async () => ({ offered: 2, dispatched: 2, queued: 0, deduped: 0, refused: 0, unknown: 0, skipped: 0 }),
+    });
+    await complete.run();
+    expect(cursorOf(complete)).toEqual({ version: 1, cursorAtMs: seeded[1]!.firstObservedAt.getTime(), cursorId: 'id-2', pagesDone: 1 });
+  });
+
+  test('with no delivery owner configured the run takes NO recovery read and releases the lease', async () => {
+    const h = makeHarness({ maxRecords: 2, existingAlerts: backlog(1) });
+    const m = await h.run();
+    expect(m.sourceEvents).toBeNull();
+    expect(h.state.leaseToken).toBeNull();
+    expect(cursorOf(h)).toBeNull();
+  });
+
+  test('the REAL per-alert delivery owner drives the durable cursor across a crash, a later evaluation and a deduped replay', async () => {
+    // The alert row the real codec will read: an immutable id, a real 64-hex semantic fingerprint.
+    const seeded = [
+      {
+        dedupeKey: 'REAL-1',
+        id: randomUUID(),
+        firstObservedAt: new Date('2026-09-01T00:00:00.000Z'),
+        fingerprint: 'b'.repeat(64),
+      },
+    ];
+    const binding = { scheduleId: randomUUID(), generation: 3 };
+    /** The durable Meri-side effect: event identity -> the exact bytes it was accepted with. */
+    const durable = new Map<string, string>();
+    let bindingReads = 0;
+    let crash = true;
+    const transport = {
+      binding: async () => {
+        bindingReads += 1;
+        return binding;
+      },
+      event: async (envelope: { eventId: string; eventHash: string }) => {
+        if (crash) throw new Error('transport crashed before Meri could answer');
+        const known = durable.get(envelope.eventId);
+        if (known === undefined) {
+          durable.set(envelope.eventId, envelope.eventHash);
+          return { status: 200, disposition: 'DISPATCHED', outcome: null, code: null };
+        }
+        // The SAME identity must arrive with the SAME bytes: identity dedup is the whole safety net.
+        expect(known).toBe(envelope.eventHash);
+        return { status: 200, disposition: 'DEDUPED', outcome: null, code: null };
+      },
+    };
+    // The real delivery owner (real codec, real disposition parsing) over the live sink boundary.
+    const sink = createSourceEventDispositionSink({ transport: transport as never });
+
+    // Pass 1 — committed alert, delivery owner could not answer: UNKNOWN, and the cursor HOLDS.
+    const first = makeHarness({ maxRecords: 2, existingAlerts: seeded, sourceEvents: sink });
+    const m1 = await first.run();
+    expect(m1.sourceEvents).toEqual({ offered: 1, dispatched: 0, queued: 0, deduped: 0, refused: 0, unknown: 1, skipped: 0 });
+    expect(cursorOf(first)).toBeNull();
+    expect(durable.size).toBe(0);
+    expect(bindingReads).toBe(1);
+
+    // Pass 2 — the SAME durable alert, a working owner: DISPATCHED, and the cursor advances.
+    crash = false;
+    const second = makeHarness({
+      maxRecords: 2,
+      existingAlerts: seeded,
+      existingBaseline: first.state.baselineState as never,
+      sourceEvents: sink,
+    });
+    const m2 = await second.run();
+    expect(m2.sourceEvents).toEqual({ offered: 1, dispatched: 1, queued: 0, deduped: 0, refused: 0, unknown: 0, skipped: 0 });
+    expect(durable.size).toBe(1);
+    expect(cursorOf(second)).toEqual({
+      version: 1,
+      cursorAtMs: seeded[0]!.firstObservedAt.getTime(),
+      cursorId: seeded[0]!.id,
+      pagesDone: 1,
+    });
+    expect(bindingReads).toBe(2);
+
+    // Pass 3 — effect-before-ACK: a worker still holding the OLD baseline re-offers the SAME event. Meri
+    // dedups it to the one durable effect rather than a second one, and the page still acknowledges.
+    const replay = makeHarness({
+      maxRecords: 2,
+      existingAlerts: seeded,
+      existingBaseline: first.state.baselineState as never,
+      sourceEvents: sink,
+    });
+    const m3 = await replay.run();
+    expect(m3.sourceEvents).toEqual({ offered: 1, dispatched: 0, queued: 0, deduped: 1, refused: 0, unknown: 0, skipped: 0 });
+    expect(durable.size).toBe(1);
   });
 });

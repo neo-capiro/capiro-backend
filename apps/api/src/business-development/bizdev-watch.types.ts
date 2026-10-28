@@ -329,6 +329,47 @@ export interface BizDevWatchScanCheckpoint {
   pagesDone: number;
   /** SAM only: bounded agency-exposure sub-traversal state. */
   exposure?: BizDevWatchScanExposureCheckpoint;
+  /** MB-05 only: the delivery-RECOVERY cursor (see BizDevWatchDeliveryCheckpoint). */
+  delivery?: BizDevWatchDeliveryCheckpoint;
+}
+
+// ── MB-05 delivery-recovery cursor (stored inside the scan checkpoint) ────
+
+/**
+ * Bounded, versioned cursor for the MB-05 delivery recovery walk over THIS
+ * watch's own canonical, immutable alerts.
+ *
+ * WHY it exists: the delivery reconciliation used to read the NEWEST
+ * `maxRecordsPerSource` alerts of the watch. That window slides forward, so an
+ * alert committed with more than a page of newer siblings committed after it
+ * (or simply pushed out of the window by later activity) was never offered
+ * again — a silently lost handoff. This cursor walks OLDEST-first instead, so
+ * every committed alert is offered and the walk is guaranteed to revisit.
+ *
+ * SEMANTICS (deliberately conservative):
+ *  - keyset = (firstObservedAt, id) ASCENDING; the pair is a stable total order
+ *    even when many alerts share one instant, so equal timestamps cannot skip
+ *    or repeat a row.
+ *  - it advances ONLY over the contiguous oldest-first prefix whose delivery
+ *    the delivery owner DEFINITELY answered. An UNKNOWN answer, a transport
+ *    failure or a swallowed exception holds the cursor exactly at the oldest
+ *    unresolved row — the next evaluation re-offers the same page.
+ *  - it is monotone and never resets: a full drain leaves the cursor at the
+ *    newest acknowledged alert, so the next committed alert is picked up on the
+ *    following evaluation. A source-scope/identity change does NOT reset it
+ *    (alert history belongs to the watch, not to the source scope).
+ *  - Meri's identity dedup makes a repeat of an already-delivered event one
+ *    event rather than a second effect, so holding the cursor is safe.
+ */
+export interface BizDevWatchDeliveryCheckpoint {
+  /** Checkpoint format version; anything else must fail closed. */
+  version: 1;
+  /** Keyset: `firstObservedAt` (epoch ms) of the newest DEFINITELY acknowledged alert. */
+  cursorAtMs: number | null;
+  /** Keyset tie-break: the immutable alert id at that instant. */
+  cursorId: string | null;
+  /** Bounded recovery pages that advanced this cursor (observability only). */
+  pagesDone: number;
 }
 
 // ── Diff output ───────────────────────────────────────────────────────────

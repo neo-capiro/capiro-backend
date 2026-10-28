@@ -12,7 +12,12 @@ import type {
   BizDevWatchScanExposureCheckpoint,
 } from './bizdev-watch.types.js';
 import { diffObservationAgainstBaseline as diffFn } from './bizdev-watch-diff.js';
-import { resolveScanCheckpoint, scanScopeHash } from './bizdev-watch-checkpoint.js';
+import {
+  deliveryAfterCursor,
+  nextDeliveryCheckpoint,
+  resolveScanCheckpoint,
+  scanScopeHash,
+} from './bizdev-watch-checkpoint.js';
 export { resolveScanCheckpoint, scanScopeHash } from './bizdev-watch-checkpoint.js';
 
 /**
@@ -350,11 +355,30 @@ export async function discoverClaimCandidates(
  * and no transaction-scoped dependency on the Meri client.
  */
 export type BizDevWatchSourceEventSink = (
-  alerts: readonly {
-    tenantId: string; alertId: string; watchId: string; prospectId: string; dedupeKey: string;
-    fingerprint: string; sourceFamily: string; recordId: string; sourceRevision: string | null; occurredAtMs: number;
-  }[],
-) => Promise<BizDevWatchSourceEventCounts | void>;
+  alerts: readonly BizDevWatchSourceEventOffered[],
+) => Promise<BizDevWatchSourceEventAnswer | BizDevWatchSourceEventCounts | void>;
+
+/** What the MB-05 delivery owner answered for ONE alert: a definite terminal state, or UNKNOWN. */
+export interface BizDevWatchSourceEventDisposition {
+  alertId: string;
+  /**
+   * DISPATCHED / DEDUPED / ACCEPTED / QUEUED / SKIPPED / REFUSED / CONFLICT are DEFINITE answers from
+   * Meri and may advance the recovery cursor; UNKNOWN (or anything unintelligible) may not.
+   */
+  state: string;
+}
+
+/**
+ * The delivery owner's answer for one offered recovery page. A per-alert `dispositions` list lets the
+ * caller advance its durable recovery cursor over EXACTLY the alerts Meri definitively answered; an
+ * owner that can only report aggregates omits it, and the page is then acknowledged as a whole and only
+ * when the owner accounts for every offered alert and reports none UNKNOWN. Either way an UNKNOWN answer
+ * never advances the cursor, and an unresolved older alert always holds it.
+ */
+export interface BizDevWatchSourceEventAnswer {
+  counts?: BizDevWatchSourceEventCounts;
+  dispositions?: readonly BizDevWatchSourceEventDisposition[];
+}
 
 /**
  * One DB-only evaluator pass. Returns structured metrics; throws ONLY on
@@ -422,7 +446,12 @@ export async function runBizDevWatchEvaluation(
     try {
       // Alerts this transaction durably commits. Declared OUTSIDE the transaction so a rolled-back
       // transaction contributes nothing, and delivered only after the commit resolves.
-      const committedAlerts: Parameters<BizDevWatchSourceEventSink>[0][number][] = [];
+      const committedAlerts: BizDevWatchSourceEventOffered[] = [];
+      /** The durable baseline THIS pass commits — the MB-05 recovery cursor rides inside its scan metadata. */
+      let committedBaseline: BizDevWatchBaseline | null = null;
+      /** True only when THIS pass finalized the healthy page while RETAINING the lease for the bounded
+       *  delivery recovery below, which releases it in one separate lease-predicated finalize. */
+      let leaseRetainedForDelivery = false;
       const outcome = await db.withTenant(state.tenantId, async (tx) => {
         const watch = (await tx.businessDevelopmentWatch.findFirst({
           where: { tenantId: state.tenantId, id: state.watchId },
@@ -607,6 +636,10 @@ export async function runBizDevWatchEvaluation(
             fenceId: null,
             stagedRecords: {},
             pagesDone: 0,
+            // The MB-05 recovery cursor is NOT part of the source traversal: it walks this watch's OWN
+            // alert rows, which an identity/scope change does not rewrite. Resetting it would replay a
+            // handled history; keeping it can never strand an alert (it is monotone and bounded).
+            ...(scan.delivery ? { delivery: scan.delivery } : {}),
           };
         }
 
@@ -760,6 +793,8 @@ export async function runBizDevWatchEvaluation(
               fenceId: null,
               stagedRecords: {},
               pagesDone: 0,
+              // The delivery-recovery cursor is independent of the (completed) traversal and carries over.
+              ...(scan.delivery ? { delivery: scan.delivery } : {}),
             }
           : {
               ...scan,
@@ -819,6 +854,9 @@ export async function runBizDevWatchEvaluation(
                 scan: nextScan,
               };
 
+        // The exact durable baseline this transaction commits. The MB-05 recovery cursor is advanced by
+        // ONE separate lease-predicated finalize AFTER the bounded delivery call resolves.
+        committedBaseline = newBaseline;
         let delivered = 0;
         let duplicates = 0;
         if (suppressionReason == null) {
@@ -979,14 +1017,16 @@ export async function runBizDevWatchEvaluation(
             ? suppressionReason
             : `Scan in progress (${nextScan.pagesDone} page${nextScan.pagesDone === 1 ? '' : 's'} persisted this traversal; coverage is not yet complete)`,
           health: cycleEnd ? 'healthy' : 'partial',
-          leaseToken: null,
-          leaseUntil: null,
+          // DELIBERATELY NOT released here: the lease is retained across the bounded MB-05 delivery
+          // recovery below and released by ONE separate lease-predicated finalize, so no network call
+          // ever sits inside a DB transaction and a stale worker can never clobber a newer cursor.
         });
         if (finalized === 0) {
           throw new Error(
             'Lost the source-state lease before healthy finalization — rolling back all alert/delivery/activity inserts and the scan cursor',
           );
         }
+        leaseRetainedForDelivery = true;
         // Committed: only NOW do the run metrics claim the work (a rolled-
         // back transaction must never be reported as delivered/baselined).
         // A committed mid-cycle healthy page makes bounded FORWARD progress
@@ -1000,51 +1040,63 @@ export async function runBizDevWatchEvaluation(
         return cycleEnd ? 'healthy' : ('partial' as const);
       });
       if (outcome === 'skipped') metrics.checked -= 1;
-      // MB-05: deliver AFTER the durable commit, never inside it. A lost or unknown Meri
-      // acknowledgement is Meri's recorded disposition (or UNKNOWN) and never a family failure:
-      // the immutable alert is Core custody, so the identical event replays from it.
-      if (sourceEvents) {
-        // BOUNDED DURABLE RECONCILIATION. The durable channel is the immutable alert row itself,
-        // bounded by the same per-source bound this evaluation already uses. A crash between a
-        // commit and its delivery, or an UNKNOWN answer, is therefore reconciled by this LATER
-        // evaluation even when the diff produces no new draft — never by an in-process retry, and
-        // never reported as success. The scheduler remains the sole retry owner: this is one
-        // bounded read, not a loop, a timer or a poller.
-        const recent = await db.withTenant(state.tenantId, (tx) =>
-          tx.businessDevelopmentAlert.findMany({
-            where: { tenantId: state.tenantId, watchId: state.watchId },
-            orderBy: { firstObservedAt: 'desc' },
-            take: config.maxRecordsPerSource,
-            select: {
-              id: true, prospectId: true, dedupeKey: true, fingerprint: true,
-              sourceFamily: true, recordId: true, sourceRevision: true, firstObservedAt: true,
-            },
-          }),
-        );
-        const offered = new Map<string, Parameters<BizDevWatchSourceEventSink>[0][number]>();
-        for (const alert of committedAlerts) offered.set(alert.alertId, alert);
-        for (const row of recent ?? []) {
-          if (offered.has(row.id)) continue;
-          offered.set(row.id, {
-            tenantId: state.tenantId,
-            alertId: row.id,
-            watchId: state.watchId,
-            prospectId: row.prospectId,
-            dedupeKey: row.dedupeKey,
-            fingerprint: row.fingerprint,
-            sourceFamily: row.sourceFamily,
-            recordId: row.recordId,
-            sourceRevision: row.sourceRevision ?? null,
-            occurredAtMs: row.firstObservedAt.getTime(),
-          });
+      // ── MB-05 bounded durable delivery recovery (oldest-first) ────────
+      // The durable channel is this watch's OWN canonical, immutable alert row. It is walked
+      // OLDEST-FIRST through the existing versioned baseline/scan checkpoint, bounded by the same
+      // per-source bound this evaluation already uses, so a commit-before-delivery crash, an UNKNOWN
+      // answer or a lost handoff is reconciled by a LATER evaluation — never by an in-process retry, a
+      // timer or a poller (the scheduler remains the sole retry owner).
+      //
+      // The cursor advances ONLY over the contiguous oldest-first prefix whose delivery the owner
+      // DEFINITIVELY answered: a bounded page can never silently advance past an unresolved (UNKNOWN or
+      // transport-failed) alert, and an unresolved oldest row holds the cursor exactly there so the next
+      // evaluation re-offers the same page. Meri's identity dedup makes a repeat of an already-delivered
+      // event one event rather than a second effect.
+      //
+      // The lease retained by the healthy finalize is released HERE, in one separate lease-predicated
+      // transaction that also persists the advance; if that finalize loses the lease (expired during the
+      // bounded call, or a newer evaluator claimed the row) NOTHING is written.
+      if (leaseRetainedForDelivery && committedBaseline != null) {
+        // Captured as a const so the durable baseline the healthy finalize wrote is used as one typed
+        // snapshot (the assignment happened inside the transaction callback).
+        const recoveryBaseline: BizDevWatchBaseline = committedBaseline;
+        let acknowledgedPage: BizDevWatchSourceEventOffered[] = [];
+        try {
+          if (sourceEvents) {
+            const page = await readDeliveryRecoveryPage(
+              db,
+              state.tenantId,
+              state.watchId,
+              recoveryBaseline.scan,
+              config.maxRecordsPerSource,
+            );
+            if (page.length > 0) {
+              // A delivery owner that could not answer at all leaves every offered alert UNKNOWN: the run
+              // reports that honestly instead of counting it as a dispatch, and the cursor HOLDS.
+              const answer: unknown = await sourceEvents(page).catch(() => undefined);
+              metrics.sourceEvents = accumulateSourceEventCounts(
+                metrics.sourceEvents,
+                sourceEventCountsFromAnswer(page, answer),
+                page.length,
+              );
+              acknowledgedPage = acknowledgedDeliveryPrefix(page, answer);
+            }
+          }
+        } catch {
+          // A failed recovery READ changes nothing durable: the cursor holds and the next evaluation
+          // re-reads the same page. It is never a family failure.
+          acknowledgedPage = [];
         }
-        // A delivery owner that could not answer at all leaves every offered alert UNKNOWN: the run
-        // reports that honestly instead of counting it as dispatch.
-        metrics.sourceEvents = accumulateSourceEventCounts(
-          metrics.sourceEvents,
-          await sourceEvents([...offered.values()]).catch(() => undefined),
-          offered.size,
-        );
+        // Always release under the lease predicate — with the earned advance, or without one. A failure
+        // to release needs no recovery path: the lease simply expires on its own.
+        await finalizeDeliveryRecovery(
+          db,
+          state.tenantId,
+          state.id,
+          claimToken,
+          recoveryBaseline,
+          acknowledgedPage,
+        ).catch(() => undefined);
       }
     } catch (familyError) {
       // One failed family never blocks others: record and continue. The
@@ -1076,6 +1128,213 @@ export async function runBizDevWatchEvaluation(
 
   metrics.durationMs = Date.now() - started;
   return metrics;
+}
+
+/** One canonical immutable alert offered to the MB-05 delivery owner (structurally SourceEventAlertCustody). */
+export interface BizDevWatchSourceEventOffered {
+  tenantId: string;
+  alertId: string;
+  watchId: string;
+  prospectId: string;
+  dedupeKey: string;
+  fingerprint: string;
+  sourceFamily: string;
+  recordId: string;
+  sourceRevision: string | null;
+  occurredAtMs: number;
+}
+
+/** Meri's own DEFINITE terminal dispositions. Anything else (UNKNOWN, garbage) is unresolved. */
+const DEFINITE_SOURCE_EVENT_STATES = new Set([
+  'DISPATCHED',
+  'DEDUPED',
+  'ACCEPTED',
+  'QUEUED',
+  'SKIPPED',
+  'REFUSED',
+  'CONFLICT',
+]);
+
+/** The per-alert states an owner returned, keyed by alert id (unintelligible entries are ignored). */
+function sourceEventDispositionsById(answer: unknown): Map<string, string> | null {
+  if (!answer || typeof answer !== 'object') return null;
+  const rows = (answer as BizDevWatchSourceEventAnswer).dispositions;
+  if (!Array.isArray(rows)) return null;
+  const byId = new Map<string, string>();
+  for (const row of rows) {
+    if (!row || typeof row !== 'object') continue;
+    const { alertId, state } = row as BizDevWatchSourceEventDisposition;
+    if (typeof alertId === 'string' && typeof state === 'string') byId.set(alertId, state);
+  }
+  return byId;
+}
+
+/**
+ * The aggregate answer for one pass, from whatever shape the owner returned: the owner's own counts,
+ * counts DERIVED from its per-alert dispositions (so every offered alert is accounted exactly once), or
+ * the value unchanged. `undefined` (a thrown or silent owner) is counted as UNKNOWN for every alert by
+ * the accumulator — never as success.
+ */
+export function sourceEventCountsFromAnswer(
+  page: readonly BizDevWatchSourceEventOffered[],
+  answer: unknown,
+): unknown {
+  if (!answer || typeof answer !== 'object') return answer;
+  const value = answer as BizDevWatchSourceEventAnswer & Partial<BizDevWatchSourceEventCounts>;
+  if (value.counts !== undefined) return value.counts;
+  const byId = sourceEventDispositionsById(answer);
+  if (byId === null) return answer;
+  const counts: BizDevWatchSourceEventCounts = {
+    offered: page.length,
+    dispatched: 0,
+    queued: 0,
+    deduped: 0,
+    refused: 0,
+    unknown: 0,
+    skipped: 0,
+  };
+  for (const row of page) {
+    const state = byId.get(row.alertId) ?? 'UNKNOWN';
+    if (state === 'DISPATCHED') counts.dispatched += 1;
+    else if (state === 'DEDUPED') counts.deduped += 1;
+    else if (state === 'ACCEPTED' || state === 'QUEUED') counts.queued += 1;
+    else if (state === 'REFUSED' || state === 'CONFLICT') counts.refused += 1;
+    else if (state === 'SKIPPED') counts.skipped += 1;
+    else counts.unknown += 1;
+  }
+  return counts;
+}
+
+/**
+ * The CONTIGUOUS OLDEST-FIRST prefix of the recovery page whose delivery the owner DEFINITELY answered.
+ * Scattered newer answers are deliberately NOT skipped over: an unresolved older alert holds the cursor,
+ * because advancing past it would strand exactly the handoff the cursor exists to recover. An
+ * aggregate-only owner acknowledges the whole page, but only when it accounts for every offered alert and
+ * reports none UNKNOWN; an empty prefix leaves the cursor exactly where it is.
+ */
+export function acknowledgedDeliveryPrefix(
+  page: readonly BizDevWatchSourceEventOffered[],
+  answer: unknown,
+): BizDevWatchSourceEventOffered[] {
+  if (!answer || typeof answer !== 'object') return [];
+  const byId = sourceEventDispositionsById(answer);
+  if (byId !== null) {
+    const acknowledged: BizDevWatchSourceEventOffered[] = [];
+    for (const row of page) {
+      const state = byId.get(row.alertId);
+      if (state === undefined || !DEFINITE_SOURCE_EVENT_STATES.has(state)) break;
+      acknowledged.push(row);
+    }
+    return acknowledged;
+  }
+  const value = answer as Partial<BizDevWatchSourceEventCounts>;
+  if (typeof value.offered === 'number' && value.offered === page.length && value.unknown === 0) {
+    return [...page];
+  }
+  return [];
+}
+
+/**
+ * ONE bounded OLDEST-FIRST keyset page over this watch's OWN canonical alerts, strictly AFTER the
+ * durable recovery cursor, in (firstObservedAt, id) order. This is the bounded read a later evaluation
+ * repeats until every committed alert has been offered — never a sliding newest-N window that can drop
+ * an older committed-but-undelivered alert. An empty cursor starts at the beginning of the watch's own
+ * alert history, which is the only start that cannot strand an alert committed before the cursor existed.
+ */
+async function readDeliveryRecoveryPage(
+  db: BizDevWatchRunnerDb,
+  tenantId: string,
+  watchId: string,
+  scan: BizDevWatchScanCheckpoint | undefined,
+  maxRecords: number,
+): Promise<BizDevWatchSourceEventOffered[]> {
+  const after = deliveryAfterCursor(scan?.delivery);
+  const rows = await db.withTenant(tenantId, (tx) =>
+    tx.businessDevelopmentAlert.findMany({
+      where: {
+        tenantId,
+        watchId,
+        ...(after === null
+          ? {}
+          : {
+              OR: [
+                { firstObservedAt: { gt: after.at } },
+                { firstObservedAt: after.at, id: { gt: after.id } },
+              ],
+            }),
+      },
+      orderBy: [{ firstObservedAt: 'asc' }, { id: 'asc' }],
+      take: maxRecords,
+      select: {
+        id: true,
+        prospectId: true,
+        dedupeKey: true,
+        fingerprint: true,
+        sourceFamily: true,
+        recordId: true,
+        sourceRevision: true,
+        firstObservedAt: true,
+      },
+    }),
+  );
+  return (rows ?? []).map((row) => ({
+    tenantId,
+    alertId: row.id,
+    watchId,
+    prospectId: row.prospectId,
+    dedupeKey: row.dedupeKey,
+    fingerprint: row.fingerprint,
+    sourceFamily: row.sourceFamily,
+    recordId: row.recordId,
+    sourceRevision: row.sourceRevision ?? null,
+    occurredAtMs: row.firstObservedAt.getTime(),
+  }));
+}
+
+/**
+ * Finalize the MB-05 recovery step in ONE existing lease-predicated transaction: persist the advanced
+ * recovery cursor inside the committed baseline's scan metadata and RELEASE the lease. Every write is
+ * CASed on the lease token, so a worker whose lease expired during the bounded call (or whose row was
+ * claimed by a newer evaluator) writes NOTHING — it can never clobber a newer cursor or resurrect a
+ * stale baseline.
+ */
+async function finalizeDeliveryRecovery(
+  db: BizDevWatchRunnerDb,
+  tenantId: string,
+  stateId: string,
+  claimToken: string,
+  baseline: BizDevWatchBaseline,
+  acknowledged: readonly BizDevWatchSourceEventOffered[],
+): Promise<number> {
+  const scan = baseline.scan;
+  const earned = scan != null && acknowledged.length > 0;
+  const advanced: BizDevWatchBaseline = earned
+    ? {
+        ...baseline,
+        scan: {
+          ...scan,
+          // The checkpoint keyset is (instant, immutable alert id) — the alert row's own primary key.
+          delivery: nextDeliveryCheckpoint(
+            scan.delivery,
+            acknowledged.map((row) => ({ id: row.alertId, occurredAtMs: row.occurredAtMs })),
+          ),
+        },
+      }
+    : baseline;
+  return db
+    .withTenant(tenantId, (tx) =>
+      tx.businessDevelopmentWatchSourceState
+        .updateMany({
+          where: { tenantId, id: stateId, leaseToken: claimToken },
+          data: {
+            ...(earned ? { baselineState: advanced as unknown as Prisma.InputJsonValue } : {}),
+            leaseToken: null,
+            leaseUntil: null,
+          },
+        })
+        .then((r: { count: number }) => r.count),
+    )
+    .catch(() => 0);
 }
 
 /**

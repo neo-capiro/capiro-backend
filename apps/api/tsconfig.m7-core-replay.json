@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false,
+    "skipLibCheck": true,
+    "types": ["node", "jest"]
+  },
+  "files": [
+    "src/business-development/bizdev-watch-runner.ts",
+    "src/business-development/bizdev-watch.types.ts",
+    "src/business-development/bizdev-watch-checkpoint.ts",
+    "src/business-development/bizdev-watch-source-event.ts",
+    "scripts/run-bizdev-watch.ts"
+  ]
+}

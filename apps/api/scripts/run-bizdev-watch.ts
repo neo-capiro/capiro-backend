@@ -31,7 +31,7 @@ import {
   type BizDevProjectionDb,
   type BizDevWatchSourceEventSink,
 } from '../src/business-development/bizdev-watch-runner.js';
-import { createSourceEventSink } from '../src/business-development/bizdev-watch-source-event.js';
+import { createSourceEventDispositionSink } from '../src/business-development/bizdev-watch-source-event.js';
 
 dotenvConfig();
 
@@ -182,8 +182,11 @@ async function main(): Promise<number> {
     // bearer, and the binding read comes from Meri's own durable owner.
     const origin = process.env.MERI_CONTROL_ORIGIN;
     const secret = process.env.INTERNAL_SERVICE_SECRET;
+    // The per-alert disposition owner: it reports Meri's exact terminal answer FOR EACH offered alert, so
+    // the runner advances its durable oldest-first recovery cursor only over what Meri definitively
+    // answered and never past an UNKNOWN. It reports the same aggregate counts as before.
     const sourceEvents: BizDevWatchSourceEventSink | null =
-      origin && secret ? createSourceEventSink({ origin, secret }) : null;
+      origin && secret ? createSourceEventDispositionSink({ origin, secret }) : null;
     const metrics = await runBizDevWatchEvaluation(db, projections, config, undefined, sourceEvents);
     // One structured JSON metric summary.
     process.stdout.write(JSON.stringify(metrics) + '\n');

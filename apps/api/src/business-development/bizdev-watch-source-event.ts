@@ -140,18 +140,36 @@ const emptyCounts = (offered: number): SourceEventSinkCounts => ({
 });
 
 /**
- * The evaluator's delivery sink: the exact producer-side owner of MB-05. It reads the approved
- * binding from Meri's durable owner ONCE per (producer, family, resource) pair — an unbound pair
- * therefore causes ZERO event calls — and reports only what Meri itself answered. A binding read
- * that Meri could not answer is UNKNOWN for that pair, never "no binding".
+ * Per-alert terminal disposition for one offered alert. UNKNOWN means Meri never definitively
+ * answered THIS alert: it is neither a delivery nor a refusal, and it can never advance the
+ * recovery cursor.
  */
-export function createSourceEventSink(options: {
+export interface SourceEventAlertDisposition {
+  alertId: string;
+  state: SourceEventDeliveryState;
+}
+
+/** The delivery owner's answer for one offered page: the run counts plus the exact per-alert dispositions. */
+export interface SourceEventDeliveryAnswer {
+  counts: SourceEventSinkCounts;
+  dispositions: SourceEventAlertDisposition[];
+}
+
+/**
+ * The evaluator's delivery owner: the exact producer-side owner of MB-05. It reads the approved
+ * binding from Meri's durable owner ONCE per (producer, family, resource) pair — an unbound pair
+ * therefore causes ZERO event calls — and reports only what Meri itself answered, PER ALERT, so the
+ * caller can advance its durable recovery cursor over exactly the alerts Meri definitively answered.
+ * A binding read that Meri could not answer is UNKNOWN for that pair, never "no binding".
+ */
+export function createSourceEventDispositionSink(options: {
   transport?: SourceEventTransport; origin?: string; secret?: string; fetchImpl?: typeof fetch;
-} = {}): (alerts: readonly SourceEventAlertCustody[]) => Promise<SourceEventSinkCounts> {
+} = {}): (alerts: readonly SourceEventAlertCustody[]) => Promise<SourceEventDeliveryAnswer> {
   const transport = options.transport ?? createSourceEventTransport({origin: options.origin, secret: options.secret, fetchImpl: options.fetchImpl});
   const delivery = new BizDevWatchSourceEventDelivery();
   return async alerts => {
     const counts = emptyCounts(alerts.length);
+    const dispositions: SourceEventAlertDisposition[] = [];
     const bindings = new Map<string, { binding: { scheduleId: string; generation: number } | null } | null>();
     for (const custody of alerts) {
       const key = `${custody.tenantId}\u0000${custody.sourceFamily}\u0000${custody.watchId}`;
@@ -168,10 +186,14 @@ export function createSourceEventSink(options: {
       if (approved === null) {
         // Meri never answered whether this pair is approved: the alert stays UNKNOWN, never skipped.
         counts.unknown += 1;
+        dispositions.push({alertId: custody.alertId, state: 'UNKNOWN'});
         continue;
       }
       if (approved.binding === null) {
+        // Meri's own definite answer that this pair has no approved routine: no effect, and the
+        // alert is a terminal no-op rather than an unresolved one.
         counts.skipped += 1;
+        dispositions.push({alertId: custody.alertId, state: 'SKIPPED'});
         continue;
       }
       const result = await delivery.deliver(
@@ -184,9 +206,22 @@ export function createSourceEventSink(options: {
       else if (result.state === 'REFUSED' || result.state === 'CONFLICT') counts.refused += 1;
       else if (result.state === 'SKIPPED') counts.skipped += 1;
       else counts.unknown += 1;
+      // UNKNOWN is the only state that is not a terminal answer, and it is reported as such.
+      dispositions.push({alertId: custody.alertId, state: result.state});
     }
-    return counts;
+    return {counts, dispositions};
   };
+}
+
+/**
+ * Aggregate-only view of the same owner (the existing caller contract): the run's counts. The
+ * per-alert dispositions are available through createSourceEventDispositionSink.
+ */
+export function createSourceEventSink(options: {
+  transport?: SourceEventTransport; origin?: string; secret?: string; fetchImpl?: typeof fetch;
+} = {}): (alerts: readonly SourceEventAlertCustody[]) => Promise<SourceEventSinkCounts> {
+  const owner = createSourceEventDispositionSink(options);
+  return async alerts => (await owner(alerts)).counts;
 }
 
 export interface SourceEventTransport {
