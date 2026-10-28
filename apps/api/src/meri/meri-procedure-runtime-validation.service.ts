@@ -44,7 +44,13 @@ export interface AdmitMeriSelectedProcedureInput {
   conversationId: string;
   clientId: string | null;
   scope: MeriProcedureScope;
-  toolName: string;
+  /**
+   * When present, the admission must grant that exact prepared tool. When
+   * absent the admission certifies the whole granted set for a procedure-level
+   * (activity) crossing, which is what a conversation run needs: it prepares no
+   * single tool. The caller's own native tool policy still decides releases.
+   */
+  toolName?: string;
   selector: MeriSelectedProcedureSelector;
 }
 
@@ -166,7 +172,7 @@ export class MeriProcedureRuntimeValidationService {
     if (
       admission.scope !== input.scope ||
       admission.clientId !== input.clientId ||
-      !admission.policy.allowedTools.includes(input.toolName)
+      (input.toolName !== undefined && !admission.policy.allowedTools.includes(input.toolName))
     ) {
       unavailable();
     }

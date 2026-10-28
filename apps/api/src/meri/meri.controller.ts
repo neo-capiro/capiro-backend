@@ -347,9 +347,10 @@ export class ValidateMeriProcedureRuntimeDto {
   @Matches(/^[a-f0-9]{64}$/)
   manifestDigest?: string;
 
+  @ValidateIf((o: ValidateMeriProcedureRuntimeDto) => o.selector === undefined || o.toolName !== undefined)
   @IsString()
   @Matches(/^[a-z0-9_:-]{2,160}$/)
-  toolName!: string;
+  toolName?: string;
 
   /**
    * Wave5 MO01/ST16 native selector. When present it replaces the trusted
@@ -752,7 +753,7 @@ export class MeriController {
       canonicalId: body.canonicalId!,
       procedureVersion: body.procedureVersion!,
       manifestDigest: body.manifestDigest!,
-      toolName: body.toolName,
+      toolName: body.toolName!,
     });
   }
 
