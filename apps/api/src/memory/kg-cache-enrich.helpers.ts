@@ -165,11 +165,16 @@ export async function enrichFromKgCache(
     // overload resolution fails with 42883 (function does not exist) and the
     // whole enrichment silently falls back to the plain backbone.
     clientsWalked += 1;
+    // Hitting a database row budget cannot establish that the walk exhausted.
+    if (rows.length >= budget) truncated = true;
     for (const r of rows) {
       if (!keepCacheEdge(r)) continue;
       const key = cacheEdgeKey(r);
       if (!dedup.has(key)) dedup.set(key, r);
-      if (dedup.size >= ceiling) break;
+      if (dedup.size >= ceiling) {
+        truncated = true;
+        break;
+      }
     }
   }
   if (clientsWalked < seeds.length) truncated = true;
