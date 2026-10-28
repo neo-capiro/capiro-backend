@@ -1,5 +1,9 @@
 import { WatchActionNotApplied } from './watch-actions/watch-action.contract.js';
-import { CLIENT_RECORD_SCOPE_KEY, assertClientRecordAccess, clientRecordFingerprint, clientRecordReceipt, clientRecordRequest, isClientRecordAction, publicClientRecordPreview, readClientRecordScope, type ClientRecordAccess } from './client-record-action.contract.js';
+import { CLIENT_PROFILE_PREFLIGHT_KEY, CLIENT_RECORD_SCOPE_KEY, assertClientRecordAccess, clientRecordFingerprint, clientRecordReceipt, clientRecordRequest, isClientRecordAction, publicClientRecordPreview, readClientRecordScope, type ClientRecordAccess } from './client-record-action.contract.js';
+import {
+  readClientProfilePreflight,
+  readCreateClientPreflight,
+} from './client-profile-proposal.js';
 import { NOTE_ACTION_SCOPE_KEY, assertNoteActionAccess, isNoteAction, noteActionFingerprint, noteActionReceipt, noteActionRequest, noteExecutionFailure, publicNoteActionPreview, readNoteScope, type NoteActionAccess } from './note-action.contract.js';
 import { timingSafeEqual } from 'node:crypto';
 import {
@@ -840,6 +844,17 @@ export class MeriActionProposalService {
     if (clientRecordScope) {
       storedPreview[CLIENT_RECORD_SCOPE_KEY] = clientRecordScope;
       await clientRecordAccess!.assertCurrent();
+      // Informational duplicate/capacity precheck for a generated create proposal:
+      // recorded preparation evidence for the reviewer. It reserves nothing, implies
+      // no approval, starts no generation, and is never consulted at apply time.
+      const preflight = await readCreateClientPreflight(
+        this.prisma,
+        ctx.tenantId,
+        tool,
+        input,
+        this.config.get('BILLING_ENFORCED', { infer: true }),
+      );
+      if (preflight) storedPreview[CLIENT_PROFILE_PREFLIGHT_KEY] = preflight;
     }
     if (legiwatchScope) {
       storedPreview[LEGIWATCH_SCOPE_KEY] = legiwatchScope;
@@ -1192,6 +1207,7 @@ export class MeriActionProposalService {
       throw new NotFoundException('Created client is not currently visible');
     return { version: '0.1.0' as const, proposalId: row.id, status: row.status as MeriActionProposalStatus,
       request: clientRecordRequest(row.tool, row.input), context: readClientRecordScope(row.preview),
+      preflight: readClientProfilePreflight(row.preview),
       createdAt: row.createdAt.toISOString(), expiresAt: row.expiresAt.toISOString(), receipt };
   }
 
