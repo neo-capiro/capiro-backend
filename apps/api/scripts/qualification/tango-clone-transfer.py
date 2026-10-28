@@ -469,7 +469,19 @@ def publish(conn, schemas):
         if table == "context_embeddings":
             conn.execute(f"DELETE FROM context_embeddings t WHERE {PUBLIC_VECTORS} AND NOT EXISTS(SELECT 1 FROM w_context_embeddings w WHERE w.id=t.id)")
         updates = ",".join(f"{ident(name)}=EXCLUDED.{ident(name)}" for name, _ in cols if name != "id")
-        cursor = conn.execute(f"INSERT INTO public.{table} AS t ({names}) SELECT {names} FROM w_{table} WHERE true ON CONFLICT(id) DO UPDATE SET {updates} WHERE t IS DISTINCT FROM EXCLUDED")
+        if table == "context_embeddings":
+            # Bounded publication, embedding table only. `SELECT ... WHERE true` hands the WHOLE candidate
+            # set (the public baseline is 744531 rows) to the modify-table path; every candidate row is then
+            # probed and compared against the target even when it is identical and no write results. The
+            # anti-join drops exactly those rows before the insert, so new and genuinely changed vectors
+            # still take the same ON CONFLICT path and the postcondition check below still proves agreement.
+            # No other table's publication SQL is changed.
+            cursor = conn.execute(
+                f"INSERT INTO public.{table} AS t ({names}) SELECT {names} FROM w_{table} w "
+                f"WHERE NOT EXISTS(SELECT 1 FROM public.{table} x WHERE x.id=w.id AND ROW(x.*) IS NOT DISTINCT FROM ROW(w.*)) "
+                f"ON CONFLICT(id) DO UPDATE SET {updates} WHERE t IS DISTINCT FROM EXCLUDED")
+        else:
+            cursor = conn.execute(f"INSERT INTO public.{table} AS t ({names}) SELECT {names} FROM w_{table} WHERE true ON CONFLICT(id) DO UPDATE SET {updates} WHERE t IS DISTINCT FROM EXCLUDED")
         changes[table] = cursor.rowcount
         check_zero(conn,f"SELECT count(*) FROM w_{table} w LEFT JOIN public.{table} t ON t.id=w.id WHERE ROW(t.*) IS DISTINCT FROM ROW(w.*)","published_candidate_mismatch")
     conn.execute("SET CONSTRAINTS ALL IMMEDIATE")
