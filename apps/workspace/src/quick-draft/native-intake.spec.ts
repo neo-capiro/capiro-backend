@@ -18,6 +18,8 @@
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it, jest, beforeEach } from '@jest/globals';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
 
 // The withheld `retry-failed` route still delegates to the legacy provider owner.
 // Stubbing that module keeps its (dormant, unbuilt-outside-the-app) dependency
@@ -51,6 +53,7 @@ import type { VersionsService } from '../versions/versions.service.js';
 import type { IntakeService } from './intake.service.js';
 import type { TwoStepDraftFlagsService } from './two-step-draft-flags.service.js';
 import type { IntakeRequestDto } from './dto/intake.dto.js';
+import { RetryFailedRequestDto } from './dto/intake.dto.js';
 
 const TENANT = '11111111-1111-1111-1111-111111111111';
 const DRAFT = '22222222-2222-2222-2222-222222222222';
@@ -241,12 +244,23 @@ function fakePrisma(state: Seed) {
     },
     // The atomic lease claim, with the same predicate the production SQL uses
     // (worker id, lease seconds, run id — the run id is the last interpolation).
-    $executeRaw: async (_strings: TemplateStringsArray, ...values: unknown[]) => {
+    $executeRaw: async (strings: TemplateStringsArray, ...values: unknown[]) => {
       const id = String(values[values.length - 1]);
       claimAttempts.push(id);
       if (state.run.id !== id) return 0;
       const status = state.run.status as string;
       const lease = state.run.leaseExpiresAt as Date | null;
+      // The explicit failed-unit retry claim: only a run that RESOLVED on a
+      // definite failure, and only while nobody else holds it.
+      if (strings.join(' ').includes("status IN ('failed', 'partial')")) {
+        const held = lease !== null && lease.getTime() > Date.now();
+        if ((status !== 'failed' && status !== 'partial') || held) return 0;
+        state.run.status = 'active';
+        state.run.leaseHolder = 'test-worker';
+        state.run.leaseExpiresAt = new Date(Date.now() + 300_000);
+        state.run.attemptCount = (state.run.attemptCount as number) + 1;
+        return 1;
+      }
       const free = status === 'queued' || (status === 'active' && (lease === null || lease.getTime() < Date.now()));
       if (!free) return 0;
       state.run.status = 'active';
@@ -1039,5 +1053,769 @@ describe('WS-22 attended intake boundary', () => {
     expect(answer).toEqual({ runId: RUN, status: 'queued' });
     expect(h.generation.retryFailedSections).toHaveBeenCalledTimes(1);
     expect(h.owner.turns).toHaveLength(0);
+  });
+
+  it('continues a durable-intake run from its RETAINED request on the native-only marker', async () => {
+    const h = harness((request, kind) =>
+      kind === 'turn'
+        ? { status: 'unknown', requestId: request.requestId }
+        : documentAnswer(request, 'native-run-1'),
+    );
+    const receipt = { draftId: DRAFT, runId: RUN, status: 'queued', agentRevision: REVISION };
+    const { controller: api } = controller(h, receipt);
+    await api.createIntake(context, 'idem-key-0007', intakeRequest, `Bearer ${CREDENTIAL}`);
+    expect(h.owner.turns).toHaveLength(1);
+
+    const answer = await api.retryFailed(context, RUN, `Bearer ${CREDENTIAL}`, {
+      workflow: 'native-retained',
+    });
+
+    // Same response shape and same run; the SAME retained request is re-read with
+    // this caller's credential — no second paid turn, no legacy dispatch.
+    expect(answer).toEqual({ runId: RUN, status: 'complete' });
+    expect(h.owner.turns).toHaveLength(1);
+    expect(h.owner.reads).toHaveLength(1);
+    expect(h.owner.reads[0]!.requestId).toBe(h.owner.turns[0]!.requestId);
+    expect(h.generation.retryFailedSections).not.toHaveBeenCalled();
+    expect(h.generation.generateAllSections).not.toHaveBeenCalled();
+  });
+
+  it('refuses the native-only workflow — before the legacy owner — for a run that is not a durable intake', async () => {
+    const h = harness((request, _call, _credential) => documentAnswer(request, 'native-run-1'));
+    Reflect.deleteProperty(configOf(h.state), 'quickDraftIntake');
+    const receipt = { draftId: DRAFT, runId: RUN, status: 'queued', agentRevision: REVISION };
+    const { controller: api } = controller(h, receipt);
+
+    await expect(
+      api.retryFailed(context, RUN, `Bearer ${CREDENTIAL}`, { workflow: 'native-retained' }),
+    ).rejects.toThrow('not a durable native intake run');
+
+    expect(h.generation.retryFailedSections).not.toHaveBeenCalled();
+    expect(h.generation.generateAllSections).not.toHaveBeenCalled();
+    expect(h.owner.turns).toHaveLength(0);
+    expect(h.owner.reads).toHaveLength(0);
+  });
+
+  it('refuses a workflow marker the route does not define, before anything is read', async () => {
+    const h = harness((request, _call, _credential) => documentAnswer(request, 'native-run-1'));
+    const receipt = { draftId: DRAFT, runId: RUN, status: 'queued', agentRevision: REVISION };
+    const { controller: api } = controller(h, receipt);
+
+    await expect(
+      // An HTTP body is untyped at runtime — exactly what this guard defends.
+      api.retryFailed(context, RUN, `Bearer ${CREDENTIAL}`, {
+        workflow: 'legacy',
+      } as never),
+    ).rejects.toThrow('Unknown retry workflow marker');
+    // An explicit `null` marker is a marker too: it is refused, never read as
+    // "absent" and never allowed to fall through to the other workflow.
+    await expect(
+      api.retryFailed(context, RUN, `Bearer ${CREDENTIAL}`, {
+        workflow: null,
+      } as never),
+    ).rejects.toThrow('Unknown retry workflow marker');
+
+    expect(h.generation.retryFailedSections).not.toHaveBeenCalled();
+    expect(h.prisma.claimAttempts).toEqual([]);
+    expect(h.owner.turns).toHaveLength(0);
+    expect(h.owner.reads).toHaveLength(0);
+    // The refusal is a request-shape refusal: the run is untouched.
+    expect(runStatusOf(h.state)).toBe('queued');
+  });
+
+  it('leaves a native-only retry without a current credential truthful', async () => {
+    const h = harness((request, _call, _credential) => documentAnswer(request, 'native-run-1'));
+    const receipt = { draftId: DRAFT, runId: RUN, status: 'queued', agentRevision: REVISION };
+    const { controller: api } = controller(h, receipt);
+
+    const answer = await api.retryFailed(context, RUN, undefined, {
+      workflow: 'native-retained',
+    });
+
+    expect(answer).toEqual({ runId: RUN, status: 'awaiting-current-access' });
+    expect(h.generation.retryFailedSections).not.toHaveBeenCalled();
+    expect(h.owner.reads).toHaveLength(0);
+  });
+
+  it('refuses a native-only retry for a run outside the caller’s own tenant', async () => {
+    const h = harness((request, _call, _credential) => documentAnswer(request, 'native-run-1'));
+    const receipt = { draftId: DRAFT, runId: RUN, status: 'queued', agentRevision: REVISION };
+    const { controller: api } = controller(h, receipt);
+    const otherTenant = {
+      tenantId: '99999999-9999-9999-9999-999999999999',
+      clerkUserId: ACTOR,
+    } as never;
+
+    await expect(
+      api.retryFailed(otherTenant, RUN, `Bearer ${CREDENTIAL}`, {
+        workflow: 'native-retained',
+      }),
+    ).rejects.toThrow('Run not found');
+
+    expect(h.generation.retryFailedSections).not.toHaveBeenCalled();
+    expect(h.owner.turns).toHaveLength(0);
+  });
+
+  it('refuses the native-only workflow for a caller without current edit access', async () => {
+    const h = harness(
+      (request, _call, _credential) => documentAnswer(request, 'native-run-1'),
+      { accessGranted: false },
+    );
+    const receipt = { draftId: DRAFT, runId: RUN, status: 'queued', agentRevision: REVISION };
+    const { controller: api } = controller(h, receipt);
+
+    await expect(
+      api.retryFailed(context, RUN, `Bearer ${CREDENTIAL}`, { workflow: 'native-retained' }),
+    ).rejects.toThrow('current access refused');
+
+    expect(h.generation.retryFailedSections).not.toHaveBeenCalled();
+    expect(h.owner.turns).toHaveLength(0);
+  });
+});
+
+/**
+ * The marker is only CLOSED if the route's own validation refuses everything it
+ * does not define. This drives the DTO with exactly the workspace
+ * ValidationPipe policy (`whitelist` + `forbidNonWhitelisted`, see
+ * apps/workspace/src/main.ts) — and the route's `@Body()` metatype is the same
+ * class, so an unaccepted or unknown marker never reaches the handler.
+ */
+describe('WS-22 retry workflow discriminator (closed set)', () => {
+  const pipe = async (body: unknown) =>
+    validate(plainToInstance(RetryFailedRequestDto, body), {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    });
+
+  // ─── explicit failed-unit retry (the advertised generation.retry) ───────────
+
+  /** An answer that keys exactly the outline units the request carries. */
+  const scopedAnswer = (
+    request: NativeGenerationTurnRequest,
+  ): NativeGenerationTurnOutcome => ({
+    status: 'complete',
+    runId: 'native-retry-1',
+    result: {
+      document: {
+        sections: request.sources
+          .filter((source) => source.kind === 'outline-section')
+          .map((source) => ({ id: source.id, text: `retried body for ${source.id}` })),
+      },
+    },
+  });
+
+  /** A terminal native run whose first unit succeeded and whose second failed. */
+  const resolvedWithOneFailure = (h: Harness) => {
+    h.state.run.status = 'failed';
+    // Exactly where such a run stops: everything up to the native drafting stage
+    // is done, and drafting itself is the stage that failed — so an explicit retry
+    // resumes THERE (and a run that failed after drafting resumes after it).
+    h.state.run.stages = [
+      { name: 'preflight', status: 'done' },
+      { name: 'evidence_plan', status: 'done' },
+      { name: 'narrative_plan', status: 'done' },
+      { name: 'drafting', status: 'failed', detail: 'the owner refused this unit' },
+    ];
+    h.state.run.sectionStates = {
+      'Executive Summary': { status: 'succeeded', contentHash: 'kept-hash' },
+      'Program Design': { status: 'failed', error: 'the owner refused this unit' },
+    };
+    configOf(h.state).sections = ['Executive Summary', 'Program Design'];
+    configOf(h.state).sectionContent = { 'Executive Summary': 'BYTES KEPT EXACTLY' };
+    // The run's ORIGINAL binding, as the first intake retained it. It must survive
+    // the attempt untouched.
+    intakeBlockOf(h.state).native = {
+      owner: 'meri-greenfield-native-conversation',
+      phase: 'document',
+      requestId: 'wsgen:2c4fbb3a93105400aa1510c5e41e64cb72a3d8017f0f63b94c39a4c396211f14',
+      nativeRunId: 'native-run-0',
+      outcome: 'failed',
+      expectedRevision: REVISION,
+      retainedAt: '2026-10-27T00:00:00.000Z',
+      sourceIds: EXPECTED_SOURCES.map((source) => source.id),
+      sectionIds: ['sec-exec', 'sec-design'],
+    };
+  };
+
+  it('retries ONLY the units a terminal native run failed, keeping the successful unit byte-identical', async () => {
+    const h = harness((request, kind) => (kind === 'turn' ? scopedAnswer(request) : null));
+    resolvedWithOneFailure(h);
+    const originalBinding = structuredClone(intakeBlockOf(h.state).native);
+
+    await h.worker.retryFailedSections(
+      TENANT,
+      RUN,
+      ACTOR,
+      { credential: CREDENTIAL },
+      { workflow: 'native-retained', intent: 'retry-failed-units' },
+    );
+
+    // The scoped request carries the FAILED unit only — derived from the run's own
+    // per-unit state, never from the caller.
+    expect(h.owner.turns).toHaveLength(1);
+    const turn = h.owner.turns[0] as NativeGenerationTurnRequest;
+    expect(
+      turn.sources
+        .filter((source) => source.kind === 'outline-section')
+        .map((source) => source.id),
+    ).toEqual(['sec-design']);
+
+    // The successful unit's bytes and review state are untouched; only the failed
+    // unit's body is new.
+    const content = configOf(h.state).sectionContent as Record<string, string>;
+    expect(content['Executive Summary']).toBe('BYTES KEPT EXACTLY');
+    expect(content['Program Design']).toBe('retried body for sec-design');
+    expect(sectionStatesOf(h.state)['Executive Summary']).toEqual({
+      status: 'succeeded',
+      contentHash: 'kept-hash',
+    });
+
+    // A durable attempt identity exists, is the request that was issued, and the
+    // run's ORIGINAL binding was not erased or rewritten.
+    const retry = intakeBlockOf(h.state).nativeRetry as Record<string, unknown>;
+    expect(retry.requestId).toBe(turn.requestId);
+    expect(retry.sectionIds).toEqual(['sec-design']);
+    expect(intakeBlockOf(h.state).native).toEqual(originalBinding);
+    expect(runStatusOf(h.state)).toBe('complete');
+  });
+
+  it('re-addresses the SAME bound attempt on a duplicate retry and allocates no second turn', async () => {
+    const h = harness((request, kind) => (kind === 'turn' ? scopedAnswer(request) : null));
+    resolvedWithOneFailure(h);
+
+    await h.worker.retryFailedSections(
+      TENANT,
+      RUN,
+      ACTOR,
+      { credential: CREDENTIAL },
+      { workflow: 'native-retained', intent: 'retry-failed-units' },
+    );
+    const attemptId = (intakeBlockOf(h.state).nativeRetry as Record<string, unknown>).requestId;
+    expect(h.owner.turns).toHaveLength(1);
+
+    // The duplicate click / reload: same attempt, no second paid turn.
+    await h.worker.retryFailedSections(
+      TENANT,
+      RUN,
+      ACTOR,
+      { credential: CREDENTIAL },
+      { workflow: 'native-retained', intent: 'retry-failed-units' },
+    );
+
+    expect(h.owner.turns).toHaveLength(1);
+    expect((intakeBlockOf(h.state).nativeRetry as Record<string, unknown>).requestId).toBe(attemptId);
+  });
+
+  it('runs the real turn→UNKNOWN seam: the first read finds no run, the turn answers UNKNOWN, and a reload reads that same ID', async () => {
+    // The owner is stateful in exactly the way the real one is: it holds no run for
+    // the brand-new attempt until that attempt's own turn lands, and it answers
+    // UNKNOWN for that exact request from then on. (An owner that answers UNKNOWN on
+    // the first READ instead proves zero turns and never reaches this seam.)
+    let turned = 0;
+    const h = harness((request, kind) => {
+      if (kind === 'turn') {
+        turned += 1;
+        return { status: 'unknown', requestId: request.requestId };
+      }
+      return turned === 0 ? null : { status: 'unknown', requestId: request.requestId };
+    });
+    resolvedWithOneFailure(h);
+    const originalBinding = structuredClone(bindingOf(h.state));
+
+    const status = await h.worker.retryFailedSections(
+      TENANT,
+      RUN,
+      ACTOR,
+      { credential: CREDENTIAL },
+      { workflow: 'native-retained', intent: 'retry-failed-units' },
+    );
+
+    // Its first read found no run for the attempt's exact request, so that request was
+    // issued exactly ONCE and the owner answered UNKNOWN for it.
+    expect(h.owner.turns).toHaveLength(1);
+    expect(h.owner.reads.length).toBeGreaterThanOrEqual(1);
+    const attemptId = (h.owner.turns[0] as NativeGenerationTurnRequest | undefined)?.requestId;
+    expect(attemptId).toEqual(expect.any(String));
+    expect(h.owner.reads.every((request) => request.requestId === attemptId)).toBe(true);
+
+    const bound = intakeBlockOf(h.state).nativeRetry as Record<string, unknown>;
+    expect(bound.requestId).toBe(attemptId);
+    expect(bound.outcome).toBe('unknown');
+    // An attempt whose answer is UNKNOWN keeps the run non-terminal and truthful.
+    expect(status).toBe('active');
+    expect(runStatusOf(h.state)).toBe('active');
+
+    // A reload addresses EXACTLY that attempt: it is READ, never turned again, and the
+    // identity it is read under is the one bound above.
+    const readsBefore = h.owner.reads.length;
+    const reloaded = await h.worker.retryFailedSections(
+      TENANT,
+      RUN,
+      ACTOR,
+      { credential: CREDENTIAL },
+      { workflow: 'native-retained', intent: 'retry-failed-units' },
+    );
+
+    expect(h.owner.turns).toHaveLength(1);
+    expect(h.owner.reads.length).toBeGreaterThan(readsBefore);
+    expect(h.owner.reads.slice(readsBefore).every((request) => request.requestId === attemptId)).toBe(
+      true,
+    );
+    expect((intakeBlockOf(h.state).nativeRetry as Record<string, unknown>).requestId).toBe(attemptId);
+    expect(reloaded).toBe('active');
+    // The run's ORIGINAL native binding is untouched by the attempt, before and after.
+    expect(bindingOf(h.state)).toEqual(originalBinding);
+  });
+
+  it('binds nothing from STALE facts when an attempt landed between the retained reads', async () => {
+    const h = harness((request, kind) => (kind === 'turn' ? scopedAnswer(request) : null));
+    resolvedWithOneFailure(h);
+
+    // The two retained reads are not atomic. The first (this adapter's own facts) sees
+    // no attempt; the snapshot the CAS below compares and sets already carries one that
+    // landed in between — a real interleaving. Binding from the stale facts here would
+    // overwrite (downgrade) that attempt and derive a second paid identity.
+    const draftTable = (
+      h.prisma as unknown as { wsDraft: Record<string, (...args: unknown[]) => Promise<unknown>> }
+    ).wsDraft;
+    const original = draftTable.findFirst as (...args: unknown[]) => Promise<unknown>;
+    let reads = 0;
+    draftTable.findFirst = async (...args: unknown[]) => {
+      const draft = (await original(...args)) as { config?: Record<string, unknown> };
+      reads += 1;
+      if (reads < 2) return draft;
+      const config = draft.config ?? {};
+      return {
+        ...draft,
+        config: {
+          ...config,
+          quickDraftIntake: {
+            ...(config.quickDraftIntake as Record<string, unknown>),
+            nativeRetry: {
+              requestId: 'ws22-intake-1a2b3c4d-5e6f7a8b',
+              runId: RUN,
+              sectionIds: ['Program Design'],
+              outcome: 'unknown',
+              generation: 1,
+            },
+          },
+        },
+      };
+    };
+
+    const status = await h.worker.retryFailedSections(
+      TENANT,
+      RUN,
+      ACTOR,
+      { credential: CREDENTIAL },
+      { workflow: 'native-retained', intent: 'retry-failed-units' },
+    );
+
+    expect(reads).toBeGreaterThan(1);
+    // No second paid identity was derived, and the interleaved attempt is untouched.
+    expect(h.owner.turns).toHaveLength(0);
+    expect((intakeBlockOf(h.state).nativeRetry as Record<string, unknown> | undefined)?.requestId).not.toBe(
+      'ws22-intake-1a2b3c4d-5e6f7a8b',
+    );
+    expect(status).toBe('failed');
+  });
+
+  it('binds nothing when the SAME attempt COMPLETED between the retained reads, even though its id and revision still match', async () => {
+    const h = harness((request, kind) => (kind === 'turn' ? scopedAnswer(request) : null));
+    resolvedWithOneFailure(h);
+    // The run's own bound attempt is retained as DEFINITIVELY failed: that is what the
+    // retained facts read sees.
+    const attemptId = `wsgen:${'ab'.repeat(32)}`;
+    const intake = intakeBlockOf(h.state);
+    const seededAttempt = {
+      owner: 'meri-greenfield-native-conversation',
+      phase: 'document',
+      requestId: attemptId,
+      nativeRunId: null,
+      outcome: 'failed',
+      expectedRevision: REVISION,
+      retainedAt: '2026-10-27T00:00:00.000Z',
+      sourceIds: EXPECTED_SOURCES.map((source) => source.id),
+      sectionIds: ['sec-design'],
+      generation: 1,
+    };
+    intake.nativeRetry = seededAttempt;
+
+    // Between that read and the compare-and-set, the SAME attempt completed. Its
+    // requestId and the draft's revision are BOTH unchanged, so only the binding's own
+    // outcome (and scope) can tell that this write's basis is stale — and writing from
+    // the older facts would retire a completed attempt and allocate a second paid
+    // identity for units it already landed.
+    //
+    // The interleaving lands on the compare-and-set's OWN snapshot read: the first
+    // config-only draft read after the retained facts read the run.
+    const runTable = (
+      h.prisma as unknown as {
+        wsGenerationRun: Record<string, (...args: unknown[]) => Promise<unknown>>;
+      }
+    ).wsGenerationRun;
+    const originalRunRead = runTable.findFirst as (...args: unknown[]) => Promise<unknown>;
+    let factsReadTheRun = false;
+    runTable.findFirst = async (...args: unknown[]) => {
+      const row = await originalRunRead(...args);
+      const select = (args[0] as { select?: Record<string, unknown> } | undefined)?.select;
+      if (select?.sectionStates === true) factsReadTheRun = true;
+      return row;
+    };
+
+    const draftTable = (
+      h.prisma as unknown as { wsDraft: Record<string, (...args: unknown[]) => Promise<unknown>> }
+    ).wsDraft;
+    const originalDraftRead = draftTable.findFirst as (...args: unknown[]) => Promise<unknown>;
+    let interleaved = false;
+    draftTable.findFirst = async (...args: unknown[]) => {
+      const draft = (await originalDraftRead(...args)) as { config?: Record<string, unknown> };
+      const select = (args[0] as { select?: Record<string, unknown> } | undefined)?.select;
+      if (
+        !interleaved &&
+        factsReadTheRun &&
+        select !== undefined &&
+        select.config === true &&
+        select.id === undefined
+      ) {
+        interleaved = true;
+        // The competing writer's own commit: the attempt's answer landed as complete.
+        const completed = { ...seededAttempt, outcome: 'complete' };
+        intakeBlockOf(h.state).nativeRetry = completed;
+        return {
+          ...draft,
+          config: {
+            ...(draft.config ?? {}),
+            quickDraftIntake: {
+              ...(intakeBlockOf(h.state) as Record<string, unknown>),
+              nativeRetry: completed,
+            },
+          },
+        };
+      }
+      return draft;
+    };
+
+    const status = await h.worker.retryFailedSections(
+      TENANT,
+      RUN,
+      ACTOR,
+      { credential: CREDENTIAL },
+      { workflow: 'native-retained', intent: 'retry-failed-units' },
+    );
+
+    expect(interleaved).toBe(true);
+    // Nothing was dispatched, nothing was retired into custody, and the completed
+    // attempt's own published outcome is exactly as it landed — never downgraded.
+    expect(h.owner.turns).toHaveLength(0);
+    expect(h.owner.reads).toHaveLength(0);
+    expect(intakeBlockOf(h.state).nativeRetry).toMatchObject({
+      requestId: attemptId,
+      outcome: 'complete',
+    });
+    expect(intakeBlockOf(h.state).nativeRetryCustody).toBeUndefined();
+    expect(status).toBe('failed');
+  });
+
+  it('binds nothing when the run’s own per-unit state moved between the retained reads', async () => {
+    const h = harness((request, kind) => (kind === 'turn' ? scopedAnswer(request) : null));
+    resolvedWithOneFailure(h);
+    const attemptId = `wsgen:${'cd'.repeat(32)}`;
+    intakeBlockOf(h.state).nativeRetry = {
+      owner: 'meri-greenfield-native-conversation',
+      phase: 'document',
+      requestId: attemptId,
+      nativeRunId: null,
+      outcome: 'failed',
+      expectedRevision: REVISION,
+      retainedAt: '2026-10-27T00:00:00.000Z',
+      sourceIds: EXPECTED_SOURCES.map((source) => source.id),
+      sectionIds: ['sec-design'],
+      generation: 1,
+    };
+
+    // The units an attempt is scoped to come from the RUN's own per-unit state, which
+    // the retained facts read separately from the snapshot the write compares. Here the
+    // unit that read called failed succeeded in between: the scope is then refused
+    // rather than written from a basis the run has already moved past.
+    const runTable = (
+      h.prisma as unknown as {
+        wsGenerationRun: Record<string, (...args: unknown[]) => Promise<unknown>>;
+      }
+    ).wsGenerationRun;
+    const original = runTable.findFirst as (...args: unknown[]) => Promise<unknown>;
+    let sectionReads = 0;
+    runTable.findFirst = async (...args: unknown[]) => {
+      const row = (await original(...args)) as {
+        sectionStates?: Record<string, { status?: unknown }>;
+      } | null;
+      const select = (args[0] as { select?: Record<string, unknown> } | undefined)?.select;
+      if (row && select?.sectionStates === true) {
+        sectionReads += 1;
+        if (sectionReads > 1) {
+          const moved = {
+            'Executive Summary': { status: 'succeeded' },
+            'Program Design': { status: 'succeeded' },
+          };
+          // The competing writer's own commit, on the run's row.
+          (h.state.run as Record<string, unknown>).sectionStates = moved;
+          row.sectionStates = moved;
+        }
+      }
+      return row;
+    };
+
+    const status = await h.worker.retryFailedSections(
+      TENANT,
+      RUN,
+      ACTOR,
+      { credential: CREDENTIAL },
+      { workflow: 'native-retained', intent: 'retry-failed-units' },
+    );
+
+    // The write re-read the run's own per-unit state and refused the stale scope.
+    expect(sectionReads).toBeGreaterThan(1);
+    expect(h.owner.turns).toHaveLength(0);
+    expect(h.owner.reads).toHaveLength(0);
+    expect(intakeBlockOf(h.state).nativeRetry).toMatchObject({
+      requestId: attemptId,
+      outcome: 'failed',
+    });
+    expect(intakeBlockOf(h.state).nativeRetryCustody).toBeUndefined();
+    expect(status).toBe('failed');
+  });
+
+  it('binds no attempt and dispatches nothing when no pinned unit actually failed', async () => {
+    const h = harness((request, kind) => (kind === 'turn' ? scopedAnswer(request) : null));
+    h.state.run.status = 'failed';
+    h.state.run.sectionStates = {
+      'Executive Summary': { status: 'succeeded', contentHash: 'kept-hash' },
+      'Program Design': { status: 'succeeded', contentHash: 'kept-hash-2' },
+    };
+
+    const status = await h.worker.retryFailedSections(
+      TENANT,
+      RUN,
+      ACTOR,
+      { credential: CREDENTIAL },
+      { workflow: 'native-retained' },
+    );
+
+    expect(status).toBe('failed');
+    expect(h.owner.turns).toHaveLength(0);
+    expect(intakeBlockOf(h.state).nativeRetry).toBeUndefined();
+    expect(runStatusOf(h.state)).toBe('failed');
+  });
+
+  it('never turns a cancellation into new work on the retry route', async () => {
+    const h = harness((request, kind) => (kind === 'turn' ? scopedAnswer(request) : null));
+    resolvedWithOneFailure(h);
+    h.state.run.status = 'cancelled';
+
+    const status = await h.worker.retryFailedSections(
+      TENANT,
+      RUN,
+      ACTOR,
+      { credential: CREDENTIAL },
+      { workflow: 'native-retained' },
+    );
+
+    expect(status).toBe('cancelled');
+    expect(h.owner.turns).toHaveLength(0);
+    expect(intakeBlockOf(h.state).nativeRetry).toBeUndefined();
+  });
+
+  // ─── the retry attempt's OWN identity, and deterministic recovery ───────────
+
+  /** A terminal run every one of whose units failed. */
+  const resolvedWithAllUnitsFailed = (h: Harness) => {
+    h.state.run.status = 'failed';
+    h.state.run.stages = [
+      { name: 'preflight', status: 'done' },
+      { name: 'evidence_plan', status: 'done' },
+      { name: 'narrative_plan', status: 'done' },
+      { name: 'drafting', status: 'failed', detail: 'the owner refused the document' },
+    ];
+    h.state.run.sectionStates = {
+      'Executive Summary': { status: 'failed', error: 'refused' },
+      'Program Design': { status: 'failed', error: 'refused' },
+    };
+    configOf(h.state).sections = [];
+    configOf(h.state).sectionContent = {};
+  };
+
+  it('derives a DISTINCT attempt identity when EVERY unit failed, so the owner answers a genuine retry', async () => {
+    const originalId = { current: '' };
+    const h = harness((request, kind) => {
+      // The owner's own journal: it already holds the run's ORIGINAL request, and
+      // that request's retained outcome is a failure. Replaying it cannot be a
+      // retry — only a request with a DISTINCT identity can be.
+      if (kind === 'read' && request.requestId === originalId.current)
+        return { status: 'failed', runId: 'native-run-0', state: 'failed' };
+      return kind === 'turn' ? scopedAnswer(request) : null;
+    });
+    resolvedWithAllUnitsFailed(h);
+    const ref = { tenantId: TENANT, runId: RUN, draftId: DRAFT, actorId: ACTOR };
+
+    // The run's TRUE original identity, derived by the real function from the run's
+    // own retained facts — not a hand-seeded constant.
+    const before = await h.adapter.exactRequest(ref);
+    expect(before.facts.retry).toBeNull();
+    originalId.current = before.request.requestId;
+    intakeBlockOf(h.state).native = {
+      ...(bindingOf(h.state) ?? {}),
+      requestId: before.request.requestId,
+      outcome: 'failed',
+      nativeRunId: 'native-run-0',
+      sectionIds: ['sec-exec', 'sec-design'],
+    };
+    const originalBinding = structuredClone(intakeBlockOf(h.state).native);
+
+    await h.worker.retryFailedSections(
+      TENANT,
+      RUN,
+      ACTOR,
+      { credential: CREDENTIAL },
+      { workflow: 'native-retained', intent: 'retry-failed-units' },
+    );
+
+    // A genuine retry: the attempt is a DIFFERENT request, the owner was asked for
+    // it (a turn — not a replay of its original journal entry), and it covers both
+    // failed units while the original identity stays exactly as retained.
+    const after = await h.adapter.exactRequest(ref);
+    expect(after.request.requestId).not.toBe(before.request.requestId);
+    expect(h.owner.turns).toHaveLength(1);
+    const turn = h.owner.turns[0] as NativeGenerationTurnRequest;
+    expect(turn.requestId).toBe(after.request.requestId);
+    // The request this attempt posts is the CLOSED wire shape and nothing else: the
+    // server-owned discriminator and its generation are hash PREIMAGES, so they refine
+    // the identity without travelling (the owner's turn reader accepts exactly these
+    // keys and rejects any other — an extra field would refuse every retry at the leaf).
+    expect(Object.keys(turn).sort()).toEqual([
+      'actorId',
+      'clientId',
+      'draftId',
+      'expectedRevision',
+      'paidGeneration',
+      'phase',
+      'requestId',
+      'sources',
+      'tenantId',
+    ]);
+    expect(turn).not.toHaveProperty('attemptRunId');
+    expect(turn).not.toHaveProperty('attemptGeneration');
+    expect(turn).not.toHaveProperty('runId');
+    expect(
+      turn.sources.filter((source) => source.kind === 'outline-section').map((source) => source.id),
+    ).toEqual(['sec-exec', 'sec-design']);
+    expect(intakeBlockOf(h.state).native).toEqual(originalBinding);
+    expect((intakeBlockOf(h.state).nativeRetry as Record<string, unknown>).requestId).toBe(
+      after.request.requestId,
+    );
+    expect(sectionStatesOf(h.state)['Executive Summary']!.status).toBe('succeeded');
+    expect(sectionStatesOf(h.state)['Program Design']!.status).toBe('succeeded');
+    expect(runStatusOf(h.state)).toBe('complete');
+  });
+
+  it('recovers a post-drafting failure deterministically: no native turn and byte-identical content', async () => {
+    const h = harness((request, kind) => (kind === 'turn' ? scopedAnswer(request) : null));
+    // Every unit completed; a LATER deterministic stage failed.
+    h.state.run.status = 'failed';
+    h.state.run.stages = [
+      { name: 'preflight', status: 'done' },
+      { name: 'evidence_plan', status: 'done' },
+      { name: 'narrative_plan', status: 'done' },
+      { name: 'drafting', status: 'done' },
+      { name: 'editorial_pass', status: 'done' },
+      { name: 'assurance', status: 'failed', detail: 'the assurance pass failed' },
+    ];
+    h.state.run.sectionStates = {
+      'Executive Summary': { status: 'succeeded', contentHash: 'kept-hash' },
+      'Program Design': { status: 'succeeded', contentHash: 'kept-hash-2' },
+    };
+    configOf(h.state).sections = ['Executive Summary', 'Program Design'];
+    configOf(h.state).sectionContent = {
+      'Executive Summary': 'BYTES KEPT EXACTLY',
+      'Program Design': 'MORE BYTES KEPT EXACTLY',
+    };
+    const before = structuredClone(configOf(h.state).sectionContent);
+    intakeBlockOf(h.state).native = {
+      ...(bindingOf(h.state) ?? {}),
+      outcome: 'complete',
+      nativeRunId: 'native-run-0',
+    };
+
+    // NO paid intent: recovering a deterministic post-drafting failure is not new
+    // generation, and it must never become any.
+    const status = await h.worker.retryFailedSections(
+      TENANT,
+      RUN,
+      ACTOR,
+      { credential: CREDENTIAL },
+      { workflow: 'native-retained' },
+    );
+
+    expect(h.owner.turns).toHaveLength(0);
+    expect(h.owner.reads).toHaveLength(0);
+    expect(configOf(h.state).sectionContent).toEqual(before);
+    expect(intakeBlockOf(h.state).nativeRetry).toBeUndefined();
+    expect(status).toBe('complete');
+    expect(runStatusOf(h.state)).toBe('complete');
+  });
+
+  it('never starts paid work for a failed unit unless the caller acknowledges it', async () => {
+    const h = harness((request, kind) => (kind === 'turn' ? scopedAnswer(request) : null));
+    resolvedWithOneFailure(h);
+
+    const status = await h.worker.retryFailedSections(
+      TENANT,
+      RUN,
+      ACTOR,
+      { credential: CREDENTIAL },
+      { workflow: 'native-retained' },
+    );
+
+    expect(status).toBe('failed');
+    expect(h.owner.turns).toHaveLength(0);
+    expect(intakeBlockOf(h.state).nativeRetry).toBeUndefined();
+    expect(runStatusOf(h.state)).toBe('failed');
+  });
+
+  it('accepts the native-retained marker and an absent marker, and nothing else', async () => {
+    expect(await pipe({ workflow: 'native-retained' })).toEqual([]);
+    // The deliberate paid form: the marker plus the caller's own acknowledgement.
+    expect(await pipe({ workflow: 'native-retained', intent: 'retry-failed-units' })).toEqual([]);
+    // The two closed values are independent body fields, so an intent without the
+    // marker validates: it is only ever CONSULTED inside the native branch (a run
+    // this owner did not create keeps the route's historical behaviour and the
+    // intent is ignored), so it can select neither a workflow nor any authority.
+    expect(await pipe({ intent: 'retry-failed-units' })).toEqual([]);
+    // No marker: the historical route, deliberately still accepted.
+    expect(await pipe({})).toEqual([]);
+    const refused = [
+      { workflow: 'legacy' },
+      { workflow: 'native-retained ' },
+      { workflow: 'NATIVE-RETAINED' },
+      { workflow: 'native' },
+      { workflow: true },
+      { nativeOnly: true },
+      { workflow: 'native-retained', runId: RUN },
+      { workflow: 'native-retained', status: 'complete' },
+      // The intent is a closed value too: paid work is never started by a body the
+      // route cannot read as an acknowledgement.
+      { workflow: 'native-retained', intent: 'legacy' },
+      { workflow: 'native-retained', intent: 'retry-failed-units ' },
+      { workflow: 'native-retained', intent: true },
+    ];
+    // Labelled per body, so a failure names the marker that slipped through.
+    const outcomes = await Promise.all(
+      refused.map(async (body) => ({
+        body,
+        refused: (await pipe(body)).length > 0,
+      })),
+    );
+    expect(outcomes).toEqual(
+      refused.map((body) => ({ body, refused: true })),
+    );
   });
 });

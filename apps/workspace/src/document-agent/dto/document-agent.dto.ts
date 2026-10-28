@@ -1,6 +1,13 @@
 // DTOs for the document-agent module. All mutation DTOs include `expectedRevision`
 // for optimistic concurrency control.
 
+// The ONE closed acknowledgement that a failed-unit retry is deliberate paid work,
+// shared with the workspace intake retry contract so the two flows cannot drift.
+import {
+  RETRY_FAILED_UNITS_INTENT,
+  type RetryFailedUnitsIntent,
+} from '../../quick-draft/dto/intake.dto.js';
+
 import {
   IsArray,
   IsBoolean,
@@ -181,6 +188,13 @@ export class GenerateDto {
 export class RetryGenerationDto {
   @IsInt() @Min(0) expectedRevision!: number;
   @IsOptional() @IsArray() sectionIds?: string[];
+  /**
+   * The explicit acknowledgement that this retry starts NEW PAID native generation
+   * for the units a terminal native run failed. It is what separates a deliberate
+   * failed-unit retry from re-reading an uncertain attempt: without it a native run
+   * is never turned again, and a legacy engine run keeps its existing behaviour.
+   */
+  @IsOptional() @IsIn([RETRY_FAILED_UNITS_INTENT]) intent?: RetryFailedUnitsIntent;
 }
 
 /** Cancel generation. */

@@ -1,5 +1,6 @@
 import { denyProspectTransfer } from '../prospect-resources/prospect-draft-access.js';
 import {
+  BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
@@ -30,6 +31,7 @@ import {
   type NativeIntakeRunRef,
 } from './native-intake.adapter.js';
 import type { RunStatusResponse } from './dto/intake.dto.js';
+import { NATIVE_RETAINED_RETRY_WORKFLOW, RETRY_FAILED_UNITS_INTENT } from './dto/intake.dto.js';
 
 /**
  * Durable generation-run worker (PR #964).
@@ -256,6 +258,28 @@ export class GenerationRunWorkerService {
           status = 'queued'
           OR (status = 'active' AND lease_expires_at < NOW())
         )
+    `;
+    return affected === 1;
+  }
+
+  /**
+   * Claim a TERMINAL native run for its own bound failed-unit retry attempt. The
+   * WHERE clause is what keeps an explicit retry at-most-once: only a run that
+   * genuinely resolved on a definite failure can be taken, and a second click (or
+   * a reload) while the attempt is in flight matches nothing — so no second paid
+   * turn can be allocated by a duplicate action. An `unknown` or a cancelled run
+   * never matches, because neither authorizes new work.
+   */
+  private async tryClaimNativeRetry(runId: string): Promise<boolean> {
+    const affected = await this.prisma.$executeRaw`
+      UPDATE ws_generation_run
+      SET lease_holder     = ${this.workerId},
+          lease_expires_at  = NOW() + INTERVAL '${GenerationRunWorkerService.LEASE_SECONDS} seconds',
+          status            = 'active',
+          attempt_count     = attempt_count + 1
+      WHERE id = ${runId}::uuid
+        AND status IN ('failed', 'partial')
+        AND (lease_expires_at IS NULL OR lease_expires_at < NOW())
     `;
     return affected === 1;
   }
@@ -519,7 +543,18 @@ export class GenerationRunWorkerService {
     // never silently replaced. The binding is what makes a later pass re-read
     // the SAME request instead of issuing a new one, so a lost binding cannot be
     // retried — see intakeBindingConflictOutcome.
-    if (admission.binding && !(await this.persistIntakeBinding(run, admission.binding))) {
+    if (
+      admission.binding &&
+      !(await this.persistIntakeBinding(
+        run,
+        admission.binding,
+        // A run driven by its own failed-unit attempt records that attempt under
+        // its OWN key: the binding the FIRST intake retained keeps its identity
+        // (its request id, its outcome) instead of being overwritten by a later
+        // attempt's.
+        facts.retry !== null ? 'nativeRetry' : 'native',
+      ))
+    ) {
       return this.intakeBindingConflictOutcome(
         sectionStates,
         admission.kind,
@@ -661,6 +696,7 @@ export class GenerationRunWorkerService {
   private async persistIntakeBinding(
     run: GenerationRunRow,
     binding: NativeIntakeBinding,
+    key: 'native' | 'nativeRetry' = 'native',
   ): Promise<boolean> {
     const draft = await this.prisma.wsDraft.findFirst({
       where: { prospectId: null, id: run.draftId, tenantId: run.tenantId },
@@ -677,7 +713,7 @@ export class GenerationRunWorkerService {
         config: { equals: structuredClone(snapshot) as never },
       },
       data: {
-        config: { ...snapshot, quickDraftIntake: { ...intake, native: binding } } as never,
+        config: { ...snapshot, quickDraftIntake: { ...intake, [key]: binding } } as never,
       },
     });
     return written.count === 1;
@@ -795,13 +831,40 @@ export class GenerationRunWorkerService {
    *
    * Returns the run's status after the continuation (`'queued'` for the legacy
    * path, whose work is handed to the legacy owner as before).
+   *
+   * `options.workflow === 'native-retained'` is the closed native-only
+   * discriminator the retry route exposes. It selects this native workflow and
+   * nothing else: a value the route does not define is refused up front, and a
+   * run this owner did not create is refused before the legacy owner is reached,
+   * so the marker can never widen a caller into legacy generation work. With no
+   * marker the method behaves exactly as it did for historical callers.
    */
   async retryFailedSections(
     tenantId: string,
     runId: string,
     actorId: string,
     attended: { credential?: string } = {},
+    options: { workflow?: string; intent?: string } = {},
   ): Promise<string> {
+    // Closed sets, checked before any read: an unrecognised marker is a malformed
+    // request and must never fall through to another workflow.
+    const workflow = options.workflow;
+    if (workflow !== undefined && workflow !== NATIVE_RETAINED_RETRY_WORKFLOW) {
+      throw new BadRequestException(
+        'Unknown retry workflow marker: this route accepts only the native-retained workflow.',
+      );
+    }
+    const intent = options.intent;
+    if (intent !== undefined && intent !== RETRY_FAILED_UNITS_INTENT) {
+      throw new BadRequestException(
+        'Unknown retry intent: new paid generation is only ever acknowledged with the retry-failed-units intent.',
+      );
+    }
+    // The caller's own explicit acknowledgement that this request may generate
+    // again. A run's STATUS alone never allocates paid work: without this intent
+    // the native branch below recovers only what is deterministic and issues no
+    // native turn at all.
+    const paidRetry = intent === RETRY_FAILED_UNITS_INTENT;
     const run = await this.prisma.wsGenerationRun.findFirst({
       where: { id: runId, tenantId },
     });
@@ -822,7 +885,17 @@ export class GenerationRunWorkerService {
     // A durable-intake run never reaches the legacy provider: its retained
     // request is the only continuation, and it needs the attended caller's own
     // current credential to be read (the owner verifies that credential itself).
-    if (await this.isNativeIntakeRun(runId)) {
+    const native = await this.isNativeIntakeRun(runId);
+    if (workflow === NATIVE_RETAINED_RETRY_WORKFLOW && !native) {
+      // The caller opted into the native-only workflow, so a run this owner does
+      // not own is REFUSED here — after the existing tenant / actor / edit-ACL /
+      // prospect-transfer checks, and before the legacy generation owner. A
+      // browser-held receipt can never widen a run into legacy provider work.
+      throw new BadRequestException(
+        'This run is not a durable native intake run, so it cannot be continued on the native-retained workflow.',
+      );
+    }
+    if (native) {
       const credential =
         typeof attended.credential === 'string' && attended.credential.length > 0
           ? attended.credential
@@ -833,6 +906,62 @@ export class GenerationRunWorkerService {
         );
         return 'awaiting-current-access';
       }
+      // An EXPLICIT retry of a run that already RESOLVED on a definite failure:
+      // the failed units come from the run's own per-unit state, and the durable
+      // attempt is bound before any effect, so a duplicate click or a reload
+      // re-addresses the attempt already bound instead of allocating a second
+      // paid turn. `unknown`, `cancelled`, `complete` and `awaiting-current-access`
+      // never come here: none of them authorizes new work.
+      //
+      // Two different acts are kept apart. Retrying units that failed is a
+      // deliberate, paid act and needs the caller's own `intent`. Recovering a run
+      // that failed AFTER its single native turn completed is deterministic — its
+      // completed bytes are reused and no native turn is issued — so it needs no
+      // paid intent, and it is the only thing this branch will do without one.
+      if (run.status === 'failed' || run.status === 'partial') {
+        const drafted = readStages(run.stages).some(
+          (entry) => entry.name === 'drafting' && entry.status === 'done',
+        );
+        const attempt = paidRetry
+          ? await this.nativeIntake.bindFailedUnitsAttempt({
+              tenantId,
+              runId,
+              draftId: run.draftId,
+              actorId,
+            })
+          : null;
+        if (attempt === null && !drafted) {
+          this.logger.log(
+            paidRetry
+              ? `retry: run ${runId} has no server-derived failed unit to retry; left exactly as it is`
+              : `retry: run ${runId} was not asked to generate again, so nothing here may allocate paid work; left exactly as it is`,
+          );
+        } else if (await this.tryClaimNativeRetry(runId)) {
+          const fresh = await this.prisma.wsGenerationRun.findUnique({ where: { id: runId } });
+          if (fresh) {
+            try {
+              // The SAME stage machine resumes at the first stage with no `done`
+              // entry: a run that failed during drafting re-issues the scoped
+              // request, and one that failed after it reuses the completed
+              // drafting output instead of paying for it again.
+              await this.processRun(fresh, credential);
+            } catch (error) {
+              this.logger.warn(
+                `run ${runId} failed-unit retry stopped: ${error instanceof Error ? error.message : 'unknown'}`,
+              );
+            }
+          }
+        } else {
+          this.logger.log(
+            `retry: run ${runId} is already driven by its bound failed-unit attempt; no second turn`,
+          );
+        }
+        const retried = await this.prisma.wsGenerationRun.findFirst({
+          where: { id: runId, tenantId },
+        });
+        return retried?.status ?? run.status;
+      }
+
       // Reads/replays the SAME retained request through this caller's credential;
       // it drives nothing when no request is retained (a first request stays the
       // attended intake's job).

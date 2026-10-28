@@ -23,6 +23,10 @@ import type {
   RunStatusResponse,
   TwoStepDraftCapabilityResponse,
 } from './dto/intake.dto.js';
+// A VALUE import: the body's declared class is the ValidationPipe metatype for
+// this route, so an unaccepted marker or an extra body field is refused before
+// the handler runs. It is also used as the parameter type.
+import { RetryFailedRequestDto } from './dto/intake.dto.js';
 
 /**
  * Two-step Max draft flow — aggregate, idempotent intake endpoint and
@@ -132,6 +136,13 @@ export class TwoStepDraftController {
    * widened). The response keeps its shape; `status` is the run's real status
    * after the continuation ('queued' as before for a run that is not a durable
    * intake).
+   *
+   * The optional `workflow: 'native-retained'` marker is a closed discriminator,
+   * not authority: it asks for the native-only workflow, so a run this owner did
+   * not create is refused by the worker before the legacy generation owner is
+   * reached. Absent (every historical caller), the route behaves exactly as
+   * before; an unaccepted value is rejected by the workspace ValidationPipe
+   * before this method runs.
    */
   @Post('runs/:runId/retry-failed')
   @HttpCode(HttpStatus.ACCEPTED)
@@ -139,10 +150,15 @@ export class TwoStepDraftController {
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('runId') runId: string,
     @Headers('authorization') authorization?: string,
+    @Body() body?: RetryFailedRequestDto,
   ): Promise<{ runId: string; status: string }> {
-    const status = await this.runWorker.retryFailedSections(ctx.tenantId, runId, ctx.clerkUserId, {
-      credential: nativeCredential(authorization),
-    });
+    const status = await this.runWorker.retryFailedSections(
+      ctx.tenantId,
+      runId,
+      ctx.clerkUserId,
+      { credential: nativeCredential(authorization) },
+      { workflow: body?.workflow, intent: body?.intent },
+    );
     return { runId, status };
   }
 }

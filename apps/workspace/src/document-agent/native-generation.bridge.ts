@@ -220,12 +220,48 @@ export function nativeGenerationRequestId(exact: {
   phase: NativeGenerationPhase;
   expectedRevision: number;
   sources: NativeGenerationSource[];
+  /**
+   * The server-derived retry discriminator: the exact retained run a failed-unit
+   * ATTEMPT is a continuation of. A retry of EVERY unit would otherwise re-derive
+   * the ORIGINAL identity (same tenant/actor/draft/client/phase/revision/sources),
+   * so the owner would answer from its journal with the original failed outcome
+   * and no genuine retry would ever happen. The run id is server-owned, is pinned
+   * durably when the attempt is bound, and is identical for a duplicate click or a
+   * reload — never re-allocated per invocation.
+   *
+   * It is a HASH PREIMAGE ONLY. It never travels: the owner's turn reader accepts a
+   * closed key set and rejects anything else, so this discriminator must not be
+   * placed on the request object that is posted, and it is not the `runId` the
+   * subject carries for a read/cancel (that one binds the owner's OWN native run).
+   * It is omitted ENTIRELY when absent, so an ordinary request's identity bytes are
+   * unchanged by this field's existence.
+   */
+  attemptRunId?: string | null;
+  /**
+   * The attempt GENERATION (1 for a run's first failed-unit attempt). An attempt
+   * that definitively failed is preserved in custody and the next explicit retry is
+   * a genuinely NEW attempt rather than a replay of the failed one, so the identity
+   * must distinguish them. The generation is server-derived from that preserved
+   * custody — never a clock or a random id — so a duplicate click derives the same
+   * one. Like the discriminator above it is a HASH PREIMAGE ONLY and never travels.
+   */
+  attemptGeneration?: number | null;
 }): string {
+  const { attemptRunId, attemptGeneration, ...rest } = exact;
+  const body = attemptRunId
+    ? {
+        ...rest,
+        attemptRunId,
+        ...(attemptGeneration === undefined || attemptGeneration === null
+          ? {}
+          : { attemptGeneration }),
+      }
+    : rest;
   const sources = [...exact.sources]
     .map((source) => ({ id: source.id, kind: source.kind }))
     .sort((a, b) => (a.kind === b.kind ? (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) : a.kind < b.kind ? -1 : 1));
   return `wsgen:${createHash('sha256')
-    .update(canonical({ kind: 'workspace-native-generation/1', ...exact, sources }), 'utf8')
+    .update(canonical({ kind: 'workspace-native-generation/1', ...body, sources }), 'utf8')
     .digest('hex')}`;
 }
 
@@ -295,7 +331,65 @@ export type NativeGenerationAdmissionInput = {
   /** The CURRENT authenticated session credential the native owner verifies. */
   credential: string;
   signal?: AbortSignal;
+  /**
+   * The retained native run a failed-unit retry ATTEMPT continues, and the attempt's
+   * generation. HASH PREIMAGE ONLY: they refine the request identity so a retry of
+   * every failed unit is a genuinely distinct request (the owner would otherwise
+   * answer from its journal with the original failed outcome), and they never travel
+   * on the request that is posted — the owner's turn reader accepts a closed key set.
+   */
+  attemptRunId?: string | null;
+  attemptGeneration?: number | null;
 };
+
+/**
+ * The closed native turn request for one admission. Exported because the retry
+ * ATTEMPT must be durably pinned under EXACTLY the identity the bridge will present:
+ * the caller derives it first, writes it, and then admits.
+ */
+export function nativeGenerationTurnRequest(input: {
+  phase: NativeGenerationPhase;
+  tenantId: string;
+  actorId: string;
+  draftId: string;
+  clientId: string | null;
+  expectedRevision: number;
+  sources: NativeGenerationSource[];
+  attemptRunId?: string | null;
+  attemptGeneration?: number | null;
+}): NativeGenerationTurnRequest {
+  return {
+    phase: input.phase,
+    tenantId: input.tenantId,
+    actorId: input.actorId,
+    draftId: input.draftId,
+    clientId: input.clientId,
+    expectedRevision: input.expectedRevision,
+    // The explicit paid acknowledgement is part of the request the owner was given,
+    // so the RETAINED request identity carries it too: a reconcile read must present
+    // the same closed request the turn presented, or the owner cannot recognise its
+    // own retained request.
+    paidGeneration: true,
+    sources: input.sources,
+    requestId: nativeGenerationRequestId({
+      tenantId: input.tenantId,
+      actorId: input.actorId,
+      draftId: input.draftId,
+      clientId: input.clientId,
+      phase: input.phase,
+      expectedRevision: input.expectedRevision,
+      sources: input.sources,
+      ...(input.attemptRunId === undefined || input.attemptRunId === null
+        ? {}
+        : {
+            attemptRunId: input.attemptRunId,
+            ...(input.attemptGeneration === undefined || input.attemptGeneration === null
+              ? {}
+              : { attemptGeneration: input.attemptGeneration }),
+          }),
+    }),
+  };
+}
 
 /**
  * The bridge. It holds exactly two collaborators: the optional native turn
@@ -381,29 +475,7 @@ export class NativeGenerationBridge {
   }
 
   private exactRequest(input: NativeGenerationAdmissionInput): NativeGenerationTurnRequest {
-    return {
-      phase: input.phase,
-      tenantId: input.tenantId,
-      actorId: input.actorId,
-      draftId: input.draftId,
-      clientId: input.clientId,
-      expectedRevision: input.expectedRevision,
-      // The explicit paid acknowledgement is part of the request the owner was
-      // given, so the RETAINED request identity carries it too: a reconcile read
-      // must present the same closed request the turn presented, or the owner
-      // cannot recognise its own retained request.
-      paidGeneration: true,
-      sources: input.sources,
-      requestId: nativeGenerationRequestId({
-        tenantId: input.tenantId,
-        actorId: input.actorId,
-        draftId: input.draftId,
-        clientId: input.clientId,
-        phase: input.phase,
-        expectedRevision: input.expectedRevision,
-        sources: input.sources,
-      }),
-    };
+    return nativeGenerationTurnRequest(input);
   }
 
   private async admitOutcome(

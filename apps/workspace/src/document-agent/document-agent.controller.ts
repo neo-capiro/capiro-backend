@@ -351,8 +351,15 @@ export class DocumentAgentController {
   getGeneration(
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('draftId') draftId: string,
+    // The current access this read is made under: a retained native run whose
+    // outcome the owner has not published is reconciled through THIS caller's own
+    // credential (the owner verifies it), and only the caller's own published
+    // answer is stored. A caller without one keeps the local state.
+    @Headers('authorization') authorization?: string,
   ) {
-    return this.agent.getGenerationStatus(ctx.tenantId, draftId, ctx.clerkUserId);
+    return this.agent.getGenerationStatus(ctx.tenantId, draftId, ctx.clerkUserId, {
+      credential: nativeCredential(authorization),
+    });
   }
 
   @Post('generation/retry')
@@ -360,6 +367,7 @@ export class DocumentAgentController {
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('draftId') draftId: string,
     @Body() dto: RetryGenerationDto,
+    @Headers('authorization') authorization?: string,
   ) {
     return this.agent.retryGeneration(
       ctx.tenantId,
@@ -367,6 +375,10 @@ export class DocumentAgentController {
       ctx.clerkUserId,
       dto.expectedRevision,
       dto.sectionIds,
+      // A native run is retried through the SAME retained native owner, which
+      // verifies the CURRENT authenticated session credential and the explicit
+      // paid acknowledgement; a legacy engine run ignores both.
+      { intent: dto.intent, credential: nativeCredential(authorization) },
     );
   }
 
