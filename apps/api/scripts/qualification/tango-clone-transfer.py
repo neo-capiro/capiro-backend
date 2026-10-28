@@ -146,7 +146,10 @@ def normalized_url(expression):
 def remapped_view(conn, table, cols, replacements=None):
     replacements = dict(replacements or {}, id="m.new_id")
     selections = ",".join(f"{replacements.get(name, 's.' + ident(name))} AS {ident(name)}" for name, _ in cols)
-    conn.execute(f"CREATE TEMP VIEW r_{table} AS SELECT {selections} FROM s_{table} s JOIN m_{table} m ON m.old_id=s.id")
+    # crosswalk_matched carries the natural-map decision into the candidate INSERT: a candidate
+    # that is still being appended to must never be re-scanned to answer a question the map
+    # already answered (see merge_table).
+    conn.execute(f"CREATE TEMP VIEW r_{table} AS SELECT {selections},m.matched AS crosswalk_matched FROM s_{table} s JOIN m_{table} m ON m.old_id=s.id")
 
 
 def sam_ref(expression):
@@ -274,7 +277,12 @@ def merge_table(conn, table, cols):
     where = " AND a.id=s.attachment_id" if extra else ""
     conn.execute(f"UPDATE w_{table} t SET {assignments} FROM r_{table} s{extra} WHERE t.id=s.id{where}")
     names = ",".join(ident(name) for name, _ in cols)
-    conn.execute(f"INSERT INTO w_{table} ({names}) SELECT {','.join('s.' + ident(name) for name, _ in cols)} FROM r_{table} s WHERE NOT EXISTS(SELECT 1 FROM w_{table} t WHERE t.id=s.id)")
+    # natural_map already answered, per source row, whether a candidate row exists: new_id is the
+    # candidate id when matched and the source id (checked absent from the target by
+    # unmatched_primary_key_collision) when not.  Asking it again with NOT EXISTS makes PostgreSQL
+    # re-scan the candidate table this statement is still appending to, once per inserted row,
+    # which is quadratic in the number of rows staged.
+    conn.execute(f"INSERT INTO w_{table} ({names}) SELECT {','.join('s.' + ident(name) for name, _ in cols)} FROM r_{table} s WHERE NOT s.crosswalk_matched")
 
 
 def snapshots(conn):
