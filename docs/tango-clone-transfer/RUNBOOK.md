@@ -43,6 +43,8 @@ This SQL performs a bounded `BEGIN READ ONLY` inventory of the two expected migr
 6. The role must support `rls_bypass()` so all protected rows can be compared. Use owner-only connection input, environment credentials and the RDS CA; trace/logging must be off. The CLI pins the exact source and destination hostnames and database `capiro`, requires TLS `verify-full`, and rejects host lists. No credentials are read from AWS by this script.
 7. Use the qualified Node 24 API workspace with its frozen `tsx`/mapper dependencies and Python with psycopg 3. Reserve enough database temporary storage for source and target public catalogs/vectors and sufficient transaction/WAL headroom. Statements are capped at 30 minutes; lock waits at 5 seconds. A timeout rolls the transaction back; it is not permission to weaken checks.
 
+After all eight source copies pass checksum verification and staging completes, the source read-only transaction and its advisory locks end. Target validation/publication retain the target transaction and locks; the operational source writer pause persists through the release owner's cutover. The ten-minute source idle timeout still applies during initial target preparation and each staging step's target checksum, indexing and materialization work.
+
 Migration byte checksums (SHA-256):
 
 | Migration | Exact source Git blob (LF) | Existing Windows checkout bytes |

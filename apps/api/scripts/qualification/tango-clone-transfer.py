@@ -505,6 +505,8 @@ def transfer(source, target, api_dir, node="node", commit=False):
     schemas, receipt = {}, {"mode":"commit" if commit else "dry_run", "tables":{}}
     for table in TABLES:
         schemas[table], receipt["tables"][table] = stage(source,target,table)
+    # The complete, verified snapshot is now staged; remaining work is target-only.
+    source.execute("ROLLBACK")
     references(target)
     prepare_maps(target,schemas)
     for table in TABLES[:-1]:
@@ -520,7 +522,6 @@ def transfer(source, target, api_dir, node="node", commit=False):
         receipt["published_changed_rows"] = publish(target,schemas)
     require(before == protected_digest(target), "protected_rows_changed")
     receipt["protected_rows_unchanged"] = True
-    source.execute("ROLLBACK")
     target.execute("COMMIT" if commit else "ROLLBACK")
     return receipt
 
