@@ -74,7 +74,7 @@ function numberArg(argv: string[], name: string, fallback: number, max: number):
 }
 export const FUNDING_USAGE = 'Usage: sync-tango-funding [--commit] [--lane=all|grants|active-notices|recent-notices|recent-documents|documents|reconcile-notices|reconcile-grants|grant-documents] [--max-requests=N] [--max-pages=N] [--reserve-requests=N] [--grant-extract=s3://BUCKET/KEY] [--extract-limit=N] [--original-grant-limit=N]. Requires DATABASE_URL and TANGO_API_KEY; commits require FUNDING_ALLOWED_DB_HOST. Exit 0: bounded pass; 1: failure.';
 export async function main(argv = process.argv.slice(2)) {
-  if (argv.length === 1 && ['--help', '-h'].includes(argv[0])) { console.log(FUNDING_USAGE); return; }
+  if (argv.length === 1 && ['--help', '-h'].includes(argv[0] ?? '')) { console.log(FUNDING_USAGE); return; }
   if (argv.some(arg => !/^--(?:commit|(?:lane|max-requests|max-pages|reserve-requests|grant-extract|extract-limit|original-grant-limit)=.+)$/.test(arg))) throw new Error(FUNDING_USAGE);
   const commit = argv.includes('--commit');
   const selected = argv.find(x => x.startsWith('--lane='))?.slice(7) ?? 'all';

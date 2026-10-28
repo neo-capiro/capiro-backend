@@ -394,7 +394,7 @@ export function realRecordOutcome(prisma: PrismaClient): AttachmentSyncDeps['rec
 
 export const ATTACHMENT_USAGE = 'Usage: sync-tango-opportunity-attachments [--commit] [--discover-only] [--limit=N]. Requires DATABASE_URL; archive commits also need OPPORTUNITY_ATTACHMENT_BUCKET and FUNDING_ALLOWED_DB_HOST. Exit 0: bounded pass; 1: failure; 2: missing database configuration.';
 async function main(argv = process.argv.slice(2)): Promise<void> {
-  if (argv.length === 1 && ['--help', '-h'].includes(argv[0])) { console.log(ATTACHMENT_USAGE); return; }
+  if (argv.length === 1 && ['--help', '-h'].includes(argv[0] ?? '')) { console.log(ATTACHMENT_USAGE); return; }
   if (argv.some(arg => !/^--(?:commit|discover-only|limit=.+)$/.test(arg))) throw new Error(ATTACHMENT_USAGE);
   const args = parseArgs(argv);
   const bucket = (process.env.OPPORTUNITY_ATTACHMENT_BUCKET ?? '').trim();

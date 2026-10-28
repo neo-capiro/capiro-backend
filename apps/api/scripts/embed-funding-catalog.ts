@@ -100,7 +100,7 @@ export async function embedDocument(prisma: PrismaClient, kind: Kind, row: Recor
 }
 export const EMBEDDING_USAGE = 'Usage: embed-funding-catalog [--commit] [--limit=N] [--max-chunks=N]. Active documents only. Requires DATABASE_URL; commits require FUNDING_ALLOWED_DB_HOST and task IAM for Titan v2. Exit 0: bounded pass; 1: failure.';
 export async function main(argv = process.argv.slice(2)) {
-  if (argv.length === 1 && ['--help', '-h'].includes(argv[0])) { console.log(EMBEDDING_USAGE); return; }
+  if (argv.length === 1 && ['--help', '-h'].includes(argv[0] ?? '')) { console.log(EMBEDDING_USAGE); return; }
   if (argv.some(arg => !/^--(?:commit|(?:limit|max-chunks)=.+)$/.test(arg))) throw new Error(EMBEDDING_USAGE);
   const commit = argv.includes('--commit');
   const limit = Number(argv.find(x => x.startsWith('--limit='))?.slice(8) ?? 300);
