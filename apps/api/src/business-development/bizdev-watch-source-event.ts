@@ -39,6 +39,14 @@ export const SOURCE_EVENT_FAMILIES = Object.freeze([
 export const SOURCE_EVENT_MAX_RESPONSE_BYTES = 64 * 1024;
 export const SOURCE_EVENT_DELIVERY_ATTEMPTS = 2;
 export const SOURCE_EVENT_REQUEST_TIMEOUT_MS = 3000;
+/**
+ * The wall clock ONE alert's delivery can occupy: the binding read plus EVERY bounded delivery
+ * attempt, each capped by this transport's own request timeout. A caller that must fit a page inside
+ * a remaining lease sizes that page from THIS number rather than from a guess, so the bound cannot
+ * drift away from the transport's real limits.
+ */
+export const SOURCE_EVENT_WORST_CASE_PER_ALERT_MS =
+  SOURCE_EVENT_REQUEST_TIMEOUT_MS * (1 + SOURCE_EVENT_DELIVERY_ATTEMPTS);
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const HEX64 = /^[a-f0-9]{64}$/;
@@ -245,6 +253,9 @@ export interface SourceEventTransport {
   /**
    * Deliver exactly one event; the disposition is Meri's, never this transport's. `recorded` is the
    * store state a DEDUPED answer names (`sourceEvent.recorded`), validated to a known state or null.
+   * `eventId`/`eventHash` are the event identity the ANSWER itself named: Meri echoes the received
+   * event identity, so these are what prove a 200 is evidence about the event we SENT. null when the
+   * answer named none, or named one this protocol cannot read.
    */
   event(envelope: SourceEventEnvelope, signal?: AbortSignal): Promise<{
     status: number;
@@ -252,6 +263,8 @@ export interface SourceEventTransport {
     outcome: string | null;
     code: string | null;
     recorded?: string | null;
+    eventId: string | null;
+    eventHash: string | null;
   }>;
 }
 
@@ -343,6 +356,8 @@ export function createSourceEventTransport(options: {
         ? body.sourceEvent as Record<string, unknown> : null;
       const disposition = sourceEvent === null ? undefined : sourceEvent.disposition;
       const recorded = sourceEvent === null ? undefined : sourceEvent.recorded;
+      const namedId = sourceEvent === null ? undefined : sourceEvent.eventId;
+      const namedHash = sourceEvent === null ? undefined : sourceEvent.eventHash;
       const error = body && typeof body.error === 'object' && body.error !== null
         ? (body.error as Record<string, unknown>).code : undefined;
       return {
@@ -354,6 +369,10 @@ export function createSourceEventTransport(options: {
         // Preserve the recorded outcome a DEDUPED answer names; anything not a known store state is
         // malformed and becomes null, so DEDUPED-with-UNKNOWN/absent HOLDS rather than completing.
         recorded: typeof recorded === 'string' && BIZDEV_SOURCE_EVENT_RECORDED_STATES.has(recorded) ? recorded : null,
+        // The event identity the answer NAMED, exactly as it answered it (never repaired, never
+        // defaulted): an absent or unreadable identity stays null, so it can never match the envelope.
+        eventId: text(namedId, 128) ? namedId : null,
+        eventHash: text(namedHash, 128) ? namedHash : null,
       };
     },
   });
@@ -405,7 +424,7 @@ export class BizDevWatchSourceEventDelivery {
     for (let attempt = 1; attempt <= SOURCE_EVENT_DELIVERY_ATTEMPTS; attempt++) {
       let answer: {
         status: number; disposition: string | null; outcome: string | null; code: string | null;
-        recorded?: string | null;
+        recorded?: string | null; eventId: string | null; eventHash: string | null;
       };
       try {
         answer = await transport.event(envelope);
@@ -415,6 +434,15 @@ export class BizDevWatchSourceEventDelivery {
       }
       if (answer.status === 200 && answer.disposition !== null && answer.disposition !== 'UNKNOWN' &&
           SOURCE_EVENT_DISPOSITION_STATES.has(answer.disposition)) {
+        // A SUCCESSFUL answer must NAME the event this producer sent: the same event id AND the same
+        // fact hash. A 200 for a different event (a foreign response), a different fact hash, or a
+        // missing/garbled identity is NOT evidence about our event, so it is UNKNOWN and the cursor
+        // holds exactly as it does for a transport failure — never a fabricated terminal advance. The
+        // bounded replay below resends the SAME bytes, which Meri's identity dedup makes one event.
+        if (answer.eventId !== envelope.eventId || answer.eventHash !== envelope.eventHash) {
+          last = { state: 'UNKNOWN', code: 'SOURCE_EVENT_RESPONSE_IDENTITY' };
+          continue;
+        }
         // Carry the recorded store state for a DEDUPED answer, validated again here so a foreign
         // transport cannot smuggle an unrecognised outcome into a "completed" handoff.
         const recorded = typeof answer.recorded === 'string' && BIZDEV_SOURCE_EVENT_RECORDED_STATES.has(answer.recorded)

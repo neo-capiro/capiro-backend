@@ -18,6 +18,7 @@ import {
   BIZDEV_SOURCE_EVENT_RECORDED_STATES,
 } from './bizdev-watch.types.js';
 import { diffObservationAgainstBaseline as diffFn } from './bizdev-watch-diff.js';
+import { SOURCE_EVENT_WORST_CASE_PER_ALERT_MS } from './bizdev-watch-source-event.js';
 import {
   deliveryAfterCursor,
   nextDeliveryCheckpoint,
@@ -355,10 +356,12 @@ export async function discoverClaimCandidates(
 }
 
 /**
- * MB-05 producer hook: the canonical alerts this pass DURABLY committed, offered to the delivery
- * owner after the transaction resolved. Structurally the delivery owner's `SourceEventAlertCustody`
- * (bizdev-watch-source-event.ts); it is declared here so the runner keeps its minimal DB surface
- * and no transaction-scoped dependency on the Meri client.
+ * MB-05 producer hook: the bounded OLDEST-FIRST page of ONE family's canonically committed alerts,
+ * offered to the delivery owner for one distinct (identity-deduped) event or for one honestly
+ * counted UNKNOWN. The page is read from committed custody AFTER the transaction that persisted it,
+ * so a rolled-back transaction offers nothing. Structurally the delivery owner's
+ * `SourceEventAlertCustody` (bizdev-watch-source-event.ts); it is declared here so the runner keeps
+ * its minimal DB surface and no transaction-scoped dependency on the Meri client.
  */
 export type BizDevWatchSourceEventSink = (
   alerts: readonly BizDevWatchSourceEventOffered[],
@@ -456,9 +459,6 @@ export async function runBizDevWatchEvaluation(
 
   for (const state of claimed) {
     try {
-      // Alerts this transaction durably commits. Declared OUTSIDE the transaction so a rolled-back
-      // transaction contributes nothing, and delivered only after the commit resolves.
-      const committedAlerts: BizDevWatchSourceEventOffered[] = [];
       /** The durable baseline THIS pass commits — the MB-05 recovery cursor rides inside its scan metadata. */
       let committedBaseline: BizDevWatchBaseline | null = null;
       /** True only when THIS pass finalized the healthy page while RETAINING the lease for the bounded
@@ -922,21 +922,7 @@ export async function runBizDevWatchEvaluation(
                 },
                 select: { id: true, firstObservedAt: true },
               });
-              if (existing) {
-                committedAlerts.push({
-                  tenantId: state.tenantId,
-                  alertId: existing.id,
-                  watchId: state.watchId,
-                  prospectId: watch.prospectId,
-                  dedupeKey: draft.dedupeKey,
-                  fingerprint: draft.fingerprint,
-                  sourceFamily: draft.sourceFamily,
-                  recordId: draft.recordId,
-                  sourceRevision: draft.sourceRevision ?? null,
-                  occurredAtMs: existing.firstObservedAt.getTime(),
-                });
-              }
-              continue;
+              if (existing) continue;
             }
             // Only a NEWLY inserted alert gets the in-app delivery + the
             // alert-created activity. Exact unique lookup after the
@@ -978,21 +964,10 @@ export async function runBizDevWatchEvaluation(
                 afterJsonb: { sourceLocator: draft.sourceLocator } as Prisma.InputJsonValue,
               },
             });
-            // MB-05: the canonical immutable alert is now part of THIS tenant transaction, so the
-            // exact event identity is the alert's own id. The custody record is offered to the
-            // delivery owner only after this transaction resolves (below).
-            committedAlerts.push({
-              tenantId: state.tenantId,
-              alertId: created.id,
-              watchId: state.watchId,
-              prospectId: watch.prospectId,
-              dedupeKey: draft.dedupeKey,
-              fingerprint: draft.fingerprint,
-              sourceFamily: draft.sourceFamily,
-              recordId: draft.recordId,
-              sourceRevision: draft.sourceRevision ?? null,
-              occurredAtMs: created.firstObservedAt.getTime(),
-            });
+            // MB-05: the canonical immutable alert is part of THIS tenant transaction and the exact
+            // event identity is the alert's own id. Nothing is offered from inside the transaction: the
+            // bounded recovery step AFTER the commit re-reads committed custody, so a rolled-back
+            // transaction can never publish an alert.
             delivered += 1;
           }
         }
@@ -1053,11 +1028,12 @@ export async function runBizDevWatchEvaluation(
       });
       if (outcome === 'skipped') metrics.checked -= 1;
       // ── MB-05 bounded durable delivery recovery (oldest-first) ────────
-      // The durable channel is this watch's OWN canonical, immutable alert row. It is walked
-      // OLDEST-FIRST through the existing versioned baseline/scan checkpoint, bounded by the same
-      // per-source bound this evaluation already uses, so a commit-before-delivery crash, an UNKNOWN
-      // answer or a lost handoff is reconciled by a LATER evaluation — never by an in-process retry, a
-      // timer or a poller (the scheduler remains the sole retry owner).
+      // The durable channel is this watch's OWN canonical, immutable alert row OF THIS SOURCE FAMILY.
+      // It is walked OLDEST-FIRST through the existing versioned baseline/scan checkpoint, bounded by
+      // the same per-source bound this evaluation already uses AND by the lease this pass still owns
+      // (a page that cannot finish inside that lease is never started), so a commit-before-delivery
+      // crash, an UNKNOWN answer or a lost handoff is reconciled by a LATER evaluation — never by an
+      // in-process retry, a timer or a poller (the scheduler remains the sole retry owner).
       //
       // The cursor advances ONLY over the contiguous oldest-first prefix whose delivery the owner
       // DEFINITIVELY answered: a bounded page can never silently advance past an unresolved (UNKNOWN or
@@ -1075,12 +1051,17 @@ export async function runBizDevWatchEvaluation(
         let acknowledgedPage: BizDevWatchSourceEventOffered[] = [];
         try {
           if (sourceEvents) {
-            const page = await readDeliveryRecoveryPage(
+            // ONE page, sized to fit inside the lease this pass still owns: only as many OLDEST alerts
+            // as the transport's own worst case per alert allows are read and offered (see
+            // recoveryPageBound), so a page whose delivery the lease cannot cover is never started.
+            const bound = recoveryPageBound(config.maxRecordsPerSource, leaseUntil, clock());
+            const page = bound === 0 ? [] : await readDeliveryRecoveryPage(
               db,
               state.tenantId,
               state.watchId,
+              state.sourceFamily,
               recoveryBaseline.scan,
-              config.maxRecordsPerSource,
+              bound,
             );
             if (page.length > 0) {
               // A delivery owner that could not answer at all leaves every offered alert UNKNOWN: the run
@@ -1254,16 +1235,49 @@ export function acknowledgedDeliveryPrefix(
 }
 
 /**
- * ONE bounded OLDEST-FIRST keyset page over this watch's OWN canonical alerts, strictly AFTER the
- * durable recovery cursor, in (firstObservedAt, id) order. This is the bounded read a later evaluation
- * repeats until every committed alert has been offered — never a sliding newest-N window that can drop
- * an older committed-but-undelivered alert. An empty cursor starts at the beginning of the watch's own
- * alert history, which is the only start that cannot strand an alert committed before the cursor existed.
+ * Reserved for the ONE finalize that releases the retained lease and persists the advance: a single
+ * lease-predicated CAS update after the last bounded delivery.
+ */
+const RECOVERY_FINALIZE_MARGIN_MS = 2000;
+
+/**
+ * How many alerts of ONE family this pass may still offer. The recovery page is sized so the lease
+ * THIS pass owns cannot expire mid-delivery: ONE alert can occupy the binding read plus EVERY bounded
+ * delivery attempt (the transport's own exported limits, not a guess), so only as many OLDEST alerts
+ * as that worst case fits in the REMAINING lease are read and offered. A page that does not fit is
+ * simply shorter — the unread alerts stay behind a cursor that only ever advances over what was
+ * actually answered, so nothing is skipped and nothing is delivered under a lease that may already
+ * belong to a newer evaluator. No renewal owner is invented: the existing source-state lease stays
+ * the only one, exactly as it does for the scan pages.
+ */
+function recoveryPageBound(maxRecords: number, leaseUntil: Date, at: Date): number {
+  if (!Number.isSafeInteger(maxRecords) || maxRecords <= 0) return 0;
+  const remaining = leaseUntil.getTime() - at.getTime() - RECOVERY_FINALIZE_MARGIN_MS;
+  if (!Number.isFinite(remaining) || remaining <= 0) return 0;
+  return Math.max(0, Math.min(maxRecords, Math.floor(remaining / SOURCE_EVENT_WORST_CASE_PER_ALERT_MS)));
+}
+
+/**
+ * ONE bounded OLDEST-FIRST keyset page over ONE source family's OWN canonical alerts, strictly AFTER
+ * the durable recovery cursor, in (firstObservedAt, id) order. This is the bounded read a later
+ * evaluation repeats until every committed alert has been offered — never a sliding newest-N window
+ * that can drop an older committed-but-undelivered alert. An empty cursor starts at the beginning of
+ * the family's own alert history, which is the only start that cannot strand an alert committed
+ * before the cursor existed.
+ *
+ * The page is scoped to the family the cursor BELONGS to: the source-state row is per
+ * (watch, sourceFamily) and the recovery cursor rides inside THAT row's scan metadata, so a
+ * watch-wide page would let one family's alerts spend another family's per-source budget, advance
+ * another family's cursor, and be delivered against another family's approved binding. The alert
+ * row's own `sourceFamily` is the same canonical family the state row names, so this binds the page
+ * to the exact channel the cursor is evidence about. The (instant, immutable alert id) keyset is
+ * unchanged and still the total order the tie-break and the new-arrival rule depend on.
  */
 async function readDeliveryRecoveryPage(
   db: BizDevWatchRunnerDb,
   tenantId: string,
   watchId: string,
+  sourceFamily: string,
   scan: BizDevWatchScanCheckpoint | undefined,
   maxRecords: number,
 ): Promise<BizDevWatchSourceEventOffered[]> {
@@ -1273,6 +1287,7 @@ async function readDeliveryRecoveryPage(
       where: {
         tenantId,
         watchId,
+        sourceFamily,
         ...(after === null
           ? {}
           : {

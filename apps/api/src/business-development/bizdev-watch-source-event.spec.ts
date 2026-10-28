@@ -32,9 +32,13 @@ function localTransport(answers: Array<Record<string, unknown>> = []) {
       calls.push({ path: SOURCE_EVENT_EVENT_PATH, body: JSON.parse(JSON.stringify(envelope)), headers: {} });
       const next = answers.shift() ?? { status: 200, disposition: 'DISPATCHED', code: null, recorded: 'DISPATCHED' };
       if (next.throw === true) throw new Error('transport down');
+      // Meri echoes the received event identity on a 200, so a local answer that means "this event"
+      // NAMES it; an answer can override the identity to model a foreign/malformed response.
       return { status: next.status as number, disposition: (next.disposition ?? null) as string | null,
         outcome: (next.outcome ?? null) as string | null, code: (next.code ?? null) as string | null,
-        recorded: (next.recorded ?? null) as string | null };
+        recorded: (next.recorded ?? null) as string | null,
+        eventId: Object.hasOwn(next, 'eventId') ? (next.eventId as string | null) : envelope.eventId,
+        eventHash: Object.hasOwn(next, 'eventHash') ? (next.eventHash as string | null) : envelope.eventHash };
     },
   };
   return { calls, transport };
@@ -166,7 +170,11 @@ describe('bizdev watch source event sink (the evaluator delivery owner)', () => 
           const next = dispositions.shift() ?? 'DISPATCHED';
           const disposition = typeof next === 'string' ? next : next.disposition;
           const recorded = typeof next === 'string' ? null : (next.recorded ?? null);
-          return { status: 200, disposition, outcome: disposition, code: null, recorded };
+          // The real listener echoes the identity it received; a local answer may override it.
+          const named = typeof next === 'string' ? next : (next as { eventId?: string | null; eventHash?: string | null });
+          return { status: 200, disposition, outcome: disposition, code: null, recorded,
+            eventId: typeof named === 'string' ? envelope.eventId : (named.eventId ?? envelope.eventId),
+            eventHash: typeof named === 'string' ? envelope.eventHash : (named.eventHash ?? envelope.eventHash) };
         },
       },
     };
@@ -221,6 +229,46 @@ describe('bizdev watch source event sink (the evaluator delivery owner)', () => 
     const counts = await sink([CUSTODY]);
     expect(counts.deduped).toBe(0);
     expect(counts.unknown).toBe(1);
+  });
+
+  it('a 200 that NAMES A FOREIGN event is never evidence about our event: UNKNOWN and the cursor holds', async () => {
+    const foreign = { status: 200, disposition: 'DISPATCHED', recorded: 'DISPATCHED',
+      eventId: '9f8e7d6c-5b4a-4392-8170-665544332211' };
+    // A local transport answers its binding read from the SAME queue, so the pair read comes first and
+    // then BOTH bounded delivery attempts receive this same foreign-identity answer.
+    const { calls, transport } = localTransport([foreign, foreign, foreign]);
+    const answer = await new BizDevWatchSourceEventDelivery().deliverForAlert(CUSTODY, { transport: transport as never });
+    expect(answer).toEqual({ state: 'UNKNOWN', code: 'SOURCE_EVENT_RESPONSE_IDENTITY', attempts: 2, recorded: null });
+    expect(advancesDeliveryCursor({ state: answer.state, recorded: answer.recorded })).toBe(false);
+    // Exactly one bounded delivery per attempt, and the replay resends the SAME envelope bytes.
+    const posted = calls.filter((call) => call.path === SOURCE_EVENT_EVENT_PATH);
+    expect(posted).toHaveLength(2);
+    const sent = posted[0]!.body as SourceEventEnvelope;
+    expect(sent.eventId).toBe(ALERT);
+    expect(posted[1]!.body).toEqual(sent);
+  });
+
+  it("a 200 whose FACT HASH is not the sent envelope's holds as UNKNOWN, never a terminal advance", async () => {
+    const stale = { status: 200, disposition: 'DEDUPED', recorded: 'DISPATCHED', eventHash: 'ab'.repeat(32) };
+    const { transport } = localTransport([stale, stale, stale]);
+    const answer = await new BizDevWatchSourceEventDelivery().deliverForAlert(CUSTODY, { transport: transport as never });
+    expect(answer).toEqual({ state: 'UNKNOWN', code: 'SOURCE_EVENT_RESPONSE_IDENTITY', attempts: 2, recorded: null });
+    expect(advancesDeliveryCursor({ state: answer.state, recorded: answer.recorded })).toBe(false);
+  });
+
+  it('a MALFORMED 200 that names no identity at all holds as UNKNOWN', async () => {
+    const nameless = { status: 200, disposition: 'DISPATCHED', recorded: 'DISPATCHED', eventId: null, eventHash: null };
+    const { transport } = localTransport([nameless, nameless, nameless]);
+    const answer = await new BizDevWatchSourceEventDelivery().deliverForAlert(CUSTODY, { transport: transport as never });
+    expect(answer).toEqual({ state: 'UNKNOWN', code: 'SOURCE_EVENT_RESPONSE_IDENTITY', attempts: 2, recorded: null });
+  });
+
+  it('the identity the real listener echoes back is accepted verbatim, so the gate never over-tightens', async () => {
+    // No overridden identity: the default answer echoes the sent eventId/eventHash exactly as the
+    // real receiver does, and must therefore still be read as Meri's own DISPATCHED disposition.
+    const { transport } = localTransport();
+    const answer = await new BizDevWatchSourceEventDelivery().deliverForAlert(CUSTODY, { transport: transport as never });
+    expect(answer).toEqual({ state: 'DISPATCHED', code: null, attempts: 1, recorded: 'DISPATCHED' });
   });
 
   it('an unanswerable binding read leaves every alert UNKNOWN, never a skip and never a dispatch', async () => {

@@ -13,7 +13,7 @@ import {
   type BizDevWatchClaimCandidate,
   type BizDevWatchSourceEventSink,
 } from './bizdev-watch-runner.js';
-import { createSourceEventDispositionSink } from './bizdev-watch-source-event.js';
+import { createSourceEventDispositionSink, SOURCE_EVENT_WORST_CASE_PER_ALERT_MS } from './bizdev-watch-source-event.js';
 
 /**
  * Focused runner contract for the Phase 5 DB-only evaluator (current API:
@@ -207,9 +207,13 @@ function makeHarness(
       firstObservedAt?: Date;
       recordId?: string;
       fingerprint?: string;
+      /** Another source family's alert in the SAME watch: the recovery cursor is per family. */
+      sourceFamily?: string;
     }>;
     /** MB-05 delivery owner offered the pass's alerts (absent = no egress at all). */
     sourceEvents?: BizDevWatchSourceEventSink | null;
+    /** The pass's own lease length (default 300): the recovery page is sized to fit inside it. */
+    leaseSeconds?: number;
   } = {},
 ) {
   const family = opts.sourceFamily ?? 'federal_award';
@@ -240,7 +244,7 @@ function makeHarness(
       dedupeKey: a.dedupeKey,
       fingerprint: a.fingerprint ?? 'existing',
       category: 'contract_award',
-      sourceFamily: family,
+      sourceFamily: a.sourceFamily ?? family,
       recordId: a.recordId ?? 'CONT_A1',
       title: 'existing',
       firstObservedAt: a.firstObservedAt ?? new Date('2026-09-20T23:00:00.000Z'),
@@ -368,13 +372,18 @@ function makeHarness(
           where: {
             tenantId: string;
             watchId: string;
+            /** The recovery page is scoped to ONE source family, exactly like the real query. */
+            sourceFamily?: string;
             OR?: Array<Record<string, any>>;
           };
           take?: number;
           orderBy?: Array<Record<string, string>>;
         }) => {
           let rows = alerts.filter(
-            (a) => a.tenantId === where.tenantId && a.watchId === where.watchId,
+            (a) =>
+              a.tenantId === where.tenantId &&
+              a.watchId === where.watchId &&
+              (where.sourceFamily === undefined || a.sourceFamily === where.sourceFamily),
           );
           if (Array.isArray(where.OR) && where.OR.length > 0) {
             // The two clauses are an OR-UNION: strictly-after-instant, or the equal-instant id tie-break.
@@ -626,7 +635,7 @@ function makeHarness(
     sourceFamilies: [family],
     maxWatchesPerRun: 10,
     maxRecordsPerSource: maxRecords,
-    leaseSeconds: 300,
+    leaseSeconds: opts.leaseSeconds ?? 300,
   };
 
   return {
@@ -2294,13 +2303,15 @@ describe('runBizDevWatchEvaluation — MB-05 oldest-first durable delivery recov
         const known = durable.get(envelope.eventId);
         if (known === undefined) {
           durable.set(envelope.eventId, envelope.eventHash);
-          return { status: 200, disposition: 'DISPATCHED', outcome: null, code: null, recorded: 'DISPATCHED' };
+          return { status: 200, disposition: 'DISPATCHED', outcome: null, code: null, recorded: 'DISPATCHED',
+            eventId: envelope.eventId, eventHash: envelope.eventHash };
         }
         // The SAME identity must arrive with the SAME bytes: identity dedup is the whole safety net.
         expect(known).toBe(envelope.eventHash);
         // A settled row names its own terminal recorded state; DEDUPED only counts as a completed
         // handoff when that outcome is terminal (the receiver reports the prior row's state).
-        return { status: 200, disposition: 'DEDUPED', outcome: null, code: null, recorded: 'DISPATCHED' };
+        return { status: 200, disposition: 'DEDUPED', outcome: null, code: null, recorded: 'DISPATCHED',
+          eventId: envelope.eventId, eventHash: envelope.eventHash };
       },
     };
     // The real delivery owner (real codec, real disposition parsing) over the live sink boundary.
@@ -2377,9 +2388,11 @@ describe('runBizDevWatchEvaluation — MB-05 oldest-first durable delivery recov
         // identity dedup is the whole safety net against a second effect.
         else expect(known).toBe(envelope.eventHash);
         if (!released) {
-          return { status: 200, disposition: 'QUEUED', outcome: 'QUEUED', code: null, recorded: 'QUEUED' };
+          return { status: 200, disposition: 'QUEUED', outcome: 'QUEUED', code: null, recorded: 'QUEUED',
+            eventId: envelope.eventId, eventHash: envelope.eventHash };
         }
-        return { status: 200, disposition: 'DISPATCHED', outcome: 'DISPATCHED', code: null, recorded: 'DISPATCHED' };
+        return { status: 200, disposition: 'DISPATCHED', outcome: 'DISPATCHED', code: null, recorded: 'DISPATCHED',
+          eventId: envelope.eventId, eventHash: envelope.eventHash };
       },
     };
     // The real per-alert delivery owner (real codec, real transport parse) driving the real runner.
@@ -2448,7 +2461,8 @@ describe('runBizDevWatchEvaluation — MB-05 oldest-first durable delivery recov
         else expect(known).toBe(envelope.eventHash);
         // Meri already holds a row for this identity, but that row's RECORDED outcome is UNKNOWN: the
         // handoff is unconfirmed, so the page must HOLD rather than acknowledge past it.
-        return { status: 200, disposition: 'DEDUPED', outcome: 'DEDUPED', code: 'SOURCE_EVENT_UNKNOWN', recorded: 'UNKNOWN' };
+        return { status: 200, disposition: 'DEDUPED', outcome: 'DEDUPED', code: 'SOURCE_EVENT_UNKNOWN', recorded: 'UNKNOWN',
+          eventId: envelope.eventId, eventHash: envelope.eventHash };
       },
     };
     const sink = createSourceEventDispositionSink({ transport: transport as never });
@@ -2457,5 +2471,138 @@ describe('runBizDevWatchEvaluation — MB-05 oldest-first durable delivery recov
     expect(m.sourceEvents).toEqual({ offered: 1, dispatched: 0, queued: 0, deduped: 0, refused: 0, unknown: 1, skipped: 0 });
     expect(cursorOf(held)).toBeNull();
     expect(durable.size).toBe(1);
+  });
+
+  test('the recovery page is scoped to the family the cursor BELONGS to, never watch-wide', async () => {
+    // ONE watch, TWO source families. The cursor lives in the (watch, sourceFamily) source-state row,
+    // so a watch-wide page would spend THIS family's budget on another family's alerts, advance this
+    // family's cursor over them, and deliver them against another family's approved binding.
+    const mine = { dedupeKey: 'MINE-1', id: 'id-mine', firstObservedAt: new Date('2026-09-10T00:00:00.000Z') };
+    const foreign = {
+      dedupeKey: 'OTHER-1',
+      id: 'id-other',
+      firstObservedAt: new Date('2026-09-01T00:00:00.000Z'), // OLDER: it would lead a watch-wide page
+      sourceFamily: 'sam_opportunity',
+    };
+    const offered: Array<{ alertId: string; sourceFamily: string }> = [];
+    const sink = async (alerts: readonly { alertId: string; sourceFamily: string }[]) => {
+      offered.push(...alerts.map((a) => ({ alertId: a.alertId, sourceFamily: a.sourceFamily })));
+      return { dispositions: alerts.map((a) => ({ alertId: a.alertId, state: 'DISPATCHED' })) };
+    };
+    const first = makeHarness({ maxRecords: 1, existingAlerts: [mine, foreign], sourceEvents: sink });
+    const m = await first.run();
+    // The family's OWN oldest alert is offered — never the older alert of the other family.
+    expect(offered).toEqual([{ alertId: 'id-mine', sourceFamily: 'federal_award' }]);
+    expect(m.sourceEvents).toEqual({ offered: 1, dispatched: 1, queued: 0, deduped: 0, refused: 0, unknown: 0, skipped: 0 });
+    expect(cursorOf(first)).toEqual({
+      version: 1,
+      cursorAtMs: mine.firstObservedAt.getTime(),
+      cursorId: 'id-mine',
+      pagesDone: 1,
+    });
+
+    // This family's channel is complete and the other family's alert is NEVER offered under it: the
+    // next pass of the same family offers nothing more and cannot advance the cursor.
+    const second = makeHarness({
+      maxRecords: 1,
+      existingAlerts: [mine, foreign],
+      existingBaseline: first.state.baselineState as never,
+      sourceEvents: sink,
+    });
+    offered.length = 0;
+    await second.run();
+    expect(offered).toEqual([]);
+    expect(cursorOf(second)).toEqual(cursorOf(first));
+  });
+
+  test('inside the family the cursor keeps the exact (instant, id) order: equal-instant tie, then a new arrival', async () => {
+    const T = new Date('2026-09-10T00:00:00.000Z');
+    const tie = { dedupeKey: 'TIE', id: 'id-2', firstObservedAt: T }; // same instant, greater id
+    const older = { dedupeKey: 'OLD', id: 'id-1', firstObservedAt: T };
+    const foreign = {
+      dedupeKey: 'OTHER',
+      id: 'id-0',
+      firstObservedAt: new Date('2026-08-01T00:00:00.000Z'),
+      sourceFamily: 'sam_opportunity',
+    };
+    const later = { dedupeKey: 'LATER', id: 'id-3', firstObservedAt: new Date('2026-09-11T00:00:00.000Z') };
+    const offeredIds: string[] = [];
+    const sink = async (alerts: readonly { alertId: string }[]) => {
+      offeredIds.push(...alerts.map((a) => a.alertId));
+      return { dispositions: alerts.map((a) => ({ alertId: a.alertId, state: 'DISPATCHED' })) };
+    };
+    // Page size 1 so every step of the exact order is observable.
+    const first = makeHarness({ maxRecords: 1, existingAlerts: [tie, older, foreign], sourceEvents: sink });
+    await first.run();
+    expect(offeredIds).toEqual(['id-1']); // equal instant: the smaller id leads
+    expect(cursorOf(first)).toEqual({ version: 1, cursorAtMs: T.getTime(), cursorId: 'id-1', pagesDone: 1 });
+
+    const second = makeHarness({
+      maxRecords: 1,
+      existingAlerts: [tie, older, foreign],
+      existingBaseline: first.state.baselineState as never,
+      sourceEvents: sink,
+    });
+    await second.run();
+    expect(offeredIds).toEqual(['id-1', 'id-2']); // the tie-break row next, never re-offering id-1
+    expect(cursorOf(second)).toEqual({ version: 1, cursorAtMs: T.getTime(), cursorId: 'id-2', pagesDone: 2 });
+
+    // A NEW arrival behind nothing (later instant) is the next work; the other family's row still never is.
+    const third = makeHarness({
+      maxRecords: 1,
+      existingAlerts: [tie, older, foreign, later],
+      existingBaseline: second.state.baselineState as never,
+      sourceEvents: sink,
+    });
+    await third.run();
+    expect(offeredIds).toEqual(['id-1', 'id-2', 'id-3']);
+    expect(cursorOf(third)).toEqual({
+      version: 1,
+      cursorAtMs: later.firstObservedAt.getTime(),
+      cursorId: 'id-3',
+      pagesDone: 3,
+    });
+  });
+
+  test('a page whose delivery cannot finish inside the retained lease is never started', async () => {
+    // The worst case per alert is the transport's OWN limits: the binding read plus every bounded
+    // attempt (3s each). 9s x 50 alerts would exceed the default 300s lease — the exact bounded-page
+    // risk — so the bound is derived from that number instead of being assumed away.
+    expect(SOURCE_EVENT_WORST_CASE_PER_ALERT_MS).toBe(9000);
+    // A 30s lease fits floor((30000 - 2000) / 9000) = 3 alerts.
+    const seeded = backlog(5);
+    const offeredIds: string[][] = [];
+    const sink = async (alerts: readonly { alertId: string }[]) => {
+      offeredIds.push(alerts.map((a) => a.alertId));
+      return { dispositions: alerts.map((a) => ({ alertId: a.alertId, state: 'DISPATCHED' })) };
+    };
+    const first = makeHarness({ maxRecords: 50, leaseSeconds: 30, existingAlerts: seeded, sourceEvents: sink });
+    const m = await first.run();
+    expect(offeredIds).toEqual([['id-1', 'id-2', 'id-3']]);
+    expect(m.sourceEvents).toEqual({ offered: 3, dispatched: 3, queued: 0, deduped: 0, refused: 0, unknown: 0, skipped: 0 });
+    expect(cursorOf(first)).toEqual({
+      version: 1,
+      cursorAtMs: seeded[2]!.firstObservedAt.getTime(),
+      cursorId: 'id-3',
+      pagesDone: 1,
+    });
+
+    // The alerts that did NOT fit are neither delivered nor skipped: the next pass resumes at the
+    // SAME cursor and offers exactly the rest.
+    const second = makeHarness({
+      maxRecords: 50,
+      leaseSeconds: 30,
+      existingAlerts: seeded,
+      existingBaseline: first.state.baselineState as never,
+      sourceEvents: sink,
+    });
+    await second.run();
+    expect(offeredIds.at(-1)).toEqual(['id-4', 'id-5']);
+    expect(cursorOf(second)).toEqual({
+      version: 1,
+      cursorAtMs: seeded[4]!.firstObservedAt.getTime(),
+      cursorId: 'id-5',
+      pagesDone: 2,
+    });
   });
 });
