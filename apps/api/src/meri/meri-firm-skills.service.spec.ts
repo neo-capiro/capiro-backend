@@ -82,6 +82,7 @@ function makePrisma(seed: Row[] = [], options: { beforeVersionWrite?: () => Prom
         // Deletion is fenced by the viewed version, so the double must honour `where.version` the
         // same way updateMany does and report a count.
         deleteMany: async ({ where }: { where: Row }) => {
+          await options.beforeVersionWrite?.();
           const idx = store.findIndex(
             (r) =>
               r.id === where.id &&
@@ -218,7 +219,9 @@ describe('MeriFirmSkillsService — tenant isolation (RLS double)', () => {
     await expect(svc.update(ctx(TENANT_B), created.id, VALID_SKILL, 1)).rejects.toBeInstanceOf(
       NotFoundException,
     );
-    await expect(svc.remove(ctx(TENANT_B), created.id, 1)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(svc.remove(ctx(TENANT_B), created.id, 1)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
     // Tenant A's row survives untouched.
     expect((prisma.__store[0] as { skillId: string }).skillId).toBe('earmark_request_memo');
   });
@@ -370,6 +373,42 @@ describe('MeriFirmSkillsService — canonical procedure integrity', () => {
 });
 
 describe('MeriFirmSkillsService — viewed-version fence on every usability mutation', () => {
+  test.each(['update', 'setEnabled', 'restore', 'remove'] as const)(
+    '%s refuses a future viewed version before a racing write can match it',
+    async (operation) => {
+      let raceEnabled = false;
+      let attemptedWrites = 0;
+      const prisma = makePrisma([], {
+        beforeVersionWrite: async () => {
+          if (!raceEnabled) return;
+          attemptedWrites += 1;
+          // A different writer could advance the row after this request's read.
+          // Matching that later version must not permit history derived from the old read.
+          prisma.__store[0]!.version = 3;
+          prisma.__store[0]!.name = 'Concurrent revision';
+        },
+      });
+      const svc = new MeriFirmSkillsService(prisma as never, config as never);
+      const created = await svc.create(ctx(TENANT_A), COMMITMENTS_SKILL_INPUT);
+      await svc.update(ctx(TENANT_A), created.id, { ...commitmentsWithHeading('Version Two') }, 1);
+      const before = structuredClone(prisma.__store);
+      const auditsBefore = prisma.__auditCreate.mock.calls.length;
+      raceEnabled = true;
+      const mutations = {
+        update: () =>
+          svc.update(ctx(TENANT_A), created.id, { ...commitmentsWithHeading('Unviewed') }, 3),
+        setEnabled: () => svc.setEnabled(ctx(TENANT_A), created.id, false, 3),
+        restore: () => svc.restore(ctx(TENANT_A), created.id, 1, 3),
+        remove: () => svc.remove(ctx(TENANT_A), created.id, 3),
+      };
+
+      await expect(mutations[operation]()).rejects.toBeInstanceOf(ConflictException);
+      expect(attemptedWrites).toBe(0);
+      expect(prisma.__store).toEqual(before);
+      expect(prisma.__auditCreate.mock.calls.length).toBe(auditsBefore);
+    },
+  );
+
   test('a stale viewed version writes nothing and records no audit success', async () => {
     const prisma = makePrisma();
     const svc = new MeriFirmSkillsService(prisma as never, config as never);
@@ -500,7 +539,12 @@ describe('MeriFirmSkillsService — concurrent version compare-and-swap', () => 
     });
     const svc = new MeriFirmSkillsService(prisma as never, config as never);
     const created = (await svc.create(ctx(TENANT_A), COMMITMENTS_SKILL_INPUT)) as { id: string };
-    await svc.update(ctx(TENANT_A), created.id, { ...commitmentsWithHeading('Version Two Commitments Review') }, 1);
+    await svc.update(
+      ctx(TENANT_A),
+      created.id,
+      { ...commitmentsWithHeading('Version Two Commitments Review') },
+      1,
+    );
     const staleBinding = (await svc.skillsForTenant(TENANT_A))[0]!.procedureBinding!;
     const third = 'Concurrent Commitments Review';
     gateEnabled = true;

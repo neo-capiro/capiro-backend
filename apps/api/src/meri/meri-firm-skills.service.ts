@@ -204,6 +204,9 @@ export class MeriFirmSkillsService {
         where: { id, tenantId: ctx.tenantId },
       });
       if (!existing) throw new NotFoundException('Firm skill not found');
+      if (existing.version !== expectedVersion) {
+        throw new ConflictException('Firm skill changed concurrently; reload and retry');
+      }
       const skill = this.validate({
         ...(input ?? {}),
         id: (input.id as string) ?? existing.skillId,
@@ -251,6 +254,9 @@ export class MeriFirmSkillsService {
         where: { id, tenantId: ctx.tenantId },
       });
       if (!existing) throw new NotFoundException('Firm skill not found');
+      if (existing.version !== expectedVersion) {
+        throw new ConflictException('Firm skill changed concurrently; reload and retry');
+      }
       const history = this.pushVersion(existing);
       const result = await tx.clioFirmSkill.updateMany({
         where: { id, tenantId: ctx.tenantId, version: expectedVersion },
@@ -285,6 +291,9 @@ export class MeriFirmSkillsService {
   async remove(ctx: TenantContext, id: string, expectedVersion: number) {
     this.assertViewedVersion(expectedVersion);
     const existing = await this.findOrThrow(ctx, id);
+    if (existing.version !== expectedVersion) {
+      throw new ConflictException('Firm skill changed concurrently; reload and retry');
+    }
     const deleted = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioFirmSkill.deleteMany({
         where: { id, tenantId: ctx.tenantId, version: expectedVersion },
@@ -306,6 +315,9 @@ export class MeriFirmSkillsService {
         where: { id, tenantId: ctx.tenantId },
       });
       if (!existing) throw new NotFoundException('Firm skill not found');
+      if (existing.version !== expectedVersion) {
+        throw new ConflictException('Firm skill changed concurrently; reload and retry');
+      }
       const history = (existing.versions as unknown as SkillVersionSnapshot[] | null) ?? [];
       const snapshot = history.find((candidate) => candidate.version === version);
       if (!snapshot) throw new NotFoundException(`No stored version ${version}`);
