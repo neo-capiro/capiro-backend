@@ -31,6 +31,14 @@
  * history instead of handing out a stale version or a partial chain. Access is
  * never inferred from an earlier allowed head, and no version's own parent/source
  * ownership is rewritten.
+ *
+ * Read capability, added explicitly: every released version carries a signed read of its
+ * OWN stored bytes, minted through the caller's canonical signing owner (the same owner
+ * the attachment list uses) from that version's own key, only after the release-time
+ * recheck and only for a version the readiness verdict says may be used. The current-only
+ * predicate that hides superseded rows from the ordinary list is therefore NOT weakened:
+ * a past version becomes readable only through this bounded history read, per actor and
+ * per version, and a suppressed, unusable or revoked version keeps the no-link state.
  */
 import {
   BadRequestException,
@@ -69,9 +77,16 @@ const CLIENT_FILE_HISTORY_SELECT = {
   uploadedByUserId: true,
   supersededByAttachmentId: true,
   createdAt: true,
+  // Read for exactly ONE purpose: minting that version's own signed read link through
+  // the caller's canonical signing owner. It is never projected, never returned and
+  // never accepted from a caller, so a version can never be pointed at another object.
+  s3Key: true,
 } satisfies Prisma.EngagementAttachmentSelect;
 
-/** The exact columns this surface may read. `s3Key`, `bucket` and viewer lists are not among them. */
+/**
+ * The exact columns this surface may read. `bucket` and viewer lists are not among them;
+ * `s3Key` is read only to sign the version's OWN stored bytes and is never released.
+ */
 export type ClientFileHistoryRow = Prisma.EngagementAttachmentGetPayload<{
   select: typeof CLIENT_FILE_HISTORY_SELECT;
 }>;
@@ -95,6 +110,20 @@ export interface ClientFileHistoryOwner {
   readiness: (row: ClientFileHistoryRow) => ClientFileHistoryReadiness;
   /** The canonical uploader display-name owner. */
   uploaderNames: (rows: readonly ClientFileHistoryRow[]) => Promise<Map<string, string>>;
+  /**
+   * The canonical signed-read owners the existing attachment list already uses for a
+   * readable row — reused verbatim, with their own controls (`null` when there is no
+   * bucket, and `null` preview outside the inline-previewable content types).
+   *
+   * Called ONLY for a version whose readiness verdict says it may be used, and only
+   * after the page's current-access recheck, so a version that is quarantined, blocked,
+   * deleted, hidden or revoked never reaches signing and keeps the no-link state. Both
+   * results are read URLs minted from THIS version's own stored key; neither is a
+   * storage locator, and this module reads no bytes itself.
+   */
+  links: (
+    row: ClientFileHistoryRow,
+  ) => Promise<{ downloadUrl: string | null; previewUrl: string | null }>;
 }
 
 export type ClientFileHistoryRequest = {
@@ -125,6 +154,15 @@ export type ClientFileHistoryVersion = {
   lifecycleStatus: string;
   scanStatus: string | null;
   usable: boolean;
+  /**
+   * A signed read of THIS version's own stored bytes, minted from this version's own key
+   * by the canonical signing owner the attachment list uses, or null when the version may
+   * not be used (quarantined, blocked, being deleted). Never a storage locator, never an
+   * S3 VersionId, and never a link to another version's object.
+   */
+  downloadUrl: string | null;
+  /** An inline preview of THIS version, for the allowlisted content types only, else null. */
+  previewUrl: string | null;
   blockedReason?: string;
   scanDisclosure?: string;
   /** The next version's exact attachment id, or null for the current version. */
@@ -372,6 +410,7 @@ function projectVersion(
   headId: string,
   names: Map<string, string>,
   readiness: ClientFileHistoryReadiness,
+  links: { downloadUrl: string | null; previewUrl: string | null },
 ): ClientFileHistoryVersion {
   return {
     attachmentId: row.id,
@@ -392,6 +431,8 @@ function projectVersion(
     lifecycleStatus: row.lifecycleStatus,
     scanStatus: row.scanStatus,
     usable: readiness.usable,
+    downloadUrl: links.downloadUrl,
+    previewUrl: links.previewUrl,
     ...(readiness.code ? { blockedReason: readiness.code } : {}),
     ...(readiness.disclosure ? { scanDisclosure: readiness.disclosure } : {}),
     supersededByAttachmentId: row.supersededByAttachmentId,
@@ -401,9 +442,11 @@ function projectVersion(
 /**
  * One page of a bounded immutable version chain, anchored on an exact attachment id.
  *
- * Reads only. No readiness/byte read reaches storage, no budget is reserved and no
- * model, provider or indexing owner is called — the callers' `readiness` and
- * `uploaderNames` owners are metadata lookups.
+ * Reads only. No byte is read here — the callers' `readiness`, `uploaderNames` and
+ * `links` owners are metadata lookups and local signed-URL minting (no object fetch) —
+ * no budget is reserved, no write happens, and no model, provider, indexing or
+ * extraction owner is called. The signed read each released version carries is minted
+ * from that version's own stored key, and only after the recheck above.
  */
 export async function readClientFileHistory(
   owner: ClientFileHistoryOwner,
@@ -447,8 +490,19 @@ export async function readClientFileHistory(
   for (const row of page) await authorizeVersion(owner, ctx, row);
 
   const names = await owner.uploaderNames(page);
-  const versions = page.map((row, index) =>
-    projectVersion(row, offset + index + 1, headId, names, owner.readiness(row)),
+  // Signed reads are minted only here: after the page's current-access recheck, for this
+  // page's own rows, through the caller's canonical signing owner, and only for a version
+  // the readiness verdict says may be used. A version that is suppressed, revoked,
+  // quarantined, blocked or being deleted therefore keeps the established no-link state
+  // instead of a working URL, and each URL addresses that version's OWN object.
+  const versions = await Promise.all(
+    page.map(async (row, index) => {
+      const readiness = owner.readiness(row);
+      const links = readiness.usable
+        ? await owner.links(row)
+        : { downloadUrl: null, previewUrl: null };
+      return projectVersion(row, offset + index + 1, headId, names, readiness, links);
+    }),
   );
   const hasMore = offset + page.length < chain.length;
 

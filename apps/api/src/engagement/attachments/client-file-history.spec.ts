@@ -309,15 +309,26 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
     expect(restarted.originalId).toBe(at(rows, 0).id);
   });
 
-  it('releases metadata only: no bytes, no signed read, no budget or model work, and no write', async () => {
+  it('releases metadata plus a signed read of each readable version: no bytes, no locators, no budget/model work and no write', async () => {
     const rows = chain(3);
     const h = harness(rows);
     const page = await h.service.listAttachmentHistory(ctx, { attachmentId: at(rows, 2).id });
     expect(page.versions.map((v) => v.attachmentId)).toEqual(rows.map((r) => r.id));
-    expect(JSON.stringify(page)).not.toMatch(/s3Key|downloadUrl|previewUrl|bucket/);
+    // The read obligation: every readable version carries a signed read of its OWN bytes,
+    // minted once per version through the canonical signing owner the list uses.
+    expect(page.versions.map((v) => [v.downloadUrl, v.previewUrl])).toEqual(
+      rows.map(() => ['synthetic-download', 'synthetic-preview']),
+    );
+    expect((h.service as any).createAttachmentDownloadUrl).toHaveBeenCalledTimes(3);
+    expect((h.service as any).createAttachmentPreviewUrl).toHaveBeenCalledTimes(3);
+    // Still no locator of any kind in the released page: not the key, not the bucket, not
+    // a storage VersionId. The only URL-shaped fields are the signed reads themselves.
+    expect(JSON.stringify(page)).not.toMatch(/s3Key|bucket|VersionId|client-files\/memo-v/);
     expect((h.service as any).readAttachmentBytes).not.toHaveBeenCalled();
-    expect((h.service as any).createAttachmentDownloadUrl).not.toHaveBeenCalled();
-    expect((h.service as any).createAttachmentPreviewUrl).not.toHaveBeenCalled();
+    // No provider, scanner, indexing or extraction side effect rides the read.
+    expect((h.service as any).clientKb.indexAttachmentFireAndForget).not.toHaveBeenCalled();
+    expect((h.service as any).clientKb.purgeFireAndForget).not.toHaveBeenCalled();
+    expect((h.service as any).scanner.getStatus).not.toHaveBeenCalled();
     expect(h.tx.engagementAttachment.create).not.toHaveBeenCalled();
     expect(h.tx.engagementAttachment.update).not.toHaveBeenCalled();
     expect(h.tx.engagementAttachment.updateMany).not.toHaveBeenCalled();
@@ -336,8 +347,52 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
       rows.map((r) => [r.id, r.calculatedSha256, r.byteSize, r.fileName]),
     );
     expect(page.versions.map((v) => v.isOriginal)).toEqual([true, false, false, false]);
+    // Each signed read is minted from THAT version's own stored key — the original
+    // included — so a link can never address another version's object.
+    expect(
+      (h.service as any).createAttachmentDownloadUrl.mock.calls.map((call: any[]) => call[0]),
+    ).toEqual(rows.map((r) => r.s3Key));
+    expect(
+      (h.service as any).createAttachmentPreviewUrl.mock.calls.map((call: any[]) => [
+        call[0],
+        call[1],
+      ]),
+    ).toEqual(rows.map((r) => [r.s3Key, r.contentType]));
     // The stored rows are untouched: same rows, same keys, same forward links.
     expect(JSON.parse(JSON.stringify(rows))).toEqual(before);
+  });
+
+  it('makes a selected historical ORIGINAL readable through its own identity, never the head', async () => {
+    const rows = chain(4);
+    const h = harness(rows);
+    const page = await h.service.listAttachmentHistory(ctx, {
+      attachmentId: at(rows, 0).id,
+      pageSize: 1,
+    });
+    const original = at(page.versions, 0);
+    expect(original).toMatchObject({
+      attachmentId: at(rows, 0).id,
+      versionIndex: 1,
+      isOriginal: true,
+      isCurrent: false,
+      fileName: at(rows, 0).fileName,
+      byteSize: at(rows, 0).byteSize,
+      contentHash: at(rows, 0).calculatedSha256,
+      downloadUrl: 'synthetic-download',
+      previewUrl: 'synthetic-preview',
+    });
+    expect(
+      (h.service as any).createAttachmentDownloadUrl.mock.calls.map((call: any[]) => call[0]),
+    ).toEqual([at(rows, 0).s3Key]);
+    // Drift guard: the head's key is never substituted for the original's, even though the
+    // page is bound to the head (headId) and the original is superseded four ways over.
+    const usedKeys = (h.service as any).createAttachmentDownloadUrl.mock.calls.map(
+      (call: any[]) => call[0],
+    );
+    expect(usedKeys).not.toContain(at(rows, 3).s3Key);
+    expect(original.downloadUrl).not.toBeNull();
+    expect(page.originalId).toBe(at(rows, 0).id);
+    expect(page.headId).toBe(at(rows, 3).id);
   });
 
   it('checks current access for every version before any metadata is assembled', async () => {
@@ -356,6 +411,9 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
     expect(denied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
     expect(h.readiness).not.toHaveBeenCalled();
     expect(h.tx.user.findMany).not.toHaveBeenCalled();
+    // A withheld chain mints no signed read for any version.
+    expect((h.service as any).createAttachmentDownloadUrl).not.toHaveBeenCalled();
+    expect((h.service as any).createAttachmentPreviewUrl).not.toHaveBeenCalled();
   });
 
   it('refuses a version that belongs to another tenant', async () => {
@@ -367,6 +425,8 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
     );
     expect(denied.status).toBe(404);
     expect(denied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
+    // A version in another tenant is never signed, and neither is its neighbour.
+    expect((h.service as any).createAttachmentDownloadUrl).not.toHaveBeenCalled();
     // An anchor outside the tenant is indistinguishable from an unknown id.
     const unknown = await refusal(() =>
       h.service.listAttachmentHistory(ctx, { attachmentId: id(999) }),
@@ -413,6 +473,8 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
       h.service.listAttachmentHistory(ctx, { attachmentId: at(rows, 1).id }),
     );
     expect(denied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
+    // The wall is re-checked before any version is signed.
+    expect((h.service as any).createAttachmentDownloadUrl).not.toHaveBeenCalled();
   });
 
   it('releases a prospect chain through the canonical prospect scope owner, superseded versions included', async () => {
@@ -505,6 +567,9 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
     expect(denied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
     expect(h.readiness).not.toHaveBeenCalled();
     expect(h.tx.user.findMany).not.toHaveBeenCalled();
+    // A deletion that starts before the release mints no read of the doomed version.
+    expect((h.service as any).createAttachmentDownloadUrl).not.toHaveBeenCalled();
+    expect((h.service as any).createAttachmentPreviewUrl).not.toHaveBeenCalled();
   });
 
   it('refuses a revocation that lands between the chain read and the release', async () => {
@@ -518,30 +583,43 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
     expect(denied.status).toBe(404);
     expect(denied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
     expect(h.readiness).not.toHaveBeenCalled();
+    // Revoked at the release recheck: no signed read is minted for the withdrawn page.
+    expect((h.service as any).createAttachmentDownloadUrl).not.toHaveBeenCalled();
+    expect((h.service as any).createAttachmentPreviewUrl).not.toHaveBeenCalled();
   });
 
   it('refuses missing, cyclic and branched chains as honestly unavailable', async () => {
     const missing = chain(3);
     at(missing, 1).supersededByAttachmentId = id(500); // successor row does not exist
+    const missingHarness = harness(missing);
     const missingDenied = await refusal(() =>
-      harness(missing).service.listAttachmentHistory(ctx, { attachmentId: at(missing, 0).id }),
+      missingHarness.service.listAttachmentHistory(ctx, { attachmentId: at(missing, 0).id }),
     );
     expect(missingDenied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
 
     const cyclic = chain(3);
     at(cyclic, 2).supersededByAttachmentId = at(cyclic, 1).id; // v3 -> v2 -> v3
+    const cyclicHarness = harness(cyclic);
     const cyclicDenied = await refusal(() =>
-      harness(cyclic).service.listAttachmentHistory(ctx, { attachmentId: at(cyclic, 0).id }),
+      cyclicHarness.service.listAttachmentHistory(ctx, { attachmentId: at(cyclic, 0).id }),
     );
     expect(cyclicDenied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
 
     // Two versions claim the same successor: a fork, refused from either end.
     const branched = [...chain(2), version(3, { supersededByAttachmentId: id(102) })];
     for (const anchor of [at(branched, 0).id, at(branched, 1).id]) {
+      const branchedHarness = harness(branched);
       const branchedDenied = await refusal(() =>
-        harness(branched).service.listAttachmentHistory(ctx, { attachmentId: anchor }),
+        branchedHarness.service.listAttachmentHistory(ctx, { attachmentId: anchor }),
       );
       expect(branchedDenied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
+      // An ambiguous chain releases nothing — not even a read of its resolvable head.
+      expect((branchedHarness.service as any).createAttachmentDownloadUrl).not.toHaveBeenCalled();
+    }
+    // No refused chain signed any version.
+    for (const refusedHarness of [missingHarness, cyclicHarness]) {
+      expect((refusedHarness.service as any).createAttachmentDownloadUrl).not.toHaveBeenCalled();
+      expect((refusedHarness.service as any).createAttachmentPreviewUrl).not.toHaveBeenCalled();
     }
   });
 
@@ -646,5 +724,36 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
     expect(page.versions[0]).toMatchObject({ usable: false, blockedReason: 'ATTACHMENT_NOT_READY' });
     expect(page.versions[1]).toMatchObject({ usable: true });
     expect(at(page.versions, 1).blockedReason).toBeUndefined();
+  });
+
+  it('keeps the canonical no-link states for an unusable version and an unpreviewable type', async () => {
+    const rows = chain(2);
+    // v1's stored type is outside the inline-preview allowlist the canonical owner
+    // enforces; v2 is quarantined and must not be readable at all.
+    at(rows, 0).contentType = 'application/vnd.ms-outlook';
+    at(rows, 1).lifecycleStatus = 'quarantined';
+    const h = harness(rows);
+    (h.service as any).createAttachmentPreviewUrl.mockImplementation(
+      async (_key: string, contentType: string) =>
+        contentType === 'application/pdf' ? 'synthetic-preview' : null,
+    );
+    const page = await h.service.listAttachmentHistory(ctx, { attachmentId: at(rows, 1).id });
+    // Readable but unpreviewable: the download read is real and the preview stays null —
+    // the owner's own control is propagated, not bypassed or guessed locally.
+    expect(at(page.versions, 0)).toMatchObject({
+      usable: true,
+      downloadUrl: 'synthetic-download',
+      previewUrl: null,
+    });
+    // Unusable: both reads stay null and the signing owner is never even asked.
+    expect(at(page.versions, 1)).toMatchObject({
+      usable: false,
+      blockedReason: 'ATTACHMENT_NOT_READY',
+      downloadUrl: null,
+      previewUrl: null,
+    });
+    expect((h.service as any).createAttachmentDownloadUrl).toHaveBeenCalledTimes(1);
+    expect((h.service as any).createAttachmentDownloadUrl).toHaveBeenCalledWith(at(rows, 0).s3Key);
+    expect((h.service as any).createAttachmentPreviewUrl).toHaveBeenCalledTimes(1);
   });
 });

@@ -8088,12 +8088,19 @@ export class EngagementService {
    * the immutable version chain that `supersedeAttachment` builds over an attachment
    * instead of deleting it, anchored on an exact attachment id.
    *
-   * Metadata only. No bytes are read, no signed URL or storage locator is minted, no
-   * write, no budget and no model/provider/indexing work happens here, and the
-   * current version stays readable through the existing attachment reads. Every
-   * version is re-authorized for the CURRENT actor before anything is released, so an
-   * old allowed scope, a colleague-private mail version or a hidden/revoked member is
-   * never reachable through history.
+   * Metadata plus a signed read for each released version. No byte is read by this path
+   * and no storage locator is ever exposed: a version carries the same kind of
+   * time-limited signed URL the attachment list already returns for a readable row,
+   * minted from THAT version's own stored key by the same owner and only when the
+   * readiness verdict says the version may be used — an unusable, quarantined, blocked or
+   * deleted version keeps the no-link state instead of a working URL. No write, no budget
+   * and no model/provider/indexing/extraction work happens here, the current-only
+   * predicate on the ordinary attachment list is not weakened, and the current version
+   * stays readable through the existing attachment reads. Every version is re-authorized
+   * for the CURRENT actor before anything is released — including the release-time
+   * recheck, which runs before any URL is minted — so an old allowed scope, a
+   * colleague-private mail version or a hidden/revoked member is never reachable through
+   * history.
    */
   async listAttachmentHistory(
     ctx: TenantContext,
@@ -8123,6 +8130,15 @@ export class EngagementService {
         }
         return names;
       },
+      // The SAME canonical signing owners the attachment list uses for a readable row,
+      // called with THIS version's own stored key: the history read hands back a read of
+      // the exact version the caller selected, and never a link to the head's object.
+      // They keep their own controls (null preview outside the inline allowlist, null when
+      // no bucket is configured).
+      links: async (row) => ({
+        downloadUrl: await this.createAttachmentDownloadUrl(row.s3Key),
+        previewUrl: await this.createAttachmentPreviewUrl(row.s3Key, row.contentType),
+      }),
     };
     return readClientFileHistory(owner, ctx, query);
   }
