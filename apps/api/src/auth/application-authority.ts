@@ -301,6 +301,7 @@ export const ARTIFACT_INTENT_OPERATIONS: Readonly<Record<string, readonly Artifa
   create: ['artifact.generate'],
   revise: ['artifact.revise'],
   inspect: ['artifact.inspect'],
+  results: ['artifact.inspect'],
   history: ['artifact.inspect'],
   list: ['artifact.inspect'],
   download: ['artifact.download'],

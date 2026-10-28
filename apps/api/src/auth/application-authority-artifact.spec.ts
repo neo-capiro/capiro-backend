@@ -119,7 +119,7 @@ describe('artifact current authority (capiro.meri-artifact-authority.v1)', () =>
     }
   });
 
-  it.each(['history', 'list'])('admits %s only through current private-conversation read authority', async intent => {
+  it.each(['history', 'list', 'results'])('admits %s only through current private-conversation read authority', async intent => {
     const request = parseApplicationAuthorityArtifactBody({ ...createCase.request, intent });
     const f = ports();
     const receipt = await readApplicationAuthorityArtifact(request, 'standard_user', f.ports);
