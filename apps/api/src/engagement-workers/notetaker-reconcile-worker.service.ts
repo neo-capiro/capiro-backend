@@ -16,7 +16,7 @@ export class NotetakerReconcileWorkerService implements OnModuleInit, OnModuleDe
   ) {}
 
   onModuleInit(): void {
-    if (this.timer || !this.runtime.backgroundWorkersEnabled()) return;
+    if (this.timer || !this.runtime.backgroundWorkersEnabled('notetaker-reconcile')) return;
     this.timer = setInterval(() => void this.tick(), RECONCILE_SWEEP_INTERVAL_MS);
     this.timer.unref?.();
   }
