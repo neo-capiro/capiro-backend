@@ -11169,12 +11169,14 @@ function projectMeetingPrepListItems<T extends object>(prep: T): T {
  *     (an empty array is still a valid arm, and either arm alone suffices
  *     because the receiver's union accepts either); its list text is `text`;
  *   - the titled item arm actually stored on preps — `{ title, description }`
- *     and `{ title, dueDate, description }` — whose list text is `title`.
+ *     and `{ title, dueDate, description }`, i.e. entries with NO `text` arm —
+ *     whose list text is `title`.
  *
  * A bare `{ text }`, a wrong-typed arm (`factIds: 'x'`, a non-string member), a
  * blank title and every other shape stay unrecognized, so they keep refusing at
- * the receiver instead of being displayed as text. An entry whose `text` arm is
- * malformed is not rescued by a `title` either: it keeps the same verbatim
+ * the receiver instead of being displayed as text. Neither is an entry that
+ * carries a `text` arm rescued by a `title`: a wrong-typed or blank `text`, or
+ * a non-blank one without a valid metadata arm, keeps the same verbatim
  * pass-through it had before the titled arm was recognized.
  */
 function prepListEntryText(entry: unknown): string | null {
@@ -11186,8 +11188,13 @@ function prepListEntryText(entry: unknown): string | null {
     evidenceReferences?: unknown;
   };
   const text = candidate.text;
-  if (typeof text === 'string' && text.trim()) {
-    return isStringArray(candidate.factIds) || isStringArray(candidate.evidenceReferences)
+  if (text !== undefined) {
+    // An entry that carries a text arm is never rescued by a title: unless that
+    // text is non-blank AND carries a valid metadata arm, the entry is not
+    // recognized and keeps the receiver's verbatim refusal.
+    return typeof text === 'string' &&
+      text.trim() !== '' &&
+      (isStringArray(candidate.factIds) || isStringArray(candidate.evidenceReferences))
       ? text
       : null;
   }

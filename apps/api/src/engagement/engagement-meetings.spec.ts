@@ -858,12 +858,26 @@ describe('listMeetings prep list projection (receiver contract)', () => {
 
   test('a malformed text arm is not rescued by a title', async () => {
     const stored = structuredPrep();
-    const mixed = { text: 'Evidence text with no metadata arm', title: 'Synthetic title' };
-    stored.agenda = [mixed];
+    const unlinkedText = { text: 'Evidence text with no metadata arm', title: 'Synthetic title' };
+    const wrongTypedText = { text: 42, title: 'Synthetic title' };
+    const blankText = { text: '   ', title: 'Synthetic title' };
+    stored.agenda = [unlinkedText, wrongTypedText, blankText];
 
     const [prep] = await listMaster([stored]);
 
-    expect(prep!.agenda).toEqual([mixed]);
+    // ANY entry carrying a text arm keeps its verbatim pass-through — an
+    // unlinked, wrong-typed or blank `text` is not rescued by a `title`.
+    expect(prep!.agenda).toEqual([unlinkedText, wrongTypedText, blankText]);
+  });
+
+  test('valid evidence-linked text keeps precedence over a title on the same entry', async () => {
+    const stored = structuredPrep();
+    const linked = { text: 'Synthetic linked text', factIds: ['fact-1'], title: 'Synthetic title' };
+    stored.agenda = [linked];
+
+    const [prep] = await listMaster([stored]);
+
+    expect(prep!.agenda).toEqual(['Synthetic linked text']);
   });
 
   test('one valid metadata arm is enough — a malformed second arm does not block projection', async () => {
