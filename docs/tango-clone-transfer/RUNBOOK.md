@@ -25,6 +25,14 @@ Vectors retain their recorded v1/v2/v3 chunker. Their content hashes, dimensions
 
 ## Prerequisites
 
+For the separately authorized metadata-only preflight, use the release owner's already established `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, TLS and credential environment; do not print or put those values on the command line. From the API workspace:
+
+```sh
+psql -X --no-password --set=ON_ERROR_STOP=1 --file=scripts/qualification/tango-clone-preflight.sql
+```
+
+This SQL performs a bounded `BEGIN READ ONLY` inventory of the two expected migration records, eight tables' columns/types, constraints, indexes/validity, RLS policies, approximate statistics and privilege booleans. Missing additive migration records/columns/indexes are valid preflight observations. It reads no catalog/client records, creates no TEMP objects and takes no writer/advisory locks. It does not authorize the later staging dry-run or commit.
+
 1. Obtain the release owner's existing shared-window reservation; stop live acceptance for the window. The preparation dry-run also needs this window: it acquires locks and creates TEMP tables. It is not a read-only cloud audit.
 2. Read both actual migration ledgers and constraints with an authorized operator. Verify source/target schema and every migration needed by this bounded change. Snapshot the clone **before each immutable forward migration**, wait for availability, and retain the snapshot identifier privately in ordinary release evidence. Do not replay unrelated pending migrations.
 3. Apply the immutable SQL artifacts ported from source commit `900ffb77fb7f6981628e8c9ca043e1740fd396a2` and pinned to the freshly verified source ledger, then mark the exact successful migration with Prisma. `20261024010000_tango_funding_consolidation` is transactional; `20261026184000_tango_funding_embedding_prefix` runs **outside** a transaction. Verify the concurrent index's definition, valid and ready flags; `IF NOT EXISTS` alone is not proof.
