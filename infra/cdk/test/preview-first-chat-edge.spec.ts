@@ -318,6 +318,21 @@ test('recovered native research controls admit their finite user routes only', (
     assert.equal(edge.Resources.ResearchPortfolioImportUploads.Properties.Priority, 76);
   }));
 
+test('provider callbacks and Microsoft notifications reach preview Core without new routes', () =>
+  render(false, (edge) => {
+    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map(
+      (r) => r.Properties,
+    );
+    for (const [method, pathname] of [
+      ['GET', '/api/engagement/integrations/microsoft/callback'],
+      ['GET', '/api/engagement/integrations/google/callback'],
+      ['POST', '/api/engagement/integrations/microsoft/notifications'],
+    ]) {
+      assert.deepEqual(routeDestination(rules, method!, pathname!), { Ref: 'CoreTarget' });
+      assert.equal(routeDestination(rules, method!, pathname!, 'app.capiro.ai'), null);
+    }
+  }));
+
 test('six internal file and owner-memory POST admissions stay finite and preview-only', () =>
   render(false, (edge) => {
     const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map((r) => r.Properties);
