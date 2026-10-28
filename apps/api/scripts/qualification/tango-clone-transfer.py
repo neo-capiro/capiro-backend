@@ -13,6 +13,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import time
 
 
 TABLES = (
@@ -36,6 +37,13 @@ PROTECTED = ("clients", "client_funding_opportunity", "sam_opportunity_match", "
 KINDS = {"grant": "federal_grant", "notice": "sam_opportunity", "attachment": "opportunity_attachment"}
 IMMUTABLE = {"id", "created_at", "first_seen_at", "first_synced_at", "notice_id"}
 ARCHIVE = {"status", "content_sha256", "archive_bucket", "archive_key", "archive_version_id", "observed_mime_type", "observed_size_bytes", "archived_at", "last_attempt_at", "failure_reason", "failure_detail"}
+# Fixed keyset batch bound for the embedding publication only. The public embedding candidate is the
+# largest set in the transfer and each row carries a vector, so one unbounded statement can outlive the
+# release window. Walking it by id (the candidate's own unique index) in fixed batches bounds the
+# duration of any single statement; it is a statement-duration bound, not a throughput claim.
+VECTOR_BATCH = 20000
+VECTOR_PHASE = "vector_publication"
+VECTOR_FAILURE = "vector_publication_statement_failed"
 
 
 class Refusal(Exception):
@@ -459,7 +467,65 @@ def references(conn):
             check_zero(conn, f"SELECT count(*) FROM {prefix}_context_embeddings e LEFT JOIN {prefix}_{table} p ON p.id::text=split_part(e.source_id,':',1) WHERE e.source_type='funding_{kind}_chunk' AND (p.id IS NULL OR e.metadata_jsonb->>'sourceTable' IS DISTINCT FROM '{table}')", "orphan_or_wrong_vector_parent")
 
 
-def publish(conn, schemas):
+def progress(entry):
+    """Aggregate-only progress line: counts, phases and elapsed milliseconds. No ids, vectors,
+    content, customer values or secrets are ever placed in a progress or failure line."""
+    print(json.dumps(entry,sort_keys=True),file=sys.stderr,flush=True)
+
+
+def publish_vectors(conn, names, updates, report=None):
+    """Publish the embedding candidate in deterministic keyset batches inside the caller's transaction.
+
+    Every batch uses the same per-row ``ON CONFLICT(id) DO UPDATE ... WHERE t IS DISTINCT FROM EXCLUDED``
+    statement as the other tables, restricted to one id range, so no single statement spans the whole
+    candidate set. Batches walk the candidate by id using its unique index; nothing is committed here,
+    the caller's single final COMMIT still decides the whole publication.
+    """
+    notify = report or progress
+    candidate = scalar(conn,"SELECT count(*) FROM w_context_embeddings")
+    processed = changed = batches = 0
+    last = None
+    while True:
+        # The first batch has no lower bound: `id > NULL` matches nothing, which would silently
+        # publish an empty batch set. Later batches resume strictly above the previous batch's last id.
+        if last is None:
+            keys = [row[0] for row in conn.execute(
+                "SELECT id FROM w_context_embeddings ORDER BY id LIMIT %s",(VECTOR_BATCH,)).fetchall()]
+        else:
+            keys = [row[0] for row in conn.execute(
+                "SELECT id FROM w_context_embeddings WHERE id > %s ORDER BY id LIMIT %s",(last,VECTOR_BATCH)).fetchall()]
+        if not keys:
+            break
+        batches += 1
+        started = time.perf_counter()
+        try:
+            cursor = conn.execute(
+                f"INSERT INTO public.context_embeddings AS t ({names}) SELECT {names} FROM w_context_embeddings "
+                f"WHERE id BETWEEN %s AND %s ON CONFLICT(id) DO UPDATE SET {updates} WHERE t IS DISTINCT FROM EXCLUDED",
+                (keys[0],keys[-1]))
+            written = max(cursor.rowcount,0)
+        except Refusal:
+            raise
+        except Exception:
+            # Fixed, non-secret stage code: a database error may carry identifiers, parameters or bodies.
+            notify({"phase":VECTOR_PHASE,"stage":"statement","code":VECTOR_FAILURE,"batch":batches,
+                    "candidate":candidate,"processed":processed,"changed":changed,
+                    "elapsed_ms":int((time.perf_counter()-started)*1000)})
+            raise Refusal(VECTOR_FAILURE) from None
+        processed += len(keys)
+        changed += written
+        last = keys[-1]
+        notify({"phase":VECTOR_PHASE,"stage":"batch","batch":batches,"candidate":candidate,
+                "processed":len(keys),"changed":written,
+                "elapsed_ms":int((time.perf_counter()-started)*1000)})
+        if len(keys) < VECTOR_BATCH:
+            break
+    notify({"phase":VECTOR_PHASE,"stage":"complete","batch":batches,"candidate":candidate,
+            "processed":processed,"changed":changed})
+    return changed
+
+
+def publish(conn, schemas, report=None):
     # Keep every target ID. All writes occur after the complete candidate was validated.
     conn.execute("UPDATE tango_resource_snapshot t SET active=false,superseded_at=w.superseded_at FROM w_tango_resource_snapshot w WHERE t.id=w.id AND t.active AND NOT w.active")
     changes = {}
@@ -470,19 +536,14 @@ def publish(conn, schemas):
             conn.execute(f"DELETE FROM context_embeddings t WHERE {PUBLIC_VECTORS} AND NOT EXISTS(SELECT 1 FROM w_context_embeddings w WHERE w.id=t.id)")
         updates = ",".join(f"{ident(name)}=EXCLUDED.{ident(name)}" for name, _ in cols if name != "id")
         if table == "context_embeddings":
-            # Bounded publication, embedding table only. `SELECT ... WHERE true` hands the WHOLE candidate
-            # set (the public baseline is 744531 rows) to the modify-table path; every candidate row is then
-            # probed and compared against the target even when it is identical and no write results. The
-            # anti-join drops exactly those rows before the insert, so new and genuinely changed vectors
-            # still take the same ON CONFLICT path and the postcondition check below still proves agreement.
-            # No other table's publication SQL is changed.
-            cursor = conn.execute(
-                f"INSERT INTO public.{table} AS t ({names}) SELECT {names} FROM w_{table} w "
-                f"WHERE NOT EXISTS(SELECT 1 FROM public.{table} x WHERE x.id=w.id AND ROW(x.*) IS NOT DISTINCT FROM ROW(w.*)) "
-                f"ON CONFLICT(id) DO UPDATE SET {updates} WHERE t IS DISTINCT FROM EXCLUDED")
+            # Bounded keyset publication, embedding table only. The candidate can hold the whole public
+            # vector baseline, so this table is published in fixed id-range batches inside the caller's
+            # transaction, using the same per-row ON CONFLICT statement as the other tables. Every other
+            # publication statement here is unchanged, and the postcondition below is unchanged.
+            changes[table] = publish_vectors(conn,names,updates,report)
         else:
             cursor = conn.execute(f"INSERT INTO public.{table} AS t ({names}) SELECT {names} FROM w_{table} WHERE true ON CONFLICT(id) DO UPDATE SET {updates} WHERE t IS DISTINCT FROM EXCLUDED")
-        changes[table] = cursor.rowcount
+            changes[table] = cursor.rowcount
         check_zero(conn,f"SELECT count(*) FROM w_{table} w LEFT JOIN public.{table} t ON t.id=w.id WHERE ROW(t.*) IS DISTINCT FROM ROW(w.*)","published_candidate_mismatch")
     conn.execute("SET CONSTRAINTS ALL IMMEDIATE")
     return changes
