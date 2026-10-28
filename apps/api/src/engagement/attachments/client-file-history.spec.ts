@@ -124,6 +124,12 @@ function harness(rows: Row[]) {
     prospectScope: 'allowed' as 'allowed' | 'denied',
     /** Simulates a revocation that lands between the chain read and the release. */
     revokeAfterVisibilityChecks: null as number | null,
+    /**
+     * Simulates the durable row changing to a suppressed prospect lifecycle (a
+     * deletion starting) after the admission pass, before the release recheck.
+     */
+    lifecycleFlipAfterChecks: null as number | null,
+    lifecycleFlipStatus: 'delete_pending',
     visibilityChecks: 0,
   };
   const readiness = jest.fn((row: Row) =>
@@ -149,14 +155,31 @@ function harness(rows: Row[]) {
     }),
     engagementAttachment: {
       findFirst: jest.fn(async (args: any) => {
-        // The per-version current-access re-read is the only single-column select.
-        if (args.select && Object.keys(args.select).length === 1 && args.select.id) {
+        // The per-version current-access re-read is the only select that asks for the
+        // current visibility and lifecycle columns instead of a whole chain row.
+        if (
+          args.select?.id &&
+          args.select?.lifecycleStatus &&
+          args.select?.createdAt === undefined
+        ) {
           state.visibilityChecks += 1;
           if (
             state.revokeAfterVisibilityChecks !== null &&
             state.visibilityChecks > state.revokeAfterVisibilityChecks
           )
             return null;
+          const current = rows.find((row) => match(row, args.where));
+          if (!current) return null;
+          // Faithful projection of the requested columns, so a lifecycle change that
+          // lands after the admission pass really reaches the release-time recheck.
+          return {
+            id: current.id,
+            lifecycleStatus:
+              state.lifecycleFlipAfterChecks !== null &&
+              state.visibilityChecks > state.lifecycleFlipAfterChecks
+                ? state.lifecycleFlipStatus
+                : current.lifecycleStatus,
+          };
         }
         return rows.find((row) => match(row, args.where)) ?? null;
       }),
@@ -392,12 +415,19 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
     expect(denied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
   });
 
-  it('releases a prospect chain through the canonical prospect scope owner', async () => {
+  it('releases a prospect chain through the canonical prospect scope owner, superseded versions included', async () => {
     const rows = chain(3, () => ({ prospectId, clientId: null, source: 'manual' }));
     const allowed = harness(rows);
     const page = await allowed.service.listAttachmentHistory(ctx, { attachmentId: at(rows, 0).id });
     expect(page.versionCount).toBe(3);
     expect(page.versions.every((v) => v.source === 'manual')).toBe(true);
+    // Positive parity case: supersession alone never suppresses a prospect version —
+    // the superseded ones are released as metadata, only the last one is current.
+    expect(page.versions.map((v) => [v.versionIndex, v.isOriginal, v.isCurrent])).toEqual([
+      [1, true, false],
+      [2, false, false],
+      [3, false, true],
+    ]);
 
     const deniedHarness = harness(rows);
     deniedHarness.state.prospectScope = 'denied';
@@ -405,6 +435,76 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
       deniedHarness.service.listAttachmentHistory(ctx, { attachmentId: at(rows, 0).id }),
     );
     expect(denied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
+  });
+
+  it('suppresses prospect versions whose file is being deleted, exactly as the engagement list does', async () => {
+    // A superseded prospect member whose deletion started: the list hides such rows, so
+    // the whole history is withheld before any metadata, count or display name is built.
+    const pending = chain(3, () => ({ prospectId, clientId: null, source: 'manual' }));
+    at(pending, 1).lifecycleStatus = 'delete_pending';
+    const pendingHarness = harness(pending);
+    const denied = await refusal(() =>
+      pendingHarness.service.listAttachmentHistory(ctx, { attachmentId: at(pending, 2).id }),
+    );
+    expect(denied.status).toBe(404);
+    expect(denied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
+    expect(pendingHarness.readiness).not.toHaveBeenCalled();
+    expect(pendingHarness.tx.user.findMany).not.toHaveBeenCalled();
+    // Refused from ANY anchor, not only from the version that is being deleted.
+    const fromOriginal = await refusal(() =>
+      harness(pending).service.listAttachmentHistory(ctx, { attachmentId: at(pending, 0).id }),
+    );
+    expect(fromOriginal.status).toBe(404);
+    expect(fromOriginal.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
+
+    // The stranded case: a failed deletion that the retry sweep has not cleared yet.
+    const failed = chain(2, () => ({ prospectId, clientId: null, source: 'manual' }));
+    at(failed, 1).lifecycleStatus = 'delete_failed';
+    const failedDenied = await refusal(() =>
+      harness(failed).service.listAttachmentHistory(ctx, { attachmentId: at(failed, 0).id }),
+    );
+    expect(failedDenied.status).toBe(404);
+    expect(failedDenied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
+
+    // Suppression is exactly the canonical delete pair: another non-ready lifecycle is
+    // still released (disclosed as unusable), as the list does for a prospect version.
+    const quarantined = chain(2, () => ({ prospectId, clientId: null, source: 'manual' }));
+    at(quarantined, 0).lifecycleStatus = 'quarantined';
+    const quarantinedPage = await harness(quarantined).service.listAttachmentHistory(ctx, {
+      attachmentId: at(quarantined, 1).id,
+    });
+    expect(quarantinedPage.versions[0]).toMatchObject({
+      isCurrent: false,
+      usable: false,
+      blockedReason: 'ATTACHMENT_NOT_READY',
+    });
+
+    // Client-file rows keep the list's behaviour (delete_pending is disclosed, never
+    // hidden): this correction is prospect-scoped, not a blanket lifecycle filter.
+    const clientRows = chain(2);
+    at(clientRows, 0).lifecycleStatus = 'delete_pending';
+    const clientPage = await harness(clientRows).service.listAttachmentHistory(ctx, {
+      attachmentId: at(clientRows, 1).id,
+    });
+    expect(clientPage.versions.map((v) => [v.attachmentId, v.usable, v.blockedReason])).toEqual([
+      [at(clientRows, 0).id, false, 'ATTACHMENT_NOT_READY'],
+      [at(clientRows, 1).id, true, undefined],
+    ]);
+  });
+
+  it('refuses a prospect deletion that starts between the chain read and the release', async () => {
+    const rows = chain(3, () => ({ prospectId, clientId: null, source: 'manual' }));
+    const h = harness(rows);
+    // Every member passes the admission pass; the release recheck re-reads the row and
+    // then sees the file entering deletion, so nothing from that page is released.
+    h.state.lifecycleFlipAfterChecks = 3;
+    const denied = await refusal(() =>
+      h.service.listAttachmentHistory(ctx, { attachmentId: at(rows, 0).id, pageSize: 3 }),
+    );
+    expect(denied.status).toBe(404);
+    expect(denied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
+    expect(h.readiness).not.toHaveBeenCalled();
+    expect(h.tx.user.findMany).not.toHaveBeenCalled();
   });
 
   it('refuses a revocation that lands between the chain read and the release', async () => {

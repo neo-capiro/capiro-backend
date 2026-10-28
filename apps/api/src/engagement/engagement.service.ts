@@ -8139,6 +8139,19 @@ export class EngagementService {
    * that is no longer the current version: that predicate answers "may I use this
    * file now", which a historical version can never satisfy, and it is not a
    * statement about whether the actor may see that the version existed.
+   *
+   * That predicate carried a SECOND condition history must not drop: its read mode
+   * also refuses `lifecycleStatus` delete_pending/delete_failed, and the engagement
+   * list never releases the name, size or digest of a prospect file that is being
+   * deleted — or whose deletion failed and is still awaiting the retry sweep — as
+   * "a removed private context must not leak its title or signed bytes". Dropping
+   * that condition would publish exactly those rows through history. Suppression is
+   * therefore applied here with list parity, and it is decided from the row AS
+   * RE-READ, not from the chain snapshot, so it holds on both passes: a deletion
+   * that starts between the reconstruction and the release is refused by the same
+   * release-time recheck that already re-derives current access. Client-file rows
+   * are deliberately unaffected, exactly as in the list, whose prospect branch is
+   * the only one that conflates suppression with visibility.
    */
   private async authorizeAttachmentVersion(
     ctx: TenantContext,
@@ -8147,11 +8160,22 @@ export class EngagementService {
     const visible = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.engagementAttachment.findFirst({
         where: { id: row.id, tenantId: ctx.tenantId, OR: attachmentViewerWhere(ctx.userId) },
-        select: { id: true },
+        select: { id: true, lifecycleStatus: true },
       }),
     );
     if (!visible) throw new NotFoundException('Attachment not found');
     if (row.prospectId) {
+      // Canonical prospect read-mode suppression (delete_pending / delete_failed),
+      // kept for the same reason the list keeps it: the actor holds current access to
+      // the row, but a removed private context must not surface through history. The
+      // history release path turns any refusal here into CLIENT_FILE_HISTORY_UNAVAILABLE,
+      // so the whole chain is withheld rather than partially released.
+      if (
+        visible.lifecycleStatus === 'delete_pending' ||
+        visible.lifecycleStatus === 'delete_failed'
+      ) {
+        throw new NotFoundException('Prospect resource not found');
+      }
       await this.prisma.withTenant(ctx.tenantId, (tx) =>
         requireProspectScope(tx, ctx, row.prospectId as string),
       );
