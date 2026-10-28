@@ -398,11 +398,12 @@ export class MemoryController {
   async createGrant(
     @CurrentTenant() ctx: TenantContext,
     @Param('clientId') clientId: string,
-    @Body() body: { userId?: string; permissions?: unknown; reason?: string; expiresAt?: string },
+    @Body() body: { id?: string; userId?: string; permissions?: unknown; reason?: string; expiresAt?: string },
   ) {
     this.requireGovernanceArmed();
     if (!body?.userId) throw new BadRequestException('userId is required.');
     const result = await this.grants.grant(ctx, clientId, {
+      ...(body.id !== undefined ? { id: body.id } : {}),
       userId: body.userId,
       permissions: body.permissions,
       reason: body.reason ?? null,
