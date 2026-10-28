@@ -30,48 +30,58 @@ export class MemoryGovernanceService {
     return this.reads.overview(ctx);
   }
 
-  listItems(ctx: TenantContext, bucket: MemoryGovernanceBucket, limit?: number, query?: string) {
-    return this.reads.listItems(ctx, bucket, limit, query);
+  listItems(
+    ctx: TenantContext,
+    bucket: MemoryGovernanceBucket,
+    limit?: number,
+    query?: string,
+    cursor?: string,
+  ) {
+    return this.reads.listItems(ctx, bucket, limit, query, cursor);
   }
 
   getItem(ctx: TenantContext, itemId: string) {
     return this.reads.getItem(ctx, itemId);
   }
 
-  listTransitions(ctx: TenantContext, limit?: number) {
-    return this.reads.listTransitions(ctx, limit);
+  listTransitions(ctx: TenantContext, limit?: number, cursor?: string) {
+    return this.reads.listTransitions(ctx, limit, cursor);
   }
 
   projectionHealth(ctx: TenantContext) {
     return this.reads.projectionHealth(ctx);
   }
 
+  getProjectionJob(ctx: TenantContext, jobId: string) {
+    return this.actions.getProjectionJob(ctx, jobId);
+  }
+
   listClients(ctx: TenantContext) {
     return this.reads.listClients(ctx);
   }
 
-  approve(ctx: TenantContext, itemId: string, reason: string) {
-    return this.actions.approve(ctx, itemId, reason);
+  approve(ctx: TenantContext, itemId: string, reason: string, expectedVersion: string) {
+    return this.actions.approve(ctx, itemId, reason, expectedVersion);
   }
 
-  confirm(ctx: TenantContext, itemId: string) {
-    return this.actions.confirm(ctx, itemId);
+  confirm(ctx: TenantContext, itemId: string, expectedVersion: string) {
+    return this.actions.confirm(ctx, itemId, expectedVersion);
   }
 
-  markStale(ctx: TenantContext, itemId: string, reason: string) {
-    return this.actions.markStale(ctx, itemId, reason);
+  markStale(ctx: TenantContext, itemId: string, reason: string, expectedVersion: string) {
+    return this.actions.markStale(ctx, itemId, reason, expectedVersion);
   }
 
-  revoke(ctx: TenantContext, itemId: string, reason: string) {
-    return this.actions.revoke(ctx, itemId, reason);
+  revoke(ctx: TenantContext, itemId: string, reason: string, expectedVersion: string) {
+    return this.actions.revoke(ctx, itemId, reason, expectedVersion);
   }
 
-  secondApprove(ctx: TenantContext, itemId: string) {
-    return this.actions.secondApprove(ctx, itemId);
+  secondApprove(ctx: TenantContext, itemId: string, expectedVersion: string) {
+    return this.actions.secondApprove(ctx, itemId, expectedVersion);
   }
 
-  retryProjection(ctx: TenantContext, jobId: string) {
-    return this.actions.retryProjection(ctx, jobId);
+  retryProjection(ctx: TenantContext, jobId: string, expectedVersion: string) {
+    return this.actions.retryProjection(ctx, jobId, expectedVersion);
   }
 }
 
