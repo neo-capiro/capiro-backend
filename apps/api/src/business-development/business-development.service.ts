@@ -22,7 +22,15 @@ import {
   withNewClientRefusal,
 } from './prospect-conversion-receipts.js';
 import { parseProspectConversion } from './prospect-conversion.types.js';
-import { isPortfolioProspectStage, LEGACY_PROSPECT_STAGES } from './prospect-stages.js';
+import {
+  isPortfolioProspectStage,
+  LEGACY_PROSPECT_STAGES,
+  prospectStageCatalog,
+} from './prospect-stages.js';
+
+/** Creation stage comes from the catalog so the default cannot drift from
+ * the stage vocabulary the portfolio UI publishes. */
+const DEFAULT_PROSPECT_STAGE = prospectStageCatalog().createStage;
 
 /**
  * Transaction-scoped advisory lock keyed by (tenant, canonical entity) —
@@ -407,7 +415,7 @@ export class BusinessDevelopmentService {
             tenantId: ctx.tenantId,
             canonicalEntityId: input.canonicalEntityId,
             displayName,
-            stage: input.stage ?? 'researching',
+            stage: input.stage ?? DEFAULT_PROSPECT_STAGE,
             domain: input.domain ?? null,
             website: input.website ?? null,
             description: input.description ?? null,
@@ -447,7 +455,7 @@ export class BusinessDevelopmentService {
           serviceHypothesis: input.serviceHypothesis ?? null,
           geography: input.geography ?? null,
           ownerUserId: input.ownerUserId ?? ctx.userId,
-          stage: input.stage ?? 'researching',
+          stage: input.stage ?? DEFAULT_PROSPECT_STAGE,
           createdByUserId: ctx.userId,
         },
         select: prospectSelect,
@@ -462,7 +470,7 @@ export class BusinessDevelopmentService {
         {
           displayName,
           unresolved: true,
-          stage: input.stage ?? 'researching',
+          stage: input.stage ?? DEFAULT_PROSPECT_STAGE,
         },
       );
       return created;
