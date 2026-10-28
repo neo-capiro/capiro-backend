@@ -67,6 +67,7 @@ import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
 import { MeriProcedureRuntimeValidationService } from './meri-procedure-runtime-validation.service.js';
 import type { MeriSelectedProcedureSelector } from './native-procedures/selected-procedure.js';
+import { projectProcedureCatalog } from './native-procedures/procedure-catalog.js';
 import { MeriApprovalService } from './meri-approval.service.js';
 import { MeriComplianceAuditService } from './meri-compliance-audit.service.js';
 import { MeriClaimWriterService } from './meri-claim-writer.js';
@@ -1030,6 +1031,26 @@ export class MeriController {
     await this.mcpOAuth.disconnect(ctx, id);
     this.mcp.invalidate(ctx.tenantId);
     return { disconnected: true };
+  }
+
+  // ── Procedure catalog (Wave5 MO01/ST16) — standard-user browse ──
+
+  /**
+   * Read-only catalog of the procedures the current user may CHOOSE: the six
+   * canonical builtins plus the eligible enabled firm procedures of the current
+   * tenant. Standard users may browse; the governance mutations below stay
+   * user_admin. This grants no execution authority — the native resolver still
+   * decides every invocation — and it exposes no instructions, tools or
+   * authority, only the exact selector plus display metadata.
+   */
+  @Get('procedure-catalog')
+  @Roles('standard_user')
+  async procedureCatalog(@CurrentTenant() ctx: TenantContext) {
+    return projectProcedureCatalog({
+      tenantId: ctx.tenantId,
+      firmRows: await this.firmSkills.list(ctx),
+      now: Date.now(),
+    });
   }
 
   // ── Firm-authored skills (F6b) — admin-gated authoring ──
