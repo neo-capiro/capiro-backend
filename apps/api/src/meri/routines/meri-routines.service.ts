@@ -19,6 +19,13 @@ import { parseRetainedReadContext, assertRetainedReadSelectors, readRetainedRead
 import { withMeriToolRequestControl, withMeriToolExecutionControl, meriToolRequestControl, assertMeriToolRequestActive } from '../meri-tool-request-control.js';
 import { readRoutineSubject, routineReadRequest, type RoutineReadSelection } from './meri-routine-read-authority.js';
 import { parseRoutineConsentObservationRequest, readRoutineConsentObservation, type RoutineConsentObservation } from './meri-routine-consent-observation.js';
+import {
+  assertRoutineConsentRenewal,
+  parseRoutineConsentRenewalRequest,
+  readRoutineConsentDecision,
+  readRoutineConsentRenewalWindow,
+  type RoutineConsentRenewalPins,
+} from './meri-routine-consent-renewal.js';
 import { isUuid } from '../../auth/read-delegation/read-delegation.contract.js';
 import { ApplicationMembershipService } from '../../auth/application-membership.service.js';
 import type { CoreEd25519Signer } from '../../auth/core-ed25519-signer.js';
@@ -165,6 +172,71 @@ export class MeriRoutinesService {
   }
 
   /**
+   * MR-04 renewal (W5-02 MR-04): a NEW explicit attended approval of the routine's
+   * CURRENT unchanged approved intent re-issues the owner's saved consent. The
+   * caller (the trusted control service, under the verified service identity and
+   * the current signed-in tenant context) supplies the immutable intent bytes it
+   * holds in custody plus the fresh approval; nothing is reconstructed from
+   * digests. The intent, approval, projection digests, complete scope set and
+   * limits are decided by `routineConsentEvent`, and the write goes through the
+   * SAME `writeConsentEvent` the attended `before_claim` uses (same schedule
+   * lock, database clock, 30-day window and unique-decision idempotency), so an
+   * exact replay keeps the first row and extends nothing. Before any mutation the
+   * stored canonical consent must still pin exactly this intent, generation,
+   * projection, policy revision, complete scope set and limits, must not be
+   * revoked, and the owner must still hold an active membership and every
+   * original client scope. It signs no firing grant, issues no first consent,
+   * resumes no paused/deleted routine and widens nothing.
+   */
+  async consentRenew(req: Request, ctx: TenantContext, raw: unknown) {
+    if (!hasVerifiedToolServiceIdentity(req)) throw forbidden();
+    const renewal = parseRoutineConsentRenewalRequest(raw);
+    let limits: RoutineLimits | null;
+    try {
+      limits = readRoutinePolicyLimits(process.env);
+    } catch {
+      throw new ServiceUnavailableException('Routine limits are misconfigured');
+    }
+    // The current configured maxima stay the ceiling: a renewal cannot raise them.
+    if (!limits) throw new ServiceUnavailableException('Routine limits are not configured');
+    const membership = await this.currentMembership(req, ctx);
+    const principal = { tenantId: ctx.tenantId, actorId: ctx.userId };
+    if (membership.tenantId !== principal.tenantId || membership.actorId !== principal.actorId) throw forbidden();
+    // The scopes are the intent projection's own raw array, not an already-parsed
+    // copy: `routineConsentEvent` (the canonical owner) parses them and refuses
+    // unless they match the intent exactly, and the stored consent is the second
+    // anchor. Nothing here trusts the caller's reading of them.
+    const eventInput = { selection: renewal.selection, principal, scopes: renewal.projectionScopes as unknown as readonly NativeScope[], limits };
+    const event = routineConsentEvent({ ...eventInput, nowMs: Date.now() });
+    // A paused/deleted projection is a revocation, never a renewal.
+    if (!event || event.kind !== 'consent') throw forbidden();
+    const c = event.consent;
+    // The owner's validated reading of the caller's own bytes must agree with what
+    // this request read closed from them, and the routine must be the same one.
+    if (c.scheduleId !== renewal.scheduleId || c.intentId !== renewal.intentId || c.generation !== renewal.generation ||
+        c.intentSha256 !== renewal.intentSha256 || c.projectionSha256 !== renewal.projectionSha256) throw forbidden();
+    const pins: RoutineConsentRenewalPins = {
+      tenantId: principal.tenantId, ownerActorId: principal.actorId, scheduleId: c.scheduleId, intentId: c.intentId,
+      generation: c.generation, intentSha256: c.intentSha256, projectionSha256: c.projectionSha256,
+      policyRevision: c.policyRevision, scopes: c.scopes, limits: c.limits,
+    };
+    const [facts, window, idempotent] = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const stored = await assertRoutineConsentRenewal(tx, pins);
+      const replay = await readRoutineConsentDecision(tx, ctx.tenantId, c.intentId, c.decisionSha256);
+      await this.writeConsentEvent(tx, ctx, event, eventInput, renewal.approvalExpiresAtMs);
+      return [stored, await readRoutineConsentRenewalWindow(tx, pins, c.decisionSha256), replay] as const;
+    });
+    // The window that this exact approval now holds is read back from the stored
+    // row: an exact replay keeps the first row's timestamps, so repeating an
+    // approval never extends the consent.
+    return {
+      schemaVersion: 1 as const, state: window.expiresAtMs > facts.observedAtMs ? 'active' as const : 'expired' as const,
+      generation: c.generation, policyRevision: c.policyRevision, issuedAtMs: window.issuedAtMs, expiresAtMs: window.expiresAtMs,
+      observedAtMs: facts.observedAtMs, idempotent,
+    };
+  }
+
+  /**
    * The owner's signed-in consent (≤ 30 days; a new signed-in approval renews
    * it as a new row) or an attended pause/delete revocation. Idempotent: a
    * repeated `before_claim` for the same approval keeps the first row.
@@ -175,33 +247,48 @@ export class MeriRoutinesService {
     eventInput: Omit<Parameters<typeof routineConsentEvent>[0], 'nowMs'>,
     receiptExpiresAtMs: number,
   ) {
-    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await lockRoutineSchedule(tx, ctx.tenantId, event.kind === 'consent' ? event.consent.scheduleId : event.scheduleId);
-      // The grant path reads consent and revocation under this same schedule lock
-      // using the database clock. Recheck the attended approval at that instant,
-      // then order and expire its durable event on the same clock.
-      const nowMs = await meriExecutionDbNow(tx);
-      if (nowMs >= receiptExpiresAtMs) throw forbidden();
-      const currentEvent = routineConsentEvent({ ...eventInput, nowMs });
-      if (!currentEvent || nativeCanonicalSha256(currentEvent) !== nativeCanonicalSha256(event)) throw forbidden();
-      if (event.kind === 'revoke') {
-        await tx.clioMeriRoutineConsentRevocation.createMany({
-          data: [{ tenantId: ctx.tenantId, intentId: event.intentId, scheduleId: event.scheduleId, revokedByUserId: ctx.userId,
-            reason: event.reason, revokedAt: new Date(nowMs) }],
-          skipDuplicates: true,
-        });
-        return;
-      }
-      const c = event.consent;
-      await tx.clioMeriRoutineConsent.createMany({
-        data: [{
-          consentId: randomUUID(), tenantId: ctx.tenantId, ownerUserId: ctx.userId, scheduleId: c.scheduleId, intentId: c.intentId,
-          generation: c.generation, intentSha256: c.intentSha256, projectionSha256: c.projectionSha256, decisionSha256: c.decisionSha256,
-          scopes: c.scopes as unknown as Prisma.InputJsonArray, limits: { ...c.limits }, policyRevision: c.policyRevision,
-          issuedAt: new Date(nowMs), expiresAt: new Date(nowMs + ROUTINE_CONSENT_MAX_SECONDS * 1000),
-        }],
+    await this.prisma.withTenant(ctx.tenantId, (tx) => this.writeConsentEvent(tx, ctx, event, eventInput, receiptExpiresAtMs));
+  }
+
+  /**
+   * The transaction-local canonical consent/revocation writer, shared by the
+   * attended `before_claim` path and the renewal. The renewal calls it inside
+   * its own transaction, after the same schedule lock is already held, so the
+   * pinned-consent check and the write are one atomic unit (an advisory
+   * transaction lock is re-entrant, so this never nests a lock or deadlocks).
+   */
+  private async writeConsentEvent(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    event: NonNullable<ReturnType<typeof routineConsentEvent>>,
+    eventInput: Omit<Parameters<typeof routineConsentEvent>[0], 'nowMs'>,
+    receiptExpiresAtMs: number,
+  ) {
+    await lockRoutineSchedule(tx, ctx.tenantId, event.kind === 'consent' ? event.consent.scheduleId : event.scheduleId);
+    // The grant path reads consent and revocation under this same schedule lock
+    // using the database clock. Recheck the attended approval at that instant,
+    // then order and expire its durable event on the same clock.
+    const nowMs = await meriExecutionDbNow(tx);
+    if (nowMs >= receiptExpiresAtMs) throw forbidden();
+    const currentEvent = routineConsentEvent({ ...eventInput, nowMs });
+    if (!currentEvent || nativeCanonicalSha256(currentEvent) !== nativeCanonicalSha256(event)) throw forbidden();
+    if (event.kind === 'revoke') {
+      await tx.clioMeriRoutineConsentRevocation.createMany({
+        data: [{ tenantId: ctx.tenantId, intentId: event.intentId, scheduleId: event.scheduleId, revokedByUserId: ctx.userId,
+          reason: event.reason, revokedAt: new Date(nowMs) }],
         skipDuplicates: true,
       });
+      return;
+    }
+    const c = event.consent;
+    await tx.clioMeriRoutineConsent.createMany({
+      data: [{
+        consentId: randomUUID(), tenantId: ctx.tenantId, ownerUserId: ctx.userId, scheduleId: c.scheduleId, intentId: c.intentId,
+        generation: c.generation, intentSha256: c.intentSha256, projectionSha256: c.projectionSha256, decisionSha256: c.decisionSha256,
+        scopes: c.scopes as unknown as Prisma.InputJsonArray, limits: { ...c.limits }, policyRevision: c.policyRevision,
+        issuedAt: new Date(nowMs), expiresAt: new Date(nowMs + ROUTINE_CONSENT_MAX_SECONDS * 1000),
+      }],
+      skipDuplicates: true,
     });
   }
 

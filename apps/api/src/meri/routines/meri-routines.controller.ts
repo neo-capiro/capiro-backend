@@ -45,6 +45,13 @@ export class MeriRoutinesController {
     return this.routines.policyCheck(req, ctx, body);
   }
 
+  @Post('consent/renew')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  consentRenew(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
+    return this.routines.consentRenew(req, ctx, body);
+  }
+
   @Post('cancellation-proof')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
