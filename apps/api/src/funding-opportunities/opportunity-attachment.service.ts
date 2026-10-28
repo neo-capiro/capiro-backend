@@ -109,6 +109,7 @@ export const ALLOWED_MIME_TYPES: ReadonlySet<string> = new Set([
   'application/x-zip-compressed',
   'text/plain',
   'text/csv',
+  'application/rtf',
   'image/png',
   'image/jpeg',
   'image/tiff',
@@ -155,7 +156,9 @@ export const DEFAULT_ATTACHMENT_POLICY: AttachmentPolicy = Object.freeze({
   // public host", which is a materially weaker posture — an agency that links
   // a document on a third-party site is a case for a reviewed addition here,
   // not for opening the fetch to the internet.
-  allowedHosts: new Set(['sam.gov', 'www.sam.gov', 'api.sam.gov', 'tango.makegov.com']),
+  // Exact SAM file redirect bucket observed in the dev archive canary; this
+  // deliberately does not permit arbitrary S3 buckets.
+  allowedHosts: new Set(['sam.gov', 'www.sam.gov', 'api.sam.gov', 'iae-fbo-attachments.s3.amazonaws.com', 'tango.makegov.com', 'tango.dev', 'www.grants.gov', 'api.grants.gov', 'apply07.grants.gov', 'sws.gsa.gov']),
 });
 
 // ── URL safety ───────────────────────────────────────────────────────────────
@@ -272,6 +275,9 @@ export function checkAttachmentUrl(raw: string, policy: AttachmentPolicy): UrlCh
       detail: `Refusing an attachment URL on an unreviewed host (${url.hostname}).`,
     };
   }
+  if (url.hostname === 'sws.gsa.gov' && (url.pathname !== '/sws-search/viewSolDocument.do' || (url.port && url.port !== '443'))) {
+    return { ok: false, refusal: 'host_not_allowed', detail: 'Only the reviewed GSA solicitation document endpoint is allowed.' };
+  }
 
   return OK;
 }
@@ -282,7 +288,55 @@ export function checkAttachmentUrl(raw: string, policy: AttachmentPolicy): UrlCh
 export function normalizeMime(value: string | null | undefined): string | null {
   if (value == null) return null;
   const base = value.split(';')[0]!.trim().toLowerCase();
+  // Tango's attachment catalog sometimes sends an extension in mime_type.
+  // Translate only known document formats; unknown values still fail closed.
+  const extensions: Record<string, string> = {
+    '.pdf': 'application/pdf', '.doc': 'application/msword',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.xls': 'application/vnd.ms-excel',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.ppt': 'application/vnd.ms-powerpoint',
+    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    '.zip': 'application/zip', '.txt': 'text/plain', '.csv': 'text/csv',
+    '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+    '.tif': 'image/tiff', '.tiff': 'image/tiff',
+    '.rtf': 'application/rtf',
+  };
+  if (extensions[base]) return extensions[base];
+  if (base === 'text/rtf') return 'application/rtf';
+  if (base === 'binary/octet-stream') return 'application/octet-stream';
   return base === '' ? null : base;
+}
+
+/** SAM sometimes serves documents as generic binary. Only recognize known
+ * signatures, and retain the declared Office subtype when its container agrees.
+ * Files remain downloads; this does not execute or unpack their contents. */
+export function observedAttachmentMime(contentType: string | null, declaredType: string | null, bytes: Uint8Array): string | null {
+  const observed = normalizeMime(contentType), declared = normalizeMime(declaredType);
+  if (observed !== 'application/octet-stream') return observed;
+  const starts = (...signature: number[]) => signature.every((byte, index) => bytes[index] === byte);
+  if (bytes.length >= 8 && starts(37,80,68,70,45) && bytes[5]! >= 48 && bytes[5]! <= 57 && bytes[6] === 46 && bytes[7]! >= 48 && bytes[7]! <= 57) return 'application/pdf';
+  if (starts(137,80,78,71,13,10,26,10)) return 'image/png';
+  if (starts(255,216,255)) return 'image/jpeg';
+  if (starts(73,73,42,0) || starts(77,77,0,42)) return 'image/tiff';
+  if (starts(123,92,114,116,102) && bytes[5]! >= 48 && bytes[5]! <= 57) return 'application/rtf';
+  if (starts(208,207,17,224,161,177,26,225) && declared &&
+      ['application/msword','application/vnd.ms-excel','application/vnd.ms-powerpoint'].includes(declared)) return declared;
+  if (starts(80,75,3,4) || starts(80,75,5,6)) {
+    if (declared?.startsWith('application/vnd.openxmlformats-officedocument.') && ALLOWED_MIME_TYPES.has(declared)) return declared;
+    return declared === 'application/x-zip-compressed' ? declared : 'application/zip';
+  }
+  // SAM also serves declared TXT/CSV documents as binary. Validate the full
+  // body, not a prefix: malformed UTF-8, binary controls and HTML must not be
+  // relabeled as plain text just because the catalog supplied an extension.
+  if (declared === 'text/plain' || declared === 'text/csv') {
+    try {
+      const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+      if (!/[\u0000-\u0008\u000b\u000e-\u001f\u007f-\u009f]/.test(text) &&
+          !/<(?:!doctype\s+html|\/?(?:html|head|body|script|iframe|svg)\b)/i.test(text)) return declared;
+    } catch { /* Unknown binary stays refused. */ }
+  }
+  return observed;
 }
 
 /**
@@ -298,7 +352,10 @@ export function checkAttachmentContent(
   declaredMime: string | null,
   observedMime: string | null,
 ): UrlCheck {
-  const declared = normalizeMime(declaredMime);
+  const normalizedDeclared = normalizeMime(declaredMime);
+  // A generic declaration carries no format claim. The fetched response must
+  // still resolve to an allowed type; unknown binary remains refused.
+  const declared = normalizedDeclared === 'application/octet-stream' ? null : normalizedDeclared;
   const observed = normalizeMime(observedMime);
 
   if (observed != null && !ALLOWED_MIME_TYPES.has(observed)) {
@@ -443,6 +500,25 @@ export interface AttachmentCandidate {
   fileName: string | null;
   declaredMimeType: string | null;
   declaredSizeBytes: number | null;
+  /** Metadata version selected before the download; checked on publication. */
+  sourceVersion?: string;
+}
+
+/** GSA SWS sends document roles in Tango's MIME field. Keep that raw field;
+ * use the filename format only on the verified public download endpoint.
+ * The fetched MIME and binary signature must still pass the normal checks. */
+function hasGsaDocumentRole(candidate: AttachmentCandidate): boolean {
+  const declared = normalizeMime(candidate.declaredMimeType);
+  const url = new URL(candidate.sourceUrl);
+  return url.hostname === 'sws.gsa.gov' && url.pathname === '/sws-search/viewSolDocument.do' &&
+    ['solicitation','category attachment','sf30 attachment','regulations incorporated by reference','exhibit','other','vendor response document'].includes(declared ?? '');
+}
+
+function declaredAttachmentMime(candidate: AttachmentCandidate): string | null {
+  if (hasGsaDocumentRole(candidate)) {
+    return normalizeMime(candidate.fileName?.match(/\.[a-z0-9]+$/i)?.[0]);
+  }
+  return normalizeMime(candidate.declaredMimeType);
 }
 
 export type ArchiveOutcome =
@@ -501,8 +577,8 @@ export async function fetchAndArchiveAttachment(
     };
   }
 
-  const declaredMime = normalizeMime(candidate.declaredMimeType);
-  if (declaredMime != null && !ALLOWED_MIME_TYPES.has(declaredMime)) {
+  const declaredMime = declaredAttachmentMime(candidate);
+  if (declaredMime != null && declaredMime !== 'application/octet-stream' && !ALLOWED_MIME_TYPES.has(declaredMime)) {
     return {
       status: 'refused',
       failureReason: 'declared_mime_not_allowed',
@@ -551,8 +627,13 @@ export async function fetchAndArchiveAttachment(
   }
 
   // ── 4. What actually arrived.
-  const observedMime = normalizeMime(response.contentType);
-  const contentCheck = checkAttachmentContent(candidate.declaredMimeType, response.contentType);
+  const observedMime = observedAttachmentMime(response.contentType, declaredMime, response.body);
+  // One verified GSA vendor-response document uses a .doc filename for RTF
+  // bytes. Its provider field is a role, not a conflicting MIME declaration.
+  // Keep ordinary MIME mismatches strict, including on other GSA formats.
+  const checkedDeclaration = hasGsaDocumentRole(candidate) && declaredMime === 'application/msword' && observedMime === 'application/rtf'
+    ? observedMime : declaredMime;
+  const contentCheck = checkAttachmentContent(checkedDeclaration, observedMime);
   if (!contentCheck.ok) {
     return {
       status: 'refused',

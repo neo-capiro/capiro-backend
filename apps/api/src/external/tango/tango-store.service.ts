@@ -71,8 +71,14 @@ export class TangoSecretDetectedError extends BadRequestException {
 }
 
 const SECRET_KEY_NAME = /api[-_]?key|apikey|authorization|token|secret|password|bearer/i;
-/** Mirrors the shape-detection half of tango.errors.ts's redaction patterns. */
-const SECRET_VALUE_SHAPE = /(?:^|[^0-9a-z])(?:sk|pk|api)[-_][a-z]+[-_][A-Za-z0-9]{16,}|bearer\s+\S{16,}/i;
+/** Bearer credentials use the RFC 6750 token alphabet. Arbitrary non-space
+ * prose (for example "Bearer (Customer/Carrier)") is not a credential.
+ * Error redaction remains deliberately broader than this rejection check. */
+const SECRET_VALUE_SHAPE = /(?:^|[^0-9a-z])(?:sk|pk|api)[-_][a-z]+[-_][A-Za-z0-9]{16,}|\bbearer\s+[A-Za-z0-9._~+/=-]{16,}/i;
+// Verified public DLA performance-work-statement terminology for physical
+// collection, not HTTP authorization. Only this complete pickup phrase is
+// exempt from value-shape checking; the stored source text is unchanged.
+const BEARER_PICKUP_PROSE = /\bBearer Walkthrough\/customer(?= pick up date\b)/gi;
 
 /**
  * Throws if anything in `value` looks like a credential — by KEY NAME or by
@@ -89,7 +95,7 @@ const SECRET_VALUE_SHAPE = /(?:^|[^0-9a-z])(?:sk|pk|api)[-_][a-z]+[-_][A-Za-z0-9
 export function assertNoSecretsIn(value: unknown, path = '$', depth = 0): void {
   if (depth > 8) return; // matches redactUnknown's bound; deeper than any real payload
   if (typeof value === 'string') {
-    if (SECRET_VALUE_SHAPE.test(value)) throw new TangoSecretDetectedError(path);
+    if (SECRET_VALUE_SHAPE.test(value.replace(BEARER_PICKUP_PROSE, 'physical customer collection'))) throw new TangoSecretDetectedError(path);
     return;
   }
   if (Array.isArray(value)) {

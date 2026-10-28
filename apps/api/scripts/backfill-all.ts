@@ -56,7 +56,7 @@ const STEPS: Step[] = [
   { id: 'sync-openstates', script: 'sync-openstates', phase: 'sources' },
   { id: 'sync-fara', script: 'sync-fara', phase: 'sources' },
   { id: 'sync-sec-edgar', script: 'sync-sec-edgar', phase: 'sources' },
-  { id: 'sync-grants', script: 'sync-grants', phase: 'sources' },
+  { id: 'sync-tango-funding', script: 'sync-tango-funding', args: ['--commit'], phase: 'sources' },
   { id: 'sync-openspending', script: 'sync-openspending', phase: 'sources' },
   { id: 'sync-bea', script: 'sync-bea', phase: 'sources' },
   { id: 'sync-bls', script: 'sync-bls', phase: 'sources' },

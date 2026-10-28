@@ -312,6 +312,22 @@ describe('a secret-shaped value is REFUSED, not redacted-and-continued', () => {
     expect(() => assertNoSecretsIn(ENTITY.normalized)).not.toThrow();
   });
 
+  test('logistics prose containing bearer is not an authorization credential', () => {
+    for (const phrase of ['Bearer (Customer/Carrier) pick up date', 'Bearer Walkthrough/customer pick up date']) {
+      expect(() => assertNoSecretsIn({ attachments: [{ extracted_text:
+        `Manifest signature in the DLA WMS or ${phrase}.` }] })).not.toThrow();
+    }
+  });
+
+  test('bearer credentials remain refused in document text, including token punctuation and padding', () => {
+    for (const token of ['abcdefghijklmnop', 'eyJhbGciOiJIUzI1NiJ9.payload.signature', 'abCD0123-._~+/==']) {
+      expect(() => assertNoSecretsIn({ attachments: [{ extracted_text:
+        `Bearer Walkthrough/customer pick up date. Authorization: Bearer ${token}` }] }))
+        .toThrow(TangoSecretDetectedError);
+    }
+    expect(() => assertNoSecretsIn({ note: 'Authorization: Bearer Walkthrough/customer' })).toThrow(TangoSecretDetectedError);
+  });
+
   test('writeSnapshot refuses to write a payload containing a secret-shaped value', async () => {
     const { service: svc } = service();
     await expect(

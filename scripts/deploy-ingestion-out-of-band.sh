@@ -163,6 +163,9 @@ JSON
 
   # Schedule definitions: "name|cron|cmd". Mirrors infra/cdk/lib/ingestion-schedule.ts.
   # AWS Scheduler cron: cron(min hr day-of-month month day-of-week year), one '?' required.
+  # Funding catalogs use the dedicated worker and EventBridge Rules installed by
+  # apps/api/scripts/funding-worker/install-dev-schedules.py; do not recreate a
+  # second grant writer here. See docs/runbooks/tango-funding-dev.md.
   local SCHEDULES=(
     # daily sources
     "sync-congress|cron(0 6 * * ? *)|sync-congress"
@@ -180,7 +183,6 @@ JSON
     "sync-fara|cron(0 6 ? * MON *)|sync-fara"
     "sync-gao|cron(30 6 ? * MON *)|sync-gao"
     "sync-crs|cron(0 7 ? * MON *)|sync-crs"
-    "sync-grants|cron(30 7 ? * MON *)|sync-grants"
     "sync-openstates|cron(0 8 ? * MON *)|sync-openstates"
     "sync-sec-edgar|cron(30 8 ? * MON *)|sync-sec-edgar"
     # weekly personnel (Tue)

@@ -20,8 +20,8 @@ const GRANT_TYPES: OpportunityTypeV2[] = ['grant', 'cooperative_agreement', 'loa
 const CONTRACT_TYPES: OpportunityTypeV2[] = ['contract', 'solicitation', 'task_order_vehicle', 'presolicitation', 'sources_sought', 'forecast'];
 const SET_ASIDE_APPLICABLE_TYPES: OpportunityTypeV2[] = CONTRACT_TYPES;
 const SOURCE_VERBS: Record<OpportunitySourceV2, string> = {
-  grants_gov: 'sync-grants',
-  sam_gov: 'sync-sam-opportunities-all-federal',
+  grants_gov: 'sync-tango-funding:grants',
+  sam_gov: 'sync-tango-funding:active-notices',
   agency_forecast: 'sync-tango-forecasts',
   dibbs: 'sync-tango-dibbs',
   sbir_sttr: 'sync-tango-sbir',

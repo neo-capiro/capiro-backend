@@ -39,12 +39,13 @@ describe('Package 6 funding/execution certification schedule', () => {
 
 describe('Funding Opportunities production ingestion schedules', () => {
   test('SAM, DIBBS, SBIR, and forecast schedules use the quota-safe daily matrix', () => {
-    const samDod = INGESTION_JOBS.find((job) => job.id === 'SyncSamOpportunities')!;
-    expect(samDod.enabled).toBe(false);
-    const samAll = INGESTION_JOBS.find((job) => job.id === 'SyncSamOpportunitiesAllFederal')!;
-    expect(samAll.command).toEqual(['sync-sam-opportunities-all-federal', '--skip-descriptions']);
-    expect(samAll.cron).toMatchObject({ minute: '15', hour: '0' });
-    expect(samAll.enabled).toBe(true);
+    for (const id of ['SyncSamOpportunities', 'SyncSamOpportunitiesAllFederal', 'SyncGrants', 'SyncGrantsReconcile', 'EnrichGrantDetails']) {
+      expect(INGESTION_JOBS.some(job => job.id === id)).toBe(false);
+    }
+    expect(INGESTION_JOBS.find(job => job.id === 'SyncTangoFunding')?.command).toEqual(['sync-tango-funding', '--commit', '--max-requests=1100']);
+    for (const id of ['SyncTangoFunding', 'EmbedFundingCatalog', 'ArchiveFundingAttachments']) {
+      expect(INGESTION_JOBS.find(job => job.id === id)?.enabled).toBe(false);
+    }
 
     const dibbs = INGESTION_JOBS.find((job) => job.id === 'SyncTangoDibbs')!;
     expect(dibbs.cron).toMatchObject({ minute: '5', hour: '0' });
@@ -53,11 +54,9 @@ describe('Funding Opportunities production ingestion schedules', () => {
     expect(sbir.cron).toMatchObject({ minute: '20', hour: '1' });
     expect(sbir.enabled).toBe(true);
 
-    const source = INGESTION_JOBS.find((job) => job.id === 'SyncTangoForecasts')!;
-    expect(source.command).toEqual(['sync-tango-forecasts', '--commit', '--limit=5000']);
-    expect(source.cron).toMatchObject({ minute: '0', hour: '2' });
-    expect(source.environment).toEqual({ TANGO_REQUEST_CEILING_PER_RUN: '30' });
-    expect(source.enabled).toBe(true);
+    // The dedicated fo-dev rule is the single forecast owner. A generic
+    // Compute-stack deploy must not recreate the retired duplicate.
+    expect(INGESTION_JOBS.some(job => job.id === 'SyncTangoForecasts')).toBe(false);
     const dispatcher = readFileSync(
       resolve(__dirname, '../../../apps/api/scripts/entrypoint-dispatcher.inc'),
       'utf8',
@@ -322,11 +321,7 @@ describe('Funding machine-suggestion producer retirement', () => {
     expect(
       INGESTION_JOBS.find((job) => job.id === 'GenerateGrantOpportunityCandidates')?.command,
     ).toEqual(['generate-grant-opportunity-candidates', '--commit']);
-    expect(INGESTION_JOBS.find((job) => job.id === 'SyncTangoForecasts')?.command).toEqual([
-      'sync-tango-forecasts',
-      '--commit',
-      '--limit=5000',
-    ]);
+    expect(INGESTION_JOBS.some(job => job.id === 'SyncTangoForecasts')).toBe(false);
     expect(
       INGESTION_JOBS.find((job) => job.id === 'ProcessFundingOpportunityLifecycle')?.command,
     ).toEqual(['process-funding-opportunity-lifecycle', '--commit']);
@@ -335,7 +330,7 @@ describe('Funding machine-suggestion producer retirement', () => {
       'utf8',
     );
     expect(dispatcher).toContain('generate-grant-opportunity-candidates)');
-    expect(dispatcher).toContain('sync-sam-opportunities)');
+    expect(dispatcher).toContain('sync-tango-funding)');
     expect(dispatcher).toContain('process-funding-opportunity-lifecycle)');
     for (const id of retired) {
       const verb = id.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase()).replace(/^-/, '');

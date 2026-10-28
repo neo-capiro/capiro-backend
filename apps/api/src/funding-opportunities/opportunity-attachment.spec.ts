@@ -14,6 +14,7 @@ import {
   fetchAndArchiveAttachment,
   isRetryableFailure,
   normalizeMime,
+  observedAttachmentMime,
   type ArchiveDeps,
   type AttachmentCandidate,
   type FetchedAttachment,
@@ -33,6 +34,85 @@ import {
 
 const POLICY = DEFAULT_ATTACHMENT_POLICY;
 
+test('generic Office and image downloads require matching binary signatures', () => {
+  const identify = (declared: string, bytes: number[]) => observedAttachmentMime('application/octet-stream', declared, new Uint8Array(bytes));
+  expect(identify('.docx', [80,75,3,4])).toBe(normalizeMime('.docx'));
+  expect(identify('.xls', [208,207,17,224,161,177,26,225])).toBe(normalizeMime('.xls'));
+  expect(identify('.png', [137,80,78,71,13,10,26,10])).toBe('image/png');
+  expect(identify('.jpg', [255,216,255])).toBe('image/jpeg');
+  expect(identify('.tiff', [73,73,42,0])).toBe('image/tiff');
+  expect(identify('.zip', [80,75,3,4])).toBe('application/zip');
+  expect(identify('.docx', [...new TextEncoder().encode('<html>login</html>')])).toBe('application/octet-stream');
+  expect(identify('.xls', [77,90,0,0])).toBe('application/octet-stream');
+  expect(checkAttachmentContent('.pdf', identify('.pdf', [255,216,255])).ok).toBe(false);
+  expect(identify('.png', [])).toBe('application/octet-stream');
+});
+
+test('Tango document extensions normalize without accepting unknown formats', () => {
+  expect(normalizeMime('.PDF')).toBe('application/pdf');
+  expect(checkAttachmentContent('.pdf', 'application/pdf').ok).toBe(true);
+  expect(checkAttachmentContent('.pdf', 'text/html').ok).toBe(false);
+  expect(checkAttachmentContent('.exe', 'application/pdf').ok).toBe(false);
+});
+
+test('the observed SAM binary/octet-stream alias still requires a recognized format', async () => {
+  const zip = new Uint8Array([80,75,3,4,0,0,0,0]);
+  const good = makeDeps({ response: response({ contentType: 'binary/octet-stream', body: zip, declaredLength: zip.length }) });
+  expect(await fetchAndArchiveAttachment(candidate({ declaredMimeType: 'binary/octet-stream' }), good.deps))
+    .toMatchObject({ status: 'archived', observedMimeType: 'application/zip' });
+  expect(observedAttachmentMime('binary/octet-stream', null, new TextEncoder().encode('<html>login</html>')))
+    .toBe('application/octet-stream');
+});
+
+test('declared text served as generic binary validates every byte before archiving', async () => {
+  const body = new TextEncoder().encode('Wage determination\r\nLaborer\t$25.00\nRésumé\fEnd');
+  const good = makeDeps({ response: response({ contentType: 'application/octet-stream', body, declaredLength: body.length }) });
+  expect(await fetchAndArchiveAttachment(candidate({ fileName: 'wages.txt', declaredMimeType: '.txt' }), good.deps))
+    .toMatchObject({ status: 'archived', observedMimeType: 'text/plain' });
+  expect(observedAttachmentMime('application/octet-stream', '.csv', new TextEncoder().encode('trade,rate\nLaborer,25.00'))).toBe('text/csv');
+  for (const bad of [
+    new TextEncoder().encode('\ufeff   <!DOCTYPE html><html>login</html>'),
+    new TextEncoder().encode('prefix'.repeat(12000) + '\u0000'),
+    new Uint8Array([...body, 0xc3, 0x28]),
+  ]) {
+    expect(observedAttachmentMime('application/octet-stream', '.txt', bad)).toBe('application/octet-stream');
+  }
+  expect(observedAttachmentMime('application/octet-stream', null, body)).toBe('application/octet-stream');
+  expect(observedAttachmentMime('text/html', '.txt', body)).toBe('text/html');
+});
+
+test('SAM file redirects allow the observed bucket without allowing arbitrary S3 hosts', () => {
+  expect(checkAttachmentUrl('https://iae-fbo-attachments.s3.amazonaws.com/file.pdf', POLICY).ok).toBe(true);
+  expect(checkAttachmentUrl('https://unreviewed.s3.amazonaws.com/file.pdf', POLICY).ok).toBe(false);
+});
+
+test('GSA allows only its verified document endpoint and standard HTTPS port', () => {
+  expect(checkAttachmentUrl('https://sws.gsa.gov/sws-search/viewSolDocument.do?id=fixture', POLICY).ok).toBe(true);
+  for (const url of ['https://sws.gsa.gov/admin','https://sws.gsa.gov:8443/sws-search/viewSolDocument.do',
+    'https://sws.gsa.gov.attacker.test/sws-search/viewSolDocument.do','https://piee.eb.mil/sol/xhtml/unauth/search/viewPublicNotice.xhtml']) {
+    expect(checkAttachmentUrl(url, POLICY).ok).toBe(false);
+  }
+});
+
+test('GSA document-role metadata preserves format checks and rejects HTML or unrecognized declarations', async () => {
+  const gsa = candidate({ sourceUrl: 'https://sws.gsa.gov/sws-search/viewSolDocument.do?id=fixture', declaredMimeType: 'Category Attachment' });
+  const good = makeDeps({ response: response({ finalUrl: gsa.sourceUrl, contentType: 'application/octet-stream; charset=UTF-8' }) });
+  expect(await fetchAndArchiveAttachment(gsa, good.deps)).toMatchObject({ status: 'archived', observedMimeType: 'application/pdf' });
+  expect(gsa.declaredMimeType).toBe('Category Attachment');
+  const bad = makeDeps({ response: response({ finalUrl: gsa.sourceUrl, contentType: 'application/octet-stream', body: new TextEncoder().encode('<html>login</html>') }) });
+  expect(await fetchAndArchiveAttachment(gsa, bad.deps)).toMatchObject({ status: 'refused' });
+  expect(await fetchAndArchiveAttachment({ ...gsa, declaredMimeType: 'text/html' }, good.deps)).toMatchObject({ status: 'refused' });
+  expect(await fetchAndArchiveAttachment({ ...gsa, declaredMimeType: 'unrecognized role' }, good.deps)).toMatchObject({ status: 'refused' });
+  expect(await fetchAndArchiveAttachment(candidate({ declaredMimeType: 'Category Attachment' }), good.deps)).toMatchObject({ status: 'refused' });
+  const rtfBody = new TextEncoder().encode('{\\rtf1 GSA vendor response}');
+  const rtf = makeDeps({ response: response({ finalUrl: gsa.sourceUrl, contentType: 'application/octet-stream', body: rtfBody, declaredLength: rtfBody.length }) });
+  expect(await fetchAndArchiveAttachment({ ...gsa, fileName: 'VendorResponse.doc', declaredMimeType: 'Vendor Response Document' }, rtf.deps))
+    .toMatchObject({ status: 'archived', observedMimeType: 'application/rtf' });
+  expect(await fetchAndArchiveAttachment({ ...gsa, fileName: 'Solicitation.pdf' }, rtf.deps)).toMatchObject({ status: 'refused' });
+  expect(await fetchAndArchiveAttachment({ ...gsa, fileName: 'VendorResponse.doc', declaredMimeType: 'application/msword' }, rtf.deps))
+    .toMatchObject({ status: 'refused' });
+});
+
 function candidate(over: Partial<AttachmentCandidate> = {}): AttachmentCandidate {
   return {
     id: 'att-1',
@@ -46,6 +126,13 @@ function candidate(over: Partial<AttachmentCandidate> = {}): AttachmentCandidate
 
 const BODY = new TextEncoder().encode('%PDF-1.7 synthetic test document');
 const BODY_SHA = createHash('sha256').update(BODY).digest('hex');
+
+test('generic SAM downloads require PDF bytes before accepting the PDF MIME type', async () => {
+  const good = makeDeps({ response: response({ contentType: 'application/octet-stream' }) });
+  expect(await fetchAndArchiveAttachment(candidate({ declaredMimeType: '.pdf' }), good.deps)).toMatchObject({ status: 'archived', observedMimeType: 'application/pdf' });
+  const bad = makeDeps({ response: response({ contentType: 'application/octet-stream', body: new TextEncoder().encode('<html>login</html>') }) });
+  expect(await fetchAndArchiveAttachment(candidate({ declaredMimeType: '.pdf' }), bad.deps)).toMatchObject({ status: 'refused' });
+});
 
 function response(over: Partial<FetchedAttachment> = {}): FetchedAttachment {
   return {
@@ -387,6 +474,26 @@ describe('the archive key is the content hash, and that is the whole design', ()
 // ── End to end ───────────────────────────────────────────────────────────────
 
 describe('a healthy attachment archives, and a repeat is free', () => {
+  test('a generic source declaration can archive a signature-identified PDF', async () => {
+    const { deps } = makeDeps({ response: response({ contentType: 'application/octet-stream' }) });
+    expect(await fetchAndArchiveAttachment({ ...candidate(), declaredMimeType: 'application/octet-stream' }, deps))
+      .toMatchObject({ status: 'archived', observedMimeType: 'application/pdf' });
+  });
+  test('a generic declaration does not make unknown binary or HTML acceptable', async () => {
+    for (const contentType of ['application/octet-stream','text/html']) {
+      const { deps, puts } = makeDeps({ response: response({ contentType, body: new Uint8Array([77,90,0,0]) }) });
+      expect(await fetchAndArchiveAttachment({ ...candidate(), declaredMimeType: 'application/octet-stream' }, deps))
+        .toMatchObject({ status: 'refused', failureReason: 'observed_mime_not_allowed' });
+      expect(puts).toHaveLength(0);
+    }
+  });
+  test('a signature-identified RTF stays an attachment download', async () => {
+    const body = new TextEncoder().encode('{\\rtf1 Document text}');
+    const { deps, puts } = makeDeps({ response: response({ contentType: 'application/octet-stream', body, declaredLength: body.length }) });
+    expect(await fetchAndArchiveAttachment({ ...candidate(), declaredMimeType: '.rtf' }, deps))
+      .toMatchObject({ status: 'archived', observedMimeType: 'application/rtf' });
+    expect(puts[0]!.contentDisposition).toMatch(/^attachment;/);
+  });
   test('it stores the bytes, the hash and the disposition', async () => {
     const { deps, puts } = makeDeps();
     const outcome = await fetchAndArchiveAttachment(candidate(), deps);
@@ -483,8 +590,14 @@ describe('no attachment byte reaches a log, an audit row or an error', () => {
     }
   });
 
-  test('the service never decodes the body as text', () => {
-    expect(source).not.toMatch(/TextDecoder|body\.toString\(/);
+  test('invalid text never leaks its decoded contents into the refusal', async () => {
+    const marker = 'source-content-must-not-appear-in-diagnostics';
+    const body = new TextEncoder().encode(marker + '\u0000');
+    const { deps, puts } = makeDeps({ response: response({ contentType: 'application/octet-stream', body, declaredLength: body.length }) });
+    const outcome = await fetchAndArchiveAttachment(candidate({ declaredMimeType: '.txt' }), deps);
+    expect(outcome).toMatchObject({ status: 'refused', failureReason: 'observed_mime_not_allowed' });
+    expect(JSON.stringify(outcome)).not.toContain(marker);
+    expect(puts).toHaveLength(0);
   });
 });
 

@@ -10,7 +10,6 @@
     "src/ingestion/embed-watermark.spec.ts",
     "src/ingestion/sync-run.helper.ts",
     "src/ingestion/sync-run.helper.spec.ts",
-    "scripts/backfill-sam-opportunity-fields.ts",
     "scripts/sam-opportunity-matcher.ts",
     "scripts/sam-opportunity-matcher.spec.ts",
     "scripts/sync-sam-opportunities.ts",

@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import {
   discoverAttachmentLinks,
   parseArgs,
+  realUpsertMetadata,
   runAttachmentSync,
   type AttachmentSyncDeps,
 } from './sync-tango-opportunity-attachments.js';
@@ -246,12 +247,23 @@ describe('a refusal is never re-attempted, and a failure is', () => {
 
   test('the fetchable predicate admits metadata_only and failed, and NOT refused', () => {
     // Retrying an SSRF attempt on a schedule is the attack working, slowly.
-    expect(source).toMatch(/status: \{ in: \['metadata_only', 'failed'\] \}/);
-    expect(source).not.toMatch(/in: \[[^\]]*'refused'/);
+    expect(source).toMatch(/status IN \('metadata_only','failed'\)/);
+    expect(source).not.toMatch(/status IN \([^)]*'refused'/);
   });
 
-  test('an existing row keeps its status — discovery never resets a refusal', () => {
-    expect(source).toMatch(/if \(existing\) continue;/);
+  test('discovery inserts only missing links and tolerates a concurrent insert', async () => {
+    const creates: unknown[] = [];
+    const prisma = {
+      opportunityAttachment: {
+        findMany: async () => [{ samOpportunityId: 'sam-1', sourceUrl: 'https://sam.gov/existing.pdf' }],
+        createMany: async (input: unknown) => { creates.push(input); return { count: 1 }; },
+      },
+    };
+    await realUpsertMetadata(prisma as any)(discoverAttachmentLinks([
+      { id: 'sam-1', raw: { resourceLinks: ['https://sam.gov/existing.pdf', 'https://sam.gov/new.pdf'] } },
+    ]).links);
+    expect(creates).toEqual([{ skipDuplicates: true, data: [{ samOpportunityId: 'sam-1', sourceUrl: 'https://sam.gov/new.pdf',
+      fileName: null, declaredMimeType: null, declaredSizeBytes: null, status: 'metadata_only' }] }]);
   });
 
   test('a failure CLEARS the archive location, so a stale key cannot look citable', () => {
@@ -267,7 +279,8 @@ describe('a refusal is never re-attempted, and a failure is', () => {
 
   test('the archive write is private and encrypted', () => {
     expect(source).toMatch(/ServerSideEncryption: 'AES256'/);
-    expect(source).toMatch(/ACL: 'private'/);
+    expect(source).not.toMatch(/ACL: 'private'/);
+    expect(source).toContain('BucketOwnerEnforced');
   });
 
   test('an archiving run refuses to start with no bucket configured', () => {
@@ -275,10 +288,5 @@ describe('a refusal is never re-attempted, and a failure is', () => {
     expect(source).toMatch(/refusing to fetch with nowhere to archive/);
   });
 
-  test('it records why the provider is not the source of attachment links', () => {
-    // The installed SDK's only attachment-shaped method is a semantic SEARCH,
-    // which cannot enumerate one solicitation's documents.
-    expect(source).toMatch(/searchOpportunityAttachments/);
-    expect(source).toMatch(/NO attachment ENUMERATION/);
-  });
+
 });
