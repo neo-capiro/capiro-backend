@@ -169,6 +169,9 @@ def prepare_maps(conn, schemas):
         conn.execute(f"ANALYZE w_{table}")
     natural_map(conn, "federal_grant", "s.id=t.id")
     natural_map(conn, "sam_opportunity", "lower(replace(s.notice_id,'-',''))=lower(replace(t.notice_id,'-',''))")
+    # Crosswalk local_resource_id is text; its correlated lookup must use the
+    # same expression as this index rather than scan the UUID map per link.
+    conn.execute("CREATE INDEX ON m_sam_opportunity((old_id::text))")
     natural_map(conn, "tango_opportunity_notice", "s.tango_notice_id=t.tango_notice_id")
     for table in ("tango_opportunity_notice", "opportunity_attachment"):
         check_zero(conn, f"SELECT count(*) FROM s_{table} s LEFT JOIN m_sam_opportunity m ON m.old_id=s.sam_opportunity_id WHERE s.sam_opportunity_id IS NOT NULL AND m.old_id IS NULL", "orphan_source_notice_reference")
@@ -396,6 +399,7 @@ def vectors(conn, api_dir, node):
     finally:
         if proc.poll() is None:
             proc.kill(); proc.wait()
+    conn.execute("ANALYZE vector_accept")
     # Invalid or stale target chunk sets are removed only for transferred parents.
     conn.execute("CREATE TEMP TABLE final_vectors AS SELECT * FROM w_context_embeddings WITH NO DATA")
     affected = " OR ".join(f"(e.source_type='funding_{kind}_chunk' AND split_part(e.source_id,':',1) IN (SELECT new_id::text FROM m_{table}))" for kind,table in KINDS.items())
