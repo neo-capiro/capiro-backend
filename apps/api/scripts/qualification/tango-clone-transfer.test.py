@@ -254,6 +254,41 @@ def integration_tests(config,api_dir,node):
             self.assertEqual(self.query("target","SELECT count(*) FROM context_embeddings WHERE source_type='funding_attachment_chunk'")[0][0],0)
             self.assertTrue(self.query("target","SELECT embedded_at IS NOT NULL AND embedded_content_hash IS NOT NULL FROM opportunity_attachment")[0][0])
 
+        def test_11_explicit_demo_notices_are_excluded_and_target_preserved(self):
+            source_fixture,target_fixture,saved,attachment,snapshot=[uuid4() for _ in range(5)]
+            source_key="fixture-source-"+uuid4().hex
+            for role,record,key in (("source",source_fixture,source_key),("target",target_fixture,"fixture-target-"+uuid4().hex)):
+                self.query(role,"INSERT INTO sam_opportunity(id,notice_id,title,notice_type,raw_jsonb,updated_at) VALUES(%s,%s,'Explicit demo fixture','Solicitation','{\"fixture\":true}'::jsonb,'2026-10-20')",(record,key))
+            self.query("target","INSERT INTO client_funding_opportunity(id,tenant_id,client_id,source,sam_opportunity_id,workflow_status,evidence_source_type,user_created,notes,updated_at) VALUES(%s,%s,%s,'sam_gov',%s,'saved','user_action',true,'Preserve demo reference','2026-10-20')",(saved,self.tenant,self.client,target_fixture))
+            fixture_before=self.query("target","SELECT md5(row_to_json(t)::text) FROM sam_opportunity t WHERE id=%s",(target_fixture,))
+            saved_before=self.query("target","SELECT md5(row_to_json(t)::text) FROM client_funding_opportunity t WHERE id=%s",(saved,))
+            result=self.run_transfer(True)
+            self.assertTrue(result["protected_rows_unchanged"])
+            self.assertEqual(self.query("target","SELECT count(*) FROM sam_opportunity WHERE id=%s",(source_fixture,))[0][0],0)
+            self.assertEqual(fixture_before,self.query("target","SELECT md5(row_to_json(t)::text) FROM sam_opportunity t WHERE id=%s",(target_fixture,)))
+            self.assertEqual(saved_before,self.query("target","SELECT md5(row_to_json(t)::text) FROM client_funding_opportunity t WHERE id=%s",(saved,)))
+            # Only the JSON boolean opts a row out. A string marker or an
+            # unflagged malformed target remains a strict government-ID failure.
+            for role,record,raw in (("source",source_fixture,'{"fixture":"true"}'),("target",target_fixture,'{"fixture":false}')):
+                self.query(role,"UPDATE sam_opportunity SET raw_jsonb=%s::jsonb WHERE id=%s",(raw,record))
+                try:
+                    with self.assertRaisesRegex(operator.Refusal,"unverified_government_notice_identity"):
+                        self.run_transfer(True)
+                finally:
+                    self.query(role,"UPDATE sam_opportunity SET raw_jsonb='{\"fixture\":true}'::jsonb WHERE id=%s",(record,))
+            self.query("source","INSERT INTO opportunity_attachment(id,sam_opportunity_id,source_url,updated_at) VALUES(%s,%s,'https://example.gov/demo.pdf','2026-10-20')",(attachment,source_fixture))
+            try:
+                with self.assertRaisesRegex(operator.Refusal,"orphan_source_notice_reference"):
+                    self.run_transfer(True)
+            finally:
+                self.query("source","DELETE FROM opportunity_attachment WHERE id=%s",(attachment,))
+            self.query("source","INSERT INTO tango_resource_snapshot(id,resource_type,external_id,provider_fetched_at,content_sha256,normalized_jsonb) VALUES(%s,'notice',%s,'2026-10-20',%s,'{\"fixture\":true}'::jsonb)",(snapshot,source_key,hashlib.sha256(b'{"fixture":true}').hexdigest()))
+            try:
+                with self.assertRaisesRegex(operator.Refusal,"source_fixture_observation_dependency"):
+                    self.run_transfer(True)
+            finally:
+                self.query("source","DELETE FROM tango_resource_snapshot WHERE id=%s",(snapshot,))
+
     return DatabaseTests
 
 
