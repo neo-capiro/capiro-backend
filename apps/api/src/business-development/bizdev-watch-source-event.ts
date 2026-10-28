@@ -124,6 +124,71 @@ export interface SourceEventDeliveryResult {
   attempts: number;
 }
 
+/** Per-alert dispositions for one evaluator pass. An answer Meri never gave is UNKNOWN, never success. */
+export interface SourceEventSinkCounts {
+  offered: number;
+  dispatched: number;
+  queued: number;
+  deduped: number;
+  refused: number;
+  unknown: number;
+  skipped: number;
+}
+
+const emptyCounts = (offered: number): SourceEventSinkCounts => ({
+  offered, dispatched: 0, queued: 0, deduped: 0, refused: 0, unknown: 0, skipped: 0,
+});
+
+/**
+ * The evaluator's delivery sink: the exact producer-side owner of MB-05. It reads the approved
+ * binding from Meri's durable owner ONCE per (producer, family, resource) pair — an unbound pair
+ * therefore causes ZERO event calls — and reports only what Meri itself answered. A binding read
+ * that Meri could not answer is UNKNOWN for that pair, never "no binding".
+ */
+export function createSourceEventSink(options: {
+  transport?: SourceEventTransport; origin?: string; secret?: string; fetchImpl?: typeof fetch;
+} = {}): (alerts: readonly SourceEventAlertCustody[]) => Promise<SourceEventSinkCounts> {
+  const transport = options.transport ?? createSourceEventTransport({origin: options.origin, secret: options.secret, fetchImpl: options.fetchImpl});
+  const delivery = new BizDevWatchSourceEventDelivery();
+  return async alerts => {
+    const counts = emptyCounts(alerts.length);
+    const bindings = new Map<string, { binding: { scheduleId: string; generation: number } | null } | null>();
+    for (const custody of alerts) {
+      const key = `${custody.tenantId}\u0000${custody.sourceFamily}\u0000${custody.watchId}`;
+      if (!bindings.has(key)) {
+        try {
+          bindings.set(key, {binding: await transport.binding({
+            tenantId: custody.tenantId, sourceFamily: custody.sourceFamily, resourceKey: custody.watchId,
+          })});
+        } catch {
+          bindings.set(key, null);
+        }
+      }
+      const approved = bindings.get(key) ?? null;
+      if (approved === null) {
+        // Meri never answered whether this pair is approved: the alert stays UNKNOWN, never skipped.
+        counts.unknown += 1;
+        continue;
+      }
+      if (approved.binding === null) {
+        counts.skipped += 1;
+        continue;
+      }
+      const result = await delivery.deliver(
+        bizDevWatchSourceEvent({custody, scheduleId: approved.binding.scheduleId, generation: approved.binding.generation}),
+        {transport},
+      );
+      if (result.state === 'DISPATCHED') counts.dispatched += 1;
+      else if (result.state === 'DEDUPED') counts.deduped += 1;
+      else if (result.state === 'ACCEPTED' || result.state === 'QUEUED') counts.queued += 1;
+      else if (result.state === 'REFUSED' || result.state === 'CONFLICT') counts.refused += 1;
+      else if (result.state === 'SKIPPED') counts.skipped += 1;
+      else counts.unknown += 1;
+    }
+    return counts;
+  };
+}
+
 export interface SourceEventTransport {
   /** READ the approved binding for a producer/resource pair. Never creates one. */
   binding(pair: { tenantId: string; sourceFamily: string; resourceKey: string; signal?: AbortSignal }): Promise<{ scheduleId: string; generation: number } | null>;
@@ -150,7 +215,7 @@ async function post(
       method: 'POST', redirect: 'error', credentials: 'omit', cache: 'no-store', signal: abort.signal,
       headers: { 'content-type': 'application/json', accept: 'application/json', 'accept-encoding': 'identity', 'x-internal-service-secret': secret },
       body: JSON.stringify(body),
-    });
+    } as RequestInit & { cache: string });
     let payload: unknown = null;
     if (response.body) {
       reader = response.body.getReader();
@@ -197,7 +262,7 @@ export function createSourceEventTransport(options: {
     return post(fetchImpl as typeof fetch, base, path, secret, body);
   };
   return Object.freeze({
-    async binding(pair) {
+    async binding(pair: { tenantId: string; sourceFamily: string; resourceKey: string; signal?: AbortSignal }) {
       const response = await call(SOURCE_EVENT_BINDING_PATH, {
         schemaVersion: 1, producer: SOURCE_EVENT_PRODUCER, tenantId: pair.tenantId,
         sourceFamily: pair.sourceFamily, resourceKey: pair.resourceKey,
@@ -211,7 +276,7 @@ export function createSourceEventTransport(options: {
         throw unavailable();
       return { scheduleId: found.scheduleId as string, generation: found.generation as number };
     },
-    async event(envelope, signal) {
+    async event(envelope: SourceEventEnvelope, signal?: AbortSignal) {
       const response = await call(SOURCE_EVENT_EVENT_PATH, envelope, signal);
       const body = response.payload === null ? null : (typeof response.payload === 'object' && !Array.isArray(response.payload)
         ? response.payload as Record<string, unknown> : null);

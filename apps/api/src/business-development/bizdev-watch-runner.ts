@@ -97,6 +97,44 @@ export interface BizDevWatchRunMetrics {
   partial: number;
   failed: number;
   durationMs: number;
+  /**
+   * MB-05 producer delivery, or null when no delivery owner is configured (no egress at all).
+   * `unknown` is a real count: an answer Meri never gave is never reported as success.
+   */
+  sourceEvents: BizDevWatchSourceEventCounts | null;
+}
+
+/** What the MB-05 delivery owner actually answered, per canonical alert offered. */
+export interface BizDevWatchSourceEventCounts {
+  offered: number;
+  dispatched: number;
+  queued: number;
+  deduped: number;
+  refused: number;
+  unknown: number;
+  skipped: number;
+}
+
+/** Accumulate one delivery answer into the run's counts; an unintelligible answer is UNKNOWN. */
+export function accumulateSourceEventCounts(
+  current: BizDevWatchSourceEventCounts | null,
+  counts: unknown,
+  offered: number,
+): BizDevWatchSourceEventCounts {
+  const base = current ?? { offered: 0, dispatched: 0, queued: 0, deduped: 0, refused: 0, unknown: 0, skipped: 0 };
+  if (!counts || typeof counts !== 'object') return { ...base, offered: base.offered + offered, unknown: base.unknown + offered };
+  const value = counts as Partial<BizDevWatchSourceEventCounts>;
+  const number = (key: keyof BizDevWatchSourceEventCounts) =>
+    Number.isSafeInteger(value[key]) && (value[key] as number) >= 0 ? (value[key] as number) : 0;
+  return {
+    offered: base.offered + number('offered'),
+    dispatched: base.dispatched + number('dispatched'),
+    queued: base.queued + number('queued'),
+    deduped: base.deduped + number('deduped'),
+    refused: base.refused + number('refused'),
+    unknown: base.unknown + number('unknown'),
+    skipped: base.skipped + number('skipped'),
+  };
 }
 
 export const BIZDEV_WATCH_SOURCE_FAMILIES = [
@@ -316,7 +354,7 @@ export type BizDevWatchSourceEventSink = (
     tenantId: string; alertId: string; watchId: string; prospectId: string; dedupeKey: string;
     fingerprint: string; sourceFamily: string; recordId: string; sourceRevision: string | null; occurredAtMs: number;
   }[],
-) => Promise<void>;
+) => Promise<BizDevWatchSourceEventCounts | void>;
 
 /**
  * One DB-only evaluator pass. Returns structured metrics; throws ONLY on
@@ -341,6 +379,7 @@ export async function runBizDevWatchEvaluation(
     partial: 0,
     failed: 0,
     durationMs: 0,
+    sourceEvents: null,
   };
   if (!config.enabled) {
     metrics.durationMs = Date.now() - started;
@@ -818,10 +857,35 @@ export async function runBizDevWatchEvaluation(
               skipDuplicates: true,
             });
             if (inserted.count === 0) {
-              // Exact unique replay: the alert already exists. Duplicate
-              // replay still finalizes the page successfully — no duplicate
-              // delivery, no duplicate activity.
+              // Exact unique replay: the alert already exists. Duplicate replay still finalizes the
+              // page successfully — no duplicate in-app delivery, no duplicate activity.
               duplicates += 1;
+              // MB-05: the SAME immutable alert identity, offered again to the delivery owner when
+              // this evaluation re-observes the record. A later pass therefore reconciles a crash
+              // between the alert's commit and its delivery, and Meri's identity dedup makes the
+              // replay one event rather than a second effect.
+              const existing = await tx.businessDevelopmentAlert.findFirst({
+                where: {
+                  tenantId: state.tenantId,
+                  watchId: state.watchId,
+                  dedupeKey: draft.dedupeKey,
+                },
+                select: { id: true, firstObservedAt: true },
+              });
+              if (existing) {
+                committedAlerts.push({
+                  tenantId: state.tenantId,
+                  alertId: existing.id,
+                  watchId: state.watchId,
+                  prospectId: watch.prospectId,
+                  dedupeKey: draft.dedupeKey,
+                  fingerprint: draft.fingerprint,
+                  sourceFamily: draft.sourceFamily,
+                  recordId: draft.recordId,
+                  sourceRevision: draft.sourceRevision ?? null,
+                  occurredAtMs: existing.firstObservedAt.getTime(),
+                });
+              }
               continue;
             }
             // Only a NEWLY inserted alert gets the in-app delivery + the
@@ -939,7 +1003,49 @@ export async function runBizDevWatchEvaluation(
       // MB-05: deliver AFTER the durable commit, never inside it. A lost or unknown Meri
       // acknowledgement is Meri's recorded disposition (or UNKNOWN) and never a family failure:
       // the immutable alert is Core custody, so the identical event replays from it.
-      if (sourceEvents && committedAlerts.length) await sourceEvents(committedAlerts).catch(() => undefined);
+      if (sourceEvents) {
+        // BOUNDED DURABLE RECONCILIATION. The durable channel is the immutable alert row itself,
+        // bounded by the same per-source bound this evaluation already uses. A crash between a
+        // commit and its delivery, or an UNKNOWN answer, is therefore reconciled by this LATER
+        // evaluation even when the diff produces no new draft — never by an in-process retry, and
+        // never reported as success. The scheduler remains the sole retry owner: this is one
+        // bounded read, not a loop, a timer or a poller.
+        const recent = await db.withTenant(state.tenantId, (tx) =>
+          tx.businessDevelopmentAlert.findMany({
+            where: { tenantId: state.tenantId, watchId: state.watchId },
+            orderBy: { firstObservedAt: 'desc' },
+            take: config.maxRecordsPerSource,
+            select: {
+              id: true, prospectId: true, dedupeKey: true, fingerprint: true,
+              sourceFamily: true, recordId: true, sourceRevision: true, firstObservedAt: true,
+            },
+          }),
+        );
+        const offered = new Map<string, Parameters<BizDevWatchSourceEventSink>[0][number]>();
+        for (const alert of committedAlerts) offered.set(alert.alertId, alert);
+        for (const row of recent ?? []) {
+          if (offered.has(row.id)) continue;
+          offered.set(row.id, {
+            tenantId: state.tenantId,
+            alertId: row.id,
+            watchId: state.watchId,
+            prospectId: row.prospectId,
+            dedupeKey: row.dedupeKey,
+            fingerprint: row.fingerprint,
+            sourceFamily: row.sourceFamily,
+            recordId: row.recordId,
+            sourceRevision: row.sourceRevision ?? null,
+            occurredAtMs: row.firstObservedAt.getTime(),
+          });
+        }
+        // A delivery owner that could not answer at all leaves every offered alert UNKNOWN: the run
+        // reports that honestly instead of counting it as dispatch.
+        metrics.sourceEvents = accumulateSourceEventCounts(
+          metrics.sourceEvents,
+          await sourceEvents([...offered.values()]).catch(() => undefined),
+          offered.size,
+        );
+      }
     } catch (familyError) {
       // One failed family never blocks others: record and continue. The
       // error-finalize ALSO predicates on the lease token — a stale worker

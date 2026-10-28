@@ -1,0 +1,26 @@
+{
+  "__comment": "MB-05 bounded typecheck: ONLY the exact files this task owns. Extends the app config for the real compilerOptions/paths, overrides include/exclude so the program is exactly these files (never the whole app), and never writes incremental state.",
+  "extends": "./apps/api/tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false,
+    "composite": false,
+    "tsBuildInfoFile": null,
+    "typeRoots": ["./apps/api/node_modules/@types", "./node_modules/@types"],
+    "types": ["node", "jest"]
+  },
+  "include": [],
+  "exclude": [],
+  "files": [
+    "apps/api/src/business-development/bizdev-watch-runner.ts",
+    "apps/api/src/business-development/bizdev-watch-source-event.ts",
+    "apps/api/src/business-development/bizdev-watch-source-event.spec.ts",
+    "apps/api/src/business-development/bizdev-watch-runner.spec.ts",
+    "apps/api/src/business-development/bizdev-watch.invariant.spec.ts",
+    "apps/api/src/meri/routines/meri-routine-source-event.ts",
+    "apps/api/src/meri/routines/meri-routine-source-event.spec.ts",
+    "apps/api/src/meri/routines/meri-routines.controller.ts",
+    "apps/api/src/meri/routines/meri-routines.service.ts",
+    "apps/api/scripts/run-bizdev-watch.ts"
+  ]
+}

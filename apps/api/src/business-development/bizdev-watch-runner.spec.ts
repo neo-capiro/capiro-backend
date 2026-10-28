@@ -11,6 +11,7 @@ import {
   type BizDevProjectionDb,
   type BizDevWatchRunnerDb,
   type BizDevWatchClaimCandidate,
+  type BizDevWatchSourceEventSink,
 } from './bizdev-watch-runner.js';
 
 /**
@@ -166,6 +167,9 @@ interface AlertRow {
   recordId: string;
   changeKind?: string;
   title: string;
+  /** The real column the MB-05 producer reads (internal/canonical event instant). */
+  firstObservedAt: Date;
+  sourceRevision?: string | null;
 }
 interface DeliveryRow {
   id: string;
@@ -197,6 +201,8 @@ function makeHarness(
     staleFinalToken?: boolean;
     /** Alert dedupeKey already present (duplicate replay). */
     existingAlerts?: Array<{ dedupeKey: string }>;
+    /** MB-05 delivery owner offered the pass's alerts (absent = no egress at all). */
+    sourceEvents?: BizDevWatchSourceEventSink | null;
   } = {},
 ) {
   const family = opts.sourceFamily ?? 'federal_award';
@@ -230,6 +236,7 @@ function makeHarness(
       sourceFamily: family,
       recordId: 'CONT_A1',
       title: 'existing',
+      firstObservedAt: new Date('2026-09-20T23:00:00.000Z'),
     })),
   ];
   const deliveries: DeliveryRow[] = [];
@@ -327,6 +334,8 @@ function makeHarness(
             recordId: d.recordId as string,
             changeKind: d.changeKind as string,
             title: d.title as string,
+            sourceRevision: (d.sourceRevision ?? null) as string | null,
+            firstObservedAt: new Date(opts.clock?.() ?? '2026-09-21T00:00:00.000Z'),
           });
         }
         return { count: inserted.length };
@@ -339,6 +348,15 @@ function makeHarness(
               a.watchId === where.watchId &&
               a.dedupeKey === where.dedupeKey,
           ) ?? null,
+      ),
+      // MB-05 bounded durable reconciliation: the newest canonical alerts of this watch, exactly the
+      // bounded read the runner issues (order by firstObservedAt desc, take the per-source bound).
+      findMany: jest.fn(
+        async ({ where, take }: { where: { tenantId: string; watchId: string }; take?: number }) =>
+          [...alerts]
+            .filter((a) => a.tenantId === where.tenantId && a.watchId === where.watchId)
+            .sort((a, b) => b.firstObservedAt.getTime() - a.firstObservedAt.getTime())
+            .slice(0, take ?? alerts.length),
       ),
     },
     businessDevelopmentAlertDelivery: {
@@ -584,6 +602,7 @@ function makeHarness(
         projections,
         config,
         opts.clock ?? (() => new Date('2026-09-21T00:00:00.000Z')),
+        opts.sourceEvents ?? null,
       ),
   };
 }
@@ -1841,5 +1860,85 @@ describe('paging keeps the durable alert ledger across cycles', () => {
     expect(h.state.baselineState).toEqual(progress);
     expect(h.alerts).toHaveLength(0);
     expect(h.deliveries).toHaveLength(0);
+  });
+});
+
+describe('runBizDevWatchEvaluation — MB-05 delivery + bounded durable reconciliation', () => {
+  /** The projection shape the healthy path uses to produce exactly one NEW alert in a later pass. */
+  const twoRows = () => [
+    { ...emptyAward(), awardUniqueId: 'CONT_A1', actionDate: new Date('2026-09-20'), amount: 100 },
+    { ...emptyAward(), awardUniqueId: 'CONT_NEW', actionDate: new Date('2026-09-24'), amount: 200 },
+  ];
+
+  test('with no delivery owner configured the run reports no source-event egress at all', async () => {
+    const first = makeHarness();
+    await first.run();
+    const h = makeHarness({ existingBaseline: first.state.baselineState as never, federalAwardRows: twoRows() });
+    const m = await h.run();
+    expect(m.delivered).toBe(1);
+    expect(m.sourceEvents).toBeNull();
+  });
+
+  test('a delivery owner that cannot answer is UNKNOWN for the committed alert, never a dispatch', async () => {
+    const first = makeHarness();
+    await first.run();
+    const offered: string[] = [];
+    const h = makeHarness({
+      existingBaseline: first.state.baselineState as never,
+      federalAwardRows: twoRows(),
+      sourceEvents: async (alerts) => {
+        offered.push(...alerts.map((alert) => alert.alertId));
+        throw new Error('transport down');
+      },
+    });
+    const m = await h.run();
+    // The alert is durably committed, and the delivery owner was offered exactly the one identity.
+    expect(m.delivered).toBe(1);
+    expect(h.alerts).toHaveLength(1);
+    expect(offered).toEqual([h.alerts[0]!.id]);
+    expect(m.sourceEvents).toEqual({ offered: 1, dispatched: 0, queued: 0, deduped: 0, refused: 0, unknown: 1, skipped: 0 });
+  });
+
+  test('a crash between the commit and the delivery is reconciled by a LATER evaluation on the same immutable identity', async () => {
+    const first = makeHarness();
+    await first.run();
+    const committed = makeHarness({
+      existingBaseline: first.state.baselineState as never,
+      federalAwardRows: twoRows(),
+      sourceEvents: async () => {
+        throw new Error('crashed before the delivery owner answered');
+      },
+    });
+    const crashed = await committed.run();
+    expect(crashed.delivered).toBe(1);
+    const identity = committed.alerts[0]!;
+    expect(identity.dedupeKey).toBeTruthy();
+
+    // Restart: the SAME durable state (the committed alert row is the durable channel) and a
+    // delivery owner that answers now. The record is already in the baseline, so the diff produces
+    // no new draft — only reconciliation can recover the missed handoff.
+    const offered: Array<{ alertId: string; dedupeKey: string; occurredAtMs: number }> = [];
+    const restarted = makeHarness({
+      existingBaseline: committed.state.baselineState as never,
+      federalAwardRows: twoRows(),
+      existingAlerts: [{ dedupeKey: identity.dedupeKey }],
+      sourceEvents: async (alerts) => {
+        offered.push(...alerts.map((alert) => ({ alertId: alert.alertId, dedupeKey: alert.dedupeKey, occurredAtMs: alert.occurredAtMs })));
+        return { offered: alerts.length, dispatched: alerts.length, queued: 0, deduped: 0, refused: 0, unknown: 0, skipped: 0 };
+      },
+    });
+    const recovered = await restarted.run();
+    // No second alert, no second in-app delivery and no second activity: the effect did not double.
+    expect(recovered.delivered).toBe(0);
+    expect(restarted.alerts).toHaveLength(1);
+    expect(restarted.deliveries).toHaveLength(0);
+    expect(restarted.activities).toHaveLength(0);
+    // The re-offered event names the SAME immutable alert identity and the SAME durable instant.
+    expect(offered).toEqual([{
+      alertId: restarted.alerts[0]!.id,
+      dedupeKey: identity.dedupeKey,
+      occurredAtMs: restarted.alerts[0]!.firstObservedAt.getTime(),
+    }]);
+    expect(recovered.sourceEvents).toEqual({ offered: 1, dispatched: 1, queued: 0, deduped: 0, refused: 0, unknown: 0, skipped: 0 });
   });
 });

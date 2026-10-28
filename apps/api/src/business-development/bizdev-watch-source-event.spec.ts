@@ -1,6 +1,6 @@
 import {
   BizDevWatchSourceEventDelivery, SOURCE_EVENT_BINDING_PATH, SOURCE_EVENT_EVENT_PATH, SOURCE_EVENT_PRODUCER,
-  bizDevWatchSourceEvent, createSourceEventTransport, sourceEventFactHash, sourceEventFacts,
+  bizDevWatchSourceEvent, createSourceEventSink, createSourceEventTransport, sourceEventFactHash, sourceEventFacts,
   type SourceEventAlertCustody, type SourceEventEnvelope,
 } from './bizdev-watch-source-event.js';
 
@@ -112,6 +112,84 @@ describe('bizdev watch source event delivery', () => {
     ]);
     const answer = await new BizDevWatchSourceEventDelivery().deliverForAlert(CUSTODY, { transport: transport as never });
     expect(answer).toEqual({ state: 'REFUSED', code: 'SOURCE_EVENT_REFUSED', attempts: 1 });
+  });
+});
+
+describe('bizdev watch source event sink (the evaluator delivery owner)', () => {
+  const pairKey = (pair: { tenantId: string; sourceFamily: string; resourceKey: string }) =>
+    `${pair.tenantId}|${pair.sourceFamily}|${pair.resourceKey}`;
+
+  /** A local transport whose binding answers per pair and whose event route is recorded. */
+  function sinkTransport(
+    bindings: Record<string, { scheduleId: string; generation: number } | null>,
+    dispositions: string[] = [],
+    bindingFault = false,
+  ) {
+    const calls: Array<{ path: string; body: { tenantId: string; sourceFamily: string; resourceKey: string } }> = [];
+    return {
+      calls,
+      transport: {
+        async binding(pair: { tenantId: string; sourceFamily: string; resourceKey: string }) {
+          calls.push({ path: SOURCE_EVENT_BINDING_PATH, body: pair });
+          if (bindingFault) throw new Error('binding read unavailable');
+          const key = pairKey(pair);
+          return Object.hasOwn(bindings, key) ? bindings[key]! : null;
+        },
+        async event(envelope: SourceEventEnvelope) {
+          calls.push({ path: SOURCE_EVENT_EVENT_PATH, body: JSON.parse(JSON.stringify(envelope)) });
+          const disposition = dispositions.shift() ?? 'DISPATCHED';
+          return { status: 200, disposition, outcome: disposition, code: null };
+        },
+      },
+    };
+  }
+
+  it('reads the approved binding once per pair and never calls the event route for an unbound pair', async () => {
+    const { calls, transport } = sinkTransport({});
+    const sink = createSourceEventSink({ transport: transport as never });
+    const counts = await sink([CUSTODY, { ...CUSTODY, alertId: '5d6e7f80-91a2-4b39-8c44-eeff00112233' }]);
+    expect(counts).toEqual({ offered: 2, dispatched: 0, queued: 0, deduped: 0, refused: 0, unknown: 0, skipped: 2 });
+    // One bounded binding read for the pair, and ZERO event calls: no routine, no event.
+    expect(calls.filter((call) => call.path === SOURCE_EVENT_BINDING_PATH)).toHaveLength(1);
+    expect(calls.filter((call) => call.path === SOURCE_EVENT_EVENT_PATH)).toHaveLength(0);
+  });
+
+  it('delivers the approved pair only, and a foreign tenant is never covered by another approval', async () => {
+    const { calls, transport } = sinkTransport({
+      [`tenant-a|federal_award|${WATCH}`]: { scheduleId: SCHEDULE, generation: 3 },
+    });
+    const sink = createSourceEventSink({ transport: transport as never });
+    const counts = await sink([
+      CUSTODY,
+      { ...CUSTODY, tenantId: 'tenant-b', alertId: '6e7f8091-a2b3-4c4a-9d55-ff0011223344' },
+    ]);
+    expect(counts).toEqual({ offered: 2, dispatched: 1, queued: 0, deduped: 0, refused: 0, unknown: 0, skipped: 1 });
+    const posted = calls.filter((call) => call.path === SOURCE_EVENT_EVENT_PATH);
+    expect(posted).toHaveLength(1);
+    expect((posted[0]!.body as never as SourceEventEnvelope).tenantId).toBe('tenant-a');
+  });
+
+  it('reports Meri-recorded replays as deduped and refusals as refused, never as dispatch', async () => {
+    const { transport } = sinkTransport(
+      { [`tenant-a|federal_award|${WATCH}`]: { scheduleId: SCHEDULE, generation: 3 } },
+      ['DEDUPED', 'REFUSED'],
+    );
+    const sink = createSourceEventSink({ transport: transport as never });
+    const counts = await sink([
+      CUSTODY,
+      { ...CUSTODY, alertId: '7f8091a2-b3c4-4d5b-8e66-001122334455' },
+    ]);
+    expect(counts.deduped).toBe(1);
+    expect(counts.refused).toBe(1);
+    expect(counts.dispatched).toBe(0);
+  });
+
+  it('an unanswerable binding read leaves every alert UNKNOWN, never a skip and never a dispatch', async () => {
+    const { calls, transport } = sinkTransport({}, [], true);
+    const sink = createSourceEventSink({ transport: transport as never });
+    const counts = await sink([CUSTODY]);
+    expect(counts).toEqual({ offered: 1, dispatched: 0, queued: 0, deduped: 0, refused: 0, unknown: 1, skipped: 0 });
+    expect(calls.filter((call) => call.path === SOURCE_EVENT_EVENT_PATH)).toHaveLength(0);
   });
 });
 
