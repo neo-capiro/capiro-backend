@@ -758,8 +758,9 @@ describe('decorateMeetings (via listSharedMeetingsForClient)', () => {
 
 // The engagement.meetings receiver types preps[].agenda / talkingPoints / risks
 // / followUps as string[], while the canonical prep payload also accepts a
-// structured `{ text, ...provenance }` entry. ONE such entry used to fail the
-// whole array — and with it the whole view (the retained master-scope 502).
+// structured `{ text, ...provenance }` entry and the titled `{ title, ... }`
+// item stored on preps. ONE such entry used to fail the whole array — and with
+// it the whole view (the retained master-scope 502).
 describe('listMeetings prep list projection (receiver contract)', () => {
   const structuredPrep = (): Record<string, unknown> => ({
     id: 'p1',
@@ -803,12 +804,12 @@ describe('listMeetings prep list projection (receiver contract)', () => {
 
   test('an entry without a valid metadata arm is passed through verbatim, so validation is not weakened', async () => {
     const stored = structuredPrep();
-    const taskEntry = { title: 'Synthetic task', description: 'Not prep text' };
+    const unshaped = { description: 'Not prep text' };
     const bareText = { text: 'Text without any metadata arm' };
     const nonArrayFactIds = { text: 'Non-array metadata', factIds: 'fact-1' };
     const nonStringFactIds = { text: 'Non-string metadata member', factIds: ['fact-1', 7] };
     const nonArrayReferences = { text: 'Non-array references', evidenceReferences: 'ref-1' };
-    stored.agenda = [taskEntry, 'Plain agenda item'];
+    stored.agenda = [unshaped, 'Plain agenda item'];
     stored.talkingPoints = [bareText, nonArrayFactIds, 'Plain talking point'];
     stored.risks = [{ text: 42 }, { text: '   ' }, nonStringFactIds, nonArrayReferences];
     stored.followUps = [];
@@ -818,10 +819,51 @@ describe('listMeetings prep list projection (receiver contract)', () => {
     // Nothing is dropped and nothing is coerced into a string — including a
     // text-bearing object whose provenance arm is missing or malformed, which
     // the receiver's union does not accept either.
-    expect(prep!.agenda).toEqual([taskEntry, 'Plain agenda item']);
+    expect(prep!.agenda).toEqual([unshaped, 'Plain agenda item']);
     expect(prep!.talkingPoints).toEqual([bareText, nonArrayFactIds, 'Plain talking point']);
     expect(prep!.risks).toEqual([{ text: 42 }, { text: '   ' }, nonStringFactIds, nonArrayReferences]);
     expect(prep!.followUps).toEqual([]);
+  });
+
+  // The shape stored on the deployed preps: the synthetic master-scope prep
+  // (5-week window, engagement.meetings master read) carries `{ title, ... }`
+  // agenda/follow-up items, which the text-only recognition above left in place
+  // — so the whole view kept failing on the receiver contract.
+  test('the stored titled item arm is projected to its title', async () => {
+    const stored = structuredPrep();
+    const agendaTitle = { title: 'Synthetic agenda title', description: 'Not shown' };
+    const followUpTitle = {
+      title: 'Synthetic follow-up title',
+      dueDate: '2026-10-05',
+      description: 'Not shown',
+    };
+    stored.agenda = [agendaTitle, 'Plain agenda item'];
+    stored.talkingPoints = [{ title: 'Synthetic talking point title' }];
+    stored.risks = [{ title: 42 }, { title: '   ' }, 'Plain risk'];
+    stored.followUps = [followUpTitle];
+
+    const [prep] = await listMaster([stored]);
+
+    expect(prep!.agenda).toEqual(['Synthetic agenda title', 'Plain agenda item']);
+    expect(prep!.talkingPoints).toEqual(['Synthetic talking point title']);
+    // A missing, wrong-typed or blank title is not a recognized arm.
+    expect(prep!.risks).toEqual([{ title: 42 }, { title: '   ' }, 'Plain risk']);
+    expect(prep!.followUps).toEqual(['Synthetic follow-up title']);
+    // The stored row is never rewritten.
+    const [storedAgendaItem] = stored.agenda as unknown[];
+    const [storedFollowUpItem] = stored.followUps as unknown[];
+    expect(storedAgendaItem).toBe(agendaTitle);
+    expect(storedFollowUpItem).toBe(followUpTitle);
+  });
+
+  test('a malformed text arm is not rescued by a title', async () => {
+    const stored = structuredPrep();
+    const mixed = { text: 'Evidence text with no metadata arm', title: 'Synthetic title' };
+    stored.agenda = [mixed];
+
+    const [prep] = await listMaster([stored]);
+
+    expect(prep!.agenda).toEqual([mixed]);
   });
 
   test('one valid metadata arm is enough — a malformed second arm does not block projection', async () => {
