@@ -306,6 +306,19 @@ export async function discoverClaimCandidates(
 }
 
 /**
+ * MB-05 producer hook: the canonical alerts this pass DURABLY committed, offered to the delivery
+ * owner after the transaction resolved. Structurally the delivery owner's `SourceEventAlertCustody`
+ * (bizdev-watch-source-event.ts); it is declared here so the runner keeps its minimal DB surface
+ * and no transaction-scoped dependency on the Meri client.
+ */
+export type BizDevWatchSourceEventSink = (
+  alerts: readonly {
+    tenantId: string; alertId: string; watchId: string; prospectId: string; dedupeKey: string;
+    fingerprint: string; sourceFamily: string; recordId: string; sourceRevision: string | null; occurredAtMs: number;
+  }[],
+) => Promise<void>;
+
+/**
  * One DB-only evaluator pass. Returns structured metrics; throws ONLY on
  * invalid config / fatal setup (the caller exits nonzero then).
  */
@@ -314,6 +327,7 @@ export async function runBizDevWatchEvaluation(
   projections: BizDevProjectionDb,
   config: BizDevWatchRunConfig,
   clock: () => Date = () => new Date(),
+  sourceEvents: BizDevWatchSourceEventSink | null = null,
 ): Promise<BizDevWatchRunMetrics> {
   validateRunConfig(config);
   const started = Date.now();
@@ -367,6 +381,9 @@ export async function runBizDevWatchEvaluation(
 
   for (const state of claimed) {
     try {
+      // Alerts this transaction durably commits. Declared OUTSIDE the transaction so a rolled-back
+      // transaction contributes nothing, and delivered only after the commit resolves.
+      const committedAlerts: Parameters<BizDevWatchSourceEventSink>[0][number][] = [];
       const outcome = await db.withTenant(state.tenantId, async (tx) => {
         const watch = (await tx.businessDevelopmentWatch.findFirst({
           where: { tenantId: state.tenantId, id: state.watchId },
@@ -816,7 +833,7 @@ export async function runBizDevWatchEvaluation(
                 watchId: state.watchId,
                 dedupeKey: draft.dedupeKey,
               },
-              select: { id: true },
+              select: { id: true, firstObservedAt: true },
             });
             if (!created) {
               throw new Error(
@@ -846,6 +863,21 @@ export async function runBizDevWatchEvaluation(
                 body: `New watch alert: ${draft.title}`,
                 afterJsonb: { sourceLocator: draft.sourceLocator } as Prisma.InputJsonValue,
               },
+            });
+            // MB-05: the canonical immutable alert is now part of THIS tenant transaction, so the
+            // exact event identity is the alert's own id. The custody record is offered to the
+            // delivery owner only after this transaction resolves (below).
+            committedAlerts.push({
+              tenantId: state.tenantId,
+              alertId: created.id,
+              watchId: state.watchId,
+              prospectId: watch.prospectId,
+              dedupeKey: draft.dedupeKey,
+              fingerprint: draft.fingerprint,
+              sourceFamily: draft.sourceFamily,
+              recordId: draft.recordId,
+              sourceRevision: draft.sourceRevision ?? null,
+              occurredAtMs: created.firstObservedAt.getTime(),
             });
             delivered += 1;
           }
@@ -904,6 +936,10 @@ export async function runBizDevWatchEvaluation(
         return cycleEnd ? 'healthy' : ('partial' as const);
       });
       if (outcome === 'skipped') metrics.checked -= 1;
+      // MB-05: deliver AFTER the durable commit, never inside it. A lost or unknown Meri
+      // acknowledgement is Meri's recorded disposition (or UNKNOWN) and never a family failure:
+      // the immutable alert is Core custody, so the identical event replays from it.
+      if (sourceEvents && committedAlerts.length) await sourceEvents(committedAlerts).catch(() => undefined);
     } catch (familyError) {
       // One failed family never blocks others: record and continue. The
       // error-finalize ALSO predicates on the lease token — a stale worker

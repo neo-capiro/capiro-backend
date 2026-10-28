@@ -91,6 +91,9 @@ export class MeriRoutineReadController {
   read(@Body() body: unknown, @Req() req: Request) { return this.routines.read(body, req, this.reads); }
   @Post('consent') @HttpCode(200) @Header('Cache-Control', 'no-store')
   consent(@Body() body: unknown, @Req() req: Request) { return this.routines.consentObservation(body, req); }
+  /** MB-05: the watch producer's canonical custody read for one claimed source event. */
+  @Post('source-events/current') @HttpCode(200) @Header('Cache-Control', 'no-store')
+  sourceEventCurrent(@Body() body: unknown, @Req() req: Request) { return this.routines.sourceEventCurrent(req, body); }
 }
 
 /** One KMS Ed25519 signer per purpose, from its `<PURPOSE>_*` configuration; null (503) when absent or invalid. */

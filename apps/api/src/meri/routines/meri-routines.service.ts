@@ -26,6 +26,7 @@ import {
   readRoutineConsentRenewalWindow,
   type RoutineConsentRenewalPins,
 } from './meri-routine-consent-renewal.js';
+import { parseRoutineSourceEventRequest, readRoutineSourceEvent } from './meri-routine-source-event.js';
 import { isUuid } from '../../auth/read-delegation/read-delegation.contract.js';
 import { ApplicationMembershipService } from '../../auth/application-membership.service.js';
 import type { CoreEd25519Signer } from '../../auth/core-ed25519-signer.js';
@@ -97,6 +98,18 @@ export class MeriRoutinesService {
     if (!hasInternalServiceIdentity(req)) throw forbidden();
     const request = parseRoutineConsentObservationRequest(raw);
     return this.prisma.withTenant(request.tenantId, tx => readRoutineConsentObservation(tx, request));
+  }
+
+  /**
+   * MB-05: the routine source-event custody read for the existing bizdev watch producer. The
+   * service identity alone is the authority; the answer is Core's own re-read of the immutable
+   * alert, the watch's current owner/member/client wall and the exact saved consent. It creates
+   * no consent, no binding, no occurrence and no run.
+   */
+  async sourceEventCurrent(req: Request, raw: unknown) {
+    if (!hasInternalServiceIdentity(req)) throw forbidden();
+    const request = parseRoutineSourceEventRequest(raw);
+    return this.prisma.withTenant(request.tenantId, tx => readRoutineSourceEvent(tx, request));
   }
 
   async read(raw: unknown, req: Request, reads: RetainedReadDispatcher): Promise<unknown> {
