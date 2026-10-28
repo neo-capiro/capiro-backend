@@ -174,9 +174,19 @@ export async function assertRoutineConsentRenewal(
 }
 
 /**
- * The stored window that now applies to these pins, read back after the write.
+ * The stored window that this exact approval now holds, read back after the write.
  * On an exact replay the canonical writer's `skipDuplicates` keeps the FIRST row,
  * so this returns the original timestamps and the renewal extends nothing.
+ *
+ * The row is read by the writer's own unique key, scoped to this owner and
+ * schedule: (tenantId, intentId, decisionSha256) is what the writer's
+ * `skipDuplicates` compares, so a replay or a racing commit of the same approval
+ * is the row this returns. A missing row means the writer did NOT record this
+ * decision for this owner and schedule — typically because another owner's or
+ * another schedule's row already holds that decision key — and it is refused.
+ * Substituting the newest row for this owner+schedule would report an unrelated
+ * consent's issuedAt/expiresAt as this approval's own window, i.e. claim a consent
+ * acknowledgement this call never wrote, so no substitute window is ever returned.
  */
 export async function readRoutineConsentRenewalWindow(
   tx: Prisma.TransactionClient,
@@ -184,10 +194,8 @@ export async function readRoutineConsentRenewalWindow(
   decisionSha256: string,
 ): Promise<{ issuedAtMs: number; expiresAtMs: number; decisionSha256: string }> {
   const stored = await tx.clioMeriRoutineConsent.findFirst({
-    where: { tenantId: pins.tenantId, ownerUserId: pins.ownerActorId, scheduleId: pins.scheduleId, decisionSha256 },
-  }) ?? await tx.clioMeriRoutineConsent.findFirst({
-    where: { tenantId: pins.tenantId, ownerUserId: pins.ownerActorId, scheduleId: pins.scheduleId },
-    orderBy: { issuedAt: 'desc' },
+    where: { tenantId: pins.tenantId, ownerUserId: pins.ownerActorId, scheduleId: pins.scheduleId,
+      intentId: pins.intentId, decisionSha256 },
   });
   if (!stored) throw forbidden();
   return { issuedAtMs: stored.issuedAt.getTime(), expiresAtMs: stored.expiresAt.getTime(), decisionSha256: stored.decisionSha256 };

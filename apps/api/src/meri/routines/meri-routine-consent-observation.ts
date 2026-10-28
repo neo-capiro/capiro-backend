@@ -17,10 +17,16 @@
  * observation reads the original approved scopes from the consent row itself and
  * re-checks every one of them against the owner's current client wall.
  *
- * Matching. Only a consent row for the requested generation AND intent digest AND
- * projection digest can be reported `active`; an older generation's consent is
- * reported `absent` for the requested pins (never `active`) with the nearest
- * row's generation and window for honest diagnosis.
+ * Matching. The consent that applies to a request is the newest stored row that
+ * pins it exactly — the requested generation AND intent digest AND projection
+ * digest — which is the selection the canonical reader and the firing grant make.
+ * A newer row for different pins never hides this request's own unexpired
+ * consent, and a row that does not pin this request is never reported `active`:
+ * the answer is `absent` for these pins, carrying the nearest stored row's
+ * generation and window for honest diagnosis (`pinsMatched` false), never that
+ * row's state. Every remaining fence still applies to the pinned row: a lapsed
+ * window is `expired` and a revocation, lost membership or lost client scope is
+ * `revoked`, so `active` is never returned for a consent that cannot back a read.
  *
  * Clock and rights. The database clock on the caller's transaction is the
  * reference instant, and the owner's current membership (active member of an
@@ -28,7 +34,10 @@
  * scope are re-checked before any `active` answer is returned.
  *
  * Unknown is not absence. A database/transport failure propagates to the caller;
- * this module never converts a failed read into a fabricated `absent`.
+ * this module never converts a failed read into a fabricated `absent`. Neither is
+ * a foreign owner: a schedule Core already records under another owner — an
+ * attended approval row or a stored consent row for the same tenant and schedule —
+ * is refused, never answered as an absence.
  *
  * Output. Closed, finite and free of consent payloads and private identity: no
  * scope array, no intent/decision digests, no consent or intent id, no user id.
@@ -76,12 +85,15 @@ export type RoutineConsentRevocationCause = 'revocation' | 'membership' | 'clien
 export interface RoutineConsentObservation {
   schemaVersion: 1;
   state: RoutineConsentObservationState;
-  /** True only when the newest consent for this owner+schedule matched every requested pin. */
+  /** True when a stored consent row pins every requested pin, so this answer is about that row. */
   pinsMatched: boolean;
   observedAtMs: number;
   /** Echo of the requested (current) generation. */
   generation: number;
-  /** The newest consent row's generation, or null when this owner has no consent for this schedule. */
+  /**
+   * The answered row's generation; when nothing pins the request, the nearest stored
+   * row for this owner+schedule (null when this owner has no consent for this schedule).
+   */
   consentGeneration: number | null;
   issuedAtMs: number | null;
   expiresAtMs: number | null;
@@ -118,31 +130,39 @@ export async function readRoutineConsentObservation(
   await tx.$queryRaw`SELECT pg_advisory_xact_lock(
     hashtextextended('capiro-meri-routine:' || ${q.tenantId}::text || ':' || ${q.scheduleId}::text, 0::bigint))::text AS locked`;
   const nowMs = await meriExecutionDbNow(tx);
-  // Core's own attended approval is the only durable owner assertion it holds for a schedule.
-  // A schedule recorded for another owner is a foreign request, never an absence.
-  const attendance = await tx.clioMeriRoutineApproval.findFirst({
-    where: { tenantId: q.tenantId, scheduleId: q.scheduleId },
-    select: { ownerUserId: true },
-  });
-  if (attendance && attendance.ownerUserId !== q.ownerActorId) throw forbidden();
+  // Owner wall, before any answer, from Core's own rows for this schedule and with no
+  // ordering to decide: the attendance row Core holds when a cancel was approved, and
+  // the consent row it holds whenever any owner has consented for this schedule. A row
+  // naming another owner is a foreign request, never an absence, so a legitimate
+  // current consent for another owner can never be answered as this caller's absence.
+  const otherOwner = { tenantId: q.tenantId, scheduleId: q.scheduleId, ownerUserId: { not: q.ownerActorId } };
+  if (await tx.clioMeriRoutineApproval.findFirst({ where: otherOwner, select: { ownerUserId: true } })) throw forbidden();
+  if (await tx.clioMeriRoutineConsent.findFirst({ where: otherOwner, select: { ownerUserId: true } })) throw forbidden();
   const base = { schemaVersion: 1 as const, observedAtMs: nowMs, generation: q.generation };
+  // The same selection the canonical reader makes: the newest stored row that pins this
+  // exact request. A newer row for different pins never hides this request's own consent.
   const consent = await tx.clioMeriRoutineConsent.findFirst({
-    where: { tenantId: q.tenantId, ownerUserId: q.ownerActorId, scheduleId: q.scheduleId },
+    where: { tenantId: q.tenantId, ownerUserId: q.ownerActorId, scheduleId: q.scheduleId, generation: q.generation,
+      intentSha256: q.intentSha256, projectionSha256: q.projectionSha256 },
     orderBy: { issuedAt: 'desc' },
   });
   if (!consent) {
-    return { ...base, state: 'absent', pinsMatched: false, consentGeneration: null, issuedAtMs: null, expiresAtMs: null,
-      scopeCount: null, cause: null, rightsSha256: null };
+    // Nothing pins this request: absent for these pins. The nearest stored row's window
+    // is reported for honest diagnosis and is never the row's own state.
+    const nearest = await tx.clioMeriRoutineConsent.findFirst({
+      where: { tenantId: q.tenantId, ownerUserId: q.ownerActorId, scheduleId: q.scheduleId },
+      orderBy: { issuedAt: 'desc' },
+    });
+    const nearestScopes = nearest !== null && Array.isArray(nearest.scopes) ? (nearest.scopes as unknown as NativeScope[]) : null;
+    return { ...base, state: 'absent', pinsMatched: false, consentGeneration: nearest === null ? null : nearest.generation,
+      issuedAtMs: nearest === null ? null : nearest.issuedAt.getTime(), expiresAtMs: nearest === null ? null : nearest.expiresAt.getTime(),
+      scopeCount: nearestScopes === null ? null : nearestScopes.length, cause: null, rightsSha256: null };
   }
   const issuedAtMs = consent.issuedAt.getTime(), expiresAtMs = consent.expiresAt.getTime();
   const scopes = Array.isArray(consent.scopes) ? (consent.scopes as unknown as NativeScope[]) : null;
-  const found = { ...base, consentGeneration: consent.generation, issuedAtMs, expiresAtMs, scopeCount: scopes === null ? null : scopes.length };
-  const pinsMatched = consent.generation === q.generation && consent.intentSha256 === q.intentSha256 &&
-    consent.projectionSha256 === q.projectionSha256;
-  if (!pinsMatched) {
-    // An older generation's consent can never look active for the current pins.
-    return { ...found, state: 'absent', pinsMatched: false, cause: null, rightsSha256: null };
-  }
+  // The found row pins this request, so every remaining state is about these pins.
+  const found = { ...base, pinsMatched: true, consentGeneration: consent.generation, issuedAtMs, expiresAtMs,
+    scopeCount: scopes === null ? null : scopes.length };
   // Mirrors the canonical reader: a row issued in the future is not current authority.
   if (issuedAtMs > nowMs) throw forbidden();
   if (scopes === null || scopes.length < 1 || scopes.some((s) => !s || typeof s !== 'object' || s.tenantId !== q.tenantId)) throw forbidden();

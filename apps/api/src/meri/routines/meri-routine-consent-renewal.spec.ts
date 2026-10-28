@@ -86,14 +86,14 @@ const consentRow = (patch: Partial<ConsentRow> = {}): ConsentRow => ({
 interface State {
   now: number; rows: ConsentRow[]; member: { role: string; status: string; tenantStatus: string } | null;
   receipt: { actorId: string } | null; visibleClients: string[] | null; revokedAt: number | null;
-  hiddenDecisions: Set<string>; clockFails: boolean; consentReadFails: boolean; revocationReadFails: boolean;
+  clockFails: boolean; consentReadFails: boolean; revocationReadFails: boolean;
   calls: string[]; writes: string[]; tenants: string[];
 }
 
 function fixture() {
   const state: State = {
     now: NOW, rows: [consentRow()], member: { role: 'standard_user', status: 'active', tenantStatus: 'active' },
-    receipt: null, visibleClients: null, revokedAt: null, hiddenDecisions: new Set(),
+    receipt: null, visibleClients: null, revokedAt: null,
     clockFails: false, consentReadFails: false, revocationReadFails: false, calls: [], writes: [], tenants: [],
   };
   // The tenant wall: rows of another tenant are never visible to a scoped read.
@@ -103,8 +103,6 @@ function fixture() {
     state.calls.push('consent');
     if (state.consentReadFails) throw new Error('consent read unavailable');
     const where = args?.where ?? {};
-    const hidden = where.decisionSha256 !== undefined && state.hiddenDecisions.has(where.decisionSha256);
-    if (hidden) return null;
     // A scoped read also applies the row's own tenant (the query's tenantId is the
     // wall): another tenant's row is never returned for this session's tenant.
     const matching = state.rows.filter((row) => row.tenantId === where.tenantId && (!where.ownerUserId || row.ownerUserId === where.ownerUserId) &&
@@ -137,7 +135,6 @@ function fixture() {
         for (const row of args.data) {
           const duplicate = state.rows.some((existing) => existing.intentId === row.intentId && existing.decisionSha256 === row.decisionSha256);
           if (duplicate) continue;
-          state.hiddenDecisions.delete(row.decisionSha256);
           state.rows.push({ ...row, consentId: row.consentId ?? id(91) } as ConsentRow);
         }
         return { count: 1 };
@@ -300,18 +297,41 @@ describe('MR-04 routine consent renewal (attended, real writer)', () => {
       issuedAtMs: NOW - 40 * 86_400_000, expiresAtMs: NOW - 10 * 86_400_000 });
   });
 
-  it('keeps one row when two renewals of the same approval race past the idempotency pre-read', async () => {
+  it('serializes with a competing renewal of the same approval: one row, and the stored window is what it reports', async () => {
     const f = fixture();
     const raced = consentRow({ decisionSha256: decision(approval()), issuedAt: new Date(NOW - 5_000), expiresAt: new Date(NOW + WINDOW_MS - 5_000) });
     f.state.rows = [consentRow(), raced];
-    // The competing transaction commits the decision row after this call read the
-    // table but before it inserted: the unique decision key still yields one row.
-    f.state.hiddenDecisions.add(decision(approval()));
+    // The competing renewal takes the same schedule advisory lock, so it either committed
+    // before this call or has not run yet; a commit cannot land between this call's
+    // pre-read and its insert. Its row is what this call reports, and the unique decision
+    // key keeps one row: the first window stands and nothing is extended.
     const renewed = await f.service.consentRenew(f.req, f.ctx, body());
     expect(renewed).toEqual({ schemaVersion: 1, state: 'active', generation: GEN, policyRevision: POLICY,
-      issuedAtMs: NOW - 5_000, expiresAtMs: NOW + WINDOW_MS - 5_000, observedAtMs: NOW, idempotent: false });
+      issuedAtMs: NOW - 5_000, expiresAtMs: NOW + WINDOW_MS - 5_000, observedAtMs: NOW, idempotent: true });
+    expect(f.state.writes).toEqual(['consent.createMany']);
     expect(f.state.rows).toHaveLength(2);
     expect(f.state.rows.filter((row) => row.decisionSha256 === decision(approval()))).toHaveLength(1);
+  });
+
+  it('refuses when the writer recorded this decision only for an unrelated row, never reporting that row window', async () => {
+    const f = fixture();
+    // An unrelated row of the same tenant and intent carries THIS approval's decision key
+    // but belongs to another owner and schedule, so the writer's unique key makes the
+    // insert a duplicate while the exact decision row for this owner+schedule is absent.
+    // The renewal must refuse: substituting the newest row for this owner+schedule would
+    // report another consent's window as this approval's own.
+    f.state.rows = [consentRow(), consentRow({ consentId: id(92), ownerUserId: FOREIGN, scheduleId: FOREIGN, decisionSha256: decision(approval()) })];
+    await expect(f.service.consentRenew(f.req, f.ctx, body())).rejects.toBeInstanceOf(ForbiddenException);
+    expect(f.state.rows).toHaveLength(2);
+    expect(f.state.rows.some((row) => row.ownerUserId === OWNER && row.decisionSha256 === decision(approval()))).toBe(false);
+    // Same at the mounted route: an error, never a window body.
+    const app = await mounted(f);
+    try {
+      const refused = await request(app.getHttpServer()).post('/api/clio/routines/consent/renew')
+        .set('x-internal-service-secret', SECRET).send(body()).expect(403);
+      expect(refused.body.issuedAtMs).toBeUndefined();
+      expect(refused.body.expiresAtMs).toBeUndefined();
+    } finally { await app.close(); }
   });
 
   it.each([
