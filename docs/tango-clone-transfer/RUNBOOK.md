@@ -7,7 +7,7 @@ This is an operator procedure for the release owner in the reserved preview wind
 | Table | Source rows and identity |
 | --- | --- |
 | `federal_grant` | All public grants; government opportunity ID is retained. |
-| `sam_opportunity` | All public notices; exact verified 32-hex government notice ID after lowercasing and removing hyphens. Existing target local IDs win. No title/solicitation fuzzy matching. |
+| `sam_opportunity` | Public notices excluding source rows explicitly marked with JSON boolean `raw_jsonb.fixture=true`; exact verified 32-hex government notice ID after lowercasing and removing hyphens. Existing target local IDs win. Target fixtures and their relationships are retained unchanged and fingerprinted server-side. No title/solicitation fuzzy matching. |
 | `tango_opportunity_notice` | Public notice history by `tango_notice_id`; remap local SAM pointer. |
 | `opportunity_attachment` | All public catalog attachments; remapped parent and URL, or same SAM parent and provider attachment ID. Only the canonical SAM file endpoint's empty `?&token=` alias is normalized. Multiple candidates or conflicting identities refuse the entire transfer. |
 | `opportunity_document_text` | Native/provider extracted text by mapped attachment and extraction method; preserve target row IDs and exact archived-byte hash binding. |
@@ -16,6 +16,8 @@ This is an operator procedure for the release owner in the reserved preview wind
 | `context_embeddings` | Only `funding_grant_chunk`, `funding_notice_chunk`, `funding_attachment_chunk`, with **tenant, client and owner all NULL**. Map parent source ID, attachment SAM pointer and `parentId`; preserve target vector IDs on natural-key collisions. |
 
 The consolidated writer has no procurement-forecast lane. Its separate forecast writer and data remain in place; forecast, award, contractor, SBIR and DIBBS tables are excluded. Operational checkpoints/runs are deliberately excluded: reconciliation cursors contain source-local IDs, target-only records need their own traversal, and run errors/stats may contain unrelated context. Existing target checkpoints/runs are untouched. Use the target's own checkpoint/fresh-crawl policy after the transfer; never copy a source reconciliation cursor.
+
+The existing demo seeder's explicitly flagged notices are outside the government catalog transfer. Only the JSON boolean `true` qualifies; a string marker, missing flag or unknown malformed government ID still refuses the transfer. Source fixture dependencies are not silently dropped: existing history, attachment, link and vector orphan checks remain, and notice snapshots keyed to an excluded fixture also refuse publication. No source fixture or target fixture is deleted or repaired.
 
 The operator uses psycopg 3, PostgreSQL streaming COPY, temporary candidate tables and the existing funding mapper's `searchText`, `hash` and `stable` functions. There is no new persistent ledger, staging schema, queue, dependency or provider request. Every COPY has a full transport checksum. Memory is bounded to a protocol block or one document's text/chunk metadata, rather than the full catalog or vector set.
 

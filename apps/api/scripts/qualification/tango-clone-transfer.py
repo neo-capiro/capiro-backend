@@ -22,6 +22,7 @@ TABLES = (
 )
 PUBLIC_VECTORS = "tenant_id IS NULL AND client_id IS NULL AND owner_user_id IS NULL AND source_type IN ('funding_grant_chunk','funding_notice_chunk','funding_attachment_chunk')"
 SCOPES = {
+    "sam_opportunity": "raw_jsonb->'fixture' IS DISTINCT FROM 'true'::jsonb",
     "tango_resource_snapshot": "resource_type IN ('grant','notice','opportunity')",
     "tango_resource_link": "local_resource_type IN ('federal_grant','sam_opportunity') AND tango_resource_type IN ('grant','notice','opportunity') AND basis='exact_identifier' AND reviewed_by IS NULL AND reviewed_at IS NULL AND review_notes IS NULL",
     "context_embeddings": PUBLIC_VECTORS,
@@ -116,7 +117,11 @@ def stage(source, target, table):
                 writer.write(block)
     require(digest.hexdigest() == checksum(target, f"SELECT {names} FROM s_{table} ORDER BY id"), "copy_checksum_mismatch")
     target.execute(f"CREATE UNIQUE INDEX ON s_{table}(id)")
-    target_scope = "local_resource_type IN ('federal_grant','sam_opportunity') AND tango_resource_type IN ('grant','notice','opportunity')" if table == "tango_resource_link" else scope
+    target_scope = scope
+    if table == "sam_opportunity":
+        target_scope = "true"  # Preserve every existing target fixture and its references.
+    elif table == "tango_resource_link":
+        target_scope = "local_resource_type IN ('federal_grant','sam_opportunity') AND tango_resource_type IN ('grant','notice','opportunity')"
     target.execute(f"CREATE TEMP TABLE w_{table} AS SELECT * FROM public.{ident(table)} WHERE {target_scope}")
     target.execute(f"CREATE UNIQUE INDEX ON w_{table}(id)")
     target.execute(f"ANALYZE s_{table}")
@@ -151,8 +156,8 @@ def sam_ref(expression):
 def prepare_maps(conn, schemas):
     check_zero(conn,"SELECT count(*) FROM s_federal_grant WHERE id !~ '^[0-9]+$'","unverified_government_grant_identity")
     for prefix in ("s", "w"):
-        check_zero(conn, f"SELECT count(*) FROM {prefix}_sam_opportunity WHERE lower(replace(notice_id,'-','')) !~ '^[0-9a-f]{{32}}$'", "unverified_government_notice_identity")
-        check_zero(conn, f"SELECT count(*) FROM (SELECT lower(replace(notice_id,'-','')) FROM {prefix}_sam_opportunity GROUP BY 1 HAVING count(*)>1) q", "duplicate_government_notice_identity")
+        check_zero(conn, f"SELECT count(*) FROM {prefix}_sam_opportunity WHERE ({SCOPES['sam_opportunity']}) AND lower(replace(notice_id,'-','')) !~ '^[0-9a-f]{{32}}$'", "unverified_government_notice_identity")
+        check_zero(conn, f"SELECT count(*) FROM (SELECT lower(replace(notice_id,'-','')) FROM {prefix}_sam_opportunity WHERE {SCOPES['sam_opportunity']} GROUP BY 1 HAVING count(*)>1) q", "duplicate_government_notice_identity")
     # Natural-key indexes are essential: this is hundreds of thousands of catalog rows,
     # not per-row network queries or nested full-table scans.
     for ddl in (
@@ -168,7 +173,7 @@ def prepare_maps(conn, schemas):
     for table in TABLES[:-1]:
         conn.execute(f"ANALYZE w_{table}")
     natural_map(conn, "federal_grant", "s.id=t.id")
-    natural_map(conn, "sam_opportunity", "lower(replace(s.notice_id,'-',''))=lower(replace(t.notice_id,'-',''))")
+    natural_map(conn, "sam_opportunity", "t.raw_jsonb->'fixture' IS DISTINCT FROM 'true'::jsonb AND lower(replace(s.notice_id,'-',''))=lower(replace(t.notice_id,'-',''))")
     # Crosswalk local_resource_id is text; its correlated lookup must use the
     # same expression as this index rather than scan the UUID map per link.
     conn.execute("CREATE INDEX ON m_sam_opportunity((old_id::text))")
@@ -297,6 +302,7 @@ def protected_digest(conn):
         result[table] = conn.execute(f"SELECT count(*),md5(coalesce(string_agg(md5(row_to_json(t)::text),'' ORDER BY id),'')) FROM public.{ident(table)} t").fetchone()
     result["private_vectors"] = conn.execute("SELECT count(*),md5(coalesce(string_agg(md5(row_to_json(t)::text),'' ORDER BY id),'')) FROM context_embeddings t WHERE tenant_id IS NOT NULL OR client_id IS NOT NULL OR owner_user_id IS NOT NULL").fetchone()
     result["excluded_resource_links"] = conn.execute("SELECT count(*),md5(coalesce(string_agg(md5(row_to_json(t)::text),'' ORDER BY id),'')) FROM tango_resource_link t WHERE NOT (" + SCOPES["tango_resource_link"] + ")").fetchone()
+    result["fixture_notices"] = conn.execute("SELECT count(*),md5(coalesce(string_agg(md5(row_to_json(t)::text),'' ORDER BY id),'')) FROM sam_opportunity t WHERE raw_jsonb->'fixture'='true'::jsonb").fetchone()
     return result
 
 
@@ -489,6 +495,13 @@ def transfer(source, target, api_dir, node="node", commit=False):
         RETURN out;
       END $$""")
     before = protected_digest(target)
+    # Notice observations have a soft government-key reference, so detect this
+    # excluded fixture dependency before it could enter the snapshot union.
+    check_zero(source,"""SELECT count(*) FROM sam_opportunity s WHERE s.raw_jsonb->'fixture'='true'::jsonb AND (
+        EXISTS(SELECT 1 FROM tango_resource_snapshot p WHERE p.resource_type='notice'
+            AND lower(replace(p.external_id,'-',''))=lower(replace(s.notice_id,'-','')))
+        OR EXISTS(SELECT 1 FROM tango_opportunity_notice n WHERE n.sam_opportunity_id IS NULL
+            AND lower(replace(n.tango_notice_id,'-',''))=lower(replace(s.notice_id,'-',''))))""","source_fixture_observation_dependency")
     schemas, receipt = {}, {"mode":"commit" if commit else "dry_run", "tables":{}}
     for table in TABLES:
         schemas[table], receipt["tables"][table] = stage(source,target,table)
