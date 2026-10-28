@@ -5,6 +5,45 @@ import {
   resolveEngagementRuntimeEnvironment,
 } from './engagement-runtime-env.js';
 
+describe('integrations_and_notetaker explicit production posture', () => {
+  const env = {
+    CAPIRO_SERVICE_NAME: 'api',
+    ENGAGEMENT_PROCESS_MODE: 'shadow',
+    ENGAGEMENT_BACKGROUND_OWNER: 'api',
+    ENGAGEMENT_EXTERNAL_ACTIONS: 'integrations_and_notetaker',
+    ENGAGEMENT_CALLBACKS_ENABLED: 'true',
+    ENGAGEMENT_RECALL_WEBHOOK_ENABLED: 'true',
+  };
+
+  it('accepts the explicitly owned API capture posture', () => {
+    expect(resolveEngagementRuntimeEnvironment(env)).toEqual({
+      serviceName: 'api', processMode: 'shadow', backgroundOwner: 'api',
+      externalActions: 'integrations_and_notetaker', callbacksEnabled: true,
+      recallWebhookEnabled: true,
+    });
+  });
+
+  it.each(Object.keys(env).filter((key) => key !== 'ENGAGEMENT_EXTERNAL_ACTIONS'))(
+    'does not inherit a default for %s', (key) => {
+      for (const value of [undefined, '', '  ']) {
+        expect(() => resolveEngagementRuntimeEnvironment({ ...env, [key]: value })).toThrow();
+      }
+    },
+  );
+
+  it.each([
+    ['CAPIRO_SERVICE_NAME', 'engagement-api'],
+    ['ENGAGEMENT_PROCESS_MODE', 'active'],
+    ['ENGAGEMENT_BACKGROUND_OWNER', 'disabled'],
+    ['ENGAGEMENT_BACKGROUND_OWNER', 'engagement-api'],
+    ['ENGAGEMENT_CALLBACKS_ENABLED', 'false'],
+    ['ENGAGEMENT_RECALL_WEBHOOK_ENABLED', 'false'],
+    ['ENGAGEMENT_RECALL_WEBHOOK_ENABLED', 'truthy'],
+  ])('refuses partial or foreign posture %s=%s', (key, value) => {
+    expect(() => resolveEngagementRuntimeEnvironment({ ...env, [key]: value })).toThrow();
+  });
+});
+
 describe('engagement runtime environment preflight', () => {
   it('preserves current main API defaults when variables are unset', () => {
     expect(resolveEngagementRuntimeEnvironment({})).toEqual({

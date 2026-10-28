@@ -75,6 +75,8 @@ export const ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT =
  * OAuth/subscriptions. One named exception is admitted: serviceName=api with an
  * explicitly set ENGAGEMENT_BACKGROUND_OWNER=api may run only the existing
  * engagement-sync-scheduler under the runtime policy.
+ * integrations_and_notetaker separately enables existing Recall capture and
+ * debrief generation, with an explicit API owner and both callback gates on.
  *
  *   SHADOW (default): every one of processMode/backgroundOwner/
  *   externalActions/callbacksEnabled/recallWebhookEnabled is at its inert
@@ -114,7 +116,7 @@ export function resolveEngagementRuntimeEnvironment(
   const externalActions = exactEnum(
     'ENGAGEMENT_EXTERNAL_ACTIONS',
     raw.ENGAGEMENT_EXTERNAL_ACTIONS,
-    ['disabled', 'test_only', 'enabled', 'integrations_only'] as const,
+    ['disabled', 'test_only', 'enabled', 'integrations_only', 'integrations_and_notetaker'] as const,
     'enabled',
   );
   const callbacksEnabled = parseExactBooleanEnvironment(
@@ -136,6 +138,21 @@ export function resolveEngagementRuntimeEnvironment(
     callbacksEnabled,
     recallWebhookEnabled,
   };
+
+  if (externalActions === 'integrations_and_notetaker') {
+    const explicit = ['CAPIRO_SERVICE_NAME', 'ENGAGEMENT_PROCESS_MODE', 'ENGAGEMENT_BACKGROUND_OWNER',
+      'ENGAGEMENT_CALLBACKS_ENABLED', 'ENGAGEMENT_RECALL_WEBHOOK_ENABLED']
+      .every((key) => raw[key] != null && String(raw[key]).trim() !== '');
+    if (!explicit || serviceName !== 'api' || processMode !== 'shadow' ||
+      backgroundOwner !== 'api' || !callbacksEnabled || !recallWebhookEnabled) {
+      throw new Error(
+        'ENGAGEMENT_EXTERNAL_ACTIONS=integrations_and_notetaker requires explicit ' +
+          'CAPIRO_SERVICE_NAME=api, ENGAGEMENT_PROCESS_MODE=shadow, ENGAGEMENT_BACKGROUND_OWNER=api, ' +
+          'ENGAGEMENT_CALLBACKS_ENABLED=true and ENGAGEMENT_RECALL_WEBHOOK_ENABLED=true.',
+      );
+    }
+    return resolved;
+  }
 
   if (externalActions === 'integrations_only') {
     if (

@@ -1249,8 +1249,10 @@ export const configSchema = z.object({
   // 'disabled' = none (shadow). 'test_only' = only outreach_test_send with
   // testMode=true. 'integrations_only' permits the bounded Mail integration
   // actions but denies Mail/Engagement sends, including V3, and its workers.
+  // 'integrations_and_notetaker' adds explicitly owned Recall capture/debriefs,
+  // their existing attachment-write/credential dependencies, and no sends or generic workers.
   ENGAGEMENT_EXTERNAL_ACTIONS: z
-    .enum(['disabled', 'test_only', 'enabled', 'integrations_only'])
+    .enum(['disabled', 'test_only', 'enabled', 'integrations_only', 'integrations_and_notetaker'])
     .default('enabled'),
 
   // OAuth callbacks and Microsoft notifications. Uses the string-allowlist
@@ -1339,7 +1341,8 @@ export function validateConfig(raw: Record<string, unknown>): AppConfig {
   // codebase's own precedent (four other cross-field checks in this function)
   // is to keep the schema authoritative on its own, never relying solely on a
   // sibling module to catch a bad combination.
-  if (parsed.ENGAGEMENT_EXTERNAL_ACTIONS === 'integrations_only') {
+  if (parsed.ENGAGEMENT_EXTERNAL_ACTIONS === 'integrations_only' ||
+    parsed.ENGAGEMENT_EXTERNAL_ACTIONS === 'integrations_and_notetaker') {
     // Share the bounded posture check with both bootstrap preflights. Use raw
     // inputs so malformed booleans cannot be hidden by schema transforms.
     resolveEngagementRuntimeEnvironment(raw);

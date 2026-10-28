@@ -1,6 +1,32 @@
 import { describe, expect, test } from '@jest/globals';
 import { configSchema, validateConfig } from './config.schema.js';
 
+describe('integrations_and_notetaker schema/preflight parity', () => {
+  const raw = {
+    NODE_ENV: 'test', DATABASE_URL: 'postgresql://test:test@localhost:5432/test',
+    CLERK_SECRET_KEY: 'test-secret', CLERK_WEBHOOK_SIGNING_SECRET: 'test-webhook-secret',
+    CAPIRO_SERVICE_NAME: 'api', ENGAGEMENT_PROCESS_MODE: 'shadow',
+    ENGAGEMENT_BACKGROUND_OWNER: 'api', ENGAGEMENT_EXTERNAL_ACTIONS: 'integrations_and_notetaker',
+    ENGAGEMENT_CALLBACKS_ENABLED: 'true', ENGAGEMENT_RECALL_WEBHOOK_ENABLED: 'true',
+  };
+  test('accepts explicit capture while preserving the existing default', () => {
+    expect(validateConfig(raw)).toMatchObject({
+      ENGAGEMENT_EXTERNAL_ACTIONS: 'integrations_and_notetaker',
+      ENGAGEMENT_CALLBACKS_ENABLED: true, ENGAGEMENT_RECALL_WEBHOOK_ENABLED: true,
+    });
+    expect(configSchema.shape.ENGAGEMENT_EXTERNAL_ACTIONS.parse(undefined)).toBe('enabled');
+  });
+  test.each(['CAPIRO_SERVICE_NAME', 'ENGAGEMENT_PROCESS_MODE', 'ENGAGEMENT_BACKGROUND_OWNER',
+    'ENGAGEMENT_CALLBACKS_ENABLED', 'ENGAGEMENT_RECALL_WEBHOOK_ENABLED'])(
+    'refuses an implicit %s independently of bootstrap', (key) => {
+      expect(() => validateConfig({ ...raw, [key]: undefined })).toThrow();
+    },
+  );
+  test('rejects a malformed Recall boolean before a transform can hide it', () => {
+    expect(() => validateConfig({ ...raw, ENGAGEMENT_RECALL_WEBHOOK_ENABLED: 'truthy' })).toThrow();
+  });
+});
+
 describe('integrations-only runtime configuration', () => {
   const raw = {
     NODE_ENV: 'test',

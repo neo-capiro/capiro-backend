@@ -1,5 +1,8 @@
 import { describe, it, expect } from '@jest/globals';
 import { EngagementRuntimePolicyService } from './engagement-runtime-policy.service.js';
+import { guardEngagementServiceRuntime } from '../governed-engagement.factory.js';
+import { MeetingCapturePersistenceService } from '../../meeting-capture/meeting-capture-persistence.service.js';
+import { AiCredentialResolverService } from '../../ai-credentials/ai-credential-resolver.service.js';
 import type {
   EngagementExternalAction,
   EngagementExternalActionMode,
@@ -33,6 +36,87 @@ const ALL_ACTIONS: EngagementExternalAction[] = [
   'attachment_external_read',
   'attachment_external_write',
 ];
+
+describe('integrations_and_notetaker bounded API owner', () => {
+  beforeEach(() => jest.replaceProperty(process, 'env', {
+    ...process.env, OUTREACH_V3_STATE_ENABLED: 'true', OUTREACH_V3_DRAFTS_ENABLED: 'true',
+    OUTREACH_V3_SEND_ENABLED: 'true', OUTREACH_V3_GENERATION_ENABLED: 'true',
+    OUTREACH_V3_FULL_GENERATION_ENABLED: 'true', OUTREACH_V3_REASONING_ENABLED: 'true',
+  }));
+  afterEach(() => jest.restoreAllMocks());
+  const posture = {
+    serviceName: 'api', processMode: 'shadow', backgroundOwner: 'api',
+    externalActions: 'integrations_and_notetaker', callbacksEnabled: true,
+    recallWebhookEnabled: true,
+  } as const;
+  const policy = makePolicy(posture);
+  it('permits integration and existing capture/debrief boundaries only', () => {
+    const allowed: EngagementExternalAction[] = ['integration_oauth_start', 'integration_oauth_callback',
+      'integration_sync', 'integration_subscription', 'integration_notification',
+      'notetaker_dispatch', 'notetaker_remove', 'meeting_debrief_generate',
+      'attachment_external_write', 'internal_ai_credential_resolve'];
+    for (const action of allowed) expect(() => policy.assertExternalAction(action)).not.toThrow();
+    for (const action of [...ALL_ACTIONS.filter((a) => !allowed.includes(a)),
+      'outreach_reasoning', 'outreach_v3_generate', 'outreach_v3_send', 'outreach_v3_test_send'] as EngagementExternalAction[]) {
+      expect(policy.externalActionAllowed(action, { testMode: true })).toBe(false);
+    }
+    expect(() => policy.assertCallbacksEnabled('recall')).not.toThrow();
+    expect(() => policy.assertRecallWebhookEnabled('recall')).not.toThrow();
+  });
+  it('admits both actual notetaker guard names and the existing sync scheduler', () => {
+    for (const name of ['notetaker-reconcile', 'client-notetaker', 'engagement-sync-scheduler']) {
+      expect(policy.backgroundWorkersEnabled(name)).toBe(true);
+      expect(() => policy.assertBackgroundOwner(name)).not.toThrow();
+    }
+    for (const name of [undefined, '', 'engagement-notetaker-reconcile', 'krisp-notetaker-worker',
+      'outreach-v3-full-generation', 'outreach-v3-send-intent', 'mailbox-indexing-worker']) {
+      expect(policy.backgroundWorkersEnabled(name)).toBe(false);
+    }
+    expect(policy.outreachV3FullGenerationWorkerEnabled()).toBe(false);
+    expect(policy.outreachV3SendIntentWorkerEnabled()).toBe(false);
+  });
+  it('refuses capture actions and named workers on an incomplete policy', () => {
+    for (const change of [{ serviceName: 'engagement-api' }, { backgroundOwner: 'disabled' },
+      { processMode: 'active' }, { callbacksEnabled: false }, { recallWebhookEnabled: false }] as const) {
+      const incomplete = makePolicy({ ...posture, ...change });
+      expect(incomplete.externalActionAllowed('notetaker_dispatch')).toBe(false);
+      expect(incomplete.backgroundWorkersEnabled('notetaker-reconcile')).toBe(false);
+    }
+  });
+  it.each(['integrations_and_notetaker', 'integrations_only'] as const)(
+    'capture persistence and credential guards honor %s without bypassing their owners', async (mode) => {
+      const currentPolicy = makePolicy({ ...posture, externalActions: mode, recallWebhookEnabled: mode !== 'integrations_only' });
+      const ctx = { tenantId: 'synthetic-tenant', userId: 'synthetic-user' } as never;
+      const attachment = { buffer: Buffer.from('synthetic transcript'), source: 'notetaker' } as never;
+      const createAttachmentFromBuffer = jest.fn().mockResolvedValue({ id: 'synthetic-attachment' });
+      const eraseAttachmentAsSystem = jest.fn().mockResolvedValue({ ok: true });
+      const capture = new MeetingCapturePersistenceService(guardEngagementServiceRuntime({
+        createAttachmentFromBuffer, eraseAttachmentAsSystem,
+      } as never, currentPolicy));
+      const values: Record<string, string> = {
+        OPENAI_API_KEY: 'synthetic-key', OPENAI_MODEL: 'gpt-4.1-mini', ANTHROPIC_MODEL: 'claude-sonnet-4-6',
+      };
+      const prisma = { withTenant: jest.fn() };
+      const credentials = new AiCredentialResolverService({ get: (key: string) => values[key] } as never, prisma as never, currentPolicy);
+      if (mode === 'integrations_only') {
+        expect(() => capture.createAttachmentFromBuffer(ctx, attachment)).toThrow();
+        expect(() => capture.eraseAttachmentAsSystem('synthetic-tenant', 'synthetic-attachment')).toThrow();
+        await expect(credentials.resolveOrder(ctx)).rejects.toThrow();
+        expect(createAttachmentFromBuffer).not.toHaveBeenCalled();
+        expect(eraseAttachmentAsSystem).not.toHaveBeenCalled();
+      } else {
+        await capture.createAttachmentFromBuffer(ctx, attachment);
+        await capture.eraseAttachmentAsSystem('synthetic-tenant', 'synthetic-attachment');
+        expect(createAttachmentFromBuffer).toHaveBeenCalledWith(ctx, attachment);
+        expect(eraseAttachmentAsSystem).toHaveBeenCalledWith('synthetic-tenant', 'synthetic-attachment');
+        await expect(credentials.resolveOrder(ctx)).resolves.toMatchObject([{ provider: 'openai', usedTenantKey: false }]);
+        createAttachmentFromBuffer.mockRejectedValueOnce(new Error('current access refused'));
+        await expect(capture.createAttachmentFromBuffer(ctx, attachment)).rejects.toThrow('current access refused');
+      }
+      expect(prisma.withTenant).not.toHaveBeenCalled();
+    },
+  );
+});
 
 describe('EngagementRuntimePolicyService', () => {
   describe('snapshot', () => {

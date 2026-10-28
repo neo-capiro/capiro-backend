@@ -14,7 +14,7 @@ export type EngagementProcessMode = 'shadow' | 'active';
 export type EngagementBackgroundOwner = 'api' | 'engagement-api' | 'disabled';
 
 export type EngagementExternalActionMode =
-  'disabled' | 'test_only' | 'enabled' | 'integrations_only';
+  'disabled' | 'test_only' | 'enabled' | 'integrations_only' | 'integrations_and_notetaker';
 
 /** Every external or sensitive boundary gated by the runtime policy. */
 export type EngagementExternalAction =
