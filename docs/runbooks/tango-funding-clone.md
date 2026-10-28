@@ -33,7 +33,7 @@ The entrypoint accepts only `sync-tango-funding`, `embed-funding-catalog` and `s
 
 - `DATABASE_URL` (verified TLS) or all `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` inputs for the existing composer.
 - `FUNDING_ALLOWED_DB_HOST=capiro-newstack-preview-clone.cluster-csryw28ai752.us-east-1.rds.amazonaws.com` for every commit task. This value cannot extend the hardcoded allowed-host set.
-- `TANGO_API_KEY` through its authorized secret reference for catalog ingestion; existing `TANGO_BASE_URL` and request-budget behavior remain supported.
+- `TANGO_API_KEY` through its authorized secret reference for catalog ingestion; the catalog client uses the fixed `https://tango.dev` origin and retains its request budgets.
 - `OPPORTUNITY_ATTACHMENT_BUCKET` and `OPPORTUNITY_ATTACHMENT_PREFIX=funding-source-documents` for the approved private clone archive. The transfer runbook owns how source archive pointers and required objects are carried forward.
 - Task IAM for the existing Tango secret, approved archive prefix and Titan v2 as needed; Release verifies exact role resources and retained public-block/encryption policy.
 
