@@ -316,11 +316,15 @@ async function reconstructChain(
     // Two versions cannot both be replaced by one: that is a fork, not history.
     if (predecessors.length > 1) throw unavailable();
     if (backwards.length >= CLIENT_FILE_HISTORY_MAX_VERSIONS) throw unavailable();
-    backwards.unshift(predecessors[0]);
-    current = predecessors[0];
+    const predecessor = predecessors[0];
+    if (!predecessor) throw unavailable();
+    backwards.unshift(predecessor);
+    current = predecessor;
   }
 
   const original = backwards[0];
+  // Unreachable (the anchor is always in the walk); kept so the walk is provably total.
+  if (!original) throw unavailable();
   const forwards: ClientFileHistoryRow[] = [original];
   const seen = new Set([original.id]);
   let row = original;
@@ -344,7 +348,8 @@ async function reconstructChain(
       orderBy: { createdAt: 'asc' },
       take: 2,
     })) as ClientFileHistoryRow[];
-    if (claimants.length !== 1 || claimants[0].id !== row.id) throw unavailable();
+    const claimant = claimants[0];
+    if (claimants.length !== 1 || !claimant || claimant.id !== row.id) throw unavailable();
     seen.add(next.id);
     forwards.push(next);
     row = next;
@@ -354,7 +359,7 @@ async function reconstructChain(
   // at the anchor. An anchor in the middle is expected; the two walks disagreeing is not.
   if (
     backwards.length > forwards.length ||
-    backwards.some((member, index) => member.id !== forwards[index].id)
+    backwards.some((member, index) => member.id !== forwards[index]?.id)
   )
     throw unavailable();
 
@@ -417,10 +422,16 @@ export async function readClientFileHistory(
     { isolationLevel: 'RepeatableRead', readOnly: true },
   );
 
+  // The reconstructed chain always contains the anchor; kept so the release is total.
+  const originalId = chain[0]?.id;
+  if (!originalId) throw unavailable();
+
   // Current access for EVERY member, before any metadata, count, name or cursor is built.
   for (const row of chain) await authorizeVersion(owner, ctx, row);
 
-  const headId = chain[chain.length - 1].id;
+  const head = chain[chain.length - 1];
+  if (!head) throw unavailable();
+  const headId = head.id;
   const digest = chainDigest(
     ctx,
     chain.map((row) => row.id),
@@ -443,7 +454,7 @@ export async function readClientFileHistory(
 
   return {
     attachmentId: request.attachmentId,
-    originalId: chain[0].id,
+    originalId,
     headId,
     versionCount: chain.length,
     pageSize,

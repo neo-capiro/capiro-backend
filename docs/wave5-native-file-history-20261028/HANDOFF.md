@@ -104,6 +104,71 @@ Two defects were found by these tests and fixed before the candidate: the chain-
 wrongly required the anchor's ancestry to span the whole chain (refusing any mid-chain or old anchor),
 and a fork was not detected when anchored upstream of the fork point.
 
+## Generated route-manifest fixture (regenerated, not hand-edited)
+
+`apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json` is a generated artifact of the
+controller source, produced by `apps/api/scripts/engagement-phase0-route-manifest.ts` (which
+`engagement-route-manifest.spec.ts` spawns through tsx). The controller edit in this candidate changes
+the existing attachments query, so the fixture was **regenerated with that script** and is byte-identical
+to its stdout. What the regeneration changes:
+
+- `GET /api/engagement/attachments` gains exactly `historyOf`, `historyCursor`, `historyPageSize` in
+  `parameterNames` (decorator line itself unchanged at 2968); the +22 line insertion shifts `sourceLine`
+  for the controller routes declared after it;
+- nothing else about that route, and no unrelated route's name, path, classification, guards, roles,
+  throttle, DTO or parameter list is altered.
+
+Honest baseline finding: the fixture was **already stale at exact base `00f6d045`**, so the manifest gate
+was red before this candidate:
+
+- fixture last written in `356c48c68` (2026-10-25, "Reconcile composed attachment and calendar route
+  metadata"), where `@Get('attachments')` is at line **2935** — exactly the fixture's recorded
+  `sourceLine`; base `00f6d045` has that same decorator at line **2968**;
+- the fixture also predates two newsletter routes that base already declares
+  (`@Get(':id/send-requests/:requestKey')`, `@Get(':id/send-intents/:intentId')`, added by
+  "Recover newsletter delivery requests through the current owner" between the fixture revision and base);
+- routes declared *before* this candidate's insertion (so identical at base) already mismatch the fixture
+  (e.g. `/api/engagement/associations/override`: fixture 2910 vs base/live 2945), which is a direct,
+  read-only proof that `expect(regenerated).toEqual(committed)` fails at base.
+
+Consequence, stated plainly: the manifest suite is red at base and red at this candidate, but **which**
+test fails moves, and neither failure is caused by this candidate's source:
+
+- with the stale fixture: `snapshot comparison › matches the current controller source exactly` fails;
+- with the regenerated (canonical) fixture: that snapshot test passes, and
+  `route invariants › includes every Newsletter route with its real read/write/send and access metadata`
+  fails, because its hard-coded list names 6 authoring routes while the base source declares 8.
+
+The second failure is a stale literal inside a shared checker, so it was deliberately **not** edited to
+make the suite green (out of this task's allocation: only the generated fixture is allocated). It is not
+accepted as a pass. Remedy for the owner: regenerate the fixture as done here and add the two
+`send-intents` / `send-requests` entries to that literal — a checker-owned change.
+
+## Bounded touched-file typecheck (the real type witness)
+
+ts-jest runs with `diagnostics: false` in this repo, so the jest suites prove behavior only. The project
+typecheck is therefore the type witness:
+
+    cd apps/api
+    "C:/Program Files/nodejs/node.exe" --max-old-space-size=12288 node_modules/typescript/bin/tsc \
+      --noEmit -p tsconfig.json --tsBuildInfoFile <scratch>/tsc-api.tsbuildinfo
+
+- A first attempt at the default heap died with `FATAL ERROR: Ineffective mark-compacts near heap limit`
+  (exit 134, 0 diagnostics emitted) — a resource abort, not a type result; the heap flag above is the fix.
+- Full run: exit 2, **473** diagnostics across the project graph (`../intel-api/*`, `../api-strategy/*`
+  missing-module and implicit-any classes dominate) — the inherited baseline, untouched here.
+- Touched-file diagnostics: `engagement.service.ts` **0**, `engagement.controller.ts` **0**,
+  `client-file-history.ts` **0** after this candidate's corrections. The corrections were 12 strict-index
+  guards in the new helper (`predecessors[0]`, `backwards[0]`, `claimants[0]`, `forwards[index]`, the
+  chain head and `chain[0]`): behavior-preserving guards that return the same
+  `CLIENT_FILE_HISTORY_UNAVAILABLE` refusal, with the full author suite re-run afterwards.
+- Remaining known diagnostics are **test-only**: 43 `TS2532` strict-index reads in
+  `client-file-history.spec.ts` (the same class the repo already tolerates in
+  `identity-contacts.spec.ts`, `conversation-management/list.spec.ts`,
+  `workspace-collab-email.service.spec.ts`, `conversation-management/retention.spec.ts`). They do not
+  affect the behavioral result; an attempt to remove them mechanically was reverted rather than shipped,
+  because it changed the file's syntax. No whole-repo repair was attempted.
+
 ## Remaining acceptance (not this slice)
 
 Frontend/package consumption by M5 Files, current deployed-environment acceptance, and independent
