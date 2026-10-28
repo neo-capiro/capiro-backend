@@ -11268,9 +11268,10 @@ const PREP_LIST_FIELDS = ['agenda', 'talkingPoints', 'risks', 'followUps'] as co
 /**
  * Engagement-operation response boundary for the four prep list columns.
  *
- * The stored prep payload accepts two item arms: a plain string, or a
+ * The stored prep payload accepts three item arms: a plain string, a
  * structured `{ text, ...provenance }` entry (factIds / evidenceReferences —
- * the evidence-linked shape the canonical prep contract defines). The
+ * the evidence-linked shape the canonical prep contract defines), or a titled
+ * item entry (`{ title, description }`, `{ title, dueDate, description }`). The
  * engagement.meetings receiver types these four columns as `string[]`, so ONE
  * structured entry used to fail the WHOLE array — and with it the whole view.
  *
@@ -11306,24 +11307,46 @@ function projectMeetingPrepListItems<T extends object>(prep: T): T {
  * The text of a recognized structured prep entry, or null when the entry is not
  * one — the caller then keeps the original entry verbatim.
  *
- * Recognition mirrors the canonical prep payload's structured arms instead of
- * accepting any object that happens to carry text: a non-blank `text` AND at
- * least one valid metadata arm — `factIds` or `evidenceReferences` as an
- * all-string array (an empty array is still a valid arm, and either arm alone
- * suffices because the receiver's union accepts either). A bare `{ text }`, a
- * wrong-typed arm (`factIds: 'x'`, a non-string member) and every other shape
- * stay unrecognized, so they keep refusing at the receiver instead of being
- * displayed as text.
+ * Recognition mirrors the prep payload's structured arms instead of accepting
+ * any object that happens to carry text. There are two of them:
+ *
+ *   - the evidence-linked arm: a non-blank `text` AND at least one valid
+ *     metadata arm — `factIds` or `evidenceReferences` as an all-string array
+ *     (an empty array is still a valid arm, and either arm alone suffices
+ *     because the receiver's union accepts either); its list text is `text`;
+ *   - the titled item arm actually stored on preps — `{ title, description }`
+ *     and `{ title, dueDate, description }`, i.e. entries with NO `text` arm —
+ *     whose list text is `title`.
+ *
+ * A bare `{ text }`, a wrong-typed arm (`factIds: 'x'`, a non-string member), a
+ * blank title and every other shape stay unrecognized, so they keep refusing at
+ * the receiver instead of being displayed as text. Neither is an entry that
+ * carries a `text` arm rescued by a `title`: a wrong-typed or blank `text`, or
+ * a non-blank one without a valid metadata arm, keeps the same verbatim
+ * pass-through it had before the titled arm was recognized.
  */
 function prepListEntryText(entry: unknown): string | null {
   if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) return null;
-  const candidate = entry as { text?: unknown; factIds?: unknown; evidenceReferences?: unknown };
+  const candidate = entry as {
+    text?: unknown;
+    title?: unknown;
+    factIds?: unknown;
+    evidenceReferences?: unknown;
+  };
   const text = candidate.text;
-  if (typeof text !== 'string' || !text.trim()) return null;
-  if (!isStringArray(candidate.factIds) && !isStringArray(candidate.evidenceReferences)) {
-    return null;
+  if (text !== undefined) {
+    // An entry that carries a text arm is never rescued by a title: unless that
+    // text is non-blank AND carries a valid metadata arm, the entry is not
+    // recognized and keeps the receiver's verbatim refusal.
+    return typeof text === 'string' &&
+      text.trim() !== '' &&
+      (isStringArray(candidate.factIds) || isStringArray(candidate.evidenceReferences))
+      ? text
+      : null;
   }
-  return text;
+  const title = candidate.title;
+  if (typeof title === 'string' && title.trim()) return title;
+  return null;
 }
 
 /**
