@@ -1,3 +1,5 @@
+import { MeriMemoryReceivingService } from '../memory-receiving/meri-memory-receiving.service.js';
+import { receiveNativeMemory } from './native-memory-execution.js';
 import { receiveNativeMail } from './native-mail-execution.js';
 import { createHash } from 'node:crypto';
 import {
@@ -119,11 +121,16 @@ export class MeriExecutionReceiverService {
     @Optional() private readonly approvals?: NativeApprovalService,
     @Optional() private readonly tenant?: TenantContextMiddleware,
     @Optional() private readonly filing?: MeriClientFilingService,
+    @Optional() private readonly memory?: MeriMemoryReceivingService,
   ) {}
 
   nativeApproved(req: Request, ctx: TenantContext, body: unknown, mode: 'execute' | 'read') {
     if (!hasVerifiedToolServiceIdentity(req)) throw forbidden();
     const input = retainedReadSnapshot(body, 262144);
+    if ((input as { proposal?: { command?: { action?: unknown } } })?.proposal?.command?.action === 'memory.propose') {
+      if (!this.approvals || !this.tenant || !this.memory) throw new ServiceUnavailableException('Native memory unavailable');
+      return receiveNativeMemory({ prisma: this.prisma, approvals: this.approvals, tenant: this.tenant, memory: this.memory }, req, ctx, input, mode);
+    }
     if ((input as { proposal?: { command?: { action?: unknown } } })?.proposal?.command?.action === 'mail.send') {
       if (!this.approvals || !this.tenant) throw new ServiceUnavailableException('Native mail unavailable');
       return receiveNativeMail({ prisma: this.prisma, engagement: this.engagement, approvals: this.approvals, tenant: this.tenant }, req, ctx, input, mode);

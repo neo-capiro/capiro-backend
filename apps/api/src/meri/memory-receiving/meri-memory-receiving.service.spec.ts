@@ -241,6 +241,7 @@ describe('MeriMemoryReceivingService.submit (additions)', () => {
     const winner = { tenantId, candidateId, candidateSha256: body.candidateSha256, proposerUserId: actorId, reviewId: '12121212-1212-4121-8121-121212121212' };
     f.tx.clioMeriMemorySubmission.findUnique
       .mockImplementationOnce(async () => null)
+      .mockImplementationOnce(async () => null)
       .mockImplementationOnce(async () => winner);
     f.candidates.set(candidateId, { id: candidateId, status: 'pending' });
     await expect(f.service.submit(verifiedRequest(), ctx, body)).resolves.toEqual({ candidateId, candidateSha256: body.candidateSha256, reviewId: winner.reviewId, accepted: true });

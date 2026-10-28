@@ -1,3 +1,4 @@
+import { parseNativeMemoryArguments } from './native-memory-command.js';
 import { parseNativeMailArguments } from '../execution-capability/native-mail-command.js';
 import { createHash } from 'node:crypto';
 import { types as nodeTypes } from 'node:util';
@@ -192,6 +193,10 @@ function parseCommand(value: unknown, field: string): NativeCommand {
   if (taskUpdate || v.action === 'task.create') {
     if (v.attachments.length !== 0) throw invalid(`${field}.attachments`);
     args = taskUpdate ? parseTaskUpdateArguments(args, `${field}.arguments`) : parseTaskCreateArguments(args, `${field}.arguments`);
+  }
+  if (v.action === 'memory.propose') {
+    if (v.attachments.length !== 0) throw invalid(field + '.attachments');
+    args = parseNativeMemoryArguments(args);
   }
   if (mail) {
     if (v.attachments.length !== 0) throw invalid(`${field}.attachments`);
