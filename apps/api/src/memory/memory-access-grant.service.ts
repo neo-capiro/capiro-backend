@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import type { Prisma } from '@prisma/client';
 import { ROLE_RANK, type TenantContext, type TenantRole } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { clientMemoryAllowed } from './memory-wall.helpers.js';
@@ -193,7 +194,7 @@ export class MemoryAccessGrantService {
   }
 
   private async requireWall(
-    tx: Parameters<typeof clientMemoryAllowed>[0],
+    tx: Prisma.TransactionClient,
     ctx: TenantContext,
     clientId: string,
   ): Promise<void> {
