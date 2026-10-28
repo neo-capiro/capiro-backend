@@ -14,7 +14,7 @@ import os
 from pathlib import Path
 import sys
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from contextlib import redirect_stdout
 from uuid import uuid4
 
@@ -77,6 +77,83 @@ class GuardTests(unittest.TestCase):
         self.assertEqual(value["attachmentContentSha256"],"a"*64)
         self.assertEqual(value["extractionMethod"],"local_parser")
         self.assertTrue(value["truncated"])
+
+
+class SourceLifetimeTests(unittest.TestCase):
+    def exercise(self, *, release_fails=False, stage_fails=False):
+        events, staged = [], []
+        released = False
+        source, target = Mock(), Mock()
+        response = Mock()
+        response.fetchone.return_value = (0, 0, 0)
+
+        def source_execute(sql, *_):
+            nonlocal released
+            if released:
+                raise ConnectionError("source unavailable after release")
+            if sql == "ROLLBACK":
+                self.assertEqual(staged, list(operator.TABLES))
+                events.append("source_release")
+                if release_fails:
+                    raise ConnectionError("source release failed")
+                released = True
+            return response
+
+        def target_execute(sql, *_):
+            if sql in ("COMMIT", "ROLLBACK"):
+                events.append("target_" + sql.lower())
+            return response
+
+        def stage_one(_source, _target, table):
+            self.assertFalse(released)
+            if stage_fails and table == operator.TABLES[-1]:
+                raise ConnectionError("staging failed")
+            staged.append(table)
+            events.append("staged_" + table)
+            return [("id", "text")], {"source_rows": 0}
+
+        def validate(_target):
+            self.assertTrue(released, "target-only validation must not retain the source transaction")
+            events.append("target_validation")
+
+        source.execute.side_effect = source_execute
+        target.execute.side_effect = target_execute
+        publish = Mock(side_effect=lambda *_: events.append("publish") or {})
+        with patch.multiple(operator, scalar=Mock(return_value=1), check_zero=Mock(),
+                protected_digest=Mock(return_value={"unchanged": True}), stage=Mock(side_effect=stage_one),
+                references=Mock(side_effect=validate), prepare_maps=Mock(), merge_table=Mock(),
+                snapshots=Mock(), vectors=Mock(return_value={}), checksum=Mock(return_value="checksum"),
+                publish=publish):
+            try:
+                outcome = operator.transfer(source, target, Path("unused"), commit=True)
+            except ConnectionError as error:
+                outcome = error
+        return outcome, events, publish
+
+    def test_complete_staging_releases_source_before_target_work_and_needs_no_later_source_access(self):
+        result, events, publish = self.exercise()
+        self.assertEqual(result["mode"], "commit")
+        self.assertLess(events.index("staged_" + operator.TABLES[-1]), events.index("source_release"))
+        self.assertLess(events.index("source_release"), events.index("target_validation"))
+        self.assertLess(events.index("publish"), events.index("target_commit"))
+        self.assertEqual(events.count("source_release"), 1)
+        publish.assert_called_once()
+
+    def test_failed_source_release_prevents_publication_and_target_commit(self):
+        error, events, publish = self.exercise(release_fails=True)
+        self.assertIsInstance(error, ConnectionError)
+        self.assertEqual(str(error), "source release failed")
+        self.assertNotIn("target_validation", events)
+        self.assertNotIn("target_commit", events)
+        publish.assert_not_called()
+
+    def test_incomplete_staging_never_releases_source_or_publishes(self):
+        error, events, publish = self.exercise(stage_fails=True)
+        self.assertIsInstance(error, ConnectionError)
+        self.assertEqual(str(error), "staging failed")
+        self.assertNotIn("source_release", events)
+        self.assertNotIn("target_commit", events)
+        publish.assert_not_called()
 
 
 def stable(value):
