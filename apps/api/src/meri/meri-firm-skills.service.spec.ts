@@ -231,7 +231,7 @@ describe('MeriFirmSkillsService — versioning + lifecycle', () => {
   test('update pushes the prior version into history; restore brings it back', async () => {
     const prisma = makePrisma();
     const svc = new MeriFirmSkillsService(prisma as never, config as never);
-    const created = (await svc.create(ctx(TENANT_A), VALID_SKILL)) as { id: string };
+    const created = (await svc.create(ctx(TENANT_A), VALID_SKILL)) as { id: string; version: number };
 
     await svc.update(
       ctx(TENANT_A),
@@ -255,7 +255,7 @@ describe('MeriFirmSkillsService — versioning + lifecycle', () => {
   test('disable removes the skill from turn-time loading (cache invalidated)', async () => {
     const prisma = makePrisma();
     const svc = new MeriFirmSkillsService(prisma as never, config as never);
-    const created = (await svc.create(ctx(TENANT_A), VALID_SKILL)) as { id: string };
+    const created = (await svc.create(ctx(TENANT_A), VALID_SKILL)) as { id: string; version: number };
     expect(await svc.skillsForTenant(TENANT_A)).toHaveLength(1);
     await svc.setEnabled(ctx(TENANT_A), created.id, false, created.version);
     expect(await svc.skillsForTenant(TENANT_A)).toHaveLength(0);
