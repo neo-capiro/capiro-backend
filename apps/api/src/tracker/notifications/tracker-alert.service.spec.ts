@@ -166,7 +166,8 @@ describe('Tracker durable delivery claims', () => {
     await f.service.fanOut(event);
     const [, , html, text] = f.email.send.mock.calls[0]!;
     const board = `https://app.capiro.ai/legiwatch?tab=feed&client=${encodeURIComponent(event.clientId)}`;
-    expect(html).toContain(board);
+    // The HTML anchor escapes the query separator; the plain-text alternative keeps it raw.
+    expect(html).toContain(board.replace('&', '&amp;'));
     expect(text).toContain(board);
     // The retrieval transport stays on the preview Core host and must not leak into a link.
     expect(`${html}${text}`).not.toContain('first-chat-preview.app-dev.capiro.ai');
