@@ -50,11 +50,11 @@ describe('integrations_and_notetaker bounded API owner', () => {
     recallWebhookEnabled: true,
   } as const;
   const policy = makePolicy(posture);
-  it('permits integration and existing capture/debrief boundaries only', () => {
+  it('permits integration, capture/debrief and final-owner attachment boundaries only', () => {
     const allowed: EngagementExternalAction[] = ['integration_oauth_start', 'integration_oauth_callback',
       'integration_sync', 'integration_subscription', 'integration_notification',
       'notetaker_dispatch', 'notetaker_remove', 'meeting_debrief_generate',
-      'attachment_external_write', 'internal_ai_credential_resolve'];
+      'attachment_external_read', 'attachment_external_write', 'internal_ai_credential_resolve'];
     for (const action of allowed) expect(() => policy.assertExternalAction(action)).not.toThrow();
     for (const action of [...ALL_ACTIONS.filter((a) => !allowed.includes(a)),
       'outreach_reasoning', 'outreach_v3_generate', 'outreach_v3_send', 'outreach_v3_test_send'] as EngagementExternalAction[]) {
@@ -80,6 +80,7 @@ describe('integrations_and_notetaker bounded API owner', () => {
       { processMode: 'active' }, { callbacksEnabled: false }, { recallWebhookEnabled: false }] as const) {
       const incomplete = makePolicy({ ...posture, ...change });
       expect(incomplete.externalActionAllowed('notetaker_dispatch')).toBe(false);
+      expect(incomplete.externalActionAllowed('attachment_external_read')).toBe(false);
       expect(incomplete.backgroundWorkersEnabled('notetaker-reconcile')).toBe(false);
     }
   });
