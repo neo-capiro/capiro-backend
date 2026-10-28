@@ -19,6 +19,12 @@ import {
   assertProspectAttachmentAccess,
   assertProspectAttachmentInTx,
 } from './attachments/prospect-attachment-access.js';
+import {
+  readClientFileHistory,
+  type ClientFileHistoryOwner,
+  type ClientFileHistoryPage,
+  type ClientFileHistoryRow,
+} from './attachments/client-file-history.js';
 import { clientAssociatedMeetingWhere } from './engagement-access.helpers.js';
 import {
   guardSyntheticDocumentDeletionInTx,
@@ -8075,6 +8081,84 @@ export class EngagementService {
       }),
     );
     return listed.filter((row): row is NonNullable<typeof row> => row !== null);
+  }
+
+  /**
+   * MM-11 / WS-24 native file history, Core attachment slice: one bounded page of
+   * the immutable version chain that `supersedeAttachment` builds over an attachment
+   * instead of deleting it, anchored on an exact attachment id.
+   *
+   * Metadata only. No bytes are read, no signed URL or storage locator is minted, no
+   * write, no budget and no model/provider/indexing work happens here, and the
+   * current version stays readable through the existing attachment reads. Every
+   * version is re-authorized for the CURRENT actor before anything is released, so an
+   * old allowed scope, a colleague-private mail version or a hidden/revoked member is
+   * never reachable through history.
+   */
+  async listAttachmentHistory(
+    ctx: TenantContext,
+    query: { attachmentId: string; cursor?: string; pageSize?: number },
+  ): Promise<ClientFileHistoryPage> {
+    const owner: ClientFileHistoryOwner = {
+      prisma: this.prisma,
+      authorize: (context, row) => this.authorizeAttachmentVersion(context, row),
+      readiness: (row) => this.attachmentContent.readiness(row, this.scanner.scanRequired),
+      uploaderNames: async (rows) => {
+        const ids = [
+          ...new Set(
+            rows.map((row) => row.uploadedByUserId).filter((id): id is string => Boolean(id)),
+          ),
+        ];
+        if (!ids.length) return new Map<string, string>();
+        const users = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+          tx.user.findMany({
+            where: { id: { in: ids } },
+            select: { id: true, firstName: true, lastName: true, email: true },
+          }),
+        );
+        const names = new Map<string, string>();
+        for (const user of users) {
+          const name = userDisplayName(user);
+          if (name) names.set(user.id, name);
+        }
+        return names;
+      },
+    };
+    return readClientFileHistory(owner, ctx, query);
+  }
+
+  /**
+   * Current access for one history version, expressed only through the canonical
+   * owners the existing attachment list already uses: the Client Files viewer
+   * predicate applied to the exact row, the prospect scope owner, the mail/hearing
+   * parent checks and the hearing-record document authority. Nothing is re-derived
+   * from a weaker local heuristic.
+   *
+   * A superseded prospect version is read through `requireProspectScope` rather than
+   * `assertProspectAttachmentAccess`, whose read mode deliberately refuses any row
+   * that is no longer the current version: that predicate answers "may I use this
+   * file now", which a historical version can never satisfy, and it is not a
+   * statement about whether the actor may see that the version existed.
+   */
+  private async authorizeAttachmentVersion(
+    ctx: TenantContext,
+    row: ClientFileHistoryRow,
+  ): Promise<void> {
+    const visible = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.engagementAttachment.findFirst({
+        where: { id: row.id, tenantId: ctx.tenantId, OR: attachmentViewerWhere(ctx.userId) },
+        select: { id: true },
+      }),
+    );
+    if (!visible) throw new NotFoundException('Attachment not found');
+    if (row.prospectId) {
+      await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        requireProspectScope(tx, ctx, row.prospectId as string),
+      );
+    } else if (row.source === 'incoming_mail') {
+      await this.validateAttachmentParents(ctx, row);
+    }
+    await assertHearingRecordDocumentAccess(this.prisma, ctx, row);
   }
 
   async extractAttachmentText(

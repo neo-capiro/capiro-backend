@@ -1,0 +1,70 @@
+WAVE5 NATIVE FILE HISTORY — AUTHOR CLAIM OUTLINE (written before edits)
+FROM: Hermes implementation worker (Wave 5 native workspace/client-file history slice)
+RE: MM-11 / MM-12(unchanged) / WS-24 native-file-history consumer boundary — EXISTING Core engagement attachment history
+base   00f6d045a0fd2abb60f7735a453655ce3aef903b
+tree   f03e00817d5dad63152da65638af0bd9985c454f
+branch codex/wave5-native-file-history-hermes-20261028
+checkout .../work/wave5-native-file-history-hermes-20261028 (own; other checkouts preserved)
+
+A5/M5 COORDINATION NOTE
+This is the metadata-only version chain over the EXISTING engagement attachment supersession owner
+(engagement_attachments.superseded_by_attachment_id, written today only by
+EngagementService.supersedeAttachment). It is NOT the generated-artifact/public
+document-access library+history surface (already source implemented and reviewed elsewhere) and NOT
+a second Files store: it releases no bytes, no signed URL, no storage locator and adds no table.
+The M5 Files consumer can page this surface and deep-link each version through the existing
+current readers; the current head remains readable through the existing attachment reads.
+
+ROUTE / RESPONSE CONTRACT (exact)
+GET /api/engagement/attachments?historyOf=<attachmentId>[&historyCursor=<opaque>][&historyPageSize=<1..50>]
+  - history mode is entered only when historyOf is present;
+  - historyOf is the EXACT engagement attachment id to anchor on (any chain member, not only the head);
+  - history mode refuses (400) any list filter (clientId, meetingId, mailMessageId, prospectId,
+    unlinked) instead of silently ignoring it, so one request maps to exactly one query;
+  - no new route, no route-manifest change, no decorator change: the existing list route carries it.
+200 body:
+{
+  attachmentId,   // exact anchor id as requested
+  originalId,     // oldest version's exact attachment id
+  headId,         // current version's exact attachment id (supersededByAttachmentId = null)
+  versionCount,   // exact resolved chain length (never a partial/false total)
+  pageSize, offset, hasMore, nextCursor,
+  versions: [{
+    attachmentId, versionIndex (1 = original), isOriginal, isCurrent,
+    fileName, contentType, byteSize, createdAt, folder,
+    uploadedByUserId, uploadedByName,
+    source, sourceEntityType, sourceEntityId, contentHash (server-calculated sha256),
+    lifecycleStatus, scanStatus, usable[, blockedReason][, scanDisclosure],
+    supersededByAttachmentId
+  }]
+}
+  - order: oldest -> newest; page window starts at cursor offset; nextCursor only when more remain;
+  - one version = one engagement attachment UUID. No S3 VersionId, no storage key/bucket, no
+    generated-artifact id is accepted or returned (an artifact id simply does not resolve).
+4xx: 404 Attachment not found (invisible/unknown anchor) / 404 CLIENT_FILE_HISTORY_UNAVAILABLE
+     (any member hidden, revoked, foreign, missing, branched, cyclic or over the hard bound)
+     409 CLIENT_FILE_HISTORY_CURSOR_STALE (cursor bound to a different anchor/head/actor/pageSize
+         or a chain that changed since it was minted)
+     400 CLIENT_FILE_HISTORY_CURSOR_INVALID / CLIENT_FILE_HISTORY_PAGE_SIZE_INVALID
+List mode (?clientId= / ?mailMessageId= / ?unlinked=true ...) is byte-for-byte unchanged.
+
+AUTHORIZATION ORDER (invariant)
+1. anchor is loaded through the canonical viewer predicate (attachmentViewerWhere) + tenant;
+2. the chain is reconstructed with bounded, tenant-scoped reads (structure only, nothing released);
+3. EVERY version is authorized through the canonical current-access owner BEFORE any metadata,
+   count, cursor or name is assembled;
+4. the released page is authorized AGAIN immediately before projection (revocation between
+   query and release refuses the whole request);
+5. no read budget, no readiness/bytes read, no write, no model/provider call anywhere.
+
+FILE CLAIM (only these; nothing else in the repo is touched)
+- apps/api/src/engagement/attachments/client-file-history.ts        (new; bounded chain + cursor + projection)
+- apps/api/src/engagement/attachments/client-file-history.spec.ts   (new; focused service/helper spec)
+- apps/api/src/engagement/attachments/client-file-history.http.spec.ts (new; mounted-route forwarding proof)
+- apps/api/src/engagement/engagement.service.ts                     (narrow: listAttachmentHistory +
+                                                                     canonical per-version authorize owner)
+- apps/api/src/engagement/engagement.controller.ts                  (narrow: history query forwarding on the
+                                                                     existing attachments route)
+- docs/wave5-native-file-history-20261028/HANDOFF.md                (author handoff, new)
+- docs/wave5-native-file-history-20261028/native-file-history-claim.txt (this file)
+No Prisma/schema/migration/module/shared-authority/registry/lock/frontend/meri-research edits.
