@@ -85,16 +85,49 @@ function fixture(parentTenant: string | null = tenant, role = 'owner') {
     ),
   };
   const reasoning = { generateOutline: jest.fn(async () => ({ sections: [] })) };
+  // The approved greenfield native conversation owner: a plain recorder port (no
+  // network, model, SDK or database is touched) plus the EXISTING proposal-owner
+  // seam the bridge hands a pending outline proposal to.
+  const requests: Array<Record<string, unknown>> = [];
+  const turn = jest.fn(async (request: Record<string, unknown>) => {
+    requests.push(request);
+    return {
+      status: 'complete',
+      runId: 'run-outline',
+      result: {
+        outline: [
+          {
+            id: 's1',
+            title: 'Ask',
+            purpose: 'state the ask',
+            instructions: 'be precise',
+            required: true,
+            locked: false,
+            targetWords: { min: 50, max: 120 },
+            evidenceItemIds: [],
+          },
+        ],
+      },
+    };
+  });
+  const readTurn = jest.fn(async () => null);
+  const cancel = jest.fn(async () => undefined);
+  const proposals = { createProposal: jest.fn(async () => ({ proposalId: 'prop-outline' })) };
   return {
     db,
     version,
     collaborators,
     reasoning,
+    requests,
+    turn,
+    readTurn,
     service: new DocumentAgentService(
       db as never,
       collaborators as never,
       reasoning as never,
       {} as never,
+      proposals as never,
+      { turn, readTurn, cancel } as never,
     ),
     saved: () => readAgentState(config),
     seed: () => {
@@ -178,19 +211,32 @@ describe('agent pin adoption and use', () => {
       const h = fixture(null);
       h.seed();
       h.version.status = status;
-      await h.service.generateOutline(tenant, draftId, actor, 1);
-      expect(h.reasoning.generateOutline).toHaveBeenCalledTimes(1);
+
+      await h.service.generateOutline(tenant, draftId, actor, 1, true, 'session-credential');
+
+      // The paid outline turn is issued exactly once, scoped to the EXACT
+      // retained pin version that resolved above.
+      expect(h.turn).toHaveBeenCalledTimes(1);
+      expect(h.requests[0]!.phase).toBe('outline');
+      expect(h.requests[0]!.paidGeneration).toBe(true);
+      expect(h.requests[0]!.sources).toEqual(
+        expect.arrayContaining([{ id: pin.versionId, kind: 'blueprint-version' }]),
+      );
+      // The retired legacy reasoning gateway is never consulted for a supported phase.
+      expect(h.reasoning.generateOutline).not.toHaveBeenCalled();
+      // The stored pin is untouched: the change stays a pending proposal.
       expect(h.saved().blueprintPin).toEqual(pin);
     },
   );
 
-  it('refuses a stale stored pin before reasoning or persistence', async () => {
+  it('refuses a stale stored pin before any paid turn, reasoning or persistence', async () => {
     const h = fixture();
     h.seed();
     h.version.definitionHash = 'b'.repeat(64);
-    await expect(h.service.generateOutline(tenant, draftId, actor, 1)).rejects.toBeInstanceOf(
-      ConflictException,
-    );
+    await expect(
+      h.service.generateOutline(tenant, draftId, actor, 1, true, 'session-credential'),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(h.turn).not.toHaveBeenCalled();
     expect(h.reasoning.generateOutline).not.toHaveBeenCalled();
     expect(h.db.wsDraft.updateMany).not.toHaveBeenCalled();
   });

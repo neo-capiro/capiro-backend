@@ -3,13 +3,20 @@
 // GenerationService. Tests never call a live model provider.
 
 import { describe, expect, it, jest, beforeEach } from '@jest/globals';
-import { ConflictException, NotFoundException } from '@nestjs/common';
-import { DocumentAgentService } from './document-agent.service.js';
+import { ConflictException, ForbiddenException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { DocumentAgentService, REVISION_CONFLICT_CODE } from './document-agent.service.js';
 import {
+  computeContentHash,
   createInitialAgentState,
   readAgentState,
+  type DocumentAgentOutlineSection,
   type DocumentAgentState,
 } from './document-agent-state.js';
+import { DocumentAgentRevisionService } from './document-agent-revision.service.js';
+import type {
+  NativeGenerationTurnOutcome,
+  NativeGenerationTurnPort,
+} from './native-generation.bridge.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { CollaboratorsService } from '../collaborators/collaborators.service.js';
 // Mock the GenerationService module to avoid importing the real one
@@ -104,10 +111,25 @@ function makeMockPrisma(): PrismaService & {
   return prisma as unknown as PrismaService & typeof prisma;
 }
 
-function makeMockCollaborators(): CollaboratorsService {
+function makeMockCollaborators(
+  role: 'owner' | 'editor' | 'reviewer' | 'commenter' | 'viewer' = 'owner',
+): CollaboratorsService {
   return {
-    assertCan: jest.fn(async () => 'owner'),
-    resolveRole: jest.fn(async () => 'owner'),
+    // The real `assertCan` applies the caller's predicate to the resolved role.
+    assertCan: jest.fn(
+      async (
+        _tenantId: string,
+        _draftId: string,
+        _actorId: string,
+        predicate: (resolved: typeof role) => boolean,
+      ) => {
+        if (!predicate(role)) {
+          throw new ForbiddenException('You do not have permission to access this document');
+        }
+        return role;
+      },
+    ),
+    resolveRole: jest.fn(async () => role),
   } as unknown as CollaboratorsService;
 }
 
@@ -146,6 +168,153 @@ function makeMockReasoning(): WorkspaceReasoningGateway {
       sections: [],
     })),
   } as unknown as WorkspaceReasoningGateway;
+}
+
+// ── Native owner harness (WS-22) ─────────────────────────────────────────
+// The supported generated phases are admitted through the approved greenfield
+// native conversation turn owner, never through the legacy
+// `WorkspaceReasoningGateway` / `GenerationService` seam. The tests drive a
+// plain recorder port (no network, model, SDK or database is touched) and the
+// EXISTING revision owner (`DocumentAgentRevisionService`) runs against the
+// mocked Prisma store, so a pending `content_revision` really is created,
+// accepted, or left exactly as it was.
+
+const OUTLINE_SECTIONS: DocumentAgentOutlineSection[] = [
+  {
+    id: 's1',
+    title: 'Ask',
+    purpose: 'state the ask',
+    instructions: 'be precise',
+    required: true,
+    locked: false,
+    targetWords: { min: 50, max: 120 },
+    evidenceItemIds: [],
+  },
+  {
+    id: 's2',
+    title: 'Budget Impact',
+    purpose: 'quantify the impact',
+    instructions: 'cite the PE',
+    required: true,
+    locked: false,
+    targetWords: { min: 50, max: 120 },
+    evidenceItemIds: [],
+  },
+];
+
+/** The exact document body the approved outline admits. */
+const DOCUMENT_BODY = {
+  status: 'complete',
+  runId: 'run-1',
+  result: {
+    document: {
+      sections: [
+        { id: 's1', text: 'Ask body' },
+        { id: 's2', text: 'Budget body' },
+      ],
+    },
+  },
+} as unknown as NativeGenerationTurnOutcome;
+
+type TurnRecorder = ReturnType<typeof makeTurn>;
+
+function makeTurn(outcome: NativeGenerationTurnOutcome = DOCUMENT_BODY) {
+  let next = outcome;
+  const requests: Array<Record<string, unknown>> = [];
+  const options: unknown[] = [];
+  const turn = jest.fn(async (request: Record<string, unknown>, callOptions: unknown) => {
+    requests.push(request);
+    options.push(callOptions);
+    return next;
+  });
+  const readTurn = jest.fn(async () => null);
+  const cancel = jest.fn(async () => undefined);
+  return {
+    requests,
+    options,
+    turn,
+    readTurn,
+    cancel,
+    port: { turn, readTurn, cancel } as unknown as NativeGenerationTurnPort,
+    setOutcome: (value) => {
+      next = value;
+    },
+  };
+}
+
+/**
+ * The service under test with the native turn port injected. `revisions: null`
+ * means the existing proposal owner is NOT composed for the deployment.
+ */
+function makeService(
+  prisma: ReturnType<typeof makeMockPrisma>,
+  options: {
+    turn?: TurnRecorder;
+    role?: 'owner' | 'editor' | 'reviewer' | 'commenter' | 'viewer';
+    revisions?: DocumentAgentRevisionService | null;
+    generation?: GenerationService;
+  } = {},
+): DocumentAgentService {
+  const revisions =
+    options.revisions === null
+      ? undefined
+      : options.revisions ?? new DocumentAgentRevisionService(prisma as unknown as PrismaService);
+  return new DocumentAgentService(
+    prisma,
+    makeMockCollaborators(options.role),
+    makeMockReasoning(),
+    options.generation ?? makeMockGeneration(),
+    revisions,
+    options.turn?.port,
+  );
+}
+
+/** An approved draft whose outline is exactly the sections the body must key. */
+function setupApprovedDraft(
+  prisma: ReturnType<typeof makeMockPrisma>,
+  configOverrides: Record<string, unknown> = {},
+): DocumentAgentState {
+  const state = createInitialAgentState();
+  state.revision = 1;
+  state.brief.approvedAt = '2026-10-28T00:00:00.000Z';
+  state.contextPlan.approvedAt = '2026-10-28T00:00:00.000Z';
+  state.outline.sections = OUTLINE_SECTIONS;
+  state.outline.version = 1;
+  state.outline.approvedAt = '2026-10-28T00:00:00.000Z';
+  prisma._drafts.set('draft-1', {
+    id: 'draft-1',
+    tenantId: 'tenant-1',
+    ownerId: 'user-1',
+    config: { documentAgent: state, ...configOverrides },
+    updatedAt: new Date(),
+  });
+  return state;
+}
+
+const CREDENTIAL = 'session-credential';
+
+function configOf(prisma: ReturnType<typeof makeMockPrisma>): Record<string, unknown> {
+  return prisma._drafts.get('draft-1')!.config as Record<string, unknown>;
+}
+
+/**
+ * The mock prisma's draft writes are jest mocks at runtime; the fixture's type
+ * (`PrismaService & typeof prisma`) resolves `updateMany` to the Prisma
+ * signature, so the mock surface is stated once here instead of cast per call.
+ */
+function draftWrites(
+  prisma: ReturnType<typeof makeMockPrisma>,
+): jest.Mock<(args: unknown) => Promise<{ count: number }>> {
+  return prisma.wsDraft.updateMany as unknown as jest.Mock<
+    (args: unknown) => Promise<{ count: number }>
+  >;
+}
+
+function proposalOf(
+  prisma: ReturnType<typeof makeMockPrisma>,
+  proposalId: string,
+): Record<string, unknown> {
+  return prisma._proposals.get(proposalId) as unknown as Record<string, unknown>;
 }
 
 function setupDraft(prisma: ReturnType<typeof makeMockPrisma>, overrides: Partial<Record<string, unknown>> = {}) {
@@ -317,14 +486,30 @@ describe('DocumentAgentService', () => {
   });
 
   describe('outline', () => {
-    it('rejects outline generation without pinned blueprint', async () => {
+    it('rejects outline generation without pinned blueprint before any paid turn', async () => {
       setupDraft(prisma);
+      const turn = makeTurn();
+      const svc = makeService(prisma, { turn });
       await expect(
-        service.generateOutline('tenant-1', 'draft-1', 'user-1', 1),
+        svc.generateOutline('tenant-1', 'draft-1', 'user-1', 1, true, CREDENTIAL),
       ).rejects.toThrow(ConflictException);
+      expect(turn.turn).not.toHaveBeenCalled();
+      expect(prisma._proposals.size).toBe(0);
     });
 
-    it('generates outline with pinned blueprint', async () => {
+    it('admits a pinned-blueprint outline through the native owner as a PENDING proposal', async () => {
+      const nativeOutline = [
+        {
+          id: 's1',
+          title: 'Ask',
+          purpose: 'state the ask',
+          instructions: 'be precise',
+          required: true,
+          locked: false,
+          targetWords: { min: 50, max: 120 },
+          evidenceItemIds: [],
+        },
+      ];
       const state = createInitialAgentState();
       state.revision = 1;
       state.blueprintPin = {
@@ -349,8 +534,33 @@ describe('DocumentAgentService', () => {
         publishedAt: new Date(),
         definition: { sections: [] },
       });
-      const result = await service.generateOutline('tenant-1', 'draft-1', 'user-1', 1);
-      expect(result.state.outline.version).toBe(1);
+      const turn = makeTurn({
+        status: 'complete',
+        runId: 'run-outline',
+        result: { outline: nativeOutline },
+      } as unknown as NativeGenerationTurnOutcome);
+      const svc = makeService(prisma, { turn });
+
+      const result = await svc.generateOutline('tenant-1', 'draft-1', 'user-1', 1, true, CREDENTIAL);
+
+      // The retired legacy reasoning gateway is never consulted for this phase.
+      expect(turn.turn).toHaveBeenCalledTimes(1);
+      expect(turn.requests[0]!.phase).toBe('outline');
+      expect(turn.requests[0]!.paidGeneration).toBe(true);
+      expect(result.status).toBe('proposed');
+      expect(result.proposal?.proposalId).toBeDefined();
+      // The change is PENDING: the draft's own outline is untouched until a
+      // reviewer accepts it through the existing revision owner.
+      expect(result.state.outline.version).toBe(0);
+      expect(result.state.outline.sections).toEqual([]);
+      const proposal = proposalOf(prisma, result.proposal!.proposalId);
+      expect(proposal.type).toBe('outline_revision');
+      expect(proposal.status).toBe('pending');
+      expect(proposal.baseRevision).toBe(1);
+      expect(proposal.payload).toMatchObject({
+        outlineSnapshot: nativeOutline,
+        nativeGeneration: { phase: 'outline', runId: 'run-outline' },
+      });
     });
   });
 
@@ -379,79 +589,101 @@ describe('DocumentAgentService', () => {
   });
 
   describe('generation mode routing', () => {
-    it('routes to generateAllSections for quick mode', async () => {
+    it('admits the document phase for quick mode through the native owner, never the retired engine', async () => {
+      setupApprovedDraft(prisma);
       const gen = makeMockGeneration();
-      (gen.generateAllSections as jest.Mock).mockResolvedValue({ ok: true } as never);
-      const svc = new DocumentAgentService(prisma, makeMockCollaborators(), makeMockReasoning(), gen);
-      // Set up approved state.
-      const state = createInitialAgentState();
-      state.revision = 1;
-      state.brief.approvedAt = new Date().toISOString();
-      state.contextPlan.approvedAt = new Date().toISOString();
-      state.outline.approvedAt = new Date().toISOString();
-      prisma._drafts.set('draft-1', {
-        id: 'draft-1',
-        tenantId: 'tenant-1',
-        ownerId: 'user-1',
-        config: { documentAgent: state },
-      });
-      const result = await svc.generate('tenant-1', 'draft-1', 'user-1', 1, 'quick');
-      expect(gen.generateAllSections).toHaveBeenCalled();
+      const turn = makeTurn();
+      const svc = makeService(prisma, { turn, generation: gen });
+
+      const result = await svc.generate('tenant-1', 'draft-1', 'user-1', 1, 'quick', true, CREDENTIAL);
+
+      // The retired legacy engine seam is never consulted for a supported phase.
+      expect(gen.generateAllSections).not.toHaveBeenCalled();
+      expect(turn.turn).toHaveBeenCalledTimes(1);
+      const request = turn.requests[0]!;
+      expect(request.phase).toBe('document');
+      expect(request.paidGeneration).toBe(true);
+      expect(turn.options[0] as Record<string, unknown>).toMatchObject({ credential: CREDENTIAL });
+      // The approved outline's exact section ids travel as the retained sources.
+      expect(request.sources).toEqual(
+        expect.arrayContaining([
+          { id: 'draft-1', kind: 'workspace-draft' },
+          { id: 's1', kind: 'outline-section' },
+          { id: 's2', kind: 'outline-section' },
+        ]),
+      );
+
+      // The mode is retained and the run stays ACTIVE until a reviewer accepts.
       expect(result.state.generation.mode).toBe('quick');
+      expect(result.run?.status).toBe('active');
+      expect(result.state.status).toBe('generating');
+      expect(result.status).toBe('approval-required');
+      expect(result.state.pendingProposalId).toBe(result.proposal?.proposalId);
     });
 
-    function setupApprovedDraft() {
-      const state = createInitialAgentState();
-      state.revision = 1;
-      state.brief.approvedAt = new Date().toISOString();
-      state.contextPlan.approvedAt = new Date().toISOString();
-      state.outline.approvedAt = new Date().toISOString();
-      prisma._drafts.set('draft-1', {
-        id: 'draft-1',
-        tenantId: 'tenant-1',
-        ownerId: 'user-1',
-        config: { documentAgent: state },
+    it('admits the completed native body as a PENDING content_revision and writes no content', async () => {
+      setupApprovedDraft(prisma, { sectionContent: { s2: 'retained budget text' } });
+      const svc = makeService(prisma, { turn: makeTurn() });
+
+      const result = await svc.generate('tenant-1', 'draft-1', 'user-1', 1, 'standard', true, CREDENTIAL);
+
+      const proposal = proposalOf(prisma, result.proposal!.proposalId);
+      expect(proposal.type).toBe('content_revision');
+      expect(proposal.status).toBe('pending');
+      expect(proposal.baseRevision).toBe(1);
+      // The base hash is the hash of the EXACT retained content the accept path re-checks.
+      expect(proposal.baseHash).toBe(computeContentHash({ s2: 'retained budget text' }));
+      expect(proposal.payload).toMatchObject({
+        revisedContent: { s1: 'Ask body', s2: 'Budget body' },
+        runId: 'run-1',
+        mode: 'standard',
       });
-    }
-
-    it('renders the REAL engine run status/sectionResults instead of hardcoding complete', async () => {
-      setupApprovedDraft();
-      const gen = makeMockGeneration();
-      (gen.generateAllSections as jest.Mock).mockResolvedValue({
-        generationRun: {
-          status: 'partial',
-          completedAt: '2026-08-15T00:00:00.000Z',
-          sectionResults: [
-            { section: 'Overview', status: 'succeeded', contentChars: 500 },
-            { section: 'Budget Impact', status: 'failed', errorCode: 'provider_timeout', message: 'timed out' },
-          ],
-        },
-      } as never);
-      const svc = new DocumentAgentService(prisma, makeMockCollaborators(), makeMockReasoning(), gen);
-
-      const result = await svc.generate('tenant-1', 'draft-1', 'user-1', 1, 'standard');
-
-      expect(result.state.status).toBe('partial'); // NOT hardcoded 'complete'
-      expect(result.state.generation.lastRun?.status).toBe('partial');
-      expect(result.state.generation.lastRun?.sectionResults).toEqual({
-        Overview: { status: 'succeeded' },
-        'Budget Impact': { status: 'failed', error: 'timed out' },
-      });
+      // Nothing lands in the draft's existing content field before an explicit accept.
+      expect(configOf(prisma).sectionContent).toEqual({ s2: 'retained budget text' });
+      expect(result.status).toBe('approval-required');
     });
 
-    it('falls back to complete when the engine returns no run summary (back-compat)', async () => {
-      setupApprovedDraft();
-      const gen = makeMockGeneration(); // resolves { ok: true }, no generationRun
-      const svc = new DocumentAgentService(prisma, makeMockCollaborators(), makeMockReasoning(), gen);
+    it('refuses to invent a completion when the native result carries no document body', async () => {
+      setupApprovedDraft(prisma);
+      const turn = makeTurn({
+        status: 'complete',
+        runId: 'run-9',
+        result: {},
+      } as unknown as NativeGenerationTurnOutcome);
+      const svc = makeService(prisma, { turn });
 
-      const result = await svc.generate('tenant-1', 'draft-1', 'user-1', 1, 'standard');
+      await expect(
+        svc.generate('tenant-1', 'draft-1', 'user-1', 1, 'standard', true, CREDENTIAL),
+      ).rejects.toThrow(ConflictException);
 
-      expect(result.state.status).toBe('complete');
-      expect(result.state.generation.lastRun?.status).toBe('complete');
+      expect(prisma._proposals.size).toBe(0);
+      const state = readAgentState(configOf(prisma));
+      expect(state.status).not.toBe('complete');
+      expect(state.pendingProposalId).toBeUndefined();
+      expect(configOf(prisma)).not.toHaveProperty('sectionContent');
+    });
+
+    it('reports the native owner\'s own approval-required admission without writing content', async () => {
+      setupApprovedDraft(prisma);
+      const turn = makeTurn({
+        status: 'approval_required',
+        runId: 'run-5',
+        proposalId: 'prop-native',
+      } as unknown as NativeGenerationTurnOutcome);
+      const svc = makeService(prisma, { turn });
+
+      const result = await svc.generate('tenant-1', 'draft-1', 'user-1', 1, 'standard', true, CREDENTIAL);
+
+      expect(result.status).toBe('approval-required');
+      expect(result.proposal).toEqual({ proposalId: 'prop-native' });
+      expect(result.state.pendingProposalId).toBe('prop-native');
+      // No content_revision is invented: the native owner admitted the proposal.
+      expect(prisma._proposals.size).toBe(0);
+      expect(configOf(prisma)).not.toHaveProperty('sectionContent');
     });
 
     it('propagates the real run status on retry, not a stale cached summary', async () => {
-      setupApprovedDraft();
+      setupApprovedDraft(prisma);
       const gen = makeMockGeneration();
       (gen.retryFailedSections as jest.Mock).mockResolvedValue({
         generationRun: {
@@ -502,6 +734,175 @@ describe('DocumentAgentService', () => {
         text: 'edited',
         keep: true,
       });
+    });
+  });
+
+  // The document phase lands a completed native body as a PENDING
+  // `content_revision` through the EXISTING Workspace revision owner. Only an
+  // explicit accept by a reviewer holding `canReview`, with the content hash
+  // still matching, merges the exact sections. Every refusal path (stale hash,
+  // stale revision, withdrawn proposal, body that does not key the approved
+  // outline) leaves the proposal, the state and the content exactly as they were.
+  describe('native document body through the existing revision owner', () => {
+    async function admitBody(
+      svc: DocumentAgentService,
+    ): Promise<{ proposalId: string; revision: number }> {
+      const admitted = await svc.generate(
+        'tenant-1', 'draft-1', 'user-1', 1, 'standard', true, CREDENTIAL,
+      );
+      return { proposalId: admitted.proposal!.proposalId, revision: admitted.state.revision };
+    }
+
+    it('an explicit accept by a reviewer with the current base hash merges the exact sections', async () => {
+      setupApprovedDraft(prisma, { sectionContent: { s2: 'retained budget text' } });
+      const turn = makeTurn();
+      const svc = makeService(prisma, { turn });
+      const { proposalId, revision } = await admitBody(svc);
+
+      // A role without `canReview` cannot land the body.
+      const nonReviewer = makeService(prisma, { turn, role: 'viewer' });
+      await expect(
+        nonReviewer.acceptProposal('tenant-1', 'draft-1', proposalId, 'user-9', revision),
+      ).rejects.toThrow(ForbiddenException);
+      expect(configOf(prisma).sectionContent).toEqual({ s2: 'retained budget text' });
+      expect(proposalOf(prisma, proposalId).status).toBe('pending');
+
+      const accepted = await svc.acceptProposal('tenant-1', 'draft-1', proposalId, 'user-1', revision);
+
+      expect(configOf(prisma).sectionContent).toEqual({ s1: 'Ask body', s2: 'Budget body' });
+      expect(proposalOf(prisma, proposalId).status).toBe('accepted');
+      expect(accepted.state.pendingProposalId).toBeUndefined();
+    });
+
+    it('a changed retained content turns the accept into PROPOSAL_STALE and writes no content', async () => {
+      setupApprovedDraft(prisma, { sectionContent: { s2: 'retained budget text' } });
+      const svc = makeService(prisma, { turn: makeTurn() });
+      const { proposalId, revision } = await admitBody(svc);
+
+      // A human edits the retained content after the body was admitted.
+      prisma._drafts.set('draft-1', {
+        ...prisma._drafts.get('draft-1')!,
+        config: { ...configOf(prisma), sectionContent: { s2: 'newer manual text' } },
+      });
+
+      await expect(
+        svc.acceptProposal('tenant-1', 'draft-1', proposalId, 'user-1', revision),
+      ).rejects.toThrow(ConflictException);
+
+      expect(proposalOf(prisma, proposalId).status).toBe('stale');
+      expect(configOf(prisma).sectionContent).toEqual({ s2: 'newer manual text' });
+      // The state did not lose its pointer to a proposal that never landed.
+      expect(readAgentState(configOf(prisma)).pendingProposalId).toBe(proposalId);
+    });
+
+    it('a stale expectedRevision leaves the proposal pending and writes no content', async () => {
+      setupApprovedDraft(prisma, { sectionContent: { s2: 'retained budget text' } });
+      const svc = makeService(prisma, { turn: makeTurn() });
+      const { proposalId, revision } = await admitBody(svc);
+
+      await expect(
+        svc.acceptProposal('tenant-1', 'draft-1', proposalId, 'user-1', revision + 1),
+      ).rejects.toThrow(ConflictException);
+
+      expect(proposalOf(prisma, proposalId).status).toBe('pending');
+      expect(configOf(prisma).sectionContent).toEqual({ s2: 'retained budget text' });
+      expect(readAgentState(configOf(prisma)).revision).toBe(revision);
+    });
+
+    it('a proposal that is no longer pending cannot be accepted', async () => {
+      setupApprovedDraft(prisma, { sectionContent: { s2: 'retained budget text' } });
+      const svc = makeService(prisma, { turn: makeTurn() });
+      const { proposalId, revision } = await admitBody(svc);
+
+      // A reviewer withdraws the body through the existing owner.
+      await svc.rejectProposal('tenant-1', 'draft-1', proposalId, 'user-1', revision, 'not needed');
+
+      await expect(
+        svc.acceptProposal('tenant-1', 'draft-1', proposalId, 'user-1', revision),
+      ).rejects.toThrow(ConflictException);
+
+      expect(proposalOf(prisma, proposalId).status).toBe('rejected');
+      expect(configOf(prisma).sectionContent).toEqual({ s2: 'retained budget text' });
+    });
+
+    const malformedBodies: Array<[string, Array<{ id: string; text: string }>]> = [
+      ['a missing section', [{ id: 's1', text: 'Ask body' }]],
+      ['a reordered body', [{ id: 's2', text: 'Budget body' }, { id: 's1', text: 'Ask body' }]],
+      ['an unknown section id', [{ id: 's1', text: 'Ask body' }, { id: 's3', text: 'Extra body' }]],
+      ['blank body text', [{ id: 's1', text: '   ' }, { id: 's2', text: 'Budget body' }]],
+    ];
+
+    it.each(malformedBodies)(
+      'refuses a native body that does not key the approved outline exactly: %s',
+      async (_label, sections) => {
+        setupApprovedDraft(prisma);
+        const turn = makeTurn({
+          status: 'complete',
+          runId: 'run-2',
+          result: { document: { sections } },
+        } as unknown as NativeGenerationTurnOutcome);
+        const svc = makeService(prisma, { turn });
+
+        await expect(
+          svc.generate('tenant-1', 'draft-1', 'user-1', 1, 'standard', true, CREDENTIAL),
+        ).rejects.toThrow(ConflictException);
+
+        expect(prisma._proposals.size).toBe(0);
+        const state = readAgentState(configOf(prisma));
+        expect(state.pendingProposalId).toBeUndefined();
+        expect(state.status).not.toBe('generating');
+        expect(state.generation.lastRun).toBeUndefined();
+      },
+    );
+
+    it('refuses to admit a body when the existing proposal owner is not composed', async () => {
+      setupApprovedDraft(prisma);
+      const svc = makeService(prisma, { turn: makeTurn(), revisions: null });
+
+      await expect(
+        svc.generate('tenant-1', 'draft-1', 'user-1', 1, 'standard', true, CREDENTIAL),
+      ).rejects.toThrow(ServiceUnavailableException);
+
+      expect(prisma._proposals.size).toBe(0);
+      expect(configOf(prisma)).not.toHaveProperty('sectionContent');
+    });
+
+    it('lands the accepted content in the same compare-and-set that clears the pending proposal', async () => {
+      setupApprovedDraft(prisma, { sectionContent: { s2: 'retained budget text' } });
+      const svc = makeService(prisma, { turn: makeTurn() });
+      const { proposalId, revision } = await admitBody(svc);
+      const writesBefore = draftWrites(prisma).mock.calls.length;
+
+      await svc.acceptProposal('tenant-1', 'draft-1', proposalId, 'user-1', revision);
+
+      // ONE optimistic write carries the accepted state AND the content: no
+      // second compare-and-set against a config the first write already changed.
+      expect(draftWrites(prisma).mock.calls.length - writesBefore).toBe(1);
+      expect(configOf(prisma).sectionContent).toEqual({ s1: 'Ask body', s2: 'Budget body' });
+      expect(readAgentState(configOf(prisma)).pendingProposalId).toBeUndefined();
+      expect(proposalOf(prisma, proposalId).status).toBe('accepted');
+    });
+
+    it('a failed compare-and-set leaves the proposal pending and the content unchanged', async () => {
+      setupApprovedDraft(prisma, { sectionContent: { s2: 'retained budget text' } });
+      const svc = makeService(prisma, { turn: makeTurn() });
+      const { proposalId, revision } = await admitBody(svc);
+      // The config changed underneath the accept, so its optimistic compare fails.
+      draftWrites(prisma).mockResolvedValueOnce({ count: 0 });
+
+      const failure = await svc
+        .acceptProposal('tenant-1', 'draft-1', proposalId, 'user-1', revision)
+        .catch((error: unknown) => error);
+
+      expect(failure).toBeInstanceOf(ConflictException);
+      expect((failure as ConflictException).getResponse()).toMatchObject({
+        message: REVISION_CONFLICT_CODE,
+      });
+      // Accepted-proposal-without-content must be unreachable.
+      expect(proposalOf(prisma, proposalId).status).toBe('pending');
+      expect(readAgentState(configOf(prisma)).pendingProposalId).toBe(proposalId);
+      expect(readAgentState(configOf(prisma)).revision).toBe(revision);
+      expect(configOf(prisma).sectionContent).toEqual({ s2: 'retained budget text' });
     });
   });
 });
