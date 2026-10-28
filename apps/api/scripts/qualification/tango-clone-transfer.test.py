@@ -128,7 +128,8 @@ def integration_tests(config,api_dir,node):
                         new_snapshot={"public":"new observation"}
                         conn.execute("INSERT INTO tango_resource_snapshot(id,resource_type,external_id,source_updated_at,provider_fetched_at,content_sha256,normalized_jsonb,active,version) VALUES(%s,'grant',%s,'2026-10-26','2026-10-26',%s,%s::jsonb,true,2)",(uuid4(),cls.grant,hashlib.sha256(stable(new_snapshot).encode()).hexdigest(),json.dumps(new_snapshot)))
                     conn.execute("INSERT INTO tango_resource_link(id,local_resource_type,local_resource_id,tango_resource_type,tango_external_id,basis,status,confidence_band,reviewed_by,reviewed_at,updated_at) VALUES(%s,'sam_opportunity',%s,'notice',%s,'exact_identifier',%s,'high',%s,%s,%s)",(uuid4() if newer else cls.target_link,str(notice),cls.notice_key,"active" if newer else "rejected",None if newer else uuid4(),None if newer else stamp,stamp))
-                    conn.execute("INSERT INTO tango_opportunity_notice(id,tango_notice_id,sam_opportunity_id,title,description,content_hash,snapshot,last_synced_at,updated_at) VALUES(%s,%s,%s,'Notice history',%s,%s,'{}'::jsonb,%s,%s)",(uuid4() if newer else cls.target_history,cls.notice_key,notice,"Updated history body" if newer else "Old history body","b"*64,stamp,stamp))
+                    history={"response_deadline":None if newer else "2027-01-01"}
+                    conn.execute("INSERT INTO tango_opportunity_notice(id,tango_notice_id,sam_opportunity_id,title,description,content_hash,snapshot,response_deadline,provider_updated_at,last_synced_at,updated_at) VALUES(%s,%s,%s,'Notice history',%s,%s,%s::jsonb,%s,%s,%s,%s)",(uuid4() if newer else cls.target_history,cls.notice_key,notice,"Updated history body" if newer else "Old history body",hashlib.sha256(stable(history).encode()).hexdigest(),json.dumps(history),None if newer else "2027-01-01",stamp,stamp,stamp))
                     if newer:
                         put_vector(conn,cls.grant,"funding_grant_chunk","federal_grant","Grant Agency Richer source description",None,"funding-v1-6000-400")
                         put_vector(conn,notice,"funding_notice_chunk","sam_opportunity","Notice Agency Current public notice description","https://sam.gov/opp/fixture/view","funding-v2-6000-400-unicode")
@@ -169,7 +170,7 @@ def integration_tests(config,api_dir,node):
             self.assertTrue(self.query("target","SELECT raw_jsonb#>>'{tango,nested,retained}'='true' AND raw_jsonb#>>'{tango,nested,source}'='true' AND response_deadline IS NULL FROM sam_opportunity")[0][0])
             self.assertTrue(self.query("target","SELECT raw#>>'{retained,nested}'='keep' AND close_date IS NULL FROM federal_grant")[0][0])
             self.assertTrue(self.query("target","SELECT id=%s AND status='rejected' FROM tango_resource_link",(self.target_link,))[0][0])
-            self.assertTrue(self.query("target","SELECT id=%s AND sam_opportunity_id=%s FROM tango_opportunity_notice",(self.target_history,self.target_notice))[0][0])
+            self.assertTrue(self.query("target","SELECT id=%s AND sam_opportunity_id=%s AND response_deadline IS NULL AND snapshot->'response_deadline'='null'::jsonb FROM tango_opportunity_notice",(self.target_history,self.target_notice))[0][0])
             self.assertEqual(self.query("target","SELECT count(*) FROM tango_resource_snapshot")[0][0],2)
             self.assertTrue(self.query("target","SELECT NOT active AND superseded_at IS NOT NULL FROM tango_resource_snapshot WHERE id=%s",(self.target_snapshot,))[0][0])
             self.assertTrue(self.query("target","SELECT version=2 AND normalized_jsonb->>'public'='new observation' FROM tango_resource_snapshot WHERE active")[0][0])

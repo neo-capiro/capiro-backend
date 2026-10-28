@@ -256,6 +256,11 @@ def merge_table(conn, table, cols):
     if table == "sam_opportunity":
         explicit = "s.raw_jsonb#>'{tango,payload,response_deadline}'='null'::jsonb"
         expressions["response_deadline"] = f"CASE WHEN {newer} AND s.raw_jsonb#>>'{{tango,providerUpdatedAt}}' IS NOT NULL AND s.response_deadline IS NULL AND {explicit} THEN NULL ELSE {expressions['response_deadline']} END"
+    if table == "tango_opportunity_notice":
+        explicit = "s.snapshot->'response_deadline'='null'::jsonb"
+        expressions["response_deadline"] = f"CASE WHEN {newer} AND s.provider_updated_at IS NOT NULL AND s.response_deadline IS NULL AND {explicit} THEN NULL ELSE {expressions['response_deadline']} END"
+        # This is a hash-bound observation, not an enrichment dictionary.
+        expressions["snapshot"] = f"CASE WHEN {newer} THEN s.snapshot ELSE t.snapshot END"
     if table in ("federal_grant","sam_opportunity"):
         raw = "raw" if table == "federal_grant" else "raw_jsonb"
         expressions[raw] = f"CASE WHEN {newer} AND s.{raw}#>'{{tango,payload}}' IS NOT NULL THEN jsonb_set({expressions[raw]},'{{tango,payload}}',s.{raw}#>'{{tango,payload}}') ELSE {expressions[raw]} END"
