@@ -7365,11 +7365,8 @@ model FederalGrant {
   url               String?
   syncedAt          DateTime  @default(now()) @map("synced_at") @db.Timestamptz(6)
 
-  // ── District Nexus Workstream C: fields that only exist on the
-  // fetchOpportunity detail payload (search2 returns just 10 fields —
-  // id/number/title/agencyCode/agency/openDate/closeDate/oppStatus/docType/
-  // cfdaList — verified live 2026-07-24). Written exclusively by
-  // enrich-grant-details.ts; sync-grants.ts must never null these.
+  // Rich canonical fields from Tango and verified original-source gap repair.
+  // Missing provider fields preserve useful existing enrichment.
   eligibilityText  String?   @map("eligibility_text") @db.Text
   costSharing      Boolean?  @map("cost_sharing")
   // 'synopsis' | 'forecast' — the two payload shapes are NOT interchangeable
@@ -7385,12 +7382,15 @@ model FederalGrant {
   raw              Json?
   detailSyncedAt   DateTime? @map("detail_synced_at") @db.Timestamptz(6)
 
+  /// Hash/model/chunker marker for the ingestion-only embedding worker.
+  embeddedContentHash String? @map("embedded_content_hash")
+  embeddedAt DateTime? @map("embedded_at") @db.Timestamptz(6)
+
   @@index([agency])
   @@index([closeDate])
   @@index([status])
   @@index([docType])
-  // Drives enrich-grant-details.ts's candidate scan (detailSyncedAt IS NULL
-  // first, then stalest-first).
+  // Retained for detail freshness and historical coverage inspection.
   @@index([detailSyncedAt])
   // The ACTIVE-grant predicate, which constrains status AND closeDate together,
   // plus the enricher's two allocation scans which additionally constrain
@@ -10683,6 +10683,12 @@ model OpportunityAttachment {
   samOpportunityId String? @map("sam_opportunity_id") @db.Uuid
   tangoNoticeId    String? @map("tango_notice_id")
 
+  federalGrantId String? @map("federal_grant_id")
+  /// Provider extraction is bound to this identity, never fabricated archive bytes.
+  providerAttachmentId String? @map("provider_attachment_id")
+  providerData Json? @map("provider_data")
+  providerObservedAt DateTime? @map("provider_observed_at") @db.Timestamptz(6)
+
   /// Verbatim. The natural key together with its parent.
   sourceUrl String @map("source_url")
 
@@ -10716,9 +10722,14 @@ model OpportunityAttachment {
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  /// Hash/model/chunker marker for the ingestion-only embedding worker.
+  embeddedContentHash String? @map("embedded_content_hash")
+  embeddedAt DateTime? @map("embedded_at") @db.Timestamptz(6)
+
   @@index([samOpportunityId, status], map: "opportunity_attachment_sam_idx")
   @@index([status, firstSeenAt], map: "opportunity_attachment_status_idx")
   @@index([contentSha256], map: "opportunity_attachment_hash_idx")
+  @@index([federalGrantId], map: "opportunity_attachment_grant_idx")
   @@map("opportunity_attachment")
 }
 
@@ -11287,7 +11298,7 @@ model PeProgramMatch {
 // ─────────────────────────────────────────────────────────────────────────
 
 /// A SAM.gov contract opportunity (solicitation / notice). One row per notice_id.
-/// Loaded by sync-sam-opportunities (DoD-filtered, incremental). Global table —
+/// Loaded by sync-tango-funding with exact government identifiers. Global table —
 /// no tenant_id, no RLS (federal reference data, same as federal_award).
 model SamOpportunity {
   id                 String    @id @default(uuid()) @db.Uuid
@@ -11335,6 +11346,10 @@ model SamOpportunity {
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   matches SamOpportunityMatch[]
+
+  /// Hash/model/chunker marker for the ingestion-only embedding worker.
+  embeddedContentHash String? @map("embedded_content_hash")
+  embeddedAt DateTime? @map("embedded_at") @db.Timestamptz(6)
 
   @@index([active, responseDeadline], map: "sam_opportunity_active_response_deadline_idx")
   // Funding Opportunities read path: the default view is "active, soonest

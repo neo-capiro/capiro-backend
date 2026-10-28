@@ -13,7 +13,7 @@
  *
  * Key classifications are derived from the actual scripts (verified 2026-06-01):
  *   REQUIRED (script throws): FEC_API_KEY, OPENSTATES_API_KEY, SAM_GOV_API_KEY,
- *     OPENAI_API_KEY (generate-briefings).
+ *     TANGO_API_KEY (sync-tango-funding), OPENAI_API_KEY (generate-briefings).
  *   RECOMMENDED (degrades/rate-limited without it): CONGRESS_API_KEY,
  *     REGULATIONS_GOV_API_KEY, LDA_API_KEY, FIRECRAWL_API_KEY (PE url discovery),
  *     ANTHROPIC_API_KEY (clio/briefings fallback).
@@ -60,6 +60,12 @@ const KEYS: KeyCheck[] = [
     level: 'required',
     usedBy: 'sync-sam-personnel',
     note: 'script throws without it',
+  },
+  {
+    env: 'TANGO_API_KEY',
+    level: 'required',
+    usedBy: 'sync-tango-funding',
+    note: 'canonical grant and contract ingestion requires the purchased provider key',
   },
   {
     env: 'OPENAI_API_KEY',

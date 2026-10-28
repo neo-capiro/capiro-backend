@@ -99,6 +99,8 @@ function splitKeys(text) {
 
 export function keySignature(text) {
   const s = unquote(text).trim().replace(/\s+/g, ' ');
+  const pattern = s.match(/^([a-z_][a-z0-9_]*) text_pattern_ops$/i);
+  if (pattern) return { column: pattern[1], order: 'asc', nulls: 'last', opclass: 'text_pattern_ops' };
   let m = s.match(/^([a-z_][a-z0-9_]*)(?: (ASC|DESC))?(?: NULLS (FIRST|LAST))?$/i);
   if (m) {
     const order = (m[2] || 'asc').toLowerCase();
@@ -110,13 +112,17 @@ export function keySignature(text) {
   }
   m = s.match(/^COALESCE\(\s*([a-z_][a-z0-9_]*)\s*,\s*''(?:::text)?\s*\)$/i);
   if (m) return { coalesceEmptyText: m[1] };
+  m = s.match(/^COALESCE\(\s*(?:\(([a-z_][a-z0-9_]*)\)|([a-z_][a-z0-9_]*))::text\s*,\s*''(?:::text)?\s*\)$/i);
+  if (m) return { coalesceEmptyText: m[1] || m[2], cast: 'text' };
+  m = s.match(/^lower\(replace\(\s*([a-z_][a-z0-9_]*)\s*,\s*'-'(?:::text)?\s*,\s*''(?:::text)?\s*\)\)$/i);
+  if (m) return { normalizedNoticeId: m[1] };
   fail(`Unsupported index key: ${s}`);
 }
 
 export function predicateSignature(text) {
   if (!text) return null;
   // Restricted grammar, not arbitrary whitespace/parenthesis erasure: only
-  // conjunctions of IS NOT NULL and boolean equalities are currently owned.
+  // conjunctions of IS [NOT] NULL and boolean equalities are currently owned.
   const tokens = unquote(text).match(/[a-z_][a-z0-9_]*|[()=]|\S/gi) || [];
   let at = 0;
   function atom() {
@@ -135,6 +141,10 @@ export function predicateSignature(text) {
     ) {
       at += 3;
       return [{ column, notNull: true }];
+    }
+    if (tokens[at]?.toLowerCase() === 'is' && tokens[at + 1]?.toLowerCase() === 'null') {
+      at += 2;
+      return [{ column, notNull: false }];
     }
     if (tokens[at] === '=' && ['true', 'false'].includes(tokens[at + 1]?.toLowerCase())) {
       const value = tokens[at + 1].toLowerCase() === 'true';
@@ -158,7 +168,7 @@ export function predicateSignature(text) {
 
 export function parseIndex(sql) {
   const header = new RegExp(
-    `^CREATE\\s+(UNIQUE\\s+)?INDEX\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?(${ident})\\s+ON\\s+(?:(?:"public"|public)\\.)?(${ident})(?:\\s+USING\\s+(\\w+))?\\s*\\(`,
+    `^CREATE\\s+(UNIQUE\\s+)?INDEX\\s+(?:CONCURRENTLY\\s+)?(?:IF\\s+NOT\\s+EXISTS\\s+)?(${ident})\\s+ON\\s+(?:(?:"public"|public)\\.)?(${ident})(?:\\s+USING\\s+(\\w+))?\\s*\\(`,
     'i',
   );
   const m = sql.trim().match(header);
@@ -204,7 +214,7 @@ export function indexHistory(migrations) {
     for (const sql of statements(file.sql)) {
       const create = sql.match(
         new RegExp(
-          `^CREATE\\s+(?:UNIQUE\\s+)?INDEX\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?(${ident})`,
+          `^CREATE\\s+(?:UNIQUE\\s+)?INDEX\\s+(?:CONCURRENTLY\\s+)?(?:IF\\s+NOT\\s+EXISTS\\s+)?(${ident})`,
           'i',
         ),
       );
@@ -291,7 +301,7 @@ export function verifyIndexes({ history, generatedSql, sqlOwned, catalog }) {
       same(contract, expected, `SQL-owned ${name}`);
       if (
         !expected.signature.predicate &&
-        !expected.signature.keys.some((key) => key.coalesceEmptyText)
+        !expected.signature.keys.some((key) => key.coalesceEmptyText || key.normalizedNoticeId)
       )
         fail(`Representable index cannot bypass Prisma: ${name}`);
       if (generated.has(name)) fail(`SQL-owned index falsely declared in Prisma: ${name}`);

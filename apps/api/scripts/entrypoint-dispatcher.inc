@@ -458,10 +458,6 @@ case "${1:-serve}" in
   extract-press-personnel) shift; exec ./node_modules/.bin/tsx scripts/extract-personnel-from-press-releases.ts "$@" ;;
   # Step 33: SAM.gov DoD solicitation KO/CS personnel (email domain only).
   sync-sam-personnel)     shift; exec ./node_modules/.bin/tsx scripts/sync-sam-personnel.ts "$@" ;;
-  # Step 3.1: SAM.gov DoD contract opportunities feed (sam_opportunity). Always
-  # commits when run as a scheduled task (dry-run is for local dev only).
-  sync-sam-opportunities) shift; exec ./node_modules/.bin/tsx scripts/sync-sam-opportunities.ts --commit "$@" ;;
-  sync-sam-opportunities-all-federal) shift; exec ./node_modules/.bin/tsx scripts/sync-sam-opportunities.ts --all-federal --commit "$@" ;;
   # Re-run the opportunity->PE/program matcher over ALL existing sam_opportunity rows
   # WITHOUT re-fetching from SAM.gov â€” realizes a matcher change (e.g. procurement-BLIN
   # recognition) across the already-ingested backlog the daily sync would never re-match.
@@ -628,15 +624,9 @@ case "${1:-serve}" in
   sync-district-economic-cbp)   exec ./node_modules/.bin/tsx scripts/sync-district-economic-cbp.ts ;;
   sync-district-economic-lodes) exec ./node_modules/.bin/tsx scripts/sync-district-economic-lodes.ts ;;
   sync-gsa-frpp)                exec ./node_modules/.bin/tsx scripts/sync-gsa-frpp.ts ;;
-  # Grants.gov opportunities (NOFOs). Bare = daily posted|forecasted; pass
-  # --all-statuses for the weekly reconcile that also sees closed/archived.
-  # Needs "$@" â€” the flag was unreachable while this verb swallowed its args.
-  sync-grants)            shift; exec ./node_modules/.bin/tsx scripts/sync-grants.ts "$@" ;;
-  # District Nexus: Grants.gov fetchOpportunity detail pass. Fills every
-  # federal_grant column search2 cannot return (award ceiling/floor, funding,
-  # eligibility, description, category) plus the Workstream C detail block.
-  # Ships disabled in ingestion-schedule.ts pending Phase 1 canary.
-  enrich-grant-details)   shift; exec ./node_modules/.bin/tsx scripts/enrich-grant-details.ts "$@" ;;
+  # Canonical Tango grant/notice ingestion and active-only public embeddings.
+  sync-tango-funding) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-funding.ts "$@" ;;
+  embed-funding-catalog) shift; exec ./node_modules/.bin/tsx scripts/embed-funding-catalog.ts "$@" ;;
   # District Nexus: deterministic relevance producer for client_grant_nexus
   # 'opportunity_candidate' rows (audit F3). Dry-run by default; needs "$@" so
   # --commit/--tenant/--min-relevance reach the script. Ships disabled in
@@ -644,8 +634,6 @@ case "${1:-serve}" in
   generate-grant-opportunity-candidates) shift; exec ./node_modules/.bin/tsx scripts/generate-grant-opportunity-candidates.ts "$@" ;;
   # Funding Opportunities: source lifecycle and tracked-row alert pass.
   process-funding-opportunity-lifecycle) shift; exec ./node_modules/.bin/tsx scripts/process-funding-opportunity-lifecycle.ts "$@" ;;
-  # One-time promoted-field recovery for SAM notices already stored in raw_jsonb.
-  backfill-sam-opportunity-fields) shift; exec ./node_modules/.bin/tsx scripts/backfill-sam-opportunity-fields.ts "$@" ;;
   # One-time exact-UEI repair for legacy confirmed award mappings after the
   # reviewed-identity migration. Dry-run by default.
   backfill-funding-mapping-review) shift; exec ./node_modules/.bin/tsx scripts/backfill-funding-mapping-review.ts "$@" ;;
@@ -764,7 +752,7 @@ case "${1:-serve}" in
   # LOCKED, classifies via P28's change classifier, and alerts once per
   # (tenant, client, source record, change fingerprint). A poison event is
   # quarantined after 5 attempts and never blocks the queue. Run AFTER
-  # sync-tango-opportunity-notices — this reads what that sync holds.
+  # sync-tango-funding — this reads the retained notice history.
   process-tango-events) shift; exec ./node_modules/.bin/tsx scripts/process-tango-events.ts "$@" ;;
   # Funding Opportunities P49: read-only canary diagnostic for the whole
   # MakeGov program. SELECT-only — no writes, no provider call, and it
@@ -782,30 +770,6 @@ case "${1:-serve}" in
   # from a network response would be taking security config off the wire.
   # Run before canary step 14.
   diag-tango-webhook-contract) shift; exec ./node_modules/.bin/tsx scripts/diag-tango-webhook-contract.ts "$@" ;;
-  # Funding Opportunities P27: Tango<->SAM SHADOW sync. Reads the provider's
-  # opportunity catalog and writes ONLY provider-owned tables — the P15
-  # snapshot, the P15 exact-identifier link, and the P27 per-field parity
-  # ledger. It never writes to sam_opportunity: first-party ingestion stays
-  # canonical and a conflict is recorded, never merged. Links only when
-  # EXACTLY ONE local notice carries the same solicitation number; more than
-  # one is 'ambiguous' and links nothing. Dry-run by default; a dispatched
-  # task passes --commit. Optional --limit=<n> --changed-since=<ISO date>.
-  sync-tango-opportunity-shadow) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-opportunity-shadow.ts "$@" ;;
-  # Funding Opportunities P27: READ-ONLY crosswalk/parity report. No Tango
-  # call and no key — reads Capiro's own tango_opportunity_parity,
-  # tango_resource_link and tango_sync_checkpoint. Exits nonzero ONLY when an
-  # operator-set threshold is breached (--max-conflicts / --max-ambiguous /
-  # --stale-hours); an ordinary unlinked row is the expected state of a
-  # verification rail, not a failure.
-  diag-tango-opportunity-parity) shift; exec ./node_modules/.bin/tsx scripts/diag-tango-opportunity-parity.ts "$@" ;;
-  # Funding Opportunities P28: notice-history sync. Writes ONE table,
-  # tango_opportunity_notice, and emits no alert of any kind — a material
-  # change becomes visible on the read-only timeline and nothing else
-  # (alerting is P48's). Each notice is stamped with a local sam_opportunity
-  # id only when EXACTLY ONE local notice carries its solicitation number,
-  # reusing P27's own crosswalk rule. Dry-run by default; a dispatched task
-  # passes --commit. Optional --limit=<n> --posted-since=<ISO date>.
-  sync-tango-opportunity-notices) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-opportunity-notices.ts "$@" ;;
   # Funding Opportunities P29: attachment discovery and secure archive.
   # Discovers attachment URLs from Capiro's OWN stored SAM.gov payload
   # (sam_opportunity.raw.resourceLinks) — the installed Tango SDK exposes no
@@ -816,14 +780,6 @@ case "${1:-serve}" in
   # default; --discover-only writes metadata without fetching. Needs
   # OPPORTUNITY_ATTACHMENT_BUCKET to archive. Optional --limit=<n> (default 50).
   sync-tango-opportunity-attachments) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-opportunity-attachments.ts "$@" ;;
-  # Funding Opportunities P30: extracted-text status seeding. Writes one
-  # opportunity_document_text row per archived attachment recording WHY there
-  # is no text — not_entitled when the account's plan excludes extracted text,
-  # pending when it does not. Never calls the provider: the installed SDK has
-  # no per-document text call (only a semantic search taking a query), and
-  # entitlement is P17's probe result, passed in with --entitled rather than
-  # re-derived from a failed call. Dry-run by default. Optional --limit=<n>.
-  sync-tango-opportunity-text) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-opportunity-text.ts "$@" ;;
   sync-openlobby)         exec ./node_modules/.bin/tsx scripts/sync-openlobby.ts ;;
   sync-openspending)      exec ./node_modules/.bin/tsx scripts/sync-openspending.ts ;;
   sync-lobby-trending)    exec ./node_modules/.bin/tsx scripts/sync-lobby-trending.ts ;;
@@ -1024,7 +980,7 @@ case "${1:-serve}" in
     exec node dist/main.js
     ;;
   *)
-    echo "Unknown command: $1 (expected: serve | migrate | bootstrap-capiro-admin | bootstrap-tenant | drain-identity-outbox | drain-memory-cleanup-outbox | drain-mailbox-knowledge | dispatch-memory-review-notifications | backfill-memory-governance | diag-memory-governance | bootstrap-roles | emit-changes | emit-bill-alerts | emit-clio-alerts | generate-meeting-briefings | backfill-sectors | backfill-intel-article-encoding | generate-briefings | compute-health-scores | check-comment-periods | embed-backfill | embed-program-elements | sync-lda | sync-congress | sync-congress-members | sync-cbo | sync-committees | sync-house-votes | sync-senate-votes | derive-bill-status | sync-federal-register | sync-regulations | sync-hearings | discover-hearings | enrich-committee-hearings | detect-committee-site-updates | probe-committee-sources | reconcile-hearing-archives | audit-hearing-coverage | legiwatch-phase9-job | legiwatch-phase9-operator | sync-hearing-transcripts | sync-gao | sync-crs | sync-fec | sync-federal-award | sync-federal-assistance-awards | enrich-assistance-awards | backfill-assistance-awards-bulk | prune-stale-assistance-recipient-candidates | enrich-award-districts | enrich-award-pe | seed-acq-program-map | report-award-pe-coverage | extract-press-personnel | sync-sam-personnel | sync-sam-opportunities | sync-sam-opportunities-all-federal | rematch-sam-opportunities | sync-fec-pac | sync-fara | sync-fara-enrichment | sync-sec-edgar | sync-rss-intel | sync-openstates | backfill-legiscan-datasets | sync-legiscan-masterlist | sync-legiscan-bills | sync-legistorm-districts | build-district-boundary-artifacts | sync-legistorm-trips | derive-state-bill-status | emit-state-changes | emit-committee-changes | emit-redistricting-alerts | emit-district-nexus-alerts | crosswalk-state-people | geocode-facilities | load-state-calendars | normalize-state-committees | backtest-deadline-physics | sync-state-register | set-tenant-flag | report-bizdev-jev-shadow | sync-bls | sync-bea | sync-census | sync-district-economic-acs | sync-district-economic-cbp | sync-district-economic-lodes | sync-gsa-frpp | sync-tango-subawards | sync-grants | enrich-grant-details | generate-grant-opportunity-candidates | process-funding-opportunity-lifecycle | backfill-sam-opportunity-fields | backfill-funding-mapping-review | repair-set-aside-certifications | match-contractor-identifiers | sync-openlobby | sync-openspending | sync-lobby-trending | refresh-lobby-intel-mv | refresh-kg-edge-cache | sync-comptroller-jbooks | sync-jbook-r2 | import-dow-directory | import-dow-directory-v6 | sync-dow-headshots | generate-pe-person-candidates | auto-confirm-pe-person-candidates | derive-office-program-links | sync-peo-rosters | sync-dod-orgcharts | sync-dod-press-personnel | sync-cpe-roster | recompute-conference-probability | extract-bill-pe-codes | extract-gao-interviewees | extract-hearing-witnesses | parse-hasc-report | parse-sasc-report | parse-hac-d-report | parse-sac-d-report | parse-ndaa-conference | parse-defense-approps-public-law | parse-pdoc | ingest-defense-budget | load-defense-budget-package | verify-defense-budget-packages | run-pe-derive-chain | watch-budget-docs | send-pe-alert-emails | match-pe-mentions | rebuild-pe-years | normalize-pe-units | diag-pe-trust | audit-llamaparse-pe-units | diag-stale-directory | reconcile-personnel-supersede | reconcile-stale-pes | repair-person-pe-links | diag-client-resolution | diag-phantom-imports | diag-clio-memory | diag-memory-recall-parity | backfill-clio-memory-embeddings | run-clio-scheduled-tasks | run-intel-workflows | refresh-memory-graph | prepopulate-all | fill-govids-all | repair-facility-district-codes | repair-cpf-cds-existing-geography | drain-pe-change-outbox | backfill-pe-observation-keys | dedupe-pe-observations | triage-pe-reconciliation | report-pe-attribution-gaps | repair-pe-thousands-as-millions | attach-pe-legacy-documents | reconcile-tango-webhook-alerts | process-tango-events | diag-funding-opportunities-makegov | diag-tango-webhook-contract | diag-tango-dibbs-sbir-ingestion | funding-execution-certification | funding-execution-source-adapter)" >&2
+    echo "Unknown command: $1 (expected: serve | migrate | bootstrap-capiro-admin | bootstrap-tenant | drain-identity-outbox | drain-memory-cleanup-outbox | drain-mailbox-knowledge | dispatch-memory-review-notifications | backfill-memory-governance | diag-memory-governance | bootstrap-roles | emit-changes | emit-bill-alerts | emit-clio-alerts | generate-meeting-briefings | backfill-sectors | backfill-intel-article-encoding | generate-briefings | compute-health-scores | check-comment-periods | embed-backfill | embed-program-elements | sync-lda | sync-congress | sync-congress-members | sync-cbo | sync-committees | sync-house-votes | sync-senate-votes | derive-bill-status | sync-federal-register | sync-regulations | sync-hearings | discover-hearings | enrich-committee-hearings | detect-committee-site-updates | probe-committee-sources | reconcile-hearing-archives | audit-hearing-coverage | legiwatch-phase9-job | legiwatch-phase9-operator | sync-hearing-transcripts | sync-gao | sync-crs | sync-fec | sync-federal-award | sync-federal-assistance-awards | enrich-assistance-awards | backfill-assistance-awards-bulk | prune-stale-assistance-recipient-candidates | enrich-award-districts | enrich-award-pe | seed-acq-program-map | report-award-pe-coverage | extract-press-personnel | sync-sam-personnel | rematch-sam-opportunities | sync-fec-pac | sync-fara | sync-fara-enrichment | sync-sec-edgar | sync-rss-intel | sync-openstates | backfill-legiscan-datasets | sync-legiscan-masterlist | sync-legiscan-bills | sync-legistorm-districts | build-district-boundary-artifacts | sync-legistorm-trips | derive-state-bill-status | emit-state-changes | emit-committee-changes | emit-redistricting-alerts | emit-district-nexus-alerts | crosswalk-state-people | geocode-facilities | load-state-calendars | normalize-state-committees | backtest-deadline-physics | sync-state-register | set-tenant-flag | report-bizdev-jev-shadow | sync-bls | sync-bea | sync-census | sync-district-economic-acs | sync-district-economic-cbp | sync-district-economic-lodes | sync-gsa-frpp | sync-tango-subawards | sync-tango-funding | embed-funding-catalog | generate-grant-opportunity-candidates | process-funding-opportunity-lifecycle | backfill-funding-mapping-review | repair-set-aside-certifications | match-contractor-identifiers | sync-openlobby | sync-openspending | sync-lobby-trending | refresh-lobby-intel-mv | refresh-kg-edge-cache | sync-comptroller-jbooks | sync-jbook-r2 | import-dow-directory | import-dow-directory-v6 | sync-dow-headshots | generate-pe-person-candidates | auto-confirm-pe-person-candidates | derive-office-program-links | sync-peo-rosters | sync-dod-orgcharts | sync-dod-press-personnel | sync-cpe-roster | recompute-conference-probability | extract-bill-pe-codes | extract-gao-interviewees | extract-hearing-witnesses | parse-hasc-report | parse-sasc-report | parse-hac-d-report | parse-sac-d-report | parse-ndaa-conference | parse-defense-approps-public-law | parse-pdoc | ingest-defense-budget | load-defense-budget-package | verify-defense-budget-packages | run-pe-derive-chain | watch-budget-docs | send-pe-alert-emails | match-pe-mentions | rebuild-pe-years | normalize-pe-units | diag-pe-trust | audit-llamaparse-pe-units | diag-stale-directory | reconcile-personnel-supersede | reconcile-stale-pes | repair-person-pe-links | diag-client-resolution | diag-phantom-imports | diag-clio-memory | diag-memory-recall-parity | backfill-clio-memory-embeddings | run-clio-scheduled-tasks | run-intel-workflows | refresh-memory-graph | prepopulate-all | fill-govids-all | repair-facility-district-codes | repair-cpf-cds-existing-geography | drain-pe-change-outbox | backfill-pe-observation-keys | dedupe-pe-observations | triage-pe-reconciliation | report-pe-attribution-gaps | repair-pe-thousands-as-millions | attach-pe-legacy-documents | reconcile-tango-webhook-alerts | process-tango-events | diag-funding-opportunities-makegov | diag-tango-webhook-contract | diag-tango-dibbs-sbir-ingestion | funding-execution-certification | funding-execution-source-adapter)" >&2
     exit 1
     ;;
 esac

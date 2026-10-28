@@ -46,6 +46,7 @@ export interface TangoProvenance {
 }
 
 export const TANGO_RESOURCE_TYPES = [
+  'grant',
   'entity',
   'opportunity',
   'notice',

@@ -39,7 +39,10 @@ before(async () => {
   const tables = new Map();
   for (const { signature: s } of history.active.values()) {
     const columns = tables.get(s.table) || new Map();
-    for (const key of s.keys) columns.set(key.column || key.coalesceEmptyText, 'text');
+    for (const key of s.keys) {
+      const column = key.column || key.coalesceEmptyText || key.normalizedNoticeId;
+      columns.set(column, key.cast === 'text' ? 'uuid' : columns.get(column) || 'text');
+    }
     for (const term of s.predicate || [])
       columns.set(
         term.column,
@@ -56,11 +59,13 @@ before(async () => {
     const sql = statements(file.sql).find(
       (s) =>
         /^CREATE\s+(UNIQUE\s+)?INDEX/i.test(s) &&
-        s.includes(`"${name}"`) &&
+        s.match(/^CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:CONCURRENTLY\s+)?(?:IF\s+NOT\s+EXISTS\s+)?("?[a-z_][a-z0-9_]*"?)/i)?.[1].replaceAll('"', '') === name &&
         parseIndex(s).name === name,
     );
     assert.ok(sql);
-    await db.exec(sql);
+    // These synthetic tables are empty; concurrent-build behavior is rehearsed
+    // separately in PostgreSQL. The resulting catalog definition is identical.
+    await db.exec(sql.replace(/\bINDEX\s+CONCURRENTLY\b/i, 'INDEX'));
   }
   catalog = (
     await db.query(
@@ -74,13 +79,24 @@ after(async () => {
 const verify = (overrides = {}) =>
   verifyIndexes({ history, generatedSql, sqlOwned, catalog, ...overrides });
 
-test('all 88 historical names resolve to 87 real indexes, seven SQL-owned, and one deliberately removed', () => {
+test('all 93 historical names resolve to 92 real indexes, eleven SQL-owned, and one deliberately removed', () => {
   assert.deepEqual(verify(), {
-    scoped: 88,
-    active: 87,
-    sqlOwned: 7,
+    scoped: 93,
+    active: 92,
+    sqlOwned: 11,
     removed: ['tango_event_outbox_delivery_uniq'],
   });
+});
+
+test('public prefix index preserves its operator class and NULL predicate', () => {
+  const name = 'context_embeddings_public_source_prefix_idx';
+  const row = catalog.find(r => r.name === name);
+  assert.ok(row);
+  for (const definition of [row.definition.replace(' text_pattern_ops', ''),
+    row.definition.replace('IS NULL', 'IS NOT NULL'), row.definition.replace(/ WHERE[\s\S]*/, '')]) {
+    assert.notEqual(definition, row.definition);
+    assert.throws(() => verify({ catalog: catalog.map(r => r.name === name ? { ...r, definition } : r) }), /catalog/);
+  }
 });
 test('a generated default unique name passes without a literal schema map', () => {
   const name = 'tango_procurement_forecast_tango_forecast_id_key';
@@ -142,6 +158,21 @@ test('expression index changes fail instead of being omitted', () => {
     () => verify({ catalog: catalog.map((r) => (r.name === name ? { ...r, definition } : r)) }),
     /catalog/,
   );
+});
+test('funding identity indexes retain the grant parent, UUID cast and notice normalization', () => {
+  for (const [name, change] of [
+    ['opportunity_attachment_parent_url_uniq', (s) => s.replace(/, COALESCE\(federal_grant_id, ''::text\)/, '')],
+    ['opportunity_attachment_parent_url_uniq', (s) => s.replace(/COALESCE\(\(sam_opportunity_id\)::text, ''::text\)/, 'sam_opportunity_id')],
+    ['sam_opportunity_normalized_notice_idx', (s) => s.replace(/lower\(replace\(notice_id, '-'::text, ''::text\)\)/, 'notice_id')],
+    ['opportunity_attachment_provider_uniq', (s) => s.replace(/ WHERE[\s\S]*/, '')],
+  ]) {
+    const row = catalog.find((r) => r.name === name);
+    assert.ok(row);
+    const definition = change(row.definition);
+    assert.notEqual(definition, row.definition);
+    assert.throws(() => verify({ catalog: catalog.map((r) => r.name === name ? { ...r, definition } : r) }), /catalog/);
+  }
+  assert.throws(() => parseIndex("CREATE INDEX x ON rows (lower(replace(notice_id, '_', '')))"), /Unsupported index key/);
 });
 test('SQL-owned contracts cannot silently replace Prisma ownership or declare a nonpartial substitute', () => {
   const regular =
