@@ -79,6 +79,42 @@ class GuardTests(unittest.TestCase):
         self.assertTrue(value["truncated"])
 
 
+class CandidateInsertTests(unittest.TestCase):
+    """The candidate INSERT must never re-scan the candidate it is still appending to.
+
+    NOT EXISTS against w_<table> plans as a nested-loop anti-join over a sequential scan of
+    that table whenever its statistics say it is (nearly) empty, which is exactly the
+    pre-insert state.  Every inserted row then re-reads the whole growing relation, so the
+    statement costs quadratically in the number of staged rows.
+    """
+    attachment_columns = [
+        ("id", "uuid"), ("sam_opportunity_id", "uuid"), ("tango_notice_id", "text"),
+        ("source_url", "text"), ("status", "text"), ("provider_data", "jsonb"),
+        ("provider_observed_at", "timestamp with time zone"), ("updated_at", "timestamp with time zone"),
+        ("last_attempt_at", "timestamp with time zone"), ("archived_at", "timestamp with time zone"),
+        ("content_sha256", "text"), ("archive_bucket", "text"), ("archive_key", "text"),
+        ("archive_version_id", "text"), ("observed_mime_type", "text"), ("observed_size_bytes", "bigint"),
+        ("failure_reason", "text"), ("failure_detail", "text"),
+    ]
+
+    def captured(self, call, *args):
+        seen = []
+        connection = Mock()
+        connection.execute.side_effect = lambda sql, *a, **k: seen.append(sql) or Mock()
+        call(connection, *args)
+        return seen
+
+    def test_candidate_insert_uses_the_natural_map_decision(self):
+        seen = self.captured(operator.merge_table, "opportunity_attachment", self.attachment_columns)
+        insert = next(statement for statement in seen if statement.startswith("INSERT INTO w_opportunity_attachment"))
+        self.assertIn("WHERE NOT s.crosswalk_matched", insert)
+        self.assertNotIn("NOT EXISTS", insert)
+
+    def test_remapped_view_exposes_the_natural_map_decision(self):
+        seen = self.captured(operator.remapped_view, "opportunity_attachment", self.attachment_columns)
+        self.assertIn("m.matched AS crosswalk_matched", seen[0])
+
+
 class SourceLifetimeTests(unittest.TestCase):
     def exercise(self, *, release_fails=False, stage_fails=False):
         events, staged = [], []
