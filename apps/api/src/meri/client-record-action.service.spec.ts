@@ -130,6 +130,17 @@ describe('client record current-owner adapter', () => {
       expect(f.proposals.approveAndExecute).toHaveBeenCalledTimes(1);
     }
   });
+  it('answers the retained closed envelope to version 1 and the preflight only to a negotiated version 2', async () => {
+    const f = fixture();
+    await f.owner.read(ctx, f.req, { version: 1, proposalId: id, context: scope });
+    expect(f.proposals.readClientRecord).toHaveBeenLastCalledWith(ctx, id, expect.anything(), false);
+    await f.owner.read(ctx, f.req, { version: 2, proposalId: id, context: scope });
+    expect(f.proposals.readClientRecord).toHaveBeenLastCalledWith(ctx, id, expect.anything(), true);
+    // An envelope version nobody negotiated is refused before any proposal read.
+    await expect(
+      f.owner.read(ctx, f.req, { version: 3, proposalId: id, context: scope }),
+    ).rejects.toThrow();
+  });
   it('rejects malformed authority, impersonation and expired request before any proposal call', async () => {
     const f = fixture(),
       body = {

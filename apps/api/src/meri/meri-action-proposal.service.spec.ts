@@ -2710,9 +2710,12 @@ describe('MeriActionProposalService — native client record actions', () => {
     expect(h.getRow()?.preview).toMatchObject({
       [CLIENT_PROFILE_PREFLIGHT_KEY]: { duplicate: 'clear', capacity: 'allowed' },
     });
-    const prepared = await h.service.readClientRecord(ctx, PROPOSAL, a);
+    const prepared = await h.service.readClientRecord(ctx, PROPOSAL, a, true);
     expect(prepared.request).toEqual({ operation: 'create_client', input: h.getRow()?.input });
     expect(prepared.preflight).toEqual({ duplicate: 'clear', capacity: 'allowed' });
+    // The retained envelope version 1 answer stays closed on the wire: the preflight is sent only when negotiated.
+    expect(JSON.stringify(await h.service.readClientRecord(ctx, PROPOSAL, a))).not.toContain('preflight');
+    expect(JSON.stringify(prepared)).toContain('preflight');
     // Preparation evidence stays out of the public preview.
     expect(JSON.stringify(p.proposal.preview)).not.toContain(CLIENT_PROFILE_PREFLIGHT_KEY);
   });
@@ -2771,7 +2774,7 @@ describe('MeriActionProposalService — native client record actions', () => {
         preview: { [CLIENT_RECORD_SCOPE_KEY]: scope } as MeriActionProposal['preview'],
       }),
     }), a = access();
-    expect((await h.service.readClientRecord(ctx, PROPOSAL, a)).preflight).toBeNull();
+    expect((await h.service.readClientRecord(ctx, PROPOSAL, a, true)).preflight).toBeNull();
   });
 });
 

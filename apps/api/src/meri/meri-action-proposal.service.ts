@@ -1192,7 +1192,12 @@ export class MeriActionProposalService {
     };
   }
 
-  async readClientRecord(ctx: TenantContext, proposalId: string, access: ClientRecordAccess) {
+  async readClientRecord(
+    ctx: TenantContext,
+    proposalId: string,
+    access: ClientRecordAccess,
+    includePreflight = false,
+  ) {
     this.assertEnabled();
     await this.reconcileStaleExecuting(ctx);
     await this.expireStale(ctx);
@@ -1205,9 +1210,11 @@ export class MeriActionProposalService {
     const created = receipt as { outcome?: string; client?: { id?: string } } | null;
     if (created?.outcome === 'created' && (!created.client?.id || !access.clientIds.includes(created.client.id)))
       throw new NotFoundException('Created client is not currently visible');
+    // The preflight is answered only to a caller that negotiated envelope version 2. For version 1 it stays
+    // undefined, which JSON omits, so the retained closed answer reaches an old receiver byte for byte.
     return { version: '0.1.0' as const, proposalId: row.id, status: row.status as MeriActionProposalStatus,
       request: clientRecordRequest(row.tool, row.input), context: readClientRecordScope(row.preview),
-      preflight: readClientProfilePreflight(row.preview),
+      preflight: includePreflight ? readClientProfilePreflight(row.preview) : undefined,
       createdAt: row.createdAt.toISOString(), expiresAt: row.expiresAt.toISOString(), receipt };
   }
 
