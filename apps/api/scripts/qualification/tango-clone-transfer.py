@@ -408,6 +408,12 @@ def vectors(conn, api_dir, node):
     finally:
         if proc.poll() is None:
             proc.kill(); proc.wait()
+        for stream in (proc.stdin, proc.stdout):
+            if stream is not None:
+                try:
+                    stream.close()
+                except OSError:
+                    pass  # A terminated helper may already have closed its input pipe.
     conn.execute("ANALYZE vector_accept")
     # Invalid or stale target chunk sets are removed only for transferred parents.
     conn.execute("CREATE TEMP TABLE final_vectors AS SELECT * FROM w_context_embeddings WITH NO DATA")
