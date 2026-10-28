@@ -11,6 +11,7 @@ import { MERI_CAPABILITY_REGISTRY, type TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { validateFirmSkill } from './meri-firm-skills.helpers.js';
+import { procedureManifestDigest } from './meri-procedure-runtime.js';
 import { CLIO_SKILLS } from './skills/skill-registry.js';
 import type { MeriProcedureBinding, MeriSkill } from './skills/skill.types.js';
 import { TOOL_DEFINITIONS } from './meri-tools.service.js';
@@ -76,6 +77,34 @@ export class MeriFirmSkillsService {
     return validation.skill;
   }
 
+  /**
+   * The stored-row rules shared by the turn path, the procedure resolver and the
+   * admin read. One owner, so a row the settings screen shows as runnable is the
+   * same row the turn path will serve.
+   */
+  private validateStoredRow(row: { skillId: string; skillJson: unknown }) {
+    const validation = validateFirmSkill(
+      row.skillJson as unknown as Record<string, unknown>,
+      this.allowedTools(),
+      { readOnlyTools: this.readOnlyTools() },
+    );
+    const skill = validation.skill;
+    if (validation.ok && skill && skill.id !== row.skillId) {
+      // The row identity is what the governed binding carries; a stored payload
+      // that disagrees with it can never resolve, so it must not read as
+      // runnable anywhere.
+      return {
+        ok: false,
+        skill: null,
+        errors: [
+          ...validation.errors,
+          `stored skill id "${skill.id}" does not match row identity "${row.skillId}"`,
+        ],
+      };
+    }
+    return validation;
+  }
+
   invalidate(tenantId: string): void {
     this.cache.delete(tenantId);
   }
@@ -89,21 +118,32 @@ export class MeriFirmSkillsService {
         orderBy: { createdAt: 'asc' },
       }),
     );
-    return rows.map((row) => ({
-      id: row.id,
-      skillId: row.skillId,
-      name: row.name,
-      skill: row.skillJson,
-      version: row.version,
-      versions:
-        (row.versions as unknown as SkillVersionSnapshot[] | null)?.map((v) => ({
-          version: v.version,
-          savedAt: v.savedAt,
-        })) ?? [],
-      enabled: row.enabled,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-    }));
+    return rows.map((row) => {
+      const validation = this.validateStoredRow(row);
+      const procedure = validation.skill?.procedure ?? null;
+      return {
+        id: row.id,
+        skillId: row.skillId,
+        name: row.name,
+        skill: row.skillJson,
+        version: row.version,
+        versions:
+          (row.versions as unknown as SkillVersionSnapshot[] | null)?.map((v) => ({
+            version: v.version,
+            savedAt: v.savedAt,
+          })) ?? [],
+        enabled: row.enabled,
+        // The exact identity that would execute, so settings can show the same
+        // version/digest the runtime signs, and can tell a row the turn path
+        // would serve from one it silently skips.
+        runnable: row.enabled && validation.ok,
+        procedureDigest: procedure ? procedureManifestDigest(procedure) : null,
+        procedureScopes: procedure ? [...procedure.scopes] : [],
+        validationErrors: validation.errors,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+      };
+    });
   }
 
   async create(ctx: TenantContext, input: Record<string, unknown>) {
@@ -135,7 +175,30 @@ export class MeriFirmSkillsService {
     }
   }
 
-  async update(ctx: TenantContext, id: string, input: Record<string, unknown>) {
+  /**
+   * The viewed version is the fence for every mutation below. It is checked here as well as in the
+   * controller because `where: { version: undefined }` makes Prisma drop the predicate entirely —
+   * an absent fence would silently turn the compare-and-swap back into an unconditioned write.
+   */
+  private assertViewedVersion(expectedVersion: number): void {
+    if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
+      throw new BadRequestException('expectedVersion must be a positive integer');
+    }
+  }
+
+  /**
+   * Update is fenced by the version the operator actually viewed. The CAS previously bound
+   * `existing.version` — the version this transaction had just read — so it could only detect a
+   * change racing with this statement, never a stale view. A concurrent change between the read
+   * above and the CAS now fails atomically with zero writes.
+   */
+  async update(
+    ctx: TenantContext,
+    id: string,
+    input: Record<string, unknown>,
+    expectedVersion: number,
+  ) {
+    this.assertViewedVersion(expectedVersion);
     const row = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const existing = await tx.clioFirmSkill.findFirst({
         where: { id, tenantId: ctx.tenantId },
@@ -147,7 +210,7 @@ export class MeriFirmSkillsService {
       });
       const history = this.pushVersion(existing);
       const result = await tx.clioFirmSkill.updateMany({
-        where: { id, tenantId: ctx.tenantId, version: existing.version },
+        where: { id, tenantId: ctx.tenantId, version: expectedVersion },
         data: {
           skillId: skill.id,
           name: skill.name,
@@ -176,26 +239,68 @@ export class MeriFirmSkillsService {
     return row;
   }
 
-  async setEnabled(ctx: TenantContext, id: string, enabled: boolean) {
-    await this.findOrThrow(ctx, id);
-    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioFirmSkill.update({ where: { id }, data: { enabled, updatedByUserId: ctx.userId } }),
-    );
-    await this.audit(ctx, 'clio.firm_skill.set_enabled', id, { enabled });
+  /**
+   * Enabling or disabling decides whether the turn path serves the row, so it is a usability
+   * mutation: it advances the observable revision and is fenced by the viewed version, exactly like
+   * update/restore. The previous unconditioned `update({ where: { id } })` had neither.
+   */
+  async setEnabled(ctx: TenantContext, id: string, enabled: boolean, expectedVersion: number) {
+    this.assertViewedVersion(expectedVersion);
+    const row = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const existing = await tx.clioFirmSkill.findFirst({
+        where: { id, tenantId: ctx.tenantId },
+      });
+      if (!existing) throw new NotFoundException('Firm skill not found');
+      const history = this.pushVersion(existing);
+      const result = await tx.clioFirmSkill.updateMany({
+        where: { id, tenantId: ctx.tenantId, version: expectedVersion },
+        data: {
+          enabled,
+          version: expectedVersion + 1,
+          versions: history as unknown as Prisma.InputJsonValue,
+          updatedByUserId: ctx.userId,
+        },
+      });
+      if (result.count !== 1) {
+        throw new ConflictException('Firm skill changed concurrently; reload and retry');
+      }
+      const updated = await tx.clioFirmSkill.findFirst({
+        where: { id, tenantId: ctx.tenantId },
+      });
+      if (!updated) {
+        throw new ConflictException('Firm skill changed concurrently; reload and retry');
+      }
+      return updated;
+    });
+    await this.audit(ctx, 'clio.firm_skill.set_enabled', id, { enabled, version: row.version });
     this.invalidate(ctx.tenantId);
     return row;
   }
 
-  async remove(ctx: TenantContext, id: string) {
+  /**
+   * Deletion is fenced by the viewed version. An unconditioned delete would destroy a row the
+   * operator never read, or one that changed after they read it; the tenant predicate is kept so
+   * the fence cannot cross tenants.
+   */
+  async remove(ctx: TenantContext, id: string, expectedVersion: number) {
+    this.assertViewedVersion(expectedVersion);
     const existing = await this.findOrThrow(ctx, id);
-    await this.prisma.withTenant(ctx.tenantId, (tx) => tx.clioFirmSkill.delete({ where: { id } }));
+    const deleted = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioFirmSkill.deleteMany({
+        where: { id, tenantId: ctx.tenantId, version: expectedVersion },
+      }),
+    );
+    if (deleted.count !== 1) {
+      throw new ConflictException('Firm skill changed concurrently; reload and retry');
+    }
     await this.audit(ctx, 'clio.firm_skill.delete', id, { skillId: existing.skillId });
     this.invalidate(ctx.tenantId);
     return { deleted: true };
   }
 
   /** Restore a prior version (current state is pushed into history first). */
-  async restore(ctx: TenantContext, id: string, version: number) {
+  async restore(ctx: TenantContext, id: string, version: number, expectedVersion: number) {
+    this.assertViewedVersion(expectedVersion);
     const row = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const existing = await tx.clioFirmSkill.findFirst({
         where: { id, tenantId: ctx.tenantId },
@@ -208,8 +313,9 @@ export class MeriFirmSkillsService {
       // removed since); restore must not resurrect an invalid skill.
       const skill = this.validate(snapshot.skillJson as unknown as Record<string, unknown>);
       const newHistory = this.pushVersion(existing);
+      // Fenced by the version the operator viewed, not by the version this transaction just read.
       const result = await tx.clioFirmSkill.updateMany({
-        where: { id, tenantId: ctx.tenantId, version: existing.version },
+        where: { id, tenantId: ctx.tenantId, version: expectedVersion },
         data: {
           skillId: skill.id,
           name: skill.name,
@@ -238,9 +344,22 @@ export class MeriFirmSkillsService {
   /** Dry run: resolve what the skill would inject — no tools execute. */
   async testRun(ctx: TenantContext, id: string) {
     const existing = await this.findOrThrow(ctx, id);
-    const skill = existing.skillJson as unknown as MeriSkill;
+    // The dry run must apply the same rules as the turn path. Returning the raw
+    // stored row let a skill that the turn path refuses (removed tool, altered
+    // manifest, payload identity drift) still report a runnable preview.
+    const validation = this.validateStoredRow(existing);
+    if (!validation.ok || !validation.skill) {
+      throw new BadRequestException(
+        `Stored skill is not runnable: ${validation.errors.join('; ') || 'invalid'}`,
+      );
+    }
+    const skill = validation.skill;
     return {
       skillId: skill.id,
+      canonicalId: existing.skillId,
+      version: existing.version,
+      procedureDigest: skill.procedure ? procedureManifestDigest(skill.procedure) : null,
+      procedureScopes: skill.procedure ? [...skill.procedure.scopes] : [],
       triggers: skill.triggers,
       systemAddendum: skill.systemAddendum,
       template: skill.template,
@@ -261,11 +380,7 @@ export class MeriFirmSkillsService {
     );
     const skills: MeriSkill[] = [];
     for (const row of rows) {
-      const validation = validateFirmSkill(
-        row.skillJson as unknown as Record<string, unknown>,
-        this.allowedTools(),
-        { readOnlyTools: this.readOnlyTools() },
-      );
+      const validation = this.validateStoredRow(row);
       if (validation.ok && validation.skill) {
         skills.push({
           ...validation.skill,
@@ -311,12 +426,8 @@ export class MeriFirmSkillsService {
     ) {
       throw new NotFoundException('Procedure binding is unavailable');
     }
-    const validation = validateFirmSkill(
-      row.skillJson as unknown as Record<string, unknown>,
-      this.allowedTools(),
-      { readOnlyTools: this.readOnlyTools() },
-    );
-    if (!validation.ok || !validation.skill?.procedure || validation.skill.id !== row.skillId) {
+    const validation = this.validateStoredRow(row);
+    if (!validation.ok || !validation.skill?.procedure) {
       throw new NotFoundException('Procedure binding is unavailable');
     }
     return {

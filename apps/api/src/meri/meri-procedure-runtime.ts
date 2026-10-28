@@ -23,12 +23,29 @@ export interface ServedProcedureReceipt {
   id: string;
   version: number;
   source: 'firm';
+  /**
+   * Digest of the exact normalized manifest this turn is bound to. The receipt
+   * is what the turn emits, persists and logs, so without it a stored turn can
+   * not be traced back to the procedure version that actually ran.
+   */
+  manifestDigest: string;
   scope: MeriGovernedProcedureBinding['scope'];
   clientId: string | null;
   effectMode: MeriGovernedProcedureBinding['policy']['effectMode'];
+  /** The read surface actually granted, after registry and effect-mode filtering. */
+  allowedTools: string[];
   caseIds: string[];
   completionCheckCount: number;
   coverageStates: string[];
+}
+
+/**
+ * The exact identity digest of a normalized procedure manifest. Single owner for
+ * both the signed governed binding and the admin read path, so a version shown
+ * in settings is the same version the runtime signed.
+ */
+export function procedureManifestDigest(manifest: unknown): string {
+  return createHash('sha256').update(JSON.stringify(manifest)).digest('hex');
 }
 
 /**
@@ -107,7 +124,7 @@ export async function resolveCurrentServedProcedure(input: {
     version: 1,
     tenantId: input.tenantId,
     identity: { ...identity },
-    manifestDigest: createHash('sha256').update(JSON.stringify(manifest)).digest('hex'),
+    manifestDigest: procedureManifestDigest(manifest),
     instruction: resolved.systemAddendum,
     scope,
     clientId: input.clientId,
@@ -135,9 +152,11 @@ export function procedureReceipt(binding: MeriGovernedProcedureBinding): ServedP
     id: binding.identity.canonicalId,
     version: binding.identity.version,
     source: binding.identity.source,
+    manifestDigest: binding.manifestDigest,
     scope: binding.scope,
     clientId: binding.clientId,
     effectMode: binding.policy.effectMode,
+    allowedTools: [...binding.policy.allowedTools],
     caseIds: [...binding.contract.caseIds],
     completionCheckCount: binding.contract.completionChecks.length,
     coverageStates: [...binding.contract.coverageStates],

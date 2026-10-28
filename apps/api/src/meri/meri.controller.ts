@@ -994,6 +994,21 @@ export class MeriController {
 
   // ── Firm-authored skills (F6b) — admin-gated authoring ──
 
+  /**
+   * Every firm-skill mutation is fenced by the version the operator actually viewed. A malformed or
+   * missing value fails the request rather than falling back to the current version: a silent
+   * fallback would turn the fence back into "whatever the server last read".
+   */
+  private expectedFirmSkillVersion(value: unknown): number {
+    const version = Number(value);
+    if (!Number.isInteger(version) || version < 1) {
+      throw new BadRequestException(
+        'expectedVersion must be the positive integer version you viewed',
+      );
+    }
+    return version;
+  }
+
   @Get('firm-skills')
   @Roles('user_admin')
   listFirmSkills(@CurrentTenant() ctx: TenantContext) {
@@ -1013,7 +1028,10 @@ export class MeriController {
     @Param('id') id: string,
     @Body() body: Record<string, unknown>,
   ) {
-    return this.firmSkills.update(ctx, id, body ?? {});
+    const expectedVersion = this.expectedFirmSkillVersion(body?.expectedVersion);
+    // expectedVersion is a fence, not procedure content: it must not reach the payload validator.
+    const { expectedVersion: _expectedVersion, ...input } = body ?? {};
+    return this.firmSkills.update(ctx, id, input, expectedVersion);
   }
 
   @Patch('firm-skills/:id/enabled')
@@ -1021,15 +1039,24 @@ export class MeriController {
   setFirmSkillEnabled(
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,
-    @Body() body: { enabled?: unknown },
+    @Body() body: { enabled?: unknown; expectedVersion?: unknown },
   ) {
-    return this.firmSkills.setEnabled(ctx, id, Boolean(body?.enabled));
+    return this.firmSkills.setEnabled(
+      ctx,
+      id,
+      Boolean(body?.enabled),
+      this.expectedFirmSkillVersion(body?.expectedVersion),
+    );
   }
 
   @Delete('firm-skills/:id')
   @Roles('user_admin')
-  deleteFirmSkill(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
-    return this.firmSkills.remove(ctx, id);
+  deleteFirmSkill(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Query('expectedVersion') expectedVersion: unknown,
+  ) {
+    return this.firmSkills.remove(ctx, id, this.expectedFirmSkillVersion(expectedVersion));
   }
 
   @Post('firm-skills/:id/restore')
@@ -1037,13 +1064,18 @@ export class MeriController {
   restoreFirmSkill(
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,
-    @Body() body: { version?: unknown },
+    @Body() body: { version?: unknown; expectedVersion?: unknown },
   ) {
     const version = Number(body?.version);
     if (!Number.isInteger(version) || version < 1) {
       throw new BadRequestException('version must be a positive integer');
     }
-    return this.firmSkills.restore(ctx, id, version);
+    return this.firmSkills.restore(
+      ctx,
+      id,
+      version,
+      this.expectedFirmSkillVersion(body?.expectedVersion),
+    );
   }
 
   // Dry run: returns the resolved addendum/template without executing tools.

@@ -507,9 +507,12 @@ describe('MeriV3ProxyService â€” done frame carries the persisted message i
       id: 'commitments_audit',
       version: 7,
       source: 'firm',
+      // Exact manifest identity and granted read surface travel with the turn.
+      manifestDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
       scope: 'client',
       clientId: 'client-1',
       effectMode: 'read_only',
+      allowedTools: expect.any(Array),
       caseIds: ['CD-01', 'CD-02', 'CD-03', 'CD-04', 'CD-05', 'CD-06', 'CD-07'],
       completionCheckCount: 7,
       coverageStates: ['checked', 'disconnected', 'unavailable', 'not mapped'],

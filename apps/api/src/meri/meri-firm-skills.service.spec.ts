@@ -79,6 +79,19 @@ function makePrisma(seed: Row[] = [], options: { beforeVersionWrite?: () => Prom
           if (idx >= 0) store.splice(idx, 1);
           return {};
         },
+        // Deletion is fenced by the viewed version, so the double must honour `where.version` the
+        // same way updateMany does and report a count.
+        deleteMany: async ({ where }: { where: Row }) => {
+          const idx = store.findIndex(
+            (r) =>
+              r.id === where.id &&
+              r.tenantId === tenantId &&
+              (where.version === undefined || r.version === where.version),
+          );
+          if (idx < 0) return { count: 0 };
+          store.splice(idx, 1);
+          return { count: 1 };
+        },
       },
       auditLog: { create: auditCreate },
     };
@@ -202,10 +215,10 @@ describe('MeriFirmSkillsService — tenant isolation (RLS double)', () => {
 
     expect(await svc.list(ctx(TENANT_B))).toEqual([]);
     expect(await svc.skillsForTenant(TENANT_B)).toEqual([]);
-    await expect(svc.update(ctx(TENANT_B), created.id, VALID_SKILL)).rejects.toBeInstanceOf(
+    await expect(svc.update(ctx(TENANT_B), created.id, VALID_SKILL, 1)).rejects.toBeInstanceOf(
       NotFoundException,
     );
-    await expect(svc.remove(ctx(TENANT_B), created.id)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(svc.remove(ctx(TENANT_B), created.id, 1)).rejects.toBeInstanceOf(NotFoundException);
     // Tenant A's row survives untouched.
     expect((prisma.__store[0] as { skillId: string }).skillId).toBe('earmark_request_memo');
   });
@@ -217,14 +230,20 @@ describe('MeriFirmSkillsService — versioning + lifecycle', () => {
     const svc = new MeriFirmSkillsService(prisma as never, config as never);
     const created = (await svc.create(ctx(TENANT_A), VALID_SKILL)) as { id: string };
 
-    await svc.update(ctx(TENANT_A), created.id, {
-      ...VALID_SKILL,
-      systemAddendum: 'Version two of the memo guidance with sharper asks.',
-    });
+    await svc.update(
+      ctx(TENANT_A),
+      created.id,
+      {
+        ...VALID_SKILL,
+        systemAddendum: 'Version two of the memo guidance with sharper asks.',
+      },
+      created.version,
+    );
     const afterUpdate = await svc.skillsForTenant(TENANT_A);
     expect(afterUpdate[0]?.systemAddendum).toContain('Version two');
 
-    const restored = (await svc.restore(ctx(TENANT_A), created.id, 1)) as { version: number };
+    // Fenced by the version the operator viewed: after the update above the row is at version 2.
+    const restored = (await svc.restore(ctx(TENANT_A), created.id, 1, 2)) as { version: number };
     expect(restored.version).toBe(3);
     const afterRestore = await svc.skillsForTenant(TENANT_A);
     expect(afterRestore[0]?.systemAddendum).toBe(VALID_SKILL.systemAddendum);
@@ -235,7 +254,7 @@ describe('MeriFirmSkillsService — versioning + lifecycle', () => {
     const svc = new MeriFirmSkillsService(prisma as never, config as never);
     const created = (await svc.create(ctx(TENANT_A), VALID_SKILL)) as { id: string };
     expect(await svc.skillsForTenant(TENANT_A)).toHaveLength(1);
-    await svc.setEnabled(ctx(TENANT_A), created.id, false);
+    await svc.setEnabled(ctx(TENANT_A), created.id, false, created.version);
     expect(await svc.skillsForTenant(TENANT_A)).toHaveLength(0);
   });
 
@@ -270,9 +289,12 @@ describe('MeriFirmSkillsService — current procedure binding', () => {
     expect(resolved.procedureBinding).toEqual(binding);
     expect(resolved.procedure?.caseIds).toContain('CD-07');
 
-    await svc.update(ctx(TENANT_A), created.id, {
-      ...commitmentsWithHeading('Tenant Commitments Review'),
-    });
+    await svc.update(
+      ctx(TENANT_A),
+      created.id,
+      { ...commitmentsWithHeading('Tenant Commitments Review') },
+      created.version,
+    );
     await expect(svc.resolveProcedureReference(TENANT_A, binding!)).rejects.toBeInstanceOf(
       NotFoundException,
     );
@@ -292,7 +314,7 @@ describe('MeriFirmSkillsService — current procedure binding', () => {
     };
     const disabledBinding = (await disabledSvc.skillsForTenant(TENANT_A))[0]
       ?.procedureBinding as MeriProcedureBinding;
-    await disabledSvc.setEnabled(ctx(TENANT_A), disabledRow.id, false);
+    await disabledSvc.setEnabled(ctx(TENANT_A), disabledRow.id, false, 1);
     await expect(
       disabledSvc.resolveProcedureReference(TENANT_A, disabledBinding),
     ).rejects.toBeInstanceOf(NotFoundException);
@@ -307,7 +329,7 @@ describe('MeriFirmSkillsService — current procedure binding', () => {
     await expect(
       revokedSvc.resolveProcedureReference(TENANT_B, revokedBinding),
     ).rejects.toBeInstanceOf(NotFoundException);
-    await revokedSvc.remove(ctx(TENANT_A), revokedRow.id);
+    await revokedSvc.remove(ctx(TENANT_A), revokedRow.id, 1);
     await expect(
       revokedSvc.resolveProcedureReference(TENANT_A, revokedBinding),
     ).rejects.toBeInstanceOf(NotFoundException);
@@ -322,16 +344,20 @@ describe('MeriFirmSkillsService — canonical procedure integrity', () => {
       id: string;
     };
     await expect(
-      svc.update(ctx(TENANT_A), created.id, hollowCommitmentsSkill() as unknown as Row),
+      svc.update(ctx(TENANT_A), created.id, hollowCommitmentsSkill() as unknown as Row, 1),
     ).rejects.toBeInstanceOf(BadRequestException);
 
-    await svc.update(ctx(TENANT_A), created.id, {
-      ...commitmentsWithHeading('Tenant Commitments Review'),
-    });
+    await svc.update(
+      ctx(TENANT_A),
+      created.id,
+      { ...commitmentsWithHeading('Tenant Commitments Review') },
+      1,
+    );
     const stored = prisma.__store[0]!;
     const history = stored.versions as Array<{ version: number; skillJson: Row }>;
     history[0]!.skillJson = hollowCommitmentsSkill() as unknown as Row;
-    await expect(svc.restore(ctx(TENANT_A), created.id, 1)).rejects.toBeInstanceOf(
+    // The row is at version 2 after the update above; the snapshot itself is rejected before the CAS.
+    await expect(svc.restore(ctx(TENANT_A), created.id, 1, 2)).rejects.toBeInstanceOf(
       BadRequestException,
     );
 
@@ -340,6 +366,92 @@ describe('MeriFirmSkillsService — canonical procedure integrity', () => {
     await expect(svc.resolveProcedureReference(TENANT_A, currentBinding)).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+});
+
+describe('MeriFirmSkillsService — viewed-version fence on every usability mutation', () => {
+  test('a stale viewed version writes nothing and records no audit success', async () => {
+    const prisma = makePrisma();
+    const svc = new MeriFirmSkillsService(prisma as never, config as never);
+    const created = (await svc.create(ctx(TENANT_A), COMMITMENTS_SKILL_INPUT)) as { id: string };
+    await svc.update(ctx(TENANT_A), created.id, { ...commitmentsWithHeading('Version Two') }, 1);
+
+    const before = structuredClone(prisma.__store[0]!);
+    const auditsBefore = prisma.__auditCreate.mock.calls.length;
+
+    // The row is at version 2; the operator still holds version 1. Previously only `update`/`restore`
+    // had any CAS at all (and even that compared the transaction's own read), while `setEnabled` and
+    // `delete` had none — so this is the fence that did not exist.
+    await expect(
+      svc.update(ctx(TENANT_A), created.id, { ...commitmentsWithHeading('Stale') }, 1),
+    ).rejects.toBeInstanceOf(ConflictException);
+    await expect(svc.setEnabled(ctx(TENANT_A), created.id, false, 1)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    await expect(svc.remove(ctx(TENANT_A), created.id, 1)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    await expect(svc.restore(ctx(TENANT_A), created.id, 1, 1)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+
+    expect(prisma.__store[0]).toEqual(before);
+    expect(prisma.__auditCreate.mock.calls.length).toBe(auditsBefore);
+  });
+
+  test('the exact viewed version succeeds, and a usability mutation advances the revision', async () => {
+    const prisma = makePrisma();
+    const svc = new MeriFirmSkillsService(prisma as never, config as never);
+    const created = (await svc.create(ctx(TENANT_A), COMMITMENTS_SKILL_INPUT)) as { id: string };
+
+    const updated = (await svc.update(
+      ctx(TENANT_A),
+      created.id,
+      { ...commitmentsWithHeading('Version Two') },
+      1,
+    )) as { version: number };
+    expect(updated.version).toBe(2);
+
+    // Disabling changes whether the turn path serves the row, so it must advance the revision.
+    const toggled = (await svc.setEnabled(ctx(TENANT_A), created.id, false, 2)) as {
+      version: number;
+      enabled: boolean;
+    };
+    expect(toggled.version).toBe(3);
+    expect(toggled.enabled).toBe(false);
+    expect(await svc.skillsForTenant(TENANT_A)).toHaveLength(0);
+
+    const restored = (await svc.restore(ctx(TENANT_A), created.id, 1, 3)) as { version: number };
+    expect(restored.version).toBe(4);
+
+    await svc.remove(ctx(TENANT_A), created.id, 4);
+    expect(prisma.__store).toHaveLength(0);
+  });
+
+  test('a malformed or missing viewed version fails instead of falling back', async () => {
+    const prisma = makePrisma();
+    const svc = new MeriFirmSkillsService(prisma as never, config as never);
+    const created = (await svc.create(ctx(TENANT_A), COMMITMENTS_SKILL_INPUT)) as { id: string };
+
+    // A malformed fence must fail, not fall back. This is a BadRequest, not a Conflict: nothing was
+    // attempted. `undefined` is the dangerous case — `where: { version: undefined }` drops the
+    // predicate and would have made the CAS an unconditioned write.
+    for (const bogus of [undefined, Number.NaN, 0] as unknown as number[]) {
+      await expect(
+        svc.update(ctx(TENANT_A), created.id, { ...commitmentsWithHeading('Bogus') }, bogus),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(svc.setEnabled(ctx(TENANT_A), created.id, false, bogus)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      await expect(svc.remove(ctx(TENANT_A), created.id, bogus)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      await expect(svc.restore(ctx(TENANT_A), created.id, 1, bogus)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+    }
+    expect(prisma.__store).toHaveLength(1);
+    expect((prisma.__store[0] as { version: number }).version).toBe(1);
   });
 });
 
@@ -353,13 +465,11 @@ describe('MeriFirmSkillsService — concurrent version compare-and-swap', () => 
     const first = 'First Commitments Review';
     const second = 'Second Commitments Review';
 
+    // Both writers viewed version 1 — the realistic stale-view race. The viewed version is now the
+    // fence, so exactly one CAS can match and the loser writes nothing.
     const outcomes = await Promise.allSettled([
-      svc.update(ctx(TENANT_A), created.id, {
-        ...commitmentsWithHeading(first),
-      }),
-      svc.update(ctx(TENANT_A), created.id, {
-        ...commitmentsWithHeading(second),
-      }),
+      svc.update(ctx(TENANT_A), created.id, { ...commitmentsWithHeading(first) }, 1),
+      svc.update(ctx(TENANT_A), created.id, { ...commitmentsWithHeading(second) }, 1),
     ]);
     const fulfilled = outcomes.filter((outcome) => outcome.status === 'fulfilled');
     const rejected = outcomes.filter((outcome) => outcome.status === 'rejected');
@@ -390,18 +500,15 @@ describe('MeriFirmSkillsService — concurrent version compare-and-swap', () => 
     });
     const svc = new MeriFirmSkillsService(prisma as never, config as never);
     const created = (await svc.create(ctx(TENANT_A), COMMITMENTS_SKILL_INPUT)) as { id: string };
-    await svc.update(ctx(TENANT_A), created.id, {
-      ...commitmentsWithHeading('Version Two Commitments Review'),
-    });
+    await svc.update(ctx(TENANT_A), created.id, { ...commitmentsWithHeading('Version Two Commitments Review') }, 1);
     const staleBinding = (await svc.skillsForTenant(TENANT_A))[0]!.procedureBinding!;
     const third = 'Concurrent Commitments Review';
     gateEnabled = true;
 
+    // Both writers viewed version 2: one CAS matches, the other conflicts atomically.
     const outcomes = await Promise.allSettled([
-      svc.update(ctx(TENANT_A), created.id, {
-        ...commitmentsWithHeading(third),
-      }),
-      svc.restore(ctx(TENANT_A), created.id, 1),
+      svc.update(ctx(TENANT_A), created.id, { ...commitmentsWithHeading(third) }, 2),
+      svc.restore(ctx(TENANT_A), created.id, 1, 2),
     ]);
     const fulfilled = outcomes.filter((outcome) => outcome.status === 'fulfilled');
     const rejected = outcomes.filter((outcome) => outcome.status === 'rejected');
