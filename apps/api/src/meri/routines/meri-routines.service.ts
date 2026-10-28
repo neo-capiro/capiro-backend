@@ -18,6 +18,7 @@ import type { RetainedReadDispatcher } from '../retained-read-dispatch.js';
 import { parseRetainedReadContext, assertRetainedReadSelectors, readRetainedReadDeadline } from '../retained-read-context.js';
 import { withMeriToolRequestControl, withMeriToolExecutionControl, meriToolRequestControl, assertMeriToolRequestActive } from '../meri-tool-request-control.js';
 import { readRoutineSubject, routineReadRequest, type RoutineReadSelection } from './meri-routine-read-authority.js';
+import { parseRoutineConsentObservationRequest, readRoutineConsentObservation, type RoutineConsentObservation } from './meri-routine-consent-observation.js';
 import { isUuid } from '../../auth/read-delegation/read-delegation.contract.js';
 import { ApplicationMembershipService } from '../../auth/application-membership.service.js';
 import type { CoreEd25519Signer } from '../../auth/core-ed25519-signer.js';
@@ -76,6 +77,19 @@ export class MeriRoutinesService {
 
   private readSubject(selection: RoutineReadSelection, purpose: 'current' | 'read' = 'read') {
     return this.prisma.withTenant(selection.tenantId, tx => readRoutineSubject(tx, selection, purpose));
+  }
+
+  /**
+   * MR-04 visibility: a read-only observation of the owner's saved read consent
+   * for the current authorized generation (meri-routine-consent-observation.ts).
+   * It writes no consent, revocation, approval or grant and changes no refusals;
+   * a database or transport failure propagates, so the caller reports an unknown
+   * rather than a fabricated absence.
+   */
+  async consentObservation(raw: unknown, req: Request): Promise<RoutineConsentObservation> {
+    if (!hasInternalServiceIdentity(req)) throw forbidden();
+    const request = parseRoutineConsentObservationRequest(raw);
+    return this.prisma.withTenant(request.tenantId, tx => readRoutineConsentObservation(tx, request));
   }
 
   async read(raw: unknown, req: Request, reads: RetainedReadDispatcher): Promise<unknown> {

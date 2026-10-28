@@ -82,6 +82,8 @@ export class MeriRoutineReadController {
   current(@Body() body: unknown, @Req() req: Request) { return this.routines.current(body, req); }
   @Post('reads') @HttpCode(200) @Header('Cache-Control', 'no-store')
   read(@Body() body: unknown, @Req() req: Request) { return this.routines.read(body, req, this.reads); }
+  @Post('consent') @HttpCode(200) @Header('Cache-Control', 'no-store')
+  consent(@Body() body: unknown, @Req() req: Request) { return this.routines.consentObservation(body, req); }
 }
 
 /** One KMS Ed25519 signer per purpose, from its `<PURPOSE>_*` configuration; null (503) when absent or invalid. */
