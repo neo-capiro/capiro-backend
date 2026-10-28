@@ -10,6 +10,12 @@ import type {
   BizDevWatchBaseline,
   BizDevWatchScanCheckpoint,
   BizDevWatchScanExposureCheckpoint,
+  BizDevSourceEventAdvanceInput,
+} from './bizdev-watch.types.js';
+import {
+  advancesDeliveryCursor,
+  countSourceEventDispositions,
+  BIZDEV_SOURCE_EVENT_RECORDED_STATES,
 } from './bizdev-watch.types.js';
 import { diffObservationAgainstBaseline as diffFn } from './bizdev-watch-diff.js';
 import {
@@ -358,22 +364,28 @@ export type BizDevWatchSourceEventSink = (
   alerts: readonly BizDevWatchSourceEventOffered[],
 ) => Promise<BizDevWatchSourceEventAnswer | BizDevWatchSourceEventCounts | void>;
 
-/** What the MB-05 delivery owner answered for ONE alert: a definite terminal state, or UNKNOWN. */
+/**
+ * What the MB-05 delivery owner answered for ONE alert. `recorded` is the store state a DEDUPED answer
+ * names. The ONLY answers that may advance the recovery cursor are completed terminal handoffs — see
+ * advancesDeliveryCursor(): DISPATCHED / SKIPPED / REFUSED / CONFLICT, or DEDUPED carrying a terminal
+ * recorded outcome. ACCEPTED and QUEUED are durable but IN FLIGHT (Meri's own store keeps both
+ * retryable and no independent drain owns them, so the producer's replay is their retry mechanism),
+ * and UNKNOWN or anything unintelligible never advances.
+ */
 export interface BizDevWatchSourceEventDisposition {
   alertId: string;
-  /**
-   * DISPATCHED / DEDUPED / ACCEPTED / QUEUED / SKIPPED / REFUSED / CONFLICT are DEFINITE answers from
-   * Meri and may advance the recovery cursor; UNKNOWN (or anything unintelligible) may not.
-   */
   state: string;
+  /** Meri's `sourceEvent.recorded` store state for a DEDUPED answer. */
+  recorded?: string | null;
 }
 
 /**
  * The delivery owner's answer for one offered recovery page. A per-alert `dispositions` list lets the
- * caller advance its durable recovery cursor over EXACTLY the alerts Meri definitively answered; an
- * owner that can only report aggregates omits it, and the page is then acknowledged as a whole and only
- * when the owner accounts for every offered alert and reports none UNKNOWN. Either way an UNKNOWN answer
- * never advances the cursor, and an unresolved older alert always holds it.
+ * caller advance its durable recovery cursor over EXACTLY the alerts whose handoff is a completed
+ * terminal state; an owner that can only report aggregates omits it, and the page is then acknowledged
+ * as a whole only when the owner accounts for every offered alert (offered === page length and the
+ * counters summing to it) and reports NEITHER unknown NOR queued. Either way an UNKNOWN or in-flight
+ * answer never advances the cursor, and an unresolved older alert always holds it.
  */
 export interface BizDevWatchSourceEventAnswer {
   counts?: BizDevWatchSourceEventCounts;
@@ -1144,36 +1156,61 @@ export interface BizDevWatchSourceEventOffered {
   occurredAtMs: number;
 }
 
-/** Meri's own DEFINITE terminal dispositions. Anything else (UNKNOWN, garbage) is unresolved. */
-const DEFINITE_SOURCE_EVENT_STATES = new Set([
-  'DISPATCHED',
-  'DEDUPED',
-  'ACCEPTED',
-  'QUEUED',
-  'SKIPPED',
-  'REFUSED',
-  'CONFLICT',
-]);
-
-/** The per-alert states an owner returned, keyed by alert id (unintelligible entries are ignored). */
-function sourceEventDispositionsById(answer: unknown): Map<string, string> | null {
+/**
+ * The per-alert answers an owner returned, keyed by alert id. An unintelligible entry is ignored, and a
+ * `recorded` value that is not a known store state is normalised to null so a malformed recorded outcome
+ * can never be read as terminal.
+ */
+function sourceEventDispositionsById(answer: unknown): Map<string, BizDevSourceEventAdvanceInput> | null {
   if (!answer || typeof answer !== 'object') return null;
   const rows = (answer as BizDevWatchSourceEventAnswer).dispositions;
   if (!Array.isArray(rows)) return null;
-  const byId = new Map<string, string>();
+  const byId = new Map<string, BizDevSourceEventAdvanceInput>();
   for (const row of rows) {
     if (!row || typeof row !== 'object') continue;
-    const { alertId, state } = row as BizDevWatchSourceEventDisposition;
-    if (typeof alertId === 'string' && typeof state === 'string') byId.set(alertId, state);
+    const { alertId, state, recorded } = row as BizDevWatchSourceEventDisposition;
+    if (typeof alertId !== 'string' || typeof state !== 'string') continue;
+    byId.set(alertId, {
+      state,
+      recorded: typeof recorded === 'string' && BIZDEV_SOURCE_EVENT_RECORDED_STATES.has(recorded) ? recorded : null,
+    });
   }
   return byId;
 }
 
 /**
+ * True only when an AGGREGATE-ONLY owner accounted for the whole page: it named the page size, its seven
+ * counters each parse as a non-negative safe integer and sum to that size (every offered alert counted
+ * exactly once), and it reports NEITHER `unknown` NOR `queued`. `queued` matters because ACCEPTED/QUEUED
+ * are durable but IN FLIGHT — an aggregate-only owner cannot prove they completed, so the page must HOLD
+ * and the next evaluation re-offers the SAME events (Meri's identity dedup prevents a second effect).
+ */
+function aggregateAcknowledgesPage(
+  value: Partial<BizDevWatchSourceEventCounts>,
+  pageLength: number,
+): boolean {
+  const counters = ['offered', 'dispatched', 'queued', 'deduped', 'refused', 'unknown', 'skipped'] as const;
+  const read = (key: (typeof counters)[number]): number | null => {
+    const raw = value[key];
+    return Number.isSafeInteger(raw) && (raw as number) >= 0 ? (raw as number) : null;
+  };
+  const offered = read('offered');
+  if (offered === null || offered !== pageLength) return false;
+  let total = 0;
+  for (const key of counters) {
+    const count = read(key);
+    if (count === null) return false;
+    if (key !== 'offered') total += count;
+  }
+  return total === offered && read('unknown') === 0 && read('queued') === 0;
+}
+
+/**
  * The aggregate answer for one pass, from whatever shape the owner returned: the owner's own counts,
- * counts DERIVED from its per-alert dispositions (so every offered alert is accounted exactly once), or
- * the value unchanged. `undefined` (a thrown or silent owner) is counted as UNKNOWN for every alert by
- * the accumulator — never as success.
+ * counts DERIVED from its per-alert dispositions through the SAME shared counter the sink uses (so every
+ * offered alert is accounted exactly once and a DEDUPED answer without a terminal recorded outcome counts
+ * as UNKNOWN), or the value unchanged. `undefined` (a thrown or silent owner) is counted as UNKNOWN for
+ * every alert by the accumulator — never as success.
  */
 export function sourceEventCountsFromAnswer(
   page: readonly BizDevWatchSourceEventOffered[],
@@ -1184,33 +1221,17 @@ export function sourceEventCountsFromAnswer(
   if (value.counts !== undefined) return value.counts;
   const byId = sourceEventDispositionsById(answer);
   if (byId === null) return answer;
-  const counts: BizDevWatchSourceEventCounts = {
-    offered: page.length,
-    dispatched: 0,
-    queued: 0,
-    deduped: 0,
-    refused: 0,
-    unknown: 0,
-    skipped: 0,
-  };
-  for (const row of page) {
-    const state = byId.get(row.alertId) ?? 'UNKNOWN';
-    if (state === 'DISPATCHED') counts.dispatched += 1;
-    else if (state === 'DEDUPED') counts.deduped += 1;
-    else if (state === 'ACCEPTED' || state === 'QUEUED') counts.queued += 1;
-    else if (state === 'REFUSED' || state === 'CONFLICT') counts.refused += 1;
-    else if (state === 'SKIPPED') counts.skipped += 1;
-    else counts.unknown += 1;
-  }
-  return counts;
+  // Every page row is counted: a silent alert is UNKNOWN, never silently dropped.
+  const dispositions = page.map((row) => byId.get(row.alertId) ?? { state: 'UNKNOWN', recorded: null });
+  return countSourceEventDispositions(page.length, dispositions);
 }
 
 /**
- * The CONTIGUOUS OLDEST-FIRST prefix of the recovery page whose delivery the owner DEFINITELY answered.
+ * The CONTIGUOUS OLDEST-FIRST prefix of the recovery page whose delivery is a COMPLETED TERMINAL handoff.
  * Scattered newer answers are deliberately NOT skipped over: an unresolved older alert holds the cursor,
  * because advancing past it would strand exactly the handoff the cursor exists to recover. An
- * aggregate-only owner acknowledges the whole page, but only when it accounts for every offered alert and
- * reports none UNKNOWN; an empty prefix leaves the cursor exactly where it is.
+ * aggregate-only owner acknowledges the whole page only when it correctly accounted for every offered
+ * alert and reports neither UNKNOWN nor QUEUED; an empty prefix leaves the cursor exactly where it is.
  */
 export function acknowledgedDeliveryPrefix(
   page: readonly BizDevWatchSourceEventOffered[],
@@ -1221,16 +1242,14 @@ export function acknowledgedDeliveryPrefix(
   if (byId !== null) {
     const acknowledged: BizDevWatchSourceEventOffered[] = [];
     for (const row of page) {
-      const state = byId.get(row.alertId);
-      if (state === undefined || !DEFINITE_SOURCE_EVENT_STATES.has(state)) break;
+      const entry = byId.get(row.alertId);
+      if (entry === undefined || !advancesDeliveryCursor(entry)) break;
       acknowledged.push(row);
     }
     return acknowledged;
   }
   const value = answer as Partial<BizDevWatchSourceEventCounts>;
-  if (typeof value.offered === 'number' && value.offered === page.length && value.unknown === 0) {
-    return [...page];
-  }
+  if (aggregateAcknowledgesPage(value, page.length)) return [...page];
   return [];
 }
 

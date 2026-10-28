@@ -3,6 +3,7 @@ import {
   bizDevWatchSourceEvent, createSourceEventSink, createSourceEventTransport, sourceEventFactHash, sourceEventFacts,
   type SourceEventAlertCustody, type SourceEventEnvelope,
 } from './bizdev-watch-source-event.js';
+import { advancesDeliveryCursor } from './bizdev-watch.types.js';
 
 const ALERT = '1f2e3d4c-5b6a-4798-8899-aabbccddeeff';
 const WATCH = '2a3b4c5d-6e7f-4808-9911-bbccddeeff00';
@@ -29,10 +30,11 @@ function localTransport(answers: Array<Record<string, unknown>> = []) {
     async event(envelope: SourceEventEnvelope, signal?: AbortSignal) {
       void signal;
       calls.push({ path: SOURCE_EVENT_EVENT_PATH, body: JSON.parse(JSON.stringify(envelope)), headers: {} });
-      const next = answers.shift() ?? { status: 200, disposition: 'DISPATCHED', code: null };
+      const next = answers.shift() ?? { status: 200, disposition: 'DISPATCHED', code: null, recorded: 'DISPATCHED' };
       if (next.throw === true) throw new Error('transport down');
       return { status: next.status as number, disposition: (next.disposition ?? null) as string | null,
-        outcome: (next.outcome ?? null) as string | null, code: (next.code ?? null) as string | null };
+        outcome: (next.outcome ?? null) as string | null, code: (next.code ?? null) as string | null,
+        recorded: (next.recorded ?? null) as string | null };
     },
   };
   return { calls, transport };
@@ -69,7 +71,7 @@ describe('bizdev watch source event delivery', () => {
   it('reads the approved binding and delivers the exact event over the fixed private route', async () => {
     const { calls, transport } = localTransport();
     const answer = await new BizDevWatchSourceEventDelivery().deliverForAlert(CUSTODY, { transport: transport as never });
-    expect(answer).toEqual({ state: 'DISPATCHED', code: null, attempts: 1 });
+    expect(answer).toEqual({ state: 'DISPATCHED', code: null, attempts: 1, recorded: 'DISPATCHED' });
     expect(calls.map((call) => call.path)).toEqual([SOURCE_EVENT_BINDING_PATH, SOURCE_EVENT_EVENT_PATH]);
     expect(calls[1]!.body).toEqual(bizDevWatchSourceEvent({ custody: CUSTODY, scheduleId: SCHEDULE, generation: 3 }));
   });
@@ -77,18 +79,42 @@ describe('bizdev watch source event delivery', () => {
   it('never dispatches without an approved binding and never invents a routine generation', async () => {
     const { calls, transport } = localTransport([{ binding: null }]);
     const answer = await new BizDevWatchSourceEventDelivery().deliverForAlert(CUSTODY, { transport: transport as never });
-    expect(answer).toEqual({ state: 'SKIPPED', code: 'SOURCE_EVENT_BINDING_ABSENT', attempts: 0 });
+    expect(answer).toEqual({ state: 'SKIPPED', code: 'SOURCE_EVENT_BINDING_ABSENT', attempts: 0, recorded: null });
     expect(calls.map((call) => call.path)).toEqual([SOURCE_EVENT_BINDING_PATH]);
   });
 
   it('reports Meri\'s own recorded disposition for a replayed event instead of a second effect', async () => {
     const { calls, transport } = localTransport([
       { binding: undefined },
-      { status: 200, disposition: 'DEDUPED', outcome: 'DEDUPED', code: null },
+      { status: 200, disposition: 'DEDUPED', outcome: 'DEDUPED', code: null, recorded: 'DISPATCHED' },
     ]);
     const answer = await new BizDevWatchSourceEventDelivery().deliverForAlert(CUSTODY, { transport: transport as never });
-    expect(answer).toEqual({ state: 'DEDUPED', code: null, attempts: 1 });
+    expect(answer).toEqual({ state: 'DEDUPED', code: null, attempts: 1, recorded: 'DISPATCHED' });
     expect(calls[1]!.body).toEqual(calls[1]!.body);
+  });
+
+  it('preserves a DEDUPED replay\'s UNKNOWN recorded outcome so the cursor rule can refuse it', async () => {
+    const { transport } = localTransport([
+      { binding: undefined },
+      { status: 200, disposition: 'DEDUPED', outcome: 'DEDUPED', code: null, recorded: 'UNKNOWN' },
+    ]);
+    const answer = await new BizDevWatchSourceEventDelivery().deliverForAlert(CUSTODY, { transport: transport as never });
+    // The disposition stays DEDUPED — never rewritten into a terminal state — and the recorded
+    // outcome is carried verbatim so advancesDeliveryCursor() can hold instead of completing.
+    expect(answer.state).toBe('DEDUPED');
+    expect(answer.recorded).toBe('UNKNOWN');
+    expect(advancesDeliveryCursor(answer)).toBe(false);
+  });
+
+  it('normalises an unrecognised recorded outcome to null instead of trusting it', async () => {
+    const { transport } = localTransport([
+      { binding: undefined },
+      { status: 200, disposition: 'DEDUPED', outcome: 'DEDUPED', code: null, recorded: 'SETTLED' },
+    ]);
+    const answer = await new BizDevWatchSourceEventDelivery().deliverForAlert(CUSTODY, { transport: transport as never });
+    expect(answer.state).toBe('DEDUPED');
+    expect(answer.recorded).toBeNull();
+    expect(advancesDeliveryCursor(answer)).toBe(false);
   });
 
   it('replays the identical bytes once on a lost acknowledgement and stays UNKNOWN, never success', async () => {
@@ -111,7 +137,7 @@ describe('bizdev watch source event delivery', () => {
       { status: 403, disposition: null, outcome: 'NOT_DISPATCHED', code: 'SOURCE_EVENT_REFUSED' },
     ]);
     const answer = await new BizDevWatchSourceEventDelivery().deliverForAlert(CUSTODY, { transport: transport as never });
-    expect(answer).toEqual({ state: 'REFUSED', code: 'SOURCE_EVENT_REFUSED', attempts: 1 });
+    expect(answer).toEqual({ state: 'REFUSED', code: 'SOURCE_EVENT_REFUSED', attempts: 1, recorded: null });
   });
 });
 
@@ -122,7 +148,7 @@ describe('bizdev watch source event sink (the evaluator delivery owner)', () => 
   /** A local transport whose binding answers per pair and whose event route is recorded. */
   function sinkTransport(
     bindings: Record<string, { scheduleId: string; generation: number } | null>,
-    dispositions: string[] = [],
+    dispositions: Array<string | { disposition: string; recorded?: string | null }> = [],
     bindingFault = false,
   ) {
     const calls: Array<{ path: string; body: { tenantId: string; sourceFamily: string; resourceKey: string } }> = [];
@@ -137,8 +163,10 @@ describe('bizdev watch source event sink (the evaluator delivery owner)', () => 
         },
         async event(envelope: SourceEventEnvelope) {
           calls.push({ path: SOURCE_EVENT_EVENT_PATH, body: JSON.parse(JSON.stringify(envelope)) });
-          const disposition = dispositions.shift() ?? 'DISPATCHED';
-          return { status: 200, disposition, outcome: disposition, code: null };
+          const next = dispositions.shift() ?? 'DISPATCHED';
+          const disposition = typeof next === 'string' ? next : next.disposition;
+          const recorded = typeof next === 'string' ? null : (next.recorded ?? null);
+          return { status: 200, disposition, outcome: disposition, code: null, recorded };
         },
       },
     };
@@ -172,7 +200,7 @@ describe('bizdev watch source event sink (the evaluator delivery owner)', () => 
   it('reports Meri-recorded replays as deduped and refusals as refused, never as dispatch', async () => {
     const { transport } = sinkTransport(
       { [`tenant-a|federal_award|${WATCH}`]: { scheduleId: SCHEDULE, generation: 3 } },
-      ['DEDUPED', 'REFUSED'],
+      [{ disposition: 'DEDUPED', recorded: 'DISPATCHED' }, { disposition: 'REFUSED', recorded: 'REFUSED' }],
     );
     const sink = createSourceEventSink({ transport: transport as never });
     const counts = await sink([
@@ -182,6 +210,17 @@ describe('bizdev watch source event sink (the evaluator delivery owner)', () => 
     expect(counts.deduped).toBe(1);
     expect(counts.refused).toBe(1);
     expect(counts.dispatched).toBe(0);
+  });
+
+  it('holds a DEDUPED replay whose recorded outcome is UNKNOWN as unresolved, never a completed handoff', async () => {
+    const { transport } = sinkTransport(
+      { [`tenant-a|federal_award|${WATCH}`]: { scheduleId: SCHEDULE, generation: 3 } },
+      [{ disposition: 'DEDUPED', recorded: 'UNKNOWN' }],
+    );
+    const sink = createSourceEventSink({ transport: transport as never });
+    const counts = await sink([CUSTODY]);
+    expect(counts.deduped).toBe(0);
+    expect(counts.unknown).toBe(1);
   });
 
   it('an unanswerable binding read leaves every alert UNKNOWN, never a skip and never a dispatch', async () => {

@@ -351,9 +351,15 @@ export interface BizDevWatchScanCheckpoint {
  *    even when many alerts share one instant, so equal timestamps cannot skip
  *    or repeat a row.
  *  - it advances ONLY over the contiguous oldest-first prefix whose delivery
- *    the delivery owner DEFINITELY answered. An UNKNOWN answer, a transport
- *    failure or a swallowed exception holds the cursor exactly at the oldest
- *    unresolved row — the next evaluation re-offers the same page.
+ *    the delivery owner confirmed as a COMPLETED TERMINAL handoff — the single
+ *    rule is advancesDeliveryCursor() below. A durable ACCEPTED/QUEUED
+ *    acceptance is NOT a completed handoff: Meri's own store still lists both
+ *    states as retryable and no independent drain owns them, so the producer's
+ *    future replay is their retry mechanism. A DEDUPED answer only counts when
+ *    the recorded outcome it names is itself terminal. UNKNOWN, a transport
+ *    failure, a swallowed exception, and an absent or malformed recorded
+ *    outcome all HOLD the cursor exactly at the oldest unresolved row — the
+ *    next evaluation re-offers the same page.
  *  - it is monotone and never resets: a full drain leaves the cursor at the
  *    newest acknowledged alert, so the next committed alert is picked up on the
  *    following evaluation. A source-scope/identity change does NOT reset it
@@ -370,6 +376,113 @@ export interface BizDevWatchDeliveryCheckpoint {
   cursorId: string | null;
   /** Bounded recovery pages that advanced this cursor (observability only). */
   pagesDone: number;
+}
+
+// ── What may advance the MB-05 recovery cursor ────────────────────────────
+
+/**
+ * Meri's durable source-event states that are STILL IN FLIGHT. `ACCEPTED` is a
+ * durable acceptance and `QUEUED` is accepted-but-not-settled work; Meri's own
+ * store keeps both RETRYABLE, and no independent drain owns them. A completed
+ * handoff they are NOT: advancing the cursor on either would permanently strand
+ * exactly the alerts this cursor exists to recover. The future producer replay
+ * is their retry mechanism, so holding is safe and correct.
+ */
+export const BIZDEV_SOURCE_EVENT_IN_FLIGHT_STATES: ReadonlySet<string> = new Set(['ACCEPTED', 'QUEUED']);
+
+/** Recorded store states that ARE a completed terminal outcome. */
+export const BIZDEV_SOURCE_EVENT_TERMINAL_RECORDED_STATES: ReadonlySet<string> = new Set([
+  'DISPATCHED',
+  'SKIPPED',
+  'REFUSED',
+]);
+
+/**
+ * Dispositions that are a completed terminal handoff ON THEIR OWN. `DEDUPED` is
+ * deliberately absent: it only reports that Meri already held a row, so it must
+ * name a terminal recorded outcome to count. `CONFLICT` is terminal on its own —
+ * Meri refuses the event identity and names no prior row to trust.
+ */
+export const BIZDEV_SOURCE_EVENT_TERMINAL_STATES: ReadonlySet<string> = new Set([
+  'DISPATCHED',
+  'SKIPPED',
+  'REFUSED',
+  'CONFLICT',
+]);
+
+/** Recorded states Meri's durable store can hold (mirrors its STATES vocabulary). */
+export const BIZDEV_SOURCE_EVENT_RECORDED_STATES: ReadonlySet<string> = new Set([
+  'ACCEPTED',
+  'QUEUED',
+  'DISPATCHED',
+  'SKIPPED',
+  'REFUSED',
+  'UNKNOWN',
+]);
+
+/** A disposition answer plus the recorded outcome a DEDUPED answer names. */
+export interface BizDevSourceEventAdvanceInput {
+  state: string;
+  recorded?: string | null;
+}
+
+/**
+ * THE cursor-advance rule. True only for a completed terminal handoff:
+ * DISPATCHED / SKIPPED / REFUSED / CONFLICT, or DEDUPED carrying a terminal
+ * recorded outcome. ACCEPTED and QUEUED are in flight and always hold; UNKNOWN,
+ * an unintelligible state, and a DEDUPED answer whose recorded outcome is
+ * absent, malformed or non-terminal also hold. Holding is safe: the next
+ * evaluation re-offers the SAME immutable event and Meri's identity dedup
+ * prevents a second effect.
+ */
+export function advancesDeliveryCursor(input: BizDevSourceEventAdvanceInput): boolean {
+  const state = input != null && typeof input.state === 'string' ? input.state : '';
+  if (BIZDEV_SOURCE_EVENT_IN_FLIGHT_STATES.has(state)) return false;
+  if (state === 'DEDUPED') {
+    const recorded = input.recorded;
+    return typeof recorded === 'string' && BIZDEV_SOURCE_EVENT_TERMINAL_RECORDED_STATES.has(recorded);
+  }
+  return BIZDEV_SOURCE_EVENT_TERMINAL_STATES.has(state);
+}
+
+/** The seven per-page delivery counters. Structurally shared by both owners. */
+export interface BizDevSourceEventCounts {
+  offered: number;
+  dispatched: number;
+  queued: number;
+  deduped: number;
+  refused: number;
+  unknown: number;
+  skipped: number;
+}
+
+/**
+ * Count one page's per-alert dispositions EXACTLY ONCE each. A DEDUPED answer
+ * whose recorded outcome is not terminal counts as UNKNOWN because its handoff
+ * outcome is NOT confirmed — an aggregate-only owner therefore cannot
+ * acknowledge a page containing one. ACCEPTED/QUEUED count as `queued` (in
+ * flight, not complete). `offered` is the PAGE size, so a disposition list that
+ * does not cover every offered alert leaves a visible gap in the totals.
+ */
+export function countSourceEventDispositions(
+  offered: number,
+  dispositions: readonly BizDevSourceEventAdvanceInput[],
+): BizDevSourceEventCounts {
+  const counts: BizDevSourceEventCounts = {
+    offered, dispatched: 0, queued: 0, deduped: 0, refused: 0, unknown: 0, skipped: 0,
+  };
+  for (const row of dispositions) {
+    const state = row != null && typeof row.state === 'string' ? row.state : 'UNKNOWN';
+    if (state === 'DISPATCHED') counts.dispatched += 1;
+    else if (state === 'DEDUPED') {
+      if (typeof row.recorded === 'string' && BIZDEV_SOURCE_EVENT_TERMINAL_RECORDED_STATES.has(row.recorded)) counts.deduped += 1;
+      else counts.unknown += 1;
+    } else if (state === 'ACCEPTED' || state === 'QUEUED') counts.queued += 1;
+    else if (state === 'REFUSED' || state === 'CONFLICT') counts.refused += 1;
+    else if (state === 'SKIPPED') counts.skipped += 1;
+    else counts.unknown += 1;
+  }
+  return counts;
 }
 
 // ── Diff output ───────────────────────────────────────────────────────────

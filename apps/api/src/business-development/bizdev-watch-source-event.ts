@@ -21,6 +21,10 @@ import { ConflictException, Injectable, Optional, ServiceUnavailableException } 
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'node:crypto';
 import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
+import {
+  BIZDEV_SOURCE_EVENT_RECORDED_STATES,
+  countSourceEventDispositions,
+} from './bizdev-watch.types.js';
 
 export const SOURCE_EVENT_PROTOCOL = 'meri.routines.source-event/1';
 export const SOURCE_EVENT_FACT_PROTOCOL = `${SOURCE_EVENT_PROTOCOL}.bizdev.watch.alert/1`;
@@ -117,14 +121,31 @@ export function bizDevWatchSourceEvent(input: {
 export type SourceEventDeliveryState =
   | 'DISPATCHED' | 'DEDUPED' | 'ACCEPTED' | 'QUEUED' | 'SKIPPED' | 'REFUSED' | 'CONFLICT' | 'UNKNOWN';
 
+/** The disposition vocabulary Meri's receiver can return on the wire. */
+const SOURCE_EVENT_DISPOSITION_STATES: ReadonlySet<string> = new Set([
+  'DISPATCHED', 'DEDUPED', 'ACCEPTED', 'QUEUED', 'SKIPPED', 'REFUSED', 'CONFLICT', 'UNKNOWN',
+]);
+
 export interface SourceEventDeliveryResult {
   state: SourceEventDeliveryState;
   /** Meri's own recorded disposition code, when one was returned. */
   code: string | null;
   attempts: number;
+  /**
+   * The store state a DEDUPED answer RECORDED for the row it found (Meri's own
+   * `sourceEvent.recorded`, e.g. receiver SETTLED -> DEDUPED with the prior
+   * row's state). Preserved and validated through this result so DEDUPED can
+   * only advance the recovery cursor when this names a terminal outcome:
+   * UNKNOWN / ACCEPTED / QUEUED / absent / malformed never becomes terminal.
+   */
+  recorded: string | null;
 }
 
-/** Per-alert dispositions for one evaluator pass. An answer Meri never gave is UNKNOWN, never success. */
+/**
+ * Per-alert dispositions for one evaluator pass. An answer Meri never gave is UNKNOWN, never
+ * success. `unknown` also counts a DEDUPED answer whose recorded outcome is not terminal: the
+ * handoff outcome is NOT confirmed, so an aggregate-only owner cannot acknowledge that page.
+ */
 export interface SourceEventSinkCounts {
   offered: number;
   dispatched: number;
@@ -135,18 +156,17 @@ export interface SourceEventSinkCounts {
   skipped: number;
 }
 
-const emptyCounts = (offered: number): SourceEventSinkCounts => ({
-  offered, dispatched: 0, queued: 0, deduped: 0, refused: 0, unknown: 0, skipped: 0,
-});
-
 /**
- * Per-alert terminal disposition for one offered alert. UNKNOWN means Meri never definitively
- * answered THIS alert: it is neither a delivery nor a refusal, and it can never advance the
- * recovery cursor.
+ * Per-alert disposition for one offered alert. UNKNOWN means Meri never definitively answered THIS
+ * alert (or answered DEDUPED without naming a terminal recorded outcome): it is neither a delivery
+ * nor a refusal, and it can never advance the recovery cursor. ACCEPTED/QUEUED are durable but IN
+ * FLIGHT — also not a completed handoff. `recorded` carries the store state a DEDUPED answer names.
  */
 export interface SourceEventAlertDisposition {
   alertId: string;
   state: SourceEventDeliveryState;
+  /** Meri's `sourceEvent.recorded` store state for a DEDUPED answer (validated; null when absent). */
+  recorded?: string | null;
 }
 
 /** The delivery owner's answer for one offered page: the run counts plus the exact per-alert dispositions. */
@@ -168,7 +188,6 @@ export function createSourceEventDispositionSink(options: {
   const transport = options.transport ?? createSourceEventTransport({origin: options.origin, secret: options.secret, fetchImpl: options.fetchImpl});
   const delivery = new BizDevWatchSourceEventDelivery();
   return async alerts => {
-    const counts = emptyCounts(alerts.length);
     const dispositions: SourceEventAlertDisposition[] = [];
     const bindings = new Map<string, { binding: { scheduleId: string; generation: number } | null } | null>();
     for (const custody of alerts) {
@@ -185,30 +204,26 @@ export function createSourceEventDispositionSink(options: {
       const approved = bindings.get(key) ?? null;
       if (approved === null) {
         // Meri never answered whether this pair is approved: the alert stays UNKNOWN, never skipped.
-        counts.unknown += 1;
-        dispositions.push({alertId: custody.alertId, state: 'UNKNOWN'});
+        dispositions.push({alertId: custody.alertId, state: 'UNKNOWN', recorded: null});
         continue;
       }
       if (approved.binding === null) {
         // Meri's own definite answer that this pair has no approved routine: no effect, and the
         // alert is a terminal no-op rather than an unresolved one.
-        counts.skipped += 1;
-        dispositions.push({alertId: custody.alertId, state: 'SKIPPED'});
+        dispositions.push({alertId: custody.alertId, state: 'SKIPPED', recorded: null});
         continue;
       }
       const result = await delivery.deliver(
         bizDevWatchSourceEvent({custody, scheduleId: approved.binding.scheduleId, generation: approved.binding.generation}),
         {transport},
       );
-      if (result.state === 'DISPATCHED') counts.dispatched += 1;
-      else if (result.state === 'DEDUPED') counts.deduped += 1;
-      else if (result.state === 'ACCEPTED' || result.state === 'QUEUED') counts.queued += 1;
-      else if (result.state === 'REFUSED' || result.state === 'CONFLICT') counts.refused += 1;
-      else if (result.state === 'SKIPPED') counts.skipped += 1;
-      else counts.unknown += 1;
-      // UNKNOWN is the only state that is not a terminal answer, and it is reported as such.
-      dispositions.push({alertId: custody.alertId, state: result.state});
+      // Report Meri's answer verbatim, carrying the recorded outcome a DEDUPED answer names. The
+      // SHARED counter (countSourceEventDispositions) decides what counts as a completed handoff, so
+      // a DEDUPED answer without a terminal recorded outcome counts as UNKNOWN and can never make an
+      // aggregate-only page look acknowledged.
+      dispositions.push({alertId: custody.alertId, state: result.state, recorded: result.recorded});
     }
+    const counts: SourceEventSinkCounts = countSourceEventDispositions(alerts.length, dispositions);
     return {counts, dispositions};
   };
 }
@@ -227,8 +242,17 @@ export function createSourceEventSink(options: {
 export interface SourceEventTransport {
   /** READ the approved binding for a producer/resource pair. Never creates one. */
   binding(pair: { tenantId: string; sourceFamily: string; resourceKey: string; signal?: AbortSignal }): Promise<{ scheduleId: string; generation: number } | null>;
-  /** Deliver exactly one event; the disposition is Meri's, never this transport's. */
-  event(envelope: SourceEventEnvelope, signal?: AbortSignal): Promise<{ status: number; disposition: string | null; outcome: string | null; code: string | null }>;
+  /**
+   * Deliver exactly one event; the disposition is Meri's, never this transport's. `recorded` is the
+   * store state a DEDUPED answer names (`sourceEvent.recorded`), validated to a known state or null.
+   */
+  event(envelope: SourceEventEnvelope, signal?: AbortSignal): Promise<{
+    status: number;
+    disposition: string | null;
+    outcome: string | null;
+    code: string | null;
+    recorded?: string | null;
+  }>;
 }
 
 const closed = (value: unknown, keys: readonly string[]): Record<string, unknown> => {
@@ -315,15 +339,21 @@ export function createSourceEventTransport(options: {
       const response = await call(SOURCE_EVENT_EVENT_PATH, envelope, signal);
       const body = response.payload === null ? null : (typeof response.payload === 'object' && !Array.isArray(response.payload)
         ? response.payload as Record<string, unknown> : null);
-      const disposition = body && typeof body.sourceEvent === 'object' && body.sourceEvent !== null
-        ? (body.sourceEvent as Record<string, unknown>).disposition : undefined;
+      const sourceEvent = body && typeof body.sourceEvent === 'object' && body.sourceEvent !== null
+        ? body.sourceEvent as Record<string, unknown> : null;
+      const disposition = sourceEvent === null ? undefined : sourceEvent.disposition;
+      const recorded = sourceEvent === null ? undefined : sourceEvent.recorded;
       const error = body && typeof body.error === 'object' && body.error !== null
         ? (body.error as Record<string, unknown>).code : undefined;
       return {
         status: response.status,
-        disposition: typeof disposition === 'string' ? disposition : null,
+        // A disposition this protocol does not define is UNINTELLIGIBLE, never a state we invent.
+        disposition: typeof disposition === 'string' && SOURCE_EVENT_DISPOSITION_STATES.has(disposition) ? disposition : null,
         outcome: body && typeof body.outcome === 'string' ? body.outcome : null,
         code: typeof error === 'string' ? error : null,
+        // Preserve the recorded outcome a DEDUPED answer names; anything not a known store state is
+        // malformed and becomes null, so DEDUPED-with-UNKNOWN/absent HOLDS rather than completing.
+        recorded: typeof recorded === 'string' && BIZDEV_SOURCE_EVENT_RECORDED_STATES.has(recorded) ? recorded : null,
       };
     },
   });
@@ -356,7 +386,7 @@ export class BizDevWatchSourceEventDelivery {
     const binding = await transport.binding({
       tenantId: custody.tenantId, sourceFamily: custody.sourceFamily, resourceKey: custody.watchId,
     });
-    if (!binding) return { state: 'SKIPPED', code: 'SOURCE_EVENT_BINDING_ABSENT', attempts: 0 };
+    if (!binding) return { state: 'SKIPPED', code: 'SOURCE_EVENT_BINDING_ABSENT', attempts: 0, recorded: null };
     const envelope = bizDevWatchSourceEvent({ custody, scheduleId: binding.scheduleId, generation: binding.generation });
     return this.deliver(envelope, { transport });
   }
@@ -373,25 +403,39 @@ export class BizDevWatchSourceEventDelivery {
     const transport = overrides.transport ?? this.transport();
     let last: { state: SourceEventDeliveryState; code: string | null } = { state: 'UNKNOWN', code: 'SOURCE_EVENT_UNKNOWN' };
     for (let attempt = 1; attempt <= SOURCE_EVENT_DELIVERY_ATTEMPTS; attempt++) {
-      let answer: { status: number; disposition: string | null; outcome: string | null; code: string | null };
+      let answer: {
+        status: number; disposition: string | null; outcome: string | null; code: string | null;
+        recorded?: string | null;
+      };
       try {
         answer = await transport.event(envelope);
       } catch {
         last = { state: 'UNKNOWN', code: 'SOURCE_EVENT_UNAVAILABLE' };
         continue;
       }
-      if (answer.status === 200 && answer.disposition !== null && answer.disposition !== 'UNKNOWN') {
-        return { state: answer.disposition as SourceEventDeliveryState, code: answer.code, attempts: attempt };
+      if (answer.status === 200 && answer.disposition !== null && answer.disposition !== 'UNKNOWN' &&
+          SOURCE_EVENT_DISPOSITION_STATES.has(answer.disposition)) {
+        // Carry the recorded store state for a DEDUPED answer, validated again here so a foreign
+        // transport cannot smuggle an unrecognised outcome into a "completed" handoff.
+        const recorded = typeof answer.recorded === 'string' && BIZDEV_SOURCE_EVENT_RECORDED_STATES.has(answer.recorded)
+          ? answer.recorded : null;
+        return {
+          state: answer.disposition as SourceEventDeliveryState,
+          code: answer.code,
+          attempts: attempt,
+          recorded,
+        };
       }
       // A transport-level failure (absent route, wrong credential, my own mistake) is OUR state,
-      // not Meri's refusal: it can only add work, and it can never be read as a disposition.
+      // not Meri's refusal: it can only add work, and it can never be read as a disposition. An
+      // unintelligible 200 body is the same: UNKNOWN, never a fabricated disposition.
       last = answer.status === 200
         ? { state: 'UNKNOWN', code: answer.outcome === 'UNKNOWN' ? 'SOURCE_EVENT_UNKNOWN' : 'SOURCE_EVENT_UNKNOWN' }
         : [400, 403, 409, 422].includes(answer.status)
           ? { state: 'REFUSED', code: answer.code }
           : { state: 'UNKNOWN', code: answer.code ?? 'SOURCE_EVENT_UNAVAILABLE' };
-      if (last.state === 'REFUSED') return { state: 'REFUSED', code: last.code, attempts: attempt };
+      if (last.state === 'REFUSED') return { state: 'REFUSED', code: last.code, attempts: attempt, recorded: null };
     }
-    return { state: 'UNKNOWN', code: last.code, attempts: SOURCE_EVENT_DELIVERY_ATTEMPTS };
+    return { state: 'UNKNOWN', code: last.code, attempts: SOURCE_EVENT_DELIVERY_ATTEMPTS, recorded: null };
   }
 }

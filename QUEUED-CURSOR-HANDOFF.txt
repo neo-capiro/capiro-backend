@@ -1,0 +1,157 @@
+MB-05 CORE — QUEUED/DEDUPED CURSOR CROSSING — HANDOFF (2026-10-28, Core successor branch #2)
+
+CHECKOUT / BRANCH / EXACT HEADS
+  Checkout : work/m7-source-events-core-20261028
+  Branch   : codex/wave5-m7-source-event-queued-cursor-core-20261028   (new successor branch)
+  Base     : ca4b0047414f5242e598c22308dcdd3889aa4be7  (frozen, UNCHANGED — the prior handoff commit)
+             tree 2c6a856437194841ad6659e51033650549261815
+  Ancestors preserved and verified present:
+             f7119d9f3f4c517fcd9d43ff3a3f075a3001b74e  (frozen Core base)
+             6273358cd3c4e6beab6eb6a1260c386f7c056da0  (frozen impl head, 109-focused-pass evidence)
+  This commit adds QUEUED-CURSOR-HANDOFF.txt on top of the code change below.
+
+  No push / PR / deploy / build / package / lockfile / PLAN / Prisma / schema change.
+  No migration applied. No source-event activation. No Meri/source/public file touched.
+  No browser / target / network / provider / model / cloud / DB / WSL / native call.
+
+CLAIM
+  Core-only: apps/api/src/business-development/bizdev-watch-{runner,source-event}.ts,
+  bizdev-watch.types.ts and their two focused specs. Parent owns Meri.
+
+THE TWO REMAINING LOSS PATHS (root-confirmed, both closed here)
+
+1) DURABLE ACCEPTANCE WAS BEING READ AS A COMPLETED HANDOFF.
+   Meri's receiver stores ACCEPTED and then QUEUED for the ACTIVE /
+   open-occurrence / backpressure cases (source-event-receiver.mjs:227-267), and
+   source-event-store keeps RETRYABLE=['ACCEPTED','QUEUED']. Nothing in production
+   drains `unresolved` (only focused tests call it) — the producer's future replay IS
+   the retry mechanism. The prior Core lane listed ACCEPTED and QUEUED in
+   DEFINITE_SOURCE_EVENT_STATES, so an accepted-but-unsettled event advanced the
+   durable recovery cursor and was never re-offered: the same permanent stranding the
+   cursor exists to prevent, one state later.
+
+   FIX: DEFINITE_SOURCE_EVENT_STATES is GONE. The single rule is now
+   advancesDeliveryCursor({state, recorded}) in bizdev-watch.types.ts:
+     - ACCEPTED / QUEUED                 -> HOLD (in flight, retryable)
+     - UNKNOWN / unintelligible state    -> HOLD
+     - DEDUPED                           -> HOLD unless it names a terminal recorded outcome
+     - DISPATCHED / SKIPPED / REFUSED / CONFLICT -> ADVANCE
+     - DEDUPED + recorded in {DISPATCHED, SKIPPED, REFUSED} -> ADVANCE
+   An aggregate-only owner may now acknowledge a page ONLY when it is correctly
+   accounted for (offered === page length AND the seven counters sum to it) and reports
+   NEITHER unknown NOR queued (aggregateAcknowledgesPage). A holding page leaves the
+   cursor exactly where it is; the next evaluation re-offers the SAME immutable events.
+
+2) A DEDUPED ANSWER'S RECORDED OUTCOME WAS DISCARDED.
+   Meri's HTTP boundary serialises the whole receiver result
+   (source-event-http.mjs: `response({outcome, sourceEvent}, 200)`), so
+   `sourceEvent.recorded` — the store state of the row the replay matched — is on the
+   wire. The transport read only `sourceEvent.disposition`, and delivery cast any
+   non-UNKNOWN disposition straight to a state: a SETTLED replay naming a recorded
+   UNKNOWN row (receiver:237) became a terminal DEDUPED and advanced the cursor.
+
+   FIX (preserve + validate the real field, no new endpoint, Meri's 0.3 protocol
+   untouched):
+     - transport `event()` now reads `sourceEvent.recorded`, keeps it ONLY when it is one
+       of Meri's store states (ACCEPTED/QUEUED/DISPATCHED/SKIPPED/REFUSED/UNKNOWN) and
+       normalises anything else to null; it also refuses a disposition string the
+       protocol does not define (-> null -> UNKNOWN), so an unintelligible answer can
+       never be cast into a terminal state.
+     - SourceEventDeliveryResult carries `recorded: string | null`; the disposition is
+       reported VERBATIM (DEDUPED stays DEDUPED — never rewritten into a terminal state).
+     - The recovery disposition carries `recorded` through to the runner, normalised
+       again there against the same vocabulary, so a foreign owner cannot smuggle an
+       unrecognised outcome into a completed handoff.
+
+CURSOR PERSISTENCE / ACK SEMANTICS (unchanged from the prior lane except the rule above)
+  - Cursor lives in the versioned source-state checkpoint: baseline_state.scan.delivery
+    {version:1, cursorAtMs, cursorId, pagesDone}; keyset (firstObservedAt, id) ASC;
+    monotone; never reset by a source-scope change; absent cursor = start of the watch's
+    own alert history. No new table, no per-alert mutation of the immutable alert row.
+  - The advance is the CONTIGUOUS OLDEST-FIRST prefix of advancesDeliveryCursor()=true.
+    Scattered newer answers are never stepped over; an unresolved older alert holds.
+  - Accounting: the sink and the runner's count derivation now BOTH call the shared
+    countSourceEventDispositions(), so a DEDUPED answer without a terminal recorded
+    outcome counts as UNKNOWN (its handoff outcome is NOT confirmed) in the counts too —
+    an aggregate-only owner therefore cannot acknowledge a page containing one.
+  - Lease/CAS, the separate finalize transaction and "no network call inside a DB
+    transaction" are unchanged; a stale worker's zero-count update still writes nothing.
+
+EXACT PRODUCTION CALLER
+  scripts/run-bizdev-watch.ts builds createSourceEventDispositionSink({origin, secret})
+  from MERI_CONTROL_ORIGIN + INTERNAL_SERVICE_SECRET and passes it as the runner's
+  `sourceEvents`. With neither set there is no sink, no recovery read and no egress.
+  createSourceEventSink remains the aggregate-only view. Route/secret are unchanged.
+
+TESTS — REAL RUNNER + REAL SINK (bounded; only affected specs rerun)
+  Command: node --experimental-vm-modules node_modules/jest/bin/jest.js --forceExit
+           --runTestsByPath src/business-development/bizdev-watch-{source-event,runner,checkpoint}.spec.ts
+  Result : 3 suites, 117 passed / 0 failed    (Node v24.22.1; DATABASE_URL unset;
+           CLEANUP_API_WORKER_DB=0)   evidence: .evidence/queued-cursor-specs.log
+  Reused proof: the 28/28 checkpoint suite is unchanged and still green
+           (.evidence/queued-cursor-checkpoint-spec.log); the prior 81/81 runner +
+           source-event slate is carried inside the 89 above.
+
+  NEW real-runner + actual-sink tests (bizdev-watch-runner.spec.ts):
+    * the REAL delivery owner HOLDS a QUEUED oldest event and advances the SAME event
+      once DISPATCHED — real createSourceEventDispositionSink over an injected transport
+      with a durable fake effect and a BARRIER: pass 1 QUEUED (cursor null, 1 binding
+      read, 1 durable acceptance), pass 2 barrier still closed (SAME page, SAME event id,
+      byte-identical envelope, cursor null, durable.size still 1), pass 3 barrier
+      released -> DISPATCHED (cursor advances over ONE durable effect, binding reads ==
+      1/pass). Proves the existing binding/readCurrent seam and canonical custody bytes
+      are UNCHANGED and that no second effect occurs.
+    * the REAL delivery owner HOLDS a DEDUPED replay whose recorded outcome is UNKNOWN
+      (real sink; counted UNKNOWN; cursor null; one durable effect).
+    * a DEDUPED answer only advances when its recorded outcome is a true terminal
+      disposition — per-alert: recorded UNKNOWN / ACCEPTED / QUEUED / absent / 'WAT' all
+      HOLD (and count as unknown); recorded DISPATCHED advances.
+    * an ACCEPTED/QUEUED oldest alert HOLDS the cursor and the SAME event is re-offered
+      until DISPATCHED.
+    * an aggregate-only owner acknowledges a page only when it correctly accounts for
+      every alert and reports neither UNKNOWN nor QUEUED (UNKNOWN holds; under-count
+      holds; counters that do not sum to the page size hold; queued holds; only a
+      correctly accounted dispatched page advances).
+    * a malformed/unknown disposition fails closed as UNKNOWN and holds the cursor.
+    * all prior oldest-first / keyset-tie / new-arrival / concurrent-evaluator CAS /
+      no-sink / crash-then-deduped-replay tests preserved and green.
+  SOURCE-EVENT SLATE (bizdev-watch-source-event.spec.ts): transport reports a DEDUPED
+      replay's terminal recorded outcome; an UNKNOWN recorded outcome is preserved and
+      advancesDeliveryCursor() refuses it; an unrecognised recorded value ('SETTLED')
+      normalises to null and is refused; the sink counts a DEDUPED+UNKNOWN replay as
+      unknown, never as a completed handoff; refusal/binding-absent carry recorded:null.
+
+TYPECHECK — EXACT BASELINE COMPARISON (not a "same class" claim)
+  Command: node --max-old-space-size=8192 node_modules/typescript/bin/tsc -p
+           apps/api/tsconfig.m7-core-replay.json   (exact imported production closure of
+           the five touched files; not a broad programme run)
+  Result : tsc exit=2 (errors are other teams' pre-existing ones), total diagnostics 410.
+  EXACT normalized diff against the retained baseline .evidence/core-replay-tsc4.log
+           (paths and line:col columns normalised): IDENTICAL — 0 added, 0 removed.
+  Diagnostics in any TOUCHED file: NONE.
+  (An intermediate run .evidence/queued-cursor-tsc.log caught two OWNED TS2304 for the new
+   BizDevSourceEventAdvanceInput import; fixed, then the run above is 0-owned. The corrected
+   run is .evidence/queued-cursor-tsc2.log.) This satisfies the "exact baseline comparison"
+   requirement rather than a same-class argument.
+
+NOT RUN / LIMITS (honest)
+  - No native PostgreSQL run and no deployed/current-owner acceptance (the qualifier owns
+    those resources; no WSL/Docker/native SQL was used). The recorded outcome and the
+    cursor round-trip are exercised through the real codec + transport parse + durable fake
+    only; the column itself is not exercised here.
+  - No broad suite rerun: the change touches the MB-05 delivery step, its transport/result
+    shape and the shared cursor predicate only.
+  - 0007 / 0008 remain unapplied and unqualified; no source-event activation.
+  - No full MB-05 PASS is claimed: this crossing plus native + integration acceptance are
+    still outstanding.
+
+NO SCHEMA CHANGE NEEDED
+  The recorded outcome was already on the wire and the cursor already had a home in the
+  versioned checkpoint. No new DB field, table or outbox is required; nothing here infers
+  a Data approval from the immutability of the alert JSON.
+
+DO-NOT-DO (honoured)
+  No generic queue/drain framework was built — the fix is the existing producer cursor
+  correctly staying pending. No new public endpoint, no second retry owner, no Meri 0.3
+  protocol change. No recursive cleanup, worktree removal, junction/directory deletion,
+  baseline/cache cleanup, repair or install. All evidence and source retained.
