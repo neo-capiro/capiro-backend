@@ -2,6 +2,8 @@ import {
   assertClientRecordAccess,
   clientRecordReceipt,
   clientRecordRequest,
+  publicClientRecordPreview,
+  CLIENT_PROFILE_PREFLIGHT_KEY,
   CLIENT_RECORD_SCOPE_KEY,
   type ClientRecordAccess,
 } from './client-record-action.contract.js';
@@ -43,6 +45,32 @@ describe('client record action contract', () => {
     expect(() =>
       clientRecordRequest('update_client_profile', { clientId: id, people: [] }),
     ).toThrow();
+  });
+  it('carries create provenance as a closed partial map and keeps preparation evidence out of the public preview', () => {
+    const entry = { sourceUrl: 'https://example.test/registry', confidence: 'high' };
+    const input = { name: 'Sample', provenance: { name: entry } };
+    expect(clientRecordRequest('create_client', input).input).toEqual(input);
+    // An ordinary create without provenance is unchanged, so old callers still parse.
+    expect(clientRecordRequest('create_client', { name: 'Sample' }).input).toEqual({
+      name: 'Sample',
+    });
+    for (const rejected of [
+      { name: 'Sample', provenance: { nope: entry } },
+      { name: 'Sample', provenance: { name: { ...entry, extra: 1 } } },
+      {
+        name: 'Sample',
+        provenance: { name: { sourceUrl: 'https://x.test', confidence: 'certain' } },
+      },
+      { name: 'Sample', provenance: { name: { sourceUrl: '', confidence: 'low' } } },
+    ])
+      expect(() => clientRecordRequest('create_client', rejected)).toThrow();
+    expect(
+      publicClientRecordPreview({
+        [CLIENT_RECORD_SCOPE_KEY]: scope,
+        [CLIENT_PROFILE_PREFLIGHT_KEY]: { duplicate: 'clear', capacity: 'allowed' },
+        label: 'Create client',
+      }),
+    ).toEqual({ label: 'Create client' });
   });
   it('preserves canonical partial, unchanged and failed-row outcomes without asserting atomic success', () => {
     expect(clientRecordReceipt('update_client_profile', result, profile).outcome).toBe(

@@ -28,7 +28,7 @@ function load(source: string, ports: Record<string, unknown>, timers = { setTime
   const module = { exports: {} as any };
   const context = createContext({ module, exports: module.exports, Date: clock, Reflect,
     ...(useVmIntrinsics ? {} : { Object, Array }),
-    Promise, Number, JSON, Map, WeakMap, Error, Buffer, ...timers,
+    Promise, Number, JSON, Map, WeakMap, Error, Buffer, process, ...timers,
     require(id: string) {
       if (Object.hasOwn(ports, id)) return ports[id];
       throw new Error(`Unexpected runtime import: ${id}`);
@@ -48,6 +48,9 @@ const contract = load(sources('auth/application-authority.ts'), {
 const previewNativeReadMode = load(sources('auth/preview-native-read-mode.ts'), { './mounted-request-path.js': mountedRequest });
 const retainedNativeAuthority = load(sources('auth/retained-native-authority.ts'), {
   '@nestjs/common': nest, '@capiro/shared': { ROLE_RANK }, 'node:util': { types: nodeTypes },
+});
+const signedMemoryHttpGate = load(sources('auth/read-delegation/signed-memory-http-gate.ts'), {
+  '../mounted-request-path.js': mountedRequest, '@nestjs/common': nest,
 });
 const tenantId = '00000000-0000-7000-8000-000000000001';
 const actorId = '00000000-0000-0000-0000-000000000002';
@@ -115,6 +118,7 @@ function tenantFixture(options: { impersonated?: boolean } = {}) {
     '../auth/core-ed25519-key-config.js': executionKeyConfig,
     '../auth/meri-execution-request.js': executionRequest,
     '../auth/read-delegation/read-delegation-request.js': readDelegationRequest,
+    '../auth/read-delegation/signed-memory-http-gate.js': signedMemoryHttpGate,
     '../auth/mounted-request-path.js': mountedRequest,
   }).TenantContextMiddleware;
   let activeContext: any;

@@ -19,6 +19,13 @@ import {
   assertProspectAttachmentAccess,
   assertProspectAttachmentInTx,
 } from './attachments/prospect-attachment-access.js';
+import {
+  readClientFileHistory,
+  CLIENT_FILE_HISTORY_IDENTITY_SELECT,
+  type ClientFileHistoryOwner,
+  type ClientFileHistoryPage,
+  type ClientFileHistoryRow,
+} from './attachments/client-file-history.js';
 import { clientAssociatedMeetingWhere } from './engagement-access.helpers.js';
 import {
   guardSyntheticDocumentDeletionInTx,
@@ -8075,6 +8082,145 @@ export class EngagementService {
       }),
     );
     return listed.filter((row): row is NonNullable<typeof row> => row !== null);
+  }
+
+  /**
+   * MM-11 / WS-24 native file history, Core attachment slice: one bounded page of
+   * the immutable version chain that `supersedeAttachment` builds over an attachment
+   * instead of deleting it, anchored on an exact attachment id.
+   *
+   * Metadata plus a signed read for each released version. No byte is read by this path
+   * and no storage locator is ever exposed: a version carries the same kind of
+   * time-limited signed URL the attachment list already returns for a readable row,
+   * minted from THAT version's own stored key by the same owner and only when the
+   * readiness verdict says the version may be used — an unusable, quarantined, blocked or
+   * deleted version keeps the no-link state instead of a working URL. No write, no budget
+   * and no model/provider/indexing/extraction work happens here, the current-only
+   * predicate on the ordinary attachment list is not weakened, and the current version
+   * stays readable through the existing attachment reads. Every version is re-authorized
+   * for the CURRENT actor before anything is released — including the release-time
+   * recheck, which runs before any URL is minted — so an old allowed scope, a
+   * colleague-private mail version or a hidden/revoked member is never reachable through
+   * history. Because a signed URL is a bearer capability that outlives this call, the page
+   * is then rechecked a FINAL time AFTER every awaited signing call: current access through
+   * the canonical owner plus the version's own key/digest/ownership/chain-position and
+   * lifecycle/scan identity, both re-read from the store. Any drift there withholds the
+   * whole page instead of releasing a link the row no longer justifies.
+   */
+  async listAttachmentHistory(
+    ctx: TenantContext,
+    query: { attachmentId: string; cursor?: string; pageSize?: number },
+  ): Promise<ClientFileHistoryPage> {
+    const owner: ClientFileHistoryOwner = {
+      prisma: this.prisma,
+      authorize: (context, row) => this.authorizeAttachmentVersion(context, row),
+      readiness: (row) => this.attachmentContent.readiness(row, this.scanner.scanRequired),
+      uploaderNames: async (rows) => {
+        const ids = [
+          ...new Set(
+            rows.map((row) => row.uploadedByUserId).filter((id): id is string => Boolean(id)),
+          ),
+        ];
+        if (!ids.length) return new Map<string, string>();
+        const users = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+          tx.user.findMany({
+            where: { id: { in: ids } },
+            select: { id: true, firstName: true, lastName: true, email: true },
+          }),
+        );
+        const names = new Map<string, string>();
+        for (const user of users) {
+          const name = userDisplayName(user);
+          if (name) names.set(user.id, name);
+        }
+        return names;
+      },
+      // The SAME canonical signing owners the attachment list uses for a readable row,
+      // called with THIS version's own stored key: the history read hands back a read of
+      // the exact version the caller selected, and never a link to the head's object.
+      // They keep their own controls (null preview outside the inline allowlist, null when
+      // no bucket is configured).
+      links: async (row) => ({
+        downloadUrl: await this.createAttachmentDownloadUrl(row.s3Key),
+        previewUrl: await this.createAttachmentPreviewUrl(row.s3Key, row.contentType),
+      }),
+      // FINAL post-signing recheck for a released version: the same canonical current-access
+      // owner as `authorize` (so a revocation, a deletion, a client-file deletion and a
+      // prospect/scope/wall/hearing change refuse again here), then ONE narrow identity read of
+      // the durable row through the same tenant/viewer predicate. The helper compares that
+      // identity with the row it authorized and withholds the WHOLE page on any disagreement,
+      // so a URL minted a moment earlier is never released for a row whose key, digest,
+      // ownership, chain position or lifecycle/scan readiness moved while it was being signed.
+      // Nothing is repaired, rewritten or recomputed here.
+      recheck: async (row) => {
+        await this.authorizeAttachmentVersion(ctx, row);
+        return this.prisma.withTenant(ctx.tenantId, (tx) =>
+          tx.engagementAttachment.findFirst({
+            where: { id: row.id, tenantId: ctx.tenantId, OR: attachmentViewerWhere(ctx.userId) },
+            select: CLIENT_FILE_HISTORY_IDENTITY_SELECT,
+          }),
+        );
+      },
+    };
+    return readClientFileHistory(owner, ctx, query);
+  }
+
+  /**
+   * Current access for one history version, expressed only through the canonical
+   * owners the existing attachment list already uses: the Client Files viewer
+   * predicate applied to the exact row, the prospect scope owner, the mail/hearing
+   * parent checks and the hearing-record document authority. Nothing is re-derived
+   * from a weaker local heuristic.
+   *
+   * A superseded prospect version is read through `requireProspectScope` rather than
+   * `assertProspectAttachmentAccess`, whose read mode deliberately refuses any row
+   * that is no longer the current version: that predicate answers "may I use this
+   * file now", which a historical version can never satisfy, and it is not a
+   * statement about whether the actor may see that the version existed.
+   *
+   * That predicate carried a SECOND condition history must not drop: its read mode
+   * also refuses `lifecycleStatus` delete_pending/delete_failed, and the engagement
+   * list never releases the name, size or digest of a prospect file that is being
+   * deleted — or whose deletion failed and is still awaiting the retry sweep — as
+   * "a removed private context must not leak its title or signed bytes". Dropping
+   * that condition would publish exactly those rows through history. Suppression is
+   * therefore applied here with list parity, and it is decided from the row AS
+   * RE-READ, not from the chain snapshot, so it holds on both passes: a deletion
+   * that starts between the reconstruction and the release is refused by the same
+   * release-time recheck that already re-derives current access. Client-file rows
+   * are deliberately unaffected, exactly as in the list, whose prospect branch is
+   * the only one that conflates suppression with visibility.
+   */
+  private async authorizeAttachmentVersion(
+    ctx: TenantContext,
+    row: ClientFileHistoryRow,
+  ): Promise<void> {
+    const visible = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.engagementAttachment.findFirst({
+        where: { id: row.id, tenantId: ctx.tenantId, OR: attachmentViewerWhere(ctx.userId) },
+        select: { id: true, lifecycleStatus: true },
+      }),
+    );
+    if (!visible) throw new NotFoundException('Attachment not found');
+    if (row.prospectId) {
+      // Canonical prospect read-mode suppression (delete_pending / delete_failed),
+      // kept for the same reason the list keeps it: the actor holds current access to
+      // the row, but a removed private context must not surface through history. The
+      // history release path turns any refusal here into CLIENT_FILE_HISTORY_UNAVAILABLE,
+      // so the whole chain is withheld rather than partially released.
+      if (
+        visible.lifecycleStatus === 'delete_pending' ||
+        visible.lifecycleStatus === 'delete_failed'
+      ) {
+        throw new NotFoundException('Prospect resource not found');
+      }
+      await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        requireProspectScope(tx, ctx, row.prospectId as string),
+      );
+    } else if (row.source === 'incoming_mail') {
+      await this.validateAttachmentParents(ctx, row);
+    }
+    await assertHearingRecordDocumentAccess(this.prisma, ctx, row);
   }
 
   async extractAttachmentText(

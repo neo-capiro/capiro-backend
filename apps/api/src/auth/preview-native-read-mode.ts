@@ -3,7 +3,7 @@ import type { Request } from 'express';
 
 const PREVIEW_HOST = 'first-chat-preview.app-dev.capiro.ai';
 export const CORE_ROSTER_PREVIEW_HOST = 'core-roster-preview.capiro.ai';
-const PREVIEW_GET_PATH = /^\/api\/(?:me|clients(?:\/[^/?]+)?|memory\/(?:candidates\/mine(?:\/[^/?]+\/status)?|owner\/items))\/?$/i;
+const PREVIEW_GET_PATH = /^\/api\/(?:me|clients(?:\/[^/?]+)?|memory\/(?:candidates\/mine(?:\/[^/?]+\/status)?|owner\/items)|clio\/completed-reports(?:\/[^/?]+)?)\/?$/i;
 
 export type CoreRosterPreviewDecision = 'unrelated' | 'preview' | 'unavailable' | 'not-found';
 

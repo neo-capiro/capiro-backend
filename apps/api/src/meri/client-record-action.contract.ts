@@ -7,6 +7,9 @@ import { z } from 'zod';
 import { nativeCanonicalSha256 } from './native-approvals/native-approval.contract.js';
 
 export const CLIENT_RECORD_SCOPE_KEY = '__meriClientRecordScope';
+/** Recorded preparation evidence for a generated create_client proposal. Bounded
+ * verdicts only — never an id or a name of a client the caller cannot see. */
+export const CLIENT_PROFILE_PREFLIGHT_KEY = '__meriClientProfilePreflight';
 export const CLIENT_RECORD_MAX_BYTES = 65536;
 const uuid = z
   .string()
@@ -14,6 +17,11 @@ const uuid = z
   .regex(/^[a-f0-9-]+$/);
 const digest = z.string().regex(/^[a-f0-9]{64}$/);
 const text = (max: number) => z.string().trim().min(1).max(max);
+/** The one per-field source-metadata shape, shared by every write that records
+ * provenance: update_client_profile's profile and create_client. */
+const provenanceEntry = z
+  .object({ sourceUrl: text(2048), confidence: z.enum(['high', 'medium', 'low']) })
+  .strict();
 const baseFields = {
   name: text(300).optional(),
   website: text(500).optional(),
@@ -23,12 +31,21 @@ const baseFields = {
   primaryContactEmail: text(200).optional(),
   primaryContactPhone: text(60).optional(),
 };
+/** Exactly the fields a create writes, so a create's provenance can never name a
+ * field the call did not write. */
+export const createClientFieldNames = Object.keys(baseFields) as [
+  keyof typeof baseFields,
+  ...(keyof typeof baseFields)[],
+];
 export const createClientInput = z
   .object({
     ...baseFields,
     name: text(300),
     ldaClientId: z.number().int().min(1).max(2147483647).optional(),
     skipLdaCheck: z.boolean().optional(),
+    // partialRecord: Zod 4 makes an enum-keyed record exhaustive, which would demand
+    // provenance for all seven writable fields. A create only sources some of them.
+    provenance: z.partialRecord(z.enum(createClientFieldNames), provenanceEntry).optional(),
   })
   .strict();
 const strings = z.array(text(120)).max(100);
@@ -58,12 +75,7 @@ const profile = z
     issueCodes: strings.optional(),
     naicsCodes: strings.optional(),
     pscCodes: strings.optional(),
-    provenance: z
-      .record(
-        fieldName,
-        z.object({ sourceUrl: text(2048), confidence: z.enum(['high', 'medium', 'low']) }).strict(),
-      )
-      .optional(),
+    provenance: z.record(fieldName, provenanceEntry).optional(),
     facilities: z
       .array(
         z
@@ -207,7 +219,11 @@ export function clientRecordFingerprint(
   return isClientRecordAction(tool) ? { ...input, [CLIENT_RECORD_SCOPE_KEY]: scope } : input;
 }
 export function publicClientRecordPreview(preview: Record<string, unknown>) {
-  const { [CLIENT_RECORD_SCOPE_KEY]: _scope, ...rest } = preview;
+  const {
+    [CLIENT_RECORD_SCOPE_KEY]: _scope,
+    [CLIENT_PROFILE_PREFLIGHT_KEY]: _preflight,
+    ...rest
+  } = preview;
   return rest;
 }
 

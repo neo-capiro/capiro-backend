@@ -146,6 +146,8 @@ export type GenerationMode = 'quick' | 'standard' | 'max';
 /** Summary of a generation run. */
 export interface DocumentAgentRunSummary {
   runId: string;
+  /** The retained native generation request identity, for exact cancel/reconcile. */
+  requestId?: string;
   mode: GenerationMode;
   startedAt: string;
   completedAt?: string;

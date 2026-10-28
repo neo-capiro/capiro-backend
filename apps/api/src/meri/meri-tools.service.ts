@@ -2039,6 +2039,12 @@ export class MeriToolsService {
             description:
               'User confirmed none of the LDA candidates apply — create from the provided fields as-is',
           },
+          provenance: {
+            type: 'object',
+            description:
+              'Optional per-field source metadata for the fields above, e.g. { "website": { "sourceUrl": "https://...", "confidence": "high" } }. ' +
+              'Stored on the created client for auditability; not shown as a profile field.',
+          },
         },
         ['name'],
       ),
@@ -9097,6 +9103,14 @@ export class MeriToolsService {
       }
     }
 
+    // Same per-field provenance convention as update_client_profile
+    // (intakeData.__webImport), kept to the fields this create actually writes so
+    // a proposal can never attribute a field the call did not create.
+    const provenance = objectInput(input.provenance);
+    const sourcedProvenance = Object.fromEntries(
+      Object.entries(provenance).filter(([field]) => input[field] !== undefined),
+    );
+
     // Failures from here (billing slot-limit 402, validation) propagate as
     // HttpExceptions — the approve replay surfaces e.message as the action
     // failure, which is the only channel the user actually sees.
@@ -9125,6 +9139,16 @@ export class MeriToolsService {
           ldaClientId: ldaMatch?.id ?? null,
           ldaName: ldaMatch?.name ?? null,
         },
+        // A create has no prior intake data to merge, so the import record is
+        // written whole and only when the call actually sourced something.
+        ...(Object.keys(sourcedProvenance).length > 0
+          ? {
+              __webImport: {
+                updatedAt: new Date().toISOString(),
+                fields: sourcedProvenance,
+              },
+            }
+          : {}),
       },
     });
     return {

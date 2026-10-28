@@ -2,10 +2,14 @@
  * Business Development Phase 5 — DB-only watch evaluator CLI.
  *
  * Scheduled-task verb (`bizdev-watch-scan`). Reads ONLY existing canonical
- * projections through the runner; performs ZERO network calls (INV-0), adds
- * no ingestion path, no polling, no sleep/retry — the scheduler is the sole
- * retry owner (exit 0 lets it re-invoke; nonzero is reserved for invalid
- * config / fatal setup).
+ * projections through the runner; adds no ingestion path, no polling, no
+ * sleep/retry and no timer — the scheduler is the sole retry owner (exit 0 lets
+ * it re-invoke; nonzero is reserved for invalid config / fatal setup).
+ *
+ * Its ONE egress (MB-05) is the existing internal routine delivery owner, and
+ * only when MERI_CONTROL_ORIGIN and INTERNAL_SERVICE_SECRET are configured: it
+ * offers the committed canonical alerts to Meri's approved routine binding.
+ * Without both, no network call is made at all.
  *
  * Args:
  *   --source-family <family>   repeatable / comma-separated; must be known
@@ -25,7 +29,9 @@ import {
   BIZDEV_WATCH_SOURCE_FAMILIES,
   type BizDevWatchRunnerDb,
   type BizDevProjectionDb,
+  type BizDevWatchSourceEventSink,
 } from '../src/business-development/bizdev-watch-runner.js';
+import { createSourceEventDispositionSink } from '../src/business-development/bizdev-watch-source-event.js';
 
 dotenvConfig();
 
@@ -97,6 +103,7 @@ async function main(): Promise<number> {
         partial: 0,
         failed: 0,
         durationMs: 0,
+        sourceEvents: null,
       }) + '\n',
     );
     return 0;
@@ -168,7 +175,19 @@ async function main(): Promise<number> {
     // Global projections are read through the same client handle (no
     // tenant_id, no RLS — the dossier's direct-delegate pattern).
     const projections = prisma as unknown as BizDevProjectionDb;
-    const metrics = await runBizDevWatchEvaluation(db, projections, config);
+    // MB-05: the ONE authorized egress of this verb. With both the configured Meri Control origin
+    // and the shared internal service secret present, committed canonical alerts are offered to
+    // the existing routine delivery owner; without them the sink is absent and this run makes NO
+    // network call at all (the pre-MB-05 behaviour, unchanged). It is never a runtime/control
+    // bearer, and the binding read comes from Meri's own durable owner.
+    const origin = process.env.MERI_CONTROL_ORIGIN;
+    const secret = process.env.INTERNAL_SERVICE_SECRET;
+    // The per-alert disposition owner: it reports Meri's exact terminal answer FOR EACH offered alert, so
+    // the runner advances its durable oldest-first recovery cursor only over what Meri definitively
+    // answered and never past an UNKNOWN. It reports the same aggregate counts as before.
+    const sourceEvents: BizDevWatchSourceEventSink | null =
+      origin && secret ? createSourceEventDispositionSink({ origin, secret }) : null;
+    const metrics = await runBizDevWatchEvaluation(db, projections, config, undefined, sourceEvents);
     // One structured JSON metric summary.
     process.stdout.write(JSON.stringify(metrics) + '\n');
     return 0;

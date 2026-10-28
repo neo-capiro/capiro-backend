@@ -17,16 +17,21 @@ import {
   type ClientRecordAccess,
 } from './client-record-action.contract.js';
 
+/** The client-record envelope is explicitly negotiated, never assumed additive. Version 1 is the retained answer,
+ * closed exactly as it was before the profile preflight existed; version 2 additionally answers with the bounded
+ * duplicate/capacity preflight and accepts a sourced create input. Answering version 1 with the extra key is what
+ * broke the old physical receiver, so the preflight is sent only to a caller that asks for it. */
+const clientRecordEnvelopeVersion = z.union([z.literal(1), z.literal(2)]);
 const prepare = z
   .object({
-    version: z.literal(1),
+    version: clientRecordEnvelopeVersion,
     context: clientRecordSelectionSchema,
     request: clientRecordRequestSchema,
   })
   .strict();
 const observe = z
   .object({
-    version: z.literal(1),
+    version: clientRecordEnvelopeVersion,
     proposalId: z.string().uuid(),
     context: clientRecordScopeSchema,
   })
@@ -128,14 +133,24 @@ export class ClientRecordActionService {
     );
     await access.assertCurrent();
     if (result.disposition !== 'pending_approval') throw denied();
-    return this.proposals.readClientRecord(ctx, result.proposal.proposalId, access);
+    return this.proposals.readClientRecord(
+      ctx,
+      result.proposal.proposalId,
+      access,
+      parsed.data.version >= 2,
+    );
   }
   async read(ctx: TenantContext, req: Request, raw: unknown) {
     const parsed = observe.safeParse(retainedReadSnapshot(raw, 8192));
     if (!parsed.success) throw new BadRequestException('Invalid client record observation');
     const { context, proposalId } = parsed.data,
       access = await this.access(ctx, req, context, 'observe');
-    const result = await this.proposals.readClientRecord(ctx, proposalId, access);
+    const result = await this.proposals.readClientRecord(
+      ctx,
+      proposalId,
+      access,
+      parsed.data.version >= 2,
+    );
     await access.assertCurrent();
     return result;
   }
@@ -151,6 +166,6 @@ export class ClientRecordActionService {
     else await this.proposals.dismiss(ctx, proposalId, undefined, access);
     // The effect may update the membership revision itself. This is a separate read;
     // its fresh authority can never be passed back into the execution claim above.
-    return this.read(ctx, req, { version: 1, proposalId, context });
+    return this.read(ctx, req, { version: parsed.data.version, proposalId, context });
   }
 }

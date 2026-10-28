@@ -84,9 +84,11 @@ export class ApproveBriefDto {
   @IsInt() @Min(0) expectedRevision!: number;
 }
 
-/** Synthesize the brief from conversation. */
+/** Synthesize the brief from the native conversation owner. */
 export class SynthesizeBriefDto {
   @IsInt() @Min(0) expectedRevision!: number;
+  /** Truthful explicit paid-generation intent: this route starts a paid native turn. */
+  @IsBoolean() paidGeneration!: boolean;
 }
 
 /** Reopen the brief. */
@@ -94,14 +96,16 @@ export class ReopenBriefDto {
   @IsInt() @Min(0) expectedRevision!: number;
 }
 
-/** Recommend context items. */
+/** Recommend context items from the native conversation owner. */
 export class RecommendContextDto {
   @IsInt() @Min(0) expectedRevision!: number;
+  @IsBoolean() paidGeneration!: boolean;
 }
 
-/** Analyze context. */
+/** Analyze context with the native conversation owner. */
 export class AnalyzeContextDto {
   @IsInt() @Min(0) expectedRevision!: number;
+  @IsBoolean() paidGeneration!: boolean;
 }
 
 /** Approve the context plan. */
@@ -127,6 +131,8 @@ export class ResolveContextConflictDto {
 /** Generate the outline. */
 export class GenerateOutlineDto {
   @IsInt() @Min(0) expectedRevision!: number;
+  /** Truthful explicit paid-generation intent: this route starts a paid native turn. */
+  @IsBoolean() paidGeneration!: boolean;
 }
 
 /** Update the outline. */
@@ -167,6 +173,8 @@ export class GenerateDto {
   @IsOptional() @IsString() @IsIn(['quick', 'standard', 'max'])
   mode?: 'quick' | 'standard' | 'max';
   @IsOptional() @IsString() idempotencyKey?: string;
+  /** Truthful explicit paid-generation intent: this route starts a paid native run. */
+  @IsBoolean() paidGeneration!: boolean;
 }
 
 /** Retry failed sections. */

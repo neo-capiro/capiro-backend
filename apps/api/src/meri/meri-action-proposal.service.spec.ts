@@ -5,6 +5,7 @@ import { LEGIWATCH_ACTION, type LegiwatchProposalAccess } from './legiwatch-acti
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, ConflictException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { BIZDEV_BRIEF_ACTION, BIZDEV_SCOPE_KEY, bizdevBriefReceipt, type BizdevProposalAccess } from './bizdev-action.contract.js';
+import { CLIENT_PROFILE_PREFLIGHT_KEY, CLIENT_RECORD_SCOPE_KEY } from './client-record-action.contract.js';
 import { BRIEF_SECTION_KEYS } from '../business-development/bizdev-brief.types.js';
 import { PrismaClient, type MeriActionProposal } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
@@ -214,6 +215,12 @@ function harness(
       metadata: Record<string, unknown>;
     } | null;
     scopeError?: Error;
+    /** Client-record create precheck facts; the read-only preflight read only. */
+    existingClientNamed?: boolean;
+    usedClientSlots?: number;
+    tenantBilling?: { billingStatus: string; clientSlots: number } | null;
+    preflightReadError?: Error;
+    billingEnforced?: boolean;
   } = {},
 ) {
   let row = options.row === undefined ? makeRow() : options.row;
@@ -267,7 +274,21 @@ function harness(
         ? [{ id: conversation.id }]
         : [],
     ),
-    client: { findFirst: jest.fn().mockResolvedValue(null) },
+    client: {
+      // The name arm answers the create precheck; the id arm stays null for the
+      // update-path client-name resolution.
+      findFirst: jest.fn(async ({ where }: { where?: Record<string, unknown> } = {}) =>
+        where?.name !== undefined && options.existingClientNamed ? { id: 'client-existing' } : null,
+      ),
+      count: jest.fn().mockResolvedValue(options.usedClientSlots ?? 0),
+    },
+    tenant: {
+      findUnique: jest.fn().mockResolvedValue(
+        options.tenantBilling === undefined
+          ? { billingStatus: 'active', clientSlots: 10 }
+          : options.tenantBilling,
+      ),
+    },
     clioConversation: {
       findFirst: jest.fn(async ({ where }: { where: Record<string, unknown> }) =>
         conversation &&
@@ -333,7 +354,12 @@ function harness(
     },
   };
   const prisma = {
-    withTenant: jest.fn((_tenantId: string, callback: (arg: typeof tx) => unknown) => callback(tx)),
+    withTenant: jest.fn(
+      (_tenantId: string, callback: (arg: typeof tx) => unknown, opts?: { readOnly?: boolean }) =>
+        opts?.readOnly && options.preflightReadError
+          ? Promise.reject(options.preflightReadError)
+          : callback(tx),
+    ),
   } as unknown as PrismaService;
   const tools = {
     validateSideEffectingInput: validate,
@@ -346,7 +372,9 @@ function harness(
         ? true
         : key === 'MERIV2_ACTION_PROPOSAL_TTL_MINUTES'
           ? 15
-          : undefined,
+          : key === 'BILLING_ENFORCED'
+            ? (options.billingEnforced ?? true)
+            : undefined,
   } as unknown as ConfigService<AppConfig, true>;
   const defaultPolicy = {
     outcome: 'WARN' as const,
@@ -653,15 +681,17 @@ describe('MeriActionProposalService', () => {
   });
 
   it('executes the exact stored canonical payload and records succeeded separately from approval', async () => {
+    // A generic CRM action: update_client_profile is a specialized client-record
+    // action whose success needs a canonical receipt and whose errors stay UNKNOWN.
     const row = makeRow({
-      tool: 'update_client_profile',
-      input: { clientId: TENANT, name: 'Acme' },
+      tool: 'create_task',
+      input: { title: 'Follow up with Acme', clientId: TENANT },
       policyChannel: 'crm',
     });
-    const h = harness({ row, executeResult: { ok: true, clientId: TENANT } });
+    const h = harness({ row, executeResult: { ok: true, id: 'task-1' } });
     h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
     const result = await h.service.approveAndExecute(ctx, PROPOSAL);
-    expect(h.tools.execute).toHaveBeenCalledWith(ctx, 'update_client_profile', row.input, {
+    expect(h.tools.execute).toHaveBeenCalledWith(ctx, 'create_task', row.input, {
       actionProposalId: PROPOSAL,
     });
     expect(result.status).toBe('succeeded');
@@ -1227,8 +1257,8 @@ describe('MeriActionProposalService', () => {
 
   it('classifies safe internal transient errors as failed_retryable', async () => {
     const row = makeRow({
-      tool: 'update_client_profile',
-      input: { clientId: TENANT, name: 'Acme' },
+      tool: 'create_task',
+      input: { title: 'Follow up with Acme', clientId: TENANT },
       policyChannel: 'crm',
     });
     const h = harness({ row, executeError: new Error('temporarily unavailable') });
@@ -1238,8 +1268,8 @@ describe('MeriActionProposalService', () => {
 
   it('classifies a genuine validation failure as failed_terminal, never succeeded', async () => {
     const row = makeRow({
-      tool: 'update_client_profile',
-      input: { clientId: TENANT, name: 'Acme' },
+      tool: 'create_task',
+      input: { title: 'Follow up with Acme', clientId: TENANT },
       policyChannel: 'crm',
     });
     const h = harness({ row, executeError: new Error('validation failed: clientId not found') });
@@ -2664,6 +2694,87 @@ describe('MeriActionProposalService — native client record actions', () => {
     expect((await h.service.readClientRecord(ctx, PROPOSAL, fresh)).receipt).toMatchObject({ outcome: 'created', client: { id: RP_CLIENT } });
     await expect(h.service.readClientRecord(ctx, PROPOSAL, { ...fresh, clientIds: [] })).rejects.toThrow();
     expect(h.tools.execute).toHaveBeenCalledTimes(1);
+  });
+  const createRequest = (provenance?: Record<string, unknown>) => ({
+    ...request,
+    tool: 'create_client',
+    input: { name: 'New client', skipLdaCheck: true, ...(provenance ? { provenance } : {}) },
+  });
+  it('retains the generated create proposal schema and source provenance with an informed current preflight', async () => {
+    const h = harness({ row: null, usedClientSlots: 2 }), a = access();
+    const provenance = { name: { sourceUrl: 'https://example.test/registry', confidence: 'high' } };
+    const p = await h.service.create(ctx, createRequest(provenance), undefined, undefined, a);
+    expect(p.disposition).toBe('pending_approval');
+    expect(h.tools.execute).not.toHaveBeenCalled();
+    expect(h.getRow()?.input).toEqual({ name: 'New client', skipLdaCheck: true, provenance });
+    expect(h.getRow()?.preview).toMatchObject({
+      [CLIENT_PROFILE_PREFLIGHT_KEY]: { duplicate: 'clear', capacity: 'allowed' },
+    });
+    const prepared = await h.service.readClientRecord(ctx, PROPOSAL, a, true);
+    expect(prepared.request).toEqual({ operation: 'create_client', input: h.getRow()?.input });
+    expect(prepared.preflight).toEqual({ duplicate: 'clear', capacity: 'allowed' });
+    // The retained envelope version 1 answer stays closed on the wire: the preflight is sent only when negotiated.
+    expect(JSON.stringify(await h.service.readClientRecord(ctx, PROPOSAL, a))).not.toContain('preflight');
+    expect(JSON.stringify(prepared)).toContain('preflight');
+    // Preparation evidence stays out of the public preview.
+    expect(JSON.stringify(p.proposal.preview)).not.toContain(CLIENT_PROFILE_PREFLIGHT_KEY);
+  });
+  it('keeps the precheck informational: a possible duplicate or a full plan still prepares and reserves nothing', async () => {
+    for (const [facts, expected] of [
+      [{ existingClientNamed: true }, { duplicate: 'possible', capacity: 'allowed' }],
+      [{ usedClientSlots: 10 }, { duplicate: 'clear', capacity: 'denied' }],
+    ] as const) {
+      const h = harness({ row: null, ...facts }), a = access();
+      const p = await h.service.create(ctx, createRequest(), undefined, undefined, a);
+      expect(p.disposition).toBe('pending_approval');
+      expect(h.tools.execute).not.toHaveBeenCalled();
+      expect(h.getRow()?.preview).toMatchObject({ [CLIENT_PROFILE_PREFLIGHT_KEY]: expected });
+    }
+  });
+  it('uses the canonical slot allowance and the dormant/comped exemption instead of a private copy', async () => {
+    for (const [facts, capacity] of [
+      [{ tenantBilling: { billingStatus: 'trialing', clientSlots: 2 }, usedClientSlots: 5 }, 'allowed'],
+      [{ tenantBilling: { billingStatus: 'comped', clientSlots: 0 }, usedClientSlots: 99 }, 'allowed'],
+      [{ billingEnforced: false, usedClientSlots: 99 }, 'allowed'],
+      [{ tenantBilling: null }, 'unknown'],
+    ] as const) {
+      const h = harness({ row: null, ...facts }), a = access();
+      await h.service.create(ctx, createRequest(), undefined, undefined, a);
+      expect(h.getRow()?.preview).toMatchObject({ [CLIENT_PROFILE_PREFLIGHT_KEY]: { capacity } });
+    }
+  });
+  it('records an unresolved precheck as unknown rather than as a clear preflight', async () => {
+    const h = harness({ row: null, preflightReadError: new Error('billing read unavailable') }), a = access();
+    const p = await h.service.create(ctx, createRequest(), undefined, undefined, a);
+    expect(p.disposition).toBe('pending_approval');
+    expect(h.getRow()?.preview).toMatchObject({
+      [CLIENT_PROFILE_PREFLIGHT_KEY]: { duplicate: 'unknown', capacity: 'unknown' },
+    });
+  });
+  it('rechecks at apply instead of trusting the stored preflight and keeps one UNKNOWN proposal with no second effect', async () => {
+    const h = harness({ row: null, executeError: new Error('a duplicate now exists') }), a = access();
+    await h.service.create(ctx, createRequest(), undefined, undefined, a);
+    expect(h.getRow()?.preview).toMatchObject({
+      [CLIENT_PROFILE_PREFLIGHT_KEY]: { duplicate: 'clear', capacity: 'allowed' },
+    });
+    const first = await h.service.approveAndExecute(ctx, PROPOSAL, undefined, a);
+    expect(first.status).toBe('outcome_unknown');
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
+    const second = await h.service.approveAndExecute(ctx, PROPOSAL, undefined, a);
+    expect(second.proposalId).toBe(PROPOSAL);
+    expect(second.status).toBe('outcome_unknown');
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
+  });
+  it('reads a proposal written before the preflight existed without inventing one', async () => {
+    const h = harness({
+      row: makeRow({
+        tool: 'create_client',
+        input: { name: 'New client', skipLdaCheck: true },
+        conversationId: RP_CONVERSATION,
+        preview: { [CLIENT_RECORD_SCOPE_KEY]: scope } as MeriActionProposal['preview'],
+      }),
+    }), a = access();
+    expect((await h.service.readClientRecord(ctx, PROPOSAL, a, true)).preflight).toBeNull();
   });
 });
 

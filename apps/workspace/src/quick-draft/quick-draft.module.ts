@@ -15,13 +15,25 @@ import {
   ATTACHMENT_RESOLVER,
 } from './source-resolver.service.js';
 import { TwoStepDraftFlagsService } from './two-step-draft-flags.service.js';
+import {
+  NATIVE_GENERATION_TURN,
+  type NativeGenerationTurnPort,
+} from '../document-agent/native-generation.bridge.js';
+import { nativeGenerationClientFromEnvironment } from '../document-agent/native-generation-conversation.client.js';
+import { NativeIntakeAdapter } from './native-intake.adapter.js';
 
 /**
  * QuickDraftModule — the two-step Max draft flow (PR #964).
  *
  * Registers both the old endpoint (temporarily behind the flag) and the new
- * aggregate intake endpoint. The new endpoint funnels through the canonical
- * GenerationService, not a parallel generation path.
+ * aggregate intake endpoint. The intake endpoint's durable run is drafted by the
+ * approved greenfield Meri native conversation owner through
+ * {@link NativeIntakeAdapter} — the SAME owner, injection token and closed wire
+ * protocol the five Workspace document-agent phases use, declared here for this
+ * module's own caller. It is not a second transport: when the deployment does
+ * not configure the owner, the token resolves to null and the run records an
+ * explicit owner-unavailable refusal instead of falling back to a removed
+ * provider path.
  */
 @Module({
   imports: [
@@ -33,6 +45,11 @@ import { TwoStepDraftFlagsService } from './two-step-draft-flags.service.js';
   ],
   controllers: [QuickDraftController, TwoStepDraftController],
   providers: [
+    {
+      provide: NATIVE_GENERATION_TURN,
+      useFactory: (): NativeGenerationTurnPort | null => nativeGenerationClientFromEnvironment(),
+    },
+    NativeIntakeAdapter,
     QuickDraftService,
     IntakeService,
     GenerationRunWorkerService,
@@ -53,7 +70,9 @@ export class QuickDraftModule implements OnModuleInit {
 
   /**
    * Start the durable run worker poller. Claims and processes queued runs
-   * every 5 seconds. The worker is also triggered manually after intake.
+   * every 5 seconds. A durable intake run is dispatched by its own attended
+   * caller (the intake route, or a status read that holds current access), so
+   * the poller leaves those runs to that caller.
    */
   async onModuleInit() {
     this.logger.log('Starting durable generation run worker poller');

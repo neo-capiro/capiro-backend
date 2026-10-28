@@ -1,6 +1,11 @@
 import { Module } from '@nestjs/common';
 import { DocumentAgentService } from './document-agent.service.js';
 import {
+  NATIVE_GENERATION_TURN,
+  type NativeGenerationTurnPort,
+} from './native-generation.bridge.js';
+import { nativeGenerationClientFromEnvironment } from './native-generation-conversation.client.js';
+import {
   DocumentAgentCatalogController,
   DocumentAgentController,
   AgentContextItemController,
@@ -17,6 +22,14 @@ import { ChecksModule } from '../checks/checks.module.js';
 @Module({
   imports: [WorkspaceReasoningModule, GenerationModule, CollaboratorsModule, ChecksModule],
   providers: [
+    // The approved greenfield Meri native conversation owner. It is the ONE
+    // production caller of a supported generated phase; when the deployment does
+    // not configure it, the token resolves to null and every phase answers an
+    // explicit 503 instead of falling back to the retired legacy owners.
+    {
+      provide: NATIVE_GENERATION_TURN,
+      useFactory: (): NativeGenerationTurnPort | null => nativeGenerationClientFromEnvironment(),
+    },
     DocumentAgentService,
     DocumentAgentContextService,
     DocumentAgentOutlineService,

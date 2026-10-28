@@ -17,6 +17,7 @@ import { ConfigService } from '@nestjs/config';
 import { EngagementModule } from '../engagement/engagement.module.js';
 import { ClientDocumentsModule } from '../client-documents/client-documents.module.js';
 import { MeriJobDeliverablesController } from './meri-job-deliverables.controller.js';
+import { MeriCompletedReportsController } from './meri-completed-reports.controller.js';
 import { MeriJobDeliverablesService } from './meri-job-deliverables.service.js';
 import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module.js';
 // Phase 4 server-only slice: one-way import. BD exports the scope service;
@@ -119,6 +120,8 @@ import { MeriV3InternalServiceGuard } from './meri-v3-internal-service.guard.js'
 import { MeriV3ProxyService } from './meriv3-proxy.service.js';
 import { MeriConversationEvidenceService } from './meri-conversation-evidence.service.js';
 import { MeriChatAttachmentReadService } from './meri-chat-attachment-read.service.js';
+import { MeriChatAttachmentSourceService } from './meri-chat-attachment-source.js';
+import { MeriChatAttachmentSourceController } from './meri-chat-attachment-source.controller.js';
 import { MeriV3SettingsController } from './meriv3-settings.controller.js';
 import { MeriV3VisualAnalysisService } from './meri-v3-visual-analysis.service.js';
 import { MeriVNextLibraryController } from './meri-vnext-library.controller.js';
@@ -174,7 +177,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     DefenseBudgetClientWatchModule,
     DistrictNexusModule,
   ],
-  controllers: [NoteActionController, LegislativeComparisonController, ClientRecordActionController,
+  controllers: [MeriChatAttachmentSourceController, NoteActionController, LegislativeComparisonController, ClientRecordActionController,
     MeriRoutineReadController,
     ConversationManagementController,
     HearingMediaController,
@@ -202,6 +205,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     MeriMcpOAuthController,
     MeriVNextLibraryController,
     MeriJobDeliverablesController,
+    MeriCompletedReportsController,
   ],
   providers: [ClientRecordActionService,
     LegiwatchActionService,
@@ -237,6 +241,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
       inject: [PrismaService, MeriToolsService, GovernedMemoryCandidateService, ObjectiveJobReadSources] },
     MeriJobDeliverablesService,
     MeriChatAttachmentReadService,
+    MeriChatAttachmentSourceService,
     MeriSourceService,
     MeriContextPlaneService,
     MeriContextPlaneRuntimeService,

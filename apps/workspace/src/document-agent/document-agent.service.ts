@@ -12,12 +12,21 @@
 // - TenantId, ownerId, and actor IDs are NEVER accepted from request bodies —
 //   they come from the authenticated TenantGuard context.
 // - The reasoning gateway is injected and mockable; no live model calls in tests.
+// - The SUPPORTED generated phases (brief/context/outline/document) do NOT call
+//   the reasoning gateway or GenerationService: they issue ONE canonical native
+//   conversation SDK turn through native-generation.bridge.ts and admit the
+//   result through the existing state/proposal/approval owners.
 
 import {
+  BadGatewayException,
+  BadRequestException,
   ConflictException,
+  ForbiddenException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -31,7 +40,6 @@ import {
   recommendDocumentSetupPrompt,
   generateFollowUpQuestionsPrompt,
   synthesizeBriefPrompt,
-  generateOutlinePrompt,
 } from '../workspace-reasoning/workspace-reasoning.prompts.js';
 import {
   createInitialAgentState,
@@ -54,7 +62,28 @@ import {
   mutateState,
 } from './document-agent-state-machine.js';
 import type { DocumentAgentQualityService } from './document-agent-quality.service.js';
-import type { DocumentAgentRevisionService } from './document-agent-revision.service.js';
+import { DocumentAgentRevisionService } from './document-agent-revision.service.js';
+import {
+  NATIVE_GENERATION_TURN,
+  NativeGenerationBridge,
+  NativeGenerationRefusal,
+  type NativeGenerationAdmission,
+  type NativeGenerationPhase,
+  type NativeGenerationProposalOwner,
+  type NativeGenerationSource,
+  type NativeGenerationTurnPort,
+} from './native-generation.bridge.js';
+import { NativeGenerationOwnerError } from './native-generation-conversation.client.js';
+
+/** A content revision payload is a section-id -> text map; anything else does not apply. */
+function isContentMap(value: unknown): value is Record<string, string> {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    Object.values(value as Record<string, unknown>).every((text) => typeof text === 'string')
+  );
+}
 
 /** Error code for stale revision conflicts. */
 export const REVISION_CONFLICT_CODE = 'DOCUMENT_AGENT_REVISION_CONFLICT';
@@ -66,8 +95,34 @@ type DraftWithConfig = {
   id: string;
   tenantId: string;
   ownerId: string;
+  clientId: string | null;
   config: Record<string, unknown>;
   updatedAt: Date;
+};
+
+/**
+ * The shape every supported generated phase answers with: the canonical state
+ * after the phase, the retained native request identity, and the pending
+ * proposal when the phase was admitted as one.
+ */
+export type DocumentAgentNativeGenerationResult = {
+  state: DocumentAgentState;
+  requestId: string;
+  status: 'result' | 'proposed' | 'approval-required' | 'unknown';
+  proposal: { proposalId: string } | null;
+};
+
+/**
+ * The proposal owner used when the deployment does not compose the existing
+ * revision service. It refuses rather than inventing a store.
+ */
+const UNAVAILABLE_PROPOSALS: NativeGenerationProposalOwner = {
+  createProposal: async () => {
+    throw new NativeGenerationRefusal(
+      'owner-unavailable',
+      'The existing Workspace proposal owner is not composed for this deployment.',
+    );
+  },
 };
 
 /**
@@ -77,13 +132,21 @@ type DraftWithConfig = {
 @Injectable()
 export class DocumentAgentService {
   private readonly logger = new Logger(DocumentAgentService.name);
+  private readonly nativeGeneration: NativeGenerationBridge;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly collaborators: CollaboratorsService,
     private readonly reasoning: WorkspaceReasoningGateway,
     private readonly generation: GenerationService,
-  ) {}
+    @Optional() private readonly revisions?: DocumentAgentRevisionService,
+    @Optional() @Inject(NATIVE_GENERATION_TURN) turn?: NativeGenerationTurnPort,
+  ) {
+    this.nativeGeneration = new NativeGenerationBridge({
+      turn,
+      proposals: this.revisions ?? UNAVAILABLE_PROPOSALS,
+    });
+  }
 
   // ── Catalog & Recommendation ────────────────────────────────────────────
 
@@ -472,42 +535,58 @@ export class DocumentAgentService {
 
   /**
    * POST /drafts/:draftId/agent/brief/synthesize — synthesize the brief.
+   *
+   * The content comes from ONE canonical native conversation SDK turn prepared
+   * by the existing greenfield Meri owner (see native-generation.bridge.ts);
+   * the brief is then applied by this service's own state owner under the ACL
+   * and revision lock, and the existing `brief.approvedAt` pin stays the human
+   * acceptance. `WorkspaceReasoningGateway` is not consulted.
    */
   async synthesizeBrief(
     tenantId: string,
     draftId: string,
     actorId: string,
     expectedRevision: number,
-  ): Promise<{ state: DocumentAgentState }> {
+    paidGeneration: boolean,
+    credential?: string,
+  ): Promise<DocumentAgentNativeGenerationResult> {
     const draft = await this.loadDraft(tenantId, draftId, actorId, canEdit);
     const state = readAgentState(draft.config);
-    const conversationHistory = await this.buildConversationText(tenantId, draftId);
-    const blueprintSectionsText = state.outline.sections
-      .map((s) => `- ${s.title}: ${s.purpose}`)
-      .join('\n') || 'No blueprint sections yet.';
-    const result = await this.reasoning.synthesizeBrief(
+    if (state.revision !== expectedRevision) throw new ConflictException(REVISION_CONFLICT_CODE);
+    const admission = await this.admitNativeGeneration(state, {
+      phase: 'brief',
       tenantId,
-      synthesizeBriefPrompt(state.goal?.text ?? '', conversationHistory, blueprintSectionsText),
-      synthesizeBriefPrompt(state.goal?.text ?? '', conversationHistory, blueprintSectionsText),
-    );
-    return this.withMutationLock(tenantId, draftId, actorId, canEdit, expectedRevision, (s) => {
-      s.brief.objective = result.objective;
-      s.brief.audience = result.audience;
-      s.brief.desiredAction = result.desiredAction;
-      s.brief.subject = result.subject;
-      s.brief.centralArgument = result.centralArgument;
-      s.brief.evidenceInstructions = result.evidenceInstructions;
-      s.brief.tone = result.tone;
-      s.brief.targetPages = result.targetPages;
-      s.brief.deadline = result.deadline;
-      s.brief.assumptions = result.assumptions.map((a) => ({
-        id: a.id,
-        text: a.text,
-        status: 'open' as const,
-      }));
-      s.brief.provenance = result.provenance;
-      s.status = 'ready';
+      actorId,
+      draftId,
+      clientId: draft.clientId,
+      expectedRevision,
+      intent: paidGeneration,
+      credential,
     });
+    if (admission.kind === 'result') {
+      const brief = admission.result.brief;
+      if (!brief) throw new ConflictException('The native brief result did not carry a brief.');
+      const updated = await this.withMutationLock(tenantId, draftId, actorId, canEdit, expectedRevision, (s) => {
+        s.brief.objective = brief.objective;
+        s.brief.audience = brief.audience;
+        s.brief.desiredAction = brief.desiredAction;
+        s.brief.subject = brief.subject;
+        s.brief.centralArgument = brief.centralArgument;
+        s.brief.evidenceInstructions = brief.evidenceInstructions;
+        s.brief.tone = brief.tone;
+        s.brief.targetPages = brief.targetPages;
+        s.brief.deadline = brief.deadline;
+        s.brief.assumptions = brief.assumptions.map((a) => ({
+          id: a.id,
+          text: a.text,
+          status: 'open' as const,
+        }));
+        s.brief.provenance = brief.provenance;
+        s.status = 'ready';
+      });
+      return { state: updated.state, requestId: admission.requestId, status: 'result', proposal: null };
+    }
+    return this.nativeGenerationResult(tenantId, draftId, actorId, admission);
   }
 
   /**
@@ -551,69 +630,91 @@ export class DocumentAgentService {
 
   /**
    * POST /drafts/:draftId/agent/context/recommend — recommend context items.
+   * The recommendation comes from ONE canonical native conversation SDK turn;
+   * it is applied by this service's state owner and `contextPlan.approvedAt`
+   * stays the human acceptance.
    */
   async recommendContext(
     tenantId: string,
     draftId: string,
     actorId: string,
     expectedRevision: number,
-  ): Promise<{ state: DocumentAgentState; recommendations: unknown }> {
+    paidGeneration: boolean,
+    credential?: string,
+  ): Promise<DocumentAgentNativeGenerationResult> {
     const draft = await this.loadDraft(tenantId, draftId, actorId, canEdit);
     const state = readAgentState(draft.config);
-    const items = await this.prisma.wsContextItem.findMany({
-      where: { tenantId, draftId },
-    });
-    const availableItems = items
-      .map((i) => `- ${i.id}: ${(i.payload as { label?: string })?.label ?? 'Unlabeled'}`)
-      .join('\n');
-    const result = await this.reasoning.recommendContext(
+    if (state.revision !== expectedRevision) throw new ConflictException(REVISION_CONFLICT_CODE);
+    const admission = await this.admitNativeGeneration(state, {
+      phase: 'context-recommend',
       tenantId,
-      `Recommend context for: ${state.goal?.text ?? ''}`,
-      `Available items:\n${availableItems}`,
-    );
-    const updated = await this.withMutationLock(tenantId, draftId, actorId, canEdit, expectedRevision, (s) => {
-      s.contextPlan.includedItemIds = result.includedItemIds;
-      s.contextPlan.excludedItems = result.excludedItems;
+      actorId,
+      draftId,
+      clientId: draft.clientId,
+      expectedRevision,
+      intent: paidGeneration,
+      credential,
     });
-    return { state: updated.state, recommendations: result };
+    if (admission.kind === 'result') {
+      const context = admission.result.context;
+      if (!context) throw new ConflictException('The native context result did not carry a context plan.');
+      const updated = await this.withMutationLock(tenantId, draftId, actorId, canEdit, expectedRevision, (s) => {
+        s.contextPlan.includedItemIds = context.includedItemIds;
+        s.contextPlan.excludedItems = context.excludedItems;
+      });
+      return { state: updated.state, requestId: admission.requestId, status: 'result', proposal: null };
+    }
+    return this.nativeGenerationResult(tenantId, draftId, actorId, admission);
   }
 
   /**
    * POST /drafts/:draftId/agent/context/analyze — analyze context for
-   * conflicts and coverage.
+   * conflicts and coverage. The analysis comes from ONE canonical native
+   * conversation SDK turn; the snapshot hash is still computed here from the
+   * retained included items, so the existing conflict/coverage fence is kept.
    */
   async analyzeContext(
     tenantId: string,
     draftId: string,
     actorId: string,
     expectedRevision: number,
-  ): Promise<{ state: DocumentAgentState }> {
+    paidGeneration: boolean,
+    credential?: string,
+  ): Promise<DocumentAgentNativeGenerationResult> {
     const draft = await this.loadDraft(tenantId, draftId, actorId, canEdit);
     const state = readAgentState(draft.config);
-    const items = await this.prisma.wsContextItem.findMany({
-      where: { tenantId, draftId },
-    });
-    const included = items.filter((i) => state.contextPlan.includedItemIds.includes(i.id));
-    const includedText = included
-      .map((i) => `- ${i.id}: ${(i.payload as { label?: string })?.label ?? ''}`)
-      .join('\n');
-    const result = await this.reasoning.analyzeContext(
+    if (state.revision !== expectedRevision) throw new ConflictException(REVISION_CONFLICT_CODE);
+    const admission = await this.admitNativeGeneration(state, {
+      phase: 'context-analyze',
       tenantId,
-      `Analyze context for: ${state.brief.objective ?? ''}`,
-      `Included items:\n${includedText}`,
-    );
-    // Compute the context snapshot hash.
-    const snapshotItems = included.map((i) => ({
-      id: i.id,
-      label: (i.payload as { label?: string })?.label ?? '',
-      text: (i.payload as { text?: string })?.text,
-    }));
-    const snapshotHash = computeContextSnapshotHash(snapshotItems);
-    return this.withMutationLock(tenantId, draftId, actorId, canEdit, expectedRevision, (s) => {
-      s.contextPlan.conflicts = result.conflicts as ContextConflict[];
-      s.contextPlan.coverage = result.coverage as ContextCoverage;
-      s.contextPlan.snapshotHash = snapshotHash;
+      actorId,
+      draftId,
+      clientId: draft.clientId,
+      expectedRevision,
+      intent: paidGeneration,
+      credential,
     });
+    if (admission.kind === 'result') {
+      const analysis = admission.result.context;
+      if (!analysis) throw new ConflictException('The native context result did not carry a context plan.');
+      const items = await this.prisma.wsContextItem.findMany({
+        where: { tenantId, draftId },
+      });
+      const included = items.filter((i) => state.contextPlan.includedItemIds.includes(i.id));
+      const snapshotItems = included.map((i) => ({
+        id: i.id,
+        label: (i.payload as { label?: string })?.label ?? '',
+        text: (i.payload as { text?: string })?.text,
+      }));
+      const snapshotHash = computeContextSnapshotHash(snapshotItems);
+      const updated = await this.withMutationLock(tenantId, draftId, actorId, canEdit, expectedRevision, (s) => {
+        s.contextPlan.conflicts = (analysis.conflicts ?? []) as ContextConflict[];
+        s.contextPlan.coverage = analysis.coverage as ContextCoverage;
+        s.contextPlan.snapshotHash = snapshotHash;
+      });
+      return { state: updated.state, requestId: admission.requestId, status: 'result', proposal: null };
+    }
+    return this.nativeGenerationResult(tenantId, draftId, actorId, admission);
   }
 
   /**
@@ -657,8 +758,12 @@ export class DocumentAgentService {
       if (conflict.resolved) {
         throw new ConflictException('Conflict is already resolved');
       }
-      conflict.resolved = true;
-      conflict.resolution = dto.resolution;
+      // mutateState copies the conflicts ARRAY but shares its ELEMENTS, so the
+      // matched element is replaced rather than written through: the object the
+      // persist compare-and-set compares must stay exactly the stored row.
+      s.contextPlan.conflicts = s.contextPlan.conflicts.map((c) =>
+        c.id === conflictId ? { ...c, resolved: true, resolution: dto.resolution } : c,
+      );
       // Remove excluded items from the included set so the approved plan
       // reflects the user's resolution choice.
       if (dto.excludedItemIds && dto.excludedItemIds.length > 0) {
@@ -712,40 +817,40 @@ export class DocumentAgentService {
 
   /**
    * POST /drafts/:draftId/agent/outline/generate — generate the outline.
+   *
+   * The sections come from ONE canonical native conversation SDK turn. They are
+   * NEVER written to the outline here: they are admitted as a PENDING
+   * `outline_revision` proposal through the existing revision owner, and only
+   * land when a reviewer with `canReview` accepts it (acceptProposal re-checks
+   * the outline hash for staleness). This preserves the outline approval pin.
    */
   async generateOutline(
     tenantId: string,
     draftId: string,
     actorId: string,
     expectedRevision: number,
-  ): Promise<{ state: DocumentAgentState }> {
+    paidGeneration: boolean,
+    credential?: string,
+  ): Promise<DocumentAgentNativeGenerationResult> {
     const draft = await this.loadDraft(tenantId, draftId, actorId, canEdit);
     const state = readAgentState(draft.config);
-    // The blueprint must be pinned.
+    // The blueprint must be pinned AND still resolvable before any paid turn.
     if (!state.blueprintPin) {
       throw new ConflictException('A blueprint must be pinned before generating an outline.');
     }
-    // Load the blueprint version definition.
-    const { version: blueprintVersion } = await resolveBlueprintPin(
-      this.prisma, tenantId, state.blueprintPin, 'retained',
-    );
-    const definition = blueprintVersion.definition as {
-      sections?: Array<{ id: string; title: string; purpose: string; instructions: string; required: boolean; lockedByDefault: boolean; targetWords: { min: number; max: number }; evidenceRules: string[] }>;
-    };
-    const blueprintSectionsText = (definition.sections ?? [])
-      .map((s) => `- ${s.id}: ${s.title} — ${s.purpose}`)
-      .join('\n');
-    const contextSummary = `Included items: ${state.contextPlan.includedItemIds.length}`;
-    const system = generateOutlinePrompt(
-      state.brief.objective ?? '',
-      blueprintSectionsText,
-      contextSummary,
-    );
-    const result = await this.reasoning.generateOutline(tenantId, system, system);
-    return this.withMutationLock(tenantId, draftId, actorId, canEdit, expectedRevision, (s) => {
-      s.outline.version += 1;
-      s.outline.sections = result.sections as DocumentAgentOutlineSection[];
+    await resolveBlueprintPin(this.prisma, tenantId, state.blueprintPin, 'retained');
+    if (state.revision !== expectedRevision) throw new ConflictException(REVISION_CONFLICT_CODE);
+    const admission = await this.admitNativeGeneration(state, {
+      phase: 'outline',
+      tenantId,
+      actorId,
+      draftId,
+      clientId: draft.clientId,
+      expectedRevision,
+      intent: paidGeneration,
+      credential,
     });
+    return this.nativeGenerationResult(tenantId, draftId, actorId, admission);
   }
 
   /**
@@ -887,17 +992,41 @@ export class DocumentAgentService {
       outlineSnapshot?: DocumentAgentOutlineSection[];
       revisedContent?: Record<string, string>;
     };
-    const updated = await this.withMutationLock(tenantId, draftId, actorId, canReview, expectedRevision, (s) => {
-      if (proposal.type === 'outline_revision' && payload.outlineSnapshot) {
-        s.outline.sections = payload.outlineSnapshot;
-        s.outline.version += 1;
-      }
-      if (proposal.type === 'content_revision' && payload.revisedContent) {
-        // Merge revised content into config.sectionContent (the existing editor field).
-        // The actual merge happens in the config object, not the agent state.
-      }
-      s.pendingProposalId = undefined;
-    });
+    // Only a content revision carries content, and only when the payload really is
+    // a section-id -> text map.
+    const revisedContent =
+      proposal.type === 'content_revision' && isContentMap(payload.revisedContent)
+        ? payload.revisedContent
+        : undefined;
+    const updated = await this.withMutationLock(
+      tenantId,
+      draftId,
+      actorId,
+      canReview,
+      expectedRevision,
+      (s) => {
+        if (proposal.type === 'outline_revision' && payload.outlineSnapshot) {
+          s.outline.sections = payload.outlineSnapshot;
+          s.outline.version += 1;
+        }
+        s.pendingProposalId = undefined;
+      },
+      // A content revision lands in the draft's EXISTING `sectionContent` editor
+      // field, which the agent state mutation cannot carry. It is written in the
+      // SAME optimistic config write as the state — one compare-and-set against
+      // the exact config this accept validated staleness against — so a failed
+      // compare leaves the proposal, the state, the config and the content
+      // exactly as they were instead of accepting a proposal with no content.
+      revisedContent === undefined
+        ? undefined
+        : (config) => ({
+            ...config,
+            sectionContent: {
+              ...((config as { sectionContent?: Record<string, string> }).sectionContent ?? {}),
+              ...revisedContent,
+            },
+          }),
+    );
 
     // Mark the proposal as accepted.
     await this.prisma.wsAgentProposal.update({
@@ -946,10 +1075,14 @@ export class DocumentAgentService {
   // ── Generation ──────────────────────────────────────────────────────────
 
   /**
-   * POST /drafts/:draftId/agent/generate — start generation.
-   * Delegates to the existing GenerationService. Keeps the request open or
-   * runs through the existing durable worker. Does NOT use an untracked
-   * void promise background task.
+   * POST /drafts/:draftId/agent/generate — start the document run.
+   *
+   * The run is started as ONE canonical native conversation SDK turn for the
+   * exact authenticated identity and the draft's selected client. A completed
+   * document body is admitted by the EXISTING document/artifact approval owner,
+   * never written here; this method only records the run under the existing
+   * state owner so cancel/reload semantics and the run identity survive. It does
+   * NOT call `GenerationService` and does NOT use an untracked void promise.
    */
   async generate(
     tenantId: string,
@@ -957,11 +1090,19 @@ export class DocumentAgentService {
     actorId: string,
     expectedRevision: number,
     mode: GenerationMode = 'standard',
-  ): Promise<{ state: DocumentAgentState; run: DocumentAgentRunSummary | null }> {
+    paidGeneration: boolean,
+    credential?: string,
+  ): Promise<{
+    state: DocumentAgentState;
+    run: DocumentAgentRunSummary | null;
+    requestId: string;
+    status: 'approval-required' | 'unknown';
+    proposal: { proposalId: string } | null;
+  }> {
     const draft = await this.loadDraft(tenantId, draftId, actorId, canEdit);
     const state = readAgentState(draft.config);
 
-    // Validate preconditions.
+    // Validate preconditions (the existing approval pins).
     if (!state.brief.approvedAt) {
       throw new ConflictException('Brief must be approved before generation.');
     }
@@ -971,80 +1112,94 @@ export class DocumentAgentService {
     if (!state.outline.approvedAt) {
       throw new ConflictException('Outline must be approved before generation.');
     }
+    if (state.revision !== expectedRevision) throw new ConflictException(REVISION_CONFLICT_CODE);
 
-    const runId = state.generation.activeRunId ?? crypto.randomUUID();
+    const admission = await this.admitNativeGeneration(state, {
+      phase: 'document',
+      tenantId,
+      actorId,
+      draftId,
+      clientId: draft.clientId,
+      expectedRevision,
+      intent: paidGeneration,
+      credential,
+    });
+
+    if (admission.kind === 'unknown') {
+      // UNKNOWN is reconciled against the exact retained request — never
+      // retried blind. The caller reads the same requestId back.
+      const current = await this.getAgentState(tenantId, draftId, actorId);
+      return {
+        state: current.state,
+        run: current.state.generation.lastRun ?? null,
+        requestId: admission.requestId,
+        status: 'unknown',
+        proposal: null,
+      };
+    }
+    // The document body the native turn produced enters the EXISTING Workspace
+    // proposal owner as a PENDING `content_revision` proposal. Nothing is written
+    // here: only a reviewer with `canReview` accepting the proposal lands the body
+    // in the draft's existing `sectionContent` field, and acceptProposal re-checks
+    // the retained content hash for staleness first.
+    let proposalId: string;
+    if (admission.kind === 'result' && admission.result.document) {
+      if (!this.revisions) {
+        throw new ServiceUnavailableException(
+          'The Workspace document proposal owner is not composed; the document body cannot be admitted.',
+        );
+      }
+      const revisedContent = Object.fromEntries(
+        admission.result.document.sections.map((section) => [section.id, section.text]),
+      );
+      const retainedContent =
+        (draft.config as { sectionContent?: Record<string, string> }).sectionContent ?? {};
+      const proposal = await this.revisions.createProposal({
+        tenantId,
+        draftId,
+        createdById: actorId,
+        type: 'content_revision',
+        baseRevision: expectedRevision,
+        baseHash: computeContentHash(retainedContent),
+        payload: {
+          revisedContent,
+          requestId: admission.requestId,
+          runId: admission.runId,
+          mode,
+        },
+      });
+      proposalId = proposal.proposalId;
+    } else if (admission.kind === 'approval-required') {
+      proposalId = admission.proposalId;
+    } else {
+      throw new ConflictException(
+        'The native document run did not return a document body or an approval-required admission.',
+      );
+    }
+
     const runSummary: DocumentAgentRunSummary = {
-      runId,
+      runId: admission.runId,
+      requestId: admission.requestId,
       mode,
       startedAt: new Date().toISOString(),
       status: 'active',
       stages: [],
     };
-
-    // Update state to generating.
     const updated = await this.withMutationLock(tenantId, draftId, actorId, canEdit, expectedRevision, (s) => {
       s.generation.mode = mode;
-      s.generation.activeRunId = runId;
+      s.generation.activeRunId = admission.runId;
       s.generation.lastRun = runSummary;
       s.phase = 'generate';
       s.status = 'generating';
+      s.pendingProposalId = proposalId;
     });
-
-    // Delegate to the existing GenerationService (request-scoped). Quick/Standard/Max
-    // currently share one underlying pipeline — `mode` labels the run only, it does
-    // not select a different code path (see docs/handoff/GAPS.md).
-    try {
-      const result = await this.generation.generateAllSections(tenantId, draftId, actorId, {});
-      const engineRun = (result as { generationRun?: GenerationRunSummary | null }).generationRun ?? null;
-
-      // Mark complete using the REAL run status/section results returned by the
-      // generation engine — never hardcode 'complete', a run can legitimately come
-      // back 'partial' or 'complete_with_warnings' without throwing.
-      const finalState = await this.getAgentState(tenantId, draftId, actorId);
-      const completed = await this.withMutationLock(
-        tenantId,
-        draftId,
-        actorId,
-        canEdit,
-        finalState.state.revision,
-        (s) => {
-          if (s.generation.lastRun) {
-            s.generation.lastRun.status = engineRun?.status ?? 'complete';
-            s.generation.lastRun.completedAt = engineRun?.completedAt ?? new Date().toISOString();
-            s.generation.lastRun.sectionResults = engineRun
-              ? Object.fromEntries(
-                  engineRun.sectionResults.map((r) => [
-                    r.section,
-                    r.status === 'succeeded'
-                      ? { status: 'succeeded' as const }
-                      : { status: 'failed' as const, error: r.message },
-                  ]),
-                )
-              : undefined;
-          }
-          s.status = engineRun?.status === 'failed' ? 'failed' : engineRun?.status === 'partial' ? 'partial' : 'complete';
-          s.phase = 'draft';
-        },
-      );
-      return { state: completed.state, run: completed.state.generation.lastRun ?? runSummary };
-    } catch (err) {
-      // Mark failed; preserve prior content.
-      const finalState = await this.getAgentState(tenantId, draftId, actorId);
-      await this.withMutationLock(
-        tenantId,
-        draftId,
-        actorId,
-        canEdit,
-        finalState.state.revision,
-        (s) => {
-          if (s.generation.lastRun) {
-            s.generation.lastRun.status = 'failed';
-          }
-          s.status = 'failed';
-        },
-      );
-      throw err;
-    }
+    return {
+      state: updated.state,
+      run: runSummary,
+      requestId: admission.requestId,
+      status: 'approval-required',
+      proposal: { proposalId },
+    };
   }
 
   /**
@@ -1121,13 +1276,56 @@ export class DocumentAgentService {
     draftId: string,
     actorId: string,
     expectedRevision: number,
+    credential?: string,
   ): Promise<{ state: DocumentAgentState }> {
-    return this.withMutationLock(tenantId, draftId, actorId, canEdit, expectedRevision, (state) => {
-      state.generation.activeRunId = undefined;
-      state.status = 'partial';
-      if (state.generation.lastRun) {
-        state.generation.lastRun.status = 'partial';
+    // Cancel the EXACT retained native request: the run summary keeps the
+    // native request identity, so a cancel after a reload still addresses the
+    // same conversation turn and never a different one.
+    const draft = await this.loadDraft(tenantId, draftId, actorId, canEdit);
+    // The DTO carries only the revision, so the run this cancel means is whatever
+    // the row retains NOW — never a run the caller was looking at. Refuse a stale
+    // caller BEFORE the effect, exactly as the neighbouring native phases do (:555,
+    // :647, :686, :842, :1115): a request that must be turned away must not stop
+    // the newer run that took its place. withMutationLock's own revision check and
+    // the single persist compare-and-set stay the authoritative guard — no second
+    // lock, transaction or authority is added here.
+    const current = readAgentState(draft.config);
+    if (current.revision !== expectedRevision) throw new ConflictException(REVISION_CONFLICT_CODE);
+    const retainedRun = current.generation.lastRun;
+    const retained = retainedRun?.requestId;
+    if (retained !== undefined) {
+      try {
+        await this.nativeGeneration.cancel(
+          {
+            requestId: retained,
+            tenantId,
+            actorId,
+            draftId,
+            clientId: draft.clientId,
+            // The exact run the original turn started, retained in the run summary:
+            // the native owner must resolve this binding, never a different one.
+            ...(retainedRun?.runId === undefined ? {} : { runId: retainedRun.runId }),
+          },
+          credential ?? '',
+        );
+      } catch (error) {
+        throw this.nativeGenerationHttpError(error);
       }
+    }
+    return this.withMutationLock(tenantId, draftId, actorId, canEdit, expectedRevision, (state) => {
+      state.generation = {
+        ...state.generation,
+        activeRunId: undefined,
+        // The run summary is a NESTED object that mutateState shares with the
+        // stored state, so the cancel REPLACES it instead of writing through it:
+        // the object handed to the persist compare-and-set must stay exactly the
+        // stored row, or the cancel would 409 after the native cancel was issued.
+        lastRun:
+          state.generation.lastRun === undefined
+            ? undefined
+            : { ...state.generation.lastRun, status: 'partial' as const },
+      };
+      state.status = 'partial';
     });
   }
 
@@ -1135,6 +1333,117 @@ export class DocumentAgentService {
   // Quality evaluation is handled by DocumentAgentQualityService, which is
   // injected into the controller (not this service). The controller delegates
   // quality endpoint calls directly to the quality service.
+
+  // ── Native generation helpers (approved greenfield owner) ────────────────
+
+  /**
+   * The exact retained Workspace sources a native generation turn is scoped to.
+   * Derived only from canonical draft state (opaque ids — never prompt or
+   * document text), so an unchanged request always derives the same native
+   * request identity and a changed retained set derives a different one.
+   */
+  private nativeGenerationSources(
+    draftId: string,
+    state: DocumentAgentState,
+    phase: NativeGenerationPhase,
+  ): NativeGenerationSource[] {
+    const sources: NativeGenerationSource[] = [
+      { id: draftId, kind: 'workspace-draft' },
+      ...state.contextPlan.includedItemIds.map((id) => ({ id, kind: 'context-item' })),
+    ];
+    if (state.blueprintPin) sources.push({ id: state.blueprintPin.versionId, kind: 'blueprint-version' });
+    if (state.documentType) sources.push({ id: state.documentType.id, kind: 'document-type' });
+    // The document body is keyed by the APPROVED outline's sections, so the exact
+    // retained section ids travel as sources and the answer must key them exactly.
+    if (phase === 'document')
+      sources.push(...state.outline.sections.map((section) => ({ id: section.id, kind: 'outline-section' })));
+    return sources;
+  }
+
+  /**
+   * Admit one supported generated phase through the native bridge and translate
+   * its policy refusal into the HTTP error the caller sees. The legacy
+   * `WorkspaceReasoningGateway` / `GenerationService` owners are never
+   * consulted from here.
+   */
+  private async admitNativeGeneration(
+    state: DocumentAgentState,
+    request: {
+      phase: NativeGenerationPhase;
+      tenantId: string;
+      actorId: string;
+      draftId: string;
+      clientId: string | null;
+      expectedRevision: number;
+      intent: unknown;
+      credential?: string;
+    },
+  ): Promise<NativeGenerationAdmission> {
+    try {
+      return await this.nativeGeneration.admit({
+        ...request,
+        // The bridge's input contract always carries a credential STRING, so the
+        // optional credential this service accepts is normalised here rather than
+        // asserted: an absent credential becomes the empty string and the bridge's
+        // own requireCredential() remains the single refusal point for it. The
+        // caller's credential itself is forwarded verbatim, never reinterpreted.
+        credential: request.credential ?? '',
+        state,
+        sources: this.nativeGenerationSources(request.draftId, state, request.phase),
+      });
+    } catch (error) {
+      throw this.nativeGenerationHttpError(error);
+    }
+  }
+
+  /** A bridge refusal is a policy decision; it maps to a 4xx/503, not a 500. */
+  private nativeGenerationHttpError(error: unknown): Error {
+    if (error instanceof NativeGenerationOwnerError) {
+      switch (error.code) {
+        case 'unavailable':
+          return new ServiceUnavailableException(error.message);
+        case 'authority':
+          return new ForbiddenException(error.message);
+        case 'output':
+          return new BadGatewayException(error.message);
+        default:
+          return new ConflictException(error.message);
+      }
+    }
+    if (!(error instanceof NativeGenerationRefusal)) return error as Error;
+    switch (error.code) {
+      case 'intent-required':
+      case 'credential-required':
+        return new BadRequestException(error.message);
+      case 'owner-unavailable':
+        return new ServiceUnavailableException(error.message);
+      default:
+        return new ConflictException(error.message);
+    }
+  }
+
+  /**
+   * The canonical answer a supported generated phase returns: the state after
+   * the phase, the retained native request identity, and the pending proposal
+   * when the phase was admitted as one.
+   */
+  private async nativeGenerationResult(
+    tenantId: string,
+    draftId: string,
+    actorId: string,
+    admission: NativeGenerationAdmission,
+  ): Promise<DocumentAgentNativeGenerationResult> {
+    const current = await this.getAgentState(tenantId, draftId, actorId);
+    if (admission.kind === 'unknown') {
+      return { state: current.state, requestId: admission.requestId, status: 'unknown', proposal: null };
+    }
+    return {
+      state: current.state,
+      requestId: admission.requestId,
+      status: admission.kind,
+      proposal: admission.kind === 'result' ? null : { proposalId: admission.proposalId },
+    };
+  }
 
   // ── Internal helpers ────────────────────────────────────────────────────
 
@@ -1163,6 +1472,7 @@ export class DocumentAgentService {
       id: draft.id,
       tenantId: draft.tenantId,
       ownerId: draft.ownerId,
+      clientId: (draft.clientId as string | null | undefined) ?? null,
       config: (draft.config as Record<string, unknown>) ?? {},
       updatedAt: draft.updatedAt,
     };
@@ -1180,6 +1490,7 @@ export class DocumentAgentService {
     predicate: (role: ResolvedRole) => boolean,
     expectedRevision: number,
     mutation: (state: DocumentAgentState) => void,
+    configPatch?: (config: Record<string, unknown>) => Record<string, unknown>,
   ): Promise<{ state: DocumentAgentState }> {
     const draft = await this.loadDraft(tenantId, draftId, actorId, predicate);
     const state = readAgentState(draft.config);
@@ -1187,7 +1498,7 @@ export class DocumentAgentService {
       throw new ConflictException(REVISION_CONFLICT_CODE);
     }
     const next = mutateState(state, mutation);
-    await this.persistAgentState(draft.id, draft.config, next);
+    await this.persistAgentState(draft.id, draft.config, next, configPatch);
     return { state: next };
   }
 
@@ -1199,8 +1510,10 @@ export class DocumentAgentService {
     draftId: string,
     existingConfig: Record<string, unknown>,
     state: DocumentAgentState,
+    configPatch?: (config: Record<string, unknown>) => Record<string, unknown>,
   ): Promise<void> {
-    const newConfig = { ...existingConfig, documentAgent: state as unknown as Record<string, unknown> };
+    const patched = configPatch === undefined ? existingConfig : configPatch(existingConfig);
+    const newConfig = { ...patched, documentAgent: state as unknown as Record<string, unknown> };
     const saved = await this.prisma.wsDraft.updateMany({
       where: { id: draftId, config: { equals: existingConfig as never } },
       data: { config: newConfig as never },

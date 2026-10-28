@@ -21,6 +21,7 @@ import {
   COMMITMENTS_AUDIT_STATUSES,
   commitmentsAuditProcedureSkill,
 } from './skills/commitments-audit.procedure.js';
+import { CLIO_SKILLS } from './skills/skill-registry.js';
 
 const LIMITS = {
   name: 80,
@@ -57,6 +58,21 @@ const OUTPUT_KEYS = new Set([
 const EFFECT_KEYS = new Set(['mode', 'prohibitedEffects']);
 const PROCEDURE_CAPABILITY_SET = new Set<string>(MERI_PROCEDURE_CAPABILITIES);
 const PROCEDURE_SCOPE_SET = new Set<string>(MERI_PROCEDURE_SCOPES);
+
+/**
+ * Canonical identities of the six named built-in procedures. Their content is
+ * source-frozen in CLIO_SKILLS and is never tenant-authored, so a firm row may
+ * not publish content under one of these ids. The canonical id is the procedure
+ * identity that travels into the signed governed context and is re-checked by
+ * the runtime validation endpoint; allowing a firm row to claim it would let
+ * tenant content masquerade as a built-in procedure.
+ *
+ * Derived from the canonical registry rather than restated, so the reservation
+ * cannot drift from the built-ins it protects.
+ */
+export const RESERVED_CANONICAL_IDS: ReadonlySet<string> = new Set(
+  CLIO_SKILLS.map((skill) => skill.id),
+);
 
 /** Triggers owned by built-in skills/intents; firm skills may not claim these. */
 export const RESERVED_TRIGGERS = new Set([
@@ -335,6 +351,8 @@ export function validateFirmSkill(
 
   const id = String(input.id ?? '').trim();
   if (!/^[a-z0-9_]{2,48}$/.test(id)) errors.push('id must be 2-48 chars of [a-z0-9_]');
+  else if (RESERVED_CANONICAL_IDS.has(id))
+    errors.push(`id "${id}" is a built-in procedure identity`);
 
   const name = String(input.name ?? '').trim();
   if (!name || name.length > LIMITS.name) errors.push(`name is required (<=${LIMITS.name} chars)`);

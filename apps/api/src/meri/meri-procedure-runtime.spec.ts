@@ -52,13 +52,23 @@ describe('served procedure API binding', () => {
       id: 'commitments_audit',
       version: 3,
       source: 'firm',
+      // The receipt carries the exact manifest identity, so a persisted turn can
+      // be traced to the procedure version that actually ran.
+      manifestDigest: served?.binding.manifestDigest,
       scope: 'client',
       clientId: 'client-a',
       effectMode: 'read_only',
+      allowedTools: served?.binding.policy.allowedTools,
       caseIds: ['CD-01', 'CD-02', 'CD-03', 'CD-04', 'CD-05', 'CD-06', 'CD-07'],
       completionCheckCount: 7,
       coverageStates: ['checked', 'disconnected', 'unavailable', 'not mapped'],
     });
+    expect(served?.receipt.manifestDigest).toMatch(/^[a-f0-9]{64}$/);
+    // The receipt's read surface is the granted surface, not the requested one:
+    // it is the capability expansion, so it excludes nothing declared but never
+    // requested, and requiredTools stay a separate mandatory-dependency list.
+    expect(served?.receipt.allowedTools).toContain('read_client_meetings');
+    expect(served?.receipt.allowedTools).toContain('query_debriefs');
     expect(served?.binding.policy.allowedTools).toContain('list_upcoming_meetings');
     expect(served?.binding.policy.allowedTools).toContain('read_client_meetings');
     expect(served?.binding.policy.requiredTools).not.toContain('list_upcoming_meetings');
