@@ -1,0 +1,153 @@
+MB-05 CORE OLDEST-FIRST DELIVERY RECOVERY — HANDOFF (2026-10-28, Core successor branch)
+
+Checkout  work/m7-source-events-core-20261028
+Branch    codex/wave5-m7-source-event-recovery-core-20261028   (NEW successor, created from the frozen Core head)
+Base      f7119d9f3f4c517fcd9d43ff3a3f075a3001b74e  (frozen; unchanged, and the parent of this work)
+Impl head 6273358cd3c4e6beab6eb6a1260c386f7c056da0  tree 486f36153c56f880940919f7952516414220075c
+          (the file immediately after this one, CORE-REPLAY-HANDOFF.txt, is committed on top of it)
+Parent's successor branch codex/wave5-m7-source-event-replay-core-20261028 still points at f7119d9f (untouched).
+Meri b7b87ea123e851e263faf9d630ade12261aae144 was NOT touched: no Meri source/test/public file was opened for
+write in this pass; the Meri checkout is not in this task's diff at all.
+No push, no PR, no deploy, no package/lock/PLAN/Prisma/schema change, no migration applied, no source-event
+activation, no network/target/provider/model/DB/browser call from the work itself.
+
+THE CONFIRMED DEFECT (closed here)
+The delivery reconciliation read the NEWEST `maxRecordsPerSource` alerts of the watch
+(`orderBy firstObservedAt desc, take maxRecordsPerSource`). That window slides forward, so an alert committed
+with more than a page of newer siblings committed after it — or simply pushed out of the window by later
+activity — was never offered again: after a crash or an UNKNOWN answer its handoff was permanently lost while
+the run still reported a healthy page. Nothing else could recover it, because the diff produces no new draft for
+an already-baselined record.
+
+THE FIX (smallest safe pattern; no new table, no new platform, no scheduler)
+ONE bounded OLDEST-FIRST keyset page over the watch's OWN canonical, immutable alert rows, with a durable cursor
+in the existing versioned source-state checkpoint. Repeats are safe because Meri's identity dedup makes a
+re-offered event the same single event.
+
+1. CURSOR PERSISTENCE (the existing owner, extended additively)
+   * Location: `business_development_watch_source_states.baseline_state` -> `.scan.delivery`, i.e. INSIDE the
+     existing versioned scan checkpoint that `resolveScanCheckpoint` already fail-closes on.
+     Shape (`BizDevWatchDeliveryCheckpoint`, version 1): `{ cursorAtMs, cursorId, pagesDone }`.
+   * The alert row is NEVER mutated: `businessDevelopmentAlert` stays the immutable canonical source record, and
+     no per-alert delivery marker/column was invented (none was needed — see "no missing field" below).
+   * Validation: `assertDeliveryCheckpoint` mirrors the existing exposure sub-walk: malformed, newer-version, a
+     half-paired keyset, or a bad instant/id/pagesDone THROWS, so the source goes `partial` and NOTHING advances.
+     A malformed cursor is never reinterpreted as "start from the beginning" (whole-history replay) nor as
+     "advance past everything" (the loss this exists to prevent).
+   * Keyset: `(firstObservedAt, id)` ASCENDING, a stable total order even when many alerts share one instant.
+     The page predicate is `OR(firstObservedAt > cursorAtMs, firstObservedAt = cursorAtMs AND id > cursorId)`.
+   * Start/end: an absent cursor starts at the BEGINNING of the watch's own alert history (the only start that
+     cannot strand an alert committed before the cursor existed); the cursor is monotone and is carried across a
+     completed traversal cycle AND across a source-scope/identity change (both would otherwise replay history).
+   * Legacy/immediate scope: a baseline with no `delivery` field is simply an empty cursor (existing LEGACY
+     baselines keep working, exactly like the scan checkpoint itself).
+
+2. ACK SEMANTICS (what may advance the cursor)
+   * DEFINITE terminal states (Meri's own answer): DISPATCHED, DEDUPED, ACCEPTED, QUEUED, SKIPPED, REFUSED,
+     CONFLICT. A definite answer advances — including a definite NO-EFFECT (SKIPPED = "no approved routine for
+     this pair"), which is a terminal disposition, not a delivery.
+   * Anything else is UNRESOLVED: UNKNOWN, a non-200 transport/credential/route failure, a thrown or swallowed
+     exception, or an unintelligible body. None of these may advance.
+   * Only the CONTIGUOUS OLDEST-FIRST prefix of definite answers advances (`acknowledgedDeliveryPrefix`).
+     Scattered newer answers are deliberately NOT stepped over: an unresolved older alert holds the cursor
+     exactly there, and the next evaluation re-offers the same page. A bounded page can therefore never
+     silently advance past an UNKNOWN.
+   * Aggregate-only delivery owners stay supported with the CONSERVATIVE WHOLE-PAGE rule: the page is
+     acknowledged only when the owner accounts for every offered alert (`offered === page.length`) and reports
+     no UNKNOWN. A partial or inconsistent aggregate (e.g. offered 1 of 2) acknowledges nothing.
+   * Counts are derived per alert from the owner's dispositions when it reports them, so every offered alert is
+     accounted exactly once; a silent/thrown owner is counted UNKNOWN for the whole page — never success.
+
+3. LEASE / CAS ACROSS THE EXTERNAL CALL (no network inside a transaction)
+   * Claim: unchanged raw lease claim (`lease_token`/`lease_until` CAS, only an unclaimed/expired row flips).
+   * Transaction A (the existing per-source transaction): diff/scan/alerts/deliveries/activity/baseline/scan
+     checkpoint commit together, and the healthy finalize now DELIBERATELY RETAINS the lease (it no longer
+     clears `lease_token`). Every early-exit path (pending/deferred/review/read-error/error) still releases it
+     exactly as before, so no path leaves a lease stranded.
+   * Outside any DB transaction: ONE bounded oldest-first read, then ONE call to the delivery owner for exactly
+     that page.
+   * Transaction B (the existing source-state owner, separate, lease-CAS): persists the advanced cursor inside
+     the committed baseline's scan metadata AND releases the lease, `WHERE tenant_id, id, lease_token = <our
+     claim>`. A zero-count update means the lease was lost/expired during the bounded call or a newer evaluator
+     owns the row — then NOTHING is written, so a stale worker can neither clobber a newer cursor nor resurrect
+     a stale baseline. It is always attempted (also when there is no advance, and when the sink threw), so the
+     lease is not left to expire on the happy path; a failed release needs no recovery path (the lease expires).
+   * A failed recovery READ changes nothing durable and is never a family failure.
+
+4. EXACT PRODUCTION CALLER (unchanged wiring, one factory swap)
+   `apps/api/scripts/run-bizdev-watch.ts`:
+     `const sourceEvents = origin && secret ? createSourceEventDispositionSink({ origin, secret }) : null;`
+   with `origin = process.env.MERI_CONTROL_ORIGIN`, `secret = process.env.INTERNAL_SERVICE_SECRET`, passed as the
+   runner's 5th argument. No origin/secret -> NO sink -> no recovery read and NO egress at all (unchanged
+   behaviour, still not activated). The new `createSourceEventDispositionSink` is the real producer owner
+   (real codec, real disposition parsing, one binding read per (tenant, family, watch) pair, 2 bounded attempts,
+   3s timeout, 64KiB response bound); `createSourceEventSink` remains as the aggregate-only view.
+
+5. PRESERVED (not changed by this work)
+   watch diff baseline fields and page/cycle semantics, the scan traversal keyset and fence, suppression and the
+   configured stale/catch-up/overlap/backpressure behaviour, owner/membership/client checks (a revoked or absent
+   owner still returns pending and, because tx A released the lease on that path, the recovery step does not run
+   at all — the existing owner-revocation spec still asserts the baseline is untouched), the finite
+   network/deadline rules, the alert/delivery/activity ledger, and the existing runner as the sole retry owner.
+
+TESTS (Windows Node v24.22.1; DATABASE_URL removed, CLEANUP_API_WORKER_DB=0; no DB/network)
+* `jest --forceExit src/business-development/bizdev-watch-runner.spec.ts src/business-development/bizdev-watch-source-event.spec.ts`
+  -> exit 0, 2 suites passed, 81 tests passed, 0 failed   (.evidence/core-replay-specs.log, gitignored `*.log`)
+* `jest --forceExit src/business-development/bizdev-watch-checkpoint.spec.ts` (touched module)
+  -> exit 0, 1 suite passed, 28 tests passed, 0 failed     (.evidence/core-replay-checkpoint-spec.log)
+  Requested cases, all present and passing:
+  >2-page burst with oldest pending (5-alert backlog at a 2-alert bound: pages id-1/2 -> id-3/4 -> id-5);
+  UNKNOWN repeated page (two consecutive passes, identical page, cursor null both times, then healed);
+  equal firstObservedAt keyset tie (aaa then bbb, never a repeat); new arrivals while backlog (the newest row is
+  not delivered ahead of the older ones); lease loss/concurrent evaluator prevents cursor advance (the sink takes
+  the row mid-call: counts are still reported honestly, the cursor is NOT written, the newer token is not
+  clobbered); commit-before-send crash then next evaluator (the pre-existing reconciliation test);
+  definite stale/no-effect (SKIPPED) distinguished from delivery; aggregate-only whole-page ACK rules;
+  no-owner-configured pass takes no recovery read and still releases the lease.
+  REAL BOUNDARY, not helper-only: the last test drives the REAL `createSourceEventDispositionSink` (real codec,
+  real disposition parsing) over an injected transport and a durable fake Meri effect keyed by event id —
+  crash-before-send (UNKNOWN, cursor holds) -> later evaluation (DISPATCHED, cursor advances) -> replay of the
+  SAME bytes (DEDUPED, still one durable effect).
+* Bounded TypeScript baseline: `tsc -p apps/api/tsconfig.m7-core-replay.json` (the exact imported closure of the
+  five touched production files; config committed) -> exit 2 with 410 diagnostics, ALL in other teams' files
+  (pre-existing, same class as the retained .evidence/tsc-baseline.sig), and ZERO in any touched file
+  (.evidence/core-replay-tsc4.log). Two earlier attempts of this bounded check are retained as evidence: they
+  aborted inside V8 (`FATAL ERROR: ... heap out of memory`) at the default heap while the file list still
+  included the large `*.spec.ts` graph (.evidence/core-replay-tsc.log, core-replay-tsc2.log); narrowing to the
+  production closure and a bounded heap bump produced the clean result above. The final green jest run was made
+  AFTER the last source edit (an owned `TS2339 ... type 'never'` narrowing diagnostic in the new block was fixed
+  first), so the two gates agree on the final bytes.
+
+NO MISSING DB FIELD (no schema need; alternatives attempted)
+No new Prisma model, column or table is required and none was requested: the existing
+`business_development_watch_source_states.baseline_state` JSON already carries the versioned checkpoint, and the
+cursor rides inside it with fail-closed validation. `bizdev-watch-checkpoint.ts`'s keyset-walk checkpoint was
+NOT repurposed for source projections (that traversal is untouched); the delivery cursor is a separate sub-object
+of the same persisted checkpoint, and an absent one is a valid empty cursor. The immutable alert JSON was NOT
+mutated and no per-alert source-payload field was invented. Alternatives rejected: a sliding newest-N window
+plus a side cursor (still loses older rows); a per-alert delivery marker on the alert row (unsigned/immutable
+canonical source fact, and unnecessary); a second outbox/scheduler (explicitly out of scope); a schema change
+(unnecessary once the existing checkpoint owner was extended).
+
+NOT RUN / LIMITS (honest)
+* No native PostgreSQL run (qualifier owns those resources; WSL/Docker/native SQL not used). The cursor's
+  JSON round-trip through a real column is exercised only by the durable fake + the existing checkpoint
+  validator, not by a live database. The DB write in tx B is a normal Prisma `updateMany` on an existing row.
+* No deployed/current-owner acceptance, no Meri-side end-to-end, no source-event activation, no real
+  MERI_CONTROL_ORIGIN/INTERNAL_SERVICE_SECRET egress.
+* No broad suite was rerun: this change touches the MB-05 delivery step and its checkpoint/type owners only, so
+  the runs above are the targeted affected specs plus the bounded TS baseline. The rest of the runner spec
+  (including every pre-existing lease/rollback/owner/paging test) ran green in the same invocation.
+* The source-event migrations 0007/0008 remain unapplied and unqualified (unchanged by this work).
+* A one-time legacy replay is BY DESIGN: a watch whose checkpoint has no delivery cursor starts at the beginning
+  of its own alert history, bounded per evaluation, monotone ever after. Repeats are dedup-safe; nothing is
+  silently discarded.
+
+ENVIRONMENT / PROCESS NOTES (no cleanup performed)
+Per the standing override, NO recursive filesystem/worktree/dependency cleanup was performed: no
+`git worktree remove`, no recursive `rm`/`Remove-Item`, no dependency or cache repair, no reset/delete of any
+directory or junction, and no shared repair. All owned source, untracked evidence and dependency links were
+preserved. One bounded tsc config file was ADDED (apps/api/tsconfig.m7-core-replay.json) and one bounded,
+one-off tsc heap bump (`--max-old-space-size=8192`, ~29GB free on the host) was used for the baseline check; the
+failed OOM logs are retained rather than deleted. Evidence logs live in the checkout's gitignored `.evidence/`
+and are intentionally untracked.
