@@ -1,5 +1,6 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
-import type { TenantContext } from '@capiro/shared';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import { ROLE_RANK, type TenantContext, type TenantRole } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { clientMemoryAllowed } from './memory-wall.helpers.js';
 import { normalizeGrantPermissions } from './memory-governance-lifecycle.helpers.js';
@@ -23,6 +24,8 @@ export interface MemoryAccessGrantRow {
 }
 
 export interface GrantUpsertInput {
+  /** Retained by the caller before dispatch; identifies this exact grant attempt. */
+  id?: string;
   userId: string;
   permissions: unknown;
   reason?: string | null;
@@ -79,6 +82,12 @@ export class MemoryAccessGrantService {
     clientId: string,
     input: GrantUpsertInput,
   ): Promise<{ id: string; permissions: MemoryPermission[]; expiresAt: string }> {
+    const id = input.id ?? randomUUID();
+    for (const value of [id, clientId, input.userId]) {
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value ?? '')) {
+        throw new BadRequestException('Grant, client and recipient identifiers must be UUIDs.');
+      }
+    }
     const permissions = normalizeGrantPermissions(input.permissions);
     if (!permissions) {
       throw new BadRequestException(
@@ -105,6 +114,23 @@ export class MemoryAccessGrantService {
 
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       await this.requireWall(tx, ctx, clientId);
+      // Serialize replacements for this recipient without introducing a second grant owner.
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${ctx.tenantId}:${clientId}:${input.userId}`}, 0))`;
+      const prior = await tx.$queryRaw<MemoryAccessGrantRow[]>`
+        SELECT id::text, client_id::text AS "clientId", user_id::text AS "userId",
+               granted_by_user_id::text AS "grantedByUserId", permissions, reason,
+               expires_at AS "expiresAt"
+        FROM memory_access_grant WHERE tenant_id=${ctx.tenantId}::uuid AND id=${id}::uuid
+      `;
+      if (prior[0]) {
+        const row = prior[0];
+        if (row.clientId !== clientId || row.userId !== input.userId || row.grantedByUserId !== ctx.userId ||
+            row.reason !== reason || row.expiresAt?.getTime() !== expiresAt.getTime() ||
+            JSON.stringify([...row.permissions].sort()) !== JSON.stringify(permissions)) {
+          throw new ConflictException('This grant request identifier belongs to a different request.');
+        }
+        return { id, permissions, expiresAt: expiresAt.toISOString() };
+      }
       const memberships = await tx.$queryRaw<Array<{ allowed: boolean }>>`
         SELECT true AS allowed
         FROM tenant_memberships
@@ -112,6 +138,7 @@ export class MemoryAccessGrantService {
           AND user_id = ${input.userId}::uuid
           AND status = 'active'
         LIMIT 1
+        FOR SHARE
       `;
       if (memberships[0]?.allowed !== true) {
         throw new BadRequestException(
@@ -130,17 +157,16 @@ export class MemoryAccessGrantService {
       `;
       const rows = await tx.$queryRaw<Array<{ id: string }>>`
         INSERT INTO memory_access_grant (
-          tenant_id, client_id, user_id, permissions, status,
+          id, tenant_id, client_id, user_id, permissions, status,
           granted_by_user_id, reason, expires_at
         ) VALUES (
-          ${ctx.tenantId}::uuid, ${clientId}::uuid, ${input.userId}::uuid,
+          ${id}::uuid, ${ctx.tenantId}::uuid, ${clientId}::uuid, ${input.userId}::uuid,
           ${permissions}::text[], 'active',
           ${ctx.userId}::uuid, ${reason}, ${expiresAt}
         )
         RETURNING id::text AS id
       `;
-      const id = rows[0]?.id;
-      if (!id) throw new Error('memory_access_grant insert returned no row');
+      if (rows[0]?.id !== id) throw new Error('memory_access_grant insert returned a different identifier');
       return { id, permissions, expiresAt: expiresAt.toISOString() };
     });
   }
@@ -171,6 +197,18 @@ export class MemoryAccessGrantService {
     ctx: TenantContext,
     clientId: string,
   ): Promise<void> {
+    const current = await tx.$queryRaw<Array<{ role: TenantRole }>>`
+      SELECT m.role FROM tenant_memberships m
+      JOIN clients c ON c.tenant_id=m.tenant_id AND c.id=${clientId}::uuid
+      JOIN tenants t ON t.id=m.tenant_id
+      WHERE m.tenant_id=${ctx.tenantId}::uuid AND m.user_id=${ctx.userId}::uuid
+        AND m.status::text='active' AND t.status::text='active' AND c.status::text<>'archived'
+      FOR SHARE OF m, c, t
+    `;
+    const rank = current[0] && ROLE_RANK[current[0].role];
+    if (typeof rank !== 'number' || rank < ROLE_RANK.user_admin) {
+      throw new ForbiddenException('Current administrator membership and an accessible active client are required.');
+    }
     if (!(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId))) {
       throw new ForbiddenException('This client is behind an ethical wall you are not granted.');
     }
@@ -178,7 +216,7 @@ export class MemoryAccessGrantService {
 }
 
 function parseOptionalDate(value: string | null | undefined): Date | null {
-  if (!value) return null;
+  if (!value || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return null;
   const parsed = new Date(value);
   return Number.isFinite(parsed.getTime()) ? parsed : null;
 }
