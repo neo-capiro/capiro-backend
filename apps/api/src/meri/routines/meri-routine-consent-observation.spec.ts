@@ -45,15 +45,17 @@ interface State {
   now: number; rows: ConsentRow[]; approvalOwner: string | null; revokedAt: number | null;
   member: { role: string; status: string; tenantStatus: string } | null;
   visibleClients: string[] | null; clockFails: boolean; consentReadFails: boolean;
-  calls: string[]; writes: string[];
+  calls: string[]; writes: string[]; tenants: string[];
 }
 
 const fixture = () => {
   const state: State = {
     now: NOW, rows: [consentRow()], approvalOwner: OWNER, revokedAt: null,
     member: { role: 'standard_user', status: 'active', tenantStatus: 'active' },
-    visibleClients: null, clockFails: false, consentReadFails: false, calls: [], writes: [],
+    visibleClients: null, clockFails: false, consentReadFails: false, calls: [], writes: [], tenants: [],
   };
+  // The tenant wall this observation must stay inside: rows of another tenant are never visible.
+  const inTenant = (args: { where?: { tenantId?: string } }) => args?.where?.tenantId === TENANT;
   const write = (name: string) => jest.fn(async () => { state.writes.push(name); return {}; });
   const tx: any = {
     $queryRaw: jest.fn(async (strings: readonly string[], ...values: unknown[]) => {
@@ -73,11 +75,12 @@ const fixture = () => {
       throw new Error(`unexpected sql: ${sql}`);
     }),
     clioMeriRoutineApproval: {
-      findFirst: jest.fn(async () => (state.approvalOwner === null ? null : { ownerUserId: state.approvalOwner })),
+      findFirst: jest.fn(async (args: never) => (inTenant(args) && state.approvalOwner !== null ? { ownerUserId: state.approvalOwner } : null)),
       create: write('approval.create'),
     },
     clioMeriRoutineConsent: {
-      findFirst: jest.fn(async () => {
+      findFirst: jest.fn(async (args: never) => {
+        if (!inTenant(args)) return null;
         if (state.consentReadFails) throw new Error('consent read unavailable');
         const [newest] = [...state.rows].sort((a, b) => b.issuedAt.getTime() - a.issuedAt.getTime());
         return newest === undefined ? null : { id: id(90), tenantId: TENANT, ownerUserId: OWNER, scheduleId: SCHEDULE, intentId: id(91),
@@ -87,8 +90,8 @@ const fixture = () => {
     },
     clioMeriRoutineConsentRevocation: {
       // Applies the real predicate: the query's `revokedAt >= consent.issuedAt` is emulated, not ignored.
-      findFirst: jest.fn(async (args: { where?: { revokedAt?: { gte?: Date } } }) => {
-        if (state.revokedAt === null) return null;
+      findFirst: jest.fn(async (args: { where?: { tenantId?: string; revokedAt?: { gte?: Date } } }) => {
+        if (!inTenant(args) || state.revokedAt === null) return null;
         const since = args?.where?.revokedAt?.gte;
         if (since instanceof Date && state.revokedAt < since.getTime()) return null;
         return { revokedAt: new Date(state.revokedAt) };
@@ -96,12 +99,15 @@ const fixture = () => {
       createMany: write('revocation.createMany'),
     },
     tenantMembership: {
-      findFirst: jest.fn(async () => (state.member === null ? null : { tenantId: TENANT, userId: OWNER, role: state.member.role,
-        status: state.member.status, tenant: { status: state.member.tenantStatus } })),
+      findFirst: jest.fn(async (args: never) => (!inTenant(args) || state.member === null ? null : { tenantId: TENANT, userId: OWNER,
+        role: state.member.role, status: state.member.status, tenant: { status: state.member.tenantStatus } })),
       update: write('membership.update'),
     },
   };
-  const prisma: any = { withTenant: jest.fn(async (_tenant: string, fn: (client: unknown) => unknown) => fn(tx)) };
+  const prisma: any = { withTenant: jest.fn(async (tenant: string, fn: (client: unknown) => unknown) => {
+    state.tenants.push(tenant);
+    return fn(tx);
+  }) };
   const service = new MeriRoutinesService(prisma, { get: () => 'synthetic-test-secret' } as never, null, null);
   const req: any = Object.assign(new EventEmitter(), { headers: { 'x-internal-service-secret': 'synthetic-test-secret' } });
   new InternalServiceGuard({ get: () => 'synthetic-test-secret' } as never)
@@ -219,6 +225,18 @@ describe('Mer04 routine read-consent observation (read-only)', () => {
     await expect(f.service.consentObservation(body, f.req)).rejects.toThrow();
     expect(f.state.calls).toEqual(['lock', 'clock']);
     f.state.approvalOwner = OWNER;
+    expect((await f.service.consentObservation(body, f.req)).state).toBe('active');
+  });
+
+  it('stays inside the requested tenant and can never report another tenant rows', async () => {
+    const f = fixture();
+    const foreign = { ...body, tenantId: id(77) };
+    expect(await f.service.consentObservation(foreign, f.req)).toEqual({ schemaVersion: 1, state: 'absent', pinsMatched: false,
+      observedAtMs: NOW, generation: GEN, consentGeneration: null, issuedAtMs: null, expiresAtMs: null, scopeCount: null,
+      cause: null, rightsSha256: null });
+    // Scoped through the requested tenant only, and the other tenant's rows stay invisible.
+    expect(f.state.tenants).toEqual([id(77)]);
+    expect(f.state.calls).toEqual(['lock', 'clock']);
     expect((await f.service.consentObservation(body, f.req)).state).toBe('active');
   });
 
