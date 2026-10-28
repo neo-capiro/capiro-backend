@@ -34,11 +34,24 @@ successor that adds the missing read capability to the SAME already-admitted rou
 ## 3. Scope of this commit
 
 ```
-M apps/api/src/engagement/attachments/client-file-history.ts        (+66/-…)
-M apps/api/src/engagement/attachments/client-file-history.spec.ts   (+123/-…)
-M apps/api/src/engagement/engagement.service.ts                     (+28/-…)
-A docs/wave5-native-file-history-20261028/READ-HANDOFF.md
+M apps/api/src/engagement/attachments/client-file-history.ts        60 insertions, 6 deletions
+M apps/api/src/engagement/attachments/client-file-history.spec.ts   116 insertions, 7 deletions
+M apps/api/src/engagement/engagement.service.ts                     22 insertions, 6 deletions
+A docs/wave5-native-file-history-20261028/READ-HANDOFF.md           new file, 178 lines
 ```
+
+Correction successor commit on top of it (measured with `git diff --numstat 078901c9`, source files
+only; this document is updated in place and is not double-counted):
+
+```
+M apps/api/src/engagement/attachments/client-file-history.ts        99 insertions, 6 deletions
+M apps/api/src/engagement/attachments/client-file-history.spec.ts   213 insertions, 4 deletions
+M apps/api/src/engagement/engagement.service.ts                     23 insertions, 1 deletion
+M docs/wave5-native-file-history-20261028/READ-HANDOFF.md           updated in place
+```
+
+`078901c904ad255540c0ace64047c80afc07852b` is preserved as an ancestor (no amend, no rebase); the
+exact head/tree of both commits are recorded in the two author handoffs under `outputs/`.
 
 - `engagement.controller.ts` was **traced and deliberately not changed**: `@Get('attachments')`
   already declares `historyOf` / `historyCursor` / `historyPageSize`, refuses list filters, and
@@ -50,15 +63,39 @@ A docs/wave5-native-file-history-20261028/READ-HANDOFF.md
 
 Node `C:/Program Files/nodejs/node.exe` (24.22.1). Scratch: `C:/ProgramData/Hermes/cache/scratch/w5nfh-read`.
 
-A) Baseline of the previous invariant, before the spec update (kept as evidence):
+A) Expected old-assertion witness, before the spec update — **not a baseline of unchanged
+behaviour**: the implementation had already changed, so this run is the OLD assertion failing on
+the NEW code. It is kept to show the read capability was real and that exactly one superseded
+invariant moved:
 `cd <read>/apps/api && node.exe --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --no-cache --cacheDirectory=<scratch>/jest-cache --runTestsByPath src/engagement/attachments/client-file-history.spec.ts src/engagement/attachments/client-file-history.http.spec.ts`
 **EXIT 1 — 20 passed, 1 failed**, the only failure being the old
 `releases metadata only: … no signed read …` assertion (`JSON.stringify(page)` now matches
 `downloadUrl|previewUrl`). No other test moved; no locator was present in that payload.
 log `<scratch>/suites-before.log`.
 
-B) Owned suites on the final bytes: **EXIT 0 — 2 suites, 23/23 tests** (21 pre-existing + 2 new).
-log `<scratch>/suites-final2.log`.
+B) Owned suites on the read-capability bytes (`078901c9`): **EXIT 0 — 2 suites, 23/23 tests**
+(21 pre-existing + 2 new). log `<scratch>/suites-final2.log`.
+
+B2) Owned suites during the correction, kept honestly: the first successor run was **EXIT 1 —
+26 passed, 3 failed**, and the second **EXIT 1 — 28 passed, 1 failed**; both were defects in the
+new TEST harness fidelity, not in the production recheck (a chain read handed back a live row
+object, so the simulated drift rewrote the snapshot it was compared against; and one simulated
+digest equalled the fixture's). Verbatim witness text from those runs:
+
+```
+● … › keeps the explicit historical window: an anchor reaches its own chain only
+  NotFoundException: Attachment history is unavailable
+  at reconstructChain (src/engagement/attachments/client-file-history.ts:429:40)
+  — the second chain's fixture rows still carried a cross-chain forward link, so the
+  walk saw two predecessors (a fork) and refused, exactly as designed.
+● … › refuses the whole page when the version key, digest, ownership or readiness moves while it is signed
+● … › withholds every version when a single released row disagrees, never a partial chain
+  Error: expected the request to be refused
+  — no refusal, because the mock returned the live row the drift hook had rewritten.
+```
+
+Both were fixed in the harness only; the production recheck code was not changed to make them
+pass. Final: **EXIT 0 — 2 suites, 29/29 tests** (23 + 6 new). log `<scratch>/suites-correction.log`.
 
 C) Bounded strict transitive TypeScript (recipe `work/native-file-history-types-bounded.json`
 adapted to this worktree in a new task-owned config `<scratch>/tsconfig.read-bounded.json`:
@@ -71,12 +108,17 @@ node.exe --max-old-space-size=8192 node_modules/typescript/bin/tsc -p <scratch>/
 ```
 
 **EXIT 0 — log 0 bytes.** log `<scratch>/tsc-read-final2.log`.
+Re-run on the SUCCESSOR bytes with the SAME recipe: **EXIT 0 — log 0 bytes**
+(`<scratch>/tsc-correction.log`).
 
 D) Boundedness proof (so C cannot be a silent no-op): same config plus `--listFiles` → EXIT 0,
 2422 files, **0** references to `../api-strategy` or `../intel-api`, and the program contains this
 worktree's `engagement.service.ts`, `attachments/client-file-history.ts`,
 `client-file-history.spec.ts`, `client-file-history.http.spec.ts` and `engagement.controller.ts`.
-log `<scratch>/listfiles.txt`.
+log `<scratch>/listfiles.txt`. Re-run on the SUCCESSOR bytes: EXIT 0, 2422 files
+(2322 `.ts`), **0** foreign-project references, and the program still contains this worktree's
+`engagement.service.ts`, `attachments/client-file-history.ts`, `client-file-history.spec.ts` and
+`engagement.controller.ts`. log `<scratch>/listfiles-correction.txt`.
 
 E) Generated-fixture dependency check (no refresh needed): the repo's own generator
 (`apps/api/scripts/engagement-phase0-route-manifest.ts`) → EXIT 0, stderr 0 bytes, 112739 bytes,
@@ -118,6 +160,50 @@ The remedy reuses the existing canonical signed-read owners instead of adding a 
    weakened; no raw S3 bridge, no second store, no storage VersionId, and no extraction/provider/
    model/indexing call rides this read.
 
+### 5.1 Correction (successor commit): the released version is verified AFTER it is signed
+
+The `078901c9` release order was: authorize every member → authorize the page → **mint each usable
+version's own signed URLs** → project. Two awaits (`uploaderNames`, `Promise.all` signing) sit
+between the page recheck and the response, and the per-version owner re-read only
+`id`/`lifecycleStatus` while comparing ownership against the ORIGINAL row it was handed. So a
+version revoked, deleted, quarantined, re-keyed or re-parented DURING the signing window could
+still be released with a working bearer URL.
+
+The successor adds one narrow, explicit final phase, `owner.recheck(row)`, run for every row of the
+page AFTER every signing call has completed:
+
+1. the SAME canonical current-access owner (`authorizeAttachmentVersion`, unchanged) — so a
+   revocation, a deletion and a prospect `delete_pending`/`delete_failed` suppression refuse again
+   here, at the last possible moment before release;
+2. then ONE identity re-read of the durable row through the same canonical
+   `tenant + attachmentViewerWhere(actor)` predicate, selecting only the columns a released read
+   depends on (`CLIENT_FILE_HISTORY_IDENTITY_SELECT`): the version's own `s3Key` and
+   `calculatedSha256`, its ownership/parentage and chain position (`source`, `sourceEntityType`,
+   `sourceEntityId`, `prospectId`, `clientId`, `meetingId`, `mailMessageId`,
+   `supersededByAttachmentId`) and its readiness inputs (`lifecycleStatus`, `scanStatus`).
+
+`sameVersionIdentity` compares that identity with the row the page authorized and withholds the
+WHOLE page (`404 CLIENT_FILE_HISTORY_UNAVAILABLE`) on any disagreement or refusal. It is deliberately
+narrow: `fileName`, `folder`, `byteSize`, `createdAt` and the uploader label are NOT identity, and a
+change there never refuses a page — the capability's identity is the object key + digest +
+ownership the URL actually addresses, not display metadata. Readiness agreement is decided on
+`lifecycleStatus` + `scanStatus` (a pure function of those plus the owner's `scanRequired`), which is
+why a quarantine or scan-state change inside the window refuses.
+
+Unchanged by the correction: the route, the response shape (no new field — §6 is still exact), the
+canonical signing owners and their inherited `expiresIn: 300` lifetime, the current-only list
+predicate, the no-link states, every refusal code, the cursor contract and the chain bounds. No new
+endpoint, store, registry, schema, package or revocation platform was added; nothing is repaired,
+rewritten or recomputed (no digest is ever manufactured), and the final phase performs no write, no
+byte read and no extraction/provider/model/indexing call.
+
+Cost: one canonical access read plus ONE narrow projection read per released version (≤ page size, so
+≤ 50 each), inside the same read-only snapshot the metadata pass already uses. The added tests prove
+the positive case (an unchanged historical original is still released, with the final phase visibly
+run) and the negative cases (key, digest, source identity/kind, parent ownership, chain position,
+lifecycle, scan state, revocation and physical deletion during the signing window all withhold the
+whole page — including when only the LAST of four rows disagrees).
+
 ## 6. Receiving shape for the M5 Files consumer
 
 `GET /api/engagement/attachments?historyOf=<attachmentId>[&historyCursor=<opaque>][&historyPageSize=1..50]` → 200:
@@ -141,7 +227,9 @@ locator is ever projected.
 
 Reconstructed chain → **every member** authorized → cursor/digest/offset → page slice → **page
 re-authorized (release-time recheck, including prospect `delete_pending`/`delete_failed` parity)**
-→ links minted for usable rows → projection. Per-version authorization is the existing owner stack:
+→ links minted for usable rows → **final post-signing recheck of every released row (canonical
+current access + version-identity agreement, §5.1)** → projection. Per-version authorization is the
+existing owner stack:
 tenant + `attachmentViewerWhere(actor)` re-read for the exact row; `requireProspectScope` for a
 prospect row (with the canonical prospect read-mode deletion suppression); `validateAttachmentParents`
 for an `incoming_mail` row (mail visibility + client wall); `assertHearingRecordDocumentAccess` for a
@@ -160,19 +248,28 @@ branched/cyclic/over-bound chain), 409 `CLIENT_FILE_HISTORY_CURSOR_STALE`,
   exactly like the existing list read for current rows: within that window a later revocation cannot
   retroactively invalidate an already-minted URL. Core never reads the bytes itself and mints no
   storage locator; the client fetches the object directly, subject to the bucket policy.
-- F4 (accepted, disclosed in the prior review): presigning is not transactional with the
-  authorization read; a revocation landing between the recheck and the mint is caught on the next
-  request, not retroactively.
+- F4 (review finding, materially narrowed by §5.1): signing is still not transactional with the
+  authorization read. A revocation, deletion, quarantine or identity change landing DURING the
+  signing window now withholds the whole page, but the interval between the final recheck and the
+  client's use of an already-minted URL remains open by construction: a bearer URL cannot be
+  recalled, so a revocation inside that residual window is caught by the next request, not
+  retroactively. This change deliberately does not add a revocation platform.
+- The historical window itself is unchanged and still explicit: history is the ONE chain containing
+  the anchor (bounded by `CLIENT_FILE_HISTORY_MAX_VERSIONS` = 200 and a page size of 1..50). Two
+  documents that merely share a client or a folder are separate chains and never mix.
 - Type evidence is bounded, not whole-repo: the bounded program (§4C/D) is the touched evidence.
   The 473-diagnostic full `apps/api` typecheck remains a separate, unre-run limitation.
 - Lint/format gates are NOT RUN (dependencies absent) — see §4F.
 
 ## 9. Evidence locations and next action
 
-- Author handoff with exact head/tree and the full check log list:
+- Author handoff for the read capability (commit `078901c9`):
   `outputs/WAVE5-NATIVE-FILE-HISTORY-READ-AUTHOR-HANDOFF.txt`.
+- Author handoff for this correction (successor commit, exact head/tree and checks):
+  `outputs/WAVE5-NATIVE-FILE-HISTORY-READ-CORRECTION-AUTHOR-HANDOFF.txt`.
 - Claim written before the edits: `work/hermes-authoring/native-file-history-read-CLAIM.txt`.
-- Logs: `C:/ProgramData/Hermes/cache/scratch/w5nfh-read/{suites-before,suites-final2,tsc-read-final2}.log`,
-  `listfiles.txt`, `read-gen.json`, `read-gen.err`, `tsconfig.read-bounded.json`, `mkjunctions.cjs`.
+- Logs: `C:/ProgramData/Hermes/cache/scratch/w5nfh-read/{suites-before,suites-final2,suites-correction,tsc-read-final2,tsc-correction}.log`,
+  `listfiles.txt`, `listfiles-correction.txt`, `read-gen.json`, `read-gen.err`,
+  `tsconfig.read-bounded.json`, `mkjunctions.cjs`.
 - Next action: A5 coordinates independent review of this candidate and the final source union; the
   M5 Files consumer should bind the two new per-version fields from §6.

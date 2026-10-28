@@ -131,6 +131,16 @@ function harness(rows: Row[]) {
     lifecycleFlipAfterChecks: null as number | null,
     lifecycleFlipStatus: 'delete_pending',
     visibilityChecks: 0,
+    /**
+     * Simulates a durable row MUTATING while a signing call is awaited: applied on the
+     * Nth download signing call, i.e. after the page was authorized and readied but
+     * BEFORE the final post-signing recheck reads the row back.
+     */
+    mutateDuringSigningAt: null as number | null,
+    mutateDuringSigning: null as ((row: Row, all: Row[]) => void) | null,
+    signingCalls: 0,
+    /** How many final post-signing identity re-reads the helper performed. */
+    identityChecks: 0,
   };
   const readiness = jest.fn((row: Row) =>
     row.lifecycleStatus === 'ready'
@@ -155,7 +165,30 @@ function harness(rows: Row[]) {
     }),
     engagementAttachment: {
       findFirst: jest.fn(async (args: any) => {
-        // The per-version current-access re-read is the only select that asks for the
+        // The FINAL post-signing recheck asks for exactly the columns a released read
+        // depends on — the version's own key/digest, its ownership and chain position and
+        // the lifecycle/scan readiness inputs — and is the only select that does.
+        if (args.select?.s3Key && args.select?.createdAt === undefined) {
+          state.identityChecks += 1;
+          const current = rows.find((row) => match(row, args.where));
+          if (!current) return null;
+          return {
+            id: current.id,
+            s3Key: current.s3Key,
+            calculatedSha256: current.calculatedSha256,
+            source: current.source,
+            sourceEntityType: current.sourceEntityType,
+            sourceEntityId: current.sourceEntityId,
+            prospectId: current.prospectId,
+            clientId: current.clientId,
+            meetingId: current.meetingId,
+            mailMessageId: current.mailMessageId,
+            supersededByAttachmentId: current.supersededByAttachmentId,
+            lifecycleStatus: current.lifecycleStatus,
+            scanStatus: current.scanStatus,
+          };
+        }
+        // The per-version current-access re-read is the only other select that asks for the
         // current visibility and lifecycle columns instead of a whole chain row.
         if (
           args.select?.id &&
@@ -181,10 +214,17 @@ function harness(rows: Row[]) {
                 : current.lifecycleStatus,
           };
         }
-        return rows.find((row) => match(row, args.where)) ?? null;
+        // A chain read hands back a SNAPSHOT of the row, exactly as the store would: the
+        // helper must keep deciding on the bytes it read, not on a live object that a
+        // later mutation would silently rewrite underneath it.
+        const snapshot = rows.find((row) => match(row, args.where));
+        return snapshot ? { ...snapshot } : null;
       }),
       findMany: jest.fn(async (args: any) =>
-        rows.filter((row) => match(row, args.where)).slice(0, args.take ?? rows.length),
+        rows
+          .filter((row) => match(row, args.where))
+          .slice(0, args.take ?? rows.length)
+          .map((row) => ({ ...row })),
       ),
       create: jest.fn(async () => {
         throw new Error('history must not create rows');
@@ -233,7 +273,14 @@ function harness(rows: Row[]) {
     scanner: { getStatus: jest.fn(async () => 'clean'), scanRequired: true, providerName: 'synthetic' },
     clientKb: { indexAttachmentFireAndForget: jest.fn(), purgeFireAndForget: jest.fn() },
     logger: { warn: jest.fn(), error: jest.fn(), log: jest.fn() },
-    createAttachmentDownloadUrl: jest.fn(async () => 'synthetic-download'),
+    createAttachmentDownloadUrl: jest.fn(async (key: string) => {
+      state.signingCalls += 1;
+      if (state.mutateDuringSigning && state.mutateDuringSigningAt === state.signingCalls) {
+        const target = rows.find((row) => row.s3Key === key);
+        if (target) state.mutateDuringSigning(target, rows);
+      }
+      return 'synthetic-download';
+    }),
     createAttachmentPreviewUrl: jest.fn(async () => 'synthetic-preview'),
   });
   return { service, tx, prisma, state, rows, readiness };
@@ -755,5 +802,167 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
     expect((h.service as any).createAttachmentDownloadUrl).toHaveBeenCalledTimes(1);
     expect((h.service as any).createAttachmentDownloadUrl).toHaveBeenCalledWith(at(rows, 0).s3Key);
     expect((h.service as any).createAttachmentPreviewUrl).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the explicit historical window: an anchor reaches its own chain only', async () => {
+    // Independent chains (two documents) never mix: anchoring on one head yields that
+    // document's versions and the other document is absent, so "history" is bounded by the
+    // chain the caller anchored on rather than by the client/folder they share.
+    const older = chain(3);
+    // A second document in the SAME client and folder, with its own real chain and its own
+    // ids: nothing links the two chains, so the anchor can only reach its own versions.
+    const newer = [
+      version(1, {
+        id: id(500),
+        s3Key: `tenants/${ctx.tenantId}/engagement/client-files/other-v1.docx`,
+        supersededByAttachmentId: id(501),
+      }),
+      version(2, {
+        id: id(501),
+        s3Key: `tenants/${ctx.tenantId}/engagement/client-files/other-v2.docx`,
+      }),
+    ];
+    const h = harness([...older, ...newer]);
+    const page = await h.service.listAttachmentHistory(ctx, { attachmentId: at(older, 2).id });
+    expect(page.versions.map((v) => v.attachmentId)).toEqual(older.map((r) => r.id));
+    expect(page.versionCount).toBe(3);
+    expect(page.versions.map((v) => v.attachmentId)).not.toContain(at(newer, 0).id);
+  });
+});
+
+describe('engagement attachment version history: final post-signing recheck', () => {
+  it('verifies current access and version identity AFTER signing and still releases the unchanged original', async () => {
+    const rows = chain(3);
+    const h = harness(rows);
+    const page = await h.service.listAttachmentHistory(ctx, { attachmentId: at(rows, 0).id });
+    // The capability was minted FIRST and verified afterwards: one authoritative read per
+    // released row through the canonical owner, one narrow identity read per released row.
+    expect(h.state.signingCalls).toBe(3);
+    expect(h.state.identityChecks).toBe(3);
+    expect(page.versions.map((v) => v.downloadUrl)).toEqual([
+      'synthetic-download',
+      'synthetic-download',
+      'synthetic-download',
+    ]);
+    expect(at(page.versions, 0)).toMatchObject({
+      attachmentId: at(rows, 0).id,
+      isOriginal: true,
+      contentHash: at(rows, 0).calculatedSha256,
+      downloadUrl: 'synthetic-download',
+    });
+    // The post-signing identity read asks only for what decides a released read, and the
+    // recheck runs through the canonical current-access owner as well.
+    const identitySelects = h.tx.engagementAttachment.findFirst.mock.calls
+      .map((call: any[]) => call[0].select)
+      .filter((select: any) => select?.s3Key && select?.createdAt === undefined);
+    expect(identitySelects).toHaveLength(3);
+    expect(at(identitySelects, 0)).toMatchObject({
+      s3Key: true,
+      calculatedSha256: true,
+      lifecycleStatus: true,
+      scanStatus: true,
+      sourceEntityId: true,
+      clientId: true,
+      prospectId: true,
+    });
+    expect(at(identitySelects, 0)).not.toHaveProperty('bucket');
+    expect(at(identitySelects, 0)).not.toHaveProperty('viewerUserIds');
+    // The recheck added no write, no byte read and no side effect of any kind.
+    expect(h.tx.engagementAttachment.update).not.toHaveBeenCalled();
+    expect((h.service as any).readAttachmentBytes).not.toHaveBeenCalled();
+    expect((h.service as any).clientKb.indexAttachmentFireAndForget).not.toHaveBeenCalled();
+  });
+
+  it('refuses the whole page when the version key, digest, ownership or readiness moves while it is signed', async () => {
+    const drift: Array<[string, (row: Row) => void]> = [
+      ['stored object key', (row) => (row.s3Key = `${row.s3Key}.rewritten`)],
+      ['recorded digest', (row) => (row.calculatedSha256 = hash(9))],
+      ['source identity', (row) => (row.sourceEntityId = id(999))],
+      ['source kind', (row) => (row.sourceEntityType = 'other_source')],
+      ['parent ownership', (row) => (row.clientId = id(8))],
+      ['chain position', (row) => (row.supersededByAttachmentId = id(900))],
+      ['lifecycle readiness', (row) => (row.lifecycleStatus = 'quarantined')],
+      ['scan readiness', (row) => (row.scanStatus = 'pending')],
+    ];
+    for (const [label, mutate] of drift) {
+      const rows = chain(3);
+      const h = harness(rows);
+      h.state.mutateDuringSigningAt = 1;
+      h.state.mutateDuringSigning = mutate;
+      const denied = await refusal(() =>
+        h.service.listAttachmentHistory(ctx, { attachmentId: at(rows, 2).id }),
+      );
+      expect([label, denied.status]).toEqual([label, 404]);
+      expect(denied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
+      // The URLs already existed when the drift was seen: the page is withheld instead of
+      // releasing a bearer link that no longer describes the row it was minted for.
+      expect([label, h.state.signingCalls]).toEqual([label, 3]);
+      expect([label, h.state.identityChecks]).toEqual([label, 1]);
+    }
+  });
+
+  it('does not refuse a change that is not a version identity change', async () => {
+    const rows = chain(3);
+    const h = harness(rows);
+    h.state.mutateDuringSigningAt = 1;
+    h.state.mutateDuringSigning = (row) => {
+      row.fileName = 'memo-v1-renamed.docx';
+      row.folder = 'renamed-folder';
+      row.byteSize = 12_345;
+    };
+    const page = await h.service.listAttachmentHistory(ctx, { attachmentId: at(rows, 2).id });
+    expect(page.versions.map((v) => v.downloadUrl)).toEqual([
+      'synthetic-download',
+      'synthetic-download',
+      'synthetic-download',
+    ]);
+    expect(h.state.identityChecks).toBe(3);
+  });
+
+  it('refuses the page when access is revoked or the row disappears during the signing window', async () => {
+    // Admission pass (3 reads) and the release-time recheck (3 reads) succeed; the
+    // revocation lands in the final post-signing phase, where only the new recheck can
+    // catch it. Without it these already-minted URLs would have been released.
+    const revoked = harness(chain(3));
+    const revokedRows = revoked.rows;
+    revoked.state.revokeAfterVisibilityChecks = 6;
+    const denied = await refusal(() =>
+      revoked.service.listAttachmentHistory(ctx, { attachmentId: at(revokedRows, 2).id }),
+    );
+    expect(denied.status).toBe(404);
+    expect(denied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
+    expect(revoked.state.signingCalls).toBe(3);
+    // The canonical access owner refuses before the identity read is reached.
+    expect(revoked.state.identityChecks).toBe(0);
+
+    // Same window, row physically gone: the current-access re-read finds nothing.
+    const deletedRows = chain(3);
+    const deleted = harness(deletedRows);
+    deleted.state.mutateDuringSigningAt = 2;
+    deleted.state.mutateDuringSigning = (row, all) => {
+      const index = all.indexOf(row);
+      if (index >= 0) all.splice(index, 1);
+    };
+    const gone = await refusal(() =>
+      deleted.service.listAttachmentHistory(ctx, { attachmentId: at(deletedRows, 0).id }),
+    );
+    expect(gone.status).toBe(404);
+    expect(gone.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
+    expect(deleted.state.signingCalls).toBe(3);
+  });
+
+  it('withholds every version when a single released row disagrees, never a partial chain', async () => {
+    const rows = chain(4);
+    const h = harness(rows);
+    // Only the LAST row drifts, i.e. after three rows already agreed: the refusal must
+    // still be the whole page, not a trimmed one.
+    h.state.mutateDuringSigningAt = 4;
+    h.state.mutateDuringSigning = (row) => (row.calculatedSha256 = hash(7));
+    const denied = await refusal(() =>
+      h.service.listAttachmentHistory(ctx, { attachmentId: at(rows, 3).id, pageSize: 4 }),
+    );
+    expect(denied.status).toBe(404);
+    expect(denied.body).toMatchObject({ error: 'CLIENT_FILE_HISTORY_UNAVAILABLE' });
+    expect(h.state.identityChecks).toBe(4);
   });
 });

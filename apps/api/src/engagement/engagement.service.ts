@@ -21,6 +21,7 @@ import {
 } from './attachments/prospect-attachment-access.js';
 import {
   readClientFileHistory,
+  CLIENT_FILE_HISTORY_IDENTITY_SELECT,
   type ClientFileHistoryOwner,
   type ClientFileHistoryPage,
   type ClientFileHistoryRow,
@@ -8100,7 +8101,11 @@ export class EngagementService {
    * for the CURRENT actor before anything is released — including the release-time
    * recheck, which runs before any URL is minted — so an old allowed scope, a
    * colleague-private mail version or a hidden/revoked member is never reachable through
-   * history.
+   * history. Because a signed URL is a bearer capability that outlives this call, the page
+   * is then rechecked a FINAL time AFTER every awaited signing call: current access through
+   * the canonical owner plus the version's own key/digest/ownership/chain-position and
+   * lifecycle/scan identity, both re-read from the store. Any drift there withholds the
+   * whole page instead of releasing a link the row no longer justifies.
    */
   async listAttachmentHistory(
     ctx: TenantContext,
@@ -8139,6 +8144,23 @@ export class EngagementService {
         downloadUrl: await this.createAttachmentDownloadUrl(row.s3Key),
         previewUrl: await this.createAttachmentPreviewUrl(row.s3Key, row.contentType),
       }),
+      // FINAL post-signing recheck for a released version: the same canonical current-access
+      // owner as `authorize` (so a revocation, a deletion, a client-file deletion and a
+      // prospect/scope/wall/hearing change refuse again here), then ONE narrow identity read of
+      // the durable row through the same tenant/viewer predicate. The helper compares that
+      // identity with the row it authorized and withholds the WHOLE page on any disagreement,
+      // so a URL minted a moment earlier is never released for a row whose key, digest,
+      // ownership, chain position or lifecycle/scan readiness moved while it was being signed.
+      // Nothing is repaired, rewritten or recomputed here.
+      recheck: async (row) => {
+        await this.authorizeAttachmentVersion(ctx, row);
+        return this.prisma.withTenant(ctx.tenantId, (tx) =>
+          tx.engagementAttachment.findFirst({
+            where: { id: row.id, tenantId: ctx.tenantId, OR: attachmentViewerWhere(ctx.userId) },
+            select: CLIENT_FILE_HISTORY_IDENTITY_SELECT,
+          }),
+        );
+      },
     };
     return readClientFileHistory(owner, ctx, query);
   }

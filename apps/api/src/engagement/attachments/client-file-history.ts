@@ -30,7 +30,10 @@
  * projection so a revocation between the query and the release withholds the whole
  * history instead of handing out a stale version or a partial chain. Access is
  * never inferred from an earlier allowed head, and no version's own parent/source
- * ownership is rewritten.
+ * ownership is rewritten. Signed reads are minted inside that second check, and the page is
+ * then verified a THIRD time after every awaited signing call, so a capability is never
+ * released for a row whose current access — or whose key, digest, ownership, chain position
+ * or readiness identity — moved while it was being signed.
  *
  * Read capability, added explicitly: every released version carries a signed read of its
  * OWN stored bytes, minted through the caller's canonical signing owner (the same owner
@@ -91,6 +94,35 @@ export type ClientFileHistoryRow = Prisma.EngagementAttachmentGetPayload<{
   select: typeof CLIENT_FILE_HISTORY_SELECT;
 }>;
 
+/**
+ * The narrow post-signing identity re-read: exactly the columns that decide WHICH bytes a
+ * released read addresses (`s3Key`, `calculatedSha256`), WHO owns the row and where it sits
+ * (`source`, `sourceEntityType`, `sourceEntityId`, `prospectId`, `clientId`, `meetingId`,
+ * `mailMessageId`, `supersededByAttachmentId`) and whether it may be used at all
+ * (`lifecycleStatus`, `scanStatus` — the readiness inputs). A signed URL is a bearer
+ * capability, so these are re-read through the canonical tenant/viewer predicate AFTER
+ * every awaited signing call and compared with the row the page was authorized from.
+ */
+export const CLIENT_FILE_HISTORY_IDENTITY_SELECT = {
+  id: true,
+  s3Key: true,
+  calculatedSha256: true,
+  source: true,
+  sourceEntityType: true,
+  sourceEntityId: true,
+  prospectId: true,
+  clientId: true,
+  meetingId: true,
+  mailMessageId: true,
+  supersededByAttachmentId: true,
+  lifecycleStatus: true,
+  scanStatus: true,
+} satisfies Prisma.EngagementAttachmentSelect;
+
+export type ClientFileHistoryIdentity = Prisma.EngagementAttachmentGetPayload<{
+  select: typeof CLIENT_FILE_HISTORY_IDENTITY_SELECT;
+}>;
+
 export type ClientFileHistoryReadiness = {
   usable: boolean;
   code?: string | null;
@@ -124,6 +156,48 @@ export interface ClientFileHistoryOwner {
   links: (
     row: ClientFileHistoryRow,
   ) => Promise<{ downloadUrl: string | null; previewUrl: string | null }>;
+  /**
+   * The FINAL post-signing recheck for one released version: the same canonical CURRENT
+   * access owner as `authorize` (so a revocation, a deletion and a prospect/scope/wall/
+   * hearing change refuse again here), then the narrow §identity re-read of the durable row
+   * through the canonical tenant/viewer predicate.
+   *
+   * Returns null when the row is no longer visible, and must never repair, rewrite or
+   * recompute the row — the caller compares the returned identity with the snapshot it
+   * authorized and withholds the whole page on any disagreement.
+   */
+  recheck: (row: ClientFileHistoryRow) => Promise<ClientFileHistoryIdentity | null>;
+}
+
+/**
+ * Identity agreement, decided only on the fields that actually matter for a released read.
+ *
+ * A display name, file name, folder, byte-size or timestamp change is NOT an identity change
+ * and never refuses a page. A change to WHAT bytes a link addresses, WHO owns the row, WHERE
+ * it sits in the chain, or WHETHER it may be used refuses the whole page instead of releasing
+ * a bearer URL that no longer describes the authorized version. Readiness verdicts are a pure
+ * function of `lifecycleStatus` + `scanStatus` + the owner's `scanRequired` flag, so equality
+ * on those two columns is the readiness agreement.
+ */
+function sameVersionIdentity(
+  row: ClientFileHistoryRow,
+  current: ClientFileHistoryIdentity,
+): boolean {
+  return (
+    current.id === row.id &&
+    current.s3Key === row.s3Key &&
+    current.calculatedSha256 === row.calculatedSha256 &&
+    current.source === row.source &&
+    current.sourceEntityType === row.sourceEntityType &&
+    current.sourceEntityId === row.sourceEntityId &&
+    current.prospectId === row.prospectId &&
+    current.clientId === row.clientId &&
+    current.meetingId === row.meetingId &&
+    current.mailMessageId === row.mailMessageId &&
+    current.supersededByAttachmentId === row.supersededByAttachmentId &&
+    current.lifecycleStatus === row.lifecycleStatus &&
+    current.scanStatus === row.scanStatus
+  );
 }
 
 export type ClientFileHistoryRequest = {
@@ -442,11 +516,12 @@ function projectVersion(
 /**
  * One page of a bounded immutable version chain, anchored on an exact attachment id.
  *
- * Reads only. No byte is read here — the callers' `readiness`, `uploaderNames` and
- * `links` owners are metadata lookups and local signed-URL minting (no object fetch) —
- * no budget is reserved, no write happens, and no model, provider, indexing or
- * extraction owner is called. The signed read each released version carries is minted
- * from that version's own stored key, and only after the recheck above.
+ * Reads only. No byte is read here — the callers' `readiness`, `uploaderNames`, `links` and
+ * `recheck` owners are metadata lookups, local signed-URL minting (no object fetch) and one
+ * narrow identity re-read — no budget is reserved, no write happens, and no model, provider,
+ * indexing or extraction owner is called. The signed read each released version carries is
+ * minted from that version's own stored key and is released only after the FINAL post-signing
+ * recheck agrees the row is still readable and still the same version.
  */
 export async function readClientFileHistory(
   owner: ClientFileHistoryOwner,
@@ -504,6 +579,24 @@ export async function readClientFileHistory(
       return projectVersion(row, offset + index + 1, headId, names, readiness, links);
     }),
   );
+
+  // FINAL recheck, after every awaited signing call has completed. A signed URL is a bearer
+  // capability, so the page is released only if each row is STILL currently readable through
+  // the canonical owner and STILL the same version: same object key, same recorded digest,
+  // same source/parent ownership and chain position, same lifecycle/scan readiness. A
+  // revocation, deletion, quarantine or any identity drift in this window withholds the whole
+  // page as honestly unavailable instead of handing out a URL minted from a row that no longer
+  // describes it. Nothing is repaired or rewritten and no digest is recomputed.
+  for (const row of page) {
+    let current: ClientFileHistoryIdentity | null;
+    try {
+      current = await owner.recheck(row);
+    } catch (error) {
+      if (error instanceof HttpException) throw unavailable();
+      throw error;
+    }
+    if (!current || !sameVersionIdentity(row, current)) throw unavailable();
+  }
   const hasMore = offset + page.length < chain.length;
 
   return {
