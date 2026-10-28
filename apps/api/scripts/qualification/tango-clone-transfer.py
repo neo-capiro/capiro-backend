@@ -378,7 +378,7 @@ def vectors(conn, api_dir, node):
     # Reuse the canonical worker's normalizer/chunker/marker; no Python approximation.
     proc = subprocess.Popen([node, "--import", "tsx", "--input-type=module", "-e", CANONICAL_HELPER], cwd=api_dir,
         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, encoding="utf-8", env={**os.environ, "EMBEDDING_PROVIDER": "bedrock"})
-    accepted, deferred = 0, 0
+    accepted, deferred, unverified_empty = 0, 0, 0
     try:
         for prefix in ("w", "s"):
             for kind in KINDS:
@@ -390,6 +390,9 @@ def vectors(conn, api_dir, node):
                     require(bool(answer), "canonical_worker_unavailable")
                     result = json.loads(answer)
                     require(not result.get("error"), "canonical_plan_failure")
+                    if not parts and not result["valid"]:
+                        unverified_empty += 1
+                        continue
                     if not result["usable"]:
                         deferred += 1
                         continue
@@ -425,7 +428,7 @@ def vectors(conn, api_dir, node):
     for kind, table in KINDS.items():
         conn.execute(f"UPDATE w_{table} SET embedded_content_hash=NULL,embedded_at=NULL WHERE id IN (SELECT new_id FROM m_{table})")
         conn.execute(f"UPDATE w_{table} p SET embedded_content_hash=a.marker,embedded_at=a.embedded_at FROM vector_accept a WHERE a.kind=%s AND a.new_id=p.id::text", (kind,))
-    return {"selected_documents":scalar(conn,"SELECT count(*) FROM vector_accept"),"current_verified_documents":scalar(conn,"SELECT count(*) FROM vector_accept WHERE valid"),"retained_stale_documents":scalar(conn,"SELECT count(*) FROM vector_accept WHERE NOT valid"), "source_body_conflicts": deferred}
+    return {"selected_documents":scalar(conn,"SELECT count(*) FROM vector_accept"),"current_verified_documents":scalar(conn,"SELECT count(*) FROM vector_accept WHERE valid"),"retained_stale_documents":scalar(conn,"SELECT count(*) FROM vector_accept WHERE NOT valid"), "source_body_conflicts": deferred,"unverified_empty_documents":unverified_empty}
 
 
 def references(conn):

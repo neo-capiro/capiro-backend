@@ -129,7 +129,8 @@ def integration_tests(config,api_dir,node):
                         conn.execute("INSERT INTO tango_resource_snapshot(id,resource_type,external_id,source_updated_at,provider_fetched_at,content_sha256,normalized_jsonb,active,version) VALUES(%s,'grant',%s,'2026-10-26','2026-10-26',%s,%s::jsonb,true,2)",(uuid4(),cls.grant,hashlib.sha256(stable(new_snapshot).encode()).hexdigest(),json.dumps(new_snapshot)))
                     conn.execute("INSERT INTO tango_resource_link(id,local_resource_type,local_resource_id,tango_resource_type,tango_external_id,basis,status,confidence_band,reviewed_by,reviewed_at,updated_at) VALUES(%s,'sam_opportunity',%s,'notice',%s,'exact_identifier',%s,'high',%s,%s,%s)",(uuid4() if newer else cls.target_link,str(notice),cls.notice_key,"active" if newer else "rejected",None if newer else uuid4(),None if newer else stamp,stamp))
                     history={"response_deadline":None if newer else "2027-01-01"}
-                    conn.execute("INSERT INTO tango_opportunity_notice(id,tango_notice_id,sam_opportunity_id,title,description,content_hash,snapshot,response_deadline,provider_updated_at,last_synced_at,updated_at) VALUES(%s,%s,%s,'Notice history',%s,%s,%s::jsonb,%s,%s,%s,%s)",(uuid4() if newer else cls.target_history,cls.notice_key,notice,"Updated history body" if newer else "Old history body",hashlib.sha256(stable(history).encode()).hexdigest(),json.dumps(history),None if newer else "2027-01-01",stamp,stamp,stamp))
+                    history_body="Updated history body" if newer else "Old history body"
+                    conn.execute("INSERT INTO tango_opportunity_notice(id,tango_notice_id,sam_opportunity_id,title,description,description_sha256,content_hash,snapshot,response_deadline,provider_updated_at,last_synced_at,updated_at) VALUES(%s,%s,%s,'Notice history',%s,%s,%s,%s::jsonb,%s,%s,%s,%s)",(uuid4() if newer else cls.target_history,cls.notice_key,notice,history_body,hashlib.sha256(history_body.encode()).hexdigest(),hashlib.sha256(stable(history).encode()).hexdigest(),json.dumps(history),None if newer else "2027-01-01",stamp,stamp,stamp))
                     if newer:
                         put_vector(conn,cls.grant,"funding_grant_chunk","federal_grant","Grant Agency Richer source description",None,"funding-v1-6000-400")
                         put_vector(conn,notice,"funding_notice_chunk","sam_opportunity","Notice Agency Current public notice description","https://sam.gov/opp/fixture/view","funding-v2-6000-400-unicode")
@@ -241,7 +242,14 @@ def integration_tests(config,api_dir,node):
                 conn.execute("UPDATE opportunity_document_text SET attachment_content_sha256=%s,status='not_provided',text=NULL,char_count=NULL,fetched_at='2026-10-29' WHERE id=%s",("c"*64,self.source_text))
                 conn.execute("DELETE FROM context_embeddings WHERE source_type='funding_attachment_chunk'")
                 put_vector(conn,self.source_attachment,"funding_attachment_chunk","opportunity_attachment","",new_url,"funding-v3-6000chars-6000bytes-400-unicode",{"providerAttachmentId":"provider-document","binding":"archived_content_sha256","samOpportunityId":str(self.source_notice),"federalGrantId":None,"extractionStatus":"available","extractionMethod":"local_parser","attachmentContentSha256":"c"*64,"truncated":False,"documentRole":None})
+                correct_marker=conn.execute("SELECT embedded_content_hash FROM opportunity_attachment WHERE id=%s",(self.source_attachment,)).fetchone()[0]
+                conn.execute("UPDATE opportunity_attachment SET embedded_content_hash=%s,embedded_at='2026-10-30' WHERE id=%s",("d"*64,self.source_attachment))
                 conn.execute("DELETE FROM context_embeddings WHERE source_type='funding_attachment_chunk'")
+            before=self.query("target","SELECT content_hash FROM context_embeddings WHERE source_type='funding_attachment_chunk'")
+            invalid=self.run_transfer(True)
+            self.assertGreater(invalid["vectors"]["unverified_empty_documents"],0)
+            self.assertEqual(before,self.query("target","SELECT content_hash FROM context_embeddings WHERE source_type='funding_attachment_chunk'"))
+            self.query("source","UPDATE opportunity_attachment SET embedded_content_hash=%s WHERE id=%s",(correct_marker,self.source_attachment))
             self.run_transfer(True)
             self.assertEqual(self.query("target","SELECT count(*) FROM context_embeddings WHERE source_type='funding_attachment_chunk'")[0][0],0)
             self.assertTrue(self.query("target","SELECT embedded_at IS NOT NULL AND embedded_content_hash IS NOT NULL FROM opportunity_attachment")[0][0])
