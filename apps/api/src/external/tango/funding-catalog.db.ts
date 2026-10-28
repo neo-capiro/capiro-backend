@@ -12,14 +12,19 @@ export function fundingDatabaseOptions(commit: boolean, env: NodeJS.ProcessEnv =
   if (!['postgres:', 'postgresql:'].includes(url.protocol) || !url.username || !url.pathname.slice(1) || url.hash) {
     throw new Error('Invalid funding PostgreSQL configuration');
   }
+  // pg-connection-string lets query keys such as host override the URL authority.
+  // Admit only shared, non-routing Prisma/pg options so both clients reach the
+  // same vetted database. Duplicate options also have inconsistent precedence.
+  const allowedQuery = new Set(['schema', 'sslmode', 'connection_limit', 'pool_timeout', 'connect_timeout', 'statement_cache_size', 'application_name']);
+  for (const key of url.searchParams.keys()) {
+    if (!allowedQuery.has(key) || url.searchParams.getAll(key).length !== 1) throw new Error('Unsupported funding database URL option');
+  }
+  if (url.searchParams.has('schema') && url.searchParams.get('schema') !== 'public') throw new Error('Funding requires the public schema');
   const isolated = LOOPBACK_HOSTS.has(url.hostname) && url.pathname === '/funding_test';
   if (url.hostname !== FUNDING_CLONE_HOST && !isolated) throw new Error('Funding requires the preview clone or loopback funding_test database');
   if (commit && env.FUNDING_ALLOWED_DB_HOST !== url.hostname) throw new Error('Funding writes require an exact FUNDING_ALLOWED_DB_HOST match');
   const sslMode = url.searchParams.get('sslmode');
   if (!isolated && !['require', 'verify-ca', 'verify-full'].includes(sslMode ?? '')) throw new Error('Funding clone requires verified TLS');
-  if (url.searchParams.has('sslaccept') || url.searchParams.has('ssl') || url.searchParams.has('sslrootcert') || url.searchParams.has('sslcert') || url.searchParams.has('sslkey')) {
-    throw new Error('Funding TLS overrides are not permitted');
-  }
   url.searchParams.delete('sslmode');
   // Official RDS roots are supplied by NODE_EXTRA_CA_CERTS in the worker.
   return { connectionString: url.toString(), ...(sslMode && sslMode !== 'disable' ? { ssl: { rejectUnauthorized: true } } : {}) };

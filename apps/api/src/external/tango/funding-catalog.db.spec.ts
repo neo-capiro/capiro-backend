@@ -23,6 +23,15 @@ describe('bounded funding database configuration', () => {
       expect(message).not.toContain('private-password');
     }
   });
+  test('query options cannot override either driver endpoint, identity or TLS', () => {
+    for (const key of ['host', 'hostaddr', 'port', 'database', 'dbname', 'user', 'password', 'service', 'ssl', 'sslaccept', 'sslrootcert', 'sslcert', 'sslkey', 'options']) {
+      expect(() => fundingDatabaseOptions(true, { DATABASE_URL: clone(`sslmode=require&${key}=other-db.example.com`), FUNDING_ALLOWED_DB_HOST: FUNDING_CLONE_HOST })).toThrow('Unsupported funding database URL option');
+    }
+    for (const query of ['sslmode=require&sslmode=disable', 'sslmode=require&schema=private', 'sslmode=require&host%61ddr=127.0.0.1']) {
+      expect(() => fundingDatabaseOptions(true, { DATABASE_URL: clone(query), FUNDING_ALLOWED_DB_HOST: FUNDING_CLONE_HOST })).toThrow();
+    }
+    expect(fundingDatabaseOptions(true, { DATABASE_URL: clone('sslmode=require&schema=public&connection_limit=10&pool_timeout=10'), FUNDING_ALLOWED_DB_HOST: FUNDING_CLONE_HOST }).ssl).toEqual({ rejectUnauthorized: true });
+  });
   test('isolated rehearsal permits only loopback funding_test, with explicit commit host', () => {
     expect(fundingDatabaseOptions(true, { DATABASE_URL: 'postgresql://fixture:fixture@127.0.0.1:5432/funding_test?sslmode=disable', FUNDING_ALLOWED_DB_HOST: '127.0.0.1' }).ssl).toBeUndefined();
     expect(() => fundingDatabaseOptions(false, { DATABASE_URL: 'postgresql://fixture:fixture@127.0.0.1:5432/capiro' })).toThrow('preview clone');
