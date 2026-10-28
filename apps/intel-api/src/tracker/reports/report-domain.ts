@@ -443,7 +443,7 @@ export const safeUrl = (url: string | null): string | null => {
     return null;
   }
 };
-export function renderReport(d: ReportDocument, appOrigin = 'https://os.capiro.ai') {
+export function renderReport(d: ReportDocument, appOrigin = 'https://app.capiro.ai') {
   const e = escapeHtml;
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${e(d.name)}</title>
   <style>body{font:15px/1.55 system-ui,sans-serif;color:#182624;max-width:900px;margin:32px auto;padding:0 24px}h1{font-size:32px;line-height:1.2}h2{font-size:20px;break-after:avoid}h3{font-size:14px;break-after:avoid}a{color:#136f63;overflow-wrap:anywhere}article{border-top:1px solid #d8dfdc;padding:16px 0}p{margin:8px 0}.meta{font-size:12px;color:#556762}.warning{padding:12px;border:1px solid #b78321;background:#fff8e7}li{margin-bottom:6px}@media print{body{margin:0;max-width:none;font-size:10pt}h1,h2,h3{break-after:avoid}h2{break-before:auto}article{break-inside:auto}.bill-head{break-inside:avoid}li{break-inside:avoid}thead{display:table-header}a{color:inherit}}</style></head><body>

@@ -160,6 +160,16 @@ describe('operational report semantics', () => {
       expect(renderReport(result).html).toContain('Synthetic HB 93');
     },
   );
+  it('defaults relative bill links to the app origin and honors an explicit origin', () => {
+    const d = document({}, [bill('b1', 'HB 93')]);
+    const relative = `/bills/${encodeURIComponent('b1')}`;
+    const { html } = renderReport(d);
+    expect(html).toContain(`<a href="https://app.capiro.ai${relative}">HB 93</a>`);
+    expect(html).not.toContain('os.capiro.ai');
+    const explicit = renderReport(d, 'https://explicit.example.test').html;
+    expect(explicit).toContain(`<a href="https://explicit.example.test${relative}">HB 93</a>`);
+    expect(explicit).not.toContain('https://app.capiro.ai');
+  });
   it('keeps the bill heading, metadata and first section block together in print', () => {
     // Print pagination: an article's h2 + folder/sponsor metadata + the first
     // section block are wrapped in .bill-head{break-inside:avoid} so a break
