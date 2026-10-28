@@ -768,7 +768,7 @@ describe('listMeetings prep list projection (receiver contract)', () => {
     agenda: [{ text: 'Synthetic agenda item', factIds: ['fact-1'] }, 'Plain agenda item'],
     talkingPoints: [{ text: 'Synthetic talking point', evidenceReferences: ['fact-1'] }],
     risks: ['Plain risk'],
-    followUps: [{ text: 'Synthetic follow-up' }],
+    followUps: [{ text: 'Synthetic follow-up', factIds: [] }],
     // Provenance and every other column must survive the projection untouched.
     generatedFrom: { contextPacketId: 'packet-1', factIds: ['fact-1'] },
   });
@@ -801,21 +801,38 @@ describe('listMeetings prep list projection (receiver contract)', () => {
     expect(JSON.parse(JSON.stringify(stored))).toEqual(snapshot);
   });
 
-  test('an entry with no usable text is passed through verbatim, so validation is not weakened', async () => {
+  test('an entry without a valid metadata arm is passed through verbatim, so validation is not weakened', async () => {
     const stored = structuredPrep();
     const taskEntry = { title: 'Synthetic task', description: 'Not prep text' };
+    const bareText = { text: 'Text without any metadata arm' };
+    const nonArrayFactIds = { text: 'Non-array metadata', factIds: 'fact-1' };
+    const nonStringFactIds = { text: 'Non-string metadata member', factIds: ['fact-1', 7] };
+    const nonArrayReferences = { text: 'Non-array references', evidenceReferences: 'ref-1' };
     stored.agenda = [taskEntry, 'Plain agenda item'];
-    stored.talkingPoints = ['Plain talking point'];
-    stored.risks = [{ text: 42 }, { text: '   ' }];
+    stored.talkingPoints = [bareText, nonArrayFactIds, 'Plain talking point'];
+    stored.risks = [{ text: 42 }, { text: '   ' }, nonStringFactIds, nonArrayReferences];
     stored.followUps = [];
 
     const [prep] = await listMaster([stored]);
 
-    // Nothing is dropped and nothing is coerced into a string.
+    // Nothing is dropped and nothing is coerced into a string — including a
+    // text-bearing object whose provenance arm is missing or malformed, which
+    // the receiver's union does not accept either.
     expect(prep!.agenda).toEqual([taskEntry, 'Plain agenda item']);
-    expect(prep!.talkingPoints).toEqual(['Plain talking point']);
-    expect(prep!.risks).toEqual([{ text: 42 }, { text: '   ' }]);
+    expect(prep!.talkingPoints).toEqual([bareText, nonArrayFactIds, 'Plain talking point']);
+    expect(prep!.risks).toEqual([{ text: 42 }, { text: '   ' }, nonStringFactIds, nonArrayReferences]);
     expect(prep!.followUps).toEqual([]);
+  });
+
+  test('one valid metadata arm is enough — a malformed second arm does not block projection', async () => {
+    const stored = structuredPrep();
+    stored.risks = [
+      { text: 'One valid arm', factIds: ['fact-1'], evidenceReferences: 'malformed' },
+    ];
+
+    const [prep] = await listMaster([stored]);
+
+    expect(prep!.risks).toEqual(['One valid arm']);
   });
 
   test('a prep list column that is not an array is passed through unchanged', async () => {

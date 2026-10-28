@@ -11262,7 +11262,7 @@ function meetingInclude() {
 }
 
 // The four prep list columns whose canonical item arms are "a plain string" or
-// "a structured { text, ...provenance } entry" — see projectMeetingPrepListItems.
+// "a structured { text, metadata arms } entry" — see projectMeetingPrepListItems.
 const PREP_LIST_FIELDS = ['agenda', 'talkingPoints', 'risks', 'followUps'] as const;
 
 /**
@@ -11276,10 +11276,10 @@ const PREP_LIST_FIELDS = ['agenda', 'talkingPoints', 'risks', 'followUps'] as co
  *
  * Project the recognized text arm to its string here, where the response is
  * built, so no producer changes what it stores and no receiver is widened:
- * nothing is dropped, no stored JSON is rewritten, and an entry with no usable
- * text (or a column that is not a list) is passed through exactly as stored —
- * it still refuses at the receiver rather than being silently coerced into a
- * passing response.
+ * nothing is dropped, no stored JSON is rewritten, and an entry that is not
+ * recognized — no usable text, no valid metadata arm, or a column that is not a
+ * list — is passed through exactly as stored, so it still refuses at the
+ * receiver rather than being silently coerced into a passing response.
  */
 function projectMeetingPrepListItems<T extends object>(prep: T): T {
   const source = prep as {
@@ -11305,11 +11305,33 @@ function projectMeetingPrepListItems<T extends object>(prep: T): T {
 /**
  * The text of a recognized structured prep entry, or null when the entry is not
  * one — the caller then keeps the original entry verbatim.
+ *
+ * Recognition mirrors the canonical prep payload's structured arms instead of
+ * accepting any object that happens to carry text: a non-blank `text` AND at
+ * least one valid metadata arm — `factIds` or `evidenceReferences` as an
+ * all-string array (an empty array is still a valid arm, and either arm alone
+ * suffices because the receiver's union accepts either). A bare `{ text }`, a
+ * wrong-typed arm (`factIds: 'x'`, a non-string member) and every other shape
+ * stay unrecognized, so they keep refusing at the receiver instead of being
+ * displayed as text.
  */
 function prepListEntryText(entry: unknown): string | null {
   if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) return null;
-  const text = (entry as { text?: unknown }).text;
-  return typeof text === 'string' && text.trim() ? text : null;
+  const candidate = entry as { text?: unknown; factIds?: unknown; evidenceReferences?: unknown };
+  const text = candidate.text;
+  if (typeof text !== 'string' || !text.trim()) return null;
+  if (!isStringArray(candidate.factIds) && !isStringArray(candidate.evidenceReferences)) {
+    return null;
+  }
+  return text;
+}
+
+/**
+ * True for an array whose members are all strings — the metadata arms the
+ * canonical prep payload accepts (an empty array is still a valid arm).
+ */
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((member) => typeof member === 'string');
 }
 
 // isPlainTextAttachment / isDocxAttachment / isPdfAttachment / extractPdfBuffer
