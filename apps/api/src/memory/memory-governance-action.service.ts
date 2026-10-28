@@ -14,8 +14,14 @@ import { memoryGovernanceCenterEnabled } from './memory-governance-center.switch
 import { MemoryStoreService } from './memory-store.service.js';
 import { MemoryTransitionAuditService } from './memory-transition-audit.service.js';
 import { clientMemoryAllowed } from './memory-wall.helpers.js';
+import {
+  assertMemoryGovernanceVersion,
+  memoryGovernanceVersionSql,
+  requireMemoryGovernanceVersion,
+} from './memory-governance-version.js';
 
 interface LockedItem {
+  version: string;
   id: string;
   title: string;
   clientId: string | null;
@@ -30,6 +36,7 @@ interface LockedItem {
 }
 
 interface LockedProjectionJob {
+  version: string;
   id: string;
   memoryItemId: string | null;
   clioMemoryId: string | null;
@@ -74,12 +81,13 @@ export class MemoryGovernanceActionService {
    * touches `memory_class`/`memory_authority`/`source_*`, so provenance and
    * classification stay exactly as the reviewer found them.
    */
-  async approve(ctx: TenantContext, itemId: string, reason: string) {
+  async approve(ctx: TenantContext, itemId: string, reason: string, expectedVersion: string) {
     this.requireEnabled();
     const cleanReason = requiredReason(reason, 'A reason is required to approve memory.');
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const row = await this.lockItem(tx, ctx.tenantId, itemId);
       await this.requireOperation(tx, ctx, itemId, 'approve');
+      assertMemoryGovernanceVersion(row.version, expectedVersion);
       const status = normalizeStatus(row.governedStatus);
       if (status !== 'pending_review') {
         throw new BadRequestException(`Memory in ${status} status cannot be approved.`);
@@ -124,11 +132,12 @@ export class MemoryGovernanceActionService {
     });
   }
 
-  async confirm(ctx: TenantContext, itemId: string) {
+  async confirm(ctx: TenantContext, itemId: string, expectedVersion: string) {
     this.requireEnabled();
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const row = await this.lockItem(tx, ctx.tenantId, itemId);
       await this.requireOperation(tx, ctx, itemId, 'confirm');
+      assertMemoryGovernanceVersion(row.version, expectedVersion);
       const status = normalizeStatus(row.governedStatus);
       if (!['active', 'stale', 'conflicted'].includes(status)) {
         throw new BadRequestException(`Memory in ${status} status cannot be confirmed.`);
@@ -164,12 +173,13 @@ export class MemoryGovernanceActionService {
     });
   }
 
-  async markStale(ctx: TenantContext, itemId: string, reason: string) {
+  async markStale(ctx: TenantContext, itemId: string, reason: string, expectedVersion: string) {
     this.requireEnabled();
     const cleanReason = requiredReason(reason, 'A reason is required to mark memory stale.');
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const row = await this.lockItem(tx, ctx.tenantId, itemId);
       await this.requireOperation(tx, ctx, itemId, 'mark_stale');
+      assertMemoryGovernanceVersion(row.version, expectedVersion);
       const status = normalizeStatus(row.governedStatus);
       if (status === 'stale') {
         return { outcome: 'already_stale' as const, itemId, governedStatus: status };
@@ -206,10 +216,14 @@ export class MemoryGovernanceActionService {
     });
   }
 
-  async revoke(ctx: TenantContext, itemId: string, reason: string) {
+  async revoke(ctx: TenantContext, itemId: string, reason: string, expectedVersion: string) {
     this.requireEnabled();
     const cleanReason = requiredReason(reason, 'A reason is required to revoke memory.');
-    const result = await this.store.forgetMemory(itemId, cleanReason);
+    const result = await this.store.forgetMemoryAtVersion(
+      itemId,
+      cleanReason,
+      requireMemoryGovernanceVersion(expectedVersion),
+    );
     if (!result.found) {
       throw new NotFoundException('Memory item was not found or is not revocable.');
     }
@@ -224,11 +238,12 @@ export class MemoryGovernanceActionService {
     };
   }
 
-  async secondApprove(ctx: TenantContext, itemId: string) {
+  async secondApprove(ctx: TenantContext, itemId: string, expectedVersion: string) {
     this.requireEnabled();
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const row = await this.lockItem(tx, ctx.tenantId, itemId);
       await this.requireOperation(tx, ctx, itemId, 'approve');
+      assertMemoryGovernanceVersion(row.version, expectedVersion);
       const status = normalizeStatus(row.governedStatus);
       if (!['active', 'stale', 'conflicted'].includes(status)) {
         throw new BadRequestException('Second approval is available only for recallable memory.');
@@ -282,10 +297,13 @@ export class MemoryGovernanceActionService {
     });
   }
 
-  async retryProjection(ctx: TenantContext, jobId: string) {
+  async retryProjection(ctx: TenantContext, jobId: string, expectedVersion: string) {
     this.requireEnabled();
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const job = await this.lockProjectionJob(tx, ctx.tenantId, jobId);
+      await this.requireProjectionAccess(tx, ctx, job);
+
+      assertMemoryGovernanceVersion(job.version, expectedVersion);
       if (['pending', 'running'].includes(job.status)) {
         return { outcome: 'already_retryable' as const, jobId, status: job.status };
       }
@@ -293,25 +311,6 @@ export class MemoryGovernanceActionService {
         throw new BadRequestException(
           `Only failed or dead-letter projection jobs can be retried; current status is ${job.status}.`,
         );
-      }
-
-      if (job.clioMemoryId && !job.clioScope) {
-        throw new ForbiddenException('Memory operation denied: private_subject_unavailable');
-      }
-      if (job.clioScope === 'user_private' && job.clioOwnerUserId !== ctx.userId) {
-        throw new ForbiddenException('Memory operation denied: owner_only');
-      }
-      if (job.clientId) {
-        const allowed = await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, job.clientId);
-        if (!allowed) throw new ForbiddenException('Memory operation denied: ethical_wall');
-      }
-      if (job.memoryItemId) {
-        const subject = await this.authorization.loadItemInTx(tx, ctx.tenantId, job.memoryItemId);
-        if (!subject) throw new NotFoundException('Projection memory item not found.');
-        const decision = await this.authorization.evaluateInTx(tx, ctx, subject, 'read');
-        if (!decision.allowed) {
-          throw new ForbiddenException(`Memory operation denied: ${decision.reason}`);
-        }
       }
 
       const changed = await tx.$executeRaw`
@@ -354,6 +353,52 @@ export class MemoryGovernanceActionService {
     });
   }
 
+  /** Exact, currently authorized readback; disappearance from recent failures is not an outcome. */
+  async getProjectionJob(ctx: TenantContext, jobId: string) {
+    if (!memoryGovernanceCenterEnabled()) return { enabled: false, job: null };
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const job = await this.lockProjectionJob(tx, ctx.tenantId, jobId, false);
+      await this.requireProjectionAccess(tx, ctx, job);
+      return {
+        enabled: true,
+        job: {
+          id: job.id,
+          version: job.version,
+          status: job.status,
+          attempts: job.attempts,
+          operation: job.operation,
+          lastError: boundedErrorCode(job.lastError),
+        },
+      };
+    });
+  }
+
+  private async requireProjectionAccess(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    job: LockedProjectionJob,
+  ): Promise<void> {
+    if (!job.memoryItemId && !job.clioMemoryId) {
+      throw new ForbiddenException('Memory operation denied: subject_unavailable');
+    }
+    if (job.clioMemoryId && !job.clioScope) {
+      throw new ForbiddenException('Memory operation denied: private_subject_unavailable');
+    }
+    if (job.clioScope === 'user_private' && job.clioOwnerUserId !== ctx.userId) {
+      throw new ForbiddenException('Memory operation denied: owner_only');
+    }
+    if (job.clientId && !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, job.clientId))) {
+      throw new ForbiddenException('Memory operation denied: ethical_wall');
+    }
+    if (job.memoryItemId) {
+      const subject = await this.authorization.loadItemInTx(tx, ctx.tenantId, job.memoryItemId);
+      if (!subject) throw new NotFoundException('Projection memory item not found.');
+      const decision = await this.authorization.evaluateInTx(tx, ctx, subject, 'read');
+      if (!decision.allowed)
+        throw new ForbiddenException(`Memory operation denied: ${decision.reason}`);
+    }
+  }
+
   private requireEnabled(): void {
     if (!memoryGovernanceCenterEnabled()) {
       throw new ServiceUnavailableException(
@@ -383,6 +428,7 @@ export class MemoryGovernanceActionService {
   ): Promise<LockedItem> {
     const rows = await tx.$queryRaw<LockedItem[]>(Prisma.sql`
       SELECT id::text AS id,
+             ${memoryGovernanceVersionSql('mi')} AS version,
              title,
              client_id::text AS "clientId",
              governed_status AS "governedStatus",
@@ -393,7 +439,7 @@ export class MemoryGovernanceActionService {
              approved_at AS "approvedAt",
              second_approved_by_user_id::text AS "secondApprovedByUserId",
              second_approved_at AS "secondApprovedAt"
-      FROM memory_items
+      FROM memory_items mi
       WHERE tenant_id = ${tenantId}::uuid AND id = ${itemId}::uuid
       FOR UPDATE
     `);
@@ -406,9 +452,11 @@ export class MemoryGovernanceActionService {
     tx: Prisma.TransactionClient,
     tenantId: string,
     jobId: string,
+    lock = true,
   ): Promise<LockedProjectionJob> {
     const rows = await tx.$queryRaw<LockedProjectionJob[]>(Prisma.sql`
       SELECT o.id::text AS id,
+             ${memoryGovernanceVersionSql('o')} AS version,
              o.memory_item_id::text AS "memoryItemId",
              o.clio_memory_id::text AS "clioMemoryId",
              COALESCE(mi.client_id, cm.client_id)::text AS "clientId",
@@ -424,7 +472,7 @@ export class MemoryGovernanceActionService {
       LEFT JOIN clio_memory cm
         ON cm.id = o.clio_memory_id AND cm.tenant_id = o.tenant_id
       WHERE o.tenant_id = ${tenantId}::uuid AND o.id = ${jobId}::uuid
-      FOR UPDATE OF o
+      ${lock ? Prisma.sql`FOR UPDATE OF o` : Prisma.empty}
     `);
     const row = rows[0];
     if (!row) throw new NotFoundException('Projection job not found.');
