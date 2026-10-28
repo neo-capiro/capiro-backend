@@ -233,6 +233,19 @@ def integration_tests(config,api_dir,node):
                     self.run_transfer(True)
             self.assertEqual(self.saved,self.query("target","SELECT row_to_json(t)::text FROM client_funding_opportunity t"))
 
+        def test_10_completed_empty_source_atomically_removes_obsolete_chunks(self):
+            new_url="https://sam.gov/api/prod/opps/v3/opportunities/resources/files/"+uuid4().hex+"/download"
+            with operator.connect(psycopg,config["source"],True) as conn:
+                conn.execute("SET app.bypass_rls='on'")
+                conn.execute("UPDATE opportunity_attachment SET source_url=%s,content_sha256=%s,archive_key=%s,provider_observed_at='2026-10-29' WHERE id=%s",(new_url,"c"*64,"funding-source-documents/"+"c"*64,self.source_attachment))
+                conn.execute("UPDATE opportunity_document_text SET attachment_content_sha256=%s,status='not_provided',text=NULL,char_count=NULL,fetched_at='2026-10-29' WHERE id=%s",("c"*64,self.source_text))
+                conn.execute("DELETE FROM context_embeddings WHERE source_type='funding_attachment_chunk'")
+                put_vector(conn,self.source_attachment,"funding_attachment_chunk","opportunity_attachment","",new_url,"funding-v3-6000chars-6000bytes-400-unicode",{"providerAttachmentId":"provider-document","binding":"archived_content_sha256","samOpportunityId":str(self.source_notice),"federalGrantId":None,"extractionStatus":"available","extractionMethod":"local_parser","attachmentContentSha256":"c"*64,"truncated":False,"documentRole":None})
+                conn.execute("DELETE FROM context_embeddings WHERE source_type='funding_attachment_chunk'")
+            self.run_transfer(True)
+            self.assertEqual(self.query("target","SELECT count(*) FROM context_embeddings WHERE source_type='funding_attachment_chunk'")[0][0],0)
+            self.assertTrue(self.query("target","SELECT embedded_at IS NOT NULL AND embedded_content_hash IS NOT NULL FROM opportunity_attachment")[0][0])
+
     return DatabaseTests
 
 

@@ -315,7 +315,7 @@ const rl=readline.createInterface({input:process.stdin,crlfDelay:Infinity});
 for await (const line of rl) {
   try {
     const x=JSON.parse(line),body=searchText(x.source.body),finalBody=searchText(x.final.body),documentHash=hash(body);
-    const chunker=x.vectors[0].metadata.chunker,model='amazon.titan-embed-text-v2:0';
+    const chunker=x.vectors[0]?.metadata.chunker ?? 'funding-v3-6000chars-6000bytes-400-unicode',model='amazon.titan-embed-text-v2:0';
     let covered=0;
     const valid=x.vectors.every((v,i)=>{
       const m=v.metadata;
@@ -357,10 +357,10 @@ def vector_groups(conn, prefix, kind):
         {body_sql(kind,prefix)}, {body_sql(kind,'w','f').replace('d.text','z.text')},
         to_jsonb(p){"||jsonb_build_object('text_truncated',d.truncated)" if kind == 'attachment' else ''},
         to_jsonb(f){"||jsonb_build_object('text_truncated',z.truncated)" if kind == 'attachment' else ''},
-        v.parts,v.latest FROM {prefix}_{table} p {mapping} JOIN w_{table} f ON f.id={target_id} {text_join}
+        coalesce(v.parts,'[]'::jsonb),coalesce(v.latest,p.embedded_at) FROM {prefix}_{table} p {mapping} JOIN w_{table} f ON f.id={target_id} {text_join}
         JOIN LATERAL (SELECT jsonb_agg(jsonb_build_object('source_id',e.source_id,'content_hash',e.content_hash,'metadata',e.metadata_jsonb) ORDER BY (e.metadata_jsonb->>'chunkIndex')::int) AS parts
             ,max(e.updated_at) AS latest
-            FROM {prefix}_context_embeddings e WHERE e.source_type='funding_{kind}_chunk' AND e.model='amazon.titan-embed-text-v2:0' AND split_part(e.source_id,':',1)=p.id::text) v ON v.parts IS NOT NULL"""
+            FROM {prefix}_context_embeddings e WHERE e.source_type='funding_{kind}_chunk' AND e.model='amazon.titan-embed-text-v2:0' AND split_part(e.source_id,':',1)=p.id::text) v ON v.parts IS NOT NULL OR p.embedded_content_hash IS NOT NULL"""
     with conn.cursor(name=f"vectors_{prefix}_{kind}") as cursor:
         cursor.itersize = 10
         cursor.execute(sql)
@@ -393,7 +393,8 @@ def vectors(conn, api_dir, node):
                     if not result["usable"]:
                         deferred += 1
                         continue
-                    base = metadata(kind, final_row) if result["valid"] else {k:v for k,v in parts[0]["metadata"].items() if k not in ("parentId","documentHash","chunkIndex","start","end","offsetBasis","chunker")}
+                    old_metadata = parts[0]["metadata"] if parts else metadata(kind,row)
+                    base = metadata(kind, final_row) if result["valid"] else {k:v for k,v in old_metadata.items() if k not in ("parentId","documentHash","chunkIndex","start","end","offsetBasis","chunker")}
                     if kind == "attachment" and not result["valid"]:
                         base["samOpportunityId"] = final_row.get("sam_opportunity_id")
                         base["federalGrantId"] = final_row.get("federal_grant_id")
