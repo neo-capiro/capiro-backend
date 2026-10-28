@@ -179,9 +179,11 @@ export class EngagementRuntimePolicyService {
         action === 'integration_subscription' ||
         action === 'integration_notification' ||
         // These dependencies retain their ordinary owner/access checks. Attachment
-        // writes include authorized Engagement attachment operations, not just Recall.
+        // reads and writes include authorized Engagement attachment operations, not
+        // just Recall; the final owner lists and imports incoming message files.
         (notetaker && (action === 'notetaker_dispatch' || action === 'notetaker_remove' ||
-          action === 'meeting_debrief_generate' || action === 'attachment_external_write' ||
+          action === 'meeting_debrief_generate' || action === 'attachment_external_read' ||
+          action === 'attachment_external_write' ||
           action === 'internal_ai_credential_resolve'))
       );
     }
