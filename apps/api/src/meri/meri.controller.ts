@@ -66,6 +66,7 @@ import { MeriMcpService, type CatalogAddInput, type McpServerInput } from './mer
 import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
 import { MeriProcedureRuntimeValidationService } from './meri-procedure-runtime-validation.service.js';
+import type { MeriSelectedProcedureSelector } from './native-procedures/selected-procedure.js';
 import { MeriApprovalService } from './meri-approval.service.js';
 import { MeriComplianceAuditService } from './meri-compliance-audit.service.js';
 import { MeriClaimWriterService } from './meri-claim-writer.js';
@@ -315,7 +316,7 @@ class ResolveAttachmentTextDto {
   attachmentIds!: string[];
 }
 
-class ValidateMeriProcedureRuntimeDto {
+export class ValidateMeriProcedureRuntimeDto {
   @IsUUID()
   conversationId!: string;
 
@@ -326,25 +327,41 @@ class ValidateMeriProcedureRuntimeDto {
   @IsIn(['general', 'client', 'portfolio', 'external_entity'])
   scope!: 'general' | 'client' | 'portfolio' | 'external_entity';
 
+  @ValidateIf((o: ValidateMeriProcedureRuntimeDto) => !o.selector)
   @IsString()
   @Length(1, 200)
-  recordId!: string;
+  recordId?: string;
 
+  @ValidateIf((o: ValidateMeriProcedureRuntimeDto) => !o.selector)
   @IsString()
   @Matches(/^[a-z0-9_]{2,48}$/)
-  canonicalId!: string;
+  canonicalId?: string;
 
+  @ValidateIf((o: ValidateMeriProcedureRuntimeDto) => !o.selector)
   @IsInt()
   @Min(1)
-  procedureVersion!: number;
+  procedureVersion?: number;
 
+  @ValidateIf((o: ValidateMeriProcedureRuntimeDto) => !o.selector)
   @IsString()
   @Matches(/^[a-f0-9]{64}$/)
-  manifestDigest!: string;
+  manifestDigest?: string;
 
   @IsString()
   @Matches(/^[a-z0-9_:-]{2,160}$/)
   toolName!: string;
+
+  /**
+   * Wave5 MO01/ST16 native selector. When present it replaces the trusted
+   * full-identity fields above, so the caller only ever chooses a procedure:
+   * an exact firm row {source:'firm',recordId,version,manifestDigest} or one of
+   * the six builtins {source:'builtin',id,version,manifestDigest}. The exact
+   * closed shape is re-validated in Core; the browser never supplies
+   * instructions, tools or authority.
+   */
+  @IsOptional()
+  @IsObject()
+  selector?: MeriSelectedProcedureSelector;
 }
 
 @Controller('clio')
@@ -713,8 +730,30 @@ export class MeriController {
   validateProcedureRuntime(
     @CurrentTenant() ctx: TenantContext,
     @Body() body: ValidateMeriProcedureRuntimeDto,
+    @Req() req: Request,
   ) {
-    return this.procedureRuntime.validate(ctx, body);
+    // Native selected-procedure crossing (Wave5 MO01/ST16): the caller supplies
+    // only a stored selector and Core derives the exact identity itself.
+    if (body.selector) {
+      return this.procedureRuntime.admitSelectedProcedure(ctx, req, {
+        conversationId: body.conversationId,
+        clientId: body.clientId ?? null,
+        scope: body.scope,
+        toolName: body.toolName,
+        selector: body.selector,
+      });
+    }
+    // Trusted full-identity caller: the existing prepared-identity contract.
+    return this.procedureRuntime.validate(ctx, {
+      conversationId: body.conversationId,
+      clientId: body.clientId ?? null,
+      scope: body.scope,
+      recordId: body.recordId!,
+      canonicalId: body.canonicalId!,
+      procedureVersion: body.procedureVersion!,
+      manifestDigest: body.manifestDigest!,
+      toolName: body.toolName,
+    });
   }
 
   // ── MeriV2 legacy write-tool approvals (Workstream B4 + B4.1) — RETIRED ──

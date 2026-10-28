@@ -1,0 +1,21 @@
+CLAIM.txt: Implementing native real-time selected-procedure crossing for Wave5 MO01/ST16.
+Goal: Implement a narrow, native resolver for `selected-procedure-crossing` within `MeriProcedureRuntimeValidationService` and its consumer interfaces.
+Files to be modified/created:
+1. NEW `apps/api/src/meri/native-procedures/selected-procedure.ts` — public selector union (firm|builtin), six-builtin canonical registry (briefing,draft,bill_analysis,hearing_prep,coalition_letter,amendment_tracker) with version+digest via procedureManifestDigest, and resolveSelectedProcedureAdmission(). Firm path reuses MeriFirmSkillsService.list (tenant row to derive canonicalId) + resolveProcedureReference (uncached canonical/CAS). Admission deep-frozen with full manifest content.
+2. NEW `apps/api/src/meri/native-procedures/selected-procedure.spec.ts` — all6 builtins exact version/digest; unknown/tampered digest refused; firm disabled/stale/wrong-tenant/version/digest refused; wrong client/scope refused; frozen guidance; no capability widening; no model call.
+3. EDIT `apps/api/src/meri/meri-procedure-runtime.ts` — one narrow extraction: export projectProcedureBinding() so the builtin path shares the exact firm projection. No behaviour change; existing spec must keep passing.
+4. EDIT `apps/api/src/meri/meri-procedure-runtime-validation.service.ts` — procedure-only admitSelectedProcedure(ctx,req,input): ApplicationCurrentService trace before resolution, canonical resolve, re-read after resolution, refuse on revision drift. Existing validate() kept.
+5. EDIT `apps/api/src/meri/meri.controller.ts` — procedure-runtime span only: export ValidateMeriProcedureRuntimeDto, add optional selector fields, @Req() on POST clio/procedure-runtime/validate. No auth/guard/classifier/middleware change.
+6. NEW `apps/api/src/meri/meri-procedure-runtime-validation.service.spec.ts` — stable revisions admit; identity/membership/context drift refuses; canonical refusal propagates; selector replay against advanced row refuses.
+
+Interfaces and Dependencies:
+*   Core Service: `ApplicationCurrentService` from `ApplicationAuthorityModule` (Dependency).
+*   Existing Logic: Existing validator/resolver logic within `meri-procedure-runtime-validation.service.ts` and `meri.controller.ts`.
+*   Inputs: Procedure Union (Persisted), Firm Record, Builtin Union (Selected).
+*   Output: Resolved Procedure Context, Verification Status, Application of constraints/guard check results.
+
+Constraint Adherence:
+*   No schema/migration/store changes.
+*   No widening of regex/auth logic beyond what is strictly necessary for resolving the procedure's unique identity path.
+*   Narrow native resolver implemented.
+*   Auth paths traced: `ApplicationCurrentService` $\rightarrow$ Current Identity $\rightarrow$ Context Security Scope Check $\rightarrow$ Procedure Existence Check (in Core data layer, not Auth layer).
