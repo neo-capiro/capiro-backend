@@ -1,3 +1,4 @@
+import { MeriMemoryReceivingModule } from '../memory-receiving/meri-memory-receiving.controller.js';
 import { Body, Controller, Header, HttpCode, Module, Post, Req, Res, UseGuards } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import type { TenantContext } from '@capiro/shared';
@@ -77,7 +78,7 @@ export class NativeApprovalController {
 }
 
 @Module({
-  imports: [PrismaModule, ApplicationAuthorityModule, EngagementModule, TenantModule, ClientDocumentsModule],
+  imports: [PrismaModule, ApplicationAuthorityModule, EngagementModule, TenantModule, ClientDocumentsModule, MeriMemoryReceivingModule],
   controllers: [NativeApprovalController],
   providers: [
     NativeApprovalService, NativeApprovalMetadataVerifier, ToolServiceSecretGuard, NativeExecutionService, MeriExecutionReceiverService, MeriClientFilingService,

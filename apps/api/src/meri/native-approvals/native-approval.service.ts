@@ -1,3 +1,4 @@
+import { authorizeNativeMemory } from './native-memory-command.js';
 import { parseNativeMailArguments } from '../execution-capability/native-mail-command.js';
 import {
   ConflictException,
@@ -115,7 +116,7 @@ export class NativeApprovalService {
     const { binding } = proposal.command;
     if (binding.tenantId !== ctx.tenantId || binding.actorId !== ctx.userId ||
         proposal.requiredApprover.tenantId !== ctx.tenantId || proposal.requiredApprover.actorId !== ctx.userId) throw forbidden();
-    if (!['task.create', 'task.update', 'document.draft', 'artifact.file', 'mail.send'].includes(proposal.command.action))
+    if (!['task.create', 'task.update', 'document.draft', 'artifact.file', 'mail.send', 'memory.propose'].includes(proposal.command.action))
       throw new ConflictException('Approval action is not supported');
     const policyRevision = singlePolicyRevision(proposal.command.scopes, binding.tenantId);
     await this.currentPrepared(req, ctx, proposal);
@@ -148,6 +149,13 @@ export class NativeApprovalService {
     if (observed.principal.tenantId !== ctx.tenantId || observed.principal.actorId !== ctx.userId ||
         observed.conversationId !== binding.conversationId || observed.selectedClientId !== clientId ||
         observed.expiresAtMs <= Date.now()) throw forbidden();
+    if (proposal.command.action === 'memory.propose') {
+      const member = await this.prisma.withTenant(ctx.tenantId, tx => tx.tenantMembership.findFirst({
+        where: { tenantId: ctx.tenantId, userId: ctx.userId, status: 'active' }, select: { role: true },
+      }));
+      if (!member) throw forbidden();
+      authorizeNativeMemory(proposal, clientId, member.role as import('@capiro/shared').TenantRole);
+    }
     if (proposal.command.action === 'task.create' || proposal.command.action === 'mail.send') {
       const destination = proposal.command.arguments.clientId;
       if (destination !== null && (typeof destination !== 'string' || !UUID.test(destination) ||

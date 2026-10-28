@@ -133,22 +133,7 @@ export class MeriMemoryReceivingService {
         await this.submitCorrection(ctx, candidate, request.candidateSha256, async (tx) => { await record(tx); });
       } else {
         await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-          if (candidate.clientId && !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, candidate.clientId))) throw forbidden();
-          // An addition never replaces committed memory with the same key; that
-          // is a correction. Approval re-checks under the row lock (insert-only),
-          // which also closes the race between two pending additions with one key.
-          if (candidate.key !== null && (await tx.clioMemory.findFirst({
-            where: {
-              tenantId: ctx.tenantId, scope: CORE_SCOPE[candidate.scope], key: candidate.key,
-              ownerUserId: candidate.scope === 'personal' ? ctx.userId : null,
-              clientId: candidate.scope === 'client' ? candidate.clientId : null,
-            },
-            select: { id: true },
-          }))) {
-            throw new ConflictException('A memory with this key already exists; submit a correction instead');
-          }
-          await insertPendingCandidate(tx, ctx, candidate, request.candidateSha256);
-          await record(tx);
+          await this.submitAdditionInTransaction(tx, ctx, candidate, request.candidateSha256);
         });
       }
     } catch (error) {
@@ -163,6 +148,38 @@ export class MeriMemoryReceivingService {
     const stored = await this.findSubmission(ctx.tenantId, candidate.candidateId);
     if (!stored) throw new ConflictException('Submission was not recorded');
     return ack(stored);
+  }
+
+  /** Existing addition writer, also called by the approved execution transaction.
+   * The caller owns the approval lock; payload and content-free submission commit together. */
+  async submitAdditionInTransaction(tx: Prisma.TransactionClient, ctx: TenantContext, raw: unknown, candidateSha256: string) {
+    const candidate = parseMeriMemoryCandidate(raw);
+    if (candidate.kind !== 'addition' || candidate.tenantId !== ctx.tenantId || candidate.proposerActorId !== ctx.userId ||
+        nativeCanonicalSha256(candidate) !== candidateSha256) throw forbidden();
+    if (candidate.key !== null && SYNTHETIC_KEY.test(candidate.key)) throw new BadRequestException('Reserved memory key');
+    const existing = await tx.clioMeriMemorySubmission.findUnique({ where: { tenantId_candidateId: { tenantId: ctx.tenantId, candidateId: candidate.candidateId } } });
+    if (existing) {
+      if (existing.proposerUserId !== ctx.userId || existing.candidateSha256 !== candidateSha256) throw new ConflictException('Candidate id already submitted with different content');
+      if (!await tx.memoryCandidate.findUnique({ where: { id: candidate.candidateId }, select: { id: true } })) throw new GoneException('Memory submission is no longer available');
+      return ack(existing);
+    }
+    if (candidate.clientId && !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, candidate.clientId))) throw forbidden();
+    // An addition never replaces committed memory with the same key; that
+    // is a correction. Approval re-checks under the row lock (insert-only),
+    // which also closes the race between two pending additions with one key.
+    if (candidate.key !== null && (await tx.clioMemory.findFirst({
+      where: {
+        tenantId: ctx.tenantId, scope: CORE_SCOPE[candidate.scope], key: candidate.key,
+        ownerUserId: candidate.scope === 'personal' ? ctx.userId : null,
+        clientId: candidate.scope === 'client' ? candidate.clientId : null,
+      },
+      select: { id: true },
+    }))) {
+      throw new ConflictException('A memory with this key already exists; submit a correction instead');
+    }
+    await insertPendingCandidate(tx, ctx, candidate, candidateSha256);
+    return ack(await tx.clioMeriMemorySubmission.create({ data: { tenantId: ctx.tenantId,
+      candidateId: candidate.candidateId, candidateSha256, proposerUserId: ctx.userId, reviewId: randomUUID() } }));
   }
 
   /**
@@ -212,17 +229,17 @@ export class MeriMemoryReceivingService {
   async status(req: Request, ctx: TenantContext, raw: unknown) {
     if (!hasVerifiedToolServiceIdentity(req)) throw forbidden();
     const pairs = parseStatusRequest(raw);
-    const ids = pairs.map((pair) => pair.candidateId);
-    const { submissions, candidates } = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => ({
-      submissions: await tx.clioMeriMemorySubmission.findMany({ where: { tenantId: ctx.tenantId, candidateId: { in: ids } } }) as SubmissionRow[],
-      candidates: await tx.memoryCandidate.findMany({
-        where: { tenantId: ctx.tenantId, id: { in: ids } },
-        select: {
-          id: true, status: true, decidedAt: true, sourceKind: true,
-          committedMemoryId: true, committedMemoryItemId: true, duplicateMemoryItemId: true,
-        },
-      }),
-    }));
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, tx => this.statusInTransaction(tx, ctx, pairs));
+  }
+
+  /** Read the exact original candidates; never submits or reconstructs a missing payload. */
+  async statusInTransaction(tx: Prisma.TransactionClient, ctx: TenantContext, pairs: Array<{ candidateId: string; candidateSha256: string }>) {
+    const ids = pairs.map(pair => pair.candidateId);
+    const submissions = await tx.clioMeriMemorySubmission.findMany({ where: { tenantId: ctx.tenantId, candidateId: { in: ids } } });
+    const candidates = await tx.memoryCandidate.findMany({ where: { tenantId: ctx.tenantId, id: { in: ids } }, select: {
+      id: true, status: true, decidedAt: true, sourceKind: true,
+      committedMemoryId: true, committedMemoryItemId: true, duplicateMemoryItemId: true,
+    } });
     const submissionById = new Map(submissions.map((row) => [row.candidateId, row]));
     const candidateById = new Map(candidates.map((row) => [row.id, row]));
     const reviews = pairs.map((pair) => {
