@@ -443,12 +443,12 @@ describe('create', () => {
     rawQueries: [],
   });
 
-  test('Portfolio explicitly creates identified while omitted legacy stages retain their default', async () => {
+  test('Portfolio explicitly creates identified while omitted legacy stages use catalog createStage', async () => {
     const h = makeHarness(baseFx());
     const modern = await h.service.create(ctx, { displayName: 'Modern', stage: 'identified' });
     const legacy = await h.service.create(ctx, { displayName: 'Legacy' });
     expect(modern.stage).toBe('identified');
-    expect(legacy.stage).toBe('researching');
+    expect(legacy.stage).toBe('identified');
     expect(modern.linkedClientId).toBeNull();
     expect(h.fx.clients.size).toBe(0);
   });
