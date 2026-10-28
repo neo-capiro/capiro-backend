@@ -6,6 +6,7 @@ No fixture cleanup/reset is performed; retain them for inspection until root dro
 """
 import argparse
 import copy
+import decimal
 import hashlib
 import importlib.util
 import io
@@ -13,6 +14,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 from unittest.mock import Mock, patch
 from contextlib import redirect_stdout
@@ -325,6 +327,76 @@ class SourceLifetimeTests(unittest.TestCase):
         self.assertNotIn("source_release", events)
         self.assertNotIn("target_commit", events)
         publish.assert_not_called()
+
+
+class ReceiptSerializationTests(unittest.TestCase):
+    """The complete public receipt is serializable before the single COMMIT, and exact byte totals survive it.
+
+    Attempt04 committed its data and then died because the archive byte total was a NUMERIC ``Decimal`` that
+    ``json.dumps`` refused *after* the COMMIT. These tests drive the real receipt helpers and the real CLI
+    serialization with the observed value and with a value beyond float precision, and they pin the refusal of
+    malformed totals instead of stringifying or defaulting them.
+    """
+
+    OBSERVED = decimal.Decimal("299546743118")
+    BEYOND_FLOAT = decimal.Decimal("123456789012345678901234567890")
+    ARCHIVE_ROW = (151708, 126944, OBSERVED)
+
+    def test_previous_receipt_shape_could_not_serialize(self):
+        # The executed implementation put the raw NUMERIC sum straight into the receipt the CLI dumped.
+        legacy = dict(zip(("references", "distinct_objects", "bytes"), self.ARCHIVE_ROW))
+        with self.assertRaises(TypeError):
+            json.dumps({"mode": "commit", "archive": legacy}, sort_keys=True)
+
+    def test_archive_block_publishes_the_observed_total_as_an_exact_int(self):
+        block = operator.archive_receipt(self.ARCHIVE_ROW, "manifest")
+        self.assertEqual(block["references"], 151708)
+        self.assertEqual(block["distinct_objects"], 126944)
+        self.assertEqual(block["bytes"], 299546743118)
+        self.assertIs(type(block["bytes"]), int)
+        payload = operator.receipt_bytes({"mode": "commit", "archive": block})
+        self.assertIn('"bytes": 299546743118', payload)
+        self.assertEqual(json.loads(payload)["archive"]["bytes"], 299546743118)
+
+    def test_totals_beyond_float_precision_keep_every_digit(self):
+        block = operator.archive_receipt((1, 1, self.BEYOND_FLOAT), "manifest")
+        payload = operator.receipt_bytes({"archive": block})
+        self.assertIn('"bytes": 123456789012345678901234567890', payload)
+        self.assertNotIn("e+", payload.lower())
+        self.assertEqual(json.loads(payload)["archive"]["bytes"], 123456789012345678901234567890)
+        self.assertEqual(str(block["bytes"]), str(self.BEYOND_FLOAT))
+
+    def test_malformed_totals_refuse_instead_of_being_stringified(self):
+        for malformed in (decimal.Decimal("1.5"), decimal.Decimal("NaN"), decimal.Decimal("Infinity"), 1.5, True, None, "unknown", b"unknown"):
+            with self.assertRaises(operator.Refusal) as caught:
+                operator.archive_receipt((1, 1, malformed), "manifest")
+            self.assertEqual(str(caught.exception), "archive_byte_total_not_integral")
+        with self.assertRaisesRegex(operator.Refusal, "archive_reference_count_not_integral"):
+            operator.archive_receipt(("many", 126944, self.OBSERVED), "manifest")
+
+    def test_transfer_establishes_the_receipt_before_its_single_commit(self):
+        text = SCRIPT.read_text()
+        self.assertLess(text.index("\n    receipt_bytes(receipt)\n"), text.index('\n    target.execute("COMMIT" if commit else "ROLLBACK")'))
+        self.assertIn("print(receipt_bytes(result))", text)
+        self.assertNotIn("print(json.dumps(result,sort_keys=True))", text)
+
+    @patch.dict(os.environ, {"TANGO_TRANSFER_TEST_PASSWORD": "synthetic"})
+    @patch.dict(sys.modules, {"psycopg": Mock()})
+    def test_cli_prints_the_exact_receipt_for_the_observed_total_without_a_database(self):
+        # The real CLI path: argparse -> release-window attestations -> guard_config -> connect -> transfer ->
+        # receipt_bytes -> stdout. connect/transfer are stubbed so no endpoint or database is touched.
+        receipt = {"mode": "commit", "archive": operator.archive_receipt(self.ARCHIVE_ROW, "manifest")}
+        config = Path(tempfile.mkdtemp()) / "transfer.json"
+        config.write_text(json.dumps(fixture_config()))
+        captured = io.StringIO()
+        with patch.object(operator, "connect", return_value=Mock()), patch.object(operator, "transfer", return_value=receipt):
+            with redirect_stdout(captured):
+                code = operator.main(["--config", str(config), "--node", "node", "--synthetic", "--window-approved",
+                                      "--writers-paused", "--snapshot-verified", "--commit"])
+        payload = captured.getvalue().strip()
+        self.assertEqual(code, 0)
+        self.assertEqual(payload, operator.receipt_bytes(receipt))
+        self.assertEqual(json.loads(payload)["archive"]["bytes"], 299546743118)
 
 
 def stable(value):

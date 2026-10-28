@@ -6,6 +6,7 @@ Importing this module never connects, reads credentials, or starts a subprocess.
 from __future__ import annotations
 
 import argparse
+import decimal
 import hashlib
 import json
 import os
@@ -66,6 +67,41 @@ def scalar(conn, sql, params=None):
 
 def check_zero(conn, sql, code):
     require(scalar(conn, sql) == 0, code)
+
+
+def exact_integral(value, code):
+    """Publish an integral NUMERIC total as an exact int.
+
+    The archive byte total is a NUMERIC aggregate, so psycopg returns it as ``decimal.Decimal``; a JSON
+    receipt cannot carry that type, and stringifying or float-coercing it would lose the exactness the
+    field means. The deliberate type choice is therefore an exact ``int``. Anything that is not a finite
+    integral number is a malformed receipt value: it is refused with a fixed code, never defaulted,
+    stringified or suppressed.
+    """
+    if isinstance(value, bool):
+        raise Refusal(code)
+    if isinstance(value, decimal.Decimal):
+        require(value.is_finite() and value == value.to_integral_value(), code)
+        return int(value)
+    require(isinstance(value, int), code)
+    return value
+
+
+def archive_receipt(row, manifest_sha256):
+    """The receipt's archive block: reference count, distinct object count, exact archived byte total."""
+    return {"references": exact_integral(row[0], "archive_reference_count_not_integral"),
+            "distinct_objects": exact_integral(row[1], "archive_object_count_not_integral"),
+            "bytes": exact_integral(row[2], "archive_byte_total_not_integral"),
+            "manifest_sha256": manifest_sha256}
+
+
+def receipt_bytes(receipt):
+    """The single canonical serialization of the public receipt.
+
+    ``transfer`` establishes these exact bytes before its one COMMIT and the CLI prints the same call, so a
+    serialization defect can no longer first appear after the data has committed.
+    """
+    return json.dumps(receipt, sort_keys=True)
 
 
 def guard_config(config, synthetic=False):
@@ -595,14 +631,19 @@ def transfer(source, target, api_dir, node="node", commit=False):
     snapshots(target)
     receipt["vectors"] = vectors(target,api_dir,node)
     references(target)
-    receipt["archive"] = dict(zip(("references","distinct_objects","bytes"), target.execute("SELECT count(*),count(DISTINCT (archive_bucket,archive_key,archive_version_id)),coalesce(sum(observed_size_bytes),0) FROM w_opportunity_attachment WHERE status='archived'").fetchone()))
-    receipt["archive"]["manifest_sha256"] = checksum(target,"SELECT archive_bucket,archive_key,archive_version_id,content_sha256,observed_size_bytes FROM w_opportunity_attachment WHERE status='archived' ORDER BY archive_bucket,archive_key,archive_version_id,id")
+    archive_row = target.execute("SELECT count(*),count(DISTINCT (archive_bucket,archive_key,archive_version_id)),coalesce(sum(observed_size_bytes),0) FROM w_opportunity_attachment WHERE status='archived'").fetchone()
+    archive_manifest = checksum(target,"SELECT archive_bucket,archive_key,archive_version_id,content_sha256,observed_size_bytes FROM w_opportunity_attachment WHERE status='archived' ORDER BY archive_bucket,archive_key,archive_version_id,id")
+    receipt["archive"] = archive_receipt(archive_row, archive_manifest)
     for table in TABLES:
         receipt["tables"][table]["candidate_rows"] = scalar(target,f"SELECT count(*) FROM w_{table}")
     if commit:
         receipt["published_changed_rows"] = publish(target,schemas)
     require(before == protected_digest(target), "protected_rows_changed")
     receipt["protected_rows_unchanged"] = True
+    # Establish here, before the single COMMIT, that the complete public receipt is serializable. The CLI
+    # prints exactly these bytes, so the receipt defect that failed attempt04 after a successful data commit
+    # can no longer be discovered only after the transaction has committed.
+    receipt_bytes(receipt)
     target.execute("COMMIT" if commit else "ROLLBACK")
     return receipt
 
@@ -626,7 +667,7 @@ def main(argv=None):
         source = connect(psycopg,config["source"],args.synthetic)
         target = connect(psycopg,config["target"],args.synthetic)
         result = transfer(source,target,Path(__file__).resolve().parents[2],args.node,args.commit)
-        print(json.dumps(result,sort_keys=True))
+        print(receipt_bytes(result))
         return 0
     except Refusal as error:
         print(json.dumps({"result":"refused","code":str(error)}))
