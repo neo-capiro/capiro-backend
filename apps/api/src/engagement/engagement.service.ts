@@ -2701,7 +2701,9 @@ export class EngagementService {
               continue;
             }
           }
-          visiblePreps.push(prep);
+          // Response boundary: this receiver's prep lists are string[] — see
+          // projectMeetingPrepListItems.
+          visiblePreps.push(projectMeetingPrepListItems(prep));
         }
         return {
           ...row,
@@ -11257,6 +11259,57 @@ function meetingInclude() {
       orderBy: [{ dueDate: 'asc' as const }, { createdAt: 'desc' as const }],
     },
   };
+}
+
+// The four prep list columns whose canonical item arms are "a plain string" or
+// "a structured { text, ...provenance } entry" — see projectMeetingPrepListItems.
+const PREP_LIST_FIELDS = ['agenda', 'talkingPoints', 'risks', 'followUps'] as const;
+
+/**
+ * Engagement-operation response boundary for the four prep list columns.
+ *
+ * The stored prep payload accepts two item arms: a plain string, or a
+ * structured `{ text, ...provenance }` entry (factIds / evidenceReferences —
+ * the evidence-linked shape the canonical prep contract defines). The
+ * engagement.meetings receiver types these four columns as `string[]`, so ONE
+ * structured entry used to fail the WHOLE array — and with it the whole view.
+ *
+ * Project the recognized text arm to its string here, where the response is
+ * built, so no producer changes what it stores and no receiver is widened:
+ * nothing is dropped, no stored JSON is rewritten, and an entry with no usable
+ * text (or a column that is not a list) is passed through exactly as stored —
+ * it still refuses at the receiver rather than being silently coerced into a
+ * passing response.
+ */
+function projectMeetingPrepListItems<T extends object>(prep: T): T {
+  const source = prep as {
+    agenda?: unknown;
+    talkingPoints?: unknown;
+    risks?: unknown;
+    followUps?: unknown;
+  };
+  const projected: Record<string, unknown> = { ...(source as Record<string, unknown>) };
+  let changed = false;
+  for (const field of PREP_LIST_FIELDS) {
+    const value = source[field];
+    if (!Array.isArray(value)) continue;
+    const items = value.map((entry) => prepListEntryText(entry) ?? entry);
+    if (items.some((entry, index) => entry !== value[index])) {
+      projected[field] = items;
+      changed = true;
+    }
+  }
+  return (changed ? projected : prep) as unknown as T;
+}
+
+/**
+ * The text of a recognized structured prep entry, or null when the entry is not
+ * one — the caller then keeps the original entry verbatim.
+ */
+function prepListEntryText(entry: unknown): string | null {
+  if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) return null;
+  const text = (entry as { text?: unknown }).text;
+  return typeof text === 'string' && text.trim() ? text : null;
 }
 
 // isPlainTextAttachment / isDocxAttachment / isPdfAttachment / extractPdfBuffer

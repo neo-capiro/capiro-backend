@@ -756,6 +756,78 @@ describe('decorateMeetings (via listSharedMeetingsForClient)', () => {
   });
 });
 
+// The engagement.meetings receiver types preps[].agenda / talkingPoints / risks
+// / followUps as string[], while the canonical prep payload also accepts a
+// structured `{ text, ...provenance }` entry. ONE such entry used to fail the
+// whole array — and with it the whole view (the retained master-scope 502).
+describe('listMeetings prep list projection (receiver contract)', () => {
+  const structuredPrep = (): Record<string, unknown> => ({
+    id: 'p1',
+    status: 'approved',
+    summary: 'Synthetic prep',
+    agenda: [{ text: 'Synthetic agenda item', factIds: ['fact-1'] }, 'Plain agenda item'],
+    talkingPoints: [{ text: 'Synthetic talking point', evidenceReferences: ['fact-1'] }],
+    risks: ['Plain risk'],
+    followUps: [{ text: 'Synthetic follow-up' }],
+    // Provenance and every other column must survive the projection untouched.
+    generatedFrom: { contextPacketId: 'packet-1', factIds: ['fact-1'] },
+  });
+
+  async function listMaster(preps: Array<Record<string, unknown>>) {
+    const service = serviceWith({
+      meeting: { findMany: async () => [meetingRow({ preps })] },
+      ...decorateStubs,
+      ...tenantFlag(false),
+    });
+    const rows = (await service.listMeetings(ctx, {})) as Array<Record<string, unknown>>;
+    return rows[0]!.preps as Array<Record<string, unknown>>;
+  }
+
+  test('recognized structured entries are projected to their text; everything else is preserved', async () => {
+    const stored = structuredPrep();
+    const snapshot = JSON.parse(JSON.stringify(stored));
+
+    const [prep] = await listMaster([stored]);
+
+    expect(prep!.agenda).toEqual(['Synthetic agenda item', 'Plain agenda item']);
+    expect(prep!.talkingPoints).toEqual(['Synthetic talking point']);
+    expect(prep!.risks).toEqual(['Plain risk']);
+    expect(prep!.followUps).toEqual(['Synthetic follow-up']);
+    // Unrelated prep data, including the structured provenance, is preserved.
+    expect(prep!.summary).toBe('Synthetic prep');
+    expect(prep!.status).toBe('approved');
+    expect(prep!.generatedFrom).toEqual({ contextPacketId: 'packet-1', factIds: ['fact-1'] });
+    // The stored row is never rewritten: its structured entries stay structured.
+    expect(JSON.parse(JSON.stringify(stored))).toEqual(snapshot);
+  });
+
+  test('an entry with no usable text is passed through verbatim, so validation is not weakened', async () => {
+    const stored = structuredPrep();
+    const taskEntry = { title: 'Synthetic task', description: 'Not prep text' };
+    stored.agenda = [taskEntry, 'Plain agenda item'];
+    stored.talkingPoints = ['Plain talking point'];
+    stored.risks = [{ text: 42 }, { text: '   ' }];
+    stored.followUps = [];
+
+    const [prep] = await listMaster([stored]);
+
+    // Nothing is dropped and nothing is coerced into a string.
+    expect(prep!.agenda).toEqual([taskEntry, 'Plain agenda item']);
+    expect(prep!.talkingPoints).toEqual(['Plain talking point']);
+    expect(prep!.risks).toEqual([{ text: 42 }, { text: '   ' }]);
+    expect(prep!.followUps).toEqual([]);
+  });
+
+  test('a prep list column that is not an array is passed through unchanged', async () => {
+    const stored = structuredPrep();
+    stored.agenda = { text: 'Not a list' };
+
+    const [prep] = await listMaster([stored]);
+
+    expect(prep!.agenda).toEqual({ text: 'Not a list' });
+  });
+});
+
 describe('Phase 2 cross-user grouping (listSharedMeetingsForClient + meetingsCrossUser flag)', () => {
   const twoContributorTx = () => ({
     tenant: {
