@@ -1,3 +1,4 @@
+import { loadMeriGraph, readMeriGraph } from './meri-graph-source.js';
 import { MeriFederalLegislationTools } from './meri-federal-legislation-tools.js';
 import { UUID_V4_RE, requiredString, optionalString, clampInt } from './meri-tool-input.helpers.js';
 import { executeMeriLocalDispatch, type MeriLocalDispatchRegistry } from './meri-local-dispatch.js';
@@ -74,13 +75,7 @@ import { MemoryStoreService } from '../memory/memory-store.service.js';
 import {
   clientMemoryAllowed,
   fetchDeniedClientIds,
-  wallExclusionSql,
 } from '../memory/memory-wall.helpers.js';
-import {
-  currentMemoryReadSql,
-  governedRecallColumnsAvailableInTx,
-} from '../memory/memory-recall-suppression.helpers.js';
-import { enrichFromKgCache } from '../memory/kg-cache-enrich.helpers.js';
 import { pickKgTraversalSource, type KgTraversalSource } from './memory-recall-source.helpers.js';
 import {
   ClientFacilitiesService,
@@ -189,10 +184,7 @@ const MAX_HTML_BYTES = 5 * 1024 * 1024;
 const MAX_PDF_BYTES = 15 * 1024 * 1024;
 
 import {
-  buildKnowledgeGraph,
   restrictGraphToClient,
-  walkFrom,
-  type FkRelation,
 } from '../memory/memory-graph.helpers.js';
 import { CLIENT_ID_UUID_RE } from './meri-prompt.helpers.js';
 import { embedText, vectorLiteral, normalize } from '../embeddings/embedder.js';
@@ -208,7 +200,7 @@ import {
 import { MeriContextPlaneService } from './meri-context-plane.service.js';
 import { RETRIEVAL_DOMAINS } from '../retrieval/retrieval-v2.types.js';
 import { MERI_DATA_QUERY_CLASSES, searchCapiroData } from './meri-data-search.helpers.js';
-import { projectMemoryContent } from './meri-memory-content.helpers.js';
+import { searchGovernedMemory } from './meri-memory-search.js';
 import { getResearchEvidence } from './meri-research-evidence.helpers.js';
 import { buildDocumentReadPage, parseDocumentReadInput } from './meri-document-read.helpers.js';
 import { MeriChatAttachmentReadService } from './meri-chat-attachment-read.service.js';
@@ -3411,170 +3403,11 @@ export class MeriToolsService {
   }
 
   private async loadGraphForCtx(ctx: TenantContext) {
-    const kgSource = await this.resolveKgTraversalSource(ctx.tenantId);
-    return this.prisma.withTenantUser(
-      ctx.tenantId,
-      ctx.userId,
-      async (tx) => {
-        // Ethical wall: memory items + graph edges of walled clients this user is
-        // not granted are excluded (fail-closed; empty denied set adds no SQL).
-        const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
-        const deniedSet = new Set(denied);
-        const memoryColumnsAvailable = await governedRecallColumnsAvailableInTx(tx);
-        // item nodes the caller may see (RLS: tenant + own-private), plus their wikilink edges
-        const items = await tx.$queryRaw<
-          Array<{ id: string; type: string; slug: string; title: string; sections: unknown }>
-        >`
-        SELECT id, type, slug, title, sections_jsonb AS sections
-        FROM memory_items
-        WHERE tenant_id = ${ctx.tenantId}::uuid
-          AND ((visibility = 'tenant' AND owner_user_id IS NULL)
-               OR (visibility = 'user' AND owner_user_id = ${ctx.userId}::uuid))
-          ${Prisma.raw(wallExclusionSql(denied, 'client_id'))}
-          ${Prisma.raw(currentMemoryReadSql(memoryColumnsAvailable))}
-      `;
-        const itemNodeById = new Map(
-          items.map((i) => [i.id, { type: i.type, slug: i.slug, label: i.title }]),
-        );
-        const wikiEdges = await tx.$queryRaw<
-          Array<{ src_item_id: string; relation: string; dst_type: string; dst_slug: string }>
-        >`
-        SELECT e.src_item_id, e.relation, e.dst_type, e.dst_slug
-        FROM memory_edges e
-        JOIN memory_items i ON i.id = e.src_item_id
-        WHERE e.tenant_id = ${ctx.tenantId}::uuid AND i.tenant_id = ${ctx.tenantId}::uuid
-          AND ((i.visibility = 'tenant' AND i.owner_user_id IS NULL)
-               OR (i.visibility = 'user' AND i.owner_user_id = ${ctx.userId}::uuid))
-          ${Prisma.raw(wallExclusionSql(denied, 'i.client_id'))}
-          ${Prisma.raw(currentMemoryReadSql(memoryColumnsAvailable, 'i'))}
-      `;
-        // FK relations (structural backbone): client->bill/issue/person, meeting->client
-        const fk: FkRelation[] = [];
-        const bills = await tx.$queryRaw<
-          Array<{ client_id: string; client_name: string; bill_id: string }>
-        >`
-        SELECT tb.client_id, c.name AS client_name, tb.bill_id FROM tracked_bill tb JOIN clients c ON c.id = tb.client_id WHERE tb.tenant_id = ${ctx.tenantId}::uuid`;
-        for (const b of bills)
-          fk.push({
-            srcType: 'client',
-            srcSlug: b.client_id,
-            srcLabel: b.client_name,
-            dstType: 'bill',
-            dstSlug: b.bill_id,
-            dstLabel: b.bill_id,
-            relation: 'tracks',
-          });
-        const people = await tx.$queryRaw<
-          Array<{ client_id: string; client_name: string; person_id: string; person_name: string }>
-        >`
-        SELECT cp.client_id, c.name AS client_name, cp.id AS person_id, cp.name AS person_name FROM client_people cp JOIN clients c ON c.id = cp.client_id WHERE cp.tenant_id = ${ctx.tenantId}::uuid`;
-        for (const p of people)
-          fk.push({
-            srcType: 'client',
-            srcSlug: p.client_id,
-            srcLabel: p.client_name,
-            dstType: 'person',
-            dstSlug: p.person_id,
-            dstLabel: p.person_name,
-            relation: 'contact',
-          });
-        const wiki = wikiEdges.map((e) => ({
-          tenantId: ctx.tenantId,
-          srcItemId: e.src_item_id,
-          relation: e.relation,
-          dstType: e.dst_type,
-          dstSlug: e.dst_slug,
-        }));
-        // Ethical wall: drop FK relations rooted at denied clients so a walled
-        // client's bills/people/meetings never appear in this user's graph.
-        const fkVisible = deniedSet.size
-          ? fk.filter((r) => !(r.srcType === 'client' && deniedSet.has(r.srcSlug)))
-          : fk;
-
-        // Track B enrichment: when this tenant is on the cache traversal source,
-        // layer the world-class canonical relationships (aggregated FEC money
-        // flow, LDA lobbying, intel mappings) around the visible clients via
-        // seed-based bounded walks. Fail-safe: enrichment errors degrade to the
-        // plain System-A graph — the tools never lose their baseline.
-        let fkAll = fkVisible;
-        if (kgSource === 'cache') {
-          try {
-            // Bound the enrichment phase server-side — kg_walk_bounded's fn-scoped
-            // statement_timeout is inert, so SET LOCAL is the real RC3 guard.
-            await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = '8s'`);
-            const clients = await tx.$queryRaw<Array<{ id: string; name: string }>>`
-            SELECT id, name FROM clients
-            WHERE tenant_id = ${ctx.tenantId}::uuid AND status <> 'archived'
-            ORDER BY updated_at DESC
-          `;
-            const enriched = await enrichFromKgCache(tx, {
-              tenantId: ctx.tenantId,
-              deniedClientIds: denied,
-              clients: clients.filter((c) => !deniedSet.has(c.id)),
-            });
-            fkAll = [...fkVisible, ...enriched.relations];
-          } catch {
-            // graph tools keep their System-A baseline on any enrichment failure
-          }
-        }
-        return buildKnowledgeGraph(fkAll, wiki, itemNodeById);
-      },
-      // The cache branch runs bounded walks sequentially; match the intel graph
-      // path's 30s ceiling instead of the 5s interactive-tx default.
-      kgSource === 'cache' ? { timeoutMs: 30_000 } : undefined,
-    );
+    return loadMeriGraph(this.prisma, ctx, await this.resolveKgTraversalSource(ctx.tenantId));
   }
 
   private async queryKnowledgeGraph(ctx: TenantContext, input: Record<string, unknown>) {
-    const seed = optionalString(input, 'seed', 120);
-    const scopeClientId = optionalString(input, 'clientId', 80);
-    if (scopeClientId && !CLIENT_ID_UUID_RE.test(scopeClientId)) {
-      return { error: 'clientId must be a client UUID — pass the exact id, or omit it.' };
-    }
-    const depthRaw =
-      typeof input.depth === 'number' ? input.depth : parseInt(String(input.depth ?? ''), 10);
-    const depth = Number.isFinite(depthRaw) ? Math.min(4, Math.max(1, depthRaw)) : 2;
-    const full = await this.loadGraphForCtx(ctx);
-    // Client-scoped session: walk ONLY this client's subgraph. Without this an
-    // omitted seed returned the firm-wide graph — every client, their meetings
-    // and their mail threads — inside a session assigned to one client.
-    let graph = full;
-    let effectiveSeed = seed;
-    if (scopeClientId) {
-      const scopeNode = `client:${scopeClientId}`;
-      if (seed?.startsWith('client:') && seed !== scopeNode) {
-        return {
-          error:
-            "This conversation is scoped to one client, so the knowledge graph cannot be walked from another client's node here. Omit the seed to explore this client's graph, or switch the session's client.",
-        };
-      }
-      graph = restrictGraphToClient(full, scopeNode);
-      // Always seeded when scoped, so an unscoped "overview" can never fall
-      // through to the whole graph.
-      effectiveSeed = seed || scopeNode;
-    }
-    const g = effectiveSeed ? walkFrom(graph, effectiveSeed, depth) : graph;
-    if (!g.nodes.length) {
-      return {
-        summary:
-          'The knowledge graph is empty or has nothing connected to that seed. Run "Populate graph" on the Knowledge Graph page to build it from clients, memories, meetings, and email.',
-        nodes: [],
-        edges: [],
-      };
-    }
-    // Compact, LLM-friendly projection
-    const nodeLabel = new Map(g.nodes.map((n) => [n.id, `${n.label} (${n.type})`]));
-    const edgeLines = g.edges
-      .slice(0, 120)
-      .map(
-        (e) =>
-          `${nodeLabel.get(e.src) ?? e.src} --${e.relation}[${e.origin}]--> ${nodeLabel.get(e.dst) ?? e.dst}`,
-      );
-    return {
-      summary: `${g.nodes.length} nodes, ${g.edges.length} connections${seed ? ` within ${depth} hop(s) of ${seed}` : ''}. Edges tagged [fact]=from firm data, [mention]=from analyst notes.`,
-      nodes: g.nodes.map((n) => ({ id: n.id, type: n.type, label: n.label })),
-      connections: edgeLines,
-    };
+    return readMeriGraph(this.prisma, ctx, input, await this.resolveKgTraversalSource(ctx.tenantId));
   }
 
   private async findPathTo(ctx: TenantContext, input: Record<string, unknown>) {
@@ -3638,116 +3471,7 @@ export class MeriToolsService {
   }
 
   private async searchMemory(ctx: TenantContext, input: Record<string, unknown>) {
-    const query = optionalString(input, 'query', 400);
-    if (!query) return { error: 'Provide a search query.' };
-    const clientId = optionalString(input, 'clientId', 80);
-    if (clientId && !CLIENT_ID_UUID_RE.test(clientId)) {
-      return { error: 'clientId must be a client UUID — pass the exact id, or omit it.' };
-    }
-    const kRaw = typeof input.k === 'number' ? input.k : parseInt(String(input.k ?? ''), 10);
-    const k = Number.isFinite(kRaw) ? Math.min(15, Math.max(1, Math.floor(kRaw))) : 8;
-    const cursor = optionalString(input, 'cursor', 8192);
-    const memoryItemId = optionalString(input, 'memoryItemId', 80);
-    const contentCursor = optionalString(input, 'contentCursor', 1024);
-    if (memoryItemId && !CLIENT_ID_UUID_RE.test(memoryItemId)) {
-      throw new BadRequestException('memoryItemId must be the exact canonical memory UUID');
-    }
-    if (contentCursor && !memoryItemId)
-      throw new BadRequestException('contentCursor requires memoryItemId');
-    if (memoryItemId && cursor)
-      throw new BadRequestException('Use contentCursor for an exact memory read');
-    let pageSize = memoryItemId ? 1 : Math.min(k, 3);
-    // One canonical recall path for automatic context and explicit search. The
-    // shared adapter reads approved memory_items content and checks the current
-    // tenant/user/client wall on every page, including when embeddings are down.
-    const readPage = () =>
-      searchCapiroData(
-        ctx,
-        {
-          query,
-          domains: ['institutional_knowledge'],
-          queryClass: memoryItemId ? 'lookup' : 'semantic_recall',
-          pageSize,
-          ...(memoryItemId ? { memoryItemId } : {}),
-          ...(clientId ? { clientId } : {}),
-          ...(cursor ? { cursors: { institutional_knowledge: cursor } } : {}),
-        },
-        this.contextPlane,
-      );
-    let evidence = await readPage();
-    const project = () =>
-      evidence.records.map((record) =>
-        projectMemoryContent(ctx, record, {
-          clientId: clientId ?? undefined,
-          memoryItemId: memoryItemId ?? undefined,
-          contentCursor: contentCursor ?? undefined,
-          maxJsonChars: memoryItemId
-            ? 6000
-            : Math.floor(7200 / Math.max(1, evidence.records.length)),
-        }),
-      );
-    let records;
-    try {
-      records = project();
-    } catch (error) {
-      if (
-        pageSize <= 1 ||
-        !(error instanceof BadRequestException) ||
-        error.message !== 'Memory metadata exceeds the safe content-page budget'
-      )
-        throw error;
-      // A metadata-heavy page must not skip rows when it is narrowed. Read the
-      // SAME source cursor again with one item so the adapter issues the correct
-      // nextCursor and rechecks current authorization.
-      pageSize = 1;
-      evidence = await readPage();
-      records = project();
-    }
-    const source = evidence.coverage.sources.find(
-      (entry) => entry.domain === 'institutional_knowledge',
-    );
-    const { records: _fullRecords, ...envelope } = evidence;
-    return {
-      ...envelope,
-      tool: 'search_memory',
-      summary: records.length
-        ? `${records.length} governed memory item(s) returned. Follow content.nextRead for complete approved content; coverage describes the search.`
-        : 'No eligible memory was returned. Coverage distinguishes an empty result from unavailable recall.',
-      requestedPageSize: k,
-      effectivePageSize: pageSize,
-      nextCursor: source?.nextCursor ?? null,
-      governanceCoverage: {
-        searched:
-          'Eligible active governed memory, including stale or controlling conflicted records when policy allows',
-        excluded:
-          'Pending proposals, rejected, withdrawn, revoked, superseded and non-controlling conflicts are not active recall. Their absence here does not establish that no such proposals or historical records exist.',
-      },
-      factContentUnavailableCount: records.filter(
-        (record) => record.payload.contentStatus !== 'available',
-      ).length,
-      contentStatus: records.length
-        ? records.every((record) => record.payload.contentStatus === 'metadata_only')
-          ? 'metadata_only'
-          : 'available'
-        : memoryItemId
-          ? 'unavailable_or_ineligible'
-          : source?.sourceStatus === 'healthy'
-            ? 'empty'
-            : 'unavailable',
-      contentTruncated: records.some(
-        (record) =>
-          (record.payload.content as { truncated?: boolean } | undefined)?.truncated === true,
-      ),
-      results: records.map((record) => ({
-        id: record.recordId,
-        memoryItemId: record.recordId,
-        title: record.payload.title,
-        type: record.payload.type,
-        clientId: record.payload.clientId,
-        relevance: record.retrievalSignals?.semanticSimilarity ?? null,
-      })),
-      records,
-    };
+    return searchGovernedMemory(ctx, input, this.contextPlane);
   }
 
   private async queryIntelligence(input: Record<string, unknown>) {

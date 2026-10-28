@@ -147,20 +147,22 @@ describe('Session client scope — the firm-wide tool readers honour the pinned 
     // THIS file is the half that stayed: the tool must still hand the scoped
     // clientId to that adapter. Dropping it is one deleted line, it fails open
     // to every client's memory, and nothing else here would notice.
-    const body = methodBody(text, 'searchMemory');
+    expect(methodBody(text, 'searchMemory')).toContain('searchGovernedMemory(ctx, input, this.contextPlane)');
+    const body = read('meri-memory-search.ts');
     expect(body).toContain("const clientId = optionalString(input, 'clientId', 80);");
     expect(body).toContain("domains: ['institutional_knowledge'],");
     expect(body).toContain('...(clientId ? { clientId } : {}),');
   });
 
   it('query_knowledge_graph walks only the scoped client subgraph', () => {
-    expect(text).toContain('graph = restrictGraphToClient(full, scopeNode);');
+    expect(methodBody(text, 'queryKnowledgeGraph')).toContain('readMeriGraph(this.prisma, ctx, input');
+    expect(read('meri-graph-source.ts')).toContain('graph = restrictGraphToClient(full, scopeNode);');
     // An omitted seed must not fall through to the firm-wide graph.
-    expect(text).toContain('effectiveSeed = seed || scopeNode;');
+    expect(read('meri-graph-source.ts')).toContain('effectiveSeed = seed || scopeNode;');
   });
 
   it('query_knowledge_graph refuses an explicit seed on another client', () => {
-    expect(text).toContain("seed?.startsWith('client:') && seed !== scopeNode");
+    expect(read('meri-graph-source.ts')).toContain("seed?.startsWith('client:') && seed !== scopeNode");
   });
 
   it('find_path_to searches from the scoped client only, and cannot route through another', () => {
@@ -173,7 +175,7 @@ describe('Session client scope — the firm-wide tool readers honour the pinned 
     // test for a rename that kept the guard. Assert the guard on each reader
     // instead: that says WHICH reader failed open, and survives a local rename.
     for (const reader of ['queryKnowledgeGraph', 'findPathTo', 'searchMemory'] as const) {
-      const body = methodBody(text, reader);
+      const body = reader === 'searchMemory' ? read('meri-memory-search.ts') : reader === 'queryKnowledgeGraph' ? read('meri-graph-source.ts') : methodBody(text, reader);
       expect(body).toMatch(
         new RegExp(String.raw`if \((scopeClientId|clientId) && !CLIENT_ID_UUID_RE\.test\(\1\)\)`),
       );
