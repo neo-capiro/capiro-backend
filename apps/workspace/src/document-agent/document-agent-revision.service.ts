@@ -9,6 +9,9 @@ import { computeContentHash, computeOutlineHash } from './document-agent-state.j
 /** Error code for stale proposals. */
 export const PROPOSAL_STALE_CODE = 'PROPOSAL_STALE';
 
+/** The two delegates an insertion needs: this owner's client or a caller's transaction. */
+type ProposalClient = Pick<PrismaService, 'wsDraft' | 'wsAgentProposal'>;
+
 @Injectable()
 export class DocumentAgentRevisionService {
   constructor(private readonly prisma: PrismaService) {}
@@ -17,22 +20,32 @@ export class DocumentAgentRevisionService {
    * Create a revision proposal. Stores baseRevision + baseHash for staleness
    * detection.
    */
-  async createProposal(params: {
-    tenantId: string;
-    draftId: string;
-    createdById: string;
-    type: string;
-    baseRevision: number;
-    baseHash: string;
-    payload: Record<string, unknown>;
-  }): Promise<{ proposalId: string }> {
+  async createProposal(
+    params: {
+      tenantId: string;
+      draftId: string;
+      createdById: string;
+      type: string;
+      baseRevision: number;
+      baseHash: string;
+      payload: Record<string, unknown>;
+    },
+    /**
+     * The client the row is inserted through. A caller that must establish the row
+     * together with another durable effect (the workspace document agent's retained-run
+     * admission) passes its own transaction client, so the insert commits or rolls back
+     * with that effect instead of leaving an actionable row behind. Defaults to this
+     * owner's client, so every existing caller is unchanged.
+     */
+    client: ProposalClient = this.prisma,
+  ): Promise<{ proposalId: string }> {
     denyProspectTransfer(
-      await this.prisma.wsDraft.findFirst({
+      await client.wsDraft.findFirst({
         where: { tenantId: params.tenantId, id: params.draftId },
         select: { prospectId: true },
       }),
     );
-    const proposal = await this.prisma.wsAgentProposal.create({
+    const proposal = await client.wsAgentProposal.create({
       data: {
         tenantId: params.tenantId,
         draftId: params.draftId,

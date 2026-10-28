@@ -312,8 +312,17 @@ describe('document-agent native generation phases', () => {
     expect(f.generation.generateAllSections).not.toHaveBeenCalled();
     expect(result.status).toBe('unknown');
     expect(result.requestId).toMatch(/^wsgen:/);
-    // Nothing was started: the run identity is untouched and no proposal exists.
-    expect(result.run).toBeNull();
+    // The UNKNOWN admission RETAINS its own request identity — a later status read can
+    // only reconcile a run it can address — while starting nothing: no active run, no
+    // proposal, no per-unit facts, and no second turn.
+    expect(result.run).toMatchObject({
+      runId: result.requestId,
+      requestId: result.requestId,
+      status: 'active',
+    });
+    expect(result.run?.sectionResults).toBeUndefined();
+    expect(result.run?.retry).toBeUndefined();
+    expect(f.createProposal).not.toHaveBeenCalled();
     expect(f.saved().generation.activeRunId).toBeUndefined();
   });
 

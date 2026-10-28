@@ -91,6 +91,26 @@ export type NativeIntakeBinding = {
   proposalId?: string;
 };
 
+/**
+ * The draft-config key the failed-unit retry ATTEMPT of a durable run is retained
+ * under. A first intake's own binding stays exactly where it was (`native`); an
+ * explicit retry of the units a terminal run failed gets its OWN durable
+ * identity here, written before any effect, so a duplicate click, a reload or an
+ * UNKNOWN resolves to that attempt and never to a second paid turn.
+ */
+export const NATIVE_INTAKE_RETRY_KEY = 'nativeRetry' as const;
+
+/**
+ * The draft-config key under which the attempts that DEFINITIVELY failed are
+ * preserved, in order. Custody is what makes a later explicit retry a genuinely NEW
+ * attempt (generation = custody length + 1) instead of a permanent replay of a
+ * failed one — and it is why both the generation and the attempt identity are
+ * server-derived from the run's own preserved state rather than a clock or a
+ * random id. Written in the SAME compare-and-set as the attempt it retires, so the
+ * two can never disagree.
+ */
+export const NATIVE_INTAKE_CUSTODY_KEY = 'nativeRetryCustody' as const;
+
 /** One accepted document section, mapped to the draft's own section title. */
 export type NativeIntakeSection = { id: string; title: string; text: string };
 
@@ -142,6 +162,19 @@ export type NativeIntakeFacts = {
     sectionTitles: string[];
   };
   sources: NativeGenerationSource[];
+  /**
+   * The pinned blueprint's units whose own PERSISTED run state says they failed.
+   * Derived from the run row, never from a caller, and empty when nothing failed.
+   */
+  failedSectionIds: string[];
+  failedSectionTitles: string[];
+  /** The retained failed-unit retry attempt of this run, when one is bound. */
+  retry: NativeIntakeBinding | null;
+  /**
+   * The generation of that bound attempt (1 for a run's first attempt), derived
+   * from the attempts preserved in custody. Null when no attempt is bound.
+   */
+  attemptGeneration: number | null;
   /** The binding already retained for this run, when one is. */
   retained: NativeIntakeBinding | null;
 };
@@ -158,6 +191,7 @@ export class NativeIntakeRefusal extends Error {
 }
 
 export type NativeIntakeRefusalCode =
+  | 'retry-scope-empty'
   | 'not-an-intake-run'
   | 'blueprint-not-pinned'
   | 'blueprint-changed'
@@ -217,7 +251,179 @@ export class NativeIntakeAdapter {
     request: NativeGenerationTurnRequest;
   }> {
     const facts = await this.retainedFacts(run);
-    return { facts, request: exactIntakeRequest(facts, run) };
+    return {
+      facts,
+      request: exactIntakeRequest(
+        facts,
+        run,
+        facts.retry === null ? null : run.runId,
+        facts.attemptGeneration,
+      ),
+    };
+  }
+
+  /**
+   * Bind — or re-find — the durable failed-unit retry ATTEMPT of a terminal native
+   * run, BEFORE any effect. The attempt is an ordinary retained native binding
+   * under its own config key, written through the draft's own compare-and-set:
+   *
+   *   * the original binding is never replaced or erased;
+   *   * a duplicate click or a reload finds the SAME attempt and therefore the
+   *     SAME request identity (the owner's own journal keeps it at-most-once);
+   *   * an attempt that DEFINITIVELY failed is preserved in custody and the next
+   *     explicit retry is a genuinely NEW, separately pinned attempt, so a retry
+   *     never replays a failed attempt forever;
+   *   * a draft that moved in between refuses rather than deriving a second paid
+   *     request;
+   *   * nothing is bound when no pinned unit actually failed.
+   *
+   * Returns null when no attempt is warranted (nothing failed) or the draft moved.
+   */
+  async bindFailedUnitsAttempt(
+    run: NativeIntakeRunRef,
+  ): Promise<{ requestId: string; titles: string[] } | null> {
+    const facts = await this.retainedFacts(run);
+    // An attempt that has not definitively failed IS this run's current attempt: a
+    // duplicate click, a reload or an UNKNOWN addresses exactly it, so no second
+    // paid request is ever derived. Only a definite failure makes the next explicit
+    // retry a new attempt.
+    if (facts.retry !== null && facts.retry.outcome !== 'failed')
+      return { requestId: facts.retry.requestId, titles: facts.retry.sectionIds };
+    if (facts.failedSectionIds.length === 0) return null;
+
+    const draft = await this.prisma.wsDraft.findFirst({
+      where: { prospectId: null, id: run.draftId, tenantId: run.tenantId },
+      select: { config: true },
+    });
+    if (!draft) return null;
+    const snapshot = (draft.config as Record<string, unknown> | null) ?? {};
+    const intake = (snapshot.quickDraftIntake as Record<string, unknown> | undefined) ?? {};
+    const blueprintVersionId = intake.blueprintVersionId;
+    if (typeof blueprintVersionId !== 'string') return null;
+
+    // The retained facts above are a DIFFERENT read from this snapshot, and the two
+    // are not atomic: had another caller bound an attempt, or had the draft moved,
+    // in between, the CAS below would still succeed and overwrite (or downgrade) the
+    // newer retained state from stale facts. Revalidate exactly those facts against
+    // the snapshot this write compares and sets; a disagreement refuses the write so
+    // the caller re-reads the run's own current state instead of deriving a second
+    // paid request identity.
+    const currentRetry = readBinding(
+      (intake as unknown as Record<string, unknown>)[NATIVE_INTAKE_RETRY_KEY],
+    );
+    if ((currentRetry?.requestId ?? null) !== (facts.retry?.requestId ?? null)) return null;
+    const revision = (snapshot.documentAgent as { revision?: unknown } | undefined)?.revision;
+    if ((typeof revision === 'number' ? revision : 0) !== facts.expectedRevision) return null;
+    // The SAME attempt, in the SAME outcome and scope. A matching requestId alone is
+    // not enough: an attempt that COMPLETED in between (or was re-scoped) must never
+    // be retired from older facts, because that would overwrite its published outcome
+    // and bind a second paid identity for units it already landed.
+    if ((currentRetry?.outcome ?? null) !== (facts.retry?.outcome ?? null)) return null;
+    const currentScope = currentRetry?.sectionIds ?? [];
+    const retainedScope = facts.retry?.sectionIds ?? [];
+    if (
+      currentScope.length !== retainedScope.length ||
+      currentScope.some((id, index) => id !== retainedScope[index])
+    )
+      return null;
+    // The pinned blueprint the attempt's own scope and sources are derived from must
+    // be the version this snapshot retains: a re-pinned blueprint would otherwise be
+    // combined with the older pin's structure.
+    if (blueprintVersionId !== facts.blueprint.versionId) return null;
+
+    // The units this attempt is scoped to, in the pinned blueprint's own order.
+    const failed = new Set(facts.failedSectionIds);
+    const scoped = facts.blueprint.sectionIds
+      .map((id, index) => ({ id, title: facts.blueprint.sectionTitles[index] ?? id }))
+      .filter((section) => failed.has(section.id));
+    if (scoped.length === 0) return null;
+    // ...and the RUN's own per-unit state must still say exactly that. The retained
+    // facts were a different read from the run's row, so a unit that succeeded (or
+    // failed) in between must not be retried from the older set: the scope is refused
+    // rather than written from facts the run has already moved past.
+    const runRow = await this.prisma.wsGenerationRun.findFirst({
+      where: { id: run.runId, tenantId: run.tenantId },
+      select: { sectionStates: true },
+    });
+    const runStates =
+      (runRow?.sectionStates as Record<string, { status?: unknown } | undefined> | null) ?? {};
+    const stillFailed = scoped.filter(
+      (section) => runStates[section.title]?.status === 'failed',
+    );
+    if (stillFailed.length !== scoped.length) return null;
+
+    // The SAME derivation every other native request uses, over the failed units
+    // only: the identity is derived from the fact set, never chosen by a caller.
+    const retainedSnapshot = await this.retainedSnapshot(run);
+    const sources = intentSources(run.draftId, blueprintVersionId, facts.clientId, retainedSnapshot, scoped);
+    const subject = {
+      tenantId: run.tenantId,
+      actorId: run.actorId,
+      clientId: facts.clientId,
+      draftId: run.draftId,
+      phase: NATIVE_INTAKE_PHASE,
+      expectedRevision: facts.expectedRevision,
+      sources,
+    };
+    // Every attempt that DEFINITIVELY failed is preserved in custody, and the
+    // generation of the attempt bound here is derived from that preserved custody —
+    // never a clock or a random id, so a duplicate click derives the same generation.
+    // A current attempt that failed is retired into custody as part of the SAME
+    // write that binds its successor, so attempt custody and the bound attempt can
+    // never disagree.
+    const custody = readAttemptCustody(
+      (intake as unknown as Record<string, unknown>)[NATIVE_INTAKE_CUSTODY_KEY],
+    );
+    const retired: NativeIntakeCustodyEntry[] =
+      facts.retry === null
+        ? custody
+        : [...custody, { requestId: facts.retry.requestId, sectionIds: facts.retry.sectionIds }];
+    const generation = retired.length + 1;
+    const binding: NativeIntakeBinding = {
+      owner: NATIVE_INTAKE_OWNER,
+      phase: NATIVE_INTAKE_PHASE,
+      // A retry of EVERY unit would otherwise re-derive the ORIGINAL request
+      // identity, and the owner would answer from its own journal with the
+      // original failed outcome — no genuine retry. The retained run id is the
+      // server-derived discriminator that makes this a distinct, durably pinned
+      // attempt; it is stable across a duplicate click or a reload, and together
+      // with the attempt generation it stays a HASH PREIMAGE (never a field of the
+      // request that is posted).
+      requestId: nativeGenerationRequestId({
+        ...subject,
+        attemptRunId: run.runId,
+        ...(generation === 1 ? {} : { attemptGeneration: generation }),
+      }),
+      nativeRunId: null,
+      // Nothing has been answered for this attempt yet: an UNKNOWN is the truthful
+      // state before the owner has a run for it, and it can never claim success.
+      outcome: 'unknown',
+      expectedRevision: facts.expectedRevision,
+      retainedAt: new Date().toISOString(),
+      sourceIds: sources.map((source) => source.id),
+      sectionIds: scoped.map((section) => section.id),
+    };
+    const written = await this.prisma.wsDraft.updateMany({
+      where: {
+        id: run.draftId,
+        tenantId: run.tenantId,
+        config: { equals: structuredClone(snapshot) as never },
+      },
+      data: {
+        config: {
+          ...snapshot,
+          quickDraftIntake: {
+            ...intake,
+            [NATIVE_INTAKE_RETRY_KEY]: binding,
+            ...(retired.length === custody.length
+              ? {}
+              : { [NATIVE_INTAKE_CUSTODY_KEY]: retired }),
+          },
+        } as never,
+      },
+    });
+    if (written.count !== 1) return null;
+    return { requestId: binding.requestId, titles: scoped.map((section) => section.title) };
   }
 
   /**
@@ -235,7 +441,16 @@ export class NativeIntakeAdapter {
     } catch (error) {
       return this.refused(null, error);
     }
-    const request = exactIntakeRequest(facts, run);
+    const request = exactIntakeRequest(
+      facts,
+      run,
+      // A run driven by its own bound attempt is served from THAT request: the
+      // identity carries the attempt's server-derived discriminator and generation,
+      // so the owner sees a distinct request (a genuine retry, never its original
+      // failed run, and never a replay of an attempt that already failed).
+      facts.retry === null ? null : run.runId,
+      facts.attemptGeneration,
+    );
     // A run that already retained an exact request may only ever be served from
     // THAT request. The canonical request is derived from CURRENT facts, so a
     // draft that moved since (the drafting guard is inert at revision 0, where
@@ -384,8 +599,35 @@ export class NativeIntakeAdapter {
       titles.add(section.title);
     }
 
+    // The run's OWN per-unit state decides which units failed. The retry scope is
+    // therefore server-derived: a caller can never name a unit, supply content or
+    // claim a failure.
+    const row = await this.prisma.wsGenerationRun.findFirst({
+      where: { id: run.runId, tenantId: run.tenantId },
+      select: { sectionStates: true },
+    });
+    const states =
+      (row?.sectionStates as Record<string, { status?: unknown } | undefined> | null) ?? {};
+    const failed = sections.filter((section) => states[section.title]?.status === 'failed');
+
+    // A bound retry ATTEMPT scopes this run to ITS units, in the pinned order, for
+    // good: the scope was frozen when the attempt was bound, so units that the
+    // attempt later completes cannot derive a different request — and therefore
+    // cannot allocate a second paid turn.
+    const retry = readBinding((intake as unknown as Record<string, unknown>)[NATIVE_INTAKE_RETRY_KEY]);
+    const custody = readAttemptCustody(
+      (intake as unknown as Record<string, unknown>)[NATIVE_INTAKE_CUSTODY_KEY],
+    );
+    const scoped =
+      retry === null ? sections : sections.filter((section) => retry.sectionIds.includes(section.id));
+    if (retry !== null && scoped.length === 0)
+      throw refusal(
+        'retry-scope-empty',
+        'The retained retry attempt of this run no longer matches any pinned section, so no request is derived for it.',
+      );
+
     const snapshot = await this.retainedSnapshot(run);
-    const sources = intentSources(run.draftId, intake.blueprintVersionId, draft.clientId ?? null, snapshot, sections);
+    const sources = intentSources(run.draftId, intake.blueprintVersionId, draft.clientId ?? null, snapshot, scoped);
 
     return {
       draftId: run.draftId,
@@ -395,11 +637,15 @@ export class NativeIntakeAdapter {
         versionId: blueprintVersion.id,
         version: blueprintVersion.version,
         definitionHash: blueprintVersion.definitionHash,
-        sectionIds: sections.map((section) => section.id),
-        sectionTitles: sections.map((section) => section.title),
+        sectionIds: scoped.map((section) => section.id),
+        sectionTitles: scoped.map((section) => section.title),
       },
       sources,
-      retained: readBinding(intake.native),
+      failedSectionIds: failed.map((section) => section.id),
+      failedSectionTitles: failed.map((section) => section.title),
+      retry,
+      attemptGeneration: retry === null ? null : custody.length + 1,
+      retained: retry ?? readBinding(intake.native),
     };
   }
 
@@ -519,6 +765,24 @@ export function nativeIntakeRetryable(error: unknown): boolean {
   return RETRYABLE_CODES.has(nativeIntakeRefusalCode(error));
 }
 
+/** The attempts preserved in custody, tolerant of any historical/partial value. */
+type NativeIntakeCustodyEntry = { requestId: string; sectionIds: string[] };
+
+const readAttemptCustody = (value: unknown): NativeIntakeCustodyEntry[] =>
+  Array.isArray(value)
+    ? value.flatMap((entry) => {
+        if (typeof entry !== 'object' || entry === null) return [];
+        const candidate = entry as Record<string, unknown>;
+        if (typeof candidate.requestId !== 'string' || !Array.isArray(candidate.sectionIds)) return [];
+        return [
+          {
+            requestId: candidate.requestId,
+            sectionIds: candidate.sectionIds.filter((id): id is string => typeof id === 'string'),
+          },
+        ];
+      })
+    : [];
+
 const bindingFor = (facts: NativeIntakeFacts, requestId: string): NativeIntakeBinding => ({
   owner: NATIVE_INTAKE_OWNER,
   phase: NATIVE_INTAKE_PHASE,
@@ -566,6 +830,21 @@ export function readBinding(raw: unknown): NativeIntakeBinding | null {
 export function exactIntakeRequest(
   facts: NativeIntakeFacts,
   run: { tenantId: string; actorId: string; draftId: string },
+  /**
+   * The server-derived retry discriminator, when this request IS a failed-unit
+   * attempt: the retained run it continues. It is a HASH PREIMAGE ONLY and is
+   * never part of the returned request — the owner's turn reader accepts a closed
+   * key set and rejects unknown keys, so an extra wire field would refuse every
+   * retry at the leaf. Absent for every ordinary request, so its identity bytes
+   * are unchanged.
+   */
+  attemptRunId: string | null = null,
+  /**
+   * The attempt generation, for the SAME reason and under the SAME rule: a hash
+   * preimage only, never part of the returned request. Null for an ordinary request
+   * and for a first attempt, so those identity bytes are unchanged.
+   */
+  attemptGeneration: number | null = null,
 ): NativeGenerationTurnRequest {
   const subject = {
     tenantId: run.tenantId,
@@ -579,7 +858,17 @@ export function exactIntakeRequest(
   return {
     ...subject,
     paidGeneration: true,
-    requestId: nativeGenerationRequestId(subject),
+    requestId: nativeGenerationRequestId(
+      attemptRunId === null
+        ? subject
+        : {
+            ...subject,
+            attemptRunId,
+            ...(attemptGeneration === null || attemptGeneration === 1
+              ? {}
+              : { attemptGeneration }),
+          },
+    ),
   };
 }
 

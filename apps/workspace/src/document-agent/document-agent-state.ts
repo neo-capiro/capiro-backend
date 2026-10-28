@@ -154,6 +154,33 @@ export interface DocumentAgentRunSummary {
   status: 'active' | 'complete' | 'complete_with_warnings' | 'partial' | 'failed';
   stages: GenerationStage[];
   sectionResults?: Record<string, { status: 'succeeded' | 'failed' | 'stale'; error?: string }>;
+  /**
+   * The revision pin this native run was admitted under. A failed-unit retry
+   * re-derives the run's retained request identity from it, so a run whose pinned
+   * sources moved — or a run that does not belong to this draft's pinned state —
+   * is refused before either dispatcher is consulted.
+   */
+  expectedRevision?: number;
+  /**
+   * The failed-unit retry ATTEMPT of this run, when one is bound. It is written
+   * before the native turn, so a duplicate click or a reload addresses exactly this
+   * request instead of allocating a second paid turn.
+   */
+  retry?: {
+    requestId: string;
+    sectionIds: string[];
+    generation: number;
+    /** The revision pin this attempt's request identity was derived under. */
+    expectedRevision: number;
+    outcome: 'unknown' | 'failed' | 'completed';
+  };
+  /**
+   * Every attempt of this run that DEFINITIVELY failed, in order. Custody is why a
+   * later explicit retry is a genuinely new attempt at a new generation rather than
+   * a permanent replay of a failed one, and it is why the generation is derived from
+   * the run's own preserved state rather than a clock or a random id.
+   */
+  retryCustody?: { requestId: string; sectionIds: string[] }[];
 }
 
 /** A stage in the max-reasoning generation pipeline. */

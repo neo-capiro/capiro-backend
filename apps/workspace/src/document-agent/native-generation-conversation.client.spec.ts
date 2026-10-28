@@ -12,9 +12,10 @@ import {
   NativeGenerationOwnerError,
   nativeGenerationOrigin,
 } from './native-generation-conversation.client.js';
-import type {
-  NativeGenerationTurnRequest,
-  NativeGenerationTurnSubject,
+import {
+  nativeGenerationTurnRequest,
+  type NativeGenerationTurnRequest,
+  type NativeGenerationTurnSubject,
 } from './native-generation.bridge.js';
 
 const ORIGIN = 'https://control.internal.example';
@@ -139,6 +140,58 @@ describe('native conversation turn', () => {
     expect(Object.keys(call.headers)).not.toContain('idempotency-key');
     expect(call.body).not.toContain('session-credential');
     expect(outcome).toEqual({ status: 'complete', runId: 'run-1', result: { brief: { assumptions: [], provenance: {} } } });
+    expect(liveFetchCalls).toBe(0);
+  });
+
+  it('posts the closed turn body for a failed-unit ATTEMPT, keeping the discriminator off the wire', async () => {
+    const h = harness(() => body({ outcome: { status: 'complete', runId: 'run-1', result: { brief: { assumptions: [], provenance: {} } } } }));
+    // The identity of a failed-unit ATTEMPT, built by the SAME exported builder the
+    // bridge and the document-agent service derive their requests with: a retry of the
+    // failed units would otherwise re-derive the ORIGINAL request, and the owner would
+    // answer from its journal with the original failed outcome — never a real retry.
+    const base = {
+      phase: 'document' as const,
+      tenantId: 'tenant-a',
+      actorId: 'user_2abc',
+      draftId: 'draft-9',
+      clientId: 'client-4',
+      expectedRevision: 7,
+      sources: [{ id: 'draft-9', kind: 'workspace-draft' as const }],
+    };
+    const attempt = nativeGenerationTurnRequest({
+      ...base,
+      attemptRunId: 'run-retained-1',
+      attemptGeneration: 2,
+    });
+    const plain = nativeGenerationTurnRequest(base);
+
+    await h.client.turn(attempt, { credential: 'session-credential' });
+
+    expect(h.calls).toHaveLength(1);
+    const call = h.calls[0]!;
+    const sent = json(call);
+    // The exact bytes the owner receives: the CLOSED turn key set and nothing else. The
+    // owner's turn reader rejects any other key, so the server-owned discriminator must
+    // not travel — an extra field would refuse every retry at the leaf.
+    expect(Object.keys(sent.request).sort()).toEqual([
+      'actorId',
+      'clientId',
+      'draftId',
+      'expectedRevision',
+      'paidGeneration',
+      'phase',
+      'requestId',
+      'sources',
+      'tenantId',
+    ]);
+    expect(sent.request).not.toHaveProperty('attemptRunId');
+    expect(sent.request).not.toHaveProperty('attemptGeneration');
+    expect(call.body).not.toContain('run-retained-1');
+    expect(call.body.match(/"attemptGeneration"/g)).toBeNull();
+    // ...while the IDENTITY the owner matches on is distinct from the same request
+    // without the discriminator — that distinctness is what makes it a genuine retry.
+    expect(attempt.requestId).not.toBe(plain.requestId);
+    expect(sent.request.requestId).toBe(attempt.requestId);
     expect(liveFetchCalls).toBe(0);
   });
 
