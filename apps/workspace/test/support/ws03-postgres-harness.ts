@@ -17,6 +17,8 @@ import { DocumentsService } from '../../src/documents/documents.service.js';
 import { DocumentsController } from '../../src/documents/documents.controller.js';
 import { VersionsService } from '../../src/versions/versions.service.js';
 import { VersionsController } from '../../src/versions/versions.controller.js';
+import { ProspectPublicationController } from '../../src/versions/prospect-publication.controller.js';
+import { ProspectPublicationService } from '../../src/versions/prospect-publication.service.js';
 import { DocumentAgentController } from '../../src/document-agent/document-agent.controller.js';
 import { DocumentAgentService } from '../../src/document-agent/document-agent.service.js';
 import { DocumentAgentQualityService } from '../../src/document-agent/document-agent-quality.service.js';
@@ -126,7 +128,7 @@ export async function createNativeWorkspaceHarness(url: string) {
   const resolver = new PrismaOrgTenantResolver(db);
   const module = await Test.createTestingModule({
     controllers: [CommentsController, ChecksController, DraftsController, EditLockController,
-      DocumentsController, VersionsController, DocumentAgentController],
+      DocumentsController, VersionsController, ProspectPublicationController, DocumentAgentController],
     providers: [
       { provide: ClerkService, useValue: { verifySessionToken: async (token: string) => {
         if (token !== NATIVE_TOKEN) throw new Error('Unknown local fixture token');
@@ -139,6 +141,7 @@ export async function createNativeWorkspaceHarness(url: string) {
       { provide: EditLockService, useValue: new EditLockService(db, collaborators) },
       { provide: DocumentsService, useValue: new DocumentsService(db, collaborators) },
       { provide: VersionsService, useValue: new VersionsService(db, collaborators) },
+      { provide: ProspectPublicationService, useValue: new ProspectPublicationService(db) },
       { provide: DocumentAgentQualityService, useValue: quality },
       { provide: DocumentAgentService, useValue: {} },
     ],

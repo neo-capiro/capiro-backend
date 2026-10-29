@@ -122,6 +122,8 @@ test('the REAL client\u2019s retry ATTEMPT body is accepted by the REAL accepted
   const { conversationRequestIdFor } = await import(new URL('./phases.mjs', leafRoot).href);
   const { NativeGenerationConversationClient } = await import('../src/document-agent/native-generation-conversation.client.ts');
   const { nativeGenerationTurnRequest } = await import('../src/document-agent/native-generation.bridge.ts');
+  const { nativeGenerationSourceSnapshot } = await import('../src/document-agent/native-generation-source.ts');
+  const source = nativeGenerationSourceSnapshot('saved-version', 'saved-source', 'Exact synthetic saved evidence.');
 
   // 1. The EXACT request the production builder composes for a failed-unit ATTEMPT:
   //    the original retained sources plus the server-owned attempt discriminator,
@@ -134,6 +136,7 @@ test('the REAL client\u2019s retry ATTEMPT body is accepted by the REAL accepted
     clientId: CLIENT,
     expectedRevision: 7,
     sources: [
+      source,
       { id: DRAFT, kind: 'workspace-draft' },
       { id: 's1', kind: 'workspace-section' },
     ],
@@ -148,6 +151,7 @@ test('the REAL client\u2019s retry ATTEMPT body is accepted by the REAL accepted
     clientId: CLIENT,
     expectedRevision: 7,
     sources: [
+      source,
       { id: DRAFT, kind: 'workspace-draft' },
       { id: 's1', kind: 'workspace-section' },
     ],
@@ -208,6 +212,7 @@ test('the REAL client\u2019s retry ATTEMPT body is accepted by the REAL accepted
   assert.equal(sent[0].body.includes('attemptGeneration'), false, 'the attempt generation never travels on the wire');
   // The conversation turn the leaf submitted is derived from the exact attempt.
   assert.equal(fakes.calls.submit.length, 1);
+  assert.ok(fakes.calls.submit[0].input.prompt.includes(JSON.stringify([source])));
   assert.equal(fakes.calls.submit[0].input.requestId, conversationRequestIdFor(attempt.requestId));
   assert.notEqual(conversationRequestIdFor(attempt.requestId), conversationRequestIdFor(original.requestId));
 
@@ -234,6 +239,7 @@ test('the REAL client\u2019s retry ATTEMPT body is accepted by the REAL accepted
   const readPosted = JSON.parse(sent[1].body).request;
   assert.equal(readPosted.runId, NATIVE_RUN, 'the read binds the owner\u2019s OWN native run');
   assert.equal(readPosted.requestId, attempt.requestId);
+  assert.deepEqual(readPosted.sources, posted.request.sources);
   assert.equal(fakes.calls.history.length >= 1, true);
 
   // A repeated attempt (duplicate click / reload) presents the SAME derived

@@ -19,7 +19,12 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const hash = (value: unknown) =>
   createHash('sha256').update(canonicalWorkspaceSnapshot(value)).digest('hex');
 
-async function current(tx: Tx, tenantId: string, draftId: string, prospectId?: string) {
+export async function readDraftSnapshotInTx(
+  tx: Tx,
+  tenantId: string,
+  draftId: string,
+  prospectId?: string,
+) {
   const draft = await tx.wsDraft.findFirst({
     where: { tenantId, id: draftId },
     include: { documents: { orderBy: [{ ordinal: 'asc' }, { id: 'asc' }] } },
@@ -58,7 +63,7 @@ async function authorize(
   write: boolean,
   prospectId?: string,
 ) {
-  const state = await current(tx, tenantId, draftId, prospectId);
+  const state = await readDraftSnapshotInTx(tx, tenantId, draftId, prospectId);
   if (prospectId) {
     await requireProspectDraftInTx(
       tx,
@@ -134,7 +139,7 @@ export async function readAtomicDraftState(
     : withDraftWrite(prisma, origin, actorId, read);
 }
 
-type AtomicSave = {
+export type AtomicSave = {
   operation: 'save_ordinary_draft' | 'save_prospect_draft';
   tenantId: string;
   draftId: string;
@@ -254,7 +259,7 @@ export async function saveAtomicDraft(
             },
           });
         }
-        const after = await current(tx, tenantId, draftId, prospectId);
+        const after = await readDraftSnapshotInTx(tx, tenantId, draftId, prospectId);
         const atomicSave: AtomicSave = {
           operation,
           tenantId,
