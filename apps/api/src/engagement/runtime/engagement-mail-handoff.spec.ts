@@ -323,6 +323,34 @@ describe('mail handoff barrier — existing provider boundary wiring', () => {
       /fenced|handoff/i,
     );
   });
+
+  it('refuses a direct Microsoft calendar command in a selected phase before its delegate', async () => {
+    const { guardMicrosoftGraphSyncService } = await import(
+      './engagement-integration-runtime.boundary.js'
+    );
+    const policy = policyIn('initiation_fenced');
+    const delegate = jest.fn(async () => 'ran');
+    const guarded = guardMicrosoftGraphSyncService(
+      { runCalendarCommand: delegate } as never,
+      policy,
+    ) as never as { runCalendarCommand: (...args: unknown[]) => Promise<unknown> };
+
+    // The NEW gate is synchronous, so the refusal happens at the call.
+    expect(() => guarded.runCalendarCommand('synthetic')).toThrow(/fenced|handoff/i);
+    expect(delegate).not.toHaveBeenCalled();
+  });
+
+  it('refuses a direct Google calendar command in a selected phase before its delegate', async () => {
+    const { guardGoogleSyncService } = await import('./engagement-integration-runtime.boundary.js');
+    const policy = policyIn('initiation_fenced');
+    const delegate = jest.fn(async () => 'ran');
+    const guarded = guardGoogleSyncService({ runCalendarCommand: delegate } as never, policy) as never as {
+      runCalendarCommand: (...args: unknown[]) => Promise<unknown>;
+    };
+
+    expect(() => guarded.runCalendarCommand('synthetic')).toThrow(/fenced|handoff/i);
+    expect(delegate).not.toHaveBeenCalled();
+  });
 });
 
 describe('mail handoff selection parsing', () => {
