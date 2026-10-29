@@ -18027,6 +18027,9 @@ model MeriOfficeDraft {
   publishedVersionId String? @map("published_version_id") @db.Uuid
   lockToken String? @map("lock_token") @db.VarChar(1024)
   lockExpiresAt DateTime? @map("lock_expires_at") @db.Timestamptz(6)
+  editorId String? @map("editor_id") @db.Uuid
+  editorEpoch Int @default(0) @map("editor_epoch")
+  editorExpiresAt DateTime? @map("editor_expires_at") @db.Timestamptz(6)
   createdAt DateTime @default(dbgenerated("clock_timestamp()")) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @default(dbgenerated("clock_timestamp()")) @map("updated_at") @db.Timestamptz(6)
   expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
