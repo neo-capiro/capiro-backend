@@ -40,17 +40,21 @@ export const NODE_IMAGE = 'public.ecr.aws/docker/library/node:24.21.0-alpine3.23
 export const FRONTEND_IMAGE_DIGEST = 'sha256:983eb6d99feb25e664a0a2f14244d60e906f12f88a3a262b27519ffbed53f930';
 export const FRONTEND_SOURCE_COMMIT = 'ee470d7d44b811dc84d147c62a3eab7c9b5be09f';
 export const CONSUMER_REPOSITORIES = Object.freeze({ web: 'capiro/dev/web', marketing: 'capiro/dev/marketing' });
-export const USAGE = 'Usage: node scripts/legacy-consumer-build-request.mjs --service web|marketing --source-checkout ABS --source-commit 40HEX --out-dir ABS [--stage]';
+export const USAGE = 'Usage: node scripts/legacy-consumer-build-request.mjs --service web|marketing --source-kind github|s3 --source-checkout ABS --source-commit 40HEX --out-dir ABS';
 
 const sha = (value) => createHash('sha256').update(value).digest('hex');
 const fail = (reason) => { throw new Error('Legacy consumer build request refused: ' + reason); };
-const flags = Object.freeze(['--service', '--source-checkout', '--source-commit', '--out-dir']);
+const flags = Object.freeze(['--service', '--source-kind', '--source-checkout', '--source-commit', '--out-dir']);
 
 export function parseInvocation(argv) {
   if (argv.length === 1 && ['--help', '-h'].includes(argv[0])) return Object.freeze({ mode: 'help' });
-  const stage = argv.includes('--stage');
   const args = argv.filter((value) => value !== '--stage');
-  if (args.length !== flags.length * 2) fail('exactly four explicit flags plus optional --stage required');
+  if (![flags.length * 2, (flags.length - 1) * 2].includes(args.length))
+    fail('explicit service/source-kind/paths/commit flags required');
+  // Uploading a new S3 source key would need a task-specific exact-key read
+  // grant in the builder role, so staging is not offered here.
+  if (argv.includes('--stage'))
+    fail('staging is not offered: a new S3 key needs an exact-key grant; use the github source override');
   const values = new Map();
   for (let index = 0; index < args.length; index += 2) {
     if (!flags.includes(args[index]) || values.has(args[index]) || !args[index + 1]) fail('unknown or duplicate flag');
@@ -58,15 +62,18 @@ export function parseInvocation(argv) {
   }
   const options = Object.freeze({
     service: values.get('--service'),
+    sourceKind: values.get('--source-kind') ?? 'github',
     sourceCheckout: values.get('--source-checkout'),
     sourceCommit: values.get('--source-commit'),
     outDir: values.get('--out-dir'),
   });
   if (!Object.hasOwn(CONSUMER_REPOSITORIES, options.service)) fail('service must be web or marketing');
+  if (!['github', 's3'].includes(options.sourceKind)) fail('source kind must be github or s3');
+
   if (!/^[a-f0-9]{40}$/.test(options.sourceCommit)) fail('40-hex source commit required');
   for (const value of [options.sourceCheckout, options.outDir])
     if (!value || !path.isAbsolute(value)) fail('absolute source-checkout and out-dir required');
-  return Object.freeze({ mode: stage ? 'stage' : 'plan', options });
+  return Object.freeze({ mode: 'plan', options });
 }
 
 /** Deterministic content digest of an exact commit, reproduced by the job. */
@@ -115,11 +122,14 @@ if digest != expected:
 print('SOURCE_TREE_DIGEST_PASS', digest)
 PY`;
 
-const PRELUDE = `set -euo pipefail
+const SOURCE_KINDS = Object.freeze({
+  github: Object.freeze({ type: 'GITHUB', location: 'https://github.com/neo-capiro/capiro-backend.git' }),
+  s3: Object.freeze({ type: 'S3' }),
+});
+
+const PRELUDE_COMMON = `set -euo pipefail
 : "\${EXPECTED_SHA:?exact source commit required}"
 : "\${EXPECTED_TREE_SHA256:?exact source tree digest required}"
-: "\${EXPECTED_S3_VERSION:?immutable S3 source version required}"
-test "\${CODEBUILD_SOURCE_VERSION:-}" = "$EXPECTED_S3_VERSION"
 test "$(uname -m)" = aarch64
 test "$(aws sts get-caller-identity --query Account --output text)" = ${ACCOUNT}
 case "$(docker info --format '{{.Architecture}}')" in aarch64|arm64) ;; *) echo 'container engine is not arm64' >&2; exit 1 ;; esac
@@ -127,6 +137,13 @@ ${BUILDSPEC_DIGEST_STEP}
 aws ecr get-login-password --region ${REGION} \\
   | docker login --username AWS --password-stdin ${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com
 `;
+const PRELUDE_GITHUB = `${PRELUDE_COMMON}test "\${CODEBUILD_RESOLVED_SOURCE_VERSION:-}" = "$EXPECTED_SHA"
+test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+test -z "$(git status --porcelain --untracked-files=no)"
+`;
+const PRELUDE_S3 = `: "\${EXPECTED_S3_VERSION:?immutable S3 source version required}"
+test "\${CODEBUILD_SOURCE_VERSION:-}" = "$EXPECTED_S3_VERSION"
+${PRELUDE_COMMON}`;
 
 const SCAN_ASSERT = `assert_clean_scan() {
   repository="$1"
@@ -160,11 +177,11 @@ PY
 }
 `;
 
-const WEB_BUILDSPEC = `set -euo pipefail
+const webBuildspec = (kind) => `set -euo pipefail
 FE_IMAGE=${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/capiro/portfolio-preview@${FRONTEND_IMAGE_DIGEST}
 NODE_IMAGE=${NODE_IMAGE}
 CONSUMER_IMAGE=${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${CONSUMER_REPOSITORIES.web}:$EXPECTED_SHA
-${PRELUDE}
+${kind === 'github' ? PRELUDE_GITHUB : PRELUDE_S3}
 ${SCAN_ASSERT}
 docker pull "$FE_IMAGE"
 test "$(docker image inspect "$FE_IMAGE" --format '{{.Os}}/{{.Architecture}}')" = linux/arm64
@@ -218,9 +235,9 @@ done
 assert_clean_scan ${CONSUMER_REPOSITORIES.web}
 assert_clean_scan capiro/dev/web-vnext`;
 
-const MARKETING_BUILDSPEC = `set -euo pipefail
+const marketingBuildspec = (kind) => `set -euo pipefail
 IMAGE=${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${CONSUMER_REPOSITORIES.marketing}:$EXPECTED_SHA
-${PRELUDE}
+${kind === 'github' ? PRELUDE_GITHUB : PRELUDE_S3}
 ${SCAN_ASSERT}
 docker build --platform linux/arm64 -f marketing/Dockerfile \\
   --label "org.opencontainers.image.revision=$EXPECTED_SHA" \\
@@ -232,8 +249,9 @@ bash marketing/smoke-8080.sh "$IMAGE"
 docker push "$IMAGE"
 assert_clean_scan ${CONSUMER_REPOSITORIES.marketing}`;
 
-export function buildspecFor(service) {
-  const script = service === 'web' ? WEB_BUILDSPEC : MARKETING_BUILDSPEC;
+export function buildspecFor(service, sourceKind = 'github') {
+  if (!Object.hasOwn(SOURCE_KINDS, sourceKind)) fail('source kind must be github or s3');
+  const script = service === 'web' ? webBuildspec(sourceKind) : marketingBuildspec(sourceKind);
   const encoded = gzipSync(Buffer.from(script, 'utf8')).toString('base64');
   return {
     version: 0.2,
@@ -262,18 +280,25 @@ export function createPlan(options) {
   if (execFileSync('git', ['-C', options.sourceCheckout, 'status', '--porcelain', '--untracked-files=no'],
     { encoding: 'utf8' }).trim() !== '') fail('source checkout has tracked modifications');
   assertSourceSelection(options.service);
-  const buildspec = buildspecFor(options.service);
+  const kind = options.sourceKind ?? 'github';
+  const buildspec = buildspecFor(options.service, kind);
   const buildspecOverride = JSON.stringify(buildspec);
   if (buildspecOverride.length > 25_600) fail(`BUILDSPEC_TOO_LONG_${buildspecOverride.length}`);
   const treeDigestValue = treeDigest(options.sourceCheckout, options.sourceCommit);
   const key = `${SOURCE_PREFIX}${options.service}-${options.sourceCommit}.zip`;
+  const source = kind === 'github'
+    ? Object.freeze({ type: 'GITHUB', location: SOURCE_KINDS.github.location,
+      sourceVersion: options.sourceCommit, sourceCommit: options.sourceCommit,
+      treeDigestSha256: treeDigestValue, requiredGrant: null })
+    : Object.freeze({ type: 'S3', bucket: SOURCE_BUCKET, key, prefix: SOURCE_PREFIX,
+      sourceVersion: null, sourceCommit: options.sourceCommit, treeDigestSha256: treeDigestValue,
+      requiredGrant: Object.freeze({ actions: Object.freeze(['s3:GetObject', 's3:GetObjectVersion']),
+        resource: `arn:aws:s3:::${SOURCE_BUCKET}/${key}`,
+        note: 'existing role grants are exact-key; a new key needs this grant before start-build' }) });
   return Object.freeze({
     schemaVersion: 1, kind: 'legacy-consumer-build-request', generatedAt: new Date().toISOString(),
-    service: options.service, project: PROJECT, region: REGION, account: ACCOUNT,
-    source: Object.freeze({ type: 'S3', bucket: SOURCE_BUCKET, key, prefix: SOURCE_PREFIX,
-      sourceCommit: options.sourceCommit, treeDigestSha256: treeDigestValue,
-      // Filled from put-object; the request refuses to run without it.
-      sourceVersion: null }),
+    service: options.service, sourceKind: kind, project: PROJECT, region: REGION, account: ACCOUNT,
+    source,
     frontend: options.service === 'web' ? Object.freeze({ imageDigest: FRONTEND_IMAGE_DIGEST,
       sourceCommit: FRONTEND_SOURCE_COMMIT,
       activeAcceptedSource: NEWSLETTER_ACCEPTED_SOURCE_PROFILE.activeCommit }) : null,
@@ -283,7 +308,7 @@ export function createPlan(options) {
     environmentVariables: [
       { name: 'EXPECTED_SHA', value: options.sourceCommit, type: 'PLAINTEXT' },
       { name: 'EXPECTED_TREE_SHA256', value: treeDigestValue, type: 'PLAINTEXT' },
-      { name: 'EXPECTED_S3_VERSION', value: '<S3_VERSION_ID>', type: 'PLAINTEXT' },
+      ...(kind === 's3' ? [{ name: 'EXPECTED_S3_VERSION', value: '<S3_VERSION_ID>', type: 'PLAINTEXT' }] : []),
     ],
     stages: Object.freeze([
       'verify caller/account/arm64 and the exact source tree digest',
@@ -297,29 +322,22 @@ export function createPlan(options) {
 }
 
 export function startBuildRequest(plan, sourceVersion, idempotencyToken) {
-  if (!/^[A-Za-z0-9+/=_.:-]{8,120}$/.test(sourceVersion ?? '')) fail('immutable S3 version id required');
+  const kind = plan.sourceKind ?? 'github';
+  const version = kind === 'github' ? plan.source.sourceVersion : sourceVersion;
+  if (!/^[A-Za-z0-9+/=_.:-]{8,120}$/.test(version ?? ''))
+    fail('immutable source version (commit or S3 VersionId) required');
   return {
     projectName: plan.project,
-    sourceTypeOverride: 'S3',
-    sourceLocationOverride: `${plan.source.bucket}/${plan.source.key}`,
-    sourceVersion,
-    buildspecOverride: JSON.stringify(buildspecFor(plan.service)),
+    sourceTypeOverride: SOURCE_KINDS[kind].type,
+    sourceLocationOverride: kind === 'github' ? SOURCE_KINDS.github.location
+      : `${plan.source.bucket}/${plan.source.key}`,
+    sourceVersion: version,
+    buildspecOverride: JSON.stringify(buildspecFor(plan.service, kind)),
     environmentVariablesOverride: plan.environmentVariables.map((item) =>
-      item.name === 'EXPECTED_S3_VERSION' ? { ...item, value: sourceVersion } : item),
+      item.name === 'EXPECTED_S3_VERSION' ? { ...item, value: version } : item),
     idempotencyToken,
     timeoutInMinutesOverride: 60,
   };
-}
-
-function stage(options, outDir) {
-  const archive = path.join(outDir, `${options.service}-${options.sourceCommit}.zip`);
-  execFileSync('git', ['-C', options.sourceCheckout, 'archive', '--format=zip', '-o', archive, options.sourceCommit],
-    { stdio: 'inherit' });
-  const uploaded = JSON.parse(execFileSync('aws', ['s3api', 'put-object', '--bucket', SOURCE_BUCKET,
-    '--key', `${SOURCE_PREFIX}${options.service}-${options.sourceCommit}.zip`, '--body', archive,
-    '--checksum-algorithm', 'SHA256', '--output', 'json'], { encoding: 'utf8' }));
-  if (!uploaded.VersionId) fail('bucket did not return an immutable version id');
-  return uploaded;
 }
 
 function main(argv) {
@@ -328,9 +346,8 @@ function main(argv) {
     if (invocation.mode === 'help') { console.log(USAGE); return; }
     mkdirSync(invocation.options.outDir, { recursive: true });
     const plan = createPlan(invocation.options);
-    let uploaded = null;
-    if (invocation.mode === 'stage') uploaded = stage(invocation.options, invocation.options.outDir);
-    const sourceVersion = uploaded?.VersionId ?? null;
+    const uploaded = null;
+    const sourceVersion = plan.sourceKind === 'github' ? plan.source.sourceVersion : null;
     const request = sourceVersion ? startBuildRequest(plan, sourceVersion,
       `legacy-${plan.service}-${plan.source.sourceCommit.slice(0, 12)}`) : null;
     writeFileSync(path.join(invocation.options.outDir, 'build-request-plan.json'),

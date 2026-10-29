@@ -46,19 +46,23 @@ describe('legacy consumer build request: invocation', () => {
     assert.equal(payload.deployed, false);
   });
 
-  test('explicit flags only: service, absolute paths, exact commit', () => {
-    const parsed = parseInvocation(['--service', 'web', '--source-checkout', '/src', '--source-commit', 'a'.repeat(40),
-      '--out-dir', '/out']);
+  test('explicit flags only: service, source kind, absolute paths, exact commit', () => {
+    const base = ['--service', 'web', '--source-checkout', '/src', '--source-commit', 'a'.repeat(40), '--out-dir', '/out'];
+    const parsed = parseInvocation(base);
     assert.equal(parsed.mode, 'plan');
-    assert.equal(parseInvocation(['--service', 'marketing', '--source-checkout', '/src',
-      '--source-commit', 'a'.repeat(40), '--out-dir', '/out', '--stage']).mode, 'stage');
+    assert.equal(parsed.options.sourceKind, 'github', 'github source override is the default');
+    assert.equal(parseInvocation([...base, '--source-kind', 'github']).options.sourceKind, 'github');
+    assert.equal(parseInvocation([...base, '--source-kind', 's3']).options.sourceKind, 's3');
     for (const argv of [
-      ['--service', 'api', '--source-checkout', '/src', '--source-commit', 'a'.repeat(40), '--out-dir', '/out'],
+      ['--service', 'api', ...base.slice(2)],
       ['--service', 'web', '--source-checkout', 'src', '--source-commit', 'a'.repeat(40), '--out-dir', '/out'],
       ['--service', 'web', '--source-checkout', '/src', '--source-commit', 'HEAD', '--out-dir', '/out'],
-      ['--service', 'web', '--source-checkout', '/src', '--source-commit', 'a'.repeat(40), '--out-dir', '/out', '--start'],
-      ['--service', 'web', '--service', 'web', '--source-checkout', '/src', '--source-commit', 'a'.repeat(40), '--out-dir', '/out'],
+      [...base, '--start'],
+      [...base, '--stage'],
+      ['--service', 'web', '--service', 'web', ...base.slice(2)],
+      [...base, '--source-kind', 'codecommit'],
     ]) assert.throws(() => parseInvocation(argv), undefined, argv.join(' '));
+    assert.equal(parseInvocation([...base, '--source-kind', 's3']).mode, 'plan');
   });
 });
 
@@ -103,16 +107,28 @@ describe('legacy consumer build request: job scripts', () => {
       assert.ok(!script.includes(forbidden), forbidden);
   });
 
-  test('the request pins the immutable S3 source override and mutates no stored project', () => {
+  test('the request pins an immutable source override and mutates no stored project', () => {
     assert.equal(PROJECT, 'capiro-build-web-dev');
-    const plan = { project: PROJECT, service: 'web',
+    const githubPlan = { project: PROJECT, service: 'web', sourceKind: 'github',
+      source: { type: 'GITHUB', location: 'https://github.com/neo-capiro/capiro-backend.git',
+        sourceVersion: 'a'.repeat(40) },
+      environmentVariables: [{ name: 'EXPECTED_SHA', value: 'a'.repeat(40), type: 'PLAINTEXT' },
+        { name: 'EXPECTED_TREE_SHA256', value: 'b'.repeat(64), type: 'PLAINTEXT' }] };
+    const github = startBuildRequest(githubPlan, null, 'token-12345');
+    assert.equal(github.sourceTypeOverride, 'GITHUB');
+    assert.equal(github.sourceLocationOverride, 'https://github.com/neo-capiro/capiro-backend.git');
+    assert.equal(github.sourceVersion, 'a'.repeat(40));
+    assert.deepEqual(github.environmentVariablesOverride.map((item) => item.name),
+      ['EXPECTED_SHA', 'EXPECTED_TREE_SHA256']);
+
+    const s3Plan = { project: PROJECT, service: 'web', sourceKind: 's3',
       source: { bucket: SOURCE_BUCKET, key: 'inputs/web-abc.zip' },
       environmentVariables: [{ name: 'EXPECTED_SHA', value: 'a'.repeat(40), type: 'PLAINTEXT' },
         { name: 'EXPECTED_TREE_SHA256', value: 'b'.repeat(64), type: 'PLAINTEXT' },
         { name: 'EXPECTED_S3_VERSION', value: '<S3_VERSION_ID>', type: 'PLAINTEXT' }] };
-    assert.throws(() => startBuildRequest(plan, '', 'token-12345'));
-    assert.throws(() => startBuildRequest(plan, '..', 'token-12345'));
-    const request = startBuildRequest(plan, '2yHi6FRdT1VBthvkKA9fpJG_SW3fHoHl', 'token-12345');
+    assert.throws(() => startBuildRequest(s3Plan, '', 'token-12345'));
+    assert.throws(() => startBuildRequest(s3Plan, '..', 'token-12345'));
+    const request = startBuildRequest(s3Plan, '2yHi6FRdT1VBthvkKA9fpJG_SW3fHoHl', 'token-12345');
     assert.equal(request.projectName, PROJECT);
     assert.equal(request.sourceTypeOverride, 'S3');
     assert.equal(request.sourceLocationOverride, `${SOURCE_BUCKET}/inputs/web-abc.zip`);
