@@ -105,8 +105,8 @@ describe('MemoryStoreService projection governance restoration', () => {
     const insert = h.queries.find((sql) => sql.includes('INSERT INTO memory_items'));
     expect(insert).toMatch(/WHERE memory_items\.id = \$\d+::uuid/);
     expect(insert).toContain("memory_items.governed_status IN ('active', 'stale')");
-    expect(insert).toContain('memory_items.effective_from <= now()');
-    expect(insert).toContain('memory_items.valid_until > now()');
+    expect(insert).toContain('memory_items.effective_from <= clock_timestamp()');
+    expect(insert).toContain('memory_items.valid_until > clock_timestamp()');
   });
 
   it('keeps generic projection SQL free of governed columns', async () => {
