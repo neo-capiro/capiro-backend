@@ -3,7 +3,7 @@ import { PublicSqlError } from './sql-query-compiler.js';
 
 export type SqlResultRow = Record<string, string | boolean | null>;
 
-/** Numeric cells were cast to text in PostgreSQL; never recover precision from JS numbers. */
+/** Numeric/timestamp cells arrive as PostgreSQL text; JS numbers/Dates can already be lossy. */
 export function normalizeSqlRow(
   row: Record<string, unknown>,
   columns: readonly PublicSqlColumn[],
@@ -22,19 +22,19 @@ export function normalizeSqlRow(
       continue;
     }
     if (
-      (column.type === 'date' || column.type === 'timestamp') &&
+      column.type === 'date' &&
       value instanceof Date &&
       Number.isFinite(value.getTime())
     ) {
-      out[column.name] =
-        column.type === 'date' ? value.toISOString().slice(0, 10) : value.toISOString();
+      out[column.name] = value.toISOString().slice(0, 10);
       continue;
     }
     if (
       typeof value === 'string' &&
       (column.type === 'string' ||
         (column.type === 'integer' && /^-?\d+$/.test(value)) ||
-        (column.type === 'decimal' && /^-?\d+(?:\.\d+)?$/.test(value)))
+        (column.type === 'decimal' && /^-?\d+(?:\.\d+)?$/.test(value)) ||
+        (column.type === 'timestamp' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/.test(value)))
     ) {
       out[column.name] = value;
       continue;

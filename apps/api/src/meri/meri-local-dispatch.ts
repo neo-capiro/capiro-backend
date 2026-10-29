@@ -1,7 +1,7 @@
-import type { MeriCapability } from '@capiro/shared';
+import type { MeriLocalCapability } from '@capiro/shared';
 
 /** The existing canonical core owner supplies the finite callable name type. */
-export type MeriLocalToolName = Extract<MeriCapability, { backend: 'meri' }>['name'];
+export type MeriLocalToolName = MeriLocalCapability['name'];
 
 /** Each thunk reads its current owning instance only when selected. */
 export type MeriLocalDispatchRegistry = Readonly<Record<MeriLocalToolName, () => unknown>>;

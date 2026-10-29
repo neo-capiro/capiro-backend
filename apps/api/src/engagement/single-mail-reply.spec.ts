@@ -1,4 +1,4 @@
-import { gmailReplyIdentity, graphReplyIdentity, prepareMailReply, storedGraphReplyIdentity } from './single-mail-reply.js';
+import { gmailReplyIdentity, graphReplyIdentity, prepareMailReply, prepareMailReplyAll, storedGraphReplyIdentity } from './single-mail-reply.js';
 
 function graphFixture() {
   const mailbox = (address: string) => ({ emailAddress: { address } });
@@ -113,5 +113,40 @@ describe('exact bounded incoming Gmail reply source', () => {
     const h = fixture(); const header = h.raw.payload.headers.find(header => header.name === name)!;
     h.raw.payload.headers.push({ name: name.toLowerCase(), value: header.value });
     expect(h.prepare()).toBeNull();
+  });
+});
+
+
+describe('native reply-all recipient proof', () => {
+  const originals = { to: ['me@example.test', 'other@example.test'], cc: ['copy@example.test', 'other@example.test', 'alias@example.test'] };
+  test.each(['gmail', 'graph'])('%s reply-all uses Reply-To and only captured visible recipients', provider => {
+    const h = provider === 'gmail' ? fixture() : graphFixture();
+    if (provider === 'gmail') (h.source.raw as any).payload.headers.push(
+      { name: 'To', value: originals.to.join(', ') }, { name: 'Cc', value: originals.cc.join(', ') },
+      { name: 'Bcc', value: 'private@example.test' });
+    else (h.source.raw as any).graphReplyRecipients = { schema: 'graph-native-reply-recipients/1', defaultId: h.source.externalId,
+      immutableId: 'Immutable-Source', changeKey: 'version-1', recipients: originals };
+    const oldReply = h.prepare(['alias@example.test']);
+    const result = prepareMailReplyAll(h.source, h.thread, h.connection, ['alias@example.test'])!;
+    expect(result.context).toMatchObject({ operation: 'reply_all', to: [oldReply!.context.to[0], { email: 'other@example.test' }], cc: [{ email: 'copy@example.test' }] });
+    expect(result.provider).toEqual(oldReply!.provider);
+    expect(JSON.stringify(result.context)).not.toMatch(/private@|alias@|me@|Immutable|provider-/);
+    expect(result.replyAll?.original).toEqual(originals);
+  });
+  test.each(['missing', 'malformed', 'ambiguous', 'not-addressed', 'too-many-cc', 'duplicate-header'])('reply-all refuses %s source without weakening ordinary reply', kind => {
+    const h = fixture();
+    if (kind !== 'missing') h.raw.payload.headers.push({ name: 'To', value: kind === 'malformed' ? 'bad' : kind === 'ambiguous' ? '"Smith, Pat" <me@example.test>' : kind === 'not-addressed' ? 'other@example.test' : 'me@example.test' });
+    if (kind === 'too-many-cc') h.raw.payload.headers.push({ name: 'Cc', value: Array.from({ length: 11 }, (_, i) => `person${i}@example.test`).join(',') });
+    if (kind === 'duplicate-header') h.raw.payload.headers.push({ name: 'to', value: 'other@example.test' });
+    expect(prepareMailReplyAll(h.source, h.thread, h.connection, [])).toBeNull();
+    expect(h.prepare()).not.toBeNull();
+  });
+  test('reply-all refuses Graph recipient capture from another immutable source or revision', () => {
+    const h = graphFixture();
+    const proof = { schema: 'graph-native-reply-recipients/1', defaultId: h.source.externalId, immutableId: 'Immutable-Source', changeKey: 'version-1', recipients: originals };
+    for (const changed of ['defaultId', 'immutableId', 'changeKey', 'schema']) {
+      (h.source.raw as any).graphReplyRecipients = { ...proof, [changed]: 'other' };
+      expect(prepareMailReplyAll(h.source, h.thread, h.connection, [])).toBeNull();
+    }
   });
 });

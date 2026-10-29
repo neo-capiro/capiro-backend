@@ -150,6 +150,73 @@ export function parseSelectionRequest(value: unknown): { selection: unknown; sel
   return { selection: v.selection, selectionSha256: v.selectionSha256 };
 }
 
+/** A cold routines page has no execution binding. These selectors never create one. */
+export function parseRoutineManagementScope(value: unknown): { clientId: string | null; policyRevision: string } {
+  const v = record(value, ['clientId', 'policyRevision'], [], 'management scope');
+  if (typeof v.policyRevision !== 'string' || !v.policyRevision || v.policyRevision.length > 128) throw invalid('policyRevision');
+  return { clientId: v.clientId === null ? null : uuid(v.clientId, 'clientId'), policyRevision: v.policyRevision };
+}
+
+export interface RoutineManagementCurrent {
+  kind: 'routine-management';
+  principal: NativeIdentity;
+  scopes: NativeScope[];
+  selectedClientId: string | null;
+  membershipRevision: string;
+  contextRevision: string;
+}
+export interface RoutineManagementSelection extends Omit<RoutineSelection, 'current'> {
+  current: RoutineManagementCurrent;
+  resource: RoutineScheduleRef | null;
+}
+
+/** Closed management vocabulary: no creation, widening, current-work stop or run selector. */
+export function parseRoutineManagementSelection(value: unknown): RoutineManagementSelection {
+  const v = record(value, ['phase', 'operation', 'request', 'currentSchedule', 'proposal', 'current', 'scheduleBinding'], [], 'selection');
+  if (typeof v.phase !== 'string' || !v.phase || v.phase.length > 128) throw invalid('selection.phase');
+  if (v.operation !== 'list_scheduled_tasks' && v.operation !== 'cancel_scheduled_task') throw invalid('management operation');
+  const operation = v.operation, keys = REQUEST_KEYS[operation];
+  const r = record(v.request, keys.required, keys.optional, 'selection.request');
+  if (operation === 'cancel_scheduled_task') {
+    if (r.mode !== 'pause' && r.mode !== 'delete' || r.running !== 'leave' || !Array.isArray(r.runs) || r.runs.length !== 0 ||
+        typeof r.note !== 'string' || r.note.length < 1 || r.note.length > 512) throw invalid('future-only cancellation');
+  } else {
+    if (r.afterScheduleId !== undefined && r.afterScheduleId !== null) uuid(r.afterScheduleId, 'afterScheduleId');
+    for (const [name, min, max] of [['limit', 1, 20], ['historyLimit', 0, 10]] as const) {
+      if (r[name] !== undefined && (!Number.isSafeInteger(r[name]) || (r[name] as number) < min || (r[name] as number) > max)) throw invalid(name);
+    }
+  }
+  const c = record(v.current, ['kind', 'principal', 'scopes', 'selectedClientId', 'membershipRevision', 'contextRevision'], [], 'management current');
+  if (c.kind !== 'routine-management' || typeof c.membershipRevision !== 'string' || !HEX64.test(c.membershipRevision) ||
+      typeof c.contextRevision !== 'string' || !HEX64.test(c.contextRevision)) throw invalid('management current revision');
+  const current: RoutineManagementCurrent = {
+    kind: 'routine-management', principal: parseIdentity(c.principal, 'management principal'), scopes: scopes(c.scopes, 'management scopes'),
+    selectedClientId: c.selectedClientId === null ? null : uuid(c.selectedClientId, 'selectedClientId'),
+    membershipRevision: c.membershipRevision, contextRevision: c.contextRevision,
+  };
+  const proposal = proposalRef(v.proposal);
+  const matchingCancel = (value: unknown) => {
+    const cancel = record(value, ['mode', 'note', 'running', 'runs'], [], 'management cancellation');
+    if (operation !== 'cancel_scheduled_task' || nativeCanonicalSha256(cancel) !== nativeCanonicalSha256({ mode: r.mode, note: r.note, running: r.running, runs: r.runs })) throw invalid('management cancellation');
+  };
+  if (proposal !== null) matchingCancel((v.proposal as Record<string, unknown>).cancel);
+  let resource: RoutineScheduleRef | null = null;
+  if (v.scheduleBinding !== null) {
+    const b = record(v.scheduleBinding, [], ['callerIdentity', 'operation', 'request', 'context', 'intent', 'bindingSha256', 'selection', 'approval', 'deadlineMs', 'resource'], 'scheduleBinding');
+    if (b.intent !== null && b.intent !== undefined) {
+      const intent = record(b.intent, ['intentId', 'operation', 'projection'], ['expectedGeneration', 'generation', 'previousProjectionSha256', 'configuration', 'cancel', 'taskInstructionSha256'], 'management intent');
+      if (intent.operation !== 'cancel_scheduled_task') throw invalid('management intent operation');
+      matchingCancel(intent.cancel);
+      if (projectionRef(intent.projection, 'management intent projection').scheduleId !== uuid(r.scheduleId, 'scheduleId')) throw invalid('management intent scheduleId');
+    }
+    if (b.resource && typeof b.resource === 'object' && Object.hasOwn(b.resource, 'scheduleId')) resource = projectionRef(b.resource, 'resource');
+  }
+  const currentSchedule = currentScheduleRef(v.currentSchedule);
+  if (operation === 'cancel_scheduled_task' && currentSchedule === null) throw invalid('currentSchedule');
+  return { phase: v.phase, operation, request: { destinationReference: null, scheduleId: operation === 'cancel_scheduled_task' ? uuid(r.scheduleId, 'scheduleId') : null },
+    currentSchedule, proposal, current, resource };
+}
+
 /** Meri schedules-0.2 `Intent` for an approved running-run cancellation; the rest is bound by intentSha256. */
 export function parseCancelIntent(value: unknown): RoutineCancelIntent {
   const v = record(value, ['intentId', 'operation', 'expectedGeneration', 'generation', 'previousProjectionSha256', 'projection',

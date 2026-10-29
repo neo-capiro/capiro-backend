@@ -389,7 +389,6 @@ model Tenant {
   researchPortfolioBookmarks              ResearchPortfolioBookmark[]
   researchPortfolioTourStates             ResearchPortfolioTourState[]
   researchPortfolioShareSettings          ResearchPortfolioShareSetting[]
-  researchPortfolioShareLinks             ResearchPortfolioShareLink[]
   researchPortfolioDashboardDesigns       ResearchPortfolioDashboardDesign[]
   researchPortfolioReviewNotes            ResearchPortfolioReviewNote[]
 
@@ -1058,7 +1057,7 @@ model Client {
   bizdevProspects          BusinessDevelopmentProspect[]       @relation("BizDevProspectLinkedClient")
   researchPortfolioFitVersions ResearchPortfolioFitVersion[]
   researchPortfolioLinks   ResearchPortfolioClientLink[]
-  researchPortfolioShareLinks ResearchPortfolioShareLink[]
+  researchPortfolioShareLinks WsShareLink[]
 
   @@unique([tenantId, id], map: "clients_tenant_id_key")
   @@index([tenantId], map: "clients_tenant_idx")
@@ -7366,11 +7365,8 @@ model FederalGrant {
   url               String?
   syncedAt          DateTime  @default(now()) @map("synced_at") @db.Timestamptz(6)
 
-  // ── District Nexus Workstream C: fields that only exist on the
-  // fetchOpportunity detail payload (search2 returns just 10 fields —
-  // id/number/title/agencyCode/agency/openDate/closeDate/oppStatus/docType/
-  // cfdaList — verified live 2026-07-24). Written exclusively by
-  // enrich-grant-details.ts; sync-grants.ts must never null these.
+  // Rich canonical fields from Tango and verified original-source gap repair.
+  // Missing provider fields preserve useful existing enrichment.
   eligibilityText  String?   @map("eligibility_text") @db.Text
   costSharing      Boolean?  @map("cost_sharing")
   // 'synopsis' | 'forecast' — the two payload shapes are NOT interchangeable
@@ -7386,12 +7382,15 @@ model FederalGrant {
   raw              Json?
   detailSyncedAt   DateTime? @map("detail_synced_at") @db.Timestamptz(6)
 
+  /// Hash/model/chunker marker for the ingestion-only embedding worker.
+  embeddedContentHash String? @map("embedded_content_hash")
+  embeddedAt DateTime? @map("embedded_at") @db.Timestamptz(6)
+
   @@index([agency])
   @@index([closeDate])
   @@index([status])
   @@index([docType])
-  // Drives enrich-grant-details.ts's candidate scan (detailSyncedAt IS NULL
-  // first, then stalest-first).
+  // Retained for detail freshness and historical coverage inspection.
   @@index([detailSyncedAt])
   // The ACTIVE-grant predicate, which constrains status AND closeDate together,
   // plus the enricher's two allocation scans which additionally constrain
@@ -10684,6 +10683,12 @@ model OpportunityAttachment {
   samOpportunityId String? @map("sam_opportunity_id") @db.Uuid
   tangoNoticeId    String? @map("tango_notice_id")
 
+  federalGrantId String? @map("federal_grant_id")
+  /// Provider extraction is bound to this identity, never fabricated archive bytes.
+  providerAttachmentId String? @map("provider_attachment_id")
+  providerData Json? @map("provider_data")
+  providerObservedAt DateTime? @map("provider_observed_at") @db.Timestamptz(6)
+
   /// Verbatim. The natural key together with its parent.
   sourceUrl String @map("source_url")
 
@@ -10717,9 +10722,14 @@ model OpportunityAttachment {
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  /// Hash/model/chunker marker for the ingestion-only embedding worker.
+  embeddedContentHash String? @map("embedded_content_hash")
+  embeddedAt DateTime? @map("embedded_at") @db.Timestamptz(6)
+
   @@index([samOpportunityId, status], map: "opportunity_attachment_sam_idx")
   @@index([status, firstSeenAt], map: "opportunity_attachment_status_idx")
   @@index([contentSha256], map: "opportunity_attachment_hash_idx")
+  @@index([federalGrantId], map: "opportunity_attachment_grant_idx")
   @@map("opportunity_attachment")
 }
 
@@ -11288,7 +11298,7 @@ model PeProgramMatch {
 // ─────────────────────────────────────────────────────────────────────────
 
 /// A SAM.gov contract opportunity (solicitation / notice). One row per notice_id.
-/// Loaded by sync-sam-opportunities (DoD-filtered, incremental). Global table —
+/// Loaded by sync-tango-funding with exact government identifiers. Global table —
 /// no tenant_id, no RLS (federal reference data, same as federal_award).
 model SamOpportunity {
   id                 String    @id @default(uuid()) @db.Uuid
@@ -11336,6 +11346,10 @@ model SamOpportunity {
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   matches SamOpportunityMatch[]
+
+  /// Hash/model/chunker marker for the ingestion-only embedding worker.
+  embeddedContentHash String? @map("embedded_content_hash")
+  embeddedAt DateTime? @map("embedded_at") @db.Timestamptz(6)
 
   @@index([active, responseDeadline], map: "sam_opportunity_active_response_deadline_idx")
   // Funding Opportunities read path: the default view is "active, soonest
@@ -16011,7 +16025,7 @@ model ResearchPortfolio {
   @@map("research_portfolios")
   clientFilingJobs ResearchPortfolioClientFilingJob[]
   shareSetting     ResearchPortfolioShareSetting?
-  shareLinks       ResearchPortfolioShareLink[]
+  shareLinks       WsShareLink[]
   dashboardDesigns ResearchPortfolioDashboardDesign[]
 }
 
@@ -17802,7 +17816,7 @@ model ResearchPortfolioDashboardDesign {
 
   tenant    Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   portfolio ResearchPortfolio            @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
-  links     ResearchPortfolioShareLink[]
+  links     WsShareLink[]
 
   @@unique([tenantId, id], map: "research_portfolio_dashboard_designs_tenant_id_key")
   @@index([tenantId, portfolioId, updatedAt(sort: Desc)], map: "research_portfolio_dashboard_designs_portfolio_idx")
@@ -17811,24 +17825,32 @@ model ResearchPortfolioDashboardDesign {
 
 /// One published link = one client, one snapshot, one frozen dashboard payload.
 /// Only the token hash is stored; the token is shown once. Expiry is fixed at one week.
-model ResearchPortfolioShareLink {
+model WsShareLink {
   id                String    @id @default(uuid()) @db.Uuid
   tenantId          String    @map("tenant_id") @db.Uuid
-  portfolioId       String    @map("portfolio_id") @db.Uuid
-  clientId          String    @map("client_id") @db.Uuid
-  snapshotId        String    @map("snapshot_id") @db.Uuid
-  snapshotName      String    @map("snapshot_name") @db.VarChar(200)
-  designId          String?   @map("design_id") @db.Uuid
-  designVersion     Int       @map("design_version")
-  branding          Boolean   @default(false)
-  operationKey      String    @map("operation_key") @db.VarChar(128)
-  tokenHash         String    @map("token_hash") @db.Char(64)
-  payload           Json
-  payloadHash       String    @map("payload_hash") @db.Char(64)
-  publishedByUserId String    @map("published_by_user_id") @db.Uuid
-  publishedAt       DateTime  @default(now()) @map("published_at") @db.Timestamptz(6)
-  expiresAt         DateTime  @map("expires_at") @db.Timestamptz(6)
+  kind              String    @default("workspace_document")
+  resourceId        String    @map("resource_id") @db.Uuid
+  draftId           String?   @map("draft_id") @db.Uuid
+  createdById       String    @map("created_by_id")
+  tokenHash         String    @map("token_hash")
+  versionId         String?   @map("version_id") @db.Uuid
+  label             String?
+  operationKey      String?   @map("operation_key") @db.VarChar(128)
+  requestHash       String?   @map("request_hash") @db.Char(64)
+  payload           Json?
+  payloadHash       String?   @map("payload_hash") @db.Char(64)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt         DateTime? @map("expires_at") @db.Timestamptz(6)
   revokedAt         DateTime? @map("revoked_at") @db.Timestamptz(6)
+  portfolioId       String?   @map("portfolio_id") @db.Uuid
+  clientId          String?   @map("client_id") @db.Uuid
+  snapshotId        String?   @map("snapshot_id") @db.Uuid
+  snapshotName      String?   @map("snapshot_name") @db.VarChar(200)
+  designId          String?   @map("design_id") @db.Uuid
+  designVersion     Int?      @map("design_version")
+  branding          Boolean   @default(false)
+  publishedByUserId String?   @map("published_by_user_id") @db.Uuid
+  publishedAt       DateTime? @map("published_at") @db.Timestamptz(6)
   revokedByUserId   String?   @map("revoked_by_user_id") @db.Uuid
   revokeReason      String?   @map("revoke_reason") @db.VarChar(64)
   openCount         Int       @default(0) @map("open_count")
@@ -17836,15 +17858,16 @@ model ResearchPortfolioShareLink {
   failedPinAttempts Int       @default(0) @map("failed_pin_attempts")
   lockedUntil       DateTime? @map("locked_until") @db.Timestamptz(6)
 
-  tenant    Tenant                            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  portfolio ResearchPortfolio                 @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
-  client    Client                            @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade)
-  design    ResearchPortfolioDashboardDesign? @relation(fields: [tenantId, designId], references: [tenantId, id], onDelete: SetNull)
+  portfolio ResearchPortfolio? @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  client Client? @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade)
+  design ResearchPortfolioDashboardDesign? @relation(fields: [tenantId, designId], references: [tenantId, id], onDelete: SetNull)
 
-  @@unique([tenantId, id], map: "research_portfolio_share_links_tenant_id_key")
-  @@unique([tenantId, operationKey], map: "research_portfolio_share_links_operation_key")
-  @@unique([tokenHash], map: "research_portfolio_share_links_token_hash_key")
-  @@index([tenantId, portfolioId, publishedAt(sort: Desc)], map: "research_portfolio_share_links_portfolio_idx")
-  @@index([tenantId, expiresAt], map: "research_portfolio_share_links_expiry_idx")
-  @@map("research_portfolio_share_links")
+  @@index([tenantId, draftId])
+  @@index([tokenHash])
+  @@unique([tokenHash], map: "ws_share_link_token_hash_key")
+  @@unique([tenantId, id], map: "ws_share_link_tenant_id_key")
+  @@unique([tenantId, kind, resourceId, operationKey], map: "ws_share_link_operation_key")
+  @@index([tenantId, portfolioId, publishedAt(sort: Desc)], map: "ws_share_link_portfolio_idx")
+  @@index([tenantId, expiresAt], map: "ws_share_link_expiry_idx")
+  @@map("ws_share_link")
 }

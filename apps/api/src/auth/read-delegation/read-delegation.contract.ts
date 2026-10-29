@@ -47,6 +47,9 @@ export const toolPath = (operationId: string) => `/api/clio/tools/${operationId}
  * plus the separately gated A8 source operation below.
  */
 export const MERI_DELEGATED_READ_TOOLS: ReadonlySet<string> = new Set([
+  // Sharing admits only the conversation-bound metadata read. Publish/revoke
+  // remain on the signed-in user's canonical action-proposal approval flow.
+  'get_research_portfolio_share_links',
   // Exact reserved A8 operation. Its separate, closed-by-default receiver
   // dispatches to query_action_items only after the token/body checks.
   'actions.query',

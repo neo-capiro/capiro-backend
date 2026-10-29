@@ -6,6 +6,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Param,
   Patch,
   Post,
@@ -60,6 +61,10 @@ export class DocumentAgentCatalogController {
     return this.agent.recommendDocumentSetup(ctx.tenantId, dto.goal, dto.client);
   }
 }
+
+/** The current authenticated session credential, forwarded to the native owner verbatim. */
+const nativeCredential = (authorization?: string): string | undefined =>
+  authorization?.startsWith('Bearer ') ? authorization.slice(7) : undefined;
 
 /**
  * Draft-scoped agent routes.
@@ -133,8 +138,16 @@ export class DocumentAgentController {
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('draftId') draftId: string,
     @Body() dto: SynthesizeBriefDto,
+    @Headers('authorization') authorization?: string,
   ) {
-    return this.agent.synthesizeBrief(ctx.tenantId, draftId, ctx.clerkUserId, dto.expectedRevision);
+    return this.agent.synthesizeBrief(
+      ctx.tenantId,
+      draftId,
+      ctx.clerkUserId,
+      dto.expectedRevision,
+      dto.paidGeneration,
+      nativeCredential(authorization),
+    );
   }
 
   @Post('brief/approve')
@@ -162,8 +175,16 @@ export class DocumentAgentController {
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('draftId') draftId: string,
     @Body() dto: RecommendContextDto,
+    @Headers('authorization') authorization?: string,
   ) {
-    return this.agent.recommendContext(ctx.tenantId, draftId, ctx.clerkUserId, dto.expectedRevision);
+    return this.agent.recommendContext(
+      ctx.tenantId,
+      draftId,
+      ctx.clerkUserId,
+      dto.expectedRevision,
+      dto.paidGeneration,
+      nativeCredential(authorization),
+    );
   }
 
   @Post('context/analyze')
@@ -171,8 +192,16 @@ export class DocumentAgentController {
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('draftId') draftId: string,
     @Body() dto: AnalyzeContextDto,
+    @Headers('authorization') authorization?: string,
   ) {
-    return this.agent.analyzeContext(ctx.tenantId, draftId, ctx.clerkUserId, dto.expectedRevision);
+    return this.agent.analyzeContext(
+      ctx.tenantId,
+      draftId,
+      ctx.clerkUserId,
+      dto.expectedRevision,
+      dto.paidGeneration,
+      nativeCredential(authorization),
+    );
   }
 
   @Post('context/approve')
@@ -207,8 +236,16 @@ export class DocumentAgentController {
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('draftId') draftId: string,
     @Body() dto: GenerateOutlineDto,
+    @Headers('authorization') authorization?: string,
   ) {
-    return this.agent.generateOutline(ctx.tenantId, draftId, ctx.clerkUserId, dto.expectedRevision);
+    return this.agent.generateOutline(
+      ctx.tenantId,
+      draftId,
+      ctx.clerkUserId,
+      dto.expectedRevision,
+      dto.paidGeneration,
+      nativeCredential(authorization),
+    );
   }
 
   @Put('outline')
@@ -297,6 +334,7 @@ export class DocumentAgentController {
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('draftId') draftId: string,
     @Body() dto: GenerateDto,
+    @Headers('authorization') authorization?: string,
   ) {
     return this.agent.generate(
       ctx.tenantId,
@@ -304,6 +342,8 @@ export class DocumentAgentController {
       ctx.clerkUserId,
       dto.expectedRevision,
       dto.mode ?? 'standard',
+      dto.paidGeneration,
+      nativeCredential(authorization),
     );
   }
 
@@ -311,8 +351,15 @@ export class DocumentAgentController {
   getGeneration(
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('draftId') draftId: string,
+    // The current access this read is made under: a retained native run whose
+    // outcome the owner has not published is reconciled through THIS caller's own
+    // credential (the owner verifies it), and only the caller's own published
+    // answer is stored. A caller without one keeps the local state.
+    @Headers('authorization') authorization?: string,
   ) {
-    return this.agent.getGenerationStatus(ctx.tenantId, draftId, ctx.clerkUserId);
+    return this.agent.getGenerationStatus(ctx.tenantId, draftId, ctx.clerkUserId, {
+      credential: nativeCredential(authorization),
+    });
   }
 
   @Post('generation/retry')
@@ -320,6 +367,7 @@ export class DocumentAgentController {
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('draftId') draftId: string,
     @Body() dto: RetryGenerationDto,
+    @Headers('authorization') authorization?: string,
   ) {
     return this.agent.retryGeneration(
       ctx.tenantId,
@@ -327,6 +375,10 @@ export class DocumentAgentController {
       ctx.clerkUserId,
       dto.expectedRevision,
       dto.sectionIds,
+      // A native run is retried through the SAME retained native owner, which
+      // verifies the CURRENT authenticated session credential and the explicit
+      // paid acknowledgement; a legacy engine run ignores both.
+      { intent: dto.intent, credential: nativeCredential(authorization) },
     );
   }
 
@@ -335,12 +387,14 @@ export class DocumentAgentController {
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('draftId') draftId: string,
     @Body() dto: CancelGenerationDto,
+    @Headers('authorization') authorization?: string,
   ) {
     return this.agent.cancelGeneration(
       ctx.tenantId,
       draftId,
       ctx.clerkUserId,
       dto.expectedRevision,
+      nativeCredential(authorization),
     );
   }
 

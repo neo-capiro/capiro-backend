@@ -23,6 +23,7 @@ import {
 } from './read-delegation-request.js';
 import { verifyReadToken } from './read-delegation-token.js';
 import { ReadDelegationService } from './read-delegation.service.js';
+import { admitMeriResearchPortfolioToolTransport } from '../../meri/meri-rp-tool-transport.js';
 
 jest.mock('@clerk/backend', () => ({ __esModule: true, createClerkClient: () => ({}), verifyToken: async () => ({}) }));
 
@@ -313,6 +314,32 @@ describe('RC1 option B read delegation, Core owner', () => {
   afterEach(() => { for (const k of Object.keys(ENV)) { if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k]; } });
 
   describe('issuance', () => {
+    it('admits only the bound sharing metadata read through a real consumed native token', async () => {
+      const operation = { id: 'get_research_portfolio_share_links', version: '0.2.0' };
+      const configured = JSON.parse(JSON.stringify(allocation)) as Row;
+      configured.manifest = { contractVersion: '0.2.0', profile: 'meri.general_reads', profileVersion: '1.1.0', allowedOperations: [operation], budgets: { ...configured.budgets }, maxAggregateOutputBytes: 2097152 };
+      configured.catalogSha256 = 'f'.repeat(64);
+      configured.manifestSha256 = canonicalSha256(configured.manifest);
+      configured.schedule.operations = [{ operation, chargeMicrousd: 1 }];
+      const h = harness(configured), d = await h.create();
+      const body = { conversationId: V }, args = canonicalSha256(body);
+      const path = '/api/clio/tools/get_research_portfolio_share_links';
+      h.db.state.reservations.set('call-1', { invocation_id: 'call-1', run_id: R, operation, arguments_sha256: args, state: 'UNKNOWN' });
+      const token = await h.issue(d.delegationId, { kind: 'tool', path, operation, argumentsSha256: args, bodySha256: sha(JSON.stringify(body)) });
+      const used = await h.use(path, token.token, body);
+      expect(admitMeriResearchPortfolioToolTransport(operation.id, body, used.ctx, used.req)).toEqual({ input: body, scope: { tenantId: T, userId: A, conversationId: V, selectedClientId: C } });
+      expect(() => admitMeriResearchPortfolioToolTransport(operation.id, { conversationId: C2 }, used.ctx, used.req)).toThrow('delegation does not match');
+      expect(() => admitMeriResearchPortfolioToolTransport(operation.id, { ...body, clientId: C2 }, used.ctx, used.req)).toThrow('delegation does not match');
+      const forged = request(path, { body, authorization: 'CapiroMeriRead forged' });
+      Object.assign(forged, { meriReadDelegation: meriReadDelegationOf(used.req) });
+      expect(() => admitMeriResearchPortfolioToolTransport(operation.id, body, ctx, forged)).toThrow('transport');
+      await assertMeriReadDelegationReleasable(h.db.prisma, used.req);
+      for (const write of ['publish_research_portfolio_share_link', 'revoke_research_portfolio_share_link']) {
+        expect(MERI_DELEGATED_READ_TOOLS.has(write)).toBe(false);
+        await expect(h.issue(d.delegationId, { kind: 'tool', path: `/api/clio/tools/${write}`, operation: { id: write, version: '0.2.0' }, argumentsSha256: args })).rejects.toBeInstanceOf(ForbiddenException);
+      }
+    });
+
     it('creates an attended delegation bounded by 30 minutes and the run, idempotently, after the live session read', async () => {
       const h = harness();
       const first = await h.create();

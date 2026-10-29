@@ -371,7 +371,7 @@ describe('Research portfolio durable review receipt replay', () => {
     async (kind) => {
       const { tx, action } = await committed(kind);
       tx.researchPortfolioGrant.findUnique.mockResolvedValue(null);
-      await expect(action()).rejects.toThrow('do not have access');
+      await expect(action()).rejects.toThrow('Research portfolio not found');
       tx.researchPortfolioGrant.findUnique.mockResolvedValue({ ...grant, role: 'viewer' });
       await expect(action()).rejects.toThrow('Required role: editor');
     },
@@ -725,7 +725,7 @@ describe('Annual continuity captured basis and current readonly projections', ()
     ).rejects.toThrow('another actor');
     h.tx.researchPortfolioGrant.findUnique.mockResolvedValue(null);
     await expect(h.service.refreshAnnualReview(ctx, portfolio.id, input)).rejects.toThrow(
-      'do not have access',
+      'Research portfolio not found',
     );
   });
   it.each([
@@ -749,23 +749,29 @@ describe('Annual continuity captured basis and current readonly projections', ()
     },
   );
   it('uses accepted fiscal validity windows for expiry and excludes future knowledge', async () => {
-    const h = harness();
-    h.mapping.validToFy = 2026;
-    await h.decide();
-    await h.service.refreshAnnualReview(ctx, portfolio.id, {
-      idempotencyKey: 'expiry-refresh',
-      expectedRevision: 8,
-      asOfFiscalYear: 2027,
-    });
-    expect(h.ledgers[0].status).toBe('expired');
-    const future = new Date(Date.now() + 86400000).toISOString();
-    await expect(
-      h.service.refreshAnnualReview(ctx, portfolio.id, {
-        idempotencyKey: 'future-refresh',
-        expectedRevision: 9,
-        knownAt: future,
-      }),
-    ).rejects.toThrow('timestamp no later than now');
+    // Capture the baseline before the fiscal year boundary regardless of test-run date.
+    jest.useFakeTimers({ now: new Date('2026-09-30T12:00:00Z') });
+    try {
+      const h = harness();
+      h.mapping.validToFy = 2026;
+      await h.decide();
+      await h.service.refreshAnnualReview(ctx, portfolio.id, {
+        idempotencyKey: 'expiry-refresh',
+        expectedRevision: 8,
+        asOfFiscalYear: 2027,
+      });
+      expect(h.ledgers[0].status).toBe('expired');
+      const future = new Date(Date.now() + 86400000).toISOString();
+      await expect(
+        h.service.refreshAnnualReview(ctx, portfolio.id, {
+          idempotencyKey: 'future-refresh',
+          expectedRevision: 9,
+          knownAt: future,
+        }),
+      ).rejects.toThrow('timestamp no later than now');
+    } finally {
+      jest.useRealTimers();
+    }
   });
   it('detects a changed canonical source revision independently from capability or label changes', async () => {
     const h = harness();
@@ -813,14 +819,12 @@ describe('Annual continuity captured basis and current readonly projections', ()
       h.currentReview.targetKind = 'program';
       h.currentReview.targetId = h.mapping.programId;
       h.tx.program = {
-        findUnique: jest
-          .fn()
-          .mockResolvedValue({
-            id: h.mapping.programId,
-            canonicalName: 'Canonical Program',
-            status: 'active',
-            metadata: {},
-          }),
+        findUnique: jest.fn().mockResolvedValue({
+          id: h.mapping.programId,
+          canonicalName: 'Canonical Program',
+          status: 'active',
+          metadata: {},
+        }),
       };
       Object.assign(h.mapping, bad);
       await h.decide();
@@ -838,14 +842,12 @@ describe('Annual continuity captured basis and current readonly projections', ()
     h.currentReview.targetKind = 'program';
     h.currentReview.targetId = h.mapping.programId;
     h.tx.program = {
-      findUnique: jest
-        .fn()
-        .mockResolvedValue({
-          id: h.mapping.programId,
-          canonicalName: 'Canonical Program',
-          status: 'active',
-          metadata: {},
-        }),
+      findUnique: jest.fn().mockResolvedValue({
+        id: h.mapping.programId,
+        canonicalName: 'Canonical Program',
+        status: 'active',
+        metadata: {},
+      }),
     };
     h.mapping.sourceDocument.fiscalYear = null;
     await h.decide();

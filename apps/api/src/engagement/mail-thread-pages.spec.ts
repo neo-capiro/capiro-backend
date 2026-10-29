@@ -50,6 +50,30 @@ describe('bounded canonical thread pages', () => {
     delete source.raw.graphReplySource;
     expect((await read()).messages[0]).toMatchObject({ bodyText: 'Stored exact body', replyContext: { supported: false } });
   });
+
+  it('reply-all selected HTTP context exposes only reviewed recipients and keeps ordinary reply available without full capture', async () => {
+    const h = harness(), tx = h.tx as any;
+    Object.assign(h.thread, { source: 'google', externalId: 'provider-thread' });
+    tx.integrationConnection = { findMany: jest.fn(async () => [{ accountEmail: 'owner@example.test' }]) };
+    tx.user = { findUnique: jest.fn(async () => ({ email: 'actor@example.test' })) };
+    const source: any = { id: ids.message, threadId: ids.thread, connectionId: ids.box, source: 'google', externalId: 'provider-original',
+      removedAt: null, subject: 'Subject', fromEmail: 'contact@example.test', updatedAt: new Date(asOf), bodyText: 'Stored exact body',
+      raw: { id: 'provider-original', threadId: 'provider-thread', labelIds: ['INBOX'], payload: { headers: [
+        { name: 'From', value: 'contact@example.test' }, { name: 'Subject', value: 'Subject' }, { name: 'Message-ID', value: '<original@example.test>' },
+        { name: 'To', value: 'owner@example.test, other@example.test' }, { name: 'Cc', value: 'copy@example.test' },
+      ] } } };
+    tx.mailMessage.findMany.mockResolvedValue([source]); tx.mailMessage.count.mockResolvedValue(1);
+    const read = () => readMailThreadHttpPage(h.prisma as any, ctx, ids.thread, ids.client, { asOf, messageId: ids.message });
+    const page = await read();
+    expect(page.messages[0]?.replyAllContext).toMatchObject({ supported: true, operation: 'reply_all', to: [{ email: 'contact@example.test' }, { email: 'other@example.test' }], cc: [{ email: 'copy@example.test' }] });
+    expect(page.messages[0]?.replyContext).toMatchObject({ supported: true, operation: 'reply', to: [{ email: 'contact@example.test' }] });
+    expect(JSON.stringify(page)).not.toMatch(/provider-original|original@example/);
+    source.raw.payload.headers = source.raw.payload.headers.filter((row: any) => row.name !== 'To');
+    const unsupported = await read();
+    expect(unsupported.messages[0]?.replyAllContext).toMatchObject({ supported: false });
+    expect(unsupported.messages[0]?.replyContext).toMatchObject({ supported: true });
+    expect(unsupported.messages[0]?.bodyText).toBe('Stored exact body');
+  });
   it.each(['wall', 'client'])('refuses General access to an actual associated client with current %s denial', async failure => {
     const h = harness();
     if (failure === 'wall') h.tx.$queryRawUnsafe.mockResolvedValue([{ allowed: false }]);
@@ -269,4 +293,28 @@ describe('bounded canonical thread pages', () => {
     expect(h.tx.mailMessage.findMany).not.toHaveBeenCalled();
   });
 
+});
+
+it('returns folder and Internet Message-ID provenance while withholding raw metadata', async () => {
+  const h = harness();
+  (h.tx.mailMessage.findMany as any).mockResolvedValue([
+    {
+      id: ids.message,
+      bodyText: 'Original',
+      metadata: {
+        folder: 'inbox',
+        internetMessageId: '<original@example.test>',
+        bodyCompleteness: 'full',
+        privateInternal: 'hidden',
+      },
+    },
+  ]);
+  const result = await readMailThreadHttpPage(h.prisma as any, ctx, ids.thread, ids.client, {
+    asOf,
+  });
+  expect(result.messages[0]).toMatchObject({
+    folder: 'inbox',
+    internetMessageId: '<original@example.test>',
+  });
+  expect(JSON.stringify(result)).not.toContain('privateInternal');
 });

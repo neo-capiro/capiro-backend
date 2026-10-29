@@ -1066,6 +1066,26 @@ export interface ResearchPortfolioTourStateDto {
   completedAt: string | null;
 }
 
+export interface ResearchPortfolioDraftDto {
+  artifactId: string;
+  portfolioId: string;
+  conversationId: string;
+  parentArtifactId: string | null;
+  title: string;
+  kind: 'research_portfolio_brief' | 'research_portfolio_meeting';
+  contentType: 'text/markdown';
+  bodyText: string;
+  reviewStatus: 'unreviewed_draft' | 'unreviewed_edit';
+  createdAt: string;
+  childVersions: readonly {
+    artifactId: string;
+    title: string;
+    createdAt: string;
+    reviewStatus: 'unreviewed_draft' | 'unreviewed_edit';
+  }[];
+  childVersionsHasMore: boolean;
+}
+
 // ---------------------------------------------------------------------------
 // Client share links: PIN-protected, one-week, frozen dashboard at a Capiro link.
 // ---------------------------------------------------------------------------
@@ -1122,6 +1142,8 @@ export interface SaveResearchPortfolioDashboardDesignDto {
 export interface ResearchPortfolioShareSettingsDto {
   portfolioId: string;
   enabled: boolean;
+  /** The workspace-wide switch (FR-16.42); when off, nothing can be published or opened. */
+  tenantEnabled: boolean;
   pinSet: boolean;
   pinUpdatedAt: string | null;
   activeLinkCount: number;
@@ -1157,14 +1179,27 @@ export interface ResearchPortfolioShareLinkDto {
   openCount: number;
   lastOpenedAt: string | null;
   failedPinAttempts: number;
+  lockedUntil: string | null;
 }
 
-export interface PublishResearchPortfolioShareLinkDto {
-  operationKey: string;
+export interface PreviewResearchPortfolioShareDto {
   snapshotId: string;
   designId: string;
   clientId: string;
   branding: boolean;
+}
+
+export interface PublishResearchPortfolioShareLinkDto extends PreviewResearchPortfolioShareDto {
+  operationKey: string;
+  previewHash: string;
+  expectedDesignVersion: number;
+}
+
+export interface ResearchPortfolioSharePreviewDto {
+  dashboard: ResearchPortfolioShareDashboardDto;
+  previewHash: string;
+  designVersion: number;
+  logoUrl: string | null;
 }
 
 /** The token is returned once; the server keeps only its hash. */
@@ -1195,7 +1230,9 @@ export interface ResearchPortfolioShareDashboardDto {
       label: string | null;
       disposition: ResearchPortfolioMemberDisposition;
     }[];
-    sources: readonly { id: string }[];
+    sources: readonly ({ id: string } & Partial<
+      import('./defense-research.js').DefenseEvidenceRefDto
+    >)[];
     clientFit: {
       availability: ResearchPortfolioFitAvailability;
       fitScore: number | null;
@@ -1241,4 +1278,21 @@ export interface ResearchPortfolioShareAvailabilityDto {
 
 export interface ResearchPortfolioShareViewDto {
   viewToken: string;
+}
+
+/** Workspace-wide client sharing switch, administered by tenant administrators. */
+export interface ResearchPortfolioTenantSharingDto {
+  enabled: boolean;
+  activeLinkCount: number;
+  updatedAt: string | null;
+  updatedByUserId: string | null;
+}
+
+export interface SetResearchPortfolioTenantSharingDto {
+  enabled: boolean;
+}
+
+/** A short-lived signed address of the firm logo for a recipient; null when branding is off or no logo exists. */
+export interface ResearchPortfolioShareLogoDto {
+  url: string | null;
 }

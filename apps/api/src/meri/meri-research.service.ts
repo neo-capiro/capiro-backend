@@ -35,6 +35,11 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { isInternalClioArtifact } from '../common/internal-clio-artifact.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import {
+  completedReportPage,
+  completedReportQuery,
+  type CompletedReport,
+} from './meri-completed-reports.js';
+import {
   clientScopeRefusal,
   CLIENT_ID_UUID_RE,
   isMeriMailReadTool,
@@ -564,6 +569,84 @@ export class MeriResearchService {
   }
 
   // ── Session CRUD ─────────────────────────────────────────────────────────
+
+  /** Completed legacy history has no settlement or execution side effects. The
+   * ordinary list/get owners may settle approvals and are intentionally not used. */
+  async readCompletedReports(ctx: TenantContext, query: ReturnType<typeof completedReportQuery>) {
+    return completedReportPage({
+      ctx,
+      query,
+      secret: this.config.get('INTERNAL_SERVICE_SECRET', { infer: true }),
+      now: Date.now,
+      candidates: async ({ clientId, asOf, after, take }) => {
+        const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+          tx.clioResearchSession.findMany({
+            where: {
+              tenantId: ctx.tenantId,
+              userId: ctx.userId,
+              status: 'complete',
+              reportArtifactId: { not: null },
+              ...(clientId === undefined ? {} : { clientId }),
+              createdAt: { lte: new Date(asOf) },
+              ...(after ? { id: { lt: after.id } } : {}),
+            },
+            // Immutable ID order avoids projecting timestamptz(6) through a
+            // millisecond Date cursor. This is a complete list, not a newest-first feed.
+            orderBy: [{ id: 'desc' }],
+            take,
+            select: { id: true },
+          }),
+        );
+        return rows;
+      },
+      read: async (id) => {
+        try {
+          const { markdown: _markdown, ...summary } = await this.readCompletedReport(ctx, id);
+          if (query.clientId !== undefined && summary.clientId !== query.clientId) return null;
+          return summary;
+        } catch (error) {
+          // Current owner refusal/held report (including canonical source-proof
+          // conflicts) is omitted. Unclassified backend errors fail the page.
+          if (
+            error instanceof NotFoundException ||
+            error instanceof ForbiddenException ||
+            error instanceof BadRequestException ||
+            error instanceof ConflictException
+          )
+            return null;
+          throw error;
+        }
+      },
+    });
+  }
+
+  /** Original IDs and original saved report text; no render, migration, filing or
+   * producer call. Existing report authorization remains the only source gate. */
+  async readCompletedReport(ctx: TenantContext, id: string): Promise<CompletedReport> {
+    const session = await this.ensureSession(ctx, id);
+    if (session.status !== 'complete' || !session.reportArtifactId)
+      throw new NotFoundException('Completed report not found');
+    const artifactId = session.reportArtifactId,
+      clientId = session.clientId;
+    const report = await this.getReportMarkdown(ctx, id);
+    const current = await this.ensureSession(ctx, id);
+    if (
+      current.status !== 'complete' ||
+      current.reportArtifactId !== artifactId ||
+      current.clientId !== clientId
+    )
+      throw new NotFoundException('Completed report is no longer available');
+    return {
+      id: current.id,
+      artifactId,
+      title: report.title,
+      kind: current.kind,
+      clientId: current.clientId,
+      createdAt: current.createdAt.toISOString(),
+      updatedAt: current.updatedAt.toISOString(),
+      markdown: report.markdown,
+    };
+  }
 
   async listSessions(ctx: TenantContext, conversationId?: string) {
     const sessions = await this.prisma.withTenant(ctx.tenantId, (tx) =>

@@ -1,6 +1,8 @@
 import { CapabilitiesModule } from '../capabilities/capabilities.module.js';
 import { OutreachCampaignController } from './outreach-campaign.controller.js';
 import { OutreachCampaignService } from './outreach-campaign.service.js';
+import { MailIncomingFilesController } from './mail-incoming-files.controller.js';
+import { MailIncomingFilesService } from './mail-incoming-files.service.js';
 import { ManagedMcpModule } from '../meri/managed-mcp.module.js';
 import { KrispNotetakerService } from './krisp/krisp-notetaker.service.js';
 import { KrispNotetakerController } from './krisp/krisp-notetaker.controller.js';
@@ -109,9 +111,10 @@ import {
     QualityTelemetryModule,
     EvaluationModule,
   ],
-  controllers: [OutreachCampaignController, EngagementController, EngagementPlansController, OutcomeController, KrispNotetakerController, NewsletterOutreachController, NewsletterPublicController],
+  controllers: [OutreachCampaignController, MailIncomingFilesController, EngagementController, EngagementPlansController, OutcomeController, KrispNotetakerController, NewsletterOutreachController, NewsletterPublicController],
   providers: [
     OutreachCampaignService,
+    MailIncomingFilesService,
     EngagementPlansService,
     KrispNotetakerService,
     {

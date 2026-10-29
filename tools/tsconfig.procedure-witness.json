@@ -1,0 +1,16 @@
+{
+  "extends": "../apps/api/tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false,
+    "composite": false,
+    "tsBuildInfoFile": null
+  },
+  "include": [],
+  "exclude": [],
+  "files": [
+    "../apps/api/src/meri/meri-procedure-runtime-validation.service.ts",
+    "../apps/api/src/meri/meri.controller.ts",
+    "../apps/api/src/meri/meri-procedure-runtime.ts"
+  ]
+}

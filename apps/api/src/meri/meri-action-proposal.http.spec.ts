@@ -204,6 +204,32 @@ describe('MeriV2 Phase 0 HTTP adversarial boundary', () => {
     );
   });
 
+  it('direct governed writes require their proposal even with service identity in standard or unset profiles', async () => {
+    const profile = process.env.CORE_DEPLOYMENT_PROFILE;
+    const allowlist = process.env.MERI_TOOL_ALLOWLIST;
+    try {
+      delete process.env.MERI_TOOL_ALLOWLIST;
+      for (const current of ['standard', undefined]) {
+        if (current === undefined) delete process.env.CORE_DEPLOYMENT_PROFILE;
+        else process.env.CORE_DEPLOYMENT_PROFILE = current;
+        for (const name of ['apply_legiwatch_suggestion', 'save_legiwatch_relevance', 'save_business_development_brief', 'prepare_legiwatch_briefing', 'save_legislative_research', 'watch_action']) {
+          await request(app.getHttpServer())
+            .post(`/api/clio/tools/${name}`)
+            .set('x-internal-service-secret', SECRET)
+            .send({})
+            .expect(403);
+        }
+      }
+      expect(executeTool).not.toHaveBeenCalled();
+      expect(createProposal).not.toHaveBeenCalled();
+    } finally {
+      if (profile === undefined) delete process.env.CORE_DEPLOYMENT_PROFILE;
+      else process.env.CORE_DEPLOYMENT_PROFILE = profile;
+      if (allowlist === undefined) delete process.env.MERI_TOOL_ALLOWLIST;
+      else process.env.MERI_TOOL_ALLOWLIST = allowlist;
+    }
+  });
+
   it('returns HTTP 200 for an ordinary memory tool and preserves its response body', async () => {
     const result = { records: [{ id: 'approved-memory', text: 'Approved memory text.' }] };
     executeTool.mockResolvedValueOnce(result);

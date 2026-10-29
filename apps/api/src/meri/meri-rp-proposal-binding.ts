@@ -41,6 +41,9 @@ const RESEARCH_PORTFOLIO_TOOLS = new Set([
   'get_research_portfolio_operations',
   'prepare_research_portfolio_brief',
   'prepare_research_portfolio_meeting',
+  'get_research_portfolio_share_links',
+  'publish_research_portfolio_share_link',
+  'revoke_research_portfolio_share_link',
 ]);
 
 export function isResearchPortfolioProposalTool(tool: string): boolean {

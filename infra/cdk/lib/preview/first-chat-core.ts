@@ -103,6 +103,104 @@ function exactKeys(
   return record;
 }
 
+export const FIRST_CHAT_CORE_INTEGRATION_SECRET_NAMES = [
+  'MICROSOFT_CLIENT_ID',
+  'MICROSOFT_TENANT_ID',
+  'MICROSOFT_CERT_THUMBPRINT',
+  'MICROSOFT_CERT_PRIVATE_KEY',
+  'GOOGLE_CLIENT_ID',
+  'GOOGLE_CLIENT_SECRET',
+  'OAUTH_STATE_SECRET',
+  'OAUTH_TOKEN_ENCRYPTION_KEY',
+] as const;
+
+/** ARN-only configuration for the focused release overlay.
+ * The full stack's historical image pins do not support integrations_only.
+ * Does not read secrets or change the serving task, image or execution role. */
+export function firstChatCoreIntegrationsConfiguration(input: unknown) {
+  const binding = exactKeys(input, ['secretArns', 'kmsKeyArns'], 'Preview integrations');
+  const secretArns = exactKeys(
+    binding.secretArns,
+    FIRST_CHAT_CORE_INTEGRATION_SECRET_NAMES,
+    'Preview integration secret references',
+  );
+  for (const [name, arn] of Object.entries(secretArns)) {
+    if (
+      typeof arn !== 'string' ||
+      !new RegExp(
+        `^arn:aws:secretsmanager:${region}:${account}:secret:[A-Za-z0-9/_+=.@-]+-[A-Za-z0-9]{6}$`,
+      ).test(arn)
+    )
+      throw new Error(`${name}: complete same-account secret ARN required`);
+    if (
+      name.startsWith('OAUTH_') &&
+      !new RegExp(`^arn:aws:secretsmanager:${region}:${account}:secret:/?capiro/preview/`).test(arn)
+    )
+      throw new Error(`${name}: preview-owned secret reference required`);
+  }
+  if (new Set(Object.values(secretArns)).size !== FIRST_CHAT_CORE_INTEGRATION_SECRET_NAMES.length)
+    throw new Error('Distinct integration secret references required');
+  const kmsKeyArns = binding.kmsKeyArns;
+  if (
+    !Array.isArray(kmsKeyArns) ||
+    kmsKeyArns.length > FIRST_CHAT_CORE_INTEGRATION_SECRET_NAMES.length ||
+    new Set(kmsKeyArns).size !== kmsKeyArns.length ||
+    kmsKeyArns.some(
+      (arn) =>
+        typeof arn !== 'string' ||
+        !new RegExp(
+          `^arn:aws:kms:${region}:${account}:key/(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|mrk-[0-9a-f]{32})$`,
+        ).test(arn),
+    )
+  )
+    throw new Error('Explicit same-account customer-managed key ARNs required (or an empty list)');
+
+  const apiOrigin = `https://${FIRST_CHAT_CORE_HOST}`;
+  const successRedirect = 'https://portfolio-preview.app.capiro.ai/settings/integrations';
+  const environment = {
+    CAPIRO_SERVICE_NAME: 'api',
+    ENGAGEMENT_PROCESS_MODE: 'shadow',
+    ENGAGEMENT_BACKGROUND_OWNER: 'api',
+    ENGAGEMENT_EXTERNAL_ACTIONS: 'integrations_only',
+    ENGAGEMENT_CALLBACKS_ENABLED: 'true',
+    ENGAGEMENT_RECALL_WEBHOOK_ENABLED: 'false',
+    ENGAGEMENT_AUTO_SYNC: 'true',
+    ENGAGEMENT_SYNC_INTERVAL_MINUTES: '20',
+    MICROSOFT_REDIRECT_URI: `${apiOrigin}/api/engagement/integrations/microsoft/callback`,
+    MICROSOFT_GRAPH_NOTIFICATION_URL: `${apiOrigin}/api/engagement/integrations/microsoft/notifications`,
+    GOOGLE_REDIRECT_URI: `${apiOrigin}/api/engagement/integrations/google/callback`,
+    MICROSOFT_OAUTH_SUCCESS_REDIRECT: successRedirect,
+    GOOGLE_OAUTH_SUCCESS_REDIRECT: successRedirect,
+  };
+  const statements: Record<string, unknown>[] = [
+    {
+      Effect: 'Allow',
+      Action: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'],
+      Resource: Object.values(secretArns),
+    },
+  ];
+  if (kmsKeyArns.length)
+    statements.push({
+      Effect: 'Allow',
+      Action: ['kms:Decrypt'],
+      Resource: kmsKeyArns,
+      Condition: {
+        StringEquals: {
+          'kms:ViaService': `secretsmanager.${region}.amazonaws.com`,
+          'kms:EncryptionContext:SecretARN': Object.values(secretArns),
+        },
+      },
+    });
+  return {
+    environment: Object.entries(environment).map(([name, value]) => ({ name, value })),
+    secrets: Object.entries(secretArns).map(([name, valueFrom]) => ({
+      name,
+      valueFrom: valueFrom as string,
+    })),
+    executionRolePolicy: { Version: '2012-10-17', Statement: statements },
+  };
+}
+
 function guardedPriority(value: number): number {
   if (value !== FIRST_CHAT_CORE_GUARD_PRIORITY)
     throw new Error('Existing preview guard priority 7 required');
@@ -406,6 +504,8 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
         // Hearing-file authorization must consult the preview Intel owner on
         // the same clone, including its current access-lock metadata.
         TRACKER_APP_BASE_URL: `https://${FIRST_CHAT_CORE_HOST}`,
+        WORKSPACE_API_BASE_URL: `https://${FIRST_CHAT_CORE_HOST}`,
+        STRATEGY_API_BASE_URL: `https://${FIRST_CHAT_CORE_HOST}`,
         RELEASE_SHA: binding.sourceHead,
         // Standard Core authorization; the additional service identity is mandatory.
         CORE_DEPLOYMENT_PROFILE: 'standard',

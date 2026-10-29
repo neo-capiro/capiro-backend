@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type {
   BizDevWatchBaseline,
+  BizDevWatchDeliveryCheckpoint,
   BizDevWatchScanCheckpoint,
   BizDevWatchScanExposureCheckpoint,
 } from './bizdev-watch.types.js';
@@ -141,6 +142,38 @@ function assertExposure(exposure: unknown): void {
   assertIdRange('scan exposure', exposure.cursorId, exposure.fenceId);
 }
 
+/**
+ * Validate the optional MB-05 delivery-recovery cursor. It is carried progress
+ * for THIS watch's alert rows (independent of the source scope), so it is
+ * accepted in either phase and validated fail-closed exactly like the exposure
+ * sub-walk: a malformed cursor must never be silently reinterpreted as "start
+ * from the beginning" (that would replay a whole watch history) nor as
+ * "advance past everything" (that would strand the same alerts the cursor
+ * exists to recover).
+ */
+function assertDeliveryCheckpoint(delivery: unknown): void {
+  if (delivery === undefined) return;
+  if (!isPlainObject(delivery)) {
+    throw new Error('delivery recovery cursor must be an object');
+  }
+  if (delivery.version !== 1) {
+    throw new Error('delivery recovery cursor is malformed or a newer version — refusing to advance');
+  }
+  const cursorAtMs = delivery.cursorAtMs;
+  if (cursorAtMs !== null && (typeof cursorAtMs !== 'number' || !Number.isSafeInteger(cursorAtMs) || cursorAtMs < 0)) {
+    throw new Error('delivery recovery cursor has a malformed instant');
+  }
+  const cursorId = delivery.cursorId;
+  if (cursorId !== null && !isNonemptyString(cursorId)) {
+    throw new Error('delivery recovery cursor has a malformed id');
+  }
+  // A paired keyset: the instant and the id advance together, never one alone.
+  if ((cursorAtMs === null) !== (cursorId === null)) {
+    throw new Error('delivery recovery cursor must carry both keyset parts or neither');
+  }
+  assertNonnegativeSafeInt('delivery recovery cursor pagesDone', delivery.pagesDone);
+}
+
 function freshCheckpoint(scopeHash: string, phase: 'initial' | 'cycle'): BizDevWatchScanCheckpoint {
   return {
     version: 1,
@@ -234,8 +267,51 @@ export function resolveScanCheckpoint(
     );
   }
   assertExposure(scan.exposure);
+  assertDeliveryCheckpoint(scan.delivery);
 
   return scan as unknown as BizDevWatchScanCheckpoint;
+}
+
+/**
+ * PURE advance of the MB-05 delivery-recovery cursor (Phase 5 paging split).
+ *
+ * `acknowledged` is the CONTIGUOUS OLDEST-FIRST prefix of the recovery page
+ * whose delivery the delivery owner definitely answered — never a scattered
+ * subset, and never the whole page when an older row is still UNKNOWN. An empty
+ * prefix (nothing definitively answered) returns the cursor UNCHANGED, so the
+ * next evaluation re-offers exactly the same rows. Advancing is monotone: the
+ * cursor only ever moves forward to the last acknowledged key.
+ */
+export function nextDeliveryCheckpoint(
+  current: BizDevWatchDeliveryCheckpoint | undefined,
+  acknowledged: readonly { id: string; occurredAtMs: number }[],
+): BizDevWatchDeliveryCheckpoint {
+  const base: BizDevWatchDeliveryCheckpoint =
+    current == null
+      ? { version: 1, cursorAtMs: null, cursorId: null, pagesDone: 0 }
+      : current;
+  if (acknowledged.length === 0) return { ...base };
+  const last = acknowledged[acknowledged.length - 1] as { id: string; occurredAtMs: number };
+  return {
+    version: 1,
+    cursorAtMs: last.occurredAtMs,
+    cursorId: last.id,
+    // A page only counts when it genuinely advanced the cursor.
+    pagesDone: base.pagesDone + 1,
+  };
+}
+
+/**
+ * Keyset predicate for the next recovery page: strictly AFTER the cursor pair,
+ * in (firstObservedAt, id) order. Exported so the runner's query and any test
+ * harness derive the SAME boundary — a drifting duplicate is exactly how a row
+ * gets skipped.
+ */
+export function deliveryAfterCursor(
+  current: BizDevWatchDeliveryCheckpoint | undefined,
+): { at: Date; id: string } | null {
+  if (current == null || current.cursorAtMs === null || current.cursorId === null) return null;
+  return { at: new Date(current.cursorAtMs), id: current.cursorId };
 }
 
 // Re-export so the runner's integration keeps a single typed surface.

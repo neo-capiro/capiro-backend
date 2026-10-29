@@ -31,8 +31,8 @@
  * (`tango_opportunity_notice`) rather than re-fetching inline, and that is a
  * deliberate boundary, not an omission:
  *
- *   - P28's `sync-tango-opportunity-notices` already owns fetching, mapping and
- *     upserting notices, including its own checkpointing and rate handling.
+ *   - `sync-tango-funding` owns fetching, mapping and upserting canonical
+ *     notices and `tango_opportunity_notice`, with checkpoints and rate handling.
  *     Re-implementing that here would give this program two upsert paths for
  *     one table, which is exactly how two sources of truth start.
  *   - The schedule therefore runs the notice sync BEFORE this command, and the

@@ -169,9 +169,9 @@ export class NewsletterService {
     for (const sourceId of newsletterSourceClients(design, clientId))
       await this.assertClient(ctx, sourceId);
   }
-  async list(ctx: Identity) {
+  async list(ctx: Identity, activateInvitations = true) {
     const member = await this.source.newsletterMember(ctx.tenantId, ctx.clerkUserId);
-    if (member?.email) {
+    if (activateInvitations && member?.email) {
       const pending = await this.prisma.wsNewsletterInvitation.findMany({
         where: {
           tenantId: ctx.tenantId,
@@ -327,6 +327,18 @@ export class NewsletterService {
     );
     return this.releaseWriteReceipt(ctx, receipt);
   }
+  /** Saved inspection never accepts an invitation or creates a stage. Existing
+   * authoring GETs keep their invitation activation behavior. */
+  async listSaved(ctx: Identity) {
+    await this.assertWriteMember(ctx);
+    return this.list(ctx, false);
+  }
+
+  async getSaved(ctx: Identity, id: string) {
+    await this.assertWriteMember(ctx);
+    return this.view(await this.row(ctx, id, false));
+  }
+
   async get(ctx: Identity, id: string) {
     return this.view(await this.row(ctx, id));
   }

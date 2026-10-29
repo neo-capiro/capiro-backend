@@ -103,11 +103,14 @@ export class GoogleTokenService {
       );
     });
     if (token.expiresAt.getTime() > Date.now() + TOKEN_REFRESH_SKEW_MS) {
-      return this.tokenCrypto.decrypt({
-        ciphertext: token.accessTokenCiphertext,
-        iv: token.accessTokenIv,
-        authTag: token.accessTokenAuthTag,
-      });
+      return this.tokenCrypto.decrypt(
+        {
+          ciphertext: token.accessTokenCiphertext,
+          iv: token.accessTokenIv,
+          authTag: token.accessTokenAuthTag,
+        },
+        token.keyVersion,
+      );
     }
 
     this.assertConfigured();
@@ -117,11 +120,14 @@ export class GoogleTokenService {
         'Google refresh token is missing; reconnect Google Workspace',
       );
     }
-    const refreshToken = this.tokenCrypto.decrypt({
-      ciphertext: token.refreshTokenCiphertext,
-      iv: token.refreshTokenIv,
-      authTag: token.refreshTokenAuthTag,
-    });
+    const refreshToken = this.tokenCrypto.decrypt(
+      {
+        ciphertext: token.refreshTokenCiphertext,
+        iv: token.refreshTokenIv,
+        authTag: token.refreshTokenAuthTag,
+      },
+      token.keyVersion,
+    );
 
     const body = new URLSearchParams({
       client_id: this.clientId!,
@@ -168,9 +174,15 @@ export class GoogleTokenService {
     const grantedScopes =
       refreshed.scope === undefined ? undefined : refreshed.scope.split(/\s+/).filter(Boolean);
     const expiresAt = new Date(Date.now() + (refreshed.expires_in ?? 3600) * 1000);
-    // Google does NOT rotate refresh tokens on redemption (unlike Azure), so we
-    // only persist the new access token and leave the stored refresh token as-is.
+    // Google does NOT rotate refresh tokens on redemption (unlike Azure), so the
+    // plaintext redeemed above is the one to keep. It is re-encrypted under the
+    // ACTIVE key and written together with the new access envelope, because one row
+    // carries a single keyVersion for all of its envelopes: leaving the stored
+    // refresh envelope under the previous key while the label advances would make
+    // the row unreadable at its next refresh (it would be decrypted with the active
+    // key). Both envelopes therefore move together in this update.
     const encrypted = this.tokenCrypto.encrypt(refreshed.access_token);
+    const encryptedRefresh = this.tokenCrypto.encrypt(refreshToken);
     await this.prisma.withTenant(tenantId, async (tx) => {
       await assertMailboxSyncCurrent(tx, tenantId, connectionId);
       const current = await admitMailboxRefresh(
@@ -186,6 +198,9 @@ export class GoogleTokenService {
           accessTokenCiphertext: encrypted.ciphertext,
           accessTokenIv: encrypted.iv,
           accessTokenAuthTag: encrypted.authTag,
+          refreshTokenCiphertext: encryptedRefresh.ciphertext,
+          refreshTokenIv: encryptedRefresh.iv,
+          refreshTokenAuthTag: encryptedRefresh.authTag,
           keyVersion: this.tokenCrypto.getKeyVersion(),
           scopes: grantedScopes ?? token.scopes,
           expiresAt,

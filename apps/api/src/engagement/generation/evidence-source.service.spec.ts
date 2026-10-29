@@ -424,6 +424,20 @@ describe('attachments', () => {
     createdAt: NOW,
   };
 
+  test('incoming-mail private rows are unavailable to generation by ID before bytes or readiness', async () => {
+    const { svc, attachments } = makeService({
+      tables: { engagementAttachment: { findFirst: async () => ({ ...attachmentRow, source: 'incoming_mail' }) } },
+    });
+    const read = jest.fn(async () => Buffer.from('private mail file'));
+    svc.setAttachmentReader(read);
+    const out = await svc.resolveSelectedItems(CTX, resolveInput([{ id: 'doc-a1', kind: 'document', scope: 'all' }]));
+    expect(out.evidence).toHaveLength(0);
+    expect(out.failures[0]).toMatchObject({ code: 'DOCUMENT_NOT_FOUND', severity: 'critical' });
+    expect(attachments.readiness).not.toHaveBeenCalled();
+    expect(attachments.extractBounded).not.toHaveBeenCalled();
+    expect(read).not.toHaveBeenCalled();
+  });
+
   test('a not-ready attachment is a CRITICAL failure (§4.26)', async () => {
     const { svc } = makeService({
       tables: { engagementAttachment: { findFirst: async () => attachmentRow } },

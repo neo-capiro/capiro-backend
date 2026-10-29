@@ -1,3 +1,6 @@
+import { incomingProviderGet, readIncomingProviderFiles, type IncomingProviderSource, type IncomingImportSelection } from '../mail-incoming-files.js';
+import { gmailForwardBody, storedForwardBody, forwardSubject, readForwardSourceJson } from '../mail-forward-source.js';
+import { capturedGmailReplyRecipients, replyRecipientsMatch } from '../mail-reply-recipients.js';
 // ============================================================================
 // ⛔ CHANGE-CONTROL: AUTHENTICATION / EMAIL INTEGRATION — APPROVAL REQUIRED
 // ----------------------------------------------------------------------------
@@ -36,6 +39,17 @@ export class GmailSendService {
 
   constructor(private readonly googleToken: GoogleTokenService) {}
 
+  /** Read-only file discovery/import transport; existing token owner and runtime guard remain canonical. */
+  async readIncomingFiles(ctx: TenantContext, connectionId: string, source: IncomingProviderSource,
+    selection: IncomingImportSelection | undefined, allowedType: (mime: string) => boolean) {
+    if (source.provider !== 'gmail') throw new BadRequestException('Mailbox provider mismatch');
+    const { connection, token } = await this.googleToken.loadConnection(ctx.tenantId, connectionId);
+    if (connection.createdByUserId !== ctx.userId || connection.status !== 'connected')
+      throw new ForbiddenException('The connected mailbox is no longer available.');
+    const accessToken = await this.googleToken.getValidAccessToken(ctx.tenantId, connectionId, token);
+    return readIncomingProviderFiles(source, (url, headers) => incomingProviderGet(url, accessToken, headers), selection, allowedType);
+  }
+
   /**
    * Send through the caller's own Gmail mailbox.
    *
@@ -62,15 +76,15 @@ export class GmailSendService {
       token,
     );
 
-    const reply = input.reply;
+    const reply = input.reply ?? input.forward?.source;
     if (reply?.kind === 'microsoft_graph') throw definiteMailSendRejection(new BadRequestException(REPLY_UNAVAILABLE));
     const request = buildGmailSendPayload(input);
     const correlationId = input.correlationId ?? '';
     if (reply) {
       // Read-only source proof immediately before the sole send. No GET failure
       // can fall through to dispatch. This does not make provider deletion atomic.
-      const query = new URLSearchParams({ format: 'metadata' });
-      for (const name of ['From', 'Reply-To', 'Subject', 'Message-ID', 'References']) query.append('metadataHeaders', name);
+      const query = new URLSearchParams({ format: input.forward ? 'full' : 'metadata' });
+      if (!input.forward) for (const name of ['From', 'Reply-To', 'Subject', 'Message-ID', 'References', ...(input.replyAll ? ['To', 'Cc'] : [])]) query.append('metadataHeaders', name);
       const original = await mailboxProviderRequest(async signal => {
         const response = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(reply.messageId)}?${query}`, {
           method: 'GET', signal, headers: { Authorization: `Bearer ${accessToken}` },
@@ -78,9 +92,11 @@ export class GmailSendService {
         if (response.status === 404 || response.status === 410)
           throw definiteMailSendRejection(new BadRequestException(REPLY_UNAVAILABLE));
         if (!response.ok) throw new ServiceUnavailableException('The original message could not be verified. No reply was dispatched.');
-        return response.json();
+        return input.forward ? readForwardSourceJson(response) : response.json();
       });
-      if (JSON.stringify(gmailReplyIdentity(original)) !== JSON.stringify(reply))
+      if (JSON.stringify(gmailReplyIdentity(original)) !== JSON.stringify(reply) ||
+          (input.replyAll && JSON.stringify(capturedGmailReplyRecipients(original)) !== JSON.stringify(input.replyAll.original)) ||
+          (input.forward && JSON.stringify(gmailForwardBody(original)) !== JSON.stringify(input.forward.body)))
         throw definiteMailSendRejection(new BadRequestException('The original message changed. Review it again before replying.'));
     }
 
@@ -203,9 +219,12 @@ export function buildGmailRawMessage(input: EngagementSendMailInput): string {
 
 /** One complete request serializer shared by admission sizing and provider dispatch. */
 export function buildGmailSendPayload(input: EngagementSendMailInput) {
-  if (input.reply?.kind === 'microsoft_graph') throw definiteMailSendRejection(new BadRequestException(REPLY_UNAVAILABLE));
-  if (input.reply && (input.subject !== input.reply.subject || input.toRecipients.length !== 1 ||
-      input.toRecipients[0]?.email.toLowerCase() !== input.reply.toEmail || input.ccRecipients?.length || input.bccRecipients?.length ||
+  if (input.forward && (input.reply || input.replyAll || input.forward.source.kind === 'microsoft_graph' ||
+      !storedForwardBody(input.forward.body) || input.subject !== forwardSubject(input.forward.source.subject) ||
+      !input.toRecipients.length || input.toRecipients.length > 50 || (input.ccRecipients?.length ?? 0) > 10 || input.bccRecipients?.length))
+    throw definiteMailSendRejection(new BadRequestException(REPLY_UNAVAILABLE));
+  if ((input.replyAll && !input.reply) || input.reply?.kind === 'microsoft_graph') throw definiteMailSendRejection(new BadRequestException(REPLY_UNAVAILABLE));
+  if (input.reply && (input.subject !== input.reply.subject || !replyRecipientsMatch(input.reply.toEmail, input.replyAll, input.toRecipients, input.ccRecipients, input.bccRecipients) ||
       /[\r\n]/.test(input.reply.inReplyTo + input.reply.references)))
     throw definiteMailSendRejection(new BadRequestException(REPLY_UNAVAILABLE));
   return { raw: buildGmailRawMessage(input), ...(input.reply ? { threadId: input.reply.threadId } : {}) };

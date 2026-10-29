@@ -8,10 +8,10 @@ const dispatcher = readFileSync(join(__dirname, 'entrypoint-dispatcher.inc'), 'u
 describe('Funding Opportunities container commands', () => {
   test.each([
     ['process-funding-opportunity-lifecycle', 'process-funding-opportunity-lifecycle.ts'],
-    ['backfill-sam-opportunity-fields', 'backfill-sam-opportunity-fields.ts'],
     ['backfill-funding-mapping-review', 'backfill-funding-mapping-review.ts'],
     ['match-contractor-identifiers', 'match-contractor-identifiers.ts'],
-    ['sync-sam-opportunities-all-federal', 'sync-sam-opportunities.ts'],
+    ['sync-tango-funding', 'sync-tango-funding.ts'],
+    ['embed-funding-catalog', 'embed-funding-catalog.ts'],
     // P47. Forwarding ALL arguments matters more than usual here: --commit,
     // --endpoint-id and --confirm-callback are the safety interlocks, and a
     // dispatcher that dropped them would silently downgrade a commit to a dry
@@ -41,12 +41,6 @@ describe('Funding Opportunities container commands', () => {
     // catalog would keep serving a stale close date while reporting complete.
     ['sync-tango-sbir', 'sync-tango-sbir.ts'],
   ])('%s dispatches to %s and forwards all arguments', (verb, script) => {
-    if (verb === 'sync-sam-opportunities-all-federal') {
-      expect(dispatcher).toContain(
-        `${verb}) shift; exec ./node_modules/.bin/tsx scripts/${script} --all-federal --commit "$@" ;;`,
-      );
-      return;
-    }
     expect(dispatcher).toContain(
       `${verb}) shift; exec ./node_modules/.bin/tsx scripts/${script} "$@" ;;`,
     );

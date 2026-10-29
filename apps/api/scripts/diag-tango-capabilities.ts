@@ -205,8 +205,7 @@ async function main(): Promise<void> {
 // module — which is exactly what diag-tango-capabilities.spec.ts does to
 // reach `parseArgs`/`formatSummary`. Without this guard, every test run (and
 // any future script that reuses these exports) would silently fire a real
-// network call at the live Tango API on import. Same pattern as
-// backfill-sam-opportunity-fields.ts's `isDirectRun`.
+// network call at the live Tango API on import.
 const isDirectRun = (() => {
   try {
     const invoked = process.argv[1] ?? '';

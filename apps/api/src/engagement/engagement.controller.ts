@@ -38,6 +38,7 @@ import {
   Length,
   Max,
   MaxLength,
+  Matches,
   Min,
   MinLength,
   ValidateNested,
@@ -354,8 +355,13 @@ class SingleMailRecipientDto {
 
 class SendSingleMailDto {
   @IsOptional()
-  @IsIn(['reply'])
-  operation?: 'reply';
+  @IsIn(['reply', 'reply_all', 'forward'])
+  operation?: 'reply' | 'reply_all' | 'forward';
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[a-f0-9]{64}$/)
+  originalBodySha256?: string;
 
   @IsOptional()
   @IsUUID()
@@ -2886,7 +2892,29 @@ export class EngagementController {
     @Query('mailMessageId') mailMessageId?: string,
     @Query('unlinked') unlinked?: string,
     @Query('prospectId') prospectId?: string,
+    @Query('historyOf', new ParseUUIDPipe({ optional: true })) historyOf?: string,
+    @Query('historyCursor') historyCursor?: string,
+    @Query('historyPageSize') historyPageSize?: string,
   ) {
+    // MM-11 / WS-24 native file history rides this exact route so the public route
+    // surface, its manifest and its guards stay unchanged. It is entered only by
+    // `historyOf`, and list filters are refused rather than silently ignored: one
+    // request must mean one query, so a cursor stays bound to one exact chain.
+    if (historyOf !== undefined) {
+      if (
+        clientId !== undefined ||
+        meetingId !== undefined ||
+        mailMessageId !== undefined ||
+        prospectId !== undefined ||
+        unlinked !== undefined
+      )
+        throw new BadRequestException('Attachment history does not accept list filters');
+      return this.service.listAttachmentHistory(ctx, {
+        attachmentId: historyOf,
+        cursor: historyCursor,
+        pageSize: historyPageSize === undefined ? undefined : Number(historyPageSize),
+      });
+    }
     return this.service.listAttachments(ctx, {
       prospectId,
       clientId,

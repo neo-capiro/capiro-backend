@@ -98,6 +98,8 @@ describe('TenantContextMiddleware preview native GET context', () => {
     '/api/memory/candidates/mine?limit=25',
     '/api/memory/candidates/mine/11111111-1111-4111-8111-111111111111/status',
     '/api/memory/owner/items?limit=25',
+    '/api/clio/completed-reports?limit=10',
+    '/api/clio/completed-reports/11111111-1111-4111-8111-111111111111',
   ])
   ('resolves %s from an online native session and existing member without local writes', async (path) => {
     const h = fixture(path);
@@ -142,6 +144,8 @@ describe('TenantContextMiddleware preview native GET context', () => {
   it.each([
     '/api/me', '/api/clients/11111111-1111-4111-8111-111111111111',
     '/api/memory/candidates/mine', '/api/memory/owner/items',
+    '/api/clio/completed-reports',
+    '/api/clio/completed-reports/11111111-1111-4111-8111-111111111111',
   ])
   ('keeps HEAD %s on the online native read-only path', async (path) => {
     const h = fixture(path, previewHost, 'HEAD');
@@ -166,6 +170,24 @@ describe('TenantContextMiddleware preview native GET context', () => {
     expect(h.tx.user.findUnique).toHaveBeenCalledWith({ where: { clerkUserId: claims.sub } });
     expect(h.headers.get('cache-control')).toBe('no-store');
     expectNoLocalMutation(h.mutations);
+  });
+
+  it.each([
+    '/api/clio/completed-reports',
+    '/api/clio/completed-reports/11111111-1111-4111-8111-111111111111',
+  ])('refuses completed-reports missing user/member and revoked native sessions without repair: %s', async (path) => {
+    const missing = fixture(path);
+    missing.tx.user.findUnique.mockResolvedValueOnce(null);
+    await expect(missing.middleware.use(missing.request, missing.response, missing.next)).rejects.toMatchObject({ status: 403 });
+    expect(missing.next).not.toHaveBeenCalled(); expectNoLocalMutation(missing.mutations);
+    const removed = fixture(path);
+    removed.tx.tenantMembership.findMany.mockResolvedValueOnce([]);
+    await expect(removed.middleware.use(removed.request, removed.response, removed.next)).rejects.toMatchObject({ status: 403 });
+    expect(removed.next).not.toHaveBeenCalled(); expectNoLocalMutation(removed.mutations);
+    const revoked = fixture(path);
+    revoked.active.mockRejectedValueOnce(new ForbiddenException('Revoked'));
+    await expect(revoked.middleware.use(revoked.request, revoked.response, revoked.next)).rejects.toMatchObject({ status: 403 });
+    expect(revoked.system).not.toHaveBeenCalled(); expect(revoked.next).not.toHaveBeenCalled(); expectNoLocalMutation(revoked.mutations);
   });
 
   it.each(['GET', 'HEAD'])('checks native authority for absolute-form %s', async (method) => {

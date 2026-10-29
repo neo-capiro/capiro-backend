@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import type { DefenseFederalEvidenceSideDto } from '@capiro/shared';
+import { federalEvidenceSide } from './federal-evidence-side.js';
 
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
@@ -30,6 +32,11 @@ export interface FederalEvidenceTimelineScope {
   peCode?: string;
   billId?: string;
 }
+
+export type FederalEvidenceTimelineRow = Record<string, unknown> & {
+  beforeEvidence: DefenseFederalEvidenceSideDto;
+  afterEvidence: DefenseFederalEvidenceSideDto;
+};
 
 /** Public, read-only projection over the append-only federal evidence tables. */
 @Injectable()
@@ -97,10 +104,14 @@ export class FederalEvidenceReadService {
   async lifecycleTimeline(
     requestedScope: FederalEvidenceTimelineScope,
     options: FederalEvidenceReadOptions = {},
-  ): Promise<FederalEvidenceReadPage<Record<string, unknown>>> {
+  ): Promise<FederalEvidenceReadPage<FederalEvidenceTimelineRow>> {
     const scope: FederalEvidenceTimelineScope = {
-      ...(requestedScope.peCode ? { peCode: normalizeRequired(requestedScope.peCode, 'peCode') } : {}),
-      ...(requestedScope.billId ? { billId: normalizeRequired(requestedScope.billId, 'billId') } : {}),
+      ...(requestedScope.peCode
+        ? { peCode: normalizeRequired(requestedScope.peCode, 'peCode') }
+        : {}),
+      ...(requestedScope.billId
+        ? { billId: normalizeRequired(requestedScope.billId, 'billId') }
+        : {}),
     };
     if (!scope.peCode && !scope.billId) {
       throw new BadRequestException('At least one of peCode or billId is required');
@@ -121,8 +132,18 @@ export class FederalEvidenceReadService {
               r.source_url AS "sourceUrl", r.source_modified_at AS "sourceModifiedAt",
               r.published_at AS "publishedAt", r.fetched_at AS "fetchedAt",
               m.locator, m.evidence, m.language_hash AS "languageHash", m.match_type AS "matchType",
-              m.qualification_state AS "qualificationState", m.confidence
+              m.qualification_state AS "qualificationState", m.confidence,
+              jsonb_build_object('id', previous_revision.id, 'sourceKey', previous_revision.source_key,
+                'contentHash', previous_revision.content_hash, 'extractionHash', previous_revision.extraction_hash,
+                'sourceUrl', previous_revision.source_url, 'publishedAt', previous_revision.published_at,
+                'sourceModifiedAt', previous_revision.source_modified_at) AS "beforeRevision",
+              jsonb_build_object('id', current_revision.id, 'sourceKey', current_revision.source_key,
+                'contentHash', current_revision.content_hash, 'extractionHash', current_revision.extraction_hash,
+                'sourceUrl', current_revision.source_url, 'publishedAt', current_revision.published_at,
+                'sourceModifiedAt', current_revision.source_modified_at) AS "afterRevision"
        FROM federal_evidence_mention_event e
+       LEFT JOIN federal_evidence_revision previous_revision ON previous_revision.id = e.previous_revision_id
+       LEFT JOIN federal_evidence_revision current_revision ON current_revision.id = e.current_revision_id
        LEFT JOIN federal_evidence_revision r
          ON r.id = COALESCE(e.current_revision_id, e.previous_revision_id)
        LEFT JOIN federal_evidence_mention m
@@ -140,7 +161,22 @@ export class FederalEvidenceReadService {
       knownAt,
       limit + 1,
     );
-    return page(rows, limit, 'lifecycle-timeline', scopeKey);
+    const projected = rows.map(({ beforeRevision, afterRevision, ...row }) => ({
+      ...row,
+      beforeEvidence: federalEvidenceSide(
+        row.before,
+        beforeRevision,
+        row.previousRevisionId,
+        row.sourceKey,
+      ),
+      afterEvidence: federalEvidenceSide(
+        row.after,
+        afterRevision,
+        row.currentRevisionId,
+        row.sourceKey,
+      ),
+    }));
+    return page(projected, limit, 'lifecycle-timeline', scopeKey);
   }
 }
 
@@ -178,12 +214,19 @@ function decodeCursor(
 ): ReadCursor | null {
   if (!encoded) return null;
   try {
-    const decoded = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as Partial<ReadCursor>;
+    const decoded = JSON.parse(
+      Buffer.from(encoded, 'base64url').toString('utf8'),
+    ) as Partial<ReadCursor>;
     if (
-      decoded.v !== CURSOR_VERSION || decoded.kind !== kind || decoded.scope !== scope ||
-      typeof decoded.createdAt !== 'string' || !Number.isFinite(Date.parse(decoded.createdAt)) ||
-      typeof decoded.id !== 'string' || !/^[0-9a-f-]{36}$/i.test(decoded.id)
-    ) throw new Error('invalid cursor');
+      decoded.v !== CURSOR_VERSION ||
+      decoded.kind !== kind ||
+      decoded.scope !== scope ||
+      typeof decoded.createdAt !== 'string' ||
+      !Number.isFinite(Date.parse(decoded.createdAt)) ||
+      typeof decoded.id !== 'string' ||
+      !/^[0-9a-f-]{36}$/i.test(decoded.id)
+    )
+      throw new Error('invalid cursor');
     return decoded as ReadCursor;
   } catch {
     throw new BadRequestException('Invalid or mismatched federal evidence cursor');
@@ -204,8 +247,17 @@ function page<T extends Record<string, unknown>>(
   return {
     items,
     hasMore,
-    nextCursor: hasMore && createdAt instanceof Date && typeof id === 'string'
-      ? Buffer.from(JSON.stringify({ v: CURSOR_VERSION, kind, scope, createdAt: createdAt.toISOString(), id } satisfies ReadCursor)).toString('base64url')
-      : null,
+    nextCursor:
+      hasMore && createdAt instanceof Date && typeof id === 'string'
+        ? Buffer.from(
+            JSON.stringify({
+              v: CURSOR_VERSION,
+              kind,
+              scope,
+              createdAt: createdAt.toISOString(),
+              id,
+            } satisfies ReadCursor),
+          ).toString('base64url')
+        : null,
   };
 }

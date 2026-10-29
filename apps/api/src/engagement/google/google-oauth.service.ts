@@ -75,6 +75,10 @@ export function missingGoogleGrants(grantedScope: string | undefined): string[] 
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GOOGLE_REVOKE_URL = 'https://oauth2.googleapis.com/revoke';
+// `userinfo_endpoint` in Google's OpenID Connect Discovery document
+// (https://accounts.google.com/.well-known/openid-configuration), hard-coded
+// here like the three endpoints above.
+export const GOOGLE_USERINFO_URL = 'https://openidconnect.googleapis.com/v1/userinfo';
 const STATE_TTL_SECONDS = 600;
 
 export interface GoogleAuthStartInput {
@@ -96,13 +100,24 @@ interface GoogleTokenResponse {
   refresh_token?: string;
   scope?: string;
   token_type?: string;
-  id_token?: string;
 }
 
-interface GoogleIdTokenClaims {
-  email?: string;
-  name?: string;
+/**
+ * Google's OpenID Connect UserInfo claims (the `claims_supported` list in the
+ * Discovery document). `sub` is the stable Google account identifier and
+ * `email_verified` is the provider's own statement about the address.
+ */
+interface GoogleUserInfo {
   sub?: string;
+  email?: string;
+  email_verified?: boolean;
+  name?: string;
+}
+
+interface GoogleVerifiedIdentity {
+  sub: string;
+  email: string;
+  name: string | null;
 }
 
 @Injectable()
@@ -239,7 +254,10 @@ export class GoogleOAuthService {
       throw new BadRequestException('Google did not return an access token');
     }
 
-    const claims = this.decodeIdToken(token.id_token);
+    // Identity is the provider's verified statement about this access token,
+    // resolved before anything is persisted. The response's `id_token` payload is
+    // unsigned text and is never used for binding.
+    const identity = await this.lookupVerifiedGoogleIdentity(token.access_token);
     await this.prisma.withTenant(decoded.t, async (tx) => {
       await admitMailboxOAuthAttempt(
         tx,
@@ -247,12 +265,7 @@ export class GoogleOAuthService {
         EngagementProvider.google_workspace,
         'exchanging',
       );
-      await assertReturnedMailboxIdentity(
-        tx,
-        decoded,
-        claims.sub ?? null,
-        claims.email?.toLowerCase() ?? null,
-      );
+      await assertReturnedMailboxIdentity(tx, decoded, identity.sub, identity.email);
     });
 
     // Validate the ACTUAL grant before persisting anything. `include_granted_scopes`
@@ -272,7 +285,7 @@ export class GoogleOAuthService {
       );
     }
     const expiresAt = new Date(Date.now() + (token.expires_in ?? 3600) * 1000);
-    await this.persistToken(decoded, token, expiresAt, claims);
+    await this.persistToken(decoded, token, expiresAt, identity);
 
     return { tenantId: decoded.t, connectionId: decoded.c };
   }
@@ -327,17 +340,23 @@ export class GoogleOAuthService {
       let revoke: string | undefined;
       try {
         if (token?.refreshTokenCiphertext && token.refreshTokenIv && token.refreshTokenAuthTag) {
-          revoke = this.tokenCrypto.decrypt({
-            ciphertext: token.refreshTokenCiphertext,
-            iv: token.refreshTokenIv,
-            authTag: token.refreshTokenAuthTag,
-          });
+          revoke = this.tokenCrypto.decrypt(
+            {
+              ciphertext: token.refreshTokenCiphertext,
+              iv: token.refreshTokenIv,
+              authTag: token.refreshTokenAuthTag,
+            },
+            token.keyVersion,
+          );
         } else if (token) {
-          revoke = this.tokenCrypto.decrypt({
-            ciphertext: token.accessTokenCiphertext,
-            iv: token.accessTokenIv,
-            authTag: token.accessTokenAuthTag,
-          });
+          revoke = this.tokenCrypto.decrypt(
+            {
+              ciphertext: token.accessTokenCiphertext,
+              iv: token.accessTokenIv,
+              authTag: token.accessTokenAuthTag,
+            },
+            token.keyVersion,
+          );
         }
       } catch {
         this.logger.warn(
@@ -438,31 +457,56 @@ export class GoogleOAuthService {
     });
   }
 
-  // The id_token is a JWT minted by Google and returned directly to our backend
-  // over TLS from the token endpoint (never routed through the browser), so we
-  // trust its payload for identity extraction without re-verifying the signature
-  // here. We only read email/name — the same trust model as reading
-  // result.account off the MSAL token response in the Microsoft path.
-  private decodeIdToken(idToken?: string): GoogleIdTokenClaims {
-    if (!idToken) return {};
-    const payloadSegment = idToken.split('.')[1];
-    if (!payloadSegment) return {};
-    try {
-      const payload = JSON.parse(
-        Buffer.from(payloadSegment, 'base64url').toString('utf8'),
-      ) as GoogleIdTokenClaims;
-      return payload;
-    } catch (err) {
-      this.logger.warn(`Failed to decode Google id_token payload: ${(err as Error).message}`);
-      return {};
+  /**
+   * Resolve the mailbox identity from Google's OpenID Connect UserInfo endpoint
+   * with the access token this backend just received from the token endpoint.
+   * Google's OIDC guide documents exactly this call ("Obtaining user profile
+   * information"): the access token goes in the Authorization header and the
+   * response carries the standard claims, including the stable `sub` and the
+   * account `email`. An `id_token` payload is unsigned text until its signature,
+   * issuer and audience are verified, so it is never used for binding here.
+   *
+   * A withheld or malformed claim, or an address Google itself has not verified,
+   * refuses before any token is stored — an unidentified mailbox must never be
+   * marked connected. Provider failure text is not echoed; only the status.
+   */
+  private async lookupVerifiedGoogleIdentity(accessToken: string): Promise<GoogleVerifiedIdentity> {
+    const profile = await mailboxProviderRequest(async (signal) => {
+      const response = await fetch(GOOGLE_USERINFO_URL, {
+        signal,
+        method: 'GET',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!response.ok) {
+        throw new ServiceUnavailableException(
+          `Google account identity lookup failed (${response.status})`,
+        );
+      }
+      // A 200 whose body is not JSON is a provider contract violation rather than an
+      // identity, so it is refused as a provider failure and the body is not echoed.
+      try {
+        return JSON.parse(await response.text()) as GoogleUserInfo | null;
+      } catch {
+        throw new ServiceUnavailableException(
+          'Google account identity lookup returned an unreadable response',
+        );
+      }
+    });
+    const sub = profile?.sub?.trim();
+    const email = profile?.email?.trim().toLowerCase();
+    if (!sub || !email || profile?.email_verified !== true) {
+      throw new BadRequestException(
+        'Google did not return a verified account identity; add the mailbox again',
+      );
     }
+    return { sub, email, name: profile?.name?.trim() || null };
   }
 
   private async persistToken(
     state: StatePayload,
     token: GoogleTokenResponse,
     expiresAt: Date,
-    claims: GoogleIdTokenClaims,
+    identity: GoogleVerifiedIdentity,
   ): Promise<void> {
     const { t: tenantId, c: connectionId } = state;
     const accessEnvelope = this.tokenCrypto.encrypt(token.access_token!);
@@ -472,8 +516,8 @@ export class GoogleOAuthService {
     const refreshEnvelope = token.refresh_token
       ? this.tokenCrypto.encrypt(token.refresh_token)
       : null;
-    const accountEmail = claims.email?.toLowerCase() ?? null;
-    const displayName = claims.name ?? null;
+    const accountEmail = identity.email;
+    const displayName = identity.name;
 
     await this.prisma.withTenant(tenantId, async (tx) => {
       const current = await admitMailboxOAuthAttempt(
@@ -482,7 +526,7 @@ export class GoogleOAuthService {
         EngagementProvider.google_workspace,
         'exchanging',
       );
-      await assertReturnedMailboxIdentity(tx, state, claims.sub ?? null, accountEmail);
+      await assertReturnedMailboxIdentity(tx, state, identity.sub, accountEmail);
       if (!token.refresh_token && !current.token?.refreshTokenCiphertext) {
         throw new BadRequestException(
           'Provider did not return a refresh token; restart mailbox connection',
@@ -503,7 +547,7 @@ export class GoogleOAuthService {
             : {}),
           keyVersion: this.tokenCrypto.getKeyVersion(),
           scopes: (token.scope ?? '').split(/\s+/).filter(Boolean),
-          homeAccountId: claims.sub ?? null,
+          homeAccountId: identity.sub,
           expiresAt,
         },
         create: {
@@ -517,7 +561,7 @@ export class GoogleOAuthService {
           refreshTokenAuthTag: refreshEnvelope?.authTag ?? null,
           keyVersion: this.tokenCrypto.getKeyVersion(),
           scopes: (token.scope ?? '').split(/\s+/).filter(Boolean),
-          homeAccountId: claims.sub ?? null,
+          homeAccountId: identity.sub,
           expiresAt,
         },
       });

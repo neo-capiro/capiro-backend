@@ -351,12 +351,47 @@ describe('ML-10 refresh isolation and durable stale-response fence', () => {
   test('partial Google consent cannot revoke a grant for an unadmitted account', async () => {
     const h = harness('google_workspace');
     const attempt = await h.start();
+    // The access token came back for an account this attempt did not admit. Identity
+    // is now read from the verified UserInfo lookup, so the account the provider
+    // reports about this token is what refuses it — before any provider revocation.
+    h.setReturned({ id: 'account-B', email: 'b@example.invalid', refresh: undefined });
     h.service.exchangeCode = async () => ({
       access_token: 'wrong-account-access',
       scope: 'openid',
     });
     await expect(h.callback(attempt.state)).rejects.toThrow('Selected account');
     expect(h.rows.get('connection-A').status).toBe('connected');
+    expect(h.service.revokeGoogleGrant).not.toHaveBeenCalled();
+    expect(h.tx.integrationConnectionToken.upsert).not.toHaveBeenCalled();
+  });
+
+  test('binds a Google mailbox to the verified lookup, never the returned id_token', async () => {
+    const h = harness('google_workspace');
+    // The fixture's token response carries an id_token whose payload claims
+    // 'decoy-account' while the verified UserInfo lookup reports account-B. Reading
+    // the unsigned payload would bind the decoy, so this is the regression witness
+    // for the identity contract.
+    h.setReturned({ id: 'account-B', email: 'b@example.invalid', refresh: 'refresh-B' });
+    const attempt = await h.start({});
+    await h.callback(attempt.state);
+    const bound = h.rows.get(attempt.connectionId).token;
+    expect(bound.homeAccountId).toBe('account-B');
+    expect(h.rows.get(attempt.connectionId).accountEmail).toBe('b@example.invalid');
+    expect(bound.homeAccountId).not.toBe('decoy-account');
+  });
+
+  test('a withheld Google grant is refused without revoking the provider grant', async () => {
+    const h = harness('google_workspace');
+    const attempt = await h.start();
+    // A granular-consent grant still returns identity (openid was granted), so the
+    // withheld Gmail/Calendar scopes are what refuse it — and that refusal must not
+    // revoke the provider grant or persist a connection.
+    h.service.exchangeCode = async () => ({
+      access_token: 'partial-grant-access',
+      scope: 'openid',
+    });
+    await expect(h.callback(attempt.state)).rejects.toThrow('all requested permissions');
+    expect(h.rows.get('connection-A').status).toBe('needs_configuration');
     expect(h.service.revokeGoogleGrant).not.toHaveBeenCalled();
     expect(h.tx.integrationConnectionToken.upsert).not.toHaveBeenCalled();
   });

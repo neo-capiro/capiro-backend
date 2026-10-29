@@ -1,0 +1,287 @@
+MB-05 CORE — QUEUED/DEDUPED CURSOR + REVIEWED D1/D2/D4 CROSSING — HANDOFF
+(2026-10-28, Core successor branch #3 — living document, updated in place)
+
+CHECKOUT / BRANCH / EXACT HEADS
+  Checkout : work/m7-source-events-core-20261028
+  Branch   : codex/wave5-m7-source-event-d1d2d4-core-20261028   (new successor branch #3)
+  Base     : fdcd441dfec9326655899ec79175402abbb78c88  (immutable, UNCHANGED)
+             tree adee91bb372b526a994b22efe984936cb5cd3bde
+  Ancestors preserved and verified present:
+             ca4b0047414f5242e598c22308dcdd3889aa4be7  (prior handoff commit)
+                        tree 2c6a856437194841ad6659e51033650549261815
+             f7119d9f3f4c517fcd9d43ff3a3f075a3001b74e  (frozen Core base)
+             6273358cd3c4e6beab6eb6a1260c386f7c056da0  (frozen impl head, 109-focused-pass evidence)
+  Independent review consumed this lane:
+             outputs/WAVE5-M7-CORE-SOURCE-EVENT-REPLAY-HERMES-REVIEW.txt
+             SHA256 2b8a431f41a5b42071547cf5459eea973f607baee4d9caf09f6b5b9d8553dc10
+             (reviewer 17472 / session a6404f: source PASS with real MEDIUM corrections
+              D1..D5 and the J1 trace; D1, D2, D4 are fixed here, D3 corrected locally,
+              D5 + J1 are documented as counts/limits below, not silently dropped.)
+  This commit adds QUEUED-CURSOR-HANDOFF.txt changes on top of the code change below.
+
+  No push / PR / deploy / build / package / lockfile / PLAN / Prisma / schema change.
+  No migration applied. No source-event activation. No Meri/source/public file touched.
+  No browser / target / network / provider / model / cloud / DB / WSL / native call.
+
+CLAIM
+  Core-only: apps/api/src/business-development/bizdev-watch-{runner,source-event}.ts,
+  bizdev-watch.types.ts and their two focused specs. Parent owns Meri.
+
+THE TWO REMAINING LOSS PATHS (root-confirmed, both closed here)
+
+1) DURABLE ACCEPTANCE WAS BEING READ AS A COMPLETED HANDOFF.
+   Meri's receiver stores ACCEPTED and then QUEUED for the ACTIVE /
+   open-occurrence / backpressure cases (source-event-receiver.mjs:227-267), and
+   source-event-store keeps RETRYABLE=['ACCEPTED','QUEUED']. Nothing in production
+   drains `unresolved` (only focused tests call it) — the producer's future replay IS
+   the retry mechanism. The prior Core lane listed ACCEPTED and QUEUED in
+   DEFINITE_SOURCE_EVENT_STATES, so an accepted-but-unsettled event advanced the
+   durable recovery cursor and was never re-offered: the same permanent stranding the
+   cursor exists to prevent, one state later.
+
+   FIX: DEFINITE_SOURCE_EVENT_STATES is GONE. The single rule is now
+   advancesDeliveryCursor({state, recorded}) in bizdev-watch.types.ts:
+     - ACCEPTED / QUEUED                 -> HOLD (in flight, retryable)
+     - UNKNOWN / unintelligible state    -> HOLD
+     - DEDUPED                           -> HOLD unless it names a terminal recorded outcome
+     - DISPATCHED / SKIPPED / REFUSED / CONFLICT -> ADVANCE
+     - DEDUPED + recorded in {DISPATCHED, SKIPPED, REFUSED} -> ADVANCE
+   An aggregate-only owner may now acknowledge a page ONLY when it is correctly
+   accounted for (offered === page length AND the seven counters sum to it) and reports
+   NEITHER unknown NOR queued (aggregateAcknowledgesPage). A holding page leaves the
+   cursor exactly where it is; the next evaluation re-offers the SAME immutable events.
+
+2) A DEDUPED ANSWER'S RECORDED OUTCOME WAS DISCARDED.
+   Meri's HTTP boundary serialises the whole receiver result
+   (source-event-http.mjs: `response({outcome, sourceEvent}, 200)`), so
+   `sourceEvent.recorded` — the store state of the row the replay matched — is on the
+   wire. The transport read only `sourceEvent.disposition`, and delivery cast any
+   non-UNKNOWN disposition straight to a state: a SETTLED replay naming a recorded
+   UNKNOWN row (receiver:237) became a terminal DEDUPED and advanced the cursor.
+
+   FIX (preserve + validate the real field, no new endpoint, Meri's 0.3 protocol
+   untouched):
+     - transport `event()` now reads `sourceEvent.recorded`, keeps it ONLY when it is one
+       of Meri's store states (ACCEPTED/QUEUED/DISPATCHED/SKIPPED/REFUSED/UNKNOWN) and
+       normalises anything else to null; it also refuses a disposition string the
+       protocol does not define (-> null -> UNKNOWN), so an unintelligible answer can
+       never be cast into a terminal state.
+     - SourceEventDeliveryResult carries `recorded: string | null`; the disposition is
+       reported VERBATIM (DEDUPED stays DEDUPED — never rewritten into a terminal state).
+     - The recovery disposition carries `recorded` through to the runner, normalised
+       again there against the same vocabulary, so a foreign owner cannot smuggle an
+       unrecognised outcome into a completed handoff.
+
+INDEPENDENT-REVIEW CROSSING (review 17472 / session a6404f) — FOUR CORRECTIONS
+
+D1 — THE RECOVERY PAGE WAS WATCH-WIDE WHILE THE CURSOR IS PER FAMILY.   [FIXED]
+   readDeliveryRecoveryPage() filtered on (tenantId, watchId) only, but the cursor it
+   advances lives inside the (watch, sourceFamily) source-state row's scan metadata
+   (schema prisma:17636-17638). In a watch scanned by more than one family the page mixed
+   families, so one family's alerts spent the other family's per-source budget
+   (maxRecordsPerSource), advanced the other family's cursor, and were delivered against
+   the other family's approved binding — duplicate/foreign binding + cross-family budget.
+   FIX: the existing canonical family is now BOUND TO THE QUERY. readDeliveryRecoveryPage
+   takes `sourceFamily` and adds it to the WHERE clause; the caller passes
+   `state.sourceFamily` (the very family whose row the cursor belongs to). The alert row's
+   own `sourceFamily` is the same canonical family the family's draft builder emits
+   (bizdev-watch-runner.ts: draft.sourceFamily -> businessDevelopmentAlert.sourceFamily),
+   so the page is exactly the channel the cursor is evidence about. Keyset order
+   (firstObservedAt, id) ASC and the contiguous-oldest-first prefix are unchanged.
+
+D2 — THE BOUNDED PAGE COULD OUTLIVE THE LEASE IT RUNS UNDER.   [FIXED]
+   A page of maxRecordsPerSource (50) alerts can occupy 50 x (binding read + 2 bounded
+   attempts) — with SOURCE_EVENT_REQUEST_TIMEOUT_MS=3000 and SOURCE_EVENT_DELIVERY_ATTEMPTS=2
+   that is 9s per alert, i.e. ~450s against a 300s lease: delivery could still be running
+   when the lease expired and another evaluator could legitimately claim the row.
+   FIX (no new lease manager, no renewal owner invented, no queue): the page is SIZED TO
+   FIT the lease the pass already holds. SOURCE_EVENT_WORST_CASE_PER_ALERT_MS is exported
+   from the transport itself (binding read + every bounded attempt, derived from the real
+   timeout constants so it cannot drift), and recoveryPageBound(maxRecords, leaseUntil, now)
+   = min(maxRecords, floor((leaseUntil - now - RECOVERY_FINALIZE_MARGIN_MS) / worst case)).
+   A page that does not fit is simply SHORTER: the unread alerts stay behind the cursor
+   (which only advances over what was actually answered), so nothing is skipped, nothing
+   is delivered under a possibly-foreign lease, and the next evaluation resumes at the
+   same cursor. Cursor/CAS/UNKNOWN semantics are untouched; the existing source-state lease
+   remains the ONLY lease owner.
+
+D3 — DEAD COMMENTS/CODE.   [CORRECTED LOCALLY, trivial only]
+   The `committedAlerts` array (declared outside the transaction, pushed in two places,
+   never read after the recovery step was rewritten to read committed custody) is deleted,
+   and the two comments that still described the old "offered after the transaction
+   resolves" hook and the sink type's old wording now state what the code does: the
+   bounded oldest-first page is read from committed custody AFTER the commit.
+
+D4 — A 200 WAS TRUSTED WITHOUT CHECKING IT NAMED OUR EVENT.   [FIXED]
+   The transport consumed `sourceEvent.disposition` without ever checking the response was
+   about the event we sent, so a foreign or garbled success could be read as a completed
+   handoff. Verified the real wire first (READ-ONLY Meri 25eede1b4): source-event-http.mjs
+   answers `response({outcome: inert.disposition, sourceEvent: inert}, 200)` where the
+   receiver's own `result()` (source-event-receiver.mjs) always carries
+   `eventId: unit.event.eventId` and `eventHash: unit.event.eventHash` — i.e. the identity
+   is echoed on EVERY 200 path, and snapshotSourceEvent() has already refused an envelope
+   whose hash is not its own canonical fact hash (SOURCE_EVENT_HASH -> 400), so an echoed
+   200 proves the response named the event we sent. Error responses carry no `sourceEvent`.
+   FIX: SourceEventTransport.event() now also reports `eventId`/`eventHash` exactly as the
+   answer named them (absent/unreadable -> null), and the delivery owner accepts a 200
+   disposition ONLY when `answer.eventId === envelope.eventId && answer.eventHash ===
+   envelope.eventHash`. A foreign event id, a different fact hash, an absent or garbled
+   identity -> UNKNOWN ('SOURCE_EVENT_RESPONSE_IDENTITY') and the cursor HOLDS — never a
+   terminal advance. The bounded replay resends the same bytes, which Meri's identity dedup
+   makes the same one event. No new public endpoint; Meri's 0.3 protocol stays frozen.
+   (Retained by design from the review's own limits: an explicit 4xx refusal and a CONFLICT
+   are still read as recorded-terminal dispositions, and a systematic producer-side contract
+   drift still presents as a definite refusal — D5 below, a product decision, not a silent
+   one; the finite first producer keeps its generation/authority target unchanged.)
+
+J1 — MERI'S APPROVED CATCH-UP / OVERLAP / BACKPRESSURE (READ-ONLY TRACE, NO MERI EDIT)
+   Traced against the live receiver at 25eede1b4 (my checkout's HEAD; read-only; Meri has a
+   live native qualifier 57697 and a separate owner). The receiver's step 7 hands the
+   occurrence to the EXISTING scheduled-dispatch owner ("its own fence, catch-up window,
+   overlap barrier and backpressure apply unchanged"), and scheduled-occurrence.mjs derives
+   the occurrence with `scheduledAt: occurredAt` — the alert instant Core sends:
+     * STALENESS (already owned by Meri): scheduled-dispatch.mjs:89
+       `missed = now - Date.parse(occ.scheduledAt) > catchupWindowMs + spec.jitterMs`
+       -> 'SCHEDULE_OCCURRENCE_MISSED'; the receiver does not list it retryable, so it
+       settles REFUSED (pinned by source-event-receiver.test.mjs:312) -> a recorded-terminal
+       refusal Core may advance on. Crucially the check applies ONLY to an occurrence that
+       was never admitted: scheduled-dispatch.mjs:189
+       `refusal = fence(...) ?? (admitted ? null : missed(...))`.
+     * HELD-REPLAY LIVENESS: an already-admitted occurrence is NOT stale-refused; if its run
+       already started, a replay settles DISPATCHED (scheduled-dispatch.mjs:187). While
+       another row of the schedule is OPEN the barrier returns
+       'SCHEDULE_OCCURRENCE_UNRESOLVED' (scheduled-dispatch.mjs:154), which the receiver maps
+       to QUEUED/accepted-retryable (source-event-receiver.test.mjs:361) — the durable
+       acceptance that now correctly HOLDS the Core cursor until it settles on evidence.
+   CONCLUSION: no required catch-up gap exists for Core to close. Core adds NO staleness
+   semantics and silently drops no unknowns. The known remaining exposure (an OPEN barrier
+   row that never settles on evidence holds the cursor indefinitely, by design and visible
+   in counts) is Meri's owner's semantics, reported here as a count/liveness limit rather
+   than retargeted from Core.
+
+D5 — COUNTS, NOT DELIVERED SUCCESS.   [DOCUMENTED, no Core change]
+   The run reports `metrics.sourceEvents = {offered, dispatched, queued, deduped, refused,
+   unknown, skipped}` and never reports an acknowledgement as a delivery: a page that HOLDS
+   advances nothing, and a DEDUPED answer without a terminal recorded outcome counts as
+   UNKNOWN. The review's remaining MEDIUM points (systematic producer-side contract drift
+   presenting as a definite refusal; a permanently unresolved Meri-side hold) are the
+   product/owner decisions above, recorded rather than silently absorbed.
+
+CURSOR PERSISTENCE / ACK SEMANTICS (unchanged from the prior lane except the rule above)
+  - Cursor lives in the versioned source-state checkpoint: baseline_state.scan.delivery
+    {version:1, cursorAtMs, cursorId, pagesDone}; keyset (firstObservedAt, id) ASC;
+    monotone; never reset by a source-scope change; absent cursor = start of the watch's
+    own alert history. No new table, no per-alert mutation of the immutable alert row.
+  - The advance is the CONTIGUOUS OLDEST-FIRST prefix of advancesDeliveryCursor()=true.
+    Scattered newer answers are never stepped over; an unresolved older alert holds.
+  - Accounting: the sink and the runner's count derivation now BOTH call the shared
+    countSourceEventDispositions(), so a DEDUPED answer without a terminal recorded
+    outcome counts as UNKNOWN (its handoff outcome is NOT confirmed) in the counts too —
+    an aggregate-only owner therefore cannot acknowledge a page containing one.
+  - Lease/CAS, the separate finalize transaction and "no network call inside a DB
+    transaction" are unchanged; a stale worker's zero-count update still writes nothing.
+
+EXACT PRODUCTION CALLER
+  scripts/run-bizdev-watch.ts builds createSourceEventDispositionSink({origin, secret})
+  from MERI_CONTROL_ORIGIN + INTERNAL_SERVICE_SECRET and passes it as the runner's
+  `sourceEvents`. With neither set there is no sink, no recovery read and no egress.
+  createSourceEventSink remains the aggregate-only view. Route/secret are unchanged.
+
+TESTS — REAL RUNNER + REAL SINK (bounded; only affected specs rerun)
+  Command: "C:/Program Files/nodejs/node.exe" node_modules/jest/bin/jest.js
+           --runTestsByPath src/business-development/bizdev-watch-{source-event,runner,checkpoint}.spec.ts
+  Result : 3 suites, 124 passed / 0 failed    (Node v24.22.1; DATABASE_URL unset;
+           CLEANUP_API_WORKER_DB=0)   evidence: .evidence/d1d2d4-specs-green.log
+  Reused proof: the 117/117 slate of the predecessor crossing is carried inside the 124
+           (.evidence/queued-cursor-specs.log), and the 28/28 checkpoint suite is unchanged
+           and still green (.evidence/queued-cursor-checkpoint-spec.log). Only the two
+           affected specs were re-run, plus the directly-downstream checkpoint spec (the
+           cursor's own home). No broad suite.
+
+  BASELINE WITNESS — the new tests are not vacuous. The two SOURCE files were stashed back
+           to the pre-fix fdcd441df bytes (git stash push of exactly those two paths; the
+           fixed files were first copied to .evidence/prefix-src/ with their sha256), and the
+           SIX new tests then FAILED:
+             .evidence/d1d2d4-prefix-RED-witness.log
+               Test Suites: 2 failed, 2 total;  Tests: 6 failed, 90 skipped, 96 total
+               (each new title listed as failing: D1 family scoping, D1 equal-instant tie /
+                new arrival, D2 lease-fit bound, D4 foreign identity, D4 fact-hash, D4
+                malformed identity)
+           Restored with git stash pop and verified byte-identical to the preserved copies:
+             runner.ts        9d8cc860a55327562b2ec5fc3a405bea9980bb0b3cfa050271f4f677407d3eff
+             source-event.ts  8a0cca27a1f7d710058b73984de409086eac499426c3e9b45b7ca6ee543c4f35
+
+  NEW tests this crossing (bizdev-watch-runner.spec.ts — real runner + real per-alert owner):
+    * D1 — the recovery page is scoped to the family the cursor BELONGS to, never watch-wide:
+      ONE watch with TWO families, page size 1, the FOREIGN family's alert deliberately OLDER.
+      The family's OWN oldest alert is offered (DISPATCHED), the offered custody's sourceFamily
+      is this state's family, the cursor names this family's own row, and the other family's
+      alert is never offered under it (second pass: nothing offered, cursor unchanged).
+    * D1 — inside the family the cursor keeps the exact (instant, id) order: an equal-instant
+      tie walks by id (id-1 then id-2, never re-offering id-1), then a NEW arrival at a later
+      instant is the next work, with the foreign family's row still never offered.
+    * D2 — a page whose delivery cannot finish inside the retained lease is never started:
+      asserts SOURCE_EVENT_WORST_CASE_PER_ALERT_MS === 9000 (the transport's own limits),
+      a 30s lease with maxRecords 50 offers exactly the 3 that fit (cursor = id-3), the rest
+      are neither delivered nor skipped, and the next pass resumes at the same cursor for
+      id-4/id-5.
+  NEW tests this crossing (bizdev-watch-source-event.spec.ts — the delivery owner):
+    * D4 — a 200 naming a FOREIGN event id is UNKNOWN ('SOURCE_EVENT_RESPONSE_IDENTITY'),
+      attempts 2, advancesDeliveryCursor() false, with both attempts sending byte-identical
+      envelope bytes and the sent eventId being the alert's own id.
+    * D4 — a 200 whose FACT HASH is not the sent envelope's is UNKNOWN, never terminal.
+    * D4 — a MALFORMED 200 naming no identity at all (null/null) holds as UNKNOWN.
+    * D4 — positive control: the identity the real listener echoes back is accepted verbatim
+      (the gate does not over-tighten), and every pre-existing transport fake now mirrors the
+      real wire by echoing the received identity.
+  The prior real-owner tests are preserved and green: the QUEUED barrier HOLDS then advances
+  the SAME event, the DEDUPED-recorded-UNKNOWN hold, the crash-then-dedupe replay, the
+  aggregate-accounting cases, and the whole oldest-first/keyset/aggregate slate.
+
+TYPECHECK — EXACT BASELINE COMPARISON (not a "same class" claim)
+  Command: node --max-old-space-size=8192 node_modules/typescript/bin/tsc -p
+           apps/api/tsconfig.m7-core-replay.json   (exact imported production closure of
+           the five touched files; not a broad programme run)
+  Result : tsc exit=2 (errors are other teams' pre-existing ones), total diagnostics 410.
+  EXACT normalized diff against the retained baseline for THIS base, .evidence/queued-cursor-tsc2.log
+           (paths and line:col columns normalised): IDENTICAL — 0 added, 0 removed.
+           (core-replay-tsc4.log, the older retained baseline, is also 410/410 identical to it.)
+  Diagnostics in any TOUCHED file: NONE.
+  This is the exact-current-base comparison the review asked for, run only because the
+  transport/result typing changed (new exported worst-case bound, identity fields on the
+  transport answer, the family argument and the page bound). Raw logs:
+  .evidence/d1d2d4-tsc.log, normalized as .evidence/d1d2d4.norm.
+  (Carried: an earlier lane's .evidence/queued-cursor-tsc.log caught two OWNED TS2304 for the
+   BizDevSourceEventAdvanceInput import; the corrected run is queued-cursor-tsc2.log.)
+
+NOT RUN / LIMITS (honest)
+  - No native PostgreSQL run and no deployed/current-owner acceptance (the qualifier owns
+    those resources; no WSL/Docker/native SQL was used). The recorded outcome and the
+    cursor round-trip are exercised through the real codec + transport parse + durable fake
+    only; the column itself is not exercised here.
+  - No broad suite rerun: the change touches the MB-05 delivery step, its transport/result
+    shape and the shared cursor predicate only.
+  - The recovery lease bound is proven behaviourally (a 30s lease offers exactly the alerts
+    that fit, and the rest resume at the same cursor) against the injected clock/lease the
+    runner already supports; no wall-clock timing test and no renewal path was added, because
+    the existing owner supports no renewal and inventing one is out of scope.
+  - Meri is READ-ONLY this lane: no Meri source, test or public file was edited and no Meri
+    suite was run (it has a live native qualifier 57697 and a separate owner). The D4 wire
+    fields and the whole J1 trace were read from the committed objects at 25eede1b4.
+  - 0007 / 0008 remain unapplied and unqualified; no source-event activation.
+  - No full MB-05 PASS is claimed: this crossing plus native + integration acceptance are
+    still outstanding. The counts are reported as counts, never as delivered success.
+
+NO SCHEMA CHANGE NEEDED
+  The recorded outcome was already on the wire and the cursor already had a home in the
+  versioned checkpoint. No new DB field, table or outbox is required; nothing here infers
+  a Data approval from the immutability of the alert JSON.
+
+DO-NOT-DO (honoured)
+  No generic queue/drain framework was built — the fix is the existing producer cursor
+  correctly staying pending. No new public endpoint, no second retry owner, no new lease
+  manager, no Meri 0.3 protocol change. No staleness semantics were added on the Core side
+  and no unknown was silently dropped (J1). No recursive cleanup, worktree removal,
+  junction/directory deletion, baseline/cache cleanup, repair or install. Meri/source/
+  public/schema/Prisma/package/catalog files were not touched. All evidence, dependency
+  links and frozen heads preserved.

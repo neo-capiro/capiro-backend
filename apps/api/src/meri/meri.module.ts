@@ -1,3 +1,15 @@
+import { DefenseBudgetClientWatchModule } from '../defense-budget-client-watch/defense-budget-client-watch.module.js';
+import { DefenseBudgetWatchAdapter } from './watch-actions/defense-budget-watch.adapter.js';
+import { BizdevWatchAdapter } from './watch-actions/bizdev-watch.adapter.js';
+import { ClientWatchlistAdapter } from './watch-actions/client-watchlist.adapter.js';
+import { KeywordWatchAdapter } from './watch-actions/keyword-watch.adapter.js';
+import { LegislativeComparisonController } from './legislative-comparison.controller.js';
+import { ClientRecordActionController } from './client-record-action.controller.js';
+import { ClientRecordActionService } from './client-record-action.service.js';
+import { LegiwatchRelevanceController } from './legiwatch-relevance.controller.js';
+import { LegiwatchRelevanceActionService } from './legiwatch-relevance-action.service.js';
+import { LegiwatchReviewController } from './legiwatch-review.controller.js';
+import { LegiwatchReviewService } from './legiwatch-review.service.js';
 import { prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 import { Module } from '@nestjs/common';
 import { ManagedMcpModule } from './managed-mcp.module.js';
@@ -5,6 +17,7 @@ import { ConfigService } from '@nestjs/config';
 import { EngagementModule } from '../engagement/engagement.module.js';
 import { ClientDocumentsModule } from '../client-documents/client-documents.module.js';
 import { MeriJobDeliverablesController } from './meri-job-deliverables.controller.js';
+import { MeriCompletedReportsController } from './meri-completed-reports.controller.js';
 import { MeriJobDeliverablesService } from './meri-job-deliverables.service.js';
 import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module.js';
 // Phase 4 server-only slice: one-way import. BD exports the scope service;
@@ -63,7 +76,18 @@ import { MeriSkillsController } from './meri-skills.controller.js';
 import { MeriActionProposalController } from './meri-action-proposal.controller.js';
 import { MeriAnalysisArtifactController } from './meri-analysis-artifact.controller.js';
 import { MeriContextPacketController } from './meri-context-packet.controller.js';
+import { BizdevActionController } from './bizdev-action.controller.js';
+import { BizdevActionService } from './bizdev-action.service.js';
 import { MeriActionProposalService } from './meri-action-proposal.service.js';
+import { NoteActionController } from './note-action.controller.js';
+import { NoteActionService } from './note-action.service.js';
+import { LegiwatchActionController } from './legiwatch-action.controller.js';
+import { LegiwatchActionService } from './legiwatch-action.service.js';
+import { LegislativeDocumentActionController } from './legislative-document-action.controller.js';
+import { LegislativeDocumentActionService } from './legislative-document-action.service.js';
+import { WatchActionController } from './watch-actions/watch-action.controller.js';
+import { WatchActionService } from './watch-actions/watch-action.service.js';
+import { WatchActionRegistry } from './watch-actions/watch-action.registry.js';
 import { MeriPolicyPackService } from './meri-policy-pack.service.js';
 import { TenantCanariedMeriPolicyPackService } from './meri-policy-pack-rollout.service.js';
 import { MeriPolicyPackController } from './meri-policy-pack.controller.js';
@@ -96,6 +120,8 @@ import { MeriV3InternalServiceGuard } from './meri-v3-internal-service.guard.js'
 import { MeriV3ProxyService } from './meriv3-proxy.service.js';
 import { MeriConversationEvidenceService } from './meri-conversation-evidence.service.js';
 import { MeriChatAttachmentReadService } from './meri-chat-attachment-read.service.js';
+import { MeriChatAttachmentSourceService } from './meri-chat-attachment-source.js';
+import { MeriChatAttachmentSourceController } from './meri-chat-attachment-source.controller.js';
 import { MeriV3SettingsController } from './meriv3-settings.controller.js';
 import { MeriV3VisualAnalysisService } from './meri-v3-visual-analysis.service.js';
 import { MeriVNextLibraryController } from './meri-vnext-library.controller.js';
@@ -109,6 +135,10 @@ import { ApplicationAuthorityModule } from '../auth/application-authority.module
 import { ContextSecurityScopeModule } from '../context/context-security-scope.module.js';
 import { ConnectedAppReadService } from './connected-app-read.service.js';
 import { ConnectedAppReadController } from './connected-app-read.controller.js';
+import { SavedStrategyReadController } from './saved-strategy-read.controller.js';
+import { SavedStrategyReadService } from './saved-strategy-read.service.js';
+import { SavedRecordReadController } from './saved-record-read.controller.js';
+import { SavedRecordReadService } from './saved-record-read.service.js';
 import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-graph-sync.service.js';
 @Module({
   imports: [
@@ -144,9 +174,10 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     // Phase 4 server-only slice: provides BizDevMeriScopeService for Meri
     // prospect conversation creation (one-way; BD never imports Meri).
     BusinessDevelopmentModule,
+    DefenseBudgetClientWatchModule,
     DistrictNexusModule,
   ],
-  controllers: [
+  controllers: [MeriChatAttachmentSourceController, NoteActionController, LegislativeComparisonController, ClientRecordActionController,
     MeriRoutineReadController,
     ConversationManagementController,
     HearingMediaController,
@@ -155,6 +186,14 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     // Register the fixed signed callback before tools/:name in this module.
     MeriMemoryHelperController,
     ConnectedAppReadController,
+    SavedRecordReadController,
+    LegiwatchReviewController,
+    LegiwatchRelevanceController,
+    SavedStrategyReadController,
+    LegiwatchActionController,
+    BizdevActionController,
+    LegislativeDocumentActionController,
+    WatchActionController,
     MeriController,
     MeriSourceController,
     MeriSkillsController,
@@ -166,12 +205,27 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     MeriMcpOAuthController,
     MeriVNextLibraryController,
     MeriJobDeliverablesController,
+    MeriCompletedReportsController,
   ],
-  providers: [
+  providers: [ClientRecordActionService,
+    LegiwatchActionService,
+    LegislativeDocumentActionService,
+    WatchActionService,
+    WatchActionRegistry,
+    DefenseBudgetWatchAdapter,
+    BizdevWatchAdapter,
+    ClientWatchlistAdapter,
+    KeywordWatchAdapter,
+    NoteActionService,
     ConnectedAppReadService,
+    SavedRecordReadService,
+    LegiwatchReviewService,
+    LegiwatchRelevanceActionService,
+    SavedStrategyReadService,
     ToolServiceSecretGuard,
     AutomaticClientContextService,
     InternalServiceGuard,
+    BizdevActionService,
     { provide: ObjectiveJobReadSources, useFactory: (integrations: EngagementService, tools: MeriToolsService,
       portfolios: ResearchPortfoliosService, changes: ResearchPortfolioChangesService,
       reviews: ResearchPortfolioReviewService, analytics: ResearchPortfolioAnalyticsService, connected: ConnectedAppReadService,
@@ -187,6 +241,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
       inject: [PrismaService, MeriToolsService, GovernedMemoryCandidateService, ObjectiveJobReadSources] },
     MeriJobDeliverablesService,
     MeriChatAttachmentReadService,
+    MeriChatAttachmentSourceService,
     MeriSourceService,
     MeriContextPlaneService,
     MeriContextPlaneRuntimeService,

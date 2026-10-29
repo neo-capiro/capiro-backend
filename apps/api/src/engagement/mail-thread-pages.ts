@@ -1,3 +1,4 @@
+import { FORWARD_UNAVAILABLE } from './mail-forward-source.js';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
@@ -8,7 +9,7 @@ import { activeMailMessageWhere } from './mail-message-state.js';
 import { getMailSyncCoverage } from './mail-sync-coverage.js';
 import { createMailBodySection } from './mail-body-section.js';
 import { normalizeMailReadRecipients, mailReadClientAssociation, activeMailAssociationMessage } from './mail-query.js';
-import { prepareMailReply, REPLY_UNAVAILABLE, type MailReplyContext } from './single-mail-reply.js';
+import { prepareMailReply, prepareMailReplyAll, prepareMailForward, REPLY_UNAVAILABLE, type MailReplyContext } from './single-mail-reply.js';
 import { replySelfEmails } from './single-mail-authority.js';
 export { requireMailReadScope } from './engagement-access.helpers.js';
 
@@ -153,15 +154,22 @@ export async function readMailThreadPage(prisma: PrismaService, ctx: TenantConte
     const rows = await tx.mailMessage.findMany({ where, orderBy: chronologicalOrder,
       select: { ...messageSelect, ...(page.messageId ? { raw: true, source: true, externalId: true } as const : {}) },
       take: page.limit, skip: page.offset });
-    const messages = rows.map(message => ({ ...message, replyContext: undefined as MailReplyContext | undefined }));
+    const messages = rows.map(message => ({ ...message, replyContext: undefined as MailReplyContext | undefined, replyAllContext: undefined as MailReplyContext | undefined, forwardContext: undefined as MailReplyContext | undefined }));
     if (page.messageId) {
       for (const message of messages) {
         message.replyContext = { supported: false, reason: REPLY_UNAVAILABLE };
+        message.replyAllContext = { supported: false, reason: REPLY_UNAVAILABLE };
+        message.forwardContext = { supported: false, reason: FORWARD_UNAVAILABLE };
         const source = { ...message, source: message.source ?? '', externalId: message.externalId ?? '' };
         const candidate = prepareMailReply(source, thread, thread.connection, []);
         if (candidate) {
           try {
-            const reply = prepareMailReply(source, thread, thread.connection, await replySelfEmails(tx, ctx));
+            const selfEmails = await replySelfEmails(tx, ctx);
+            const reply = prepareMailReply(source, thread, thread.connection, selfEmails);
+            const replyAll = prepareMailReplyAll(source, thread, thread.connection, selfEmails);
+            const forward = prepareMailForward(source, thread, thread.connection, selfEmails);
+            if (forward) message.forwardContext = forward.context;
+            if (replyAll) message.replyAllContext = replyAll.context;
             if (reply) message.replyContext = reply.context;
           } catch (error) {
             // Eligibility is additive to the ordinary read. Only this bounded
@@ -209,8 +217,11 @@ export async function readMailThreadHttpPage(prisma: PrismaService, ctx: TenantC
     if (input.expectedBodySha256 !== undefined && input.expectedBodySha256 !== bodySha256) throw changed();
     const section = createMailBodySection(body, bodyOffset, maxCharacters);
     const { metadata, raw: _raw, source: _messageSource, externalId: _messageExternalId, ...fields } = message;
+    const provenance = metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {};
     return { ...fields, ...section, bodySha256,
       bodyStoredPresent: message.bodyText !== null,
+      folder: typeof provenance.folder === 'string' ? provenance.folder : null,
+      internetMessageId: typeof provenance.internetMessageId === 'string' ? provenance.internetMessageId : null,
       bodyCompleteness: metadata && typeof metadata === 'object' && !Array.isArray(metadata) &&
         typeof metadata.bodyCompleteness === 'string' && ['full', 'preview', 'truncated'].includes(metadata.bodyCompleteness)
         ? metadata.bodyCompleteness : 'unknown' };

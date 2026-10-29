@@ -1,3 +1,4 @@
+import { forwardedMessageHtml } from './mail-forward-source.js';
 import { assertSingleMailAuthority, assertSingleMailIntentReadAuthority, resolveSingleMailReply } from './single-mail-authority.js';
 import { REPLY_UNAVAILABLE, type PreparedMailReply } from './single-mail-reply.js';
 import { requireOwnerClient } from '../clients/client-ordered-owner.access.js';
@@ -18,6 +19,13 @@ import {
   assertProspectAttachmentAccess,
   assertProspectAttachmentInTx,
 } from './attachments/prospect-attachment-access.js';
+import {
+  readClientFileHistory,
+  CLIENT_FILE_HISTORY_IDENTITY_SELECT,
+  type ClientFileHistoryOwner,
+  type ClientFileHistoryPage,
+  type ClientFileHistoryRow,
+} from './attachments/client-file-history.js';
 import { clientAssociatedMeetingWhere } from './engagement-access.helpers.js';
 import {
   guardSyntheticDocumentDeletionInTx,
@@ -65,6 +73,7 @@ import {
   canEditEncryptedEntry,
   canReadEncryptedEntry,
   ownMailMessageWhere,
+  requireMailReadScope,
   ownMailThreadWhere,
   ownMeetingWhere,
   ownOutreachRecordWhere,
@@ -283,7 +292,8 @@ export interface SingleMailRecipientInput {
 }
 
 export interface SendSingleMailInput {
-  operation?: 'reply';
+  operation?: 'reply' | 'reply_all' | 'forward';
+  originalBodySha256?: string;
   originalMessageId?: string;
   originalUpdatedAt?: string;
   /** Stable per reviewed message, reused for lookup after timeout/reload. */
@@ -301,6 +311,17 @@ export interface SendSingleMailInput {
   appendSignature?: boolean;
   threadId?: string;
   attachmentIds?: string[];
+}
+
+/** Trusted internal caller only: no HTTP DTO accepts this approval or callback. */
+export interface NativeSingleMailAuthorization {
+  provenance: Record<string, unknown>;
+  authorize: (tx: Prisma.TransactionClient, payload: { attachments: Array<{ name: string; contentType: string; bytes: number; sha256: string }> }) => Promise<void>;
+}
+
+/** Internal incoming-file owner rechecks its selected original, with locks only at persistence. */
+export interface IncomingMailAttachmentWrite {
+  beforeWrite: (tx?: Prisma.TransactionClient) => Promise<void>;
 }
 
 /** Internal native filing boundary; the caller owns commit and durable receipt state. */
@@ -2630,7 +2651,9 @@ export class EngagementService {
               continue;
             }
           }
-          visiblePreps.push(prep);
+          // Response boundary: this receiver's prep lists are string[] — see
+          // projectMeetingPrepListItems.
+          visiblePreps.push(projectMeetingPrepListItems(prep));
         }
         return {
           ...row,
@@ -7560,15 +7583,17 @@ export class EngagementService {
     const accessibleRows = [];
     for (const row of rows) {
       try {
+        if (row.source === 'incoming_mail') await this.validateAttachmentParents(ctx, row);
         await assertHearingRecordDocumentAccess(this.prisma, ctx, row);
         await assertProspectAttachmentAccess(this.prisma, ctx, row);
         accessibleRows.push(row);
       } catch (error) {
+        if (row.source === 'incoming_mail' && error instanceof NotFoundException) continue;
         if (row.sourceEntityType !== 'hearing_record_brief' && !row.prospectId) throw error;
         // A removed private context must not leak its title or signed bytes.
       }
     }
-    return Promise.all(
+    const listed = await Promise.all(
       accessibleRows.map(async (row) => {
         // Phase 1 §3.h1 — no download URL for a file that may not be used, and an
         // explicit disclosure when it was never actually scanned. A signed URL for
@@ -7589,9 +7614,159 @@ export class EngagementService {
           ...(verdict.disclosure ? { scanDisclosure: verdict.disclosure } : {}),
         };
         await assertProspectAttachmentAccess(this.prisma, ctx, row);
+        if (row.source === 'incoming_mail') {
+          try {
+            await this.validateAttachmentParents(ctx, row);
+          } catch (error) {
+            // Current access can change while signing. Never release that row,
+            // but preserve unrelated documents and propagate operational errors.
+            if (error instanceof NotFoundException) return null;
+            throw error;
+          }
+        }
         return result;
       }),
     );
+    return listed.filter((row): row is NonNullable<typeof row> => row !== null);
+  }
+
+  /**
+   * MM-11 / WS-24 native file history, Core attachment slice: one bounded page of
+   * the immutable version chain that `supersedeAttachment` builds over an attachment
+   * instead of deleting it, anchored on an exact attachment id.
+   *
+   * Metadata plus a signed read for each released version. No byte is read by this path
+   * and no storage locator is ever exposed: a version carries the same kind of
+   * time-limited signed URL the attachment list already returns for a readable row,
+   * minted from THAT version's own stored key by the same owner and only when the
+   * readiness verdict says the version may be used — an unusable, quarantined, blocked or
+   * deleted version keeps the no-link state instead of a working URL. No write, no budget
+   * and no model/provider/indexing/extraction work happens here, the current-only
+   * predicate on the ordinary attachment list is not weakened, and the current version
+   * stays readable through the existing attachment reads. Every version is re-authorized
+   * for the CURRENT actor before anything is released — including the release-time
+   * recheck, which runs before any URL is minted — so an old allowed scope, a
+   * colleague-private mail version or a hidden/revoked member is never reachable through
+   * history. Because a signed URL is a bearer capability that outlives this call, the page
+   * is then rechecked a FINAL time AFTER every awaited signing call: current access through
+   * the canonical owner plus the version's own key/digest/ownership/chain-position and
+   * lifecycle/scan identity, both re-read from the store. Any drift there withholds the
+   * whole page instead of releasing a link the row no longer justifies.
+   */
+  async listAttachmentHistory(
+    ctx: TenantContext,
+    query: { attachmentId: string; cursor?: string; pageSize?: number },
+  ): Promise<ClientFileHistoryPage> {
+    const owner: ClientFileHistoryOwner = {
+      prisma: this.prisma,
+      authorize: (context, row) => this.authorizeAttachmentVersion(context, row),
+      readiness: (row) => this.attachmentContent.readiness(row, this.scanner.scanRequired),
+      uploaderNames: async (rows) => {
+        const ids = [
+          ...new Set(
+            rows.map((row) => row.uploadedByUserId).filter((id): id is string => Boolean(id)),
+          ),
+        ];
+        if (!ids.length) return new Map<string, string>();
+        const users = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+          tx.user.findMany({
+            where: { id: { in: ids } },
+            select: { id: true, firstName: true, lastName: true, email: true },
+          }),
+        );
+        const names = new Map<string, string>();
+        for (const user of users) {
+          const name = userDisplayName(user);
+          if (name) names.set(user.id, name);
+        }
+        return names;
+      },
+      // The SAME canonical signing owners the attachment list uses for a readable row,
+      // called with THIS version's own stored key: the history read hands back a read of
+      // the exact version the caller selected, and never a link to the head's object.
+      // They keep their own controls (null preview outside the inline allowlist, null when
+      // no bucket is configured).
+      links: async (row) => ({
+        downloadUrl: await this.createAttachmentDownloadUrl(row.s3Key),
+        previewUrl: await this.createAttachmentPreviewUrl(row.s3Key, row.contentType),
+      }),
+      // FINAL post-signing recheck for a released version: the same canonical current-access
+      // owner as `authorize` (so a revocation, a deletion, a client-file deletion and a
+      // prospect/scope/wall/hearing change refuse again here), then ONE narrow identity read of
+      // the durable row through the same tenant/viewer predicate. The helper compares that
+      // identity with the row it authorized and withholds the WHOLE page on any disagreement,
+      // so a URL minted a moment earlier is never released for a row whose key, digest,
+      // ownership, chain position or lifecycle/scan readiness moved while it was being signed.
+      // Nothing is repaired, rewritten or recomputed here.
+      recheck: async (row) => {
+        await this.authorizeAttachmentVersion(ctx, row);
+        return this.prisma.withTenant(ctx.tenantId, (tx) =>
+          tx.engagementAttachment.findFirst({
+            where: { id: row.id, tenantId: ctx.tenantId, OR: attachmentViewerWhere(ctx.userId) },
+            select: CLIENT_FILE_HISTORY_IDENTITY_SELECT,
+          }),
+        );
+      },
+    };
+    return readClientFileHistory(owner, ctx, query);
+  }
+
+  /**
+   * Current access for one history version, expressed only through the canonical
+   * owners the existing attachment list already uses: the Client Files viewer
+   * predicate applied to the exact row, the prospect scope owner, the mail/hearing
+   * parent checks and the hearing-record document authority. Nothing is re-derived
+   * from a weaker local heuristic.
+   *
+   * A superseded prospect version is read through `requireProspectScope` rather than
+   * `assertProspectAttachmentAccess`, whose read mode deliberately refuses any row
+   * that is no longer the current version: that predicate answers "may I use this
+   * file now", which a historical version can never satisfy, and it is not a
+   * statement about whether the actor may see that the version existed.
+   *
+   * That predicate carried a SECOND condition history must not drop: its read mode
+   * also refuses `lifecycleStatus` delete_pending/delete_failed, and the engagement
+   * list never releases the name, size or digest of a prospect file that is being
+   * deleted — or whose deletion failed and is still awaiting the retry sweep — as
+   * "a removed private context must not leak its title or signed bytes". Dropping
+   * that condition would publish exactly those rows through history. Suppression is
+   * therefore applied here with list parity, and it is decided from the row AS
+   * RE-READ, not from the chain snapshot, so it holds on both passes: a deletion
+   * that starts between the reconstruction and the release is refused by the same
+   * release-time recheck that already re-derives current access. Client-file rows
+   * are deliberately unaffected, exactly as in the list, whose prospect branch is
+   * the only one that conflates suppression with visibility.
+   */
+  private async authorizeAttachmentVersion(
+    ctx: TenantContext,
+    row: ClientFileHistoryRow,
+  ): Promise<void> {
+    const visible = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.engagementAttachment.findFirst({
+        where: { id: row.id, tenantId: ctx.tenantId, OR: attachmentViewerWhere(ctx.userId) },
+        select: { id: true, lifecycleStatus: true },
+      }),
+    );
+    if (!visible) throw new NotFoundException('Attachment not found');
+    if (row.prospectId) {
+      // Canonical prospect read-mode suppression (delete_pending / delete_failed),
+      // kept for the same reason the list keeps it: the actor holds current access to
+      // the row, but a removed private context must not surface through history. The
+      // history release path turns any refusal here into CLIENT_FILE_HISTORY_UNAVAILABLE,
+      // so the whole chain is withheld rather than partially released.
+      if (
+        visible.lifecycleStatus === 'delete_pending' ||
+        visible.lifecycleStatus === 'delete_failed'
+      ) {
+        throw new NotFoundException('Prospect resource not found');
+      }
+      await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        requireProspectScope(tx, ctx, row.prospectId as string),
+      );
+    } else if (row.source === 'incoming_mail') {
+      await this.validateAttachmentParents(ctx, row);
+    }
+    await assertHearingRecordDocumentAccess(this.prisma, ctx, row);
   }
 
   async extractAttachmentText(
@@ -7638,6 +7813,7 @@ export class EngagementService {
     await this.validateAttachmentParents(ctx, {
       clientId: attachment.clientId ?? undefined,
       meetingId: attachment.meetingId ?? undefined,
+      ...(attachment.source === 'incoming_mail' ? { source: attachment.source, mailMessageId: attachment.mailMessageId } : {}),
     });
 
     // Phase 1 §3.h1 — readiness gate BEFORE the bytes are read at all.
@@ -7646,6 +7822,7 @@ export class EngagementService {
 
     options.signal?.throwIfAborted();
     const bytes = await this.readAttachmentBytes(attachment.s3Key, options.signal);
+    if (attachment.source === 'incoming_mail') await this.validateAttachmentParents(ctx, attachment);
     options.signal?.throwIfAborted();
     const contentHash = this.attachmentContent.sha256(bytes);
     const contentType = attachment.contentType || 'application/octet-stream';
@@ -7913,6 +8090,7 @@ export class EngagementService {
     input: {
       clientId?: string | null;
       meetingId?: string | null;
+      mailMessageId?: string;
       fileName: string;
       contentType: string;
       buffer: Buffer;
@@ -7929,6 +8107,7 @@ export class EngagementService {
       privateToUploader?: boolean;
     },
     internal?: NativeClientDocumentWrite,
+    incomingMail?: IncomingMailAttachmentWrite,
   ): Promise<{
     id: string;
     fileName: string;
@@ -7938,6 +8117,13 @@ export class EngagementService {
     indexedAt?: Date | null;
     reused?: boolean;
   }> {
+    if (input.mailMessageId || incomingMail) {
+      if (!input.mailMessageId || !incomingMail || internal || input.meetingId ||
+          !input.idempotencyKey || input.source !== 'incoming_mail' || !input.privateToUploader || !input.untrustedUpload)
+        throw new BadRequestException('Incoming mail files require their current selected-message owner.');
+      input = { ...input, buffer: Buffer.from(input.buffer) };
+      await incomingMail.beforeWrite();
+    }
     if (internal) {
       if (!input.idempotencyKey || !/^[a-f0-9]{64}$/.test(internal.immutableObjectIdentity) ||
           !input.clientId || input.meetingId || input.privateToUploader || input.untrustedUpload !== true) {
@@ -7958,11 +8144,15 @@ export class EngagementService {
     else await this.validateAttachmentParents(ctx, {
         clientId: input.clientId ?? undefined,
         meetingId: input.meetingId ?? undefined,
+        mailMessageId: input.mailMessageId,
       });
     const inWriteTransaction = <T>(write: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> =>
-      internal ? write(internal.tx) : this.prisma.withTenant(ctx.tenantId, write);
+      internal ? write(internal.tx) : this.prisma.withTenant(ctx.tenantId, async tx => {
+        if (incomingMail) await incomingMail.beforeWrite(tx);
+        return write(tx);
+      });
     const byteHash = createHash('sha256').update(input.buffer).digest('hex');
-    if (internal && input.sourceContentHash != null && input.sourceContentHash !== byteHash) {
+    if ((internal || incomingMail) && input.sourceContentHash != null && input.sourceContentHash !== byteHash) {
       throw new BadRequestException('The original file digest does not match its approved source.');
     }
     const safeName = safeFileName(input.fileName);
@@ -7996,6 +8186,20 @@ export class EngagementService {
     const s3Key = stableId
       ? `tenants/${ctx.tenantId}/engagement/${stableId}/document`
       : `tenants/${ctx.tenantId}/engagement/${randomUUID()}/${safeName}`;
+    const assertIncomingReceipt = (row: {
+      tenantId: string; uploadedByUserId: string | null; clientId: string | null; mailMessageId: string | null;
+      source: string; sourceEntityId: string | null; sourceContentHash: string | null; calculatedSha256: string | null;
+      supersededByAttachmentId: string | null; viewerMode: string; viewerUserIds: string[]; byteSize: number | null;
+      fileName: string; contentType: string; bucket: string; s3Key: string; lifecycleStatus: string;
+    }) => {
+      if (incomingMail && (row.tenantId !== ctx.tenantId || row.uploadedByUserId !== ctx.userId ||
+          row.clientId !== (input.clientId ?? null) || row.mailMessageId !== input.mailMessageId || row.source !== 'incoming_mail' ||
+          row.sourceEntityId !== input.sourceEntityId || row.sourceContentHash !== byteHash || row.calculatedSha256 !== byteHash ||
+          row.supersededByAttachmentId || row.viewerMode !== 'restricted' || row.viewerUserIds.length !== 1 || row.viewerUserIds[0] !== ctx.userId ||
+          row.byteSize !== input.buffer.length || row.fileName !== input.fileName || row.contentType !== input.contentType ||
+          row.bucket !== this.bucket || row.s3Key !== s3Key || !['ready', 'legacy_ready', 'quarantined', 'blocked'].includes(row.lifecycleStatus)))
+        throw new ConflictException('The retained incoming file cannot be reused.');
+    };
     if (internal) {
       await internal.tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`capiro-client-document:${stableId}`}, 0))`);
       await internal.beforeWrite();
@@ -8015,6 +8219,7 @@ export class EngagementService {
         }),
       );
       if (existing) {
+        assertIncomingReceipt(existing);
         if (internal) {
           await internal.beforeWrite();
           if (existing.tenantId !== ctx.tenantId || existing.uploadedByUserId !== ctx.userId ||
@@ -8049,6 +8254,7 @@ export class EngagementService {
     }
     const checksum = Buffer.from(byteHash, 'hex').toString('base64');
     if (internal) await internal.beforeWrite();
+    if (incomingMail) await incomingMail.beforeWrite();
     try {
       await this.s3.send(
         new PutObjectCommand({
@@ -8056,27 +8262,30 @@ export class EngagementService {
           Key: s3Key,
           Body: input.buffer,
           ContentType: input.contentType,
-          ...(internal ? { IfNoneMatch: '*', ChecksumSHA256: checksum } : {}),
+          ...(internal || incomingMail ? { IfNoneMatch: '*', ChecksumSHA256: checksum } : {}),
         }),
       );
     } catch (error) {
       const precondition = error as { name?: string; $metadata?: { httpStatusCode?: number } };
-      if (!internal || (precondition?.$metadata?.httpStatusCode !== 412 && precondition?.name !== 'PreconditionFailed')) {
+      if ((!internal && !incomingMail) || (precondition?.$metadata?.httpStatusCode !== 412 && precondition?.name !== 'PreconditionFailed')) {
         throw error;
       }
-      await internal.beforeWrite();
+      if (internal) await internal.beforeWrite();
+      if (incomingMail) await incomingMail.beforeWrite();
       // A prior PUT may have succeeded before its database transaction failed.
       // Observe the exact object; missing/ambiguous HEAD never authorizes overwrite.
       const existingObject = await this.s3.send(new HeadObjectCommand({
         Bucket: this.bucket, Key: s3Key, ChecksumMode: 'ENABLED',
       }));
-      await internal.beforeWrite();
+      if (internal) await internal.beforeWrite();
+      if (incomingMail) await incomingMail.beforeWrite();
       if (existingObject.ContentLength !== input.buffer.byteLength ||
           existingObject.ChecksumSHA256 !== checksum || existingObject.ContentType !== input.contentType) {
         throw new ConflictException('The retained storage object does not match the original file.');
       }
     }
     if (internal) await internal.beforeWrite();
+    if (incomingMail) await incomingMail.beforeWrite();
     const initialScan = input.untrustedUpload
       ? await this.scanner.getStatus(this.bucket, s3Key)
       : null;
@@ -8098,6 +8307,7 @@ export class EngagementService {
           tenantId: ctx.tenantId,
           clientId,
           meetingId: input.meetingId ?? null,
+          ...(input.mailMessageId ? { mailMessageId: input.mailMessageId } : {}),
           fileName: input.fileName,
           contentType: input.contentType,
           byteSize: input.buffer.byteLength,
@@ -8143,7 +8353,7 @@ export class EngagementService {
           error instanceof Prisma.PrismaClientKnownRequestError &&
           error.code === 'P2002'
         ) {
-          const winner = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+          const winner = await inWriteTransaction((tx) =>
             tx.engagementAttachment.findFirst({
               where: {
                 id: stableId,
@@ -8157,6 +8367,7 @@ export class EngagementService {
         }
         throw error;
       });
+    assertIncomingReceipt(attachment);
     if (attachment.clientId && !input.privateToUploader && (!input.untrustedUpload || scanReady)) {
       const index = () => this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, attachment.id);
       if (internal) internal.afterCommit.push(index);
@@ -9033,6 +9244,7 @@ export class EngagementService {
   private async validateAttachmentParents(
     ctx: TenantContext,
     input: {
+      source?: string;
       prospectId?: string | null;
       clientId?: string | null;
       meetingId?: string | null;
@@ -9056,6 +9268,16 @@ export class EngagementService {
       }
       if (input.mailMessageId) {
         await this.ensureOwnMailMessage(tx, ctx, input.mailMessageId);
+      }
+      if (input.source === 'incoming_mail') {
+        if (!input.mailMessageId) throw new NotFoundException('Mail attachment not found');
+        await requireMailReadScope(tx, ctx, input.clientId ?? undefined);
+        const parent = await tx.mailMessage.findFirst({ where: { id: input.mailMessageId, tenantId: ctx.tenantId,
+          ...ownMailMessageWhere(ctx.userId), thread: ownMailThreadWhere(ctx.userId) },
+          select: { thread: { select: { clientId: true } } } });
+        if (!parent) throw new NotFoundException('Mail attachment not found');
+        if (parent.thread.clientId && parent.thread.clientId !== input.clientId)
+          await requireMailReadScope(tx, ctx, parent.thread.clientId);
       }
     });
   }
@@ -9211,10 +9433,10 @@ export class EngagementService {
     });
   }
 
-  async sendSingleMail(ctx: TenantContext, input: SendSingleMailInput) {
+  async sendSingleMail(ctx: TenantContext, input: SendSingleMailInput, native?: NativeSingleMailAuthorization) {
     const ledger = new SingleMailLedger(this.prisma);
     const requestKey = ledger.validateKey(input.requestKey);
-    const requestHash = singleMailHash(input);
+    const requestHash = singleMailHash(native ? { input, nativeApproval: native.provenance } : input);
     const existing = await ledger.read(ctx, requestKey);
     if (existing) {
       // Exact-key recovery reads current authority without preparing or claiming a new send.
@@ -9256,7 +9478,7 @@ export class EngagementService {
     const sender = mailboxSender(connection);
     let reply: PreparedMailReply | undefined;
     let replyRefusal: unknown;
-    if (input.operation || input.threadId || input.originalMessageId || input.originalUpdatedAt) {
+    if (input.operation || input.threadId || input.originalMessageId || input.originalUpdatedAt || input.originalBodySha256) {
       try {
         reply = await this.prisma.withTenant(ctx.tenantId, tx => resolveSingleMailReply(tx, ctx, input));
       } catch (error) {
@@ -9271,7 +9493,7 @@ export class EngagementService {
     // against the outbound allowlist (renderOutreachBody), then append the
     // (already-sanitized) signature — the result always sends as HTML.
     const body = appendOutreachSignature(
-      renderOutreachBody(trimTrailingEmptyHtml(input.bodyHtml)),
+      renderOutreachBody(trimTrailingEmptyHtml(input.bodyHtml) + (reply?.forward ? forwardedMessageHtml(reply.provider, reply.forward) : '')),
       signature.signatureHtml,
     );
     // Same resolver the campaign path uses (loadGraphAttachments): loads each
@@ -9284,7 +9506,7 @@ export class EngagementService {
       input.clientId ?? null,
     );
     const mailInput: EngagementSendMailInput = {
-      ...(reply ? { reply: reply.provider } : {}),
+      ...(reply?.forward ? { forward: { source: reply.provider, body: reply.forward } } : reply ? { reply: reply.provider, ...(reply.replyAll ? { replyAll: reply.replyAll } : {}) } : {}),
       subject: input.subject,
       body: body.content,
       bodyContentType: 'HTML',
@@ -9302,9 +9524,10 @@ export class EngagementService {
       requestKey: requestKey, requestHash, connectionId: connection.id,
       clientId: input.clientId ?? null,
       snapshot: {
+        ...(native ? { nativeApproval: native.provenance } : {}),
         senderConnectionId: connection.id, senderEmail: sender.email,
         ...(input.operation ? { operation: input.operation, originalMessageId: input.originalMessageId,
-          originalUpdatedAt: input.originalUpdatedAt, replyIdentity: reply?.provider ?? null } : {}),
+          originalUpdatedAt: input.originalUpdatedAt, originalBodySha256: input.originalBodySha256, replyIdentity: reply?.provider ?? null, ...(reply?.forward ? { forward: reply.forward } : {}), ...(reply?.replyAll ? { replyAll: reply.replyAll } : {}) } : {}),
         attachmentIds: input.attachmentIds ?? [],
         threadId: input.threadId ?? null, to: input.to, cc: input.cc ?? [], bcc: input.bcc ?? [],
         subject: input.subject, body: body.content, signaturePolicy: 'actor',
@@ -9329,7 +9552,7 @@ export class EngagementService {
             const currentReply = await resolveSingleMailReply(tx, ctx, input);
             if (JSON.stringify(currentReply) !== JSON.stringify(reply))
               throw new BadRequestException('This original changed. Review the original again.');
-          } else if (input.threadId || input.operation || input.originalMessageId || input.originalUpdatedAt) {
+          } else if (input.threadId || input.operation || input.originalMessageId || input.originalUpdatedAt || input.originalBodySha256) {
             throw new BadRequestException(REPLY_UNAVAILABLE);
           }
           await this.assertSingleMailAttachmentsInTx(ctx, input, tx);
@@ -9342,6 +9565,12 @@ export class EngagementService {
           // The callback runs before the pending-to-sending transition; a
           // committed rejectPending CAS is required before reporting certainty.
           assertMailPayloadSize(connection.provider, dispatchInput);
+          // The canonical approved caller holds its current decision/session locks
+          // through this same pending-to-sending commit, never through provider I/O.
+          if (native) await native.authorize(tx, { attachments: (attachments ?? []).map(a => {
+            const bytes = Buffer.from(a.contentBytes, 'base64');
+            return { name: a.name, contentType: a.contentType, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
+          }) });
         } catch (error) {
           if (
             error instanceof BadRequestException ||
@@ -9438,8 +9667,8 @@ export class EngagementService {
     const graphIdentity = input.threadId && reply?.provider.kind !== 'microsoft_graph' ? null : graphSendIdentity(sendResult);
     const makeReceipt = (threadId: string, messageId: string, confirmed = false) => ({
       ok: true as const, threadId, messageId, provider: providerSlug,
-      ...(reply ? { operation: 'reply', originalMessageId: reply.context.originalMessageId,
-        originalThreadId: input.threadId, originalUpdatedAt: reply.context.originalUpdatedAt } : {}),
+      ...(reply ? { operation: reply.context.operation, originalMessageId: reply.context.originalMessageId,
+        originalThreadId: input.threadId, originalUpdatedAt: reply.context.originalUpdatedAt, ...(reply.forward ? { originalBodySha256: reply.forward.bodySha256 } : {}) } : {}),
       senderConnectionId: connection.id, senderEmail: sender.email, senderName: sender.name,
       signaturePolicy: 'actor' as const, signatureAppended: Boolean(signature.signatureHtml),
       ...(graphIdentity ? { mailboxConfirmation: confirmed ? 'confirmed' : 'pending' } : {}),
@@ -10451,6 +10680,102 @@ function meetingInclude() {
       orderBy: [{ dueDate: 'asc' as const }, { createdAt: 'desc' as const }],
     },
   };
+}
+
+// The four prep list columns whose canonical item arms are "a plain string" or
+// "a structured { text, metadata arms } entry" — see projectMeetingPrepListItems.
+const PREP_LIST_FIELDS = ['agenda', 'talkingPoints', 'risks', 'followUps'] as const;
+
+/**
+ * Engagement-operation response boundary for the four prep list columns.
+ *
+ * The stored prep payload accepts three item arms: a plain string, a
+ * structured `{ text, ...provenance }` entry (factIds / evidenceReferences —
+ * the evidence-linked shape the canonical prep contract defines), or a titled
+ * item entry (`{ title, description }`, `{ title, dueDate, description }`). The
+ * engagement.meetings receiver types these four columns as `string[]`, so ONE
+ * structured entry used to fail the WHOLE array — and with it the whole view.
+ *
+ * Project the recognized text arm to its string here, where the response is
+ * built, so no producer changes what it stores and no receiver is widened:
+ * nothing is dropped, no stored JSON is rewritten, and an entry that is not
+ * recognized — no usable text, no valid metadata arm, or a column that is not a
+ * list — is passed through exactly as stored, so it still refuses at the
+ * receiver rather than being silently coerced into a passing response.
+ */
+function projectMeetingPrepListItems<T extends object>(prep: T): T {
+  const source = prep as {
+    agenda?: unknown;
+    talkingPoints?: unknown;
+    risks?: unknown;
+    followUps?: unknown;
+  };
+  const projected: Record<string, unknown> = { ...(source as Record<string, unknown>) };
+  let changed = false;
+  for (const field of PREP_LIST_FIELDS) {
+    const value = source[field];
+    if (!Array.isArray(value)) continue;
+    const items = value.map((entry) => prepListEntryText(entry) ?? entry);
+    if (items.some((entry, index) => entry !== value[index])) {
+      projected[field] = items;
+      changed = true;
+    }
+  }
+  return (changed ? projected : prep) as unknown as T;
+}
+
+/**
+ * The text of a recognized structured prep entry, or null when the entry is not
+ * one — the caller then keeps the original entry verbatim.
+ *
+ * Recognition mirrors the prep payload's structured arms instead of accepting
+ * any object that happens to carry text. There are two of them:
+ *
+ *   - the evidence-linked arm: a non-blank `text` AND at least one valid
+ *     metadata arm — `factIds` or `evidenceReferences` as an all-string array
+ *     (an empty array is still a valid arm, and either arm alone suffices
+ *     because the receiver's union accepts either); its list text is `text`;
+ *   - the titled item arm actually stored on preps — `{ title, description }`
+ *     and `{ title, dueDate, description }`, i.e. entries with NO `text` arm —
+ *     whose list text is `title`.
+ *
+ * A bare `{ text }`, a wrong-typed arm (`factIds: 'x'`, a non-string member), a
+ * blank title and every other shape stay unrecognized, so they keep refusing at
+ * the receiver instead of being displayed as text. Neither is an entry that
+ * carries a `text` arm rescued by a `title`: a wrong-typed or blank `text`, or
+ * a non-blank one without a valid metadata arm, keeps the same verbatim
+ * pass-through it had before the titled arm was recognized.
+ */
+function prepListEntryText(entry: unknown): string | null {
+  if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) return null;
+  const candidate = entry as {
+    text?: unknown;
+    title?: unknown;
+    factIds?: unknown;
+    evidenceReferences?: unknown;
+  };
+  const text = candidate.text;
+  if (text !== undefined) {
+    // An entry that carries a text arm is never rescued by a title: unless that
+    // text is non-blank AND carries a valid metadata arm, the entry is not
+    // recognized and keeps the receiver's verbatim refusal.
+    return typeof text === 'string' &&
+      text.trim() !== '' &&
+      (isStringArray(candidate.factIds) || isStringArray(candidate.evidenceReferences))
+      ? text
+      : null;
+  }
+  const title = candidate.title;
+  if (typeof title === 'string' && title.trim()) return title;
+  return null;
+}
+
+/**
+ * True for an array whose members are all strings — the metadata arms the
+ * canonical prep payload accepts (an empty array is still a valid arm).
+ */
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((member) => typeof member === 'string');
 }
 
 // isPlainTextAttachment / isDocxAttachment / isPdfAttachment / extractPdfBuffer

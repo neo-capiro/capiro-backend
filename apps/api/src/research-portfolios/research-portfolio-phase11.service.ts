@@ -35,7 +35,10 @@ import {
   loadAuthorizedResearchPortfolio as loadAuthorized,
 } from './research-portfolio-access.js';
 
+import { addResearchPortfolioReviewNote } from './research-portfolio-review-notes.js';
+
 import { ResearchPortfolioOutputService } from './research-portfolio-output.service.js';
+import { DefenseResearchService } from '../defense-research/defense-research.service.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -53,6 +56,7 @@ export class ResearchPortfolioPhase11Service {
   constructor(
     private readonly prisma: PrismaService,
     @Optional() private readonly outputs?: ResearchPortfolioOutputService,
+    @Optional() private readonly evidence?: DefenseResearchService,
   ) {}
 
   // --- Bookmarks ---
@@ -76,33 +80,141 @@ export class ResearchPortfolioPhase11Service {
     portfolioId: string,
     dto: CreateResearchPortfolioBookmarkDto,
   ): Promise<ResearchPortfolioBookmarkDto> {
-    if (!dto.targetKind || !dto.targetId)
-      throw new BadRequestException('Bookmark requires targetKind and targetId');
-    return this.prisma.withTenant(ctx.tenantId, async (tx: any) => {
-      await loadAuthorized(tx, ctx, portfolioId, 'viewer');
-      const existing = await tx.researchPortfolioBookmark.findFirst({
-        where: {
-          tenantId: ctx.tenantId,
-          portfolioId,
-          userId: ctx.userId,
-          targetKind: dto.targetKind,
-          targetId: dto.targetId,
-        },
+    const kinds = ['member', 'snapshot', 'evidence', 'review', 'import', 'output', 'other'];
+    const key = dto.idempotencyKey?.trim();
+    if (!kinds.includes(dto.targetKind) || !dto.targetId?.trim() || dto.targetId.length > 256)
+      throw new BadRequestException(
+        'Bookmark requires a supported target kind and bounded target ID',
+      );
+    if (!key || key.length > 128)
+      throw new BadRequestException('idempotencyKey must be between 1 and 128 characters');
+    if ((dto.label?.trim().length ?? 0) > 255 || (dto.note?.trim().length ?? 0) > 5000)
+      throw new BadRequestException('Bookmark label or note is too long');
+    const content = {
+      targetKind: dto.targetKind,
+      targetId: dto.targetId.trim(),
+      label: dto.label?.trim() || null,
+      note: dto.note?.trim() || null,
+    };
+    const requestHash = createHash('sha256')
+      .update(stableJson({ operation: 'bookmark.create', portfolioId, ...content }))
+      .digest('hex');
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await tx.$queryRaw(
+        Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${ctx.tenantId + ':portfolio-event:' + key}, 0))`,
+      );
+      await tx.$queryRaw(
+        Prisma.sql`SELECT id FROM research_portfolios WHERE id = ${portfolioId}::uuid AND tenant_id = ${ctx.tenantId}::uuid FOR UPDATE`,
+      );
+      const portfolio = await loadAuthorized(tx, ctx, portfolioId, 'viewer');
+      const replay = await tx.researchPortfolioEvent.findFirst({
+        where: { tenantId: ctx.tenantId, idempotencyKey: key },
       });
-      if (existing) return this.bookmarkDto(existing);
-      const row = await tx.researchPortfolioBookmark.create({
+      if (replay) {
+        if (
+          replay.portfolioId !== portfolioId ||
+          replay.actorUserId !== ctx.userId ||
+          replay.payloadFingerprint !== requestHash
+        )
+          throw new ConflictException('Bookmark idempotency key was used for different content');
+        const bookmark = await tx.researchPortfolioBookmark.findFirst({
+          where: {
+            tenantId: ctx.tenantId, portfolioId, userId: ctx.userId,
+            targetKind: content.targetKind, targetId: content.targetId,
+          },
+        });
+        if (!bookmark) throw new ConflictException('Bookmark receipt is no longer available');
+        return this.bookmarkDto(bookmark);
+      }
+      if (portfolio.lifecycle === 'archived')
+        throw new ConflictException('Archived portfolios are read-only');
+      await this.assertBookmarkTarget(tx, ctx, portfolioId, content.targetKind, content.targetId);
+      const where = {
+        tenantId: ctx.tenantId,
+        portfolioId,
+        userId: ctx.userId,
+        targetKind: content.targetKind,
+        targetId: content.targetId,
+      };
+      const existing = await tx.researchPortfolioBookmark.findFirst({ where });
+      if (existing && (existing.label !== content.label || existing.note !== content.note))
+        throw new ConflictException(
+          'Bookmark already exists with different content; update it explicitly',
+        );
+      const row =
+        existing ??
+        (await tx.researchPortfolioBookmark.create({
+          data: { tenantId: ctx.tenantId, portfolioId, userId: ctx.userId, ...content },
+        }));
+      await tx.researchPortfolioEvent.create({
         data: {
           tenantId: ctx.tenantId,
           portfolioId,
-          userId: ctx.userId,
-          targetKind: dto.targetKind,
-          targetId: dto.targetId,
-          label: dto.label?.trim() || null,
-          note: dto.note?.trim() || null,
+          eventKind: 'updated',
+          aggregateRevision: portfolio.revision,
+          actorUserId: ctx.userId,
+          idempotencyKey: key,
+          payloadFingerprint: requestHash,
+          // Shared history keeps aggregate results; personal identifiers stay in the owned bookmark.
+          payload: { operation: 'bookmark.create', created: !existing },
         },
       });
       return this.bookmarkDto(row);
     });
+  }
+
+  private async assertBookmarkTarget(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    portfolioId: string,
+    kind: string,
+    id: string,
+  ) {
+    const tenantId = ctx.tenantId;
+    if (kind === 'evidence') {
+      // Saved-comparison bookmarks carry captured lineage written by that owner.
+      // Reuse an owned selection; new selections go through its apply action.
+      if (id.startsWith('saved-comparison:')) {
+        const saved = await tx.researchPortfolioBookmark.findFirst({
+          where: {
+            tenantId,
+            portfolioId,
+            userId: ctx.userId,
+            targetKind: 'evidence',
+            targetId: id,
+          },
+        });
+        if (!saved)
+          throw new BadRequestException(
+            'Create this evidence bookmark through the saved comparison selection',
+          );
+        return;
+      }
+      const source = await this.evidence?.resolveEvidence(id);
+      if (!source || source.evidenceRefId !== id || source.availability === 'unavailable')
+        throw new NotFoundException('Bookmark evidence not found');
+      return;
+    }
+    if (kind === 'other')
+      throw new BadRequestException('This bookmark target has no supported canonical owner');
+    if (!UUID.test(id)) throw new NotFoundException('Bookmark target not found');
+    const where = { id, tenantId, portfolioId };
+    const target =
+      kind === 'member'
+        ? await tx.researchPortfolioMember.findFirst({ where, select: { id: true } })
+        : kind === 'snapshot'
+          ? await tx.researchPortfolioSnapshot.findFirst({ where, select: { id: true } })
+          : kind === 'review'
+            ? await tx.researchPortfolioReview.findFirst({ where, select: { id: true } })
+            : kind === 'import'
+              ? await tx.researchPortfolioImportJob.findFirst({ where, select: { id: true } })
+              : kind === 'output'
+                ? await tx.researchPortfolioOutputArtifact.findFirst({
+                    where,
+                    select: { id: true },
+                  })
+                : null;
+    if (!target) throw new NotFoundException('Bookmark target not found');
   }
 
   async updateBookmark(
@@ -113,7 +225,9 @@ export class ResearchPortfolioPhase11Service {
   ): Promise<ResearchPortfolioBookmarkDto> {
     if (!UUID.test(bookmarkId)) throw new NotFoundException('Bookmark not found');
     return this.prisma.withTenant(ctx.tenantId, async (tx: any) => {
-      await loadAuthorized(tx, ctx, portfolioId, 'viewer');
+      const portfolio = await loadAuthorized(tx, ctx, portfolioId, 'viewer');
+      if (portfolio.lifecycle === 'archived')
+        throw new ConflictException('Archived portfolios are read-only');
       const existing = await tx.researchPortfolioBookmark.findFirst({
         where: { id: bookmarkId, tenantId: ctx.tenantId, portfolioId, userId: ctx.userId },
       });
@@ -132,7 +246,9 @@ export class ResearchPortfolioPhase11Service {
   async deleteBookmark(ctx: TenantContext, portfolioId: string, bookmarkId: string): Promise<void> {
     if (!UUID.test(bookmarkId)) throw new NotFoundException('Bookmark not found');
     await this.prisma.withTenant(ctx.tenantId, async (tx: any) => {
-      await loadAuthorized(tx, ctx, portfolioId, 'viewer');
+      const portfolio = await loadAuthorized(tx, ctx, portfolioId, 'viewer');
+      if (portfolio.lifecycle === 'archived')
+        throw new ConflictException('Archived portfolios are read-only');
       const existing = await tx.researchPortfolioBookmark.findFirst({
         where: { id: bookmarkId, tenantId: ctx.tenantId, portfolioId, userId: ctx.userId },
       });
@@ -143,6 +259,33 @@ export class ResearchPortfolioPhase11Service {
 
   // --- Review notes ---
 
+  async listReviewNotes(
+    ctx: TenantContext,
+    portfolioId: string,
+    reviewId: string,
+  ): Promise<readonly ResearchPortfolioReviewNoteDto[]> {
+    if (!UUID.test(reviewId)) throw new NotFoundException('Review not found');
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await loadAuthorized(tx, ctx, portfolioId, 'viewer');
+      const review = await tx.researchPortfolioReview.findFirst({
+        where: { id: reviewId, tenantId: ctx.tenantId, portfolioId },
+        select: { id: true },
+      });
+      if (!review) throw new NotFoundException('Review not found');
+      const rows = await tx.researchPortfolioReviewNote.findMany({
+        where: { tenantId: ctx.tenantId, portfolioId, reviewId },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      });
+      return rows.map((note) => ({
+        id: note.id,
+        reviewId: note.reviewId,
+        authorUserId: note.authorUserId,
+        body: note.body,
+        createdAt: asIso(note.createdAt),
+      }));
+    });
+  }
+
   async addReviewNote(
     ctx: TenantContext,
     portfolioId: string,
@@ -150,26 +293,8 @@ export class ResearchPortfolioPhase11Service {
     dto: CreateResearchPortfolioReviewNoteDto,
   ): Promise<ResearchPortfolioReviewNoteDto> {
     if (!UUID.test(reviewId)) throw new NotFoundException('Review not found');
-    const body = dto.body?.trim();
-    if (!body) throw new BadRequestException('Note body must not be empty');
-    return this.prisma.withTenant(ctx.tenantId, async (tx: any) => {
-      await loadAuthorized(tx, ctx, portfolioId, 'viewer');
-      const review = await tx.researchPortfolioReview.findFirst({
-        where: { tenantId: ctx.tenantId, id: reviewId, portfolioId },
-      });
-      if (!review) throw new NotFoundException('Review not found');
-      if (review.revision !== dto.expectedRevision) {
-        throw new ConflictException('Review revision mismatch');
-      }
-      const note = await tx.researchPortfolioReviewNote.create({
-        data: {
-          tenantId: ctx.tenantId,
-          portfolioId,
-          reviewId,
-          authorUserId: ctx.userId,
-          body,
-        },
-      });
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const { note } = await addResearchPortfolioReviewNote(tx, ctx, portfolioId, reviewId, dto);
       return {
         id: note.id,
         reviewId: note.reviewId,
@@ -1047,6 +1172,10 @@ export class ResearchPortfolioPhase11Service {
     tourVersion: string,
     status: 'dismissed' | 'completed',
   ): Promise<ResearchPortfolioTourStateDto> {
+    if (!['dismissed', 'completed'].includes(status))
+      throw new BadRequestException('Tour status must be dismissed or completed');
+    if (!tourVersion?.trim() || tourVersion.length > 64)
+      throw new BadRequestException('Tour version must be between 1 and 64 characters');
     return this.prisma.withTenant(ctx.tenantId, async (tx: any) => {
       const existing = await tx.researchPortfolioTourState.findFirst({
         where: { tenantId: ctx.tenantId, userId: ctx.userId, tourVersion },

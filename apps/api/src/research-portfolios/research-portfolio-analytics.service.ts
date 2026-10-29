@@ -101,16 +101,19 @@ export class ResearchPortfolioAnalyticsService {
     if (!name || name.length > 200) throw new BadRequestException('Snapshot name must be between 1 and 200 characters');
     if (!input.operationKey || input.operationKey.length > 128) throw new BadRequestException('operationKey must be between 1 and 128 characters');
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await tx.$queryRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${ctx.tenantId + ':snapshot:' + input.operationKey}, 0))`);
+      await tx.$queryRaw(Prisma.sql`SELECT id FROM research_portfolios WHERE id = ${portfolioId}::uuid AND tenant_id = ${ctx.tenantId}::uuid FOR UPDATE`);
       const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'editor');
       const replay = await tx.researchPortfolioSnapshot.findUnique({
         where: { tenantId_operationKey: { tenantId: ctx.tenantId, operationKey: input.operationKey } },
       });
       if (replay) {
-        if (replay.portfolioId !== portfolioId || replay.name !== name || replay.portfolioRevision !== input.expectedRevision) {
+        if (replay.createdByUserId !== ctx.userId || replay.portfolioId !== portfolioId || replay.name !== name || replay.portfolioRevision !== input.expectedRevision || hash(replay.basis) !== hash(input.basis ?? {})) {
           throw new ConflictException('This snapshot operation key was used for different content');
         }
         return this.snapshotDto(replay);
       }
+      if (portfolio.lifecycle === 'archived') throw new ConflictException('Archived portfolios are read-only');
       if (portfolio.revision !== input.expectedRevision) throw new ConflictException('Research portfolio revision is stale');
       const [members, rules, decisions] = await Promise.all([
         tx.researchPortfolioMember.findMany({ where: { tenantId: ctx.tenantId, portfolioId }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }),
@@ -133,7 +136,7 @@ export class ResearchPortfolioAnalyticsService {
         basis,
         membership,
         projection,
-        structureVersions: { portfolioRevision: portfolio.revision, memberRevisions: membership.map(({ id, revision }) => ({ id, revision })) },
+        structureVersions: { portfolioName: portfolio.name, portfolioPurpose: portfolio.purpose ?? null, portfolioRevision: portfolio.revision, memberRevisions: membership.map(({ id, revision }) => ({ id, revision })) },
         ruleVersions,
         decisionVersions,
         templateVersions,

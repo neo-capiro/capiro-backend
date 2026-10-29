@@ -174,6 +174,19 @@ export const configSchema = z.object({
   DEBRIEF_OPENAI_MODEL: z.string().default('gpt-6-astra').transform(upgradeTextModel),
   DEBRIEF_ANTHROPIC_MODEL: z.string().default('claude-sonnet-5').transform(upgradeTextModel),
 
+  // Meri note-taker preview transport: meeting prep, debrief and the notes summary
+  // the notetaker saves are generated through the OpenAI Agents SDK (@openai/agents)
+  // instead of the raw Responses transport. Off by default so ordinary environments
+  // keep today's behavior; a preview environment sets the literal 'true'. The key is
+  // the existing OPENAI_API_KEY (AWS Secrets Manager → task env) or a tenant BYOK
+  // OpenAI credential resolved by AiCredentialResolverService.
+  MEETING_ARTIFACT_AGENT_SDK: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
+  // Optional Agents SDK model override; unset keeps the credential's resolved model.
+  MEETING_ARTIFACT_AGENT_MODEL: z.string().optional(),
+
   // Comprehensive meeting-prep model overrides (scoped to the durable briefing
   // job ONLY; the interactive prep, talking points and outreach keep reading
   // OPENAI_MODEL / ANTHROPIC_MODEL). Extracting, synthesizing and reviewing
@@ -649,6 +662,14 @@ export const configSchema = z.object({
   OAUTH_TOKEN_ENCRYPTION_KEY: z.string().optional(),
   OAUTH_TOKEN_ENCRYPTION_KEY_VERSION: z.string().default('v1'),
 
+  // Optional bounded rotation window for OAuth token decryption: the ONE previous key
+  // plus the version that key was written under. TokenCryptoService selects the key
+  // named by a token row's persisted keyVersion, so this pair only has to cover rows
+  // written before the rotation. Set both or neither; the previous version must differ
+  // from the active one. Remove both once every row carries the active version.
+  OAUTH_TOKEN_ENCRYPTION_PREVIOUS_KEY: z.string().optional(),
+  OAUTH_TOKEN_ENCRYPTION_PREVIOUS_KEY_VERSION: z.string().optional(),
+
   // 32-byte base64 or hex key for AES-256-GCM at-rest encryption of
   // per-tenant AI provider keys (tenant_ai_credentials). Dedicated key —
   // do not reuse the notes/OAuth keys, so a compromise stays contained.
@@ -1058,6 +1079,8 @@ export const configSchema = z.object({
   // Internal Workspace owner, authenticated by the existing service secret.
   // Absence fails closed before any provider call.
   WORKSPACE_API_BASE_URL: z.string().url().optional(),
+  // Trusted Strategy owner for original-user saved reads; absent configuration refuses.
+  STRATEGY_API_BASE_URL: z.string().url().optional(),
   // Newsletter comment emails are dormant until both newsletter migrations
   // and the verified SES sender are configured in this environment.
   NEWSLETTER_REVIEW_EMAIL_ENABLED: z
@@ -1116,8 +1139,10 @@ export const configSchema = z.object({
   // 'disabled' = none (shadow). 'test_only' = only outreach_test_send with
   // testMode=true. 'integrations_only' permits the bounded Mail integration
   // actions but denies Mail/Engagement sends, including V3, and its workers.
+  // 'integrations_and_notetaker' adds explicitly owned Recall capture/debriefs,
+  // their existing attachment-write/credential dependencies, and no sends or generic workers.
   ENGAGEMENT_EXTERNAL_ACTIONS: z
-    .enum(['disabled', 'test_only', 'enabled', 'integrations_only'])
+    .enum(['disabled', 'test_only', 'enabled', 'integrations_only', 'integrations_and_notetaker'])
     .default('enabled'),
 
   // OAuth callbacks and Microsoft notifications. Uses the string-allowlist
@@ -1206,7 +1231,8 @@ export function validateConfig(raw: Record<string, unknown>): AppConfig {
   // codebase's own precedent (four other cross-field checks in this function)
   // is to keep the schema authoritative on its own, never relying solely on a
   // sibling module to catch a bad combination.
-  if (parsed.ENGAGEMENT_EXTERNAL_ACTIONS === 'integrations_only') {
+  if (parsed.ENGAGEMENT_EXTERNAL_ACTIONS === 'integrations_only' ||
+    parsed.ENGAGEMENT_EXTERNAL_ACTIONS === 'integrations_and_notetaker') {
     // Share the bounded posture check with both bootstrap preflights. Use raw
     // inputs so malformed booleans cannot be hidden by schema transforms.
     resolveEngagementRuntimeEnvironment(raw);

@@ -355,6 +355,14 @@
                   "hasMore"
                 ],
                 "additionalProperties": false
+              },
+              "nativeActions": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 3,
+                "items": {
+                  "$ref": "#/$defs/MailNativeAction"
+                }
               }
             },
             "required": [
@@ -1275,6 +1283,108 @@
         "nextOffset",
         "threadGroups",
         "returnedThreadGroupCount"
+      ],
+      "additionalProperties": false
+    },
+    "MailNativeAction": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "enum": [
+            "reply",
+            "reply_all",
+            "forward"
+          ]
+        },
+        "senderConnectionId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "senderEmail": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 254,
+          "pattern": "^[a-z0-9.!#$%&\\x27*+\\-/=?^_`{|}~]+@[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\\.[a-z]{2,}$"
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300,
+          "pattern": "^[^\\r\\n]+$"
+        },
+        "to": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 254,
+            "pattern": "^[a-z0-9.!#$%&\\x27*+\\-/=?^_`{|}~]+@[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\\.[a-z]{2,}$"
+          },
+          "minItems": 0,
+          "maxItems": 50,
+          "uniqueItems": true
+        },
+        "cc": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 254,
+            "pattern": "^[a-z0-9.!#$%&\\x27*+\\-/=?^_`{|}~]+@[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\\.[a-z]{2,}$"
+          },
+          "maxItems": 10,
+          "uniqueItems": true
+        },
+        "original": {
+          "type": "object",
+          "properties": {
+            "threadId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "messageId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "updatedAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+            },
+            "bodySha256": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              ]
+            }
+          },
+          "required": [
+            "threadId",
+            "messageId",
+            "updatedAt",
+            "bodySha256"
+          ],
+          "additionalProperties": false
+        },
+        "originalBodyText": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 6000
+        }
+      },
+      "required": [
+        "mode",
+        "senderConnectionId",
+        "senderEmail",
+        "subject",
+        "to",
+        "cc",
+        "original"
       ],
       "additionalProperties": false
     }

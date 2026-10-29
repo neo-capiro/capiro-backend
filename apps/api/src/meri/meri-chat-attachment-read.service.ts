@@ -264,6 +264,19 @@ function parseInput(raw: Record<string, unknown>): ParsedInput {
 export class MeriChatAttachmentReadService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** The native adapter observes this owner; the current-turn scope remains server-established. */
+  async observeSource(ctx: TenantContext, conversationId: string) {
+    assertMeriToolRequestActive();
+    const source = await this.authorizeConversation(ctx, conversationId);
+    return { conversationId: source.id, clientId: source.clientId, conversationVersion: source.version };
+  }
+
+  private observationTime(): string {
+    const observation = currentMeriChatAttachmentReadScope()?.sourceObservation;
+    if (observation && observation.expiresAtMs <= Date.now()) throw new BadRequestException('Attachment observation expired');
+    return observation?.asOf ?? new Date().toISOString();
+  }
+
   async read(ctx: TenantContext, rawInput: Record<string, unknown>) {
     assertMeriToolRequestActive();
     const input = parseInput(rawInput);
@@ -298,6 +311,9 @@ export class MeriChatAttachmentReadService {
       });
       if (!conversation || conversation.clientId !== served.selectedClientId)
         throw new NotFoundException('Chat attachment scope is unavailable');
+      if (served.sourceObservation && (served.sourceObservation.expiresAtMs <= Date.now() ||
+          served.sourceObservation.conversationVersion !== conversation.updatedAt.toISOString()))
+        throw new BadRequestException('Chat attachment source changed; restart the read');
       if (
         conversation.clientId &&
         !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, conversation.clientId))
@@ -545,7 +561,7 @@ export class MeriChatAttachmentReadService {
       tool: 'read_chat_attachments',
       authoritativeOwner: 'clio_chat_attachment',
       currentStatus: 'available',
-      generatedAt: new Date().toISOString(),
+      generatedAt: this.observationTime(),
       conversationId: conversation.id,
       clientId: conversation.clientId,
       coverage: {
@@ -654,7 +670,7 @@ export class MeriChatAttachmentReadService {
       tool: 'read_chat_attachments',
       authoritativeOwner: 'clio_chat_attachment',
       currentStatus: 'available',
-      generatedAt: new Date().toISOString(),
+      generatedAt: this.observationTime(),
       conversationId: conversation.id,
       clientId: conversation.clientId,
       source: {

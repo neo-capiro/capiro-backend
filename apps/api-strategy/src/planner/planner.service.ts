@@ -1024,6 +1024,32 @@ export class PlannerService {
       };
     });
   }
+  /** Bounded owner read; callers also authorize the selected Core client. */
+  async savedProjects(ctx: AuthTenantContext, query: { clientId: string; cursor?: string; archived?: string }) {
+    uuid(query.clientId);
+    if (query.cursor) uuid(query.cursor);
+    return this.scope(ctx, async tx => {
+      const rows = await tx.$queryRaw<SpPlannerProject[]>`
+        SELECT id,tenant_id AS "tenantId",owner_id AS "ownerId",data,version,archived,
+          created_at AS "createdAt",updated_at AS "updatedAt" FROM sp_planner_projects
+        WHERE tenant_id=${ctx.tenantId}::uuid AND archived=${query.archived === 'true'}
+          AND lower(data->>'clientId')=${query.clientId.toLowerCase()}
+          AND (owner_id=${ctx.clerkUserId} OR data->>'privacy'='team'
+            OR data->'members' @> ${JSON.stringify([{ userId: ctx.clerkUserId }])}::jsonb)
+          AND (${query.cursor ?? null}::uuid IS NULL OR id>${query.cursor ?? null}::uuid)
+        ORDER BY id ASC LIMIT 101`;
+      return { items: rows.slice(0, 100).map(row => this.projectView(row, ctx)),
+        nextCursor: rows.length > 100 ? rows[99]!.id : null };
+    });
+  }
+  async savedProject(ctx: AuthTenantContext, id: string) {
+    uuid(id);
+    return this.scope(ctx, async tx => {
+      const row = await tx.spPlannerProject.findFirst({ where: { tenantId: ctx.tenantId, id } });
+      if (!row) throw missing();
+      return this.projectView(row, ctx);
+    });
+  }
   async saveProject(
     ctx: AuthTenantContext,
     id: string | null,
@@ -1263,9 +1289,11 @@ export class PlannerService {
       search?: string;
       archived?: string;
       parentId?: string;
+      clientId?: string;
     },
   ) {
     if (query.projectId) uuid(query.projectId);
+    if (query.clientId) uuid(query.clientId);
     if (query.parentId) uuid(query.parentId);
     if (query.cursor) uuid(query.cursor);
     if ((query.search?.length ?? 0) > 200) fail('Search is too long');
@@ -1292,7 +1320,23 @@ export class PlannerService {
         ],
         ...(query.cursor ? { id: { gt: query.cursor } } : {}),
       };
-      const rows = await tx.spPlannerTask.findMany({ where, orderBy: { id: 'asc' }, take: 101 });
+      const rows = query.clientId ? await tx.$queryRaw<SpPlannerTask[]>`
+        SELECT id,tenant_id AS "tenantId",owner_id AS "ownerId",assignee_id AS "assigneeId",
+          parent_id AS "parentId",project_ids AS "projectIds",data,version,archived,
+          completed_at AS "completedAt",created_at AS "createdAt",updated_at AS "updatedAt"
+        FROM sp_planner_tasks WHERE tenant_id=${ctx.tenantId}::uuid
+          AND archived=${query.archived === 'true'} AND lower(data->>'clientId')=${query.clientId.toLowerCase()}
+          AND (${query.cursor ?? null}::uuid IS NULL OR id>${query.cursor ?? null}::uuid)
+          AND (${query.projectId ?? null}::uuid IS NULL OR ${query.projectId ?? null}::uuid=ANY(project_ids))
+          AND (${query.parentId ?? null}::uuid IS NULL OR parent_id=${query.parentId ?? null}::uuid)
+          AND (${query.mine !== 'true'} OR assignee_id=${ctx.clerkUserId})
+          AND (${!query.search} OR strpos(data->>'name',${query.search ?? ''})>0)
+          AND (project_ids && ${visible.map(p => p.id)}::uuid[]
+            OR (cardinality(project_ids)=0 AND owner_id=${ctx.clerkUserId})
+            OR assignee_id=${ctx.clerkUserId}
+            OR data->'collaborators' @> ${JSON.stringify([ctx.clerkUserId])}::jsonb)
+        ORDER BY id ASC LIMIT 101`
+        : await tx.spPlannerTask.findMany({ where, orderBy: { id: 'asc' }, take: 101 });
       const selected = rows.slice(0, 100);
       const minutes = await plannerActualMinutes(
         tx,

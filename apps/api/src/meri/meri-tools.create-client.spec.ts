@@ -202,6 +202,48 @@ describe('create_client tool', () => {
     expect(ldaFindMany).not.toHaveBeenCalled();
   });
 
+  it('records per-field source provenance in intakeData.__webImport beside the create record', async () => {
+    const { createClient, create } = makeService({});
+    const out = await createClient(CTX, {
+      name: 'Converge Medical Technology',
+      website: 'https://convergemedical.example',
+      skipLdaCheck: true,
+      provenance: {
+        website: { sourceUrl: 'https://convergemedical.example/about', confidence: 'high' },
+      },
+    });
+    expect(out.created).toBe(true);
+    const input = create.mock.calls[0]![1] as Record<string, unknown>;
+    const intake = input.intakeData as Record<string, unknown>;
+    // The existing create record is retained unchanged.
+    expect((intake.__meriCreate as Record<string, unknown>).createdVia).toBe('meri.create_client');
+    // The same { updatedAt, fields } shape update_client_profile already writes.
+    const imported = intake.__webImport as { updatedAt: string; fields: Record<string, unknown> };
+    expect(Object.keys(imported)).toEqual(['updatedAt', 'fields']);
+    expect(imported.fields).toEqual({
+      website: { sourceUrl: 'https://convergemedical.example/about', confidence: 'high' },
+    });
+    expect(Number.isNaN(Date.parse(imported.updatedAt))).toBe(false);
+  });
+
+  it('drops provenance naming a field the create did not write, and writes none without provenance', async () => {
+    const sourced = makeService({});
+    await sourced.createClient(CTX, {
+      name: 'Converge Medical Technology',
+      skipLdaCheck: true,
+      provenance: { website: { sourceUrl: 'https://convergemedical.example', confidence: 'low' } },
+    });
+    const unwritten = sourced.create.mock.calls[0]![1] as Record<string, unknown>;
+    expect(unwritten.intakeData).not.toHaveProperty('__webImport');
+    expect(unwritten.intakeData).toHaveProperty('__meriCreate');
+
+    const plain = makeService({});
+    await plain.createClient(CTX, { name: 'Converge Medical Technology', skipLdaCheck: true });
+    const withoutProvenance = plain.create.mock.calls[0]![1] as Record<string, unknown>;
+    expect(withoutProvenance.intakeData).not.toHaveProperty('__webImport');
+    expect(withoutProvenance.intakeData).toHaveProperty('__meriCreate');
+  });
+
   it('uses a confirmed ldaClientId (accepting a stringified id) and seeds the link', async () => {
     const { createClient, create, ldaFindUnique } = makeService({ ldaById: ldaRow() });
     const out = await createClient(CTX, { name: 'Olivet University', ldaClientId: '12345' });

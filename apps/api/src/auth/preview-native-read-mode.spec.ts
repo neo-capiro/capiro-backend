@@ -50,6 +50,29 @@ describe('preview native memory route predicate', () => {
   });
 });
 
+describe('completed report native read classification', () => {
+  it.each([
+    '/api/clio/completed-reports',
+    '/api/clio/completed-reports?limit=10',
+    '/api/clio/completed-reports/11111111-1111-4111-8111-111111111111',
+    '/API/CLIO/COMPLETED-REPORTS/',
+    '/api/clio/completed-reports/not-a-uuid',
+  ])('keeps the completed-reports handler %s on read-only admission', (target) => {
+    for (const method of ['GET', 'HEAD']) {
+      const path = target.split('?')[0]!;
+      expect(isPreviewNativeReadRoute(request(method, path, target))).toBe(true);
+      expect(isPreviewNativeReadRoute(request(method, path, `http://first-chat-preview.app-dev.capiro.ai${target}`))).toBe(true);
+    }
+  });
+  it.each([
+    ['POST', '/api/clio/completed-reports'], ['PUT', '/api/clio/completed-reports/id'],
+    ['DELETE', '/api/clio/completed-reports/id'], ['GET', '/api/clio/completed-reports/id/export'],
+    ['GET', '/api/clio/completed-reports-extra'], ['GET', '/api/clio/research'],
+  ])('does not allocate another completed-reports route %s %s', (method, path) => {
+    expect(isPreviewNativeReadRoute(request(method, path))).toBe(false);
+  });
+});
+
 describe('first-chat client records exact native admission', () => {
   const host = 'first-chat-preview.app-dev.capiro.ai';
   const id = '11111111-1111-4111-8111-111111111111';

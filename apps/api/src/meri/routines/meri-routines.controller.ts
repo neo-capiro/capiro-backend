@@ -24,11 +24,32 @@ import { createCoreKmsSigner, readCoreEd25519KeyConfig, type CoreEd25519Purpose 
 export class MeriRoutinesController {
   constructor(private readonly routines: MeriRoutinesService) {}
 
+  @Post('management/current')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  managementCurrent(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
+    return this.routines.managementCurrent(req, ctx, body);
+  }
+
+  @Post('management/policy/check')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  managementPolicyCheck(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
+    return this.routines.managementPolicyCheck(req, ctx, body);
+  }
+
   @Post('policy/check')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
   policyCheck(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
     return this.routines.policyCheck(req, ctx, body);
+  }
+
+  @Post('consent/renew')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  consentRenew(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
+    return this.routines.consentRenew(req, ctx, body);
   }
 
   @Post('cancellation-proof')
@@ -68,6 +89,11 @@ export class MeriRoutineReadController {
   current(@Body() body: unknown, @Req() req: Request) { return this.routines.current(body, req); }
   @Post('reads') @HttpCode(200) @Header('Cache-Control', 'no-store')
   read(@Body() body: unknown, @Req() req: Request) { return this.routines.read(body, req, this.reads); }
+  @Post('consent') @HttpCode(200) @Header('Cache-Control', 'no-store')
+  consent(@Body() body: unknown, @Req() req: Request) { return this.routines.consentObservation(body, req); }
+  /** MB-05: the watch producer's canonical custody read for one claimed source event. */
+  @Post('source-events/current') @HttpCode(200) @Header('Cache-Control', 'no-store')
+  sourceEventCurrent(@Body() body: unknown, @Req() req: Request) { return this.routines.sourceEventCurrent(req, body); }
 }
 
 /** One KMS Ed25519 signer per purpose, from its `<PURPOSE>_*` configuration; null (503) when absent or invalid. */

@@ -104,6 +104,11 @@ export class FirstChatPreviewEdgeStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'StrategyMeriControlEnvironment', {
       value: this.toJsonString(MERI_PREVIEW_CONTROL_ENVIRONMENT),
     });
+    // The existing Strategy service keeps its canonical client check on the
+    // preview Core owner. Its release operator applies this bounded binding.
+    new cdk.CfnOutput(this, 'StrategySavedReadEnvironment', {
+      value: this.toJsonString({ API_INTERNAL_URL: `https://${coreRoutes.host}` }),
+    });
     const alb = new elb.CfnLoadBalancer(this, 'PreviewLoadBalancer', {
       name: 'capiro-preview-services',
       type: 'application',

@@ -756,6 +756,151 @@ describe('decorateMeetings (via listSharedMeetingsForClient)', () => {
   });
 });
 
+// The engagement.meetings receiver types preps[].agenda / talkingPoints / risks
+// / followUps as string[], while the canonical prep payload also accepts a
+// structured `{ text, ...provenance }` entry and the titled `{ title, ... }`
+// item stored on preps. ONE such entry used to fail the whole array — and with
+// it the whole view (the retained master-scope 502).
+describe('listMeetings prep list projection (receiver contract)', () => {
+  const structuredPrep = (): Record<string, unknown> => ({
+    id: 'p1',
+    status: 'approved',
+    summary: 'Synthetic prep',
+    agenda: [{ text: 'Synthetic agenda item', factIds: ['fact-1'] }, 'Plain agenda item'],
+    talkingPoints: [{ text: 'Synthetic talking point', evidenceReferences: ['fact-1'] }],
+    risks: ['Plain risk'],
+    followUps: [{ text: 'Synthetic follow-up', factIds: [] }],
+    // Provenance and every other column must survive the projection untouched.
+    generatedFrom: { contextPacketId: 'packet-1', factIds: ['fact-1'] },
+  });
+
+  async function listMaster(preps: Array<Record<string, unknown>>) {
+    const service = serviceWith({
+      meeting: { findMany: async () => [meetingRow({ preps })] },
+      ...decorateStubs,
+      ...tenantFlag(false),
+    });
+    const rows = (await service.listMeetings(ctx, {})) as Array<Record<string, unknown>>;
+    return rows[0]!.preps as Array<Record<string, unknown>>;
+  }
+
+  test('recognized structured entries are projected to their text; everything else is preserved', async () => {
+    const stored = structuredPrep();
+    const snapshot = JSON.parse(JSON.stringify(stored));
+
+    const [prep] = await listMaster([stored]);
+
+    expect(prep!.agenda).toEqual(['Synthetic agenda item', 'Plain agenda item']);
+    expect(prep!.talkingPoints).toEqual(['Synthetic talking point']);
+    expect(prep!.risks).toEqual(['Plain risk']);
+    expect(prep!.followUps).toEqual(['Synthetic follow-up']);
+    // Unrelated prep data, including the structured provenance, is preserved.
+    expect(prep!.summary).toBe('Synthetic prep');
+    expect(prep!.status).toBe('approved');
+    expect(prep!.generatedFrom).toEqual({ contextPacketId: 'packet-1', factIds: ['fact-1'] });
+    // The stored row is never rewritten: its structured entries stay structured.
+    expect(JSON.parse(JSON.stringify(stored))).toEqual(snapshot);
+  });
+
+  test('an entry without a valid metadata arm is passed through verbatim, so validation is not weakened', async () => {
+    const stored = structuredPrep();
+    const unshaped = { description: 'Not prep text' };
+    const bareText = { text: 'Text without any metadata arm' };
+    const nonArrayFactIds = { text: 'Non-array metadata', factIds: 'fact-1' };
+    const nonStringFactIds = { text: 'Non-string metadata member', factIds: ['fact-1', 7] };
+    const nonArrayReferences = { text: 'Non-array references', evidenceReferences: 'ref-1' };
+    stored.agenda = [unshaped, 'Plain agenda item'];
+    stored.talkingPoints = [bareText, nonArrayFactIds, 'Plain talking point'];
+    stored.risks = [{ text: 42 }, { text: '   ' }, nonStringFactIds, nonArrayReferences];
+    stored.followUps = [];
+
+    const [prep] = await listMaster([stored]);
+
+    // Nothing is dropped and nothing is coerced into a string — including a
+    // text-bearing object whose provenance arm is missing or malformed, which
+    // the receiver's union does not accept either.
+    expect(prep!.agenda).toEqual([unshaped, 'Plain agenda item']);
+    expect(prep!.talkingPoints).toEqual([bareText, nonArrayFactIds, 'Plain talking point']);
+    expect(prep!.risks).toEqual([{ text: 42 }, { text: '   ' }, nonStringFactIds, nonArrayReferences]);
+    expect(prep!.followUps).toEqual([]);
+  });
+
+  // The shape stored on the deployed preps: the synthetic master-scope prep
+  // (5-week window, engagement.meetings master read) carries `{ title, ... }`
+  // agenda/follow-up items, which the text-only recognition above left in place
+  // — so the whole view kept failing on the receiver contract.
+  test('the stored titled item arm is projected to its title', async () => {
+    const stored = structuredPrep();
+    const agendaTitle = { title: 'Synthetic agenda title', description: 'Not shown' };
+    const followUpTitle = {
+      title: 'Synthetic follow-up title',
+      dueDate: '2026-10-05',
+      description: 'Not shown',
+    };
+    stored.agenda = [agendaTitle, 'Plain agenda item'];
+    stored.talkingPoints = [{ title: 'Synthetic talking point title' }];
+    stored.risks = [{ title: 42 }, { title: '   ' }, 'Plain risk'];
+    stored.followUps = [followUpTitle];
+
+    const [prep] = await listMaster([stored]);
+
+    expect(prep!.agenda).toEqual(['Synthetic agenda title', 'Plain agenda item']);
+    expect(prep!.talkingPoints).toEqual(['Synthetic talking point title']);
+    // A missing, wrong-typed or blank title is not a recognized arm.
+    expect(prep!.risks).toEqual([{ title: 42 }, { title: '   ' }, 'Plain risk']);
+    expect(prep!.followUps).toEqual(['Synthetic follow-up title']);
+    // The stored row is never rewritten.
+    const [storedAgendaItem] = stored.agenda as unknown[];
+    const [storedFollowUpItem] = stored.followUps as unknown[];
+    expect(storedAgendaItem).toBe(agendaTitle);
+    expect(storedFollowUpItem).toBe(followUpTitle);
+  });
+
+  test('a malformed text arm is not rescued by a title', async () => {
+    const stored = structuredPrep();
+    const unlinkedText = { text: 'Evidence text with no metadata arm', title: 'Synthetic title' };
+    const wrongTypedText = { text: 42, title: 'Synthetic title' };
+    const blankText = { text: '   ', title: 'Synthetic title' };
+    stored.agenda = [unlinkedText, wrongTypedText, blankText];
+
+    const [prep] = await listMaster([stored]);
+
+    // ANY entry carrying a text arm keeps its verbatim pass-through — an
+    // unlinked, wrong-typed or blank `text` is not rescued by a `title`.
+    expect(prep!.agenda).toEqual([unlinkedText, wrongTypedText, blankText]);
+  });
+
+  test('valid evidence-linked text keeps precedence over a title on the same entry', async () => {
+    const stored = structuredPrep();
+    const linked = { text: 'Synthetic linked text', factIds: ['fact-1'], title: 'Synthetic title' };
+    stored.agenda = [linked];
+
+    const [prep] = await listMaster([stored]);
+
+    expect(prep!.agenda).toEqual(['Synthetic linked text']);
+  });
+
+  test('one valid metadata arm is enough — a malformed second arm does not block projection', async () => {
+    const stored = structuredPrep();
+    stored.risks = [
+      { text: 'One valid arm', factIds: ['fact-1'], evidenceReferences: 'malformed' },
+    ];
+
+    const [prep] = await listMaster([stored]);
+
+    expect(prep!.risks).toEqual(['One valid arm']);
+  });
+
+  test('a prep list column that is not an array is passed through unchanged', async () => {
+    const stored = structuredPrep();
+    stored.agenda = { text: 'Not a list' };
+
+    const [prep] = await listMaster([stored]);
+
+    expect(prep!.agenda).toEqual({ text: 'Not a list' });
+  });
+});
+
 describe('Phase 2 cross-user grouping (listSharedMeetingsForClient + meetingsCrossUser flag)', () => {
   const twoContributorTx = () => ({
     tenant: {

@@ -6,7 +6,11 @@ import {
   NotFoundException,
   PayloadTooLargeException,
 } from '@nestjs/common';
-import type { TenantContext, ResearchPortfolioAnalyticsDto } from '@capiro/shared';
+import type {
+  TenantContext,
+  ResearchPortfolioAnalyticsDto,
+  ResearchPortfolioDraftDto,
+} from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EngagementService } from '../engagement/engagement.service.js';
 import { ResearchPortfolioAnalyticsService } from './research-portfolio-analytics.service.js';
@@ -43,6 +47,67 @@ export class ResearchPortfolioInstitutionalService {
     private readonly analytics: ResearchPortfolioAnalyticsService,
     private readonly engagement: EngagementService,
   ) {}
+
+  async readDraft(
+    ctx: TenantContext,
+    portfolioId: string,
+    artifactId: string,
+  ): Promise<ResearchPortfolioDraftDto> {
+    if (!UUID.test(artifactId)) throw new NotFoundException('Research Portfolio draft not found');
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const artifact = await tx.clioArtifact.findFirst({
+        where: { id: artifactId, tenantId: ctx.tenantId, userId: ctx.userId },
+      });
+      if (!artifact) throw new NotFoundException('Research Portfolio draft not found');
+      const { scope, metadata } = await authorizeResearchPortfolioArtifact(tx, ctx, artifact);
+      if (
+        scope.researchPortfolioId !== portfolioId ||
+        artifact.contentType !== 'text/markdown' ||
+        typeof artifact.bodyText !== 'string'
+      )
+        throw new NotFoundException('Research Portfolio draft not found');
+      // Match the canonical artifact-version writer's UTF-16 code-unit ceiling.
+      if (artifact.bodyText.length > 500_000)
+        throw new PayloadTooLargeException(
+          'Research Portfolio draft exceeds the editable draft limit',
+        );
+      const children = await tx.clioArtifact.findMany({
+        where: { tenantId: ctx.tenantId, userId: ctx.userId, parentArtifactId: artifact.id },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 21,
+      });
+      const childVersions: ResearchPortfolioDraftDto['childVersions'][number][] = [];
+      for (const child of children.slice(0, 20)) {
+        const authorized = await authorizeResearchPortfolioArtifact(tx, ctx, child);
+        if (authorized.scope.researchPortfolioId !== portfolioId)
+          throw new NotFoundException('Research Portfolio draft version not found');
+        childVersions.push({
+          artifactId: child.id,
+          title: child.title,
+          createdAt: child.createdAt.toISOString(),
+          reviewStatus:
+            authorized.metadata.reviewStatus === 'unreviewed_edit'
+              ? 'unreviewed_edit'
+              : 'unreviewed_draft',
+        });
+      }
+      return {
+        artifactId: artifact.id,
+        portfolioId,
+        conversationId: artifact.conversationId!,
+        parentArtifactId: artifact.parentArtifactId,
+        title: artifact.title,
+        kind: artifact.kind as ResearchPortfolioDraftDto['kind'],
+        contentType: 'text/markdown',
+        bodyText: artifact.bodyText,
+        reviewStatus:
+          metadata.reviewStatus === 'unreviewed_edit' ? 'unreviewed_edit' : 'unreviewed_draft',
+        createdAt: artifact.createdAt.toISOString(),
+        childVersions,
+        childVersionsHasMore: children.length > 20,
+      };
+    });
+  }
   async prepare(
     ctx: TenantContext,
     input: PrepareResearchPortfolioInstitutionalInput,

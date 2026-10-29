@@ -185,11 +185,14 @@ class Compiler {
         const index = link.fields.indexOf(source.origin!.field);
         if (index < 0 || link.referencedRelation !== target.origin!.relation ||
             link.referencedFields[index] !== target.origin!.field) continue;
-        const complete = link.fields.every((field, i) => pairs.some(([a, b]) =>
-          [[a, b], [b, a]].some(([left, right]) => left!.alias === source.alias && right!.alias === target.alias &&
-            left!.origin!.relation === source.origin!.relation && right!.origin!.relation === target.origin!.relation &&
+        const complete = (from: Field, to: Field): boolean => link.fields.every((field, i) => pairs.some(([a, b]) =>
+          [[a, b], [b, a]].some(([left, right]) => left!.alias === from.alias && right!.alias === to.alias &&
+            left!.origin!.relation === from.origin!.relation && right!.origin!.relation === to.origin!.relation &&
             left!.origin!.field === field && right!.origin!.field === link.referencedFields[i])));
-        if (!complete) fail('UNSUPPORTED_SQL', 'Join on every field of the published composite relationship.');
+        // A shared client key in a self relationship has two possible orientations.
+        // Require the complete declared edge in one orientation, not a reciprocal cycle.
+        if (!complete(source, target) && !(relation.name === link.referencedRelation && complete(target, source)))
+          fail('UNSUPPORTED_SQL', 'Join on every field of the published composite relationship.');
       }
     }
   }
@@ -311,7 +314,15 @@ export function compileScopedSql(input: unknown, registry: readonly SqlCompilerR
   try { sql = parser.sqlify(statement as never, dialect); } catch { return fail('UNSUPPORTED_SQL', 'Cannot regenerate supported PostgreSQL SELECT.'); }
   const columns = [...selected.fields.values()].map(cleanColumn);
   // PostgreSQL casts exact numeric output to text before Prisma can convert it.
-  const projection = columns.map((column) => `"${column.name}"${['integer', 'decimal'].includes(column.type) ? '::text' : ''} AS "${column.name}"`).join(', ');
+  const projection = columns.map((column) => {
+    const name = `"${column.name}"`;
+    // Both SQL owners set the transaction timezone to UTC. Format in PostgreSQL
+    // before the driver can truncate microseconds to JavaScript Date precision.
+    const value = column.type === 'timestamp'
+      ? `pg_catalog.to_char(${name}, 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`
+      : `${name}${['integer', 'decimal'].includes(column.type) ? '::text' : ''}`;
+    return `${value} AS ${name}`;
+  }).join(', ');
   return { sql: `SELECT ${projection} FROM (${sql}) AS "__capiro_result" LIMIT ${Number(rowLimit) + 1}`,
     params: [...request.parameters] as PublicSqlParameter[], columns, relationsUsed, rowLimit: Number(rowLimit), sqlLimit: selected.limit };
 }

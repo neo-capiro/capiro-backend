@@ -24,6 +24,22 @@
     "sql": "CREATE UNIQUE INDEX \"client_funding_opportunity_generic_uniq\"\n  ON \"client_funding_opportunity\" (\"tenant_id\", \"client_id\", \"source\", \"source_record_type\", \"source_record_key\")\n  WHERE \"source_record_key\" IS NOT NULL AND \"source_record_type\" IS NOT NULL;"
   },
   {
+    "migration": "20261024010000_tango_funding_consolidation",
+    "sql": "CREATE UNIQUE INDEX opportunity_attachment_parent_url_uniq ON opportunity_attachment (COALESCE(sam_opportunity_id::text,''), COALESCE(tango_notice_id,''), COALESCE(federal_grant_id,''), source_url);"
+  },
+  {
+    "migration": "20261024010000_tango_funding_consolidation",
+    "sql": "CREATE UNIQUE INDEX opportunity_attachment_provider_uniq ON opportunity_attachment (sam_opportunity_id, provider_attachment_id) WHERE provider_attachment_id IS NOT NULL;"
+  },
+  {
+    "migration": "20261024010000_tango_funding_consolidation",
+    "sql": "CREATE INDEX sam_opportunity_normalized_notice_idx ON sam_opportunity(lower(replace(notice_id,'-','')));"
+  },
+  {
+    "migration": "20261026184000_tango_funding_embedding_prefix",
+    "sql": "CREATE INDEX CONCURRENTLY IF NOT EXISTS context_embeddings_public_source_prefix_idx ON context_embeddings (source_type, model, source_id text_pattern_ops) WHERE tenant_id IS NULL;"
+  },
+  {
     "migration": "20280211010000_engagement_task_action_source_uniq",
     "sql": "CREATE UNIQUE INDEX IF NOT EXISTS \"engagement_tasks_tenant_source_uniq\"\n    ON \"engagement_tasks\" (\"tenant_id\", \"source_type\", \"source_id\")\n    WHERE \"source_type\" IS NOT NULL AND \"source_id\" IS NOT NULL;"
   }

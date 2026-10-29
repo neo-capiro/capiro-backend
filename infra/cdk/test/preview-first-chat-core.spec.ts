@@ -9,10 +9,13 @@ import {
   FIRST_CHAT_CORE_HOST,
   FIRST_CHAT_CORE_IMAGE_PINS,
   FIRST_CHAT_CORE_POST_PATHS,
+  FIRST_CHAT_CORE_INTEGRATION_SECRET_NAMES,
   firstChatCoreImageBinding as parseBinding,
+  firstChatCoreIntegrationsConfiguration,
   type FirstChatCoreImagePins,
   previewFirstChatCoreApplication,
 } from '../lib/preview/first-chat-core';
+import { main } from '../bin/preview-first-chat-core';
 const pins = {
   ...FIRST_CHAT_CORE_IMAGE_PINS,
   queryDatabases: {
@@ -46,6 +49,15 @@ const binding = {
   },
   ownerMemory: { tenantId: '00000000-0000-4000-8000-000000000002' },
 };
+const integrations = {
+  secretArns: Object.fromEntries(
+    FIRST_CHAT_CORE_INTEGRATION_SECRET_NAMES.map((name) => [
+      name,
+      `arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/${name.startsWith('OAUTH_') ? 'preview' : 'dev'}/${name}-AbCd01`,
+    ]),
+  ),
+  kmsKeyArns: ['arn:aws:kms:us-east-1:967807252336:key/00000000-0000-4000-8000-000000000005'],
+};
 function render(check: (s: any, g: any, a: any) => void) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'core-operator-'));
   try {
@@ -64,6 +76,144 @@ function render(check: (s: any, g: any, a: any) => void) {
     fs.rmSync(real, { recursive: true });
   }
 }
+test('integration binding accepts referenced provider apps but requires distinct preview OAuth keys', () => {
+  // The full source stack still pins an image that predates this runtime mode.
+  assert.throws(() => firstChatCoreImageBinding({ ...binding, integrations }));
+  for (const name of FIRST_CHAT_CORE_INTEGRATION_SECRET_NAMES) {
+    const { [name]: _removed, ...missing } = integrations.secretArns;
+    for (const secretArns of [
+      missing,
+      { ...integrations.secretArns, [name]: 'plaintext-is-not-a-secret-reference' },
+      {
+        ...integrations.secretArns,
+        [name]: integrations.secretArns[name]!.replace('967807252336', '000000000000'),
+      },
+      { ...integrations.secretArns, [name]: `${integrations.secretArns[name]}:jsonField::` },
+    ])
+      assert.throws(() => firstChatCoreIntegrationsConfiguration({ ...integrations, secretArns }));
+  }
+  for (const name of ['OAUTH_STATE_SECRET', 'OAUTH_TOKEN_ENCRYPTION_KEY']) {
+    assert.throws(() =>
+      firstChatCoreIntegrationsConfiguration({
+        ...integrations,
+        secretArns: {
+          ...integrations.secretArns,
+          [name]: integrations.secretArns[name]!.replace('/preview/', '/dev/'),
+        },
+      }),
+    );
+  }
+  assert.throws(() =>
+    firstChatCoreIntegrationsConfiguration({
+      ...integrations,
+      secretArns: {
+        ...integrations.secretArns,
+        OAUTH_STATE_SECRET: integrations.secretArns.OAUTH_TOKEN_ENCRYPTION_KEY,
+      },
+    }),
+  );
+  for (const input of [
+    null,
+    { ...integrations, enabled: true },
+    { ...integrations, secretArns: { ...integrations.secretArns, RECALL_API_KEY: 'extra' } },
+    ...[
+      undefined,
+      ['*'],
+      ['alias/preview'],
+      [...integrations.kmsKeyArns, ...integrations.kmsKeyArns],
+    ].map((kmsKeyArns) => ({ ...integrations, kmsKeyArns })),
+  ])
+    assert.throws(() => firstChatCoreIntegrationsConfiguration(input));
+  assert.throws(() => firstChatCoreImageBinding({ ...binding, integrations: null }));
+});
+
+test('integration opt-in routes providers to preview and enables only named API-owned sync', () => {
+  const overlay = firstChatCoreIntegrationsConfiguration(integrations);
+  const e = Object.fromEntries(overlay.environment.map(({ name, value }) => [name, value]));
+  assert.equal(e.CAPIRO_SERVICE_NAME, 'api');
+  assert.equal(e.ENGAGEMENT_PROCESS_MODE, 'shadow');
+  assert.equal(e.ENGAGEMENT_BACKGROUND_OWNER, 'api');
+  assert.equal(e.ENGAGEMENT_EXTERNAL_ACTIONS, 'integrations_only');
+  assert.equal(e.ENGAGEMENT_CALLBACKS_ENABLED, 'true');
+  assert.equal(e.ENGAGEMENT_AUTO_SYNC, 'true');
+  assert.equal(e.ENGAGEMENT_SYNC_INTERVAL_MINUTES, '20');
+  assert.equal(e.ENGAGEMENT_RECALL_WEBHOOK_ENABLED, 'false');
+  for (const name of [
+    'CLIENT_PROFILE_FILL_WORKER_ENABLED',
+    'CLIENT_PROFILE_FILL_COMPLETION_WORKER_ENABLED',
+    'MERI_JOB_SWEEPER_ENABLED',
+    'RESEARCH_PORTFOLIO_WATCH_DELIVERY_ENABLED',
+    'NEWSLETTER_REVIEW_EMAIL_ENABLED',
+    'NEWSLETTER_INVITATION_EMAIL_ENABLED',
+  ])
+    assert.equal(e[name], undefined);
+  for (const provider of ['MICROSOFT', 'GOOGLE']) {
+    assert.equal(
+      e[`${provider}_REDIRECT_URI`],
+      `https://${FIRST_CHAT_CORE_HOST}/api/engagement/integrations/${provider.toLowerCase()}/callback`,
+    );
+    assert.equal(
+      e[`${provider}_OAUTH_SUCCESS_REDIRECT`],
+      'https://portfolio-preview.app.capiro.ai/settings/integrations',
+    );
+  }
+  assert.equal(
+    e.MICROSOFT_GRAPH_NOTIFICATION_URL,
+    `https://${FIRST_CHAT_CORE_HOST}/api/engagement/integrations/microsoft/notifications`,
+  );
+  assert.deepEqual(Object.keys(overlay).sort(), ['environment', 'executionRolePolicy', 'secrets']);
+  assert.deepEqual(
+    Object.fromEntries(overlay.secrets.map(({ name, valueFrom }) => [name, valueFrom])),
+    integrations.secretArns,
+  );
+  assert.deepEqual(overlay.executionRolePolicy.Statement, [
+    {
+      Effect: 'Allow',
+      Action: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'],
+      Resource: Object.values(integrations.secretArns),
+    },
+    {
+      Effect: 'Allow',
+      Action: ['kms:Decrypt'],
+      Resource: integrations.kmsKeyArns,
+      Condition: {
+        StringEquals: {
+          'kms:ViaService': 'secretsmanager.us-east-1.amazonaws.com',
+          'kms:EncryptionContext:SecretARN': Object.values(integrations.secretArns),
+        },
+      },
+    },
+  ]);
+  assert.equal(
+    firstChatCoreIntegrationsConfiguration({ ...integrations, kmsKeyArns: [] }).executionRolePolicy
+      .Statement.length,
+    1,
+  );
+});
+
+test('focused integration renderer emits only a fresh overlay, refuses bad bindings and never overwrites', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'core-integrations-'));
+  try {
+    const input = path.join(dir, 'binding.json');
+    const output = path.join(dir, 'overlay.json');
+    fs.writeFileSync(input, JSON.stringify(integrations));
+    assert.equal(main(['--render-integrations', input, output]), 0);
+    assert.deepEqual(
+      JSON.parse(fs.readFileSync(output, 'utf8')),
+      firstChatCoreIntegrationsConfiguration(integrations),
+    );
+    assert.equal(main(['--render-integrations', input, output]), 2);
+    fs.writeFileSync(input, JSON.stringify({ ...integrations, enabled: false }));
+    const refusedOutput = path.join(dir, 'refused.json');
+    assert.equal(main(['--render-integrations', input, refusedOutput]), 2);
+    assert.equal(fs.existsSync(refusedOutput), false);
+  } finally {
+    const real = fs.realpathSync(dir);
+    assert.equal(fs.lstatSync(dir).isSymbolicLink(), false);
+    assert.ok(real.startsWith(fs.realpathSync(os.tmpdir()) + path.sep));
+    fs.rmSync(real, { recursive: true });
+  }
+});
 test('qualified closed binding refuses historical schemas, extra policy and wrong image', () => {
   assert.deepEqual(firstChatCoreImageBinding(binding), binding);
   const oneTenant = { ...binding, assets: { tenantIds: [binding.assets.tenantIds[0]] } };
@@ -263,6 +413,8 @@ test('qualified ARM task uses persistent clone, version-pinned canonical secret 
     assert.equal(e.RELEASE_SHA, pins.sourceHead);
     assert.equal(e.DB_HOST, binding.deployment.databaseHost);
     assert.equal(e.TRACKER_APP_BASE_URL, `https://${FIRST_CHAT_CORE_HOST}`);
+    assert.equal(e.WORKSPACE_API_BASE_URL, `https://${FIRST_CHAT_CORE_HOST}`);
+    assert.equal(e.STRATEGY_API_BASE_URL, `https://${FIRST_CHAT_CORE_HOST}`);
     assert.equal(e.MERI_CONTROL_ORIGIN, 'https://control.meri-preview.internal');
     assert.equal(
       e.MERI_CONTROL_CA_SHA256,
@@ -314,6 +466,14 @@ test('standard canonical authentication remains mandatory and background/externa
       ]),
     );
     assert.equal(e.CORE_DEPLOYMENT_PROFILE, 'standard');
+    assert.equal(e.ENGAGEMENT_PROCESS_MODE, 'shadow');
+    assert.equal(e.ENGAGEMENT_AUTO_SYNC, undefined);
+    const secretNames =
+      s.Resources.ServeTaskF1990141.Properties.ContainerDefinitions[0].Secrets.map(
+        (entry: any) => entry.Name,
+      );
+    for (const name of FIRST_CHAT_CORE_INTEGRATION_SECRET_NAMES)
+      assert.ok(!secretNames.includes(name));
     assert.equal(e.NODE_ENV, 'production');
     assert.equal(e.MERI_TOOLS_REQUIRE_SERVICE_SECRET, 'true');
     assert.equal(e.PREVIEW_NATIVE_GETS_ENABLED, 'true');

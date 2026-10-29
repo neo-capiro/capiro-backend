@@ -75,7 +75,11 @@ describe('artifact current authority (capiro.meri-artifact-authority.v1)', () =>
   it('pins the vendored Meri vector bytes', () => {
     expect(createHash('sha256').update(vectorBytes).digest('hex')).toBe('99a283d6a9e2bda4c2a747a305b5f457b4c9899c6f3478e12c881aed958c5caa');
     expect(vector.route).toEqual({ method: 'POST', path: '/api/clio/application-authority/artifact', successStatus: 200 });
-    expect(vector.intentOperations).toEqual(clone(ARTIFACT_INTENT_OPERATIONS));
+    expect(vector.intentOperations).toEqual(Object.fromEntries(
+      Object.keys(vector.intentOperations).map(intent => [intent, clone(ARTIFACT_INTENT_OPERATIONS[intent])]),
+    ));
+    expect(ARTIFACT_INTENT_OPERATIONS.history).toEqual(['artifact.inspect']);
+    expect(ARTIFACT_INTENT_OPERATIONS.list).toEqual(['artifact.inspect']);
   });
 
   it("ports Meri's receipt check faithfully: it accepts each vector receipt and refuses all 18 vector refusals", () => {
@@ -103,7 +107,7 @@ describe('artifact current authority (capiro.meri-artifact-authority.v1)', () =>
   });
 
   it('emits receipts Meri accepts for every vector intent, re-reading identity and context exactly as /context', async () => {
-    for (const intent of Object.keys(ARTIFACT_INTENT_OPERATIONS)) {
+    for (const intent of Object.keys(vector.intentOperations)) {
       const f = ports();
       const request = { ...createCase.request, intent };
       const receipt = await readApplicationAuthorityArtifact(parseApplicationAuthorityArtifactBody(request), 'standard_user', f.ports);
@@ -113,6 +117,26 @@ describe('artifact current authority (capiro.meri-artifact-authority.v1)', () =>
       expect(receipt.expiresAtMs - receipt.checkedAtMs).toBe(60_000);
       expect(f.events).toEqual(['identity', 'conversation', 'scope', 'visible', 'wall', 'identity', 'conversation', 'scope', 'visible', 'wall']);
     }
+  });
+
+  it.each(['history', 'list', 'results'])('admits %s only through current private-conversation read authority', async intent => {
+    const request = parseApplicationAuthorityArtifactBody({ ...createCase.request, intent });
+    const f = ports();
+    const receipt = await readApplicationAuthorityArtifact(request, 'standard_user', f.ports);
+    expect(receipt).toMatchObject({ intent, requestSha256: request.requestSha256,
+      principal: { tenantId, actorId }, conversationId: request.conversationId,
+      selectedClientId: request.clientId, operations: [...ARTIFACT_OPERATIONS] });
+    expect(ARTIFACT_INTENT_OPERATIONS[intent]).toEqual(['artifact.inspect']);
+    expect(f.events).toEqual(['identity', 'conversation', 'scope', 'visible', 'wall',
+      'identity', 'conversation', 'scope', 'visible', 'wall']);
+    await expect(readApplicationAuthorityArtifact(request, 'client_portal_user', ports().ports))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    await expect(readApplicationAuthorityArtifact(request, 'standard_user',
+      ports({ clientId: '00000000-0000-4000-8000-00000000d002' }).ports)).rejects.toThrow();
+    const revoked = ports();
+    revoked.ports.clientVisible = async () => { throw new ForbiddenException(); };
+    await expect(readApplicationAuthorityArtifact(request, 'standard_user', revoked.ports))
+      .rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('keeps authorityRevision equal across observations of one request, and moves it with role', async () => {

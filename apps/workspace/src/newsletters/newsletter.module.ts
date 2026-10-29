@@ -14,6 +14,7 @@ import { NotificationsModule } from '../notifications/notifications.module.js';
 @Module({
   imports: [NotificationsModule],
   controllers: [NewsletterController, NewsletterAssetController, NewsletterStockImageController],
+  exports: [NewsletterService],
   providers: [
     NewsletterService,
     NewsletterImageService,

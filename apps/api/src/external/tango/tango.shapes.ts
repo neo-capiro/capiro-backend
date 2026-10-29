@@ -299,7 +299,36 @@ export const VEHICLE_AWARDEE_SHAPE = shapeOf(VEHICLE_AWARDEE_FIELDS);
  * Exported as one map so a test can assert the set — a new call that invents its
  * own inline shape string bypasses every reason this file exists.
  */
+// Paid grant catalog shape verified against Tango 5.11.1.
+export const GRANT_FIELDS = [
+  'grant_id',
+  'title',
+  'opportunity_number',
+  'agency_code',
+  'status',
+  'description',
+  'important_dates',
+  'category',
+  'cfda_numbers',
+  'applicant_types',
+  'applicant_eligibility_description',
+  'funding_categories',
+  'funding_activity_category_description',
+  'funding_instruments',
+  'funding_details',
+  'grantor_contact',
+  'additional_info',
+  'last_updated',
+  'organization(organization_id,department_name,agency_name,office_name,agency_code)',
+  'synopsis',
+  'forecast',
+  'opportunity_history',
+  'attachments(resource_id,name,type,url,mime_type,posted_date)',
+] as const;
+export const GRANT_SHAPE = shapeOf(GRANT_FIELDS);
+
 export const TANGO_SHAPES = Object.freeze({
+  grant: GRANT_SHAPE,
   entity: ENTITY_SHAPE,
   opportunity: OPPORTUNITY_SHAPE,
   notice: NOTICE_SHAPE,
@@ -309,6 +338,7 @@ export const TANGO_SHAPES = Object.freeze({
 });
 
 export const TANGO_SHAPE_FIELDS = Object.freeze({
+  grant: GRANT_FIELDS,
   entity: ENTITY_FIELDS,
   opportunity: OPPORTUNITY_FIELDS,
   notice: NOTICE_FIELDS,

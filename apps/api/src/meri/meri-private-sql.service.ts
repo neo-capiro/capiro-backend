@@ -3,6 +3,9 @@ import type { Request } from 'express';
 import type { TenantContext } from '@capiro/shared';
 import { ApplicationCurrentService } from '../auth/application-current.service.js';
 import { CLIENT_QUERY_RELATIONS } from '../clients/client-query-projections.js';
+import { CLIENT_BUSINESS_QUERY_RELATIONS } from '../clients/client-business-query-projections.js';
+import { CLIENT_PROFILE_QUERY_RELATIONS } from '../clients/client-profile-query-projections.js';
+import { ENGAGEMENT_WORK_QUERY_RELATIONS } from '../engagement/engagement-work-query-projections.js';
 import {
   PrivateSqlDbService,
   type PrivateSqlExecutionContext,
@@ -34,7 +37,10 @@ export class MeriPrivateSqlService {
     db: PrivateSqlDbService,
     private readonly tools: MeriToolsService,
   ) {
-    this.queries = createPrivateSqlQueries(CLIENT_QUERY_RELATIONS, db);
+    this.queries = createPrivateSqlQueries(
+      [...CLIENT_QUERY_RELATIONS, ...CLIENT_BUSINESS_QUERY_RELATIONS, ...CLIENT_PROFILE_QUERY_RELATIONS, ...ENGAGEMENT_WORK_QUERY_RELATIONS],
+      db,
+    );
   }
 
   async read(ctx: TenantContext, req: Request, operation: Operation, rawInput: unknown) {

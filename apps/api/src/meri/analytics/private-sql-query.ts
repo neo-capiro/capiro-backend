@@ -12,7 +12,7 @@ import {
   type PrivateSqlExecutionContext,
 } from './private-sql-db.service.js';
 
-/** Domain owner supplies these two reviewed projections; slice A does not invent their fields. */
+/** Domain owners supply the fixed reviewed projections; this query owner does not invent their fields. */
 export interface PrivateSqlRelation extends SqlCompilerRelation {
   readonly name: (typeof PRIVATE_SQL_VIEW_NAMES)[number];
   readonly schema: 'meri_private';
@@ -59,8 +59,8 @@ function captureRegistry(supplied: readonly PrivateSqlRelation[]): readonly Priv
   }
   if (
     !Array.isArray(relations) ||
-    relations.length !== 2 ||
-    new Set(relations.map((r) => r.name)).size !== 2
+    relations.length !== PRIVATE_SQL_VIEW_NAMES.length ||
+    new Set(relations.map((r) => r.name)).size !== PRIVATE_SQL_VIEW_NAMES.length
   )
     invalid();
   for (const r of relations) {
@@ -151,7 +151,7 @@ export function createPrivateSqlQueries(descriptors: readonly PrivateSqlRelation
           names !== undefined &&
           (!Array.isArray(names) ||
             !names.length ||
-            names.length > 2 ||
+            names.length > PRIVATE_SQL_VIEW_NAMES.length ||
             new Set(names).size !== names.length ||
             names.some((name) => !registry.some((r) => r.name === name)))
         )

@@ -520,23 +520,6 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     enabled: false,
   },
   {
-    id: 'SyncSamOpportunities',
-    command: ['sync-sam-opportunities'],
-    cron: { minute: '50', hour: '7' },
-    tier: 'daily',
-    description: 'SAM.gov DoD contract opportunities (redundant with all-federal rail)',
-    enabled: false,
-  },
-  {
-    id: 'SyncSamOpportunitiesAllFederal',
-    command: ['sync-sam-opportunities-all-federal', '--skip-descriptions'],
-    cron: { minute: '15', hour: '0' },
-    tier: 'daily',
-    description:
-      'Funding Opportunities: all-federal SAM.gov contract notices (daily 00:15 UTC, descriptions deferred)',
-    enabled: true,
-  },
-  {
     id: 'EnrichAwardDistricts',
     command: ['enrich-award-districts'],
     cron: { minute: '0', hour: '8' },
@@ -630,60 +613,6 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     cron: { minute: '0', hour: '7', weekDay: 'MON' },
     tier: 'weekly',
     description: 'CRS reports (weekly Mon)',
-  },
-  {
-    id: 'SyncGrants',
-    command: ['sync-grants'],
-    cron: { minute: '30', hour: '7', weekDay: 'MON' },
-    tier: 'weekly',
-    description: 'Federal grants (weekly Mon)',
-  },
-  // ── District Nexus Workstream C ────────────────────────────────────────────
-  //
-  // ⚠️ CDK↔LIVE DRIFT — READ BEFORE "FIXING" THIS.
-  // `enabled: false` below does NOT describe reality. Both live EventBridge
-  // rules were HAND-CREATED 2026-07-27 and are ENABLED:
-  //   capiro-dev-sync-grants-reconcile   cron(25 8 ? * SUN *)
-  //   capiro-dev-enrich-grant-details    cron(45 10 * * ? *)
-  // Crons below updated to MATCH live; `enabled: false` kept deliberately.
-  // Same rationale as SyncLegistormDistricts and the assistance pair above —
-  // never deploy the Compute stack (2026-07-25 prod DNS outage).
-  //
-  // Schedules differ from the original plan's proposals for a measured reason:
-  // it proposed 10:30 for EnrichGrantDetails, but that slot already holds
-  // enrich-award-districts AND pe-derive-chain, and :30 is hourly-busy
-  // (sync-legiscan-bills). It proposed Sun 09:00 for the reconcile, but 09:00
-  // holds emit-changes-daily AND sync-congress, and :00 is hourly-busy
-  // (emit-clio-alerts).
-  //
-  // SyncGrantsReconcile: the old note here said MAX_PAGES=100 caps a run at
-  // 10,000 upserts, "12% per run, ~8 Sundays to walk the corpus". That was
-  // WRONG and the walk could never advance: sync-grants.ts sent `offset`, but
-  // search2's pagination parameter is `startRecordNum` and it silently ignores
-  // unknown keys, so every page of every run re-read the same first 100
-  // records. Measured 2026-07-28: a 100-page run "upserted 10,000" while
-  // federal_grant grew 852 -> 864 (+12) against hitCount ~83,000.
-  // Fixed: correct parameter, MAX_PAGES 100 -> 1000, plus a --from-page flag so
-  // a capped walk can resume. A page costs ~0.8s, so the full ~830-page corpus
-  // is one ~11-minute run. It still reports success_with_errors on genuine cap
-  // exhaustion, which is honest incompleteness, not an alarm.
-  {
-    id: 'SyncGrantsReconcile',
-    command: ['sync-grants', '--all-statuses'],
-    cron: { minute: '25', hour: '8', weekDay: 'SUN' },
-    tier: 'weekly',
-    description:
-      'Grants.gov all-status reconcile — re-sees closed/archived opportunities the posted|forecasted pass cannot (weekly Sun 08:25 UTC)',
-    enabled: false,
-  },
-  {
-    id: 'EnrichGrantDetails',
-    command: ['enrich-grant-details'],
-    cron: { minute: '45', hour: '10' },
-    tier: 'daily',
-    description:
-      'Grants.gov fetchOpportunity detail enrichment (daily 10:45 UTC, 45min after the opportunity sync)',
-    enabled: false,
   },
   // ── District Nexus F3 producer (audit remediation phase i3, B3) ─────────────
   //
@@ -782,16 +711,26 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     enabled: false,
   },
   // Funding Opportunities forecast sync is quota-capped per run.
+  // Canonical funding source and derived public-document workers. The scoped
+  // rollout uses the dedicated funding worker task, never a Compute-stack deploy.
+  // Release owns enabling these jobs against the dedicated preview-clone task
+  // after snapshot, migration, transfer and canaries; never target the dev DB.
   {
-    id: 'SyncTangoForecasts',
-    command: ['sync-tango-forecasts', '--commit', '--limit=5000'],
-    cron: { minute: '0', hour: '2' },
-    tier: 'daily',
-    description:
-      'Funding Opportunities: agency-forecast incremental sync into tango_procurement_forecast (daily 02:00 UTC)',
-    environment: { TANGO_REQUEST_CEILING_PER_RUN: '30' },
-    enabled: true,
+    id: 'SyncTangoFunding', command: ['sync-tango-funding', '--commit', '--max-requests=1100'],
+    cron: { minute: '35', hour: '2' }, tier: 'daily', enabled: false,
+    description: 'Single Tango grant/notice/document ingestion with durable paging and account quota reserve',
   },
+  {
+    id: 'EmbedFundingCatalog', command: ['embed-funding-catalog', '--commit', '--limit=300', '--max-chunks=3000'],
+    cron: { minute: '20', hour: '4,10,16,22' }, tier: 'derived', enabled: false,
+    description: 'Chunk public funding text into the existing pgvector catalog',
+  },
+  {
+    id: 'ArchiveFundingAttachments', command: ['sync-tango-opportunity-attachments', '--commit', '--limit=50'],
+    cron: { minute: '50', hour: '4,16' }, tier: 'derived', enabled: false,
+    description: 'Archive discovered source files with explicit failures and bounded retries',
+  },
+
   {
     // District Nexus federal-market substrate: the sync script itself is
     // fully built, tested, dry-run-by-default, and newest-first incremental
@@ -868,7 +807,7 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
   // before any cadence runs, because the first automated run of an alerting
   // job is the one that can page a whole tenant at once.
   //
-  // ORDER MATTERS: this reads what `sync-tango-opportunity-notices` holds and
+  // ORDER MATTERS: this reads what `sync-tango-funding` holds and
   // does not fetch inline, so it is scheduled AFTER that sync. Running it first
   // is not harmful — it simply finds no change yet and the next cycle picks it
   // up — but it makes alerts arrive a cycle late for no reason.

@@ -3,6 +3,7 @@ import { UUID_V4_RE, requiredString, optionalString, clampInt } from './meri-too
 import { executeMeriLocalDispatch, type MeriLocalDispatchRegistry } from './meri-local-dispatch.js';
 import { assertTextArtifactCurrentProposal, type TextArtifactCurrentAction } from './meri-text-artifact-current-proposal.js';
 import { researchPortfolioManagementSchema, parseResearchPortfolioManagementInput } from '../research-portfolios/research-portfolio-management.js';
+import { isLegislativeDocumentTool, parseLegislativeDocumentInput } from './legislative-document-action.contract.js';
 import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
 import {
   deadlineStatus as structuredDeadlineStatus,
@@ -97,6 +98,8 @@ import { LdaIntelService } from '../lda-intel/lda-intel.service.js';
 import { AnalyticsDbService } from './analytics/analytics-db.service.js';
 import { describeCapiroData, queryCapiroData } from './analytics/public-sql-query.js';
 import { listDatasetSummaries } from './analytics/global-dataset-registry.js';
+import { watchRequestOf } from './watch-actions/watch-action.contract.js';
+import { WatchActionRegistry } from './watch-actions/watch-action.registry.js';
 import {
   compileQuerySpec,
   parseQuerySpecInput,
@@ -425,6 +428,7 @@ export class MeriToolsService {
     @Optional() private readonly researchPortfolioScope?: ResearchPortfolioMeriScopeService,
     @Optional() private readonly federalMarket?: FederalMarketService,
     @Optional() private readonly governedMemoryCandidates?: GovernedMemoryCandidateService,
+    @Optional() private readonly watchActionRegistry?: WatchActionRegistry,
   ) {}
 
   manifest() {
@@ -778,6 +782,33 @@ export class MeriToolsService {
     },
     ['conversationId', 'operationKey', 'confirmed'],
   ),
+      get_research_portfolio_share_links: obj(
+        { conversationId: str('Exact current Research Portfolio chat conversation UUID') },
+        ['conversationId'],
+      ),
+      publish_research_portfolio_share_link: obj(
+        {
+          conversationId: str('Exact current Research Portfolio chat conversation UUID'),
+          operationKey: str('Stable idempotency key for this intended link'),
+          snapshotId: str('Exact immutable snapshot UUID the recipient will see'),
+          designId: str('Exact dashboard design UUID of this portfolio'),
+          previewHash: str('Server-returned hash of the exact reviewed share preview'),
+          expectedDesignVersion: { type: 'integer', minimum: 1, description: 'Server-returned reviewed design version' },
+          clientId: str('Exact linked, currently authorized client UUID the link is prepared for'),
+          branding: {
+            type: 'boolean',
+            description: 'Show the firm name and logo on the dashboard',
+          },
+        },
+        ['conversationId', 'operationKey', 'snapshotId', 'designId', 'clientId', 'branding', 'previewHash', 'expectedDesignVersion'],
+      ),
+      revoke_research_portfolio_share_link: obj(
+        {
+          conversationId: str('Exact current Research Portfolio chat conversation UUID'),
+          linkId: str('Exact share link UUID of this portfolio'),
+        },
+        ['conversationId', 'linkId'],
+      ),
       prepare_research_portfolio_meeting: obj(
     {
       conversationId: str('Exact current Research Portfolio chat UUID'),
@@ -806,25 +837,6 @@ export class MeriToolsService {
           publisher: str('Exact publisher'),
         },
         ['view'],
-      ),
-      get_florida_budget_project: obj(
-        {
-          ...legiwatchScope,
-          fiscalYear: str('Fiscal year such as 2026-27'),
-          projectId: str('Typed canonical project ID'),
-          offset: { type: 'integer', minimum: 0 },
-        },
-        ['fiscalYear'],
-      ),
-      compare_florida_budget_amounts: obj(
-        {
-          ...legiwatchScope,
-          leftId: str('Exact amount observation'),
-          leftRevision: str('Exact document revision'),
-          rightId: str('Exact amount observation'),
-          rightRevision: str('Exact document revision'),
-        },
-        ['leftId', 'leftRevision', 'rightId', 'rightRevision'],
       ),
       prepare_legiwatch_briefing: obj(
         {
@@ -903,18 +915,6 @@ export class MeriToolsService {
         },
         ['jurisdiction', 'view'],
       ),
-      compare_legislative_versions: obj(
-        {
-          ...legiwatchScope,
-          leftId: str('Exact left document ID'),
-          leftRevision: str('Exact left revision hash'),
-          rightId: str('Exact right document ID'),
-          rightRevision: str('Exact right revision hash'),
-          allowCrossBill: { type: 'boolean' },
-          rightSessionKey: str('Explicit right session for cross-session comparison'),
-        },
-        ['jurisdiction', 'sessionKey', 'leftId', 'leftRevision', 'rightId', 'rightRevision'],
-      ),
       save_legislative_research: obj(
         {
           ...legiwatchScope,
@@ -924,11 +924,17 @@ export class MeriToolsService {
           documents: {
             type: 'array',
             maxItems: 10,
-            items: obj({ id: str('Exact document ID'), revision: str('Selected revision hash') }, [
-              'id',
-              'revision',
-            ]),
+            items: obj(
+              {
+                id: str('Exact document ID'),
+                revision: str('Selected revision hash'),
+                sessionKey: str('Explicit session key when this document belongs to another session'),
+              },
+              ['id', 'revision'],
+            ),
           },
+          allowCrossBill: { type: 'boolean' },
+          rightSessionKey: str('Explicit allowed session key for a cross-session document'),
           citations: {
             type: 'array',
             maxItems: 100,
@@ -947,20 +953,6 @@ export class MeriToolsService {
         },
         ['jurisdiction', 'sessionKey', 'title', 'analysis', 'documents', 'citations', 'requestKey'],
       ),
-      get_legiwatch_review: obj(
-        {
-          ...legiwatchScope,
-          view: { type: 'string', enum: ['folders', 'suggestions', 'rules', 'workflows'] },
-          cursor: str('Opaque next cursor for this exact folder and session'),
-        },
-        ['view'],
-      ),
-      preview_legiwatch_relevance: obj(relevanceInput, [
-        'folderId',
-        'jurisdiction',
-        'sessionKey',
-        'billId',
-      ]),
       save_legiwatch_relevance: obj(
         {
           ...relevanceInput,
@@ -998,6 +990,20 @@ export class MeriToolsService {
           'requestKey',
           'action',
         ],
+      ),
+      watch_action: obj(
+        {
+          family: { type: 'string', enum: ['legiwatch_keyword', 'business_development_prospect', 'defense_budget_target', 'client_watchlist'] },
+          clientId: str('Client UUID or null'),
+          targetKind: str('Exact target kind per family'),
+          targetKey: str('Exact canonical target key the owner uses'),
+          operation: { type: 'string', enum: ['subscribe', 'pause', 'resume', 'unsubscribe', 'set_delivery'] },
+          expectedVersion: { type: 'integer', minimum: 1, description: 'Exact canonical version/CAS token the owner requires' },
+          sourceRevision: str('Exact owner-required source/preview token when demanded, or null'),
+          reason: str('Owner-required free-text justification, or null'),
+          enabled: { type: 'boolean', description: 'set_delivery target switch, or null' },
+        },
+        ['family', 'targetKind', 'targetKey', 'operation', 'expectedVersion'],
       ),
       get_research_evidence: obj(
         {
@@ -2033,6 +2039,12 @@ export class MeriToolsService {
             description:
               'User confirmed none of the LDA candidates apply — create from the provided fields as-is',
           },
+          provenance: {
+            type: 'object',
+            description:
+              'Optional per-field source metadata for the fields above, e.g. { "website": { "sourceUrl": "https://...", "confidence": "high" } }. ' +
+              'Stored on the created client for auditability; not shown as a profile field.',
+          },
         },
         ['name'],
       ),
@@ -2392,6 +2404,12 @@ export class MeriToolsService {
   this.requireResearchPortfolioTools();
   return parseResearchPortfolioManagementInput(rawInput);
 }
+    // These two effects have one canonical owner-specific parser: it carries the declared 150-citation
+    // briefing bound and the research owner's session/cross-bill contract, which the generic
+    // 100-element array ceiling and closed property list cannot express.
+    if (isLegislativeDocumentTool(normalizedName)) {
+      return parseLegislativeDocumentInput(normalizedName, rawInput);
+    }
     const definition = this.anthropicToolSchemas().find((tool) => tool.name === normalizedName);
     if (!definition) throw new BadRequestException(`Unknown Meri tool: ${normalizedName}`);
     return validateMeriWriteToolInput(
@@ -2643,6 +2661,32 @@ export class MeriToolsService {
       return { ok: false, reason: (e as Error).message };
     }
   }
+  /** Only the owner's own selection id; a missing id is reported as absent, never invented. */
+  private selectionIdOf(result: unknown): string | null {
+    const value = (result as { selectionId?: unknown } | null)?.selectionId;
+    return typeof value === 'string' && value.length > 0 && value.length <= 200 ? value : null;
+  }
+
+  /**
+   * Approved watch proposal effect. One canonical owner call through the family leaf; the
+   * owner confirmation (or its absence) is what the ledger stores — there is no Meri-owned
+   * watch identity, no blind resend, and an unconfirmed write stays UNKNOWN.
+   */
+  private async watchActionTool(
+    ctx: TenantContext,
+    input: Record<string, unknown>,
+    actionProposalId?: string,
+  ) {
+    if (!this.watchActionRegistry) throw new BadGatewayException('Watch owner adapter unavailable');
+    if (!actionProposalId)
+      throw new BadRequestException('watch_action requires an approved action proposal');
+    const request = watchRequestOf(input);
+    const effect = await this.watchActionRegistry.adapter(request.family).apply(ctx, request, {
+      actionProposalId,
+    });
+    return { tool: 'watch_action' as const, generatedAt: new Date().toISOString(), result: effect.receipt };
+  }
+
   private async legiwatchTool(ctx: TenantContext, name: string, input: Record<string, unknown>) {
     const secret = process.env.INTERNAL_SERVICE_SECRET;
     if (!secret || !ctx.clerkUserId)
@@ -2691,12 +2735,51 @@ export class MeriToolsService {
       return {
         tool: name,
         result,
+        selectionId: this.selectionIdOf(result),
         documentId: draft.draftId,
         location,
         status: 'saved',
         reused: draft.replayed === true,
         message: 'Private briefing draft saved in Workspace.',
       };
+    }
+    if (name === 'save_legislative_research') {
+      // ResearchService.saveResearch/createWorkspace either returns the exported draft or only saves the
+      // canonical selection (workspace_not_configured). Both are real outcomes; neither is upgraded here.
+      const draft = (
+        result as { draft?: { state?: unknown; draftId?: unknown; replayed?: unknown } } | null
+      )?.draft;
+      const selectionId = this.selectionIdOf(result);
+      if (
+        draft?.state === 'complete' &&
+        typeof draft.draftId === 'string' &&
+        /^[a-zA-Z0-9-]{1,100}$/.test(draft.draftId)
+      )
+        return {
+          tool: name,
+          result,
+          selectionId,
+          documentId: draft.draftId,
+          location: '/workspace/draft/' + encodeURIComponent(draft.draftId),
+          status: 'saved',
+          reused: draft.replayed === true,
+          message: 'Reviewed research draft saved in Workspace.',
+        };
+      if ((result as { state?: unknown } | null)?.state === 'saved' && draft === undefined)
+        return {
+          tool: name,
+          result,
+          selectionId,
+          documentId: null,
+          location: null,
+          status: 'selection_saved',
+          reused: false,
+          message:
+            'Canonical research selection saved; no Workspace document was returned for this draft.',
+        };
+      throw new BadGatewayException(
+        'Research draft receipt unavailable; observe the same request key before retrying',
+      );
     }
     return {
       tool: name,
@@ -2754,16 +2837,14 @@ export class MeriToolsService {
       get_research_portfolio_operations: () => researchPortfolio('get_research_portfolio_operations'),
       prepare_research_portfolio_brief: () => researchPortfolio('prepare_research_portfolio_brief'),
       prepare_research_portfolio_meeting: () => researchPortfolio('prepare_research_portfolio_meeting'),
+      get_research_portfolio_share_links: () => researchPortfolio('get_research_portfolio_share_links'),
+      publish_research_portfolio_share_link: () => researchPortfolio('publish_research_portfolio_share_link'),
+      revoke_research_portfolio_share_link: () => researchPortfolio('revoke_research_portfolio_share_link'),
       search_legiwatch_news: legiwatch,
-      get_florida_budget_project: legiwatch,
-      compare_florida_budget_amounts: legiwatch,
       prepare_legiwatch_briefing: legiwatch,
-      get_legiwatch_review: legiwatch,
       search_legislative_research: legiwatch,
       get_legal_reference: legiwatch,
-      compare_legislative_versions: legiwatch,
       save_legislative_research: legiwatch,
-      preview_legiwatch_relevance: legiwatch,
       save_legiwatch_relevance: legiwatch,
       apply_legiwatch_suggestion: legiwatch,
       get_research_evidence: () => getResearchEvidence(ctx, input, this.prisma),
@@ -2831,6 +2912,7 @@ export class MeriToolsService {
       draft_policy_memo: () => this.draftPolicyMemo(ctx, input),
       save_note: () => this.saveNote(ctx, input),
       save_chat_attachments: () => this.saveChatAttachments(ctx, input),
+      watch_action: () => this.watchActionTool(ctx, input, execution?.actionProposalId),
       send_email: () => this.sendEmail(ctx, input, execution?.actionProposalId),
       list_emails: () => this.listEmails(ctx, input),
       search_emails: () => this.searchEmails(ctx, input),
@@ -7006,6 +7088,23 @@ export class MeriToolsService {
               : null,
         bodyText: section.bodyText,
         bodyStoredPresent: message.bodyText !== null,
+        // Exact selected-message eligibility comes from the canonical mail owner.
+        // These fields describe a proposal input, never permission to dispatch.
+        ...(messageId && typeof thread.connectionEmail === 'string' ? {
+          nativeActions: [message.replyContext, message.replyAllContext, message.forwardContext]
+            .filter((action): action is Extract<NonNullable<typeof message.replyContext>, { supported: true }> => action?.supported === true)
+            .map(action => ({
+              mode: action.operation,
+              senderConnectionId: action.senderConnectionId,
+              senderEmail: thread.connectionEmail!.trim().toLowerCase(),
+              subject: action.subject,
+              to: action.to.map(recipient => recipient.email),
+              cc: (action.cc ?? []).map(recipient => recipient.email),
+              original: { threadId, messageId: action.originalMessageId,
+                updatedAt: action.originalUpdatedAt, bodySha256: action.originalBodySha256 ?? null },
+              ...(action.operation === 'forward' ? { originalBodyText: action.originalBodyText } : {}),
+            })),
+        } : {}),
         removed: message.removedAt === null ? false : true,
         connectionStatus: thread.connectionStatus,
         bodyOffset: section.bodyOffset,
@@ -9004,6 +9103,14 @@ export class MeriToolsService {
       }
     }
 
+    // Same per-field provenance convention as update_client_profile
+    // (intakeData.__webImport), kept to the fields this create actually writes so
+    // a proposal can never attribute a field the call did not create.
+    const provenance = objectInput(input.provenance);
+    const sourcedProvenance = Object.fromEntries(
+      Object.entries(provenance).filter(([field]) => input[field] !== undefined),
+    );
+
     // Failures from here (billing slot-limit 402, validation) propagate as
     // HttpExceptions — the approve replay surfaces e.message as the action
     // failure, which is the only channel the user actually sees.
@@ -9032,6 +9139,16 @@ export class MeriToolsService {
           ldaClientId: ldaMatch?.id ?? null,
           ldaName: ldaMatch?.name ?? null,
         },
+        // A create has no prior intake data to merge, so the import record is
+        // written whole and only when the call actually sourced something.
+        ...(Object.keys(sourcedProvenance).length > 0
+          ? {
+              __webImport: {
+                updatedAt: new Date().toISOString(),
+                fields: sourcedProvenance,
+              },
+            }
+          : {}),
       },
     });
     return {

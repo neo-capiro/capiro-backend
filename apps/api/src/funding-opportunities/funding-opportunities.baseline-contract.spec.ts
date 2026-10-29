@@ -587,7 +587,10 @@ describe('the release gate cannot shrink below its measured current floors', () 
   // The historical P00-P36 web implementation floor is retired. These are the
   // current replacement groups and their measured collection floors.
   const floors: Array<[string, { suites: number; tests: number }]> = [
-    ['api-ordinary', { suites: 94, tests: 2538 }],
+    // Tango consolidation removes seven replaced-ingestor suites and adds the
+    // canonical worker regressions. The full ordinary scope executes 93/2467;
+    // PostgreSQL publication coverage runs in the separate rehearsal step.
+    ['api-ordinary', { suites: 93, tests: 2467 }],
     ['api-search', { suites: 3, tests: 12 }],
     ['api-saved', { suites: 1, tests: 2 }],
     ['api-detail-workflow-pipeline', { suites: 4, tests: 48 }],

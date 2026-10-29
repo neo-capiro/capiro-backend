@@ -1,4 +1,5 @@
 import { EngagementModule } from '../engagement/engagement.module.js';
+import { BrandingModule } from '../branding/branding.module.js';
 import { ResearchPortfolioInstitutionalService } from './research-portfolio-institutional.service.js';
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module.js';
@@ -17,6 +18,8 @@ import { ResearchPortfolioMeriToolsService } from './research-portfolio-meri-too
 import { ResearchPortfolioMeriScopeService } from './research-portfolio-meri-scope.service.js';
 import { ResearchPortfolioPhase11Service } from './research-portfolio-phase11.service.js';
 import { ResearchContextsController } from './research-contexts.controller.js';
+import { ResearchPortfolioSharePayloadService } from './research-portfolio-share-payload.service.js';
+import { ResearchPortfolioShareDispatchController } from './research-portfolio-share.controller.js';
 import { ResearchPortfolioShareService } from './research-portfolio-share.service.js';
 import {
   ResearchPortfolioShareController,
@@ -25,13 +28,20 @@ import {
 } from './research-portfolio-share.controller.js';
 
 @Module({
-  imports: [EngagementModule, PrismaModule, DefenseResearchModule, ClientDocumentsModule],
+  imports: [
+    EngagementModule,
+    PrismaModule,
+    DefenseResearchModule,
+    ClientDocumentsModule,
+    BrandingModule,
+  ],
   controllers: [
     ResearchPortfoliosController,
     ResearchContextsController,
     ResearchPortfolioShareController,
     ResearchPortfolioShareAdminController,
     ResearchPortfolioSharePublicController,
+    ResearchPortfolioShareDispatchController,
   ],
   providers: [
     ResearchPortfolioInstitutionalService,
@@ -47,6 +57,7 @@ import {
     ResearchPortfolioMeriScopeService,
     ResearchPortfolioPhase11Service,
     ResearchPortfolioShareService,
+    ResearchPortfolioSharePayloadService,
   ],
   exports: [
     ResearchPortfolioInstitutionalService,

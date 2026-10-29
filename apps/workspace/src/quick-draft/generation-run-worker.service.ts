@@ -1,5 +1,6 @@
 import { denyProspectTransfer } from '../prospect-resources/prospect-draft-access.js';
 import {
+  BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
@@ -17,7 +18,20 @@ import type {
   GenerationSectionFailure,
 } from '../generation/generation-run.js';
 import { VersionsService } from '../versions/versions.service.js';
+import {
+  NATIVE_INTAKE_PHASE,
+  NATIVE_INTAKE_OWNER,
+  NativeIntakeAdapter,
+  nativeIntakeRefusalCode,
+  nativeIntakeRetryable,
+  readBinding,
+  type NativeIntakeAdmission,
+  type NativeIntakeBinding,
+  type NativeIntakeFacts,
+  type NativeIntakeRunRef,
+} from './native-intake.adapter.js';
 import type { RunStatusResponse } from './dto/intake.dto.js';
+import { NATIVE_RETAINED_RETRY_WORKFLOW, RETRY_FAILED_UNITS_INTENT } from './dto/intake.dto.js';
 
 /**
  * Durable generation-run worker (PR #964).
@@ -26,20 +40,25 @@ import type { RunStatusResponse } from './dto/intake.dto.js';
  * survives browser reload, ECS restart, worker crash, and network timeout:
  * every transition is persisted, work is claimed atomically via a leased
  * `UPDATE … WHERE`, and an expired lease lets any worker re-claim. This
- * service owns the stage machine and the poller; the heavy reasoning is
- * delegated to the canonical {@link GenerationService} so this worker never
- * talks to a model provider directly — it enters the SAME assurance tenant +
- * context-persistence boundary the GenerationController establishes.
+ * service owns the stage machine and the poller.
  *
  * Stages (executed in order, each independently retry-safe):
  *   preflight → evidence_plan → narrative_plan → drafting →
  *   editorial_pass → assurance → snapshot → complete
  *
- * `drafting` is the only stage that performs real model IO; the surrounding
- * stages are durable markers recorded for the audit trail (the canonical
- * GenerationService performs the real evidence/narrative/editorial/assurance
- * work internally during drafting). A run resumed after a crash skips every
- * stage that already recorded a `done` entry and continues from the next.
+ * `drafting` is the only stage that performs real model IO, and for a durable
+ * intake run it is served by the approved greenfield native conversation owner
+ * through {@link NativeIntakeAdapter} — the same seam the five Workspace
+ * document-agent phases use. Because that owner verifies the CURRENT
+ * authenticated session credential itself, a durable intake run is drafted by
+ * the ATTENDED caller that submitted it (the intake route hands this worker its
+ * own request credential, which is never persisted), and a run whose native
+ * request is retained unresolved is reconciled by an attended status read. The
+ * unattended poller therefore does not take runs whose drafting needs that
+ * credential: it would have nothing to dispatch them with, and re-issuing a
+ * retained request blindly could start a second paid run. A run resumed after a
+ * crash skips every stage that already recorded a `done` entry and continues
+ * from the next.
  */
 @Injectable()
 export class GenerationRunWorkerService {
@@ -61,6 +80,7 @@ export class GenerationRunWorkerService {
     private readonly collaborators: CollaboratorsService,
     private readonly generation: GenerationService,
     private readonly versions: VersionsService,
+    private readonly nativeIntake: NativeIntakeAdapter,
   ) {}
 
   // ─── lifecycle (poller) ─────────────────────────────────────────────────
@@ -138,8 +158,27 @@ export class GenerationRunWorkerService {
    * Manually claim and process a single run by id. Returns the run's terminal
    * status, or `'busy'` when another worker holds an unexpired lease. This is
    * the atomic-claim entry point the task spec defines.
+   *
+   * `options.credential` is the CURRENT authenticated session credential of an
+   * attended caller (the intake route that just persisted this run, or an
+   * attended retry). It is forwarded to the native drafting owner and is never
+   * persisted. Without it, a run whose drafting is served by that owner is not
+   * claimed at all: an unattended claim has no credential to dispatch it with,
+   * and must not re-issue a retained request.
    */
-  async claim(runId: string): Promise<string> {
+  async claim(runId: string, options: { credential?: string } = {}): Promise<string> {
+    const credential =
+      typeof options.credential === 'string' && options.credential.length > 0
+        ? options.credential
+        : undefined;
+
+    if (credential === undefined && (await this.isNativeIntakeRun(runId))) {
+      this.logger.log(
+        `claim: run ${runId} is drafted by the native conversation owner and needs an attended current credential; left for its attended caller`,
+      );
+      return 'awaiting-current-access';
+    }
+
     const claimed = await this.tryClaim(runId);
     if (!claimed) return 'busy';
 
@@ -149,13 +188,32 @@ export class GenerationRunWorkerService {
       return 'missing';
     }
     try {
-      return await this.processRun(run);
+      return await this.processRun(run, credential);
     } catch (e) {
       const message = e instanceof Error ? e.message : 'unknown';
       this.logger.error(`run ${runId} failed: ${message}`);
       await this.markRunFailed(runId, message);
       return 'failed';
     }
+  }
+
+  /**
+   * True when this run's draft was created by the durable intake flow, i.e. its
+   * drafting is served by the native conversation owner and therefore needs the
+   * attended caller's own current credential.
+   */
+  private async isNativeIntakeRun(runId: string): Promise<boolean> {
+    const run = await this.prisma.wsGenerationRun.findUnique({
+      where: { id: runId },
+      select: { draftId: true, tenantId: true },
+    });
+    if (!run) return false;
+    const draft = await this.prisma.wsDraft.findFirst({
+      where: { id: run.draftId, tenantId: run.tenantId, prospectId: null },
+      select: { config: true },
+    });
+    const cfg = (draft?.config as Record<string, unknown> | undefined) ?? {};
+    return cfg.quickDraftIntake !== undefined && cfg.quickDraftIntake !== null;
   }
 
   // ─── discovery + atomic claim ───────────────────────────────────────────
@@ -204,6 +262,28 @@ export class GenerationRunWorkerService {
     return affected === 1;
   }
 
+  /**
+   * Claim a TERMINAL native run for its own bound failed-unit retry attempt. The
+   * WHERE clause is what keeps an explicit retry at-most-once: only a run that
+   * genuinely resolved on a definite failure can be taken, and a second click (or
+   * a reload) while the attempt is in flight matches nothing — so no second paid
+   * turn can be allocated by a duplicate action. An `unknown` or a cancelled run
+   * never matches, because neither authorizes new work.
+   */
+  private async tryClaimNativeRetry(runId: string): Promise<boolean> {
+    const affected = await this.prisma.$executeRaw`
+      UPDATE ws_generation_run
+      SET lease_holder     = ${this.workerId},
+          lease_expires_at  = NOW() + INTERVAL '${GenerationRunWorkerService.LEASE_SECONDS} seconds',
+          status            = 'active',
+          attempt_count     = attempt_count + 1
+      WHERE id = ${runId}::uuid
+        AND status IN ('failed', 'partial')
+        AND (lease_expires_at IS NULL OR lease_expires_at < NOW())
+    `;
+    return affected === 1;
+  }
+
   // ─── stage machine ─────────────────────────────────────────────────────
 
   /**
@@ -212,7 +292,7 @@ export class GenerationRunWorkerService {
    * and the error is persisted, so a later tick resumes from the next
    * incomplete stage. Returns the terminal status.
    */
-  private async processRun(run: GenerationRunRow): Promise<string> {
+  private async processRun(run: GenerationRunRow, credential?: string): Promise<string> {
     const origin = await this.prisma.wsDraft.findFirst({ where: { tenantId: run.tenantId, id: run.draftId }, select: { prospectId: true } });
     if (!origin) throw new NotFoundException('Draft not found');
     denyProspectTransfer(origin);
@@ -230,10 +310,29 @@ export class GenerationRunWorkerService {
       await this.updateStage(run.id, stage, 'active', stages, undefined);
 
       try {
-        const outcome = await this.runStage(stage, run, sectionStates, stages, agentRevision);
-        stages = completeStage(stages, stage, outcome.detail);
+        const outcome = await this.runStage(stage, run, sectionStates, stages, agentRevision, credential);
         if (outcome.sectionStates) sectionStates = outcome.sectionStates;
         if (outcome.agentRevision !== undefined) agentRevision = outcome.agentRevision;
+
+        if (outcome.halt) {
+          // The stage is recorded NOT done, so a later attended claim resumes it
+          // exactly here; the run keeps its lifecycle status (no completedAt) and
+          // this pass stops. Used when the native conversation owner cannot be
+          // reached without the attended caller's current credential.
+          stages = failStage(stages, stage, outcome.halt.detail);
+          await this.updateStage(run.id, stage, 'failed', stages, {
+            sectionStates,
+            errorMessage: outcome.halt.errorMessage,
+          });
+          // Nobody is working this run any more, so the lease is released rather
+          // than held to its full five minutes: the next attended attempt — a
+          // re-submitted intake or a status read holding current access — may
+          // take it at once.
+          await this.releaseLease(run.id);
+          break;
+        }
+
+        stages = completeStage(stages, stage, outcome.detail);
 
         if (outcome.terminal) {
           // Short-circuit (human-edit guard or a preflight failure): persist
@@ -277,9 +376,10 @@ export class GenerationRunWorkerService {
 
   /**
    * Execute one stage. Only `preflight`, `drafting`, `snapshot`, and `complete`
-   * perform IO; the middle stages are durable markers (the canonical
-   * GenerationService performs the real evidence/narrative/editorial/assurance
-   * work internally during drafting).
+   * perform IO. The middle stages are durable markers: the single native
+   * `document` turn performs the planning/editorial/assurance work internally
+   * during drafting, so this flow never calls the owner once per stage and never
+   * claims work no call performed.
    */
   private async runStage(
     stage: GenStage,
@@ -287,6 +387,7 @@ export class GenerationRunWorkerService {
     sectionStates: SectionStates,
     _stages: StageEntry[],
     agentRevision: number,
+    credential?: string,
   ): Promise<StageOutcome> {
     switch (stage) {
       case 'preflight':
@@ -295,9 +396,12 @@ export class GenerationRunWorkerService {
       case 'narrative_plan':
       case 'editorial_pass':
       case 'assurance':
-        return { detail: 'delegated to GenerationService (durable marker)' };
+        return {
+          detail:
+            'covered by the single native document turn (marker only; no separate call for this stage)',
+        };
       case 'drafting':
-        return this.stageDrafting(run, sectionStates, agentRevision);
+        return this.stageDrafting(run, sectionStates, agentRevision, credential);
       case 'snapshot':
         return this.stageSnapshot(run);
       case 'complete':
@@ -342,28 +446,30 @@ export class GenerationRunWorkerService {
   }
 
   /**
-   * The real work: delegate to the canonical GenerationService, wrapped in the
-   * same assurance tenant + context-persistence boundary the
-   * GenerationController establishes, so the leased worker's call is
-   * indistinguishable from an interactive one for the Prisma middleware gate.
+   * The real work for a durable intake run: admit ONE native turn through the
+   * approved greenfield conversation owner and reconcile this run's durable state
+   * from that single admission. The owner's identity, transport and wire
+   * protocol are the ones the five Workspace document-agent phases already use
+   * (`NATIVE_GENERATION_TURN` → `NativeGenerationConversationClient`); the run's
+   * own owners (this stage machine, the draft config) remain the only writers.
    *
    * OPTIMISTIC REVISION GUARD: before generating, re-read the draft's
    * document-agent revision and compare it to the value captured at preflight.
    * If a human edited the draft while this run sat queued/leased, the run is
    * cancelled rather than overwriting the human's work — the single place this
-   * worker can decline to clobber newer edits, enforced before GenerationService
-   * persists anything.
+   * worker can decline to clobber newer edits, enforced before the native owner
+   * is called and before anything is persisted.
    *
-   * On success the returned {@link GenerationRunSummary} drives the per-section
-   * states (with content hashes) and the provider/model telemetry. On partial
-   * failure GenerationService itself retains prior content for failed sections
-   * (preserving successful sections); a later `retryFailedSections` call
-   * regenerates only the failed/stale subset.
+   * The exact native request is derived from the run's retained facts only (the
+   * frozen intake snapshot, the pinned published blueprint version and this
+   * revision), so an unchanged run always addresses the same retained request
+   * and a changed revision, blueprint or source set addresses a different one.
    */
   private async stageDrafting(
     run: GenerationRunRow,
     sectionStates: SectionStates,
     agentRevision: number,
+    credential?: string,
   ): Promise<StageOutcome> {
     // Revision guard — re-read the draft's current document-agent revision.
     const current = await this.prisma.wsDraft.findFirst({
@@ -390,59 +496,271 @@ export class GenerationRunWorkerService {
       };
     }
 
-    // Mark every declared section as generating before the fan-out.
-    const sections = await this.declaredSections(run);
-    for (const section of sections) {
-      sectionStates[section] = { status: 'generating' };
+    const ref: NativeIntakeRunRef = {
+      tenantId: run.tenantId,
+      runId: run.id,
+      draftId: run.draftId,
+      actorId: run.actorId,
+    };
+
+    // The run's own retained facts decide the exact request, and carry the pinned
+    // blueprint's section titles the per-section states are keyed by. A refusal
+    // to read them (lost access, unpublished blueprint, changed definition hash)
+    // is recorded exactly like an admission refusal.
+    let facts: NativeIntakeFacts;
+    try {
+      facts = await this.nativeIntake.retainedFacts(ref);
+    } catch (error) {
+      return this.intakeRefusalOutcome(sectionStates, error);
+    }
+
+    // Mark the pinned blueprint's sections as generating before the one bounded
+    // native call, so the editor sees real progress while it is in flight.
+    for (const title of facts.blueprint.sectionTitles) {
+      sectionStates[title] = { status: 'generating' };
     }
     await this.persistSectionStates(run.id, sectionStates);
 
-    const result = await runWithGenerationAssuranceTenant(run.tenantId, () =>
-      runWithContextPersistenceBoundary(run.tenantId, run.draftId, () =>
-        this.generation.generateAllSections(run.tenantId, run.draftId, run.actorId, {}),
-      ),
-    );
-    const summary = extractGenerationRun(result, this.logger, run.id);
+    const admission = await this.nativeIntake.admit(ref, credential ?? '');
+    return this.applyIntakeAdmission(run, facts, admission, sectionStates);
+  }
 
-    // Reconcile per-section state from the authoritative summary. Successful
-    // sections get a content hash so a future retry can detect a human edit
-    // (stale). Failed sections record the bounded error message; sections not
-    // in this run's scope keep their prior state.
-    const freshContent = await this.readSectionContent(run);
-    const failedBySection = new Map(
-      summary.failedSections.map((f) => [f.section, f] as const),
-    );
-    for (const section of sections) {
-      if (summary.succeededSections.includes(section)) {
-        sectionStates[section] = {
-          status: 'succeeded',
-          contentHash: contentHash(freshContent[section] ?? ''),
-        };
-      } else {
-        const failure = failedBySection.get(section);
-        sectionStates[section] = failure
-          ? { status: 'failed', error: failure.message }
-          : { status: 'failed', error: 'not attempted' };
-      }
+  /**
+   * Reconcile this run's durable state from ONE native admission. The retained
+   * binding is persisted first, so a crash between the call and the rest of the
+   * bookkeeping still leaves the exact request addressable.
+   */
+  private async applyIntakeAdmission(
+    run: GenerationRunRow,
+    facts: NativeIntakeFacts,
+    admission: NativeIntakeAdmission,
+    sectionStates: SectionStates,
+  ): Promise<StageOutcome> {
+    // Record the exact request identity FIRST (a crash between the call and the
+    // rest of the bookkeeping still leaves it addressable) — but only when the
+    // draft still carries the bytes this pass read: the write is a
+    // compare-and-set, so a draft edited while the request was in flight is
+    // never silently replaced. The binding is what makes a later pass re-read
+    // the SAME request instead of issuing a new one, so a lost binding cannot be
+    // retried — see intakeBindingConflictOutcome.
+    if (
+      admission.binding &&
+      !(await this.persistIntakeBinding(
+        run,
+        admission.binding,
+        // A run driven by its own failed-unit attempt records that attempt under
+        // its OWN key: the binding the FIRST intake retained keeps its identity
+        // (its request id, its outcome) instead of being overwritten by a later
+        // attempt's.
+        facts.retry !== null ? 'nativeRetry' : 'native',
+      ))
+    ) {
+      return this.intakeBindingConflictOutcome(
+        sectionStates,
+        admission.kind,
+        admission.binding.requestId,
+      );
     }
 
-    // Record provider/model/reasoning telemetry from the authoritative summary.
-    await this.prisma.wsGenerationRun.update({
-      where: { id: run.id },
+    if (admission.kind === 'result') {
+      const admitted: Record<string, string> = {};
+      for (const section of admission.sections) {
+        admitted[section.title] = section.text;
+        sectionStates[section.title] = {
+          status: 'succeeded',
+          contentHash: contentHash(section.text),
+        };
+      }
+      // Land the body with the same compare-and-set, MERGING the admitted
+      // sections into the snapshot that write itself reads — there is no earlier
+      // content read whose (older) map could replace a save that lands in
+      // between. A draft edited while the answer was in flight keeps its own
+      // bytes and entries: nothing is written for this answer, no section is
+      // reported as succeeded, and the stage stays resumable — the retained
+      // request above is what a later attended pass re-reads (never a new paid
+      // turn).
+      const landed = await this.writeDraftSections(
+        run,
+        admission.sections.map((section) => section.title),
+        admitted,
+      );
+      if (!landed) {
+        const conflict = `the draft was edited while native ${NATIVE_INTAKE_PHASE} request ${admission.binding.requestId} was in flight; the generated body was not written and the draft's own content is preserved`;
+        for (const section of admission.sections) {
+          sectionStates[section.title] = { status: 'failed', error: conflict.slice(0, 500) };
+        }
+        return {
+          sectionStates,
+          halt: {
+            detail: `native ${NATIVE_INTAKE_PHASE} content not written (config conflict): ${conflict}`.slice(0, 500),
+            errorMessage: conflict,
+          },
+        };
+      }
+      await this.prisma.wsGenerationRun.update({
+        where: { id: run.id },
+        data: { provider: NATIVE_INTAKE_OWNER, model: null },
+      });
+      return {
+        sectionStates,
+        detail: `${admission.detail}; ${admission.sections.length}/${facts.blueprint.sectionIds.length} pinned blueprint sections landed`,
+      };
+    }
+
+    if (admission.kind === 'unknown' || admission.kind === 'approval-required') {
+      // Nothing has landed. The run keeps its lifecycle status and the drafting
+      // stage stays resumable; the retained request — not a new one — is what a
+      // later attended claim or status read re-reads.
+      return { sectionStates, halt: { detail: admission.detail } };
+    }
+
+    const message = admission.kind === 'failed' ? admission.detail : admission.message;
+    for (const [title, state] of Object.entries(sectionStates)) {
+      if (state.status === 'generating') {
+        sectionStates[title] = { status: 'failed', error: message.slice(0, 500) };
+      }
+    }
+    if (admission.kind === 'failed' || !admission.retryable) {
+      return { terminal: 'failed', sectionStates, errorMessage: message, detail: admission.detail };
+    }
+    // Not terminal: current access or the owner's availability may still change,
+    // and only an attended attempt holding a valid credential may resolve it.
+    return { sectionStates, halt: { detail: admission.detail, errorMessage: message } };
+  }
+
+  /** Record a refusal to read the run's retained facts, the same way as an admission. */
+  private intakeRefusalOutcome(sectionStates: SectionStates, error: unknown): StageOutcome {
+    const message = error instanceof Error ? error.message : 'native intake facts unavailable';
+    // The refusal code travels with the recorded stage, so the durable record
+    // names the same reason the admission path records (e.g. a pinned blueprint
+    // whose sections cannot be keyed uniquely).
+    const code = nativeIntakeRefusalCode(error);
+    if (nativeIntakeRetryable(error)) {
+      return {
+        sectionStates,
+        halt: {
+          detail: `native ${NATIVE_INTAKE_PHASE} intake facts unavailable (${code}): ${message}`.slice(0, 500),
+          errorMessage: message,
+        },
+      };
+    }
+    return {
+      terminal: 'failed',
+      sectionStates,
+      errorMessage: message,
+      detail: `native ${NATIVE_INTAKE_PHASE} intake facts refused (${code}): ${message}`.slice(0, 500),
+    };
+  }
+
+  /**
+   * The exact request identity could not be recorded on the draft: a concurrent
+   * config write (a human save) won the race while the native request was in
+   * flight. The request has already gone out, so this run must NOT be left
+   * resumable — a later pass would find no retained request and issue a SECOND
+   * paid turn for work the owner may already be doing. The run therefore stops
+   * (terminal) with a truthful conflict/unknown outcome naming the owner outcome
+   * this pass observed, nothing is written to the draft, and the caller
+   * re-intakes. This is the one config conflict that is not resumable.
+   */
+  private intakeBindingConflictOutcome(
+    sectionStates: SectionStates,
+    kind: NativeIntakeAdmission['kind'],
+    requestId: string,
+  ): StageOutcome {
+    const message = `the draft was edited while native ${NATIVE_INTAKE_PHASE} request ${requestId} was in flight, so its exact request identity could not be recorded (owner outcome: ${kind}); the run is stopped rather than risking a second paid dispatch, and nothing was written to the draft`;
+    for (const [title, state] of Object.entries(sectionStates)) {
+      if (state.status === 'generating') {
+        sectionStates[title] = { status: 'failed', error: message.slice(0, 500) };
+      }
+    }
+    return {
+      terminal: 'failed',
+      sectionStates,
+      errorMessage: message,
+      detail: `native ${NATIVE_INTAKE_PHASE} binding not recorded (config conflict): ${message}`.slice(0, 500),
+    };
+  }
+
+  /**
+   * Persist the retained native binding on the draft's own intake linkage block.
+   * It holds ids and the derived request identity — never the credential, prompt
+   * or document text.
+   *
+   * The write is a compare-and-set over the config BYTES this pass read (`id`,
+   * `tenantId` and `config: { equals }`, which includes the draft's agent
+   * revision) — the same guard the document-agent owner uses for its own config
+   * writes. `true` means the binding is durably retained; `false` means a
+   * concurrent write won and the draft was left exactly as the other writer left
+   * it.
+   */
+  private async persistIntakeBinding(
+    run: GenerationRunRow,
+    binding: NativeIntakeBinding,
+    key: 'native' | 'nativeRetry' = 'native',
+  ): Promise<boolean> {
+    const draft = await this.prisma.wsDraft.findFirst({
+      where: { prospectId: null, id: run.draftId, tenantId: run.tenantId },
+      select: { config: true },
+    });
+    const snapshot = (draft?.config as Record<string, unknown> | undefined) ?? {};
+    const intake = (snapshot.quickDraftIntake as Record<string, unknown> | undefined) ?? {};
+    const written = await this.prisma.wsDraft.updateMany({
+      where: {
+        id: run.draftId,
+        tenantId: run.tenantId,
+        // A copy of the row as it was read: the payload below is built from
+        // spreads, so nothing this pass writes can be part of what is compared.
+        config: { equals: structuredClone(snapshot) as never },
+      },
       data: {
-        provider: summary.provider,
-        model: summary.model,
-        // GenerationRunSummary does not surface a reasoning level today; leave
-        // null unless a future summary carries one.
-        reasoningLevel:
-          (summary as { reasoningLevel?: string | null }).reasoningLevel ?? null,
+        config: { ...snapshot, quickDraftIntake: { ...intake, [key]: binding } } as never,
       },
     });
+    return written.count === 1;
+  }
 
-    return {
-      sectionStates,
-      detail: `${summary.succeededSections.length}/${summary.requestedSections.length} sections succeeded`,
-    };
+  /**
+   * Land the admitted document body in the draft's own editor fields: the
+   * section list, and the per-section content keyed by the section title the
+   * pinned blueprint declares. Sections the draft already declared keep their
+   * prior order; an intake draft declares none, so the pinned blueprint's order
+   * is used.
+   */
+  private async writeDraftSections(
+    run: GenerationRunRow,
+    titles: string[],
+    admitted: Record<string, string>,
+  ): Promise<boolean> {
+    const draft = await this.prisma.wsDraft.findFirst({
+      where: { prospectId: null, id: run.draftId, tenantId: run.tenantId },
+      select: { config: true },
+    });
+    const snapshot = (draft?.config as Record<string, unknown> | undefined) ?? {};
+    const declared = (snapshot.sections as string[] | undefined) ?? [];
+    const currentContent = (snapshot.sectionContent as Record<string, string> | undefined) ?? {};
+    // Compare-and-set with ONE read and ONE write: the admitted sections are
+    // merged into the SAME snapshot that forms the comparison, so the compared
+    // bytes and the payload base are the same bytes and every unrelated current
+    // section, content entry and config field is carried through. A save that
+    // lands before this read is part of the compared bytes and is preserved by
+    // the merge; a save landing after it fails the comparison and is preserved
+    // by refusing to write. The generated body can therefore never replace a
+    // map that is older than the bytes it was compared against.
+    const written = await this.prisma.wsDraft.updateMany({
+      where: {
+        id: run.draftId,
+        tenantId: run.tenantId,
+        config: { equals: structuredClone(snapshot) as never },
+      },
+      data: {
+        config: {
+          ...snapshot,
+          sections: declared.length ? declared : titles,
+          sectionContent: { ...currentContent, ...admitted },
+        } as never,
+      },
+    });
+    return written.count === 1;
   }
 
   /**
@@ -485,27 +803,68 @@ export class GenerationRunWorkerService {
         sectionStates: sectionStates as never,
       },
     });
-    return { detail: `terminal ${status}` };
+    // Reported as the terminal outcome too, so the caller that drove this run
+    // sees the status the run actually has rather than the interim `active`.
+    return { terminal: status, detail: `terminal ${status}` };
   }
 
   // ─── manual retry (retry-failed endpoint) ───────────────────────────────
 
   /**
-   * Retry only the failed or stale sections of a completed/partial run. The
-   * canonical {@link GenerationService.retryFailedSections} regenerates ONLY
-   * the sections the latest run recorded as failed (and only those still
-   * declared on the draft), preserving every successful section's content and
-   * review state exactly. The run's per-section states and telemetry are then
-   * refreshed from the returned summary.
+   * Continue a run's failed work from its retry route.
    *
-   * This does NOT re-queue a whole new generation: successful sections are
-   * never re-run, satisfying the preserve-on-retry contract.
+   * A DURABLE-INTAKE run is drafted by the native conversation owner, so its
+   * continuation is its RETAINED native request: the same request the intake
+   * already issued is read/replayed with the caller's own current credential
+   * (the exact request identity, never a re-derived or newly scoped one). The
+   * legacy provider owner is not reachable from this route for such a run at
+   * all, nothing is resubmitted as new work, and a run with nothing retained is
+   * left for its attended intake rather than dispatched here. An unattended call
+   * (no current credential) leaves the run exactly as it is.
+   *
+   * For every other run the canonical {@link GenerationService.retryFailedSections}
+   * is unchanged: it regenerates ONLY the sections the latest run recorded as
+   * failed (and only those still declared on the draft), preserving every
+   * successful section's content and review state exactly. The run's per-section
+   * states and telemetry are then refreshed from the returned summary. This does
+   * NOT re-queue a whole new generation.
+   *
+   * Returns the run's status after the continuation (`'queued'` for the legacy
+   * path, whose work is handed to the legacy owner as before).
+   *
+   * `options.workflow === 'native-retained'` is the closed native-only
+   * discriminator the retry route exposes. It selects this native workflow and
+   * nothing else: a value the route does not define is refused up front, and a
+   * run this owner did not create is refused before the legacy owner is reached,
+   * so the marker can never widen a caller into legacy generation work. With no
+   * marker the method behaves exactly as it did for historical callers.
    */
   async retryFailedSections(
     tenantId: string,
     runId: string,
     actorId: string,
-  ): Promise<void> {
+    attended: { credential?: string } = {},
+    options: { workflow?: string; intent?: string } = {},
+  ): Promise<string> {
+    // Closed sets, checked before any read: an unrecognised marker is a malformed
+    // request and must never fall through to another workflow.
+    const workflow = options.workflow;
+    if (workflow !== undefined && workflow !== NATIVE_RETAINED_RETRY_WORKFLOW) {
+      throw new BadRequestException(
+        'Unknown retry workflow marker: this route accepts only the native-retained workflow.',
+      );
+    }
+    const intent = options.intent;
+    if (intent !== undefined && intent !== RETRY_FAILED_UNITS_INTENT) {
+      throw new BadRequestException(
+        'Unknown retry intent: new paid generation is only ever acknowledged with the retry-failed-units intent.',
+      );
+    }
+    // The caller's own explicit acknowledgement that this request may generate
+    // again. A run's STATUS alone never allocates paid work: without this intent
+    // the native branch below recovers only what is deterministic and issues no
+    // native turn at all.
+    const paidRetry = intent === RETRY_FAILED_UNITS_INTENT;
     const run = await this.prisma.wsGenerationRun.findFirst({
       where: { id: runId, tenantId },
     });
@@ -522,6 +881,96 @@ export class GenerationRunWorkerService {
       canEdit,
       'Only owners and editors can retry generated content in this document',
     );
+
+    // A durable-intake run never reaches the legacy provider: its retained
+    // request is the only continuation, and it needs the attended caller's own
+    // current credential to be read (the owner verifies that credential itself).
+    const native = await this.isNativeIntakeRun(runId);
+    if (workflow === NATIVE_RETAINED_RETRY_WORKFLOW && !native) {
+      // The caller opted into the native-only workflow, so a run this owner does
+      // not own is REFUSED here — after the existing tenant / actor / edit-ACL /
+      // prospect-transfer checks, and before the legacy generation owner. A
+      // browser-held receipt can never widen a run into legacy provider work.
+      throw new BadRequestException(
+        'This run is not a durable native intake run, so it cannot be continued on the native-retained workflow.',
+      );
+    }
+    if (native) {
+      const credential =
+        typeof attended.credential === 'string' && attended.credential.length > 0
+          ? attended.credential
+          : undefined;
+      if (credential === undefined) {
+        this.logger.log(
+          `retry: run ${runId} is drafted by the native conversation owner and needs an attended current credential; left for its attended caller`,
+        );
+        return 'awaiting-current-access';
+      }
+      // An EXPLICIT retry of a run that already RESOLVED on a definite failure:
+      // the failed units come from the run's own per-unit state, and the durable
+      // attempt is bound before any effect, so a duplicate click or a reload
+      // re-addresses the attempt already bound instead of allocating a second
+      // paid turn. `unknown`, `cancelled`, `complete` and `awaiting-current-access`
+      // never come here: none of them authorizes new work.
+      //
+      // Two different acts are kept apart. Retrying units that failed is a
+      // deliberate, paid act and needs the caller's own `intent`. Recovering a run
+      // that failed AFTER its single native turn completed is deterministic — its
+      // completed bytes are reused and no native turn is issued — so it needs no
+      // paid intent, and it is the only thing this branch will do without one.
+      if (run.status === 'failed' || run.status === 'partial') {
+        const drafted = readStages(run.stages).some(
+          (entry) => entry.name === 'drafting' && entry.status === 'done',
+        );
+        const attempt = paidRetry
+          ? await this.nativeIntake.bindFailedUnitsAttempt({
+              tenantId,
+              runId,
+              draftId: run.draftId,
+              actorId,
+            })
+          : null;
+        if (attempt === null && !drafted) {
+          this.logger.log(
+            paidRetry
+              ? `retry: run ${runId} has no server-derived failed unit to retry; left exactly as it is`
+              : `retry: run ${runId} was not asked to generate again, so nothing here may allocate paid work; left exactly as it is`,
+          );
+        } else if (await this.tryClaimNativeRetry(runId)) {
+          const fresh = await this.prisma.wsGenerationRun.findUnique({ where: { id: runId } });
+          if (fresh) {
+            try {
+              // The SAME stage machine resumes at the first stage with no `done`
+              // entry: a run that failed during drafting re-issues the scoped
+              // request, and one that failed after it reuses the completed
+              // drafting output instead of paying for it again.
+              await this.processRun(fresh, credential);
+            } catch (error) {
+              this.logger.warn(
+                `run ${runId} failed-unit retry stopped: ${error instanceof Error ? error.message : 'unknown'}`,
+              );
+            }
+          }
+        } else {
+          this.logger.log(
+            `retry: run ${runId} is already driven by its bound failed-unit attempt; no second turn`,
+          );
+        }
+        const retried = await this.prisma.wsGenerationRun.findFirst({
+          where: { id: runId, tenantId },
+        });
+        return retried?.status ?? run.status;
+      }
+
+      // Reads/replays the SAME retained request through this caller's credential;
+      // it drives nothing when no request is retained (a first request stays the
+      // attended intake's job).
+      await this.reconcileRetainedNativeRequest(run, { actorId, credential });
+      const current = await this.prisma.wsGenerationRun.findFirst({
+        where: { id: runId, tenantId },
+      });
+      return current?.status ?? run.status;
+    }
 
     const result = await runWithGenerationAssuranceTenant(tenantId, () =>
       runWithContextPersistenceBoundary(tenantId, run.draftId, () =>
@@ -569,6 +1018,8 @@ export class GenerationRunWorkerService {
         // outcomes.
       },
     });
+    // Unchanged response for a run that is not a durable-intake run.
+    return 'queued';
   }
 
   // ─── status polling ─────────────────────────────────────────────────────
@@ -576,8 +1027,21 @@ export class GenerationRunWorkerService {
   /**
    * Read the durable run status for the editor's polling endpoint. Tenant-
    * scoped: a run is only visible to its own tenant.
+   *
+   * When the caller supplies its own current session credential and this run
+   * holds a RETAINED native request that has not resolved yet, the read also
+   * reconciles it: the stage machine is driven once more with this caller's
+   * credential, which re-reads the SAME stored request (never a new one) and
+   * finishes the run if the owner has published a terminal state. A read never
+   * issues a first request for a run that has nothing retained — that stays the
+   * attended intake's job — and a caller without current edit access is refused
+   * by the same owner the interactive route uses, leaving the run untouched.
    */
-  async getRunStatus(tenantId: string, runId: string): Promise<RunStatusResponse> {
+  async getRunStatus(
+    tenantId: string,
+    runId: string,
+    attended?: { actorId: string; credential?: string },
+  ): Promise<RunStatusResponse> {
     const run = await this.prisma.wsGenerationRun.findFirst({
       where: { id: runId, tenantId },
     });
@@ -585,12 +1049,20 @@ export class GenerationRunWorkerService {
     const origin = await this.prisma.wsDraft.findFirst({ where: { tenantId, id: run.draftId }, select: { prospectId: true } });
     if (!origin) throw new NotFoundException('Run not found');
     denyProspectTransfer(origin);
-    const stages = readStages(run.stages);
-    const sectionStates = readSectionStates(run.sectionStates);
+
+    const reconciled =
+      attended?.credential && RESOLVED_RUN_STATUSES.has(run.status) === false
+        ? await this.reconcileRetainedNativeRequest(run, attended)
+        : null;
+    const current = reconciled
+      ? ((await this.prisma.wsGenerationRun.findFirst({ where: { id: runId, tenantId } })) ?? run)
+      : run;
+    const stages = readStages(current.stages);
+    const sectionStates = readSectionStates(current.sectionStates);
     return {
-      runId: run.id,
-      status: run.status,
-      stage: run.stage,
+      runId: current.id,
+      status: current.status,
+      stage: current.stage,
       stages: stages.map((s) => ({
         name: s.name,
         status: s.status,
@@ -599,25 +1071,73 @@ export class GenerationRunWorkerService {
         detail: s.detail,
       })),
       sectionStates: sectionStates as RunStatusResponse['sectionStates'],
-      provider: run.provider ?? undefined,
-      model: run.model ?? undefined,
-      reasoningLevel: run.reasoningLevel ?? undefined,
-      errorMessage: run.errorMessage ?? undefined,
-      startedAt: run.startedAt?.toISOString(),
-      completedAt: run.completedAt?.toISOString(),
+      provider: current.provider ?? undefined,
+      model: current.model ?? undefined,
+      reasoningLevel: current.reasoningLevel ?? undefined,
+      errorMessage: current.errorMessage ?? undefined,
+      startedAt: current.startedAt?.toISOString(),
+      completedAt: current.completedAt?.toISOString(),
     };
   }
 
-  // ─── helpers ───────────────────────────────────────────────────────────
+  /**
+   * Drive a run whose native request is already RETAINED. Nothing is retained →
+   * nothing to reconcile (a read never dispatches a first request). The retained
+   * case resumes the ordinary stage machine with this caller's credential, so
+   * the drafting stage re-reads the SAME request, the remaining stages still run
+   * (including the as-generated snapshot) and the run reaches its real terminal
+   * status.
+   */
+  private async reconcileRetainedNativeRequest(
+    run: GenerationRunRow,
+    attended: { actorId: string; credential?: string },
+  ): Promise<boolean> {
+    const ref: NativeIntakeRunRef = {
+      tenantId: run.tenantId,
+      runId: run.id,
+      draftId: run.draftId,
+      actorId: attended.actorId,
+    };
+    let retained: NativeIntakeBinding | null;
+    try {
+      retained = (await this.nativeIntake.retainedFacts(ref)).retained;
+    } catch (error) {
+      // The reading caller does not hold current access to this draft: a read
+      // stays a read and the run is returned exactly as it is.
+      this.logger.log(
+        `run ${run.id} not reconciled for this caller: ${error instanceof Error ? error.message : 'current access refused'}`,
+      );
+      return false;
+    }
+    if (retained === null) return false;
 
-  private async declaredSections(run: GenerationRunRow): Promise<string[]> {
-    const draft = await this.prisma.wsDraft.findFirst({
-      where: { prospectId: null, id: run.draftId, tenantId: run.tenantId },
-      select: { config: true },
-    });
-    const cfg = (draft?.config as Record<string, unknown> | undefined) ?? {};
-    return (cfg.sections as string[] | undefined) ?? [];
+    // The SAME atomic claim the attended paths use, so two concurrent reads can
+    // never both drive this run (and a run someone else is working is left alone).
+    if (!(await this.tryClaim(run.id))) return false;
+    const fresh = await this.prisma.wsGenerationRun.findUnique({ where: { id: run.id } });
+    if (!fresh) return false;
+    try {
+      await this.processRun(fresh, attended.credential);
+    } catch (error) {
+      // A status read reports the run's durable state; a reconcile attempt that
+      // fails is logged here and left on the run row, never raised as a read error.
+      this.logger.warn(
+        `run ${run.id} reconcile failed: ${error instanceof Error ? error.message : 'unknown'}`,
+      );
+      return false;
+    }
+    return true;
   }
+
+  /** Release this worker's lease so an attended attempt may take the run at once. */
+  private async releaseLease(runId: string): Promise<void> {
+    await this.prisma.wsGenerationRun.update({
+      where: { id: runId },
+      data: { leaseExpiresAt: new Date(0) },
+    });
+  }
+
+  // ─── helpers ───────────────────────────────────────────────────────────
 
   private async readSectionContent(
     run: GenerationRunRow,
@@ -715,6 +1235,9 @@ const STAGE_ORDER = [
 ] as const;
 type GenStage = (typeof STAGE_ORDER)[number];
 
+/** Lifecycle statuses that are final for a run: nothing more will be driven. */
+const RESOLVED_RUN_STATUSES = new Set(['complete', 'partial', 'failed', 'cancelled']);
+
 interface StageEntry {
   name: GenStage;
   status: 'active' | 'done' | 'failed';
@@ -733,6 +1256,13 @@ interface StageOutcome {
   sectionStates?: SectionStates;
   /** Updated agent revision captured during preflight. */
   agentRevision?: number;
+  /**
+   * The stage could not advance the run and must NOT be recorded done: the run
+   * keeps its lifecycle status, this pass stops, and a later attended claim
+   * resumes exactly at this stage. Used when the native conversation owner
+   * cannot be reached without the attended caller's current credential.
+   */
+  halt?: { detail: string; errorMessage?: string };
 }
 
 interface SectionState {

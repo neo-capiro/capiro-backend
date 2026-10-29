@@ -31,6 +31,7 @@ import { ObjectiveNativeReader } from '../meri/objective-native-reader.js';
 import { InternalServiceGuard } from '../auth/internal-service.guard.js';
 
 @Module({
+  exports: [PlannerService, PlannerLinksService],
   imports: [MeriModule],
   controllers: [PlannerController, PlannerAttachmentsController, PlannerPublicController, PlannerCapacityController, ObjectiveCanonicalProducerController, ObjectiveCanonicalRequestController, ObjectiveCanonicalCompletionController, ObjectiveCanonicalTerminalController],
   providers: [

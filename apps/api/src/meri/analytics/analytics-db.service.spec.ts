@@ -63,6 +63,7 @@ describe('dedicated public SQL execution', () => {
   it.each([
     ['57014', 'QUERY_TIMEOUT'], ['55P03', 'QUERY_TIMEOUT'], ['42803', 'INVALID_QUERY'], ['42883', 'INVALID_QUERY'],
     ['22P02', 'INVALID_QUERY'], ['22007', 'INVALID_QUERY'], ['22008', 'INVALID_QUERY'],
+    ['42P08', 'INVALID_QUERY'], ['42P18', 'INVALID_QUERY'],
     ['42501', 'SOURCE_UNAVAILABLE'], ['42P01', 'SOURCE_UNAVAILABLE'],
   ])('classifies fixed driver code %s without disclosing driver details', async (code, expected) => {
     const { service, tx } = fixture();

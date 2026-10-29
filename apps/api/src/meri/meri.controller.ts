@@ -66,6 +66,8 @@ import { MeriMcpService, type CatalogAddInput, type McpServerInput } from './mer
 import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
 import { MeriProcedureRuntimeValidationService } from './meri-procedure-runtime-validation.service.js';
+import type { MeriSelectedProcedureSelector } from './native-procedures/selected-procedure.js';
+import { projectProcedureCatalog } from './native-procedures/procedure-catalog.js';
 import { MeriApprovalService } from './meri-approval.service.js';
 import { MeriComplianceAuditService } from './meri-compliance-audit.service.js';
 import { MeriClaimWriterService } from './meri-claim-writer.js';
@@ -315,7 +317,7 @@ class ResolveAttachmentTextDto {
   attachmentIds!: string[];
 }
 
-class ValidateMeriProcedureRuntimeDto {
+export class ValidateMeriProcedureRuntimeDto {
   @IsUUID()
   conversationId!: string;
 
@@ -326,25 +328,42 @@ class ValidateMeriProcedureRuntimeDto {
   @IsIn(['general', 'client', 'portfolio', 'external_entity'])
   scope!: 'general' | 'client' | 'portfolio' | 'external_entity';
 
+  @ValidateIf((o: ValidateMeriProcedureRuntimeDto) => !o.selector)
   @IsString()
   @Length(1, 200)
-  recordId!: string;
+  recordId?: string;
 
+  @ValidateIf((o: ValidateMeriProcedureRuntimeDto) => !o.selector)
   @IsString()
   @Matches(/^[a-z0-9_]{2,48}$/)
-  canonicalId!: string;
+  canonicalId?: string;
 
+  @ValidateIf((o: ValidateMeriProcedureRuntimeDto) => !o.selector)
   @IsInt()
   @Min(1)
-  procedureVersion!: number;
+  procedureVersion?: number;
 
+  @ValidateIf((o: ValidateMeriProcedureRuntimeDto) => !o.selector)
   @IsString()
   @Matches(/^[a-f0-9]{64}$/)
-  manifestDigest!: string;
+  manifestDigest?: string;
 
+  @ValidateIf((o: ValidateMeriProcedureRuntimeDto) => o.selector === undefined || o.toolName !== undefined)
   @IsString()
   @Matches(/^[a-z0-9_:-]{2,160}$/)
-  toolName!: string;
+  toolName?: string;
+
+  /**
+   * Wave5 MO01/ST16 native selector. When present it replaces the trusted
+   * full-identity fields above, so the caller only ever chooses a procedure:
+   * an exact firm row {source:'firm',recordId,version,manifestDigest} or one of
+   * the six builtins {source:'builtin',id,version,manifestDigest}. The exact
+   * closed shape is re-validated in Core; the browser never supplies
+   * instructions, tools or authority.
+   */
+  @IsOptional()
+  @IsObject()
+  selector?: MeriSelectedProcedureSelector;
 }
 
 @Controller('clio')
@@ -713,8 +732,30 @@ export class MeriController {
   validateProcedureRuntime(
     @CurrentTenant() ctx: TenantContext,
     @Body() body: ValidateMeriProcedureRuntimeDto,
+    @Req() req: Request,
   ) {
-    return this.procedureRuntime.validate(ctx, body);
+    // Native selected-procedure crossing (Wave5 MO01/ST16): the caller supplies
+    // only a stored selector and Core derives the exact identity itself.
+    if (body.selector) {
+      return this.procedureRuntime.admitSelectedProcedure(ctx, req, {
+        conversationId: body.conversationId,
+        clientId: body.clientId ?? null,
+        scope: body.scope,
+        toolName: body.toolName,
+        selector: body.selector,
+      });
+    }
+    // Trusted full-identity caller: the existing prepared-identity contract.
+    return this.procedureRuntime.validate(ctx, {
+      conversationId: body.conversationId,
+      clientId: body.clientId ?? null,
+      scope: body.scope,
+      recordId: body.recordId!,
+      canonicalId: body.canonicalId!,
+      procedureVersion: body.procedureVersion!,
+      manifestDigest: body.manifestDigest!,
+      toolName: body.toolName!,
+    });
   }
 
   // ── MeriV2 legacy write-tool approvals (Workstream B4 + B4.1) — RETIRED ──
@@ -992,7 +1033,42 @@ export class MeriController {
     return { disconnected: true };
   }
 
+  // ── Procedure catalog (Wave5 MO01/ST16) — standard-user browse ──
+
+  /**
+   * Read-only catalog of the procedures the current user may CHOOSE: the six
+   * canonical builtins plus the eligible enabled firm procedures of the current
+   * tenant. Standard users may browse; the governance mutations below stay
+   * user_admin. This grants no execution authority — the native resolver still
+   * decides every invocation — and it exposes no instructions, tools or
+   * authority, only the exact selector plus display metadata.
+   */
+  @Get('procedure-catalog')
+  @Roles('standard_user')
+  async procedureCatalog(@CurrentTenant() ctx: TenantContext) {
+    return projectProcedureCatalog({
+      tenantId: ctx.tenantId,
+      firmRows: await this.firmSkills.list(ctx),
+      now: Date.now(),
+    });
+  }
+
   // ── Firm-authored skills (F6b) — admin-gated authoring ──
+
+  /**
+   * Every firm-skill mutation is fenced by the version the operator actually viewed. A malformed or
+   * missing value fails the request rather than falling back to the current version: a silent
+   * fallback would turn the fence back into "whatever the server last read".
+   */
+  private expectedFirmSkillVersion(value: unknown): number {
+    const version = Number(value);
+    if (!Number.isInteger(version) || version < 1) {
+      throw new BadRequestException(
+        'expectedVersion must be the positive integer version you viewed',
+      );
+    }
+    return version;
+  }
 
   @Get('firm-skills')
   @Roles('user_admin')
@@ -1013,7 +1089,10 @@ export class MeriController {
     @Param('id') id: string,
     @Body() body: Record<string, unknown>,
   ) {
-    return this.firmSkills.update(ctx, id, body ?? {});
+    const expectedVersion = this.expectedFirmSkillVersion(body?.expectedVersion);
+    // expectedVersion is a fence, not procedure content: it must not reach the payload validator.
+    const { expectedVersion: _expectedVersion, ...input } = body ?? {};
+    return this.firmSkills.update(ctx, id, input, expectedVersion);
   }
 
   @Patch('firm-skills/:id/enabled')
@@ -1021,15 +1100,24 @@ export class MeriController {
   setFirmSkillEnabled(
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,
-    @Body() body: { enabled?: unknown },
+    @Body() body: { enabled?: unknown; expectedVersion?: unknown },
   ) {
-    return this.firmSkills.setEnabled(ctx, id, Boolean(body?.enabled));
+    return this.firmSkills.setEnabled(
+      ctx,
+      id,
+      Boolean(body?.enabled),
+      this.expectedFirmSkillVersion(body?.expectedVersion),
+    );
   }
 
   @Delete('firm-skills/:id')
   @Roles('user_admin')
-  deleteFirmSkill(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
-    return this.firmSkills.remove(ctx, id);
+  deleteFirmSkill(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Query('expectedVersion') expectedVersion: unknown,
+  ) {
+    return this.firmSkills.remove(ctx, id, this.expectedFirmSkillVersion(expectedVersion));
   }
 
   @Post('firm-skills/:id/restore')
@@ -1037,13 +1125,18 @@ export class MeriController {
   restoreFirmSkill(
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,
-    @Body() body: { version?: unknown },
+    @Body() body: { version?: unknown; expectedVersion?: unknown },
   ) {
     const version = Number(body?.version);
     if (!Number.isInteger(version) || version < 1) {
       throw new BadRequestException('version must be a positive integer');
     }
-    return this.firmSkills.restore(ctx, id, version);
+    return this.firmSkills.restore(
+      ctx,
+      id,
+      version,
+      this.expectedFirmSkillVersion(body?.expectedVersion),
+    );
   }
 
   // Dry run: returns the resolved addendum/template without executing tools.

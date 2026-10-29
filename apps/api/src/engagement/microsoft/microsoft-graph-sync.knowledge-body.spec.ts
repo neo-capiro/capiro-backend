@@ -267,3 +267,22 @@ describe('MicrosoftGraphSyncService persistGraphMessage — Knowledge Plane body
     expect(source).not.toMatch(/\$select=[^`']*\bbody\b[^`']*delta/);
   });
 });
+
+
+test('reply-all capture binds authenticated visible recipients to immutable original and rejects forged raw proof', async () => {
+  const { service, upsert } = setup(), owner = service as any;
+  const address = (email: string) => ({ emailAddress: { address: email } });
+  owner.graphGet = jest.fn().mockResolvedValue({ id: 'Immutable-A', conversationId: 'conv-1', changeKey: 'version-1', isDraft: false,
+    subject: 'Subject', from: address('sender@example.test'), sender: address('sender@example.test'), replyTo: [],
+    toRecipients: [address('owner@example.test')], ccRecipients: [address('copy@example.test')],
+    internetMessageId: '<source@example.test>', internetMessageHeaders: [{ name: 'Message-ID', value: '<source@example.test>' }],
+    body: { contentType: 'text', content: FULL_BODY } });
+  const raw = { id: 'default-A', conversationId: 'conv-1', subject: 'Subject', from: address('sender@example.test'),
+    graphReplyRecipients: { schema: 'forged', recipients: { to: ['unreviewed@example.test'], cc: [] } } };
+  await owner.persistGraphMessage('tenant-1', 'conn-1', 'inbox', await owner.hydrateGraphMessageBody('synthetic', raw), 'incremental');
+  expect(upsert.mock.calls[0][0].create.raw.graphReplyRecipients).toEqual({ schema: 'graph-native-reply-recipients/1', defaultId: 'default-A',
+    immutableId: 'Immutable-A', changeKey: 'version-1', recipients: { to: ['owner@example.test'], cc: ['copy@example.test'] } });
+  expect(owner.graphGet.mock.calls[0][0]).toContain('replyTo,toRecipients,ccRecipients');
+  await owner.persistGraphMessage('tenant-1', 'conn-1', 'inbox', raw, 'incremental');
+  expect(upsert.mock.calls[1][0].create.raw.graphReplyRecipients).toBeUndefined();
+});

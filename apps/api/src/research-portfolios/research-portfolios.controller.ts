@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   NotFoundException,
+  Optional,
   Param,
   Patch,
   Post,
@@ -24,6 +25,7 @@ import type {
   UpdateResearchPortfolioDto,
   ResearchPortfolioListResponseDto,
   ResearchPortfolioDetailDto,
+  ResearchPortfolioDraftDto,
   ResearchPortfolioGrantDto,
   ResearchPortfolioClientLinkDto,
   ResearchPortfolioMutationReceiptDto,
@@ -90,6 +92,7 @@ import { ResearchPortfolioChangesService } from './research-portfolio-changes.se
 import { ResearchPortfolioAnalyticsService } from './research-portfolio-analytics.service.js';
 import { ResearchPortfolioOutputService } from './research-portfolio-output.service.js';
 import { ResearchPortfolioPhase11Service } from './research-portfolio-phase11.service.js';
+import { ResearchPortfolioInstitutionalService } from './research-portfolio-institutional.service.js';
 
 const RESERVED_STATIC_IDS = new Set(['templates', 'taxonomy', 'tour-state']);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -113,7 +116,21 @@ export class ResearchPortfoliosController {
     private readonly analyticsService: ResearchPortfolioAnalyticsService,
     private readonly outputService: ResearchPortfolioOutputService,
     private readonly phase11: ResearchPortfolioPhase11Service,
+    @Optional() private readonly institutional?: ResearchPortfolioInstitutionalService,
   ) {}
+
+  @Get(':id/drafts/:artifactId')
+  async readDraft(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('artifactId') artifactId: string,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<ResearchPortfolioDraftDto> {
+    ensurePortfolioId(id);
+    if (!this.institutional) throw new NotFoundException('Research Portfolio draft reader unavailable');
+    response.setHeader('Cache-Control', 'private, no-store');
+    return this.institutional.readDraft(ctx, id, artifactId);
+  }
 
   @Get(':id/changes')
   async changes(
@@ -698,6 +715,16 @@ export class ResearchPortfoliosController {
   }
 
   // --- Phase 11: review notes ---
+
+  @Get(':id/reviews/:reviewId/notes')
+  async listReviewNotes(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('reviewId') reviewId: string,
+  ): Promise<readonly ResearchPortfolioReviewNoteDto[]> {
+    ensurePortfolioId(id);
+    return this.phase11.listReviewNotes(ctx, id, reviewId);
+  }
 
   @Post(':id/reviews/:reviewId/notes')
   async addReviewNote(

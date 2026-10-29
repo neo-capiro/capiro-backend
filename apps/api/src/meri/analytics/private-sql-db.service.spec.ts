@@ -180,6 +180,8 @@ describe('private SQL execution isolation (mock transport; native role proof rem
   it.each([
     ['57014', 'QUERY_TIMEOUT'],
     ['22P02', 'INVALID_QUERY'],
+    ['42P08', 'INVALID_QUERY'],
+    ['42P18', 'INVALID_QUERY'],
     ['42501', 'SOURCE_UNAVAILABLE'],
   ])('sanitizes private driver failure %s', async (code, expected) => {
     const f = fixture();

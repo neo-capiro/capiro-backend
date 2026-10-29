@@ -1,0 +1,107 @@
+CLAIM-PROFILE-PRODUCER.txt
+Session 20261028_000838_07fd56 -- finite PF03 producer/provenance bridge
+Owned checkout : work/wave5-profile-proposal-producer-20261028
+Branch         : codex/wave5-profile-proposal-producer-20261028
+Base           : b442ab622589d1345195b5dd246c8802b4deed08
+Tree           : 48aba8afed61fc1565542dc15babd9ab57542238
+Policy         : capiro-agent-ops b32b4803933760dc0a93fffdcd8fba30a89c3aac (read-only)
+
+EXACT SPANS TOUCHED (all inside root's released claim list)
+
+1. apps/api/src/meri/client-record-action.contract.ts  (CLAIMED)
+   L10-12  CLIENT_PROFILE_PREFLIGHT_KEY beside CLIENT_RECORD_SCOPE_KEY.
+   L20-24  one `provenanceEntry` const; `profile.provenance` (L78) reuses it.
+   L34-39  `createClientFieldNames` derived from `baseFields` keys.
+   L46-48  `createClientInput.provenance` = z.partialRecord(enum(fields), entry).
+   L222-228 `publicClientRecordPreview` also strips the preflight key.
+   NO change to clientRecordRequest, clientRecordReceipt, assertClientRecordAccess,
+   readClientRecordScope, CLIENT_RECORD_MAX_BYTES, the scope schema or the
+   fingerprint helper.
+
+2. apps/api/src/meri/client-profile-proposal.ts  (NEW, adjacent helper)
+   Owns only: bounded verdict schema + reader, the verdict mapping, and the
+   read-only duplicate/capacity fact read (reuses effectiveClientSlots).
+   Takes no lock, writes nothing, reserves nothing, records no approval.
+
+3. apps/api/src/meri/meri-action-proposal.service.ts  (CLAIMED: client-record
+   preparation / read / projection spans only)
+   L2-6    helper imports.
+   L847-857 client-record preparation span: record the preflight into
+            storedPreview after the scope key + current-authority recheck.
+   L1210   readClientRecord projection: return the stored preflight.
+   Nothing else changed: no fingerprint, claim, finalize, approveAndExecute or
+   policy logic.
+
+4. apps/api/src/meri/meri-tools.service.ts  (CLAIMED: narrow create_client
+   descriptor + createClient provenance spans)
+   L2042-2047 create_client descriptor: optional `provenance`.
+   L9106-9113 sourcedProvenance = provenance filtered to fields this call writes.
+   L9142-9151 intakeData.__webImport = { updatedAt, fields } beside __meriCreate.
+   ClientsService.create and the client-capacity transaction are NOT touched.
+
+5. Specs
+   apps/api/src/meri/client-record-action.contract.spec.ts  (+28)
+   apps/api/src/meri/meri-tools.create-client.spec.ts       (+42)
+   apps/api/src/meri/client-profile-proposal.spec.ts        (NEW)
+   apps/api/src/meri/meri-action-proposal.service.spec.ts   (+130)
+
+EXPLICITLY NOT TOUCHED
+   clients/client-capacity.ts, clients/clients.service.ts, meri/meri.module.ts
+   (no new constructor dependency: reads use the already-injected PrismaService
+   and ConfigService), auth/application-current/roles/service identity, Prisma
+   schema, package manifests, pnpm locks, runtime closure, migrations,
+   registries, archives, generators, FE branches.
+
+FINDINGS THAT CONSTRAIN THE PEER INTERFACE
+
+A. Zod 4.6.7: an enum-keyed `z.record` is EXHAUSTIVE (every key required), so
+   the create map must be `z.partialRecord`. A plain `z.record` rejected every
+   ordinary single-field provenance payload with "expected object, received
+   undefined" for each unwritten field.
+B. Pre-existing, NOT changed: `updateClientProfileInput.provenance` is also
+   exhaustive on base, so a partial update provenance map is rejected today.
+   Fixing it would alter existing update wire; left as-is and reported.
+
+INHERITED FAILURES RESOLVED (test-only; no source or authority change)
+
+Base b442ab62 fails 3 tests in meri-action-proposal.service.spec.ts with
+ForbiddenException: the fixtures applied a client-record tool with no access
+argument, and expected generic success/error classification from a tool that is
+now specialized (client-record success needs a canonical receipt; every
+client-record error is UNKNOWN). Proven identical on the untouched base in the
+same environment before any edit. Fixed by pointing those 3 generic
+classification tests at a genuinely generic CRM tool (create_task); their names
+and assertions are otherwise unchanged.
+
+EXACT MINIMAL COMPATIBLE SHAPE FOR THE MERI SUCCESSOR (parent owns the
+serialized contract / generator / package integration; no .25 widening, no
+second API label, existing historical closed bytes untouched)
+
+   create_client input  + one OPTIONAL field, additive and partial:
+     provenance?: { [field in the seven writable create fields]?:
+                    { sourceUrl: string(1..2048); confidence: 'high'|'medium'|'low' } }
+     - partial (any subset), closed (unknown keys/extra entry keys rejected),
+       and must NOT be exhaustive.
+   create_client tool descriptor: matching optional `provenance` object.
+   storage: client.intakeData.__webImport = { updatedAt: ISO8601,
+            fields: <only the subset actually written> } beside __meriCreate.
+   proposal preview: one bounded key
+     __meriClientProfilePreflight = { duplicate: 'clear'|'possible'|'unknown';
+                                      capacity: 'allowed'|'denied'|'unknown' }
+     stripped from every public preview.
+   prepare/read/decide response: one additive field
+     preflight: { duplicate; capacity } | null   (null for non-create rows and
+     for rows written before the field existed).
+   request fingerprint: unchanged for old requests (optional + absent => same hash).
+
+TEST TOOLCHAIN (no install, no shared mutation)
+   root node_modules + apps/api/node_modules are Windows directory junctions into
+   the retained read-only caches. Node 24.22.1.
+   jest 5 suites / 199 tests: 198 passed, 1 skipped, 0 failed.
+   tsc -p apps/api/tsconfig.json --noEmit: 121 errors, 0 in the changed files
+   (base was 122; the single delta is the helper's now-resolved missing export).
+   The only errors in a touched file are the 2 inherited `watch_action` union
+   errors in meri-tools.service.ts (base lines 994/2909, now 994/2915).
+   prettier: the 3 files already unformatted on base stay untouched; every file
+   this change owns is prettier-clean. eslint is NOT RUN: not present in the
+   retained read-only dependency cache and no install is permitted.

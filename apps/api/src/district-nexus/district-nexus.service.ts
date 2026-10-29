@@ -79,7 +79,7 @@ import type {
  *
  *   sync-federal-award              -> 'usaspending_federal_award'   (:110)
  *   sync-federal-assistance-awards  -> 'sync-federal-assistance-awards'
- *   sync-grants                     -> 'sync-grants'
+ *   sync-grants                     -> 'sync-tango-funding:grants'
  *   sync-legistorm-districts        -> SYNC_SOURCE 'sync-legistorm-districts'
  *   geocode-facilities              -> 'geocode-facilities'
  *   build-district-boundary-artifacts -> SYNC_SOURCE (same string)
@@ -149,7 +149,7 @@ const FRESHNESS_RAILS: readonly FreshnessRail[] = [
     syncSource: 'sync-federal-assistance-awards',
     label: 'Federal assistance awards',
   },
-  { id: 'sync-grants', syncSource: 'sync-grants', label: 'Grant opportunities' },
+  { id: 'sync-grants', syncSource: 'sync-tango-funding:grants', label: 'Grant opportunities' },
   {
     id: 'sync-legistorm-districts',
     syncSource: 'sync-legistorm-districts',

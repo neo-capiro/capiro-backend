@@ -4155,6 +4155,30 @@ export const MERI_CAPABILITY_REGISTRY = [
     surfaces: ['full_chat'],
   },
   {
+    name: 'get_research_portfolio_share_links',
+    description:
+      'List the client share links of the current Research Portfolio with their client, snapshot, design version, status, expiry, open count and failed PIN attempts, plus whether sharing is on. Never returns link addresses or the PIN.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'publish_research_portfolio_share_link',
+    description:
+      'Publish a one-week, PIN-protected client share link for the current Research Portfolio from an exact snapshot, dashboard design and linked client. Sharing must already be on with a PIN set in the portfolio. Returns the link address exactly once for the signed-in user to pass on themselves; Meri never sends the link or the PIN to anyone. Requires user approval.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'revoke_research_portfolio_share_link',
+    description:
+      'Revoke one client share link of the current Research Portfolio immediately; the recipient then sees only that the link is not available. Requires user approval.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
     name: 'get_research_evidence',
     description:
       'Read immutable attachment evidence for your research session, with source IDs, completeness/status and paging; verify supplied attachments before citing them.',
@@ -4341,6 +4365,22 @@ export const MERI_CAPABILITY_REGISTRY = [
     name: 'query_capiro_data',
     description:
       'Run an authored PostgreSQL SELECT over public/default or currently authorized client_records relations published by describe_capiro_data, with separately bound scalar $1/$2 parameters, INNER/LEFT canonical-key joins, nonrecursive CTEs, DISTINCT, COUNT/SUM/AVG/MIN/MAX, GROUP BY and ORDER BY. Private records require the current interactive scope; saved jobs cannot request them. Exact decimal/int64 parameters must be strings. Default rowLimit 200, max 1000; full result is bounded to 256 KiB. Numeric results are exact strings. Counts describe query results, never source completeness. Respect cycle/fiscal-year/value-kind and PE-versus-project grain; use specialized readers for decisive source text or consolidated funding.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'read_saved_record',
+    description:
+      'Read saved Workspace library/documents/versions/comments, exact saved-version content, saved Hill Day/newsletter state or existing staging projections; or authorized Core billing/usage/contact/own LegiWatch saved records. General supports every kind; selected-client conversations require an explicit matching library or LegiWatch client filter, and other kinds require General. Choose exact source/kind/selectors. Current user-session authority is rechecked by each domain. Whole bounded data includes source limits, not provider facts or complete inventory. No writes, invitations, staging, render, generation, send or arbitrary settings. Saved versions never fall back to current content. Research Portfolio and semantic search excluded.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'read_saved_strategy_records',
+    description:
+      'Read saved Planner projects, tasks and events, full saved Strategy or Objective versions, or Strategy activity summaries for one authorized client. Uses the original interactive user session and current client permission; exact selectors and bounded cursor pages. Saved snapshots are preserved. Activity summaries do not include node history or before/after bodies. No generation, mutation, approval, provider call, Research Portfolio or semantic search.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
@@ -4565,6 +4605,14 @@ export const MERI_CAPABILITY_REGISTRY = [
     name: 'apply_legiwatch_suggestion',
     description:
       'Apply an explicitly approved add, dismiss, rule-specific exclusion, restore or undo to one exact LegiWatch suggestion ID/version and request key. Governed proposal required. Current source, owner and folder permissions are rechecked; human context and manual removals prevail.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'watch_action',
+    description:
+      'Subscribe, pause, resume, unsubscribe or change delivery for a canonical watch owned by a business family (legiwatch keyword, business development prospect, defense budget target, or client watchlist). Governed proposal required. Current authority, existing watch identity and owner-specific versioning are rechecked; human context and manual removals prevail.',
     backend: 'meri',
     readOnly: false,
     surfaces: ['full_chat'],
@@ -5132,13 +5180,21 @@ export const MERI_CAPABILITY_REGISTRY = [
 export type MeriCapability = (typeof MERI_CAPABILITY_REGISTRY)[number];
 export type MeriCapabilityName = MeriCapability['name'];
 
+// These fixed HTTP owners require the original interactive request and cannot
+// execute through the older context-only local dispatcher.
+export type MeriLocalCapability = Exclude<
+  Extract<MeriCapability, { backend: 'meri' }>,
+  { name: 'read_saved_record' | 'read_saved_strategy_records' | 'get_legiwatch_review' | 'preview_legiwatch_relevance' | 'get_florida_budget_project' | 'compare_florida_budget_amounts' | 'compare_legislative_versions' }
+>;
+
 /** Compatibility projections; never maintain an independent name/description list. */
 export const MERI_TOOL_MANIFEST: Readonly<Record<string, string>> = Object.fromEntries(
   MERI_CAPABILITY_REGISTRY.map(({ name, description }) => [name, description]),
 );
 
 export const MERI_CORE_TOOL_DEFINITIONS = MERI_CAPABILITY_REGISTRY.filter(
-  (tool): tool is Extract<MeriCapability, { backend: 'meri' }> => tool.backend === 'meri',
+  (tool): tool is MeriLocalCapability => tool.backend === 'meri' &&
+    tool.name !== 'read_saved_record' && tool.name !== 'read_saved_strategy_records' && tool.name !== 'get_legiwatch_review' && tool.name !== 'preview_legiwatch_relevance' && tool.name !== 'get_florida_budget_project' && tool.name !== 'compare_florida_budget_amounts' && tool.name !== 'compare_legislative_versions',
 ).map(({ name, description }) => ({ name, description }));
 
 export const MERI_FEDERAL_MARKET_TOOL_DEFINITIONS = MERI_CAPABILITY_REGISTRY.filter(
