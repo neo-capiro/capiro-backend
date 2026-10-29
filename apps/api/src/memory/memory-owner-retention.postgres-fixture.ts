@@ -12,7 +12,9 @@ export async function ownerRetentionDatabase(
   beforeMigration?: (db: Client) => Promise<void>,
   additionalTables: readonly string[] = [],
 ) {
-  if (!/^postgresql:\/\/wave6_fixture_admin@127\.0\.0\.1:55486\/memory_owner_[a-z0-9_]+$/.test(url))
+  // Office erasure reuses this canonical fixture on its separate task-owned
+  // server; neither branch accepts a clone/live host or arbitrary credentials.
+  if (!/^postgresql:\/\/(?:wave6_fixture_admin@127\.0\.0\.1:55486\/memory_owner_[a-z0-9_]+|office_fixture_admin@127\.0\.0\.1:55487\/office_drafts_[a-z0-9_]+)$/.test(url))
     throw Error('Only the task-owned memory_owner database is admitted');
   const admin = new Client({ connectionString: url });
   await admin.connect();

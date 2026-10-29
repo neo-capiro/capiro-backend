@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Client } from 'pg';
+import type { Prisma } from '@prisma/client';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { ownerRetentionDatabase } from './memory-owner-retention.postgres-fixture.js';
 
@@ -24,6 +25,8 @@ export async function conversationMemoryRetentionFixture(url: string) {
       ["to_regclass('public.clio_conversation_bootstrap_receipts')", '20281016020000_clio_conversation_bootstrap_receipts'],
       ["to_regprocedure('protect_meri_bootstrap_binding()')", '20281023010000_meri_general_conversation_binding'],
       ["to_regclass('public.clio_conversation_management_receipts')", '20281024020000_meri_conversation_management'],
+      ["to_regclass('public.meri_office_drafts')", '20281029020000_office_draft_owner'],
+      ["(SELECT 1 FROM information_schema.columns WHERE table_name='meri_office_drafts' AND column_name='editor_epoch')", '20281029070000_office_editor_admission'],
       ["to_regprocedure('memory_review_workflow_metadata(text,text,boolean)')", '20260818010000_memory_phase2_review_workflow_foundation'],
       ["to_regclass('public.memory_review_notification_outbox')", '20260818040000_memory_phase2_notification_outbox'],
       ["to_regclass('public.memory_review_in_app_notification')", '20260818040200_memory_phase2_notification_dispatcher'],
@@ -37,6 +40,11 @@ export async function conversationMemoryRetentionFixture(url: string) {
   } finally { await db.end(); }
   const prisma = {
     withTenant: <T>(tenantId: string, work: (tx: any) => Promise<T>) => store.scoped(tenantId, work),
+    withTenantUser: <T>(tenantId: string, actorId: string, work: (tx: Prisma.TransactionClient) => Promise<T>) =>
+      store.scoped(tenantId, async tx => {
+        await tx.$executeRaw`SELECT set_config('app.current_user',${actorId},true)`;
+        return work(tx);
+      }),
     withSystem: <T>(work: (tx: any) => Promise<T>) => store.scoped(null, work),
   } as PrismaService;
   return { ...store, prisma };
