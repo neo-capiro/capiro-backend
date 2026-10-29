@@ -128,40 +128,44 @@ aws ecr get-login-password --region ${REGION} \\
   | docker login --username AWS --password-stdin ${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com
 `;
 
-const SCAN_ASSERT = `digest="$(aws ecr describe-images --region ${REGION} --repository-name $REPOSITORY_NAME \\
-  --image-ids "imageTag=$EXPECTED_SHA" --query 'imageDetails[0].imageDigest' --output text)"
-case "$digest" in sha256:*) ;; *) echo "no immutable digest for the exact-SHA tag" >&2; exit 1 ;; esac
-[[ ! "$digest" == *latest* ]]
-status=PENDING
-for _ in $(seq 1 30); do
-  status="$(aws ecr describe-image-scan-findings --region ${REGION} --repository-name $REPOSITORY_NAME \\
-    --image-id "imageDigest=$digest" --query 'imageScanStatus.status' --output text 2>/dev/null || echo PENDING)"
-  [ "$status" = COMPLETE ] && break
-  sleep 10
-done
-test "$status" = COMPLETE
-aws ecr describe-image-scan-findings --region ${REGION} --repository-name $REPOSITORY_NAME \\
-  --image-id "imageDigest=$digest" --output json > evidence-scan.json
-python3 - <<'PY'
-import json
-findings = json.load(open('evidence-scan.json'))['imageScanFindings']['findingSeverityCounts']
+const SCAN_ASSERT = `assert_clean_scan() {
+  repository="$1"
+  slug="$(printf '%s' "$repository" | tr '/' '-')"
+  digest="$(aws ecr describe-images --region ${REGION} --repository-name "$repository" \\
+    --image-ids "imageTag=$EXPECTED_SHA" --query 'imageDetails[0].imageDigest' --output text)"
+  case "$digest" in sha256:*) ;; *) echo "no immutable digest for the exact-SHA tag in $repository" >&2; exit 1 ;; esac
+  status=PENDING
+  for _ in $(seq 1 30); do
+    status="$(aws ecr describe-image-scan-findings --region ${REGION} --repository-name "$repository" \\
+      --image-id "imageDigest=$digest" --query 'imageScanStatus.status' --output text 2>/dev/null || echo PENDING)"
+    [ "$status" = COMPLETE ] && break
+    sleep 10
+  done
+  test "$status" = COMPLETE
+  aws ecr describe-image-scan-findings --region ${REGION} --repository-name "$repository" \\
+    --image-id "imageDigest=$digest" --output json > "evidence-scan-$slug.json"
+  aws ecr describe-images --region ${REGION} --repository-name "$repository" \\
+    --image-ids "imageDigest=$digest" --output json > "evidence-image-$slug.json"
+  python3 - "$slug" <<'PY'
+import json, sys
+slug = sys.argv[1]
+findings = json.load(open('evidence-scan-%s.json' % slug))['imageScanFindings']['findingSeverityCounts']
 blocking = int(findings.get('HIGH', 0)) + int(findings.get('CRITICAL', 0))
-print('SCAN_SEVERITY', json.dumps(findings, sort_keys=True))
+print('SCAN_SEVERITY', slug, json.dumps(findings, sort_keys=True))
 if blocking:
-    raise SystemExit('blocking findings present: %d' % blocking)
-print('SCAN_CLEAN_PASS')
+    raise SystemExit('blocking findings present in %s: %d' % (slug, blocking))
+print('SCAN_CLEAN_PASS', slug)
 PY
-aws ecr describe-images --region ${REGION} --repository-name $REPOSITORY_NAME \\
-  --image-ids "imageDigest=$digest" --output json > evidence-image.json
-echo "EXACT_IMAGE_DIGEST=$digest"
+  echo "EXACT_IMAGE_DIGEST=$repository@$digest"
+}
 `;
 
 const WEB_BUILDSPEC = `set -euo pipefail
 FE_IMAGE=${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/capiro/portfolio-preview@${FRONTEND_IMAGE_DIGEST}
 NODE_IMAGE=${NODE_IMAGE}
 CONSUMER_IMAGE=${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${CONSUMER_REPOSITORIES.web}:$EXPECTED_SHA
-REPOSITORY_NAME=${CONSUMER_REPOSITORIES.web}
 ${PRELUDE}
+${SCAN_ASSERT}
 docker pull "$FE_IMAGE"
 test "$(docker image inspect "$FE_IMAGE" --format '{{.Os}}/{{.Architecture}}')" = linux/arm64
 test "$(docker image inspect "$FE_IMAGE" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = ${FRONTEND_SOURCE_COMMIT}
@@ -202,13 +206,22 @@ docker build --platform linux/arm64 -f apps/web/Dockerfile \\
 test "$(docker image inspect "$CONSUMER_IMAGE" --format '{{.Architecture}}')" = arm64
 test "$(docker image inspect "$CONSUMER_IMAGE" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$EXPECTED_SHA"
 bash apps/web/smoke-8080.sh "$CONSUMER_IMAGE"
-docker push "$CONSUMER_IMAGE"
-${SCAN_ASSERT}`;
+# The same admitted image serves both legacy consumers; publish the exact commit
+# tag to both repositories and require a clean exact-digest scan for each.
+for repository in ${CONSUMER_REPOSITORIES.web} capiro/dev/web-vnext; do
+  target=${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/$repository:$EXPECTED_SHA
+  if [ "$target" != "$CONSUMER_IMAGE" ]; then
+    docker tag "$CONSUMER_IMAGE" "$target"
+  fi
+  docker push "$target"
+done
+assert_clean_scan ${CONSUMER_REPOSITORIES.web}
+assert_clean_scan capiro/dev/web-vnext`;
 
 const MARKETING_BUILDSPEC = `set -euo pipefail
 IMAGE=${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${CONSUMER_REPOSITORIES.marketing}:$EXPECTED_SHA
-REPOSITORY_NAME=${CONSUMER_REPOSITORIES.marketing}
 ${PRELUDE}
+${SCAN_ASSERT}
 docker build --platform linux/arm64 -f marketing/Dockerfile \\
   --label "org.opencontainers.image.revision=$EXPECTED_SHA" \\
   --label "org.opencontainers.image.source=https://github.com/neo-capiro/capiro-backend" \\
@@ -217,7 +230,7 @@ test "$(docker image inspect "$IMAGE" --format '{{.Architecture}}')" = arm64
 test "$(docker image inspect "$IMAGE" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$EXPECTED_SHA"
 bash marketing/smoke-8080.sh "$IMAGE"
 docker push "$IMAGE"
-${SCAN_ASSERT}`;
+assert_clean_scan ${CONSUMER_REPOSITORIES.marketing}`;
 
 export function buildspecFor(service) {
   const script = service === 'web' ? WEB_BUILDSPEC : MARKETING_BUILDSPEC;

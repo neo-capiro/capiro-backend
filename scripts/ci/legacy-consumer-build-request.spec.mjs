@@ -74,10 +74,14 @@ describe('legacy consumer build request: job scripts', () => {
     assert.ok(script.includes('scripts/ci/newsletter-accepted-source-profile.spec.mjs'));
     assert.ok(script.includes('node scripts/legacy-web-release.mjs artifact'));
     assert.ok(script.includes('apps/web/smoke-8080.sh'));
+    assert.ok(script.includes('assert_clean_scan capiro/dev/web'));
+    assert.ok(script.includes('assert_clean_scan capiro/dev/web-vnext'));
+    assert.ok(script.includes('capiro/dev/web-vnext'));
     assert.ok(script.includes('SCAN_CLEAN_PASS'));
     assert.ok(script.includes('HIGH') && script.includes('CRITICAL'));
     assert.ok(script.includes('test "$(uname -m)" = aarch64'));
     assert.ok(script.includes('EXPECTED_TREE_SHA256'));
+    assert.equal(spawnSync('bash', ['-n', '-c', script], { encoding: 'utf8' }).status, 0, 'job script parses');
     for (const forbidden of [':latest', 'start-build', 'update-service', 'create-project',
       'put-bucket-policy', 'force-new-deployment', '--target', 'npm ci', 'next build'])
       assert.ok(!script.includes(forbidden), forbidden);
@@ -88,7 +92,9 @@ describe('legacy consumer build request: job scripts', () => {
     assert.ok(script.includes('docker build --platform linux/arm64 -f marketing/Dockerfile'));
     assert.ok(script.includes('marketing/smoke-8080.sh'));
     assert.ok(script.includes(`:${'$'}EXPECTED_SHA`));
+    assert.ok(script.includes('assert_clean_scan capiro/dev/marketing'));
     assert.ok(script.includes('SCAN_CLEAN_PASS'));
+    assert.equal(spawnSync('bash', ['-n', '-c', script], { encoding: 'utf8' }).status, 0, 'job script parses');
     assert.ok(!script.includes('portfolio-preview'));
     assert.ok(!script.includes('deploy.sh'));
     for (const forbidden of [':latest', 'start-build', 'update-service', 'create-project',
