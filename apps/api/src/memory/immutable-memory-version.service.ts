@@ -20,6 +20,7 @@ import { governedRecallEligibilitySql } from './memory-recall-suppression.helper
 import { isMemoryReviewAdminRole } from './memory-review-admin-policy.js';
 import { MemoryTransitionAuditService } from './memory-transition-audit.service.js';
 import { payloadToSaveRequest } from './memory-candidate.service.js';
+import { settingsMemorySourceVersion } from './settings-memory-source-version.js';
 import {
   assertSyntheticCorrectionInTx,
   type SyntheticMemoryCorrectionGuard,
@@ -71,6 +72,7 @@ interface ItemRow {
   conflict_group_id: string | null;
   /** Exact UTC microsecond token used by the owner correction picker. */
   updatedAt?: string;
+  settingsUpdatedAt?: string;
   /** Same canonical eligibility predicate as the owner item picker. */
   ownerReviewEligible?: boolean;
 }
@@ -106,6 +108,7 @@ interface VersionPayload {
     kind: MemoryVersionKind;
     sourceItemId: string;
     targetItemId: string | null;
+    settingsSourceVersion?: string;
   };
 }
 
@@ -384,6 +387,11 @@ export class ImmutableMemoryVersionService {
 
       const source = await this.loadItem(tx, ctx.tenantId, payload.versionProposal.sourceItemId);
       if (!source) throw new NotFoundException('Historical memory item not found.');
+      const expectedSettingsVersion = payload.versionProposal.settingsSourceVersion;
+      if (expectedSettingsVersion && (!source.settingsUpdatedAt ||
+        settingsMemorySourceVersion({id:source.id,sections:source.sections_jsonb,updatedAt:source.settingsUpdatedAt}) !== expectedSettingsVersion)) {
+        throw new ConflictException('The Settings source changed while review was pending. Submit a draft based on the current version.');
+      }
       await this.authorizeSource(tx, ctx, source, kind);
 
       const target =
@@ -1036,6 +1044,7 @@ export class ImmutableMemoryVersionService {
              memory_class, memory_scope, legal_hold,
              conflict_group_id::text AS conflict_group_id,
              to_char(mi.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "updatedAt",
+             mi.updated_at::text AS "settingsUpdatedAt",
              ${Prisma.raw(governedRecallEligibilitySql('mi'))} AS "ownerReviewEligible"
       FROM memory_items mi
       WHERE mi.id = ${itemId}::uuid AND mi.tenant_id = ${tenantId}::uuid
@@ -1357,6 +1366,8 @@ function parsePayload(value: unknown): VersionPayload {
     !proposal ||
     !isMemoryVersionKind(proposal.kind) ||
     typeof proposal.sourceItemId !== 'string' ||
+    (proposal.settingsSourceVersion !== undefined &&
+      (typeof proposal.settingsSourceVersion !== 'string' || !/^[a-f0-9]{64}$/.test(proposal.settingsSourceVersion))) ||
     !item ||
     typeof item.type !== 'string' ||
     typeof item.slug !== 'string' ||
@@ -1383,6 +1394,7 @@ function parsePayload(value: unknown): VersionPayload {
       kind: proposal.kind,
       sourceItemId: proposal.sourceItemId,
       targetItemId: typeof proposal.targetItemId === 'string' ? proposal.targetItemId : null,
+      ...(proposal.settingsSourceVersion ? {settingsSourceVersion:proposal.settingsSourceVersion} : {}),
     },
   };
 }

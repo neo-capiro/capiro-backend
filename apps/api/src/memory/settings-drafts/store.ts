@@ -9,7 +9,7 @@ export interface DraftRow {
   type: string;
   slug: string;
   revision: number;
-  state: 'draft' | 'discarded' | 'expired';
+  state: 'draft' | 'discarded' | 'expired' | 'submitted';
   baseItemId: string | null;
   baseVersion: string | null;
   sections: DraftWrite['sections'] | null;
@@ -24,6 +24,19 @@ export interface DraftReceipt {
   revision: number;
   state: 'draft' | 'discarded';
   recordedAt: Date;
+}
+/** Caller holds the shared retention lock through any draft-content erasure. */
+export async function assertDraftErasureAllowed(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  baseItemId: string | null,
+) {
+  if (!baseItemId) return;
+  const held = await retainedMemoryInTx(tx, tenantId);
+  if (held.itemIds.includes(baseItemId))
+    throw new ConflictException(
+      'The source is retained under a legal hold. The draft was not changed.',
+    );
 }
 export async function draftReceipt(
   tx: Prisma.TransactionClient,
@@ -85,14 +98,8 @@ export async function writeDraft(
     if (!created)
       throw new ConflictException('Draft identity is no longer available. Start a new draft.');
   } else {
-    if (write.action === 'discard' && current.baseItemId) {
-      // The service takes the shared retention lock before resolving authority.
-      const held = await retainedMemoryInTx(tx, ctx.tenantId);
-      if (held.itemIds.includes(current.baseItemId))
-        throw new ConflictException(
-          'The source is retained under a legal hold. The draft was not discarded.',
-        );
-    }
+    if (write.action === 'discard')
+      await assertDraftErasureAllowed(tx, ctx.tenantId, current.baseItemId);
     if (
       current.state !== 'draft' ||
       current.revision !== write.expectedRevision ||

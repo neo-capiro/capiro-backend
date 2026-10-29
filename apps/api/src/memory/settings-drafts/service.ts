@@ -1,19 +1,12 @@
-import { Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { MemoryAuthorizationService } from '../memory-authorization.service.js';
 import { skeletonSections } from '../memory-catalog.js';
-import {
-  draftId,
-  draftRequestHash,
-  draftTarget,
-  parseDraftWrite,
-  type DraftTarget,
-} from './input.js';
-import { requireDraftTarget, readDraftBase } from './authority.js';
+import { draftId, draftRequestHash, parseDraftWrite, type DraftTarget } from './input.js';
+import { withDraftTarget, readDraftBase } from './authority.js';
 import { draftReceipt, readDraft, writeDraft } from './store.js';
-import { lockMemoryRetentionInTx } from '../memory-retention-selection.js';
 
 @Injectable()
 export class SettingsMemoryDraftService {
@@ -28,17 +21,7 @@ export class SettingsMemoryDraftService {
     fn: (tx: Prisma.TransactionClient, target: DraftTarget, current: TenantContext) => Promise<T>,
     erasing = false,
   ) {
-    const target = draftTarget(type, slug, ctx.userId);
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-      const ready = await tx.$queryRaw<
-        Array<{ ready: boolean }>
-      >`SELECT to_regclass('public.memory_settings_drafts') IS NOT NULL AS ready`;
-      if (!ready[0]?.ready)
-        throw new ServiceUnavailableException('Private memory drafts are not available yet.');
-      if (erasing) await lockMemoryRetentionInTx(tx);
-      const current = await requireDraftTarget(tx, ctx, target, this.authorization);
-      return fn(tx, target, current);
-    });
+    return withDraftTarget(this.prisma, this.authorization, ctx, type, slug, fn, erasing);
   }
   readFile(ctx: TenantContext, type: string, slug: string) {
     return this.run(ctx, type, slug, async (tx, target, current) => {

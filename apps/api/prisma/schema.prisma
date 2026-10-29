@@ -11599,6 +11599,7 @@ model MemoryRetentionSubject {
   authoredSettingsDrafts MemorySettingsDraft[] @relation("settingsDraftAuthorPeriod")
   ownedSettingsDrafts MemorySettingsDraft[] @relation("settingsDraftOwnerPeriod")
   settingsDraftReceipts MemorySettingsDraftReceipt[]
+  settingsSubmissions MemorySettingsSubmission[]
 
   @@unique([tenantId, id])
   @@map("memory_retention_subjects")
@@ -11640,6 +11641,7 @@ model MemorySettingsDraft {
   authorPeriod MemoryRetentionSubject @relation("settingsDraftAuthorPeriod",fields:[tenantId,authorPeriodId],references:[tenantId,id],onDelete:Restrict)
   ownerPeriod MemoryRetentionSubject @relation("settingsDraftOwnerPeriod",fields:[tenantId,ownerPeriodId],references:[tenantId,id],onDelete:Restrict)
   receipts MemorySettingsDraftReceipt[]
+  submissions MemorySettingsSubmission[]
   @@unique([tenantId,id])
   @@index([tenantId,authorUserId,type,slug],map:"memory_settings_drafts_owner")
   @@map("memory_settings_drafts")
@@ -11662,6 +11664,26 @@ model MemorySettingsDraftReceipt {
   authorPeriod MemoryRetentionSubject @relation(fields:[tenantId,authorPeriodId],references:[tenantId,id],onDelete:Restrict)
   @@id([tenantId,authorUserId,requestId])
   @@map("memory_settings_draft_receipts")
+}
+
+/// Atomic private-draft handoff to an independently governed candidate.
+model MemorySettingsSubmission {
+  tenantId String @map("tenant_id") @db.Uuid
+  authorUserId String @map("author_user_id") @db.Uuid
+  authorPeriodId String @map("author_period_id") @db.Uuid
+  requestId String @map("request_id") @db.Uuid
+  requestHash String @map("request_hash") @db.VarChar(64)
+  draftId String @map("draft_id") @db.Uuid
+  draftRevision Int @map("draft_revision")
+  candidateId String @map("candidate_id") @db.Uuid
+  type String @db.VarChar(64)
+  slug String @db.VarChar(128)
+  submittedAt DateTime @default(now()) @map("submitted_at") @db.Timestamptz(6)
+  draft MemorySettingsDraft @relation(fields:[tenantId,draftId],references:[tenantId,id],onDelete:Restrict)
+  authorPeriod MemoryRetentionSubject @relation(fields:[tenantId,authorPeriodId],references:[tenantId,id],onDelete:Restrict)
+  @@id([tenantId,authorUserId,requestId])
+  @@unique([tenantId,draftId])
+  @@map("memory_settings_submissions")
 }
 
 /// Canonical institutional-memory item (plan §0.5). Projected to an Obsidian-

@@ -77,6 +77,9 @@
       ],
       "site-workflows": [
         "dist/site-workflows.d.ts"
+      ],
+      "settings-memory-drafts": [
+        "dist/settings-memory-drafts.d.ts"
       ]
     }
   },
@@ -229,6 +232,12 @@
       "require": "./dist/site-workflows.js",
       "import": "./dist/site-workflows.js",
       "default": "./dist/site-workflows.js"
+    },
+    "./settings-memory-drafts": {
+      "types": "./dist/settings-memory-drafts.d.ts",
+      "require": "./dist/settings-memory-drafts.js",
+      "import": "./dist/settings-memory-drafts.js",
+      "default": "./dist/settings-memory-drafts.js"
     }
   },
   "scripts": {
