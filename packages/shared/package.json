@@ -74,6 +74,9 @@
       ],
       "prospect-brief-refresh": [
         "dist/prospect-brief-refresh.d.ts"
+      ],
+      "site-workflows": [
+        "dist/site-workflows.d.ts"
       ]
     }
   },
@@ -220,6 +223,12 @@
       "types": "./dist/prospect-brief-refresh.d.ts",
       "import": "./dist/prospect-brief-refresh.js",
       "default": "./dist/prospect-brief-refresh.js"
+    },
+    "./site-workflows": {
+      "types": "./dist/site-workflows.d.ts",
+      "require": "./dist/site-workflows.js",
+      "import": "./dist/site-workflows.js",
+      "default": "./dist/site-workflows.js"
     }
   },
   "scripts": {

@@ -4,7 +4,7 @@
     "package.json": "e4996714d6c89ce4b13e1d2429d8883f00881fe3c9ff3e9ae09cc46ac1e23a5d",
     "pnpm-lock.yaml": "cfad17a52f8e14b6bda1833245f65ff959ef20b8f50f684252a31e288862292b",
     "apps/api/package.json": "959f8469c1c047e958a88d29060582f696500944b2e4ad770b88f8071d754754",
-    "packages/shared/package.json": "838dd0d7ef669559db313fe7bc3162483d5b957b24576d4f7c52d2aaf8bad950",
+    "packages/shared/package.json": "025dbd786acb26e1490b2d624b3e5fca098fbc99f53a89cd5532832446bb9df3",
     "packages/meriv2-core/package.json": "d124c8cac43b05a1f43ba3f0f7223d328188881463c5378c60724a26f43f515a",
     "packages/defense-contracts/package.json": "5b36d4bf65df01c497cfd6d92c6b62133ad40e2935387c615ae380421edd1b47",
     "packages/defense-domain/package.json": "95281d87b0a4b80979b28c8a2f2199e5f1915c5a825184324e02c4af9be2d1e8"
