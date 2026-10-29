@@ -188,20 +188,35 @@ test("stages registration, create and update separately", () => {
   assert.deepEqual(plan.registration.blockedOn, "taskDefinitionArn");
   assert.equal(plan.createService.executable, false);
   assert.equal(plan.updateService.executable, false);
+  // The pending field sets are visible but carry no fabricated task-definition ARN.
+  assert.equal(plan.createService.request.taskDefinition, null);
+  assert.equal(plan.updateService.request.taskDefinition, null);
+  assert.equal("serviceName" in plan.createService.request, true);
+  assert.equal("service" in plan.createService.request, false);
+  assert.equal("service" in plan.updateService.request, true);
+  assert.equal("serviceName" in plan.updateService.request, false);
 
   const create = renderServiceRequest(bindings, { taskDefinitionArn, mode: "create" });
   const update = renderServiceRequest(bindings, { taskDefinitionArn, mode: "update" });
   assert.equal(create.executable, true);
   assert.equal(update.executable, true);
-  // Create-only fields are present on create and absent from update.
+  // CreateService identifies the new service by serviceName and takes no `service`.
+  assert.equal(create.request.serviceName, "capiro-preview-onboard-api");
+  assert.equal("service" in create.request, false);
   for (const field of ["serviceName", "launchType", "platformVersion", "schedulingStrategy", "propagateTags"])
     assert.ok(field in create.request, field);
-  for (const field of ["serviceName", "launchType", "platformVersion", "schedulingStrategy", "propagateTags"])
+  // UpdateService identifies the existing service by `service` and takes no create-only field.
+  assert.equal(update.request.service, "capiro-preview-onboard-api");
+  for (const field of ["serviceName", "launchType", "schedulingStrategy"])
+    assert.equal(field in update.request, false, field);
+  // UpdateService does accept platformVersion/propagateTags/enableExecuteCommand, but this
+  // request deliberately omits them so an apply cannot change them as a side effect.
+  for (const field of ["platformVersion", "propagateTags", "enableExecuteCommand", "tags"])
     assert.equal(field in update.request, false, field);
   assert.equal(create.request.taskDefinition, taskDefinitionArn);
   assert.equal(update.request.taskDefinition, taskDefinitionArn);
 
-  // A placeholder or an unfilled mode is never rendered into a request.
+  // A placeholder, a zero revision or an unfilled mode is never rendered into a request.
   assert.throws(
     () =>
       renderServiceRequest(bindings, {
@@ -209,6 +224,14 @@ test("stages registration, create and update separately", () => {
         mode: "create",
       }),
     /ONBOARD_PREVIEW_PLAN_INVALID:task-definition-arn:create/,
+  );
+  assert.throws(
+    () =>
+      renderServiceRequest(bindings, {
+        taskDefinitionArn: "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-preview-onboard-api:0",
+        mode: "update",
+      }),
+    /ONBOARD_PREVIEW_PLAN_INVALID:task-definition-arn:update/,
   );
   assert.throws(() => renderServiceRequest(bindings, { taskDefinitionArn }), /ONBOARD_PREVIEW_PLAN_INVALID:service-mode/);
 });

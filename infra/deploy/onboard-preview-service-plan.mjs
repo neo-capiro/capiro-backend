@@ -37,7 +37,7 @@ const IMAGE = new RegExp(`^${ACCOUNT}\\.dkr\\.ecr\\.${REGION}\\.amazonaws\\.com/
 const DIGEST = /^sha256:[0-9a-f]{64}$/;
 const SOURCE = /^[0-9a-f]{40}$/;
 const ARN = /^arn:aws:[a-z0-9-]+:[a-z0-9-]*:\d{12}:.+$/;
-const TASK_DEF_ARN = new RegExp(`^arn:aws:ecs:${REGION}:${ACCOUNT}:task-definition/${FAMILY}:\\d+$`);
+const TASK_DEF_ARN = new RegExp(`^arn:aws:ecs:${REGION}:${ACCOUNT}:task-definition/${FAMILY}:[1-9]\\d*$`);
 const TARGET_GROUP = new RegExp(`^arn:aws:elasticloadbalancing:${REGION}:${ACCOUNT}:targetgroup/${SERVICE}/[0-9a-f]{16}$`);
 const DB_NAME = /^[a-z][a-z0-9_]{2,62}$/;
 const PUBLISHABLE_KEY = /^pk_(?:test|live)_[A-Za-z0-9]{8,}$/;
@@ -252,19 +252,13 @@ function renderTaskDefinition(bindings) {
 }
 
 /**
- * `CreateService` and `UpdateService` take different field sets, and both need the
- * exact task-definition ARN returned by registration, so a placeholder is refused.
+ * The field sets themselves. `CreateService` identifies the new service by `serviceName`
+ * and rejects `service`; `UpdateService` identifies the existing one by `service`. Sharing
+ * one identifier object between them is what made the earlier create input invalid.
  */
-export function renderServiceRequest(bindings, options) {
-  validateBindings(bindings);
-  const { taskDefinitionArn, mode } = options ?? {};
-  if (mode !== 'create' && mode !== 'update') fail('service-mode');
-  if (typeof taskDefinitionArn !== 'string' || !TASK_DEF_ARN.test(taskDefinitionArn))
-    fail(`task-definition-arn:${mode}`);
-
+function serviceRequestFields(bindings, mode, taskDefinitionArn) {
   const shared = {
     cluster: CLUSTER,
-    service: SERVICE,
     taskDefinition: taskDefinitionArn,
     desiredCount: 1,
     networkConfiguration: {
@@ -285,30 +279,39 @@ export function renderServiceRequest(bindings, options) {
     },
   };
 
-  if (mode === 'update') return { executable: true, mode, request: shared };
+  if (mode === 'update') return { ...shared, service: SERVICE };
 
   return {
-    executable: true,
-    mode: 'create',
-    request: {
-      ...shared,
-      serviceName: SERVICE,
-      launchType: 'FARGATE',
-      platformVersion: 'LATEST',
-      schedulingStrategy: 'REPLICA',
-      propagateTags: 'SERVICE',
-      enableExecuteCommand: false,
-      tags: [{ key: 'capiro:purpose', value: 'portfolio-preview' }],
-    },
+    ...shared,
+    serviceName: SERVICE,
+    launchType: 'FARGATE',
+    platformVersion: 'LATEST',
+    schedulingStrategy: 'REPLICA',
+    propagateTags: 'SERVICE',
+    enableExecuteCommand: false,
+    tags: [{ key: 'capiro:purpose', value: 'portfolio-preview' }],
   };
+}
+
+/**
+ * `CreateService` and `UpdateService` take different field sets, and both need the exact
+ * positive task-definition revision that registration returned, so a fabricated or
+ * placeholder revision is refused.
+ */
+export function renderServiceRequest(bindings, options) {
+  validateBindings(bindings);
+  const { taskDefinitionArn, mode } = options ?? {};
+  if (mode !== 'create' && mode !== 'update') fail('service-mode');
+  if (typeof taskDefinitionArn !== 'string' || !TASK_DEF_ARN.test(taskDefinitionArn))
+    fail(`task-definition-arn:${mode}`);
+  return { executable: true, mode, request: serviceRequestFields(bindings, mode, taskDefinitionArn) };
 }
 
 /** Pre-registration plan: non-executable until an owner returns a task-definition ARN. */
 export function renderOnboardPreviewPlan(bindings) {
   const v = validateBindings(bindings);
-  const placeholderArn = `arn:aws:ecs:${REGION}:${ACCOUNT}:task-definition/${FAMILY}:0`;
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     kind: 'onboard-preview-service-plan',
     source: v.source,
     imageDigest: v.digest,
@@ -324,21 +327,19 @@ export function renderOnboardPreviewPlan(bindings) {
       blockedOn: 'owner-submit',
       request: renderTaskDefinition(bindings),
     },
+    // Pending field sets carry no fabricated ARN: `taskDefinition` stays null until the
+    // owner returns the actual positive revision from RegisterTaskDefinition.
     createService: {
       executable: false,
       blockedOn: 'taskDefinitionArn',
       reason: 'The named service does not exist yet; render an ARN-bound create request separately.',
-      fields: Object.keys(
-        renderServiceRequest(bindings, { taskDefinitionArn: placeholderArn, mode: 'create' }).request,
-      ),
+      request: serviceRequestFields(bindings, 'create', null),
     },
     updateService: {
       executable: false,
       blockedOn: ['taskDefinitionArn', 'existing-service-readback'],
       reason: 'If the named service appears before the write, describe it and reconcile its baseline first.',
-      fields: Object.keys(
-        renderServiceRequest(bindings, { taskDefinitionArn: placeholderArn, mode: 'update' }).request,
-      ),
+      request: serviceRequestFields(bindings, 'update', null),
     },
     existingServiceReconciliation: {
       describe: ['ecs:DescribeServices', 'elbv2:DescribeTargetHealth'],
