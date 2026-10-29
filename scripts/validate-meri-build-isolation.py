@@ -1,36 +1,61 @@
 #!/usr/bin/env python3
-"""Source regression guard; not a YAML security parser or IAM enforcement proof.
+"""Source regression guard for the Meri/backend image-build boundary.
 
-Hermes drafted the contract/tests; integration tightens exact tags, required
-files, actual denial, and fixed-path loading. Review new scripts/actions too.
+This guard is NOT a YAML security parser and NOT an IAM enforcement proof. It is
+a fail-closed source contract over the *retained* build and release inputs.
+
+WHY IT NO LONGER READS .github/workflows
+----------------------------------------
+The historical per-service GitHub workflows (api-image.yml, web-image.yml,
+meriv2-orchestrator-image.yml, deploy-all.yml, ci-pr.yml, ...) were removed by
+the inert backend repository import (c76f5fc0). They no longer exist at the
+frozen source and this guard must not pretend they do. The same isolation
+semantics are now carried by the actual retained operators:
+
+  * scripts/meri-image-build.mjs   the only image-build path (CodeBuild project
+                                   capiro-build-web-dev, buildspec override):
+                                   exact-SHA source pin, exact-SHA tag, no
+                                   mutable tag, no ECS/deploy side effect,
+                                   offline image smoke, digest readback.
+  * scripts/meri-release.mjs       the only promotion path; it must never build
+                                   or push an image (build != promotion).
+  * retired stubs                  deploy-dev.sh, deploy-onboard.sh and
+                                   execute-meriv2-ecs-release.mjs stay retired.
+
+Where a historical carrier is genuinely gone (the deploy-all.yml service-option
+gate), the equivalent retained property is asserted instead: no retained input
+can dispatch an ECS deployment of a protected service, because the build
+operator has zero deployment commands and the retired deploy scripts abort.
+
+Run:  python3 scripts/validate-meri-build-isolation.py
+Test: python3 scripts/validate-meri-build-isolation.py --self-test
 """
 import re
 import sys
 import unittest
 from pathlib import Path
 
-SERVICES = ('api', 'api-strategy', 'engagement-api', 'intel-api', 'onboard-api',
-            'workspace', 'web', 'meriv2-orchestrator')
-WORKFLOWS = tuple(s + '-image.yml' for s in SERVICES) + ('web-vnext-deploy.yml',)
 ROOT = Path(__file__).resolve().parent.parent
-REQUIRED = tuple('.github/workflows/' + f for f in WORKFLOWS) + (
-    '.github/workflows/deploy-all.yml', '.github/workflows/ci-pr.yml',
-    'scripts/execute-meriv2-ecs-release.mjs', 'scripts/deploy-dev.sh', 'scripts/deploy-onboard.sh')
-DENY = '''case "$SERVICE" in
-            clio-sandbox|marketing) ;;
-            *) echo "Use the reviewed digest release procedure for protected services." >&2; exit 1 ;;
-          esac'''
-ALLOWED_ACTIONS = ('actions/checkout@', 'pnpm/action-setup@', 'actions/setup-node@',
-                   'aws-actions/configure-aws-credentials@', 'aws-actions/amazon-ecr-login@',
-                   'docker/setup-buildx-action@', 'docker/setup-qemu-action@', 'docker/build-push-action@')
-BUILD_DIGEST = '${{ steps.build.outputs.digest }}'
-# api-image.yml also uploads the narrow source-to-digest receipt defined in
-# docs/contracts/api-image-build-record.md.
-# Evidence only: the exact producer command and artifact action are permitted for
-# that one workflow; nothing else may add actions or helpers.
-EVIDENCE_ACTIONS = {'api-image.yml': ('actions/upload-artifact@',)}
-EVIDENCE_RUNS = {'api-image.yml': (
-    'set -euo pipefail\nexport CHECKED_OUT_SHA="$(git rev-parse HEAD)"\npython scripts/api-image-build-record.py',)}
+
+BUILD_OPERATOR = 'scripts/meri-image-build.mjs'
+RELEASE_OPERATOR = 'scripts/meri-release.mjs'
+RETIRED_SCRIPTS = ('scripts/execute-meriv2-ecs-release.mjs',
+                   'scripts/deploy-dev.sh', 'scripts/deploy-onboard.sh')
+EVIDENCE_OPERATOR = 'scripts/api-image-build-record.py'
+BUILDABLE_DOCKERFILES = ('apps/api/Dockerfile',
+                         'apps/meriv2-orchestrator/Dockerfile',
+                         'apps/web/Dockerfile')
+REQUIRED = (BUILD_OPERATOR, RELEASE_OPERATOR, EVIDENCE_OPERATOR) + RETIRED_SCRIPTS + BUILDABLE_DOCKERFILES
+
+ALLOWED_SERVICES = ('api', 'meriv2-orchestrator', 'web-vnext')
+FORBIDDEN_BUILD_EFFECTS = ('aws ecs', 'update-service', 'register-task-definition',
+                           'services-stable', 'run-task', 'aws ecs ')
+EXACT_SHA_TAG = re.escape(r':\${EXPECTED_SHA}')
+SOURCE_REPOSITORY = 'https://github.com/neo-capiro/capiro-backend.git'
+
+
+def _code(text):
+    return '\n'.join(line for line in text.splitlines() if not line.lstrip().startswith('//'))
 
 
 def evaluate(files):
@@ -38,64 +63,134 @@ def evaluate(files):
     for name in REQUIRED:
         if name not in files:
             errors.append('Missing required file: ' + name)
-    for name in WORKFLOWS:
-        content = files.get('.github/workflows/' + name, '')
-        code = '\n'.join(line for line in content.splitlines() if not line.lstrip().startswith('#'))
-        if re.search(r':latest\b|workflow_run\s*:|aws\s+ecs\b|update-service|register-task-definition|services-stable|docker\s+push', code):
-            errors.append(name + ': forbidden mutable/deploy path')
-        actions = re.findall(r'\buses:\s*(\S+)', code)
-        allowed_actions = ALLOWED_ACTIONS + EVIDENCE_ACTIONS.get(name, ())
-        if any(not a.startswith(allowed_actions) for a in actions):
-            errors.append(name + ': unreviewed action/reusable workflow')
-        tag_blocks = re.findall(r'(?m)^          tags: \|\n((?:            [^\n]+\n)+)', content + '\n')
-        service = name.removesuffix('-image.yml')
-        repo = ('${{ env.EXPECTED_ECR_REPOSITORY }}' if name == 'web-vnext-deploy.yml'
-                else 'capiro/${{ env.TARGET_ENV }}/' + service)
-        expected = '            ${{ steps.ecr.outputs.registry }}/' + repo + ':${{ github.sha }}'
-        if len(tag_blocks) != 1 or tag_blocks[0].splitlines() != [expected]:
-            errors.append(name + ': require exclusive exact SHA tag')
-        if '        id: build\n        uses: docker/build-push-action@' not in content or 'push: true' not in content:
-            errors.append(name + ': missing bound build action')
-        # Every IMAGE_DIGEST binding must be the bound build step's digest, never a tag or SHA.
-        digests = re.findall(r'(?m)^\s+IMAGE_DIGEST:\s*(.*?)\s*$', code)
-        if not digests or any(d != BUILD_DIGEST for d in digests) or '$GITHUB_STEP_SUMMARY' not in content:
-            errors.append(name + ': missing candidate digest evidence')
-        # Only known build/test commands are expected. Adding an indirect shell,
-        # Python/Node release helper is a reviewable contract change, not an escape.
-        for block in re.split(r'(?m)^      - ', content)[1:]:
-            run = re.search(r'(?m)^        run:\s*([^\n]*)([\s\S]*)', block)
-            if not run:
-                continue
-            body = (run[1] + run[2]).strip().lstrip('|>-').strip()
-            if '\n'.join(line.strip() for line in body.splitlines()) in EVIDENCE_RUNS.get(name, ()):
-                continue
-            if (re.search(r'\b(?:bash|sh|curl|wget|aws|node|pwsh|powershell|source)\b|\$\(|`|&&|;', body)
-                    or not re.match(r'(?:python3 scripts/validate-meri-(?:build-isolation|orchestrator-build-only)\.py\s*$|pnpm (?:install --frozen-lockfile|--filter @capiro/(?:shared|strategy-verifier|web) (?:build|typecheck|exec vitest run))|test -n "\$IMAGE_DIGEST")', body)):
-                # Summary prose contains a semicolon; it is quoted, not executable.
-                summary = body.startswith('test -n "$IMAGE_DIGEST"') and all(
-                    re.match(r'\s*(?:test -n "\$IMAGE_DIGEST"|echo "[^"`]*" >> "\$GITHUB_STEP_SUMMARY")\s*$', line)
-                    and '$(' not in line for line in body.splitlines())
-                if not summary:
-                    errors.append(name + ': unreviewed run command')
-    deploy = files.get('.github/workflows/deploy-all.yml', '')
-    options = re.search(r'      service:[\s\S]*?        options:\n((?:          - [^\n]+\n)+)', deploy)
-    if not options or options[1].splitlines() != ['          - clio-sandbox', '          - marketing']:
-        errors.append('deploy-all: protected service choice')
-    aws_pos = deploy.find('uses: aws-actions/configure-aws-credentials@')
-    if DENY not in deploy or aws_pos < 0 or deploy.index(DENY) >= aws_pos:
-        errors.append('deploy-all: deny direct dispatch before credentials')
+    build = files.get(BUILD_OPERATOR, '')
+    release = files.get(RELEASE_OPERATOR, '')
+
+    # ---- the only image-build path ----------------------------------------
+    if not build:
+        errors.append(BUILD_OPERATOR + ': missing build operator')
+    else:
+        code = _code(build)
+        services = re.search(r'if \(!\[([^\]]+)\]\.includes\(SERVICE\)\)', code)
+        parsed = tuple(re.findall(r"'([^']+)'", services[1])) if services else ()
+        if parsed != ALLOWED_SERVICES:
+            errors.append('build operator: buildable service allowlist changed')
+        if re.search(r':latest\b', code):
+            errors.append('build operator: mutable latest tag')
+        # Exactly one immutable image reference, bound to the pinned SHA.
+        refs = re.findall(r'dkr\.ecr\.\$\{REGION\}\.amazonaws\.com/\$\{REPOSITORY\}' + EXACT_SHA_TAG, code)
+        if len(refs) != 1:
+            errors.append('build operator: require exactly one exact-SHA image reference')
+        # Exactly one push, of that reference, in the post-build phase only.
+        if code.count('docker push') != 1 or 'docker push "$image"' not in code:
+            errors.append('build operator: require exactly one bound docker push')
+        if not re.search(r'const image = `[^`]*' + EXACT_SHA_TAG + r'`', code):
+            errors.append('build operator: pushed image is not bound to the exact SHA')
+        for effect in FORBIDDEN_BUILD_EFFECTS:
+            if effect in code:
+                errors.append('build operator: deployment side effect ' + effect.strip())
+        # Source identity, platform, account and tag-absence are asserted before
+        # any build command runs.
+        for fragment, label in (
+                ('CODEBUILD_RESOLVED_SOURCE_VERSION', 'resolved source version'),
+                ('git rev-parse HEAD', 'checked-out sha'),
+                ('git status --porcelain --untracked-files=no', 'clean tree'),
+                ('$(uname -m)" = aarch64', 'native arm64 host'),
+                ('aws sts get-caller-identity --query Account --output text)" = ${ACCOUNT}',
+                 'account identity'),
+                ("imageIds[?imageTag=='", 'unused exact tag')):
+            if fragment not in code:
+                errors.append('build operator: missing ' + label)
+        # Exact split-repository source pin for this build; the project itself is
+        # still configured for the legacy repository, so the pin is mandatory.
+        if "const SOURCE_REPOSITORY = '" + SOURCE_REPOSITORY + "'" not in code:
+            errors.append('build operator: exact source repository pin changed')
+        if 'sourceTypeOverride: ' not in code or 'sourceLocationOverride: SOURCE_REPOSITORY' not in code:
+            errors.append('build operator: start-build does not pin sourceLocationOverride')
+        if 'sourceVersion: SOURCE_SHA' not in code:
+            errors.append('build operator: start-build does not pin sourceVersion')
+        # Offline qualification and its required markers.
+        runs = re.findall(r'docker run[^\n]*', code)
+        if not runs or any('--network none' not in run for run in runs):
+            errors.append('build operator: an image smoke is not offline')
+        markers = re.search(r'const REQUIRED = \[([^\]]*)\]', code)
+        parsed_markers = re.findall(r"'([^']+)'", markers[1]) if markers else []
+        if parsed_markers != ['IMAGE_SMOKE_PASS', 'LOCAL_REPODIGEST_ECR_MATCH_PASS', 'PROMOTION_POLICY_TEST_PASS']:
+            errors.append('build operator: required markers changed')
+        # The promotion/release policy tests are a required gate on the retained
+        # build path (the historical ci-pr.yml wiring was removed).
+        if ('node --test scripts/lib/meri-release-policy.test.mjs scripts/meri-release.test.mjs'
+                not in code or 'echo PROMOTION_POLICY_TEST_PASS' not in code):
+            errors.append('build operator: promotion-policy test gate not wired')
+        # Attribution must name the repository the source is actually pinned to.
+        if 'org.opencontainers.image.source=https://github.com/neo-capiro/capiro-backend' not in code:
+            errors.append('build operator: OCI source attribution is not the pinned backend repository')
+        # Exactly one StartBuild; recovery must be read-only.
+        if code.count("'start-build'") != 1:
+            errors.append('build operator: require exactly one start-build call')
+        for fragment in ('list-builds-for-project', 'batch-get-builds', 'selectReconcileMatch'):
+            if fragment not in code:
+                errors.append('build operator: missing read-only reconcile binding ' + fragment)
+        # Build + smoke are never reported as a qualification on their own.
+        if 'BUILD_AND_IMAGE_SMOKE_PASS_NOT_QUALIFIED' not in code or 'qualified: false' not in code:
+            errors.append('build operator: build/smoke claims qualification without the digest scan')
+        if "'scan'" not in code or 'scan-readback.json' not in code:
+            errors.append('build operator: digest scan stage missing')
+        # Lost-start recovery must bind the request AWS actually ran, not just
+        # project/source/SHA/time: an exclusive operation marker travels in the
+        # environment override and is compared with the returned value.
+        if 'OPERATION_MARKER_ENV' not in code or 'value: intent.operationMarker' not in code:
+            errors.append('build operator: operation marker not bound into the request')
+        if 'verifyBuildIdentity' not in code or 'selectReconcileMatch' not in code:
+            errors.append('build operator: request-identity verification missing')
+        collect = code[code.index('function collect()'):code.index('export function scan()')] if 'function collect()' in code and 'export function scan()' in code else ''
+        if not collect:
+            errors.append('build operator: collect/scan boundary missing')
+        elif collect.find('verifyBuildIdentity') < 0 or collect.find('verifyBuildIdentity') > collect.find('get-log-events'):
+            errors.append('build operator: collect can read logs before verifying request identity')
+        # A clean digest scan must never promote a failed build, and both stages
+        # are bound to the same build and digest.
+        if 'SCAN_REQUIRES_VERIFIED_IDENTITY' not in code or 'SCAN_REQUIRES_QUALIFIED_BUILD' not in code:
+            errors.append('build operator: scan can run without a verified and qualified build')
+        if 'composeQualification' not in code or 'identityVerified: true' not in code:
+            errors.append('build operator: qualification composition not bound to build identity')
+        # Both the cached and the freshly-collected receipt must be composed from
+        # the two stages, never hand-rolled.
+        if code.count('composeQualification(readback, scanned)') < 2:
+            errors.append('build operator: collect does not compose qualification from both stages')
+        if 'echo IMAGE_SMOKE_PASS' not in code and "console.log('IMAGE_SMOKE_PASS')" not in code:
+            errors.append('build operator: smoke does not emit IMAGE_SMOKE_PASS')
+        # This guard and the orchestrator guard must keep being invoked by the
+        # actual build path: that is the retained CI wiring.
+        for guard in ('python3 scripts/validate-meri-build-isolation.py',
+                      'python3 scripts/validate-meri-orchestrator-build-only.py'):
+            if guard not in code:
+                errors.append('build operator: guard not wired ' + guard)
+        if 'meri-release.mjs' in code:
+            errors.append('build operator: build must not invoke promotion')
+
+    # ---- promotion never builds or publishes ------------------------------
+    if release:
+        if re.search(r'start-build|start_build|startBuild', release):
+            errors.append('release operator: promotion must not start a build')
+        if re.search(r'docker\s+build|docker\s+push', release):
+            errors.append('release operator: promotion must not build or push images')
+
+    # ---- retired deployment bypasses stay retired -------------------------
     execute = files.get('scripts/execute-meriv2-ecs-release.mjs', '')
-    if not execute.startswith("#!/usr/bin/env node\nthrow new Error('Retired:") or re.search(r'\bimport\b|execFile|update-service|run-task', execute):
+    if execute and ("throw new Error('Retired:" not in execute
+                    or re.search(r'\bimport\b|\brequire\(|execFile|spawn\(|update-service|run-task|aws ecs', execute)):
         errors.append('legacy Meri executor not retired')
     for name in ('scripts/deploy-dev.sh', 'scripts/deploy-onboard.sh'):
         body = files.get(name, '')
-        if '\nexit 1\n' not in body or re.search(r'\baws\b|docker|eval|source', body):
+        if body and ('\nexit 1\n' not in body or re.search(r'\baws\b|docker|eval|source', body)):
             errors.append(name + ': mutable deployment bypass')
-    ci = files.get('.github/workflows/ci-pr.yml', '')
-    for command in ('python3 scripts/validate-meri-build-isolation.py',
-                    'node --test scripts/lib/meri-release-policy.test.mjs scripts/meri-release.test.mjs'):
-        if command not in ci:
-            errors.append('ci-pr: missing ' + command)
+
+    # ---- buildable recipes still exist ------------------------------------
+    for name in BUILDABLE_DOCKERFILES:
+        body = files.get(name, '')
+        if body and not re.search(r'(?m)^FROM\s+\S+', body):
+            errors.append(name + ': no build stage')
     return errors
 
 
@@ -114,50 +209,90 @@ class ContractTests(unittest.TestCase):
         self.assertTrue(evaluate(self.files))
 
     def test_missing_file(self):
-        del self.files['.github/workflows/api-image.yml']
+        del self.files[BUILD_OPERATOR]
         self.assertTrue(evaluate(self.files))
 
-    def test_latest(self):
-        self.mutate('.github/workflows/api-image.yml', ':${{ github.sha }}', ':latest')
+    def test_latest_tag(self):
+        self.mutate(BUILD_OPERATOR, r':\${EXPECTED_SHA}', ':latest')
 
-    def test_extra_mutable_tag(self):
-        self.mutate('.github/workflows/api-image.yml', '          tags: |', '          tags: |\n            registry/other:mutable')
+    def test_second_image_reference(self):
+        self.mutate(BUILD_OPERATOR, 'docker push "$image"',
+                    'docker push registry/other:${EXPECTED_SHA}\ndocker push "$image"')
 
-    def test_ecs(self):
-        self.mutate('.github/workflows/api-image.yml', 'run: python3', 'run: aws ecs update-service\n          python3')
+    def test_ecs_side_effect(self):
+        self.mutate(BUILD_OPERATOR, 'docker push "$image"', 'aws ecs update-service --force\ndocker push "$image"')
 
-    def test_indirect_helper(self):
-        self.mutate('.github/workflows/api-image.yml', 'run: python3 scripts/validate-meri-build-isolation.py', 'run: node scripts/meri-release.mjs promote')
+    def test_source_pin_removed(self):
+        self.mutate(BUILD_OPERATOR, 'sourceLocationOverride: SOURCE_REPOSITORY,', '')
 
-    def test_deploy_action(self):
-        self.mutate('.github/workflows/api-image.yml', 'uses: actions/checkout@v4', 'uses: aws-actions/amazon-ecs-deploy-task-definition@v2')
+    def test_source_repository_changed(self):
+        self.mutate(BUILD_OPERATOR, SOURCE_REPOSITORY, 'https://github.com/neo-capiro/capirov2.git')
 
-    def test_missing_digest(self):
-        self.mutate('.github/workflows/api-image.yml', '${{ steps.build.outputs.digest }}', '${{ github.sha }}')
+    def test_guard_unwired(self):
+        self.mutate(BUILD_OPERATOR, 'python3 scripts/validate-meri-build-isolation.py', 'true')
 
-    def test_record_helper_exact(self):
-        self.mutate('.github/workflows/api-image.yml', 'python scripts/api-image-build-record.py',
-                    'python scripts/api-image-build-record.py --promote')
+    def test_offline_smoke_removed(self):
+        self.mutate(BUILD_OPERATOR, '--network none', '--network host')
 
-    def test_evidence_action_scoped(self):
-        self.mutate('.github/workflows/web-image.yml', 'uses: actions/checkout@v4', 'uses: actions/upload-artifact@v4')
+    def test_architecture_check_removed(self):
+        self.mutate(BUILD_OPERATOR, '$(uname -m)" = aarch64', '$(uname -m)" = x86_64')
 
-    def test_missing_deny(self):
-        self.mutate('.github/workflows/deploy-all.yml', DENY, 'echo allowed')
+    def test_account_check_removed(self):
+        self.mutate(BUILD_OPERATOR, 'aws sts get-caller-identity --query Account --output text)" = ${ACCOUNT}', 'true')
 
-    def test_noop_deny(self):
-        self.mutate('.github/workflows/deploy-all.yml', '>&2; exit 1 ;;', '>&2; true ;;')
+    def test_marker_removed(self):
+        self.mutate(BUILD_OPERATOR, "'IMAGE_SMOKE_PASS'", "'SMOKE_PASS'")
 
-    def test_late_deny(self):
-        name = '.github/workflows/deploy-all.yml'
-        self.files[name] = self.files[name].replace(DENY, '') + '\n' + DENY
-        self.assertTrue(evaluate(self.files))
+    def test_operation_marker_removed(self):
+        self.mutate(BUILD_OPERATOR,
+                    "      { name: OPERATION_MARKER_ENV, value: intent.operationMarker, type: 'PLAINTEXT' },\n",
+                    '')
+
+    def test_collect_identity_bypass(self):
+        self.mutate(BUILD_OPERATOR, 'const identity = verifyBuildIdentity(b, intent);',
+                    "const identity = { state: 'MATCH', observed: { resolvedSourceVersion: b.resolvedSourceVersion } };")
+
+    def test_scan_without_qualified_build(self):
+        self.mutate(BUILD_OPERATOR,
+                    "  if (readback.buildQualified !== true) throw new Error('SCAN_REQUIRES_QUALIFIED_BUILD');\n",
+                    '')
+
+    def test_scan_without_verified_identity(self):
+        self.mutate(BUILD_OPERATOR,
+                    "  if (readback.identityVerified !== true) throw new Error('SCAN_REQUIRES_VERIFIED_IDENTITY');\n",
+                    '')
+
+    def test_promotion_gate_removed(self):
+        self.mutate(BUILD_OPERATOR, 'node --test scripts/lib/meri-release-policy.test.mjs scripts/meri-release.test.mjs', 'echo skip')
+
+    def test_promotion_marker_removed(self):
+        self.mutate(BUILD_OPERATOR, 'echo PROMOTION_POLICY_TEST_PASS', 'echo done')
+
+    def test_source_attribution_reverted(self):
+        self.mutate(BUILD_OPERATOR,
+                    'org.opencontainers.image.source=https://github.com/neo-capiro/capiro-backend',
+                    'org.opencontainers.image.source=https://github.com/neo-capiro/capirov2')
+
+    def test_second_start_build(self):
+        self.mutate(BUILD_OPERATOR, "aws(['codebuild', 'start-build',",
+                    "aws(['codebuild', 'start-build', '--dry-run']);\n  aws(['codebuild', 'start-build',")
+
+    def test_collect_skips_composition(self):
+        self.mutate(BUILD_OPERATOR, 'composeQualification(readback, scanned)',
+                    "{ qualified: true, qualification: 'HAND_ROLLED' }")
+
+    def test_service_allowlist_widened(self):
+        self.mutate(BUILD_OPERATOR, "'web-vnext']", "'web-vnext', 'marketing']")
+
+    def test_promotion_starts_a_build(self):
+        self.mutate(RELEASE_OPERATOR, 'const fail = (message) => {',
+                    "const startBuild = () => 1;\nconst fail = (message) => {")
 
     def test_legacy_reactivated(self):
         self.mutate('scripts/execute-meriv2-ecs-release.mjs', 'throw new Error', 'console.log')
 
-    def test_ci_missing(self):
-        self.mutate('.github/workflows/ci-pr.yml', 'node --test scripts/lib/meri-release-policy.test.mjs scripts/meri-release.test.mjs', 'echo skip')
+    def test_deploy_bypass_reactivated(self):
+        self.mutate('scripts/deploy-dev.sh', 'exit 1', 'exit 1\naws ecs update-service')
 
 
 if __name__ == '__main__':
@@ -165,5 +300,7 @@ if __name__ == '__main__':
         unittest.main(argv=[sys.argv[0]])
     else:
         failures = evaluate(load())
-        print('\n'.join(failures) if failures else 'PASS: 9 SHA-only build workflows, protected bypasses retired, CI qualification wired')
+        print('\n'.join(failures) if failures
+              else 'PASS: exact-SHA source-pinned build operator, promotion separation, '
+                   'retired bypasses and wired guards')
         sys.exit(bool(failures))
