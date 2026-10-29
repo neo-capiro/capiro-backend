@@ -30,6 +30,7 @@ import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { validateClientFundingProfile } from './client-funding-profile.validation.js';
 import { requireClientCapacity } from './client-capacity.js';
 import { requireOwnerActor, requireOwnerClient } from './client-ordered-owner.access.js';
+import { readPortfolioMetrics } from './portfolio-metrics.js';
 import { fetchDeniedClientIds } from '../memory/memory-wall.helpers.js';
 import { retireClientOfficeDraftsInTx } from '../meri/office-drafts/client-retention.js';
 
@@ -1116,6 +1117,10 @@ export class ClientsService {
       return tx.client.findMany({ where: attemptWhere, orderBy: { createdAt: 'desc' } });
     }, { isolationLevel: 'RepeatableRead' });
     return this.withLogoUrls(clients);
+  }
+
+  metrics(ctx: TenantContext) {
+    return readPortfolioMetrics(this.prisma, ctx);
   }
 
   /** Preview-only native roster: narrow the database read before logo signing. */
