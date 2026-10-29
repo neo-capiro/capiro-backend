@@ -62,8 +62,7 @@ suite('MF09 actual PostgreSQL CAS, immutable receipt and current access',()=>{
   let release!:()=>void,entered!:(pid:number)=>void;
   const gate=new Promise<void>(r=>{release=r;});
   const reached=new Promise<number>(r=>{entered=r;});
-  const wrapped={withTenant:(tenant:string,work:(tx:Prisma.TransactionClient)=>Promise<unknown>)=>
-   prisma.withTenant(tenant,tx=>work(new Proxy(tx,{get(target,key){
+  const wrap=(tx:Prisma.TransactionClient)=>new Proxy(tx,{get(target,key){
     if(key==='clioConversationManagementReceipt')return new Proxy(target.clioConversationManagementReceipt,{get(model,method){
      if(method==='findUnique')return async(...args:unknown[])=>{
       const identity=await tx.$queryRaw<Array<{pid:number}>>`SELECT pg_backend_pid() AS pid`;
@@ -73,7 +72,11 @@ suite('MF09 actual PostgreSQL CAS, immutable receipt and current access',()=>{
      return Reflect.get(model,method);
     }});
     const value=Reflect.get(target,key);return typeof value==='function'?value.bind(target):value;
-   }})))};
+   }});
+  const wrapped={withTenant:(tenant:string,work:(tx:Prisma.TransactionClient)=>Promise<unknown>)=>
+    prisma.withTenant(tenant,tx=>work(wrap(tx))),
+   withTenantUser:(tenant:string,actor:string,work:(tx:Prisma.TransactionClient)=>Promise<unknown>)=>
+    prisma.withTenantUser(tenant,actor,tx=>work(wrap(tx)))};
   return {prisma:wrapped as unknown as PrismaService,reached,release};
  }
  async function chat(client:string|null=null,title='Owned user title'){
@@ -104,6 +107,8 @@ suite('MF09 actual PostgreSQL CAS, immutable receipt and current access',()=>{
    for(const name of ['current_tenant_id','rls_bypass']){const match=initial.match(new RegExp('CREATE OR REPLACE FUNCTION '+name+'\\(\\)[\\s\\S]+?\\$\\$ LANGUAGE plpgsql STABLE;'));if(!match)throw Error('Missing canonical RLS helper');await c.query(match[0]);}
    await c.query('GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA mf09 TO capiro_app');
    await c.query(migration());await c.query(migration());
+   for(const name of ['20281029020000_office_draft_owner','20281029070000_office_editor_admission'])
+    await c.query(readFileSync(resolve(__dirname,'../../../prisma/migrations',name,'migration.sql'),'utf8'));
   }finally{c.release();}
   const url=new URL(`postgresql://capiro_app@localhost/${database}`);url.searchParams.set('host',socket);url.searchParams.set('schema',schema);url.searchParams.set('connection_limit','4');
   prisma=new PrismaService({datasourceUrl:url.href});await prisma.$connect();

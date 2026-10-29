@@ -101,6 +101,16 @@ source metadata and its identity until normal expiry; immutable published bytes
 are owned elsewhere. Restore/startup verification must read current counts rather
 than trust an old retirement response. Runtime composition remains required.
 
+Chat Trash is connected directly to Core's metadata owner: `manageConversation`
+uses the existing actor-scoped transaction and retires that chat's private drafts
+before committing its status and immutable management receipt. The conversation
+row lock orders this against every editor write. A failed Trash rolls cleanup
+back; a late Save rechecks the now-inactive chat and is refused. Restore does not
+revive closed drafts, while Archive preserves them. Replaying current Trash also
+cleans restored draft copies; an old Trash replay against an active restored chat
+does not erase newly created drafts. Artifact suppression, membership/client
+access-loss cleanup and expiry scheduling still require their owner integration.
+
 Five additional ordinary-role PostgreSQL cases cover closed-token reuse,
 all-writer artifact selection and cross-tenant isolation, 100-row batches,
 locked-writer incompleteness, departure, restored bytes and eventual expiry.

@@ -2,6 +2,7 @@ import { ConflictException, ForbiddenException, GoneException, NotFoundException
 import type { TenantContext } from '@capiro/shared';
 import type { Prisma } from '@prisma/client';
 import type { PrismaService } from '../../prisma/prisma.service.js';
+import { retireConversationOfficeDraftsInTx } from '../office-drafts/retention-subject.js';
 import { MANAGEMENT_VERSION, TRASH_MS, managementDigest, parseManagementRequest,
   type ConversationMetadata, type ManagementReceipt, type ManagementRequest } from './contract.js';
 export { readConversationRetentionState, type ConversationRetentionIdentity, type ConversationRetentionState } from './retention.js';
@@ -120,8 +121,10 @@ export async function readManagementRequest(prisma: PrismaService, ctx: TenantCo
 
 export async function manageConversation(prisma: PrismaService, ctx: TenantContext, raw: unknown): Promise<ManagementReadback> {
   const request = parseManagementRequest(raw);
-  return prisma.withTenant(ctx.tenantId, async tx => {
+  return prisma.withTenantUser(ctx.tenantId, ctx.userId, async tx => {
       const state = await commandState(tx, ctx, request, true);
+      if (request.operation === 'trash' && (!state.receipt || state.row.status === 'trashed'))
+        await retireConversationOfficeDraftsInTx(tx, ctx.tenantId, ctx.userId, request.conversationId);
       if (state.receipt) return readback(request, state);
       const { row, releaseRetention: release } = state;
       const now = state.now!;

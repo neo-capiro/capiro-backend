@@ -19,6 +19,7 @@ function fixture() {
     else if (sql.includes('FROM tenant_memberships')) events.push('membership-lock');
     else if (sql.includes('FROM client_memory_access')) events.push('grant-lock');
     else if (sql.includes('FROM clio_conversations')) events.push('lock');
+    else if (sql.includes('UPDATE meri_office_drafts')) events.push('retire-office');
     else throw Error('Unexpected management SQL');
   }, $queryRaw: async () => [{ now }],
     tenantMembership: { findFirst: jest.fn(async () => ({ id: 'synthetic-membership' })) },
@@ -30,12 +31,16 @@ function fixture() {
       findMany: async ({ where }: any) => [...receipts.values()].filter(r => r.receipt.receipt.conversation.revision === where.receipt.equals),
       create: async ({ data }: any) => { if (failCommit) throw Error('transaction refused'); receipts.set(data.requestId, data); events.push('receipt'); } },
   };
-  const prisma = { withTenant: async (_tenant: string, work: (tx: any) => Promise<unknown>) => {
+  const transaction = async (work: (tx: any) => Promise<unknown>) => {
     const before = structuredClone(row), previous = new Map(receipts); let result;
     try { result = await work(tx); events.push('commit'); }
     catch (error) { row = before; receipts.clear(); for (const [k, v] of previous) receipts.set(k, v); throw error; }
     if (loseReply) { loseReply = false; throw Error('committed response lost'); } return result;
-  } };
+  };
+  const prisma = { withTenant: async (_tenant: string, work: (tx: any) => Promise<unknown>) => transaction(work),
+    withTenantUser: async (tenant: string, actor: string, work: (tx: any) => Promise<unknown>) => {
+      expect(tenant).toBe(ctx.tenantId); expect(actor).toBe(ctx.userId); return transaction(work);
+    } };
   return { prisma: prisma as never, tx, events, get row() { return row; }, setRow: (next: any) => { row = next; },
     failCommit: () => { failCommit = true; }, loseReply: () => { loseReply = true; }, receipts };
 }
@@ -59,9 +64,9 @@ test('deleted replay never reconstructs title from a request tombstone', async (
   f.setRow(null); f.receipts.set(requestId, { conversationId: null, receipt: { tombstone: true } });
   await expect(readManagementRequest(f.prisma, ctx, request('trash'))).rejects.toThrow('Chat not found');
 });
-test('Trash stores exact receipt and thirty-day database-clock deadline without deleting content', async () => {
+test('Trash retires private Office drafts and stores its exact receipt and thirty-day database-clock deadline', async () => {
   const f = fixture(), result = await manageConversation(f.prisma, ctx, request('trash'));
-  expect(f.events).toEqual(['membership-lock', 'tenant-lock', 'lock', 'update', 'receipt', 'commit']);
+  expect(f.events).toEqual(['membership-lock', 'tenant-lock', 'lock', 'retire-office', 'update', 'receipt', 'commit']);
   expect(result.receipt!.conversation).toMatchObject({ status: 'trashed', revision: '1', archivedAt: now.toISOString(), trashedAt: now.toISOString(), restoreUntil: new Date(+now + TRASH_MS).toISOString() });
   expect(result.releaseRetention).toBe(false);
   expect(await readManagementRequest(f.prisma, ctx, request('trash'))).toEqual(result);
