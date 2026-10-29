@@ -8,6 +8,12 @@ concurrent edit. No separate mutable approval or current-version ledger exists.
 `POST /clio/site-workflows/requests/read` accepts a requestId and returns its original
 receipt only to the currently authorized administrator who saved it.
 
+HTTP administration binds the existing native application-authority session.
+For HQ staff acting in a customer tenant, its canonical impersonation check runs
+inside the save/read transaction while the staff membership, home/target tenant
+and impersonation rows are locked. Ended/expired sessions cannot authorize edits.
+The configuration queries always retain explicit target-tenant predicates.
+
 Trusted runtime callers use `POST /clio/site-workflows/runtime/list` with
 `{conversationId}`, or `runtime/read` with `{conversationId,selection}`. Both require
 ordinary Core user authentication and the verified existing service identity.
