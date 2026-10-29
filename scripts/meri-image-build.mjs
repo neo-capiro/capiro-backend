@@ -32,6 +32,11 @@ const PROJECT = 'capiro-build-web-dev';
 const ACCOUNT = '967807252336';
 const REGION = 'us-east-1';
 const REPOSITORY = `capiro/dev/${SERVICE}`;
+// The builder project still points at the legacy capiropv2 repository, which
+// does not contain the split backend commits. Each build pins the exact
+// backend repository and SHA instead of mutating the project definition.
+const SOURCE_REPOSITORY = 'https://github.com/neo-capiro/capiro-backend.git';
+const PROFILE = process.env.BUILD_AWS_PROFILE ?? 'capiro-dev';
 const IMAGE_MARKER = `CANDIDATE_IMAGE=`;
 const REQUIRED = ['IMAGE_SMOKE_PASS', 'LOCAL_REPODIGEST_ECR_MATCH_PASS'];
 const AWS = 'C:/Program Files/Amazon/AWSCLIV2/aws.exe';
@@ -40,7 +45,7 @@ const save = (name, value) =>
   writeFileSync(`${ROOT}/${name}`, `${JSON.stringify(value, null, 2)}\n`, { flag: 'wx' });
 const aws = (args) =>
   JSON.parse(
-    execFileSync(AWS, [...args, '--region', REGION, '--profile', 'capiro-dev', '--output', 'json', '--no-cli-pager'], {
+    execFileSync(AWS, [...args, '--region', REGION, '--profile', PROFILE, '--output', 'json', '--no-cli-pager'], {
       windowsHide: true,
       maxBuffer: 256 * 1024 * 1024,
       encoding: 'utf8',
@@ -164,6 +169,8 @@ function launch() {
   if (buildspecOverride.length > 25_600) throw new Error(`BUILDSPEC_TOO_LONG_${buildspecOverride.length}`);
   const input = {
     projectName: PROJECT,
+    sourceTypeOverride: 'GITHUB',
+    sourceLocationOverride: SOURCE_REPOSITORY,
     sourceVersion: SOURCE_SHA,
     buildspecOverride,
     environmentVariablesOverride: [{ name: 'EXPECTED_SHA', value: SOURCE_SHA, type: 'PLAINTEXT' }],
