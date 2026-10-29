@@ -2,6 +2,61 @@ import { BadRequestException, ConflictException, NotFoundException } from '@nest
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
+import { canonicalWorkspaceSnapshot, WorkspaceRevisionUnavailable } from '@capiro/shared';
+import {
+  WORKSPACE_PROSPECT_GENERATION, parseWorkspaceProspectGenerationSource,
+  workspaceGenerationConversationId, workspaceProspectGenerationSourceWithinTx,
+} from '@capiro/shared/workspace-prospect-generation-source';
+
+/** The same Core conversation/receipt owner registers the native leaf's derived
+ * identity. Current source authority is checked before creation and every replay;
+ * deleting the conversation leaves the existing bootstrap tombstone in force. */
+export async function bootstrapWorkspaceGenerationConversation(
+  prisma: PrismaService, ctx: TenantContext, raw: unknown,
+  metadata: { brand: string; runtime: string },
+) {
+  let source;
+  try { source = parseWorkspaceProspectGenerationSource(raw); }
+  catch { throw new BadRequestException('Invalid Workspace generation source'); }
+  const conversationId = workspaceGenerationConversationId(source.requestId);
+  const run = () => prisma.withTenant(ctx.tenantId, async tx => {
+    try {
+      await workspaceProspectGenerationSourceWithinTx(tx, ctx.tenantId, { userId: ctx.userId }, source, { edit: true });
+    } catch (error) {
+      if (error instanceof WorkspaceRevisionUnavailable) throw new NotFoundException('Workspace source not found');
+      throw error;
+    }
+    const saved = await tx.clioConversationBootstrapReceipt.findFirst({ where: {
+      tenantId: ctx.tenantId, actorUserId: ctx.userId, requestId: conversationId,
+    } });
+    if (saved) {
+      if (saved.conversationId !== conversationId || saved.clientId !== null || saved.scopeKind !== 'general')
+        throw new ConflictException('Workspace generation request is no longer available');
+      const row = await tx.clioConversation.findFirst({ where: {
+        id: conversationId, tenantId: ctx.tenantId, userId: ctx.userId,
+        clientId: null, status: 'active', archivedAt: null,
+      } });
+      if (!row || canonicalWorkspaceSnapshot((row.metadata as Record<string, unknown>)[WORKSPACE_PROSPECT_GENERATION] ?? null) !== canonicalWorkspaceSnapshot(source))
+        throw new ConflictException('Workspace generation source changed');
+    } else {
+      await tx.clioConversation.create({ data: {
+        id: conversationId, tenantId: ctx.tenantId, userId: ctx.userId, clientId: null,
+        title: 'Prospect draft generation', workspaceKey: 'workspace',
+        metadata: { ...metadata, [WORKSPACE_PROSPECT_GENERATION]: { ...source } },
+      } });
+      await tx.clioConversationBootstrapReceipt.create({ data: {
+        tenantId: ctx.tenantId, actorUserId: ctx.userId, requestId: conversationId,
+        scopeKind: 'general', clientId: null, conversationId,
+      } });
+    }
+    return { schemaVersion: 1 as const, tenantId: ctx.tenantId, actorId: ctx.userId, conversationId, source };
+  });
+  try { return await run(); }
+  catch (error) {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') throw error;
+    return run();
+  }
+}
 
 export type ConversationBinding =
   | { scopeKind: 'client'; clientId: string }

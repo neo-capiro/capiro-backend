@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path';
 import request from 'supertest';
 import type { DraftsService } from '../src/drafts/drafts.service.js';
 import { TemplateValidator } from '../src/template-studio/template-validator.js';
+import { ProspectPublicationService } from '../src/versions/prospect-publication.service.js';
 const repoRoot = resolve(__dirname, '../../..');
 const helper = require(join(repoRoot, 'scripts/testing/a1-disposable-postgres.cjs'));
 const readiness = helper.nativePostgresReadiness({ repoRoot });
@@ -30,6 +31,16 @@ native(`prospect atomic save PostgreSQL [${readiness.reason}]`, () => {
     });
     runtime = require('./support/ws03-postgres-harness.js');
     h = await runtime.createNativeWorkspaceHarness(database.url);
+    const immutableMigration = await readFile(
+      join(
+        repoRoot,
+        'apps/workspace/prisma/migrations/20261012040000_saved_version_immutability/migration.sql',
+      ),
+      'utf8',
+    );
+    const triggerAt = immutableMigration.indexOf('CREATE TRIGGER');
+    await h.db.$executeRawUnsafe(immutableMigration.slice(0, triggerAt));
+    await h.db.$executeRawUnsafe(immutableMigration.slice(triggerAt));
     const { DraftsService } = require('../src/drafts/drafts.service.js');
     service = h.app.get(DraftsService);
     await h.db.$executeRawUnsafe(
@@ -85,6 +96,134 @@ native(`prospect atomic save PostgreSQL [${readiness.reason}]`, () => {
       sections: { Scope: 'Only the exact reviewed text.' },
     };
   }
+
+  async function publicationInput() {
+    const saved = await save(await input());
+    return {
+      requestId: '00000000-0000-4000-8000-000000000091',
+      expectedProspectId: prospectId,
+      expectedStateHash: saved.receipt.stateHash,
+      sourceVersionId: saved.receipt.versionId,
+      sourceSnapshotHash: saved.receipt.snapshotHash,
+      expectedPublicationId: null as string | null,
+    };
+  }
+  const publication = () => h.app.get(ProspectPublicationService);
+  const publish = (body: Awaited<ReturnType<typeof publicationInput>>) =>
+    publication().publish(runtime.WS03_IDS.tenantId, runtime.WS03_IDS.draftId, 'user_owner', body);
+  const publicationState = () =>
+    publication().read(
+      runtime.WS03_IDS.tenantId,
+      runtime.WS03_IDS.draftId,
+      prospectId,
+      'user_owner',
+    );
+
+  it('publishes the exact saved revision, preserves working content and recovers the original receipt', async () => {
+    const body = await publicationInput(),
+      before = await state();
+    const first = await publish(body);
+    expect(first.receipt.sourceVersionId).toBe(body.sourceVersionId);
+    expect(first.receipt.sourceSnapshotHash).toBe(body.sourceSnapshotHash);
+    expect(first.receipt.actorId).toBe('user_owner');
+    expect((await state()).stateHash).toBe(before.stateHash);
+    const source = await h.db.wsDocVersion.findUniqueOrThrow({
+      where: { id: body.sourceVersionId },
+    });
+    const published = await h.db.wsDocVersion.findUniqueOrThrow({
+      where: { id: first.receipt.versionId },
+    });
+    const { prospectPublication, ...bytes } = published.snapshot as Record<string, unknown>;
+    expect(bytes).toEqual(source.snapshot);
+    await expect(
+      h.db.wsDocVersion.update({ where: { id: published.id }, data: { label: 'Overwritten' } }),
+    ).rejects.toThrow();
+    expect((await publish(body)).receipt).toEqual(first.receipt);
+    expect((await publicationState()).current).toEqual(first.receipt);
+    // Later edits leave the published revision untouched; an exact retry still
+    // recovers its original receipt without accidentally publishing later bytes.
+    await save({
+      ...(await input()),
+      requestId: '00000000-0000-4000-8000-000000000092',
+      title: 'Later working draft',
+    });
+    expect((await publish(body)).receipt).toEqual(first.receipt);
+    expect((await publicationState()).current).toEqual(first.receipt);
+    await expect(publish({ ...body, sourceSnapshotHash: 'f'.repeat(64) })).rejects.toMatchObject({
+      status: 409,
+    });
+  });
+
+  it('serializes racing publishers and refuses stale draft or fabricated source versions', async () => {
+    const body = await publicationInput();
+    await expect(publish({ ...body, sourceSnapshotHash: 'f'.repeat(64) })).rejects.toMatchObject({
+      status: 409,
+    });
+    const results = await Promise.allSettled([
+      publish(body),
+      publish({ ...body, requestId: '00000000-0000-4000-8000-000000000093' }),
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter((r) => r.status === 'rejected')).toHaveLength(1);
+    const current = (await publicationState()).current!;
+    const next = {
+      ...body,
+      requestId: '00000000-0000-4000-8000-000000000094',
+      expectedPublicationId: current.versionId,
+    };
+    await save({
+      ...(await input()),
+      requestId: '00000000-0000-4000-8000-000000000095',
+      title: 'Changed before publish',
+    });
+    await expect(publish(next)).rejects.toMatchObject({ status: 409 });
+    expect((await publicationState()).current?.versionId).toBe(current.versionId);
+  });
+
+  it('rechecks access on publication, replay and history while allowing archived read only', async () => {
+    const body = await publicationInput();
+    await publish(body);
+    await h.db.$executeRawUnsafe(
+      "UPDATE business_development_prospects SET status='archived' WHERE id=$1::uuid",
+      prospectId,
+    );
+    expect((await publicationState()).current?.versionId).toBe(body.requestId);
+    await expect(publish(body)).rejects.toMatchObject({ status: 404 });
+    await h.db.$executeRawUnsafe(
+      "UPDATE tenant_memberships SET status='removed' WHERE user_id=$1::uuid",
+      userId,
+    );
+    await expect(publicationState()).rejects.toMatchObject({ status: 404 });
+    await expect(publish(body)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('mounts publication independently of save and rejects client substitution and missing prior-version pins', async () => {
+    const body = await publicationInput();
+    const path = '/workspace-api/drafts/' + runtime.WS03_IDS.draftId + '/prospect-publication';
+    const auth = 'Bearer ' + runtime.NATIVE_TOKEN;
+    await request(h.app.getHttpServer())
+      .get(path + '?prospectId=' + prospectId)
+      .set('authorization', auth)
+      .expect(200)
+      .expect('Cache-Control', 'no-store');
+    await request(h.app.getHttpServer())
+      .post(path)
+      .set('authorization', auth)
+      .send({ ...body, clientId: prospectId })
+      .expect(400);
+    const { expectedPublicationId, ...missing } = body;
+    await request(h.app.getHttpServer())
+      .post(path)
+      .set('authorization', auth)
+      .send(missing)
+      .expect(400);
+    await request(h.app.getHttpServer())
+      .post(path)
+      .set('authorization', auth)
+      .send(body)
+      .expect(201)
+      .expect('Cache-Control', 'no-store');
+  });
   async function template(tenantId: string | null = runtime.WS03_IDS.tenantId) {
     const definition = {
       schemaVersion: 1 as const,

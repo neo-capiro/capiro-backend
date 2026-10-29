@@ -8,6 +8,7 @@ import { assertCurrentClientVisible, loadOwnedActiveClioConversation } from '../
 import { BizDevMeriScopeService } from '../business-development/bizdev-meri-scope.service.js';
 import { authorizeMeriProspectScope } from '../business-development/bizdev-meri-scope.authorization.js';
 import { ApplicationMembershipService } from './application-membership.service.js';
+import { authorizeWorkspaceGenerationSource } from '../context/workspace-generation-source.authorization.js';
 import { ApplicationAuthorityChangedException, parseApplicationAuthorityCurrentBody, readApplicationAuthorityCurrent } from './application-authority.js';
 
 /** The existing combined current owner, shared by HTTP and native approvals. */
@@ -44,7 +45,8 @@ export class ApplicationCurrentService {
               select: { requestId: true },
             });
             if (!general) throw new ForbiddenException('Application authority unavailable');
-            return ['general', general.requestId];
+            const workspaceSource = await authorizeWorkspaceGenerationSource(tx, ctx, conversation, { lock: false });
+            return workspaceSource ? ['general', general.requestId, workspaceSource] : ['general', general.requestId];
           }
           if (prospect && prospect.linkedClientId !== input.clientId) throw new ForbiddenException('Application authority unavailable');
           return prospect ? [prospect.prospectId, prospect.canonicalOrganizationId, prospect.linkedClientId, prospect.scopeVersion] : null;

@@ -1,3 +1,4 @@
+import { withMemoryConversationRetention } from './conversation-serving/transaction.js';
 import {
   BadRequestException,
   ForbiddenException,
@@ -84,7 +85,7 @@ export class MemoryGovernanceActionService {
   async approve(ctx: TenantContext, itemId: string, reason: string, expectedVersion: string) {
     this.requireEnabled();
     const cleanReason = requiredReason(reason, 'A reason is required to approve memory.');
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const row = await this.lockItem(tx, ctx.tenantId, itemId);
       await this.requireOperation(tx, ctx, itemId, 'approve');
       assertMemoryGovernanceVersion(row.version, expectedVersion);
@@ -134,7 +135,7 @@ export class MemoryGovernanceActionService {
 
   async confirm(ctx: TenantContext, itemId: string, expectedVersion: string) {
     this.requireEnabled();
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const row = await this.lockItem(tx, ctx.tenantId, itemId);
       await this.requireOperation(tx, ctx, itemId, 'confirm');
       assertMemoryGovernanceVersion(row.version, expectedVersion);
@@ -176,7 +177,7 @@ export class MemoryGovernanceActionService {
   async markStale(ctx: TenantContext, itemId: string, reason: string, expectedVersion: string) {
     this.requireEnabled();
     const cleanReason = requiredReason(reason, 'A reason is required to mark memory stale.');
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const row = await this.lockItem(tx, ctx.tenantId, itemId);
       await this.requireOperation(tx, ctx, itemId, 'mark_stale');
       assertMemoryGovernanceVersion(row.version, expectedVersion);
@@ -240,7 +241,7 @@ export class MemoryGovernanceActionService {
 
   async secondApprove(ctx: TenantContext, itemId: string, expectedVersion: string) {
     this.requireEnabled();
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const row = await this.lockItem(tx, ctx.tenantId, itemId);
       await this.requireOperation(tx, ctx, itemId, 'approve');
       assertMemoryGovernanceVersion(row.version, expectedVersion);
@@ -299,7 +300,7 @@ export class MemoryGovernanceActionService {
 
   async retryProjection(ctx: TenantContext, jobId: string, expectedVersion: string) {
     this.requireEnabled();
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const job = await this.lockProjectionJob(tx, ctx.tenantId, jobId);
       await this.requireProjectionAccess(tx, ctx, job);
 
@@ -356,7 +357,7 @@ export class MemoryGovernanceActionService {
   /** Exact, currently authorized readback; disappearance from recent failures is not an outcome. */
   async getProjectionJob(ctx: TenantContext, jobId: string) {
     if (!memoryGovernanceCenterEnabled()) return { enabled: false, job: null };
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const job = await this.lockProjectionJob(tx, ctx.tenantId, jobId, false);
       await this.requireProjectionAccess(tx, ctx, job);
       return {

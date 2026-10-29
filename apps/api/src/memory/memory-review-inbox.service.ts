@@ -1,3 +1,4 @@
+import { withMemoryConversationRetention } from './conversation-serving/transaction.js';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext, TenantRole } from '@capiro/shared';
@@ -228,7 +229,7 @@ export class MemoryReviewInboxService {
       return { enabled: false, view, items: [], nextCursor: null };
     }
 
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const viewer = await this.requireActiveViewerInTx(tx, ctx);
       this.assertViewAllowed(view, viewer.role);
       const scanLimit = Math.min(250, limit * 4 + 1);
@@ -285,7 +286,7 @@ export class MemoryReviewInboxService {
       };
     }
 
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const viewer = await this.requireActiveViewerInTx(tx, ctx);
       const rows = await this.querySummaryRowsInTx(tx, ctx, viewer.role, MAX_SUMMARY_SCAN + 1);
       const counts = {
@@ -338,7 +339,7 @@ export class MemoryReviewInboxService {
     if (!settingsMemoryReviewEnabledForTenant(ctx.tenantId)) {
       throw new NotFoundException('Memory review is not available.');
     }
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const viewer = await this.requireActiveViewerInTx(tx, ctx);
       const row = await this.loadDetailRowInTx(tx, ctx.tenantId, selector);
       if (!row) throw new NotFoundException('Memory review was not found.');
@@ -397,7 +398,7 @@ export class MemoryReviewInboxService {
     if (!settingsMemoryReviewEnabledForTenant(ctx.tenantId)) {
       return { enabled: false, items: [], nextCursor: null };
     }
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const viewer = await this.requireActiveViewerInTx(tx, ctx);
       const scanLimit = Math.min(250, limit * 4 + 1);
       const cursorClause = cursor
@@ -457,7 +458,7 @@ export class MemoryReviewInboxService {
     if (!settingsMemoryReviewEnabledForTenant(ctx.tenantId)) {
       return { enabled: false, count: 0 };
     }
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const viewer = await this.requireActiveViewerInTx(tx, ctx);
       const rows = await tx.$queryRaw<NotificationRow[]>(Prisma.sql`
         SELECT notification.id::text AS id,
@@ -487,7 +488,7 @@ export class MemoryReviewInboxService {
     if (!settingsMemoryReviewEnabledForTenant(ctx.tenantId)) {
       throw new NotFoundException('Memory review notification was not found.');
     }
-    await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    await withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const viewer = await this.requireActiveViewerInTx(tx, ctx);
       const rows = await tx.$queryRaw<NotificationRow[]>(Prisma.sql`
         SELECT notification.id::text AS id,
@@ -523,7 +524,7 @@ export class MemoryReviewInboxService {
 
   async markAllNotificationsRead(ctx: TenantContext): Promise<number> {
     if (!settingsMemoryReviewEnabledForTenant(ctx.tenantId)) return 0;
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const viewer = await this.requireActiveViewerInTx(tx, ctx);
       const rows = await tx.$queryRaw<NotificationRow[]>(Prisma.sql`
         SELECT notification.id::text AS id,

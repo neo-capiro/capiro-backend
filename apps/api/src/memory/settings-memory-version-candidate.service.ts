@@ -1,3 +1,4 @@
+import { withMemoryConversationRetention } from './conversation-serving/transaction.js';
 import { createHash, randomUUID } from 'node:crypto';
 import {
   BadRequestException,
@@ -165,7 +166,7 @@ export class SettingsMemoryVersionCandidateService {
     };
     return transaction
       ? propose(transaction)
-      : this.prisma.withTenantUser(ctx.tenantId, ctx.userId, propose);
+      : withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, propose);
   }
 
   async findPendingSettingsCorrection(
@@ -174,7 +175,7 @@ export class SettingsMemoryVersionCandidateService {
     type: MemoryItemType,
     stableSlug: string,
   ): Promise<PendingSettingsCandidate | null> {
-    return this.prisma.withTenantUser(tenantId, viewerUserId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, tenantId, viewerUserId, async (tx) => {
       const rows = await tx.$queryRaw<Array<{ id: string; createdAt: Date }>>`
         SELECT id::text AS id, created_at AS "createdAt"
         FROM memory_candidate
@@ -203,7 +204,7 @@ export class SettingsMemoryVersionCandidateService {
     userId: string,
     candidateId: string,
   ): Promise<boolean> {
-    return this.prisma.withTenantUser(tenantId, userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, tenantId, userId, async (tx) => {
       const row = await tx.memoryCandidate.findFirst({
         where: { id: candidateId, tenantId, status: 'pending' },
         select: { sourceKind: true },

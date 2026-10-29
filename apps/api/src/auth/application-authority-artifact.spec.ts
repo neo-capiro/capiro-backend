@@ -72,6 +72,16 @@ function ports(options: { identityExpiresInMs?: number; clientId?: string } = {}
 }
 
 describe('artifact current authority (capiro.meri-artifact-authority.v1)', () => {
+  it('admits exact official-source import through existing generation permission and current client authority', async () => {
+    const request = parseApplicationAuthorityArtifactBody({ ...createCase.request, intent: 'federal-import' });
+    const f = ports();
+    const receipt = await readApplicationAuthorityArtifact(request, 'standard_user', f.ports);
+    expect(receipt.intent).toBe('federal-import');
+    expect(receipt.operations).toContain('artifact.generate');
+    await expect(readApplicationAuthorityArtifact(request, 'client_portal_user', ports().ports)).rejects.toThrow();
+    await expect(readApplicationAuthorityArtifact(request, 'standard_user', { ...ports().ports,
+      clientVisible: async () => { throw new ForbiddenException(); } })).rejects.toThrow(ForbiddenException);
+  });
   it('pins the vendored Meri vector bytes', () => {
     expect(createHash('sha256').update(vectorBytes).digest('hex')).toBe('99a283d6a9e2bda4c2a747a305b5f457b4c9899c6f3478e12c881aed958c5caa');
     expect(vector.route).toEqual({ method: 'POST', path: '/api/clio/application-authority/artifact', successStatus: 200 });
@@ -83,6 +93,7 @@ describe('artifact current authority (capiro.meri-artifact-authority.v1)', () =>
     expect(ARTIFACT_INTENT_OPERATIONS['federal-prepare']).toEqual(['artifact.download', 'artifact.inspect']);
     expect(ARTIFACT_INTENT_OPERATIONS['federal-load']).toEqual(['artifact.download', 'artifact.inspect']);
     expect(ARTIFACT_INTENT_OPERATIONS['federal-publish']).toEqual(['artifact.download', 'artifact.generate', 'artifact.inspect', 'artifact.revise']);
+    expect(ARTIFACT_INTENT_OPERATIONS['federal-import']).toEqual(['artifact.generate']);
   });
 
   it("ports Meri's receipt check faithfully: it accepts each vector receipt and refuses all 18 vector refusals", () => {

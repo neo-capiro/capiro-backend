@@ -1,3 +1,4 @@
+import { withMemoryConversationRetention } from './conversation-serving/transaction.js';
 import { createHash } from 'node:crypto';
 import {
   BadRequestException,
@@ -142,7 +143,7 @@ export class MemoryReviewWorkflowService {
       throw new BadRequestException('A reason is required when requesting memory changes.');
     }
 
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const candidate = await this.lockPendingCandidateInTx(tx, ctx.tenantId, candidateId);
       const subject = await this.authorization.loadCandidateInTx(tx, ctx.tenantId, candidateId);
       if (!subject) throw new NotFoundException('Memory candidate not found.');
@@ -224,7 +225,7 @@ export class MemoryReviewWorkflowService {
       throw new BadRequestException('A reason is required when reassigning memory review.');
     }
 
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const candidate = await this.lockPendingCandidateInTx(tx, ctx.tenantId, candidateId);
       const subject = await this.authorization.loadCandidateInTx(tx, ctx.tenantId, candidateId);
       if (!subject) throw new NotFoundException('Memory candidate not found.');
@@ -270,7 +271,7 @@ export class MemoryReviewWorkflowService {
     candidateId: string,
     operation: 'approve' | 'review' | 'resolve_conflict',
   ): Promise<void> {
-    await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    await withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const candidate = await this.lockPendingCandidateInTx(tx, ctx.tenantId, candidateId);
       const subject = await this.authorization.loadCandidateInTx(tx, ctx.tenantId, candidateId);
       if (!subject) throw new NotFoundException('Memory candidate not found.');
@@ -312,7 +313,7 @@ export class MemoryReviewWorkflowService {
         : normalizeMemoryReviewReason(rawReason);
     if (!reason) throw new BadRequestException('A rejection reason is required.');
 
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const workflow = await this.lockWorkflowInTx(tx, ctx.tenantId, candidateId);
       const current = memoryReviewStatusFromDb(workflow.status);
       if (current !== 'pending' && current !== status) {

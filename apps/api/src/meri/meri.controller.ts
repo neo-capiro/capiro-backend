@@ -427,6 +427,16 @@ export class MeriController {
     return this.service.bootstrapConversation(ctx, body);
   }
 
+  // Register a private native turn only after its current Workspace source is
+  // resolved by Core. Service identity is additional to the signed-in actor.
+  @Post('conversations/workspace-generation')
+  @HttpCode(200)
+  @UseGuards(ToolServiceSecretGuard)
+  bootstrapWorkspaceGeneration(@CurrentTenant() ctx: TenantContext, @Body() body: unknown, @Req() req: Request) {
+    if (!hasVerifiedToolServiceIdentity(req)) throw new ForbiddenException('Internal service required');
+    return this.service.bootstrapWorkspaceGeneration(ctx, body);
+  }
+
   // History search (F2). Declared before `conversations/:id` so the literal
   // segment wins route matching.
   @Get('conversations/search')

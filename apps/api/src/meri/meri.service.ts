@@ -1,9 +1,10 @@
-import { bootstrapConversation as bootstrapNativeConversation } from './meri-conversation-bootstrap.js';
+import { bootstrapConversation as bootstrapNativeConversation, bootstrapWorkspaceGenerationConversation } from './meri-conversation-bootstrap.js';
 import { assertLegacyManagementAllowed } from './conversation-management/service.js';
 import { isResearchPortfolioArtifact, authorizeResearchPortfolioArtifact, authorizeResearchPortfolioConversation } from '../research-portfolios/research-portfolio-artifact-authority.js';
 import { prepareAnthropicRequest, anthropicResponseText } from '@capiro/shared/ai-model-policy';
 import { randomUUID } from 'node:crypto';
 import { assertCurrentClientVisible, loadOwnedActiveClioConversation } from '../context/application-authority-resource.helpers.js';
+import { authorizeWorkspaceGenerationSource } from '../context/workspace-generation-source.authorization.js';
 import {
   BadRequestException,
   ConflictException,
@@ -389,6 +390,7 @@ export class MeriService implements MeriTurnMaintenance {
       for (const conversation of rows) {
         try {
           await authorizeResearchPortfolioConversation(tx, ctx, conversation);
+          await authorizeWorkspaceGenerationSource(tx, ctx, conversation);
           visible.push(conversation);
         } catch (error) {
           if (error instanceof ForbiddenException || error instanceof NotFoundException) continue;
@@ -511,6 +513,11 @@ export class MeriService implements MeriTurnMaintenance {
   bootstrapConversation(ctx: TenantContext, input: unknown) {
     return bootstrapNativeConversation(this.prisma, ctx, input,
       () => this.currentProfile(ctx), { brand: PRODUCT_NAME, runtime: RUNTIME_NAME });
+  }
+
+  bootstrapWorkspaceGeneration(ctx: TenantContext, input: unknown) {
+    return bootstrapWorkspaceGenerationConversation(this.prisma, ctx, input,
+      { brand: PRODUCT_NAME, runtime: RUNTIME_NAME });
   }
 
   async getConversation(ctx: TenantContext, conversationId: string) {
@@ -859,7 +866,10 @@ export class MeriService implements MeriTurnMaintenance {
         },
         include: { client: { select: { id: true, name: true } } },
       });
-      if (row) await authorizeResearchPortfolioConversation(tx, ctx, row);
+      if (row) {
+        await authorizeResearchPortfolioConversation(tx, ctx, row);
+        await authorizeWorkspaceGenerationSource(tx, ctx, row);
+      }
       return row;
     });
     if (!conversation) throw new NotFoundException('Meri conversation not found');
@@ -1372,7 +1382,7 @@ export class MeriService implements MeriTurnMaintenance {
       const ids=[...new Set(hits.map(hit=>hit.conversationId))];
       const rows=await tx.clioConversation.findMany({where:{id:{in:ids},tenantId:ctx.tenantId,userId:ctx.userId,archivedAt:null}});
       const allowed=new Set<string>();
-      for(const row of rows){try{await authorizeResearchPortfolioConversation(tx,ctx,row);allowed.add(row.id);}catch(error){if(error instanceof ForbiddenException||error instanceof NotFoundException)continue;throw error;}}
+      for(const row of rows){try{await authorizeResearchPortfolioConversation(tx,ctx,row);await authorizeWorkspaceGenerationSource(tx,ctx,row);allowed.add(row.id);}catch(error){if(error instanceof ForbiddenException||error instanceof NotFoundException)continue;throw error;}}
       return hits.filter(hit=>allowed.has(hit.conversationId));
     });
   }

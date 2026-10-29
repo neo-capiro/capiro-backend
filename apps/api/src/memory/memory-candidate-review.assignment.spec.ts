@@ -35,7 +35,7 @@ function withReviewEnabled<T>(work: () => Promise<T>): Promise<T> {
 describe('MemoryCandidateReviewService assignment authorization', () => {
   it('does not let a walled administrator reassign a guessed candidate id', async () => {
     await withReviewEnabled(async () => {
-      const tx = {};
+      const tx = { $executeRaw: jest.fn(async () => 0) };
       const prisma = {
         withTenantUser: jest.fn(
           async (_tenantId: string, _userId: string, work: (value: typeof tx) => unknown) =>

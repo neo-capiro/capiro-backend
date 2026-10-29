@@ -1,3 +1,4 @@
+import { withMemoryConversationRetention } from './conversation-serving/transaction.js';
 import { createHash, randomUUID } from 'node:crypto';
 import {
   BadRequestException,
@@ -289,7 +290,7 @@ export class ImmutableMemoryVersionService {
     this.requireLifecycle();
     const body = (input.newContent ?? '').trim();
     if (!body) throw new BadRequestException('newContent is required.');
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const source = await this.loadItem(tx, ctx.tenantId, input.sourceItemId);
       if (!source) throw new NotFoundException('Memory item not found.');
       if (ownerReview) {
@@ -360,7 +361,7 @@ export class ImmutableMemoryVersionService {
     fixtureGuard?: SyntheticMemoryCorrectionGuard,
   ): Promise<VersionCandidateDecisionResult> {
     this.requireLifecycle();
-    const outcome = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    const outcome = await withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const candidate = await this.lockCandidate(tx, ctx.tenantId, candidateId);
       if (!candidate) {
         if (fixtureGuard) throw new NotFoundException('No pending synthetic correction.');
@@ -559,7 +560,7 @@ export class ImmutableMemoryVersionService {
     this.requireLifecycle();
     const cleanReason = (reason ?? '').trim();
     if (!cleanReason) throw new BadRequestException('A rejection reason is required.');
-    await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    await withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const candidate = await this.lockCandidate(tx, ctx.tenantId, candidateId);
       if (!candidate) {
         await this.recoverVersionDecision(tx, ctx, candidateId, 'reject', cleanReason);
@@ -631,7 +632,7 @@ export class ImmutableMemoryVersionService {
     }
     const cleanReason = (reason ?? '').trim();
 
-    const outcome = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    const outcome = await withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const candidate = await this.lockLearningSignalConflictCandidate(
         tx,
         ctx.tenantId,
@@ -869,7 +870,7 @@ export class ImmutableMemoryVersionService {
     fixtureGuard?: SyntheticMemoryCorrectionGuard,
   ): Promise<MemoryVersionResult> {
     this.requireLifecycle();
-    const outcome = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    const outcome = await withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const source = await this.loadItem(tx, ctx.tenantId, sourceItemId);
       if (!source) return { result: { status: 'not_found' } as MemoryVersionResult };
 
