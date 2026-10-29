@@ -152,9 +152,9 @@ test('shipping CLI keeps all seven flags, refuses pending pins and exposes no pr
 test('current production policy admits only the active source with its exact published pin', () => {
   assert.equal(PROFILE.activeCommit, legacy); assert.equal(PROFILE.acceptedSources.length, 4);
   assert.deepEqual(PROFILE.acceptedSources[0], { commit: legacy, tree: 'cc7168bd5277517e2a0bf9e89ff61b9f459299c4',
-    qualificationReceipt: { repository: 'neo-capiro/capiro-frontend', commit: '442e83b378b488aea0dcbf21914e80b103768ddc',
+    qualificationReceipt: { repository: 'neo-capiro/capiro-frontend', commit: '861ebed146690872e583270428a620f14e80bfa6',
       path: 'docs/legacy-web-20261029/SOURCE-PIN-QUALIFICATION.md',
-      sha256: 'd0d0854552c3819ca5dfe9e56ecc923a00e2e5b9ceb9070c267a2653c4a20571' } });
+      sha256: '69f95d4cf906b1d1c81244391612660430d78554044d1a10a7de4c601a73dee2' } });
   assert.deepEqual(PROFILE.acceptedSources[1], { commit: current, tree: '9d11bfbd7121887bc06f5cb793e8a4c4e6e682b4',
     qualificationReceipt: { repository: 'neo-capiro/capiro-frontend', commit: '46ebdd448ef55e88c7a4083fb4586322757a14f8',
       path: 'docs/newsletter-receiving-final-20261013/QUALIFICATION.md',
