@@ -47,6 +47,8 @@ import { BusinessDevelopmentWatchFlagGuard } from './bizdev-watch.flag.guard.js'
 import type { DossierSectionKind } from './bizdev-evidence.types.js';
 import {
   AcceptBriefRefreshDto,
+  PrepareBriefRefreshDto,
+  BriefRefreshParam,
   BriefCitationParam,
   BriefVersionParam,
   CheckBriefClaimDto,
@@ -359,8 +361,24 @@ export class BusinessDevelopmentController {
     return this.brief.buildRefreshProposal(ctx, params.prospectId);
   }
 
-  /** Explicitly accept a refresh proposal as a new saved version. */
-  @Post(`prospects/:${UUID_PARAM}/brief/refresh-accept`)
+  @Post('prospects/:prospectId/brief/refresh-proposals')
+  @UseGuards(BusinessDevelopmentBriefFlagGuard)
+  prepareRefreshProposal(
+    @CurrentTenant() ctx: TenantContext,
+    @Param() params: ProspectIdParam,
+    @Body() body: PrepareBriefRefreshDto,
+  ) {
+    return this.brief.prepareRefreshProposal(ctx, params.prospectId, body);
+  }
+
+  @Get('prospects/:prospectId/brief/refresh-proposals/:proposalId')
+  @UseGuards(BusinessDevelopmentBriefFlagGuard)
+  getRefreshProposal(@CurrentTenant() ctx: TenantContext, @Param() params: BriefRefreshParam) {
+    return this.brief.getRefreshProposal(ctx, params.prospectId, params.proposalId);
+  }
+
+  /** Accept only the exact retained content reviewed by this actor. */
+  @Post('prospects/:prospectId/brief/refresh-accept')
   @HttpCode(200)
   @UseGuards(BusinessDevelopmentBriefFlagGuard)
   acceptRefreshProposal(
@@ -368,11 +386,7 @@ export class BusinessDevelopmentController {
     @Param() params: ProspectIdParam,
     @Body() body: AcceptBriefRefreshDto,
   ) {
-    return this.brief.acceptRefreshProposal(ctx, params.prospectId, {
-      idempotencyKey: body.idempotencyKey,
-      expectedVersionNumber: body.expectedVersionNumber,
-      keepUserEdits: body.keepUserEdits,
-    });
+    return this.brief.acceptRefreshProposal(ctx, params.prospectId, body);
   }
 
   /** List version summaries (oldest → newest). */

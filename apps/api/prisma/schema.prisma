@@ -15650,6 +15650,8 @@ model BusinessDevelopmentBrief {
 /// deferrable current-version pointer constraint and the per-brief version
 /// numbering unique.
 model BusinessDevelopmentBriefVersion {
+  refreshProposals BusinessDevelopmentBriefRefreshProposal[]
+
   id                     String   @id @default(uuid()) @db.Uuid
   tenantId               String   @map("tenant_id") @db.Uuid
   briefId                String   @map("brief_id") @db.Uuid
@@ -17870,4 +17872,20 @@ model WsShareLink {
   @@index([tenantId, portfolioId, publishedAt(sort: Desc)], map: "ws_share_link_portfolio_idx")
   @@index([tenantId, expiresAt], map: "ws_share_link_expiry_idx")
   @@map("ws_share_link")
+}
+
+
+/// Immutable exact-content review; acceptance appends through the existing version owner.
+model BusinessDevelopmentBriefRefreshProposal {
+  id String @id @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  briefId String @map("brief_id") @db.Uuid
+  baseVersionId String @map("base_version_id") @db.Uuid
+  createdByUserId String @map("created_by_user_id") @db.Uuid
+  payload Json
+  proposalHash String @map("proposal_hash") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  baseVersion BusinessDevelopmentBriefVersion @relation(fields: [tenantId,baseVersionId,briefId], references: [tenantId,id,briefId], onDelete: Cascade, map: "brief_refresh_base_fkey")
+  @@index([tenantId,briefId,createdByUserId,createdAt(sort: Desc)], map: "brief_refresh_owner_idx")
+  @@map("business_development_brief_refresh_proposals")
 }

@@ -19,8 +19,16 @@ import type { BriefCitation, BriefSections, BriefSourceSnapshot } from './bizdev
 
 const tenantId = randomUUID();
 const tenantBId = randomUUID();
-const ctx = { tenantId, userId: 'u1', role: 'standard_user' } as unknown as TenantContext;
-const ctxB = { tenantId: tenantBId, userId: 'u2', role: 'standard_user' } as unknown as TenantContext;
+const ctx = {
+  tenantId,
+  userId: '11111111-1111-4111-8111-111111111111',
+  role: 'standard_user',
+} as unknown as TenantContext;
+const ctxB = {
+  tenantId: tenantBId,
+  userId: '22222222-2222-4222-8222-222222222222',
+  role: 'standard_user',
+} as unknown as TenantContext;
 
 interface ProspectRow {
   id: string;
@@ -118,16 +126,24 @@ const makeHarness = (fixture: {
       .reduce((max, v) => Math.max(max, v.versionNumber), 0) + 1;
 
   const versionTx = {
-    findFirst: jest.fn(async ({ where, select }: { where: Record<string, unknown>; select?: unknown }) => {
-      const rows = fixture.versions.filter((v) => matches(where, v as unknown as Record<string, unknown>));
-      const row = rows[0];
-      if (!row) return null;
-      if (select && (where as { brief?: unknown }).brief) return { ...row, brief: fixture.briefs.find((b) => b.id === row.briefId) };
-      return { ...row };
-    }),
+    findFirst: jest.fn(
+      async ({ where, select }: { where: Record<string, unknown>; select?: unknown }) => {
+        const rows = fixture.versions.filter((v) =>
+          matches(where, v as unknown as Record<string, unknown>),
+        );
+        const row = rows[0];
+        if (!row) return null;
+        if (select && (where as { brief?: unknown }).brief)
+          return { ...row, brief: fixture.briefs.find((b) => b.id === row.briefId) };
+        return { ...row };
+      },
+    ),
     findUnique: jest.fn(async ({ where }: { where: Record<string, unknown> }) => {
-      const briefId = (where.briefId_versionNumber as { briefId: string })?.briefId ?? (where.briefId as string);
-      const vn = (where.briefId_versionNumber as { versionNumber: number })?.versionNumber ?? (where.versionNumber as number);
+      const briefId =
+        (where.briefId_versionNumber as { briefId: string })?.briefId ?? (where.briefId as string);
+      const vn =
+        (where.briefId_versionNumber as { versionNumber: number })?.versionNumber ??
+        (where.versionNumber as number);
       const row = fixture.versions.find((v) => v.briefId === briefId && v.versionNumber === vn);
       return row ? { ...row } : null;
     }),
@@ -144,14 +160,20 @@ const makeHarness = (fixture: {
       const briefId = data.briefId as string;
       const brief = fixture.briefs.find((b) => b.id === briefId)!;
       const versionNumber = data.versionNumber as number;
-      if (fixture.versions.some((v) => v.briefId === briefId && v.versionNumber === versionNumber)) {
+      if (
+        fixture.versions.some((v) => v.briefId === briefId && v.versionNumber === versionNumber)
+      ) {
         throw new Prisma.PrismaClientKnownRequestError('unique', {
           clientVersion: '5.22.0',
           code: 'P2002',
           meta: { target: ['version_number'] },
         });
       }
-      if (fixture.versions.some((v) => v.briefId === briefId && v.idempotencyKey === data.idempotencyKey)) {
+      if (
+        fixture.versions.some(
+          (v) => v.briefId === briefId && v.idempotencyKey === data.idempotencyKey,
+        )
+      ) {
         throw new Prisma.PrismaClientKnownRequestError('unique', {
           clientVersion: '5.22.0',
           code: 'P2002',
@@ -183,25 +205,29 @@ const makeHarness = (fixture: {
   };
 
   const briefTx = {
-    findFirst: jest.fn(async ({ where, select }: { where: Record<string, unknown>; select?: unknown }) => {
-      const row = fixture.briefs.find((b) => matches(where, b as unknown as Record<string, unknown>));
-      if (!row) return null;
-      if (select && (select as Record<string, unknown>).currentVersion) {
-        return {
-          ...row,
-          currentVersion: fixture.versions.find((v) => v.id === row.currentVersionId) ?? null,
-        };
-      }
-      if (select && (select as Record<string, unknown>).versions) {
-        return {
-          ...row,
-          versions: fixture.versions
-            .filter((v) => v.briefId === row.id)
-            .sort((a, b) => a.versionNumber - b.versionNumber),
-        };
-      }
-      return { ...row };
-    }),
+    findFirst: jest.fn(
+      async ({ where, select }: { where: Record<string, unknown>; select?: unknown }) => {
+        const row = fixture.briefs.find((b) =>
+          matches(where, b as unknown as Record<string, unknown>),
+        );
+        if (!row) return null;
+        if (select && (select as Record<string, unknown>).currentVersion) {
+          return {
+            ...row,
+            currentVersion: fixture.versions.find((v) => v.id === row.currentVersionId) ?? null,
+          };
+        }
+        if (select && (select as Record<string, unknown>).versions) {
+          return {
+            ...row,
+            versions: fixture.versions
+              .filter((v) => v.briefId === row.id)
+              .sort((a, b) => a.versionNumber - b.versionNumber),
+          };
+        }
+        return { ...row };
+      },
+    ),
     create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => {
       calls.briefCreates += 1;
       const row: BriefRow = {
@@ -218,18 +244,55 @@ const makeHarness = (fixture: {
       fixture.briefs.push(row);
       return { ...row };
     }),
-    update: jest.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
-      calls.briefUpdates += 1;
-      const row = fixture.briefs.find((b) => b.id === where.id)!;
-      if (data.title !== undefined) row.title = data.title as string;
-      if (data.status !== undefined) row.status = data.status as string;
-      if (data.currentVersionId !== undefined) row.currentVersionId = data.currentVersionId as string;
-      row.updatedAt = now();
-      return { ...row };
-    }),
+    update: jest.fn(
+      async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+        calls.briefUpdates += 1;
+        const row = fixture.briefs.find((b) => b.id === where.id)!;
+        if (data.title !== undefined) row.title = data.title as string;
+        if (data.status !== undefined) row.status = data.status as string;
+        if (data.currentVersionId !== undefined)
+          row.currentVersionId = data.currentVersionId as string;
+        row.updatedAt = now();
+        return { ...row };
+      },
+    ),
   };
 
+  const proposals = new Map<string, Record<string, unknown>>();
   const txFor = (t: string) => ({
+    $executeRawUnsafe: jest.fn(async (_sql: string, ...args: unknown[]) => {
+      const p = JSON.parse(args[5] as string);
+      if (proposals.has(p.proposalId)) throw new Error('duplicate proposal');
+      proposals.set(p.proposalId, p);
+      return 1;
+    }),
+    $queryRawUnsafe: jest.fn(async (sql: string, ...args: unknown[]) => {
+      if (sql.includes('FROM business_development_brief_refresh_proposals')) {
+        const p = proposals.get(args[2] as string);
+        return p && p.tenantId === t && p.prospectId === args[1] && p.createdByUserId === args[3]
+          ? [{ payload: p }]
+          : [];
+      }
+      if (sql.includes('FROM business_development_prospects')) {
+        const p = fixture.prospects.find((p) => p.tenantId === t && p.id === args[1]);
+        return p ? [{ ...p, linkedClientId: null, dismissedAt: null }] : [];
+      }
+      if (sql.includes('FROM tenants'))
+        return [
+          {
+            settings: {
+              clioFeatureFlags: {
+                'businessDevelopment.enabled': true,
+                'businessDevelopment.brief.enabled': true,
+              },
+            },
+          },
+        ];
+      if (sql.includes('FROM tenant_memberships'))
+        return [{ userId: args[1], clerkUserId: 'clerk-fixture' }];
+      if (sql.includes('set_config')) return [];
+      throw new Error('Unexpected fixture SQL: ' + sql);
+    }),
     $queryRaw: jest.fn(async () => [{ id: 'lock' }]),
     businessDevelopmentProspect: {
       findFirst: jest.fn(async ({ where }: { where: Record<string, unknown> }) => {
@@ -244,9 +307,7 @@ const makeHarness = (fixture: {
   });
 
   const prisma = {
-    withTenant: jest.fn(async (t: string, fn: (tx: unknown) => Promise<unknown>) =>
-      fn(txFor(t)),
-    ),
+    withTenant: jest.fn(async (t: string, fn: (tx: unknown) => Promise<unknown>) => fn(txFor(t))),
   } as never;
 
   const dossier = {
@@ -382,7 +443,10 @@ describe('saveEditedVersion', () => {
     expect(h.calls.versionCreates).toBe(2);
 
     // same key, different sections → explicit mismatch conflict
-    const other = { ...editedSections(), judgment: { ...editedSections().judgment, text: 'Different text.' } } as BriefSections;
+    const other = {
+      ...editedSections(),
+      judgment: { ...editedSections().judgment, text: 'Different text.' },
+    } as BriefSections;
     await expect(
       h.service.saveEditedVersion(ctx, p.id, {
         idempotencyKey: 'edit-1',
@@ -451,46 +515,92 @@ describe('refresh proposal + accept', () => {
     expect(h.calls.briefUpdates).toBe(before.briefUpdates);
   });
 
-  test('accept creates a new version with expected-version + idempotency checks', async () => {
-    const { p, h } = await setup();
-    const accepted = await h.service.acceptRefreshProposal(ctx, p.id, {
-      idempotencyKey: 'accept-1',
-      expectedVersionNumber: 1,
+  const prepare = (h: ReturnType<typeof makeHarness>, id: string, version = 1) =>
+    h.service.prepareRefreshProposal(ctx, id, {
+      proposalId: randomUUID(),
+      expectedVersionNumber: version,
+      keepUserEdits: true,
     });
+  test('retains exact content without changing current version; accepts once and reads the original receipt', async () => {
+    const { p, h } = await setup(),
+      before = { ...h.calls };
+    const proposal = await prepare(h, p.id);
+    expect(h.calls).toEqual(before);
+    const input = { proposalId: proposal.proposalId, proposalHash: proposal.proposalHash };
+    const accepted = await h.service.acceptRefreshProposal(ctx, p.id, input);
     expect(accepted.created).toBe(true);
-    expect(accepted.version.versionNumber).toBe(2);
-
-    // retry replays
-    const retry = await h.service.acceptRefreshProposal(ctx, p.id, {
-      idempotencyKey: 'accept-1',
-      expectedVersionNumber: 1,
-    });
+    expect(accepted.version.sections).toEqual(proposal.proposed);
+    expect(accepted.version.citations).toEqual(proposal.citations);
+    expect(accepted.version.sourceSnapshot).toEqual(proposal.sourceSnapshot);
+    h.fixture.dossierEvidence = [ev({ title: 'Changed after commit' })];
+    const retry = await h.service.acceptRefreshProposal(ctx, p.id, input);
     expect(retry.created).toBe(false);
     expect(retry.version.id).toBe(accepted.version.id);
+    expect(
+      (await h.service.getRefreshProposal(ctx, p.id, proposal.proposalId)).acceptedVersion?.id,
+    ).toBe(accepted.version.id);
     expect(h.calls.versionCreates).toBe(2);
-
-    // stale expected version → conflict
     await expect(
-      h.service.acceptRefreshProposal(ctx, p.id, {
-        idempotencyKey: 'accept-2',
+      h.service.prepareRefreshProposal(ctx, p.id, {
+        proposalId: proposal.proposalId,
         expectedVersionNumber: 1,
-      }),
-    ).rejects.toMatchObject({
-      status: 409,
-      response: { code: 'BIZDEV_BRIEF_VERSION_CONFLICT', latestVersion: { versionNumber: 2 } },
-    });
-
-    // key reuse for a different operation (edit vs accept) → explicit conflict
-    await expect(
-      h.service.acceptRefreshProposal(ctx, p.id, {
-        idempotencyKey: 'accept-1',
-        expectedVersionNumber: 2,
         keepUserEdits: false,
       }),
-    ).rejects.toMatchObject({
-      status: 409,
-      response: { code: 'BIZDEV_BRIEF_IDEMPOTENCY_MISMATCH' },
+    ).rejects.toThrow(ConflictException);
+  });
+  test('source changes and wrong proposal hashes cannot silently save different content', async () => {
+    const { p, h } = await setup(),
+      proposal = await prepare(h, p.id);
+    h.fixture.dossierEvidence = [ev({ title: 'New source finding' })];
+    await expect(
+      h.service.acceptRefreshProposal(ctx, p.id, {
+        proposalId: proposal.proposalId,
+        proposalHash: proposal.proposalHash,
+      }),
+    ).rejects.toMatchObject({ status: 409, response: { code: 'BIZDEV_BRIEF_REFRESH_CONFLICT' } });
+    await expect(
+      h.service.acceptRefreshProposal(ctx, p.id, {
+        proposalId: proposal.proposalId,
+        proposalHash: '0'.repeat(64),
+      }),
+    ).rejects.toThrow(ConflictException);
+    expect(h.calls.versionCreates).toBe(1);
+  });
+  test('a competing saved version invalidates a previously reviewed refresh', async () => {
+    const { p, h } = await setup(),
+      proposal = await prepare(h, p.id);
+    await h.service.saveEditedVersion(ctx, p.id, {
+      idempotencyKey: 'different-edit',
+      expectedVersionNumber: 1,
+      sections: editedSections(),
     });
+    await expect(
+      h.service.acceptRefreshProposal(ctx, p.id, {
+        proposalId: proposal.proposalId,
+        proposalHash: proposal.proposalHash,
+      }),
+    ).rejects.toMatchObject({ status: 409, response: { code: 'BIZDEV_BRIEF_VERSION_CONFLICT' } });
+    expect(h.calls.versionCreates).toBe(2);
+  });
+  test('another tenant/actor cannot read or accept a retained private proposal', async () => {
+    const { p, h } = await setup(),
+      proposal = await prepare(h, p.id);
+    await expect(h.service.getRefreshProposal(ctxB, p.id, proposal.proposalId)).rejects.toThrow(
+      NotFoundException,
+    );
+    await expect(
+      h.service.getRefreshProposal({ ...ctx, userId: ctxB.userId }, p.id, proposal.proposalId),
+    ).rejects.toThrow(NotFoundException);
+  });
+  test('legacy acceptance without an exact reviewed identity is rejected', async () => {
+    const { p, h } = await setup();
+    await expect(
+      h.service.acceptRefreshProposal(ctx, p.id, {
+        idempotencyKey: 'legacy',
+        expectedVersionNumber: 1,
+      } as never),
+    ).rejects.toThrow(BadRequestException);
+    expect(h.calls.versionCreates).toBe(1);
   });
 });
 
