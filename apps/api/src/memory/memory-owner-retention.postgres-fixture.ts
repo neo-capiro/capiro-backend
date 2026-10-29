@@ -105,8 +105,10 @@ export async function ownerRetentionDatabase(
       await admin.query(`CREATE DOMAIN vector AS text;
         CREATE FUNCTION current_tenant_id() RETURNS uuid LANGUAGE sql STABLE AS
         $$SELECT nullif(current_setting('app.current_tenant',true),'')::uuid$$;
+        -- Same body as the applied 20260501000000 live helper: an unset GUC
+        -- yields NULL, not false. NULL is not true for every authorization use.
         CREATE FUNCTION rls_bypass() RETURNS boolean LANGUAGE sql STABLE AS
-        $$SELECT coalesce(current_setting('app.bypass_rls',true),'')='on'$$;`);
+        $$SELECT current_setting('app.bypass_rls',true)='on'$$;`);
       for (const table of tables) {
         await admin.query(`ALTER TABLE "${table}" ALTER COLUMN id SET DEFAULT gen_random_uuid();
           ALTER TABLE "${table}" ENABLE ROW LEVEL SECURITY;

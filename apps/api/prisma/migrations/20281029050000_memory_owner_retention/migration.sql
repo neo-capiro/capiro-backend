@@ -321,7 +321,11 @@ REVOKE ALL ON FUNCTION memory_retention_edge_sources(uuid,uuid,text,text) FROM P
 CREATE FUNCTION memory_retention_edge_visible(p_tenant uuid,p_source uuid,p_type text,p_slug text) RETURNS boolean
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=public,pg_temp AS $$
 BEGIN
-  IF NOT rls_bypass() AND p_tenant IS DISTINCT FROM current_tenant_id() THEN RETURN false; END IF;
+  -- rls_bypass() reads current_setting(...,true)='on' and is NULL when the GUC
+  -- was never set, so an explicit "IS NOT TRUE" is required: `NOT NULL` is
+  -- NULL, which would skip this RETURN and let a caller-supplied other tenant
+  -- reach the privileged SECURITY DEFINER read.
+  IF rls_bypass() IS NOT TRUE AND p_tenant IS DISTINCT FROM current_tenant_id() THEN RETURN false; END IF;
   RETURN memory_retention_edge_sources(p_tenant,p_source,p_type,p_slug);
 END $$;
 CREATE POLICY memory_items_owner_retention ON memory_items AS RESTRICTIVE FOR SELECT

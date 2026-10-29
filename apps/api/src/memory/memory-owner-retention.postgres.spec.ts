@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { Client } from 'pg';
 import {
   ownerRetentionDatabase,
   ownerRetentionCase,
@@ -425,6 +426,84 @@ suite('memory owner periods at the ordinary PostgreSQL role boundary', () => {
           tx.$queryRaw`SELECT memory_retention_edge_visible(${f.tenantId}::uuid,${value.item.id}::uuid,${value.item.type},${value.item.slug}) AS visible`,
       ),
     ).toEqual([{ visible: true }]);
+  });
+
+  it('denies a cross-tenant edge probe for a genuinely unset bypass and never widens the GUC', async () => {
+    const f = await fixture(),
+      matching = await corpus(f),
+      other = await fixture(),
+      otherSource = await store.scoped(other.tenantId, (tx) =>
+        tx.memoryItem.create({
+          data: {
+            tenantId: other.tenantId,
+            type: 'note',
+            slug: randomUUID(),
+            title: 'Other tenant source',
+            source: 'manual',
+            governedStatus: 'active',
+          },
+        }),
+      );
+    // Every probe uses a fresh connection: app.bypass_rls has never been set on
+    // it, so current_setting(...,true) is genuinely NULL (RESET would leave '').
+    const probe = async (
+      tenant: string | null,
+      targetTenant: string,
+      sourceId: string,
+      bypass?: 'on',
+    ) => {
+      const client = new Client({ connectionString: url! });
+      await client.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('SET LOCAL ROLE capiro_app');
+        if (tenant)
+          await client.query("SELECT set_config('app.current_tenant',$1,true)", [tenant]);
+        if (bypass) await client.query("SELECT set_config('app.bypass_rls',$1,true)", [bypass]);
+        const before = await client.query(
+          "SELECT current_setting('app.bypass_rls',true) AS guc",
+        );
+        const result = await client.query(
+          `SELECT memory_retention_edge_visible($1::uuid,$2::uuid,'note','sr03-no-target') AS visible`,
+          [targetTenant, sourceId],
+        );
+        const after = await client.query("SELECT current_setting('app.bypass_rls',true) AS guc");
+        return {
+          before: before.rows[0].guc as string | null,
+          visible: result.rows[0].visible as boolean,
+          after: after.rows[0].guc as string | null,
+        };
+      } finally {
+        await client.query('ROLLBACK').catch(() => undefined);
+        await client.end();
+      }
+    };
+
+    // Genuinely unset raw value and the matching-tenant path stays permitted.
+    expect(await probe(f.tenantId, f.tenantId, matching.item.id)).toEqual({
+      before: null,
+      visible: true,
+      after: '',
+    });
+    // Another tenant is refused before the privileged SECURITY DEFINER read, so
+    // the GUC is never widened and stays unset.
+    expect(await probe(f.tenantId, other.tenantId, otherSource.id)).toEqual({
+      before: null,
+      visible: false,
+      after: null,
+    });
+    // Same refusal with no tenant context at all.
+    expect(await probe(null, other.tenantId, otherSource.id)).toEqual({
+      before: null,
+      visible: false,
+      after: null,
+    });
+    // The existing trusted bypass path is still allowed to read across tenants.
+    expect(await probe(f.tenantId, other.tenantId, otherSource.id, 'on')).toEqual({
+      before: 'on',
+      visible: true,
+      after: 'on',
+    });
   });
 
   it('cleans a due closed client and its old grants without deleting firm memory', async () => {
