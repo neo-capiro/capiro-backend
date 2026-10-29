@@ -220,15 +220,27 @@ const url = process.env.MEMORY_CONNECTED_TEST_DATABASE_URL;
       },
     );
 
-    it('counts and acknowledges all eligible notifications beyond the former 1,000-row cutoff', async () => {
+    async function notificationPopulationFixture() {
       const f = await fixture(),
         seed = await propose(f, 'firm-soul', 'Synthetic volume fixture');
       const anotherRecipient = await peer(f);
+      const identity = await store.prisma.withTenantUser(
+        f.tenantId,
+        f.userId,
+        (tx) =>
+          tx.$queryRaw<Array<{ valid: boolean; invalid: boolean; missing: boolean }>>`
+          SELECT memory_review_candidate_identity(${seed.candidateId.toUpperCase()})=${seed.candidateId}::uuid AS valid,
+            memory_review_candidate_identity('non-memory-subject') IS NULL AS invalid,
+            memory_review_candidate_identity(NULL) IS NULL AS missing`,
+      );
+      expect(identity).toEqual([{ valid: true, invalid: true, missing: true }]);
       // Seed coherent persisted notifications in bulk through the real schema
       // and workflow triggers. Dispatch itself is covered by the journey above.
       await store.db.$executeRaw`
-        INSERT INTO memory_candidate(tenant_id,proposed_by,source_kind,scope,payload_jsonb,provenance_jsonb)
-        SELECT tenant_id,proposed_by,source_kind,scope,payload_jsonb,provenance_jsonb
+        INSERT INTO memory_candidate(tenant_id,proposed_by,source_kind,scope,payload_jsonb,provenance_jsonb,
+          memory_class,memory_authority,memory_scope,governed_status,source_type)
+        SELECT tenant_id,proposed_by,source_kind,scope,payload_jsonb,provenance_jsonb,
+          memory_class,memory_authority,memory_scope,governed_status,source_type
         FROM memory_candidate CROSS JOIN generate_series(1,1001)
         WHERE id=${seed.candidateId}::uuid`;
       await store.db.$executeRaw`
@@ -254,6 +266,44 @@ const url = process.env.MEMORY_CONNECTED_TEST_DATABASE_URL;
       await store.db.$executeRaw`
         UPDATE memory_review_notification_outbox SET delivered_at=now()
         WHERE tenant_id=${f.tenantId}::uuid`;
+      return { f, anotherRecipient };
+    }
+
+    it('counts and acknowledges all eligible notifications beyond the former 1,000-row cutoff', async () => {
+      const { f, anotherRecipient } = await notificationPopulationFixture();
+      expect(await store.inbox.summary(f.ctx)).toEqual({
+        enabled: true,
+        counts: {
+          needsMyReview: 1002,
+          submittedByMe: 1002,
+          allPending: 1002,
+          blocked: 0,
+          history: 0,
+        },
+        truncated: false,
+      });
+      await store.db.tenantMembership.updateMany({
+        where: { tenantId: f.tenantId, userId: f.userId },
+        data: { role: 'standard_user' },
+      });
+      try {
+        expect(await store.inbox.summary({ ...f.ctx, role: 'standard_user' })).toEqual({
+          enabled: true,
+          counts: {
+            needsMyReview: 0,
+            submittedByMe: 1002,
+            allPending: 1002,
+            blocked: 0,
+            history: 0,
+          },
+          truncated: false,
+        });
+      } finally {
+        await store.db.tenantMembership.updateMany({
+          where: { tenantId: f.tenantId, userId: f.userId },
+          data: { role: 'user_admin' },
+        });
+      }
       expect(await store.inbox.unreadNotificationCount(f.ctx)).toEqual({
         enabled: true,
         count: 1002,

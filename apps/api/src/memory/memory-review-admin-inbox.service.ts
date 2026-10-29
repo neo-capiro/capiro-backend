@@ -17,8 +17,6 @@ import {
   type MemoryReviewInboxSummary,
 } from './memory-review-inbox.service.js';
 
-const SUMMARY_LIMIT = 1_000;
-
 /**
  * Admin policy adapter for the canonical Review Inbox.
  *
@@ -69,20 +67,17 @@ export class MemoryReviewAdminInboxService extends MemoryReviewInboxService {
 
     const pending = await this.collect(ctx, 'all_pending');
     const history = await this.collect(ctx, 'history');
+    const enabled = pending.enabled && history.enabled;
     return {
-      enabled: pending.enabled,
+      enabled,
       counts: {
-        needsMyReview: pending.items.filter(
-          (item) =>
-            item.status === 'pending' && (item.capabilities.approve || item.capabilities.reject),
-        ).length,
-        submittedByMe: pending.items.filter((item) => item.submittedBy.userId === ctx.userId)
-          .length,
-        allPending: pending.items.length,
-        blocked: pending.items.filter((item) => Boolean(item.blockedReason)).length,
-        history: history.items.length,
+        needsMyReview: enabled ? pending.needsMyReview : 0,
+        submittedByMe: enabled ? pending.submittedByMe : 0,
+        allPending: enabled ? pending.count : 0,
+        blocked: enabled ? pending.blocked : 0,
+        history: enabled ? history.count : 0,
       },
-      truncated: pending.truncated || history.truncated,
+      truncated: false,
     };
   }
 
@@ -108,22 +103,27 @@ export class MemoryReviewAdminInboxService extends MemoryReviewInboxService {
     view: 'all_pending' | 'history',
   ): Promise<{
     enabled: boolean;
-    items: MemoryReviewInboxItem[];
-    truncated: boolean;
+    count: number;
+    needsMyReview: number;
+    submittedByMe: number;
+    blocked: number;
   }> {
-    const items: MemoryReviewInboxItem[] = [];
+    const counts = { count: 0, needsMyReview: 0, submittedByMe: 0, blocked: 0 };
     let cursor: string | null = null;
     let enabled = true;
     do {
       const page = await this.list(ctx, { view, cursor, limit: 50 });
       enabled = page.enabled;
-      items.push(...page.items);
-      cursor = page.nextCursor;
-      if (items.length >= SUMMARY_LIMIT) {
-        return { enabled, items: items.slice(0, SUMMARY_LIMIT), truncated: true };
+      for (const item of page.items) {
+        counts.count++;
+        if (item.status === 'pending' && (item.capabilities.approve || item.capabilities.reject))
+          counts.needsMyReview++;
+        if (item.submittedBy.userId === ctx.userId) counts.submittedByMe++;
+        if (item.blockedReason) counts.blocked++;
       }
+      cursor = page.nextCursor;
     } while (cursor);
-    return { enabled, items, truncated: false };
+    return { enabled, ...counts };
   }
 
   private async withAdminCapabilities<T extends MemoryReviewInboxItem>(
@@ -133,7 +133,8 @@ export class MemoryReviewAdminInboxService extends MemoryReviewInboxService {
     const pending = items.filter((item) => item.status === 'pending');
     if (pending.length === 0) return items;
 
-    const projectedByCandidate = await withMemoryConversationRetention(this.adminPrisma,
+    const projectedByCandidate = await withMemoryConversationRetention(
+      this.adminPrisma,
       ctx.tenantId,
       ctx.userId,
       async (tx) => {
