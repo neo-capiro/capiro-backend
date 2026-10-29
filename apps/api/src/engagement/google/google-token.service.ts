@@ -282,6 +282,7 @@ export class GoogleTokenService {
           lastError: null,
         },
       });
+      });
     } catch (error) {
       // The provider granted a token but the durable write is not established.
       handoff?.unknown();
