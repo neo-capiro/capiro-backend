@@ -37,6 +37,13 @@ describeDatabase('Fill retry leases and recovery in PostgreSQL', () => {
   async function sandbox(check: (state: Awaited<ReturnType<typeof setup>>) => Promise<void>) {
     await db.$transaction(
       async (tx) => {
+        if (process.env.FILL_RETRY_TEST_ORDINARY_ROLE === 'capiro_app') {
+          await tx.$executeRawUnsafe('SET LOCAL ROLE capiro_app');
+          const [role] = await tx.$queryRawUnsafe<Array<{ rolsuper: boolean; rolbypassrls: boolean }>>(
+            'SELECT rolsuper,rolbypassrls FROM pg_roles WHERE rolname=current_user',
+          );
+          expect(role).toEqual({ rolsuper: false, rolbypassrls: false });
+        }
         await check(await setup(tx));
       },
       { timeout: 30_000 },
@@ -45,10 +52,13 @@ describeDatabase('Fill retry leases and recovery in PostgreSQL', () => {
 
   async function setup(tx: Prisma.TransactionClient) {
     await tx.$executeRawUnsafe(`CREATE TEMP TABLE client_profile_fill_run (
-      id uuid PRIMARY KEY, tenant_id uuid, client_id uuid, workflow_version int DEFAULT 2,
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid, client_id uuid, workflow_version int DEFAULT 2,
       status text DEFAULT 'running', stage text DEFAULT 'research', created_by_user_id uuid,
       completed_at timestamptz, cancelled_at timestamptz, last_progress_at timestamptz,
-      updated_at timestamptz DEFAULT now(), summary_jsonb jsonb DEFAULT '{}', error text
+      updated_at timestamptz DEFAULT now(), created_at timestamptz DEFAULT now(),
+      summary_jsonb jsonb DEFAULT '{}', error text, requested_sources text[] DEFAULT '{}',
+      source_states_jsonb jsonb DEFAULT '{}', setup_jsonb jsonb DEFAULT '{}',
+      selected_lda_ids int[] DEFAULT '{}', attachment_ids uuid[] DEFAULT '{}'
     ) ON COMMIT DROP`);
     for (const [table, dependencyType] of [
       [CORE, 'uuid'],
@@ -149,6 +159,46 @@ describeDatabase('Fill retry leases and recovery in PostgreSQL', () => {
     }
     return { tx, ctx, runId, tenantId, clientId, workflow, completion, insert, row, accepted };
   }
+
+  it('keeps research selections in persisted run/task inputs across a worker reload', async () => {
+    await sandbox(async ({ tx, ctx, clientId, workflow }) => {
+      workflow.latestActiveRun = jest.fn(async () => null);
+      workflow.getSetup = jest.fn(async () => ({
+        website: 'https://canonical.example/',
+        selectedIdentities: [{ id: 42, name: 'Imported', confidence: 1 }],
+        suggestedIdentities: [{ id: 73, name: 'Provisional', confidence: 0.8 }],
+      }));
+      workflow.validateAttachments = jest.fn(async () => []);
+      workflow.contextPlane = { resolve: jest.fn(async () => ({})), recordRunContext: jest.fn() };
+      workflow.getRun = jest.fn(async (_ctx: unknown, _clientId: string, id: string) => ({ id }));
+      const created = await workflow.startRun(ctx, clientId, {
+        sources: ['public_web', 'lda'], website: 'https://research.example/', ldaClientIds: [73],
+      });
+      const [saved] = await tx.$queryRawUnsafe<any[]>(
+        'SELECT setup_jsonb, selected_lda_ids FROM client_profile_fill_run WHERE id=$1::uuid', created.id,
+      );
+      expect(saved.setup_jsonb).toMatchObject({
+        researchInputVersion: 1, website: 'https://research.example/', selectedLdaIds: [42, 73],
+      });
+      expect(saved.selected_lda_ids).toEqual([42, 73]);
+      const tasks = await tx.$queryRawUnsafe<any[]>(
+        'SELECT task_type, input_jsonb FROM client_profile_fill_task WHERE run_id=$1::uuid ORDER BY task_type', created.id,
+      );
+      expect(tasks).toHaveLength(2);
+      const engine = { gatherPublicWeb: jest.fn(), gatherLda: jest.fn() };
+      const reloaded = new ClientProfileFillWorkflowService(
+        {} as any, engine as any, {} as any, {} as any, {} as any, {} as any, {} as any,
+      ) as any;
+      for (const task of tasks)
+        await reloaded.executeTask(ctx, {
+          clientId, runId: created.id, taskType: task.task_type, input: task.input_jsonb,
+        }, {});
+      expect(engine.gatherPublicWeb).toHaveBeenCalledWith(ctx, clientId, created.id, 'https://research.example/');
+      expect(engine.gatherLda).toHaveBeenCalledWith(ctx, clientId, created.id, [
+        { id: 42, name: 'Imported', confidence: 1 }, { id: 73, name: 'Provisional', confidence: 0.8 },
+      ]);
+    });
+  });
 
   it.each([CORE, EXTENSION])(
     'ignores stale callbacks after the same worker reclaims %s',

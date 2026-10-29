@@ -70,8 +70,8 @@ class StartClientProfileFillDto {
   @Min(1, { each: true })
   ldaClientIds?: number[];
 
-  /** Optional website entered in the setup gate. It is persisted before the
-   * public-web specialist starts so every task sees the same canonical site. */
+  /** Optional research-only website. Saved with the run; canonical client
+   * website changes require a separate finding review/application. */
   @IsOptional()
   @IsString()
   @MaxLength(500)

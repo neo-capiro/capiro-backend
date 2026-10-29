@@ -15,7 +15,6 @@ import { IntelligenceService } from '../intelligence/intelligence.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   CLIENT_PROFILE_FILL_SOURCES,
-  normalizeWebsite,
   type ClientProfileFillSource,
 } from './client-profile-fill.helpers.js';
 import {
@@ -25,6 +24,7 @@ import {
 import { ClientProfileFillService } from './client-profile-fill.service.js';
 import { buildFillRunSummary, requeueFillReviewChecks } from './client-profile-fill-retry.js';
 import { runWithGovernedCrmFillBundle } from './governed-client-profile-fill.factory.js';
+import { readResearchInputs, researchTaskInput, researchWebsite, type ResearchLdaIdentity } from './client-profile-fill-research-inputs.js';
 
 export const CLIENT_PROFILE_FILL_TASK_TYPES = [
   'public_web',
@@ -71,10 +71,10 @@ export interface ClientProfileFillIdentityOption {
 }
 
 interface FillEngineInternals {
-  gatherPublicWeb(ctx: TenantContext, clientId: string, runId: string): Promise<number>;
+  gatherPublicWeb(ctx: TenantContext, clientId: string, runId: string, website?: string | null): Promise<number>;
   gatherSyncedEmail(ctx: TenantContext, clientId: string, runId: string): Promise<number>;
   gatherSam(ctx: TenantContext, clientId: string, runId: string): Promise<number>;
-  gatherLda(ctx: TenantContext, clientId: string, runId: string): Promise<number>;
+  gatherLda(ctx: TenantContext, clientId: string, runId: string, identities?: ResearchLdaIdentity[]): Promise<number>;
   gatherProgramElements(ctx: TenantContext, clientId: string, runId: string): Promise<number>;
   gatherBillRecommendations(ctx: TenantContext, clientId: string, runId: string): Promise<number>;
   gatherCapabilityDocument(
@@ -84,11 +84,6 @@ interface FillEngineInternals {
     attachmentId: string,
     documentText: string,
   ): Promise<number>;
-  maybeSeedWebsite(
-    ctx: TenantContext,
-    clientId: string,
-    seedWebsite?: string | null,
-  ): Promise<void>;
 }
 
 interface WorkflowRunRow {
@@ -456,39 +451,23 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
     ].sort((a, b) => a - b);
     const attachmentRows = await this.validateAttachments(ctx, clientId, attachmentIds);
 
-    const rawWebsite = input.website?.trim() ?? '';
-    const website = rawWebsite ? normalizeWebsite(rawWebsite) : null;
-    if (rawWebsite && !website)
-      throw new BadRequestException('Enter a valid http(s) company website');
-    if (website) await this.engine.maybeSeedWebsite(ctx, clientId, website);
+    const website = researchWebsite(input.website) ?? researchWebsite(setup.website);
 
     const currentLdaIds = new Set(setup.selectedIdentities.map((identity) => identity.id));
     const appendedLdaIds = selectedLdaIds.filter((id) => !currentLdaIds.has(id));
-    for (const id of appendedLdaIds) {
+    const researchIdentities = selectedLdaIds.map(id => {
       const identity = allowedIdentities.get(id)!;
-      await this.intelligence.createManualMapping(clientId, ctx.tenantId, {
-        source: 'lda',
-        externalId: String(id),
-        externalName: identity.name,
-        actorUserId: ctx.userId,
-      });
-    }
-    if (appendedLdaIds.length) {
-      await this.prepopulation
-        .prepopulate(ctx.tenantId, clientId)
-        .catch((error) =>
-          this.logger.warn(
-            `Prepopulation after appending LDA identities failed for ${clientId}: ${this.safeError(error)}`,
-          ),
-        );
-    }
+      return { id, name: identity.name, confidence: identity.confidence };
+    });
 
     const bundle = await this.contextPlane.resolve(ctx, {
       clientId,
       requestedSources: sources,
       attachmentId: attachmentIds[0] ?? null,
     });
-    const plan = buildClientProfileFillTaskPlan({ sources, attachmentIds });
+    const plan = buildClientProfileFillTaskPlan({ sources, attachmentIds }).map(task => ({
+      ...task, input: { ...task.input, ...researchTaskInput(task.taskType, website, researchIdentities) },
+    }));
     if (!plan.length) throw new BadRequestException('No Fill with Meri tasks were selected');
     const idByKey = new Map(plan.map((task) => [task.taskKey, randomUUID()]));
     const sourceStates: Record<string, unknown> = Object.fromEntries(
@@ -503,6 +482,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
       };
     }
     const setupSnapshot = {
+      researchInputVersion: 1,
       website,
       selectedLdaIds,
       appendedLdaIds,
@@ -1063,15 +1043,16 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
     task: WorkflowTaskRow,
     _bundle: ClientProfileFillGovernedContext,
   ): Promise<number> {
+    const research = readResearchInputs(task.input, task.taskType);
     switch (task.taskType) {
       case 'public_web':
-        return this.engine.gatherPublicWeb(ctx, task.clientId, task.runId);
+        return this.engine.gatherPublicWeb(ctx, task.clientId, task.runId, research.website);
       case 'synced_email':
         return this.engine.gatherSyncedEmail(ctx, task.clientId, task.runId);
       case 'sam_gov':
         return this.engine.gatherSam(ctx, task.clientId, task.runId);
       case 'lda':
-        return this.engine.gatherLda(ctx, task.clientId, task.runId);
+        return this.engine.gatherLda(ctx, task.clientId, task.runId, research.ldaIdentities);
       case 'program_elements':
         return this.engine.gatherProgramElements(ctx, task.clientId, task.runId);
       case 'bill_tracker':
