@@ -120,15 +120,36 @@ export async function ownerRetentionDatabase(
     );
     if (!ready.rows[0].present) {
       if (beforeMigration) await beforeMigration(admin);
-      await admin.query(
-        readFileSync(
-          join(
-            __dirname,
-            '../../prisma/migrations/20281029050000_memory_owner_retention/migration.sql',
+      // The forward migration is applied as a non-superuser role that owns the
+      // fixture tables, matching the RDS migration owner (rds_superuser member,
+      // no BYPASSRLS, no SET privilege on app.bypass_rls). Applying it as the
+      // bootstrap superuser hid a real CREATE FUNCTION ... SET app.bypass_rls
+      // privilege failure, so the migration now has to survive the real role.
+      await admin.query(`DO $$ BEGIN
+        IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='wave6_fixture_migration')
+          THEN CREATE ROLE wave6_fixture_migration NOLOGIN NOSUPERUSER NOCREATEDB
+            NOCREATEROLE NOINHERIT NOBYPASSRLS;
+        END IF; END $$`);
+      await admin.query(`DO $$ DECLARE fixture_table record; BEGIN
+        FOR fixture_table IN SELECT tablename FROM pg_tables WHERE schemaname='public' LOOP
+          EXECUTE format('ALTER TABLE public.%I OWNER TO wave6_fixture_migration',
+            fixture_table.tablename);
+        END LOOP; END $$`);
+      await admin.query('GRANT CREATE ON SCHEMA public TO wave6_fixture_migration');
+      await admin.query('SET ROLE wave6_fixture_migration');
+      try {
+        await admin.query(
+          readFileSync(
+            join(
+              __dirname,
+              '../../prisma/migrations/20281029050000_memory_owner_retention/migration.sql',
+            ),
+            'utf8',
           ),
-          'utf8',
-        ),
-      );
+        );
+      } finally {
+        await admin.query('RESET ROLE');
+      }
     }
   } catch (error) {
     await admin.query('ROLLBACK');
