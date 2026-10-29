@@ -134,6 +134,7 @@ enum BillingStatus {
 }
 
 model Tenant {
+  siteWorkflowRevisions MeriSiteWorkflowRevision[]
   supportRequests SupportRequest[]
   engagementPlans EngagementPlan[]
   krispPreferences KrispNotetakerPreference[]
@@ -17888,4 +17889,22 @@ model BusinessDevelopmentBriefRefreshProposal {
   baseVersion BusinessDevelopmentBriefVersion @relation(fields: [tenantId,baseVersionId,briefId], references: [tenantId,id,briefId], onDelete: Cascade, map: "brief_refresh_base_fkey")
   @@index([tenantId,briefId,createdByUserId,createdAt(sort: Desc)], map: "brief_refresh_owner_idx")
   @@map("business_development_brief_refresh_proposals")
+}
+
+model MeriSiteWorkflowRevision {
+  tenantId String @map("tenant_id") @db.Uuid
+  siteId String @map("site_id") @db.VarChar(64)
+  workflowId String @map("workflow_id") @db.VarChar(64)
+  version Int
+  manifest Json
+  manifestSha256 String @map("manifest_sha256") @db.VarChar(64)
+  enabled Boolean
+  requestId String @map("request_id") @db.Uuid
+  requestSha256 String @map("request_sha256") @db.VarChar(64)
+  createdByUserId String @map("created_by_user_id") @db.Uuid
+  createdAt DateTime @default(dbgenerated("clock_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  @@id([tenantId,siteId,workflowId,version])
+  @@unique([tenantId,createdByUserId,requestId])
+  @@map("meri_site_workflow_revisions")
 }
