@@ -187,6 +187,15 @@ describe('Completion run lifecycle — extension seeding', () => {
 });
 
 describe('Completion run lifecycle — existing run and cancellation', () => {
+  test.each(['preparing', 'failed', 'completed'])('explicit start recovery preserves %s instead of adopting another active run', async stage => {
+    const h = harness({ activeRun: 'unrelated-run' });
+    h.workflow.startRun.mockResolvedValueOnce({ id: runId, status: stage === 'preparing' ? 'running' : stage, stage } as never);
+    const input = { requestId: '30000000-0000-4000-8000-000000000001', sources: ['lda' as const] };
+    expect(await h.service.startRun(ctx, clientId, input)).toBe(h.review);
+    expect(h.workflow.startRun).toHaveBeenCalledWith(ctx, clientId, input);
+    expect(h.calls.some(call => call.operation === 'active-run' || call.operation === 'seed-task')).toBe(false);
+    expect(h.service.getRun).toHaveBeenCalledWith(ctx, clientId, runId);
+  });
   test('returns an active extension run without starting or seeding another core run', async () => {
     const h = harness({ activeRun: 'existing-run' });
     await h.service.startRun(ctx, clientId, { sources: ['lda'] });

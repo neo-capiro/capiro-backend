@@ -25,6 +25,8 @@ import { ClientProfileFillService } from './client-profile-fill.service.js';
 import { buildFillRunSummary, requeueFillReviewChecks } from './client-profile-fill-retry.js';
 import { runWithGovernedCrmFillBundle } from './governed-client-profile-fill.factory.js';
 import { readResearchInputs, researchTaskInput, researchWebsite, type ResearchLdaIdentity } from './client-profile-fill-research-inputs.js';
+import { readResearchStart, researchStartRequest } from './client-profile-fill-start-request.js';
+import { createResearchRun } from './client-profile-fill-run-create.js';
 
 export const CLIENT_PROFILE_FILL_TASK_TYPES = [
   'public_web',
@@ -53,6 +55,7 @@ export interface ClientProfileFillTaskPlanSpec {
 }
 
 export interface StartClientProfileFillWorkflowInput {
+  requestId?: string;
   sources?: ClientProfileFillSource[];
   attachmentIds?: string[];
   ldaClientIds?: number[];
@@ -428,8 +431,14 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
     if (input.sources !== undefined && input.sources.length === 0 && preAttachmentIds.length === 0) {
       throw new BadRequestException('An empty sources list requires at least one capability document');
     }
-    const active = await this.latestActiveRun(ctx.tenantId, clientId);
-    if (active) return this.getRun(ctx, clientId, active.id);
+    const request = researchStartRequest(ctx, clientId, input);
+    if (request) {
+      const replay = await readResearchStart(this.prisma, ctx, clientId, request);
+      if (replay) return this.getRun(ctx, clientId, replay);
+    } else {
+      const active = await this.latestActiveRun(ctx.tenantId, clientId);
+      if (active) return this.getRun(ctx, clientId, active.id);
+    }
 
     const setup = await this.getSetup(ctx, clientId);
     const sources = this.normalizeSources(input.sources);
@@ -469,7 +478,6 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
       ...task, input: { ...task.input, ...researchTaskInput(task.taskType, website, researchIdentities) },
     }));
     if (!plan.length) throw new BadRequestException('No Fill with Meri tasks were selected');
-    const idByKey = new Map(plan.map((task) => [task.taskKey, randomUUID()]));
     const sourceStates: Record<string, unknown> = Object.fromEntries(
       sources.map((source) => [source, { status: 'queued', count: 0 }]),
     );
@@ -491,54 +499,10 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
       sources,
     };
 
-    const runId = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const rows = await tx.$queryRawUnsafe<Array<{ id: string }>>(
-        `INSERT INTO client_profile_fill_run
-           (tenant_id, client_id, created_by_user_id, status, requested_sources,
-            source_states_jsonb, workflow_version, stage, setup_jsonb,
-            selected_lda_ids, attachment_ids, last_progress_at)
-         VALUES (
-           $1::uuid, $2::uuid, $3::uuid, 'running',
-           ARRAY(SELECT jsonb_array_elements_text($4::jsonb)), $5::jsonb,
-           2, 'preparing', $6::jsonb,
-           ARRAY(SELECT jsonb_array_elements_text($7::jsonb)::int),
-           ARRAY(SELECT jsonb_array_elements_text($8::jsonb)::uuid), now()
-         )
-         RETURNING id`,
-        ctx.tenantId,
-        clientId,
-        ctx.userId,
-        JSON.stringify(sources),
-        JSON.stringify(sourceStates),
-        JSON.stringify(setupSnapshot),
-        JSON.stringify(selectedLdaIds),
-        JSON.stringify(attachmentIds),
-      );
-      const id = rows[0]?.id;
-      if (!id) throw new Error('Failed to create agentic Fill with Meri run');
-      for (const task of plan) {
-        const taskId = idByKey.get(task.taskKey)!;
-        const dependsOn = task.dependsOnKeys.map((key) => idByKey.get(key)!).filter(Boolean);
-        await tx.$executeRawUnsafe(
-          `INSERT INTO client_profile_fill_task
-             (id, run_id, tenant_id, client_id, task_type, task_key, status,
-              depends_on, input_jsonb, max_attempts)
-           VALUES (
-             $1::uuid, $2::uuid, $3::uuid, $4::uuid, $5, $6, 'queued',
-             ARRAY(SELECT jsonb_array_elements_text($7::jsonb)::uuid), $8::jsonb, 3
-           )`,
-          taskId,
-          id,
-          ctx.tenantId,
-          clientId,
-          task.taskType,
-          task.taskKey,
-          JSON.stringify(dependsOn),
-          JSON.stringify(task.input),
-        );
-      }
-      return id;
+    const { runId, created } = await createResearchRun(this.prisma, ctx, clientId, {
+      sources, sourceStates, setup: setupSnapshot, selectedLdaIds, attachmentIds, plan, request,
     });
+    if (!created) return this.getRun(ctx, clientId, runId);
 
     try {
       await this.contextPlane.recordRunContext(ctx, runId, bundle);

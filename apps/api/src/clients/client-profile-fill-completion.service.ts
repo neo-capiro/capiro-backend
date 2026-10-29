@@ -115,7 +115,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     clientId: string,
     input: StartClientProfileFillWorkflowInput,
   ): Promise<Record<string, unknown>> {
-    const activeCompletionRun = await this.owners.runReadModel.latestActiveCompletionRun(
+    const activeCompletionRun = input.requestId ? null : await this.owners.runReadModel.latestActiveCompletionRun(
       ctx.tenantId,
       clientId,
     );
@@ -127,7 +127,8 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     >;
     const runId = asString(core.id);
     if (!runId) throw new Error('Fill with Meri did not return a run id');
-    await this.ensureCompletionTasks(ctx, clientId, runId);
+    if (!input.requestId || (core.status === 'running' && core.stage === 'research'))
+      await this.ensureCompletionTasks(ctx, clientId, runId);
     this.requestTaskSweep();
     return this.getRun(ctx, clientId, runId);
   }
