@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { digest, parseKey, parseLock, parseOpen, parseSave, parseEditorRead } from './input.js';
 import { OfficeDraftController } from './controller.js';
 import { OfficeDraftRetentionController } from './retention.controller.js';
+import { officeRetentionSubject } from './retention-subject.js';
 describe('private draft boundary', () => {
   const key = { conversationId: randomUUID(), draftId: randomUUID() };
   const editor = { editorId: randomUUID(), editorEpoch: 1 };
@@ -42,6 +43,18 @@ describe('private draft boundary', () => {
     for (const method of ['open','read','editor','editorRead','lock','save','discard','beginPublish','settlePublish'] as const)
       await expect(controller[method]({} as never, {}, {} as never)).rejects.toThrow('Verified service identity required');
     expect(tenant.readApplicationAuthoritySession).not.toHaveBeenCalled();
-    expect(() => new OfficeDraftRetentionController({} as never).expire({}, {} as never)).toThrow('Verified service identity required');
+    const retention = new OfficeDraftRetentionController({} as never);
+    for (const method of ['expire', 'read', 'retire'] as const)
+      expect(() => retention[method]({}, {} as never)).toThrow('Verified service identity required');
+  });
+  it('admits only exact tenant and conversation/artifact retirement subjects', () => {
+    const tenantId = randomUUID(), id = randomUUID();
+    for (const kind of ['conversation', 'artifact'])
+      expect(officeRetentionSubject({ tenantId, subject: { kind, id } })).toEqual({ tenantId, subject: { kind, id } });
+    for (const bad of [{}, { tenantId, subject: { kind: 'tenant', id } },
+      { tenantId, subject: { kind: 'artifact', id, actorId: randomUUID() } },
+      { tenantId, subject: { kind: 'conversation', id: '*' } },
+      { tenantId, subject: { kind: 'artifact', id }, force: true }])
+      expect(() => officeRetentionSubject(bad)).toThrow('INPUT');
   });
 });
