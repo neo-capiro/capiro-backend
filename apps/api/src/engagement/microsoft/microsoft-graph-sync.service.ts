@@ -34,6 +34,7 @@ import { ConfigService } from '@nestjs/config';
 import { admitMailboxRefresh, lockMailboxConnection } from '../mailbox-oauth-authority.js';
 import { MailboxReconnectRequiredError, mailSyncFailureData } from '../mail-sync-failure.js';
 import { EngagementRuntimePolicyService } from '../runtime/engagement-runtime-policy.service.js';
+import type { EngagementMailHandoffHandle } from '../runtime/engagement-runtime.types.js';
 import {
   runSyncResources,
   resourceSyncHealth,
@@ -131,6 +132,12 @@ interface NotificationSyncTask {
   key: string;
   connectionId: string;
   run: () => Promise<unknown>;
+  /**
+   * Admission retained at enqueue time from the live callback that accepted this
+   * notification. It carries the child record whose disposition the drain
+   * finalizes once, after the real work promise settles.
+   */
+  admission?: EngagementMailHandoffHandle;
 }
 
 interface NotificationSyncQueueState {
@@ -971,8 +978,16 @@ export class MicrosoftGraphSyncService {
   ): boolean {
     const state = this.notificationSyncState;
     if (state.queued.has(key)) return false;
+    // Selected phases: the item MUST be retained through the live callback's record,
+    // and retention refuses when there is no live (or the inherited record is stale)
+    // parent — before any queued-set or queue mutation, so nothing runs untracked.
+    // Off stays inert, and an absent policy keeps the legacy behavior.
+    const admission =
+      this.runtimePolicy && this.runtimePolicy.mailHandoffObservation() !== null
+        ? this.runtimePolicy.retainMailHandoffAdmission('callback_notification_admit')
+        : undefined;
     state.queued.add(key);
-    state.queue.push({ key, connectionId, run });
+    state.queue.push({ key, connectionId, run, admission });
     this.drainNotificationSyncQueue();
     return true;
   }
@@ -1002,9 +1017,23 @@ export class MicrosoftGraphSyncService {
       state.running.add(task.key);
       state.active += 1;
 
-      void task
-        .run()
+      // ONE execution promise: the retained child's context when this item carries
+      // one, otherwise the plain run. The existing catch/finally attach to that
+      // single value, and the child is finalized exactly once AFTER the work
+      // promise settles, so a reported unknown/failed is never overwritten.
+      const execution = task.admission
+        ? this.runtimePolicy!.runMailHandoffInAdmission(
+            'callback_notification_admit',
+            task.admission.context,
+            () => task.run(),
+          )
+        : task.run();
+      void execution
         .catch((err: unknown) => {
+          if (task.admission && !task.admission.disposition.hasReport()) {
+            // A no-report throw is a known no-effect failure, not an unknown effect.
+            task.admission.settle('failed');
+          }
           this.logger.error(
             `Graph notification sync failed for connection ${task.connectionId}: ${
               err instanceof Error ? err.message : err
@@ -1012,6 +1041,7 @@ export class MicrosoftGraphSyncService {
           );
         })
         .finally(() => {
+          task.admission?.settle();
           state.running.delete(task.key);
           state.active -= 1;
           this.drainNotificationSyncQueue();
