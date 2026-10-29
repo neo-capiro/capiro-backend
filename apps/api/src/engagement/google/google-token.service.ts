@@ -32,6 +32,7 @@ import { missingGoogleGrants } from './google-oauth.service.js';
 import { verifiedScopeState } from '../integration-health.js';
 import { TokenCryptoService } from '../microsoft/token-crypto.service.js';
 import { MailboxReconnectRequiredError, mailSyncFailureData } from '../mail-sync-failure.js';
+import { EngagementRuntimePolicyService } from '../runtime/engagement-runtime-policy.service.js';
 
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const TOKEN_REFRESH_SKEW_MS = 5 * 60 * 1000;
@@ -52,6 +53,12 @@ export class GoogleTokenService {
     private readonly prisma: PrismaService,
     private readonly tokenCrypto: TokenCryptoService,
     config: ConfigService<AppConfig, true>,
+    /**
+     * Mail-handoff admission owner. Optional so existing positional construction
+     * (isolated specs/helpers) keeps working; absent means the pre-existing
+     * behavior with no admission composition. Nest injects the process policy.
+     */
+    private readonly runtimePolicy?: EngagementRuntimePolicyService,
   ) {
     this.clientId = config.get('GOOGLE_CLIENT_ID', { infer: true });
     this.clientSecret = config.get('GOOGLE_CLIENT_SECRET', { infer: true });
@@ -113,9 +120,43 @@ export class GoogleTokenService {
       );
     }
 
+    if (!this.runtimePolicy) {
+      return this.refreshOwned(tenantId, connectionId, token);
+    }
+    if (this.runtimePolicy.mailHandoffDisposition()) {
+      // Already owned (admitted callback / queue drain / scheduler tick): continue
+      // inside that live record. No second admission and no new gate.
+      this.runtimePolicy.assertMailHandoffBoundary('grant_refresh');
+      return this.refreshOwned(tenantId, connectionId, token);
+    }
+    // A fresh, unowned refresh: admit it now so a selected phase refuses it BEFORE
+    // any provider call or write, and so its lifetime is counted until the actual
+    // promise settles.
+    return this.runtimePolicy.runAdmittedMailHandoffWork('grant_refresh', () =>
+      this.refreshOwned(tenantId, connectionId, token),
+    );
+  }
+
+  /**
+   * N's original refresh body, unchanged in protocol, ordering, envelopes and
+   * errors. The only additions are the call-local disposition (each existing
+   * external effect is begun before it runs, a definite result settles it, and an
+   * ambiguous one stays `unknown`) and a guard immediately before each EXISTING
+   * reconnect write so a selected phase cannot start a new one.
+   */
+  private async refreshOwned(
+    tenantId: string,
+    connectionId: string,
+    token: IntegrationConnectionToken,
+  ): Promise<string> {
+    const handoff = this.runtimePolicy?.mailHandoffDisposition();
     this.assertConfigured();
     if (!token.refreshTokenCiphertext || !token.refreshTokenIv || !token.refreshTokenAuthTag) {
+      // N writes reconnect on a missing envelope: own that write before it runs.
+      this.runtimePolicy?.assertMailHandoffBoundary('grant_refresh');
+      handoff?.begin();
       await this.markConnectionNeedsReconnect(tenantId, connectionId, token);
+      handoff?.settle('settled');
       throw new MailboxReconnectRequiredError(
         'Google refresh token is missing; reconnect Google Workspace',
       );
@@ -135,38 +176,61 @@ export class GoogleTokenService {
       refresh_token: refreshToken,
       grant_type: 'refresh_token',
     });
-    const { response, text, refreshed } = await mailboxProviderRequest(async (signal) => {
-      const response = await fetch(GOOGLE_TOKEN_URL, {
-        signal,
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: body.toString(),
+    handoff?.begin();
+    let providerResult: {
+      response: Response;
+      text: string;
+      refreshed: GoogleRefreshResponse | null;
+    };
+    try {
+      providerResult = await mailboxProviderRequest(async (signal) => {
+        const response = await fetch(GOOGLE_TOKEN_URL, {
+          signal,
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: body.toString(),
+        });
+        return {
+          response,
+          text: response.ok ? '' : await response.text(),
+          refreshed: response.ok ? ((await response.json()) as GoogleRefreshResponse) : null,
+        };
       });
-      return {
-        response,
-        text: response.ok ? '' : await response.text(),
-        refreshed: response.ok ? ((await response.json()) as GoogleRefreshResponse) : null,
-      };
-    });
+    } catch (error) {
+      // The provider envelope/deadline failed: the effect is not established.
+      handoff?.unknown();
+      throw error;
+    }
+    const { response, text, refreshed } = providerResult;
     if (!response.ok) {
       // invalid_grant => the user revoked access or the refresh token expired
       // (e.g. app still in Testing publishing status, 7-day expiry). Mark the
       // connection for reconnect rather than looping.
       if (response.status === 400 && /invalid_grant/i.test(text)) {
+        handoff?.settle('failed');
+        this.runtimePolicy?.assertMailHandoffBoundary('grant_refresh');
+        handoff?.begin();
         await this.markConnectionNeedsReconnect(tenantId, connectionId, token);
+        handoff?.settle('settled');
         throw new MailboxReconnectRequiredError(
           'Reconnect Google Workspace in Settings to continue syncing',
         );
       }
+      handoff?.settle('failed');
       throw new ServiceUnavailableException(
         `Google token refresh failed (${response.status}): ${text.slice(0, 300)}`,
       );
     }
     if (!refreshed?.access_token) {
+      handoff?.unknown();
       throw new ServiceUnavailableException('Google token refresh returned no access token');
     }
     if (refreshed.scope !== undefined && missingGoogleGrants(refreshed.scope).length) {
+      handoff?.settle('failed');
+      this.runtimePolicy?.assertMailHandoffBoundary('grant_refresh');
+      handoff?.begin();
       await this.markConnectionNeedsReconnect(tenantId, connectionId, token);
+      handoff?.settle('settled');
       throw new MailboxReconnectRequiredError(
         'Reconnect Google Workspace to grant the required permissions',
       );
@@ -183,7 +247,8 @@ export class GoogleTokenService {
     // key). Both envelopes therefore move together in this update.
     const encrypted = this.tokenCrypto.encrypt(refreshed.access_token);
     const encryptedRefresh = this.tokenCrypto.encrypt(refreshToken);
-    await this.prisma.withTenant(tenantId, async (tx) => {
+    try {
+      await this.prisma.withTenant(tenantId, async (tx) => {
       await assertMailboxSyncCurrent(tx, tenantId, connectionId);
       const current = await admitMailboxRefresh(
         tx,
@@ -217,7 +282,12 @@ export class GoogleTokenService {
           lastError: null,
         },
       });
-    });
+    } catch (error) {
+      // The provider granted a token but the durable write is not established.
+      handoff?.unknown();
+      throw error;
+    }
+    handoff?.settle('settled');
     return refreshed.access_token;
   }
 
