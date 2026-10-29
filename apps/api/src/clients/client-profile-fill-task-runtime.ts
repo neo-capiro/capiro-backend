@@ -1,4 +1,5 @@
 import type { TenantContext } from '@capiro/shared';
+import { runWithFillTask } from './client-profile-fill-execution.js';
 import type { AdvocacyHistoryTaskResult } from './client-profile-fill-advocacy-discovery.shared.js';
 import type { RunActorRow } from './client-profile-fill-task-ledger.js';
 import {
@@ -15,6 +16,7 @@ export interface TaskRuntimePorts {
   executeClaimedTask(task: CompletionTaskRow): Promise<void>;
   finalizeRuns(): Promise<void>;
   loadRunActor(task: CompletionTaskRow): Promise<RunActorRow[]>;
+  resolveActor(task: CompletionTaskRow): Promise<TenantContext>;
   executeTask(
     ctx: TenantContext,
     task: CompletionTaskRow,
@@ -59,19 +61,15 @@ export class ClientProfileFillTaskRuntime {
       await this.ports.failTask(task, new Error('Fill run has no actor for governed execution'));
       return;
     }
-    const ctx: TenantContext = {
-      tenantId: task.tenantId,
-      tenantSlug: '',
-      userId: run.createdByUserId,
-      clerkUserId: '',
-      role: 'standard_user',
-    };
     const heartbeat = setInterval(() => {
       void this.ports.heartbeat(task).catch(() => undefined);
     }, 15_000);
     heartbeat.unref?.();
     try {
-      const result = await this.withTaskTimeout(this.ports.executeTask(ctx, task));
+      const ctx = await this.ports.resolveActor(task);
+      const result = await runWithFillTask(ctx, task, 'extension', () =>
+        this.withTaskTimeout(this.ports.executeTask(ctx, task)),
+      );
       await this.ports.finishTask(
         task,
         'completed',

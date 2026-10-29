@@ -1,5 +1,6 @@
 import { ClientProfileFillCompletionService } from './client-profile-fill-completion.service.js';
 import { ClientProfileFillWorkflowService } from './client-profile-fill-workflow.service.js';
+import * as actorOwner from './client-profile-fill-worker-actor.js';
 
 // These tests exercise task orchestration; no specialist, external API or apply
 // engine should initialize just to read task state.
@@ -119,6 +120,7 @@ describe('Fill specialist retry and completion (Q11)', () => {
   it.each(['resolve', 'recordRunContext'])(
     'times out stalled %s and does not start a late specialist',
     async (blockedStep) => {
+      const actor = jest.spyOn(actorOwner, 'resolveFillRunActor').mockResolvedValue({ tenantId: 'tenant-1', userId: 'user-1', role: 'standard_user', clerkUserId: 'current-clerk', tenantSlug: 'current-tenant' });
       jest.useFakeTimers();
       let release!: (value: unknown) => void;
       const stalled = new Promise((resolve) => {
@@ -172,6 +174,7 @@ describe('Fill specialist retry and completion (Q11)', () => {
         expect(service.completeTask).not.toHaveBeenCalled();
         if (blockedStep === 'resolve') expect(contextPlane.recordRunContext).not.toHaveBeenCalled();
       } finally {
+        actor.mockRestore();
         jest.useRealTimers();
       }
     },

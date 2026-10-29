@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client';
+import { assertFillExecution } from './client-profile-fill-execution.js';
 import type { ReviewTransaction } from './client-profile-fill-review-store.js';
 import type { AdvancedFindingRow } from './client-profile-fill-finding-review.shared.js';
 import { prepareOpenAiResponsesRequest, prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
@@ -2138,6 +2139,7 @@ export class ClientProfileFillService {
       proposedValue: input.proposedValue,
     });
     return this.prisma.withTenant(tenantId, async (tx) => {
+      await assertFillExecution(tx, tenantId, clientId, runId);
       // A human's accepted/rejected decision is durable across refreshes. Same
       // proposal hash is not resurrected by a later automated run. A materially
       // changed proposed value gets a new hash and can surface again for review.

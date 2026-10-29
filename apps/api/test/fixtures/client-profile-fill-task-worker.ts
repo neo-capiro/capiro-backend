@@ -1,4 +1,6 @@
 import type { TenantContext } from '@capiro/shared';
+import * as actorOwner from '../../src/clients/client-profile-fill-worker-actor.js';
+import * as ownerAccess from '../../src/clients/client-ordered-owner.access.js';
 import {
   ClientProfileFillCompletionService,
   type ClientProfileFillCompletionTaskType,
@@ -52,6 +54,7 @@ export interface Options {
   recoverError?: Error;
   claimError?: Error;
   actorError?: Error;
+  accessError?: Error;
   finalizeError?: Error;
   heartbeatError?: Error;
   finishError?: Error;
@@ -92,6 +95,10 @@ function txFor(calls: Call[], phases: string[], options: Options, transaction: n
   };
   return {
     $queryRawUnsafe: jest.fn(async (sql: string, ...args: unknown[]) => {
+      // Current actor policy is qualified in PostgreSQL. This orchestration fixture
+      // supplies a live lease while retaining the actual local timeout fence.
+      if (sql.includes('FOR SHARE') && (sql.includes('worker_id=$5') || sql.includes('created_by_user_id=$4')))
+        return [{ id: 'current-lease' }];
       const op = capture(sql, args);
       if (op === 'claim') return options.tasks ?? [];
       if (op === 'actor')
@@ -126,6 +133,11 @@ function txFor(calls: Call[], phases: string[], options: Options, transaction: n
   };
 }
 export function harness(options: Options = {}) {
+  jest.spyOn(actorOwner, 'resolveFillRunActor').mockImplementation(async (_prisma, tenantId) => {
+    if (options.accessError) throw options.accessError;
+    return { tenantId, tenantSlug: 'current-tenant', userId: 'actor-one', clerkUserId: 'current-clerk', role: 'user_admin' };
+  });
+  jest.spyOn(ownerAccess, 'requireOwnerClient').mockResolvedValue({ version: 1, primary: null });
   const calls: Call[] = [],
     phases: string[] = [];
   let transaction = 0;
