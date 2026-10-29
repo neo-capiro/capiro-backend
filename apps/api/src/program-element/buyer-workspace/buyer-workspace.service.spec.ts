@@ -7,13 +7,15 @@ import type { FederalEvidenceReadService } from '../federal-evidence/federal-evi
 const knownAt = '2026-09-24T00:00:00.000Z';
 const input = { peCode: ' 0601234a ', asOfFy: 2026, knownAt };
 
-function fixture() {
+function fixture(acquisitionState: 'complete' | 'partial' | 'unsupported' = 'partial',
+  fundingState: 'complete' | 'partial' | 'unsupported' = 'unsupported', hasMore = false) {
   const calls: unknown[] = [];
   const acquisition = { read: async (scope: unknown) => {
     calls.push(scope);
     return {
       asOfFy: 2026, knownAt, accepted: [], candidates: [{ status: 'candidate', authoritativeAmountUsd: null }],
-      unresolved: [], coverage: { state: 'partial', sourceFreshness: [{ source: 'usaspending', state: 'stale' }], unresolvedReasons: [] },
+      unresolved: [], page: { limit: 50, hasMore, nextCursor: hasMore ? 'acquisition-next' : null },
+      coverage: { state: acquisitionState, sourceFreshness: [{ source: 'usaspending', state: 'stale' }], unresolvedReasons: [] },
     };
   } } as unknown as AcquisitionContinuityReadService;
   const funding = { read: async (scope: unknown) => {
@@ -22,7 +24,8 @@ function fixture() {
       asOfFy: 2026, knownAt,
       proposed: { transactionDeltas: [{ amountUsd: '-12.00' }] },
       enacted: { cumulativeSnapshots: [{ amountUsd: '100.00' }] },
-      coverage: { state: 'unsupported', sourceFreshness: [], unresolvedReasons: [{ code: 'source_unavailable' }] },
+      page: { limit: 50, hasMore, nextCursor: hasMore ? 'funding-next' : null },
+      coverage: { state: fundingState, sourceFreshness: [], unresolvedReasons: [{ code: 'source_unavailable' }] },
     };
   } } as unknown as FundingExecutionReadService;
   const evidence = {
@@ -61,13 +64,17 @@ describe('BuyerWorkspaceService', () => {
     expect(result.federalEvidence.data.lifecycle.hasMore).toBe(true);
   });
 
-  it('passes independent federal evidence cursors and preserves each page boundary', async () => {
+  it('passes four independent cursors and preserves each page boundary', async () => {
     const { service, calls } = fixture();
     const result = await service.read({
       ...input,
+      acquisitionCursor: 'acquisition-page-4',
+      fundingCursor: 'funding-page-5',
       mentionsCursor: 'mentions-page-2',
       lifecycleCursor: 'lifecycle-page-3',
     });
+    expect(calls[0]).toEqual({ peCode: '0601234A', asOfFy: 2026, knownAt, cursor: 'acquisition-page-4' });
+    expect(calls[1]).toEqual({ peCode: '0601234A', asOfFy: 2026, knownAt, cursor: 'funding-page-5' });
     expect(calls).toContainEqual({
       evidence: 'mentions', options: { knownAt, limit: 100, cursor: 'mentions-page-2' },
     });
@@ -80,10 +87,42 @@ describe('BuyerWorkspaceService', () => {
     expect(result.federalEvidence.coverage.unresolvedReasons[0]!.code).toBe('federal_evidence_page_incomplete');
   });
 
+  it.each(['complete', 'partial', 'unsupported'] as const)('marks an incomplete %s page without upgrading uncertainty or changing native data', async state => {
+    const { service } = fixture(state, state, true);
+    const result = await service.read(input);
+    for (const [name, section] of [['acquisition', result.acquisition], ['funding', result.fundingExecution]] as const) {
+      expect(section.state).toBe(state === 'complete' ? 'partial' : state);
+      expect(section.coverage.state).toBe(section.state);
+      expect(section.data.coverage.state).toBe(state);
+      expect(section.coverage.unresolvedReasons).toContainEqual({
+        code: name + '_page_incomplete', count: null, detail: expect.any(String),
+      });
+      expect(section.data.coverage.unresolvedReasons).not.toContainEqual(expect.objectContaining({ code: name + '_page_incomplete' }));
+      expect(section.data.page.nextCursor).toBe(name + '-next');
+    }
+  });
+
+  it('keeps complete sections complete only when their pages are exhausted', async () => {
+    const { service } = fixture('complete', 'complete', false);
+    const result = await service.read(input);
+    for (const section of [result.acquisition, result.fundingExecution]) {
+      expect(section.state).toBe('complete');
+      expect(section.coverage).toBe(section.data.coverage);
+    }
+  });
+
   it('rejects unpinned or invalid temporal scope', async () => {
     const { service } = fixture();
     await expect(service.read({ ...input, knownAt: '' })).rejects.toBeInstanceOf(BadRequestException);
     await expect(service.read({ ...input, asOfFy: 0 })).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it.each(['acquisitionCursor', 'fundingCursor', 'mentionsCursor', 'lifecycleCursor'])('refuses malformed %s before any source call', async key => {
+    for (const value of [null, 4, '', ' cursor ', 'a'.repeat(4097)]) {
+      const { service, calls } = fixture();
+      await expect(service.read({ ...input, [key]: value })).rejects.toThrow('cursor');
+      expect(calls).toEqual([]);
+    }
   });
 
   it('fails when a section returns a different temporal scope', async () => {

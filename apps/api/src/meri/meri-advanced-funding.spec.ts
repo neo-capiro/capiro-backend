@@ -25,11 +25,22 @@ describe('advanced native dispatch', () => {
     expect(native).toHaveBeenCalledWith(expect.anything(), input, undefined);
   });
 
-  it('forwards both buyer section continuations through the native tool', async () => {
+  it('forwards all four buyer section continuations through the native tool', async () => {
     const read = jest.fn(async () => ({ subject: { type: 'pe', id: '0601234A' } }));
     const service = Object.assign(Object.create(MeriToolsService.prototype), { buyerWorkspace: { read } }) as MeriToolsService;
-    const input = { peCode: '0601234A', asOfFy: 2026, knownAt: asOf, mentionsCursor: 'mentions-page', lifecycleCursor: 'lifecycle-page' };
+    const input = { peCode: '0601234A', asOfFy: 2026, knownAt: asOf, acquisitionCursor: 'acquisition-page',
+      fundingCursor: 'funding-page', mentionsCursor: 'mentions-page', lifecycleCursor: 'lifecycle-page' };
     await service.execute(context, 'get_pe_buyer_workspace', input);
     expect(read).toHaveBeenCalledWith(input);
+  });
+
+  it.each(['acquisitionCursor', 'fundingCursor', 'mentionsCursor', 'lifecycleCursor'])('never truncates or silently resets native %s', async key => {
+    const read = jest.fn();
+    const service = Object.assign(Object.create(MeriToolsService.prototype), { buyerWorkspace: { read } }) as MeriToolsService;
+    for (const value of [null, 4, '', ' cursor ', 'a'.repeat(4097)])
+      await expect(service.execute(context, 'get_pe_buyer_workspace', {
+        peCode: '0601234A', asOfFy: 2026, knownAt: asOf, [key]: value,
+      })).rejects.toThrow('cursor');
+    expect(read).not.toHaveBeenCalled();
   });
 });
