@@ -15,7 +15,8 @@ jest.mock('../embeddings/embedding-provider.factory.js', () => ({
 }));
 
 const configPath = process.env.MERI_APPROVED_MEMORY_PG_CONFIG;
-const suite = configPath ? describe : describe.skip;
+const retentionUrl = process.env.MEMORY_RETENTION_TEST_DATABASE_URL;
+const suite = configPath || retentionUrl ? describe : describe.skip;
 suite('memory backfill lifecycle at the actual PostgreSQL source/write boundary', () => {
   const schema = `meri_embedding_${randomUUID().replaceAll('-', '')}`;
   const tenant = randomUUID(),
@@ -61,14 +62,22 @@ suite('memory backfill lifecycle at the actual PostgreSQL source/write boundary'
     auditLog: { create: async () => ({ id: 'audit-not-under-test' }) },
   });
   beforeAll(async () => {
-    if (!isAbsolute(configPath!)) throw new Error('Absolute owned PostgreSQL config required');
-    const config = JSON.parse(readFileSync(configPath!, 'utf8'));
+    if (configPath && !isAbsolute(configPath)) throw new Error('Absolute owned PostgreSQL config required');
+    if (!configPath && !/^postgresql:\/\/wave6_fixture_admin@127\.0\.0\.1:55486\/memory_retention_[a-z0-9_]+$/.test(retentionUrl!))
+      throw Error('Only the task-owned memory_retention database is admitted');
+    const config = configPath ? JSON.parse(readFileSync(configPath, 'utf8')) : {
+      host: '127.0.0.1', port: 55486, user: 'wave6_fixture_admin',
+      database: new URL(retentionUrl!).pathname.slice(1),
+      scope: 'owned local disposable test cluster; no AWS connection',
+      dataDirectory: 'C:/Users/Administrator/Documents/Codex/2026-10-28/fi/work/wave6-memory-pg/data',
+    };
+    const ownedTarget = (config.port === 55433 && config.dataDirectory.replaceAll('\\', '/') ===
+      'C:/dev/main/outputs/meri-c1-20261002/private/pgdata') ||
+      (!configPath && config.port === 55486);
     if (
       config.host !== '127.0.0.1' ||
-      config.port !== 55433 ||
       config.scope !== 'owned local disposable test cluster; no AWS connection' ||
-      config.dataDirectory.replaceAll('\\', '/') !==
-        'C:/dev/main/outputs/meri-c1-20261002/private/pgdata'
+      !ownedTarget
     )
       throw new Error('Unqualified PostgreSQL target');
     const connection = {
@@ -90,7 +99,7 @@ suite('memory backfill lifecycle at the actual PostgreSQL source/write boundary'
       )
     ).rows[0];
     expect(actual.host).toBe('127.0.0.1');
-    expect(actual.port).toBe(55433);
+    expect(actual.port).toBe(config.port);
     expect(actual.directory.replaceAll('\\', '/')).toBe(config.dataDirectory.replaceAll('\\', '/'));
     await db.query(`CREATE SCHEMA "${schema}"`);
     created = true;
@@ -113,8 +122,12 @@ suite('memory backfill lifecycle at the actual PostgreSQL source/write boundary'
         status text,finished_at timestamptz,counts_jsonb jsonb);
       CREATE TABLE clio_memory(id uuid,tenant_id uuid,client_id uuid,scope text,expires_at timestamptz);
       CREATE TABLE memory_edges(tenant_id uuid,src_item_id uuid);
-      CREATE TABLE memory_candidate(tenant_id uuid,client_id uuid);
+      CREATE TABLE memory_candidate(id uuid PRIMARY KEY,tenant_id uuid,client_id uuid,
+        legal_hold boolean NOT NULL DEFAULT false,revision_root_id uuid,predecessor_candidate_id uuid,
+        superseded_by_id uuid,duplicate_of_id uuid,committed_memory_item_id uuid,
+        duplicate_memory_item_id uuid,contradicts_memory_item_id uuid,committed_memory_id uuid);
       CREATE TABLE client_memory_access(tenant_id uuid,client_id uuid);
+      CREATE TABLE memory_access_grant(tenant_id uuid,client_id uuid);
       -- Content-free receipt shape: the purge guard must permit execution here.
       CREATE TABLE clio_meri_memory_submissions(
         tenant_id uuid NOT NULL, candidate_id uuid NOT NULL,
@@ -162,7 +175,7 @@ suite('memory backfill lifecycle at the actual PostgreSQL source/write boundary'
     beforeSourceRead = undefined;
     afterSourceLock = undefined;
     await db.query(
-      'TRUNCATE context_embeddings,memory_items,memory_ingest_run,clio_memory,memory_edges,memory_candidate,client_memory_access',
+      'TRUNCATE context_embeddings,memory_items,memory_ingest_run,clio_memory,memory_edges,memory_candidate,client_memory_access,memory_access_grant',
     );
     await db.query(
       `INSERT INTO memory_items(id,tenant_id,client_id,title,slug,sections_jsonb)
@@ -303,11 +316,12 @@ suite('memory backfill lifecycle at the actual PostgreSQL source/write boundary'
     expect(await embeddings()).toBe(0);
   });
   test.each([null, 'pending_review'])(
-    'legacy compatibility permits %s only while lifecycle enforcement is off',
+    'a dark lifecycle switch does not bypass governed state (%s)',
     async (governed) => {
       process.env.MEMORY_GOVERNANCE_LIFECYCLE = 'off';
       await db.query('UPDATE memory_items SET governed_status=$1 WHERE id=$2', [governed, item]);
-      expect((await service.backfillCurrentTenant()).embedded).toBe(1);
+      expect((await service.backfillCurrentTenant()).embedded).toBe(governed === null ? 1 : 0);
+      if (governed !== null) expect(embed).not.toHaveBeenCalled();
       await db.query('TRUNCATE context_embeddings');
       embed.mockClear();
       await db.query("UPDATE memory_items SET governed_status='revoked' WHERE id=$1", [item]);
@@ -460,7 +474,7 @@ suite('memory backfill lifecycle at the actual PostgreSQL source/write boundary'
             $queryRaw: async (strings: TemplateStringsArray, ...values: unknown[]) => {
               const rows = await tx.$queryRaw(strings, ...values);
               const sql = stringsSql(strings, values).text;
-              if (!insertion && sql.includes(boundary === 'source locks' ? 'ORDER BY id FOR UPDATE' : 'AND legal_hold = true')) {
+              if (!insertion && sql.includes(boundary === 'source locks' ? 'ORDER BY id FOR UPDATE' : 'WITH RECURSIVE')) {
                 insertion = (async () => {
                 await mutation.query('BEGIN');
                 try {

@@ -103,9 +103,9 @@ describe('MemoryOwnerItemsService', () => {
     expect(sql).toContain('mi.legal_hold IS FALSE');
     expect(sql).toContain('mi.controlling_item_id IS NULL OR mi.controlling_item_id = mi.id');
     expect(sql).toContain("mi.status = 'active'");
-    expect(sql).toContain('mi.effective_from <= now()');
-    expect(sql).toContain('mi.valid_until > now()');
-    expect(sql).toContain('mi.expires_at > now()');
+    expect(sql).toContain('mi.effective_from <= clock_timestamp()');
+    expect(sql).toContain('mi.valid_until > clock_timestamp()');
+    expect(sql).toContain('mi.expires_at > clock_timestamp()');
     expect(sql).toContain('ORDER BY mi.updated_at DESC, mi.id DESC');
     expect(queries[0]?.values).toContain(26);
   });

@@ -379,9 +379,9 @@ describe('governedRecallSuppressionSql', () => {
     expect(governedRecallSuppressionSql(true)).toContain("governed_status IN ('active', 'stale')");
     expect(governedRecallEligibilitySql()).toContain('controlling_item_id = id');
     expect(governedRecallEligibilitySql()).toContain("status = 'active'");
-    expect(governedRecallEligibilitySql()).toContain('effective_from <= now()');
-    expect(governedRecallEligibilitySql()).toContain('valid_until > now()');
-    expect(governedRecallEligibilitySql()).toContain('expires_at > now()');
+    expect(governedRecallEligibilitySql()).toContain('effective_from <= clock_timestamp()');
+    expect(governedRecallEligibilitySql()).toContain('valid_until > clock_timestamp()');
+    expect(governedRecallEligibilitySql()).toContain('expires_at > clock_timestamp()');
   });
 
   it('refuses an alias that is not a bare identifier', () => {

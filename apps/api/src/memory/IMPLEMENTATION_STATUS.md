@@ -1,5 +1,27 @@
 # Institutional Memory — Implementation Status
 
+## Retention correction (2026-10-29, source checks)
+
+Client purge and scheduled expiry share `memory-retention-selection.ts`. The
+cleanup transaction waits for hold writers before selecting records, preserves
+held candidates and their revision/source dependencies, and retains those sources
+in `clio_memory`. Client purge clears both client wall grants and memory permission
+grants. Its response distinguishes retained candidates from retained items.
+
+Recall and embedding eligibility use the current database clock, including after
+a row-lock wait, so a transaction's start time cannot admit newly expired content.
+The pending-review fixture now asserts the existing rule that disabling lifecycle
+enforcement cannot expose unapproved governed content.
+
+Validation: 122 focused tests pass, including 52 PostgreSQL tests for expiry,
+holds, revision FKs, cross-tenant selection, writer contention and rollback. Seven
+new retention cases run under an ordinary database role. Focused TypeScript and
+diff checks pass. No application build, deployment or live acceptance was run.
+The approved owner/offboarding deadlines, Settings drafts, privacy request
+orchestration and cross-system restore suppression remain separate open work.
+
+The deployment notes below are historical, not verification of this change.
+
 > Status corrected 2026-07-05. The previous version of this file claimed the
 > memory layer was "not merged / not deployed (per Neo)". That was stale and
 > actively misleading: the layer was integrated to `origin/main` in commit
