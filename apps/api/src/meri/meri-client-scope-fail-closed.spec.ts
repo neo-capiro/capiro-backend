@@ -166,7 +166,9 @@ describe('Session client scope — the firm-wide tool readers honour the pinned 
   });
 
   it('find_path_to searches from the scoped client only, and cannot route through another', () => {
-    expect(text).toContain('restrictGraphToClient(loaded, `client:${scopeClientId}`)');
+    expect(methodBody(text, 'findPathTo')).toContain('readMeriPaths(this.prisma, ctx, input');
+    expect(read('meri-graph-paths.ts')).toContain('loadMeriGraph(prisma, ctx, source, input.clientId, true)');
+    expect(read('meri-graph-paths.ts')).toContain('restrictGraphToClient(loaded, `client:${input.clientId}`)');
   });
 
   it('rejects a non-uuid clientId rather than silently ignoring the scope', () => {
@@ -174,7 +176,9 @@ describe('Session client scope — the firm-wide tool readers honour the pinned 
     // rewrite (#1502) named its local `clientId`, so the count read 2 — a red
     // test for a rename that kept the guard. Assert the guard on each reader
     // instead: that says WHICH reader failed open, and survives a local rename.
-    for (const reader of ['queryKnowledgeGraph', 'findPathTo', 'searchMemory'] as const) {
+    // find_path_to now has a strict typed boundary covered by behavioral tests.
+    expect(read('meri-graph-paths.ts')).toContain('!CLIENT_ID_UUID_RE.test(input.clientId)');
+    for (const reader of ['queryKnowledgeGraph', 'searchMemory'] as const) {
       const body = reader === 'searchMemory' ? read('meri-memory-search.ts') : reader === 'queryKnowledgeGraph' ? read('meri-graph-source.ts') : methodBody(text, reader);
       expect(body).toMatch(
         new RegExp(String.raw`if \((scopeClientId|clientId) && !CLIENT_ID_UUID_RE\.test\(\1\)\)`),

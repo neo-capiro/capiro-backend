@@ -14,10 +14,15 @@ import {
   buildKnowledgeGraph,
   type FkRelation,
   type KnowledgeGraph,
+  type GraphSourceReference,
   restrictGraphToClient,
   walkFrom,
 } from '../memory/memory-graph.helpers.js';
 import type { KgTraversalSource } from './memory-recall-source.helpers.js';
+
+export interface MeriGraphProjection extends KnowledgeGraph {
+  coverageReasons: string[];
+}
 
 /** Core owns current graph access. A mention is not authority to create its destination. */
 export async function loadMeriGraph(
@@ -25,19 +30,33 @@ export async function loadMeriGraph(
   ctx: TenantContext,
   kgSource: KgTraversalSource,
   clientId?: string,
-): Promise<KnowledgeGraph> {
+  boundedPaths = false,
+): Promise<MeriGraphProjection> {
   return prisma.withTenantUser(
     ctx.tenantId,
     ctx.userId,
     async (tx) => {
+      const coverageReasons: string[] = [];
+      const bound = <T>(rows: T[], source: string, limit: number): T[] => {
+        if (!boundedPaths || rows.length <= limit) return rows;
+        coverageReasons.push(source + '_row_limit');
+        return rows.slice(0, limit);
+      };
       // Ethical wall: memory items + graph edges of walled clients this user is
       // not granted are excluded (fail-closed; empty denied set adds no SQL).
       const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
       const deniedSet = new Set(denied);
-      const clients = await tx.$queryRaw<Array<{ id: string; name: string; status: string }>>`
+      const clients = bound(
+        await tx.$queryRaw<Array<{ id: string; name: string; status: string }>>`
           SELECT id, name, status FROM clients WHERE tenant_id = ${ctx.tenantId}::uuid
+          ${boundedPaths ? Prisma.raw(wallExclusionSql(denied, 'id')) : Prisma.empty}
+          ${boundedPaths && clientId ? Prisma.sql`AND id = ${clientId}::uuid` : Prisma.empty}
           ORDER BY id
-        `;
+          ${boundedPaths ? Prisma.sql`LIMIT 201` : Prisma.empty}
+        `,
+        'clients',
+        200,
+      );
       const visibleClients = clients.filter(
         (c) => !deniedSet.has(c.id) && (!clientId || c.id === clientId),
       );
@@ -45,10 +64,13 @@ export async function loadMeriGraph(
         throw new ForbiddenException('Knowledge graph client scope is unavailable');
       }
       const memoryColumnsAvailable = await governedRecallColumnsAvailableInTx(tx);
+      if (boundedPaths && !memoryColumnsAvailable)
+        coverageReasons.push('memory_governance_unavailable');
       // item nodes the caller may see (RLS: tenant + own-private), plus their wikilink edges
-      const items = await tx.$queryRaw<
-        Array<{ id: string; type: string; slug: string; title: string; sections: unknown }>
-      >`
+      const items = bound(
+        await tx.$queryRaw<
+          Array<{ id: string; type: string; slug: string; title: string; sections: unknown }>
+        >`
         SELECT id, type, slug, title, sections_jsonb AS sections
         FROM memory_items
         WHERE tenant_id = ${ctx.tenantId}::uuid
@@ -57,13 +79,18 @@ export async function loadMeriGraph(
           ${Prisma.raw(wallExclusionSql(denied, 'client_id'))}
           ${clientId ? Prisma.sql`AND (client_id IS NULL OR client_id = ${clientId}::uuid)` : Prisma.empty}
           ${Prisma.raw(currentMemoryReadSql(memoryColumnsAvailable))}
-      `;
+          ${boundedPaths ? Prisma.sql`ORDER BY id LIMIT 2001` : Prisma.empty}
+      `,
+        'memory_items',
+        2000,
+      );
       const itemNodeById = new Map(
         items.map((i) => [i.id, { type: i.type, slug: i.slug, label: i.title }]),
       );
-      const wikiEdges = await tx.$queryRaw<
-        Array<{ src_item_id: string; relation: string; dst_type: string; dst_slug: string }>
-      >`
+      const wikiEdges = bound(
+        await tx.$queryRaw<
+          Array<{ src_item_id: string; relation: string; dst_type: string; dst_slug: string }>
+        >`
         SELECT e.src_item_id, e.relation, e.dst_type, e.dst_slug
         FROM memory_edges e
         JOIN memory_items i ON i.id = e.src_item_id
@@ -73,13 +100,23 @@ export async function loadMeriGraph(
           ${Prisma.raw(wallExclusionSql(denied, 'i.client_id'))}
           ${clientId ? Prisma.sql`AND (i.client_id IS NULL OR i.client_id = ${clientId}::uuid)` : Prisma.empty}
           ${Prisma.raw(currentMemoryReadSql(memoryColumnsAvailable, 'i'))}
-      `;
+          ${boundedPaths ? Prisma.sql`ORDER BY e.src_item_id, e.relation, e.dst_type, e.dst_slug LIMIT 4001` : Prisma.empty}
+      `,
+        'memory_edges',
+        4000,
+      );
       // FK relations (structural backbone): client->bill/issue/person, meeting->client
       const fk: FkRelation[] = [];
-      const bills = await tx.$queryRaw<
-        Array<{ client_id: string; client_name: string; bill_id: string }>
-      >`
-        SELECT tb.client_id, c.name AS client_name, tb.bill_id FROM tracked_bill tb JOIN clients c ON c.id = tb.client_id WHERE tb.tenant_id = ${ctx.tenantId}::uuid`;
+      const bills = bound(
+        await tx.$queryRaw<Array<{ client_id: string; client_name: string; bill_id: string }>>`
+        SELECT tb.client_id, c.name AS client_name, tb.bill_id FROM tracked_bill tb JOIN clients c ON c.id = tb.client_id WHERE tb.tenant_id = ${ctx.tenantId}::uuid
+        ${boundedPaths ? Prisma.raw(wallExclusionSql(denied, 'tb.client_id')) : Prisma.empty}
+        ${boundedPaths && clientId ? Prisma.sql`AND tb.client_id = ${clientId}::uuid` : Prisma.empty}
+        ${boundedPaths ? Prisma.sql`ORDER BY tb.client_id, tb.bill_id LIMIT 2001` : Prisma.empty}
+      `,
+        'tracked_bills',
+        2000,
+      );
       for (const b of bills)
         fk.push({
           srcType: 'client',
@@ -89,11 +126,30 @@ export async function loadMeriGraph(
           dstSlug: b.bill_id,
           dstLabel: b.bill_id,
           relation: 'tracks',
+          ...(boundedPaths
+            ? {
+                basis: 'direct' as const,
+                sources: [
+                  {
+                    kind: 'tracked_bill_relationship' as const,
+                    id: JSON.stringify([b.client_id, b.bill_id]),
+                  },
+                ],
+              }
+            : {}),
         });
-      const people = await tx.$queryRaw<
-        Array<{ client_id: string; client_name: string; person_id: string; person_name: string }>
-      >`
-        SELECT cp.client_id, c.name AS client_name, cp.id AS person_id, cp.name AS person_name FROM client_people cp JOIN clients c ON c.id = cp.client_id WHERE cp.tenant_id = ${ctx.tenantId}::uuid`;
+      const people = bound(
+        await tx.$queryRaw<
+          Array<{ client_id: string; client_name: string; person_id: string; person_name: string }>
+        >`
+        SELECT cp.client_id, c.name AS client_name, cp.id AS person_id, cp.name AS person_name FROM client_people cp JOIN clients c ON c.id = cp.client_id WHERE cp.tenant_id = ${ctx.tenantId}::uuid
+        ${boundedPaths ? Prisma.raw(wallExclusionSql(denied, 'cp.client_id')) : Prisma.empty}
+        ${boundedPaths && clientId ? Prisma.sql`AND cp.client_id = ${clientId}::uuid` : Prisma.empty}
+        ${boundedPaths ? Prisma.sql`ORDER BY cp.client_id, cp.id LIMIT 2001` : Prisma.empty}
+      `,
+        'client_people',
+        2000,
+      );
       for (const p of people)
         fk.push({
           srcType: 'client',
@@ -103,6 +159,12 @@ export async function loadMeriGraph(
           dstSlug: p.person_id,
           dstLabel: p.person_name,
           relation: 'contact',
+          ...(boundedPaths
+            ? {
+                basis: 'direct' as const,
+                sources: [{ kind: 'client_person' as const, id: p.person_id }],
+              }
+            : {}),
         });
       const wiki = wikiEdges.map((e) => ({
         tenantId: ctx.tenantId,
@@ -110,11 +172,17 @@ export async function loadMeriGraph(
         relation: e.relation,
         dstType: e.dst_type,
         dstSlug: e.dst_slug,
+        ...(boundedPaths
+          ? { sources: [{ kind: 'memory_item', id: e.src_item_id }] as GraphSourceReference[] }
+          : {}),
       }));
       // Ethical wall: drop FK relations rooted at denied clients so a walled
       // client's bills/people/meetings never appear in this user's graph.
       const fkVisible = fk.filter(
-        (r) => !deniedSet.has(r.srcSlug) && (!clientId || r.srcSlug === clientId),
+        (r) =>
+          !deniedSet.has(r.srcSlug) &&
+          (!clientId || r.srcSlug === clientId) &&
+          (!boundedPaths || visibleClients.some((client) => client.id === r.srcSlug)),
       );
 
       // Track B enrichment: when this tenant is on the cache traversal source,
@@ -132,9 +200,13 @@ export async function loadMeriGraph(
             tenantId: ctx.tenantId,
             deniedClientIds: denied,
             clients: visibleClients.filter((c) => c.status !== 'archived'),
+            includeSourceReferences: boundedPaths,
           });
           fkAll = [...fkVisible, ...enriched.relations];
-          if (enriched.truncated)
+          // The cache walk's own depth/fanout bounds cannot prove exhaustion.
+          if (boundedPaths) coverageReasons.push('cache_projection_bounded');
+          if (enriched.truncated && boundedPaths) coverageReasons.push('cache_projection_limit');
+          if (enriched.truncated && !boundedPaths)
             throw new ServiceUnavailableException(
               'Knowledge graph cache projection is incomplete.',
             );
@@ -161,7 +233,30 @@ export async function loadMeriGraph(
         for (const bill of bills) targets.add(`bill:${bill.id}`);
       }
       const visibleWiki = wiki.filter((e) => targets.has(`${e.dstType}:${e.dstSlug}`));
-      return buildKnowledgeGraph(fkAll, visibleWiki, itemNodeById);
+      const graph = buildKnowledgeGraph(fkAll, visibleWiki, itemNodeById);
+      if (boundedPaths) {
+        const visible = new Set(visibleClients.map((client) => `client:${client.id}`));
+        const excluded = new Set(
+          graph.nodes
+            .filter((node) => node.type === 'client' && !visible.has(node.id))
+            .map((node) => node.id),
+        );
+        graph.nodes = graph.nodes.filter((node) => !excluded.has(node.id));
+        graph.edges = graph.edges.filter(
+          (edge) => !excluded.has(edge.src) && !excluded.has(edge.dst),
+        );
+      }
+      if (boundedPaths)
+        for (const client of visibleClients) {
+          if (!graph.nodes.some((node) => node.id === `client:${client.id}`))
+            graph.nodes.push({
+              id: `client:${client.id}`,
+              type: 'client',
+              slug: client.id,
+              label: client.name,
+            });
+        }
+      return { ...graph, coverageReasons };
     },
     // The cache branch runs bounded walks sequentially; match the intel graph
     // path's 30s ceiling instead of the 5s interactive-tx default.
@@ -187,7 +282,7 @@ export async function readMeriGraph(
   // Client-scoped session: walk ONLY this client's subgraph. Without this an
   // omitted seed returned the firm-wide graph — every client, their meetings
   // and their mail threads — inside a session assigned to one client.
-  let graph = full;
+  let graph: KnowledgeGraph = full;
   let effectiveSeed = seed;
   if (scopeClientId) {
     const scopeNode = `client:${scopeClientId}`;

@@ -61,8 +61,9 @@ describe('currentMemoryReadSql', () => {
 
   it('keeps both model-facing graph inputs behind the owner and current-memory gate', () => {
     const source = readFileSync(join(__dirname, '..', 'meri', 'meri-tools.service.ts'), 'utf8');
-    const entry = source.split('private async loadGraphForCtx(')[1]?.split('private async queryKnowledgeGraph(')[0];
-    expect(entry).toContain('return loadMeriGraph(this.prisma, ctx,');
+    expect(source).toContain('return readMeriPaths(this.prisma, ctx, input');
+    const paths = readFileSync(join(__dirname, '..', 'meri', 'meri-graph-paths.ts'), 'utf8');
+    expect(paths).toContain('loadMeriGraph(prisma, ctx, source, input.clientId, true)');
     const graph = readFileSync(join(__dirname, '..', 'meri', 'meri-graph-source.ts'), 'utf8');
     expect(graph).toContain("visibility = 'tenant' AND owner_user_id IS NULL");
     expect(graph).toContain("visibility = 'user' AND owner_user_id = ${ctx.userId}::uuid");

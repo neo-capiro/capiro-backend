@@ -1,4 +1,5 @@
-import { loadMeriGraph, readMeriGraph } from './meri-graph-source.js';
+import { readMeriGraph } from './meri-graph-source.js';
+import { readMeriPaths } from './meri-graph-paths.js';
 import { MeriFederalLegislationTools } from './meri-federal-legislation-tools.js';
 import { UUID_V4_RE, requiredString, optionalString, clampInt } from './meri-tool-input.helpers.js';
 import { executeMeriLocalDispatch, type MeriLocalDispatchRegistry } from './meri-local-dispatch.js';
@@ -183,9 +184,6 @@ import {
 const MAX_HTML_BYTES = 5 * 1024 * 1024;
 const MAX_PDF_BYTES = 15 * 1024 * 1024;
 
-import {
-  restrictGraphToClient,
-} from '../memory/memory-graph.helpers.js';
 import { CLIENT_ID_UUID_RE } from './meri-prompt.helpers.js';
 import { embedText, vectorLiteral, normalize } from '../embeddings/embedder.js';
 import { ymdInZone } from '../intelligence/time-bounds.js';
@@ -1208,8 +1206,9 @@ export class MeriToolsService {
       }),
       find_path_to: obj(
         {
-          to: str("Target node id, e.g. 'office:<id>' or 'person:<id>'"),
-          depth: int('Max search depth (1-5, default 3)'),
+          to: { ...str("Exact target node id, e.g. 'office:<id>' or 'person:<id>'"), minLength: 3, maxLength: 120, pattern: '^[a-z][a-z0-9_-]*:.+$' },
+          depth: { ...int('Max search depth in the current authorized graph (1-5, default 3)'), minimum: 1, maximum: 5 },
+          clientId: { ...str('Optional exact selected client UUID; it grants no access and may not override the conversation scope'), format: 'uuid' },
         },
         ['to'],
       ),
@@ -3412,60 +3411,12 @@ export class MeriToolsService {
     }
   }
 
-  private async loadGraphForCtx(ctx: TenantContext) {
-    return loadMeriGraph(this.prisma, ctx, await this.resolveKgTraversalSource(ctx.tenantId));
-  }
-
   private async queryKnowledgeGraph(ctx: TenantContext, input: Record<string, unknown>) {
     return readMeriGraph(this.prisma, ctx, input, await this.resolveKgTraversalSource(ctx.tenantId));
   }
 
   private async findPathTo(ctx: TenantContext, input: Record<string, unknown>) {
-    const to = optionalString(input, 'to', 120);
-    if (!to) return { error: "Provide a target node id, e.g. 'office:<id>' or 'person:<id>'." };
-    const scopeClientId = optionalString(input, 'clientId', 80);
-    if (scopeClientId && !CLIENT_ID_UUID_RE.test(scopeClientId)) {
-      return { error: 'clientId must be a client UUID — pass the exact id, or omit it.' };
-    }
-    const depthRaw =
-      typeof input.depth === 'number' ? input.depth : parseInt(String(input.depth ?? ''), 10);
-    const depth = Number.isFinite(depthRaw) ? Math.min(5, Math.max(1, depthRaw)) : 3;
-    const loaded = await this.loadGraphForCtx(ctx);
-    // "Does this node exist at all" is answered against the UNrestricted graph so
-    // a scoped session reports an honest "no route from your client" instead of
-    // claiming the target was never ingested.
-    if (!loaded.nodes.some((n) => n.id === to)) {
-      return {
-        summary: `No node "${to}" in the knowledge graph. It may not be ingested yet, or the id is off.`,
-        paths: [],
-      };
-    }
-    // Client-scoped session: this tool's whole job is "which of your clients
-    // gets you there", which is firm-wide by construction. Restricting the graph
-    // narrows it to the session's client AND stops a route from hopping through
-    // another client's relationships.
-    const full = scopeClientId ? restrictGraphToClient(loaded, `client:${scopeClientId}`) : loaded;
-    const label = new Map(loaded.nodes.map((n) => [n.id, `${n.label} (${n.type})`]));
-    const clients = full.nodes.filter((n) => n.type === 'client').map((n) => n.id);
-    const paths: string[][] = [];
-    for (const c of clients) {
-      const p = shortestGraphPath(full, c, to, depth);
-      if (p) paths.push(p);
-    }
-    // A scoped session searched ONE client, so say so rather than implying the
-    // whole book of business was checked and came back empty.
-    const origin = scopeClientId
-      ? (label.get(`client:${scopeClientId}`) ?? 'this client')
-      : 'any client';
-    if (!paths.length)
-      return {
-        summary: `No connection path from ${origin} to ${label.get(to) ?? to} within ${depth} hops.`,
-        paths: [],
-      };
-    return {
-      summary: `${paths.length} route(s) from ${scopeClientId ? origin : 'your clients'} to ${label.get(to) ?? to}:`,
-      paths: paths.map((p) => p.map((id) => label.get(id) ?? id).join(' → ')),
-    };
+    return readMeriPaths(this.prisma, ctx, input, await this.resolveKgTraversalSource(ctx.tenantId));
   }
 
   /** Fixed read-only entry point for the authorized evidence panel. */
@@ -9717,50 +9668,6 @@ export class MeriToolsService {
       }),
     );
   }
-}
-
-/** BFS shortest path between two node ids over the undirected knowledge graph. */
-function shortestGraphPath(
-  graph: { nodes: Array<{ id: string }>; edges: Array<{ src: string; dst: string }> },
-  from: string,
-  to: string,
-  maxDepth: number,
-): string[] | null {
-  if (from === to) return [from];
-  const adj = new Map<string, string[]>();
-  for (const e of graph.edges) {
-    (adj.get(e.src) ?? adj.set(e.src, []).get(e.src)!).push(e.dst);
-    (adj.get(e.dst) ?? adj.set(e.dst, []).get(e.dst)!).push(e.src);
-  }
-  const prev = new Map<string, string>();
-  const depthOf = new Map<string, number>([[from, 0]]);
-  const visited = new Set<string>([from]);
-  let frontier = [from];
-  while (frontier.length) {
-    const next: string[] = [];
-    for (const id of frontier) {
-      const d = depthOf.get(id) ?? 0;
-      if (d >= maxDepth) continue;
-      for (const nb of adj.get(id) ?? []) {
-        if (visited.has(nb)) continue;
-        visited.add(nb);
-        prev.set(nb, id);
-        depthOf.set(nb, d + 1);
-        if (nb === to) {
-          const path = [nb];
-          let cur = nb;
-          while (prev.has(cur)) {
-            cur = prev.get(cur)!;
-            path.unshift(cur);
-          }
-          return path;
-        }
-        next.push(nb);
-      }
-    }
-    frontier = next;
-  }
-  return null;
 }
 
 function normalizeToolName(value: string): MeriToolName {

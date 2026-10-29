@@ -48,7 +48,7 @@ export type QualificationDatabase = {
   appRole: string;
   ownerRole: string;
   vectorAvailable: boolean;
-  dispose(): Promise<void>;
+  dispose(options?: { preserveDatabase?: boolean }): Promise<void>;
 };
 
 export function qualificationAdminUrl(
@@ -239,10 +239,11 @@ export async function createQualificationDatabase(
       appRole,
       ownerRole,
       vectorAvailable,
-      async dispose() {
+      async dispose(options) {
         if (disposed) return;
         disposed = true;
-        await cleanup();
+        if (options?.preserveDatabase) await admin?.$disconnect();
+        else await cleanup();
         await maintenance.$disconnect().catch(() => undefined);
       },
     };
