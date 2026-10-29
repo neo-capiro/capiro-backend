@@ -1,3 +1,4 @@
+import { retryResearchTask, type ResearchRetryCommand } from './client-profile-fill-retry-command.js';
 import {
   Injectable,
   Logger,
@@ -162,7 +163,12 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     return this.owners.runLifecycle.cancelRun(ctx, clientId, runId);
   }
 
-  async retryTask(ctx: TenantContext, clientId: string, runId: string, taskId: string) {
+  async retryTask(ctx: TenantContext, clientId: string, runId: string, taskId: string, command?: ResearchRetryCommand) {
+    if (command) {
+      const result = await retryResearchTask(this.prisma, ctx, clientId, runId, taskId, command);
+      if (result.status === 'queued' && !result.replayed) this.requestTaskSweep();
+      return result;
+    }
     return this.owners.runLifecycle.retryTask(ctx, clientId, runId, taskId);
   }
 

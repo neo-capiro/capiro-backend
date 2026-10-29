@@ -1,3 +1,4 @@
+import { queueFailedFillTask } from './client-profile-fill-retry.js';
 import { BadRequestException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -93,19 +94,7 @@ export class ClientProfileFillRunLifecycle {
         clientId,
       );
       if (!runs.length) throw new BadRequestException('This run cannot be retried');
-      const count = await tx.$executeRawUnsafe(
-        `UPDATE client_profile_fill_extension_task
-            SET status = 'queued', next_attempt_at = now(), completed_at = NULL,
-                error_code = NULL, error_message = NULL, claimed_at = NULL,
-                heartbeat_at = NULL, worker_id = NULL,
-                max_attempts = GREATEST(max_attempts, attempt + 3), updated_at = now()
-          WHERE id = $1::uuid AND run_id = $2::uuid AND tenant_id = $3::uuid
-            AND client_id = $4::uuid AND status = 'failed'`,
-        taskId,
-        runId,
-        ctx.tenantId,
-        clientId,
-      );
+      const count = await queueFailedFillTask(tx, 'extension', ctx.tenantId, clientId, runId, taskId);
       if (Number(count) === 1) {
         await requeueFillReviewChecks(tx, runId, ctx.tenantId);
         await tx.$executeRawUnsafe(
