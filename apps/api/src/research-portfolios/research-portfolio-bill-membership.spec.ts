@@ -80,7 +80,7 @@ describe('bills in the Research Portfolio analytics projection', () => {
     const projection = await service.analytics(ctx, portfolioId);
 
     expect(projection.contributions).toHaveLength(1);
-    expect(projection.contributions[0]).toMatchObject({
+    expect(projection.contributions[0]!).toMatchObject({
       targetKind: 'federal_bill',
       targetId: '119-hr-8800',
       disposition: 'not_applicable',
@@ -89,7 +89,7 @@ describe('bills in the Research Portfolio analytics projection', () => {
     });
     // Not a zero, and not a reader failure.
     expect(projection.totals).toEqual([]);
-    expect(projection.contributions[0].disposition).not.toBe('unavailable');
+    expect(projection.contributions[0]!.disposition).not.toBe('unavailable');
     expect(projection.coverage.notApplicableMembers).toBe(1);
     expect(projection.coverage.unavailableMembers).toBe(0);
     expect(projection.limitations).toContain(
@@ -118,7 +118,7 @@ describe('bills in the Research Portfolio analytics projection', () => {
 
     const projection = await service.analytics(ctx, portfolioId);
 
-    expect(projection.contributions[0]).toMatchObject({ disposition: 'excluded', basis: null });
+    expect(projection.contributions[0]!).toMatchObject({ disposition: 'excluded', basis: null });
     expect(projection.coverage.notApplicableMembers).toBe(0);
     expect(projection.coverage.excludedContributions).toBe(1);
   });

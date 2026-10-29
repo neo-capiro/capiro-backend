@@ -156,6 +156,14 @@ export interface ResearchPortfolioBillDetailDto {
   sourceUrl: string | null;
   /** Canonical source revision this detail was read from. */
   sourceRevision: string | null;
+  /**
+   * When the source owner last checked this record, and how that check ended. A failed or
+   * partial refresh means "unknown", never "unchanged": `refreshFailed` must not be read
+   * as absence of legislative activity.
+   */
+  refreshedAt: string | null;
+  refreshStatus: string | null;
+  refreshFailed: boolean;
   sponsors: readonly { name: string; party: string | null; state: string | null; role: string }[];
   committees: readonly { name: string; chamber: string | null; role: string }[];
   textVersions: readonly {

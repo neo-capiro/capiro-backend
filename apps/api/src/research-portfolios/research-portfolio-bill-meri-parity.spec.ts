@@ -68,7 +68,7 @@ describe('Meri bill membership goes through the shared portfolio service', () =>
       },
     });
 
-    expect(createMember.mock.calls[0][2]).toMatchObject({
+    expect((createMember.mock.calls[0] as any[])[2]).toMatchObject({
       targetKind: 'state_bill',
       targetId: 'CA-20252026-HB123',
     });

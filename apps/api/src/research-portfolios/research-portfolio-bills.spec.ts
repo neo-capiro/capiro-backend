@@ -140,10 +140,13 @@ describe('research portfolio bill identity', () => {
 });
 
 describe('state bill detail: current committee referral', () => {
-  function service(currentCommitteeId: string | null) {
+  function service(
+    currentCommitteeId: string | null,
+    overrides: Record<string, unknown> = {},
+  ) {
     const tx: any = {
       stateBill: {
-        findUnique: jest.fn(async () => stateRow({ currentCommitteeId })),
+        findUnique: jest.fn(async () => stateRow({ currentCommitteeId, ...overrides })),
         findMany: jest.fn(async () => []),
       },
       stateBillSponsor: {
@@ -173,6 +176,36 @@ describe('state bill detail: current committee referral', () => {
     // Fields the source family genuinely does not carry stay labelled.
     expect(detail.unavailable).toContain('amendments');
     expect(h.tx.stateCommittee.findUnique).toHaveBeenCalledTimes(1);
+  });
+
+  it('says a failed source check may be stale instead of implying no change', async () => {
+    const h = service(null, {
+      sourceCheckError: 'upstream timeout',
+      sourceCheckStatus: 'failed',
+      sourceCheckedAt: new Date('2026-10-28T06:00:00Z'),
+    });
+    const detail = await h.bills.detail({ tenantId: 't', userId: 'u' } as any, 'state_bill', 'CA-20252026-HB123');
+
+    expect(detail.refreshFailed).toBe(true);
+    expect(detail.refreshStatus).toBe('failed');
+    expect(detail.refreshedAt).toBe('2026-10-28T06:00:00.000Z');
+    expect(detail.coverage.note).toContain('most recent source check failed (failed)');
+    expect(detail.coverage.note).toContain('may be stale');
+    // Absence of change cannot be inferred from a failed check.
+    expect(detail.coverage.note).toContain('cannot be relied on');
+  });
+
+  it('does not claim staleness when the last check succeeded', async () => {
+    const h = service(null, {
+      sourceCheckStatus: 'ok',
+      sourceCheckedAt: new Date('2026-10-28T06:00:00Z'),
+      sourceCheckError: null,
+    });
+    const detail = await h.bills.detail({ tenantId: 't', userId: 'u' } as any, 'state_bill', 'CA-20252026-HB123');
+
+    expect(detail.refreshFailed).toBe(false);
+    expect(detail.refreshStatus).toBe('ok');
+    expect(detail.coverage.note).not.toContain('may be stale');
   });
 
   it('claims unavailable only when the bill has no referral', async () => {

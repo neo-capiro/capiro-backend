@@ -220,6 +220,10 @@ export class ResearchPortfolioBillsService {
           latestActionDate: row.latestActionDate?.toISOString().slice(0, 10) ?? null,
           sourceUrl: row.url,
           sourceRevision: (row.updateDateIncludingText ?? row.lastSyncedAt)?.toISOString() ?? null,
+          // Congress.gov is read per request; the last sync is the freshness signal.
+          refreshedAt: row.lastSyncedAt?.toISOString() ?? null,
+          refreshStatus: null,
+          refreshFailed: false,
           sponsors: row.sponsorName
             ? [
                 {
@@ -307,6 +311,9 @@ export class ResearchPortfolioBillsService {
         latestActionDate: row.latestActionDate?.toISOString().slice(0, 10) ?? null,
         sourceUrl: row.stateUrl ?? row.url,
         sourceRevision: (row.statusDerivedAt ?? row.syncedAt)?.toISOString() ?? null,
+        refreshedAt: row.sourceCheckedAt?.toISOString() ?? null,
+        refreshStatus: row.sourceCheckStatus ?? null,
+        refreshFailed: Boolean(row.sourceCheckError),
         sponsors: sponsors.map((entry) => ({
           name: entry.name,
           party: entry.party,
@@ -335,7 +342,14 @@ export class ResearchPortfolioBillsService {
         unavailable,
         coverage: {
           source: 'legiscan',
-          note: 'State bills are read from the ingested LegiScan dataset for this jurisdiction only. Fields the source does not carry are labelled unavailable.',
+          note:
+            'State bills are read from the ingested LegiScan dataset for this jurisdiction only. Fields the source does not carry are labelled unavailable.' +
+            // A failed check is unknown, never "no change": say so where the reader looks.
+            (row.sourceCheckError
+              ? ` The most recent source check failed${
+                  row.sourceCheckStatus ? ` (${row.sourceCheckStatus})` : ''
+                }${row.sourceCheckedAt ? ` at ${row.sourceCheckedAt.toISOString()}` : ''}; this record may be stale and its absence of change cannot be relied on.`
+              : ''),
           available: true,
         },
       };

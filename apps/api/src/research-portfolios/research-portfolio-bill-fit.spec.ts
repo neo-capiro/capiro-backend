@@ -54,16 +54,7 @@ function harness(options: { clientLinks?: readonly unknown[] } = {}) {
 describe('fit with tracked bills', () => {
   it('excludes a bill from the score, reports null fit and says why', async () => {
     const h = harness({ clientLinks: [{ clientId: 'client-a' }] });
-    const service = new ResearchPortfolioPhase11Service(
-      h.prisma,
-      {} as any,
-      {} as any,
-      {} as any,
-      {} as any,
-      {} as any,
-      {} as any,
-      {} as any,
-    );
+    const service = new ResearchPortfolioPhase11Service(h.prisma, {} as any, {} as any);
 
     const fit = await service.getFit(ctx, portfolioId);
 
@@ -90,16 +81,7 @@ describe('fit with tracked bills', () => {
 
   it('stays honest with no linked client: no fit is invented', async () => {
     const h = harness({ clientLinks: [] });
-    const service = new ResearchPortfolioPhase11Service(
-      h.prisma,
-      {} as any,
-      {} as any,
-      {} as any,
-      {} as any,
-      {} as any,
-      {} as any,
-      {} as any,
-    );
+    const service = new ResearchPortfolioPhase11Service(h.prisma, {} as any, {} as any);
 
     const fit = await service.getFit(ctx, portfolioId);
 
