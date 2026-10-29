@@ -35,7 +35,10 @@ export async function officeDatabase(url: string) {
         CREATE FUNCTION rls_bypass() RETURNS boolean LANGUAGE sql STABLE AS $$SELECT false$$;
         GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO capiro_app;`);
       await admin.query(readFileSync(join(__dirname, '../../../prisma/migrations/20281029020000_office_draft_owner/migration.sql'), 'utf8'));
+      await admin.query(readFileSync(join(__dirname, '../../../prisma/migrations/20281029070000_office_editor_admission/migration.sql'), 'utf8'));
     }
+    const editor = await admin.query("SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='meri_office_drafts' AND column_name='editor_epoch'");
+    if (editor.rows.length !== 1) throw Error('Use a fresh editor-admission fixture; old applied test DDL is retained');
   } finally { await admin.end(); }
   const db = new PrismaClient({ datasources: { db: { url } } });
   const withScope = async <T>(tenantId: string, userId: string | null, fn: (tx: Prisma.TransactionClient) => Promise<T>) =>

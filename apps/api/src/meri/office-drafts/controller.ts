@@ -7,8 +7,9 @@ import { ToolServiceSecretGuard, hasVerifiedToolServiceIdentity } from '../../au
 import { CurrentTenant } from '../../tenant/current-tenant.decorator.js';
 import { TenantContextMiddleware } from '../../tenant/tenant-context.middleware.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { discardDraft, lockDraft, openDraft, readDraft, saveDraft } from './store.js';
+import { discardDraft, lockDraft, openDraft, readDraft, readEditorDraft, saveDraft } from './store.js';
 import { beginDraftPublish, settleDraftPublish } from './publication.js';
+import { admitOfficeEditor } from './editor.js';
 
 /** Control-only receiver. Source/retention and immutable publish remain at the
  * runtime artifact owner; a browser cannot supply its own source or settlement. */
@@ -28,6 +29,14 @@ export class OfficeDraftController {
   @Post('read') @HttpCode(200) @Header('Cache-Control', 'private, no-store')
   async read(@CurrentTenant() ctx: TenantContext, @Body() body: unknown, @Req() req: Request) {
     return readDraft(await this.ports(ctx, req), body);
+  }
+  @Post('editor') @HttpCode(200) @Header('Cache-Control', 'private, no-store')
+  async editor(@CurrentTenant() ctx: TenantContext, @Body() body: unknown, @Req() req: Request) {
+    return admitOfficeEditor(await this.ports(ctx, req), body);
+  }
+  @Post('editor/read') @HttpCode(200) @Header('Cache-Control', 'private, no-store')
+  async editorRead(@CurrentTenant() ctx: TenantContext, @Body() body: unknown, @Req() req: Request) {
+    return readEditorDraft(await this.ports(ctx, req), body);
   }
   @Post('lock') @HttpCode(200) @Header('Cache-Control', 'private, no-store')
   async lock(@CurrentTenant() ctx: TenantContext, @Body() body: unknown, @Req() req: Request) {

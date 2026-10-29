@@ -3,15 +3,16 @@ import type { TenantContext } from '@capiro/shared';
 import type { Prisma } from '@prisma/client';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import { authorizeDraft, type OfficeAuthority } from './authority.js';
-import { digest, DRAFT_TTL_MS, LOCK_TTL_MS, parseKey, parseLock, parseOpen, parseSave,
-  type DraftKey, type DraftSource } from './input.js';
+import { digest, DRAFT_TTL_MS, LOCK_TTL_MS, parseKey, parseEditorRead, parseLock, parseOpen, parseSave,
+  type DraftKey, type DraftSource, type EditorProof } from './input.js';
 
 export type DraftRow = { tenant_id: string; actor_user_id: string; conversation_id: string;
   draft_id: string; artifact_id: string; base_version_id: string; base_sha256: string;
   format: DraftSource['format']; filename: string; sequence: number; bytes: Buffer | null; sha256: string | null;
   state: 'draft' | 'publish-pending' | 'publish-unknown' | 'publish-refused' | 'conflict' | 'published' | 'discarded';
   publish_intent: string | null; published_version_id: string | null;
-  lock_token: string | null; lock_expires_at: Date | null; expires_at: Date; updated_at: Date };
+  lock_token: string | null; lock_expires_at: Date | null; expires_at: Date; updated_at: Date;
+  editor_id: string | null; editor_epoch: number; editor_expires_at: Date | null };
 export type DraftPorts = { prisma: PrismaService; ctx: TenantContext; authority: OfficeAuthority };
 export const draftReceipt = (r: DraftRow) => ({ draftId: r.draft_id, conversationId: r.conversation_id,
   artifactId: r.artifact_id, baseVersionId: r.base_version_id, baseSha256: r.base_sha256,
@@ -23,7 +24,7 @@ export const currentLock = (r: DraftRow, now: Date) =>
 export const conflict = (code: string): never => { throw new ConflictException(code); };
 
 export async function draftTransaction<T>(ports: DraftPorts, key: DraftKey,
-  fn: (tx: Prisma.TransactionClient, row: DraftRow | null, now: Date) => Promise<T>, allowMissing = false, allowDiscarded = false) {
+  fn: (tx: Prisma.TransactionClient, row: DraftRow | null, now: Date) => Promise<T>, allowMissing = false, allowDiscarded = false, editor: EditorProof | null = null) {
   const { prisma, ctx, authority } = ports;
   return prisma.withTenantUser(ctx.tenantId, ctx.userId, async tx => {
     await authorizeDraft(tx, ctx, key.conversationId, authority);
@@ -39,6 +40,8 @@ export async function draftTransaction<T>(ports: DraftPorts, key: DraftKey,
     if (!row && !allowMissing) throw new NotFoundException('OFFICE_DRAFT_UNAVAILABLE');
     if (row && row.expires_at <= now) throw new GoneException('OFFICE_DRAFT_EXPIRED');
     if (row?.state === 'discarded' && !allowDiscarded) throw new GoneException('OFFICE_DRAFT_CLOSED');
+    if (editor && (!row || row.editor_id !== editor.editorId || row.editor_epoch !== editor.editorEpoch ||
+        !row.editor_expires_at || row.editor_expires_at <= now)) conflict('OFFICE_EDITOR_STALE');
     if (row?.bytes && (row.bytes.length === 0 || digest(Buffer.from(row.bytes)) !== row.sha256))
       throw new ConflictException('OFFICE_DRAFT_INTEGRITY');
     return fn(tx, row, now);
@@ -67,6 +70,11 @@ export async function readDraft(ports: DraftPorts, raw: unknown) {
   return draftTransaction(ports, parseKey(raw), async (_tx, row) => ({ ...draftReceipt(row!),
     bytesBase64: row!.bytes === null ? null : Buffer.from(row!.bytes).toString('base64') }));
 }
+export async function readEditorDraft(ports: DraftPorts, raw: unknown) {
+  const input = parseEditorRead(raw);
+  return draftTransaction(ports, input, async (_tx, row) => ({ ...draftReceipt(row!),
+    bytesBase64: row!.bytes === null ? null : Buffer.from(row!.bytes).toString('base64') }), false, false, input);
+}
 export async function lockDraft(ports: DraftPorts, raw: unknown) {
   const input = parseLock(raw);
   return draftTransaction(ports, input, async (tx, row, now) => {
@@ -81,7 +89,7 @@ export async function lockDraft(ports: DraftPorts, raw: unknown) {
       expires_at=${new Date(now.getTime() + DRAFT_TTL_MS)}
       WHERE tenant_id=${ports.ctx.tenantId}::uuid AND actor_user_id=${ports.ctx.userId}::uuid AND draft_id=${input.draftId}::uuid`;
     return { status: 200 };
-  });
+  }, false, false, input);
 }
 export async function saveDraft(ports: DraftPorts, raw: unknown) {
   const input = parseSave(raw);
@@ -101,7 +109,7 @@ export async function saveDraft(ports: DraftPorts, raw: unknown) {
       WHERE tenant_id=${ports.ctx.tenantId}::uuid AND actor_user_id=${ports.ctx.userId}::uuid
         AND draft_id=${input.draftId}::uuid RETURNING *`;
     return { status: 200, receipt: draftReceipt(rows[0]!) };
-  });
+  }, false, false, input);
 }
 export async function discardDraft(ports: DraftPorts, raw: unknown) {
   return draftTransaction(ports, parseKey(raw), async (tx, row, now) => {
@@ -109,7 +117,7 @@ export async function discardDraft(ports: DraftPorts, raw: unknown) {
     // Keep the closed identity without draft bytes so an unexpired WOPI token
     // cannot regain access by reopening the same draft ID. Bytes are removed now.
     await tx.$executeRaw`UPDATE meri_office_drafts SET state='discarded',bytes=NULL,sha256=NULL,
-      lock_token=NULL,lock_expires_at=NULL,publish_intent=NULL,published_version_id=NULL,
+      lock_token=NULL,lock_expires_at=NULL,editor_id=NULL,editor_expires_at=NULL,publish_intent=NULL,published_version_id=NULL,
       expires_at=GREATEST(expires_at,${new Date(now.getTime() + LOCK_TTL_MS)})
       WHERE tenant_id=${ports.ctx.tenantId}::uuid
       AND actor_user_id=${ports.ctx.userId}::uuid AND draft_id=${row!.draft_id}::uuid`;
