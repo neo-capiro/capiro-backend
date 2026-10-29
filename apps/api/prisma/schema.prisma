@@ -16295,6 +16295,9 @@ enum ResearchPortfolioReviewTargetKind {
   project
   budget_line
   award
+  /// Bills can open reviews (rule change, source cycle, dispute) like any other subject.
+  federal_bill
+  state_bill
   rule
   portfolio
 
