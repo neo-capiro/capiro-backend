@@ -246,6 +246,7 @@ function wireTurn(request: NativeGenerationTurnRequest): Record<string, unknown>
     expectedRevision: request.expectedRevision,
     paidGeneration: true,
     sources: request.sources.map(nativeGenerationSourceWire),
+    ...(request.writingBrief === undefined ? {} : { writingBrief: request.writingBrief }),
   };
 }
 
