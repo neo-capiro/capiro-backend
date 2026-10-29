@@ -65,6 +65,90 @@ const url = process.env.IMPERSONATION_TEST_DATABASE_URL;
         orderBy: { occurredAt: 'asc' },
       });
 
+    it('recovers the active server selection across tabs and audits expiry once', async () => {
+      expect(await service.active(ctx, req)).toEqual({ session: null });
+      await start();
+      expect((await service.active(ctx, req)).session?.sessionId).toBe(input.requestId);
+      await store.db.impersonationSession.update({
+        where: { id: input.requestId },
+        data: { expiresAt: new Date(1) },
+      });
+      expect(await service.active(ctx, req)).toEqual({ session: null });
+      expect(await service.active(ctx, req)).toEqual({ session: null });
+      expect((await audit()).filter((r) => r.action === 'impersonation.end')).toHaveLength(1);
+    });
+
+    it('reads only the saved target and visible clients, pages completely, and audits use', async () => {
+      await start();
+      const clients = Array.from({ length: 52 }, () => ({
+        id: randomUUID(),
+        tenantId: input.tenantId,
+        name: 'Synthetic client',
+      }));
+      await store.db.client.createMany({ data: clients });
+      await store.db.client.createMany({
+        data: [
+          { tenantId: ctx.tenantId, name: 'Other tenant' },
+          { tenantId: input.tenantId, name: 'Archived', status: 'archived' },
+          { tenantId: input.tenantId, name: 'Walled', memoryWall: true },
+        ],
+      });
+      const first = await service.workspace(ctx, req, input.requestId);
+      expect(first.clients).toHaveLength(50);
+      expect(first.readOnly).toBe(true);
+      expect(first.session.tenantId).toBe(input.tenantId);
+      const second = await service.workspace(ctx, req, input.requestId, first.nextCursor!);
+      expect(second.clients).toHaveLength(2);
+      expect(second.nextCursor).toBeNull();
+      expect(new Set([...first.clients, ...second.clients].map((c) => c.id))).toEqual(
+        new Set(clients.map((c) => c.id)),
+      );
+      expect(
+        (await audit()).filter((r) => r.action === 'impersonation.workspace.read'),
+      ).toHaveLength(2);
+    });
+    it.each(['ended', 'expired', 'suspended', 'replaced'] as const)(
+      'refuses workspace after %s',
+      async (state) => {
+        await start();
+        if (state === 'ended') await service.end(ctx, req, input.requestId);
+        if (state === 'expired')
+          await store.db.impersonationSession.update({
+            where: { id: input.requestId },
+            data: { expiresAt: new Date(1) },
+          });
+        if (state === 'suspended')
+          await store.db.tenant.update({
+            where: { id: input.tenantId },
+            data: { status: 'suspended' },
+          });
+        if (state === 'replaced') await start({ ...input, requestId: randomUUID() });
+        await expect(service.workspace(ctx, req, input.requestId)).rejects.toThrow(
+          'no longer active',
+        );
+        expect(
+          (await audit()).filter((r) => r.action === 'impersonation.workspace.read'),
+        ).toHaveLength(0);
+      },
+    );
+    it('rolls back a read audit on late native-session loss and refuses header scope substitution', async () => {
+      await start();
+      checks = 0;
+      revokedAfter = 1;
+      await expect(service.workspace(ctx, req, input.requestId)).rejects.toThrow('Session revoked');
+      expect(
+        (await audit()).filter((r) => r.action === 'impersonation.workspace.read'),
+      ).toHaveLength(0);
+      for (const header of ['x-capiro-impersonate-tenant', 'x-capiro-impersonation-session'])
+        await expect(
+          service.workspace(
+            ctx,
+            { header: (name: string) => (name === header ? input.tenantId : undefined) } as Request,
+            input.requestId,
+          ),
+        ).rejects.toThrow('own HQ');
+    });
+
     it('concurrent exact starts create one session and start audit; a lost reply recovers it', async () => {
       const results = await Promise.all([start(), start()]);
       expect(results.map((v) => v.sessionId)).toEqual([input.requestId, input.requestId]);
@@ -159,6 +243,7 @@ const url = process.env.IMPERSONATION_TEST_DATABASE_URL;
         },
       });
       await expect(service.read(ctx, req, foreignSession)).rejects.toThrow('not found');
+      await expect(service.workspace(ctx, req, foreignSession)).rejects.toThrow('not found');
       await expect(service.end(ctx, req, foreignSession)).rejects.toThrow('not found');
       await expect(start({ ...input, requestId: foreignSession })).rejects.toThrow('already used');
       expect(
@@ -191,6 +276,8 @@ const url = process.env.IMPERSONATION_TEST_DATABASE_URL;
         await expect(start()).rejects.toThrow();
         await expect(service.read(ctx, req, input.requestId)).rejects.toThrow();
         await expect(service.end(ctx, req, input.requestId)).rejects.toThrow();
+        await expect(service.workspace(ctx, req, input.requestId)).rejects.toThrow();
+        await expect(service.active(ctx, req)).rejects.toThrow();
       },
     );
     it('rolls back the session and audit when native authority is lost after the write', async () => {

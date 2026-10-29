@@ -38,6 +38,17 @@ export async function impersonationDatabase(url: string) {
       }
       await admin.query('COMMIT');
     }
+    for (const table of ['clients', 'client_memory_access']) {
+      const policy = await admin.query(
+        'SELECT 1 FROM pg_policies WHERE tablename=$1 AND policyname=$2',
+        [table, 'fixture_system'],
+      );
+      if (!policy.rowCount)
+        await admin.query(
+          `CREATE POLICY fixture_system ON ${table} USING (rls_bypass()) WITH CHECK (rls_bypass())`,
+        );
+      await admin.query(`GRANT SELECT ON ${table} TO capiro_app`);
+    }
   } catch (error) {
     await admin.query('ROLLBACK');
     await store.db.$disconnect();
