@@ -1,0 +1,78 @@
+# Private Office draft custody
+
+Source slice, 29 October 2026. The user selected free self-hosted Collabora CODE
+for development/testing, private Save, a separate explicit Publish, and initial
+exclusive editing. This module is the Core private-byte owner. It is not a WOPI
+server and does not activate live Office editing.
+
+## Ownership and calls
+
+`OfficeDraftController` is registered in MeriModule at `/api/clio/office-drafts`.
+Every method requires existing verified tool-service identity and native current
+application authority. Core's current membership, owned active conversation and
+client-wall owners authorize the operation inside the same transaction. The
+existing `withTenantUser` owner sets the tenant and actor RLS context. Source
+identity columns cannot be updated by the ordinary application role.
+
+The trusted runtime artifact owner must inspect the exact base, enforce its
+current scopes and retention, and supply the immutable source descriptor on
+`open`. It must repeat current artifact authority/retention on every later
+crossing. These endpoints are not direct browser APIs; a browser cannot certify
+its own source or publication result.
+
+| POST suffix | Responsibility |
+| --- | --- |
+| `open` | Create or read back the same exact draft/source identity |
+| `read` | Recover private bytes and exact sequence/hash |
+| `lock` | Atomic get/lock/refresh/unlock/relock; 30-minute lock expiry |
+| `save` | Matching lock plus sequence CAS; all Save kinds remain private |
+| `publish/begin` | Freeze one exact sequence/hash and retain its publication intent |
+| `publish/settle` | Record only that intent's authoritative result |
+| `discard` | Remove private bytes and close the identity unless publication is pending/unknown |
+
+Inputs are closed objects. Draft IDs and base version IDs are UUIDs. Save accepts
+canonical base64 for at most 20 MiB, with a verified SHA-256. The exact save route
+has a bounded 28,000,000-byte JSON parser; other routes retain their existing
+limits. Responses are private/no-store. No save triggers structural rendering or
+publication; an invalid Office document can still be retained for recovery.
+
+Save returns only after database commit. Identical bytes reuse the saved sequence.
+Competing writes at one sequence yield one accepted successor. Lock and sequence
+checks are in the same database transaction. These are exclusive WOPI locks for
+one private draft, not a claim that multiple editor frames or real CODE sessions
+have been qualified.
+
+## Publication and retention
+
+The existing runtime artifact publisher and its intent journal remain the sole
+immutable version and stale-parent owners. The draft row stores only the editor
+state and `office:<draftId>:<sequence>` identity. A repeated pending/unknown begin
+returns `dispatch:false`. Current bytes cannot change until a definite settlement
+arrives. Unknown is never cleared by elapsed time. Published settlement requires a
+version ID; this receiver does not create that version or independently certify
+its existence. Only the trusted publisher may call settlement after exact readback.
+
+The seven-day private-byte expiry is enforced on reads/writes. The existing
+internal-service identity protects `/api/internal/office-draft-retention/expire`:
+an exact tenant/actor/chat batch deletes up to 100 expired rows, returns counts
+only, and works after the member departs. The retention coordinator must retain
+policy and hold checks before invoking it. Conversation, tenant and actor deletion
+cascade through the existing parent rows. Discard removes bytes immediately and
+retains a closed identity until expiry, preventing an unexpired WOPI token from
+being revived by reuse of the same draft ID. Runtime suppression/access-loss purge
+coordination and scheduled inventory integration remain required before activation.
+
+## Verification and remaining work
+
+44 focused source tests pass, including eight real PostgreSQL tests under an
+ordinary NOBYPASSRLS role: connection restart/readback, conflicting writers,
+locks/expiry, owner and tenant privacy, immutable source columns, revocation,
+unknown publication, stale-base result preservation, and physical expiry cleanup.
+The HTTP tests exercise the real Nest/Express size boundary; native identity is
+synthetic. Focused source TypeScript, Prisma validation and 27 closure/pin tests
+pass. Schema validation retains the repository's existing SetNull warning.
+
+This is not end-to-end Office completion. The runtime HTTP adapter, native-byte
+revision contract/publisher, current suppression bridge, iframe/recovery controls,
+actual CODE service and representative Office fidelity corpus remain unqualified.
+No application/image build, deployment or provider call was performed.

@@ -168,8 +168,11 @@ export function configureApiHttpApp(
   // A permitted 5 MiB CSV needs up to 6,990,508 base64 characters plus its
   // import metadata. The import service retains its decoded-file bound.
   const researchImportJson = json({ limit: 7_100_000 });
+  // One private Office save: at most 20 MiB decoded bytes plus base64/metadata.
+  const officeDraftJson = json({ limit: 28_000_000 });
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.method === 'POST') {
+      if (req.path === '/api/clio/office-drafts/save') return officeDraftJson(req, res, next);
       if (/^\/api\/clio\/artifacts\/[A-Za-z0-9_-]+\/version$/.test(req.path)) {
         return artifactVersionJson(req, res, next);
       }
