@@ -81,6 +81,7 @@ describe('legacy consumer build request: job scripts', () => {
     assert.ok(script.includes('HIGH') && script.includes('CRITICAL'));
     assert.ok(script.includes('test "$(uname -m)" = aarch64'));
     assert.ok(script.includes('EXPECTED_TREE_SHA256'));
+    assert.ok(script.includes(".replace(os.sep, '/')"), 'tree digest paths are POSIX-normalised');
     assert.equal(spawnSync('bash', ['-n', '-c', script], { encoding: 'utf8' }).status, 0, 'job script parses');
     for (const forbidden of [':latest', 'start-build', 'update-service', 'create-project',
       'put-bucket-policy', 'force-new-deployment', '--target', 'npm ci', 'next build'])

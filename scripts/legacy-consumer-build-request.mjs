@@ -98,7 +98,7 @@ for base, dirs, files in os.walk(root):
         if name == '.git':
             continue
         full = os.path.join(base, name)
-        rel = os.path.relpath(full, root)
+        rel = os.path.relpath(full, root).replace(os.sep, '/')
         if rel == '.git':
             continue
         if os.path.islink(full):
