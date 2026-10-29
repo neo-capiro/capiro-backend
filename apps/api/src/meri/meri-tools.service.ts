@@ -1,5 +1,6 @@
 import { readMeriGraph } from './meri-graph-source.js';
 import { readMeriPaths } from './meri-graph-paths.js';
+import { readFederalDraftSource } from './federal-draft-source.js';
 import { MeriFederalLegislationTools } from './meri-federal-legislation-tools.js';
 import { UUID_V4_RE, requiredString, optionalString, clampInt } from './meri-tool-input.helpers.js';
 import { executeMeriLocalDispatch, type MeriLocalDispatchRegistry } from './meri-local-dispatch.js';
@@ -1287,6 +1288,16 @@ export class MeriToolsService {
           ),
         },
         ['billId'],
+      ),
+      read_federal_draft_source: obj(
+        {
+          billId: str('Exact canonical bill ID from read_bill_text.'),
+          versionCode: str('Exact publisher version code from read_bill_text.'),
+          revisionId: str('Exact current revision ID from read_bill_text.'),
+          versionHash: str('Exact retained content SHA-256 from read_bill_text.'),
+          textHash: str('Exact extracted text SHA-256 from read_bill_text.'),
+        },
+        ['billId', 'versionCode', 'revisionId', 'versionHash', 'textHash'],
       ),
       get_certification_status: obj(
         {
@@ -2859,6 +2870,7 @@ export class MeriToolsService {
       search_congress_bills: () => this.searchCongressBills(input),
       get_bill_status: () => this.getBillStatus(input),
       read_bill_text: () => this.readBillText(input),
+      read_federal_draft_source: () => readFederalDraftSource(this.prisma, input),
       get_certification_status: () => this.getCertificationStatus(input),
       search_floor_votes: () => this.searchFloorVotes(input),
       search_cbo_cost_estimates: () => this.searchCboCostEstimates(input),
