@@ -113,7 +113,7 @@ it('fails a run without an actor before creating heartbeats or specialist effect
 it('reconstructs the standard-user context from the persisted actor and passes it into the actual specialist boundary', async () => {
   const h = harness({ facilityRows: [{ id: 'facility-one', name: 'HQ' }] });
   await h.worker.executeClaimedTask(task());
-  expect(h.facilities.resolveFacilityDistrict).toHaveBeenCalledWith(
+  expect(h.facilities.previewFacilityDistrict).toHaveBeenCalledWith(
     {
       tenantId: 'tenant-one',
       tenantSlug: '',

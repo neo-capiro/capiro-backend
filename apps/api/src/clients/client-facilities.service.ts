@@ -178,6 +178,22 @@ export class ClientFacilitiesService {
     if (persisted?.count) this.clientKb.indexFacilityFireAndForget(tenantId, facilityId);
   }
 
+  /** Read-only research preview. Reuses the canonical Census calculation without
+   * changing a facility, retry state, geocode candidates or retrieval index. */
+  async previewFacilityDistrict(ctx: TenantContext, clientId: string, id: string) {
+    const facility = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clientFacility.findFirst({ where: { id, tenantId: ctx.tenantId, clientId } }),
+    );
+    if (!facility) throw new NotFoundException('Facility not found');
+    const outcome = await computeFacilityGeocode(facility);
+    return {
+      ...facility,
+      ...(outcome.update ?? {}),
+      geocodeStatus: outcome.status,
+      geocodeMatchedAddress: outcome.matchedAddress,
+    };
+  }
+
   /** Run the deterministic Census resolver immediately for an explicit retry. */
   async resolveFacilityDistrict(ctx: TenantContext, clientId: string, id: string) {
     const facility = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
