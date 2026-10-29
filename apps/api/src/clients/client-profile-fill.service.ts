@@ -30,6 +30,7 @@ import {
 import { QualityTelemetryCaptureService } from '../quality-telemetry/quality-telemetry-capture.service.js';
 import { buildCrmFillFindingTelemetryEvent } from '../quality-telemetry/adapters/crm-fill-finding.telemetry-adapter.js';
 import { TrackerService } from '../tracker/tracker.service.js';
+import { researchWebsite, type ResearchLdaIdentity } from './client-profile-fill-research-inputs.js';
 import {
   CLIENT_PROFILE_FILL_SOURCES,
   asRecord,
@@ -213,7 +214,8 @@ export class ClientProfileFillService {
     if (attachmentId && seedWebsite?.trim()) {
       throw new BadRequestException('Website seed applies only to connected enrichment sources');
     }
-    await this.maybeSeedWebsite(ctx, clientId, seedWebsite);
+    const website = researchWebsite(seedWebsite) ??
+      normalizeWebsite((await this.getClientSnapshot(ctx.tenantId, clientId)).website);
     const sources = attachmentId ? [] : this.normalizeSources(requestedSources);
 
     const existing = await this.latestRunning(ctx.tenantId, clientId);
@@ -242,10 +244,10 @@ export class ClientProfileFillService {
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.$queryRawUnsafe<FillRunRow[]>(
         `INSERT INTO client_profile_fill_run
-           (tenant_id, client_id, created_by_user_id, status, requested_sources, source_states_jsonb)
+           (tenant_id, client_id, created_by_user_id, status, requested_sources, source_states_jsonb, setup_jsonb)
          VALUES (
            $1::uuid, $2::uuid, $3::uuid, 'running',
-           ARRAY(SELECT jsonb_array_elements_text($4::jsonb)), $5::jsonb
+           ARRAY(SELECT jsonb_array_elements_text($4::jsonb)), $5::jsonb, $6::jsonb
          )
          RETURNING id,
                    client_id AS "clientId",
@@ -263,6 +265,7 @@ export class ClientProfileFillService {
         ctx.userId,
         JSON.stringify(sources),
         JSON.stringify(sourceStates),
+        JSON.stringify({ researchInputVersion: 1, website }),
       ),
     );
     const run = rows[0];
@@ -274,7 +277,7 @@ export class ClientProfileFillService {
     // rather than leaving an apparently-live run forever.
     void (attachmentId
       ? this.executeCapabilityDocumentRun({ ...ctx }, clientId, run.id, attachmentId)
-      : this.executeRun({ ...ctx }, clientId, run.id, sources)
+      : this.executeRun({ ...ctx }, clientId, run.id, sources, website)
     ).catch((error) => {
       this.logger.error(
         `Fill with Meri run ${run.id} crashed: ${error instanceof Error ? error.message : String(error)}`,
@@ -608,6 +611,7 @@ export class ClientProfileFillService {
     clientId: string,
     runId: string,
     sources: ClientProfileFillSource[],
+    website?: string | null,
   ) {
     const states: Record<string, { status: string; count?: number; error?: string }> = {};
     for (const source of sources) {
@@ -616,7 +620,7 @@ export class ClientProfileFillService {
         let count = 0;
         switch (source) {
           case 'public_web':
-            count = await this.gatherPublicWeb(ctx, clientId, runId);
+            count = await this.gatherPublicWeb(ctx, clientId, runId, website);
             break;
           case 'synced_email':
             count = await this.gatherSyncedEmail(ctx, clientId, runId);
@@ -1066,7 +1070,7 @@ export class ClientProfileFillService {
     return count;
   }
 
-  private async gatherLda(ctx: TenantContext, clientId: string, runId: string) {
+  private async gatherLda(ctx: TenantContext, clientId: string, runId: string, selections?: ResearchLdaIdentity[]) {
     const client = await this.getClientSnapshot(ctx.tenantId, clientId);
     const existing = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clientIntelMapping.findMany({
@@ -1075,6 +1079,24 @@ export class ClientProfileFillService {
       }),
     );
     let count = 0;
+    if (selections !== undefined) {
+      for (const selection of selections) {
+        const externalId = String(selection.id);
+        if (!existing.some(mapping => mapping.externalId === externalId)) {
+          if (await this.addFinding(ctx.tenantId, clientId, runId, {
+            kind: 'lda_identity', targetKey: `lda:${externalId}`, source: 'lda',
+            factKind: 'recommendation', currentValue: null,
+            proposedValue: { externalId, externalName: selection.name, selectedForResearch: true },
+            confidence: selection.confidence,
+            evidence: [{ label: 'Identity selected from the offered research setup; not a confirmed client mapping',
+              source: 'research_setup', metadata: { ldaClientId: selection.id, runId } }],
+          })) count++;
+        }
+        if (await this.addLdaHistory(ctx.tenantId, clientId, runId, externalId, selection.name, selection.confidence))
+          count++;
+      }
+      return count;
+    }
     if (existing.length) {
       for (const mapping of existing) {
         if (await this.addLdaHistory(ctx.tenantId, clientId, runId, mapping.externalId, mapping.externalName, Number(mapping.confidence ?? 1))) {
@@ -1251,13 +1273,14 @@ export class ClientProfileFillService {
     return count;
   }
 
-  private async gatherPublicWeb(ctx: TenantContext, clientId: string, runId: string) {
+  private async gatherPublicWeb(ctx: TenantContext, clientId: string, runId: string, seedWebsite?: string | null) {
     const client = await this.getClientSnapshot(ctx.tenantId, clientId);
     // Public web is the fallback for thin internal data, but it also runs for
     // every public_web request so a client with weak/stale internal records is
     // not treated as a dead end.
-    const results = await this.searchCompany(client);
-    const website = normalizeWebsite(client.website);
+    const website = normalizeWebsite(seedWebsite === undefined ? client.website : seedWebsite);
+    const researchClient = { ...client, website };
+    const results = await this.searchCompany(researchClient);
     let homepage: { url: string; html: string; text: string; description: string | null } | null = null;
     let websiteFetchError: string | null = null;
     const pageCorpus: Array<{ url: string; text: string; description: string | null }> = [];
@@ -1323,7 +1346,7 @@ export class ClientProfileFillService {
       if (inserted) count++;
     }
 
-    const extraction = await this.extractPublicWeb(ctx, client, homepage, results, pageCorpus);
+    const extraction = await this.extractPublicWeb(ctx, researchClient, homepage, results, pageCorpus);
     if (!extraction) {
       if (websiteFetchError && count === 0 && results.length === 0) {
         throw new Error(`Website unavailable (${websiteFetchError}); no public search evidence`);
@@ -1510,27 +1533,6 @@ export class ClientProfileFillService {
       if (inserted) count++;
     }
     return count;
-  }
-
-  private async maybeSeedWebsite(
-    ctx: TenantContext,
-    clientId: string,
-    seedWebsite?: string | null,
-  ): Promise<void> {
-    const normalized = normalizeWebsite(seedWebsite);
-    if (!normalized) {
-      if (seedWebsite?.trim()) {
-        throw new BadRequestException('Website must be a valid http(s) URL');
-      }
-      return;
-    }
-    const client = await this.getClientSnapshot(ctx.tenantId, clientId);
-    const current = normalizeWebsite(client.website);
-    if (current && (normalizeComparableUrl(current) ?? current) === (normalizeComparableUrl(normalized) ?? normalized)) {
-      return;
-    }
-    // Drawer website is an explicit user seed for this enrichment pass.
-    await this.clients.update(ctx, clientId, { website: normalized });
   }
 
   private async fetchPublicPages(
