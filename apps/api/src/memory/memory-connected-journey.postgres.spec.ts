@@ -187,6 +187,39 @@ const url = process.env.MEMORY_CONNECTED_TEST_DATABASE_URL;
       expect(await store.inbox.unreadNotificationCount(f.ctx)).toEqual({ enabled: true, count: 0 });
     });
 
+    it.each(['reviews', 'notifications'] as const)(
+      'pages through every %s record when database timestamps share microseconds',
+      async (surface) => {
+        const f = await fixture();
+        const candidates = [];
+        for (let n = 0; n < 3; n++) {
+          candidates.push(await propose(f, 'firm-soul', `Synthetic page item ${n}`));
+        }
+        await dispatcher.dispatchBatch(200);
+        await store.db.$executeRaw`
+          UPDATE review_request SET created_at='2026-10-29T12:00:00.123456Z'::timestamptz
+          WHERE tenant_id=${f.tenantId}::uuid`;
+        await store.db.$executeRaw`
+          UPDATE memory_review_in_app_notification SET created_at='2026-10-29T12:00:00.123456Z'::timestamptz
+          WHERE tenant_id=${f.tenantId}::uuid`;
+        const seen: string[] = [];
+        let cursor: string | null = null;
+        for (let pageNumber = 0; pageNumber < 5; pageNumber++) {
+          const page: Awaited<
+            ReturnType<typeof store.inbox.list | typeof store.inbox.listNotifications>
+          > =
+            surface === 'reviews'
+              ? await store.inbox.list(f.ctx, { view: 'submitted_by_me', limit: 1, cursor })
+              : await store.inbox.listNotifications(f.ctx, { limit: 1, cursor });
+          seen.push(...page.items.map((item) => item.candidateId));
+          cursor = page.nextCursor;
+          if (!cursor) break;
+        }
+        expect(cursor).toBeNull();
+        expect(seen.sort()).toEqual(candidates.map((candidate) => candidate.candidateId).sort());
+      },
+    );
+
     it('counts and acknowledges all eligible notifications beyond the former 1,000-row cutoff', async () => {
       const f = await fixture(),
         seed = await propose(f, 'firm-soul', 'Synthetic volume fixture');

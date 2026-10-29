@@ -26,6 +26,34 @@ describe('memory review inbox helpers', () => {
     expect(() => parseMemoryReviewPageSize(51)).toThrow(BadRequestException);
   });
 
+  it.each(['000000', '123456', '999999'])('preserves all six timestamp digits: %s', (fraction) => {
+    const cursor = {
+      createdAt: `2026-08-06T12:00:00.${fraction}Z`,
+      id: '11111111-1111-4111-8111-111111111111',
+    };
+    expect(decodeMemoryReviewCursor(encodeMemoryReviewCursor(cursor))).toEqual(cursor);
+  });
+
+  it('keeps legacy offset cursors readable and refuses normalized impossible dates', () => {
+    const id = '11111111-1111-4111-8111-111111111111';
+    expect(
+      decodeMemoryReviewCursor(
+        encodeMemoryReviewCursor({
+          createdAt: '2026-08-06T08:00:00-04:00',
+          id,
+        }),
+      ),
+    ).toEqual({ createdAt: '2026-08-06T12:00:00.000Z', id });
+    expect(() =>
+      decodeMemoryReviewCursor(
+        encodeMemoryReviewCursor({
+          createdAt: '2026-02-30T12:00:00.123456Z',
+          id,
+        }),
+      ),
+    ).toThrow(BadRequestException);
+  });
+
   it('uses the safe default view and bounded default page size', () => {
     expect(parseMemoryReviewInboxView('unknown')).toBe('needs_my_review');
     expect(parseMemoryReviewPageSize(undefined)).toBe(25);
