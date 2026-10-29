@@ -15,9 +15,12 @@
 //   ... node meri-image-build.mjs collect   # read-only; build+smoke are NOT qualified
 //   ... node meri-image-build.mjs scan      # bounded exact-digest ECR scan; final gate
 //
-// Qualification is two stages: collect proves the immutable build and the offline
-// image smoke; scan proves the exact pushed digest reached a COMPLETE ECR scan with
-// 0 CRITICAL and 0 HIGH findings. collect alone never reports a qualified image.
+// Qualification is two stages and both are bound to the same build and digest:
+// collect proves the immutable build (re-bound to the recorded intent through the
+// server-returned buildspec and operation marker) and the offline image smoke;
+// scan proves the exact pushed digest reached a COMPLETE ECR scan with 0 CRITICAL
+// and 0 HIGH findings. A clean scan never repairs a failed build/smoke/policy
+// gate, and collect alone never reports a qualified image.
 import { execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
@@ -44,6 +47,11 @@ const REPOSITORY = `capiro/dev/${SERVICE}`;
 // backend repository and SHA instead of mutating the project definition.
 const SOURCE_REPOSITORY = 'https://github.com/neo-capiro/capiro-backend.git';
 const PROFILE = process.env.BUILD_AWS_PROFILE ?? 'capiro-dev';
+// Exclusive per-operation marker, carried in the environment override and
+// returned by BatchGetBuilds, so a build from the same project and commit for a
+// different service cannot be adopted as this one.
+const OPERATION_MARKER_ENV = 'CAPIRO_BUILD_OPERATION_MARKER';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const IMAGE_MARKER = `CANDIDATE_IMAGE=`;
 const REQUIRED = ['IMAGE_SMOKE_PASS', 'LOCAL_REPODIGEST_ECR_MATCH_PASS', 'PROMOTION_POLICY_TEST_PASS'];
 const AWS = 'C:/Program Files/Amazon/AWSCLIV2/aws.exe';
@@ -168,10 +176,14 @@ const phase = (script) => ({
   ],
 });
 
+const IDENTITY_WINDOW_MS = 6 * 60 * 60 * 1000;
+
 // A build intent is written before StartBuild so a lost acknowledgement can be
 // reconciled read-only against real CodeBuild builds. It binds the exact
-// service/project/source/SHA/repository/intent, never a guess.
-export function buildIntent(sha, at = new Date().toISOString(), idempotencyToken = randomUUID()) {
+// service/project/source/SHA/repository, an exclusive per-operation marker that
+// travels in the submitted environment override and comes back in the Build,
+// and the exact buildspec digest.
+export function buildIntent(sha, at = new Date().toISOString(), idempotencyToken = randomUUID(), operationMarker = randomUUID()) {
   return {
     at,
     service: SERVICE,
@@ -180,6 +192,8 @@ export function buildIntent(sha, at = new Date().toISOString(), idempotencyToken
     sourceSha: sha,
     repository: REPOSITORY,
     idempotencyToken,
+    operationMarker,
+    buildspecSha256: sha256(JSON.stringify(buildspecFor())),
   };
 }
 
@@ -191,25 +205,88 @@ export function assertIntent(intent) {
   if (!/^[0-9a-f]{40}$/.test(intent?.sourceSha ?? '')) failures.push('sourceSha');
   if (intent?.repository !== REPOSITORY) failures.push('repository');
   if (!intent?.at || Number.isNaN(Date.parse(intent.at))) failures.push('at');
+  if (!UUID.test(intent?.idempotencyToken ?? '')) failures.push('idempotencyToken');
+  if (!UUID.test(intent?.operationMarker ?? '')) failures.push('operationMarker');
+  if (!/^[0-9a-f]{64}$/.test(intent?.buildspecSha256 ?? '')) failures.push('buildspecSha256');
   if (failures.length) throw new Error(`BUILD_INTENT_INVALID: ${failures.join(',')}`);
   return intent;
 }
 
-// Pure decision used by `reconcile`: only an unambiguous build that matches the
-// recorded intent is accepted; zero or multiple matches stay explicit.
-export function selectReconcileMatch(builds, intent, windowMs = 6 * 60 * 60 * 1000) {
+// Identity of the build AWS actually ran, from the returned Build: project,
+// source type/location/version, the SERVER-RETURNED buildspec bytes and the
+// effective environment overrides. Missing evidence is UNKNOWN; a concrete
+// contradiction is MISMATCH.
+export function verifyBuildIdentity(build, intent, windowMs = IDENTITY_WINDOW_MS) {
+  if (!build?.id) return { state: 'UNKNOWN', reasons: ['build-id-unavailable'], observed: null };
+  const problems = [];
+  const unknown = [];
+  if (build.projectName !== PROJECT) problems.push('project');
+  const source = build.source && typeof build.source === 'object' ? build.source : null;
+  if (!source) unknown.push('source-unavailable');
+  else {
+    if (source.type !== 'GITHUB') problems.push('source-type');
+    if (source.location !== SOURCE_REPOSITORY) problems.push('source-location');
+  }
+  if (build.sourceVersion !== intent.sourceSha && build.resolvedSourceVersion !== intent.sourceSha) problems.push('source-version');
+  const started = Date.parse(build.startTime ?? '');
   const intentAt = Date.parse(intent.at);
-  const matches = (builds ?? []).filter((build) => {
+  if (Number.isNaN(started) || Number.isNaN(intentAt) || started < intentAt - 120_000 || started > intentAt + windowMs) problems.push('start-time');
+  const buildspec = source?.buildspec;
+  const observedBuildspecSha256 = typeof buildspec === 'string' && buildspec.length > 0 ? sha256(buildspec) : null;
+  if (observedBuildspecSha256 === null) unknown.push('buildspec-unavailable');
+  else if (observedBuildspecSha256 !== intent.buildspecSha256) problems.push('buildspec');
+  const variables = build.environment?.environmentVariables;
+  let observedOperationMarker = null;
+  if (!Array.isArray(variables)) unknown.push('environment-unavailable');
+  else {
+    const marker = variables.find((entry) => entry?.name === OPERATION_MARKER_ENV);
+    if (!marker) unknown.push('operation-marker-unavailable');
+    else {
+      observedOperationMarker = marker.value ?? null;
+      if (observedOperationMarker !== intent.operationMarker) problems.push('operation-marker');
+    }
+  }
+  const observed = {
+    buildId: build.id,
+    projectName: build.projectName ?? null,
+    sourceType: source?.type ?? null,
+    sourceLocation: source?.location ?? null,
+    sourceVersion: build.sourceVersion ?? null,
+    resolvedSourceVersion: build.resolvedSourceVersion ?? null,
+    startTime: build.startTime ?? null,
+    buildspecSha256: observedBuildspecSha256,
+    operationMarker: observedOperationMarker,
+    environmentVariableNames: Array.isArray(variables) ? variables.map((entry) => entry?.name).filter(Boolean) : null,
+  };
+  if (problems.length) return { state: 'MISMATCH', reasons: problems, observed };
+  if (unknown.length) return { state: 'UNKNOWN', reasons: unknown, observed };
+  return { state: 'MATCH', reasons: [], observed };
+}
+
+// Pure decision used by `reconcile`: only one unambiguous build whose returned
+// identity equals the recorded intent is accepted.
+export function selectReconcileMatch(builds, intent, windowMs = IDENTITY_WINDOW_MS) {
+  const intentAt = Date.parse(intent.at);
+  const coarse = (builds ?? []).filter((build) => {
     if (!build?.id || build.projectName !== PROJECT) return false;
     if (build.source?.location !== SOURCE_REPOSITORY) return false;
     if (build.sourceVersion !== intent.sourceSha && build.resolvedSourceVersion !== intent.sourceSha) return false;
     const started = Date.parse(build.startTime ?? '');
-    if (Number.isNaN(started) || started < intentAt - 120_000 || started > intentAt + windowMs) return false;
-    return true;
+    return !Number.isNaN(started) && started >= intentAt - 120_000 && started <= intentAt + windowMs;
   });
-  if (matches.length === 0) return { state: 'NO_MATCH', buildIds: [] };
-  if (matches.length > 1) return { state: 'AMBIGUOUS', buildIds: matches.map((build) => build.id) };
-  return { state: 'MATCH', build: matches[0], buildIds: [matches[0].id] };
+  if (coarse.length === 0) return { state: 'NO_MATCH', buildIds: [], rejected: [] };
+  const verified = coarse.map((build) => ({ build, identity: verifyBuildIdentity(build, intent, windowMs) }));
+  const exact = verified.filter((entry) => entry.identity.state === 'MATCH');
+  if (exact.length === 1) {
+    return { state: 'MATCH', build: exact[0].build, observed: exact[0].identity.observed, buildIds: [exact[0].build.id] };
+  }
+  if (exact.length > 1) return { state: 'AMBIGUOUS', buildIds: exact.map((entry) => entry.build.id) };
+  const rejected = verified.map((entry) => ({ buildId: entry.build.id, state: entry.identity.state, reasons: entry.identity.reasons }));
+  const unknown = verified.filter((entry) => entry.identity.state === 'UNKNOWN');
+  if (unknown.length) {
+    return { state: 'UNKNOWN', buildIds: unknown.map((entry) => entry.build.id), reasons: unknown.flatMap((entry) => entry.identity.reasons), rejected };
+  }
+  return { state: 'NO_MATCH', buildIds: [], rejected };
 }
 
 export function buildspecFor() {
@@ -230,36 +307,51 @@ function launch() {
   writeFileSync(`${ROOT}/phase-post_build.sh`, postBuild);
   const buildspecOverride = JSON.stringify(buildspecFor());
   if (buildspecOverride.length > 25_600) throw new Error(`BUILDSPEC_TOO_LONG_${buildspecOverride.length}`);
+  if (sha256(buildspecOverride) !== intent.buildspecSha256) throw new Error('BUILDSPEC_INTENT_MISMATCH');
   const input = {
     projectName: PROJECT,
     sourceTypeOverride: 'GITHUB',
     sourceLocationOverride: SOURCE_REPOSITORY,
     sourceVersion: SOURCE_SHA,
     buildspecOverride,
-    environmentVariablesOverride: [{ name: 'EXPECTED_SHA', value: SOURCE_SHA, type: 'PLAINTEXT' }],
+    // EXPECTED_SHA is the provenance gate; the operation marker is the exclusive
+    // per-operation identity that BatchGetBuilds returns in the effective
+    // environment, so a build from the same project/commit for another service
+    // cannot be adopted.
+    environmentVariablesOverride: [
+      { name: 'EXPECTED_SHA', value: SOURCE_SHA, type: 'PLAINTEXT' },
+      { name: OPERATION_MARKER_ENV, value: intent.operationMarker, type: 'PLAINTEXT' },
+    ],
     idempotencyToken: intent.idempotencyToken,
     timeoutInMinutesOverride: 60,
   };
   const inputBytes = `${JSON.stringify(input, null, 2)}\n`;
   writeFileSync(`${ROOT}/build-input.json`, inputBytes, { flag: 'wx' });
   const started = aws(['codebuild', 'start-build', '--cli-input-json', `file://${ROOT}/build-input.json`]);
+  const returned = started.build ?? null;
+  if (!returned?.id) throw new Error('START_BUILD_RESPONSE_MISSING');
+  const identity = verifyBuildIdentity(returned, intent);
   save('build-start.json', {
     at: new Date().toISOString(),
     service: SERVICE,
     sourceSha: SOURCE_SHA,
-    buildId: started.build.id,
-    status: started.build.buildStatus,
+    buildId: returned.id,
+    status: returned.buildStatus ?? null,
     webProbe: WEB_PROBE || null,
-    buildspecSha256: sha256(buildspecOverride),
+    expectedBuildspecSha256: intent.buildspecSha256,
+    observedBuildspecSha256: identity.observed?.buildspecSha256 ?? null,
+    identityState: identity.state,
+    identityReasons: identity.reasons,
     buildspecCharacters: buildspecOverride.length,
     requiredMarkers: REQUIRED,
     reconciled: false,
   });
-  console.log(JSON.stringify({ launched: started.build.id, status: started.build.buildStatus, chars: buildspecOverride.length }));
+  console.log(JSON.stringify({ launched: returned.id, status: returned.buildStatus ?? null, identityState: identity.state, chars: buildspecOverride.length }));
 }
 
 // Read-only recovery after a lost StartBuild acknowledgement: never calls
-// start-build, never resends, and records only a single exact match.
+// start-build, never resends, and records only one build whose returned
+// buildspec and environment marker prove it is this exact request.
 function reconcile() {
   if (!existsSync(`${ROOT}/build-intent.json`)) throw new Error('BUILD_INTENT_REQUIRED');
   const intent = assertIntent(JSON.parse(readFileSync(`${ROOT}/build-intent.json`, 'utf8')));
@@ -280,7 +372,13 @@ function reconcile() {
   }
   const decision = selectReconcileMatch(builds, intent);
   if (decision.state !== 'MATCH') {
-    console.log(JSON.stringify({ state: decision.state, intent, buildIds: decision.buildIds, recorded: false }, null, 2));
+    console.log(
+      JSON.stringify(
+        { state: decision.state, intent, buildIds: decision.buildIds, reasons: decision.reasons ?? [], rejected: decision.rejected ?? [], recorded: false },
+        null,
+        2,
+      ),
+    );
     process.exitCode = decision.state === 'AMBIGUOUS' ? 2 : 1;
     return;
   }
@@ -292,16 +390,12 @@ function reconcile() {
     buildId: matched.id,
     status: matched.buildStatus,
     webProbe: WEB_PROBE || null,
+    expectedBuildspecSha256: intent.buildspecSha256,
+    observedBuildspecSha256: decision.observed.buildspecSha256,
+    identityState: 'MATCH',
+    identity: decision.observed,
     requiredMarkers: REQUIRED,
     reconciled: true,
-    matchedOn: {
-      projectName: matched.projectName,
-      sourceLocation: matched.source?.location ?? null,
-      sourceVersion: matched.sourceVersion ?? null,
-      resolvedSourceVersion: matched.resolvedSourceVersion ?? null,
-      startTime: matched.startTime ?? null,
-      intentAt: intent.at,
-    },
   });
   console.log(JSON.stringify({ state: 'MATCH', recorded: true, buildId: matched.id }, null, 2));
 }
@@ -311,20 +405,53 @@ function readScan() {
   return JSON.parse(readFileSync(`${ROOT}/scan-readback.json`, 'utf8'));
 }
 
+// A clean digest scan can never repair a failed build, smoke or policy gate, and
+// the scan must be evidence for this same build and digest. Qualification is
+// composed only from both passes.
+export function composeQualification(readback, scan) {
+  const digestOk = /^sha256:[0-9a-f]{64}$/.test(readback?.imageDigest ?? '');
+  if (readback?.identityVerified !== true) {
+    return { qualified: false, qualification: 'BUILD_NOT_QUALIFIED', reason: 'IDENTITY_NOT_VERIFIED' };
+  }
+  if (readback?.buildQualified !== true || !digestOk) {
+    return { qualified: false, qualification: 'BUILD_NOT_QUALIFIED', reason: digestOk ? 'BUILD_NOT_QUALIFIED' : 'DIGEST_MISSING' };
+  }
+  if (!scan) {
+    return { qualified: false, qualification: 'BUILD_AND_IMAGE_SMOKE_PASS_NOT_QUALIFIED', nextStage: 'scan', reason: 'SCAN_REQUIRED' };
+  }
+  if (scan.buildId !== readback.buildId) {
+    return { qualified: false, qualification: 'BUILD_AND_IMAGE_SMOKE_PASS_NOT_QUALIFIED', nextStage: 'scan', reason: 'SCAN_BUILD_MISMATCH' };
+  }
+  if (scan.digest !== readback.imageDigest) {
+    return { qualified: false, qualification: 'BUILD_AND_IMAGE_SMOKE_PASS_NOT_QUALIFIED', nextStage: 'scan', reason: 'SCAN_DIGEST_MISMATCH' };
+  }
+  if (scan.qualified !== true || scan.status !== 'COMPLETE') {
+    return { qualified: false, qualification: 'BUILD_AND_IMAGE_SMOKE_PASS_NOT_QUALIFIED', nextStage: 'scan', reason: 'SCAN_NOT_QUALIFIED' };
+  }
+  return { qualified: true, qualification: 'BUILD_SMOKE_AND_DIGEST_SCAN_PASS', reason: null };
+}
+
 function collect() {
-  const start = JSON.parse(readFileSync(`${ROOT}/build-start.json`, 'utf8'));
   const scanned = readScan();
   if (existsSync(`${ROOT}/build-readback.json`)) {
     const readback = JSON.parse(readFileSync(`${ROOT}/build-readback.json`, 'utf8'));
-    if (scanned && scanned.digest === readback.imageDigest && scanned.qualified === true) {
-      console.log(JSON.stringify({ ...readback, qualified: true, qualification: 'BUILD_SMOKE_AND_DIGEST_SCAN_PASS', scan: scanned }, null, 2));
-    } else {
-      console.log(JSON.stringify({ ...readback, qualified: false, nextStage: 'scan' }, null, 2));
-    }
+    const verdict = composeQualification(readback, scanned);
+    console.log(JSON.stringify({ ...readback, ...verdict, scan: scanned }, null, 2));
     return;
   }
+  if (!existsSync(`${ROOT}/build-intent.json`)) throw new Error('BUILD_INTENT_REQUIRED');
+  if (!existsSync(`${ROOT}/build-start.json`)) throw new Error('BUILD_START_REQUIRED');
+  const intent = assertIntent(JSON.parse(readFileSync(`${ROOT}/build-intent.json`, 'utf8')));
+  const start = JSON.parse(readFileSync(`${ROOT}/build-start.json`, 'utf8'));
   const b = aws(['codebuild', 'batch-get-builds', '--ids', start.buildId]).builds?.[0];
   if (!b) throw new Error('BUILD_NOT_FOUND');
+  // A user-supplied build id cannot bypass the identity of the request AWS ran.
+  const identity = verifyBuildIdentity(b, intent);
+  if (identity.state !== 'MATCH') {
+    console.log(JSON.stringify({ state: 'IDENTITY_NOT_VERIFIED', buildId: b.id, identity }, null, 2));
+    process.exitCode = 2;
+    return;
+  }
   if (!b.buildComplete) {
     console.log(JSON.stringify({ buildId: b.id, status: b.buildStatus, phase: b.currentPhase, complete: false }));
     return;
@@ -348,17 +475,27 @@ function collect() {
     manifest = aws(['ecr', 'describe-images', '--repository-name', REPOSITORY, '--image-ids', `imageDigest=${digest}`]).imageDetails?.[0] ?? null;
     if (!manifest?.imageTags?.includes(SOURCE_SHA)) throw new Error('IMAGE_TAG_SOURCE_MISMATCH');
   }
-  const ok = b.buildStatus === 'SUCCEEDED' && b.resolvedSourceVersion === SOURCE_SHA && REQUIRED.every((m) => seen.has(m)) && Boolean(candidate);
-  save('build-readback.json', {
+  const buildQualified =
+    b.buildStatus === 'SUCCEEDED' &&
+    identity.observed.resolvedSourceVersion === intent.sourceSha &&
+    REQUIRED.every((m) => seen.has(m)) &&
+    Boolean(candidate) &&
+    Boolean(manifest?.imageDigest);
+  const readback = {
     at: new Date().toISOString(),
     service: SERVICE,
     status: b.buildStatus,
+    identityVerified: true,
+    identity: identity.observed,
+    expectedBuildspecSha256: intent.buildspecSha256,
+    observedBuildspecSha256: identity.observed.buildspecSha256,
     // Build + offline image smoke are necessary but NOT a qualification.
-    qualification: ok ? 'BUILD_AND_IMAGE_SMOKE_PASS_NOT_QUALIFIED' : 'BUILD_NOT_QUALIFIED',
+    buildQualified,
+    qualification: buildQualified ? 'BUILD_AND_IMAGE_SMOKE_PASS_NOT_QUALIFIED' : 'BUILD_NOT_QUALIFIED',
     qualified: false,
     nextStage: 'scan',
-    sourceSha: SOURCE_SHA,
-    resolvedSourceSha: b.resolvedSourceVersion ?? null,
+    sourceSha: intent.sourceSha,
+    resolvedSourceSha: identity.observed.resolvedSourceVersion,
     buildId: b.id,
     startedAt: b.startTime,
     finishedAt: b.endTime,
@@ -367,16 +504,19 @@ function collect() {
     image: candidate,
     imageDigest: manifest?.imageDigest ?? null,
     imageTags: manifest?.imageTags ?? [],
-  });
-  console.log(readFileSync(`${ROOT}/build-readback.json`, 'utf8'));
+  };
+  save('build-readback.json', readback);
+  console.log(JSON.stringify({ ...readback, ...composeQualification(readback, scanned) }, null, 2));
 }
 
 // Bounded, read-only exact-digest scan stage. The tag is mutable, so the scan
-// is bound to the digest recorded by collect and the tag->digest resolution is
-// re-verified first.
+// is bound to the digest recorded by collect, and it only runs for a build that
+// already passed its own gates.
 export function scan() {
   if (!existsSync(`${ROOT}/build-readback.json`)) throw new Error('SCAN_REQUIRES_COLLECTED_DIGEST');
   const readback = JSON.parse(readFileSync(`${ROOT}/build-readback.json`, 'utf8'));
+  if (readback.identityVerified !== true) throw new Error('SCAN_REQUIRES_VERIFIED_IDENTITY');
+  if (readback.buildQualified !== true) throw new Error('SCAN_REQUIRES_QUALIFIED_BUILD');
   const digest = readback.imageDigest ?? (readback.image ? String(readback.image).split('@')[1] : null);
   if (!/^sha256:[0-9a-f]{64}$/.test(digest ?? '')) throw new Error('SCAN_REQUIRES_COLLECTED_DIGEST');
   const tagged = aws(['ecr', 'describe-images', '--repository-name', REPOSITORY, '--image-ids', `imageTag=${SOURCE_SHA}`]).imageDetails ?? [];
@@ -394,7 +534,16 @@ export function scan() {
       const critical = Number(counts.CRITICAL ?? 0);
       const high = Number(counts.HIGH ?? 0);
       if (critical || high) throw new Error(`SCAN_FINDINGS: ${critical} CRITICAL, ${high} HIGH for ${digest}`);
-      const record = { at: new Date().toISOString(), service: SERVICE, sourceSha: SOURCE_SHA, digest, status: 'COMPLETE', counts, qualified: true };
+      const record = {
+        at: new Date().toISOString(),
+        service: SERVICE,
+        sourceSha: SOURCE_SHA,
+        buildId: readback.buildId,
+        digest,
+        status: 'COMPLETE',
+        counts,
+        qualified: true,
+      };
       save('scan-readback.json', record);
       console.log(`IMAGE_SCAN_PASS digest=${digest}`);
       return;

@@ -136,6 +136,28 @@ def evaluate(files):
             errors.append('build operator: build/smoke claims qualification without the digest scan')
         if "'scan'" not in code or 'scan-readback.json' not in code:
             errors.append('build operator: digest scan stage missing')
+        # Lost-start recovery must bind the request AWS actually ran, not just
+        # project/source/SHA/time: an exclusive operation marker travels in the
+        # environment override and is compared with the returned value.
+        if 'OPERATION_MARKER_ENV' not in code or 'value: intent.operationMarker' not in code:
+            errors.append('build operator: operation marker not bound into the request')
+        if 'verifyBuildIdentity' not in code or 'selectReconcileMatch' not in code:
+            errors.append('build operator: request-identity verification missing')
+        collect = code[code.index('function collect()'):code.index('export function scan()')] if 'function collect()' in code and 'export function scan()' in code else ''
+        if not collect:
+            errors.append('build operator: collect/scan boundary missing')
+        elif collect.find('verifyBuildIdentity') < 0 or collect.find('verifyBuildIdentity') > collect.find('get-log-events'):
+            errors.append('build operator: collect can read logs before verifying request identity')
+        # A clean digest scan must never promote a failed build, and both stages
+        # are bound to the same build and digest.
+        if 'SCAN_REQUIRES_VERIFIED_IDENTITY' not in code or 'SCAN_REQUIRES_QUALIFIED_BUILD' not in code:
+            errors.append('build operator: scan can run without a verified and qualified build')
+        if 'composeQualification' not in code or 'identityVerified: true' not in code:
+            errors.append('build operator: qualification composition not bound to build identity')
+        # Both the cached and the freshly-collected receipt must be composed from
+        # the two stages, never hand-rolled.
+        if code.count('composeQualification(readback, scanned)') < 2:
+            errors.append('build operator: collect does not compose qualification from both stages')
         if 'echo IMAGE_SMOKE_PASS' not in code and "console.log('IMAGE_SMOKE_PASS')" not in code:
             errors.append('build operator: smoke does not emit IMAGE_SMOKE_PASS')
         # This guard and the orchestrator guard must keep being invoked by the
@@ -221,6 +243,25 @@ class ContractTests(unittest.TestCase):
     def test_marker_removed(self):
         self.mutate(BUILD_OPERATOR, "'IMAGE_SMOKE_PASS'", "'SMOKE_PASS'")
 
+    def test_operation_marker_removed(self):
+        self.mutate(BUILD_OPERATOR,
+                    "      { name: OPERATION_MARKER_ENV, value: intent.operationMarker, type: 'PLAINTEXT' },\n",
+                    '')
+
+    def test_collect_identity_bypass(self):
+        self.mutate(BUILD_OPERATOR, 'const identity = verifyBuildIdentity(b, intent);',
+                    "const identity = { state: 'MATCH', observed: { resolvedSourceVersion: b.resolvedSourceVersion } };")
+
+    def test_scan_without_qualified_build(self):
+        self.mutate(BUILD_OPERATOR,
+                    "  if (readback.buildQualified !== true) throw new Error('SCAN_REQUIRES_QUALIFIED_BUILD');\n",
+                    '')
+
+    def test_scan_without_verified_identity(self):
+        self.mutate(BUILD_OPERATOR,
+                    "  if (readback.identityVerified !== true) throw new Error('SCAN_REQUIRES_VERIFIED_IDENTITY');\n",
+                    '')
+
     def test_promotion_gate_removed(self):
         self.mutate(BUILD_OPERATOR, 'node --test scripts/lib/meri-release-policy.test.mjs scripts/meri-release.test.mjs', 'echo skip')
 
@@ -236,9 +277,9 @@ class ContractTests(unittest.TestCase):
         self.mutate(BUILD_OPERATOR, "aws(['codebuild', 'start-build',",
                     "aws(['codebuild', 'start-build', '--dry-run']);\n  aws(['codebuild', 'start-build',")
 
-    def test_qualification_claimed_without_scan(self):
-        self.mutate(BUILD_OPERATOR, "'BUILD_AND_IMAGE_SMOKE_PASS_NOT_QUALIFIED'", "'IMMUTABLE_BUILD_AND_IMAGE_SMOKE_PASS'")
-        self.assertTrue(evaluate(self.files))
+    def test_collect_skips_composition(self):
+        self.mutate(BUILD_OPERATOR, 'composeQualification(readback, scanned)',
+                    "{ qualified: true, qualification: 'HAND_ROLLED' }")
 
     def test_service_allowlist_widened(self):
         self.mutate(BUILD_OPERATOR, "'web-vnext']", "'web-vnext', 'marketing']")
