@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Header, Param, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
 import {
   ArrayMaxSize,
   ArrayMinSize,
@@ -361,6 +361,12 @@ export class ClientsController {
       sectorTag: query.sectorTag,
       includeArchived: query.includeArchived === 'true',
     });
+  }
+
+  @Get('metrics')
+  @Header('Cache-Control', 'no-store')
+  metrics(@CurrentTenant() ctx: TenantContext) {
+    return this.service.metrics(ctx);
   }
 
   @Get(':id')
