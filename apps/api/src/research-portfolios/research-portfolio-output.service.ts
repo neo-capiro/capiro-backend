@@ -236,7 +236,9 @@ export class ResearchPortfolioOutputService {
     };
     const requestHash = sha256(stable(normalized));
     const identifiers = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await tx.$queryRaw(
+      // $executeRaw: pg_advisory_xact_lock returns void; $queryRaw fails to deserialize void
+      // (Prisma P2010), the same defect confirmed on the snapshot lock.
+      await tx.$executeRaw(
         Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${ctx.tenantId + ':output:' + input.operationKey}, 0))`,
       );
       await tx.$queryRaw(
