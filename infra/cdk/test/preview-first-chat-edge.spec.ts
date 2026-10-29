@@ -10,6 +10,7 @@ import {
   previewFirstChatEdgeApplication,
 } from '../lib/preview/first-chat-preview-edge';
 import callers from './fixtures/first-chat-wave2-routes.json';
+import writes from '../lib/preview/first-chat-preview-writes.json';
 
 const host = 'first-chat-preview.app-dev.capiro.ai';
 function render(includeDns: boolean, check: (edge: any, dns: any) => void) {
@@ -471,7 +472,7 @@ test('finite method/path routes admit their owners and reject unintended cross-p
     const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map(
       (r) => r.Properties,
     );
-    assert.equal(rules.length, 87);
+    assert.equal(rules.length, 5 + writes.groups.length);
     for (const rule of rules) {
       assert.deepEqual(rule.ListenerArn, { Ref: 'PreviewHttps' });
       const conditions = rule.Conditions;
@@ -595,4 +596,34 @@ test('DNS is a separately rendered exact preview alias, with the wildcard left o
         EvaluateTargetHealth: false,
       },
     });
+  }));
+
+test('appending the newsletter capability group leaves every existing rule mapping intact', () =>
+  render(false, (edge) => {
+    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule')
+      .map((r) => r.Properties)
+      .sort((a, b) => Number(a.Priority) - Number(b.Priority));
+    const pathsOf = (rule: any) =>
+      rule.Conditions.find((c: any) => c.Field === 'path-pattern').PathPatternConfig
+        .RegexValues;
+    // Five fixed routes precede the manifest; every manifest group keeps its accepted
+    // position, so no existing construct identity or priority shifts when one is appended.
+    assert.equal(rules.length, 5 + writes.groups.length);
+    assert.deepEqual(
+      rules.slice(0, 5).map((r) => Number(r.Priority)),
+      [1, 2, 3, 4, 5],
+    );
+    writes.groups.forEach((group: any, index: number) => {
+      const rule = rules[index + 5];
+      const label = group.id ?? `Wave2Writes${index + 1}`;
+      assert.equal(Number(rule.Priority), index + 6, label);
+      assert.deepEqual(pathsOf(rule), group.pathRegexes, label);
+    });
+    const last = rules[rules.length - 1];
+    assert.equal(Number(last.Priority), 88);
+    assert.deepEqual(pathsOf(last), [
+      '^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/unsubscribe$',
+      '^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/preferences$',
+      '^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/survey$',
+    ]);
   }));

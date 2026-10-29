@@ -156,7 +156,9 @@ export function firstChatCoreIntegrationsConfiguration(input: unknown) {
     throw new Error('Explicit same-account customer-managed key ARNs required (or an empty list)');
 
   const apiOrigin = `https://${FIRST_CHAT_CORE_HOST}`;
-  const successRedirect = 'https://portfolio-preview.app.capiro.ai/settings/integrations';
+  // The browser lands back on the single public app origin after either provider
+  // completes; the callbacks themselves stay on this Core host.
+  const successRedirect = 'https://app.capiro.ai/settings/integrations';
   const environment = {
     CAPIRO_SERVICE_NAME: 'api',
     ENGAGEMENT_PROCESS_MODE: 'shadow',
@@ -497,7 +499,13 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
         PRIVATE_QUERY_DB_NAME: 'capiro',
         PRIVATE_QUERY_DB_SSLMODE: 'require',
         CLERK_JWT_ISSUER: live.clerkIssuer,
-        WEB_ORIGIN: 'https://portfolio-preview.app.capiro.ai',
+        WEB_ORIGIN: 'https://app.capiro.ai',
+        // Browser-facing links resolve to the single public app origin. TRACKER_APP_BASE_URL
+        // below stays this preview Core's protected-retrieval transport, which is why a
+        // browser deep link must read LEGIWATCH_APP_BASE_URL instead.
+        APP_SIGN_IN_URL: 'https://app.capiro.ai/sign-in',
+        APP_BASE_URL: 'https://app.capiro.ai',
+        LEGIWATCH_APP_BASE_URL: 'https://app.capiro.ai',
         ASSETS_BUCKET: assets.bucket.bucketName,
         MEMORY_GOVERNANCE_LIFECYCLE: 'enforce',
         MEMORY_GOVERNANCE_TENANTS: binding.ownerMemory.tenantId,
@@ -673,8 +681,8 @@ export function previewFirstChatCoreApplication(
     terminationProtection: true,
     cfg: {
       envName: 'preview',
-      appHost: 'portfolio-preview.app.capiro.ai',
-      rootDomain: 'portfolio-preview.app.capiro.ai',
+      appHost: 'app.capiro.ai',
+      rootDomain: 'app.capiro.ai',
       protectFromDestroy: true,
     },
   });

@@ -96,7 +96,7 @@ binding, or output. Rendering does not validate AWS existence or provider regist
 | Microsoft callback                                      | `https://first-chat-preview.app-dev.capiro.ai/api/engagement/integrations/microsoft/callback`      |
 | Google callback                                         | `https://first-chat-preview.app-dev.capiro.ai/api/engagement/integrations/google/callback`         |
 | Graph notifications                                     | `https://first-chat-preview.app-dev.capiro.ai/api/engagement/integrations/microsoft/notifications` |
-| Both success redirects                                  | `https://portfolio-preview.app.capiro.ai/settings/integrations`                                    |
+| Both success redirects                                  | `https://app.capiro.ai/settings/integrations`                                                     |
 | Runtime                                                 | `api`, `shadow`, `integrations_only`, explicit background owner `api`                              |
 | Sync/callbacks                                          | Enabled; existing sync interval of 20 minutes                                                      |
 | Recall, Engagement sends and generic Engagement workers | Disabled by the existing runtime policy; other feature settings are preserved                      |

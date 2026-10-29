@@ -135,6 +135,7 @@ enum BillingStatus {
 
 model Tenant {
   siteWorkflowRevisions MeriSiteWorkflowRevision[]
+  officeDrafts MeriOfficeDraft[]
   supportRequests SupportRequest[]
   engagementPlans EngagementPlan[]
   krispPreferences KrispNotetakerPreference[]
@@ -647,6 +648,7 @@ model User {
   userPortfolioLayouts             UserPortfolioLayout[]
   clioMessages                     ClioMessage[]                  @relation("ClioMessageUser")
   clioArtifacts                    ClioArtifact[]                 @relation("ClioArtifactUser")
+  officeDrafts                     MeriOfficeDraft[]
   clioNotes                        ClioNote[]                     @relation("ClioNoteUser")
   clioResearchSessions             ClioResearchSession[]          @relation("ClioResearchSessionUser")
   clioAttachments                  ClioAttachment[]               @relation("ClioAttachmentUser")
@@ -2364,6 +2366,7 @@ model ClioConversation {
   notes     ClioNote[]
   bootstrapReceipt ClioConversationBootstrapReceipt?
   managementReceipts ClioConversationManagementReceipt[]
+  officeDrafts MeriOfficeDraft[]
 
   @@index([tenantId, userId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_user_updated_idx")
   @@index([tenantId, clientId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_client_updated_idx")
@@ -17953,4 +17956,35 @@ model MeriSiteWorkflowRevision {
   @@id([tenantId,siteId,workflowId,version])
   @@unique([tenantId,createdByUserId,requestId])
   @@map("meri_site_workflow_revisions")
+}
+
+/// Private editor saves. The runtime artifact owner alone publishes immutable versions.
+model MeriOfficeDraft {
+  tenantId String @map("tenant_id") @db.Uuid
+  actorUserId String @map("actor_user_id") @db.Uuid
+  conversationId String @map("conversation_id") @db.Uuid
+  draftId String @map("draft_id") @db.Uuid
+  artifactId String @map("artifact_id") @db.Uuid
+  baseVersionId String @map("base_version_id") @db.Uuid
+  baseSha256 String @map("base_sha256") @db.VarChar(64)
+  format String @db.VarChar(4)
+  filename String @db.VarChar(195)
+  sequence Int @default(0)
+  bytes Bytes?
+  sha256 String? @db.VarChar(64)
+  state String @default("draft") @db.VarChar(20)
+  publishIntent String? @map("publish_intent") @db.VarChar(128)
+  publishedVersionId String? @map("published_version_id") @db.Uuid
+  lockToken String? @map("lock_token") @db.VarChar(1024)
+  lockExpiresAt DateTime? @map("lock_expires_at") @db.Timestamptz(6)
+  createdAt DateTime @default(dbgenerated("clock_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(dbgenerated("clock_timestamp()")) @map("updated_at") @db.Timestamptz(6)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor User @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
+  conversation ClioConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  @@id([tenantId,actorUserId,draftId])
+  @@index([tenantId,artifactId], map: "meri_office_draft_artifact_idx")
+  @@index([expiresAt], map: "meri_office_draft_expiry_idx")
+  @@map("meri_office_drafts")
 }
