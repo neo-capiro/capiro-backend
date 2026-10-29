@@ -40,7 +40,7 @@ const fallbackResult: LlmCompletionResult = {
 };
 
 function makeService(runAgent: () => Promise<{ finalOutput?: unknown; state: { usage?: unknown } }>, env = {}) {
-  const calls: Array<{ input: string }> = [];
+  const calls: Array<{ input: string; agent: unknown }> = [];
   const models: string[] = [];
   const svc = new AgentSdkCompletionService({
     env,
@@ -53,13 +53,18 @@ function makeService(runAgent: () => Promise<{ finalOutput?: unknown; state: { u
           return {};
         },
       }) as never,
-    runAgent: (_agent, input) => {
-      calls.push({ input });
+    runAgent: (agent, input) => {
+      calls.push({ input, agent });
       return runAgent();
     },
   });
   return { svc, calls, models };
 }
+
+type AgentShape = {
+  instructions: string;
+  modelSettings: { reasoning?: { effort?: string } };
+};
 
 describe('agent sdk generation switch', () => {
   test('is off unless the env value is the literal true', () => {
@@ -120,5 +125,36 @@ describe('AgentSdkCompletionService', () => {
     await expect(svc.complete(req)).rejects.toThrow(
       /^openai completion failed: tool loop failed$/,
     );
+  });
+
+  test('carries the grounding contract and reasons over the selected context', async () => {
+    const { svc, calls } = makeService(
+      async () => ({ finalOutput: { recap: 'x' }, state: {} }),
+      {},
+    );
+    await svc.complete({ ...req, model: 'gpt-6-astra' });
+    const agent = calls[0]!.agent as AgentShape;
+    expect(agent.instructions).toContain('SYSTEM');
+    expect(agent.instructions).toContain('selected by the workflow');
+    expect(agent.instructions).toContain('never invent names, dates, figures');
+    expect(agent.modelSettings.reasoning).toEqual({ effort: 'high' });
+  });
+
+  test('honours an explicit reasoning effort and omits it for an unknown model', async () => {
+    const explicit = makeService(
+      async () => ({ finalOutput: {}, state: {} }),
+      {},
+    );
+    await explicit.svc.complete({ ...req, model: 'gpt-6-astra', reasoningEffort: 'medium' });
+    expect((explicit.calls[0]!.agent as AgentShape).modelSettings.reasoning).toEqual({
+      effort: 'medium',
+    });
+
+    const unknown = makeService(
+      async () => ({ finalOutput: {}, state: {} }),
+      {},
+    );
+    await unknown.svc.complete({ ...req, model: 'gpt-test' });
+    expect((unknown.calls[0]!.agent as AgentShape).modelSettings.reasoning).toBeUndefined();
   });
 });
