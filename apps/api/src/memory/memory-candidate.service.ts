@@ -314,42 +314,6 @@ export class MemoryCandidateService {
     ),
   ) {}
 
-  /** Submit a complete Settings firm/client file for administrator review. */
-  async proposeSettingsSections(
-    ctx: CandidateActorContext,
-    input: SettingsMemoryCandidateInput,
-  ): Promise<PendingSettingsCandidate> {
-    const record: MemorySaveRequest = {
-      scope: input.scope === 'client' ? 'client' : 'firm',
-      ownerUserId: null,
-      clientId: input.scope === 'client' ? input.clientId : null,
-      key: `settings-file:${input.type}:${input.slug}`,
-      value: JSON.stringify(input.sections),
-      source: 'settings_memory_editor',
-      canonicalItem: {
-        type: input.type,
-        slug: input.slug,
-        title: input.title,
-        sections: input.sections,
-      },
-    };
-    const result = await this.proposeSaveMemory(
-      ctx.tenantId,
-      ctx.userId,
-      record,
-      isMemoryReviewAdminRole(ctx.role),
-      'settings_sections',
-    );
-    if (result.status !== 'pending') {
-      throw new Error('Shared Settings memory unexpectedly bypassed review.');
-    }
-    return {
-      candidateId: result.candidateId,
-      status: 'pending_review',
-      submittedAt: new Date().toISOString(),
-    };
-  }
-
   /** Return the newest pending proposal for this exact Settings file. */
   async findPendingSettingsCandidate(
     tenantId: string,

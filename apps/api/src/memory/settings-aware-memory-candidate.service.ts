@@ -12,10 +12,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { GovernedMemoryCandidateService } from './governed-memory-candidate.service.js';
 import { ImmutableMemoryVersionService } from './immutable-memory-version.service.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
-import type {
-  PendingSettingsCandidate,
-  SettingsMemoryCandidateInput,
-} from './memory-candidate.service.js';
+import type { PendingSettingsCandidate } from './memory-candidate.service.js';
 import { MemoryCleanupOutboxService } from './memory-cleanup-outbox.service.js';
 import { MemoryIngestService } from './memory-ingest.service.js';
 import {
@@ -31,9 +28,8 @@ type CandidateActorContext = Pick<TenantContext, 'tenantId' | 'userId' | 'role'>
 /**
  * Final MemoryCandidateService implementation used by MemoryModule.
  *
- * It retains the governed withdrawal/rejection behavior and adds one missing
- * routing rule: edits to an existing shared Settings file are immutable version
- * candidates. Compatibility approval/rejection routes are also redirected so an
+ * It retains governed withdrawal/rejection and reads of pending Settings proposals.
+ * Private draft submission owns creation. Compatibility decisions are redirected so an
  * administrator cannot accidentally send such a candidate through the generic
  * canonical-upsert path. Every new branch remains dark unless the exact tenant is
  * selected by MEMORY_GOVERNANCE_TENANTS.
@@ -60,26 +56,6 @@ export class SettingsAwareMemoryCandidateService extends GovernedMemoryCandidate
     private readonly reviewReadiness: MemorySettingsReviewReadinessService,
   ) {
     super(prisma, memoryIngest, config, transitionAudit, cleanupOutbox, authorization);
-  }
-
-  override async proposeSettingsSections(
-    ctx: CandidateActorContext,
-    input: SettingsMemoryCandidateInput,
-  ): Promise<PendingSettingsCandidate> {
-    // A shared Settings save is useful only when it has a real completion path.
-    // This preflight uses the same independent-review, grant, and ethical-wall
-    // rules as approval and throws a user-readable 409 before any candidate row
-    // exists when review is disabled or no other reviewer can approve.
-    await this.reviewReadiness.assertSubmissionReady(ctx, input);
-
-    if (!settingsVersioningEnabled(ctx.tenantId)) {
-      return super.proposeSettingsSections(ctx, input);
-    }
-    const correction = await this.settingsVersions.proposeExistingCorrection(
-      ctx as TenantContext,
-      input,
-    );
-    return correction ?? super.proposeSettingsSections(ctx, input);
   }
 
   override async findPendingSettingsCandidate(
