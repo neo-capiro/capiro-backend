@@ -1,7 +1,7 @@
 import type { TenantContext } from '@capiro/shared';
 import { createHash } from 'node:crypto';
+import { assertFillExecution } from './client-profile-fill-execution.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
-import type { ClientAdvocacyMatterService } from './client-advocacy-matter.service.js';
 import type { AdvancedFindingRow } from './client-profile-fill-finding-review.shared.js';
 import type { CompletionFindingInput } from './client-profile-fill-completion-persistence.js';
 import { asRecord, asString, stableJson } from './client-profile-fill.helpers.js';
@@ -22,7 +22,6 @@ export interface ReconciliationPorts {
 export class ClientProfileFillReconciliation {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly advocacyMatters: ClientAdvocacyMatterService,
     private readonly ports: ReconciliationPorts,
   ) {}
 
@@ -34,15 +33,9 @@ export class ClientProfileFillReconciliation {
       groups.set(key, [...(groups.get(key) ?? []), row]);
     }
     let changed = await this.reconcileGroups(ctx, clientId, runId, groups);
-    // Link this run's informational Program Element / bill findings into any
-    // Matter that already carries the same PE code / bill id as its
-    // `primary_pe_code` / `primary_bill_id` (set when a durable advocacy
-    // record for that PE/bill was clustered — see
-    // client-advocacy-matter.helpers.ts computeMatterClue). This is how a
-    // Matter picks up "Program Elements" and "bills" per the product spec
-    // even for findings that stay informational and never become their own
-    // client_advocacy_record row.
-    changed += await this.linkReconciledFindingsToMatters(ctx, clientId, runId);
+    // Matching a finding to existing work is a proposal, not permission to change
+    // that work. Keep candidate associations in the run's review ledger.
+    changed += await this.proposeMatterLinks(ctx, clientId, runId);
     // §27 reconciliation: flag a possible cross-source duplicate advocacy
     // activity — the SAME real-world event discovered via two DIFFERENT
     // source rails (e.g. an LDA filing and a client submission describing
@@ -101,15 +94,16 @@ export class ClientProfileFillReconciliation {
       const distinct = new Set(group.map((row) => stableJson(row.proposedValue)));
       if (distinct.size === 1) {
         for (const duplicate of group.slice(1)) {
-          await this.prisma.withTenant(ctx.tenantId, (tx) =>
-            tx.$executeRawUnsafe(
+          await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+            await assertFillExecution(tx, ctx.tenantId, clientId, runId);
+            return tx.$executeRawUnsafe(
               `UPDATE client_profile_fill_finding
                   SET status = 'informational', updated_at = now()
                 WHERE id = $1::uuid AND tenant_id = $2::uuid AND status = 'pending'`,
               duplicate.id,
               ctx.tenantId,
-            ),
-          );
+            );
+          });
           changed += 1;
         }
         continue;
@@ -200,7 +194,7 @@ export class ClientProfileFillReconciliation {
     return changed;
   }
 
-  private async linkReconciledFindingsToMatters(
+  private async proposeMatterLinks(
     ctx: TenantContext,
     clientId: string,
     runId: string,
@@ -210,7 +204,7 @@ export class ClientProfileFillReconciliation {
         `SELECT id, kind, proposed_value_jsonb AS "proposedValue"
            FROM client_profile_fill_finding
           WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND run_id = $3::uuid
-            AND kind IN ('program_element', 'bill_recommendation')`,
+            AND kind IN ('program_element', 'bill_recommendation') AND status <> 'rejected'`,
         ctx.tenantId,
         clientId,
         runId,
@@ -227,7 +221,7 @@ export class ClientProfileFillReconciliation {
         tx.$queryRawUnsafe<Array<{ id: string }>>(
           `SELECT id FROM client_advocacy_matter
             WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND ${matterColumn} = $3
-            LIMIT 1`,
+            ORDER BY id LIMIT 1`,
           ctx.tenantId,
           clientId,
           matterValue,
@@ -235,19 +229,32 @@ export class ClientProfileFillReconciliation {
       );
       const matterId = matterRows[0]?.id;
       if (!matterId) continue;
-      try {
-        await this.advocacyMatters.linkToMatter(ctx, matterId, {
+      const inserted = await this.ports.persistFinding(ctx.tenantId, clientId, runId, {
+        kind: 'matter_link_candidate',
+        targetKey: 'matter-link:' + finding.id + ':' + matterId,
+        source: 'reconciliation',
+        factKind: 'recommendation',
+        currentValue: null,
+        proposedValue: {
+          matterId,
+          findingId: finding.id,
           linkType: isPe ? 'program_element' : 'bill',
           linkKey: matterValue,
           label: asString(proposed.title) ?? matterValue,
-          metadata: { findingId: finding.id },
-        });
-        linked += 1;
-      } catch (error) {
-        this.ports.warn(
-          `Advocacy matter finding link failed for ${clientId}/${matterId}: ${this.ports.safeError(error)}`,
-        );
-      }
+          message:
+            'Review this possible association in the matter. Research has not changed its links.',
+        },
+        confidence: 1,
+        status: 'informational',
+        evidence: [
+          {
+            label: 'Exact saved matter identifier matches this finding',
+            source: 'Saved client matter',
+            metadata: { matterId, findingId: finding.id },
+          },
+        ],
+      });
+      if (inserted) linked += 1;
     }
     return linked;
   }

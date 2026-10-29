@@ -110,16 +110,26 @@ it('fails a run without an actor before creating heartbeats or specialist effect
   expect(jest.getTimerCount()).toBe(0);
 });
 
-it('reconstructs the standard-user context from the persisted actor and passes it into the actual specialist boundary', async () => {
+it('stops before provider calls and findings when the saved requester loses access', async () => {
+  const h = harness({ accessError: new Error('Research requester no longer has access') });
+  await h.worker.executeClaimedTask(task({ taskType: 'federal_market' }));
+  expect(h.phases).toEqual(['actor', 'fail']);
+  expect(h.intelligence.getClientProfile).not.toHaveBeenCalled();
+  expect(h.callsOf('finding')).toHaveLength(0);
+  expect(h.callsOf('cursor')).toHaveLength(0);
+  expect(jest.getTimerCount()).toBe(0);
+});
+
+it('passes the current saved actor context into the actual specialist boundary', async () => {
   const h = harness({ facilityRows: [{ id: 'facility-one', name: 'HQ' }] });
   await h.worker.executeClaimedTask(task());
   expect(h.facilities.previewFacilityDistrict).toHaveBeenCalledWith(
     {
       tenantId: 'tenant-one',
-      tenantSlug: '',
+      tenantSlug: 'current-tenant',
       userId: 'actor-one',
-      clerkUserId: '',
-      role: 'standard_user',
+      clerkUserId: 'current-clerk',
+      role: 'user_admin',
     },
     'client-one',
     'facility-one',
@@ -187,7 +197,7 @@ it('heartbeats every fifteen seconds, ignores heartbeat failure and cleans up af
   expect(jest.getTimerCount()).toBe(0);
 });
 
-it('times out at five minutes and preserves the existing non-cancelling behavior of the raced specialist promise', async () => {
+it('times out at five minutes and prevents a late specialist from writing its cursor', async () => {
   const stalled = deferred<unknown>();
   const h = harness({ profilePromise: stalled.promise });
   const work = h.worker.executeClaimedTask(task({ taskType: 'federal_market' }));
@@ -201,7 +211,7 @@ it('times out at five minutes and preserves the existing non-cancelling behavior
   expect(jest.getTimerCount()).toBe(0);
   stalled.resolve({});
   await jest.advanceTimersByTimeAsync(0);
-  expect(h.callsOf('cursor')).toHaveLength(1);
+  expect(h.callsOf('cursor')).toHaveLength(0);
   expect(h.callsOf('finish')).toEqual([]);
 });
 

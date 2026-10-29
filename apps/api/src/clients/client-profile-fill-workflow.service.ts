@@ -24,6 +24,8 @@ import {
 import { ClientProfileFillService } from './client-profile-fill.service.js';
 import { buildFillRunSummary, requeueFillReviewChecks } from './client-profile-fill-retry.js';
 import { runWithGovernedCrmFillBundle } from './governed-client-profile-fill.factory.js';
+import { resolveFillRunActor } from './client-profile-fill-worker-actor.js';
+import { runWithFillTask } from './client-profile-fill-execution.js';
 import { readResearchInputs, researchTaskInput, researchWebsite, type ResearchLdaIdentity } from './client-profile-fill-research-inputs.js';
 import { readResearchStart, researchStartRequest } from './client-profile-fill-start-request.js';
 import { createResearchRun } from './client-profile-fill-run-create.js';
@@ -827,12 +829,13 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
         role: 'standard_user',
       };
       try {
-        const bundle = await this.contextPlane.resolve(ctx, {
+        const current = await resolveFillRunActor(this.prisma, run.tenantId, run.clientId, run.id);
+        const bundle = await this.contextPlane.resolve(current, {
           clientId: run.clientId,
           requestedSources: run.requestedSources,
           attachmentId: run.attachmentIds[0] ?? null,
         });
-        await this.contextPlane.recordRunContext(ctx, run.id, bundle);
+        await this.contextPlane.recordRunContext(current, run.id, bundle);
         await this.prisma.withSystem((tx) =>
           tx.$executeRawUnsafe(
             `UPDATE client_profile_fill_run
@@ -849,7 +852,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
           await tx.$executeRawUnsafe(
             `UPDATE client_profile_fill_run
                 SET stage = 'failed', last_progress_at = now(), updated_at = now()
-              WHERE id = $1::uuid AND tenant_id = $2::uuid`,
+              WHERE id = $1::uuid AND tenant_id = $2::uuid AND status <> 'cancelled'`,
             run.id,
             run.tenantId,
           );
@@ -959,13 +962,6 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
       await this.failTask(task, 'missing_actor', 'The run has no actor user id', false);
       return;
     }
-    const ctx: TenantContext = {
-      tenantId: task.tenantId,
-      tenantSlug: '',
-      userId,
-      clerkUserId: '',
-      role: 'standard_user',
-    };
     const attachmentId = this.stringValue(task.input.attachmentId);
     const heartbeat = setInterval(() => {
       void this.heartbeat(task).catch((error) =>
@@ -975,8 +971,9 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
     heartbeat.unref?.();
 
     try {
+      const ctx = await resolveFillRunActor(this.prisma, task.tenantId, task.clientId, task.runId);
       const source = task.taskType === 'client_document' ? undefined : task.taskType;
-      const count = await this.withTaskTimeout<number>(async (signal) => {
+      const count = await runWithFillTask(ctx, task, 'core', () => this.withTaskTimeout<number>(async (signal) => {
         const bundle = await this.contextPlane.resolve(ctx, {
           clientId: task.clientId,
           requestedSources: source ? [source] : undefined,
@@ -986,7 +983,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
         await this.contextPlane.recordRunContext(ctx, task.runId, bundle);
         signal.throwIfAborted();
         return runWithGovernedCrmFillBundle(bundle, () => this.executeTask(ctx, task, bundle));
-      });
+      }));
       await this.completeTask(task, count);
     } catch (error) {
       await this.failTask(
