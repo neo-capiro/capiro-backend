@@ -3,6 +3,7 @@ import { AI_PRICING } from '@capiro/shared';
 import { z } from 'zod';
 import {
   ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT,
+  parseEngagementMailHandoffSelection,
   resolveEngagementRuntimeEnvironment,
 } from '../engagement/runtime/engagement-runtime-env.js';
 
@@ -1256,6 +1257,15 @@ export const configSchema = z.object({
     z.enum(['integration_sync_scheduler']).optional(),
   ),
 
+  // Mail-handoff admission selection (SCRUM-190). Plain optional strings: the real
+  // rules — blank/whitespace and case normalization, unknown phase, a companion
+  // without a phase, an explicit 'off' with companions, and an ISO instant — live
+  // in the reviewed parseEngagementMailHandoffSelection, which validateConfig calls
+  // directly (below) so the schema stays authoritative on its own.
+  ENGAGEMENT_MAIL_HANDOFF_PHASE: z.string().optional(),
+  ENGAGEMENT_MAIL_HANDOFF_GENERATION: z.string().optional(),
+  ENGAGEMENT_MAIL_HANDOFF_FENCE_UTC: z.string().optional(),
+
   // External action mode. 'enabled' = all actions (main API default).
   // 'disabled' = none (shadow). 'test_only' = only outreach_test_send with
   // testMode=true. 'integrations_only' permits the bounded Mail integration
@@ -1352,6 +1362,12 @@ export function validateConfig(raw: Record<string, unknown>): AppConfig {
   // codebase's own precedent (four other cross-field checks in this function)
   // is to keep the schema authoritative on its own, never relying solely on a
   // sibling module to catch a bad combination.
+  // Mail-handoff selection (SCRUM-190): plain schema strings carry no rules, so the
+  // reviewed parser is called directly here. It enforces blank/case normalization,
+  // an unknown phase, a companion without a phase, an explicit 'off' carrying
+  // companions, and an ISO instant — independently of any posture/restriction branch.
+  parseEngagementMailHandoffSelection(raw);
+
   if (parsed.ENGAGEMENT_EXTERNAL_ACTIONS === 'integrations_only' ||
     parsed.ENGAGEMENT_EXTERNAL_ACTIONS === 'integrations_and_notetaker' ||
     parsed.ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION) {

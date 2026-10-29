@@ -5,9 +5,21 @@ import type {
   EngagementBackgroundWorkerRestriction,
   EngagementExternalAction,
   EngagementExternalActionMode,
+  EngagementMailHandoffBoundary,
+  EngagementMailHandoffContext,
+  EngagementMailHandoffDisposition,
+  EngagementMailHandoffHandle,
+  EngagementMailHandoffObservation,
+  EngagementMailHandoffOutcome,
+  EngagementMailHandoffPhase,
+  EngagementMailHandoffSelection,
   EngagementProcessMode,
   EngagementRuntimeSnapshot,
 } from './engagement-runtime.types.js';
+import {
+  mailHandoff as processMailHandoff,
+  type EngagementMailHandoffBarrier,
+} from './engagement-mail-handoff.js';
 
 /**
  * Central runtime policy service for the Engagement API extraction.
@@ -33,6 +45,8 @@ export class EngagementRuntimePolicyService {
   private readonly callbacksEnabled: boolean;
   private readonly recallWebhookEnabled: boolean;
   private readonly backgroundWorkerRestriction?: EngagementBackgroundWorkerRestriction;
+  /** The barrier this policy owns: the process singleton in Nest, or a test instance. */
+  private readonly mailHandoffBarrier: EngagementMailHandoffBarrier;
 
   constructor(config: {
     serviceName: CapiroServiceName;
@@ -42,7 +56,8 @@ export class EngagementRuntimePolicyService {
     callbacksEnabled: boolean;
     recallWebhookEnabled: boolean;
     backgroundWorkerRestriction?: EngagementBackgroundWorkerRestriction;
-  }) {
+    mailHandoff?: EngagementMailHandoffSelection;
+  }, barrier?: EngagementMailHandoffBarrier) {
     this.serviceName = config.serviceName;
     this.processMode = config.processMode;
     this.backgroundOwner = config.backgroundOwner;
@@ -50,6 +65,21 @@ export class EngagementRuntimePolicyService {
     this.callbacksEnabled = config.callbacksEnabled;
     this.recallWebhookEnabled = config.recallWebhookEnabled;
     this.backgroundWorkerRestriction = config.backgroundWorkerRestriction;
+    // The policy OWNS its barrier: the process singleton under normal Nest wiring,
+    // or an explicitly supplied instance for isolated cases. Binding is once-only
+    // inside the barrier, so a helper constructed with an omitted selection cannot
+    // reset an existing fence or mix generations.
+    this.mailHandoffBarrier = barrier ?? processMailHandoff;
+    this.mailHandoffBarrier.bind({
+      serviceName: config.serviceName,
+      processMode: config.processMode,
+      backgroundOwner: config.backgroundOwner,
+      externalActions: config.externalActions,
+      callbacksEnabled: config.callbacksEnabled,
+      recallWebhookEnabled: config.recallWebhookEnabled,
+      backgroundWorkerRestriction: config.backgroundWorkerRestriction,
+      mailHandoff: config.mailHandoff,
+    });
   }
 
   snapshot(): EngagementRuntimeSnapshot {
@@ -62,6 +92,97 @@ export class EngagementRuntimePolicyService {
       recallWebhookEnabled: this.recallWebhookEnabled,
       backgroundWorkerRestriction: this.backgroundWorkerRestriction,
     };
+  }
+
+  /**
+   * Mail-handoff admission fence. Delegated by every service/provider boundary
+   * that performs an actual state or provider effect, so the refusal happens
+   * before the effect rather than at an HTTP route.
+   */
+  mailHandoffPhase(): EngagementMailHandoffPhase {
+    return this.mailHandoffBarrier.phase();
+  }
+
+  assertMailHandoffInitiation(boundary: EngagementMailHandoffBoundary): void {
+    this.mailHandoffBarrier.assertInitiation(boundary);
+  }
+
+  /**
+   * Route a boundary to the correct decision. Grant writes (token refresh and
+   * token persistence) require a LIVE admitted record, so an already-admitted
+   * callback or queue drain keeps its nested refresh while a new writer is
+   * refused. Every other boundary is a new-work gate.
+   */
+  assertMailHandoffBoundary(
+    boundary: EngagementMailHandoffBoundary,
+    context?: EngagementMailHandoffContext,
+  ): void {
+    if (boundary === 'grant_refresh' || boundary === 'grant_persist') {
+      this.mailHandoffBarrier.assertGrantWrite(boundary, context);
+      return;
+    }
+    this.mailHandoffBarrier.assertInitiation(boundary);
+  }
+
+  /**
+   * Run one admitted unit inside its live record and settle it exactly once.
+   * `disposition` lets the effect owner retain a real unknown outcome.
+   */
+  runAdmittedMailHandoffWork<T>(
+    boundary: EngagementMailHandoffBoundary,
+    work: () => Promise<T> | T,
+    disposition?: () => EngagementMailHandoffOutcome,
+  ): Promise<T> {
+    return this.mailHandoffBarrier.runAdmitted(boundary, work, disposition);
+  }
+
+  /**
+   * Explicit trusted continuation for an already-admitted owner (scheduled
+   * sync/renewal, deferred notification drain, admitted disconnect). Requires a
+   * live record; otherwise the NEW-admission gate for the same boundary applies.
+   */
+  assertMailHandoffContinuation(boundary: EngagementMailHandoffBoundary): void {
+    this.mailHandoffBarrier.assertOwnedContinuation(boundary);
+  }
+
+  /** Enter an already-issued live handle (deferred queue drain). Never mints. */
+  runMailHandoffInAdmission<T>(
+    boundary: EngagementMailHandoffBoundary,
+    context: EngagementMailHandoffContext,
+    work: () => Promise<T> | T,
+  ): Promise<T> {
+    return this.mailHandoffBarrier.runInAdmission(boundary, context, work);
+  }
+
+  admitMailHandoffWork(boundary: EngagementMailHandoffBoundary): EngagementMailHandoffHandle {
+    return this.mailHandoffBarrier.admitWork(boundary);
+  }
+
+  /**
+   * Retain already-admitted work as a child of the live record in scope, so a
+   * deferred queue item outlives its HTTP parent without opening a new admission.
+   */
+  retainMailHandoffAdmission(boundary: EngagementMailHandoffBoundary): EngagementMailHandoffHandle {
+    return this.mailHandoffBarrier.retainAdmission(boundary);
+  }
+
+  /** The call-local outcome box of the live record in scope, if any. */
+  mailHandoffDisposition(): EngagementMailHandoffDisposition | undefined {
+    return this.mailHandoffBarrier.mailHandoffDisposition();
+  }
+
+  /** Synchronously stop admitting NEW mail work in this process (shutdown join). */
+  beginMailHandoffLocalShutdown(): void {
+    this.mailHandoffBarrier.beginLocalShutdown();
+  }
+
+  /** Resolve when this process owns no further admitted work. */
+  waitForMailHandoffLocalSettlement(): Promise<void> {
+    return this.mailHandoffBarrier.waitForLocalSettlement();
+  }
+
+  mailHandoffObservation(): EngagementMailHandoffObservation | null {
+    return this.mailHandoffBarrier.observation();
   }
 
   private notetakerPostureEnabled(): boolean {

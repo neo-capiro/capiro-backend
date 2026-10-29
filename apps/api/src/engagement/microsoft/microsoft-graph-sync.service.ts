@@ -33,6 +33,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { admitMailboxRefresh, lockMailboxConnection } from '../mailbox-oauth-authority.js';
 import { MailboxReconnectRequiredError, mailSyncFailureData } from '../mail-sync-failure.js';
+import { EngagementRuntimePolicyService } from '../runtime/engagement-runtime-policy.service.js';
+import type { EngagementMailHandoffHandle } from '../runtime/engagement-runtime.types.js';
 import {
   runSyncResources,
   resourceSyncHealth,
@@ -130,6 +132,12 @@ interface NotificationSyncTask {
   key: string;
   connectionId: string;
   run: () => Promise<unknown>;
+  /**
+   * Admission retained at enqueue time from the live callback that accepted this
+   * notification. It carries the child record whose disposition the drain
+   * finalizes once, after the real work promise settles.
+   */
+  admission?: EngagementMailHandoffHandle;
 }
 
 interface NotificationSyncQueueState {
@@ -383,6 +391,12 @@ export class MicrosoftGraphSyncService {
     private readonly tokenCrypto: TokenCryptoService,
     private readonly association: ClientAssociationService,
     config: ConfigService<AppConfig, true>,
+    /**
+     * Mail-handoff admission owner. Optional because several existing specs build
+     * this class with `Object.create(...)` and skip the constructor entirely;
+     * absent means the pre-existing behavior. Nest injects the process policy.
+     */
+    private readonly runtimePolicy?: EngagementRuntimePolicyService,
   ) {
     this.clientId = config.get('MICROSOFT_CLIENT_ID', { infer: true });
     this.tenantId = config.get('MICROSOFT_TENANT_ID', { infer: true });
@@ -964,8 +978,16 @@ export class MicrosoftGraphSyncService {
   ): boolean {
     const state = this.notificationSyncState;
     if (state.queued.has(key)) return false;
+    // Selected phases: the item MUST be retained through the live callback's record,
+    // and retention refuses when there is no live (or the inherited record is stale)
+    // parent — before any queued-set or queue mutation, so nothing runs untracked.
+    // Off stays inert, and an absent policy keeps the legacy behavior.
+    const admission =
+      this.runtimePolicy && this.runtimePolicy.mailHandoffObservation() !== null
+        ? this.runtimePolicy.retainMailHandoffAdmission('callback_notification_admit')
+        : undefined;
     state.queued.add(key);
-    state.queue.push({ key, connectionId, run });
+    state.queue.push({ key, connectionId, run, admission });
     this.drainNotificationSyncQueue();
     return true;
   }
@@ -995,9 +1017,23 @@ export class MicrosoftGraphSyncService {
       state.running.add(task.key);
       state.active += 1;
 
-      void task
-        .run()
+      // ONE execution promise: the retained child's context when this item carries
+      // one, otherwise the plain run. The existing catch/finally attach to that
+      // single value, and the child is finalized exactly once AFTER the work
+      // promise settles, so a reported unknown/failed is never overwritten.
+      const execution = task.admission
+        ? this.runtimePolicy!.runMailHandoffInAdmission(
+            'callback_notification_admit',
+            task.admission.context,
+            () => task.run(),
+          )
+        : task.run();
+      void execution
         .catch((err: unknown) => {
+          if (task.admission && !task.admission.disposition.hasReport()) {
+            // A no-report throw is a known no-effect failure, not an unknown effect.
+            task.admission.settle('failed');
+          }
           this.logger.error(
             `Graph notification sync failed for connection ${task.connectionId}: ${
               err instanceof Error ? err.message : err
@@ -1005,6 +1041,7 @@ export class MicrosoftGraphSyncService {
           );
         })
         .finally(() => {
+          task.admission?.settle();
           state.running.delete(task.key);
           state.active -= 1;
           this.drainNotificationSyncQueue();
@@ -2219,7 +2256,14 @@ export class MicrosoftGraphSyncService {
       );
     });
     if (!token.homeAccountId) {
+      // N writes this reconnect BEFORE the cached-return branch, so the write is
+      // owned here: a selected phase with no live record refuses without touching
+      // the connection, and an admitted owner keeps its continuation.
+      const identityHandoff = this.runtimePolicy?.mailHandoffDisposition();
+      this.runtimePolicy?.assertMailHandoffBoundary('grant_refresh');
+      identityHandoff?.begin();
       await this.markConnectionNeedsReconnect(tenantId, connectionId, token);
+      identityHandoff?.settle('settled');
       throw new MailboxReconnectRequiredError(
         'Microsoft account identity is missing; reconnect Microsoft 365',
       );
@@ -2236,9 +2280,42 @@ export class MicrosoftGraphSyncService {
       );
     }
 
+    if (!this.runtimePolicy) {
+      return this.refreshTokenOwned(tenantId, connectionId, token, alreadyGrantedScopes);
+    }
+    if (this.runtimePolicy.mailHandoffDisposition()) {
+      // Already owned (admitted callback / queue drain / scheduler tick): continue
+      // inside that live record. No second admission and no new gate.
+      this.runtimePolicy.assertMailHandoffBoundary('grant_refresh');
+      return this.refreshTokenOwned(tenantId, connectionId, token, alreadyGrantedScopes);
+    }
+    // A fresh, unowned refresh: admit it now so a selected phase refuses it BEFORE
+    // any provider call or write, and its lifetime is counted until it settles.
+    return this.runtimePolicy.runAdmittedMailHandoffWork('grant_refresh', () =>
+      this.refreshTokenOwned(tenantId, connectionId, token, alreadyGrantedScopes),
+    );
+  }
+
+  /**
+   * N's original refresh body, unchanged in protocol, provider arguments, error
+   * behavior and persistence. The only additions are the call-local disposition
+   * (each existing external effect is begun before it runs and a definite result
+   * settles it, while an ambiguous one stays `unknown`) and a guard immediately
+   * before each EXISTING reconnect write.
+   */
+  private async refreshTokenOwned(
+    tenantId: string,
+    connectionId: string,
+    token: IntegrationConnectionToken,
+    alreadyGrantedScopes: readonly string[] = [],
+  ): Promise<string> {
+    const handoff = this.runtimePolicy?.mailHandoffDisposition();
     this.assertTokenRefreshConfigured();
     if (!token.refreshTokenCiphertext || !token.refreshTokenIv || !token.refreshTokenAuthTag) {
+      this.runtimePolicy?.assertMailHandoffBoundary('grant_refresh');
+      handoff?.begin();
       await this.markConnectionNeedsReconnect(tenantId, connectionId, token);
+      handoff?.settle('settled');
       throw new MailboxReconnectRequiredError(
         'Microsoft refresh token is missing; reconnect Microsoft 365',
       );
@@ -2254,6 +2331,7 @@ export class MicrosoftGraphSyncService {
     );
     const msal = this.buildMsalClient();
     let result: AuthenticationResult | null;
+    handoff?.begin();
     try {
       result = await msal.acquireTokenByRefreshToken({
         refreshToken,
@@ -2263,14 +2341,23 @@ export class MicrosoftGraphSyncService {
       });
     } catch (error) {
       if (requiresInteractiveMicrosoftConsent(error)) {
+        // The provider effect resolved (consent required); the reconnect write is a
+        // second, separate effect.
+        handoff?.settle('failed');
+        this.runtimePolicy?.assertMailHandoffBoundary('grant_refresh');
+        handoff?.begin();
         await this.markConnectionNeedsReconnect(tenantId, connectionId, token);
+        handoff?.settle('settled');
         throw new MailboxReconnectRequiredError(
           'Reconnect Microsoft 365 in Settings to grant the updated Outlook permissions',
         );
       }
+      // Transport / unclassified MSAL failure: the provider effect is unknown.
+      handoff?.unknown();
       throw error;
     }
     if (!result?.accessToken) {
+      handoff?.unknown();
       throw new ServiceUnavailableException(
         'Microsoft token refresh failed; reconnect Microsoft 365',
       );
@@ -2279,12 +2366,30 @@ export class MicrosoftGraphSyncService {
       result.account?.homeAccountId !== token.homeAccountId ||
       !hasRequiredResourceScopes(result.scopes)
     ) {
+      handoff?.settle('failed');
+      this.runtimePolicy?.assertMailHandoffBoundary('grant_refresh');
+      handoff?.begin();
       await this.markConnectionNeedsReconnect(tenantId, connectionId, token);
+      handoff?.settle('settled');
       throw new MailboxReconnectRequiredError(
         'Microsoft returned a different account or insufficient permissions; reconnect Microsoft 365',
       );
     }
-    await this.persistRefreshedAccessToken(tenantId, connectionId, result, token, msal, refreshToken);
+    try {
+      await this.persistRefreshedAccessToken(
+        tenantId,
+        connectionId,
+        result,
+        token,
+        msal,
+        refreshToken,
+      );
+    } catch (error) {
+      // The provider granted a token but the durable write is not established.
+      handoff?.unknown();
+      throw error;
+    }
+    handoff?.settle('settled');
     return result.accessToken;
   }
 

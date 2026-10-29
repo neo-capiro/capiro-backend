@@ -26,11 +26,17 @@ interface GovernedEngagementMethods {
 }
 
 interface RuntimeMethodMetadata {
-  action: EngagementExternalAction;
+  action?: EngagementExternalAction;
   testMode?: boolean;
+  /** Mail-handoff capture of the whole returned promise (initiation only). */
+  handoff?: { boundary: 'integration_create'; mode: 'initiation' };
 }
 
 const RUNTIME_ACTION_BY_METHOD: Readonly<Record<string, RuntimeMethodMetadata>> = {
+  // A new integration connection is new mail work: gate it and own the real promise.
+  // The service body is unchanged, and N's deliberate omission of the attachment
+  // external-write entries is preserved.
+  createIntegration: { handoff: { boundary: 'integration_create', mode: 'initiation' } },
   previewAiTemplate: { action: 'outreach_generate' },
   generateTalkingPoints: { action: 'outreach_generate' },
   generateBatchEmails: { action: 'outreach_generate' },
@@ -165,9 +171,19 @@ export function guardEngagementServiceRuntime(
       const metadata = RUNTIME_ACTION_BY_METHOD[property];
       if (!metadata) return value.bind(target);
       return (...args: unknown[]) => {
-        runtimePolicy.assertExternalAction(metadata.action, {
-          testMode: metadata.testMode,
-        });
+        if (metadata.action) {
+          runtimePolicy.assertExternalAction(metadata.action, {
+            testMode: metadata.testMode,
+          });
+        }
+        if (metadata.handoff?.mode === 'initiation') {
+          // Synchronous NEW-work gate, then the admission owns the whole promise so
+          // the record stays live until createIntegration actually finishes.
+          runtimePolicy.assertMailHandoffBoundary(metadata.handoff.boundary);
+          return runtimePolicy.runAdmittedMailHandoffWork(metadata.handoff.boundary, () =>
+            Reflect.apply(value, target, args),
+          );
+        }
         return Reflect.apply(value, target, args);
       };
     },

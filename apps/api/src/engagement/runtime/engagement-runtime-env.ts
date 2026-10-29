@@ -3,6 +3,7 @@ import type {
   EngagementBackgroundOwner,
   EngagementBackgroundWorkerRestriction,
   EngagementExternalActionMode,
+  EngagementMailHandoffSelection,
   EngagementProcessMode,
 } from './engagement-runtime.types.js';
 
@@ -17,6 +18,75 @@ export interface EngagementRuntimeEnvironment {
   callbacksEnabled: boolean;
   recallWebhookEnabled: boolean;
   backgroundWorkerRestriction?: EngagementBackgroundWorkerRestriction;
+  /** Mail-handoff selection; absent or 'off' preserves legacy behavior. */
+  mailHandoff?: EngagementMailHandoffSelection;
+}
+
+const MAIL_HANDOFF_PHASES = ['off', 'initiation_fenced', 'callback_fenced', 'writers_closed'] as const;
+
+/**
+ * Parse the operator mail-handoff selection.
+ *
+ * Omitted or blank keeps legacy behavior (no selection). A phase must be one of
+ * the four known values; the companion generation/fence instant may not appear
+ * without a phase, because a companion alone is an ambiguous half-configuration
+ * that must fail closed rather than silently leave the fence off. An instant must
+ * be a real ISO-8601 value: an unparseable one is rejected, and an omitted one is
+ * recorded as unproven (null) rather than substituted with the epoch.
+ */
+export function parseEngagementMailHandoffSelection(
+  raw: Record<string, unknown>,
+): EngagementMailHandoffSelection | undefined {
+  const rawPhase = raw.ENGAGEMENT_MAIL_HANDOFF_PHASE;
+  const rawGeneration = raw.ENGAGEMENT_MAIL_HANDOFF_GENERATION;
+  const rawFenceUtc = raw.ENGAGEMENT_MAIL_HANDOFF_FENCE_UTC;
+  const phase = rawPhase == null ? '' : String(rawPhase).trim().toLowerCase();
+  const generation = rawGeneration == null ? '' : String(rawGeneration).trim();
+  const fenceUtcRaw = rawFenceUtc == null ? '' : String(rawFenceUtc).trim();
+
+  if (phase === '') {
+    if (generation !== '' || fenceUtcRaw !== '') {
+      throw new Error(
+        'ENGAGEMENT_MAIL_HANDOFF_GENERATION and ENGAGEMENT_MAIL_HANDOFF_FENCE_UTC require ' +
+          'ENGAGEMENT_MAIL_HANDOFF_PHASE; a companion without a phase is a partial ' +
+          'configuration and is refused.',
+      );
+    }
+    return undefined;
+  }
+  if (phase === 'off') {
+    if (generation !== '' || fenceUtcRaw !== '') {
+      throw new Error(
+        'ENGAGEMENT_MAIL_HANDOFF_PHASE=off must not carry a generation or fence instant; ' +
+          'an explicit off selection is the legacy behavior with no companion values.',
+      );
+    }
+    // An explicit 'off' is the legacy behavior, not a selection: keep it absent so
+    // every consumer's "no selection" path stays the single legacy path.
+    return undefined;
+  }
+  if (!MAIL_HANDOFF_PHASES.includes(phase as (typeof MAIL_HANDOFF_PHASES)[number])) {
+    throw new Error(
+      `ENGAGEMENT_MAIL_HANDOFF_PHASE must be one of: ${MAIL_HANDOFF_PHASES.join(', ')} ` +
+        `(got ${JSON.stringify(String(rawPhase))})`,
+    );
+  }
+  let fenceUtc: string | null = null;
+  if (fenceUtcRaw !== '') {
+    const parsed = new Date(fenceUtcRaw);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new Error(
+        'ENGAGEMENT_MAIL_HANDOFF_FENCE_UTC must be an ISO-8601 instant ' +
+          `(got ${JSON.stringify(String(rawFenceUtc))})`,
+      );
+    }
+    fenceUtc = parsed.toISOString();
+  }
+  return {
+    phase: phase as (typeof MAIL_HANDOFF_PHASES)[number],
+    generation: generation === '' ? null : generation,
+    fenceUtc,
+  };
 }
 
 function exactEnum<T extends string>(
@@ -163,6 +233,7 @@ export function resolveEngagementRuntimeEnvironment(
   const backgroundWorkerRestriction = parseEngagementBackgroundWorkerRestriction(
     raw.ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION,
   );
+  const mailHandoff = parseEngagementMailHandoffSelection(raw);
 
   const resolved: EngagementRuntimeEnvironment = {
     serviceName,
@@ -172,6 +243,7 @@ export function resolveEngagementRuntimeEnvironment(
     callbacksEnabled,
     recallWebhookEnabled,
     backgroundWorkerRestriction,
+    mailHandoff,
   };
 
   // The restriction narrows the worker surface, so it is valid only for the
