@@ -11596,6 +11596,9 @@ model MemoryRetentionSubject {
   candidates MemoryCandidate[]
   clioMemories ClioMemory[]
   tombstones MemoryRetentionTombstone[]
+  authoredSettingsDrafts MemorySettingsDraft[] @relation("settingsDraftAuthorPeriod")
+  ownedSettingsDrafts MemorySettingsDraft[] @relation("settingsDraftOwnerPeriod")
+  settingsDraftReceipts MemorySettingsDraftReceipt[]
 
   @@unique([tenantId, id])
   @@map("memory_retention_subjects")
@@ -11612,6 +11615,53 @@ model MemoryRetentionTombstone {
 
   @@id([tenantId, store, rowId])
   @@map("memory_retention_tombstones")
+}
+
+/// Private staging; never indexed or recalled. Expiry erases sections and retains identity.
+model MemorySettingsDraft {
+  id String @id @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  authorUserId String @map("author_user_id") @db.Uuid
+  authorPeriodId String @map("author_period_id") @db.Uuid
+  ownerPeriodId String @map("owner_period_id") @db.Uuid
+  type String @db.VarChar(64)
+  slug String @db.VarChar(128)
+  scope String @db.VarChar(12)
+  clientId String? @map("client_id") @db.Uuid
+  baseItemId String? @map("base_item_id") @db.Uuid
+  baseVersion String? @map("base_version") @db.VarChar(64)
+  revision Int
+  state String @default("draft") @db.VarChar(16)
+  sections Json?
+  legalHold Boolean @default(false) @map("legal_hold")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  authorPeriod MemoryRetentionSubject @relation("settingsDraftAuthorPeriod",fields:[tenantId,authorPeriodId],references:[tenantId,id],onDelete:Restrict)
+  ownerPeriod MemoryRetentionSubject @relation("settingsDraftOwnerPeriod",fields:[tenantId,ownerPeriodId],references:[tenantId,id],onDelete:Restrict)
+  receipts MemorySettingsDraftReceipt[]
+  @@unique([tenantId,id])
+  @@index([tenantId,authorUserId,type,slug],map:"memory_settings_drafts_owner")
+  @@map("memory_settings_drafts")
+}
+
+/// Immutable content-free response recovery; a receipt describes the original operation.
+model MemorySettingsDraftReceipt {
+  tenantId String @map("tenant_id") @db.Uuid
+  authorUserId String @map("author_user_id") @db.Uuid
+  authorPeriodId String @map("author_period_id") @db.Uuid
+  requestId String @map("request_id") @db.Uuid
+  draftId String @map("draft_id") @db.Uuid
+  type String @db.VarChar(64)
+  slug String @db.VarChar(128)
+  requestHash String @map("request_hash") @db.VarChar(64)
+  revision Int
+  state String @db.VarChar(16)
+  recordedAt DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  draft MemorySettingsDraft @relation(fields:[tenantId,draftId],references:[tenantId,id],onDelete:Restrict)
+  authorPeriod MemoryRetentionSubject @relation(fields:[tenantId,authorPeriodId],references:[tenantId,id],onDelete:Restrict)
+  @@id([tenantId,authorUserId,requestId])
+  @@map("memory_settings_draft_receipts")
 }
 
 /// Canonical institutional-memory item (plan §0.5). Projected to an Obsidian-
