@@ -1,5 +1,6 @@
 import { isHeldDraftClientAssociation, nextDraftClient, requireDraftClient, withDraftClientAssociation } from './draft-client-access.js';
 import { createProspectDraft } from '../prospect-resources/prospect-draft-create.js';
+import { prospectBlueprintSections } from '../prospect-resources/prospect-blueprint-seed.js';
 import {
   withProspectDraft,
   assertProspectDraft,
@@ -86,14 +87,12 @@ export class DraftsService {
     if (!dto.prospectId && !clientId && dto.client?.trim())
       throw new ConflictException('Select an explicit client UUID; a client name cannot establish association');
     const canonicalClient = await requireDraftClient(this.prisma, db, tenantId, ownerId, clientId);
-    if (dto.prospectId && dto.blueprintPin)
-      throw new ConflictException('Blueprint selection is supported on ordinary drafts');
     const blueprint = dto.blueprintPin
       ? await resolveBlueprintPin(db, tenantId, dto.blueprintPin)
       : undefined;
     const product = dto.product ?? '';
     const meta = product ? WSC.meta(product) : null;
-    const sections = product ? WSC.suggestedSections(product) : [];
+    const sections = product ? WSC.suggestedSections(product) : dto.prospectId ? ['Body'] : [];
     const pages = product ? WSC.suggestedPages(product) : 2;
     const funding = product ? WSC.isFunding(product) : false;
 
@@ -115,6 +114,7 @@ export class DraftsService {
       coverLetter: meta?.cover ?? false,
       selectedTemplate: null,
       sections,
+      ...(dto.prospectId ? { sectionContent: Object.fromEntries(sections.map(name => [name, ''])) } : {}),
       pages,
       tone: 'Formal',
       toneContext: '',
@@ -128,6 +128,7 @@ export class DraftsService {
       agent.phase = 'design';
       agent.revision = 1;
       config.documentAgent = agent;
+      if (dto.prospectId) Object.assign(config, prospectBlueprintSections(blueprint.version.definition, blueprint.pin.definitionHash));
     }
 
     const draft = await db.wsDraft.create({
