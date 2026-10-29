@@ -6,6 +6,7 @@ import { RolesGuard } from '../../auth/roles.guard.js';
 import { ToolServiceSecretGuard, hasVerifiedToolServiceIdentity } from '../../auth/tool-service-secret.guard.js';
 import { CurrentTenant } from '../../tenant/current-tenant.decorator.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { TenantContextMiddleware } from '../../tenant/tenant-context.middleware.js';
 import { listAdminWorkflows, readWorkflowRequest, saveWorkflow } from './admin.js';
 import { listRuntimeWorkflows, readRuntimeWorkflow } from './runtime.js';
 
@@ -13,12 +14,18 @@ import { listRuntimeWorkflows, readRuntimeWorkflow } from './runtime.js';
 @UseGuards(RolesGuard)
 @Roles('capiro_admin')
 export class SiteWorkflowAdminController {
-  constructor(private readonly prisma: PrismaService) {}
-  @Get() list(@CurrentTenant() ctx: TenantContext) { return listAdminWorkflows(this.prisma, ctx); }
+  constructor(private readonly prisma: PrismaService, private readonly tenant: TenantContextMiddleware) {}
+  @Get() async list(@CurrentTenant() ctx: TenantContext, @Req() req: Request) {
+    return listAdminWorkflows(this.prisma, ctx, await this.tenant.readApplicationAuthoritySession(req, ctx));
+  }
   @Post() @HttpCode(200)
-  save(@CurrentTenant() ctx: TenantContext, @Body() body: unknown) { return saveWorkflow(this.prisma, ctx, body); }
+  async save(@CurrentTenant() ctx: TenantContext, @Body() body: unknown, @Req() req: Request) {
+    return saveWorkflow(this.prisma, ctx, body, await this.tenant.readApplicationAuthoritySession(req, ctx));
+  }
   @Post('requests/read') @HttpCode(200)
-  read(@CurrentTenant() ctx: TenantContext, @Body() body: unknown) { return readWorkflowRequest(this.prisma, ctx, body); }
+  async read(@CurrentTenant() ctx: TenantContext, @Body() body: unknown, @Req() req: Request) {
+    return readWorkflowRequest(this.prisma, ctx, body, await this.tenant.readApplicationAuthoritySession(req, ctx));
+  }
 }
 @Controller('clio/site-workflows/runtime')
 @UseGuards(RolesGuard, ToolServiceSecretGuard)

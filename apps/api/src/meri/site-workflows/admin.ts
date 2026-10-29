@@ -2,30 +2,27 @@ import { ConflictException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { parseSaveSiteWorkflow, parseSiteWorkflowConversationId, siteWorkflowObject } from '@capiro/shared/site-workflows';
 import type { PrismaService } from '../../prisma/prisma.service.js';
-import { requireWorkflowAdmin } from './authority.js';
+import { withWorkflowAdmin, type WorkflowAdminAuthority } from './authority.js';
 import { workflowInput } from './input.js';
 import { allWorkflows, configuration, currentWorkflow, receipt, workflowDigest, type WorkflowRow } from './store.js';
-export async function listAdminWorkflows(prisma: PrismaService, ctx: TenantContext) {
-  return prisma.withTenant(ctx.tenantId, async tx => {
-    await requireWorkflowAdmin(tx, ctx);
+export async function listAdminWorkflows(prisma: PrismaService, ctx: TenantContext, authority?: WorkflowAdminAuthority) {
+  return withWorkflowAdmin(prisma, ctx, async tx => {
     return { workflows: (await allWorkflows(tx, ctx.tenantId)).map(configuration) };
-  });
+  }, authority);
 }
-export async function readWorkflowRequest(prisma: PrismaService, ctx: TenantContext, raw: unknown) {
+export async function readWorkflowRequest(prisma: PrismaService, ctx: TenantContext, raw: unknown, authority?: WorkflowAdminAuthority) {
   const requestId = workflowInput(() => parseSiteWorkflowConversationId(siteWorkflowObject(raw, ['requestId']).requestId));
-  return prisma.withTenant(ctx.tenantId, async tx => {
-    await requireWorkflowAdmin(tx, ctx);
+  return withWorkflowAdmin(prisma, ctx, async tx => {
     const rows = await tx.$queryRaw<WorkflowRow[]>`SELECT * FROM meri_site_workflow_revisions
       WHERE tenant_id=${ctx.tenantId}::uuid AND created_by_user_id=${ctx.userId}::uuid AND request_id=${requestId}::uuid`;
     return { requestId, receipt: rows[0] ? receipt(rows[0]) : null };
-  });
+  }, authority);
 }
-export async function saveWorkflow(prisma: PrismaService, ctx: TenantContext, raw: unknown) {
+export async function saveWorkflow(prisma: PrismaService, ctx: TenantContext, raw: unknown, authority?: WorkflowAdminAuthority) {
   const input = workflowInput(() => parseSaveSiteWorkflow(raw)), digest = workflowDigest(input);
-  return prisma.withTenant(ctx.tenantId, async tx => {
+  return withWorkflowAdmin(prisma, ctx, async tx => {
     // One tenant-wide configuration lock protects the bounded list and all workflow version CAS operations.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${'meri-site-workflows:' + ctx.tenantId}, 0))`;
-    await requireWorkflowAdmin(tx, ctx);
     const previous = await tx.$queryRaw<WorkflowRow[]>`SELECT * FROM meri_site_workflow_revisions
       WHERE tenant_id=${ctx.tenantId}::uuid AND created_by_user_id=${ctx.userId}::uuid AND request_id=${input.requestId}::uuid`;
     if (previous[0]) {
@@ -44,6 +41,6 @@ export async function saveWorkflow(prisma: PrismaService, ctx: TenantContext, ra
       RETURNING *`;
     if (!rows[0]) throw new Error('Workflow save receipt unavailable');
     return receipt(rows[0]);
-  });
+  }, authority);
 }
 

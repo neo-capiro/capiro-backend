@@ -20,7 +20,7 @@ export async function workflowDatabase(url: string) {
         'migrate', 'diff', '--from-empty', '--to-schema-datamodel', join(__dirname, '../../../prisma/schema.prisma'),
         '--script'], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
       const tables = new Set(['tenants','users','tenant_memberships','clients','client_memory_access',
-        'clio_conversations','clio_conversation_bootstrap_receipts']);
+        'clio_conversations','clio_conversation_bootstrap_receipts','impersonation_sessions']);
       const enumNames = new Set(Prisma.dmmf.datamodel.models.filter(m => tables.has(m.dbName ?? m.name))
         .flatMap(m => m.fields.filter(f => f.kind === 'enum').map(f => f.type)));
       const enums = new Set(Prisma.dmmf.datamodel.enums.filter(e => enumNames.has(e.name)).map(e => e.dbName ?? e.name));
@@ -45,7 +45,13 @@ export async function workflowDatabase(url: string) {
       await tx.$executeRawUnsafe('SET LOCAL ROLE capiro_app');
       await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;
       return fn(tx);
-    }) } as PrismaService;
+    }),
+    withSystem: async <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) =>
+      db.$transaction(async tx => {
+        await tx.$executeRawUnsafe('SET LOCAL ROLE capiro_app');
+        return fn(tx);
+      }),
+  } as PrismaService;
   return { db, scoped };
 }
 
