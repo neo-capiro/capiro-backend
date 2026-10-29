@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { MemoryRetentionPolicyController } from './memory-retention-policy.controller.js';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { KnowledgeModule } from '../knowledge/knowledge.module.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
@@ -57,6 +58,7 @@ import { SettingsMemorySubmissionService } from './settings-drafts/submission.js
 @Module({
   imports: [PrismaModule, TenantModule, KnowledgeModule, ApplicationAuthorityModule],
   controllers: [
+    MemoryRetentionPolicyController,
     SettingsMemoryDraftController,
     MemoryController,
     MemoryReviewController,
