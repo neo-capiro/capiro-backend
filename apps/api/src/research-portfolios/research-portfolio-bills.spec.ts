@@ -1,5 +1,6 @@
 import { readCanonicalResearchTarget } from './research-portfolio-targets.js';
 import { recordResearchPortfolioBillChanges } from './research-portfolio-bill-changes.js';
+import { ResearchPortfolioBillsService } from './research-portfolio-bills.service.js';
 
 /**
  * Federal/state bill tracking as portfolio subjects.
@@ -117,6 +118,16 @@ describe('research portfolio bill identity', () => {
     });
   });
 
+  it('freezes the current committee referral with the membership', async () => {
+    const tx: any = {
+      stateBill: {
+        findUnique: jest.fn().mockResolvedValue(stateRow({ currentCommitteeId: 'CA-lower-appropriations' })),
+      },
+    };
+    const target = await readCanonicalResearchTarget(tx, 'state_bill' as any, 'CA-20252026-HB123');
+    expect(target?.facts.currentCommitteeId).toBe('CA-lower-appropriations');
+  });
+
   it('does not invent a canonical bill for an unknown identifier', async () => {
     const tx: any = {
       congressBill: { findUnique: jest.fn().mockResolvedValue(null) },
@@ -125,6 +136,52 @@ describe('research portfolio bill identity', () => {
     };
     expect(await readCanonicalResearchTarget(tx, 'federal_bill' as any, '119-hr-99999')).toBeNull();
     expect(await readCanonicalResearchTarget(tx, 'state_bill' as any, 'WY-20252026-HB1')).toBeNull();
+  });
+});
+
+describe('state bill detail: current committee referral', () => {
+  function service(currentCommitteeId: string | null) {
+    const tx: any = {
+      stateBill: {
+        findUnique: jest.fn(async () => stateRow({ currentCommitteeId })),
+        findMany: jest.fn(async () => []),
+      },
+      stateBillSponsor: {
+        findMany: jest.fn(async () => [
+          { name: 'Assemblymember Example', party: 'D', sponsorType: 'Primary', sponsorOrder: 1 },
+        ]),
+      },
+      stateBillVersion: { findMany: jest.fn(async () => []) },
+      stateRollCallVote: { findMany: jest.fn(async () => []) },
+      stateBillLink: { findMany: jest.fn(async () => []) },
+      stateCommittee: {
+        findUnique: jest.fn(async () => ({ name: 'Appropriations', chamber: 'lower' })),
+      },
+    };
+    const prisma: any = { withTenant: jest.fn(async (_t: string, fn: any) => fn(tx)) };
+    return { tx, prisma, bills: new ResearchPortfolioBillsService(prisma) };
+  }
+
+  it('reports the committee that holds the bill now, and does not call it unavailable', async () => {
+    const h = service('CA-lower-appropriations');
+    const detail = await h.bills.detail({ tenantId: 't', userId: 'u' } as any, 'state_bill', 'CA-20252026-HB123');
+
+    expect(detail.committees).toEqual([
+      { name: 'Appropriations', chamber: 'lower', role: 'referred' },
+    ]);
+    expect(detail.unavailable).not.toContain('committees');
+    // Fields the source family genuinely does not carry stay labelled.
+    expect(detail.unavailable).toContain('amendments');
+    expect(h.tx.stateCommittee.findUnique).toHaveBeenCalledTimes(1);
+  });
+
+  it('claims unavailable only when the bill has no referral', async () => {
+    const h = service(null);
+    const detail = await h.bills.detail({ tenantId: 't', userId: 'u' } as any, 'state_bill', 'CA-20252026-HB123');
+
+    expect(detail.committees).toEqual([]);
+    expect(detail.unavailable).toContain('committees');
+    expect(h.tx.stateCommittee.findUnique).not.toHaveBeenCalled();
   });
 });
 

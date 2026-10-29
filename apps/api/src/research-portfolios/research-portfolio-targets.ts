@@ -120,6 +120,9 @@ export async function readCanonicalResearchTarget(tx: Tx, kind: ResearchPortfoli
         latestActionDate: row.latestActionDate?.toISOString().slice(0, 10) ?? null,
         subjects: row.subjects,
         sponsor: row.sponsorName,
+        // The committee holding the bill now is mutable bill state; freezing it with the
+        // membership keeps a published snapshot showing the referral it was taken from.
+        currentCommitteeId: row.currentCommitteeId,
         sourceFamily: 'legiscan',
         publisher: row.state,
         sourceUrl: row.stateUrl ?? row.url,

@@ -271,6 +271,15 @@ export class ResearchPortfolioBillsService {
         }),
         tx.stateBillLink.findMany({ where: { billKey: row.id }, take: 20 }),
       ]);
+      // LegiScan carries the committee that holds the bill NOW as mutable bill state
+      // (state_bill.current_committee_id), not as a derivable join. Report it when
+      // present; only claim "unavailable" when the bill genuinely has no referral.
+      const referred = row.currentCommitteeId
+        ? await tx.stateCommittee.findUnique({
+            where: { id: row.currentCommitteeId },
+            select: { name: true, chamber: true },
+          })
+        : null;
       const relatedIds = links.map((link) => link.relatedBillKey).filter((key): key is string => Boolean(key));
       const related = relatedIds.length
         ? await tx.stateBill.findMany({
@@ -283,7 +292,8 @@ export class ResearchPortfolioBillsService {
       if (!sponsors.length) unavailable.push('sponsors');
       if (!versions.length) unavailable.push('text_versions');
       if (!votes.length) unavailable.push('votes');
-      unavailable.push('committees', 'amendments');
+      if (!referred) unavailable.push('committees');
+      unavailable.push('amendments');
       return {
         targetKind: 'state_bill',
         targetId: row.id,
@@ -303,7 +313,9 @@ export class ResearchPortfolioBillsService {
           state: row.state,
           role: entry.sponsorType,
         })),
-        committees: [],
+        committees: referred
+          ? [{ name: referred.name, chamber: referred.chamber, role: 'referred' }]
+          : [],
         textVersions: versions.map((entry) => ({
           label: entry.versionType,
           date: entry.date?.toISOString().slice(0, 10) ?? null,
