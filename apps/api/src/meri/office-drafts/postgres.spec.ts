@@ -3,8 +3,9 @@ import type { TenantContext } from '@capiro/shared';
 import type { PrismaClient } from '@prisma/client';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import { officeDatabase } from './postgres-fixture.js';
-import { openDraft, readDraft, lockDraft, saveDraft, discardDraft } from './store.js';
+import { openDraft, readDraft, readEditorDraft, lockDraft, saveDraft, discardDraft } from './store.js';
 import { beginDraftPublish, settleDraftPublish } from './publication.js';
+import { admitOfficeEditor } from './editor.js';
 import { digest } from './input.js';
 import type { OfficeAuthority } from './authority.js';
 import { expireOfficeDrafts } from './retention.js';
@@ -29,12 +30,14 @@ suite('private Office drafts on ordinary-role PostgreSQL', () => {
     const ports = { prisma: scoped, ctx, authority }, key = { conversationId, draftId: randomUUID() };
     const source = { ...key, artifactId: randomUUID(), baseVersionId: randomUUID(), baseSha256: 'a'.repeat(64), format: 'docx', filename: 'draft.docx' };
     const opened = await openDraft(ports, source);
-    const lock = (operation = 'lock', token = 'writer-1') => lockDraft(ports, { ...key, operation, ...(operation === 'get' ? {} : { lock: token }) });
+    const editor = { editorId: randomUUID(), editorEpoch: 1 };
+    await admitOfficeEditor(ports, { ...key, operation: 'acquire', editorId: editor.editorId, expectedEpoch: 0 });
+    const lock = (operation = 'lock', token = 'writer-1') => lockDraft(ports, { ...key, ...editor, operation, ...(operation === 'get' ? {} : { lock: token }) });
     const save = (text: string, expectedSequence = 0) => {
-      const bytes = Buffer.from(text); return { ...key, lock: 'writer-1', expectedSequence,
+      const bytes = Buffer.from(text); return { ...key, ...editor, lock: 'writer-1', expectedSequence,
         sha256: digest(bytes), bytesBase64: bytes.toString('base64'), kind: 'explicit' };
     };
-    return { ports, key, source, opened, member, clientId, lock, save };
+    return { ports, key, source, opened, member, clientId, editor, lock, save };
   }
   it('recovers exact private bytes after a new connection; replays a lost save acknowledgement without another sequence', async () => {
     const f = await fixture(); await f.lock();
@@ -57,11 +60,22 @@ suite('private Office drafts on ordinary-role PostgreSQL', () => {
     expect((await readDraft(f.ports, f.key)).sequence).toBe(1);
     await expect(saveDraft(f.ports, f.save('third'))).rejects.toThrow('STALE_SEQUENCE');
   });
+  it('roundtrips extended opaque locks containing spaces through ordinary-role custody and save', async () => {
+    const f = await fixture(), lock = '{"owner": "CODE", "pad": "' + 'x'.repeat(996) + '"}';
+    expect(lock.length).toBe(1024);
+    expect(await f.lock('lock', lock)).toEqual({ status: 200 });
+    expect(await f.lock('get')).toEqual({ status: 200, lock });
+    expect(await f.lock('lock', 'other')).toEqual({ status: 409, lock });
+    expect(await saveDraft(f.ports, { ...f.save('exact bytes'), lock })).toMatchObject({ status: 200, receipt: { sequence: 1 } });
+    expect(await lockDraft(f.ports, { ...f.key, ...f.editor, operation: 'relock', oldLock: lock, lock: 'new lock' })).toEqual({ status: 200 });
+    expect(await f.lock('refresh', 'new lock')).toEqual({ status: 200 });
+    expect(await f.lock('unlock', 'new lock')).toEqual({ status: 200 });
+  });
   it('serializes locks and refuses incorrect/expired locks before saving; supports relock and unlock', async () => {
     const f = await fixture(); expect(await f.lock()).toEqual({ status: 200 });
     expect(await f.lock('lock', 'writer-2')).toEqual({ status: 409, lock: 'writer-1' });
     expect(await saveDraft(f.ports, { ...f.save('x'), lock: 'wrong' })).toEqual({ status: 409, lock: 'writer-1' });
-    expect(await lockDraft(f.ports, { ...f.key, operation: 'relock', oldLock: 'writer-1', lock: 'writer-2' })).toEqual({ status: 200 });
+    expect(await lockDraft(f.ports, { ...f.key, ...f.editor, operation: 'relock', oldLock: 'writer-1', lock: 'writer-2' })).toEqual({ status: 200 });
     expect(await f.lock('refresh', 'writer-2')).toEqual({ status: 200 });
     expect(await f.lock('unlock', 'writer-2')).toEqual({ status: 200 });
     expect(await f.lock('get')).toEqual({ status: 200, lock: '' });
@@ -142,5 +156,104 @@ suite('private Office drafts on ordinary-role PostgreSQL', () => {
     expect(await expireOfficeDrafts(scoped, input)).toEqual({ deleted: 1, remaining: false });
     expect(await expireOfficeDrafts(scoped, input)).toEqual({ deleted: 0, remaining: false });
     expect(await readDraft(other.ports, other.key)).toMatchObject({ draftId: other.key.draftId });
+  });
+  it('admits only one concurrent editor across independent connections and replays its exact acknowledgement', async () => {
+    const f = await fixture(), other = await officeDatabase(url!);
+    try {
+      await admitOfficeEditor(f.ports, { ...f.key, operation: 'release', editorId: f.editor.editorId, expectedEpoch: 1 });
+      const requests = [randomUUID(), randomUUID()].map(editorId => ({ ...f.key, operation: 'acquire', editorId, expectedEpoch: 1 }));
+      const results = await Promise.allSettled(requests.map((request, i) => admitOfficeEditor({ ...f.ports, prisma: i ? other.scoped : scoped }, request)));
+      expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
+      const winner = results.findIndex(r => r.status === 'fulfilled'), result = (results[winner] as PromiseFulfilledResult<any>).value;
+      expect(result.epoch).toBe(2); expect(await admitOfficeEditor(f.ports, requests[winner])).toEqual(result);
+      await expect(admitOfficeEditor(f.ports, { ...requests[1 - winner], expectedEpoch: 2 })).rejects.toThrow('BUSY');
+    } finally { await other.db.$disconnect(); }
+  });
+  it('explicit takeover fences stale read/lock/save and clears the old WOPI lock without losing saved bytes', async () => {
+    const f = await fixture(); await f.lock(); const saved = f.save('kept through takeover'); await saveDraft(f.ports, saved);
+    const request = { ...f.key, operation: 'takeover', editorId: randomUUID(), expectedEpoch: 1 };
+    const next = await admitOfficeEditor(f.ports, request), proof = { editorId: next.editorId, editorEpoch: next.epoch };
+    expect(await admitOfficeEditor(f.ports, request)).toEqual(next);
+    await expect(readEditorDraft(f.ports, { ...f.key, ...f.editor })).rejects.toThrow('EDITOR_STALE');
+    await expect(f.lock('get')).rejects.toThrow('EDITOR_STALE');
+    await expect(saveDraft(f.ports, f.save('stale frame', 1))).rejects.toThrow('EDITOR_STALE');
+    expect(await lockDraft(f.ports, { ...f.key, ...proof, operation: 'get' })).toEqual({ status: 200, lock: '' });
+    expect((await readEditorDraft(f.ports, { ...f.key, ...proof })).bytesBase64).toBe(saved.bytesBase64);
+  });
+  it('release is idempotent and old acquire cannot revive; reusing an editor ID still advances the epoch', async () => {
+    const f = await fixture(); await f.lock(); await saveDraft(f.ports, f.save('recoverable'));
+    const release = { ...f.key, operation: 'release', editorId: f.editor.editorId, expectedEpoch: 1 };
+    expect(await admitOfficeEditor(f.ports, release)).toEqual({ editorId: null, epoch: 1, expiresAt: null });
+    expect(await admitOfficeEditor(f.ports, release)).toEqual({ editorId: null, epoch: 1, expiresAt: null });
+    await expect(admitOfficeEditor(f.ports, { ...release, operation: 'acquire', expectedEpoch: 0 })).rejects.toThrow('EDITOR_STALE');
+    const next = await admitOfficeEditor(f.ports, { ...release, operation: 'acquire' }); expect(next.epoch).toBe(2);
+    await expect(admitOfficeEditor(f.ports, release)).rejects.toThrow('EDITOR_STALE');
+    await expect(readEditorDraft(f.ports, { ...f.key, ...f.editor })).rejects.toThrow('EDITOR_STALE');
+    expect((await readDraft(f.ports, f.key)).sequence).toBe(1);
+  });
+  it('uses database expiry for editor reads and writes; expired refresh cannot resurrect a frame', async () => {
+    const f = await fixture(); await f.lock(); await saveDraft(f.ports, f.save('survives editor expiry'));
+    await db.$executeRaw`UPDATE meri_office_drafts SET editor_expires_at=clock_timestamp()-interval '1 second' WHERE draft_id=${f.key.draftId}::uuid`;
+    for (const effect of [() => f.lock('get'), () => saveDraft(f.ports, f.save('late', 1)), () => readEditorDraft(f.ports, { ...f.key, ...f.editor }),
+      () => admitOfficeEditor(f.ports, { ...f.key, operation: 'refresh', editorId: f.editor.editorId, expectedEpoch: 1 })])
+      await expect(effect()).rejects.toThrow('EDITOR_STALE');
+    expect(await admitOfficeEditor(f.ports, { ...f.key, operation: 'inspect' })).toEqual({ editorId: null, epoch: 1, expiresAt: null });
+    expect((await readDraft(f.ports, f.key)).sequence).toBe(1);
+    expect((await admitOfficeEditor(f.ports, { ...f.key, operation: 'acquire', editorId: randomUUID(), expectedEpoch: 1 })).epoch).toBe(2);
+  });
+  it('refresh preserves epoch/lock, but pending publication cannot acquire or refresh a writing frame', async () => {
+    const f = await fixture(); await f.lock(); const save = f.save('publish barrier'); await saveDraft(f.ports, save);
+    const request = { ...f.key, operation: 'refresh', editorId: f.editor.editorId, expectedEpoch: 1 };
+    expect((await admitOfficeEditor(f.ports, request)).epoch).toBe(1); expect(await f.lock('get')).toEqual({ status: 200, lock: 'writer-1' });
+    await beginDraftPublish(f.ports, { ...f.key, sequence: 1, sha256: save.sha256 });
+    await expect(admitOfficeEditor(f.ports, request)).rejects.toThrow('PUBLISH_BARRIER');
+    await expect(admitOfficeEditor(f.ports, { ...request, operation: 'takeover', editorId: randomUUID() })).rejects.toThrow('PUBLISH_BARRIER');
+    await admitOfficeEditor(f.ports, { ...request, operation: 'release' });
+    expect((await readDraft(f.ports, f.key)).state).toBe('publish-pending');
+  });
+  it('fences stale takeover and release without changing current editor admission', async () => {
+    const f = await fixture();
+    for (const operation of ['takeover', 'release', 'refresh'])
+      await expect(admitOfficeEditor(f.ports, { ...f.key, operation, editorId: randomUUID(), expectedEpoch: 0 })).rejects.toThrow('EDITOR_STALE');
+    expect(await admitOfficeEditor(f.ports, { ...f.key, operation: 'inspect' })).toMatchObject({ editorId: f.editor.editorId, epoch: 1 });
+    await discardDraft(f.ports, f.key);
+    await expect(admitOfficeEditor(f.ports, { ...f.key, operation: 'inspect' })).rejects.toThrow('CLOSED');
+  });
+  it('fails closed at epoch exhaustion without preventing release or corrupting the counter', async () => {
+    const f = await fixture(); await db.$executeRaw`UPDATE meri_office_drafts SET editor_epoch=2147483647 WHERE draft_id=${f.key.draftId}::uuid`;
+    const request = { ...f.key, operation: 'release', editorId: f.editor.editorId, expectedEpoch: 2147483647 };
+    await admitOfficeEditor(f.ports, request);
+    await expect(admitOfficeEditor(f.ports, { ...request, operation: 'acquire' })).rejects.toThrow('EPOCH_LIMIT');
+    expect(await admitOfficeEditor(f.ports, { ...f.key, operation: 'inspect' })).toEqual({ editorId: null, epoch: 2147483647, expiresAt: null });
+  });
+  it('current owner, member and wall checks apply to editor admission, never the lease alone', async () => {
+    const f = await fixture(), other = await fixture(f.ports.ctx.tenantId), request = { ...f.key, operation: 'inspect' };
+    await expect(admitOfficeEditor(other.ports, request)).rejects.toThrow();
+    await db.clientMemoryAccess.deleteMany({ where: { tenantId: f.ports.ctx.tenantId, userId: f.ports.ctx.userId } });
+    await expect(admitOfficeEditor(f.ports, request)).rejects.toThrow('Chat not found');
+  });
+  it('a Save queued behind a takeover rechecks the new epoch before committing any bytes', async () => {
+    const f = await fixture(); await f.lock(); await saveDraft(f.ports, f.save('before takeover'));
+    let entered!: () => void, resume!: () => void, queued!: () => void;
+    const atLock = new Promise<void>(resolve => { entered = resolve; }), continueTakeover = new Promise<void>(resolve => { resume = resolve; });
+    const saveAdmitted = new Promise<void>(resolve => { queued = resolve; });
+    let admissions = 0;
+    const takeoverAuthority = { readCurrent: async (tx: Parameters<OfficeAuthority['readCurrent']>[0]) => {
+      if (++admissions === 2) { entered(); await continueTakeover; }
+      return f.ports.authority.readCurrent(tx);
+    } } as OfficeAuthority;
+    const takeover = admitOfficeEditor({ ...f.ports, authority: takeoverAuthority },
+      { ...f.key, operation: 'takeover', editorId: randomUUID(), expectedEpoch: 1 });
+    await atLock;
+    const queuedAuthority = { readCurrent: async (tx: Parameters<OfficeAuthority['readCurrent']>[0]) => {
+      queued(); return f.ports.authority.readCurrent(tx);
+    } } as OfficeAuthority;
+    const attempt = saveDraft({ ...f.ports, authority: queuedAuthority }, f.save('stale queued write', 1));
+    // Attach rejection handling before the held transaction is released.
+    const checked = expect(attempt).rejects.toThrow('EDITOR_STALE');
+    try { await saveAdmitted; } finally { resume(); }
+    await takeover; await checked;
+    const result = await readDraft(f.ports, f.key); expect(result.sequence).toBe(1);
+    expect(Buffer.from(result.bytesBase64!, 'base64').toString()).toBe('before takeover');
   });
 });
