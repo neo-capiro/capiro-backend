@@ -143,7 +143,7 @@ export class ClientProfileFillProfileDiscovery {
     let count = 0;
     for (const facility of rows) {
       try {
-        const resolved = await this.facilities.resolveFacilityDistrict(ctx, clientId, facility.id);
+        const resolved = await this.facilities.previewFacilityDistrict(ctx, clientId, facility.id);
         const inserted = await this.ports.persistFinding(
           ctx.tenantId,
           clientId,
@@ -282,7 +282,7 @@ export class ClientProfileFillProfileDiscovery {
 
   private districtFinding(
     facility: AddressedFacility,
-    resolved: Awaited<ReturnType<ClientFacilitiesService['resolveFacilityDistrict']>>,
+    resolved: Awaited<ReturnType<ClientFacilitiesService['previewFacilityDistrict']>>,
   ): CompletionFindingInput {
     return {
       kind: 'district_nexus',
@@ -309,7 +309,9 @@ export class ClientProfileFillProfileDiscovery {
       status: 'informational',
       evidence: [
         {
-          label: `Resolved ${facility.name} through the Census-authoritative district pipeline`,
+          label: resolved.geocodeStatus === 'matched'
+            ? `Previewed ${facility.name} through the Census-authoritative district pipeline; facility unchanged`
+            : `District preview for ${facility.name} did not produce a matched address; facility unchanged`,
           source: 'U.S. Census Geocoder / TIGER geography',
           metadata: { geocodeStatus: resolved.geocodeStatus },
         },

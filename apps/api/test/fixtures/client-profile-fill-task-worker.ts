@@ -151,7 +151,7 @@ export function harness(options: Options = {}) {
     }),
   };
   const facilities = {
-    resolveFacilityDistrict: jest.fn(async (...args: unknown[]) => ({
+    previewFacilityDistrict: jest.fn(async (...args: unknown[]) => ({
       congressionalDistrict: 'VA-08',
       stateHouseDistrict: null,
       stateSenateDistrict: null,
