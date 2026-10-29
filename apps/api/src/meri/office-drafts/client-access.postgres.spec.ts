@@ -17,7 +17,7 @@ type Owner = {
   setMemoryAccess(ctx: TenantContext, id: string, input: { memoryWall: boolean; userIds: string[] }): Promise<unknown>;
   update(ctx: TenantContext, id: string, input: { status: string }): Promise<Client>;
 };
-const OwnerClass = clientsServiceFragment(['setMemoryAccess', 'update'], {
+const OwnerClass = clientsServiceFragment(['setMemoryAccess', 'update', 'updateInTransaction', 'afterUpdate', 'indexProfileAfterCommit'], {
   BadRequestException, NotFoundException, retireClientOfficeDraftsInTx, requireOwnerClient,
   requireClientCapacity, validateClientFundingProfile,
 }) as new (prisma: PrismaService) => Owner;

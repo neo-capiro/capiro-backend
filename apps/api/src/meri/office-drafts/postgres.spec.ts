@@ -243,8 +243,8 @@ suite('private Office drafts on ordinary-role PostgreSQL', () => {
     await beginDraftPublish(f.ports, { ...f.key, sequence: 1, sha256: saved.sha256 });
     const input = retirement(f);
     expect(await readOfficeDraftRetention(scoped, input)).toEqual({ version: OFFICE_RETENTION_VERSION, ...input,
-      drafts: 1, active: 1, bytes: Buffer.byteLength('retire private bytes') });
-    expect(await retireOfficeDrafts(scoped, input)).toEqual({ version: OFFICE_RETENTION_VERSION, ...input, retired: 1, remaining: false });
+      drafts: 1, active: 1, bytes: Buffer.byteLength('retire private bytes'), fenced: false });
+    expect(await retireOfficeDrafts(scoped, input)).toEqual({ version: OFFICE_RETENTION_VERSION, ...input, retired: 1, remaining: false, fenced: true });
     expect(await readOfficeDraftRetention(scoped, input)).toMatchObject({ drafts: 1, active: 0, bytes: 0 });
     expect(await retireOfficeDrafts(scoped, input)).toMatchObject({ retired: 0, remaining: false });
     await expect(openDraft(f.ports, f.source)).rejects.toThrow('CLOSED');

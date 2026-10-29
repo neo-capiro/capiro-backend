@@ -3,6 +3,7 @@ import type { TenantContext } from '@capiro/shared';
 import type { Prisma } from '@prisma/client';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import { authorizeDraft, type OfficeAuthority } from './authority.js';
+import { assertOfficeCustodyAvailable } from './disposal.js';
 import { digest, DRAFT_TTL_MS, LOCK_TTL_MS, parseKey, parseEditorRead, parseLock, parseOpen, parseSave,
   type DraftKey, type DraftSource, type EditorProof } from './input.js';
 
@@ -24,10 +25,15 @@ export const currentLock = (r: DraftRow, now: Date) =>
 export const conflict = (code: string): never => { throw new ConflictException(code); };
 
 export async function draftTransaction<T>(ports: DraftPorts, key: DraftKey,
-  fn: (tx: Prisma.TransactionClient, row: DraftRow | null, now: Date) => Promise<T>, allowMissing = false, allowDiscarded = false, editor: EditorProof | null = null) {
+  fn: (tx: Prisma.TransactionClient, row: DraftRow | null, now: Date) => Promise<T>, allowMissing = false, allowDiscarded = false, editor: EditorProof | null = null, openingArtifactId?: string) {
   const { prisma, ctx, authority } = ports;
   return prisma.withTenantUser(ctx.tenantId, ctx.userId, async tx => {
     await authorizeDraft(tx, ctx, key.conversationId, authority);
+    const hints = await tx.$queryRaw<Array<{ artifact_id: string }>>`SELECT artifact_id FROM meri_office_drafts
+      WHERE tenant_id=${ctx.tenantId}::uuid AND actor_user_id=${ctx.userId}::uuid AND draft_id=${key.draftId}::uuid`;
+    const artifactId = openingArtifactId ?? hints[0]?.artifact_id;
+    if (!artifactId) throw new NotFoundException('OFFICE_DRAFT_UNAVAILABLE');
+    await assertOfficeCustodyAvailable(tx, ctx.tenantId, key.conversationId, artifactId);
     // Serialize missing-row creation as well as existing-row changes. Actor is part of private identity.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(
       ${ctx.tenantId + ':office:' + ctx.userId + ':' + key.draftId},0))`;
@@ -37,6 +43,10 @@ export async function draftTransaction<T>(ports: DraftPorts, key: DraftKey,
     // Recheck native session expiry after waiting for the draft lock.
     const now = await authorizeDraft(tx, ctx, key.conversationId, authority), row = rows[0] ?? null;
     if (row && row.conversation_id !== key.conversationId) throw new NotFoundException('OFFICE_DRAFT_UNAVAILABLE');
+    if (row && row.artifact_id !== artifactId) {
+      if (openingArtifactId) conflict('OFFICE_DRAFT_ID_CONFLICT');
+      throw new NotFoundException('OFFICE_DRAFT_UNAVAILABLE');
+    }
     if (!row && !allowMissing) throw new NotFoundException('OFFICE_DRAFT_UNAVAILABLE');
     if (row && row.expires_at <= now) throw new GoneException('OFFICE_DRAFT_EXPIRED');
     if (row?.state === 'discarded' && !allowDiscarded) throw new GoneException('OFFICE_DRAFT_CLOSED');
@@ -64,7 +74,7 @@ export async function openDraft(ports: DraftPorts, raw: unknown) {
         ${input.artifactId}::uuid,${input.baseVersionId}::uuid,${input.baseSha256},${input.format},${input.filename},${expires},${now})
       RETURNING *`;
     return draftReceipt(rows[0]!);
-  }, true);
+  }, true, false, null, input.artifactId);
 }
 export async function readDraft(ports: DraftPorts, raw: unknown) {
   return draftTransaction(ports, parseKey(raw), async (_tx, row) => ({ ...draftReceipt(row!),

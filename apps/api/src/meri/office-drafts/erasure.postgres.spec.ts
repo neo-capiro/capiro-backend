@@ -1,4 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { Client } from 'pg';
 import type { Prisma } from '@prisma/client';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import { conversationMemoryRetentionFixture } from '../../memory/memory-conversation-retention.postgres-fixture.js';
@@ -12,6 +15,11 @@ const url = process.env.MEMORY_CONVERSATION_TEST_DATABASE_URL;
   let store: Awaited<ReturnType<typeof conversationMemoryRetentionFixture>>, prisma: PrismaService;
   beforeAll(async () => {
     store = await conversationMemoryRetentionFixture(url!);
+    const admin = new Client({ connectionString: url }); await admin.connect();
+    try {
+      if (!(await admin.query("SELECT to_regclass('public.meri_office_disposed_subjects') present")).rows[0].present)
+        await admin.query(readFileSync(join(__dirname, '../../../prisma/migrations/20281029120000_office_disposal_fence/migration.sql'), 'utf8'));
+    } finally { await admin.end(); }
     prisma = store.prisma;
   }, 60000);
   afterAll(async () => { await store?.db.$disconnect(); });

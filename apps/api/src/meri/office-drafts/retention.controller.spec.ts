@@ -7,7 +7,7 @@ import { OfficeDraftRetentionController } from './retention.controller.js';
 
 const input = { tenantId: randomUUID(), subject: { kind: 'artifact', id: randomUUID() } };
 function fixture(secret?: string, configured = true) {
-  const tx = { $queryRaw: jest.fn() };
+  const tx = { $queryRaw: jest.fn(), $executeRaw: jest.fn() };
   const prisma = { withSystem: jest.fn(async (work: (value: typeof tx) => unknown) => work(tx)) };
   const controller = new OfficeDraftRetentionController(prisma as never);
   const request = { headers: { authorization: 'Bearer synthetic-user',
@@ -26,12 +26,12 @@ test.each([undefined, 'wrong-secret'])('interactive bearer cannot inspect or ret
 test('actual service identity admits counts-only read and retirement, not widened subjects', async () => {
   const f = fixture('synthetic-service-only');
   expect(f.guard.canActivate(f.context)).toBe(true);
-  f.tx.$queryRaw.mockResolvedValueOnce([{ drafts: 1n, active: 1n, bytes: 9n }]);
-  await expect(f.controller.read(input, f.request)).resolves.toEqual({ version: 'meri.office-draft-retention.v1',
-    ...input, drafts: 1, active: 1, bytes: 9 });
+  f.tx.$queryRaw.mockResolvedValueOnce([{ drafts: 1n, active: 1n, bytes: 9n, fenced: false }]);
+  await expect(f.controller.read(input, f.request)).resolves.toEqual({ version: 'meri.office-draft-retention.v2',
+    ...input, drafts: 1, active: 1, bytes: 9, fenced: false });
   f.tx.$queryRaw.mockResolvedValueOnce([{ draft_id: randomUUID() }]).mockResolvedValueOnce([{ remaining: false }]);
-  await expect(f.controller.retire(input, f.request)).resolves.toEqual({ version: 'meri.office-draft-retention.v1',
-    ...input, retired: 1, remaining: false });
+  await expect(f.controller.retire(input, f.request)).resolves.toEqual({ version: 'meri.office-draft-retention.v2',
+    ...input, retired: 1, remaining: false, fenced: true });
   await expect(f.controller.retire({ ...input, force: true }, f.request)).rejects.toThrow('INPUT');
   expect(f.prisma.withSystem).toHaveBeenCalledTimes(2);
   expect(() => f.controller.retire(input, { ...f.request } as Request)).toThrow('Verified service identity required');

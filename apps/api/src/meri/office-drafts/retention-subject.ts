@@ -1,8 +1,9 @@
 import { Prisma } from '@prisma/client';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import { invalid, object, uuid } from './input.js';
+import { disposeOfficeSubject } from './disposal.js';
 
-export const OFFICE_RETENTION_VERSION = 'meri.office-draft-retention.v1';
+export const OFFICE_RETENTION_VERSION = 'meri.office-draft-retention.v2';
 export function officeRetentionSubject(raw: unknown) {
   const b = object(raw, ['tenantId', 'subject']);
   const s = object(b.subject, ['kind', 'id']);
@@ -32,13 +33,16 @@ export function retireConversationOfficeDraftsInTx(tx: Prisma.TransactionClient,
 export async function readOfficeDraftRetention(prisma: PrismaService, raw: unknown) {
   const s = officeRetentionSubject(raw);
   return prisma.withSystem(async tx => {
-    const rows = await tx.$queryRaw<Array<{ drafts: bigint; active: bigint; bytes: bigint }>>(Prisma.sql`
+    const rows = await tx.$queryRaw<Array<{ drafts: bigint; active: bigint; bytes: bigint; fenced: boolean }>>(Prisma.sql`
       SELECT count(*) AS drafts, count(*) FILTER (WHERE state<>'discarded') AS active,
-        COALESCE(sum(octet_length(bytes)),0)::bigint AS bytes FROM meri_office_drafts WHERE ${selection(s)}`);
+        COALESCE(sum(octet_length(bytes)),0)::bigint AS bytes,
+        EXISTS(SELECT 1 FROM meri_office_disposed_subjects WHERE tenant_id=${s.tenantId}::uuid
+          AND subject_kind=${s.subject.kind} AND subject_id=${s.subject.id}::uuid) AS fenced
+        FROM meri_office_drafts WHERE ${selection(s)}`);
     const r = rows[0]!;
     const counts = { drafts: Number(r.drafts), active: Number(r.active), bytes: Number(r.bytes) };
     if (Object.values(counts).some(n => !Number.isSafeInteger(n) || n < 0)) throw Error('OFFICE_RETENTION_UNAVAILABLE');
-    return { version: OFFICE_RETENTION_VERSION, ...s, ...counts };
+    return { version: OFFICE_RETENTION_VERSION, ...s, ...counts, fenced: r.fenced };
   }, { readOnly: true });
 }
 
@@ -50,6 +54,7 @@ export async function readOfficeDraftRetention(prisma: PrismaService, raw: unkno
 export async function retireOfficeDrafts(prisma: PrismaService, raw: unknown) {
   const s = officeRetentionSubject(raw);
   return prisma.withSystem(async tx => {
+    await disposeOfficeSubject(tx, s.tenantId, s.subject.kind, s.subject.id);
     const rows = await tx.$queryRaw<Array<{ draft_id: string }>>(Prisma.sql`WITH selected AS (
       SELECT tenant_id,actor_user_id,draft_id FROM meri_office_drafts
       WHERE ${selection(s)} AND state<>'discarded'
@@ -59,6 +64,6 @@ export async function retireOfficeDrafts(prisma: PrismaService, raw: unknown) {
         AND d.draft_id=s.draft_id RETURNING d.draft_id`);
     const remaining = await tx.$queryRaw<Array<{ remaining: boolean }>>(Prisma.sql`SELECT EXISTS(
       SELECT 1 FROM meri_office_drafts WHERE ${selection(s)} AND state<>'discarded') AS remaining`);
-    return { version: OFFICE_RETENTION_VERSION, ...s, retired: rows.length, remaining: remaining[0]!.remaining };
+    return { version: OFFICE_RETENTION_VERSION, ...s, retired: rows.length, remaining: remaining[0]!.remaining, fenced: true };
   });
 }
