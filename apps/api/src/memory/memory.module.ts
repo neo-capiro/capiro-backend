@@ -51,6 +51,7 @@ import { MemoryGovernanceController } from './memory-governance.controller.js';
 import { InternalMemoryController } from './internal-memory.controller.js';
 import { SettingsMemoryDraftController } from './settings-drafts/controller.js';
 import { SettingsMemoryDraftService } from './settings-drafts/service.js';
+import { SettingsMemorySubmissionService } from './settings-drafts/submission.js';
 
 /** Institutional Memory module. */
 @Module({
@@ -69,6 +70,7 @@ import { SettingsMemoryDraftService } from './settings-drafts/service.js';
   ],
   providers: [
     SettingsMemoryDraftService,
+    SettingsMemorySubmissionService,
     LineageAwareMemoryStoreService,
     { provide: GovernedMemoryStoreService, useExisting: LineageAwareMemoryStoreService },
     { provide: MemoryStoreService, useExisting: LineageAwareMemoryStoreService },

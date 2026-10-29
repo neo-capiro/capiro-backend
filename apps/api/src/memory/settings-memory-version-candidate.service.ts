@@ -23,6 +23,11 @@ const IMMUTABLE_SOURCE_KINDS = new Set([
 ]);
 
 type SettingsCandidateContext = Pick<TenantContext, 'tenantId' | 'userId' | 'role'>;
+export type SettingsVersionCandidateInput = Omit<SettingsMemoryCandidateInput, 'scope'> & {
+  scope: 'firm' | 'client' | 'user_private';
+  sourceVersion?: string;
+  draftId?: string;
+};
 
 interface SettingsSourceRow {
   id: string;
@@ -38,9 +43,9 @@ interface SettingsSourceRow {
 }
 
 /**
- * Converts an edit to an existing firm/client Settings file into the exact
+ * Converts an edit to an existing personal, firm or client Settings file into the exact
  * immutable-memory candidate contract. First-time files remain on the standard
- * candidate path; approved edits to existing shared truth never use a canonical
+ * candidate path; approved edits to existing memory never use a canonical
  * slug upsert and therefore never replace the prior version in place.
  */
 @Injectable()
@@ -53,9 +58,12 @@ export class SettingsMemoryVersionCandidateService {
 
   async proposeExistingCorrection(
     ctx: SettingsCandidateContext,
-    input: SettingsMemoryCandidateInput,
+    input: SettingsVersionCandidateInput,
+    transaction?: Prisma.TransactionClient,
   ): Promise<PendingSettingsCandidate | null> {
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    const propose = async (
+      tx: Prisma.TransactionClient,
+    ): Promise<PendingSettingsCandidate | null> => {
       const source = await this.findCurrentSettingsItem(tx, ctx.tenantId, input.type, input.slug);
       if (!source) return null;
       if (source.memoryScope !== input.scope) {
@@ -87,7 +95,7 @@ export class SettingsMemoryVersionCandidateService {
         value: proposedText,
         source: 'memory_correction',
         scope: input.scope,
-        ownerUserId: null,
+        ownerUserId: input.scope === 'user_private' ? ctx.userId : null,
         clientId: input.scope === 'client' ? input.clientId : null,
         canonicalItem: {
           type: input.type,
@@ -99,6 +107,7 @@ export class SettingsMemoryVersionCandidateService {
           kind: 'correction',
           sourceItemId: source.id,
           targetItemId: source.id,
+          ...(input.sourceVersion ? { settingsSourceVersion: input.sourceVersion } : {}),
         },
         settingsCorrection: true,
         settingsStableSlug: input.slug,
@@ -114,13 +123,14 @@ export class SettingsMemoryVersionCandidateService {
           instructions_allowed
         ) VALUES (
           ${id}::uuid, ${ctx.tenantId}::uuid, ${ctx.userId}::uuid,
-          'memory_correction', ${input.scope}, ${source.clientId}::uuid,
+          'memory_correction', ${input.scope === 'user_private' ? 'personal' : input.scope}, ${source.clientId}::uuid,
           ${JSON.stringify(payload)}::jsonb,
           ${JSON.stringify({
             kind: 'correction',
             sourceItemId: source.id,
             surface: 'settings_memory_editor',
             stableSlug: input.slug,
+            ...(input.draftId ? { draftId: input.draftId } : {}),
           })}::jsonb,
           'pending', ${source.memoryClass}, ${source.memoryScope}, 'pending_review',
           'approved_document_edit', ${source.id}, 'settings_sections', ${hash},
@@ -135,7 +145,7 @@ export class SettingsMemoryVersionCandidateService {
         clientId: source.clientId,
         toStatus: 'pending_review',
         reasonCode: 'submitted_for_review',
-        reason: 'Existing shared Settings memory submitted as an immutable correction.',
+        reason: 'Existing Settings memory submitted as an immutable correction.',
         sourceType: 'approved_document_edit',
         sourceId: source.id,
         proposalId: id,
@@ -152,7 +162,10 @@ export class SettingsMemoryVersionCandidateService {
         status: 'pending_review',
         submittedAt: new Date().toISOString(),
       };
-    });
+    };
+    return transaction
+      ? propose(transaction)
+      : this.prisma.withTenantUser(ctx.tenantId, ctx.userId, propose);
   }
 
   async findPendingSettingsCorrection(

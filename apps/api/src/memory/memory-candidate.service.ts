@@ -139,9 +139,9 @@ type CandidateActorContext = Pick<TenantContext, 'tenantId' | 'userId' | 'role'>
 
 const CANDIDATE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-/** A W8 Meri personal submission: pending until its owner decides (never inline). */
-function isMeriPersonal(candidate: { scope: string; sourceType?: string | null }): boolean {
-  return candidate.scope === 'personal' && candidate.sourceType === 'meri';
+/** Personal candidate content and decisions belong only to its owner. */
+function isPersonalCandidate(candidate: { scope: string; sourceType?: string | null }): boolean {
+  return candidate.scope === 'personal';
 }
 
 export interface OwnPersonalCandidate {
@@ -392,7 +392,11 @@ export class MemoryCandidateService {
     sourceKind: string = 'explicit_user',
     /** Internal fixture-only identity; controllers never bind this argument. */
     fixtureCandidateId?: string,
+    /** Internal composition for the private Settings draft transaction. */
+    settingsTransaction?: Prisma.TransactionClient,
   ): Promise<ProposeSaveMemoryResult> {
+    if (settingsTransaction && sourceKind !== 'settings_sections')
+      throw new BadRequestException('Settings transaction requires a Settings submission.');
     if (fixtureCandidateId !== undefined) {
       const namespace = 'meri-foundation-20260928';
       const fixtureTenants = [
@@ -496,7 +500,7 @@ export class MemoryCandidateService {
       confidence: candidateConfidence,
     });
 
-    const result = await this.prisma.withTenantUser(tenantId, proposedByUserId, async (tx) => {
+    const propose = async (tx: Prisma.TransactionClient) => {
       if (record.scope === 'client' &&
           !(await clientMemoryAllowed(tx, tenantId, proposedByUserId, record.clientId!))) {
         throw new NotFoundException('Client unavailable for memory proposal.');
@@ -573,12 +577,12 @@ export class MemoryCandidateService {
         committed.memoryItemId,
       );
       return { candidateId: candidate.id, memoryId: committed.clioMemoryId };
-    });
+    };
+    const result = settingsTransaction ? await propose(settingsTransaction)
+      : await this.prisma.withTenantUser(tenantId, proposedByUserId, propose);
 
     if (decision.outcome === 'WARN') {
-      this.logger.log(
-        `memory_candidate ${result.candidateId} pending (${decision.ruleId}), tenant ${tenantId}`,
-      );
+      this.logger.log(`Memory candidate pending (${decision.ruleId}).`);
       return {
         candidateId: result.candidateId,
         status: 'pending',
@@ -700,10 +704,10 @@ export class MemoryCandidateService {
       if (fixtureGuard && !governance) {
         throw new ForbiddenException('Synthetic memory requires canonical governed activation');
       }
-      // A Meri addition never replaces a committed memory with the same key: that
+      // A Meri or Settings addition never replaces committed memory with the same key: that
       // change must arrive as an immutable correction (dot #121 6246374007).
       const committed = await this.commitToClioMemoryInTx(tx, tenantId, record, governance, {
-        insertOnly: candidate.sourceType === 'meri',
+        insertOnly: candidate.sourceType === 'meri' || candidate.sourceType === 'settings_memory_editor',
       });
       await this.markDecidedInTx(
         tx,
@@ -765,7 +769,7 @@ export class MemoryCandidateService {
     candidate: { proposedBy: string; scope: string; sourceType?: string | null },
     deciderUserId: string,
   ): void {
-    if (isMeriPersonal(candidate) && candidate.proposedBy !== deciderUserId) {
+    if (isPersonalCandidate(candidate) && candidate.proposedBy !== deciderUserId) {
       throw new ForbiddenException('Only the owner may decide their personal memory submission.');
     }
   }
@@ -976,9 +980,9 @@ export class MemoryCandidateService {
         orderBy: { createdAt: 'asc' },
       });
       if (!viewerUserId) return rows;
-      // A Meri personal submission is its owner's alone: never in another
+      // A personal submission is its owner's alone: never in another
       // viewer's review queue (its content is private memory).
-      const visible = rows.filter((r) => !isMeriPersonal(r) || r.proposedBy === viewerUserId);
+      const visible = rows.filter((r) => !isPersonalCandidate(r) || r.proposedBy === viewerUserId);
       const denied = new Set(await fetchDeniedClientIds(tx, tenantId, viewerUserId));
       return denied.size ? visible.filter((r) => !r.clientId || !denied.has(r.clientId)) : visible;
     });

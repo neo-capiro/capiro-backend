@@ -187,8 +187,8 @@ export async function upsertCanonicalMemoryItemInTx(
     typeof record.confidence === 'number' && Number.isFinite(record.confidence)
       ? Math.min(1, Math.max(0, record.confidence))
       : null;
-  const insertOnlySharedCatalog = Boolean(canonicalItem && record.scope !== 'user_private');
-  const conflictClause = insertOnlySharedCatalog
+  const insertOnlyCatalog = Boolean(canonicalItem);
+  const conflictClause = insertOnlyCatalog
     ? Prisma.sql`ON CONFLICT (tenant_id, type, slug) DO NOTHING`
     : Prisma.sql`
         ON CONFLICT (tenant_id, type, slug) DO UPDATE SET
@@ -283,9 +283,9 @@ export async function upsertCanonicalMemoryItemInTx(
     RETURNING id::text AS id
   `;
   const item = rows[0];
-  if (!item && insertOnlySharedCatalog) {
+  if (!item && insertOnlyCatalog) {
     throw new ConflictException(
-      'This shared Settings memory was created while the proposal was pending. No content was replaced; reload and submit the change as an immutable correction.',
+      'This Settings memory was created while the proposal was pending. No content was replaced; reload and submit the change as an immutable correction.',
     );
   }
   if (!item) {

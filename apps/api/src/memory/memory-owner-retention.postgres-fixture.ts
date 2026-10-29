@@ -10,6 +10,7 @@ import { randomUUID } from 'node:crypto';
 export async function ownerRetentionDatabase(
   url: string,
   beforeMigration?: (db: Client) => Promise<void>,
+  additionalTables: readonly string[] = [],
 ) {
   if (!/^postgresql:\/\/wave6_fixture_admin@127\.0\.0\.1:55486\/memory_owner_[a-z0-9_]+$/.test(url))
     throw Error('Only the task-owned memory_owner database is admitted');
@@ -39,6 +40,7 @@ export async function ownerRetentionDatabase(
         { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 },
       );
       const tables = new Set([
+        ...additionalTables,
         'tenants',
         'users',
         'tenant_memberships',

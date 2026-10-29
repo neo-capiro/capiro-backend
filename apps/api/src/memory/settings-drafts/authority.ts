@@ -1,11 +1,39 @@
-import { createHash } from 'node:crypto';
-import { ForbiddenException } from '@nestjs/common';
+import { settingsMemorySourceVersion } from '../settings-memory-source-version.js';
+import { ForbiddenException, ServiceUnavailableException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import type { MemoryAuthorizationService } from '../memory-authorization.service.js';
 import { currentMemoryReadSql } from '../memory-recall-suppression.helpers.js';
 import type { MemorySection } from '../memory.types.js';
-import type { DraftTarget } from './input.js';
+import { draftTarget, type DraftTarget } from './input.js';
+import type { PrismaService } from '../../prisma/prisma.service.js';
+import { lockMemoryRetentionInTx } from '../memory-retention-selection.js';
+
+export function withDraftTarget<T>(
+  prisma: PrismaService,
+  authorization: MemoryAuthorizationService,
+  ctx: TenantContext,
+  type: string,
+  slug: string,
+  operation: (
+    tx: Prisma.TransactionClient,
+    target: DraftTarget,
+    current: TenantContext,
+  ) => Promise<T>,
+  erasing = false,
+) {
+  const target = draftTarget(type, slug, ctx.userId);
+  return prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    const ready = await tx.$queryRaw<
+      Array<{ ready: boolean }>
+    >`SELECT to_regclass('public.memory_settings_drafts') IS NOT NULL AS ready`;
+    if (!ready[0]?.ready)
+      throw new ServiceUnavailableException('Private memory drafts are not available yet.');
+    if (erasing) await lockMemoryRetentionInTx(tx);
+    const current = await requireDraftTarget(tx, ctx, target, authorization);
+    return operation(tx, target, current);
+  });
+}
 
 /** Canonical member, client wall and memory policy, held through the draft write. */
 export async function requireDraftTarget(
@@ -95,7 +123,7 @@ export async function readDraftBase(
     throw new ForbiddenException('Current memory access unavailable.');
   return {
     baseItemId: row.id,
-    baseVersion: createHash('sha256').update(JSON.stringify(row)).digest('hex'),
+    baseVersion: settingsMemorySourceVersion(row),
     sections: row.sections,
   };
 }
