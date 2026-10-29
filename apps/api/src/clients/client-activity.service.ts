@@ -4,6 +4,7 @@ import { isISO8601 } from 'class-validator';
 import type { Prisma } from '@prisma/client';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { readClientActivityMetrics } from './client-activity-metrics.js';
 import { EngagementService } from '../engagement/engagement.service.js';
 import {
   ownMeetingWhere,
@@ -94,6 +95,10 @@ export class ClientActivityService {
     private readonly prisma: PrismaService,
     private readonly engagement: EngagementService,
   ) {}
+
+  metrics(ctx: TenantContext, clientId: string) {
+    return readClientActivityMetrics(this.prisma, ctx, clientId);
+  }
 
   async list(
     ctx: TenantContext,
