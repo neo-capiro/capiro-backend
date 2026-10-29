@@ -3,7 +3,9 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -15,6 +17,7 @@ import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { DraftsService } from './drafts.service.js';
 import { CreateDraftDto, UpdateDraftDto, ListDraftsQueryDto } from './dto/draft.dto.js';
 import { SaveDraftDto } from './dto/save-draft.dto.js';
+import { SaveProspectDraftDto } from './dto/prospect-save.dto.js';
 
 /** Drafts CRUD + autosave (Phase 3, AC-3.3). All tenant-scoped. */
 @Controller('drafts')
@@ -47,6 +50,23 @@ export class DraftsController {
   @Post(':id/save')
   save(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('id') id: string, @Body() dto: SaveDraftDto) {
     return this.drafts.save(ctx.tenantId, id, ctx.clerkUserId, dto);
+  }
+
+  @Get(':id/prospect-state')
+  @Header('Cache-Control', 'no-store')
+  prospectState(
+    @CurrentTenant() ctx: WorkspaceTenantContext, @Param('id') id: string,
+    @Query('prospectId', new ParseUUIDPipe()) prospectId: string,
+  ) {
+    return this.drafts.prospectState(ctx.tenantId, id, ctx.clerkUserId, prospectId);
+  }
+
+  @Post(':id/prospect-save')
+  saveProspect(
+    @CurrentTenant() ctx: WorkspaceTenantContext, @Param('id') id: string,
+    @Body() dto: SaveProspectDraftDto,
+  ) {
+    return this.drafts.saveProspect(ctx.tenantId, id, ctx.clerkUserId, dto);
   }
 
   /** PATCH = autosave target (debounced partial config/body/sections). */
