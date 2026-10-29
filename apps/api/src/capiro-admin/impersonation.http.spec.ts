@@ -6,7 +6,13 @@ import { ImpersonationService } from './impersonation.service.js';
 const id = '10000000-0000-4000-8000-000000000001';
 describe('HQ impersonation HTTP boundary', () => {
   let app: INestApplication, role: string;
-  const service = { start: jest.fn(), read: jest.fn(), end: jest.fn() };
+  const service = {
+    start: jest.fn(),
+    read: jest.fn(),
+    end: jest.fn(),
+    workspace: jest.fn(),
+    active: jest.fn(),
+  };
   beforeEach(async () => {
     role = 'capiro_admin';
     for (const method of Object.values(service))
@@ -91,5 +97,16 @@ describe('HQ impersonation HTTP boundary', () => {
       .post('/capiro-admin/impersonate/end')
       .send({ sessionId: id, actorId: id })
       .expect(400);
+    await request(app.getHttpServer())
+      .get('/capiro-admin/impersonate/' + id + '/workspace?after=invalid')
+      .expect(400);
+    await request(app.getHttpServer())
+      .get('/capiro-admin/impersonate/' + id + '/workspace?tenantId=' + id)
+      .expect(400);
+    await request(app.getHttpServer())
+      .get('/capiro-admin/impersonate/' + id + '/workspace')
+      .expect('Cache-Control', 'no-store')
+      .expect(200);
+    expect(service.workspace.mock.calls[0][2]).toBe(id);
   });
 });
