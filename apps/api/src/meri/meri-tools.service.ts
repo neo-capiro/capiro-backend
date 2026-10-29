@@ -104,7 +104,7 @@ import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
 import { FederalSpendingService } from '../federal-spending/federal-spending.service.js';
 import { FederalMarketService } from '../federal-spending/federal-market.service.js';
 import { ProgramElementReadService } from '../program-element/program-element-read.service.js';
-import { BuyerWorkspaceService } from '../program-element/buyer-workspace/buyer-workspace.service.js';
+import { BuyerWorkspaceService, buyerWorkspaceCursor } from '../program-element/buyer-workspace/buyer-workspace.service.js';
 import {
   listBudgetLineLineage,
   type BudgetLineLineage,
@@ -1730,6 +1730,8 @@ export class MeriToolsService {
           peCode: str('Program Element or procurement budget-line code'),
           asOfFy: int('Four-digit fiscal year to inspect'),
           knownAt: str('ISO 8601 timestamp limiting what was known'),
+          acquisitionCursor: str('Opaque continuation for acquisition relationships'),
+          fundingCursor: str('Opaque continuation for funding and execution facts'),
           mentionsCursor: str('Opaque continuation for qualified federal mentions'),
           lifecycleCursor: str('Opaque continuation for federal lifecycle events'),
         },
@@ -4641,8 +4643,10 @@ export class MeriToolsService {
       tool: 'get_pe_buyer_workspace',
       ...(await this.buyerWorkspace.read({
         peCode, asOfFy, knownAt,
-        mentionsCursor: optionalString(input, 'mentionsCursor', 4096) ?? undefined,
-        lifecycleCursor: optionalString(input, 'lifecycleCursor', 4096) ?? undefined,
+        acquisitionCursor: buyerWorkspaceCursor(input.acquisitionCursor),
+        fundingCursor: buyerWorkspaceCursor(input.fundingCursor),
+        mentionsCursor: buyerWorkspaceCursor(input.mentionsCursor),
+        lifecycleCursor: buyerWorkspaceCursor(input.lifecycleCursor),
       })),
     };
   }
