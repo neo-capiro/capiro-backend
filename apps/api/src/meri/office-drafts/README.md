@@ -183,3 +183,8 @@ affected suites pass 34 cases, including 18 real PostgreSQL cases. This source
 change pairs with the runtime WOPI adapter's matching wire validator.
 
 Reference: [WOPI UnlockAndRelock](https://learn.microsoft.com/en-us/microsoft-365/cloud-storage-partner-program/rest/files/unlockandrelock).
+## Permanent disposal exclusion
+
+`20281029120000_office_disposal_fence` adds a content-free Office custody marker for irreversible subject retirement. Native draft transactions hold shared conversation/artifact disposal locks before the private draft lock. Internal retirement holds the exclusive subject lock through the marker and bounded byte-erasure commit. An HTTP timeout is not proof that a remote write stopped: an already-running Save must finish before retirement, while a delayed Open is refused after retirement even if all draft rows have expired.
+
+The internal counts-only wire is now `meri.office-draft-retention.v2`, with `fenced` alongside the existing counts. Zero counts without the current marker cannot prove disposal. The existing Meri retention owner decides policy/holds and records outcomes; this marker is only Core's durable erasure exclusion, contains no content or authorization, and is never an alternate retention ledger. Release the migration and paired runtime consumer together. Source and isolated PostgreSQL checks do not activate a deployment or qualify live Office behavior.
