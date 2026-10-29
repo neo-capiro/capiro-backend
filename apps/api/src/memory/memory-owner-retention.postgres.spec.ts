@@ -380,6 +380,53 @@ suite('memory owner periods at the ordinary PostgreSQL role boundary', () => {
     ).rejects.toThrow(/permission denied/);
   });
 
+  it('creates no function-level app.bypass_rls setting', async () => {
+    expect(
+      await store.db.$queryRawUnsafe(
+        `SELECT count(*)::int AS count FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+         WHERE n.nspname='public' AND p.proconfig IS NOT NULL
+           AND EXISTS(SELECT 1 FROM unnest(p.proconfig) c WHERE c LIKE '%bypass_rls%')`,
+      ),
+    ).toEqual([{ count: 0 }]);
+  });
+
+  it('restores the caller GUC when the edge helper fails after widening', async () => {
+    const f = await fixture(),
+      value = await corpus(f),
+      owner = store.migrationRole;
+    // A real in-body failure after the widening: the SECURITY DEFINER helper
+    // cannot execute its callee while that temporary revoke is in place.
+    await store.db.$executeRawUnsafe(
+      `REVOKE EXECUTE ON FUNCTION memory_retention_visible(uuid,uuid) FROM PUBLIC, "${owner}"`,
+    );
+    try {
+      expect(
+        await store.scoped(f.tenantId, async (tx) => {
+          await tx.$executeRawUnsafe(`DO $$ BEGIN
+            BEGIN
+              PERFORM memory_retention_edge_visible('${f.tenantId}'::uuid,
+                '${value.item.id}'::uuid,'${value.item.type}','${value.item.slug}');
+              RAISE EXCEPTION 'edge helper unexpectedly succeeded';
+            EXCEPTION WHEN insufficient_privilege THEN NULL;
+            END;
+          END $$`);
+          return tx.$queryRaw`SELECT rls_bypass() AS bypass, current_setting('app.bypass_rls',true) AS guc`;
+        }),
+      ).toEqual([{ bypass: false, guc: '' }]);
+    } finally {
+      await store.db.$executeRawUnsafe(
+        'GRANT EXECUTE ON FUNCTION memory_retention_visible(uuid,uuid) TO PUBLIC',
+      );
+    }
+    expect(
+      await store.scoped(
+        f.tenantId,
+        (tx) =>
+          tx.$queryRaw`SELECT memory_retention_edge_visible(${f.tenantId}::uuid,${value.item.id}::uuid,${value.item.type},${value.item.slug}) AS visible`,
+      ),
+    ).toEqual([{ visible: true }]);
+  });
+
   it('cleans a due closed client and its old grants without deleting firm memory', async () => {
     const f = await fixture(),
       value = await corpus(f, false, 'client'),

@@ -5,6 +5,23 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { Client } from 'pg';
 import { randomUUID } from 'node:crypto';
 
+/** Tables the focused fixture owns and builds. The 0500 migration extends six of
+ * them, and the rest exist for the RLS/role boundary these tests exercise. */
+const FIXTURE_TABLES = [
+  'tenants',
+  'users',
+  'tenant_memberships',
+  'clients',
+  'memory_items',
+  'memory_candidate',
+  'clio_memory',
+  'context_embeddings',
+  'memory_edges',
+  'client_memory_access',
+  'memory_access_grant',
+  'audit_logs',
+] as const;
+
 /** Schema comes from Prisma; the tested forward migration supplies ownership
  * FKs, policy, bindings and transitions. Vector math is outside this fixture. */
 export async function ownerRetentionDatabase(
@@ -14,8 +31,16 @@ export async function ownerRetentionDatabase(
 ) {
   // Office erasure reuses this canonical fixture on its separate task-owned
   // server; neither branch accepts a clone/live host or arbitrary credentials.
-  if (!/^postgresql:\/\/(?:wave6_fixture_admin@127\.0\.0\.1:55486\/memory_owner_[a-z0-9_]+|office_fixture_admin@127\.0\.0\.1:55487\/office_drafts_[a-z0-9_]+)$/.test(url))
-    throw Error('Only the task-owned memory_owner database is admitted');
+  // The memory_owner port may be overridden only by an explicit loopback test
+  // port (MEMORY_OWNER_TEST_PORT) when the canonical 55486 server is held by
+  // another session; the user, host and database-prefix still pin the target.
+  const memoryOwnerPort = process.env.MEMORY_OWNER_TEST_PORT ?? '55486';
+  if (!/^[0-9]{2,5}$/.test(memoryOwnerPort))
+    throw Error('MEMORY_OWNER_TEST_PORT must be a numeric loopback port');
+  const admitted = new RegExp(
+    `^postgresql://(?:wave6_fixture_admin@127\\.0\\.0\\.1:${memoryOwnerPort}/memory_owner_[a-z0-9_]+|office_fixture_admin@127\\.0\\.0\\.1:55487/office_drafts_[a-z0-9_]+)$`,
+  );
+  if (!admitted.test(url)) throw Error('Only the task-owned memory_owner database is admitted');
   const admin = new Client({ connectionString: url });
   await admin.connect();
   try {
@@ -41,21 +66,7 @@ export async function ownerRetentionDatabase(
         ],
         { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 },
       );
-      const tables = new Set([
-        ...additionalTables,
-        'tenants',
-        'users',
-        'tenant_memberships',
-        'clients',
-        'memory_items',
-        'memory_candidate',
-        'clio_memory',
-        'context_embeddings',
-        'memory_edges',
-        'client_memory_access',
-        'memory_access_grant',
-        'audit_logs',
-      ]);
+      const tables = new Set([...additionalTables, ...FIXTURE_TABLES]);
       const models = Prisma.dmmf.datamodel.models.filter((m) => tables.has(m.dbName ?? m.name));
       const enumNames = new Set(
         models.flatMap((m) => m.fields.filter((f) => f.kind === 'enum').map((f) => f.type)),
@@ -120,23 +131,33 @@ export async function ownerRetentionDatabase(
     );
     if (!ready.rows[0].present) {
       if (beforeMigration) await beforeMigration(admin);
-      // The forward migration is applied as a non-superuser role that owns the
-      // fixture tables, matching the RDS migration owner (rds_superuser member,
-      // no BYPASSRLS, no SET privilege on app.bypass_rls). Applying it as the
-      // bootstrap superuser hid a real CREATE FUNCTION ... SET app.bypass_rls
-      // privilege failure, so the migration now has to survive the real role.
+      // The forward migration is applied as a non-superuser, non-BYPASSRLS role
+      // that owns the fixture tables, matching the RDS migration owner (which has
+      // no SET privilege on app.bypass_rls). Applying it as the bootstrap
+      // superuser hid a real CREATE FUNCTION ... SET app.bypass_rls privilege
+      // failure, so the migration now has to survive the real role.
+      const migrationRole = 'wave6_fixture_migration';
       await admin.query(`DO $$ BEGIN
-        IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='wave6_fixture_migration')
-          THEN CREATE ROLE wave6_fixture_migration NOLOGIN NOSUPERUSER NOCREATEDB
+        IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='${migrationRole}')
+          THEN CREATE ROLE ${migrationRole} NOLOGIN NOSUPERUSER NOCREATEDB
             NOCREATEROLE NOINHERIT NOBYPASSRLS;
         END IF; END $$`);
-      await admin.query(`DO $$ DECLARE fixture_table record; BEGIN
-        FOR fixture_table IN SELECT tablename FROM pg_tables WHERE schemaname='public' LOOP
-          EXECUTE format('ALTER TABLE public.%I OWNER TO wave6_fixture_migration',
-            fixture_table.tablename);
-        END LOOP; END $$`);
-      await admin.query('GRANT CREATE ON SCHEMA public TO wave6_fixture_migration');
-      await admin.query('SET ROLE wave6_fixture_migration');
+      // A reused role must still be unprivileged for this parameter; otherwise a
+      // stale privileged role would silently defeat the regression this applies.
+      const capability = await admin.query(
+        `SELECT r.rolsuper, r.rolbypassrls,
+           has_parameter_privilege(r.oid, 'app.bypass_rls', 'SET') AS may_set
+         FROM pg_roles r WHERE r.rolname=$1`,
+        [migrationRole],
+      );
+      const flags = capability.rows[0];
+      if (!flags || flags.rolsuper || flags.rolbypassrls || flags.may_set)
+        throw Error('Fixture migration role must be NOSUPERUSER/NOBYPASSRLS without SET on app.bypass_rls');
+      const ownedTables = [...FIXTURE_TABLES, ...additionalTables];
+      for (const table of ownedTables)
+        await admin.query(`ALTER TABLE public.${JSON.stringify(table)} OWNER TO ${migrationRole}`);
+      await admin.query(`GRANT CREATE ON SCHEMA public TO ${migrationRole}`);
+      await admin.query(`SET ROLE ${migrationRole}`);
       try {
         await admin.query(
           readFileSync(
@@ -147,8 +168,13 @@ export async function ownerRetentionDatabase(
             'utf8',
           ),
         );
-      } finally {
         await admin.query('RESET ROLE');
+      } catch (error) {
+        // The migration's own BEGIN is aborted here; RESET ROLE would then fail
+        // with 25P02 and replace the real migration error. Roll back first.
+        await admin.query('ROLLBACK');
+        await admin.query('RESET ROLE');
+        throw error;
       }
     }
   } catch (error) {
@@ -169,7 +195,7 @@ export async function ownerRetentionDatabase(
       },
       { timeout: 10000 },
     );
-  return { db, scoped };
+  return { db, scoped, migrationRole: 'wave6_fixture_migration' };
 }
 
 export async function ownerRetentionCase(
