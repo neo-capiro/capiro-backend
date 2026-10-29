@@ -65,9 +65,9 @@ test('no group becomes a wildcard and every group keeps the five-value rule budg
 test('onboarding admissions are appended after the accepted newsletter group', () => {
   const groups = writes.groups as { id?: string; service: string; method: string; pathRegexes: string[] }[];
   const ids = groups.map((group) => group.id);
-  assert.equal(groups.length, 88);
+  assert.equal(groups.length, 89);
   assert.equal(ids[82], 'PublicNewsletterCapabilityPosts');
-  // The four onboarding admissions keep positions 83-86; the capability route is appended last.
+  // The four onboarding admissions keep positions 83-86; the capability routes are appended after them.
   assert.deepEqual(ids.slice(83, 87), [
     'OnboardPublicReads',
     'OnboardSetupPosts',
@@ -102,6 +102,10 @@ test('onboarding admissions are appended after the accepted newsletter group', (
   assert.equal(ids[87], 'ClientCapabilityCreate');
   expectGroup('ClientCapabilityCreate', 'core', 'POST', [
     '^/api/clients/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/capabilities$',
+  ]);
+  assert.equal(ids[88], 'ClientCapabilityUpdate');
+  expectGroup('ClientCapabilityUpdate', 'core', 'PATCH', [
+    '^/api/clients/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/capabilities/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$',
   ]);
   // No blanket write routing, no lifecycle hard-delete admission, bounded anchored tokens.
   for (const group of groups)
