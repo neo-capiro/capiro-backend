@@ -31,6 +31,9 @@ const BODY = {
 const CARRIER =
   'eyJjb250ZXh0Ijp7ImFzT2YiOiIyMDI2LTEwLTE3VDEyOjM0OjU2Ljc4OVoifSwib3BlcmF0aW9uIjp7ImlkIjoic2VhcmNoX2Z1bmRpbmdfb3Bwb3J0dW5pdGllcyIsInZlcnNpb24iOiIwLjIuMCJ9LCJyZXF1ZXN0U2hhMjU2IjoiNTA5MmY4ZWJmYTE3OTc4MzNmOTYzNTNlOTNiODA3ZGZjMjRjZjExMDdhNmM5OGNlOTlhZDQ5ZjhiODY0YjRlOCIsInNjaGVtYVZlcnNpb24iOiJtZXJpLW5hdGl2ZS1yZWFkLW9ic2VydmF0aW9uLzEifQ';
 const AS_OF = '2026-10-17T12:34:56.789Z';
+const ADVANCED_VECTORS = JSON.parse(readFileSync(join(__dirname, '__fixtures__', 'advanced-funding-observation-golden.json'), 'utf8')) as {
+  vectors: Array<{ operation: { id: string }; request: Record<string, unknown>; context: { asOf: string }; carrier: string }>;
+};
 const SECRET = 'strict-funding-observation-service-secret';
 const KB_NAME = 'search_client_knowledge';
 const KB_BODY = {
@@ -129,6 +132,17 @@ describe('served finite funding observation', () => {
     expect(response.body).toEqual({ asOf: AS_OF });
     expect(execute).toHaveBeenCalledTimes(1);
     expect(currentMeriFundingReadAsOf(NAME)).toBeUndefined();
+  });
+
+  it.each(ADVANCED_VECTORS.vectors)('admits $operation.id only with the exact native observation and service identity', async vector => {
+    const response = await post(vector.operation.id, vector.request, SECRET, vector.carrier).expect(200);
+    expect(response.body).toEqual({ asOf: vector.context.asOf });
+    expect(execute).toHaveBeenCalledWith(expect.anything(), vector.operation.id, vector.request);
+    execute.mockClear();
+    await post(vector.operation.id, vector.request, 'wrong', vector.carrier).expect(403);
+    await post(vector.operation.id, { ...vector.request, clientId: '33333333-3333-4333-8333-333333333333' }, SECRET, vector.carrier).expect(400);
+    await post(NAME, vector.request, SECRET, vector.carrier).expect(400);
+    expect(execute).not.toHaveBeenCalled();
   });
 
   it('preserves a legacy no-header request in observe mode', async () => {

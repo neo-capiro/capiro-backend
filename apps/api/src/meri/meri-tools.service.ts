@@ -1730,6 +1730,8 @@ export class MeriToolsService {
           peCode: str('Program Element or procurement budget-line code'),
           asOfFy: int('Four-digit fiscal year to inspect'),
           knownAt: str('ISO 8601 timestamp limiting what was known'),
+          mentionsCursor: str('Opaque continuation for qualified federal mentions'),
+          lifecycleCursor: str('Opaque continuation for federal lifecycle events'),
         },
         ['peCode', 'asOfFy', 'knownAt'],
       ),
@@ -3002,11 +3004,13 @@ export class MeriToolsService {
           : this.opportunityTools.getFundingOpportunity(toolActor(ctx), request);
       },
       explain_opportunity_match: () => {
-        return this.opportunityTools.explainOpportunityMatch(toolActor(ctx), {
+        const request = {
           clientId: String(input.clientId ?? ''),
           source: String(input.source ?? ''),
           sourceRecordId: String(input.sourceRecordId ?? ''),
-        });
+        };
+        const asOf = currentMeriFundingReadAsOf('explain_opportunity_match');
+        return this.opportunityTools.explainOpportunityMatch(toolActor(ctx), request, asOf);
       },
       get_opportunity_client_context: () => {
         const request = {
@@ -3029,7 +3033,7 @@ export class MeriToolsService {
           : this.opportunityTools.getOpportunityGovernmentLandscape(toolActor(ctx), request);
       },
       compare_funding_opportunities: () => {
-        return this.opportunityTools.compareFundingOpportunities(toolActor(ctx), {
+        const request = {
           clientId: String(input.clientId ?? ''),
           opportunities: Array.isArray(input.opportunities)
             ? (input.opportunities as Array<Record<string, unknown>>).map((o) => ({
@@ -3037,14 +3041,18 @@ export class MeriToolsService {
                 sourceRecordId: String(o?.sourceRecordId ?? ''),
               }))
             : [],
-        });
+        };
+        const asOf = currentMeriFundingReadAsOf('compare_funding_opportunities');
+        return this.opportunityTools.compareFundingOpportunities(toolActor(ctx), request, asOf);
       },
       build_opportunity_action_plan: () => {
-        return this.opportunityTools.buildOpportunityActionPlan(toolActor(ctx), {
+        const request = {
           clientId: String(input.clientId ?? ''),
           source: String(input.source ?? ''),
           sourceRecordId: String(input.sourceRecordId ?? ''),
-        });
+        };
+        const asOf = currentMeriFundingReadAsOf('build_opportunity_action_plan');
+        return this.opportunityTools.buildOpportunityActionPlan(toolActor(ctx), request, asOf);
       },
       get_business_development_context: () => this.requireBizDevTools().getContext(ctx, input),
       get_business_development_evidence: () => this.requireBizDevTools().getEvidence(ctx, input),
@@ -4631,7 +4639,11 @@ export class MeriToolsService {
     const knownAt = requiredString(input, 'knownAt', 40);
     return {
       tool: 'get_pe_buyer_workspace',
-      ...(await this.buyerWorkspace.read({ peCode, asOfFy, knownAt })),
+      ...(await this.buyerWorkspace.read({
+        peCode, asOfFy, knownAt,
+        mentionsCursor: optionalString(input, 'mentionsCursor', 4096) ?? undefined,
+        lifecycleCursor: optionalString(input, 'lifecycleCursor', 4096) ?? undefined,
+      })),
     };
   }
 

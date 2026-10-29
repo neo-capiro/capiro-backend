@@ -1,0 +1,58 @@
+{
+  "schema": "advanced-funding-observation-fixture/1",
+  "vectors": [
+    {
+      "operation": {
+        "id": "explain_opportunity_match",
+        "version": "0.2.0"
+      },
+      "request": {
+        "clientId": "a1234567-b123-4c12-8d12-e123456789ab",
+        "source": "sam_gov",
+        "sourceRecordId": "b1234567-b123-4c12-8d12-e123456789ab"
+      },
+      "context": {
+        "asOf": "2026-10-29T12:00:00.000Z"
+      },
+      "carrier": "eyJjb250ZXh0Ijp7ImFzT2YiOiIyMDI2LTEwLTI5VDEyOjAwOjAwLjAwMFoifSwib3BlcmF0aW9uIjp7ImlkIjoiZXhwbGFpbl9vcHBvcnR1bml0eV9tYXRjaCIsInZlcnNpb24iOiIwLjIuMCJ9LCJyZXF1ZXN0U2hhMjU2IjoiZWRjMTM5NGM4NzIyZTY3NDM1ZWE4NzY0OGY4ODVjODFjOTFhY2NhMjY5YjBjNjcyNDJjNzUxZDM2MGYxNzZkNyIsInNjaGVtYVZlcnNpb24iOiJtZXJpLW5hdGl2ZS1yZWFkLW9ic2VydmF0aW9uLzEifQ"
+    },
+    {
+      "operation": {
+        "id": "compare_funding_opportunities",
+        "version": "0.2.0"
+      },
+      "request": {
+        "clientId": "a1234567-b123-4c12-8d12-e123456789ab",
+        "opportunities": [
+          {
+            "source": "sam_gov",
+            "sourceRecordId": "b1234567-b123-4c12-8d12-e123456789ab"
+          },
+          {
+            "source": "grants_gov",
+            "sourceRecordId": "grant-1"
+          }
+        ]
+      },
+      "context": {
+        "asOf": "2026-10-29T12:00:00.000Z"
+      },
+      "carrier": "eyJjb250ZXh0Ijp7ImFzT2YiOiIyMDI2LTEwLTI5VDEyOjAwOjAwLjAwMFoifSwib3BlcmF0aW9uIjp7ImlkIjoiY29tcGFyZV9mdW5kaW5nX29wcG9ydHVuaXRpZXMiLCJ2ZXJzaW9uIjoiMC4yLjAifSwicmVxdWVzdFNoYTI1NiI6IjczMTc3YThmMjFmMGYxMThkOGNmN2JmOWNlMTQ0ZGMxZTc0Y2VlOWFiODQ4OTZmMDBiOTY5MWQzM2Q4MjA0ZGMiLCJzY2hlbWFWZXJzaW9uIjoibWVyaS1uYXRpdmUtcmVhZC1vYnNlcnZhdGlvbi8xIn0"
+    },
+    {
+      "operation": {
+        "id": "build_opportunity_action_plan",
+        "version": "0.2.0"
+      },
+      "request": {
+        "clientId": "a1234567-b123-4c12-8d12-e123456789ab",
+        "source": "sam_gov",
+        "sourceRecordId": "b1234567-b123-4c12-8d12-e123456789ab"
+      },
+      "context": {
+        "asOf": "2026-10-29T12:00:00.000Z"
+      },
+      "carrier": "eyJjb250ZXh0Ijp7ImFzT2YiOiIyMDI2LTEwLTI5VDEyOjAwOjAwLjAwMFoifSwib3BlcmF0aW9uIjp7ImlkIjoiYnVpbGRfb3Bwb3J0dW5pdHlfYWN0aW9uX3BsYW4iLCJ2ZXJzaW9uIjoiMC4yLjAifSwicmVxdWVzdFNoYTI1NiI6ImVkYzEzOTRjODcyMmU2NzQzNWVhODc2NDhmODg1YzgxYzkxYWNjYTI2OWIwYzY3MjQyYzc1MWQzNjBmMTc2ZDciLCJzY2hlbWFWZXJzaW9uIjoibWVyaS1uYXRpdmUtcmVhZC1vYnNlcnZhdGlvbi8xIn0"
+    }
+  ]
+}
