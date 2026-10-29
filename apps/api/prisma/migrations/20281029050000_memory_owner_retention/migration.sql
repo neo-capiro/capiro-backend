@@ -294,14 +294,23 @@ LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path=public,pg_temp AS $$
         OR (s.owner_kind='client' AND EXISTS(SELECT 1 FROM clients client
           WHERE client.tenant_id=s.tenant_id AND client.id=s.owner_id AND client.status='active'))))
 $$;
-CREATE FUNCTION memory_retention_edge_visible(p_tenant uuid,p_source uuid,p_type text,p_slug text) RETURNS boolean
-LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path=public,pg_temp AS $$
-  SELECT (rls_bypass() OR p_tenant=current_tenant_id())
-    AND EXISTS(SELECT 1 FROM memory_items m WHERE m.tenant_id=p_tenant AND m.id=p_source
+-- The inner read must see suppressed destinations even when the function owner
+-- is subject to FORCE RLS. PostgreSQL restores this fixed GUC on function exit.
+-- Only the tenant-bound outer function can invoke it as the owning role.
+CREATE FUNCTION memory_retention_edge_sources(p_tenant uuid,p_source uuid,p_type text,p_slug text) RETURNS boolean
+LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path=public,pg_temp SET app.bypass_rls='on' AS $$
+  SELECT EXISTS(SELECT 1 FROM memory_items m WHERE m.tenant_id=p_tenant AND m.id=p_source
       AND memory_retention_visible(m.tenant_id,m.retention_subject_id))
     AND NOT EXISTS(SELECT 1 FROM memory_items target WHERE target.tenant_id=p_tenant AND target.type=p_type AND target.slug=p_slug
       AND NOT memory_retention_visible(target.tenant_id,target.retention_subject_id))
 $$;
+REVOKE ALL ON FUNCTION memory_retention_edge_sources(uuid,uuid,text,text) FROM PUBLIC;
+CREATE FUNCTION memory_retention_edge_visible(p_tenant uuid,p_source uuid,p_type text,p_slug text) RETURNS boolean
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=public,pg_temp AS $$
+BEGIN
+  IF NOT rls_bypass() AND p_tenant IS DISTINCT FROM current_tenant_id() THEN RETURN false; END IF;
+  RETURN memory_retention_edge_sources(p_tenant,p_source,p_type,p_slug);
+END $$;
 CREATE POLICY memory_items_owner_retention ON memory_items AS RESTRICTIVE FOR SELECT
   USING(rls_bypass() OR memory_retention_visible(tenant_id,retention_subject_id));
 CREATE POLICY memory_candidate_owner_retention ON memory_candidate AS RESTRICTIVE FOR SELECT

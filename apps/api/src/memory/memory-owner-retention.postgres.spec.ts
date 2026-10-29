@@ -365,38 +365,86 @@ suite('memory owner periods at the ordinary PostgreSQL role boundary', () => {
         tx.memoryEdge.count({ where: { tenantId: f.tenantId } }),
       ),
     ).toBe(0);
+    expect(
+      await store.scoped(f.tenantId, async (tx) => {
+        await tx.$queryRaw`SELECT memory_retention_edge_visible(${f.tenantId}::uuid,${firm.id}::uuid,${value.item.type},${value.item.slug})`;
+        return tx.$queryRaw`SELECT rls_bypass() AS bypass`;
+      }),
+    ).toEqual([{ bypass: false }]);
+    await expect(
+      store.scoped(
+        f.tenantId,
+        (tx) =>
+          tx.$queryRaw`SELECT memory_retention_edge_sources(${f.tenantId}::uuid,${firm.id}::uuid,${value.item.type},${value.item.slug})`,
+      ),
+    ).rejects.toThrow(/permission denied/);
   });
 
   it('cleans a due closed client and its old grants without deleting firm memory', async () => {
-    const f = await fixture(), value = await corpus(f, false, 'client'), firm = await f.create('firm');
+    const f = await fixture(),
+      value = await corpus(f, false, 'client'),
+      firm = await f.create('firm');
     const createdAt = new Date(Date.now() - 92 * 86400000);
-    await store.db.clientMemoryAccess.create({ data: { tenantId: f.tenantId, clientId: f.clientId, userId: f.userId, createdAt } });
-    await store.db.memoryAccessGrant.create({ data: { tenantId: f.tenantId, clientId: f.clientId, userId: f.userId,
-      permissions: ['edit'], reason: 'Synthetic grant', createdAt } });
+    await store.db.clientMemoryAccess.create({
+      data: { tenantId: f.tenantId, clientId: f.clientId, userId: f.userId, createdAt },
+    });
+    await store.db.memoryAccessGrant.create({
+      data: {
+        tenantId: f.tenantId,
+        clientId: f.clientId,
+        userId: f.userId,
+        permissions: ['edit'],
+        reason: 'Synthetic grant',
+        createdAt,
+      },
+    });
     await closeFixturePeriod(value.source.retentionSubjectId!, 91);
     await store.db.client.update({ where: { id: f.clientId }, data: { status: 'archived' } });
-    const result = await store.scoped(null, tx => purgeMemoryOwnerRetentionInTx(tx, f.tenantId));
-    expect(result).toMatchObject({ items: 1, clio: 1, candidates: 1, grants: 2, remainingCoreRows: 0 });
+    const result = await store.scoped(null, (tx) => purgeMemoryOwnerRetentionInTx(tx, f.tenantId));
+    expect(result).toMatchObject({
+      items: 1,
+      clio: 1,
+      candidates: 1,
+      grants: 2,
+      remainingCoreRows: 0,
+    });
     expect(await store.db.clioMemory.findUnique({ where: { id: firm.id } })).not.toBeNull();
   });
 
   it('rolls content and deletion outcomes back together if the final audit fails', async () => {
-    const f = await fixture(), value = await corpus(f);
+    const f = await fixture(),
+      value = await corpus(f);
     await closeFixturePeriod(value.source.retentionSubjectId!, 31);
-    await expect(store.scoped(null, async tx => {
-      const spy = jest.spyOn(tx.auditLog, 'create').mockImplementation(() => { throw Error('Synthetic audit failure'); });
-      try { return await purgeMemoryOwnerRetentionInTx(tx, f.tenantId); } finally { spy.mockRestore(); }
-    })).rejects.toThrow('Synthetic audit failure');
+    await expect(
+      store.scoped(null, async (tx) => {
+        const spy = jest.spyOn(tx.auditLog, 'create').mockImplementation(() => {
+          throw Error('Synthetic audit failure');
+        });
+        try {
+          return await purgeMemoryOwnerRetentionInTx(tx, f.tenantId);
+        } finally {
+          spy.mockRestore();
+        }
+      }),
+    ).rejects.toThrow('Synthetic audit failure');
     expect(await store.db.clioMemory.findUnique({ where: { id: value.source.id } })).not.toBeNull();
     expect(await store.db.memoryItem.findUnique({ where: { id: value.item.id } })).not.toBeNull();
-    expect(await store.db.memoryCandidate.findUnique({ where: { id: value.candidate.id } })).not.toBeNull();
-    expect(await store.db.memoryRetentionTombstone.count({ where: { tenantId: f.tenantId } })).toBe(0);
+    expect(
+      await store.db.memoryCandidate.findUnique({ where: { id: value.candidate.id } }),
+    ).not.toBeNull();
+    expect(await store.db.memoryRetentionTombstone.count({ where: { tenantId: f.tenantId } })).toBe(
+      0,
+    );
   });
 
   it('cannot move an existing row to a new identity before deletion', async () => {
-    const f = await fixture(), value = await f.create('user_private');
-    await expect(store.scoped(f.tenantId, tx => tx.clioMemory.update({ where: { id: value.id }, data: { id: randomUUID() } })))
-      .rejects.toThrow('memory_identity_immutable');
+    const f = await fixture(),
+      value = await f.create('user_private');
+    await expect(
+      store.scoped(f.tenantId, (tx) =>
+        tx.clioMemory.update({ where: { id: value.id }, data: { id: randomUUID() } }),
+      ),
+    ).rejects.toThrow('memory_identity_immutable');
     expect(await store.db.clioMemory.findUnique({ where: { id: value.id } })).not.toBeNull();
   });
 });
