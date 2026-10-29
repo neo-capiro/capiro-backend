@@ -8,7 +8,18 @@ import { CurrentTenant } from '../../tenant/current-tenant.decorator.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { TenantContextMiddleware } from '../../tenant/tenant-context.middleware.js';
 import { listAdminWorkflows, readWorkflowRequest, saveWorkflow } from './admin.js';
-import { listRuntimeWorkflows, readRuntimeWorkflow } from './runtime.js';
+import { listRuntimeWorkflows, readRuntimeWorkflow, listWorkflowCatalog } from './runtime.js';
+
+@Controller('clio/site-workflows/catalog')
+@UseGuards(RolesGuard)
+@Roles('standard_user')
+export class SiteWorkflowCatalogController {
+  constructor(private readonly prisma: PrismaService, private readonly tenant: TenantContextMiddleware) {}
+  @Post() @HttpCode(200)
+  async list(@CurrentTenant() ctx: TenantContext, @Body() body: unknown, @Req() req: Request) {
+    return listWorkflowCatalog(this.prisma, ctx, body, await this.tenant.readApplicationAuthoritySession(req, ctx));
+  }
+}
 
 @Controller('clio/site-workflows')
 @UseGuards(RolesGuard)

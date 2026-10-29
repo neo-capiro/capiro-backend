@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
-import type { PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import { listAdminWorkflows, readWorkflowRequest, saveWorkflow } from './admin.js';
-import { listRuntimeWorkflows, readRuntimeWorkflow } from './runtime.js';
+import { listRuntimeWorkflows, readRuntimeWorkflow, listWorkflowCatalog } from './runtime.js';
 import { workflowFixture } from './fixture.js';
 import { workflowDatabase } from './postgres-fixture.js';
 import { TenantContextMiddleware } from '../../tenant/tenant-context.middleware.js';
@@ -45,6 +45,28 @@ suite('workflow configuration using ordinary-role PostgreSQL', () => {
     const results = await Promise.allSettled([saveWorkflow(scoped, f.ctx, f.request(2)), saveWorkflow(scoped, f.ctx, f.request(2))]);
     expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
     expect(results.filter(r => r.status === 'rejected')).toHaveLength(1);
+  });
+  it('lists current enabled choices for an ordinary native user and releases none after session or chat withdrawal', async () => {
+    const f = await fixture();
+    await db.tenantMembership.update({ where: { id: f.membership.id }, data: { role: 'standard_user' } });
+    const ctx = { ...f.ctx, role: 'standard_user' } as TenantContext;
+    const owner = Object.create(TenantContextMiddleware.prototype);
+    const provenance = { context: ctx, claims: { sub: ctx.clerkUserId }, membershipId: f.membership.id,
+      membershipTenantId: ctx.tenantId, requestedSlug: undefined, impersonationId: null };
+    const session = { id: 'synthetic-catalog-session', userId: ctx.clerkUserId, status: 'active', createdAt: 1,
+      expireAt: Date.now() + 600000, abandonAt: Date.now() + 600000, expiresAtMs: Date.now() + 600000, actor: null };
+    const authority = { readCurrent: (tx?: Prisma.TransactionClient) => owner.readCurrentApplicationAuthority(provenance, ctx, session, tx, true) };
+    const input = { conversationId: f.read.conversationId };
+    expect(await listWorkflowCatalog(scoped, ctx, input, authority)).toEqual({ workflows: [f.saved.configuration] });
+    await expect(listWorkflowCatalog(scoped, ctx, { ...input, tenantId: ctx.tenantId }, authority)).rejects.toThrow('Invalid');
+    session.expiresAtMs = 0;
+    await expect(listWorkflowCatalog(scoped, ctx, input, authority)).rejects.toThrow('authority unavailable');
+    session.expiresAtMs = Date.now() + 600000;
+    await db.clientMemoryAccess.deleteMany({ where: { tenantId: ctx.tenantId } });
+    await expect(listWorkflowCatalog(scoped, ctx, input, authority)).rejects.toThrow('Chat not found');
+    await db.clientMemoryAccess.create({ data: { tenantId: ctx.tenantId, userId: ctx.userId, clientId: f.clientId } });
+    await db.clioConversation.update({ where: { id: input.conversationId }, data: { status: 'archived' } });
+    await expect(listWorkflowCatalog(scoped, ctx, input, authority)).rejects.toThrow('Active chat');
   });
   it('rechecks current administrator role despite an old privileged context', async () => {
     const f = await fixture();
