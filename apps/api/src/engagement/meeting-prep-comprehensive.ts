@@ -237,7 +237,7 @@ async function parallelMap<T, U>(
 export async function generateComprehensiveMeetingPrep(
   input: MeetingPrepInput,
   credential: ResolvedAiCredential,
-  llm: LlmCompletionService,
+  llm: Pick<LlmCompletionService, 'complete'>,
 ): Promise<MeetingPrepResult> {
   const execution = currentMeetingPrepExecution();
   if (!execution) throw new Error('meeting_prep_durable_execution_required');
