@@ -1,3 +1,4 @@
+import { withMemoryConversationRetention } from './conversation-serving/transaction.js';
 import {
   BadRequestException,
   ForbiddenException,
@@ -120,7 +121,7 @@ export class MemoryCandidateReviewService {
   ): Promise<{ enabled: boolean; candidates: ReviewableMemoryCandidate[] }> {
     if (!this.enabled()) return { enabled: false, candidates: [] };
 
-    const candidates = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    const candidates = await withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const rows = await tx.memoryCandidate.findMany({
         where: { tenantId: ctx.tenantId, status: 'pending' },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
@@ -267,7 +268,7 @@ export class MemoryCandidateReviewService {
     reason: unknown,
   ): Promise<MemoryReviewWorkflowSnapshot> {
     this.requireEnabled();
-    await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    await withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const subject = await this.authorization.loadCandidateInTx(tx, ctx.tenantId, candidateId);
       if (!subject) throw new NotFoundException('Memory candidate not found.');
       const decision = await this.authorization.evaluateInTx(tx, ctx, subject, 'review');
@@ -400,7 +401,7 @@ export class MemoryCandidateReviewService {
     error: unknown,
   ): Promise<MemoryReviewDecisionResult> {
     if (!(error instanceof NotFoundException)) throw error;
-    const original = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+    const original = await withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, (tx) =>
       recoverMemoryDecisionInTx(tx, ctx, this.authorization, candidateId, action, reason),
     );
     // A previous commit may have lost its subsequent workflow acknowledgement.
@@ -418,7 +419,7 @@ export class MemoryCandidateReviewService {
     ctx: TenantContext,
     candidateId: string,
   ): Promise<MemoryCandidateKind> {
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const row = await tx.memoryCandidate.findFirst({
         where: { id: candidateId, tenantId: ctx.tenantId, status: 'pending' },
         select: { sourceKind: true, contradictsMemoryItemId: true, conflictStatus: true },

@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { withMemoryConversationRetention } from '../memory/conversation-serving/transaction.js';
 
 /**
  * Prevents the generic held-deliverable review API from becoming a second,
@@ -16,7 +17,7 @@ export class MemoryReviewCompatibilityGuardService {
     ctx: TenantContext,
     reviewRequestId: string,
   ): Promise<void> {
-    const isMemory = await this.prisma.withTenantUser(
+    const isMemory = await withMemoryConversationRetention(this.prisma,
       ctx.tenantId,
       ctx.userId,
       async (tx) => {

@@ -1,4 +1,5 @@
 import { settingsMemorySourceVersion } from '../settings-memory-source-version.js';
+import { withMemoryConversationRetention } from '../conversation-serving/transaction.js';
 import { ForbiddenException, ServiceUnavailableException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
@@ -23,7 +24,7 @@ export function withDraftTarget<T>(
   erasing = false,
 ) {
   const target = draftTarget(type, slug, ctx.userId);
-  return prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+  return withMemoryConversationRetention(prisma, ctx.tenantId, ctx.userId, async (tx) => {
     const ready = await tx.$queryRaw<
       Array<{ ready: boolean }>
     >`SELECT to_regclass('public.memory_settings_drafts') IS NOT NULL AS ready`;
