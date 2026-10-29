@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, HttpException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  HttpException,
+  NotFoundException,
+} from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { isUUID } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
@@ -22,6 +27,7 @@ export type ReviewCommand = {
 };
 export type ReviewResult = {
   requestId: string;
+  status: 'completed' | 'partial' | 'refused';
   applied: string[];
   alreadyApplied: string[];
   errors: Array<{ findingId: string; message: string }>;
@@ -91,24 +97,46 @@ export async function commitReviewedFindings(
           !saved.result
         )
           throw new ConflictException('Application request identity or inputs changed');
-        return { ...saved.result, replayed: true };
+        return { ...saved.result, status: applicationStatus(saved.result), replayed: true };
       }
-      if ((await currentReviewRevision(tx, ctx, clientId, true)) !== command.expectedClientRevision)
-        throw new ConflictException(
-          'The client changed after this review. Reload and review the current data before applying.',
-        );
-      const all = await loadReviewFindings(tx, ctx, clientId, runId, true);
-      const selected = command.findings
-        .map((expected) => {
-          const finding = all.find((f) => f.id === expected.id);
-          if (!finding || reviewHash(finding) !== expected.revision)
-            throw new ConflictException(
-              'A selected finding changed. Reload and review it before applying.',
-            );
-          return finding;
-        })
-        .sort((a, b) => (a.kind === 'advocacy_record' ? -1 : b.kind === 'advocacy_record' ? 1 : 0));
-      const result: ReviewResult = { requestId, applied: [], alreadyApplied: [], errors: [] };
+      const result: ReviewResult = {
+        requestId,
+        status: 'completed',
+        applied: [],
+        alreadyApplied: [],
+        errors: [],
+      };
+      let selected: AdvancedFindingRow[] = [];
+      try {
+        if (
+          (await currentReviewRevision(tx, ctx, clientId, true)) !== command.expectedClientRevision
+        )
+          throw new ConflictException(
+            'The client changed after this review. Reload and review the current data before applying.',
+          );
+        const all = await loadReviewFindings(tx, ctx, clientId, runId, true);
+        selected = command.findings
+          .map((expected) => {
+            const finding = all.find((f) => f.id === expected.id);
+            if (!finding || reviewHash(finding) !== expected.revision)
+              throw new ConflictException(
+                'A selected finding changed. Reload and review it before applying.',
+              );
+            return finding;
+          })
+          .sort((a, b) =>
+            a.kind === 'advocacy_record' ? -1 : b.kind === 'advocacy_record' ? 1 : 0,
+          );
+      } catch (error) {
+        if (!(error instanceof ConflictException || error instanceof NotFoundException))
+          throw error;
+        // A definitive refusal owns the same durable request identity. A late
+        // replay cannot become a fresh write after the user reviews a new revision.
+        result.errors = command.findings.map((finding) => ({
+          findingId: finding.id,
+          message: error.message,
+        }));
+      }
       for (const finding of selected) {
         if (finding.status === 'accepted') {
           result.alreadyApplied.push(finding.id);
@@ -146,6 +174,7 @@ export async function commitReviewedFindings(
           });
         }
       }
+      result.status = applicationStatus(result);
       await tx.auditLog.create({
         data: {
           id: requestId,
@@ -172,4 +201,14 @@ export async function commitReviewedFindings(
     }
   }
   return committed;
+}
+
+function applicationStatus(
+  result: Pick<ReviewResult, 'applied' | 'alreadyApplied' | 'errors'>,
+): ReviewResult['status'] {
+  return result.errors.length
+    ? result.applied.length || result.alreadyApplied.length
+      ? 'partial'
+      : 'refused'
+    : 'completed';
 }
