@@ -135,12 +135,12 @@ export function canonicalRecordBytes(entries) {
     if (entry.type === 'symlink') return `L\t${relative}\t${recordSafeTarget(relative, entry.value)}\n`;
     fail('entry type must be file or symlink: ' + relative);
   });
-  rows.sort((left, right) => {
-    const leftPath = left.slice(2, left.indexOf('\t', 2));
-    const rightPath = right.slice(2, right.indexOf('\t', 2));
-    return Buffer.compare(Buffer.from(leftPath, 'utf8'), Buffer.from(rightPath, 'utf8'));
-  });
-  return Buffer.from(rows.join(''), 'utf8');
+  // Canonical order is by path only (UTF-8 bytes). Sorting whole records would
+  // order by the F/L prefix first and put a file before an interleaved symlink.
+  const ordered = rows
+    .map((record) => ({ path: record.slice(2, record.indexOf('\t', 2)), record }))
+    .sort((left, right) => Buffer.compare(Buffer.from(left.path, 'utf8'), Buffer.from(right.path, 'utf8')));
+  return Buffer.from(ordered.map((entry) => entry.record).join(''), 'utf8');
 }
 export function sourceDigest(entries) {
   return { digest: sha256(canonicalRecordBytes(entries)), entries: entries.length };
@@ -302,7 +302,7 @@ for base, dirs, files in os.walk('.'):
         relative = safe_path(os.path.relpath(full, '.').replace(os.sep, '/'))
         info = os.lstat(full)
         if stat.S_ISLNK(info.st_mode):
-            rows.append('L\\t%s\\t%s\\n' % (relative, safe_target(relative, os.readlink(full))))
+            rows.append((relative, 'L\\t%s\\t%s\\n' % (relative, safe_target(relative, os.readlink(full)))))
         elif stat.S_ISREG(info.st_mode):
             if info.st_size > MAX_BYTES:
                 refuse('source file over the size budget ' + relative)
@@ -310,14 +310,16 @@ for base, dirs, files in os.walk('.'):
             with open(full, 'rb') as handle:
                 for chunk in iter(lambda: handle.read(1024 * 1024), b''):
                     digest.update(chunk)
-            rows.append('F\\t%s\\t%s\\n' % (relative, digest.hexdigest()))
+            rows.append((relative, 'F\\t%s\\t%s\\n' % (relative, digest.hexdigest())))
         else:
             refuse('non-regular source entry ' + relative)
         count += 1
         if count > MAX_ENTRIES:
             refuse('source entry budget')
-rows.sort()
-digest = hashlib.sha256(''.join(rows).encode('utf-8')).hexdigest()
+# Canonical order is by path only (UTF-8 bytes); sorting whole records would
+# order by the F/L prefix first and disagree with a symlink that sorts earlier.
+rows.sort(key=lambda entry: entry[0].encode('utf-8'))
+digest = hashlib.sha256(''.join(record for _, record in rows).encode('utf-8')).hexdigest()
 expected = os.environ['EXPECTED_TREE_SHA256']
 if digest != expected:
     print('SOURCE_TREE_DIGEST_MISMATCH', digest, expected)
@@ -333,6 +335,10 @@ const ADMITTED_IMAGE_CHECK = `# BEGIN ADMITTED-IMAGE-CHECK
 pushed_digest() {
   image_ref="$1"
   repository="$2"
+  case "$repository" in
+    ${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/*) ;;
+    *) echo "PUSH_DIGEST_REFUSED $repository: capture requires the exact fully-qualified ECR repository URI" >&2; exit 1 ;;
+  esac
   slug="$(printf '%s' "$repository" | tr '/' '-')"
   docker image inspect "$image_ref" --format '{{json .RepoDigests}}' > "pushed-repo-digests-$slug.json"
   python3 - "$repository" "pushed-repo-digests-$slug.json" <<'PY'
@@ -501,8 +507,9 @@ for repository in ${WEB_REPOSITORIES.join(' ')}; do
   docker push "$target"
 done
 test "$(docker image inspect "$CONSUMER_IMAGE" --format '{{.Id}}')" = "$LOCAL_IMAGE_ID"
-DIGEST_PRIMARY="$(pushed_digest "$CONSUMER_IMAGE" ${CONSUMER_REPOSITORIES.web})"
-DIGEST_VNEXT="$(pushed_digest "$CONSUMER_IMAGE" capiro/dev/web-vnext)"
+REGISTRY_URI=${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com
+DIGEST_PRIMARY="$(pushed_digest "$CONSUMER_IMAGE" "$REGISTRY_URI"/${CONSUMER_REPOSITORIES.web})"
+DIGEST_VNEXT="$(pushed_digest "$CONSUMER_IMAGE" "$REGISTRY_URI"/capiro/dev/web-vnext)"
 test "$DIGEST_PRIMARY" = "$DIGEST_VNEXT" || { echo "ADMITTED_IMAGE_REFUSED cross-repository digest disagreement" >&2; exit 1; }
 verify_admitted_image ${CONSUMER_REPOSITORIES.web} "$DIGEST_PRIMARY"
 verify_admitted_image capiro/dev/web-vnext "$DIGEST_VNEXT"`;
@@ -522,7 +529,8 @@ bash marketing/smoke-8080.sh "$IMAGE"
 test "$(docker image inspect "$IMAGE" --format '{{.Id}}')" = "$LOCAL_IMAGE_ID"
 docker push "$IMAGE"
 test "$(docker image inspect "$IMAGE" --format '{{.Id}}')" = "$LOCAL_IMAGE_ID"
-DIGEST="$(pushed_digest "$IMAGE" ${CONSUMER_REPOSITORIES.marketing})"
+REGISTRY_URI=${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com
+DIGEST="$(pushed_digest "$IMAGE" "$REGISTRY_URI"/${CONSUMER_REPOSITORIES.marketing})"
 verify_admitted_image ${CONSUMER_REPOSITORIES.marketing} "$DIGEST"`;
 
 export function buildspecFor(service, sourceKind = 'github') {

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -220,6 +221,74 @@ describe('legacy consumer build request: canonical source digest parity', () => 
     }
   });
 
+  test('mixed regular-file and symlink ordering is identical in git, generator and verifier', () => {
+    // Concrete records from review: symlink a-link -> z-file and file z-file.
+    const concrete = [{ path: 'z-file', type: 'file', value: '0'.repeat(64) },
+      { path: 'a-link', type: 'symlink', value: 'z-file' }];
+    const ordered = sourceDigest(concrete);
+    assert.equal(ordered.digest, 'c7623d520ce525f15d88545e3041ae773342e925953df24fb350170a2184706a',
+      'path-ordered canonical digest');
+    // Whole-record ordering (F before L, the pre-fix Python behaviour) hashes
+    // differently and must not be what either side computes.
+    const raw = (entry) => `${entry.type === 'file' ? 'F' : 'L'}\t${entry.path}\t${entry.value}\n`;
+    const wholeRecord = createHash('sha256').update(concrete.map(raw).sort().join('')).digest('hex');
+    assert.equal(wholeRecord, 'c994b188cf132583a1b263d8253de0395cfacd90cab9a6aef6d5091f3260f0f9',
+      'whole-record order is the reviewed counter-example');
+    assert.notEqual(wholeRecord, ordered.digest);
+
+    const root = mkdtempSync(path.join(tmpdir(), 'legacy-mixed-'));
+    writeFileSync(path.join(root, 'z-file'), 'zero-file\n');
+    try {
+      symlinkSync('z-file', path.join(root, 'a-link'));
+    } catch (error) {
+      assert.ok(['EPERM', 'EACCES', 'UNKNOWN'].includes(error.code), error.code);
+      return; // grammar controls above still pin the ordering; on-disk case needs links
+    }
+    const entries = collectSourceEntries(root);
+    const walkDigest = sourceDigest(entries).digest;
+    const records = canonicalRecordBytes(entries).toString('utf8').split('\n').filter(Boolean);
+    assert.equal(records.length, 2);
+    assert.match(records[0], /^L\ta-link\tz-file$/);
+    assert.match(records[1], /^F\tz-file\t[0-9a-f]{64}$/);
+
+    const shim = shimDir();
+    try {
+      const run = runVerifier(decodedScript('web'), root, walkDigest, shim);
+      assert.equal(run.status, 0, `${run.stdout}${run.stderr}`);
+      assert.match(run.stdout, new RegExp(`SOURCE_TREE_DIGEST_PASS ${walkDigest} 2`));
+
+      // Re-targeting the link must change the digest on both sides.
+      const retargeted = mkdtempSync(path.join(tmpdir(), 'legacy-mixed-'));
+      writeFileSync(path.join(retargeted, 'z-file'), 'zero-file\n');
+      symlinkSync('other-target', path.join(retargeted, 'a-link'));
+      const changed = runVerifier(decodedScript('web'), retargeted, walkDigest, shim);
+      assert.equal(changed.status, 1);
+      assert.match(changed.stdout, /SOURCE_TREE_DIGEST_MISMATCH/);
+      assert.notEqual(sourceDigest(collectSourceEntries(retargeted)).digest, walkDigest);
+    } finally {
+      rmSync(shim, { recursive: true, force: true });
+    }
+
+    // A genuine symlink in the *git object database* (mode 120000), not a text file.
+    const repo = mkdtempSync(path.join(tmpdir(), 'legacy-mixed-git-'));
+    execFileSync('git', ['init', '-q', repo], { env: GIT_ENV });
+    writeFileSync(path.join(repo, 'z-file'), 'zero-file\n');
+    execFileSync('git', ['-C', repo, 'add', 'z-file'], { env: GIT_ENV });
+    const blob = execFileSync('git', ['-C', repo, 'hash-object', '-w', '--stdin'], { input: 'z-file', env: GIT_ENV, encoding: 'utf8' }).trim();
+    execFileSync('git', ['-C', repo, 'update-index', '--add', '--cacheinfo', `120000,${blob},a-link`], { env: GIT_ENV });
+    execFileSync('git', ['-C', repo, 'commit', '-q', '-m', 'mixed'], { env: GIT_ENV });
+    const head = execFileSync('git', ['-C', repo, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+    const modes = execFileSync('git', ['-C', repo, 'ls-tree', '-r', head], { encoding: 'utf8' });
+    assert.match(modes, /^120000 blob [0-9a-f]{40}\ta-link$/m, 'git tree holds a real symlink entry');
+    assert.equal(treeDigest(repo, head).digest, walkDigest,
+      'generator git-object digest equals the verifier value for interleaved names');
+    // Changed file content changes the git-object digest too.
+    writeFileSync(path.join(repo, 'z-file'), 'other-content\n');
+    execFileSync('git', ['-C', repo, 'commit', '-qam', 'content'], { env: GIT_ENV });
+    const head2 = execFileSync('git', ['-C', repo, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+    assert.notEqual(treeDigest(repo, head2).digest, walkDigest);
+  });
+
   test('a tree with a tab or newline in a path is refused by both sides', () => {
     assert.throws(() => canonicalRecordBytes([{ path: 'a\tb', type: 'file', value: 'a'.repeat(64) }]),
       /control character in source path/);
@@ -264,8 +333,9 @@ describe('legacy consumer build request: job scripts', () => {
     assert.ok(script.includes('scripts/ci/newsletter-accepted-source-profile.spec.mjs'));
     assert.ok(script.includes('node scripts/legacy-web-release.mjs artifact'));
     assert.ok(script.includes('apps/web/smoke-8080.sh'));
-    assert.ok(script.includes('pushed_digest "$CONSUMER_IMAGE" capiro/dev/web'));
-    assert.ok(script.includes('pushed_digest "$CONSUMER_IMAGE" capiro/dev/web-vnext'));
+    assert.ok(script.includes('pushed_digest "$CONSUMER_IMAGE" "$REGISTRY_URI"/capiro/dev/web'));
+    assert.ok(script.includes('pushed_digest "$CONSUMER_IMAGE" "$REGISTRY_URI"/capiro/dev/web-vnext'));
+    assert.ok(script.includes('capture requires the exact fully-qualified ECR repository URI'));
     assert.ok(script.includes('DIGEST_PRIMARY" = "$DIGEST_VNEXT"'), 'cross-repository digest equality required');
     assert.ok(script.includes('verify_admitted_image capiro/dev/web "$DIGEST_PRIMARY"'));
     assert.ok(script.includes('verify_admitted_image capiro/dev/web-vnext "$DIGEST_VNEXT"'));
@@ -288,7 +358,7 @@ describe('legacy consumer build request: job scripts', () => {
     assert.ok(script.includes('docker build --platform linux/arm64 -f marketing/Dockerfile'));
     assert.ok(script.includes('marketing/smoke-8080.sh'));
     assert.ok(script.includes(`:${'$'}EXPECTED_SHA`));
-    assert.ok(script.includes('pushed_digest "$IMAGE" capiro/dev/marketing'));
+    assert.ok(script.includes('pushed_digest "$IMAGE" "$REGISTRY_URI"/capiro/dev/marketing'));
     assert.ok(script.includes('verify_admitted_image capiro/dev/marketing "$DIGEST"'));
     assert.ok(script.includes('SCAN_CLEAN_PASS'));
     const parse = parsesBash(script);
@@ -339,6 +409,11 @@ describe('legacy consumer build request: job scripts', () => {
 
 const CAPTURED = `sha256:${'a'.repeat(64)}`;
 const OTHER = `sha256:${'b'.repeat(64)}`;
+const REGISTRY = '967807252336.dkr.ecr.us-east-1.amazonaws.com';
+const WEB_URI = `${REGISTRY}/capiro/dev/web`;
+const VNEXT_URI = `${REGISTRY}/capiro/dev/web-vnext`;
+const MKT_URI = `${REGISTRY}/capiro/dev/marketing`;
+const TAG = '0123456789abcdef0123456789abcdef01234567';
 
 function stubs() {
   const dir = mkdtempSync(path.join(tmpdir(), 'legacy-stubs-'));
@@ -369,16 +444,17 @@ function scanJson(digest, status, findings = {}) {
   return JSON.stringify({ imageId: { imageDigest: digest }, imageScanStatus: { status },
     imageScanFindings: { findingSeverityCounts: findings } });
 }
-function runHarness(script, env) {
+const CHECK_SECTION = (script) => section(script, 'ADMITTED-IMAGE-CHECK');
+function runCapture(script, repository, env) {
   const dir = mkdtempSync(path.join(tmpdir(), 'legacy-harness-'));
-  const file = path.join(dir, 'harness.sh');
+  const file = path.join(dir, 'capture.sh');
   writeFileSync(file, `set -euo pipefail
-EXPECTED_SHA=0123456789abcdef0123456789abcdef01234567
+EXPECTED_SHA=${TAG}
 REGION=us-east-1
 SCAN_ATTEMPTS=2
 SCAN_INTERVAL=0
-${section(script, 'ADMITTED-IMAGE-CHECK')}
-pushed_digest "$IMAGE_REF" capiro/dev/web
+${CHECK_SECTION(script)}
+pushed_digest "$IMAGE_REF" '${repository}'
 `);
   return spawnSync('bash', [file], { cwd: dir, encoding: 'utf8', env: { ...process.env, ...env } });
 }
@@ -386,49 +462,68 @@ function runVerify(script, repository, captured, env) {
   const dir = mkdtempSync(path.join(tmpdir(), 'legacy-verify-'));
   const file = path.join(dir, 'verify.sh');
   writeFileSync(file, `set -euo pipefail
-EXPECTED_SHA=0123456789abcdef0123456789abcdef01234567
+EXPECTED_SHA=${TAG}
 REGION=us-east-1
 SCAN_ATTEMPTS=2
 SCAN_INTERVAL=0
-${section(script, 'ADMITTED-IMAGE-CHECK')}
+${CHECK_SECTION(script)}
 verify_admitted_image '${repository}' '${captured}'
 `);
   return spawnSync('bash', [file], { cwd: dir, encoding: 'utf8', env: { ...process.env, ...env } });
 }
-const baseEnv = (stub, overrides) => ({ PATH: `${stub}${path.delimiter}${process.env.PATH}`,
-  IMAGE_REF: 'registry/capiro/dev/web:0123456789abcdef0123456789abcdef01234567', ...overrides });
+const envFor = (stub, overrides) => ({ PATH: `${stub}${path.delimiter}${process.env.PATH}`,
+  IMAGE_REF: `${WEB_URI}:${TAG}`, ...overrides });
+const cleanIdentity = (uri, digest) => ({ FAKE_TAG_DIGEST: digest,
+  FAKE_IMAGE_JSON: imageJson(digest, [TAG]), FAKE_SCAN_JSON: scanJson(digest, 'COMPLETE') });
 
 describe('legacy consumer build request: captured digest and scan controls (executed)', () => {
-  test('captured digest is read from the pushed reference and bound to the exact commit tag', () => {
+  test('both web repositories and marketing capture from fully-qualified RepoDigests', () => {
     const script = decodedScript('web');
-    const stub = stubs();
-    try {
-      const capture = runHarness(script, baseEnv(stub, {
-        FAKE_REPODIGESTS: JSON.stringify([`capiro/dev/web@${CAPTURED}`]), FAKE_TAG_DIGEST: CAPTURED,
-        FAKE_IMAGE_JSON: imageJson(CAPTURED, ['0123456789abcdef0123456789abcdef01234567']),
-        FAKE_SCAN_JSON: scanJson(CAPTURED, 'COMPLETE'),
-      }));
-      assert.equal(capture.status, 0, capture.stderr);
-      assert.equal(capture.stdout.trim(), CAPTURED);
+    const marketingScript = decodedScript('marketing');
+    for (const [label, uri, href, sc] of [['web', WEB_URI, `${WEB_URI}:${TAG}`, script],
+      ['web-vnext', VNEXT_URI, `${WEB_URI}:${TAG}`, script],
+      ['marketing', MKT_URI, `${MKT_URI}:${TAG}`, marketingScript]]) {
+      const stub = stubs();
+      try {
+        const run = runCapture(sc, uri, envFor(stub, { IMAGE_REF: href,
+          FAKE_REPODIGESTS: JSON.stringify([`${uri}@${CAPTURED}`]) }));
+        assert.equal(run.status, 0, `${label}: ${run.stderr}`);
+        assert.equal(run.stdout.trim(), CAPTURED, label);
+        const verify = runVerify(sc === marketingScript ? marketingScript : script,
+          uri.replace(`${REGISTRY}/`, ''), CAPTURED, envFor(stub, cleanIdentity(uri, CAPTURED)));
+        assert.equal(verify.status, 0, `${label} verify: ${verify.stderr}`);
+        assert.match(verify.stdout, /ADMITTED_IMAGE_IDENTITY_PASS/);
+        assert.match(verify.stdout, new RegExp(`SCAN_CLEAN_PASS .* ${CAPTURED}`));
+      } finally { rmSync(stub, { recursive: true, force: true }); }
+    }
+  });
 
-      const pass = runVerify(script, 'capiro/dev/web', CAPTURED, baseEnv(stub, {
-        FAKE_TAG_DIGEST: CAPTURED,
-        FAKE_IMAGE_JSON: imageJson(CAPTURED, ['0123456789abcdef0123456789abcdef01234567']),
-        FAKE_SCAN_JSON: scanJson(CAPTURED, 'COMPLETE'),
-      }));
-      assert.equal(pass.status, 0, pass.stderr);
-      assert.match(pass.stdout, /ADMITTED_IMAGE_IDENTITY_PASS capiro-dev-web/);
-      assert.match(pass.stdout, new RegExp(`SCAN_CLEAN_PASS capiro-dev-web ${CAPTURED}`));
-    } finally { rmSync(stub, { recursive: true, force: true }); }
+  test('another registry, another repository or a bare name is refused', () => {
+    const script = decodedScript('web');
+    const cases = [
+      ['foreign registry with the same path', WEB_URI, `${WEB_URI}:${TAG}`,
+        [`other-registry.example.com/capiro/dev/web@${CAPTURED}`]],
+      ['other repository in the same registry', WEB_URI, `${WEB_URI}:${TAG}`,
+        [`${VNEXT_URI}@${CAPTURED}`]],
+      ['bare repository name', 'capiro/dev/web', `${WEB_URI}:${TAG}`, [`${WEB_URI}@${CAPTURED}`]],
+    ];
+    for (const [label, uri, href, rows] of cases) {
+      const stub = stubs();
+      try {
+        const run = runCapture(script, uri, envFor(stub, { IMAGE_REF: href, FAKE_REPODIGESTS: JSON.stringify(rows) }));
+        assert.equal(run.status, 1, `${label}: ${run.stdout}`);
+        assert.match(run.stderr, /PUSH_DIGEST_REFUSED/, label);
+      } finally { rmSync(stub, { recursive: true, force: true }); }
+    }
   });
 
   test('a pushed reference that is missing, duplicated or malformed is refused', () => {
     const script = decodedScript('web');
-    for (const rows of [[], [`capiro/dev/web@${CAPTURED}`, `capiro/dev/web@${OTHER}`],
-      ['capiro/dev/other@' + CAPTURED], [`capiro/dev/web@sha256:abc`]]) {
+    for (const rows of [[], [`${WEB_URI}@${CAPTURED}`, `${WEB_URI}@${OTHER}`],
+      [`${WEB_URI}@sha256:abc`], [`${WEB_URI}`], [`${WEB_URI}@`]]) {
       const stub = stubs();
       try {
-        const run = runHarness(script, baseEnv(stub, { FAKE_REPODIGESTS: JSON.stringify(rows) }));
+        const run = runCapture(script, WEB_URI, envFor(stub, { FAKE_REPODIGESTS: JSON.stringify(rows) }));
         assert.equal(run.status, 1, rows.join(','));
         assert.match(run.stderr, /PUSH_DIGEST_REFUSED/, rows.join(','));
       } finally { rmSync(stub, { recursive: true, force: true }); }
@@ -438,35 +533,27 @@ describe('legacy consumer build request: captured digest and scan controls (exec
   test('tag drift, wrong returned identity/status and blocking findings are refused', () => {
     const script = decodedScript('web');
     const cases = [
-      ['tag drift', { FAKE_TAG_DIGEST: OTHER,
-        FAKE_IMAGE_JSON: imageJson(OTHER, ['0123456789abcdef0123456789abcdef01234567']),
+      ['tag drift', { FAKE_TAG_DIGEST: OTHER, FAKE_IMAGE_JSON: imageJson(OTHER, [TAG]),
         FAKE_SCAN_JSON: scanJson(OTHER, 'COMPLETE') }, /tag resolves to/],
-      ['describe-images identity drift', { FAKE_TAG_DIGEST: CAPTURED,
-        FAKE_IMAGE_JSON: imageJson(OTHER, ['0123456789abcdef0123456789abcdef01234567']),
+      ['describe-images identity drift', { FAKE_TAG_DIGEST: CAPTURED, FAKE_IMAGE_JSON: imageJson(OTHER, [TAG]),
         FAKE_SCAN_JSON: scanJson(CAPTURED, 'COMPLETE') }, /describe-images returned/],
-      ['exact tag missing on digest', { FAKE_TAG_DIGEST: CAPTURED,
-        FAKE_IMAGE_JSON: imageJson(CAPTURED, ['deadbeef']),
+      ['exact tag missing on digest', { FAKE_TAG_DIGEST: CAPTURED, FAKE_IMAGE_JSON: imageJson(CAPTURED, ['deadbeef']),
         FAKE_SCAN_JSON: scanJson(CAPTURED, 'COMPLETE') }, /exact tag missing/],
-      ['inactive image', { FAKE_TAG_DIGEST: CAPTURED,
-        FAKE_IMAGE_JSON: imageJson(CAPTURED, ['0123456789abcdef0123456789abcdef01234567'], 'INACTIVE'),
+      ['inactive image', { FAKE_TAG_DIGEST: CAPTURED, FAKE_IMAGE_JSON: imageJson(CAPTURED, [TAG], 'INACTIVE'),
         FAKE_SCAN_JSON: scanJson(CAPTURED, 'COMPLETE') }, /status 'INACTIVE'/],
-      ['scan identity drift', { FAKE_TAG_DIGEST: CAPTURED,
-        FAKE_IMAGE_JSON: imageJson(CAPTURED, ['0123456789abcdef0123456789abcdef01234567']),
+      ['scan identity drift', { FAKE_TAG_DIGEST: CAPTURED, FAKE_IMAGE_JSON: imageJson(CAPTURED, [TAG]),
         FAKE_SCAN_JSON: scanJson(OTHER, 'COMPLETE') }, /SCAN_REFUSED .*image identity/],
-      ['scan never completes', { FAKE_TAG_DIGEST: CAPTURED,
-        FAKE_IMAGE_JSON: imageJson(CAPTURED, ['0123456789abcdef0123456789abcdef01234567']),
+      ['scan never completes', { FAKE_TAG_DIGEST: CAPTURED, FAKE_IMAGE_JSON: imageJson(CAPTURED, [TAG]),
         FAKE_SCAN_JSON: scanJson(CAPTURED, 'IN_PROGRESS') }, /no COMPLETE scan/],
-      ['blocking finding', { FAKE_TAG_DIGEST: CAPTURED,
-        FAKE_IMAGE_JSON: imageJson(CAPTURED, ['0123456789abcdef0123456789abcdef01234567']),
+      ['blocking finding', { FAKE_TAG_DIGEST: CAPTURED, FAKE_IMAGE_JSON: imageJson(CAPTURED, [TAG]),
         FAKE_SCAN_JSON: scanJson(CAPTURED, 'COMPLETE', { HIGH: 1 }) }, /blocking findings 1/],
-      ['critical finding', { FAKE_TAG_DIGEST: CAPTURED,
-        FAKE_IMAGE_JSON: imageJson(CAPTURED, ['0123456789abcdef0123456789abcdef01234567']),
+      ['critical finding', { FAKE_TAG_DIGEST: CAPTURED, FAKE_IMAGE_JSON: imageJson(CAPTURED, [TAG]),
         FAKE_SCAN_JSON: scanJson(CAPTURED, 'COMPLETE', { CRITICAL: 1 }) }, /blocking findings 1/],
     ];
     for (const [label, env, pattern] of cases) {
       const stub = stubs();
       try {
-        const run = runVerify(script, 'capiro/dev/web', CAPTURED, baseEnv(stub, env));
+        const run = runVerify(script, 'capiro/dev/web', CAPTURED, envFor(stub, env));
         assert.equal(run.status, 1, `${label}: ${run.stdout}${run.stderr}`);
         assert.match(run.stderr, pattern, label);
       } finally { rmSync(stub, { recursive: true, force: true }); }
@@ -477,25 +564,15 @@ describe('legacy consumer build request: captured digest and scan controls (exec
     const script = decodedScript('web');
     const stub = stubs();
     try {
-      const rows = [`capiro/dev/web@${CAPTURED}`, `capiro/dev/web-vnext@${OTHER}`];
-      const primary = runHarness(script, baseEnv(stub, { FAKE_REPODIGESTS: JSON.stringify(rows) }));
+      const rows = [`${WEB_URI}@${CAPTURED}`, `${VNEXT_URI}@${OTHER}`];
+      const primary = runCapture(script, WEB_URI, envFor(stub, { FAKE_REPODIGESTS: JSON.stringify(rows) }));
       assert.equal(primary.status, 0, primary.stderr);
       assert.equal(primary.stdout.trim(), CAPTURED);
-      const vnext = spawnSync('bash', ['-c', `set -euo pipefail
-EXPECTED_SHA=0123456789abcdef0123456789abcdef01234567
-REGION=us-east-1
-SCAN_ATTEMPTS=1
-SCAN_INTERVAL=0
-${section(script, 'ADMITTED-IMAGE-CHECK')}
-pushed_digest "$IMAGE_REF" capiro/dev/web-vnext
-`], { cwd: tmpdir(), encoding: 'utf8', env: { ...process.env, ...baseEnv(stub, { FAKE_REPODIGESTS: JSON.stringify(rows) }) } });
+      const vnext = runCapture(script, VNEXT_URI, envFor(stub, { FAKE_REPODIGESTS: JSON.stringify(rows) }));
       assert.equal(vnext.status, 0, vnext.stderr);
       assert.equal(vnext.stdout.trim(), OTHER);
-      // The emitted job refuses the disagreement with this exact guard.
-      const job = decodedScript('web');
-      assert.ok(job.includes('test "$DIGEST_PRIMARY" = "$DIGEST_VNEXT"'));
-      assert.ok(job.includes('cross-repository digest disagreement'));
-      assert.notEqual(primary.stdout.trim(), vnext.stdout.trim());
+      assert.ok(decodedScript('web').includes('test "$DIGEST_PRIMARY" = "$DIGEST_VNEXT"'));
+      assert.ok(decodedScript('web').includes('cross-repository digest disagreement'));
     } finally { rmSync(stub, { recursive: true, force: true }); }
   });
 });
