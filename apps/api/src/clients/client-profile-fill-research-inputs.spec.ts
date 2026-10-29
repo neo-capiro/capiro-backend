@@ -55,7 +55,8 @@ test('starting research persists provisional selections only in the existing run
   expect(JSON.parse(tasks.find(row => row.args[4] === 'lda')!.args[7] as string)).toEqual({
     researchInputVersion: 1, ldaIdentities: [...selected, suggested],
   });
-  expect(h.writes.every(row => /(?:INSERT INTO|UPDATE) client_profile_fill_(?:run|task)/.test(row.sql))).toBe(true);
+  expect(h.writes.filter(row => !/^\s*SELECT/.test(row.sql)).every(row =>
+    /(?:INSERT INTO|UPDATE) client_profile_fill_(?:run|task|extension_task)/.test(row.sql))).toBe(true);
 });
 test('an omitted website is fixed to the selected setup snapshot, not a later client edit', async () => {
   const h = workflow();

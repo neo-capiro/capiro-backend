@@ -4,6 +4,8 @@ import { createResearchRun } from './client-profile-fill-run-create.js';
 import { readResearchStart, researchStartRequest } from './client-profile-fill-start-request.js';
 import { ClientProfileFillWorkflowService, type StartClientProfileFillWorkflowInput } from './client-profile-fill-workflow.service.js';
 import { researchStartDatabase } from './client-profile-fill-start.postgres-fixture.js';
+import { seedCompletionTasks } from './client-profile-fill-completion-plan-store.js';
+import { ClientProfileFillTaskLedger } from './client-profile-fill-task-ledger.js';
 
 const url = process.env.FILL_START_TEST_DATABASE_URL;
 (url ? describe : describe.skip)('research starts through current ownership and PostgreSQL', () => {
@@ -30,15 +32,60 @@ const url = process.env.FILL_START_TEST_DATABASE_URL;
   const create = () => createResearchRun(store.scoped, ctx, clientId, allocation());
   const read = () => readResearchStart(store.scoped, ctx, clientId, allocation().request);
 
-  test('concurrent identical starts commit one run and one task', async () => {
+  test('concurrent identical starts atomically commit one run and its complete task plan', async () => {
     const results = await Promise.all([create(), create()]);
     expect(results.map(row => row.runId)).toEqual([input.requestId, input.requestId]);
     expect(results.filter(row => row.created)).toHaveLength(1);
-    const [counts] = await store.db.$queryRawUnsafe<Array<{ runs: number; tasks: number }>>(
+    const [counts] = await store.db.$queryRawUnsafe<Array<{ runs: number; tasks: number; extensions: number }>>(
       `SELECT (SELECT count(*)::int FROM client_profile_fill_run WHERE id=$1::uuid) AS runs,
-        (SELECT count(*)::int FROM client_profile_fill_task WHERE run_id=$1::uuid) AS tasks`, input.requestId,
+        (SELECT count(*)::int FROM client_profile_fill_task WHERE run_id=$1::uuid) AS tasks,
+        (SELECT count(*)::int FROM client_profile_fill_extension_task WHERE run_id=$1::uuid) AS extensions`, input.requestId,
     );
-    expect(counts).toEqual({ runs: 1, tasks: 1 });
+    expect(counts).toEqual({ runs: 1, tasks: 1, extensions: 7 });
+  });
+  test('follow-up tasks stay idle until preparation succeeds', async () => {
+    await create();
+    const ledger = new ClientProfileFillTaskLedger({
+      withSystem: (fn: Parameters<typeof store.scoped.withTenantUser>[2]) =>
+        store.scoped.withTenantUser(ctx.tenantId, ctx.userId, fn),
+    } as never, 'fixture-worker', { safeError: String });
+    expect(await ledger.claimTasks()).toEqual([]);
+    await store.db.$executeRawUnsafe("UPDATE client_profile_fill_run SET stage='research' WHERE id=$1::uuid", input.requestId);
+    expect((await ledger.claimTasks()).map(task => task.taskKey).sort()).toEqual([
+      'advocacy_history', 'facility_resolution', 'federal_market',
+    ]);
+  });
+  test('recovery fills a missing plan once and cannot reseed a cancelled run', async () => {
+    await create();
+    await store.db.$executeRawUnsafe('DELETE FROM client_profile_fill_extension_task WHERE run_id=$1::uuid', input.requestId);
+    const seed = () => store.scoped.withTenantUser(ctx.tenantId, ctx.userId,
+      tx => seedCompletionTasks(tx, ctx.tenantId, clientId, input.requestId!));
+    await Promise.all([seed(), seed()]);
+    const rows = await store.db.$queryRawUnsafe<Array<{ id: string }>>(
+      'SELECT id FROM client_profile_fill_extension_task WHERE run_id=$1::uuid', input.requestId);
+    expect(rows).toHaveLength(7);
+    await store.db.$executeRawUnsafe("UPDATE client_profile_fill_run SET status='cancelled', stage='cancelled' WHERE id=$1::uuid", input.requestId);
+    await expect(seed()).rejects.toMatchObject({ status: 404 });
+  });
+  test('a follow-up task failure rolls back the run and both ledgers', async () => {
+    const failing = {
+      withTenantUser: (tenant: string, actor: string, fn: Parameters<typeof store.scoped.withTenantUser>[2]) =>
+        store.scoped.withTenantUser(tenant, actor, tx => fn(new Proxy(tx, {
+          get(target, key) {
+            if (key === '$executeRawUnsafe') return (sql: string, ...args: unknown[]) => {
+              if (sql.includes('INSERT INTO client_profile_fill_extension_task') && args[3] === 'district_nexus')
+                throw Error('Injected completion task failure');
+              return target.$executeRawUnsafe(sql, ...args);
+            };
+            const value = Reflect.get(target, key);
+            return typeof value === 'function' ? value.bind(target) : value;
+          },
+        }))),
+    };
+    await expect(createResearchRun(failing as never, ctx, clientId, allocation())).rejects.toThrow('Injected completion task failure');
+    expect(await read()).toBeNull();
+    expect(await store.db.$queryRawUnsafe('SELECT id FROM client_profile_fill_task WHERE run_id=$1::uuid', input.requestId)).toEqual([]);
+    expect(await store.db.$queryRawUnsafe('SELECT id FROM client_profile_fill_extension_task WHERE run_id=$1::uuid', input.requestId)).toEqual([]);
   });
   test('a retry reads the same completed run before refreshing sources or creating tasks', async () => {
     await create();

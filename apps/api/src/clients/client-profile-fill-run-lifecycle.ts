@@ -1,10 +1,10 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { ClientProfileFillWorkflowService } from './client-profile-fill-workflow.service.js';
 import type { ClientProfileFillCompletionService } from './client-profile-fill-completion.service.js';
 import { buildFillRunSummary, requeueFillReviewChecks } from './client-profile-fill-retry.js';
-import { buildClientProfileFillCompletionPlan } from './client-profile-fill-completion-projection.js';
+import { seedCompletionTasks } from './client-profile-fill-completion-plan-store.js';
 import { TERMINAL_TASK_STATUSES } from './client-profile-fill-completion-runtime.shared.js';
 
 export interface RunLifecyclePorts {
@@ -27,41 +27,9 @@ export class ClientProfileFillRunLifecycle {
   ) {}
 
   async ensureCompletionTasks(ctx: TenantContext, clientId: string, runId: string): Promise<void> {
-    const plan = buildClientProfileFillCompletionPlan();
-    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const run = await tx.$queryRawUnsafe<Array<{ id: string }>>(
-        `SELECT id FROM client_profile_fill_run
-          WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid
-            AND workflow_version >= 2`,
-        runId,
-        ctx.tenantId,
-        clientId,
-      );
-      if (!run.length) throw new NotFoundException('Agentic Fill with Meri run not found');
-      for (const task of plan) {
-        await tx.$executeRawUnsafe(
-          `INSERT INTO client_profile_fill_extension_task
-             (run_id, tenant_id, client_id, task_type, task_key, depends_on)
-           VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6::text[])
-           ON CONFLICT (run_id, task_key) DO NOTHING`,
-          runId,
-          ctx.tenantId,
-          clientId,
-          task.taskType,
-          task.taskKey,
-          task.dependsOn,
-        );
-      }
-      await tx.$executeRawUnsafe(
-        `UPDATE client_profile_fill_run
-            SET setup_jsonb = setup_jsonb || '{"completionWorkflowVersion":1}'::jsonb,
-                updated_at = now()
-          WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid`,
-        runId,
-        ctx.tenantId,
-        clientId,
-      );
-    });
+    await this.prisma.withTenant(ctx.tenantId, tx =>
+      seedCompletionTasks(tx, ctx.tenantId, clientId, runId),
+    );
   }
 
   async cancelRun(ctx: TenantContext, clientId: string, runId: string) {
