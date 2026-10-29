@@ -25,7 +25,7 @@ import {
 import { settingsMemoryReviewEnabledForTenant } from './memory-settings-review-readiness.service.js';
 import type { MemorySection } from './memory.types.js';
 
-const MAX_SUMMARY_SCAN = 1_000;
+const SUMMARY_PAGE_SIZE = 200;
 
 interface ActiveViewer {
   tenantId: string;
@@ -289,7 +289,6 @@ export class MemoryReviewInboxService {
 
     return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const viewer = await this.requireActiveViewerInTx(tx, ctx);
-      const rows = await this.querySummaryRowsInTx(tx, ctx, viewer.role, MAX_SUMMARY_SCAN + 1);
       const counts = {
         needsMyReview: 0,
         submittedByMe: 0,
@@ -297,30 +296,42 @@ export class MemoryReviewInboxService {
         blocked: 0,
         history: 0,
       };
-      for (const row of rows.slice(0, MAX_SUMMARY_SCAN)) {
-        const item = await this.projectRowInTx(tx, ctx, viewer, row);
-        if (!item) continue;
-        const open = item.status === 'pending' || item.status === 'changes_requested';
-        const viewerIsSubmitter = row.requestedBy === ctx.userId;
-        const actionable =
-          item.status === 'pending' &&
-          row.assignedTo === ctx.userId &&
-          (item.capabilities.approve || item.capabilities.reject);
-        const adminVisible = isAdmin(viewer.role) && item.capabilities.open;
-        if (open && (viewerIsSubmitter || actionable || adminVisible)) {
-          counts.allPending += 1;
+      let after: string | null = null;
+      while (true) {
+        const rows: InboxRow[] = await this.querySummaryRowsInTx(
+          tx,
+          ctx,
+          viewer.role,
+          SUMMARY_PAGE_SIZE,
+          after,
+        );
+        for (const row of rows) {
+          const item = await this.projectRowInTx(tx, ctx, viewer, row);
+          if (!item) continue;
+          const open = item.status === 'pending' || item.status === 'changes_requested';
+          const viewerIsSubmitter = row.requestedBy === ctx.userId;
+          const actionable =
+            item.status === 'pending' &&
+            row.assignedTo === ctx.userId &&
+            (item.capabilities.approve || item.capabilities.reject);
+          const adminVisible = isAdmin(viewer.role) && item.capabilities.open;
+          if (open && (viewerIsSubmitter || actionable || adminVisible)) {
+            counts.allPending += 1;
+          }
+          if (open && viewerIsSubmitter) counts.submittedByMe += 1;
+          if (actionable) counts.needsMyReview += 1;
+          if (open && adminVisible && item.blockedReason) counts.blocked += 1;
+          if (!open && (viewerIsSubmitter || row.assignedTo === ctx.userId || adminVisible)) {
+            counts.history += 1;
+          }
         }
-        if (open && viewerIsSubmitter) counts.submittedByMe += 1;
-        if (actionable) counts.needsMyReview += 1;
-        if (open && adminVisible && item.blockedReason) counts.blocked += 1;
-        if (!open && (viewerIsSubmitter || row.assignedTo === ctx.userId || adminVisible)) {
-          counts.history += 1;
-        }
+        if (rows.length < SUMMARY_PAGE_SIZE) break;
+        after = rows[rows.length - 1]!.reviewRequestId;
       }
       return {
         enabled: true,
         counts,
-        truncated: rows.length > MAX_SUMMARY_SCAN,
+        truncated: false,
       };
     });
   }
@@ -613,6 +624,7 @@ export class MemoryReviewInboxService {
     ctx: TenantContext,
     viewerRole: TenantRole,
     limit: number,
+    after: string | null,
   ): Promise<InboxRow[]> {
     const participantClause = isAdmin(viewerRole)
       ? Prisma.sql``
@@ -627,7 +639,8 @@ export class MemoryReviewInboxService {
         AND rr.surface = 'memory'
         AND rr.subject_type = 'memory_candidate'
         ${participantClause}
-      ORDER BY rr.created_at DESC, rr.id DESC
+        ${after ? Prisma.sql`AND rr.id > ${after}::uuid` : Prisma.empty}
+      ORDER BY rr.id ASC
       LIMIT ${limit}
     `);
   }
@@ -933,9 +946,14 @@ function inboxSelect(includePayload = false): Prisma.Sql {
                : Prisma.sql``
            }
     FROM review_request rr
-    JOIN memory_candidate mc
-      ON mc.tenant_id = rr.tenant_id
-     AND mc.id::text = rr.subject_id
+    -- Keep the protected candidate lookup parameterized by one review identity,
+    -- including before statistics catch up with a newly imported population.
+    JOIN LATERAL (
+      SELECT candidate.* FROM memory_candidate candidate
+      WHERE candidate.tenant_id = rr.tenant_id
+        AND candidate.id = memory_review_candidate_identity(rr.subject_id)
+      OFFSET 0
+    ) mc ON true
     JOIN users submitter ON submitter.id = rr.requested_by
     LEFT JOIN users reviewer ON reviewer.id = rr.assigned_to
     LEFT JOIN users decider ON decider.id = rr.decided_by

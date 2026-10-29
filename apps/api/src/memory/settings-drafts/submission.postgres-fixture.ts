@@ -10,7 +10,7 @@ import { SettingsMemoryVersionCandidateService } from '../settings-memory-versio
 import { ImmutableMemoryVersionService } from '../immutable-memory-version.service.js';
 import { MemorySettingsReviewReadinessService } from '../memory-settings-review-readiness.service.js';
 import { MemoryReviewWorkflowService } from '../memory-review-workflow.service.js';
-import { MemoryReviewInboxService } from '../memory-review-inbox.service.js';
+import { MemoryReviewAdminInboxService } from '../memory-review-admin-inbox.service.js';
 import { MemoryCandidateReviewService } from '../memory-candidate-review.service.js';
 import type { MemoryIngestService } from '../memory-ingest.service.js';
 import { conversationMemoryRetentionFixture } from '../memory-conversation-retention.postgres-fixture.js';
@@ -67,6 +67,15 @@ export async function settingsSubmissionFixture(url: string) {
           'utf8',
         ),
       );
+    await db.query(
+      readFileSync(
+        join(
+          __dirname,
+          '../../../prisma/migrations/20281029210000_memory_review_candidate_lookup/migration.sql',
+        ),
+        'utf8',
+      ),
+    );
   } finally {
     await db.end();
   }
@@ -112,7 +121,7 @@ export async function settingsSubmissionFixture(url: string) {
       immutable,
       workflow,
     ),
-    inbox: new MemoryReviewInboxService(prisma, authorization),
+    inbox: new MemoryReviewAdminInboxService(prisma, authorization),
     projected: () => projected,
     drafts: new SettingsMemoryDraftService(prisma, authorization),
     submissions: new SettingsMemorySubmissionService(
