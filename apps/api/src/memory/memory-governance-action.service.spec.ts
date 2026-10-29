@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
   ServiceUnavailableException,
@@ -13,6 +14,7 @@ import { MemoryGovernanceActionService } from './memory-governance-action.servic
 import type { MemoryStoreService } from './memory-store.service.js';
 import type { MemoryTransitionAuditService } from './memory-transition-audit.service.js';
 
+const VERSION = 'mv1:123:' + 'a'.repeat(32);
 const TENANT = '11111111-1111-4111-8111-111111111111';
 const USER = '22222222-2222-4222-8222-222222222222';
 const CLIENT = '33333333-3333-4333-8333-333333333333';
@@ -61,6 +63,7 @@ function harness(
   } = {},
 ) {
   const locked = {
+    version: VERSION,
     id: ITEM,
     title: 'Firm Compass',
     clientId: CLIENT,
@@ -104,15 +107,16 @@ function harness(
   } as unknown as MemoryAuthorizationService;
   const record = jest.fn(async () => 'audit-1');
   const transitions = { record } as unknown as MemoryTransitionAuditService;
-  const forgetMemory = jest.fn(
+  const forgetMemoryAtVersion = jest.fn(
     async () => overrides.forgetResult ?? { found: true, title: 'Firm Compass' },
   );
-  const store = { forgetMemory } as unknown as MemoryStoreService;
+  const store = { forgetMemoryAtVersion } as unknown as MemoryStoreService;
   return {
     service: new MemoryGovernanceActionService(prisma, authorization, transitions, store),
     tx,
+    locked,
     record,
-    forgetMemory,
+    forgetMemoryAtVersion,
   };
 }
 
@@ -127,6 +131,7 @@ function retryHarness(
 ) {
   const itemBacked = input.itemBacked !== false;
   const job = {
+    version: VERSION,
     id: JOB,
     memoryItemId: itemBacked ? ITEM : null,
     clioMemoryId: '66666666-6666-4666-8666-666666666666',
@@ -178,10 +183,118 @@ function retryHarness(
 }
 
 describe('MemoryGovernanceActionService', () => {
+  it.each(['pending', 'running', 'completed', 'superseded', 'failed'])(
+    'reads exact authorized %s projection status without mutation',
+    async (status) => {
+      await withCenter(true, async () => {
+        const h = retryHarness({ status });
+        await expect(h.service.getProjectionJob(ctx, JOB)).resolves.toEqual({
+          enabled: true,
+          job: {
+            id: JOB,
+            version: VERSION,
+            status,
+            attempts: 7,
+            operation: 'index_memory_item',
+            lastError: 'permanent_error_upstream_timed_out',
+          },
+        });
+        expect(h.authorization.evaluateInTx).toHaveBeenCalled();
+        expect(h.tx.$executeRaw).not.toHaveBeenCalled();
+        expect(h.auditCreate).not.toHaveBeenCalled();
+      });
+    },
+  );
+
+  it.each(['pending', 'running', 'completed', 'failed'])(
+    'withholds exact %s job status after access loss',
+    async (status) => {
+      await withCenter(true, async () => {
+        const h = retryHarness({ status, wallAllowed: false });
+        await expect(h.service.getProjectionJob(ctx, JOB)).rejects.toBeInstanceOf(
+          ForbiddenException,
+        );
+        expect(h.tx.$executeRaw).not.toHaveBeenCalled();
+      });
+    },
+  );
+
+  it.each(['approve', 'confirm', 'markStale', 'secondApprove'] as const)(
+    'refuses stale %s before any write or transition',
+    async (action) => {
+      await withCenter(true, async () => {
+        const h = harness();
+        h.locked.version = 'mv1:124:' + 'b'.repeat(32);
+        const call =
+          action === 'approve' || action === 'markStale'
+            ? h.service[action](ctx, ITEM, 'Reviewed.', VERSION)
+            : h.service[action](ctx, ITEM, VERSION);
+        await expect(call).rejects.toBeInstanceOf(ConflictException);
+        expect(h.tx.$executeRaw).not.toHaveBeenCalled();
+        expect(h.record).not.toHaveBeenCalled();
+      });
+    },
+  );
+
+  it('checks the retained version even for an otherwise valid stale no-op', async () => {
+    await withCenter(true, async () => {
+      const h = harness({ governedStatus: 'stale' });
+      await expect(
+        h.service.markStale(ctx, ITEM, 'Reviewed.', 'mv1:1:' + 'b'.repeat(32)),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(h.tx.$executeRaw).not.toHaveBeenCalled();
+    });
+  });
+
+  it.each(['pending', 'running', 'completed', 'superseded'])(
+    'reauthorizes %s retry results before status disclosure',
+    async (status) => {
+      await withCenter(true, async () => {
+        const h = retryHarness({ status, wallAllowed: false });
+        await expect(h.service.retryProjection(ctx, JOB, VERSION)).rejects.toBeInstanceOf(
+          ForbiddenException,
+        );
+        expect(h.tx.$executeRaw).not.toHaveBeenCalled();
+        expect(h.auditCreate).not.toHaveBeenCalled();
+      });
+    },
+  );
+
+  it.each(['pending', 'running', 'failed', 'dead_letter'])(
+    'checks the current version of %s projection jobs',
+    async (status) => {
+      await withCenter(true, async () => {
+        const h = retryHarness({ status });
+        await expect(
+          h.service.retryProjection(ctx, JOB, 'mv1:1:' + 'b'.repeat(32)),
+        ).rejects.toBeInstanceOf(ConflictException);
+        expect(h.authorization.evaluateInTx).toHaveBeenCalled();
+        expect(h.tx.$executeRaw).not.toHaveBeenCalled();
+        expect(h.auditCreate).not.toHaveBeenCalled();
+      });
+    },
+  );
+
+  it.each(['pending', 'running'])(
+    'returns an authorized %s no-op without another write',
+    async (status) => {
+      await withCenter(true, async () => {
+        const h = retryHarness({ status });
+        await expect(h.service.retryProjection(ctx, JOB, VERSION)).resolves.toEqual({
+          outcome: 'already_retryable',
+          jobId: JOB,
+          status,
+        });
+        expect(h.authorization.evaluateInTx).toHaveBeenCalled();
+        expect(h.tx.$executeRaw).not.toHaveBeenCalled();
+      });
+    },
+  );
+
   it('fails closed while the center is dark', async () => {
     await withCenter(false, async () => {
       const h = harness();
-      await expect(h.service.confirm(ctx, ITEM)).rejects.toBeInstanceOf(
+      await expect(h.service.confirm(ctx, ITEM, VERSION)).rejects.toBeInstanceOf(
         ServiceUnavailableException,
       );
       expect(h.tx.$queryRaw).not.toHaveBeenCalled();
@@ -192,7 +305,7 @@ describe('MemoryGovernanceActionService', () => {
     await withCenter(true, async () => {
       const h = harness({ governedStatus: 'pending_review' });
       await expect(
-        h.service.approve(ctx, ITEM, 'Reviewed against the firm playbook; approved.'),
+        h.service.approve(ctx, ITEM, 'Reviewed against the firm playbook; approved.', VERSION),
       ).resolves.toMatchObject({
         outcome: 'approved',
         governedStatus: 'active',
@@ -216,7 +329,9 @@ describe('MemoryGovernanceActionService', () => {
   it('requires a non-empty reason to approve', async () => {
     await withCenter(true, async () => {
       const h = harness({ governedStatus: 'pending_review' });
-      await expect(h.service.approve(ctx, ITEM, '   ')).rejects.toBeInstanceOf(BadRequestException);
+      await expect(h.service.approve(ctx, ITEM, '   ', VERSION)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
       expect(h.tx.$executeRaw).not.toHaveBeenCalled();
     });
   });
@@ -224,7 +339,7 @@ describe('MemoryGovernanceActionService', () => {
   it('denies approval when the server authorization decision refuses it', async () => {
     await withCenter(true, async () => {
       const h = harness({ governedStatus: 'pending_review', operationAllowed: false });
-      await expect(h.service.approve(ctx, ITEM, 'Approved.')).rejects.toBeInstanceOf(
+      await expect(h.service.approve(ctx, ITEM, 'Approved.', VERSION)).rejects.toBeInstanceOf(
         ForbiddenException,
       );
       expect(h.tx.$executeRaw).not.toHaveBeenCalled();
@@ -234,7 +349,7 @@ describe('MemoryGovernanceActionService', () => {
   it('refuses to approve its own proposal', async () => {
     await withCenter(true, async () => {
       const h = harness({ governedStatus: 'pending_review', assertedByUserId: USER });
-      await expect(h.service.approve(ctx, ITEM, 'Approved.')).rejects.toBeInstanceOf(
+      await expect(h.service.approve(ctx, ITEM, 'Approved.', VERSION)).rejects.toBeInstanceOf(
         ForbiddenException,
       );
       expect(h.tx.$executeRaw).not.toHaveBeenCalled();
@@ -244,7 +359,7 @@ describe('MemoryGovernanceActionService', () => {
   it('refuses to approve a still-unclassified migrated legacy item', async () => {
     await withCenter(true, async () => {
       const h = harness({ governedStatus: 'pending_review', memoryClass: 'legacy_unclassified' });
-      await expect(h.service.approve(ctx, ITEM, 'Approved.')).rejects.toBeInstanceOf(
+      await expect(h.service.approve(ctx, ITEM, 'Approved.', VERSION)).rejects.toBeInstanceOf(
         BadRequestException,
       );
       expect(h.tx.$executeRaw).not.toHaveBeenCalled();
@@ -257,7 +372,7 @@ describe('MemoryGovernanceActionService', () => {
     async (governedStatus) => {
       await withCenter(true, async () => {
         const h = harness({ governedStatus });
-        await expect(h.service.approve(ctx, ITEM, 'Approved.')).rejects.toBeInstanceOf(
+        await expect(h.service.approve(ctx, ITEM, 'Approved.', VERSION)).rejects.toBeInstanceOf(
           BadRequestException,
         );
         expect(h.tx.$executeRaw).not.toHaveBeenCalled();
@@ -269,7 +384,7 @@ describe('MemoryGovernanceActionService', () => {
     await withCenter(true, async () => {
       const h = harness({ governedStatus: 'pending_review' });
       h.tx.$queryRaw.mockResolvedValueOnce([]);
-      await expect(h.service.approve(ctx, ITEM, 'Approved.')).rejects.toBeInstanceOf(
+      await expect(h.service.approve(ctx, ITEM, 'Approved.', VERSION)).rejects.toBeInstanceOf(
         NotFoundException,
       );
       expect(h.tx.$executeRaw).not.toHaveBeenCalled();
@@ -302,7 +417,7 @@ describe('MemoryGovernanceActionService', () => {
   it('confirms stale memory and records stale to active in the same transaction', async () => {
     await withCenter(true, async () => {
       const h = harness({ governedStatus: 'stale' });
-      await expect(h.service.confirm(ctx, ITEM)).resolves.toMatchObject({
+      await expect(h.service.confirm(ctx, ITEM, VERSION)).resolves.toMatchObject({
         outcome: 'confirmed',
         governedStatus: 'active',
       });
@@ -324,7 +439,7 @@ describe('MemoryGovernanceActionService', () => {
     await withCenter(true, async () => {
       const h = harness({ governedStatus: 'active' });
       await expect(
-        h.service.markStale(ctx, ITEM, 'Source needs reconfirmation.'),
+        h.service.markStale(ctx, ITEM, 'Source needs reconfirmation.', VERSION),
       ).resolves.toMatchObject({
         outcome: 'marked_stale',
         governedStatus: 'stale',
@@ -345,25 +460,27 @@ describe('MemoryGovernanceActionService', () => {
   it('delegates revocation to the canonical forget path and preserves legal hold refusal', async () => {
     await withCenter(true, async () => {
       const pass = harness();
-      await expect(pass.service.revoke(ctx, ITEM, 'Policy retired.')).resolves.toMatchObject({
+      await expect(
+        pass.service.revoke(ctx, ITEM, 'Policy retired.', VERSION),
+      ).resolves.toMatchObject({
         outcome: 'revoked',
         actorUserId: USER,
       });
-      expect(pass.forgetMemory).toHaveBeenCalledWith(ITEM, 'Policy retired.');
+      expect(pass.forgetMemoryAtVersion).toHaveBeenCalledWith(ITEM, 'Policy retired.', VERSION);
 
       const held = harness({
         forgetResult: { found: true, blockedByLegalHold: true, title: 'Firm Compass' },
       });
-      await expect(held.service.revoke(ctx, ITEM, 'Policy retired.')).rejects.toBeInstanceOf(
-        ForbiddenException,
-      );
+      await expect(
+        held.service.revoke(ctx, ITEM, 'Policy retired.', VERSION),
+      ).rejects.toBeInstanceOf(ForbiddenException);
     });
   });
 
   it('records second approval only for an independent actor', async () => {
     await withCenter(true, async () => {
       const pass = harness();
-      await expect(pass.service.secondApprove(ctx, ITEM)).resolves.toMatchObject({
+      await expect(pass.service.secondApprove(ctx, ITEM, VERSION)).resolves.toMatchObject({
         outcome: 'second_approved',
         secondApprovedByUserId: USER,
       });
@@ -378,7 +495,7 @@ describe('MemoryGovernanceActionService', () => {
       );
 
       const self = harness({ approvedByUserId: USER });
-      await expect(self.service.secondApprove(ctx, ITEM)).rejects.toBeInstanceOf(
+      await expect(self.service.secondApprove(ctx, ITEM, VERSION)).rejects.toBeInstanceOf(
         ForbiddenException,
       );
       expect(self.tx.$executeRaw).not.toHaveBeenCalled();
@@ -388,7 +505,7 @@ describe('MemoryGovernanceActionService', () => {
   it('requeues a failed projection atomically and records bounded audit evidence', async () => {
     await withCenter(true, async () => {
       const h = retryHarness();
-      await expect(h.service.retryProjection(ctx, JOB)).resolves.toEqual({
+      await expect(h.service.retryProjection(ctx, JOB, VERSION)).resolves.toEqual({
         outcome: 'projection_retry_queued',
         jobId: JOB,
         status: 'pending',
@@ -414,7 +531,9 @@ describe('MemoryGovernanceActionService', () => {
   it('does not requeue a restricted client projection', async () => {
     await withCenter(true, async () => {
       const h = retryHarness({ wallAllowed: false });
-      await expect(h.service.retryProjection(ctx, JOB)).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(h.service.retryProjection(ctx, JOB, VERSION)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
       expect(h.tx.$executeRaw).not.toHaveBeenCalled();
       expect(h.auditCreate).not.toHaveBeenCalled();
     });
@@ -427,7 +546,9 @@ describe('MemoryGovernanceActionService', () => {
         clioScope: 'user_private',
         clioOwnerUserId: '77777777-7777-4777-8777-777777777777',
       });
-      await expect(h.service.retryProjection(ctx, JOB)).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(h.service.retryProjection(ctx, JOB, VERSION)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
       expect(h.authorization.loadItemInTx).not.toHaveBeenCalled();
       expect(h.tx.$executeRaw).not.toHaveBeenCalled();
     });
@@ -436,7 +557,9 @@ describe('MemoryGovernanceActionService', () => {
   it('refuses to reopen completed or superseded projection jobs', async () => {
     await withCenter(true, async () => {
       const h = retryHarness({ status: 'completed' });
-      await expect(h.service.retryProjection(ctx, JOB)).rejects.toBeInstanceOf(BadRequestException);
+      await expect(h.service.retryProjection(ctx, JOB, VERSION)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
       expect(h.tx.$executeRaw).not.toHaveBeenCalled();
     });
   });

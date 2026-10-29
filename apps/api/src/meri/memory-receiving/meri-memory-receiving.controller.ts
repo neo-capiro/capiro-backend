@@ -50,5 +50,6 @@ export class MeriMemoryReceivingController {
   imports: [PrismaModule, MemoryModule],
   controllers: [MeriMemoryReceivingController],
   providers: [MeriMemoryReceivingService, ToolServiceSecretGuard],
+  exports: [MeriMemoryReceivingService],
 })
 export class MeriMemoryReceivingModule {}

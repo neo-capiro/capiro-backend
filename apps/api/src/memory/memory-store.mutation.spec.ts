@@ -39,6 +39,26 @@ const sharedRow = {
 };
 
 describe('MemoryStoreService Phase 0 mutation boundary', () => {
+  it('rejects a stale governance revoke under the canonical lock before cleanup or audit', async () => {
+    const h = harness('user_admin', { ...sharedRow, version: 'mv1:2:' + 'b'.repeat(32) });
+    await expect(
+      h.service.forgetMemoryAtVersion(CLIENT, 'Retired.', 'mv1:1:' + 'a'.repeat(32)),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(h.queryRaw.mock.calls[0][0].sql).toContain('FOR UPDATE');
+    expect(h.executeRaw).not.toHaveBeenCalled();
+    expect(h.auditCreate).not.toHaveBeenCalled();
+  });
+
+  it('executes matching-version governance revoke through ordinary cleanup and audit', async () => {
+    const version = 'mv1:1:' + 'a'.repeat(32);
+    const h = harness('user_admin', { ...sharedRow, version });
+    await expect(
+      h.service.forgetMemoryAtVersion(CLIENT, 'Retired.', version),
+    ).resolves.toMatchObject({ found: true });
+    expect(h.executeRaw).toHaveBeenCalled();
+    expect(h.auditCreate).toHaveBeenCalled();
+  });
+
   it('does not convert tenant read visibility into standard-user confirm authority', async () => {
     const h = harness('standard_user', sharedRow);
     await expect(h.service.confirmMemory(CLIENT)).resolves.toEqual({ found: false });
