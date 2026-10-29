@@ -165,7 +165,7 @@ test('the promotion-policy tests are a required gate on the retained build path'
   assert.match(operator, /node --test scripts\/lib\/meri-release-policy\.test\.mjs scripts\/meri-release\.test\.mjs/);
   assert.match(operator, /echo PROMOTION_POLICY_TEST_PASS/);
   assert.match(operator, /const REQUIRED = \[[^\]]*'PROMOTION_POLICY_TEST_PASS'\]/);
-  assert.match(operator, /--network none -v "\$PWD":\/src -w \/src node:20\.16\.0-bookworm-slim/);
+  assert.match(operator, /--network none -v "\$PWD":\/src -w \/src node:22\.23\.3-bookworm-slim/);
 });
 
 test('OCI source attribution names the repository the source is pinned to', () => {

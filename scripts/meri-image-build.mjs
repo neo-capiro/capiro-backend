@@ -81,11 +81,12 @@ test "$(aws sts get-caller-identity --query Account --output text)" = ${ACCOUNT}
 test "$(aws ecr list-images --region ${REGION} --repository-name ${REPOSITORY} --filter tagStatus=TAGGED --query "length(imageIds[?imageTag=='\${EXPECTED_SHA}'])" --output json)" = 0
 python3 scripts/validate-meri-build-isolation.py
 ${SERVICE === 'meriv2-orchestrator' ? 'python3 scripts/validate-meri-orchestrator-build-only.py\n' : ''}
-docker pull public.ecr.aws/docker/library/node:20.16.0-bookworm-slim
-docker tag public.ecr.aws/docker/library/node:20.16.0-bookworm-slim node:20.16.0-bookworm-slim
+docker pull public.ecr.aws/docker/library/node:22.23.3-bookworm-slim
+docker tag public.ecr.aws/docker/library/node:22.23.3-bookworm-slim node:22.23.3-bookworm-slim
 # Required promotion/release policy gate: the historical ci-pr.yml wiring was
 # removed with the other .github workflows, so the retained build path runs it.
-docker run --rm --network none -v "$PWD":/src -w /src node:20.16.0-bookworm-slim node --test scripts/lib/meri-release-policy.test.mjs scripts/meri-release.test.mjs
+# It runs on the same maintained Node line the image ships.
+docker run --rm --network none -v "$PWD":/src -w /src node:22.23.3-bookworm-slim node --test scripts/lib/meri-release-policy.test.mjs scripts/meri-release.test.mjs
 echo PROMOTION_POLICY_TEST_PASS
 aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com
 `;

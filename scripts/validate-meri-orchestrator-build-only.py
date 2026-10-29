@@ -55,6 +55,35 @@ def collect():
     }
 
 
+def check_node_base_coherence(files):
+    """The recipe ARG and the build path must pin the same maintained Node base.
+
+    The helper pre-pulls and re-tags the base under the local name the Dockerfile
+    resolves (node:${NODE_VERSION}-bookworm-slim) and also runs the promotion
+    policy tests on that same image. If the two drift, the build silently runs on
+    a different runtime than the one the recipe declares, so this is a hard
+    failure rather than a convenience check.
+    """
+    match = re.search(r"^ARG NODE_VERSION=(\S+)$", files["dockerfile"], re.M)
+    if not match:
+        return False, "orchestrator Dockerfile: ARG NODE_VERSION missing"
+    version = match.group(1)
+    major = version.split(".")[0]
+    if not major.isdigit() or int(major) < 22:
+        return False, "orchestrator Dockerfile: Node base " + version + " is not a maintained line (>=22)"
+    if files["dockerfile"].count("FROM node:${NODE_VERSION}-bookworm-slim") != 2:
+        return False, "orchestrator Dockerfile: base and runtime FROM must both use ${NODE_VERSION}"
+    remote = "public.ecr.aws/docker/library/node:" + version + "-bookworm-slim"
+    for fragment in (
+        "docker pull " + remote,
+        "docker tag " + remote + " node:" + version + "-bookworm-slim",
+        "node:" + version + "-bookworm-slim node --test",
+    ):
+        if fragment not in files["build"]:
+            return False, "build operator: base pin not coherent with recipe (" + fragment + ")"
+    return True, "node base pinned coherently at " + version + " across recipe and build path"
+
+
 def check_no_latest(files):
     if re.search(r":latest\b", files["build"]):
         return False, "build operator: :latest tag found"
@@ -79,8 +108,8 @@ def check_orchestrator_pins(files):
     build = files["build"]
     required = (
         "python3 scripts/validate-meri-orchestrator-build-only.py",
-        "docker pull public.ecr.aws/docker/library/node:20.16.0-bookworm-slim",
-        "docker tag public.ecr.aws/docker/library/node:20.16.0-bookworm-slim node:20.16.0-bookworm-slim",
+        "docker pull public.ecr.aws/docker/library/node:22.23.3-bookworm-slim",
+        "docker tag public.ecr.aws/docker/library/node:22.23.3-bookworm-slim node:22.23.3-bookworm-slim",
         "'--no-cache '",
         "--platform linux/arm64",
         "$(uname -m)\" = aarch64",
@@ -131,6 +160,7 @@ CHECKS = (
     check_exclusive_sha_push,
     check_no_ecs_steps,
     check_orchestrator_pins,
+    check_node_base_coherence,
     check_no_orchestrator_direct_dispatch,
     check_serve_contract,
 )
@@ -189,8 +219,11 @@ class ContractTests(unittest.TestCase):
         self.mutate("build", '$(uname -m)" = aarch64', '$(uname -m)" = x86_64')
 
     def test_node_pin_removed(self):
-        self.mutate("build", "docker pull public.ecr.aws/docker/library/node:20.16.0-bookworm-slim",
+        self.mutate("build", "docker pull public.ecr.aws/docker/library/node:22.23.3-bookworm-slim",
                     "docker pull node:latest")
+
+    def test_node_base_diverges_from_recipe(self):
+        self.mutate("dockerfile", "ARG NODE_VERSION=22.23.3", "ARG NODE_VERSION=20.16.0")
 
     def test_executor_reactivated(self):
         self.mutate("retired", "throw new Error('Retired:", "console.log('Retired:")
