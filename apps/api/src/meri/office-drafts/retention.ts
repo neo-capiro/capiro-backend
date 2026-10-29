@@ -1,5 +1,21 @@
 import type { PrismaService } from '../../prisma/prisma.service.js';
+import type { Prisma } from '@prisma/client';
 import { object, uuid } from './input.js';
+
+/** Recovery only, after the canonical finalizer verifies its consumed tombstone
+ * and policy/hold checks. Normal chat deletion uses the Office FK cascade.
+ * Office writers recheck the active chat under its row lock; they cannot
+ * recreate rows after permanent deletion. */
+export function eraseConversationOfficeDraftsInTx(tx: Prisma.TransactionClient, tenantId: string, conversationId: string) {
+  return tx.$executeRaw`DELETE FROM meri_office_drafts WHERE tenant_id=${tenantId}::uuid
+    AND conversation_id=${conversationId}::uuid`;
+}
+
+export async function hasConversationOfficeDraftsInTx(tx: Prisma.TransactionClient, tenantId: string, conversationId: string) {
+  const [row] = await tx.$queryRaw<Array<{ present: boolean }>>`SELECT EXISTS(SELECT 1 FROM meri_office_drafts
+    WHERE tenant_id=${tenantId}::uuid AND conversation_id=${conversationId}::uuid) AS present`;
+  return row!.present;
+}
 
 /** Content-free expiry target for the trusted retention coordinator. That caller
  * retains policy/hold ownership. No interactive session is needed after departure.
