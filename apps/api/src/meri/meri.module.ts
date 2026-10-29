@@ -57,7 +57,7 @@ import { ObjectiveJobController } from './objective-job.controller.js';
 import { ConversationManagementController } from './conversation-management/controller.js';
 import { HearingMediaController } from './hearing-media/controller.js';
 import { ConversationRetentionController } from './conversation-management/retention.controller.js';
-import { SiteWorkflowAdminController, SiteWorkflowRuntimeController } from './site-workflows/controller.js';
+import { SiteWorkflowAdminController, SiteWorkflowRuntimeController, SiteWorkflowCatalogController } from './site-workflows/controller.js';
 import { OfficeDraftController } from './office-drafts/controller.js';
 import { OfficeDraftRetentionController } from './office-drafts/retention.controller.js';
 import { ObjectiveJobService } from './objective-job.service.js';
@@ -186,6 +186,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     HearingMediaController,
     ConversationRetentionController,
     SiteWorkflowAdminController,
+    SiteWorkflowCatalogController,
     SiteWorkflowRuntimeController,
     OfficeDraftController,
     OfficeDraftRetentionController,

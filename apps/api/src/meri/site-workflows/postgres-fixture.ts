@@ -6,7 +6,7 @@ import { Client } from 'pg';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 
 export async function workflowDatabase(url: string) {
-  if (!/^postgresql:\/\/wave6_fixture_admin@127\.0\.0\.1:55486\/site_workflows_[a-z0-9_]+$/.test(url))
+  if (!/^postgresql:\/\/(?:wave6_fixture_admin@127\.0\.0\.1:55486|office_fixture_admin:fixture-local-only@127\.0\.0\.1:55487)\/site_workflows_[a-z0-9_]+$/.test(url))
     throw Error('Only the task-owned site_workflows database is admitted');
   const admin = new Client({ connectionString: url });
   await admin.connect();

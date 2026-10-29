@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
 import { parseSaveSiteWorkflow, parseSiteWorkflowManifest, parseSiteWorkflowSelection } from '@capiro/shared/site-workflows';
 import { ROLES_KEY } from '../../auth/roles.decorator.js';
-import { SiteWorkflowAdminController, SiteWorkflowRuntimeController } from './controller.js';
+import { SiteWorkflowAdminController, SiteWorkflowRuntimeController, SiteWorkflowCatalogController } from './controller.js';
 import { workflowFixture } from './fixture.js';
 import { workflowDigest } from './store.js';
 describe('site workflow administration contract', () => {
@@ -37,8 +37,16 @@ describe('site workflow administration contract', () => {
     expect(parseSiteWorkflowSelection(selection)).toEqual(selection);
     expect(() => parseSiteWorkflowSelection({ ...selection, enabled: true })).toThrow();
     expect(Reflect.getMetadata(ROLES_KEY, SiteWorkflowAdminController)).toEqual(['capiro_admin']);
+    expect(Reflect.getMetadata(ROLES_KEY, SiteWorkflowCatalogController)).toEqual(['standard_user']);
     const controller = new SiteWorkflowRuntimeController({} as never);
     expect(() => controller.read({} as never, {}, {} as never)).toThrow('Verified service identity required');
+  });
+  it('does not list the browser catalog without native application authority', async () => {
+    const tenant = { readApplicationAuthoritySession: jest.fn(async () => { throw Error('session revoked'); }) };
+    const prisma = { withTenant: jest.fn() };
+    const controller = new SiteWorkflowCatalogController(prisma as never, tenant as never);
+    await expect(controller.list({} as never, { conversationId: randomUUID() }, {} as never)).rejects.toThrow('session revoked');
+    expect(prisma.withTenant).not.toHaveBeenCalled();
   });
 });
 
