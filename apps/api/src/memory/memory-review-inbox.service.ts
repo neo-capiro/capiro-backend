@@ -1,4 +1,5 @@
 import { withMemoryConversationRetention } from './conversation-serving/transaction.js';
+import { unreadMemoryNotificationPages } from './memory-review-notification-scan.js';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext, TenantRole } from '@capiro/shared';
@@ -25,7 +26,6 @@ import { settingsMemoryReviewEnabledForTenant } from './memory-settings-review-r
 import type { MemorySection } from './memory.types.js';
 
 const MAX_SUMMARY_SCAN = 1_000;
-const MAX_NOTIFICATION_SCAN = 1_000;
 
 interface ActiveViewer {
   tenantId: string;
@@ -460,25 +460,11 @@ export class MemoryReviewInboxService {
     }
     return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const viewer = await this.requireActiveViewerInTx(tx, ctx);
-      const rows = await tx.$queryRaw<NotificationRow[]>(Prisma.sql`
-        SELECT notification.id::text AS id,
-               notification.review_request_id::text AS "reviewRequestId",
-               notification.candidate_id::text AS "candidateId",
-               notification.client_id::text AS "clientId",
-               notification.event_type AS "eventType",
-               notification.title,
-               notification.read_at AS "readAt",
-               notification.created_at AS "createdAt"
-        FROM memory_review_in_app_notification notification
-        WHERE notification.tenant_id = ${ctx.tenantId}::uuid
-          AND notification.recipient_user_id = ${ctx.userId}::uuid
-          AND notification.read_at IS NULL
-        ORDER BY notification.created_at DESC, notification.id DESC
-        LIMIT ${MAX_NOTIFICATION_SCAN + 1}
-      `);
       let count = 0;
-      for (const row of rows.slice(0, MAX_NOTIFICATION_SCAN)) {
-        if (await this.notificationVisibleInTx(tx, viewer, row)) count += 1;
+      for await (const rows of unreadMemoryNotificationPages(tx, ctx)) {
+        for (const row of rows) {
+          if (await this.notificationVisibleInTx(tx, viewer, row)) count += 1;
+        }
       }
       return { enabled: true, count };
     });
@@ -526,37 +512,25 @@ export class MemoryReviewInboxService {
     if (!settingsMemoryReviewEnabledForTenant(ctx.tenantId)) return 0;
     return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const viewer = await this.requireActiveViewerInTx(tx, ctx);
-      const rows = await tx.$queryRaw<NotificationRow[]>(Prisma.sql`
-        SELECT notification.id::text AS id,
-               notification.review_request_id::text AS "reviewRequestId",
-               notification.candidate_id::text AS "candidateId",
-               notification.client_id::text AS "clientId",
-               notification.event_type AS "eventType",
-               notification.title,
-               notification.read_at AS "readAt",
-               notification.created_at AS "createdAt"
-        FROM memory_review_in_app_notification notification
-        WHERE notification.tenant_id = ${ctx.tenantId}::uuid
-          AND notification.recipient_user_id = ${ctx.userId}::uuid
-          AND notification.read_at IS NULL
-        ORDER BY notification.created_at DESC, notification.id DESC
-        LIMIT ${MAX_NOTIFICATION_SCAN}
-      `);
-      const visibleIds: string[] = [];
-      for (const row of rows) {
-        if (await this.notificationVisibleInTx(tx, viewer, row)) {
-          visibleIds.push(row.id);
+      let updated = 0;
+      for await (const rows of unreadMemoryNotificationPages(tx, ctx)) {
+        const visibleIds: string[] = [];
+        for (const row of rows) {
+          if (await this.notificationVisibleInTx(tx, viewer, row)) {
+            visibleIds.push(row.id);
+          }
         }
+        if (visibleIds.length === 0) continue;
+        updated += await tx.$executeRaw(Prisma.sql`
+          UPDATE memory_review_in_app_notification
+          SET read_at = now()
+          WHERE tenant_id = ${ctx.tenantId}::uuid
+            AND recipient_user_id = ${ctx.userId}::uuid
+            AND read_at IS NULL
+            AND id IN (${Prisma.join(visibleIds.map((id) => Prisma.sql`${id}::uuid`))})
+        `);
       }
-      if (visibleIds.length === 0) return 0;
-      return tx.$executeRaw(Prisma.sql`
-        UPDATE memory_review_in_app_notification
-        SET read_at = now()
-        WHERE tenant_id = ${ctx.tenantId}::uuid
-          AND recipient_user_id = ${ctx.userId}::uuid
-          AND read_at IS NULL
-          AND id IN (${Prisma.join(visibleIds.map((id) => Prisma.sql`${id}::uuid`))})
-      `);
+      return updated;
     });
   }
 

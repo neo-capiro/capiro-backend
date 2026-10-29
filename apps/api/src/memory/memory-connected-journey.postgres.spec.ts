@@ -187,6 +187,76 @@ const url = process.env.MEMORY_CONNECTED_TEST_DATABASE_URL;
       expect(await store.inbox.unreadNotificationCount(f.ctx)).toEqual({ enabled: true, count: 0 });
     });
 
+    it('counts and acknowledges all eligible notifications beyond the former 1,000-row cutoff', async () => {
+      const f = await fixture(),
+        seed = await propose(f, 'firm-soul', 'Synthetic volume fixture');
+      const anotherRecipient = await peer(f);
+      // Seed coherent persisted notifications in bulk through the real schema
+      // and workflow triggers. Dispatch itself is covered by the journey above.
+      await store.db.$executeRaw`
+        INSERT INTO memory_candidate(tenant_id,proposed_by,source_kind,scope,payload_jsonb,provenance_jsonb)
+        SELECT tenant_id,proposed_by,source_kind,scope,payload_jsonb,provenance_jsonb
+        FROM memory_candidate CROSS JOIN generate_series(1,1001)
+        WHERE id=${seed.candidateId}::uuid`;
+      await store.db.$executeRaw`
+        UPDATE review_request SET assigned_to=${f.userId}::uuid
+        WHERE tenant_id=${f.tenantId}::uuid AND surface='memory'`;
+      await store.db.$executeRaw`
+        INSERT INTO memory_review_in_app_notification(tenant_id,recipient_user_id,review_request_id,
+          candidate_id,event_type,title)
+        SELECT tenant_id,${f.userId}::uuid,id,subject_id::uuid,'review_reassigned','Synthetic volume notification'
+        FROM review_request WHERE tenant_id=${f.tenantId}::uuid AND surface='memory'`;
+      await store.db.$executeRaw`
+        INSERT INTO memory_review_in_app_notification(tenant_id,recipient_user_id,review_request_id,
+          candidate_id,event_type,title)
+        SELECT tenant_id,${anotherRecipient.userId}::uuid,id,subject_id::uuid,'review_reassigned','Synthetic other recipient'
+        FROM review_request WHERE tenant_id=${f.tenantId}::uuid AND subject_id=${seed.candidateId}`;
+      const blocked = await propose(f, 'client-soul', 'Synthetic restricted notification');
+      await store.db.$executeRaw`
+        INSERT INTO memory_review_in_app_notification(tenant_id,recipient_user_id,review_request_id,
+          candidate_id,client_id,event_type,title)
+        SELECT tenant_id,${f.userId}::uuid,id,subject_id::uuid,client_id,'review_reassigned','Synthetic restricted notification'
+        FROM review_request WHERE tenant_id=${f.tenantId}::uuid AND subject_id=${blocked.candidateId}`;
+      await store.db.client.update({ where: { id: f.clientId }, data: { memoryWall: true } });
+      await store.db.$executeRaw`
+        UPDATE memory_review_notification_outbox SET delivered_at=now()
+        WHERE tenant_id=${f.tenantId}::uuid`;
+      expect(await store.inbox.unreadNotificationCount(f.ctx)).toEqual({
+        enabled: true,
+        count: 1002,
+      });
+      await store.db.$executeRaw`
+        UPDATE memory_review_in_app_notification SET title='Synthetic last-page acknowledgement failure'
+        WHERE id=(SELECT id FROM memory_review_in_app_notification
+          WHERE tenant_id=${f.tenantId}::uuid AND recipient_user_id=${f.userId}::uuid
+            AND client_id IS NULL ORDER BY id DESC LIMIT 1)`;
+      await store.db.$executeRawUnsafe(
+        "ALTER TABLE memory_review_in_app_notification ADD CONSTRAINT fixture_ack_unavailable CHECK(read_at IS NULL OR title <> 'Synthetic last-page acknowledgement failure') NOT VALID",
+      );
+      try {
+        await expect(store.inbox.markAllNotificationsRead(f.ctx)).rejects.toThrow();
+        const read = await store.db.$queryRaw<Array<{ count: number }>>`
+          SELECT count(*)::int AS count FROM memory_review_in_app_notification
+          WHERE tenant_id=${f.tenantId}::uuid AND read_at IS NOT NULL`;
+        expect(read).toEqual([{ count: 0 }]);
+      } finally {
+        await store.db.$executeRawUnsafe(
+          'ALTER TABLE memory_review_in_app_notification DROP CONSTRAINT fixture_ack_unavailable',
+        );
+      }
+      expect(await store.inbox.markAllNotificationsRead(f.ctx)).toBe(1002);
+      expect(await store.inbox.unreadNotificationCount(f.ctx)).toEqual({ enabled: true, count: 0 });
+      expect(await store.inbox.markAllNotificationsRead(f.ctx)).toBe(0);
+      expect(await store.inbox.unreadNotificationCount(anotherRecipient)).toEqual({
+        enabled: true,
+        count: 1,
+      });
+      const retained = await store.db.$queryRaw<Array<{ count: number }>>`
+        SELECT count(*)::int AS count FROM memory_review_in_app_notification
+        WHERE tenant_id=${f.tenantId}::uuid AND read_at IS NULL`;
+      expect(retained).toEqual([{ count: 2 }]);
+    }, 60000);
+
     it('applies a changed client wall to recall, review links and notification reads, including an old acknowledgement', async () => {
       const f = await fixture(),
         candidate = await propose(f, 'client-soul', 'Synthetic client statement');
