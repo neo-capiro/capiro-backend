@@ -21,7 +21,7 @@ describe('Manual PAC mapping catalog authority', () => {
     await h.service.createManualMapping(clientId, tenantId, request);
     expect(h.callsOf('committee')[0]).toEqual({
       operation: 'committee',
-      scope: 'global',
+      scope: 'tenant', tenantId, transaction: 1,
       args: [{ where: { id: 'C12345678' }, select: { name: true, committeeType: true } }],
     });
     expect(inputOf(h, 'upsert')).toMatchObject({
@@ -31,7 +31,7 @@ describe('Manual PAC mapping catalog authority', () => {
     });
     expect(request.externalId).toBe(' c12345678 ');
     expect(request.externalName).toBe('Caller Alias');
-    expect(h.events.indexOf('tenant:commit')).toBeLessThan(h.events.indexOf('committee'));
+    expect(h.events.indexOf('committee')).toBeLessThan(h.events.indexOf('tenant:commit'));
     expect(h.events.indexOf('committee')).toBeLessThan(h.events.indexOf('upsert'));
     expect(h.callsOf('prepopulate')).toEqual([]);
   });
@@ -82,9 +82,9 @@ describe('Manual PAC mapping catalog refusal', () => {
       new BadRequestException('Select a PAC from the imported FEC committee catalog.'),
     );
     expect(h.callsOf('upsert')).toEqual([]);
-    expect(h.transactions.map((tx) => tx.outcome)).toEqual(['commit']);
+    expect(h.transactions.map((tx) => tx.outcome)).toEqual(['rollback']);
   });
-  test('propagates catalog failure after the tenant guard has committed', async () => {
+  test('propagates catalog failure and rolls back the same tenant transaction', async () => {
     const error = new Error('FEC catalog failed');
     const h = harness({ errors: { committee: error } });
     await expect(
@@ -94,7 +94,7 @@ describe('Manual PAC mapping catalog refusal', () => {
         manualInput({ source: 'fec_committee', externalId: 'C12345678' }),
       ),
     ).rejects.toBe(error);
-    expect(h.transactions.map((tx) => tx.outcome)).toEqual(['commit']);
+    expect(h.transactions.map((tx) => tx.outcome)).toEqual(['rollback']);
     expect(h.callsOf('audit')).toEqual([]);
   });
 });

@@ -30,21 +30,15 @@ export class ClientMappingV1Review {
     private readonly ports: ClientMappingV1ReviewPorts,
   ) {}
 
-  async createManualMapping(
-    clientId: string,
-    tenantId: string,
-    input: {
-      source: string;
-      externalId: string;
-      externalName: string;
-      relationshipType?: string | null;
-      rollUpAwards?: boolean | null;
-      actorUserId: string;
-    },
-  ) {
-    const client = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.client.findFirst({ where: { id: clientId }, select: { id: true } }),
-    );
+  async createManualMapping(clientId: string, tenantId: string, input: ManualMappingInput) {
+    const mapping = await this.prisma.withTenant(tenantId,
+      tx => this.createManualMappingInTransaction(tx, clientId, tenantId, input));
+    if (input.source === 'lda') await this.ports.prepopulation()?.prepopulate(tenantId, clientId);
+    return mapping;
+  }
+
+  async createManualMappingInTransaction(tx: Prisma.TransactionClient, clientId: string, tenantId: string, input: ManualMappingInput) {
+    const client = await tx.client.findFirst({ where: { id: clientId, tenantId }, select: { id: true } });
     if (!client) throw new NotFoundException('Client not found');
     if (
       this.ports.awardBearingMappingSource(input.source) &&
@@ -60,7 +54,7 @@ export class ClientMappingV1Review {
       if (!/^C\d{8}$/.test(committeeId)) {
         throw new BadRequestException('Select a valid FEC PAC committee ID.');
       }
-      const committee = await this.prisma.fecCommittee.findUnique({
+      const committee = await tx.fecCommittee.findUnique({
         where: { id: committeeId },
         select: { name: true, committeeType: true },
       });
@@ -70,12 +64,7 @@ export class ClientMappingV1Review {
       input = { ...input, externalId: committeeId, externalName: committee.name };
     }
 
-    const mapping = await this.persistManualMapping(clientId, tenantId, input);
-
-    if (input.source === 'lda') {
-      await this.ports.prepopulation()?.prepopulate(tenantId, clientId);
-    }
-    return mapping;
+    return this.persistManualMapping(tx, clientId, tenantId, input);
   }
 
   async rejectMappingCandidate(
@@ -170,72 +159,70 @@ export class ClientMappingV1Review {
     return mapping;
   }
 
-  private persistManualMapping(clientId: string, tenantId: string, input: ManualMappingInput) {
-    return this.prisma.withTenant(tenantId, async (tx) => {
-      const before = await tx.clientIntelMapping.findUnique({
-        where: {
-          clientId_source_externalId: {
-            clientId,
-            source: input.source,
-            externalId: input.externalId,
-          },
-        },
-      });
-      const saved = await tx.clientIntelMapping.upsert({
-        where: {
-          clientId_source_externalId: {
-            clientId,
-            source: input.source,
-            externalId: input.externalId,
-          },
-        },
-        update: {
-          externalName: input.externalName,
-          confirmed: true,
-          matchBasis: 'manual_pin',
-          matchTier: 1,
-          reviewStatus: 'confirmed',
-          reviewedBy: input.actorUserId,
-          reviewedAt: new Date(),
-          rejectionReason: null,
-          ...(input.relationshipType !== undefined
-            ? { relationshipType: input.relationshipType }
-            : {}),
-          ...(input.rollUpAwards !== undefined ? { rollUpAwards: input.rollUpAwards } : {}),
-        },
-        create: {
-          tenantId,
+  private async persistManualMapping(tx: Prisma.TransactionClient, clientId: string, tenantId: string, input: ManualMappingInput) {
+    const before = await tx.clientIntelMapping.findUnique({
+      where: {
+        clientId_source_externalId: {
           clientId,
           source: input.source,
           externalId: input.externalId,
-          externalName: input.externalName,
-          confidence: 1,
-          confirmed: true,
-          matchBasis: 'manual_pin',
-          matchTier: 1,
-          reviewStatus: 'confirmed',
-          reviewedBy: input.actorUserId,
-          reviewedAt: new Date(),
-          rejectionReason: null,
-          ...(input.relationshipType !== undefined
-            ? { relationshipType: input.relationshipType }
-            : {}),
-          ...(input.rollUpAwards !== undefined ? { rollUpAwards: input.rollUpAwards } : {}),
         },
-      });
-      await tx.auditLog.create({
-        data: {
-          tenantId,
-          actorUserId: input.actorUserId,
-          action: 'intelligence_mapping.confirmed',
-          entityType: 'client_intel_mapping',
-          entityId: saved.id,
-          before: before ? (before as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
-          after: saved as unknown as Prisma.InputJsonValue,
-        },
-      });
-      return saved;
+      },
     });
+    const saved = await tx.clientIntelMapping.upsert({
+      where: {
+        clientId_source_externalId: {
+          clientId,
+          source: input.source,
+          externalId: input.externalId,
+        },
+      },
+      update: {
+        externalName: input.externalName,
+        confirmed: true,
+        matchBasis: 'manual_pin',
+        matchTier: 1,
+        reviewStatus: 'confirmed',
+        reviewedBy: input.actorUserId,
+        reviewedAt: new Date(),
+        rejectionReason: null,
+        ...(input.relationshipType !== undefined
+          ? { relationshipType: input.relationshipType }
+          : {}),
+        ...(input.rollUpAwards !== undefined ? { rollUpAwards: input.rollUpAwards } : {}),
+      },
+      create: {
+        tenantId,
+        clientId,
+        source: input.source,
+        externalId: input.externalId,
+        externalName: input.externalName,
+        confidence: 1,
+        confirmed: true,
+        matchBasis: 'manual_pin',
+        matchTier: 1,
+        reviewStatus: 'confirmed',
+        reviewedBy: input.actorUserId,
+        reviewedAt: new Date(),
+        rejectionReason: null,
+        ...(input.relationshipType !== undefined
+          ? { relationshipType: input.relationshipType }
+          : {}),
+        ...(input.rollUpAwards !== undefined ? { rollUpAwards: input.rollUpAwards } : {}),
+      },
+    });
+    await tx.auditLog.create({
+      data: {
+        tenantId,
+        actorUserId: input.actorUserId,
+        action: 'intelligence_mapping.confirmed',
+        entityType: 'client_intel_mapping',
+        entityId: saved.id,
+        before: before ? (before as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+        after: saved as unknown as Prisma.InputJsonValue,
+      },
+    });
+    return saved;
   }
 
   private persistReviewedMapping(mappingId: string, input: ReviewMappingInput, tenantId: string) {

@@ -26,7 +26,7 @@ function pendingFindingRow(overrides: Record<string, unknown> = {}) {
     kind: 'profile_field',
     targetKey: 'legal_name',
     source: 'sam_gov',
-    factKind: null,
+    factKind: 'fact',
     currentValue: null,
     proposedValue: { value: 'Acme Corp' },
     evidence: [],
@@ -54,7 +54,6 @@ function buildService(learningSignals: Pick<LearningSignalCaptureService, 'captu
     {} as never,
     {} as never,
     {} as never,
-    prepopulation as never,
     {} as never,
     {} as never,
     {} as never,
@@ -68,19 +67,11 @@ function buildService(learningSignals: Pick<LearningSignalCaptureService, 'captu
 
 describe('ClientProfileFillService — learning-signal capture is non-blocking', () => {
   let assertClientSpy: jest.SpiedFunction<any>;
-  let applyFindingSpy: jest.SpiedFunction<any>;
-  let markAcceptedSpy: jest.SpiedFunction<any>;
   let refreshSummarySpy: jest.SpiedFunction<any>;
 
   beforeEach(() => {
     assertClientSpy = jest
       .spyOn(ClientProfileFillService.prototype as any, 'assertClient')
-      .mockResolvedValue(undefined);
-    applyFindingSpy = jest
-      .spyOn(ClientProfileFillService.prototype as any, 'applyFinding')
-      .mockResolvedValue(undefined);
-    markAcceptedSpy = jest
-      .spyOn(ClientProfileFillService.prototype as any, 'markAccepted')
       .mockResolvedValue(undefined);
     refreshSummarySpy = jest
       .spyOn(ClientProfileFillService.prototype as any, 'refreshSummary')
@@ -89,22 +80,18 @@ describe('ClientProfileFillService — learning-signal capture is non-blocking',
 
   afterEach(() => {
     assertClientSpy.mockRestore();
-    applyFindingSpy.mockRestore();
-    markAcceptedSpy.mockRestore();
     refreshSummarySpy.mockRestore();
   });
 
-  it('acceptance: applyFindings still marks the finding applied when capture() rejects', async () => {
+  it('acceptance: post-commit acceptance reporting tolerates a failed capture', async () => {
     const capture = jest.fn(async (..._args: unknown[]): Promise<unknown> => {
       throw new Error('learning_signal insert failed');
     });
     const { service, tx } = buildService({ capture: capture as never });
     tx.$queryRawUnsafe.mockImplementation(async () => [pendingFindingRow()]);
 
-    const result = await service.applyFindings(ctx, CLIENT, RUN, [FINDING]);
+    await service.afterReviewedFindings(ctx, CLIENT, RUN, [pendingFindingRow()]);
 
-    expect(result.applied).toEqual([FINDING]);
-    expect(result.errors).toEqual([]);
     expect(capture).toHaveBeenCalledTimes(1);
   });
 
@@ -112,10 +99,8 @@ describe('ClientProfileFillService — learning-signal capture is non-blocking',
     const { service, tx } = buildService(undefined);
     tx.$queryRawUnsafe.mockImplementation(async () => [pendingFindingRow()]);
 
-    const result = await service.applyFindings(ctx, CLIENT, RUN, [FINDING]);
+    await service.afterReviewedFindings(ctx, CLIENT, RUN, [pendingFindingRow()]);
 
-    expect(result.applied).toEqual([FINDING]);
-    expect(result.errors).toEqual([]);
   });
 
   it('acceptance: capturing a real signal on success does not affect the applied result', async () => {
@@ -126,9 +111,8 @@ describe('ClientProfileFillService — learning-signal capture is non-blocking',
     const { service, tx } = buildService({ capture: capture as never });
     tx.$queryRawUnsafe.mockImplementation(async () => [pendingFindingRow()]);
 
-    const result = await service.applyFindings(ctx, CLIENT, RUN, [FINDING]);
+    await service.afterReviewedFindings(ctx, CLIENT, RUN, [pendingFindingRow()]);
 
-    expect(result.applied).toEqual([FINDING]);
     expect(capture).toHaveBeenCalledTimes(1);
     const [, input] = capture.mock.calls[0] as [unknown, { signalType: string; clientId: string }];
     expect(input.signalType).toBe('crm_finding_accepted');
@@ -187,7 +171,6 @@ describe('ClientProfileFillService — learning-signal capture is non-blocking',
         {} as never,
         {} as never,
         {} as never,
-        prepopulation as never,
         {} as never,
         {} as never,
         {} as never,
@@ -203,20 +186,18 @@ describe('ClientProfileFillService — learning-signal capture is non-blocking',
       delete process.env.LEARNING_SIGNAL_CAPTURE;
       const { service, tx } = buildServiceWithRealCapture();
 
-      const result = await service.applyFindings(ctx, CLIENT, RUN, [FINDING]);
+      await service.afterReviewedFindings(ctx, CLIENT, RUN, [pendingFindingRow()]);
 
-      expect(result.applied).toEqual([FINDING]);
-      expect(tx.learningSignal.create).toHaveBeenCalledTimes(1);
+        expect(tx.learningSignal.create).toHaveBeenCalledTimes(1);
     });
 
     it('disabled: apply still succeeds but no signal row is created', async () => {
       process.env.LEARNING_SIGNAL_CAPTURE = 'disabled';
       const { service, tx } = buildServiceWithRealCapture();
 
-      const result = await service.applyFindings(ctx, CLIENT, RUN, [FINDING]);
+      await service.afterReviewedFindings(ctx, CLIENT, RUN, [pendingFindingRow()]);
 
-      expect(result.applied).toEqual([FINDING]);
-      expect(tx.learningSignal.create).not.toHaveBeenCalled();
+        expect(tx.learningSignal.create).not.toHaveBeenCalled();
     });
   });
 });

@@ -17,7 +17,7 @@ import {
 installHooks();
 
 describe('Manual mapping persisted decision and audit', () => {
-  test('keeps exact upsert payloads, JsonNull audit before, saved identity and two committed scopes', async () => {
+  test('keeps exact upsert payloads, JsonNull audit before, saved identity and one committed scope', async () => {
     const saved = mappingRow({ confidence: 1, confirmed: true });
     const h = harness({ prepopulation: false, rows: { upsert: saved } });
     expect(await h.service.createManualMapping(clientId, tenantId, manualInput())).toBe(saved);
@@ -55,7 +55,7 @@ describe('Manual mapping persisted decision and audit', () => {
     });
     expect(h.callsOf('existing')[0]).toMatchObject({
       tenantId,
-      transaction: 2,
+      transaction: 1,
       args: [
         { where: { clientId_source_externalId: { clientId, source: 'lda', externalId: '12' } } },
       ],
@@ -64,9 +64,6 @@ describe('Manual mapping persisted decision and audit', () => {
       'withTenant',
       'tenant:begin',
       'client',
-      'tenant:commit',
-      'withTenant',
-      'tenant:begin',
       'existing',
       'upsert',
       'audit',
@@ -109,7 +106,7 @@ describe('Manual award mapping explicit decisions', () => {
           'Award-bearing federal mappings require a reviewed relationship type and an explicit award roll-up decision.',
         ),
       );
-      expect(h.transactions.map((tx) => tx.outcome)).toEqual(['commit']);
+      expect(h.transactions.map((tx) => tx.outcome)).toEqual(['rollback']);
       expect(h.callsOf('upsert')).toEqual([]);
     },
   );

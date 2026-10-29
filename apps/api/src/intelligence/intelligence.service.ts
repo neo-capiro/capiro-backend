@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import type { AlertRow } from './client-alerts-v1.shared.js';
 import {
   buildQuarterWindows as portfolioBuildQuarterWindows,
@@ -237,6 +238,10 @@ export class IntelligenceService {
     tenantId: string,
     input: FacadeContracts.ManualMappingInput,
   ) { return this.clientSources.mappingReview.createManualMapping(clientId, tenantId, input); }
+
+  createManualMappingInTransaction(tx: Prisma.TransactionClient, clientId: string, tenantId: string, input: FacadeContracts.ManualMappingInput) {
+    return this.clientSources.mappingReview.createManualMappingInTransaction(tx, clientId, tenantId, input);
+  }
 
   async rejectMappingCandidate(
     clientId: string,

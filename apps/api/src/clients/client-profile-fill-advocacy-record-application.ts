@@ -1,3 +1,5 @@
+import type { ReviewTransaction } from './client-profile-fill-review-store.js';
+import { withinFinding, afterFindingCommit } from './client-profile-fill-review-transaction.js';
 import { BadRequestException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -33,29 +35,8 @@ export class ClientProfileFillAdvocacyRecordApplication {
     private readonly ports: AdvocacyRecordApplicationPorts,
   ) {}
 
-  /**
-   * Applies an advocacy_record finding's proposed value as an upsert into
-   * `client_advocacy_record`.
-   *
-   * `matterTarget` distinguishes two callers:
-   *  - Omitted (the generic bulk `applyFindings` path): Matter assignment
-   *    runs via `assignMatterForRecord` in its OWN transaction, AFTER the
-   *    record commit, best-effort — a clustering failure is logged but
-   *    never blocks the accept. This is existing, unchanged behavior.
-   *  - Provided (a human explicitly picked "Attach to Matter X" / "Create
-   *    new Matter" on this pending finding — see
-   *    `applyAdvocacyFindingToMatter`): the record upsert AND the Matter
-   *    assign+lock run inside the SAME transaction. The human's choice is
-   *    the review decision; if the Matter side fails, the whole write
-   *    rolls back rather than silently accepting an unassigned record, and
-   *    the caller never proceeds to `markAccepted` — the finding stays
-   *    pending; the record upsert's own idempotency (ON CONFLICT) plus
-   *    `assignSpecificMatterForRecord`'s already-locked check make a retry
-   *    safe.
-   *
-   * Returns the resolved Matter id when `matterTarget` was provided;
-   * `null` for the untargeted path (nothing new callers need there today).
-   */
+  /** Record, audit and a chosen Matter participate in the caller's review transaction.
+   * Automatic clustering remains a best-effort post-commit effect. */
   async applyAdvocacyRecord(
     ctx: TenantContext,
     clientId: string,
@@ -63,6 +44,7 @@ export class ClientProfileFillAdvocacyRecordApplication {
     matterTarget?:
       | { matterId: string }
       | { newMatter: { title: string; matterType?: string; summary?: string | null } },
+    scope?: ReviewTransaction,
   ): Promise<string | null> {
     const proposed = asRecord(finding.proposedValue);
     const externalKey = requiredString(proposed.externalKey, 'Advocacy external key');
@@ -75,7 +57,16 @@ export class ClientProfileFillAdvocacyRecordApplication {
         sourceType === 'fara'
           ? asString(metadata.registrationNumber)
           : `${asString(metadata.hearingId) ?? ''}::${asString(metadata.witness) ?? ''}`;
-      const confirmed = await this.ports.confirmedMappingKeys(ctx, clientId, sourceType);
+      const confirmed = scope
+        ? new Set(
+            (
+              await scope.tx.clientIntelMapping.findMany({
+                where: { tenantId: ctx.tenantId, clientId, source: sourceType, confirmed: true },
+                select: { externalId: true },
+              })
+            ).map((row) => row.externalId),
+          )
+        : await this.ports.confirmedMappingKeys(ctx, clientId, sourceType);
       if (!sourceKey || !confirmed.has(sourceKey)) {
         throw new BadRequestException(
           'Verify this record’s organization-to-client mapping before accepting it as advocacy. A name match alone is insufficient.',
@@ -102,7 +93,27 @@ export class ClientProfileFillAdvocacyRecordApplication {
       activityDate,
     };
     let targetedMatterId: string | null = null;
-    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    await withinFinding(this.prisma, ctx.tenantId, scope, async (tx) => {
+      if (scope) {
+        const [prior] = await tx.$queryRawUnsafe<
+          Array<{ matterId: string | null; locked: boolean; rejected: boolean }>
+        >(
+          `SELECT matter_id AS "matterId", matter_locked AS locked, not_advocacy AS rejected
+           FROM client_advocacy_record WHERE tenant_id=$1::uuid AND client_id=$2::uuid AND external_key=$3 FOR UPDATE`,
+          ctx.tenantId,
+          clientId,
+          externalKey,
+        );
+        if (
+          prior?.rejected ||
+          (matterTarget &&
+            prior?.locked &&
+            (!('matterId' in matterTarget) || matterTarget.matterId !== prior.matterId))
+        )
+          throw new BadRequestException(
+            'This record already has a human review decision. Use its correction controls.',
+          );
+      }
       await this.upsertRecord(tx, ctx, clientId, finding, record);
       await auditAdvanced(tx, ctx, clientId, finding, null, proposed);
       if (matterTarget) {
@@ -118,7 +129,7 @@ export class ClientProfileFillAdvocacyRecordApplication {
       }
     });
     if (matterTarget) return targetedMatterId;
-    await this.assignAutomatically(ctx, clientId, record);
+    await afterFindingCommit(scope, () => this.assignAutomatically(ctx, clientId, record));
     return null;
   }
 
