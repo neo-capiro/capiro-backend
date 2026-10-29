@@ -242,7 +242,7 @@ const url = process.env.MEMORY_SUBMISSION_TEST_DATABASE_URL;
     ).rejects.toThrow('receipt unavailable');
     await store.db.tenantMembership.updateMany({
       where: { tenantId: f.tenantId },
-      data: { status: 'inactive' },
+      data: { status: 'removed' },
     });
     await expect(
       store.submissions.receipt(f.ctx, f.type, f.slug, f.id, f.submit.requestId),
