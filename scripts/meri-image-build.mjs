@@ -10,12 +10,19 @@
 //
 //   BUILD_SERVICE=api|meriv2-orchestrator|web-vnext BUILD_SOURCE_SHA=<40-hex> BUILD_ROOT=<dir> \
 //     [BUILD_WEB_PROBE='<text that must appear in the web bundle>'] \
-//     node meri-image-build.mjs launch   # starts exactly one build, refuses a replay
-//   ... node meri-image-build.mjs collect # read-only, rerun until complete
+//     node meri-image-build.mjs launch    # writes the intent, then starts exactly one build
+//   ... node meri-image-build.mjs reconcile # read-only recovery for a lost start ack
+//   ... node meri-image-build.mjs collect   # read-only; build+smoke are NOT qualified
+//   ... node meri-image-build.mjs scan      # bounded exact-digest ECR scan; final gate
+//
+// Qualification is two stages: collect proves the immutable build and the offline
+// image smoke; scan proves the exact pushed digest reached a COMPLETE ECR scan with
+// 0 CRITICAL and 0 HIGH findings. collect alone never reports a qualified image.
 import { execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 
 const SERVICE = process.env.BUILD_SERVICE;
 const SOURCE_SHA = process.env.BUILD_SOURCE_SHA;
@@ -32,13 +39,13 @@ const PROJECT = 'capiro-build-web-dev';
 const ACCOUNT = '967807252336';
 const REGION = 'us-east-1';
 const REPOSITORY = `capiro/dev/${SERVICE}`;
-// The builder project still points at the legacy capiropv2 repository, which
+// The builder project still points at the legacy capirov2 repository, which
 // does not contain the split backend commits. Each build pins the exact
 // backend repository and SHA instead of mutating the project definition.
 const SOURCE_REPOSITORY = 'https://github.com/neo-capiro/capiro-backend.git';
 const PROFILE = process.env.BUILD_AWS_PROFILE ?? 'capiro-dev';
 const IMAGE_MARKER = `CANDIDATE_IMAGE=`;
-const REQUIRED = ['IMAGE_SMOKE_PASS', 'LOCAL_REPODIGEST_ECR_MATCH_PASS'];
+const REQUIRED = ['IMAGE_SMOKE_PASS', 'LOCAL_REPODIGEST_ECR_MATCH_PASS', 'PROMOTION_POLICY_TEST_PASS'];
 const AWS = 'C:/Program Files/Amazon/AWSCLIV2/aws.exe';
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 const save = (name, value) =>
@@ -65,7 +72,13 @@ test "$(uname -m)" = aarch64
 test "$(aws sts get-caller-identity --query Account --output text)" = ${ACCOUNT}
 test "$(aws ecr list-images --region ${REGION} --repository-name ${REPOSITORY} --filter tagStatus=TAGGED --query "length(imageIds[?imageTag=='\${EXPECTED_SHA}'])" --output json)" = 0
 python3 scripts/validate-meri-build-isolation.py
-${SERVICE === 'meriv2-orchestrator' ? 'python3 scripts/validate-meri-orchestrator-build-only.py\ndocker pull public.ecr.aws/docker/library/node:20.16.0-bookworm-slim\ndocker tag public.ecr.aws/docker/library/node:20.16.0-bookworm-slim node:20.16.0-bookworm-slim' : ''}
+${SERVICE === 'meriv2-orchestrator' ? 'python3 scripts/validate-meri-orchestrator-build-only.py\n' : ''}
+docker pull public.ecr.aws/docker/library/node:20.16.0-bookworm-slim
+docker tag public.ecr.aws/docker/library/node:20.16.0-bookworm-slim node:20.16.0-bookworm-slim
+# Required promotion/release policy gate: the historical ci-pr.yml wiring was
+# removed with the other .github workflows, so the retained build path runs it.
+docker run --rm --network none -v "$PWD":/src -w /src node:20.16.0-bookworm-slim node --test scripts/lib/meri-release-policy.test.mjs scripts/meri-release.test.mjs
+echo PROMOTION_POLICY_TEST_PASS
 aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com
 `;
 
@@ -125,7 +138,7 @@ const build = `set -euo pipefail
 image="${image}"
 docker build --platform linux/arm64 ${SERVICE === 'meriv2-orchestrator' ? '--no-cache ' : ''}\\
 ${SERVICE === 'web-vnext' ? '  --build-arg NODE_VERSION=22.23.3 --build-arg GIT_SHA="$EXPECTED_SHA" --build-arg CAPIRO_WEB_BUILD_SURFACE=vnext \\\n' : ''}  --label "org.opencontainers.image.revision=$EXPECTED_SHA" \\
-  --label 'org.opencontainers.image.source=https://github.com/neo-capiro/capirov2' \\
+  --label 'org.opencontainers.image.source=https://github.com/neo-capiro/capiro-backend' \\
   -f apps/${SERVICE === 'web-vnext' ? 'web' : SERVICE}/Dockerfile -t "$image" .
 test "$(docker image inspect "$image" --format '{{.Architecture}}')" = arm64
 test "$(docker image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$EXPECTED_SHA"
@@ -155,17 +168,67 @@ const phase = (script) => ({
   ],
 });
 
-function launch() {
-  if (existsSync(`${ROOT}/build-start.json`)) throw new Error('ALREADY_LAUNCHED_DO_NOT_REPLAY');
-  writeFileSync(`${ROOT}/phase-pre_build.sh`, preBuild);
-  writeFileSync(`${ROOT}/phase-build.sh`, build);
-  writeFileSync(`${ROOT}/phase-post_build.sh`, postBuild);
-  const buildspec = {
+// A build intent is written before StartBuild so a lost acknowledgement can be
+// reconciled read-only against real CodeBuild builds. It binds the exact
+// service/project/source/SHA/repository/intent, never a guess.
+export function buildIntent(sha, at = new Date().toISOString(), idempotencyToken = randomUUID()) {
+  return {
+    at,
+    service: SERVICE,
+    project: PROJECT,
+    sourceRepository: SOURCE_REPOSITORY,
+    sourceSha: sha,
+    repository: REPOSITORY,
+    idempotencyToken,
+  };
+}
+
+export function assertIntent(intent) {
+  const failures = [];
+  if (intent?.service !== SERVICE) failures.push('service');
+  if (intent?.project !== PROJECT) failures.push('project');
+  if (intent?.sourceRepository !== SOURCE_REPOSITORY) failures.push('sourceRepository');
+  if (!/^[0-9a-f]{40}$/.test(intent?.sourceSha ?? '')) failures.push('sourceSha');
+  if (intent?.repository !== REPOSITORY) failures.push('repository');
+  if (!intent?.at || Number.isNaN(Date.parse(intent.at))) failures.push('at');
+  if (failures.length) throw new Error(`BUILD_INTENT_INVALID: ${failures.join(',')}`);
+  return intent;
+}
+
+// Pure decision used by `reconcile`: only an unambiguous build that matches the
+// recorded intent is accepted; zero or multiple matches stay explicit.
+export function selectReconcileMatch(builds, intent, windowMs = 6 * 60 * 60 * 1000) {
+  const intentAt = Date.parse(intent.at);
+  const matches = (builds ?? []).filter((build) => {
+    if (!build?.id || build.projectName !== PROJECT) return false;
+    if (build.source?.location !== SOURCE_REPOSITORY) return false;
+    if (build.sourceVersion !== intent.sourceSha && build.resolvedSourceVersion !== intent.sourceSha) return false;
+    const started = Date.parse(build.startTime ?? '');
+    if (Number.isNaN(started) || started < intentAt - 120_000 || started > intentAt + windowMs) return false;
+    return true;
+  });
+  if (matches.length === 0) return { state: 'NO_MATCH', buildIds: [] };
+  if (matches.length > 1) return { state: 'AMBIGUOUS', buildIds: matches.map((build) => build.id) };
+  return { state: 'MATCH', build: matches[0], buildIds: [matches[0].id] };
+}
+
+export function buildspecFor() {
+  return {
     version: 0.2,
     env: { shell: 'bash' },
     phases: { pre_build: phase(preBuild), build: phase(build), post_build: phase(postBuild) },
   };
-  const buildspecOverride = JSON.stringify(buildspec);
+}
+
+function launch() {
+  if (existsSync(`${ROOT}/build-start.json`)) throw new Error('ALREADY_LAUNCHED_DO_NOT_REPLAY');
+  if (existsSync(`${ROOT}/build-intent.json`)) throw new Error('BUILD_INTENT_EXISTS_USE_RECONCILE');
+  const intent = buildIntent(SOURCE_SHA);
+  writeFileSync(`${ROOT}/build-intent.json`, `${JSON.stringify(intent, null, 2)}\n`, { flag: 'wx' });
+  writeFileSync(`${ROOT}/phase-pre_build.sh`, preBuild);
+  writeFileSync(`${ROOT}/phase-build.sh`, build);
+  writeFileSync(`${ROOT}/phase-post_build.sh`, postBuild);
+  const buildspecOverride = JSON.stringify(buildspecFor());
   if (buildspecOverride.length > 25_600) throw new Error(`BUILDSPEC_TOO_LONG_${buildspecOverride.length}`);
   const input = {
     projectName: PROJECT,
@@ -174,7 +237,7 @@ function launch() {
     sourceVersion: SOURCE_SHA,
     buildspecOverride,
     environmentVariablesOverride: [{ name: 'EXPECTED_SHA', value: SOURCE_SHA, type: 'PLAINTEXT' }],
-    idempotencyToken: randomUUID(),
+    idempotencyToken: intent.idempotencyToken,
     timeoutInMinutesOverride: 60,
   };
   const inputBytes = `${JSON.stringify(input, null, 2)}\n`;
@@ -190,14 +253,74 @@ function launch() {
     buildspecSha256: sha256(buildspecOverride),
     buildspecCharacters: buildspecOverride.length,
     requiredMarkers: REQUIRED,
+    reconciled: false,
   });
   console.log(JSON.stringify({ launched: started.build.id, status: started.build.buildStatus, chars: buildspecOverride.length }));
 }
 
+// Read-only recovery after a lost StartBuild acknowledgement: never calls
+// start-build, never resends, and records only a single exact match.
+function reconcile() {
+  if (!existsSync(`${ROOT}/build-intent.json`)) throw new Error('BUILD_INTENT_REQUIRED');
+  const intent = assertIntent(JSON.parse(readFileSync(`${ROOT}/build-intent.json`, 'utf8')));
+  if (existsSync(`${ROOT}/build-start.json`)) {
+    console.log(JSON.stringify({ state: 'ALREADY_RECORDED', start: JSON.parse(readFileSync(`${ROOT}/build-start.json`, 'utf8')) }, null, 2));
+    return;
+  }
+  const ids = [];
+  let nextToken;
+  do {
+    const page = aws(['codebuild', 'list-builds-for-project', '--project-name', PROJECT, '--max-items', '100', ...(nextToken ? ['--starting-token', nextToken] : [])]);
+    ids.push(...(page.ids ?? []));
+    nextToken = page.nextToken;
+  } while (nextToken && ids.length < 500);
+  const builds = [];
+  for (let index = 0; index < ids.length; index += 100) {
+    builds.push(...(aws(['codebuild', 'batch-get-builds', '--ids', ...ids.slice(index, index + 100)]).builds ?? []));
+  }
+  const decision = selectReconcileMatch(builds, intent);
+  if (decision.state !== 'MATCH') {
+    console.log(JSON.stringify({ state: decision.state, intent, buildIds: decision.buildIds, recorded: false }, null, 2));
+    process.exitCode = decision.state === 'AMBIGUOUS' ? 2 : 1;
+    return;
+  }
+  const matched = decision.build;
+  save('build-start.json', {
+    at: new Date().toISOString(),
+    service: SERVICE,
+    sourceSha: intent.sourceSha,
+    buildId: matched.id,
+    status: matched.buildStatus,
+    webProbe: WEB_PROBE || null,
+    requiredMarkers: REQUIRED,
+    reconciled: true,
+    matchedOn: {
+      projectName: matched.projectName,
+      sourceLocation: matched.source?.location ?? null,
+      sourceVersion: matched.sourceVersion ?? null,
+      resolvedSourceVersion: matched.resolvedSourceVersion ?? null,
+      startTime: matched.startTime ?? null,
+      intentAt: intent.at,
+    },
+  });
+  console.log(JSON.stringify({ state: 'MATCH', recorded: true, buildId: matched.id }, null, 2));
+}
+
+function readScan() {
+  if (!existsSync(`${ROOT}/scan-readback.json`)) return null;
+  return JSON.parse(readFileSync(`${ROOT}/scan-readback.json`, 'utf8'));
+}
+
 function collect() {
   const start = JSON.parse(readFileSync(`${ROOT}/build-start.json`, 'utf8'));
+  const scanned = readScan();
   if (existsSync(`${ROOT}/build-readback.json`)) {
-    console.log(readFileSync(`${ROOT}/build-readback.json`, 'utf8'));
+    const readback = JSON.parse(readFileSync(`${ROOT}/build-readback.json`, 'utf8'));
+    if (scanned && scanned.digest === readback.imageDigest && scanned.qualified === true) {
+      console.log(JSON.stringify({ ...readback, qualified: true, qualification: 'BUILD_SMOKE_AND_DIGEST_SCAN_PASS', scan: scanned }, null, 2));
+    } else {
+      console.log(JSON.stringify({ ...readback, qualified: false, nextStage: 'scan' }, null, 2));
+    }
     return;
   }
   const b = aws(['codebuild', 'batch-get-builds', '--ids', start.buildId]).builds?.[0];
@@ -230,7 +353,10 @@ function collect() {
     at: new Date().toISOString(),
     service: SERVICE,
     status: b.buildStatus,
-    qualification: ok ? 'IMMUTABLE_BUILD_AND_IMAGE_SMOKE_PASS' : 'BUILD_NOT_QUALIFIED',
+    // Build + offline image smoke are necessary but NOT a qualification.
+    qualification: ok ? 'BUILD_AND_IMAGE_SMOKE_PASS_NOT_QUALIFIED' : 'BUILD_NOT_QUALIFIED',
+    qualified: false,
+    nextStage: 'scan',
     sourceSha: SOURCE_SHA,
     resolvedSourceSha: b.resolvedSourceVersion ?? null,
     buildId: b.id,
@@ -245,6 +371,43 @@ function collect() {
   console.log(readFileSync(`${ROOT}/build-readback.json`, 'utf8'));
 }
 
-if (process.argv[2] === 'launch') launch();
-else if (process.argv[2] === 'collect') collect();
-else throw new Error('Use launch or collect');
+// Bounded, read-only exact-digest scan stage. The tag is mutable, so the scan
+// is bound to the digest recorded by collect and the tag->digest resolution is
+// re-verified first.
+export function scan() {
+  if (!existsSync(`${ROOT}/build-readback.json`)) throw new Error('SCAN_REQUIRES_COLLECTED_DIGEST');
+  const readback = JSON.parse(readFileSync(`${ROOT}/build-readback.json`, 'utf8'));
+  const digest = readback.imageDigest ?? (readback.image ? String(readback.image).split('@')[1] : null);
+  if (!/^sha256:[0-9a-f]{64}$/.test(digest ?? '')) throw new Error('SCAN_REQUIRES_COLLECTED_DIGEST');
+  const tagged = aws(['ecr', 'describe-images', '--repository-name', REPOSITORY, '--image-ids', `imageTag=${SOURCE_SHA}`]).imageDetails ?? [];
+  if (tagged.length !== 1 || tagged[0].imageDigest !== digest || !(tagged[0].imageTags ?? []).includes(SOURCE_SHA)) {
+    throw new Error(`TAG_MOVED: ${SOURCE_SHA} no longer resolves to ${digest}`);
+  }
+  const attempts = Number(process.env.MERI_SCAN_ATTEMPTS ?? 30);
+  const interval = Number(process.env.MERI_SCAN_INTERVAL ?? 10);
+  const deadline = attempts;
+  for (let attempt = 1; attempt <= deadline; attempt += 1) {
+    const scanned = aws(['ecr', 'describe-image-scan-findings', '--repository-name', REPOSITORY, '--image-id', `imageDigest=${digest}`]);
+    if ((scanned.imageId ?? {}).imageDigest !== digest) throw new Error(`DIGEST_MISMATCH: scan response is for ${(scanned.imageId ?? {}).imageDigest}`);
+    if (scanned.imageScanStatus?.status === 'COMPLETE') {
+      const counts = scanned.imageScanFindings?.findingSeverityCounts ?? {};
+      const critical = Number(counts.CRITICAL ?? 0);
+      const high = Number(counts.HIGH ?? 0);
+      if (critical || high) throw new Error(`SCAN_FINDINGS: ${critical} CRITICAL, ${high} HIGH for ${digest}`);
+      const record = { at: new Date().toISOString(), service: SERVICE, sourceSha: SOURCE_SHA, digest, status: 'COMPLETE', counts, qualified: true };
+      save('scan-readback.json', record);
+      console.log(`IMAGE_SCAN_PASS digest=${digest}`);
+      return;
+    }
+    if (attempt < deadline) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, Math.max(0, interval) * 1000);
+  }
+  throw new Error(`SCAN_INCOMPLETE for ${digest}`);
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  if (process.argv[2] === 'launch') launch();
+  else if (process.argv[2] === 'reconcile') reconcile();
+  else if (process.argv[2] === 'collect') collect();
+  else if (process.argv[2] === 'scan') scan();
+  else throw new Error('Use launch, reconcile, collect or scan');
+}

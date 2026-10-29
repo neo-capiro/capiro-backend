@@ -115,8 +115,27 @@ def evaluate(files):
             errors.append('build operator: an image smoke is not offline')
         markers = re.search(r'const REQUIRED = \[([^\]]*)\]', code)
         parsed_markers = re.findall(r"'([^']+)'", markers[1]) if markers else []
-        if parsed_markers != ['IMAGE_SMOKE_PASS', 'LOCAL_REPODIGEST_ECR_MATCH_PASS']:
+        if parsed_markers != ['IMAGE_SMOKE_PASS', 'LOCAL_REPODIGEST_ECR_MATCH_PASS', 'PROMOTION_POLICY_TEST_PASS']:
             errors.append('build operator: required markers changed')
+        # The promotion/release policy tests are a required gate on the retained
+        # build path (the historical ci-pr.yml wiring was removed).
+        if ('node --test scripts/lib/meri-release-policy.test.mjs scripts/meri-release.test.mjs'
+                not in code or 'echo PROMOTION_POLICY_TEST_PASS' not in code):
+            errors.append('build operator: promotion-policy test gate not wired')
+        # Attribution must name the repository the source is actually pinned to.
+        if 'org.opencontainers.image.source=https://github.com/neo-capiro/capiro-backend' not in code:
+            errors.append('build operator: OCI source attribution is not the pinned backend repository')
+        # Exactly one StartBuild; recovery must be read-only.
+        if code.count("'start-build'") != 1:
+            errors.append('build operator: require exactly one start-build call')
+        for fragment in ('list-builds-for-project', 'batch-get-builds', 'selectReconcileMatch'):
+            if fragment not in code:
+                errors.append('build operator: missing read-only reconcile binding ' + fragment)
+        # Build + smoke are never reported as a qualification on their own.
+        if 'BUILD_AND_IMAGE_SMOKE_PASS_NOT_QUALIFIED' not in code or 'qualified: false' not in code:
+            errors.append('build operator: build/smoke claims qualification without the digest scan')
+        if "'scan'" not in code or 'scan-readback.json' not in code:
+            errors.append('build operator: digest scan stage missing')
         if 'echo IMAGE_SMOKE_PASS' not in code and "console.log('IMAGE_SMOKE_PASS')" not in code:
             errors.append('build operator: smoke does not emit IMAGE_SMOKE_PASS')
         # This guard and the orchestrator guard must keep being invoked by the
@@ -201,6 +220,25 @@ class ContractTests(unittest.TestCase):
 
     def test_marker_removed(self):
         self.mutate(BUILD_OPERATOR, "'IMAGE_SMOKE_PASS'", "'SMOKE_PASS'")
+
+    def test_promotion_gate_removed(self):
+        self.mutate(BUILD_OPERATOR, 'node --test scripts/lib/meri-release-policy.test.mjs scripts/meri-release.test.mjs', 'echo skip')
+
+    def test_promotion_marker_removed(self):
+        self.mutate(BUILD_OPERATOR, 'echo PROMOTION_POLICY_TEST_PASS', 'echo done')
+
+    def test_source_attribution_reverted(self):
+        self.mutate(BUILD_OPERATOR,
+                    'org.opencontainers.image.source=https://github.com/neo-capiro/capiro-backend',
+                    'org.opencontainers.image.source=https://github.com/neo-capiro/capirov2')
+
+    def test_second_start_build(self):
+        self.mutate(BUILD_OPERATOR, "aws(['codebuild', 'start-build',",
+                    "aws(['codebuild', 'start-build', '--dry-run']);\n  aws(['codebuild', 'start-build',")
+
+    def test_qualification_claimed_without_scan(self):
+        self.mutate(BUILD_OPERATOR, "'BUILD_AND_IMAGE_SMOKE_PASS_NOT_QUALIFIED'", "'IMMUTABLE_BUILD_AND_IMAGE_SMOKE_PASS'")
+        self.assertTrue(evaluate(self.files))
 
     def test_service_allowlist_widened(self):
         self.mutate(BUILD_OPERATOR, "'web-vnext']", "'web-vnext', 'marketing']")
