@@ -753,6 +753,14 @@
       "pathRegexes": [
         "^/api/internal/onboarding/tenants$"
       ]
+    },
+    {
+      "id": "ClientCapabilityCreate",
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/clients/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/capabilities$"
+      ]
     }
   ]
 }
