@@ -1,5 +1,29 @@
 # Institutional Memory — Implementation Status
 
+## Private Settings drafts (2026-10-29, source API)
+
+`20281029060000_settings_memory_drafts` adds private staging through
+`/memory/settings/:type/:slug/drafts`. Drafts reuse current Core membership,
+memory authorization, client walls and immutable ownership periods. They keep an
+exact active-source digest and a separate draft revision. Saves use a caller
+request identity with an immutable content-free receipt in the same transaction;
+retries return the original receipt, and stale concurrent writes are refused.
+Receipt state describes that historical operation, not current publication.
+
+The draft table is not an ingestion, embedding, recall or review source. Saving
+and discarding leave active memory unchanged. The existing daily worker erases
+unsubmitted draft sections 30 days after creation; save does not extend expiry.
+Expired content is suppressed before cleanup. Direct holds and held source
+lineage prevent erasure; the draft identity and response receipts survive so
+late writes cannot revive discarded or expired content. Source hold selection
+and destructive locking reuse the existing memory retention helpers.
+
+The source API and migration are tested with an ordinary PostgreSQL role.
+Frontend editor/recovery, atomic submission into the existing candidate or
+personal version owner, explicit client-purge composition and external restore
+reconciliation remain open. The API reports `publicationAvailable: false`.
+This is not deployment or full Settings feature completion.
+
 ## Owner policy (2026-10-29, source implementation)
 
 `20281029050000_memory_owner_retention` binds canonical items, Clio sources and

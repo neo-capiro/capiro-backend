@@ -49,11 +49,14 @@ import { MemoryOwnerItemsController } from './memory-owner-items.controller.js';
 import { MemoryOwnerItemsService } from './memory-owner-items.service.js';
 import { MemoryGovernanceController } from './memory-governance.controller.js';
 import { InternalMemoryController } from './internal-memory.controller.js';
+import { SettingsMemoryDraftController } from './settings-drafts/controller.js';
+import { SettingsMemoryDraftService } from './settings-drafts/service.js';
 
 /** Institutional Memory module. */
 @Module({
   imports: [PrismaModule, TenantModule, KnowledgeModule, ApplicationAuthorityModule],
   controllers: [
+    SettingsMemoryDraftController,
     MemoryController,
     MemoryReviewController,
     MemoryReviewInboxController,
@@ -65,6 +68,7 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     InternalMemoryController,
   ],
   providers: [
+    SettingsMemoryDraftService,
     LineageAwareMemoryStoreService,
     { provide: GovernedMemoryStoreService, useExisting: LineageAwareMemoryStoreService },
     { provide: MemoryStoreService, useExisting: LineageAwareMemoryStoreService },
