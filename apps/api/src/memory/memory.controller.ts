@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   ForbiddenException,
+  GoneException,
   Get,
   NotFoundException,
   Param,
@@ -40,13 +41,7 @@ import {
 import { governedMemoryLifecycleEnabled } from './memory-governance-lifecycle.helpers.js';
 import type { MemoryItemType } from './memory.types.js';
 import { buildKnowledgeGraph, walkFrom } from './memory-graph.helpers.js';
-import {
-  MEMORY_CATALOG,
-  fileDefForType,
-  editableSectionKeys,
-  skeletonSections,
-  mergeEditedSections,
-} from './memory-catalog.js';
+import { MEMORY_CATALOG, fileDefForType, skeletonSections } from './memory-catalog.js';
 import { buildInterviewQuestions } from './memory-interview.helpers.js';
 import {
   toManifestRow,
@@ -169,9 +164,8 @@ export class MemoryController {
   ) {
     const def = fileDefForType(type);
     // User-scope files are keyed on the caller's own id server-side (the client
-    // sends slug='me' as a placeholder). The PUT stores under ctx.userId, so the
-    // GET must read the SAME slug — otherwise the saved text never reads back and
-    // the editor shows the empty skeleton despite a successful save.
+    // sends slug='me' as a placeholder). Published user files key on ctx.userId.
+    // A caller-supplied slug must never select another user's private file.
     const effectiveSlug = def?.scope === 'user' ? ctx.userId : slug;
     if (def?.scope === 'client' && !(await this.store.clientMemoryAllowedForCurrentUser(slug))) {
       throw new ForbiddenException('This client is behind an ethical wall you are not granted.');
@@ -209,70 +203,14 @@ export class MemoryController {
     };
   }
 
-  /**
-   * Create-or-save edited human sections. User-scoped files (My Profile, My
-   * Writing Style) are writable by their owner (any role). Firm/client files
-   * require user_admin. Engine sections are never writable (allowlist guard).
-   * Creates the file from the catalog skeleton on first save, so brand-new
-   * files and Meri-drafted content persist. RLS keeps writes within the tenant.
-   */
+  /** Old editors must move to private drafts and explicit submission; never replay a save. */
   @Put('items/:type/:slug/sections')
-  async updateSections(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('type') type: MemoryItemType,
-    @Param('slug') slug: string,
-    @Body() body: { sections: Array<{ key: string; body: string }> },
-  ) {
-    const def = fileDefForType(type);
-    if (!def) throw new NotFoundException('unknown memory file type');
-    const scope = def.scope;
-    const isAdmin = ctx.role === 'user_admin' || ctx.role === 'capiro_admin';
-    if (scope !== 'user' && !isAdmin) {
-      throw new ForbiddenException('Editing firm and client memory requires an admin role.');
-    }
-    // User files key on the caller's own id — ignore any slug spoof.
-    const effectiveSlug = scope === 'user' ? ctx.userId : slug;
-    const clientId = scope === 'client' ? slug : null;
-    if (clientId && !(await this.store.clientMemoryAllowedForCurrentUser(clientId))) {
-      throw new ForbiddenException('This client is behind an ethical wall you are not granted.');
-    }
-
-    const existing = await this.store.getByTypeSlug(type, effectiveSlug);
-    if (governedMemoryEnforcementEnabled(process.env.MEMORY_GOVERNANCE_ENFORCE) && existing) {
-      await this.authz.requireItem(ctx, existing.id, 'edit');
-    }
-
-    if (scope === 'firm' || scope === 'client') {
-      const sections = mergeEditedSections(
-        type,
-        existing?.sections ?? null,
-        body?.sections ?? [],
-        editableSectionKeys(type),
-      );
-      const pending = await this.candidates.proposeSettingsSections(ctx, {
-        type,
-        slug: effectiveSlug,
-        title: existing?.title ?? def.label,
-        scope,
-        clientId,
-        sections,
-      });
-      return {
-        status: 'pending_review' as const,
-        candidateId: pending.candidateId,
-        activeItemUnchanged: true as const,
-      };
-    }
-
-    const updated = await this.store.upsertSectionsForCurrentTenant(
-      type,
-      effectiveSlug,
-      scope,
-      clientId,
-      body?.sections ?? [],
-      editableSectionKeys(type),
-    );
-    return { ok: true as const, updatedAt: updated.updatedAt };
+  async updateSections(): Promise<never> {
+    throw new GoneException({
+      code: 'MEMORY_SETTINGS_DRAFT_REQUIRED',
+      message:
+        'Save a private memory draft, then submit it for review. This endpoint no longer writes memory.',
+    });
   }
 
   /**
@@ -471,7 +409,7 @@ export class MemoryController {
   /**
    * Draft section text from collected Q&A answers (Meri polishes each answer
    * into section prose, obeying Capiro AI rules). Returns the drafted sections
-   * for preview; saving is a separate PUT so the user can edit first.
+   * for preview; save a private draft separately before submitting it for review.
    */
   @Post('interview/:type/draft')
   async interviewDraft(
