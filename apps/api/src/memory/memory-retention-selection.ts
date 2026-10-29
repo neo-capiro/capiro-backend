@@ -16,6 +16,7 @@ export async function retainedMemoryInTx(
   tx: Prisma.TransactionClient,
   tenantId: string | null = null,
   clientId: string | null = null,
+  additionalCandidateRoots: readonly string[] = [],
 ) {
   const rows = await tx.$queryRaw<Array<{ kind: string; id: string }>>`
     WITH RECURSIVE
@@ -63,6 +64,7 @@ export async function retainedMemoryInTx(
       SELECT tenant_id, 'candidate'::text, id FROM candidates
       WHERE legal_hold = true
         OR (${clientId}::uuid IS NOT NULL AND client_id IS DISTINCT FROM ${clientId}::uuid)
+        OR id = ANY(${[...additionalCandidateRoots]}::uuid[])
       UNION
       SELECT l.tenant_id, l.to_kind, l.to_id
       FROM links l JOIN retained r

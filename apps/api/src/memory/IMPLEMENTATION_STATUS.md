@@ -1,5 +1,35 @@
 # Institutional Memory — Implementation Status
 
+## Owner policy (2026-10-29, source implementation)
+
+`20281029050000_memory_owner_retention` binds canonical items, Clio sources and
+candidates to an explicit personal, client or firm ownership period. Core's
+membership removal and client archive transactions close the relevant period,
+with deadlines of 30 and 90 days respectively. Firm ownership does not depend
+on the author's membership. Reactivation creates a new period and cannot reopen
+old content. RLS blocks closed periods and their vector/graph projections;
+trusted ingestion and embedding writers check the same current ownership.
+
+The existing daily `refresh-memory-graph` worker invokes
+`purgeMemoryOwnerRetentionInTx` for its selected tenants. It preserves legal-held
+content and retained lineage, reports remaining Core rows, and records immutable
+content-free tombstones that refuse late INSERT retries. A failed transaction
+rolls back its deletion effects and outcomes together. The worker's counts do
+not claim completion of external Meri cleanup.
+
+Legacy rows are attributed using explicit ownership columns, with typed source
+bindings checked for agreement. Missing, inactive or contradictory ownership is
+restricted; no offboarding date is guessed from an update timestamp or citation.
+Attribution does not approve or activate governed content. Existing stable file
+keys remain subject to conflict refusal when a closed version still occupies one.
+
+Validation covers the real forward migration, ordinary-role writes and RLS,
+offboarding/write races, reactivation, deadline cleanup, hold release, late replay,
+and embedding results arriving after closure. Whole-backup recovery must still
+reconcile the external authoritative retention record. Settings draft/receipt UI,
+restricted-record resolution, and external deletion orchestration remain open.
+No application build or deployment was performed.
+
 ## Retention correction (2026-10-29, source checks)
 
 Client purge and scheduled expiry share `memory-retention-selection.ts`. The

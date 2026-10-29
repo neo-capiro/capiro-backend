@@ -2953,6 +2953,9 @@ model ClioNote {
 }
 
 model ClioMemory {
+  /// NULL is an explicitly restricted legacy ownership disposition.
+  retentionSubjectId String? @map("retention_subject_id") @db.Uuid
+  retentionSubject MemoryRetentionSubject? @relation(fields: [tenantId, retentionSubjectId], references: [tenantId, id], onDelete: Restrict, map: "clio_memory_retention_subject_fk")
   id          String                 @id @default(uuid()) @db.Uuid
   tenantId    String                 @map("tenant_id") @db.Uuid
   // Stored as TEXT in the DB with a CHECK constraint (scope IN
@@ -2988,6 +2991,7 @@ model ClioMemory {
   @@unique([tenantId, scope, ownerUserId, key], map: "clio_memory_tenant_scope_owner_key_uniq")
   @@index([tenantId, scope, ownerUserId, updatedAt(sort: Desc)], map: "clio_memory_scope_owner_updated_idx")
   @@index([tenantId, scope, updatedAt(sort: Desc)], map: "clio_memory_scope_updated_idx")
+  @@index([tenantId, retentionSubjectId], map: "clio_memory_retention_subject")
   @@map("clio_memory")
 }
 
@@ -11573,11 +11577,48 @@ model ProgramOfficeProgramLink {
   @@map("program_office_program_link")
 }
 
+/// Content-free lifecycle binding. Owner IDs have no cascading FK so the
+/// closed period survives the owner's removal and payload cleanup.
+model MemoryRetentionSubject {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  ownerKind String @map("owner_kind") @db.VarChar(16)
+  ownerId String @map("owner_id") @db.Uuid
+  policyVersion Int @default(1) @map("policy_version")
+  openedAt DateTime @default(now()) @map("opened_at") @db.Timestamptz(6)
+  closedAt DateTime? @map("closed_at") @db.Timestamptz(6)
+  purgeAfter DateTime? @map("purge_after") @db.Timestamptz(6)
+  closedReason String? @map("closed_reason") @db.VarChar(32)
+  items MemoryItem[]
+  candidates MemoryCandidate[]
+  clioMemories ClioMemory[]
+  tombstones MemoryRetentionTombstone[]
+
+  @@unique([tenantId, id])
+  @@map("memory_retention_subjects")
+}
+
+/// Immutable content-free deletion outcome, used to refuse old INSERT retries.
+model MemoryRetentionTombstone {
+  tenantId String @map("tenant_id") @db.Uuid
+  store String @db.VarChar(24)
+  rowId String @map("row_id") @db.Uuid
+  retentionSubjectId String? @map("retention_subject_id") @db.Uuid
+  purgedAt DateTime @default(now()) @map("purged_at") @db.Timestamptz(6)
+  retentionSubject MemoryRetentionSubject? @relation(fields: [tenantId, retentionSubjectId], references: [tenantId, id], onDelete: Restrict)
+
+  @@id([tenantId, store, rowId])
+  @@map("memory_retention_tombstones")
+}
+
 /// Canonical institutional-memory item (plan §0.5). Projected to an Obsidian-
 /// format markdown file in the vault; consumed structurally by the AI /
 /// Intelligence Center. Facts live in the referenced entity row (entityId);
 /// this holds the interpretation/narrative around them. RLS-FORCED on tenant_id.
 model MemoryItem {
+  /// Immutable ownership period; reactivation cannot rebind existing content.
+  retentionSubjectId String? @map("retention_subject_id") @db.Uuid
+  retentionSubject MemoryRetentionSubject? @relation(fields: [tenantId, retentionSubjectId], references: [tenantId, id], onDelete: Restrict, map: "memory_items_retention_subject_fk")
   id            String   @id @default(uuid()) @db.Uuid
   tenantId      String   @map("tenant_id") @db.Uuid
   clientId      String?  @map("client_id") @db.Uuid
@@ -11708,6 +11749,7 @@ model MemoryItem {
   @@index([entityId], map: "memory_items_entity_idx")
   @@index([tenantId, status], map: "memory_items_tenant_status_idx")
   @@index([tenantId, governedStatus, memoryClass, memoryScope, clientId], map: "memory_items_governed_recall_idx")
+  @@index([tenantId, retentionSubjectId], map: "memory_items_retention_subject")
   @@map("memory_items")
 }
 
@@ -11742,6 +11784,9 @@ model MemoryEdge {
 /// once committed (clio_memory stays the fast write/recall path per D1;
 /// memory_items remains the write-through governance projection).
 model MemoryCandidate {
+  /// NULL is an explicitly restricted legacy ownership disposition.
+  retentionSubjectId String? @map("retention_subject_id") @db.Uuid
+  retentionSubject MemoryRetentionSubject? @relation(fields: [tenantId, retentionSubjectId], references: [tenantId, id], onDelete: Restrict, map: "memory_candidate_retention_subject_fk")
   id         String  @id @default(uuid()) @db.Uuid
   tenantId   String  @map("tenant_id") @db.Uuid
   proposedBy String  @map("proposed_by") @db.Uuid
@@ -11854,6 +11899,7 @@ model MemoryCandidate {
   @@index([tenantId, status], map: "memory_candidate_tenant_status_idx")
   @@index([tenantId, proposedBy], map: "memory_candidate_tenant_proposed_by_idx")
   @@index([tenantId, governedStatus, memoryClass, clientId, createdAt(sort: Desc)], map: "memory_candidate_governed_queue_idx")
+  @@index([tenantId, retentionSubjectId], map: "memory_candidate_retention_subject")
   @@map("memory_candidate")
 }
 
