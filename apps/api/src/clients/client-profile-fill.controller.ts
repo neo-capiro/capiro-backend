@@ -83,6 +83,20 @@ class StartClientProfileFillDto {
   website?: string;
 }
 
+class RetryResearchTaskDto {
+  @IsUUID()
+  requestId!: string;
+
+  @IsInt()
+  @Min(0)
+  @Max(2147483647)
+  expectedAttempt!: number;
+
+  @IsString()
+  @MaxLength(80)
+  expectedTaskType!: string;
+}
+
 class ReviewedFindingDto {
   @IsUUID()
   id!: string;
@@ -237,8 +251,9 @@ export class ClientProfileFillController {
     @Param('clientId') clientId: string,
     @Param('runId') runId: string,
     @Param('taskId') taskId: string,
+    @Body() body: RetryResearchTaskDto,
   ) {
-    return this.service.retryTask(ctx, clientId, runId, taskId);
+    return this.service.retryTask(ctx, clientId, runId, taskId, body);
   }
 
   @Post('runs/:runId/apply')
