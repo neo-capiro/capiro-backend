@@ -13,6 +13,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { mapClerkRoleToCapiro } from '../auth/clerk-role.util.js';
+import { retireMemberOfficeDraftsInTx } from '../meri/office-drafts/member-retention.js';
 
 interface ClerkUserPayload {
   id: string;
@@ -162,6 +163,11 @@ export class ClerkWebhookService {
             where: { userId: existing.id, status: { not: 'removed' } },
             data: { status: 'removed' },
           });
+          const memberships = await tx.tenantMembership.findMany({
+            where: { userId: existing.id }, select: { tenantId: true },
+          });
+          for (const { tenantId } of memberships)
+            await retireMemberOfficeDraftsInTx(tx, tenantId, existing.id);
           await tx.user.update({
             where: { id: existing.id },
             data: {
@@ -245,12 +251,13 @@ export class ClerkWebhookService {
         if (!user) return;
         // Mark as removed rather than deleting, keeps audit_logs FKs intact
         // and lets Capiro Admins see the offboarding history.
-        await tx.tenantMembership
-          .update({
-            where: { tenantId_userId: { tenantId: tenant.id, userId: user.id } },
-            data: { status: 'removed' },
-          })
-          .catch(() => undefined);
+        // Missing membership is an idempotent no-op; database/cleanup failures
+        // must roll back and let the verified webhook delivery retry.
+        await tx.tenantMembership.updateMany({
+          where: { tenantId: tenant.id, userId: user.id },
+          data: { status: 'removed' },
+        });
+        await retireMemberOfficeDraftsInTx(tx, tenant.id, user.id);
         return;
       }
       case 'organization.created':
@@ -356,6 +363,7 @@ export class ClerkWebhookService {
           where: { id: source.id },
           data: { userId: targetUserId },
         });
+        await retireMemberOfficeDraftsInTx(tx, source.tenantId, sourceUserId);
         continue;
       }
 
@@ -375,6 +383,7 @@ export class ClerkWebhookService {
         where: { id: source.id },
         data: { status: 'removed' },
       });
+      await retireMemberOfficeDraftsInTx(tx, source.tenantId, sourceUserId);
     }
 
     await tx.user.update({

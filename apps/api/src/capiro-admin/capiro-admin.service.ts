@@ -8,6 +8,7 @@ import {
 } from '@aws-sdk/client-s3';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
+import { retireMemberOfficeDraftsInTx } from '../meri/office-drafts/member-retention.js';
 import { ClerkProvisioningService } from '../auth/clerk-provisioning.service.js';
 import { IdentityOutboxService } from '../auth/identity-outbox.service.js';
 import { ClerkService } from '../auth/clerk.service.js';
@@ -482,6 +483,7 @@ export class CapiroAdminService {
         where: { id: membership.id },
         data: { status: 'removed' },
       });
+      await retireMemberOfficeDraftsInTx(tx, tenantId, userId);
       // Audit routed to the AFFECTED tenant (tenantId) so its own admins can see
       // that Capiro removed one of their users (SOC2 transparency). before =
       // the pre-removal membership snapshot.
