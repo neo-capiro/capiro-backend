@@ -16,6 +16,17 @@ export type EngagementBackgroundOwner = 'api' | 'engagement-api' | 'disabled';
 export type EngagementExternalActionMode =
   'disabled' | 'test_only' | 'enabled' | 'integrations_only' | 'integrations_and_notetaker';
 
+/**
+ * Opt-in restriction of the background-worker surface.
+ *
+ * Deliberately a single typed token, not a list of worker names: the only
+ * accepted value admits the one existing integration sync scheduler
+ * (`engagement-sync-scheduler`) and no other worker. Omitted keeps the legacy
+ * generic ownership behavior. See
+ * EngagementRuntimePolicyService.backgroundWorkersEnabled.
+ */
+export type EngagementBackgroundWorkerRestriction = 'integration_sync_scheduler';
+
 /** Every external or sensitive boundary gated by the runtime policy. */
 export type EngagementExternalAction =
   | 'outreach_generate'
@@ -46,6 +57,7 @@ export interface EngagementRuntimeSnapshot {
   externalActions: EngagementExternalActionMode;
   callbacksEnabled: boolean;
   recallWebhookEnabled: boolean;
+  backgroundWorkerRestriction?: EngagementBackgroundWorkerRestriction;
 }
 
 export interface AssertExternalActionOptions {
