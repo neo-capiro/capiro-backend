@@ -55,8 +55,11 @@ describe('marketing container build recipe', () => {
     const release = script.slice(script.indexOf('echo "==> ECR login"'));
     assert.match(release, /--push/);
     assert.match(release, /update-service/);
-    const rejected = spawnSync('bash', [join(here, 'deploy.sh'), '--unknown'], { cwd: here, encoding: 'utf8' });
-    assert.equal(rejected.status, 2);
+    for (const argv of [['--unknown'], ['--build-only', 'extra'], ['deploy'], ['--build-only', '--build-only']]) {
+      const rejected = spawnSync('bash', [join(here, 'deploy.sh'), ...argv], { cwd: here, encoding: 'utf8' });
+      assert.equal(rejected.status, 2, argv.join(' '));
+      assert.match(rejected.stderr, /Usage: .*deploy\.sh \[--build-only\]/);
+    }
   });
 
   test('the runtime keeps the 8080 contract the legacy consumer uses', () => {

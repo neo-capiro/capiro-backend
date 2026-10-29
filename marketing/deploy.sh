@@ -19,6 +19,10 @@ set -euo pipefail
 export MSYS_NO_PATHCONV=1  # keep ARNs/paths intact under git-bash on Windows
 
 BUILD_ONLY=0
+if [[ "$#" -gt 1 ]]; then
+  echo "Usage: $0 [--build-only]" >&2
+  exit 2
+fi
 case "${1:-}" in
   "") ;;
   --build-only) BUILD_ONLY=1 ;;
