@@ -61,3 +61,48 @@ test('no group becomes a wildcard and every group keeps the five-value rule budg
   // The generic GET/HEAD read rule is the only broad admission, and it is method-scoped.
   assert.doesNotMatch(writes.note, /wildcard/i);
 });
+
+test('onboarding admissions are appended after the accepted newsletter group', () => {
+  const groups = writes.groups as { id?: string; service: string; method: string; pathRegexes: string[] }[];
+  const ids = groups.map((group) => group.id);
+  assert.equal(groups.length, 87);
+  assert.equal(ids[82], 'PublicNewsletterCapabilityPosts');
+  assert.deepEqual(ids.slice(83), [
+    'OnboardPublicReads',
+    'OnboardSetupPosts',
+    'OnboardInvitePosts',
+    'CoreInternalOnboardingTenants',
+  ]);
+  const byId = new Map(groups.map((group) => [group.id, group]));
+  const expectGroup = (id: string, service: string, method: string, paths: string[]) => {
+    const group = byId.get(id)!;
+    assert.equal(group.service, service, id);
+    assert.equal(group.method, method, id);
+    assert.deepEqual(group.pathRegexes, paths, id);
+  };
+  expectGroup('OnboardPublicReads', 'onboard', 'GET', [
+    '^/onboard-api/public/config$',
+    '^/onboard-api/setup/state$',
+    '^/onboard-api/it/invite/[A-Za-z0-9_-]+$',
+  ]);
+  expectGroup('OnboardSetupPosts', 'onboard', 'POST', [
+    '^/onboard-api/setup/tasks/[A-Za-z0-9_-]+/transition$',
+    '^/onboard-api/setup/complete$',
+    '^/onboard-api/setup/it-invites$',
+  ]);
+  expectGroup('OnboardInvitePosts', 'onboard', 'POST', [
+    '^/onboard-api/setup/it-invites/[A-Za-z0-9_-]+/resend$',
+    '^/onboard-api/it/invite/[A-Za-z0-9_-]+/consent-url$',
+    '^/onboard-api/it/invite/[A-Za-z0-9_-]+/skip-google$',
+  ]);
+  expectGroup('CoreInternalOnboardingTenants', 'core', 'POST', [
+    '^/api/internal/onboarding/tenants$',
+  ]);
+  // No blanket write routing, no lifecycle hard-delete admission, bounded anchored tokens.
+  for (const group of groups)
+    for (const pattern of group.pathRegexes) {
+      assert.ok(pattern.startsWith('^') && pattern.endsWith('$'), pattern);
+      assert.ok(!/hard-delete/.test(pattern), pattern);
+      assert.ok(!/\*/.test(pattern), pattern);
+    }
+});

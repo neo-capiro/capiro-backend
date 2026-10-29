@@ -715,6 +715,44 @@
         "^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/preferences$",
         "^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/survey$"
       ]
+    },
+    {
+      "id": "OnboardPublicReads",
+      "service": "onboard",
+      "method": "GET",
+      "pathRegexes": [
+        "^/onboard-api/public/config$",
+        "^/onboard-api/setup/state$",
+        "^/onboard-api/it/invite/[A-Za-z0-9_-]+$"
+      ]
+    },
+    {
+      "id": "OnboardSetupPosts",
+      "service": "onboard",
+      "method": "POST",
+      "pathRegexes": [
+        "^/onboard-api/setup/tasks/[A-Za-z0-9_-]+/transition$",
+        "^/onboard-api/setup/complete$",
+        "^/onboard-api/setup/it-invites$"
+      ]
+    },
+    {
+      "id": "OnboardInvitePosts",
+      "service": "onboard",
+      "method": "POST",
+      "pathRegexes": [
+        "^/onboard-api/setup/it-invites/[A-Za-z0-9_-]+/resend$",
+        "^/onboard-api/it/invite/[A-Za-z0-9_-]+/consent-url$",
+        "^/onboard-api/it/invite/[A-Za-z0-9_-]+/skip-google$"
+      ]
+    },
+    {
+      "id": "CoreInternalOnboardingTenants",
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/internal/onboarding/tenants$"
+      ]
     }
   ]
 }

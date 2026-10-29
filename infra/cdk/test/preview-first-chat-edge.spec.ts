@@ -619,11 +619,21 @@ test('appending the newsletter capability group leaves every existing rule mappi
       assert.equal(Number(rule.Priority), index + 6, label);
       assert.deepEqual(pathsOf(rule), group.pathRegexes, label);
     });
-    const last = rules[rules.length - 1];
-    assert.equal(Number(last.Priority), 88);
-    assert.deepEqual(pathsOf(last), [
+    const newsletter = rules[82 + 5];
+    assert.equal(Number(newsletter.Priority), 88);
+    assert.deepEqual(pathsOf(newsletter), [
       '^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/unsubscribe$',
       '^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/preferences$',
       '^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/survey$',
     ]);
+    // The onboarding admissions are appended after it, so the last rules are theirs.
+    assert.deepEqual(
+      rules.slice(-4).map((rule) => [Number(rule.Priority), pathsOf(rule)[0]]),
+      [
+        [89, '^/onboard-api/public/config$'],
+        [90, '^/onboard-api/setup/tasks/[A-Za-z0-9_-]+/transition$'],
+        [91, '^/onboard-api/setup/it-invites/[A-Za-z0-9_-]+/resend$'],
+        [92, '^/api/internal/onboarding/tenants$'],
+      ],
+    );
   }));
