@@ -18,6 +18,14 @@ describe('private draft boundary', () => {
     for (const kind of ['autosave', 'explicit', 'exit']) expect(parseSave({ ...save, kind }).bytes).toEqual(bytes);
     expect(() => parseSave({ ...save, bytesBase64: 'A'.repeat(4 * Math.ceil(20 * 1024 * 1024 / 3) + 4) })).toThrow('INPUT');
   });
+  it('preserves opaque printable ASCII lock spaces while refusing controls, non-ASCII and overflow', () => {
+    const lock = '{"owner": "CODE", "pad": "' + 'x'.repeat(996) + '"}';
+    expect(lock.length).toBe(1024);
+    expect(parseLock({ ...key, ...editor, operation: 'lock', lock }).lock).toBe(lock);
+    expect(parseSave({ ...save, lock }).lock).toBe(lock);
+    for (const bad of [lock + 'x', 'a\tb', 'a\rb', 'a\nb', 'a\u0000b', 'a\u007fb', 'caf\u00e9'])
+      expect(() => parseLock({ ...key, ...editor, operation: 'lock', lock: bad })).toThrow('INPUT');
+  });
   it('refuses mismatched extensions, PDF editing, path traversal and malformed lock requests', () => {
     const source = { ...key, artifactId: randomUUID(), baseVersionId: randomUUID(), baseSha256: 'a'.repeat(64),
       format: 'docx', filename: 'report.docx' };
