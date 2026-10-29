@@ -121,10 +121,31 @@ draft ID. Ordinary actor RLS remains enabled: cleanup derives actors from canoni
 tenant/client conversations, scopes each update, then restores the caller's local
 actor setting before further work. A database failure rolls the transaction back.
 
-This covers client-bound conversations, not artifact dependencies imported into a
-General conversation. Artifact suppression, membership departure and expiry
-scheduling still require their owner integration. Closed IDs and source metadata
+Client wall cleanup covers client-bound conversations, not artifact dependencies
+imported into a General conversation. Artifact suppression and expiry scheduling
+still require their owner integration. Closed IDs and source metadata
 remain until expiry; immutable published versions are not deleted by this owner.
+
+Membership departure now clears that member's private drafts in both General and
+client conversations in the same transaction as tenant-admin removal, HQ removal,
+verified Clerk membership/user deletion, or duplicate identity reassignment.
+The membership owner's row update excludes Office writers, which hold that row
+FOR SHARE and recheck current membership. Cleanup uses the existing retirement
+fields and exact tenant/actor predicates; ordinary tenant/actor RLS stays enabled
+on tenant-scoped calls, and the caller's actor setting is restored before audit or
+outbox work. An active membership is never retired by this helper. Removal and
+cleanup failures roll the entire transaction back; Clerk delivery stays outside
+the admin transaction. Missing webhook membership removal is idempotent without
+swallowing database failures. No authentication decisions, schema, endpoint, or
+outbox protocol changes. Regrant cannot reopen the retired draft identities.
+
+Fourteen additional ordinary-role PostgreSQL cases execute the canonical owner
+methods with synthetic records. They cover General/client drafts, actor and tenant
+isolation, regrant, repeat removal, audit/outbox/SQL rollback, context restoration,
+late Save blocked on membership removal, both Clerk deletion paths, and both
+identity merge branches in provisioning and webhook processing. Provider clients
+are not constructed by these database tests; webhook signature/HTTP delivery and
+external identity-provider behavior are outside this source qualification.
 
 Five additional ordinary-role PostgreSQL cases cover closed-token reuse,
 all-writer artifact selection and cross-tenant isolation, 100-row batches,

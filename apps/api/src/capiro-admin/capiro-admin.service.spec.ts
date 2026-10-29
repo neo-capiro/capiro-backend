@@ -861,6 +861,8 @@ describe('CapiroAdminService — removeUserFromTenant audit (#3a/#3b)', () => {
       tenant: { clerkOrgId: null },
     };
     const svc = makeService({
+      $queryRaw: async () => [{ actor: '' }],
+      $executeRaw: async () => 0,
       tenantMembership: {
         findUnique: async () => membership,
         update: async () => ({}),
