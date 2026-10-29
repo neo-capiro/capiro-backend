@@ -1,3 +1,4 @@
+import { withMemoryConversationRetention } from './conversation-serving/transaction.js';
 import {
   Injectable,
   Logger,
@@ -321,7 +322,7 @@ export class MemoryCandidateService {
     type: MemoryItemType,
     slug: string,
   ): Promise<PendingSettingsCandidate | null> {
-    return this.prisma.withTenantUser(tenantId, viewerUserId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, tenantId, viewerUserId, async (tx) => {
       const rows = await tx.$queryRaw<Array<{ id: string; created_at: Date }>>`
         SELECT id::text AS id, created_at
         FROM memory_candidate
@@ -548,7 +549,7 @@ export class MemoryCandidateService {
     };
     const result = settingsTransaction
       ? await propose(settingsTransaction)
-      : await this.prisma.withTenantUser(tenantId, proposedByUserId, propose);
+      : await withMemoryConversationRetention(this.prisma, tenantId, proposedByUserId, propose);
 
     if (decision.outcome === 'WARN') {
       this.logger.log(`Memory candidate pending (${decision.ruleId}).`);
@@ -600,7 +601,7 @@ export class MemoryCandidateService {
     actorContext?: CandidateActorContext,
     fixtureGuard?: SyntheticCandidateWithdrawalGuard,
   ): Promise<{ memoryId: string }> {
-    const activated = await this.prisma.withTenantUser(tenantId, approverUserId, async (tx) => {
+    const activated = await withMemoryConversationRetention(this.prisma, tenantId, approverUserId, async (tx) => {
       const candidate = await this.lockPendingCandidateInTx(tx, tenantId, candidateId);
       if (!candidate) {
         if (!actorContext || fixtureGuard)
@@ -732,7 +733,7 @@ export class MemoryCandidateService {
     actorContext?: CandidateActorContext,
     reason = '',
   ): Promise<void> {
-    await this.prisma.withTenantUser(tenantId, reviewerUserId, async (tx) => {
+    await withMemoryConversationRetention(this.prisma, tenantId, reviewerUserId, async (tx) => {
       const candidate = await this.lockPendingCandidateInTx(tx, tenantId, candidateId);
       if (!candidate) {
         if (!actorContext) throw new NotFoundException('No pending memory candidate with that id.');
@@ -806,7 +807,7 @@ export class MemoryCandidateService {
     // Keep this in SQL before LIMIT so hidden rows cannot consume a page slot.
     const previewRoster =
       input.visibleClientIds === undefined ? null : JSON.stringify(input.visibleClientIds);
-    const rows = await this.prisma.withTenantUser(
+    const rows = await withMemoryConversationRetention(this.prisma,
       ctx.tenantId,
       ctx.userId,
       (tx) =>
@@ -892,7 +893,7 @@ export class MemoryCandidateService {
       new NotFoundException('No personal memory candidate of yours with that id.');
     if (!CANDIDATE_UUID.test(candidateId)) throw missing();
     const previewRoster = visibleClientIds === undefined ? null : JSON.stringify(visibleClientIds);
-    const rows = await this.prisma.withTenantUser(
+    const rows = await withMemoryConversationRetention(this.prisma,
       ctx.tenantId,
       ctx.userId,
       (tx) =>
@@ -962,7 +963,7 @@ export class MemoryCandidateService {
     const missing = () =>
       new NotFoundException('No personal memory candidate of yours with that id.');
     if (!CANDIDATE_UUID.test(candidateId)) throw missing();
-    const rows = await this.prisma.withTenantUser(
+    const rows = await withMemoryConversationRetention(this.prisma,
       ctx.tenantId,
       ctx.userId,
       (tx) =>
@@ -1025,7 +1026,7 @@ export class MemoryCandidateService {
   }
 
   async listPending(tenantId: string, viewerUserId?: string): Promise<MemoryCandidateRow[]> {
-    return this.prisma.withTenant(tenantId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, tenantId, viewerUserId ?? null, async (tx) => {
       const rows = await tx.memoryCandidate.findMany({
         where: { tenantId, status: 'pending' },
         orderBy: { createdAt: 'asc' },

@@ -1,3 +1,4 @@
+import { withMemoryConversationRetention } from './conversation-serving/transaction.js';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext, TenantRole } from '@capiro/shared';
@@ -110,7 +111,7 @@ export class MemorySettingsReviewReadinessService {
         return this.eligibleReviewersInTx(tx, ctx.tenantId, subject, members);
       };
     const eligibleReviewers = transaction ? await read(transaction)
-      : await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, read);
+      : await withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, read);
 
     if (eligibleReviewers.length === 0) {
       const message =
@@ -131,7 +132,7 @@ export class MemorySettingsReviewReadinessService {
     pending: PendingSettingsCandidate,
     options: { reviewEnabled?: boolean } = {},
   ): Promise<PendingSettingsCandidate> {
-    return this.prisma.withTenantUser(tenantId, viewerUserId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, tenantId, viewerUserId, async (tx) => {
       const row = (await tx.memoryCandidate.findFirst({
         where: { id: pending.candidateId, tenantId, status: 'pending' },
         select: {
@@ -253,7 +254,7 @@ export class MemorySettingsReviewReadinessService {
       };
     }
 
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const rows = await tx.memoryCandidate.findMany({
         where: {
           tenantId: ctx.tenantId,

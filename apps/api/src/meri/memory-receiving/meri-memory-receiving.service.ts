@@ -1,3 +1,4 @@
+import { withMemoryConversationRetention } from '../../memory/conversation-serving/transaction.js';
 import {
   BadRequestException,
   ConflictException,
@@ -132,7 +133,7 @@ export class MeriMemoryReceivingService {
         if (candidate.ttlDays !== null) throw new ConflictException('A correction with ttlDays is not supported yet');
         await this.submitCorrection(ctx, candidate, request.candidateSha256, async (tx) => { await record(tx); });
       } else {
-        await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+        await withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
           await this.submitAdditionInTransaction(tx, ctx, candidate, request.candidateSha256);
         });
       }
@@ -195,7 +196,7 @@ export class MeriMemoryReceivingService {
     record: (tx: Prisma.TransactionClient) => Promise<void>,
   ) {
     const pin = candidate.corrects!;
-    const sourceItemId = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) => this.versionSourceFor(tx, ctx, pin.memoryId));
+    const sourceItemId = await withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, (tx) => this.versionSourceFor(tx, ctx, pin.memoryId));
     if (!sourceItemId) throw stale();
     await this.versions.proposeReviewOnlyCorrection(ctx, {
       candidateId: candidate.candidateId,
@@ -229,7 +230,7 @@ export class MeriMemoryReceivingService {
   async status(req: Request, ctx: TenantContext, raw: unknown) {
     if (!hasVerifiedToolServiceIdentity(req)) throw forbidden();
     const pairs = parseStatusRequest(raw);
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, tx => this.statusInTransaction(tx, ctx, pairs));
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, tx => this.statusInTransaction(tx, ctx, pairs));
   }
 
   /** Read the exact original candidates; never submits or reconstructs a missing payload. */
@@ -275,7 +276,7 @@ export class MeriMemoryReceivingService {
   async readTarget(req: Request, ctx: TenantContext, raw: unknown) {
     if (!hasVerifiedToolServiceIdentity(req)) throw forbidden();
     const { memoryId } = parseReadTargetRequest(raw);
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => ({ memory: await readScoped(tx, ctx, memoryId) }));
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => ({ memory: await readScoped(tx, ctx, memoryId) }));
   }
 
   /** The committed memory a keyed proposal would replace: the clio row for the
@@ -283,7 +284,7 @@ export class MeriMemoryReceivingService {
   async findByKey(req: Request, ctx: TenantContext, raw: unknown) {
     if (!hasVerifiedToolServiceIdentity(req)) throw forbidden();
     const query = parseFindByKeyRequest(raw);
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       if (query.clientId && !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, query.clientId))) return { memory: null };
       const row = await tx.clioMemory.findFirst({
         where: {
@@ -316,7 +317,7 @@ export class MeriMemoryReceivingService {
     }
     // The content-free receipt survives a client purge to suppress replay.
     // It must not falsely acknowledge a candidate that is no longer reviewable.
-    const candidate = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+    const candidate = await withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, (tx) =>
       tx.memoryCandidate.findUnique({ where: { id: stored.candidateId }, select: { id: true } }),
     );
     if (!candidate) throw new GoneException('Memory submission is no longer available');

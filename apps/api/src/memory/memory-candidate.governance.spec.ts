@@ -1,3 +1,6 @@
+// PostgreSQL retention is qualified separately with real roles and transactions.
+jest.mock('./conversation-serving/transaction.js', () =>
+  jest.requireActual('./conversation-serving/unit-boundary.fixture.js'));
 import { describe, expect, it } from '@jest/globals';
 import { MemoryCandidateService } from './memory-candidate.service.js';
 import { MemoryTransitionAuditService } from './memory-transition-audit.service.js';
@@ -258,7 +261,7 @@ describe('MemoryCandidateService governed lifecycle — ARMED', () => {
         scope: 'personal',
         expires_at: '2030-01-01T00:00:00.000Z',
       });
-      await h.service.approve(TENANT, CANDIDATE, 'reviewer-1');
+      await h.service.approve(TENANT, CANDIDATE, 'proposer-1');
       expect(h.updates[0]!.memoryClass).toBe('episodic_working');
       expect(h.updates[0]!.expiresAt).toBeInstanceOf(Date);
     });
@@ -267,7 +270,7 @@ describe('MemoryCandidateService governed lifecycle — ARMED', () => {
   it('does not claim episodic_working for a personal save with no TTL', async () => {
     await withLifecycle('enforce', async () => {
       const h = harness({ ...FIRM_ROW, scope: 'personal' });
-      await h.service.approve(TENANT, CANDIDATE, 'reviewer-1');
+      await h.service.approve(TENANT, CANDIDATE, 'proposer-1');
       expect(h.updates[0]!.memoryClass).toBe('user_preference');
       expect(h.updates[0]).not.toHaveProperty('expiresAt');
     });

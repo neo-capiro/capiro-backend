@@ -1,3 +1,4 @@
+import { withMemoryConversationRetention } from './conversation-serving/transaction.js';
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
@@ -132,7 +133,7 @@ export class MemoryReviewAdminInboxService extends MemoryReviewInboxService {
     const pending = items.filter((item) => item.status === 'pending');
     if (pending.length === 0) return items;
 
-    const projectedByCandidate = await this.adminPrisma.withTenantUser(
+    const projectedByCandidate = await withMemoryConversationRetention(this.adminPrisma,
       ctx.tenantId,
       ctx.userId,
       async (tx) => {

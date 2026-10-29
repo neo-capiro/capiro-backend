@@ -1,3 +1,4 @@
+import { withMemoryConversationRetention } from './conversation-serving/transaction.js';
 import { memoryGovernanceVersionSql } from './memory-governance-version.js';
 import {
   decodeGovernancePage,
@@ -167,7 +168,7 @@ export class MemoryGovernanceReadService {
   async overview(ctx: TenantContext) {
     if (!memoryGovernanceCenterEnabled()) return disabledOverview();
 
-    const counts = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    const counts = await withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
       const itemRows = await tx.$queryRaw<
         Array<{
@@ -267,7 +268,7 @@ export class MemoryGovernanceReadService {
 
     const binding = governancePageBinding(ctx, `items:${bucket}`, search);
     const cursor = decodeGovernancePage(rawCursor, binding);
-    const page = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    const page = await withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
       const rows = await tx.$queryRaw<ItemRow[]>(Prisma.sql`
         SELECT mi.id::text AS id,
@@ -338,7 +339,7 @@ export class MemoryGovernanceReadService {
   async getItem(ctx: TenantContext, itemId: string) {
     if (!memoryGovernanceCenterEnabled()) return { enabled: false, item: null };
 
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const rows = await tx.$queryRaw<ItemDetailRow[]>(Prisma.sql`
         SELECT mi.id::text AS id,
                ${memoryGovernanceVersionSql('mi')} AS version,
@@ -504,7 +505,7 @@ export class MemoryGovernanceReadService {
 
     const binding = governancePageBinding(ctx, 'transitions');
     const cursor = decodeGovernancePage(rawCursor, binding);
-    const rows = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    const rows = await withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
       return tx.$queryRaw<TransitionRow[]>(Prisma.sql`
         SELECT a.id::text AS id,
@@ -557,7 +558,7 @@ export class MemoryGovernanceReadService {
       };
     }
 
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
       const counts = await tx.$queryRaw<
         Array<{
@@ -645,7 +646,7 @@ export class MemoryGovernanceReadService {
 
   async listClients(ctx: TenantContext) {
     if (!memoryGovernanceCenterEnabled()) return { enabled: false, clients: [] };
-    const clients = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    const clients = await withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
       return tx.$queryRaw<
         Array<{ id: string; name: string; status: string; memoryWall: boolean }>
