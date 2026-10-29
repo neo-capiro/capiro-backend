@@ -17,6 +17,7 @@ import {
   PROJECT,
   REGION,
   REPOSITORY,
+  OPERATION_MARKER_ENV,
   REQUIRED_MARKERS,
   SOURCE_REPOSITORY,
   assertIntent,
@@ -25,10 +26,15 @@ import {
   buildspec,
   selectReconcileMatch,
   startBuildInput,
+  verifyBuildIdentity,
 } from './clio-sandbox-image-build.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const SHA = '13a5dd43fdb0c20614d667e3a0d28dba75623b1c';
+const TOKEN = '11111111-1111-4111-8111-111111111111';
+const MARKER = '22222222-2222-4222-8222-222222222222';
+const OTHER_TOKEN = '33333333-3333-4333-8333-333333333333';
+const OTHER_MARKER = '44444444-4444-4444-8444-444444444444';
 const phases = (sha = SHA) => buildspec(sha).phases;
 const script = (name, sha = SHA) => {
   const command = phases(sha)[name].commands[0];
@@ -43,7 +49,12 @@ test('the request pins the exact source repository and commit on the existing AR
   assert.equal(input.sourceTypeOverride, 'GITHUB');
   assert.equal(input.sourceLocationOverride, 'https://github.com/neo-capiro/capiro-backend.git');
   assert.equal(input.sourceVersion, SHA);
-  assert.deepEqual(input.environmentVariablesOverride, [{ name: 'EXPECTED_SHA', value: SHA, type: 'PLAINTEXT' }]);
+  assert.deepEqual(input.environmentVariablesOverride, [
+    { name: 'EXPECTED_SHA', value: SHA, type: 'PLAINTEXT' },
+    { name: OPERATION_MARKER_ENV, value: input.environmentVariablesOverride[1].value, type: 'PLAINTEXT' },
+  ]);
+  // The operation marker is the exclusive per-operation identity returned by BatchGetBuilds.
+  assert.match(input.environmentVariablesOverride[1].value, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   assert.equal(input.idempotencyToken, 'fixed-token');
   assert.equal(input.timeoutInMinutesOverride, 60);
   // No project/IAM/environment mutation and no deployment knobs in the request.
@@ -199,32 +210,98 @@ test('the only source route is the exact-SHA GitHub pin (no unimplemented S3 rou
   assert.match(script('pre_build'), /CODEBUILD_RESOLVED_SOURCE_VERSION/);
 });
 
-test('a lost start acknowledgement is reconciled only from one exact intent match', () => {
-  const intent = buildIntent(SHA, '2026-10-29T21:00:00.000Z', 'intent-token');
+test('recovery binds the server-returned buildspec and operation marker, not just project/SHA/time', () => {
+  const intent = buildIntent(SHA, '2026-10-29T21:00:00.000Z', TOKEN, MARKER);
+  const spec = startBuildInput(SHA, TOKEN, MARKER).buildspecOverride;
+  const otherServiceSpec = `${spec}\n# another service's buildspec`;
   const build = (over = {}) => ({
     id: 'capiro-build-web-dev:11111111-1111-1111-1111-111111111111',
     projectName: PROJECT,
-    source: { location: SOURCE_REPOSITORY },
+    source: { type: 'GITHUB', location: SOURCE_REPOSITORY, buildspec: spec, sourceVersion: SHA },
     sourceVersion: SHA,
     resolvedSourceVersion: SHA,
     startTime: '2026-10-29T21:00:30.000Z',
+    environment: {
+      environmentVariables: [
+        { name: 'EXPECTED_SHA', value: SHA },
+        { name: OPERATION_MARKER_ENV, value: MARKER },
+      ],
+    },
     ...over,
   });
-  assert.equal(selectReconcileMatch([build()], intent).state, 'MATCH');
+
+  // Positive: actual-shaped returned source (buildspec bytes) + effective env.
+  const positive = selectReconcileMatch([build()], intent);
+  assert.equal(positive.state, 'MATCH');
+  assert.equal(positive.observed.buildspecSha256, intent.buildspecSha256);
+  assert.equal(positive.observed.operationMarker, MARKER);
+  assert.equal(positive.observed.sourceType, 'GITHUB');
+
   assert.equal(selectReconcileMatch([], intent).state, 'NO_MATCH');
-  assert.equal(selectReconcileMatch([build(), build({ id: 'capiro-build-web-dev:2' })], intent).state, 'AMBIGUOUS');
-  assert.equal(selectReconcileMatch([build(), build({ id: 'capiro-build-web-dev:2' })], intent).buildIds.length, 2);
-  // Every binding is required; a near miss is NO_MATCH, never a fallback pick.
+
+  // Same project, source, SHA and time — but another service's request.
+  assert.equal(selectReconcileMatch([build({ source: { type: 'GITHUB', location: SOURCE_REPOSITORY, buildspec: otherServiceSpec } })], intent).state, 'NO_MATCH');
+  assert.equal(selectReconcileMatch([build({ environment: { environmentVariables: [{ name: OPERATION_MARKER_ENV, value: OTHER_MARKER }] } })], intent).state, 'NO_MATCH');
+  const mixed = selectReconcileMatch([build({ source: { type: 'GITHUB', location: SOURCE_REPOSITORY, buildspec: otherServiceSpec }, environment: { environmentVariables: [{ name: OPERATION_MARKER_ENV, value: OTHER_MARKER }] } })], intent);
+  assert.equal(mixed.state, 'NO_MATCH');
+  assert.equal(mixed.rejected[0].state, 'MISMATCH');
+  assert.ok(mixed.rejected[0].reasons.includes('buildspec'));
+  assert.ok(mixed.rejected[0].reasons.includes('operation-marker'));
+
+  // Missing returned evidence is UNKNOWN, never a match.
+  const noBuildspec = build();
+  delete noBuildspec.source.buildspec;
+  assert.equal(selectReconcileMatch([noBuildspec], intent).state, 'UNKNOWN');
+  const noMarker = build({ environment: { environmentVariables: [{ name: 'EXPECTED_SHA', value: SHA }] } });
+  assert.equal(selectReconcileMatch([noMarker], intent).state, 'UNKNOWN');
+  const noEnvironment = build();
+  delete noEnvironment.environment;
+  assert.equal(selectReconcileMatch([noEnvironment], intent).state, 'UNKNOWN');
+
+  // Two fully-matching candidates stay explicit.
+  const ambiguous = selectReconcileMatch([build(), build({ id: 'capiro-build-web-dev:2' })], intent);
+  assert.equal(ambiguous.state, 'AMBIGUOUS');
+  assert.equal(ambiguous.buildIds.length, 2);
+
+  // Coarse near misses never produce a fallback pick.
   assert.equal(selectReconcileMatch([build({ projectName: 'other-project' })], intent).state, 'NO_MATCH');
-  assert.equal(selectReconcileMatch([build({ source: { location: 'https://github.com/neo-capiro/capirovp2.git' } })], intent).state, 'NO_MATCH');
   assert.equal(selectReconcileMatch([build({ sourceVersion: 'b'.repeat(40), resolvedSourceVersion: null })], intent).state, 'NO_MATCH');
   assert.equal(selectReconcileMatch([build({ startTime: '2026-10-29T18:00:00.000Z' })], intent).state, 'NO_MATCH');
-  assert.equal(selectReconcileMatch([build({ startTime: undefined })], intent).state, 'NO_MATCH');
-  // A tampered intent is rejected instead of being used to record a build.
+});
+
+test('a supplied build id cannot bypass the identity of the request AWS ran', () => {
+  const intent = buildIntent(SHA, '2026-10-29T21:00:00.000Z', TOKEN, MARKER);
+  const spec = startBuildInput(SHA, TOKEN, MARKER).buildspecOverride;
+  const foreign = {
+    id: 'capiro-build-web-dev:99999999-9999-4999-8999-999999999999',
+    projectName: PROJECT,
+    source: { type: 'GITHUB', location: SOURCE_REPOSITORY, buildspec: `${spec}\n# foreign`, sourceVersion: SHA },
+    sourceVersion: SHA,
+    resolvedSourceVersion: SHA,
+    startTime: '2026-10-29T21:01:00.000Z',
+    environment: { environmentVariables: [{ name: OPERATION_MARKER_ENV, value: OTHER_MARKER }] },
+  };
+  const identity = verifyBuildIdentity(foreign, intent);
+  assert.equal(identity.state, 'MISMATCH');
+  assert.ok(identity.reasons.includes('buildspec'));
+  assert.ok(identity.reasons.includes('operation-marker'));
+  const operator = readFileSync(join(ROOT, 'scripts/clio-sandbox-image-build.mjs'), 'utf8');
+  const collectBody = operator.slice(operator.indexOf('function collect()'), operator.indexOf('const command = process.argv[2];'));
+  assert.ok(collectBody.indexOf('verifyBuildIdentity') < collectBody.indexOf('get-log-events'), 'collect must verify identity before reading logs');
+  assert.match(collectBody, /IDENTITY_NOT_VERIFIED/);
+  assert.match(collectBody, /process\.exitCode = 2/);
+  assert.match(collectBody, /BUILD_INTENT_REQUIRED/);
+});
+
+test('the intent is rejected when its identity fields are tampered with', () => {
+  const intent = buildIntent(SHA, '2026-10-29T21:00:00.000Z', TOKEN, MARKER);
+  assert.doesNotThrow(() => assertIntent(intent));
   assert.throws(() => assertIntent({ ...intent, project: 'other' }), /BUILD_INTENT_INVALID: project/);
   assert.throws(() => assertIntent({ ...intent, repository: 'capiro/dev/other' }), /repository/);
   assert.throws(() => assertIntent({ ...intent, sourceSha: 'short' }), /sourceSha/);
   assert.throws(() => assertIntent({ ...intent, at: 'not-a-date' }), /at/);
+  assert.throws(() => assertIntent({ ...intent, operationMarker: 'not-a-uuid' }), /operationMarker/);
+  assert.throws(() => assertIntent({ ...intent, buildspecSha256: 'short' }), /buildspecSha256/);
 });
 
 test('launch records the intent before it submits the build', () => {
