@@ -108,7 +108,11 @@ suite('memory backfill lifecycle at the actual PostgreSQL source/write boundary'
     // embedder's generated literal; these tests prove row/source transaction
     // behavior, not vector arithmetic or pgvector indexing.
     await db.query(`CREATE DOMAIN vector AS text;
+      CREATE TABLE memory_retention_subjects(id uuid PRIMARY KEY,tenant_id uuid NOT NULL,closed_at timestamptz);
+      CREATE FUNCTION memory_retention_visible(t uuid,s uuid) RETURNS boolean LANGUAGE sql AS
+        $$SELECT EXISTS(SELECT 1 FROM memory_retention_subjects WHERE tenant_id=t AND id=s AND closed_at IS NULL)$$;
       CREATE TABLE memory_items(id uuid PRIMARY KEY, tenant_id uuid NOT NULL, client_id uuid,
+        retention_subject_id uuid NOT NULL DEFAULT '${item}',
         owner_user_id uuid, type text NOT NULL DEFAULT 'note', title text NOT NULL,
         slug text NOT NULL, sections_jsonb jsonb NOT NULL, visibility text NOT NULL DEFAULT 'tenant',
         status text NOT NULL DEFAULT 'active', governed_status text DEFAULT 'active',
@@ -177,6 +181,7 @@ suite('memory backfill lifecycle at the actual PostgreSQL source/write boundary'
     await db.query(
       'TRUNCATE context_embeddings,memory_items,memory_ingest_run,clio_memory,memory_edges,memory_candidate,client_memory_access,memory_access_grant',
     );
+    await db.query('INSERT INTO memory_retention_subjects(id,tenant_id) VALUES($1,$2) ON CONFLICT DO NOTHING', [item,tenant]);
     await db.query(
       `INSERT INTO memory_items(id,tenant_id,client_id,title,slug,sections_jsonb)
       VALUES($1,$2,$3,'Current source','local-source',$4)`,

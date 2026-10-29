@@ -38,12 +38,15 @@ export async function embedMemoryItem(
   const readSource = (lock: boolean) => `
     SELECT mi.xmin::text AS version
     FROM memory_items mi
+    JOIN memory_retention_subjects retention ON retention.tenant_id = mi.tenant_id
+      AND retention.id = mi.retention_subject_id AND retention.closed_at IS NULL
     WHERE mi.tenant_id = $1::uuid AND mi.id = $2::uuid
+      AND memory_retention_visible(mi.tenant_id, mi.retention_subject_id)
       AND mi.client_id IS NOT DISTINCT FROM $3::uuid
       AND mi.owner_user_id IS NOT DISTINCT FROM $4::uuid
       AND mi.title = $5 AND mi.sections_jsonb = $6::jsonb
       AND ${memoryEmbeddingEligibilitySql(columnsAvailable)}
-    ${lock ? 'FOR UPDATE OF mi' : ''}`;
+    ${lock ? 'FOR UPDATE OF mi FOR SHARE OF retention' : ''}`;
   const parameters = [
     args.tenantId,
     args.sourceId,
