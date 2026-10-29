@@ -110,14 +110,21 @@ export class EngagementSyncSchedulerService implements OnModuleInit, OnModuleDes
   /** One scheduler pass: claim due connections, sync each, watchdog hourly. */
   async tick(): Promise<void> {
     this.runtimePolicy.assertBackgroundOwner('engagement-sync-scheduler');
-    const claimed = await this.claimDueConnections();
-    for (const connection of claimed) {
-      await this.syncClaimed(connection);
-    }
-    this.tickCount += 1;
-    if (this.tickCount % STALE_CHECK_EVERY_TICKS === 1) {
-      await this.warnOnStaleConnections();
-    }
+    // Own the WHOLE tick: the scheduler_tick record stays live until every candidate
+    // has been claimed and synced through the real integration proxies, so their
+    // nested tenant work is a continuation of this owner instead of passing through
+    // the NEW-work gate again. N's candidate query, per-connection withMailboxSyncClaim
+    // execution, error handling and recovery scheduling are unchanged inside it.
+    return this.runtimePolicy.runAdmittedMailHandoffWork('scheduler_tick', async () => {
+      const claimed = await this.claimDueConnections();
+      for (const connection of claimed) {
+        await this.syncClaimed(connection);
+      }
+      this.tickCount += 1;
+      if (this.tickCount % STALE_CHECK_EVERY_TICKS === 1) {
+        await this.warnOnStaleConnections();
+      }
+    });
   }
 
   /** Candidate selection reserves nothing: the common provider claim owns execution. */

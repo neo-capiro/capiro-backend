@@ -7,6 +7,8 @@ import {
   configureApiHttpServerTimeouts,
 } from './bootstrap/configure-api-http-app.js';
 import { assertEngagementRuntimeEnvironment } from './engagement/runtime/engagement-runtime-env.js';
+import { EngagementRuntimePolicyService } from './engagement/runtime/engagement-runtime-policy.service.js';
+import { installMailHandoffShutdownJoin } from './engagement/runtime/engagement-mail-handoff-shutdown.js';
 import { disablePersistedMeriPolicyPackEnforcement } from './meri/meri-policy-pack-runtime.js';
 import { coreRosterPreviewHttpGate } from './auth/core-roster-preview-http-gate.js';
 
@@ -22,8 +24,18 @@ async function bootstrap() {
     process.env.CORE_ROSTER_PREVIEW_ENABLED === 'true',
     process.env.PREVIEW_NATIVE_GETS_ENABLED === 'true',
   ));
-  app.enableShutdownHooks();
   const logger = new Logger('Bootstrap');
+  const runtimePolicy = app.get(EngagementRuntimePolicyService);
+  if (runtimePolicy.mailHandoffObservation()) {
+    // Selected handoff: this join owns SIGTERM/SIGINT so already-admitted mail work
+    // drains before Nest destroys providers. Nest's own shutdown hooks are NOT
+    // enabled, because their signal callback calls callDestroyHook() directly and
+    // would bypass the drain.
+    installMailHandoffShutdownJoin(app, runtimePolicy, logger);
+  } else {
+    // Default (handoff unset): unchanged graceful-shutdown behavior.
+    app.enableShutdownHooks();
+  }
 
   configureApiHttpApp(app, {
     serviceHeader: undefined,

@@ -2052,6 +2052,10 @@ export class EngagementController {
         backgroundWorkersEnabled: this.runtimePolicy.backgroundWorkersEnabled(),
         outreachV3FullGenerationEnabled: this.runtimePolicy.outreachV3FullGenerationWorkerEnabled(),
         outreachV3SendIntentEnabled: this.runtimePolicy.outreachV3SendIntentWorkerEnabled(),
+        // Bounded, content-free mail-handoff readback for this process: configured
+        // phase, local drain state and work counters only. `null` when the handoff is
+        // unset/off, so the default surface is unchanged.
+        mailHandoff: this.runtimePolicy.mailHandoffObservation(),
       },
     };
   }
