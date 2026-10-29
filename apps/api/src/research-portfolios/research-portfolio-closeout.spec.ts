@@ -108,6 +108,24 @@ function harness() {
   };
 }
 
+// Prisma 5.22 refuses to decode a bare `void` column through $queryRaw (P2010). Core31
+// (source 475053e) returned exactly this message for the bare
+// `SELECT pg_advisory_xact_lock(...)` used as an operation lock, so every advisory-lock
+// statement must go through $executeRaw.
+function voidDeserializeError() {
+  return new Error(
+    "Failed to deserialize column of type 'void'. If you're using $queryRaw and this column is explicitly marked as `Unsupported` in your Prisma schema, try casting this column to any supported Prisma type such as `String`.",
+  );
+}
+
+/** Make $queryRaw behave like the real driver for void-returning advisory-lock statements. */
+function rejectVoidAdvisoryLock(h: any) {
+  h.tx.$queryRaw.mockImplementation(async (sql: any) => {
+    if (String(sql?.sql ?? sql).includes('pg_advisory_xact_lock')) throw voidDeserializeError();
+    return [];
+  });
+}
+
 describe('Research Portfolio closeout replay, lifecycle and role boundaries', () => {
   it('reads existing notes through the current portfolio and scoped review', async () => {
     const h = harness();
@@ -133,9 +151,18 @@ describe('Research Portfolio closeout replay, lifecycle and role boundaries', ()
     expect(h.notes).toHaveLength(1);
     expect(h.events).toHaveLength(1);
     expect(h.portfolio.revision).toBe(8);
+    // The note lock must be taken through $executeRaw: the bare advisory lock returns
+    // `void`, which $queryRaw cannot deserialize (Prisma P2010).
     expect(
-      h.tx.$queryRaw.mock.calls.some(([sql]: any[]) => sql.sql.includes('pg_advisory_xact_lock')),
+      h.tx.$executeRaw.mock.calls.some(([sql]: any[]) =>
+        String(sql?.sql ?? sql).includes('pg_advisory_xact_lock'),
+      ),
     ).toBe(true);
+    expect(
+      h.tx.$queryRaw.mock.calls.some(([sql]: any[]) =>
+        String(sql?.sql ?? sql).includes('pg_advisory_xact_lock'),
+      ),
+    ).toBe(false);
   });
   it('refuses archived notes and stale review revisions without any note/event writes', async () => {
     const h = harness();
@@ -244,18 +271,9 @@ describe('Research Portfolio closeout replay, lifecycle and role boundaries', ()
   it('takes the snapshot operation lock without decoding the void advisory-lock result', async () => {
     const h = harness();
     // Core31 (source 475053e) failed POST /research-portfolios/:id/snapshots with
-    // P2010 at research-portfolio-analytics.service.ts:104: the bare
-    // `SELECT pg_advisory_xact_lock(...)` returns `void`, and Prisma 5.22 refuses
-    // to deserialize that column through $queryRaw. Reproduce the driver here so
+    // P2010 at research-portfolio-analytics.service.ts:104. Reproduce the driver so
     // the regression fails on the old raw-result form.
-    h.tx.$queryRaw.mockImplementation(async (sql: any) => {
-      if (String(sql?.sql ?? sql).includes('pg_advisory_xact_lock')) {
-        throw new Error(
-          "Failed to deserialize column of type 'void'. If you're using $queryRaw and this column is explicitly marked as `Unsupported` in your Prisma schema, try casting this column to any supported Prisma type such as `String`.",
-        );
-      }
-      return [];
-    });
+    rejectVoidAdvisoryLock(h);
     const service = new ResearchPortfolioAnalyticsService(h.prisma, {} as any);
     const result = await service.createSnapshot(ctx, portfolioId, {
       operationKey: 'void-lock',
@@ -302,6 +320,47 @@ describe('Research Portfolio closeout replay, lifecycle and role boundaries', ()
     expect(result.contentHash).toMatch(/^[0-9a-f]{64}$/);
     expect(h.tx.researchPortfolioSnapshot.create).toHaveBeenCalledTimes(1);
     expect(h.tx.researchPortfolioMember.findMany).toHaveBeenCalledTimes(1);
+  });
+  it('creates a bookmark when the portfolio-event lock is taken without decoding void', async () => {
+    const h = harness();
+    rejectVoidAdvisoryLock(h);
+    const bookmark = await h.phase11.createBookmark(ctx, portfolioId, {
+      idempotencyKey: 'void-bookmark',
+      targetKind: 'member' as const,
+      targetId: reviewId,
+      label: 'Member',
+    });
+    expect(bookmark.label).toBe('Member');
+    expect(bookmark.targetId).toBe(reviewId);
+    expect(h.bookmarks).toHaveLength(1);
+    expect(h.events).toHaveLength(1);
+  });
+  it('adds a review note when the portfolio-event lock is taken without decoding void', async () => {
+    const h = harness();
+    rejectVoidAdvisoryLock(h);
+    const note = await h.phase11.addReviewNote(ctx, portfolioId, reviewId, {
+      idempotencyKey: 'void-note',
+      expectedRevision: 2,
+      body: 'Reviewed note',
+    });
+    expect(note.body).toBe('Reviewed note');
+    expect(note.reviewId).toBe(reviewId);
+    expect(h.notes).toHaveLength(1);
+    expect(h.events).toHaveLength(1);
+  });
+  it('creates an output request when the output lock is taken without decoding void', async () => {
+    const h = harness();
+    rejectVoidAdvisoryLock(h);
+    const service = new ResearchPortfolioOutputService(h.prisma, {} as any, {} as any);
+    (service as any).process = jest.fn();
+    service.get = jest.fn().mockResolvedValue({ id: 'job' } as any);
+    await service.create(ctx, portfolioId, { operationKey: 'void-output', format: 'csv' as const });
+    expect(h.tx.researchPortfolioOutputRequest.create).toHaveBeenCalledTimes(1);
+    expect(
+      h.tx.$queryRaw.mock.calls.some(([sql]: any[]) =>
+        String(sql?.sql ?? sql).includes('pg_advisory_xact_lock'),
+      ),
+    ).toBe(false);
   });
   it('requires editor access for output effects and binds output replay to its actor', async () => {
     const h = harness();

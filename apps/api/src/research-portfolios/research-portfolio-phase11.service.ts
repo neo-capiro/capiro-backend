@@ -100,7 +100,9 @@ export class ResearchPortfolioPhase11Service {
       .update(stableJson({ operation: 'bookmark.create', portfolioId, ...content }))
       .digest('hex');
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await tx.$queryRaw(
+      // $executeRaw: pg_advisory_xact_lock returns void; $queryRaw fails to deserialize void
+      // (Prisma P2010), the same defect confirmed on the snapshot lock.
+      await tx.$executeRaw(
         Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${ctx.tenantId + ':portfolio-event:' + key}, 0))`,
       );
       await tx.$queryRaw(
