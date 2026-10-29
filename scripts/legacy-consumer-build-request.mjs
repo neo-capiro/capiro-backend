@@ -197,27 +197,43 @@ export function releaseMaterializedSource(sourceCheckout, worktree) {
   } catch { /* fall through to the directory removal below */ }
   rmSync(root, { recursive: true, force: true });
 }
-/** Entries straight from git objects (fast, and byte-equal after the guard above). */
+/** Entries straight from git objects (one batched read; no worktree checkout). */
 export function collectSourceEntriesFromGit(sourceCheckout, sourceCommit) {
   const listing = execFileSync('git', ['-C', sourceCheckout, 'ls-tree', '-r', '-z', sourceCommit],
-    { encoding: 'buffer', maxBuffer: 256 * 1024 * 1024 }).toString('utf8').split(' ').filter(Boolean);
-  const entries = [];
+    { encoding: 'buffer', maxBuffer: 256 * 1024 * 1024 }).toString('utf8').split('\u0000').filter(Boolean);
+  const rows = [];
   for (const line of listing) {
-    const match = /^(\d+) (blob) ([a-f0-9]{40})	(.+)$/.exec(line);
+    const match = /^(\d+) blob ([a-f0-9]{40})\t(.+)$/.exec(line);
     if (!match) fail('non-blob or unparsable tree entry: ' + line.slice(0, 120));
-    const [, mode, , object, name] = match;
+    const [, mode, object, name] = match;
     recordSafePath(name);
-    if (mode === '120000') {
-      entries.push({ path: name, type: 'symlink',
-        value: execFileSync('git', ['-C', sourceCheckout, 'cat-file', 'blob', object], { encoding: 'utf8' }) });
+    if (!['100644', '100755', '120000'].includes(mode)) fail('unsupported mode for source entry: ' + name);
+    rows.push({ mode, object, name });
+  }
+  if (rows.length > MAX_ENTRIES) fail('source entry budget');
+  const input = Buffer.from(rows.map((row) => row.object + '\n').join(''), 'utf8');
+  const body = execFileSync('git', ['-C', sourceCheckout, 'cat-file', '--batch', '--buffer'],
+    { input, maxBuffer: 1024 * 1024 * 1024 });
+  const entries = [];
+  let offset = 0;
+  for (const row of rows) {
+    const headerEnd = body.indexOf(10, offset);
+    if (headerEnd < 0) fail('truncated cat-file header');
+    const header = body.subarray(offset, headerEnd).toString('utf8');
+    const headerMatch = /^([a-f0-9]{40}) blob (\d+)$/.exec(header);
+    if (!headerMatch || headerMatch[1] !== row.object) fail('unexpected cat-file object for ' + row.name);
+    const size = Number(headerMatch[2]);
+    const start = headerEnd + 1;
+    const end = start + size;
+    if (!Number.isSafeInteger(size) || end > body.length) fail('truncated cat-file body for ' + row.name);
+    const bytes = body.subarray(start, end);
+    offset = end + 1; // one LF terminator follows each body
+    if (row.mode === '120000') {
+      entries.push({ path: row.name, type: 'symlink', value: bytes.toString('utf8') });
       continue;
     }
-    if (mode !== '100644' && mode !== '100755') fail('unsupported mode for source entry: ' + name);
-    const bytes = execFileSync('git', ['-C', sourceCheckout, 'cat-file', 'blob', object],
-      { maxBuffer: MAX_FILE_BYTES * 2 });
-    if (bytes.length > MAX_FILE_BYTES) fail('source file over the size budget: ' + name);
-    entries.push({ path: name, type: 'file', value: sha256(bytes) });
-    if (entries.length > MAX_ENTRIES) fail('source entry budget');
+    if (size > MAX_FILE_BYTES) fail('source file over the size budget: ' + row.name);
+    entries.push({ path: row.name, type: 'file', value: sha256(bytes) });
   }
   return entries;
 }
