@@ -50,8 +50,10 @@ export async function withMemoryConversationRetention<T>(
       ? prisma.withTenant(tenantId, guarded, transactionOptions)
       : prisma.withTenantUser(tenantId, userId, guarded, transactionOptions));
   } catch (error) {
-    if (error instanceof ServiceUnavailableException || String(error).includes('MEMORY_RETENTION_'))
-      throw unavailable();
+    // Preserve domain-specific recovery outcomes (for example an unavailable
+    // decision receipt); only translate the database retention failures here.
+    if (error instanceof ServiceUnavailableException) throw error;
+    if (String(error).includes('MEMORY_RETENTION_')) throw unavailable();
     throw error;
   }
 }
