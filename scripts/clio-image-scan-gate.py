@@ -7,10 +7,13 @@ gate then
 
   1. proves the expected source tag still resolves to that exact digest,
   2. scans *by digest* and requires the response to echo that exact digest,
-  3. requires the scan to reach COMPLETE with 0 CRITICAL and 0 HIGH findings.
+  3. retries only when ECR reports that the scan for that image does not exist
+     yet (the one pending state), and
+  4. requires the scan to reach COMPLETE with 0 CRITICAL and 0 HIGH findings.
 
-An incomplete scan, a moved tag, a digest mismatch or any unexpected AWS shape
-is a gate failure (non-zero). Nothing here resends a build or mutates ECR.
+An incomplete scan, a missing image or repository, an access or parameter error,
+a moved tag, a digest mismatch or any unexpected AWS shape is a gate failure
+(non-zero). Nothing here resends a build or mutates ECR.
 
 usage: clio-image-scan-gate.py <expected_sha> <image_digest>
 env:
@@ -33,6 +36,12 @@ REPOSITORY = 'capiro/dev/clio-sandbox'
 REGION = 'us-east-1'
 SHA = re.compile(r'^[0-9a-f]{40}$')
 DIGEST = re.compile(r'^sha256:[0-9a-f]{64}$')
+# The only tolerated pending state: the basic scan has not been created yet by
+# ECR. Both the exact error code and the exact failing operation must be present
+# in the AWS error text, so an unrelated message that merely mentions the code
+# cannot be mistaken for "not ready yet".
+PENDING_SCAN = re.compile(
+    r'\(ScanNotFoundException\)[^\n]*when calling the DescribeImageScanFindings operation')
 
 
 class GateFailure(Exception):
@@ -70,10 +79,30 @@ def verify_tag_binding(sha, digest):
     return tagged
 
 
+def is_scan_not_yet_available(message):
+    """True only for 'this image has no scan yet' from the scan operation itself."""
+    if 'ImageNotFoundException' in message or 'RepositoryNotFoundException' in message:
+        return False
+    return bool(PENDING_SCAN.search(message))
+
+
 def scan_once(digest):
-    """Scan the exact digest (never the tag) and verify the echoed identity."""
-    scanned = call('ecr', 'describe-image-scan-findings', '--repository-name', REPOSITORY,
-                   '--image-id', 'imageDigest=' + digest)
+    """Scan the exact digest (never the tag) and verify the echoed identity.
+
+    A scan that does not exist *yet* is the only pending state: ECR creates the
+    basic scan a short time after the push, so the very first poll after a build
+    can legitimately answer ScanNotFoundException. That specific error from this
+    specific operation becomes a retryable 'SCAN_NOT_AVAILABLE'; every other AWS
+    error — missing image, wrong repository, access denied, malformed — still
+    fails the gate immediately and is never treated as "not ready yet".
+    """
+    try:
+        scanned = call('ecr', 'describe-image-scan-findings', '--repository-name', REPOSITORY,
+                       '--image-id', 'imageDigest=' + digest)
+    except GateFailure as failure:
+        if is_scan_not_yet_available(str(failure)):
+            return 'SCAN_NOT_AVAILABLE', {}
+        raise
     echo = (scanned.get('imageId') or {}).get('imageDigest')
     if echo != digest:
         raise GateFailure('DIGEST_MISMATCH: scan response is for %s, candidate digest is %s' % (echo, digest))
@@ -133,6 +162,11 @@ if 'describe-image-scan-findings' in args:
     step = sequence[fixture['scan_called']] if fixture['scan_called'] < len(sequence) else sequence[-1]
     fixture['scan_called'] += 1
     json.dump(fixture, open(os.path.join(os.environ['CLIO_STUB_DIR'], 'scenario.json'), 'w'))
+    if step.get('error'):
+        operation = step.get('operation', 'DescribeImageScanFindings')
+        sys.stderr.write('An error occurred (%s) when calling the %s operation: %s\n'
+                         % (step['error'], operation, step.get('message', '')))
+        sys.exit(255)
     print(json.dumps({
         'imageId': {'imageDigest': step.get('digest', fixture['digest'])},
         'imageScanStatus': {'status': step['status']},
@@ -207,6 +241,36 @@ def self_test():
 
         def test_scan_digest_mismatch_fails(self):
             self.assertEqual(self.run_gate(scan_sequence=[{'status': 'COMPLETE', 'digest': 'sha256:' + 'd' * 64, 'counts': {}}]), 2)
+
+        # A scan that ECR has not created yet is the one tolerated pending state
+        # (observed for real on build-04). It must retry, never pass by itself.
+        PENDING = {'error': 'ScanNotFoundException',
+                   'message': 'Image scan does not exist for the image with digest ' + 'b' * 64}
+
+        def scan_calls(self):
+            return [line for line in self.calls if 'describe-image-scan-findings' in line]
+
+        def test_pending_scan_then_clean_passes(self):
+            self.assertEqual(self.run_gate(scan_sequence=[self.PENDING, {'status': 'COMPLETE', 'counts': {}}]), 0)
+            self.assertEqual(len(self.scan_calls()), 2)
+            self.assertIn('imageDigest=' + self.digest, self.scan_calls()[-1])
+
+        def test_pending_scan_exhaustion_fails(self):
+            self.assertEqual(self.run_gate(scan_sequence=[self.PENDING], attempts=3), 2)
+            self.assertEqual(len(self.scan_calls()), 3)
+
+        def test_pending_then_dirty_scan_still_fails(self):
+            self.assertEqual(self.run_gate(scan_sequence=[self.PENDING,
+                                                          {'status': 'COMPLETE', 'counts': {'CRITICAL': 7, 'HIGH': 32}}]), 2)
+
+        def test_missing_image_or_repo_or_denied_is_not_pending(self):
+            for code in ('ImageNotFoundException', 'RepositoryNotFoundException', 'AccessDeniedException', 'InvalidParameterException'):
+                self.assertEqual(self.run_gate(scan_sequence=[{'error': code}], attempts=4), 2, code)
+                self.assertEqual(len(self.scan_calls()), 1, '%s must fail on the first call, not retry' % code)
+
+        def test_scan_error_code_from_another_operation_is_not_pending(self):
+            self.assertEqual(self.run_gate(scan_sequence=[{'error': 'ScanNotFoundException', 'operation': 'DescribeImages'}]), 2)
+            self.assertEqual(len(self.scan_calls()), 1)
 
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(ScanGateTests)
     result = unittest.TextTestRunner(verbosity=2).run(suite)

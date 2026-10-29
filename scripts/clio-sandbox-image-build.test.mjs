@@ -317,7 +317,20 @@ test('launch records the intent before it submits the build', () => {
 
 test('the gates match the real recipe and runtime sources', () => {
   const dockerfile = readFileSync(join(ROOT, DOCKERFILE), 'utf8');
-  assert.match(dockerfile, /^FROM node:20-slim$/m);
+  // Maintained base: an explicit version tag pinned to the published image
+  // index. A floating tag (node:20-slim, node:22-slim, node:latest) is rejected
+  // because it silently changes the OS/Node line under the scan gate.
+  assert.match(dockerfile, /^FROM node:22\.23\.3-bookworm-slim@sha256:[0-9a-f]{64}$/m);
+  assert.doesNotMatch(dockerfile, /^FROM node:\d+-slim$/m);
+  assert.doesNotMatch(dockerfile, /^FROM node:[\w.-]*:latest$/m);
+  // The supported security refresh must name the base packages that have a
+  // fixed bookworm version, and must not claim the families that have none.
+  const refresh = dockerfile.slice(dockerfile.indexOf('--only-upgrade'), dockerfile.indexOf('python3-pip'));
+  for (const pkg of ['perl-base', 'libgnutls30', 'libc6', 'dpkg', 'libpcre2-8-0', 'libcap2']) {
+    assert.ok(refresh.includes(pkg), `security refresh must cover ${pkg}`);
+  }
+  assert.doesNotMatch(refresh, /zlib1g|util-linux/, 'no-upstream-fix packages must stay out of the update list');
+  assert.ok(dockerfile.indexOf('--only-upgrade') < dockerfile.indexOf('python3-pip'), 'refresh runs before the installer');
   assert.match(dockerfile, /^WORKDIR \/app$/m);
   assert.match(dockerfile, /^COPY package\.json tsconfig\.json \.\/$/m);
   assert.match(dockerfile, /^COPY src \.\/src$/m);
