@@ -80,6 +80,9 @@
       ],
       "settings-memory-drafts": [
         "dist/settings-memory-drafts.d.ts"
+      ],
+      "workspace-prospect-generation-source": [
+        "dist/workspace-prospect-generation-source.d.ts"
       ]
     }
   },
@@ -238,6 +241,12 @@
       "require": "./dist/settings-memory-drafts.js",
       "import": "./dist/settings-memory-drafts.js",
       "default": "./dist/settings-memory-drafts.js"
+    },
+    "./workspace-prospect-generation-source": {
+      "types": "./dist/workspace-prospect-generation-source.d.ts",
+      "require": "./dist/workspace-prospect-generation-source.js",
+      "import": "./dist/workspace-prospect-generation-source.js",
+      "default": "./dist/workspace-prospect-generation-source.js"
     }
   },
   "scripts": {
