@@ -274,12 +274,7 @@ describe('mail handoff barrier — callback fence and writer closure', () => {
   });
 });
 
-// EXCLUDED FOR THE N MECHANISM-ONLY LAYER: these three cases drive the integration
-// proxies (guardGoogleTokenService / guardMicrosoftOAuthService / guardGmailSendService)
-// and require the N boundary metadata + owner wiring, which are a separate queued group.
-// The mechanism they exercise is covered directly by the barrier tests above; re-enable
-// this block with that owner group rather than changing product boundaries to suit it.
-describe.skip('mail handoff barrier — existing provider boundary wiring (owner group pending)', () => {
+describe('mail handoff barrier — existing provider boundary wiring', () => {
   const tokenService = {
     loadConnection: (_id: string) => ({ connection: 'synthetic' }),
     getValidAccessToken: (_id: string) => 'synthetic-token',
