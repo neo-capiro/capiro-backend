@@ -648,7 +648,63 @@ test('client capability create admits only the canonical lowercase-UUID POST rou
     // Every earlier rule keeps its accepted priority.
     assert.equal(edge.Resources.PublicNewsletterCapabilityPosts.Properties.Priority, 88);
     assert.equal(edge.Resources.CoreInternalOnboardingTenants.Properties.Priority, 92);
-    assert.equal(Math.max(...rules.map((rule) => Number(rule.Priority))), 93);
+    assert.equal(Math.max(...rules.map((rule) => Number(rule.Priority))), 94);
+  }));
+
+test('client capability update admits only the canonical two-UUID PATCH route on the preview host', () =>
+  render(false, (edge) => {
+    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule')
+      .map((r) => r.Properties)
+      .sort((a, b) => Number(a.Priority) - Number(b.Priority));
+    const client = '11111111-1111-4111-8111-111111111111';
+    const capability = '22222222-2222-4222-8222-222222222222';
+    const pathname = `/api/clients/${client}/capabilities/${capability}`;
+    // The ordinary writer sends PATCH when the capability id already exists.
+    assert.deepEqual(routeDestination(rules, 'PATCH', pathname), { Ref: 'CoreTarget' });
+    for (const method of ['POST', 'PUT', 'DELETE', 'OPTIONS', 'TRACE'])
+      assert.equal(routeDestination(rules, method, pathname), null, `${method} ${pathname}`);
+    for (const hostname of ['app.capiro.ai', 'arbitrary.invalid'])
+      assert.equal(routeDestination(rules, 'PATCH', pathname, hostname), null, hostname);
+    for (const neighbor of [
+      `${pathname}/`,
+      `${pathname}/extra`,
+      `/extra${pathname}`,
+      `/api/clients/${client}/capabilities`,
+      `/api/clients//capabilities/${capability}`,
+      `/api/clients/not-a-uuid/capabilities/${capability}`,
+      `/api/clients/${client}/capabilities/not-a-uuid`,
+      '/api/clients/AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA/capabilities/' + capability,
+      `/api/clients/${client}/capabilities/BBBBBBBB-BBBB-4BBB-8BBB-BBBBBBBBBBBB`,
+      `/api/clients/${client.replace(/-/g, '')}/capabilities/${capability}`,
+      `/api/clients/${client}/capabilities/${capability.replace(/-/g, '')}`,
+    ])
+      assert.equal(routeDestination(rules, 'PATCH', neighbor), null, neighbor);
+    // The create route and its priority are untouched.
+    assert.deepEqual(routeDestination(rules, 'POST', `/api/clients/${client}/capabilities`), {
+      Ref: 'CoreTarget',
+    });
+    const added = edge.Resources.ClientCapabilityUpdate.Properties;
+    assert.equal(added.Priority, 94);
+    assert.deepEqual(added.ListenerArn, { Ref: 'PreviewHttps' });
+    assert.deepEqual(added.Actions, [{ TargetGroupArn: { Ref: 'CoreTarget' }, Type: 'forward' }]);
+    assert.deepEqual(
+      added.Conditions.find((c: any) => c.Field === 'host-header').HostHeaderConfig.Values,
+      [host],
+    );
+    assert.deepEqual(
+      added.Conditions.find((c: any) => c.Field === 'http-request-method').HttpRequestMethodConfig
+        .Values,
+      ['PATCH'],
+    );
+    const regexes = added.Conditions.find((c: any) => c.Field === 'path-pattern').PathPatternConfig
+      .RegexValues;
+    assert.deepEqual(regexes, [
+      '^/api/clients/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/capabilities/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$',
+    ]);
+    // ALB allows at most three path values and five condition values in total.
+    assert.ok(regexes[0].length <= 128, `${regexes[0].length} characters`);
+    assert.equal(edge.Resources.ClientCapabilityCreate.Properties.Priority, 93);
+    assert.equal(edge.Resources.CoreInternalOnboardingTenants.Properties.Priority, 92);
   }));
 
 test('appending the newsletter capability group leaves every existing rule mapping intact', () =>
@@ -679,10 +735,10 @@ test('appending the newsletter capability group leaves every existing rule mappi
       '^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/preferences$',
       '^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/survey$',
     ]);
-    // The onboarding admissions are appended after it, so the four rules before the
-    // trailing capability route are theirs (that route has its own test below).
+    // The onboarding admissions occupy group positions 83-86 (rule indices 88-91, priorities
+    // 89-92). The two capability routes are appended after them and have their own tests.
     assert.deepEqual(
-      rules.slice(-5, -1).map((rule) => [Number(rule.Priority), pathsOf(rule)[0]]),
+      rules.slice(88, 92).map((rule) => [Number(rule.Priority), pathsOf(rule)[0]]),
       [
         [89, '^/onboard-api/public/config$'],
         [90, '^/onboard-api/setup/tasks/[A-Za-z0-9_-]+/transition$'],
