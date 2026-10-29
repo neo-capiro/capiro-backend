@@ -1,4 +1,7 @@
-import { ResearchPortfolioSharePayloadService } from './research-portfolio-share-payload.service.js';
+import {
+  ResearchPortfolioSharePayloadService,
+  changeSummary,
+} from './research-portfolio-share-payload.service.js';
 
 const ctx: any = { tenantId: 'tenant', userId: 'owner' };
 const input = { snapshotId: 'snapshot', designId: 'design', clientId: 'one', branding: false };
@@ -196,6 +199,56 @@ describe('exact research sharing payload', () => {
       ),
     ).toBe(1);
     expect((payload.dashboard.data as any).coverage.notApplicableMembers).toBe(1);
+  });
+
+  it('publishes a bill change with what changed and when, not a bare event kind', async () => {
+    const h = fixture();
+    h.tx.researchPortfolioEvent.findMany.mockResolvedValue([
+      {
+        id: 'bill-event',
+        eventKind: 'bill_changed',
+        occurredAt: new Date('2026-09-10T12:00:00.000Z'),
+        payload: {
+          targetKind: 'federal_bill',
+          targetId: '119-hr-8800',
+          changeType: 'status',
+          label: 'Status changed',
+          actionDate: '2026-09-10',
+          sourceLabel: 'Congress.gov',
+        },
+      },
+    ]);
+    const { payload } = await h.service.prepare(ctx, 'portfolio', input, h.tx);
+
+    // The kind must be admitted at all, or the recipient's Changes widget hides it.
+    expect(h.tx.researchPortfolioEvent.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          eventKind: expect.objectContaining({ in: expect.arrayContaining(['bill_changed']) }),
+        }),
+      }),
+    );
+    expect((payload.dashboard.data as any).changes).toEqual([
+      {
+        id: 'bill-event',
+        eventKind: 'bill_changed',
+        occurredAt: '2026-09-10T12:00:00.000Z',
+        summary: 'bill changed: Status changed (2026-09-10) — Congress.gov',
+      },
+    ]);
+  });
+
+  it('keeps ordinary change summaries and never invents bill detail', () => {
+    expect(changeSummary('member_added', { clientName: 'Do not expose' })).toBe('member added');
+    expect(changeSummary('bill_changed', null)).toBe('bill changed: legislative change');
+    expect(changeSummary('bill_changed', { changeType: 'status' })).toBe(
+      'bill changed: status',
+    );
+    // A non-string field cannot leak into the recipient line.
+    expect(changeSummary('bill_changed', { label: { nested: 'x' }, actionDate: 7 })).toBe(
+      'bill changed: legislative change',
+    );
+    expect(changeSummary('bill_changed', ['status'])).toBe('bill changed: legislative change');
   });
 
   it('does not admit a selector from an excluded contribution that is absent from the recipient ledger', async () => {
