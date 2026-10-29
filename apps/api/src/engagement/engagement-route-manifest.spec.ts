@@ -85,7 +85,17 @@ describe('Engagement route manifest', () => {
     });
 
     it('does not classify mutating routes as reads', () => {
+      // The one body-carried read: the SDK read endpoint takes its selector in a
+      // POST body because the conversation id is not a path segment. The handler is
+      // named `read`, the generator classifies handler `read` as a read, and the
+      // service returns the binding without writing. Every other mutating route
+      // must not be a read.
+      const bodyCarriedReads = new Set(['POST /api/engagement/outreach/sdk/read']);
       for (const route of routes) {
+        if (bodyCarriedReads.has(`${route.method} ${route.path}`)) {
+          expect(route.classification).toBe('read');
+          continue;
+        }
         if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(route.method)) {
           expect(route.classification).not.toBe('read');
         }

@@ -59,16 +59,28 @@ export class EngagementRuntimePolicyService {
     };
   }
 
+  private notetakerPostureEnabled(): boolean {
+    return this.externalActionsMode === 'integrations_and_notetaker' &&
+      this.serviceName === 'api' && this.processMode === 'shadow' &&
+      this.backgroundOwner === 'api' && this.callbacksEnabled && this.recallWebhookEnabled;
+  }
+
   /**
    * Whether background work may run in this process. The optional worker name
    * narrows the `integrations_only` posture: only the existing
    * `engagement-sync-scheduler` is admitted, and only on the explicitly owned
    * API sync posture. A no-argument call keeps the generic meaning (false in
    * `integrations_only`).
+   * The separately explicit notetaker posture adds only its two existing guard
+   * names; generic workers remain disabled.
    */
   backgroundWorkersEnabled(workerName?: string): boolean {
     if (this.backgroundOwner === 'disabled') return false;
     if (this.backgroundOwner !== this.serviceName) return false;
+    if (this.externalActionsMode === 'integrations_and_notetaker') {
+      return this.notetakerPostureEnabled() &&
+        ['engagement-sync-scheduler', 'notetaker-reconcile', 'client-notetaker'].includes(workerName ?? '');
+    }
     if (this.externalActionsMode === 'integrations_only') {
       return this.serviceName === 'api' && workerName === 'engagement-sync-scheduler';
     }
@@ -79,6 +91,7 @@ export class EngagementRuntimePolicyService {
   outreachV3SendIntentWorkerEnabled(): boolean {
     return (
       this.externalActionsMode !== 'integrations_only' &&
+      this.externalActionsMode !== 'integrations_and_notetaker' &&
       this.serviceName === 'engagement-api' &&
       process.env.OUTREACH_V3_STATE_ENABLED === 'true' &&
       process.env.OUTREACH_V3_DRAFTS_ENABLED === 'true' &&
@@ -129,13 +142,23 @@ export class EngagementRuntimePolicyService {
     // Test grants are provisioned separately with a preview-owned encryption key.
     // This mode limits operations; it does not make copied live grants safe to use.
     // Evaluate it first so V3 flags cannot restore send or generation authority.
-    if (this.externalActionsMode === 'integrations_only') {
+    if (this.externalActionsMode === 'integrations_only' ||
+      this.externalActionsMode === 'integrations_and_notetaker') {
+      const notetaker = this.notetakerPostureEnabled();
+      if (this.externalActionsMode === 'integrations_and_notetaker' && !notetaker) return false;
       return (
         action === 'integration_oauth_start' ||
         action === 'integration_oauth_callback' ||
         action === 'integration_sync' ||
         action === 'integration_subscription' ||
-        action === 'integration_notification'
+        action === 'integration_notification' ||
+        // These dependencies retain their ordinary owner/access checks. Attachment
+        // reads and writes include authorized Engagement attachment operations, not
+        // just Recall; the final owner lists and imports incoming message files.
+        (notetaker && (action === 'notetaker_dispatch' || action === 'notetaker_remove' ||
+          action === 'meeting_debrief_generate' || action === 'attachment_external_read' ||
+          action === 'attachment_external_write' ||
+          action === 'internal_ai_credential_resolve'))
       );
     }
     if (action === 'outreach_reasoning') {
