@@ -58,6 +58,8 @@ import { ConversationManagementController } from './conversation-management/cont
 import { HearingMediaController } from './hearing-media/controller.js';
 import { ConversationRetentionController } from './conversation-management/retention.controller.js';
 import { SiteWorkflowAdminController, SiteWorkflowRuntimeController } from './site-workflows/controller.js';
+import { OfficeDraftController } from './office-drafts/controller.js';
+import { OfficeDraftRetentionController } from './office-drafts/retention.controller.js';
 import { ObjectiveJobService } from './objective-job.service.js';
 import { RetainedReadDispatcher } from './retained-read-dispatch.js';
 import { MeriRoutineReadController, MeriRoutinesModule } from './routines/meri-routines.controller.js';
@@ -185,6 +187,8 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     ConversationRetentionController,
     SiteWorkflowAdminController,
     SiteWorkflowRuntimeController,
+    OfficeDraftController,
+    OfficeDraftRetentionController,
     ObjectiveJobController,
     // Register the fixed signed callback before tools/:name in this module.
     MeriMemoryHelperController,
