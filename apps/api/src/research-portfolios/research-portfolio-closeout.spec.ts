@@ -28,6 +28,10 @@ function harness() {
   const tx: any = {
     $queryRaw: jest.fn().mockResolvedValue([]),
     $queryRawUnsafe: jest.fn().mockResolvedValue([]),
+    // pg_advisory_xact_lock returns `void`; Prisma 5.22 cannot deserialize that
+    // through $queryRaw (P2010), so production callers issue it through
+    // $executeRaw. The mock must exist for those callers to be exercised.
+    $executeRaw: jest.fn().mockResolvedValue(1),
     researchPortfolio: {
       findFirst: jest.fn(async () => portfolio),
       update: jest.fn(async () => ({ ...portfolio, revision: ++portfolio.revision })),
@@ -71,8 +75,14 @@ function harness() {
       findFirst: jest.fn(async ({ where }: any) =>
         where.id === reviewId ? { id: reviewId } : null,
       ),
+      findMany: jest.fn(async () => []),
     },
-    researchPortfolioSnapshot: { findUnique: jest.fn().mockResolvedValue(null), create: jest.fn() },
+    researchPortfolioRuleVersion: { findMany: jest.fn(async () => []) },
+    researchPortfolioDecision: { findMany: jest.fn(async () => []) },
+    researchPortfolioSnapshot: {
+      findUnique: jest.fn().mockResolvedValue(null),
+      create: jest.fn(async ({ data }: any) => ({ id: 'snapshot-created', ...data })),
+    },
     researchPortfolioOutputRequest: {
       findUnique: jest.fn().mockResolvedValue(null),
       create: jest.fn(async ({ data }: any) => ({ id: 'request', ...data })),
@@ -230,6 +240,68 @@ describe('Research Portfolio closeout replay, lifecycle and role boundaries', ()
       'different content',
     );
     expect(h.tx.researchPortfolioSnapshot.create).not.toHaveBeenCalled();
+  });
+  it('takes the snapshot operation lock without decoding the void advisory-lock result', async () => {
+    const h = harness();
+    // Core31 (source 475053e) failed POST /research-portfolios/:id/snapshots with
+    // P2010 at research-portfolio-analytics.service.ts:104: the bare
+    // `SELECT pg_advisory_xact_lock(...)` returns `void`, and Prisma 5.22 refuses
+    // to deserialize that column through $queryRaw. Reproduce the driver here so
+    // the regression fails on the old raw-result form.
+    h.tx.$queryRaw.mockImplementation(async (sql: any) => {
+      if (String(sql?.sql ?? sql).includes('pg_advisory_xact_lock')) {
+        throw new Error(
+          "Failed to deserialize column of type 'void'. If you're using $queryRaw and this column is explicitly marked as `Unsupported` in your Prisma schema, try casting this column to any supported Prisma type such as `String`.",
+        );
+      }
+      return [];
+    });
+    const service = new ResearchPortfolioAnalyticsService(h.prisma, {} as any);
+    const result = await service.createSnapshot(ctx, portfolioId, {
+      operationKey: 'void-lock',
+      name: 'Frozen',
+      expectedRevision: 7,
+    });
+    expect(result.name).toBe('Frozen');
+    const lock = h.tx.$executeRaw.mock.calls.find(([sql]: any[]) =>
+      String(sql?.sql ?? sql).includes('pg_advisory_xact_lock'),
+    );
+    expect(lock).toBeDefined();
+    expect(String(lock![0].sql)).toContain('hashtextextended(');
+    expect(
+      h.tx.$queryRaw.mock.calls.some(([sql]: any[]) =>
+        String(sql?.sql ?? sql).includes('pg_advisory_xact_lock'),
+      ),
+    ).toBe(false);
+  });
+  it('captures the first snapshot for an empty membership with an honest unavailable projection', async () => {
+    const h = harness();
+    const service = new ResearchPortfolioAnalyticsService(h.prisma, {} as any);
+    const result = await service.createSnapshot(ctx, portfolioId, {
+      operationKey: 'empty-first-snapshot',
+      name: 'S1 16H 20261029 r1',
+      expectedRevision: 7,
+    });
+    expect(result.name).toBe('S1 16H 20261029 r1');
+    expect(result.portfolioRevision).toBe(7);
+    expect(result.membership).toEqual([]);
+    expect(result.basis).toEqual({});
+    expect(result.projection.availability).toBe('unavailable');
+    expect(result.projection.totals).toEqual([]);
+    expect(result.projection.contributions).toEqual([]);
+    expect(result.projection.coverage).toEqual({
+      eligibleMembers: 0,
+      supportedMembers: 0,
+      includedContributions: 0,
+      excludedContributions: 0,
+      overlapContributions: 0,
+      unavailableMembers: 0,
+    });
+    // No linked-client capability or fit prerequisite is added to capture.
+    expect(result.clientAccessRequirements).toEqual([]);
+    expect(result.contentHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(h.tx.researchPortfolioSnapshot.create).toHaveBeenCalledTimes(1);
+    expect(h.tx.researchPortfolioMember.findMany).toHaveBeenCalledTimes(1);
   });
   it('requires editor access for output effects and binds output replay to its actor', async () => {
     const h = harness();
