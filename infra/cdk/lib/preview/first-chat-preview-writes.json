@@ -255,6 +255,16 @@
       ]
     },
     {
+      "id": "PublicNewsletterCapabilityPosts",
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/unsubscribe$",
+        "^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/preferences$",
+        "^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/survey$"
+      ]
+    },
+    {
       "service": "core",
       "method": "PUT",
       "pathRegexes": [
