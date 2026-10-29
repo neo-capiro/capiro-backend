@@ -16,11 +16,11 @@
 //                 recipe COPYs package.json/tsconfig.json/src from the app dir)
 //   source        https://github.com/neo-capiro/capiro-backend.git at the exact
 //                 40-hex SHA (the builder project itself still points at the
-//                 legacy capiropv2 repository, which does not contain the
+//                 legacy capirov2 repository, which does not contain the
 //                 frozen backend commits, so the request pins the source per
-//                 build instead of changing the project). Alternatively, an
-//                 already-uploaded exact source archive is pinned by S3 bucket,
-//                 key and versionId through CLIO_BUILD_SOURCE_ARCHIVE.
+//                 build instead of changing the project). This is the only
+//                 supported source route: a direct-S3 build is not implemented
+//                 and would silently weaken the git provenance gates below.
 //   repository    967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/clio-sandbox
 //   tag           <exact source SHA> — the only tag; `latest` is never produced
 //
@@ -46,7 +46,13 @@
 //       Read-only builder/account/repository readiness check.
 //   node scripts/clio-sandbox-image-build.mjs launch
 //       Start exactly one build (needs CLIO_BUILD_SOURCE_SHA and
-//       CLIO_BUILD_ROOT). Root owns this call.
+//       CLIO_BUILD_ROOT). Root owns this call. The build intent is written
+//       before StartBuild, so a lost acknowledgement is recoverable.
+//   node scripts/clio-sandbox-image-build.mjs reconcile
+//       Read-only recovery for a lost StartBuild acknowledgement: binds the
+//       recorded intent to exactly one real CodeBuild build
+//       (service/project/source/SHA/repository/time window). Never resends and
+//       leaves NO_MATCH / AMBIGUOUS explicit.
 //   node scripts/clio-sandbox-image-build.mjs collect
 //       Read-only; rerun until the build is complete.
 //
@@ -69,12 +75,6 @@ export const DOCKERFILE = 'apps/clio-sandbox/Dockerfile';
 export const CONTEXT = 'apps/clio-sandbox';
 export const SERVICE = 'clio-sandbox';
 export const CONTAINER_PORT = 4100;
-// Optional already-reviewed exact-source archive route (same object store the
-// 225 maintenance lane used). When CLIO_BUILD_SOURCE_ARCHIVE is set as
-// "<bucket>/<key>@<s3 versionId>" the build pins those exact bytes instead of a
-// GitHub source resolution; the versionId makes the object immutable.
-export const SOURCE_BUCKET = 'capiro-portfolio-preview-source-967807252336-us-east-1';
-export const SOURCE_ARCHIVE = process.env.CLIO_BUILD_SOURCE_ARCHIVE ?? '';
 export const REQUIRED_MARKERS = ['IMAGE_SMOKE_PASS', 'LOCAL_REPODIGEST_ECR_MATCH_PASS', 'IMAGE_SCAN_PASS'];
 export const IMAGE_MARKER = 'CANDIDATE_IMAGE=';
 const PROFILE = process.env.CLIO_BUILD_AWS_PROFILE ?? 'capiro-dev';
@@ -200,30 +200,11 @@ target = '${IMAGE}@' + sys.argv[1]
 assert target in json.load(open('pushed-repo-digests.json')), target
 print('LOCAL_REPODIGEST_ECR_MATCH_PASS')
 CLIO_DIGEST
-# ECR basic scanning is asynchronous: an incomplete scan is not a pass, and a
-# mutable tag is never scanned here — the exact digest is.
-python3 - <<'CLIO_SCAN'
-import json, os, subprocess, sys, time
-
-sha = os.environ["EXPECTED_SHA"]
-args = ["aws", "ecr", "describe-image-scan-findings", "--region", "${REGION}",
-        "--repository-name", "${REPOSITORY}", "--image-id", "imageTag=" + sha, "--output", "json"]
-for _ in range(30):
-    done = subprocess.run(args, capture_output=True, text=True)
-    if done.returncode == 0:
-        parsed = json.loads(done.stdout)
-        if parsed.get("imageScanStatus", {}).get("status") == "COMPLETE":
-            counts = parsed.get("imageScanFindings", {}).get("findingSeverityCounts", {}) or {}
-            critical = int(counts.get("CRITICAL", 0))
-            high = int(counts.get("HIGH", 0))
-            print("scan severity counts " + json.dumps(counts))
-            if critical or high:
-                sys.exit("scan has %d CRITICAL and %d HIGH finding(s)" % (critical, high))
-            print("IMAGE_SCAN_PASS")
-            sys.exit(0)
-    time.sleep(10)
-sys.exit("scan did not reach COMPLETE for " + sha)
-CLIO_SCAN
+# ECR basic scanning is asynchronous and the tag is mutable, so the scan gate
+# binds the exact captured digest: it re-checks the tag->digest resolution,
+# scans by digest, requires the response to echo that digest, and requires
+# COMPLETE with 0 CRITICAL and 0 HIGH findings.
+python3 scripts/clio-image-scan-gate.py "$EXPECTED_SHA" "$digest"
 echo "${IMAGE_MARKER}${IMAGE}@\$digest"
 `;
 
@@ -241,11 +222,10 @@ export function buildspec(sourceSha) {
   };
 }
 
-// The exact StartBuild input. By default sourceTypeOverride/sourceLocationOverride
-// pin the split backend repository for this one build; the project definition,
-// its service role and its IAM are left untouched. If an exact source archive is
-// supplied, the build pins that immutable object instead.
-export function withoutArchive(sourceSha, idempotencyToken = randomUUID()) {
+// The exact StartBuild input. sourceTypeOverride/sourceLocationOverride pin the
+// split backend repository for this one build; the project definition, its
+// service role and its IAM are left untouched.
+export function startBuildInput(sourceSha, idempotencyToken = randomUUID()) {
   const override = JSON.stringify(buildspec(sourceSha));
   if (override.length > 25_600) throw new Error(`BUILDSPEC_TOO_LONG_${override.length}`);
   return {
@@ -260,20 +240,6 @@ export function withoutArchive(sourceSha, idempotencyToken = randomUUID()) {
   };
 }
 
-export function startBuildInput(sourceSha, idempotencyToken = randomUUID(), archive = SOURCE_ARCHIVE) {
-  const input = withoutArchive(sourceSha, idempotencyToken);
-  if (!archive) return input;
-  const match = /^([^/]+)\/(.+)@(.+)$/.exec(archive);
-  if (!match) throw new Error('CLIO_BUILD_SOURCE_ARCHIVE must be <bucket>/<key>@<versionId>');
-  const [, bucket, key, versionId] = match;
-  if (bucket !== SOURCE_BUCKET) throw new Error(`CLIO_BUILD_SOURCE_ARCHIVE bucket must be ${SOURCE_BUCKET}`);
-  return {
-    ...input,
-    sourceTypeOverride: 'S3',
-    sourceLocationOverride: `${bucket}/${key}`,
-    sourceVersion: versionId,
-  };
-}
 
 const aws = (args, options = {}) =>
   JSON.parse(
@@ -342,13 +308,62 @@ function preflight() {
   if (!facts.ready) process.exitCode = 1;
 }
 
+// A build intent is written before StartBuild so a lost acknowledgement can be
+// reconciled read-only against real CodeBuild builds. It binds the exact
+// service/project/source/SHA/repository/intent, never a guess.
+export function buildIntent(sha, at = new Date().toISOString(), idempotencyToken = randomUUID()) {
+  const input = startBuildInput(sha, idempotencyToken);
+  return {
+    at,
+    service: SERVICE,
+    project: PROJECT,
+    sourceRepository: SOURCE_REPOSITORY,
+    sourceSha: sha,
+    repository: REPOSITORY,
+    idempotencyToken,
+    buildspecSha256: sha256(input.buildspecOverride),
+  };
+}
+
+export function assertIntent(intent) {
+  const failures = [];
+  if (intent?.service !== SERVICE) failures.push('service');
+  if (intent?.project !== PROJECT) failures.push('project');
+  if (intent?.sourceRepository !== SOURCE_REPOSITORY) failures.push('sourceRepository');
+  if (!/^[0-9a-f]{40}$/.test(intent?.sourceSha ?? '')) failures.push('sourceSha');
+  if (intent?.repository !== REPOSITORY) failures.push('repository');
+  if (!intent?.at || Number.isNaN(Date.parse(intent.at))) failures.push('at');
+  if (failures.length) throw new Error(`BUILD_INTENT_INVALID: ${failures.join(',')}`);
+  return intent;
+}
+
+// Pure decision used by `reconcile`. Only an unambiguous build that matches the
+// recorded intent is accepted; zero or multiple matches stay explicit.
+export function selectReconcileMatch(builds, intent, windowMs = 6 * 60 * 60 * 1000) {
+  const intentAt = Date.parse(intent.at);
+  const matches = (builds ?? []).filter((build) => {
+    if (!build?.id || build.projectName !== PROJECT) return false;
+    if (build.source?.location !== SOURCE_REPOSITORY) return false;
+    if (build.sourceVersion !== intent.sourceSha && build.resolvedSourceVersion !== intent.sourceSha) return false;
+    const started = Date.parse(build.startTime ?? '');
+    if (Number.isNaN(started) || started < intentAt - 120_000 || started > intentAt + windowMs) return false;
+    return true;
+  });
+  if (matches.length === 0) return { state: 'NO_MATCH', buildIds: [] };
+  if (matches.length > 1) return { state: 'AMBIGUOUS', buildIds: matches.map((build) => build.id) };
+  return { state: 'MATCH', build: matches[0], buildIds: [matches[0].id] };
+}
+
 function launch() {
   const root = process.env.CLIO_BUILD_ROOT;
   if (!root) throw new Error('CLIO_BUILD_ROOT');
   const sha = assertSourceSha(process.env.CLIO_BUILD_SOURCE_SHA ?? '');
   mkdirSync(root, { recursive: true });
   if (existsSync(`${root}/build-start.json`)) throw new Error('ALREADY_LAUNCHED_DO_NOT_REPLAY');
-  const input = startBuildInput(sha);
+  if (existsSync(`${root}/build-intent.json`)) throw new Error('BUILD_INTENT_EXISTS_USE_RECONCILE');
+  const intent = buildIntent(sha);
+  writeFileSync(`${root}/build-intent.json`, `${JSON.stringify(intent, null, 2)}\n`, { flag: 'wx' });
+  const input = startBuildInput(sha, intent.idempotencyToken);
   writeFileSync(`${root}/build-input.json`, `${JSON.stringify(input, null, 2)}\n`, { flag: 'wx' });
   const started = aws(['codebuild', 'start-build', '--cli-input-json', `file://${root}/build-input.json`]);
   writeFileSync(
@@ -360,8 +375,9 @@ function launch() {
         sourceSha: sha,
         buildId: started.build.id,
         status: started.build.buildStatus,
-        buildspecSha256: sha256(input.buildspecOverride),
+        buildspecSha256: intent.buildspecSha256,
         requiredMarkers: REQUIRED_MARKERS,
+        reconciled: false,
       },
       null,
       2,
@@ -369,6 +385,57 @@ function launch() {
     { flag: 'wx' },
   );
   console.log(JSON.stringify({ launched: started.build.id, status: started.build.buildStatus }));
+}
+
+// Read-only recovery after a lost StartBuild acknowledgement. It never calls
+// start-build, never resends, and only records a single exact match.
+function reconcile() {
+  const root = process.env.CLIO_BUILD_ROOT;
+  if (!root) throw new Error('CLIO_BUILD_ROOT');
+  if (!existsSync(`${root}/build-intent.json`)) throw new Error('BUILD_INTENT_REQUIRED');
+  const intent = assertIntent(JSON.parse(readFileSync(`${root}/build-intent.json`, 'utf8')));
+  if (existsSync(`${root}/build-start.json`)) {
+    console.log(JSON.stringify({ state: 'ALREADY_RECORDED', start: JSON.parse(readFileSync(`${root}/build-start.json`, 'utf8')) }, null, 2));
+    return;
+  }
+  const ids = [];
+  let nextToken;
+  do {
+    const page = aws(['codebuild', 'list-builds-for-project', '--project-name', PROJECT, '--max-items', '100', ...(nextToken ? ['--starting-token', nextToken] : [])]);
+    ids.push(...(page.ids ?? []));
+    nextToken = page.nextToken;
+  } while (nextToken && ids.length < 500);
+  const builds = [];
+  for (let index = 0; index < ids.length; index += 100) {
+    builds.push(...(aws(['codebuild', 'batch-get-builds', '--ids', ...ids.slice(index, index + 100)]).builds ?? []));
+  }
+  const decision = selectReconcileMatch(builds, intent);
+  if (decision.state !== 'MATCH') {
+    console.log(JSON.stringify({ state: decision.state, intent, buildIds: decision.buildIds, recorded: false }, null, 2));
+    process.exitCode = decision.state === 'AMBIGUOUS' ? 2 : 1;
+    return;
+  }
+  const build = decision.build;
+  const record = {
+    at: new Date().toISOString(),
+    service: SERVICE,
+    sourceSha: intent.sourceSha,
+    buildId: build.id,
+    status: build.buildStatus,
+    buildspecSha256: intent.buildspecSha256,
+    requiredMarkers: REQUIRED_MARKERS,
+    reconciled: true,
+    matchedOn: {
+      projectName: build.projectName,
+      sourceLocation: build.source?.location ?? null,
+      sourceVersion: build.sourceVersion ?? null,
+      resolvedSourceVersion: build.resolvedSourceVersion ?? null,
+      startTime: build.startTime ?? null,
+      intentAt: intent.at,
+    },
+  };
+  writeFileSync(`${root}/build-start.json`, `${JSON.stringify(record, null, 2)}\n`, { flag: 'wx' });
+  console.log(JSON.stringify({ state: 'MATCH', recorded: true, start: record }, null, 2));
 }
 
 function collect() {
@@ -430,6 +497,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   if (command === 'plan') plan();
   else if (command === 'preflight') preflight();
   else if (command === 'launch') launch();
+  else if (command === 'reconcile') reconcile();
   else if (command === 'collect') collect();
-  else throw new Error('Use plan, preflight, launch or collect');
+  else throw new Error('Use plan, preflight, launch, reconcile or collect');
 }

@@ -18,10 +18,12 @@ import {
   REGION,
   REPOSITORY,
   REQUIRED_MARKERS,
-  SOURCE_BUCKET,
   SOURCE_REPOSITORY,
+  assertIntent,
   assertSourceSha,
+  buildIntent,
   buildspec,
+  selectReconcileMatch,
   startBuildInput,
 } from './clio-sandbox-image-build.mjs';
 
@@ -48,17 +50,6 @@ test('the request pins the exact source repository and commit on the existing AR
   for (const forbidden of ['environmentTypeOverride', 'serviceRoleOverride', 'computeTypeOverride', 'privilegedModeOverride']) {
     assert.equal(forbidden in input, false, forbidden);
   }
-});
-
-test('an exact versioned source archive can be pinned instead of GitHub resolution', () => {
-  const archive = `${SOURCE_BUCKET}/inputs/clio-13a5dd43.zip@versionId.1`;
-  const input = startBuildInput(SHA, 'fixed-token', archive);
-  assert.equal(input.sourceTypeOverride, 'S3');
-  assert.equal(input.sourceLocationOverride, `${SOURCE_BUCKET}/inputs/clio-13a5dd43.zip`);
-  assert.equal(input.sourceVersion, 'versionId.1');
-  assert.equal(input.projectName, PROJECT);
-  assert.throws(() => startBuildInput(SHA, 't', 'other-bucket/x.zip@v'), /bucket must be/);
-  assert.throws(() => startBuildInput(SHA, 't', 'no-version'), /<bucket>\/<key>@<versionId>/);
 });
 
 test('the image reference is the exact SHA and never a mutable tag', () => {
@@ -126,15 +117,14 @@ test('the smoke covers non-root, read-only, no-network, health, token boundary a
 });
 
 test('the scan gate requires a COMPLETE scan with zero critical/high findings', () => {
-  const post = script('post_build');
-  assert.match(post, /describe-image-scan-findings/);
-  assert.match(post, /imageScanStatus/);
-  assert.match(post, /"COMPLETE"/);
-  assert.match(post, /counts\.get\("CRITICAL"/);
-  assert.match(post, /counts\.get\("HIGH"/);
-  assert.match(post, /IMAGE_SCAN_PASS/);
+  const gate = readFileSync(join(ROOT, 'scripts/clio-image-scan-gate.py'), 'utf8');
+  assert.match(gate, /imageScanStatus/);
+  assert.match(gate, /== 'COMPLETE'/);
+  assert.match(gate, /counts\.get\('CRITICAL', 0\)/);
+  assert.match(gate, /counts\.get\('HIGH', 0\)/);
+  assert.match(gate, /IMAGE_SCAN_PASS/);
   // An incomplete scan must not be reported as a pass.
-  assert.match(post, /scan did not reach COMPLETE/);
+  assert.match(gate, /did not reach COMPLETE/);
   assert.deepEqual(REQUIRED_MARKERS, ['IMAGE_SMOKE_PASS', 'LOCAL_REPODIGEST_ECR_MATCH_PASS', 'IMAGE_SCAN_PASS']);
 });
 
@@ -179,6 +169,73 @@ test('plan is a pure, reviewable request with no AWS call', () => {
   assert.match(parsed.buildspecSha256, /^[0-9a-f]{64}$/);
   assert.ok(parsed.buildspecCharacters < 25_600);
   assert.deepEqual(parsed.requiredMarkers, REQUIRED_MARKERS);
+});
+
+test('the post-build scan is bound to the exact captured digest, not the tag', () => {
+  const post = script('post_build');
+  assert.match(post, /python3 scripts\/clio-image-scan-gate\.py "\$EXPECTED_SHA" "\$digest"/);
+  // No inline tag-based scan may survive: the tag is mutable.
+  assert.doesNotMatch(post, /describe-image-scan-findings/);
+  assert.match(post, /echo "CANDIDATE_IMAGE=[^"]*@\$digest"/);
+});
+
+test('the scan gate itself scans by digest and rejects a moved tag or digest mismatch', () => {
+  const gate = readFileSync(join(ROOT, 'scripts/clio-image-scan-gate.py'), 'utf8');
+  assert.match(gate, /--image-id', 'imageDigest=' \+ digest/);
+  assert.match(gate, /TAG_MOVED/);
+  assert.match(gate, /DIGEST_MISMATCH/);
+  assert.match(gate, /'COMPLETE'/);
+  assert.match(gate, /counts\.get\('CRITICAL', 0\)/);
+  assert.match(gate, /counts\.get\('HIGH', 0\)/);
+});
+
+test('the only source route is the exact-SHA GitHub pin (no unimplemented S3 route)', () => {
+  const input = startBuildInput(SHA, 'fixed-token');
+  assert.equal(input.sourceTypeOverride, 'GITHUB');
+  assert.equal(input.sourceLocationOverride, SOURCE_REPOSITORY);
+  const operator = readFileSync(join(ROOT, 'scripts/clio-sandbox-image-build.mjs'), 'utf8');
+  assert.doesNotMatch(operator, /CLIO_BUILD_SOURCE_ARCHIVE|sourceTypeOverride: 'S3'/);
+  // The git provenance gates are still in the build path.
+  assert.match(script('pre_build'), /CODEBUILD_RESOLVED_SOURCE_VERSION/);
+});
+
+test('a lost start acknowledgement is reconciled only from one exact intent match', () => {
+  const intent = buildIntent(SHA, '2026-10-29T21:00:00.000Z', 'intent-token');
+  const build = (over = {}) => ({
+    id: 'capiro-build-web-dev:11111111-1111-1111-1111-111111111111',
+    projectName: PROJECT,
+    source: { location: SOURCE_REPOSITORY },
+    sourceVersion: SHA,
+    resolvedSourceVersion: SHA,
+    startTime: '2026-10-29T21:00:30.000Z',
+    ...over,
+  });
+  assert.equal(selectReconcileMatch([build()], intent).state, 'MATCH');
+  assert.equal(selectReconcileMatch([], intent).state, 'NO_MATCH');
+  assert.equal(selectReconcileMatch([build(), build({ id: 'capiro-build-web-dev:2' })], intent).state, 'AMBIGUOUS');
+  assert.equal(selectReconcileMatch([build(), build({ id: 'capiro-build-web-dev:2' })], intent).buildIds.length, 2);
+  // Every binding is required; a near miss is NO_MATCH, never a fallback pick.
+  assert.equal(selectReconcileMatch([build({ projectName: 'other-project' })], intent).state, 'NO_MATCH');
+  assert.equal(selectReconcileMatch([build({ source: { location: 'https://github.com/neo-capiro/capirovp2.git' } })], intent).state, 'NO_MATCH');
+  assert.equal(selectReconcileMatch([build({ sourceVersion: 'b'.repeat(40), resolvedSourceVersion: null })], intent).state, 'NO_MATCH');
+  assert.equal(selectReconcileMatch([build({ startTime: '2026-10-29T18:00:00.000Z' })], intent).state, 'NO_MATCH');
+  assert.equal(selectReconcileMatch([build({ startTime: undefined })], intent).state, 'NO_MATCH');
+  // A tampered intent is rejected instead of being used to record a build.
+  assert.throws(() => assertIntent({ ...intent, project: 'other' }), /BUILD_INTENT_INVALID: project/);
+  assert.throws(() => assertIntent({ ...intent, repository: 'capiro/dev/other' }), /repository/);
+  assert.throws(() => assertIntent({ ...intent, sourceSha: 'short' }), /sourceSha/);
+  assert.throws(() => assertIntent({ ...intent, at: 'not-a-date' }), /at/);
+});
+
+test('launch records the intent before it submits the build', () => {
+  const operator = readFileSync(join(ROOT, 'scripts/clio-sandbox-image-build.mjs'), 'utf8');
+  const launchBody = operator.slice(operator.indexOf('function launch()'), operator.indexOf('function reconcile()'));
+  assert.ok(launchBody.indexOf("build-intent.json") < launchBody.indexOf("'start-build'"));
+  assert.match(launchBody, /flag: 'wx'/);
+  const reconcileBody = operator.slice(operator.indexOf('function reconcile()'));
+  assert.doesNotMatch(reconcileBody, /'start-build'/);
+  assert.match(reconcileBody, /list-builds-for-project/);
+  assert.match(reconcileBody, /batch-get-builds/);
 });
 
 test('the gates match the real recipe and runtime sources', () => {
