@@ -3,44 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { lockMemoryRetentionInTx, retainedMemoryInTx } from './memory-retention-selection.js';
 
-type ReceiptColumnShape = {
-  relationKind: string;
-  persistence: string;
-  rowSecurityEnabled: boolean;
-  rowSecurityForced: boolean;
-  hasChildren: boolean;
-  columnName: string;
-  typeName: string;
-  builtInType: boolean;
-  typeModifier: number;
-  notNull: boolean;
-  hasDefault: boolean;
-};
-
-// Original 020000 receipt columns minus the separately disposed candidate
-// JSONB column. pg_attribute exposes all live columns, so an unexpected
-// renamed payload field or type change cannot silently pass this allowlist.
-const CONTENT_FREE_RECEIPT_COLUMNS = [
-  ['tenant_id', 'uuid', -1, true, false],
-  ['candidate_id', 'uuid', -1, true, false],
-  ['candidate_sha256', 'bpchar', 68, true, false],
-  ['proposer_user_id', 'uuid', -1, true, false],
-  ['review_id', 'uuid', -1, true, false],
-  ['created_at', 'timestamptz', 6, true, true],
-] as const;
-
-function isContentFreeReceiptShape(rows: ReceiptColumnShape[]): boolean {
-  return rows.length === CONTENT_FREE_RECEIPT_COLUMNS.length && rows.every((row, i) => {
-    const expected = CONTENT_FREE_RECEIPT_COLUMNS[i];
-    return expected !== undefined &&
-      row.relationKind === 'r' && row.persistence === 'p' &&
-      row.rowSecurityEnabled === true && row.rowSecurityForced === true &&
-      row.hasChildren === false && row.builtInType === true &&
-      row.columnName === expected[0] && row.typeName === expected[1] &&
-      row.typeModifier === expected[2] && row.notNull === expected[3] &&
-      row.hasDefault === expected[4];
-  });
-}
+import { memoryReceiptsAreContentFreeInTx } from './memory-receipt-retention.js';
 
 /**
  * Phase 6 — retention / right-to-be-forgotten EXECUTION (master plan gap #7).
@@ -85,31 +48,7 @@ export class MemoryPurgeService {
   ): Promise<MemoryPurgeResult> {
     const dryRun = opts.dryRun !== false; // default TRUE — never delete unless explicit
     return this.prisma.withSystem(async (tx) => {
-      // A regular SELECT holds ACCESS SHARE on the receipt through this
-      // transaction. This prevents concurrent DDL from adding/dropping the
-      // candidate column or altering the verified shape between the catalog
-      // check and destructive deletes, without a new table-lock privilege.
-      // Receipt inserts can continue; their content-free shape is locked.
-      await tx.$queryRaw`SELECT 1 FROM clio_meri_memory_submissions
-        WHERE tenant_id = ${tenantId}::uuid LIMIT 1`;
-      const receiptShape = await tx.$queryRaw<ReceiptColumnShape[]>`
-        SELECT c.relkind::text AS "relationKind",
-               c.relpersistence::text AS "persistence",
-               c.relrowsecurity AS "rowSecurityEnabled",
-               c.relforcerowsecurity AS "rowSecurityForced",
-               c.relhassubclass AS "hasChildren",
-               a.attname AS "columnName", t.typname AS "typeName",
-               (t.typnamespace = 'pg_catalog'::regnamespace) AS "builtInType",
-               a.atttypmod AS "typeModifier", a.attnotnull AS "notNull",
-               a.atthasdef AS "hasDefault"
-        FROM pg_catalog.pg_class c
-        JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid
-        JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
-        WHERE c.oid = 'clio_meri_memory_submissions'::regclass
-          AND a.attnum > 0 AND NOT a.attisdropped
-        ORDER BY a.attnum
-      `;
-      const receiptPayloadDispositionHold = !isContentFreeReceiptShape(receiptShape);
+      const receiptPayloadDispositionHold = !await memoryReceiptsAreContentFreeInTx(tx, tenantId);
       if (!dryRun && receiptPayloadDispositionHold) {
         throw new ServiceUnavailableException(
           'Client memory purge is held until the Meri receipt has the verified content-free shape.',

@@ -24,15 +24,27 @@ function fixture(client = false) {
         clientId: client ? clientId : null, trashedAt: now.toISOString(), restoreUntil: new Date(+now + TRASH_MS).toISOString() } } } }];
   const receipts = jest.fn(async () => receiptRows as any[]);
   const clock = jest.fn(async () => [{ now }]);
-  const lock = jest.fn(async () => 1);
+  const query = async (sql: TemplateStringsArray) => {
+    const text = sql.join('');
+    if (text.includes('pg_catalog.pg_attribute')) return [
+      ['tenant_id','uuid',-1,true,false],['candidate_id','uuid',-1,true,false],
+      ['candidate_sha256','bpchar',68,true,false],['proposer_user_id','uuid',-1,true,false],
+      ['review_id','uuid',-1,true,false],['created_at','timestamptz',6,true,true],
+    ].map(([columnName,typeName,typeModifier,notNull,hasDefault]) => ({ columnName,typeName,typeModifier,notNull,hasDefault,
+      relationKind:'r',persistence:'p',rowSecurityEnabled:true,rowSecurityForced:true,hasChildren:false,builtInType:true }));
+    if (text.includes('FROM memory_candidate') || text.includes('FROM clio_meri_memory_submissions')) return [];
+    return clock();
+  };
+  const lock = jest.fn(async (_sql: TemplateStringsArray, ..._values: unknown[]) => 1);
   const consumed = jest.fn(async () => receiptRows[0] as any);
   const erase = jest.fn(async () => { row = null; (receiptRows[0] as any).conversationId = null;
     (receiptRows[0] as any).receipt = { tombstone: true }; return { count: 1 }; });
   const tx = { tenantMembership: { findFirst: membership }, client: { findFirst: wall },
     clioConversation: { findFirst: read, deleteMany: erase }, clioConversationManagementReceipt: { findMany: receipts, findUnique: consumed },
-    $queryRaw: clock, $executeRaw: lock };
+    $queryRaw: query, $executeRaw: lock };
   const withTenant = jest.fn(async (_tenant: string, work: (tx: any) => Promise<unknown>) => work(tx));
-  return { prisma: { withTenant } as never, withTenant, membership, wall, read, receipts, receiptRows, clock, lock, consumed, erase,
+  const withSystem = jest.fn(async (work: (tx: any) => Promise<unknown>) => withTenant(tenantId, work));
+  return { prisma: { withTenant, withSystem } as never, withTenant, membership, wall, read, receipts, receiptRows, clock, lock, consumed, erase,
     get row() { return row; }, setRow(value: any) { row = value; } };
 }
 
@@ -118,7 +130,8 @@ test('finalization uses Core clock and current Trash generation, then replays it
   await expect(finalizeConversationRetention(f.prisma, finalization)).resolves.toMatchObject({ erased: true, replayed: false });
   await expect(finalizeConversationRetention(f.prisma, finalization)).resolves.toMatchObject({ erased: true, replayed: true });
   expect(f.erase).toHaveBeenCalledTimes(1);
-  expect(f.lock.mock.calls[0]![0].join('')).toContain('FOR UPDATE');
+  expect(f.lock.mock.calls[0]![0].join('')).toContain('LOCK TABLE memory_candidate');
+  expect(f.lock.mock.calls[1]![0].join('')).toContain('FOR UPDATE');
 });
 
 test.each([
