@@ -385,6 +385,7 @@ export class ResearchPortfolioSharePayloadService {
           excludedContributions: snapshot.projection.coverage.excludedContributions,
           overlapContributions: snapshot.projection.coverage.overlapContributions,
           unavailableMembers: snapshot.projection.coverage.unavailableMembers,
+          notApplicableMembers: snapshot.projection.coverage.notApplicableMembers ?? 0,
         },
         limitations: snapshot.limitations.filter((value) => typeof value === 'string'),
         subjects: has('subjects')
@@ -396,6 +397,10 @@ export class ResearchPortfolioSharePayloadService {
                 targetId: member.targetId,
                 label: member.label,
                 disposition: member.disposition,
+                // Frozen legislative facts travel with the subject so a published dashboard
+                // keeps the bill status, latest action and source revision it was captured
+                // from. Later legislative changes cannot alter it.
+                facts: (member.facts ?? null) as Readonly<Record<string, unknown>> | null,
               }))
           : [],
         clientFit:

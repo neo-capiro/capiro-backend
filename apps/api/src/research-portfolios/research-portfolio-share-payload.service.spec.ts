@@ -160,6 +160,44 @@ function fixture() {
 }
 
 describe('exact research sharing payload', () => {
+  it('carries a bill subject with its frozen legislative facts and no funding', async () => {
+    const h = fixture();
+    h.snapshot.membership.push({
+      id: 'bill-member',
+      targetKind: 'federal_bill',
+      targetId: '119-hr-8800',
+      label: 'H.R. 8800 — Defense Appropriations',
+      disposition: 'included',
+      // Frozen at snapshot time: a later legislative change cannot rewrite this.
+      facts: {
+        jurisdiction: 'US',
+        session: '119',
+        status: 'reported',
+        latestActionDate: '2026-09-10',
+        sourceRevision: '2026-09-11T00:00:00.000Z',
+        fundingBasis: 'not_applicable',
+      },
+    });
+    h.snapshot.projection.coverage.notApplicableMembers = 1;
+    const { payload } = await h.service.prepare(ctx, 'portfolio', input, h.tx);
+    const subject = (payload.dashboard.data as any).subjects.find(
+      (entry: any) => entry.targetId === '119-hr-8800',
+    );
+    expect(subject).toMatchObject({
+      targetKind: 'federal_bill',
+      disposition: 'included',
+      facts: { status: 'reported', fundingBasis: 'not_applicable' },
+    });
+    // The bill is not a funding row and is counted separately from unavailable.
+    expect(
+      (payload.dashboard.data as any).totals.reduce(
+        (sum: number, total: any) => sum + total.contributionCount,
+        0,
+      ),
+    ).toBe(1);
+    expect((payload.dashboard.data as any).coverage.notApplicableMembers).toBe(1);
+  });
+
   it('does not admit a selector from an excluded contribution that is absent from the recipient ledger', async () => {
     const h = fixture();
     h.snapshot.projection.contributions.push({
