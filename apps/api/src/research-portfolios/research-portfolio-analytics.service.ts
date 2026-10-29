@@ -101,7 +101,9 @@ export class ResearchPortfolioAnalyticsService {
     if (!name || name.length > 200) throw new BadRequestException('Snapshot name must be between 1 and 200 characters');
     if (!input.operationKey || input.operationKey.length > 128) throw new BadRequestException('operationKey must be between 1 and 128 characters');
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await tx.$queryRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${ctx.tenantId + ':snapshot:' + input.operationKey}, 0))`);
+      // $executeRaw: pg_advisory_xact_lock returns void; $queryRaw fails to deserialize void
+      // (Prisma P2010), which 500'd every first snapshot capture on Core31.
+      await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${ctx.tenantId + ':snapshot:' + input.operationKey}, 0))`);
       await tx.$queryRaw(Prisma.sql`SELECT id FROM research_portfolios WHERE id = ${portfolioId}::uuid AND tenant_id = ${ctx.tenantId}::uuid FOR UPDATE`);
       const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'editor');
       const replay = await tx.researchPortfolioSnapshot.findUnique({
