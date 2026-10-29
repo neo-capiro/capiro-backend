@@ -12,7 +12,7 @@ export function officeRetentionSubject(raw: unknown) {
 type Subject = ReturnType<typeof officeRetentionSubject>;
 const selection = (s: Subject) => Prisma.sql`tenant_id=${s.tenantId}::uuid AND
   ${s.subject.kind === 'conversation' ? Prisma.sql`conversation_id` : Prisma.sql`artifact_id`}=${s.subject.id}::uuid`;
-const retiredFields = Prisma.sql`state='discarded',bytes=NULL,sha256=NULL,
+export const retiredFields = Prisma.sql`state='discarded',bytes=NULL,sha256=NULL,
   lock_token=NULL,lock_expires_at=NULL,editor_id=NULL,editor_expires_at=NULL,
   publish_intent=NULL,published_version_id=NULL`;
 

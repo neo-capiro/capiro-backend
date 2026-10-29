@@ -31,6 +31,7 @@ import { validateClientFundingProfile } from './client-funding-profile.validatio
 import { requireClientCapacity } from './client-capacity.js';
 import { requireOwnerActor, requireOwnerClient } from './client-ordered-owner.access.js';
 import { fetchDeniedClientIds } from '../memory/memory-wall.helpers.js';
+import { retireClientOfficeDraftsInTx } from '../meri/office-drafts/client-retention.js';
 
 export interface CreateClientInput {
   name: string;
@@ -1455,6 +1456,7 @@ export class ClientsService {
             : {}),
         },
       });
+      if (client.status === 'archived') await retireClientOfficeDraftsInTx(tx, ctx.tenantId, id);
       return { client, before };
     });
 
@@ -1639,6 +1641,8 @@ export class ClientsService {
           data: { memoryWall: input.memoryWall },
         });
       }
+
+      if (input.memoryWall) await retireClientOfficeDraftsInTx(tx, ctx.tenantId, clientId, requested);
 
       await tx.auditLog.create({
         data: {

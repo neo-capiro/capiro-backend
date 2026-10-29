@@ -19,7 +19,7 @@ export async function officeDatabase(url: string) {
         'migrate', 'diff', '--from-empty', '--to-schema-datamodel', join(__dirname, '../../../prisma/schema.prisma'),
         '--script'], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
       const tables = new Set(['tenants', 'users', 'tenant_memberships', 'clients', 'client_memory_access',
-        'clio_conversations', 'clio_conversation_bootstrap_receipts']);
+        'clio_conversations', 'clio_conversation_bootstrap_receipts', 'audit_logs']);
       const names = new Set(Prisma.dmmf.datamodel.models.filter(m => tables.has(m.dbName ?? m.name))
         .flatMap(m => m.fields.filter(f => f.kind === 'enum').map(f => f.type)));
       const enums = new Set(Prisma.dmmf.datamodel.enums.filter(e => names.has(e.name)).map(e => e.dbName ?? e.name));
@@ -30,11 +30,20 @@ export async function officeDatabase(url: string) {
       });
       if (statements.filter(s => /CREATE TABLE /.test(s)).length !== tables.size) throw Error('Incomplete fixture');
       for (const s of statements) await admin.query(s);
+      // This retained raw-SQL projection is deliberately absent from Prisma's
+      // current Client model; client owner locks still read its applied column.
+      await admin.query(readFileSync(join(__dirname,
+        '../../../prisma/migrations/20260816235000_add_client_account_owner/migration.sql'), 'utf8'));
       await admin.query(`CREATE FUNCTION current_tenant_id() RETURNS uuid LANGUAGE sql STABLE AS
         $$SELECT nullif(current_setting('app.current_tenant',true),'')::uuid$$;
         CREATE FUNCTION rls_bypass() RETURNS boolean LANGUAGE sql STABLE AS
           $$SELECT current_setting('app.bypass_rls',true)='on'$$;
         GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO capiro_app;`);
+      const conversationPolicy = readFileSync(join(__dirname,
+        '../../../prisma/migrations/20260510010000_clio_nanoclaw_workspace/migration.sql'), 'utf8')
+        .match(/ALTER TABLE "clio_conversations" ENABLE ROW LEVEL SECURITY;[\s\S]*?WITH CHECK[^;]+;/)?.[0];
+      if (!conversationPolicy) throw Error('Canonical conversation RLS missing');
+      await admin.query(conversationPolicy);
       await admin.query(readFileSync(join(__dirname, '../../../prisma/migrations/20281024020000_meri_conversation_management/migration.sql'), 'utf8'));
       await admin.query(readFileSync(join(__dirname, '../../../prisma/migrations/20281029020000_office_draft_owner/migration.sql'), 'utf8'));
       await admin.query(readFileSync(join(__dirname, '../../../prisma/migrations/20281029070000_office_editor_admission/migration.sql'), 'utf8'));
@@ -45,6 +54,8 @@ export async function officeDatabase(url: string) {
     if (!bypass.rows[0]?.supported) throw Error('Use a fresh retention fixture; preserve the earlier test database');
     const management = await admin.query("SELECT to_regclass('public.clio_conversation_management_receipts') present");
     if (!management.rows[0]?.present) throw Error('Use a fresh Trash fixture; preserve earlier test databases');
+    const access = await admin.query("SELECT to_regclass('public.audit_logs') IS NOT NULL AND EXISTS(SELECT 1 FROM pg_policies WHERE tablename='clio_conversations' AND policyname='clio_conversations_isolation') AND EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='clients' AND column_name='account_owner_user_id') AS present");
+    if (!access.rows[0]?.present) throw Error('Use a fresh client-access fixture; preserve earlier test databases');
   } finally { await admin.end(); }
   const db = new PrismaClient({ datasources: { db: { url } } });
   const withScope = async <T>(tenantId: string, userId: string | null, fn: (tx: Prisma.TransactionClient) => Promise<T>) =>
