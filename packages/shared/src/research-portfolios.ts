@@ -867,7 +867,7 @@ export interface ResearchPortfolioAnalyticsDto {
     overlapContributions: number;
     unavailableMembers: number;
     /** Included subjects with no funding basis (bills). Never counted as zero or unavailable. */
-    notApplicableMembers?: number;
+    notApplicableMembers: number;
   };
   limitations: readonly string[];
   observedAt: string;
