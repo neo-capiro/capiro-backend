@@ -173,50 +173,43 @@ describe('legacy consumer build request: canonical source digest parity', () => 
   });
 
   test('symlink semantics match on both sides, including changed and escaping targets', (t) => {
-    const repo = fixture();
-    let symlinksSupported = true;
+    // A git checkout on this host does not reproduce symlinks (core.symlinks is
+    // off), so the fixture is a real tree with Node-created links; the builder's
+    // Linux checkout materialises the same link text the git object records.
+    const root = mkdtempSync(path.join(tmpdir(), 'legacy-links-'));
+    writeFileSync(path.join(root, 'README.md'), 'one\n');
     try {
-      symlinkSync('README.md', path.join(repo.dir, 'alias.md'));
+      symlinkSync('README.md', path.join(root, 'alias.md'));
     } catch (error) {
-      symlinksSupported = false;
       assert.ok(['EPERM', 'EACCES', 'UNKNOWN'].includes(error.code), error.code);
-    }
-    if (!symlinksSupported) {
       t.diagnostic('symlink creation is not permitted on this host; executed only the pure-record controls');
       const records = canonicalRecordBytes([{ path: 'alias.md', type: 'symlink', value: 'README.md' }]).toString('utf8');
       assert.equal(records, 'L\talias.md\tREADME.md\n');
-      assert.throws(() => canonicalRecordBytes([{ path: 'alias.md', type: 'symlink', value: '/etc/passwd' }]),
-        /absolute symlink target/);
-      assert.throws(() => canonicalRecordBytes([{ path: 'nested/alias.md', type: 'symlink', value: '../../etc/passwd' }]),
-        /escaping symlink target/);
-      assert.throws(() => canonicalRecordBytes([{ path: 'alias.md', type: 'symlink', value: 'a\nb' }]),
-        /control character in symlink target/);
+      for (const [target, pattern] of [['/etc/passwd', /absolute symlink target/],
+        ['nested/../../etc/passwd', /escaping symlink target/], ['a\nb', /control character in symlink target/]])
+        assert.throws(() => canonicalRecordBytes([{ path: 'alias.md', type: 'symlink', value: target }]), pattern, target);
       return;
     }
-    execFileSync('git', ['-C', repo.dir, 'add', '-A'], { env: GIT_ENV });
-    execFileSync('git', ['-C', repo.dir, 'commit', '-q', '-m', 'link'], { env: GIT_ENV });
-    const head = execFileSync('git', ['-C', repo.dir, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-    const expected = treeDigest(repo.dir, head).digest;
     const shim = shimDir();
     try {
-      const clean = withVerifierTree({ dir: repo.dir, head });
-      const pass = runVerifier(decodedScript('web'), clean, expected, shim);
-      releaseMaterializedSource(repo.dir, clean);
-      assert.equal(pass.status, 0, pass.stderr);
+      const expected = sourceDigest(collectSourceEntries(root)).digest;
+      assert.match(canonicalRecordBytes(collectSourceEntries(root)).toString('utf8'), /\nL\talias\.md\tREADME\.md\n/);
+      const pass = runVerifier(decodedScript('web'), root, expected, shim);
+      assert.equal(pass.status, 0, `${pass.stdout}${pass.stderr}`);
       assert.match(pass.stdout, /SOURCE_TREE_DIGEST_PASS/);
 
-      const retargeted = withVerifierTree({ dir: repo.dir, head },
-        (tree) => { rmSync(path.join(tree, 'alias.md')); symlinkSync('apps/web/server.js', path.join(tree, 'alias.md')); });
+      const retargeted = mkdtempSync(path.join(tmpdir(), 'legacy-links-'));
+      writeFileSync(path.join(retargeted, 'README.md'), 'one\n');
+      symlinkSync('other.md', path.join(retargeted, 'alias.md'));
       const changed = runVerifier(decodedScript('web'), retargeted, expected, shim);
-      releaseMaterializedSource(repo.dir, retargeted);
       assert.equal(changed.status, 1);
       assert.match(changed.stdout, /SOURCE_TREE_DIGEST_MISMATCH/);
 
       for (const target of ['/etc/passwd', '../../etc/passwd']) {
-        const escaping = withVerifierTree({ dir: repo.dir, head },
-          (tree) => { rmSync(path.join(tree, 'alias.md')); symlinkSync(target, path.join(tree, 'alias.md')); });
+        const escaping = mkdtempSync(path.join(tmpdir(), 'legacy-links-'));
+        writeFileSync(path.join(escaping, 'README.md'), 'one\n');
+        symlinkSync(target, path.join(escaping, 'alias.md'));
         const refused = runVerifier(decodedScript('web'), escaping, expected, shim);
-        releaseMaterializedSource(repo.dir, escaping);
         assert.equal(refused.status, 1, target);
         assert.match(refused.stderr, /SOURCE_TREE_REFUSED (absolute|escaping) symlink target/, target);
         assert.throws(() => canonicalRecordBytes([{ path: 'alias.md', type: 'symlink', value: target }]),

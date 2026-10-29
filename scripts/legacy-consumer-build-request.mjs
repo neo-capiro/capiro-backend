@@ -197,15 +197,38 @@ export function releaseMaterializedSource(sourceCheckout, worktree) {
   } catch { /* fall through to the directory removal below */ }
   rmSync(root, { recursive: true, force: true });
 }
-/** Canonical digest of an exact commit; the emitted verifier recomputes this. */
-export function treeDigest(sourceCheckout, sourceCommit) {
-  const worktree = materializeSource(sourceCheckout, sourceCommit);
-  try {
-    const entries = collectSourceEntries(worktree);
-    return sourceDigest(entries);
-  } finally {
-    releaseMaterializedSource(sourceCheckout, worktree);
+/** Entries straight from git objects (fast, and byte-equal after the guard above). */
+export function collectSourceEntriesFromGit(sourceCheckout, sourceCommit) {
+  const listing = execFileSync('git', ['-C', sourceCheckout, 'ls-tree', '-r', '-z', sourceCommit],
+    { encoding: 'buffer', maxBuffer: 256 * 1024 * 1024 }).toString('utf8').split(' ').filter(Boolean);
+  const entries = [];
+  for (const line of listing) {
+    const match = /^(\d+) (blob) ([a-f0-9]{40})	(.+)$/.exec(line);
+    if (!match) fail('non-blob or unparsable tree entry: ' + line.slice(0, 120));
+    const [, mode, , object, name] = match;
+    recordSafePath(name);
+    if (mode === '120000') {
+      entries.push({ path: name, type: 'symlink',
+        value: execFileSync('git', ['-C', sourceCheckout, 'cat-file', 'blob', object], { encoding: 'utf8' }) });
+      continue;
+    }
+    if (mode !== '100644' && mode !== '100755') fail('unsupported mode for source entry: ' + name);
+    const bytes = execFileSync('git', ['-C', sourceCheckout, 'cat-file', 'blob', object],
+      { maxBuffer: MAX_FILE_BYTES * 2 });
+    if (bytes.length > MAX_FILE_BYTES) fail('source file over the size budget: ' + name);
+    entries.push({ path: name, type: 'file', value: sha256(bytes) });
+    if (entries.length > MAX_ENTRIES) fail('source entry budget');
   }
+  return entries;
+}
+/**
+ * Canonical digest of an exact commit's content (git objects; no 27k-file
+ * worktree is materialised). The job's verifier recomputes the same records over
+ * its checkout and fails closed on any byte difference, so a checkout that
+ * converted line endings or applied a filter cannot pass silently.
+ */
+export function treeDigest(sourceCheckout, sourceCommit) {
+  return sourceDigest(collectSourceEntriesFromGit(sourceCheckout, sourceCommit));
 }
 
 // ---------------------------------------------------------------------------
