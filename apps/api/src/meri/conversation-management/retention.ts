@@ -5,6 +5,7 @@ import { lockMemoryRetentionInTx } from '../../memory/memory-retention-selection
 import { conversationMemoryCandidatesInTx, purgeConversationMemoryInTx } from '../../memory/memory-conversation-retention.js';
 import { eraseConversationOfficeDraftsInTx, hasConversationOfficeDraftsInTx } from '../office-drafts/retention.js';
 import { MANAGEMENT_VERSION, TRASH_MS, managementDigest, type ManagementReceipt } from './contract.js';
+import { consumedDeletionMatches } from './deletion-receipt.js';
 
 export type ConversationRetentionIdentity = {
   tenantId: string; conversationId: string; ownerActorId: string; bootstrapRequestId: string;
@@ -117,7 +118,8 @@ async function verifyConsumedFinalization(tx: Prisma.TransactionClient, input: R
   const consumed = await tx.clioConversationManagementReceipt.findUnique({ where: {
     tenantId_actorUserId_requestId: { tenantId, actorUserId: ownerActorId, requestId } } });
   if (!consumed || consumed.conversationId !== null || consumed.requestSha256 !== requestSha256 ||
-      JSON.stringify(consumed.receipt) !== '{"tombstone":true}') throw unavailable();
+      !consumedDeletionMatches(consumed, { conversationId, revision,
+        restoreUntil: new Date(input.restoreUntilMs as number).toISOString() })) throw unavailable();
 }
 
 /** Startup/recovery checks the current Core store, never a cached success.

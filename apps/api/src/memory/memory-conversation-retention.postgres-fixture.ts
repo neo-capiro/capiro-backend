@@ -10,6 +10,9 @@ export async function conversationMemoryRetentionFixture(url: string) {
   const db = new Client({ connectionString: url });
   await db.connect();
   try {
+    // Match the canonical identity schema, where users is global and the
+    // tenant-membership join supplies the actor scope (as in Settings fixtures).
+    await db.query('ALTER TABLE users DISABLE ROW LEVEL SECURITY');
     await db.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
     // Isolated fixture models the required content-free receipt disposition.
     // This is not a migration or a disposition of an existing deployed payload.
@@ -31,6 +34,7 @@ export async function conversationMemoryRetentionFixture(url: string) {
       ["to_regclass('public.memory_review_notification_outbox')", '20260818040000_memory_phase2_notification_outbox'],
       ["to_regclass('public.memory_review_in_app_notification')", '20260818040200_memory_phase2_notification_dispatcher'],
       ["to_regprocedure('memory_candidate_guard_conversation()')", '20281029110000_memory_conversation_retention'],
+      ["to_regprocedure('meri_management_deletion_reference_v1(jsonb,uuid,uuid)')", '20281029130000_conversation_deletion_readback'],
     ]) {
       if (!(await db.query(`SELECT ${ready} AS ready`)).rows[0].ready)
         await db.query(readFileSync(join(__dirname, '../../prisma/migrations', migration!, 'migration.sql'), 'utf8'));
