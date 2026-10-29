@@ -45,6 +45,7 @@ interface InboxRow {
   assignedTo: string | null;
   decidedBy: string | null;
   createdAt: Date;
+  createdAtCursor: string;
   decidedAt: Date | null;
   candidateKind: string | null;
   sourceKind: string;
@@ -263,7 +264,7 @@ export class MemoryReviewInboxService {
         nextCursor:
           (hasExtraVisible || rows.length === scanLimit) && cursorRow
             ? encodeMemoryReviewCursor({
-                createdAt: cursorRow.createdAt.toISOString(),
+                createdAt: cursorRow.createdAtCursor,
                 id: cursorRow.reviewRequestId,
               })
             : null,
@@ -405,7 +406,9 @@ export class MemoryReviewInboxService {
         ? Prisma.sql`AND (notification.created_at, notification.id) <
             (${cursor.createdAt}::timestamptz, ${cursor.id}::uuid)`
         : Prisma.sql``;
-      const rows = await tx.$queryRaw<NotificationRow[]>(Prisma.sql`
+      const rows = await tx.$queryRaw<
+        Array<NotificationRow & { createdAtCursor: string }>
+      >(Prisma.sql`
         SELECT notification.id::text AS id,
                notification.review_request_id::text AS "reviewRequestId",
                notification.candidate_id::text AS "candidateId",
@@ -413,7 +416,8 @@ export class MemoryReviewInboxService {
                notification.event_type AS "eventType",
                notification.title,
                notification.read_at AS "readAt",
-               notification.created_at AS "createdAt"
+               notification.created_at AS "createdAt",
+               to_char(notification.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "createdAtCursor"
         FROM memory_review_in_app_notification notification
         WHERE notification.tenant_id = ${ctx.tenantId}::uuid
           AND notification.recipient_user_id = ${ctx.userId}::uuid
@@ -422,7 +426,7 @@ export class MemoryReviewInboxService {
         LIMIT ${scanLimit}
       `);
       const items: MemoryReviewNotificationItem[] = [];
-      let lastReturnedRow: NotificationRow | null = null;
+      let lastReturnedRow: (NotificationRow & { createdAtCursor: string }) | null = null;
       let hasExtraVisible = false;
       for (const row of rows) {
         if (!(await this.notificationVisibleInTx(tx, viewer, row))) continue;
@@ -446,7 +450,7 @@ export class MemoryReviewInboxService {
         nextCursor:
           (hasExtraVisible || rows.length === scanLimit) && cursorRow
             ? encodeMemoryReviewCursor({
-                createdAt: cursorRow.createdAt.toISOString(),
+                createdAt: cursorRow.createdAtCursor,
                 id: cursorRow.id,
               })
             : null,
@@ -903,6 +907,7 @@ function inboxSelect(includePayload = false): Prisma.Sql {
            rr.assigned_to::text AS "assignedTo",
            rr.decided_by::text AS "decidedBy",
            rr.created_at AS "createdAt",
+           to_char(rr.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "createdAtCursor",
            rr.decided_at AS "decidedAt",
            rr.payload_jsonb ->> 'candidateKind' AS "candidateKind",
            mc.source_kind AS "sourceKind",
