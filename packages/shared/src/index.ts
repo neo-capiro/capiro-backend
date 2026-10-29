@@ -4306,6 +4306,14 @@ export const MERI_CAPABILITY_REGISTRY = [
     surfaces: ['full_chat'],
   },
   {
+    name: 'read_federal_draft_source',
+    description:
+      'Read one exact current federal BILLS revision selected by bill/version/revision/content/text hashes from read_bill_text. Verifies bounded retained content and full extracted text integrity for draft preparation. Preserves separate publisher, modified and fetched dates; text normalization, legal structure, enactment and legal currency remain unresolved. Does not fetch a URL or approve/publish a draft.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
     name: 'get_certification_status',
     description:
       'Search the official FedRAMP Marketplace by exact product id or by product/CSP name. Returns source status and impact strings verbatim with sourceUrl and observedAt. If multiple products match, present the bounded candidates and ask the user to disambiguate; NEVER select one yourself. Cite the returned productId verbatim and do not paraphrase a controlled status. Self-reported set-aside/certification fields are separate and are not verified by this tool.',
