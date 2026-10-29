@@ -10,6 +10,8 @@ import { MemoryTransitionAuditService } from '../memory-transition-audit.service
 import { SettingsMemoryVersionCandidateService } from '../settings-memory-version-candidate.service.js';
 import { ImmutableMemoryVersionService } from '../immutable-memory-version.service.js';
 import { MemorySettingsReviewReadinessService } from '../memory-settings-review-readiness.service.js';
+import { MemoryReviewWorkflowService } from '../memory-review-workflow.service.js';
+import { MemoryReviewInboxService } from '../memory-review-inbox.service.js';
 import type { MemoryIngestService } from '../memory-ingest.service.js';
 import { ownerRetentionDatabase } from '../memory-owner-retention.postgres-fixture.js';
 import { SettingsMemoryDraftService } from './service.js';
@@ -23,7 +25,7 @@ export async function settingsSubmissionFixture(url: string) {
       // supplies the scope for the real reviewer-readiness join.
       await db.query('ALTER TABLE users DISABLE ROW LEVEL SECURITY');
     },
-    ['memory_transition_audit', 'memory_cleanup_outbox'],
+    ['memory_transition_audit', 'memory_cleanup_outbox', 'review_request'],
   );
   const db = new Client({ connectionString: url });
   await db.connect();
@@ -88,6 +90,7 @@ export async function settingsSubmissionFixture(url: string) {
     prisma,
     candidates,
     immutable,
+    inbox: new MemoryReviewInboxService(prisma, authorization),
     projected: () => projected,
     drafts: new SettingsMemoryDraftService(prisma, authorization),
     submissions: new SettingsMemorySubmissionService(
@@ -96,6 +99,7 @@ export async function settingsSubmissionFixture(url: string) {
       candidates,
       versions,
       readiness,
+      new MemoryReviewWorkflowService(prisma, authorization),
     ),
   };
 }

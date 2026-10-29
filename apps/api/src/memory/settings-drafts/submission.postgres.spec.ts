@@ -142,11 +142,48 @@ const url = process.env.MEMORY_SUBMISSION_TEST_DATABASE_URL;
     });
     const receipt = await store.submissions.submit(f.ctx, f.type, f.slug, f.id, f.submit);
     expect(await store.db.memoryItem.count({ where: { tenantId: f.tenantId } })).toBe(0);
+    const review = await store.inbox.detail(f.ctx, receipt.candidateId);
+    expect(review).toMatchObject({
+      candidateId: receipt.candidateId,
+      status: 'pending',
+      assignedReviewer: { userId: f.userId },
+      submittedBy: { userId: f.userId },
+    });
+    expect(review.reviewRequestId).toBeTruthy();
+    expect(await store.submissions.submit(f.ctx, f.type, f.slug, f.id, f.submit)).toEqual(receipt);
+    expect(
+      await store.db.reviewRequest.count({
+        where: { tenantId: f.tenantId, subjectId: receipt.candidateId },
+      }),
+    ).toBe(1);
     await store.candidates.approve(f.tenantId, receipt.candidateId, f.userId, f.ctx);
     expect(
       (await store.drafts.readFile(f.ctx, f.type, f.slug)).sections.find((s) => s.key === f.key)
         ?.body,
     ).toBe('Reviewed new content');
+  });
+  it('rolls back candidate creation and keeps the saved draft if the shared review owner cannot record its request', async () => {
+    const f = await fixture('firm-soul');
+    await store.db.$executeRawUnsafe(
+      "ALTER TABLE review_request ADD CONSTRAINT fixture_review_unavailable CHECK(surface <> 'memory') NOT VALID",
+    );
+    try {
+      await expect(
+        store.submissions.submit(f.ctx, f.type, f.slug, f.id, f.submit),
+      ).rejects.toThrow();
+      expect(await store.db.memoryCandidate.count({ where: { tenantId: f.tenantId } })).toBe(0);
+      expect(
+        await store.db.memorySettingsSubmission.count({ where: { tenantId: f.tenantId } }),
+      ).toBe(0);
+      expect(await store.db.memorySettingsDraft.findUnique({ where: { id: f.id } })).toMatchObject({
+        state: 'draft',
+        revision: 1,
+      });
+    } finally {
+      await store.db.$executeRawUnsafe(
+        'ALTER TABLE review_request DROP CONSTRAINT fixture_review_unavailable',
+      );
+    }
   });
   it('creates a section-preserving personal correction and publishes a new immutable version', async () => {
     const f = await fixture('user-profile', true);
