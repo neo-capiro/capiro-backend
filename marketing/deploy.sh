@@ -7,12 +7,23 @@
 # is: build the arm64 image (which bakes in marketing/index.html + assets), push
 # to ECR, force a new deployment of the ECS service, wait for steady state.
 #
-# Usage:  ./marketing/deploy.sh
+# Usage:  ./marketing/deploy.sh [--build-only]
+#   (default)  build the arm64 image, push to ECR, force a new deployment, wait.
+#   --build-only  build the same arm64 image locally and stop. No ECR login,
+#                 no push, no service update, no deployment. Used to prepare and
+#                 smoke the exact source before an owner-approved release.
 # Prereqs: docker + buildx, AWS CLI configured for account 967807252336.
 #          Build context is the REPOSITORY ROOT (the Dockerfile COPYs marketing/*).
 
 set -euo pipefail
 export MSYS_NO_PATHCONV=1  # keep ARNs/paths intact under git-bash on Windows
+
+BUILD_ONLY=0
+case "${1:-}" in
+  "") ;;
+  --build-only) BUILD_ONLY=1 ;;
+  *) echo "Usage: $0 [--build-only]" >&2; exit 2 ;;
+esac
 
 ACCOUNT="967807252336"
 REGION="us-east-1"
@@ -27,6 +38,26 @@ TAG="manual-$(date +%Y%m%d-%H%M%S)"
 if [[ ! -f "$HERE/index.html" ]]; then
   echo "ERROR: $HERE/index.html not found" >&2
   exit 1
+fi
+
+if [[ "$BUILD_ONLY" == 1 ]]; then
+  LOCAL_IMAGE="capiro-marketing:source-$TAG"
+  echo "==> Build only (no login, no push, no deployment)"
+  CTX="$ROOT"
+  DOCKERFILE="$ROOT/marketing/Dockerfile"
+  if command -v cygpath >/dev/null 2>&1; then
+    CTX="$(cygpath -m "$ROOT")"
+    DOCKERFILE="$(cygpath -m "$ROOT/marketing/Dockerfile")"
+  fi
+  docker buildx build \
+    --platform linux/arm64 \
+    -f "$DOCKERFILE" \
+    -t "$LOCAL_IMAGE" \
+    --load \
+    "$CTX"
+  echo "✓ built $LOCAL_IMAGE (not pushed, service untouched)."
+  echo "  Smoke: bash marketing/smoke-8080.sh $LOCAL_IMAGE"
+  exit 0
 fi
 
 echo "==> ECR login"
