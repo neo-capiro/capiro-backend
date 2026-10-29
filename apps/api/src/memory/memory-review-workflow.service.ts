@@ -328,12 +328,8 @@ export class MemoryReviewWorkflowService {
           'Only the assigned reviewer or an administrator may complete review.',
         );
       }
-      if (
-        current === status &&
-        workflow.reason === reason &&
-        workflow.decidedBy === ctx.userId &&
-        workflow.decidedAt
-      ) {
+      // Preserve the first reviewer, reason and timestamp on outcome readback.
+      if (current === status && workflow.decidedAt) {
         return this.describeRowInTx(tx, ctx, workflow);
       }
 
