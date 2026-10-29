@@ -59,6 +59,7 @@ export class ClientProfileFillTaskLedger {
             WHERE t.status = 'queued'
               AND t.next_attempt_at <= now()
               AND r.status <> 'cancelled'
+              AND r.stage <> 'preparing'
               AND NOT EXISTS (
                 SELECT 1
                   FROM client_profile_fill_extension_task dependency

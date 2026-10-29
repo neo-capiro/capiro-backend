@@ -71,7 +71,8 @@ describeDatabase('Fill retry leases and recovery in PostgreSQL', () => {
         input_jsonb jsonb DEFAULT '{}', output_summary_jsonb jsonb DEFAULT '{}',
         error_code text, error_message text, worker_id text, claimed_at timestamptz, heartbeat_at timestamptz,
         next_attempt_at timestamptz DEFAULT now(), completed_at timestamptz,
-        created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now()
+        created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now(),
+        UNIQUE (run_id, task_key)
       ) ON COMMIT DROP`);
     }
     await tx.$executeRawUnsafe(`CREATE TEMP TABLE client_profile_fill_finding (

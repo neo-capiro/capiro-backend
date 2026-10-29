@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { seedCompletionTasks } from './client-profile-fill-completion-plan-store.js';
 import { ConflictException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
@@ -67,6 +68,7 @@ export function createResearchRun(
         JSON.stringify(task.dependsOnKeys.map(key => idByKey.get(key)!)), JSON.stringify(task.input),
       );
     }
+    await seedCompletionTasks(tx, ctx.tenantId, clientId, runId);
     return { runId, created: true };
   };
   return input.request

@@ -1,3 +1,4 @@
+import { seedCompletionTasks } from './client-profile-fill-completion-plan-store.js';
 import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
@@ -525,9 +526,14 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
         await tx.$executeRawUnsafe(
           `UPDATE client_profile_fill_run
               SET stage = 'failed', last_progress_at = now(), updated_at = now()
-            WHERE id = $1::uuid AND tenant_id = $2::uuid`,
+            WHERE id = $1::uuid AND tenant_id = $2::uuid AND status <> 'cancelled'`,
           runId,
           ctx.tenantId,
+        );
+        await tx.$executeRawUnsafe(
+          `UPDATE client_profile_fill_extension_task SET status = 'cancelled', completed_at = now(), updated_at = now()
+            WHERE run_id = $1::uuid AND tenant_id = $2::uuid AND status IN ('queued', 'running')`,
+          runId, ctx.tenantId,
         );
         await tx.$executeRawUnsafe(
           `UPDATE client_profile_fill_task
@@ -836,16 +842,17 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
           attachmentId: run.attachmentIds[0] ?? null,
         });
         await this.contextPlane.recordRunContext(current, run.id, bundle);
-        await this.prisma.withSystem((tx) =>
-          tx.$executeRawUnsafe(
+        await this.prisma.withTenant(current.tenantId, async (tx) => {
+          await seedCompletionTasks(tx, current.tenantId, run.clientId, run.id);
+          await tx.$executeRawUnsafe(
             `UPDATE client_profile_fill_run
                 SET stage = 'research', last_progress_at = now(), updated_at = now()
               WHERE id = $1::uuid AND tenant_id = $2::uuid
                 AND status = 'running' AND stage = 'preparing'`,
             run.id,
             run.tenantId,
-          ),
-        );
+          );
+        });
       } catch (error) {
         await this.contextPlane.failRun(ctx, run.clientId, run.id, error);
         await this.prisma.withSystem(async (tx) => {
@@ -855,6 +862,11 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
               WHERE id = $1::uuid AND tenant_id = $2::uuid AND status <> 'cancelled'`,
             run.id,
             run.tenantId,
+          );
+          await tx.$executeRawUnsafe(
+            `UPDATE client_profile_fill_extension_task SET status = 'cancelled', completed_at = now(), updated_at = now()
+              WHERE run_id = $1::uuid AND tenant_id = $2::uuid AND status IN ('queued', 'running')`,
+            run.id, run.tenantId,
           );
           await tx.$executeRawUnsafe(
             `UPDATE client_profile_fill_task

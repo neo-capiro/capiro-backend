@@ -123,6 +123,7 @@ it('claims four eligible tasks in durable order with a fresh lease for every bat
     "t.status = 'queued'",
     't.next_attempt_at <= now()',
     "r.status <> 'cancelled'",
+    "r.stage <> 'preparing'",
     'dependency.run_id = t.run_id',
     'dependency.task_key = ANY(t.depends_on)',
     "dependency.status IN ('queued', 'running')",
