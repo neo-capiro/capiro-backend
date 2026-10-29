@@ -2,6 +2,7 @@ import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 import type {
   CapiroServiceName,
   EngagementBackgroundOwner,
+  EngagementBackgroundWorkerRestriction,
   EngagementExternalAction,
   EngagementExternalActionMode,
   EngagementProcessMode,
@@ -31,6 +32,7 @@ export class EngagementRuntimePolicyService {
   private readonly externalActionsMode: EngagementExternalActionMode;
   private readonly callbacksEnabled: boolean;
   private readonly recallWebhookEnabled: boolean;
+  private readonly backgroundWorkerRestriction?: EngagementBackgroundWorkerRestriction;
 
   constructor(config: {
     serviceName: CapiroServiceName;
@@ -39,6 +41,7 @@ export class EngagementRuntimePolicyService {
     externalActions: EngagementExternalActionMode;
     callbacksEnabled: boolean;
     recallWebhookEnabled: boolean;
+    backgroundWorkerRestriction?: EngagementBackgroundWorkerRestriction;
   }) {
     this.serviceName = config.serviceName;
     this.processMode = config.processMode;
@@ -46,6 +49,7 @@ export class EngagementRuntimePolicyService {
     this.externalActionsMode = config.externalActions;
     this.callbacksEnabled = config.callbacksEnabled;
     this.recallWebhookEnabled = config.recallWebhookEnabled;
+    this.backgroundWorkerRestriction = config.backgroundWorkerRestriction;
   }
 
   snapshot(): EngagementRuntimeSnapshot {
@@ -56,6 +60,7 @@ export class EngagementRuntimePolicyService {
       externalActions: this.externalActionsMode,
       callbacksEnabled: this.callbacksEnabled,
       recallWebhookEnabled: this.recallWebhookEnabled,
+      backgroundWorkerRestriction: this.backgroundWorkerRestriction,
     };
   }
 
@@ -73,10 +78,18 @@ export class EngagementRuntimePolicyService {
    * `integrations_only`).
    * The separately explicit notetaker posture adds only its two existing guard
    * names; generic workers remain disabled.
+   * An explicitly configured `backgroundWorkerRestriction` narrows an otherwise
+   * generic owner immediately after the disabled-owner and owner-identity
+   * guards: only the exact `engagement-sync-scheduler` name is admitted, while
+   * no argument, a blank name and every other name stay denied rather than
+   * falling through to generic ownership.
    */
   backgroundWorkersEnabled(workerName?: string): boolean {
     if (this.backgroundOwner === 'disabled') return false;
     if (this.backgroundOwner !== this.serviceName) return false;
+    if (this.backgroundWorkerRestriction) {
+      return workerName === 'engagement-sync-scheduler';
+    }
     if (this.externalActionsMode === 'integrations_and_notetaker') {
       return this.notetakerPostureEnabled() &&
         ['engagement-sync-scheduler', 'notetaker-reconcile', 'client-notetaker'].includes(workerName ?? '');

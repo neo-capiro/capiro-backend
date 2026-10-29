@@ -15,6 +15,7 @@ function makePolicy(config: {
   externalActions: EngagementExternalActionMode;
   callbacksEnabled: boolean;
   recallWebhookEnabled: boolean;
+  backgroundWorkerRestriction?: 'integration_sync_scheduler';
 }) {
   return new EngagementRuntimePolicyService(config);
 }
@@ -453,6 +454,103 @@ describe('EngagementRuntimePolicyService', () => {
       });
       expect(() => policy.assertRecallWebhookEnabled()).not.toThrow();
       expect(policy.isRecallWebhookEnabled()).toBe(true);
+    });
+  });
+
+  describe('opt-in background worker restriction', () => {
+    const posture = {
+      serviceName: 'api',
+      processMode: 'active',
+      backgroundOwner: 'api',
+      externalActions: 'enabled',
+      callbacksEnabled: true,
+      recallWebhookEnabled: false,
+      backgroundWorkerRestriction: 'integration_sync_scheduler',
+    } as const;
+    const policy = makePolicy(posture);
+
+    it('admits only the exact integration sync scheduler name', () => {
+      expect(policy.backgroundWorkersEnabled('engagement-sync-scheduler')).toBe(true);
+      expect(() => policy.assertBackgroundOwner('engagement-sync-scheduler')).not.toThrow();
+    });
+
+    it.each([
+      undefined,
+      '',
+      '  ',
+      'engagement-sync-scheduler-v2',
+      'engagement-outreach-scheduler',
+      'engagement-notetaker-reconcile',
+      'notetaker-reconcile',
+      'client-notetaker',
+      'mailbox-indexing-worker',
+      'attachment-indexing-worker',
+      'krisp-notetaker-worker',
+      'meeting-prep-worker',
+      'outreach-v3-full-generation',
+      'outreach-v3-send-intent',
+    ])('denies the non-exact worker name %p instead of falling through to generic ownership', (workerName) => {
+      expect(policy.backgroundWorkersEnabled(workerName)).toBe(false);
+      expect(() => policy.assertBackgroundOwner(workerName ?? '')).toThrow();
+    });
+
+    it('keeps every external-action decision identical to the unrestricted api/active/enabled baseline', () => {
+      const baseline = makePolicy({
+        serviceName: 'api',
+        processMode: 'active',
+        backgroundOwner: 'api',
+        externalActions: 'enabled',
+        callbacksEnabled: true,
+        recallWebhookEnabled: false,
+      });
+      const actions = [...ALL_ACTIONS, 'outreach_reasoning', 'outreach_v3_generate',
+        'outreach_v3_send', 'outreach_v3_test_send'] as EngagementExternalAction[];
+      for (const action of actions) {
+        expect(policy.externalActionAllowed(action)).toBe(baseline.externalActionAllowed(action));
+        expect(policy.externalActionAllowed(action, { testMode: true }))
+          .toBe(baseline.externalActionAllowed(action, { testMode: true }));
+      }
+      // The enabled API baseline itself is unchanged by this story: manual
+      // disconnect, sync, subscription and the attachment boundaries stay admitted.
+      for (const action of [
+        'integration_disconnect',
+        'integration_sync',
+        'integration_subscription',
+        'attachment_external_read',
+        'attachment_external_write',
+      ] as EngagementExternalAction[]) {
+        expect(policy.externalActionAllowed(action)).toBe(true);
+      }
+      // Existing V3 denials stay denied for the api service name.
+      for (const action of ['outreach_v3_generate', 'outreach_v3_send', 'outreach_reasoning',
+        'outreach_v3_test_send'] as EngagementExternalAction[]) {
+        expect(policy.externalActionAllowed(action)).toBe(false);
+      }
+    });
+
+    it('keeps callbacks admitted and Recall denied in the intended tuple', () => {
+      expect(() => policy.assertCallbacksEnabled('integration_oauth_callback')).not.toThrow();
+      expect(policy.isRecallWebhookEnabled()).toBe(false);
+      expect(() => policy.assertRecallWebhookEnabled()).toThrow(/Recall/);
+    });
+
+    it('still refuses every worker when the owner is disabled', () => {
+      const disabledOwner = makePolicy({ ...posture, backgroundOwner: 'disabled' });
+      expect(disabledOwner.backgroundWorkersEnabled('engagement-sync-scheduler')).toBe(false);
+      expect(() => disabledOwner.assertBackgroundOwner('engagement-sync-scheduler')).toThrow();
+    });
+
+    it('still refuses a mismatched owner before the restriction applies', () => {
+      const mismatched = makePolicy({ ...posture, serviceName: 'engagement-api' });
+      expect(mismatched.backgroundWorkersEnabled('engagement-sync-scheduler')).toBe(false);
+      expect(() => mismatched.assertBackgroundOwner('engagement-sync-scheduler')).toThrow();
+    });
+
+    it('reports the restriction in the sanitized snapshot', () => {
+      expect(policy.snapshot().backgroundWorkerRestriction).toBe('integration_sync_scheduler');
+      expect(JSON.stringify(policy.snapshot())).not.toMatch(
+        /password|secret|token|apiKey|credential/i,
+      );
     });
   });
 });

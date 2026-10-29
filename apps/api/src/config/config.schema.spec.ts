@@ -350,3 +350,60 @@ describe('configSchema — Meri rollout mode switches fail closed on blank', () 
     }
   });
 });
+
+describe('opt-in background worker restriction', () => {
+  const raw = {
+    NODE_ENV: 'test',
+    DATABASE_URL: 'postgresql://test:***@localhost:5432/test',
+    CLERK_SECRET_KEY: 'test-secret',
+    CLERK_WEBHOOK_SIGNING_SECRET: 'test-webhook-secret',
+    CAPIRO_SERVICE_NAME: 'api',
+    ENGAGEMENT_PROCESS_MODE: 'active',
+    ENGAGEMENT_BACKGROUND_OWNER: 'api',
+    ENGAGEMENT_EXTERNAL_ACTIONS: 'enabled',
+    ENGAGEMENT_CALLBACKS_ENABLED: 'true',
+    ENGAGEMENT_RECALL_WEBHOOK_ENABLED: 'false',
+    ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION: 'integration_sync_scheduler',
+  };
+
+  test('accepts the exact intended tuple through direct validateConfig', () => {
+    expect(validateConfig(raw)).toMatchObject({
+      ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION: 'integration_sync_scheduler',
+      ENGAGEMENT_EXTERNAL_ACTIONS: 'enabled',
+      ENGAGEMENT_CALLBACKS_ENABLED: true,
+      ENGAGEMENT_RECALL_WEBHOOK_ENABLED: false,
+    });
+  });
+
+  test('defaults to unset so legacy generic ownership is unchanged', () => {
+    const field = configSchema.shape.ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION;
+    expect(field.parse(undefined)).toBeUndefined();
+    expect(field.parse('')).toBeUndefined();
+    expect(field.parse('  ')).toBeUndefined();
+    expect(
+      validateConfig({ ...raw, ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION: undefined }),
+    ).toMatchObject({ ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION: undefined });
+  });
+
+  test.each(['engagement-sync-scheduler', 'scheduler_only', 'all', 'true'])(
+    'rejects the unknown explicit selection %p before any posture check',
+    (value) => {
+      expect(() =>
+        validateConfig({ ...raw, ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION: value }),
+      ).toThrow();
+    },
+  );
+
+  test.each([
+    ['CAPIRO_SERVICE_NAME', 'engagement-api'],
+    ['ENGAGEMENT_PROCESS_MODE', 'shadow'],
+    ['ENGAGEMENT_BACKGROUND_OWNER', 'disabled'],
+    ['ENGAGEMENT_EXTERNAL_ACTIONS', 'test_only'],
+    ['ENGAGEMENT_CALLBACKS_ENABLED', 'false'],
+    ['ENGAGEMENT_RECALL_WEBHOOK_ENABLED', 'true'],
+  ])('fails closed on %s=%s independently of the boot preflight', (key, value) => {
+    expect(() => validateConfig({ ...raw, [key]: value })).toThrow(
+      /ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION/,
+    );
+  });
+});

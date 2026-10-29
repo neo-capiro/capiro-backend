@@ -1,6 +1,7 @@
 import type {
   CapiroServiceName,
   EngagementBackgroundOwner,
+  EngagementBackgroundWorkerRestriction,
   EngagementExternalActionMode,
   EngagementProcessMode,
 } from './engagement-runtime.types.js';
@@ -15,6 +16,7 @@ export interface EngagementRuntimeEnvironment {
   externalActions: EngagementExternalActionMode;
   callbacksEnabled: boolean;
   recallWebhookEnabled: boolean;
+  backgroundWorkerRestriction?: EngagementBackgroundWorkerRestriction;
 }
 
 function exactEnum<T extends string>(
@@ -43,6 +45,29 @@ export function parseExactBooleanEnvironment(
     `${name} must be an exact boolean value: true/1/yes/on or false/0/no/off ` +
       `(got ${JSON.stringify(String(raw))})`,
   );
+}
+
+/**
+ * Parse the opt-in background-worker restriction.
+ *
+ * Omitted or blank keeps the legacy generic-ownership behavior, so a
+ * hand-edited task definition that blanks the value cannot crash-loop the API
+ * over a variable it deliberately does not set. A non-blank value must be the
+ * single supported token: anything else fails closed instead of being silently
+ * ignored or widened into a worker list.
+ */
+export function parseEngagementBackgroundWorkerRestriction(
+  raw: unknown,
+): EngagementBackgroundWorkerRestriction | undefined {
+  const value = raw == null ? '' : String(raw).trim().toLowerCase();
+  if (value === '') return undefined;
+  if (value !== 'integration_sync_scheduler') {
+    throw new Error(
+      'ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION must be omitted or exactly ' +
+        `'integration_sync_scheduler' (got ${JSON.stringify(String(raw))})`,
+    );
+  }
+  return value;
 }
 
 /**
@@ -75,6 +100,12 @@ export const ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT =
  * OAuth/subscriptions. One named exception is admitted: serviceName=api with an
  * explicitly set ENGAGEMENT_BACKGROUND_OWNER=api may run only the existing
  * engagement-sync-scheduler under the runtime policy.
+ *
+ * One further opt-in control narrows an otherwise generic owner:
+ * ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION=integration_sync_scheduler admits
+ * only the existing engagement-sync-scheduler worker, and only on the
+ * api/active/api/enabled/callbacks=true/Recall=false tuple. Omitted keeps the
+ * legacy generic ownership behavior unchanged.
  * integrations_and_notetaker separately enables existing Recall capture and
  * debrief generation, with an explicit API owner and both callback gates on.
  *
@@ -129,6 +160,9 @@ export function resolveEngagementRuntimeEnvironment(
     raw.ENGAGEMENT_RECALL_WEBHOOK_ENABLED,
     true,
   );
+  const backgroundWorkerRestriction = parseEngagementBackgroundWorkerRestriction(
+    raw.ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION,
+  );
 
   const resolved: EngagementRuntimeEnvironment = {
     serviceName,
@@ -137,7 +171,29 @@ export function resolveEngagementRuntimeEnvironment(
     externalActions,
     callbacksEnabled,
     recallWebhookEnabled,
+    backgroundWorkerRestriction,
   };
+
+  // The restriction narrows the worker surface, so it is valid only for the
+  // intended main-API tuple. An explicit selection outside that tuple fails
+  // closed rather than quietly changing which workers run.
+  if (backgroundWorkerRestriction) {
+    const compatible =
+      serviceName === 'api' &&
+      processMode === 'active' &&
+      backgroundOwner === 'api' &&
+      externalActions === 'enabled' &&
+      callbacksEnabled &&
+      !recallWebhookEnabled;
+    if (!compatible) {
+      throw new Error(
+        'ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION=integration_sync_scheduler requires ' +
+          'CAPIRO_SERVICE_NAME=api, ENGAGEMENT_PROCESS_MODE=active, ' +
+          'ENGAGEMENT_BACKGROUND_OWNER=api, ENGAGEMENT_EXTERNAL_ACTIONS=enabled, ' +
+          'ENGAGEMENT_CALLBACKS_ENABLED=true and ENGAGEMENT_RECALL_WEBHOOK_ENABLED=false.',
+      );
+    }
+  }
 
   if (externalActions === 'integrations_and_notetaker') {
     const explicit = ['CAPIRO_SERVICE_NAME', 'ENGAGEMENT_PROCESS_MODE', 'ENGAGEMENT_BACKGROUND_OWNER',
