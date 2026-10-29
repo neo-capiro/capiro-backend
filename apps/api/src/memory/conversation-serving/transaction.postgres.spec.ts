@@ -63,15 +63,16 @@ const url = process.env.MEMORY_RESTORE_TEST_DATABASE_URL;
     // A committed phase may be retried before its outer ledger receipt exists.
     await admin.query(body);
     await admin.query(body);
-    await admin.query(
-      readFileSync(
-        join(
-          __dirname,
-          '../../../prisma/migrations/20281029200000_memory_restore_serving/migration.sql',
+    for (const migration of [
+      '20281029200000_memory_restore_serving',
+      '20281029210000_memory_review_candidate_lookup',
+    ])
+      await admin.query(
+        readFileSync(
+          join(__dirname, '../../../prisma/migrations', migration, 'migration.sql'),
+          'utf8',
         ),
-        'utf8',
-      ),
-    );
+      );
   }, 60000);
   beforeEach(async () => {
     witness = { sequence: 0, entrySha256: null };
