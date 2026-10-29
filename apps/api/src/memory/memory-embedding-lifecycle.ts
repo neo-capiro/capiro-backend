@@ -6,6 +6,7 @@ import {
   type EmbedOutcome,
 } from '../embeddings/embedder.js';
 import type { EmbeddingProvider } from '../embeddings/embedding-provider.js';
+import { lockMemoryRetentionInTx, retainedMemoryInTx } from './memory-retention-selection.js';
 import {
   currentMemoryReadSql,
   governedRecallColumnsAvailableInTx,
@@ -82,24 +83,30 @@ export async function embedMemoryItem(
 /** Existing scheduled expiry effect, with source locks before derived-index
  * locks. Freeze the selected IDs so later predicates cannot add unlocked rows. */
 export async function purgeExpiredMemoryInTx(tx: Prisma.TransactionClient) {
+  await lockMemoryRetentionInTx(tx);
+  const retained = await retainedMemoryInTx(tx);
   const expired = await tx.$queryRaw<Array<{ id: string }>>`
     SELECT id FROM memory_items
-    WHERE expires_at IS NOT NULL AND expires_at <= now()
+    WHERE expires_at IS NOT NULL AND expires_at <= now() AND legal_hold = false
+      AND id <> ALL(${retained.itemIds}::uuid[])
     ORDER BY id FOR UPDATE
   `;
   const ids = expired.map((row) => row.id);
   const embeddings = await tx.$executeRaw`
     DELETE FROM context_embeddings ce USING memory_items mi
     WHERE ce.source_type = 'memory_item' AND ce.source_id = mi.id::text
+      AND ce.tenant_id = mi.tenant_id
       AND mi.id = ANY(${ids}::uuid[])
-      AND mi.expires_at IS NOT NULL AND mi.expires_at <= now()
+      AND mi.expires_at IS NOT NULL AND mi.expires_at <= now() AND mi.legal_hold = false
   `;
   const items = await tx.$executeRaw`
     DELETE FROM memory_items
     WHERE id = ANY(${ids}::uuid[]) AND expires_at IS NOT NULL AND expires_at <= now()
+      AND legal_hold = false
   `;
   const clio = await tx.$executeRaw`
     DELETE FROM clio_memory WHERE expires_at IS NOT NULL AND expires_at <= now()
+      AND id <> ALL(${retained.clioIds}::uuid[])
   `;
   return { embeddings, items, clio };
 }
