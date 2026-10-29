@@ -27,6 +27,9 @@ import { canEdit } from '../collaborators/role-policy.js';
 import type { CreateDraftDto, UpdateDraftDto, ListDraftsQueryDto } from './dto/draft.dto.js';
 import type { SaveDraftDto } from './dto/save-draft.dto.js';
 import { ordinaryDraftState, saveOrdinaryDraft } from './ordinary-draft-save.js';
+import { readAtomicDraftState } from './atomic-draft-save.js';
+import { saveProspectDraft } from './prospect-draft-save.js';
+import type { SaveProspectDraftDto } from './dto/prospect-save.dto.js';
 
 /**
  * Drafts service (Phase 3, AC-3.3). Every method is tenant-scoped: tenantId is
@@ -48,6 +51,14 @@ export class DraftsService {
 
   currentState(tenantId: string, draftId: string, actorId: string) {
     return ordinaryDraftState(this.prisma, this.collaborators, tenantId, draftId, actorId);
+  }
+
+  prospectState(tenantId: string, draftId: string, actorId: string, prospectId: string) {
+    return readAtomicDraftState(this.prisma, this.collaborators, tenantId, draftId, actorId, prospectId);
+  }
+
+  saveProspect(tenantId: string, draftId: string, actorId: string, input: SaveProspectDraftDto) {
+    return saveProspectDraft(this.prisma, this.collaborators, tenantId, draftId, actorId, input);
   }
 
   save(tenantId: string, draftId: string, actorId: string, input: SaveDraftDto) {
@@ -422,6 +433,8 @@ export class DraftsService {
       const current = await db.wsDraft.findFirstOrThrow({
         where: { id, tenantId }, include: { documents: { select: { id: true } } },
       });
+      if (current.prospectId && !transaction)
+        throw new ConflictException({ code: 'WORKSPACE_PROSPECT_ATOMIC_SAVE_REQUIRED' });
       if (isHeldDraftClientAssociation(current) && current.ownerId !== actorId)
         throw new NotFoundException('Draft not found');
       if (associatingLegacy) {
