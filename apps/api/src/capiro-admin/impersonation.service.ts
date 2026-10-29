@@ -148,6 +148,73 @@ export class ImpersonationService {
     );
   }
 
+  active(ctx: TenantContext, req: Request) {
+    return this.current(ctx, req, async (tx, now) => {
+      const rows = await tx.impersonationSession.findMany({
+        where: { actorUserId: ctx.userId, endedAt: null },
+        include,
+        orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
+      });
+      let selected: Session | undefined;
+      for (const row of rows) {
+        if (row.expiresAt <= now) await this.close(tx, ctx, row, now, 'expired');
+        else if (!selected) selected = row;
+        else await this.close(tx, ctx, row, now, 'replaced');
+      }
+      return { session: selected ? projectImpersonation(selected, now) : null };
+    });
+  }
+
+  workspace(ctx: TenantContext, req: Request, sessionId: string, after?: string) {
+    if (after !== undefined && !isUUID(after))
+      throw new BadRequestException('Invalid client cursor');
+    return this.current(ctx, req, async (tx) => {
+      const session = await this.owned(tx, ctx, sessionId);
+      // The actor lock in current() serializes this read with replacement/exit.
+      // Stabilize target availability too. Tenant headers never select this scope.
+      await tx.$queryRaw`SELECT id FROM tenants WHERE id=${session.tenantId}::uuid FOR SHARE`;
+      const active = async () => {
+        const current = await this.owned(tx, ctx, sessionId);
+        if (projectImpersonation(current, new Date()).status !== 'active')
+          throw new ForbiddenException('Impersonation session is no longer active');
+        return current;
+      };
+      await active();
+      const rows = await tx.client.findMany({
+        where: {
+          tenantId: session.tenantId,
+          status: { not: 'archived' },
+          ...(after ? { id: { gt: after } } : {}),
+          OR: [
+            { memoryWall: false },
+            { memoryAccessGrants: { some: { tenantId: session.tenantId, userId: ctx.userId } } },
+          ],
+        },
+        select: { id: true, name: true, status: true, website: true, updatedAt: true },
+        orderBy: { id: 'asc' },
+        take: 51,
+      });
+      const clients = rows.slice(0, 50);
+      await tx.auditLog.create({
+        data: {
+          tenantId: session.tenantId,
+          actorUserId: ctx.userId,
+          actorRole: 'capiro_admin',
+          action: 'impersonation.workspace.read',
+          entityType: 'impersonation_session',
+          entityId: session.id,
+          after: { returnedCount: clients.length, hasMore: rows.length > 50 },
+        },
+      });
+      return {
+        session: projectImpersonation(await active(), new Date()),
+        readOnly: true as const,
+        clients,
+        nextCursor: rows.length > 50 ? clients.at(-1)!.id : null,
+      };
+    });
+  }
+
   end(ctx: TenantContext, req: Request, sessionId: string) {
     return this.current(ctx, req, async (tx, now) => {
       const session = await this.owned(tx, ctx, sessionId);
