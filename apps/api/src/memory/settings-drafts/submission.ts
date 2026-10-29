@@ -18,6 +18,8 @@ import { MemoryAuthorizationService } from '../memory-authorization.service.js';
 import { MemoryCandidateService } from '../memory-candidate.service.js';
 import { SettingsMemoryVersionCandidateService } from '../settings-memory-version-candidate.service.js';
 import { MemorySettingsReviewReadinessService } from '../memory-settings-review-readiness.service.js';
+import { MemoryReviewWorkflowService } from '../memory-review-workflow.service.js';
+import { candidateKindFor } from '../memory-version.helpers.js';
 import { editableSectionKeys, fileDefForType, mergeEditedSections } from '../memory-catalog.js';
 import type { MemoryItemType } from '../memory.types.js';
 import { withDraftTarget, readDraftBase } from './authority.js';
@@ -64,6 +66,7 @@ export class SettingsMemorySubmissionService {
     private readonly candidates: MemoryCandidateService,
     private readonly versions: SettingsMemoryVersionCandidateService,
     private readonly readiness: MemorySettingsReviewReadinessService,
+    private readonly workflow: MemoryReviewWorkflowService,
   ) {}
   async submit(ctx: TenantContext, type: string, slug: string, id: string, raw: unknown) {
     draftId(id);
@@ -93,6 +96,8 @@ export class SettingsMemorySubmissionService {
           return result(previous);
         }
         const candidateId = await this.proposeSavedDraft(tx, current, target, id, revision);
+        if (target.scope !== 'user')
+          await this.ensureSharedReview(tx, current, target, candidateId);
         await tx.$executeRaw`UPDATE memory_settings_drafts SET state='submitted',sections=NULL,revision=revision+1
         WHERE tenant_id=${ctx.tenantId}::uuid AND author_user_id=${ctx.userId}::uuid AND id=${id}::uuid`;
         await tx.$executeRaw`INSERT INTO memory_settings_submissions
@@ -237,5 +242,43 @@ export class SettingsMemorySubmissionService {
     >`SELECT to_regclass('public.memory_settings_submissions') IS NOT NULL AS ready`;
     if (!ready[0]?.ready)
       throw new ServiceUnavailableException('Memory draft submission is not available yet.');
+  }
+  private async ensureSharedReview(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    target: DraftTarget,
+    candidateId: string,
+  ) {
+    const candidate = await tx.memoryCandidate.findFirstOrThrow({
+      where: { tenantId: ctx.tenantId, id: candidateId, status: 'pending' },
+      select: {
+        sourceKind: true,
+        contradictsMemoryItemId: true,
+        conflictStatus: true,
+        scope: true,
+      },
+    });
+    const subject = await this.authorization.loadCandidateInTx(tx, ctx.tenantId, candidateId);
+    if (!subject)
+      throw new ConflictException(
+        'Review candidate unavailable. Your private draft was not submitted.',
+      );
+    const review = await this.workflow.ensureAndDescribeInTx(
+      tx,
+      ctx,
+      {
+        id: candidateId,
+        tenantId: ctx.tenantId,
+        clientId: target.clientId,
+        proposedByUserId: ctx.userId,
+        sourceKind: candidate.sourceKind,
+        scope: candidate.scope,
+        candidateKind: candidateKindFor(candidate),
+        title: fileDefForType(target.type)!.label,
+      },
+      subject,
+    );
+    if (!review.assignedReviewer)
+      throw new ConflictException('No eligible reviewer. Your private draft was not submitted.');
   }
 }
