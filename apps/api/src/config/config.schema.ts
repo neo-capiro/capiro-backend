@@ -174,6 +174,19 @@ export const configSchema = z.object({
   DEBRIEF_OPENAI_MODEL: z.string().default('gpt-6-astra').transform(upgradeTextModel),
   DEBRIEF_ANTHROPIC_MODEL: z.string().default('claude-sonnet-5').transform(upgradeTextModel),
 
+  // Meri note-taker preview transport: meeting prep, debrief and the notes summary
+  // the notetaker saves are generated through the OpenAI Agents SDK (@openai/agents)
+  // instead of the raw Responses transport. Off by default so ordinary environments
+  // keep today's behavior; a preview environment sets the literal 'true'. The key is
+  // the existing OPENAI_API_KEY (AWS Secrets Manager → task env) or a tenant BYOK
+  // OpenAI credential resolved by AiCredentialResolverService.
+  MEETING_ARTIFACT_AGENT_SDK: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
+  // Optional Agents SDK model override; unset keeps the credential's resolved model.
+  MEETING_ARTIFACT_AGENT_MODEL: z.string().optional(),
+
   // Comprehensive meeting-prep model overrides (scoped to the durable briefing
   // job ONLY; the interactive prep, talking points and outreach keep reading
   // OPENAI_MODEL / ANTHROPIC_MODEL). Extracting, synthesizing and reviewing
