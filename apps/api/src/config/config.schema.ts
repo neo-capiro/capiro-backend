@@ -1256,6 +1256,23 @@ export const configSchema = z.object({
     z.enum(['integration_sync_scheduler']).optional(),
   ),
 
+  // Mail-handoff admission selection (SCRUM-190). Omitted/blank keeps legacy
+  // behavior. The phase is explicit; the companion generation/fence instant may
+  // only appear WITH a non-off phase, and the instant must be a real ISO value —
+  // the boot preflight (resolveEngagementRuntimeEnvironment) enforces the same
+  // rules, and validateConfig rejects a companion without a phase.
+  ENGAGEMENT_MAIL_HANDOFF_PHASE: z.preprocess(
+    normalizeOptionalSwitch,
+    z.enum(['off', 'initiation_fenced', 'callback_fenced', 'writers_closed']).optional(),
+  ),
+  ENGAGEMENT_MAIL_HANDOFF_GENERATION: z.string().min(1).optional(),
+  ENGAGEMENT_MAIL_HANDOFF_FENCE_UTC: z
+    .string()
+    .refine((value) => !Number.isNaN(new Date(value).getTime()), {
+      message: 'ENGAGEMENT_MAIL_HANDOFF_FENCE_UTC must be an ISO-8601 instant',
+    })
+    .optional(),
+
   // External action mode. 'enabled' = all actions (main API default).
   // 'disabled' = none (shadow). 'test_only' = only outreach_test_send with
   // testMode=true. 'integrations_only' permits the bounded Mail integration
