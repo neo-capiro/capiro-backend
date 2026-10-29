@@ -1,8 +1,18 @@
 {
   "schemaVersion": 1,
   "repository": "neo-capiro/capiro-frontend",
-  "activeCommit": "83f54f5ac0107822833adbbfef2b453e0240bc56",
+  "activeCommit": "ee470d7d44b811dc84d147c62a3eab7c9b5be09f",
   "acceptedSources": [
+    {
+      "commit": "ee470d7d44b811dc84d147c62a3eab7c9b5be09f",
+      "tree": "cc7168bd5277517e2a0bf9e89ff61b9f459299c4",
+      "qualificationReceipt": {
+        "repository": "neo-capiro/capiro-frontend",
+        "commit": "861ebed146690872e583270428a620f14e80bfa6",
+        "path": "docs/legacy-web-20261029/SOURCE-PIN-QUALIFICATION.md",
+        "sha256": "69f95d4cf906b1d1c81244391612660430d78554044d1a10a7de4c601a73dee2"
+      }
+    },
     {
       "commit": "c8aa693e884de86001d2fc04fbb60d48db09341c",
       "tree": "9d11bfbd7121887bc06f5cb793e8a4c4e6e682b4",
