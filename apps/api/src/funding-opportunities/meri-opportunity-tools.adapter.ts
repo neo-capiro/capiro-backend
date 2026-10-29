@@ -30,6 +30,7 @@ import {
   isFundingOpportunitiesFeatureEnabled,
 } from './funding-opportunities-flag.guard.js';
 import { explainOpportunity } from './opportunity-explanation.js';
+import type { ActionPlan, ProposedAction } from './opportunity-action-plan.js';
 import {
   OPPORTUNITY_SOURCES,
   type FundingOpportunity,
@@ -549,7 +550,7 @@ export class MeriOpportunityToolsAdapter {
         signal: s.signal,
       })),
       missingProfileFields: row.missingProfileFields,
-      facts: toFacts(row),
+      facts: toFacts(row, {}, asOf.toISOString()),
     };
 
     const out = envelope(tool, 'available', asOf, EXPLANATION_NOTE, data);
@@ -736,7 +737,7 @@ export class MeriOpportunityToolsAdapter {
               requested: { source: ref.source, sourceRecordId: ref.sourceRecordId },
               state: 'available',
               explanation: 'Local Capiro record.',
-              facts: toFacts(row),
+              facts: toFacts(row, {}, asOf.toISOString()),
             }
           : {
               requested: { source: ref.source, sourceRecordId: ref.sourceRecordId },
@@ -816,6 +817,9 @@ export class MeriOpportunityToolsAdapter {
       // not the dependency list.
       'PROPOSALS ONLY. Nothing here is committed. Each action becomes real only when a person accepts it in Capiro, which creates the task and records the decision in one transaction.',
       {
+        clientId: plan.clientId,
+        ref: { source: plan.source, sourceRecordId: plan.sourceRecordId },
+        generatedAt: plan.generatedAt,
         stage: plan.stage,
         // The composer's own sentence about WHY this state, not a second one
         // written here. P34 already words it for a reader.
@@ -823,6 +827,8 @@ export class MeriOpportunityToolsAdapter {
         fingerprint: plan.fingerprint,
         acceptance: result.acceptance,
         actions,
+        ...(plan.feasibility ? { feasibility: plan.feasibility } : {}),
+        ...(plan.proposedSchedule ? { proposedSchedule: plan.proposedSchedule } : {}),
       } as ActionPlanView,
     );
     if (total > actions.length) {
@@ -1013,11 +1019,16 @@ export interface Comparison {
 }
 
 export interface ActionPlanView {
-  stage: string;
+  clientId: string;
+  ref: { source: ActionPlan['source']; sourceRecordId: string };
+  generatedAt: string;
+  stage: ActionPlan['stage'];
   stageExplanation: string;
   fingerprint: string;
   acceptance: { wired: boolean; explanation: string };
-  actions: unknown[];
+  actions: ProposedAction[];
+  feasibility?: ActionPlan['feasibility'];
+  proposedSchedule?: ActionPlan['proposedSchedule'];
 }
 
 // ── Pure helpers (exported for the spec) ────────────────────────────────────
