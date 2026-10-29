@@ -19,6 +19,10 @@ import {
   type MemoryReviewWorkflowSnapshot,
 } from './memory-review-workflow.service.js';
 import { normalizeMemoryReviewReason } from './memory-review-workflow.helpers.js';
+import {
+  recoverMemoryDecisionInTx,
+  type MemoryDecisionAction,
+} from './memory-decision-recovery.js';
 import { memoryReviewSurfaceEnabled } from './memory-review-switch.js';
 import type { MemorySection } from './memory.types.js';
 import {
@@ -284,22 +288,29 @@ export class MemoryCandidateReviewService {
    */
   async approve(ctx: TenantContext, candidateId: string): Promise<MemoryReviewDecisionResult> {
     this.requireEnabled();
-    await this.workflow.assertAssignedForDecision(ctx, candidateId, 'approve');
-    const kind = await this.loadCandidateKind(ctx, candidateId);
-    let result: MemoryReviewDecisionResult;
-    if (kind === 'correction' || kind === 'restore' || kind === 'contradiction') {
-      result = { candidateKind: kind, ...(await this.versions.approveCandidate(ctx, candidateId)) };
-    } else {
-      const { memoryId } = await this.candidates.approve(
-        ctx.tenantId,
-        candidateId,
-        ctx.userId,
-        ctx,
-      );
-      result = { candidateId, candidateKind: kind, outcome: 'activated', memoryId };
+    try {
+      await this.workflow.assertAssignedForDecision(ctx, candidateId, 'approve');
+      const kind = await this.loadCandidateKind(ctx, candidateId);
+      let result: MemoryReviewDecisionResult;
+      if (kind === 'correction' || kind === 'restore' || kind === 'contradiction') {
+        result = {
+          candidateKind: kind,
+          ...(await this.versions.approveCandidate(ctx, candidateId)),
+        };
+      } else {
+        const { memoryId } = await this.candidates.approve(
+          ctx.tenantId,
+          candidateId,
+          ctx.userId,
+          ctx,
+        );
+        result = { candidateId, candidateKind: kind, outcome: 'activated', memoryId };
+      }
+      await this.workflow.completeDecision(ctx, candidateId, 'approved');
+      return result;
+    } catch (error) {
+      return this.recoverDecision(ctx, candidateId, 'approve', '', error);
     }
-    await this.workflow.completeDecision(ctx, candidateId, 'approved');
-    return result;
   }
 
   async reject(
@@ -310,20 +321,24 @@ export class MemoryCandidateReviewService {
     this.requireEnabled();
     const cleanReason = normalizeMemoryReviewReason(reason);
     if (!cleanReason) throw new BadRequestException('A rejection reason is required.');
-    await this.workflow.assertAssignedForDecision(ctx, candidateId, 'review');
-    const kind = await this.loadCandidateKind(ctx, candidateId);
-    let result: MemoryReviewDecisionResult;
-    if (kind === 'correction' || kind === 'restore' || kind === 'contradiction') {
-      result = {
-        candidateKind: kind,
-        ...(await this.versions.rejectCandidate(ctx, candidateId, cleanReason)),
-      };
-    } else {
-      await this.candidates.reject(ctx.tenantId, candidateId, ctx.userId, ctx);
-      result = { candidateId, candidateKind: kind, outcome: 'rejected' };
+    try {
+      await this.workflow.assertAssignedForDecision(ctx, candidateId, 'review');
+      const kind = await this.loadCandidateKind(ctx, candidateId);
+      let result: MemoryReviewDecisionResult;
+      if (kind === 'correction' || kind === 'restore' || kind === 'contradiction') {
+        result = {
+          candidateKind: kind,
+          ...(await this.versions.rejectCandidate(ctx, candidateId, cleanReason)),
+        };
+      } else {
+        await this.candidates.reject(ctx.tenantId, candidateId, ctx.userId, ctx, cleanReason);
+        result = { candidateId, candidateKind: kind, outcome: 'rejected' };
+      }
+      await this.workflow.completeDecision(ctx, candidateId, 'rejected', cleanReason);
+      return result;
+    } catch (error) {
+      return this.recoverDecision(ctx, candidateId, 'reject', cleanReason, error);
     }
-    await this.workflow.completeDecision(ctx, candidateId, 'rejected', cleanReason);
-    return result;
   }
 
   /**
@@ -345,26 +360,58 @@ export class MemoryCandidateReviewService {
     if (!isLearningSignalConflictResolution(decision)) {
       throw new BadRequestException(`Unsupported conflict resolution: ${String(decision)}`);
     }
-    await this.workflow.assertAssignedForDecision(ctx, candidateId, 'resolve_conflict');
-    const kind = await this.loadCandidateKind(ctx, candidateId);
-    if (kind !== 'learning_signal_conflict') {
-      throw new BadRequestException(
-        'This candidate has no open conflict flag to resolve — use approve/reject instead.',
+    try {
+      await this.workflow.assertAssignedForDecision(ctx, candidateId, 'resolve_conflict');
+      const kind = await this.loadCandidateKind(ctx, candidateId);
+      if (kind !== 'learning_signal_conflict') {
+        throw new BadRequestException(
+          'This candidate has no open conflict flag to resolve — use approve/reject instead.',
+        );
+      }
+      const cleanReason = normalizeMemoryReviewReason(reason) ?? undefined;
+      const versionResult = await this.versions.decideLearningSignalCandidate(
+        ctx,
+        candidateId,
+        decision,
+        cleanReason,
+      );
+      const result: MemoryReviewDecisionResult = {
+        candidateKind: 'learning_signal_conflict',
+        ...versionResult,
+      };
+      await this.workflow.completeDecision(ctx, candidateId, 'approved');
+      return result;
+    } catch (error) {
+      return this.recoverDecision(
+        ctx,
+        candidateId,
+        decision,
+        reason == null ? '' : (normalizeMemoryReviewReason(reason) ?? ''),
+        error,
       );
     }
-    const cleanReason = normalizeMemoryReviewReason(reason) ?? undefined;
-    const versionResult = await this.versions.decideLearningSignalCandidate(
+  }
+
+  private async recoverDecision(
+    ctx: TenantContext,
+    candidateId: string,
+    action: MemoryDecisionAction,
+    reason: string,
+    error: unknown,
+  ): Promise<MemoryReviewDecisionResult> {
+    if (!(error instanceof NotFoundException)) throw error;
+    const original = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+      recoverMemoryDecisionInTx(tx, ctx, this.authorization, candidateId, action, reason),
+    );
+    // A previous commit may have lost its subsequent workflow acknowledgement.
+    // Completing that existing workflow does not replay the memory decision.
+    await this.workflow.completeDecision(
       ctx,
       candidateId,
-      decision,
-      cleanReason,
+      action === 'reject' ? 'rejected' : 'approved',
+      reason,
     );
-    const result: MemoryReviewDecisionResult = {
-      candidateKind: 'learning_signal_conflict',
-      ...versionResult,
-    };
-    await this.workflow.completeDecision(ctx, candidateId, 'approved');
-    return result;
+    return original as MemoryReviewDecisionResult;
   }
 
   private async loadCandidateKind(

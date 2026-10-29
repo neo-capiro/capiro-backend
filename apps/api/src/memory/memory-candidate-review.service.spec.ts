@@ -377,7 +377,13 @@ describe('MemoryCandidateReviewService', () => {
         outcome: 'rejected',
       });
       expect(h.approve).toHaveBeenCalledWith(TENANT, 'candidate-1', USER, ctx);
-      expect(h.reject).toHaveBeenCalledWith(TENANT, 'candidate-1', USER, ctx);
+      expect(h.reject).toHaveBeenCalledWith(
+        TENANT,
+        'candidate-1',
+        USER,
+        ctx,
+        'Not supported by the source.',
+      );
       expect(h.assertAssignedForDecision).toHaveBeenCalledWith(ctx, 'candidate-1', 'approve');
       expect(h.assertAssignedForDecision).toHaveBeenCalledWith(ctx, 'candidate-1', 'review');
       expect(h.completeDecision).toHaveBeenCalledWith(ctx, 'candidate-1', 'approved');

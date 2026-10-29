@@ -20,6 +20,11 @@ import { governedRecallEligibilitySql } from './memory-recall-suppression.helper
 import { isMemoryReviewAdminRole } from './memory-review-admin-policy.js';
 import { MemoryTransitionAuditService } from './memory-transition-audit.service.js';
 import { payloadToSaveRequest } from './memory-candidate.service.js';
+import {
+  memoryDecisionMetadata,
+  recoverMemoryDecisionInTx,
+  type MemoryDecisionAction,
+} from './memory-decision-recovery.js';
 import { settingsMemorySourceVersion } from './settings-memory-source-version.js';
 import {
   assertSyntheticCorrectionInTx,
@@ -27,6 +32,7 @@ import {
   type SyntheticCorrectionAudit,
 } from './synthetic-memory-version.helpers.js';
 import {
+  candidateKindForSource,
   classifyMemoryVersionActivation,
   immutableMemoryVersionSlug,
   isMemoryVersionKind,
@@ -356,6 +362,10 @@ export class ImmutableMemoryVersionService {
     this.requireLifecycle();
     const outcome = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const candidate = await this.lockCandidate(tx, ctx.tenantId, candidateId);
+      if (!candidate) {
+        if (fixtureGuard) throw new NotFoundException('No pending synthetic correction.');
+        return { result: await this.recoverVersionDecision(tx, ctx, candidateId, 'approve') };
+      }
       const payload = parsePayload(candidate.payload_jsonb);
       const kind = payload.versionProposal.kind;
       let fixtureAudit: SyntheticCorrectionAudit | undefined;
@@ -388,9 +398,18 @@ export class ImmutableMemoryVersionService {
       const source = await this.loadItem(tx, ctx.tenantId, payload.versionProposal.sourceItemId);
       if (!source) throw new NotFoundException('Historical memory item not found.');
       const expectedSettingsVersion = payload.versionProposal.settingsSourceVersion;
-      if (expectedSettingsVersion && (!source.settingsUpdatedAt ||
-        settingsMemorySourceVersion({id:source.id,sections:source.sections_jsonb,updatedAt:source.settingsUpdatedAt}) !== expectedSettingsVersion)) {
-        throw new ConflictException('The Settings source changed while review was pending. Submit a draft based on the current version.');
+      if (
+        expectedSettingsVersion &&
+        (!source.settingsUpdatedAt ||
+          settingsMemorySourceVersion({
+            id: source.id,
+            sections: source.sections_jsonb,
+            updatedAt: source.settingsUpdatedAt,
+          }) !== expectedSettingsVersion)
+      ) {
+        throw new ConflictException(
+          'The Settings source changed while review was pending. Submit a draft based on the current version.',
+        );
       }
       await this.authorizeSource(tx, ctx, source, kind);
 
@@ -415,7 +434,19 @@ export class ImmutableMemoryVersionService {
       `;
 
       if (activation === 'duplicate' && target) {
-        await this.linkDuplicate(tx, ctx, candidate, target);
+        await this.linkDuplicate(
+          tx,
+          ctx,
+          candidate,
+          target,
+          memoryDecisionMetadata('approve', {
+            candidateId,
+            candidateKind: candidateKindForSource(candidate.source_kind),
+            outcome: 'duplicate',
+            memoryItemId: target.id,
+            controllingItemId: target.id,
+          }),
+        );
         return {
           result: {
             candidateId,
@@ -443,7 +474,22 @@ export class ImmutableMemoryVersionService {
           conflictGroupId,
         });
         await this.openConflict(tx, ctx, target, created.id, conflictGroupId, candidateId);
-        await this.finishCandidate(tx, ctx, candidate, created.id, null, target.id);
+        await this.finishCandidate(
+          tx,
+          ctx,
+          candidate,
+          created.id,
+          null,
+          target.id,
+          memoryDecisionMetadata('approve', {
+            candidateId,
+            candidateKind: candidateKindForSource(candidate.source_kind),
+            outcome: 'conflict',
+            memoryItemId: created.id,
+            controllingItemId: target.id,
+            conflictGroupId,
+          }),
+        );
         return {
           result: {
             candidateId,
@@ -472,7 +518,21 @@ export class ImmutableMemoryVersionService {
         fixtureAudit,
       });
       if (target) await this.supersedeOne(tx, ctx, target, created.id, candidateId, fixtureAudit);
-      await this.finishCandidate(tx, ctx, candidate, created.id, null, null);
+      await this.finishCandidate(
+        tx,
+        ctx,
+        candidate,
+        created.id,
+        null,
+        null,
+        memoryDecisionMetadata('approve', {
+          candidateId,
+          candidateKind: candidateKindForSource(candidate.source_kind),
+          outcome: 'activated',
+          memoryItemId: created.id,
+          controllingItemId: created.id,
+        }),
+      );
       return {
         result: {
           candidateId,
@@ -501,6 +561,10 @@ export class ImmutableMemoryVersionService {
     if (!cleanReason) throw new BadRequestException('A rejection reason is required.');
     await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const candidate = await this.lockCandidate(tx, ctx.tenantId, candidateId);
+      if (!candidate) {
+        await this.recoverVersionDecision(tx, ctx, candidateId, 'reject', cleanReason);
+        return;
+      }
       parsePayload(candidate.payload_jsonb);
       await this.authorizeCandidate(tx, ctx, candidateId, 'review');
       const changed = await tx.$executeRaw`
@@ -520,7 +584,18 @@ export class ImmutableMemoryVersionService {
         reason: cleanReason,
         sourceType: 'user_message',
         sourceId: candidateId,
-        metadata: { sourceKind: candidate.source_kind },
+        metadata: {
+          sourceKind: candidate.source_kind,
+          ...memoryDecisionMetadata(
+            'reject',
+            {
+              candidateId,
+              candidateKind: candidateKindForSource(candidate.source_kind),
+              outcome: 'rejected',
+            },
+            cleanReason,
+          ),
+        },
       });
     });
     return { candidateId, outcome: 'rejected' };
@@ -562,6 +637,24 @@ export class ImmutableMemoryVersionService {
         ctx.tenantId,
         candidateId,
       );
+      if (!candidate) {
+        const original = await recoverMemoryDecisionInTx(
+          tx,
+          ctx,
+          this.authorization,
+          candidateId,
+          decision,
+          cleanReason,
+        );
+        if (
+          original.candidateKind !== 'learning_signal_conflict' ||
+          !original.decision ||
+          original.outcome === 'rejected'
+        )
+          throw new ConflictException('Use the original memory review owner.');
+        const { candidateKind: _kind, memoryId: _legacy, ...result } = original;
+        return { result: { ...result, decision: original.decision, outcome: original.outcome } };
+      }
       await this.authorizeCandidate(tx, ctx, candidateId, 'resolve_conflict');
       if (
         candidate.scope !== 'user_private' &&
@@ -613,7 +706,23 @@ export class ImmutableMemoryVersionService {
       `;
 
       if (decision === 'duplicate' || decision === 'corroborate_existing') {
-        await this.linkDuplicate(tx, ctx, candidate, target);
+        await this.linkDuplicate(
+          tx,
+          ctx,
+          candidate,
+          target,
+          memoryDecisionMetadata(
+            decision,
+            {
+              candidateId,
+              candidateKind: 'learning_signal_conflict',
+              outcome: decision === 'duplicate' ? 'duplicate' : 'corroborated',
+              memoryItemId: target.id,
+              controllingItemId: target.id,
+            },
+            cleanReason,
+          ),
+        );
         return {
           result: {
             candidateId,
@@ -641,7 +750,25 @@ export class ImmutableMemoryVersionService {
           conflictGroupId: null,
         });
         await this.supersedeOne(tx, ctx, target, created.id, candidateId);
-        await this.finishCandidate(tx, ctx, candidate, created.id, null, null);
+        await this.finishCandidate(
+          tx,
+          ctx,
+          candidate,
+          created.id,
+          null,
+          null,
+          memoryDecisionMetadata(
+            decision,
+            {
+              candidateId,
+              candidateKind: 'learning_signal_conflict',
+              outcome: 'activated',
+              memoryItemId: created.id,
+              controllingItemId: created.id,
+            },
+            cleanReason,
+          ),
+        );
         return {
           result: {
             candidateId,
@@ -671,7 +798,26 @@ export class ImmutableMemoryVersionService {
         conflictGroupId,
       });
       await this.openConflict(tx, ctx, target, created.id, conflictGroupId, candidateId);
-      await this.finishCandidate(tx, ctx, candidate, created.id, null, target.id);
+      await this.finishCandidate(
+        tx,
+        ctx,
+        candidate,
+        created.id,
+        null,
+        target.id,
+        memoryDecisionMetadata(
+          decision,
+          {
+            candidateId,
+            candidateKind: 'learning_signal_conflict',
+            outcome: 'conflict',
+            memoryItemId: created.id,
+            controllingItemId: target.id,
+            conflictGroupId,
+          },
+          cleanReason,
+        ),
+      );
       return {
         result: {
           candidateId,
@@ -698,7 +844,7 @@ export class ImmutableMemoryVersionService {
     tx: Prisma.TransactionClient,
     tenantId: string,
     candidateId: string,
-  ): Promise<LearningSignalCandidateRow> {
+  ): Promise<LearningSignalCandidateRow | null> {
     const rows = await tx.$queryRaw<Array<LearningSignalCandidateRow>>`
       SELECT id::text AS id, proposed_by::text AS proposed_by, source_kind, scope,
              client_id::text AS client_id,
@@ -712,12 +858,7 @@ export class ImmutableMemoryVersionService {
       FOR UPDATE
     `;
     const row = rows[0];
-    if (!row) {
-      throw new NotFoundException(
-        'No pending learning-signal candidate with an open conflict flag for that id.',
-      );
-    }
-    return row;
+    return row ?? null;
   }
 
   private async proposeOrActivate(
@@ -1018,7 +1159,7 @@ export class ImmutableMemoryVersionService {
     tx: Prisma.TransactionClient,
     tenantId: string,
     candidateId: string,
-  ): Promise<CandidateRow> {
+  ): Promise<CandidateRow | null> {
     const rows = await tx.$queryRaw<Array<CandidateRow>>`
       SELECT id::text AS id, proposed_by::text AS proposed_by, source_kind, payload_jsonb
       FROM memory_candidate
@@ -1028,8 +1169,7 @@ export class ImmutableMemoryVersionService {
       FOR UPDATE
     `;
     const row = rows[0];
-    if (!row) throw new NotFoundException('No pending memory version candidate with that id.');
-    return row;
+    return row ?? null;
   }
 
   private async loadItem(
@@ -1263,12 +1403,13 @@ export class ImmutableMemoryVersionService {
     ctx: TenantContext,
     candidate: CandidateRow,
     target: ItemRow,
+    receipt: Record<string, string | number | null>,
   ): Promise<void> {
     await tx.$executeRaw`
       UPDATE memory_items SET last_confirmed_at = now(), updated_at = now()
       WHERE id = ${target.id}::uuid AND tenant_id = ${ctx.tenantId}::uuid
     `;
-    await this.finishCandidate(tx, ctx, candidate, target.id, target.id, null);
+    await this.finishCandidate(tx, ctx, candidate, target.id, target.id, null, receipt);
     await this.transitionAudit.record(tx, ctx.tenantId, {
       subject: { memoryItemId: target.id },
       actorUserId: ctx.userId,
@@ -1290,6 +1431,7 @@ export class ImmutableMemoryVersionService {
     committedItemId: string,
     duplicateItemId: string | null,
     contradictsItemId: string | null,
+    receipt: Record<string, string | number | null>,
   ): Promise<void> {
     const changed = await tx.$executeRaw`
       UPDATE memory_candidate
@@ -1320,8 +1462,33 @@ export class ImmutableMemoryVersionService {
         committedItemId,
         duplicateItemId,
         contradictsItemId,
+        ...receipt,
       },
     });
+  }
+
+  private async recoverVersionDecision(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    candidateId: string,
+    action: MemoryDecisionAction,
+    reason = '',
+  ): Promise<VersionCandidateDecisionResult> {
+    const original = await recoverMemoryDecisionInTx(
+      tx,
+      ctx,
+      this.authorization,
+      candidateId,
+      action,
+      reason,
+    );
+    if (
+      !['correction', 'restore', 'contradiction'].includes(original.candidateKind) ||
+      original.outcome === 'corroborated'
+    )
+      throw new ConflictException('Use the original memory review owner.');
+    const { candidateKind: _kind, memoryId: _legacy, decision: _resolution, ...result } = original;
+    return { ...result, outcome: original.outcome };
   }
 
   private requireLifecycle(): void {
@@ -1367,7 +1534,8 @@ function parsePayload(value: unknown): VersionPayload {
     !isMemoryVersionKind(proposal.kind) ||
     typeof proposal.sourceItemId !== 'string' ||
     (proposal.settingsSourceVersion !== undefined &&
-      (typeof proposal.settingsSourceVersion !== 'string' || !/^[a-f0-9]{64}$/.test(proposal.settingsSourceVersion))) ||
+      (typeof proposal.settingsSourceVersion !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(proposal.settingsSourceVersion))) ||
     !item ||
     typeof item.type !== 'string' ||
     typeof item.slug !== 'string' ||
@@ -1394,7 +1562,9 @@ function parsePayload(value: unknown): VersionPayload {
       kind: proposal.kind,
       sourceItemId: proposal.sourceItemId,
       targetItemId: typeof proposal.targetItemId === 'string' ? proposal.targetItemId : null,
-      ...(proposal.settingsSourceVersion ? {settingsSourceVersion:proposal.settingsSourceVersion} : {}),
+      ...(proposal.settingsSourceVersion
+        ? { settingsSourceVersion: proposal.settingsSourceVersion }
+        : {}),
     },
   };
 }

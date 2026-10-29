@@ -12,6 +12,7 @@ import { ImmutableMemoryVersionService } from '../immutable-memory-version.servi
 import { MemorySettingsReviewReadinessService } from '../memory-settings-review-readiness.service.js';
 import { MemoryReviewWorkflowService } from '../memory-review-workflow.service.js';
 import { MemoryReviewInboxService } from '../memory-review-inbox.service.js';
+import { MemoryCandidateReviewService } from '../memory-candidate-review.service.js';
 import type { MemoryIngestService } from '../memory-ingest.service.js';
 import { ownerRetentionDatabase } from '../memory-owner-retention.postgres-fixture.js';
 import { SettingsMemoryDraftService } from './service.js';
@@ -85,11 +86,20 @@ export async function settingsSubmissionFixture(url: string) {
     outbox,
   );
   const readiness = new MemorySettingsReviewReadinessService(prisma, authorization);
+  const workflow = new MemoryReviewWorkflowService(prisma, authorization);
   return {
     ...store,
     prisma,
     candidates,
     immutable,
+    workflow,
+    reviews: new MemoryCandidateReviewService(
+      prisma,
+      authorization,
+      candidates,
+      immutable,
+      workflow,
+    ),
     inbox: new MemoryReviewInboxService(prisma, authorization),
     projected: () => projected,
     drafts: new SettingsMemoryDraftService(prisma, authorization),
@@ -99,7 +109,7 @@ export async function settingsSubmissionFixture(url: string) {
       candidates,
       versions,
       readiness,
-      new MemoryReviewWorkflowService(prisma, authorization),
+      workflow,
     ),
   };
 }
