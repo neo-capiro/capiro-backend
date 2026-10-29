@@ -99,6 +99,8 @@ export type NativeGenerationTurnRequest = NativeGenerationTurnSubject & {
   expectedRevision: number;
   paidGeneration: true;
   sources: NativeGenerationSource[];
+  /** Explicit user drafting instructions, separate from quoted source evidence. */
+  writingBrief?: string;
 };
 
 /** The native result payload, narrowed per phase. */
@@ -221,6 +223,7 @@ export function nativeGenerationRequestId(exact: {
   phase: NativeGenerationPhase;
   expectedRevision: number;
   sources: NativeGenerationSource[];
+  writingBrief?: string;
   /**
    * The server-derived retry discriminator: the exact retained run a failed-unit
    * ATTEMPT is a continuation of. A retry of EVERY unit would otherwise re-derive

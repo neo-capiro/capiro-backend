@@ -22,6 +22,11 @@ import { ProspectPublicationService } from '../../src/versions/prospect-publicat
 import { DocumentAgentController } from '../../src/document-agent/document-agent.controller.js';
 import { DocumentAgentService } from '../../src/document-agent/document-agent.service.js';
 import { DocumentAgentQualityService } from '../../src/document-agent/document-agent-quality.service.js';
+import { ProspectGenerationController } from '../../src/document-agent/prospect-generation/prospect-generation.controller.js';
+import { ProspectGenerationService } from '../../src/document-agent/prospect-generation/prospect-generation.service.js';
+import { DocumentAgentRevisionService } from '../../src/document-agent/document-agent-revision.service.js';
+import type { ProspectGenerationBootstrapClient } from '../../src/document-agent/prospect-generation/bootstrap.client.js';
+import type { NativeGenerationTurnPort } from '../../src/document-agent/native-generation.bridge.js';
 import { DESCENDANT_ROUTES, ADJACENT_ROUTES, WS03_IDS } from './ws03-descendant-harness.js';
 
 export { DESCENDANT_ROUTES, ADJACENT_ROUTES, WS03_IDS };
@@ -35,7 +40,9 @@ const documentBody = { blocks: [{ content: 'PRIVATE_DESCENDANT_CONTENT' }] };
 /** Real PostgreSQL/Prisma/authority/TenantGuard, with only external Clerk token
  * verification and text generation replaced. db push intentionally does not
  * reproduce migration-installed RLS, grants or immutable triggers. */
-export async function createNativeWorkspaceHarness(url: string) {
+export async function createNativeWorkspaceHarness(url: string, options: {
+  generation?: { bootstrap: ProspectGenerationBootstrapClient; native: NativeGenerationTurnPort };
+} = {}) {
   const db = new PrismaService({ datasources: { db: { url } } });
   const reads: string[] = [], effects: string[] = [];
   const state = { actorId: 'user_owner' };
@@ -128,7 +135,7 @@ export async function createNativeWorkspaceHarness(url: string) {
   const resolver = new PrismaOrgTenantResolver(db);
   const module = await Test.createTestingModule({
     controllers: [CommentsController, ChecksController, DraftsController, EditLockController,
-      DocumentsController, VersionsController, ProspectPublicationController, DocumentAgentController],
+      DocumentsController, VersionsController, ProspectPublicationController, DocumentAgentController, ProspectGenerationController],
     providers: [
       { provide: ClerkService, useValue: { verifySessionToken: async (token: string) => {
         if (token !== NATIVE_TOKEN) throw new Error('Unknown local fixture token');
@@ -144,6 +151,9 @@ export async function createNativeWorkspaceHarness(url: string) {
       { provide: ProspectPublicationService, useValue: new ProspectPublicationService(db) },
       { provide: DocumentAgentQualityService, useValue: quality },
       { provide: DocumentAgentService, useValue: {} },
+      { provide: ProspectGenerationService, useValue: new ProspectGenerationService(db, collaborators,
+        new DocumentAgentRevisionService(db), options.generation?.bootstrap ??
+        ({ configured: () => false } as ProspectGenerationBootstrapClient), options.generation?.native ?? null) },
     ],
   }).compile();
   app = module.createNestApplication();
