@@ -598,6 +598,59 @@ test('DNS is a separately rendered exact preview alias, with the wildcard left o
     });
   }));
 
+test('client capability create admits only the canonical lowercase-UUID POST route on the preview host', () =>
+  render(false, (edge) => {
+    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule')
+      .map((r) => r.Properties)
+      .sort((a, b) => Number(a.Priority) - Number(b.Priority));
+    const pathname = '/api/clients/11111111-1111-4111-8111-111111111111/capabilities';
+    // The canonical writer path (FE716 saveCapability) must reach Core and must not
+    // fall through to the listener's 404 default.
+    assert.deepEqual(routeDestination(rules, 'POST', pathname), { Ref: 'CoreTarget' });
+    for (const method of ['PUT', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE'])
+      assert.equal(routeDestination(rules, method, pathname), null, `${method} ${pathname}`);
+    for (const hostname of ['app.capiro.ai', 'arbitrary.invalid'])
+      assert.equal(routeDestination(rules, 'POST', pathname, hostname), null, hostname);
+    for (const neighbor of [
+      `${pathname}/`,
+      `${pathname}/extra`,
+      `${pathname}.invalid`,
+      `/extra${pathname}`,
+      '/api/clients//capabilities',
+      '/api/clients/not-a-uuid/capabilities',
+      '/api/clients/11111111111141118111111111111111/capabilities',
+      '/api/clients/11111111-1111-4111-8111-11111111111/capabilities',
+      '/api/clients/11111111-1111-4111-8111-1111111111111/capabilities',
+      '/api/clients/AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA/capabilities',
+      '/api/clients/11111111-1111-4111-8111-111111111111/capabilities/synthetic',
+    ])
+      assert.equal(routeDestination(rules, 'POST', neighbor), null, neighbor);
+    // Reads on the same path keep using the existing /api/* read rule.
+    for (const method of ['GET', 'HEAD'])
+      assert.deepEqual(routeDestination(rules, method, pathname), { Ref: 'CoreTarget' });
+    const added = edge.Resources.ClientCapabilityCreate.Properties;
+    assert.equal(added.Priority, 93);
+    assert.deepEqual(added.ListenerArn, { Ref: 'PreviewHttps' });
+    assert.deepEqual(added.Actions, [{ TargetGroupArn: { Ref: 'CoreTarget' }, Type: 'forward' }]);
+    assert.deepEqual(
+      added.Conditions.find((c: any) => c.Field === 'host-header').HostHeaderConfig.Values,
+      [host],
+    );
+    assert.deepEqual(
+      added.Conditions.find((c: any) => c.Field === 'http-request-method').HttpRequestMethodConfig
+        .Values,
+      ['POST'],
+    );
+    assert.deepEqual(
+      added.Conditions.find((c: any) => c.Field === 'path-pattern').PathPatternConfig.RegexValues,
+      ['^/api/clients/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/capabilities$'],
+    );
+    // Every earlier rule keeps its accepted priority.
+    assert.equal(edge.Resources.PublicNewsletterCapabilityPosts.Properties.Priority, 88);
+    assert.equal(edge.Resources.CoreInternalOnboardingTenants.Properties.Priority, 92);
+    assert.equal(Math.max(...rules.map((rule) => Number(rule.Priority))), 93);
+  }));
+
 test('appending the newsletter capability group leaves every existing rule mapping intact', () =>
   render(false, (edge) => {
     const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule')
@@ -626,9 +679,10 @@ test('appending the newsletter capability group leaves every existing rule mappi
       '^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/preferences$',
       '^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/survey$',
     ]);
-    // The onboarding admissions are appended after it, so the last rules are theirs.
+    // The onboarding admissions are appended after it, so the four rules before the
+    // trailing capability route are theirs (that route has its own test below).
     assert.deepEqual(
-      rules.slice(-4).map((rule) => [Number(rule.Priority), pathsOf(rule)[0]]),
+      rules.slice(-5, -1).map((rule) => [Number(rule.Priority), pathsOf(rule)[0]]),
       [
         [89, '^/onboard-api/public/config$'],
         [90, '^/onboard-api/setup/tasks/[A-Za-z0-9_-]+/transition$'],
