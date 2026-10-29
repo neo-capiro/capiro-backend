@@ -255,16 +255,6 @@
       ]
     },
     {
-      "id": "PublicNewsletterCapabilityPosts",
-      "service": "core",
-      "method": "POST",
-      "pathRegexes": [
-        "^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/unsubscribe$",
-        "^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/preferences$",
-        "^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/survey$"
-      ]
-    },
-    {
       "service": "core",
       "method": "PUT",
       "pathRegexes": [
@@ -714,6 +704,16 @@
       "pathRegexes": [
         "^/api/research-portfolios/[A-Za-z0-9_-]+/reviews/bulk$",
         "^/api/research-portfolios/[A-Za-z0-9_-]+/members/[A-Za-z0-9_-]+/resolve$"
+      ]
+    },
+    {
+      "id": "PublicNewsletterCapabilityPosts",
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/unsubscribe$",
+        "^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/preferences$",
+        "^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/survey$"
       ]
     }
   ]
