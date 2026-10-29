@@ -9,13 +9,14 @@ import { admitOfficeEditor } from './editor.js';
 import { digest } from './input.js';
 import type { OfficeAuthority } from './authority.js';
 import { expireOfficeDrafts } from './retention.js';
+import { readOfficeDraftRetention, retireOfficeDrafts, OFFICE_RETENTION_VERSION } from './retention-subject.js';
 const url = process.env.OFFICE_DRAFT_TEST_DATABASE_URL;
 const suite = url ? describe : describe.skip;
 suite('private Office drafts on ordinary-role PostgreSQL', () => {
   let db: PrismaClient, scoped: PrismaService;
   beforeAll(async () => { ({ db, scoped } = await officeDatabase(url!)); }, 60000);
   afterAll(async () => { await db?.$disconnect(); });
-  async function fixture(existingTenantId?: string) {
+  async function fixture(existingTenantId?: string, artifactId = randomUUID()) {
     const tenantId = existingTenantId ?? randomUUID(), userId = randomUUID(), clientId = randomUUID(), conversationId = randomUUID();
     if (!existingTenantId) await db.tenant.create({ data: { id: tenantId, slug: 'office-' + tenantId, name: 'Office test', status: 'active' } });
     await db.user.create({ data: { id: userId, clerkUserId: 'office-' + userId, email: userId + '@example.invalid' } });
@@ -28,7 +29,7 @@ suite('private Office drafts on ordinary-role PostgreSQL', () => {
     const ctx = { tenantId, tenantSlug: 'office-' + tenantId, userId, clerkUserId: 'office-' + userId, role: 'standard_user' } as TenantContext;
     const authority = { readCurrent: jest.fn(async () => ({ principal: { tenantId, actorId: userId }, expiresAtMs: Date.now() + 600000 })) } as unknown as OfficeAuthority;
     const ports = { prisma: scoped, ctx, authority }, key = { conversationId, draftId: randomUUID() };
-    const source = { ...key, artifactId: randomUUID(), baseVersionId: randomUUID(), baseSha256: 'a'.repeat(64), format: 'docx', filename: 'draft.docx' };
+    const source = { ...key, artifactId, baseVersionId: randomUUID(), baseSha256: 'a'.repeat(64), format: 'docx', filename: 'draft.docx' };
     const opened = await openDraft(ports, source);
     const editor = { editorId: randomUUID(), editorEpoch: 1 };
     await admitOfficeEditor(ports, { ...key, operation: 'acquire', editorId: editor.editorId, expectedEpoch: 0 });
@@ -255,5 +256,81 @@ suite('private Office drafts on ordinary-role PostgreSQL', () => {
     await takeover; await checked;
     const result = await readDraft(f.ports, f.key); expect(result.sequence).toBe(1);
     expect(Buffer.from(result.bytesBase64!, 'base64').toString()).toBe('before takeover');
+  });
+  const retirement = (f: Awaited<ReturnType<typeof fixture>>, kind = 'conversation') => ({
+    tenantId: f.ports.ctx.tenantId, subject: { kind, id: kind === 'conversation' ? f.key.conversationId : f.source.artifactId },
+  });
+  it('retires private bytes, locks and pending publication while keeping a closed editor identity', async () => {
+    const f = await fixture(); await f.lock(); const saved = f.save('retire private bytes');
+    await saveDraft(f.ports, saved);
+    await beginDraftPublish(f.ports, { ...f.key, sequence: 1, sha256: saved.sha256 });
+    const input = retirement(f);
+    expect(await readOfficeDraftRetention(scoped, input)).toEqual({ version: OFFICE_RETENTION_VERSION, ...input,
+      drafts: 1, active: 1, bytes: Buffer.byteLength('retire private bytes') });
+    expect(await retireOfficeDrafts(scoped, input)).toEqual({ version: OFFICE_RETENTION_VERSION, ...input, retired: 1, remaining: false });
+    expect(await readOfficeDraftRetention(scoped, input)).toMatchObject({ drafts: 1, active: 0, bytes: 0 });
+    expect(await retireOfficeDrafts(scoped, input)).toMatchObject({ retired: 0, remaining: false });
+    await expect(openDraft(f.ports, f.source)).rejects.toThrow('CLOSED');
+    await expect(saveDraft(f.ports, f.save('late save', 1))).rejects.toThrow('CLOSED');
+    const rows = await db.$queryRaw<Array<{ bytes: Buffer | null; editor_id: string | null; lock_token: string | null;
+      publish_intent: string | null; published_version_id: string | null }>>`SELECT bytes,editor_id,lock_token,publish_intent,published_version_id
+      FROM meri_office_drafts WHERE tenant_id=${input.tenantId}::uuid AND draft_id=${f.key.draftId}::uuid`;
+    expect(rows).toEqual([{ bytes: null, editor_id: null, lock_token: null, publish_intent: null, published_version_id: null }]);
+  });
+  it('artifact retirement covers all private writers but cannot cross tenant or artifact boundaries', async () => {
+    const first = await fixture(), second = await fixture(first.ports.ctx.tenantId, first.source.artifactId);
+    const otherTenant = await fixture(undefined, first.source.artifactId), otherArtifact = await fixture(first.ports.ctx.tenantId);
+    for (const f of [first, second, otherTenant, otherArtifact]) { await f.lock(); await saveDraft(f.ports, f.save('private')); }
+    const input = retirement(first, 'artifact');
+    expect(await retireOfficeDrafts(scoped, input)).toMatchObject({ retired: 2, remaining: false });
+    expect(await readOfficeDraftRetention(scoped, input)).toMatchObject({ drafts: 2, active: 0, bytes: 0 });
+    for (const f of [otherTenant, otherArtifact]) expect((await readDraft(f.ports, f.key)).sequence).toBe(1);
+    // The system operation's transaction-local bypass must not leak into ordinary reads.
+    const visible = await scoped.withTenantUser(first.ports.ctx.tenantId, first.ports.ctx.userId,
+      tx => tx.$queryRaw<Array<{ draft_id: string }>>`SELECT draft_id FROM meri_office_drafts`);
+    expect(visible).toEqual([{ draft_id: first.key.draftId }]);
+  });
+  it('retirement is bounded to one hundred rows and reports unfinished batches', async () => {
+    const f = await fixture(), input = retirement(f);
+    await db.$executeRaw`INSERT INTO meri_office_drafts
+      (tenant_id,actor_user_id,conversation_id,draft_id,artifact_id,base_version_id,base_sha256,format,filename,expires_at)
+      SELECT tenant_id,actor_user_id,conversation_id,gen_random_uuid(),artifact_id,base_version_id,base_sha256,format,filename,expires_at
+      FROM meri_office_drafts CROSS JOIN generate_series(1,101) WHERE tenant_id=${input.tenantId}::uuid AND draft_id=${f.key.draftId}::uuid`;
+    expect(await readOfficeDraftRetention(scoped, input)).toMatchObject({ drafts: 102, active: 102 });
+    expect(await retireOfficeDrafts(scoped, input)).toMatchObject({ retired: 100, remaining: true });
+    expect(await retireOfficeDrafts(scoped, input)).toMatchObject({ retired: 2, remaining: false });
+    expect(await readOfficeDraftRetention(scoped, input)).toMatchObject({ drafts: 102, active: 0, bytes: 0 });
+  });
+  it('a locked writer cannot be silently reported as erased', async () => {
+    const f = await fixture(); await f.lock(); await saveDraft(f.ports, f.save('pending writer'));
+    let acquired!: () => void, release!: () => void;
+    const locked = new Promise<void>(r => { acquired = r; }), held = new Promise<void>(r => { release = r; });
+    const writer = db.$transaction(async tx => {
+      await tx.$executeRaw`SELECT draft_id FROM meri_office_drafts WHERE tenant_id=${f.ports.ctx.tenantId}::uuid
+        AND draft_id=${f.key.draftId}::uuid FOR UPDATE`;
+      acquired(); await held;
+    }, { timeout: 15000 });
+    try {
+      await locked;
+      expect(await retireOfficeDrafts(scoped, retirement(f))).toMatchObject({ retired: 0, remaining: true });
+      expect(await readOfficeDraftRetention(scoped, retirement(f))).toMatchObject({ active: 1, bytes: Buffer.byteLength('pending writer') });
+    } finally { release(); await writer; }
+    expect(await retireOfficeDrafts(scoped, retirement(f))).toMatchObject({ retired: 1, remaining: false });
+  });
+  it('fresh inventory detects restored private bytes and retirement works after membership departure', async () => {
+    const f = await fixture(); await f.lock(); await saveDraft(f.ports, f.save('saved'));
+    await db.tenantMembership.update({ where: { id: f.member.id }, data: { status: 'removed' } });
+    const input = retirement(f);
+    expect(await retireOfficeDrafts(scoped, input)).toMatchObject({ retired: 1 });
+    const bytes = Buffer.from('restored private bytes');
+    await db.$executeRaw`UPDATE meri_office_drafts SET state='draft',bytes=${bytes},sha256=${digest(bytes)}
+      WHERE tenant_id=${input.tenantId}::uuid AND draft_id=${f.key.draftId}::uuid`;
+    expect(await readOfficeDraftRetention(scoped, input)).toMatchObject({ active: 1, bytes: bytes.length });
+    expect(await retireOfficeDrafts(scoped, input)).toMatchObject({ retired: 1, remaining: false });
+    await db.$executeRaw`UPDATE meri_office_drafts SET expires_at=clock_timestamp()-interval '1 second'
+      WHERE tenant_id=${input.tenantId}::uuid AND draft_id=${f.key.draftId}::uuid`;
+    expect(await expireOfficeDrafts(scoped, { tenantId: input.tenantId, actorId: f.ports.ctx.userId,
+      conversationId: f.key.conversationId })).toEqual({ deleted: 1, remaining: false });
+    expect(await readOfficeDraftRetention(scoped, input)).toMatchObject({ drafts: 0, active: 0, bytes: 0 });
   });
 });

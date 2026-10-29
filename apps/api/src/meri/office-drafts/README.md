@@ -81,6 +81,33 @@ retains a closed identity until expiry, preventing an unexpired WOPI token from
 being revived by reuse of the same draft ID. Runtime suppression/access-loss purge
 coordination and scheduled inventory integration remain required before activation.
 
+The same internal-service controller now provides `POST /read` and `POST /retire`
+under `/api/internal/office-draft-retention`. Both take exactly
+`{tenantId, subject: {kind: "conversation" | "artifact", id}}` and echo that scope
+under `meri.office-draft-retention.v1`. The read returns only `drafts`, `active`
+and `bytes` counts. Retirement clears private bytes, hash, editor/lock and
+publication claim from at most 100 rows, returning `retired` and `remaining`.
+An artifact scope includes all actors' private drafts in that tenant. System
+scope is limited by explicit tenant and subject SQL predicates; a browser/native
+user credential cannot authorize these operations. No schema or grant changes.
+
+The trusted Meri retention coordinator must hold its canonical subject exclusion,
+apply policy/holds, drain in-flight work and repeat bounded batches plus a fresh
+inventory read before claiming erasure. `remaining: true` includes skipped locked
+rows. This endpoint alone cannot prevent a concurrent new draft from appearing.
+It does not decide suppression, access loss, or holds, and native session expiry
+alone is not authority to erase a recoverable draft. A closed draft keeps existing
+source metadata and its identity until normal expiry; immutable published bytes
+are owned elsewhere. Restore/startup verification must read current counts rather
+than trust an old retirement response. Runtime composition remains required.
+
+Five additional ordinary-role PostgreSQL cases cover closed-token reuse,
+all-writer artifact selection and cross-tenant isolation, 100-row batches,
+locked-writer incompleteness, departure, restored bytes and eventual expiry.
+The fixture uses the existing transaction-local system bypass setting and proves
+it does not leak into a subsequent actor-scoped read. Earlier fixture databases
+are preserved; the retirement cases require a fresh fixture with that helper.
+
 ## Verification and remaining work
 
 57 focused source tests pass, including 17 real PostgreSQL tests under an

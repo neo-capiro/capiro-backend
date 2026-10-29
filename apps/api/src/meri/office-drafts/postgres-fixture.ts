@@ -32,13 +32,16 @@ export async function officeDatabase(url: string) {
       for (const s of statements) await admin.query(s);
       await admin.query(`CREATE FUNCTION current_tenant_id() RETURNS uuid LANGUAGE sql STABLE AS
         $$SELECT nullif(current_setting('app.current_tenant',true),'')::uuid$$;
-        CREATE FUNCTION rls_bypass() RETURNS boolean LANGUAGE sql STABLE AS $$SELECT false$$;
+        CREATE FUNCTION rls_bypass() RETURNS boolean LANGUAGE sql STABLE AS
+          $$SELECT current_setting('app.bypass_rls',true)='on'$$;
         GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO capiro_app;`);
       await admin.query(readFileSync(join(__dirname, '../../../prisma/migrations/20281029020000_office_draft_owner/migration.sql'), 'utf8'));
       await admin.query(readFileSync(join(__dirname, '../../../prisma/migrations/20281029070000_office_editor_admission/migration.sql'), 'utf8'));
     }
     const editor = await admin.query("SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='meri_office_drafts' AND column_name='editor_epoch'");
     if (editor.rows.length !== 1) throw Error('Use a fresh editor-admission fixture; old applied test DDL is retained');
+    const bypass = await admin.query("SELECT position('app.bypass_rls' in pg_get_functiondef('rls_bypass()'::regprocedure))>0 AS supported");
+    if (!bypass.rows[0]?.supported) throw Error('Use a fresh retention fixture; preserve the earlier test database');
   } finally { await admin.end(); }
   const db = new PrismaClient({ datasources: { db: { url } } });
   const withScope = async <T>(tenantId: string, userId: string | null, fn: (tx: Prisma.TransactionClient) => Promise<T>) =>
@@ -49,6 +52,13 @@ export async function officeDatabase(url: string) {
       return fn(tx);
     }, { timeout: 15000 });
   const scoped = {
+    withSystem: <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>, opts?: { readOnly?: boolean }) =>
+      db.$transaction(async tx => {
+        if (opts?.readOnly) await tx.$executeRawUnsafe('SET TRANSACTION READ ONLY');
+        await tx.$executeRawUnsafe('SET LOCAL ROLE capiro_app');
+        await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
+        return fn(tx);
+      }, { timeout: 15000 }),
     withTenant: <T>(tenantId: string, fn: (tx: Prisma.TransactionClient) => Promise<T>) => withScope(tenantId, null, fn),
     withTenantUser: <T>(tenantId: string, userId: string, fn: (tx: Prisma.TransactionClient) => Promise<T>) => withScope(tenantId, userId, fn),
   } as PrismaService;
