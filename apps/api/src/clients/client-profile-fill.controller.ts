@@ -16,6 +16,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsBoolean,
+  IsHash,
   IsIn,
   IsInt,
   IsOptional,
@@ -82,12 +83,27 @@ class StartClientProfileFillDto {
   website?: string;
 }
 
+class ReviewedFindingDto {
+  @IsUUID()
+  id!: string;
+
+  @IsHash('sha256')
+  revision!: string;
+}
+
 class ApplyClientProfileFillDto {
+  @IsUUID()
+  requestId!: string;
+
+  @IsHash('sha256')
+  expectedClientRevision!: string;
+
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(200)
-  @IsUUID('all', { each: true })
-  findingIds!: string[];
+  @ValidateNested({ each: true })
+  @Type(() => ReviewedFindingDto)
+  findings!: ReviewedFindingDto[];
 }
 
 class RejectClientProfileFillDto {
@@ -129,7 +145,7 @@ class NewMatterForFindingDto {
  *  is required — enforced in the service, not here, so the error message
  *  can name both fields together rather than two separate DTO-level
  *  "required" complaints depending on which one is missing. */
-class AssignFindingMatterDto {
+class AssignFindingMatterDto extends ApplyClientProfileFillDto {
   @IsOptional()
   @IsUUID()
   matterId?: string;
@@ -233,7 +249,12 @@ export class ClientProfileFillController {
     @Param('runId') runId: string,
     @Body() body: ApplyClientProfileFillDto,
   ) {
-    return this.service.applyFindings(ctx, clientId, runId, body.findingIds);
+    return this.service.applyFindings(ctx, clientId, runId, body);
+  }
+
+  @Get('runs/:runId/review')
+  review(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string, @Param('runId') runId: string) {
+    return this.service.getReview(ctx, clientId, runId);
   }
 
   /** §22/23 follow-up: "Attach to Matter X" / "Create new Matter" directly
@@ -263,7 +284,7 @@ export class ClientProfileFillController {
     if (!target) {
       throw new BadRequestException('Provide exactly one of matterId or newMatter');
     }
-    return this.service.applyAdvocacyFindingToMatter(ctx, clientId, runId, findingId, target);
+    return this.service.applyAdvocacyFindingToMatter(ctx, clientId, runId, findingId, target, body);
   }
 
   @Post('findings/:findingId/reject')

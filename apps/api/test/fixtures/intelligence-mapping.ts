@@ -116,6 +116,7 @@ function tenantIo(state: State, tenant: string, transaction: number) {
     );
   return {
     client: { findFirst: read('client', clientRow()), findMany: read('clients') },
+    fecCommittee: { findUnique: read('committee', { name: 'Research PAC', committeeType: 'Q' }) },
     clientCapability: { findMany: read('capabilities') },
     clientIntelMapping: {
       findMany: read('mappings'),

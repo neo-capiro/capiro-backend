@@ -34,6 +34,8 @@ import type {
   DiscoveryFinding,
 } from './client-profile-fill-advocacy-discovery.shared.js';
 import type { AdvancedFindingRow } from './client-profile-fill-finding-review.shared.js';
+import type { ReviewCommand } from './client-profile-fill-review-store.js';
+import { readReviewSnapshot } from './client-profile-fill-review-snapshot.js';
 import type { RegulatoryCommentDetail } from './client-profile-fill-regulatory-comment-source.js';
 import type { CompletionFindingInput } from './client-profile-fill-completion-persistence.js';
 import { createClientProfileFillCompletionOwners } from './client-profile-fill-completion.composition.js';
@@ -164,8 +166,12 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     return this.owners.runLifecycle.retryTask(ctx, clientId, runId, taskId);
   }
 
-  async applyFindings(ctx: TenantContext, clientId: string, runId: string, findingIds: string[]) {
-    return this.owners.findingReview.applyFindings(ctx, clientId, runId, findingIds);
+  getReview(ctx: TenantContext, clientId: string, runId: string) {
+    return readReviewSnapshot(this.prisma, ctx, clientId, runId);
+  }
+
+  async applyFindings(ctx: TenantContext, clientId: string, runId: string, command: ReviewCommand) {
+    return this.owners.findingReview.applyFindings(ctx, clientId, runId, command);
   }
 
   rejectFinding(ctx: TenantContext, clientId: string, findingId: string, reason?: string) {
@@ -362,13 +368,15 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     target:
       | { matterId: string }
       | { newMatter: { title: string; matterType?: string; summary?: string | null } },
-  ): Promise<{ findingId: string; matterId: string | null; alreadyApplied: boolean }> {
+    command: ReviewCommand,
+  ) {
     return this.owners.findingReview.applyAdvocacyFindingToMatter(
       ctx,
       clientId,
       runId,
       findingId,
       target,
+      command,
     );
   }
 

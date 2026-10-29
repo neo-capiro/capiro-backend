@@ -43,7 +43,6 @@ function makeService(llmText: string) {
     credentials as never, // credentials
     {} as never, // sam
     {} as never, // peRelevance
-    {} as never, // intelligence
     {} as never, // prepopulation
     {} as never, // clients
     {} as never, // people
