@@ -334,3 +334,73 @@ describe('engagement runtime environment preflight', () => {
     });
   });
 });
+
+describe('opt-in background worker restriction', () => {
+  const intended = {
+    CAPIRO_SERVICE_NAME: 'api',
+    ENGAGEMENT_PROCESS_MODE: 'active',
+    ENGAGEMENT_BACKGROUND_OWNER: 'api',
+    ENGAGEMENT_EXTERNAL_ACTIONS: 'enabled',
+    ENGAGEMENT_CALLBACKS_ENABLED: 'true',
+    ENGAGEMENT_RECALL_WEBHOOK_ENABLED: 'false',
+    ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION: 'integration_sync_scheduler',
+  };
+
+  it('accepts the exact intended tuple and carries the restriction', () => {
+    expect(resolveEngagementRuntimeEnvironment(intended)).toEqual({
+      serviceName: 'api',
+      processMode: 'active',
+      backgroundOwner: 'api',
+      externalActions: 'enabled',
+      callbacksEnabled: true,
+      recallWebhookEnabled: false,
+      backgroundWorkerRestriction: 'integration_sync_scheduler',
+    });
+  });
+
+  it.each([undefined, '', '  '])(
+    'keeps the legacy posture when the restriction is omitted or blank (%p)',
+    (value) => {
+      const resolved = resolveEngagementRuntimeEnvironment({
+        ...intended,
+        ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION: value,
+      });
+      expect(resolved.backgroundWorkerRestriction).toBeUndefined();
+      expect(resolved).toEqual({
+        serviceName: 'api',
+        processMode: 'active',
+        backgroundOwner: 'api',
+        externalActions: 'enabled',
+        callbacksEnabled: true,
+        recallWebhookEnabled: false,
+      });
+    },
+  );
+
+  it.each(['engagement-sync-scheduler', 'scheduler', 'all', 'true', 'integration_sync'])(
+    'rejects the unknown explicit selection %p',
+    (value) => {
+      expect(() =>
+        resolveEngagementRuntimeEnvironment({
+          ...intended,
+          ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION: value,
+        }),
+      ).toThrow(/ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION/);
+    },
+  );
+
+  it.each([
+    ['CAPIRO_SERVICE_NAME', 'engagement-api'],
+    ['ENGAGEMENT_PROCESS_MODE', 'shadow'],
+    ['ENGAGEMENT_BACKGROUND_OWNER', 'disabled'],
+    ['ENGAGEMENT_BACKGROUND_OWNER', 'engagement-api'],
+    ['ENGAGEMENT_EXTERNAL_ACTIONS', 'test_only'],
+    ['ENGAGEMENT_EXTERNAL_ACTIONS', 'integrations_and_notetaker'],
+    ['ENGAGEMENT_CALLBACKS_ENABLED', 'false'],
+    ['ENGAGEMENT_RECALL_WEBHOOK_ENABLED', 'true'],
+  ])('fails closed when %s=%s accompanies the restriction', (key, value) => {
+    expect(() =>
+      resolveEngagementRuntimeEnvironment({ ...intended, [key]: value }),
+    ).toThrow(/ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION/);
+  });
+});

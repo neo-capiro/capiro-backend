@@ -1245,6 +1245,17 @@ export const configSchema = z.object({
   // Which service owns background workers. 'disabled' = no workers run.
   ENGAGEMENT_BACKGROUND_OWNER: z.enum(['api', 'engagement-api', 'disabled']).default('api'),
 
+  // Opt-in restriction of the background-worker surface to the single existing
+  // integration sync scheduler. Deliberately one typed token, NOT a worker
+  // list: omitted or blank keeps the legacy generic ownership behavior, and a
+  // non-blank unknown value fails closed. Valid only on the
+  // api/active/api/enabled/callbacks=true/Recall=false tuple, which
+  // validateConfig (below) and the boot preflight both enforce.
+  ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION: z.preprocess(
+    normalizeOptionalSwitch,
+    z.enum(['integration_sync_scheduler']).optional(),
+  ),
+
   // External action mode. 'enabled' = all actions (main API default).
   // 'disabled' = none (shadow). 'test_only' = only outreach_test_send with
   // testMode=true. 'integrations_only' permits the bounded Mail integration
@@ -1342,9 +1353,12 @@ export function validateConfig(raw: Record<string, unknown>): AppConfig {
   // is to keep the schema authoritative on its own, never relying solely on a
   // sibling module to catch a bad combination.
   if (parsed.ENGAGEMENT_EXTERNAL_ACTIONS === 'integrations_only' ||
-    parsed.ENGAGEMENT_EXTERNAL_ACTIONS === 'integrations_and_notetaker') {
+    parsed.ENGAGEMENT_EXTERNAL_ACTIONS === 'integrations_and_notetaker' ||
+    parsed.ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION) {
     // Share the bounded posture check with both bootstrap preflights. Use raw
-    // inputs so malformed booleans cannot be hidden by schema transforms.
+    // inputs so malformed booleans cannot be hidden by schema transforms. The
+    // opt-in worker restriction rides the same hook because the schema field
+    // alone cannot express its required tuple.
     resolveEngagementRuntimeEnvironment(raw);
   } else if (parsed.CAPIRO_SERVICE_NAME === 'engagement-api') {
     const isShadow =
