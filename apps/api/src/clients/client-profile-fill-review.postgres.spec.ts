@@ -213,7 +213,7 @@ const url = process.env.FILL_REVIEW_TEST_DATABASE_URL;
             where: { id: person.id },
             data: { name: 'Newer human edit' },
           });
-        await expect(apply(input)).rejects.toMatchObject({ status: 409 });
+        await expect(apply(input)).resolves.toMatchObject({ status: 'refused', applied: [] });
         expect(index).not.toHaveBeenCalled();
       },
     );
@@ -224,7 +224,30 @@ const url = process.env.FILL_REVIEW_TEST_DATABASE_URL;
         `UPDATE client_profile_fill_finding SET evidence_jsonb='[{"label":"changed"}]'::jsonb WHERE id=$1::uuid`,
         id,
       );
-      await expect(apply(input)).rejects.toMatchObject({ status: 409 });
+      await expect(apply(input)).resolves.toMatchObject({ status: 'refused', applied: [] });
+      expect(await status(id)).toBe('pending');
+    });
+    test('a refused request remains refused on replay, even after the client changes again', async () => {
+      await finding('profile_field', 'website', 'https://approved.example/');
+      const input = await command();
+      await store.db.client.update({
+        where: { id: clientId },
+        data: { description: 'Newer edit' },
+      });
+      const result = await apply(input);
+      expect(result.status).toBe('refused');
+      await store.db.client.update({ where: { id: clientId }, data: { description: null } });
+      expect(await apply(input)).toEqual({ ...result, replayed: true });
+      expect((await store.db.client.findUnique({ where: { id: clientId } }))?.website).toBeNull();
+    });
+    test('restoring identical finding content does not revive an older review token', async () => {
+      const id = await finding('profile_field', 'website', 'https://approved.example/');
+      const input = await command();
+      await store.db.$executeRawUnsafe(
+        `UPDATE client_profile_fill_finding SET updated_at=clock_timestamp() WHERE id=$1::uuid`,
+        id,
+      );
+      expect((await apply(input)).status).toBe('refused');
       expect(await status(id)).toBe('pending');
     });
     test('a failed finding rolls back its domain write while reporting other successes', async () => {
