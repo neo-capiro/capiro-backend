@@ -17,6 +17,7 @@ type ReviewedFindingRow = AdvancedFindingRow & {
   clientId: string;
   appliedAt: Date | null;
   createdAt: Date;
+  updatedAt: Date;
   rejectionReason: string | null;
 };
 
@@ -68,7 +69,7 @@ export async function loadReviewFindings(
   if (!run.length) throw new NotFoundException('Research run not found');
   return tx.$queryRawUnsafe<ReviewedFindingRow[]>(
     `SELECT id, run_id AS "runId", client_id AS "clientId", applied_at AS "appliedAt",
-       created_at AS "createdAt", rejection_reason AS "rejectionReason",
+       created_at AS "createdAt", updated_at AS "updatedAt", rejection_reason AS "rejectionReason",
        kind, target_key AS "targetKey", source, fact_kind AS "factKind",
        current_value_jsonb AS "currentValue", proposed_value_jsonb AS "proposedValue",
        evidence_jsonb AS evidence, confidence::float8 AS confidence, status, content_hash AS "contentHash"
