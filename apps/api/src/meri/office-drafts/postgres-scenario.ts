@@ -7,12 +7,13 @@ import { admitOfficeEditor } from './editor.js';
 import { digest } from './input.js';
 import type { OfficeAuthority } from './authority.js';
 
-export async function officeDraftFixture(db: PrismaClient, scoped: PrismaService, existingTenantId?: string, artifactId: string = randomUUID()) {
-  const tenantId = existingTenantId ?? randomUUID(), userId = randomUUID(), clientId = randomUUID(), conversationId = randomUUID();
+export async function officeDraftFixture(db: PrismaClient, scoped: PrismaService, existingTenantId?: string,
+  artifactId: string = randomUUID(), existingClientId?: string) {
+  const tenantId = existingTenantId ?? randomUUID(), userId = randomUUID(), clientId = existingClientId ?? randomUUID(), conversationId = randomUUID();
   if (!existingTenantId) await db.tenant.create({ data: { id: tenantId, slug: 'office-' + tenantId, name: 'Office test', status: 'active' } });
   await db.user.create({ data: { id: userId, clerkUserId: 'office-' + userId, email: userId + '@example.invalid' } });
   const member = await db.tenantMembership.create({ data: { tenantId, userId, role: 'standard_user', status: 'active' } });
-  await db.client.create({ data: { id: clientId, tenantId, name: 'Office test', memoryWall: true } });
+  if (!existingClientId) await db.client.create({ data: { id: clientId, tenantId, name: 'Office test', memoryWall: true } });
   await db.clientMemoryAccess.create({ data: { tenantId, userId, clientId } });
   await db.clioConversation.create({ data: { id: conversationId, tenantId, userId, clientId, title: 'Office test' } });
   await db.clioConversationBootstrapReceipt.create({ data: { tenantId, actorUserId: userId, requestId: randomUUID(),

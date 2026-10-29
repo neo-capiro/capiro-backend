@@ -108,8 +108,23 @@ row lock orders this against every editor write. A failed Trash rolls cleanup
 back; a late Save rechecks the now-inactive chat and is refused. Restore does not
 revive closed drafts, while Archive preserves them. Replaying current Trash also
 cleans restored draft copies; an old Trash replay against an active restored chat
-does not erase newly created drafts. Artifact suppression, membership/client
-access-loss cleanup and expiry scheduling still require their owner integration.
+does not erase newly created drafts.
+
+Client wall replacement and client archiving now retire affected private drafts
+inside the existing client owner's transaction. Raising a wall includes actors
+who never had an explicit grant while that client was open. Allowed actors and
+other clients are preserved; disabling a wall does not discard drafts. Archiving
+retires all actors' drafts in that client's conversations. The client row lock
+orders both changes against editor writes, and a failed audit or status transaction
+rolls cleanup back. Regranting access or restoring a client cannot revive a closed
+draft ID. Ordinary actor RLS remains enabled: cleanup derives actors from canonical
+tenant/client conversations, scopes each update, then restores the caller's local
+actor setting before further work. A database failure rolls the transaction back.
+
+This covers client-bound conversations, not artifact dependencies imported into a
+General conversation. Artifact suppression, membership departure and expiry
+scheduling still require their owner integration. Closed IDs and source metadata
+remain until expiry; immutable published versions are not deleted by this owner.
 
 Five additional ordinary-role PostgreSQL cases cover closed-token reuse,
 all-writer artifact selection and cross-tenant isolation, 100-row batches,
