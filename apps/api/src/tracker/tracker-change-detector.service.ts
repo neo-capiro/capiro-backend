@@ -14,6 +14,7 @@ import type { ChangeTone } from './tracker.types.js';
 import { humanizeBillId } from './bill-stage.util.js';
 import { explainMatch, type WatchlistLike } from './tracker-relevance.util.js';
 import { TrackerSummaryService } from './notifications/tracker-summary.service.js';
+import { recordResearchPortfolioBillChanges } from '../research-portfolios/research-portfolio-bill-changes.js';
 
 interface ChangeClass {
   changeType: string;
@@ -104,6 +105,9 @@ export class TrackerChangeDetectorService {
     const scanHistory = this.config.get('TRACKER_SCAN_ACTION_HISTORY', { infer: true });
     const enrich = this.config.get('TRACKER_ALERT_ENRICH', { infer: true });
     const singleSenderGuard = this.config.get('TRACKER_SINGLE_SENDER_GUARD', { infer: true });
+    // Cycle anchor: used as the "detected at" for portfolio bill-change fan-out so a
+    // portfolio added mid-cycle does not receive the change as a silent baseline.
+    const cycleStartedAt = new Date();
 
     // Cross-tenant read of the board-membership rows.
     const tracked = await this.prisma.withSystem((tx) =>
@@ -314,6 +318,25 @@ export class TrackerChangeDetectorService {
             why,
             matchedTags,
             summary,
+          );
+
+          // Research Portfolio surface: the same material change reaches every
+          // portfolio of this tenant that already tracks the bill, deduped by the
+          // event idempotency key. Portfolio recipients are tenant-scoped, so this
+          // runs under system scope; no client identity is exposed to a portfolio.
+          await this.prisma.withSystem((tx) =>
+            recordResearchPortfolioBillChanges(tx as never, {
+              tenantId: row.tenantId,
+              targetKind: 'federal_bill',
+              targetId: row.billId,
+              changeType: ev.cls.changeType,
+              label: ev.cls.label,
+              detail,
+              actionDate,
+              sourceUrl: bill.url ?? null,
+              sourceLabel: 'Congress.gov',
+              detectedAt: cycleStartedAt,
+            }),
           );
 
           const event: TrackerAlertEvent = {

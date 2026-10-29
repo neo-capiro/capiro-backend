@@ -273,7 +273,7 @@ const actions = {
       },
       targetKind: {
         type: 'string',
-        enum: ['program', 'program_element', 'project', 'budget_line', 'award'],
+        enum: ['program', 'program_element', 'project', 'budget_line', 'award', 'federal_bill', 'state_bill'],
       },
       targetId: {
         type: 'string',
@@ -370,7 +370,7 @@ const actions = {
       },
       targetKind: {
         type: 'string',
-        enum: ['program', 'program_element', 'project', 'budget_line', 'award'],
+        enum: ['program', 'program_element', 'project', 'budget_line', 'award', 'federal_bill', 'state_bill'],
       },
       targetId: {
         type: 'string',
@@ -454,7 +454,7 @@ const actions = {
           properties: {
             targetKind: {
               type: 'string',
-              enum: ['program', 'program_element', 'project', 'budget_line', 'award'],
+              enum: ['program', 'program_element', 'project', 'budget_line', 'award', 'federal_bill', 'state_bill'],
             },
             targetId: {
               type: 'string',

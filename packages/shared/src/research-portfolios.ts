@@ -3,7 +3,26 @@ export type ResearchPortfolioMode = 'manual' | 'rules' | 'hybrid';
 export type ResearchPortfolioLifecycle = 'active' | 'archived';
 export type ResearchPortfolioGrantRole = 'owner' | 'editor' | 'viewer';
 export type ResearchPortfolioMemberKind =
-  'program' | 'program_element' | 'project' | 'budget_line' | 'award';
+  | 'program'
+  | 'program_element'
+  | 'project'
+  | 'budget_line'
+  | 'award'
+  /** Federal bill: congress + bill type + number (congress_bill.id). */
+  | 'federal_bill'
+  /** State bill: jurisdiction + legislative session + type/number (state_bill.id). */
+  | 'state_bill';
+/** Bills are portfolio subjects, not funding bases; they carry legislative facts. */
+export type ResearchPortfolioBillMemberKind = 'federal_bill' | 'state_bill';
+export const RESEARCH_PORTFOLIO_BILL_MEMBER_KINDS: readonly ResearchPortfolioBillMemberKind[] = [
+  'federal_bill',
+  'state_bill',
+];
+export function isResearchPortfolioBillKind(
+  kind: string | null | undefined,
+): kind is ResearchPortfolioBillMemberKind {
+  return kind === 'federal_bill' || kind === 'state_bill';
+}
 export type ResearchPortfolioMemberDisposition =
   'included' | 'candidate' | 'withdrawn' | 'excluded' | 'unresolved';
 export type ResearchPortfolioMemberOrigin = 'manual' | 'rule' | 'import';
@@ -32,7 +51,8 @@ export type ResearchPortfolioEventKind =
   | 'share_pin_changed'
   | 'share_design_saved'
   | 'share_link_published'
-  | 'share_link_revoked';
+  | 'share_link_revoked'
+  | 'bill_changed';
 
 export interface ResearchPortfolioSummaryDto {
   id: string;
@@ -78,6 +98,13 @@ export interface ResearchPortfolioMemberDto {
   reason: string | null;
   unresolvedInput: Readonly<Record<string, unknown>> | null;
   resolvedAt: string | null;
+  /**
+   * Canonical source facts captured when the member was added. Bill members carry
+   * legislative facts here (jurisdiction, session, status, latest action, source
+   * revision) so a snapshot freezes the state it was taken from. Absent on members
+   * stored before fact capture; never infer a bill's current state from a label.
+   */
+  facts?: Readonly<Record<string, unknown>> | null;
   revision: number;
   createdByUserId: string;
   updatedByUserId: string;
@@ -85,11 +112,77 @@ export interface ResearchPortfolioMemberDto {
   updatedAt: string;
 }
 
+/** One legislative subject as discovery returns it, with enough context to disambiguate. */
+export interface ResearchPortfolioBillMatchDto {
+  targetKind: ResearchPortfolioBillMemberKind;
+  targetId: string;
+  /** Human identifier, e.g. "H.R. 8800" or "HB 1234". */
+  identifier: string;
+  title: string;
+  /** 'US' for federal; the two-letter state code for state bills. */
+  jurisdiction: string;
+  /** Congress number for federal bills, legislative session name for state bills. */
+  session: string | null;
+  status: string | null;
+  latestActionDate: string | null;
+  latestActionText: string | null;
+  sourceUrl: string | null;
+  matchReason: 'exact_identifier' | 'title' | 'subject';
+}
+
+export interface ResearchPortfolioBillSearchResponseDto {
+  items: readonly ResearchPortfolioBillMatchDto[];
+  nextCursor: string | null;
+  /** Families actually queried and whether each answered; never imply full state coverage. */
+  coverage: {
+    federal: 'searched' | 'empty' | 'unavailable';
+    state: 'searched' | 'empty' | 'unavailable';
+    statesWithData: readonly string[];
+    note: string;
+  };
+}
+
+export interface ResearchPortfolioBillDetailDto {
+  targetKind: ResearchPortfolioBillMemberKind;
+  targetId: string;
+  identifier: string;
+  title: string;
+  jurisdiction: string;
+  session: string | null;
+  status: string | null;
+  statusAt: string | null;
+  latestActionText: string | null;
+  latestActionDate: string | null;
+  sourceUrl: string | null;
+  /** Canonical source revision this detail was read from. */
+  sourceRevision: string | null;
+  sponsors: readonly { name: string; party: string | null; state: string | null; role: string }[];
+  committees: readonly { name: string; chamber: string | null; role: string }[];
+  textVersions: readonly {
+    label: string;
+    date: string | null;
+    url: string | null;
+    revision: string | null;
+  }[];
+  votes: readonly { date: string | null; chamber: string | null; question: string; result: string }[];
+  relatedBills: readonly { identifier: string; relation: string }[];
+  /** Fields the source family does not provide for this bill. */
+  unavailable: readonly string[];
+  coverage: {
+    source: string;
+    note: string;
+    available: boolean;
+  };
+}
+
 export interface ResearchPortfolioEventDto {
   id: string;
   eventKind: ResearchPortfolioEventKind;
   aggregateRevision: number;
-  actorUserId: string;
+  /** null when the event was recorded by a source ingestion owner. */
+  actorUserId: string | null;
+  /** 'system' marks source-owned legislative events; user mutations omit/default to 'user'. */
+  actorKind?: 'user' | 'system';
   occurredAt: string;
   payload: Readonly<Record<string, unknown>>;
 }
@@ -721,7 +814,18 @@ export interface ResearchPortfolioFinancialBasisDto {
 }
 
 export type ResearchPortfolioContributionDisposition =
-  'included' | 'excluded' | 'overlap' | 'incompatible' | 'missing' | 'unavailable' | 'withheld';
+  | 'included'
+  | 'excluded'
+  | 'overlap'
+  | 'incompatible'
+  | 'missing'
+  | 'unavailable'
+  | 'withheld'
+  /**
+   * The subject has no funding basis at all (a tracked bill). Distinct from
+   * 'unavailable' (a funding reader failed) and from a zero figure.
+   */
+  | 'not_applicable';
 
 export interface ResearchPortfolioContributionDto {
   contributionId: string;
@@ -762,6 +866,8 @@ export interface ResearchPortfolioAnalyticsDto {
     excludedContributions: number;
     overlapContributions: number;
     unavailableMembers: number;
+    /** Included subjects with no funding basis (bills). Never counted as zero or unavailable. */
+    notApplicableMembers?: number;
   };
   limitations: readonly string[];
   observedAt: string;

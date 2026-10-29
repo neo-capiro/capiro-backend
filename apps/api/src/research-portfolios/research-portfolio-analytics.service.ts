@@ -11,10 +11,12 @@ import type {
   ResearchPortfolioSnapshotSummaryDto,
   TenantContext,
 } from '@capiro/shared';
+import { isResearchPortfolioBillKind } from '@capiro/shared';
 import type { DefenseFundingCellDto } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { DefenseResearchService } from '../defense-research/defense-research.service.js';
 import { loadAuthorizedResearchPortfolio } from './research-portfolio-access.js';
+import { canonicalFacts } from './research-portfolio-targets.js';
 
 const CALCULATION_VERSION = 'research-portfolio-analytics-v2' as const;
 const SUPPORTED_KINDS = new Set(['program', 'program_element', 'project', 'budget_line']);
@@ -194,6 +196,12 @@ export class ResearchPortfolioAnalyticsService {
         contributions.push(this.memberOnlyContribution(member, 'excluded', `Membership disposition is ${member.disposition}`));
         continue;
       }
+      if (isResearchPortfolioBillKind(member.targetKind)) {
+        // A bill is a tracked legislative subject, not a funding basis: it is never
+        // zero, never a funding reader failure, and never aggregated into totals.
+        contributions.push(this.billContribution(member));
+        continue;
+      }
       if (!SUPPORTED_KINDS.has(member.targetKind)) {
         contributions.push(this.memberOnlyContribution(member, 'unavailable', `${member.targetKind} has no qualified financial reader`));
         continue;
@@ -266,6 +274,7 @@ export class ResearchPortfolioAnalyticsService {
     const totalDtos = [...totals.values()].map(({ basis, values }) => ({ basis, value: sumDecimals(values), contributionCount: values.length }));
     const supportedMemberIds = new Set(contributions.filter((item) => item.basis !== null && item.disposition !== 'unavailable').map((item) => item.memberId));
     const unavailableMemberIds = new Set(contributions.filter((item) => item.disposition === 'unavailable').map((item) => item.memberId));
+    const notApplicableMemberIds = new Set(contributions.filter((item) => item.disposition === 'not_applicable').map((item) => item.memberId));
     const hasObservedValues = contributions.some((item) => item.value !== null && ['included', 'incompatible'].includes(item.disposition));
     const hasPartialCoverage = unavailableMemberIds.size > 0 || contributions.some((item) =>
       ['missing', 'withheld', 'incompatible'].includes(item.disposition) || item.sourceDisposition === 'partial');
@@ -279,6 +288,7 @@ export class ResearchPortfolioAnalyticsService {
       ...(contributions.some((item) => item.basis?.metric === 'unit_cost' && item.disposition === 'incompatible') ? ['Unit costs remain per-subject values and are not summed without qualified quantity weights.'] : []),
       ...(contributions.some((item) => item.disposition === 'overlap') ? ['Repeated observations and parent/project overlap are excluded from totals.'] : []),
       ...(members.some((member) => member.targetKind === 'award') ? ['Award financial aggregation remains unsupported in this projection.'] : []),
+      ...(notApplicableMemberIds.size > 0 ? ['Tracked bills carry legislative status, not funding; they are not applicable to funding totals.'] : []),
     ];
     return {
       portfolioId,
@@ -294,6 +304,7 @@ export class ResearchPortfolioAnalyticsService {
         excludedContributions: contributions.filter((item) => item.disposition === 'excluded').length,
         overlapContributions: contributions.filter((item) => item.disposition === 'overlap').length,
         unavailableMembers: unavailableMemberIds.size,
+        notApplicableMembers: notApplicableMemberIds.size,
       },
       limitations,
       observedAt,
@@ -334,6 +345,26 @@ export class ResearchPortfolioAnalyticsService {
       sourceRevisionIds,
       evidence,
       dedupKey: `${basisKey(basis)}:${cell.sourceObservationId}`,
+      overlapsContributionId: null,
+    };
+  }
+
+  private billContribution(member: any): ResearchPortfolioContributionDto {
+    return {
+      contributionId: hash([member.id, 'not_applicable']),
+      memberId: member.id,
+      targetKind: member.targetKind,
+      targetId: member.targetId,
+      label: member.label,
+      basis: null,
+      value: null,
+      disposition: 'not_applicable',
+      sourceDisposition: null,
+      reason: 'A tracked bill carries legislative status, not funding; no funding figure applies',
+      sourceObservationId: null,
+      sourceRevisionIds: [],
+      evidence: [],
+      dedupKey: null,
       overlapsContributionId: null,
     };
   }
@@ -413,6 +444,9 @@ export class ResearchPortfolioAnalyticsService {
       reason: member.reason,
       unresolvedInput: member.unresolvedInput as Readonly<Record<string, unknown>> | null,
       resolvedAt: member.resolvedAt?.toISOString() ?? null,
+      // Frozen with the membership: a published snapshot keeps the bill status,
+      // latest action and source revision it was captured from.
+      facts: canonicalFacts(member.evidence),
       revision: member.revision,
       createdByUserId: member.createdByUserId,
       updatedByUserId: member.updatedByUserId,

@@ -20,6 +20,7 @@
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
+import { recordResearchPortfolioBillChanges } from '../src/research-portfolios/research-portfolio-bill-changes.js';
 dotenvConfig();
 
 
@@ -118,6 +119,30 @@ async function main() {
 
     for (const b of bills) {
       try {
+        // Research Portfolio fan-out happens regardless of client tracking: a
+        // portfolio tracks the bill directly. Same detected transition, deduped by
+        // the portfolio event idempotency key. The bypass context is the script
+        // equivalent of withSystem for tenant-scoped portfolio tables.
+        try {
+          await readIntelCrossTenant(prisma, (tx) =>
+            recordResearchPortfolioBillChanges(tx as never, {
+              targetKind: 'state_bill',
+              targetId: b.id,
+              changeType: `state_bill_${b.status}`,
+              label: b.status.replace(/_/g, ' '),
+              detail: b.latestActionText ?? `${b.state} ${b.identifier} status changed to ${b.status}.`,
+              actionDate: b.statusAt.toISOString().slice(0, 10),
+              sourceUrl: null,
+              sourceLabel: `${b.state} legislature (LegiScan)`,
+              detectedAt: since,
+            }),
+          );
+        } catch (err) {
+          // A portfolio fan-out failure must not suppress the client change row.
+          errors++;
+          console.error(`[emit-state-changes] ${b.id} portfolio fan-out failed:`, err);
+        }
+
         const relatedClientIds = Array.from(relatedByBill.get(b.id) ?? []);
         if (!relatedClientIds.length) {
           skipped++;
