@@ -6,16 +6,30 @@
   "types": "./dist/index.d.ts",
   "typesVersions": {
     "*": {
-      "workspace-share-lifecycle": ["dist/workspace-share-lifecycle.d.ts"],
-      "workspace-template-studio": ["dist/workspace-template-studio.d.ts"],
-      "core-retained-read-request": ["dist/core-retained-read-request.d.ts"],
-      "core-retained-authority-probe": ["dist/core-retained-authority-probe.d.ts"],
-      "core-retained-authority-http": ["dist/core-retained-authority-http.d.ts"],
+      "workspace-share-lifecycle": [
+        "dist/workspace-share-lifecycle.d.ts"
+      ],
+      "workspace-template-studio": [
+        "dist/workspace-template-studio.d.ts"
+      ],
+      "core-retained-read-request": [
+        "dist/core-retained-read-request.d.ts"
+      ],
+      "core-retained-authority-probe": [
+        "dist/core-retained-authority-probe.d.ts"
+      ],
+      "core-retained-authority-http": [
+        "dist/core-retained-authority-http.d.ts"
+      ],
       "core-retained-principal": [
         "dist/core-retained-principal.d.ts"
       ],
-      "core-retained-jcs": ["dist/core-retained-jcs.d.ts"],
-      "core-retained-trust": ["dist/core-retained-trust.d.ts"],
+      "core-retained-jcs": [
+        "dist/core-retained-jcs.d.ts"
+      ],
+      "core-retained-trust": [
+        "dist/core-retained-trust.d.ts"
+      ],
       "ai-model-policy": [
         "dist/ai-model-policy.d.ts"
       ],
@@ -57,6 +71,9 @@
       ],
       "objective-planner-owner-codec": [
         "dist/objective-planner-owner-codec.d.ts"
+      ],
+      "prospect-brief-refresh": [
+        "dist/prospect-brief-refresh.d.ts"
       ]
     }
   },
@@ -198,6 +215,11 @@
       "require": "./dist/objective-planner-owner-codec.js",
       "import": "./dist/objective-planner-owner-codec.js",
       "default": "./dist/objective-planner-owner-codec.js"
+    },
+    "./prospect-brief-refresh": {
+      "types": "./dist/prospect-brief-refresh.d.ts",
+      "import": "./dist/prospect-brief-refresh.js",
+      "default": "./dist/prospect-brief-refresh.js"
     }
   },
   "scripts": {
