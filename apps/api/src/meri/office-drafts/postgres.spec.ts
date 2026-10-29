@@ -60,6 +60,17 @@ suite('private Office drafts on ordinary-role PostgreSQL', () => {
     expect((await readDraft(f.ports, f.key)).sequence).toBe(1);
     await expect(saveDraft(f.ports, f.save('third'))).rejects.toThrow('STALE_SEQUENCE');
   });
+  it('roundtrips extended opaque locks containing spaces through ordinary-role custody and save', async () => {
+    const f = await fixture(), lock = '{"owner": "CODE", "pad": "' + 'x'.repeat(996) + '"}';
+    expect(lock.length).toBe(1024);
+    expect(await f.lock('lock', lock)).toEqual({ status: 200 });
+    expect(await f.lock('get')).toEqual({ status: 200, lock });
+    expect(await f.lock('lock', 'other')).toEqual({ status: 409, lock });
+    expect(await saveDraft(f.ports, { ...f.save('exact bytes'), lock })).toMatchObject({ status: 200, receipt: { sequence: 1 } });
+    expect(await lockDraft(f.ports, { ...f.key, ...f.editor, operation: 'relock', oldLock: lock, lock: 'new lock' })).toEqual({ status: 200 });
+    expect(await f.lock('refresh', 'new lock')).toEqual({ status: 200 });
+    expect(await f.lock('unlock', 'new lock')).toEqual({ status: 200 });
+  });
   it('serializes locks and refuses incorrect/expired locks before saving; supports relock and unlock', async () => {
     const f = await fixture(); expect(await f.lock()).toEqual({ status: 200 });
     expect(await f.lock('lock', 'writer-2')).toEqual({ status: 409, lock: 'writer-1' });

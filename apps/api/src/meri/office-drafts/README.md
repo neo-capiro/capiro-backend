@@ -99,3 +99,14 @@ the Core client have merged source slices, but the WOPI HTTP adapter, versioned
 Office browser receiver, current suppression bridge, iframe/recovery controls,
 actual CODE service and representative Office fidelity corpus remain unqualified.
 No application/image build, deployment or provider call was performed.
+## WOPI opaque lock compatibility
+
+The lock boundary preserves printable ASCII spaces, including opaque JSON-like
+lock IDs, up to 1024 characters. Controls, non-ASCII and overflow remain refused.
+The same validator governs Save, Lock, Refresh, Unlock and atomic relock; no
+schema or migration changes are needed. A boundary case and an ordinary-role
+PostgreSQL roundtrip cover the extended lock through Save and relock. The two
+affected suites pass 34 cases, including 18 real PostgreSQL cases. This source
+change pairs with the runtime WOPI adapter's matching wire validator.
+
+Reference: [WOPI UnlockAndRelock](https://learn.microsoft.com/en-us/microsoft-365/cloud-storage-partner-program/rest/files/unlockandrelock).

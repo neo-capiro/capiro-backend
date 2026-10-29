@@ -19,7 +19,7 @@ export function sequence(raw: unknown): number {
   return typeof raw === 'number' && Number.isSafeInteger(raw) && raw >= 0 && raw <= 2147483647 ? raw : invalid();
 }
 export function lockToken(raw: unknown): string {
-  return typeof raw === 'string' && /^[\x21-\x7e]{1,1024}$/.test(raw) ? raw : invalid();
+  return typeof raw === 'string' && /^[\x20-\x7e]{1,1024}$/.test(raw) ? raw : invalid();
 }
 export const digest = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
 export type DraftKey = { conversationId: string; draftId: string };
