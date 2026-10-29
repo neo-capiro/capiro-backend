@@ -116,7 +116,7 @@ describe('Facility discovery — missing-address findings', () => {
       latestFacilityUpdatedAt: latest.toISOString(),
       facilityCount: 2,
     });
-    expect(h.facilities.resolveFacilityDistrict).not.toHaveBeenCalled();
+    expect(h.facilities.previewFacilityDistrict).not.toHaveBeenCalled();
   });
 });
 
