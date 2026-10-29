@@ -12,6 +12,7 @@ import { assembleNewsletterReleaseArtifact, createNewsletterArtifactPackagingPla
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const current = 'c8aa693e884de86001d2fc04fbb60d48db09341c';
 const qualified = '83f54f5ac0107822833adbbfef2b453e0240bc56';
+const legacy = 'ee470d7d44b811dc84d147c62a3eab7c9b5be09f';
 const inactiveFilesSource = '90ccdd47de7a989e822590d616d69baa15a37d5d';
 const historical = '7c87678730538958ace9762f824dc3e588bf445b';
 // Preserve the earlier pending-policy controls as an explicit labelled model;
@@ -139,39 +140,43 @@ test('shipping CLI keeps all seven flags, refuses pending pins and exposes no pr
   const shipping = parseFrontendStandaloneInvocation(shippingArgs());
   assert.equal(shipping.pins.sourceCommit, current);
   assert.throws(() => assertAcceptedNewsletterArtifactSource(shipping.pins, pendingFixture()), /final accepted frontend source/);
-  const build = parseNewsletterBuildInvocation(buildArgs('--run', qualified));
+  const build = parseNewsletterBuildInvocation(buildArgs('--run', legacy));
   assert.throws(() => assertAcceptedNewsletterArtifactSource(pins(build.options.sourceCommit), pendingFixture()), /final accepted frontend source/);
   for (const flag of ['--source-profile', '--source-admission-fixture']) {
     assert.throws(() => parseFrontendStandaloneInvocation([...shippingArgs(), flag, '{}']));
-    assert.throws(() => parseNewsletterBuildInvocation([...buildArgs('--run', qualified), flag, '{}']));
+    assert.throws(() => parseNewsletterBuildInvocation([...buildArgs('--run', legacy), flag, '{}']));
   }
 });
 });
 
-test('current production policy admits only the qualified runtime with its exact published receipt pin', () => {
-  assert.equal(PROFILE.activeCommit, qualified); assert.equal(PROFILE.acceptedSources.length, 3);
-  assert.deepEqual(PROFILE.acceptedSources[0], { commit: current, tree: '9d11bfbd7121887bc06f5cb793e8a4c4e6e682b4',
+test('current production policy admits only the active source with its exact published pin', () => {
+  assert.equal(PROFILE.activeCommit, legacy); assert.equal(PROFILE.acceptedSources.length, 4);
+  assert.deepEqual(PROFILE.acceptedSources[0], { commit: legacy, tree: 'cc7168bd5277517e2a0bf9e89ff61b9f459299c4',
+    qualificationReceipt: { repository: 'neo-capiro/capiro-frontend', commit: '03bc4563512c85c5353a26721045fe0b474a676c',
+      path: 'docs/legacy-web-20261029/SOURCE-PIN-QUALIFICATION.md',
+      sha256: '53d9b20a4432a15f47d5baac7591858257b1c1946381961624c676fea1faf445' } });
+  assert.deepEqual(PROFILE.acceptedSources[1], { commit: current, tree: '9d11bfbd7121887bc06f5cb793e8a4c4e6e682b4',
     qualificationReceipt: { repository: 'neo-capiro/capiro-frontend', commit: '46ebdd448ef55e88c7a4083fb4586322757a14f8',
       path: 'docs/newsletter-receiving-final-20261013/QUALIFICATION.md',
       sha256: 'cf99a4f3a9799f94f80b73ab283d5538c14fb41d9fa403a6af1bd72295c9cf33' } });
-  assert.deepEqual(PROFILE.acceptedSources[1], { commit: qualified, tree: '760b05a7a7feacee16815da2767cb83dbb600d95',
+  assert.deepEqual(PROFILE.acceptedSources[2], { commit: qualified, tree: '760b05a7a7feacee16815da2767cb83dbb600d95',
     qualificationReceipt: { repository: 'neo-capiro/capiro-frontend', commit: '3ee5655bf50350e3814b17170ce6f0a93b060dc0',
       path: 'docs/unified-20261013/qualification-83f54f5a/README.md',
       sha256: 'd8f2f93ac3887e760aad27ed9cf18ecf17b0e51575e4c2e0dc8c4f6d5658ea00' } });
-  const admitted = assertAcceptedNewsletterArtifactSource(pins(qualified));
+  const admitted = assertAcceptedNewsletterArtifactSource(pins(legacy));
   assert.equal(admitted.status, 'accepted'); assert.equal(admitted.sourceAcceptedByReviewedPolicy, true);
   assert.equal(admitted.syntheticSourceApprovalModel, false);
   for (const key of ['sourceApprovalProofVerified', 'independentFrontendQualificationVerified',
     'buildUsedSourceVerified', 'nativeRuntimeCompatibilityVerified']) assert.equal(admitted[key], false, key);
-  const plan = createNewsletterArtifactPackagingPlan(options(qualified));
+  const plan = createNewsletterArtifactPackagingPlan(options(legacy));
   assert.equal(plan.sourceAdmission.status, 'accepted'); assert.equal(plan.assemblyPerformed, false);
-  assert.equal(parseNewsletterBuildInvocation(buildArgs('--run', qualified)).mode, 'run');
+  assert.equal(parseNewsletterBuildInvocation(buildArgs('--run', legacy)).mode, 'run');
 });
 
 test('current production policy refuses stale, arbitrary and wrong runtime declarations before artifact callbacks', async () => {
-  for (const supplied of [pins(historical), pins(current), pins(inactiveFilesSource), pins('c'.repeat(40)), { ...pins(qualified), sourceRepository: 'other/repository' },
-    { ...pins(qualified), runtimeTarget: { os: 'linux', arch: 'amd64', libc: 'glibc', nodeMajor: 24 } },
-    { ...pins(qualified), runtimeTarget: { os: 'linux', arch: 'amd64', libc: 'musl', nodeMajor: 22 } }]) {
+  for (const supplied of [pins(historical), pins(current), pins(qualified), pins(inactiveFilesSource), pins('c'.repeat(40)), { ...pins(legacy), sourceRepository: 'other/repository' },
+    { ...pins(legacy), runtimeTarget: { os: 'linux', arch: 'amd64', libc: 'glibc', nodeMajor: 24 } },
+    { ...pins(legacy), runtimeTarget: { os: 'linux', arch: 'amd64', libc: 'musl', nodeMajor: 22 } }]) {
     let calls = 0; const before = structuredClone(supplied);
     await assert.rejects(readAcceptedFrontendStandaloneArtifact({ artifactDir: '/synthetic/artifact', pins: supplied,
       ports: { lstat: async () => { calls++; throw new Error('must not touch artifact'); } } }));
@@ -192,9 +197,9 @@ function interceptedCli(file, args, ambientSource = historical) {
     env: { PATH: '/usr/bin:/bin', NEWSLETTER_ACCEPTED_SOURCE: ambientSource }, encoding: 'utf8' });
 }
 
-test('actual current CLI reaches only labelled inert artifact ports for qualified 83 and cannot override approval through flags or environment', () => {
-  for (const [file, args, code] of [['frontend-standalone-artifact-contract.mjs', shippingArgs(qualified), 1],
-    ['newsletter-artifact-packaging-plan.mjs', buildArgs('--run', qualified), 2]]) {
+test('actual current CLI reaches only labelled inert artifact ports for the active source and cannot override approval through flags or environment', () => {
+  for (const [file, args, code] of [['frontend-standalone-artifact-contract.mjs', shippingArgs(legacy), 1],
+    ['newsletter-artifact-packaging-plan.mjs', buildArgs('--run', legacy), 2]]) {
     const result = interceptedCli(file, args);
     assert.equal(result.status, code, result.stderr); assert.match(result.stderr, /INERT_ARTIFACT_REFUSAL/);
     const marker = JSON.parse(result.stdout);
@@ -203,14 +208,14 @@ test('actual current CLI reaches only labelled inert artifact ports for qualifie
     assert.doesNotMatch(result.stdout, /newsletter-release-assembly|"status":"PASS"/);
     if (code === 2) assert.equal(JSON.parse(result.stderr).assemblyCompleted, false);
   }
-  for (const commit of [historical, current, inactiveFilesSource, 'c'.repeat(40)]) {
+  for (const commit of [historical, current, qualified, inactiveFilesSource, 'c'.repeat(40)]) {
     for (const [file, args, code] of [['frontend-standalone-artifact-contract.mjs', shippingArgs(commit), 1],
       ['newsletter-artifact-packaging-plan.mjs', buildArgs('--run', commit), 2]]) {
-      const result = interceptedCli(file, args, qualified);
+      const result = interceptedCli(file, args, legacy);
       assert.equal(result.status, code); assert.match(result.stderr, /active accepted frontend source/);
       assert.equal(result.stdout, '', 'source refusal before artifact ports despite ambient accepted source');
       for (const flag of ['--source-profile', '--source-admission-fixture']) {
-        const injected = interceptedCli(file, [...args, flag, '{}'], qualified);
+        const injected = interceptedCli(file, [...args, flag, '{}'], legacy);
         assert.equal(injected.status, code); assert.equal(injected.stdout, '');
       }
     }
@@ -219,50 +224,50 @@ test('actual current CLI reaches only labelled inert artifact ports for qualifie
 
 test('retained c8 receipt is historical and cannot admit an artifact or become active through environment', () => {
   assert.equal(inspectNewsletterSourceAdmission(pins(current)).status, 'refused');
-  assert.equal(inspectNewsletterSourceAdmission(pins(current)).activeSource.commit, qualified);
+  assert.equal(inspectNewsletterSourceAdmission(pins(current)).activeSource.commit, legacy);
   assert.throws(() => assertAcceptedNewsletterArtifactSource(pins(current)), /active accepted/);
   const result = interceptedCli('newsletter-artifact-packaging-plan.mjs', buildArgs('--run', current), current);
   assert.equal(result.status, 2); assert.equal(result.stdout, '');
   assert.match(result.stderr, /active accepted frontend source/);
 });
 
-test('qualified source permits arm64 declarations while retaining every native and receipt-byte proof gate', () => {
-  const supplied = pins(qualified); supplied.runtimeTarget.arch = 'arm64';
+test('active source permits arm64 declarations while retaining every native and receipt-byte proof gate', () => {
+  const supplied = pins(legacy); supplied.runtimeTarget.arch = 'arm64';
   const admitted = assertAcceptedNewsletterArtifactSource(supplied);
   assert.equal(admitted.sourceAcceptedByReviewedPolicy, true);
   for (const key of ['sourceApprovalProofVerified', 'independentFrontendQualificationVerified',
     'buildUsedSourceVerified', 'nativeRuntimeCompatibilityVerified']) assert.equal(admitted[key], false, key);
-  assert.equal(admitted.activeSource.tree, '760b05a7a7feacee16815da2767cb83dbb600d95');
-  assert.notEqual(admitted.activeSource.tree, '67f821a13c8470ceeb5222eb89d43cea58b1a8c8');
+  assert.equal(admitted.activeSource.tree, 'cc7168bd5277517e2a0bf9e89ff61b9f459299c4');
+  assert.notEqual(admitted.activeSource.tree, '760b05a7a7feacee16815da2767cb83dbb600d95');
 });
 
-test('Files90 qualification is pinned as inactive while frozen83 remains the only artifact source', () => {
-  assert.deepEqual(PROFILE.acceptedSources[2], { commit: inactiveFilesSource, tree: '2bd75625dfa0b1a8aa894a48a68f34550a6f5037',
+test('Files90 qualification is pinned as inactive while the active source remains the only artifact source', () => {
+  assert.deepEqual(PROFILE.acceptedSources[3], { commit: inactiveFilesSource, tree: '2bd75625dfa0b1a8aa894a48a68f34550a6f5037',
     qualificationReceipt: { repository: 'neo-capiro/capiro-frontend', commit: '5875e240c7b266a0e63903c4d0ed9b30c08d4d9a',
       path: 'docs/unified-20261013/qualification-90ccdd47/README.md',
       sha256: 'd27f3473eb5b7ddbed6e2e2db2cc60adab697ff96f07e994dba803cec92b8b67' } });
-  assert.equal(PROFILE.activeCommit, qualified);
+  assert.equal(PROFILE.activeCommit, legacy);
   const inactive = inspectNewsletterSourceAdmission(pins(inactiveFilesSource));
   assert.equal(inactive.status, 'refused'); assert.equal(inactive.assemblyAdmissionAllowed, false);
   assert.equal(inactive.sourceAcceptedByReviewedPolicy, false);
-  assert.equal(inactive.activeSource.commit, qualified);
+  assert.equal(inactive.activeSource.commit, legacy);
   for (const key of ['sourceApprovalProofVerified', 'independentFrontendQualificationVerified',
     'buildUsedSourceVerified', 'nativeRuntimeCompatibilityVerified']) assert.equal(inactive[key], false, key);
   const plan = createNewsletterArtifactPackagingPlan(options(inactiveFilesSource));
   assert.equal(plan.sourceAdmission.status, 'refused'); assert.equal(plan.assemblyPerformed, false);
   assert.throws(() => parseNewsletterBuildInvocation(buildArgs('--run', inactiveFilesSource)), /active accepted/);
-  assert.equal(assertAcceptedNewsletterArtifactSource(pins(qualified)).sourceAcceptedByReviewedPolicy, true);
+  assert.equal(assertAcceptedNewsletterArtifactSource(pins(legacy)).sourceAcceptedByReviewedPolicy, true);
 });
 
-test('inactive Files90 cannot activate through ambient source and frozen83 still reaches only inert ports', () => {
+test('inactive Files90 cannot activate through ambient source and the active source still reaches only inert ports', () => {
   for (const [file, args, code] of [['frontend-standalone-artifact-contract.mjs', shippingArgs(inactiveFilesSource), 1],
     ['newsletter-artifact-packaging-plan.mjs', buildArgs('--run', inactiveFilesSource), 2]]) {
     const result = interceptedCli(file, args, inactiveFilesSource);
     assert.equal(result.status, code); assert.equal(result.stdout, '');
     assert.match(result.stderr, /active accepted frontend source/);
   }
-  for (const [file, args, code] of [['frontend-standalone-artifact-contract.mjs', shippingArgs(qualified), 1],
-    ['newsletter-artifact-packaging-plan.mjs', buildArgs('--run', qualified), 2]]) {
+  for (const [file, args, code] of [['frontend-standalone-artifact-contract.mjs', shippingArgs(legacy), 1],
+    ['newsletter-artifact-packaging-plan.mjs', buildArgs('--run', legacy), 2]]) {
     const result = interceptedCli(file, args, inactiveFilesSource);
     assert.equal(result.status, code); assert.match(result.stderr, /INERT_ARTIFACT_REFUSAL/);
     assert.equal(JSON.parse(result.stdout).artifactFilesystemEffectsPerformed, false);
