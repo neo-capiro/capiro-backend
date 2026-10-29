@@ -80,6 +80,9 @@ describe('artifact current authority (capiro.meri-artifact-authority.v1)', () =>
     ));
     expect(ARTIFACT_INTENT_OPERATIONS.history).toEqual(['artifact.inspect']);
     expect(ARTIFACT_INTENT_OPERATIONS.list).toEqual(['artifact.inspect']);
+    expect(ARTIFACT_INTENT_OPERATIONS['federal-prepare']).toEqual(['artifact.download', 'artifact.inspect']);
+    expect(ARTIFACT_INTENT_OPERATIONS['federal-load']).toEqual(['artifact.download', 'artifact.inspect']);
+    expect(ARTIFACT_INTENT_OPERATIONS['federal-publish']).toEqual(['artifact.download', 'artifact.generate', 'artifact.inspect', 'artifact.revise']);
   });
 
   it("ports Meri's receipt check faithfully: it accepts each vector receipt and refuses all 18 vector refusals", () => {
