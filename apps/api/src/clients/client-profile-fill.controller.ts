@@ -37,6 +37,10 @@ import {
 import { ClientProfileFillCompletionService } from './client-profile-fill-completion.service.js';
 
 class StartClientProfileFillDto {
+  /** Reuse this UUID after an interrupted response; it is also the durable run ID. */
+  @IsUUID()
+  requestId!: string;
+
   @IsOptional()
   @IsArray()
   // Explicit [] is meaningful: a legacy document-only run carries
@@ -180,6 +184,7 @@ export class ClientProfileFillController {
       ]),
     ];
     return this.service.startRun(ctx, clientId, {
+      requestId: body.requestId,
       sources: body.sources,
       attachmentIds,
       ldaClientIds: body.ldaClientIds,
