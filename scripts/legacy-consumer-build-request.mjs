@@ -3,29 +3,41 @@
  *
  * Bounded build-request generator for the two legacy maintenance images. This is
  * a *request* tool: it never starts a build, never creates a project, never
- * changes IAM and never deploys. `--stage` only uploads the caller's exact source
- * archive to the existing versioned source bucket; `plan` writes the reviewable
- * request without touching AWS.
+ * changes IAM, never pushes an image and never deploys.
  *
- * It uses the existing ARM builder `capiro-build-web-dev` with a per-build S3
- * source override (sourceTypeOverride/sourceLocationOverride/sourceVersion) and
- * an inline buildspec — the same method already used by the accepted frontend
- * build `capiro-portfolio-preview-build` (S3 object + VersionId pin +
- * EXPECTED_SHA/EXPECTED_S3_VERSION). No stored project field is modified.
+ * It uses the existing ARM builder `capiro-build-web-dev` with a per-build source
+ * override (sourceTypeOverride/sourceLocationOverride/sourceVersion + inline
+ * buildspec) — the same method as the accepted frontend build — so no stored
+ * project state changes.
+ *
+ * Source identity uses ONE canonical algorithm on both sides (generator and the
+ * emitted verifier):
+ *
+ *   record  := "F\t<path>\t<sha256hex of file bytes>\n"
+ *            | "L\t<path>\t<raw symlink target text>\n"
+ *   digest  := sha256 over the records sorted bytewise by <path>, concatenated
+ *
+ * Paths are POSIX, relative to the source root, `.git` excluded. Absolute or
+ * root-escaping symlink targets, tab/newline/NUL in a path and newline/NUL in a
+ * link target are refused on both sides. File modes are not authenticated.
  *
  * web:  pulls the qualified frontend image digest, extracts its /app tree, runs
  *       the unchanged Linux/Node24 gates in the pinned Node24.21 musl image,
  *       assembles release-artifacts/capiro-frontend with the existing owner,
- *       builds+smokes the 8080 consumer recipe, then pushes an exact-SHA tag.
- * marketing: builds+smokes marketing/Dockerfile and pushes an exact-SHA tag.
+ *       builds+smokes the 8080 consumer recipe, pushes the exact commit tag to
+ *       both 8080 repositories and verifies the captured immutable digest and a
+ *       clean exact-digest scan for each.
+ * marketing: builds+smokes marketing/Dockerfile and does the same for its single
+ *       repository.
  *
  * Usage:
- *   node scripts/legacy-consumer-build-request.mjs --service web --source-checkout ABS \
- *     --source-commit 40HEX --out-dir ABS [--stage]
+ *   node scripts/legacy-consumer-build-request.mjs --service web --source-kind github \
+ *     --source-checkout ABS --source-commit 40HEX --out-dir ABS
  */
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, readlinkSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
@@ -40,19 +52,35 @@ export const NODE_IMAGE = 'public.ecr.aws/docker/library/node:24.21.0-alpine3.23
 export const FRONTEND_IMAGE_DIGEST = 'sha256:983eb6d99feb25e664a0a2f14244d60e906f12f88a3a262b27519ffbed53f930';
 export const FRONTEND_SOURCE_COMMIT = 'ee470d7d44b811dc84d147c62a3eab7c9b5be09f';
 export const CONSUMER_REPOSITORIES = Object.freeze({ web: 'capiro/dev/web', marketing: 'capiro/dev/marketing' });
+export const WEB_REPOSITORIES = Object.freeze(['capiro/dev/web', 'capiro/dev/web-vnext']);
 export const USAGE = 'Usage: node scripts/legacy-consumer-build-request.mjs --service web|marketing --source-kind github|s3 --source-checkout ABS --source-commit 40HEX --out-dir ABS';
 
-const sha = (value) => createHash('sha256').update(value).digest('hex');
+export const SOURCE_DIGEST = Object.freeze({
+  version: 1,
+  records: 'F\\t<posix-path>\\t<sha256(content)>\\n and L\\t<posix-path>\\t<symlink target text>\\n',
+  sort: 'bytewise ascending by posix-path',
+  digest: 'sha256 over concatenated records',
+  excludes: Object.freeze(['.git']),
+  refuses: Object.freeze(['tab/newline/NUL in path', 'newline/NUL in symlink target',
+    'absolute or drive/UNC-prefixed symlink target', 'symlink target escaping the source root',
+    'non-regular file']),
+  authenticates: Object.freeze(['relative path', 'file content bytes', 'symlink target text']),
+  doesNotAuthenticate: Object.freeze(['unix mode/executable bit', 'directories', 'git object ids']),
+});
+
+const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 const fail = (reason) => { throw new Error('Legacy consumer build request refused: ' + reason); };
 const flags = Object.freeze(['--service', '--source-kind', '--source-checkout', '--source-commit', '--out-dir']);
+const MAX_ENTRIES = 60_000;
+const MAX_FILE_BYTES = 64 * 1024 * 1024;
 
 export function parseInvocation(argv) {
   if (argv.length === 1 && ['--help', '-h'].includes(argv[0])) return Object.freeze({ mode: 'help' });
   const args = argv.filter((value) => value !== '--stage');
   if (![flags.length * 2, (flags.length - 1) * 2].includes(args.length))
     fail('explicit service/source-kind/paths/commit flags required');
-  // Uploading a new S3 source key would need a task-specific exact-key read
-  // grant in the builder role, so staging is not offered here.
+  // Uploading a new S3 key would need a task-specific exact-key read grant in
+  // the builder role, so staging is not offered here.
   if (argv.includes('--stage'))
     fail('staging is not offered: a new S3 key needs an exact-key grant; use the github source override');
   const values = new Map();
@@ -69,58 +97,287 @@ export function parseInvocation(argv) {
   });
   if (!Object.hasOwn(CONSUMER_REPOSITORIES, options.service)) fail('service must be web or marketing');
   if (!['github', 's3'].includes(options.sourceKind)) fail('source kind must be github or s3');
-
   if (!/^[a-f0-9]{40}$/.test(options.sourceCommit)) fail('40-hex source commit required');
   for (const value of [options.sourceCheckout, options.outDir])
     if (!value || !path.isAbsolute(value)) fail('absolute source-checkout and out-dir required');
   return Object.freeze({ mode: 'plan', options });
 }
 
-/** Deterministic content digest of an exact commit, reproduced by the job. */
-export function treeDigest(sourceCheckout, sourceCommit) {
-  const listing = execFileSync('git', ['-C', sourceCheckout, 'ls-tree', '-r', '-z', sourceCommit],
-    { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 }).split('\0').filter(Boolean);
-  const rows = [];
-  for (const line of listing) {
-    const match = /^(\d+) (\w+) ([a-f0-9]{40})\t(.+)$/.exec(line);
-    if (!match) fail('unparsable tree entry');
-    const [, mode, type, object, name] = match;
-    if (type !== 'blob') fail('non-blob tree entry refused: ' + name);
-    if (mode === '120000') {
-      const target = execFileSync('git', ['-C', sourceCheckout, 'cat-file', 'blob', object], { encoding: 'utf8' });
-      rows.push(`L ${name} ${target}`);
-    } else rows.push(`F ${name} ${object}`);
-  }
-  rows.sort();
-  return sha(Buffer.from(rows.join('\n') + '\n'));
+// ---------------------------------------------------------------------------
+// Canonical source manifest (must stay identical to the emitted verifier below)
+// ---------------------------------------------------------------------------
+
+function recordSafePath(relative) {
+  if (!relative || relative.startsWith('/') || relative.includes('\\')) fail('non-posix source path: ' + relative);
+  if (/[\t\n\r\0]/.test(relative)) fail('control character in source path: ' + JSON.stringify(relative));
+  if (relative.split('/').some((part) => part === '' || part === '.' || part === '..'))
+    fail('non-canonical source path: ' + relative);
+  return relative;
+}
+function recordSafeTarget(linkPath, target) {
+  if (!target) fail('empty symlink target: ' + linkPath);
+  if (/[\n\r\0]/.test(target)) fail('control character in symlink target: ' + linkPath);
+  if (target.startsWith('/') || target.startsWith(String.fromCharCode(92)) || /^[A-Za-z]:/.test(target))
+    fail('absolute symlink target: ' + linkPath);
+  const normalizedTarget = target.split(String.fromCharCode(92)).join('/');
+  const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(linkPath), normalizedTarget));
+  if (resolved === '..' || resolved.startsWith('../')) fail('escaping symlink target: ' + linkPath);
+  return target;
+}
+/** Records for already-collected entries, sorted bytewise by path. */
+export function canonicalRecordBytes(entries) {
+  const rows = entries.map((entry) => {
+    const relative = recordSafePath(entry.path);
+    if (entry.type === 'file') {
+      if (!/^[a-f0-9]{64}$/.test(entry.value ?? '')) fail('file entry needs a sha256 value: ' + relative);
+      return `F\t${relative}\t${entry.value}\n`;
+    }
+    if (entry.type === 'symlink') return `L\t${relative}\t${recordSafeTarget(relative, entry.value)}\n`;
+    fail('entry type must be file or symlink: ' + relative);
+  });
+  rows.sort((left, right) => {
+    const leftPath = left.slice(2, left.indexOf('\t', 2));
+    const rightPath = right.slice(2, right.indexOf('\t', 2));
+    return Buffer.compare(Buffer.from(leftPath, 'utf8'), Buffer.from(rightPath, 'utf8'));
+  });
+  return Buffer.from(rows.join(''), 'utf8');
+}
+export function sourceDigest(entries) {
+  return { digest: sha256(canonicalRecordBytes(entries)), entries: entries.length };
+}
+/** Walk a materialised source tree with the canonical rules. */
+export function collectSourceEntries(root) {
+  const entries = [];
+  const walk = (absolute, prefix) => {
+    for (const name of readdirSync(absolute).filter((item) => item !== '.git').sort()) {
+      const local = path.join(absolute, name);
+      const relative = recordSafePath(prefix ? `${prefix}/${name}` : name);
+      const stat = lstatSync(local);
+      if (stat.isSymbolicLink()) {
+        entries.push({ path: relative, type: 'symlink', value: readlinkSync(local) });
+      } else if (stat.isDirectory()) {
+        walk(local, relative);
+      } else if (stat.isFile()) {
+        if (stat.size > MAX_FILE_BYTES) fail('source file over the size budget: ' + relative);
+        entries.push({ path: relative, type: 'file', value: sha256(readFileSync(local)) });
+      } else fail('non-regular source entry: ' + relative);
+      if (entries.length > MAX_ENTRIES) fail('source entry budget');
+    }
+  };
+  walk(root, '');
+  return entries;
 }
 
-const BUILDSPEC_DIGEST_STEP = `python3 - <<'PY'
-import hashlib, os, sys
-root = '.'
+/**
+ * Materialise the exact commit in a throw-away worktree with line-ending
+ * conversion disabled, so the bytes hashed here are the bytes a Linux checkout
+ * of the same commit yields. Callers must release it with
+ * releaseMaterializedSource().
+ */
+export function materializeSource(sourceCheckout, sourceCommit) {
+  const root = mkdtempSync(path.join(tmpdir(), 'legacy-source-'));
+  const worktree = path.join(root, 'tree');
+  const git = (...args) => execFileSync('git',
+    ['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', '-c', 'core.safecrlf=false', ...args],
+    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  try {
+    git('-C', sourceCheckout, 'worktree', 'add', '--detach', worktree, sourceCommit);
+    const head = execFileSync('git', ['-C', worktree, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+    if (head !== sourceCommit) fail('materialised worktree is not at the declared commit');
+    return worktree;
+  } catch (error) {
+    rmSync(root, { recursive: true, force: true });
+    throw error;
+  }
+}
+export function releaseMaterializedSource(sourceCheckout, worktree) {
+  const root = path.dirname(worktree);
+  try {
+    execFileSync('git', ['-C', sourceCheckout, 'worktree', 'remove', '--force', worktree], { stdio: 'ignore' });
+  } catch { /* fall through to the directory removal below */ }
+  rmSync(root, { recursive: true, force: true });
+}
+/** Canonical digest of an exact commit; the emitted verifier recomputes this. */
+export function treeDigest(sourceCheckout, sourceCommit) {
+  const worktree = materializeSource(sourceCheckout, sourceCommit);
+  try {
+    const entries = collectSourceEntries(worktree);
+    return sourceDigest(entries);
+  } finally {
+    releaseMaterializedSource(sourceCheckout, worktree);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Emitted job script: identical digest verifier + image identity/scan checks
+// ---------------------------------------------------------------------------
+
+const BUILDSPEC_DIGEST_STEP = `# BEGIN SOURCE-DIGEST-VERIFIER
+python3 - <<'PY'
+import hashlib, os, posixpath, stat, sys
+
+MAX_BYTES = 64 * 1024 * 1024
+MAX_ENTRIES = 60000
+
+def refuse(reason):
+    sys.stderr.write('SOURCE_TREE_REFUSED ' + reason + '\\n')
+    raise SystemExit(1)
+
+def safe_path(relative):
+    if not relative or relative.startswith('/') or '\\\\' in relative:
+        refuse('non-posix source path ' + repr(relative))
+    if any(ch in relative for ch in '\\t\\n\\r\\x00'):
+        refuse('control character in source path ' + repr(relative))
+    if any(part in ('', '.', '..') for part in relative.split('/')):
+        refuse('non-canonical source path ' + repr(relative))
+    return relative
+
+def safe_target(link_path, target):
+    if not target:
+        refuse('empty symlink target ' + link_path)
+    if any(ch in target for ch in '\\n\\r\\x00'):
+        refuse('control character in symlink target ' + link_path)
+    if target.startswith('/') or target.startswith(chr(92)) or (len(target) > 1 and target[1] == ':'):
+        refuse('absolute symlink target ' + link_path)
+    normalized = target.replace(chr(92), '/')
+    parent = posixpath.dirname(link_path)
+    resolved = posixpath.normpath(posixpath.join(parent, normalized)) if parent else posixpath.normpath(normalized)
+    if resolved == '..' or resolved.startswith('../') or resolved.startswith('/'):
+        refuse('escaping symlink target ' + link_path)
+    return target
+
 rows = []
-for base, dirs, files in os.walk(root):
+count = 0
+for base, dirs, files in os.walk('.'):
     dirs[:] = sorted(d for d in dirs if d != '.git')
-    for name in files:
+    names = sorted(files)
+    for name in list(dirs):
+        full = os.path.join(base, name)
+        if os.path.islink(full):
+            dirs.remove(name)
+            names.append(name)
+    for name in sorted(names):
         if name == '.git':
             continue
         full = os.path.join(base, name)
-        rel = os.path.relpath(full, root).replace(os.sep, '/')
-        if rel == '.git':
-            continue
-        if os.path.islink(full):
-            rows.append("L %s %s" % (rel, os.readlink(full)))
-        else:
+        relative = safe_path(os.path.relpath(full, '.').replace(os.sep, '/'))
+        info = os.lstat(full)
+        if stat.S_ISLNK(info.st_mode):
+            rows.append('L\\t%s\\t%s\\n' % (relative, safe_target(relative, os.readlink(full))))
+        elif stat.S_ISREG(info.st_mode):
+            if info.st_size > MAX_BYTES:
+                refuse('source file over the size budget ' + relative)
+            digest = hashlib.sha256()
             with open(full, 'rb') as handle:
-                rows.append("F %s %s" % (rel, hashlib.sha256(handle.read(64 * 1024 * 1024)).hexdigest()))
+                for chunk in iter(lambda: handle.read(1024 * 1024), b''):
+                    digest.update(chunk)
+            rows.append('F\\t%s\\t%s\\n' % (relative, digest.hexdigest()))
+        else:
+            refuse('non-regular source entry ' + relative)
+        count += 1
+        if count > MAX_ENTRIES:
+            refuse('source entry budget')
 rows.sort()
-digest = hashlib.sha256(('\\n'.join(rows) + '\\n').encode()).hexdigest()
+digest = hashlib.sha256(''.join(rows).encode('utf-8')).hexdigest()
 expected = os.environ['EXPECTED_TREE_SHA256']
 if digest != expected:
     print('SOURCE_TREE_DIGEST_MISMATCH', digest, expected)
-    sys.exit(1)
-print('SOURCE_TREE_DIGEST_PASS', digest)
-PY`;
+    raise SystemExit(1)
+print('SOURCE_TREE_DIGEST_PASS', digest, count)
+PY
+# END SOURCE-DIGEST-VERIFIER
+`;
+
+// Pushed-digest capture + per-repository immutable identity/scan verification.
+// Both web repositories must end up holding the same admitted image digest.
+const ADMITTED_IMAGE_CHECK = `# BEGIN ADMITTED-IMAGE-CHECK
+pushed_digest() {
+  image_ref="$1"
+  repository="$2"
+  slug="$(printf '%s' "$repository" | tr '/' '-')"
+  docker image inspect "$image_ref" --format '{{json .RepoDigests}}' > "pushed-repo-digests-$slug.json"
+  python3 - "$repository" "pushed-repo-digests-$slug.json" <<'PY'
+import json, re, sys
+repository, source = sys.argv[1], sys.argv[2]
+rows = json.load(open(source))
+prefix = repository + '@'
+matches = [row for row in rows if row.startswith(prefix)]
+if len(matches) != 1:
+    raise SystemExit('PUSH_DIGEST_REFUSED %s: expected one pushed reference, found %d' % (repository, len(matches)))
+digest = matches[0][len(prefix):]
+if not re.fullmatch(r'sha256:[0-9a-f]{64}', digest):
+    raise SystemExit('PUSH_DIGEST_REFUSED %s: malformed %r' % (repository, digest))
+print(digest)
+PY
+}
+
+verify_admitted_image() {
+  repository="$1"
+  captured="$2"
+  slug="$(printf '%s' "$repository" | tr '/' '-')"
+  case "$captured" in sha256:*) ;; *) echo "ADMITTED_IMAGE_REFUSED $repository: no captured digest" >&2; exit 1 ;; esac
+  # The exact commit tag must resolve to the digest the build pushed.
+  tagged="$(aws ecr describe-images --region ${REGION} --repository-name "$repository" \
+    --image-ids "imageTag=$EXPECTED_SHA" --query 'imageDetails[0].imageDigest' --output text)"
+  test "$tagged" = "$captured" || { echo "ADMITTED_IMAGE_REFUSED $slug: tag resolves to $tagged not $captured" >&2; exit 1; }
+  aws ecr describe-images --region ${REGION} --repository-name "$repository" \
+    --image-ids "imageDigest=$captured" --output json > "evidence-image-$slug.json"
+  python3 - "$slug" "$captured" "$EXPECTED_SHA" "evidence-image-$slug.json" <<'PY'
+import json, sys
+slug, captured, tag, source = sys.argv[1:5]
+detail = json.load(open(source))['imageDetails'][0]
+if detail.get('imageDigest') != captured:
+    raise SystemExit('ADMITTED_IMAGE_REFUSED %s: describe-images returned %r' % (slug, detail.get('imageDigest')))
+if tag not in (detail.get('imageTags') or []):
+    raise SystemExit('ADMITTED_IMAGE_REFUSED %s: exact tag missing on the captured digest' % slug)
+if detail.get('imageStatus') != 'ACTIVE':
+    raise SystemExit('ADMITTED_IMAGE_REFUSED %s: status %r' % (slug, detail.get('imageStatus')))
+print('ADMITTED_IMAGE_IDENTITY_PASS', slug, captured)
+PY
+  # Scan status, image identity and severities all come from the same response.
+  SCAN_ATTEMPTS="\${SCAN_ATTEMPTS:-30}"
+  SCAN_INTERVAL="\${SCAN_INTERVAL:-10}"
+  attempt=0
+  while :; do
+    attempt=$((attempt + 1))
+    aws ecr describe-image-scan-findings --region ${REGION} --repository-name "$repository" \
+      --image-id "imageDigest=$captured" --output json > "evidence-scan-$slug.json" 2>/dev/null || true
+    if python3 - "$slug" "$captured" "evidence-scan-$slug.json" <<'PY'
+import json, sys
+slug, captured, source = sys.argv[1:4]
+try:
+    document = json.load(open(source))
+except Exception:
+    print('SCAN_PENDING', slug); raise SystemExit(3)
+if document.get('imageId', {}).get('imageDigest') != captured:
+    raise SystemExit('SCAN_REFUSED %s: response image identity %r' % (slug, document.get('imageId', {}).get('imageDigest')))
+status = document.get('imageScanStatus', {}).get('status')
+if status != 'COMPLETE':
+    print('SCAN_PENDING', slug, status); raise SystemExit(3)
+print('SCAN_STATUS_PASS', slug, status)
+PY
+    then break; fi
+    test "$attempt" -lt "$SCAN_ATTEMPTS" || { echo "SCAN_REFUSED $slug: no COMPLETE scan for $captured" >&2; exit 1; }
+    sleep "$SCAN_INTERVAL"
+  done
+  python3 - "$slug" "$captured" "evidence-scan-$slug.json" <<'PY'
+import json, sys
+slug, captured, source = sys.argv[1:4]
+document = json.load(open(source))
+if document.get('imageId', {}).get('imageDigest') != captured:
+    raise SystemExit('SCAN_REFUSED %s: response image identity drifted' % slug)
+if document.get('imageScanStatus', {}).get('status') != 'COMPLETE':
+    raise SystemExit('SCAN_REFUSED %s: status %r' % (slug, document.get('imageScanStatus')))
+findings = document.get('imageScanFindings', {}).get('findingSeverityCounts', {})
+blocking = int(findings.get('HIGH', 0)) + int(findings.get('CRITICAL', 0))
+print('SCAN_SEVERITY', slug, json.dumps(findings, sort_keys=True))
+if blocking:
+    raise SystemExit('SCAN_REFUSED %s: blocking findings %d' % (slug, blocking))
+print('SCAN_CLEAN_PASS', slug, captured)
+PY
+}
+# END ADMITTED-IMAGE-CHECK
+`;
 
 const SOURCE_KINDS = Object.freeze({
   github: Object.freeze({ type: 'GITHUB', location: 'https://github.com/neo-capiro/capiro-backend.git' }),
@@ -134,7 +391,7 @@ test "$(uname -m)" = aarch64
 test "$(aws sts get-caller-identity --query Account --output text)" = ${ACCOUNT}
 case "$(docker info --format '{{.Architecture}}')" in aarch64|arm64) ;; *) echo 'container engine is not arm64' >&2; exit 1 ;; esac
 ${BUILDSPEC_DIGEST_STEP}
-aws ecr get-login-password --region ${REGION} \\
+aws ecr get-login-password --region ${REGION} \\\
   | docker login --username AWS --password-stdin ${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com
 `;
 const PRELUDE_GITHUB = `${PRELUDE_COMMON}test "\${CODEBUILD_RESOLVED_SOURCE_VERSION:-}" = "$EXPECTED_SHA"
@@ -145,44 +402,12 @@ const PRELUDE_S3 = `: "\${EXPECTED_S3_VERSION:?immutable S3 source version requi
 test "\${CODEBUILD_SOURCE_VERSION:-}" = "$EXPECTED_S3_VERSION"
 ${PRELUDE_COMMON}`;
 
-const SCAN_ASSERT = `assert_clean_scan() {
-  repository="$1"
-  slug="$(printf '%s' "$repository" | tr '/' '-')"
-  digest="$(aws ecr describe-images --region ${REGION} --repository-name "$repository" \\
-    --image-ids "imageTag=$EXPECTED_SHA" --query 'imageDetails[0].imageDigest' --output text)"
-  case "$digest" in sha256:*) ;; *) echo "no immutable digest for the exact-SHA tag in $repository" >&2; exit 1 ;; esac
-  status=PENDING
-  for _ in $(seq 1 30); do
-    status="$(aws ecr describe-image-scan-findings --region ${REGION} --repository-name "$repository" \\
-      --image-id "imageDigest=$digest" --query 'imageScanStatus.status' --output text 2>/dev/null || echo PENDING)"
-    [ "$status" = COMPLETE ] && break
-    sleep 10
-  done
-  test "$status" = COMPLETE
-  aws ecr describe-image-scan-findings --region ${REGION} --repository-name "$repository" \\
-    --image-id "imageDigest=$digest" --output json > "evidence-scan-$slug.json"
-  aws ecr describe-images --region ${REGION} --repository-name "$repository" \\
-    --image-ids "imageDigest=$digest" --output json > "evidence-image-$slug.json"
-  python3 - "$slug" <<'PY'
-import json, sys
-slug = sys.argv[1]
-findings = json.load(open('evidence-scan-%s.json' % slug))['imageScanFindings']['findingSeverityCounts']
-blocking = int(findings.get('HIGH', 0)) + int(findings.get('CRITICAL', 0))
-print('SCAN_SEVERITY', slug, json.dumps(findings, sort_keys=True))
-if blocking:
-    raise SystemExit('blocking findings present in %s: %d' % (slug, blocking))
-print('SCAN_CLEAN_PASS', slug)
-PY
-  echo "EXACT_IMAGE_DIGEST=$repository@$digest"
-}
-`;
-
 const webBuildspec = (kind) => `set -euo pipefail
 FE_IMAGE=${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/capiro/portfolio-preview@${FRONTEND_IMAGE_DIGEST}
 NODE_IMAGE=${NODE_IMAGE}
 CONSUMER_IMAGE=${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${CONSUMER_REPOSITORIES.web}:$EXPECTED_SHA
 ${kind === 'github' ? PRELUDE_GITHUB : PRELUDE_S3}
-${SCAN_ASSERT}
+${ADMITTED_IMAGE_CHECK}
 docker pull "$FE_IMAGE"
 test "$(docker image inspect "$FE_IMAGE" --format '{{.Os}}/{{.Architecture}}')" = linux/arm64
 test "$(docker image inspect "$FE_IMAGE" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = ${FRONTEND_SOURCE_COMMIT}
@@ -197,57 +422,69 @@ mkdir -p work/app
 docker cp "$container:/app/." work/app
 docker rm -f "$container" >/dev/null
 # Unchanged Linux/Node24 gates run in the pinned musl Node24.21 image.
-docker run --rm -v "$PWD:/src" -w /src "$NODE_IMAGE" node --test \\
-  scripts/ci/legacy-web-release.spec.mjs \\
-  scripts/ci/newsletter-accepted-source-profile.spec.mjs \\
+docker run --rm -v "$PWD:/src" -w /src "$NODE_IMAGE" node --test \\\
+  scripts/ci/legacy-web-release.spec.mjs \\\
+  scripts/ci/newsletter-accepted-source-profile.spec.mjs \\\
   scripts/ci/frontend-standalone-artifact.contract.spec.mjs
-docker run --rm -v "$PWD:/src" -v "$PWD/work:/work" -w /src "$NODE_IMAGE" \\
-  node scripts/legacy-web-release.mjs artifact \\
-  --extracted-app-dir /work/app \\
-  --frontend-commit ${FRONTEND_SOURCE_COMMIT} \\
-  --image-digest ${FRONTEND_IMAGE_DIGEST} \\
-  --manifest /work/artifact.manifest.json \\
-  --output-dir /src/release-artifacts/capiro-frontend \\
-  --backend-commit "$EXPECTED_SHA" \\
+docker run --rm -v "$PWD:/src" -v "$PWD/work:/work" -w /src "$NODE_IMAGE" \\\
+  node scripts/legacy-web-release.mjs artifact \\\
+  --extracted-app-dir /work/app \\\
+  --frontend-commit ${FRONTEND_SOURCE_COMMIT} \\\
+  --image-digest ${FRONTEND_IMAGE_DIGEST} \\\
+  --manifest /work/artifact.manifest.json \\\
+  --output-dir /src/release-artifacts/capiro-frontend \\\
+  --backend-commit "$EXPECTED_SHA" \\\
   --arch arm64 | tee work/assembly.json
 MANIFEST_SHA256="$(sha256sum release-artifacts/capiro-frontend/manifest.json | cut -d' ' -f1)"
 test -s release-artifacts/capiro-frontend/build-receipt.json
-docker build --platform linux/arm64 -f apps/web/Dockerfile \\
-  --build-arg FRONTEND_ARTIFACT_MANIFEST_SHA256="$MANIFEST_SHA256" \\
-  --build-arg FRONTEND_ARTIFACT_SOURCE_REPOSITORY=neo-capiro/capiro-frontend \\
-  --build-arg FRONTEND_ARTIFACT_SOURCE_COMMIT=${FRONTEND_SOURCE_COMMIT} \\
-  --build-arg TARGETPLATFORM=linux/arm64 \\
-  --label "org.opencontainers.image.revision=$EXPECTED_SHA" \\
-  --label "org.opencontainers.image.source=https://github.com/neo-capiro/capiro-backend" \\
+docker build --platform linux/arm64 -f apps/web/Dockerfile \\\
+  --build-arg FRONTEND_ARTIFACT_MANIFEST_SHA256="$MANIFEST_SHA256" \\\
+  --build-arg FRONTEND_ARTIFACT_SOURCE_REPOSITORY=neo-capiro/capiro-frontend \\\
+  --build-arg FRONTEND_ARTIFACT_SOURCE_COMMIT=${FRONTEND_SOURCE_COMMIT} \\\
+  --build-arg TARGETPLATFORM=linux/arm64 \\\
+  --label "org.opencontainers.image.revision=$EXPECTED_SHA" \\\
+  --label "org.opencontainers.image.source=https://github.com/neo-capiro/capiro-backend" \\\
   -t "$CONSUMER_IMAGE" .
 test "$(docker image inspect "$CONSUMER_IMAGE" --format '{{.Architecture}}')" = arm64
 test "$(docker image inspect "$CONSUMER_IMAGE" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$EXPECTED_SHA"
+LOCAL_IMAGE_ID="$(docker image inspect "$CONSUMER_IMAGE" --format '{{.Id}}')"
+case "$LOCAL_IMAGE_ID" in sha256:*) ;; *) echo 'local image id is not immutable' >&2; exit 1 ;; esac
 bash apps/web/smoke-8080.sh "$CONSUMER_IMAGE"
-# The same admitted image serves both legacy consumers; publish the exact commit
-# tag to both repositories and require a clean exact-digest scan for each.
-for repository in ${CONSUMER_REPOSITORIES.web} capiro/dev/web-vnext; do
+test "$(docker image inspect "$CONSUMER_IMAGE" --format '{{.Id}}')" = "$LOCAL_IMAGE_ID"
+# The same admitted image serves both 8080 consumers; publish the exact commit tag
+# to both repositories, then verify each tag resolves to the digest the local
+# build+smoke used and that each digest has a clean scan.
+for repository in ${WEB_REPOSITORIES.join(' ')}; do
   target=${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/$repository:$EXPECTED_SHA
   if [ "$target" != "$CONSUMER_IMAGE" ]; then
     docker tag "$CONSUMER_IMAGE" "$target"
   fi
   docker push "$target"
 done
-assert_clean_scan ${CONSUMER_REPOSITORIES.web}
-assert_clean_scan capiro/dev/web-vnext`;
+test "$(docker image inspect "$CONSUMER_IMAGE" --format '{{.Id}}')" = "$LOCAL_IMAGE_ID"
+DIGEST_PRIMARY="$(pushed_digest "$CONSUMER_IMAGE" ${CONSUMER_REPOSITORIES.web})"
+DIGEST_VNEXT="$(pushed_digest "$CONSUMER_IMAGE" capiro/dev/web-vnext)"
+test "$DIGEST_PRIMARY" = "$DIGEST_VNEXT" || { echo "ADMITTED_IMAGE_REFUSED cross-repository digest disagreement" >&2; exit 1; }
+verify_admitted_image ${CONSUMER_REPOSITORIES.web} "$DIGEST_PRIMARY"
+verify_admitted_image capiro/dev/web-vnext "$DIGEST_VNEXT"`;
 
 const marketingBuildspec = (kind) => `set -euo pipefail
 IMAGE=${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${CONSUMER_REPOSITORIES.marketing}:$EXPECTED_SHA
 ${kind === 'github' ? PRELUDE_GITHUB : PRELUDE_S3}
-${SCAN_ASSERT}
-docker build --platform linux/arm64 -f marketing/Dockerfile \\
-  --label "org.opencontainers.image.revision=$EXPECTED_SHA" \\
-  --label "org.opencontainers.image.source=https://github.com/neo-capiro/capiro-backend" \\
+${ADMITTED_IMAGE_CHECK}
+docker build --platform linux/arm64 -f marketing/Dockerfile \\\
+  --label "org.opencontainers.image.revision=$EXPECTED_SHA" \\\
+  --label "org.opencontainers.image.source=https://github.com/neo-capiro/capiro-backend" \\\
   -t "$IMAGE" .
 test "$(docker image inspect "$IMAGE" --format '{{.Architecture}}')" = arm64
 test "$(docker image inspect "$IMAGE" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$EXPECTED_SHA"
+LOCAL_IMAGE_ID="$(docker image inspect "$IMAGE" --format '{{.Id}}')"
 bash marketing/smoke-8080.sh "$IMAGE"
+test "$(docker image inspect "$IMAGE" --format '{{.Id}}')" = "$LOCAL_IMAGE_ID"
 docker push "$IMAGE"
-assert_clean_scan ${CONSUMER_REPOSITORIES.marketing}`;
+test "$(docker image inspect "$IMAGE" --format '{{.Id}}')" = "$LOCAL_IMAGE_ID"
+DIGEST="$(pushed_digest "$IMAGE" ${CONSUMER_REPOSITORIES.marketing})"
+verify_admitted_image ${CONSUMER_REPOSITORIES.marketing} "$DIGEST"`;
 
 export function buildspecFor(service, sourceKind = 'github') {
   if (!Object.hasOwn(SOURCE_KINDS, sourceKind)) fail('source kind must be github or s3');
@@ -284,14 +521,16 @@ export function createPlan(options) {
   const buildspec = buildspecFor(options.service, kind);
   const buildspecOverride = JSON.stringify(buildspec);
   if (buildspecOverride.length > 25_600) fail(`BUILDSPEC_TOO_LONG_${buildspecOverride.length}`);
-  const treeDigestValue = treeDigest(options.sourceCheckout, options.sourceCommit);
+  const measured = treeDigest(options.sourceCheckout, options.sourceCommit);
   const key = `${SOURCE_PREFIX}${options.service}-${options.sourceCommit}.zip`;
   const source = kind === 'github'
     ? Object.freeze({ type: 'GITHUB', location: SOURCE_KINDS.github.location,
       sourceVersion: options.sourceCommit, sourceCommit: options.sourceCommit,
-      treeDigestSha256: treeDigestValue, requiredGrant: null })
+      treeDigestSha256: measured.digest, treeDigestEntries: measured.entries, treeDigestAlgorithm: SOURCE_DIGEST,
+      requiredGrant: null })
     : Object.freeze({ type: 'S3', bucket: SOURCE_BUCKET, key, prefix: SOURCE_PREFIX,
-      sourceVersion: null, sourceCommit: options.sourceCommit, treeDigestSha256: treeDigestValue,
+      sourceVersion: null, sourceCommit: options.sourceCommit,
+      treeDigestSha256: measured.digest, treeDigestEntries: measured.entries, treeDigestAlgorithm: SOURCE_DIGEST,
       requiredGrant: Object.freeze({ actions: Object.freeze(['s3:GetObject', 's3:GetObjectVersion']),
         resource: `arn:aws:s3:::${SOURCE_BUCKET}/${key}`,
         note: 'existing role grants are exact-key; a new key needs this grant before start-build' }) });
@@ -303,21 +542,23 @@ export function createPlan(options) {
       sourceCommit: FRONTEND_SOURCE_COMMIT,
       activeAcceptedSource: NEWSLETTER_ACCEPTED_SOURCE_PROFILE.activeCommit }) : null,
     consumerRepository: CONSUMER_REPOSITORIES[options.service],
+    admittedRepositories: options.service === 'web' ? WEB_REPOSITORIES : [CONSUMER_REPOSITORIES.marketing],
     imageTagPolicy: 'exact-40-hex source commit only; no latest, no mutable-tag scan',
-    buildspecSha256: sha(buildspecOverride), buildspecCharacters: buildspecOverride.length,
+    buildspecSha256: sha256(Buffer.from(buildspecOverride, 'utf8')), buildspecCharacters: buildspecOverride.length,
     environmentVariables: [
       { name: 'EXPECTED_SHA', value: options.sourceCommit, type: 'PLAINTEXT' },
-      { name: 'EXPECTED_TREE_SHA256', value: treeDigestValue, type: 'PLAINTEXT' },
+      { name: 'EXPECTED_TREE_SHA256', value: measured.digest, type: 'PLAINTEXT' },
       ...(kind === 's3' ? [{ name: 'EXPECTED_S3_VERSION', value: '<S3_VERSION_ID>', type: 'PLAINTEXT' }] : []),
     ],
     stages: Object.freeze([
-      'verify caller/account/arm64 and the exact source tree digest',
+      'verify caller/account/arm64, git HEAD and the canonical source digest',
       'web: pull the qualified frontend digest, assert arch/label/node/libc, extract /app',
       'run the unchanged Linux/Node24 gate specs in the pinned Node24.21 musl image',
       'web: assemble release-artifacts/capiro-frontend through the existing owner',
-      'build+smoke the consumer image, push the exact-SHA tag, assert a clean exact-digest scan',
+      'build+smoke the consumer image, push the exact-SHA tag, bind and verify the captured digest and a clean scan',
     ]),
     startBuildPerformed: false, projectMutated: false, iamChanged: false, deployed: false,
+    imagePushed: false, scanPerformed: false,
   });
 }
 
@@ -346,23 +587,21 @@ function main(argv) {
     if (invocation.mode === 'help') { console.log(USAGE); return; }
     mkdirSync(invocation.options.outDir, { recursive: true });
     const plan = createPlan(invocation.options);
-    const uploaded = null;
     const sourceVersion = plan.sourceKind === 'github' ? plan.source.sourceVersion : null;
     const request = sourceVersion ? startBuildRequest(plan, sourceVersion,
       `legacy-${plan.service}-${plan.source.sourceCommit.slice(0, 12)}`) : null;
     writeFileSync(path.join(invocation.options.outDir, 'build-request-plan.json'),
-      `${JSON.stringify({ ...plan, staged: uploaded ? { versionId: uploaded.VersionId,
-        checksumSha256: uploaded.ChecksumSHA256 ?? null, etag: uploaded.ETag ?? null } : null }, null, 2)}\n`);
+      `${JSON.stringify(plan, null, 2)}\n`);
     if (request) writeFileSync(path.join(invocation.options.outDir, 'start-build.request.json'),
       `${JSON.stringify(request, null, 2)}\n`);
     console.log(JSON.stringify({ mode: invocation.mode, service: plan.service, project: plan.project,
       buildspecSha256: plan.buildspecSha256, buildspecCharacters: plan.buildspecCharacters,
-      treeDigestSha256: plan.source.treeDigestSha256, sourceKey: plan.source.key,
-      sourceVersion, outDir: invocation.options.outDir,
-      startBuildPerformed: false, deployed: false }, null, 2));
+      treeDigestSha256: plan.source.treeDigestSha256, treeDigestEntries: plan.source.treeDigestEntries,
+      sourceKey: plan.source.key ?? null, sourceVersion, outDir: invocation.options.outDir,
+      startBuildPerformed: false, imagePushed: false, scanPerformed: false, deployed: false }, null, 2));
   } catch (error) {
-    console.error(JSON.stringify({ status: 'FAIL', startBuildPerformed: false, deployed: false,
-      usage: USAGE, error: String(error.message).slice(0, 300) }));
+    console.error(JSON.stringify({ status: 'FAIL', startBuildPerformed: false, imagePushed: false,
+      scanPerformed: false, deployed: false, usage: USAGE, error: String(error.message).slice(0, 300) }));
     process.exitCode = 2;
   }
 }
