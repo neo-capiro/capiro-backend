@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import request from 'supertest';
 import type { DraftsService } from '../src/drafts/drafts.service.js';
+import { TemplateValidator } from '../src/template-studio/template-validator.js';
 const repoRoot = resolve(__dirname, '../../..');
 const helper = require(join(repoRoot, 'scripts/testing/a1-disposable-postgres.cjs'));
 const readiness = helper.nativePostgresReadiness({ repoRoot });
@@ -52,6 +53,9 @@ native(`prospect atomic save PostgreSQL [${readiness.reason}]`, () => {
   }, 60000);
   beforeEach(async () => {
     await h.reset();
+    await h.db.wsProspectDraftReceipt.deleteMany({});
+    await h.db.wsBlueprintVersion.deleteMany({});
+    await h.db.wsBlueprint.deleteMany({});
     await h.db.wsDraft.update({ where: { id: runtime.WS03_IDS.draftId }, data: { prospectId } });
     await h.db.$executeRawUnsafe(
       "UPDATE business_development_prospects SET status='active',dismissed_at=NULL WHERE id=$1::uuid",
@@ -81,6 +85,150 @@ native(`prospect atomic save PostgreSQL [${readiness.reason}]`, () => {
       sections: { Scope: 'Only the exact reviewed text.' },
     };
   }
+  async function template(tenantId: string | null = runtime.WS03_IDS.tenantId) {
+    const definition = {
+      schemaVersion: 1 as const,
+      documentType: { id: 'proposal', label: 'Proposal', product: 'Proposal' },
+      intakeQuestions: [],
+      sections: ['Overview', 'Overview'].map((title, i) => ({
+        id: `section-${i}`,
+        title,
+        purpose: 'Describe the proposed work',
+        instructions: 'Use verified evidence',
+        required: true,
+        removable: false,
+        reorderable: false,
+        lockedByDefault: false,
+        targetWords: { min: 0, max: 200 },
+        evidenceRules: [],
+      })),
+      evidencePolicy: {
+        minimumSources: 0,
+        primarySourcesPreferred: false,
+        citationRequiredFor: [],
+        freshnessRules: [],
+      },
+      contentRules: {
+        requiredTerms: [],
+        prohibitedTerms: [],
+        requiredDisclaimers: [],
+        instructions: [],
+      },
+      defaultTheme: { id: 'default', name: 'Default', settings: {} },
+    };
+    const blueprint = await h.db.wsBlueprint.create({
+      data: {
+        tenantId,
+        scope: tenantId ? 'firm' : 'capiro',
+        slug: 'proposal',
+        name: 'Proposal',
+        product: 'Proposal',
+      },
+    });
+    const version = await h.db.wsBlueprintVersion.create({
+      data: {
+        tenantId,
+        blueprintId: blueprint.id,
+        version: 1,
+        status: 'published',
+        definition,
+        definitionHash: new TemplateValidator().computeDefinitionHash(definition),
+        createdById: 'user_owner',
+        publishedAt: new Date(),
+      },
+    });
+    return {
+      blueprintId: blueprint.id,
+      versionId: version.id,
+      version: 1,
+      definitionHash: version.definitionHash,
+    };
+  }
+  it('creates and recovers one exact template-bound prospect draft and preserves its pin through atomic save', async () => {
+    const pin = await template(),
+      body = { requestId, prospectId, docTitle: 'Pinned proposal', blueprintPin: pin };
+    const create = () => service.create(runtime.WS03_IDS.tenantId, 'user_owner', body);
+    const [first, replay] = await Promise.all([create(), create()]);
+    expect(first.id).toBe(replay.id);
+    expect(first.config).toMatchObject({
+      documentAgent: { blueprintPin: pin },
+      sections: ['1. Overview', '2. Overview'],
+      sectionContent: { '1. Overview': '', '2. Overview': '' },
+    });
+    expect(await h.db.wsProspectDraftReceipt.count()).toBe(1);
+    const baseline = await service.prospectState(
+      runtime.WS03_IDS.tenantId,
+      first.id,
+      'user_owner',
+      prospectId,
+    );
+    await service.saveProspect(runtime.WS03_IDS.tenantId, first.id, 'user_owner', {
+      requestId: '00000000-0000-4000-8000-000000000093',
+      expectedProspectId: prospectId,
+      expectedStateHash: baseline.stateHash,
+      title: 'Edited proposal',
+      names: ['1. Overview', '2. Overview'],
+      sections: { '1. Overview': 'User-authored content', '2. Overview': '' },
+    });
+    const saved = await h.db.wsDocVersion.findFirstOrThrow({ where: { draftId: first.id } });
+    expect(saved.snapshot).toMatchObject({
+      prospectId,
+      config: { documentAgent: { blueprintPin: pin } },
+    });
+    await h.db.wsBlueprintVersion.update({
+      where: { id: pin.versionId },
+      data: { status: 'retired', retiredAt: new Date() },
+    });
+    expect((await create()).id).toBe(first.id);
+    await expect(
+      service.create(runtime.WS03_IDS.tenantId, 'user_owner', {
+        ...body,
+        requestId: '00000000-0000-4000-8000-000000000094',
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    await expect(
+      service.create(runtime.WS03_IDS.tenantId, 'user_owner', {
+        ...body,
+        blueprintPin: { ...pin, version: 2 },
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+  it('refuses foreign, corrupt and unpublished templates without persisting a draft or receipt', async () => {
+    const pin = await template('00000000-0000-4000-8000-000000000099');
+    const body = { requestId, prospectId, docTitle: 'Foreign template', blueprintPin: pin };
+    await expect(
+      service.create(runtime.WS03_IDS.tenantId, 'user_owner', body),
+    ).rejects.toMatchObject({ status: 404 });
+    await h.db.wsBlueprint.update({
+      where: { id: pin.blueprintId },
+      data: { tenantId: runtime.WS03_IDS.tenantId },
+    });
+    await h.db.wsBlueprintVersion.update({
+      where: { id: pin.versionId },
+      data: { status: 'draft' },
+    });
+    await expect(
+      service.create(runtime.WS03_IDS.tenantId, 'user_owner', body),
+    ).rejects.toMatchObject({ status: 409 });
+    await h.db.wsBlueprintVersion.update({
+      where: { id: pin.versionId },
+      data: { status: 'published', definition: {} },
+    });
+    await expect(
+      service.create(runtime.WS03_IDS.tenantId, 'user_owner', body),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(await h.db.wsProspectDraftReceipt.count()).toBe(0);
+    expect(await h.db.wsDraft.count()).toBe(1);
+  });
+  it('keeps legacy blank creation recoverable and supplies an editable empty Body section', async () => {
+    const body = { requestId, prospectId, docTitle: 'Blank proposal' };
+    const first = await service.create(runtime.WS03_IDS.tenantId, 'user_owner', body);
+    expect(first.config).toMatchObject({ sections: ['Body'], sectionContent: { Body: '' } });
+    expect((await service.create(runtime.WS03_IDS.tenantId, 'user_owner', body)).id).toBe(first.id);
+    await expect(
+      service.create(runtime.WS03_IDS.tenantId, 'user_owner', { ...body, clientId: prospectId }),
+    ).rejects.toMatchObject({ status: 409 });
+  });
   it('commits content and one version atomically; concurrent duplicate requests recover one receipt', async () => {
     const body = await input(),
       outcomes = await Promise.all([save(body), save(body)]);

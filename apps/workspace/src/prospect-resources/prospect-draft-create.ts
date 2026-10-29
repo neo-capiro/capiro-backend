@@ -4,6 +4,7 @@ import { prospectResourceScope } from '@capiro/shared';
 import type { Prisma } from '../../generated/prisma-client/index.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { CreateDraftDto } from '../drafts/dto/draft.dto.js';
+import { parseBlueprintPin } from '../template-studio/blueprint-pin.js';
 
 export async function createProspectDraft<T extends { id: string }>(
   prisma: PrismaService,
@@ -12,6 +13,10 @@ export async function createProspectDraft<T extends { id: string }>(
   dto: CreateDraftDto,
   create: (tx: Prisma.TransactionClient) => Promise<T>,
 ) {
+  if (dto.clientId)
+    throw new ConflictException('Prospect drafts cannot acquire client association');
+  const blueprintPin =
+    dto.blueprintPin === undefined ? undefined : parseBlueprintPin(dto.blueprintPin);
   if (
     !dto.prospectId ||
     !dto.requestId ||
@@ -30,6 +35,7 @@ export async function createProspectDraft<T extends { id: string }>(
         product: dto.product ?? null,
         client: dto.client ?? null,
         docTitle: dto.docTitle ?? null,
+        ...(blueprintPin ? { blueprintPin } : {}),
       }),
     )
     .digest('hex');

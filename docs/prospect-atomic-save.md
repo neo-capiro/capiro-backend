@@ -10,4 +10,12 @@ Validation: seven native PostgreSQL/HTTP cases cover concurrent duplicate saves,
 
 The disposable PostgreSQL schema composer also joins the complementary Core/Workspace `WsShareLink` relations only when stored fields and indexes are identical. Other duplicate declarations and mismatched fields remain errors (25 fixture-helper tests).
 
-This is the manual-save prerequisite for B6. Proposal template selection, generation and publication remain separate work; this change does not enable them or any transfer action.
+This is the manual-save prerequisite for B6. Generation and publication remain separate work; this change does not enable them or any transfer action.
+
+## Published proposal templates
+
+Prospect creation accepts the existing explicit Blueprint pin: blueprint ID, version ID, version number and definition hash. The shared Template Studio resolver permits adoption only from a currently published version visible to the tenant. The bounded, hash-verified definition seeds empty sections, with ordinal labels and retained original section IDs. Template instructions are never inserted as generated proposal content. Blank proposals explicitly store their empty Body section.
+
+The existing prospect creation receipt includes the optional canonical pin. Requests without a pin retain their original hash encoding. Exact recovery returns the originally created draft even if its template has subsequently retired; changing the pin under the same request conflicts, and new adoption of a retired version is refused. Atomic saves retain the adopted template provenance in the immutable document version. No new schema, ledger, generation owner or publication owner is added.
+
+Three additional PostgreSQL cases cover concurrent template creation, exact recovery after retirement, changed-pin refusal, foreign/unpublished/corrupt templates, provenance through atomic save, and legacy blank creation. Together with the existing save suite, ten PostgreSQL/HTTP cases pass. Blueprint pin and prospect-authority compatibility checks bring the focused backend total to 44; focused no-emit compilation also passes. The fixture and deployment limitations above still apply.
