@@ -28,6 +28,15 @@ import { existsSync } from 'node:fs';
 const LEAF_APPLICATION = process.env.WS22_MERI_LEAF_APPLICATION ?? '';
 const leafAvailable = LEAF_APPLICATION !== '' && existsSync(LEAF_APPLICATION);
 
+test('Core source registration derives exactly the native generation conversation identity', {skip: !leafAvailable}, async () => {
+  const core = await import('../../../packages/shared/src/workspace-prospect-generation-source.ts');
+  const native = await import(new URL('./phases.mjs', pathToFileURL(LEAF_APPLICATION)));
+  for (const digit of '0123456789abcdef') {
+    const requestId = 'wsgen:' + digit.repeat(64);
+    assert.equal(core.workspaceGenerationConversationId(requestId), native.workspaceConversationIdFor(requestId));
+  }
+});
+
 const TENANT = '11111111-1111-1111-1111-111111111111';
 const ACTOR = 'user_synthetic_actor';
 const DRAFT = 'draft_synthetic_1';

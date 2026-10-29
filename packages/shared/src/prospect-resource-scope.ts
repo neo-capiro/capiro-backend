@@ -22,7 +22,11 @@ export async function prospectResourceScope(
   actor: ProspectResourceActor,
   prospectId: string,
   mode: 'read' | 'write' = 'read',
+  options: { lock?: boolean } = {},
 ): Promise<ProspectResourceScope | null> {
+  // Core current-authority reads use an existing RepeatableRead/read-only
+  // snapshot. Mutating callers retain all original grant/identity locks.
+  const share = options.lock === false ? '' : ' FOR SHARE';
   const [prospect] = await tx.$queryRawUnsafe<
     Array<{
       linkedClientId: string | null;
@@ -31,14 +35,14 @@ export async function prospectResourceScope(
     }>
   >(
     `SELECT linked_client_id::text AS "linkedClientId",status,dismissed_at AS "dismissedAt"
-     FROM business_development_prospects WHERE tenant_id=$1::uuid AND id=$2::uuid FOR SHARE`,
+     FROM business_development_prospects WHERE tenant_id=$1::uuid AND id=$2::uuid${share}`,
     tenantId,
     prospectId,
   );
   if (!prospect || (mode === 'write' && (prospect.status !== 'active' || prospect.dismissedAt)))
     return null;
   const [tenant] = await tx.$queryRawUnsafe<Array<{ settings: unknown }>>(
-    `SELECT settings_jsonb AS settings FROM tenants WHERE id=$1::uuid AND status::text='active' FOR SHARE`,
+    `SELECT settings_jsonb AS settings FROM tenants WHERE id=$1::uuid AND status::text='active'${share}`,
     tenantId,
   );
   if (!tenant || !tenantFeatureEnabled(tenant.settings, 'businessDevelopment.enabled', false))
@@ -49,7 +53,7 @@ export async function prospectResourceScope(
      WHERE m.tenant_id=$1::uuid AND m.status::text='active'
        AND m.role::text IN ('standard_user','user_admin','capiro_admin')
        AND (($2::uuid IS NOT NULL AND u.id=$2::uuid) OR ($3::text IS NOT NULL AND u.clerk_user_id=$3))
-     FOR SHARE OF m,u`,
+     ${options.lock === false ? '' : 'FOR SHARE OF m,u'}`,
     tenantId,
     'userId' in actor ? actor.userId : null,
     'clerkUserId' in actor ? actor.clerkUserId : null,
@@ -59,7 +63,7 @@ export async function prospectResourceScope(
   if (prospect.linkedClientId) {
     const [client] = await tx.$queryRawUnsafe<Array<{ status: string; memoryWall: boolean }>>(
       `SELECT status,memory_wall AS "memoryWall" FROM clients
-       WHERE tenant_id=$1::uuid AND id=$2::uuid FOR SHARE`,
+       WHERE tenant_id=$1::uuid AND id=$2::uuid${share}`,
       tenantId,
       prospect.linkedClientId,
     );
@@ -69,7 +73,7 @@ export async function prospectResourceScope(
       // Revocation DELETE and wall updates must wait for the resource transaction.
       const grants = await tx.$queryRawUnsafe<Array<{ id: string }>>(
         `SELECT id FROM client_memory_access WHERE tenant_id=$1::uuid
-         AND client_id=$2::uuid AND user_id=$3::uuid FOR SHARE`,
+         AND client_id=$2::uuid AND user_id=$3::uuid${share}`,
         tenantId,
         prospect.linkedClientId,
         member.userId,
