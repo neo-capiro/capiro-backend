@@ -15,14 +15,22 @@ jest.mock('../intelligence/sam-entity.service.js', () => ({
 jest.mock('../embeddings/client-kb.service.js', () => ({ ClientKbService: class {} }));
 import { ClientsService } from './clients.service.js';
 import { FirmOnboardingService } from '../intelligence/firm-onboarding.service.js';
+import { FirmImportJobStore } from '../intelligence/firm-import-job.store.js';
 
 const ctx = { tenantId: '11111111-1111-4111-8111-111111111111', userId: '22222222-2222-4222-8222-222222222222', clerkUserId: 'user_synthetic', role: 'user_admin' } as never;
 function fixture() {
   let clients: Array<Record<string, any>> = [];
+  const jobs: Array<Record<string, any>> = [];
+  const items: Array<Record<string, any>> = [];
+  let idSeq = 0;
   let slots = 1,
     failMapping = false;
   const statements: string[] = [];
   const tenant = () => ({ billingStatus: 'active', clientSlots: slots, ldaRegistrantId: 7 });
+  const jobWithItems = (job: Record<string, any>) => ({
+    ...job,
+    items: items.filter((item) => item.jobId === job.id),
+  });
   const tx = {
     $executeRaw: jest.fn(async (parts: TemplateStringsArray) => {
       statements.push(parts.join('?'));
@@ -67,6 +75,60 @@ function fixture() {
       create: jest.fn(async () => {
         if (failMapping) throw Error('Synthetic mapping failure');
         return {};
+      }),
+    },
+    firmImportJob: {
+      findFirst: jest.fn(async ({ where, include }: any) => {
+        const job = jobs.find((j) =>
+          where.requestKey ? j.requestKey === where.requestKey : j.id === where.id,
+        );
+        return job ? (include ? jobWithItems(job) : { ...job }) : null;
+      }),
+      findFirstOrThrow: jest.fn(async ({ where, include }: any) => {
+        const job = jobs.find((j) => j.id === where.id);
+        if (!job) throw Error('Job not found');
+        return include ? jobWithItems(job) : { ...job };
+      }),
+      create: jest.fn(async ({ data }: any) => {
+        const now = new Date();
+        const job = {
+          id: `77777777-7777-4777-8777-${String(idSeq++).padStart(12, '0')}`,
+          status: 'queued',
+          startedAt: null,
+          finishedAt: null,
+          createdAt: now,
+          updatedAt: now,
+          ...data,
+        };
+        jobs.push(job);
+        return { id: job.id };
+      }),
+      update: jest.fn(async ({ where, data }: any) => {
+        const job = jobs.find((j) => j.id === where.id)!;
+        Object.assign(job, data, { updatedAt: new Date() });
+        return job;
+      }),
+    },
+    firmImportJobItem: {
+      createMany: jest.fn(async ({ data }: any) => {
+        for (const row of data) {
+          items.push({
+            id: `88888888-8888-4888-8888-${String(idSeq++).padStart(12, '0')}`,
+            code: null,
+            clientId: null,
+            processedAt: null,
+            ...row,
+          });
+        }
+        return { count: data.length };
+      }),
+      update: jest.fn(async ({ where, data }: any) => {
+        const key = where.tenantId_jobId_ldaClientId;
+        const row = items.find(
+          (item) => item.jobId === key.jobId && item.ldaClientId === key.ldaClientId,
+        )!;
+        Object.assign(row, data);
+        return row;
       }),
     },
   };
@@ -115,6 +177,7 @@ function fixture() {
       prisma as never,
       prepopulation as never,
       sam as never,
+      new FirmImportJobStore(prisma as never),
       config as never,
     ),
   };
@@ -137,8 +200,15 @@ it('CSV import rechecks capacity inside each row and preserves per-row outcomes'
 it('restore needs capacity, duplicate active status consumes none, and archive releases the slot', async () => {
   const h = fixture();
   await h.clients.createInTransaction(ctx, h.tx as never, { name: 'First' });
-  h.rows().push({ id: '44444444-4444-4444-8444-444444444444', name: 'Archived', status: 'archived', intakeData: {} });
-  await expect(h.clients.update(ctx, '44444444-4444-4444-8444-444444444444', { status: 'active' })).rejects.toMatchObject({
+  h.rows().push({
+    id: '44444444-4444-4444-8444-444444444444',
+    name: 'Archived',
+    status: 'archived',
+    intakeData: {},
+  });
+  await expect(
+    h.clients.update(ctx, '44444444-4444-4444-8444-444444444444', { status: 'active' }),
+  ).rejects.toMatchObject({
     status: 402,
   });
   await h.clients.update(ctx, '33333333-3333-4333-8333-000000000000', { status: 'active' });

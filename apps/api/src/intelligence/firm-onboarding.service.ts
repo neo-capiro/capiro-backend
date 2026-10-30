@@ -6,12 +6,21 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { randomUUID } from 'node:crypto';
 import { CLIENT_SLOT_LIMIT_CODE, type TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ClientPrepopulationService } from './client-prepopulation.service.js';
 import { SamEntityEnrichmentService } from './sam-entity.service.js';
 import { requireClientCapacity } from '../clients/client-capacity.js';
+import { FirmImportJobStore } from './firm-import-job.store.js';
+import {
+  importItemReason,
+  normalizeImportSelection,
+  type FirmImportItemCode,
+  type ImportChunkJobSummary,
+  type ImportJobView,
+} from './firm-import-job.contracts.js';
 
 /**
  * Firm-registrant onboarding + "import your clients" (Phase 2 of the client→data
@@ -54,6 +63,7 @@ export class FirmOnboardingService {
     private readonly prisma: PrismaService,
     private readonly prepopulation: ClientPrepopulationService,
     private readonly samEntity: SamEntityEnrichmentService,
+    private readonly importJobs: FirmImportJobStore,
     config: ConfigService<AppConfig, true>,
   ) {
     this.billingEnforced = config.get('BILLING_ENFORCED', { infer: true });
@@ -172,14 +182,69 @@ export class FirmOnboardingService {
     return { registrantId: ldaRegistrantId, registrantName: ldaRegistrantName, candidates };
   }
 
+  /** Tenant-scoped paged jobs with full-population status counts. */
+  listImportJobs(ctx: TenantContext, options: Parameters<FirmImportJobStore['listJobs']>[1] = {}) {
+    return this.importJobs.listJobs(ctx, options);
+  }
+
+  getImportJob(ctx: TenantContext, jobId: string) {
+    return this.importJobs.getJob(ctx, jobId);
+  }
+
+  /**
+   * Status-only projection. Staleness is an operator-attention signal, never
+   * proof of failure or completion; outstanding items stay explicitly unresolved.
+   */
+  async getImportJobStatus(ctx: TenantContext, jobId: string) {
+    const job = await this.importJobs.getJob(ctx, jobId);
+    return {
+      id: job.id,
+      requestId: job.requestId,
+      status: job.status,
+      terminal: job.terminal,
+      stale: job.stale,
+      staleAfterSeconds: job.staleAfterSeconds,
+      counts: {
+        total: job.total,
+        processed: job.processed,
+        successful: job.successful,
+        rejected: job.rejected,
+        outstanding: job.outstanding,
+        created: job.created,
+        alreadyPresent: job.alreadyPresent,
+      },
+      unresolved: job.items
+        .filter((item) => item.outcome === 'pending')
+        .map((item) => item.ldaClientId),
+      updatedAt: job.updatedAt,
+      startedAt: job.startedAt,
+      finishedAt: job.finishedAt,
+    };
+  }
+
   /**
    * Create Client records from selected LDA client_ids — with the id pinned
    * (clients.lda_client_ids + a confirmed source='lda' mapping) and basic
    * profile fields seeded from lda_client. Guards: each id must belong to the
    * tenant's own registrant, and an id already onboarded is skipped (idempotent).
+   *
+   * Durable view: the request is bound to a job keyed by the caller's stable
+   * requestId (or a server UUID for legacy callers), item identities are
+   * persisted before any client work, and every item outcome is written in the
+   * same transaction as its Client/mapping effect. Nothing here queues work or
+   * retries: the operator inspects/reconciles the persisted job.
    */
-  async importClients(ctx: TenantContext, ldaClientIds: number[]) {
-    const ids = Array.from(new Set(ldaClientIds)).filter((n) => Number.isInteger(n));
+  async importClients(
+    ctx: TenantContext,
+    ldaClientIds: number[],
+    options: { requestId?: string } = {},
+  ): Promise<{
+    created: number;
+    items: Array<{ id: string; name: string; ldaClientId: number }>;
+    skipped: Array<{ ldaClientId: number; reason: string }>;
+    job: ImportChunkJobSummary;
+  }> {
+    const ids = normalizeImportSelection(ldaClientIds);
     if (ids.length === 0) throw new BadRequestException('No LDA client ids provided');
 
     const { ldaRegistrantId } = await this.getTenantRegistrant(ctx);
@@ -194,6 +259,17 @@ export class FirmOnboardingService {
       requireClientCapacity(tx, ctx.tenantId, this.billingEnforced),
     );
 
+    const { job, created: started } = await this.importJobs.createOrReconcile(ctx, {
+      requestKey: options.requestId ?? randomUUID(),
+      ldaRegistrantId,
+      ids,
+    });
+    // Same request identity + same exact selection reconciles the existing job.
+    // An interrupted response is read back from durable outcomes, never re-run.
+    if (!started) return this.importResult(job);
+
+    await this.importJobs.markRunning(ctx, job.id);
+
     // Only allow importing the firm's OWN clients (not arbitrary global ids).
     const ownRows = await this.prisma.ldaFiling.findMany({
       where: { registrantId: ldaRegistrantId, clientId: { in: ids } },
@@ -205,17 +281,25 @@ export class FirmOnboardingService {
     const ldaClients = await this.prisma.ldaClient.findMany({ where: { id: { in: ids } } });
     const byId = new Map(ldaClients.map((c) => [c.id, c]));
 
-    const created: Array<{ id: string; name: string; ldaClientId: number }> = [];
-    const skipped: Array<{ ldaClientId: number; reason: string }> = [];
+    const recordRejected = (ldaClientId: number, code: FirmImportItemCode) =>
+      this.prisma.withTenant(ctx.tenantId, (tx) =>
+        this.importJobs.markItemOutcome(tx, {
+          tenantId: ctx.tenantId,
+          jobId: job.id,
+          ldaClientId,
+          outcome: 'rejected',
+          code,
+        }),
+      );
 
     for (const id of ids) {
       if (!ownIds.has(id)) {
-        skipped.push({ ldaClientId: id, reason: 'not a client of your firm' });
+        await recordRejected(id, 'NOT_OWN_CLIENT');
         continue;
       }
       const lc = byId.get(id);
       if (!lc) {
-        skipped.push({ ldaClientId: id, reason: 'LDA client record not found' });
+        await recordRejected(id, 'LDA_CLIENT_NOT_FOUND');
         continue;
       }
       try {
@@ -231,18 +315,31 @@ export class FirmOnboardingService {
           );
           const dup = await tx.client.findFirst({
             where: { ldaClientIds: { has: id } },
-            select: { name: true },
+            select: { id: true },
           });
-          if (dup) return { dup: dup.name };
+          if (dup) {
+            await this.importJobs.markItemOutcome(tx, {
+              tenantId: ctx.tenantId,
+              jobId: job.id,
+              ldaClientId: id,
+              outcome: 'already_present',
+              clientId: dup.id,
+            });
+            return { dup: true as const };
+          }
           try {
             await requireClientCapacity(tx, ctx.tenantId, this.billingEnforced);
           } catch (error) {
-            const result = error instanceof HttpException ? error.getResponse() : null;
+            const response = error instanceof HttpException ? error.getResponse() : null;
             if (
-              result && typeof result === 'object' && 'code' in result &&
-              result.code === CLIENT_SLOT_LIMIT_CODE && 'limit' in result
+              response &&
+              typeof response === 'object' &&
+              'code' in response &&
+              response.code === CLIENT_SLOT_LIMIT_CODE
             )
-              return { capped: result.limit };
+              return {
+                capped: 'limit' in response ? Number(response.limit) : null,
+              };
             throw error;
           }
           const client = await tx.client.create({
@@ -274,46 +371,102 @@ export class FirmOnboardingService {
               confirmed: true,
             },
           });
+          // SAME transaction as the Client+mapping effect: a committed Client can
+          // never be followed by a lost success record.
+          await this.importJobs.markItemOutcome(tx, {
+            tenantId: ctx.tenantId,
+            jobId: job.id,
+            ldaClientId: id,
+            outcome: 'created',
+            clientId: client.id,
+          });
           return { client };
         });
 
         if ('dup' in result) {
-          skipped.push({ ldaClientId: id, reason: `already onboarded as "${result.dup}"` });
-        } else if ('capped' in result) {
-          skipped.push({
-            ldaClientId: id,
-            reason: `${CLIENT_SLOT_LIMIT_CODE}: client slot limit (${result.capped}) reached`,
-          });
-        } else {
-          created.push({ id: result.client.id, name: result.client.name, ldaClientId: id });
-          // Layer in LDA-derived signals + union issue codes (idempotent). Never
-          // fails the import row.
-          await this.prepopulation
-            .prepopulate(ctx.tenantId, result.client.id)
-            .catch((e: unknown) =>
-              this.logger.warn(
-                `prepopulate after import failed for ${result.client.id}: ${e instanceof Error ? e.message : String(e)}`,
-              ),
-            );
-          // SAM gov-id enrichment is network-bound; fire-and-forget (NOT awaited)
-          // so a multi-client import doesn't serialize one SAM round-trip per
-          // client into the request. Fill-if-empty, fail-safe.
-          void this.samEntity
-            .enrichGovIds(ctx.tenantId, result.client.id)
-            .catch((e: unknown) =>
-              this.logger.warn(
-                `gov-id enrichment after import failed for ${result.client.id}: ${e instanceof Error ? e.message : String(e)}`,
-              ),
-            );
+          continue; // already_present persisted inside the transaction
         }
+        if ('capped' in result) {
+          await recordRejected(id, 'CLIENT_SLOT_LIMIT');
+          continue;
+        }
+        // Layer in LDA-derived signals + union issue codes (idempotent). Never
+        // fails the import row and is never an import-job completion signal.
+        await this.prepopulation
+          .prepopulate(ctx.tenantId, result.client.id)
+          .catch((e: unknown) =>
+            this.logger.warn(
+              `prepopulate after import failed for ${result.client.id}: ${e instanceof Error ? e.message : String(e)}`,
+            ),
+          );
+        // SAM gov-id enrichment is network-bound; fire-and-forget (NOT awaited)
+        // so a multi-client import doesn't serialize one SAM round-trip per
+        // client into the request. Fill-if-empty, fail-safe, and NOT evidence of
+        // import-job completion.
+        void this.samEntity
+          .enrichGovIds(ctx.tenantId, result.client.id)
+          .catch((e: unknown) =>
+            this.logger.warn(
+              `gov-id enrichment after import failed for ${result.client.id}: ${e instanceof Error ? e.message : String(e)}`,
+            ),
+          );
       } catch (err) {
-        skipped.push({ ldaClientId: id, reason: (err as Error).message ?? 'error' });
+        // Closed code only: raw provider/SQL text never reaches the job row.
+        this.logger.warn(
+          `import item failed (job ${job.id}, lda ${id}): ${err instanceof Error ? err.message : 'unknown'}`,
+        );
+        await recordRejected(id, 'INTERNAL_ERROR');
       }
     }
 
+    const projection = await this.importJobs.getJob(ctx, job.id);
+    await this.importJobs.finalize(ctx, job.id, projection);
+    const finalJob = await this.importJobs.getJob(ctx, job.id);
+
     this.logger.log(
-      `importClients(${ctx.tenantId}): ${created.length} created, ${skipped.length} skipped`,
+      `importClients(${ctx.tenantId}, job ${job.id}): ${finalJob.created} created, ` +
+        `${finalJob.alreadyPresent} already present, ${finalJob.rejected} rejected, ` +
+        `${finalJob.outstanding} outstanding`,
     );
-    return { created: created.length, items: created, skipped };
+    return this.importResult(finalJob);
+  }
+
+  /** Legacy {created,items,skipped} shape plus the additive job summary. */
+  private importResult(job: ImportJobView) {
+    const items = job.items
+      .filter((item) => item.outcome === 'created' && item.clientId)
+      .map((item) => ({
+        id: item.clientId as string,
+        name: item.clientName ?? '',
+        ldaClientId: item.ldaClientId,
+      }));
+    const skipped = job.items
+      .filter((item) => item.outcome === 'already_present' || item.outcome === 'rejected')
+      .map((item) => ({
+        ldaClientId: item.ldaClientId,
+        reason:
+          item.outcome === 'already_present' ? 'already onboarded' : importItemReason(item.code),
+      }));
+
+    return {
+      created: items.length,
+      items,
+      skipped,
+      job: {
+        id: job.id,
+        requestId: job.requestId,
+        status: job.status,
+        stale: job.stale,
+        counts: {
+          total: job.total,
+          processed: job.processed,
+          successful: job.successful,
+          rejected: job.rejected,
+          outstanding: job.outstanding,
+          created: job.created,
+          alreadyPresent: job.alreadyPresent,
+        },
+      },
+    };
   }
 }

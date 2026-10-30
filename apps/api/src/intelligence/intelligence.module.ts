@@ -25,6 +25,7 @@ import { CoverageGapService } from './coverage/coverage-gap.service.js';
 import { CoverageController } from './coverage/coverage.controller.js';
 import { FirmOnboardingService } from './firm-onboarding.service.js';
 import { FirmOnboardingController } from './firm-onboarding.controller.js';
+import { FirmImportJobStore } from './firm-import-job.store.js';
 import { ClientPrepopulationService } from './client-prepopulation.service.js';
 import { SamEntityEnrichmentService } from './sam-entity.service.js';
 import { NewsDashboardController } from './news/news-dashboard.controller.js';
@@ -64,6 +65,7 @@ import { XFeedModule } from './x-feed/x-feed.module.js';
     InsightGeneratorService,
     EntityResolutionService,
     FirmOnboardingService,
+    FirmImportJobStore,
     ClientPrepopulationService,
     SamEntityEnrichmentService,
     ReportCardService,
