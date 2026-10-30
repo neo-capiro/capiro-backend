@@ -227,7 +227,7 @@ export class MeetingPrepJobService {
   /** Only the explicit background-owner module calls this system-level claim. */
   async runWorkerTick(): Promise<void> {
     if (!meetingPrepEnabled()) return;
-    this.runtime.assertBackgroundOwner('meeting-prep-worker');
+    this.runtime.assertMeetingPrepWorker();
     this.runtime.assertExternalAction('meeting_prep_generate');
     const now = new Date();
     const token = randomUUID();

@@ -281,4 +281,51 @@ describe('durable meeting prep jobs', () => {
       },
     });
   });
+
+  describe('background worker tick ownership', () => {
+    function workerHarness(assertMeetingPrepWorker: () => void) {
+      const tx = { meetingPrepJob: { updateMany: jest.fn(async () => ({ count: 0 })),
+                                     findFirst: jest.fn(async () => null) } };
+      const prisma = {
+        withSystem: jest.fn(async (run: (tx: unknown) => unknown) => run(tx)),
+        withTenantUser: jest.fn(),
+      };
+      const runtime = { assertMeetingPrepWorker: jest.fn(assertMeetingPrepWorker),
+                        assertExternalAction: jest.fn() };
+      const service = new MeetingPrepJobService(
+        prisma as never,
+        {} as never,
+        { encrypt: jest.fn(), decrypt: jest.fn() } as never,
+        runtime as never,
+      );
+      return { service, prisma, runtime, tx };
+    }
+
+    test('allowed tick consults the prep owner and reaches the existing system claim', async () => {
+      const h = workerHarness(() => {});
+      await h.service.runWorkerTick();
+      expect(h.runtime.assertMeetingPrepWorker).toHaveBeenCalledTimes(1);
+      expect(h.runtime.assertExternalAction).toHaveBeenCalledWith('meeting_prep_generate');
+      expect(h.prisma.withSystem).toHaveBeenCalledTimes(1);
+      expect(h.tx.meetingPrepJob.findFirst).toHaveBeenCalledTimes(1);
+    });
+
+    test('denied tick refuses before any database or provider work', async () => {
+      const h = workerHarness(() => {
+        throw new Error('MEETING_PREP_WORKER_DISABLED');
+      });
+      await expect(h.service.runWorkerTick()).rejects.toThrow('MEETING_PREP_WORKER_DISABLED');
+      expect(h.prisma.withSystem).not.toHaveBeenCalled();
+      expect(h.tx.meetingPrepJob.updateMany).not.toHaveBeenCalled();
+      expect(h.runtime.assertExternalAction).not.toHaveBeenCalled();
+    });
+
+    test('the comprehensive-prep flag off short-circuits the tick', async () => {
+      process.env.MEETING_PREP_COMPREHENSIVE_ENABLED = 'false';
+      const h = workerHarness(() => {});
+      await h.service.runWorkerTick();
+      expect(h.runtime.assertMeetingPrepWorker).not.toHaveBeenCalled();
+      expect(h.prisma.withSystem).not.toHaveBeenCalled();
+    });
+  });
 });
