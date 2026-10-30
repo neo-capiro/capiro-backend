@@ -209,6 +209,102 @@ function guardedPriority(value: number): number {
   return value;
 }
 
+/** The five note-taker credentials the existing service needs. Values never enter source. */
+export const FIRST_CHAT_CORE_NOTETAKER_SECRET_NAMES = [
+  'OPENAI_API_KEY',
+  'ANTHROPIC_API_KEY',
+  'RECALL_API_KEY',
+  'RECALL_WEBHOOK_SECRET',
+  'NOTES_ENCRYPTION_KEY',
+] as const;
+
+/**
+ * ARN-only note-taker posture for this preview service.
+ *
+ * The runtime admits note-taker work only from `integrations_and_notetaker`
+ * while `notetakerPostureEnabled()` holds: service `api`, process `shadow`,
+ * background owner `api`, callbacks and the Recall webhook both enabled.
+ * Generic background workers stay denied in that posture — the policy admits
+ * only `engagement-sync-scheduler`, `notetaker-reconcile` and
+ * `client-notetaker` by exact name, so this overlay must not widen ownership
+ * for anything else.
+ *
+ * Every credential is a complete same-account secret ARN; no wildcard, no
+ * `*` resource and no secret value is read here. Callers render the overlay
+ * and apply it; this function never calls AWS.
+ */
+export function firstChatCoreNoteTakerConfiguration(input: unknown) {
+  const binding = exactKeys(input, ['secretArns', 'kmsKeyArns'], 'Preview note taker');
+  const secretArns = exactKeys(
+    binding.secretArns,
+    FIRST_CHAT_CORE_NOTETAKER_SECRET_NAMES,
+    'Preview note taker secret references',
+  );
+  for (const [name, arn] of Object.entries(secretArns)) {
+    if (
+      typeof arn !== 'string' ||
+      !new RegExp(
+        `^arn:aws:secretsmanager:${region}:${account}:secret:[A-Za-z0-9/_+=.@-]+-[A-Za-z0-9]{6}$`,
+      ).test(arn)
+    )
+      throw new Error(`${name}: complete same-account secret ARN required`);
+  }
+  if (new Set(Object.values(secretArns)).size !== FIRST_CHAT_CORE_NOTETAKER_SECRET_NAMES.length)
+    throw new Error('Distinct note taker secret references required');
+  const kmsKeyArns = binding.kmsKeyArns;
+  if (
+    !Array.isArray(kmsKeyArns) ||
+    kmsKeyArns.length > FIRST_CHAT_CORE_NOTETAKER_SECRET_NAMES.length ||
+    new Set(kmsKeyArns).size !== kmsKeyArns.length ||
+    kmsKeyArns.some(
+      (arn) =>
+        typeof arn !== 'string' ||
+        !new RegExp(
+          `^arn:aws:kms:${region}:${account}:key/(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|mrk-[0-9a-f]{32})$`,
+        ).test(arn),
+    )
+  )
+    throw new Error('Explicit same-account customer-managed key ARNs required (or an empty list)');
+
+  const managementResources = Object.values(secretArns);
+  const statements: Record<string, unknown>[] = [
+    {
+      Effect: 'Allow',
+      Action: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'],
+      Resource: managementResources,
+    },
+  ];
+  if (kmsKeyArns.length)
+    statements.push({
+      Effect: 'Allow',
+      Action: ['kms:Decrypt'],
+      Resource: kmsKeyArns,
+      Condition: {
+        StringEquals: {
+          'kms:ViaService': `secretsmanager.${region}.amazonaws.com`,
+          'kms:EncryptionContext:SecretARN': managementResources,
+        },
+      },
+    });
+  return {
+    environment: Object.entries({
+      // The exact posture the runtime requires; generic workers stay denied.
+      ENGAGEMENT_EXTERNAL_ACTIONS: 'integrations_and_notetaker',
+      ENGAGEMENT_PROCESS_MODE: 'shadow',
+      ENGAGEMENT_BACKGROUND_OWNER: 'api',
+      ENGAGEMENT_CALLBACKS_ENABLED: 'true',
+      ENGAGEMENT_RECALL_WEBHOOK_ENABLED: 'true',
+      NOTETAKER_ENABLED: 'true',
+      MEETING_ARTIFACT_AGENT_SDK: 'true',
+    }).map(([name, value]) => ({ name, value })),
+    secrets: Object.entries(secretArns).map(([name, valueFrom]) => ({
+      name,
+      valueFrom: valueFrom as string,
+    })),
+    executionRolePolicy: { Version: '2012-10-17', Statement: statements },
+  };
+}
+
 function queryDatabaseBinding(value: unknown, pins: FirstChatCoreQueryDatabases | undefined) {
   const input = exactKeys(value, ['analytics', 'private'], 'Query databases');
   const expected = exactKeys(pins, ['analytics', 'private'], 'Qualified query databases');
