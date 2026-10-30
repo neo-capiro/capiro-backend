@@ -50,6 +50,8 @@ interface MaterialBill {
   identifier: string;
   status: string;
   statusAt: Date;
+  /** When ingestion detected/stamped this status — the change's own detection time. */
+  derivedAt: Date;
   latestActionText: string | null;
 }
 
@@ -69,7 +71,7 @@ async function readIntelCrossTenant<T>(prisma: PrismaClient, fn: (tx: PrismaClie
 // (rather than inlined) so a regression spec can assert the windowing column
 // without needing a live Postgres connection — this script's core query has
 // no other unit-test path.
-export const MATERIAL_BILLS_QUERY = `SELECT id, state, identifier, status, status_at AS "statusAt", latest_action_text AS "latestActionText"
+export const MATERIAL_BILLS_QUERY = `SELECT id, state, identifier, status, status_at AS "statusAt", status_derived_at AS "derivedAt", latest_action_text AS "latestActionText"
          FROM state_bill
         WHERE status_derived_at > $1
           AND status = ANY($2::text[])`;
@@ -134,7 +136,11 @@ async function main() {
               actionDate: b.statusAt.toISOString().slice(0, 10),
               sourceUrl: null,
               sourceLabel: `${b.state} legislature (LegiScan)`,
-              detectedAt: since,
+              // The change's OWN detection time — never the sweep's previous
+              // checkpoint. The checkpoint is only the query window; using it as
+              // the baseline cut-off dropped memberships created during the window
+              // (and every membership on the epoch first run).
+              detectedAt: b.derivedAt,
             }),
           );
         } catch (err) {

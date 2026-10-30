@@ -41,6 +41,10 @@ function workerHarness(flags: { history?: boolean; ownerGuard?: boolean } = {}) 
   };
   const systemTx = {
     trackedBill,
+    // Research Portfolio recipients are read even when the legacy scan is empty
+    // (a portfolio-only federal membership must still be reachable). Empty here,
+    // so legacy behavior is unchanged for these cases.
+    researchPortfolioMember: { findMany: jest.fn(async () => [] as unknown[]) },
     $queryRawUnsafe: jest.fn(async () => [] as Array<{ tenant_id: string }>),
   };
   const tenantTx = { client: { findFirst: jest.fn(async () => ({ name: 'Energy Client' })) } };
@@ -116,7 +120,10 @@ it('short-circuits an empty cross-tenant scan before all source and delivery rea
     suppressedOwned: 0,
     byType: {},
   });
-  expect(h.prisma.withSystem).toHaveBeenCalledTimes(1);
+  // Two rounds: the legacy scan and the Research Portfolio recipient discovery
+  // (a portfolio-only federal membership must be reachable even when no legacy
+  // row exists). No source read and no delivery follow — that is the assertion.
+  expect(h.prisma.withSystem).toHaveBeenCalledTimes(2);
   expect(h.systemTx.$queryRawUnsafe).not.toHaveBeenCalled();
   expect(h.prisma.congressBill.findMany).not.toHaveBeenCalled();
   expect(h.alerts.fanOut).not.toHaveBeenCalled();
@@ -290,7 +297,12 @@ it('suppresses only delivery for an Intel-owned tenant while surfacing and snaps
   expect(h.systemTx.$queryRawUnsafe).toHaveBeenCalledWith(
     "SELECT tenant_id FROM intel_feature_flag WHERE feature = 'tracker_owner_intel' AND enabled = true",
   );
-  expect(h.prisma.withSystem).toHaveBeenCalledTimes(3);
+  // Five system-scope rounds, each accounted for: the legacy tracked-bill scan,
+  // the Research Portfolio recipient discovery this branch added, the
+  // intel-owned-tenant guard, the per-recipient bill_changed fan-out, and the
+  // snapshot advance. The protected invariant is unchanged and asserted below:
+  // the change is persisted and snapshotted, and NOT delivered.
+  expect(h.prisma.withSystem).toHaveBeenCalledTimes(5);
   expect(h.trace).toEqual(['summary', 'persist', 'snapshot']);
   expect(h.alerts.fanOut).not.toHaveBeenCalled();
 });

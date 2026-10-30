@@ -68,6 +68,18 @@ export function selectMaterialEvents(
 }
 
 /**
+ * End of the source's UTC day. Legislative action dates are date-only, so a
+ * day-granular change must not be compared as midnight against a timestamp: a
+ * portfolio adopted earlier the same day would otherwise be treated as
+ * pre-existing history, silently dropping a genuinely new same-day move.
+ */
+export function endOfUtcDay(date: Date): Date {
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 23, 59, 59, 999),
+  );
+}
+
+/**
  * Scans tracked bills for material legislative moves, snapshots each bill's
  * last-seen action so a move alerts exactly once, writes an IntelligenceChange
  * (for the in-app changes inbox + board change chip), and fans the alert out to
@@ -123,7 +135,19 @@ export class TrackerChangeDetectorService {
         },
       }),
     );
-    if (!tracked.length)
+    // Federal bills tracked only by a Research Portfolio have no legacy
+    // trackedBill row. Read those recipients here so the existing detection owner
+    // stays the single federal change path (no second scheduler, no fabricated
+    // client tracking). Each membership carries its own tenantId; the fan-out
+    // below scopes every call to that tenant and never exposes client context.
+    const portfolioMembers = await this.prisma.withSystem((tx) =>
+      tx.researchPortfolioMember.findMany({
+        where: { targetKind: 'federal_bill', disposition: 'included' },
+        select: { tenantId: true, portfolioId: true, targetId: true, createdAt: true },
+      }),
+    );
+
+    if (!tracked.length && !portfolioMembers.length)
       return { scanned: 0, baseline: 0, changed: 0, alerted: 0, suppressedOwned: 0, byType: {} };
 
     // Single-sender guard (Capiro Intelligence cutover, plan §8/Phase 8): the set
@@ -139,7 +163,9 @@ export class TrackerChangeDetectorService {
       );
     }
 
-    const billIds = Array.from(new Set(tracked.map((t) => t.billId)));
+    const billIds = Array.from(
+      new Set([...tracked.map((t) => t.billId), ...portfolioMembers.map((m) => m.targetId)]),
+    );
     const bills = await this.prisma.congressBill.findMany({
       where: { id: { in: billIds } },
       select: {
@@ -380,8 +406,156 @@ export class TrackerChangeDetectorService {
       }
     }
 
-    return { scanned: tracked.length, baseline, changed, alerted, suppressedOwned, byType };
+    // Portfolio-only federal recipients: bills a Research Portfolio tracks with no
+    // legacy trackedBill row for that tenant. Runs after the legacy loop so the
+    // per-client path is untouched; a tenant+bill the legacy loop already covered
+    // is skipped (and the per-recipient event key makes a duplicate impossible).
+    const portfolio = await this.fanOutPortfolioOnlyFederal(
+      tracked,
+      portfolioMembers,
+      billById,
+      actionsByBill,
+      scanHistory,
+      cycleStartedAt,
+    );
+    for (const [changeType, count] of Object.entries(portfolio.byType)) {
+      byType[changeType] = (byType[changeType] ?? 0) + count;
+    }
+
+    return {
+      scanned: tracked.length + portfolio.considered,
+      baseline: baseline + portfolio.baseline,
+      changed: changed + portfolio.changed,
+      alerted,
+      suppressedOwned,
+      byType,
+    };
   }
+
+  /**
+   * Deliver federal material changes to Research Portfolios that track a bill
+   * with no legacy trackedBill row for that tenant.
+   *
+   * Silent baseline is the membership's `createdAt` — the moment the portfolio
+   * adopted the bill's state. A move already in that state at adoption is history
+   * (counted, never surfaced); a move dated after it is eligible. No trackedBill
+   * row is fabricated, no client context is read, and nothing is emailed or
+   * notified: the only effect is the portfolio's own `bill_changed` event, scoped
+   * to the membership's tenant.
+   */
+  private async fanOutPortfolioOnlyFederal(
+    tracked: ReadonlyArray<{ tenantId: string; billId: string }>,
+    members: ReadonlyArray<{ tenantId: string; targetId: string; createdAt: Date }>,
+    billById: ReadonlyMap<
+      string,
+      {
+        id: string;
+        title: string;
+        latestActionText: string | null;
+        latestActionDate: Date | null;
+        url: string | null;
+      }
+    >,
+    actionsByBill: ReadonlyMap<string, ActionLike[]>,
+    scanHistory: boolean,
+    cycleStartedAt: Date,
+  ): Promise<{
+    considered: number;
+    baseline: number;
+    changed: number;
+    byType: Record<string, number>;
+  }> {
+    const legacyKeys = new Set(tracked.map((row) => `${row.tenantId}:${row.billId}`));
+    // Recipient eligibility is per PORTFOLIO, not per tenant: each portfolio has
+    // its own adoption time, and a later-added portfolio must not receive a change
+    // that predates it. The tenant's earliest membership is used only to bound the
+    // action history we consider, never as the recipient baseline.
+    const groups = new Map<string, { tenantId: string; billId: string; earliest: Date }>();
+    for (const member of members) {
+      const key = `${member.tenantId}:${member.targetId}`;
+      if (legacyKeys.has(key)) continue; // the legacy loop already fans this out
+      const existing = groups.get(key);
+      if (!existing) {
+        groups.set(key, { tenantId: member.tenantId, billId: member.targetId, earliest: member.createdAt });
+      } else if (member.createdAt.getTime() < existing.earliest.getTime()) {
+        existing.earliest = member.createdAt;
+      }
+    }
+
+    const byType: Record<string, number> = {};
+    let baseline = 0;
+    let changed = 0;
+    for (const group of groups.values()) {
+      const bill = billById.get(group.billId);
+      if (!bill) continue;
+      const latest: ActionLike | null =
+        bill.latestActionText != null || bill.latestActionDate != null
+          ? { date: bill.latestActionDate, text: bill.latestActionText }
+          : null;
+      // An undated action cannot be ordered against an adoption time, so it never
+      // becomes a "new" portfolio event (nothing is claimed about it).
+      if (latest?.date == null) {
+        baseline += 1;
+        continue;
+      }
+      const events: MaterialEvent[] = scanHistory
+        ? selectMaterialEvents(
+            (actionsByBill.get(group.billId) ?? []).filter(
+              (action) => action.date != null && action.date.getTime() > group.earliest.getTime(),
+            ),
+            latest,
+          )
+        : (() => {
+            const cls = classifyChange(latest.text);
+            return cls ? [{ cls, text: latest.text ?? '', date: latest.date }] : [];
+          })();
+      if (!events.length) {
+        baseline += 1;
+        continue;
+      }
+
+      const displayNum = humanizeBillId(bill.id);
+      let delivered = 0;
+      try {
+        for (const ev of events) {
+          if (!ev.date) continue;
+          const actionDate = ev.date.toISOString().slice(0, 10);
+          // The change's own day is the recipient baseline: the shared fan-out
+          // inserts only for memberships created at/before it, which is exactly
+          // "this portfolio already tracked the bill when the change happened".
+          // End-of-day keeps a genuinely new same-day move after membership,
+          // while a portfolio adopted on a later day stays silent. Replay is
+          // deduped by the per-recipient event idempotency key.
+          const cutoff = endOfUtcDay(ev.date);
+          const written = await this.prisma.withSystem((tx) =>
+            recordResearchPortfolioBillChanges(tx as never, {
+              tenantId: group.tenantId,
+              targetKind: 'federal_bill',
+              targetId: group.billId,
+              changeType: ev.cls.changeType,
+              label: ev.cls.label,
+              detail: ev.text || `${displayNum} — ${bill.title}`,
+              actionDate,
+              sourceUrl: bill.url ?? null,
+              sourceLabel: 'Congress.gov',
+              detectedAt: cutoff,
+            }),
+          );
+          // Count actual inserts, so a replay contributes nothing.
+          delivered += written;
+          if (written > 0) byType[ev.cls.changeType] = (byType[ev.cls.changeType] ?? 0) + written;
+        }
+      } catch (e) {
+        this.logger.error(
+          `Portfolio fan-out failed for ${group.billId} (tenant ${group.tenantId}); retried next cycle: ${(e as Error).message}`,
+        );
+      }
+      if (delivered > 0) changed += 1;
+      else baseline += 1;
+    }
+    return { considered: groups.size, baseline, changed, byType };
+  }
+
 
   /**
    * Tenants intel-api has taken DELIVERY ownership of for the tracker cutover:

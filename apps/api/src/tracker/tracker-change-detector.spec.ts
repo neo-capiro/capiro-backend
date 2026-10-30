@@ -139,6 +139,230 @@ describe('selectMaterialEvents', () => {
   });
 });
 
+describe('portfolio-only federal recipients (reachability)', () => {
+  // Reproduced defect: runDetectionCycle read only legacy trackedBill rows and
+  // returned early when there were none, so a federal bill tracked ONLY by a
+  // Research Portfolio had no detection path at all. The fix keeps this detector
+  // as the single source owner: no trackedBill row is fabricated, no client or
+  // notification context is read, and each fan-out is scoped to its own tenant.
+  function harness(opts: {
+    members: Array<{
+      tenantId: string;
+      portfolioId: string;
+      targetId: string;
+      createdAt: Date;
+    }>;
+    bill: Record<string, unknown>;
+    tracked?: unknown[];
+  }) {
+    const events: any[] = [];
+    const seen = new Set<string>();
+    const tx: any = {
+      trackedBill: { findMany: jest.fn(async () => opts.tracked ?? []) },
+      researchPortfolioMember: {
+        findMany: jest.fn(async (args: any) => {
+          const where = args?.where ?? {};
+          return opts.members.filter(
+            (member) =>
+              (where.tenantId == null || member.tenantId === where.tenantId) &&
+              (where.createdAt?.lte == null ||
+                member.createdAt.getTime() <= where.createdAt.lte.getTime()),
+          );
+        }),
+      },
+      congressBill: { findMany: jest.fn(async () => [opts.bill]) },
+      researchPortfolio: {
+        findFirst: jest.fn(async () => ({ revision: 3, lifecycle: 'active' })),
+      },
+      researchPortfolioEvent: {
+        // Mirrors research_portfolio_events_idempotency_key: UNIQUE (tenantId,
+        // idempotencyKey). Replay therefore inserts nothing.
+        createMany: jest.fn(async ({ data, skipDuplicates }: any) => {
+          let count = 0;
+          for (const row of data) {
+            const key = `${row.tenantId}:${row.idempotencyKey}`;
+            if (seen.has(key)) {
+              if (!skipDuplicates) throw new Error('unique violation');
+              continue;
+            }
+            seen.add(key);
+            events.push(row);
+            count += 1;
+          }
+          return { count };
+        }),
+      },
+    };
+    const prisma: any = {
+      withSystem: jest.fn((fn: (tx: unknown) => unknown) => fn(tx)),
+      withTenant: jest.fn(),
+      // The bill catalog read is a plain client call, not a tenant transaction.
+      congressBill: tx.congressBill,
+    };
+    const alerts = { fanOut: jest.fn() };
+    const config = { get: jest.fn(() => false) };
+    const summaries = { summarize: jest.fn() };
+    const svc = new TrackerChangeDetectorService(
+      prisma as unknown as PrismaService,
+      alerts as never,
+      {} as never,
+      config as never,
+      summaries as never,
+    );
+    return { svc, tx, prisma, alerts, events };
+  }
+
+  const bill = {
+    id: '119-hr-8800',
+    title: 'Department of Defense Appropriations Act, 2027',
+    latestActionText: 'Passed/agreed to in House',
+    latestActionDate: d('2026-09-10'),
+    url: 'https://www.congress.gov/bill/119th-congress/house-bill/8800',
+    subjects: ['Defense'],
+    policyArea: 'Armed Forces and National Security',
+  };
+
+  it('establishes a silent baseline for a membership whose bill has not moved since', async () => {
+    const h = harness({
+      members: [
+        {
+          tenantId: 'tenant-a',
+          portfolioId: 'portfolio-a',
+          targetId: '119-hr-8800',
+          createdAt: d('2026-10-01T00:00:00Z'),
+        },
+      ],
+      bill: { ...bill, latestActionDate: d('2026-09-10') },
+    });
+
+    const result = await h.svc.runDetectionCycle();
+
+    expect(h.tx.researchPortfolioMember.findMany).toHaveBeenCalled();
+    expect(result.scanned).toBe(1);
+    expect(result.baseline).toBe(1);
+    expect(result.changed).toBe(0);
+    expect(h.events).toHaveLength(0);
+    // No client delivery, no client/user context, no trackedBill fabrication.
+    expect(h.alerts.fanOut).not.toHaveBeenCalled();
+    expect(h.prisma.withTenant).not.toHaveBeenCalled();
+    expect(h.tx.researchPortfolioMember.findMany).not.toHaveBeenCalledWith(
+      expect.objectContaining({ create: expect.anything() }),
+    );
+  });
+
+  it('delivers the next eligible material change to a portfolio-only member', async () => {
+    const h = harness({
+      members: [
+        {
+          tenantId: 'tenant-a',
+          portfolioId: 'portfolio-a',
+          targetId: '119-hr-8800',
+          createdAt: d('2026-10-01T00:00:00Z'),
+        },
+      ],
+      // The move is dated AFTER the portfolio adopted the bill (adoption is the
+      // baseline; a later move is the eligible change).
+      bill: { ...bill, latestActionDate: d('2026-10-05') },
+    });
+
+    const result = await h.svc.runDetectionCycle();
+
+    expect(result.changed).toBe(1);
+    expect(h.events).toHaveLength(1);
+    expect(h.events[0]).toMatchObject({
+      tenantId: 'tenant-a',
+      portfolioId: 'portfolio-a',
+      eventKind: 'bill_changed',
+      actorKind: 'system',
+      actorUserId: null,
+    });
+    expect(h.alerts.fanOut).not.toHaveBeenCalled();
+    expect(h.prisma.withTenant).not.toHaveBeenCalled();
+  });
+
+  it('does not hand an old change to a portfolio added after it', async () => {
+    // Reproduced defect: grouping by tenant+bill on the EARLIEST membership let a
+    // later portfolio receive the same historical event, because the shared
+    // fan-out cutoff was the cycle time rather than the change's own time.
+    const members = [
+      {
+        tenantId: 'tenant-a',
+        portfolioId: 'original-portfolio',
+        targetId: '119-hr-8800',
+        createdAt: d('2026-10-01T00:00:00Z'),
+      },
+    ];
+    const h = harness({
+      members,
+      // The move happened on Oct 10, after the original portfolio adopted the bill.
+      bill: { ...bill, latestActionDate: d('2026-10-10') },
+    });
+
+    const first = await h.svc.runDetectionCycle();
+    expect(first.changed).toBe(1);
+    expect(h.events.map((event) => event.portfolioId)).toEqual(['original-portfolio']);
+
+    // A second portfolio joins on Oct 20 — after the change.
+    members.push({
+      tenantId: 'tenant-a',
+      portfolioId: 'later-portfolio',
+      targetId: '119-hr-8800',
+      createdAt: d('2026-10-20T00:00:00Z'),
+    });
+    const second = await h.svc.runDetectionCycle();
+
+    expect(second.changed).toBe(0);
+    expect(h.events.map((event) => event.portfolioId)).toEqual(['original-portfolio']);
+
+    // A genuinely new move (Oct 25) reaches both — the later portfolio is not
+    // permanently excluded, it just misses the change that predates it.
+    h.tx.congressBill.findMany.mockResolvedValue([
+      { ...bill, latestActionDate: d('2026-10-25') },
+    ]);
+    const third = await h.svc.runDetectionCycle();
+
+    expect(third.changed).toBe(1);
+    // Both portfolios now hold the Oct 25 change (the Oct 10 event stays only with
+    // the portfolio that already existed when it happened).
+    const oct25 = h.events.filter((event) => event.payload.actionDate === '2026-10-25');
+    expect(oct25.map((event) => event.portfolioId).sort()).toEqual([
+      'later-portfolio',
+      'original-portfolio',
+    ]);
+  });
+
+  it('scopes each tenant to its own portfolios', async () => {
+    const h = harness({
+      members: [
+        {
+          tenantId: 'tenant-a',
+          portfolioId: 'portfolio-a',
+          targetId: '119-hr-8800',
+          createdAt: d('2026-10-01T00:00:00Z'),
+        },
+        {
+          tenantId: 'tenant-b',
+          portfolioId: 'portfolio-b',
+          targetId: '119-hr-8800',
+          createdAt: d('2026-10-01T00:00:00Z'),
+        },
+      ],
+      bill: { ...bill, latestActionDate: d('2026-10-05') },
+    });
+
+    await h.svc.runDetectionCycle();
+
+    // Each event belongs to the tenant whose portfolio tracks the bill —
+    // tenant-b never inherits tenant-a's portfolio or its client context.
+    expect(h.events).toHaveLength(2);
+    expect(h.events.map((event) => `${event.tenantId}:${event.portfolioId}`).sort()).toEqual([
+      'tenant-a:portfolio-a',
+      'tenant-b:portfolio-b',
+    ]);
+    expect(h.prisma.withTenant).not.toHaveBeenCalled();
+  });
+});
+
 describe('intelOwnedTenantIds — RLS double-send guard (regression)', () => {
   // Once intel_full_rls_hold FORCE-enables RLS on intel_feature_flag, a bare
   // read on apps/api's connection (no GUC) returns 0 rows → apps/api would think

@@ -107,7 +107,10 @@ it('keeps the original seven API methods and five-DI constructor while retaining
       ts.isClassDeclaration(node) && node.name?.text === 'TrackerChangeDetectorService',
   );
   expect(owner).toBeDefined();
-  expect(owner!.members.filter(ts.isMethodDeclaration)).toHaveLength(7);
+  // 7 public/legacy members + fanOutPortfolioOnlyFederal (private): Research
+  // Portfolio federal recipients are reached by this same owner rather than by a
+  // second scheduler, so the class gains exactly one private method.
+  expect(owner!.members.filter(ts.isMethodDeclaration)).toHaveLength(8);
   expect(owner!.members.find(ts.isConstructorDeclaration)?.parameters).toHaveLength(5);
   const intel = asset(root, actionPaths.intel);
   expect(intel.ast.statements.filter(ts.isFunctionDeclaration)).toHaveLength(12);

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { Prisma, PrismaClient } from '@prisma/client';
 
 export type BillMemberKind = 'federal_bill' | 'state_bill';
@@ -31,7 +32,10 @@ type BillChangeClient = Pick<PrismaClient, 'researchPortfolioMember' | 'research
  *
  * Guarantees:
  * - deduplicated by (tenant, portfolio event idempotency key) — the DB unique is
- *   the backstop, so replaying a detection cycle never duplicates an event;
+ *   `(tenantId, idempotencyKey)`, so the key MUST differ per recipient portfolio.
+ *   It is derived from the change identity plus the portfolio id, which keeps it
+ *   bounded (<= 128 chars, the column width) and collision-safe, and means
+ *   replaying a detection cycle never duplicates an event;
  * - silent baseline — a portfolio that added the bill after the change was
  *   detected receives nothing for that historical change;
  * - the event actor is the source (`actorKind: 'system'`), never a fabricated user.
@@ -40,20 +44,28 @@ type BillChangeClient = Pick<PrismaClient, 'researchPortfolioMember' | 'research
  * `research_portfolio_events` are tenant-scoped tables and this reads across the
  * portfolios of one tenant (or all tenants for a maintenance run).
  */
-export async function recordResearchPortfolioBillChanges(
-  prisma: BillChangeClient,
-  notice: ResearchPortfolioBillChangeNotice,
-): Promise<number> {
-  const idempotencyKey = [
-    'legislation',
+
+/** Bounded per-recipient event identity: change identity digest + portfolio id. */
+export function billChangeIdempotencyKey(
+  notice: Pick<ResearchPortfolioBillChangeNotice, 'targetKind' | 'targetId' | 'changeType' | 'actionDate'>,
+  portfolioId: string,
+): string {
+  const identity = [
     notice.targetKind,
     notice.targetId,
     notice.changeType,
     notice.actionDate ?? 'undated',
-  ]
-    .join(':')
-    .slice(0, 128);
+  ].join('|');
+  const digest = createHash('sha256').update(identity).digest('hex').slice(0, 32);
+  const readable = notice.changeType.replace(/[^a-z0-9_]/gi, '').slice(0, 24) || 'change';
+  // 12 + 11 + 1 + 24 + 1 + 32 + 1 + 36 = 118 <= 128
+  return `legislation:${notice.targetKind}:${readable}:${digest}:${portfolioId}`;
+}
 
+export async function recordResearchPortfolioBillChanges(
+  prisma: BillChangeClient,
+  notice: ResearchPortfolioBillChangeNotice,
+): Promise<number> {
   const members = await prisma.researchPortfolioMember.findMany({
     where: {
       targetKind: notice.targetKind,
@@ -61,6 +73,10 @@ export async function recordResearchPortfolioBillChanges(
       disposition: 'included',
       ...(notice.tenantId ? { tenantId: notice.tenantId } : {}),
       // Silent baseline: never surface a change that predates the membership.
+      // `detectedAt` must be when THIS change was detected at the source — never
+      // a sweep's previous checkpoint. A checkpoint as cut-off drops memberships
+      // created during the window (and all memberships when the checkpoint is the
+      // epoch first run), because it predates the change being reported.
       createdAt: { lte: notice.detectedAt },
     },
     select: { tenantId: true, portfolioId: true },
@@ -97,7 +113,7 @@ export async function recordResearchPortfolioBillChanges(
           actorUserId: null,
           actorKind: 'system',
           occurredAt: notice.detectedAt,
-          idempotencyKey,
+          idempotencyKey: billChangeIdempotencyKey(notice, member.portfolioId),
           payload,
         },
       ],

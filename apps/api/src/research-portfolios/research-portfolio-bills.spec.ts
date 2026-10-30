@@ -232,16 +232,71 @@ describe('portfolio bill change fan-out', () => {
     detectedAt: new Date('2026-09-10T12:00:00Z'),
   };
 
-  function client(members: unknown[], createCount = 1) {
-    return {
-      researchPortfolioMember: { findMany: jest.fn().mockResolvedValue(members) },
+  /**
+   * Models the real constraint, not a fixed answer:
+   * `research_portfolio_events_idempotency_key` is UNIQUE (tenant_id, idempotency_key),
+   * and the caller passes skipDuplicates. A mock that always returns 1 would hide
+   * exactly the bug this suite exists to catch.
+   */
+  function client(members: unknown[]) {
+    const seen = new Set<string>();
+    const rows: any[] = [];
+    const createMany = jest.fn(async ({ data, skipDuplicates }: any) => {
+      let count = 0;
+      for (const row of data) {
+        const uniqueKey = `${row.tenantId}:${row.idempotencyKey}`;
+        if (seen.has(uniqueKey)) {
+          if (!skipDuplicates) throw new Error('unique violation: research_portfolio_events_idempotency_key');
+          continue;
+        }
+        seen.add(uniqueKey);
+        rows.push(row);
+        count += 1;
+      }
+      return { count };
+    });
+    // The baseline cut-off is a real predicate, not decoration: a membership
+    // created after the cutoff must not receive the change.
+    const membersOf = (where: any) =>
+      (members as any[]).filter(
+        (member) =>
+          !where?.createdAt?.lte ||
+          member.createdAt == null ||
+          member.createdAt.getTime() <= where.createdAt.lte.getTime(),
+      );
+    const prisma = {
+      researchPortfolioMember: { findMany: jest.fn(async ({ where }: any) => membersOf(where)) },
       researchPortfolio: { findFirst: jest.fn().mockResolvedValue({ revision: 4, lifecycle: 'active' }) },
-      researchPortfolioEvent: { createMany: jest.fn().mockResolvedValue({ count: createCount }) },
+      researchPortfolioEvent: { createMany },
     } as any;
+    return { prisma, rows, seen };
   }
 
+  it('delivers once to every tracking portfolio when several share one tenant', async () => {
+    const h = client([
+      { tenantId: 'tenant-1', portfolioId: 'portfolio-1' },
+      { tenantId: 'tenant-1', portfolioId: 'portfolio-2' },
+      { tenantId: 'tenant-2', portfolioId: 'portfolio-3' },
+    ]);
+    const maintenance = { ...notice, tenantId: undefined };
+
+    expect(await recordResearchPortfolioBillChanges(h.prisma, maintenance)).toBe(3);
+    // Replay goes through the real unique key, so nothing more is written.
+    expect(await recordResearchPortfolioBillChanges(h.prisma, maintenance)).toBe(0);
+
+    expect(h.rows).toHaveLength(3);
+    expect(h.rows.map((row) => `${row.tenantId}:${row.portfolioId}`).sort()).toEqual([
+      'tenant-1:portfolio-1',
+      'tenant-1:portfolio-2',
+      'tenant-2:portfolio-3',
+    ]);
+    // Distinct per recipient, or the (tenant, key) unique would swallow the rest.
+    expect(new Set(h.prisma.researchPortfolioEvent.createMany.mock.calls.flatMap((args: any) => [args[0].data[0].idempotencyKey])).size).toBe(3);
+    expect(h.rows.every((row) => row.idempotencyKey.length <= 128)).toBe(true);
+  });
+
   it('writes one bill_changed event per tracking portfolio with the source as actor', async () => {
-    const prisma = client([
+    const { prisma } = client([
       { tenantId: 'tenant-1', portfolioId: 'portfolio-1' },
       { tenantId: 'tenant-1', portfolioId: 'portfolio-1' },
       { tenantId: 'tenant-1', portfolioId: 'portfolio-2' },
@@ -257,18 +312,22 @@ describe('portfolio bill change fan-out', () => {
       actorKind: 'system',
       actorUserId: null,
       aggregateRevision: 4,
-      idempotencyKey: 'legislation:federal_bill:119-hr-8800:status:2026-09-10',
     });
+    // bounded, deterministic and per portfolio
+    expect(call[0].data[0].idempotencyKey).toMatch(
+      /^legislation:federal_bill:status:[a-f0-9]{32}:portfolio-1$/,
+    );
     expect(prisma.researchPortfolioEvent.createMany.mock.calls.every((args: any) => args[0].skipDuplicates)).toBe(true);
   });
 
   it('is idempotent: a replayed detection cycle writes nothing new', async () => {
-    const prisma = client([{ tenantId: 'tenant-1', portfolioId: 'portfolio-1' }], 0);
+    const { prisma } = client([{ tenantId: 'tenant-1', portfolioId: 'portfolio-1' }]);
+    expect(await recordResearchPortfolioBillChanges(prisma, notice)).toBe(1);
     expect(await recordResearchPortfolioBillChanges(prisma, notice)).toBe(0);
   });
 
   it('keeps the initial baseline silent for a portfolio that added the bill afterwards', async () => {
-    const prisma = client([]);
+    const { prisma } = client([]);
     expect(await recordResearchPortfolioBillChanges(prisma, notice)).toBe(0);
     // The membership query itself carries the baseline cut-off.
     const [query] = prisma.researchPortfolioMember.findMany.mock.calls[0];
@@ -281,16 +340,169 @@ describe('portfolio bill change fan-out', () => {
   });
 
   it('only fans out to portfolios of the reporting tenant', async () => {
-    const prisma = client([{ tenantId: 'tenant-1', portfolioId: 'portfolio-1' }]);
-    await recordResearchPortfolioBillChanges(prisma, notice);
+    const { prisma } = client([
+      { tenantId: 'tenant-1', portfolioId: 'portfolio-1' },
+      { tenantId: 'tenant-1', portfolioId: 'portfolio-2' },
+    ]);
+    expect(await recordResearchPortfolioBillChanges(prisma, notice)).toBe(2);
     const [query] = prisma.researchPortfolioMember.findMany.mock.calls[0];
     expect(query.where.tenantId).toBe('tenant-1');
   });
 
   it('never writes for a portfolio that no longer exists', async () => {
-    const prisma = client([{ tenantId: 'tenant-1', portfolioId: 'gone' }]);
+    const { prisma } = client([{ tenantId: 'tenant-1', portfolioId: 'gone' }]);
     prisma.researchPortfolio.findFirst.mockResolvedValue(null);
     expect(await recordResearchPortfolioBillChanges(prisma, notice)).toBe(0);
     expect(prisma.researchPortfolioEvent.createMany).not.toHaveBeenCalled();
+  });
+
+  // Reproduced defect: the state sweep passed its PREVIOUS CHECKPOINT as the
+  // detection time, so a portfolio that started tracking inside the window was
+  // treated as pre-existing history. The cutoff must be the change's own time.
+  it('delivers to a membership created inside the sweep window but before the change', async () => {
+    const { prisma } = client([
+      { tenantId: 'tenant-1', portfolioId: 'portfolio-1', createdAt: new Date('2026-10-29T10:05:00Z') },
+    ]);
+    // previous checkpoint 10:00, membership 10:05, change detected 10:10
+    const change = { ...notice, tenantId: 'tenant-1', detectedAt: new Date('2026-10-29T10:10:00Z') };
+    expect(await recordResearchPortfolioBillChanges(prisma, change)).toBe(1);
+  });
+
+  it('stays silent for a membership created after the change', async () => {
+    const { prisma } = client([
+      { tenantId: 'tenant-1', portfolioId: 'portfolio-1', createdAt: new Date('2026-10-29T10:15:00Z') },
+    ]);
+    const change = { ...notice, tenantId: 'tenant-1', detectedAt: new Date('2026-10-29T10:10:00Z') };
+    expect(await recordResearchPortfolioBillChanges(prisma, change)).toBe(0);
+  });
+
+  it('treats the epoch first-run checkpoint truthfully once the cutoff is the change time', async () => {
+    const { prisma } = client([
+      { tenantId: 'tenant-1', portfolioId: 'portfolio-1', createdAt: new Date('2026-10-29T10:05:00Z') },
+    ]);
+    // The sweep's `since` is the epoch on a first run; it is only a window bound.
+    const epochCheckpoint = new Date(0);
+    expect(epochCheckpoint.getTime()).toBeLessThan(
+      new Date('2026-10-29T10:05:00Z').getTime(),
+    );
+    const change = { ...notice, tenantId: 'tenant-1', detectedAt: new Date('2026-10-29T10:10:00Z') };
+    expect(await recordResearchPortfolioBillChanges(prisma, change)).toBe(1);
+  });
+});
+
+describe('bill search predicates', () => {
+  function harness(rows: { federal?: any[]; state?: any[] } = {}) {
+    // Only the SEARCH query carries a `where`; the coverage read (distinct states)
+    // does not, so it must never be mistaken for the search predicate.
+    const calls: Record<string, any> = {};
+    const tx: any = {
+      congressBill: {
+        findMany: jest.fn(async (args: any) => {
+          calls.federal = args.where;
+          const where = args.where ?? {};
+          return (rows.federal ?? []).filter(
+            (row) => where.congress == null || row.congress === where.congress,
+          );
+        }),
+      },
+      stateBill: {
+        findMany: jest.fn(async (args: any) => {
+          if (!args.where) return [{ state: 'CA' }];
+          calls.state = args.where;
+          return (rows.state ?? []).filter(
+            (row) => args.where.state == null || row.state === args.where.state,
+          );
+        }),
+      },
+    };
+    const prisma: any = { withTenant: jest.fn(async (_tenant: string, fn: any) => fn(tx)) };
+    return { calls, tx, bills: new ResearchPortfolioBillsService(prisma) };
+  }
+
+  it('keeps the state session AND the search text as separate predicates', async () => {
+    const h = harness();
+    await h.bills.search({ tenantId: 't', userId: 'u' } as any, {
+      q: 'HB 123',
+      jurisdiction: 'CA',
+      session: '2025-2026',
+    });
+
+    const where = h.calls.state;
+    expect(where.state).toBe('CA');
+    // Composed, not overwritten: session survives alongside the text search.
+    expect(where.OR).toBeUndefined();
+    expect(where.AND).toEqual([
+      { OR: [{ session: '2025-2026' }, { sessionKey: '2025-2026' }] },
+      {
+        OR: expect.arrayContaining([
+          { billNumber: 'HB123' },
+          { identifier: { equals: 'HB 123', mode: 'insensitive' } },
+        ]),
+      },
+    ]);
+  });
+
+  it('resolves a human federal number through canonical congress/type/number', async () => {
+    const h = harness({ federal: [federalRow()] });
+    const result = await h.bills.search({ tenantId: 't', userId: 'u' } as any, {
+      q: 'H.R. 8800',
+      jurisdiction: 'US',
+      session: '119',
+    });
+
+    expect(h.calls.federal.congress).toBe(119);
+    expect(h.calls.federal.OR).toEqual(
+      expect.arrayContaining([{ billType: 'hr', billNumber: '8800' }]),
+    );
+    expect(result.items.map((item) => item.targetId)).toEqual(['119-hr-8800']);
+  });
+
+  it('scopes the canonical match to the requested Congress', async () => {
+    const h = harness({
+      federal: [federalRow(), federalRow({ id: '118-hr-8800', congress: 118 })],
+    });
+    const prior = await h.bills.search({ tenantId: 't', userId: 'u' } as any, {
+      q: 'H.R. 8800',
+      jurisdiction: 'US',
+      session: '118',
+    });
+
+    expect(prior.items.map((item) => item.targetId)).toEqual(['118-hr-8800']);
+  });
+
+  it('finds a human bill number across Congresses when no Congress is supplied', async () => {
+    // The actual frontend request shape: q + limit only, no session/congress.
+    const h = harness({
+      federal: [federalRow(), federalRow({ id: '118-hr-8800', congress: 118, title: 'Prior Congress version' })],
+    });
+    const result = await h.bills.search({ tenantId: 't', userId: 'u' } as any, {
+      q: 'H.R. 8800',
+      limit: 10,
+    });
+
+    expect(h.calls.federal.congress).toBeUndefined();
+    // Matched on canonical fields — not on a synthesized "hr8800" id.
+    expect(h.calls.federal.OR).toEqual(
+      expect.arrayContaining([{ billType: 'hr', billNumber: '8800' }]),
+    );
+    // Both existing canonical rows come back, each with its own Congress.
+    expect(result.items.map((item) => `${item.targetId}@${item.session}`).sort()).toEqual([
+      '118-hr-8800@118',
+      '119-hr-8800@119',
+    ]);
+  });
+
+  it('does not read state bills for the federal jurisdiction token', async () => {
+    const h = harness();
+    await h.bills.search({ tenantId: 't', userId: 'u' } as any, {
+      q: 'H.R. 8800',
+      jurisdiction: 'US',
+      session: '119',
+    });
+
+    // No state SEARCH predicate was issued; only the coverage read (no `where`).
+    expect(h.calls.state).toBeUndefined();
+    expect(h.tx.stateBill.findMany).toHaveBeenCalledTimes(1);
+    expect(h.tx.stateBill.findMany.mock.calls[0][0].where).toBeUndefined();
   });
 });

@@ -11,6 +11,56 @@ import { PrismaService } from '../prisma/prisma.service.js';
 const MAX_LIMIT = 25;
 const DEFAULT_LIMIT = 10;
 
+/** Canonical federal bill-type tokens, longest first so "hres" is not read as "hr". */
+const FEDERAL_BILL_TYPES = ['hjres', 'hconres', 'hres', 'sjres', 'sconres', 'sres', 'hr', 's'] as const;
+
+interface ParsedBillNumber {
+  type: string;
+  number: string;
+}
+
+/**
+ * Parse a human bill number ("H.R. 8800", "S. 42", "HJRES 12") into the canonical
+ * congress_bill parts. Returns null when the text is not a bill number at all, so
+ * a title search stays a title search. This only reads the query — the canonical
+ * id is always resolved from the catalog row, never synthesized here.
+ */
+export function parseHumanBillNumber(raw: string): ParsedBillNumber | null {
+  const compact = (raw ?? '').trim().toUpperCase().replace(/[.\s]+/g, '');
+  if (!compact) return null;
+  for (const type of FEDERAL_BILL_TYPES) {
+    const prefix = type.toUpperCase();
+    if (!compact.startsWith(prefix)) continue;
+    const number = compact.slice(prefix.length);
+    if (/^\d{1,5}$/.test(number)) return { type, number };
+  }
+  return null;
+}
+
+/**
+ * Session and free-text filters are independent constraints. Composing them as
+ * one OR group (the previous behavior) silently dropped the session, so a
+ * CA/2025-2026/HB123 query returned bills from every session.
+ */
+export function composeSessionAndSearch(
+  session: string,
+  q: string,
+): Record<string, unknown> {
+  const sessionOr = session ? [{ session }, { sessionKey: session }] : null;
+  const searchOr = q
+    ? [
+        { billNumber: q.toUpperCase().replace(/[.\s]+/g, '') },
+        { identifier: { equals: q, mode: 'insensitive' as const } },
+        { title: { contains: q, mode: 'insensitive' as const } },
+        { subjects: { has: q } },
+      ]
+    : null;
+  if (sessionOr && searchOr) return { AND: [{ OR: sessionOr }, { OR: searchOr }] };
+  if (sessionOr) return { OR: sessionOr };
+  if (searchOr) return { OR: searchOr };
+  return {};
+}
+
 export interface ResearchPortfolioBillSearchInput {
   q?: string;
   /** 'US' for federal, a two-letter state code, or omitted for both families. */
@@ -49,10 +99,16 @@ export class ResearchPortfolioBillsService {
     const limit = Math.min(Math.max(input.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
     const cursor = this.decodeCursor(input.cursor ?? null);
     const jurisdiction = (input.jurisdiction ?? '').trim().toUpperCase();
-    const federal = !jurisdiction || ['US', 'FED', 'FEDERAL', 'USA'].includes(jurisdiction);
-    const stateCode = /^[A-Z]{2}$/.test(jurisdiction) ? jurisdiction : null;
+    const federalToken = ['US', 'FED', 'FEDERAL', 'USA'].includes(jurisdiction);
+    const federal = !jurisdiction || federalToken;
+    // "US" is two letters but it is the federal token, never a state code — a
+    // federal query must not also read state_bill rows filtered by state='US'.
+    const stateCode = !federalToken && /^[A-Z]{2}$/.test(jurisdiction) ? jurisdiction : null;
     const state = !jurisdiction || stateCode !== null;
     const session = (input.session ?? '').trim();
+    // Congress scopes the canonical federal identity; unknown means "do not guess".
+    const congress = session && /^\d+$/.test(session) ? Number(session) : null;
+    const parsedNumber = q ? parseHumanBillNumber(q) : null;
 
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const items: ResearchPortfolioBillMatchDto[] = [];
@@ -67,7 +123,7 @@ export class ResearchPortfolioBillsService {
         try {
           const rows = await tx.congressBill.findMany({
             where: {
-              ...(session && /^\d+$/.test(session) ? { congress: Number(session) } : {}),
+              ...(congress ? { congress } : {}),
               ...(input.status ? { status: input.status } : {}),
               ...(input.topic
                 ? { subjects: { has: input.topic } }
@@ -75,6 +131,17 @@ export class ResearchPortfolioBillsService {
               ...(q
                 ? {
                     OR: [
+                      // Canonical identity is congress + bill type + number. With a
+                      // Congress supplied the outer where scopes it, so
+                      // "H.R. 8800" + session 119 resolves 119-hr-8800 and cannot
+                      // reach another Congress. Without one — the shape both real
+                      // frontend callers send — this matches the canonical
+                      // type/number across Congresses and returns each existing row
+                      // with its own Congress for disambiguation; no Congress is
+                      // invented.
+                      ...(parsedNumber
+                        ? [{ billType: parsedNumber.type, billNumber: parsedNumber.number }]
+                        : []),
                       { id: q.toLowerCase().replace(/[.\s]+/g, '') },
                       { title: { contains: q, mode: 'insensitive' as const } },
                       { subjects: { has: q } },
@@ -115,21 +182,10 @@ export class ResearchPortfolioBillsService {
           const rows = await tx.stateBill.findMany({
             where: {
               ...(stateCode ? { state: stateCode } : {}),
-              ...(session
-                ? { OR: [{ session }, { sessionKey: session }] }
-                : {}),
               ...(input.status ? { status: input.status } : {}),
               ...(input.topic ? { subjects: { has: input.topic } } : {}),
-              ...(q
-                ? {
-                    OR: [
-                      { billNumber: q.toUpperCase().replace(/[.\s]+/g, '') },
-                      { identifier: { equals: q, mode: 'insensitive' as const } },
-                      { title: { contains: q, mode: 'insensitive' as const } },
-                      { subjects: { has: q } },
-                    ],
-                  }
-                : {}),
+              // Session AND search text are separate constraints: keep both.
+              ...composeSessionAndSearch(session, q),
             },
             orderBy: [{ latestActionDate: 'desc' }, { id: 'asc' }],
             skip: stateOffset,
