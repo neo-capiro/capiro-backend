@@ -50,7 +50,11 @@ function isUniqueViolation(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 }
 
-/** Opaque, exact keyset cursor: (createdAt desc, id desc). */
+/**
+ * Opaque, exact keyset cursor: (createdAt desc, id desc).
+ * firm_import_jobs.created_at is timestamptz(3), so this millisecond ISO value
+ * round-trips exactly and equality/less-than are exact; id breaks ties.
+ */
 export function encodeImportJobCursor(createdAt: Date, id: string): string {
   return Buffer.from(JSON.stringify({ createdAt: createdAt.toISOString(), id }), 'utf8').toString(
     'base64url',
