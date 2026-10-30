@@ -257,12 +257,20 @@ export class EngagementRuntimePolicyService {
   /**
    * Dedicated exception for the comprehensive meeting-prep worker on the final API owner.
    *
-   * It admits ONLY the meeting-prep worker, and only on the exact accepted final tuple: the API
+   * It admits ONLY the meeting-prep worker, and only on the accepted final API tuple: the API
    * service in its active process mode, the API background owner, external actions enabled,
-   * callbacks enabled, Recall webhooks disabled, the existing `integration_sync_scheduler`
-   * restriction and an unphased (open) mail-handoff barrier. The comprehensive-prep feature flag
-   * gates every branch in `meetingPrepWorkerEnabled()` below, so it is not re-checked here.
-   * The generic scheduler-only selector keeps its exact meaning and is not widened.
+   * callbacks enabled, the existing `integration_sync_scheduler` restriction and an unphased
+   * (open) mail-handoff barrier.
+   *
+   * The Recall webhook axis is deliberately NOT constrained. Both explicitly reviewed final API
+   * variants — Recall disabled (today's accepted production stage) and Recall enabled (the accepted
+   * capture stage) — admit prep, so flipping only that axis cannot regress this worker. That is a
+   * source-compatibility statement only: the runtime environment resolver still refuses a Recall
+   * enabled selection until its own owner ships that join, and no activation is implied here.
+   *
+   * The comprehensive-prep feature flag gates every branch in `meetingPrepWorkerEnabled()` below, so
+   * it is not re-checked here. The generic scheduler-only selector keeps its exact meaning and is
+   * not widened, and no other tuple axis is optional.
    */
   private meetingPrepComprehensiveExceptionEnabled(): boolean {
     return (
@@ -271,7 +279,6 @@ export class EngagementRuntimePolicyService {
       this.backgroundOwner === 'api' &&
       this.externalActionsMode === 'enabled' &&
       this.callbacksEnabled &&
-      !this.recallWebhookEnabled &&
       this.backgroundWorkerRestriction === 'integration_sync_scheduler' &&
       this.mailHandoffPhase() === 'off'
     );

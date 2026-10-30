@@ -573,6 +573,23 @@ describe('EngagementRuntimePolicyService', () => {
     beforeEach(() => { process.env.MEETING_PREP_COMPREHENSIVE_ENABLED = 'true'; });
     afterEach(() => { delete process.env.MEETING_PREP_COMPREHENSIVE_ENABLED; });
 
+    it.each([false, true])(
+      'admits prep on the reviewed final tuple with Recall=%s',
+      (recallWebhookEnabled) => {
+        const policy = build({ recallWebhookEnabled });
+        expect(policy.isRecallWebhookEnabled()).toBe(recallWebhookEnabled);
+        expect(policy.meetingPrepWorkerEnabled()).toBe(true);
+        expect(() => policy.assertMeetingPrepWorker()).not.toThrow();
+        // the generic selector keeps its exact scheduler-only meaning in both variants
+        expect(policy.backgroundWorkersEnabled()).toBe(false);
+        expect(policy.backgroundWorkersEnabled('meeting-prep-worker')).toBe(false);
+        // the comprehensive flag still gates both variants
+        delete process.env.MEETING_PREP_COMPREHENSIVE_ENABLED;
+        expect(policy.meetingPrepWorkerEnabled()).toBe(false);
+        process.env.MEETING_PREP_COMPREHENSIVE_ENABLED = 'true';
+      },
+    );
+
     it('admits only the prep worker on the exact final API tuple', () => {
       const policy = build();
       expect(policy.meetingPrepWorkerEnabled()).toBe(true);
@@ -597,7 +614,6 @@ describe('EngagementRuntimePolicyService', () => {
       ['mismatched owner', { serviceName: 'engagement-api', backgroundOwner: 'engagement-api' }],
       ['external actions disabled', { externalActions: 'disabled' }],
       ['callbacks disabled', { callbacksEnabled: false }],
-      ['Recall webhooks enabled', { recallWebhookEnabled: true }],
       ['integrations_only', { externalActions: 'integrations_only' }],
       ['integrations_and_notetaker', { externalActions: 'integrations_and_notetaker', processMode: 'shadow' }],
     ])('denies on %s', (_label, overrides) => {
@@ -615,6 +631,21 @@ describe('EngagementRuntimePolicyService', () => {
       expect(closed.meetingPrepWorkerEnabled()).toBe(false);
       expect(() => closed.assertMeetingPrepWorker()).toThrow();
     });
+
+    it.each(['initiation_fenced', 'callback_fenced', 'writers_closed'])(
+      'refuses the %s mail-handoff phase in both Recall variants',
+      (phase) => {
+        for (const recallWebhookEnabled of [false, true]) {
+          const policy = build({ recallWebhookEnabled }, {
+            phase,
+            generation: 'mail-app-20261029-01',
+            fenceUtc: '2026-10-29T16:49:59Z',
+          });
+          expect(policy.meetingPrepWorkerEnabled()).toBe(false);
+          expect(() => policy.assertMeetingPrepWorker()).toThrow();
+        }
+      },
+    );
 
     it('keeps the legacy named policy authoritative where it already admits prep', () => {
       const legacy = new EngagementRuntimePolicyService({

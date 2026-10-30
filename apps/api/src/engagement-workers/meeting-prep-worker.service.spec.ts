@@ -54,6 +54,26 @@ describe('comprehensive meeting-prep worker ownership', () => {
     jest.useRealTimers();
   });
 
+  it.each([false, true])(
+    'starts exactly one timer on the final tuple with Recall=%s',
+    async (recallWebhookEnabled) => {
+      const runtime = policy({ recallWebhookEnabled });
+      expect(runtime.meetingPrepWorkerEnabled()).toBe(true);
+      const { service, jobs } = worker(runtime);
+      service.onModuleInit();
+      service.onModuleInit();
+      expect(jest.getTimerCount()).toBe(1);
+      await jest.advanceTimersByTimeAsync(5_000);
+      expect(jobs.runWorkerTick).toHaveBeenCalledTimes(1);
+      service.onModuleDestroy();
+      expect(jest.getTimerCount()).toBe(0);
+      // the flag still gates both variants
+      process.env.MEETING_PREP_COMPREHENSIVE_ENABLED = 'false';
+      expect(policy({ recallWebhookEnabled }).meetingPrepWorkerEnabled()).toBe(false);
+      process.env.MEETING_PREP_COMPREHENSIVE_ENABLED = 'true';
+    },
+  );
+
   it('starts and ticks on the accepted final API tuple through one predicate', async () => {
     const runtime = policy();
     expect(runtime.meetingPrepWorkerEnabled()).toBe(true);
