@@ -11,12 +11,7 @@
 #
 # Prod Fargate is ARM64 — always build linux/arm64 (buildx) or the task won't pull.
 
-# Maintained runtime line. Node 20 reached upstream end-of-life on 2026-04-30
-# (nodejs/Release schedule); 22.23.3 is the supported LTS line already used by
-# the current Defense image, on the *same* Debian bookworm-slim suite, so no
-# distro or musl jump is involved. Keep the tag explicit: a floating tag would
-# change the OS/runtime line under the exact-SHA build and scan gates.
-ARG NODE_VERSION=22.23.3
+ARG NODE_VERSION=20.16.0
 
 # -------- base ----------------------------------------------------------------
 FROM node:${NODE_VERSION}-bookworm-slim AS base
