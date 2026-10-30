@@ -10,6 +10,7 @@ import type { SelectedContextItemRef } from './evidence-source.service.js';
 import type { ContentSkeleton } from './content-skeleton.js';
 import type { PlanValidationIssue } from './message-plan.schema.js';
 import type { ReasoningEffort } from './reasoning-effort.js';
+import type { OutreachCampaignState } from '../outreach-campaign.contract.js';
 
 export interface GenerationRequest {
   /** Exact runtime authority for provider and credential boundaries. */
@@ -42,6 +43,8 @@ export interface GenerationRequest {
    * changes nothing: the template's prompt alone remains the objective.
    */
   mainIdea?: string | null;
+  /** Saved, bounded decisions remain distinct directives so none are truncated by the main idea limit. */
+  campaignDecisions?: OutreachCampaignState['decisions'];
   tone: 'professional' | 'friendly' | 'formal' | 'concise';
   length?: 'short' | 'standard' | 'long' | null;
   direction?: 'on-behalf' | 'to-clients' | null;

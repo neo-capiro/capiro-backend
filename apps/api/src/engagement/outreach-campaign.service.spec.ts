@@ -48,6 +48,7 @@ function fixture() {
   let row: any;
   const tx = {
     outreachJob: { updateMany: jest.fn(async () => ({ count: 0 })) },
+    client: { findFirst: jest.fn(async () => null) },
     $queryRaw: jest.fn(async () => []),
     outreachRecord: {
       findFirst: jest.fn(async () => row ?? null),
@@ -92,6 +93,144 @@ function fixture() {
   return { service, tx, engagement, jobs, gateway, row: () => row };
 }
 describe('saved Outreach campaign owner', () => {
+  test('a denied native parent cannot fall through to an older session snapshot', async () => {
+    const f = fixture();
+    const campaign = await f.service.create(ctx, { requestKey, state });
+    f.engagement.getOutreachRecord.mockRejectedValue(new NotFoundException());
+    const legacy = jest.spyOn(f.service as any, 'readSession');
+    await expect(f.service.get(ctx, campaign.id)).rejects.toBeInstanceOf(NotFoundException);
+    expect(legacy).not.toHaveBeenCalled();
+  });
+  test('an unimported legacy artifact root retains the session spec and native recorded status', async () => {
+    const f = fixture();
+    const campaign = await f.service.create(ctx, { requestKey, state });
+    Object.assign(f.row(), { type: 'outreach_v3', metadata: {}, status: 'sent' });
+    f.engagement.getOutreachRecord.mockRejectedValue(new NotFoundException());
+    jest.spyOn(f.service as any, 'readSession').mockResolvedValue({
+      ...campaign,
+      revision: 0,
+      state: { ...state, mainIdea: 'Actual session decisions' },
+    });
+    expect(await f.service.get(ctx, campaign.id)).toMatchObject({
+      status: 'sent',
+      revision: 0,
+      state: { mainIdea: 'Actual session decisions', recipients: state.recipients },
+    });
+  });
+  test('import converts a reserved root to the canonical campaign type without exposing it through ordinary reads', async () => {
+    const f = fixture();
+    const campaign = await f.service.create(ctx, { requestKey, state });
+    Object.assign(f.row(), { type: 'outreach_v3', metadata: {} });
+    f.engagement.getOutreachRecord.mockImplementation(async () => {
+      if (f.row().type === 'outreach_v3') throw new NotFoundException();
+      return f.row();
+    });
+    jest.spyOn(f.service as any, 'readSession').mockResolvedValue({ ...campaign, revision: 0 });
+    const saved = await f.service.save(ctx, campaign.id, { expectedRevision: 0, state });
+    expect(saved).toMatchObject({ type: 'campaign', hasWorkflow: true, revision: 1, state });
+  });
+  test.each(['foreign owner', 'deleted', 'client denied'])(
+    'a reserved root with %s cannot fall through to its session',
+    async (reason) => {
+      const f = fixture();
+      const campaign = await f.service.create(ctx, { requestKey, state });
+      Object.assign(f.row(), {
+        type: 'outreach_v3',
+        metadata: {},
+        ...(reason === 'foreign owner' ? { createdByUserId: requestKey } : {}),
+        ...(reason === 'deleted' ? { deletedAt: new Date() } : {}),
+        ...(reason === 'client denied' ? { clientId: requestKey } : {}),
+      });
+      f.engagement.getOutreachRecord.mockRejectedValue(new NotFoundException());
+      const legacy = jest.spyOn(f.service as any, 'readSession');
+      await expect(f.service.get(ctx, campaign.id)).rejects.toBeInstanceOf(NotFoundException);
+      expect(legacy).not.toHaveBeenCalled();
+    },
+  );
+  test('rechecks a reserved root client changed after session read inside the save transaction', async () => {
+    const f = fixture();
+    const campaign = await f.service.create(ctx, { requestKey, state });
+    Object.assign(f.row(), { type: 'outreach_v3', metadata: {} });
+    f.engagement.getOutreachRecord.mockRejectedValue(new NotFoundException());
+    jest.spyOn(f.service as any, 'readSession').mockImplementation(async () => {
+      f.row().clientId = requestKey;
+      return { ...campaign, revision: 0 };
+    });
+    await expect(
+      f.service.save(ctx, campaign.id, { expectedRevision: 0, state }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(f.tx.outreachRecord.update).not.toHaveBeenCalled();
+  });
+  test('opening an ordinary saved record as a campaign preserves its type and authored message', async () => {
+    const f = fixture();
+    const campaign = await f.service.create(ctx, { requestKey, state });
+    Object.assign(f.row(), {
+      type: 'follow_up',
+      subject: 'Authored subject',
+      body: 'Authored body',
+    });
+    await f.service.save(ctx, campaign.id, {
+      expectedRevision: 1,
+      state: { ...state, mainIdea: 'Add context' },
+    });
+    expect(f.row()).toMatchObject({
+      type: 'follow_up',
+      subject: 'Authored subject',
+      body: 'Authored body',
+    });
+    const recovered = await f.service.list(ctx, { requestKey });
+    expect(Array.isArray(recovered)).toBe(true);
+    expect(recovered).toEqual([expect.objectContaining({ id: campaign.id, revision: 2 })]);
+  });
+  test('structured decisions round-trip and reach the existing SDK preparation input', async () => {
+    const f = fixture();
+    const decisions = {
+      goal: 'Meet staff',
+      objective: 'Explain evidence',
+      topic: 'Research',
+      whyNow: 'Upcoming hearing',
+      campaignAngle: 'Local impact',
+    };
+    const campaign = await f.service.create(ctx, { requestKey, state: { ...state, decisions } });
+    expect((await f.service.get(ctx, campaign.id)).state.decisions).toEqual(decisions);
+    f.jobs.getSdkUnit.mockResolvedValue({
+      job: {
+        id: jobId,
+        outreachRecordId: campaign.id,
+        params: { revision: 1, state: campaign.state },
+      },
+      item: { id: itemId, recipientKey: 'individual:one', status: 'sdk_pending', payload: {} },
+    });
+    f.gateway.executeSdk.mockRejectedValue(new Error('stop after preparation input'));
+    await expect(f.service.claim(ctx, { generationJobId: jobId, itemId })).rejects.toThrow(
+      'stop after',
+    );
+    const input = f.engagement.prepareOutreachSdkInput.mock.calls[0]![1];
+    expect(input.mainIdea).toBe(state.mainIdea);
+    expect(f.gateway.executeSdk.mock.calls[0]![1]).toMatchObject({
+      mainIdea: state.mainIdea,
+      campaignDecisions: decisions,
+    });
+  });
+
+  test.each(['outbound_campaign', 'campaign'])(
+    'rich metadata cannot enter or overwrite an ordinary %s campaign',
+    async (type) => {
+      const f = fixture();
+      const campaign = await f.service.create(ctx, { requestKey, state });
+      Object.assign(f.row(), {
+        type,
+        metadata: { ...f.row().metadata, newsletterStageId: requestKey, newsletterRevision: 1 },
+      });
+      await expect(f.service.get(ctx, campaign.id)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(
+        f.service.save(ctx, campaign.id, { expectedRevision: 1, state }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(f.tx.outreachRecord.update).not.toHaveBeenCalled();
+      expect(f.row().type).toBe(type);
+    },
+  );
+
   test('create replay, exact save/reload, and stale revision conflict preserve the complete state', async () => {
     const f = fixture();
     const first = await f.service.create(ctx, { requestKey, state });

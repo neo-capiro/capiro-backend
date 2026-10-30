@@ -250,6 +250,7 @@ export class GenerationGatewayService {
         // objective and main idea so all selected context remains applicable.
         objective: [
           request.mainIdea,
+          ...Object.values(request.campaignDecisions ?? {}),
           request.objective ?? request.templatePrompt,
           request.reviseInstruction,
         ]
@@ -658,6 +659,13 @@ export class GenerationGatewayService {
     // purpose or selected context of the original campaign.
     if (request.mainIdea?.trim()) {
       push('main_idea', request.mainIdea, 'objective:main-idea');
+    }
+    // Each saved decision is bounded below the directive limit. Combining them
+    // with an 8,000-character main idea would silently drop valid decisions.
+    for (const [key, value] of Object.entries(request.campaignDecisions ?? {})) {
+      if (!value.trim()) continue;
+      const label = key === 'whyNow' ? 'Why now' : key === 'campaignAngle' ? 'Campaign angle' : key;
+      push('main_idea', `${label}: ${value}`, `campaign-decision:${key}`);
     }
     push('objective', request.objective ?? request.templatePrompt, 'objective:template');
     if (request.existingBody?.trim() && request.reviseInstruction?.trim()) {

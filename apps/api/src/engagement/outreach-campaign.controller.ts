@@ -10,13 +10,13 @@ import { OutreachCampaignService } from './outreach-campaign.service.js';
 @Roles('standard_user')
 export class OutreachCampaignController {
   constructor(private readonly campaigns: OutreachCampaignService) {}
+  @Get('records')
+  records(@CurrentTenant() ctx: TenantContext, @Query() query: unknown) {
+    return this.campaigns.listRecords(ctx, query);
+  }
   @Get('campaigns')
-  list(
-    @CurrentTenant() ctx: TenantContext,
-    @Query('clientId') clientId?: string,
-    @Query('requestKey') requestKey?: string,
-  ) {
-    return this.campaigns.list(ctx, clientId, requestKey);
+  list(@CurrentTenant() ctx: TenantContext, @Query() query: unknown) {
+    return this.campaigns.list(ctx, query);
   }
   @Post('campaigns')
   create(@CurrentTenant() ctx: TenantContext, @Body() body: unknown) {
@@ -24,7 +24,7 @@ export class OutreachCampaignController {
   }
   @Get('campaigns/:id')
   get(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
-    return this.campaigns.get(ctx, id);
+    return this.campaigns.getDetails(ctx, id);
   }
   @Put('campaigns/:id')
   save(@CurrentTenant() ctx: TenantContext, @Param('id') id: string, @Body() body: unknown) {
