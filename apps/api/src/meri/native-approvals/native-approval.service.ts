@@ -315,7 +315,8 @@ export class NativeApprovalService {
     if (input.binding.tenantId !== ctx.tenantId || input.binding.actorId !== ctx.userId) throw forbidden();
     const prepared = await this.browserPrepared(req, ctx, input);
     const toolUseId = prepared.preparation.subject.toolUseId;
-    const key = { tenantId: ctx.tenantId, proposalId: input.proposalId, idempotencyKey: browserConsumptionKey(toolUseId) };
+    const key = { tenantId: ctx.tenantId, proposalId: input.proposalId,
+      idempotencyKey: browserConsumptionKey(ctx.tenantId, input.proposalId, toolUseId) };
     return this.prisma.withTenant(ctx.tenantId, async (tx): Promise<NativeBrowserApprovalReceipt | NativeBrowserApprovalReadback> => {
       await lockMeriExecutionProposal(tx, ctx.tenantId, input.proposalId);
       const admitted = await readMeriAdmittedRun(tx, input.binding, prepared.run.policyRevision, { tenantId: ctx.tenantId });
@@ -360,7 +361,8 @@ export class NativeApprovalService {
     if (input.binding.tenantId !== ctx.tenantId || input.binding.actorId !== ctx.userId) throw forbidden();
     const prepared = await this.browserPrepared(req, ctx, input);
     const toolUseId = prepared.preparation.subject.toolUseId;
-    const key = { tenantId: ctx.tenantId, proposalId: input.proposalId, idempotencyKey: browserConsumptionKey(toolUseId) };
+    const key = { tenantId: ctx.tenantId, proposalId: input.proposalId,
+      idempotencyKey: browserConsumptionKey(ctx.tenantId, input.proposalId, toolUseId) };
     return this.prisma.withTenant(ctx.tenantId, async (tx): Promise<NativeBrowserApprovalReadback> => {
       // A read: no proposal lock, no admission claim, no write.
       const row = await tx.clioMeriApprovalDecision.findUnique({
@@ -388,7 +390,8 @@ export class NativeApprovalService {
     if (input.binding.tenantId !== ctx.tenantId || input.binding.actorId !== ctx.userId) throw forbidden();
     const prepared = await this.browserPrepared(req, ctx, input);
     const toolUseId = prepared.preparation.subject.toolUseId;
-    const key = { tenantId: ctx.tenantId, proposalId: input.proposalId, idempotencyKey: browserConsumptionKey(toolUseId) };
+    const key = { tenantId: ctx.tenantId, proposalId: input.proposalId,
+      idempotencyKey: browserConsumptionKey(ctx.tenantId, input.proposalId, toolUseId) };
     const settlement = { outcome: input.outcome, result: input.result };
     return this.prisma.withTenant(ctx.tenantId, async (tx): Promise<NativeBrowserApprovalReadback> => {
       await lockMeriExecutionProposal(tx, ctx.tenantId, input.proposalId);

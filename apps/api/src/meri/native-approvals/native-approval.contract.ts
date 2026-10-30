@@ -309,8 +309,12 @@ export const BROWSER_KIND_VERSION = '0.1.0';
 export const BROWSER_ACTION_SCHEMA = 'meri-browser-action/1';
 export const BROWSER_PREPARATION_SCHEMA = 'meri-browser-approval-preparation/1';
 export const BROWSER_RECEIPT_SCHEMA = 'meri-browser-approval-receipt/1';
+/**
+ * The ONE canonical non-permissive answer (repeat, restart, ambiguous claim,
+ * status and settlement readback). Deliberately distinct from receipt/1 and
+ * never carrying `consumed:true`, so the host's receiptRefusal refuses it.
+ */
 export const BROWSER_STATUS_SCHEMA = 'meri-browser-approval-status/1';
-export const BROWSER_READBACK_SCHEMA = 'meri-browser-approval-readback/1';
 /** A browser preparation is served only with real run custody (never initial-binding). */
 export const BROWSER_RUN_STATES = Object.freeze(['queued', 'starting', 'running', 'paused', 'waiting-for-approval', 'completed']);
 
@@ -347,12 +351,30 @@ export interface NativeBrowserRecord {
   proposalId: string;
 }
 
-/** The actual current run projection served with the preparation (readback.run). */
+/** RuntimeVersions, as the frozen Run schema requires them. */
+export interface NativeBrowserRuntimeVersions {
+  imageDigest: string;
+  sdk: string;
+  cli: string;
+  contracts: string;
+  skillsDigest: string;
+  checkpointFormat: string;
+}
+
+/**
+ * The ACTUAL current run served with the preparation (readback.run). Meri
+ * validates the frozen `Run` schema and returns it unchanged, so this is the
+ * full required envelope — binding, state, scopes, createdAt, policyRevision
+ * and versions — not a four-field projection. `binding`/`scopes`/`state`/
+ * `policyRevision` are what Core additionally treats as authority facts.
+ */
 export interface NativeBrowserRunCustody {
   binding: NativeRunBinding;
   state: string;
   scopes: NativeScope[];
+  createdAt: string;
   policyRevision: string;
+  versions: NativeBrowserRuntimeVersions;
 }
 
 export interface NativeBrowserPrepared {
@@ -372,7 +394,7 @@ export interface NativeBrowserApprovalReceipt {
 
 /** Non-permissive answer for a repeat, restart or ambiguous consumption. */
 export interface NativeBrowserApprovalReadback {
-  schema: typeof BROWSER_READBACK_SCHEMA;
+  schema: typeof BROWSER_STATUS_SCHEMA;
   proposalId: string;
   subjectSha256: string;
   toolUseId: string;
@@ -498,9 +520,16 @@ export function browserProposalId(binding: NativeRunBinding, toolUseId: string):
   return `${digest.slice(0, 8)}-${digest.slice(8, 12)}-4${digest.slice(13, 16)}-${variant}${digest.slice(17, 20)}-${digest.slice(20, 32)}`;
 }
 
-/** One durable consumption per tool use, in the existing consumption owner's key space. */
-export function browserConsumptionKey(toolUseId: string): string {
-  return `browser:${toolUseId}`;
+/**
+ * One durable consumption per tool use, in the existing consumption owner's key
+ * space. The ledger column is VARCHAR(128) while an accepted tool-use id may be
+ * 256 characters, so the key is a fixed-domain digest of the exact identity
+ * (tenant, proposal, tool use): always 72 characters, never truncated, stable
+ * across repeat, status and settlement, and distinct for distinct identities.
+ */
+export function browserConsumptionKey(tenantId: string, proposalId: string, toolUseId: string): string {
+  const digest = nativeCanonicalSha256(['meri-browser-approval-consumption-key-v1', tenantId, proposalId, toolUseId]);
+  return `browser:${digest}`;
 }
 
 /** Stable Core-owned UUID identity of that durable row. */
@@ -560,6 +589,27 @@ export function parseBrowserResultRequest(value: unknown): BrowserResultRequest 
   };
 }
 
+/** RuntimeVersions exactly as the frozen Run schema and Meri's codec constrain them. */
+function runtimeVersions(value: unknown): NativeBrowserRuntimeVersions {
+  const v = record(value, ['imageDigest', 'sdk', 'cli', 'contracts', 'skillsDigest', 'checkpointFormat'], 'readback.run.versions');
+  if (typeof v.imageDigest !== 'string' || !/^sha256:[a-f0-9]{64}$/u.test(v.imageDigest)) throw invalid('readback.run.versions.imageDigest');
+  if (typeof v.skillsDigest !== 'string' || !HEX64.test(v.skillsDigest)) throw invalid('readback.run.versions.skillsDigest');
+  const semver = (candidate: unknown, field: string): string => {
+    if (typeof candidate !== 'string' || !/^[0-9]+\.[0-9]+\.[0-9]+$/u.test(candidate)) throw invalid(field);
+    return candidate;
+  };
+  if (v.contracts !== '0.1.0') throw invalid('readback.run.versions.contracts');
+  if (v.checkpointFormat !== '0.1.0') throw invalid('readback.run.versions.checkpointFormat');
+  return {
+    imageDigest: v.imageDigest,
+    sdk: semver(v.sdk, 'readback.run.versions.sdk'),
+    cli: semver(v.cli, 'readback.run.versions.cli'),
+    contracts: v.contracts,
+    skillsDigest: v.skillsDigest,
+    checkpointFormat: v.checkpointFormat,
+  };
+}
+
 /**
  * Validate the internal readback for ONE browser preparation: shape, variant,
  * four independent digests, the complete binding, the canonical scopes and the
@@ -611,13 +661,17 @@ export function assertBrowserReadback(raw: unknown, expected: {
   if (!sameJson(context.binding, record_.binding) || !sameJson(context.scopes, scopes) ||
       !sameJson(context.requiredApprover, requiredApprover)) throw invalid('readback.metadata.commandContext');
 
-  // Real run custody only: full binding, same scopes, an admitted state and the qualification revision.
-  const runValue = record(v.run, ['binding', 'state', 'scopes', 'policyRevision'], 'readback.run');
+  // Real run custody only: Meri validates and returns the frozen FULL Run
+  // (binding, state, scopes, createdAt, policyRevision, versions), so Core
+  // validates that exact envelope and keeps the authority projection in it.
+  const runValue = record(v.run, ['binding', 'state', 'scopes', 'createdAt', 'policyRevision', 'versions'], 'readback.run');
   const run: NativeBrowserRunCustody = {
     binding: parseRunBinding(runValue.binding, 'readback.run.binding'),
     state: bounded(runValue.state, 'readback.run.state', 64),
     scopes: scopeList(runValue.scopes, 'readback.run.scopes', binding.tenantId),
+    createdAt: dateTime(runValue.createdAt, 'readback.run.createdAt', true),
     policyRevision: bounded(runValue.policyRevision, 'readback.run.policyRevision', 256),
+    versions: runtimeVersions(runValue.versions),
   };
   if (!sameJson(run.binding, record_.binding)) throw invalid('readback.run.binding');
   if (!sameJson(run.scopes, scopes)) throw invalid('readback.run.scopes');

@@ -11,6 +11,7 @@ import type { TenantContext } from '@capiro/shared';
 import { ToolServiceSecretGuard } from '../../auth/tool-service-secret.guard.js';
 import {
   BROWSER_RECEIPT_SCHEMA,
+  BROWSER_STATUS_SCHEMA,
   assertBrowserReadback,
   browserConsumptionId,
   browserConsumptionKey,
@@ -118,7 +119,19 @@ function readback(options: { preparation?: Record<string, unknown>; scopes?: unk
       commandContext: { binding, scopes: recordScopes, requiredApprover: { tenantId, actorId } },
       commandSha256,
     },
-    run: { binding, state: options.state ?? 'waiting-for-approval', scopes: recordScopes, policyRevision: options.policyRevision ?? POLICY_REVISION },
+    // Meri validates the frozen FULL Run and returns it unchanged: the required
+    // envelope includes createdAt and versions (schema, additionalProperties false).
+    run: {
+      binding,
+      state: options.state ?? 'waiting-for-approval',
+      scopes: recordScopes,
+      createdAt: new Date(Date.now() - 60_000).toISOString(),
+      policyRevision: options.policyRevision ?? POLICY_REVISION,
+      versions: {
+        imageDigest: `sha256:${'a'.repeat(64)}`, sdk: '0.1.0', cli: '0.1.0',
+        contracts: '0.1.0', skillsDigest: 'b'.repeat(64), checkpointFormat: '0.1.0',
+      },
+    },
   };
 }
 
@@ -378,7 +391,7 @@ describe('SCRUM-222 browser consume, status and settlement', () => {
     expect(first.consumption.consumedAtMs).toBeGreaterThanOrEqual(Date.parse(first.decision.decidedAt));
     expect(f.createConsumption).toHaveBeenCalledTimes(1);
     expect([...f.consumptions.values()][0]).toMatchObject({
-      tenantId, proposalId: proposalId(), idempotencyKey: browserConsumptionKey(TOOL_USE_ID),
+      tenantId, proposalId: proposalId(), idempotencyKey: browserConsumptionKey(tenantId, proposalId(), TOOL_USE_ID),
       commandSha256: subjectSha256(), argumentsSha256: f.prepared().record.inputSha256, jti: null, state: 'CLAIMED',
     });
   });
@@ -470,5 +483,87 @@ describe('SCRUM-222 browser consume, status and settlement', () => {
       () => f.service.recordBrowser(verifiedRequest(), ctx, { proposalId: proposalId(), subjectSha256: subjectSha256(), decision: 'approved', approver: { tenantId, actorId }, binding, extra: 1 }),
     ];
     for (const call of calls) await expect(call()).rejects.toBeInstanceOf(BadRequestException);
+  });
+});
+
+describe('SCRUM-222 correction: real full Run envelope, bounded ledger key, one non-permissive schema', () => {
+  it('accepts the real Parent10 full Run envelope and refuses malformed or substituted envelopes', () => {
+    // The genuine answer: six required Run fields including createdAt and versions.
+    const accepted = assertBrowserReadback(readback(), expectedReadback());
+    expect(Object.keys(accepted.run).sort()).toEqual(['binding', 'createdAt', 'policyRevision', 'scopes', 'state', 'versions']);
+    expect(accepted.run.versions).toEqual({
+      imageDigest: `sha256:${'a'.repeat(64)}`, sdk: '0.1.0', cli: '0.1.0',
+      contracts: '0.1.0', skillsDigest: 'b'.repeat(64), checkpointFormat: '0.1.0',
+    });
+    const mutate = (fn: (raw: any) => void) => { const copy = JSON.parse(JSON.stringify(readback())); fn(copy); return copy; };
+    const refused = [
+      mutate((r) => { delete r.run.createdAt; }),
+      mutate((r) => { delete r.run.versions; }),
+      mutate((r) => { delete r.run.versions.imageDigest; }),
+      mutate((r) => { r.run.versions.imageDigest = 'sha256:short'; }),
+      mutate((r) => { r.run.versions.contracts = '0.2.0'; }),
+      mutate((r) => { r.run.versions.checkpointFormat = '0.2.0'; }),
+      mutate((r) => { r.run.versions.sdk = 'v1'; }),
+      mutate((r) => { r.run.versions.skillsDigest = 'not-a-digest'; }),
+      mutate((r) => { r.run.versions.extra = 1; }),
+      mutate((r) => { r.run.extra = 'four-field projection'; }),
+      mutate((r) => { r.run.state = 'failed'; }),
+      mutate((r) => { r.run.state = 'cancelled'; }),
+      mutate((r) => { r.run.createdAt = '2026-10-30T00:00:00+00:00'; }),
+      mutate((r) => { r.run.policyRevision = ''; }),
+    ];
+    for (const raw of refused) expect(() => assertBrowserReadback(raw, expectedReadback())).toThrow();
+  });
+
+  it('derives a bounded ledger key for the accepted 256-character tool-use id', async () => {
+    const longId = 'toolu_' + 'z'.repeat(250);           // 256 characters, the accepted maximum
+    expect(longId).toHaveLength(256);
+    const key = browserConsumptionKey(tenantId, proposalId(), longId);
+    expect(key.length).toBeLessThanOrEqual(128);
+    expect(key).toMatch(/^browser:[0-9a-f]{64}$/);
+    expect(key).not.toContain(longId);
+    // Distinct identities differ; the same identity is stable across calls.
+    expect(browserConsumptionKey(tenantId, proposalId(), longId)).toBe(key);
+    expect(browserConsumptionKey(tenantId, proposalId(), `${longId.slice(0, -1)}y`)).not.toBe(key);
+    expect(browserConsumptionKey(tenantId, otherActor, longId)).not.toBe(key);
+    // The service uses that one key for consumption, status and settlement.
+    const longProposal = browserProposalId(binding, longId);
+    const longSubjectSha256 = nativeCanonicalSha256(subject({ toolUseId: longId }));
+    const f = fixture({ readback: readback({ preparation: preparation({}, { toolUseId: longId }) }) });
+    await f.service.recordBrowser(verifiedRequest(), ctx, { proposalId: longProposal, subjectSha256: longSubjectSha256,
+      decision: 'approved', approver: { tenantId, actorId }, binding });
+    const body = { proposalId: longProposal, subjectSha256: longSubjectSha256, binding };
+    const consumed = await f.service.consumeBrowser(verifiedRequest(), ctx, body) as any;
+    expect(consumed.consumption.consumed).toBe(true);
+    expect(consumed.toolUseId).toBe(longId);
+    expect([...f.consumptions.keys()]).toEqual([`${tenantId}:${longProposal}:${browserConsumptionKey(tenantId, longProposal, longId)}`]);
+    const repeat = await f.service.consumeBrowser(verifiedRequest(), ctx, body) as any;
+    expect(repeat.permissive).toBe(false);
+    await f.service.resultBrowser(verifiedRequest(), ctx, { ...body, outcome: 'ok', result: { atMs: 1 } });
+    expect([...f.consumptions.keys()]).toEqual([`${tenantId}:${longProposal}:${browserConsumptionKey(tenantId, longProposal, longId)}`]);
+    expect(f.createConsumption).toHaveBeenCalledTimes(1);
+  });
+
+  it('answers ONE canonical non-permissive schema that the host receiptRefusal rejects', async () => {
+    const f = fixture();
+    await f.record();
+    const first = (await f.consume()) as any;
+    const repeat = (await f.consume()) as any;
+    const status = await f.status();
+    for (const answer of [repeat, status]) {
+      // Host approval-binding.mjs receiptRefusal first branch: a schema other than
+      // 'meri-browser-approval-receipt/1' is DENIED before any field is trusted.
+      expect(answer.schema).toBe(BROWSER_STATUS_SCHEMA);
+      expect(answer.schema).not.toBe(BROWSER_RECEIPT_SCHEMA);
+      expect((answer.consumption as any).consumed).toBeUndefined();
+      expect(answer.permissive).toBe(false);
+      expect(answer.unknown).toBe(true);
+    }
+    // The consume-repeat answer carries no decision at all; the status readback may
+    // report the retained decision, which still cannot be used as a receipt.
+    expect(repeat.decision).toBeUndefined();
+    expect(status.decision!.commandSha256).toBe(subjectSha256());
+    expect(first.schema).toBe(BROWSER_RECEIPT_SCHEMA);
+    expect(first.consumption.consumed).toBe(true);
   });
 });
