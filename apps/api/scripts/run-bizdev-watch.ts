@@ -36,13 +36,41 @@ import { createSourceEventDispositionSink } from '../src/business-development/bi
 dotenvConfig();
 
 /**
+ * Interactive-transaction budget for the audited runner transactions.
+ *
+ * Prisma's interactive default is a 5s timeout, which a VALID bounded source page can exceed: the TD7 run on
+ * 2026-10-29 died at 5107ms with "Transaction already closed" while a legal page was still in flight. The
+ * transaction is the unit of work for one claimed watch, and the runner already owns that watch through the
+ * `lease_until = now + leaseSeconds` CAS — so the lease is the honest, finite bound for the transaction, not
+ * an unlimited timeout.
+ *
+ * TIMEOUT  = lease window minus a reserve so the lease-predicated finalize/release still lands inside the
+ *            window it protects (never equal to the lease, which would leave no room to release).
+ * MAX_WAIT = bounded pool acquisition wait, never longer than the transaction itself.
+ *
+ * Both are finite and derived from the validated leaseSeconds (30..3600), so a run can never hold a
+ * transaction past its own ownership window.
+ */
+export const BIZDEV_TRANSACTION_MAX_WAIT_MS = 10_000;
+export const BIZDEV_TRANSACTION_LEASE_RESERVE_MS = 5_000;
+
+export function bizDevTransactionOptions(leaseSeconds: number): { maxWait: number; timeout: number } {
+  const leaseMs = Math.max(1, Math.trunc(leaseSeconds)) * 1000;
+  const timeout = Math.max(BIZDEV_TRANSACTION_MAX_WAIT_MS, leaseMs - BIZDEV_TRANSACTION_LEASE_RESERVE_MS);
+  return { maxWait: Math.min(BIZDEV_TRANSACTION_MAX_WAIT_MS, timeout), timeout };
+}
+
+/**
  * Adapter over a raw PrismaClient exposing BOTH audited transaction shapes
  * the runner needs: withTenant (per-tenant scoped, sets app.current_tenant)
  * and withSystem (the audited RLS-bypass path, sets app.bypass_rls) — the
  * SAME GUC semantics as the app's PrismaService, used by the runner for the
  * bounded cross-tenant candidate + tenant-settings discovery ONLY.
  */
-function runnerDbFromClient(prisma: PrismaClient): BizDevWatchRunnerDb {
+export function runnerDbFromClient(
+  prisma: PrismaClient,
+  options: { maxWait: number; timeout: number },
+): BizDevWatchRunnerDb {
   return {
     withTenant: <T,>(
       tenantId: string,
@@ -51,12 +79,12 @@ function runnerDbFromClient(prisma: PrismaClient): BizDevWatchRunnerDb {
       prisma.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;
         return fn(tx as unknown as Prisma.TransactionClient);
-      }),
+      }, options),
     withSystem: <T,>(fn: (tx: Prisma.TransactionClient) => Promise<T>) =>
       prisma.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
         return fn(tx as unknown as Prisma.TransactionClient);
-      }),
+      }, options),
   };
 }
 
@@ -171,7 +199,9 @@ async function main(): Promise<number> {
   if (!validateThisRun()) return 2;
   const prisma = new PrismaClient();
   try {
-    const db = runnerDbFromClient(prisma);
+    // Explicit finite transaction bounds derived from the validated lease: a legal source page must
+    // outlive Prisma's 5s default, and no transaction may outlive the lease that owns it.
+    const db = runnerDbFromClient(prisma, bizDevTransactionOptions(leaseSeconds));
     // Global projections are read through the same client handle (no
     // tenant_id, no RLS — the dossier's direct-delegate pattern).
     const projections = prisma as unknown as BizDevProjectionDb;
