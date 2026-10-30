@@ -3155,7 +3155,7 @@
       "controller": "OutreachCampaignController",
       "handler": "list",
       "sourceFile": "apps/api/src/engagement/outreach-campaign.controller.ts",
-      "sourceLine": 13,
+      "sourceLine": 17,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -3167,11 +3167,10 @@
       "throttle": null,
       "httpCode": null,
       "bodyDto": null,
-      "queryDto": "string",
+      "queryDto": "unknown",
       "parameterNames": [
         "ctx",
-        "clientId",
-        "requestKey"
+        "query"
       ],
       "classification": "read"
     },
@@ -3605,6 +3604,31 @@
         "body"
       ],
       "classification": "write"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach/records",
+      "controller": "OutreachCampaignController",
+      "handler": "records",
+      "sourceFile": "apps/api/src/engagement/outreach-campaign.controller.ts",
+      "sourceLine": 13,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": "unknown",
+      "parameterNames": [
+        "ctx",
+        "query"
+      ],
+      "classification": "read"
     },
     {
       "method": "POST",

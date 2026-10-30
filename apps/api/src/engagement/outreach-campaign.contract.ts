@@ -33,6 +33,16 @@ export const outreachCampaignStateSchema = z
     templateId: text(384).nullable(),
     templateVersionId: z.string().uuid().nullable().optional(),
     mainIdea: text(8000),
+    decisions: z
+      .object({
+        goal: text(2000),
+        objective: text(4000),
+        topic: text(500),
+        whyNow: text(2000),
+        campaignAngle: text(4000),
+      })
+      .strict()
+      .optional(),
     tone: z.enum(['professional', 'friendly', 'formal', 'concise']),
     length: z.enum(['short', 'standard', 'long']),
     recipients: z
@@ -113,6 +123,30 @@ export const outreachCampaignStateSchema = z
   })
   .strict();
 export type OutreachCampaignState = z.infer<typeof outreachCampaignStateSchema>;
+const outreachListFields = z
+  .object({
+    clientId: z.string().uuid().optional(),
+    q: text(240).optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(25),
+    cursor: text(512).optional(),
+    from: z.string().datetime().optional(),
+    to: z.string().datetime().optional(),
+    deleted: z.enum(['true', 'false']).optional(),
+  })
+  .strict();
+const validListWindow = (value: { from?: string; to?: string }) =>
+  !value.from || !value.to || Date.parse(value.from) <= Date.parse(value.to);
+export const outreachRecordListSchema = outreachListFields.refine(
+  validListWindow,
+  'Invalid date window',
+);
+export const campaignListSchema = outreachListFields
+  .extend({
+    requestKey: z.string().uuid().optional(),
+    view: z.enum(['drafts', 'sent', 'attention']).optional(),
+  })
+  .refine(validListWindow, 'Invalid date window');
+
 export const campaignCreateSchema = z
   .object({ requestKey: z.string().uuid(), state: outreachCampaignStateSchema })
   .strict();

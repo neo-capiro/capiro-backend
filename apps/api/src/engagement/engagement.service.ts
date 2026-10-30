@@ -834,6 +834,10 @@ export interface OutreachQuery {
   // When true, return ONLY soft-deleted records (the "trash"/recovery view).
   // Defaults to false: the normal list excludes deleted records.
   deleted?: boolean;
+  /** Internal canonical campaign list selectors; the ordinary list keeps its contract. */
+  after?: { id: string };
+  campaignsOnly?: boolean;
+  search?: string;
 }
 
 const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
@@ -2717,6 +2721,15 @@ export class EngagementService {
    * surfaces can never disagree again.
    */
   async listOutreachRecords(ctx: TenantContext, query: OutreachQuery) {
+    return (await this.readOutreachRecordPage(ctx, query, false)).items;
+  }
+
+  /** Pagination shares the ordinary reader's owner, client-wall and source checks. */
+  async listOutreachRecordPage(ctx: TenantContext, query: OutreachQuery) {
+    return this.readOutreachRecordPage(ctx, query, true);
+  }
+
+  private async readOutreachRecordPage(ctx: TenantContext, query: OutreachQuery, paginated: boolean) {
     const type = normalizeOutreachType(query.type);
     const limit = clampInt(query.limit, 50, 1, 100);
     const dateWindow =
@@ -2727,8 +2740,15 @@ export class EngagementService {
           }
         : undefined;
 
-    const rows = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const page = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const ownerWhere = ownOutreachRecordWhere(ctx.userId);
+      // Keep ordering inside PostgreSQL: created_at has microsecond precision,
+      // which a JavaScript Date cursor cannot represent. A revoked anchor may
+      // still advance the page, but missing or foreign anchors cannot do so.
+      if (query.after && !await tx.outreachRecord.findFirst({
+        where: { tenantId: ctx.tenantId, ...ownerWhere, id: query.after.id },
+        select: { id: true },
+      })) throw new BadRequestException('Outreach cursor is no longer available; reload the list');
       const selected = await tx.outreachRecord.findMany({
         where: {
           tenantId: ctx.tenantId,
@@ -2736,26 +2756,34 @@ export class EngagementService {
           deletedAt: query.deleted ? { not: null } : null,
           ...(query.clientId ? { clientId: query.clientId } : {}),
           ...(type ? { type } : {}),
+          ...(query.campaignsOnly ? { type: { in: ['campaign', 'outbound_campaign', 'follow_up', 'prep'] } } : {}),
+          ...(query.search ? { title: { contains: query.search, mode: 'insensitive' as const } } : {}),
           // A record belongs to the window if it was created OR sent within it:
           // drafts sent days after creation must keep showing as sent once the
           // creation date scrolls out of the range filter.
           ...(dateWindow ? { OR: [{ createdAt: dateWindow }, { sentAt: dateWindow }] } : {}),
           // Filter parent and linked-meeting client access before `take`, so
           // hidden records cannot crowd visible rows off the page.
-          AND: [ownerWhere, outreachReadableRecordWhere(ctx)],
+          AND: [ownerWhere, outreachReadableRecordWhere(ctx), ...(query.after ? [{ NOT: { id: query.after.id } }] : [])],
         },
+        ...(query.after ? { cursor: { id: query.after.id } } : {}),
         include: outreachInclude(),
-        orderBy: { createdAt: 'desc' },
-        take: limit,
+        orderBy: paginated ? [{ createdAt: 'desc' }, { id: 'desc' }] : { createdAt: 'desc' },
+        take: paginated ? limit + 1 : limit,
       });
-      const currentClients = await this.outreachReadableClientIds(tx, ctx, selected.flatMap((row) => [
+      const scanned = selected.slice(0, limit);
+      const last = scanned[scanned.length - 1];
+      const nextCursor = selected.length > limit && last
+        ? { id: last.id }
+        : null;
+      const currentClients = await this.outreachReadableClientIds(tx, ctx, scanned.flatMap((row) => [
         row.clientId,
         row.meeting?.clientId ?? null,
         ...(row.meeting?.preps.map((prep) => prep.clientId) ?? []),
         ...(row.meeting?.debriefs.map((debrief) => debrief.clientId) ?? []),
       ]));
       const visible: typeof selected = [];
-      for (const row of selected) {
+      for (const row of scanned) {
         // Recheck after the row read. The body can derive from the latest
         // linked prep/debrief, so an inaccessible child hides the whole card.
         if (!outreachClientInSet(currentClients, row.clientId) ||
@@ -2784,9 +2812,10 @@ export class EngagementService {
           !outreachClientInSet(currentClients, debrief.clientId))) continue;
         visible.push(row);
       }
-      return visible;
+      return { items: visible, nextCursor };
     }, { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS });
-    if (!this.versionedOutreach || rows.length === 0) return rows;
+    const rows = page.items;
+    if (!this.versionedOutreach || rows.length === 0) return page;
 
     // Only unsent campaign/outbound_campaign drafts need this — a sent record's
     // stats already reflect delivery, and follow_up/prep records don't drive
@@ -2797,10 +2826,10 @@ export class EngagementService {
       )
       .map((r) => r.id);
     const readiness = await this.draft.readinessForOutreachRecords(ctx.tenantId, candidateIds);
-    return rows.map((row) => {
+    return { ...page, items: rows.map((row) => {
       const counts = readiness.get(row.id);
       return counts ? { ...row, draftReadiness: counts } : row;
-    });
+    }) };
   }
 
   async getOutreachRecord(ctx: TenantContext, id: string) {

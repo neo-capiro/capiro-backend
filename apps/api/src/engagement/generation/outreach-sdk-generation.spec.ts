@@ -157,17 +157,17 @@ function fixture(persist = false) {
   const contextPlane = {
     resolve: jest.fn(async () => ({ packet: { items: [], exclusions: [] } })),
   };
-  const compileOutreachPacket = jest.fn(async () => packet);
+  const compileOutreachPacket = jest.fn(
+    async (_ctx: unknown, _input: { requestDirectives: EvidencePacketV2['directives'] }) => packet,
+  );
   const drafts = new OutreachDraftService(prisma as never, {} as never);
-  jest
-    .spyOn(drafts as any, 'auditAndReload')
-    .mockImplementation(async (_ctx, row: any) => ({
-      ...row,
-      generationStatus: 'generated',
-      auditStatus: 'passed',
-      approvalStatus: 'not_required',
-      sendable: true,
-    }));
+  jest.spyOn(drafts as any, 'auditAndReload').mockImplementation(async (_ctx, row: any) => ({
+    ...row,
+    generationStatus: 'generated',
+    auditStatus: 'passed',
+    approvalStatus: 'not_required',
+    sendable: true,
+  }));
   const service = new GenerationGatewayService(
     config,
     prisma as never,
@@ -202,6 +202,38 @@ const enrichment = () => ({
 });
 
 describe('native Outreach SDK unit', () => {
+  test('preserves maximum-length campaign decisions through actual gateway directives and SDK prompt', async () => {
+    const f = fixture();
+    const campaignDecisions = {
+      goal: 'g'.repeat(1992) + 'GOAL_END',
+      objective: 'o'.repeat(3987) + 'OBJECTIVE_END',
+      topic: 't'.repeat(491) + 'TOPIC_END',
+      whyNow: 'w'.repeat(1989) + 'WHY_NOW_END',
+      campaignAngle: 'a'.repeat(3991) + 'ANGLE_END',
+    };
+    const mainIdea = 'm'.repeat(7992) + 'MAIN_END';
+    f.compileOutreachPacket.mockImplementation(async (_ctx, input) => ({
+      ...f.packet,
+      directives: input.requestDirectives,
+    }));
+    const result = await f.service.executeSdk(
+      ctx,
+      { ...request, mainIdea, campaignDecisions },
+      enrichment(),
+      { phase: 'prepare' },
+    );
+    if (!('kind' in result)) throw new Error('Expected SDK preparation');
+    expect(result.prompt).toContain(mainIdea);
+    for (const value of Object.values(campaignDecisions)) expect(result.prompt).toContain(value);
+    const directives = f.compileOutreachPacket.mock.calls[0]![1].requestDirectives;
+    expect(
+      directives.filter((directive) => directive.id.startsWith('campaign-decision:')),
+    ).toHaveLength(5);
+    expect(directives.every((directive) => directive.authenticatedUserId === ctx.userId)).toBe(
+      true,
+    );
+    expect(f.complete).not.toHaveBeenCalled();
+  });
   test('prepares a recipient-isolated schema/prompt with no legacy credential or model call', async () => {
     const f = fixture();
     const result = await f.service.executeSdk(ctx, request, enrichment(), { phase: 'prepare' });

@@ -9,6 +9,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import type { TenantContext } from '@capiro/shared';
+import { parseNewsletterRecordDiscriminator } from '@capiro/shared/newsletter';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import { bootstrapConversation } from '../meri/meri-conversation-bootstrap.js';
@@ -38,12 +39,21 @@ import {
   campaignCreateSchema,
   campaignGenerateSchema,
   campaignSaveSchema,
+  campaignListSchema,
+  outreachRecordListSchema,
   outreachCampaignStateSchema,
   parseCampaign,
   expandCampaignUnits,
   type OutreachCampaignState,
   type OutreachGenerationUnit,
 } from './outreach-campaign.contract.js';
+import {
+  campaignCategory,
+  decodeCampaignCursor,
+  deliveryTotals,
+  encodeCampaignCursor,
+  readCampaignOutcomes,
+} from './outreach-campaign-summary.js';
 
 const pairSchema = z
   .object({ generationJobId: z.string().uuid(), itemId: z.string().uuid() })
@@ -107,7 +117,9 @@ export class OutreachCampaignService {
     private readonly targets: OutreachTargetReferenceService,
   ) {}
 
-  async list(ctx: TenantContext, clientId?: string, requestKey?: string) {
+  async list(ctx: TenantContext, raw: unknown = {}) {
+    const query = parseCampaign(campaignListSchema, raw);
+    const { clientId, requestKey } = query;
     if (requestKey) {
       parseCampaign(z.string().uuid(), requestKey);
       try {
@@ -117,20 +129,140 @@ export class OutreachCampaignService {
         throw error;
       }
     }
-    const rows = await this.engagement.listOutreachRecords(ctx, { clientId, limit: '100' });
-    return rows
-      .filter((row) => ['campaign', 'outbound_campaign', 'follow_up'].includes(row.type))
-      .map((row) => this.project(row));
+    const page = await this.engagement.listOutreachRecordPage(ctx, {
+      clientId,
+      limit: String(query.limit),
+      from: query.from,
+      to: query.to,
+      deleted: query.deleted === 'true',
+      search: query.q?.trim(),
+      campaignsOnly: true,
+      after: decodeCampaignCursor(query.cursor),
+    });
+    const rows = page.items.filter((row) => this.isOrdinary(row)).map((row) => this.project(row));
+    const items = await this.summarize(ctx, rows);
+    return {
+      items: query.view ? items.filter((row) => row.category === query.view) : items,
+      nextCursor: encodeCampaignCursor(page.nextCursor),
+    };
   }
 
   async get(ctx: TenantContext, id: string) {
     parseCampaign(z.string().uuid(), id);
+    let row: Awaited<ReturnType<EngagementService['getOutreachRecord']>>;
     try {
-      return this.project(await this.engagement.getOutreachRecord(ctx, id));
+      row = await this.engagement.getOutreachRecord(ctx, id);
     } catch (error) {
       if (!(error instanceof NotFoundException)) throw error;
-      return this.readSession(ctx, id);
+      // A denied/deleted native parent must not fall through to an older
+      // session snapshot with different client associations.
+      const root = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+        const native = await tx.outreachRecord.findFirst({
+          where: { id, tenantId: ctx.tenantId },
+          select: {
+            id: true,
+            type: true,
+            createdByUserId: true,
+            deletedAt: true,
+            status: true,
+            sentAt: true,
+            clientId: true,
+            client: { select: { id: true, name: true } },
+          },
+        });
+        if (native) {
+          // Reserved roots are intentionally unavailable through the ordinary
+          // record API. Their existing session owner remains the import path.
+          if (
+            native.type !== 'outreach_v3' ||
+            native.createdByUserId !== ctx.userId ||
+            native.deletedAt
+          )
+            throw error;
+          await this.assertClient(tx, ctx, native.clientId);
+        }
+        return native;
+      });
+      const session = await this.readSession(ctx, id);
+      return root
+        ? {
+            ...session,
+            status: root.status,
+            client: root.client,
+            sentAt: root.sentAt?.toISOString() ?? null,
+          }
+        : session;
     }
+    if (!this.isOrdinary(row)) throw new NotFoundException('Ordinary outreach campaign not found');
+    return this.project(row);
+  }
+
+  async getDetails(ctx: TenantContext, id: string) {
+    return (await this.summarize(ctx, [await this.get(ctx, id)]))[0]!;
+  }
+
+  async listRecords(ctx: TenantContext, raw: unknown = {}) {
+    const query = parseCampaign(outreachRecordListSchema, raw);
+    const page = await this.engagement.listOutreachRecordPage(ctx, {
+      clientId: query.clientId,
+      limit: String(query.limit),
+      from: query.from,
+      to: query.to,
+      deleted: query.deleted === 'true',
+      search: query.q?.trim(),
+      after: decodeCampaignCursor(query.cursor),
+    });
+    return {
+      items: page.items.map((row) => ({
+        ...row,
+        hasWorkflow: Boolean(object(row.metadata).workflow),
+      })),
+      nextCursor: encodeCampaignCursor(page.nextCursor),
+    };
+  }
+
+  private isOrdinary(row: { type: string; metadata: unknown }) {
+    const discriminator = parseNewsletterRecordDiscriminator({
+      type: row.type,
+      metadata: row.metadata,
+    });
+    return discriminator.ok && discriminator.value.kind === 'ordinary';
+  }
+
+  private async summarize<T extends { id: string; status: string; revision: number }>(
+    ctx: TenantContext,
+    rows: T[],
+  ) {
+    if (!rows.length) return [];
+    const readiness = await this.drafts.readinessForOutreachRecords(
+      ctx.tenantId,
+      rows.map((row) => row.id),
+    );
+    const outcomes = await readCampaignOutcomes(
+      this.prisma,
+      ctx,
+      rows.map((row) => row.id),
+    );
+    return rows.map((row) => {
+      const delivery = outcomes.deliveries.get(row.id) ?? null;
+      const generation = outcomes.generations.get(row.id) ?? null;
+      return {
+        ...row,
+        category: campaignCategory(row.status, row.revision, delivery, generation),
+        recordedSendStatus:
+          delivery?.status ??
+          (['sent', 'failed', 'delivery_unknown'].includes(row.status) ? row.status : null),
+        draftReadiness: readiness.get(row.id) ?? null,
+        delivery: delivery
+          ? {
+              ...delivery,
+              totals: deliveryTotals(delivery.totals),
+              createdAt: delivery.createdAt.toISOString(),
+              finishedAt: delivery.finishedAt?.toISOString() ?? null,
+            }
+          : null,
+      };
+    });
   }
 
   async create(ctx: TenantContext, raw: unknown) {
@@ -181,17 +313,20 @@ export class OutreachCampaignService {
         where: { id, tenantId: ctx.tenantId, createdByUserId: ctx.userId, deletedAt: null },
       });
       const metadata = object(record?.metadata);
+      if (record && !this.isOrdinary(record))
+        throw new NotFoundException('Ordinary outreach campaign not found');
       const revision = (metadata.workflow as Workflow | undefined)?.revision ?? current.revision;
       if (revision !== input.expectedRevision)
         throw new ConflictException('Campaign changed. Reload before saving.');
       if (record && record.status !== 'draft')
         throw new ConflictException('Sent outreach cannot be edited');
+      await this.assertClient(tx, ctx, record?.clientId ?? null);
       await this.assertClient(tx, ctx, current.state.clientId);
       await this.assertClient(tx, ctx, input.state.clientId);
       const data = {
         title: input.state.title,
         clientId: input.state.clientId,
-        type: 'campaign',
+        type: record?.type === 'outreach_v3' ? 'campaign' : (record?.type ?? 'campaign'),
         recipients: json(input.state.recipients),
         recipientCount: input.state.recipients.length,
         lastStep: input.state.lastStep,
@@ -529,6 +664,7 @@ export class OutreachCampaignService {
       authHeader,
     );
     Object.assign(result.request, {
+      campaignDecisions: state.decisions,
       styleSamples: state.styleSamples,
       length: state.length,
       contentSkeleton: state.contentSkeleton,
@@ -623,6 +759,7 @@ export class OutreachCampaignService {
 
   private project(row: {
     id: string;
+    type: string;
     status: string;
     title: string;
     clientId: string | null;
@@ -630,6 +767,10 @@ export class OutreachCampaignService {
     metadata: unknown;
     recipients: unknown;
     lastStep: number;
+    createdAt?: Date;
+    sentAt?: Date | null;
+    recipientCount?: number;
+    client?: { id: string; name: string } | null;
   }) {
     const metadata = object(row.metadata);
     const workflow = metadata.workflow as Workflow | undefined;
@@ -714,6 +855,12 @@ export class OutreachCampaignService {
       updatedAt: row.updatedAt.toISOString(),
       status: row.status,
       state,
+      type: row.type,
+      hasWorkflow: Boolean(workflow),
+      client: row.client ? { id: row.client.id, name: row.client.name } : null,
+      recipientCount: row.recipientCount ?? 0,
+      createdAt: (row.createdAt ?? row.updatedAt).toISOString(),
+      sentAt: row.sentAt?.toISOString() ?? null,
     };
   }
 
@@ -741,17 +888,14 @@ export class OutreachCampaignService {
         clientId: spec.sponsor.clientRefs[0]?.clientId ?? null,
         direction: spec.sponsor.kind === 'internal_team' ? 'to-clients' : 'on-behalf',
         templateId: null,
-        mainIdea: [
-          spec.goal.goal,
-          spec.goal.objective,
-          spec.goal.topic,
-          spec.goal.desiredOutcome,
-          spec.goal.ask.text,
-          spec.goal.whyNow,
-          spec.strategy.campaignAngle,
-        ]
-          .filter(Boolean)
-          .join('\n\n'),
+        decisions: {
+          goal: spec.goal.goal ?? '',
+          objective: spec.goal.objective ?? '',
+          topic: spec.goal.topic ?? '',
+          whyNow: spec.goal.whyNow ?? '',
+          campaignAngle: spec.strategy.campaignAngle ?? '',
+        },
+        mainIdea: [spec.goal.desiredOutcome, spec.goal.ask.text].filter(Boolean).join('\n\n'),
         tone: ['professional', 'friendly', 'formal', 'concise'].includes(spec.strategy.tone ?? '')
           ? spec.strategy.tone
           : 'professional',
@@ -798,6 +942,12 @@ export class OutreachCampaignService {
         updatedAt: session.updatedAt.toISOString(),
         status: session.status === 'active' ? 'draft' : session.status,
         state,
+        type: 'campaign',
+        hasWorkflow: true,
+        client: null,
+        recipientCount: targets.length,
+        createdAt: session.createdAt.toISOString(),
+        sentAt: null,
       };
     });
   }
