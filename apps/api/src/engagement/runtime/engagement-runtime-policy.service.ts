@@ -23,6 +23,16 @@ import {
 import { meetingPrepEnabled } from '../meeting-prep-policy.js';
 
 /**
+ * The existing versioned-outreach feature flag, read the way the config schema reads it. Absent
+ * means OFF: ownership alone must never start the ordinary sender, so every admission branch in
+ * `ordinaryOutreachSendWorkerEnabled()` is gated on this.
+ */
+export function ordinaryOutreachSendEnabled(): boolean {
+  const value = (process.env.ENGAGEMENT_VERSIONED_OUTREACH ?? '').trim().toLowerCase();
+  return ['true', '1', 'yes', 'on'].includes(value);
+}
+
+/**
  * Central runtime policy service for the Engagement API extraction.
  *
  * A single source of truth that every background timer, external-action
@@ -279,6 +289,59 @@ export class EngagementRuntimePolicyService {
     if (!meetingPrepEnabled()) return false;
     if (this.backgroundWorkersEnabled('meeting-prep-worker')) return true;
     return this.meetingPrepComprehensiveExceptionEnabled();
+  }
+
+  /**
+   * Dedicated exception for the ordinary canonical send-intent worker on the final API owner.
+   *
+   * It admits ONLY the ordinary sender, and only on the exact accepted final tuple: the API service
+   * in its active process mode, the API background owner, external actions enabled, callbacks
+   * enabled, Recall webhooks disabled, the existing `integration_sync_scheduler` restriction and an
+   * unphased (open) mail-handoff barrier. The existing versioned-outreach flag gates every branch in
+   * `ordinaryOutreachSendWorkerEnabled()` below, so it is not re-checked here. The generic
+   * scheduler-only selector keeps its exact meaning and is never widened, and unnamed
+   * `backgroundWorkersEnabled()` stays false on this tuple.
+   */
+  private ordinaryOutreachSendExceptionEnabled(): boolean {
+    return (
+      this.serviceName === 'api' &&
+      this.processMode === 'active' &&
+      this.backgroundOwner === 'api' &&
+      this.externalActionsMode === 'enabled' &&
+      this.callbacksEnabled &&
+      !this.recallWebhookEnabled &&
+      this.backgroundWorkerRestriction === 'integration_sync_scheduler' &&
+      this.mailHandoffPhase() === 'off'
+    );
+  }
+
+  /**
+   * The single ownership predicate for the ordinary canonical sender: startup and every tick/sweep
+   * consult it. The existing `ENGAGEMENT_VERSIONED_OUTREACH` flag is required for EVERY branch, so a
+   * flag-off process never starts a timer and never sweeps, even when the ownership tuple matches.
+   * Where the existing named background policy already admits this worker, that admission stands; the
+   * dedicated exception above is the only additional admission and applies to this worker alone.
+   * The V3-only selector is a separate existing path and is not changed here.
+   */
+  ordinaryOutreachSendWorkerEnabled(): boolean {
+    if (!ordinaryOutreachSendEnabled()) return false;
+    if (this.backgroundWorkersEnabled('outreach-send-intent-worker')) return true;
+    return this.ordinaryOutreachSendExceptionEnabled();
+  }
+
+  assertOrdinaryOutreachSendWorker(): void {
+    if (!this.ordinaryOutreachSendWorkerEnabled()) {
+      this.logger.log(
+        `outreach-send-intent-worker disabled by engagement runtime policy ` +
+          `(service=${this.serviceName} owner=${this.backgroundOwner} mode=${this.processMode})`,
+      );
+      throw new ServiceUnavailableException({
+        statusCode: 503,
+        code: 'ENGAGEMENT_BACKGROUND_DISABLED',
+        worker: 'outreach-send-intent-worker',
+        message: 'Background workers are disabled in the engagement-api shadow runtime.',
+      });
+    }
   }
 
   assertMeetingPrepWorker(): void {
