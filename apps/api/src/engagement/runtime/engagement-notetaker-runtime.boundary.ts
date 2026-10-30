@@ -130,7 +130,9 @@ export function guardNotetakerService(
       }
       if (NOTETAKER_BACKGROUND_METHODS.has(property)) {
         return (...args: unknown[]) => {
-          policy.assertBackgroundOwner('notetaker-reconcile');
+          // Same final-owner predicate as the worker startup/tick and the raw sweep gates, so a
+          // proxy call cannot slip past ownership the raw object would refuse.
+          policy.assertFinalNotetakerWorker('notetaker-reconcile');
           return Reflect.apply(value, target, args);
         };
       }

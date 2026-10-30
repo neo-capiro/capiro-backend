@@ -1140,8 +1140,11 @@ export const configSchema = z.object({
   // integration sync scheduler. Deliberately one typed token, NOT a worker
   // list: omitted or blank keeps the legacy generic ownership behavior, and a
   // non-blank unknown value fails closed. Valid only on the
-  // api/active/api/enabled/callbacks=true/Recall=false tuple, which
-  // validateConfig (below) and the boot preflight both enforce.
+  // api/active/api/enabled/callbacks=true tuple with an EXPLICIT
+  // ENGAGEMENT_RECALL_WEBHOOK_ENABLED: false for the sender/prep stage, true for the
+  // accepted note-taker capture-receiver stage. An omitted/blank Recall switch stays
+  // refused even though its default is true. validateConfig (below) and the boot
+  // preflight both enforce this.
   ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION: z.preprocess(
     normalizeOptionalSwitch,
     z.enum(['integration_sync_scheduler']).optional(),

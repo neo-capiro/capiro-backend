@@ -106,7 +106,6 @@ describe('ordinary canonical outreach sender ownership', () => {
       { backgroundOwner: 'engagement-api' },
       { externalActions: 'integrations_only' },
       { callbacksEnabled: false },
-      { recallWebhookEnabled: true },
     ];
     for (const overrides of variants) {
       const runtime = policy(overrides);
