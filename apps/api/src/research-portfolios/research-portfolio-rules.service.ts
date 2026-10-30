@@ -29,7 +29,7 @@ import {
   type CandidateFact,
   type RuleNode,
 } from './research-portfolio-rules.js';
-import { materializeRuleCandidate } from './research-portfolio-targets.js';
+import { materializeRuleCandidate, RESEARCH_PORTFOLIO_MEMBER_KINDS } from './research-portfolio-targets.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -281,9 +281,7 @@ export class ResearchPortfolioRulesService {
       throw new BadRequestException('Rule preview is limited to 200 candidates');
     const candidateKeys = input.candidates.map((candidate) => {
       if (
-        !['program', 'program_element', 'project', 'budget_line', 'award'].includes(
-          candidate.targetKind,
-        ) ||
+        !RESEARCH_PORTFOLIO_MEMBER_KINDS.has(candidate.targetKind) ||
         typeof candidate.targetId !== 'string' ||
         !candidate.targetId.trim()
       )

@@ -46,6 +46,9 @@ const EVENT_KINDS = [
   'annual_reopened',
   'import_created',
   'import_action',
+  // A tracked bill's material legislative change is a change a published dashboard must
+  // show; omitting the kind here silently hid every bill change from the recipient.
+  'bill_changed',
 ] as const;
 const FINANCIAL_WIDGETS = new Set([
   'key_totals',
@@ -237,6 +240,32 @@ function recipientSettings(
   return settings;
 }
 
+/**
+ * A recipient-facing change line, built only from the frozen event record.
+ *
+ * Ordinary kinds keep their humanized name. A bill change names what actually changed and
+ * when, because "bill changed" alone tells a client nothing — and because the event payload
+ * was captured with the snapshot, so this cannot drift with later legislative activity.
+ */
+export function changeSummary(eventKind: string, payload: unknown): string {
+  const generic = eventKind.replaceAll('_', ' ');
+  if (eventKind !== 'bill_changed') return generic;
+  const record =
+    payload && typeof payload === 'object' && !Array.isArray(payload)
+      ? (payload as Readonly<Record<string, unknown>>)
+      : {};
+  const text = (key: string) => {
+    const value = record[key];
+    return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+  };
+  const what = text('label') ?? text('changeType') ?? 'legislative change';
+  const date = text('actionDate');
+  const source = text('sourceLabel');
+  return [`bill changed: ${what}`, date ? `(${date})` : null, source ? `— ${source}` : null]
+    .filter(Boolean)
+    .join(' ');
+}
+
 @Injectable()
 export class ResearchPortfolioSharePayloadService {
   constructor(
@@ -385,6 +414,7 @@ export class ResearchPortfolioSharePayloadService {
           excludedContributions: snapshot.projection.coverage.excludedContributions,
           overlapContributions: snapshot.projection.coverage.overlapContributions,
           unavailableMembers: snapshot.projection.coverage.unavailableMembers,
+          notApplicableMembers: snapshot.projection.coverage.notApplicableMembers ?? 0,
         },
         limitations: snapshot.limitations.filter((value) => typeof value === 'string'),
         subjects: has('subjects')
@@ -396,6 +426,10 @@ export class ResearchPortfolioSharePayloadService {
                 targetId: member.targetId,
                 label: member.label,
                 disposition: member.disposition,
+                // Frozen legislative facts travel with the subject so a published dashboard
+                // keeps the bill status, latest action and source revision it was captured
+                // from. Later legislative changes cannot alter it.
+                facts: (member.facts ?? null) as Readonly<Record<string, unknown>> | null,
               }))
           : [],
         clientFit:
@@ -416,7 +450,7 @@ export class ResearchPortfolioSharePayloadService {
           id: change.id,
           eventKind: change.eventKind,
           occurredAt: change.occurredAt.toISOString(),
-          summary: change.eventKind.replaceAll('_', ' '),
+          summary: changeSummary(change.eventKind, change.payload),
         })),
         comparison,
       },

@@ -21,6 +21,7 @@ import { ResearchContextsController } from './research-contexts.controller.js';
 import { ResearchPortfolioSharePayloadService } from './research-portfolio-share-payload.service.js';
 import { ResearchPortfolioShareDispatchController } from './research-portfolio-share.controller.js';
 import { ResearchPortfolioShareService } from './research-portfolio-share.service.js';
+import { ResearchPortfolioBillsService } from './research-portfolio-bills.service.js';
 import {
   ResearchPortfolioShareController,
   ResearchPortfolioShareAdminController,
@@ -58,6 +59,7 @@ import {
     ResearchPortfolioPhase11Service,
     ResearchPortfolioShareService,
     ResearchPortfolioSharePayloadService,
+    ResearchPortfolioBillsService,
   ],
   exports: [
     ResearchPortfolioInstitutionalService,
@@ -72,6 +74,7 @@ import {
     ResearchPortfolioMeriToolsService,
     ResearchPortfolioMeriScopeService,
     ResearchPortfolioPhase11Service,
+    ResearchPortfolioBillsService,
   ],
 })
 export class ResearchPortfoliosModule {}

@@ -16,8 +16,17 @@ export const actionNames = {
 } as const;
 export const originalActionPins = {
   api: {
-    declarations: 'b1fd9acea493b04d36fa919a4d166c337c19e3f25bd44d9d2dc88979a33af905',
-    comments: '433cfd10e9d41f2bf9d51a6a6f0f9b1f9251a41459be33ba6319a190812589e4',
+    // Updated deliberately for Research Portfolio bill tracking: the detector now
+    // (a) reads portfolio recipients alongside the legacy tracked-bill scan, and
+    // (b) fans material federal changes out to portfolio-only recipients through
+    // fanOutPortfolioOnlyFederal, which decides each recipient from the canonical
+    // adoption facts stored with the membership (adoptionFacts, adoptionBoundary,
+    // recipientNeedsEvent): each recipient's history is bounded by the day it
+    // adopted, so same-day history it already knew is silent while a latest rollup
+    // that genuinely changed after adoption — same day included — is delivered. The guard stays exact: only the owned file's recorded shape
+    // moved, and the ownership assertions themselves are unchanged.
+    declarations: '82e52baab45a676df7219a6dace55b58bc0e2699534ce0a83273aff34e17aef2',
+    comments: '04ee360732e01ccc4f595821b6e56514394e2897be3657dc1af4efa31c33a691',
   },
   intel: {
     declarations: '84745c3078c0c76db15fefd82509391a1a976d758bca770143a0777a00fac9df',

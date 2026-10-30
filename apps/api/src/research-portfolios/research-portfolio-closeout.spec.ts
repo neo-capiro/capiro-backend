@@ -314,6 +314,7 @@ describe('Research Portfolio closeout replay, lifecycle and role boundaries', ()
       excludedContributions: 0,
       overlapContributions: 0,
       unavailableMembers: 0,
+      notApplicableMembers: 0,
     });
     // No linked-client capability or fit prerequisite is added to capture.
     expect(result.clientAccessRequirements).toEqual([]);
