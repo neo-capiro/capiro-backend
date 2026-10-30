@@ -90,6 +90,9 @@ interface ConnectionProjectionInput {
   id: string; provider: string; accountEmail: string | null; displayName: string | null;
   status: string; scopes: string[]; lastSyncAt: Date | null; lastError: string | null;
   nextSyncAt?: Date | null; syncState: unknown;
+  /** Owner of the connection. `engagement/integrations` is caller-scoped, and the
+   *  calendar sync receiver re-checks the owner it is handed (B3). */
+  createdByUserId?: string | null;
 }
 
 /** Settings consumes a safe view, never provider cursors, OAuth state or signed webhook clientState. */
@@ -119,6 +122,10 @@ export function integrationStatusProjection(connection: ConnectionProjectionInpu
     displayName: connection.displayName, status: connection.status, scopes: connection.scopes,
     lastSyncAt: connection.lastSyncAt, lastError: connection.lastError,
     nextSyncAt: connection.nextSyncAt ?? null,
+    // Caller-scoped list; echoed back so the calendar sync receiver can prove the
+    // account it was given belongs to the caller. Its absence made every Sync
+    // calendar account fail the receiver's ownership check (B3).
+    createdByUserId: connection.createdByUserId ?? null,
     permissions: { requestedScopes, grantedScopes: lastVerifiedAt ? scopes(verification.grantedScopes) : null, lastVerifiedAt },
     health, mailCoverage: coverage,
     subscriptions: {

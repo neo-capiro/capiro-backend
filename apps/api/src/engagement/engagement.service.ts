@@ -7296,6 +7296,32 @@ export class EngagementService {
     return created;
   }
 
+  /**
+   * The stored prep through the documented detail read (H2).
+   *
+   * Prep prose already reached the client inside meeting detail and list payloads
+   * while `GET …/meeting-preps/:prepId` 404'd, so edit/refine had to scrape the
+   * meeting body. This is the missing read: same tenant scoping, same ownership
+   * and saved-artifact access checks as the update path, and the same projection
+   * the update path returns, so a reader and the editor see one payload.
+   */
+  async readMeetingPrep(ctx: TenantContext, prepId: string) {
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const prep = await tx.meetingPrep.findFirst({
+        where: { id: prepId, tenantId: ctx.tenantId },
+        select: { id: true, meetingId: true, generatedFrom: true },
+      });
+      if (!prep) throw new NotFoundException('Meeting prep not found');
+      await this.ensureOwnMeeting(tx, ctx, prep.meetingId);
+      await assertSavedMeetingPrepAccess(tx, ctx, prep.generatedFrom);
+      const row = await tx.meetingPrep.findFirst({
+        where: { id: prepId, tenantId: ctx.tenantId },
+      });
+      if (!row) throw new NotFoundException('Meeting prep not found');
+      return projectMeetingPrepListItems(row);
+    });
+  }
+
   async updateMeetingPrep(ctx: TenantContext, prepId: string, input: UpdateMeetingPrepInput) {
     const updated = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const prep = await tx.meetingPrep.findFirst({
