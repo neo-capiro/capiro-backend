@@ -94,6 +94,19 @@ describe('artifact current authority (capiro.meri-artifact-authority.v1)', () =>
     expect(ARTIFACT_INTENT_OPERATIONS['federal-load']).toEqual(['artifact.download', 'artifact.inspect']);
     expect(ARTIFACT_INTENT_OPERATIONS['federal-publish']).toEqual(['artifact.download', 'artifact.generate', 'artifact.inspect', 'artifact.revise']);
     expect(ARTIFACT_INTENT_OPERATIONS['federal-import']).toEqual(['artifact.generate']);
+    // SCRUM-222: browser-imported bytes reuse the existing generation operation only.
+    expect(ARTIFACT_INTENT_OPERATIONS['browser-import']).toEqual(['artifact.generate']);
+  });
+
+  it('admits browser import through the same generation permission and current client authority', async () => {
+    const request = parseApplicationAuthorityArtifactBody({ ...createCase.request, intent: 'browser-import' });
+    const f = ports();
+    const receipt = await readApplicationAuthorityArtifact(request, 'standard_user', f.ports);
+    expect(receipt.intent).toBe('browser-import');
+    expect(receipt.operations).toContain('artifact.generate');
+    await expect(readApplicationAuthorityArtifact(request, 'client_portal_user', ports().ports)).rejects.toThrow();
+    await expect(readApplicationAuthorityArtifact(request, 'standard_user', { ...ports().ports,
+      clientVisible: async () => { throw new ForbiddenException(); } })).rejects.toThrow(ForbiddenException);
   });
 
   it("ports Meri's receipt check faithfully: it accepts each vector receipt and refuses all 18 vector refusals", () => {
