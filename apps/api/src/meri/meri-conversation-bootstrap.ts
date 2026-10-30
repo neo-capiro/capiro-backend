@@ -108,7 +108,8 @@ async function currentClient(tx: Prisma.TransactionClient, ctx: TenantContext, c
   if (!client) throw new NotFoundException('Client not found');
 }
 
-async function replay(prisma: PrismaService, ctx: TenantContext, input: BootstrapConversationInput) {
+async function replay(prisma: PrismaService, ctx: TenantContext, input: BootstrapConversationInput,
+  purpose?: 'outreach_generation') {
   return prisma.withTenant(ctx.tenantId, async (tx) => {
     const saved = await tx.clioConversationBootstrapReceipt.findFirst({
       where: { tenantId: ctx.tenantId, actorUserId: ctx.userId, requestId: input.requestId },
@@ -121,9 +122,13 @@ async function replay(prisma: PrismaService, ctx: TenantContext, input: Bootstra
       throw new ConflictException('New Chat conversation is no longer available');
     const conversation = await tx.clioConversation.findFirst({
       where: { id: saved.conversationId, tenantId: ctx.tenantId, userId: ctx.userId,
-        clientId: input.clientId, status: 'active', archivedAt: null }, select: { id: true },
+        clientId: input.clientId, status: 'active', archivedAt: null }, select: { id: true, metadata: true },
     });
     if (!conversation) throw new ConflictException('New Chat conversation is no longer active in this scope');
+    const savedPurpose = conversation.metadata && typeof conversation.metadata === 'object' &&
+      !Array.isArray(conversation.metadata) ? conversation.metadata.purpose ?? undefined : undefined;
+    if (savedPurpose !== purpose)
+      throw new ConflictException('New Chat requestId is bound to a different purpose');
     await currentClient(tx, ctx, input.clientId);
     return receipt(ctx, input, conversation.id);
   });
@@ -132,10 +137,10 @@ async function replay(prisma: PrismaService, ctx: TenantContext, input: Bootstra
 /** One transaction creates both native conversation and immutable request binding. */
 export async function bootstrapConversation(
   prisma: PrismaService, ctx: TenantContext, raw: unknown,
-  profile: () => Promise<{ email: string | null }>, metadata: { brand: string; runtime: string },
+  profile: () => Promise<{ email: string | null }>, metadata: { brand: string; runtime: string; purpose?: 'outreach_generation' },
 ) {
   const input = parseBootstrapConversationInput(raw);
-  const existing = await replay(prisma, ctx, input);
+  const existing = await replay(prisma, ctx, input, metadata.purpose);
   if (existing) return existing;
   const actor = await profile();
   try {
@@ -154,8 +159,15 @@ export async function bootstrapConversation(
     });
   } catch (error) {
     if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') throw error;
-    const winner = await replay(prisma, ctx, input);
+    const winner = await replay(prisma, ctx, input, metadata.purpose);
     if (winner) return winner;
     throw error;
   }
+}
+
+/** Internal operation sessions do not belong to ordinary Meri history or editors. */
+export function isOutreachGenerationConversation(conversation: { metadata: unknown }): boolean {
+  const metadata = conversation.metadata;
+  return !!metadata && typeof metadata === 'object' && !Array.isArray(metadata) &&
+    (metadata as Record<string, unknown>).purpose === 'outreach_generation';
 }

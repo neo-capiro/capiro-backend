@@ -3,7 +3,7 @@
   "inputSHA256": {
     "package.json": "e4996714d6c89ce4b13e1d2429d8883f00881fe3c9ff3e9ae09cc46ac1e23a5d",
     "pnpm-lock.yaml": "23e8c69466f1138bcf6966b318dd19138a8f261c03260830a1f76b420eea8ddc",
-    "apps/api/package.json": "a3e7139e95c26cbfc875b4dd5185164ecd0eb13d74c30ff8dd68a8ff74a4243a",
+    "apps/api/package.json": "6681923a78d096a8eaffc06abfa14fc203c6cc0b30b19ebfbc6cebfb36cd4c6a",
     "packages/shared/package.json": "0cbe9e379edb8eddb1e7008a71fe280ab315e119cb7dbc29bae79cfe6040d793",
     "packages/meriv2-core/package.json": "d124c8cac43b05a1f43ba3f0f7223d328188881463c5378c60724a26f43f515a",
     "packages/defense-contracts/package.json": "5b36d4bf65df01c497cfd6d92c6b62133ad40e2935387c615ae380421edd1b47",

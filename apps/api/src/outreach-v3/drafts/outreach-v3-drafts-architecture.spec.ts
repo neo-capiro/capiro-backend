@@ -61,63 +61,11 @@ describe('Outreach V3 exact draft approval architecture', () => {
     expect(service).not.toContain('GenerationGatewayService');
   });
 
-  it('freezes the exact draft authority manifest', () => {
-    const manifest = JSON.parse(
-      readApi('src/outreach-v3/__fixtures__/outreach-v3-drafts-route-manifest.v1.json'),
-    ) as {
-      runtime: string;
-      requiresStateFlag: string;
-      featureFlag: string;
-      disabledBehavior: number;
-      routes: Array<Record<string, unknown>>;
-      authority: Record<string, boolean>;
-    };
-    expect(manifest.runtime).toBe('engagement-api');
-    expect(manifest.requiresStateFlag).toBe('OUTREACH_V3_STATE_ENABLED');
-    expect(manifest.featureFlag).toBe('OUTREACH_V3_DRAFTS_ENABLED');
-    expect(manifest.disabledBehavior).toBe(404);
-    // Frozen against the real OutreachV3DraftsController surface: read paths
-    // plus append-only revise plus governed refine plus exact-version approval.
-    // Draft mutation is append-only (each revise/refine creates a new immutable
-    // version) rather than absent, which is what `appendOnlyDraftMutation`
-    // records.
-    expect(manifest.routes).toEqual([
-      {
-        method: 'GET',
-        path: '/api/engagement/outreach-v3/sessions/:sessionId/drafts',
-        handler: 'list',
-      },
-      {
-        method: 'GET',
-        path: '/api/engagement/outreach-v3/sessions/:sessionId/drafts/:versionId',
-        handler: 'getVersion',
-      },
-      {
-        method: 'POST',
-        path: '/api/engagement/outreach-v3/sessions/:sessionId/drafts/:artifactId/versions',
-        handler: 'revise',
-        humanDecisionOnly: true,
-      },
-      {
-        method: 'POST',
-        path: '/api/engagement/outreach-v3/sessions/:sessionId/drafts/:artifactId/refine',
-        handler: 'refine',
-        humanDecisionOnly: true,
-      },
-      {
-        method: 'POST',
-        path: '/api/engagement/outreach-v3/sessions/:sessionId/drafts/:versionId/approval',
-        handler: 'approveVersion',
-        humanDecisionOnly: true,
-      },
-    ]);
-    expect(manifest.authority).toEqual({
-      appendOnlyDraftMutation: true,
-      exactVersionAuthorApproval: true,
-      preflight: false,
-      sendIntent: false,
-      mailProviderAction: false,
-      memoryCommit: false,
-    });
+  it('preserves append-only manual edits without the retired refine producer', () => {
+    const controller = readApi('src/outreach-v3/drafts/outreach-v3-drafts.controller.ts');
+    const module = readApi('src/outreach-v3/drafts/outreach-v3-drafts.module.ts');
+    expect(controller).toContain("@Post(':artifactId/versions')");
+    expect(controller).not.toContain("@Post(':artifactId/refine')");
+    expect(module).not.toContain('OutreachV3DraftRefineService');
   });
 });

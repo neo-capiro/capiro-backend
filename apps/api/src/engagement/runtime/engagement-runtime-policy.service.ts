@@ -221,32 +221,6 @@ export class EngagementRuntimePolicyService {
     return true;
   }
 
-  /**
-   * Dedicated exception for Outreach V3 full generation. It does not change
-   * global background ownership and cannot start any other Engagement worker.
-   */
-  outreachV3FullGenerationWorkerEnabled(): boolean {
-    return (
-      this.externalActionsMode !== 'integrations_only' &&
-      this.externalActionsMode !== 'integrations_and_notetaker' &&
-      this.serviceName === 'engagement-api' &&
-      process.env.OUTREACH_V3_STATE_ENABLED === 'true' &&
-      process.env.OUTREACH_V3_GENERATION_ENABLED === 'true' &&
-      process.env.OUTREACH_V3_DRAFTS_ENABLED === 'true' &&
-      process.env.OUTREACH_V3_FULL_GENERATION_ENABLED === 'true'
-    );
-  }
-
-  assertOutreachV3FullGenerationWorker(): void {
-    if (!this.outreachV3FullGenerationWorkerEnabled()) {
-      throw new ServiceUnavailableException({
-        statusCode: 503,
-        code: 'OUTREACH_V3_FULL_GENERATION_WORKER_DISABLED',
-        message: 'The Outreach V3 full-generation worker is disabled.',
-      });
-    }
-  }
-
   /** Dedicated exception for the send-intent worker, scoped to V3 sessions. */
   outreachV3SendIntentWorkerEnabled(): boolean {
     return (

@@ -20,10 +20,10 @@ describe('explicit Engagement worker shells', () => {
     jest.useRealTimers();
   });
 
-  it('current/future owner starts one outreach-generation timer and repeat init is idempotent', () => {
+  it('current/future owner starts one outreach-send timer and repeat init is idempotent', () => {
     const service = new OutreachJobWorkerService(
       { runWorkerTick: jest.fn().mockResolvedValue(undefined) } as never,
-      config({ OUTREACH_ASYNC_GEN: true, OUTREACH_ASYNC_SEND: false, OUTREACH_JOB_SWEEP_MS: 1000 }) as never,
+      config({ OUTREACH_ASYNC_SEND: true, OUTREACH_JOB_SWEEP_MS: 1000 }) as never,
       runtime(true) as never,
     );
     service.onModuleInit();
@@ -33,11 +33,25 @@ describe('explicit Engagement worker shells', () => {
     expect(jest.getTimerCount()).toBe(0);
   });
 
-  it('owner mismatch starts zero outreach-generation timers', () => {
+  it('owner mismatch starts zero outreach-send timers', () => {
     const service = new OutreachJobWorkerService(
       { runWorkerTick: jest.fn() } as never,
-      config({ OUTREACH_ASYNC_GEN: true, OUTREACH_ASYNC_SEND: false, OUTREACH_JOB_SWEEP_MS: 1000 }) as never,
+      config({ OUTREACH_ASYNC_SEND: true, OUTREACH_JOB_SWEEP_MS: 1000 }) as never,
       runtime(false) as never,
+    );
+    service.onModuleInit();
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  it('a retired generation-only flag cannot start a worker', () => {
+    const service = new OutreachJobWorkerService(
+      { runWorkerTick: jest.fn() } as never,
+      config({
+        OUTREACH_ASYNC_GEN: true,
+        OUTREACH_ASYNC_SEND: false,
+        OUTREACH_JOB_SWEEP_MS: 1000,
+      }) as never,
+      runtime(true) as never,
     );
     service.onModuleInit();
     expect(jest.getTimerCount()).toBe(0);

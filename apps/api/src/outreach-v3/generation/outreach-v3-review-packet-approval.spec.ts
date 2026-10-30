@@ -1,21 +1,9 @@
-import type { PinnedGenerationIdentity } from '../../engagement/generation/generation-gateway.types.js';
-import {
-  buildOutreachV3FullGenerationJob,
-  isOutreachV3FullGenerationJobCurrent,
-} from './outreach-v3-full-generation-job.js';
 import {
   createOutreachV3ReviewPacketApprovalSnapshot,
   isOutreachV3ApproachApprovalCurrent,
   isOutreachV3ReviewPacketApproval,
 } from './outreach-v3-generation-approach.js';
 import type { OutreachV3GenerationPlan } from './outreach-v3-generation-plan.js';
-
-const pin: PinnedGenerationIdentity = {
-  provider: 'anthropic',
-  model: 'model-a',
-  planModel: null,
-  promptSpecVersion: 'v2',
-};
 
 function plan(): OutreachV3GenerationPlan {
   const keys = ['slot-a', 'slot-b'];
@@ -70,30 +58,10 @@ describe('Outreach V3 guided review-packet generation gate', () => {
       ),
     ).toBe(false);
     expect(
-      isOutreachV3ApproachApprovalCurrent(
-        { ...campaignPlan, specHash: 'c'.repeat(64) },
-        approval,
-      ),
+      isOutreachV3ApproachApprovalCurrent({ ...campaignPlan, specHash: 'c'.repeat(64) }, approval),
     ).toBe(false);
     expect(
-      isOutreachV3ApproachApprovalCurrent(
-        { ...campaignPlan, planHash: 'd'.repeat(64) },
-        approval,
-      ),
+      isOutreachV3ApproachApprovalCurrent({ ...campaignPlan, planHash: 'd'.repeat(64) }, approval),
     ).toBe(false);
-  });
-
-  it('authorizes only unfinished async generation slots', () => {
-    const campaignPlan = plan();
-    const approval = createOutreachV3ReviewPacketApprovalSnapshot(campaignPlan);
-    const job = buildOutreachV3FullGenerationJob({
-      plan: campaignPlan,
-      approachApproval: approval,
-      completedGenerationKeys: ['slot-a'],
-      pinned: pin,
-    });
-
-    expect(job.items).toEqual([{ generationKey: 'slot-b' }]);
-    expect(isOutreachV3FullGenerationJobCurrent(job, campaignPlan, approval)).toBe(true);
   });
 });

@@ -89,10 +89,21 @@ describe('OutreachStateRepository.listOwnedSessions', () => {
     await list(repository, tx, { search: '  50%_\\ topic  ', limit: 25, offset: 100 });
     const where = seen.sql.slice(seen.sql.indexOf('WHERE'), seen.sql.indexOf('ORDER BY'));
     expect(where).toContain("strpos(lower(COALESCE(s.title, '')), lower(?)) > 0");
-    expect(where).toContain("strpos(lower(COALESCE(v.spec_jsonb -> 'goal' ->> 'topic', '')), lower(?)) > 0");
-    expect(where).toContain("strpos(lower(COALESCE(v.spec_jsonb -> 'goal' ->> 'goal', '')), lower(?)) > 0");
+    expect(where).toContain(
+      "strpos(lower(COALESCE(v.spec_jsonb -> 'goal' ->> 'topic', '')), lower(?)) > 0",
+    );
+    expect(where).toContain(
+      "strpos(lower(COALESCE(v.spec_jsonb -> 'goal' ->> 'goal', '')), lower(?)) > 0",
+    );
     expect(where).not.toContain('ILIKE');
-    expect(seen.values).toEqual([ctx.tenantId, ctx.userId, false, ...Array(4).fill('50%_\\ topic'), 25, 100]);
+    expect(seen.values).toEqual([
+      ctx.tenantId,
+      ctx.userId,
+      false,
+      ...Array(4).fill('50%_\\ topic'),
+      25,
+      100,
+    ]);
     expect(seen.sql.indexOf('ORDER BY')).toBeLessThan(seen.sql.indexOf('LIMIT'));
   });
 
@@ -143,14 +154,11 @@ describe('OutreachStateRepository.listOwnedSessions', () => {
     expect(seen.sql).not.toContain("'completed'");
   });
 
-  it('uses the same reserved artifact-root type the artifact-root service writes', () => {
+  it('uses the reserved artifact-root type retained by the state owner', () => {
     // The type string is declared locally to avoid a persistence→drafts module
     // dependency, so it needs a real cross-check rather than a copy of itself.
-    const service = readFileSync(
-      resolve(__dirname, '../drafts/outreach-v3-artifact-root.service.ts'),
-      'utf8',
-    );
-    expect(service).toContain("OUTREACH_V3_INTERNAL_RECORD_TYPE = 'outreach_v3'");
+    const service = readFileSync(resolve(__dirname, './outreach-state.repository.ts'), 'utf8');
+    expect(service).toContain("OUTREACH_V3_ARTIFACT_ROOT_TYPE = 'outreach_v3'");
   });
 
   it('skips the artifact-root read entirely when there are no sessions', async () => {

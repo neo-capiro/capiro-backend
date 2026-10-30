@@ -40,11 +40,7 @@ function makeController(opts: {
       return opts.approvedVersionIds?.has(versionId) ? { versionId } : null;
     }),
   };
-  const controller = new OutreachV3DraftsController(
-    approvals as never,
-    drafts as never,
-    {} as never,
-  );
+  const controller = new OutreachV3DraftsController(approvals as never, drafts as never);
   return { controller, drafts, approvals, calls };
 }
 

@@ -105,15 +105,14 @@ const R = {
   campaignDetail: 'GET /api/engagement/campaigns/:id',
   insights: 'GET /api/engagement/outreach/insights',
 
-  // Shadow-denied. Note the first one is a GET that still generates.
-  templatePreview: 'GET /api/engagement/outreach/ai-templates/:id/preview',
-  genCampaign: 'POST /api/engagement/campaigns/:id/generate',
-  genBatch: 'POST /api/engagement/outreach/generate-batch',
-  genJob: 'POST /api/engagement/outreach/jobs/generate',
-  genDraft: 'POST /api/engagement/outreach/:id/generate-draft',
+  // Shadow-denied generation. The V3 full-generation routes (batch, job, draft,
+  // retry and the per-template preview) no longer exist: campaign generation runs
+  // through the saved campaign plus the SDK claim/complete handshake.
+  genCampaign: 'POST /api/engagement/outreach/campaigns/:id/generate',
+  genClaim: 'POST /api/engagement/outreach/sdk/claim',
+  genComplete: 'POST /api/engagement/outreach/sdk/complete',
   genVersion: 'POST /api/engagement/outreach/draft-artifacts/:artifactId/versions',
   genTalkingPoints: 'POST /api/engagement/outreach/insights/talking-points',
-  genRetry: 'POST /api/engagement/outreach/jobs/:id/items/:itemId/retry',
   testSend: 'POST /api/engagement/campaigns/:id/send-test',
   sendCampaign: 'POST /api/engagement/campaigns/:id/send',
   sendOutreach: 'POST /api/engagement/outreach/:id/send-campaign',
@@ -123,14 +122,11 @@ const R = {
 } as const;
 
 const GENERATION_ROUTES = [
-  R.templatePreview,
   R.genCampaign,
-  R.genBatch,
-  R.genJob,
-  R.genDraft,
+  R.genClaim,
+  R.genComplete,
   R.genVersion,
   R.genTalkingPoints,
-  R.genRetry,
 ];
 const SEND_ROUTES = [
   R.testSend,

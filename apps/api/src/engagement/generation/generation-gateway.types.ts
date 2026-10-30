@@ -18,6 +18,10 @@ export interface GenerationRequest {
   clientId: string | null;
   /** Phase 0 parent record (required for outreach_email). */
   outreachRecordId?: string | null;
+  /** Saved SDK campaign revision checked atomically when the version is inserted. */
+  expectedCampaignRevision?: number;
+  expectedArtifactVersion?: number;
+  generationJobId?: string;
   /** Surface anchor persisted on the packet. */
   ref?: Record<string, string | null>;
   items: SelectedContextItemRef[];
