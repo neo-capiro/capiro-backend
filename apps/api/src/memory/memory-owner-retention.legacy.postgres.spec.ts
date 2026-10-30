@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { Client } from 'pg';
 import { ownerRetentionDatabase } from './memory-owner-retention.postgres-fixture.js';
 
@@ -11,7 +13,34 @@ const tenant = id(1),
   contradictory = id(6),
   unowned = id(7),
   departed = id(8);
+
+/** Historical-guard functions observed on those tables before 0500. */
+const HISTORICAL_FUNCTIONS = [
+  'check_client_ordered_owners',
+  'enforce_memory_review_assignment_on_decision',
+  'ensure_memory_review_request_for_candidate',
+  'guard_held_memory_terminal_transition',
+  'guard_immutable_memory_version_insert',
+  'guard_memory_version_candidate_activation',
+  'guard_noncontrolling_memory_supersession',
+  'set_updated_at',
+  'sync_memory_review_request_terminal_status',
+];
+const preMigrationHashes = new Map<string, string>();
+
 async function seedLegacy(db: Client) {
+  // Bounded compatibility prefix: the real pre-0500 guard functions and their
+  // triggers exist before the forward migration, as they do on the cluster.
+  await db.query(
+    readFileSync(join(__dirname, '../../test/fixtures/memory-owner-historical-prefix.sql'), 'utf8'),
+  );
+  const observed = await db.query(
+    `SELECT p.proname, md5(p.prosrc) AS hash FROM pg_proc p
+     JOIN pg_namespace n ON n.oid=p.pronamespace
+     WHERE n.nspname='public' AND p.proname = ANY($1::text[])`,
+    [HISTORICAL_FUNCTIONS],
+  );
+  for (const row of observed.rows) preMigrationHashes.set(row.proname, row.hash);
   await db.query('BEGIN');
   try {
     await db.query(
@@ -89,6 +118,30 @@ async function seedLegacy(db: Client) {
         (await store.db.memoryItem.findUniqueOrThrow({ where: { id: unowned } }))
           .retentionSubjectId,
       ).toBeNull();
+    });
+    it('keeps the historical guard prefix present, unmodified and name-ordered', async () => {
+      const live = await store.db.$queryRawUnsafe<{ proname: string; hash: string }[]>(
+        `SELECT p.proname, md5(p.prosrc) AS hash FROM pg_proc p
+         JOIN pg_namespace n ON n.oid=p.pronamespace
+         WHERE n.nspname='public' AND p.proname = ANY($1::text[])`,
+        HISTORICAL_FUNCTIONS,
+      );
+      expect(new Set(live.map((row) => row.proname))).toEqual(new Set(HISTORICAL_FUNCTIONS));
+      for (const row of live) expect(row.hash).toBe(preMigrationHashes.get(row.proname));
+      // Same-timing firing order is by trigger name. memory_items_bind_retention
+      // must stay first, ahead of the pre-existing guards, as on the cluster.
+      const triggers = await store.db.$queryRawUnsafe<{ tgname: string }[]>(
+        `SELECT t.tgname FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+         WHERE c.relname='memory_items' AND c.relnamespace='public'::regnamespace
+           AND NOT t.tgisinternal ORDER BY t.tgname`,
+      );
+      expect(triggers.map((row) => row.tgname)).toEqual([
+        'memory_items_bind_retention',
+        'memory_items_controlling_supersession_guard',
+        'memory_items_immutable_version_insert_guard',
+        'memory_items_legal_hold_transition_guard',
+        'memory_items_retention_deletion',
+      ]);
     });
   },
 );

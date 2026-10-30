@@ -295,20 +295,37 @@ LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path=public,pg_temp AS $$
           WHERE client.tenant_id=s.tenant_id AND client.id=s.owner_id AND client.status='active'))))
 $$;
 -- The inner read must see suppressed destinations even when the function owner
--- is subject to FORCE RLS. PostgreSQL restores this fixed GUC on function exit.
+-- is subject to FORCE RLS. A static `SET app.bypass_rls='on'` clause is validated
+-- when the function is created and is refused for the non-superuser migration
+-- role, so the bypass is applied inside the body and the caller's prior value is
+-- restored on success and on error (the save/restore mechanism already used by
+-- 20261120210200_phase8_defense_program_admin_boundary). Without the restore the
+-- transaction-local setting would leak into the rest of the caller's transaction.
 -- Only the tenant-bound outer function can invoke it as the owning role.
 CREATE FUNCTION memory_retention_edge_sources(p_tenant uuid,p_source uuid,p_type text,p_slug text) RETURNS boolean
-LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path=public,pg_temp SET app.bypass_rls='on' AS $$
-  SELECT EXISTS(SELECT 1 FROM memory_items m WHERE m.tenant_id=p_tenant AND m.id=p_source
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=public,pg_temp AS $$
+DECLARE prior text:=current_setting('app.bypass_rls',true); allowed boolean;
+BEGIN
+  PERFORM set_config('app.bypass_rls','on',true);
+  allowed:=(SELECT EXISTS(SELECT 1 FROM memory_items m WHERE m.tenant_id=p_tenant AND m.id=p_source
       AND memory_retention_visible(m.tenant_id,m.retention_subject_id))
     AND NOT EXISTS(SELECT 1 FROM memory_items target WHERE target.tenant_id=p_tenant AND target.type=p_type AND target.slug=p_slug
-      AND NOT memory_retention_visible(target.tenant_id,target.retention_subject_id))
-$$;
+      AND NOT memory_retention_visible(target.tenant_id,target.retention_subject_id)));
+  PERFORM set_config('app.bypass_rls',COALESCE(prior,''),true);
+  RETURN allowed;
+EXCEPTION WHEN OTHERS THEN
+  PERFORM set_config('app.bypass_rls',COALESCE(prior,''),true);
+  RAISE;
+END $$;
 REVOKE ALL ON FUNCTION memory_retention_edge_sources(uuid,uuid,text,text) FROM PUBLIC;
 CREATE FUNCTION memory_retention_edge_visible(p_tenant uuid,p_source uuid,p_type text,p_slug text) RETURNS boolean
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=public,pg_temp AS $$
 BEGIN
-  IF NOT rls_bypass() AND p_tenant IS DISTINCT FROM current_tenant_id() THEN RETURN false; END IF;
+  -- rls_bypass() reads current_setting(...,true)='on' and is NULL when the GUC
+  -- was never set, so an explicit "IS NOT TRUE" is required: `NOT NULL` is
+  -- NULL, which would skip this RETURN and let a caller-supplied other tenant
+  -- reach the privileged SECURITY DEFINER read.
+  IF rls_bypass() IS NOT TRUE AND p_tenant IS DISTINCT FROM current_tenant_id() THEN RETURN false; END IF;
   RETURN memory_retention_edge_sources(p_tenant,p_source,p_type,p_slug);
 END $$;
 CREATE POLICY memory_items_owner_retention ON memory_items AS RESTRICTIVE FOR SELECT
