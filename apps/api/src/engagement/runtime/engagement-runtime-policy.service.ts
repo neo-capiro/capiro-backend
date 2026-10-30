@@ -20,6 +20,7 @@ import {
   mailHandoff as processMailHandoff,
   type EngagementMailHandoffBarrier,
 } from './engagement-mail-handoff.js';
+import { meetingPrepEnabled } from '../meeting-prep-policy.js';
 
 /**
  * Central runtime policy service for the Engagement API extraction.
@@ -239,6 +240,60 @@ export class EngagementRuntimePolicyService {
         statusCode: 503,
         code: 'OUTREACH_V3_SEND_WORKER_DISABLED',
         message: 'The Outreach V3 send-intent worker is disabled.',
+      });
+    }
+  }
+
+  /**
+   * Dedicated exception for the comprehensive meeting-prep worker on the final API owner.
+   *
+   * It admits ONLY the meeting-prep worker, and only on the exact accepted final tuple: the API
+   * service in its active process mode, the API background owner, external actions enabled,
+   * callbacks enabled, Recall webhooks disabled, the existing `integration_sync_scheduler`
+   * restriction and an unphased (open) mail-handoff barrier. The comprehensive-prep feature flag
+   * gates every branch in `meetingPrepWorkerEnabled()` below, so it is not re-checked here.
+   * The generic scheduler-only selector keeps its exact meaning and is not widened.
+   */
+  private meetingPrepComprehensiveExceptionEnabled(): boolean {
+    return (
+      this.serviceName === 'api' &&
+      this.processMode === 'active' &&
+      this.backgroundOwner === 'api' &&
+      this.externalActionsMode === 'enabled' &&
+      this.callbacksEnabled &&
+      !this.recallWebhookEnabled &&
+      this.backgroundWorkerRestriction === 'integration_sync_scheduler' &&
+      this.mailHandoffPhase() === 'off'
+    );
+  }
+
+  /**
+   * The single ownership predicate for the meeting-prep worker: startup and tick both consult it.
+   * The existing comprehensive-prep feature flag is required for EVERY branch, so a legacy generic
+   * owner keeps its original flag-off behavior (no timer, no tick) instead of starting on ownership
+   * alone. When the flag is on, the existing named background policy remains authoritative where it
+   * already admits prep; the dedicated exception above is the only additional admission and applies
+   * to the meeting-prep worker alone.
+   */
+  meetingPrepWorkerEnabled(): boolean {
+    if (!meetingPrepEnabled()) return false;
+    if (this.backgroundWorkersEnabled('meeting-prep-worker')) return true;
+    return this.meetingPrepComprehensiveExceptionEnabled();
+  }
+
+  assertMeetingPrepWorker(): void {
+    if (!this.meetingPrepWorkerEnabled()) {
+      this.logger.log(
+        `meeting-prep-worker disabled by engagement runtime policy ` +
+          `(service=${this.serviceName} owner=${this.backgroundOwner} mode=${this.processMode})`,
+      );
+      // Same stable denial contract as every other background-owner refusal; the worker name keeps it
+      // distinguishable without adding a new error taxonomy for this internal ownership change.
+      throw new ServiceUnavailableException({
+        statusCode: 503,
+        code: 'ENGAGEMENT_BACKGROUND_DISABLED',
+        worker: 'meeting-prep-worker',
+        message: 'Background workers are disabled in the engagement-api shadow runtime.',
       });
     }
   }
