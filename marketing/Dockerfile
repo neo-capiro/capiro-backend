@@ -11,8 +11,7 @@ FROM node:${NODE_VERSION} AS build
 WORKDIR /build
 COPY marketing/build.mjs ./build.mjs
 COPY marketing/templates ./templates
-# build.mjs requires exactly --write (no-args/other args exit 2) and writes into OUT_DIR.
-RUN mkdir -p /out && OUT_DIR=/out node build.mjs --write
+RUN mkdir -p /out && OUT_DIR=/out node build.mjs
 
 # ---- runtime stage ----
 FROM nginxinc/nginx-unprivileged:${NGINX_VERSION} AS runtime
