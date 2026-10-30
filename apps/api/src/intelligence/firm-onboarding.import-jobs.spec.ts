@@ -1,6 +1,7 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
+import { Prisma } from '@prisma/client';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { ClientPrepopulationService } from './client-prepopulation.service.js';
 import type { SamEntityEnrichmentService } from './sam-entity.service.js';
@@ -45,6 +46,8 @@ interface ClientRow {
   intakeData: object;
   createdByUserId: string | null;
   status: string;
+  memoryWall: boolean;
+  memoryGrants: string[];
 }
 interface MappingRow {
   tenantId: string;
@@ -179,22 +182,63 @@ const makeHarness = () => {
     mappings: [] as MappingRow[],
     jobs: [] as JobRow[],
     items: [] as ItemRow[],
+    memberships: [
+      { tenantId: tenantIdA, userId: ctxA.userId, role: 'user_admin', status: 'active' },
+      { tenantId: tenantIdB, userId: ctxB.userId, role: 'user_admin', status: 'active' },
+    ] as Array<{ tenantId: string; userId: string; role: string; status: string }>,
   };
 
-  const state = { failCreatedItemUpdateOnce: false };
+  /** userId -> clerkUserId, for the current-actor membership check. */
+  const users = new Map([
+    [ctxA.userId, ctxA.clerkUserId],
+    [ctxB.userId, ctxB.clerkUserId],
+  ]);
+
+  const state = {
+    failCreatedItemUpdateOnce: false,
+    /** Set to a requestKey to make the next create abort with a committed winner. */
+    raceKey: null as string | null,
+    raceWinnerSha: null as string | null,
+    pendingWinner: null as { job: JobRow; items: ItemRow[] } | null,
+    abortViolations: 0,
+  };
+
+  const revokeMembership = (ctx: TenantContext) => {
+    rows.memberships = rows.memberships.filter(
+      (membership) => !(membership.tenantId === ctx.tenantId && membership.userId === ctx.userId),
+    );
+  };
+
+  const wallClient = (clientId: string) => {
+    const client = rows.clients.find((row) => row.id === clientId)!;
+    client.memoryWall = true;
+  };
+
+  const grantWall = (clientId: string, userId: string) => {
+    rows.clients.find((row) => row.id === clientId)!.memoryGrants.push(userId);
+  };
 
   const snapshot = () => structuredClone(rows);
   const restore = (snap: ReturnType<typeof snapshot>) => {
     Object.assign(rows, snap);
   };
 
-  const makeTx = (scopeTenantId: string) => {
-    const tenantJobs = (where?: Where) =>
-      rows.jobs.filter(
-        (job) =>
-          job.tenantId === scopeTenantId &&
-          matches(where, job as unknown as Record<string, unknown>),
-      );
+  const makeTx = (scopeTenantId: string, aborted: { value: boolean }) => {
+    const tenantJobs = (where?: Where) => {
+      const itemsFilter = where?.items as { none?: { clientId?: { in?: string[] } } } | undefined;
+      const denied = itemsFilter?.none?.clientId?.in;
+      return rows.jobs.filter((job) => {
+        if (job.tenantId !== scopeTenantId) return false;
+        if (!matches(where, job as unknown as Record<string, unknown>)) return false;
+        if (denied && denied.length > 0) {
+          const hidden = rows.items.some(
+            (item) => item.jobId === job.id && item.clientId && denied.includes(item.clientId),
+          );
+          if (hidden) return false;
+        }
+        return true;
+      });
+    };
     const tenantItems = (where?: Where) =>
       rows.items.filter(
         (item) =>
@@ -210,8 +254,30 @@ const makeHarness = () => {
         ),
         update: jest.fn(async () => undefined),
       },
+      tenantMembership: {
+        findFirst: jest.fn(async ({ where }: { where: Where }) => {
+          const user = where.user as { clerkUserId?: string } | undefined;
+          const tenant = where.tenant as { status?: string } | undefined;
+          const membership = rows.memberships.find(
+            (row) =>
+              row.tenantId === where.tenantId &&
+              row.userId === where.userId &&
+              row.status === 'active' &&
+              users.get(row.userId) === user?.clerkUserId &&
+              (!tenant?.status ||
+                rows.tenants.find((t) => t.id === row.tenantId)?.id === row.tenantId),
+          );
+          return membership ? { role: membership.role } : null;
+        }),
+      },
       firmImportJob: {
         findFirst: jest.fn(async ({ where, include }: { where?: Where; include?: unknown }) => {
+          if (aborted.value) {
+            state.abortViolations += 1;
+            throw new Error(
+              'current transaction is aborted, commands ignored until end of transaction block',
+            );
+          }
           const row = tenantJobs(where)[0];
           if (!row) return null;
           return include ? withItems(row, rows.items) : { ...row };
@@ -225,6 +291,46 @@ const makeHarness = () => {
         ),
         create: jest.fn(async ({ data }: { data: Partial<JobRow> }) => {
           const now = new Date();
+          if (state.raceKey && data.requestKey === state.raceKey) {
+            // A concurrent writer committed this (tenant, requestKey) first.
+            // PostgreSQL aborts THIS transaction; nothing else here may run.
+            const winnerId = randomUUID();
+            state.pendingWinner = {
+              job: {
+                id: winnerId,
+                tenantId: data.tenantId as string,
+                requestedByUserId: data.requestedByUserId as string,
+                requestKey: data.requestKey as string,
+                requestSha256: state.raceWinnerSha ?? (data.requestSha256 as string),
+                ldaRegistrantId: data.ldaRegistrantId as number,
+                requestedIds: data.requestedIds as number[],
+                status: 'queued',
+                startedAt: null,
+                finishedAt: null,
+                createdAt: now,
+                updatedAt: now,
+              },
+              items: (data.requestedIds as number[]).map((ldaClientId) => ({
+                id: randomUUID(),
+                tenantId: data.tenantId as string,
+                jobId: winnerId,
+                ldaClientId,
+                outcome: 'pending',
+                code: null,
+                clientId: null,
+                processedAt: null,
+                createdAt: now,
+                updatedAt: now,
+              })),
+            };
+            state.raceKey = null;
+            aborted.value = true;
+            throw new Prisma.PrismaClientKnownRequestError('unique constraint', {
+              clientVersion: '5.22.0',
+              code: 'P2002',
+              meta: { target: ['tenant_id', 'request_key'] },
+            });
+          }
           const row: JobRow = {
             id: randomUUID(),
             tenantId: data.tenantId as string,
@@ -293,6 +399,10 @@ const makeHarness = () => {
         count: jest.fn(async ({ where }: { where?: Where }) => tenantJobs(where).length),
       },
       firmImportJobItem: {
+        findFirst: jest.fn(async ({ where }: { where?: Where }) => {
+          const row = tenantItems(where)[0];
+          return row ? { id: row.id } : null;
+        }),
         createMany: jest.fn(async ({ data }: { data: Array<Partial<ItemRow>> }) => {
           const now = new Date();
           for (const item of data) {
@@ -363,6 +473,8 @@ const makeHarness = () => {
             intakeData: (data.intakeData as object) ?? {},
             createdByUserId: (data.createdByUserId as string | null) ?? null,
             status: 'active',
+            memoryWall: false,
+            memoryGrants: [],
           };
           rows.clients.push(row);
           return { id: row.id, name: row.name };
@@ -386,6 +498,17 @@ const makeHarness = () => {
       $executeRawUnsafe: jest.fn(async () => 0),
       $executeRaw: jest.fn(async () => 0),
       $queryRaw: jest.fn(async () => [rows.tenants.find((tenant) => tenant.id === scopeTenantId)]),
+      $queryRawUnsafe: jest.fn(async (sql: string, tenantId: string, userId: string | null) => {
+        if (!sql.includes('c.memory_wall')) throw new Error('Unexpected fixture raw query');
+        return rows.clients
+          .filter(
+            (client) =>
+              client.tenantId === tenantId &&
+              client.memoryWall &&
+              (userId === null || !client.memoryGrants.includes(userId)),
+          )
+          .map((client) => ({ id: client.id }));
+      }),
     };
 
     return tx;
@@ -395,10 +518,18 @@ const makeHarness = () => {
     withTenant: jest.fn(
       async <T>(scopeTenantId: string, fn: (tx: unknown) => Promise<T>): Promise<T> => {
         const snap = snapshot();
+        const aborted = { value: false };
         try {
-          return await fn(makeTx(scopeTenantId));
+          return await fn(makeTx(scopeTenantId, aborted));
         } catch (error) {
+          // Roll back this transaction, then let an independently committed
+          // unique-key winner become visible to the caller's NEW transaction.
           restore(snap);
+          if (state.pendingWinner) {
+            rows.jobs.push(state.pendingWinner.job);
+            rows.items.push(...state.pendingWinner.items);
+            state.pendingWinner = null;
+          }
           throw error;
         }
       },
@@ -419,7 +550,7 @@ const makeHarness = () => {
     },
   };
 
-  return { rows, prisma, state };
+  return { rows, prisma, state, revokeMembership, wallClient, grantWall };
 };
 
 type Harness = ReturnType<typeof makeHarness>;
@@ -671,5 +802,181 @@ describe('firm LDA importer durable job view', () => {
     expect(secondPage.jobs.map((job) => job.id)).toEqual(expected.slice(2));
     expect(secondPage.nextCursor).toBeNull();
     expect(secondPage.population.total).toBe(3);
+  });
+});
+
+describe('firm import job visibility and transaction corrections', () => {
+  it('hides a whole job whose outcome references an inaccessible walled client, and restores it on grant', async () => {
+    const harness = makeHarness();
+    const { service, store } = makeService(harness);
+    const requestId = randomUUID();
+    const imported = await service.importClients(ctxA, [10, 11], { requestId });
+    const clientId = imported.items.find((item) => item.ldaClientId === 10)!.id;
+
+    harness.wallClient(clientId);
+
+    const list = await service.listImportJobs(ctxA);
+    expect(list.jobs).toEqual([]);
+    expect(list.population.total).toBe(0);
+    await expect(service.getImportJob(ctxA, imported.job.id)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    await expect(service.getImportJobStatus(ctxA, imported.job.id)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(await store.getJobByRequest(ctxA, requestId)).toBeNull();
+    // POST replay of the same identity must not leak or re-import.
+    await expect(service.importClients(ctxA, [10, 11], { requestId })).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(harness.rows.clients).toHaveLength(2);
+
+    harness.grantWall(clientId, ctxA.userId);
+    const visible = await service.getImportJob(ctxA, imported.job.id);
+    expect(visible.id).toBe(imported.job.id);
+    expect(visible.items.map((item) => item.ldaClientId)).toEqual([10, 11]);
+  });
+
+  it('denies a revoked membership/current actor before any job or client read', async () => {
+    const harness = makeHarness();
+    const { service, store } = makeService(harness);
+    const requestId = randomUUID();
+    const imported = await service.importClients(ctxA, [10], { requestId });
+
+    harness.revokeMembership(ctxA);
+
+    await expect(service.listImportJobs(ctxA)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.getImportJob(ctxA, imported.job.id)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    await expect(service.getImportJobStatus(ctxA, imported.job.id)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    await expect(
+      store.createOrReconcile(ctxA, { requestKey: randomUUID(), ldaRegistrantId: 7001, ids: [10] }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('writes the terminal projection atomically with the last item, with no finalize step', async () => {
+    const harness = makeHarness();
+    const { service, store } = makeService(harness);
+    const { job } = await store.createOrReconcile(ctxA, {
+      requestKey: randomUUID(),
+      ldaRegistrantId: 7001,
+      ids: [10, 11],
+    });
+    await store.markRunning(ctxA, job.id);
+
+    await harness.prisma.withTenant(ctxA.tenantId, async (tx) => {
+      const scoped = tx as Parameters<typeof store.markItemOutcome>[0];
+      await store.markItemOutcome(scoped, {
+        tenantId: ctxA.tenantId,
+        jobId: job.id,
+        ldaClientId: 10,
+        outcome: 'created',
+        clientId: randomUUID(),
+      });
+    });
+    // Not terminal yet: the second item is still pending.
+    expect(harness.rows.jobs[0]!.status).toBe('running');
+
+    await harness.prisma.withTenant(ctxA.tenantId, async (tx) => {
+      const scoped = tx as Parameters<typeof store.markItemOutcome>[0];
+      await store.markItemOutcome(scoped, {
+        tenantId: ctxA.tenantId,
+        jobId: job.id,
+        ldaClientId: 11,
+        outcome: 'rejected',
+        code: 'NOT_OWN_CLIENT',
+      });
+    });
+
+    // The same transaction that committed the last outcome already wrote the
+    // terminal status; no finalize call exists or is needed.
+    const persisted = harness.rows.jobs[0]!;
+    expect(persisted.status).toBe('partially_completed');
+    expect(persisted.finishedAt).not.toBeNull();
+    expect((store as unknown as { finalize?: unknown }).finalize).toBeUndefined();
+
+    const partial = await service.listImportJobs(ctxA, { status: 'partially_completed' });
+    expect(partial.jobs.map((entry) => entry.id)).toEqual([job.id]);
+    expect(partial.population).toMatchObject({ total: 1, partially_completed: 1, running: 0 });
+    const completed = await service.listImportJobs(ctxA, { status: 'completed' });
+    expect(completed.jobs).toEqual([]);
+    expect(completed.population.total).toBe(0);
+    const detail = await service.getImportJob(ctxA, job.id);
+    expect(detail.status).toBe('partially_completed');
+  });
+
+  it('uses the same atomic projection for all-rejected and completed jobs, and excludes hidden ones from counts', async () => {
+    const harness = makeHarness();
+    const { service, store } = makeService(harness);
+
+    const failed = await store.createOrReconcile(ctxA, {
+      requestKey: randomUUID(),
+      ldaRegistrantId: 7001,
+      ids: [99],
+    });
+    await harness.prisma.withTenant(ctxA.tenantId, async (tx) => {
+      const scoped = tx as Parameters<typeof store.markItemOutcome>[0];
+      await store.markItemOutcome(scoped, {
+        tenantId: ctxA.tenantId,
+        jobId: failed.job.id,
+        ldaClientId: 99,
+        outcome: 'rejected',
+        code: 'NOT_OWN_CLIENT',
+      });
+    });
+    expect(harness.rows.jobs[0]!.status).toBe('failed');
+
+    const completed = await service.importClients(ctxA, [10], { requestId: randomUUID() });
+    expect(harness.rows.jobs.find((row) => row.id === completed.job.id)!.status).toBe('completed');
+
+    const all = await service.listImportJobs(ctxA);
+    expect(all.population).toMatchObject({ total: 2, failed: 1, completed: 1 });
+    expect(
+      (await service.listImportJobs(ctxA, { status: 'failed' })).jobs.map((j) => j.id),
+    ).toEqual([failed.job.id]);
+
+    harness.wallClient(completed.items[0]!.id);
+    const hidden = await service.listImportJobs(ctxA);
+    expect(hidden.population).toMatchObject({ total: 1, failed: 1, completed: 0 });
+    expect((await service.listImportJobs(ctxA, { status: 'completed' })).population.total).toBe(0);
+  });
+
+  it('reconciles a simultaneous same-request key winner in a NEW transaction after the create aborts', async () => {
+    const harness = makeHarness();
+    const { store } = makeService(harness);
+    const requestId = randomUUID();
+    harness.state.raceKey = requestId;
+
+    const result = await store.createOrReconcile(ctxA, {
+      requestKey: requestId,
+      ldaRegistrantId: 7001,
+      ids: [10, 11],
+    });
+
+    expect(result.created).toBe(false);
+    expect(harness.state.abortViolations).toBe(0);
+    expect(harness.rows.jobs).toHaveLength(1);
+    expect(harness.rows.items).toHaveLength(2);
+    expect(result.job.id).toBe(harness.rows.jobs[0]!.id);
+    expect(result.job.items.map((item) => item.outcome)).toEqual(['pending', 'pending']);
+    expect(harness.rows.clients).toHaveLength(0);
+  });
+
+  it('keeps a changed request on the same identity a conflict even when it loses the unique race', async () => {
+    const harness = makeHarness();
+    const { store } = makeService(harness);
+    const requestId = randomUUID();
+    harness.state.raceKey = requestId;
+    harness.state.raceWinnerSha = 'a'.repeat(64);
+
+    await expect(
+      store.createOrReconcile(ctxA, { requestKey: requestId, ldaRegistrantId: 7001, ids: [10] }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(harness.state.abortViolations).toBe(0);
+    expect(harness.rows.jobs).toHaveLength(1);
+    expect(harness.rows.items).toHaveLength(1);
   });
 });

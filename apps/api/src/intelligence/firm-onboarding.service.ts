@@ -419,8 +419,8 @@ export class FirmOnboardingService {
       }
     }
 
-    const projection = await this.importJobs.getJob(ctx, job.id);
-    await this.importJobs.finalize(ctx, job.id, projection);
+    // Status/finishedAt were written atomically with the last item outcome, so
+    // this read is already authoritative; there is no post-commit finalize step.
     const finalJob = await this.importJobs.getJob(ctx, job.id);
 
     this.logger.log(

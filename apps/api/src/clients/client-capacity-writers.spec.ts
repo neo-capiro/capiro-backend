@@ -50,7 +50,9 @@ function fixture() {
       throw Error('Unexpected fixture query');
     }),
     tenantMembership: { findFirst: jest.fn(async () => ({ role: 'user_admin' })) },
-    $queryRawUnsafe: jest.fn(async () => [{ allowed: true }]),
+    $queryRawUnsafe: jest.fn(async (sql: string) =>
+      sql?.includes('memory_wall') ? [] : [{ allowed: true }],
+    ),
     tenant: { findUnique: jest.fn(async () => tenant()) },
     client: {
       count: jest.fn(async () => clients.filter((c) => c.status !== 'archived').length),
