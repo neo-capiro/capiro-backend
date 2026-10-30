@@ -594,8 +594,14 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
   // ── Worker ────────────────────────────────────────────────────────────────
 
   async runSweep(v3Only = false): Promise<void> {
+    // Ordinary and V3 ownership must be decided by the same predicates the worker's startup and
+    // tick use. The ordinary branch previously asserted the generic named background policy, which
+    // is false under the accepted scheduler-only restriction, so every real ordinary sweep was
+    // refused before touching the database. The dedicated predicate requires the existing
+    // versioned-outreach flag and the accepted final tuple, and leaves unnamed generic admission,
+    // the restriction list and the V3-only branch untouched.
     if (v3Only) this.runtimePolicy.assertOutreachV3SendIntentWorker();
-    else this.runtimePolicy.assertBackgroundOwner('outreach-send-intent-worker');
+    else this.runtimePolicy.assertOrdinaryOutreachSendWorker();
     await this.reconcileStale(v3Only);
     const intentId = await this.findRunnableIntentId(v3Only);
     if (!intentId) return;
