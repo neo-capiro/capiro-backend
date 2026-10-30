@@ -28,6 +28,7 @@ import { PreviewNativeReadService } from '../auth/preview-native-read.service.js
 import { CORE_ROSTER_PREVIEW_HOST } from '../auth/preview-native-read-mode.js';
 import { DURABLE_SET_ASIDE_CERTIFICATIONS } from '../funding-opportunities/set-aside.js';
 import { ClientsService } from './clients.service.js';
+import { PortfolioMetricsService } from './metrics/portfolio-metrics.service.js';
 import { CLIENT_ORGANIZATION_TYPES } from './client-funding-profile.validation.js';
 
 /**
@@ -330,7 +331,17 @@ export class ClientsController {
   constructor(
     private readonly service: ClientsService,
     private readonly preview: PreviewNativeReadService,
+    private readonly metrics: PortfolioMetricsService,
   ) {}
+
+  /**
+   * The portfolio pulse. Declared before `@Get(':id')` so the literal path is
+   * matched instead of being read as a client id.
+   */
+  @Get('metrics')
+  portfolioMetrics(@CurrentTenant() ctx: TenantContext) {
+    return this.metrics.getMetrics(ctx);
+  }
 
   @Get()
   list(
