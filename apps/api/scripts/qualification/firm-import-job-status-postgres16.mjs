@@ -62,10 +62,12 @@ const rejectedByCheck = (result) => {
   assert.match(result.stderr, /ERROR:\s+23514:/);
 };
 
-function insertItem(database, values) {
-  return sql(database, `INSERT INTO firm_import_job_items
+function insertItemCase(database, values) {
+  return sql(database, `BEGIN;
+INSERT INTO firm_import_job_items
     (tenant_id, job_id, lda_client_id, outcome, code, client_id, processed_at)
-    VALUES ('${tenant}', '${job}', 10, ${values});`, false);
+    VALUES ('${tenant}', '${job}', 10, ${values});
+ROLLBACK;`, false);
 }
 
 function outcomeShapeCases() {
@@ -79,10 +81,15 @@ function outcomeShapeCases() {
     ['rejected_internal', `'rejected', 'INTERNAL_ERROR', NULL, clock_timestamp()`],
   ];
   for (const [name, values] of valid) {
-    const result = insertItem('b12_schema', values);
+    const result = insertItemCase('b12_schema', values);
     assert.equal(result.status, 0, result.stderr);
     receipt.cases.push({ name: `outcome_valid_${name}`, passed: true });
   }
+  assert.equal(
+    query('b12_schema', `SELECT count(*) FROM firm_import_job_items WHERE job_id='${job}';`),
+    '0',
+    'the valid outcome cases must not persist rows between cases',
+  );
   const invalid = [
     ['rejected_null_code', `'rejected', NULL, NULL, clock_timestamp()`],
     ['rejected_unknown_code', `'rejected', 'UNKNOWN_CODE', NULL, clock_timestamp()`],
@@ -91,13 +98,13 @@ function outcomeShapeCases() {
     ['pending_with_processed', `'pending', NULL, NULL, clock_timestamp()`],
   ];
   for (const [name, values] of invalid) {
-    rejectedByCheck(insertItem('b12_schema', values));
+    rejectedByCheck(insertItemCase('b12_schema', values));
     receipt.cases.push({ name: `outcome_invalid_${name}`, passed: true });
   }
 }
 
 function constraintCases() {
-  const rows = query('b12_schema', `SELECT conname || '|' || confupdtype || '|' || confdeltype
+  const rows = query('b12_schema', `SELECT conname::text || '|' || confupdtype::text || '|' || confdeltype::text
     FROM pg_constraint WHERE conname IN (
       'firm_import_jobs_tenant_fkey',
       'firm_import_jobs_requested_by_fkey',
@@ -131,14 +138,19 @@ function precisionCases() {
       VALUES ('${id}', '${tenant}', '${user}', 'req-${id.slice(-2)}',
         repeat('a', 64), 7, ARRAY[10], '${instant}');`);
   }
+  // Scope every precision assertion and page walk to this exact fixture set so
+  // the earlier outcome-shape job seed can never add a row or an instant.
+  const precisionScope = jobs.map(([id]) => `'${id}'`).join(',');
   assert.equal(
     query('b12_schema', `SELECT count(*) FROM firm_import_jobs
-      WHERE created_at <> date_trunc('milliseconds', created_at);`),
+      WHERE id IN (${precisionScope})
+        AND created_at <> date_trunc('milliseconds', created_at);`),
     '0',
   );
   assert.equal(
     query('b12_schema', `SELECT string_agg(to_char(created_at AT TIME ZONE 'UTC',
-      'HH24:MI:SS.MS'), ',' ORDER BY id) FROM firm_import_jobs;`),
+      'HH24:MI:SS.MS'), ',' ORDER BY id) FROM firm_import_jobs
+      WHERE id IN (${precisionScope});`),
     '09:00:00.124,09:00:00.124,09:00:00.123,09:00:00.124,09:00:00.123,09:00:00.123',
   );
 
@@ -149,9 +161,9 @@ function precisionCases() {
   let boundary = null;
   for (;;) {
     const where = boundary
-      ? `WHERE created_at < '${boundary.createdAt}'::timestamptz
-           OR (created_at = '${boundary.createdAt}'::timestamptz AND id < '${boundary.id}')`
-      : '';
+      ? `WHERE id IN (${precisionScope}) AND (created_at < '${boundary.createdAt}'::timestamptz
+           OR (created_at = '${boundary.createdAt}'::timestamptz AND id < '${boundary.id}'))`
+      : `WHERE id IN (${precisionScope})`;
     const rows = query('b12_schema', `SELECT id || '|' || to_char(created_at AT TIME ZONE 'UTC',
       'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
       FROM firm_import_jobs ${where}
