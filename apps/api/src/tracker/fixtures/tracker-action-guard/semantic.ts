@@ -20,13 +20,13 @@ export const originalActionPins = {
     // (a) reads portfolio recipients alongside the legacy tracked-bill scan, and
     // (b) fans material federal changes out to portfolio-only recipients through
     // fanOutPortfolioOnlyFederal, which decides each recipient from the canonical
-    // adoption facts stored with the membership (adoptionFacts /
-    // recipientAlreadyKnew), so a same-day portfolio that already knew an action
-    // stays silent while a genuinely different action — same day included — is
-    // delivered. The guard stays exact: only the owned file's recorded shape
+    // adoption facts stored with the membership (adoptionFacts, adoptionBoundary,
+    // recipientNeedsEvent): each recipient's history is bounded by the day it
+    // adopted, so same-day history it already knew is silent while a latest rollup
+    // that genuinely changed after adoption — same day included — is delivered. The guard stays exact: only the owned file's recorded shape
     // moved, and the ownership assertions themselves are unchanged.
-    declarations: '518051a90d8cc8493faa56e31e4d3df33720cc51c669bd2530e055aa80603f23',
-    comments: '0b306b303c723ad172e4c91b350b6142d4f3eff8d08e4d77e1881daeaea8a773',
+    declarations: '82e52baab45a676df7219a6dace55b58bc0e2699534ce0a83273aff34e17aef2',
+    comments: '04ee360732e01ccc4f595821b6e56514394e2897be3657dc1af4efa31c33a691',
   },
   intel: {
     declarations: '84745c3078c0c76db15fefd82509391a1a976d758bca770143a0777a00fac9df',

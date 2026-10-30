@@ -92,25 +92,44 @@ export function adoptionFacts(evidence: unknown): {
 }
 
 /**
- * True when the recipient has NOT already recorded this change in the canonical
- * facts it adopted with. Same-day precision comes from those stored facts, not
- * from a synthesized cutoff: an identical action on the adoption day is what the
- * portfolio already knew, while a different action that day is genuinely new.
- * A membership with no recorded facts falls back to the later-day rule, which is
- * the strongest statement its data supports.
+ * The action-history boundary for one recipient: actions on or before this instant
+ * were already behind the state the portfolio adopted. With canonical facts that is
+ * the end of the adopted action's day, so earlier same-day history is not replayed;
+ * without them it is the membership's own creation time.
  */
-export function recipientAlreadyKnew(
-  recipient: { createdAt: Date; evidence: unknown },
-  actionDate: string,
-  actionText: string,
-): boolean {
+export function adoptionBoundary(recipient: { createdAt: Date; evidence: unknown }): Date {
   const facts = adoptionFacts(recipient.evidence);
-  if (!facts) return recipient.createdAt.getTime() <= endOfUtcDay(new Date(actionDate)).getTime();
-  if (!facts.latestActionDate) return true; // no prior action recorded: any dated action is new
-  if (actionDate < facts.latestActionDate) return false; // predates what the portfolio adopted
+  if (facts?.latestActionDate) return endOfUtcDay(new Date(facts.latestActionDate));
+  return recipient.createdAt;
+}
+
+/**
+ * True when this recipient should receive the event — i.e. the change is NOT
+ * already covered by the canonical facts it adopted with.
+ *
+ * Same-day precision comes from those stored facts, never from a timestamp guess:
+ * an action identical to the adopted one is what the portfolio already knew; an
+ * action predating the adopted date is never news; and a same-day action with a
+ * different text only counts when it is the CURRENT latest rollup, because
+ * date-only history rows cannot prove they happened after adoption.
+ */
+export function recipientNeedsEvent(
+  recipient: { createdAt: Date; evidence: unknown },
+  event: { date: Date | null; text: string },
+  latest: { date: Date | null; text: string | null } | null,
+): boolean {
+  if (!event.date) return false;
+  const actionDate = event.date.toISOString().slice(0, 10);
+  const facts = adoptionFacts(recipient.evidence);
+  if (!facts) return recipient.createdAt.getTime() <= endOfUtcDay(event.date).getTime();
+  if (!facts.latestActionDate) return true;
   if (actionDate > facts.latestActionDate) return true;
-  // Same day: only a different action is new.
-  return (facts.latestActionText ?? '') !== actionText;
+  if (actionDate < facts.latestActionDate) return false;
+  const isCurrentLatest =
+    latest?.date != null &&
+    latest.date.getTime() === event.date.getTime() &&
+    (latest.text ?? '') === event.text;
+  return isCurrentLatest && (facts.latestActionText ?? '') !== event.text;
 }
 
 /**
@@ -523,7 +542,6 @@ export class TrackerChangeDetectorService {
       {
         tenantId: string;
         billId: string;
-        earliest: Date;
         recipients: Array<{ portfolioId: string; createdAt: Date; evidence: unknown }>;
       }
     >();
@@ -540,14 +558,10 @@ export class TrackerChangeDetectorService {
         groups.set(key, {
           tenantId: member.tenantId,
           billId: member.targetId,
-          earliest: member.createdAt,
           recipients: [recipient],
         });
       } else {
         existing.recipients.push(recipient);
-        if (member.createdAt.getTime() < existing.earliest.getTime()) {
-          existing.earliest = member.createdAt;
-        }
       }
     }
 
@@ -567,58 +581,51 @@ export class TrackerChangeDetectorService {
         baseline += 1;
         continue;
       }
-      const events: MaterialEvent[] = scanHistory
-        ? selectMaterialEvents(
-            (actionsByBill.get(group.billId) ?? []).filter(
-              (action) => action.date != null && action.date.getTime() > group.earliest.getTime(),
-            ),
-            latest,
-          )
-        : (() => {
-            const cls = classifyChange(latest.text);
-            return cls ? [{ cls, text: latest.text ?? '', date: latest.date }] : [];
-          })();
-      if (!events.length) {
-        baseline += 1;
-        continue;
-      }
-
       const displayNum = humanizeBillId(bill.id);
       let delivered = 0;
       try {
-        for (const ev of events) {
-          if (!ev.date) continue;
-          const actionDate = ev.date.toISOString().slice(0, 10);
-          const eventText = ev.text || bill.latestActionText || '';
-          // Only recipients whose recorded facts do not already contain this
-          // change are addressed; the shared fan-out keeps the tenant scope, the
-          // per-recipient event key and replay dedupe.
-          const eligible = group.recipients
-            .filter((recipient) =>
-              recipientAlreadyKnew(recipient, actionDate, eventText),
-            )
-            .map((recipient) => recipient.portfolioId);
-          if (!eligible.length) continue;
-          const written = await this.prisma.withSystem((tx) =>
-            recordResearchPortfolioBillChanges(tx as never, {
-              tenantId: group.tenantId,
-              targetKind: 'federal_bill',
-              targetId: group.billId,
-              changeType: ev.cls.changeType,
-              label: ev.cls.label,
-              detail: ev.text || `${displayNum} — ${bill.title}`,
-              actionDate,
-              sourceUrl: bill.url ?? null,
-              sourceLabel: 'Congress.gov',
-              // This cycle is when the change was detected for portfolio-only
-              // recipients; the adoption facts — not this timestamp — decide who
-              // may receive it.
-              detectedAt: cycleStartedAt,
-              eligiblePortfolioIds: eligible,
-            }),
-          );
-          delivered += written;
-          if (written > 0) byType[ev.cls.changeType] = (byType[ev.cls.changeType] ?? 0) + written;
+        for (const recipient of group.recipients) {
+          // Each recipient's own adopted-date boundary bounds the history it can be
+          // shown; the selector is never run against the tenant's earliest
+          // membership, so an earlier portfolio's baseline cannot suppress a later
+          // portfolio's eligible action through changeType de-duplication.
+          const boundary = adoptionBoundary(recipient);
+          const events: MaterialEvent[] = scanHistory
+            ? selectMaterialEvents(
+                (actionsByBill.get(group.billId) ?? []).filter(
+                  (action) => action.date != null && action.date.getTime() > boundary.getTime(),
+                ),
+                latest,
+              )
+            : (() => {
+                const cls = classifyChange(latest.text);
+                return cls ? [{ cls, text: latest.text ?? '', date: latest.date }] : [];
+              })();
+          for (const ev of events) {
+            if (!ev.date) continue;
+            if (!recipientNeedsEvent(recipient, { date: ev.date, text: ev.text }, latest)) continue;
+            const actionDate = ev.date.toISOString().slice(0, 10);
+            const written = await this.prisma.withSystem((tx) =>
+              recordResearchPortfolioBillChanges(tx as never, {
+                tenantId: group.tenantId,
+                targetKind: 'federal_bill',
+                targetId: group.billId,
+                changeType: ev.cls.changeType,
+                label: ev.cls.label,
+                detail: ev.text || `${displayNum} — ${bill.title}`,
+                actionDate,
+                sourceUrl: bill.url ?? null,
+                sourceLabel: 'Congress.gov',
+                // This cycle is when the change was detected for portfolio-only
+                // recipients; the adoption facts — not this timestamp — decide who
+                // may receive it.
+                detectedAt: cycleStartedAt,
+                eligiblePortfolioIds: [recipient.portfolioId],
+              }),
+            );
+            delivered += written;
+            if (written > 0) byType[ev.cls.changeType] = (byType[ev.cls.changeType] ?? 0) + written;
+          }
         }
       } catch (e) {
         this.logger.error(

@@ -155,6 +155,9 @@ describe('portfolio-only federal recipients (reachability)', () => {
     }>;
     bill: Record<string, unknown>;
     tracked?: unknown[];
+    /** Default-mode action history: the real config default is TRUE. */
+    history?: boolean;
+    actions?: Array<{ billId: string; text: string; date: Date; chamber?: string | null }>;
   }) {
     const events: any[] = [];
     const seen = new Set<string>();
@@ -174,6 +177,7 @@ describe('portfolio-only federal recipients (reachability)', () => {
         }),
       },
       congressBill: { findMany: jest.fn(async () => [opts.bill]) },
+      congressBillAction: { findMany: jest.fn(async () => opts.actions ?? []) },
       researchPortfolio: {
         findFirst: jest.fn(async () => ({ revision: 3, lifecycle: 'active' })),
       },
@@ -199,11 +203,16 @@ describe('portfolio-only federal recipients (reachability)', () => {
     const prisma: any = {
       withSystem: jest.fn((fn: (tx: unknown) => unknown) => fn(tx)),
       withTenant: jest.fn(),
-      // The bill catalog read is a plain client call, not a tenant transaction.
+      // The bill catalog and action-history reads are plain client calls.
       congressBill: tx.congressBill,
+      congressBillAction: tx.congressBillAction,
     };
     const alerts = { fanOut: jest.fn() };
-    const config = { get: jest.fn(() => false) };
+    const config = {
+      get: jest.fn((key: string) =>
+        key === 'TRACKER_SCAN_ACTION_HISTORY' ? (opts.history ?? false) : false,
+      ),
+    };
     const summaries = { summarize: jest.fn() };
     const svc = new TrackerChangeDetectorService(
       prisma as unknown as PrismaService,
@@ -424,6 +433,119 @@ describe('portfolio-only federal recipients (reachability)', () => {
 
     expect(result.changed).toBe(1);
     expect(h.events.map((event) => event.portfolioId)).toEqual(['behind-portfolio']);
+  });
+
+  // The real default is history mode (TRACKER_SCAN_ACTION_HISTORY defaults true).
+  // Date-only history rows cannot prove they happened after an adoption, so each
+  // recipient's own adopted-date boundary bounds its history, and only a latest
+  // rollup proven different from the adopted facts may arrive as a same-day change.
+  const historyActions = [
+    {
+      billId: '119-hr-8800',
+      text: 'Ordered to be Reported by the Yeas and Nays.',
+      date: d('2026-10-10'),
+      chamber: 'House',
+    },
+    { billId: '119-hr-8800', text: 'Passed/agreed to in House', date: d('2026-10-10'), chamber: 'House' },
+  ];
+
+  it('in default history mode, does not replay same-day history the later portfolio already adopted', async () => {
+    const members = [
+      {
+        tenantId: 'tenant-a',
+        portfolioId: 'original-portfolio',
+        targetId: '119-hr-8800',
+        createdAt: d('2026-10-01T00:00:00Z'),
+        evidence: adoption('2026-09-01', 'Introduced in House'),
+      },
+    ];
+    const h = harness({
+      members,
+      history: true,
+      actions: historyActions,
+      bill: { ...bill, latestActionDate: d('2026-10-10') },
+    });
+
+    const first = await h.svc.runDetectionCycle();
+    expect(first.changed).toBe(1);
+    // Both same-day actions were new to the portfolio that existed on Oct 1.
+    expect(h.events).toHaveLength(2);
+
+    // Joins Oct 10 16:00; both actions already existed and its facts hold the
+    // latest one, so neither the earlier history row nor the rollup is news.
+    members.push({
+      tenantId: 'tenant-a',
+      portfolioId: 'same-day-portfolio',
+      targetId: '119-hr-8800',
+      createdAt: d('2026-10-10T16:00:00Z'),
+      evidence: adoption('2026-10-10', 'Passed/agreed to in House'),
+    });
+    const second = await h.svc.runDetectionCycle();
+
+    expect(second.changed).toBe(0);
+    expect(h.events).toHaveLength(2);
+    expect(h.events.map((event) => event.portfolioId)).toEqual([
+      'original-portfolio',
+      'original-portfolio',
+    ]);
+  });
+
+  it('in default history mode, still delivers a latest rollup that changed after adoption', async () => {
+    const h = harness({
+      members: [
+        {
+          tenantId: 'tenant-a',
+          portfolioId: 'later-portfolio',
+          targetId: '119-hr-8800',
+          createdAt: d('2026-10-10T16:00:00Z'),
+          evidence: adoption('2026-10-10', 'Ordered to be Reported by the Yeas and Nays.'),
+        },
+      ],
+      history: true,
+      actions: historyActions,
+      bill: { ...bill, latestActionDate: d('2026-10-10') },
+    });
+
+    const first = await h.svc.runDetectionCycle();
+    expect(first.changed).toBe(1);
+    // The rollup is the only thing newer than what this portfolio adopted.
+    expect(h.events).toHaveLength(1);
+    expect(h.events[0].payload.changeType).toBe('bill_passed_chamber');
+
+    const replay = await h.svc.runDetectionCycle();
+    expect(replay.changed).toBe(0);
+    expect(h.events).toHaveLength(1);
+  });
+
+  it('does not let an earlier portfolio baseline suppress a later portfolio eligible action', async () => {
+    const h = harness({
+      members: [
+        {
+          tenantId: 'tenant-a',
+          portfolioId: 'early-portfolio',
+          targetId: '119-hr-8800',
+          createdAt: d('2026-10-01T00:00:00Z'),
+          evidence: adoption('2026-09-01', 'Introduced in House'),
+        },
+        {
+          tenantId: 'tenant-a',
+          portfolioId: 'late-portfolio',
+          targetId: '119-hr-8800',
+          createdAt: d('2026-10-10T16:00:00Z'),
+          evidence: adoption('2026-10-10', 'Ordered to be Reported by the Yeas and Nays.'),
+        },
+      ],
+      history: true,
+      actions: historyActions,
+      bill: { ...bill, latestActionDate: d('2026-10-10') },
+    });
+
+    await h.svc.runDetectionCycle();
+
+    const later = h.events.filter((event) => event.portfolioId === 'late-portfolio');
+    // The earlier portfolio's history selection de-dupes by changeType; that must
+    // not decide what the later portfolio is allowed to see.
+    expect(later.map((event) => event.payload.changeType)).toEqual(['bill_passed_chamber']);
   });
 
   it('scopes each tenant to its own portfolios', async () => {
