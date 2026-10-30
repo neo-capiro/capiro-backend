@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -608,19 +608,35 @@ describe('legacy consumer build request: exact source binding', () => {
   });
 });
 
-// --- continuation 08: the decoded job commands must execute with exact argv ---
+// --- continuation 08/09: the decoded job commands must execute with exact argv ---
 // The generator writes a shell script inside the buildspec. A JS template-literal
 // line continuation defect kept the physical newline out of the emitted text, so a
 // command line ended with backslash + spaces and the shell produced extra argv
 // entries made of spaces. These tests decode the real emitted bytes, run the
 // affected command groups through bash with argv-capturing stubs, and assert the
 // exact argument vectors.
+//
+// The harness is deliberately hermetic: the invoked bash is given a PATH that
+// contains only the stub directory plus /usr/bin:/bin, and it verifies with
+// `command -v` that every tool it needs resolves to the intended stub before any
+// emitted command runs. That keeps the result independent of how Node itself was
+// started (PowerShell, GitBash, CI) instead of relying on PATH translation of the
+// inherited environment.
 const BS = String.fromCharCode(92);
+const GIT_BASH = process.platform === 'win32' && existsSync('C:/Program Files/Git/bin/bash.exe')
+  ? 'C:/Program Files/Git/bin/bash.exe' : 'bash';
+const HARNESS_TOOLS = ['aws', 'docker', 'node', 'tee', 'sha256sum'];
+
+function posixPath(nativePath) {
+  const run = spawnSync(GIT_BASH, ['-c', 'cd "$1" && pwd -P', 'x', nativePath], { encoding: 'utf8' });
+  assert.equal(run.status, 0, `cannot resolve ${nativePath}: ${run.stderr}`);
+  return run.stdout.trim();
+}
 
 function stubToolDir() {
   const dir = mkdtempSync(path.join(tmpdir(), 'c08 stubs '));
-  // Each invocation writes its own record file, so concurrent pipeline members
-  // (node | tee) can never interleave bytes.
+  // Each invocation writes its own record file, so pipeline members that run
+  // concurrently can never interleave bytes.
   const script = `#!/usr/bin/env bash
 name="$(basename "$0")"
 record="$(printf '%s\\x1f' "$name")"
@@ -638,7 +654,7 @@ case "$name" in
 esac
 exit 0
 `;
-  for (const name of ['aws', 'docker', 'node', 'tee', 'sha256sum']) {
+  for (const name of HARNESS_TOOLS) {
     writeFileSync(path.join(dir, name), script);
     chmodSync(path.join(dir, name), 0o755);
   }
@@ -674,23 +690,43 @@ function parseCapturedCalls(dir) {
   return calls;
 }
 
+// Calls are keyed by tool, never by process/PID ordering.
+function callsOf(calls, tool) {
+  return calls.filter((call) => call.tool === tool);
+}
+
+function exactlyOne(calls, tool) {
+  const matching = callsOf(calls, tool);
+  assert.equal(matching.length, 1, `expected exactly one ${tool} invocation, saw ${matching.length}`);
+  return matching[0];
+}
+
 function runEmittedGroup(service, startsWith) {
   const script = decodedScript(service);
   const work = mkdtempSync(path.join(tmpdir(), 'c08 argv dir '));
   const stubs = stubToolDir();
   const captureDir = path.join(work, 'argv');
   mkdirSync(captureDir);
+  const stubPosix = posixPath(stubs);
+  const guard = [
+    `export PATH='${stubPosix}:/usr/bin:/bin'`,
+    ...HARNESS_TOOLS.map((tool) => [
+      `resolved="$(command -v ${tool} || true)"`,
+      `case "$resolved" in '${stubPosix}'/*) ;; *)`,
+      `  echo "STUB_RESOLUTION_FAIL ${tool} \${resolved:-missing}" >&2; exit 90 ;;`,
+      'esac',
+    ].join('\n')),
+  ].join('\n');
   const file = path.join(work, 'group.sh');
-  writeFileSync(file, ['set -uo pipefail', variablePrelude(script), commandGroup(script, startsWith)].join('\n') + '\n');
-  const run = spawnSync('bash', [file], {
+  writeFileSync(file, ['set -uo pipefail', guard, variablePrelude(script), commandGroup(script, startsWith)].join('\n') + '\n');
+  const run = spawnSync(GIT_BASH, [file], {
     cwd: work, encoding: 'utf8',
-    env: { ...process.env, PATH: `${stubs}${path.delimiter}${process.env.PATH}`, ARGV_DIR: captureDir,
-      EXPECTED_SHA: TAG, MANIFEST_SHA256: 'c'.repeat(64) },
+    env: { ...process.env, ARGV_DIR: captureDir, EXPECTED_SHA: TAG, MANIFEST_SHA256: 'c'.repeat(64) },
   });
+  assert.ok(!/STUB_RESOLUTION_FAIL/.test(run.stderr || ''), `stub resolution failed: ${run.stderr}`);
   const calls = parseCapturedCalls(captureDir);
-  const bashCwd = spawnSync('bash', ['-c', 'pwd -P'], { cwd: work, encoding: 'utf8' }).stdout.trim();
   rmSync(stubs, { recursive: true, force: true });
-  return { run, calls, cwd: bashCwd, work, script };
+  return { run, calls, work, cwd: posixPath(work) };
 }
 
 function assertExactArgv(calls) {
@@ -707,75 +743,94 @@ function assertExactArgv(calls) {
 describe('legacy consumer build request: emitted command argv (executed)', () => {
   test('both ECR login pipelines pass exactly the region and registry arguments', () => {
     for (const service of ['web', 'marketing']) {
-      const { run, calls, script } = runEmittedGroup(service, 'aws ecr get-login-password');
+      const { run, calls } = runEmittedGroup(service, 'aws ecr get-login-password');
       assert.equal(run.status, 0, `${service} login: ${run.stderr}`);
       assertExactArgv(calls);
-      assert.deepEqual(calls.map((call) => call.tool), ['aws', 'docker'], service);
-      assert.deepEqual(calls[0].argv, ['ecr', 'get-login-password', '--region', 'us-east-1'], service);
-      assert.deepEqual(calls[1].argv,
+      assert.equal(calls.length, 2, `${service}: expected aws + docker only`);
+      assert.deepEqual(exactlyOne(calls, 'aws').argv,
+        ['ecr', 'get-login-password', '--region', 'us-east-1'], service);
+      assert.deepEqual(exactlyOne(calls, 'docker').argv,
         ['login', '--username', 'AWS', '--password-stdin', '967807252336.dkr.ecr.us-east-1.amazonaws.com'], service);
     }
   });
 
   test('the Node gate runs inside the pinned image with all three test files', () => {
-    const { run, calls, work } = runEmittedGroup('web', 'docker run --rm -v');
+    const { run, calls, work } = runEmittedGroup('web', 'docker run --rm -v "$PWD:/src" -w /src');
     assert.equal(run.status, 0, run.stderr);
     assertExactArgv(calls);
     assert.equal(calls.length, 1);
-    assert.deepEqual(calls[0].argv, ['run', '--rm', '-v', calls[0].argv[3], '-w', '/src', NODE_IMAGE,
-      'node', '--test', 'scripts/ci/legacy-web-release.spec.mjs',
-      'scripts/ci/newsletter-accepted-source-profile.spec.mjs',
-      'scripts/ci/frontend-standalone-artifact.contract.spec.mjs']);
+    const argv = exactlyOne(calls, 'docker').argv;
+    assert.deepEqual(argv.slice(0, 3), ['run', '--rm', '-v']);
     // The harness directory deliberately contains a space: the volume mapping must
-    // stay one argument carrying the whole path, not a split pair.
-    const volume = calls[0].argv[3];
-    assert.ok(volume.endsWith(':/src'), volume);
-    assert.ok(volume.includes(' '), 'space in the path must survive quoting');
-    assert.equal(path.basename(volume.slice(0, -':/src'.length)), path.basename(work));
+    // stay one argument carrying the whole path, not a split pair. bash reports the
+    // path in its own mount form, so assert the structure rather than the prefix.
+    assert.ok(argv[3].endsWith(':/src'), argv[3]);
+    assert.ok(argv[3].includes(' '), 'space in the path must survive quoting');
+    assert.equal(path.basename(argv[3].slice(0, -':/src'.length)), path.basename(work));
+    assert.deepEqual(argv.slice(4),
+      ['-w', '/src', NODE_IMAGE,
+        'node', '--test', 'scripts/ci/legacy-web-release.spec.mjs',
+        'scripts/ci/newsletter-accepted-source-profile.spec.mjs',
+        'scripts/ci/frontend-standalone-artifact.contract.spec.mjs']);
   });
 
-  test('the assembler receives every option with the pinned producer identity', () => {
-    const { run, calls } = runEmittedGroup('web', 'node scripts/legacy-web-release.mjs artifact');
+  test('the assembler Docker wrapper and tee receive every option and value', () => {
+    const { run, calls, work } = runEmittedGroup('web', 'docker run --rm -v "$PWD:/src" -v "$PWD/work:/work"');
     assert.equal(run.status, 0, run.stderr);
     assertExactArgv(calls);
-    assert.deepEqual(calls[0].argv, ['scripts/legacy-web-release.mjs', 'artifact',
-      '--extracted-app-dir', '/work/app',
-      '--frontend-commit', FRONTEND_SOURCE_COMMIT,
-      '--image-digest', FRONTEND_IMAGE_DIGEST,
-      '--manifest', '/work/artifact.manifest.json',
-      '--output-dir', '/src/release-artifacts/capiro-frontend',
-      '--backend-commit', TAG,
-      '--arch', 'arm64']);
-    assert.deepEqual(calls[1].argv, ['work/assembly.json']);
+    assert.equal(calls.length, 2, 'expected the assembler container and its tee');
+    const argv = exactlyOne(calls, 'docker').argv;
+    assert.deepEqual(argv.slice(0, 3), ['run', '--rm', '-v']);
+    assert.ok(argv[3].endsWith(':/src'), argv[3]);
+    assert.ok(argv[3].includes(' '), 'space in the path must survive quoting');
+    assert.equal(path.basename(argv[3].slice(0, -':/src'.length)), path.basename(work));
+    assert.deepEqual(argv.slice(4, 6), ['-v', argv[5]]);
+    assert.ok(argv[5].endsWith('/work:/work'), argv[5]);
+    assert.equal(path.basename(argv[5].slice(0, -'/work:/work'.length)), path.basename(work));
+    assert.deepEqual(argv.slice(6),
+      ['-w', '/src', NODE_IMAGE,
+        'node', 'scripts/legacy-web-release.mjs', 'artifact',
+        '--extracted-app-dir', '/work/app',
+        '--frontend-commit', FRONTEND_SOURCE_COMMIT,
+        '--image-digest', FRONTEND_IMAGE_DIGEST,
+        '--manifest', '/work/artifact.manifest.json',
+        '--output-dir', '/src/release-artifacts/capiro-frontend',
+        '--backend-commit', TAG,
+        '--arch', 'arm64']);
+    assert.deepEqual(exactlyOne(calls, 'tee').argv, ['work/assembly.json']);
   });
 
   test('the web and marketing Docker builds receive exact build arguments and labels', () => {
     const web = runEmittedGroup('web', 'docker build --platform linux/arm64 -f apps/web/Dockerfile');
     assert.equal(web.run.status, 0, web.run.stderr);
     assertExactArgv(web.calls);
-    assert.deepEqual(web.calls[0].argv, ['build', '--platform', 'linux/arm64', '-f', 'apps/web/Dockerfile',
-      '--build-arg', `FRONTEND_ARTIFACT_MANIFEST_SHA256=${'c'.repeat(64)}`,
-      '--build-arg', 'FRONTEND_ARTIFACT_SOURCE_REPOSITORY=neo-capiro/capiro-frontend',
-      '--build-arg', `FRONTEND_ARTIFACT_SOURCE_COMMIT=${FRONTEND_SOURCE_COMMIT}`,
-      '--build-arg', 'TARGETPLATFORM=linux/arm64',
-      '--label', `org.opencontainers.image.revision=${TAG}`,
-      '--label', 'org.opencontainers.image.source=https://github.com/neo-capiro/capiro-backend',
-      '-t', `967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web:${TAG}`, '.']);
+    assert.equal(web.calls.length, 1);
+    assert.deepEqual(exactlyOne(web.calls, 'docker').argv,
+      ['build', '--platform', 'linux/arm64', '-f', 'apps/web/Dockerfile',
+        '--build-arg', `FRONTEND_ARTIFACT_MANIFEST_SHA256=${'c'.repeat(64)}`,
+        '--build-arg', 'FRONTEND_ARTIFACT_SOURCE_REPOSITORY=neo-capiro/capiro-frontend',
+        '--build-arg', `FRONTEND_ARTIFACT_SOURCE_COMMIT=${FRONTEND_SOURCE_COMMIT}`,
+        '--build-arg', 'TARGETPLATFORM=linux/arm64',
+        '--label', `org.opencontainers.image.revision=${TAG}`,
+        '--label', 'org.opencontainers.image.source=https://github.com/neo-capiro/capiro-backend',
+        '-t', `967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web:${TAG}`, '.']);
 
     const marketing = runEmittedGroup('marketing', 'docker build --platform linux/arm64 -f marketing/Dockerfile');
     assert.equal(marketing.run.status, 0, marketing.run.stderr);
     assertExactArgv(marketing.calls);
-    assert.deepEqual(marketing.calls[0].argv, ['build', '--platform', 'linux/arm64', '-f', 'marketing/Dockerfile',
-      '--label', `org.opencontainers.image.revision=${TAG}`,
-      '--label', 'org.opencontainers.image.source=https://github.com/neo-capiro/capiro-backend',
-      '-t', `967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/marketing:${TAG}`, '.']);
+    assert.equal(marketing.calls.length, 1);
+    assert.deepEqual(exactlyOne(marketing.calls, 'docker').argv,
+      ['build', '--platform', 'linux/arm64', '-f', 'marketing/Dockerfile',
+        '--label', `org.opencontainers.image.revision=${TAG}`,
+        '--label', 'org.opencontainers.image.source=https://github.com/neo-capiro/capiro-backend',
+        '-t', `967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/marketing:${TAG}`, '.']);
   });
 
   test('no emitted line carries trailing whitespace', () => {
     for (const service of ['web', 'marketing']) {
       const offenders = decodedScript(service).split('\n')
         .map((line, index) => ({ line, number: index + 1 }))
-        .filter((entry) => entry.line !== entry.line.replace(/[ 	]+$/, ''))
+        .filter((entry) => entry.line !== entry.line.replace(/[ \t]+$/, ''))
         .map((entry) => entry.number);
       assert.deepEqual(offenders, [], `${service}: lines with trailing whitespace`);
     }
