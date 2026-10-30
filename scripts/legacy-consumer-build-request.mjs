@@ -436,7 +436,7 @@ test "$(uname -m)" = aarch64
 test "$(aws sts get-caller-identity --query Account --output text)" = ${ACCOUNT}
 case "$(docker info --format '{{.Architecture}}')" in aarch64|arm64) ;; *) echo 'container engine is not arm64' >&2; exit 1 ;; esac
 ${BUILDSPEC_DIGEST_STEP}
-aws ecr get-login-password --region ${REGION} \\\
+aws ecr get-login-password --region ${REGION} \\
   | docker login --username AWS --password-stdin ${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com
 `;
 const PRELUDE_GITHUB = `${PRELUDE_COMMON}test "\${CODEBUILD_RESOLVED_SOURCE_VERSION:-}" = "$EXPECTED_SHA"
@@ -467,28 +467,28 @@ mkdir -p work/app
 docker cp "$container:/app/." work/app
 docker rm -f "$container" >/dev/null
 # Unchanged Linux/Node24 gates run in the pinned musl Node24.21 image.
-docker run --rm -v "$PWD:/src" -w /src "$NODE_IMAGE" node --test \\\
-  scripts/ci/legacy-web-release.spec.mjs \\\
-  scripts/ci/newsletter-accepted-source-profile.spec.mjs \\\
+docker run --rm -v "$PWD:/src" -w /src "$NODE_IMAGE" node --test \\
+  scripts/ci/legacy-web-release.spec.mjs \\
+  scripts/ci/newsletter-accepted-source-profile.spec.mjs \\
   scripts/ci/frontend-standalone-artifact.contract.spec.mjs
-docker run --rm -v "$PWD:/src" -v "$PWD/work:/work" -w /src "$NODE_IMAGE" \\\
-  node scripts/legacy-web-release.mjs artifact \\\
-  --extracted-app-dir /work/app \\\
-  --frontend-commit ${FRONTEND_SOURCE_COMMIT} \\\
-  --image-digest ${FRONTEND_IMAGE_DIGEST} \\\
-  --manifest /work/artifact.manifest.json \\\
-  --output-dir /src/release-artifacts/capiro-frontend \\\
-  --backend-commit "$EXPECTED_SHA" \\\
+docker run --rm -v "$PWD:/src" -v "$PWD/work:/work" -w /src "$NODE_IMAGE" \\
+  node scripts/legacy-web-release.mjs artifact \\
+  --extracted-app-dir /work/app \\
+  --frontend-commit ${FRONTEND_SOURCE_COMMIT} \\
+  --image-digest ${FRONTEND_IMAGE_DIGEST} \\
+  --manifest /work/artifact.manifest.json \\
+  --output-dir /src/release-artifacts/capiro-frontend \\
+  --backend-commit "$EXPECTED_SHA" \\
   --arch arm64 | tee work/assembly.json
 MANIFEST_SHA256="$(sha256sum release-artifacts/capiro-frontend/manifest.json | cut -d' ' -f1)"
 test -s release-artifacts/capiro-frontend/build-receipt.json
-docker build --platform linux/arm64 -f apps/web/Dockerfile \\\
-  --build-arg FRONTEND_ARTIFACT_MANIFEST_SHA256="$MANIFEST_SHA256" \\\
-  --build-arg FRONTEND_ARTIFACT_SOURCE_REPOSITORY=neo-capiro/capiro-frontend \\\
-  --build-arg FRONTEND_ARTIFACT_SOURCE_COMMIT=${FRONTEND_SOURCE_COMMIT} \\\
-  --build-arg TARGETPLATFORM=linux/arm64 \\\
-  --label "org.opencontainers.image.revision=$EXPECTED_SHA" \\\
-  --label "org.opencontainers.image.source=https://github.com/neo-capiro/capiro-backend" \\\
+docker build --platform linux/arm64 -f apps/web/Dockerfile \\
+  --build-arg FRONTEND_ARTIFACT_MANIFEST_SHA256="$MANIFEST_SHA256" \\
+  --build-arg FRONTEND_ARTIFACT_SOURCE_REPOSITORY=neo-capiro/capiro-frontend \\
+  --build-arg FRONTEND_ARTIFACT_SOURCE_COMMIT=${FRONTEND_SOURCE_COMMIT} \\
+  --build-arg TARGETPLATFORM=linux/arm64 \\
+  --label "org.opencontainers.image.revision=$EXPECTED_SHA" \\
+  --label "org.opencontainers.image.source=https://github.com/neo-capiro/capiro-backend" \\
   -t "$CONSUMER_IMAGE" .
 test "$(docker image inspect "$CONSUMER_IMAGE" --format '{{.Architecture}}')" = arm64
 test "$(docker image inspect "$CONSUMER_IMAGE" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$EXPECTED_SHA"
@@ -518,9 +518,9 @@ const marketingBuildspec = (kind) => `set -euo pipefail
 IMAGE=${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${CONSUMER_REPOSITORIES.marketing}:$EXPECTED_SHA
 ${kind === 'github' ? PRELUDE_GITHUB : PRELUDE_S3}
 ${ADMITTED_IMAGE_CHECK}
-docker build --platform linux/arm64 -f marketing/Dockerfile \\\
-  --label "org.opencontainers.image.revision=$EXPECTED_SHA" \\\
-  --label "org.opencontainers.image.source=https://github.com/neo-capiro/capiro-backend" \\\
+docker build --platform linux/arm64 -f marketing/Dockerfile \\
+  --label "org.opencontainers.image.revision=$EXPECTED_SHA" \\
+  --label "org.opencontainers.image.source=https://github.com/neo-capiro/capiro-backend" \\
   -t "$IMAGE" .
 test "$(docker image inspect "$IMAGE" --format '{{.Architecture}}')" = arm64
 test "$(docker image inspect "$IMAGE" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$EXPECTED_SHA"

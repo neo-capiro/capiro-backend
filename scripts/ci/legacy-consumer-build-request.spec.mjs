@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -605,5 +605,179 @@ describe('legacy consumer build request: exact source binding', () => {
     const marketing = createPlan({ service: 'marketing', sourceCheckout: dir, sourceCommit: head, outDir });
     assert.equal(marketing.frontend, null);
     assert.deepEqual([...marketing.admittedRepositories], ['capiro/dev/marketing']);
+  });
+});
+
+// --- continuation 08: the decoded job commands must execute with exact argv ---
+// The generator writes a shell script inside the buildspec. A JS template-literal
+// line continuation defect kept the physical newline out of the emitted text, so a
+// command line ended with backslash + spaces and the shell produced extra argv
+// entries made of spaces. These tests decode the real emitted bytes, run the
+// affected command groups through bash with argv-capturing stubs, and assert the
+// exact argument vectors.
+const BS = String.fromCharCode(92);
+
+function stubToolDir() {
+  const dir = mkdtempSync(path.join(tmpdir(), 'c08 stubs '));
+  // Each invocation writes its own record file, so concurrent pipeline members
+  // (node | tee) can never interleave bytes.
+  const script = `#!/usr/bin/env bash
+name="$(basename "$0")"
+record="$(printf '%s\\x1f' "$name")"
+for value in "$@"; do record="$record$(printf '%s\\x1f' "$value")"; done
+printf '%s\\x1e' "$record" >> "$ARGV_DIR/rec.$$"
+case "$name" in
+  aws)
+    if [ "$1" = ecr ] && [ "$2" = get-login-password ]; then printf '%s' 'stub-login-password'; fi
+    if [ "$1" = sts ] && [ "$2" = get-caller-identity ]; then printf '%s\\n' '967807252336'; fi
+    ;;
+  docker)
+    case "$1" in login|run) cat >/dev/null 2>&1 || true ;; esac ;;
+  tee) cat >/dev/null 2>&1 || true ;;
+  sha256sum) printf '%s  %s\\n' "${'$'}{STUB_SHA256:-${'c'.repeat(64)}}" "$2" ;;
+esac
+exit 0
+`;
+  for (const name of ['aws', 'docker', 'node', 'tee', 'sha256sum']) {
+    writeFileSync(path.join(dir, name), script);
+    chmodSync(path.join(dir, name), 0o755);
+  }
+  return dir;
+}
+
+function commandGroup(script, startsWith) {
+  const lines = script.split('\n');
+  const start = lines.findIndex((line) => line.trimStart().startsWith(startsWith));
+  assert.ok(start >= 0, `emitted command not found: ${startsWith}`);
+  const group = [];
+  for (let index = start; index < lines.length; index += 1) {
+    group.push(lines[index]);
+    if (!lines[index].endsWith(BS)) break;
+  }
+  return group.join('\n');
+}
+
+function variablePrelude(script) {
+  return script.split('\n')
+    .filter((line) => /^(FE_IMAGE|NODE_IMAGE|CONSUMER_IMAGE|IMAGE)=/.test(line)).join('\n');
+}
+
+function parseCapturedCalls(dir) {
+  const calls = [];
+  for (const name of readdirSync(dir).filter((entry) => entry.startsWith('rec.'))) {
+    for (const record of readFileSync(path.join(dir, name), 'utf8').split('\x1e')) {
+      if (record.length === 0) continue;
+      const fields = record.split('\x1f');
+      calls.push({ tool: fields[0], argv: fields.slice(1, -1) });
+    }
+  }
+  return calls;
+}
+
+function runEmittedGroup(service, startsWith) {
+  const script = decodedScript(service);
+  const work = mkdtempSync(path.join(tmpdir(), 'c08 argv dir '));
+  const stubs = stubToolDir();
+  const captureDir = path.join(work, 'argv');
+  mkdirSync(captureDir);
+  const file = path.join(work, 'group.sh');
+  writeFileSync(file, ['set -uo pipefail', variablePrelude(script), commandGroup(script, startsWith)].join('\n') + '\n');
+  const run = spawnSync('bash', [file], {
+    cwd: work, encoding: 'utf8',
+    env: { ...process.env, PATH: `${stubs}${path.delimiter}${process.env.PATH}`, ARGV_DIR: captureDir,
+      EXPECTED_SHA: TAG, MANIFEST_SHA256: 'c'.repeat(64) },
+  });
+  const calls = parseCapturedCalls(captureDir);
+  const bashCwd = spawnSync('bash', ['-c', 'pwd -P'], { cwd: work, encoding: 'utf8' }).stdout.trim();
+  rmSync(stubs, { recursive: true, force: true });
+  return { run, calls, cwd: bashCwd, work, script };
+}
+
+function assertExactArgv(calls) {
+  for (const call of calls) {
+    for (const value of call.argv) {
+      assert.equal(typeof value, 'string', `${call.tool}: argv must be strings`);
+      assert.notEqual(value.trim(), '', `${call.tool}: empty/whitespace-only argv element ${JSON.stringify(value)}`);
+      assert.ok(!/^\s/.test(value), `${call.tool}: argv element starts with whitespace ${JSON.stringify(value)}`);
+      assert.ok(!/\s$/.test(value), `${call.tool}: argv element ends with whitespace ${JSON.stringify(value)}`);
+    }
+  }
+}
+
+describe('legacy consumer build request: emitted command argv (executed)', () => {
+  test('both ECR login pipelines pass exactly the region and registry arguments', () => {
+    for (const service of ['web', 'marketing']) {
+      const { run, calls, script } = runEmittedGroup(service, 'aws ecr get-login-password');
+      assert.equal(run.status, 0, `${service} login: ${run.stderr}`);
+      assertExactArgv(calls);
+      assert.deepEqual(calls.map((call) => call.tool), ['aws', 'docker'], service);
+      assert.deepEqual(calls[0].argv, ['ecr', 'get-login-password', '--region', 'us-east-1'], service);
+      assert.deepEqual(calls[1].argv,
+        ['login', '--username', 'AWS', '--password-stdin', '967807252336.dkr.ecr.us-east-1.amazonaws.com'], service);
+    }
+  });
+
+  test('the Node gate runs inside the pinned image with all three test files', () => {
+    const { run, calls, work } = runEmittedGroup('web', 'docker run --rm -v');
+    assert.equal(run.status, 0, run.stderr);
+    assertExactArgv(calls);
+    assert.equal(calls.length, 1);
+    assert.deepEqual(calls[0].argv, ['run', '--rm', '-v', calls[0].argv[3], '-w', '/src', NODE_IMAGE,
+      'node', '--test', 'scripts/ci/legacy-web-release.spec.mjs',
+      'scripts/ci/newsletter-accepted-source-profile.spec.mjs',
+      'scripts/ci/frontend-standalone-artifact.contract.spec.mjs']);
+    // The harness directory deliberately contains a space: the volume mapping must
+    // stay one argument carrying the whole path, not a split pair.
+    const volume = calls[0].argv[3];
+    assert.ok(volume.endsWith(':/src'), volume);
+    assert.ok(volume.includes(' '), 'space in the path must survive quoting');
+    assert.equal(path.basename(volume.slice(0, -':/src'.length)), path.basename(work));
+  });
+
+  test('the assembler receives every option with the pinned producer identity', () => {
+    const { run, calls } = runEmittedGroup('web', 'node scripts/legacy-web-release.mjs artifact');
+    assert.equal(run.status, 0, run.stderr);
+    assertExactArgv(calls);
+    assert.deepEqual(calls[0].argv, ['scripts/legacy-web-release.mjs', 'artifact',
+      '--extracted-app-dir', '/work/app',
+      '--frontend-commit', FRONTEND_SOURCE_COMMIT,
+      '--image-digest', FRONTEND_IMAGE_DIGEST,
+      '--manifest', '/work/artifact.manifest.json',
+      '--output-dir', '/src/release-artifacts/capiro-frontend',
+      '--backend-commit', TAG,
+      '--arch', 'arm64']);
+    assert.deepEqual(calls[1].argv, ['work/assembly.json']);
+  });
+
+  test('the web and marketing Docker builds receive exact build arguments and labels', () => {
+    const web = runEmittedGroup('web', 'docker build --platform linux/arm64 -f apps/web/Dockerfile');
+    assert.equal(web.run.status, 0, web.run.stderr);
+    assertExactArgv(web.calls);
+    assert.deepEqual(web.calls[0].argv, ['build', '--platform', 'linux/arm64', '-f', 'apps/web/Dockerfile',
+      '--build-arg', `FRONTEND_ARTIFACT_MANIFEST_SHA256=${'c'.repeat(64)}`,
+      '--build-arg', 'FRONTEND_ARTIFACT_SOURCE_REPOSITORY=neo-capiro/capiro-frontend',
+      '--build-arg', `FRONTEND_ARTIFACT_SOURCE_COMMIT=${FRONTEND_SOURCE_COMMIT}`,
+      '--build-arg', 'TARGETPLATFORM=linux/arm64',
+      '--label', `org.opencontainers.image.revision=${TAG}`,
+      '--label', 'org.opencontainers.image.source=https://github.com/neo-capiro/capiro-backend',
+      '-t', `967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web:${TAG}`, '.']);
+
+    const marketing = runEmittedGroup('marketing', 'docker build --platform linux/arm64 -f marketing/Dockerfile');
+    assert.equal(marketing.run.status, 0, marketing.run.stderr);
+    assertExactArgv(marketing.calls);
+    assert.deepEqual(marketing.calls[0].argv, ['build', '--platform', 'linux/arm64', '-f', 'marketing/Dockerfile',
+      '--label', `org.opencontainers.image.revision=${TAG}`,
+      '--label', 'org.opencontainers.image.source=https://github.com/neo-capiro/capiro-backend',
+      '-t', `967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/marketing:${TAG}`, '.']);
+  });
+
+  test('no emitted line carries trailing whitespace', () => {
+    for (const service of ['web', 'marketing']) {
+      const offenders = decodedScript(service).split('\n')
+        .map((line, index) => ({ line, number: index + 1 }))
+        .filter((entry) => entry.line !== entry.line.replace(/[ 	]+$/, ''))
+        .map((entry) => entry.number);
+      assert.deepEqual(offenders, [], `${service}: lines with trailing whitespace`);
+    }
   });
 });
