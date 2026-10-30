@@ -284,3 +284,399 @@ export function parseApprovalRevokeInput(value: unknown): ApprovalRevokeInput {
 export function sameJson(a: unknown, b: unknown): boolean {
   return canonicalizeCoreRetainedJson(a) === canonicalizeCoreRetainedJson(b);
 }
+
+/* ============================================================================
+ * SCRUM-222 browser consequential-action approvals.
+ *
+ * Mirrors Meri's accepted preparation contract exactly
+ * (meri-greenfield packages/contracts/runtime-0.2/browser-approval-preparation.mjs
+ * at Parent10 da3013631f, and apps/control/commands/approval-metadata/readback.mjs).
+ * The host captures `meri-browser-approval-request/3`; Meri retains the same
+ * subject/input/window as `meri-browser-approval-preparation/1` and serves it
+ * back through the existing internal readback. Core owns only the human
+ * decision, the one-time consumption and the result settlement.
+ *
+ * FOUR INDEPENDENT DIGESTS, never forced equal:
+ *   C = metadata command envelope        -> readback.commandSha256 (internal)
+ *   A = {arguments:A,attachments:[]}     -> record.inputSha256   (internal)
+ *   S = subject                          -> preparation.subjectSha256 = Core decision.commandSha256
+ *   I = input                            -> S.inputSha256
+ * ========================================================================== */
+
+export const BROWSER_ACTION = 'browser.action';
+export const BROWSER_OPERATION = Object.freeze({ id: 'browser_action', version: '0.2.0' });
+export const BROWSER_KIND_VERSION = '0.1.0';
+export const BROWSER_ACTION_SCHEMA = 'meri-browser-action/1';
+export const BROWSER_PREPARATION_SCHEMA = 'meri-browser-approval-preparation/1';
+export const BROWSER_RECEIPT_SCHEMA = 'meri-browser-approval-receipt/1';
+/**
+ * The ONE canonical non-permissive answer (repeat, restart, ambiguous claim,
+ * status and settlement readback). Deliberately distinct from receipt/1 and
+ * never carrying `consumed:true`, so the host's receiptRefusal refuses it.
+ */
+export const BROWSER_STATUS_SCHEMA = 'meri-browser-approval-status/1';
+/** A browser preparation is served only with real run custody (never initial-binding). */
+export const BROWSER_RUN_STATES = Object.freeze(['queued', 'starting', 'running', 'paused', 'waiting-for-approval', 'completed']);
+
+export interface NativeBrowserSubject {
+  schema: typeof BROWSER_ACTION_SCHEMA;
+  binding: NativeRunBinding;
+  server: string;
+  tool: string;
+  toolUseId: string;
+  inputSha256: string;
+  pageOrigin: string;
+  policySha256: string;
+}
+
+export interface NativeBrowserPreparation {
+  schema: typeof BROWSER_PREPARATION_SCHEMA;
+  subject: NativeBrowserSubject;
+  subjectSha256: string;
+  input: Record<string, unknown>;
+  requestedAtMs: number;
+  expiresAtMs: number;
+}
+
+/** The stored metadata record's fields Core relies on (readback.metadata.record). */
+export interface NativeBrowserRecord {
+  commandId: string;
+  idempotencyKey: string;
+  scopes: NativeScope[];
+  createdAt: string;
+  expiresAt: string;
+  requiredApprover: NativeIdentity;
+  binding: NativeRunBinding;
+  inputSha256: string;
+  proposalId: string;
+}
+
+/** RuntimeVersions, as the frozen Run schema requires them. */
+export interface NativeBrowserRuntimeVersions {
+  imageDigest: string;
+  sdk: string;
+  cli: string;
+  contracts: string;
+  skillsDigest: string;
+  checkpointFormat: string;
+}
+
+/**
+ * The ACTUAL current run served with the preparation (readback.run). Meri
+ * validates the frozen `Run` schema and returns it unchanged, so this is the
+ * full required envelope — binding, state, scopes, createdAt, policyRevision
+ * and versions — not a four-field projection. `binding`/`scopes`/`state`/
+ * `policyRevision` are what Core additionally treats as authority facts.
+ */
+export interface NativeBrowserRunCustody {
+  binding: NativeRunBinding;
+  state: string;
+  scopes: NativeScope[];
+  createdAt: string;
+  policyRevision: string;
+  versions: NativeBrowserRuntimeVersions;
+}
+
+export interface NativeBrowserPrepared {
+  preparation: NativeBrowserPreparation;
+  record: NativeBrowserRecord;
+  run: NativeBrowserRunCustody;
+}
+
+export interface NativeBrowserApprovalReceipt {
+  schema: typeof BROWSER_RECEIPT_SCHEMA;
+  subjectSha256: string;
+  proposalId: string;
+  toolUseId: string;
+  decision: NativeApprovalDecision;
+  consumption: { consumed: true; consumptionId: string; consumedAtMs: number };
+}
+
+/** Non-permissive answer for a repeat, restart or ambiguous consumption. */
+export interface NativeBrowserApprovalReadback {
+  schema: typeof BROWSER_STATUS_SCHEMA;
+  proposalId: string;
+  subjectSha256: string;
+  toolUseId: string;
+  permissive: false;
+  unknown: boolean;
+  consumption: { state: string; consumedAtMs: number; completedAtMs: number | null; result: unknown } | null;
+  /** Status reads only: the retained decision facts, still never a grant. */
+  decision?: NativeApprovalDecision | null;
+  revoked?: boolean;
+}
+
+function bounded(value: unknown, field: string, max: number): string {
+  const text = typeof value === 'string' ? value : '';
+  if (!text || text.length > max || /[\u0000-\u001f\u007f]/u.test(text)) throw invalid(field);
+  return text;
+}
+
+function hex64(value: unknown, field: string): string {
+  if (typeof value !== 'string' || !HEX64.test(value)) throw invalid(field);
+  return value;
+}
+
+/** Meri normalizes with `new URL(value).origin`; Core accepts only an already-canonical origin. */
+function canonicalOrigin(value: unknown, field: string): string {
+  if (typeof value !== 'string' || value.length > 512) throw invalid(field);
+  let url: URL;
+  try { url = new URL(value); } catch { throw invalid(field); }
+  if ((url.protocol !== 'https:' && url.protocol !== 'http:') || url.username || url.password ||
+      url.hash || url.pathname !== '/' || url.search || url.origin !== value) throw invalid(field);
+  return value;
+}
+
+function millis(value: unknown, field: string): number {
+  if (!Number.isSafeInteger(value) || (value as number) < 1) throw invalid(field);
+  return value as number;
+}
+
+/** Bytes of the canonical JSON, as Meri bounds the display copy at 65536. */
+function displayCopy(value: unknown, field: string): Record<string, unknown> {
+  const copy = plainObject(value, field);
+  if (Buffer.byteLength(canonicalizeCoreRetainedJson(copy), 'utf8') > 65_536) throw invalid(field);
+  return copy;
+}
+
+function scopeList(value: unknown, field: string, tenantId: string): NativeScope[] {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 100) throw invalid(field);
+  const scopes = Array.from(value, (item, index) => parseScope(item, `${field}[${index}]`));
+  if (scopes.some((scope) => scope.tenantId !== tenantId)) throw invalid(field);
+  if (new Set(scopes.map((scope) => canonicalizeCoreRetainedJson(scope))).size !== scopes.length) throw invalid(field);
+  return scopes;
+}
+
+export function parseBrowserSubject(value: unknown, field = 'subject'): NativeBrowserSubject {
+  const v = record(value, ['schema', 'binding', 'server', 'tool', 'toolUseId', 'inputSha256', 'pageOrigin', 'policySha256'], field);
+  if (v.schema !== BROWSER_ACTION_SCHEMA) throw invalid(`${field}.schema`);
+  return {
+    schema: BROWSER_ACTION_SCHEMA,
+    binding: parseRunBinding(v.binding, `${field}.binding`),
+    server: bounded(v.server, `${field}.server`, 256),
+    tool: bounded(v.tool, `${field}.tool`, 256),
+    toolUseId: bounded(v.toolUseId, `${field}.toolUseId`, 256),
+    inputSha256: hex64(v.inputSha256, `${field}.inputSha256`),
+    pageOrigin: canonicalOrigin(v.pageOrigin, `${field}.pageOrigin`),
+    policySha256: hex64(v.policySha256, `${field}.policySha256`),
+  };
+}
+
+/** The retained preparation/1: the host request with only its outer schema tag changed. */
+export function parseBrowserPreparation(value: unknown, field = 'request'): NativeBrowserPreparation {
+  const v = record(value, ['schema', 'subject', 'subjectSha256', 'input', 'requestedAtMs', 'expiresAtMs'], field);
+  if (v.schema !== BROWSER_PREPARATION_SCHEMA) throw invalid(`${field}.schema`);
+  const subject = parseBrowserSubject(v.subject, `${field}.subject`);
+  const subjectSha256 = hex64(v.subjectSha256, `${field}.subjectSha256`);
+  if (nativeCanonicalSha256(subject) !== subjectSha256) throw invalid(`${field}.subjectSha256`);
+  const input = displayCopy(v.input, `${field}.input`);
+  if (nativeCanonicalSha256(input) !== subject.inputSha256) throw invalid(`${field}.input`);
+  const requestedAtMs = millis(v.requestedAtMs, `${field}.requestedAtMs`);
+  const expiresAtMs = millis(v.expiresAtMs, `${field}.expiresAtMs`);
+  if (requestedAtMs >= expiresAtMs) throw invalid(`${field}.expiresAtMs`);
+  return { schema: BROWSER_PREPARATION_SCHEMA, subject, subjectSha256, input, requestedAtMs, expiresAtMs };
+}
+
+/** A: the command arguments carried inside C (exactly Meri's browserPreparationArguments). */
+export function browserPreparationArguments(preparation: NativeBrowserPreparation): Record<string, unknown> {
+  return {
+    subject: preparation.subject,
+    subjectSha256: preparation.subjectSha256,
+    input: preparation.input,
+    requestedAtMs: preparation.requestedAtMs,
+    expiresAtMs: preparation.expiresAtMs,
+  };
+}
+
+/** C: Meri's immutable metadata command envelope. Its hash is INTERNAL identity only. */
+export function browserMetadataCommand(record: Pick<NativeBrowserRecord,
+  'commandId' | 'binding' | 'scopes' | 'idempotencyKey'>, preparation: NativeBrowserPreparation): Record<string, unknown> {
+  return {
+    contractVersion: BROWSER_KIND_VERSION,
+    commandId: record.commandId,
+    binding: record.binding,
+    action: BROWSER_ACTION,
+    arguments: browserPreparationArguments(preparation),
+    attachments: [],
+    scopes: record.scopes,
+    idempotencyKey: record.idempotencyKey,
+  };
+}
+
+export function browserCommandSha256(record: Pick<NativeBrowserRecord,
+  'commandId' | 'binding' | 'scopes' | 'idempotencyKey'>, preparation: NativeBrowserPreparation): string {
+  return nativeCanonicalSha256(browserMetadataCommand(record, preparation));
+}
+
+/** Internal normalized-input identity: sha256({arguments:A,attachments:[]}). */
+export function browserInputSha256(preparation: NativeBrowserPreparation): string {
+  return nativeCanonicalSha256({ arguments: browserPreparationArguments(preparation), attachments: [] });
+}
+
+/** Meri's deterministic selector for one attempt + tool use (a selector, never proof). */
+export function browserProposalId(binding: NativeRunBinding, toolUseId: string): string {
+  const digest = nativeCanonicalSha256({ kind: 'browser-preparation', binding, toolUseId });
+  const variant = ((parseInt(digest[16]!, 16) & 0x3) | 0x8).toString(16);
+  return `${digest.slice(0, 8)}-${digest.slice(8, 12)}-4${digest.slice(13, 16)}-${variant}${digest.slice(17, 20)}-${digest.slice(20, 32)}`;
+}
+
+/**
+ * One durable consumption per tool use, in the existing consumption owner's key
+ * space. The ledger column is VARCHAR(128) while an accepted tool-use id may be
+ * 256 characters, so the key is a fixed-domain digest of the exact identity
+ * (tenant, proposal, tool use): always 72 characters, never truncated, stable
+ * across repeat, status and settlement, and distinct for distinct identities.
+ */
+export function browserConsumptionKey(tenantId: string, proposalId: string, toolUseId: string): string {
+  const digest = nativeCanonicalSha256(['meri-browser-approval-consumption-key-v1', tenantId, proposalId, toolUseId]);
+  return `browser:${digest}`;
+}
+
+/** Stable Core-owned UUID identity of that durable row. */
+export function browserConsumptionId(tenantId: string, proposalId: string, toolUseId: string): string {
+  const digest = nativeCanonicalSha256(['meri-browser-approval-consumption-v1', tenantId, proposalId, toolUseId]);
+  return `${digest.slice(0, 8)}-${digest.slice(8, 12)}-5${digest.slice(13, 16)}-a${digest.slice(17, 20)}-${digest.slice(20, 32)}`;
+}
+
+export interface BrowserDecisionRequest {
+  proposalId: string;
+  subjectSha256: string;
+  decision: 'approved' | 'rejected';
+  approver: NativeIdentity;
+  binding: NativeRunBinding;
+}
+
+/** Core's record request. The subject is NOT resent: Core re-reads it from the prepared owner. */
+export function parseBrowserDecisionRequest(value: unknown): BrowserDecisionRequest {
+  const v = record(value, ['proposalId', 'subjectSha256', 'decision', 'approver', 'binding'], 'body');
+  if (v.decision !== 'approved' && v.decision !== 'rejected') throw invalid('decision');
+  return {
+    proposalId: uuid(v.proposalId, 'proposalId'),
+    subjectSha256: hex64(v.subjectSha256, 'subjectSha256'),
+    decision: v.decision,
+    approver: parseIdentity(v.approver, 'approver'),
+    binding: parseRunBinding(v.binding, 'binding'),
+  };
+}
+
+export interface BrowserProposalRequest { proposalId: string; subjectSha256: string; binding: NativeRunBinding }
+
+export function parseBrowserProposalRequest(value: unknown): BrowserProposalRequest {
+  const v = record(value, ['proposalId', 'subjectSha256', 'binding'], 'body');
+  return {
+    proposalId: uuid(v.proposalId, 'proposalId'),
+    subjectSha256: hex64(v.subjectSha256, 'subjectSha256'),
+    binding: parseRunBinding(v.binding, 'binding'),
+  };
+}
+
+export interface BrowserResultRequest extends BrowserProposalRequest {
+  outcome: 'ok' | 'error';
+  result: Record<string, unknown>;
+}
+
+/** Effect settlement: evidence about what the browser action did, never a permission. */
+export function parseBrowserResultRequest(value: unknown): BrowserResultRequest {
+  const v = record(value, ['proposalId', 'subjectSha256', 'binding', 'outcome', 'result'], 'body');
+  if (v.outcome !== 'ok' && v.outcome !== 'error') throw invalid('outcome');
+  const result = displayCopy(v.result, 'result');
+  return {
+    proposalId: uuid(v.proposalId, 'proposalId'),
+    subjectSha256: hex64(v.subjectSha256, 'subjectSha256'),
+    binding: parseRunBinding(v.binding, 'binding'),
+    outcome: v.outcome,
+    result,
+  };
+}
+
+/** RuntimeVersions exactly as the frozen Run schema and Meri's codec constrain them. */
+function runtimeVersions(value: unknown): NativeBrowserRuntimeVersions {
+  const v = record(value, ['imageDigest', 'sdk', 'cli', 'contracts', 'skillsDigest', 'checkpointFormat'], 'readback.run.versions');
+  if (typeof v.imageDigest !== 'string' || !/^sha256:[a-f0-9]{64}$/u.test(v.imageDigest)) throw invalid('readback.run.versions.imageDigest');
+  if (typeof v.skillsDigest !== 'string' || !HEX64.test(v.skillsDigest)) throw invalid('readback.run.versions.skillsDigest');
+  const semver = (candidate: unknown, field: string): string => {
+    if (typeof candidate !== 'string' || !/^[0-9]+\.[0-9]+\.[0-9]+$/u.test(candidate)) throw invalid(field);
+    return candidate;
+  };
+  if (v.contracts !== '0.1.0') throw invalid('readback.run.versions.contracts');
+  if (v.checkpointFormat !== '0.1.0') throw invalid('readback.run.versions.checkpointFormat');
+  return {
+    imageDigest: v.imageDigest,
+    sdk: semver(v.sdk, 'readback.run.versions.sdk'),
+    cli: semver(v.cli, 'readback.run.versions.cli'),
+    contracts: v.contracts,
+    skillsDigest: v.skillsDigest,
+    checkpointFormat: v.checkpointFormat,
+  };
+}
+
+/**
+ * Validate the internal readback for ONE browser preparation: shape, variant,
+ * four independent digests, the complete binding, the canonical scopes and the
+ * real run custody. Returns the facts Core is allowed to act on.
+ */
+export function assertBrowserReadback(raw: unknown, expected: {
+  proposalId: string; binding: NativeRunBinding; subjectSha256: string;
+}): NativeBrowserPrepared {
+  // Exactly {schemaVersion, commandSha256, metadata, run}: there is no top-level action.
+  const v = record(raw, ['schemaVersion', 'commandSha256', 'metadata', 'run'], 'readback');
+  if (v.schemaVersion !== 1) throw invalid('readback.schemaVersion');
+  const metadata = record(v.metadata, ['record', 'commandContext', 'commandSha256'], 'readback.metadata');
+  const recordValue = record(metadata.record, ['operation', 'action', 'binding', 'request', 'inputSha256', 'commandId',
+    'idempotencyKey', 'proposalId', 'scopes', 'createdAt', 'expiresAt', 'requiredApprover'], 'readback.record');
+  const operation = record(recordValue.operation, ['id', 'version'], 'readback.record.operation');
+  if (operation.id !== BROWSER_OPERATION.id || operation.version !== BROWSER_OPERATION.version) throw invalid('readback.record.operation');
+  if (recordValue.action !== BROWSER_ACTION) throw invalid('readback.record.action');
+  const preparation = parseBrowserPreparation(recordValue.request, 'readback.record.request');
+  const binding = parseRunBinding(recordValue.binding, 'readback.record.binding');
+  const scopes = scopeList(recordValue.scopes, 'readback.record.scopes', binding.tenantId);
+  const requiredApprover = parseIdentity(recordValue.requiredApprover, 'readback.record.requiredApprover');
+  const record_: NativeBrowserRecord = {
+    commandId: uuid(recordValue.commandId, 'readback.record.commandId'),
+    idempotencyKey: bounded(recordValue.idempotencyKey, 'readback.record.idempotencyKey', 128),
+    scopes,
+    createdAt: dateTime(recordValue.createdAt, 'readback.record.createdAt'),
+    expiresAt: dateTime(recordValue.expiresAt, 'readback.record.expiresAt'),
+    requiredApprover,
+    binding,
+    inputSha256: hex64(recordValue.inputSha256, 'readback.record.inputSha256'),
+    proposalId: uuid(recordValue.proposalId, 'readback.record.proposalId'),
+  };
+  // Identity: the row Core was asked about is the row Meri retained.
+  if (record_.proposalId !== expected.proposalId) throw invalid('readback.record.proposalId');
+  if (!sameJson(record_.binding, expected.binding)) throw invalid('readback.record.binding');
+  if (!sameJson(preparation.subject.binding, record_.binding)) throw invalid('readback.record.binding');
+  if (preparation.subjectSha256 !== expected.subjectSha256) throw invalid('readback.record.request.subjectSha256');
+  if (record_.requiredApprover.tenantId !== record_.binding.tenantId) throw invalid('readback.record.requiredApprover');
+  if (Date.parse(record_.expiresAt) <= Date.parse(record_.createdAt)) throw invalid('readback.record.expiresAt');
+
+  // The four digests, each recomputed here and never trusted from the response.
+  if (browserInputSha256(preparation) !== record_.inputSha256) throw invalid('readback.record.inputSha256');
+  const commandSha256 = browserCommandSha256(record_, preparation);
+  // C's hash lives on the envelope (top-level and metadata), never on the record.
+  if (commandSha256 !== v.commandSha256 || commandSha256 !== metadata.commandSha256) throw invalid('readback.commandSha256');
+
+  // The retained context is exactly the record's canonical authority.
+  const context = record(metadata.commandContext, ['binding', 'scopes', 'requiredApprover'], 'readback.metadata.commandContext');
+  if (!sameJson(context.binding, record_.binding) || !sameJson(context.scopes, scopes) ||
+      !sameJson(context.requiredApprover, requiredApprover)) throw invalid('readback.metadata.commandContext');
+
+  // Real run custody only: Meri validates and returns the frozen FULL Run
+  // (binding, state, scopes, createdAt, policyRevision, versions), so Core
+  // validates that exact envelope and keeps the authority projection in it.
+  const runValue = record(v.run, ['binding', 'state', 'scopes', 'createdAt', 'policyRevision', 'versions'], 'readback.run');
+  const run: NativeBrowserRunCustody = {
+    binding: parseRunBinding(runValue.binding, 'readback.run.binding'),
+    state: bounded(runValue.state, 'readback.run.state', 64),
+    scopes: scopeList(runValue.scopes, 'readback.run.scopes', binding.tenantId),
+    createdAt: dateTime(runValue.createdAt, 'readback.run.createdAt', true),
+    policyRevision: bounded(runValue.policyRevision, 'readback.run.policyRevision', 256),
+    versions: runtimeVersions(runValue.versions),
+  };
+  if (!sameJson(run.binding, record_.binding)) throw invalid('readback.run.binding');
+  if (!sameJson(run.scopes, scopes)) throw invalid('readback.run.scopes');
+  if (!(BROWSER_RUN_STATES as readonly string[]).includes(run.state)) throw invalid('readback.run.state');
+  const revisions = new Set(scopes.map((scope) => scope.policyRevision));
+  if (revisions.size !== 1 || !revisions.has(run.policyRevision)) throw invalid('readback.run.policyRevision');
+  return { preparation, record: record_, run };
+}

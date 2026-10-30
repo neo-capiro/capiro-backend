@@ -4,9 +4,9 @@ import { ConflictException, Injectable, Optional, ServiceUnavailableException } 
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import {
-  nativeCanonicalSha256, parseArtifactFileArguments, parseArtifactFileAttachments, parseRunBinding,
+  assertBrowserReadback, nativeCanonicalSha256, parseArtifactFileArguments, parseArtifactFileAttachments, parseRunBinding,
   parseTaskCreateArguments, parseTaskUpdateArguments, sameJson, UUID,
-  type NativeApprovalProposal,
+  type NativeApprovalProposal, type NativeBrowserPrepared, type NativeRunBinding,
 } from './native-approval.contract.js';
 
 const unavailable = () => new ServiceUnavailableException('Approval metadata unavailable');
@@ -171,9 +171,8 @@ function verifyReadback(actual: unknown, proposal: NativeApprovalProposal): void
 export class NativeApprovalMetadataVerifier {
   constructor(@Optional() private readonly config?: ConfigService) {}
 
-  async verify(proposal: NativeApprovalProposal, transaction?: Prisma.TransactionClient): Promise<void> {
-    // Keep network I/O outside the caller's proposal lock/database transaction.
-    if (transaction) throw unavailable();
+  /** One bounded read of Meri's internal approval metadata (never inside a DB transaction). */
+  private async readInternal(body: unknown): Promise<unknown> {
     const origin = this.config?.get<string>('MERI_CONTROL_ORIGIN');
     const secret = this.config?.get<string>('INTERNAL_SERVICE_SECRET');
     let base: URL;
@@ -186,7 +185,7 @@ export class NativeApprovalMetadataVerifier {
       const response = await fetch(new URL('/v1/internal/approval-metadata/read', base), {
         method: 'POST', redirect: 'error', signal: abort.signal,
         headers: { 'content-type': 'application/json', 'x-internal-service-secret': secret },
-        body: JSON.stringify({ schemaVersion: 1, proposalId: proposal.proposalId, binding: proposal.command.binding }),
+        body: JSON.stringify(body),
       });
       if (response.status !== 200 || !response.body) throw unavailable();
       reader = response.body.getReader();
@@ -200,13 +199,38 @@ export class NativeApprovalMetadataVerifier {
       }
       const actual = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks)));
       if (abort.signal.aborted) throw unavailable();
-      return verifyReadback(actual, proposal);
+      return actual;
     } catch (error) {
       if (error instanceof ConflictException) throw error;
       throw unavailable();
     } finally {
       clearTimeout(timer); abort.abort();
       if (reader) await reader.cancel().catch(() => undefined);
+    }
+  }
+
+  async verify(proposal: NativeApprovalProposal, transaction?: Prisma.TransactionClient): Promise<void> {
+    // Keep network I/O outside the caller's proposal lock/database transaction.
+    if (transaction) throw unavailable();
+    const actual = await this.readInternal({ schemaVersion: 1, proposalId: proposal.proposalId, binding: proposal.command.binding });
+    return verifyReadback(actual, proposal);
+  }
+
+  /**
+   * SCRUM-222: the retained browser preparation is the only authority for the
+   * subject, the complete binding, the scopes and the current run custody.
+   * Absent, unavailable, stale or substituted preparation refuses here, before
+   * any Core decision or consumption effect.
+   */
+  async verifyBrowser(request: {
+    proposalId: string; binding: NativeRunBinding; subjectSha256: string;
+  }): Promise<NativeBrowserPrepared> {
+    const actual = await this.readInternal({ schemaVersion: 1, proposalId: request.proposalId, binding: request.binding });
+    try {
+      return assertBrowserReadback(actual, request);
+    } catch {
+      // A malformed, substituted or foreign preparation is a refusal, never a 200.
+      throw new ConflictException('Approval proposal does not match its prepared record');
     }
   }
 }
