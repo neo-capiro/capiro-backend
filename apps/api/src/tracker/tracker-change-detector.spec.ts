@@ -151,6 +151,7 @@ describe('portfolio-only federal recipients (reachability)', () => {
       portfolioId: string;
       targetId: string;
       createdAt: Date;
+      evidence?: unknown;
     }>;
     bill: Record<string, unknown>;
     tracked?: unknown[];
@@ -165,6 +166,8 @@ describe('portfolio-only federal recipients (reachability)', () => {
           return opts.members.filter(
             (member) =>
               (where.tenantId == null || member.tenantId === where.tenantId) &&
+              (where.portfolioId?.in == null ||
+                where.portfolioId.in.includes(member.portfolioId)) &&
               (where.createdAt?.lte == null ||
                 member.createdAt.getTime() <= where.createdAt.lte.getTime()),
           );
@@ -329,6 +332,98 @@ describe('portfolio-only federal recipients (reachability)', () => {
       'later-portfolio',
       'original-portfolio',
     ]);
+  });
+
+  // Same-day precision comes from the canonical facts recorded at adoption, not
+  // from a timestamp cutoff: an identical action already in those facts is what
+  // the portfolio knew, while a different action that day is genuinely new.
+  const adoption = (latestActionDate: string, latestActionText: string) => ({
+    facts: { latestActionDate, latestActionText },
+  });
+
+  it('stays silent for a portfolio added later the same day with the action already adopted', async () => {
+    const members = [
+      {
+        tenantId: 'tenant-a',
+        portfolioId: 'original-portfolio',
+        targetId: '119-hr-8800',
+        createdAt: d('2026-10-01T00:00:00Z'),
+        evidence: adoption('2026-09-01', 'Introduced in House'),
+      },
+    ];
+    const h = harness({
+      members,
+      bill: { ...bill, latestActionDate: d('2026-10-10') },
+    });
+
+    const first = await h.svc.runDetectionCycle();
+    expect(first.changed).toBe(1);
+
+    // Added Oct 10 16:00, with the Oct 10 passage already in its adopted facts.
+    members.push({
+      tenantId: 'tenant-a',
+      portfolioId: 'same-day-portfolio',
+      targetId: '119-hr-8800',
+      createdAt: d('2026-10-10T16:00:00Z'),
+      evidence: adoption('2026-10-10', 'Passed/agreed to in House'),
+    });
+    const second = await h.svc.runDetectionCycle();
+
+    expect(second.changed).toBe(0);
+    expect(h.events.map((event) => event.portfolioId)).toEqual(['original-portfolio']);
+  });
+
+  it('emits a genuinely different same-day action once, and never again', async () => {
+    const h = harness({
+      members: [
+        {
+          tenantId: 'tenant-a',
+          portfolioId: 'same-day-portfolio',
+          targetId: '119-hr-8800',
+          createdAt: d('2026-10-10T16:00:00Z'),
+          evidence: adoption('2026-10-10', 'Reported by the Committee on Appropriations'),
+        },
+      ],
+      bill: { ...bill, latestActionDate: d('2026-10-10') },
+    });
+
+    const first = await h.svc.runDetectionCycle();
+    expect(first.changed).toBe(1);
+    expect(h.events).toHaveLength(1);
+    expect(h.events[0].payload.actionDate).toBe('2026-10-10');
+    // occurredAt is the real detection time, never a synthetic end-of-day value.
+    expect(h.events[0].occurredAt.getTime()).toBeLessThanOrEqual(Date.now());
+
+    const replay = await h.svc.runDetectionCycle();
+    expect(replay.changed).toBe(0);
+    expect(h.events).toHaveLength(1);
+  });
+
+  it('gives same-tenant portfolios only the events their own facts do not cover', async () => {
+    const h = harness({
+      members: [
+        {
+          tenantId: 'tenant-a',
+          portfolioId: 'informed-portfolio',
+          targetId: '119-hr-8800',
+          createdAt: d('2026-10-10T16:00:00Z'),
+          evidence: adoption('2026-10-10', 'Passed/agreed to in House'),
+        },
+        {
+          tenantId: 'tenant-a',
+          portfolioId: 'behind-portfolio',
+          targetId: '119-hr-8800',
+          createdAt: d('2026-10-02T00:00:00Z'),
+          evidence: adoption('2026-10-02', 'Referred to committee'),
+        },
+      ],
+      bill: { ...bill, latestActionDate: d('2026-10-10') },
+    });
+
+    const result = await h.svc.runDetectionCycle();
+
+    expect(result.changed).toBe(1);
+    expect(h.events.map((event) => event.portfolioId)).toEqual(['behind-portfolio']);
   });
 
   it('scopes each tenant to its own portfolios', async () => {

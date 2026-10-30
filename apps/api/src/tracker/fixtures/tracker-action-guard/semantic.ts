@@ -19,11 +19,14 @@ export const originalActionPins = {
     // Updated deliberately for Research Portfolio bill tracking: the detector now
     // (a) reads portfolio recipients alongside the legacy tracked-bill scan, and
     // (b) fans material federal changes out to portfolio-only recipients through
-    // fanOutPortfolioOnlyFederal, whose per-recipient baseline is the change's own
-    // day (endOfUtcDay). The guard stays exact — only the owned file's recorded
-    // shape moved; the ownership assertions themselves are unchanged.
-    declarations: 'aabffc50849638fbe68f47569199f532938b887805292a143bbc7b911e96b6fb',
-    comments: '723fb4ed0795a9eb57e2c9da379e47b967e7dcd2d64eeb5f90ab736852a53753',
+    // fanOutPortfolioOnlyFederal, which decides each recipient from the canonical
+    // adoption facts stored with the membership (adoptionFacts /
+    // recipientAlreadyKnew), so a same-day portfolio that already knew an action
+    // stays silent while a genuinely different action — same day included — is
+    // delivered. The guard stays exact: only the owned file's recorded shape
+    // moved, and the ownership assertions themselves are unchanged.
+    declarations: '518051a90d8cc8493faa56e31e4d3df33720cc51c669bd2530e055aa80603f23',
+    comments: '0b306b303c723ad172e4c91b350b6142d4f3eff8d08e4d77e1881daeaea8a773',
   },
   intel: {
     declarations: '84745c3078c0c76db15fefd82509391a1a976d758bca770143a0777a00fac9df',

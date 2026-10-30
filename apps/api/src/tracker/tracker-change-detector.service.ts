@@ -79,6 +79,40 @@ export function endOfUtcDay(date: Date): Date {
   );
 }
 
+/** Canonical facts recorded with a membership (research-portfolio-targets). */
+export function adoptionFacts(evidence: unknown): {
+  latestActionDate: string | null;
+  latestActionText: string | null;
+} | null {
+  const facts = (evidence as { facts?: Record<string, unknown> } | null)?.facts;
+  if (!facts || typeof facts !== 'object') return null;
+  const date = typeof facts.latestActionDate === 'string' ? facts.latestActionDate : null;
+  const text = typeof facts.latestActionText === 'string' ? facts.latestActionText : null;
+  return { latestActionDate: date, latestActionText: text };
+}
+
+/**
+ * True when the recipient has NOT already recorded this change in the canonical
+ * facts it adopted with. Same-day precision comes from those stored facts, not
+ * from a synthesized cutoff: an identical action on the adoption day is what the
+ * portfolio already knew, while a different action that day is genuinely new.
+ * A membership with no recorded facts falls back to the later-day rule, which is
+ * the strongest statement its data supports.
+ */
+export function recipientAlreadyKnew(
+  recipient: { createdAt: Date; evidence: unknown },
+  actionDate: string,
+  actionText: string,
+): boolean {
+  const facts = adoptionFacts(recipient.evidence);
+  if (!facts) return recipient.createdAt.getTime() <= endOfUtcDay(new Date(actionDate)).getTime();
+  if (!facts.latestActionDate) return true; // no prior action recorded: any dated action is new
+  if (actionDate < facts.latestActionDate) return false; // predates what the portfolio adopted
+  if (actionDate > facts.latestActionDate) return true;
+  // Same day: only a different action is new.
+  return (facts.latestActionText ?? '') !== actionText;
+}
+
 /**
  * Scans tracked bills for material legislative moves, snapshots each bill's
  * last-seen action so a move alerts exactly once, writes an IntelligenceChange
@@ -143,7 +177,15 @@ export class TrackerChangeDetectorService {
     const portfolioMembers = await this.prisma.withSystem((tx) =>
       tx.researchPortfolioMember.findMany({
         where: { targetKind: 'federal_bill', disposition: 'included' },
-        select: { tenantId: true, portfolioId: true, targetId: true, createdAt: true },
+        select: {
+          tenantId: true,
+          portfolioId: true,
+          targetId: true,
+          createdAt: true,
+          // The canonical adoption facts recorded with the membership. They are
+          // the only per-portfolio evidence of what the portfolio already knew.
+          evidence: true,
+        },
       }),
     );
 
@@ -445,7 +487,13 @@ export class TrackerChangeDetectorService {
    */
   private async fanOutPortfolioOnlyFederal(
     tracked: ReadonlyArray<{ tenantId: string; billId: string }>,
-    members: ReadonlyArray<{ tenantId: string; targetId: string; createdAt: Date }>,
+    members: ReadonlyArray<{
+      tenantId: string;
+      portfolioId: string;
+      targetId: string;
+      createdAt: Date;
+      evidence?: unknown;
+    }>,
     billById: ReadonlyMap<
       string,
       {
@@ -466,19 +514,40 @@ export class TrackerChangeDetectorService {
     byType: Record<string, number>;
   }> {
     const legacyKeys = new Set(tracked.map((row) => `${row.tenantId}:${row.billId}`));
-    // Recipient eligibility is per PORTFOLIO, not per tenant: each portfolio has
-    // its own adoption time, and a later-added portfolio must not receive a change
-    // that predates it. The tenant's earliest membership is used only to bound the
-    // action history we consider, never as the recipient baseline.
-    const groups = new Map<string, { tenantId: string; billId: string; earliest: Date }>();
+    // Eligibility is decided per PORTFOLIO from the canonical facts recorded when
+    // that portfolio adopted the bill, never from the tenant's earliest membership
+    // and never from a timestamp guess. A same-day portfolio that already knew the
+    // action is silent; a genuinely different later action (same day included) is not.
+    const groups = new Map<
+      string,
+      {
+        tenantId: string;
+        billId: string;
+        earliest: Date;
+        recipients: Array<{ portfolioId: string; createdAt: Date; evidence: unknown }>;
+      }
+    >();
     for (const member of members) {
       const key = `${member.tenantId}:${member.targetId}`;
       if (legacyKeys.has(key)) continue; // the legacy loop already fans this out
       const existing = groups.get(key);
+      const recipient = {
+        portfolioId: member.portfolioId,
+        createdAt: member.createdAt,
+        evidence: (member as { evidence?: unknown }).evidence,
+      };
       if (!existing) {
-        groups.set(key, { tenantId: member.tenantId, billId: member.targetId, earliest: member.createdAt });
-      } else if (member.createdAt.getTime() < existing.earliest.getTime()) {
-        existing.earliest = member.createdAt;
+        groups.set(key, {
+          tenantId: member.tenantId,
+          billId: member.targetId,
+          earliest: member.createdAt,
+          recipients: [recipient],
+        });
+      } else {
+        existing.recipients.push(recipient);
+        if (member.createdAt.getTime() < existing.earliest.getTime()) {
+          existing.earliest = member.createdAt;
+        }
       }
     }
 
@@ -492,8 +561,8 @@ export class TrackerChangeDetectorService {
         bill.latestActionText != null || bill.latestActionDate != null
           ? { date: bill.latestActionDate, text: bill.latestActionText }
           : null;
-      // An undated action cannot be ordered against an adoption time, so it never
-      // becomes a "new" portfolio event (nothing is claimed about it).
+      // An undated action cannot be ordered against an adoption, so nothing is
+      // claimed about it.
       if (latest?.date == null) {
         baseline += 1;
         continue;
@@ -520,13 +589,16 @@ export class TrackerChangeDetectorService {
         for (const ev of events) {
           if (!ev.date) continue;
           const actionDate = ev.date.toISOString().slice(0, 10);
-          // The change's own day is the recipient baseline: the shared fan-out
-          // inserts only for memberships created at/before it, which is exactly
-          // "this portfolio already tracked the bill when the change happened".
-          // End-of-day keeps a genuinely new same-day move after membership,
-          // while a portfolio adopted on a later day stays silent. Replay is
-          // deduped by the per-recipient event idempotency key.
-          const cutoff = endOfUtcDay(ev.date);
+          const eventText = ev.text || bill.latestActionText || '';
+          // Only recipients whose recorded facts do not already contain this
+          // change are addressed; the shared fan-out keeps the tenant scope, the
+          // per-recipient event key and replay dedupe.
+          const eligible = group.recipients
+            .filter((recipient) =>
+              recipientAlreadyKnew(recipient, actionDate, eventText),
+            )
+            .map((recipient) => recipient.portfolioId);
+          if (!eligible.length) continue;
           const written = await this.prisma.withSystem((tx) =>
             recordResearchPortfolioBillChanges(tx as never, {
               tenantId: group.tenantId,
@@ -538,10 +610,13 @@ export class TrackerChangeDetectorService {
               actionDate,
               sourceUrl: bill.url ?? null,
               sourceLabel: 'Congress.gov',
-              detectedAt: cutoff,
+              // This cycle is when the change was detected for portfolio-only
+              // recipients; the adoption facts — not this timestamp — decide who
+              // may receive it.
+              detectedAt: cycleStartedAt,
+              eligiblePortfolioIds: eligible,
             }),
           );
-          // Count actual inserts, so a replay contributes nothing.
           delivered += written;
           if (written > 0) byType[ev.cls.changeType] = (byType[ev.cls.changeType] ?? 0) + written;
         }

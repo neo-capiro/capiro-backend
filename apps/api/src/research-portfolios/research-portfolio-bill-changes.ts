@@ -16,6 +16,11 @@ export interface ResearchPortfolioBillChangeNotice {
   sourceUrl: string | null;
   sourceLabel: string;
   detectedAt: Date;
+  /**
+   * Recipients already proven eligible by the caller (portfolio ids). Omitted for
+   * the source-owner paths, which rely on the createdAt baseline alone.
+   */
+  eligiblePortfolioIds?: readonly string[];
 }
 
 type BillChangeClient = Pick<PrismaClient, 'researchPortfolioMember' | 'researchPortfolio' | 'researchPortfolioEvent'>;
@@ -72,6 +77,9 @@ export async function recordResearchPortfolioBillChanges(
       targetId: notice.targetId,
       disposition: 'included',
       ...(notice.tenantId ? { tenantId: notice.tenantId } : {}),
+      ...(notice.eligiblePortfolioIds
+        ? { portfolioId: { in: [...notice.eligiblePortfolioIds] } }
+        : {}),
       // Silent baseline: never surface a change that predates the membership.
       // `detectedAt` must be when THIS change was detected at the source — never
       // a sweep's previous checkpoint. A checkpoint as cut-off drops memberships
