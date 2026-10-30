@@ -209,6 +209,78 @@ function guardedPriority(value: number): number {
   return value;
 }
 
+/** The five note-taker credentials the existing service needs. Values never enter source. */
+export const FIRST_CHAT_CORE_NOTETAKER_SECRET_NAMES = [
+  'OPENAI_API_KEY',
+  'ANTHROPIC_API_KEY',
+  'RECALL_API_KEY',
+  'RECALL_WEBHOOK_SECRET',
+  'NOTES_ENCRYPTION_KEY',
+] as const;
+
+/**
+ * ARN-only note-taker configuration for the focused release overlay.
+ *
+ * This overlay adds exactly three things and nothing else: the explicit
+ * `MEETING_ARTIFACT_AGENT_SDK=true` switch, the five credential references the
+ * service already mounts, and the durable `secretsmanager:GetSecretValue` grant
+ * that today exists only as a hand-attached managed policy.
+ *
+ * It deliberately emits no process mode, background owner, external-action,
+ * Recall, callback, mail-fence or NOTETAKER_ENABLED value. Those belong to the
+ * accepted running posture (`api` / `active` / `enabled` / Recall off /
+ * `integration_sync_scheduler`) and are owned by the deployment template, not by
+ * a permissions change. The runtime's `notetakerPostureEnabled()` guard is left
+ * exactly as it is; functional admission in the accepted posture is a separately
+ * tracked compatibility question, not something this overlay may paper over by
+ * changing ownership.
+ *
+ * No KMS surface: all five secrets declare no customer key, so this emits no
+ * `kms:Decrypt` grant and must not disturb the role's existing conditional KMS
+ * statement for the data and secrets keys. No wildcard, no `*` resource, no
+ * secret value. A caller renders the overlay and applies it; nothing here calls
+ * AWS.
+ */
+export function firstChatCoreNoteTakerConfiguration(input: unknown) {
+  const binding = exactKeys(input, ['secretArns'], 'Preview note taker');
+  const secretArns = exactKeys(
+    binding.secretArns,
+    FIRST_CHAT_CORE_NOTETAKER_SECRET_NAMES,
+    'Preview note taker secret references',
+  );
+  for (const [name, arn] of Object.entries(secretArns)) {
+    if (
+      typeof arn !== 'string' ||
+      !new RegExp(
+        `^arn:aws:secretsmanager:${region}:${account}:secret:[A-Za-z0-9/_+=.@-]+-[A-Za-z0-9]{6}$`,
+      ).test(arn)
+    )
+      throw new Error(`${name}: complete same-account secret ARN required`);
+  }
+  if (new Set(Object.values(secretArns)).size !== FIRST_CHAT_CORE_NOTETAKER_SECRET_NAMES.length)
+    throw new Error('Distinct note taker secret references required');
+
+  return {
+    environment: [{ name: 'MEETING_ARTIFACT_AGENT_SDK', value: 'true' }],
+    secrets: Object.entries(secretArns).map(([name, valueFrom]) => ({
+      name,
+      valueFrom: valueFrom as string,
+    })),
+    // GetSecretValue only: the reference is a plain secret value, and the existing
+    // grant carries no DescribeSecret, so adding it would widen nothing useful.
+    executionRolePolicy: {
+      Version: '2012-10-17',
+      Statement: [
+        {
+          Effect: 'Allow',
+          Action: ['secretsmanager:GetSecretValue'],
+          Resource: Object.values(secretArns),
+        },
+      ],
+    },
+  };
+}
+
 function queryDatabaseBinding(value: unknown, pins: FirstChatCoreQueryDatabases | undefined) {
   const input = exactKeys(value, ['analytics', 'private'], 'Query databases');
   const expected = exactKeys(pins, ['analytics', 'private'], 'Qualified query databases');
