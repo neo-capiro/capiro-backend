@@ -33,6 +33,12 @@ export function ordinaryOutreachSendEnabled(): boolean {
 }
 
 /**
+ * The only duty names that may inherit the final note-taker ownership exception. An arbitrary or
+ * unnamed worker never does, and the generic selector keeps its exact meaning.
+ */
+export const FINAL_NOTETAKER_DUTIES: readonly string[] = ['notetaker-reconcile', 'client-notetaker'];
+
+/**
  * Central runtime policy service for the Engagement API extraction.
  *
  * A single source of truth that every background timer, external-action
@@ -264,9 +270,9 @@ export class EngagementRuntimePolicyService {
    *
    * The Recall webhook axis is deliberately NOT constrained. Both explicitly reviewed final API
    * variants — Recall disabled (today's accepted production stage) and Recall enabled (the accepted
-   * capture stage) — admit prep, so flipping only that axis cannot regress this worker. That is a
-   * source-compatibility statement only: the runtime environment resolver still refuses a Recall
-   * enabled selection until its own owner ships that join, and no activation is implied here.
+   * capture stage) — admit prep, so flipping only that axis cannot regress this worker. The runtime
+   * environment resolver admits both as well, but only when the Recall switch is explicit; an
+   * omitted or blank value stays refused, so this is never implicit recall arming.
    *
    * The comprehensive-prep feature flag gates every branch in `meetingPrepWorkerEnabled()` below, so
    * it is not re-checked here. The generic scheduler-only selector keeps its exact meaning and is
@@ -301,10 +307,17 @@ export class EngagementRuntimePolicyService {
   /**
    * Dedicated exception for the ordinary canonical send-intent worker on the final API owner.
    *
-   * It admits ONLY the ordinary sender, and only on the exact accepted final tuple: the API service
+   * It admits ONLY the ordinary sender, and only on the accepted final API tuple: the API service
    * in its active process mode, the API background owner, external actions enabled, callbacks
-   * enabled, Recall webhooks disabled, the existing `integration_sync_scheduler` restriction and an
-   * unphased (open) mail-handoff barrier. The existing versioned-outreach flag gates every branch in
+   * enabled, the existing `integration_sync_scheduler` restriction and an unphased (open)
+   * mail-handoff barrier.
+   *
+   * As with prep, the Recall webhook axis is deliberately NOT constrained: both explicitly reviewed
+   * final API stages (Recall disabled today, Recall enabled for the accepted capture receiver)
+   * admit the ordinary sender, so flipping only that axis cannot regress it. The resolver requires
+   * the switch to be explicit for either stage, so this is not implicit recall arming.
+   *
+   * The existing versioned-outreach flag gates every branch in
    * `ordinaryOutreachSendWorkerEnabled()` below, so it is not re-checked here. The generic
    * scheduler-only selector keeps its exact meaning and is never widened, and unnamed
    * `backgroundWorkersEnabled()` stays false on this tuple.
@@ -316,7 +329,6 @@ export class EngagementRuntimePolicyService {
       this.backgroundOwner === 'api' &&
       this.externalActionsMode === 'enabled' &&
       this.callbacksEnabled &&
-      !this.recallWebhookEnabled &&
       this.backgroundWorkerRestriction === 'integration_sync_scheduler' &&
       this.mailHandoffPhase() === 'off'
     );
@@ -346,6 +358,61 @@ export class EngagementRuntimePolicyService {
         statusCode: 503,
         code: 'ENGAGEMENT_BACKGROUND_DISABLED',
         worker: 'outreach-send-intent-worker',
+        message: 'Background workers are disabled in the engagement-api shadow runtime.',
+      });
+    }
+  }
+
+  /**
+   * Dedicated exception for the named note-taker duties on the accepted final API owner that will
+   * receive Recall callbacks: API service, active process, API background owner, external actions
+   * enabled, callbacks enabled, Recall webhooks enabled, the existing `integration_sync_scheduler`
+   * restriction and an unphased (open) mail-handoff barrier.
+   *
+   * Recall enabled is required here on purpose: while the final stage is Recall disabled, the new
+   * owner stays closed, so recovery is never admitted before the receiver handoff exists.
+   *
+   * `NOTETAKER_ENABLED` is deliberately absent. That flag gates NEW CAPTURE only; existing sessions
+   * must still be recovered, cleaned up, expired and repaired after capture is disabled, a
+   * preference is revoked or consent is lost. Gating this predicate on capture would silently
+   * disable that safety behavior.
+   */
+  private finalNotetakerExceptionEnabled(): boolean {
+    return (
+      this.serviceName === 'api' &&
+      this.processMode === 'active' &&
+      this.backgroundOwner === 'api' &&
+      this.externalActionsMode === 'enabled' &&
+      this.callbacksEnabled &&
+      this.recallWebhookEnabled &&
+      this.backgroundWorkerRestriction === 'integration_sync_scheduler' &&
+      this.mailHandoffPhase() === 'off'
+    );
+  }
+
+  /**
+   * The single ownership predicate for the named note-taker duties: worker startup, the worker
+   * tick, the guarded service proxy and the raw sweep/client gates all consult it. A legitimate
+   * existing named owner keeps whatever the generic policy already admits; the dedicated exception
+   * is the only additional admission and applies to these two duty names alone.
+   */
+  finalNotetakerWorkerEnabled(workerName?: string): boolean {
+    if (!FINAL_NOTETAKER_DUTIES.includes(workerName ?? '')) return false;
+    if (this.backgroundWorkersEnabled(workerName)) return true;
+    return this.finalNotetakerExceptionEnabled();
+  }
+
+  assertFinalNotetakerWorker(workerName: string): void {
+    if (!this.finalNotetakerWorkerEnabled(workerName)) {
+      this.logger.log(
+        `${workerName} disabled by engagement runtime policy ` +
+          `(service=${this.serviceName} owner=${this.backgroundOwner} mode=${this.processMode} ` +
+          `recall=${this.recallWebhookEnabled})`,
+      );
+      throw new ServiceUnavailableException({
+        statusCode: 503,
+        code: 'ENGAGEMENT_BACKGROUND_DISABLED',
+        worker: workerName,
         message: 'Background workers are disabled in the engagement-api shadow runtime.',
       });
     }

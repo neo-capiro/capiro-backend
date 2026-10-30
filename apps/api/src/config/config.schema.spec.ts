@@ -394,13 +394,32 @@ describe('opt-in background worker restriction', () => {
     },
   );
 
+  test.each(['false', 'true'] as const)(
+    'accepts the explicitly reviewed final stage Recall=%s',
+    (recall) => {
+      expect(validateConfig({ ...raw, ENGAGEMENT_RECALL_WEBHOOK_ENABLED: recall })).toMatchObject({
+        ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION: 'integration_sync_scheduler',
+        ENGAGEMENT_RECALL_WEBHOOK_ENABLED: recall === 'true',
+      });
+    },
+  );
+
+  test('refuses the implicit Recall default alongside the restriction', () => {
+    // Recall defaults to true; the restriction requires the switch to be explicit.
+    expect(() =>
+      validateConfig({ ...raw, ENGAGEMENT_RECALL_WEBHOOK_ENABLED: undefined }),
+    ).toThrow(/ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION/);
+    expect(() =>
+      validateConfig({ ...raw, ENGAGEMENT_RECALL_WEBHOOK_ENABLED: '  ' }),
+    ).toThrow(/ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION/);
+  });
+
   test.each([
     ['CAPIRO_SERVICE_NAME', 'engagement-api'],
     ['ENGAGEMENT_PROCESS_MODE', 'shadow'],
     ['ENGAGEMENT_BACKGROUND_OWNER', 'disabled'],
     ['ENGAGEMENT_EXTERNAL_ACTIONS', 'test_only'],
     ['ENGAGEMENT_CALLBACKS_ENABLED', 'false'],
-    ['ENGAGEMENT_RECALL_WEBHOOK_ENABLED', 'true'],
   ])('fails closed on %s=%s independently of the boot preflight', (key, value) => {
     expect(() => validateConfig({ ...raw, [key]: value })).toThrow(
       /ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION/,

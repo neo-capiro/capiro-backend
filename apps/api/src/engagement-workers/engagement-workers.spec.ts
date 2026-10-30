@@ -6,6 +6,8 @@ function runtime(enabled: boolean) {
   return {
     backgroundWorkersEnabled: jest.fn(() => enabled),
     assertBackgroundOwner: jest.fn(),
+    finalNotetakerWorkerEnabled: jest.fn(() => enabled),
+    assertFinalNotetakerWorker: jest.fn(),
   };
 }
 

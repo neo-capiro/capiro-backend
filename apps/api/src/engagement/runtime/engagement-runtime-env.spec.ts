@@ -389,6 +389,53 @@ describe('opt-in background worker restriction', () => {
     },
   );
 
+  it.each(['false', 'true'] as const)(
+    'accepts the explicitly reviewed final stage Recall=%s',
+    (recall) => {
+      const resolved = resolveEngagementRuntimeEnvironment({
+        ...intended,
+        ENGAGEMENT_RECALL_WEBHOOK_ENABLED: recall,
+      });
+      expect(resolved).toMatchObject({
+        serviceName: 'api',
+        processMode: 'active',
+        backgroundOwner: 'api',
+        externalActions: 'enabled',
+        callbacksEnabled: true,
+        recallWebhookEnabled: recall === 'true',
+        backgroundWorkerRestriction: 'integration_sync_scheduler',
+      });
+    },
+  );
+
+  it.each([undefined, '', '  '])(
+    'still refuses an omitted or blank Recall switch with the restriction (%p)',
+    (value) => {
+      // The default is true: admitting the implicit default here would silently arm callbacks.
+      const raw: Record<string, string | undefined> = {
+        ...intended,
+        ENGAGEMENT_RECALL_WEBHOOK_ENABLED: value,
+      };
+      expect(() => resolveEngagementRuntimeEnvironment(raw)).toThrow(
+        /ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION/,
+      );
+    },
+  );
+
+  it.each(['maybe', 'truthy'])(
+    'keeps rejecting the malformed Recall spelling %p with the restriction',
+    (value) => {
+      // 'yes'/'on'/'1' are legitimate explicit-true spellings and stay admissible; only
+      // unparseable values fail closed here.
+      expect(() =>
+        resolveEngagementRuntimeEnvironment({
+          ...(intended as Record<string, string>),
+          ENGAGEMENT_RECALL_WEBHOOK_ENABLED: value,
+        }),
+      ).toThrow();
+    },
+  );
+
   it.each([
     ['CAPIRO_SERVICE_NAME', 'engagement-api'],
     ['ENGAGEMENT_PROCESS_MODE', 'shadow'],
@@ -397,7 +444,6 @@ describe('opt-in background worker restriction', () => {
     ['ENGAGEMENT_EXTERNAL_ACTIONS', 'test_only'],
     ['ENGAGEMENT_EXTERNAL_ACTIONS', 'integrations_and_notetaker'],
     ['ENGAGEMENT_CALLBACKS_ENABLED', 'false'],
-    ['ENGAGEMENT_RECALL_WEBHOOK_ENABLED', 'true'],
   ])('fails closed when %s=%s accompanies the restriction', (key, value) => {
     expect(() =>
       resolveEngagementRuntimeEnvironment({ ...intended, [key]: value }),

@@ -249,20 +249,32 @@ export function resolveEngagementRuntimeEnvironment(
   // The restriction narrows the worker surface, so it is valid only for the
   // intended main-API tuple. An explicit selection outside that tuple fails
   // closed rather than quietly changing which workers run.
+  //
+  // The Recall webhook axis has TWO deliberately reviewed final API stages: Recall
+  // disabled (today's deployable sender/prep stage) and Recall enabled (the accepted
+  // capture-receiver handoff, which the named note-taker owner needs). Both are
+  // admitted here. Recall's resolver fallback and schema default are TRUE, so the
+  // switch must be EXPLICIT for either stage: an omitted or blank value keeps failing
+  // closed instead of silently arming callbacks through the default.
   if (backgroundWorkerRestriction) {
+    const recallExplicit =
+      raw.ENGAGEMENT_RECALL_WEBHOOK_ENABLED != null &&
+      String(raw.ENGAGEMENT_RECALL_WEBHOOK_ENABLED).trim() !== '';
     const compatible =
       serviceName === 'api' &&
       processMode === 'active' &&
       backgroundOwner === 'api' &&
       externalActions === 'enabled' &&
       callbacksEnabled &&
-      !recallWebhookEnabled;
+      recallExplicit;
     if (!compatible) {
       throw new Error(
         'ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION=integration_sync_scheduler requires ' +
           'CAPIRO_SERVICE_NAME=api, ENGAGEMENT_PROCESS_MODE=active, ' +
           'ENGAGEMENT_BACKGROUND_OWNER=api, ENGAGEMENT_EXTERNAL_ACTIONS=enabled, ' +
-          'ENGAGEMENT_CALLBACKS_ENABLED=true and ENGAGEMENT_RECALL_WEBHOOK_ENABLED=false.',
+          'ENGAGEMENT_CALLBACKS_ENABLED=true and an explicit ' +
+          'ENGAGEMENT_RECALL_WEBHOOK_ENABLED (true for the capture stage, false for ' +
+          'the sender/prep stage).',
       );
     }
   }
