@@ -219,22 +219,30 @@ export const FIRST_CHAT_CORE_NOTETAKER_SECRET_NAMES = [
 ] as const;
 
 /**
- * ARN-only note-taker posture for this preview service.
+ * ARN-only note-taker configuration for the focused release overlay.
  *
- * The runtime admits note-taker work only from `integrations_and_notetaker`
- * while `notetakerPostureEnabled()` holds: service `api`, process `shadow`,
- * background owner `api`, callbacks and the Recall webhook both enabled.
- * Generic background workers stay denied in that posture — the policy admits
- * only `engagement-sync-scheduler`, `notetaker-reconcile` and
- * `client-notetaker` by exact name, so this overlay must not widen ownership
- * for anything else.
+ * This overlay adds exactly three things and nothing else: the explicit
+ * `MEETING_ARTIFACT_AGENT_SDK=true` switch, the five credential references the
+ * service already mounts, and the durable `secretsmanager:GetSecretValue` grant
+ * that today exists only as a hand-attached managed policy.
  *
- * Every credential is a complete same-account secret ARN; no wildcard, no
- * `*` resource and no secret value is read here. Callers render the overlay
- * and apply it; this function never calls AWS.
+ * It deliberately emits no process mode, background owner, external-action,
+ * Recall, callback, mail-fence or NOTETAKER_ENABLED value. Those belong to the
+ * accepted running posture (`api` / `active` / `enabled` / Recall off /
+ * `integration_sync_scheduler`) and are owned by the deployment template, not by
+ * a permissions change. The runtime's `notetakerPostureEnabled()` guard is left
+ * exactly as it is; functional admission in the accepted posture is a separately
+ * tracked compatibility question, not something this overlay may paper over by
+ * changing ownership.
+ *
+ * No KMS surface: all five secrets declare no customer key, so this emits no
+ * `kms:Decrypt` grant and must not disturb the role's existing conditional KMS
+ * statement for the data and secrets keys. No wildcard, no `*` resource, no
+ * secret value. A caller renders the overlay and applies it; nothing here calls
+ * AWS.
  */
 export function firstChatCoreNoteTakerConfiguration(input: unknown) {
-  const binding = exactKeys(input, ['secretArns', 'kmsKeyArns'], 'Preview note taker');
+  const binding = exactKeys(input, ['secretArns'], 'Preview note taker');
   const secretArns = exactKeys(
     binding.secretArns,
     FIRST_CHAT_CORE_NOTETAKER_SECRET_NAMES,
@@ -251,57 +259,25 @@ export function firstChatCoreNoteTakerConfiguration(input: unknown) {
   }
   if (new Set(Object.values(secretArns)).size !== FIRST_CHAT_CORE_NOTETAKER_SECRET_NAMES.length)
     throw new Error('Distinct note taker secret references required');
-  const kmsKeyArns = binding.kmsKeyArns;
-  if (
-    !Array.isArray(kmsKeyArns) ||
-    kmsKeyArns.length > FIRST_CHAT_CORE_NOTETAKER_SECRET_NAMES.length ||
-    new Set(kmsKeyArns).size !== kmsKeyArns.length ||
-    kmsKeyArns.some(
-      (arn) =>
-        typeof arn !== 'string' ||
-        !new RegExp(
-          `^arn:aws:kms:${region}:${account}:key/(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|mrk-[0-9a-f]{32})$`,
-        ).test(arn),
-    )
-  )
-    throw new Error('Explicit same-account customer-managed key ARNs required (or an empty list)');
 
-  const managementResources = Object.values(secretArns);
-  const statements: Record<string, unknown>[] = [
-    {
-      Effect: 'Allow',
-      Action: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'],
-      Resource: managementResources,
-    },
-  ];
-  if (kmsKeyArns.length)
-    statements.push({
-      Effect: 'Allow',
-      Action: ['kms:Decrypt'],
-      Resource: kmsKeyArns,
-      Condition: {
-        StringEquals: {
-          'kms:ViaService': `secretsmanager.${region}.amazonaws.com`,
-          'kms:EncryptionContext:SecretARN': managementResources,
-        },
-      },
-    });
   return {
-    environment: Object.entries({
-      // The exact posture the runtime requires; generic workers stay denied.
-      ENGAGEMENT_EXTERNAL_ACTIONS: 'integrations_and_notetaker',
-      ENGAGEMENT_PROCESS_MODE: 'shadow',
-      ENGAGEMENT_BACKGROUND_OWNER: 'api',
-      ENGAGEMENT_CALLBACKS_ENABLED: 'true',
-      ENGAGEMENT_RECALL_WEBHOOK_ENABLED: 'true',
-      NOTETAKER_ENABLED: 'true',
-      MEETING_ARTIFACT_AGENT_SDK: 'true',
-    }).map(([name, value]) => ({ name, value })),
+    environment: [{ name: 'MEETING_ARTIFACT_AGENT_SDK', value: 'true' }],
     secrets: Object.entries(secretArns).map(([name, valueFrom]) => ({
       name,
       valueFrom: valueFrom as string,
     })),
-    executionRolePolicy: { Version: '2012-10-17', Statement: statements },
+    // GetSecretValue only: the reference is a plain secret value, and the existing
+    // grant carries no DescribeSecret, so adding it would widen nothing useful.
+    executionRolePolicy: {
+      Version: '2012-10-17',
+      Statement: [
+        {
+          Effect: 'Allow',
+          Action: ['secretsmanager:GetSecretValue'],
+          Resource: Object.values(secretArns),
+        },
+      ],
+    },
   };
 }
 
