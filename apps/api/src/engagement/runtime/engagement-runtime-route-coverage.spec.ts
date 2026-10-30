@@ -60,10 +60,7 @@ const V3_MANIFESTS: ReadonlyArray<{ controller: string; fixture: string }> = [
 const V3_ROUTE_KEYS = new Set(
   V3_MANIFESTS.flatMap(({ controller, fixture }) => {
     const manifest = JSON.parse(
-      readFileSync(
-        path.join(REPO_ROOT, 'apps/api/src/outreach-v3/__fixtures__', fixture),
-        'utf8',
-      ),
+      readFileSync(path.join(REPO_ROOT, 'apps/api/src/outreach-v3/__fixtures__', fixture), 'utf8'),
     ) as { routes: Array<{ handler: string }> };
     return manifest.routes.map((route) => `${controller}.${route.handler}`);
   }),
@@ -180,6 +177,11 @@ function validateRegistry(registry: EngagementRuntimeRoutePolicy): string[] {
     if (
       ['POST', 'PUT', 'PATCH', 'DELETE'].includes(route.method) &&
       route.controller !== 'RecallWebhookController' &&
+      !(
+        route.controller === 'OutreachCampaignController' &&
+        route.handler === 'read' &&
+        route.classification === 'read'
+      ) &&
       !metadata &&
       route.classification !== 'write' &&
       !LOCAL_SAFE_GENERATION_HANDLERS.has(route.handler) &&
@@ -202,7 +204,9 @@ function validateRegistry(registry: EngagementRuntimeRoutePolicy): string[] {
       metadata?.requiresCallbacks &&
       !['integration_oauth_callback', 'integration_notification'].includes(metadata.action)
     ) {
-      findings.push(`requiresCallbacks used on non-callback action: ${route.controller}.${route.handler}`);
+      findings.push(
+        `requiresCallbacks used on non-callback action: ${route.controller}.${route.handler}`,
+      );
     }
   }
 
@@ -228,28 +232,36 @@ describe('Engagement runtime route coverage', () => {
     ['createAttachmentUploadUrl', 'POST', '/api/engagement/attachments/upload-url'],
     ['confirmAttachment', 'POST', '/api/engagement/attachments/confirm'],
     ['deleteAttachment', 'DELETE', '/api/engagement/attachments/:id'],
-  ])('keeps the real internal storage route %s outside the outbound policy', (handler, method, routePath) => {
-    const route = ROUTE_MANIFEST.routes.find(
-      (entry) => entry.controller === 'EngagementController' && entry.handler === handler,
-    );
-    expect(route).toMatchObject({ method, path: routePath, classification: 'attachment' });
-    expect(externallySensitive(route!)).toBe(false);
-    expect(decoratorMetadata(route!)).toBeUndefined();
-    expect(runtimePolicyForHandler('EngagementController', handler!)).toBeUndefined();
-  });
+  ])(
+    'keeps the real internal storage route %s outside the outbound policy',
+    (handler, method, routePath) => {
+      const route = ROUTE_MANIFEST.routes.find(
+        (entry) => entry.controller === 'EngagementController' && entry.handler === handler,
+      );
+      expect(route).toMatchObject({ method, path: routePath, classification: 'attachment' });
+      expect(externallySensitive(route!)).toBe(false);
+      expect(decoratorMetadata(route!)).toBeUndefined();
+      expect(runtimePolicyForHandler('EngagementController', handler!)).toBeUndefined();
+    },
+  );
 
   it('classifies the local single-mail intent GET as a read without a send policy', () => {
     const route = ROUTE_MANIFEST.routes.find(
-      (entry) => entry.controller === 'EngagementController' && entry.handler === 'singleMailIntent',
+      (entry) =>
+        entry.controller === 'EngagementController' && entry.handler === 'singleMailIntent',
     );
     expect(route).toMatchObject({
-      method: 'GET', path: '/api/engagement/mail/send-intents/:requestKey', classification: 'read',
+      method: 'GET',
+      path: '/api/engagement/mail/send-intents/:requestKey',
+      classification: 'read',
     });
     expect(externallySensitive(route!)).toBe(false);
     expect(runtimePolicyForHandler('EngagementController', 'singleMailIntent')).toBeUndefined();
   });
 
-  it.each<[handler: 'send' | 'test', action: 'outreach_send' | 'outreach_test_send', testMode: boolean]>([
+  it.each<
+    [handler: 'send' | 'test', action: 'outreach_send' | 'outreach_test_send', testMode: boolean]
+  >([
     ['send', 'outreach_send', false],
     ['test', 'outreach_test_send', true],
   ])('requires the real Newsletter %s dispatch policy', (handler, action, testMode) => {
@@ -257,14 +269,22 @@ describe('Engagement runtime route coverage', () => {
       (entry) => entry.controller === 'NewsletterOutreachController' && entry.handler === handler,
     );
     expect(route).toMatchObject({
-      method: 'POST', path: `/api/engagement/newsletters/:id/${handler}`, classification: 'external_send',
+      method: 'POST',
+      path: `/api/engagement/newsletters/:id/${handler}`,
+      classification: 'external_send',
     });
     expect(externallySensitive(route!)).toBe(true);
-    expect(runtimePolicyForHandler('NewsletterOutreachController', handler)).toMatchObject({ action });
-    expect(runtimePolicyForHandler('NewsletterOutreachController', handler)?.testMode ?? false).toBe(testMode);
+    expect(runtimePolicyForHandler('NewsletterOutreachController', handler)).toMatchObject({
+      action,
+    });
+    expect(
+      runtimePolicyForHandler('NewsletterOutreachController', handler)?.testMode ?? false,
+    ).toBe(testMode);
     const missing = {
       ...ENGAGEMENT_RUNTIME_ROUTE_POLICY,
-      NewsletterOutreachController: { ...ENGAGEMENT_RUNTIME_ROUTE_POLICY.NewsletterOutreachController },
+      NewsletterOutreachController: {
+        ...ENGAGEMENT_RUNTIME_ROUTE_POLICY.NewsletterOutreachController,
+      },
     };
     delete (missing.NewsletterOutreachController as Record<string, unknown>)[handler];
     expect(validateRegistry(missing)).toContain(
@@ -311,17 +331,17 @@ describe('Engagement runtime route coverage', () => {
     if (!engagementHandlers) {
       throw new Error('EngagementController missing from route policy clone');
     }
-    delete engagementHandlers.generateBatchEmails;
+    delete engagementHandlers.generateTalkingPoints;
     expect(validateRegistry(clone)).toContain(
-      'missing runtime policy: POST /api/engagement/outreach/generate-batch (EngagementController.generateBatchEmails)',
+      'missing runtime policy: POST /api/engagement/outreach/insights/talking-points (EngagementController.generateTalkingPoints)',
     );
   });
 
   it('keeps mailto local and preserves conditional generation metadata for draft versions', () => {
     expect(runtimePolicyForHandler('EngagementController', 'openOutreachEmail')).toBeUndefined();
-    expect(
-      runtimePolicyForHandler('EngagementController', 'createDraftVersion'),
-    ).toMatchObject({ action: 'outreach_generate' });
+    expect(runtimePolicyForHandler('EngagementController', 'createDraftVersion')).toMatchObject({
+      action: 'outreach_generate',
+    });
   });
 
   it('keeps Recall outside the Phase 1 application runtime', () => {

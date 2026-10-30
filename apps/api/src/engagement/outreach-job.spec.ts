@@ -5,14 +5,13 @@
 
 import { describe, expect, test } from '@jest/globals';
 import type { TenantContext } from '@capiro/shared';
-import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import {
   OutreachJobService,
   buildItemResult,
   classifyGenerationItem,
   computeJobRollup,
   outreachRecipientKey,
-  readPinnedIdentity,
 } from './outreach-job.service.js';
 
 describe('computeJobRollup (W4.2)', () => {
@@ -76,13 +75,7 @@ const ctx: TenantContext = {
 } as TenantContext;
 
 /** Stub the withTenant tx surface submit() touches. */
-function makeService(
-  existingJobId: string | null,
-  opts: {
-    gatewayEnabled?: boolean;
-    pinned?: Record<string, unknown> | null;
-  } = {},
-) {
+function makeService(existingJobId: string | null) {
   const created: { job?: Record<string, unknown>; items?: unknown[] } = {};
   const lookups: Array<Record<string, unknown>> = [];
   const service = Object.create(OutreachJobService.prototype) as OutreachJobService;
@@ -91,31 +84,22 @@ function makeService(
   // submit() asserts the external action on the runtime policy (Phase 1
   // external-action guards) before creating a job.
   patch.runtimePolicy = { assertExternalAction: () => {} };
-  // Phase 1 §3.k1: submit() resolves the provider/model identity ONCE through
-  // the gateway before the transaction. With the gateway off it is never called.
-  patch.logger = { warn: () => {}, error: () => {}, log: () => {} };
-  patch.gateway = {
-    enabled: opts.gatewayEnabled ?? false,
-    resolvePinnedIdentity: async () =>
-      opts.pinned === null
-        ? null
-        : {
-            creds: [],
-            pinned: opts.pinned ?? {
-              provider: 'anthropic',
-              model: 'claude-sonnet-4-6',
-              planModel: 'claude-haiku-4-5-20251001',
-              promptSpecVersion: 'v2.2-gateway',
-            },
-          },
-  };
   patch.prisma = {
     withTenant: (_t: string, fn: (tx: unknown) => unknown) =>
       fn({
+        $queryRaw: async () => [],
+        outreachRecord: { findFirst: async () => ({ metadata: { workflow: { revision: 1 } } }) },
         outreachJob: {
           findFirst: async ({ where }: { where: Record<string, unknown> }) => {
             lookups.push(where);
-            return existingJobId ? { id: existingJobId } : null;
+            return existingJobId
+              ? {
+                  id: existingJobId,
+                  kind: 'generate',
+                  outreachRecordId: 'record-1',
+                  params: { templateId: 't', executionOwner: 'claude-agent-sdk', revision: 1 },
+                }
+              : null;
           },
           create: async ({ data }: { data: Record<string, unknown> }) => {
             created.job = data;
@@ -139,7 +123,8 @@ describe('OutreachJobService.submit idempotency (W4.2)', () => {
     const out = await service.submit(ctx, {
       requestKey: 'rk-1',
       kind: 'generate',
-      params: { templateId: 't' },
+      outreachRecordId: 'record-1',
+      params: { templateId: 't', executionOwner: 'claude-agent-sdk', revision: 1 },
       recipients: [{ email: 'a@x' }],
     });
     expect(out).toEqual({ jobId: 'existing-job', deduped: true });
@@ -152,7 +137,8 @@ describe('OutreachJobService.submit idempotency (W4.2)', () => {
     const out = await service.submit(ctx, {
       requestKey: 'rk-2',
       kind: 'generate',
-      params: { templateId: 't' },
+      outreachRecordId: 'record-1',
+      params: { templateId: 't', executionOwner: 'claude-agent-sdk', revision: 1 },
       recipients: [{ email: 'a@x' }, { email: 'b@x' }, { email: 'a@x' }], // dup collapsed
     });
     expect(out).toEqual({ jobId: 'new-job', deduped: false });
@@ -240,83 +226,6 @@ describe('OutreachJobService send at-most-once (W4.3)', () => {
   });
 });
 
-/**
- * Per-item retry (W4.4): a single FAILED generate item flips back to 'pending'
- * (error cleared) and a finalized job reopens to 'running' so the sweep re-runs it.
- * Non-generate jobs and non-failed items are refused.
- */
-function makeRetryService(opts: {
-  jobKind: string;
-  jobStatus: string;
-  itemStatus: string | null; // null = item not found
-}) {
-  const itemUpdates: Array<Record<string, unknown>> = [];
-  const jobUpdates: Array<Record<string, unknown>> = [];
-  const service = Object.create(OutreachJobService.prototype) as OutreachJobService;
-  const patch = service as unknown as Record<string, unknown>;
-  patch.prisma = {
-    withTenant: (_t: string, fn: (tx: unknown) => unknown) =>
-      fn({
-        outreachJob: {
-          findFirst: async () => ({ id: 'job-1', kind: opts.jobKind, status: opts.jobStatus }),
-          update: async ({ data }: { data: Record<string, unknown> }) => {
-            jobUpdates.push(data);
-            return {};
-          },
-        },
-        outreachJobItem: {
-          findFirst: async () =>
-            opts.itemStatus ? { id: 'item-1', status: opts.itemStatus } : null,
-          update: async ({ data }: { data: Record<string, unknown> }) => {
-            itemUpdates.push(data);
-            return {};
-          },
-        },
-      }),
-  };
-  const ctx: TenantContext = { tenantId: 't1', userId: 'u1' } as TenantContext;
-  return {
-    run: () => service.retryItem(ctx, 'job-1', 'item-1'),
-    itemUpdates,
-    jobUpdates,
-  };
-}
-
-describe('OutreachJobService retryItem (W4.4)', () => {
-  test('a failed generate item in a finalized job → item pending + job reopened', async () => {
-    const h = makeRetryService({ jobKind: 'generate', jobStatus: 'partial', itemStatus: 'failed' });
-    const res = await h.run();
-    expect(res.retried).toBe(true);
-    expect(h.itemUpdates).toEqual([{ status: 'pending', error: null }]);
-    expect(h.jobUpdates).toEqual([{ status: 'running', finishedAt: null }]);
-  });
-
-  test('a still-running job is not reopened (only the item flips)', async () => {
-    const h = makeRetryService({ jobKind: 'generate', jobStatus: 'running', itemStatus: 'failed' });
-    const res = await h.run();
-    expect(res.retried).toBe(true);
-    expect(h.itemUpdates).toHaveLength(1);
-    expect(h.jobUpdates).toHaveLength(0);
-  });
-
-  test('a send job is refused (at-most-once — never auto-resend)', async () => {
-    const h = makeRetryService({ jobKind: 'send', jobStatus: 'partial', itemStatus: 'failed' });
-    const res = await h.run();
-    expect(res.retried).toBe(false);
-    expect(res.reason).toMatch(/only generation/i);
-    expect(h.itemUpdates).toHaveLength(0);
-  });
-
-  test('a non-failed item is refused', async () => {
-    const h = makeRetryService({ jobKind: 'generate', jobStatus: 'partial', itemStatus: 'done' });
-    const res = await h.run();
-    expect(res.retried).toBe(false);
-    expect(h.itemUpdates).toHaveLength(0);
-  });
-});
-
-// ── Phase 0 (plan §3.c3) ─────────────────────────────────────────────────────
-
 describe('computeJobRollup — held is terminal and never "complete"', () => {
   test('all held → partial (nothing failed, but nothing is sendable either)', () => {
     const r = computeJobRollup([{ status: 'held' }, { status: 'held' }]);
@@ -356,14 +265,18 @@ describe('classifyGenerationItem — fails closed', () => {
       classifyGenerationItem({ versionId: 'v1', auditStatus: 'passed', approvalStatus: 'pending' }),
     ).toBe('held');
     expect(
-      classifyGenerationItem({ versionId: 'v1', auditStatus: 'passed', approvalStatus: 'rejected' }),
+      classifyGenerationItem({
+        versionId: 'v1',
+        auditStatus: 'passed',
+        approvalStatus: 'rejected',
+      }),
     ).toBe('held');
   });
 
   test('a generation failure is failed even when version fields are present', () => {
-    expect(
-      classifyGenerationItem({ versionId: 'v1', generationStatus: 'generation_failed' }),
-    ).toBe('failed');
+    expect(classifyGenerationItem({ versionId: 'v1', generationStatus: 'generation_failed' })).toBe(
+      'failed',
+    );
   });
 
   test('the pre-Phase-0 shape still works', () => {
@@ -427,7 +340,8 @@ describe('per-USER job idempotency (§3.c3)', () => {
     await service.submit(ctx, {
       requestKey: 'rk-shared',
       kind: 'generate',
-      params: {},
+      outreachRecordId: 'record-1',
+      params: { executionOwner: 'claude-agent-sdk', revision: 1 },
       recipients: [{ email: 'a@x' }],
     });
     expect(lookups[0]).toMatchObject({ tenantId: 't1', userId: 'u1', requestKey: 'rk-shared' });
@@ -438,7 +352,8 @@ describe('per-USER job idempotency (§3.c3)', () => {
     await a.service.submit(ctx, {
       requestKey: 'rk-same',
       kind: 'generate',
-      params: {},
+      outreachRecordId: 'record-1',
+      params: { executionOwner: 'claude-agent-sdk', revision: 1 },
       recipients: [{ email: 'a@x' }],
     });
     const b = makeService(null);
@@ -446,7 +361,8 @@ describe('per-USER job idempotency (§3.c3)', () => {
     await b.service.submit(other, {
       requestKey: 'rk-same',
       kind: 'generate',
-      params: {},
+      outreachRecordId: 'record-1',
+      params: { executionOwner: 'claude-agent-sdk', revision: 1 },
       recipients: [{ email: 'b@x' }],
     });
     expect(a.lookups[0]!.userId).toBe('u1');
@@ -471,21 +387,22 @@ describe('legacy async SEND is refused under versioned outreach (§3.c3)', () =>
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  test('kind=generate is unaffected by that flag', async () => {
+  test('SDK-owned generation remains separate from the versioned send gate', async () => {
     const { service } = makeService(null);
     (service as unknown as Record<string, unknown>).versionedOutreach = true;
     await expect(
       service.submit(ctx, {
         requestKey: 'rk-gen',
         kind: 'generate',
-        params: {},
+        outreachRecordId: 'record-1',
+        params: { executionOwner: 'claude-agent-sdk', revision: 1 },
         recipients: [{ email: 'a@x' }],
       }),
     ).resolves.toMatchObject({ deduped: false });
   });
 });
 
-/** getJob / retryItem / cancelJob must all be owner-scoped, not tenant-scoped. */
+/** getJob / cancelJob must all be owner-scoped, not tenant-scoped. */
 function makeOwnershipService(opts: { jobUserId: string; itemStatus?: string }) {
   const wheres: Array<Record<string, unknown>> = [];
   const service = Object.create(OutreachJobService.prototype) as OutreachJobService;
@@ -494,12 +411,20 @@ function makeOwnershipService(opts: { jobUserId: string; itemStatus?: string }) 
   patch.prisma = {
     withTenant: (_t: string, fn: (tx: unknown) => unknown) =>
       fn({
+        $queryRaw: async () => [],
+        outreachRecord: { findFirst: async () => ({ metadata: { workflow: { revision: 1 } } }) },
         outreachJob: {
           findFirst: async ({ where }: { where: Record<string, unknown> }) => {
             wheres.push(where);
             // Faithful to Prisma: a userId predicate that does not match → null.
             if ('userId' in where && where.userId !== opts.jobUserId) return null;
-            return { id: 'job-1', kind: 'generate', status: 'partial', userId: opts.jobUserId };
+            return {
+              id: 'job-1',
+              kind: 'generate',
+              status: 'partial',
+              userId: opts.jobUserId,
+              params: {},
+            };
           },
           update: async () => ({}),
           updateMany: async () => ({ count: 1 }),
@@ -515,7 +440,7 @@ function makeOwnershipService(opts: { jobUserId: string; itemStatus?: string }) 
   return { service, wheres };
 }
 
-describe('job ownership (§3.c3): user A cannot touch user B\'s job', () => {
+describe("job ownership (§3.c3): user A cannot touch user B's job", () => {
   const userB = { ...ctx, userId: 'u2' } as TenantContext;
 
   test('getJob returns null for a foreign job (no existence leak)', async () => {
@@ -527,23 +452,9 @@ describe('job ownership (§3.c3): user A cannot touch user B\'s job', () => {
     expect(await own.service.getJob(ctx, 'job-1')).not.toBeNull();
   });
 
-  test('retryItem refuses a foreign job', async () => {
-    const { service } = makeOwnershipService({ jobUserId: 'u1' });
-    const res = await service.retryItem(userB, 'job-1', 'item-1');
-    expect(res.retried).toBe(false);
-    expect(res.reason).toMatch(/not found/i);
-  });
-
   test('cancelJob refuses a foreign job', async () => {
     const { service } = makeOwnershipService({ jobUserId: 'u1' });
     expect(await service.cancelJob(userB, 'job-1')).toEqual({ canceled: false });
-  });
-
-  test('a HELD item is not retryable — it needs review or a new version', async () => {
-    const { service } = makeOwnershipService({ jobUserId: 'u1', itemStatus: 'held' });
-    const res = await service.retryItem(ctx, 'job-1', 'item-1');
-    expect(res.retried).toBe(false);
-    expect(res.reason).toMatch(/held for review/i);
   });
 });
 
@@ -575,104 +486,6 @@ describe('cancel is terminal (§3.c3)', () => {
 });
 
 // ── Phase 1 §3.k — provider/model pinned at submit, honored by every chunk ────
-
-describe('async provider/model pinning (Phase 1 §3.k)', () => {
-  const recipients = [{ email: 'a@mail.house.gov' }, { email: 'b@mail.house.gov' }];
-
-  test('with the gateway ON, submit stores the pinned identity in job params', async () => {
-    const { service, created } = makeService(null, { gatewayEnabled: true });
-    await service.submit(ctx, {
-      requestKey: 'rk-pin',
-      kind: 'generate',
-      params: { templateId: 'meeting_request', clientId: 'c1' },
-      recipients,
-    });
-    const pinned = (created.job?.params as Record<string, unknown>).pinnedIdentity as Record<
-      string,
-      unknown
-    >;
-    expect(pinned).toMatchObject({
-      provider: 'anthropic',
-      model: 'claude-sonnet-4-6',
-      promptSpecVersion: 'v2.2-gateway',
-    });
-  });
-
-  test('a generate job is always pinned — pinning is no longer flag-gated (Phase 26 cutover)', async () => {
-    const { service, created } = makeService(null, { gatewayEnabled: false });
-    await service.submit(ctx, {
-      requestKey: 'rk-nopin',
-      kind: 'generate',
-      params: { templateId: 'meeting_request' },
-      recipients,
-    });
-    expect((created.job?.params as Record<string, unknown>).pinnedIdentity).toMatchObject({
-      provider: 'anthropic',
-      model: 'claude-sonnet-4-6',
-    });
-  });
-
-  test('a SEND job is never pinned — it drafts nothing', async () => {
-    const { service, created } = makeService(null, { gatewayEnabled: true });
-    await service.submit(ctx, {
-      requestKey: 'rk-send',
-      kind: 'send',
-      params: { senderConnectionId: 'conn-1' },
-      recipients,
-    });
-    expect((created.job?.params as Record<string, unknown>).pinnedIdentity).toBeUndefined();
-  });
-
-  // §e1 — a pinning failure under the gateway used to degrade to an unpinned
-  // job (per-chunk resolution, today's behavior); it now REJECTS the whole
-  // submission before any job or item row exists, because an unpinned job is
-  // exactly the mid-campaign voice split the pin exists to prevent.
-  test('with the gateway ON, no available credential REJECTS the submission — no job is created (§e1)', async () => {
-    const { service, created } = makeService(null, { gatewayEnabled: true, pinned: null });
-    await expect(
-      service.submit(ctx, {
-        requestKey: 'rk-nocreds',
-        kind: 'generate',
-        params: { templateId: 'meeting_request' },
-        recipients,
-      }),
-    ).rejects.toBeInstanceOf(ServiceUnavailableException);
-    expect(created.job).toBeUndefined();
-    expect(created.items).toBeUndefined();
-  });
-
-});
-
-describe('readPinnedIdentity (Phase 1 §3.k3)', () => {
-  const valid = {
-    provider: 'anthropic',
-    model: 'claude-sonnet-4-6',
-    planModel: 'claude-haiku-4-5-20251001',
-    promptSpecVersion: 'v2.2-gateway',
-  };
-
-  test('round-trips a well-formed identity', () => {
-    expect(readPinnedIdentity({ pinnedIdentity: valid })).toMatchObject(valid);
-  });
-
-  test('absent params yield null (per-chunk resolution, the pre-Phase-1 behavior)', () => {
-    expect(readPinnedIdentity({})).toBeNull();
-  });
-
-  test('a HALF-formed identity degrades to null rather than pinning nothing silently', () => {
-    // params is JSONB; a hand-edited or partially-written row must not produce an
-    // identity with an empty model that would then be sent to the provider.
-    expect(readPinnedIdentity({ pinnedIdentity: { provider: 'anthropic' } })).toBeNull();
-    expect(readPinnedIdentity({ pinnedIdentity: { ...valid, model: '' } })).toBeNull();
-    expect(readPinnedIdentity({ pinnedIdentity: { ...valid, promptSpecVersion: 42 } })).toBeNull();
-  });
-
-  test('a non-object value is rejected', () => {
-    expect(readPinnedIdentity({ pinnedIdentity: 'anthropic' })).toBeNull();
-    expect(readPinnedIdentity({ pinnedIdentity: ['a'] })).toBeNull();
-    expect(readPinnedIdentity({ pinnedIdentity: null })).toBeNull();
-  });
-});
 
 describe('the job item result keeps the Context Used manifest (§3.k4)', () => {
   test('manifest is on the persisted-field allowlist', () => {

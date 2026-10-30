@@ -1,5 +1,4 @@
 import {
-  Body,
   Controller,
   Get,
   Param,
@@ -28,14 +27,6 @@ export class OutreachV3ReasoningController {
     private readonly history: OutreachReasoningHistoryService,
   ) {}
 
-  @Post('sessions/:sessionId/reasoning/conversations')
-  createConversation(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('sessionId', ParseUUIDPipe) sessionId: string,
-  ) {
-    return this.reasoning.createConversation(ctx, sessionId);
-  }
-
   @Get('reasoning/conversations/:conversationId')
   getConversation(
     @CurrentTenant() ctx: TenantContext,
@@ -51,15 +42,6 @@ export class OutreachV3ReasoningController {
     @Query('limit') limit?: string,
   ) {
     return this.history.listTurns(ctx, conversationId, Number(limit));
-  }
-
-  @Post('reasoning/conversations/:conversationId/turns')
-  respond(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('conversationId', ParseUUIDPipe) conversationId: string,
-    @Body() body: unknown,
-  ) {
-    return this.reasoning.respond(ctx, conversationId, body);
   }
 
   @Post('reasoning/conversations/:conversationId/archive')

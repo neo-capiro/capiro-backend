@@ -315,107 +315,10 @@ export const configSchema = z.object({
     .default('false')
     .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
 
-  // Outreach prompt-assembly version (plan W2). 'v1' = the legacy single-string
-  // prompt + JSON context dump; 'v2' = PromptSpec v2 (real system prompt, context
-  // precedence ladder, spotlighted untrusted content, no raw JSON dump). Defaults
-  // to 'v1' so the flip is an explicit, out-of-band config change validated by the
-  // outreach evals A/B (W2.7) — never on by a code deploy alone.
-  OUTREACH_PROMPT_SPEC: z.enum(['v1', 'v2']).default('v1'),
-
-  // Outreach task-tier model config (plan W3.2 / D2). OPT-IN, exactly like the
-  // prompt-spec + async flags: defaults preserve current behavior (global
-  // provider order + the resolved cred model, i.e. today's gpt-4.1-mini/haiku),
-  // so a code deploy NEVER silently changes the drafting model or COGS. The D2
-  // flip — prefer Anthropic + draft on claude-sonnet-4-6 — is an explicit
-  // out-of-band env set (OUTREACH_PROVIDER=anthropic, OUTREACH_DRAFT_MODEL=
-  // claude-sonnet-4-6) applied per the task-def recipe AFTER eval validation +
-  // Ninja's COGS sign-off. Empty OUTREACH_DRAFT_MODEL = no override. FAST_MODEL
-  // is reserved for cheaper sub-tasks as they migrate onto the tiered client.
-  OUTREACH_PROVIDER: z.enum(['openai', 'anthropic']).optional(),
-  OUTREACH_DRAFT_MODEL: z.string().default('').transform(upgradeTextModel),
-  OUTREACH_FAST_MODEL: z.string().default('').transform(upgradeTextModel),
-
-  // Reasoning depth for governed Outreach V3 generation (planning + drafting).
-  //
-  // Defaults to the top of the ladder because a governed campaign draft is the
-  // highest-stakes, lowest-volume generation in the product: three review samples
-  // and then one draft per recipient, each of which a human approves before it
-  // can be sent. This is NOT a silent behaviour change for existing models —
-  // reasoning-effort.ts sends a reasoning parameter only to models that accept
-  // one, and both live models (OPENAI_MODEL/OUTREACH_V3_REASONING_MODEL =
-  // gpt-4.1-mini) accept none, so the effort applies the moment a reasoning model
-  // is configured and is inert until then.
-  OUTREACH_V3_GENERATION_EFFORT: z.enum(['low', 'medium', 'high', 'xhigh', 'max']).default('max'),
-
-  // Model override for V3 generation only. Empty (the default) keeps the resolved
-  // credential's model, so a deploy never changes the drafting model or COGS on
-  // its own — the same discipline OUTREACH_DRAFT_MODEL follows. Set this to a
-  // reasoning model for OUTREACH_V3_GENERATION_EFFORT to have any effect.
-  OUTREACH_V3_GENERATION_MODEL: z.string().default('').transform(upgradeTextModel),
-
-  // How many recipients the full-generation worker drafts CONCURRENTLY within a
-  // claimed batch.
-  //
-  // This used to be effectively 1: the worker claimed `batchSize` items then
-  // awaited them one at a time in a `for` loop. Measured live 2026-08-24 on
-  // gpt-5 at effort=max, a single draft takes 94-683s (mean ~395s), so a
-  // 51-recipient campaign projected to ~5.6 HOURS of wall clock while issuing
-  // one provider call at a time.
-  //
-  // Each unit of concurrency is one additional in-flight provider request per
-  // worker process, so this is a direct COGS/rate-limit dial, not free speed.
-  // Default 4 is deliberately modest: ~4x faster with headroom under provider
-  // rate limits, and it keeps a single stuck draft from stalling the batch.
-  // Set 1 to restore the old strictly-serial behaviour.
+  // Existing bounded concurrent recipient-unit capacity, reused by the SDK owner.
   OUTREACH_V3_GENERATION_CONCURRENCY: z.coerce.number().int().min(1).max(16).default(4),
 
-  // Ships DARK: default false, so nothing about the existing draft-generation
-  // path changes until this is explicitly flipped on.
-  //
-  // When true, the draft call (only the draft — the Message Plan call stays
-  // non-streaming; its output is internal structured JSON with no UI value in
-  // showing partial fragments) uses completeStreaming() instead of complete().
-  // The FINAL result is byte-identical either way — same parse, same schema
-  // validation, same verifiers — this only adds a live preview of the body
-  // text as it's written, surfaced to the Drafts step so the multi-minute
-  // wait isn't a silent blank spinner.
-  //
-  // Streaming is implemented for OpenAI only today (the pinned outreach
-  // provider); LlmCompletionService.completeStreaming() silently falls back
-  // to the non-streaming path for Anthropic regardless of this flag.
-  //
-  // The live preview is held in an in-memory, per-process store
-  // (OutreachV3LivePreviewService) — correct only when engagement-api runs as
-  // a single instance, as it does today (capiro-dev-engagement-api is
-  // desiredCount=1). Flip this on only after a live smoke test with real
-  // credentials confirms the SSE event shapes this was written against
-  // (response.output_text.delta / response.completed) match what the
-  // Responses API actually sends — unverifiable from a dev sandbox with no
-  // live model credentials, same reason WEB_SURFACE and
-  // ENGAGEMENT_API_FULL_OWNERSHIP both shipped dark before their own rollout.
-  // Uses the house string-allowlist transform (NOT z.coerce.boolean() — see
-  // the Phase 6 note above), so only 'true'/'1'/'yes'/'on' enable and anything
-  // else (incl. unset) stays off.
-  OUTREACH_V3_GENERATION_STREAMING_ENABLED: z
-    .string()
-    .default('false')
-    .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
-
-  // Per-tenant daily outreach token ceiling (plan W3.4 / A7): total (input +
-  // output) AI tokens across outreach generation workflows in the current UTC
-  // day. Soft-warn at 80% (generation proceeds, wizard shows a banner), hard-stop
-  // at 100% (typed 429 the wizard renders). Default is generous (6M ≈ 5M in / 1M
-  // out); set 0 to disable the ceiling entirely.
-  OUTREACH_DAILY_TOKEN_BUDGET: z.coerce.number().int().nonnegative().default(6_000_000),
-
-  // Async outreach pipeline flags (plan W4). When ON, generate/send run as
-  // Postgres jobs off the request path (past the ALB idle ceiling); OFF keeps the
-  // synchronous endpoints. Rolled out independently and default OFF so the async
-  // path is opt-in per environment until canary-verified.
-  OUTREACH_ASYNC_GEN: z
-    .string()
-    .default('false')
-    .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
+  // Existing durable send worker remains independently configured.
   OUTREACH_ASYNC_SEND: z
     .string()
     .default('false')
@@ -451,27 +354,6 @@ export const configSchema = z.object({
     .default('false')
     .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
 
-  // Engagement Phase 1 — governed generation gateway + evidence packets.
-  //
-  // ENGAGEMENT_GENERATION_GATEWAY: Engagement generation runs through
-  // GenerationGatewayService — server-rehydrated evidence, authenticated
-  // directives separated from untrusted text, a synchronously persisted Evidence
-  // Packet (fail-CLOSED), a validated Message Plan before any prose, and the
-  // deterministic claim verifier.
-  //
-  // Knowledge Plane Phase 26 changed this flag's meaning. It used to default
-  // false, and the OFF branch compiled an ungoverned ContextPacket straight
-  // through the shared compiler while outreach.generate was already registered
-  // packet_required — an ungoverned live path behind a "safe default". Phase 26
-  // deleted every OFF branch, so:
-  //   - the default is now TRUE, and
-  //   - setting it false no longer selects a legacy path. `enabled` is retained
-  //     for the gateway's own diagnostics but is not read as a fork, so an
-  //     environment override neither restores the old behaviour nor disables
-  //     governance.
-  // Rollback for Outreach generation is therefore code-revert only, NOT an
-  // environment flip. Do not treat this variable as a kill switch.
-  //
   // ENGAGEMENT_EMAIL_CONTEXT_SCOPE: how broadly relevant-email evidence may be
   // drawn. 'mine' (default) = the current user's own connected mailbox only.
   // 'firm_shared' additionally allows explicitly client-linked threads owned by
@@ -488,11 +370,6 @@ export const configSchema = z.object({
   // ENGAGEMENT_EMAIL_CONTEXT_SCOPE and ENGAGEMENT_ATTACHMENT_SCAN_REQUIRED still
   // default to the SAFE value in repository code: changing either is an explicit
   // out-of-band environment change, never a code-deploy effect.
-  // ENGAGEMENT_GENERATION_GATEWAY is the exception — see above.
-  ENGAGEMENT_GENERATION_GATEWAY: z
-    .string()
-    .default('true')
-    .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
 
   ENGAGEMENT_EMAIL_CONTEXT_SCOPE: z.enum(['mine', 'firm_shared']).default('mine'),
 

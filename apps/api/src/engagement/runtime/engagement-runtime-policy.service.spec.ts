@@ -73,7 +73,6 @@ describe('integrations_and_notetaker bounded API owner', () => {
       'outreach-v3-full-generation', 'outreach-v3-send-intent', 'mailbox-indexing-worker']) {
       expect(policy.backgroundWorkersEnabled(name)).toBe(false);
     }
-    expect(policy.outreachV3FullGenerationWorkerEnabled()).toBe(false);
     expect(policy.outreachV3SendIntentWorkerEnabled()).toBe(false);
   });
   it('refuses capture actions and named workers on an incomplete policy', () => {
@@ -343,8 +342,7 @@ describe('EngagementRuntimePolicyService', () => {
       expect(() => policy.assertBackgroundOwner(workerName)).toThrow();
     });
 
-    it('keeps both V3 worker methods denied in this posture', () => {
-      expect(policy.outreachV3FullGenerationWorkerEnabled()).toBe(false);
+    it('keeps the V3 send worker denied in this posture', () => {
       expect(policy.outreachV3SendIntentWorkerEnabled()).toBe(false);
     });
 

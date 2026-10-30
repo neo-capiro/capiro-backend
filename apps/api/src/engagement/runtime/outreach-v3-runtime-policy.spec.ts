@@ -64,9 +64,7 @@ describe('bounded Outreach V3 runtime authority', () => {
       }
       expect(runtime.backgroundWorkersEnabled()).toBe(false);
       expect(runtime.outreachV3SendIntentWorkerEnabled()).toBe(false);
-      expect(runtime.outreachV3FullGenerationWorkerEnabled()).toBe(false);
       expect(() => runtime.assertOutreachV3SendIntentWorker()).toThrow();
-      expect(() => runtime.assertOutreachV3FullGenerationWorker()).toThrow();
     },
   );
 
@@ -86,16 +84,13 @@ describe('bounded Outreach V3 runtime authority', () => {
     const runtime = policy('api');
     expect(runtime.externalActionAllowed('outreach_v3_generate')).toBe(false);
     expect(runtime.externalActionAllowed('outreach_v3_send')).toBe(false);
-    expect(runtime.outreachV3FullGenerationWorkerEnabled()).toBe(false);
     expect(runtime.outreachV3SendIntentWorkerEnabled()).toBe(false);
   });
 
-  it('permits only the dedicated full-generation worker while global background ownership stays disabled', () => {
+  it('permits only the dedicated send-intent worker while global background ownership stays disabled', () => {
     const runtime = policy('engagement-api');
     expect(runtime.backgroundWorkersEnabled()).toBe(false);
-    expect(runtime.outreachV3FullGenerationWorkerEnabled()).toBe(true);
     expect(runtime.outreachV3SendIntentWorkerEnabled()).toBe(true);
-    expect(() => runtime.assertOutreachV3FullGenerationWorker()).not.toThrow();
     expect(() => runtime.assertOutreachV3SendIntentWorker()).not.toThrow();
   });
 
@@ -104,7 +99,6 @@ describe('bounded Outreach V3 runtime authority', () => {
     const runtime = policy('engagement-api');
     expect(runtime.externalActionAllowed('outreach_v3_generate')).toBe(false);
     expect(runtime.externalActionAllowed('outreach_v3_send')).toBe(false);
-    expect(runtime.outreachV3FullGenerationWorkerEnabled()).toBe(false);
     expect(runtime.outreachV3SendIntentWorkerEnabled()).toBe(false);
   });
 });

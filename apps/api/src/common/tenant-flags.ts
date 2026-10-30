@@ -287,7 +287,7 @@ export function meetingsCrossUserEnabled(settings: unknown): boolean {
 
 /**
  * Async outreach pipeline UI rollout (plan W4.4). The async job pipeline itself is
- * gated by GLOBAL env kill-switches (OUTREACH_ASYNC_GEN / OUTREACH_ASYNC_SEND); this
+ * gated by the durable send env switch (OUTREACH_ASYNC_SEND); this
  * per-tenant flag is the CANARY lever on top — the wizard uses the job-mode UI for a
  * tenant only when BOTH the env switch is on AND this flag resolves true. Default OFF
  * so flipping the env var alone never changes any tenant's UX until it is explicitly
