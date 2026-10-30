@@ -15,6 +15,12 @@ const CLIENT_RECORD_PATHS: Readonly<Record<string, RegExp>> = {
   DELETE: new RegExp(`^/api/clients/${CLIENT_ID}$`),
 };
 
+/** Bare nested GETs that ClientsController declares before its `:id` route, so
+ * the exact word is a canonical current-session read rather than a malformed
+ * client id. Admitted at this exact path and method only: every other bare
+ * segment still fails the client-id guard and a query is still refused. */
+const NATIVE_BARE_GET_PATHS: ReadonlySet<string> = new Set(['/api/clients/metrics']);
+
 /** Native client records share the existing first-chat session owner. Canonical
  * nested routes use ordinary authentication; malformed native requests do not. */
 export function firstChatClientPreviewDecision(req: Request, enabled: boolean): CoreRosterPreviewDecision {
@@ -39,7 +45,8 @@ export function firstChatClientPreviewDecision(req: Request, enabled: boolean): 
   const method = req.method === 'HEAD' ? 'GET' : req.method;
   if (rawPath !== parsedPath ||
       !/^\/api\/(?:clients|client-account-owners|billing)(?:\/[a-z0-9_-]+)*$/.test(rawPath)) return 'not-found';
-  if (!CLIENT_RECORD_PATHS[method]?.test(rawPath)) {
+  if (!CLIENT_RECORD_PATHS[method]?.test(rawPath) &&
+      !(method === 'GET' && NATIVE_BARE_GET_PATHS.has(rawPath))) {
     // Keep alternate methods and malformed IDs on native handlers reserved.
     // Other canonical paths still pass through the ordinary tenant resolver;
     // this selector never authorizes their controllers or client operations.
