@@ -404,6 +404,7 @@
       "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-env.js",
       "importedSymbols": [
         "ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT",
+        "parseEngagementMailHandoffSelection",
         "resolveEngagementRuntimeEnvironment"
       ],
       "importKind": "value",
@@ -679,9 +680,29 @@
     },
     {
       "importerFile": "apps/api/src/engagement-main.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-mail-handoff-shutdown.js",
+      "importedSymbols": [
+        "installMailHandoffShutdownJoin"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement-main.ts",
       "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-env.js",
       "importedSymbols": [
         "assertEngagementRuntimeEnvironment"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement-main.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
       ],
       "importKind": "value",
       "isExternal": true,
@@ -1051,9 +1072,29 @@
     },
     {
       "importerFile": "apps/api/src/main.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-mail-handoff-shutdown.js",
+      "importedSymbols": [
+        "installMailHandoffShutdownJoin"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "root_registration"
+    },
+    {
+      "importerFile": "apps/api/src/main.ts",
       "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-env.js",
       "importedSymbols": [
         "assertEngagementRuntimeEnvironment"
+      ],
+      "importKind": "value",
+      "isExternal": true,
+      "category": "root_registration"
+    },
+    {
+      "importerFile": "apps/api/src/main.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
       ],
       "importKind": "value",
       "isExternal": true,
@@ -5726,7 +5767,6 @@
       "importerFile": "apps/api/src/engagement/generation/message-plan-source-citation.spec.ts",
       "importedFile": "apps/api/src/engagement/generation/message-plan.service.js",
       "importedSymbols": [
-        "MESSAGE_PLAN_MAX_OUTPUT_TOKENS",
         "normalizeSourceId",
         "sourceIdVariants"
       ],
@@ -6594,6 +6634,36 @@
       "category": "other"
     },
     {
+      "importerFile": "apps/api/src/engagement/google/google-token.mail-handoff.spec.ts",
+      "importedFile": "apps/api/src/engagement/google/google-token.service.js",
+      "importedSymbols": [
+        "GoogleTokenService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/google-token.mail-handoff.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-mail-handoff.js",
+      "importedSymbols": [
+        "EngagementMailHandoffBarrier"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/google-token.mail-handoff.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
       "importerFile": "apps/api/src/engagement/google/google-token.service.ts",
       "importedFile": "apps/api/src/engagement/google/google-oauth.service.js",
       "importedSymbols": [
@@ -6659,6 +6729,16 @@
       "importedFile": "apps/api/src/engagement/microsoft/token-crypto.service.js",
       "importedSymbols": [
         "TokenCryptoService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/google/google-token.service.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
       ],
       "importKind": "value",
       "isExternal": false,
@@ -9217,6 +9297,76 @@
       "category": "other"
     },
     {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-graph-queue.mail-handoff.spec.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.js",
+      "importedSymbols": [
+        "MicrosoftGraphSyncService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-graph-queue.mail-handoff.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-mail-handoff.js",
+      "importedSymbols": [
+        "EngagementMailHandoffBarrier"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-graph-queue.mail-handoff.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-graph-refresh.mail-handoff.spec.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.js",
+      "importedSymbols": [
+        "MicrosoftGraphSyncService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-graph-refresh.mail-handoff.spec.ts",
+      "importedFile": "apps/api/src/engagement/microsoft/microsoft-oauth-constants.js",
+      "importedSymbols": [
+        "MICROSOFT_SCOPES"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-graph-refresh.mail-handoff.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-mail-handoff.js",
+      "importedSymbols": [
+        "EngagementMailHandoffBarrier"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-graph-refresh.mail-handoff.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
       "importerFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.association-outside-lock.spec.ts",
       "importedFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.js",
       "importedSymbols": [
@@ -9575,6 +9725,26 @@
         "TokenCryptoService"
       ],
       "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime.types.js",
+      "importedSymbols": [
+        "EngagementMailHandoffHandle"
+      ],
+      "importKind": "type-only",
       "isExternal": false,
       "category": "other"
     },
@@ -11768,7 +11938,135 @@
       "importerFile": "apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.ts",
       "importedFile": "apps/api/src/engagement/runtime/engagement-runtime.types.js",
       "importedSymbols": [
-        "EngagementExternalAction"
+        "EngagementExternalAction",
+        "EngagementMailHandoffBoundary"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-mail-handoff-shutdown.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-mail-handoff-shutdown.js",
+      "importedSymbols": [
+        "installMailHandoffShutdownJoin"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-mail-handoff-shutdown.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-mail-handoff.js",
+      "importedSymbols": [
+        "EngagementMailHandoffBarrier"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-mail-handoff-shutdown.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-mail-handoff-shutdown.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-mail-handoff.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.js",
+      "importedSymbols": [
+        "guardGmailSendService",
+        "guardGoogleTokenService",
+        "guardMicrosoftOAuthService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-mail-handoff.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-integration-runtime.boundary.js",
+      "importedSymbols": [],
+      "importKind": "dynamic",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-mail-handoff.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-mail-handoff.js",
+      "importedSymbols": [
+        "EngagementMailHandoffBarrier"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-mail-handoff.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-env.js",
+      "importedSymbols": [
+        "parseEngagementMailHandoffSelection"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-mail-handoff.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
+      "importedSymbols": [
+        "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-mail-handoff.spec.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime.types.js",
+      "importedSymbols": [
+        "EngagementMailHandoffPhase"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-mail-handoff.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-env.js",
+      "importedSymbols": [
+        "EngagementRuntimeEnvironment"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-mail-handoff.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-runtime.types.js",
+      "importedSymbols": [
+        "CapiroServiceName",
+        "EngagementMailHandoffBoundary",
+        "EngagementMailHandoffContext",
+        "EngagementMailHandoffDisposition",
+        "EngagementMailHandoffHandle",
+        "EngagementMailHandoffObservation",
+        "EngagementMailHandoffOutcome",
+        "EngagementMailHandoffPhase"
       ],
       "importKind": "type-only",
       "isExternal": false,
@@ -11852,7 +12150,8 @@
       "importerFile": "apps/api/src/engagement/runtime/engagement-notetaker-runtime.boundary.ts",
       "importedFile": "apps/api/src/engagement/runtime/engagement-runtime.types.js",
       "importedSymbols": [
-        "EngagementExternalAction"
+        "EngagementExternalAction",
+        "EngagementMailHandoffBoundary"
       ],
       "importKind": "type-only",
       "isExternal": false,
@@ -11960,7 +12259,9 @@
       "importedSymbols": [
         "CapiroServiceName",
         "EngagementBackgroundOwner",
+        "EngagementBackgroundWorkerRestriction",
         "EngagementExternalActionMode",
+        "EngagementMailHandoffSelection",
         "EngagementProcessMode"
       ],
       "importKind": "type-only",
@@ -12043,12 +12344,32 @@
     },
     {
       "importerFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.ts",
+      "importedFile": "apps/api/src/engagement/runtime/engagement-mail-handoff.js",
+      "importedSymbols": [
+        "processMailHandoff",
+        "EngagementMailHandoffBarrier"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.ts",
       "importedFile": "apps/api/src/engagement/runtime/engagement-runtime.types.js",
       "importedSymbols": [
         "CapiroServiceName",
         "EngagementBackgroundOwner",
+        "EngagementBackgroundWorkerRestriction",
         "EngagementExternalAction",
         "EngagementExternalActionMode",
+        "EngagementMailHandoffBoundary",
+        "EngagementMailHandoffContext",
+        "EngagementMailHandoffDisposition",
+        "EngagementMailHandoffHandle",
+        "EngagementMailHandoffObservation",
+        "EngagementMailHandoffOutcome",
+        "EngagementMailHandoffPhase",
+        "EngagementMailHandoffSelection",
         "EngagementProcessMode",
         "EngagementRuntimeSnapshot"
       ],
@@ -12355,7 +12676,7 @@
     }
   ],
   "summary": {
-    "externalImporterCount": 211,
-    "importedSymbolCount": 258
+    "externalImporterCount": 215,
+    "importedSymbolCount": 263
   }
 }

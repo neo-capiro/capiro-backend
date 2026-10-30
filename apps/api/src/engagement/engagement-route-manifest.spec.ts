@@ -186,6 +186,11 @@ describe('Engagement route manifest', () => {
         'GET /api/engagement/newsletters/stages/:id read',
         'POST /api/engagement/newsletters/stages/:id/open write',
         'GET /api/engagement/newsletters/:id read',
+        // Send-status reads served by the same authoring controller: the intent id
+        // and the idempotency request key are both GET reads, so they stay in the
+        // read class with the controller's RolesGuard/standard_user metadata.
+        'GET /api/engagement/newsletters/:id/send-intents/:intentId read',
+        'GET /api/engagement/newsletters/:id/send-requests/:requestKey read',
         'POST /api/engagement/newsletters/:id/prepare write',
         'POST /api/engagement/newsletters/:id/send external_send',
         'POST /api/engagement/newsletters/:id/test external_send',
