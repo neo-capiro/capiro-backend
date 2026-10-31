@@ -22,6 +22,55 @@ jest.mock('pdf-parse', () => ({
 }));
 
 describe('Florida recurring calendar session rollover', () => {
+  it('fetches the current live schedule once across sessions without replacing calendar coverage on failure', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-31T12:00:00Z'));
+    try {
+      const streams = [
+        {
+          title: 'Senate Rules',
+          chamber: 'senate' as const,
+          startsAt: '2026-10-31T13:00:00.000Z',
+          endsAt: '2026-10-31T14:00:00.000Z',
+          watchUrl: 'https://thefloridachannel.org/watch/event/1_liveexample/?eid=recRulesExample',
+        },
+      ];
+      const liveSchedule = jest.fn(async () => streams);
+      const discover = jest.fn(async (_prisma, _options) => []);
+      const options = {
+        from: '2026-10-24',
+        to: '2026-11-14',
+        sessions: ['2026', '2027'],
+        includeArchive: false,
+      };
+      await discoverFloridaCalendarSessions({} as PrismaClient, options, {
+        discover: discover as typeof discoverFloridaCalendar,
+        liveSchedule,
+      });
+      expect(liveSchedule).toHaveBeenCalledTimes(1);
+      expect(discover.mock.calls).toHaveLength(2);
+      expect(discover.mock.calls.every(([, request]) => request.liveStreams === streams)).toBe(
+        true,
+      );
+      const log = jest.fn();
+      await expect(
+        discoverFloridaCalendarSessions(
+          {} as PrismaClient,
+          { ...options, log },
+          {
+            discover: discover as typeof discoverFloridaCalendar,
+            liveSchedule: async () => {
+              throw new Error('publisher unavailable');
+            },
+          },
+        ),
+      ).resolves.toMatchObject({ complete: true });
+      expect(log).toHaveBeenCalledWith(
+        JSON.stringify({ marker: 'FLORIDA_LIVE_SCHEDULE_UNAVAILABLE' }),
+      );
+    } finally {
+      jest.useRealTimers();
+    }
+  });
   it('keeps the primary session first and accepts one explicit additional session', () => {
     expect(floridaCalendarSessions(['--session=2026'], {})).toEqual(['2026']);
     expect(floridaCalendarSessions(['--session=2026', '--additional-session=2027'], {})).toEqual([

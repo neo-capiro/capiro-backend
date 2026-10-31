@@ -17,12 +17,19 @@ import type {
   LegiWatchDelivery,
 } from '../../generated/prisma-client/index.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
-import { ReportService } from '../tracker/reports/report.service.js';
+import { DraftAccessService } from '../tracker/delivery/draft-access.service.js';
 import {
-  ReportRecipientsService,
+  RecipientsService,
   type RecipientSnapshot,
-} from '../tracker/reports/recipients.service.js';
-import { digest, escapeHtml, ids, json, object, text } from '../tracker/reports/report-domain.js';
+} from '../tracker/delivery/recipients.service.js';
+import {
+  digest,
+  escapeHtml,
+  ids,
+  json,
+  object,
+  text,
+} from '../tracker/delivery/delivery-domain.js';
 import {
   HEARING_UPDATES_FEATURE,
   HEARING_RECAPS_FEATURE,
@@ -73,8 +80,8 @@ export function publicationSms(payload: HearingPublicationPayload) {
 @Injectable()
 export class HearingPublicationService {
   constructor(
-    readonly reports: ReportService,
-    readonly recipients: ReportRecipientsService,
+    readonly reports: DraftAccessService,
+    readonly recipients: RecipientsService,
     readonly sessions: HearingSessionService,
     readonly crypto: HearingCryptoService,
     @Optional() readonly orchestrator?: OrchestratorClient,

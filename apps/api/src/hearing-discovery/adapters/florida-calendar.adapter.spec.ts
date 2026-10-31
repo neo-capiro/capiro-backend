@@ -30,6 +30,93 @@ const ref: SenateNoticeRef = {
   canceled: false,
 };
 describe('Florida first-party calendar contract', () => {
+  it('retains both special-session floor sittings and their source-published session', () => {
+    // Official schedules for April 28, 2026: House special-session title and
+    // Senate Daily Calendar URL both identify 2026D, not the worker's 2026.
+    const house = houseDailyCalendar(
+      `<div class="schedule-list"><div class="schedule-event">
+      <h2 class="scheduled-event-title">House - 1st Day of Special Session 2026D</h2>
+      <div class="meeting-info"><span>04/28/2026</span><span>10:00 AM - 10:12 AM</span></div>
+      </div></div>`,
+      '2026-04-28',
+      '2026',
+    );
+    expect(house.unresolved).toBe(0);
+    expect(house.floors[0]).toMatchObject({
+      session: '2026D',
+      officialIdentity: 'fl:house:special:2026D:day:1',
+      sourceUrl: 'https://www.flhouse.gov/Sections/HouseSchedule/houseschedule.aspx?date=4-28-2026',
+      fields: {
+        time: { startsAt: '2026-04-28T14:00:00.000Z', endsAt: '2026-04-28T14:12:00.000Z' },
+      },
+    });
+    const senate = senateDailyCalendar(
+      `<div class="calHeader"><h2>Tuesday, April 28, 2026 Open Calendar</h2></div>
+      <div id="CalendarContents"><div class="eventGroupContainer"><h4>12:00 Noon — 1:30 PM</h4>
+      <div class="event"><span class="eventtitle">SESSION</span><div class="MeetingRecords">
+      <li class="FLOORBILLS"><a href="/Home/4-28-2026?Tab=SenateFloor">Senate Floor</a></li>
+      <a href="/Session/Calendar/2026D/Daily%20Calendars%202026-04-28%20100301.PDF">Daily Calendar</a>
+      </div></div></div></div>`,
+      '2026-04-28',
+      '2026',
+    );
+    expect(senate.unresolved).toBe(0);
+    expect(senate.floors[0]).toMatchObject({
+      session: '2026D',
+      fields: {
+        time: { startsAt: '2026-04-28T16:00:00.000Z', endsAt: '2026-04-28T17:30:00.000Z' },
+      },
+    });
+  });
+
+  it('keeps special-session bills and session identity from the published Senate notice', () => {
+    // Published notice /Committees/Show/RC/MeetingNotice/6908, read 2026-10-31.
+    const notice = senateNoticeObservation(
+      { ...ref, id: '6908', bodyCode: 'RC', bodyName: 'Rules', date: '2026-04-28' },
+      `2026D Special Session The Florida Senate
+COMMITTEE MEETING NOTICE
+TIME: 2:00—6:00 p.m.
+SB 2-D by Brodeur—Artificial Intelligence Bill of Rights
+SB 4-D by Brodeur—Public Records/Investigations by the Department of Legal Affairs
+SB 6-D by Yarborough—Medical Freedom
+Presentation on Congressional Reapportionment by the Governor's Office
+SB 8-D by Gaetz—Establishing the Congressional Districts of the State`,
+      '2026',
+    );
+    expect(notice.session).toBe('2026D');
+    expect(
+      notice.fields.agenda
+        ?.filter((item) => item.evidence.identifier)
+        .map((item) => item.evidence.identifier),
+    ).toEqual(['SB 2-D', 'SB 4-D', 'SB 6-D', 'SB 8-D']);
+    expect(notice.fields.time?.startsAt).toBe('2026-04-28T18:00:00.000Z');
+    expect(floridaBillNumberAliases('CS/SB 2-D')).toEqual([
+      'SB2-D',
+      'S2-D',
+      'SB0002-D',
+      'S0002-D',
+      'SB2',
+      'S2',
+      'SB0002',
+      'S0002',
+    ]);
+    validateCalendarObservation(notice);
+  });
+
+  it('preserves House special-session bill suffixes rather than linking regular-session numbers', () => {
+    const notice = houseNoticeObservation(
+      `<main class="cm_contents"><h1 class="ribbon">Rules &amp; Ethics Committee</h1>
+      <dl aria-label="Meeting Information"><time datetime="2026-04-28T15:30:00-04:00"></time></dl>
+      <nav aria-label="Breadcrumb"><a href="?sessionId=110">Session</a></nav>
+      <select id="ddlBillFinderSession"><option value="110">2026D</option></select>
+      <div class="meeting-actions-bills"><section><ul><li>HB 1-D Congressional Districts</li></ul></section></div>
+      </main>`,
+      'https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=1',
+      null,
+    );
+    expect(notice.session).toBe('2026D');
+    expect(notice.fields.agenda?.[0]?.evidence.identifier).toBe('HB 1-D');
+  });
   it.each([
     ['Secured briefing on critical incident response protocols', true, 'private'],
     ['Public workshop on critical incident response protocols', true, undefined],
