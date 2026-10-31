@@ -55,7 +55,8 @@ import {
   type OutreachAudienceType,
 } from './outreach-audience-types.js';
 import { MeetingPrepJobService } from './meeting-prep-job.service.js';
-import { MEETING_PREP_DEPTHS, meetingPrepEnabled, type MeetingPrepDepth } from './meeting-prep-policy.js';
+import { MeetingDebriefJobService } from './meeting-debrief-job.service.js';
+import { MEETING_PREP_DEPTHS, meetingPrepEnabled, type MeetingPrepDepth, meetingDebriefJobEnabled } from './meeting-prep-policy.js';
 import { OutreachJobService, outreachRecipientKey } from './outreach-job.service.js';
 import { NotetakerService } from './notetaker/notetaker.service.js';
 import { OutreachDraftService } from './outreach-draft.service.js';
@@ -272,7 +273,15 @@ class CreateNoteDto {
   accessLevel?: string;
 }
 
-class CreateDebriefDto extends CreateNoteDto {}
+class CreateDebriefDto extends CreateNoteDto {
+  /**
+   * D2: the assembled-context summary returned by the debrief draft/job, persisted on
+   * the debrief row so a reviewer can see exactly what the model was given.
+   */
+  @IsOptional()
+  @IsObject()
+  generatedFrom?: Record<string, unknown>;
+}
 
 // Phase 2 §d — per-artifact sharing (ENGAGEMENT_ARTIFACT_SHARING_V2). 'note' is
 // deliberately singular (one artifact reference), unlike the plural 'notes' used
@@ -301,6 +310,12 @@ class GenerateDebriefDraftDto {
   @IsString()
   @MinLength(1)
   sourceText!: string;
+
+  /** Idempotency key for the async job (D1); a retry with the same key never regenerates. */
+  @IsOptional()
+  @IsString()
+  @Length(8, 128)
+  requestKey?: string;
 }
 
 class ClientNotetakerConsentDto {
@@ -2024,6 +2039,7 @@ export class EngagementController {
     private readonly sendIntents: OutreachSendIntentService,
     private readonly runtimePolicy: EngagementRuntimePolicyService,
     @Optional() private readonly meetingPrepJobs?: MeetingPrepJobService,
+    @Optional() private readonly meetingDebriefJobs?: MeetingDebriefJobService,
   ) {}
 
   @Get('capabilities')
@@ -2265,14 +2281,55 @@ export class EngagementController {
     return this.service.approveMeetingAttachment(ctx, meetingId, attachmentId);
   }
 
+  // D1: with MEETING_DEBRIEF_JOB_ENABLED=true this returns 202 + job and generation runs
+  // off the request path. With the gate off it keeps the existing synchronous 201.
   @Post('meetings/:id/debrief-draft')
+  @HttpCode(202)
   @EngagementRuntimeAction('meeting_debrief_generate')
   generateDebriefDraft(
     @CurrentTenant() ctx: TenantContext,
     @Param('id') meetingId: string,
     @Body() body: GenerateDebriefDraftDto,
+    @Res({ passthrough: true }) response?: ExpressResponse,
   ) {
+    if (meetingDebriefJobEnabled() && this.meetingDebriefJobs)
+      return this.meetingDebriefJobs.submit(ctx, meetingId, body);
+    response?.status(201);
     return this.service.generateMeetingDebriefDraft(ctx, meetingId, body);
+  }
+
+  @Get('meetings/:id/debrief-jobs/latest')
+  latestDebriefJob(@CurrentTenant() ctx: TenantContext, @Param('id') meetingId: string) {
+    return this.meetingDebriefJobs?.get(ctx, meetingId) ?? null;
+  }
+
+  @Get('meetings/:id/debrief-jobs/:jobId')
+  debriefJob(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') meetingId: string,
+    @Param('jobId') jobId: string,
+  ) {
+    return this.meetingDebriefJobs?.get(ctx, meetingId, jobId) ?? null;
+  }
+
+  @Delete('meetings/:id/debrief-jobs/:jobId')
+  cancelDebriefJob(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') meetingId: string,
+    @Param('jobId') jobId: string,
+  ) {
+    return this.meetingDebriefJobs?.cancel(ctx, meetingId, jobId) ?? null;
+  }
+
+  @Post('meetings/:id/debrief-jobs/:jobId/resume')
+  @HttpCode(202)
+  @EngagementRuntimeAction('meeting_debrief_generate')
+  resumeDebriefJob(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') meetingId: string,
+    @Param('jobId') jobId: string,
+  ) {
+    return this.meetingDebriefJobs?.resume(ctx, meetingId, jobId) ?? null;
   }
 
   @Post('meetings/:id/notetaker')

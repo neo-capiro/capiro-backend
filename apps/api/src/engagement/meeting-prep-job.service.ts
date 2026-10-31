@@ -432,6 +432,21 @@ export class MeetingPrepJobService {
     };
   }
 
+  /**
+   * Shared meeting-job admission for the sibling debrief job: one policy owner for
+   * current membership, meeting ownership, client wall/archival state and the
+   * assignment digest. Not a second authorization layer.
+   */
+  async authorizeJobMeeting(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    meetingId: string,
+    expected?: string,
+    allowCancelled = true,
+  ) {
+    return this.authorize(tx, ctx, meetingId, expected, allowCancelled);
+  }
+
   private async authorize(
     tx: Prisma.TransactionClient,
     ctx: TenantContext,

@@ -148,6 +148,7 @@ model Tenant {
 
   clientNotetakerPreferences ClientNotetakerPreference[]
   meetingPrepJobs            MeetingPrepJob[]
+  meetingDebriefJobs         MeetingDebriefJob[]
   meetingPrepMondayMappings  MeetingPrepMondayMapping[]
   mobileDeviceTokens         MobileDeviceToken[]
   id                         String                      @id @default(uuid()) @db.Uuid
@@ -590,6 +591,7 @@ model User {
 
   clientNotetakerPreferences ClientNotetakerPreference[]
   meetingPrepJobs            MeetingPrepJob[]
+  meetingDebriefJobs         MeetingDebriefJob[]
   meetingPrepMondayMappings  MeetingPrepMondayMapping[]
   mobileDeviceTokens         MobileDeviceToken[]
   id                         String                      @id @default(uuid()) @db.Uuid
@@ -1471,6 +1473,7 @@ model Meeting {
   krispImports KrispMeetingImport[]
 
   prepJobs           MeetingPrepJob[]
+  debriefJobs        MeetingDebriefJob[]
   id                 String            @id @default(uuid()) @db.Uuid
   tenantId           String            @map("tenant_id") @db.Uuid
   clientId           String?           @map("client_id") @db.Uuid
@@ -1879,6 +1882,36 @@ model MeetingPrepJob {
   @@map("meeting_prep_jobs")
 }
 
+model MeetingDebriefJob {
+  tenant      Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meeting     Meeting        @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  debrief     MeetingDebrief? @relation(fields: [debriefId], references: [id], onDelete: SetNull)
+  id          String         @id @default(uuid()) @db.Uuid
+  tenantId    String         @map("tenant_id") @db.Uuid
+  userId      String         @map("user_id") @db.Uuid
+  meetingId   String         @map("meeting_id") @db.Uuid
+  requestKey  String         @map("request_key") @db.VarChar(128)
+  requestHash String         @map("request_hash") @db.VarChar(64)
+  status      String         @default("queued") @db.VarChar(24)
+  stage       String         @default("queued") @db.VarChar(48)
+  input       Json
+  checkpoints Json           @default("{}")
+  leaseToken  String?        @map("lease_token") @db.Uuid
+  leaseUntil  DateTime?      @map("lease_until") @db.Timestamptz(6)
+  deadlineAt  DateTime       @map("deadline_at") @db.Timestamptz(6)
+  attempts    Int            @default(0)
+  debriefId   String?        @map("debrief_id") @db.Uuid
+  errorCode   String?        @map("error_code") @db.VarChar(64)
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, userId, requestKey])
+  @@index([status, leaseUntil, createdAt])
+  @@index([tenantId, userId, meetingId, createdAt])
+  @@map("meeting_debrief_jobs")
+}
+
 model MeetingPrepMondayMapping {
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1953,9 +1986,13 @@ model MeetingDebrief {
   // above.
   sharedAt       DateTime?            @map("shared_at") @db.Timestamptz(6)
   sharedByUserId String?              @map("shared_by_user_id") @db.Uuid
+  // D2 (2026-10): the assembled-context summary the model actually saw, written when the
+  // debrief row is created from a generated draft. Nullable: existing rows predate it.
+  generatedFromJsonb Json?         @map("generated_from_jsonb")
   createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  debriefJobs MeetingDebriefJob[]
   tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   meeting  Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
   client   Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)

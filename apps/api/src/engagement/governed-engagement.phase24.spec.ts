@@ -170,10 +170,8 @@ describe('createGovernedEngagementService Phase 24', () => {
             prep: null,
             source: { method: 'upload', text: 'The transcript supports this sentence.' },
             visibleNotes: [{ body: 'Visible note.' }],
-            clientContext: { legacy: true },
-            congressionalDirectoryMatches: [],
-            recentMeetings: [{ subject: 'legacy history' }],
-            recentThreads: [{ subject: 'legacy mail' }],
+            openTasks: [],
+            recentDebriefs: [],
             steeringContext,
           },
           value,
@@ -194,9 +192,11 @@ describe('createGovernedEngagementService Phase 24', () => {
     const [input] = provider.mock.calls[0] as [MeetingDebriefDraftInput];
     expect(input.source.text).toBe('The transcript supports this sentence.');
     expect(input.visibleNotes).toEqual([{ body: 'Visible note.' }]);
-    expect(input.clientContext).toBeNull();
-    expect(input.recentMeetings).toEqual([]);
-    expect(input.recentThreads).toEqual([]);
+    // D2: the debrief input no longer carries a client timeline, directory matches or mail.
+    expect('clientContext' in input).toBe(false);
+    expect('congressionalDirectoryMatches' in input).toBe(false);
+    expect('recentMeetings' in input).toBe(false);
+    expect('recentThreads' in input).toBe(false);
     expect(input.steeringContext).toContain('<capiro_meeting_context_plane>');
     expect(JSON.stringify(input)).not.toContain('legacy nested note');
     expect(JSON.stringify(input)).not.toContain('legacy mail');

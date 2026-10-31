@@ -719,7 +719,7 @@ function projectSteering(packet: unknown): string {
   return blocks.join('');
 }
 
-function buildModelContextBlock(input: {
+export function buildModelContextBlock(input: {
   mode: MeetingContextMode;
   steering: string;
   packetId: string | null;
@@ -762,7 +762,8 @@ function buildModelContextBlock(input: {
     '</capiro_meeting_context_plane>',
   ]
     .filter((line) => line !== '')
-    .join('\n');
+    .join(String.fromCharCode(10));
+
 }
 
 function packetIdOf(packet: unknown): string | null {
