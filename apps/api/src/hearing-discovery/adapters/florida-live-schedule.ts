@@ -128,7 +128,9 @@ export function floridaLiveCandidate(
     officialPageUrl: matches[0]!.watchUrl,
     mediaUrl: null,
     priority: 20,
-    capturePolicy: 'LICENSE_REQUIRED',
+    // Match existing exact-page TFC archive policy: browser tab capture only.
+    // Discovery grants no unattended access to the channel's media transport.
+    capturePolicy: 'BROWSER_CAPTURE_ONLY',
     expiresAt: new Date(matches[0]!.endsAt),
   };
 }

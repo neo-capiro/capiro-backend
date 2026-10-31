@@ -122,7 +122,8 @@ export class HearingSessionService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Browser access to a canonical public Florida source is independent of the
-   * unattended recorder. Unbound URLs and substituted hearing identities fail. */
+   * unattended recorder. For every jurisdiction, a recorded candidate's window
+   * governs capture, even when its page became h.url. Playback skips this guard. */
   async assertCaptureSourceAllowed(
     tenantId: string,
     hearingId?: string | null,
@@ -137,18 +138,31 @@ export class HearingSessionService {
     const state = await this.prisma.withTenant(
       tenantId,
       (tx) =>
-        tx.$queryRaw<Array<{ id: string; sourceUrl: string | null; browserAllowed: boolean }>>`
+        tx.$queryRaw<
+          Array<{
+            id: string;
+            sourceUrl: string | null;
+            browserAllowed: boolean;
+            bindingExpired: boolean;
+          }>
+        >`
         SELECT h.id, COALESCE(${sourceUrl ?? null}::text,h.url) AS "sourceUrl",
+          (binding.observed AND NOT binding.current) AS "bindingExpired",
           (h.geographic_jurisdiction='FL' AND h.canonical_hearing_id IS NULL
            AND h.visibility='public' AND h.event_status NOT IN ('canceled','cancelled')
-           AND (${sourceUrl ?? null}::text IS NULL OR h.url=${sourceUrl ?? null}
-             OR EXISTS(SELECT 1 FROM hearing_stream_candidate c WHERE c.hearing_id=h.id
-               AND c.official_page_url=${sourceUrl ?? null}
-               AND (c.expires_at IS NULL OR c.expires_at>clock_timestamp())))) AS "browserAllowed"
+           AND ((h.url=COALESCE(${sourceUrl ?? null}::text,h.url) AND NOT binding.observed)
+             OR binding.current)) AS "browserAllowed"
         FROM committee_hearing h
+        CROSS JOIN LATERAL (
+          SELECT count(*)>0 AS observed,
+            COALESCE(bool_or(c.expires_at IS NULL OR c.expires_at>clock_timestamp()),false) AS current
+          FROM hearing_stream_candidate c WHERE c.hearing_id=h.id
+            AND c.official_page_url=COALESCE(${sourceUrl ?? null}::text,h.url)
+        ) binding
         WHERE h.id=${canonicalHearingId}
-          AND h.geographic_jurisdiction IS NOT NULL
-          AND UPPER(TRIM(h.geographic_jurisdiction))<>'US'
+          AND ((h.geographic_jurisdiction IS NOT NULL
+            AND UPPER(TRIM(h.geographic_jurisdiction))<>'US')
+            OR (binding.observed AND NOT binding.current))
         LIMIT 1`,
     );
     const row = state[0];
@@ -156,6 +170,7 @@ export class HearingSessionService {
       if (floridaSource) throw new ForbiddenException(STATE_CAPTURE_LINK_ONLY);
       return;
     }
+    if (row.bindingExpired) throw new ForbiddenException('BROWSER_SOURCE_BINDING_EXPIRED');
     let safeSource = false;
     try {
       const url = new URL(row.sourceUrl ?? '');

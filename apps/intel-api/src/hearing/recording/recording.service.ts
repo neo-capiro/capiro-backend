@@ -122,6 +122,9 @@ export class HearingRecordingService {
     mimeType: string,
   ): Promise<RecordingCapture> {
     const session = await this.sessions.getAccessible(tenantId, sessionId, userId);
+    // An expired live-channel binding cannot start another capture. Playback
+    // remains governed by the original retained-media grant and retention.
+    await this.sessions.assertCaptureSourceAllowed(tenantId, session.hearingId, session.sourceUrl);
     if (session.recordingPolicy !== 'audio_and_transcript')
       throw new BadRequestException('This session does not retain audio');
     const grant = await this.permissions.require(tenantId, session);

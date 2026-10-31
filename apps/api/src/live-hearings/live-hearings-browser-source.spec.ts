@@ -229,6 +229,9 @@ describe('strict official external links', () => {
       expect(
         choose({ hearingUrl: null, candidates: [live], now: new Date('2026-10-31T15:00:00Z') }),
       ).toBeNull();
+      expect(
+        choose({ hearingUrl: page, candidates: [live], now: new Date('2026-10-31T15:00:00Z') }),
+      ).toBeNull();
     }
     expect(strictOfficialSourceUrl(page, 'florida-channel-live')).toContain(
       '?eid=recLiveRulesExample',

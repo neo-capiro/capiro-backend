@@ -149,6 +149,7 @@ export function selectBrowserSource(input: {
   // 3. Last resort: the official listing page (e.g. Congress.gov event page),
   //    never an api.* metadata URL.
   const listing = (input.hearingUrl ?? '').trim();
+  if (sourceBindingExpired(listing, input.candidates, input.now)) return null;
   if (listing && isPublicPageUrl(listing) && !isApiMetadataUrl(listing)) {
     return {
       sourceUrl: listing,
@@ -332,6 +333,16 @@ export function officialUrlsEquivalent(
   return Boolean(a && b && a === b);
 }
 
+/** A canonical URL is not a fallback around its stored live binding window. */
+function sourceBindingExpired(
+  page: string,
+  candidates: BrowserSourceCandidate[],
+  now?: Date,
+): boolean {
+  const matching = candidates.filter((candidate) => candidate.officialPageUrl.trim() === page);
+  return matching.length > 0 && matching.every((candidate) => !candidateUnexpired(candidate, now));
+}
+
 /** Choose one safe external Watch/Replay link without exposing media URLs. */
 export function selectOfficialPlaybackSource(input: {
   hearingUrl: string | null;
@@ -351,6 +362,7 @@ export function selectOfficialPlaybackSource(input: {
       sourceProvider: candidate.provider,
     };
   }
+  if (sourceBindingExpired((input.hearingUrl ?? '').trim(), input.candidates, input.now)) return null;
   const sourceUrl = strictOfficialSourceUrl(input.hearingUrl);
   if (!sourceUrl) return null;
   return {

@@ -68,7 +68,7 @@ describe('Florida Channel live schedule enrichment', () => {
     expect(() => floridaLiveSchedule({ success: false })).toThrow('unavailable');
   });
 
-  it('enriches a unique official meeting without altering its schedule or allowing recording', () => {
+  it('enriches a unique official meeting with browser-only capture without altering its schedule', () => {
     const streams = floridaLiveSchedule(payload([event]));
     const before = JSON.stringify(observation);
     expect(floridaLiveCandidate(observation, streams, now)).toEqual({
@@ -76,7 +76,7 @@ describe('Florida Channel live schedule enrichment', () => {
       officialPageUrl: streams[0]!.watchUrl,
       mediaUrl: null,
       priority: 20,
-      capturePolicy: 'LICENSE_REQUIRED',
+      capturePolicy: 'BROWSER_CAPTURE_ONLY',
       expiresAt: new Date('2026-04-28T22:00:00Z'),
     });
     expect(JSON.stringify(observation)).toBe(before);
@@ -140,7 +140,7 @@ describe('Florida Channel live schedule enrichment', () => {
     expect(create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         expiresAt: candidate.expiresAt,
-        capturePolicy: 'LICENSE_REQUIRED',
+        capturePolicy: 'BROWSER_CAPTURE_ONLY',
         mediaUrl: null,
       }),
     });

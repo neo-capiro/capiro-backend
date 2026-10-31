@@ -1,5 +1,27 @@
 import { randomUUID } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import { Readable } from 'node:stream';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { FeatureFlagService } from '../src/feature-flags/feature-flag.service.js';
+import { HearingSessionService } from '../src/hearing/hearing-session.service.js';
+import { RecordingPermissionService } from '../src/hearing/recording/recording-permission.service.js';
+import { HearingRecordingService } from '../src/hearing/recording/recording.service.js';
+import { RecordingAssemblyWorker } from '../src/hearing/recording/recording-assembly.worker.js';
+import type { RecordingStorageService } from '../src/hearing/recording/recording-storage.service.js';
+import {
+  LiveHearingAudioSourceDto,
+  LiveHearingSourceTypeDto,
+} from '../src/hearing/dto/session.dto.js';
+import {
+  floridaLiveCandidate,
+  floridaLiveSchedule,
+} from '../../api/src/hearing-discovery/adapters/florida-live-schedule.js';
+import { classifyObservedCandidate } from '../../api/src/hearing-discovery/stream-candidate.repository.js';
+import { etCalendarDay } from '../../api/src/hearing-discovery/hearing-time.js';
+import type { LegislativeObservation } from '../../api/src/hearing-discovery/legislative-calendar.js';
+import { selectBrowserSource } from '../../api/src/live-hearings/live-hearings-browser-source.js';
+import { assessStrictSchedulePolicy } from '../../api/src/live-hearings/live-hearings-phase7-schedule.guard.js';
 
 if (
   process.env.LEGIWATCH_RECORDING_TEST_DATABASE !== 'disposable' ||
@@ -69,6 +91,9 @@ describe('explicit public browser permission under the application role', () => 
     session = created.id;
   });
   afterEach(async () => {
+    await p.hearingRecordingPart.deleteMany({ where: { tenantId: tenant } });
+    await p.hearingRecordingEpoch.deleteMany({ where: { tenantId: tenant } });
+    await p.hearingRecording.deleteMany({ where: { tenantId: tenant } });
     await p.hearingMediaPermission.deleteMany({ where: { tenantId: tenant, hearingId: hearing } });
     await p.liveHearingSession.deleteMany({ where: { tenantId: tenant, id: session } });
     await p.$executeRaw`DELETE FROM hearing_stream_candidate WHERE id=${candidate}`;
@@ -80,6 +105,259 @@ describe('explicit public browser permission under the application role', () => 
   afterAll(async () => {
     await p.$disconnect();
   });
+
+  async function recordFloridaLivePage() {
+    // Source payload uses the verified public schedule shape with synthetic
+    // event identifiers. No network, publisher media or browser consent is simulated.
+    const now = new Date(),
+      startsAt = new Date(now.getTime() - 600000),
+      endsAt = new Date(now.getTime() + 3600000);
+    const streams = floridaLiveSchedule({
+      success: true,
+      data: [
+        {
+          title: 'Live Streams',
+          schedule: [
+            {
+              uuid: 'recOwnedBrowserFixture',
+              title: 'Senate Rules',
+              start_time_utc: startsAt.toISOString(),
+              end_time_utc: endsAt.toISOString(),
+              url: 'https://cdnapisec.kaltura.com/p/2593311/sp/259331100/playManifest/entryId/1_ownedfixture/format/url/protocol/https',
+            },
+          ],
+        },
+      ],
+    });
+    const observation: LegislativeObservation = {
+      jurisdiction: 'FL',
+      session: '2026',
+      chamber: 'senate',
+      officialIdentity: 'owned-live-recording',
+      bodySourceKey: 'fl:senate:RC',
+      bodyName: 'Rules',
+      stateCommitteeId: null,
+      eventType: 'committee',
+      sourceUrl: 'https://www.flsenate.gov/Committees/Show/RC/MeetingNotice/123',
+      publishedAt: null,
+      fields: {
+        title: 'Owned Rules fixture',
+        status: 'scheduled',
+        visibility: 'public',
+        time: {
+          date: etCalendarDay(startsAt).toISOString().slice(0, 10),
+          rawTime: startsAt.toISOString(),
+          timezone: 'America/New_York',
+          precision: 'instant',
+          startsAt: startsAt.toISOString(),
+          endsAt: endsAt.toISOString(),
+        },
+      },
+      completeFields: ['title', 'status', 'time'],
+      completeness: 'complete',
+      issues: [],
+    };
+    const observed = floridaLiveCandidate(observation, streams, now)!;
+    expect(observed).not.toBeNull();
+    const classified = classifyObservedCandidate(observed);
+    expect(classified.capturePolicy).toBe('BROWSER_CAPTURE_ONLY');
+    expect(observed.mediaUrl).toBeNull();
+    expect(
+      assessStrictSchedulePolicy({ eventStatus: 'scheduled', visibility: 'public' }, [
+        { ...classified, resolutionState: 'NOT_CHECKED' },
+      ]),
+    ).toMatchObject({ allowed: false, state: 'BROWSER_ONLY' });
+    const selected = selectBrowserSource({
+      hearingUrl: observation.sourceUrl,
+      candidates: [{ ...observed, ...classified }],
+    })!;
+    expect(selected.sourceUrl).toBe(streams[0]!.watchUrl);
+    source = selected.sourceUrl;
+    await p.$executeRaw`UPDATE hearing_stream_candidate SET provider=${classified.provider},official_page_url=${source},capture_policy=${classified.capturePolicy},expires_at=${endsAt} WHERE id=${candidate}`;
+    // Exercise the exact canonical-url branch as well as the candidate branch:
+    // making the page h.url must never hide its expiring channel binding.
+    await p.$executeRaw`UPDATE committee_hearing SET url=${source} WHERE id=${hearing}`;
+    await p.liveHearingSession.delete({ where: { id: session } });
+    const appPrisma = {
+      withTenant: (scope: string, work: (tx: any) => Promise<unknown>) => asApp(work, scope),
+      withSystem: (work: (tx: any) => Promise<unknown>) => asApp(work),
+    } as PrismaService;
+    expect(await asApp((tx) => tx.$queryRaw`SELECT current_user AS role`)).toEqual([
+      { role: 'capiro_app' },
+    ]);
+    const sessions = new HearingSessionService(appPrisma);
+    const created = await sessions.create(tenant, actor, {
+      title: 'Owned live browser fixture',
+      sourceType: LiveHearingSourceTypeDto.hearing,
+      audioSource: LiveHearingAudioSourceDto.browser_mic,
+      sourceUrl: source,
+      hearingId: hearing,
+    });
+    session = created.id;
+    expect(created.recordingPolicy).toBe('transcript_only');
+    const objects = new Map<string, Buffer>();
+    const storage = {
+      enabled: true,
+      assertReady: () => undefined,
+      put: async (key: string, bytes: Buffer | Readable) => {
+        if (Buffer.isBuffer(bytes)) objects.set(key, Buffer.from(bytes));
+        else {
+          const chunks: Buffer[] = [];
+          for await (const chunk of bytes) chunks.push(Buffer.from(chunk));
+          objects.set(key, Buffer.concat(chunks));
+        }
+      },
+      read: async (key: string) => Readable.from([objects.get(key)!]),
+      playbackUrl: async (key: string) => {
+        expect(objects.has(key)).toBe(true);
+        return 'https://private.example/owned-short-lived-playback';
+      },
+    } as RecordingStorageService;
+    const permissions = new RecordingPermissionService(
+      appPrisma,
+      new FeatureFlagService(appPrisma, new ConfigService()),
+      storage,
+    );
+    const recording = new HearingRecordingService(appPrisma, sessions, permissions, storage);
+    expect(await recording.capability(tenant, session, actor)).toMatchObject({
+      available: true,
+      retentionDays: 30,
+    });
+    expect(
+      await p.hearingMediaPermission.count({ where: { tenantId: tenant, hearingId: hearing } }),
+    ).toBe(0);
+    expect(await recording.enable(tenant, session, actor)).toEqual({
+      recordingPolicy: 'audio_and_transcript',
+    });
+    const grant = await p.hearingMediaPermission.findFirstOrThrow({
+      where: { tenantId: tenant, hearingId: hearing },
+    });
+    expect(grant.expiresAt.getTime()).toBeGreaterThan(endsAt.getTime());
+    const claim = await sessions.claimCapture(tenant, session);
+    expect(claim).not.toBeNull();
+    const capture = await recording.begin(
+      tenant,
+      session,
+      actor,
+      claim!.startedAt,
+      'audio/webm;codecs=opus',
+    );
+    const bytes = execFileSync(
+      'ffmpeg',
+      [
+        '-nostdin',
+        '-v',
+        'error',
+        '-f',
+        'lavfi',
+        '-i',
+        'sine=frequency=440:duration=0.2',
+        '-c:a',
+        'libopus',
+        '-f',
+        'webm',
+        'pipe:1',
+      ],
+      { windowsHide: true },
+    );
+    const frame = Buffer.alloc(16 + bytes.length);
+    frame.write('LWA4');
+    frame.writeUInt32BE(0, 4);
+    frame.writeDoubleBE(200, 8);
+    bytes.copy(frame, 16);
+    await recording.append(capture, frame);
+    await recording.seal(capture, 0, undefined, false, false);
+    await sessions.releaseCapture(tenant, session, capture.captureToken, 'ended');
+    expect(await new RecordingAssemblyWorker(appPrisma, storage).runOne(capture.recordingId)).toBe(
+      true,
+    );
+    expect((await recording.manifest(tenant, session, actor)).recording?.epochs[0]).toMatchObject({
+      state: 'ready',
+      playable: true,
+    });
+    return { sessions, recording, capture, grant };
+  }
+
+  it('retains decoded browser audio after the live binding ends while denying new and renewed capture', async () => {
+    const { sessions, recording, capture } = await recordFloridaLivePage();
+    await p.$executeRaw`UPDATE hearing_stream_candidate SET expires_at=now()-interval '1 second' WHERE id=${candidate}`;
+    await expect(sessions.claimCapture(tenant, session)).rejects.toThrow(
+      'BROWSER_SOURCE_BINDING_EXPIRED',
+    );
+    await expect(sessions.heartbeatCapture(tenant, session, capture.captureToken)).rejects.toThrow(
+      'BROWSER_SOURCE_BINDING_EXPIRED',
+    );
+    await expect(
+      recording.begin(tenant, session, actor, capture.captureToken, 'audio/webm;codecs=opus'),
+    ).rejects.toThrow('BROWSER_SOURCE_BINDING_EXPIRED');
+    expect((await recording.manifest(tenant, session, actor)).recording?.playbackAvailability).toBe(
+      'available',
+    );
+    await expect(
+      recording.playback(tenant, session, actor, capture.epochId),
+    ).resolves.toHaveProperty('url');
+  });
+
+  it.each(['revoked', 'expired'])(
+    'still denies retained Florida live playback when its original permission is %s',
+    async (reason) => {
+      const { recording, capture, grant } = await recordFloridaLivePage();
+      await p.$executeRaw`UPDATE hearing_stream_candidate SET expires_at=now()-interval '1 second' WHERE id=${candidate}`;
+      await p.hearingMediaPermission.update({
+        where: { id: grant.id },
+        data:
+          reason === 'revoked'
+            ? { revokedAt: new Date() }
+            : {
+                reviewedAt: new Date(Date.now() - 172800000),
+                expiresAt: new Date(Date.now() - 86400000),
+              },
+      });
+      expect(
+        (await recording.manifest(tenant, session, actor)).recording?.playbackAvailability,
+      ).toBe('permission_unavailable');
+      await expect(recording.playback(tenant, session, actor, capture.epochId)).rejects.toThrow(
+        'unavailable',
+      );
+    },
+  );
+
+  it.each(['US', 'FL'])(
+    'does not let a current retention grant or canonical URL bypass an expired %s source binding',
+    async (jurisdiction) => {
+      const page = jurisdiction === 'US' ? 'https://www.senate.gov/hearings/owned-fixture' : source;
+      await p.$executeRaw`UPDATE committee_hearing SET geographic_jurisdiction=${jurisdiction},url=${page} WHERE id=${hearing}`;
+      await p.$executeRaw`UPDATE hearing_stream_candidate SET official_page_url=${page},expires_at=now()+interval '1 hour' WHERE id=${candidate}`;
+      await p.liveHearingSession.update({ where: { id: session }, data: { sourceUrl: page } });
+      await enable();
+      const appPrisma = {
+        withTenant: (scope: string, work: (tx: any) => Promise<unknown>) => asApp(work, scope),
+      } as PrismaService;
+      const sessions = new HearingSessionService(appPrisma);
+      const claim = await sessions.claimCapture(tenant, session);
+      expect(claim).not.toBeNull();
+      await p.$executeRaw`UPDATE hearing_stream_candidate SET expires_at=now()-interval '1 second' WHERE id=${candidate}`;
+      await expect(sessions.assertCaptureSourceAllowed(tenant, hearing, page)).rejects.toThrow(
+        'BROWSER_SOURCE_BINDING_EXPIRED',
+      );
+      await expect(sessions.assertCaptureSourceAllowed(tenant, hearing, null)).rejects.toThrow(
+        'BROWSER_SOURCE_BINDING_EXPIRED',
+      );
+      await expect(sessions.heartbeatCapture(tenant, session, claim!.startedAt)).rejects.toThrow(
+        'BROWSER_SOURCE_BINDING_EXPIRED',
+      );
+      expect(
+        await p.hearingMediaPermission.count({
+          where: {
+            tenantId: tenant,
+            hearingId: hearing,
+            revokedAt: null,
+            expiresAt: { gt: new Date() },
+          },
+        }),
+      ).toBe(1);
+    },
+  );
 
   it('offers capability without writing and creates one idempotent browser-only grant on explicit enable', async () => {
     expect(await eligible()).toEqual([{ eligible: true }]);
@@ -102,14 +380,15 @@ describe('explicit public browser permission under the application role', () => 
     });
   });
 
-  it('caps grant expiry at the source lifetime', async () => {
+  it('keeps the thirty-day retention grant independent of the live channel binding window', async () => {
     const expiry = new Date(Date.now() + 3600000);
     await p.$executeRaw`UPDATE hearing_stream_candidate SET expires_at=${expiry} WHERE id=${candidate}`;
     await enable();
     const grant = await p.hearingMediaPermission.findFirstOrThrow({
       where: { tenantId: tenant, hearingId: hearing },
     });
-    expect(grant.expiresAt.getTime()).toBeLessThanOrEqual(expiry.getTime());
+    expect(grant.expiresAt.getTime()).toBeGreaterThan(expiry.getTime());
+    expect(grant.expiresAt.getTime() - grant.reviewedAt.getTime()).toBeCloseTo(30 * 86400000, -3);
   });
 
   it.each(['LICENSE_REQUIRED', 'BLOCKED', 'REVIEW_REQUIRED'])(

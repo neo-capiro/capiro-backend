@@ -46,7 +46,6 @@ SET search_path = pg_catalog, public AS $$
 DECLARE
   target public.intel_live_hearing_session%ROWTYPE;
   permission_id text;
-  source_expiry timestamptz;
 BEGIN
   SELECT * INTO target FROM public.intel_live_hearing_session s
     WHERE s.id=record_session AND s.tenant_id=public.current_tenant_id()::text
@@ -77,17 +76,15 @@ BEGIN
       AND p.operations @> ARRAY['capture','transcription','retention']::text[]
     ORDER BY p.reviewed_at DESC LIMIT 1;
   IF permission_id IS NOT NULL THEN RETURN permission_id; END IF;
-  SELECT min(c.expires_at) INTO source_expiry FROM public.hearing_stream_candidate c
-    WHERE c.hearing_id=target.hearing_id AND c.official_page_url=target.source_url
-      AND c.capture_policy IN ('SERVER_CAPTURE_ALLOWED','BROWSER_CAPTURE_ONLY')
-      AND (c.expires_at IS NULL OR c.expires_at>statement_timestamp());
   permission_id := pg_catalog.gen_random_uuid()::text;
   INSERT INTO public.intel_hearing_media_permission
     (id,tenant_id,source_url,hearing_id,mode,operations,evidence,reviewed_by,expires_at,retention_days)
     VALUES(permission_id,target.tenant_id,target.source_url,target.hearing_id,'browser',
       ARRAY['capture','transcription','retention'],
       'Explicit creator enable; canonical public hearing and current approved browser source',
-      target.created_by,LEAST(statement_timestamp()+interval '30 days',source_expiry),30);
+      -- The source window bounds capture admission/heartbeats, not playback
+      -- of audio captured during that window. Existing grants are never extended.
+      target.created_by,statement_timestamp()+interval '30 days',30);
   RETURN permission_id;
 END
 $$;
