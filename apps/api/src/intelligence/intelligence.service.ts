@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client';
+import type { TenantContext } from '@capiro/shared';
 import type { AlertRow } from './client-alerts-v1.shared.js';
 import {
   buildQuarterWindows as portfolioBuildQuarterWindows,
@@ -322,6 +323,8 @@ export class IntelligenceService {
   async getIssueLeaderboard(issueCode: string) { return this.supportingSources.relationships.getIssueLeaderboard(issueCode); }
 
   async computeEngagementHealth(clientId: string, tenantId: string) { return this.clientSources.health.computeEngagementHealth(clientId, tenantId); }
+
+  async getRecordedActivityIndex(ctx: TenantContext, clientId: string, signal?: AbortSignal) { return this.clientSources.health.getRecordedActivityIndex(ctx, clientId, signal); }
 
   async getCommentPeriodAlerts(tenantId: string) { return this.finalSources.commentDeadlines.getCommentPeriodAlerts(tenantId); }
 
