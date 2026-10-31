@@ -54,14 +54,11 @@ export function createGovernedMeetingAiService(
             // the only evidence of what happened (D2). The input contract has no
             // client timeline, directory matches or mail fields to strip.
             //
-            // The assembly already composed this canonical block BEFORE the bound, so
-            // the recorded summary describes what is actually sent. If the bound gave
-            // the steering slot up (it is the first optional section to go), leave it
-            // absent instead of re-inserting it after the bound.
-            steeringContext:
-              input.steeringContext === null || input.steeringContext === undefined
-                ? (input.steeringContext ?? null)
-                : bundle.modelContextBlock,
+            // The canonical Context Plane block is authoritative for meeting steering
+            // and is always supplied, exactly as the original seam did. The assembly
+            // composes it BEFORE the bound and the bound no longer reduces the steering
+            // slot, so this is not a post-bound insertion in the governed path.
+            steeringContext: bundle.modelContextBlock,
           };
           return target.generateMeetingDebrief(sanitized, ctx);
         };

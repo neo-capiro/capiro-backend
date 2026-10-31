@@ -394,3 +394,62 @@ describe('completion delivery and recorded-assignment binding', () => {
     expect(read).not.toHaveProperty('draft');
   });
 });
+
+describe('same-key replay applies the recorded-assignment admission', () => {
+  test('an unchanged-assignment replay returns the same completed job with its draft', async () => {
+    const h = harness();
+    const first = await h.service.submit(ctx, 'meeting-1', { ...submitInput, requestKey: 'request-key-1' });
+    // The job completes and its draft is persisted as the encrypted envelope object.
+    Object.assign(h.rows[0]!, {
+      status: 'completed',
+      stage: 'completed',
+      checkpoints: { draft: envelope(completedDraft) },
+    });
+
+    const replay = await h.service.submit(ctx, 'meeting-1', { ...submitInput, requestKey: 'request-key-1' });
+
+    expect(replay.jobId).toBe(first.jobId);
+    expect(replay.status).toBe('completed');
+    expect(replay.draft).toEqual(completedDraft);
+    expect(h.create).toHaveBeenCalledTimes(1);
+  });
+
+  test('a changed-assignment replay is rejected with no draft projected', async () => {
+    const h = harness({
+      authorize: async (_tx, _ctx, _meetingId, expected) => {
+        // The job was recorded under assignment-A; the meeting has since moved.
+        if (expected) throw new ConflictException('Meeting assignment changed during preparation.');
+        return { assignment: 'assignment-A', clientId: null };
+      },
+    });
+    await h.service.submit(ctx, 'meeting-1', { ...submitInput, requestKey: 'request-key-1' });
+    Object.assign(h.rows[0]!, {
+      status: 'completed',
+      stage: 'completed',
+      checkpoints: { draft: envelope(completedDraft) },
+    });
+
+    await expect(
+      h.service.submit(ctx, 'meeting-1', { ...submitInput, requestKey: 'request-key-1' }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(h.create).toHaveBeenCalledTimes(1);
+    // The stored draft never left the service through the replay path.
+    expect(JSON.stringify(h.rows[0]!.checkpoints)).not.toContain('Recap.');
+  });
+
+  test('a completed replay whose recorded assignment cannot be read fails closed', async () => {
+    const h = harness();
+    await h.service.submit(ctx, 'meeting-1', { ...submitInput, requestKey: 'request-key-1' });
+    Object.assign(h.rows[0]!, {
+      status: 'completed',
+      stage: 'completed',
+      // No readable envelope: the recorded assignment is unknowable.
+      input: 'not-an-envelope',
+      checkpoints: { draft: envelope(completedDraft) },
+    });
+
+    await expect(
+      h.service.submit(ctx, 'meeting-1', { ...submitInput, requestKey: 'request-key-1' }),
+    ).rejects.toThrow('meeting_debrief_assignment_unreadable');
+  });
+});

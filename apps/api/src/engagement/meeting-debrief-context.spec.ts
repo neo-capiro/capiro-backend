@@ -54,6 +54,9 @@ function input(overrides: Partial<MeetingDebriefContextInput> = {}): MeetingDebr
   };
 }
 
+const THREE_LINE_SOURCE = ['Line one.', 'Line two.', 'Line three.'].join(String.fromCharCode(10));
+
+
 describe('D2 bounded debrief context', () => {
   it('keeps a realistic full-length transcript intact and under the 8k bound', () => {
     const assembled = boundDebriefContext(input());
@@ -116,12 +119,12 @@ describe('D2 bounded debrief context', () => {
     expect(assembled.summary.sections.find((s) => s.name === 'source')?.state).toBe('shortened');
   });
 
-  it('gives up lower-priority sections before touching the source', () => {
+  it('gives up optional metadata and background before touching the source or the steering', () => {
     const assembled = boundDebriefContext(
       input({
         source: { method: 'upload', text: realisticTranscript },
-        visibleNotes: [{ body: 'note '.repeat(4_000), createdAt: '2026-10-12T14:05:00Z' }],
-        steeringContext: 'voice '.repeat(500),
+        visibleNotes: [{ body: 'note '.repeat(600), createdAt: '2026-10-12T14:05:00Z' }],
+        steeringContext: 'voice '.repeat(400),
         recentDebriefs: [{ createdAt: '2026-10-01T00:00:00.000Z', recap: 'prior '.repeat(400) }],
         openTasks: Array.from({ length: 20 }, (_, index) => ({
           title: `task ${index} `.repeat(20),
@@ -136,9 +139,31 @@ describe('D2 bounded debrief context', () => {
     expect(assembled.summary.sourceTruncated).toBe(false);
     expect(assembled.input.source.text).toBe(realisticTranscript);
     const state = (name: string) => assembled.summary.sections.find((s) => s.name === name)?.state;
-    // Continuity and voice were reduced; the source was not.
-    expect(state('steeringContext')).not.toBe('kept');
+    // Background context was reduced; the canonical steering and the source were not.
     expect(state('recentDebriefs')).not.toBe('kept');
+    expect(state('steeringContext')).toBe('kept');
+    expect(assembled.input.steeringContext).toBe('voice '.repeat(400));
+  });
+
+  it('bounds an oversized optional meeting description before the reviewed source', () => {
+    const description = 'D'.repeat(20_000);
+    const assembled = boundDebriefContext(
+      input({
+        meeting: { ...input({}).meeting, description },
+        source: { method: 'upload', text: THREE_LINE_SOURCE },
+      }),
+    );
+
+    expect(assembled.summary.totalTokens).toBeLessThanOrEqual(
+      MEETING_DEBRIEF_POLICY.contextTokens,
+    );
+    // The reviewed evidence survives untouched...
+    expect(assembled.summary.sourceTruncated).toBe(false);
+    expect(assembled.input.source.text).toBe(THREE_LINE_SOURCE);
+    // ...because the optional description gave way, while identity stayed intact.
+    expect(assembled.input.meeting).not.toHaveProperty('description');
+    expect(assembled.input.meeting.id).toBe('meeting-1');
+    expect(assembled.input.client?.id).toBe('client-1');
   });
 
   it('bounds continuity to the configured number of prior debriefs', () => {

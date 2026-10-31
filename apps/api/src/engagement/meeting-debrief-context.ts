@@ -58,19 +58,47 @@ const SOURCE_MARKER = '\n\n[… transcript truncated to fit the debrief context 
  * first. `source` is never in this list — it is only shortened, and only after every
  * other section has been given up.
  *
- * `meeting` and `client` are NOT reducible: they are the mandatory scope identity the
- * governed provider seam re-asserts (meeting.id plus the matching client identity), so
- * dropping them made a long, heavily bounded transcript fail closed at the wrapper
- * instead of generating. They are tiny; optional context is what gets reduced.
+ * `meeting`/`client` themselves are NOT reducible, because the governed provider seam
+ * re-asserts their identity (meeting.id plus the matching client identity) — but only the
+ * MANDATORY fields are protected: optional metadata (description, location, subject,
+ * client name/sector) is reduced FIRST, before any reviewed evidence.
+ *
+ * `steeringContext` is also NOT reducible. It is the canonical governed projection (or the
+ * firm voice block when no Context Plane bundle applies); the provider seam treats it as
+ * authoritative, so deleting it under pressure silently removed approved steering. It is
+ * budgeted by its renderer and retained; background context and then the transcript give
+ * way instead.
  */
 const REDUCIBLE: Array<keyof MeetingDebriefContextInput> = [
-  'steeringContext',
   'recentDebriefs',
   'openTasks',
   'attendees',
   'visibleNotes',
   'prep',
 ];
+
+/** The fields assertInputScope re-asserts: never reduced. */
+const MANDATORY_MEETING_FIELDS = new Set(['id', 'clientId', 'isInternal']);
+const MANDATORY_CLIENT_FIELDS = new Set(['id']);
+const OPTIONAL_MEETING_FIELDS = ['description', 'location', 'subject', 'status'];
+const OPTIONAL_CLIENT_FIELDS = ['sectorTag', 'name'];
+
+/** Drops the least-important optional identity metadata; false when nothing is left. */
+function reduceOptionalMetadata(bounded: MeetingDebriefContextInput): boolean {
+  for (const field of OPTIONAL_MEETING_FIELDS) {
+    if (field in bounded.meeting) {
+      delete bounded.meeting[field];
+      return true;
+    }
+  }
+  for (const field of OPTIONAL_CLIENT_FIELDS) {
+    if (bounded.client && field in bounded.client) {
+      delete bounded.client[field];
+      return true;
+    }
+  }
+  return false;
+}
 
 const size = (value: unknown): number =>
   typeof value === 'string'
@@ -100,6 +128,21 @@ function truncateTranscript(text: string, allowedBytes: number): string {
     tailBytes += next;
   }
   return `${headText}${SOURCE_MARKER}${tail.join('')}`;
+}
+
+/**
+ * A copy holding only the declared identity fields. Field by field, so an unexpected key
+ * on the caller's object (a mail body, a timeline) can never reach the model.
+ */
+function identitySlice(
+  source: Record<string, unknown>,
+  mandatory: ReadonlySet<string>,
+  optional: readonly string[],
+): Record<string, unknown> {
+  const slice: Record<string, unknown> = {};
+  for (const field of [...mandatory, ...optional])
+    if (field in source) slice[field] = source[field];
+  return slice;
 }
 
 export function debriefContextTokens(input: MeetingDebriefContextInput): number {
@@ -132,8 +175,12 @@ export function boundDebriefContext(
   // meeting/client are copied unconditionally: they are mandatory identity, not
   // optional context, and the governed wrapper refuses input without them.
   const bounded: MeetingDebriefContextInput = {
-    meeting: input.meeting,
-    client: input.client,
+    // Copied, not referenced: the reduction below must never mutate the caller's meeting.
+    // Mandatory identity is always present; optional metadata may be reduced first.
+    meeting: identitySlice(input.meeting, MANDATORY_MEETING_FIELDS, OPTIONAL_MEETING_FIELDS),
+    client: input.client
+      ? identitySlice(input.client, MANDATORY_CLIENT_FIELDS, OPTIONAL_CLIENT_FIELDS)
+      : null,
     attendees: [...input.attendees],
     prep: input.prep,
     source: { method: input.source.method, text: input.source.text },
@@ -153,6 +200,13 @@ export function boundDebriefContext(
     let total = debriefContextTokens(bounded);
     if (total <= bound) break;
     let reduced = false;
+    // Optional meeting/client metadata gives way before any reviewed evidence.
+    if (reduceOptionalMetadata(bounded)) {
+      adjusted.add('meeting');
+      adjusted.add('client');
+      reduced = true;
+    }
+    if (reduced) continue;
     for (const name of REDUCIBLE) {
       const value = bounded[name];
       if (Array.isArray(value) && value.length > 0) {

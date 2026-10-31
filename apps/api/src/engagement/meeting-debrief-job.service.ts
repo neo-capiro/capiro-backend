@@ -101,6 +101,9 @@ export class MeetingDebriefJobService {
             throw new ConflictException(
               'This request key was already used for a different debrief request.',
             );
+          // Same stored-result admission as the read path: a replay must not project a
+          // draft that belongs to an assignment the meeting no longer holds.
+          await this.assertRecordedAssignment(tx, ctx, existing);
           return this.publicJob(existing);
         }
         const job = await tx.meetingDebriefJob.create({
@@ -151,12 +154,7 @@ export class MeetingDebriefJobService {
       // Stored job content belongs to the assignment it was assembled under. Re-admit
       // through the same job-meeting owner with that recorded assignment: a meeting
       // that moved to another client (or lost access) does not publish its draft.
-      const recorded = this.recordedAssignment(job);
-      // A completed job carries stored content; if its recorded assignment cannot be
-      // read the content is not publishable at all.
-      if (job.status === 'completed' && !recorded)
-        throw new Error('meeting_debrief_assignment_unreadable');
-      await this.prepJobs.authorizeJobMeeting(tx, ctx, meetingId, recorded);
+      await this.assertRecordedAssignment(tx, ctx, job);
       return this.publicJob(job);
     });
   }
@@ -393,6 +391,23 @@ export class MeetingDebriefJobService {
       leaseUntil: { gt: new Date() },
       deadlineAt: { gt: new Date() },
     };
+  }
+
+  /**
+   * The ONE stored-result admission: re-admit the job's RECORDED assignment through the
+   * existing job-meeting owner before any public projection, in the read path and in the
+   * submit replay alike. A completed job whose recorded assignment cannot be read is not
+   * publishable at all.
+   */
+  private async assertRecordedAssignment(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    job: MeetingDebriefJob,
+  ): Promise<void> {
+    const recorded = this.recordedAssignment(job);
+    if (job.status === 'completed' && !recorded)
+      throw new Error('meeting_debrief_assignment_unreadable');
+    await this.prepJobs.authorizeJobMeeting(tx, ctx, job.meetingId, recorded);
   }
 
   /**

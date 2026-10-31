@@ -154,18 +154,7 @@ describe('D2 debrief draft payload and context', () => {
     expect(calls).toHaveLength(1);
     const input = calls[0]![0];
     expect(debriefContextTokens(input)).toBeLessThanOrEqual(MEETING_DEBRIEF_POLICY.contextTokens);
-    process.stderr.write(
-      `DBG summary=${result.contextSummary.totalTokens} measured=${debriefContextTokens(input as MeetingDebriefContextInput)} srcSummary=${result.contextSummary.sections.find((s) => s.name === 'source')?.tokens} srcActual=${Buffer.byteLength((input as MeetingDebriefContextInput).source.text, 'utf8')} steer=${JSON.stringify((input as MeetingDebriefContextInput).steeringContext).length}
-`,
-    );
-    const nonSource = result.contextSummary.sections
-      .filter((section) => section.name !== 'source')
-      .map((section) => ({
-        name: section.name,
-        summary: section.tokens,
-        actual: Buffer.byteLength(JSON.stringify((input as unknown as Record<string, unknown>)[section.name] ?? null), 'utf8'),
-      }));
-    expect(nonSource.filter((section) => section.summary !== section.actual)).toEqual([]);
+    expect(result.contextSummary.totalTokens).toBe(debriefContextTokens(input));
     expect(result.contextSummary.sourceTruncated).toBe(true);
     expect(input.source.text.length).toBeLessThan(huge.length);
   });
@@ -249,14 +238,14 @@ describe('D2 continuity policy and governed composition', () => {
     );
   });
 
-  test('a governed block that pushes past the bound is reduced, and the summary is the sent content', async () => {
+  test('overflow keeps the canonical governed steering and bounds the rest', async () => {
     const h = harness();
     (h.service as unknown as { ai: unknown }).ai = createGovernedMeetingAiService(
       h.ai as unknown as EngagementAiService,
     );
     const block = `GOVERNED-CONTEXT ${'g'.repeat(2_000)}`;
-    // ~6 900-byte source + 2 000-byte block: the source alone fits, the block pushes the
-    // input past the bound, and whatever the bound gives up must not be re-inserted.
+    // ~6 900-byte source + 2 000-byte governed block: over budget, so something must go —
+    // and it must NOT be the canonical governed projection.
     const source = transcript.repeat(4);
     expect(Buffer.byteLength(source, 'utf8')).toBeGreaterThan(6_000);
 
@@ -269,16 +258,52 @@ describe('D2 continuity policy and governed composition', () => {
 
     const input = h.generateMeetingDebrief.mock.calls[0]![0] as MeetingDebriefContextInput;
     const measured = debriefContextTokens(input);
-    expect(measured).toBeLessThanOrEqual(MEETING_DEBRIEF_POLICY.contextTokens);
-    // The recorded summary is the content actually sent, not a pre-substitution estimate.
-    expect(result.contextSummary.totalTokens).toBe(measured);
-    // The optional steering slot was given up first and reported as such.
-    expect(input.steeringContext ?? null).toBeNull();
+    // The required governed content survives, verbatim.
+    expect(input.steeringContext).toBe(block);
     expect(
       result.contextSummary.sections.find((section) => section.name === 'steeringContext')?.state,
-    ).toBe('dropped');
-    // The reviewed source survived intact; the block was the thing that gave way.
+    ).toBe('kept');
+    // The total is still bounded and the summary is exactly what was sent.
+    expect(measured).toBeLessThanOrEqual(MEETING_DEBRIEF_POLICY.contextTokens);
+    expect(result.contextSummary.totalTokens).toBe(measured);
+    // The reviewed evidence is what gave way.
+    expect(result.contextSummary.sourceTruncated).toBe(true);
+    // Identity survives the overflow.
+    expect(input.meeting.id).toBe('meeting-1');
+    expect(input.client?.id).toBe('client-1');
+  });
+
+  test('an oversized optional description is reduced before the reviewed source', async () => {
+    const h = harness();
+    (h.service as unknown as { ai: unknown }).ai = createGovernedMeetingAiService(
+      h.ai as unknown as EngagementAiService,
+    );
+    // A valid stored source shape: IsString with no length limit.
+    const description = 'D'.repeat(20_000);
+    h.tx.meeting.findFirst.mockResolvedValueOnce({
+      ...(await h.tx.meeting.findFirst()),
+      description,
+    });
+    const shortSource = ['Three lines.', 'Second line.', 'Third line.'].join(String.fromCharCode(10));
+
+
+    const result = await runWithMeetingGovernedContext(governedBundle(), () =>
+      h.service.generateMeetingDebriefDraft(ctx, 'meeting-1', {
+        method: 'upload',
+        sourceText: shortSource,
+      }),
+    );
+
+    const input = h.generateMeetingDebrief.mock.calls[0]![0] as MeetingDebriefContextInput;
+    const measured = debriefContextTokens(input);
+    expect(measured).toBeLessThanOrEqual(MEETING_DEBRIEF_POLICY.contextTokens);
+    expect(result.contextSummary.totalTokens).toBe(measured);
+    // The reviewed evidence survives untouched; the optional description does not.
     expect(result.contextSummary.sourceTruncated).toBe(false);
+    expect(input.source.text).toBe(shortSource);
+    expect(input.meeting).not.toHaveProperty('description');
+    expect(input.meeting.id).toBe('meeting-1');
+    expect(input.client?.id).toBe('client-1');
   });
 
   test('a governed block that fits is sent verbatim and counted in the bound', async () => {
