@@ -1587,7 +1587,25 @@ export class EngagementService {
           artifactId = (await this.createMeetingNote(ctx, meetingId!, input, execution)).id;
           break;
         case 'debrief-create':
-          artifactId = (await this.createMeetingDebrief(ctx, meetingId!, input, execution)).id;
+          artifactId = (
+            await this.createMeetingDebrief(
+              ctx,
+              meetingId!,
+              {
+                ...input,
+                // D2: the audited context travels with the debrief it produced.
+                // createMeetingDebrief persists it in generated_from_jsonb; the
+                // command schema refuses it on every other artifact operation.
+                ...(command.artifact!.generatedFrom
+                  ? {
+                      generatedFrom: command.artifact!
+                        .generatedFrom as unknown as Record<string, unknown>,
+                    }
+                  : {}),
+              },
+              execution,
+            )
+          ).id;
           break;
         case 'note-update':
           await this.updateMeetingNote(ctx, meetingId!, artifactId!, {
