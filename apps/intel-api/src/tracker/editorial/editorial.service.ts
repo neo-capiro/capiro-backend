@@ -1,4 +1,4 @@
-import { evidenceDigest } from './editorial-domain.js';
+import { evidenceDigest, currentEditorialConfiguration } from './editorial-domain.js';
 import {
   Injectable,
   BadRequestException,
@@ -10,29 +10,25 @@ import {
 import { randomUUID } from 'node:crypto';
 import {
   BRIEFING_TEMPLATES,
-  PHASE8_ALERT_FAMILIES,
-  briefingOccurrence,
   validateBriefingSchedule,
   PHASE8_FEATURES,
   type BriefingTemplate,
   type BriefingSchedule,
 } from '@capiro/shared';
 import type { WorkspaceTenantContext } from '../../auth/tenant-context.js';
-import type { Prisma } from '../../../generated/prisma-client/index.js';
 import { Phase8EvidenceService, phase8Scope, type SourceRow } from './evidence.service.js';
 import { assertEditorialAccess } from './editorial-access.js';
-import { object, digest, json, settings } from '../reports/report-domain.js';
+import { object, digest, json } from '../delivery/delivery-domain.js';
 import { requestKey, checkedVersion } from '../keywords/keyword-rule.service.js';
-import { ReportRecipientsService } from '../reports/recipients.service.js';
-import { ReportDeliveryService } from '../reports/report-delivery.service.js';
-import { REPORT_DELIVERY_FEATURE } from '../../feature-flags/feature-flag.service.js';
+import { RecipientsService } from '../delivery/recipients.service.js';
+import { DeliveryService } from '../delivery/delivery.service.js';
 
 @Injectable()
 export class EditorialService {
   constructor(
     readonly evidence: Phase8EvidenceService,
-    readonly recipients: ReportRecipientsService,
-    readonly delivery: ReportDeliveryService,
+    readonly recipients: RecipientsService,
+    readonly delivery: DeliveryService,
   ) {}
   async save(ctx: WorkspaceTenantContext, input: unknown) {
     const id = await this.evidence.run(ctx, input, 'editorial', async (tx, b, scope) => {
@@ -42,7 +38,7 @@ export class EditorialService {
         analysis = String(b.analysis ?? ''),
         title = String(b.title ?? BRIEFING_TEMPLATES[template] ?? '');
       if (
-        !BRIEFING_TEMPLATES[template] ||
+        !Object.hasOwn(BRIEFING_TEMPLATES, template) ||
         !title ||
         title.length > 200 ||
         analysis.length > 30000 ||
@@ -63,18 +59,6 @@ export class EditorialService {
         throw new BadRequestException('TIMEZONE_REQUIRED');
       }
       const inputHash = evidenceDigest(b);
-      if (Array.isArray(b.expectedProjectTracking)) {
-        if (b.expectedProjectTracking.length > 100)
-          throw new BadRequestException('BOUNDED_PROJECT_SCOPE_REQUIRED');
-        for (const item of b.expectedProjectTracking) {
-          const pin = object(item);
-          const rows = await tx.$queryRaw<
-            Array<{ version: number; removed: boolean }>
-          >`SELECT version,removed FROM intel_legiwatch_evidence_tracking WHERE tenant_id=${ctx.tenantId} AND owner_clerk_id=${ctx.clerkUserId} AND folder_id=${scope.folderId} AND kind='budget' AND id=${String(pin.id)} FOR SHARE`;
-          if (!rows[0] || rows[0].removed || rows[0].version !== pin.version)
-            throw new ConflictException('SELECTED_PROJECT_TRACKING_CHANGED');
-        }
-      }
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${ctx.tenantId + ':editorial:' + key},0))`;
       const prior = await tx.$queryRaw<
         Array<{ id: string; input_hash: string }>
@@ -84,32 +68,17 @@ export class EditorialService {
           throw new ConflictException('BRIEFING_REQUEST_CHANGED');
         return prior[0].id;
       }
-      const sources: Array<
-        SourceRow & { kind: string; trackingId?: string; trackingVersion?: number }
-      > = [];
+      const sources: Array<SourceRow & { kind: string }> = [];
       for (const item of b.sources) {
         const ref = object(item),
-          kind = String(ref.kind),
-          source = await this.evidence.exact(tx, kind, String(ref.id));
+          kind = String(ref.kind);
+        if (kind !== 'research') throw new BadRequestException('RESEARCH_SOURCES_REQUIRED');
+        const source = await this.evidence.exact(tx, kind, String(ref.id));
         if (source.revision !== ref.revision)
           throw new ConflictException('EXACT_SOURCE_REVISION_REQUIRED');
         if (Date.parse(source.observedAt) > cutoff.getTime())
           throw new BadRequestException('SOURCE_AFTER_KNOWLEDGE_CUTOFF');
-        const tracking = scope.folderId
-          ? await tx.$queryRaw<
-              Array<{ id: string; version: number; removed: boolean }>
-            >`SELECT id,version,removed FROM intel_legiwatch_evidence_tracking WHERE tenant_id=${ctx.tenantId} AND owner_clerk_id=${ctx.clerkUserId} AND folder_id=${scope.folderId} AND kind=${kind} AND source_id=${source.id}`
-          : [];
-        if (tracking[0]?.removed) throw new ConflictException('SOURCE_MANUALLY_REMOVED');
         const pins: Record<string, unknown> = {};
-        if (ref.monitorId) {
-          const monitor = await this.evidence.monitor(tx, ctx, String(ref.monitorId));
-          await this.evidence.context(tx, ctx, phase8Scope(monitor.config));
-          if (monitor.state !== 'active' || monitor.version !== ref.monitorVersion)
-            throw new ConflictException('SELECTED_MONITOR_CHANGED');
-          pins.monitorId = monitor.id;
-          pins.monitorVersion = monitor.version;
-        }
         if (kind === 'research' && scope.folderId) {
           const assignments = await tx.legiWatchFolderBill.findMany({
             where: {
@@ -123,20 +92,7 @@ export class EditorialService {
             pins.billAssignmentVersion = assignments[0].version;
           }
         }
-        if (kind === 'budget' && scope.folderId) {
-          const tracked = await tx.$queryRaw<
-            Array<{ id: string; version: number }>
-          >`SELECT DISTINCT t.id,t.version FROM intel_legiwatch_evidence_tracking t JOIN florida_budget_amount a ON a.project_id=t.source_id WHERE t.tenant_id=${ctx.tenantId} AND t.owner_clerk_id=${ctx.clerkUserId} AND t.folder_id=${scope.folderId} AND t.kind='budget' AND NOT t.removed AND a.document_id=${source.id}`;
-          pins.projectTracking = tracked;
-        }
-        sources.push({
-          ...source,
-          kind,
-          ...pins,
-          ...(tracking[0]
-            ? { trackingId: tracking[0].id, trackingVersion: tracking[0].version }
-            : {}),
-        });
+        sources.push({ ...source, kind, ...pins });
       }
       const citations: Array<Record<string, unknown>> = b.citations.map((item) => {
         const c = object(item),
@@ -168,8 +124,7 @@ export class EditorialService {
         .filter((s) => !s.complete)
         .map((s) => ({
           id: s.id,
-          reason:
-            s.kind === 'news' ? 'Available article fields only' : 'Incomplete source extraction',
+          reason: 'Incomplete source extraction',
         }));
       if (Array.isArray(b.coverageGaps))
         for (const gap of b.coverageGaps.slice(0, 50))
@@ -272,13 +227,12 @@ export class EditorialService {
       id = String(b.selectionId),
       source = await this.source(ctx, id);
     if (source.stale) throw new ConflictException('BRIEFING_SOURCE_STALE');
-    const scope = phase8Scope(object(source.prefill.context.scope)),
-      report = await this.evidence.reports.folders.withActor(ctx, async (tx) => {
-        const r = await this.evidence.reports.get(tx, ctx, String(b.reportId), true);
-        if (!scope.folderId || r.folderIds.length !== 1 || r.folderIds[0] !== scope.folderId)
-          throw new BadRequestException('EXPLICIT_BRIEFING_REPORT_SCOPE_REQUIRED');
-        return r;
-      });
+    if ('reportId' in b) throw new BadRequestException('STANDALONE_BRIEFING_SELECTION_REQUIRED');
+    const scope = phase8Scope(object(source.prefill.context.scope));
+    if (!scope.folderId) throw new BadRequestException('EXPLICIT_BRIEFING_FOLDER_REQUIRED');
+    await this.evidence.reports.folders.withActor(ctx, (tx) =>
+      this.evidence.context(tx, ctx, scope, true),
+    );
     if (!['internal', 'external'].includes(String(b.audience)))
       throw new BadRequestException('EXPLICIT_AUDIENCE_REQUIRED');
     const base = process.env.WORKSPACE_BASE_URL,
@@ -296,7 +250,7 @@ export class EditorialService {
       const failure = object(await response.json().catch(() => ({})));
       if (failure.message === 'EDITORIAL_MEDIA_REQUIRES_DOCUMENT_EXPORT')
         throw new BadRequestException(
-          'This edition contains inserted images. Export it from Workspace, or remove the images before reviewing a report.',
+          'This edition contains inserted images. Export it from Workspace, or remove the images before reviewing the briefing.',
         );
       throw new ServiceUnavailableException('EDITED_BRIEFING_UNAVAILABLE');
     }
@@ -342,14 +296,10 @@ export class EditorialService {
       text: output.text,
     };
     return {
-      reportId: report.id,
-      definitionVersion: report.version,
       audience,
       review,
       rendered,
       approvalHash: digest({
-        reportId: report.id,
-        version: report.version,
         audience,
         review,
         rendered,
@@ -364,15 +314,34 @@ export class EditorialService {
     if (b.approvalHash !== preview.approvalHash)
       throw new ConflictException('BRIEFING_PREVIEW_CHANGED');
     return this.evidence.run(ctx, {}, 'editorial', async (tx) => {
-      const report = await this.evidence.reports.get(tx, ctx, preview.reportId, true);
-      if (report.version !== preview.definitionVersion)
-        throw new ConflictException('REPORT_CHANGED');
+      const scope = phase8Scope(object(preview.review.scope));
+      await this.evidence.context(tx, ctx, scope, true);
+      await assertEditorialAccess(
+        tx,
+        ctx,
+        { editorialReview: preview.review },
+        (folderId) => this.evidence.reports.folders.folder(tx, ctx, folderId),
+        true,
+      );
       const key = 'editorial-review:' + preview.approvalHash;
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${ctx.tenantId + key},0))`;
       const prior = await tx.legiWatchReportRun.findUnique({
         where: { tenantId_generationKey: { tenantId: ctx.tenantId, generationKey: key } },
       });
       if (prior) return { runId: prior.id, replayed: true };
+      const report = await tx.legiWatchReport.create({
+        data: {
+          tenantId: ctx.tenantId,
+          ownerClerkId: ctx.clerkUserId,
+          name: String(
+            object(preview.review.outputSnapshot).title ?? 'Reviewed client briefing',
+          ).slice(0, 200),
+          folderIds: [scope.folderId!],
+          jurisdiction: scope.jurisdiction,
+          sessionKey: scope.sessionKey,
+          settings: json({}),
+        },
+      });
       const snapshot = {
         mode: 'editorial_brief',
         name: String(object(preview.review.outputSnapshot).title ?? ''),
@@ -382,7 +351,7 @@ export class EditorialService {
         rows: [],
         complete: true,
         issues: [],
-        settings: settings({}),
+        settings: {},
         selectionHash: 'editorial',
         editorialReview: preview.review,
         cutoff: preview.review.cutoff,
@@ -421,6 +390,26 @@ export class EditorialService {
             ORDER BY created_at DESC,id DESC LIMIT 1`;
           allowed.push({
             ...row,
+            ...(!currentEditorialConfiguration(object(row.config))
+              ? {
+                  state: 'paused',
+                  last_held_reason:
+                    'Review and save the research-only configuration before activation.',
+                  config: Object.fromEntries(
+                    Object.entries(object(row.config)).filter(
+                      ([key]) =>
+                        ![
+                          'template',
+                          'includedKinds',
+                          'reportId',
+                          'reportVersion',
+                          'monitorIds',
+                          'categoryMapping',
+                        ].includes(key),
+                    ),
+                  ),
+                }
+              : {}),
             approvalHash: digest(row.config),
             latestSelectionId: editions[0]?.selection_id ?? null,
           });
@@ -587,53 +576,21 @@ export class EditorialService {
         scope = phase8Scope(config);
       await this.evidence.context(tx, ctx, scope, true);
       const template = String(config.template) as BriefingTemplate;
+      if (!Object.hasOwn(BRIEFING_TEMPLATES, template) || !scope.folderId)
+        throw new BadRequestException('EXPLICIT_TEMPLATE_AND_FOLDER_REQUIRED');
       if (
-        !BRIEFING_TEMPLATES[template] ||
-        !scope.folderId ||
-        !Array.isArray(config.monitorIds) ||
-        config.monitorIds.length > 38
+        ['reportId', 'reportVersion', 'monitorIds', 'categoryMapping'].some(
+          (key) => key in config,
+        ) ||
+        (config.includedKinds !== undefined &&
+          (!Array.isArray(config.includedKinds) ||
+            config.includedKinds.length !== 1 ||
+            config.includedKinds[0] !== 'research'))
       )
-        throw new BadRequestException('EXPLICIT_TEMPLATE_FOLDER_AND_MONITORS_REQUIRED');
+        throw new BadRequestException('RESEARCH_ONLY_CONFIGURATION_REQUIRED');
       const schedule = validateBriefingSchedule(
         object(config.schedule) as unknown as BriefingSchedule,
       );
-      for (const monitorId of config.monitorIds) {
-        const monitor = await this.evidence.monitor(tx, ctx, String(monitorId));
-        await this.evidence.context(tx, ctx, phase8Scope(monitor.config));
-        if (monitor.config.clientId !== scope.clientId)
-          throw new BadRequestException('MONITOR_CLIENT_SCOPE_MISMATCH');
-      }
-      const report = await this.evidence.reports.get(tx, ctx, String(config.reportId), true);
-      if (report.folderIds.length !== 1 || report.folderIds[0] !== scope.folderId)
-        throw new BadRequestException('REPORT_FOLDER_SCOPE_MISMATCH');
-      const family = object(rows[0].source.family),
-        categoryIds = Array.isArray(family.categories) ? family.categories.map(String) : [];
-      const mapping = object(config.categoryMapping),
-        entries = object(mapping.entries);
-      if (
-        categoryIds.length &&
-        (mapping.namespace !== family.categoryNamespace || mapping.version !== 1)
-      )
-        throw new BadRequestException('EXACT_CATEGORY_NAMESPACE_REQUIRED');
-      for (const id of categoryIds) {
-        const entry = object(entries[id]);
-        if (
-          !['included', 'excluded', 'pending'].includes(String(entry.decision)) ||
-          typeof entry.reason !== 'string' ||
-          !entry.reason.trim()
-        )
-          throw new BadRequestException('EVERY_SOURCE_CATEGORY_REQUIRES_DECISION');
-        if (config.prepareEnabled === true && entry.decision === 'pending')
-          throw new BadRequestException('CATEGORY_MAPPING_PENDING');
-      }
-      const includedKinds = Array.isArray(config.includedKinds)
-        ? config.includedKinds.map(String)
-        : [];
-      if (
-        !includedKinds.length ||
-        includedKinds.some((k) => !['news', 'budget', 'personnel', 'research'].includes(k))
-      )
-        throw new BadRequestException('EXPLICIT_SOURCE_KINDS_REQUIRED');
       const recipients =
         config.sendEnabled === true
           ? await this.recipients.resolve(tx, ctx, config.recipientSelection)
@@ -644,15 +601,12 @@ export class EditorialService {
         ...scope,
         template,
         schedule,
-        reportId: report.id,
-        reportVersion: report.version,
-        monitorIds: config.monitorIds.map(String),
+        policyVersion: 2,
         subject: String(config.subject ?? BRIEFING_TEMPLATES[template]).slice(0, 200),
         recipients,
         prepareEnabled: config.prepareEnabled === true,
         sendEnabled: config.sendEnabled === true,
-        categoryMapping: mapping,
-        includedKinds,
+        includedKinds: ['research'],
         recipientSelection: config.recipientSelection ?? {},
         dictionaryScopeAccepted: config.dictionaryScopeAccepted === true,
         acceptAvailableFields: config.acceptAvailableFields === true,
@@ -675,17 +629,17 @@ export class EditorialService {
       await this.evidence.context(tx, ctx, phase8Scope(row.config), true);
       if (typeof b.enabled !== 'boolean' || row.version !== checkedVersion(b.expectedVersion))
         throw new ConflictException('EXACT_ACTIVATION_REQUIRED');
+      if (b.enabled && !currentEditorialConfiguration(row.config))
+        throw new ConflictException('EDITORIAL_CONFIGURATION_REVIEW_REQUIRED');
       const configHash = digest(row.config);
       if (b.enabled && (!row.config.prepareEnabled || !row.config.dictionaryScopeAccepted))
         throw new BadRequestException('REVIEW_PREPARATION_AND_DICTIONARY_SCOPE');
       if (b.enabled && row.config.sendEnabled) {
-        if (!(await this.evidence.reports.flags.isEnabled(REPORT_DELIVERY_FEATURE, ctx.tenantId)))
-          throw new ForbiddenException('REPORT_DELIVERY_DISABLED');
+        if (!(await this.evidence.reports.flags.isEnabled(PHASE8_FEATURES.editorial, ctx.tenantId)))
+          throw new ForbiddenException('EDITORIAL_DELIVERY_DISABLED');
         if (b.approvalHash !== configHash)
           throw new ConflictException('EXACT_STANDING_APPROVAL_REQUIRED');
-        for (const r of row.config.recipients as Parameters<
-          ReportRecipientsService['recheck']
-        >[2][])
+        for (const r of row.config.recipients as Parameters<RecipientsService['recheck']>[2][])
           await this.recipients.recheck(tx, ctx, r);
       }
       await tx.$executeRaw`UPDATE intel_legiwatch_editorial_config SET state=${b.enabled ? 'active' : 'paused'},standing_approval=${JSON.stringify(b.enabled && row.config.sendEnabled ? { configHash, version: row.version, actor: ctx.clerkUserId, approvedAt: new Date().toISOString() } : null)}::jsonb,last_held_reason=NULL WHERE id=${id} AND version=${row.version}`;
