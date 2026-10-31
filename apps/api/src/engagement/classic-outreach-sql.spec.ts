@@ -16,7 +16,7 @@ function fixture() {
   const prisma: any = { withTenant: jest.fn(async (tenant: string, callback: any) => {
     expect(tenant).toBe(ctx.tenantId); return callback(tx);
   }) };
-  const execute = jest.fn(async (_compiled: CompiledPublicSql) => [{ total: '1' }]);
+  const execute = jest.fn(async (_compiled: CompiledPublicSql, _ids: readonly string[]) => [{ total: '1' }]);
   const control = { maxCandidates: 100, assertActive: jest.fn() };
   const run = (query: unknown = input) => queryClassicOutreachSql(prisma, ctx, { kind: 'personal_classic' }, control, query, execute);
   return { state, tx, prisma, execute, control, run };
@@ -26,6 +26,8 @@ test('real canonical observer wraps fixed-view compilation and buffered executio
   expect(f.prisma.withTenant).toHaveBeenCalledTimes(2);
   expect(f.execute.mock.calls[0]![0].params).toEqual([id(10)]);
   expect(f.execute.mock.calls[0]![0].sql).toContain('WHERE "id" IN');
+  expect(f.execute.mock.calls[0]![1]).toEqual([id(10)]);
+  expect(Object.isFrozen(f.execute.mock.calls[0]![1])).toBe(true);
 });
 test('a denied linked client is excluded before aggregate execution', async () => {
   const f = fixture(); f.state.rows[0]!.clientId = id(99);
@@ -33,6 +35,29 @@ test('a denied linked client is excluded before aggregate execution', async () =
     expect(query.sql).toContain('WHERE FALSE'); return [{ total: '0' }];
   });
   await expect(f.run()).resolves.toEqual([{ total: '0' }]);
+  expect(f.execute.mock.calls[0]![1]).toEqual([]);
+});
+
+test('executor buffers are copied before the canonical postcheck can mutate them', async () => {
+  const f = fixture(), buffer = [{ total: '1' }];
+  f.execute.mockResolvedValue(buffer);
+  const observe = f.tx.outreachRecord.findMany.getMockImplementation()!;
+  f.tx.outreachRecord.findMany.mockImplementation(async () => {
+    if (f.execute.mock.calls.length) buffer[0]!.total = 'changed after execution';
+    return observe();
+  });
+  await expect(f.run()).resolves.toEqual([{ total: '1' }]);
+  expect(buffer[0]!.total).toBe('changed after execution');
+});
+
+test.each(['iterator', 'accessor', 'oversized'])('rejects %s output before releasing a result', async kind => {
+  const f = fixture(), getter = jest.fn(() => 'deferred');
+  const output = kind === 'iterator' ? (function* () { yield { total: '1' }; })() :
+    kind === 'accessor' ? [Object.defineProperty({}, 'total', { enumerable: true, get: getter })] :
+      [{ total: 'x'.repeat(262144) }];
+  f.execute.mockResolvedValue(output as any);
+  await expect(f.run()).rejects.toThrow();
+  expect(getter).not.toHaveBeenCalled();
 });
 test('overflow never reaches executor', async () => {
   const f = fixture(); f.state.rows = Array.from({ length: 101 }, (_, n) => ({ ...f.state.rows[0]!, id: id(n + 10) }));
