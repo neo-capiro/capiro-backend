@@ -68,6 +68,7 @@ test('a different House district retains committee evidence without district poi
     [member('house', 'House', 'TX', '6', ['Armed Services'])],
     true,
   );
+  if (!row) throw new Error('Expected the committee-backed recommendation');
   expect(row.tags).toEqual(['committee']);
   expect(row.score).toBeCloseTo(0.7);
   expect(row.billCount).toBe(3);
