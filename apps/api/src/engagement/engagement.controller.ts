@@ -2360,6 +2360,11 @@ export class EngagementController {
     return this.meetingPrepJobs?.resume(ctx, meetingId, jobId) ?? null;
   }
 
+  @Get('meeting-preps/:id')
+  readPrep(@CurrentTenant() ctx: TenantContext, @Param('id') prepId: string) {
+    return this.service.readMeetingPrep(ctx, prepId);
+  }
+
   @Patch('meeting-preps/:id')
   updatePrep(
     @CurrentTenant() ctx: TenantContext,
