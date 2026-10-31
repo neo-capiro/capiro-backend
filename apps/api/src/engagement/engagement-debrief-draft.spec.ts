@@ -9,6 +9,10 @@ import {
   type MeetingGovernedContext,
 } from './meeting-context-runtime.js';
 import type { EngagementAiService } from './engagement-ai.service.js';
+import { buildModelContextBlock } from './meeting-context-plane.service.js';
+
+/** The Context Plane's debrief byte budget; the seam must compose inside it. */
+const DEBRIEF_CANONICAL_MAX_BYTES = 4_000;
 
 function governedBundle(modelContextBlock = 'GOVERNED-CONTEXT'): MeetingGovernedContext {
   return {
@@ -328,5 +332,104 @@ describe('D2 continuity policy and governed composition', () => {
     expect(
       result.contextSummary.sections.find((section) => section.name === 'steeringContext')?.tokens,
     ).toBeGreaterThan(2_000);
+  });
+});
+
+describe('PR #314 — the canonical block is composed INSIDE the debrief budget', () => {
+  test('a permitted projection of an oversized canonical block keeps its governed content', async () => {
+    const h = harness();
+    (h.service as unknown as { ai: unknown }).ai = createGovernedMeetingAiService(
+      h.ai as unknown as EngagementAiService,
+    );
+    // The renderer's own contract, composed under the debrief byte budget: a firm-playbook
+    // body far larger than the whole context allowance.
+    const playbookBody = `APPROVED-FIRM-PLAYBOOK ${'p'.repeat(9_500)}`;
+    const block = buildModelContextBlock({
+      mode: 'debrief',
+      steering: `[firm_playbook]\n${playbookBody}`,
+      packetId: 'packet-1',
+      coverage: governedBundle().coverage,
+      records: 'SUPPLEMENTAL-RECORD '.repeat(200),
+      releaseSwitchRollback: false,
+      maxBytes: DEBRIEF_CANONICAL_MAX_BYTES,
+    });
+
+    expect(Buffer.byteLength(block, 'utf8')).toBeLessThanOrEqual(
+      DEBRIEF_CANONICAL_MAX_BYTES,
+    );
+    // Required policy survives; the approved steering is present, in a reduced form.
+    expect(block).toContain('AUTHORITY:');
+    expect(block).toContain('GOVERNED STEERING:');
+    expect(block).toContain('APPROVED-FIRM-PLAYBOOK pppppppppp');
+    expect(block).toContain('projected to fit the debrief context budget');
+
+    const result = await runWithMeetingGovernedContext(governedBundle(block), () =>
+      h.service.generateMeetingDebriefDraft(ctx, 'meeting-1', {
+        method: 'upload',
+        sourceText: 'The client asked about the markup schedule.',
+      }),
+    );
+
+    const input = h.generateMeetingDebrief.mock.calls[0]![0] as MeetingDebriefContextInput;
+    const measured = debriefContextTokens(input);
+    expect(measured).toBeLessThanOrEqual(MEETING_DEBRIEF_POLICY.contextTokens);
+    expect(result.contextSummary.totalTokens).toBe(measured);
+    // The governed content is still there, by content and not only by a total.
+    expect(input.steeringContext).toBe(block);
+    expect(input.steeringContext).toContain('AUTHORITY:');
+    expect(input.steeringContext).toContain('APPROVED-FIRM-PLAYBOOK');
+    expect(result.contextSummary.sections.find((s) => s.name === 'steeringContext')?.state).toBe(
+      'kept',
+    );
+    // ...and the short reviewed source was not sacrificed for it.
+    expect(result.contextSummary.sourceTruncated).toBe(false);
+    expect(h.generateMeetingDebrief).toHaveBeenCalledTimes(1);
+  });
+
+  test('a genuinely irreducible overflow refuses before any provider call', async () => {
+    const h = harness();
+    (h.service as unknown as { ai: unknown }).ai = createGovernedMeetingAiService(
+      h.ai as unknown as EngagementAiService,
+    );
+    // A canonical block larger than the ENTIRE debrief budget: no ordering of reductions
+    // can bring the mandatory content under the bound.
+    const oversized = `CANONICAL ${'c'.repeat(MEETING_DEBRIEF_POLICY.contextTokens + 1_000)}`;
+
+    await expect(
+      runWithMeetingGovernedContext(governedBundle(oversized), () =>
+        h.service.generateMeetingDebriefDraft(ctx, 'meeting-1', {
+          method: 'upload',
+          sourceText: 'Short transcript.',
+        }),
+      ),
+    ).rejects.toThrow('meeting_debrief_context_budget_exhausted');
+    // Deterministic refusal: nothing was dispatched.
+    expect(h.generateMeetingDebrief).toHaveBeenCalledTimes(0);
+  });
+
+  test('the provider seam itself refuses an over-bound payload it would have sent', async () => {
+    const h = harness();
+    const seam = createGovernedMeetingAiService(h.ai as unknown as EngagementAiService);
+    const overBound = `CANONICAL ${'c'.repeat(MEETING_DEBRIEF_POLICY.contextTokens + 1_000)}`;
+
+    await expect(
+      runWithMeetingGovernedContext(governedBundle(overBound), () =>
+        seam.generateMeetingDebrief(
+          {
+            meeting: { id: 'meeting-1', clientId: 'client-1', isInternal: false },
+            client: { id: 'client-1' },
+            attendees: [],
+            prep: null,
+            source: { method: 'upload', text: 'Short transcript.' },
+            visibleNotes: [],
+            openTasks: [],
+            recentDebriefs: [],
+            steeringContext: 'STALE-STEERING',
+          },
+          ctx,
+        ),
+      ),
+    ).rejects.toThrow('meeting_debrief_context_budget_exhausted');
+    expect(h.generateMeetingDebrief).toHaveBeenCalledTimes(0);
   });
 });

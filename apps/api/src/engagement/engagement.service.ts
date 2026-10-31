@@ -5995,6 +5995,13 @@ export class EngagementService {
       steeringContext,
     });
 
+    // FINAL HARD BOUND, before dispatch. The canonical block is composed to fit the
+    // debrief budget by the Context Plane renderer, so a total still above the limit means
+    // the mandatory content could not be composed within it: refuse deterministically here
+    // instead of sending an over-bound payload to the provider.
+    if (assembled.summary.totalTokens > MEETING_DEBRIEF_POLICY.contextTokens)
+      throw new Error('meeting_debrief_context_budget_exhausted');
+
     const generated = await this.ai.generateMeetingDebrief(assembled.input, ctx);
     await this.recordAiUsage(ctx, 'meeting_debrief', generated);
     // Provider, model and token counts only: no raw envelope, no thinking block.

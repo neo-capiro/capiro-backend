@@ -4,6 +4,8 @@ import {
   type MeetingPrepInput,
 } from './engagement-ai.service.js';
 import { requireMeetingGovernedContext } from './meeting-context-runtime.js';
+import { debriefContextTokens } from './meeting-debrief-context.js';
+import { MEETING_DEBRIEF_POLICY } from './meeting-prep-policy.js';
 
 export const RAW_ENGAGEMENT_AI_SERVICE = Symbol('RAW_ENGAGEMENT_AI_SERVICE');
 
@@ -60,6 +62,10 @@ export function createGovernedMeetingAiService(
             // slot, so this is not a post-bound insertion in the governed path.
             steeringContext: bundle.modelContextBlock,
           };
+          // The provider seam dispatches nothing above the debrief's hard bound: the
+          // canonical substitution happens here, so the check has to happen here too.
+          if (debriefContextTokens(sanitized) > MEETING_DEBRIEF_POLICY.contextTokens)
+            throw new Error('meeting_debrief_context_budget_exhausted');
           return target.generateMeetingDebrief(sanitized, ctx);
         };
       }

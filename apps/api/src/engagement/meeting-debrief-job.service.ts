@@ -332,7 +332,9 @@ export class MeetingDebriefJobService {
     } catch (error) {
       abort.abort(new Error('meeting_debrief_stopped'));
       const message = error instanceof Error ? error.message : '';
-      const code = /deadline/i.test(message)
+      const code = /budget/i.test(message)
+        ? 'DEBRIEF_BUDGET_EXHAUSTED'
+        : /deadline/i.test(message)
         ? 'DEBRIEF_DEADLINE_EXCEEDED'
         : /access|assignment|client changed|revoked/i.test(message)
           ? 'DEBRIEF_SCOPE_CHANGED'
