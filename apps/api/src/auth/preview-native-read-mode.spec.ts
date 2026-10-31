@@ -14,6 +14,13 @@ describe('preview native memory route predicate', () => {
     '/api/memory/candidates/mine?limit=25',
     '/api/memory/candidates/mine/11111111-1111-4111-8111-111111111111/status',
     '/api/memory/owner/items',
+    '/api/memory/owner/items/11111111-1111-4111-8111-111111111111/versions?limit=25',
+    '/api/memory/owner/items/11111111-1111-4111-8111-111111111111/evidence',
+    '/API/MEMORY/OWNER/ITEMS/11111111-1111-4111-8111-111111111111/VERSIONS/',
+    // Invalid IDs still match the dynamic GET handler. Validation must not
+    // fall through to ordinary provisioning before that handler refuses them.
+    '/api/memory/owner/items/not-a-uuid/versions',
+    '/api/memory/owner/items/clio:11111111-1111-4111-8111-111111111111/evidence',
     '/API/MEMORY/OWNER/ITEMS/',
   ])('matches only the exact GET handler shape (%s)', (target) => {
     const path = target.split('?')[0]!;
@@ -33,6 +40,10 @@ describe('preview native memory route predicate', () => {
     ['GET', '/api/memory/candidates/mine/other'],
     ['GET', '/api/memory/candidates/mine/other/status/extra'],
     ['GET', '/api/memory/owner/items/other'],
+    ['GET', '/api/memory/owner/items/id/versions/extra'],
+    ['GET', '/api/memory/owner/items/id/evidence-extra'],
+    ['POST', '/api/memory/owner/items/id/versions'],
+    ['PUT', '/api/memory/owner/items/id/evidence'],
     ['POST', '/api/memory/candidates/mine'],
     ['POST', '/api/memory/candidates/other/owner-decision'],
     ['PUT', '/api/memory/owner/items'],
