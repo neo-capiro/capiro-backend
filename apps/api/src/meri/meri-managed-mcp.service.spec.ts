@@ -238,6 +238,7 @@ describe('MeriManagedMcpService', () => {
       readOnlyTools: [],
       connectionStatus: 'pending',
       enabled: true,
+      updatedAt: new Date(1000),
     });
     await expect(service.finalizeConnection(ctx.tenantId, 'hubspot-server')).resolves.toBe(2);
     expect(tx.clioMcpServer.updateMany).toHaveBeenCalledWith(
@@ -245,16 +246,14 @@ describe('MeriManagedMcpService', () => {
         data: {
           toolAllowlist: ['get_user_details', 'search_crm_objects'],
           readOnlyTools: ['get_user_details', 'search_crm_objects'],
+          connectionStatus: 'connected',
+          lastError: null,
         },
-      }),
-    );
-    expect(tx.clioMcpServer.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
         where: expect.objectContaining({
           enabled: true,
-          connectionStatus: { in: ['pending', 'connected'] },
+          connectionStatus: 'pending',
+          updatedAt: new Date(1000),
         }),
-        data: { connectionStatus: 'connected', lastError: null },
       }),
     );
     expect(mcp.invalidate).toHaveBeenCalledWith(ctx.tenantId);

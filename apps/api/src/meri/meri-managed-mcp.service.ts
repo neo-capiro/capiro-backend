@@ -233,23 +233,11 @@ export class MeriManagedMcpService {
   }
 
   async finalizeConnection(tenantId: string, serverId: string): Promise<number> {
-    const count = await this.hardenServer(tenantId, serverId);
+    const count = await this.hardenServer(tenantId, serverId, undefined, true);
     if (!count)
       throw new ServiceUnavailableException(
         'No supported read tools are available. Please try reconnecting.',
       );
-    const result = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.clioMcpServer.updateMany({
-        where: {
-          id: serverId,
-          tenantId,
-          enabled: true,
-          connectionStatus: { in: ['pending', 'connected'] },
-        },
-        data: { connectionStatus: 'connected', lastError: null },
-      }),
-    );
-    if (result.count !== 1) throw new BadRequestException('This connection is no longer active.');
     this.mcp.invalidate(tenantId);
     return count;
   }
@@ -495,6 +483,7 @@ export class MeriManagedMcpService {
     tenantId: string,
     serverId: string,
     ownerUserId?: string,
+    finalize = false,
   ): Promise<number> {
     const ownerWhere =
       ownerUserId !== undefined ? { scope: 'user' as const, ownerUserId } : {};
@@ -512,30 +501,41 @@ export class MeriManagedMcpService {
       return 0;
     if (id === 'krisp' && !(await krispTenantEnabled(this.prisma, tenantId))) return 0;
     const safe = filterManagedReadOnlyTools(id, strings(row.toolAllowlist));
-    if (
+    const needsHardening =
       JSON.stringify(strings(row.toolAllowlist)) !== JSON.stringify(safe) ||
       JSON.stringify(strings(row.readOnlyTools)) !== JSON.stringify(safe) ||
-      !safe.length
-    ) {
-      await this.prisma.withTenant(tenantId, (tx) =>
+      !safe.length;
+    if (needsHardening || finalize) {
+      // A stale filtered snapshot must not restore a newer reduced policy.
+      // Final readiness belongs to this same observation/write, not a second
+      // unguarded update that could complete a newer pending authorization.
+      const result = await this.prisma.withTenant(tenantId, (tx) =>
         tx.clioMcpServer.updateMany({
           where: {
             id: row.id,
             tenantId,
             ...ownerWhere,
             enabled: true,
-            connectionStatus: { in: ['pending', 'connected'] },
+            connectionStatus: row.connectionStatus,
+            updatedAt: row.updatedAt,
           },
           data: {
-            toolAllowlist: safe as Prisma.InputJsonValue,
-            readOnlyTools: safe as Prisma.InputJsonValue,
+            ...(needsHardening
+              ? {
+                  toolAllowlist: safe as Prisma.InputJsonValue,
+                  readOnlyTools: safe as Prisma.InputJsonValue,
+                }
+              : {}),
             ...(!safe.length
               ? { connectionStatus: 'error', lastError: 'No supported read tools are available.' }
-              : {}),
+              : finalize
+                ? { connectionStatus: 'connected', lastError: null }
+                : {}),
           },
         }),
       );
       this.mcp.invalidate(tenantId);
+      if (result.count !== 1) return 0;
     }
     return safe.length;
   }
