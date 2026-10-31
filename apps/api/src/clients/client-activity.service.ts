@@ -136,12 +136,10 @@ export class ClientActivityService {
           take: limit,
           select: { id: true, subject: true, startsAt: true, location: true },
         }),
-        tx.engagementAttachment.findMany({
-          where: { prospectId: null, tenantId: ctx.tenantId, clientId },
-          orderBy: { createdAt: 'desc' },
-          take: limit,
-          select: { id: true, fileName: true, createdAt: true, source: true },
-        }),
+        // The canonical list owns viewer/version and private-parent authorization.
+        // It returns the full authorized array, newest first; bound it only after
+        // authorization so denied rows cannot displace visible timeline items.
+        this.engagement.listAttachments(ctx, { clientId }),
         tx.outreachRecord.findMany({
           // Timeline must only surface drafts THIS caller can actually open.
           // getOutreachRecord() (the single-record read the "Open outreach"
@@ -199,7 +197,7 @@ export class ClientActivityService {
           settledAt: null,
           origin: 'derived' as const,
         })),
-        ...attachments.map((row) => ({
+        ...attachments.slice(0, limit).map((row) => ({
           id: `document:${row.id}`,
           kind: 'document' as const,
           occurredAt: row.createdAt.toISOString(),
