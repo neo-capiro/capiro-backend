@@ -11,7 +11,7 @@ BEGIN
  IF current_setting('server_version_num')::integer<160000 THEN RAISE EXCEPTION 'PostgreSQL16 required'; END IF;
  IF EXISTS(SELECT 1 FROM pg_proc WHERE pronamespace='public'::regnamespace AND proname IN ('public_hearing_browser_recording_eligible','enable_public_hearing_browser_recording')) THEN RAISE EXCEPTION 'Browser function collision; no replace or replay'; END IF;
  IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='capiro_app' AND NOT rolsuper AND NOT rolbypassrls AND NOT rolcreaterole AND NOT rolcreatedb AND NOT rolreplication) THEN RAISE EXCEPTION 'Application role boundary drift'; END IF;
- IF pg_has_role('capiro_app','capiro_master','USAGE') OR pg_has_role('capiro_app','capiro_master','SET') THEN RAISE EXCEPTION 'Application owns migration authority'; END IF;
+ IF EXISTS(SELECT 1 FROM (VALUES ('capiro_master'),('pg_read_all_data'),('pg_write_all_data')) t(name) WHERE pg_has_role('capiro_app',t.name,'USAGE') OR pg_has_role('capiro_app',t.name,'SET') OR EXISTS(SELECT 1 FROM pg_roles bridge WHERE pg_has_role('capiro_app',bridge.oid,'SET') AND pg_has_role(bridge.oid,t.name,'USAGE'))) THEN RAISE EXCEPTION 'Application privileged role path'; END IF;
  FOR r IN SELECT * FROM (VALUES ('committee_hearing',false,false),('hearing_stream_candidate',false,false),('intel_feature_flag',true,true),('intel_hearing_media_permission',true,true),('intel_live_hearing_session',true,true),('tenant_memberships',true,true),('users',false,false)) x(name,rls,force_rls) LOOP
   IF NOT EXISTS(SELECT 1 FROM pg_class WHERE oid=to_regclass('public.'||r.name) AND relkind='r' AND relowner=current_user::regrole AND relrowsecurity=r.rls AND relforcerowsecurity=r.force_rls) THEN RAISE EXCEPTION 'Dependency owner/RLS drift: %',r.name; END IF;
  END LOOP;
@@ -59,7 +59,7 @@ BEGIN
  END LOOP;
  IF to_regprocedure('public.current_tenant_id()') IS NULL OR to_regprocedure('public.rls_bypass()') IS NULL THEN RAISE EXCEPTION 'Tenant helper missing'; END IF;
  IF NOT EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid='public.intel_hearing_media_permission'::regclass AND tgname='hearing_permission_identity_immutable' AND tgenabled='O') THEN RAISE EXCEPTION 'Permission identity guard missing'; END IF;
- IF has_table_privilege('capiro_app','public.intel_hearing_media_permission','INSERT,UPDATE,DELETE,TRUNCATE') OR NOT has_column_privilege('capiro_app','public.intel_hearing_media_permission','id','UPDATE') THEN RAISE EXCEPTION 'Permission runtime boundary drift'; END IF;
+ IF has_table_privilege('capiro_app','public.intel_hearing_media_permission','INSERT,UPDATE,DELETE,TRUNCATE') OR has_any_column_privilege('capiro_app','public.intel_hearing_media_permission','INSERT') OR EXISTS(SELECT 1 FROM pg_attribute a WHERE a.attrelid='public.intel_hearing_media_permission'::regclass AND a.attnum>0 AND NOT a.attisdropped AND a.attname<>'id' AND has_column_privilege('capiro_app',a.attrelid,a.attnum,'UPDATE')) OR NOT has_column_privilege('capiro_app','public.intel_hearing_media_permission','id','UPDATE') THEN RAISE EXCEPTION 'Permission runtime boundary drift'; END IF;
  IF NOT EXISTS(SELECT 1 FROM pg_attribute a JOIN pg_attrdef d ON d.adrelid=a.attrelid AND d.adnum=a.attnum WHERE a.attrelid='public.intel_hearing_media_permission'::regclass AND a.attname='reviewed_at' AND pg_get_expr(d.adbin,d.adrelid)='CURRENT_TIMESTAMP') THEN RAISE EXCEPTION 'Permission review default drift'; END IF;
 END $guard$;
 
@@ -164,7 +164,7 @@ DO $verify$
 DECLARE p record;
 BEGIN
  FOR p IN SELECT * FROM pg_proc WHERE pronamespace='public'::regnamespace AND proname IN ('public_hearing_browser_recording_eligible','enable_public_hearing_browser_recording') LOOP
-  IF p.proowner<>current_user::regrole OR NOT p.prosecdef OR p.proconfig IS DISTINCT FROM ARRAY['search_path=pg_catalog, public']::text[] OR pg_get_function_identity_arguments(p.oid)<>'record_session text' THEN RAISE EXCEPTION 'Browser function ownership/signature/security drift'; END IF;
+  IF p.proowner<>current_user::regrole OR NOT p.prosecdef OR p.proconfig IS DISTINCT FROM ARRAY['search_path=pg_catalog, public']::text[] OR pg_get_function_identity_arguments(p.oid)<>'record_session text'  OR p.proisstrict OR p.proleakproof OR p.proparallel<>'u' OR (p.proname='public_hearing_browser_recording_eligible' AND (p.provolatile<>'s' OR p.prorettype<>'boolean'::regtype OR p.prolang<>(SELECT oid FROM pg_language WHERE lanname='sql'))) OR (p.proname='enable_public_hearing_browser_recording' AND (p.provolatile<>'v' OR p.prorettype<>'text'::regtype OR p.prolang<>(SELECT oid FROM pg_language WHERE lanname='plpgsql'))) THEN RAISE EXCEPTION 'Browser function ownership/signature/security drift'; END IF;
   IF EXISTS(SELECT 1 FROM aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a WHERE a.grantee<>p.proowner AND (a.grantee<>'capiro_app'::regrole OR a.privilege_type<>'EXECUTE' OR a.is_grantable)) OR NOT has_function_privilege('capiro_app',p.oid,'EXECUTE') THEN RAISE EXCEPTION 'Browser function execution ACL drift'; END IF;
  END LOOP;
 END $verify$;
