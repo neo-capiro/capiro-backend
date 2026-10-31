@@ -22,7 +22,17 @@ export const PRIVATE_SQL_VIEW_NAMES = Object.freeze([
 ] as const);
 type Scope =
   | { readonly scopeKind: 'general'; readonly clientId: null }
-  | { readonly scopeKind: 'client'; readonly clientId: string };
+  | { readonly scopeKind: 'client'; readonly clientId: string }
+  | {
+      readonly scopeKind: 'research_portfolio';
+      readonly clientId: null;
+      readonly researchPortfolioId: string;
+    }
+  | {
+      readonly scopeKind: 'classic_outreach';
+      readonly clientId: string | null;
+      readonly classicOutreachIds: readonly string[];
+    };
 /** Internal input from the canonical current owner, never a model/HTTP authorization claim.
  * assertCurrent closes over that owner's admitted receipt and checks its current expect fields. */
 export type PrivateSqlExecutionContext = Readonly<{
@@ -46,29 +56,60 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export function capturePrivateSqlContext(
   context: PrivateSqlExecutionContext,
 ): PrivateSqlExecutionContext {
+  if (!context) throw new ForbiddenException('Private query access unavailable');
+  const { tenantId, actorId, deadlineMs, assertCurrent, scopeKind, clientId } = context;
+  const selectors = context as PrivateSqlExecutionContext & {
+    researchPortfolioId?: unknown;
+    classicOutreachIds?: unknown;
+  };
+  const portfolioId = selectors.researchPortfolioId;
+  const ids = selectors.classicOutreachIds;
+  const canonicalUuid = (value: unknown): value is string =>
+    typeof value === 'string' && uuid.test(value);
+  const validScope =
+    (scopeKind === 'general' &&
+      clientId === null &&
+      portfolioId === undefined &&
+      ids === undefined) ||
+    (scopeKind === 'client' &&
+      canonicalUuid(clientId) &&
+      portfolioId === undefined &&
+      ids === undefined) ||
+    (scopeKind === 'research_portfolio' &&
+      clientId === null &&
+      canonicalUuid(portfolioId) &&
+      ids === undefined) ||
+    (scopeKind === 'classic_outreach' &&
+      (clientId === null || canonicalUuid(clientId)) &&
+      portfolioId === undefined &&
+      Array.isArray(ids) &&
+      ids.length <= 100 &&
+      Array.from(ids).every(canonicalUuid) &&
+      new Set(ids).size === ids.length);
   if (
-    !context ||
-    !uuid.test(context.tenantId) ||
-    !uuid.test(context.actorId) ||
-    !Number.isSafeInteger(context.deadlineMs) ||
-    typeof context.assertCurrent !== 'function' ||
-    !(
-      (context.scopeKind === 'general' && context.clientId === null) ||
-      (context.scopeKind === 'client' &&
-        typeof context.clientId === 'string' &&
-        uuid.test(context.clientId))
-    )
+    !canonicalUuid(tenantId) ||
+    !canonicalUuid(actorId) ||
+    !Number.isSafeInteger(deadlineMs) ||
+    typeof assertCurrent !== 'function' ||
+    !validScope
   )
     throw new ForbiddenException('Private query access unavailable');
-  const { tenantId, actorId, deadlineMs, assertCurrent, scopeKind, clientId } = context;
-  return Object.freeze({
-    tenantId,
-    actorId,
-    deadlineMs,
-    assertCurrent,
-    scopeKind,
-    clientId,
-  }) as PrivateSqlExecutionContext;
+  const common = { tenantId, actorId, deadlineMs, assertCurrent };
+  if (scopeKind === 'research_portfolio')
+    return Object.freeze({
+      ...common,
+      scopeKind,
+      clientId: null,
+      researchPortfolioId: portfolioId as string,
+    });
+  if (scopeKind === 'classic_outreach')
+    return Object.freeze({
+      ...common,
+      scopeKind,
+      clientId,
+      classicOutreachIds: Object.freeze([...(ids as string[])]),
+    });
+  return Object.freeze({ ...common, scopeKind, clientId }) as PrivateSqlExecutionContext;
 }
 
 // Fixed DB admission, independent of model SQL. View definitions remain the schema owner's
@@ -79,12 +120,36 @@ const PRIVATE_SQL_ROLE_CHECK = `WITH reader AS (
   SELECT * FROM pg_catalog.pg_roles WHERE rolname = 'capiro_private_projection_owner'
 ), views AS (
   SELECT c.* FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-  WHERE n.nspname = 'meri_private' AND c.relname IN ('visible_clients','client_objectives','client_activity','client_team_roster','client_account_owners','client_targets','client_profiles','client_profile_codes','client_people','client_contacts','client_engagement_tasks','client_action_items','client_tracked_bills','client_outreach_campaigns','client_campaign_recipients','client_meetings')
+  WHERE n.nspname = 'meri_private' AND c.relname IN ('visible_clients','client_objectives','client_activity','client_team_roster','client_account_owners','client_targets','client_profiles','client_profile_codes','client_people','client_contacts','client_engagement_tasks','client_action_items','client_tracked_bills','client_outreach_campaigns','client_campaign_recipients','client_meetings','research_portfolios','research_portfolio_members','classic_outreach_records')
 ), sources AS (
   SELECT c.* FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
   WHERE n.nspname = 'public' AND c.relname IN
     ('tenants','tenant_memberships','clients','client_memory_access','client_objectives','client_activity',
-     'client_ordered_owners','client_team_members','client_targets','client_people','engagement_contacts','engagement_tasks','action_recommendation','tracked_bill','engagement_campaigns','engagement_campaign_recipients','meetings','engagement_connections','meeting_attendees')
+     'client_ordered_owners','client_team_members','client_targets','client_people','engagement_contacts','engagement_tasks','action_recommendation','tracked_bill','engagement_campaigns','engagement_campaign_recipients','meetings','engagement_connections','meeting_attendees','research_portfolios','research_portfolio_grants','research_portfolio_members','outreach_records')
+), source_columns (table_name, columns) AS (
+  VALUES ('action_recommendation', ARRAY['action_type','client_id','created_at','deadline','deadline_source','delta_id','dismissal_reason','district_key','id','issue_title','outcome','owner_user_id','pe_code','priority','program_id','recommended_action','status','suggested_artifact_type','tenant_id','uncertainty','updated_at','what_changed','why_it_matters']::text[]),
+    ('client_activity', ARRAY['actor_user_id','body','client_id','created_at','created_by_user_id','due_at','id','kind','metadata_jsonb','occurred_at','person_id','pinned','settled_at','source_id','source_type','tenant_id','title','updated_at']::text[]),
+    ('client_memory_access', ARRAY['client_id','tenant_id','user_id']::text[]),
+    ('client_objectives', ARRAY['ask_type','client_id','client_request_id','created_at','created_by_user_id','deleted_at','government_problem','id','limits','minimum_win','outcome','owner_user_id','ready_at','review_requested_at','status','tenant_id','updated_at','version']::text[]),
+    ('client_ordered_owners', ARRAY['client_id','rank','tenant_id','user_id']::text[]),
+    ('client_people', ARRAY['client_id','created_at','email','hierarchy_level','id','last_contact','name','notes','phone','placement_confidence','placement_source','reports_to_person_id','review_required','role','tenant_id','title','updated_at']::text[]),
+    ('client_targets', ARRAY['added_at','added_by_user_id','chamber','client_id','committee','id','member_id','member_name','party','source','source_directory','staff_kind','state','tenant_id','tier']::text[]),
+    ('client_team_members', ARRAY['client_id','created_at','id','role','tenant_id','user_id']::text[]),
+    ('clients', ARRAY['account_owner_version','applicant_types','cage_code','canonical_entity_id','created_at','created_by_user_id','description','id','issue_codes','lda_client_ids','memory_wall','naics_codes','name','primary_contact_email','primary_contact_name','primary_contact_phone','product_description','profile_status','profile_type','psc_codes','sector_tag','set_aside_certifications','status','submission_tracks','tenant_id','uei','updated_at','website']::text[]),
+    ('engagement_campaign_recipients', ARRAY['campaign_id','created_at','email','id','name','office','sent_at','status','tenant_id','title']::text[]),
+    ('engagement_campaigns', ARRAY['body','client_id','created_at','created_by_user_id','id','name','sent_at','status','subject','tenant_id','type','updated_at']::text[]),
+    ('engagement_connections', ARRAY['created_by_user_id','id','tenant_id']::text[]),
+    ('engagement_contacts', ARRAY['acquisition_personnel_id','client_id','created_at','directory_entry_id','email','full_name','id','organization','phone','source','tenant_id','title','updated_at']::text[]),
+    ('engagement_tasks', ARRAY['client_id','created_at','created_by_user_id','description','due_date','id','owner_user_id','source_type','status','tenant_id','title','updated_at']::text[]),
+    ('meeting_attendees', ARRAY['email','meeting_id','tenant_id']::text[]),
+    ('meetings', ARRAY['association_signals_jsonb','client_id','connection_id','created_at','created_by_user_id','ends_at','id','is_internal','is_virtual','organizer_email','provider','source','starts_at','status','subject','tenant_id','time_zone','updated_at']::text[]),
+    ('outreach_records', ARRAY['body','client_id','created_at','created_by_user_id','deleted_at','id','opened_in_email_at','recipient_count','sent_at','status','subject','tenant_id','title','type','updated_at']::text[]),
+    ('research_portfolio_grants', ARRAY['portfolio_id','principal_user_id','role','tenant_id']::text[]),
+    ('research_portfolio_members', ARRAY['created_at','created_by_user_id','disposition','id','label','origin','portfolio_id','reason','resolved_at','revision','target_id','target_kind','tenant_id','updated_at','updated_by_user_id']::text[]),
+    ('research_portfolios', ARRAY['archived_at','created_at','id','lifecycle','mode','name','purpose','revision','tenant_id','updated_at']::text[]),
+    ('tenant_memberships', ARRAY['role','status','tenant_id','user_id']::text[]),
+    ('tenants', ARRAY['id','status']::text[]),
+    ('tracked_bill', ARRAY['bill_id','client_id','created_at','created_by','id','note','source','tenant_id','updated_at']::text[])
 ), identity_sources AS (
   SELECT c.* FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
   WHERE n.nspname = 'public' AND c.relname = 'users'
@@ -108,17 +173,24 @@ SELECT (
     WHERE n.nspowner = reader.oid OR (n.nspowner = owner.oid AND n.nspname <> 'meri_private')
       OR pg_catalog.has_schema_privilege(reader.oid, n.oid, 'CREATE')
       OR (n.nspname <> 'meri_private' AND pg_catalog.has_schema_privilege(owner.oid, n.oid, 'CREATE')))
-  AND (SELECT count(*) FROM views) = 16
+  AND (SELECT count(*) FROM views) = 19
   AND NOT EXISTS (SELECT 1 FROM views v WHERE v.relkind <> 'v' OR v.relowner <> owner.oid
     OR NOT coalesce(v.reloptions @> ARRAY['security_barrier=true'], false)
     OR coalesce(v.reloptions @> ARRAY['security_invoker=true'], false)
     OR (v.relname <> 'visible_clients' AND NOT pg_catalog.has_table_privilege(reader.oid, v.oid, 'SELECT')))
   AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_class c WHERE c.relowner = reader.oid
     OR (c.relowner = owner.oid AND c.oid NOT IN (SELECT oid FROM views)))
-  AND (SELECT count(*) FROM sources) = 19
+  AND (SELECT count(*) FROM sources) = 23
   AND NOT EXISTS (SELECT 1 FROM sources s WHERE s.relkind NOT IN ('r','p')
     OR NOT s.relrowsecurity OR NOT s.relforcerowsecurity OR s.relowner IN (reader.oid, owner.oid)
-    OR NOT pg_catalog.has_any_column_privilege(owner.oid, s.oid, 'SELECT'))
+    OR pg_catalog.has_table_privilege(owner.oid, s.oid, 'SELECT')
+    OR NOT EXISTS (SELECT 1 FROM source_columns expected WHERE expected.table_name = s.relname
+      AND (SELECT count(*) FROM pg_catalog.pg_attribute a WHERE a.attrelid = s.oid
+        AND a.attnum > 0 AND NOT a.attisdropped AND a.attname = ANY(expected.columns)
+        AND pg_catalog.has_column_privilege(owner.oid, s.oid, a.attnum, 'SELECT')) = pg_catalog.cardinality(expected.columns)
+      AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_attribute a WHERE a.attrelid = s.oid
+        AND a.attnum > 0 AND NOT a.attisdropped AND NOT a.attname = ANY(expected.columns)
+        AND pg_catalog.has_column_privilege(owner.oid, s.oid, a.attnum, 'SELECT'))))
   -- users is global, without tenant RLS. The view owner receives only the four
   -- identity columns required by assigned-client roster/owner projections.
   AND (SELECT count(*) FROM identity_sources) = 1
@@ -218,13 +290,6 @@ export class PrivateSqlDbService {
     compiled: CompiledPublicSql,
     context: PrivateSqlExecutionContext,
   ): Promise<SqlResultRow[]> {
-    if (
-      !compiled.relationsUsed.length ||
-      compiled.relationsUsed.some(
-        (name) => !PRIVATE_SQL_VIEW_NAMES.includes(name as (typeof PRIVATE_SQL_VIEW_NAMES)[number]),
-      )
-    )
-      throw unavailable();
     return this.runChecked(compiled, context);
   }
 
@@ -233,6 +298,18 @@ export class PrivateSqlDbService {
     supplied: PrivateSqlExecutionContext,
   ): Promise<SqlResultRow[]> {
     const context = capturePrivateSqlContext(supplied);
+    const allowedRelations: readonly string[] =
+      context.scopeKind === 'research_portfolio'
+        ? ['research_portfolios', 'research_portfolio_members']
+        : context.scopeKind === 'classic_outreach'
+          ? ['classic_outreach_records']
+          : PRIVATE_SQL_VIEW_NAMES;
+    if (
+      compiled &&
+      (!compiled.relationsUsed.length ||
+        compiled.relationsUsed.some((name) => !allowedRelations.includes(name)))
+    )
+      throw unavailable();
     remaining(context);
     await context.assertCurrent();
     const budget = remaining(context);
@@ -252,11 +329,15 @@ export class PrivateSqlDbService {
           await tx.$executeRawUnsafe(
             `SELECT pg_catalog.set_config('app.current_tenant', $1, true),
           pg_catalog.set_config('app.current_user', $2, true), pg_catalog.set_config('app.meri_query_scope', $3, true),
-          pg_catalog.set_config('app.meri_query_client', $4, true)`,
+          pg_catalog.set_config('app.meri_query_client', $4, true),
+          pg_catalog.set_config('app.meri_query_portfolio', $5, true),
+          pg_catalog.set_config('app.meri_query_classic_ids', $6, true)`,
             context.tenantId,
             context.actorId,
             context.scopeKind,
             context.clientId ?? '',
+            context.scopeKind === 'research_portfolio' ? context.researchPortfolioId : '',
+            context.scopeKind === 'classic_outreach' ? context.classicOutreachIds.join(',') : '',
           );
           const admitted = await tx.$queryRawUnsafe<{ allowed: boolean }[]>(PRIVATE_SQL_ROLE_CHECK);
           if (admitted.length !== 1 || admitted[0]?.allowed !== true) throw unavailable();
