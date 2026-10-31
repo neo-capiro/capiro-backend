@@ -31,13 +31,18 @@ function txWith(meeting: Record<string, unknown>, prep: Record<string, unknown> 
     ...meeting,
   };
   const tx: any = {
+    tenantMembership: { findFirst: jest.fn(async () => ({ role: 'standard_user' })) },
+    $queryRawUnsafe: jest.fn(async () => [{ allowed: true }]),
     $queryRaw: jest.fn(async () => [{ id: 'm1' }]),
     meeting: {
       findFirst: jest.fn(async () => ({ ...real })),
       findMany: jest.fn(async () => []),
       update: jest.fn(async ({ data }) => Object.assign(real, data)),
     },
-    client: { findUnique: jest.fn(async ({ where }) => ({ id: where.id, name: 'Client' })) },
+    client: {
+      findFirst: jest.fn(async ({ where }) => ({ id: where.id })),
+      findUnique: jest.fn(async ({ where }) => ({ id: where.id, name: 'Client' })),
+    },
     mailThread: { findMany: jest.fn(async () => []) },
     engagementTask: { findMany: jest.fn(async () => []) },
     meetingPrep: {

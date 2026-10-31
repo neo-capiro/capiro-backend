@@ -1,3 +1,4 @@
+import { readSyncedMeetingAssociation, hasBoundMeetingRecords } from '../meeting-automatic-association.js';
 import { incomingProviderGet, readIncomingProviderFiles, type IncomingProviderSource, type IncomingImportSelection } from '../mail-incoming-files.js';
 import { graphForwardBody, type MailForwardInput } from '../mail-forward-source.js';
 import { capturedGraphReplyRecipients, type MailReplyRecipients, type PreparedReplyAll } from '../mail-reply-recipients.js';
@@ -1723,24 +1724,7 @@ export class MicrosoftGraphSyncService {
       async (tx) => {
         await lockTenantForGraphSync(tx, tenantId);
         await assertMailboxSyncCurrent(tx, tenantId, connectionId);
-        const existing = await tx.meeting.findUnique({
-          where: {
-            tenantId_source_externalId: {
-              tenantId,
-              source: EngagementSource.outlook,
-              externalId: event.id!,
-            },
-          },
-          select: {
-            id: true,
-            clientId: true,
-            isInternal: true,
-            associationScore: true,
-            associationReason: true,
-            associationSignals: true,
-            status: true,
-          },
-        });
+        const existing = await readSyncedMeetingAssociation(tx, tenantId, EngagementSource.outlook, event.id!);
         // Resurrection guard: if this meeting was previously marked deleted
         // (via @removed from a Graph delta), do not revive it when a full
         // calendar refresh re-encounters the event id.
@@ -1759,12 +1743,15 @@ export class MicrosoftGraphSyncService {
         // Meetings the user marked internal stay client-less; never re-link them.
         // Otherwise respect manual/explicit associations, but let stale auto-links
         // be corrected.
-        const clientId = existing?.isInternal
-          ? null
-          : existing &&
-              (hasManualOverride || hasManualAssociationSignal(existing.associationSignals))
-            ? existing.clientId
-            : association.clientId;
+        // Reassociation of existing material belongs to the intentional UI owner.
+        const preserveAssociation = Boolean(
+          existing && (
+            existing.isInternal || hasManualOverride || hasManualAssociationSignal(existing.associationSignals) ||
+            await hasBoundMeetingRecords(tx, tenantId, existing.id, existing.clientId, association.clientId)
+          ),
+        );
+        const clientId = existing?.isInternal ? null :
+          existing && preserveAssociation ? existing.clientId : association.clientId;
 
         const contactsByEmail = await upsertContacts(tx, tenantId, attendees);
         // Virtual-meeting classification derived once at sync time (Meetings v2
@@ -1812,23 +1799,14 @@ export class MicrosoftGraphSyncService {
             provider: 'microsoft_graph',
           } as Prisma.InputJsonValue,
           associationScore:
-            existing &&
-            (existing.isInternal ||
-              hasManualOverride ||
-              hasManualAssociationSignal(existing.associationSignals))
+            existing && preserveAssociation
               ? existing.associationScore
               : association.score,
           associationReason:
-            existing &&
-            (existing.isInternal ||
-              hasManualOverride ||
-              hasManualAssociationSignal(existing.associationSignals))
+            existing && preserveAssociation
               ? existing.associationReason
               : association.reason,
-          associationSignals: (existing &&
-          (existing.isInternal ||
-            hasManualOverride ||
-            hasManualAssociationSignal(existing.associationSignals))
+          associationSignals: (existing && preserveAssociation
             ? existing.associationSignals
             : association.signals) as Prisma.InputJsonValue,
         };

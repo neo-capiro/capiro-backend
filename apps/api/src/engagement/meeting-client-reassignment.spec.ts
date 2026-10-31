@@ -270,7 +270,7 @@ describe('canonical meeting client reads', () => {
     { clientId: null, isInternal: true, associationSignals: {}, expected: null },
     { clientId: null, isInternal: false, associationSignals: { manual: true }, expected: null },
   ])('prep/debrief generation respects $clientId internal=$isInternal', async ({ expected, ...meeting }) => {
-    const h = harness();
+    const h = harness(meeting);
     const associate = jest.fn(async () => ({ clientId: 'wrong-client' }));
     Object.assign(h.service, { association: { associate } });
     const resolve = (h.service as any).resolveEffectiveMeetingClientId.bind(h.service);
