@@ -64,6 +64,7 @@ import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { GovernedMemoryCandidateService } from '../memory/governed-memory-candidate.service.js';
 import { MeriMcpService, type CatalogAddInput, type McpServerInput } from './meri-mcp.service.js';
 import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
+import { MeriManagedMcpService } from './meri-managed-mcp.service.js';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
 import { MeriProcedureRuntimeValidationService } from './meri-procedure-runtime-validation.service.js';
 import type { MeriSelectedProcedureSelector } from './native-procedures/selected-procedure.js';
@@ -390,6 +391,7 @@ export class MeriController {
     @Optional() private readonly automaticClientContext?: AutomaticClientContextService,
     @Optional() private readonly toolServiceIdentity?: ToolServiceSecretGuard,
     @Optional() private readonly privateSql?: MeriPrivateSqlService,
+    @Optional() private readonly managedMcp?: MeriManagedMcpService,
   ) {}
 
   @Post('client-context/automatic')
@@ -1031,8 +1033,16 @@ export class MeriController {
 
   /** Begin OAuth for an oauth connector; returns the authorization URL. */
   @Post('mcp-servers/:id/oauth/start')
-  startMcpOAuth(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
-    return this.mcpOAuth.start(ctx, id);
+  async startMcpOAuth(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    if (!this.managedMcp) throw new ServiceUnavailableException('Connector readiness is unavailable.');
+    const started = await this.mcpOAuth.start(ctx, id);
+    if (started.alreadyConnected) {
+      const app = await this.managedMcp.appForServer(ctx.tenantId, id);
+      const count = await this.mcp.discoverTools(ctx.tenantId, id);
+      if (!count) throw new ServiceUnavailableException('No permitted tools are available. Please reconnect.');
+      if (app) await this.managedMcp.finalizeConnection(ctx.tenantId, id);
+    }
+    return started;
   }
 
   /** Revoke the locally-stored OAuth tokens for a connector. */

@@ -133,11 +133,11 @@ export class MeriMcpOAuthController {
       const result = await this.oauth.handleCallback({ code, state, issuer });
       const app = await this.managedMcp.appForServer(result.tenantId, result.serverId);
       const count = await this.mcp.discoverTools(result.tenantId, result.serverId);
+      if (!count) {
+        failure();
+        return;
+      }
       if (app) {
-        if (!count) {
-          failure();
-          return;
-        }
         await this.managedMcp.finalizeConnection(result.tenantId, result.serverId);
         res
           .status(200)
