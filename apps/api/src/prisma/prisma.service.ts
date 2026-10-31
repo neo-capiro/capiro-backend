@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
+import { runPrismaTransaction, type PrismaTransactionOptions } from './prisma-transaction-deadline.js';
 
 /**
  * The tenant scope baked into a per-call query-extended client so its query
@@ -160,27 +161,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   async withTenant<T>(
     tenantId: string,
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
-    opts?: { timeoutMs?: number; isolationLevel?: Prisma.TransactionIsolationLevel; readOnly?: boolean },
+    opts?: PrismaTransactionOptions,
   ): Promise<T> {
-    return this.scopedClient({ tenantId }).$transaction(
-      async (tx) => {
-        // PostgreSQL requires transaction characteristics before any data query.
-        if (opts?.readOnly) await tx.$executeRaw`SET TRANSACTION READ ONLY`;
-        await setTenantContext(tx as unknown as Prisma.TransactionClient, tenantId);
-        return fn(tx as unknown as Prisma.TransactionClient);
-      },
-      // Prisma's interactive-transaction default is 5000 ms. Most tenant
-      // queries finish in <100 ms, but a few SQL graph helpers (e.g.
-      // kg_walk in intelligence.service.getKnowledgeGraph) can take
-      // several seconds on warm Aurora and were producing
-      //   "Transaction already closed: ... however 8061 ms passed since
-      //    the start of the transaction"
-      // every time the intel tab loaded. Callers can pass a higher
-      // timeoutMs for known-slow paths.
-      opts?.timeoutMs || opts?.isolationLevel
-        ? { ...(opts.timeoutMs ? { timeout: opts.timeoutMs } : {}),
-            ...(opts.isolationLevel ? { isolationLevel: opts.isolationLevel } : {}) }
-        : undefined,
+    return runPrismaTransaction(
+      (work, options) => this.scopedClient({ tenantId }).$transaction(
+        tx => work(tx as unknown as Prisma.TransactionClient), options),
+      tx => setTenantContext(tx, tenantId), fn, opts,
     );
   }
 
@@ -200,14 +186,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     tenantId: string,
     userId: string,
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
-    opts?: { timeoutMs?: number },
+    opts?: Pick<PrismaTransactionOptions, 'timeoutMs' | 'deadline'>,
   ): Promise<T> {
-    return this.scopedClient({ tenantId }).$transaction(
-      async (tx) => {
-        await setTenantContext(tx as unknown as Prisma.TransactionClient, tenantId, userId);
-        return fn(tx as unknown as Prisma.TransactionClient);
-      },
-      opts?.timeoutMs ? { timeout: opts.timeoutMs } : undefined,
+    return runPrismaTransaction(
+      (work, options) => this.scopedClient({ tenantId }).$transaction(
+        tx => work(tx as unknown as Prisma.TransactionClient), options),
+      tx => setTenantContext(tx, tenantId, userId), fn, opts,
     );
   }
 
@@ -225,7 +209,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   async withTenantRetry<T>(
     tenantId: string,
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
-    opts?: { timeoutMs?: number; isolationLevel?: Prisma.TransactionIsolationLevel; retries?: number },
+    opts?: Omit<PrismaTransactionOptions, 'readOnly'> & { retries?: number },
   ): Promise<T> {
     const maxRetries = opts?.retries ?? 3;
     for (let attempt = 0; ; attempt += 1) {
@@ -250,25 +234,14 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
    */
   async withSystem<T>(
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
-    opts?: { timeoutMs?: number; isolationLevel?: Prisma.TransactionIsolationLevel; readOnly?: boolean },
+    opts?: PrismaTransactionOptions,
   ): Promise<T> {
     // bypass:true → the tenant-scope hook does NOT inject a tenant predicate,
     // preserving the intentional cross-tenant reach of system paths.
-    return this.scopedClient({ bypass: true }).$transaction(
-      async (tx) => {
-        if (opts?.readOnly) await tx.$executeRaw`SET TRANSACTION READ ONLY`;
-        await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
-        return fn(tx as unknown as Prisma.TransactionClient);
-      },
-      // Same escape hatch withTenant/withTenantUser already had. Without it a
-      // system path was hard-capped at the 5s interactive-transaction default
-      // with no way to extend it — which is how a slow-but-legitimate write
-      // (MemoryStoreService.upsertSystem, the Client Soul save) failed under
-      // pool pressure rather than merely running slowly.
-      opts?.timeoutMs || opts?.isolationLevel
-        ? { ...(opts.timeoutMs ? { timeout: opts.timeoutMs } : {}),
-            ...(opts.isolationLevel ? { isolationLevel: opts.isolationLevel } : {}) }
-        : undefined,
+    return runPrismaTransaction(
+      (work, options) => this.scopedClient({ bypass: true }).$transaction(
+        tx => work(tx as unknown as Prisma.TransactionClient), options),
+      tx => tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`, fn, opts,
     );
   }
 }
