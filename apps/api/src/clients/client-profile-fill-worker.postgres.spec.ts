@@ -157,7 +157,7 @@ const url = process.env.FILL_REVIEW_TEST_DATABASE_URL;
     );
     test.each(
       (['core', 'extension'] as const).flatMap((kind) =>
-        (['lease', 'cancel', 'wall', 'membership', 'role', 'tenant'] as const).map((change) => ({
+        (['lease', 'cancel', 'deadline', 'terminal', 'wall', 'membership', 'role', 'tenant'] as const).map((change) => ({
           kind,
           change,
         })),
@@ -167,6 +167,14 @@ const url = process.env.FILL_REVIEW_TEST_DATABASE_URL;
         await store.db.$executeRawUnsafe(
           `UPDATE ${kind === 'core' ? 'client_profile_fill_task' : 'client_profile_fill_extension_task'} SET worker_id='lease-new' WHERE id=$1::uuid`,
           taskId,
+        );
+      if (change === 'deadline')
+        await store.db.$executeRawUnsafe(
+          "UPDATE client_profile_fill_run SET started_at=clock_timestamp()-interval '31 minutes' WHERE id=$1::uuid", runId,
+        );
+      if (change === 'terminal')
+        await store.db.$executeRawUnsafe(
+          "UPDATE client_profile_fill_run SET status='completed' WHERE id=$1::uuid", runId,
         );
       if (change === 'cancel')
         await store.db.$executeRawUnsafe(

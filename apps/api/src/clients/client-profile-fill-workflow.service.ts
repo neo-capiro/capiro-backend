@@ -1,3 +1,4 @@
+import { expireFillRuns, fillRunBeforeDeadline, fillTaskRunAdmissible, fillTaskBudget, FillRunDeadlineError, FillTaskTimeoutError, FILL_RUN_DEADLINE_SQL } from './client-profile-fill-run-deadline.js';
 import { queueFailedFillTask } from './client-profile-fill-retry.js';
 import { seedCompletionTasks } from './client-profile-fill-completion-plan-store.js';
 import { randomUUID } from 'node:crypto';
@@ -137,6 +138,7 @@ export interface WorkflowTaskRow {
   createdAt: Date;
   updatedAt: Date;
   createdByUserId?: string | null;
+  deadlineAt?: Date;
 }
 
 interface FindingRow {
@@ -712,7 +714,8 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
       const runs = await tx.$queryRawUnsafe<Array<{ id: string }>>(
         `SELECT id FROM client_profile_fill_run
           WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid
-            AND workflow_version >= 2 AND status <> 'cancelled' FOR UPDATE`,
+            AND workflow_version >= 2 AND status <> 'cancelled'
+            AND ${fillRunBeforeDeadline()} FOR UPDATE`,
         runId,
         ctx.tenantId,
         clientId,
@@ -744,6 +747,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
     if (this.sweeping) return;
     this.sweeping = true;
     try {
+      await expireFillRuns(this.prisma);
       await this.recoverPreparingRuns();
       await this.recoverStaleTasks();
       await this.recoverInterruptedRetries();
@@ -767,6 +771,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
       const runs = await tx.$queryRawUnsafe<Array<{ id: string; tenantId: string }>>(
         `SELECT r.id, r.tenant_id AS "tenantId" FROM client_profile_fill_run r
           WHERE r.workflow_version >= 2 AND r.status IN ('partial', 'failed', 'completed')
+            AND ${fillRunBeforeDeadline('r')}
             AND EXISTS (SELECT 1 FROM client_profile_fill_task t
                          WHERE t.run_id = r.id AND t.tenant_id = r.tenant_id
                            AND t.status IN ('queued', 'running'))
@@ -808,6 +813,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
           WHERE workflow_version >= 2
             AND status = 'running'
             AND stage = 'preparing'
+            AND ${fillRunBeforeDeadline()}
             AND created_by_user_id IS NOT NULL
             AND updated_at < $1
           ORDER BY updated_at ASC
@@ -882,6 +888,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
                   WHEN attempt >= max_attempts THEN next_attempt_at
                   ELSE now()
                 END,
+                output_summary_jsonb = output_summary_jsonb || '{"externalOutcome":"unresolved"}'::jsonb,
                 error_code = 'worker_stale',
                 error_message = 'Worker heartbeat expired before task completion',
                 completed_at = CASE WHEN attempt >= max_attempts THEN now() ELSE NULL END,
@@ -891,6 +898,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
                 updated_at = now()
           WHERE status = 'running'
             AND COALESCE(heartbeat_at, claimed_at, updated_at) < $1
+            AND ${fillTaskRunAdmissible('client_profile_fill_task')}
           RETURNING run_id AS "runId", tenant_id AS "tenantId", task_type AS "taskType"`,
         cutoff,
       ),
@@ -908,7 +916,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
                ON r.id = t.run_id AND r.tenant_id = t.tenant_id AND r.client_id = t.client_id
             WHERE t.status = 'queued'
               AND t.next_attempt_at <= now()
-              AND r.status = 'running'
+              AND r.status = 'running' AND ${fillRunBeforeDeadline('r')}
               AND r.stage = 'research'
               AND NOT EXISTS (
                 SELECT 1
@@ -948,7 +956,8 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
                    t.completed_at AS "completedAt",
                    t.created_at AS "createdAt",
                    t.updated_at AS "updatedAt",
-                   r.created_by_user_id AS "createdByUserId"`,
+                   r.created_by_user_id AS "createdByUserId",
+                   r.${FILL_RUN_DEADLINE_SQL} AS "deadlineAt"`,
         TASK_CLAIM_BATCH,
         // A fresh lease distinguishes successive claims by the same worker.
         `${this.workerId}:${randomUUID()}`,
@@ -972,6 +981,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
     heartbeat.unref?.();
 
     try {
+      fillTaskBudget(task.deadlineAt!, TASK_TIMEOUT_MS);
       const ctx = await resolveFillRunActor(this.prisma, task.tenantId, task.clientId, task.runId);
       const source = task.taskType === 'client_document' ? undefined : task.taskType;
       const count = await runWithFillTask(ctx, task, 'core', () => this.withTaskTimeout<number>(async (signal) => {
@@ -984,12 +994,13 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
         await this.contextPlane.recordRunContext(ctx, task.runId, bundle);
         signal.throwIfAborted();
         return runWithGovernedCrmFillBundle(bundle, () => this.executeTask(ctx, task, bundle));
-      }));
+      }, task.deadlineAt));
       await this.completeTask(task, count);
     } catch (error) {
       await this.failTask(
         task,
-        'task_failed',
+        error instanceof FillRunDeadlineError ? 'run_deadline_exceeded' :
+          error instanceof FillTaskTimeoutError ? 'task_timeout' : 'task_failed',
         this.safeError(error),
         task.attempt < task.maxAttempts,
       );
@@ -1050,7 +1061,8 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
       const changed = await tx.$executeRawUnsafe(
         `UPDATE client_profile_fill_task
             SET heartbeat_at = now(), updated_at = now()
-          WHERE id = $1::uuid AND status = 'running' AND worker_id = $2`,
+          WHERE id = $1::uuid AND status = 'running' AND worker_id = $2
+            AND ${fillTaskRunAdmissible('client_profile_fill_task')}`,
         task.id,
         task.workerId,
       );
@@ -1069,14 +1081,14 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
     await this.prisma.withSystem((tx) =>
       tx.$executeRawUnsafe(
         `UPDATE client_profile_fill_task t
-            SET status = 'completed', output_summary_jsonb = $2::jsonb,
+            SET status = 'completed', output_summary_jsonb = output_summary_jsonb || $2::jsonb,
                 completed_at = now(), claimed_at = NULL, heartbeat_at = NULL, worker_id = NULL,
                 updated_at = now()
           WHERE t.id = $1::uuid AND t.status = 'running' AND t.worker_id = $3
             AND EXISTS (
               SELECT 1 FROM client_profile_fill_run r
                WHERE r.id = t.run_id AND r.tenant_id = t.tenant_id
-                 AND r.status = 'running'
+                 AND r.status = 'running' AND ${fillRunBeforeDeadline('r')}
             )`,
         task.id,
         JSON.stringify({ count }),
@@ -1099,6 +1111,9 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
             SET status = $2,
                 next_attempt_at = CASE WHEN $2 = 'queued' THEN $3 ELSE next_attempt_at END,
                 error_code = $4, error_message = $5,
+                output_summary_jsonb = output_summary_jsonb || CASE
+                  WHEN $4 IN ('task_timeout', 'run_deadline_exceeded')
+                    THEN '{"externalOutcome":"unresolved"}'::jsonb ELSE '{}'::jsonb END,
                 completed_at = CASE WHEN $2 = 'failed' THEN now() ELSE NULL END,
                 claimed_at = NULL, heartbeat_at = NULL, worker_id = NULL,
                 updated_at = now()
@@ -1106,7 +1121,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
             AND EXISTS (
               SELECT 1 FROM client_profile_fill_run r
                WHERE r.id = t.run_id AND r.tenant_id = t.tenant_id
-                 AND r.status = 'running'
+                 AND r.status = 'running' AND ${fillRunBeforeDeadline('r')}
             )`,
         task.id,
         retry ? 'queued' : 'failed',
@@ -1198,7 +1213,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
         `SELECT r.id, r.tenant_id AS "tenantId"
            FROM client_profile_fill_run r
           WHERE r.workflow_version >= 2
-            AND r.status = 'running'
+            AND r.status = 'running' AND ${fillRunBeforeDeadline('r')}
             AND r.stage = 'research'
             AND NOT EXISTS (
               SELECT 1 FROM client_profile_fill_extension_task extension
@@ -1217,7 +1232,8 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
       await this.prisma.withSystem(async (tx) => {
         const locked = await tx.$queryRawUnsafe<Array<{ id: string }>>(
           `SELECT id FROM client_profile_fill_run WHERE id = $1::uuid
-            AND tenant_id = $2::uuid AND status = 'running' FOR UPDATE`,
+            AND tenant_id = $2::uuid AND status = 'running'
+            AND ${fillRunBeforeDeadline()} FOR UPDATE`,
           run.id,
           run.tenantId,
         );
@@ -1336,7 +1352,8 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
     };
   }
 
-  private async withTaskTimeout<T>(operation: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  private async withTaskTimeout<T>(operation: (signal: AbortSignal) => Promise<T>, deadlineAt?: Date): Promise<T> {
+    const budget = deadlineAt ? fillTaskBudget(deadlineAt, TASK_TIMEOUT_MS) : TASK_TIMEOUT_MS;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const controller = new AbortController();
     try {
@@ -1344,10 +1361,11 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
         operation(controller.signal),
         new Promise<T>((_resolve, reject) => {
           timer = setTimeout(() => {
-            const error = new Error('Fill specialist exceeded its task budget. Retry this check.');
+            const error = budget < TASK_TIMEOUT_MS ? new FillRunDeadlineError() :
+              new FillTaskTimeoutError('Fill specialist');
             controller.abort(error);
             reject(error);
-          }, TASK_TIMEOUT_MS);
+          }, budget);
           timer.unref?.();
         }),
       ]);

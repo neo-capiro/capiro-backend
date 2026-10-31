@@ -1,7 +1,5 @@
-import {
-  ClientProfileFillCompletionService,
-  type ClientProfileFillCompletionTaskType,
-} from './client-profile-fill-completion.service.js';
+import { fillTaskRunAdmissible, FillTaskTimeoutError, FillRunDeadlineError } from './client-profile-fill-run-deadline.js';
+import { ClientProfileFillCompletionService, type ClientProfileFillCompletionTaskType } from './client-profile-fill-completion.service.js';
 
 const now = new Date('2026-10-13T12:00:00.000Z');
 const sqlText = (sql: string) => sql.replace(/\s+/g, ' ').trim();
@@ -90,6 +88,7 @@ afterEach(() => {
 it('recovers stale leases using the exact five-minute cutoff and incremented-attempt retry/cap calculation', async () => {
   const h = harness();
   await h.ledger.recoverStaleTasks();
+  expect(h.calls.shift()!.sql).toContain('ORDER BY r.started_at');
   expect(h.calls).toHaveLength(1);
   expect(h.calls[0]!.args).toEqual([new Date('2026-10-13T11:55:00.000Z')]);
   expect(sqlText(h.calls[0]!.sql)).toBe(
@@ -98,9 +97,11 @@ it('recovers stale leases using the exact five-minute cutoff and incremented-att
       attempt = attempt + 1, completed_at = CASE WHEN attempt + 1 >= max_attempts THEN now() ELSE NULL END,
       next_attempt_at = CASE WHEN attempt + 1 >= max_attempts THEN next_attempt_at
         ELSE now() + make_interval(secs => LEAST(120, 5 * (attempt + 1))) END,
+      output_summary_jsonb = output_summary_jsonb || '{"externalOutcome":"unresolved"}'::jsonb,
       error_code = 'stale_worker', error_message = 'Worker heartbeat expired; task recovered from durable state',
       worker_id = NULL, claimed_at = NULL, heartbeat_at = NULL, updated_at = now()
-    WHERE status = 'running' AND COALESCE(heartbeat_at, claimed_at, updated_at) < $1`),
+    WHERE status = 'running' AND COALESCE(heartbeat_at, claimed_at, updated_at) < $1
+      AND ${fillTaskRunAdmissible('client_profile_fill_extension_task')}`),
   );
 });
 
@@ -122,7 +123,8 @@ it('claims four eligible tasks in durable order with a fresh lease for every bat
   for (const clause of [
     "t.status = 'queued'",
     't.next_attempt_at <= now()',
-    "r.status <> 'cancelled'",
+    "r.status = 'running'",
+    "r.started_at + interval '1800000 milliseconds' > clock_timestamp()",
     "r.stage <> 'preparing'",
     'dependency.run_id = t.run_id',
     'dependency.task_key = ANY(t.depends_on)',
@@ -158,10 +160,11 @@ it.each(['completed', 'skipped', 'cancelled'] as const)(
     ]);
     expect(sqlText(h.calls[0]!.sql)).toBe(
       sqlText(`UPDATE client_profile_fill_extension_task
-    SET status = $4, output_summary_jsonb = $5::jsonb, completed_at = now(), heartbeat_at = NULL,
+    SET status = $4, output_summary_jsonb = output_summary_jsonb || $5::jsonb, completed_at = now(), heartbeat_at = NULL,
       worker_id = NULL, error_code = NULL, error_message = NULL, updated_at = now()
     WHERE id = $1::uuid AND run_id = $2::uuid AND tenant_id = $3::uuid
-      AND status = 'running' AND worker_id = $6`),
+      AND status = 'running' AND worker_id = $6
+      AND ${fillTaskRunAdmissible('client_profile_fill_extension_task')}`),
     );
   },
 );
@@ -177,7 +180,8 @@ it('defers by two seconds without incrementing the attempt and ignores a lost le
       claimed_at = NULL, heartbeat_at = NULL, worker_id = NULL,
       error_code = 'waiting_for_dependency', error_message = $4, updated_at = now()
     WHERE id = $1::uuid AND run_id = $2::uuid AND tenant_id = $3::uuid
-      AND status = 'running' AND worker_id = $5`),
+      AND status = 'running' AND worker_id = $5
+      AND ${fillTaskRunAdmissible('client_profile_fill_extension_task')}`),
   );
 });
 
@@ -199,6 +203,7 @@ it.each([
       status,
       'authorization=[redacted] unavailable',
       row.workerId,
+      '{}',
     ]);
     const sql = sqlText(h.calls[0]!.sql);
     expect(sql).toContain('attempt = attempt + 1');
@@ -219,7 +224,7 @@ it('stringifies non-Error failures and limits their durable message to 800 chara
   expect(h.calls[0]!.args[4]).toBe('x'.repeat(800));
 });
 
-it('heartbeats using only the task id and running lease, preserving the existing narrower fence', async () => {
+it('heartbeats only while the lease and run deadline remain current', async () => {
   const h = harness({ changed: 0 });
   const row = task();
   await expect(h.ledger.heartbeat(row)).resolves.toBeUndefined();
@@ -227,7 +232,8 @@ it('heartbeats using only the task id and running lease, preserving the existing
   expect(sqlText(h.calls[0]!.sql)).toBe(
     sqlText(`UPDATE client_profile_fill_extension_task
     SET heartbeat_at = now(), updated_at = now()
-    WHERE id = $1::uuid AND status = 'running' AND worker_id = $2`),
+    WHERE id = $1::uuid AND status = 'running' AND worker_id = $2
+      AND ${fillTaskRunAdmissible('client_profile_fill_extension_task')}`),
   );
 });
 
@@ -274,3 +280,13 @@ it('does not query core dependencies for district nexus tasks', async () => {
   expect(h.calls).toEqual([]);
   expect(h.prisma.withSystem).not.toHaveBeenCalled();
 });
+
+
+it.each([new FillTaskTimeoutError('Fill completion specialist'), new FillRunDeadlineError()])(
+  'persists unresolved external outcome when a local execution limit expires: %s', async error => {
+    const h = harness();
+    await h.ledger.failTask(task(), error);
+    expect(JSON.parse(String(h.calls[0]!.args[6]))).toEqual({ externalOutcome: 'unresolved' });
+    expect(h.calls[0]!.sql).toContain('output_summary_jsonb = output_summary_jsonb || $7::jsonb');
+  },
+);

@@ -1,3 +1,4 @@
+import { fillRunBeforeDeadline } from './client-profile-fill-run-deadline.js';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { assertFillExecution } from './client-profile-fill-execution.js';
@@ -254,7 +255,8 @@ export class ClientProfileFillContextPlaneService {
                   true
                 ),
                 updated_at = now()
-          WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid AND status <> 'cancelled'`,
+          WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid AND status = 'running'
+            AND ${fillRunBeforeDeadline()}`,
         runId,
         ctx.tenantId,
         bundle.canonicalClient.id,
@@ -284,7 +286,8 @@ export class ClientProfileFillContextPlaneService {
                   $5::jsonb,
                   true
                 )
-          WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid AND status <> 'cancelled'`,
+          WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid AND status = 'running'
+            AND ${fillRunBeforeDeadline()}`,
         runId,
         ctx.tenantId,
         clientId,
