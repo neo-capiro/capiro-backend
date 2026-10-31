@@ -13,6 +13,8 @@ function fixture() {
     enabled: true, name: 'notion', catalogId: 'notion', transport: 'http',
     endpoint: 'https://mcp.notion.com/mcp', authType: 'oauth', connectionStatus: 'connected',
     toolAllowlist: ['search'], readOnlyTools: ['search'],
+    updatedAt: new Date('2026-10-31T00:00:00Z'),
+    lastError: null as string | null,
   };
   const tx = {
     clioMcpServer: {
@@ -20,8 +22,10 @@ function fixture() {
       findMany: jest.fn(async ({ where }: { where: Record<string, unknown> }) =>
         row.tenantId === where.tenantId && (!where.enabled || row.enabled) &&
           (row.scope === 'tenant' || row.ownerUserId === ctx.userId) ? [row] : []),
-      update: jest.fn(async () => row),
+      update: jest.fn(async ({ data }: { data: object }) => Object.assign(row, data)),
       updateMany: jest.fn(async ({ where, data }: { where: Record<string, unknown>; data: object }) => {
+        if (where.updatedAt && (where.updatedAt as Date).getTime() !== row.updatedAt.getTime()) return { count: 0 };
+        if (where.enabled === true && !row.enabled) return { count: 0 };
         if (typeof where.connectionStatus === 'string' && where.connectionStatus !== row.connectionStatus) return { count: 0 };
         if (where.connectionStatus && typeof where.connectionStatus === 'object' &&
             'not' in where.connectionStatus && where.connectionStatus.not === row.connectionStatus) return { count: 0 };
@@ -121,7 +125,9 @@ describe('generic catalog current authorization', () => {
       row.readOnlyTools = [];
       return [{ name: 'search', inputSchema: { type: 'object' } }];
     });
-    await service.discoverTools('tenant', 'server');
+    row.connectionStatus = 'pending';
+    expect(await service.discoverTools('tenant', 'server')).toBe(0);
+    expect(row.connectionStatus).not.toBe('connected');
     expect(row.toolAllowlist).toEqual([]);
     expect(row.readOnlyTools).toEqual([]);
     await expect(service.executeBridged(ctx, tool, {})).rejects.toThrow();
@@ -144,5 +150,59 @@ describe('generic catalog current authorization', () => {
     row.ownerUserId = 'other';
     await expect(service.deleteServer({ ...ctx, role: 'capiro_admin' }, 'server')).rejects.toThrow();
     expect(tx.clioMcpServer.delete).not.toHaveBeenCalled();
+  });
+
+  test('readiness compares the post-discovery revision before writing', async () => {
+    const { service, row, tx } = fixture();
+    row.connectionStatus = 'pending';
+    const update = tx.clioMcpServer.updateMany.getMockImplementation()!;
+    tx.clioMcpServer.updateMany.mockImplementation(async (args) => {
+      row.updatedAt = new Date(row.updatedAt.getTime() + 1);
+      return update(args);
+    });
+    expect(await service.discoverTools('tenant', 'server')).toBe(0);
+    expect(row.connectionStatus).toBe('pending');
+  });
+
+  test('token refresh revision changes during discovery still permit current readiness', async () => {
+    const { service, row, client } = fixture();
+    row.connectionStatus = 'pending';
+    client.listTools.mockImplementation(async () => {
+      row.updatedAt = new Date(row.updatedAt.getTime() + 1);
+      return [{ name: 'search', inputSchema: { type: 'object' } }];
+    });
+    expect(await service.discoverTools('tenant', 'server')).toBe(1);
+    expect(row.connectionStatus).toBe('connected');
+  });
+
+  test.each(['Error', 'UnauthorizedError'])('generic registry %s records a sanitized unavailable state', async (name) => {
+    const { service, row, client } = fixture();
+    client.listTools.mockRejectedValue(Object.assign(new Error('synthetic private detail'), { name }));
+    expect(await service.bridgedSchemasFor(ctx)).toEqual([]);
+    expect(row.connectionStatus).toBe(name === 'Error' ? 'error' : 'needs_reauth');
+    expect(row).toMatchObject({ lastError: 'Tool discovery failed.' });
+  });
+
+  test.each(['pending', 'disconnected', 'new revision'])('stale registry error preserves a newer %s', async (change) => {
+    const { service, row, client } = fixture();
+    client.listTools.mockImplementation(async () => {
+      if (change === 'new revision') row.updatedAt = new Date(row.updatedAt.getTime() + 1);
+      else row.connectionStatus = change;
+      throw Object.assign(new Error('synthetic auth failure'), { name: 'UnauthorizedError' });
+    });
+    expect(await service.bridgedSchemasFor(ctx)).toEqual([]);
+    expect(row.connectionStatus).toBe(change === 'new revision' ? 'connected' : change);
+  });
+
+  test('stale registry success cannot erase a newer authorization error', async () => {
+    const { service, row, client } = fixture();
+    client.listTools.mockImplementation(async () => {
+      row.connectionStatus = 'error';
+      row.lastError = 'New authorization failed.';
+      return [{ name: 'search', inputSchema: { type: 'object' } }];
+    });
+    expect(await service.bridgedSchemasFor(ctx)).toEqual([]);
+    expect(row.lastError).toBe('New authorization failed.');
+    expect(row.connectionStatus).toBe('error');
   });
 });

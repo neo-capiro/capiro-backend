@@ -187,7 +187,8 @@ describe('generic catalog OAuth current authority', () => {
   function generic() {
     const result = make();
     const row = { id: 'server', name: 'notion', scope: 'user', ownerUserId: 'owner',
-      catalogId: 'notion', endpoint: 'https://mcp.notion.com/mcp', authType: 'oauth', enabled: true };
+      catalogId: 'notion', endpoint: 'https://mcp.notion.com/mcp', authType: 'oauth', enabled: true,
+      connectionStatus: 'disconnected', updatedAt: new Date('2026-10-31T00:00:00Z') };
     result.tx.clioMcpServer.findFirst.mockResolvedValue(row);
     return { ...result, row };
   }
@@ -218,6 +219,70 @@ describe('generic catalog OAuth current authority', () => {
     await expect(service.start({ tenantId: 'tenant', userId: 'owner', role: 'standard_user' } as never, 'server')).rejects.toThrow('unavailable');
     expect(auth).not.toHaveBeenCalled();
     expect(tx.clioMcpServer.updateMany).not.toHaveBeenCalled();
+  });
+
+  test('valid tokens on a no-redirect start leave readiness pending for the receiver', async () => {
+    const { service, tx, row } = generic();
+    await expect(service.start({ tenantId: 'tenant', userId: 'owner' } as never, 'server'))
+      .resolves.toEqual({ authUrl: null, alreadyConnected: true });
+    expect(tx.clioMcpServer.updateMany).toHaveBeenCalledTimes(1);
+    expect(tx.clioMcpServer.updateMany).toHaveBeenCalledWith({
+      where: { id: 'server', tenantId: 'tenant', enabled: true,
+        connectionStatus: 'disconnected', updatedAt: row.updatedAt },
+      data: { connectionStatus: 'pending', lastError: null },
+    });
+  });
+
+  test.each(['disconnect', 'another start'])('a concurrent %s wins over the admitted start snapshot', async () => {
+    const { service, tx } = generic();
+    tx.clioMcpServer.updateMany.mockResolvedValue({ count: 0 });
+    await expect(service.start({ tenantId: 'tenant', userId: 'owner' } as never, 'server'))
+      .rejects.toThrow('no longer active');
+    expect(auth).not.toHaveBeenCalled();
+  });
+
+  test('REDIRECT without an authorization URL cannot report already connected', async () => {
+    const { service, tx } = generic();
+    jest.mocked(auth).mockResolvedValue('REDIRECT');
+    await expect(service.start({ tenantId: 'tenant', userId: 'owner' } as never, 'server'))
+      .rejects.toThrow('Sign-in did not complete');
+    expect(tx.clioMcpServer.updateMany).toHaveBeenLastCalledWith(expect.objectContaining({
+      data: { connectionStatus: 'error', lastError: 'Sign-in did not complete.' },
+    }));
+  });
+
+  test('interactive authorization still returns a signed redirect and stores its nonce', async () => {
+    const { service, tx } = generic();
+    tx.clioMcpOAuthCredential.updateMany.mockResolvedValue({ count: 1 });
+    jest.mocked(auth).mockImplementation(async (provider) => {
+      await provider.redirectToAuthorization(new URL('https://auth.example/authorize'));
+      return 'REDIRECT';
+    });
+    const result = await service.start({ tenantId: 'tenant', userId: 'owner' } as never, 'server');
+    expect(result.alreadyConnected).not.toBe(true);
+    expect(new URL(result.authUrl!).searchParams.get('state')).toMatch(/^[\w-]+\.[\w-]+$/);
+    expect(tx.clioMcpOAuthCredential.updateMany).toHaveBeenCalledWith({
+      where: { serverId: 'server' }, data: { stateNonce: expect.any(String) },
+    });
+  });
+
+  test.each(['start', 'callback'])('%s sanitizes provider error status and logs', async (leg) => {
+    const { service, tx, state } = generic();
+    const sentinel = 'SYNTHETIC_PRIVATE_PROVIDER_ERROR';
+    jest.mocked(auth).mockRejectedValue(new Error(sentinel));
+    const warn = jest.spyOn((service as any).logger, 'warn').mockImplementation(() => {});
+    try {
+      if (leg === 'start') {
+        await expect(service.start({ tenantId: 'tenant', userId: 'owner' } as never, 'server'))
+          .rejects.toThrow('Sign-in could not start');
+      } else {
+        await expect(service.handleCallback({ code: 'fixture', state: state() }))
+          .rejects.toThrow('Sign-in did not complete');
+      }
+      expect(JSON.stringify(tx.clioMcpServer.updateMany.mock.calls)).not.toContain(sentinel);
+      expect(JSON.stringify(warn.mock.calls)).not.toContain(sentinel);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('[server server]'));
+    } finally { warn.mockRestore(); }
   });
 });
 

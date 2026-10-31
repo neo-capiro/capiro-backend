@@ -473,14 +473,27 @@ export class MeriMcpService {
     if (!server || !server.enabled || server.connectionStatus === 'disconnected') return 0;
     if (server.catalogId === 'meriv3-krisp' && !(await krispTenantEnabled(this.prisma, tenantId))) return 0;
     const managed = managedAppDefinition(server.catalogId);
+    let discoveryRevision = server.updatedAt;
     try {
       const client = this.clientFor(server);
       const discovered = Array.from(new Set((await client.listTools()).map((tool) => tool.name)));
+      // Token refresh may update the row during discovery. Rejoin current policy
+      // after provider I/O, then compare that revision when committing readiness.
+      const current = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.clioMcpServer.findFirst({ where: { id: serverId, tenantId } }),
+      );
+      if (!this.enabled() || !current || !current.enabled ||
+          current.connectionStatus !== server.connectionStatus ||
+          current.catalogId !== server.catalogId || current.name !== server.name ||
+          current.endpoint !== server.endpoint || current.transport !== server.transport ||
+          current.authType !== server.authType || current.scope !== server.scope ||
+          current.ownerUserId !== server.ownerUserId) return 0;
+      discoveryRevision = current.updatedAt;
       const catalog = server.catalogId ? getCatalogEntry(server.catalogId) : undefined;
       const names = managed
         ? filterManagedReadOnlyTools(managed.id, discovered)
         : catalog
-          ? discovered.filter((name) => asStringArray(server.toolAllowlist).includes(name)).slice(0, 50)
+          ? discovered.filter((name) => asStringArray(current.toolAllowlist).includes(name)).slice(0, 50)
           : discovered.slice(0, 50);
       if ((managed || catalog) && !names.length) throw new Error('No permitted tools are available.');
       const readOnly = managed
@@ -495,6 +508,7 @@ export class MeriMcpService {
             tenantId,
             enabled: true,
             connectionStatus: server.connectionStatus,
+            updatedAt: current.updatedAt,
           },
           data: {
             ...(!catalog || managed ? {
@@ -517,7 +531,8 @@ export class MeriMcpService {
       await this.prisma
         .withTenant(tenantId, (tx) =>
           tx.clioMcpServer.updateMany({
-            where: { id: serverId, tenantId, connectionStatus: server.connectionStatus },
+            where: { id: serverId, tenantId, enabled: true,
+              connectionStatus: server.connectionStatus, updatedAt: discoveryRevision },
             data: {
               lastError: managed
                 ? 'The app could not finish connecting. Please try again.'
@@ -672,6 +687,8 @@ export class MeriMcpService {
     const failures: McpRegistryFailure[] = [];
     let retryKrispRateLimit = false;
     for (const server of servers) {
+      const observedStatus = server.connectionStatus;
+      const observedRevision = server.updatedAt;
       const managed = managedAppDefinition(server.catalogId);
       if (
         managed &&
@@ -709,8 +726,9 @@ export class MeriMcpService {
         }
         await this.prisma
           .withTenant(ctx.tenantId, (tx) =>
-            tx.clioMcpServer.update({
-              where: { id: server.id },
+            tx.clioMcpServer.updateMany({
+              where: { id: server.id, tenantId: ctx.tenantId, enabled: true,
+                connectionStatus: observedStatus, updatedAt: observedRevision },
               data: { lastSyncAt: new Date(), lastError: null },
             }),
           )
@@ -736,14 +754,15 @@ export class MeriMcpService {
         await this.prisma
           .withTenant(ctx.tenantId, (tx) =>
             tx.clioMcpServer.updateMany({
-              where: { id: server.id, connectionStatus: { not: 'disconnected' } },
+              where: { id: server.id, tenantId: ctx.tenantId, enabled: true,
+                connectionStatus: observedStatus, updatedAt: observedRevision },
               data: {
                 lastError: managed
                   ? 'The app could not be reached. Please try again.'
                   : 'Tool discovery failed.',
                 ...(needsReauth
                   ? { connectionStatus: 'needs_reauth' }
-                  : managed && !krispRateLimit
+                  : !krispRateLimit
                     ? { connectionStatus: 'error' }
                     : {}),
               },
