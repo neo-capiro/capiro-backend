@@ -121,9 +121,9 @@ export class HearingSessionService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Browser access to a canonical public Florida source is independent of the
-   * unattended recorder. For every jurisdiction, a recorded candidate's window
-   * governs capture, even when its page became h.url. Playback skips this guard. */
+  /** Bound public capture rechecks canonical hearing state and source policy.
+   * Florida browser access is independent of the unattended recorder. Source
+   * windows govern capture, including h.url; historical playback skips this guard. */
   async assertCaptureSourceAllowed(
     tenantId: string,
     hearingId?: string | null,
@@ -144,31 +144,38 @@ export class HearingSessionService {
             sourceUrl: string | null;
             browserAllowed: boolean;
             bindingExpired: boolean;
+            federal: boolean;
           }>
         >`
         SELECT h.id, COALESCE(${sourceUrl ?? null}::text,h.url) AS "sourceUrl",
+          (COALESCE(h.geographic_jurisdiction,'US')='US') AS federal,
           (binding.observed AND NOT binding.current) AS "bindingExpired",
-          (h.geographic_jurisdiction='FL' AND h.canonical_hearing_id IS NULL
+          (h.canonical_hearing_id IS NULL
            AND h.visibility='public' AND h.event_status NOT IN ('canceled','cancelled')
-           AND ((h.url=COALESCE(${sourceUrl ?? null}::text,h.url) AND NOT binding.observed)
-             OR binding.current)) AS "browserAllowed"
+           AND ((COALESCE(h.geographic_jurisdiction,'US')='US'
+               AND binding.approved AND NOT binding.restricted)
+             OR (h.geographic_jurisdiction='FL'
+               AND ((h.url=COALESCE(${sourceUrl ?? null}::text,h.url) AND NOT binding.observed)
+                 OR binding.current)))) AS "browserAllowed"
         FROM committee_hearing h
         CROSS JOIN LATERAL (
           SELECT count(*)>0 AS observed,
-            COALESCE(bool_or(c.expires_at IS NULL OR c.expires_at>clock_timestamp()),false) AS current
+            COALESCE(bool_or(c.expires_at IS NULL OR c.expires_at>clock_timestamp()),false) AS current,
+            COALESCE(bool_or(c.capture_policy IN ('SERVER_CAPTURE_ALLOWED','BROWSER_CAPTURE_ONLY')
+              AND (c.expires_at IS NULL OR c.expires_at>clock_timestamp())),false) AS approved,
+            COALESCE(bool_or(c.capture_policy IN ('LICENSE_REQUIRED','BLOCKED','REVIEW_REQUIRED')
+              AND (c.expires_at IS NULL OR c.expires_at>clock_timestamp())),false) AS restricted
           FROM hearing_stream_candidate c WHERE c.hearing_id=h.id
             AND c.official_page_url=COALESCE(${sourceUrl ?? null}::text,h.url)
         ) binding
         WHERE h.id=${canonicalHearingId}
-          AND ((h.geographic_jurisdiction IS NOT NULL
-            AND UPPER(TRIM(h.geographic_jurisdiction))<>'US')
-            OR (binding.observed AND NOT binding.current))
         LIMIT 1`,
     );
     const row = state[0];
     if (!row) {
-      if (floridaSource) throw new ForbiddenException(STATE_CAPTURE_LINK_ONLY);
-      return;
+      throw new ForbiddenException(
+        floridaSource ? STATE_CAPTURE_LINK_ONLY : 'BROWSER_SOURCE_UNAVAILABLE',
+      );
     }
     if (row.bindingExpired) throw new ForbiddenException('BROWSER_SOURCE_BINDING_EXPIRED');
     let safeSource = false;
@@ -179,11 +186,16 @@ export class HearingSessionService {
         !url.username &&
         !url.password &&
         !url.port &&
-        isFloridaStatePublisherUrl(url.toString());
+        (row.federal
+          ? !isFloridaStatePublisherUrl(url.toString())
+          : isFloridaStatePublisherUrl(url.toString()));
     } catch {
       /* A malformed source never permits capture. */
     }
-    if (!row.browserAllowed || !safeSource) throw new ForbiddenException(STATE_CAPTURE_LINK_ONLY);
+    if (!row.browserAllowed || !safeSource)
+      throw new ForbiddenException(
+        row.federal ? 'BROWSER_SOURCE_UNAVAILABLE' : STATE_CAPTURE_LINK_ONLY,
+      );
   }
 
   async create(tenantId: string, userId: string, dto: CreateSessionDto) {

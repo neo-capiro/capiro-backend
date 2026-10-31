@@ -106,7 +106,7 @@ describe('explicit public browser permission under the application role', () => 
     await p.$disconnect();
   });
 
-  async function recordFloridaLivePage() {
+  async function recordPublicBrowserPage(jurisdiction: 'US' | 'FL' = 'FL') {
     // Source payload uses the verified public schedule shape with synthetic
     // event identifiers. No network, publisher media or browser consent is simulated.
     const now = new Date(),
@@ -157,7 +157,16 @@ describe('explicit public browser permission under the application role', () => 
       completeness: 'complete',
       issues: [],
     };
-    const observed = floridaLiveCandidate(observation, streams, now)!;
+    const observed =
+      jurisdiction === 'FL'
+        ? floridaLiveCandidate(observation, streams, now)!
+        : {
+            provider: 'senate-isvp',
+            officialPageUrl: 'https://www.senate.gov/hearings/owned-fixture',
+            mediaUrl: null,
+            capturePolicy: 'BROWSER_CAPTURE_ONLY' as const,
+            expiresAt: endsAt,
+          };
     expect(observed).not.toBeNull();
     const classified = classifyObservedCandidate(observed);
     expect(classified.capturePolicy).toBe('BROWSER_CAPTURE_ONLY');
@@ -171,12 +180,12 @@ describe('explicit public browser permission under the application role', () => 
       hearingUrl: observation.sourceUrl,
       candidates: [{ ...observed, ...classified }],
     })!;
-    expect(selected.sourceUrl).toBe(streams[0]!.watchUrl);
+    expect(selected.sourceUrl).toBe(observed.officialPageUrl);
     source = selected.sourceUrl;
     await p.$executeRaw`UPDATE hearing_stream_candidate SET provider=${classified.provider},official_page_url=${source},capture_policy=${classified.capturePolicy},expires_at=${endsAt} WHERE id=${candidate}`;
     // Exercise the exact canonical-url branch as well as the candidate branch:
     // making the page h.url must never hide its expiring channel binding.
-    await p.$executeRaw`UPDATE committee_hearing SET url=${source} WHERE id=${hearing}`;
+    await p.$executeRaw`UPDATE committee_hearing SET url=${source},geographic_jurisdiction=${jurisdiction} WHERE id=${hearing}`;
     await p.liveHearingSession.delete({ where: { id: session } });
     const appPrisma = {
       withTenant: (scope: string, work: (tx: any) => Promise<unknown>) => asApp(work, scope),
@@ -279,7 +288,7 @@ describe('explicit public browser permission under the application role', () => 
   }
 
   it('retains decoded browser audio after the live binding ends while denying new and renewed capture', async () => {
-    const { sessions, recording, capture } = await recordFloridaLivePage();
+    const { sessions, recording, capture } = await recordPublicBrowserPage();
     await p.$executeRaw`UPDATE hearing_stream_candidate SET expires_at=now()-interval '1 second' WHERE id=${candidate}`;
     await expect(sessions.claimCapture(tenant, session)).rejects.toThrow(
       'BROWSER_SOURCE_BINDING_EXPIRED',
@@ -301,7 +310,7 @@ describe('explicit public browser permission under the application role', () => 
   it.each(['revoked', 'expired'])(
     'still denies retained Florida live playback when its original permission is %s',
     async (reason) => {
-      const { recording, capture, grant } = await recordFloridaLivePage();
+      const { recording, capture, grant } = await recordPublicBrowserPage();
       await p.$executeRaw`UPDATE hearing_stream_candidate SET expires_at=now()-interval '1 second' WHERE id=${candidate}`;
       await p.hearingMediaPermission.update({
         where: { id: grant.id },
@@ -319,6 +328,55 @@ describe('explicit public browser permission under the application role', () => 
       await expect(recording.playback(tenant, session, actor, capture.epochId)).rejects.toThrow(
         'unavailable',
       );
+    },
+  );
+
+  it.each([
+    'private',
+    'canceled',
+    'alias',
+    'missing-source',
+    'changed-source',
+    'LICENSE_REQUIRED',
+    'BLOCKED',
+    'REVIEW_REQUIRED',
+  ])(
+    'stops new and renewed federal capture after %s while preserving historical permitted playback',
+    async (reason) => {
+      const { sessions, recording, capture, grant } = await recordPublicBrowserPage('US');
+      if (reason === 'private')
+        await p.$executeRaw`UPDATE committee_hearing SET visibility='private' WHERE id=${hearing}`;
+      if (reason === 'canceled')
+        await p.$executeRaw`UPDATE committee_hearing SET event_status='canceled' WHERE id=${hearing}`;
+      if (reason === 'alias') {
+        await p.$executeRaw`INSERT INTO committee_hearing(id,committee_name,chamber,title,date,event_status,visibility,geographic_jurisdiction,url)
+          VALUES(${'parent-' + hearing},'Owned committee','Senate','Canonical synthetic event',now(),'scheduled','public','US',${source})`;
+        await p.$executeRaw`UPDATE committee_hearing SET canonical_hearing_id=${'parent-' + hearing},alias_evidence='{"source":"owned-test"}'::jsonb,aliased_at=now() WHERE id=${hearing}`;
+      }
+      if (reason === 'missing-source')
+        await p.$executeRaw`DELETE FROM hearing_stream_candidate WHERE id=${candidate}`;
+      if (reason === 'changed-source')
+        await p.$executeRaw`UPDATE hearing_stream_candidate SET official_page_url='https://www.senate.gov/hearings/different-event' WHERE id=${candidate}`;
+      if (['LICENSE_REQUIRED', 'BLOCKED', 'REVIEW_REQUIRED'].includes(reason))
+        await p.$executeRaw`UPDATE hearing_stream_candidate SET capture_policy=${reason} WHERE id=${candidate}`;
+      await expect(sessions.claimCapture(tenant, session)).rejects.toThrow(
+        'BROWSER_SOURCE_UNAVAILABLE',
+      );
+      await expect(
+        sessions.heartbeatCapture(tenant, session, capture.captureToken),
+      ).rejects.toThrow('BROWSER_SOURCE_UNAVAILABLE');
+      await expect(
+        recording.begin(tenant, session, actor, capture.captureToken, 'audio/webm;codecs=opus'),
+      ).rejects.toThrow('BROWSER_SOURCE_UNAVAILABLE');
+      expect(
+        (await p.hearingMediaPermission.findUniqueOrThrow({ where: { id: grant.id } })).revokedAt,
+      ).toBeNull();
+      expect(
+        (await recording.manifest(tenant, session, actor)).recording?.playbackAvailability,
+      ).toBe('available');
+      await expect(
+        recording.playback(tenant, session, actor, capture.epochId),
+      ).resolves.toHaveProperty('url');
     },
   );
 

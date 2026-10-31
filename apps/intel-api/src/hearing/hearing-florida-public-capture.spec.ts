@@ -34,7 +34,12 @@ type SessionFixture = Omit<typeof stateSession, 'hearingId'> & { hearingId: stri
 
 function harness(
   session: SessionFixture = stateSession,
-  stateRows = [{ id: 'hearing-fl', sourceUrl: FLORIDA_PAGE, browserAllowed: true }],
+  stateRows: Array<{
+    id: string;
+    sourceUrl: string;
+    browserAllowed: boolean;
+    federal?: boolean;
+  }> = [{ id: 'hearing-fl', sourceUrl: FLORIDA_PAGE, browserAllowed: true }],
 ) {
   const create = jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({
     id: 'created',
@@ -197,7 +202,9 @@ describe('public Florida browser recording is independent of unattended capture'
   it('preserves the federal browser path', async () => {
     const federal = { ...stateSession, hearingId: 'hearing-us', sourceUrl: FEDERAL_PAGE };
     await expect(
-      harness(federal, []).service.assertCaptureAllowed('tenant-1', 'session-us', 'user-1'),
+      harness(federal, [
+        { id: 'hearing-us', sourceUrl: FEDERAL_PAGE, browserAllowed: true, federal: true },
+      ]).service.assertCaptureAllowed('tenant-1', 'session-us', 'user-1'),
     ).resolves.toBe(federal);
   });
 });
