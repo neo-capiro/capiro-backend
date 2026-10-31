@@ -1,3 +1,4 @@
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { createMetricsDatabaseBudget } from './metrics-database-budget.js';
 import { readClassicOutreachMetrics } from '../engagement/classic-outreach-metrics.js';
 import { readResearchPortfolioMetrics } from '../research-portfolios/research-portfolio-metrics.js';
@@ -92,6 +93,10 @@ test.each([['Classic', readClassicOutreachMetrics], ['Research', readResearchPor
     await jest.advanceTimersByTimeAsync(7000);
     expect(await request).toMatchObject({ count: 0, complete: true, capped: false });
     expect(f.state.options.map(value => value.timeoutMs)).toEqual([10000, 4000, 3000]);
+    const deadline = f.state.options[0].deadline;
+    expect(deadline.at).toBe(start + 10000);
+    expect(Object.isFrozen(deadline)).toBe(true);
+    expect(f.state.options.every(value => value.deadline === deadline)).toBe(true);
     expect(f.state.statements.at(-1)).toMatchObject({ statementMs: 3000, lockMs: 3000 });
     expect(f.state.cleanupDone).toBe(3); expect(f.state.active).toBe(0);
   },
@@ -160,3 +165,40 @@ test('monotonic expiration applies when wall time is frozen; expired work opens 
   await expect(budget.prisma.withTenant('synthetic-tenant', tx => tx.outreachRecord.count())).rejects.toMatchObject({ status: 503 });
   expect(source.withTenant).not.toHaveBeenCalled();
 });
+
+test.each([
+  { code: 'P2028' }, { code: 'PRISMA_TRANSACTION_DEADLINE_EXCEEDED' },
+  { code: '57014' }, { code: '55P03' },
+  { code: 'P2010', meta: { code: '57014' } }, { code: 'P2010', meta: { code: '55P03' } },
+])(
+  'maps early cancellation %j to 503 after settlement without retrying', async detail => {
+    let cleaned = false;
+    const source: any = { withTenant: jest.fn(async () => {
+      try { throw Object.assign(Error('synthetic deadline refusal'), detail); }
+      finally { cleaned = true; }
+    }) };
+    const budget = createMetricsDatabaseBudget(source, start, Date.now);
+    await expect(budget.prisma.withTenant('synthetic-tenant', async () => 0)).rejects.toMatchObject({ status: 503 });
+    expect(cleaned).toBe(true); expect(source.withTenant).toHaveBeenCalledTimes(1);
+  },
+);
+
+test('does not disguise an unrelated raw-query error as a deadline failure', async () => {
+  const failure = Object.assign(Error('synthetic query failure'), { code: 'P2010', meta: { code: '42703' } });
+  const source: any = { withTenant: async () => { throw failure; } };
+  const budget = createMetricsDatabaseBudget(source, start, Date.now);
+  await expect(budget.prisma.withTenant('synthetic-tenant', async () => 0)).rejects.toBe(failure);
+});
+
+test.each([new ForbiddenException('synthetic membership denial'), new NotFoundException('synthetic wall denial')])(
+  'preserves canonical authorization errors after awaited cleanup: %s', async refusal => {
+    const source: any = { withTenant: async () => {
+      try { throw refusal; }
+      finally { await new Promise(resolve => setTimeout(resolve, 11000)); }
+    } };
+    const budget = createMetricsDatabaseBudget(source, start, Date.now);
+    const request = budget.prisma.withTenant('synthetic-tenant', async () => 0).catch(error => error);
+    await jest.advanceTimersByTimeAsync(11000);
+    expect(await request).toBe(refusal);
+  },
+);
