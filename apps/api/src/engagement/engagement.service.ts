@@ -5451,8 +5451,19 @@ export class EngagementService {
   }
 
   createTask(ctx: TenantContext, input: CreateTaskInput, internal?: {tx:Prisma.TransactionClient;sourceType:string;sourceId:string}) {
-    const write=(tx:Prisma.TransactionClient)=>
-      tx.engagementTask.create({
+    const write = async (tx: Prisma.TransactionClient) => {
+      if (input.meetingId) {
+        // Compare the caller's association assertion under the same parent lock
+        // used by reassignment and sync. Never silently rehome a delayed task.
+        await this.lockMeetingClientAssignment(tx, ctx, input.meetingId);
+        ctx = await currentMeetingActor(tx, ctx);
+        const parent = await this.ensureOwnMeeting(tx, ctx, input.meetingId);
+        await assertMeetingClient(tx, ctx, parent.clientId);
+        if (parent.clientId !== (input.clientId ?? null)) {
+          throw new ConflictException('The meeting client changed. Reload the meeting before creating the task.');
+        }
+      }
+      return tx.engagementTask.create({
         data: {
           tenantId: ctx.tenantId,
           clientId: input.clientId ?? null,
@@ -5467,6 +5478,7 @@ export class EngagementService {
           ...(internal?{sourceType:internal.sourceType,sourceId:internal.sourceId}:{}),
         },
       });
+    };
     return internal?write(internal.tx):this.prisma.withTenant(ctx.tenantId,write);
   }
 
