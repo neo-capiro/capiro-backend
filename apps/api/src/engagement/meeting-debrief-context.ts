@@ -106,7 +106,7 @@ const size = (value: unknown): number =>
     : conservativeTokens(JSON.stringify(value ?? null));
 
 /** The typed canonical item boundaries the Context Plane renderer emits. */
-const CONTEXT_ITEM = /<context_item[\s\S]*?<\/context_item>/g;
+const CONTEXT_ITEM = /<context_item\b[\s\S]*?<\/context_item>/g;
 
 /** UTF-8 length, in bytes. */
 function utf8Bytes(value: string): number {
@@ -141,44 +141,45 @@ function reduceSteering(
 ): boolean {
   const steering = bounded.steeringContext;
   if (!steering) return false;
-  const room = bound - (total - utf8Bytes(steering));
-  if (utf8Bytes(steering) <= room) return false;
+  const room = bound - (total - size(steering));
+  if (size(steering) <= room) return false;
 
   const units = steering.match(CONTEXT_ITEM) ?? [];
-  const hardExcerpt = () => {
+  if (!units.length) {
+    // Nothing canonical to select from (the assembly's voice block): a code-point excerpt is
+    // the only honest reduction, and it carries its own marker.
     const marker = '\n…[approved steering excerpt reduced to fit the debrief context budget]';
-    const excerpt = codePointExcerpt(steering, Math.max(0, room - size(marker)));
+    const excerpt = codePointExcerpt(steering, Math.max(0, room - utf8Bytes(marker)));
     if (!excerpt) return false;
     bounded.steeringContext = `${excerpt}${marker}`;
     return true;
-  };
-  if (!units.length) return hardExcerpt();
+  }
 
-  const preamble = steering.slice(0, steering.indexOf(units[0]!));
+  // Whole canonical items only: the plane framing (head) and its closing tail are kept
+  // complete, and an item either fits or is omitted in full. Never clip an item into a
+  // lone opening tag, and never clip the preamble down to a prefix.
+  const head = steering.slice(0, steering.indexOf(units[0]!));
+  const last = units[units.length - 1]!;
+  const tail = steering.slice(steering.indexOf(last) + last.length);
   const note = (omitted: number) =>
-    `\n…[${omitted} approved steering item${omitted === 1 ? '' : 's'} omitted to fit the debrief context budget]`;
-  let kept = preamble;
+    `\n…[${omitted} approved steering item${omitted === 1 ? '' : 's'} omitted to fit the debrief context budget; item boundaries preserved]`;
+  const compose = (kept: string[], omitted: number) =>
+    `${head}${kept.join('')}${note(omitted)}${tail}`;
+
+  const kept: string[] = [];
   let omitted = 0;
   for (const unit of units) {
-    const candidate = `${kept}${unit}`;
-    if (utf8Bytes(`${candidate}${note(omitted)}`) <= room) {
-      kept = candidate;
-    } else {
-      omitted += 1;
-    }
+    const candidate = compose([...kept, unit], omitted);
+    if (size(candidate) <= room) kept.push(unit);
+    else omitted += 1;
   }
-  if (!omitted) {
-    // The units fit; the preamble/joiner bytes were the excess. Reduce the preamble only.
-    const budget = room - size(note(1));
-    bounded.steeringContext = `${codePointExcerpt(preamble, Math.max(0, budget))}${note(1)}`;
+  if (!kept.length) {
+    // Not even one complete item fits: keep the complete framing and omit every item. If that
+    // still exceeds the room the caller's final guard refuses the generation.
+    bounded.steeringContext = compose([], units.length);
     return true;
   }
-  const composed = `${kept}${note(omitted)}`;
-  if (utf8Bytes(composed) > room) {
-    bounded.steeringContext = composed;
-    return hardExcerpt();
-  }
-  bounded.steeringContext = composed;
+  bounded.steeringContext = compose(kept, omitted);
   return true;
 }
 

@@ -346,6 +346,7 @@ ${body}
     [
       '<capiro_meeting_context_plane>',
       'MODE: debrief',
+      'CONTEXT_PACKET_ID: packet-1',
       'AUTHORITY: only source.text, visibleNotes, and confirmed current-meeting metadata may establish what happened.',
       'GOVERNED STEERING:',
       items,
