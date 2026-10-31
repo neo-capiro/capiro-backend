@@ -5,6 +5,34 @@ import type { RelevancePath } from './client-pe-relevance.scoring.js';
 export const MAX_CANDIDATE_PES = 400;
 export const PE_RELEVANCE_BUDGET_MS = 15_000;
 
+// ECMAScript String.trim whitespace/line terminators. PostgreSQL's default
+// btrim removes only spaces; use the same set for raw award data as the scorer.
+export const FACILITY_TRIM_CHARACTERS =
+  '\u0009\u000a\u000b\u000c\u000d\u0020\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff';
+
+export function normalizeFacilityState(state: string): string {
+  return state.trim().toUpperCase();
+}
+
+/** Bare/zero-padded codes share a key; the empty result denotes at-large. */
+export function normalizeDistrictForComparison(district: string): string {
+  return district.trim().replace(/^0+/, '');
+}
+
+export function facilityDistrictKey(state: string, district: string): string {
+  return `${normalizeFacilityState(state)}-${normalizeDistrictForComparison(district) || '00'}`;
+}
+
+/** SQL twin of the scorer's normalization, paired with normalized facility
+ * parameters. Null award fields remain non-matches through SQL equality.
+ */
+function facilityDistrictJoinSql(): Prisma.Sql {
+  return Prisma.sql`
+    upper(BTRIM(fa.pop_state, ${FACILITY_TRIM_CHARACTERS})) = d.state
+    AND LTRIM(BTRIM(fa.pop_congressional_district, ${FACILITY_TRIM_CHARACTERS}), '0') = d.district
+  `;
+}
+
 export interface CandidateCoverage {
   complete: boolean;
   evaluated: number;
@@ -149,13 +177,14 @@ export async function enumeratePeCandidates(
     ) ORDER BY "peCode" LIMIT ${probeLimit}
   `);
   if (signals.facilityDistricts.length) {
-    const states = signals.facilityDistricts.map((d) => d.state.toUpperCase());
-    const districts = signals.facilityDistricts.map((d) => d.district);
+    const states = signals.facilityDistricts.map((d) => normalizeFacilityState(d.state));
+    const districts = signals.facilityDistricts.map((d) =>
+      normalizeDistrictForComparison(d.district),
+    );
     byPath.facility_district = await query<PeRows>(Prisma.sql`
       SELECT DISTINCT upper(fa.pe_code) COLLATE "C" AS "peCode" FROM federal_award fa
       JOIN unnest(${states}::text[], ${districts}::text[]) AS d(state, district)
-        ON upper(fa.pop_state) = d.state
-        AND LTRIM(fa.pop_congressional_district, '0') = LTRIM(d.district, '0')
+        ON ${facilityDistrictJoinSql()}
       WHERE fa.pe_code IS NOT NULL ORDER BY "peCode" LIMIT ${probeLimit}
     `);
   }

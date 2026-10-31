@@ -13,7 +13,7 @@ import {
 } from './client-pe-relevance.scoring.js';
 import { expandTerms, isKnownAcronym, MIN_KEYWORD_TOKEN_LENGTH } from './term-expansion.js';
 import {
-  createPeRelevanceBudget, enumeratePeCandidates, peKeywordMatchesSql,
+  createPeRelevanceBudget, enumeratePeCandidates, facilityDistrictKey, peKeywordMatchesSql,
   type CandidateCoverage, type PeQuery, type PeRead,
 } from './client-pe-candidates.js';
 
@@ -75,9 +75,7 @@ const MAX_SYSTEM_CLIENT_PAIRS = 2000;
  * district ('00'/'0'). JS twin of the LTRIM(x, '0') applied on both sides of the SQL
  * district joins; USAspending's '90'/'98' sentinels are untouched and still never match.
  */
-export function normalizeDistrictForComparison(district: string): string {
-  return district.trim().replace(/^0+/, '');
-}
+export { normalizeDistrictForComparison } from './client-pe-candidates.js';
 
 interface ClientSignalContext {
   uei: string | null;
@@ -330,12 +328,10 @@ export class ClientPeRelevanceService {
     // store the BARE district ("5") but federal_award keeps USAspending's ZERO-PADDED
     // raw code ("05"), so both sides are normalized (leading zeros stripped; "" means
     // at-large, keyed back as "00") before comparison; the evidence string prints "ST-NN".
-    const districtKey = (state: string, district: string): string =>
-      `${state.trim().toUpperCase()}-${normalizeDistrictForComparison(district) || '00'}`;
-    const awardKeys = new Set(awardDistricts.map((d) => districtKey(d.state, d.district)));
+    const awardKeys = new Set(awardDistricts.map((d) => facilityDistrictKey(d.state, d.district)));
     const matched = new Set<string>();
     for (const f of signals.facilityDistricts) {
-      const key = districtKey(f.state, f.district);
+      const key = facilityDistrictKey(f.state, f.district);
       if (awardKeys.has(key)) matched.add(key);
     }
     return scoreFacilityDistrict({ matchedDistricts: [...matched].sort() });
