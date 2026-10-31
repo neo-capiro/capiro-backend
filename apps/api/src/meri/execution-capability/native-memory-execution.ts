@@ -18,6 +18,7 @@ import {
 import { retainedReadObject } from '../retained-read-context.js';
 import { receiveNativeDatabaseCommand } from './native-approved-database-execution.js';
 import { meriExecutionDbNow } from './meri-execution-authority.js';
+import { withMemoryConversationRetention } from '../../memory/conversation-serving/transaction.js';
 
 type Ports = {
   prisma: PrismaService;
@@ -78,6 +79,8 @@ export function receiveNativeMemory(
       kind: 'native-memory',
       actions: ['memory.propose'],
       userTransaction: true,
+      transaction: (work) =>
+        withMemoryConversationRetention(ports.prisma, ctx.tenantId, ctx.userId, work),
       validate: retainedResult,
       async authorize(_tx, _ctx, p, selected, role) {
         const args = authorizeNativeMemory(p, selected, role);

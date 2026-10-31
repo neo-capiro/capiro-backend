@@ -57,6 +57,8 @@ export interface NativeDatabaseDomain<R extends Record<string, unknown>> {
   kind: 'native-task' | 'native-memory';
   actions: readonly string[];
   userTransaction?: boolean;
+  /** Trusted domain-owned transaction boundary; includes the same receipt and release work. */
+  transaction?<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T>;
   authorize(
     tx: Prisma.TransactionClient,
     ctx: TenantContext,
@@ -166,9 +168,11 @@ export async function receiveNativeDatabaseCommand<R extends Record<string, unkn
     idempotencyKey: command.idempotencyKey,
   };
   const transaction = <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) =>
-    domain.userTransaction
-      ? ports.prisma.withTenantUser(ctx.tenantId, ctx.userId, fn)
-      : ports.prisma.withTenant(ctx.tenantId, fn);
+    domain.transaction
+      ? domain.transaction(fn)
+      : domain.userTransaction
+        ? ports.prisma.withTenantUser(ctx.tenantId, ctx.userId, fn)
+        : ports.prisma.withTenant(ctx.tenantId, fn);
   const currentAuthority = async (tx: Prisma.TransactionClient) => {
     await tx.$queryRaw`SELECT id::text FROM users WHERE id=${ctx.userId}::uuid FOR SHARE`;
     await tx.$queryRaw`SELECT id::text FROM tenants WHERE id=${ctx.tenantId}::uuid FOR SHARE`;
