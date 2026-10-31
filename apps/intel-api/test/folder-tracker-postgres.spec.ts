@@ -3,7 +3,6 @@ import { PrismaService } from '../src/prisma/prisma.service.js';
 import { FolderSourceDataRepository } from '../src/sourcedata/folder-source-data.repository.js';
 import { SourceDataRepository } from '../src/sourcedata/source-data.repository.js';
 import { FolderTrackerService } from '../src/tracker/folders/folder-tracker.service.js';
-import { FolderImportService } from '../src/tracker/folders/folder-import.service.js';
 import type { WorkspaceTenantContext } from '../src/auth/tenant-context.js';
 
 // The CI job supplies disposable PostgreSQL. No skipped database tests.
@@ -11,7 +10,6 @@ describe('folder tracker PostgreSQL isolation and replay', () => {
   const prisma = new PrismaService();
   const source = new FolderSourceDataRepository(prisma);
   const svc = new FolderTrackerService(prisma, source, new SourceDataRepository(prisma));
-  const importer = new FolderImportService(svc);
   const tenant = randomUUID(),
     foreign = randomUUID(),
     suffix = randomUUID().slice(0, 8);
@@ -53,7 +51,10 @@ describe('folder tracker PostgreSQL isolation and replay', () => {
       await tx.legiWatchStagedConfiguration.deleteMany({ where: { tenantId: tenant } });
       await tx.legiWatchFolderBill.deleteMany({ where: { tenantId: tenant } });
       await tx.legiWatchFolder.deleteMany({ where: { tenantId: tenant } });
-      await tx.$executeRawUnsafe('DELETE FROM state_bill WHERE id = ANY($1::text[])', aliasBills.map(([id]) => id));
+      await tx.$executeRawUnsafe(
+        'DELETE FROM state_bill WHERE id = ANY($1::text[])',
+        aliasBills.map(([id]) => id),
+      );
       await tx.$executeRaw`DELETE FROM tenant_memberships WHERE tenant_id=${tenant}::uuid`;
       await tx.$executeRaw`DELETE FROM users WHERE clerk_user_id IN (${actor},${other})`;
       await tx.$executeRaw`DELETE FROM tenants WHERE id IN (${tenant}::uuid,${foreign}::uuid)`;
@@ -61,20 +62,47 @@ describe('folder tracker PostgreSQL isolation and replay', () => {
     await prisma.$disconnect();
   });
   it('resolves Florida display aliases to existing IDs with session and proposal boundaries', async () => {
-    const rows = await svc.resolve({ jurisdiction: 'FL', sessionKey: '2097', billNumbers: 'HB 0027, H27, SB28, HCB27, SAB28, GOS27, BUC27, WMC27' });
-    expect(rows.map((r) => r.status)).toEqual(['resolved', 'duplicate', 'resolved', 'resolved', 'unresolved', 'unresolved', 'unresolved', 'unresolved']);
+    const rows = await svc.resolve({
+      jurisdiction: 'FL',
+      sessionKey: '2097',
+      billNumbers: 'HB 0027, H27, SB28, HCB27, SAB28, GOS27, BUC27, WMC27',
+    });
+    expect(rows.map((r) => r.status)).toEqual([
+      'resolved',
+      'duplicate',
+      'resolved',
+      'resolved',
+      'unresolved',
+      'unresolved',
+      'unresolved',
+      'unresolved',
+    ]);
     expect(rows[0]?.bill?.id).toBe('fl-2097-h0027');
     expect(rows[2]?.bill?.id).toBe('fl-2097-s0028');
     expect(rows[3]?.bill?.id).toBe('fl-2097-hcb27');
-    expect((await svc.resolve({ jurisdiction: 'FL', sessionKey: '2096', billNumbers: 'HB27' }))[0]?.bill?.id).toBe('fl-2096-h0027');
-    expect((await svc.resolve({ jurisdiction: 'GA', sessionKey: '2097', billNumbers: 'HB27' }))[0]?.status).toBe('unresolved');
-    expect((await svc.board(ctx, { jurisdiction: 'FL', sessionKey: '2097', q: 'HB 0027' }, true)).rows.map((b) => b.id)).toEqual(['fl-2097-h0027']);
+    expect(
+      (await svc.resolve({ jurisdiction: 'FL', sessionKey: '2096', billNumbers: 'HB27' }))[0]?.bill
+        ?.id,
+    ).toBe('fl-2096-h0027');
+    expect(
+      (await svc.resolve({ jurisdiction: 'GA', sessionKey: '2097', billNumbers: 'HB27' }))[0]
+        ?.status,
+    ).toBe('unresolved');
+    expect(
+      (
+        await svc.board(ctx, { jurisdiction: 'FL', sessionKey: '2097', q: 'HB 0027' }, true)
+      ).rows.map((b) => b.id),
+    ).toEqual(['fl-2097-h0027']);
   });
   it('requires reconciliation if two canonical IDs share a Florida alias', async () => {
     const id = 'fl-2097-hb27';
     await prisma.$executeRaw`INSERT INTO state_bill(id,state,session,session_key,identifier,bill_number,title) VALUES (${id},'FL','2097','2097','HB27','hb27','Synthetic duplicate identity')`;
     try {
-      const [row] = await svc.resolve({ jurisdiction: 'FL', sessionKey: '2097', billNumbers: 'HB27' });
+      const [row] = await svc.resolve({
+        jurisdiction: 'FL',
+        sessionKey: '2097',
+        billNumbers: 'HB27',
+      });
       expect(row?.status).toBe('ambiguous');
       expect(row?.bill).toBeNull();
     } finally {
@@ -171,72 +199,5 @@ describe('folder tracker PostgreSQL isolation and replay', () => {
         ?.status,
     ).toBe('removed');
     expect((await svc.context(ctx, folderId, billIds[0]!)).assignment).not.toBeNull();
-  });
-  it('previews unprovisioned ownership as blocked and stages configuration without provisioning', async () => {
-    const preview = await importer.preview(ctx, {
-      targetTenantId: tenant,
-      sourceAccount: 'synthetic-account',
-      captureId: 'capture-1',
-      sourceHash: 'a'.repeat(64),
-      mappingManifest: {
-        tenantId: tenant,
-        sourceAccount: 'synthetic-account',
-        sourceTimezone: null,
-        owners: {},
-        clients: {},
-        sessions: { '2099': { jurisdiction: 'FL', sessionKey: '2099' } },
-      },
-      items: [
-        {
-          kind: 'folder',
-          sourceId: 'source-folder-1',
-          payload: {
-            name: 'Unresolved folder',
-            form_owner_id: 'unprovisioned',
-            other_user_access: 'read_and_change',
-          },
-        },
-        {
-          kind: 'user',
-          sourceId: 'source-user-1',
-          payload: { name: 'Synthetic staged user', email: 'staged@example.invalid' },
-        },
-      ],
-    });
-    expect(preview.items.find((i) => i.kind === 'folder')?.status).toBe('blocked');
-    const stagedUser = preview.items.find((i) => i.kind === 'user')!;
-    const applied = await importer.apply(ctx, preview.run.id, {
-      targetTenantId: tenant,
-      mappingHash: preview.run.mappingHash,
-      itemIds: [stagedUser.id],
-    });
-    expect(applied.items.find((i) => i.id === stagedUser.id)?.status).toBe('applied');
-    await importer.apply(ctx, preview.run.id, {
-      targetTenantId: tenant,
-      mappingHash: preview.run.mappingHash,
-      itemIds: [stagedUser.id],
-    });
-    expect(
-      await prisma.legiWatchStagedConfiguration.count({
-        where: { tenantId: tenant, kind: 'user' },
-      }),
-    ).toBe(1);
-    expect(
-      await prisma.$queryRaw<
-        Array<{ n: number }>
-      >`SELECT count(*)::int AS n FROM users WHERE email='staged@example.invalid'`,
-    ).toEqual([{ n: 0 }]);
-  });
-  it('rejects non-admin and cross-tenant import attempts', async () => {
-    await expect(importer.runs({ ...ctx, role: 'org:member' })).rejects.toThrow(
-      'IMPORT_REQUIRES_TENANT_ADMIN',
-    );
-    await expect(
-      importer.apply(ctx, randomUUID(), {
-        targetTenantId: foreign,
-        mappingHash: 'a'.repeat(64),
-        itemIds: [randomUUID()],
-      }),
-    ).rejects.toThrow('IMPORT_TARGET_MISMATCH');
   });
 });

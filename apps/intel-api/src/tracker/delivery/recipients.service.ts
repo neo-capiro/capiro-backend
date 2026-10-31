@@ -8,8 +8,8 @@ import {
 import type { Prisma } from '../../../generated/prisma-client/index.js';
 import type { WorkspaceTenantContext } from '../../auth/tenant-context.js';
 import { isFolderAdmin } from '../folders/folder-tracker.service.js';
-import { ReportService } from './report.service.js';
-import { digest, ids, object, text, version } from './report-domain.js';
+import { DraftAccessService } from './draft-access.service.js';
+import { ids, object, text, version } from './delivery-domain.js';
 
 export interface RecipientSnapshot {
   email: string;
@@ -46,8 +46,8 @@ export function mergeRecipients(rows: RecipientSnapshot[]): RecipientSnapshot[] 
 }
 
 @Injectable()
-export class ReportRecipientsService {
-  constructor(readonly reports: ReportService) {}
+export class RecipientsService {
+  constructor(readonly reports: DraftAccessService) {}
   async directory(ctx: WorkspaceTenantContext) {
     await this.reports.authorize(ctx);
     return this.reports.folders.withActor(ctx, async (tx) => ({
@@ -226,108 +226,5 @@ export class ReportRecipientsService {
       )
         throw new ConflictException('APPROVED_LIST_CHANGED');
     }
-  }
-  async promote(ctx: WorkspaceTenantContext, sourceAccount: string) {
-    await this.reports.authorize(ctx);
-    if (!isFolderAdmin(ctx)) throw new ForbiddenException('PROMOTION_REQUIRES_ADMIN');
-    return this.reports.folders.withActor(
-      ctx,
-      async (tx) => {
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`phase2-contacts:${ctx.tenantId}:${sourceAccount}`}))`;
-        const staged = await tx.legiWatchStagedConfiguration.findMany({
-          where: {
-            tenantId: ctx.tenantId,
-            sourceAccount,
-            kind: { in: ['contact', 'mailing_list', 'list_membership'] },
-            state: { not: 'excluded' },
-          },
-        });
-        const mapped = await tx.legiWatchPromotion.findMany({
-          where: {
-            tenantId: ctx.tenantId,
-            sourceAccount,
-            kind: { in: ['contact', 'mailing_list'] },
-          },
-        });
-        let contacts = 0,
-          lists = 0,
-          memberships = 0;
-        const unresolved: string[] = [];
-        for (const s of [
-          ...staged.filter((s) => s.kind === 'contact'),
-          ...staged.filter((s) => s.kind === 'mailing_list'),
-        ]) {
-          if (mapped.some((m) => m.stagedId === s.id)) continue;
-          const raw = object(s.payload);
-          let targetId: string;
-          if (s.kind === 'contact') {
-            let email: string | null = null;
-            try {
-              email = raw.email ? normalizeEmail(raw.email) : null;
-            } catch {
-              /* visible unverified contact */
-            }
-            const c = await tx.legiWatchReportContact.create({
-              data: {
-                tenantId: ctx.tenantId,
-                ownerClerkId: ctx.clerkUserId,
-                name:
-                  String(
-                    raw.full_name ?? `${raw.first_name ?? ''} ${raw.last_name ?? ''}`,
-                  ).trim() || `Contact ${s.sourceId}`,
-                email,
-              },
-            });
-            targetId = c.id;
-            contacts++;
-          } else {
-            const sourceMembers = staged.filter(
-              (m) =>
-                m.kind === 'list_membership' &&
-                String(object(m.payload).mailing_list_id) === s.sourceId,
-            );
-            const members = sourceMembers.map(
-              (m) =>
-                mapped.find(
-                  (p) =>
-                    p.kind === 'contact' && p.sourceId === String(object(m.payload).contact_id),
-                )?.targetId,
-            );
-            if (members.some((m) => !m)) {
-              unresolved.push(s.sourceId);
-              continue;
-            }
-            const l = await tx.legiWatchReportList.create({
-              data: {
-                tenantId: ctx.tenantId,
-                ownerClerkId: ctx.clerkUserId,
-                name: text(raw.name),
-                private: raw.visibility !== 'Public',
-                contactIds: members as string[],
-              },
-            });
-            targetId = l.id;
-            lists++;
-            memberships += members.length;
-          }
-          const link = await tx.legiWatchPromotion.create({
-            data: {
-              tenantId: ctx.tenantId,
-              stagedId: s.id,
-              sourceAccount,
-              sourceId: s.sourceId,
-              sourceVersion: s.version,
-              sourceHash: digest(s.payload),
-              kind: s.kind,
-              targetId,
-              reviewedBy: ctx.clerkUserId,
-            },
-          });
-          mapped.push(link);
-        }
-        return { contacts, lists, memberships, unresolved, allNewContactsUnverified: true };
-      },
-      { timeoutMs: 60000 },
-    );
   }
 }

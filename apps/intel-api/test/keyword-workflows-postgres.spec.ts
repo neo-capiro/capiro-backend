@@ -8,7 +8,7 @@ import { SourceDataRepository } from '../src/sourcedata/source-data.repository.j
 import { KeywordSourceRepository } from '../src/sourcedata/keyword-source.repository.js';
 import { FolderTrackerService } from '../src/tracker/folders/folder-tracker.service.js';
 import { FeatureFlagService } from '../src/feature-flags/feature-flag.service.js';
-import { ReportService } from '../src/tracker/reports/report.service.js';
+import { DraftAccessService } from '../src/tracker/delivery/draft-access.service.js';
 import { KeywordRuleService } from '../src/tracker/keywords/keyword-rule.service.js';
 import { KeywordDiscoveryService } from '../src/tracker/keywords/keyword-discovery.service.js';
 import { SemanticSuggestionService } from '../src/tracker/keywords/semantic-suggestion.service.js';
@@ -30,7 +30,7 @@ describe('Phase 6 committed workflows and cross-service recovery', () => {
       new SourceDataRepository(p),
     );
   const flags = new FeatureFlagService(p, new ConfigService()),
-    reports = new ReportService(folders, flags),
+    reports = new DraftAccessService(folders, flags),
     rules = new KeywordRuleService(reports, new KeywordSourceRepository(p));
   const calendar = new CalendarPreparationService(folders, flags),
     actions = new InternalWorkflowService(rules, calendar),
@@ -74,7 +74,6 @@ describe('Phase 6 committed workflows and cross-service recovery', () => {
         'legiwatch_keyword_discovery_v1',
         'legiwatch_internal_workflows_v1',
         'legiwatch_state_calendar_v1',
-        'legiwatch_reports_updates_v1',
         'legiwatch_keyword_delivery_v1',
         'legiwatch_keyword_auto_add_v1',
       ])

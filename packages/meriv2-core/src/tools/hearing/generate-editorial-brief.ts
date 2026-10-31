@@ -7,7 +7,7 @@ const ref = z.object({
   locator: z.string().min(1),
 });
 export const editorialInput = z.object({
-  template: z.enum(['research_update', 'daily_legislative_brief', 'morning_news_brief']),
+  template: z.enum(['research_update', 'daily_legislative_brief']),
   cutoff: z.string(),
   timezone: z.string(),
   coverage: z.string().max(8000),

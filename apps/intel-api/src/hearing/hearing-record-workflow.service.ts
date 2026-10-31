@@ -8,8 +8,8 @@ import {
 import { randomUUID } from 'node:crypto';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import type { Prisma } from '../../generated/prisma-client/index.js';
-import { ReportService } from '../tracker/reports/report.service.js';
-import { digest, object, text } from '../tracker/reports/report-domain.js';
+import { DraftAccessService } from '../tracker/delivery/draft-access.service.js';
+import { digest, object, text } from '../tracker/delivery/delivery-domain.js';
 import {
   PUBLISHED_RECORDS_FEATURE,
   RECORD_BRIEFS_FEATURE,
@@ -66,7 +66,7 @@ type WorkLease = { id: string; token: string; resultId: string | null };
 @Injectable()
 export class HearingRecordWorkflowService {
   constructor(
-    readonly reports: ReportService,
+    readonly reports: DraftAccessService,
     readonly source: HearingRecordsRepository,
     readonly crypto: HearingCryptoService,
     readonly publications: HearingPublicationService,

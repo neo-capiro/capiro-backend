@@ -7,10 +7,10 @@ import {
 } from '@nestjs/common';
 import type { WorkspaceTenantContext } from '../../auth/tenant-context.js';
 import { isFolderAdmin, canEditFolder } from '../folders/folder-tracker.service.js';
-import { ReportService } from './report.service.js';
+import { DraftAccessService } from './draft-access.service.js';
 import {
   AGENDA_ALERTS_FEATURE,
-  REPORTS_UPDATES_FEATURE,
+  FOLDER_TRACKER_FEATURE,
 } from '../../feature-flags/feature-flag.service.js';
 import {
   digest,
@@ -20,9 +20,9 @@ import {
   object,
   text,
   version,
-  type ReportBill,
-} from './report-domain.js';
-import { localOccurrence, localTime, validateSchedule } from './report-schedule.js';
+  type PublishedBill,
+} from './delivery-domain.js';
+import { localOccurrence, localTime, validateSchedule } from './delivery-schedule.js';
 
 export interface RuleRecipient {
   sourceUserId?: string;
@@ -70,11 +70,11 @@ export function capturedRule(raw: unknown, family: 'bill_record' | 'agenda' = 'b
 @Injectable()
 export class RecordRuleService {
   protected readonly family: 'bill_record' | 'agenda' = 'bill_record';
-  constructor(readonly reports: ReportService) {}
+  constructor(readonly reports: DraftAccessService) {}
   protected authorize(ctx: WorkspaceTenantContext) {
     return this.reports.authorize(
       ctx,
-      this.family === 'agenda' ? AGENDA_ALERTS_FEATURE : REPORTS_UPDATES_FEATURE,
+      this.family === 'agenda' ? AGENDA_ALERTS_FEATURE : FOLDER_TRACKER_FEATURE,
     );
   }
   async list(ctx: WorkspaceTenantContext) {
@@ -336,9 +336,9 @@ export class RecordRuleService {
       }
     }
     const billIds = [...new Set(data.assignments.map((a) => a.billId))],
-      bills: ReportBill[] = [];
+      bills: PublishedBill[] = [];
     for (let i = 0; i < billIds.length; i += 250)
-      bills.push(...(await this.reports.folders.source.reportBills(billIds.slice(i, i + 250))));
+      bills.push(...(await this.reports.folders.source.publishedBills(billIds.slice(i, i + 250))));
     if (billIds.some((id) => !bills.some((b) => b.id === id)))
       issues.push('Canonical bill mapping incomplete');
     if (
@@ -418,9 +418,11 @@ export class RecordRuleService {
       }
       if (!ready.ready) continue;
       const billIds = [...new Set(ready.assignments.map((a) => a.billId))],
-        bills: ReportBill[] = [];
+        bills: PublishedBill[] = [];
       for (let i = 0; i < billIds.length; i += 250)
-        bills.push(...(await this.reports.folders.source.reportBills(billIds.slice(i, i + 250))));
+        bills.push(
+          ...(await this.reports.folders.source.publishedBills(billIds.slice(i, i + 250))),
+        );
       await prisma.withTenant(tenantId, async (tx) => {
         await tx.$queryRaw`SELECT id FROM intel_legiwatch_record_rule WHERE tenant_id=${tenantId} AND id=${rule.id} FOR UPDATE`;
         const current = await tx.legiWatchRecordRule.findFirst({
@@ -568,10 +570,9 @@ export class RecordRuleService {
                 continue;
               }
               const title = `${event.number}: ${event.kind === 'amendment' ? 'Published amendment' : 'Published action'}`;
-              const appBase = (process.env.REPORT_APP_ORIGIN ?? 'https://os.capiro.ai').replace(
-                /\/+$/,
-                '',
-              );
+              const appBase = (
+                process.env.LEGISLATIVE_APP_ORIGIN ?? 'https://os.capiro.ai'
+              ).replace(/\/+$/, '');
               const billLink = `${appBase}/bills/${encodeURIComponent(String(event.billId))}`;
               const folderLinks = scopedFolderIds
                 .map((id) => `${appBase}/legiwatch?tab=bills&folder=${encodeURIComponent(id)}`)

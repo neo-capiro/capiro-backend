@@ -8,8 +8,8 @@ import {
 import { randomUUID } from 'node:crypto';
 import type { Prisma } from '../../../generated/prisma-client/index.js';
 import type { WorkspaceTenantContext } from '../../auth/tenant-context.js';
-import { ReportService } from '../reports/report.service.js';
-import { object, json } from '../reports/report-domain.js';
+import { DraftAccessService } from '../delivery/draft-access.service.js';
+import { object, json } from '../delivery/delivery-domain.js';
 import { isFolderAdmin, hash } from '../folders/folder-tracker.service.js';
 import {
   KeywordSourceRepository,
@@ -41,7 +41,7 @@ export const requestKey = (value: unknown) => {
 @Injectable()
 export class KeywordRuleService {
   constructor(
-    readonly reports: ReportService,
+    readonly reports: DraftAccessService,
     readonly sources: KeywordSourceRepository,
   ) {}
   authorize(ctx: WorkspaceTenantContext) {

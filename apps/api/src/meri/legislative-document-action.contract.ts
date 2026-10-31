@@ -76,7 +76,7 @@ const briefingSelection = z
     folderId: uuid,
     jurisdiction: jurisdiction.optional(),
     sessionKey: z.string().min(1).max(120).optional(),
-    template: z.enum(['research_update', 'daily_legislative_brief', 'morning_news_brief']),
+    template: z.enum(['research_update', 'daily_legislative_brief']),
     title: z.string().min(1).max(200),
     analysis: z.string().min(1).max(30000),
     cutoff: z.string().min(1).max(40),

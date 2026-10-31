@@ -1,7 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import type { Prisma } from '../../../generated/prisma-client/index.js';
 import type { WorkspaceTenantContext } from '../../auth/tenant-context.js';
-import { object } from '../reports/report-domain.js';
+import { object } from '../delivery/delivery-domain.js';
 /** A previously reviewed report retains its exact text after source changes,
  * while its private research origin still requires current author/client access. */
 export async function assertResearchReportAccess(
