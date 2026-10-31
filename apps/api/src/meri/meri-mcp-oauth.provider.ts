@@ -190,18 +190,7 @@ export class DbOAuthClientProvider implements OAuthClientProvider {
       }
     }
     await this.opts.prisma.withTenant(this.opts.tenantId, async (tx) => {
-      // Take the server row lock first, in the same order as disconnect.
-      // An in-flight refresh must never recreate credentials after disconnect.
-      const active = await tx.clioMcpServer.updateMany({
-        where: {
-          id: this.opts.serverId,
-          tenantId: this.opts.tenantId,
-          enabled: true,
-          connectionStatus: { not: 'disconnected' },
-        },
-        data: { lastError: null, ...(!this.opts.managed ? { connectionStatus: 'connected' } : {}) },
-      });
-      if (active.count !== 1) throw new Error('This connection is no longer active.');
+      await this.lockCredentialWrite(tx);
       const saved = await tx.clioMcpOAuthCredential.updateMany({
         where: { serverId: this.opts.serverId },
         data: {
@@ -308,6 +297,28 @@ export class DbOAuthClientProvider implements OAuthClientProvider {
   }
 
   // ── persistence helpers ────────────────────────────────────────────────
+
+  private async lockCredentialWrite(tx: Prisma.TransactionClient): Promise<void> {
+    const where = {
+      id: this.opts.serverId,
+      tenantId: this.opts.tenantId,
+      enabled: true,
+      connectionStatus: { not: 'disconnected' },
+    };
+    const current = await tx.clioMcpServer.findFirst({ where, select: { updatedAt: true } });
+    if (!current) throw new Error('This connection is no longer active.');
+    // Lock the server before credentials, as disconnect does. The revision CAS
+    // refuses a lifecycle change between this read and the lock. Credential-only
+    // writes preserve readiness, discovery errors, and the lifecycle revision:
+    // otherwise a refresh invalidates its own discovery success/failure CAS.
+    // Explicit updatedAt prevents Prisma's automatic timestamp for this lock.
+    const active = await tx.clioMcpServer.updateMany({
+      where: { ...where, updatedAt: current.updatedAt },
+      data: { updatedAt: current.updatedAt },
+    });
+    if (active.count !== 1) throw new Error('This connection is no longer active.');
+  }
+
   private read() {
     return this.opts.prisma.withTenant(this.opts.tenantId, (tx) =>
       tx.clioMcpOAuthCredential.findUnique({ where: { serverId: this.opts.serverId } }),
@@ -319,16 +330,7 @@ export class DbOAuthClientProvider implements OAuthClientProvider {
       Partial<Prisma.ClioMcpOAuthCredentialUncheckedCreateInput>,
   ): Promise<void> {
     await this.opts.prisma.withTenant(this.opts.tenantId, async (tx) => {
-      const active = await tx.clioMcpServer.updateMany({
-        where: {
-          id: this.opts.serverId,
-          tenantId: this.opts.tenantId,
-          enabled: true,
-          connectionStatus: { not: 'disconnected' },
-        },
-        data: { updatedAt: new Date() },
-      });
-      if (active.count !== 1) throw new Error('This authorization is no longer active.');
+      await this.lockCredentialWrite(tx);
       await tx.clioMcpOAuthCredential.upsert({
         where: { serverId: this.opts.serverId },
         update: fields,
