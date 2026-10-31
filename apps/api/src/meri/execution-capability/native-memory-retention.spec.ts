@@ -74,6 +74,24 @@ describe('native memory execution uses the canonical retention transaction', () 
     expect(f.candidateWriteCount()).toBe(1);
   });
 
+  it.each([3, 4])(
+    'preserves a committed outcome when post-commit witness read %s fails',
+    async (read) => {
+      const f = fixture();
+      await f.approve();
+      f.state.witnessUnavailableRead = read;
+      await expect(f.execute()).rejects.toMatchObject({
+        response: { code: 'MEMORY_RETENTION_UNAVAILABLE' },
+      });
+      expect(f.candidates.size).toBe(1);
+      expect(f.submissions.size).toBe(1);
+      expect(f.receipts.size).toBe(1);
+      const recovered: any = await f.read();
+      expect(recovered.outcome.result.candidateId).toBe(f.proposal.proposalId);
+      expect(f.candidateWriteCount()).toBe(1);
+    },
+  );
+
   it.each([false, true])(
     'preserves the existing default transaction with userTransaction=%s',
     async (userTransaction) => {

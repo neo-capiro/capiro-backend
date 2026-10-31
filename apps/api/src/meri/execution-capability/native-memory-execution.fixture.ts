@@ -10,6 +10,17 @@ import * as retentionWitness from '../../memory/conversation-serving/witness.js'
 
 export const id = (n: number) => `00000000-0000-4000-8000-${n.toString().padStart(12, '0')}`;
 export const NOW = Date.parse('2026-10-28T12:00:00.000Z');
+// Jest's native structuredClone returns objects from another realm, which the
+// real closed-object parser correctly refuses. Preserve DB row shapes/dates in
+// this suite's realm when simulating rollback and subsequent receipt recovery.
+function copyRow(value: any): any {
+  if (value instanceof Date) return new Date(value.getTime());
+  if (Array.isArray(value)) return value.map(copyRow);
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, copyRow(entry)]));
+  }
+  return value;
+}
 export function nativeMemoryExecutionFixture(
   scope = 'personal',
   general = false,
@@ -29,6 +40,7 @@ export function nativeMemoryExecutionFixture(
     reads: 0,
     witness: { sequence: 0, entrySha256: null } as retentionWitness.MemoryRetentionWitness | null,
     witnessReads: 0,
+    witnessUnavailableRead: 0,
     retentionUsed: false,
     transactionWitness: null as retentionWitness.MemoryRetentionWitness | null,
     databaseWitnessMismatch: false,
@@ -40,6 +52,7 @@ export function nativeMemoryExecutionFixture(
   };
   jest.spyOn(retentionWitness, 'readMemoryRetentionWitness').mockImplementation(async () => {
     state.witnessReads++;
+    if (state.witnessReads === state.witnessUnavailableRead) return null;
     return state.witness === null ? null : { ...state.witness };
   });
   const assertRetainedCandidate = () => {
@@ -233,7 +246,7 @@ export function nativeMemoryExecutionFixture(
     state.transactionWitness = null;
     state.retentionUsed = false;
     const maps = [candidates, submissions, receipts, decisions],
-      before = maps.map((m) => structuredClone(m));
+      before = maps.map((m) => new Map([...m].map(([key, row]) => [key, copyRow(row)])));
     try {
       return await fn(tx);
     } catch (e) {
