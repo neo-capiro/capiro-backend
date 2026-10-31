@@ -20,8 +20,11 @@ export class PrismaTransactionDeadlineError extends Error {
   constructor() { super('Prisma transaction deadline exceeded or insufficient admission budget'); }
 }
 
-function deadlineBudget(options: PrismaTransactionOptions) {
-  const deadline = options.deadline!;
+/** Snapshot one clock origin for an entire operation, including retries. The
+ * derived clock never renews elapsed time when consumed by a later transaction.
+ * Neither the supplied object nor its properties are read again after capture.
+ */
+export function capturePrismaDeadline(deadline: PrismaTransactionDeadline) {
   if (!deadline || !Number.isSafeInteger(deadline.at) || deadline.at < 0
     || deadline.at > 8640000000000000 || (deadline.now !== undefined && typeof deadline.now !== 'function')) {
     throw new PrismaTransactionDeadlineError();
@@ -30,8 +33,6 @@ function deadlineBudget(options: PrismaTransactionOptions) {
   const now = deadline.now ?? Date.now;
   const start = now(), monotonicStart = performance.now();
   let observedElapsed = 0;
-  let workStart: number | undefined;
-  let transactionTimeout: number | undefined;
   const remaining = () => {
     const wall = now(), elapsed = performance.now() - monotonicStart;
     if (!Number.isSafeInteger(start) || start < 0 || !Number.isSafeInteger(wall)
@@ -39,9 +40,23 @@ function deadlineBudget(options: PrismaTransactionOptions) {
       throw new PrismaTransactionDeadlineError();
     }
     observedElapsed = Math.max(observedElapsed, wall - start, elapsed);
-    const absoluteRemaining = deadlineAt - start - observedElapsed;
+    const ms = Math.floor(deadlineAt - start - observedElapsed);
+    if (ms < 1) throw new PrismaTransactionDeadlineError();
+    return ms;
+  };
+  return {
+    remaining,
+    deadline: Object.freeze({ at: deadlineAt, now: () => deadlineAt - remaining() }),
+  };
+}
+
+function deadlineBudget(options: PrismaTransactionOptions) {
+  const absolute = capturePrismaDeadline(options.deadline!);
+  let workStart: number | undefined;
+  let transactionTimeout: number | undefined;
+  const remaining = () => {
     const workRemaining = workStart === undefined ? Infinity : transactionTimeout! - (performance.now() - workStart);
-    const ms = Math.floor(Math.min(absoluteRemaining, workRemaining));
+    const ms = Math.floor(Math.min(absolute.remaining(), workRemaining));
     if (ms < 1) throw new PrismaTransactionDeadlineError();
     return ms;
   };

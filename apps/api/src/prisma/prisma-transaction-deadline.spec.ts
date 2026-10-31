@@ -11,6 +11,7 @@ const deadline = (ms: number) => ({ at: START + ms, now: Date.now });
 function fixture(settings: {
   acquire?: number; setup?: number; context?: number; query?: number; cleanup?: Promise<void>;
   ignoreAcquisitionBound?: boolean;
+  ignoreExecutionBound?: boolean;
 } = {}) {
   const events: Array<{ sql: string; values: unknown[]; at: number }> = [];
   let transactionOptions: { maxWait?: number; timeout?: number; isolationLevel?: string } | undefined;
@@ -24,7 +25,7 @@ function fixture(settings: {
       const duration = sql.includes('statement_timeout') ? settings.setup ?? 0
         : sql.includes('app.') ? settings.context ?? 0 : settings.query ?? 0;
       const left = (transactionOptions?.timeout ?? 5000) - (Date.now() - acquiredAt);
-      if (duration >= left) {
+      if (duration >= left && !settings.ignoreExecutionBound) {
         await delay(left);
         throw Object.assign(new Error('modeled native transaction timeout'), { code: 'P2028' });
       }
@@ -177,4 +178,104 @@ it('preserves a setup failure before deadline and never invokes the callback', a
     { deadline: deadline(100) })).rejects.toBe(failure);
   expect(f.work).not.toHaveBeenCalled();
   expect(f.state().settled).toBe(true);
+});
+
+describe('one deadline across tenant retries and backoff', () => {
+  function retryFixture(settings: Parameters<typeof fixture>[0] = {}) {
+    const f = fixture(settings);
+    Object.assign(f.owner, {
+      withTenant: PrismaService.prototype.withTenant,
+      logger: { warn: jest.fn() },
+    });
+    jest.spyOn(Math, 'random').mockReturnValue(0);
+    return f;
+  }
+
+  it.each(['stalled', 'backward-between-attempts'] as const)(
+    'does not admit a second callback at105ms under a %s clock', async mode => {
+      // Exact reviewer timeline:40ms context,25ms backoff,40ms second context.
+      // Even without modeled native cancellation, the original absolute guard
+      // must reject before admitting the second callback.
+      const f = retryFixture({ context: 40, ignoreExecutionBound: true });
+      let wall = START;
+      const callbackTimes: number[] = [];
+      const supplied = Object.freeze({ at: START + 100, now: () => wall });
+      const request = PrismaService.prototype.withTenantRetry.call(f.owner, 'A', async () => {
+        callbackTimes.push(performance.now());
+        if (callbackTimes.length === 1) {
+          if (mode === 'backward-between-attempts') setTimeout(() => { wall = START - 1000; }, 1);
+          throw new Error('synthetic deadlock detected');
+        }
+        return 'late-success';
+      }, Object.freeze({ retries: 1, deadline: supplied })).catch(error => error);
+      await jest.advanceTimersByTimeAsync(105);
+      expect(await request).toBeInstanceOf(PrismaTransactionDeadlineError);
+      expect(callbackTimes).toEqual([40]);
+      expect(f.transaction.mock.calls[0]?.[1]).toEqual({ maxWait: 50, timeout: 50 });
+      if (mode === 'stalled') {
+        expect(f.transaction.mock.calls[1]?.[1]).toEqual({ maxWait: 17, timeout: 18 });
+      } else {
+        expect(f.transaction).toHaveBeenCalledTimes(1);
+      }
+      expect(supplied.at).toBe(START + 100);
+    },
+  );
+
+  it('shrinks the second engine allowance to35ms and settles at83ms with cancellation', async () => {
+    const f = retryFixture({ context: 40 });
+    const callback = jest.fn(async () => { throw new Error('synthetic deadlock detected'); });
+    const request = PrismaService.prototype.withTenantRetry.call(f.owner, 'A', callback,
+      { retries: 1, deadline: { at: START + 100, now: () => START } }).catch(error => error);
+    await jest.advanceTimersByTimeAsync(83);
+    expect(await request).toBeInstanceOf(PrismaTransactionDeadlineError);
+    expect(callback).toHaveBeenCalledTimes(1);
+    expect(f.transaction.mock.calls.map(call => call[1])).toEqual([
+      { maxWait: 50, timeout: 50 }, { maxWait: 17, timeout: 18 },
+    ]);
+    expect(f.state().settled).toBe(true);
+  });
+
+  it('bounds backoff by the original remaining time and opens no expired retry', async () => {
+    const f = retryFixture({ context: 10 });
+    const request = PrismaService.prototype.withTenantRetry.call(f.owner, 'A', async () => {
+      throw new Error('synthetic deadlock detected');
+    }, { retries: 1, deadline: { at: START + 30, now: () => START } }).catch(error => error);
+    await jest.advanceTimersByTimeAsync(30);
+    expect(await request).toBeInstanceOf(PrismaTransactionDeadlineError);
+    expect(f.transaction).toHaveBeenCalledTimes(1);
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  it('ignores caller deadline replacement during retry while preserving caller objects', async () => {
+    const f = retryFixture({ context: 40 });
+    const supplied = { at: START + 100, now: () => START };
+    const options = { retries: 1, deadline: supplied, timeoutMs: 100 };
+    const callback = jest.fn(async () => {
+      supplied.at = START + 10000;
+      supplied.now = () => START - 1000;
+      options.deadline = { at: START + 20000, now: () => START };
+      options.timeoutMs = 20000;
+      throw new Error('synthetic deadlock detected');
+    });
+    const request = PrismaService.prototype.withTenantRetry.call(f.owner, 'A', callback, options).catch(error => error);
+    await jest.advanceTimersByTimeAsync(83);
+    expect(await request).toBeInstanceOf(PrismaTransactionDeadlineError);
+    expect(callback).toHaveBeenCalledTimes(1);
+    expect(f.transaction.mock.calls[1]?.[1]).toEqual({ maxWait: 17, timeout: 18 });
+    expect(options.deadline.at).toBe(START + 20000);
+    expect(supplied.at).toBe(START + 10000);
+  });
+
+  it('preserves ordinary retries, backoff and options without a deadline', async () => {
+    const f = retryFixture({ context: 40 });
+    const callback = jest.fn(async () => 'ok').mockRejectedValueOnce(new Error('synthetic deadlock detected'));
+    const request = PrismaService.prototype.withTenantRetry.call(f.owner, 'A', callback,
+      { retries: 1, timeoutMs: 500, isolationLevel: 'Serializable' });
+    await jest.advanceTimersByTimeAsync(105);
+    expect(await request).toBe('ok');
+    expect(callback).toHaveBeenCalledTimes(2);
+    expect(f.transaction.mock.calls.map(call => call[1])).toEqual([
+      { timeout: 500, isolationLevel: 'Serializable' }, { timeout: 500, isolationLevel: 'Serializable' },
+    ]);
+  });
 });

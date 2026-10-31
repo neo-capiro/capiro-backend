@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
-import { runPrismaTransaction, type PrismaTransactionOptions } from './prisma-transaction-deadline.js';
+import { capturePrismaDeadline, runPrismaTransaction, type PrismaTransactionOptions } from './prisma-transaction-deadline.js';
 
 /**
  * The tenant scope baked into a per-call query-extended client so its query
@@ -212,18 +212,27 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     opts?: Omit<PrismaTransactionOptions, 'readOnly'> & { retries?: number },
   ): Promise<T> {
     const maxRetries = opts?.retries ?? 3;
+    // One immutable wall/monotonic origin covers attempts AND backoff. A fresh
+    // transaction may reserve a smaller allowance, but cannot renew this clock.
+    const deadline = opts?.deadline === undefined ? undefined : capturePrismaDeadline(opts.deadline);
+    const retryOptions = deadline ? { ...opts, deadline: deadline.deadline } : opts;
     for (let attempt = 0; ; attempt += 1) {
       try {
-        return await this.withTenant(tenantId, fn, opts);
+        deadline?.remaining();
+        const value = await this.withTenant(tenantId, fn, retryOptions);
+        deadline?.remaining();
+        return value;
       } catch (err) {
         if (attempt >= maxRetries || !isRetryableTransactionError(err)) throw err;
         // Exponential backoff with jitter so the two deadlock victims don't
         // line up and collide again on the retry.
         const backoffMs = Math.min(250, 25 * 2 ** attempt) + Math.floor(Math.random() * 25);
+        const waitMs = deadline ? Math.min(backoffMs, deadline.remaining()) : backoffMs;
         this.logger.warn(
-          `Retryable transaction conflict (attempt ${attempt + 1}/${maxRetries + 1}); retrying in ${backoffMs}ms`,
+          `Retryable transaction conflict (attempt ${attempt + 1}/${maxRetries + 1}); retrying in ${waitMs}ms`,
         );
-        await new Promise((resolve) => setTimeout(resolve, backoffMs));
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+        deadline?.remaining();
       }
     }
   }
