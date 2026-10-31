@@ -391,6 +391,7 @@ case "${1:-serve}" in
   sync-federal-legislative-evidence) shift; exec ./node_modules/.bin/tsx scripts/sync-federal-legislative-evidence.ts "$@" ;;
   drain-federal-evidence-outbox) shift; exec ./node_modules/.bin/tsx scripts/drain-federal-evidence-outbox.ts "$@" ;;
   sync-program-acquisition-continuity) shift; exec ./node_modules/.bin/tsx scripts/sync-program-acquisition-continuity.ts "$@" ;;
+  ingest-contract-award-transactions) shift; exec ./node_modules/.bin/tsx scripts/ingest-contract-award-transactions-v1.ts "$@" ;;
   sync-congress-members)  exec ./node_modules/.bin/tsx scripts/sync-congress-members.ts ;;
   sync-cbo)               exec ./node_modules/.bin/tsx scripts/sync-cbo.ts ;;
   sync-committees)        exec ./node_modules/.bin/tsx scripts/sync-committees.ts ;;
