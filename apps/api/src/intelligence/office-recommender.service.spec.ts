@@ -1,4 +1,21 @@
 import { OfficeRecommenderService } from './office-recommender.service.js';
+import { DirectoryContactMapper } from '../directory/directory-contact-mapper.js';
+
+function mappedHouse(state: string, districtNo: number | null) {
+  const contacts = new DirectoryContactMapper().buildContacts(
+    [
+      {
+        member: { member_id: 901, profile: { first_name: 'Synthetic', last_name: 'Member' } },
+        member_offices: [
+          { status: 'in office', office_type_id: 'HM', state_id: state, district_no: districtNo },
+        ],
+      },
+    ],
+    [],
+  );
+  if (!contacts[0]) throw new Error('Expected the canonical mapper to emit a contact');
+  return contacts[0];
+}
 
 const member = (
   id: string,
@@ -79,6 +96,78 @@ test('bare zero and zero-padded at-large districts resolve to the same district'
     [member('at-large', 'House', 'AK', 'AK-0')],
   );
   expect(rows[0]?.tags).toEqual(['district']);
+});
+
+describe.each(['AK', 'DE', 'ND', 'SD', 'VT', 'WY', 'DC', 'PR', 'GU', 'VI', 'AS', 'MP'])(
+  'canonical single-seat directory member %s',
+  (state) => {
+    test.each([0, null, 1])(
+      'mapper district %s matches a valid at-large facility',
+      async (districtNo) => {
+        const contact = mappedHouse(state, districtNo);
+        expect(contact.district).toBe(districtNo === 1 ? `${state}-1` : state);
+        const rows = await recommendations([{ state, congressionalDistrict: '00' }], [contact]);
+        expect(rows).toHaveLength(1);
+        expect(rows[0]).toMatchObject({ tags: ['district'], score: 0.48 });
+      },
+    );
+  },
+);
+
+test('canonical at-large House member retains committee and district credit', async () => {
+  const contact = mappedHouse('AK', null);
+  contact.committees = ['Armed Services'];
+  const rows = await recommendations(
+    [{ state: 'AK', congressionalDistrict: '00' }],
+    [contact],
+    true,
+  );
+  expect(rows[0]).toMatchObject({ tags: ['committee', 'district'], billCount: 3 });
+  expect(rows[0]?.score).toBeCloseTo(0.88);
+});
+
+test.each(['0', '00', '1', '01', 'AK-1'])(
+  'valid facility single-seat form %s shares canonical at-large key',
+  async (district) => {
+    const rows = await recommendations(
+      [{ state: 'AK', congressionalDistrict: district }],
+      [mappedHouse('AK', 1)],
+    );
+    expect(rows[0]?.tags).toEqual(['district']);
+  },
+);
+
+test.each([null, '', 'AK', 'unknown', '2', '98', 'DE-0'])(
+  'at-large context does not invent a resolved facility for %s',
+  async (district) => {
+    expect(
+      await recommendations(
+        [{ state: 'AK', congressionalDistrict: district }],
+        [mappedHouse('AK', null)],
+      ),
+    ).toEqual([]);
+  },
+);
+
+test.each([null, '', 'unknown', '2', '98', 'DE-0'])(
+  'at-large context does not repair a malformed/absent member district %s',
+  async (district) => {
+    expect(
+      await recommendations(
+        [{ state: 'AK', congressionalDistrict: '00' }],
+        [member('house', 'House', 'AK', district)],
+      ),
+    ).toEqual([]);
+  },
+);
+
+test('canonical multi-seat mapper missing district is not guessed from state', async () => {
+  expect(
+    await recommendations(
+      [{ state: 'TX', congressionalDistrict: '05' }],
+      [mappedHouse('TX', null)],
+    ),
+  ).toEqual([]);
 });
 test.each(['unknown', '5.1', '-1', ''])(
   'malformed district %s is not constituent evidence',

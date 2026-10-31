@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { DirectoryService } from '../directory/directory.service.js';
+import { toFacilityDistrictCode } from '../common/district-code.util.js';
+import { isValidDistrictForState, US_HOUSE_SEATS } from '../common/us-congressional-districts.js';
 
 /**
  * Office Recommender (v2) — replaces the legacy sponsor/FEC/ex-staffer scorer.
@@ -62,11 +64,24 @@ interface RecommenderInput {
 const MAX_RESULTS = 12;
 
 /** Bare/zero-padded numeric districts and same-state directory prefixes share one key. */
-function houseDistrictKey(state: string, raw: string | null | undefined): string | null {
+function houseDistrictKey(
+  state: string,
+  raw: string | null | undefined,
+  directoryMember = false,
+): string | null {
   const value = (raw ?? '').trim().toUpperCase();
+  // The canonical House mapper emits the bare state for a sole seat reported
+  // as 0/null. Accept that observed member shape only with known apportionment;
+  // a bare/absent facility district or an unknown multi-seat member stays unresolved.
+  if (directoryMember && value === state && US_HOUSE_SEATS[state] === 1) return `${state}-0`;
   const match = /^(?:([A-Z]{2})-)?(\d{1,2})$/.exec(value);
   if (!match || (match[1] && match[1] !== state)) return null;
-  return `${state}-${Number(match[2])}`;
+  const district = match[2]!;
+  if (!isValidDistrictForState(state, district.padStart(2, '0'))) return null;
+  // Reuse the existing single-seat 1 -> facility 00 convention after strict
+  // shape/state validation; do not let that converter repair arbitrary input.
+  const code = toFacilityDistrictCode(state, district);
+  return code === null ? null : `${state}-${Number(code)}`;
 }
 
 @Injectable()
@@ -227,7 +242,7 @@ export class OfficeRecommenderService {
           districtHit = facilityStates.has(st);
         } else {
           // A state proves Senate constituency, not which House office represents a facility.
-          const key = houseDistrictKey(st, m.district);
+          const key = houseDistrictKey(st, m.district, true);
           districtHit = key !== null && facilityDistricts.has(key);
         }
       }
