@@ -109,6 +109,20 @@ describe('artifact current authority (capiro.meri-artifact-authority.v1)', () =>
       clientVisible: async () => { throw new ForbiddenException(); } })).rejects.toThrow(ForbiddenException);
   });
 
+  it.each([
+    ['office-import', 'artifact.generate'],
+    ['office-edit', 'artifact.revise'],
+  ] as const)('admits %s only through existing current artifact permissions and client walls', async (intent, operation) => {
+    const request = parseApplicationAuthorityArtifactBody({ ...createCase.request, intent });
+    expect(ARTIFACT_INTENT_OPERATIONS[intent]).toEqual([operation]);
+    const receipt = await readApplicationAuthorityArtifact(request, 'standard_user', ports().ports);
+    expect(receipt.intent).toBe(intent);
+    expect(receipt.operations).toContain(operation);
+    await expect(readApplicationAuthorityArtifact(request, 'client_portal_user', ports().ports)).rejects.toThrow();
+    await expect(readApplicationAuthorityArtifact(request, 'standard_user', { ...ports().ports,
+      clientVisible: async () => { throw new ForbiddenException(); } })).rejects.toThrow(ForbiddenException);
+  });
+
   it("ports Meri's receipt check faithfully: it accepts each vector receipt and refuses all 18 vector refusals", () => {
     for (const c of vector.cases) expect(meriAccepts(c.receipt, c.request)).toBe(true);
     expect(vector.receiptRefusals).toHaveLength(18);
@@ -146,7 +160,7 @@ describe('artifact current authority (capiro.meri-artifact-authority.v1)', () =>
     }
   });
 
-  it.each(['history', 'list', 'results'])('admits %s only through current private-conversation read authority', async intent => {
+  it.each(['history', 'list', 'results'] as const)('admits %s only through current private-conversation read authority', async intent => {
     const request = parseApplicationAuthorityArtifactBody({ ...createCase.request, intent });
     const f = ports();
     const receipt = await readApplicationAuthorityArtifact(request, 'standard_user', f.ports);
