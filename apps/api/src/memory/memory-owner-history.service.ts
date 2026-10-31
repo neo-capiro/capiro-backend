@@ -120,6 +120,19 @@ export function assertLineage(rows: HistoryRow[]): void {
     )
       throw unavailable();
   }
+  // SQL can stop at the traversal cap before revisiting a cycle's first row.
+  // Validate the returned graph independently, including equal-time edges.
+  const complete = new Set<string>();
+  for (const row of rows) {
+    const path = new Set<string>();
+    let next: HistoryRow | undefined = row;
+    while (next && !complete.has(next.id)) {
+      if (path.has(next.id)) throw unavailable();
+      path.add(next.id);
+      next = next.predecessor ? byId.get(next.predecessor) : undefined;
+    }
+    for (const id of path) complete.add(id);
+  }
 }
 export function historyEntry(row: HistoryRow): OwnerHistoryEntry {
   const entry: OwnerHistoryEntry = {

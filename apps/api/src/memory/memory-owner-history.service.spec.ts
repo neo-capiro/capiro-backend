@@ -63,6 +63,36 @@ function service(results: unknown[]) {
   return { read: new MemoryOwnerHistoryService(prisma), queries };
 }
 describe('owner history', () => {
+  function chain(size: number): HistoryRow[] {
+    const ids = Array.from(
+      { length: size },
+      (_, i) => `11111111-1111-4111-8111-${String(i).padStart(12, '0')}`,
+    );
+    return ids.map((id, i) => ({
+      ...row,
+      id,
+      predecessor: ids[i + 1] ?? null,
+      current: i === 0,
+      cycle: false,
+    }));
+  }
+  it.each([999, 1000])('accepts a complete equal-timestamp chain of %i nodes', (size) => {
+    expect(() => assertLineage(chain(size))).not.toThrow();
+  });
+  it.each([0, 500, 999])(
+    'rejects an exact-cap cycle returning to node %i without a SQL cycle flag',
+    (index) => {
+      const rows = chain(1000);
+      rows[999]!.predecessor = rows[index]!.id;
+      expect(() => assertLineage(rows)).toThrow();
+      expect(() => assertLineage([...rows].reverse())).toThrow();
+    },
+  );
+  it('rejects truncation at the cap and an over-cap complete chain', () => {
+    const rows = chain(1001);
+    expect(() => assertLineage(rows.slice(0, 1000))).toThrow();
+    expect(() => assertLineage(rows)).toThrow();
+  });
   it('returns retained canonical content and exact timestamps', async () => {
     const { read } = service([[row], [row], [row]]);
     const page = await read.list(ctx, id);
