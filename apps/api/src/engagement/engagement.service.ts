@@ -110,6 +110,12 @@ import { boundDebriefContext } from './meeting-debrief-context.js';
 import { MEETING_DEBRIEF_POLICY } from './meeting-prep-policy.js';
 import { currentMeetingGovernedContext } from './meeting-context-runtime.js';
 import { assertSavedMeetingPrepAccess,filterResearchPortfolioMeetingPreps } from './meeting-prep-source-access.js';
+import {
+  readClassicOutreachRecord,
+  assertOutreachPrepSourcesReadable as assertClassicPrepSourcesReadable,
+  assertOutreachClientsReadable as assertClassicClientsReadable,
+  outreachClientReadable as classicClientReadable,
+} from './classic-outreach-authority.js';
 import {RESEARCH_PORTFOLIO_TASK_SOURCE,assertOwnedResearchPortfolioTask} from './research-portfolio-task-access.js';
 import {authorizeResearchPortfolioArtifact} from '../research-portfolios/research-portfolio-artifact-authority.js';
 import { meetingPrepPdfSections, renderMeetingPrepPdf } from './meeting-prep-pdf.js';
@@ -2797,41 +2803,13 @@ export class EngagementService {
       const nextCursor = selected.length > limit && last
         ? { id: last.id }
         : null;
-      const currentClients = await this.outreachReadableClientIds(tx, ctx, scanned.flatMap((row) => [
-        row.clientId,
-        row.meeting?.clientId ?? null,
-        ...(row.meeting?.preps.map((prep) => prep.clientId) ?? []),
-        ...(row.meeting?.debriefs.map((debrief) => debrief.clientId) ?? []),
-      ]));
       const visible: typeof selected = [];
       for (const row of scanned) {
-        // Recheck after the row read. The body can derive from the latest
-        // linked prep/debrief, so an inaccessible child hides the whole card.
-        if (!outreachClientInSet(currentClients, row.clientId) ||
-            !outreachClientInSet(currentClients, row.meeting?.clientId ?? null)) continue;
-        if (!row.meeting) {
-          visible.push(row);
-          continue;
+        try {
+          visible.push(await readClassicOutreachRecord(tx, ctx, row.id, async () => row, Boolean(query.deleted)));
+        } catch (error) {
+          if (!(error instanceof ForbiddenException || error instanceof NotFoundException)) throw error;
         }
-        let childrenReadable = true;
-        for (const prep of row.meeting.preps) {
-          if (!outreachClientInSet(currentClients, prep.clientId)) {
-            childrenReadable = false;
-            break;
-          }
-          try {
-            await assertSavedMeetingPrepAccess(tx, ctx, prep.generatedFrom);
-          } catch (error) {
-            if (error instanceof ForbiddenException || error instanceof NotFoundException) {
-              childrenReadable = false;
-              break;
-            }
-            throw error;
-          }
-        }
-        if (!childrenReadable || row.meeting.debriefs.some((debrief) =>
-          !outreachClientInSet(currentClients, debrief.clientId))) continue;
-        visible.push(row);
       }
       return { items: visible, nextCursor };
     }, { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS });
@@ -2861,29 +2839,8 @@ export class EngagementService {
         ...ownOutreachRecordWhere(ctx.userId),
         deletedAt: null,
       };
-      // The first read carries only association ids. A meeting can name a
-      // client even when the outreach record does not, and its latest prep or
-      // debrief can name a different client again. Check every association
-      // before loading their bodies and attendee/client projections.
-      const association = await tx.outreachRecord.findFirst({
-        where,
-        select: outreachAssociationSelect(),
-      });
-      if (!association) throw new NotFoundException('Outreach record not found');
-      await this.assertOutreachClientsReadable(
-        tx, ctx, outreachAssociationClientIds(association), 'Outreach record not found',
-      );
-      await this.assertOutreachPrepSourcesReadable(tx, ctx, association);
-
-      const row = await tx.outreachRecord.findFirst({ where, include: outreachInclude() });
-      if (!row || outreachAssociationKey(row) !== outreachAssociationKey(association))
-        throw new NotFoundException('Outreach record not found');
-      // A grant or association may change while the include is loading.
-      await this.assertOutreachClientsReadable(
-        tx, ctx, outreachAssociationClientIds(row), 'Outreach record not found',
-      );
-      await this.assertOutreachPrepSourcesReadable(tx, ctx, row);
-      return row;
+      return readClassicOutreachRecord(tx, ctx, id,
+        () => tx.outreachRecord.findFirst({ where, include: outreachInclude() }));
     }, { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS });
   }
 
@@ -2893,15 +2850,7 @@ export class EngagementService {
     association: OutreachAssociationRow,
     notFoundMessage = 'Outreach record not found',
   ): Promise<void> {
-    for (const prep of association.meeting?.preps ?? []) {
-      try {
-        await assertSavedMeetingPrepAccess(tx, ctx, prep.generatedFrom);
-      } catch (error) {
-        if (error instanceof ForbiddenException || error instanceof NotFoundException)
-          throw new NotFoundException(notFoundMessage);
-        throw error;
-      }
-    }
+    await assertClassicPrepSourcesReadable(tx, ctx, association, notFoundMessage);
   }
 
   private async assertOutreachClientsReadable(
@@ -2910,10 +2859,7 @@ export class EngagementService {
     clientIds: readonly string[],
     notFoundMessage = 'Client not found',
   ): Promise<void> {
-    for (const clientId of clientIds) {
-      if (!(await this.outreachClientReadable(tx, ctx, clientId)))
-        throw new NotFoundException(notFoundMessage);
-    }
+    await assertClassicClientsReadable(tx, ctx, clientIds, notFoundMessage);
   }
 
   private async outreachClientReadable(
@@ -2921,12 +2867,7 @@ export class EngagementService {
     ctx: TenantContext,
     clientId: string | null,
   ): Promise<boolean> {
-    if (clientId === null) return true;
-    const client = await tx.client.findFirst({
-      where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
-      select: { id: true },
-    });
-    return Boolean(client) && clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId);
+    return classicClientReadable(tx, ctx, clientId);
   }
 
   private async outreachReadableClientIds(
