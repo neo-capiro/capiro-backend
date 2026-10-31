@@ -6869,6 +6869,41 @@ export class EngagementService {
     return created;
   }
 
+  /**
+   * The stored prep through the documented detail read (H2).
+   *
+   * Ownership alone is not current authorization. This composes the read through the
+   * same canonical seams the meeting read path uses: a live membership
+   * (`currentMeetingActor`), the meeting's owner/connection boundary
+   * (`ensureOwnMeeting`), the parent client's wall and archival state
+   * (`assertMeetingClient`) and the saved prep's own source access. The returned row
+   * is then bound to the parent that was actually admitted, so a row that moved
+   * between the awaited checks is not returned under the old grant.
+   */
+  async readMeetingPrep(ctx: TenantContext, prepId: string) {
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      ctx = await currentMeetingActor(tx, ctx);
+      const prep = await tx.meetingPrep.findFirst({
+        where: { id: prepId, tenantId: ctx.tenantId },
+        select: { id: true, meetingId: true, generatedFrom: true },
+      });
+      if (!prep) throw new NotFoundException('Meeting prep not found');
+      const meeting = await this.ensureOwnMeeting(tx, ctx, prep.meetingId);
+      await assertMeetingClient(tx, ctx, meeting.clientId);
+      await assertSavedMeetingPrepAccess(tx, ctx, prep.generatedFrom);
+      const row = await tx.meetingPrep.findFirst({
+        where: { id: prepId, tenantId: ctx.tenantId },
+      });
+      if (!row) throw new NotFoundException('Meeting prep not found');
+      if (
+        row.meetingId !== meeting.id ||
+        (row.clientId !== null && row.clientId !== meeting.clientId)
+      )
+        throw new NotFoundException('Meeting prep not found');
+      return projectMeetingPrepListItems(row);
+    });
+  }
+
   async updateMeetingPrep(ctx: TenantContext, prepId: string, input: UpdateMeetingPrepInput) {
     const updated = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const prep = await tx.meetingPrep.findFirst({
