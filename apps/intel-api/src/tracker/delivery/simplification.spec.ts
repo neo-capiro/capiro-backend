@@ -44,7 +44,7 @@ const routes = (controller: { prototype: object }) =>
 describe('retained delivery and research routes', () => {
   it('mounts neutral owners without a report library or subscription route', () => {
     expect(Reflect.getMetadata(PATH_METADATA, BriefingRolloutController)).toBe('legiwatch/reports');
-    expect(routes(BriefingRolloutController)).toEqual(['/']);
+    expect(routes(BriefingRolloutController)).toEqual(['/', 'history']);
     expect(Reflect.getMetadata(PATH_METADATA, DeliveryController)).toEqual([
       'legiwatch/deliveries',
       'legiwatch/reports',
