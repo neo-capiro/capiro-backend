@@ -8,6 +8,7 @@ import { EditorialService } from './editorial.service.js';
 import { currentEditorialConfiguration } from './editorial-domain.js';
 import { runEditorialWork } from './editorial-runtime.js';
 import { hash } from '../folders/folder-tracker.service.js';
+import { digest } from '../delivery/delivery-domain.js';
 
 const ctx = { tenantId: 'synthetic-tenant', clerkUserId: 'synthetic-owner', role: null };
 const folder = { id: 'synthetic-folder', clientId: null, archived: false };
@@ -62,6 +63,12 @@ function harness() {
     },
   };
   const reports = {
+    get: jest.fn(async () => ({
+      id: 'legacy-report',
+      version: 2,
+      folderIds: [folder.id],
+      archived: false,
+    })),
     authorize: jest.fn(),
     folders: {
       withActor: jest.fn(async (_ctx: unknown, fn: (tx: unknown) => unknown) => fn(tx)),
@@ -184,14 +191,132 @@ test('standalone preview uses exact selected output without report-library autho
   expect(preview).not.toHaveProperty('definitionVersion');
   expect(preview.rendered.text).toBe('Exact edited output');
   expect(evidence.context).toHaveBeenCalledWith(expect.anything(), ctx, scope, true);
-  await expect(
-    service.preview(ctx, {
-      selectionId: 'selection-one',
-      audience: 'internal',
-      reportId: 'removed-picker',
-    }),
-  ).rejects.toThrow('STANDALONE_BRIEFING_SELECTION_REQUIRED');
+  expect(preview.approvalHash).toBe(
+    digest({ audience: preview.audience, review: preview.review, rendered: preview.rendered }),
+  );
 });
+
+test('cached briefing preview preserves the old hash and freezes/replays its validated definition', async () => {
+  const { service, reports, tx } = harness();
+  const input = { selectionId: 'selection-one', audience: 'internal', reportId: 'legacy-report' };
+  const preview = await service.preview(ctx, input);
+  expect(preview).toMatchObject({ reportId: 'legacy-report', definitionVersion: 2 });
+  expect(preview.approvalHash).toBe(
+    digest({
+      reportId: preview.reportId,
+      version: 2,
+      audience: preview.audience,
+      review: preview.review,
+      rendered: preview.rendered,
+    }),
+  );
+  const approved = { ...input, approvalHash: preview.approvalHash };
+  expect(await service.approve(ctx, approved)).toMatchObject({
+    runId: 'immutable-run',
+    replayed: false,
+  });
+  expect(await service.approve(ctx, approved)).toMatchObject({
+    runId: 'immutable-run',
+    replayed: true,
+  });
+  expect(reports.get).toHaveBeenCalledWith(tx, ctx, 'legacy-report', true);
+  expect(tx.legiWatchReport.create).not.toHaveBeenCalled();
+  expect(tx.legiWatchReportRun.create).toHaveBeenCalledTimes(1);
+  const lockIndex = tx.$queryRaw.mock.calls.findIndex(
+    ([sql]) =>
+      sql.join('?').includes('FROM intel_legiwatch_report WHERE') &&
+      sql.join('?').includes('FOR SHARE'),
+  );
+  expect(lockIndex).toBeGreaterThanOrEqual(0);
+  expect(tx.$queryRaw.mock.calls[lockIndex]).toEqual(
+    expect.arrayContaining([ctx.tenantId, 'legacy-report']),
+  );
+  expect(tx.$queryRaw.mock.invocationCallOrder[lockIndex]).toBeLessThan(
+    reports.get.mock.invocationCallOrder[2]!,
+  );
+  expect(reports.get.mock.invocationCallOrder[2]).toBeLessThan(
+    tx.legiWatchReportRun.create.mock.invocationCallOrder[0]!,
+  );
+  expect(tx.legiWatchReportRun.create).toHaveBeenCalledWith({
+    data: expect.objectContaining({ reportId: 'legacy-report', definitionVersion: 2 }),
+  });
+});
+
+test('cached approval rejects definition changes before and within approval', async () => {
+  const { service, reports, tx } = harness();
+  const input = { selectionId: 'selection-one', audience: 'internal', reportId: 'legacy-report' };
+  const preview = await service.preview(ctx, input);
+  const changed = { id: 'legacy-report', version: 3, folderIds: [folder.id], archived: false };
+  reports.get.mockResolvedValueOnce(changed);
+  await expect(
+    service.approve(ctx, { ...input, approvalHash: preview.approvalHash }),
+  ).rejects.toThrow('BRIEFING_PREVIEW_CHANGED');
+  reports.get.mockResolvedValueOnce({ ...changed, version: 2 }).mockResolvedValueOnce(changed);
+  await expect(
+    service.approve(ctx, { ...input, approvalHash: preview.approvalHash }),
+  ).rejects.toThrow('REPORT_CHANGED');
+  expect(tx.legiWatchReportRun.create).not.toHaveBeenCalled();
+});
+
+test('cached briefing definition cannot bypass folder, owner, or source-family checks', async () => {
+  const { service, reports, payload, tx } = harness();
+  const input = { selectionId: 'selection-one', audience: 'internal', reportId: 'legacy-report' };
+  reports.get.mockResolvedValueOnce({
+    id: 'legacy-report',
+    version: 2,
+    folderIds: ['other-folder'],
+    archived: false,
+  });
+  await expect(service.preview(ctx, input)).rejects.toThrow(
+    'EXPLICIT_BRIEFING_REPORT_SCOPE_REQUIRED',
+  );
+  reports.get.mockRejectedValueOnce(new ForbiddenException('REPORT_OWNER_REQUIRED'));
+  await expect(service.preview(ctx, input)).rejects.toThrow('REPORT_OWNER_REQUIRED');
+  payload.sources[0]!.kind = 'news';
+  await expect(service.preview(ctx, input)).rejects.toThrow('RESEARCH_SOURCES_REQUIRED');
+  expect(tx.legiWatchReportRun.create).not.toHaveBeenCalled();
+});
+
+test('cached research-only configuration validates the old definition and discards retired metadata', async () => {
+  const { service, tx, reports } = harness();
+  tx.$queryRaw
+    .mockResolvedValueOnce([{ config: {}, version: 0 }] as never)
+    .mockResolvedValueOnce([{ id: 'configuration' }] as never);
+  await service.configure(ctx, 'configuration', {
+    expectedVersion: 0,
+    config: {
+      ...config,
+      reportId: 'legacy-report',
+      reportVersion: 2,
+      monitorIds: [],
+      categoryMapping: {},
+    },
+  });
+  expect(reports.get).toHaveBeenCalledWith(tx, ctx, 'legacy-report', true);
+  const update = tx.$queryRaw.mock.calls[1] as unknown[];
+  const saved = JSON.parse(
+    String(
+      update.find((value) => typeof value === 'string' && value.includes('"policyVersion":2')),
+    ),
+  );
+  expect(currentEditorialConfiguration(saved)).toBe(true);
+  expect(saved).not.toHaveProperty('reportId');
+});
+
+test.each([[['news']], [['research', 'budget']]])(
+  'cached configuration rejects retired source kinds %j',
+  async (includedKinds) => {
+    const { service, tx } = harness();
+    tx.$queryRaw.mockResolvedValueOnce([{ config: {}, version: 0 }] as never);
+    await expect(
+      service.configure(ctx, 'configuration', {
+        expectedVersion: 0,
+        config: { ...config, reportId: 'legacy-report', includedKinds },
+      }),
+    ).rejects.toThrow('RESEARCH_ONLY_CONFIGURATION_REQUIRED');
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
+  },
+);
 
 test('approval rechecks original access and creates one immutable scope/run for exact output', async () => {
   const { service, tx } = harness();

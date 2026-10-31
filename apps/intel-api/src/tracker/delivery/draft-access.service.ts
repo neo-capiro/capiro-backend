@@ -1,4 +1,5 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { PHASE8_FEATURES } from '@capiro/shared';
 import type { Prisma } from '../../../generated/prisma-client/index.js';
 import type { WorkspaceTenantContext } from '../../auth/tenant-context.js';
 import { FolderTrackerService } from '../folders/folder-tracker.service.js';
@@ -29,6 +30,53 @@ export class DraftAccessService {
       throw new ForbiddenException('REPORT_OWNER_REQUIRED');
     for (const folderId of r.folderIds) await this.folders.folder(tx, ctx, folderId);
     return r;
+  }
+  /** Read-only compatibility for the old briefing picker, never the retired report library. */
+  async briefingDefinitions(ctx: WorkspaceTenantContext) {
+    await this.authorize(ctx);
+    await this.authorize(ctx, PHASE8_FEATURES.editorial);
+    return this.folders.withActor(ctx, async (tx) => {
+      const rows = await tx.legiWatchReport.findMany({
+        where: { tenantId: ctx.tenantId, ownerClerkId: ctx.clerkUserId, archived: false },
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      });
+      const allowed = [];
+      for (const row of rows) {
+        if (row.folderIds.length !== 1) continue;
+        try {
+          await this.folders.folder(tx, ctx, row.folderIds[0]!);
+          allowed.push({
+            ...row,
+            canEdit: true,
+            sourceId: null,
+            lastGeneratedAt: null,
+            // Cached clients validate the former display shape. These values
+            // do not enable report rendering or modify stored definitions.
+            settings: {
+              committees: 'off',
+              actions: 'last',
+              relations: 'off',
+              summary: true,
+              order: 'number',
+              links: 'subscribers',
+              priority: false,
+              externalComments: false,
+              internalComments: false,
+              billNotes: false,
+              reportComments: false,
+              priorityOnly: false,
+              acceptOptionalGaps: false,
+              includeArchived: false,
+              ...object(row.settings),
+            },
+          });
+        } catch (error) {
+          if (!(error instanceof ForbiddenException || error instanceof NotFoundException))
+            throw error;
+        }
+      }
+      return allowed;
+    });
   }
   async run(ctx: WorkspaceTenantContext, id: string) {
     await this.authorize(ctx);

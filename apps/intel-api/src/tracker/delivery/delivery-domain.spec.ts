@@ -1,6 +1,32 @@
 import { mergeRecipients, normalizeEmail, RecipientsService } from './recipients.service.js';
 import { capturedRule } from './record-rule.service.js';
 import { localOccurrence } from './delivery-schedule.js';
+import { legislativeAppOrigin } from './delivery-domain.js';
+import { renderedAgenda } from '../calendar/agenda-rule.service.js';
+
+test('retained links prefer the new origin, retain the configured old origin, and default to app.capiro.ai', () => {
+  const before = { ...process.env };
+  try {
+    delete process.env.LEGISLATIVE_APP_ORIGIN;
+    delete process.env.REPORT_APP_ORIGIN;
+    expect(legislativeAppOrigin()).toBe('https://app.capiro.ai');
+    process.env.REPORT_APP_ORIGIN = 'https://existing.example.invalid///';
+    expect(legislativeAppOrigin()).toBe('https://existing.example.invalid');
+    expect(
+      JSON.stringify(
+        renderedAgenda(
+          { after: { title: 'Synthetic agenda' }, hearingId: 'event-one' },
+          ['bill-one'],
+          ['folder-one'],
+        ),
+      ),
+    ).toContain('https://existing.example.invalid');
+    process.env.LEGISLATIVE_APP_ORIGIN = 'https://current.example.invalid/';
+    expect(legislativeAppOrigin()).toBe('https://current.example.invalid');
+  } finally {
+    process.env = before;
+  }
+});
 
 describe('recipients and captured rules', () => {
   it('preserves alias identities while deduplicating a normalized destination', () => {

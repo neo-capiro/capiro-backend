@@ -10,7 +10,8 @@ import { DraftAccessService } from './draft-access.service.js';
 /** Every service entry verifies the explicit capability and current membership.
  * Unknown bodies are narrowed by runtime validators, including nested controls.
  */
-@Controller('legiwatch/deliveries')
+// Old prefixes serve retained clients during the frontend rollout/rollback window only.
+@Controller(['legiwatch/deliveries', 'legiwatch/reports'])
 @UseGuards(TenantGuard)
 export class DeliveryController {
   constructor(
@@ -18,7 +19,10 @@ export class DeliveryController {
     readonly recipients: RecipientsService,
     readonly delivery: DeliveryService,
   ) {}
-  @Get('runs/:id') run(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('id') id: string) {
+  @Get(['runs/:id', 'runs/:id/export']) run(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('id') id: string,
+  ) {
     return this.reports.run(ctx, id);
   }
   @Post('runs/:id/compose') compose(
@@ -64,7 +68,7 @@ export class DeliveryController {
   }
 }
 
-@Controller('legiwatch/monitoring')
+@Controller(['legiwatch/monitoring', 'legiwatch/reports'])
 @UseGuards(TenantGuard)
 export class MonitoringRuleController {
   constructor(readonly rules: RecordRuleService) {}

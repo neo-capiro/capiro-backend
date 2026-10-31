@@ -13,6 +13,7 @@ import {
   FOLDER_TRACKER_FEATURE,
 } from '../../feature-flags/feature-flag.service.js';
 import {
+  legislativeAppOrigin,
   digest,
   escapeHtml,
   ids,
@@ -570,9 +571,7 @@ export class RecordRuleService {
                 continue;
               }
               const title = `${event.number}: ${event.kind === 'amendment' ? 'Published amendment' : 'Published action'}`;
-              const appBase = (
-                process.env.LEGISLATIVE_APP_ORIGIN ?? 'https://os.capiro.ai'
-              ).replace(/\/+$/, '');
+              const appBase = legislativeAppOrigin();
               const billLink = `${appBase}/bills/${encodeURIComponent(String(event.billId))}`;
               const folderLinks = scopedFolderIds
                 .map((id) => `${appBase}/legiwatch?tab=bills&folder=${encodeURIComponent(id)}`)

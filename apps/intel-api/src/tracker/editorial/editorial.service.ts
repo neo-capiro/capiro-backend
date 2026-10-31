@@ -227,12 +227,18 @@ export class EditorialService {
       id = String(b.selectionId),
       source = await this.source(ctx, id);
     if (source.stale) throw new ConflictException('BRIEFING_SOURCE_STALE');
-    if ('reportId' in b) throw new BadRequestException('STANDALONE_BRIEFING_SELECTION_REQUIRED');
     const scope = phase8Scope(object(source.prefill.context.scope));
     if (!scope.folderId) throw new BadRequestException('EXPLICIT_BRIEFING_FOLDER_REQUIRED');
-    await this.evidence.reports.folders.withActor(ctx, (tx) =>
-      this.evidence.context(tx, ctx, scope, true),
-    );
+    const legacyReport = await this.evidence.reports.folders.withActor(ctx, async (tx) => {
+      await this.evidence.context(tx, ctx, scope, true);
+      if (!('reportId' in b)) return null;
+      if (
+        !source.prefill.sources.length ||
+        source.prefill.sources.some((item) => object(item).kind !== 'research')
+      )
+        throw new BadRequestException('RESEARCH_SOURCES_REQUIRED');
+      return this.legacyBriefingReport(tx, ctx, b.reportId, scope.folderId!);
+    });
     if (!['internal', 'external'].includes(String(b.audience)))
       throw new BadRequestException('EXPLICIT_AUDIENCE_REQUIRED');
     const base = process.env.WORKSPACE_BASE_URL,
@@ -296,10 +302,14 @@ export class EditorialService {
       text: output.text,
     };
     return {
+      ...(legacyReport
+        ? { reportId: legacyReport.id, definitionVersion: legacyReport.version }
+        : {}),
       audience,
       review,
       rendered,
       approvalHash: digest({
+        ...(legacyReport ? { reportId: legacyReport.id, version: legacyReport.version } : {}),
         audience,
         review,
         rendered,
@@ -323,25 +333,32 @@ export class EditorialService {
         (folderId) => this.evidence.reports.folders.folder(tx, ctx, folderId),
         true,
       );
+      const legacyReport = preview.reportId
+        ? await this.legacyBriefingReport(tx, ctx, preview.reportId, scope.folderId!, true)
+        : null;
+      if (legacyReport && legacyReport.version !== preview.definitionVersion)
+        throw new ConflictException('REPORT_CHANGED');
       const key = 'editorial-review:' + preview.approvalHash;
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${ctx.tenantId + key},0))`;
       const prior = await tx.legiWatchReportRun.findUnique({
         where: { tenantId_generationKey: { tenantId: ctx.tenantId, generationKey: key } },
       });
       if (prior) return { runId: prior.id, replayed: true };
-      const report = await tx.legiWatchReport.create({
-        data: {
-          tenantId: ctx.tenantId,
-          ownerClerkId: ctx.clerkUserId,
-          name: String(
-            object(preview.review.outputSnapshot).title ?? 'Reviewed client briefing',
-          ).slice(0, 200),
-          folderIds: [scope.folderId!],
-          jurisdiction: scope.jurisdiction,
-          sessionKey: scope.sessionKey,
-          settings: json({}),
-        },
-      });
+      const report =
+        legacyReport ??
+        (await tx.legiWatchReport.create({
+          data: {
+            tenantId: ctx.tenantId,
+            ownerClerkId: ctx.clerkUserId,
+            name: String(
+              object(preview.review.outputSnapshot).title ?? 'Reviewed client briefing',
+            ).slice(0, 200),
+            folderIds: [scope.folderId!],
+            jurisdiction: scope.jurisdiction,
+            sessionKey: scope.sessionKey,
+            settings: json({}),
+          },
+        }));
       const snapshot = {
         mode: 'editorial_brief',
         name: String(object(preview.review.outputSnapshot).title ?? ''),
@@ -373,6 +390,25 @@ export class EditorialService {
       });
       return { runId: run.id, replayed: false, deliveryState: preview.deliveryState };
     });
+  }
+  /** Transitional selected definition for cached briefing clients; no definition writes. */
+  private async legacyBriefingReport(
+    tx: Parameters<Phase8EvidenceService['context']>[0],
+    ctx: WorkspaceTenantContext,
+    reportId: unknown,
+    folderId: string,
+    lock = false,
+  ) {
+    if (typeof reportId !== 'string' || !reportId || reportId.length > 100)
+      throw new BadRequestException('EXPLICIT_BRIEFING_REPORT_SCOPE_REQUIRED');
+    // Hold the selected definition through version validation and run insertion.
+    // Old API instances can still update/archive it during the mixed rollout.
+    if (lock)
+      await tx.$queryRaw`SELECT id FROM intel_legiwatch_report WHERE tenant_id=${ctx.tenantId} AND id=${reportId} FOR SHARE`;
+    const report = await this.evidence.reports.get(tx, ctx, reportId, true);
+    if (report.archived || report.folderIds.length !== 1 || report.folderIds[0] !== folderId)
+      throw new BadRequestException('EXPLICIT_BRIEFING_REPORT_SCOPE_REQUIRED');
+    return report;
   }
   async configurations(ctx: WorkspaceTenantContext) {
     const configurations = await this.evidence.run(ctx, {}, 'editorial', async (tx) => {
@@ -579,15 +615,29 @@ export class EditorialService {
       if (!Object.hasOwn(BRIEFING_TEMPLATES, template) || !scope.folderId)
         throw new BadRequestException('EXPLICIT_TEMPLATE_AND_FOLDER_REQUIRED');
       if (
-        ['reportId', 'reportVersion', 'monitorIds', 'categoryMapping'].some(
-          (key) => key in config,
-        ) ||
+        (!('reportId' in config) &&
+          ['reportVersion', 'monitorIds', 'categoryMapping'].some((key) => key in config)) ||
         (config.includedKinds !== undefined &&
           (!Array.isArray(config.includedKinds) ||
             config.includedKinds.length !== 1 ||
             config.includedKinds[0] !== 'research'))
       )
         throw new BadRequestException('RESEARCH_ONLY_CONFIGURATION_REQUIRED');
+      if ('reportId' in config) {
+        // Old clients always carry retired picker metadata. Only explicitly
+        // research-only input is admissible; no monitor or news work is revived.
+        if (
+          !Array.isArray(config.includedKinds) ||
+          config.includedKinds.length !== 1 ||
+          config.includedKinds[0] !== 'research' ||
+          (config.monitorIds !== undefined &&
+            (!Array.isArray(config.monitorIds) || config.monitorIds.length))
+        )
+          throw new BadRequestException('RESEARCH_ONLY_CONFIGURATION_REQUIRED');
+        const report = await this.legacyBriefingReport(tx, ctx, config.reportId, scope.folderId!);
+        if (config.reportVersion !== undefined && config.reportVersion !== report.version)
+          throw new ConflictException('REPORT_CHANGED');
+      }
       const schedule = validateBriefingSchedule(
         object(config.schedule) as unknown as BriefingSchedule,
       );

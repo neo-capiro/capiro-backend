@@ -1,5 +1,72 @@
 # LegiWatch simplification validation — 31 October 2026
 
+## Independent-review corrections and mixed-version transition
+
+The independent review of FE `89a35dd157d11677365ed982e84f555ba2807a8c` and BE
+`87fe4228beec91ca7f0491db4919387e30b340c5` returned both heads. The historical
+implementation review statements below apply only to their stated earlier
+pins, not this correction or deployment acceptance. Corrections are isolated
+on `fix/legiwatch-rollout-compatibility-20261031`; they do not include the
+concurrent hearing reliability work.
+
+- Research exact-source reads now use `ResearchService.run`, preserving the
+  research feature, member, tenant, folder/client match and wall checks without
+  requiring the editorial feature. Briefing preparation/distribution retain
+  their own gates; other historical exact-source kinds keep their prior gate.
+- Retained generated links prefer `LEGISLATIVE_APP_ORIGIN`, fall back to the
+  existing `REPORT_APP_ORIGIN`, and default to `https://app.capiro.ai`. No stored
+  links or historical records change. The plan generator's default origin is
+  corrected; its historical migration/activation sequence is not authorized
+  for replay by this correction.
+- `run-report-updates` temporarily dispatches to the same retained monitoring
+  implementation as `run-monitoring-updates`. It never drains bill reports or
+  runs retired subscriptions. No worker or schedule was executed or changed.
+- Old `/legiwatch/reports/runs/*`, recipients and rules paths temporarily share
+  the retained delivery/monitoring services. Those services still reject old
+  bill-report reads/compositions/enqueues/dispatch. The sole definition-list
+  route is read-only, requires current folder and editorial access, and returns
+  only actor-owned, unarchived, accessible single-folder briefing choices.
+- Legacy briefing preview/approve may carry `reportId`. That path checks owner,
+  exact selected folder, archive state and research-only sources, retains the
+  old preview hash shape/version fields, and freezes/replays the existing
+  definition. Approval locks the tenant-scoped definition `FOR SHARE` before
+  its version read and holds it through the immutable run insertion, preventing
+  an old API instance from updating/archiving it across that check. New inputs
+  keep the standalone hash and scope-record behavior. Explicit research-only
+  legacy configuration input validates its old definition before discarding
+  picker metadata; removed source families and monitor work remain rejected.
+
+Release order: integrate this bounded delta onto current accepted backend main
+without importing backend-import's unrelated divergence; qualify/promote that
+compatible API first, then the cumulative frontend. The frontend companion
+retains old gateway operation names/shapes for cached clients, so frontend
+promotion does not strand an already-open retained briefing or delivery screen.
+Keep this compatible backend during a frontend rollback. Remove the aliases,
+read-only picker and old briefing/configuration shapes together only after the
+sole Release owner confirms frontend promotion, cached-client transition and
+expiry of the rollback window. Reconcile existing worker command overrides
+before removing `run-report-updates`. No new flag, scheduler or deployment
+framework is introduced; historical schema/data stay unchanged.
+
+Correction checks use Node 24.22.1 and existing declared dependencies through
+owned worktree junctions. Shared/meriv2-core outputs and generated Prisma are
+the unchanged task-owned outputs from the earlier implementation; no install,
+donor mutation, schema generation or database operation was performed.
+Affected Intel checks passed: 69 tests across eight suites (editorial
+simplification, independent research exact access, delivery simplification,
+delivery domain/boundary, research draft, agenda access and task-runner), plus
+`tsc --noEmit --incremental false --pretty false`. The first expanded suite
+run exposed an overbroad new test matcher that selected the existing membership
+lock; restricting it to the report-definition lock made the 30-test editorial
+suite pass. The other seven suites were unchanged and passed. The initial root
+Jest CLI lookup was unavailable; checks used Intel's declared app-local Jest.
+Frontend checks are recorded in its existing Modules/Settings handover. No
+manifest, lockfile, schema or migration changed, and diff checks passed.
+Local tests do not prove live target reconciliation, PostgreSQL lock
+contention, authenticated deployed routes, provider effects, or rollout/rollback
+acceptance. Those remain Release's bounded integration gates. Exact-head
+independent correction review remains required.
+
 ## Scope and source
 
 The user requested removal of Import review, Research import review, Reports,

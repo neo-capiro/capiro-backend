@@ -76,6 +76,7 @@ export const EMBED_CANDIDATE_FLOOR = 0.3;
 
 export const KNOWN_VERBS = [
   'run-monitoring-updates', // Retained monitoring, publication and briefing jobs.
+  'run-report-updates', // Transitional alias for existing worker command overrides.
   'verify-sourcedata', //          Phase 1 gate
   'verify-bill-dossier-sources', // Bill 360 R1 §0.5: dossier truth-layer source-availability gate
   'sync-watchlists-from-legacy', // Phase 2: legacy → unified watchlist (§5.4)
@@ -261,6 +262,7 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       deps.log(`AGENDA_UPDATES_DONE ${JSON.stringify({ detected, queued, delivered })}`);
       return;
     }
+    case 'run-report-updates':
     case 'run-monitoring-updates': {
       const tenantId = args[0];
       if (

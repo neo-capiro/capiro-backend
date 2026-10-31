@@ -74,7 +74,7 @@ intel.command = ['task', 'run-monitoring-updates', v.tenant];
 environment(intel, {
   LEGIWATCH_RECORD_ALERT_SOURCE_TYPES: 'state_bill',
   TRACKER_ALERTS_ENABLED: 'false',
-  LEGISLATIVE_APP_ORIGIN: 'https://os.capiro.ai',
+  LEGISLATIVE_APP_ORIGIN: 'https://app.capiro.ai',
 });
 if (!(intel.secrets ?? []).some((s) => s.name === 'INTERNAL_SERVICE_SECRET'))
   throw new Error('Inbox adapter secret reference is missing');
