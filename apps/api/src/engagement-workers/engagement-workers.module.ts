@@ -7,6 +7,7 @@ import { EngagementSyncSchedulerService } from '../engagement/engagement-sync-sc
 import { AttachmentIndexWorkerService } from './attachment-index-worker.service.js';
 import { OutreachJobWorkerService } from './outreach-job-worker.service.js';
 import { MeetingPrepWorkerService } from './meeting-prep-worker.service.js';
+import { MeetingDebriefWorkerService } from './meeting-debrief-worker.service.js';
 import { OutreachSendIntentWorkerService } from './outreach-send-intent-worker.service.js';
 import { NotetakerReconcileWorkerService } from './notetaker-reconcile-worker.service.js';
 
@@ -21,6 +22,7 @@ import { NotetakerReconcileWorkerService } from './notetaker-reconcile-worker.se
     EngagementSyncSchedulerService,
     OutreachJobWorkerService,
     MeetingPrepWorkerService,
+    MeetingDebriefWorkerService,
     OutreachSendIntentWorkerService,
     NotetakerReconcileWorkerService,
     AttachmentIndexWorkerService,

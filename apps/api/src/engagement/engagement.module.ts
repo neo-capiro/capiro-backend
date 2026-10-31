@@ -42,6 +42,7 @@ import {
 } from './governed-meeting-ai.factory.js';
 import { MeetingContextPlaneService } from './meeting-context-plane.service.js';
 import { MeetingPrepJobService } from './meeting-prep-job.service.js';
+import { MeetingDebriefJobService } from './meeting-debrief-job.service.js';
 import { OutreachJobService } from './outreach-job.service.js';
 import { RaceSafeOutreachJobService } from './race-safe-outreach-job.service.js';
 import { NotetakerService } from './notetaker/notetaker.service.js';
@@ -171,6 +172,7 @@ import {
     },
     MeetingContextPlaneService,
     MeetingPrepJobService,
+    MeetingDebriefJobService,
     { provide: RAW_ENGAGEMENT_SERVICE, useClass: EngagementService },
     {
       provide: EngagementService,
@@ -260,6 +262,7 @@ import {
   exports: [
     KrispNotetakerService,
     MeetingPrepJobService,
+    MeetingDebriefJobService,
     EngagementRuntimeModule,
     AiCredentialsModule,
     OutcomeService,

@@ -70,10 +70,8 @@ function debriefInput(): MeetingDebriefDraftInput {
     prep: { summary: 'Prep summary' },
     source: { method: 'upload', text: 'Jamie explicitly committed to send the document.' },
     visibleNotes: [{ body: 'The deadline was not established.' }],
-    clientContext: { privateLegacyContext: true },
-    congressionalDirectoryMatches: [{ name: 'Staffer One' }],
-    recentMeetings: [{ subject: 'LEGACY RECENT MEETING' }],
-    recentThreads: [{ subject: 'LEGACY MAIL THREAD' }],
+    openTasks: [],
+    recentDebriefs: [],
     steeringContext: 'LEGACY COMPILER BLOCK',
   };
 }
@@ -135,9 +133,12 @@ describe('createGovernedMeetingAiService Phase 24', () => {
     const [input] = h.debrief.mock.calls[0] as [MeetingDebriefDraftInput];
     expect(input.source.text).toContain('explicitly committed');
     expect(input.visibleNotes).toEqual([{ body: 'The deadline was not established.' }]);
-    expect(input.clientContext).toBeNull();
-    expect(input.recentMeetings).toEqual([]);
-    expect(input.recentThreads).toEqual([]);
+    // D2: the debrief input has no client timeline / directory / mail fields at all,
+    // so there is nothing for the governed wrapper to strip.
+    expect('clientContext' in input).toBe(false);
+    expect('congressionalDirectoryMatches' in input).toBe(false);
+    expect('recentMeetings' in input).toBe(false);
+    expect('recentThreads' in input).toBe(false);
     expect(input.steeringContext).toContain('MODE: debrief');
     expect(JSON.stringify(input)).not.toContain('legacy nested note');
     expect(JSON.stringify(input)).not.toContain('LEGACY RECENT MEETING');

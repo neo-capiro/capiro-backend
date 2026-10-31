@@ -3,6 +3,7 @@ import { BadRequestException, Injectable, Logger, ServiceUnavailableException } 
 import { ConfigService } from '@nestjs/config';
 import { parseProviderUsage, type ProviderUsage, type TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
+import type { MeetingDebriefContextInput } from './meeting-debrief-context.js';
 import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
 import { FederalSpendingService } from '../federal-spending/federal-spending.service.js';
 import {
@@ -135,21 +136,8 @@ export const POST_MEETING_MEMO_GUIDANCE_TEXT = [
   'For optional sections, include them only when source context supports them.',
 ].join('\n');
 
-export interface MeetingDebriefDraftInput {
-  meeting: Record<string, unknown>;
-  client: Record<string, unknown> | null;
-  attendees: Array<Record<string, unknown>>;
-  prep: Record<string, unknown> | null;
-  source: { method: 'upload' | 'manual' | 'voice'; text: string };
-  visibleNotes: Array<Record<string, unknown>>;
-  clientContext: Record<string, unknown> | null;
-  congressionalDirectoryMatches: Array<Record<string, unknown>>;
-  recentMeetings: Array<Record<string, unknown>>;
-  recentThreads: Array<Record<string, unknown>>;
-  /** Firm identity + author voice + client strategic memory (rendered),
-   *  standing background for framing/tone only — never treated as meeting facts. */
-  steeringContext?: string | null;
-}
+/** D2: bounded context only — no mail threads, no client timeline, no directory. */
+export type MeetingDebriefDraftInput = MeetingDebriefContextInput;
 
 export interface MeetingDebriefDraftResult {
   recap: string;
@@ -159,7 +147,6 @@ export interface MeetingDebriefDraftResult {
   model: string;
   usage?: ProviderUsage;
   usedTenantKey?: boolean;
-  raw: unknown;
 }
 
 export interface RewriteEmailInput {
@@ -279,10 +266,10 @@ Do not include markdown fences, introductory text, commentary, or fields outside
 /**
  * Rules body for the meeting-debrief generator. The context section at the end
  * of buildDebriefPrompt() supplies the actual data as a single JSON dump
- * (meeting/client/attendees/prep/source/visibleNotes/clientContext/
- * congressionalDirectoryMatches/recentMeetings/recentThreads) rather than the
- * per-field tags implied below — "supplied JSON context" in section 1 and the
- * final instruction both refer to that dump.
+ * (meeting/client/attendees/prep/source/visibleNotes/openTasks/recentDebriefs)
+ * rather than the per-field tags implied below — "supplied JSON context" in
+ * section 1 and the final instruction both refer to that dump. The dump is
+ * bounded before it is built; see meeting-debrief-context.ts.
  */
 const MEETING_DEBRIEF_INSTRUCTIONS = `Create a polished, CRM-ready meeting debrief from the supplied transcript, notes, meeting metadata, and contextual records.
 
@@ -297,7 +284,7 @@ Source priority:
 1. \`source.text\`: primary evidence of what was said during the meeting
 2. \`visibleNotes\`: user-entered notes about the meeting
 3. Confirmed meeting and attendance metadata
-4. Client, contact, directory, preparation, recent-meeting, and recent-thread context
+4. Client identity, attendee roster, preparation, and labelled continuity (open commitments and earlier debriefs for this client)
 
 Context may help identify names, organizations, acronyms, or the significance of a discussion. It must not be treated as evidence that something occurred during this meeting.
 
@@ -1188,7 +1175,6 @@ export class EngagementAiService {
         model,
         usage: result.usage,
         usedTenantKey: cred.usedTenantKey,
-        raw: result.raw,
       };
     }
     const response = await fetchWithTimeout('https://api.openai.com/v1/responses', {
@@ -1231,7 +1217,6 @@ export class EngagementAiService {
       model,
       usage: parseProviderUsage(json),
       usedTenantKey: cred.usedTenantKey,
-      raw: json,
     };
   }
 
@@ -1286,7 +1271,6 @@ export class EngagementAiService {
       model,
       usage: parseProviderUsage(json),
       usedTenantKey: cred.usedTenantKey,
-      raw: json,
     };
   }
 
@@ -1424,7 +1408,7 @@ export class EngagementAiService {
       steeringBlock
         ? `FIRM, AUTHOR & CLIENT BACKGROUND (standing memory for FRAMING and TONE only — NOT a record of this meeting; never state it as an attendee, commitment, or event that occurred here):\n${steeringBlock}`
         : '',
-      'Supplied JSON context (fields: meeting, client, attendees, prep, source, visibleNotes, clientContext, congressionalDirectoryMatches, recentMeetings, recentThreads). Apply the source-priority order from section 1 to these fields. Return JSON only with recap, actionItems, and notes:',
+      'Supplied JSON context (fields: meeting, client, attendees, prep, source, visibleNotes, openTasks, recentDebriefs). `openTasks` and `recentDebriefs` are labelled continuity from the firm’s own record, not evidence of what was said in this meeting. Apply the source-priority order from section 1 to these fields. Return JSON only with recap, actionItems, and notes:',
       JSON.stringify(inputForJson, null, 2),
     ]
       .filter(Boolean)

@@ -20,7 +20,7 @@ import {
   mailHandoff as processMailHandoff,
   type EngagementMailHandoffBarrier,
 } from './engagement-mail-handoff.js';
-import { meetingPrepEnabled } from '../meeting-prep-policy.js';
+import { meetingDebriefJobEnabled, meetingPrepEnabled } from '../meeting-prep-policy.js';
 
 /**
  * The existing versioned-outreach feature flag, read the way the config schema reads it. Absent
@@ -302,6 +302,33 @@ export class EngagementRuntimePolicyService {
     if (!meetingPrepEnabled()) return false;
     if (this.backgroundWorkersEnabled('meeting-prep-worker')) return true;
     return this.meetingPrepComprehensiveExceptionEnabled();
+  }
+
+  /**
+   * The single ownership predicate for the debrief worker (D1). The debrief job gate is
+   * required for every branch, so a flag-off process never starts a timer and never sweeps.
+   * Ownership follows the same named background policy and the same reviewed API tuple that
+   * already admits prep; no new admission axis is introduced.
+   */
+  meetingDebriefWorkerEnabled(): boolean {
+    if (!meetingDebriefJobEnabled()) return false;
+    if (this.backgroundWorkersEnabled('meeting-debrief-worker')) return true;
+    return this.meetingPrepComprehensiveExceptionEnabled();
+  }
+
+  assertMeetingDebriefWorker(): void {
+    if (!this.meetingDebriefWorkerEnabled()) {
+      this.logger.log(
+        `meeting-debrief-worker disabled by engagement runtime policy ` +
+          `(service=${this.serviceName} owner=${this.backgroundOwner} mode=${this.processMode})`,
+      );
+      throw new ServiceUnavailableException({
+        statusCode: 503,
+        code: 'ENGAGEMENT_BACKGROUND_DISABLED',
+        worker: 'meeting-debrief-worker',
+        message: 'Background workers are disabled in the engagement-api shadow runtime.',
+      });
+    }
   }
 
   /**

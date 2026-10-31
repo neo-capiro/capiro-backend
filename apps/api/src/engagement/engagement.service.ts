@@ -105,6 +105,8 @@ import { extractXlsxText, isSpreadsheetAttachment } from './xlsx-extract.js';
 import { extractPptxText, isPowerPointAttachment } from './pptx-extract.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { currentMeetingPrepExecution } from './meeting-prep-job-runtime.js';
+import { boundDebriefContext } from './meeting-debrief-context.js';
+import { MEETING_DEBRIEF_POLICY } from './meeting-prep-policy.js';
 import { currentMeetingGovernedContext } from './meeting-context-runtime.js';
 import { assertSavedMeetingPrepAccess,filterResearchPortfolioMeetingPreps } from './meeting-prep-source-access.js';
 import {RESEARCH_PORTFOLIO_TASK_SOURCE,assertOwnedResearchPortfolioTask} from './research-portfolio-task-access.js';
@@ -5562,7 +5564,12 @@ export class EngagementService {
   async createMeetingNote(
     ctx: TenantContext,
     meetingId: string,
-    input: { body: string; confidential?: boolean; accessLevel?: string; approved?: boolean },
+    input: {
+      body: string;
+      confidential?: boolean;
+      accessLevel?: string;
+      approved?: boolean;
+    },
     execution?: MeetingExecution,
   ) {
     const encrypted = this.notesCrypto.encrypt(input.body);
@@ -5667,7 +5674,14 @@ export class EngagementService {
   async createMeetingDebrief(
     ctx: TenantContext,
     meetingId: string,
-    input: { body: string; confidential?: boolean; accessLevel?: string; approved?: boolean },
+    input: {
+      body: string;
+      confidential?: boolean;
+      accessLevel?: string;
+      approved?: boolean;
+      /** D2: the assembled-context summary returned by the debrief draft/job. */
+      generatedFrom?: Record<string, unknown>;
+    },
     execution?: MeetingExecution,
   ) {
     const encrypted = this.notesCrypto.encrypt(input.body);
@@ -5692,6 +5706,10 @@ export class EngagementService {
           confidential: input.confidential ?? true,
           accessLevel: input.accessLevel ?? 'tenant_members',
           ...(input.approved ? { status: MeetingDebriefStatus.approved, approvedAt: new Date(), approvedByUserId: ctx.userId } : {}),
+          // D2: keep what the model actually saw with the artifact it produced.
+          ...(input.generatedFrom
+            ? { generatedFromJsonb: input.generatedFrom as Prisma.InputJsonValue }
+            : {}),
         },
         select: debriefMetadataSelect(),
       }));
@@ -5827,6 +5845,14 @@ export class EngagementService {
     });
   }
 
+  /**
+   * D2: the debrief context is BOUNDED and auditable. Only the reviewed source, the
+   * meeting's own notes and prep, the attendee roster, minimal identity and bounded
+   * continuity (open commitments + the client's last few debriefs) reach the model.
+   * No mail threads, no client timeline, no directory or client-memory dump — those
+   * inputs turned a three-line source into a 53k-token prompt. What the model saw is
+   * returned as `contextSummary` and can be persisted with the artifact.
+   */
   async generateMeetingDebriefDraft(
     ctx: TenantContext,
     meetingId: string,
@@ -5843,17 +5869,19 @@ export class EngagementService {
           include: {
             client: true,
             attendees: true,
-            attachments: { orderBy: { createdAt: 'desc' } },
             preps: { orderBy: { createdAt: 'desc' }, take: 1 },
             tasks: {
               where: {
                 status: { notIn: [EngagementTaskStatus.done, EngagementTaskStatus.canceled] },
               },
+              select: { title: true, status: true, dueDate: true },
+              orderBy: { dueDate: 'asc' },
+              take: 20,
             },
           },
         });
         if (!meeting) throw new NotFoundException('Meeting not found');
-        meeting.preps=await filterResearchPortfolioMeetingPreps(tx,ctx,meeting.preps);
+        meeting.preps = await filterResearchPortfolioMeetingPreps(tx, ctx, meeting.preps);
 
         const effectiveClientId = await this.resolveEffectiveMeetingClientId(tx, ctx, meeting);
         const effectiveClient =
@@ -5861,125 +5889,100 @@ export class EngagementService {
             ? await tx.client.findUnique({ where: { id: effectiveClientId } })
             : meeting.client;
 
-        const meetingAssociationWhere = effectiveClientId
-          ? await this.clientMeetingAssociationWhere(tx, ctx.tenantId, effectiveClientId)
-          : null;
-        const recentMeetings =
-          !currentMeetingPrepExecution() && meetingAssociationWhere
-            ? await tx.meeting.findMany({
-                where: {
-                  AND: [
-                    {
-                      tenantId: ctx.tenantId,
-                      id: { not: meeting.id },
-                      ...ownMeetingWhere(ctx.userId),
-                    },
-                    meetingAssociationWhere,
-                  ],
-                },
-                select: {
-                  id: true,
-                  subject: true,
-                  startsAt: true,
-                  endsAt: true,
-                  location: true,
-                  associationReason: true,
-                },
-                orderBy: { startsAt: 'desc' },
-                take: 5,
-              })
-            : [];
+        // Bounded continuity: this client's own most recent debriefs, nothing wider.
+        const recentDebriefs = effectiveClientId
+          ? await tx.meetingDebrief.findMany({
+              where: {
+                tenantId: ctx.tenantId,
+                clientId: effectiveClientId,
+                meetingId: { not: meeting.id },
+              },
+              select: { createdAt: true, bodyCiphertext: true, iv: true, authTag: true },
+              orderBy: { createdAt: 'desc' },
+              take: MEETING_DEBRIEF_POLICY.recentDebriefs,
+            })
+          : [];
 
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-        // Fetch recent email threads from last 30 days associated to this client only.
-        // Do NOT infer context from attendee/to/cc domains, which can pull unrelated people.
-        const threadFilters: Prisma.MailThreadWhereInput[] = [];
-        if (effectiveClientId) {
-          threadFilters.push(
-            await this.clientMailThreadAssociationWhere(tx, ctx.tenantId, effectiveClientId),
-          );
-        }
-
-        const recentThreads =
-          !currentMeetingPrepExecution() && threadFilters.length
-            ? await tx.mailThread.findMany({
-                where: {
-                  tenantId: ctx.tenantId,
-                  ...ownMailThreadWhere(ctx.userId),
-                  lastMessageAt: { gte: thirtyDaysAgo },
-                  OR: threadFilters,
-                },
-                select: {
-                  id: true,
-                  subject: true,
-                  snippet: true,
-                  lastMessageAt: true,
-                  status: true,
-                  messages: {
-                    select: {
-                      fromEmail: true,
-                      fromName: true,
-                      subject: true,
-                      bodyText: true,
-                      sentAt: true,
-                    },
-                    orderBy: { sentAt: 'desc' },
-                    take: 3,
-                  },
-                },
-                orderBy: [{ lastMessageAt: 'desc' }, { updatedAt: 'desc' }],
-                take: 15,
-              })
-            : [];
-
-        return {
-          meeting,
-          client: effectiveClient,
-          effectiveClientId,
-          recentMeetings,
-          recentThreads,
-        };
+        return { meeting, client: effectiveClient, effectiveClientId, recentDebriefs };
       },
       { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS },
     );
 
-    const [visibleNotes, clientContext, directoryProfiles] = await Promise.all([
-      this.listMeetingNotes(ctx, meetingId)
-        .then((notes) => notes.filter((note) => !note.restricted))
-        .catch(() => []),
-      context.effectiveClientId
-        ? this.clientContext(ctx, context.effectiveClientId).catch(() => null)
-        : Promise.resolve(null),
-      this.directoryProfilesForMeeting(context.meeting).catch(() => []),
-    ]);
+    const visibleNotes = await this.listMeetingNotes(ctx, meetingId)
+      .then((notes) => notes.filter((note) => !note.restricted))
+      .catch(() => []);
 
-    // Firm identity + author voice + client strategic memory — for FRAMING/tone
-    // only (the debrief prompt is strictly grounded in the meeting notes and
-    // labels this as background, never as meeting facts).
     const steeringContext = await this.loadUserVoiceBlock(
       ctx,
       context.client?.id ?? context.meeting.clientId ?? null,
     );
-    const generated = await this.ai.generateMeetingDebrief(
-      {
-        meeting: pruneForAi(context.meeting),
-        client: context.client ? pruneForAi(context.client) : null,
-        attendees: context.meeting.attendees.map(pruneForAi),
-        prep: context.meeting.preps[0] ? pruneForAi(context.meeting.preps[0]) : null,
-        source: { method: input.method, text: sourceText },
-        visibleNotes: visibleNotes.map(pruneForAi),
-        clientContext: clientContext ? pruneForAi(clientContext) : null,
-        congressionalDirectoryMatches: directoryProfiles.map(pruneForAi),
-        recentMeetings: context.recentMeetings.map(pruneForAi),
-        recentThreads: context.recentThreads.map((thread) => prepareThreadForAi(thread)),
-        steeringContext,
+
+    const priorDebriefs = context.recentDebriefs.flatMap((row) => {
+      const body = this.notesCrypto.decrypt({
+        bodyCiphertext: row.bodyCiphertext,
+        iv: row.iv,
+        authTag: row.authTag,
+      });
+      const recap = (body ?? '').replace(/\s+/g, ' ').trim();
+      return recap ? [{ createdAt: row.createdAt.toISOString(), recap: recap.slice(0, 600) }] : [];
+    });
+
+    const assembled = boundDebriefContext({
+      meeting: {
+        id: context.meeting.id,
+        subject: context.meeting.subject,
+        startsAt: context.meeting.startsAt,
+        endsAt: context.meeting.endsAt,
+        location: context.meeting.location,
+        status: context.meeting.status,
+        description: context.meeting.description,
       },
-      ctx,
-    );
+      client: context.client
+        ? { id: context.client.id, name: context.client.name, sectorTag: context.client.sectorTag }
+        : null,
+      attendees: context.meeting.attendees.map((attendee) => ({
+        name: attendee.name,
+        email: attendee.email,
+        role: attendee.role,
+      })),
+      prep: context.meeting.preps[0]
+        ? {
+            id: context.meeting.preps[0].id,
+            status: context.meeting.preps[0].status,
+            summary: context.meeting.preps[0].summary,
+            agenda: context.meeting.preps[0].agenda,
+            talkingPoints: context.meeting.preps[0].talkingPoints,
+            risks: context.meeting.preps[0].risks,
+            followUps: context.meeting.preps[0].followUps,
+          }
+        : null,
+      source: { method: input.method, text: sourceText },
+      visibleNotes: visibleNotes.map((note) => ({
+        body: note.body,
+        createdAt: note.createdAt,
+      })),
+      openTasks: context.meeting.tasks.map((task) => ({
+        title: task.title,
+        status: task.status,
+        dueOn: task.dueDate ? task.dueDate.toISOString().slice(0, 10) : null,
+      })),
+      recentDebriefs: priorDebriefs,
+      steeringContext,
+    });
+
+    const generated = await this.ai.generateMeetingDebrief(assembled.input, ctx);
     await this.recordAiUsage(ctx, 'meeting_debrief', generated);
-    return generated;
+    // Provider, model and token counts only: no raw envelope, no thinking block.
+    return {
+      recap: generated.recap,
+      actionItems: generated.actionItems,
+      notes: generated.notes,
+      provider: generated.provider,
+      model: generated.model,
+      usage: generated.usage,
+      usedTenantKey: generated.usedTenantKey,
+      contextSummary: assembled.summary,
+    };
   }
 
   async listMeetingNotes(ctx: TenantContext, meetingId: string, clientId?: string) {

@@ -50,11 +50,9 @@ export function createGovernedMeetingAiService(
           const sanitized: MeetingDebriefDraftInput = {
             ...input,
             meeting: sanitizeCurrentMeeting(input.meeting),
-            // The source transcript and visible notes remain intact and are the
-            // only evidence of what happened. Legacy private history is removed.
-            clientContext: null,
-            recentMeetings: [],
-            recentThreads: [],
+            // The source transcript, own notes/prep, roster and bounded continuity are
+            // the only evidence of what happened (D2). The input contract has no
+            // client timeline, directory matches or mail fields to strip.
             steeringContext: bundle.modelContextBlock,
           };
           return target.generateMeetingDebrief(sanitized, ctx);
