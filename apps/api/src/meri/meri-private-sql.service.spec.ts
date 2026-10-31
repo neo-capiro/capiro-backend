@@ -134,6 +134,19 @@ function fixture(selected: string | null = null, requested?: string) {
 }
 
 describe('interactive private query binding', () => {
+  it.each([null, client])('binds new meeting aggregates to the current %s client scope', async (selected) => {
+    const f = fixture(selected);
+    const page = await f.read({
+      source: 'client_records',
+      sql: 'SELECT COUNT(DISTINCT m.id) AS total FROM client_meetings m',
+      parameters: [],
+    });
+    expect(page).toMatchObject({ ok: true, scope: { kind: 'client_records', clientId: selected }, rows: [{ total: '0' }] });
+    const [compiled, bound] = f.db.runPrivateSql.mock.calls[0]!;
+    expect(compiled).toMatchObject({ relationsUsed: ['client_meetings'], sql: expect.stringContaining('"meri_private"."client_meetings"') });
+    expect(bound).toMatchObject({ tenantId: ctx.tenantId, actorId: ctx.userId, clientId: selected });
+    expect(f.current.read.mock.calls.every((call) => call[2].clientId === selected)).toBe(true);
+  });
   it.each([
     [null, undefined],
     [null, client],
@@ -177,12 +190,12 @@ describe('interactive private query binding', () => {
       expect(f.db.runPrivateSql).toHaveBeenCalledTimes(1);
     },
   );
-  it('checks describe currentness and keeps all 193 owner fields without physical metadata', async () => {
+  it('checks describe currentness and keeps the 193 retained fields plus 13 meeting fields without physical metadata', async () => {
     const f = fixture(),
       page = await f.read({ source: 'client_records' }, 'describe_capiro_data');
     expect(page.ok).toBe(true);
     if (!page.ok || !('relations' in page)) throw Error('metadata expected');
-    expect(page.relations.map((r) => r.fields.length)).toEqual([23, 23, 11, 10, 14, 18, 4, 16, 12, 11, 22, 8, 11, 10]);
+    expect(page.relations.map((r) => r.fields.length)).toEqual([23, 23, 11, 10, 14, 18, 4, 16, 12, 11, 22, 8, 11, 10, 13]);
     expect(JSON.stringify(page)).not.toContain('parameterType');
     const denied = fixture();
     denied.setDuring(async () => {

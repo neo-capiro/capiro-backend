@@ -18,6 +18,7 @@ export const PRIVATE_SQL_VIEW_NAMES = Object.freeze([
   'client_tracked_bills',
   'client_outreach_campaigns',
   'client_campaign_recipients',
+  'client_meetings',
 ] as const);
 type Scope =
   | { readonly scopeKind: 'general'; readonly clientId: null }
@@ -78,12 +79,12 @@ const PRIVATE_SQL_ROLE_CHECK = `WITH reader AS (
   SELECT * FROM pg_catalog.pg_roles WHERE rolname = 'capiro_private_projection_owner'
 ), views AS (
   SELECT c.* FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-  WHERE n.nspname = 'meri_private' AND c.relname IN ('visible_clients','client_objectives','client_activity','client_team_roster','client_account_owners','client_targets','client_profiles','client_profile_codes','client_people','client_contacts','client_engagement_tasks','client_action_items','client_tracked_bills','client_outreach_campaigns','client_campaign_recipients')
+  WHERE n.nspname = 'meri_private' AND c.relname IN ('visible_clients','client_objectives','client_activity','client_team_roster','client_account_owners','client_targets','client_profiles','client_profile_codes','client_people','client_contacts','client_engagement_tasks','client_action_items','client_tracked_bills','client_outreach_campaigns','client_campaign_recipients','client_meetings')
 ), sources AS (
   SELECT c.* FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
   WHERE n.nspname = 'public' AND c.relname IN
     ('tenants','tenant_memberships','clients','client_memory_access','client_objectives','client_activity',
-     'client_ordered_owners','client_team_members','client_targets','client_people','engagement_contacts','engagement_tasks','action_recommendation','tracked_bill','engagement_campaigns','engagement_campaign_recipients')
+     'client_ordered_owners','client_team_members','client_targets','client_people','engagement_contacts','engagement_tasks','action_recommendation','tracked_bill','engagement_campaigns','engagement_campaign_recipients','meetings','engagement_connections','meeting_attendees')
 ), identity_sources AS (
   SELECT c.* FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
   WHERE n.nspname = 'public' AND c.relname = 'users'
@@ -107,14 +108,14 @@ SELECT (
     WHERE n.nspowner = reader.oid OR (n.nspowner = owner.oid AND n.nspname <> 'meri_private')
       OR pg_catalog.has_schema_privilege(reader.oid, n.oid, 'CREATE')
       OR (n.nspname <> 'meri_private' AND pg_catalog.has_schema_privilege(owner.oid, n.oid, 'CREATE')))
-  AND (SELECT count(*) FROM views) = 15
+  AND (SELECT count(*) FROM views) = 16
   AND NOT EXISTS (SELECT 1 FROM views v WHERE v.relkind <> 'v' OR v.relowner <> owner.oid
     OR NOT coalesce(v.reloptions @> ARRAY['security_barrier=true'], false)
     OR coalesce(v.reloptions @> ARRAY['security_invoker=true'], false)
     OR (v.relname <> 'visible_clients' AND NOT pg_catalog.has_table_privilege(reader.oid, v.oid, 'SELECT')))
   AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_class c WHERE c.relowner = reader.oid
     OR (c.relowner = owner.oid AND c.oid NOT IN (SELECT oid FROM views)))
-  AND (SELECT count(*) FROM sources) = 16
+  AND (SELECT count(*) FROM sources) = 19
   AND NOT EXISTS (SELECT 1 FROM sources s WHERE s.relkind NOT IN ('r','p')
     OR NOT s.relrowsecurity OR NOT s.relforcerowsecurity OR s.relowner IN (reader.oid, owner.oid)
     OR NOT pg_catalog.has_any_column_privilege(owner.oid, s.oid, 'SELECT'))

@@ -6,6 +6,7 @@ import { CLIENT_QUERY_RELATIONS } from '../clients/client-query-projections.js';
 import { CLIENT_BUSINESS_QUERY_RELATIONS } from '../clients/client-business-query-projections.js';
 import { CLIENT_PROFILE_QUERY_RELATIONS } from '../clients/client-profile-query-projections.js';
 import { ENGAGEMENT_WORK_QUERY_RELATIONS } from '../engagement/engagement-work-query-projections.js';
+import { CLIENT_MEETING_QUERY_RELATION } from '../engagement/meeting-query-projection.js';
 import {
   PrivateSqlDbService,
   type PrivateSqlExecutionContext,
@@ -38,7 +39,7 @@ export class MeriPrivateSqlService {
     private readonly tools: MeriToolsService,
   ) {
     this.queries = createPrivateSqlQueries(
-      [...CLIENT_QUERY_RELATIONS, ...CLIENT_BUSINESS_QUERY_RELATIONS, ...CLIENT_PROFILE_QUERY_RELATIONS, ...ENGAGEMENT_WORK_QUERY_RELATIONS],
+      [...CLIENT_QUERY_RELATIONS, ...CLIENT_BUSINESS_QUERY_RELATIONS, ...CLIENT_PROFILE_QUERY_RELATIONS, ...ENGAGEMENT_WORK_QUERY_RELATIONS, CLIENT_MEETING_QUERY_RELATION],
       db,
     );
   }
