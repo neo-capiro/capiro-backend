@@ -369,6 +369,24 @@ export class ClientsController {
     return this.service.metrics(ctx);
   }
 
+  /**
+   * M1: stable, session-authenticated client-logo bytes. The app never receives a
+   * presigned S3 URL for a logo, so no payload carries X-Amz-Security-Token and the
+   * image does not expire after five minutes.
+   */
+  @Get(':id/logo')
+  async logo(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const logo = await this.service.readLogo(ctx, id);
+    res.setHeader('Content-Type', logo.contentType);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.send(logo.body);
+  }
+
   @Get(':id')
   get(
     @CurrentTenant() ctx: TenantContext,
