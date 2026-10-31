@@ -1,17 +1,16 @@
 /**
- * LegiWatch V2 Wave 3 — Digest + Analytics contract proof against a REAL
+ * LegiWatch analytics contract proof against a REAL
  * Postgres with the full apps/api AND apps/intel-api migration chains
  * applied (both services share one physical database — see
  * reference_capirov2_db_backed_testing). Proves the cross-schema
  * `intel_alert` raw SQL actually runs (not just typechecks) and that tenant
- * isolation holds for both new tables.
+ * isolation holds for analytics results.
  *
  * Gate: DATABASE_URL must point at the disposable PG. Skipped cleanly
  * otherwise, matching the posture of every sibling integration suite.
  */
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { LegiWatchDigestService } from './legiwatch-digest.service.js';
 import { LegiWatchAnalyticsService } from './legiwatch-analytics.service.js';
 
 const describeDb = process.env.DATABASE_URL ? describe : describe.skip;
@@ -43,9 +42,8 @@ const ctxB1: TenantContext = {
 const HEARING_1 = 'lw-w3-hearing-1';
 const COMMITTEE_1 = 'hsw3-committee';
 
-describeDb('LegiWatch Wave 3 — Digest + Analytics (real Postgres)', () => {
+describeDb('LegiWatch analytics (real Postgres)', () => {
   const prisma = new PrismaService();
-  const digest = new LegiWatchDigestService(prisma);
   const analytics = new LegiWatchAnalyticsService(prisma);
 
   beforeAll(() => prisma.$connect());
@@ -57,8 +55,7 @@ describeDb('LegiWatch Wave 3 — Digest + Analytics (real Postgres)', () => {
       // is deterministic — it is a global registry with no tenant column,
       // so another test file's leftover rows (in the FULL suite, sharing
       // one DB) would otherwise silently change this test's expected count.
-      `TRUNCATE legiwatch_digest_run, legiwatch_digest_schedule,
-                intel_live_hearing_session, intel_watchlist_topic, intel_watchlist,
+      `TRUNCATE intel_live_hearing_session, intel_watchlist_topic, intel_watchlist,
                 committee_hearing, committee_source, congress_bill, congress_committee, clients
        CASCADE`,
     );
@@ -121,7 +118,7 @@ describeDb('LegiWatch Wave 3 — Digest + Analytics (real Postgres)', () => {
     );
 
     // 3 hearing-sourced alerts (2 for client A1, 1 for A2), 1 bill-sourced
-    // alert, all inside the 48h digest / 30-day analytics windows, plus one
+    // alert, all inside the 30-day analytics window, plus one
     // alert for tenant B to prove isolation.
     await prisma.$executeRawUnsafe(
       `INSERT INTO intel_alert
@@ -148,88 +145,6 @@ describeDb('LegiWatch Wave 3 — Digest + Analytics (real Postgres)', () => {
        VALUES ('119-hr-8800', 119, 'hr', '8800', 'Defense Industrial Base Workforce Act of 2026', 'committee', now() - interval '1 hour')
        ON CONFLICT (id) DO NOTHING`,
     );
-  });
-
-  describe('Digest', () => {
-    it('generates a real brief from the seeded alerts and persists it', async () => {
-      const result = await digest.generate(ctxA1, null);
-      expect(result.whatChanged).toHaveLength(3);
-      expect(result.decisionsRequired).toHaveLength(1);
-      expect(result.decisionsRequired[0]?.recommendedAction).toBe(
-        'Brief Overland AI this morning.',
-      );
-      expect(result.clientImplications.map((c) => c.clientName).sort()).toEqual([
-        'Kela Systems',
-        'Overland AI',
-      ]);
-      expect(result.provenance.sourceFamilies.sort()).toEqual(['Committee pages', 'Congress.gov']);
-    });
-
-    it('persists the run so history and getRun can read it back', async () => {
-      const generated = await digest.generate(ctxA1, null);
-      const history = await digest.history(ctxA1, null);
-      expect(history.rows).toHaveLength(1);
-      expect(history.rows[0]?.id).toBe(generated.id);
-      const reread = await digest.getRun(ctxA1, generated.id as string);
-      expect((reread as { whatChanged: unknown[] }).whatChanged).toHaveLength(3);
-    });
-
-    it('never leaks tenant B alerts into tenant A digest', async () => {
-      const result = await digest.generate(ctxA1, null);
-      const titles = result.whatChanged.map((w) => w.title);
-      expect(titles).not.toContain('Should never leak into tenant A');
-    });
-
-    it('schedule upserts by (tenant, user, scope) without a DB unique constraint', async () => {
-      const saved1 = await digest.putSchedule(ctxA1, null, {
-        cadence: 'daily',
-        hourUtc: 11,
-        emailEnabled: true,
-      });
-      expect(saved1.cadence).toBe('daily');
-      const saved2 = await digest.putSchedule(ctxA1, null, {
-        cadence: 'weekly',
-        hourUtc: 14,
-        emailEnabled: false,
-      });
-      expect(saved2.cadence).toBe('weekly');
-      const read = await digest.getSchedule(ctxA1, null);
-      expect(read).toEqual(saved2);
-      const rows = await prisma.legiWatchDigestSchedule.findMany({
-        where: { tenantId: TENANT_A, userId: USER_A1 },
-      });
-      expect(rows).toHaveLength(1); // upsert, not a second row
-    });
-
-    it.each([null, CLIENT_A1])(
-      'concurrent schedule saves produce one row for scope %s',
-      async (clientId) => {
-        await Promise.all(
-          Array.from({ length: 4 }, (_, hourUtc) =>
-            digest.putSchedule(ctxA1, clientId, { cadence: 'daily', hourUtc, emailEnabled: true }),
-          ),
-        );
-        const rows = await prisma.legiWatchDigestSchedule.findMany({
-          where: { tenantId: TENANT_A, userId: USER_A1, clientId },
-        });
-        expect(rows).toHaveLength(1);
-      },
-    );
-
-    it('rejects a schedule for another tenant client without persisting it', async () => {
-      await expect(
-        digest.putSchedule(ctxA1, CLIENT_B1, {
-          cadence: 'daily',
-          hourUtc: 11,
-          emailEnabled: true,
-        }),
-      ).rejects.toMatchObject({ status: 404 });
-      expect(
-        await prisma.legiWatchDigestSchedule.count({
-          where: { tenantId: TENANT_A, userId: USER_A1 },
-        }),
-      ).toBe(0);
-    });
   });
 
   describe('Analytics', () => {

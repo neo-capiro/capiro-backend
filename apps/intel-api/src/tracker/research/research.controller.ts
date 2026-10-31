@@ -1,4 +1,3 @@
-import { ResearchImportService } from './research-import.service.js';
 import { ResearchReportService } from './research-report.service.js';
 import { ResearchDeadlineService } from './research-deadline.service.js';
 import { StatuteMonitorService } from './statute-monitor.service.js';
@@ -22,7 +21,6 @@ import { WorkflowSourceGuard } from '../keywords/internal-workflow.controller.js
 export class ResearchController {
   constructor(
     readonly research: ResearchService,
-    readonly importsService: ResearchImportService,
     readonly researchReports: ResearchReportService,
     readonly researchDeadlines: ResearchDeadlineService,
     readonly monitors: StatuteMonitorService,
@@ -127,31 +125,6 @@ export class ResearchController {
     @Body() body: unknown,
   ) {
     return this.research.saveMembership(ctx, body);
-  }
-
-  @Get('imports') imports(@CurrentTenant() ctx: WorkspaceTenantContext, @Query() query: unknown) {
-    return this.research.staged(ctx, query);
-  }
-
-  @Post('imports/promote') promote(
-    @CurrentTenant() ctx: WorkspaceTenantContext,
-    @Body() body: unknown,
-  ) {
-    return this.research.promote(ctx, body);
-  }
-
-  @Post('imports/decide') decide(
-    @CurrentTenant() ctx: WorkspaceTenantContext,
-    @Body() body: unknown,
-  ) {
-    return this.importsService.decide(ctx, body);
-  }
-
-  @Post('imports/preview') preview(
-    @CurrentTenant() ctx: WorkspaceTenantContext,
-    @Body() body: unknown,
-  ) {
-    return this.importsService.preview(ctx, body);
   }
 
   @Post('drafts') draft(@CurrentTenant() ctx: WorkspaceTenantContext, @Body() body: unknown) {

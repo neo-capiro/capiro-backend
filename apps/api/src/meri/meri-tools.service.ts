@@ -827,11 +827,10 @@ export class MeriToolsService {
       search_legiwatch_news: obj(
         {
           ...legiwatchScope,
-          view: { type: 'string', enum: ['articles', 'monitors', 'personnel', 'source'] },
+          view: { type: 'string', enum: ['articles', 'personnel', 'source'] },
           kind: str('Typed source kind'),
           id: str('Exact source ID'),
           q: str('Retained text filter'),
-          monitorId: str('Exact monitor'),
           days: { type: 'integer', enum: [1, 3, 7, 14] },
           offset: { type: 'integer', minimum: 0 },
           publisher: str('Exact publisher'),
@@ -843,7 +842,7 @@ export class MeriToolsService {
           ...legiwatchScope,
           template: {
             type: 'string',
-            enum: ['research_update', 'daily_legislative_brief', 'morning_news_brief'],
+            enum: ['research_update', 'daily_legislative_brief'],
           },
           title: str('Edition title'),
           analysis: str('Original attributed and cited Capiro analysis'),
@@ -855,7 +854,7 @@ export class MeriToolsService {
             maxItems: 50,
             items: obj(
               {
-                kind: str('news, budget, personnel or research'),
+                kind: { type: 'string', enum: ['research'] },
                 id: str('Exact source ID'),
                 revision: str('Exact revision hash'),
               },
@@ -867,7 +866,7 @@ export class MeriToolsService {
             maxItems: 150,
             items: obj(
               {
-                kind: str('Source kind'),
+                kind: { type: 'string', enum: ['research'] },
                 id: str('Source ID'),
                 revision: str('Source hash'),
                 locator: str('Exact section or available-text'),

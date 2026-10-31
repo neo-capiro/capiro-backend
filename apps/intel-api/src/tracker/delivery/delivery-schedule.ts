@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { dateOnly } from './report-domain.js';
+import { dateOnly } from './delivery-domain.js';
 
 const formatters = new Map<string, Intl.DateTimeFormat>();
 function formatter(timezone: string) {
@@ -54,15 +54,4 @@ export function localOccurrence(day: string, minutes: number, timezone: string):
   }
   if (!next) throw new BadRequestException('LOCAL_BUSINESS_DATE_UNAVAILABLE');
   return new Date(next.time);
-}
-export function nextOccurrence(after: Date, timezone: string, minutes: number) {
-  let day = localTime(after, timezone).date;
-  for (let i = 0; i < 3; i++) {
-    const due = localOccurrence(day, minutes, timezone);
-    if (due > after) return due;
-    const d = new Date(`${day}T00:00:00Z`);
-    d.setUTCDate(d.getUTCDate() + 1);
-    day = d.toISOString().slice(0, 10);
-  }
-  throw new BadRequestException('NEXT_LOCAL_OCCURRENCE_UNAVAILABLE');
 }

@@ -1,5 +1,5 @@
 import type { PrismaService } from '../prisma/prisma.service.js';
-import { reportRuntime } from '../tracker/reports/report-runtime.js';
+import { monitoringRuntime } from '../tracker/delivery/monitoring-runtime.js';
 /** Bounded extension of the existing hearing-intelligence worker; no new
  * provider poller or scheduler. All private work runs in a current owner scope. */
 export async function maintainHearingRecords(prisma: PrismaService) {
@@ -14,7 +14,7 @@ export async function maintainHearingRecords(prisma: PrismaService) {
     SELECT scopes.* FROM scopes LEFT JOIN intel_hearing_record_scan_cursor c ON c.tenant_id=scopes."tenantId" AND c.owner_clerk_id=scopes.actor
     ORDER BY coalesce(c.updated_at,'epoch'::timestamptz),"tenantId",actor LIMIT 25`,
   );
-  const runtime = reportRuntime(prisma);
+  const runtime = monitoringRuntime(prisma);
   let completed = 0,
     failed = 0;
   for (const scope of scopes) {
