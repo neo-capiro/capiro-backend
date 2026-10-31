@@ -2,6 +2,36 @@
 
 ## Independent-review corrections and mixed-version transition
 
+Follow-up to correction `bed5791c2`: independent frontend review identified a
+remaining cached Research caller that requires `/legiwatch/reports/history`
+and supplies a selected frozen `runId`. The temporary controller now delegates
+that metadata-only, 100-row history contract to the research authorization
+owner. Each eligible internal base requires actor ownership, current definition
+folder access, every frozen-row folder's access, and current client-wall checks
+before its metadata is returned. General old bill-report run/export/compose/send
+routes remain denied; old base content is available only within authorized
+retained Research preview.
+
+Legacy Research preview retains the exact earlier base HTML/text append and
+`baseRunId`/`baseRunHash` approval digest semantics. Approval locks the selected
+run and definition before re-reading them, rechecks current selection origin
+and folder/client/session authorization, and preserves the base snapshot,
+definition version, cutoff and completeness in one immutable research derivative.
+Replay requires the original selection and base, reauthorizes current access,
+and returns the frozen result even after public evidence revisions. Standalone
+Research inputs keep their existing rendering/hash and scope-record behavior.
+These compatibility branches share the same frontend transition/rollback removal
+condition below; no historical data or schema is changed.
+
+Follow-up validation: 17 cached Research tests passed, including exact old
+composition/hash shape, same-base replay, tenant/owner/folder/client/session
+denials, source/client revocation during the Workspace request, and General-scope
+membership/capability revocation after that request. The seven standalone
+Research/retained-route companion tests also passed. Full Intel TypeScript
+passed after correcting a context-object narrowing diagnostic. No PostgreSQL
+contention test, real Workspace request, provider call or deployed acceptance
+was executed; locks are verified by query/order assertions in the unit fixture.
+
 The independent review of FE `89a35dd157d11677365ed982e84f555ba2807a8c` and BE
 `87fe4228beec91ca7f0491db4919387e30b340c5` returned both heads. The historical
 implementation review statements below apply only to their stated earlier
