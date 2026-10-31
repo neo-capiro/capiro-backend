@@ -77,6 +77,7 @@ import {
   ownMailThreadWhere,
   ownMeetingWhere,
   ownOutreachRecordWhere,
+  resolvePrepClientId,
 } from './engagement-access.helpers.js';
 import { activeMailMessageWhere } from './mail-message-state.js';
 import { readOutreachAudienceType, type OutreachAudienceType } from './outreach-audience-types.js';
@@ -5537,7 +5538,7 @@ export class EngagementService {
     const artifact=await tx.clioArtifact.findFirst({where:{id:input.artifactId,tenantId:ctx.tenantId,userId:ctx.userId}});if(!artifact)throw new NotFoundException('Research Portfolio artifact not found');
     await authorizeResearchPortfolioArtifact(tx,ctx,artifact);
     if(await tx.meetingPrep.findFirst({where:{tenantId:ctx.tenantId,meetingId:input.meetingId,status:'approved'},select:{id:true}}))throw new ConflictException('An approved meeting preparation already exists; preserve it and use the private draft');
-    return tx.meetingPrep.create({data:{tenantId:ctx.tenantId,meetingId:input.meetingId,clientId:null,status:'edited',summary:input.summary,agenda:input.agenda,followUps:input.followUps,talkingPoints:[],risks:[],emailEvidence:[],provider:null,model:null,sharedAt:null,sharedByUserId:null,editedByUserId:ctx.userId,generatedFrom:{schemaVersion:'research_portfolio_institutional_v1',briefing:true,artifactId:artifact.id,meetingId:input.meetingId,actorUserId:ctx.userId,reviewStatus:'unreviewed_draft'}}});
+    return tx.meetingPrep.create({data:{tenantId:ctx.tenantId,meetingId:input.meetingId,clientId:await resolvePrepClientId(tx,ctx.tenantId,input.meetingId,null),status:'edited',summary:input.summary,agenda:input.agenda,followUps:input.followUps,talkingPoints:[],risks:[],emailEvidence:[],provider:null,model:null,sharedAt:null,sharedByUserId:null,editedByUserId:ctx.userId,generatedFrom:{schemaVersion:'research_portfolio_institutional_v1',briefing:true,artifactId:artifact.id,meetingId:input.meetingId,actorUserId:ctx.userId,reviewStatus:'unreviewed_draft'}}});
   }
 
   async updateTask(ctx: TenantContext, id: string, input: UpdateTaskInput, internal?: { tx: Prisma.TransactionClient }) {
@@ -6826,7 +6827,9 @@ export class EngagementService {
           data: {
             tenantId: ctx.tenantId,
             meetingId,
-            clientId: correctClientId,
+            // One rule for every create site: an unstamped row for a client-scoped
+            // meeting is what made legacy preps permanently read-only.
+            clientId: await resolvePrepClientId(tx, ctx.tenantId, meetingId, correctClientId),
             // A prep is usable the moment it is saved; approval is not a gate.
             status: MeetingPrepStatus.approved,
             agenda: generated.agenda,
@@ -6954,23 +6957,49 @@ export class EngagementService {
       });
       if (!prep) throw new NotFoundException('Meeting prep not found');
       await this.ensureOwnMeeting(tx, ctx, prep.meetingId);
-      await assertSavedMeetingPrepAccess(tx, ctx, prep.generatedFrom);
-      assertExpectedRevision(input.expectedRevision, prep.updatedAt, 'meeting_prep', prepId, {
-        id: prep.id,
-        status: prep.status,
-        clientId: prep.clientId,
+      // WP1: the attribution write below takes the SAME parent-assignment lock the canonical
+      // reassignment and generated-prep persistence take, and then re-reads the row under it.
+      // Without that, a null observation made before a concurrent A->B reassignment could be
+      // stamped back as A, leaving the saved preparation unreadable against its parent.
+      await this.lockMeetingClientAssignment(tx, ctx, prep.meetingId);
+      const current = await tx.meetingPrep.findFirst({
+        where: { id: prepId, tenantId: ctx.tenantId },
+        select: {
+          id: true,
+          meetingId: true,
+          generatedFrom: true,
+          updatedAt: true,
+          status: true,
+          clientId: true,
+        },
+      });
+      if (!current) throw new NotFoundException('Meeting prep not found');
+      await assertSavedMeetingPrepAccess(tx, ctx, current.generatedFrom);
+      assertExpectedRevision(input.expectedRevision, current.updatedAt, 'meeting_prep', prepId, {
+        id: current.id,
+        status: current.status,
+        clientId: current.clientId,
       });
       const generatedFrom =
-        prep.generatedFrom &&
-        typeof prep.generatedFrom === 'object' &&
-        !Array.isArray(prep.generatedFrom)
-          ? prep.generatedFrom
+        current.generatedFrom &&
+        typeof current.generatedFrom === 'object' &&
+        !Array.isArray(current.generatedFrom)
+          ? current.generatedFrom
           : null;
       const grounding = generatedFrom?.grounding;
+      // WP1: bind a legacy unstamped row to its meeting's client in this same write,
+      // so the first successful save also ends the client's read-only state. An
+      // already-stamped row is never re-stamped here — client reassignment is the
+      // canonical reassignMeetingClient path, not this one.
+      const stampedClientId =
+        current.clientId === null
+          ? await resolvePrepClientId(tx, ctx.tenantId, current.meetingId, null)
+          : current.clientId;
 
       return tx.meetingPrep.update({
         where: { id: prepId },
         data: {
+          ...(current.clientId === null && stampedClientId ? { clientId: stampedClientId } : {}),
           ...('summary' in input ? { summary: input.summary?.trim() || null } : {}),
           ...('agenda' in input ? { agenda: normalizeStringArray(input.agenda) } : {}),
           ...('talkingPoints' in input

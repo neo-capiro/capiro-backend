@@ -198,6 +198,8 @@ describe('meeting prep persistence', () => {
 
   test('manual edits invalidate claim links even if subsequently approved', async () => {
     const tx = {
+      // updateMeetingPrep now takes the parent-assignment lock before it stamps/edits.
+      $queryRaw: jest.fn(async () => [{ id: 'm1' }]),
       meetingPrep: {
         findFirst: async () => ({
           id: 'p1',
