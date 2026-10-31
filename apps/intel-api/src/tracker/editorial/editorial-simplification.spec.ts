@@ -331,6 +331,23 @@ test('old report/news configurations cannot activate or silently generate a rese
   expect(evidence.run).not.toHaveBeenCalled();
 });
 
+test.each([
+  { policyVersion: undefined },
+  { policyVersion: 1 },
+  { policyVersion: '2' },
+  { template: 'morning_news_brief' },
+  { template: ['research_update'] },
+  { includedKinds: ['news'] },
+  { includedKinds: ['research', 'news'] },
+  { includedKinds: ['research', 'research'] },
+  { reportId: null },
+  { reportVersion: null },
+  { monitorIds: [] },
+  { categoryMapping: {} },
+])('rejects configuration policy changes before runtime scheduling: %j', (change) => {
+  expect(currentEditorialConfiguration({ ...config, ...change })).toBe(false);
+});
+
 test('saving a standalone configuration pins research-only policy and clears prior approval', async () => {
   const { service, tx } = harness();
   tx.$queryRaw
