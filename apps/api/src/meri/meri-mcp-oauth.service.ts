@@ -58,6 +58,8 @@ type OAuthServerRow = {
   scope: string;
   ownerUserId: string | null;
   enabled: boolean;
+  connectionStatus: string;
+  updatedAt: Date;
 };
 
 @Injectable()
@@ -167,13 +169,21 @@ export class MeriMcpOAuthService {
       signedState,
     );
 
-    await this.setStatus(
-      ctx.tenantId,
-      server.id,
-      'pending',
-      undefined,
-      !managedAppDefinition(server.catalogId),
+    // Explicit reconnect may start from disconnected, but it may not overwrite
+    // a disconnect or another start that happened after this row was admitted.
+    const pending = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioMcpServer.updateMany({
+        where: {
+          id: server.id,
+          tenantId: ctx.tenantId,
+          enabled: true,
+          connectionStatus: server.connectionStatus,
+          updatedAt: server.updatedAt,
+        },
+        data: { connectionStatus: 'pending', lastError: null },
+      }),
     );
+    if (pending.count !== 1) throw new BadRequestException('This authorization is no longer active.');
 
     let result: string;
     try {
@@ -181,25 +191,23 @@ export class MeriMcpOAuthService {
         serverUrl: server.endpoint,
         scope: provider.clientMetadata.scope,
       });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      await this.setStatus(ctx.tenantId, server.id, 'error', message);
-      this.logger.warn(`MCP OAuth start failed [${server.name}]: ${message}`);
+    } catch {
+      await this.setStatus(ctx.tenantId, server.id, 'error', 'Sign-in could not start.');
+      this.logger.warn(`MCP OAuth start failed [server ${server.id}]`);
       throw new ServiceUnavailableException(
         'Sign-in could not start. Please try connecting again.',
       );
     }
 
     const url = provider.capturedAuthorizationUrl;
-    if (result !== 'REDIRECT' || !url) {
-      // Valid tokens already on file — not an error; report it so the UI can
-      // just refresh the connected state.
-      await this.setStatus(
-        ctx.tenantId,
-        server.id,
-        managedAppDefinition(server.catalogId) ? 'pending' : 'connected',
-      );
+    if (result === 'AUTHORIZED') {
+      // Tokens are valid; the calling owner must still discover usable tools
+      // (and finalize a managed app) before reporting readiness.
       return { authUrl: null, alreadyConnected: true };
+    }
+    if (result !== 'REDIRECT' || !url) {
+      await this.setStatus(ctx.tenantId, server.id, 'error', 'Sign-in did not complete.');
+      throw new ServiceUnavailableException('Sign-in did not complete. Please try again.');
     }
     // Bind the discovered issuer to this exact user/tenant/nonce before redirect.
     const authorization = provider.authorizationResponseRequirements;
@@ -257,6 +265,8 @@ export class MeriMcpOAuthService {
           scope: true,
           ownerUserId: true,
           enabled: true,
+          connectionStatus: true,
+          updatedAt: true,
         },
       }),
     );
@@ -302,13 +312,12 @@ export class MeriMcpOAuthService {
       if (result !== 'AUTHORIZED') {
         throw new BadRequestException('Authorization did not complete');
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      await this.setStatus(decoded.t, server.id, 'error', message);
-      this.logger.warn(`MCP OAuth callback failed [${server.name}]: ${message}`);
+    } catch {
+      await this.setStatus(decoded.t, server.id, 'error', 'Sign-in did not complete.');
+      this.logger.warn(`MCP OAuth callback failed [server ${server.id}]`);
       throw new BadRequestException('Sign-in did not complete. Please try connecting again.');
     }
-    // Managed app tokens are saved while pending; discovery finalizes readiness.
+    // Tokens are saved while pending; the calling owner finalizes readiness.
     await this.audit(decoded.t, decoded.u, 'clio.mcp_oauth.connect', server.id, {
       name: server.name,
     });
@@ -394,6 +403,8 @@ export class MeriMcpOAuthService {
           scope: true,
           ownerUserId: true,
           enabled: true,
+          connectionStatus: true,
+          updatedAt: true,
         },
       }),
     );
@@ -459,7 +470,6 @@ export class MeriMcpOAuthService {
     serverId: string,
     status: string,
     error?: string,
-    allowDisconnected = false,
   ): Promise<void> {
     await this.prisma
       .withTenant(tenantId, (tx) =>
@@ -467,7 +477,7 @@ export class MeriMcpOAuthService {
           where: {
             id: serverId,
             tenantId,
-            ...(allowDisconnected ? {} : { connectionStatus: { not: 'disconnected' } }),
+            connectionStatus: { not: 'disconnected' },
           },
           data: {
             connectionStatus: status,

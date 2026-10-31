@@ -199,7 +199,9 @@ export class DbOAuthClientProvider implements OAuthClientProvider {
           enabled: true,
           connectionStatus: { not: 'disconnected' },
         },
-        data: { lastError: null, ...(!this.opts.managed ? { connectionStatus: 'connected' } : {}) },
+        // Credential storage is not discovery. Keep a new authorization pending,
+        // and leave an already-connected token refresh connected.
+        data: { lastError: null },
       });
       if (active.count !== 1) throw new Error('This connection is no longer active.');
       const saved = await tx.clioMcpOAuthCredential.updateMany({
