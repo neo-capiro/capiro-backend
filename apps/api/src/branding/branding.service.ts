@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3Client, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
@@ -80,6 +80,45 @@ export class BrandingService {
     }
     const logoUrl = tenant.logoS3Key ? await this.signedGetUrl(tenant.logoS3Key) : null;
     return { ...tenant, logoUrl };
+  }
+
+  /**
+   * M1 (firm half): stable, session-authenticated firm-logo bytes.
+   *
+   * The settings payload used to carry a presigned S3 GET URL, so every branding read
+   * embedded temporary AWS credentials and the image expired after five minutes. This
+   * returns the stored bytes for the caller's own tenant instead.
+   *
+   * Same rule as `getBranding`: a persisted key may only be one this tenant's upload flow
+   * could have written (`ownedLogoKey`, legacy `logo.<ext>` accepted), so an arbitrary or
+   * foreign key can never be served, and the content type is only the already-validated
+   * image whitelist. Anything else is a plain 404 — absent, unowned and unreadable look the
+   * same to the caller.
+   */
+  async readLogo(ctx: TenantContext): Promise<{ contentType: string; body: Buffer }> {
+    const tenant = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.tenant.findUnique({
+        where: { id: ctx.tenantId },
+        select: { logoS3Key: true, logoContentType: true },
+      }),
+    );
+    const contentType = tenant?.logoContentType ?? '';
+    if (
+      !tenant?.logoS3Key ||
+      !ALLOWED_MIME.has(contentType) ||
+      !ownedLogoKey(ctx.tenantId, tenant.logoS3Key, contentType, true) ||
+      !this.bucket
+    ) {
+      throw new NotFoundException('Firm logo not found');
+    }
+    const object = await this.s3
+      .send(new GetObjectCommand({ Bucket: this.bucket, Key: tenant.logoS3Key }))
+      .catch(() => null);
+    if (!object?.Body) throw new NotFoundException('Firm logo not found');
+    return {
+      contentType,
+      body: Buffer.from(await object.Body.transformToByteArray()),
+    };
   }
 
   /**
