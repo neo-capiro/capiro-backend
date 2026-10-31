@@ -106,11 +106,36 @@ describe('Phase 8 public observations, private selections and actual database re
     const result = await evidence.budget(ctx, { ...scope(), fiscalYear: '2026-27', projectId });
     expect((result.events as Array<{ id: string }>).map((row) => row.id)).toEqual([wantedEvent]);
   });
-  it('discovers scheduled work under the real application role without bypassing owner RLS', async () => {
+  it('discovers current scheduled work past a full retired batch without bypassing owner RLS', async () => {
     const configId = randomUUID(),
-      foreignId = randomUUID();
-    await p.$executeRaw`INSERT INTO intel_legiwatch_editorial_config(id,tenant_id,owner_clerk_id,source_key,source,config,state) VALUES(${configId},${tenant},${actor},${configId},'{}','{}','active'),(${foreignId},${randomUUID()},${actor},${foreignId},'{}','{}','active')`;
+      foreignId = randomUUID(),
+      current = {
+        policyVersion: 2,
+        template: 'research_update',
+        includedKinds: ['research'],
+      },
+      retiredConfigs = [
+        { ...current, policyVersion: undefined },
+        { ...current, policyVersion: 1 },
+        { ...current, policyVersion: '2' },
+        { ...current, template: 'morning_news_brief' },
+        { ...current, template: ['research_update'] },
+        { ...current, includedKinds: ['news'] },
+        { ...current, includedKinds: ['research', 'news'] },
+        { ...current, includedKinds: ['research', 'research'] },
+        { ...current, reportId: null },
+        { ...current, reportVersion: null },
+        { ...current, monitorIds: [] },
+        { ...current, categoryMapping: {} },
+      ],
+      retiredIds = retiredConfigs.map(() => randomUUID());
     try {
+      for (const [index, retired] of retiredConfigs.entries()) {
+        const id = retiredIds[index];
+        await p.$executeRaw`INSERT INTO intel_legiwatch_editorial_config(id,tenant_id,owner_clerk_id,source_key,source,config,state) VALUES(${id},${tenant},${actor},${id},'{}',${JSON.stringify(retired)}::jsonb,'active')`;
+      }
+      // Retired rows have NULL attempts and would fill the batch before this current row.
+      await p.$executeRaw`INSERT INTO intel_legiwatch_editorial_config(id,tenant_id,owner_clerk_id,source_key,source,config,state,last_attempt_at) VALUES(${configId},${tenant},${actor},${configId},'{}',${JSON.stringify(current)}::jsonb,'active',now()),(${foreignId},${randomUUID()},${actor},${foreignId},'{}',${JSON.stringify(current)}::jsonb,'active',NULL)`;
       const restricted = {
         withSystem: (fn: Parameters<PrismaService['withSystem']>[0]) =>
           p.withSystem(async (tx) => {
@@ -133,8 +158,17 @@ describe('Phase 8 public observations, private selections and actual database re
       );
       expect(invisible).toEqual([]);
       const found = await discoverEditorialWork(restricted, tenant);
-      expect(found.configurations.map((c) => c.id)).toContain(configId);
-      expect(found.configurations.map((m) => m.id)).not.toContain(foreignId);
+      expect(found.configurations.map((c) => c.id)).toEqual([configId]);
+      const retired = await p.$queryRaw<Array<{ id: string; state: string; config: unknown }>>`
+        SELECT id,state,config FROM intel_legiwatch_editorial_config WHERE id=ANY(${retiredIds}::text[])
+      `;
+      expect(retired).toHaveLength(12);
+      for (const [index, config] of retiredConfigs.entries())
+        expect(retired.find((row) => row.id === retiredIds[index])).toEqual({
+          id: retiredIds[index],
+          state: 'active',
+          config: JSON.parse(JSON.stringify(config)),
+        });
       const unscoped = await restricted.withTenant(
         tenant,
         (tx) =>
@@ -144,7 +178,7 @@ describe('Phase 8 public observations, private selections and actual database re
       );
       expect(unscoped).toEqual([]);
     } finally {
-      await p.$executeRaw`DELETE FROM intel_legiwatch_editorial_config WHERE id=ANY(${[configId, foreignId]}::text[])`;
+      await p.$executeRaw`DELETE FROM intel_legiwatch_editorial_config WHERE id=ANY(${[configId, foreignId, ...retiredIds]}::text[])`;
     }
   });
 

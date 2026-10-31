@@ -20,7 +20,7 @@ export const evidenceDigest = (value: unknown) =>
 export function currentEditorialConfiguration(config: Record<string, unknown>) {
   return (
     config.policyVersion === 2 &&
-    ['research_update', 'daily_legislative_brief'].includes(String(config.template)) &&
+    (config.template === 'research_update' || config.template === 'daily_legislative_brief') &&
     Array.isArray(config.includedKinds) &&
     config.includedKinds.length === 1 &&
     config.includedKinds[0] === 'research' &&

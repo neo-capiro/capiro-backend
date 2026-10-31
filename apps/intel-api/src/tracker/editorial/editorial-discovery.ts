@@ -26,10 +26,16 @@ export async function discoverEditorialWork(
   for (const owner of owners) {
     const rows = await prisma.withTenant(tenantId, async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.folder_actor',${owner.owner_clerk_id},true)`;
+      // Retired active rows must not consume the bounded batch while awaiting review.
+      // Keep eligibility aligned with currentEditorialConfiguration's runtime guard.
       const briefs = await tx.$queryRaw<EditorialConfigurationRow[]>`
         SELECT id,owner_clerk_id,last_attempt_at,version,config,standing_approval
         FROM intel_legiwatch_editorial_config
         WHERE tenant_id=${tenantId} AND owner_clerk_id=${owner.owner_clerk_id} AND state='active'
+          AND config->'policyVersion'='2'::jsonb
+          AND config->>'template' IN ('research_update','daily_legislative_brief')
+          AND config->'includedKinds'='["research"]'::jsonb
+          AND NOT (config ?| ARRAY['reportId','reportVersion','monitorIds','categoryMapping'])
         ORDER BY last_attempt_at NULLS FIRST,id LIMIT 10
       `;
       return briefs;
