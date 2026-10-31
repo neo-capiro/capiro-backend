@@ -50,10 +50,12 @@ test('executor buffers are copied before the canonical postcheck can mutate them
   expect(buffer[0]!.total).toBe('changed after execution');
 });
 
-test.each(['iterator', 'accessor', 'oversized'])('rejects %s output before releasing a result', async kind => {
+test.each(['iterator', 'accessor', 'array-accessor', 'nested-array-accessor', 'oversized'])('rejects %s output before releasing a result', async kind => {
   const f = fixture(), getter = jest.fn(() => 'deferred');
+  const deferred = () => Object.defineProperty([], '0', { enumerable: true, get: getter });
   const output = kind === 'iterator' ? (function* () { yield { total: '1' }; })() :
     kind === 'accessor' ? [Object.defineProperty({}, 'total', { enumerable: true, get: getter })] :
+      kind === 'array-accessor' ? deferred() : kind === 'nested-array-accessor' ? [{ values: deferred() }] :
       [{ total: 'x'.repeat(262144) }];
   f.execute.mockResolvedValue(output as any);
   await expect(f.run()).rejects.toThrow();
