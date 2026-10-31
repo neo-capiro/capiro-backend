@@ -4,9 +4,10 @@ import {
   boundPeCandidates,
   enumeratePeCandidates,
   peKeywordMatchesSql,
-  withPeCandidateDeadline,
+  createPeRelevanceBudget,
   type PeCandidateSignals,
 } from './client-pe-candidates.js';
+import { ClientPeRelevanceService } from './client-pe-relevance.service.js';
 
 jest.mock('node:perf_hooks', () => ({ performance: { now: jest.fn(() => 0) } }));
 
@@ -127,18 +128,77 @@ test('absent signals produce no keyword/facility/ecosystem scan and no omitted p
   expect(result.candidateCoverage).toMatchObject({ complete: true, omittedPaths: [] });
 });
 
-describe('candidate SQL deadline', () => {
+describe('whole relevance request deadline', () => {
   beforeEach(() => jest.mocked(performance.now).mockReset().mockReturnValue(0));
   test('sets a positive LOCAL server timeout and awaits the original query failure', async () => {
-    let rolledBack = false;
     const tx = {
       $executeRaw: jest.fn(async () => 1),
       $queryRaw: jest.fn(async () => {
         throw Error('SQL failed');
       }),
     };
-    const prisma = {
-      $transaction: jest.fn(async (work: any) => {
+    const { query } = createPeRelevanceBudget().bind(tx as never);
+    await expect(
+      Promise.all([query(Prisma.sql`SELECT 1`), query(Prisma.sql`SELECT 2`)]),
+    ).rejects.toThrow('SQL failed');
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(tx.$executeRaw).toHaveBeenCalledWith(expect.any(Array), '15000ms');
+  });
+  test('an exhausted shared budget never submits another query or a zero timeout', async () => {
+    jest.mocked(performance.now).mockReturnValueOnce(0).mockReturnValue(15001);
+    const tx = { $executeRaw: jest.fn(), $queryRaw: jest.fn() };
+    const { query } = createPeRelevanceBudget().bind(tx as never);
+    await expect(query(Prisma.sql`SELECT 1`)).rejects.toThrow('PE relevance query budget exceeded');
+    expect(tx.$executeRaw).not.toHaveBeenCalled();
+    expect(tx.$queryRaw).not.toHaveBeenCalled();
+  });
+
+  function requestFixture(options: { waitMs?: number; titleMs?: number } = {}) {
+    let elapsed = 0;
+    jest.mocked(performance.now).mockImplementation(() => elapsed);
+    const timeouts: number[] = [];
+    const seen: string[] = [];
+    const tx: any = {
+      $executeRaw: jest.fn(async (_strings: any, ms: string) => {
+        timeouts.push(parseInt(ms));
+        return 1;
+      }),
+      client: {
+        findUnique: jest.fn(async () => {
+          elapsed += 2000;
+          return { id: 'client', name: 'Synthetic', uei: null };
+        }),
+      },
+      clientCapability: {
+        findMany: async () => [
+          {
+            peNumbers: ['0600001F'],
+            peNumber: null,
+            name: 'hypersonics',
+            keywords: ['hypersonics'],
+            tags: [],
+          },
+        ],
+      },
+      clientFacility: { findMany: async () => [{ state: 'TX', congressionalDistrict: '5' }] },
+      clientIntelMapping: { findMany: async () => [] },
+      programElement: {
+        findMany: jest.fn(async () => {
+          seen.push('title');
+          elapsed += options.titleMs ?? 1000;
+          return [{ peCode: '0600001F', title: 'Synthetic' }];
+        }),
+      },
+      $queryRaw: jest.fn(async (sql: Prisma.Sql) => {
+        elapsed += 1000;
+        seen.push(sql.sql);
+        return [];
+      }),
+    };
+    let rolledBack = false;
+    const prisma: any = {
+      withTenant: jest.fn(async (_t: string, work: any) => {
+        elapsed += options.waitMs ?? 0;
         try {
           return await work(tx);
         } catch (error) {
@@ -146,25 +206,50 @@ describe('candidate SQL deadline', () => {
           throw error;
         }
       }),
+      $queryRaw: jest.fn(() => {
+        throw Error('Unbudgeted public query');
+      }),
+      programElement: {
+        findMany: jest.fn(() => {
+          throw Error('Unbudgeted title read');
+        }),
+      },
     };
-    await expect(
-      withPeCandidateDeadline(prisma as never, (query) => query(Prisma.sql`SELECT 1`)),
-    ).rejects.toThrow('SQL failed');
-    expect(rolledBack).toBe(true);
-    expect(tx.$executeRaw).toHaveBeenCalledWith(expect.any(Array), '15000ms');
-    expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
-      maxWait: 1000,
-      timeout: 16000,
+    const run = () =>
+      new ClientPeRelevanceService(prisma).getRelevantPesForClient(
+        { tenantId: 'tenant' } as any,
+        'client',
+      );
+    return { run, timeouts, seen, prisma, tx, rolledBack: () => rolledBack };
+  }
+
+  test('actual service uses diminishing budget for signals, four discovery queries, every scorer and titles', async () => {
+    const h = requestFixture();
+    const result = await h.run();
+    expect(result.data).toHaveLength(1); // direct path still scores1 without public evidence
+    expect(h.timeouts).toEqual([
+      15000, 13000, 13000, 13000, 13000, 12000, 11000, 10000, 9000, 8000, 7000, 6000, 5000,
+    ]);
+    expect(h.tx.$queryRaw).toHaveBeenCalledTimes(8);
+    expect(h.seen.at(-1)).toBe('title');
+    expect(h.prisma.withTenant).toHaveBeenCalledWith('tenant', expect.any(Function), {
+      timeoutMs: 15000,
     });
+    expect(h.prisma.$queryRaw).not.toHaveBeenCalled();
   });
-  test('an exhausted shared budget never submits another query or a zero timeout', async () => {
-    jest.mocked(performance.now).mockReturnValueOnce(0).mockReturnValue(15001);
-    const tx = { $executeRaw: jest.fn(), $queryRaw: jest.fn() };
-    const prisma = { $transaction: async (work: any) => work(tx) };
-    await expect(
-      withPeCandidateDeadline(prisma as never, (query) => query(Prisma.sql`SELECT 1`)),
-    ).rejects.toThrow('PE candidate query budget exceeded');
-    expect(tx.$executeRaw).not.toHaveBeenCalled();
-    expect(tx.$queryRaw).not.toHaveBeenCalled();
+
+  test('title lookup cannot reset the budget or release a late successful response', async () => {
+    const h = requestFixture({ titleMs: 5001 });
+    await expect(h.run()).rejects.toThrow('PE relevance query budget exceeded');
+    expect(h.rolledBack()).toBe(true);
+    expect(h.timeouts.at(-1)).toBe(5000);
+  });
+
+  test('connection wait consumes the request budget before any signal query', async () => {
+    const h = requestFixture({ waitMs: 15001 });
+    await expect(h.run()).rejects.toThrow('PE relevance query budget exceeded');
+    expect(h.tx.client.findUnique).not.toHaveBeenCalled();
+    expect(h.tx.$queryRaw).not.toHaveBeenCalled();
+    expect(h.tx.$executeRaw).not.toHaveBeenCalled();
   });
 });

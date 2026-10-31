@@ -113,6 +113,8 @@ function makePrisma(opts: {
   });
 
   const tx = {
+    $executeRaw: jest.fn(async () => 1),
+    programElement: { findMany: jest.fn(async () => opts.peTitles ?? []) },
     client: { findUnique: jest.fn(async () => client) },
     clientCapability: { findMany: jest.fn(async () => capabilities) },
     clientFacility: { findMany: jest.fn(async () => facilities) },
@@ -123,15 +125,12 @@ function makePrisma(opts: {
       if (text.includes('client_capabilities') && text.includes('UNION')) {
         return opts.candidateClientIds ?? [];
       }
-      return [];
+      return globalQueryRaw(sql);
     }),
   };
 
   return {
     $queryRaw: globalQueryRaw,
-    $transaction: jest.fn(async (work: any) => work({
-      $queryRaw: globalQueryRaw, $executeRaw: jest.fn(async () => 1),
-    })),
     programElement: {
       findUnique: jest.fn(async () => opts.pe ?? null),
       findMany: jest.fn(async () => opts.peTitles ?? []),
@@ -195,7 +194,7 @@ describe('all-path bounded PE discovery', () => {
 
   test('candidate query failure propagates and cannot become a complete empty success', async () => {
     const prisma = makePrisma({});
-    prisma.$transaction.mockRejectedValueOnce(new Error('candidate deadline'));
+    prisma.__tx.$queryRaw.mockRejectedValueOnce(new Error('candidate deadline'));
     await expect(new ClientPeRelevanceService(prisma as never).getRelevantPesForClient(ctx, 'client-1'))
       .rejects.toThrow('candidate deadline');
   });
@@ -477,7 +476,7 @@ describe('ClientPeRelevanceService', () => {
       const service = new ClientPeRelevanceService(prisma as never);
       const out = await service.getRelevantPesForClient(ctx, 'missing');
       expect(out).toEqual({ data: [], total: 0, page: 1, limit: 50, candidateCoverage: null });
-      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(prisma.$queryRaw).not.toHaveBeenCalled();
     });
   });
 

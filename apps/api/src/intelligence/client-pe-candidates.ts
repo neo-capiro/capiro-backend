@@ -1,10 +1,9 @@
 import { performance } from 'node:perf_hooks';
 import { Prisma } from '@prisma/client';
-import type { PrismaService } from '../prisma/prisma.service.js';
 import type { RelevancePath } from './client-pe-relevance.scoring.js';
 
 export const MAX_CANDIDATE_PES = 400;
-export const PE_CANDIDATE_SQL_BUDGET_MS = 15_000;
+export const PE_RELEVANCE_BUDGET_MS = 15_000;
 
 export interface CandidateCoverage {
   complete: boolean;
@@ -26,7 +25,8 @@ export interface PeCandidateSignals {
 }
 
 type PeRows = Array<{ peCode: string }>;
-type Query = <T>(sql: Prisma.Sql) => Promise<T>;
+export type PeQuery = <T>(sql: Prisma.Sql) => Promise<T>;
+export type PeRead = <T>(work: () => Promise<T>) => Promise<T>;
 
 /** Shared by enumeration and scoring; same fields and existing50-snippet bound.
  * Ordering was previously unspecified. Stable IDs now select the same snippets
@@ -58,30 +58,49 @@ export function peKeywordMatchesSql(terms: string[], floor: number, peCode?: str
   `;
 }
 
-/** Finite server-side deadline for the complete candidate enumeration, not a
- * Promise.race that abandons active SQL. Connection wait consumes the same budget.
+/** One request work budget, created before acquiring the tenant transaction.
+ * Every signal/discovery/scoring/title read uses the same remaining deadline.
+ * Serialize the scorer's Promise.all calls so each SQL statement gets its own
+ * actual remaining timeout, not a timeout calculated before another query waits.
+ * Rollback/transport cleanup is awaited; this is not a hard HTTP latency promise.
  */
-export async function withPeCandidateDeadline<T>(
-  prisma: Pick<PrismaService, '$transaction'>,
-  work: (query: Query) => Promise<T>,
-): Promise<T> {
-  const deadline = performance.now() + PE_CANDIDATE_SQL_BUDGET_MS;
+export function createPeRelevanceBudget() {
+  const deadline = performance.now() + PE_RELEVANCE_BUDGET_MS;
   const remaining = () => {
     const ms = Math.floor(deadline - performance.now());
-    if (ms < 1) throw new Error('PE candidate query budget exceeded');
+    if (ms < 1) throw new Error('PE relevance query budget exceeded');
     return ms;
   };
-  return prisma.$transaction(
-    async (tx) => {
-      const query: Query = async <R>(sql: Prisma.Sql) => {
-        await tx.$executeRaw`SELECT set_config('statement_timeout', ${`${remaining()}ms`}, true)`;
-        remaining();
-        return tx.$queryRaw<R>(sql);
+  return {
+    remaining,
+    bind(tx: Prisma.TransactionClient) {
+      let tail = Promise.resolve();
+      let failed = false;
+      let failure: unknown;
+      const read: PeRead = <T>(work: () => Promise<T>) => {
+        const result = tail.then(async () => {
+          if (failed) throw failure;
+          await tx.$executeRaw`SELECT set_config('statement_timeout', ${`${remaining()}ms`}, true)`;
+          remaining();
+          const value = await work();
+          remaining();
+          return value;
+        });
+        tail = result.then(
+          () => undefined,
+          (error: unknown) => {
+            failed = true;
+            failure = error;
+          },
+        );
+        return result;
       };
-      return work(query);
+      return {
+        read,
+        query: <T>(sql: Prisma.Sql) => read(() => tx.$queryRaw<T>(sql)),
+      };
     },
-    { maxWait: 1_000, timeout: PE_CANDIDATE_SQL_BUDGET_MS + 1_000 },
-  );
+  };
 }
 
 export function boundPeCandidates(byPath: Record<RelevancePath, PeRows>) {
@@ -109,7 +128,7 @@ export function boundPeCandidates(byPath: Record<RelevancePath, PeRows>) {
 }
 
 export async function enumeratePeCandidates(
-  query: Query,
+  query: PeQuery,
   signals: PeCandidateSignals,
   keywordFloor: number,
   nameFloor: number,

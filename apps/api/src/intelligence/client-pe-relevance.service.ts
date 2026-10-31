@@ -13,8 +13,8 @@ import {
 } from './client-pe-relevance.scoring.js';
 import { expandTerms, isKnownAcronym, MIN_KEYWORD_TOKEN_LENGTH } from './term-expansion.js';
 import {
-  enumeratePeCandidates, peKeywordMatchesSql, withPeCandidateDeadline,
-  type CandidateCoverage,
+  createPeRelevanceBudget, enumeratePeCandidates, peKeywordMatchesSql,
+  type CandidateCoverage, type PeQuery, type PeRead,
 } from './client-pe-candidates.js';
 
 /**
@@ -31,8 +31,9 @@ import {
  *
  * Tenant-owned signals (client capabilities, facilities, intel mappings) are read
  * with a tenant-scoped transaction (`withTenant` → `tx`) so RLS isolates them.
- * Global, public-domain intel (federal_award, program_element*) is read via the
- * un-scoped `this.prisma` client.
+ * The bounded client->PE read uses that same transaction for public-domain intel
+ * (federal_award, program_element*) so every query shares one remaining budget.
+ * Direct pair scoring and reverse readers retain their existing public client.
  */
 
 /** Default minimum combined score for "relevant" filtering across the read paths. */
@@ -94,6 +95,7 @@ interface ClientSignalContext {
 @Injectable()
 export class ClientPeRelevanceService {
   private readonly logger = new Logger(ClientPeRelevanceService.name);
+  private readonly publicQuery: PeQuery = <T>(sql: Prisma.Sql) => this.prisma.$queryRaw<T>(sql);
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -133,28 +135,29 @@ export class ClientPeRelevanceService {
   private async loadClientSignalContext(
     tx: Prisma.TransactionClient,
     clientId: string,
+    read: PeRead = (work) => work(),
   ): Promise<ClientSignalContext | null> {
-    const client = await tx.client.findUnique({
+    const client = await read(() => tx.client.findUnique({
       where: { id: clientId },
       select: { id: true, name: true, uei: true },
-    });
+    }));
     if (!client) return null;
 
     const [capabilities, facilities, mappings] = await Promise.all([
-      tx.clientCapability.findMany({
+      read(() => tx.clientCapability.findMany({
         where: { clientId },
         select: { peNumber: true, peNumbers: true, keywords: true, tags: true, name: true },
-      }),
-      tx.clientFacility.findMany({
+      })),
+      read(() => tx.clientFacility.findMany({
         where: { clientId },
         select: { state: true, congressionalDistrict: true },
-      }),
-      tx.clientIntelMapping.findMany({
+      })),
+      read(() => tx.clientIntelMapping.findMany({
         // Confirmed only: unconfirmed fuzzy candidates (the trigram noise) must not
         // feed PE-matching terms — that's the GIGO this overhaul removes.
         where: { clientId, confirmed: true },
         select: { externalName: true },
-      }),
+      })),
     ]);
 
     // Direct PE codes: union of peNumbers[] and the legacy single peNumber.
@@ -222,16 +225,17 @@ export class ClientPeRelevanceService {
   private async scoreClientPe(
     signals: ClientSignalContext,
     peCode: string,
+    query: PeQuery = this.publicQuery,
   ): Promise<{ score: number; paths: PathResult[] }> {
     const code = peCode.trim().toUpperCase();
 
     const [directResult, keywordResult, priorAwardResult, facilityResult, ecosystemResult] =
       await Promise.all([
         Promise.resolve(this.scoreDirectPath(signals, code)),
-        this.scoreKeywordPath(signals, code),
-        this.scorePriorAwardPath(signals, code),
-        this.scoreFacilityPath(signals, code),
-        this.scoreEcosystemPath(signals, code),
+        this.scoreKeywordPath(signals, code, query),
+        this.scorePriorAwardPath(signals, code, query),
+        this.scoreFacilityPath(signals, code, query),
+        this.scoreEcosystemPath(signals, code, query),
       ]);
 
     return combineRelevance([
@@ -259,11 +263,12 @@ export class ClientPeRelevanceService {
   private async scoreKeywordPath(
     signals: ClientSignalContext,
     peCode: string,
+    query: PeQuery,
   ): Promise<PathResult | null> {
     if (signals.keywordTerms.length === 0) return null;
 
     // Enumeration and scoring use exactly the same public-text corpus and floor.
-    const rows = await this.prisma.$queryRaw<Array<{ term: string; sim: number }>>(
+    const rows = await query<Array<{ term: string; sim: number }>>(
       peKeywordMatchesSql(signals.keywordTerms, KEYWORD_SIMILARITY_FLOOR, peCode),
     );
     if (rows.length === 0) return null;
@@ -280,9 +285,10 @@ export class ClientPeRelevanceService {
   private async scorePriorAwardPath(
     signals: ClientSignalContext,
     peCode: string,
+    query: PeQuery,
   ): Promise<PathResult | null> {
     const hasUei = Boolean(signals.uei);
-    const rows = await this.prisma.$queryRaw<Array<{ cnt: number; total: number }>>(Prisma.sql`
+    const rows = await query<Array<{ cnt: number; total: number }>>(Prisma.sql`
       SELECT COUNT(*)::int AS "cnt",
              COALESCE(SUM(amount), 0)::float8 AS "total"
       FROM federal_award
@@ -304,11 +310,12 @@ export class ClientPeRelevanceService {
   private async scoreFacilityPath(
     signals: ClientSignalContext,
     peCode: string,
+    query: PeQuery,
   ): Promise<PathResult | null> {
     if (signals.facilityDistricts.length === 0) return null;
 
     // Distinct award districts on this PE (place of performance).
-    const awardDistricts = await this.prisma.$queryRaw<
+    const awardDistricts = await query<
       Array<{ state: string; district: string }>
     >(Prisma.sql`
       SELECT DISTINCT pop_state AS "state", pop_congressional_district AS "district"
@@ -342,6 +349,7 @@ export class ClientPeRelevanceService {
   private async scoreEcosystemPath(
     signals: ClientSignalContext,
     peCode: string,
+    query: PeQuery,
   ): Promise<PathResult | null> {
     // The set of names the client is known by: its own name + confirmed intel external names.
     const clientNames = [signals.name, ...signals.intelNames]
@@ -353,7 +361,7 @@ export class ClientPeRelevanceService {
     // Named performers (R-3 exhibit) + award contractor names on this PE. Match a PE
     // performer/awardee whose name is trigram-similar to ANY of the client's known names,
     // or (for awards) whose recipient_uei equals the client UEI.
-    const rows = await this.prisma.$queryRaw<Array<{ performer: string }>>(Prisma.sql`
+    const rows = await query<Array<{ performer: string }>>(Prisma.sql`
       WITH ecosystem AS (
         SELECT performer AS name, NULL::text AS uei
         FROM program_element_performer
@@ -382,14 +390,6 @@ export class ClientPeRelevanceService {
     return scoreEcosystem({ performerNames });
   }
 
-  // ── Candidate-set assembly ─────────────────────────────────────────────────────
-
-  private candidatePeCodesForClient(signals: ClientSignalContext) {
-    return withPeCandidateDeadline(this.prisma, (query) => enumeratePeCandidates(
-      query, signals, KEYWORD_SIMILARITY_FLOOR, NAME_SIMILARITY_FLOOR,
-    ));
-  }
-
   // ── Read endpoints ───────────────────────────────────────────────────────────
 
   /**
@@ -410,8 +410,9 @@ export class ClientPeRelevanceService {
     const minScore = opts.minScore ?? DEFAULT_MIN_RELEVANCE_SCORE;
     const page = Math.max(1, opts.page ?? 1);
     const limit = Math.min(100, Math.max(1, opts.limit ?? 50));
+    const budget = createPeRelevanceBudget();
 
-    const { scored, candidateCoverage } = await this.prisma.withTenant(
+    return this.prisma.withTenant(
       ctx.tenantId,
       async (tx) => {
         // clientId-ownership guard: loadClientSignalContext reads the client via the
@@ -420,39 +421,34 @@ export class ClientPeRelevanceService {
         // RLS policies (see spawned hardening task); this clientId-ownership check via the
         // RLS-protected clients table is what prevents a cross-tenant read until those tables
         // get RLS.
-        const signals = await this.loadClientSignalContext(tx, clientId);
-        if (!signals) return {
-          scored: [] as Array<{ peCode: string; score: number; paths: PathResult[] }>,
-          candidateCoverage: null,
-        };
+        const { read, query } = budget.bind(tx);
+        const signals = await this.loadClientSignalContext(tx, clientId, read);
+        if (!signals) return { data: [], total: 0, page, limit, candidateCoverage: null };
 
-        const candidates = await this.candidatePeCodesForClient(signals);
+        const candidates = await enumeratePeCandidates(query, signals,
+          KEYWORD_SIMILARITY_FLOOR, NAME_SIMILARITY_FLOOR);
         const results: Array<{ peCode: string; score: number; paths: PathResult[] }> = [];
         for (const peCode of candidates.codes) {
-          const { score, paths } = await this.scoreClientPe(signals, peCode);
+          budget.remaining();
+          const { score, paths } = await this.scoreClientPe(signals, peCode, query);
           if (score >= minScore) results.push({ peCode, score, paths });
         }
-        return { scored: results, candidateCoverage: candidates.candidateCoverage };
+        results.sort((a, b) => b.score - a.score || a.peCode.localeCompare(b.peCode));
+        const total = results.length;
+        const pageRows = results.slice((page - 1) * limit, (page - 1) * limit + limit);
+        const titleRows = pageRows.length ? await read(() => tx.programElement.findMany({
+          where: { peCode: { in: pageRows.map((r) => r.peCode) } },
+          select: { peCode: true, title: true },
+        })) : [];
+        const titles = new Map(titleRows.map((r) => [r.peCode, r.title]));
+        const data = pageRows.map((r) => ({ ...r, title: titles.get(r.peCode) ?? null }));
+        budget.remaining();
+        return { data, total, page, limit, candidateCoverage: candidates.candidateCoverage };
       },
-      // Iterating many candidate PEs inside one interactive transaction can exceed Prisma's
-      // 5s default; raise the limit (same fix as intelligence.service's slow graph paths).
-      { timeoutMs: 30_000 },
+      // One tenant owner/transaction: signal reads and public-corpus reads share
+      // the request's remaining15s work budget, including acquisition elapsed time.
+      { timeoutMs: budget.remaining() },
     );
-
-    scored.sort((a, b) => b.score - a.score || a.peCode.localeCompare(b.peCode));
-    const total = scored.length;
-    const pageRows = scored.slice((page - 1) * limit, (page - 1) * limit + limit);
-
-    // Attach PE titles (global read) for the page only.
-    const titles = await this.peTitles(pageRows.map((r) => r.peCode));
-    const data = pageRows.map((r) => ({
-      peCode: r.peCode,
-      title: titles.get(r.peCode) ?? null,
-      score: r.score,
-      paths: r.paths,
-    }));
-
-    return { data, total, page, limit, candidateCoverage };
   }
 
   /**
@@ -630,12 +626,4 @@ export class ClientPeRelevanceService {
   }
 
   /** Map peCode → title for a set of PEs (global read). Missing PEs simply absent from the map. */
-  private async peTitles(peCodes: string[]): Promise<Map<string, string | null>> {
-    if (peCodes.length === 0) return new Map();
-    const rows = await this.prisma.programElement.findMany({
-      where: { peCode: { in: peCodes } },
-      select: { peCode: true, title: true },
-    });
-    return new Map(rows.map((r) => [r.peCode, r.title]));
-  }
 }
