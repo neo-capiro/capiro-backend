@@ -3,6 +3,35 @@ import type { TenantContext } from '@capiro/shared';
 import { EngagementService } from './engagement.service.js';
 import { debriefContextTokens, type MeetingDebriefContextInput } from './meeting-debrief-context.js';
 import { MEETING_DEBRIEF_POLICY } from './meeting-prep-policy.js';
+import { createGovernedMeetingAiService } from './governed-meeting-ai.factory.js';
+import {
+  runWithMeetingGovernedContext,
+  type MeetingGovernedContext,
+} from './meeting-context-runtime.js';
+import type { EngagementAiService } from './engagement-ai.service.js';
+
+function governedBundle(modelContextBlock = 'GOVERNED-CONTEXT'): MeetingGovernedContext {
+  return {
+    kind: 'governed_packet',
+    mode: 'debrief',
+    meetingId: 'meeting-1',
+    clientId: 'client-1',
+    packetId: 'packet-1',
+    traceHash: 'trace-1',
+    modelContextBlock,
+    coverage: {
+      complete: true,
+      requestedDomains: [],
+      searchedDomains: [],
+      missingDomains: [],
+      partialDomains: [],
+      recordsReturned: 0,
+      paginationComplete: true,
+      truncated: false,
+      stopReason: 'complete',
+    },
+  };
+}
 
 const ctx: TenantContext = {
   tenantId: '11111111-1111-1111-1111-111111111111',
@@ -35,7 +64,9 @@ function harness() {
     meeting: { findFirst: jest.fn(async () => meeting) },
     client: { findUnique: jest.fn(async () => meeting.client) },
     meetingDebrief: {
-      findMany: jest.fn(async () => [
+      // Loosely typed: the canonical body policy needs confidential/accessLevel/authorUserId,
+      // which individual cases supply.
+      findMany: jest.fn(async (): Promise<unknown[]> => [
         {
           createdAt: new Date('2026-10-05T15:00:00.000Z'),
           bodyCiphertext: 'prior-recap',
@@ -123,6 +154,18 @@ describe('D2 debrief draft payload and context', () => {
     expect(calls).toHaveLength(1);
     const input = calls[0]![0];
     expect(debriefContextTokens(input)).toBeLessThanOrEqual(MEETING_DEBRIEF_POLICY.contextTokens);
+    process.stderr.write(
+      `DBG summary=${result.contextSummary.totalTokens} measured=${debriefContextTokens(input as MeetingDebriefContextInput)} srcSummary=${result.contextSummary.sections.find((s) => s.name === 'source')?.tokens} srcActual=${Buffer.byteLength((input as MeetingDebriefContextInput).source.text, 'utf8')} steer=${JSON.stringify((input as MeetingDebriefContextInput).steeringContext).length}
+`,
+    );
+    const nonSource = result.contextSummary.sections
+      .filter((section) => section.name !== 'source')
+      .map((section) => ({
+        name: section.name,
+        summary: section.tokens,
+        actual: Buffer.byteLength(JSON.stringify((input as unknown as Record<string, unknown>)[section.name] ?? null), 'utf8'),
+      }));
+    expect(nonSource.filter((section) => section.summary !== section.actual)).toEqual([]);
     expect(result.contextSummary.sourceTruncated).toBe(true);
     expect(input.source.text.length).toBeLessThan(huge.length);
   });
@@ -133,5 +176,132 @@ describe('D2 debrief draft payload and context', () => {
       h.service.generateMeetingDebriefDraft(ctx, 'meeting-1', { method: 'manual', sourceText: ' ' }),
     ).rejects.toThrow(/sourceText/);
     expect(h.ai.generateMeetingDebrief).not.toHaveBeenCalled();
+  });
+});
+
+describe('D2 continuity policy and governed composition', () => {
+  test('prior-debrief continuity admits a readable row and omits a restricted one', async () => {
+    const h = harness();
+    h.tx.meetingDebrief.findMany.mockResolvedValueOnce([
+      {
+        createdAt: new Date('2026-10-05T15:00:00.000Z'),
+        bodyCiphertext: 'prior-recap',
+        iv: 'iv',
+        authTag: 'tag',
+        confidential: false,
+        accessLevel: 'author_only',
+        authorUserId: 'another-user',
+      },
+      {
+        createdAt: new Date('2026-10-06T15:00:00.000Z'),
+        bodyCiphertext: 'RESTRICTED-SYNTHETIC-DEBRIEF',
+        iv: 'iv',
+        authTag: 'tag',
+        // Same tenant, same client, another author, author-only: the canonical body
+        // predicate says this reader may not see it.
+        confidential: true,
+        accessLevel: 'author_only',
+        authorUserId: 'another-user',
+      },
+    ]);
+    Object.assign((h.service as unknown as { notesCrypto: Record<string, unknown> }).notesCrypto, {
+      decrypt: ({ bodyCiphertext }: { bodyCiphertext: string }) =>
+        bodyCiphertext === 'prior-recap' ? 'Prior debrief recap.' : bodyCiphertext,
+    });
+
+    await h.service.generateMeetingDebriefDraft(ctx, 'meeting-1', {
+      method: 'upload',
+      sourceText: transcript,
+    });
+
+    const input = h.generateMeetingDebrief.mock.calls[0]![0];
+    expect(input.recentDebriefs).toHaveLength(1);
+    expect(input.recentDebriefs[0]?.recap).toBe('Prior debrief recap.');
+    expect(JSON.stringify(input)).not.toContain('RESTRICTED-SYNTHETIC-DEBRIEF');
+  });
+
+  test('a 20 000-byte transcript completes through the real governed wrapper with identity intact', async () => {
+    const h = harness();
+    (h.service as unknown as { ai: unknown }).ai = createGovernedMeetingAiService(
+      h.ai as unknown as EngagementAiService,
+    );
+    const longTranscript = transcript.repeat(12);
+    expect(Buffer.byteLength(longTranscript, 'utf8')).toBeGreaterThan(19_000);
+
+    const result = await runWithMeetingGovernedContext(governedBundle(), () =>
+      h.service.generateMeetingDebriefDraft(ctx, 'meeting-1', {
+        method: 'upload',
+        sourceText: longTranscript,
+      }),
+    );
+
+    expect(h.generateMeetingDebrief).toHaveBeenCalledTimes(1);
+    const input = h.generateMeetingDebrief.mock.calls[0]![0];
+    // The mandatory scope identity the governed guard re-asserts survives bounding.
+    expect(input.meeting.id).toBe('meeting-1');
+    expect(input.client?.id).toBe('client-1');
+    expect(result.contextSummary.sourceTruncated).toBe(true);
+    expect(result.contextSummary.totalTokens).toBe(
+      debriefContextTokens(input as MeetingDebriefContextInput),
+    );
+    expect(result.contextSummary.totalTokens).toBeLessThanOrEqual(
+      MEETING_DEBRIEF_POLICY.contextTokens,
+    );
+  });
+
+  test('a governed block that pushes past the bound is reduced, and the summary is the sent content', async () => {
+    const h = harness();
+    (h.service as unknown as { ai: unknown }).ai = createGovernedMeetingAiService(
+      h.ai as unknown as EngagementAiService,
+    );
+    const block = `GOVERNED-CONTEXT ${'g'.repeat(2_000)}`;
+    // ~6 900-byte source + 2 000-byte block: the source alone fits, the block pushes the
+    // input past the bound, and whatever the bound gives up must not be re-inserted.
+    const source = transcript.repeat(4);
+    expect(Buffer.byteLength(source, 'utf8')).toBeGreaterThan(6_000);
+
+    const result = await runWithMeetingGovernedContext(governedBundle(block), () =>
+      h.service.generateMeetingDebriefDraft(ctx, 'meeting-1', {
+        method: 'upload',
+        sourceText: source,
+      }),
+    );
+
+    const input = h.generateMeetingDebrief.mock.calls[0]![0] as MeetingDebriefContextInput;
+    const measured = debriefContextTokens(input);
+    expect(measured).toBeLessThanOrEqual(MEETING_DEBRIEF_POLICY.contextTokens);
+    // The recorded summary is the content actually sent, not a pre-substitution estimate.
+    expect(result.contextSummary.totalTokens).toBe(measured);
+    // The optional steering slot was given up first and reported as such.
+    expect(input.steeringContext ?? null).toBeNull();
+    expect(
+      result.contextSummary.sections.find((section) => section.name === 'steeringContext')?.state,
+    ).toBe('dropped');
+    // The reviewed source survived intact; the block was the thing that gave way.
+    expect(result.contextSummary.sourceTruncated).toBe(false);
+  });
+
+  test('a governed block that fits is sent verbatim and counted in the bound', async () => {
+    const h = harness();
+    (h.service as unknown as { ai: unknown }).ai = createGovernedMeetingAiService(
+      h.ai as unknown as EngagementAiService,
+    );
+    const block = `GOVERNED-CONTEXT ${'g'.repeat(2_000)}`;
+
+    const result = await runWithMeetingGovernedContext(governedBundle(block), () =>
+      h.service.generateMeetingDebriefDraft(ctx, 'meeting-1', {
+        method: 'upload',
+        sourceText: transcript,
+      }),
+    );
+
+    const input = h.generateMeetingDebrief.mock.calls[0]![0] as MeetingDebriefContextInput;
+    expect(input.steeringContext).toBe(block);
+    const measured = debriefContextTokens(input);
+    expect(measured).toBeLessThanOrEqual(MEETING_DEBRIEF_POLICY.contextTokens);
+    expect(result.contextSummary.totalTokens).toBe(measured);
+    expect(
+      result.contextSummary.sections.find((section) => section.name === 'steeringContext')?.tokens,
+    ).toBeGreaterThan(2_000);
   });
 });

@@ -147,7 +147,17 @@ export class MeetingDebriefJobService {
         orderBy: { createdAt: 'desc' },
       });
       if (!job && jobId) throw new NotFoundException('Debrief job not found.');
-      return job ? this.publicJob(job) : null;
+      if (!job) return null;
+      // Stored job content belongs to the assignment it was assembled under. Re-admit
+      // through the same job-meeting owner with that recorded assignment: a meeting
+      // that moved to another client (or lost access) does not publish its draft.
+      const recorded = this.recordedAssignment(job);
+      // A completed job carries stored content; if its recorded assignment cannot be
+      // read the content is not publishable at all.
+      if (job.status === 'completed' && !recorded)
+        throw new Error('meeting_debrief_assignment_unreadable');
+      await this.prepJobs.authorizeJobMeeting(tx, ctx, meetingId, recorded);
+      return this.publicJob(job);
     });
   }
 
@@ -302,6 +312,11 @@ export class MeetingDebriefJobService {
       abort.signal.throwIfAborted();
 
       await this.stage(job, token, 'recording');
+      // Publish only while the recorded assignment still holds. The lease proves the
+      // claim; this proves the meeting is still the one the job was assembled for.
+      await this.prisma.withTenantUser(job.tenantId, job.userId, (tx) =>
+        this.prepJobs.authorizeJobMeeting(tx, ctx, job.meetingId, input.assignment),
+      );
       const saved = await this.prisma.withTenantUser(job.tenantId, job.userId, async (tx) =>
         tx.meetingDebriefJob.updateMany({
           where: this.leaseWhere(job, token),
@@ -325,7 +340,7 @@ export class MeetingDebriefJobService {
           ? 'DEBRIEF_SCOPE_CHANGED'
           : 'DEBRIEF_GENERATION_FAILED';
       const causeCode = (error as { code?: unknown } | null)?.code;
-      this.logger.warn(
+      (this.logger as Logger | undefined)?.warn(
         JSON.stringify({
           event: 'meeting_debrief_failed',
           jobId: job.id,
@@ -380,20 +395,66 @@ export class MeetingDebriefJobService {
     };
   }
 
+  /**
+   * The assignment digest recorded with the job, or undefined when it cannot be read
+   * (a job with no readable input). Callers refuse to publish stored content in that
+   * case; a job without content falls back to the current assignment.
+   */
+  private recordedAssignment(job: MeetingDebriefJob): string | undefined {
+    try {
+      const input = JSON.parse(
+        this.crypto.decrypt(
+          job.input as unknown as Parameters<MeetingNotesCryptoService['decrypt']>[0],
+        ),
+      ) as JobInput;
+      if (typeof input.assignment === 'string' && input.assignment) return input.assignment;
+    } catch {
+      // fall through
+    }
+    return undefined;
+  }
+
+  /**
+   * The persisted checkpoint is the encrypted envelope OBJECT that crypto.encrypt
+   * returns; a legacy string envelope is accepted too. A completed job with a
+   * checkpoint that cannot be read is reported (and logged) rather than crashing or
+   * silently pretending the result is fine.
+   */
+  private decodeCompletedDraft(job: MeetingDebriefJob, value: unknown): unknown {
+    if (value === null || value === undefined) {
+      (this.logger as Logger | undefined)?.warn(
+        JSON.stringify({ event: 'meeting_debrief_checkpoint_missing', jobId: job.id }),
+      );
+      return undefined;
+    }
+    try {
+      const envelope = typeof value === 'string' ? JSON.parse(value) : value;
+      if (!envelope || typeof envelope !== 'object')
+        throw new Error('meeting_debrief_checkpoint_malformed');
+      return JSON.parse(
+        this.crypto.decrypt(envelope as Parameters<MeetingNotesCryptoService['decrypt']>[0]),
+      );
+    } catch (error) {
+      (this.logger as Logger | undefined)?.warn(
+        JSON.stringify({
+          event: 'meeting_debrief_checkpoint_unreadable',
+          jobId: job.id,
+          causeCode:
+            error instanceof Error && /^[a-z_]{2,80}$/.test(error.message)
+              ? error.message
+              : null,
+        }),
+      );
+      return undefined;
+    }
+  }
+
   private publicJob(job: MeetingDebriefJob) {
     const checkpoint = (job.checkpoints ?? {}) as { draft?: unknown };
-    let draft: unknown = undefined;
-    if (job.status === 'completed' && typeof checkpoint.draft === 'string') {
-      try {
-        draft = JSON.parse(
-          this.crypto.decrypt(
-            JSON.parse(checkpoint.draft) as Parameters<MeetingNotesCryptoService['decrypt']>[0],
-          ),
-        );
-      } catch {
-        draft = undefined;
-      }
-    }
+    const draft =
+      job.status === 'completed'
+        ? this.decodeCompletedDraft(job, checkpoint.draft)
+        : undefined;
     return {
       jobId: job.id,
       meetingId: job.meetingId,

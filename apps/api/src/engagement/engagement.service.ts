@@ -5890,17 +5890,33 @@ export class EngagementService {
             : meeting.client;
 
         // Bounded continuity: this client's own most recent debriefs, nothing wider.
+        // A tenant/client match does NOT admit a body: the same predicate the debrief
+        // readers apply (confidential / accessLevel / author + canReadEncryptedEntry)
+        // decides readability BEFORE anything is decrypted into the prompt. Over-fetch
+        // so restricted rows cannot starve the continuity window.
         const recentDebriefs = effectiveClientId
-          ? await tx.meetingDebrief.findMany({
-              where: {
-                tenantId: ctx.tenantId,
-                clientId: effectiveClientId,
-                meetingId: { not: meeting.id },
-              },
-              select: { createdAt: true, bodyCiphertext: true, iv: true, authTag: true },
-              orderBy: { createdAt: 'desc' },
-              take: MEETING_DEBRIEF_POLICY.recentDebriefs,
-            })
+          ? (
+              await tx.meetingDebrief.findMany({
+                where: {
+                  tenantId: ctx.tenantId,
+                  clientId: effectiveClientId,
+                  meetingId: { not: meeting.id },
+                },
+                select: {
+                  createdAt: true,
+                  bodyCiphertext: true,
+                  iv: true,
+                  authTag: true,
+                  confidential: true,
+                  accessLevel: true,
+                  authorUserId: true,
+                },
+                orderBy: { createdAt: 'desc' },
+                take: MEETING_DEBRIEF_POLICY.recentDebriefs * 3,
+              })
+            )
+              .filter((row) => canReadEncryptedEntry(ctx, row))
+              .slice(0, MEETING_DEBRIEF_POLICY.recentDebriefs)
           : [];
 
         return { meeting, client: effectiveClient, effectiveClientId, recentDebriefs };
@@ -5912,10 +5928,19 @@ export class EngagementService {
       .then((notes) => notes.filter((note) => !note.restricted))
       .catch(() => []);
 
-    const steeringContext = await this.loadUserVoiceBlock(
-      ctx,
-      context.client?.id ?? context.meeting.clientId ?? null,
-    );
+    // The governed Context Plane block IS the steering content when a debrief bundle
+    // exists: the provider seam substitutes it verbatim. Compose it here, before the
+    // bound, so the bound and the recorded summary describe the content actually sent
+    // instead of being invalidated by a post-bound replacement.
+    const governed = currentMeetingGovernedContext();
+    const governedBlock =
+      governed?.mode === 'debrief' ? governed.modelContextBlock : null;
+    const steeringContext =
+      governedBlock ??
+      (await this.loadUserVoiceBlock(
+        ctx,
+        context.client?.id ?? context.meeting.clientId ?? null,
+      ));
 
     const priorDebriefs = context.recentDebriefs.flatMap((row) => {
       const body = this.notesCrypto.decrypt({

@@ -57,13 +57,16 @@ const SOURCE_MARKER = '\n\n[… transcript truncated to fit the debrief context 
  * Sections in DROP order: the first entry is the least important and is reduced
  * first. `source` is never in this list — it is only shortened, and only after every
  * other section has been given up.
+ *
+ * `meeting` and `client` are NOT reducible: they are the mandatory scope identity the
+ * governed provider seam re-asserts (meeting.id plus the matching client identity), so
+ * dropping them made a long, heavily bounded transcript fail closed at the wrapper
+ * instead of generating. They are tiny; optional context is what gets reduced.
  */
 const REDUCIBLE: Array<keyof MeetingDebriefContextInput> = [
   'steeringContext',
   'recentDebriefs',
   'openTasks',
-  'client',
-  'meeting',
   'attendees',
   'visibleNotes',
   'prep',
@@ -126,6 +129,8 @@ export function boundDebriefContext(
   const bound = MEETING_DEBRIEF_POLICY.contextTokens;
   // Built field by field, never spread: an unexpected key on the caller's object
   // (recentThreads, mail bodies, a client timeline) must not reach the model.
+  // meeting/client are copied unconditionally: they are mandatory identity, not
+  // optional context, and the governed wrapper refuses input without them.
   const bounded: MeetingDebriefContextInput = {
     meeting: input.meeting,
     client: input.client,

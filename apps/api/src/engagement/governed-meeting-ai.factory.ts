@@ -53,7 +53,15 @@ export function createGovernedMeetingAiService(
             // The source transcript, own notes/prep, roster and bounded continuity are
             // the only evidence of what happened (D2). The input contract has no
             // client timeline, directory matches or mail fields to strip.
-            steeringContext: bundle.modelContextBlock,
+            //
+            // The assembly already composed this canonical block BEFORE the bound, so
+            // the recorded summary describes what is actually sent. If the bound gave
+            // the steering slot up (it is the first optional section to go), leave it
+            // absent instead of re-inserting it after the bound.
+            steeringContext:
+              input.steeringContext === null || input.steeringContext === undefined
+                ? (input.steeringContext ?? null)
+                : bundle.modelContextBlock,
           };
           return target.generateMeetingDebrief(sanitized, ctx);
         };

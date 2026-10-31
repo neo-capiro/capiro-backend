@@ -57,7 +57,18 @@ function row(overrides: Partial<Row> = {}): Row {
   };
 }
 
-function harness(options: { gate?: string; rows?: Row[]; authorize?: () => Promise<unknown> } = {}) {
+function harness(
+  options: {
+    gate?: string;
+    rows?: Row[];
+    authorize?: (
+      tx?: unknown,
+      ctx?: unknown,
+      meetingId?: string,
+      expected?: string,
+    ) => Promise<unknown>;
+  } = {},
+) {
   process.env.MEETING_DEBRIEF_JOB_ENABLED = options.gate ?? 'true';
   const rows: Row[] = options.rows ?? [];
   const create = jest.fn(async ({ data }: { data: Partial<Row> }) => {
@@ -203,5 +214,183 @@ describe('D1 debrief job', () => {
     const job = await h.service.get(ctx, 'meeting-1');
     expect(job).not.toHaveProperty('draft');
     expect(JSON.stringify(job)).not.toContain('raw');
+  });
+});
+
+const envelope = (value: unknown) => ({
+  cipher: Buffer.from(JSON.stringify(value), 'utf8').toString('base64'),
+});
+const jobInput = (assignment: string) =>
+  envelope({ method: 'upload', sourceText: 'Transcript body.', assignment });
+const completedDraft = {
+  recap: 'Recap.',
+  actionItems: ['Send the one-pager'],
+  notes: 'Notes.',
+  provider: 'anthropic',
+  model: 'synthetic-model',
+};
+
+function workerHarness(options: {
+  rows: Row[];
+  authorize: (expected?: string) => Promise<unknown>;
+  draft?: unknown;
+}) {
+  process.env.MEETING_DEBRIEF_JOB_ENABLED = 'true';
+  const rows = options.rows;
+  const findFirst = jest.fn(async ({ where }: { where: { id?: string } }) => {
+    // The claim query filters on queued/deadline; the read query filters by id.
+    if (where.id) return rows.find((entry) => entry.id === where.id) ?? null;
+    // The claim path filters for a queued row; a read returns the newest row.
+    return rows.find((entry) => entry.status === 'queued') ?? rows[0] ?? null;
+  });
+  const updateMany = jest.fn(
+    async ({ where, data }: { where: { id: string }; data: Partial<Row> }) => {
+      const match = rows.find((entry) => entry.id === where.id);
+      if (!match) return { count: 0 };
+      Object.assign(match, data);
+      return { count: 1 };
+    },
+  );
+  const tx = {
+    meetingDebriefJob: { findFirst, updateMany, create: jest.fn(), findUnique: jest.fn() },
+    tenantMembership: {
+      findFirst: async () => ({
+        role: 'user',
+        user: { clerkUserId: 'clerk-1' },
+        tenant: { slug: 'acme' },
+      }),
+    },
+  };
+  const service = Object.create(MeetingDebriefJobService.prototype) as MeetingDebriefJobService;
+  Object.assign(service as unknown as Record<string, unknown>, {
+    prisma: {
+      withTenantUser: (_t: string, _u: string, fn: (tx: unknown) => unknown) => fn(tx),
+      withSystem: (fn: (tx: unknown) => unknown) => fn(tx),
+    },
+    crypto: {
+      encrypt: (value: string) => envelope(JSON.parse(value)),
+      decrypt: (value: { cipher?: string }) =>
+        Buffer.from(value?.cipher ?? '', 'base64').toString('utf8') || '{}',
+    },
+    runtime: {
+      assertExternalAction: () => undefined,
+      assertMeetingDebriefWorker: () => undefined,
+    },
+    prepJobs: {
+      authorizeJobMeeting: (
+        _tx: unknown,
+        _ctx: unknown,
+        _meetingId: string,
+        expected?: string,
+      ) => options.authorize(expected),
+    },
+    engagement: {
+      generateMeetingDebriefDraft: jest.fn(async () => options.draft ?? completedDraft),
+    },
+  });
+  return { service, rows, updateMany, engagement: service as unknown as { engagement: { generateMeetingDebriefDraft: jest.Mock } } };
+}
+
+describe('completion delivery and recorded-assignment binding', () => {
+  test('a completed job returns the draft persisted as an encrypted envelope object', async () => {
+    const h = harness({
+      rows: [
+        row({
+          status: 'completed',
+          stage: 'completed',
+          input: envelope({ method: 'upload', sourceText: 'x', assignment: 'a' }),
+          checkpoints: { draft: envelope(completedDraft) },
+        }),
+      ],
+    });
+
+    const job = await h.service.get(ctx, 'meeting-1');
+
+    expect(job?.status).toBe('completed');
+    expect(job?.draft).toEqual(completedDraft);
+    // The stored envelope never leaks into the public payload.
+    expect(JSON.stringify(job)).not.toContain('cipher');
+  });
+
+  test('a malformed completed checkpoint yields no draft instead of crashing', async () => {
+    const h = harness({
+      rows: [
+        row({
+          status: 'completed',
+          stage: 'completed',
+          input: envelope({ method: 'upload', sourceText: 'x', assignment: 'a' }),
+          checkpoints: { draft: { cipher: 'not-json' } },
+        }),
+      ],
+    });
+
+    const job = await h.service.get(ctx, 'meeting-1');
+
+    expect(job).toBeDefined();
+    expect(job).not.toHaveProperty('draft');
+  });
+
+  test('the worker completes the job and the public read hands back the generated draft', async () => {
+    const h = workerHarness({
+      rows: [row({ status: 'queued', stage: 'queued', input: jobInput('assignment-A') })],
+      authorize: async (expected) => ({ assignment: expected ?? 'assignment-A', clientId: null }),
+    });
+
+    await h.service.runWorkerTick();
+
+    expect(h.rows[0]!.status).toBe('completed');
+    const job = await h.service.get(ctx, 'meeting-1');
+    expect(job?.draft).toEqual(completedDraft);
+  });
+
+  test('readback is refused after the meeting moved to another assignment', async () => {
+    const seen: Array<string | undefined> = [];
+    const h = harness({
+      rows: [
+        row({
+          status: 'completed',
+          stage: 'completed',
+          input: jobInput('assignment-A'),
+          checkpoints: { draft: envelope(completedDraft) },
+        }),
+      ],
+      authorize: async (_tx, _ctx, _meetingId, expected) => {
+        seen.push(expected);
+        if (expected && expected !== 'assignment-B')
+          throw new ConflictException('Meeting assignment changed during preparation.');
+        return { assignment: 'assignment-B', clientId: null };
+      },
+    });
+
+    await expect(h.service.get(ctx, 'meeting-1')).rejects.toBeInstanceOf(ConflictException);
+    // The recorded assignment was what the readback re-admitted against.
+    expect(seen).toContain('assignment-A');
+  });
+
+  test('completion fails closed when access was revoked after generation', async () => {
+    let calls = 0;
+    let revoke = true;
+    const h = workerHarness({
+      rows: [row({ status: 'queued', stage: 'queued', input: jobInput('assignment-A') })],
+      authorize: async (expected) => {
+        calls += 1;
+        // 1: actor admission, 2: the completion re-admission.
+        if (revoke && calls >= 2)
+          throw new ConflictException('Meeting assignment changed during preparation.');
+        return { assignment: expected ?? 'assignment-A', clientId: null };
+      },
+    });
+
+    await h.service.runWorkerTick();
+    // The refusal happened during completion; the later read is a normal failure read.
+    revoke = false;
+
+    expect(h.rows[0]!.status).toBe('failed');
+    expect(h.rows[0]!.errorCode).toBe('DEBRIEF_SCOPE_CHANGED');
+    // Nothing was published for a job that no longer holds its assignment.
+    expect(h.rows[0]!.checkpoints).toEqual({});
+    const read = await h.service.get(ctx, 'meeting-1');
+    expect(read?.status).toBe('failed');
+    expect(read).not.toHaveProperty('draft');
   });
 });
