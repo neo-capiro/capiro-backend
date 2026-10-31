@@ -1,7 +1,8 @@
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect, jest as jestGlobal } from '@jest/globals';
+import { Logger, NotFoundException } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { Module } from '@nestjs/common';
+import { Controller, Get, Module } from '@nestjs/common';
 import request from 'supertest';
 import {
   configureApiHttpApp,
@@ -224,4 +225,56 @@ describe('configureApiHttpApp', () => {
       expect(configured().requestTimeout).toBe(0);
     });
   });
+});
+
+// A route that answers "this record does not exist" — the record-miss shape.
+@Controller('clients')
+class RecordMissProbeController {
+  @Get(':id')
+  read(): never {
+    throw new NotFoundException('Client not found');
+  }
+}
+
+@Module({ controllers: [RecordMissProbeController] })
+class RecordMissProbeModule {}
+
+describe('404 provenance logging', () => {
+  it('logs a route miss and a record miss differently, and leaves the bodies alone', async () => {
+    const lines: string[] = [];
+    const spy = jestGlobal
+      .spyOn(Logger.prototype, 'log')
+      .mockImplementation(function (this: Logger, message: unknown) {
+        lines.push(String(message));
+      });
+    const app = await NestFactory.create(RecordMissProbeModule, {
+      logger: ['error'],
+    });
+    configureApiHttpApp(app, {
+      includeClerkRawBody: false,
+      includeRecallRawBody: false,
+      includeTangoRawBody: false,
+      includeEmailSignatureLargeBody: false,
+      defaultJsonLimit: '1mb',
+    });
+    await app.init();
+    try {
+      const missing = await request(app.getHttpServer()).get('/api/absent-route');
+      const recordMissing = await request(app.getHttpServer()).get(
+        '/api/clients/00000000-0000-4000-8000-000000000000',
+      );
+      expect(missing.status).toBe(404);
+      expect(recordMissing.status).toBe(404);
+      expect(recordMissing.body.message).toBe('Client not found');
+      expect(lines).toEqual(
+        expect.arrayContaining([
+          'route-miss GET /api/absent-route',
+          expect.stringMatching(/^record-miss GET \/api\/clients\//),
+        ]),
+      );
+    } finally {
+      spy.mockRestore();
+      await app.close();
+    }
+  }, 20000);
 });
