@@ -1,4 +1,4 @@
-import { mergeRecipients, normalizeEmail } from './recipients.service.js';
+import { mergeRecipients, normalizeEmail, RecipientsService } from './recipients.service.js';
 import { capturedRule } from './record-rule.service.js';
 import { localOccurrence } from './delivery-schedule.js';
 
@@ -42,5 +42,42 @@ describe('durable local schedule policy', () => {
     expect(localOccurrence('2026-11-01', 90, 'America/New_York').toISOString()).toBe(
       '2026-11-01T05:30:00.000Z',
     );
+  });
+});
+
+describe('retained recipient selection', () => {
+  const ctx = { tenantId: 'tenant-a', clerkUserId: 'owner-a', role: null };
+  const recipients = new RecipientsService({} as never);
+  it('denies another owner’s private list before resolving its contacts', async () => {
+    const tx = {
+      legiWatchReportList: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'private-list',
+          private: true,
+          ownerClerkId: 'owner-b',
+          contactIds: ['contact-a'],
+        }),
+      },
+      legiWatchReportContact: { findFirst: jest.fn() },
+    };
+    await expect(
+      recipients.resolve(tx as never, ctx, [{ kind: 'list', id: 'private-list', role: 'bcc' }]),
+    ).rejects.toThrow('LIST_NOT_AUTHORIZED');
+    expect(tx.legiWatchReportContact.findFirst).not.toHaveBeenCalled();
+  });
+  it('honors destination opt-outs even for a manually entered address', async () => {
+    const tx = { legiWatchReportContact: { count: jest.fn().mockResolvedValue(1) } };
+    await expect(
+      recipients.resolve(tx as never, ctx, [
+        { kind: 'manual', email: 'recipient@example.invalid', role: 'bcc' },
+      ]),
+    ).rejects.toThrow('DESTINATION_OPTED_OUT');
+    expect(tx.legiWatchReportContact.count).toHaveBeenCalledWith({
+      where: {
+        tenantId: ctx.tenantId,
+        email: { equals: 'recipient@example.invalid', mode: 'insensitive' },
+        optedOut: true,
+      },
+    });
   });
 });

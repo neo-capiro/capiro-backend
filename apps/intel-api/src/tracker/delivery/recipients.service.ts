@@ -3,13 +3,12 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
-  NotFoundException,
 } from '@nestjs/common';
 import type { Prisma } from '../../../generated/prisma-client/index.js';
 import type { WorkspaceTenantContext } from '../../auth/tenant-context.js';
 import { isFolderAdmin } from '../folders/folder-tracker.service.js';
 import { DraftAccessService } from './draft-access.service.js';
-import { ids, object, text, version } from './delivery-domain.js';
+import { object, text } from './delivery-domain.js';
 
 export interface RecipientSnapshot {
   email: string;
@@ -68,68 +67,6 @@ export class RecipientsService {
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
       }),
     }));
-  }
-  async saveContact(ctx: WorkspaceTenantContext, input: unknown, id?: string) {
-    await this.reports.authorize(ctx);
-    const b = object(input);
-    const data = {
-      name: text(b.name),
-      email: b.email ? normalizeEmail(b.email) : null,
-      verified: b.verified === true,
-      active: b.active !== false,
-      optedOut: b.optedOut === true,
-    };
-    return this.reports.folders.withActor(ctx, async (tx) => {
-      if (!id)
-        return tx.legiWatchReportContact.create({
-          data: { ...data, tenantId: ctx.tenantId, ownerClerkId: ctx.clerkUserId },
-        });
-      const old = await tx.legiWatchReportContact.findFirst({
-        where: { tenantId: ctx.tenantId, id },
-      });
-      if (!old) throw new NotFoundException('CONTACT_NOT_FOUND');
-      if (old.ownerClerkId !== ctx.clerkUserId && !isFolderAdmin(ctx))
-        throw new ForbiddenException('CONTACT_OWNER_REQUIRED');
-      const changed = await tx.legiWatchReportContact.updateMany({
-        where: { tenantId: ctx.tenantId, id, version: version(b.expectedVersion) },
-        data: { ...data, version: { increment: 1 } },
-      });
-      if (!changed.count) throw new ConflictException('CONTACT_CHANGED_RELOAD');
-      return tx.legiWatchReportContact.findFirstOrThrow({ where: { tenantId: ctx.tenantId, id } });
-    });
-  }
-  async saveList(ctx: WorkspaceTenantContext, input: unknown, id?: string) {
-    await this.reports.authorize(ctx);
-    const b = object(input),
-      contactIds = ids(b.contactIds, 1000);
-    const data = {
-      name: text(b.name),
-      private: b.private !== false,
-      contactIds,
-      active: b.active !== false,
-    };
-    return this.reports.folders.withActor(ctx, async (tx) => {
-      if (
-        (await tx.legiWatchReportContact.count({
-          where: { tenantId: ctx.tenantId, id: { in: contactIds } },
-        })) !== contactIds.length
-      )
-        throw new BadRequestException('CONTACT_MAPPING_REQUIRED');
-      if (!id)
-        return tx.legiWatchReportList.create({
-          data: { ...data, tenantId: ctx.tenantId, ownerClerkId: ctx.clerkUserId },
-        });
-      const old = await tx.legiWatchReportList.findFirst({ where: { tenantId: ctx.tenantId, id } });
-      if (!old) throw new NotFoundException('LIST_NOT_FOUND');
-      if (old.ownerClerkId !== ctx.clerkUserId && !isFolderAdmin(ctx))
-        throw new ForbiddenException('LIST_OWNER_REQUIRED');
-      const changed = await tx.legiWatchReportList.updateMany({
-        where: { tenantId: ctx.tenantId, id, version: version(b.expectedVersion) },
-        data: { ...data, version: { increment: 1 } },
-      });
-      if (!changed.count) throw new ConflictException('LIST_CHANGED_RELOAD');
-      return tx.legiWatchReportList.findFirstOrThrow({ where: { tenantId: ctx.tenantId, id } });
-    });
   }
   async resolve(
     tx: Prisma.TransactionClient,
