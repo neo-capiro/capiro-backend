@@ -3,6 +3,7 @@ import { PATH_METADATA } from '@nestjs/common/constants.js';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { DraftAccessService } from './draft-access.service.js';
 import { DeliveryController, MonitoringRuleController } from './delivery.controller.js';
+import { BriefingRolloutController } from './briefing-rollout.controller.js';
 import { ResearchController } from '../research/research.controller.js';
 import { assertResearchReportAccess } from '../research/research-report-access.js';
 import { assertEditorialAccess } from '../editorial/editorial-access.js';
@@ -37,14 +38,21 @@ const routes = (controller: { prototype: object }) =>
         PATH_METADATA,
         (controller.prototype as Record<string, unknown>)[key] as object,
       ),
-    );
+    )
+    .flat();
 
 describe('retained delivery and research routes', () => {
   it('mounts neutral owners without a report library or subscription route', () => {
-    expect(Reflect.getMetadata(PATH_METADATA, DeliveryController)).toBe('legiwatch/deliveries');
-    expect(Reflect.getMetadata(PATH_METADATA, MonitoringRuleController)).toBe(
+    expect(Reflect.getMetadata(PATH_METADATA, BriefingRolloutController)).toBe('legiwatch/reports');
+    expect(routes(BriefingRolloutController)).toEqual(['/']);
+    expect(Reflect.getMetadata(PATH_METADATA, DeliveryController)).toEqual([
+      'legiwatch/deliveries',
+      'legiwatch/reports',
+    ]);
+    expect(Reflect.getMetadata(PATH_METADATA, MonitoringRuleController)).toEqual([
       'legiwatch/monitoring',
-    );
+      'legiwatch/reports',
+    ]);
     expect(routes(DeliveryController)).toEqual(
       expect.arrayContaining([
         'runs/:id',
@@ -57,9 +65,7 @@ describe('retained delivery and research routes', () => {
     );
     expect(
       routes(DeliveryController).some((path) =>
-        /subscriptions|promote|generate|duplicate|contacts|lists|record-bill-context|export/.test(
-          path,
-        ),
+        /subscriptions|promote|generate|duplicate|contacts|lists|record-bill-context/.test(path),
       ),
     ).toBe(false);
     expect(routes(ResearchController).some((path) => path.startsWith('imports'))).toBe(false);
@@ -82,6 +88,7 @@ describe('retained draft access', () => {
         }),
       },
       legiWatchReport: {
+        findMany: jest.fn().mockResolvedValue([]),
         findFirst: jest
           .fn()
           .mockResolvedValue({ folderIds: ['folder-a'], ownerClerkId: ctx.clerkUserId }),
@@ -124,5 +131,26 @@ describe('retained draft access', () => {
     folders.source.activeMember.mockResolvedValue(false);
     await expect(service.run(ctx, 'draft-a')).rejects.toThrow(ForbiddenException);
     expect(tx.legiWatchReportRun.findFirst).not.toHaveBeenCalled();
+  });
+  it('lists only accessible actor-owned single-folder briefing choices', async () => {
+    const { service, folders, tx, flags } = setup({});
+    tx.legiWatchReport.findMany.mockResolvedValue([
+      { id: 'allowed', folderIds: ['folder-a'], settings: {} },
+      { id: 'walled', folderIds: ['folder-b'], settings: {} },
+      { id: 'multi', folderIds: ['folder-a', 'folder-c'], settings: {} },
+    ] as never);
+    folders.folder.mockImplementation(async (_tx: unknown, _ctx: unknown, id: string) => {
+      if (id === 'folder-b') throw new ForbiddenException();
+      return {};
+    });
+    const choices = await service.briefingDefinitions(ctx);
+    expect(choices.map((row) => row.id)).toEqual(['allowed']);
+    expect(choices[0]!.settings).toMatchObject({ committees: 'off', actions: 'last' });
+    expect(tx.legiWatchReport.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { tenantId: ctx.tenantId, ownerClerkId: ctx.clerkUserId, archived: false },
+      }),
+    );
+    expect(flags.isEnabled).toHaveBeenCalledWith('legiwatch_editorial_v1', ctx.tenantId);
   });
 });

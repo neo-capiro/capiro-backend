@@ -19,6 +19,8 @@ export class Phase8Controller {
     @Param('id') id: string,
     @Query() b: unknown,
   ) {
+    if (kind === 'research')
+      return this.evidence.research.run(ctx, b, (tx) => this.evidence.exact(tx, kind, id));
     return this.evidence.run(ctx, b, 'editorial', (tx) => this.evidence.exact(tx, kind, id));
   }
   @Post('briefings/drafts') draft(

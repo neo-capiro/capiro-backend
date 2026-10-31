@@ -53,6 +53,7 @@ import {
 } from './folders/folder-tracker.controller.js';
 import { FolderTrackerService } from './folders/folder-tracker.service.js';
 import { DeliveryController, MonitoringRuleController } from './delivery/delivery.controller.js';
+import { BriefingRolloutController } from './delivery/briefing-rollout.controller.js';
 import { DraftAccessService } from './delivery/draft-access.service.js';
 import { RecipientsService } from './delivery/recipients.service.js';
 import { DeliveryService } from './delivery/delivery.service.js';
@@ -101,6 +102,7 @@ import { ClientBriefContextClient } from '../hearing/client-brief-context.client
     CalendarPreparationController,
     AgendaRuleController,
     DeliveryController,
+    BriefingRolloutController,
     MonitoringRuleController,
     BillCorpusController,
     FolderTrackerController,

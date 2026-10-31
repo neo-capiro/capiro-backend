@@ -90,3 +90,11 @@ export const escapeHtml = (v: unknown) =>
     /[&<>"']/g,
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
   );
+/** Keep existing task configuration valid through the monitoring rollout. */
+export function legislativeAppOrigin() {
+  return (
+    process.env.LEGISLATIVE_APP_ORIGIN ??
+    process.env.REPORT_APP_ORIGIN ??
+    'https://app.capiro.ai'
+  ).replace(/\/+$/, '');
+}

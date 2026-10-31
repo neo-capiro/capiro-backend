@@ -35,7 +35,7 @@ import {
 } from '../../hearing/hearing-record-delivery.service.js';
 import { RECORD_DELIVERY_FEATURE } from '../../feature-flags/feature-flag.service.js';
 import { publicationMarkdown } from '../../hearing/publication-domain.js';
-import { digest, escapeHtml, json, object, text } from './delivery-domain.js';
+import { legislativeAppOrigin, digest, escapeHtml, json, object, text } from './delivery-domain.js';
 
 export interface DeliveryComposition {
   kind: 'editorial_brief';
@@ -862,7 +862,7 @@ export class DeliveryService {
                       body:
                         String(packet.content).length <= 10000
                           ? packet.content
-                          : `${String(packet.content).slice(0, 9000)}\n\nExcerpt — open the original published record for its full text. Bill: ${(process.env.LEGISLATIVE_APP_ORIGIN ?? 'https://os.capiro.ai').replace(/\/+$/, '')}/bills/${encodeURIComponent(String(packet.billId))}`,
+                          : `${String(packet.content).slice(0, 9000)}\n\nExcerpt — open the original published record for its full text. Bill: ${legislativeAppOrigin()}/bills/${encodeURIComponent(String(packet.billId))}`,
                     }),
                   },
                 );
