@@ -1,6 +1,7 @@
 import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
+import { createMetricsDatabaseBudget } from '../prisma/metrics-database-budget.js';
 import { ownOutreachRecordWhere } from './engagement-access.helpers.js';
 import { ClassicOutreachObservationIncompleteError, withClassicOutreachEligibleIds } from './classic-outreach-authority.js';
 
@@ -28,20 +29,16 @@ export async function readClassicOutreachMetrics(
   const ctx = { ...supplied }, end = now(), start = end - 30 * 24 * 60 * 60 * 1000;
   if (!Number.isSafeInteger(end) || start < 0 || end > 8640000000000000)
     throw new ServiceUnavailableException('Outreach metrics clock unavailable.');
-  const assertActive = () => {
-    const at = now();
-    if (!Number.isSafeInteger(at) || at < end || at >= end + 10_000)
-      throw new ServiceUnavailableException('Outreach metrics timed out. Please retry.');
-  };
+  const { prisma: database, assertActive } = createMetricsDatabaseBudget(prisma, end, now);
   const metadata = {
     metric: 'personal_classic_outreach_30d' as const, version: 1 as const, scope,
     window: { start: new Date(start).toISOString(), end: new Date(end).toISOString(),
       bounds: '[start,end)' as const, basis: 'created_or_sent' as const },
   };
   try {
-    const count = await withClassicOutreachEligibleIds(prisma, ctx, scope,
+    const count = await withClassicOutreachEligibleIds(database, ctx, scope,
       { maxCandidates: 100, assertActive }, async ids => {
-        const value = await prisma.withTenant(ctx.tenantId, tx => tx.outreachRecord.count({
+        const value = await database.withTenant(ctx.tenantId, tx => tx.outreachRecord.count({
           where: { tenantId: ctx.tenantId, ...ownOutreachRecordWhere(ctx.userId), deletedAt: null,
             id: { in: [...ids] }, ...(scope.kind === 'client' ? { clientId: scope.clientId } : {}),
             // OR over the primary row counts an ID once even when both dates match.

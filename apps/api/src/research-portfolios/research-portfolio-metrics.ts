@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, NotFoundException, ServiceUnav
 import type { TenantContext } from '@capiro/shared';
 import type { Prisma } from '@prisma/client';
 import type { PrismaService } from '../prisma/prisma.service.js';
+import { createMetricsDatabaseBudget } from '../prisma/metrics-database-budget.js';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 
 // Observation capacity, not a portfolio capacity or a paginated count.
@@ -26,11 +27,7 @@ export async function readResearchPortfolioMetrics(
     { kind: 'client', clientId: (rawClientId as string).toLowerCase() };
   const ctx = { ...supplied }, started = now();
   const unavailable = () => new ServiceUnavailableException('Research portfolio metrics changed or are unavailable. Please retry.');
-  const assertActive = () => {
-    const at = now();
-    if (!Number.isSafeInteger(started) || started < 0 || !Number.isSafeInteger(at) ||
-        at < started || at >= started + 10_000 || at > 8640000000000000) throw unavailable();
-  };
+  const { prisma: database, assertActive } = createMetricsDatabaseBudget(prisma, started, now);
   const where: Prisma.ResearchPortfolioWhereInput = {
     tenantId: ctx.tenantId, lifecycle: 'active',
     grants: { some: { tenantId: ctx.tenantId, principalUserId: ctx.userId, role: { in: ['viewer', 'editor', 'owner'] } } },
@@ -54,7 +51,7 @@ export async function readResearchPortfolioMetrics(
     return JSON.stringify(member);
   }
   async function observe() {
-    return prisma.withTenant(ctx.tenantId, async tx => {
+    return database.withTenant(ctx.tenantId, async tx => {
       const before = await principal(tx);
       const rows = await tx.researchPortfolio.findMany({ where, orderBy: { id: 'asc' },
         take: MAX_OBSERVED_PORTFOLIOS + 1,
@@ -82,7 +79,7 @@ export async function readResearchPortfolioMetrics(
   }
   // Count the full primary-row population with the same grant/link predicate.
   // The vector only fences currentness; its length is never the metric value.
-  const count = await prisma.withTenant(ctx.tenantId, tx => tx.researchPortfolio.count({ where }));
+  const count = await database.withTenant(ctx.tenantId, tx => tx.researchPortfolio.count({ where }));
   assertActive();
   const after = await observe();
   if (after.incomplete || before.key !== after.key || !Number.isSafeInteger(count) ||

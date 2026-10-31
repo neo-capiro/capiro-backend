@@ -22,6 +22,7 @@ function fixture(initial: any[] = [row(10)]) {
   const rows = structuredClone(initial), visible = new Set([id(40)]);
   const state = { active: true, at: end, afterCount: () => {} };
   const tx: any = {
+    $executeRaw: jest.fn(async () => 1),
     tenantMembership: { findFirst: jest.fn(async ({ where }: any) => state.active &&
       where.tenantId === ctx.tenantId && where.userId === ctx.userId && where.user.clerkUserId === ctx.clerkUserId ?
       { id: id(3), role: 'standard_user' } : null) },
