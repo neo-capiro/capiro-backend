@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { isDeepStrictEqual } from 'node:util';
 import type { PrismaService } from '../prisma/prisma.service.js';
+import { WorkspaceReadBudget, workspaceReadTimedOut } from '../prisma/workspace-read-budget.js';
 import type { CollaboratorsService } from '../collaborators/collaborators.service.js';
 import { canRead } from '../collaborators/role-policy.js';
 import { assertProspectDraft } from '../prospect-resources/prospect-draft-access.js';
@@ -22,16 +23,20 @@ export async function savedWorkCount(
     throw new BadRequestException({ code: 'WORKSPACE_SAVED_WORK_QUERY' });
   const clientId = query.clientId?.toLowerCase() ?? null;
   const started = Date.now(), signal = AbortSignal.timeout(10_000);
+  const monotonicStarted = performance.now();
   const check = () => {
-    const elapsed = Date.now() - started;
-    if (signal.aborted || elapsed < 0 || elapsed >= 10_000) throw incomplete();
+    const clockElapsed = Date.now() - started;
+    const elapsed = Math.max(clockElapsed, performance.now() - monotonicStarted);
+    if (signal.aborted || clockElapsed < 0 || elapsed >= 10_000) throw incomplete();
+    return Math.max(1, Math.floor(10_000 - elapsed));
   };
+  const budget = new WorkspaceReadBudget(check);
   const scope = async () => {
     check();
     try {
-      await prisma.$transaction(async tx => {
+      await budget.transaction(prisma, async tx => {
         await tx.$executeRaw`SELECT set_config('app.current_tenant',${tenantId},true)`;
-        await requireDraftClient(prisma, tx, tenantId, actorId, clientId);
+        await requireDraftClient(prisma, tx, tenantId, actorId, clientId, budget);
       });
     } catch (error) {
       if (error instanceof NotFoundException)
@@ -42,12 +47,12 @@ export async function savedWorkCount(
   };
   const candidates = async () => {
     check();
-    const rows = await prisma.wsDraft.findMany({
+    const rows = await budget.transaction(prisma, tx => tx.wsDraft.findMany({
       where: { tenantId, status: { in: ['draft', 'complete'] }, ...(clientId ? { clientId } : {}),
         OR: [{ ownerId: actorId }, { collaborators: { some: { tenantId, subjectId: actorId, status: 'active' } } }] },
       select: { id: true, tenantId: true, ownerId: true, clientId: true, prospectId: true, status: true, updatedAt: true },
       orderBy: { id: 'asc' },
-    });
+    }));
     check();
     return rows;
   };
@@ -56,10 +61,10 @@ export async function savedWorkCount(
     for (const row of rows) {
       check();
       if (row.tenantId !== tenantId || (clientId !== null && row.clientId !== clientId)) throw incomplete();
-      const role = await collaborators.resolveRole(tenantId, row.id, actorId, signal, true);
+      const role = await collaborators.resolveRole(tenantId, row.id, actorId, signal, true, budget);
       check();
       if (!canRead(role)) continue;
-      try { await assertProspectDraft(prisma, row, actorId); }
+      try { await assertProspectDraft(prisma, row, actorId, canRead, budget); }
       catch (error) { if (!(error instanceof NotFoundException)) throw error; else continue; }
       check(); readable.add(row.id);
     }
@@ -79,6 +84,7 @@ export async function savedWorkCount(
       count: last.length, observationStartedAt: new Date(started).toISOString(), observedAt: new Date(Date.now()).toISOString(),
       complete: true, capped: false };
   } catch (error) {
+    if (workspaceReadTimedOut(error)) throw incomplete();
     if (error instanceof ForbiddenException || error instanceof ServiceUnavailableException) throw error;
     throw new ServiceUnavailableException({ code: 'WORKSPACE_SAVED_WORK_UNAVAILABLE' });
   }

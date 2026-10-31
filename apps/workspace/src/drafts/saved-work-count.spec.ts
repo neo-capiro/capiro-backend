@@ -66,7 +66,7 @@ describe('complete saved work product observation through Drafts authority', () 
   it('selects exact saved client identity and validates it even when no products exist', async () => {
     const f = fixture([draft('general'), draft('selected', { clientId: client }), draft('other', { clientId: tenant })]);
     expect(await f.run({ clientId: client.toUpperCase() })).toMatchObject({ count: 1, scope: { kind: 'client', clientId: client } });
-    expect(requireDraftClient).toHaveBeenCalledWith(f.prisma, f.prisma, tenant, actor, client);
+    expect(requireDraftClient).toHaveBeenCalledWith(f.prisma, expect.anything(), tenant, actor, client, expect.anything());
     f.state.rows = [];
     expect(await f.run({ clientId: client })).toMatchObject({ count: 0, complete: true, capped: false });
   });
