@@ -148,7 +148,7 @@ export class LegiWatchPhase9JobsService {
           const result = await this.central.run({
             daysAhead: integerEnv('LEGIWATCH_DISCOVERY_DAYS_AHEAD', 60),
             delayMs: integerEnv('LEGIWATCH_DISCOVERY_DELAY_MS', 200),
-            maxCongressPages: integerEnv('LEGIWATCH_DISCOVERY_MAX_PAGES', 8),
+            maxCongressPages: optionalPositiveIntegerEnv('LEGIWATCH_DISCOVERY_MAX_PAGES'),
             log: console.log,
           });
           if (result.sourcesFailed > 0)
@@ -354,6 +354,15 @@ function rolloutAuditMode(): LegiWatchPhase9Mode {
 function integerEnv(name: string, fallback: number): number {
   const parsed = Number.parseInt(process.env[name] ?? '', 10);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function optionalPositiveIntegerEnv(name: string): number | undefined {
+  const raw = process.env[name]?.trim();
+  if (!raw) return undefined;
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value) || value < 1)
+    throw new Error(`${name} must be a positive integer when configured`);
+  return value;
 }
 
 function stringEnv(name: string): string | undefined {

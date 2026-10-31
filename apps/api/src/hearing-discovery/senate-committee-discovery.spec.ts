@@ -2,9 +2,46 @@ import { discoverSenateCommitteeCalendars } from './senate-committee-discovery.j
 import { CommitteeSourceRepository } from './committee-source.repository.js';
 import { HearingReconcilerService } from './hearing-reconciler.service.js';
 import { SenateCommitteeCalendarAdapter } from './adapters/senate-committee-calendar.adapter.js';
+import * as sourceHttp from './adapters/source-http.js';
 
 describe('registered Senate committee calendar discovery', () => {
   afterEach(() => jest.restoreAllMocks());
+  it('records an unrecognized HTTP200 response as failed without reconciling or fetching twice', async () => {
+    jest
+      .spyOn(CommitteeSourceRepository.prototype, 'listEnabled')
+      .mockResolvedValue([
+        { id: 'unrecognized', sourceUrl: 'https://www.judiciary.senate.gov/hearings' },
+      ] as never);
+    jest.spyOn(CommitteeSourceRepository.prototype, 'markChecked').mockResolvedValue();
+    const outcome = jest
+      .spyOn(CommitteeSourceRepository.prototype, 'recordOutcome')
+      .mockResolvedValue('failing');
+    const reconcile = jest.spyOn(HearingReconcilerService.prototype, 'reconcileBatch');
+    const fetch = jest
+      .spyOn(sourceHttp, 'fetchText')
+      .mockResolvedValue({
+        ok: true,
+        status: 200,
+        body: '<html><h1>Hearings</h1></html>',
+        error: null,
+        durationMs: 1,
+      });
+    const now = new Date();
+    const result = await discoverSenateCommitteeCalendars({} as never, {
+      congress: 119,
+      now,
+      ctx: { since: null, daysAhead: 21, delayMs: 0, log: () => {} },
+    });
+    expect(result.errors).toBe(1);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(reconcile).not.toHaveBeenCalled();
+    expect(outcome).toHaveBeenCalledWith(
+      'unrecognized',
+      expect.objectContaining({ ok: false, error: expect.stringContaining('no verifiable dated') }),
+      now,
+      expect.any(String),
+    );
+  });
   it('reconciles newly announced committee-only events and continues after an independent source failure', async () => {
     const sources = [
       { id: 'failed', adapterKey: 'senate-committee-calendar' },
