@@ -58,6 +58,9 @@ export class ApplicationAuthorityController {
     if (typeof contentLength === 'string' && /^\d+$/.test(contentLength) && Number(contentLength) > 4096) {
       throw new BadRequestException('Invalid application authority request');
     }
+    if (body && typeof body === 'object' &&
+        Object.getOwnPropertyDescriptor(body, 'scopeKind')?.value === 'research_portfolio')
+      return this.current.readResearch(ctx, req, body);
     return this.current.read(ctx, req, body);
   }
 
