@@ -1,3 +1,4 @@
+import { exactInstant } from './sam-exact-instant.js';
 import { createHash } from 'node:crypto';
 import { buildAcquisitionIdentity } from '../../src/program-element/acquisition-continuity/acquisition-identity.js';
 
@@ -57,10 +58,11 @@ export function canonicalJson(value: unknown): string {
 }
 export const payloadHash = (value: unknown): string => createHash('sha256').update(canonicalJson(value)).digest('hex');
 
-/** Decimal(20,2), never IEEE arithmetic or silent rounding. Numeric inputs must round-trip safe cents. */
+/** Decimal(20,2). Bare JS numbers have no retained source lexeme and are rejected. */
 export function usd(value: unknown): string | null {
-  if (typeof value !== 'string' && typeof value !== 'number') return null;
-  if (typeof value === 'number' && (!Number.isFinite(value) || Math.abs(value) > Number.MAX_SAFE_INTEGER / 100)) return null;
+  if (value && typeof value === 'object' && !Array.isArray(value)
+    && Object.keys(value).length === 1 && '$samDecimalLexeme' in value) value = value.$samDecimalLexeme;
+  if (typeof value !== 'string') return null;
   const match = /^(-?)(\d{1,18})(?:\.(\d{1,2}))?$/.exec(String(value).trim());
   if (!match) return null;
   const whole = BigInt(match[2]!).toString();
@@ -71,12 +73,9 @@ function validDay(day: string): boolean {
   const parsed = new Date(`${day}T00:00:00.000Z`);
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === day;
 }
-/** SAM's documented examples use a timezone-free source clock. Do not label it UTC. */
+/** SAM documented Z clocks and explicit offsets normalize to exact UTC microseconds. */
 export function sourceRevisionOrder(value: unknown): string | null {
-  const text = sourceText(value);
-  const match = text && /^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,6}))?$/.exec(text);
-  if (!match || !validDay(match[1]!) || +match[2]! > 23 || +match[3]! > 59 || +match[4]! > 59) return null;
-  return `${match[1]}T${match[2]}:${match[3]}:${match[4]}.${(match[5] ?? '').padEnd(6, '0')}`;
+  return exactInstant(value);
 }
 export function awardKey(awardUniqueId: string): string | null {
   const built = buildAcquisitionIdentity({ source: 'usaspending', recordKind: 'award', generatedAwardId: awardUniqueId });
@@ -144,12 +143,12 @@ export function mapSamAction(record: SamRecord, candidates: readonly AwardCandid
   } };
 }
 export function transactionInput(record: SamRecord, value: MappedSamAction, run: ProducerRun, observedAt: string) {
-  if (!validProducerRun(run) || !Number.isFinite(Date.parse(observedAt))) throw new Error('valid producer provenance and observation time required');
+  if (!validProducerRun(run) || exactInstant(observedAt) === null) throw new Error('valid producer provenance and observation time required');
   return {
     source: 'sam_gov', sourceTransactionId: value.sourceTransactionId, awardIdentityKey: value.awardIdentityKey,
     piid: value.piid, modificationNumber: value.modificationNumber, actionDate: value.actionDate,
     signedObligationDelta: value.signedObligationDelta, signedOutlayDelta: null,
-    sourceObservedAt: observedAt,
+    sourceObservedAt: exactInstant(observedAt)!,
     sourceUrl: `https://api.sam.gov/contract-awards/v1/search?piid=${encodeURIComponent(value.piid)}`,
     raw: { sourcePayload: record, acquisitionProvenance: { ...run, awardUniqueId: value.awardUniqueId,
       sourceRevisionOrder: value.sourceRevisionOrder, sourcePayloadHash: value.sourcePayloadHash } },

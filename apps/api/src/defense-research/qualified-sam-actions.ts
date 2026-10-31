@@ -6,8 +6,8 @@ interface QualifiedActionRow {
   sourceSystem: string; sourceTransactionId: string; piid: string; modificationNumber: string;
   actionDate: Date | null; signedObligationDelta: { toString(): string } | null;
   signedOutlayDelta: { toString(): string } | null; correctsIdentityKey: string | null;
-  supersedesId: string | null; sourceUrl: string | null; sourceObservedAt: Date;
-  recordedAt: Date; contractId: string; runId: string; producerCommit: string; imageDigest: string;
+  supersedesId: string | null; sourceUrl: string | null; sourceObservedAt: string;
+  recordedAt: string; contractId: string; runId: string; producerCommit: string; imageDigest: string;
 }
 
 /** Requires the reviewed v2 forward migration before activation; never falls back to raw SAM totals. */
@@ -27,7 +27,8 @@ export async function readQualifiedSamActions(prisma: Pick<PrismaService, '$quer
       a.source_transaction_id AS "sourceTransactionId", a.piid, a.modification_number AS "modificationNumber",
       a.action_date AS "actionDate", a.obligation_usd AS "signedObligationDelta", a.outlay_usd AS "signedOutlayDelta",
       a.corrects_identity_key AS "correctsIdentityKey", a.supersedes_id AS "supersedesId", a.source_url AS "sourceUrl",
-      a.source_observed_at AS "sourceObservedAt", a.recorded_at AS "recordedAt", a.contract_id AS "contractId",
+      to_char(a.source_observed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "sourceObservedAt",
+      to_char(a.recorded_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "recordedAt", a.contract_id AS "contractId",
       a.run_id AS "runId", a.producer_commit AS "producerCommit", a.image_digest AS "imageDigest",
       c.selected_actions AS "selectedActions", c.legacy_rows AS "legacyRows", c.unresolved_rows AS "unresolvedRows"
     FROM coverage c CROSS JOIN requested r

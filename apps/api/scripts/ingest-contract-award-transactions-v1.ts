@@ -21,6 +21,7 @@
  * Resolve the full source award tuple; PIID only bounds candidate retrieval.
  * Historical keys, hashes and observation chains remain untouched.
  */
+import { assertLosslessSamJsonSupport, parseSamResponseJson } from './lib/sam-response-json.js';
 import { PrismaClient } from '@prisma/client';
 import { readFileSync } from 'node:fs';
 import { appendSamRecords, sourceText, validProducerRun, SAM_ACTION_CONTRACT, type AwardCandidate, type ProducerRun, type SamRecord } from './lib/sam-contract-action.js';
@@ -78,7 +79,7 @@ async function fetchPage(apiKey: string, params: Record<string, string>): Promis
     }
     if (response.status === 204) return { records: [], totalRecords: 0 };
     if (response.ok) {
-      const body = (await response.json()) as { awardSummary?: SamRecord[]; totalRecords?: number };
+      const body = parseSamResponseJson(await response.text()) as { awardSummary?: SamRecord[]; totalRecords?: number };
       if (!Array.isArray(body.awardSummary) || body.awardSummary.some((r) => !r || typeof r !== 'object' || Array.isArray(r))) {
         throw new Error('SAM contract-awards response violates the record contract');
       }
@@ -91,6 +92,7 @@ async function fetchPage(apiKey: string, params: Record<string, string>): Promis
 }
 
 async function main(): Promise<void> {
+  assertLosslessSamJsonSupport(); // Capability gate before source calls, credentials or database connections.
   const apiKey = process.env.SAM_GOV_API_KEY?.trim();
   if (!apiKey) throw new Error('SAM_GOV_API_KEY is required');
 

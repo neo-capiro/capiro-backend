@@ -1,5 +1,6 @@
+import { compareInstants, exactInstant, requireExactInstant } from './sam-exact-instant.js';
 import { buildAcquisitionIdentity } from '../../src/program-element/acquisition-continuity/acquisition-identity.js';
-import { awardKey, canonicalJson, mapSamAction, parseAwardId, sourceRevisionOrder, sourceText, usd, validProducerRun,
+import { awardKey, canonicalJson, mapSamAction, parseAwardId, payloadHash, sourceRevisionOrder, sourceText, usd, validProducerRun,
   type AwardCandidate, type ProducerRun, type SamRecord } from './sam-contract-action.js';
 
 /** Offline executable specification for DB's forward v2 consumers. No DB/network effects. */
@@ -8,12 +9,43 @@ export interface ObservedAction {
   sourceTransactionId: string; piid: string | null; modificationNumber: string | null;
   actionDate: string | null; signedObligationDelta: string | null; signedOutlayDelta: string | null;
   recordedAt: string; sourceObservedAt: string | null; supersedesId: string | null;
-  correctsIdentityKey: string | null; raw: unknown;
+  correctsIdentityKey: string | null; parentAwardIdentityKey: string | null; sourceUrl: string | null; raw: unknown;
 }
 /** Independently approved by the DB/release owners, not read from producer claims. */
 export interface QualifiedRun extends ProducerRun {
   approvedAt: string; revokedAt: string | null;
   awardIdentityKeys: readonly string[];
+  completedAt: string; memberCount: number; manifestSha256: string; evidenceSha256: string;
+  members: readonly QualifiedMember[];
+}
+export interface QualifiedMember { revisionId: string; sourcePayloadHash: string; rowContentHash: string }
+/** Independently computed from persisted rows, never supplied/approved by the producer. */
+export function qualifiedMember(row: ObservedAction): QualifiedMember {
+  const raw = row.raw as Envelope;
+  return { revisionId: row.id, sourcePayloadHash: raw?.acquisitionProvenance?.sourcePayloadHash ?? '',
+    rowContentHash: payloadHash({ id: row.id, transactionIdentityKey: row.transactionIdentityKey,
+      awardIdentityKey: row.awardIdentityKey, parentAwardIdentityKey: row.parentAwardIdentityKey,
+      sourceSystem: row.sourceSystem, sourceTransactionId: row.sourceTransactionId,
+      piid: row.piid, modificationNumber: row.modificationNumber, actionDate: row.actionDate,
+      signedObligationDelta: row.signedObligationDelta, signedOutlayDelta: row.signedOutlayDelta,
+      recordedAt: requireExactInstant(row.recordedAt), sourceObservedAt: row.sourceObservedAt === null ? null : requireExactInstant(row.sourceObservedAt),
+      supersedesId: row.supersedesId, correctsIdentityKey: row.correctsIdentityKey,
+      sourceUrl: row.sourceUrl, raw: row.raw }) };
+}
+export function populationManifestHash(members: readonly QualifiedMember[]): string {
+  return payloadHash([...members].sort((a, b) => a.revisionId < b.revisionId ? -1 : a.revisionId > b.revisionId ? 1 : 0)
+    .map((m) => [m.revisionId, m.sourcePayloadHash, m.rowContentHash]));
+}
+function validPopulation(run: QualifiedRun): boolean {
+  if (!Array.isArray(run.members) || !Number.isSafeInteger(run.memberCount) || run.memberCount < 1
+    || run.memberCount !== run.members.length || new Set(run.members.map((m) => m.revisionId)).size !== run.memberCount
+    || !/^[a-f0-9]{64}$/.test(run.evidenceSha256) || !/^[a-f0-9]{64}$/.test(run.manifestSha256)
+    || run.members.some((m) => !m.revisionId || !/^[a-f0-9]{64}$/.test(m.sourcePayloadHash) || !/^[a-f0-9]{64}$/.test(m.rowContentHash))
+    || !Array.isArray(run.awardIdentityKeys) || !run.awardIdentityKeys.length
+    || new Set(run.awardIdentityKeys).size !== run.awardIdentityKeys.length) return false;
+  const completed = exactInstant(run.completedAt), approved = exactInstant(run.approvedAt);
+  return completed !== null && approved !== null && completed <= approved
+    && run.manifestSha256 === populationManifestHash(run.members);
 }
 export type ActionCategory = 'selected' | 'prior_source_revision' | 'repeated_observation'
   | 'source_revision_fork' | 'legacy' | 'unqualified_run' | 'invalid_provenance'
@@ -28,11 +60,6 @@ type Envelope = { sourcePayload: SamRecord; acquisitionProvenance: ProducerRun &
 function object(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
-function instant(value: string): number {
-  const parsed = Date.parse(value);
-  if (!Number.isFinite(parsed) || !/(?:Z|[+-]\d{2}:\d{2})$/.test(value)) throw new Error('explicit-offset instant required');
-  return parsed;
-}
 function sameRun(a: ProducerRun, b: ProducerRun): boolean {
   return a.contract === b.contract && a.producerCommit === b.producerCommit && a.imageDigest === b.imageDigest
     && a.runId === b.runId && a.targetId === b.targetId;
@@ -41,14 +68,14 @@ export function projectSamActions(input: {
   rows: readonly ObservedAction[]; awards: readonly AwardCandidate[]; qualifiedRuns: readonly QualifiedRun[];
   targetId: string; knownAt: string; sourceThrough?: string;
 }): ClassifiedAction[] {
-  const knownAt = instant(input.knownAt);
+  const knownAt = requireExactInstant(input.knownAt);
   if (input.sourceThrough && sourceRevisionOrder(input.sourceThrough) !== input.sourceThrough) throw new Error('canonical source cutoff required');
   const ids = new Map(input.rows.map((row) => [row.id, row]));
   if (ids.size !== input.rows.length) throw new Error('duplicate physical revision ID');
   const result: ClassifiedAction[] = [];
   const pending = new Map<string, Array<{ classified: ClassifiedAction; envelope: Envelope }>>();
   for (const row of input.rows) {
-    if (instant(row.recordedAt) > knownAt) continue;
+    if (requireExactInstant(row.recordedAt) > knownAt) continue;
     const classified: ClassifiedAction = { row, category: 'invalid_provenance', sourceRevisionOrder: null, awardUniqueId: null };
     result.push(classified);
     if (!object(row.raw) || !object(row.raw.acquisitionProvenance)) { classified.category = 'legacy'; continue; }
@@ -56,9 +83,17 @@ export function projectSamActions(input: {
     const provenance = envelope.acquisitionProvenance;
     if (!validProducerRun(provenance) || !object(envelope.sourcePayload)) continue;
     // Revocations apply even to retrospective queries: knownAt never restores disqualified data.
-    const approvals = input.qualifiedRuns.filter((run) => validProducerRun(run) && sameRun(run, provenance)
-      && run.targetId === input.targetId && instant(run.approvedAt) <= knownAt && run.revokedAt === null);
+    const approvals = input.qualifiedRuns.filter((run) => validProducerRun(run) && validPopulation(run) && sameRun(run, provenance)
+      && run.targetId === input.targetId && requireExactInstant(run.approvedAt) <= knownAt && run.revokedAt === null);
     if (approvals.length !== 1 || provenance.targetId !== input.targetId) { classified.category = 'unqualified_run'; continue; }
+    // Header integrity/digest never substitutes for exact immutable physical membership.
+    const approval = approvals[0]!;
+    const member = approval.members.find((m) => m.revisionId === row.id);
+    if (!member || member.sourcePayloadHash !== provenance.sourcePayloadHash
+      || requireExactInstant(row.recordedAt) > requireExactInstant(approval.completedAt)) {
+      classified.category = 'unqualified_run'; continue;
+    }
+    if (member.rowContentHash !== qualifiedMember(row).rowContentHash) continue;
     const mapped = mapSamAction(envelope.sourcePayload, input.awards);
     if (!mapped.ok) {
       if (mapped.reason === 'no_award_match' || mapped.reason === 'multiple_award_matches') classified.category = mapped.reason;
@@ -68,19 +103,19 @@ export function projectSamActions(input: {
     if (!approvals[0]!.awardIdentityKeys.includes(value.awardIdentityKey)) { classified.category = 'unqualified_run'; continue; }
     const identity = buildAcquisitionIdentity({ source: 'sam_gov', recordKind: 'modification', transactionId: value.sourceTransactionId });
     if (!identity.ok || row.sourceSystem !== 'sam_gov' || row.transactionIdentityKey !== identity.identity.key
-      || row.awardIdentityKey !== value.awardIdentityKey || row.sourceTransactionId !== value.sourceTransactionId
+      || row.awardIdentityKey !== value.awardIdentityKey || row.parentAwardIdentityKey !== null || row.sourceTransactionId !== value.sourceTransactionId
       || row.piid !== value.piid || row.modificationNumber !== value.modificationNumber || row.actionDate !== value.actionDate
       || usd(row.signedObligationDelta) !== value.signedObligationDelta || row.signedOutlayDelta !== null
       || provenance.awardUniqueId !== value.awardUniqueId || provenance.sourcePayloadHash !== value.sourcePayloadHash
       || provenance.sourceRevisionOrder !== value.sourceRevisionOrder || row.sourceObservedAt === null) continue;
-    instant(row.sourceObservedAt);
+    requireExactInstant(row.sourceObservedAt);
     classified.sourceRevisionOrder = value.sourceRevisionOrder;
     classified.awardUniqueId = value.awardUniqueId;
     const predecessor = row.supersedesId ? ids.get(row.supersedesId) : null;
     // Append order is observation history, never authority for source revision selection.
     if (row.correctsIdentityKey !== null || (row.supersedesId && (!predecessor
       || predecessor.awardIdentityKey !== row.awardIdentityKey || predecessor.transactionIdentityKey !== row.transactionIdentityKey
-      || instant(predecessor.recordedAt) >= instant(row.recordedAt)))) { classified.category = 'invalid_chain'; continue; }
+      || requireExactInstant(predecessor.recordedAt) >= requireExactInstant(row.recordedAt)))) { classified.category = 'invalid_chain'; continue; }
     if (input.sourceThrough && value.sourceRevisionOrder > input.sourceThrough) { classified.category = 'source_after_cutoff'; continue; }
     const group = pending.get(row.transactionIdentityKey) ?? [];
     group.push({ classified, envelope }); pending.set(row.transactionIdentityKey, group);
@@ -93,7 +128,7 @@ export function projectSamActions(input: {
       for (const { classified } of group) classified.category = 'source_revision_fork';
       continue;
     }
-    heads.sort((a, b) => instant(a.classified.row.recordedAt) - instant(b.classified.row.recordedAt)
+    heads.sort((a, b) => compareInstants(a.classified.row.recordedAt, b.classified.row.recordedAt)
       || a.classified.row.id.localeCompare(b.classified.row.id));
     const selected = heads[0]!.classified;
     for (const { classified } of group) classified.category = classified === selected ? 'selected'
@@ -139,7 +174,7 @@ export function selectAwardObservations(rows: readonly AwardObservation[], known
   const groups = new Map<string, AwardObservation[]>();
   const excluded: Array<{ id: string; reason: string }> = [];
   for (const row of rows) {
-    if (instant(row.recordedAt) > instant(knownAt)) continue;
+    if (requireExactInstant(row.recordedAt) > requireExactInstant(knownAt)) continue;
     const parsed = parseAwardId(row.sourceRecordId);
     if (row.sourceSystem !== 'usaspending' || row.recordKind !== 'award' || !parsed
       || row.identityKey !== awardKey(row.sourceRecordId)
@@ -151,9 +186,9 @@ export function selectAwardObservations(rows: readonly AwardObservation[], known
   const selected: Array<AwardCandidate & { revisionId: string; recordedAt: string; awardingAgency: string | null;
     awardingSubTier: string | null; contractorName: string | null; recipientUei: string | null }> = [];
   for (const group of groups.values()) {
-    group.sort((a, b) => instant(b.recordedAt) - instant(a.recordedAt) || a.id.localeCompare(b.id));
+    group.sort((a, b) => compareInstants(b.recordedAt, a.recordedAt) || a.id.localeCompare(b.id));
     const head = group[0]!;
-    const ties = group.filter((row) => instant(row.recordedAt) === instant(head.recordedAt));
+    const ties = group.filter((row) => requireExactInstant(row.recordedAt) === requireExactInstant(head.recordedAt));
     if (new Set(ties.map((row) => canonicalJson(row.raw))).size > 1) {
       excluded.push(...group.map((row) => ({ id: row.id, reason: 'award_observation_fork' }))); continue;
     }

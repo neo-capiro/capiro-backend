@@ -648,14 +648,15 @@ describe('DefenseResearchService', () => {
       parentAwardIdentityKey: null, sourceSystem: 'sam_gov', sourceTransactionId: 'fixture', piid: '1',
       modificationNumber: '0', actionDate: at, signedObligationDelta: { toString: () => '-80.00' },
       signedOutlayDelta: null, correctsIdentityKey: null, supersedesId: 'prior-observation', sourceUrl: null,
-      sourceObservedAt: at, recordedAt: at, contractId: 'sam-contract-action/v2', runId: 'fixture-run',
+      sourceObservedAt: '2026-10-01T00:00:00.000001Z', recordedAt: '2026-10-01T00:00:00.000002Z', contractId: 'sam-contract-action/v2', runId: 'fixture-run',
       producerCommit: 'a'.repeat(40), imageDigest: `sha256:${'b'.repeat(64)}`,
     }]);
     const result = await serviceWith({ acquisitionAwardTransactionRevision: { findMany }, $queryRaw: queryRaw })
       .getAcquisitionActions('usaspending|award|fixture');
     expect(queryRaw.mock.calls[0]![0].join('?')).toContain('LEFT JOIN v_defproc_action_v2');
     expect(queryRaw.mock.calls[0]!.slice(1)).toEqual(['usaspending|award|fixture']);
-    expect(result[0]).toMatchObject({ signedObligationDelta: '-80.00', signedOutlayDelta: null,
+    expect(queryRaw.mock.calls[0]![0].join('?')).toContain('SS.US');
+    expect(result[0]).toMatchObject({ sourceObservedAt: '2026-10-01T00:00:00.000001Z', recordedAt: '2026-10-01T00:00:00.000002Z', signedObligationDelta: '-80.00', signedOutlayDelta: null,
       raw: { qualification: { contract: 'sam-contract-action/v2', runId: 'fixture-run', coverage: { state: 'partial', legacyRows: '2' } } } });
     expect(JSON.stringify(result)).not.toContain('sourcePayload');
     expect(findMany.mock.calls[0]![0].where.sourceSystem).toEqual({ not: 'sam_gov' });

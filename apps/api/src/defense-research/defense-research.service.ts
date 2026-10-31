@@ -3541,8 +3541,8 @@ export class DefenseResearchService {
       correctsIdentityKey: row.correctsIdentityKey,
       supersedesId: row.supersedesId,
       sourceUrl: row.sourceUrl,
-      sourceObservedAt: row.sourceObservedAt?.toISOString() ?? null,
-      recordedAt: row.recordedAt.toISOString(),
+      sourceObservedAt: typeof row.sourceObservedAt === 'string' ? row.sourceObservedAt : row.sourceObservedAt?.toISOString() ?? null,
+      recordedAt: typeof row.recordedAt === 'string' ? row.recordedAt : row.recordedAt.toISOString(),
       raw: row.raw,
     }));
   }
