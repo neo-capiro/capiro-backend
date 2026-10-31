@@ -105,6 +105,83 @@ const size = (value: unknown): number =>
     ? conservativeTokens(value)
     : conservativeTokens(JSON.stringify(value ?? null));
 
+/** The typed canonical item boundaries the Context Plane renderer emits. */
+const CONTEXT_ITEM = /<context_item[\s\S]*?<\/context_item>/g;
+
+/** UTF-8 length, in bytes. */
+function utf8Bytes(value: string): number {
+  return Buffer.byteLength(value, 'utf8');
+}
+
+/** A code-point-safe excerpt: never splits a surrogate pair. */
+function codePointExcerpt(value: string, maxBytes: number): string {
+  if (maxBytes <= 0) return '';
+  let text = '';
+  let used = 0;
+  for (const character of value) {
+    const next = utf8Bytes(character);
+    if (used + next > maxBytes) break;
+    text += character;
+    used += next;
+  }
+  return text;
+}
+
+/**
+ * Reduce the canonical steering INSIDE the room the rest of the input leaves, keeping the
+ * renderer's whole typed items (item identity, attributes and closing tags) instead of an
+ * arbitrary character prefix. Omitted items are counted and named in the block, so the
+ * reduction is truthful; only a single item larger than the remaining room is excerpted, and
+ * that excerpt is code-point safe.
+ */
+function reduceSteering(
+  bounded: MeetingDebriefContextInput,
+  bound: number,
+  total: number,
+): boolean {
+  const steering = bounded.steeringContext;
+  if (!steering) return false;
+  const room = bound - (total - utf8Bytes(steering));
+  if (utf8Bytes(steering) <= room) return false;
+
+  const units = steering.match(CONTEXT_ITEM) ?? [];
+  const hardExcerpt = () => {
+    const marker = '\n…[approved steering excerpt reduced to fit the debrief context budget]';
+    const excerpt = codePointExcerpt(steering, Math.max(0, room - size(marker)));
+    if (!excerpt) return false;
+    bounded.steeringContext = `${excerpt}${marker}`;
+    return true;
+  };
+  if (!units.length) return hardExcerpt();
+
+  const preamble = steering.slice(0, steering.indexOf(units[0]!));
+  const note = (omitted: number) =>
+    `\n…[${omitted} approved steering item${omitted === 1 ? '' : 's'} omitted to fit the debrief context budget]`;
+  let kept = preamble;
+  let omitted = 0;
+  for (const unit of units) {
+    const candidate = `${kept}${unit}`;
+    if (utf8Bytes(`${candidate}${note(omitted)}`) <= room) {
+      kept = candidate;
+    } else {
+      omitted += 1;
+    }
+  }
+  if (!omitted) {
+    // The units fit; the preamble/joiner bytes were the excess. Reduce the preamble only.
+    const budget = room - size(note(1));
+    bounded.steeringContext = `${codePointExcerpt(preamble, Math.max(0, budget))}${note(1)}`;
+    return true;
+  }
+  const composed = `${kept}${note(omitted)}`;
+  if (utf8Bytes(composed) > room) {
+    bounded.steeringContext = composed;
+    return hardExcerpt();
+  }
+  bounded.steeringContext = composed;
+  return true;
+}
+
 function truncateTranscript(text: string, allowedBytes: number): string {
   if (allowedBytes <= SOURCE_MARKER.length) return SOURCE_MARKER.trim();
   const budget = allowedBytes - conservativeTokens(SOURCE_MARKER);
@@ -233,6 +310,28 @@ export function boundDebriefContext(
     bounded.source = { ...bounded.source, text: truncateTranscript(input.source.text, allowed) };
     truncated = true;
     total = debriefContextTokens(bounded);
+  }
+
+  // Only when the reviewed evidence is already at its floor does the canonical steering give
+  // way — and then by whole typed items inside the actual remaining room, never by deleting
+  // the block or by an arbitrary prefix.
+  if (total > bound) {
+    // Repeat while progress is made: whole-item selection first, then a code-point excerpt of
+    // whatever still does not fit. The loop exists so the accounting converges on the same
+    // measurement the final guard uses.
+    const original = bounded.steeringContext;
+    let guard = 0;
+    while (total > bound && guard < 8) {
+      guard += 1;
+      if (!reduceSteering(bounded, bound, total)) break;
+      const next = debriefContextTokens(bounded);
+      if (next >= total) break;
+      total = next;
+    }
+    if (bounded.steeringContext !== original) {
+      adjusted.add('steeringContext');
+      total = debriefContextTokens(bounded);
+    }
   }
 
   const sections: DebriefContextSection[] = (

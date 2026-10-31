@@ -248,8 +248,6 @@ export class MeetingContextPlaneService {
         coverage,
         records: projection.text,
         releaseSwitchRollback: result.kind === 'release_switch_rollback',
-        // Only the debrief seam has the stricter 8 000-byte bound to compose inside.
-        maxBytes: input.mode === 'debrief' ? DEBRIEF_MODEL_CONTEXT_BYTE_BUDGET : undefined,
       }),
     };
   }
@@ -721,25 +719,6 @@ function projectSteering(packet: unknown): string {
   return blocks.join('');
 }
 
-/** Bytes the debrief seam may spend on the canonical block, inside its 8 000-byte bound. */
-const DEBRIEF_MODEL_CONTEXT_BYTE_BUDGET = 4_000;
-const STEERING_TRUNCATION_MARKER =
-  '…[approved steering excerpt projected to fit the debrief context budget]';
-
-/** UTF-8 length of a string, in bytes. */
-function byteLength(value: string): number {
-  return Buffer.byteLength(value, 'utf8');
-}
-
-/** The steering excerpt that fits maxBytes, cut on a code-point boundary. */
-function steeringExcerpt(steering: string, maxBytes: number): string {
-  if (maxBytes <= 0) return '';
-  if (byteLength(steering) <= maxBytes) return steering;
-  let text = steering.slice(0, maxBytes);
-  while (text && byteLength(text) > maxBytes) text = text.slice(0, -1);
-  return `${text}${STEERING_TRUNCATION_MARKER}`;
-}
-
 export function buildModelContextBlock(input: {
   mode: MeetingContextMode;
   steering: string;
@@ -747,20 +726,13 @@ export function buildModelContextBlock(input: {
   coverage: MeetingCoverageProjection;
   records: string;
   releaseSwitchRollback: boolean;
-  /**
-   * Byte ceiling for the composed block. The debrief seam's bound is a UTF-8-BYTE limit,
-   * which the context compiler's token budget does not imply, so the projection is composed
-   * to fit here rather than handed to the caller oversized.
-   */
-  maxBytes?: number;
 }): string {
   const authority =
     input.mode === 'debrief'
       ? 'AUTHORITY: only source.text, visibleNotes, and confirmed current-meeting metadata may establish what happened, who attended, decisions, commitments, owners, deadlines, quotes, outcomes, or action items. This Context Plane block is background only.'
       : 'AUTHORITY: current meeting/calendar metadata establishes the meeting facts. This Context Plane block may inform preparation, relevance, questions, risks, and relationship strategy, but must not be represented as something said or decided in the meeting.';
 
-  const render = (steeringText: string, recordsText: string, note: string) =>
-    [
+  return [
     '<capiro_meeting_context_plane>',
     `MODE: ${input.mode}`,
     `CONTEXT_PACKET_ID: ${input.packetId ?? 'not-persisted'}`,
@@ -783,48 +755,15 @@ export function buildModelContextBlock(input: {
     `truncated=${input.coverage.truncated}`,
     '',
     'GOVERNED STEERING:',
-    steeringText || '(no approved steering items selected)',
-    note,
+    input.steering || '(no approved steering items selected)',
     '',
     'SUPPLEMENTAL INSTITUTIONAL CONTEXT:',
-    recordsText,
+    input.records,
     '</capiro_meeting_context_plane>',
-    ]
-      .filter((line) => line !== '')
-      .join(String.fromCharCode(10));
+  ]
+    .filter((line) => line !== '')
+    .join(String.fromCharCode(10));
 
-  const full = render(input.steering, input.records, '');
-  if (!input.maxBytes || byteLength(full) <= input.maxBytes) return full;
-
-  // 1. The supplemental record projection is background: it gives way first, and the
-  // block says so rather than silently losing context.
-  const withoutRecords = render(
-    input.steering,
-    'omitted to fit the debrief context budget',
-    '',
-  );
-  if (byteLength(withoutRecords) <= input.maxBytes) return withoutRecords;
-
-  // 2. Required policy, coverage and the approved steering stay; only its LENGTH gives
-  // way, and the excerpt carries the truncation marker so the reduction is visible.
-  const head = render('', '', '');
-  let room = input.maxBytes - byteLength(head) - byteLength(STEERING_TRUNCATION_MARKER);
-  let composed = render(
-    steeringExcerpt(input.steering, Math.max(0, room)),
-    'omitted to fit the debrief context budget',
-    '',
-  );
-  // Measurement is in UTF-8 bytes while slicing is in code units: correct any residual
-  // overrun exactly, so the composed block never exceeds the ceiling it advertises.
-  while (byteLength(composed) > input.maxBytes && room > 0) {
-    room -= byteLength(composed) - input.maxBytes;
-    composed = render(
-      steeringExcerpt(input.steering, Math.max(0, room)),
-      'omitted to fit the debrief context budget',
-      '',
-    );
-  }
-  return composed;
 }
 
 function packetIdOf(packet: unknown): string | null {

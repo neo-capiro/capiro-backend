@@ -60,7 +60,15 @@ export function createGovernedMeetingAiService(
             // and is always supplied, exactly as the original seam did. The assembly
             // composes it BEFORE the bound and the bound no longer reduces the steering
             // slot, so this is not a post-bound insertion in the governed path.
-            steeringContext: bundle.modelContextBlock,
+            // The assembly composes the canonical block BEFORE the bound and may have
+            // reduced it by whole approved items to fit. Re-substituting the full bundle
+            // here would undo that reduction after the bound and push the input back over
+            // the limit, so an already-composed canonical block is kept as sent.
+            steeringContext:
+              typeof input.steeringContext === 'string' &&
+              input.steeringContext.includes('<capiro_meeting_context_plane>')
+                ? input.steeringContext
+                : bundle.modelContextBlock,
           };
           // The provider seam dispatches nothing above the debrief's hard bound: the
           // canonical substitution happens here, so the check has to happen here too.
