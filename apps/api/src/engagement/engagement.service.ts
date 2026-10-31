@@ -1,3 +1,4 @@
+import { lockMeetingAssociation, hasBoundMeetingRecords } from './meeting-automatic-association.js';
 import { forwardedMessageHtml } from './mail-forward-source.js';
 import { assertSingleMailAuthority, assertSingleMailIntentReadAuthority, resolveSingleMailReply } from './single-mail-authority.js';
 import { REPLY_UNAVAILABLE, type PreparedMailReply } from './single-mail-reply.js';
@@ -1811,11 +1812,7 @@ export class EngagementService {
   ): Promise<void> {
     // Read the prior client only after this lock. Otherwise a concurrent A→B
     // followed by an A→A save can skip child propagation using a stale read.
-    await tx.$queryRaw(Prisma.sql`
-      SELECT id FROM meetings
-      WHERE id = ${meetingId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
-      FOR UPDATE
-    `);
+    await lockMeetingAssociation(tx, ctx.tenantId, meetingId);
   }
 
   /** Move the meeting's denormalized children atomically with its client. */
@@ -9235,6 +9232,13 @@ export class EngagementService {
       attendees: Array<{ email: string | null }>;
     },
   ): Promise<string | null> {
+    await this.lockMeetingClientAssignment(tx, ctx, meeting.id);
+    const current = await tx.meeting.findFirst({
+      where: { id: meeting.id, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
+      select: { clientId: true, isInternal: true, associationSignals: true },
+    });
+    if (!current) throw new NotFoundException('Meeting not found');
+    meeting = { ...meeting, ...current };
     if (meeting.isInternal) return null;
     // The stored client is canonical. Generation must not independently choose
     // another client and save that second attribution on the prep/debrief.
@@ -9256,6 +9260,10 @@ export class EngagementService {
       body: meeting.description,
       attendeeEmails: [...attendeeEmails, meeting.organizerEmail ?? ''],
     });
+
+    if (await hasBoundMeetingRecords(tx, ctx.tenantId, meeting.id, meeting.clientId, association.clientId)) {
+      return meeting.clientId;
+    }
 
     if (!meeting.clientId && association.clientId) {
       await tx.meeting.update({
