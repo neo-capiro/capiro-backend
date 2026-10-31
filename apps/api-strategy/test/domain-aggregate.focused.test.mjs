@@ -2,11 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { stripTypeScriptTypes } from 'node:module';
+import { EventEmitter } from 'node:events';
 const data = (text) => `data:text/javascript;base64,${Buffer.from(text).toString('base64')}`;
 const nest = data(
-  'export class BadRequestException extends Error {}; export class ForbiddenException extends Error {};',
+  'export class BadRequestException extends Error {}; export class ForbiddenException extends Error {}; export class ServiceUnavailableException extends Error {};',
 );
-const { BadRequestException, ForbiddenException } = await import(nest);
+const { BadRequestException, ForbiddenException, ServiceUnavailableException } = await import(nest);
 const source = await readFile(
   new URL('../src/strategy/domain-aggregate.ts', import.meta.url),
   'utf8',
@@ -19,6 +20,9 @@ const {
   aggregateSourceKey: key,
   aggregateQuery,
   requireAggregateActor,
+  createAggregateBudget,
+  aggregateRows,
+  aggregateRequest,
 } = api;
 const client = '11111111-1111-4111-8111-111111111111';
 const cutoff = new Date('2026-11-01T06:00:00Z');
@@ -232,4 +236,262 @@ test('actual canonical link transport distinguishes upstream401 from denied sour
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test('P2: primitive client reads are deduplicated independently of meeting pairs in both passes', async () => {
+  const sources = Array.from({ length: 10 }, (_, i) => ({
+    clientId: client,
+    meetingId: `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`,
+  }));
+  const calls = [];
+  const result = await observe(
+    'planner.overdue_unfinished',
+    {},
+    {
+      validate: async (source) => {
+        calls.push(source);
+      },
+    },
+    bearer,
+    async () => snapshot('same', sources, 10),
+  );
+  assert.equal(result.count, 10);
+  assert.equal(calls.filter((source) => source.clientId).length, 2);
+  assert.equal(calls.filter((source) => source.meetingId).length, 20);
+});
+
+test('P2: excessive distinct-source capacity withholds the whole observation before any fetch', async () => {
+  let calls = 0,
+    counts = 0;
+  const sources = Array.from({ length: 129 }, (_, i) => ({
+    clientId: `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`,
+  }));
+  await assert.rejects(
+    () =>
+      observe(
+        'strategy.active',
+        {},
+        {
+          validate: async () => {
+            calls++;
+          },
+        },
+        bearer,
+        async () => ({
+          fingerprint: 'full',
+          sources,
+          count: () => {
+            counts++;
+            return 129;
+          },
+        }),
+      ),
+    ServiceUnavailableException,
+  );
+  assert.equal(calls, 0);
+  assert.equal(counts, 0);
+});
+
+test('P2: bounded paging refuses excessive rows/bytes without evaluating a partial total', async () => {
+  for (const mode of ['rows', 'bytes']) {
+    const budget = createAggregateBudget();
+    let pages = 0;
+    try {
+      await assert.rejects(
+        () =>
+          aggregateRows(budget, async (after, take) => {
+            pages++;
+            const start = after ? Number(after) + 1 : 0;
+            return Array.from({ length: mode === 'bytes' ? 1 : take }, (_, i) => ({
+              id: String(start + i).padStart(12, '0'),
+              ...(mode === 'bytes' ? { payload: 'x'.repeat(8 * 1024 * 1024) } : {}),
+            }));
+          }),
+        ServiceUnavailableException,
+      );
+      assert.equal(pages, mode === 'bytes' ? 1 : 40);
+    } finally {
+      budget.close();
+    }
+  }
+});
+
+test('P2: actual fetch receives aggregate expiry/callerabort, settles, and starts no later source', async () => {
+  const transportNest = data(
+    `export const Injectable=()=>value=>value;export class ForbiddenException extends Error {};export class ServiceUnavailableException extends Error {};`,
+  );
+  const config = data('export class ConfigService {}');
+  const raw = await readFile(
+    new URL('../src/planner/planner-links.service.ts', import.meta.url),
+    'utf8',
+  );
+  const { PlannerLinksService } = await import(
+    data(
+      stripTypeScriptTypes(
+        raw
+          .replace('@Injectable()', '')
+          .replace("'@nestjs/common'", JSON.stringify(transportNest))
+          .replace("'@nestjs/config'", JSON.stringify(config)),
+      ),
+    )
+  );
+  const owner = new PlannerLinksService({ get: () => undefined });
+  const originalFetch = globalThis.fetch;
+  try {
+    for (const mode of ['expiry', 'caller']) {
+      let started = 0,
+        active = 0,
+        settled = 0,
+        reads = 0,
+        counts = 0;
+      const caller = new AbortController();
+      globalThis.fetch = async (_url, { signal }) =>
+        new Promise((resolve, reject) => {
+          started++;
+          active++;
+          const stopped = () => {
+            active--;
+            settled++;
+            reject(new Error('synthetic aborted transport'));
+          };
+          signal.addEventListener('abort', stopped, { once: true });
+          if (mode === 'caller') setTimeout(() => caller.abort(), 5);
+        });
+      await assert.rejects(
+        () =>
+          observe(
+            'planner.overdue_unfinished',
+            {},
+            owner,
+            bearer,
+            async () => {
+              reads++;
+              return {
+                fingerprint: 'same',
+                sources: [{ clientId: client, meetingId: client }],
+                count: () => {
+                  counts++;
+                  return 1;
+                },
+              };
+            },
+            cutoff,
+            { signal: caller.signal, timeoutMs: mode === 'expiry' ? 20 : 1000 },
+          ),
+        ServiceUnavailableException,
+      );
+      assert.deepEqual(
+        { started, active, settled, reads, counts },
+        { started: 1, active: 0, settled: 1, reads: 1, counts: 0 },
+      );
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('P2: request disconnect aborts awaited work and removes request/response listeners', async () => {
+  const req = new EventEmitter();
+  req.res = new EventEmitter();
+  req.res.writableEnded = false;
+  const pending = aggregateRequest(
+    req,
+    (signal) =>
+      new Promise((resolve) => {
+        signal.addEventListener('abort', () => resolve(signal.aborted), { once: true });
+      }),
+  );
+  req.res.emit('close');
+  assert.equal(await pending, true);
+  assert.equal(req.listenerCount('aborted'), 0);
+  assert.equal(req.res.listenerCount('close'), 0);
+});
+
+test('P2: database budget installs remaining server timeout and awaits in-flight settlement on cancellation', async () => {
+  const caller = new AbortController();
+  const budget = createAggregateBudget(caller.signal, 1000);
+  const timeouts = [];
+  let active = 0,
+    settled = 0,
+    next = 0;
+  const tx = {
+    $executeRaw: async (parts, value) => {
+      assert.match(parts.join(''), /statement_timeout/);
+      timeouts.push(value);
+    },
+  };
+  try {
+    await assert.rejects(
+      () =>
+        budget.query(tx, async () => {
+          active++;
+          caller.abort();
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          active--;
+          settled++;
+          return 'settled';
+        }),
+      ServiceUnavailableException,
+    );
+    assert.equal(active, 0);
+    assert.equal(settled, 1);
+    assert.ok(Number.parseInt(timeouts[0]) > 0 && Number.parseInt(timeouts[0]) <= 1000);
+    await assert.rejects(
+      () =>
+        budget.query(tx, async () => {
+          next++;
+        }),
+      ServiceUnavailableException,
+    );
+    assert.equal(next, 0);
+    assert.equal(timeouts.length, 1);
+  } finally {
+    budget.close();
+  }
+});
+
+test('P2: expiry before source phase or during count never publishes a complete zero', async () => {
+  let sourceChecks = 0;
+  await assert.rejects(
+    () =>
+      observe(
+        'strategy.active',
+        {},
+        {
+          validate: async () => {
+            sourceChecks++;
+          },
+        },
+        bearer,
+        async () => {
+          await new Promise((resolve) => setTimeout(resolve, 20));
+          return snapshot();
+        },
+        cutoff,
+        { timeoutMs: 5 },
+      ),
+    ServiceUnavailableException,
+  );
+  assert.equal(sourceChecks, 0);
+  const caller = new AbortController();
+  await assert.rejects(
+    () =>
+      observe(
+        'strategy.active',
+        {},
+        { validate: async () => {} },
+        undefined,
+        async () => ({
+          fingerprint: 'same',
+          sources: [],
+          count: () => {
+            caller.abort();
+            return 0;
+          },
+        }),
+        cutoff,
+        { signal: caller.signal },
+      ),
+    ServiceUnavailableException,
+  );
 });

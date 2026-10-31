@@ -12,6 +12,7 @@ import { parseDbDate } from './dates.js';
 import { PlannerLinksService } from '../planner/planner-links.service.js';
 import {
   aggregateQuery,
+  aggregateRows,
   aggregateFingerprint,
   aggregateSourceKey,
   observeDomainAggregate,
@@ -44,36 +45,60 @@ export class StrategyService {
     private readonly links: PlannerLinksService,
   ) {}
 
-  async activeAggregate(ctx: AuthTenantContext, raw: DomainAggregateQuery, authorization?: string) {
+  async activeAggregate(
+    ctx: AuthTenantContext,
+    raw: DomainAggregateQuery,
+    authorization?: string,
+    signal?: AbortSignal,
+  ) {
     const query = aggregateQuery(raw);
-    return observeDomainAggregate('strategy.active', query, this.links, authorization, () =>
-      this.prisma.withTenantUser(
-        ctx.tenantId,
-        ctx.clerkUserId,
-        async (tx) => {
-          await requireAggregateActor(tx, ctx, true);
-          const rows = await tx.spStrategy.findMany({
-            where: {
-              tenantId: ctx.tenantId,
-              archivedAt: null,
-              ...(query.clientId ? { clientId: query.clientId } : {}),
-            },
-            orderBy: { id: 'asc' },
-            select: { id: true, clientId: true, updatedAt: true },
-          });
-          // Strategy has no independent status or General/null-client lifecycle.
-          for (const row of rows) aggregateQuery({ clientId: row.clientId });
-          return {
-            fingerprint: aggregateFingerprint(rows),
-            sources: rows.map((row) => ({ clientId: row.clientId })),
-            count: (readable: ReadonlySet<string>) =>
-              new Set(
-                rows.filter((row) => readable.has(aggregateSourceKey(row))).map((row) => row.id),
-              ).size,
-          };
-        },
-        { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
-      ),
+    return observeDomainAggregate(
+      'strategy.active',
+      query,
+      this.links,
+      authorization,
+      (budget) =>
+        this.prisma.withTenantUser(
+          ctx.tenantId,
+          ctx.clerkUserId,
+          async (tx) => {
+            await budget.query(tx, () => requireAggregateActor(tx, ctx, true));
+            const rows = await aggregateRows(budget, (after, take) =>
+              budget.query(tx, () =>
+                tx.spStrategy.findMany({
+                  where: {
+                    tenantId: ctx.tenantId,
+                    archivedAt: null,
+                    ...(query.clientId ? { clientId: query.clientId } : {}),
+                    ...(after ? { id: { gt: after } } : {}),
+                  },
+                  orderBy: { id: 'asc' },
+                  select: { id: true, clientId: true, updatedAt: true },
+                  take,
+                }),
+              ),
+            );
+            // Strategy has no independent status or General/null-client lifecycle.
+            for (const row of rows) {
+              budget.remaining();
+              aggregateQuery({ clientId: row.clientId });
+            }
+            return {
+              fingerprint: aggregateFingerprint(rows),
+              sources: rows.map((row) => ({ clientId: row.clientId })),
+              count: (readable: ReadonlySet<string>) =>
+                new Set(
+                  rows.filter((row) => readable.has(aggregateSourceKey(row))).map((row) => row.id),
+                ).size,
+            };
+          },
+          {
+            isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+            timeoutMs: budget.remaining(),
+          },
+        ),
+      undefined,
+      { signal },
     );
   }
   async objectiveDestination(

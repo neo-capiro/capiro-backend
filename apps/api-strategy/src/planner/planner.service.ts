@@ -75,6 +75,7 @@ import {
 } from '@capiro/shared';
 import {
   aggregateQuery,
+  aggregateRows,
   aggregateFingerprint,
   aggregateSourceKey,
   observeDomainAggregate,
@@ -1293,6 +1294,7 @@ export class PlannerService {
     ctx: AuthTenantContext,
     raw: DomainAggregateQuery,
     authorization?: string,
+    signal?: AbortSignal,
   ) {
     const query = aggregateQuery(raw),
       asOf = new Date();
@@ -1301,60 +1303,108 @@ export class PlannerService {
       query,
       this.links,
       authorization,
-      () =>
-        this.scope(
-          ctx,
+      (budget) =>
+        this.prisma.withTenant(
+          ctx.tenantId,
           async (tx) => {
-            await requireAggregateActor(tx, ctx);
-            const projects = await this.projects(tx, ctx);
-            // No list cursor/LIMIT: every canonical task identity is considered once.
-            const rows = await tx.spPlannerTask.findMany({
-              where: { tenantId: ctx.tenantId, archived: false },
-              orderBy: { id: 'asc' },
-            });
+            await budget.query(
+              tx,
+              () =>
+                tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`planner:${ctx.tenantId}`}, 0))`,
+            );
+            await budget.query(tx, () => requireAggregateActor(tx, ctx));
+            const projects = await aggregateRows(budget, (after, take) =>
+              budget.query(tx, () =>
+                tx.spPlannerProject.findMany({
+                  where: { tenantId: ctx.tenantId, ...(after ? { id: { gt: after } } : {}) },
+                  orderBy: { id: 'asc' },
+                  take,
+                }),
+              ),
+            );
+            const rows = await aggregateRows(budget, (after, take) =>
+              budget.query(tx, () =>
+                tx.spPlannerTask.findMany({
+                  where: {
+                    tenantId: ctx.tenantId,
+                    archived: false,
+                    ...(after ? { id: { gt: after } } : {}),
+                  },
+                  orderBy: { id: 'asc' },
+                  take,
+                }),
+              ),
+            );
             const projectRows = projects
-              .map((row) => ({
-                ...row,
-                data: validateProject(projectData(row)),
-              }))
+              .map((row) => {
+                budget.remaining();
+                return {
+                  ...row,
+                  data: validateProject(projectData(row)),
+                };
+              })
               .sort((a, b) => a.id.localeCompare(b.id));
             const tasks = rows
-              .map((row) => ({ ...row, data: validateTask(taskData(row)) }))
+              .map((row) => {
+                budget.remaining();
+                return { ...row, data: validateTask(taskData(row)) };
+              })
               .filter(
                 (row) => !query.clientId || row.data.clientId?.toLowerCase() === query.clientId,
               );
+            // Removing source grants can only reduce these canonical local roles.
+            // Provably unreadable or non-overdue tasks need no external source read.
+            const eligible = tasks.filter((row) => {
+              budget.remaining();
+              return (
+                plannerTaskAccessDecision(row, projectRows, ctx.clerkUserId) &&
+                plannerResourceTaskOverdue(
+                  { ...row.data, timeZone: row.data.timeZone ?? 'UTC' },
+                  asOf,
+                )
+              );
+            });
+            const referenced = new Set(
+              eligible.flatMap((row) => row.data.memberships.map((link) => link.projectId)),
+            );
+            const relevantProjects = projectRows.filter(
+              (row) => referenced.has(row.id) && plannerProjectAccessDecision(row, ctx.clerkUserId),
+            );
             return {
               fingerprint: aggregateFingerprint([projectRows, tasks]),
               sources: [
-                ...projectRows.map((row) => ({ clientId: row.data.clientId })),
-                ...tasks.map((row) => ({
+                ...relevantProjects.map((row) => ({ clientId: row.data.clientId })),
+                ...eligible.map((row) => ({
                   clientId: row.data.clientId,
                   meetingId: row.data.meetingId,
                 })),
               ],
               count: (readable: ReadonlySet<string>) => {
-                const readableProjects = projectRows.filter((row) =>
+                const readableProjects = relevantProjects.filter((row) =>
                   readable.has(aggregateSourceKey(row.data)),
                 );
                 return new Set(
-                  tasks
-                    .filter(
-                      (row) =>
+                  eligible
+                    .filter((row) => {
+                      budget.remaining();
+                      return (
                         readable.has(aggregateSourceKey(row.data)) &&
                         plannerTaskAccessDecision(row, readableProjects, ctx.clerkUserId) &&
                         plannerResourceTaskOverdue(
                           { ...row.data, timeZone: row.data.timeZone ?? 'UTC' },
                           asOf,
-                        ),
-                    )
+                        )
+                      );
+                    })
                     .map((row) => row.id),
                 ).size;
               },
             };
           },
-          true,
+          { timeoutMs: budget.remaining() },
         ),
       asOf,
+      { signal },
     );
   }
   async tasks(

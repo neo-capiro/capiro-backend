@@ -29,7 +29,7 @@ import { CreateArtifactDto } from './dto/artifact.dto.js';
 import { ReportExportDto, ReportPreflightDto } from '../reports/dto/report-export.dto.js';
 import { StrategyReportService } from '../reports/strategy-report.service.js';
 import { ObjectiveDestinationQueryDto } from './objective-destination.js';
-import type { DomainAggregateQuery } from './domain-aggregate.js';
+import { aggregateRequest, type DomainAggregateQuery } from './domain-aggregate.js';
 
 /**
  * /strategy-api/strategies — library read + manual create (G2), node CRUD +
@@ -63,7 +63,9 @@ export class StrategyController {
     @Query() query: DomainAggregateQuery,
     @Req() req: Request,
   ) {
-    return this.strategies.activeAggregate(ctx, query, req.headers.authorization);
+    return aggregateRequest(req, (signal) =>
+      this.strategies.activeAggregate(ctx, query, req.headers.authorization, signal),
+    );
   }
   /** Read-only readiness and branding metadata for the current report snapshot. */
   @Get(':id/reports/preflight')

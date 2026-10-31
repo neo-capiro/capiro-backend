@@ -8,9 +8,9 @@ const read = (path) => readFile(new URL(path, import.meta.url), 'utf8');
 const data = (text) => `data:text/javascript;base64,${Buffer.from(text).toString('base64')}`;
 const moduleUrl = (text) => data(stripTypeScriptTypes(text));
 const nest = data(
-  'export class BadRequestException extends Error {}; export class ForbiddenException extends Error {};',
+  'export class BadRequestException extends Error {}; export class ForbiddenException extends Error {}; export class ServiceUnavailableException extends Error {};',
 );
-const { ForbiddenException } = await import(nest);
+const { ForbiddenException, ServiceUnavailableException } = await import(nest);
 const aggregate = moduleUrl(
   (await read('../src/strategy/domain-aggregate.ts')).replace(
     "'@nestjs/common'",
@@ -42,10 +42,10 @@ const section = (text, start, end) => {
   assert.ok(text.includes(end));
   return text.slice(text.indexOf(start), text.indexOf(end, text.indexOf(start)));
 };
-const imports = `import {aggregateQuery,aggregateFingerprint,aggregateSourceKey,observeDomainAggregate,requireAggregateActor} from ${JSON.stringify(aggregate)};
+const imports = `import {aggregateQuery,aggregateRows,aggregateFingerprint,aggregateSourceKey,observeDomainAggregate,requireAggregateActor} from ${JSON.stringify(aggregate)};
 import {PLANNER_DEFAULT_TASK,PLANNER_DEFAULT_PROJECT} from ${JSON.stringify(defaults)};
 import {validateTask,validateProject} from ${JSON.stringify(validation)};
-import {plannerTaskAccessDecision} from ${JSON.stringify(access)};
+import {plannerTaskAccessDecision,plannerProjectAccessDecision} from ${JSON.stringify(access)};
 import {plannerResourceTaskOverdue} from ${JSON.stringify(dates)};
 const Prisma={TransactionIsolationLevel:{RepeatableRead:'RepeatableRead'}};`;
 const ownerSource = `${imports}
@@ -102,43 +102,64 @@ function fixture(tasks = [], projects = [], strategies = []) {
     spPlannerProject: {
       findMany: async (args) => {
         queries.push(args);
-        return structuredClone(projects.filter((row) => row.tenantId === args.where.tenantId));
+        return structuredClone(
+          projects
+            .filter(
+              (row) =>
+                row.tenantId === args.where.tenantId &&
+                (!args.where.id || row.id > args.where.id.gt),
+            )
+            .sort((a, b) => a.id.localeCompare(b.id))
+            .slice(0, args.take),
+        );
       },
     },
     spPlannerTask: {
       findMany: async (args) => {
         queries.push(args);
-        assert.equal(args.take, undefined);
+        assert.equal(args.take, 256);
         assert.equal(args.cursor, undefined);
         return structuredClone(
-          tasks.filter(
-            (row) => row.tenantId === args.where.tenantId && row.archived === args.where.archived,
-          ),
+          tasks
+            .filter(
+              (row) =>
+                row.tenantId === args.where.tenantId &&
+                row.archived === args.where.archived &&
+                (!args.where.id || row.id > args.where.id.gt),
+            )
+            .sort((a, b) => a.id.localeCompare(b.id))
+            .slice(0, args.take),
         );
       },
     },
     spStrategy: {
       findMany: async (args) => {
         queries.push(args);
-        assert.equal(args.take, undefined);
+        assert.equal(args.take, 256);
         return structuredClone(
-          strategies.filter(
-            (row) =>
-              row.tenantId === args.where.tenantId &&
-              row.archivedAt === null &&
-              (!args.where.clientId || row.clientId === args.where.clientId),
-          ),
+          strategies
+            .filter(
+              (row) =>
+                row.tenantId === args.where.tenantId &&
+                row.archivedAt === null &&
+                (!args.where.id || row.id > args.where.id.gt) &&
+                (!args.where.clientId || row.clientId === args.where.clientId),
+            )
+            .sort((a, b) => a.id.localeCompare(b.id))
+            .slice(0, args.take),
         );
       },
     },
   };
   const prisma = {
-    withTenant: async (tenant, run) => {
+    withTenant: async (tenant, run, options) => {
+      assert.ok(options.timeoutMs > 0 && options.timeoutMs <= 10_000);
       assert.equal(tenant, ctx.tenantId);
       pass++;
       return run(tx);
     },
-    withTenantUser: async (tenant, actorId, run) => {
+    withTenantUser: async (tenant, actorId, run, options) => {
+      assert.ok(options.timeoutMs > 0 && options.timeoutMs <= 10_000);
       assert.equal(tenant, ctx.tenantId);
       assert.equal(actorId, ctx.clerkUserId);
       pass++;
@@ -165,18 +186,20 @@ function fixture(tasks = [], projects = [], strategies = []) {
 }
 const run = (f, query = {}) => f.planner.overdueAggregate(ctx, query, 'Bearer synthetic');
 test('Planner counts full >101 population once per ID, including subtasks and supported subtypes', async () => {
-  const rows = Array.from({ length: 205 }, (_, i) =>
+  const rows = Array.from({ length: 601 }, (_, i) =>
     task(100 + i, {
       subtype: ['task', 'approval', 'milestone'][i % 3],
       parentId: i ? id(100) : null,
     }),
   );
-  rows.push(structuredClone(rows[0]));
   const f = fixture(rows);
   const result = await run(f);
-  assert.equal(result.count, 205);
+  assert.equal(result.count, 601);
   assert.equal(result.complete, true);
-  assert.equal(f.locks.length, 3);
+  assert.equal(
+    f.locks.filter((call) => call[0].join('').includes('pg_advisory_xact_lock')).length,
+    3,
+  );
 });
 test('Planner excludes archived/done/undated/future/foreign tenant while including unfinished blocked work', async () => {
   const f = fixture([
@@ -311,4 +334,70 @@ test('routes are additive no-store reads under existing guards and required Stra
   }
   const module = await read('../src/strategy/strategy.module.ts');
   assert.match(module, /providers:\s*\[\s*StrategyService,\s*PlannerLinksService,/);
+});
+
+test('P2: 205 locally unreadable tasks perform zero Core fetches rather than820', async () => {
+  const rows = Array.from({ length: 205 }, (_, i) =>
+    task(100 + i, { clientId: client, meetingId: id(2000 + i) }, { ownerId: 'user_other' }),
+  );
+  const f = fixture(rows);
+  const transportNest = data(`export const Injectable=()=>value=>value;
+    export class ForbiddenException extends Error {};
+    export class ServiceUnavailableException extends Error {};`);
+  const config = data('export class ConfigService {}');
+  const raw = await read('../src/planner/planner-links.service.ts');
+  const { PlannerLinksService } = await import(
+    moduleUrl(
+      raw
+        .replace('@Injectable()', '')
+        .replace("'@nestjs/common'", JSON.stringify(transportNest))
+        .replace("'@nestjs/config'", JSON.stringify(config)),
+    )
+  );
+  f.planner.links = new PlannerLinksService({ get: () => undefined });
+  let requests = 0;
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => {
+      requests++;
+      return new Response(null, { status: 200 });
+    };
+    const result = await run(f);
+    assert.equal(result.count, 0);
+    assert.equal(requests, 0, `unexpected canonical source fanout: ${requests}`);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('P2: 205 readable distinct meeting sources refuse capacity without a partial count or Core fanout', async () => {
+  const f = fixture(
+    Array.from({ length: 205 }, (_, i) =>
+      task(100 + i, { clientId: client, meetingId: id(2000 + i) }),
+    ),
+  );
+  let requests = 0;
+  f.planner.links = {
+    validate: async () => {
+      requests++;
+    },
+  };
+  await assert.rejects(() => run(f), ServiceUnavailableException);
+  assert.equal(requests, 0);
+  assert.equal(f.passes(), 1);
+});
+
+test('P2: already canceled owner calls launch no database snapshot or source read', async () => {
+  const f = fixture();
+  const canceled = new AbortController();
+  canceled.abort();
+  await assert.rejects(
+    () => f.planner.overdueAggregate(ctx, {}, 'Bearer synthetic', canceled.signal),
+    ServiceUnavailableException,
+  );
+  await assert.rejects(
+    () => f.strategy.activeAggregate(ctx, {}, 'Bearer synthetic', canceled.signal),
+    ServiceUnavailableException,
+  );
+  assert.equal(f.passes(), 0);
 });
