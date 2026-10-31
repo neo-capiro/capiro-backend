@@ -3,7 +3,6 @@ import {
   BadRequestException,
   NotFoundException,
   ConflictException,
-  ForbiddenException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 
@@ -29,9 +28,9 @@ import { compileKeywordQuery, evaluateKeywordQuery } from '../keywords/keyword-q
 
 import { checkedVersion, requestKey } from '../keywords/keyword-rule.service.js';
 
-import { hash, isFolderAdmin } from '../folders/folder-tracker.service.js';
+import { hash } from '../folders/folder-tracker.service.js';
 
-import { object } from '../reports/report-domain.js';
+import { object } from '../delivery/delivery-domain.js';
 
 export const RESEARCH_FEATURE = 'legiwatch_research_v1';
 
@@ -569,131 +568,6 @@ export class ResearchService {
       await tx.$executeRaw`INSERT INTO intel_legiwatch_legal_decision(id,tenant_id,folder_id,actor_id,request_key,request_hash,payload) VALUES(${randomUUID()},${ctx.tenantId},${scope.folderId},${ctx.clerkUserId},${key},${inputHash},${JSON.stringify(result)}::jsonb)`;
 
       return result;
-    });
-  }
-
-  async staged(ctx: WorkspaceTenantContext, input: unknown) {
-    return this.run(ctx, input, async (tx, b) => {
-      if (!isFolderAdmin(ctx)) throw new ForbiddenException('IMPORT_REVIEW_REQUIRES_ADMIN');
-
-      const decisions =
-        await tx.$queryRaw`SELECT DISTINCT ON(staged_id) staged_id,outcome,created_at FROM intel_legiwatch_legal_import_decision WHERE tenant_id=${ctx.tenantId} ORDER BY staged_id,created_at DESC,id DESC`;
-
-      const rows = await tx.legiWatchStagedConfiguration.findMany({
-        where: {
-          tenantId: ctx.tenantId,
-          sourceAccount: String(b.sourceAccount ?? 'lobbytools:rubin-turnbull'),
-          kind: { in: ['statute', 'alert'] },
-        },
-        orderBy: { sourceId: 'asc' },
-      });
-
-      const mappings = await tx.legiWatchSourceMapping.findMany({
-        where: {
-          tenantId: ctx.tenantId,
-          sourceAccount: String(b.sourceAccount ?? 'lobbytools:rubin-turnbull'),
-          kind: 'folder',
-        },
-        select: { sourceId: true, targetId: true },
-      });
-
-      return {
-        decisions,
-        memberships: rows
-          .filter((r) => r.kind === 'statute')
-          .map((r) => ({
-            ...r,
-            sourceHash: hash(r.payload),
-            targetFolderId:
-              mappings.find((m) => m.sourceId === String(object(r.payload).folder_id))?.targetId ??
-              null,
-          })),
-        rules: rows
-          .filter((r) => r.kind === 'alert' && object(r.payload).family === 'Statute Alert')
-          .map((r) => ({
-            ...r,
-            sourceHash: hash(r.payload),
-            interpretedName:
-              object(r.payload).audit_key === 'alert-23' ? null : object(r.payload).name,
-            cadence: null,
-            matchActive: false,
-            deliveryActive: false,
-          })),
-        message:
-          'Review source targets, current owner and recipients. Captured settings do not activate delivery.',
-      };
-    });
-  }
-
-  async promote(ctx: WorkspaceTenantContext, input: unknown) {
-    return this.run(ctx, input, async (tx, b) => {
-      if (!isFolderAdmin(ctx)) throw new ForbiddenException('IMPORT_PROMOTION_REQUIRES_ADMIN');
-
-      const staged = await tx.legiWatchStagedConfiguration.findFirst({
-        where: { tenantId: ctx.tenantId, id: String(b.stagedId), kind: 'alert' },
-      });
-
-      if (!staged || object(staged.payload).family !== 'Statute Alert')
-        throw new NotFoundException('STATUTE_RULE_NOT_FOUND');
-
-      if (
-        staged.version !== checkedVersion(b.expectedVersion) ||
-        hash(staged.payload) !== b.sourceHash
-      )
-        throw new ConflictException('STAGED_SOURCE_CHANGED');
-
-      const raw = object(staged.payload),
-        auditKey = String(raw.audit_key);
-      if (!/^alert-2[3-8]$/.test(auditKey))
-        throw new BadRequestException('SOURCE_RULE_ID_REQUIRES_REVIEW');
-
-      const groups = Array.isArray(raw.selected_targets) ? raw.selected_targets.map(object) : [];
-
-      const sourceFolderIds = groups
-        .filter((g) => g.type === 'folder')
-        .flatMap((g) =>
-          Array.isArray(g.selected) ? g.selected.map((s) => String(object(s).id)) : [],
-        );
-
-      const config = {
-        kind: 'statute_reference',
-        sourceFolderIds,
-        raw: staged.payload,
-        cadence: null,
-        folderIds: [],
-        recipients: [],
-        matchActive: false,
-        deliveryActive: false,
-        internalFollowupActive: false,
-      };
-
-      const id = randomUUID();
-
-      await tx.$executeRaw`INSERT INTO intel_legiwatch_statute_rule(id,tenant_id,owner_clerk_id,staged_id,name,source_id,source_hash,config) VALUES(${id},${ctx.tenantId},${ctx.clerkUserId},${staged.id},${auditKey === 'alert-23' ? null : String(raw.name ?? '')},${staged.sourceId},${hash(staged.payload)},${JSON.stringify(config)}::jsonb) ON CONFLICT(tenant_id,staged_id) DO NOTHING`;
-
-      const stored = await tx.$queryRaw<
-        Array<{ id: string }>
-      >`SELECT id FROM intel_legiwatch_statute_rule WHERE tenant_id=${ctx.tenantId} AND staged_id=${staged.id} AND owner_clerk_id=${ctx.clerkUserId}`;
-
-      if (!stored[0]) throw new ConflictException('STATUTE_RULE_OWNERSHIP_REVIEW_REQUIRED');
-
-      await tx.legiWatchPromotion.upsert({
-        where: { tenantId_stagedId: { tenantId: ctx.tenantId, stagedId: staged.id } },
-        create: {
-          tenantId: ctx.tenantId,
-          stagedId: staged.id,
-          sourceAccount: staged.sourceAccount,
-          sourceId: staged.sourceId,
-          sourceVersion: staged.version,
-          sourceHash: hash(staged.payload),
-          kind: 'statute_reference',
-          targetId: stored[0].id,
-          reviewedBy: ctx.clerkUserId,
-        },
-        update: {},
-      });
-
-      return tx.$queryRaw`SELECT id,name,config,version,state FROM intel_legiwatch_statute_rule WHERE tenant_id=${ctx.tenantId} AND staged_id=${staged.id} AND owner_clerk_id=${ctx.clerkUserId}`;
     });
   }
 

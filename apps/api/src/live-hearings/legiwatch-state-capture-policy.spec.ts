@@ -1,10 +1,7 @@
-import {
-  STATE_CAPTURE_LINK_ONLY,
-  stateCapturePolicy,
-} from './legiwatch-state-capture-policy.js';
+import { STATE_CAPTURE_LINK_ONLY, stateCapturePolicy } from './legiwatch-state-capture-policy.js';
 import { assessAttendance } from './legiwatch-wave1-attendance.js';
 
-describe('state capture is link-only until the system-wide switch is on', () => {
+describe('state browser recording is independent of the unattended capture switch', () => {
   const ctx = { tenantId: 'tenant', userId: 'internal-user' } as any;
   const prisma = { withSystem: jest.fn() } as any;
   const hearing = {
@@ -33,8 +30,6 @@ describe('state capture is link-only until the system-wide switch is on', () => 
   });
 
   it.each([
-    ['scheduled public', hearing],
-    ['completed public', { ...hearing, eventStatus: 'completed' }],
     ['canceled public', { ...hearing, eventStatus: 'canceled' }],
     ['private', { ...hearing, visibility: 'private' }],
     ['unknown source', { ...hearing, url: 'https://owned.example/event' }],
@@ -50,13 +45,13 @@ describe('state capture is link-only until the system-wide switch is on', () => 
     });
   });
 
-  it('never widens state capture because legacy grants exist while the switch is off', async () => {
+  it('permits public browser attendance while keeping automatic capture disabled', async () => {
     // requireStateCalendar is the only prisma use on this path and is a
     // documented no-op (legiwatch-calendar-access.ts) — asserting on
     // `prisma.withSystem` specifically proves nothing about widening through a
     // different query, so this only checks the actual denial outcome.
     const permission = await stateCapturePolicy(prisma, ctx, hearing);
-    expect(permission?.browserAllowed).toBe(false);
+    expect(permission?.browserAllowed).toBe(true);
     expect(permission?.policy.allowed).toBe(false);
     expect(permission?.policy.reasonCode).toBe(STATE_CAPTURE_LINK_ONLY);
   });
@@ -76,7 +71,7 @@ describe('state capture is link-only until the system-wide switch is on', () => 
     );
   });
 
-  it('publishes no browser or automatic attendance mode', async () => {
+  it('publishes only the browser attendance mode', async () => {
     const permission = await stateCapturePolicy(prisma, ctx, hearing);
     expect(
       assessAttendance({
@@ -91,11 +86,11 @@ describe('state capture is link-only until the system-wide switch is on', () => 
         statePermission: permission,
       }),
     ).toMatchObject({
-      state: 'NOT_ELIGIBLE',
+      state: 'BROWSER_ONLY',
       reasonCode: STATE_CAPTURE_LINK_ONLY,
-      canRequest: false,
-      availableModes: [],
-      browserAvailable: false,
+      canRequest: true,
+      availableModes: ['browser'],
+      browserAvailable: true,
       automaticAvailable: false,
     });
   });

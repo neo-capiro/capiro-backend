@@ -7,6 +7,8 @@ import {
 import { CongressGovAdapter } from '../../hearing-discovery/adapters/congress-gov.adapter.js';
 import { HouseRepositoryAdapter } from '../../hearing-discovery/adapters/house-repository.adapter.js';
 import { SenateScheduleAdapter } from '../../hearing-discovery/adapters/senate-schedule.adapter.js';
+import { SenateCommitteeCalendarAdapter } from '../../hearing-discovery/adapters/senate-committee-calendar.adapter.js';
+import * as sourceHttp from '../../hearing-discovery/adapters/source-http.js';
 import { CommitteeSourceRepository } from '../../hearing-discovery/committee-source.repository.js';
 import { HearingReconcilerService } from '../../hearing-discovery/hearing-reconciler.service.js';
 import { SourceRegistryService } from '../../hearing-discovery/source-registry.service.js';
@@ -30,6 +32,7 @@ function harness(
     partialCongress?: boolean;
     reconciliationFailure?: boolean;
     listFailure?: boolean;
+    committeeSources?: SourceDescriptor[];
   } = {},
 ) {
   const query = jest.fn(async () => [{ watermarks: input.watermarks ?? {} }]);
@@ -48,6 +51,9 @@ function harness(
     .spyOn(SourceRegistryService.prototype, 'ensureCommitteeSiteSources')
     .mockResolvedValue({ registered: 0, skippedNoUrl: [] } as never);
   jest.spyOn(CommitteeSourceRepository.prototype, 'markChecked').mockResolvedValue();
+  const listEnabled = jest
+    .spyOn(CommitteeSourceRepository.prototype, 'listEnabled')
+    .mockResolvedValue(input.committeeSources ?? []);
   const outcomes = jest
     .spyOn(CommitteeSourceRepository.prototype, 'recordOutcome')
     .mockResolvedValue('healthy');
@@ -63,6 +69,9 @@ function harness(
     });
   jest.spyOn(HouseRepositoryAdapter.prototype, 'discoverEvents').mockResolvedValue([]);
   jest.spyOn(SenateScheduleAdapter.prototype, 'discoverEvents').mockResolvedValue([]);
+  const committee = jest
+    .spyOn(SenateCommitteeCalendarAdapter.prototype, 'discoverEvents')
+    .mockResolvedValue([{ externalEventId: 'committee-only-announcement' }] as never);
   const reconcile = jest
     .spyOn(HearingReconcilerService.prototype, 'reconcileBatch')
     .mockImplementation(
@@ -86,9 +95,170 @@ function harness(
     outcomes,
     congress,
     reconcile,
+    committee,
+    listEnabled,
   };
 }
 afterEach(() => jest.restoreAllMocks());
+
+function jobsService(central: LegiWatchPhase9CentralDiscoveryService) {
+  const runtime = {
+    run: jest.fn(async (input: { execute: () => Promise<unknown> }) => input.execute()),
+  };
+  return new LegiWatchPhase9JobsService(
+    {} as never,
+    runtime as never,
+    central,
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+  );
+}
+
+describe('scheduled central discovery runtime wiring', () => {
+  const originalApiKey = process.env.CONGRESS_API_KEY;
+  const originalCap = process.env.LEGIWATCH_DISCOVERY_MAX_PAGES;
+  const originalDelay = process.env.LEGIWATCH_DISCOVERY_DELAY_MS;
+  beforeEach(() => {
+    jest.spyOn(sourceHttp, 'sleep').mockResolvedValue();
+    process.env.CONGRESS_API_KEY = 'test-only';
+    delete process.env.LEGIWATCH_DISCOVERY_MAX_PAGES;
+    process.env.LEGIWATCH_DISCOVERY_DELAY_MS = '0';
+  });
+  afterEach(() => {
+    for (const [name, value] of [
+      ['CONGRESS_API_KEY', originalApiKey],
+      ['LEGIWATCH_DISCOVERY_MAX_PAGES', originalCap],
+      ['LEGIWATCH_DISCOVERY_DELAY_MS', originalDelay],
+    ]) {
+      if (value == null) delete process.env[name!];
+      else process.env[name!] = value;
+    }
+  });
+
+  function publisherInventory() {
+    return jest.spyOn(sourceHttp, 'fetchJson').mockImplementation(async (url) => {
+      const parsed = new URL(url);
+      const offset = parsed.searchParams.get('offset');
+      const data =
+        offset != null
+          ? {
+              committeeMeetings: Array.from(
+                { length: Math.min(250, 2001 - Number(offset)) },
+                (_, n) => ({
+                  eventId: String(Number(offset) + n),
+                  url: `https://api.congress.gov/v3/committee-meeting/119/house/${Number(offset) + n}`,
+                }),
+              ),
+              pagination: { count: 2001, ...(Number(offset) < 2000 ? { next: 'next' } : {}) },
+            }
+          : {
+              committeeMeeting: {
+                eventId: parsed.pathname.split('/').pop(),
+                congress: 119,
+                chamber: 'house',
+                title: 'Published hearing',
+                date: '2026-10-07T14:00:00Z',
+                committees: [{ systemCode: 'hswm00', name: 'Ways and Means' }],
+              },
+            };
+      return { ok: true, status: 200, data, error: null, durationMs: 1 } as never;
+    });
+  }
+
+  it('runs the actual job through every publisher page beyond eight by default', async () => {
+    const h = harness();
+    h.congress.mockRestore();
+    const read = publisherInventory();
+    const result = await jobsService(h.service).run({ job: 'central-discovery' });
+    expect(read.mock.calls.filter(([url]) => url.includes('offset='))).toHaveLength(9);
+    expect(h.reconcile.mock.calls.find(([s]) => s.id === 'congress-gov')?.[1]).toHaveLength(2001);
+    expect(result).toEqual(expect.objectContaining({ sourcesFailed: 0, eventsObserved: 2001 }));
+  });
+
+  it('preserves an explicit operator cap as an incomplete pass without advancing its cursor', async () => {
+    process.env.LEGIWATCH_DISCOVERY_MAX_PAGES = '2';
+    const h = harness({ watermarks: { 'congress-gov': previous } });
+    h.congress.mockRestore();
+    const read = publisherInventory();
+    const error = await jobsService(h.service)
+      .run({ job: 'central-discovery' })
+      .catch((e) => e);
+    expect(error).toBeInstanceOf(LegiWatchPhase9PartialFailure);
+    expect(read.mock.calls.filter(([url]) => url.includes('offset='))).toHaveLength(2);
+    expect(error.runtimeMetrics.discoveryWatermarks['congress-gov']).toBe(previous);
+  });
+
+  it('reconciles registered committee-only announcements independently of central Senate failure', async () => {
+    const committeeSource = {
+      ...sources[2],
+      id: 'committee-only',
+      adapterKey: 'senate-committee-calendar',
+      chamber: 'senate',
+    } as SourceDescriptor;
+    const h = harness({ committeeSources: [committeeSource] });
+    jest
+      .mocked(SenateScheduleAdapter.prototype.discoverEvents)
+      .mockRejectedValue(new Error('central publisher unavailable'));
+    const error = await jobsService(h.service)
+      .run({ job: 'central-discovery' })
+      .catch((e) => e);
+    expect(error).toBeInstanceOf(LegiWatchPhase9PartialFailure);
+    expect(h.listEnabled).toHaveBeenCalledWith({
+      adapterKey: 'senate-committee-calendar',
+      chamber: 'senate',
+    });
+    expect(h.reconcile).toHaveBeenCalledWith(
+      committeeSource,
+      [{ externalEventId: 'committee-only-announcement' }],
+      expect.any(Date),
+      expect.any(Function),
+    );
+    expect(error.runtimeMetrics).toEqual(
+      expect.objectContaining({ sourcesAttempted: 4, sourcesSucceeded: 3, sourcesFailed: 1 }),
+    );
+    expect(error.runtimeMetrics.discoveryWatermarks['committee-only']).toBeDefined();
+  });
+
+  it('records unrecognized HTTP200 committee markup as failure without a second fetch or cursor advance', async () => {
+    const committeeSource = {
+      ...sources[2],
+      id: 'unrecognized',
+      adapterKey: 'senate-committee-calendar',
+      chamber: 'senate',
+    } as SourceDescriptor;
+    const h = harness({
+      committeeSources: [committeeSource],
+      watermarks: { unrecognized: previous },
+    });
+    h.committee.mockRestore();
+    const read = jest
+      .spyOn(sourceHttp, 'fetchText')
+      .mockResolvedValue({
+        ok: true,
+        status: 200,
+        body: '<html><h1>Hearings</h1></html>',
+        error: null,
+        durationMs: 1,
+      });
+    const error = await jobsService(h.service)
+      .run({ job: 'central-discovery' })
+      .catch((e) => e);
+    expect(error).toBeInstanceOf(LegiWatchPhase9PartialFailure);
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(h.outcomes).toHaveBeenCalledWith(
+      'unrecognized',
+      expect.objectContaining({ ok: false, error: expect.stringContaining('no verifiable dated') }),
+      expect.any(Date),
+    );
+    expect(h.reconcile.mock.calls.some(([s]) => s.id === 'unrecognized')).toBe(false);
+    expect(error.runtimeMetrics.discoveryWatermarks.unrecognized).toBe(previous);
+  });
+});
 
 describe('dedicated complete-discovery cursors', () => {
   it('uses a seven-day bounded recovery window when the dedicated cursor is missing, ignoring probe success', async () => {

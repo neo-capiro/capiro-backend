@@ -5,12 +5,52 @@ import {
   verifySourcedata,
   type VerbDeps,
 } from '../src/tasks/task-runner.js';
+import { monitoringRuntime } from '../src/tracker/delivery/monitoring-runtime.js';
+jest.mock('../src/tracker/delivery/monitoring-runtime.js', () => ({
+  monitoringRuntime: jest.fn(),
+  monitoringTenants: jest.fn(),
+}));
+
+it.each(['run-report-updates', 'run-monitoring-updates'])(
+  '%s dispatches only retained monitoring work',
+  async (verb) => {
+    const due = jest.fn(async () => ({})),
+      drain = jest.fn(async () => ({}));
+    const runtime = {
+      keywords: { due },
+      statuteMonitors: { due },
+      editorialWork: due,
+      delivery: { drain },
+      keywordDelivery: { enqueue: due },
+      workflowTriggers: { detect: due },
+      workflows: { due },
+      rules: { detect: due, enqueue: due },
+    };
+    (monitoringRuntime as jest.Mock).mockReturnValue(runtime);
+    expect(isKnownVerb(verb)).toBe(true);
+    const { d } = makeDeps();
+    await runVerb(verb, ['00000000-0000-4000-8000-000000000001'], d);
+    expect(drain.mock.calls.map((call) => (call as unknown[])[3])).toEqual([
+      'editorial_brief',
+      'bill_keyword',
+      'bill_record',
+    ]);
+    expect(due).toHaveBeenCalledTimes(8);
+    await expect(runVerb(verb, [], d)).rejects.toThrow('requires an explicit tenant UUID');
+  },
+);
 
 /**
  * Phase 1 (plan §4 S3): verb dispatch + the verify-sourcedata handler, with
  * injected fakes so no DB/Bedrock is touched. The live end-to-end proof is S6.
  */
-function makeDeps(opts: { bill?: unknown; scores?: Array<{ sourceId: string; score: number }>; embedDim?: number } = {}): {
+function makeDeps(
+  opts: {
+    bill?: unknown;
+    scores?: Array<{ sourceId: string; score: number }>;
+    embedDim?: number;
+  } = {},
+): {
   d: VerbDeps;
   logs: string[];
 } {

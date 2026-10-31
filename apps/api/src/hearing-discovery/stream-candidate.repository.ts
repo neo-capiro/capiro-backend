@@ -164,6 +164,7 @@ export class StreamCandidateRepository {
             officialPageUrl: raw.officialPageUrl,
             mediaType: cls.mediaType,
             ...(raw.mediaUrl ? { mediaUrl: raw.mediaUrl } : {}),
+            ...(raw.expiresAt !== undefined ? { expiresAt: raw.expiresAt } : {}),
           },
         });
         refreshed += 1;
@@ -181,6 +182,7 @@ export class StreamCandidateRepository {
           capturePolicy: cls.capturePolicy,
           sourceId: opts.sourceId ?? null,
           firstSeenAt: opts.now,
+          ...(raw.expiresAt !== undefined ? { expiresAt: raw.expiresAt } : {}),
         },
       });
       created += 1;

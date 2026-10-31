@@ -13,7 +13,7 @@ import type {
 export const FL_SENATE = 'https://www.flsenate.gov';
 export const FL_HOUSE = 'https://www.flhouse.gov';
 export const FL_CHANNEL = 'https://thefloridachannel.org';
-export const FL_CALENDAR_PARSER = 'fl-calendar/2026-10-06.2';
+export const FL_CALENDAR_PARSER = 'fl-calendar/2026-10-31.1';
 export const FL_ARCHIVE_PARSER = 'fl-archive/2026-09-16.1';
 
 /**
@@ -45,17 +45,19 @@ export function floridaBillNumberAliases(raw: string): string[] {
     .replace(/^(?:CS\/)+/i, '')
     .replace(/\s+/g, '')
     .toUpperCase();
-  const bill = /^(H|S)B0*(\d+)$/.exec(number);
+  const bill = /^(H|S)B0*(\d+)(?:-([A-Z]))?$/.exec(number);
   if (!bill) return [number];
   const digits = bill[2]!;
-  return [
-    ...new Set([
-      `${bill[1]}B${digits}`,
-      `${bill[1]}${digits}`,
-      `${bill[1]}B${digits.padStart(4, '0')}`,
-      `${bill[1]}${digits.padStart(4, '0')}`,
-    ]),
+  const suffix = bill[3] ? `-${bill[3]}` : '';
+  // LegiScan may omit a special-session suffix from the bill label; callers
+  // already constrain the lookup to the notice's exact session.
+  const labels = [
+    `${bill[1]}B${digits}`,
+    `${bill[1]}${digits}`,
+    `${bill[1]}B${digits.padStart(4, '0')}`,
+    `${bill[1]}${digits.padStart(4, '0')}`,
   ];
+  return [...new Set([...labels.map((label) => `${label}${suffix}`), ...labels])];
 }
 // The Florida publishers sometimes HTML-encode text before their page template
 // encodes it again. Cheerio decodes the outer layer, leaving strings such as
@@ -288,12 +290,14 @@ export function senateDailyCalendar(html: string, date: string, session: string)
       // different day's sitting is a reschedule or a separate committee event.
       const floorDate = /\/Home\/(\d{1,2})-(\d{1,2})-(\d{4})/.exec(floorHref);
       const publishedSession = documents
-        .map((d) => /\/Session\/Calendar\/(\d{4})\//.exec(d.url)?.[1])
+        .map((d) => /\/Session\/Calendar\/(\d{4}[A-Z]?)\//.exec(d.url)?.[1])
         .find(Boolean);
       if (
         !floorDate ||
         floridaDate(`${floorDate[1]}/${floorDate[2]}/${floorDate[3]}`) !== date ||
-        publishedSession !== session ||
+        !publishedSession ||
+        publishedSession.slice(0, 4) !== date.slice(0, 4) ||
+        session.slice(0, 4) !== date.slice(0, 4) ||
         floors.length
       ) {
         unresolved++;
@@ -306,7 +310,7 @@ export function senateDailyCalendar(html: string, date: string, session: string)
       const sourceUrl = `${FL_SENATE}/Home/${Number(floorDate[1])}-${Number(floorDate[2])}-${floorDate[3]}?Tab=SenateFloor`;
       floors.push({
         jurisdiction: 'FL',
-        session,
+        session: publishedSession,
         chamber: 'senate',
         officialIdentity: `fl:senate:floor-day:${date}`,
         bodySourceKey: 'fl:senate:floor',
@@ -361,13 +365,15 @@ export function houseDailyCalendar(html: string, date: string, session: string) 
     const event = $(el);
     if (event.find('a[href*="MeetingId="]').length) return;
     const title = clean(event.find('.scheduled-event-title').text());
-    const day = /^House\s*-\s*(\d+)(?:st|nd|rd|th) Day of Regular Session$/i.exec(title);
+    const day =
+      /^House\s*-\s*(\d+)(?:st|nd|rd|th) Day of (Regular Session|Special Session (\d{4}[A-Z]))$/i.exec(title);
+    const publishedSession = day?.[3]?.toUpperCase() ?? session;
     const info = event.find('.meeting-info span');
     const publishedDate = floridaDate(clean(info.eq(0).text()));
     if (
       !day ||
       publishedDate !== date ||
-      date.slice(0, 4) !== session ||
+      date.slice(0, 4) !== publishedSession.slice(0, 4) ||
       floors.some((o) => o.officialIdentity.endsWith(`:day:${day[1]}`))
     ) {
       unresolved++;
@@ -378,13 +384,13 @@ export function houseDailyCalendar(html: string, date: string, session: string) 
       range = rawTime.match(/^(.*?)\s+[—–-]\s+(.*?)$/);
     const time = range ? localTime(date, range[1]!, range[2]!) : localTime(date, rawTime);
     time.rawTime = rawTime;
-    const sourceUrl = `${FL_HOUSE}/Sections/HouseSchedule/houseschedule.aspx?date=${Number(date.slice(5, 7))}-${Number(date.slice(8, 10))}-${session}`;
+    const sourceUrl = `${FL_HOUSE}/Sections/HouseSchedule/houseschedule.aspx?date=${Number(date.slice(5, 7))}-${Number(date.slice(8, 10))}-${date.slice(0, 4)}`;
     const watch = event.find('a[href*="VideoPlayer.aspx"]').attr('href');
     floors.push({
       jurisdiction: 'FL',
-      session,
+      session: publishedSession,
       chamber: 'house',
-      officialIdentity: `fl:house:regular:${session}:day:${day[1]}`,
+      officialIdentity: `fl:house:${day[3] ? 'special' : 'regular'}:${publishedSession}:day:${day[1]}`,
       bodySourceKey: 'fl:house:floor',
       bodyName: 'Florida House',
       stateCommitteeId: null,
@@ -444,7 +450,7 @@ export function senateNoticeObservation(
   const normalized = text.replace(/\r/g, '');
   const billLines = [
     ...normalized.matchAll(
-      /^\s*((?:CS\/)*(?:SB|HB|SPB|PCB|SJR|HJR|SM|HM|SCR|HCR|SR|HR)\s+\d+)\s+by\s+([^\n]+)/gm,
+      /^\s*((?:CS\/)*(?:SB|HB|SPB|PCB|SJR|HJR|SM|HM|SCR|HCR|SR|HR)\s+\d+(?:-[A-Z])?)\s+by\s+([^\n]+)/gm,
     ),
   ];
   const agenda: AgendaItem[] = billLines.map((m, i) => ({
@@ -516,7 +522,11 @@ export function senateNoticeObservation(
     (/\bJOINT\s+COMMITTEE\s+MEETING\s+NOTICE\b/i.test(text) && /^joint\b/i.test(ref.bodyName));
   const o: LegislativeObservation = {
     jurisdiction: 'FL',
-    session: /\b(\d{4}) Regular Session\b/.exec(text)?.[1] ?? session,
+    session:
+      /\b(\d{4}[A-Z])\s+Special Session\b/i.exec(text)?.[1]?.toUpperCase() ??
+      /\b(\d{4})\s+Special Session\s+([A-Z])\b/i.exec(text)?.slice(1).join('').toUpperCase() ??
+      /\b(\d{4}) Regular Session\b/.exec(text)?.[1] ??
+      session,
     chamber: joint ? 'joint' : 'senate',
     officialIdentity: `fl:senate:meeting:${ref.id}`,
     bodySourceKey:
@@ -775,7 +785,7 @@ export function houseNoticeObservation(
   if (/^\d{4}[A-Z]?$/.test(scopedSession)) session = scopedSession;
   $('.meeting-actions-bills section li').each((_, li) => {
     const line = clean($(li).text());
-    const identifier = /^((?:CS\/)*(?:HB|SB|PCB|SPB|HJR|SJR|HM|SM|HCR|SCR|HR|SR)\s+\d+)\b/i.exec(
+    const identifier = /^((?:CS\/)*(?:HB|SB|PCB|SPB|HJR|SJR|HM|SM|HCR|SCR|HR|SR)\s+\d+(?:-[A-Z])?)\b/i.exec(
       line,
     )?.[1];
     agenda.push({
@@ -803,7 +813,7 @@ export function houseNoticeObservation(
       clean(summary.text()),
     );
   for (const line of summary.text().split(/\n+/).map(clean).filter(Boolean)) {
-    const identifier = /^((?:CS\/)*(?:HB|SB|PCB|SPB|HJR|SJR|HM|SM|HCR|SCR|HR|SR)\s+\d+)\b/i.exec(
+    const identifier = /^((?:CS\/)*(?:HB|SB|PCB|SPB|HJR|SJR|HM|SM|HCR|SCR|HR|SR)\s+\d+(?:-[A-Z])?)\b/i.exec(
       line,
     )?.[1];
     agenda.push({
