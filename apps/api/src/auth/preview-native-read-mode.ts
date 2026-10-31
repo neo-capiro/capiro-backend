@@ -3,7 +3,9 @@ import type { Request } from 'express';
 
 const PREVIEW_HOST = 'first-chat-preview.app-dev.capiro.ai';
 export const CORE_ROSTER_PREVIEW_HOST = 'core-roster-preview.capiro.ai';
-const PREVIEW_GET_PATH = /^\/api\/(?:me|clients(?:\/[^/?]+)?|memory\/(?:candidates\/mine(?:\/[^/?]+\/status)?|owner\/items)|clio\/completed-reports(?:\/[^/?]+)?)\/?$/i;
+// Match the controller's dynamic segment even when its ID is malformed: DTO
+// refusal must still run after read-only authentication, never provisioning.
+const PREVIEW_GET_PATH = /^\/api\/(?:me|clients(?:\/[^/?]+)?|memory\/(?:candidates\/mine(?:\/[^/?]+\/status)?|owner\/items(?:\/[^/?]+\/(?:versions|evidence))?)|clio\/completed-reports(?:\/[^/?]+)?)\/?$/i;
 
 export type CoreRosterPreviewDecision = 'unrelated' | 'preview' | 'unavailable' | 'not-found';
 

@@ -78,6 +78,7 @@ describe('MemoryOwnerItemsService', () => {
     const { service, queries, contexts } = harness([[first]]);
     await expect(service.list(ctx)).resolves.toEqual({
       schemaVersion: 1,
+      ownerReadsVersion: 1,
       items: [
         {
           id: first.id,
