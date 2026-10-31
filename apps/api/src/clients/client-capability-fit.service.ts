@@ -96,10 +96,14 @@ function settled(
  * Keep matches_jsonb as its original array so an older reader can still display it
  * (its fingerprint comparison conservatively reports stale).
  */
-const CACHE_PREFIX = 'capability-fit:v1:';
+// v1 did not prove keyword/performer-only candidate discovery or disclose its cap.
+const CACHE_PREFIX = 'capability-fit:v2:';
 function cacheProof(raw: string | null) {
-  const match = /^capability-fit:v1:(complete|thin):([a-f0-9]{64})$/.exec(raw ?? '');
-  return match ? { kind: match[1], fingerprint: match[2] } : null;
+  const match = /^capability-fit:v([12]):(complete|thin):([a-f0-9]{64})$/.exec(raw ?? '');
+  return match ? {
+    kind: match[1] === '2' || match[2] === 'thin' ? match[2] : 'unknown',
+    fingerprint: match[3],
+  } : null;
 }
 
 /** Build the sources mask from which fan-outs actually fulfilled. */
@@ -332,7 +336,9 @@ export class ClientCapabilityFitService {
       foSettled.status === 'fulfilled' &&
       foSettled.value.catalogComplete === true &&
       !foSettled.value.totalIsCapped;
-    if (!sources.pe || !sources.bill || !sources.fo || !fundingComplete) {
+    const peComplete = peSettled.status === 'fulfilled' &&
+      peSettled.value.candidateCoverage?.complete === true;
+    if (!sources.pe || !sources.bill || !sources.fo || !fundingComplete || !peComplete) {
       return {
         matches,
         computedAt: new Date().toISOString(),

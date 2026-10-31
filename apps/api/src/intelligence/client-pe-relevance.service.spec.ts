@@ -51,6 +51,8 @@ function makePrisma(opts: {
   // Candidate PE codes the client-side enumeration returns (award + facility unions).
   candidateAwardPes?: Array<{ peCode: string }>;
   candidateFacilityPes?: Array<{ peCode: string }>;
+  candidateKeywordPes?: Array<{ peCode: string }>;
+  candidateEcosystemPes?: Array<{ peCode: string }>;
   // For getRelevantClientsForPe: candidate client ids in the tenant for a PE.
   candidateClientIds?: Array<{ clientId: string }>;
   // For getRelevantTenantClientsForPe: system candidate (tenant, client) pairs.
@@ -82,6 +84,8 @@ function makePrisma(opts: {
   // Global $queryRaw dispatcher (this.prisma.$queryRaw) — inspect the SQL fragments.
   const globalQueryRaw = jest.fn(async (sql: { strings?: string[]; sql?: string }) => {
     const text = sqlText(sql);
+    if (text.includes('keyword_candidate_matches')) return opts.candidateKeywordPes ?? [];
+    if (text.includes('ecosystem_candidates')) return opts.candidateEcosystemPes ?? [];
     if (text.includes('similarity(') && text.includes('unnest(') && text.includes('t(term)')) {
       return opts.keywordRows ?? [];
     }
@@ -125,6 +129,9 @@ function makePrisma(opts: {
 
   return {
     $queryRaw: globalQueryRaw,
+    $transaction: jest.fn(async (work: any) => work({
+      $queryRaw: globalQueryRaw, $executeRaw: jest.fn(async () => 1),
+    })),
     programElement: {
       findUnique: jest.fn(async () => opts.pe ?? null),
       findMany: jest.fn(async () => opts.peTitles ?? []),
@@ -150,6 +157,49 @@ function sqlText(sql: { strings?: string[]; sql?: string; values?: unknown[] }):
   if (typeof sql?.sql === 'string') return sql.sql;
   return JSON.stringify(sql ?? '');
 }
+
+describe('all-path bounded PE discovery', () => {
+  test('discovers a keyword-only PE without direct, award or facility candidates', async () => {
+    const prisma = makePrisma({
+      client: { capabilities: [{ keywords: ['hypersonics'] }] },
+      candidateKeywordPes: [{ peCode: PE }],
+      pe: { title: 'Hypersonics', description: null },
+      keywordRows: [{ term: 'hypersonics', sim: 0.72 }],
+    });
+    const result = await new ClientPeRelevanceService(prisma as never).getRelevantPesForClient(ctx, 'client-1');
+    expect(result.data).toEqual([expect.objectContaining({ peCode: PE, score: 0.72,
+      paths: [expect.objectContaining({ path: 'capability_keyword' })] })]);
+    expect(result.candidateCoverage).toMatchObject({ complete: true, evaluated: 1, omittedPaths: [] });
+  });
+
+  test('discovers performer-only PE through a confirmed external identity', async () => {
+    const prisma = makePrisma({ client: { mappings: [{ externalName: 'Synthetic Aerospace' }] },
+      candidateEcosystemPes: [{ peCode: PE }], ecosystem: [{ performer: 'Synthetic Aerospace' }] });
+    const result = await new ClientPeRelevanceService(prisma as never).getRelevantPesForClient(ctx, 'client-1');
+    expect(result.data).toEqual([expect.objectContaining({ peCode: PE, score: ECOSYSTEM_SCORE })]);
+    expect(prisma.__tx.clientIntelMapping.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { clientId: 'client-1', confirmed: true },
+    }));
+  });
+
+  test('reports a capacity hit instead of a complete total, including empty filtered results', async () => {
+    const prisma = makePrisma({ candidateEcosystemPes: Array.from({ length: 401 }, (_, i) => ({
+      peCode: String(i).padStart(7, '0') + 'F',
+    })) });
+    const result = await new ClientPeRelevanceService(prisma as never).getRelevantPesForClient(ctx, 'client-1');
+    expect(result.data).toEqual([]);
+    expect(result.total).toBe(0);
+    expect(result.candidateCoverage).toEqual({ complete: false, evaluated: 400, limit: 400,
+      discoveredAtLeast: 401, truncatedPaths: ['ecosystem'], omittedPaths: [], totalScope: 'evaluated_candidates' });
+  });
+
+  test('candidate query failure propagates and cannot become a complete empty success', async () => {
+    const prisma = makePrisma({});
+    prisma.$transaction.mockRejectedValueOnce(new Error('candidate deadline'));
+    await expect(new ClientPeRelevanceService(prisma as never).getRelevantPesForClient(ctx, 'client-1'))
+      .rejects.toThrow('candidate deadline');
+  });
+});
 
 describe('normalizeDistrictForComparison', () => {
   test('strips leading zeros so BARE and zero-padded codes compare equal', () => {
@@ -426,7 +476,8 @@ describe('ClientPeRelevanceService', () => {
       const prisma = makePrisma({ client: null });
       const service = new ClientPeRelevanceService(prisma as never);
       const out = await service.getRelevantPesForClient(ctx, 'missing');
-      expect(out).toEqual({ data: [], total: 0, page: 1, limit: 50 });
+      expect(out).toEqual({ data: [], total: 0, page: 1, limit: 50, candidateCoverage: null });
+      expect(prisma.$transaction).not.toHaveBeenCalled();
     });
   });
 

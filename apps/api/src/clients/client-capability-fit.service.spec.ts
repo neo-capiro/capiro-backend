@@ -138,6 +138,7 @@ describe('ClientCapabilityFitService', () => {
         total: opts.pes instanceof Error ? 0 : (opts.pes ?? []).length,
         page: 1,
         limit: 50,
+        candidateCoverage: { complete: true },
       }),
     } as unknown as ClientPeRelevanceService;
     if (opts.pes instanceof Error)
@@ -390,7 +391,7 @@ describe('ClientCapabilityFitService', () => {
     expect(tx.clientCapabilityFitRecommendation.upsert).toHaveBeenCalledTimes(1);
     const upsertArgs = (tx.clientCapabilityFitRecommendation.upsert as any).mock.calls[0][0];
     expect(upsertArgs.where).toEqual({ clientId });
-    expect(upsertArgs.create.inputFingerprint).toMatch(/^capability-fit:v1:complete:[0-9a-f]{64}$/);
+    expect(upsertArgs.create.inputFingerprint).toMatch(/^capability-fit:v2:complete:[0-9a-f]{64}$/);
     expect(result.status).toBe('ready');
     expect(result.computedAt).toBe('2026-08-21T12:00:00.000Z');
   });
@@ -608,6 +609,34 @@ describe('ClientCapabilityFitService', () => {
     expect(result.sources).toEqual({ pe: true, bill: true, fo: true });
     expect(result.emptyReason).toMatch(/incomplete/);
     expect(h.tx.clientCapabilityFitRecommendation.upsert).not.toHaveBeenCalled();
+  });
+
+  test.each([false, null, undefined])('PE discovery coverage %s cannot replace a complete cache', async (complete) => {
+    const h = makeService({ capabilities: [CAP_ROBOTICS] });
+    const first = await h.service.getFit(ctx, clientId, { refresh: true });
+    const row = (h.tx.clientCapabilityFitRecommendation.upsert as any).mock.calls[0][0].create;
+    (h.tx.clientCapabilityFitRecommendation.findUnique as any).mockResolvedValue({
+      ...row, computedAt: new Date(first.computedAt!),
+    });
+    const source = h.peRelevance.getRelevantPesForClient as any;
+    const healthy = await source();
+    source.mockResolvedValue({ ...healthy, candidateCoverage: complete == null ? complete : { complete } });
+    const partial = await h.service.getFit(ctx, clientId, { refresh: true });
+    expect(partial.status).toBe('partial');
+    expect(partial.emptyReason).toMatch(/incomplete/);
+    expect(h.tx.clientCapabilityFitRecommendation.upsert).toHaveBeenCalledTimes(1);
+    expect(await h.service.getFit(ctx, clientId)).toMatchObject({ status: 'empty', computedAt: first.computedAt });
+  });
+
+  test('v1 complete cache cannot assert full discovery of the two previously omitted paths', async () => {
+    const h = makeService({ capabilities: [CAP_ROBOTICS], cached: { matches: [],
+      inputFingerprint: 'capability-fit:v1:complete:' + capabilityFitFingerprint({ capabilities: [CAP_ROBOTICS] }),
+      computedAt: new Date(),
+    } });
+    expect(await h.service.getFit(ctx, clientId)).toMatchObject({ status: 'partial',
+      emptyReason: expect.stringMatching(/coverage.*unknown/i),
+    });
+    expect(h.peRelevance.getRelevantPesForClient).not.toHaveBeenCalled();
   });
 
   test('partial results disclose failure without replacing the previous complete cache on reload', async () => {

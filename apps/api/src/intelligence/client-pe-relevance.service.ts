@@ -12,6 +12,10 @@ import {
   type PathResult,
 } from './client-pe-relevance.scoring.js';
 import { expandTerms, isKnownAcronym, MIN_KEYWORD_TOKEN_LENGTH } from './term-expansion.js';
+import {
+  enumeratePeCandidates, peKeywordMatchesSql, withPeCandidateDeadline,
+  type CandidateCoverage,
+} from './client-pe-candidates.js';
 
 /**
  * Step 2.3 — explainable client ⇄ Program-Element (PE) relevance (plan §9/§13).
@@ -50,9 +54,6 @@ export const KEYWORD_SIMILARITY_FLOOR = 0.5;
  * used throughout intelligence.service.
  */
 export const NAME_SIMILARITY_FLOOR = 0.3;
-
-/** Cap on the candidate-PE set scored per client read, to keep the fan-out bounded. */
-const MAX_CANDIDATE_PES = 400;
 
 /**
  * Heuristic cap on the candidate-client set scored per PE read (the PE→clients direction),
@@ -261,48 +262,10 @@ export class ClientPeRelevanceService {
   ): Promise<PathResult | null> {
     if (signals.keywordTerms.length === 0) return null;
 
-    // Build the PE text corpus: title + description + project titles/missions + source
-    // snippets. Pulled in one global read (these are public-domain, RLS-exempt tables).
-    const [pe, projects, sources] = await Promise.all([
-      this.prisma.programElement.findUnique({
-        where: { peCode },
-        select: { title: true, description: true },
-      }),
-      this.prisma.programElementProject.findMany({
-        where: { peCode },
-        select: { title: true, mission: true },
-      }),
-      this.prisma.programElementSource.findMany({
-        where: { peCode },
-        select: { snippet: true },
-        take: 50,
-      }),
-    ]);
-    if (!pe) return null;
-
-    const corpusParts: string[] = [pe.title, pe.description ?? ''];
-    for (const p of projects) {
-      corpusParts.push(p.title);
-      if (p.mission) corpusParts.push(p.mission);
-    }
-    for (const s of sources) {
-      if (s.snippet) corpusParts.push(s.snippet);
-    }
-    const corpus = corpusParts
-      .map((p) => p.trim())
-      .filter((p) => p.length > 0)
-      .join(' \n ');
-    if (!corpus) return null;
-
-    // Trigram similarity of each keyword term against the assembled corpus; keep terms
-    // at/above the floor. `similarity()` (pg_trgm) over a long corpus is conservative —
-    // we evaluate per-term so a single strong keyword is not diluted by the others.
-    const rows = await this.prisma.$queryRaw<Array<{ term: string; sim: number }>>(Prisma.sql`
-      SELECT t.term AS "term", similarity(${corpus}, t.term)::float8 AS "sim"
-      FROM unnest(${signals.keywordTerms}::text[]) AS t(term)
-      WHERE similarity(${corpus}, t.term) >= ${KEYWORD_SIMILARITY_FLOOR}
-      ORDER BY "sim" DESC
-    `);
+    // Enumeration and scoring use exactly the same public-text corpus and floor.
+    const rows = await this.prisma.$queryRaw<Array<{ term: string; sim: number }>>(
+      peKeywordMatchesSql(signals.keywordTerms, KEYWORD_SIMILARITY_FLOOR, peCode),
+    );
     if (rows.length === 0) return null;
 
     const matchedKeywords = rows.map((r) => r.term);
@@ -421,54 +384,10 @@ export class ClientPeRelevanceService {
 
   // ── Candidate-set assembly ─────────────────────────────────────────────────────
 
-  /**
-   * Gather the candidate PE codes worth scoring for a client: PEs its capabilities
-   * explicitly name, PEs where the client holds an award (by UEI/name), and PEs with an
-   * award in the client's facility districts. Keyword-only candidacy is covered by the
-   * award/facility/direct sets in practice; scoring still evaluates the keyword path for
-   * each candidate, so a candidate surfaced by any signal gets a full multi-path score.
-   * Bounded to MAX_CANDIDATE_PES.
-   */
-  private async candidatePeCodesForClient(signals: ClientSignalContext): Promise<string[]> {
-    const codes = new Set<string>(signals.capabilityPeCodes);
-
-    // PEs the client holds awards on (UEI or name).
-    const hasUei = Boolean(signals.uei);
-    const awardRows = await this.prisma.$queryRaw<Array<{ peCode: string }>>(Prisma.sql`
-      SELECT DISTINCT pe_code AS "peCode"
-      FROM federal_award
-      WHERE pe_code IS NOT NULL
-        AND (
-          ${hasUei ? Prisma.sql`recipient_uei = ${signals.uei}` : Prisma.sql`FALSE`}
-          OR (contractor_name IS NOT NULL AND similarity(contractor_name, ${signals.name}) > ${NAME_SIMILARITY_FLOOR})
-        )
-      LIMIT ${MAX_CANDIDATE_PES}
-    `);
-    for (const r of awardRows) if (r.peCode) codes.add(r.peCode.toUpperCase());
-
-    // PEs with awards in any of the client's facility districts.
-    if (signals.facilityDistricts.length > 0) {
-      const states = signals.facilityDistricts.map((d) => d.state.toUpperCase());
-      const districts = signals.facilityDistricts.map((d) => d.district);
-      const facilityRows = await this.prisma.$queryRaw<Array<{ peCode: string }>>(Prisma.sql`
-        SELECT DISTINCT fa.pe_code AS "peCode"
-        FROM federal_award fa
-        -- Facility districts are BARE ('5'); award codes are zero-padded ('05') —
-        -- LTRIM both sides ('' = at-large '00').
-        JOIN unnest(${states}::text[], ${districts}::text[]) AS d(state, district)
-          ON upper(fa.pop_state) = d.state
-          AND LTRIM(fa.pop_congressional_district, '0') = LTRIM(d.district, '0')
-        WHERE fa.pe_code IS NOT NULL
-        LIMIT ${MAX_CANDIDATE_PES}
-      `);
-      for (const r of facilityRows) if (r.peCode) codes.add(r.peCode.toUpperCase());
-    }
-
-    // Ecosystem: PEs naming a performer/awardee the client maps to. Covered for award-linked
-    // PEs above; performer-only ecosystem candidacy is intentionally not enumerated here to
-    // keep the candidate query bounded — those PEs still score via the ecosystem path when
-    // reached through another signal.
-    return [...codes].slice(0, MAX_CANDIDATE_PES);
+  private candidatePeCodesForClient(signals: ClientSignalContext) {
+    return withPeCandidateDeadline(this.prisma, (query) => enumeratePeCandidates(
+      query, signals, KEYWORD_SIMILARITY_FLOOR, NAME_SIMILARITY_FLOOR,
+    ));
   }
 
   // ── Read endpoints ───────────────────────────────────────────────────────────
@@ -486,12 +405,13 @@ export class ClientPeRelevanceService {
     total: number;
     page: number;
     limit: number;
+    candidateCoverage: CandidateCoverage | null;
   }> {
     const minScore = opts.minScore ?? DEFAULT_MIN_RELEVANCE_SCORE;
     const page = Math.max(1, opts.page ?? 1);
     const limit = Math.min(100, Math.max(1, opts.limit ?? 50));
 
-    const scored = await this.prisma.withTenant(
+    const { scored, candidateCoverage } = await this.prisma.withTenant(
       ctx.tenantId,
       async (tx) => {
         // clientId-ownership guard: loadClientSignalContext reads the client via the
@@ -501,15 +421,18 @@ export class ClientPeRelevanceService {
         // RLS-protected clients table is what prevents a cross-tenant read until those tables
         // get RLS.
         const signals = await this.loadClientSignalContext(tx, clientId);
-        if (!signals) return [] as Array<{ peCode: string; score: number; paths: PathResult[] }>;
+        if (!signals) return {
+          scored: [] as Array<{ peCode: string; score: number; paths: PathResult[] }>,
+          candidateCoverage: null,
+        };
 
         const candidates = await this.candidatePeCodesForClient(signals);
         const results: Array<{ peCode: string; score: number; paths: PathResult[] }> = [];
-        for (const peCode of candidates) {
+        for (const peCode of candidates.codes) {
           const { score, paths } = await this.scoreClientPe(signals, peCode);
           if (score >= minScore) results.push({ peCode, score, paths });
         }
-        return results;
+        return { scored: results, candidateCoverage: candidates.candidateCoverage };
       },
       // Iterating many candidate PEs inside one interactive transaction can exceed Prisma's
       // 5s default; raise the limit (same fix as intelligence.service's slow graph paths).
@@ -529,7 +452,7 @@ export class ClientPeRelevanceService {
       paths: r.paths,
     }));
 
-    return { data, total, page, limit };
+    return { data, total, page, limit, candidateCoverage };
   }
 
   /**
