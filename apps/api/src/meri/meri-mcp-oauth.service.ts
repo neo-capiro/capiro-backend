@@ -262,7 +262,7 @@ export class MeriMcpOAuthService {
     );
     if (!server) throw new NotFoundException('Connector not found');
     await this.assertManagedServer(server, decoded.t);
-    if (managedAppDefinition(server.catalogId) && server.ownerUserId !== decoded.u) {
+    if (server.scope === 'user' && server.ownerUserId !== decoded.u) {
       throw new ForbiddenException('This authorization is no longer active.');
     }
     if (server.authType !== 'oauth' || !server.endpoint) {
@@ -408,15 +408,16 @@ export class MeriMcpOAuthService {
   }
 
   private async assertManagedServer(server: OAuthServerRow, tenantId: string): Promise<void> {
+    if (!this.config.get('CLIO_MCP_ENABLED', { infer: true }) || !server.enabled) {
+      throw new ServiceUnavailableException('This app is temporarily unavailable. Please try again later.');
+    }
     if (server.catalogId === 'meriv3-krisp' && !(await krispTenantEnabled(this.prisma, tenantId))) {
       throw new ServiceUnavailableException('Krisp Notetaker is not enabled for this organization.');
     }
     const app = managedAppDefinition(server.catalogId);
     if (
       app &&
-      (!this.config.get('CLIO_MCP_ENABLED', { infer: true }) ||
-        !managedAppAvailable(app.id, { tenantId, userId: server.ownerUserId }) ||
-        !server.enabled ||
+      (!managedAppAvailable(app.id, { tenantId, userId: server.ownerUserId }) ||
         server.scope !== 'user' ||
         server.name !== app.catalogId ||
         server.endpoint !== app.endpoint ||

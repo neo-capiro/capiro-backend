@@ -77,6 +77,16 @@ describe('managed OAuth completion', () => {
 });
 
 describe('ordinary OAuth completion redirect', () => {
+  test('generic discovery failure cannot redirect with a connected success outcome', async () => {
+    const { controller, mcp, managed, res } = make();
+    managed.appForServer.mockResolvedValue(null);
+    mcp.discoverTools.mockResolvedValue(0);
+    await controller.callback('code', 'state', undefined, undefined, res as never);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.redirect).not.toHaveBeenCalled();
+    expect(managed.finalizeConnection).not.toHaveBeenCalled();
+  });
+
   /** Ordinary (non-managed) connector: no managed app row, so the browser is bounced back. */
   function ordinary(successRedirect: string, name = 'Field Notes & Co') {
     const fixture = make();

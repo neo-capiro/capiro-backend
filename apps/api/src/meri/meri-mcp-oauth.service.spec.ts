@@ -45,7 +45,7 @@ function make() {
     ).toString('base64url');
     return body + '.' + createHmac('sha256', 'test-state-secret').update(body).digest('base64url');
   }
-  return { service, tx, state };
+  return { service, tx, state, values };
 }
 
 describe('managed OAuth scopes and cancellation state', () => {
@@ -180,6 +180,45 @@ describe('managed OAuth scopes and cancellation state', () => {
       expect(tx.clioMcpOAuthCredential.updateMany).not.toHaveBeenCalled();
     },
   );
+});
+
+describe('generic catalog OAuth current authority', () => {
+  beforeEach(() => jest.mocked(auth).mockClear().mockResolvedValue('AUTHORIZED'));
+  function generic() {
+    const result = make();
+    const row = { id: 'server', name: 'notion', scope: 'user', ownerUserId: 'owner',
+      catalogId: 'notion', endpoint: 'https://mcp.notion.com/mcp', authType: 'oauth', enabled: true };
+    result.tx.clioMcpServer.findFirst.mockResolvedValue(row);
+    return { ...result, row };
+  }
+
+  test.each(['disabled connection', 'disabled feature', 'foreign owner', 'expired state'])(
+    '%s refuses a callback before token exchange', async (change) => {
+      const { service, tx, state, values, row } = generic();
+      if (change === 'disabled connection') row.enabled = false;
+      if (change === 'disabled feature') values.CLIO_MCP_ENABLED = false;
+      if (change === 'foreign owner') row.ownerUserId = 'other';
+      await expect(service.handleCallback({ code: 'fixture', state: state(change === 'expired state' ? { e: 1 } : {}) })).rejects.toThrow();
+      expect(auth).not.toHaveBeenCalled();
+      expect(tx.clioMcpOAuthCredential.updateMany).not.toHaveBeenCalled();
+    },
+  );
+
+  test('a current personal callback still exchanges once and refuses replay', async () => {
+    const { service, state } = generic();
+    const signed = state();
+    await expect(service.handleCallback({ code: 'fixture', state: signed })).resolves.toMatchObject({ serverId: 'server' });
+    await expect(service.handleCallback({ code: 'fixture', state: signed })).rejects.toThrow('already used');
+    expect(auth).toHaveBeenCalledTimes(1);
+  });
+
+  test('a disabled generic connection cannot start authorization', async () => {
+    const { service, tx, row } = generic();
+    row.enabled = false;
+    await expect(service.start({ tenantId: 'tenant', userId: 'owner', role: 'standard_user' } as never, 'server')).rejects.toThrow('unavailable');
+    expect(auth).not.toHaveBeenCalled();
+    expect(tx.clioMcpServer.updateMany).not.toHaveBeenCalled();
+  });
 });
 
 
