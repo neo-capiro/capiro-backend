@@ -22,6 +22,10 @@ const uuid = (name: string, nullable = false): PublicSqlField => ({ ...f(name, '
 const rel = (fields: string[], referencedRelation: string, referencedFields: string[], integrity: 'enforced' | 'soft' = 'enforced'): PublicSqlRelationship =>
   ({ fields, referencedRelation, referencedFields, cardinality: 'many_to_one', integrity });
 const unknown = 'Published metadata does not establish active grants, populated rows, ingestion completeness or source freshness.';
+// Fixed projection policy, never supplied by the model. Agenda projections also require
+// SELECT on committee_hearing; do not expose closed-session or retained-alias agendas.
+const publicHearing = "canonical_hearing_id IS NULL AND visibility = 'public'";
+const publicAgenda = `hearing_id IN (SELECT id FROM public.committee_hearing WHERE ${publicHearing})`;
 const budgetLimit = 'Position cycle identifies the asserting book/stage; asserted FY identifies the year funded. PB outyears are not that future year’s submitted request. Filter value_kind and cycle before summing. Use the PE timeline for consolidated/current/enacted funding.';
 const budgetFields = (): PublicSqlField[] => [
   f('position_cycle', 'string', false, 'Budget book/stage that asserted this amount, e.g. pb_fy2026.'),
@@ -75,6 +79,96 @@ export const PUBLIC_SQL_RELATIONS: readonly PublicSqlRelation[] = [
     [uuid('id'), f('pe_code'), f('project_code'), ...budgetFields()], ['pe_code', 'project_code', 'position_cycle', 'asserted_fy', 'value_kind'],
     [rel(['pe_code'], 'program_elements', ['pe_code']), rel(['pe_code', 'project_code'], 'program_element_projects', ['pe_code', 'project_code'], 'soft')],
     [budgetLimit, 'Project value_kind supports total or quantity; project sums need not equal PE totals.'], null),
+  relation('state_bills', 'state_bill', 'Canonical state bills; LegiScan bill spine with derived status and source locators.', [
+    f('id', 'string', false, 'Canonical <state>-<sessionKey>-<billnumber> key, not an OpenStates ID.'),
+    f('state'), f('session'), f('session_key'), f('identifier'), f('bill_number'), f('title'), f('chamber', 'string', true),
+    f('status', 'string', true), f('status_at', 'timestamp', true), f('status_source', 'string', true),
+    f('sponsor_name', 'string', true), f('sponsor_party', 'string', true), f('sponsor_count', 'integer'),
+    f('latest_action_date', 'date', true), f('url', 'string', true), f('state_url', 'string', true),
+    f('legiscan_bill_id', 'integer', true), f('source_checked_at', 'timestamp', true),
+    f('source_check_status', 'string', true), f('synced_at', 'timestamp'),
+  ], ['id'], [], [
+    'State plus session_key plus bill_number defines identity; display session/identifier and sponsor names are not join keys.',
+    'Status is derived. status_at is the legislative event time; synced_at is ingestion time, not proof of current official status.',
+    'Use the bill source reader for decisive text or legal passages. Coverage varies by state and session.',
+  ], 'synced_at'),
+  relation('committee_hearings', 'committee_hearing', 'Public canonical federal and state committee events, including hearings, markups and meetings.', [
+    f('id', 'string', false, 'Stored hearing identity; text key, not necessarily a UUID.'),
+    f('geographic_jurisdiction', 'string', true, 'US for federal; state code for state events. Legacy null is treated as federal by the existing reader.'),
+    f('legislative_session', 'string', true), f('congress', 'integer', true), f('chamber'), f('committee_name'),
+    f('committee_system_code', 'string', true), f('state_committee_id', 'string', true), f('title'), f('type', 'string', true),
+    f('date', 'date', false, 'Stored calendar display day; not a scheduled instant.'),
+    f('starts_at', 'timestamp', true, 'Authoritative scheduled UTC instant; null for date-only events. Never synthesize midnight.'),
+    f('scheduled_end', 'timestamp', true), f('timezone'), f('time_precision', 'string', true), f('location', 'string', true),
+    f('event_status'), f('url', 'string', true), f('source_revision', 'integer'),
+    f('last_official_update_at', 'timestamp', true), f('calendar_revision', 'integer'),
+    f('calendar_checked_at', 'timestamp', true), f('calendar_check_state'), f('synced_at', 'timestamp'),
+  ], ['id'], [], [
+    'Closed/private events and retained aliases are excluded. Counts are canonical public events, not unique bills or agenda assertions.',
+    'Filter type and event_status explicitly; postponed/canceled events remain records. NULL starts_at does not mean midnight or cancellation.',
+    'synced_at and calendar_checked_at are observation times; inspect calendar_check_state and last_official_update_at. No national/state calendar completeness is asserted.',
+  ], 'synced_at', publicHearing),
+  relation('committee_hearing_bills', 'committee_hearing_bill', 'Legacy federal bill agenda associations for public canonical committee events.', [
+    f('id'), f('hearing_id'), f('bill_id'), f('congress', 'integer'), f('synced_at', 'timestamp'),
+  ], ['id'], [rel(['hearing_id'], 'committee_hearings', ['id'], 'soft'), rel(['bill_id'], 'congress_bills', ['id'], 'soft')], [
+    'One stored association per unique (hearing_id, bill_id); id is the row identity.',
+    'Federal bill IDs are soft references; LEFT JOIN preserves an agenda association when the bill has not been ingested.',
+    'One bill can appear at several events. Deduplicate bill_id before counting bills and hearing_id before counting events.',
+    'This legacy association has no active/revision marker. Do not union its counts with legislative_agenda_items; current source-backed agendas use that relation.',
+  ], 'synced_at', publicAgenda),
+  relation('legislative_agenda_items', 'legislative_agenda_item', 'Source-backed federal/state agenda assertions for public canonical committee events.', [
+    uuid('id'), f('hearing_id'), f('item_key'), f('position', 'integer'), f('kind'), f('title'),
+    f('bill_scope', 'string', true), f('state_bill_key', 'string', true), f('federal_bill_id', 'string', true),
+    f('source_url'), f('active', 'boolean'), f('revision', 'integer'),
+    f('first_seen_at', 'timestamp'), f('last_seen_at', 'timestamp'),
+  ], ['id'], [
+    rel(['hearing_id'], 'committee_hearings', ['id'], 'soft'), rel(['state_bill_key'], 'state_bills', ['id'], 'soft'),
+    rel(['federal_bill_id'], 'congress_bills', ['id'], 'soft'),
+  ], [
+    'One stored assertion per unique (hearing_id, item_key); item_key alone is not an event-independent identity.',
+    'Filter active=true for current agenda membership and bill_scope for state/federal bills. Non-bill items and withdrawn assertions are retained.',
+    'State and federal keys are separate namespaces; never join a state key to congress_bills. Bill references are soft and may lack a local bill row.',
+    'An agenda item is not a unique bill or hearing. Deduplicate the intended canonical key before aggregation; do not add legacy association counts.',
+  ], 'last_seen_at', publicAgenda),
+  relation('state_bill_calendar_events', 'state_bill_calendar_event', 'Per-bill LegiScan calendar assertions: hearings, executive sessions and floor events.', [
+    uuid('id'), f('bill_key'), f('event_key'), f('event_type'), f('date', 'date'),
+    f('time', 'string', true, 'Source wall-clock text; no authoritative timezone or instant is available in this relation.'),
+    f('location', 'string', true), f('present', 'boolean'), f('first_seen_at', 'timestamp'), f('last_synced_at', 'timestamp'),
+  ], ['id'], [rel(['bill_key'], 'state_bills', ['id'])], [
+    'One stored assertion per unique (bill_key, event_key); id is a storage row identity and can change on source recreation.',
+    'This is a per-bill assertion, not a canonical hearing. A shared event can appear for several bills; do not sum it with committee_hearings.',
+    'Filter present=true for currently observed assertions and event_type explicitly. Missing rows are not evidence of no hearing.',
+    'event_key is scoped to bill_key. Join state_bills for jurisdiction, session and source URLs. A date and time string cannot establish a UTC instant.',
+  ]),
+  relation('federal_grants', 'federal_grant', 'Grants.gov opportunities and forecasts, not awarded grants or obligations.', [
+    f('id', 'string', false, 'Grants.gov opportunity ID.'), f('title'), f('agency'), f('sub_agency', 'string', true),
+    f('opportunity_number', 'string', true), f('category', 'string', true), f('funding_instrument', 'string', true),
+    f('status', 'string', true), f('doc_type', 'string', true),
+    f('award_ceiling', 'decimal', true, 'Published maximum potential award, stored as floating point; not an actual award.', 'USD'),
+    f('award_floor', 'decimal', true, 'Published minimum potential award, stored as floating point; not an actual award.', 'USD'),
+    f('estimated_funding', 'decimal', true, 'Estimated opportunity/program funding, stored as floating point; not obligations or expenditures.', 'USD'),
+    f('expected_awards', 'integer', true), f('open_date', 'date', true), f('close_date', 'date', true),
+    f('response_date_desc', 'string', true, 'Source close-date qualifiers, including continuous/TBD/time cutoffs; never infer from the date alone.'),
+    f('cost_sharing', 'boolean', true), f('revision', 'integer', true), f('url', 'string', true),
+    f('last_updated_at', 'timestamp', true), f('detail_synced_at', 'timestamp', true), f('synced_at', 'timestamp'),
+  ], ['id'], [], [
+    'synopsis and forecast have different source/date semantics. Filter doc_type/status; forecasts are not open application windows or commitments.',
+    'Dates and close-date qualifiers must be interpreted together. A posted status alone does not prove the response window is open.',
+    'USD opportunity estimates/ceilings/floors are not awarded dollars and cannot be combined as award totals. Source Float storage is not exact monetary accounting.',
+    'No fiscal year is inferred from open/close dates. synced_at is ingestion time; last_updated_at is nullable source metadata.',
+  ], 'synced_at'),
+  relation('sam_opportunities', 'sam_opportunity', 'SAM.gov public procurement notices; notice identity is not contract or award identity.', [
+    uuid('id'), f('notice_id'), f('solicitation_number', 'string', true), f('title'), f('notice_type'), f('base_type', 'string', true),
+    f('agency', 'string', true), f('sub_agency', 'string', true), f('office', 'string', true),
+    f('set_aside', 'string', true), f('set_aside_code', 'string', true), f('naics_code', 'string', true), f('psc_code', 'string', true),
+    f('posted_date', 'timestamp', true), f('response_deadline', 'timestamp', true), f('archive_date', 'timestamp', true),
+    f('active', 'boolean'), f('source_url', 'string', true), f('last_synced_at', 'timestamp'),
+  ], ['notice_id'], [], [
+    'Count notices, not distinct solicitations/contracts/awards. solicitation_number is nullable and not a canonical join key.',
+    'notice_type is the current type; base_type is the original type. Sources Sought, Presolicitation and Award Notice are not open solicitations.',
+    'active tracks archive state, not whether responses are still accepted. Inspect notice_type, response_deadline and archive_date together.',
+    'NULL set_aside can mean full and open OR not stated. NULL sub_agency means not supplied. No award amount or fiscal-year inference is supported.',
+  ]),
 ];
 export function publicSqlRelation(name: string): PublicSqlRelation | undefined {
   return PUBLIC_SQL_RELATIONS.find((relation) => relation.name === name);
