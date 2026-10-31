@@ -22,7 +22,8 @@ import {
 import { capabilityFitFingerprint } from './client-capability-fit.fingerprint.js';
 
 /** Why the card has nothing to show — distinct causes get distinct UI copy. */
-export type CapabilityFitStatus = 'ready' | 'empty' | 'profile_too_thin' | 'stale';
+export type CapabilityFitStatus =
+  'ready' | 'empty' | 'profile_too_thin' | 'stale' | 'partial' | 'unavailable';
 
 export interface CapabilityFitResult {
   matches: CapabilityFitMatch[];
@@ -51,28 +52,54 @@ const REASON = {
   thin: 'Add a capability area with tags or PE numbers to see where it creates fit.',
   noMatches:
     'No program element, bill, or funding opportunity cleared the capability match floor for this client’s capabilities.',
+  partial:
+    'Some capability-fit sources are unavailable or incomplete. Available matches are shown but were not saved; the previous saved result was retained.',
+  unavailable:
+    'Capability-fit sources are unavailable. No match result was computed; the previous saved result was retained.',
+  unknownCoverage:
+    'Source coverage for this saved result is unknown. Refresh to compute a result with source coverage.',
 } as const;
 
 /** Which scorers a payload came from. */
 const SOURCES = {
   none: { pe: false, bill: false, fo: false },
-  all: { pe: true, bill: true, fo: true },
 } as const;
 
 /** Extract verbatim PE keyword evidence for capability attribution. */
-function peKeywordTokens(paths: Array<{ path: string; evidence?: string[] }> | null | undefined): string[] {
+function peKeywordTokens(
+  paths: Array<{ path: string; evidence?: string[] }> | null | undefined,
+): string[] {
   const evidence = paths?.find((path) => path.path === 'capability_keyword')?.evidence?.[0] ?? '';
   const prefix = 'Keyword match:';
   if (!evidence.startsWith(prefix)) return [];
-  return evidence.slice(prefix.length).split(',').map((token) => token.trim()).filter(Boolean);
+  return evidence
+    .slice(prefix.length)
+    .split(',')
+    .map((token) => token.trim())
+    .filter(Boolean);
 }
 
 /** The transaction handle shape `withTenant` hands to its callback. */
 type PrismaTx = Parameters<Parameters<PrismaService['withTenant']>[1]>[0];
 
 /** Rows present → ready; none → a named empty. Shared by the read and compute paths. */
-function settled(matches: CapabilityFitMatch[]): Pick<CapabilityFitResult, 'status' | 'emptyReason'> {
-  return matches.length > 0 ? { status: 'ready' } : { status: 'empty', emptyReason: REASON.noMatches };
+function settled(
+  matches: CapabilityFitMatch[],
+): Pick<CapabilityFitResult, 'status' | 'emptyReason'> {
+  return matches.length > 0
+    ? { status: 'ready' }
+    : { status: 'empty', emptyReason: REASON.noMatches };
+}
+
+/** Only this producer's complete/thin results are persisted. Version the cache
+ * fingerprint to distinguish them from historical rows with unknown source coverage.
+ * Keep matches_jsonb as its original array so an older reader can still display it
+ * (its fingerprint comparison conservatively reports stale).
+ */
+const CACHE_PREFIX = 'capability-fit:v1:';
+function cacheProof(raw: string | null) {
+  const match = /^capability-fit:v1:(complete|thin):([a-f0-9]{64})$/.exec(raw ?? '');
+  return match ? { kind: match[1], fingerprint: match[2] } : null;
 }
 
 /** Build the sources mask from which fan-outs actually fulfilled. */
@@ -145,19 +172,32 @@ export class ClientCapabilityFitService {
       };
     }
 
-    const matches = (cached.matches ?? []) as unknown as CapabilityFitMatch[];
-    const stale = cached.inputFingerprint !== capabilityFitFingerprint({ capabilities });
+    const matches = Array.isArray(cached.matches)
+      ? (cached.matches as unknown as CapabilityFitMatch[])
+      : [];
+    const proof = cacheProof(cached.inputFingerprint);
+    const stale =
+      (proof?.fingerprint ?? cached.inputFingerprint) !==
+      capabilityFitFingerprint({ capabilities });
+    const saved =
+      proof?.kind === 'complete'
+        ? { ...settled(matches), sources: { pe: true, bill: true, fo: true } }
+        : proof?.kind === 'thin'
+          ? { status: 'profile_too_thin' as const, emptyReason: REASON.thin, sources: SOURCES.none }
+          : {
+              status: 'partial' as const,
+              emptyReason: REASON.unknownCoverage,
+              sources: SOURCES.none,
+            };
 
-    // Cache rows may mix PE + bill + FO. Report the full source mask on read so
-    // the UI's source chips don't flip just because this was a cache hit.
     return {
       matches,
+      ...saved,
       computedAt: cached.computedAt.toISOString(),
       // A stale cache still shows its rows — outdated numbers with a warning are
       // more useful than a blank card while the user decides to refresh.
-      ...(stale ? { status: 'stale' as const } : settled(matches)),
-      sources: SOURCES.all,
-      inputFingerprint: cached.inputFingerprint ?? undefined,
+      ...(stale ? { status: 'stale' as const } : {}),
+      inputFingerprint: proof?.fingerprint ?? cached.inputFingerprint ?? undefined,
     };
   }
 
@@ -234,7 +274,9 @@ export class ClientCapabilityFitService {
       billSettled.status === 'fulfilled'
         ? billSettled.value.recommendations
             .map((rec) =>
-              billToMatch(rec, { capabilityIds: capsForMatchedTags(capabilities, rec.matchedTags) }),
+              billToMatch(rec, {
+                capabilityIds: capsForMatchedTags(capabilities, rec.matchedTags),
+              }),
             )
             .filter((m): m is CapabilityFitMatch => m !== null)
         : [];
@@ -251,7 +293,10 @@ export class ClientCapabilityFitService {
                 title: row.title,
                 relevanceScore: row.relevanceScore,
                 matchedSignals: row.matchedSignals,
-                eligibility: row.eligibility ?? { state: 'unknown', reason: 'Eligibility was not stated by the source.' },
+                eligibility: row.eligibility ?? {
+                  state: 'unknown',
+                  reason: 'Eligibility was not stated by the source.',
+                },
                 meetsSuggestionFloor: row.relevanceScore >= 50,
               };
               return foToMatch(input, {
@@ -271,6 +316,33 @@ export class ClientCapabilityFitService {
       foSettled.status === 'fulfilled',
     );
 
+    if (!sources.pe && !sources.bill && !sources.fo) {
+      // A failed attempt is not a replacement for a previously computed result.
+      return {
+        matches: [],
+        computedAt: null,
+        status: 'unavailable',
+        emptyReason: REASON.unavailable,
+        inputFingerprint,
+        sources,
+      };
+    }
+
+    const fundingComplete =
+      foSettled.status === 'fulfilled' &&
+      foSettled.value.catalogComplete === true &&
+      !foSettled.value.totalIsCapped;
+    if (!sources.pe || !sources.bill || !sources.fo || !fundingComplete) {
+      return {
+        matches,
+        computedAt: new Date().toISOString(),
+        status: 'partial',
+        emptyReason: REASON.partial,
+        inputFingerprint,
+        sources,
+      };
+    }
+
     return this.persist(ctx, clientId, {
       matches,
       ...settled(matches),
@@ -287,7 +359,7 @@ export class ClientCapabilityFitService {
   ): Promise<CapabilityFitResult> {
     const row = {
       matches: result.matches as unknown as object[],
-      inputFingerprint: result.inputFingerprint,
+      inputFingerprint: `${CACHE_PREFIX}${result.status === 'profile_too_thin' ? 'thin' : 'complete'}:${result.inputFingerprint}`,
       computedAt: new Date(),
     };
     const saved = await this.prisma.withTenant(ctx.tenantId, (tx) =>

@@ -107,7 +107,7 @@ describe('ClientCapabilityFitService', () => {
     client?: { id: string } | null;
     capabilities?: any[];
     cached?: any;
-    pes?: Array<{ peCode: string; title: string | null; score: number; paths: any[] }>;
+    pes?: Array<{ peCode: string; title: string | null; score: number; paths: any[] }> | Error;
     bills?: RecommendationsResponse | Error;
     fos?: FundingOpportunityListResponse | Error | FoCapabilityFitInput[];
   }) {
@@ -124,8 +124,7 @@ describe('ClientCapabilityFitService', () => {
         findUnique: jest.fn<() => Promise<any>>().mockResolvedValue(opts.cached ?? null),
         upsert: jest.fn(async (args: any) => ({
           matches: args.create?.matches ?? args.update?.matches ?? [],
-          inputFingerprint:
-            args.create?.inputFingerprint ?? args.update?.inputFingerprint ?? null,
+          inputFingerprint: args.create?.inputFingerprint ?? args.update?.inputFingerprint ?? null,
           computedAt: new Date('2026-08-21T12:00:00.000Z'),
         })),
       },
@@ -135,12 +134,14 @@ describe('ClientCapabilityFitService', () => {
     };
     const peRelevance = {
       getRelevantPesForClient: jest.fn<() => Promise<any>>().mockResolvedValue({
-        data: opts.pes ?? [],
-        total: (opts.pes ?? []).length,
+        data: opts.pes instanceof Error ? [] : (opts.pes ?? []),
+        total: opts.pes instanceof Error ? 0 : (opts.pes ?? []).length,
         page: 1,
         limit: 50,
       }),
     } as unknown as ClientPeRelevanceService;
+    if (opts.pes instanceof Error)
+      (peRelevance.getRelevantPesForClient as any).mockRejectedValue(opts.pes);
 
     const billPayload: RecommendationsResponse =
       opts.bills instanceof Error
@@ -170,7 +171,28 @@ describe('ClientCapabilityFitService', () => {
     if (opts.fos instanceof Error) {
       foList.mockRejectedValue(opts.fos);
     } else {
-      foList.mockResolvedValue({ opportunities: foPayload.opportunities, criteria: {} as any, page: 1, pageSize: foPayload.pageSize, total: foPayload.total, totalIsCapped: false, catalogComplete: true, counts: { grants: foPayload.counts.activeGrants, contracts: foPayload.counts.activeContracts, active: foPayload.counts.activeGrants + foPayload.counts.activeContracts, closed: 0 }, mode: 'matched', clientId, freshness: [], provenance: [], emptyReason: null, profileGaps: null, generatedAt: new Date().toISOString() });
+      foList.mockResolvedValue({
+        opportunities: foPayload.opportunities,
+        criteria: {} as any,
+        page: 1,
+        pageSize: foPayload.pageSize,
+        total: foPayload.total,
+        totalIsCapped: false,
+        catalogComplete: true,
+        counts: {
+          grants: foPayload.counts.activeGrants,
+          contracts: foPayload.counts.activeContracts,
+          active: foPayload.counts.activeGrants + foPayload.counts.activeContracts,
+          closed: 0,
+        },
+        mode: 'matched',
+        clientId,
+        freshness: [],
+        provenance: [],
+        emptyReason: null,
+        profileGaps: null,
+        generatedAt: new Date().toISOString(),
+      });
     }
     const fundingOpportunities = {
       search: foList,
@@ -291,7 +313,8 @@ describe('ClientCapabilityFitService', () => {
     expect(fundingOpportunities.search).not.toHaveBeenCalled();
     expect(result.matches).toHaveLength(1);
     expect(result.computedAt).toBe('2026-08-20T10:00:00.000Z');
-    expect(result.sources).toEqual({ pe: true, bill: true, fo: true });
+    expect(result.sources).toEqual({ pe: false, bill: false, fo: false });
+    expect(result.status).toBe('partial');
   });
 
   test('a GET with a cache miss returns an honest not-computed empty, not a slow compute', async () => {
@@ -356,12 +379,18 @@ describe('ClientCapabilityFitService', () => {
     expect(tracker.getRecommendations).toHaveBeenCalledWith(clientId, ctx.tenantId);
     expect(fundingOpportunities.search).toHaveBeenCalledWith(
       { tenantId: ctx.tenantId, userId: ctx.userId },
-      expect.objectContaining({ mode: 'matched', clientId, lifecycle: ['active'], page: 1, pageSize: 50 }),
+      expect.objectContaining({
+        mode: 'matched',
+        clientId,
+        lifecycle: ['active'],
+        page: 1,
+        pageSize: 50,
+      }),
     );
     expect(tx.clientCapabilityFitRecommendation.upsert).toHaveBeenCalledTimes(1);
     const upsertArgs = (tx.clientCapabilityFitRecommendation.upsert as any).mock.calls[0][0];
     expect(upsertArgs.where).toEqual({ clientId });
-    expect(upsertArgs.create.inputFingerprint).toMatch(/^[0-9a-f]{64}$/);
+    expect(upsertArgs.create.inputFingerprint).toMatch(/^capability-fit:v1:complete:[0-9a-f]{64}$/);
     expect(result.status).toBe('ready');
     expect(result.computedAt).toBe('2026-08-21T12:00:00.000Z');
   });
@@ -385,7 +414,11 @@ describe('ClientCapabilityFitService', () => {
           title: 'Ground Robotics',
           score: 0.8,
           paths: [
-            { path: 'capability_pe_direct', score: 0.8, evidence: ['Capability lists PE 0605053A'] },
+            {
+              path: 'capability_pe_direct',
+              score: 0.8,
+              evidence: ['Capability lists PE 0605053A'],
+            },
           ],
         },
       ],
@@ -412,12 +445,12 @@ describe('ClientCapabilityFitService', () => {
     expect(tracker.getRecommendations).toHaveBeenCalledWith(clientId, ctx.tenantId);
     expect(result.sources).toEqual({ pe: true, bill: true, fo: true });
     // Bill 94 ranks above PE 80; below-floor bill dropped by billToMatch.
-    expect(result.matches.map((m: { id: string; fit: number }) => ({ id: m.id, fit: m.fit }))).toEqual(
-      [
-        { id: 'bill:119-hr-9201', fit: 94 },
-        { id: 'pe:0605053A', fit: 80 },
-      ],
-    );
+    expect(
+      result.matches.map((m: { id: string; fit: number }) => ({ id: m.id, fit: m.fit })),
+    ).toEqual([
+      { id: 'bill:119-hr-9201', fit: 94 },
+      { id: 'pe:0605053A', fit: 80 },
+    ]);
     expect(result.matches[0]).toMatchObject({
       kind: 'bill',
       target: 'H.R. 9201 · Defense Autonomy Test Range Act',
@@ -446,7 +479,7 @@ describe('ClientCapabilityFitService', () => {
     const result = await service.getFit(ctx, clientId, { refresh: true });
 
     expect(tracker.getRecommendations).toHaveBeenCalledTimes(1);
-    expect(result.status).toBe('ready');
+    expect(result.status).toBe('partial');
     expect(result.matches).toHaveLength(1);
     expect(result.matches[0]?.kind).toBe('pe');
     expect(result.sources).toEqual({ pe: true, bill: false, fo: true });
@@ -461,7 +494,11 @@ describe('ClientCapabilityFitService', () => {
           title: 'Ground Robotics',
           score: 0.7,
           paths: [
-            { path: 'capability_pe_direct', score: 0.7, evidence: ['Capability lists PE 0605053A'] },
+            {
+              path: 'capability_pe_direct',
+              score: 0.7,
+              evidence: ['Capability lists PE 0605053A'],
+            },
           ],
         },
       ],
@@ -486,12 +523,12 @@ describe('ClientCapabilityFitService', () => {
     );
     expect(result.sources).toEqual({ pe: true, bill: true, fo: true });
     // FO 88 > PE 70; below-floor FO dropped.
-    expect(result.matches.map((m: { id: string; fit: number }) => ({ id: m.id, fit: m.fit }))).toEqual(
-      [
-        { id: 'fo:sam_gov:abc-123', fit: 88 },
-        { id: 'pe:0605053A', fit: 70 },
-      ],
-    );
+    expect(
+      result.matches.map((m: { id: string; fit: number }) => ({ id: m.id, fit: m.fit })),
+    ).toEqual([
+      { id: 'fo:sam_gov:abc-123', fit: 88 },
+      { id: 'pe:0605053A', fit: 70 },
+    ]);
     expect(result.matches[0]).toMatchObject({
       kind: 'fo',
       score01: 0.88,
@@ -526,7 +563,7 @@ describe('ClientCapabilityFitService', () => {
     const result = await service.getFit(ctx, clientId, { refresh: true });
 
     expect(fundingOpportunities.search).toHaveBeenCalledTimes(1);
-    expect(result.status).toBe('ready');
+    expect(result.status).toBe('partial');
     expect(result.matches.some((m: { kind: string }) => m.kind === 'fo')).toBe(false);
     expect(result.matches.some((m: { kind: string }) => m.kind === 'pe')).toBe(true);
     expect(result.matches.some((m: { kind: string }) => m.kind === 'bill')).toBe(true);
@@ -545,5 +582,84 @@ describe('ClientCapabilityFitService', () => {
     expect(tracker.getRecommendations).not.toHaveBeenCalled();
     expect(fundingOpportunities.search).not.toHaveBeenCalled();
     expect(tx.clientCapabilityFitRecommendation.upsert).toHaveBeenCalledTimes(1);
+  });
+
+  test('failed refresh cannot replace the previous cache with a false no-matches result', async () => {
+    const h = makeService({
+      capabilities: [CAP_ROBOTICS],
+      pes: new Error('PE unavailable'),
+      bills: new Error('tracker unavailable'),
+      fos: new Error('FO unavailable'),
+    });
+    const result = await h.service.getFit(ctx, clientId, { refresh: true });
+    expect(result.status).toBe('unavailable');
+    expect(result.emptyReason).not.toMatch(/no .*cleared/i);
+    expect(result.sources).toEqual({ pe: false, bill: false, fo: false });
+    expect(h.tx.clientCapabilityFitRecommendation.upsert).not.toHaveBeenCalled();
+  });
+
+  test('a fulfilled but incomplete funding search is not saved as complete coverage', async () => {
+    const h = makeService({ capabilities: [CAP_ROBOTICS] });
+    const search = h.fundingOpportunities.search as any;
+    const healthy = await search();
+    search.mockResolvedValue({ ...healthy, catalogComplete: false, total: null });
+    const result = await h.service.getFit(ctx, clientId, { refresh: true });
+    expect(result.status).toBe('partial');
+    expect(result.sources).toEqual({ pe: true, bill: true, fo: true });
+    expect(result.emptyReason).toMatch(/incomplete/);
+    expect(h.tx.clientCapabilityFitRecommendation.upsert).not.toHaveBeenCalled();
+  });
+
+  test('partial results disclose failure without replacing the previous complete cache on reload', async () => {
+    const h = makeService({ capabilities: [CAP_ROBOTICS] });
+    const first = await h.service.getFit(ctx, clientId, { refresh: true });
+    const row = (h.tx.clientCapabilityFitRecommendation.upsert as any).mock.calls[0][0].create;
+    (h.tx.clientCapabilityFitRecommendation.findUnique as any).mockResolvedValue({
+      ...row,
+      computedAt: new Date(first.computedAt!),
+    });
+    (h.tracker.getRecommendations as any).mockRejectedValue(new Error('tracker unavailable'));
+    const result = await h.service.getFit(ctx, clientId, { refresh: true });
+    expect(result.status).toBe('partial');
+    expect(result.emptyReason).not.toMatch(/no .*cleared/i);
+    expect(result.emptyReason).toMatch(/not saved/);
+    expect(h.tx.clientCapabilityFitRecommendation.upsert).toHaveBeenCalledTimes(1);
+    const reloaded = await h.service.getFit(ctx, clientId);
+    expect(reloaded).toMatchObject({
+      status: 'empty',
+      sources: { pe: true, bill: true, fo: true },
+      computedAt: first.computedAt,
+    });
+    expect(Array.isArray(row.matches)).toBe(true);
+  });
+
+  test('legacy array cache has unknown source coverage even with a matching fingerprint', async () => {
+    const h = makeService({
+      capabilities: [CAP_ROBOTICS],
+      cached: {
+        matches: [],
+        inputFingerprint: capabilityFitFingerprint({ capabilities: [CAP_ROBOTICS] }),
+        computedAt: new Date(),
+      },
+    });
+    const result = await h.service.getFit(ctx, clientId);
+    expect(result.status).toBe('partial');
+    expect(result.sources).toEqual({ pe: false, bill: false, fo: false });
+    expect(result.emptyReason).toMatch(/coverage.*unknown/i);
+    expect(h.tx.clientCapabilityFitRecommendation.upsert).not.toHaveBeenCalled();
+  });
+
+  test('profile-too-thin cache remains distinct from all-source no-matches after reload', async () => {
+    const h = makeService({ capabilities: [] });
+    const first = await h.service.getFit(ctx, clientId, { refresh: true });
+    const row = (h.tx.clientCapabilityFitRecommendation.upsert as any).mock.calls[0][0].create;
+    (h.tx.clientCapabilityFitRecommendation.findUnique as any).mockResolvedValue({
+      ...row,
+      computedAt: new Date(first.computedAt!),
+    });
+    expect(await h.service.getFit(ctx, clientId)).toMatchObject({
+      status: 'profile_too_thin',
+      sources: { pe: false, bill: false, fo: false },
+    });
   });
 });
