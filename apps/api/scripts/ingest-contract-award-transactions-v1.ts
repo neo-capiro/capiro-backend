@@ -17,12 +17,13 @@
  *   awardDetails.dates.dateSigned                     -> actionDate
  *   coreData.awardOrIDV                               -> "AWARD" | "IDV" (kept in raw)
  *
- * The award family key is NOT re-derived: it is read from the award revision the projector already wrote,
- * matched on the award's piid, so a transaction attaches to the family that exists rather than to a key this
- * script invents.
+ * Corrected adapter contract: docs/lane6/sam-action-contract-v2.md.
+ * Resolve the full source award tuple; PIID only bounds candidate retrieval.
+ * Historical keys, hashes and observation chains remain untouched.
  */
 import { PrismaClient } from '@prisma/client';
 import { readFileSync } from 'node:fs';
+import { appendSamRecords, sourceText, validProducerRun, SAM_ACTION_CONTRACT, type AwardCandidate, type ProducerRun, type SamRecord } from './lib/sam-contract-action.js';
 import { AcquisitionContinuityStore } from '../src/program-element/acquisition-continuity/acquisition-continuity.store.js';
 
 const SEARCH_URL = 'https://api.sam.gov/contract-awards/v1/search';
@@ -37,62 +38,14 @@ function arg(name: string): string | undefined {
 function flag(name: string): boolean {
   return process.argv.slice(2).includes(`--${name}`);
 }
-function intArg(name: string, fallback: number, max: number): number {
+function intArg(name: string, fallback: number, max: number, min = 1): number {
   const raw = arg(name);
   if (raw === undefined) return fallback;
   const value = Number(raw);
-  if (!Number.isInteger(value) || value < 1 || value > max) {
-    throw new Error(`--${name} must be an integer between 1 and ${max}`);
+  if (!Number.isInteger(value) || value < min || value > max) {
+    throw new Error(`--${name} must be an integer between ${min} and ${max}`);
   }
   return value;
-}
-
-export interface ContractAwardTransaction {
-  sourceTransactionId: string;
-  piid: string | null;
-  modificationNumber: string | null;
-  actionDate: Date | null;
-  signedObligationDelta: number | null;
-  awardIdentityKey: string | null;
-}
-
-interface SamRecord {
-  contractId?: { piid?: string; modificationNumber?: string };
-  awardDetails?: {
-    dollars?: { actionObligation?: number | string | null };
-    dates?: { dateSigned?: string | null };
-  };
-  [key: string]: unknown;
-}
-
-/** Map one SAM contract-awards record to a ledger transaction, or null when it cannot be one. */
-export function mapContractAwardRecord(
-  record: SamRecord,
-  awardIdentityByPiid: ReadonlyMap<string, string>,
-): ContractAwardTransaction | null {
-  // The API returns modificationNumber as a NUMBER on some records, so coerce before trimming:
-  // a bare `.trim()` here aborted a whole run with "value.trim is not a function".
-  const asText = (value: unknown): string | null => {
-    if (value === null || value === undefined) return null;
-    const text = String(value).trim();
-    return text.length > 0 ? text : null;
-  };
-  const piid = asText(record.contractId?.piid);
-  if (!piid) return null;
-  const modificationNumber = asText(record.contractId?.modificationNumber);
-  const rawDelta = record.awardDetails?.dollars?.actionObligation;
-  const delta = rawDelta === null || rawDelta === undefined || rawDelta === '' ? null : Number(rawDelta);
-  if (delta !== null && !Number.isFinite(delta)) return null;
-  const signed = asText(record.awardDetails?.dates?.dateSigned);
-  const actionDate = signed ? new Date(signed.replace(' ', 'T') + (signed.includes('Z') ? '' : 'Z')) : null;
-  return {
-    sourceTransactionId: modificationNumber ? `${piid}-${modificationNumber}` : piid,
-    piid,
-    modificationNumber,
-    actionDate: actionDate && !Number.isNaN(actionDate.getTime()) ? actionDate : null,
-    signedObligationDelta: delta,
-    awardIdentityKey: awardIdentityByPiid.get(piid) ?? null,
-  };
 }
 
 interface PageResult {
@@ -117,16 +70,21 @@ async function fetchPage(apiKey: string, params: Record<string, string>): Promis
     try {
       response = await fetch(url, {
         headers: { Accept: 'application/json', 'User-Agent': 'capiro-dev-contract-awards/1.0' },
+        signal: AbortSignal.timeout(30_000),
       });
     } catch (error) {
-      lastError = error instanceof Error ? error.message : String(error);
+      lastError = 'SAM contract-awards transport failure';
       continue;
     }
+    if (response.status === 204) return { records: [], totalRecords: 0 };
     if (response.ok) {
       const body = (await response.json()) as { awardSummary?: SamRecord[]; totalRecords?: number };
-      return { records: body.awardSummary ?? [], totalRecords: body.totalRecords ?? null };
+      if (!Array.isArray(body.awardSummary) || body.awardSummary.some((r) => !r || typeof r !== 'object' || Array.isArray(r))) {
+        throw new Error('SAM contract-awards response violates the record contract');
+      }
+      return { records: body.awardSummary, totalRecords: body.totalRecords ?? null };
     }
-    lastError = `SAM contract-awards HTTP ${response.status}: ${(await response.text()).slice(0, 200)}`;
+    lastError = `SAM contract-awards HTTP ${response.status}`;
     if (!TRANSIENT_STATUS.has(response.status)) break;
   }
   throw new Error(lastError);
@@ -136,10 +94,14 @@ async function main(): Promise<void> {
   const apiKey = process.env.SAM_GOV_API_KEY?.trim();
   if (!apiKey) throw new Error('SAM_GOV_API_KEY is required');
 
+  if (flag('skip-covered')) throw new Error('--skip-covered is unsafe: observation counts are not source pagination checkpoints');
+  const run: ProducerRun = { contract: SAM_ACTION_CONTRACT, producerCommit: arg('producer-commit') ?? '',
+    imageDigest: arg('image-digest') ?? '', runId: arg('run-id') ?? '', targetId: arg('target-id') ?? '' };
+  if (!validProducerRun(run)) throw new Error('explicit --producer-commit, --image-digest, --run-id and --target-id are required');
   const commit = flag('commit');
   const enabled = commit && process.env.PROGRAM_ACQUISITION_CONTINUITY_ENABLED === 'true';
   const pages = intArg('pages', 1, 200);
-  const offsetStart = intArg('offset', 0, 400000);
+  const offsetStart = intArg('offset', 0, 400000, 0);
   const from = arg('from');
   const to = arg('to');
   const department = arg('department') ?? '9700';
@@ -158,14 +120,13 @@ async function main(): Promise<void> {
     totalRecordsReported: null as number | null,
     recordsExamined: 0,
     mapped: 0,
-    noAwardFamily: 0,
-    noDelta: 0,
     transactionsInserted: 0,
     transactionsExisting: 0,
     piidsTargeted: 0,
     piidsTruncatedAtPageLimit: 0,
-    piidsSkippedCovered: 0,
-    piidsRecheckedAmbiguous: 0,
+    sourceCoverage: 'bounded_observation_only',
+    provenance: run,
+    rejected: {} as Record<string, number>,
     aborted: false,
     stoppedReason: null as string | null,
   };
@@ -183,54 +144,22 @@ async function main(): Promise<void> {
   if (piidTargets) summary.piidsTargeted = piidTargets.length;
 
   // One API call returns at most PAGE_LIMIT actions for a piid, and the API's `offset` is a PAGE
-  // INDEX, not a record offset — verified live: for an award with totalRecords=212, offset=0 returns
+  // INDEX, not a record offset - verified live: for an award with totalRecords=212, offset=0 returns
   // 100, offset=1 returns 100 different ones, offset=2 returns the remaining 12, offset=3 returns 0.
   // Stepping by PAGE_LIMIT (0, 100, 200...) therefore jumped to page 100 and silently skipped pages
   // 1-99. Large awards exceed a single page, so a full page re-queues the SAME piid at the NEXT PAGE
   // INDEX rather than presenting a truncated history as complete. The cap exists only so a pathological
   // award cannot loop forever; hitting it is reported, never hidden.
   const MAX_PAGE_INDEX_PER_PIID = 40;
-  // Resumption across days: the ledger itself is the progress record, so a piid that already has
-  // transactions is not re-fetched. Reported, not silent. (An award whose fetch aborted mid-way would
-  // be skipped on the next run, which is why aborts are retried above and verified afterwards.)
-  const skipCovered = flag('skip-covered');
-  let coveredPiids = new Set<string>();
-  const resumeOffsets = new Map<string, number>();
-  if (skipCovered && piidTargets && piidTargets.length > 0) {
-    // A piid is skipped only when it is PROVABLY complete: its last fetched page returned fewer than
-    // PAGE_LIMIT records, so its count is not a multiple of PAGE_LIMIT. A count that IS an exact
-    // multiple cannot distinguish "complete" from "aborted after a full page", and the first run left
-    // 104 of 506 covered piids in exactly that ambiguous state -- e.g. N0001917C0001 held 200 of the
-    // 212 actions the source reports. Those are re-checked rather than assumed complete.
-    const rows = await prisma.$queryRaw<{ piid: string; n: number }[]>`
-      SELECT piid, count(*)::int AS n
-      FROM acquisition_award_transaction_revision
-      WHERE piid = ANY(${piidTargets})
-      GROUP BY piid
-    `;
-    for (const row of rows) {
-      if (row.n % PAGE_LIMIT !== 0) {
-        coveredPiids.add(row.piid);
-      } else {
-        // Ambiguous: resume where the stored pages stop rather than re-fetching from page 0. Pages
-        // were walked upward, so what we hold is a contiguous prefix and page n/PAGE_LIMIT is the
-        // first page never stored -- one extra call to confirm a complete award, where re-fetching a
-        // 3,700-row award from page 0 would cost 38.
-        resumeOffsets.set(row.piid, row.n / PAGE_LIMIT);
-      }
-    }
-    summary.piidsSkippedCovered = coveredPiids.size;
-    summary.piidsRecheckedAmbiguous = resumeOffsets.size;
-  }
-  const remainingTargets = piidTargets ? piidTargets.filter((piid) => !coveredPiids.has(piid)) : null;
-  const workQueue: Array<{ piid: string; offset: number }> | null = remainingTargets
-    ? remainingTargets.map((piid) => ({ piid, offset: resumeOffsets.get(piid) ?? 0 }))
-    : null;
+  // Re-fetch from source page zero; physical observation count cannot prove source coverage.
+  // A failed run is not an approved population. Retry with a new run ID and qualify its receipt.
+  const workQueue: Array<{ piid: string; offset: number }> | null = piidTargets
+    ? [...new Set(piidTargets)].map((piid) => ({ piid, offset: 0 })) : null;
 
   try {
     for (let page = 0; page < (workQueue ? workQueue.length : pages); page += 1) {
       const params: Record<string, string> = workQueue
-        ? { offset: String(workQueue[page].offset), piid: workQueue[page].piid }
+        ? { offset: String(workQueue[page]!.offset), piid: workQueue[page]!.piid }
         : {
             // offset is a page index in every mode (see the note above), so it advances by ONE per page.
             offset: String(offsetStart + page),
@@ -245,67 +174,30 @@ async function main(): Promise<void> {
         continue;
       }
       if (workQueue && records.length >= PAGE_LIMIT) {
-        const nextOffset = workQueue[page].offset + 1;
+        const nextOffset = workQueue[page]!.offset + 1;
         if (nextOffset <= MAX_PAGE_INDEX_PER_PIID) {
           // Insert immediately after the current entry, not at the end: this makes pagination
           // depth-first, so a run that dies mid-award leaves at most ONE award partially fetched
           // instead of leaving every award one page short.
-          workQueue.splice(page + 1, 0, { piid: workQueue[page].piid, offset: nextOffset });
+          workQueue.splice(page + 1, 0, { piid: workQueue[page]!.piid, offset: nextOffset });
         } else {
           summary.piidsTruncatedAtPageLimit += 1;
         }
       }
       summary.recordsExamined += records.length;
 
-      // Resolve award family keys through the award table, not through the revision's raw payload:
-      // only a minority of revisions carry a piid inside raw_jsonb, whereas federal_award.piid is
-      // populated and its award_unique_id is exactly the revision's source_record_id.
-      const piids = [...new Set(records.map((r) => r.contractId?.piid?.trim()).filter((p): p is string => !!p))];
-      const awardIdentityByPiid = new Map<string, string>();
-      if (piids.length > 0) {
-        const rows = await prisma.$queryRaw<{ piid: string; identity_key: string }[]>`
-          SELECT a.piid AS piid, r.identity_key AS identity_key
-          FROM federal_award a
-          JOIN acquisition_record_revision r
-            ON r.source_record_id = a.award_unique_id
-           AND r.record_kind = 'award'
-           AND r.source_system = 'usaspending'
-          WHERE a.piid = ANY(${piids})
-        `;
-        for (const row of rows) if (row.piid && !awardIdentityByPiid.has(row.piid)) {
-          awardIdentityByPiid.set(row.piid, row.identity_key);
-        }
-      }
-
-      for (const record of records) {
-        const mapped = mapContractAwardRecord(record, awardIdentityByPiid);
-        if (!mapped) continue;
-        if (!mapped.awardIdentityKey) { summary.noAwardFamily += 1; continue; }
-        if (mapped.signedObligationDelta === null) { summary.noDelta += 1; continue; }
-        summary.mapped += 1;
-        if (!enabled) continue;
-        // The store's interface is string-typed on purpose: dates are ISO strings (its `date()` helper
-        // trims) and the delta is a DECIMAL(20,2), so it is passed as a fixed-2 string rather than a JS
-        // number that could lose precision on a large obligation.
-        const result = await store.appendTransaction({
-          source: 'sam_gov',
-          sourceTransactionId: mapped.sourceTransactionId,
-          awardIdentityKey: mapped.awardIdentityKey,
-          piid: mapped.piid,
-          modificationNumber: mapped.modificationNumber,
-          actionDate: mapped.actionDate ? mapped.actionDate.toISOString() : null,
-          signedObligationDelta:
-            mapped.signedObligationDelta === null ? null : mapped.signedObligationDelta.toFixed(2),
-          sourceUrl: `${SEARCH_URL}?piid=${encodeURIComponent(mapped.piid ?? '')}`,
-          sourceObservedAt: new Date().toISOString(),
-          raw: record as Record<string, unknown>,
-        });
-        if (result.inserted) summary.transactionsInserted += 1;
-        else summary.transactionsExisting += 1;
-      }
+      const piids = [...new Set(records.map((r) => sourceText(r.contractId?.piid)).filter((p): p is string => !!p))];
+      const candidates = piids.length ? await prisma.$queryRaw<AwardCandidate[]>`
+        SELECT DISTINCT a.piid AS piid, a.award_unique_id AS "awardUniqueId", r.identity_key AS "identityKey"
+        FROM federal_award a
+        JOIN acquisition_record_revision r
+          ON r.source_record_id = a.award_unique_id AND r.record_kind = 'award' AND r.source_system = 'usaspending'
+        WHERE a.piid = ANY(${piids})
+      ` : [];
+      await appendSamRecords(records, candidates, run, summary, enabled ? (input) => store.appendTransaction(input) : undefined);
       console.log(
         workQueue
-          ? `call ${page + 1}/${workQueue.length} piid=${workQueue[page].piid} offset=${params.offset} examined=${summary.recordsExamined} inserted=${summary.transactionsInserted}`
+          ? `call ${page + 1}/${workQueue.length} piid=${workQueue[page]!.piid} offset=${params.offset} examined=${summary.recordsExamined} inserted=${summary.transactionsInserted}`
           : `page ${page + 1}/${pages} offset=${params.offset} examined=${summary.recordsExamined} inserted=${summary.transactionsInserted}`,
       );
     }

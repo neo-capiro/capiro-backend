@@ -627,15 +627,45 @@ describe('DefenseResearchService', () => {
     ]);
     const result = await serviceWith({
       acquisitionAwardTransactionRevision: { findMany },
+      $queryRaw: jest.fn().mockResolvedValue([]),
     }).getAcquisitionActions('fpds:award:A1');
     expect(findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ distinct: ['transactionIdentityKey'] }),
+      expect.objectContaining({ distinct: ['transactionIdentityKey'], where: expect.objectContaining({ sourceSystem: { not: 'sam_gov' } }) }),
     );
     expect(result[0]).toMatchObject({
       modificationNumber: 'P00002',
       signedObligationDelta: '-42.50',
       correctsIdentityKey: 'fpds:transaction:T1:old',
     });
+  });
+
+  test('SAM actions use the qualified projection, preserve signed values, and never expose raw payloads', async () => {
+    const at = new Date('2026-10-01T00:00:00Z');
+    const findMany = jest.fn().mockResolvedValue([]);
+    const queryRaw = jest.fn().mockResolvedValue([{
+      selectedActions: 1n, legacyRows: 2n, unresolvedRows: 0n,
+      transactionIdentityKey: 'sam_gov|modification|fixture', awardIdentityKey: 'usaspending|award|fixture',
+      parentAwardIdentityKey: null, sourceSystem: 'sam_gov', sourceTransactionId: 'fixture', piid: '1',
+      modificationNumber: '0', actionDate: at, signedObligationDelta: { toString: () => '-80.00' },
+      signedOutlayDelta: null, correctsIdentityKey: null, supersedesId: 'prior-observation', sourceUrl: null,
+      sourceObservedAt: at, recordedAt: at, contractId: 'sam-contract-action/v2', runId: 'fixture-run',
+      producerCommit: 'a'.repeat(40), imageDigest: `sha256:${'b'.repeat(64)}`,
+    }]);
+    const result = await serviceWith({ acquisitionAwardTransactionRevision: { findMany }, $queryRaw: queryRaw })
+      .getAcquisitionActions('usaspending|award|fixture');
+    expect(queryRaw.mock.calls[0]![0].join('?')).toContain('LEFT JOIN v_defproc_action_v2');
+    expect(queryRaw.mock.calls[0]!.slice(1)).toEqual(['usaspending|award|fixture']);
+    expect(result[0]).toMatchObject({ signedObligationDelta: '-80.00', signedOutlayDelta: null,
+      raw: { qualification: { contract: 'sam-contract-action/v2', runId: 'fixture-run', coverage: { state: 'partial', legacyRows: '2' } } } });
+    expect(JSON.stringify(result)).not.toContain('sourcePayload');
+    expect(findMany.mock.calls[0]![0].where.sourceSystem).toEqual({ not: 'sam_gov' });
+  });
+
+  test('an empty or entirely unresolved SAM population is unavailable, not an empty qualified history', async () => {
+    const queryRaw = jest.fn().mockResolvedValue([{ selectedActions: null, legacyRows: null, unresolvedRows: null }]);
+    await expect(serviceWith({ acquisitionAwardTransactionRevision: { findMany: jest.fn().mockResolvedValue([]) }, $queryRaw: queryRaw })
+      .getAcquisitionActions('usaspending|award|fixture')).rejects.toThrow('Qualified SAM acquisition actions are unavailable');
+    expect(queryRaw).toHaveBeenCalledTimes(1);
   });
 
   test('returns open acquisition coverage gaps as gaps rather than fabricated zeros', async () => {
