@@ -33,8 +33,10 @@ export const originalActionPins = {
     comments: 'bed74dd46c72508c725d850ae96c2719137f85d87c2cbdb4c8984f740ac7c8f4',
   },
   barrel: {
-    declarations: '1276c9abe859c65c0afca391edb730d6879317d24b1331018263031a3df99623',
-    comments: 'dec43d3b8cc8ae8c15557f32955ab7ee0c9085d3a131e15a63479cd41568f897',
+    // Additive tracker-metrics export; canonical classifier/selector pins are unchanged.
+    declarations: '78b4abd64afedb79eea86413a75c4eeb7721eb7b49894b9c504ae8c2c5e24e82',
+    // Actual main9ce6ee2 already has this comment shape; metrics changes no barrel comments.
+    comments: '7f96fe07834bfb1c2013a59faeb2738240dfa8a14b655857a452e8ab07d3baea',
   },
   classifierStatements: 'ddcfbfd03e51e8a2a6c200b120ff04ca3ca1e8e50257262ec1d5745bd370af8f',
   classifierRules: 'bae33f1fd12935a867cead917e27992bb05b0a2bf5f242ab38cb95c258876496',
