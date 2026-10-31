@@ -1440,7 +1440,7 @@ export class EngagementService {
           orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
           ...(take ? { take } : {}),
         });
-        return this.decorateMeetings(tx, ctx, rows);
+        return projectMeetingListRows(await this.decorateMeetings(tx, ctx, rows));
       }
 
       await assertMeetingClient(tx, ctx, query.clientId);
@@ -1474,7 +1474,7 @@ export class EngagementService {
         orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
         ...(take ? { take } : {}),
       });
-      return this.decorateMeetings(tx, ctx, rows);
+      return projectMeetingListRows(await this.decorateMeetings(tx, ctx, rows));
     });
   }
 
@@ -10790,6 +10790,44 @@ function meetingInclude() {
       orderBy: [{ dueDate: 'asc' as const }, { createdAt: 'desc' as const }],
     },
   };
+}
+
+/**
+ * D5: a calendar LIST row carries artifact metadata only.
+ *
+ * `decorateMeetings` already projects notes/debriefs through
+ * projectMeetingArtifactMetadata (no bodies). Preps were still full rows, so their
+ * summary/agenda/talking points/risks/follow-ups/generatedFrom travelled in every list
+ * payload (~93 KB for a two-meeting calendar once preps existed). The list keeps the
+ * identity, lifecycle status and timestamps the list consumers read; the body stays
+ * behind the authorised detail read (getMeeting), which is unchanged.
+ */
+const MEETING_LIST_PREP_FIELDS = [
+  'id',
+  'meetingId',
+  'clientId',
+  'status',
+  'createdAt',
+  'updatedAt',
+  'sharedAt',
+  'sharedByUserId',
+  'provider',
+  'model',
+] as const;
+function projectMeetingListPrepMetadata(prep: object): Record<string, unknown> {
+  const source = prep as Record<string, unknown>;
+  return Object.fromEntries(
+    MEETING_LIST_PREP_FIELDS.filter((field) => field in source).map((field) => [
+      field,
+      source[field],
+    ]),
+  );
+}
+function projectMeetingListRows<T extends { preps: unknown[] }>(rows: T[]): T[] {
+  return rows.map((row) => ({
+    ...row,
+    preps: row.preps.map((prep) => projectMeetingListPrepMetadata(prep as object)),
+  })) as T[];
 }
 
 // The four prep list columns whose canonical item arms are "a plain string" or
