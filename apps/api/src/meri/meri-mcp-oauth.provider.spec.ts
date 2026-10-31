@@ -4,7 +4,10 @@ import { decryptSecret } from '../common/secret-crypto.js';
 function make(managed = true) {
   const key = Buffer.alloc(32, 7);
   const tx = {
-    clioMcpServer: { updateMany: jest.fn(async () => ({ count: 1 })) },
+    clioMcpServer: {
+      findFirst: jest.fn(async (): Promise<{ updatedAt: Date } | null> => ({ updatedAt: new Date('2026-10-31T00:00:00Z') })),
+      updateMany: jest.fn(async () => ({ count: 1 })),
+    },
     clioMcpOAuthCredential: { updateMany: jest.fn(async () => ({ count: 1 })) },
   };
   const provider = new DbOAuthClientProvider({
