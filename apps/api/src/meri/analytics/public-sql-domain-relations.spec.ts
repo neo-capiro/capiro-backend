@@ -6,14 +6,21 @@ import { describeCapiroData, queryCapiroData } from './public-sql-query.js';
 
 const additions = ['state_bills', 'committee_hearings', 'committee_hearing_bills', 'legislative_agenda_items',
   'state_bill_calendar_events', 'federal_grants', 'sam_opportunities'];
+const viewMatrix = JSON.parse(readFileSync(resolve(__dirname, '../../../../../docs/public-sql-coverage-20261031/VIEW-MATRIX.json'), 'utf8')) as {
+  relations: { logicalName: string; sourceTable: string; viewName: string;
+    columns: { name: string; type: string; nullable: boolean; parameterType?: string; unit?: string }[];
+    primaryKey: string[]; sourcePredicate: string | null; dependentTables: string[] }[];
+};
 const compile = (sql: string, parameters: unknown[] = []) => compilePublicSql({ sql, parameters });
 
 describe('public legislative and opportunity SQL coverage', () => {
   it.each(additions)('%s projects only scalar columns with schema-backed types, nullability and unique grain', (name) => {
     const relation = publicSqlRelation(name)!;
     const schema = readFileSync(resolve(__dirname, '../../../prisma/schema.prisma'), 'utf8');
+    const view = viewMatrix.relations.find((entry) => entry.logicalName === name);
+    const sourceTable = view?.sourceTable ?? relation.table;
     const block = [...schema.matchAll(/model \w+ \{([\s\S]*?)\n\}/g)]
-      .map((match) => match[1]!).find((body) => body.includes(`@@map("${relation.table}")`))!;
+      .map((match) => match[1]!).find((body) => body.includes(`@@map("${sourceTable}")`))!;
     expect(block).toBeDefined();
     const fields = [...block.matchAll(/^\s+(\w+)\s+(String|Int|Float|Boolean|DateTime)(\??)(\[\])?([^\n]*)/gm)]
       .map((match) => ({ name: match[1]!, type: match[2]!, nullable: match[3] === '?', array: !!match[4],
@@ -52,13 +59,29 @@ describe('public legislative and opportunity SQL coverage', () => {
     expect(Buffer.byteLength(JSON.stringify(describeCapiroData({})))).toBeLessThan(262144);
   });
 
-  it.each(['committee_hearings', 'committee_hearing_bills', 'legislative_agenda_items'])
-   ('%s cannot query closed events or aliases even without a parent join', (name) => {
+  it.each(['committee_hearings', 'committee_hearing_bills', 'legislative_agenda_items', 'state_bill_calendar_events'])
+   ('%s requires the restricted DB projection without raw table fallback', (name) => {
+      const relation = publicSqlRelation(name)!;
+      const view = viewMatrix.relations.find((entry) => entry.logicalName === name)!;
       const query = compile(`SELECT r.${publicSqlRelation(name)!.primaryKey[0]} FROM ${name} r`);
-      expect(query.sql).toMatch(/canonical_hearing_id\s+IS NULL/);
-      expect(query.sql).toMatch(/visibility\s*=\s*'public'/);
-      if (name !== 'committee_hearings') expect(query.sql).toMatch(/hearing_id\s+IN\s*\(SELECT/);
-      expect(query.sql).toContain('"public"."committee_hearing"');
+      expect(relation.table).toBe(`meri_public_${name}`);
+      expect(relation.table).toBe(view.viewName);
+      expect(view.columns).toEqual(relation.fields.map(({ name, type, nullable, parameterType, unit }) =>
+        ({ name, type, nullable, ...(parameterType ? { parameterType } : {}), ...(unit ? { unit } : {}) })));
+      expect(view.primaryKey).toEqual(relation.primaryKey);
+      expect(query.sql).toContain(`"public"."${view.viewName}"`);
+      expect(query.sql).not.toContain(`"public"."${view.sourceTable}"`);
+      expect(query.sql).not.toContain('canonical_hearing_id');
+      expect(query.sql).not.toContain('visibility');
+      expect(relation.predicate).toBeUndefined();
+      if (name === 'state_bill_calendar_events') expect(view.sourcePredicate).toBeNull();
+      else {
+        expect(view.sourcePredicate).toContain("canonical_hearing_id IS NULL AND visibility = 'public'");
+        if (name !== 'committee_hearings') {
+          expect(view.sourcePredicate).toContain('hearing_id IN (SELECT id FROM public.committee_hearing');
+          expect(view.dependentTables).toEqual(['committee_hearing']);
+        }
+      }
     });
 
   it('joins state agenda keys through their declared namespace and keeps missing bill identities nullable', () => {
@@ -120,6 +143,7 @@ describe('public legislative and opportunity SQL coverage', () => {
     'SELECT t.id FROM hearing_follow t',
     'SELECT t.id FROM client_objectives t',
     'SELECT h.id FROM public.committee_hearing h',
+    'SELECT h.id FROM meri_public_committee_hearings h',
     'SELECT b.id FROM state_bills b INNER JOIN congress_bills c ON c.id=b.id',
     'SELECT a.id FROM legislative_agenda_items a INNER JOIN congress_bills b ON b.id=a.state_bill_key',
     'SELECT b.id FROM state_bills b INNER JOIN state_bills c ON b.identifier=c.identifier',

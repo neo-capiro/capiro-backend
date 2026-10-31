@@ -22,10 +22,8 @@ const uuid = (name: string, nullable = false): PublicSqlField => ({ ...f(name, '
 const rel = (fields: string[], referencedRelation: string, referencedFields: string[], integrity: 'enforced' | 'soft' = 'enforced'): PublicSqlRelationship =>
   ({ fields, referencedRelation, referencedFields, cardinality: 'many_to_one', integrity });
 const unknown = 'Published metadata does not establish active grants, populated rows, ingestion completeness or source freshness.';
-// Fixed projection policy, never supplied by the model. Agenda projections also require
-// SELECT on committee_hearing; do not expose closed-session or retained-alias agendas.
-const publicHearing = "canonical_hearing_id IS NULL AND visibility = 'public'";
-const publicAgenda = `hearing_id IN (SELECT id FROM public.committee_hearing WHERE ${publicHearing})`;
+// Hearing storage views enforce public/canonical rows as well as the curated columns.
+// DB definitions and privileges are an explicit deployment dependency; no raw-table fallback.
 const budgetLimit = 'Position cycle identifies the asserting book/stage; asserted FY identifies the year funded. PB outyears are not that future year’s submitted request. Filter value_kind and cycle before summing. Use the PE timeline for consolidated/current/enacted funding.';
 const budgetFields = (): PublicSqlField[] => [
   f('position_cycle', 'string', false, 'Budget book/stage that asserted this amount, e.g. pb_fy2026.'),
@@ -92,7 +90,7 @@ export const PUBLIC_SQL_RELATIONS: readonly PublicSqlRelation[] = [
     'Status is derived. status_at is the legislative event time; synced_at is ingestion time, not proof of current official status.',
     'Use the bill source reader for decisive text or legal passages. Coverage varies by state and session.',
   ], 'synced_at'),
-  relation('committee_hearings', 'committee_hearing', 'Public canonical federal and state committee events, including hearings, markups and meetings.', [
+  relation('committee_hearings', 'meri_public_committee_hearings', 'Public canonical federal and state committee events, including hearings, markups and meetings.', [
     f('id', 'string', false, 'Stored hearing identity; text key, not necessarily a UUID.'),
     f('geographic_jurisdiction', 'string', true, 'US for federal; state code for state events. Legacy null is treated as federal by the existing reader.'),
     f('legislative_session', 'string', true), f('congress', 'integer', true), f('chamber'), f('committee_name'),
@@ -107,16 +105,16 @@ export const PUBLIC_SQL_RELATIONS: readonly PublicSqlRelation[] = [
     'Closed/private events and retained aliases are excluded. Counts are canonical public events, not unique bills or agenda assertions.',
     'Filter type and event_status explicitly; postponed/canceled events remain records. NULL starts_at does not mean midnight or cancellation.',
     'synced_at and calendar_checked_at are observation times; inspect calendar_check_state and last_official_update_at. No national/state calendar completeness is asserted.',
-  ], 'synced_at', publicHearing),
-  relation('committee_hearing_bills', 'committee_hearing_bill', 'Legacy federal bill agenda associations for public canonical committee events.', [
+  ], 'synced_at'),
+  relation('committee_hearing_bills', 'meri_public_committee_hearing_bills', 'Legacy federal bill agenda associations for public canonical committee events.', [
     f('id'), f('hearing_id'), f('bill_id'), f('congress', 'integer'), f('synced_at', 'timestamp'),
   ], ['id'], [rel(['hearing_id'], 'committee_hearings', ['id'], 'soft'), rel(['bill_id'], 'congress_bills', ['id'], 'soft')], [
     'One stored association per unique (hearing_id, bill_id); id is the row identity.',
     'Federal bill IDs are soft references; LEFT JOIN preserves an agenda association when the bill has not been ingested.',
     'One bill can appear at several events. Deduplicate bill_id before counting bills and hearing_id before counting events.',
     'This legacy association has no active/revision marker. Do not union its counts with legislative_agenda_items; current source-backed agendas use that relation.',
-  ], 'synced_at', publicAgenda),
-  relation('legislative_agenda_items', 'legislative_agenda_item', 'Source-backed federal/state agenda assertions for public canonical committee events.', [
+  ], 'synced_at'),
+  relation('legislative_agenda_items', 'meri_public_legislative_agenda_items', 'Source-backed federal/state agenda assertions for public canonical committee events.', [
     uuid('id'), f('hearing_id'), f('item_key'), f('position', 'integer'), f('kind'), f('title'),
     f('bill_scope', 'string', true), f('state_bill_key', 'string', true), f('federal_bill_id', 'string', true),
     f('source_url'), f('active', 'boolean'), f('revision', 'integer'),
@@ -129,8 +127,8 @@ export const PUBLIC_SQL_RELATIONS: readonly PublicSqlRelation[] = [
     'Filter active=true for current agenda membership and bill_scope for state/federal bills. Non-bill items and withdrawn assertions are retained.',
     'State and federal keys are separate namespaces; never join a state key to congress_bills. Bill references are soft and may lack a local bill row.',
     'An agenda item is not a unique bill or hearing. Deduplicate the intended canonical key before aggregation; do not add legacy association counts.',
-  ], 'last_seen_at', publicAgenda),
-  relation('state_bill_calendar_events', 'state_bill_calendar_event', 'Per-bill LegiScan calendar assertions: hearings, executive sessions and floor events.', [
+  ], 'last_seen_at'),
+  relation('state_bill_calendar_events', 'meri_public_state_bill_calendar_events', 'Per-bill LegiScan calendar assertions: hearings, executive sessions and floor events.', [
     uuid('id'), f('bill_key'), f('event_key'), f('event_type'), f('date', 'date'),
     f('time', 'string', true, 'Source wall-clock text; no authoritative timezone or instant is available in this relation.'),
     f('location', 'string', true), f('present', 'boolean'), f('first_seen_at', 'timestamp'), f('last_synced_at', 'timestamp'),
