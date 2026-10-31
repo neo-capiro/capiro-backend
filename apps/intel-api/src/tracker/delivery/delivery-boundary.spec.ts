@@ -42,3 +42,73 @@ describe('retained outbound delivery boundary', () => {
     expect(email.sendReport).not.toHaveBeenCalled();
   });
 });
+
+describe('explicit operational delivery recovery', () => {
+  const ctx = { tenantId: 'tenant-a', clerkUserId: 'owner-a', role: null };
+  function setup() {
+    const row = {
+      recipient: {},
+      channel: 'email',
+      delivery: { kind: 'bill_keyword', contentHash: 'reviewed-hash' },
+    };
+    const tx = {
+      $queryRaw: jest.fn(),
+      legiWatchDeliveryRecipient: {
+        findFirst: jest.fn().mockResolvedValue(row),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    const access = {
+      authorize: jest.fn(),
+      flags: { isEnabled: jest.fn().mockResolvedValue(true) },
+      folders: { withActor: jest.fn(async (_ctx, fn) => fn(tx)) },
+    };
+    const service = new DeliveryService(access as never, {} as never, {} as never);
+    return { service, tx };
+  }
+  it('rechecks a held delivery before allowing the worker to retry', async () => {
+    const { service, tx } = setup();
+    const dispatch = jest.spyOn(service, 'checkDispatch').mockResolvedValue(undefined);
+    await service.retryHeld(ctx, 'recipient-a', {
+      reason: 'Reviewed current source and destination',
+      contentHash: 'reviewed-hash',
+    });
+    expect(dispatch).toHaveBeenCalled();
+    expect(tx.legiWatchDeliveryRecipient.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          tenantId: ctx.tenantId,
+          id: 'recipient-a',
+          state: 'held',
+          delivery: expect.objectContaining({ ownerClerkId: ctx.clerkUserId }),
+        }),
+      }),
+    );
+    expect(tx.legiWatchDeliveryRecipient.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ state: 'queued', dispatchStartedAt: null }),
+      }),
+    );
+  });
+  it('requires an explicit outcome and records confirmed acceptance without resending', async () => {
+    const { service, tx } = setup();
+    await expect(
+      service.reconcile(ctx, 'recipient-a', { reason: 'Provider audit' }),
+    ).rejects.toThrow('EXPLICIT_RECONCILIATION_REQUIRED');
+    expect(tx.legiWatchDeliveryRecipient.updateMany).not.toHaveBeenCalled();
+    await service.reconcile(ctx, 'recipient-a', {
+      reason: 'Provider audit',
+      outcome: 'provider_accepted',
+      providerId: 'synthetic-receipt',
+    });
+    expect(tx.legiWatchDeliveryRecipient.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { tenantId: ctx.tenantId, id: 'recipient-a', state: 'uncertain' },
+        data: expect.objectContaining({
+          state: 'provider_accepted',
+          providerId: 'synthetic-receipt',
+        }),
+      }),
+    );
+  });
+});

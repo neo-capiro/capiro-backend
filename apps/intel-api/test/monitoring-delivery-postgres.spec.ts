@@ -39,6 +39,18 @@ describe('Monitoring rules and recipients: PostgreSQL authorization and delivery
     now = new Date(),
     cutoff = now.toISOString().slice(0, 10);
   let folderId: string;
+  const seedContact = (input: { name: string; email: string; verified: boolean }) =>
+    prisma.withTenant(tenant, (tx) =>
+      tx.legiWatchReportContact.create({
+        data: { ...input, email: input.email.toLowerCase(), tenantId: tenant, ownerClerkId: actor },
+      }),
+    );
+  const seedList = (input: { name: string; private?: boolean; contactIds: string[] }) =>
+    prisma.withTenant(tenant, (tx) =>
+      tx.legiWatchReportList.create({
+        data: { ...input, private: input.private ?? true, tenantId: tenant, ownerClerkId: actor },
+      }),
+    );
   beforeAll(async () => {
     if (!process.env.DATABASE_URL?.includes('localhost:55462') && process.env.CI !== 'true')
       throw new Error('Disposable PostgreSQL URL required');
@@ -81,7 +93,7 @@ describe('Monitoring rules and recipients: PostgreSQL authorization and delivery
     send.mockResolvedValue({ outcome: 'accepted', messageId: 'synthetic-provider-id' });
   });
   it('enforces tenant RLS and private-list visibility with a non-bypass role', async () => {
-    const list = await recipients.saveList(ctx, { name: 'Private', private: true, contactIds: [] });
+    const list = await seedList({ name: 'Private', private: true, contactIds: [] });
     const read = (tenantId: string, actorId: string) =>
       prisma.$transaction(async (tx) => {
         await tx.$executeRawUnsafe(`SET LOCAL ROLE ${lowRole}`);
@@ -96,13 +108,13 @@ describe('Monitoring rules and recipients: PostgreSQL authorization and delivery
   });
   it('preserves aliases and empty lists, and deduplicates exact Bcc destinations', async () => {
     const email = `alias-${suffix}@example.invalid`;
-    const a = await recipients.saveContact(ctx, { name: 'Alias one', email, verified: true }),
-      b = await recipients.saveContact(ctx, {
+    const a = await seedContact({ name: 'Alias one', email, verified: true }),
+      b = await seedContact({
         name: 'Alias two',
         email: email.toUpperCase(),
         verified: true,
       });
-    const list = await recipients.saveList(ctx, {
+    const list = await seedList({
       name: 'Two identities',
       private: false,
       contactIds: [a.id, b.id],
@@ -113,7 +125,7 @@ describe('Monitoring rules and recipients: PostgreSQL authorization and delivery
     expect(rows).toHaveLength(1);
     expect(rows[0]!.contacts).toHaveLength(2);
     expect(rows[0]!.role).toBe('bcc');
-    const empty = await recipients.saveList(ctx, { name: 'Empty', contactIds: [] });
+    const empty = await seedList({ name: 'Empty', contactIds: [] });
     expect(
       await folders.withActor(ctx, (tx) =>
         recipients.resolve(tx, ctx, [{ kind: 'list', id: empty.id, role: 'to' }]),

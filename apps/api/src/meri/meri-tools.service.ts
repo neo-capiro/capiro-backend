@@ -845,7 +845,7 @@ export class MeriToolsService {
             maxItems: 50,
             items: obj(
               {
-                kind: str('news, budget, personnel or research'),
+                kind: { type: 'string', enum: ['research'] },
                 id: str('Exact source ID'),
                 revision: str('Exact revision hash'),
               },
@@ -857,7 +857,7 @@ export class MeriToolsService {
             maxItems: 150,
             items: obj(
               {
-                kind: str('Source kind'),
+                kind: { type: 'string', enum: ['research'] },
                 id: str('Source ID'),
                 revision: str('Source hash'),
                 locator: str('Exact section or available-text'),

@@ -46,11 +46,20 @@ describe('retained delivery and research routes', () => {
       'legiwatch/monitoring',
     );
     expect(routes(DeliveryController)).toEqual(
-      expect.arrayContaining(['runs/:id', 'runs/:id/compose', 'runs/:id/send', 'recipients']),
+      expect.arrayContaining([
+        'runs/:id',
+        'runs/:id/compose',
+        'runs/:id/send',
+        'recipients',
+        'deliveries/:id/retry',
+        'deliveries/:id/reconcile',
+      ]),
     );
     expect(
       routes(DeliveryController).some((path) =>
-        /subscriptions|promote|generate|duplicate/.test(path),
+        /subscriptions|promote|generate|duplicate|contacts|lists|record-bill-context|export/.test(
+          path,
+        ),
       ),
     ).toBe(false);
     expect(routes(ResearchController).some((path) => path.startsWith('imports'))).toBe(false);

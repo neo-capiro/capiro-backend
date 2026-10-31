@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { CurrentTenant } from '../../auth/current-tenant.decorator.js';
 import { TenantGuard } from '../../auth/tenant.guard.js';
 import type { WorkspaceTenantContext } from '../../auth/tenant-context.js';
@@ -18,22 +18,7 @@ export class DeliveryController {
     readonly recipients: RecipientsService,
     readonly delivery: DeliveryService,
   ) {}
-  @Get('record-bill-context') recordBillContext(
-    @CurrentTenant() ctx: WorkspaceTenantContext,
-    @Query('billId') billId: string,
-    @Query('clientId') clientId?: string,
-    @Query('folderId') folderId?: string,
-  ) {
-    if (!this.delivery.recordBriefs) return { events: [], briefs: [], complete: false };
-    return this.delivery.recordBriefs.workflow.billContext(ctx, billId, clientId, folderId);
-  }
   @Get('runs/:id') run(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('id') id: string) {
-    return this.reports.run(ctx, id);
-  }
-  @Get('runs/:id/export') export(
-    @CurrentTenant() ctx: WorkspaceTenantContext,
-    @Param('id') id: string,
-  ) {
     return this.reports.run(ctx, id);
   }
   @Post('runs/:id/compose') compose(
@@ -56,6 +41,10 @@ export class DeliveryController {
   ) {
     return this.delivery.history(ctx, id);
   }
+  // Operational recovery for the retained briefing, hearing and keyword queue.
+  // These endpoints currently have no frontend caller: held work requires a
+  // fresh authorization check, and uncertain sends require an explicit outcome
+  // so the worker cannot automatically send the same message twice.
   @Post('deliveries/:id/retry') retryDelivery(
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('id') id: string,
@@ -72,26 +61,6 @@ export class DeliveryController {
   }
   @Get('recipients') directory(@CurrentTenant() ctx: WorkspaceTenantContext) {
     return this.recipients.directory(ctx);
-  }
-  @Post('contacts') contact(@CurrentTenant() ctx: WorkspaceTenantContext, @Body() body: unknown) {
-    return this.recipients.saveContact(ctx, body);
-  }
-  @Put('contacts/:id') editContact(
-    @CurrentTenant() ctx: WorkspaceTenantContext,
-    @Param('id') id: string,
-    @Body() body: unknown,
-  ) {
-    return this.recipients.saveContact(ctx, body, id);
-  }
-  @Post('lists') listCreate(@CurrentTenant() ctx: WorkspaceTenantContext, @Body() body: unknown) {
-    return this.recipients.saveList(ctx, body);
-  }
-  @Put('lists/:id') listEdit(
-    @CurrentTenant() ctx: WorkspaceTenantContext,
-    @Param('id') id: string,
-    @Body() body: unknown,
-  ) {
-    return this.recipients.saveList(ctx, body, id);
   }
 }
 
