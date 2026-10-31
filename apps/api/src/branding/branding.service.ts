@@ -1,6 +1,11 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { S3Client, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  GetObjectCommand,
+  HeadObjectCommand,
+  type GetObjectCommandOutput,
+} from '@aws-sdk/client-s3';
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'node:crypto';
@@ -12,6 +17,40 @@ import { PrismaService } from '../prisma/prisma.service.js';
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp']);
 const MAX_BYTES = 2 * 1024 * 1024;
 const UPLOAD_TTL_MS = 300_000;
+
+/** Read one validated object within the upload byte contract and always release its stream. */
+async function boundedLogoBytes(
+  object: GetObjectCommandOutput,
+  contentType: string,
+): Promise<Buffer> {
+  const body = object.Body;
+  if (!(body instanceof Readable)) {
+    if (body) await body.transformToWebStream().cancel();
+    throw new BadRequestException('Branding unavailable');
+  }
+  const chunks: Buffer[] = [];
+  let bytes = 0;
+  try {
+    if (
+      object.ContentType !== contentType ||
+      !Number.isSafeInteger(object.ContentLength) ||
+      !object.ContentLength ||
+      object.ContentLength < 1 ||
+      object.ContentLength > MAX_BYTES
+    )
+      throw new BadRequestException('Invalid logo size or type');
+    for await (const chunk of body) {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      bytes += buffer.length;
+      if (bytes > MAX_BYTES) throw new BadRequestException('Logo is too large');
+      chunks.push(buffer);
+    }
+    if (!bytes || bytes !== object.ContentLength) throw new BadRequestException('Incomplete logo');
+    return Buffer.concat(chunks, bytes);
+  } finally {
+    body.destroy();
+  }
+}
 
 function extension(contentType: string): string | null {
   return ALLOWED_MIME.has(contentType)
@@ -111,14 +150,14 @@ export class BrandingService {
     ) {
       throw new NotFoundException('Firm logo not found');
     }
-    const object = await this.s3
-      .send(new GetObjectCommand({ Bucket: this.bucket, Key: tenant.logoS3Key }))
-      .catch(() => null);
-    if (!object?.Body) throw new NotFoundException('Firm logo not found');
-    return {
-      contentType,
-      body: Buffer.from(await object.Body.transformToByteArray()),
-    };
+    try {
+      const object = await this.s3.send(
+        new GetObjectCommand({ Bucket: this.bucket, Key: tenant.logoS3Key }),
+      );
+      return { contentType, body: await boundedLogoBytes(object, contentType) };
+    } catch {
+      throw new NotFoundException('Firm logo not found');
+    }
   }
 
   /**
@@ -225,32 +264,16 @@ export class BrandingService {
   }
 
   /** Capture approved bytes in the frozen share payload, including for legacy mutable logo keys. */
-  async freezeLogoForSharing(tenantId: string, key: string, contentType: string): Promise<{ dataUrl: string }> {
+  async freezeLogoForSharing(
+    tenantId: string,
+    key: string,
+    contentType: string,
+  ): Promise<{ dataUrl: string }> {
     if (!this.bucket || !ownedLogoKey(tenantId, key, contentType, true))
       throw new BadRequestException('Branding unavailable');
     const result = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
-    const body = result.Body;
-    if (!(body instanceof Readable)) {
-      // Node's S3 runtime returns a Readable; discard any other SDK stream before refusing.
-      if (body) await body.transformToWebStream().cancel();
-      throw new BadRequestException('Branding unavailable');
-    }
-    const chunks: Buffer[] = [];
-    let bytes = 0;
-    try {
-      if (result.ContentType !== contentType || !result.ContentLength || result.ContentLength > MAX_BYTES)
-        throw new BadRequestException('Invalid logo size or type');
-      for await (const chunk of body) {
-        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-        bytes += buffer.length;
-        if (bytes > MAX_BYTES) throw new BadRequestException('Logo is too large');
-        chunks.push(buffer);
-      }
-      if (!bytes || bytes !== result.ContentLength) throw new BadRequestException('Incomplete logo');
-      return { dataUrl: `data:${contentType};base64,${Buffer.concat(chunks).toString('base64')}` };
-    } finally {
-      body.destroy();
-    }
+    const bytes = await boundedLogoBytes(result, contentType);
+    return { dataUrl: `data:${contentType};base64,${bytes.toString('base64')}` };
   }
 
   private async signedGetUrl(s3Key: string, ttlSeconds = 300): Promise<string | null> {

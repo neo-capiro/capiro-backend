@@ -45,10 +45,14 @@ export class BrandingController {
    */
   @Get('logo')
   async logo(@CurrentTenant() ctx: TenantContext, @Res() res: Response) {
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader(
+      'Content-Security-Policy',
+      "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'",
+    );
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     const logo = await this.service.readLogo(ctx);
     res.setHeader('Content-Type', logo.contentType);
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Cache-Control', 'private, max-age=300');
     res.send(logo.body);
   }
 

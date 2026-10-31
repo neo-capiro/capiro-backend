@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { Readable } from 'node:stream';
 
 jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class {} }));
 jest.mock(
@@ -16,11 +17,9 @@ jest.mock(
   }),
   { virtual: true },
 );
-jest.mock(
-  '@aws-sdk/s3-presigned-post',
-  () => ({ createPresignedPost: jest.fn() }),
-  { virtual: true },
-);
+jest.mock('@aws-sdk/s3-presigned-post', () => ({ createPresignedPost: jest.fn() }), {
+  virtual: true,
+});
 jest.mock(
   '@aws-sdk/s3-request-presigner',
   () => ({ getSignedUrl: jest.fn(async () => 'https://signed.invalid') }),
@@ -29,6 +28,7 @@ jest.mock(
 
 import { NotFoundException } from '@nestjs/common';
 import { BrandingService } from './branding.service.js';
+import { BrandingController } from './branding.controller.js';
 
 /**
  * M1 (firm half): the firm logo is served as bytes to the signed-in session, using the same
@@ -62,7 +62,9 @@ function fixture(
   );
   const send: any = (service as any).s3.send;
   send.mockResolvedValue({
-    Body: { transformToByteArray: async () => new Uint8Array(PNG) },
+    Body: Readable.from([PNG]),
+    ContentType: row.logoContentType,
+    ContentLength: PNG.length,
   });
   return { service, tx, send };
 }
@@ -134,9 +136,7 @@ describe('firm logo stream — M1 stable, session-authenticated bytes', () => {
 
     const failing = fixture();
     failing.send.mockRejectedValue(new Error('AccessDenied'));
-    await expect(failing.service.readLogo(ctx as never)).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(failing.service.readLogo(ctx as never)).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('keeps the branding payload’s own behaviour: the DTO switch is a separate change', async () => {
@@ -145,5 +145,71 @@ describe('firm logo stream — M1 stable, session-authenticated bytes', () => {
     // Until the accepted DTO switch ships, `getBranding` still reports a signed URL and the
     // new bytes route is additive, so a release can deploy this endpoint in either order.
     expect(branding?.logoUrl).toBe('https://signed.invalid');
+  });
+
+  it.each([
+    ['empty', [], 0, 'image/png'],
+    ['truncated', [PNG], PNG.length + 1, 'image/png'],
+    ['oversize metadata', [PNG], 2 * 1024 * 1024 + 1, 'image/png'],
+    ['oversize stream', [Buffer.alloc(2 * 1024 * 1024), PNG], 2 * 1024 * 1024, 'image/png'],
+    ['wrong type', [PNG], PNG.length, 'text/html'],
+    ['missing length', [PNG], undefined, 'image/png'],
+  ])('refuses %s and disposes the object body', async (_name, chunks, length, type) => {
+    const { service, send } = fixture();
+    const body = Readable.from(chunks as Buffer[]);
+    send.mockResolvedValue({ Body: body, ContentType: type, ContentLength: length });
+    await expect(service.readLogo(ctx as never)).rejects.toThrow('Firm logo not found');
+    expect(body.destroyed).toBe(true);
+  });
+
+  it('maps a partial stream read failure to an opaque404 and releases it', async () => {
+    const { service, send } = fixture();
+    const body = Readable.from(
+      (async function* () {
+        yield PNG;
+        throw new Error('private storage detail');
+      })(),
+    );
+    send.mockResolvedValue({ Body: body, ContentType: 'image/png', ContentLength: PNG.length * 2 });
+    await expect(service.readLogo(ctx as never)).rejects.toThrow('Firm logo not found');
+    expect(body.destroyed).toBe(true);
+  });
+
+  it('discards a non-Node body instead of trying an unbounded convenience read', async () => {
+    const { service, send } = fixture();
+    const cancel = jest.fn(async () => undefined);
+    send.mockResolvedValue({ Body: { transformToWebStream: () => ({ cancel }) } });
+    await expect(service.readLogo(ctx as never)).rejects.toBeInstanceOf(NotFoundException);
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not disguise a database failure as a missing object', async () => {
+    const { service, tx, send } = fixture();
+    tx.tenant.findUnique.mockRejectedValueOnce(new Error('database unavailable'));
+    await expect(service.readLogo(ctx as never)).rejects.toThrow('database unavailable');
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('serves benign SVG bytes with an inert no-store response policy', async () => {
+    const svg = Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8"/></svg>',
+    );
+    const service = {
+      readLogo: jest.fn(async () => ({ contentType: 'image/svg+xml', body: svg })),
+    };
+    const controller = new BrandingController(service as never);
+    const headers = new Map<string, string>();
+    const res = {
+      setHeader: (name: string, value: string) => headers.set(name, value),
+      send: jest.fn(),
+    };
+    await controller.logo(ctx as never, res as never);
+    expect(headers.get('Cache-Control')).toBe('no-store');
+    expect(headers.get('Content-Security-Policy')).toBe(
+      "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'",
+    );
+    expect(headers.get('Content-Type')).toBe('image/svg+xml');
+    expect(headers.get('X-Content-Type-Options')).toBe('nosniff');
+    expect(res.send).toHaveBeenCalledWith(svg);
   });
 });
