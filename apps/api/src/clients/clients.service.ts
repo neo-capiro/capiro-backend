@@ -1974,20 +1974,56 @@ export class ClientsService {
     };
   }
 
-  private async withLogoUrls<T extends { logoS3Key: string | null }>(
+  private async withLogoUrls<T extends { id: string; logoS3Key: string | null }>(
     clients: T[],
   ): Promise<Array<T & { logoUrl: string | null }>> {
-    return Promise.all(clients.map((client) => this.withLogoUrl(client)));
+    return clients.map((client) => this.withLogoUrl(client));
   }
 
-  private async withLogoUrl<T extends { logoS3Key: string | null }>(
+  /**
+   * M1: the app address of a client logo is stable and session-authenticated.
+   * A presigned S3 URL embedded temporary AWS credentials (X-Amz-Security-Token)
+   * in every client payload and died after 300 s, so logos broke silently.
+   * The field name and its nullability are unchanged for existing consumers.
+   */
+  private withLogoUrl<T extends { id: string; logoS3Key: string | null }>(
     client: T,
-  ): Promise<T & { logoUrl: string | null }> {
+  ): T & { logoUrl: string | null } {
     return {
       ...client,
-      logoUrl: client.logoS3Key
-        ? await this.signedGetUrl(client.logoS3Key)
-        : null,
+      logoUrl: client.logoS3Key ? `/api/client-logo/${client.id}` : null,
+    };
+  }
+
+  /**
+   * M1: stream the stored logo object to an authorized current-tenant caller.
+   * Uses the SAME client-access predicate as {@link get}: current membership,
+   * client lock, account-owner projection, wall and archival state. Never
+   * redirects to S3 and never returns a presigned URL.
+   */
+  async readLogo(
+    ctx: TenantContext,
+    id: string,
+  ): Promise<{ contentType: string; body: Buffer }> {
+    const row = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await requireOwnerClient(tx, ctx, id, false, true);
+      return tx.client.findFirst({
+        where: { id, tenantId: ctx.tenantId },
+        select: { logoS3Key: true, logoContentType: true },
+      });
+    });
+    const contentType = row?.logoContentType ?? '';
+    // Only the already-validated whitelist may become a response header.
+    if (!row?.logoS3Key || !ALLOWED_LOGO_MIME.has(contentType))
+      throw new NotFoundException('Client logo not found');
+    if (!this.bucket) throw new NotFoundException('Client logo not found');
+    const object = await this.s3
+      .send(new GetObjectCommand({ Bucket: this.bucket, Key: row.logoS3Key }))
+      .catch(() => null);
+    if (!object?.Body) throw new NotFoundException('Client logo not found');
+    return {
+      contentType,
+      body: Buffer.from(await object.Body.transformToByteArray()),
     };
   }
 

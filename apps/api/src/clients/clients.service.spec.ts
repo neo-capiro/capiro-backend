@@ -1026,13 +1026,15 @@ describe('ClientsService client logos — tenant and object validation', () => {
     const finalKey = tenantTx.client.updateMany.mock.calls[0]?.[0]?.data
       .logoS3Key as string;
 
+    // M1: a confirmed logo reads back as the stable app path, never a signed URL.
     expect(result).toEqual(
       expect.objectContaining({
         id: 'client-1',
         logoS3Key: finalKey,
-        logoUrl: 'https://downloads.example.test/logo.png',
+        logoUrl: '/api/client-logo/client-1',
       }),
     );
+    expect(JSON.stringify(result)).not.toContain('X-Amz-Security-Token');
     expect(finalKey).toMatch(
       /^tenants\/tenant-1\/clients\/client-1\/logos\/[0-9a-f-]{36}\.png$/,
     );
