@@ -77,6 +77,7 @@ import {
   ownMailThreadWhere,
   ownMeetingWhere,
   ownOutreachRecordWhere,
+  resolvePrepClientId,
 } from './engagement-access.helpers.js';
 import { activeMailMessageWhere } from './mail-message-state.js';
 import { readOutreachAudienceType, type OutreachAudienceType } from './outreach-audience-types.js';
@@ -5535,7 +5536,7 @@ export class EngagementService {
     const artifact=await tx.clioArtifact.findFirst({where:{id:input.artifactId,tenantId:ctx.tenantId,userId:ctx.userId}});if(!artifact)throw new NotFoundException('Research Portfolio artifact not found');
     await authorizeResearchPortfolioArtifact(tx,ctx,artifact);
     if(await tx.meetingPrep.findFirst({where:{tenantId:ctx.tenantId,meetingId:input.meetingId,status:'approved'},select:{id:true}}))throw new ConflictException('An approved meeting preparation already exists; preserve it and use the private draft');
-    return tx.meetingPrep.create({data:{tenantId:ctx.tenantId,meetingId:input.meetingId,clientId:null,status:'edited',summary:input.summary,agenda:input.agenda,followUps:input.followUps,talkingPoints:[],risks:[],emailEvidence:[],provider:null,model:null,sharedAt:null,sharedByUserId:null,editedByUserId:ctx.userId,generatedFrom:{schemaVersion:'research_portfolio_institutional_v1',briefing:true,artifactId:artifact.id,meetingId:input.meetingId,actorUserId:ctx.userId,reviewStatus:'unreviewed_draft'}}});
+    return tx.meetingPrep.create({data:{tenantId:ctx.tenantId,meetingId:input.meetingId,clientId:await resolvePrepClientId(tx,ctx.tenantId,input.meetingId,null),status:'edited',summary:input.summary,agenda:input.agenda,followUps:input.followUps,talkingPoints:[],risks:[],emailEvidence:[],provider:null,model:null,sharedAt:null,sharedByUserId:null,editedByUserId:ctx.userId,generatedFrom:{schemaVersion:'research_portfolio_institutional_v1',briefing:true,artifactId:artifact.id,meetingId:input.meetingId,actorUserId:ctx.userId,reviewStatus:'unreviewed_draft'}}});
   }
 
   async updateTask(ctx: TenantContext, id: string, input: UpdateTaskInput, internal?: { tx: Prisma.TransactionClient }) {
@@ -6791,7 +6792,9 @@ export class EngagementService {
           data: {
             tenantId: ctx.tenantId,
             meetingId,
-            clientId: correctClientId,
+            // One rule for every create site: an unstamped row for a client-scoped
+            // meeting is what made legacy preps permanently read-only.
+            clientId: await resolvePrepClientId(tx, ctx.tenantId, meetingId, correctClientId),
             // A prep is usable the moment it is saved; approval is not a gate.
             status: MeetingPrepStatus.approved,
             agenda: generated.agenda,
@@ -6932,10 +6935,19 @@ export class EngagementService {
           ? prep.generatedFrom
           : null;
       const grounding = generatedFrom?.grounding;
+      // WP1: bind a legacy unstamped row to its meeting's client in this same write,
+      // so the first successful save also ends the client's read-only state. An
+      // already-stamped row is never re-stamped here — client reassignment is the
+      // canonical reassignMeetingClient path, not this one.
+      const stampedClientId =
+        prep.clientId === null
+          ? await resolvePrepClientId(tx, ctx.tenantId, prep.meetingId, null)
+          : prep.clientId;
 
       return tx.meetingPrep.update({
         where: { id: prepId },
         data: {
+          ...(prep.clientId === null && stampedClientId ? { clientId: stampedClientId } : {}),
           ...('summary' in input ? { summary: input.summary?.trim() || null } : {}),
           ...('agenda' in input ? { agenda: normalizeStringArray(input.agenda) } : {}),
           ...('talkingPoints' in input
