@@ -13,11 +13,7 @@ import {
   LiveHearingSourceTypeDto,
   RecordingPolicyDto,
 } from './dto/session.dto.js';
-import {
-  isFloridaStatePublisherUrl,
-  STATE_CAPTURE_LINK_ONLY,
-  stateCaptureEnabled,
-} from './state-capture-policy.js';
+import { isFloridaStatePublisherUrl, STATE_CAPTURE_LINK_ONLY } from './state-capture-policy.js';
 
 export const CAPTURE_LEASE_STALE_MS = Number.parseInt(
   process.env.HEARING_CAPTURE_LEASE_STALE_MS ?? '90000',
@@ -125,27 +121,54 @@ export class HearingSessionService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Capture and resolver surfaces are federal-only until state server capture is enabled. */
+  /** Browser access to a canonical public Florida source is independent of the
+   * unattended recorder. Unbound URLs and substituted hearing identities fail. */
   async assertCaptureSourceAllowed(
     tenantId: string,
     hearingId?: string | null,
     sourceUrl?: string | null,
   ): Promise<void> {
-    if (stateCaptureEnabled()) return;
-    if (isFloridaStatePublisherUrl(sourceUrl)) {
-      throw new ForbiddenException(STATE_CAPTURE_LINK_ONLY);
-    }
+    const floridaSource = isFloridaStatePublisherUrl(sourceUrl);
     const canonicalHearingId = hearingId?.trim();
-    if (!canonicalHearingId) return;
-    const state = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.$queryRaw<Array<{ id: string }>>`
-        SELECT id FROM committee_hearing
-        WHERE id=${canonicalHearingId}
-          AND geographic_jurisdiction IS NOT NULL
-          AND UPPER(TRIM(geographic_jurisdiction))<>'US'
+    if (!canonicalHearingId) {
+      if (floridaSource) throw new ForbiddenException(STATE_CAPTURE_LINK_ONLY);
+      return;
+    }
+    const state = await this.prisma.withTenant(
+      tenantId,
+      (tx) =>
+        tx.$queryRaw<Array<{ id: string; sourceUrl: string | null; browserAllowed: boolean }>>`
+        SELECT h.id, COALESCE(${sourceUrl ?? null}::text,h.url) AS "sourceUrl",
+          (h.geographic_jurisdiction='FL' AND h.canonical_hearing_id IS NULL
+           AND h.visibility='public' AND h.event_status NOT IN ('canceled','cancelled')
+           AND (${sourceUrl ?? null}::text IS NULL OR h.url=${sourceUrl ?? null}
+             OR EXISTS(SELECT 1 FROM hearing_stream_candidate c WHERE c.hearing_id=h.id
+               AND c.official_page_url=${sourceUrl ?? null}
+               AND (c.expires_at IS NULL OR c.expires_at>clock_timestamp())))) AS "browserAllowed"
+        FROM committee_hearing h
+        WHERE h.id=${canonicalHearingId}
+          AND h.geographic_jurisdiction IS NOT NULL
+          AND UPPER(TRIM(h.geographic_jurisdiction))<>'US'
         LIMIT 1`,
     );
-    if (state.length) throw new ForbiddenException(STATE_CAPTURE_LINK_ONLY);
+    const row = state[0];
+    if (!row) {
+      if (floridaSource) throw new ForbiddenException(STATE_CAPTURE_LINK_ONLY);
+      return;
+    }
+    let safeSource = false;
+    try {
+      const url = new URL(row.sourceUrl ?? '');
+      safeSource =
+        url.protocol === 'https:' &&
+        !url.username &&
+        !url.password &&
+        !url.port &&
+        isFloridaStatePublisherUrl(url.toString());
+    } catch {
+      /* A malformed source never permits capture. */
+    }
+    if (!row.browserAllowed || !safeSource) throw new ForbiddenException(STATE_CAPTURE_LINK_ONLY);
   }
 
   async create(tenantId: string, userId: string, dto: CreateSessionDto) {
@@ -171,16 +194,16 @@ export class HearingSessionService {
       );
     }
 
-    // The active browser workflow never stores raw audio. A stale client may
-    // still submit the old `audio_and_transcript` enum; persist the truthful
-    // effective policy instead of promising retention that does not exist.
+    // Retention is enabled separately through the existing capability/enable
+    // action after current source permission is checked. Creation never grants
+    // rights or promises retained audio merely because a client requests it.
     const recordingPolicy =
       dto.recordingPolicy === RecordingPolicyDto.no_storage
         ? RecordingPolicyDto.no_storage
         : RecordingPolicyDto.transcript_only;
     if (dto.recordingPolicy === RecordingPolicyDto.audio_and_transcript) {
       this.logger.warn(
-        `audio retention requested but unavailable; normalized to transcript_only ` +
+        `audio retention requires explicit recording enable; created transcript_only ` +
           `tenant=${tenantId} user=${userId}`,
       );
     }

@@ -36,6 +36,7 @@ export interface BrowserSourceCandidate {
   capturePolicy: string;
   priority?: number;
   updatedAt?: Date | string | null;
+  expiresAt?: Date | string | null;
 }
 
 export interface BrowserSourceChoice {
@@ -60,6 +61,7 @@ const PLAYER_PROVIDERS = new Set([
   // real browser player. The /videos/ archive INDEX is a listing and is never
   // recorded as a candidate, so membership here is safe.
   'florida-channel',
+  'florida-channel-live',
 ]);
 
 /** Hosts that are central event LISTINGS, never a playable player page. */
@@ -113,13 +115,20 @@ function isPlayerCandidate(candidate: BrowserSourceCandidate, page: string): boo
 export function selectBrowserSource(input: {
   hearingUrl: string | null;
   candidates: BrowserSourceCandidate[];
+  now?: Date;
 }): BrowserSourceChoice | null {
   // Rank candidates: genuine player pages first, listings last, independent of
   // stored order. Within a tier the stored priority order is preserved.
   const usable = input.candidates
+    .filter((candidate) => candidateUnexpired(candidate, input.now))
     .map((candidate) => ({ candidate, page: (candidate.officialPageUrl ?? '').trim() }))
     .filter(
-      ({ page }) => page && isPublicPageUrl(page) && !isApiMetadataUrl(page),
+      ({ page, candidate }) =>
+        page &&
+        isPublicPageUrl(page) &&
+        !isApiMetadataUrl(page) &&
+        (candidate.provider !== 'florida-channel-live' ||
+          Boolean(strictOfficialSourceUrl(page, candidate.provider))),
     );
 
   const players = usable.filter(({ candidate, page }) => isPlayerCandidate(candidate, page));
@@ -150,7 +159,6 @@ export function selectBrowserSource(input: {
 
   return null;
 }
-
 
 const SIGNED_QUERY =
   /^(?:token|sig|signature|expires?|policy|key-pair-id|x-amz-.+|auth|auth_token|access_token|jwt|hdnea|hdnts)$/i;
@@ -218,6 +226,24 @@ function exactFloridaChannelEvent(url: URL): boolean {
   return Boolean(match?.[1] && !RESERVED_FLORIDA_CHANNEL_SLUG.test(match[1]));
 }
 
+function exactFloridaChannelLiveEvent(url: URL): boolean {
+  return (
+    url.hostname.toLowerCase() === 'thefloridachannel.org' &&
+    /^\/watch\/event\/\d+_[a-z0-9]+\/?$/i.test(url.pathname) &&
+    /^[A-Za-z0-9_-]{1,100}$/.test(url.searchParams.get('eid') ?? '') &&
+    [...url.searchParams.keys()].every((key) => key === 'eid')
+  );
+}
+
+function candidateUnexpired(candidate: BrowserSourceCandidate, now = new Date()): boolean {
+  if (candidate.expiresAt == null) return true;
+  const expiry =
+    candidate.expiresAt instanceof Date
+      ? candidate.expiresAt.getTime()
+      : Date.parse(candidate.expiresAt);
+  return Number.isFinite(expiry) && expiry > now.getTime();
+}
+
 function subdomainOf(host: string, domain: string): boolean {
   return host === domain || host.endsWith(`.${domain}`);
 }
@@ -240,6 +266,8 @@ function providerHostAllowed(provider: string, url: URL): boolean {
       return subdomainOf(host, 'flhouse.gov') || exactFloridaChannelEvent(url);
     case 'florida-channel':
       return exactFloridaChannelEvent(url);
+    case 'florida-channel-live':
+      return exactFloridaChannelLiveEvent(url);
     case 'youtube':
     case 'youtube-live':
       return host === 'youtu.be' || host === 'youtube.com' || host.endsWith('.youtube.com');
@@ -274,7 +302,8 @@ export function strictOfficialSourceUrl(
   if (url.hostname.toLowerCase().startsWith('api.')) return null;
   if (DIRECT_MEDIA_PATH.test(url.pathname)) return null;
   if ([...url.searchParams.keys()].some((key) => SIGNED_QUERY.test(key))) return null;
-  if (provider ? !providerHostAllowed(provider, url) : !fallbackOfficialHostAllowed(url)) return null;
+  if (provider ? !providerHostAllowed(provider, url) : !fallbackOfficialHostAllowed(url))
+    return null;
   return canonical;
 }
 
@@ -307,8 +336,10 @@ export function officialUrlsEquivalent(
 export function selectOfficialPlaybackSource(input: {
   hearingUrl: string | null;
   candidates: BrowserSourceCandidate[];
+  now?: Date;
 }): BrowserSourceChoice | null {
   for (const candidate of deterministicCandidates(input.candidates)) {
+    if (!candidateUnexpired(candidate, input.now)) continue;
     // Capture policy governs Capiro recording/transcription, not whether a user
     // may open a stable public publisher page. Link visibility therefore stays
     // independent of BLOCKED, LICENSE_REQUIRED, or any future capture policy.

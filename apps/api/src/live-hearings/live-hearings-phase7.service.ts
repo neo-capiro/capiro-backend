@@ -549,6 +549,7 @@ export class LiveHearingsPhase7Service {
           officialPageUrl: true,
           mediaUrl: true,
           capturePolicy: true,
+          expiresAt: true,
         },
       }),
     ]);
