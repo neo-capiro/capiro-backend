@@ -64,22 +64,22 @@ legacyTarget.Targets[0].EcsParameters.TaskDefinitionArn =
 // The existing emission and daily/weekly digest overrides keep this container
 // name. Only their pinned task revision changes; cadences remain unchanged.
 const worker = strip(read('intel-worker'));
-worker.family = 'capiro-dev-intel-api-legiwatch-reports';
+worker.family = 'capiro-dev-intel-api-legiwatch-monitoring';
 const intel = worker.containerDefinitions[0];
-intel.name = 'legiwatch-reports';
+intel.name = 'legiwatch-monitoring';
 intel.image = v['intel-image'];
 delete intel.entryPoint;
 delete intel.healthCheck;
-intel.command = ['task', 'run-report-updates', v.tenant];
+intel.command = ['task', 'run-monitoring-updates', v.tenant];
 environment(intel, {
   LEGIWATCH_RECORD_ALERT_SOURCE_TYPES: 'state_bill',
   TRACKER_ALERTS_ENABLED: 'false',
-  REPORT_APP_ORIGIN: 'https://os.capiro.ai',
+  LEGISLATIVE_APP_ORIGIN: 'https://os.capiro.ai',
 });
 if (!(intel.secrets ?? []).some((s) => s.name === 'INTERNAL_SERVICE_SECRET'))
   throw new Error('Inbox adapter secret reference is missing');
 if (intel.logConfiguration?.options)
-  intel.logConfiguration.options['awslogs-stream-prefix'] = 'legiwatch-reports';
+  intel.logConfiguration.options['awslogs-stream-prefix'] = 'legiwatch-monitoring';
 const source = strip(read('source-worker'));
 if (source.family !== 'capiro-dev-api-sync-legiscan-bills')
   throw new Error('The existing API source drain is required');
@@ -88,7 +88,7 @@ environment(source.containerDefinitions[0], { LEGISCAN_REPORT_REFRESH_TENANT: v.
 const target = read('emitter-target').Targets[0];
 if (target.Arn !== 'arn:aws:ecs:us-east-1:967807252336:cluster/capiro-dev')
   throw new Error('Unexpected cluster');
-target.Id = 'legiwatch-report-updates';
+target.Id = 'legiwatch-monitoring-updates';
 target.Input = JSON.stringify({
   containerOverrides: [{ name: intel.name, command: intel.command }],
 });
@@ -99,15 +99,15 @@ sourceTarget.Targets[0].EcsParameters.TaskDefinitionArn =
 const output = resolve(v.out);
 mkdirSync(output, { recursive: true });
 for (const [name, value] of Object.entries({
-  'report-worker.json': worker,
+  'monitoring-worker.json': worker,
   'legacy-alert-worker.json': legacyWorker,
   'legacy-emitter-target.json': legacyTarget,
   'source-drain.json': source,
-  'report-target.json': { Targets: [target] },
+  'monitoring-target.json': { Targets: [target] },
   'source-target.json': sourceTarget,
-  'report-rule.json': {
-    Name: 'capiro-dev-legiwatch-report-updates',
-    Description: 'Tenant-scoped LegiWatch daily drafts and reviewed published-record delivery',
+  'monitoring-rule.json': {
+    Name: 'capiro-dev-legiwatch-monitoring-updates',
+    Description: 'Tenant-scoped LegiWatch monitoring and reviewed published-record delivery',
     ScheduleExpression: 'rate(5 minutes)',
     State: 'DISABLED',
   },
@@ -119,16 +119,16 @@ for (const [name, value] of Object.entries({
       'Intel migration',
       'API HTTP rollout',
       'Intel HTTP rollout',
-      'register source drain and report worker',
+      'register source drain and monitoring worker',
       'pin existing Intel emission and digest targets to the fenced legacy worker',
       'update source target after checking no drain is running',
       'publish vNext',
       'verify flags remain off',
-      'explicit workspace activation and controlled draft cycle',
+      'explicit workspace activation and controlled monitoring cycle',
     ],
     rollback: [
-      'disable report EventBridge rule',
-      'disable report delivery and report capability flags for this tenant',
+      'disable monitoring EventBridge rule',
+      'disable the affected monitoring capability flags for this tenant',
       'restore recorded source target and HTTP task revisions',
       'retain additive schema and immutable history',
     ],

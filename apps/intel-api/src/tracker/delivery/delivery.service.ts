@@ -17,12 +17,11 @@ import type { Prisma, LegiWatchDelivery } from '../../../generated/prisma-client
 import type { WorkspaceTenantContext } from '../../auth/tenant-context.js';
 import { IntelEmailService } from '../../intel-alert/intel-email.service.js';
 import {
-  REPORT_DELIVERY_FEATURE,
   TRACKER_OWNER_FEATURE,
   AGENDA_ALERTS_FEATURE,
 } from '../../feature-flags/feature-flag.service.js';
-import { ReportService } from './report.service.js';
-import { ReportRecipientsService, type RecipientSnapshot } from './recipients.service.js';
+import { DraftAccessService } from './draft-access.service.js';
+import { RecipientsService, type RecipientSnapshot } from './recipients.service.js';
 import {
   HearingPublicationService,
   publicationFeature,
@@ -36,23 +35,10 @@ import {
 } from '../../hearing/hearing-record-delivery.service.js';
 import { RECORD_DELIVERY_FEATURE } from '../../feature-flags/feature-flag.service.js';
 import { publicationMarkdown } from '../../hearing/publication-domain.js';
-import {
-  selectedRecordBriefs,
-  renderReportWithBriefs,
-  type SelectedRecordBrief,
-} from './record-report-composition.js';
-import {
-  digest,
-  escapeHtml,
-  json,
-  object,
-  selectionHash,
-  text,
-  type ReportDocument,
-} from './report-domain.js';
+import { digest, escapeHtml, json, object, text } from './delivery-domain.js';
 
-export interface ReportComposition {
-  kind?: 'editorial_brief';
+export interface DeliveryComposition {
+  kind: 'editorial_brief';
   runId: string;
   contentHash: string;
   subject: string;
@@ -61,13 +47,12 @@ export interface ReportComposition {
   html: string;
   plainText: string;
   envelopePolicy: 'isolated_recipients';
-  recordBriefs?: SelectedRecordBrief[];
 }
 @Injectable()
-export class ReportDeliveryService {
+export class DeliveryService {
   constructor(
-    readonly reports: ReportService,
-    readonly recipients: ReportRecipientsService,
+    readonly reports: DraftAccessService,
+    readonly recipients: RecipientsService,
     readonly email: IntelEmailService,
     @Optional() readonly hearing?: HearingPublicationService,
     @Optional() readonly sms?: SmsService,
@@ -77,7 +62,10 @@ export class ReportDeliveryService {
   async preview(ctx: WorkspaceTenantContext, runId: string, input: unknown) {
     const run = await this.reports.run(ctx, runId),
       body = object(input);
-    if (run.audience !== 'external') throw new BadRequestException('EXTERNAL_REPORT_REQUIRED');
+    if (run.audience !== 'external') throw new BadRequestException('EXTERNAL_DRAFT_REQUIRED');
+    if (object(run.snapshot).mode !== 'editorial_brief' || object(run.snapshot).researchReview)
+      throw new BadRequestException('TYPED_EDITORIAL_RUN_REQUIRED');
+    const rendered = run.rendered;
     const subject = text(body.subject, 200);
     if (/[\r\n]/.test(subject)) throw new BadRequestException('SUBJECT_MUST_BE_ONE_LINE');
     const introduction =
@@ -88,21 +76,8 @@ export class ReportDeliveryService {
       this.recipients.resolve(tx, ctx, body.selection),
     );
     if (!recipients.length) throw new BadRequestException('AT_LEAST_ONE_RECIPIENT_REQUIRED');
-    const refs = selectedRecordBriefs(body.recordBriefs);
-    if (refs.length && object(run.snapshot).mode === 'editorial_brief')
-      throw new BadRequestException('SELECT_RECORD_EVIDENCE_IN_EDITORIAL_DRAFT');
-    if (refs.length && !this.recordBriefs)
-      throw new ForbiddenException('RECORD_DELIVERY_ADAPTER_UNAVAILABLE');
-    const included = refs.length
-      ? await this.recordBriefs!.reportBriefs(ctx, run.reportId, refs)
-      : [];
-    const rendered = included.length
-      ? renderReportWithBriefs(run.snapshot as unknown as ReportDocument, included)
-      : run.rendered;
-    const composition: ReportComposition = {
-      ...(object(run.snapshot).mode === 'editorial_brief'
-        ? { kind: 'editorial_brief' as const }
-        : {}),
+    const composition: DeliveryComposition = {
+      kind: 'editorial_brief',
       runId,
       contentHash: run.contentHash,
       subject,
@@ -114,14 +89,13 @@ export class ReportDeliveryService {
       ),
       plainText: `${introduction}\n\n${rendered.text}`,
       envelopePolicy: 'isolated_recipients',
-      ...(refs.length ? { recordBriefs: refs } : {}),
     };
     return { composition, approvalHash: digest(composition), complete: run.complete };
   }
   async approve(ctx: WorkspaceTenantContext, runId: string, input: unknown) {
     await this.reports.authorize(ctx);
-    if (!(await this.reports.flags.isEnabled(REPORT_DELIVERY_FEATURE, ctx.tenantId)))
-      throw new ForbiddenException('REPORT_DELIVERY_DISABLED');
+    if (!(await this.reports.flags.isEnabled(PHASE8_FEATURES.editorial, ctx.tenantId)))
+      throw new ForbiddenException('EDITORIAL_DELIVERY_PAUSED');
     const body = object(input),
       preview = await this.preview(ctx, runId, body);
     if (body.approvalHash !== preview.approvalHash)
@@ -131,11 +105,12 @@ export class ReportDeliveryService {
   }
   async enqueue(
     ctx: WorkspaceTenantContext,
-    composition: ReportComposition,
+    composition: DeliveryComposition,
     intentKey: string,
-    subscription?: { id: string; version: number },
     transaction?: Prisma.TransactionClient,
   ) {
+    if (composition.kind !== 'editorial_brief')
+      throw new BadRequestException('UNSUPPORTED_DELIVERY_KIND');
     const write = async (tx: Prisma.TransactionClient) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${ctx.tenantId + ':' + intentKey},0))`;
       const existing = await tx.legiWatchDelivery.findFirst({
@@ -150,9 +125,7 @@ export class ReportDeliveryService {
           intentKey,
           ownerClerkId: ctx.clerkUserId,
           runId: composition.runId,
-          kind: composition.kind ?? 'bill_report',
-          subscriptionId: subscription?.id,
-          subscriptionVersion: subscription?.version,
+          kind: composition.kind,
           contentHash: composition.contentHash,
           composition: json(composition),
           recipients: {
@@ -189,7 +162,9 @@ export class ReportDeliveryService {
     }
     if (delivery.kind === 'bill_record' || delivery.kind === 'agenda')
       return this.checkRecordDispatch(tx, ctx, delivery, object(recipient), channel);
-    if (!delivery.runId) throw new BadRequestException('REPORT_RUN_REQUIRED');
+    if (delivery.kind !== 'editorial_brief')
+      throw new BadRequestException('UNSUPPORTED_DELIVERY_KIND');
+    if (!delivery.runId) throw new BadRequestException('DRAFT_RUN_REQUIRED');
     const run = await tx.legiWatchReportRun.findFirst({
       where: { tenantId: ctx.tenantId, id: delivery.runId },
     });
@@ -216,14 +191,11 @@ export class ReportDeliveryService {
         (!intro && composition.html === rendered.html);
       if (!textMatches || !htmlMatches)
         throw new ConflictException('EDITORIAL_COMPOSITION_CHANGED');
-      if (selectedRecordBriefs(object(delivery.composition).recordBriefs).length)
-        throw new ConflictException('EDITORIAL_COMPOSITION_CHANGED');
       if (object(run.snapshot).mode !== 'editorial_brief' || object(run.snapshot).researchReview)
         throw new ConflictException('TYPED_EDITORIAL_RUN_REQUIRED');
       if (
         process.env.LEGIWATCH_EDITORIAL_SEND_ENABLED !== 'true' ||
-        !(await this.reports.flags.isEnabled(PHASE8_FEATURES.editorial, ctx.tenantId)) ||
-        !(await this.reports.flags.isEnabled(REPORT_DELIVERY_FEATURE, ctx.tenantId))
+        !(await this.reports.flags.isEnabled(PHASE8_FEATURES.editorial, ctx.tenantId))
       )
         throw new ForbiddenException('EDITORIAL_DELIVERY_PAUSED');
       await assertEditorialAccess(
@@ -262,100 +234,6 @@ export class ReportDeliveryService {
       await this.recipients.recheck(tx, ctx, recipient);
       return;
     }
-    if (object(run.snapshot).mode === 'editorial_brief')
-      throw new ConflictException('EDITORIAL_DELIVERY_KIND_REQUIRED');
-    const doc = run.snapshot as unknown as ReportDocument;
-    const refs = selectedRecordBriefs(object(delivery.composition).recordBriefs);
-    if (refs.length) {
-      if (!this.recordBriefs) throw new ForbiddenException('RECORD_DELIVERY_ADAPTER_UNAVAILABLE');
-      const included = await this.recordBriefs.reportBriefs(ctx, run.reportId, refs);
-      for (const brief of included)
-        await this.recordBriefs.checkDispatch(
-          tx,
-          ctx,
-          {
-            ...delivery,
-            kind: brief.kind,
-            contentHash: brief.contentHash,
-            composition: json({
-              schema: 'legiwatch.record-delivery.v1',
-              ...brief,
-              approvalHash: digest(delivery.composition),
-              smsText: null,
-            }),
-          },
-          recipient,
-          channel,
-        );
-      const rendered = renderReportWithBriefs(doc, included),
-        composition = object(delivery.composition),
-        intro = String(composition.introduction ?? '');
-      if (
-        composition.plainText !== `${intro}\n\n${rendered.text}` ||
-        composition.html !==
-          rendered.html.replace(
-            '<body>',
-            `<body><p>${escapeHtml(intro).replace(/\n/g, '<br>')}</p>`,
-          )
-      )
-        throw new ConflictException('RECORD_REPORT_COMPOSITION_CHANGED');
-    }
-    await tx.$queryRaw`SELECT id FROM intel_legiwatch_report WHERE tenant_id=${ctx.tenantId} AND id=${run.reportId} FOR SHARE`;
-    const report = await this.reports.get(tx, ctx, run.reportId);
-    if (report.archived || report.version !== run.definitionVersion)
-      throw new ConflictException('REPORT_CHANGED_REVIEW_AGAIN');
-    // Share-lock source permissions and private objects until the send attempt
-    // returns. Mutators serialize behind this authorized dispatch boundary.
-    await tx.$queryRaw`SELECT id FROM intel_legiwatch_folder WHERE tenant_id=${ctx.tenantId} AND id=ANY(${report.folderIds}::text[]) FOR SHARE`;
-    const assignments = await this.reports.assignments(tx, ctx, report);
-    if (selectionHash(assignments) !== doc.selectionHash)
-      throw new ConflictException('FOLDER_SCOPE_CHANGED');
-    const billIds = [...new Set(doc.rows.map((r) => r.id))];
-    const coverage = await this.reports.folders.source.reportCoverage(billIds);
-    if (
-      coverage.length !== billIds.length ||
-      coverage.some(
-        (b) => b.status !== 'success' || !b.checked || Date.now() - b.checked.getTime() > 86400000,
-      )
-    )
-      throw new ConflictException('SOURCE_CHECK_INCOMPLETE');
-    const current = new Map(assignments.map((a) => [a.id, a]));
-    for (const row of doc.rows) {
-      const a = current.get(row.assignmentId);
-      if (
-        !a ||
-        a.version !== row.assignmentVersion ||
-        a.folderVersion !== row.folderVersion ||
-        a.archived
-      )
-        throw new ConflictException('FOLDER_SCOPE_CHANGED');
-    }
-    for (const id of report.folderIds) {
-      const f = await this.reports.folders.folder(tx, ctx, id);
-      if (
-        !f.ownerClerkId ||
-        !(await this.reports.folders.source.activeMember(ctx.tenantId, f.ownerClerkId))
-      )
-        throw new ForbiddenException('FOLDER_OWNER_UNRESOLVED');
-    }
-    if (delivery.subscriptionId) {
-      await tx.$queryRaw`SELECT id FROM intel_legiwatch_report_subscription WHERE tenant_id=${ctx.tenantId} AND id=${delivery.subscriptionId} FOR SHARE`;
-      const sub = await tx.legiWatchReportSubscription.findFirst({
-        where: { tenantId: ctx.tenantId, id: delivery.subscriptionId },
-      });
-      if (
-        !sub?.enabled ||
-        sub.mode !== 'send' ||
-        sub.version !== delivery.subscriptionVersion ||
-        sub.ownerClerkId !== ctx.clerkUserId
-      )
-        throw new ConflictException('SUBSCRIPTION_CHANGED_OR_PAUSED');
-    }
-    const contactIds = recipient.contacts.map((c) => c.id),
-      listIds = recipient.lists.map((l) => l.id);
-    await tx.$queryRaw`SELECT id FROM intel_legiwatch_report_contact WHERE tenant_id=${ctx.tenantId} AND (id=ANY(${contactIds}::text[]) OR lower(email)=${recipient.email}) FOR SHARE`;
-    await tx.$queryRaw`SELECT id FROM intel_legiwatch_report_list WHERE tenant_id=${ctx.tenantId} AND id=ANY(${listIds}::text[]) FOR SHARE`;
-    await this.recipients.recheck(tx, ctx, recipient);
   }
   async checkRecordDispatch(
     tx: Prisma.TransactionClient,
@@ -544,7 +422,7 @@ export class ReportDeliveryService {
         throw new ConflictException('CALENDAR_SOURCE_CHECK_INCOMPLETE');
       return;
     }
-    const [bill] = await this.reports.folders.source.reportBills([String(composition.billId)]);
+    const [bill] = await this.reports.folders.source.publishedBills([String(composition.billId)]);
     if (
       !bill ||
       bill.sourceCheckStatus !== 'success' ||
@@ -652,7 +530,7 @@ export class ReportDeliveryService {
       return groups.size;
     });
   }
-  async drain(tenantId: string, limit = 25, now = new Date(), kind = 'bill_report') {
+  async drain(tenantId: string, limit = 25, now = new Date(), kind = 'bill_record') {
     const prisma = this.reports.folders.prisma;
     if (kind === 'editorial_brief' && process.env.LEGIWATCH_EDITORIAL_SEND_ENABLED !== 'true')
       return { attempted: 0, held: 0 };
@@ -690,7 +568,7 @@ export class ReportDeliveryService {
     )
       return { attempted: 0, held: 0 };
     // An older worker with no Phase 2 source allowlist must not claim and hold
-    // records that belong to the explicitly configured report worker.
+    // records that belong to the explicitly configured monitoring worker.
     if (
       kind === 'bill_record' &&
       (!(process.env.LEGIWATCH_RECORD_ALERT_SOURCE_TYPES ?? '').trim() ||
@@ -731,11 +609,6 @@ export class ReportDeliveryService {
     let attempted = 0,
       held = 0;
     for (const candidate of candidates) {
-      if (
-        candidate.delivery.kind === 'bill_report' &&
-        !(await this.reports.flags.isEnabled(REPORT_DELIVERY_FEATURE, tenantId))
-      )
-        continue;
       const token = randomUUID();
       const claim = await prisma.withTenant(tenantId, (tx) =>
         tx.legiWatchDeliveryRecipient.updateMany({
@@ -804,14 +677,9 @@ export class ReportDeliveryService {
               Array<{ id: string }>
             >`SELECT id FROM intel_legiwatch_delivery_recipient WHERE tenant_id=${tenantId} AND id=${candidate.id} AND lease_token=${token} AND state='sending' AND lease_until>now() FOR UPDATE`;
             if (!locked.length) return;
-            if (
-              candidate.delivery.kind === 'bill_report' &&
-              !(await this.reports.flags.isEnabled(REPORT_DELIVERY_FEATURE, tenantId))
-            )
-              throw new ForbiddenException('REPORT_DELIVERY_DISABLED');
             const recipient = candidate.recipient as unknown as RecipientSnapshot;
             await this.checkDispatch(tx, ctx, candidate.delivery, recipient, candidate.channel);
-            const composition = candidate.delivery.composition as unknown as ReportComposition;
+            const composition = candidate.delivery.composition as unknown as DeliveryComposition;
             let result;
             if (recordDeliveryKind(candidate.delivery.kind)) {
               const packet = object(candidate.delivery.composition),
@@ -994,7 +862,7 @@ export class ReportDeliveryService {
                       body:
                         String(packet.content).length <= 10000
                           ? packet.content
-                          : `${String(packet.content).slice(0, 9000)}\n\nExcerpt — open the original published record for its full text. Bill: ${(process.env.REPORT_APP_ORIGIN ?? 'https://os.capiro.ai').replace(/\/+$/, '')}/bills/${encodeURIComponent(String(packet.billId))}`,
+                          : `${String(packet.content).slice(0, 9000)}\n\nExcerpt — open the original published record for its full text. Bill: ${(process.env.LEGISLATIVE_APP_ORIGIN ?? 'https://os.capiro.ai').replace(/\/+$/, '')}/bills/${encodeURIComponent(String(packet.billId))}`,
                     }),
                   },
                 );
@@ -1120,20 +988,14 @@ export class ReportDeliveryService {
           state: 'held',
           delivery: {
             kind: {
-              in: [
-                'bill_report',
-                'editorial_brief',
-                'record_brief',
-                'record_correction',
-                'bill_keyword',
-              ],
+              in: ['editorial_brief', 'record_brief', 'record_correction', 'bill_keyword'],
             },
             ownerClerkId: ctx.clerkUserId,
           },
         },
         include: { delivery: true },
       });
-      if (!row) throw new NotFoundException('HELD_REPORT_DELIVERY_NOT_FOUND');
+      if (!row) throw new NotFoundException('HELD_DELIVERY_NOT_FOUND');
       if (body.contentHash !== row.delivery.contentHash)
         throw new ConflictException('REVIEWED_CONTENT_CHANGED');
       if (
@@ -1142,11 +1004,11 @@ export class ReportDeliveryService {
             ? RECORD_DELIVERY_FEATURE
             : row.delivery.kind === 'bill_keyword'
               ? KEYWORD_DELIVERY_FEATURE
-              : REPORT_DELIVERY_FEATURE,
+              : PHASE8_FEATURES.editorial,
           ctx.tenantId,
         ))
       )
-        throw new ForbiddenException('REPORT_DELIVERY_DISABLED');
+        throw new ForbiddenException('DELIVERY_DISABLED');
       await this.checkDispatch(
         tx,
         ctx,
@@ -1179,7 +1041,21 @@ export class ReportDeliveryService {
           tenantId: ctx.tenantId,
           id,
           state: 'uncertain',
-          delivery: { ownerClerkId: ctx.clerkUserId },
+          delivery: {
+            ownerClerkId: ctx.clerkUserId,
+            kind: {
+              in: [
+                'editorial_brief',
+                'record_brief',
+                'record_correction',
+                'bill_keyword',
+                'bill_record',
+                'agenda',
+                'live_update',
+                'hearing_recap',
+              ],
+            },
+          },
         },
       });
       if (!row) throw new NotFoundException('UNCERTAIN_DELIVERY_NOT_FOUND');

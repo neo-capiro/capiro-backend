@@ -11,7 +11,7 @@ import {
   STATE_CALENDAR_FEATURE,
 } from '../../feature-flags/feature-flag.service.js';
 import { FolderTrackerService } from '../folders/folder-tracker.service.js';
-import { digest, ids, json, object } from '../reports/report-domain.js';
+import { digest, ids, json, object } from '../delivery/delivery-domain.js';
 
 export type CalendarScope = {
   folderIds?: string[];
@@ -127,7 +127,7 @@ export class CalendarPreparationService {
     ];
     const bills = [];
     for (let i = 0; i < agendaBillIds.length; i += 250)
-      bills.push(...(await this.folders.source.reportBills(agendaBillIds.slice(i, i + 250))));
+      bills.push(...(await this.folders.source.publishedBills(agendaBillIds.slice(i, i + 250))));
     const assignments = scope.assignments.filter((a) => agendaBillIds.includes(a.billId));
     const folderIds = [...new Set(assignments.map((a) => a.folderId))];
     const generatedAt = new Date().toISOString();

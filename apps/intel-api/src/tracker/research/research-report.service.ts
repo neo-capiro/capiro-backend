@@ -6,38 +6,18 @@ import {
 } from '@nestjs/common';
 import { ResearchService } from './research.service.js';
 import type { WorkspaceTenantContext } from '../../auth/tenant-context.js';
-import { object, digest, json, escapeHtml } from '../reports/report-domain.js';
+import { object, digest, json, escapeHtml } from '../delivery/delivery-domain.js';
 @Injectable()
 export class ResearchReportService {
   constructor(readonly research: ResearchService) {}
   async preview(ctx: WorkspaceTenantContext, input: unknown) {
     const b = object(input);
-    if (typeof b.selectionId !== 'string' || typeof b.runId !== 'string')
-      throw new BadRequestException('EXACT_RESEARCH_AND_REPORT_REQUIRED');
+    if (typeof b.selectionId !== 'string')
+      throw new BadRequestException('EXACT_RESEARCH_SELECTION_REQUIRED');
     const source = await this.research.researchSource(ctx, b.selectionId);
     if (source.stale) throw new ConflictException('RESEARCH_SOURCE_STALE_REVIEW_NEW_SELECTION');
-    const scope = object(object(source.prefill.context).scope),
-      reports = this.research.keywords.reports;
-    const run = await reports.run(ctx, b.runId);
-    if (run.audience !== 'internal')
-      throw new BadRequestException('INTERNAL_REPORT_REVIEW_REQUIRED');
-    const report = await reports.folders.withActor(ctx, (tx) => reports.get(tx, ctx, run.reportId));
-    const folders = await reports.folders.withActor(ctx, async (tx) => {
-      const result = [];
-      for (const id of report.folderIds) result.push(await reports.folders.folder(tx, ctx, id));
-      return result;
-    });
-    if (
-      report.ownerClerkId !== ctx.clerkUserId ||
-      !scope.folderId ||
-      !report.folderIds.includes(String(scope.folderId)) ||
-      folders.some((f) => f.clientId !== scope.clientId) ||
-      report.jurisdiction !== scope.jurisdiction ||
-      report.sessionKey !== scope.sessionKey
-    )
-      throw new BadRequestException('RESEARCH_REPORT_SCOPE_MISMATCH');
-    if (object(run.snapshot).researchReview)
-      throw new BadRequestException('SELECT_BASE_REPORT_VERSION');
+    const scope = object(object(source.prefill.context).scope);
+    if (!scope.folderId) throw new BadRequestException('RESEARCH_FOLDER_REQUIRED');
     const base = process.env.WORKSPACE_BASE_URL,
       secret = process.env.INTERNAL_SERVICE_SECRET;
     if (!base || !secret) throw new ServiceUnavailableException('WORKSPACE_NOT_CONFIGURED');
@@ -69,18 +49,13 @@ export class ResearchReportService {
       sourceVersions: source.prefill.sources,
       outputSnapshot: output.snapshot,
       text: output.text,
-      baseRunId: run.id,
-      baseRunHash: run.contentHash,
     };
     const rendered = {
-      html: run.rendered.html.replace(
-        '</body>',
-        `<section><h2>Reviewed Capiro research</h2><pre style="white-space:pre-wrap">${escapeHtml(output.text)}</pre></section></body>`,
-      ),
-      text: run.rendered.text + '\n\nREVIEWED CAPIRO RESEARCH\n\n' + output.text,
+      html: `<html><body><section><h2>Reviewed Capiro research</h2><pre style="white-space:pre-wrap">${escapeHtml(output.text)}</pre></section></body></html>`,
+      text: 'REVIEWED CAPIRO RESEARCH\n\n' + output.text,
     };
     return {
-      run,
+      scope,
       review,
       rendered,
       approvalHash: digest({ review, rendered }),
@@ -103,7 +78,7 @@ export class ResearchReportService {
       );
       if (prior) {
         const review = object(object(prior.snapshot).researchReview);
-        if (review.selectionId !== b.selectionId || review.baseRunId !== b.runId)
+        if (review.selectionId !== b.selectionId)
           throw new ConflictException('RESEARCH_REVIEW_REQUEST_CHANGED');
         await this.research.keywords.reports.run(ctx, prior.id);
         return { runId: prior.id, replayed: true };
@@ -120,11 +95,28 @@ export class ResearchReportService {
         where: { tenantId_generationKey: { tenantId: ctx.tenantId, generationKey } },
       });
       if (existing) return { runId: existing.id, replayed: true };
-      const current = await reports.get(tx, ctx, preview.run.reportId);
-      if (current.version !== preview.run.definitionVersion)
-        throw new ConflictException('REPORT_CHANGED_REVIEW_AGAIN');
+      const folder = await reports.folders.folder(tx, ctx, String(preview.scope.folderId));
+      if (folder.archived || folder.clientId !== (preview.scope.clientId ?? null))
+        throw new ConflictException('RESEARCH_SCOPE_CHANGED_REVIEW_AGAIN');
+      // The existing immutable run storage is shared with retained research and
+      // client briefings. Its scope record is created only for this exact draft.
+      const record = await tx.legiWatchReport.create({
+        data: {
+          tenantId: ctx.tenantId,
+          ownerClerkId: ctx.clerkUserId,
+          name: 'Reviewed research',
+          folderIds: [folder.id],
+          jurisdiction: String(preview.scope.jurisdiction),
+          sessionKey: String(preview.scope.sessionKey),
+          settings: json({}),
+        },
+      });
       const snapshot = {
-        ...object(preview.run.snapshot),
+        schema: 'legiwatch.research-draft.v1',
+        mode: 'research_draft',
+        audience: 'internal',
+        rows: [],
+        complete: true,
         researchReview: {
           ...preview.review,
           approvedAt: new Date().toISOString(),
@@ -134,15 +126,15 @@ export class ResearchReportService {
       const run = await tx.legiWatchReportRun.create({
         data: {
           tenantId: ctx.tenantId,
-          reportId: preview.run.reportId,
-          definitionVersion: preview.run.definitionVersion,
+          reportId: record.id,
+          definitionVersion: record.version,
           createdBy: ctx.clerkUserId,
           audience: 'internal',
-          cutoff: preview.run.cutoff,
+          cutoff: new Date().toISOString().slice(0, 10),
           snapshot: json(snapshot),
           rendered: json(preview.rendered),
           contentHash: digest({ snapshot, rendered: preview.rendered }),
-          complete: preview.run.complete,
+          complete: true,
           generationKey,
         },
       });

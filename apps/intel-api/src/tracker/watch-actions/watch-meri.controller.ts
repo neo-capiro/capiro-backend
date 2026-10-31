@@ -24,7 +24,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { WorkspaceTenantContext } from '../../auth/tenant-context.js';
-import { object } from '../reports/report-domain.js';
+import { object } from '../delivery/delivery-domain.js';
 import { WorkflowSourceGuard } from '../keywords/internal-workflow.controller.js';
 import { KeywordRuleService, checkedVersion } from '../keywords/keyword-rule.service.js';
 import { KeywordDiscoveryService } from '../keywords/keyword-discovery.service.js';

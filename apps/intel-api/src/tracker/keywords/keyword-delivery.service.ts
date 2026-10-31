@@ -13,8 +13,8 @@ import {
 } from './keyword-rule.service.js';
 import type { KeywordRule } from './keyword-domain.js';
 import { queryReadiness } from './keyword-domain.js';
-import { digest, object, json, escapeHtml } from '../reports/report-domain.js';
-import { localTime, localOccurrence } from '../reports/report-schedule.js';
+import { digest, object, json, escapeHtml } from '../delivery/delivery-domain.js';
+import { localTime, localOccurrence } from '../delivery/delivery-schedule.js';
 import { isWithinQuietHours } from '../../intel-alert/intel-alert.types.js';
 
 @Injectable()
@@ -325,7 +325,7 @@ export class KeywordDeliveryService {
                   ? localOccurrence(day, rule.config.localMinutes!, rule.config.timezone!)
                   : now;
               const title = `${String(bill.number)}: Keyword match ready for review`;
-              const content = `${String(bill.title)}\nMatched in the reviewed ${rule.config.scope.fields.join(', ')} scope.\nOpen the tracked folder: ${(process.env.REPORT_APP_ORIGIN ?? 'https://os.capiro.ai').replace(/\/+$/, '')}/legiwatch?tab=bills&folder=${encodeURIComponent(f.id)}&jurisdiction=${rule.config.scope.jurisdiction}&session=${encodeURIComponent(rule.config.scope.sessionKey)}`;
+              const content = `${String(bill.title)}\nMatched in the reviewed ${rule.config.scope.fields.join(', ')} scope.\nOpen the tracked folder: ${(process.env.LEGISLATIVE_APP_ORIGIN ?? 'https://os.capiro.ai').replace(/\/+$/, '')}/legiwatch?tab=bills&folder=${encodeURIComponent(f.id)}&jurisdiction=${rule.config.scope.jurisdiction}&session=${encodeURIComponent(rule.config.scope.sessionKey)}`;
               for (const recipient of rule.config.recipients ?? [])
                 for (const channel of ['email', 'in_app']) {
                   if (channel === 'email' ? !recipient.email : !recipient.inApp) continue;
