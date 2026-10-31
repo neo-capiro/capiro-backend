@@ -194,10 +194,12 @@ describe('ST-01 branding object admission', () => {
       expect(result).toMatchObject({ logoUrl: null, logoS3Key: null, logoContentType: null });
     }
     expect((await h.service.getBranding(ctx))?.logoUrl).toBeNull();
+    expect(getSignedUrl).not.toHaveBeenCalled();
     Object.assign(h.row, {
       logoS3Key: 'tenants/tenant-a/branding/logo.png',
       logoContentType: 'image/png',
     });
     expect((await h.service.getBranding(ctx))?.logoUrl).toBe('/api/firm-logo');
+    expect(getSignedUrl).not.toHaveBeenCalled();
   });
 });
