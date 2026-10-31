@@ -219,6 +219,7 @@ function harness(
 ) {
   const events: string[] = [];
   const tx = {
+    tenantMembership: { findFirst: jest.fn(async () => ({ role: 'standard_user' })) },
     client: {
       findFirst: jest.fn(async ({ where }: { where: Record<string, unknown> }) =>
         clients.find((row) => matches(row, where)) ?? null),
@@ -404,7 +405,9 @@ describe('canonical Outreach controller and native paged read', () => {
 
   it('carries a cursor across a revoked page without exposing its rows', async () => {
     const h = paged([record(id(1), null), record(id(2), GRANTED), record(id(3), GRANTED)]);
-    h.tx.client.findMany.mockResolvedValueOnce([]);
+    // Canonical record authority now checks each current wall through the same
+    // clientMemoryAllowed oracle as detail, rather than a separate bulk roster.
+    h.tx.$queryRawUnsafe.mockResolvedValueOnce([{ allowed: false }]).mockResolvedValueOnce([{ allowed: false }]);
     const first = await h.controller.list(ctx, { limit: '2' }) as any;
     expect(first.items).toEqual([]);
     expect(first.nextCursor).toBeTruthy();
@@ -440,6 +443,17 @@ describe('canonical Outreach controller and native paged read', () => {
 });
 
 describe('Engagement outreach client visibility', () => {
+  it.each(['preps detail', 'preps list', 'debriefs detail', 'debriefs list'])(
+    'refuses tied latest children through the actual %s reader', async (which) => {
+      const row: any = record('tied-latest', VISIBLE, VISIBLE, { prep: VISIBLE, debrief: VISIBLE });
+      const kind = which.startsWith('preps') ? 'preps' : 'debriefs';
+      row.meeting[kind][0].createdAt = new Date('2026-10-31T00:00:00Z');
+      row.meeting[kind].push({ ...row.meeting[kind][0], id: 'equally-latest-visible-child' });
+      const h = harness([], [row]);
+      if (which.endsWith('detail')) await expect(h.service.getOutreachRecord(ctx, row.id)).rejects.toBeInstanceOf(NotFoundException);
+      else expect(await h.service.listOutreachRecords(ctx, {})).toEqual([]);
+    },
+  );
   it('filters denied and archived associated campaigns before an unscoped list reaches Meri totals', async () => {
     const h = harness([
       campaign('denied', WALLED),

@@ -118,6 +118,7 @@ function makeOwnerHarness(records: Array<Record<string, unknown>>): OwnerHarness
   const findManyWheres: Array<Record<string, unknown>> = [];
 
   const tx = {
+    tenantMembership: { findFirst: async () => ({ role: 'standard_user' }) },
     outreachRecord: {
       findFirst: async ({ where }: { where: Record<string, unknown> }) => {
         findFirstWheres.push(where);
