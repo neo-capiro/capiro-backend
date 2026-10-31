@@ -78,7 +78,7 @@ export class BrandingService {
         logoUrl: null,
       };
     }
-    const logoUrl = tenant.logoS3Key ? await this.signedGetUrl(tenant.logoS3Key) : null;
+    const logoUrl = tenant.logoS3Key ? '/api/firm-logo' : null;
     return { ...tenant, logoUrl };
   }
 
