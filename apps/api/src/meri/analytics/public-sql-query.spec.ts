@@ -7,7 +7,7 @@ describe('public SQL tool envelopes', () => {
     const result = describeCapiroData({});
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('expected metadata');
-    expect(result.relations).toHaveLength(8);
+    expect(result.relations).toHaveLength(15);
     for (const relation of result.relations) {
       expect(relation).not.toHaveProperty('table'); expect(relation).not.toHaveProperty('predicate');
       for (const field of relation.fields) expect(field).not.toHaveProperty('parameterType');

@@ -16,7 +16,7 @@ export function describeCapiroData(input: unknown) {
     if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some((k) => k !== 'relations'))
       throw new PublicSqlError('INVALID_QUERY', 'Use an optional list of published relation names.');
     const names = (input as { relations?: unknown }).relations;
-    if (names !== undefined && (!Array.isArray(names) || !names.length || names.length > 8 ||
+    if (names !== undefined && (!Array.isArray(names) || !names.length || names.length > PUBLIC_SQL_RELATIONS.length ||
       new Set(names).size !== names.length || names.some((name) => typeof name !== 'string' || !publicSqlRelation(name))))
       throw new PublicSqlError('UNKNOWN_RELATION', 'Use unique relation names published by describe_capiro_data.');
     const relations = PUBLIC_SQL_RELATIONS.filter((r) => names === undefined || (names as string[]).includes(r.name))
