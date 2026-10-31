@@ -160,7 +160,7 @@ describe('public Florida browser recording is independent of unattended capture'
     expect(h.create).not.toHaveBeenCalled();
     const sql = renderSql(h.query.mock.calls[0]!);
     expect(sql).toContain("h.visibility='public'");
-    expect(sql).toContain("h.geographic_jurisdiction='FL'");
+    expect(sql).toContain("COALESCE(h.geographic_jurisdiction,'US') IN ('US','FL')");
     expect(sql).toContain('c.expires_at>clock_timestamp()');
     expect(sql).toContain('h.canonical_hearing_id IS NULL');
   });

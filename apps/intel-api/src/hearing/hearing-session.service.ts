@@ -150,13 +150,10 @@ export class HearingSessionService {
         SELECT h.id, COALESCE(${sourceUrl ?? null}::text,h.url) AS "sourceUrl",
           (COALESCE(h.geographic_jurisdiction,'US')='US') AS federal,
           (binding.observed AND NOT binding.current) AS "bindingExpired",
-          (h.canonical_hearing_id IS NULL
+          (COALESCE(h.geographic_jurisdiction,'US') IN ('US','FL')
+           AND h.canonical_hearing_id IS NULL
            AND h.visibility='public' AND h.event_status NOT IN ('canceled','cancelled')
-           AND ((COALESCE(h.geographic_jurisdiction,'US')='US'
-               AND binding.approved AND NOT binding.restricted)
-             OR (h.geographic_jurisdiction='FL'
-               AND ((h.url=COALESCE(${sourceUrl ?? null}::text,h.url) AND NOT binding.observed)
-                 OR binding.current)))) AS "browserAllowed"
+           AND binding.approved AND NOT binding.restricted) AS "browserAllowed"
         FROM committee_hearing h
         CROSS JOIN LATERAL (
           SELECT count(*)>0 AS observed,

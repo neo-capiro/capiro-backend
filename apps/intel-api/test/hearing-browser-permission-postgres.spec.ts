@@ -96,7 +96,7 @@ describe('explicit public browser permission under the application role', () => 
     await p.hearingRecording.deleteMany({ where: { tenantId: tenant } });
     await p.hearingMediaPermission.deleteMany({ where: { tenantId: tenant, hearingId: hearing } });
     await p.liveHearingSession.deleteMany({ where: { tenantId: tenant, id: session } });
-    await p.$executeRaw`DELETE FROM hearing_stream_candidate WHERE id=${candidate}`;
+    await p.$executeRaw`DELETE FROM hearing_stream_candidate WHERE hearing_id=${hearing}`;
     await p.$executeRaw`DELETE FROM committee_hearing WHERE id=${hearing}`;
     await p.$executeRaw`DELETE FROM committee_hearing WHERE id=${'parent-' + hearing}`;
     await p.featureFlag.updateMany({ where: { tenantId: tenant }, data: { enabled: true } });
@@ -331,26 +331,33 @@ describe('explicit public browser permission under the application role', () => 
     },
   );
 
-  it.each([
-    'private',
-    'canceled',
-    'alias',
-    'missing-source',
-    'changed-source',
-    'LICENSE_REQUIRED',
-    'BLOCKED',
-    'REVIEW_REQUIRED',
-  ])(
-    'stops new and renewed federal capture after %s while preserving historical permitted playback',
-    async (reason) => {
-      const { sessions, recording, capture, grant } = await recordPublicBrowserPage('US');
+  it.each(
+    (['US', 'FL'] as const).flatMap((jurisdiction) =>
+      [
+        'private',
+        'canceled',
+        'alias',
+        'missing-source',
+        'changed-source',
+        'LICENSE_REQUIRED',
+        'BLOCKED',
+        'REVIEW_REQUIRED',
+        'mixed-LICENSE_REQUIRED',
+        'mixed-BLOCKED',
+        'mixed-REVIEW_REQUIRED',
+      ].map((reason) => ({ jurisdiction, reason })),
+    ),
+  )(
+    'stops new and renewed $jurisdiction capture after $reason while preserving historical permitted playback',
+    async ({ jurisdiction, reason }) => {
+      const { sessions, recording, capture, grant } = await recordPublicBrowserPage(jurisdiction);
       if (reason === 'private')
         await p.$executeRaw`UPDATE committee_hearing SET visibility='private' WHERE id=${hearing}`;
       if (reason === 'canceled')
         await p.$executeRaw`UPDATE committee_hearing SET event_status='canceled' WHERE id=${hearing}`;
       if (reason === 'alias') {
         await p.$executeRaw`INSERT INTO committee_hearing(id,committee_name,chamber,title,date,event_status,visibility,geographic_jurisdiction,url)
-          VALUES(${'parent-' + hearing},'Owned committee','Senate','Canonical synthetic event',now(),'scheduled','public','US',${source})`;
+          VALUES(${'parent-' + hearing},'Owned committee','Senate','Canonical synthetic event',now(),'scheduled','public',${jurisdiction},${source})`;
         await p.$executeRaw`UPDATE committee_hearing SET canonical_hearing_id=${'parent-' + hearing},alias_evidence='{"source":"owned-test"}'::jsonb,aliased_at=now() WHERE id=${hearing}`;
       }
       if (reason === 'missing-source')
@@ -359,15 +366,18 @@ describe('explicit public browser permission under the application role', () => 
         await p.$executeRaw`UPDATE hearing_stream_candidate SET official_page_url='https://www.senate.gov/hearings/different-event' WHERE id=${candidate}`;
       if (['LICENSE_REQUIRED', 'BLOCKED', 'REVIEW_REQUIRED'].includes(reason))
         await p.$executeRaw`UPDATE hearing_stream_candidate SET capture_policy=${reason} WHERE id=${candidate}`;
-      await expect(sessions.claimCapture(tenant, session)).rejects.toThrow(
-        'BROWSER_SOURCE_UNAVAILABLE',
-      );
+      if (reason.startsWith('mixed-'))
+        await p.$executeRaw`INSERT INTO hearing_stream_candidate(id,hearing_id,provider,official_page_url,capture_policy,resolution_state)
+          VALUES(${randomUUID()},${hearing},'owned-restricted-source',${source},${reason.slice(6)},'READY')`;
+      const denied =
+        jurisdiction === 'US' ? 'BROWSER_SOURCE_UNAVAILABLE' : 'STATE_CAPTURE_LINK_ONLY';
+      await expect(sessions.claimCapture(tenant, session)).rejects.toThrow(denied);
       await expect(
         sessions.heartbeatCapture(tenant, session, capture.captureToken),
-      ).rejects.toThrow('BROWSER_SOURCE_UNAVAILABLE');
+      ).rejects.toThrow(denied);
       await expect(
         recording.begin(tenant, session, actor, capture.captureToken, 'audio/webm;codecs=opus'),
-      ).rejects.toThrow('BROWSER_SOURCE_UNAVAILABLE');
+      ).rejects.toThrow(denied);
       expect(
         (await p.hearingMediaPermission.findUniqueOrThrow({ where: { id: grant.id } })).revokedAt,
       ).toBeNull();
