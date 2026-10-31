@@ -17,4 +17,7 @@ SET client_id = m.client_id,
 FROM meetings m
 WHERE p.meeting_id = m.id
   AND p.client_id IS NULL
-  AND m.client_id IS NOT NULL;
+  AND m.client_id IS NOT NULL
+  -- Match the runtime resolver exactly: an internal meeting resolves to NULL even when it
+  -- retains a denormalized client_id, so this repair must leave those rows unstamped.
+  AND m.is_internal = false;

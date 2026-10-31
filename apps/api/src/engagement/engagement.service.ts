@@ -6922,17 +6922,34 @@ export class EngagementService {
       });
       if (!prep) throw new NotFoundException('Meeting prep not found');
       await this.ensureOwnMeeting(tx, ctx, prep.meetingId);
-      await assertSavedMeetingPrepAccess(tx, ctx, prep.generatedFrom);
-      assertExpectedRevision(input.expectedRevision, prep.updatedAt, 'meeting_prep', prepId, {
-        id: prep.id,
-        status: prep.status,
-        clientId: prep.clientId,
+      // WP1: the attribution write below takes the SAME parent-assignment lock the canonical
+      // reassignment and generated-prep persistence take, and then re-reads the row under it.
+      // Without that, a null observation made before a concurrent A->B reassignment could be
+      // stamped back as A, leaving the saved preparation unreadable against its parent.
+      await this.lockMeetingClientAssignment(tx, ctx, prep.meetingId);
+      const current = await tx.meetingPrep.findFirst({
+        where: { id: prepId, tenantId: ctx.tenantId },
+        select: {
+          id: true,
+          meetingId: true,
+          generatedFrom: true,
+          updatedAt: true,
+          status: true,
+          clientId: true,
+        },
+      });
+      if (!current) throw new NotFoundException('Meeting prep not found');
+      await assertSavedMeetingPrepAccess(tx, ctx, current.generatedFrom);
+      assertExpectedRevision(input.expectedRevision, current.updatedAt, 'meeting_prep', prepId, {
+        id: current.id,
+        status: current.status,
+        clientId: current.clientId,
       });
       const generatedFrom =
-        prep.generatedFrom &&
-        typeof prep.generatedFrom === 'object' &&
-        !Array.isArray(prep.generatedFrom)
-          ? prep.generatedFrom
+        current.generatedFrom &&
+        typeof current.generatedFrom === 'object' &&
+        !Array.isArray(current.generatedFrom)
+          ? current.generatedFrom
           : null;
       const grounding = generatedFrom?.grounding;
       // WP1: bind a legacy unstamped row to its meeting's client in this same write,
@@ -6940,14 +6957,14 @@ export class EngagementService {
       // already-stamped row is never re-stamped here — client reassignment is the
       // canonical reassignMeetingClient path, not this one.
       const stampedClientId =
-        prep.clientId === null
-          ? await resolvePrepClientId(tx, ctx.tenantId, prep.meetingId, null)
-          : prep.clientId;
+        current.clientId === null
+          ? await resolvePrepClientId(tx, ctx.tenantId, current.meetingId, null)
+          : current.clientId;
 
       return tx.meetingPrep.update({
         where: { id: prepId },
         data: {
-          ...(prep.clientId === null && stampedClientId ? { clientId: stampedClientId } : {}),
+          ...(current.clientId === null && stampedClientId ? { clientId: stampedClientId } : {}),
           ...('summary' in input ? { summary: input.summary?.trim() || null } : {}),
           ...('agenda' in input ? { agenda: normalizeStringArray(input.agenda) } : {}),
           ...('talkingPoints' in input
