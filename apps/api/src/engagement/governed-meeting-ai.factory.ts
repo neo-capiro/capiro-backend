@@ -103,8 +103,11 @@ function isCanonicalProjectionOf(
   if (!steering.trimEnd().endsWith('</capiro_meeting_context_plane>')) return false;
   const packetId = bundle.packetId ?? 'not-persisted';
   if (!steering.includes(`CONTEXT_PACKET_ID: ${packetId}`)) return false;
-  const opening = steering.match(/<context_item/g)?.length ?? 0;
-  const closing = steering.match(/<\/context_item>/g)?.length ?? 0;
+  // Escape-free counting: the previous literal here held a real backspace byte where the
+  // word boundary belonged, so it never matched a canonical item and every reduced
+  // projection of this bundle was rejected and re-substituted with the full block.
+  const opening = steering.split('<context_item').length - 1;
+  const closing = steering.split('</context_item>').length - 1;
   return opening === closing;
 }
 
