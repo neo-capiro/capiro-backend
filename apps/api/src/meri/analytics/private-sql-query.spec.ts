@@ -91,7 +91,7 @@ describe('private SQL fixed composition and bounded envelopes', () => {
     ).toBe(false);
     expect(db.runPrivateSql).toHaveBeenCalledTimes(1);
   });
-  it.each(['schema', 'table', 'predicate'])(
+  it.each(['schema', 'table', 'predicate', 'authorizedUuidField'])(
     'rejects an unsafe server descriptor %s before use',
     (key) => {
       const supplied = descriptors();

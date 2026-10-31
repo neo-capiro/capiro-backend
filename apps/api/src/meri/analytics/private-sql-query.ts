@@ -18,6 +18,7 @@ export interface PrivateSqlRelation extends SqlCompilerRelation {
   readonly schema: 'meri_private';
   readonly table: (typeof PRIVATE_SQL_VIEW_NAMES)[number];
   readonly predicate?: never;
+  readonly authorizedUuidField?: never;
   readonly description: string;
   readonly grain: string;
   readonly coverage: {
@@ -70,6 +71,7 @@ function captureRegistry(supplied: readonly PrivateSqlRelation[]): readonly Priv
       r.schema !== 'meri_private' ||
       r.table !== r.name ||
       Object.hasOwn(r, 'predicate') ||
+      Object.hasOwn(r, 'authorizedUuidField') ||
       typeof r.description !== 'string' ||
       typeof r.grain !== 'string' ||
       !Array.isArray(r.fields) ||
