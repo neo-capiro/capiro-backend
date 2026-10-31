@@ -16,6 +16,7 @@ export class PlannerLinksService {
   async validate(
     data: Pick<PlannerProjectData, 'clientId'> & Partial<Pick<PlannerTaskData, 'meetingId'>>,
     authorization: string | undefined,
+    options: { distinguishAuthenticationFailure?: boolean } = {},
   ) {
     const paths = [
       data.clientId && `/api/clients/${data.clientId}`,
@@ -35,6 +36,10 @@ export class PlannerLinksService {
         throw new ServiceUnavailableException('Could not verify the linked Capiro record');
       }
       await response.body?.cancel();
+      // An aggregate cannot turn an upstream authentication failure into an
+      // apparently complete population of zero readable linked records.
+      if (response.status === 401 && options.distinguishAuthenticationFailure)
+        throw new ServiceUnavailableException('Could not verify linked source authorization');
       if ([401, 403, 404].includes(response.status))
         throw new ForbiddenException('Linked record is unavailable to you');
       if (!response.ok)

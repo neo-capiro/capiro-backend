@@ -29,6 +29,7 @@ import { CreateArtifactDto } from './dto/artifact.dto.js';
 import { ReportExportDto, ReportPreflightDto } from '../reports/dto/report-export.dto.js';
 import { StrategyReportService } from '../reports/strategy-report.service.js';
 import { ObjectiveDestinationQueryDto } from './objective-destination.js';
+import type { DomainAggregateQuery } from './domain-aggregate.js';
 
 /**
  * /strategy-api/strategies — library read + manual create (G2), node CRUD +
@@ -55,6 +56,15 @@ export class StrategyController {
     return this.strategies.create(ctx.tenantId, ctx.clerkUserId, dto);
   }
 
+  @Get('metrics/active')
+  @Header('Cache-Control', 'private, no-store')
+  activeAggregate(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Query() query: DomainAggregateQuery,
+    @Req() req: Request,
+  ) {
+    return this.strategies.activeAggregate(ctx, query, req.headers.authorization);
+  }
   /** Read-only readiness and branding metadata for the current report snapshot. */
   @Get(':id/reports/preflight')
   reportPreflight(

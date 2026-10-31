@@ -24,12 +24,22 @@ import { PlannerContextGuard } from './planner-context.guard.js';
 import { PlannerFormUploadInterceptor } from './planner-form-upload.js';
 import type { PlannerFormUpload } from './planner-files.js';
 import { StrategyPlannerGuard } from '../flags/strategy-planner.guard.js';
+import type { DomainAggregateQuery } from '../strategy/domain-aggregate.js';
 
 /** Work Planner has its own project ACLs; it does not inherit the PPBE rollout flag. */
 @Controller('planner')
 @UseGuards(TenantGuard, PlannerContextGuard)
 export class PlannerController {
   constructor(private readonly planner: PlannerService) {}
+  @Get('metrics/overdue')
+  @Header('Cache-Control', 'private, no-store')
+  overdueAggregate(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Query() query: DomainAggregateQuery,
+    @Req() req: Request,
+  ) {
+    return this.planner.overdueAggregate(ctx, query, req.headers.authorization);
+  }
   @Post('strategy-materializations')
   @UseGuards(StrategyPlannerGuard)
   @Header('Cache-Control', 'private, no-store')

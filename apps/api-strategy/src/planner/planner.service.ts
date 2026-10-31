@@ -69,9 +69,18 @@ import {
 import {
   plannerProjectAccessDecision,
   plannerTaskAccessDecision,
+  plannerResourceTaskOverdue,
   plannerResourceDueTimestamp as plannerDueTimestamp,
   plannerResourceScheduledInstant as plannerScheduledInstant,
 } from '@capiro/shared';
+import {
+  aggregateQuery,
+  aggregateFingerprint,
+  aggregateSourceKey,
+  observeDomainAggregate,
+  requireAggregateActor,
+  type DomainAggregateQuery,
+} from '../strategy/domain-aggregate.js';
 import {
   Prisma,
   type SpPlannerProject,
@@ -1278,6 +1287,74 @@ export class PlannerService {
         };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeoutMs: 15_000 },
+    );
+  }
+  async overdueAggregate(
+    ctx: AuthTenantContext,
+    raw: DomainAggregateQuery,
+    authorization?: string,
+  ) {
+    const query = aggregateQuery(raw),
+      asOf = new Date();
+    return observeDomainAggregate(
+      'planner.overdue_unfinished',
+      query,
+      this.links,
+      authorization,
+      () =>
+        this.scope(
+          ctx,
+          async (tx) => {
+            await requireAggregateActor(tx, ctx);
+            const projects = await this.projects(tx, ctx);
+            // No list cursor/LIMIT: every canonical task identity is considered once.
+            const rows = await tx.spPlannerTask.findMany({
+              where: { tenantId: ctx.tenantId, archived: false },
+              orderBy: { id: 'asc' },
+            });
+            const projectRows = projects
+              .map((row) => ({
+                ...row,
+                data: validateProject(projectData(row)),
+              }))
+              .sort((a, b) => a.id.localeCompare(b.id));
+            const tasks = rows
+              .map((row) => ({ ...row, data: validateTask(taskData(row)) }))
+              .filter(
+                (row) => !query.clientId || row.data.clientId?.toLowerCase() === query.clientId,
+              );
+            return {
+              fingerprint: aggregateFingerprint([projectRows, tasks]),
+              sources: [
+                ...projectRows.map((row) => ({ clientId: row.data.clientId })),
+                ...tasks.map((row) => ({
+                  clientId: row.data.clientId,
+                  meetingId: row.data.meetingId,
+                })),
+              ],
+              count: (readable: ReadonlySet<string>) => {
+                const readableProjects = projectRows.filter((row) =>
+                  readable.has(aggregateSourceKey(row.data)),
+                );
+                return new Set(
+                  tasks
+                    .filter(
+                      (row) =>
+                        readable.has(aggregateSourceKey(row.data)) &&
+                        plannerTaskAccessDecision(row, readableProjects, ctx.clerkUserId) &&
+                        plannerResourceTaskOverdue(
+                          { ...row.data, timeZone: row.data.timeZone ?? 'UTC' },
+                          asOf,
+                        ),
+                    )
+                    .map((row) => row.id),
+                ).size;
+              },
+            };
+          },
+          true,
+        ),
+      asOf,
     );
   }
   async tasks(

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { StrategyController } from './strategy.controller.js';
 import { StrategyService } from './strategy.service.js';
+import { PlannerLinksService } from '../planner/planner-links.service.js';
 import { NodeService } from './node.service.js';
 import { VersionService } from './version.service.js';
 import { VersioningService } from './versioning.service.js';
@@ -26,6 +27,7 @@ import { StrategyOrchestratorClient } from '../meri/strategy-orchestrator.client
   controllers: [StrategyController],
   providers: [
     StrategyService,
+    PlannerLinksService,
     NodeService,
     VersionService,
     VersioningService,
