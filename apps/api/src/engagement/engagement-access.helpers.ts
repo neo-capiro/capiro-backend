@@ -17,6 +17,32 @@ import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import { activeMailMessageWhere, activeMailThreadWhere } from './mail-message-state.js';
 
 /**
+ * WP1 (2026-10): a client-scoped meeting cannot carry a client-agnostic prep.
+ *
+ * Resolves the stamp a prep row must carry. An explicitly supplied client always
+ * wins (including the deliberate `null` of an internal meeting); otherwise the
+ * meeting's own client applies. Meetings that are internal, manually unassigned, or
+ * genuinely client-less keep a null stamp, so a meeting without a client keeps
+ * working exactly as before.
+ */
+export async function resolvePrepClientId(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  meetingId: string,
+  supplied: string | null,
+): Promise<string | null> {
+  if (supplied) return supplied;
+  const meeting = await tx.meeting.findFirst({
+    where: { id: meetingId, tenantId },
+    select: { clientId: true, isInternal: true, associationSignals: true },
+  });
+  if (!meeting || meeting.isInternal) return null;
+  const signals = meeting.associationSignals as { manual?: boolean } | null;
+  if (!meeting.clientId && signals?.manual === true) return null;
+  return meeting.clientId ?? null;
+}
+
+/**
  * Reserved compatibility parents that exist only so newer governed artifacts
  * can reuse the mature immutable draft/send FK graph. They are not Classic
  * Outreach campaigns and must never appear through Classic list/open/update

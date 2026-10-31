@@ -2,7 +2,10 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { ownMeetingWhere } from '../../engagement/engagement-access.helpers.js';
+import {
+  ownMeetingWhere,
+  resolvePrepClientId,
+} from '../../engagement/engagement-access.helpers.js';
 import { R5DistrictContextService } from './r5-district-context.service.js';
 import type { R5Fact } from './r5-types.js';
 
@@ -109,7 +112,8 @@ export class R5MeetingPrepService {
       const previous = await tx.meetingPrep.findFirst({ where: { tenantId: ctx.tenantId, meetingId: meeting.id, clientId: input.clientId,
         promptHash: fingerprint, generatedFrom: { path: ['kind'], equals: 'district_nexus_r5' } }, orderBy: { createdAt: 'asc' } });
       if (previous) return previous;
-      return tx.meetingPrep.create({ data: { tenantId: ctx.tenantId, meetingId: meeting.id, clientId: input.clientId,
+      return tx.meetingPrep.create({ data: { tenantId: ctx.tenantId, meetingId: meeting.id,
+        clientId: await resolvePrepClientId(tx, ctx.tenantId, meeting.id, input.clientId),
         status: 'generated', agenda: JSON.parse(JSON.stringify(agenda)), talkingPoints: JSON.parse(JSON.stringify(talkingPoints)),
         followUps: JSON.parse(JSON.stringify(followUps)), risks: JSON.parse(JSON.stringify(risks)),
         generatedFrom: JSON.parse(JSON.stringify(generatedFrom)), promptHash: fingerprint,
