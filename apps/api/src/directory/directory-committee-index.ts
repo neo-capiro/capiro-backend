@@ -30,6 +30,27 @@ interface NormalizedOfficeRow {
   office_member_addresses: any[];
 }
 
+/** Raw chamber offices are outside the committee-only catalog. Recognize the
+ * evidenced roots by taxonomy and name, never by a snapshot-specific office ID.
+ * Other agencies and ambiguous/non-root rows cannot establish this boundary. */
+function federalChamberRoots(rows: NormalizedOfficeRow[]) {
+  const roots = new Map<number, CommitteeChamber>();
+  const seen = new Set<number>();
+  for (const { office } of rows) {
+    const id = Number(office?.office_id);
+    if (!Number.isSafeInteger(id) || id <= 0) continue;
+    if (seen.has(id)) {
+      roots.delete(id);
+      continue;
+    }
+    seen.add(id);
+    if (office?.office_type !== 'Congressional Agency' || office.parent_office !== null) continue;
+    if (office.name === 'U.S. House of Representatives') roots.set(id, 'House');
+    if (office.name === 'U.S. Senate') roots.set(id, 'Senate');
+  }
+  return roots;
+}
+
 // Builds the committee catalog (from office-list) and the per-committee staff
 // roster (from staff-list `positions[].office`). A staffer can appear under
 // multiple committees; within one committee we keep a single entry per person,
@@ -41,6 +62,7 @@ export function buildCommitteeIndex(officeRaw: unknown, staffRaw: unknown[], mem
   // silently produced an empty committee catalog against real data.
   const rows = normalizeOfficeRows(officeRaw);
   const offices = rows.map((row) => row.office);
+  const chamberRoots = federalChamberRoots(rows);
   const committeesByOfficeId = new Map<number, DirectoryCommittee>();
 
   // Committee leadership (Chair / Ranking Member / Vice Chair) lives on the
@@ -58,6 +80,7 @@ export function buildCommitteeIndex(officeRaw: unknown, staffRaw: unknown[], mem
     if (!name) continue;
     const leadership = leadershipByOffice.get(officeId);
     const contact = contactByOffice.get(officeId);
+    const parentOfficeId = Number(office?.parent_office?.office_id) || null;
     committeesByOfficeId.set(officeId, {
       id: `committee-${officeId}`,
       officeId,
@@ -67,7 +90,15 @@ export function buildCommitteeIndex(officeRaw: unknown, staffRaw: unknown[], mem
       committeeCode: office?.congress_committee_code
         ? String(office.congress_committee_code)
         : null,
-      parentOfficeId: Number(office?.parent_office?.office_id) || null,
+      // A matching full committee is a root in this committee-only projection.
+      // Preserve subcommittee, unknown, missing and cross-chamber links so the
+      // consumer can still reject incomplete or inconsistent committee chains.
+      parentOfficeId:
+        meta.kind === 'committee' &&
+        parentOfficeId !== null &&
+        chamberRoots.get(parentOfficeId) === meta.chamber
+          ? null
+          : parentOfficeId,
       staffCount: 0,
       chair: leadership?.chair ?? null,
       rankingMember: leadership?.rankingMember ?? null,
