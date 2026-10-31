@@ -5821,6 +5821,10 @@ export class EngagementService {
     const context = await this.prisma.withTenant(
       ctx.tenantId,
       async (tx) => {
+        // Read the complete context only after any concurrent assignment commits.
+        // This transaction ends before provider delivery.
+        await this.lockMeetingClientAssignment(tx, ctx, meetingId);
+        ctx = await currentMeetingActor(tx, ctx);
         const meeting = await tx.meeting.findFirst({
           where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
           include: {
@@ -5841,8 +5845,11 @@ export class EngagementService {
         meeting.preps = await filterResearchPortfolioMeetingPreps(tx, ctx, meeting.preps);
 
         const effectiveClientId = await this.resolveEffectiveMeetingClientId(tx, ctx, meeting);
+        await assertMeetingClient(tx, ctx, effectiveClientId);
         const effectiveClient =
-          effectiveClientId && effectiveClientId !== meeting.clientId
+          effectiveClientId === null
+            ? null
+            : effectiveClientId !== meeting.clientId
             ? await tx.client.findUnique({ where: { id: effectiveClientId } })
             : meeting.client;
 
@@ -5896,7 +5903,7 @@ export class EngagementService {
       governedBlock ??
       (await this.loadUserVoiceBlock(
         ctx,
-        context.client?.id ?? context.meeting.clientId ?? null,
+        context.effectiveClientId,
       ));
 
     const priorDebriefs = context.recentDebriefs.flatMap((row) => {
@@ -5961,6 +5968,23 @@ export class EngagementService {
 
     const generated = await this.ai.generateMeetingDebrief(assembled.input, ctx);
     await this.recordAiUsage(ctx, 'meeting_debrief', generated);
+    // A draft is returned without a write. Still refuse stale client context if
+    // the parent or the caller's authority changed while the provider ran.
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await this.lockMeetingClientAssignment(tx, ctx, meetingId);
+      ctx = await currentMeetingActor(tx, ctx);
+      const current = await tx.meeting.findFirst({
+        where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
+        select: { clientId: true, isInternal: true },
+      });
+      if (!current) throw new NotFoundException('Meeting not found');
+      await assertMeetingClient(tx, ctx, current.clientId);
+      if ((current.isInternal ? null : current.clientId) !== context.effectiveClientId) {
+        throw new BadRequestException(
+          'The meeting client changed while debrief was generating. Generate again for the current client.',
+        );
+      }
+    }, { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS });
     // Provider, model and token counts only: no raw envelope, no thinking block.
     return {
       recap: generated.recap,
@@ -6544,15 +6568,21 @@ export class EngagementService {
     const context = await this.prisma.withTenant(
       ctx.tenantId,
       async (tx) => {
+        await this.lockMeetingClientAssignment(tx, ctx, meetingId);
+        ctx = await currentMeetingActor(tx, ctx);
         const meeting = await tx.meeting.findFirst({
           where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
           include: { client: true, attendees: true },
         });
         if (!meeting) throw new NotFoundException('Meeting not found');
+        if (['cancelled', 'canceled'].includes(meeting.status.toLowerCase())) {
+          throw new BadRequestException('Prep cannot be generated for a cancelled meeting.');
+        }
 
         // Honor the canonical stored/manual assignment; infer only for an
         // unassigned meeting that has not been explicitly cleared.
         const correctClientId = await this.resolveEffectiveMeetingClientId(tx, ctx, meeting);
+        await assertMeetingClient(tx, ctx, correctClientId);
 
         // Fetch the correct client based on the association result.
         const client = correctClientId
@@ -6689,7 +6719,10 @@ export class EngagementService {
           take: PREP_TASK_LIMIT,
         });
 
-        return { meeting, client, recentMeetings, recentThreads, tasks };
+        return {
+          meeting: { ...meeting, clientId: correctClientId, client },
+          client, effectiveClientId: correctClientId, recentMeetings, recentThreads, tasks,
+        };
       },
       { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS },
     );
@@ -6700,7 +6733,7 @@ export class EngagementService {
     // the author's voice. Best-effort (null when nothing is written).
     const steeringContext = await this.loadUserVoiceBlock(
       ctx,
-      context.client?.id ?? context.meeting.clientId ?? null,
+      context.effectiveClientId,
     );
     const promptContext = {
       meeting: pruneForAi(context.meeting),
@@ -6745,9 +6778,7 @@ export class EngagementService {
     const generationPromptHash = generated.promptHash ?? promptHash;
     await this.recordAiUsage(ctx, 'meeting_prep', generated);
 
-    const correctClientId = context.meeting.isInternal
-      ? null
-      : (context.client?.id ?? context.meeting.clientId);
+    const correctClientId = context.effectiveClientId;
     const created = await this.prisma.withTenantUser(
       ctx.tenantId,
       ctx.userId,
@@ -6755,11 +6786,13 @@ export class EngagementService {
         // Serialize with client reassignment while persisting an artifact generated
         // outside the transaction. Never attach the old client's context to a new client.
         await this.lockMeetingClientAssignment(tx, ctx, meetingId);
+        ctx = await currentMeetingActor(tx, ctx);
         const current = await tx.meeting.findFirst({
           where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
           select: { clientId: true, isInternal: true, status: true },
         });
         if (!current) throw new NotFoundException('Meeting not found');
+        await assertMeetingClient(tx, ctx, current.clientId);
         if ((current.isInternal ? null : current.clientId) !== correctClientId) {
           throw new BadRequestException(
             'The meeting client changed while prep was generating. Generate again for the current client.',
@@ -9232,13 +9265,8 @@ export class EngagementService {
       attendees: Array<{ email: string | null }>;
     },
   ): Promise<string | null> {
-    await this.lockMeetingClientAssignment(tx, ctx, meeting.id);
-    const current = await tx.meeting.findFirst({
-      where: { id: meeting.id, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
-      select: { clientId: true, isInternal: true, associationSignals: true },
-    });
-    if (!current) throw new NotFoundException('Meeting not found');
-    meeting = { ...meeting, ...current };
+    // Both generation callers hold the parent lock before loading this complete
+    // snapshot. Do not refresh only an ID and leave their embedded context stale.
     if (meeting.isInternal) return null;
     // The stored client is canonical. Generation must not independently choose
     // another client and save that second attribution on the prep/debrief.
@@ -9266,6 +9294,7 @@ export class EngagementService {
     }
 
     if (!meeting.clientId && association.clientId) {
+      await assertMeetingClient(tx, ctx, association.clientId);
       await tx.meeting.update({
         where: { id: meeting.id },
         data: {

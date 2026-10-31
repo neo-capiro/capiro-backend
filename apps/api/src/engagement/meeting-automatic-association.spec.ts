@@ -153,6 +153,10 @@ test.each([true, false])(
     const service: any = Object.assign(Object.create(EngagementService.prototype), {
       association: f.association,
     });
+    // Production callers lock before reading the full generation snapshot.
+    await service.lockMeetingClientAssignment(f.tx, { tenantId: 'tenant' }, f.row.id);
+    f.tx.client = { findFirst: jest.fn(async () => ({ id: 'client-b' })) };
+    f.tx.$queryRawUnsafe = jest.fn(async () => [{ allowed: true }]);
     const selected = await service.resolveEffectiveMeetingClientId(
       f.tx,
       { tenantId: 'tenant', userId: 'actor' },

@@ -62,8 +62,14 @@ function harness() {
     tasks: [{ title: 'Send the one-pager', status: 'open', dueDate: new Date('2026-10-20T00:00:00.000Z') }],
   };
   const tx = {
+    tenantMembership: { findFirst: jest.fn(async () => ({ role: ctx.role })) },
+    $queryRaw: jest.fn(async () => [{ id: meeting.id }]),
+    $queryRawUnsafe: jest.fn(async () => [{ allowed: true }]),
     meeting: { findFirst: jest.fn(async () => meeting) },
-    client: { findUnique: jest.fn(async () => meeting.client) },
+    client: {
+      findFirst: jest.fn(async () => ({ id: meeting.clientId })),
+      findUnique: jest.fn(async () => meeting.client),
+    },
     meetingDebrief: {
       // Loosely typed: the canonical body policy needs confidential/accessLevel/authorUserId,
       // which individual cases supply.
