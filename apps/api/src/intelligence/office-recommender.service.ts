@@ -61,6 +61,14 @@ interface RecommenderInput {
 
 const MAX_RESULTS = 12;
 
+/** Bare/zero-padded numeric districts and same-state directory prefixes share one key. */
+function houseDistrictKey(state: string, raw: string | null | undefined): string | null {
+  const value = (raw ?? '').trim().toUpperCase();
+  const match = /^(?:([A-Z]{2})-)?(\d{1,2})$/.exec(value);
+  if (!match || (match[1] && match[1] !== state)) return null;
+  return `${state}-${Number(match[2])}`;
+}
+
 @Injectable()
 export class OfficeRecommenderService {
   private readonly logger = new Logger(OfficeRecommenderService.name);
@@ -155,8 +163,8 @@ export class OfficeRecommenderService {
         const st = (f.state ?? '').toUpperCase().trim();
         if (st) {
           facilityStates.add(st);
-          const dist = (f.congressionalDistrict ?? '').trim();
-          if (dist) facilityDistricts.add(`${st}-${String(Number(dist))}`);
+          const district = houseDistrictKey(st, f.congressionalDistrict);
+          if (district) facilityDistricts.add(district);
         }
       }
     } catch (err) {
@@ -218,14 +226,9 @@ export class OfficeRecommenderService {
         if (m.chamber === 'Senate') {
           districtHit = facilityStates.has(st);
         } else {
-          // House district id arrives as "NH-1" / "TX-12" or bare "12"; normalize.
-          const distRaw = (m.district ?? '').trim();
-          const distNum = distRaw.includes('-') ? distRaw.split('-').pop()! : distRaw;
-          const key = distNum ? `${st}-${String(Number(distNum))}` : '';
-          districtHit =
-            (key.length > 0 && facilityDistricts.has(key)) ||
-            // a statewide facility with no district still gives a softer state nexus
-            facilityStates.has(st);
+          // A state proves Senate constituency, not which House office represents a facility.
+          const key = houseDistrictKey(st, m.district);
+          districtHit = key !== null && facilityDistricts.has(key);
         }
       }
 
@@ -269,10 +272,10 @@ export class OfficeRecommenderService {
         state: stateDisplay,
         chamber: m.chamber,
         committee: jurisdictionCommittee
-          ? (m.committees ?? []).find((c) => this.norm(c) === jurisdictionCommittee) ??
+          ? ((m.committees ?? []).find((c) => this.norm(c) === jurisdictionCommittee) ??
             m.committees?.[0] ??
-            null
-          : m.committees?.[0] ?? null,
+            null)
+          : (m.committees?.[0] ?? null),
         score,
         tags,
         billCount: committeeBills,
