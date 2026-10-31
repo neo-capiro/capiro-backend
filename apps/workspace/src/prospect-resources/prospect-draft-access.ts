@@ -9,6 +9,7 @@ import {
 } from '@capiro/shared';
 import type { Prisma } from '../../generated/prisma-client/index.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
+import type { WorkspaceReadBudget } from '../prisma/workspace-read-budget.js';
 import { canRead, type ResolvedRole } from '../collaborators/role-policy.js';
 
 type DraftOrigin = { id: string; tenantId: string; prospectId?: string | null };
@@ -95,12 +96,14 @@ export async function withProspectDraft<T>(
   policy: Policy,
   mode: 'read' | 'write',
   operation: (tx: Prisma.TransactionClient) => Promise<T>,
+  budget?: WorkspaceReadBudget,
 ): Promise<T> {
   if (!draft.prospectId) return operation(prisma);
-  return prisma.$transaction(async (tx) => {
+  const read = async (tx: Prisma.TransactionClient) => {
     await requireProspectDraftInTx(tx, draft, actorId, policy, mode);
     return operation(tx);
-  });
+  };
+  return budget ? budget.transaction(prisma, read) : prisma.$transaction(read);
 }
 
 export async function assertProspectDraft(
@@ -108,8 +111,9 @@ export async function assertProspectDraft(
   draft: DraftOrigin,
   actorId?: string,
   policy: Policy = canRead,
+  budget?: WorkspaceReadBudget,
 ) {
-  await withProspectDraft(prisma, draft, actorId, policy, 'read', async () => undefined);
+  await withProspectDraft(prisma, draft, actorId, policy, 'read', async () => undefined, budget);
 }
 
 /** Legacy body mutation/restore cannot bypass the copy's atomic save receipt.
@@ -136,14 +140,16 @@ export async function prospectDraftSourceAccess(
   prisma: PrismaService,
   draft: DraftOrigin,
   actorId: string,
+  budget?: WorkspaceReadBudget,
 ) {
   if (!draft.prospectId) return true;
-  return prisma.$transaction(async (tx) => {
+  const read = async (tx: Prisma.TransactionClient) => {
     await tx.$executeRaw`SELECT set_config('app.current_tenant',${draft.tenantId},true)`;
     return Boolean(
       await prospectResourceScope(tx, draft.tenantId, { clerkUserId: actorId }, draft.prospectId!),
     );
-  });
+  };
+  return budget ? budget.transaction(prisma, read) : prisma.$transaction(read);
 }
 
 export function denyProspectTransfer(

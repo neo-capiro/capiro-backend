@@ -31,6 +31,8 @@ import { ordinaryDraftState, saveOrdinaryDraft } from './ordinary-draft-save.js'
 import { readAtomicDraftState } from './atomic-draft-save.js';
 import { saveProspectDraft } from './prospect-draft-save.js';
 import type { SaveProspectDraftDto } from './dto/prospect-save.dto.js';
+import { savedWorkCount } from './saved-work-count.js';
+import type { SavedWorkCountQueryDto } from './dto/saved-work-count.dto.js';
 
 /**
  * Drafts service (Phase 3, AC-3.3). Every method is tenant-scoped: tenantId is
@@ -65,6 +67,10 @@ export class DraftsService {
   save(tenantId: string, draftId: string, actorId: string, input: SaveDraftDto) {
     return saveOrdinaryDraft(this.prisma, this.collaborators, tenantId, draftId, actorId, input,
       tx => this.update(tenantId, draftId, actorId, input.draft ?? {}, tx));
+  }
+
+  savedWorkCount(tenantId: string, actorId: string, query: SavedWorkCountQueryDto) {
+    return savedWorkCount(this.prisma, this.collaborators, tenantId, actorId, query);
   }
 
   async create(

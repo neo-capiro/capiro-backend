@@ -18,6 +18,7 @@ import { DraftsService } from './drafts.service.js';
 import { CreateDraftDto, UpdateDraftDto, ListDraftsQueryDto } from './dto/draft.dto.js';
 import { SaveDraftDto } from './dto/save-draft.dto.js';
 import { SaveProspectDraftDto } from './dto/prospect-save.dto.js';
+import { SavedWorkCountQueryDto } from './dto/saved-work-count.dto.js';
 
 /** Drafts CRUD + autosave (Phase 3, AC-3.3). All tenant-scoped. */
 @Controller('drafts')
@@ -33,6 +34,12 @@ export class DraftsController {
   @Get()
   list(@CurrentTenant() ctx: WorkspaceTenantContext, @Query() q: ListDraftsQueryDto) {
     return this.drafts.list(ctx.tenantId, ctx.clerkUserId, q);
+  }
+
+  @Get('saved-work-count')
+  @Header('Cache-Control', 'no-store')
+  savedWorkCount(@CurrentTenant() ctx: WorkspaceTenantContext, @Query() query: SavedWorkCountQueryDto) {
+    return this.drafts.savedWorkCount(ctx.tenantId, ctx.clerkUserId, query);
   }
 
   @Get(':id')
