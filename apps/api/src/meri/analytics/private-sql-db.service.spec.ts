@@ -1,3 +1,5 @@
+import * as normalizationRuntime from './private-sql-normalization-runtime.js';
+import { PRIVATE_SQL_NORMALIZATION_PINS } from './private-sql-normalization-pins.js';
 import { ForbiddenException } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import {
@@ -375,6 +377,30 @@ describe('private SQL execution isolation (mock transport; native role proof rem
     expect(admission).toContain('s.relforcerowsecurity');
   });
 
+  it('refuses canonical runtime drift before authority or database work', async () => {
+    jest
+      .spyOn(normalizationRuntime, 'privateSqlNormalizationRuntimeAdmitted')
+      .mockReturnValue(false);
+    const f = fixture();
+    await expect(f.service.runPrivateSql(compiled(), f.authority)).rejects.toMatchObject({
+      code: 'SOURCE_UNAVAILABLE',
+    });
+    expect(f.events).toEqual([]);
+    expect(f.client.$transaction).not.toHaveBeenCalled();
+  });
+  it('admits only the pinned pure helper definition and owner/reader EXECUTE ACL', async () => {
+    const f = fixture();
+    await f.service.assertAvailable(f.authority);
+    const admission = f.tx.$queryRawUnsafe.mock.calls[0][0];
+    expect(admission).toContain(PRIVATE_SQL_NORMALIZATION_PINS.functionBodySha256);
+    expect(admission).toContain('(SELECT count(*) FROM normalization_function) = 1');
+    expect(admission).toContain(
+      'f.prosecdef OR f.proleakproof OR f.proretset OR NOT f.proisstrict',
+    );
+    expect(admission).toContain('a.grantee NOT IN (reader.oid, owner.oid)');
+    expect(admission).toContain('a.grantee = reader.oid AND a.is_grantable');
+    expect(admission).toContain("f.proconfig IS DISTINCT FROM ARRAY['search_path=pg_catalog']");
+  });
   it('owns and closes only its separate lazy client', async () => {
     const f = fixture();
     await f.service.onModuleDestroy();

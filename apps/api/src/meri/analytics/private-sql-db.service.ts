@@ -1,4 +1,6 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
+import { privateSqlNormalizationRuntimeAdmitted } from './private-sql-normalization-runtime.js';
+import { PRIVATE_SQL_NORMALIZATION_PINS } from './private-sql-normalization-pins.js';
 import { PrismaClient } from '@prisma/client';
 import { PublicSqlError, type CompiledPublicSql } from './sql-query-compiler.js';
 import { normalizeSqlRow, type SqlResultRow } from './sql-query-output.js';
@@ -150,6 +152,9 @@ const PRIVATE_SQL_ROLE_CHECK = `WITH reader AS (
     ('tenant_memberships', ARRAY['role','status','tenant_id','user_id']::text[]),
     ('tenants', ARRAY['id','status']::text[]),
     ('tracked_bill', ARRAY['bill_id','client_id','created_at','created_by','id','note','source','tenant_id','updated_at']::text[])
+), normalization_function AS (
+  SELECT p.* FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname = 'meri_private' AND p.proname = 'ecmascript_contact_key_u17_v1'
 ), identity_sources AS (
   SELECT c.* FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
   WHERE n.nspname = 'public' AND c.relname = 'users'
@@ -173,6 +178,27 @@ SELECT (
     WHERE n.nspowner = reader.oid OR (n.nspowner = owner.oid AND n.nspname <> 'meri_private')
       OR pg_catalog.has_schema_privilege(reader.oid, n.oid, 'CREATE')
       OR (n.nspname <> 'meri_private' AND pg_catalog.has_schema_privilege(owner.oid, n.oid, 'CREATE')))
+  AND pg_catalog.current_setting('server_encoding') = 'UTF8'
+  AND (SELECT count(*) FROM normalization_function) = 1
+  AND NOT EXISTS (SELECT 1 FROM normalization_function f
+    JOIN pg_catalog.pg_language l ON l.oid = f.prolang
+    WHERE f.proowner <> owner.oid OR f.prokind <> 'f' OR l.lanname <> 'plpgsql'
+      OR f.proargtypes <> '25'::pg_catalog.oidvector OR f.prorettype <> 25
+      OR f.pronargs <> 1 OR f.pronargdefaults <> 0 OR f.provariadic <> 0
+      OR f.proargnames IS DISTINCT FROM ARRAY['input']::text[]
+      OR f.proargmodes IS NOT NULL OR f.proallargtypes IS NOT NULL OR f.prosupport <> 0
+      OR f.probin IS NOT NULL OR f.prosqlbody IS NOT NULL
+      OR f.prosecdef OR f.proleakproof OR f.proretset OR NOT f.proisstrict
+      OR f.provolatile <> 'i' OR f.proparallel <> 's'
+      OR f.proconfig IS DISTINCT FROM ARRAY['search_path=pg_catalog']::text[]
+      OR pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(f.prosrc, 'UTF8')), 'hex')
+        <> '${PRIVATE_SQL_NORMALIZATION_PINS.functionBodySha256}'
+      OR NOT pg_catalog.has_function_privilege(reader.oid, f.oid, 'EXECUTE')
+      OR EXISTS (SELECT 1 FROM pg_catalog.aclexplode(coalesce(f.proacl, pg_catalog.acldefault('f', f.proowner))) a
+        WHERE a.grantee NOT IN (reader.oid, owner.oid) OR a.privilege_type <> 'EXECUTE'
+          OR (a.grantee = reader.oid AND a.is_grantable)))
+  AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_proc p WHERE p.proowner = reader.oid
+    OR (p.proowner = owner.oid AND p.oid NOT IN (SELECT oid FROM normalization_function)))
   AND (SELECT count(*) FROM views) = 19
   AND NOT EXISTS (SELECT 1 FROM views v WHERE v.relkind <> 'v' OR v.relowner <> owner.oid
     OR NOT coalesce(v.reloptions @> ARRAY['security_barrier=true'], false)
@@ -310,6 +336,8 @@ export class PrivateSqlDbService {
         compiled.relationsUsed.some((name) => !allowedRelations.includes(name)))
     )
       throw unavailable();
+    remaining(context);
+    if (!privateSqlNormalizationRuntimeAdmitted()) throw unavailable();
     remaining(context);
     await context.assertCurrent();
     const budget = remaining(context);
