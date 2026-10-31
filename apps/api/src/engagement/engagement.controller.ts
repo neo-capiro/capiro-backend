@@ -2042,6 +2042,12 @@ export class EngagementController {
     @Optional() private readonly meetingDebriefJobs?: MeetingDebriefJobService,
   ) {}
 
+  @Get('outreach-metrics')
+  @Header('Cache-Control', 'private, no-store')
+  outreachMetrics(@CurrentTenant() ctx: TenantContext, @Query() query: unknown) {
+    return this.service.outreachMetrics(ctx, query);
+  }
+
   @Get('capabilities')
   capabilities() {
     // Phase 0 §3.i1: the web app must know whether versioned outreach and the

@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   NotFoundException,
   Optional,
   Param,
@@ -97,7 +98,7 @@ import { ResearchPortfolioPhase11Service } from './research-portfolio-phase11.se
 import { ResearchPortfolioInstitutionalService } from './research-portfolio-institutional.service.js';
 import { ResearchPortfolioBillsService } from './research-portfolio-bills.service.js';
 
-const RESERVED_STATIC_IDS = new Set(['templates', 'taxonomy', 'tour-state']);
+const RESERVED_STATIC_IDS = new Set(['templates', 'taxonomy', 'tour-state', 'metrics']);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function ensurePortfolioId(id: string): void {
@@ -122,6 +123,12 @@ export class ResearchPortfoliosController {
     private readonly bills: ResearchPortfolioBillsService,
     @Optional() private readonly institutional?: ResearchPortfolioInstitutionalService,
   ) {}
+
+  @Get('metrics')
+  @Header('Cache-Control', 'private, no-store')
+  metrics(@CurrentTenant() ctx: TenantContext, @Query() query: unknown) {
+    return this.service.metrics(ctx, query);
+  }
 
   // Bill discovery/detail are static routes and must precede :id.
   @Get('bill-search')
