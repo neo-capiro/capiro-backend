@@ -3,6 +3,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { OutreachCampaignService } from './outreach-campaign.service.js';
 import type { OutreachCampaignState } from './outreach-campaign.contract.js';
+import type { GatewayEnrichmentInput } from './generation/generation-gateway.service.js';
 const ctx = {
   tenantId: '00000000-0000-4000-8000-000000000001',
   userId: '00000000-0000-4000-8000-000000000002',
@@ -129,7 +130,7 @@ describe('saved Outreach campaign owner', () => {
       await expect(f.service.claim(ctx, { generationJobId: jobId, itemId })).rejects.toThrow('stop after');
       const expected = generationKey === 'group:shared' ? groupContext : ownContext;
       expect(f.context.resolveMany).toHaveBeenCalledWith(ctx, [campaignContext, expected]);
-      const enrichment = f.gateway.executeSdk.mock.calls[0]![2];
+      const enrichment = f.gateway.executeSdk.mock.calls[0]![2] as GatewayEnrichmentInput;
       const evidence = await Promise.all(enrichment.channels.map((channel: any) => channel.load()));
       expect(evidence.sort()).toEqual([campaignContext.locator.text, expected.locator.text].sort());
       expect(enrichment.auditLedger.map((entry: any) => entry.serialized).sort()).toEqual(evidence);
