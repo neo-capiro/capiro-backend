@@ -20,6 +20,10 @@ import {
   type DomainAggregateQuery,
 } from './domain-aggregate.js';
 import { loadStrategyDetail } from './detail.js';
+import {
+  readObjectiveSavedReview,
+  type ObjectiveSavedReviewQueryDto,
+} from './objective-saved-review.js';
 import { ATTACHED_ARTIFACT_WHERE, LIVE_NODE_WHERE } from './live-node.js';
 import { lockStrategyForMutation } from './mutation-lock.js';
 import type { CreateStrategyDto, StrategyTypeValue } from './dto/create-strategy.dto.js';
@@ -101,6 +105,12 @@ export class StrategyService {
       { signal },
     );
   }
+  async objectiveSavedReview(ctx: AuthTenantContext, id: string, input: ObjectiveSavedReviewQueryDto) {
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.clerkUserId, (tx) =>
+      readObjectiveSavedReview(tx, ctx, id, input),
+    );
+  }
+
   async objectiveDestination(
     ctx: AuthTenantContext,
     id: string,
