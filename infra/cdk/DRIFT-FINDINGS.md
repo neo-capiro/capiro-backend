@@ -359,7 +359,7 @@ replicas logged `meri_job_sweeper_enabled` at 00:59:32 UTC. Codified in
 
 ## WAF — SQLi_BODY and GenericLFI_BODY scoped down on live `capiro-dev-waf` (2026-11-01 UTC, Neo's OK; live only, not in CDK)
 
-Web ACL `capiro-dev-waf` took lock-token `e1e3f893…` to `e2443bde…` (capacity 1107 to 1145). It had blocked
+Web ACL `capiro-dev-waf` took lock-token `e1e3f893…` to `e2443bde…` (capacity 1107 to 1145), then to `0c9b299d…` (capacity 1152) for the third carve-out below. It had blocked
 Meri's control gateway calling Core's SQL tool (`SQLi_BODY` on `POST /api/clio/tools/query_capiro_data`,
 shown to the model as ACCESS_DENIED) and user chat text on app.capiro.ai (`SQLi_BODY` on
 `/api/conversations/list`, `GenericLFI_BODY` on `/api/conversations/input/allocate` and `/input/admit`).
@@ -372,10 +372,14 @@ emitted) and a custom Block rule re-blocks the label except for the named reques
 | `AWS-AWSManagedRulesCommonRuleSet` (1) | `ExcludedRules` += `GenericLFI_BODY` |
 | `block-sqli-body-outside-sql-tool-and-chat` (5, new) | Block `SQLi_Body` label unless `POST` + `/api/clio/tools/query_capiro_data` + host `first-chat-preview.app-dev.capiro.ai`, or `POST` + host `app.capiro.ai` + `/api/conversations/input/allocate`, `/input/admit` or `/list` |
 | `block-lfi-body-outside-chat-routes` (6, new) | Block `GenericLFI_Body` label unless `POST` + host `app.capiro.ai` + the same three chat paths |
+| `AWS-AWSManagedRulesSQLiRuleSet` (3), later the same day | `ExcludedRules` = `SQLi_BODY`, `SQLiExtendedPatterns_BODY` |
+| `block-sqli-extended-body-outside-sql-tool` (7, new, later the same day) | Block `SQLiExtendedPatterns_Body` label unless `POST` + `/api/clio/tools/query_capiro_data` + host `first-chat-preview.app-dev.capiro.ai` |
 
-All other rules are unchanged. `SQLiExtendedPatterns_BODY` still blocks everywhere, so a SQL body with a
-tautology or `UNION SELECT` is still refused at the edge on the SQL tool path; plain `SELECT ... WHERE`
-bodies reach Core (401 without auth). Core's statement gate and read-only database roles remain the SQL gate.
+All other rules are unchanged. The three carve-outs are `SQLi_BODY` (SQL tool path and three chat routes),
+`GenericLFI_BODY` (three chat routes) and `SQLiExtendedPatterns_BODY` (SQL tool path only). The SQL tool
+path now reaches Core for every SELECT, tautology or UNION body (401 without auth); chat routes still
+block `SQLiExtendedPatterns_BODY` text such as a tautology with `UNION SELECT`. Core's statement gate and
+read-only database roles remain the SQL gate.
 Rollback: re-apply the previous rule list with `update-web-acl` and the current lock token.
 No CDK code changed: `compute-stack.ts` still codifies the ACL without the SQLi rule set, so the
 reconciliation above must also decide these two carve-outs deliberately.
