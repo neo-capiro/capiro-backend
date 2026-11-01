@@ -1,4 +1,5 @@
 import { lockMeetingAssociation, hasBoundMeetingRecords } from './meeting-automatic-association.js';
+import { readMeetingDebriefContext } from './meeting-debrief-context-read.js';
 import { outreachAudienceWhere, type OutreachDirection } from './outreach-audience.js';
 import { forwardedMessageHtml } from './mail-forward-source.js';
 import { assertSingleMailAuthority, assertSingleMailIntentReadAuthority, resolveSingleMailReply } from './single-mail-authority.js';
@@ -6050,6 +6051,10 @@ export class EngagementService {
         restricted: !canReadBody,
       };
     });
+  }
+
+  getMeetingDebriefContext(ctx: TenantContext, meetingId: string, debriefId: string) {
+    return readMeetingDebriefContext(this.prisma, ctx, meetingId, debriefId);
   }
 
   async listMeetingDebriefs(ctx: TenantContext, meetingId: string, clientId?: string) {

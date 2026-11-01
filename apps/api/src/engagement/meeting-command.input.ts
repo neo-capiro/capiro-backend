@@ -17,7 +17,7 @@ const instant = z
  * primitives (no functions, no nesting beyond the section list) and it is accepted only
  * on a debrief create — the operation that persists meeting_debriefs.generated_from_jsonb.
  */
-const debriefContextSummarySchema = z
+export const debriefContextSummarySchema = z
   .object({
     version: z.string().trim().min(1).max(64),
     boundTokens: z.number().int().nonnegative(),

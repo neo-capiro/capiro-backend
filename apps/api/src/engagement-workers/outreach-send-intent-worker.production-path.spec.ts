@@ -65,8 +65,9 @@ function database() {
         return null;
       },
     },
-    $queryRaw: async () => {
-      reached.push('$queryRaw');
+    $queryRaw: async (strings: TemplateStringsArray) => {
+      const sql = strings.join('?');
+      reached.push(sql.includes('SELECT intent.id') ? 'owned-intent-selection' : 'owned-stale-selection');
       return [];
     },
   };
@@ -124,8 +125,8 @@ describe('ordinary sender through the production RaceSafe sweep', () => {
     jest.advanceTimersByTime(1000);
     await flush();
     // The real base sweep reached its database boundary in ordinary (not V3-only) mode.
-    expect(reached).toContain('outreachDelivery.findMany');
-    expect(reached).toContain('outreachSendIntent.findMany');
+    expect(reached).toContain('owned-stale-selection');
+    expect(reached).toContain('owned-intent-selection');
     // Nothing was mutated, no provider effect, no replay.
     expect(reached).not.toContain('outreachDelivery.updateMany');
     expect(reached).not.toContain('outreachSendIntent.findFirst');
@@ -170,7 +171,7 @@ describe('ordinary sender through the production RaceSafe sweep', () => {
     jest.advanceTimersByTime(1000);
     await flush();
     // V3-only branch reached the same selection boundary and did not fall through to refusal.
-    expect(reached).toContain('outreachSendIntent.findMany');
+    expect(reached).toContain('owned-intent-selection');
     service.onModuleDestroy();
   });
 

@@ -324,6 +324,8 @@ function makeDeliverHarness(opts: {
       // outreach_events to decide whether the classic or the V3 worker owns an
       // intent. These delivery tests cover the CLASSIC path.
       const sql = Array.isArray(strings) ? strings.join(' ') : '';
+      if (sql.includes('SELECT intent.id')) return [{ id: 'intent-1' }];
+      if (sql.includes('SELECT delivery.id')) return [];
       if (sql.includes('outreach_events')) return [];
       if (state.claimed >= (opts.envelopes?.length ?? 1)) return [];
       const envelope = opts.envelopes?.[state.claimed];
