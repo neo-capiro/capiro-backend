@@ -153,7 +153,8 @@ it('prevents new local classifier or selector copies in the finite Tracker and c
     'classifyHighPriorityAction',
     'classifyScheduledAndCommitteeAction',
   ]);
-  for (const path of productionTrackerFiles(root)) {
+  for (const file of productionTrackerFiles(root)) {
+    const path = file.replace(/\\/g, '/');
     const source = asset(root, path);
     const inspect = (node: ts.Node) => {
       if (ts.isFunctionDeclaration(node) && node.name && names.has(node.name.text))

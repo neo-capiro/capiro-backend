@@ -28,21 +28,21 @@ const TENANT_B = '00000000-0000-0000-0000-0000000000f2';
 const CLIENT_A1 = '00000000-0000-0000-0000-00000000cf11';
 const CLIENT_A2 = '00000000-0000-0000-0000-00000000cf12';
 const CLIENT_B1 = '00000000-0000-0000-0000-00000000cf21';
-const USER_A1 = 'lw-w2-user-a1';
-const USER_B1 = 'lw-w2-user-b1';
+const USER_A1 = '00000000-0000-0000-0000-00000000af11';
+const USER_B1 = '00000000-0000-0000-0000-00000000af21';
 
 const ctxA1: TenantContext = {
   tenantId: TENANT_A,
   tenantSlug: 'lw-w2-a',
   userId: USER_A1,
-  clerkUserId: USER_A1,
+  clerkUserId: 'lw-w2-user-a1',
   role: 'standard_user',
 };
 const ctxB1: TenantContext = {
   tenantId: TENANT_B,
   tenantSlug: 'lw-w2-b',
   userId: USER_B1,
-  clerkUserId: USER_B1,
+  clerkUserId: 'lw-w2-user-b1',
   role: 'standard_user',
 };
 
@@ -97,6 +97,20 @@ describeDb('LegiWatch Wave 2 (real Postgres)', () => {
        ON CONFLICT (id) DO NOTHING`,
       TENANT_A,
       TENANT_B,
+    );
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO users (id, clerk_user_id, email, updated_at) VALUES
+         ($1::uuid, $3, 'lw-w2-a@example.invalid', now()),
+         ($2::uuid, $4, 'lw-w2-b@example.invalid', now())
+       ON CONFLICT (id) DO UPDATE SET clerk_user_id=EXCLUDED.clerk_user_id`,
+      USER_A1, USER_B1, ctxA1.clerkUserId, ctxB1.clerkUserId,
+    );
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO tenant_memberships (id, tenant_id, user_id, role, status, updated_at) VALUES
+         ('00000000-0000-0000-0000-00000000bf11'::uuid, $1::uuid, $3::uuid, 'standard_user', 'active', now()),
+         ('00000000-0000-0000-0000-00000000bf21'::uuid, $2::uuid, $4::uuid, 'standard_user', 'active', now())
+       ON CONFLICT (tenant_id, user_id) DO UPDATE SET role='standard_user', status='active', updated_at=now()`,
+      TENANT_A, TENANT_B, USER_A1, USER_B1,
     );
     await prisma.$executeRawUnsafe(
       `INSERT INTO clients (id, tenant_id, name, status) VALUES
@@ -311,7 +325,7 @@ describeDb('LegiWatch Wave 2 (real Postgres)', () => {
 
   describe('W2-5 watchlist coverage', () => {
     it('returns NOT_CONFIGURED — never 0% — with no configured concepts', async () => {
-      const result = await coverage.watchlistCoverage(TENANT_A, CLIENT_A1);
+      const result = await coverage.watchlistCoverage(ctxA1, CLIENT_A1);
       expect(result.overall.status).toBe('NOT_CONFIGURED');
       expect(result.overall.percentage).toBeNull();
       expect(result.overall.totalConcepts).toBe(0);
@@ -325,7 +339,7 @@ describeDb('LegiWatch Wave 2 (real Postgres)', () => {
         `INSERT INTO sync_run (id, source, started_at, finished_at, status)
          VALUES (gen_random_uuid(), 'sync-congress', now(), now(), 'success')`,
       );
-      const result = await coverage.watchlistCoverage(TENANT_A, CLIENT_A1);
+      const result = await coverage.watchlistCoverage(ctxA1, CLIENT_A1);
       expect(result.overall.totalConcepts).toBe(1);
       expect(result.overall.coveredConcepts).toBe(1);
       expect(result.overall.percentage).toBe(100);
@@ -341,7 +355,7 @@ describeDb('LegiWatch Wave 2 (real Postgres)', () => {
         `INSERT INTO sync_run (id, source, started_at, finished_at, status)
          VALUES (gen_random_uuid(), 'sync-congress', now() - interval '30 days', now() - interval '30 days', 'success')`,
       );
-      const result = await coverage.watchlistCoverage(TENANT_A, CLIENT_A1);
+      const result = await coverage.watchlistCoverage(ctxA1, CLIENT_A1);
       expect(result.concepts[0]!.status).toBe('STALE');
       expect(result.overall.status).not.toBe('COVERED');
     });
@@ -350,7 +364,7 @@ describeDb('LegiWatch Wave 2 (real Postgres)', () => {
       await seedWatchlistTopic(TENANT_A, CLIENT_A1, 'Risk phrase concept', [
         { termType: 'risk_phrase', value: 'material weakness' },
       ]);
-      const result = await coverage.watchlistCoverage(TENANT_A, CLIENT_A1);
+      const result = await coverage.watchlistCoverage(ctxA1, CLIENT_A1);
       expect(result.concepts[0]!.status).toBe('UNSUPPORTED');
       expect(result.concepts[0]!.signalFamilies).toEqual([]);
     });
@@ -363,13 +377,13 @@ describeDb('LegiWatch Wave 2 (real Postgres)', () => {
       await seedWatchlistTopic(TENANT_A, CLIENT_A1, 'Committee concept', [
         { termType: 'committee', value: 'Armed Services' },
       ]);
-      const result = await coverage.watchlistCoverage(TENANT_A, CLIENT_A1);
+      const result = await coverage.watchlistCoverage(ctxA1, CLIENT_A1);
       expect(result.sourceHealth.healthy).toBeGreaterThan(0);
       expect(result.concepts[0]!.status).toBe('COVERED');
     });
 
     it('Tenant A cannot request Tenant B client coverage', async () => {
-      await expect(coverage.watchlistCoverage(TENANT_A, CLIENT_B1)).rejects.toThrow(
+      await expect(coverage.watchlistCoverage(ctxA1, CLIENT_B1)).rejects.toThrow(
         /Client not found/,
       );
     });
@@ -378,7 +392,7 @@ describeDb('LegiWatch Wave 2 (real Postgres)', () => {
       await seedWatchlistTopic(TENANT_A, CLIENT_A1, 'Tenant A concept', [
         { termType: 'bill', value: 'x' },
       ]);
-      const result = await coverage.watchlistCoverage(TENANT_B, CLIENT_B1);
+      const result = await coverage.watchlistCoverage(ctxB1, CLIENT_B1);
       expect(result.overall.status).toBe('NOT_CONFIGURED');
       expect(JSON.stringify(result)).not.toContain('Tenant A concept');
     });
