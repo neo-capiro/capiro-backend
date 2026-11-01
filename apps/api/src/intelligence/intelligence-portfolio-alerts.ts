@@ -51,7 +51,13 @@ export interface PortfolioAlertsPorts {
 
 type PortfolioClient = { id: string; name: string };
 
+/** A roll-up stopped at the budget is retried sooner than a complete one. */
+export const PORTFOLIO_ALERTS_PARTIAL_TTL_MS = 20_000;
+
 export class IntelligencePortfolioAlerts {
+  /** Per-tenant run counter; rotates where each roll-up starts in the roster. */
+  private readonly rosterTurns = new Map<string, number>();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly ports: PortfolioAlertsPorts,
@@ -121,12 +127,14 @@ export class IntelligencePortfolioAlerts {
     const run = this.ports.computePortfolioAlerts(tenantId, userId, limit, maxClients);
     const settled = run.result
       .then((result) => {
-        // A roll-up stopped at the budget is cached like a complete one: the
-        // next polls within the TTL must not start the fan-out again.
-        this.ports.cache().set(cacheKey, {
-          expiresAt: Date.now() + this.ports.ttlMs(),
-          value: result,
-        });
+        // A roll-up stopped at the budget is cached too, so the next polls do
+        // not restart the fan-out, but for a shorter time: a partial (or the
+        // empty one from a run aborted while gate-queued) must not stand for
+        // the whole poll interval.
+        const ttl = result.partial
+          ? Math.min(this.ports.ttlMs(), PORTFOLIO_ALERTS_PARTIAL_TTL_MS)
+          : this.ports.ttlMs();
+        this.ports.cache().set(cacheKey, { expiresAt: Date.now() + ttl, value: result });
         return result;
       })
       .catch((err) => {
@@ -165,13 +173,18 @@ export class IntelligencePortfolioAlerts {
     const { signal } = controller;
     let clients: PortfolioClient[] = [];
     const tagged: PortfolioAlertsResult['alerts'] = [];
+    // The roster is alphabetical and the budget stops the serial walk early,
+    // so each run starts one client further along; successive runs cover
+    // different parts of the roster instead of starving its tail.
+    const turn = this.rosterTurns.get(tenantId) ?? 0;
+    this.rosterTurns.set(tenantId, turn + 1);
 
     const run = async () => {
       // Aborted while queued behind another roll-up: never start the fan-out.
       if (signal.aborted) return this.projectPortfolioAlerts(tagged, clients, limit, true);
 
       // Active (non-archived) clients for the tenant.
-      clients = await this.prisma.withTenant(tenantId, (tx) =>
+      const roster = await this.prisma.withTenant(tenantId, (tx) =>
         tx.client.findMany({
           where: { status: { not: 'archived' } },
           select: { id: true, name: true },
@@ -179,6 +192,8 @@ export class IntelligencePortfolioAlerts {
           take: maxClients,
         }),
       );
+      const start = roster.length > 0 ? turn % roster.length : 0;
+      clients = [...roster.slice(start), ...roster.slice(0, start)];
 
       // SERIAL: one client aggregate at a time. Never parallelize here — the
       // per-client profile-v1 already fans out widely; running several at once

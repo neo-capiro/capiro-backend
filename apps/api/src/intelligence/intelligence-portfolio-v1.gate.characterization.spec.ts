@@ -86,6 +86,29 @@ describe('Portfolio gate source serialization', () => {
   });
 });
 
+describe('Portfolio roster rotation across runs', () => {
+  test('starts each successive run for a tenant one client further along the alphabetical roster', async () => {
+    const roster = [client(), client({ id: 'second', name: 'Second' }), client({ id: 'third', name: 'Third' })];
+    const h = harness({ rows: { clients: roster } });
+    for (const _ of roster) await h.runtime.computePortfolioAlerts(tenantId, userId, 12, 40).result;
+    await h.runtime.computePortfolioAlerts('other-tenant', userId, 12, 40).result;
+    expect(h.source.mock.calls.map((call) => [call[0], call[1]])).toEqual([
+      [clientId, tenantId],
+      ['second', tenantId],
+      ['third', tenantId],
+      ['second', tenantId],
+      ['third', tenantId],
+      [clientId, tenantId],
+      ['third', tenantId],
+      [clientId, tenantId],
+      ['second', tenantId],
+      [clientId, 'other-tenant'],
+      ['second', 'other-tenant'],
+      ['third', 'other-tenant'],
+    ]);
+  });
+});
+
 describe('Portfolio preexisting rejected gate recovery', () => {
   test('runs after a rejected predecessor using the same run handler on both outcomes and heals the gate', async () => {
     const h = harness();

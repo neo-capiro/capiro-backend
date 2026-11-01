@@ -147,6 +147,21 @@ describe('Portfolio alert failed computation cleanup', () => {
     expect((await h.service.getPortfolioAlerts(tenantId, userId)).clientCount).toBe(1);
     expect(h.runtime.portfolioAlertsCache.has(key)).toBe(true);
   });
+  test('a rejected computePortfolioAlerts run leaves both the cache and the in-flight map clean', async () => {
+    const h = harness();
+    const error = new Error('Run exploded');
+    jest.spyOn(h.runtime, 'computePortfolioAlerts').mockReturnValue({
+      result: Promise.reject(error),
+      abort: () => ({ ...emptyAlerts(), partial: true }),
+    });
+    expect(await h.service.getPortfolioAlerts(tenantId, userId)).toEqual(emptyAlerts());
+    expect(h.runtime.portfolioAlertsCache.size).toBe(0);
+    expect(h.runtime.portfolioAlertsInflight.size).toBe(0);
+    expect(h.warnings).toHaveBeenCalledWith(
+      `portfolio-alerts: compute failed for ${key}: Run exploded`,
+    );
+    expect(jest.getTimerCount()).toBe(0);
+  });
   test('formats non-Error computation rejection without changing the fail-open payload', async () => {
     const h = harness({ errors: { clients: 'unavailable' } });
     expect(await h.service.getPortfolioAlerts(tenantId, userId)).toEqual(emptyAlerts());

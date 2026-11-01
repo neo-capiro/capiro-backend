@@ -68,7 +68,7 @@ describe('Portfolio alert request budget stops the roll-up and keeps its partial
     expect(h.callsOf('profile:third')).toEqual([]);
     expect(h.runtime.portfolioAlertsInflight.size).toBe(0);
     const cached = h.runtime.portfolioAlertsCache.get(key)!;
-    expect(cached.expiresAt).toBe(now.getTime() + 20 + 120000);
+    expect(cached.expiresAt).toBe(now.getTime() + 20 + 20000);
     expect(cached.value).toEqual({
       alerts: [
         expect.objectContaining({ id: `${clientId}:first` }),
@@ -102,11 +102,39 @@ describe('Portfolio alert request budget stops the roll-up and keeps its partial
     await drain();
     expect(h.calls).toEqual([]);
     expect(h.runtime.portfolioAlertsCache.get(key)).toEqual({
-      expiresAt: now.getTime() + 20 + 120000,
+      expiresAt: now.getTime() + 20 + 20000,
       value: partialEmpty,
     });
     expect(h.runtime.portfolioAlertsInflight.size).toBe(0);
     expect(jest.getTimerCount()).toBe(0);
+  });
+
+  test('an abort landing during the roster read answers an empty partial with clientCount 0 and caches no full result', async () => {
+    budgets.PORTFOLIO_ALERTS_REQUEST_BUDGET_MS = 20;
+    const pendingRoster = deferred<unknown>();
+    const h = harness({
+      rows: { clients: pendingRoster.promise, [`profile:${clientId}`]: profile([alert()]) },
+    });
+    const request = h.service.getPortfolioAlerts(tenantId, userId);
+    await h.started('clients');
+    await jest.advanceTimersByTimeAsync(20);
+    expect(await request).toEqual({
+      ...emptyAlerts(new Date(now.getTime() + 20).toISOString()),
+      clientCount: 0,
+      partial: true,
+    });
+    pendingRoster.resolve([client()]);
+    await drain();
+    expect(h.source).not.toHaveBeenCalled();
+    expect(h.runtime.portfolioAlertsCache.get(key)).toEqual({
+      expiresAt: now.getTime() + 20 + 20000,
+      value: {
+        ...emptyAlerts(new Date(now.getTime() + 20).toISOString()),
+        clientCount: 1,
+        partial: true,
+      },
+    });
+    expect(h.runtime.portfolioAlertsInflight.size).toBe(0);
   });
 
   test('a profile that fails because the budget aborted it is dropped without a warning', async () => {
