@@ -10,6 +10,7 @@ import { authorizeMeriProspectScope } from '../business-development/bizdev-meri-
 import { ApplicationMembershipService } from './application-membership.service.js';
 import { authorizeWorkspaceGenerationSource } from '../context/workspace-generation-source.authorization.js';
 import { ApplicationAuthorityChangedException, parseApplicationAuthorityCurrentBody, readApplicationAuthorityCurrent } from './application-authority.js';
+import { parseResearchPortfolioCurrentBody, readResearchPortfolioSqlScope } from '../research-portfolios/research-portfolio-sql-authority.js';
 
 /** The existing combined current owner, shared by HTTP and native approvals. */
 @Injectable()
@@ -21,6 +22,40 @@ export class ApplicationCurrentService {
     private readonly bizdevScope: BizDevMeriScopeService,
     private readonly membership: ApplicationMembershipService,
   ) {}
+
+  /** Explicit Research capture. Ordinary /current General requests continue to
+   * refuse Research metadata below; null clientId never selects a portfolio. */
+  async readResearch(ctx: TenantContext, req: Request, body: unknown) {
+    const input = parseResearchPortfolioCurrentBody(body);
+    const session = await this.tenant.readApplicationAuthoritySession(req, ctx);
+    try {
+      return await this.prisma.withSystem(async (tx) => {
+        let researchPortfolio: Awaited<ReturnType<typeof readResearchPortfolioSqlScope>> | undefined;
+        const receipt = await readApplicationAuthorityCurrent(input, {
+          identity: () => session.readCurrent(tx),
+          membership: () => this.membership.readInTransaction(ctx, tx),
+          conversation: (id) => loadOwnedActiveClioConversation(this.prisma, ctx, id, tx),
+          conversationScope: async (conversation) => {
+            if (await authorizeMeriProspectScope(this.bizdevScope, ctx,
+              (conversation as { metadata?: unknown }).metadata, tx))
+              throw new ForbiddenException('Application authority unavailable');
+            researchPortfolio = await readResearchPortfolioSqlScope(tx, ctx, conversation, () => {
+              if (req.aborted) throw new ForbiddenException('Application authority unavailable');
+            });
+            return researchPortfolio;
+          },
+          clientVisible: async () => { throw new ForbiddenException('Application authority unavailable'); },
+          clientAuthority: async () => { throw new ForbiddenException('Application authority unavailable'); },
+        });
+        if (!researchPortfolio) throw new ForbiddenException('Application authority unavailable');
+        return { ...receipt, researchPortfolio };
+      }, { isolationLevel: 'RepeatableRead', readOnly: true });
+    } catch (error) {
+      if (error instanceof ServiceUnavailableException || error instanceof ApplicationAuthorityChangedException) throw error;
+      if (!(error instanceof HttpException)) throw new ServiceUnavailableException('Application authority unavailable');
+      throw new ForbiddenException('Application authority unavailable');
+    }
+  }
 
   async read(ctx: TenantContext, req: Request, body: unknown) {
     const input = parseApplicationAuthorityCurrentBody(body);
