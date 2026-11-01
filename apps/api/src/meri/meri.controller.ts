@@ -608,7 +608,7 @@ export class MeriController {
   ) {
     // These normalized reads use the same user/service boundary as ordinary
     // tools. Correlation is request data; canonical owners authorize resources.
-    if ((name === 'describe_capiro_data' || name === 'query_capiro_data') && body?.source === 'client_records') {
+    if ((name === 'describe_capiro_data' || name === 'query_capiro_data') && ['client_records', 'research_portfolio', 'classic_outreach'].includes(String(body?.source))) {
       assertMeriToolAllowed(name);
       assertOrdinaryToolPathAllowed(name);
       if (!this.privateSql) throw new ServiceUnavailableException('Private query access unavailable');

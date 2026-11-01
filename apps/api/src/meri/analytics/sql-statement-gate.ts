@@ -57,7 +57,7 @@ export class SqlQueryError extends Error {
 }
 
 export type SqlParameter = string | number | boolean | null;
-export type SqlSource = 'public' | 'client_records';
+export type SqlSource = 'public' | 'client_records' | 'research_portfolio' | 'classic_outreach';
 
 export const SQL_QUERY_LIMITS = Object.freeze({
   defaultRowLimit: 200,
@@ -95,10 +95,19 @@ export const PRIVATE_RELATION_NAMES = Object.freeze([
   'client_tracked_bills',
   'client_outreach_campaigns',
   'client_campaign_recipients',
+  'client_meetings',
 ] as const);
+export const RESEARCH_RELATION_NAMES = Object.freeze(['research_portfolios', 'research_portfolio_members'] as const);
+export const CLASSIC_RELATION_NAMES = Object.freeze(['classic_outreach_records'] as const);
+export const SOURCE_RELATIONS: Readonly<Record<SqlSource, readonly string[]>> = Object.freeze({
+  public: PUBLIC_RELATION_NAMES, client_records: PRIVATE_RELATION_NAMES,
+  research_portfolio: RESEARCH_RELATION_NAMES, classic_outreach: CLASSIC_RELATION_NAMES,
+});
 export const SOURCE_SCHEMAS: Readonly<Record<SqlSource, string>> = Object.freeze({
   public: 'meri_public',
   client_records: 'meri_private',
+  research_portfolio: 'meri_private',
+  classic_outreach: 'meri_private',
 });
 
 /** Statement keywords that can only start a data-modifying statement or a SELECT INTO. */
@@ -162,6 +171,7 @@ export function sqlGrammarDescriptor() {
 }
 
 export interface GatedSqlStatement {
+  readonly source: SqlSource;
   /** The wrapped statement actually sent: `SELECT * FROM (<model sql>) AS q LIMIT $n`. */
   sql: string;
   /** Model parameters followed by the wrapper's `rowLimit + 1` sentinel bound. */
@@ -400,22 +410,24 @@ export function gateSqlStatement(input: unknown, source: SqlSource): GatedSqlSta
   if (referenced.size !== parameters.length || parameters.some((_, i) => !referenced.has(i + 1)))
     fail('PARAMETER_MISMATCH', 'Every supplied parameter must be referenced, consecutively from $1.');
 
-  const own = source === 'public' ? PUBLIC_RELATION_NAMES : PRIVATE_RELATION_NAMES;
-  const foreign = source === 'public' ? PRIVATE_RELATION_NAMES : PUBLIC_RELATION_NAMES;
-  const foreignSchema = SOURCE_SCHEMAS[source === 'public' ? 'client_records' : 'public'];
+  const own = SOURCE_RELATIONS[source];
+  if (!own) fail('INVALID_QUERY', 'Unknown SQL source.');
+  const foreign = Object.entries(SOURCE_RELATIONS).filter(([name]) => name !== source).flatMap(([, relations]) => relations);
+  const foreignSchemas = [...new Set(Object.values(SOURCE_SCHEMAS))].filter(schema => schema !== SOURCE_SCHEMAS[source]);
   const names = tokens.filter((token) => token.kind === 'word' || token.kind === 'quoted').map((token) => token.value);
-  const mixed = names.find((name) => (foreign as readonly string[]).includes(name) || name === foreignSchema);
-  if (mixed)
-    fail(
-      'UNKNOWN_RELATION',
-      `${mixed} belongs to the ${source === 'public' ? 'client_records' : 'public'} source; one query reads one source.`,
-    );
+  const mixed = names.find((name) => foreign.includes(name) || foreignSchemas.includes(name));
+  if (mixed) {
+    const owner = Object.entries(SOURCE_RELATIONS).find(([name, relations]) => name !== source && relations.includes(mixed))?.[0]
+      ?? Object.entries(SOURCE_SCHEMAS).find(([name, schema]) => name !== source && schema === mixed)?.[0];
+    fail('UNKNOWN_RELATION', `${mixed} belongs to the ${owner} source; one query reads one source.`);
+  }
   const relationsUsed = own.filter((name) => names.includes(name));
 
   const body = trailingSemicolon === null ? request.sql : request.sql.slice(0, trailingSemicolon);
   const { sqlLimit } = parsed(body);
   const prefix = 'SELECT * FROM (\n';
   return {
+    source,
     sql: `${prefix}${body}\n) AS q LIMIT $${parameters.length + 1}`,
     params: [...parameters, Number(rowLimit) + 1],
     rowLimit: Number(rowLimit),
