@@ -125,6 +125,7 @@ export const outreachCampaignStateSchema = z
 export type OutreachCampaignState = z.infer<typeof outreachCampaignStateSchema>;
 const outreachListFields = z
   .object({
+    direction: z.enum(['on-behalf', 'to-clients']).optional(),
     clientId: z.string().uuid().optional(),
     q: text(240).optional(),
     limit: z.coerce.number().int().min(1).max(100).default(25),
@@ -145,7 +146,8 @@ export const campaignListSchema = outreachListFields
     requestKey: z.string().uuid().optional(),
     view: z.enum(['drafts', 'sent', 'attention']).optional(),
   })
-  .refine(validListWindow, 'Invalid date window');
+  .refine(validListWindow, 'Invalid date window')
+  .refine((value) => !value.requestKey || !value.direction, 'Audience filtering is not a request lookup');
 
 export const campaignCreateSchema = z
   .object({ requestKey: z.string().uuid(), state: outreachCampaignStateSchema })

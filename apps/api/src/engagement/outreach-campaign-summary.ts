@@ -3,22 +3,28 @@ import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
+import type { OutreachDirection } from './outreach-audience.js';
 
 const cursorSchema = z.object({ id: z.string().uuid() }).strict();
+const audienceCursorSchema = cursorSchema.extend({ direction: z.enum(['on-behalf', 'to-clients']) });
 export type CampaignCursor = z.infer<typeof cursorSchema>;
 
-export function decodeCampaignCursor(value?: string): CampaignCursor | undefined {
+export function decodeCampaignCursor(value?: string, direction?: OutreachDirection): CampaignCursor | undefined {
   if (!value) return undefined;
   try {
     if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new Error('Invalid encoding');
-    return cursorSchema.parse(JSON.parse(Buffer.from(value, 'base64url').toString('utf8')));
+    const raw: unknown = JSON.parse(Buffer.from(value, 'base64url').toString('utf8'));
+    if (!direction) return cursorSchema.parse(raw);
+    const cursor = audienceCursorSchema.parse(raw);
+    if (cursor.direction !== direction) throw new Error('Audience changed');
+    return { id: cursor.id };
   } catch {
     throw new BadRequestException('Invalid outreach cursor');
   }
 }
 
-export function encodeCampaignCursor(value: CampaignCursor | null): string | null {
-  return value ? Buffer.from(JSON.stringify(value)).toString('base64url') : null;
+export function encodeCampaignCursor(value: CampaignCursor | null, direction?: OutreachDirection): string | null {
+  return value ? Buffer.from(JSON.stringify({ ...value, ...(direction ? { direction } : {}) })).toString('base64url') : null;
 }
 
 type Delivery = { status: string; totals: unknown } | null;

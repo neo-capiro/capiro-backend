@@ -1,4 +1,5 @@
 import { lockMeetingAssociation, hasBoundMeetingRecords } from './meeting-automatic-association.js';
+import { outreachAudienceWhere, type OutreachDirection } from './outreach-audience.js';
 import { forwardedMessageHtml } from './mail-forward-source.js';
 import { assertSingleMailAuthority, assertSingleMailIntentReadAuthority, resolveSingleMailReply } from './single-mail-authority.js';
 import { REPLY_UNAVAILABLE, type PreparedMailReply } from './single-mail-reply.js';
@@ -836,6 +837,7 @@ export interface UpdateOutreachRecordInput {
 }
 
 export interface OutreachQuery {
+  direction?: OutreachDirection;
   clientId?: string;
   from?: string;
   to?: string;
@@ -2788,7 +2790,9 @@ export class EngagementService {
           ...(dateWindow ? { OR: [{ createdAt: dateWindow }, { sentAt: dateWindow }] } : {}),
           // Filter parent and linked-meeting client access before `take`, so
           // hidden records cannot crowd visible rows off the page.
-          AND: [ownerWhere, outreachReadableRecordWhere(ctx), ...(query.after ? [{ NOT: { id: query.after.id } }] : [])],
+          AND: [ownerWhere, outreachReadableRecordWhere(ctx),
+            ...(query.direction ? [outreachAudienceWhere(query.direction)] : []),
+            ...(query.after ? [{ NOT: { id: query.after.id } }] : [])],
         },
         ...(query.after ? { cursor: { id: query.after.id } } : {}),
         include: outreachInclude(),

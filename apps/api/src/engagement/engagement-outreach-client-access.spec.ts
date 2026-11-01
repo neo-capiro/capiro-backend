@@ -1,4 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { EngagementService } from './engagement.service.js';
 import { OutreachCampaignService } from './outreach-campaign.service.js';
@@ -104,6 +105,14 @@ function matches(value: unknown, condition: unknown): boolean {
     return value === condition;
   }
   const predicates = condition as Record<string, unknown>;
+  if ('path' in predicates) {
+    const selected = (predicates.path as string[]).reduce<unknown>((current, key) =>
+      current && typeof current === 'object' && !Array.isArray(current)
+        ? (current as Record<string, unknown>)[key] : undefined, value);
+    return predicates.equals === Prisma.AnyNull
+      ? selected === undefined || selected === null
+      : selected === predicates.equals;
+  }
   if ('is' in predicates) return matches(value, predicates.is);
   if ('isNot' in predicates) return !matches(value, predicates.isNot);
   if ('equals' in predicates) return matches(value, predicates.equals);
@@ -343,6 +352,56 @@ describe('canonical Outreach controller and native paged read', () => {
       { readinessForOutreachRecords: async () => new Map() } as never, {} as never, {} as never, {} as never);
     return { ...h, sends, controller: new OutreachCampaignController(service) };
   }
+
+  it('filters audience before either canonical page limit without changing owner/client/child authority', async () => {
+    const rows = Array.from({ length: 12 }, (_, n) => record(id(n + 1), null));
+    // The newer wrong-audience rows must not crowd the two older matching rows off page one.
+    rows[0]!.metadata = { direction: 'to-clients' };
+    rows[1]!.metadata = { workflow: { state: { direction: 'to-clients' } }, direction: 'on-behalf' };
+    rows[2]!.metadata = { direction: 'to-clients' };
+    rows[2]!.createdByUserId = id(900);
+    rows[3]!.metadata = { direction: 'to-clients' };
+    rows[3]!.tenantId = id(901);
+    const hidden = { ...record(id(30), WALLED), metadata: { direction: 'to-clients' } };
+    const childHidden = { ...record(id(29), null, VISIBLE, { prep: WALLED }), metadata: { direction: 'to-clients' } };
+    const h = paged([...rows, hidden, childHidden]);
+    const first = await h.controller.records(ctx, { direction: 'to-clients', limit: '1' }) as any;
+    // Child checks remain fail-closed after selection and retain a continuation.
+    expect(first.items).toEqual([]);
+    expect(first.nextCursor).toBeTruthy();
+    const second = await h.controller.records(ctx, { direction: 'to-clients', limit: '1', cursor: first.nextCursor }) as any;
+    expect(second.items.map((row: any) => row.id)).toEqual([id(2)]);
+    const third = await h.controller.records(ctx, { direction: 'to-clients', limit: '1', cursor: second.nextCursor }) as any;
+    expect(third.items.map((row: any) => row.id)).toEqual([id(1)]);
+    expect(third.nextCursor).toBeNull();
+    expect(h.tx.outreachRecord.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 2, where: expect.objectContaining({ tenantId: TENANT, createdByUserId: USER }) }));
+    await expect(h.controller.records(ctx, { direction: 'on-behalf', cursor: first.nextCursor })).rejects.toThrow('Invalid outreach cursor');
+    await expect(h.controller.records(ctx, { cursor: first.nextCursor })).rejects.toThrow('Invalid outreach cursor');
+  });
+
+  it('uses the same filtered legacy interpretation in campaign and record pages and preserves other selectors', async () => {
+    const clientLegacy = { ...record(id(1), VISIBLE), metadata: { direction: 'to-clients' } };
+    const externalLegacy = record(id(2), VISIBLE); // follow_up without direction stays External.
+    const anotherClient = { ...record(id(3), GRANTED), metadata: { direction: 'to-clients' } };
+    const deleted = { ...record(id(4), VISIBLE), metadata: { direction: 'to-clients' }, deletedAt: new Date() };
+    const h = paged([clientLegacy, externalLegacy, anotherClient, deleted]);
+    const query = { direction: 'to-clients', clientId: VISIBLE, q: 'synthetic', from: '2026-10-16T00:00:00Z', to: '2026-10-18T00:00:00Z', limit: '1' };
+    for (const read of [h.controller.list.bind(h.controller), h.controller.records.bind(h.controller)]) {
+      const result = await read(ctx, query) as any;
+      expect(result.items.map((row: any) => row.id)).toEqual([id(1)]);
+      expect(result.nextCursor).toBeNull();
+      const trash = await read(ctx, { ...query, deleted: 'true' }) as any;
+      expect(trash.items.map((row: any) => row.id)).toEqual([id(4)]);
+      const noMatch = await read(ctx, { ...query, q: 'no match' }) as any;
+      expect(noMatch).toEqual({ items: [], nextCursor: null });
+    }
+    const external = await h.controller.list(ctx, { direction: 'on-behalf' }) as any;
+    expect(external.items.map((row: any) => row.id)).toEqual([id(2)]);
+    expect(external.items[0].state.direction).toBe('on-behalf');
+    const category = await h.controller.list(ctx, { direction: 'to-clients', view: 'sent', limit: '1' }) as any;
+    expect(category.items).toEqual([]);
+    expect(category.nextCursor).toBeTruthy();
+  });
 
   it('pages same-timestamp records once and filters tenant, owner and wall before the page limit', async () => {
     const rows = [record(id(1), null), record(id(2), null), record(id(3), null), record(id(8), WALLED),
