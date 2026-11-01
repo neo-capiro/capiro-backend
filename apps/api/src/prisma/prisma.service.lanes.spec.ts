@@ -11,7 +11,6 @@ import { DB_LANE_DEFAULTS, runInDbLane, type DbLaneSettings } from './db-lane.js
  */
 describe('PrismaService database lanes', () => {
   const settings: DbLaneSettings = {
-    enabled: true,
     authority: { connectionLimit: 3, poolTimeoutSeconds: 2, statementTimeoutMs: 2_000 },
     background: { connectionLimit: 4, poolTimeoutSeconds: 10, statementTimeoutMs: null },
   };
@@ -117,13 +116,7 @@ describe('PrismaService database lanes', () => {
     expect(requestTransaction).not.toHaveBeenCalled();
   });
 
-  it('falls back to the request pool when lanes are switched off or unavailable', async () => {
-    const off = host({ ...settings, enabled: false });
-    await runInDbLane('authority', () => PrismaService.prototype.withTenant.call(off.owner, 'tenant-a', async () => 'ok'));
-    expect(off.requestTransaction).toHaveBeenCalledTimes(1);
-    expect(off.laneTransaction).not.toHaveBeenCalled();
-    expect(off.created).toEqual([]);
-
+  it('uses the request pool when no lane owner is available', async () => {
     const none = host(null);
     await runInDbLane('authority', () => PrismaService.prototype.withSystem.call(none.owner, async () => 'ok'));
     expect(none.requestTransaction).toHaveBeenCalledTimes(1);

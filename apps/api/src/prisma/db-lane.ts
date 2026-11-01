@@ -63,13 +63,11 @@ export interface DbLanePoolSettings {
 }
 
 export interface DbLaneSettings {
-  enabled: boolean;
   authority: DbLanePoolSettings;
   background: DbLanePoolSettings;
 }
 
 export const DB_LANE_ENV = {
-  switch: 'CORE_DB_LANES',
   authorityConnectionLimit: 'CORE_AUTHORITY_DB_CONNECTION_LIMIT',
   authorityPoolTimeoutSeconds: 'CORE_AUTHORITY_DB_POOL_TIMEOUT_SECONDS',
   authorityStatementTimeoutMs: 'CORE_AUTHORITY_DB_STATEMENT_TIMEOUT_MS',
@@ -78,7 +76,6 @@ export const DB_LANE_ENV = {
 } as const;
 
 export const DB_LANE_DEFAULTS: DbLaneSettings = Object.freeze({
-  enabled: true,
   authority: Object.freeze({ connectionLimit: 3, poolTimeoutSeconds: 2, statementTimeoutMs: 2_000 }),
   background: Object.freeze({ connectionLimit: 4, poolTimeoutSeconds: 10, statementTimeoutMs: null }),
 });
@@ -93,18 +90,15 @@ function integer(value: string | undefined, fallback: number, min: number, max: 
 }
 
 /**
- * Lane configuration from the environment. Every value has a default, so a
- * deployment needs no new variables; `CORE_DB_LANES=off` is the rollback
- * switch that puts every transaction back on the single request pool.
+ * Lanes are always active when a base connection URL is available. Pool
+ * overrides retain explicit bounds; remove the retired lane switch from config.
  */
 export function readDbLaneSettings(env: NodeJS.ProcessEnv = process.env): DbLaneSettings {
-  const raw = env[DB_LANE_ENV.switch]?.trim().toLowerCase();
-  if (raw !== undefined && raw !== '' && raw !== 'on' && raw !== 'off') {
-    throw new RangeError(`Invalid ${DB_LANE_ENV.switch} value (expected "on" or "off")`);
+  if (env.CORE_DB_LANES !== undefined) {
+    throw new RangeError('CORE_DB_LANES is no longer supported; remove it from configuration. Database lanes are always enabled.');
   }
   const d = DB_LANE_DEFAULTS;
   return {
-    enabled: raw !== 'off',
     authority: {
       connectionLimit: integer(env[DB_LANE_ENV.authorityConnectionLimit], d.authority.connectionLimit, 1, 50),
       poolTimeoutSeconds: integer(env[DB_LANE_ENV.authorityPoolTimeoutSeconds], d.authority.poolTimeoutSeconds, 1, 60),
