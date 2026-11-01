@@ -62,4 +62,20 @@ describe('staff forecast reads', () => {
     const p = port([[{ total: 0n }]]);
     await expect(p.service.history('a'.repeat(64), {})).rejects.toThrow('not found');
   });
+  it('missing list aggregate fails closed rather than inventing a zero population', async () => {
+    const p = port([[], []]);
+    await expect(p.service.list({ from: '2026-11-01', to: '2026-12-01' })).rejects.toMatchObject({
+      message: 'Forecast count unavailable',
+      status: 500,
+    });
+    expect(p.calls).toHaveLength(2);
+  });
+  it('missing history aggregate is an unavailable read, not a nonexistent forecast', async () => {
+    const p = port([[]]);
+    await expect(p.service.history('a'.repeat(64), {})).rejects.toMatchObject({
+      message: 'Forecast history count unavailable',
+      status: 500,
+    });
+    expect(p.calls).toHaveLength(1);
+  });
 });

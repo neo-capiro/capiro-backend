@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
@@ -48,6 +53,7 @@ export class GovernmentForecastsService {
         LIMIT ${q.pageSize} OFFSET ${(q.page - 1) * q.pageSize}`);
         const [count] = await tx.$queryRaw<{ total: bigint }[]>(Prisma.sql`
         SELECT count(*) AS total FROM government_forecast f WHERE ${where}`);
+        if (!count) throw new InternalServerErrorException('Forecast count unavailable');
         const checks = await tx.$queryRaw<
           { attempted_at: Date; status: string; edition: string | null }[]
         >`
@@ -90,6 +96,7 @@ export class GovernmentForecastsService {
       async (tx) => {
         const [count] = await tx.$queryRaw<{ total: bigint }[]>`
         SELECT count(*) AS total FROM government_forecast_revision WHERE forecast_id=${id}`;
+        if (!count) throw new InternalServerErrorException('Forecast history count unavailable');
         if (!Number(count.total)) throw new NotFoundException('Forecast not found');
         const rows = await tx.$queryRaw<Row[]>`
         SELECT forecast_id AS id,revision,content,observed_at,recorded_at FROM government_forecast_revision

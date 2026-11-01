@@ -25,6 +25,9 @@ describe('finite publisher import command', () => {
     [
       [],
       ['--apply'],
+      ['--input'],
+      ['--input', '--edition', '202510'],
+      [...args.slice(0, -1)],
       [...args, '--input', 'other.xml'],
       [...args, '--unknown'],
       ['--record-failure', '--observed-at', '2026-10-31T00:00:00Z'],
@@ -33,6 +36,9 @@ describe('finite publisher import command', () => {
     ].map((input) => ({ input })),
   )('refuses malformed or unallocated inputs $input', ({ input }) => {
     expect(() => parseImportArgs(input, now)).toThrow();
+  });
+  it('rejects an absent argument slot rather than indexing through it', () => {
+    expect(() => parseImportArgs(new Array<string>(1), now)).toThrow('Invalid import arguments');
   });
   it('explicit failure mode cannot silently act as source ingestion', () => {
     expect(

@@ -114,16 +114,16 @@ export async function persistForecastSnapshot(
     async (tx) => {
       // Serialize this one public producer; there are no per-user locks/ledgers.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(721111, 1)`;
-      const replay = await tx.$queryRaw<
+      const [replay] = await tx.$queryRaw<
         { id: bigint; accepted_count: number; rejected_count: number }[]
       >`
       SELECT id,accepted_count,rejected_count FROM government_forecast_check
       WHERE snapshot_sha256=${metadata.sha256} AND attempted_at=${metadata.observedAt} AND status='success'`;
-      if (replay.length)
+      if (replay)
         return {
-          checkId: String(replay[0].id),
-          accepted: replay[0].accepted_count,
-          rejected: replay[0].rejected_count,
+          checkId: String(replay.id),
+          accepted: replay.accepted_count,
+          rejected: replay.rejected_count,
           replay: true,
         };
       const latest = await tx.$queryRaw<{ edition: string; attempted_at: Date }[]>`
@@ -140,11 +140,13 @@ export async function persistForecastSnapshot(
       const [check] = await tx.$queryRaw<{ id: bigint }[]>`
       INSERT INTO government_forecast_check(snapshot_sha256,edition,attempted_at,status,rejected_count)
       VALUES (${metadata.sha256},${metadata.edition},${metadata.observedAt},'success',${snapshot.rejected.length}) RETURNING id`;
+      if (!check) throw new Error('Forecast check receipt unavailable');
       let accepted = 0;
       let held = 0;
       const apply = async (id: string, content: ForecastContent) => {
         const [head] = await tx.$queryRaw<Head[]>`
         SELECT current_revision,content_hash,observed_at,status FROM government_forecast WHERE id=${id} FOR UPDATE`;
+        if (!head) throw new Error('Forecast head unavailable');
         if (content.status === 'published' && head.status !== 'published') {
           held++;
           return;
