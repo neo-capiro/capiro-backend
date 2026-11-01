@@ -41,6 +41,7 @@ import { LobbyIntelModule } from './lobby-intel/lobby-intel.module.js';
 import { FederalSpendingModule } from './federal-spending/federal-spending.module.js';
 import { LdaIntelModule } from './lda-intel/lda-intel.module.js';
 import { FederalRegisterModule } from './federal-register/federal-register.module.js';
+import { GovernmentForecastsModule } from './government-forecasts/government-forecasts.module.js';
 import { RegulatoryDocketModule } from './regulatory-docket/regulatory-docket.module.js';
 import { IntelligenceModule } from './intelligence/intelligence.module.js';
 import { AlertMemoModule } from './intelligence/alert-memo/alert-memo.module.js';
@@ -129,6 +130,7 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
     FederalSpendingModule,
     LdaIntelModule,
     FederalRegisterModule,
+    GovernmentForecastsModule,
     RegulatoryDocketModule,
     IntelligenceModule,
     AlertMemoModule,
