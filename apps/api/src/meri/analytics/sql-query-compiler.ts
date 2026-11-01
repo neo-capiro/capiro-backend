@@ -19,6 +19,8 @@ export interface SqlCompilerRelation {
   readonly name: string; readonly schema: 'public' | 'meri_private'; readonly table: string;
   readonly fields: readonly PublicSqlField[]; readonly primaryKey: readonly string[];
   readonly relationships: readonly SqlCompilerRelationship[]; readonly predicate?: string;
+  /** Fixed private owner only. Every use requires its complete current UUID selection. */
+  readonly authorizedUuidField?: string;
 }
 type Node = Record<string, unknown>;
 type Origin = { relation: string; field: string };
@@ -281,7 +283,8 @@ export function compilePublicSql(input: unknown): CompiledPublicSql {
 }
 
 /** The caller is a server-owned public/private wrapper; requests cannot select this registry. */
-export function compileScopedSql(input: unknown, registry: readonly SqlCompilerRelation[]): CompiledPublicSql {
+export function compileScopedSql(input: unknown, registry: readonly SqlCompilerRelation[],
+  authorizedIds: Readonly<Record<string, readonly string[]>> = {}): CompiledPublicSql {
   const request = node(input); keys(request, ['sql', 'parameters', 'rowLimit']);
   if (typeof request.sql !== 'string' || !request.sql.trim() || Buffer.byteLength(request.sql, 'utf8') > PUBLIC_SQL_LIMITS.maxSqlBytes)
     fail('INVALID_QUERY', 'SQL must contain 1 to 16384 UTF-8 bytes.');
@@ -302,9 +305,33 @@ export function compileScopedSql(input: unknown, registry: readonly SqlCompilerR
   if (compiler.parameters.size !== request.parameters.length || request.parameters.some((_, i) => !compiler.parameters.has(i + 1)))
     fail('PARAMETER_MISMATCH', 'Every supplied parameter must be referenced, consecutively from $1.');
   const relationsUsed = registry.filter((relation) => compiler.relations.has(relation.name)).map((relation) => relation.name);
+  const params = [...request.parameters] as PublicSqlParameter[];
+  // This third argument is supplied by the canonical domain observer, never the
+  // request. A missing selection is a denial, not unrestricted or empty SQL.
+  if (!authorizedIds || typeof authorizedIds !== 'object' || Array.isArray(authorizedIds) ||
+      Object.keys(authorizedIds).some(name => !registry.some(r => r.name === name && r.authorizedUuidField)))
+    fail('SOURCE_UNAVAILABLE', 'Private source authorization is unavailable.');
   const projections = relationsUsed.map((name) => {
     const relation = registry.find((relation) => relation.name === name)!;
-    return `${name} AS (SELECT ${relation.fields.map((f) => `"${f.name}"`).join(', ')} FROM ${relation.schema}."${relation.table}"${relation.predicate ? ` WHERE ${relation.predicate}` : ''})`;
+    const predicates = relation.predicate ? [`(${relation.predicate})`] : [];
+    if (relation.authorizedUuidField !== undefined) {
+      const field = relation.fields.find(f => f.name === relation.authorizedUuidField);
+      const ids = Object.hasOwn(authorizedIds, name) ? authorizedIds[name] : undefined;
+      if (relation.schema !== 'meri_private' || !field || field.parameterType !== 'UUID' ||
+          field.nullable || !relation.primaryKey.includes(field.name) ||
+          !Array.isArray(ids) || ids.length > 100 || new Set(ids).size !== ids.length ||
+          ids.some(id => typeof id !== 'string' || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(id)))
+        fail('SOURCE_UNAVAILABLE', 'Private source authorization is unavailable.');
+      identifier(field.name);
+      if (!ids.length) predicates.push('FALSE');
+      else {
+        // One bounded internal scalar preserves all model parameter limits. The
+        // UUID cast occurs on the selection side so the view key remains typed.
+        params.push(ids.join(','));
+        predicates.push(`"${field.name}" IN (SELECT CAST(value AS UUID) FROM pg_catalog.unnest(pg_catalog.string_to_array($${params.length}, ',')) AS value)`);
+      }
+    }
+    return `${name} AS (SELECT ${relation.fields.map((f) => `"${f.name}"`).join(', ')} FROM ${relation.schema}."${relation.table}"${predicates.length ? ` WHERE ${predicates.join(' AND ')}` : ''})`;
   });
   // These AST nodes come only from reviewed registry projections, never caller fragments.
   const trusted = node(parser.astify(`WITH ${projections.join(', ')} SELECT 1`, dialect));
@@ -324,5 +351,5 @@ export function compileScopedSql(input: unknown, registry: readonly SqlCompilerR
     return `${value} AS ${name}`;
   }).join(', ');
   return { sql: `SELECT ${projection} FROM (${sql}) AS "__capiro_result" LIMIT ${Number(rowLimit) + 1}`,
-    params: [...request.parameters] as PublicSqlParameter[], columns, relationsUsed, rowLimit: Number(rowLimit), sqlLimit: selected.limit };
+    params, columns, relationsUsed, rowLimit: Number(rowLimit), sqlLimit: selected.limit };
 }

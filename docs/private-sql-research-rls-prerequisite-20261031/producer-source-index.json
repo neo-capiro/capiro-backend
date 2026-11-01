@@ -1,0 +1,3051 @@
+{
+  "sourceCommit": "e8efcbe83992f1d30d2974e6d2df26ca669cf324",
+  "method": "Canonical Git source token/call-site index. This is bounded static audit evidence, not a proof of complete dynamic call graph, runtime role/default-GUC state or read/write behavior. All source files unchanged.",
+  "producerAndReaderSourcePins": [
+    {
+      "path": "apps/api/scripts/emit-state-changes.ts",
+      "gitBlob": "adf2a4daf759723a10fbef34a9246442240f3944",
+      "sha256": "415a9857668cb44e2c1ec84ad23fc5646775992800c1320c1b1a840c6b588595",
+      "matches": [
+        {
+          "line": 9,
+          "source": "* sync-congress.ts's `set_config('app.bypass_rls', ...)` transaction (the"
+        },
+        {
+          "line": 10,
+          "source": "* script-context equivalent of withSystem, since this is a plain PrismaClient"
+        },
+        {
+          "line": 23,
+          "source": "import { recordResearchPortfolioBillChanges } from '../src/research-portfolios/research-portfolio-bill-changes.js';"
+        },
+        {
+          "line": 58,
+          "source": "/** apps/api-side equivalent of withSystem for a plain PrismaClient script (sync-congress.ts precedent). */"
+        },
+        {
+          "line": 60,
+          "source": "return prisma.$transaction(async (tx) => {"
+        },
+        {
+          "line": 61,
+          "source": "await tx.$executeRawUnsafe(\"SELECT set_config('app.bypass_rls', 'on', true)\");"
+        },
+        {
+          "line": 127,
+          "source": "// equivalent of withSystem for tenant-scoped portfolio tables."
+        },
+        {
+          "line": 130,
+          "source": "recordResearchPortfolioBillChanges(tx as never, {"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/auth/application-current.service.ts",
+      "gitBlob": "0734f4e63119ac7cba04bc7ac27a3cb38cdb051e",
+      "sha256": "180cd5bab1a6858970ad467451381292f57a535700aa04239c04d16ff577b1cb",
+      "matches": [
+        {
+          "line": 32,
+          "source": "return await this.prisma.withSystem(async (tx) => {"
+        },
+        {
+          "line": 33,
+          "source": "let researchPortfolio: Awaited<ReturnType<typeof readResearchPortfolioSqlScope>> | undefined;"
+        },
+        {
+          "line": 42,
+          "source": "researchPortfolio = await readResearchPortfolioSqlScope(tx, ctx, conversation, () => {"
+        },
+        {
+          "line": 45,
+          "source": "return researchPortfolio;"
+        },
+        {
+          "line": 50,
+          "source": "if (!researchPortfolio) throw new ForbiddenException('Application authority unavailable');"
+        },
+        {
+          "line": 51,
+          "source": "return { ...receipt, researchPortfolio };"
+        },
+        {
+          "line": 67,
+          "source": "return await this.prisma.withSystem((tx) => readApplicationAuthorityCurrent(input, {"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/auth/retained-read-authority.service.ts",
+      "gitBlob": "ee8f9fff41eb5d4a0a9dec3cb55b149239ca4a24",
+      "sha256": "7067ffb919bed5ead33019fb879ee14f81e514fc46767665224f04d1587b8b12",
+      "matches": [
+        {
+          "line": 13,
+          "source": "import { readResearchPortfolioResourceRevision } from '../research-portfolios/research-portfolio-current-authority.js';"
+        },
+        {
+          "line": 78,
+          "source": "this.prisma.withTenant("
+        },
+        {
+          "line": 81,
+          "source": "readResearchPortfolioResourceRevision("
+        },
+        {
+          "line": 204,
+          "source": "this.prisma.withTenant("
+        },
+        {
+          "line": 207,
+          "source": "readResearchPortfolioResourceRevision("
+        },
+        {
+          "line": 331,
+          "source": "this.prisma.withTenant("
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/context/application-authority-resource.helpers.ts",
+      "gitBlob": "8f6334fc8e597d2873980c269b4637ea8d04b276",
+      "sha256": "570397b9b7c73d56e5e43395bf9e8ab69635f404a97278ef6ace405c008676dc",
+      "matches": [
+        {
+          "line": 5,
+          "source": "import { authorizeResearchPortfolioConversation } from '../research-portfolios/research-portfolio-artifact-authority.js';"
+        },
+        {
+          "line": 30,
+          "source": "await authorizeResearchPortfolioConversation(tx, ctx, row, { lock: false });"
+        },
+        {
+          "line": 31,
+          "source": "} else await authorizeResearchPortfolioConversation(tx, ctx, row);"
+        },
+        {
+          "line": 35,
+          "source": "const conversation = transaction ? await read(transaction) : await prisma.withTenant(ctx.tenantId, read);"
+        },
+        {
+          "line": 51,
+          "source": "const client = transaction ? await read(transaction) : await prisma.withTenant(ctx.tenantId, read);"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/defense-research/defense-saved-comparisons.service.ts",
+      "gitBlob": "dc4b7cc1e63141b116c5806cd8246a8c4592f3ac",
+      "sha256": "6cefdd3a4475d7ce0e059072305ccc430b3f711d51a946013489c4178f9eb106",
+      "matches": [
+        {
+          "line": 25,
+          "source": "import { loadAuthorizedResearchPortfolio } from '../research-portfolios/research-portfolio-access.js';"
+        },
+        {
+          "line": 188,
+          "source": "await tx.$executeRaw`SELECT id FROM research_portfolios WHERE tenant_id = ${ctx.tenantId}::uuid AND id = ${portfolioId}::uuid FOR SHARE`;"
+        },
+        {
+          "line": 189,
+          "source": "await tx.$executeRaw`SELECT id FROM research_portfolio_grants WHERE tenant_id = ${ctx.tenantId}::uuid AND portfolio_id = ${portfolioId}::uuid AND principal_user_id = ${ctx.userId}::uuid FOR SHARE`;"
+        },
+        {
+          "line": 190,
+          "source": "const row = await tx.researchPortfolio.findFirst({"
+        },
+        {
+          "line": 294,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 310,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 475,
+          "source": "return this.prisma.withTenant("
+        },
+        {
+          "line": 621,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 703,
+          "source": "return this.prisma.withTenant("
+        },
+        {
+          "line": 721,
+          "source": "await tx.$executeRaw`SELECT id FROM research_portfolios WHERE id=${portfolioId}::uuid AND tenant_id=${ctx.tenantId}::uuid FOR UPDATE`;"
+        },
+        {
+          "line": 723,
+          "source": "const target = await loadAuthorizedResearchPortfolio(tx, ctx, input.portfolioId, 'viewer');"
+        },
+        {
+          "line": 830,
+          "source": "const existing = await tx.researchPortfolioMember.findUnique({"
+        },
+        {
+          "line": 846,
+          "source": "(await tx.researchPortfolioMember.create({"
+        },
+        {
+          "line": 876,
+          "source": "const rpUpdate = await tx.researchPortfolio.updateMany({"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/engagement/engagement.service.ts",
+      "gitBlob": "183168c3c249c1997e02259210412cc182eb5535",
+      "sha256": "6f5bee424759cac8bda48b2baa5712fa18ef205ec0a0e1bbe3dee2a5a86f63b0",
+      "matches": [
+        {
+          "line": 120,
+          "source": "import {authorizeResearchPortfolioArtifact} from '../research-portfolios/research-portfolio-artifact-authority.js';"
+        },
+        {
+          "line": 1191,
+          "source": "const sender = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 1255,
+          "source": "const record = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 1301,
+          "source": "return this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 1357,
+          "source": "const connections = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 1372,
+          "source": "const connections = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 1387,
+          "source": "return this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 1434,
+          "source": "return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {"
+        },
+        {
+          "line": 1489,
+          "source": "return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {"
+        },
+        {
+          "line": 1509,
+          "source": "return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {"
+        },
+        {
+          "line": 1558,
+          "source": "return execution ? work(execution.tx) : this.prisma.withTenant(ctx.tenantId, work, options);"
+        },
+        {
+          "line": 1911,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 1950,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 2402,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 2529,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 2770,
+          "source": "const page = await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 2835,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 2901,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 2936,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 3046,
+          "source": "await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 3206,
+          "source": "await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 3242,
+          "source": "const meetings = await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 3398,
+          "source": "const custom = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 3430,
+          "source": "return this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 3453,
+          "source": "return this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 3490,
+          "source": "return this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 3519,
+          "source": "const userTemplates = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 3551,
+          "source": "return this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 3567,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 3593,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 3662,
+          "source": "this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 3668,
+          "source": "this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 3757,
+          "source": "const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 3788,
+          "source": "const template = await this.prisma.withTenant(ctx.tenantId, tx => tx.outreachAiTemplate.findFirst({"
+        },
+        {
+          "line": 3794,
+          "source": "const client = record.clientId ? await this.prisma.withTenant(ctx.tenantId, tx => tx.client.findFirst({"
+        },
+        {
+          "line": 4249,
+          "source": "const sender = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 4282,
+          "source": "const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 4372,
+          "source": "const openHolds = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 4555,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 4608,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 4649,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 4692,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async(tx) => {"
+        },
+        {
+          "line": 4831,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 5032,
+          "source": "const data = await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 5473,
+          "source": "return internal?write(internal.tx):this.prisma.withTenant(ctx.tenantId,write);"
+        },
+        {
+          "line": 5479,
+          "source": "await authorizeResearchPortfolioArtifact(tx,ctx,artifact);"
+        },
+        {
+          "line": 5498,
+          "source": "await authorizeResearchPortfolioArtifact(tx,ctx,artifact);"
+        },
+        {
+          "line": 5521,
+          "source": "return internal ? write(internal.tx) : this.prisma.withTenant(ctx.tenantId, write);"
+        },
+        {
+          "line": 5824,
+          "source": "const context = await this.prisma.withTenant("
+        },
+        {
+          "line": 5981,
+          "source": "const notes = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {"
+        },
+        {
+          "line": 6019,
+          "source": "const debriefs = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {"
+        },
+        {
+          "line": 6075,
+          "source": "const debriefs = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 6158,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 6314,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 6533,
+          "source": "await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 6547,
+          "source": "const context = await this.prisma.withTenant("
+        },
+        {
+          "line": 6754,
+          "source": "const created = await this.prisma.withTenantUser("
+        },
+        {
+          "line": 6881,
+          "source": "return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {"
+        },
+        {
+          "line": 6905,
+          "source": "const updated = await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 7003,
+          "source": "const prep = await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 7085,
+          "source": "const result = await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 7156,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 7382,
+          "source": "? await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>"
+        },
+        {
+          "line": 7423,
+          "source": "await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>"
+        },
+        {
+          "line": 7453,
+          "source": "? await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>"
+        },
+        {
+          "line": 7509,
+          "source": "const attachment = await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 7627,
+          "source": "const { rows, uploaderNameById } = await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 7758,
+          "source": "const users = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 7790,
+          "source": "return this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 7831,
+          "source": "const visible = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 7850,
+          "source": "await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 7881,
+          "source": "const attachment = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 8102,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 8125,
+          "source": ".withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 8237,
+          "source": "internal ? write(internal.tx) : this.prisma.withTenant(ctx.tenantId, async tx => {"
+        },
+        {
+          "line": 8487,
+          "source": "const row = await this.prisma.withTenant(ctx.tenantId, tx => tx.engagementAttachment.findFirst({"
+        },
+        {
+          "line": 8552,
+          "source": "let attachment = await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 8578,
+          "source": "const claimed = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>"
+        },
+        {
+          "line": 8585,
+          "source": "await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 8611,
+          "source": ".withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 8650,
+          "source": "await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {"
+        },
+        {
+          "line": 8659,
+          "source": "await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 8676,
+          "source": "this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {"
+        },
+        {
+          "line": 8731,
+          "source": "* and via withSystem since callers sweep across tenants."
+        },
+        {
+          "line": 8745,
+          "source": "const attachment = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 8753,
+          "source": "await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 8765,
+          "source": ".withSystem((tx) =>"
+        },
+        {
+          "line": 8796,
+          "source": "// withSystem does not auto-inject a tenant predicate the way withTenant"
+        },
+        {
+          "line": 8800,
+          "source": "await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 8829,
+          "source": "const old = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 8840,
+          "source": "await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 8871,
+          "source": "const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 8889,
+          "source": "await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 8989,
+          "source": "const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 9323,
+          "source": "await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 9342,
+          "source": "await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 9412,
+          "source": "const count = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 9441,
+          "source": "const chosen = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 9455,
+          "source": "const connection = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 9495,
+          "source": "else await this.prisma.withTenant(ctx.tenantId, authorize);"
+        },
+        {
+          "line": 9502,
+          "source": "await this.prisma.withTenant(ctx.tenantId, (tx) => assertSingleMailIntentReadAuthority(tx, ctx, {"
+        },
+        {
+          "line": 9539,
+          "source": "const thread = await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 9570,
+          "source": "reply = await this.prisma.withTenant(ctx.tenantId, tx => resolveSingleMailReply(tx, ctx, input));"
+        },
+        {
+          "line": 9837,
+          "source": "const { thread, message } = await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 10028,
+          "source": "* bill-detail read is safe inside the same withTenant transaction. Returns null"
+        },
+        {
+          "line": 10035,
+          "source": "const { tracked, bills } = await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 10098,
+          "source": "const actions = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 10127,
+          "source": "const wl = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 10193,
+          "source": ".withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 10413,
+          "source": ".withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 10428,
+          "source": "* through withTenant. Keeps the most recent few per member. Dates serialize to"
+        },
+        {
+          "line": 10461,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 10499,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 10523,
+          "source": "const campaign = await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 10563,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 10607,
+          "source": "await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 10619,
+          "source": "return this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 10636,
+          "source": "await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 10692,
+          "source": "await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 10700,
+          "source": "await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 10715,
+          "source": "await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 10740,
+          "source": "const user = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-prep-source-access.ts",
+      "gitBlob": "0b23d13386015efa850d45f3184059dcdc3c00f6",
+      "sha256": "7ec2dc05680454538432f58edd7a4c10d95c273049caf3085857c2eab661cdc8",
+      "matches": [
+        {
+          "line": 1,
+          "source": "import { authorizeResearchPortfolioArtifact } from '../research-portfolios/research-portfolio-artifact-authority.js';"
+        },
+        {
+          "line": 44,
+          "source": "await tx.$executeRaw`SELECT set_config('app.current_user', ${ctx.userId}, true)`;"
+        },
+        {
+          "line": 155,
+          "source": "const { metadata } = await authorizeResearchPortfolioArtifact(tx, ctx, artifact);"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/engagement/research-portfolio-task-access.ts",
+      "gitBlob": "ee57144c931a1abe741fb721c3c2c1abe43a6a42",
+      "sha256": "3d4db8050ca7b8581c65acfc5255d140f3d4a7c8cdb4d4937443842cba69daa5",
+      "matches": [
+        {
+          "line": 3,
+          "source": "import { authorizeResearchPortfolioArtifact } from '../research-portfolios/research-portfolio-artifact-authority.js';"
+        },
+        {
+          "line": 20,
+          "source": "await authorizeResearchPortfolioArtifact(tx, ctx, artifact);"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/meri/analytics/private-sql-db.service.ts",
+      "gitBlob": "fdb58825d3b609ddfd929d4b7f529b846b8b5890",
+      "sha256": "c9921ee0281106e77858426a41b02f4aac87e5f54ec8cc01112ff41d8bf0f36b",
+      "matches": [
+        {
+          "line": 125,
+          "source": "WHERE n.nspname = 'meri_private' AND c.relname IN ('visible_clients','client_objectives','client_activity','client_team_roster','client_account_owners','client_targets','client_profiles','client_profile_codes','client_people','client_contacts','client_engagement_tasks','client_action_items','client_tracked_bills','client_outreach_campaigns','client_campaign_recipients','client_meetings','research_portfolios','research_portfolio_members','classic_outreach_records')"
+        },
+        {
+          "line": 130,
+          "source": "'client_ordered_owners','client_team_members','client_targets','client_people','engagement_contacts','engagement_tasks','action_recommendation','tracked_bill','engagement_campaigns','engagement_campaign_recipients','meetings','engagement_connections','meeting_attendees','research_portfolios','research_portfolio_grants','research_portfolio_members','outreach_records')"
+        },
+        {
+          "line": 149,
+          "source": "('research_portfolio_grants', ARRAY['portfolio_id','principal_user_id','role','tenant_id']::text[]),"
+        },
+        {
+          "line": 150,
+          "source": "('research_portfolio_members', ARRAY['created_at','created_by_user_id','disposition','id','label','origin','portfolio_id','reason','resolved_at','revision','target_id','target_kind','tenant_id','updated_at','updated_by_user_id']::text[]),"
+        },
+        {
+          "line": 151,
+          "source": "('research_portfolios', ARRAY['archived_at','created_at','id','lifecycle','mode','name','purpose','revision','tenant_id','updated_at']::text[]),"
+        },
+        {
+          "line": 329,
+          "source": "? ['research_portfolios', 'research_portfolio_members']"
+        },
+        {
+          "line": 346,
+          "source": "const rows = await this.getClient().$transaction("
+        },
+        {
+          "line": 358,
+          "source": "`SELECT pg_catalog.set_config('app.current_tenant', $1, true),"
+        },
+        {
+          "line": 359,
+          "source": "pg_catalog.set_config('app.current_user', $2, true), pg_catalog.set_config('app.meri_query_scope', $3, true),"
+        },
+        {
+          "line": 360,
+          "source": "pg_catalog.set_config('app.meri_query_client', $4, true),"
+        },
+        {
+          "line": 361,
+          "source": "pg_catalog.set_config('app.meri_query_portfolio', $5, true),"
+        },
+        {
+          "line": 362,
+          "source": "pg_catalog.set_config('app.meri_query_classic_ids', $6, true)`,"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/meri/conversation-management/service.ts",
+      "gitBlob": "a3b61a664149c508a41e2a7387267390c9dd187b",
+      "sha256": "9527c0017e9f5260319157c6183fd03c0319a5f12eb292f3187be19dc4f665b3",
+      "matches": [
+        {
+          "line": 6,
+          "source": "import { authorizeResearchPortfolioConversation } from '../../research-portfolios/research-portfolio-artifact-authority.js';"
+        },
+        {
+          "line": 31,
+          "source": "const captured = await authorizeResearchPortfolioConversation(tx, ctx, row, { lock: false });"
+        },
+        {
+          "line": 136,
+          "source": "return prisma.withTenant(ctx.tenantId, async tx => readback(request, await commandState(tx, ctx, request, false)));"
+        },
+        {
+          "line": 141,
+          "source": "return prisma.withTenantUser(ctx.tenantId, ctx.userId, async tx => {"
+        },
+        {
+          "line": 172,
+          "source": "return prisma.withTenant(principal.tenantId, async tx => {"
+        },
+        {
+          "line": 186,
+          "source": "return prisma.withTenant(input.tenantId, async tx => {"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/meri/meri-rp-tool-transport.ts",
+      "gitBlob": "5477c88c6e124f17a83e1217882c5af0ea3329c5",
+      "sha256": "d48669a4334e59dcbd5d7fda536766e9455b7f52216d923533fd41fa73e6e608",
+      "matches": [
+        {
+          "line": 164,
+          "source": "options.prisma.withTenant(options.ctx.tenantId, (tx) =>"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "gitBlob": "5a00a003ae743911bfa25ca5071992f617d540b9",
+      "sha256": "2ef1aae7643a46c5fe490a27ee6f104af3cd7e6015bde50fc913a08a6ee53b56",
+      "matches": [
+        {
+          "line": 465,
+          "source": "const allowed = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>"
+        },
+        {
+          "line": 511,
+          "source": "const denied = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId,"
+        },
+        {
+          "line": 2447,
+          "source": "const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 2579,
+          "source": ".withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 2814,
+          "source": "const researchPortfolio = (name: Parameters<ResearchPortfolioMeriToolsService['execute']>[1]) => {"
+        },
+        {
+          "line": 2826,
+          "source": "manage_research_portfolio: () => researchPortfolio('manage_research_portfolio'),"
+        },
+        {
+          "line": 2827,
+          "source": "get_research_portfolio: () => researchPortfolio('get_research_portfolio'),"
+        },
+        {
+          "line": 2828,
+          "source": "get_research_portfolio_analytics: () => researchPortfolio('get_research_portfolio_analytics'),"
+        },
+        {
+          "line": 2829,
+          "source": "get_research_portfolio_changes: () => researchPortfolio('get_research_portfolio_changes'),"
+        },
+        {
+          "line": 2830,
+          "source": "create_research_portfolio_snapshot: () => researchPortfolio('create_research_portfolio_snapshot'),"
+        },
+        {
+          "line": 2831,
+          "source": "request_research_portfolio_output: () => researchPortfolio('request_research_portfolio_output'),"
+        },
+        {
+          "line": 2832,
+          "source": "save_research_portfolio_output_to_client: () => researchPortfolio('save_research_portfolio_output_to_client'),"
+        },
+        {
+          "line": 2833,
+          "source": "watch_research_portfolio: () => researchPortfolio('watch_research_portfolio'),"
+        },
+        {
+          "line": 2834,
+          "source": "update_research_portfolio_change_state: () => researchPortfolio('update_research_portfolio_change_state'),"
+        },
+        {
+          "line": 2835,
+          "source": "get_research_portfolio_bookmarks: () => researchPortfolio('get_research_portfolio_bookmarks'),"
+        },
+        {
+          "line": 2836,
+          "source": "create_research_portfolio_bookmark: () => researchPortfolio('create_research_portfolio_bookmark'),"
+        },
+        {
+          "line": 2837,
+          "source": "get_research_portfolio_fit: () => researchPortfolio('get_research_portfolio_fit'),"
+        },
+        {
+          "line": 2838,
+          "source": "get_research_portfolio_reviews: () => researchPortfolio('get_research_portfolio_reviews'),"
+        },
+        {
+          "line": 2839,
+          "source": "add_research_portfolio_review_note: () => researchPortfolio('add_research_portfolio_review_note'),"
+        },
+        {
+          "line": 2840,
+          "source": "get_research_portfolio_rules: () => researchPortfolio('get_research_portfolio_rules'),"
+        },
+        {
+          "line": 2841,
+          "source": "get_research_portfolio_imports: () => researchPortfolio('get_research_portfolio_imports'),"
+        },
+        {
+          "line": 2842,
+          "source": "get_research_portfolio_operations: () => researchPortfolio('get_research_portfolio_operations'),"
+        },
+        {
+          "line": 2843,
+          "source": "prepare_research_portfolio_brief: () => researchPortfolio('prepare_research_portfolio_brief'),"
+        },
+        {
+          "line": 2844,
+          "source": "prepare_research_portfolio_meeting: () => researchPortfolio('prepare_research_portfolio_meeting'),"
+        },
+        {
+          "line": 2845,
+          "source": "get_research_portfolio_share_links: () => researchPortfolio('get_research_portfolio_share_links'),"
+        },
+        {
+          "line": 2846,
+          "source": "publish_research_portfolio_share_link: () => researchPortfolio('publish_research_portfolio_share_link'),"
+        },
+        {
+          "line": 2847,
+          "source": "revoke_research_portfolio_share_link: () => researchPortfolio('revoke_research_portfolio_share_link'),"
+        },
+        {
+          "line": 3223,
+          "source": "const deniedClientIds = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>"
+        },
+        {
+          "line": 3410,
+          "source": "const tenant = await this.prisma.withTenant(tenantId, (tx) =>"
+        },
+        {
+          "line": 3547,
+          "source": "this.prisma.withSystem((tx) => tx.secFiling.count()).catch(() => 0),"
+        },
+        {
+          "line": 3548,
+          "source": "this.prisma.withSystem((tx) => tx.faraRegistration.count()).catch(() => 0),"
+        },
+        {
+          "line": 3549,
+          "source": "this.prisma.withSystem((tx) => tx.gaoReport.count()).catch(() => 0),"
+        },
+        {
+          "line": 3550,
+          "source": "this.prisma.withSystem((tx) => tx.federalGrant.count()).catch(() => 0),"
+        },
+        {
+          "line": 3551,
+          "source": "this.prisma.withSystem((tx) => tx.stateBill.count()).catch(() => 0),"
+        },
+        {
+          "line": 3552,
+          "source": "this.prisma.withSystem((tx) => tx.intelArticle.count()).catch(() => 0),"
+        },
+        {
+          "line": 3554,
+          "source": ".withSystem((tx) => tx.committeeHearing.count({ where: federalHearingWhere() }))"
+        },
+        {
+          "line": 3556,
+          "source": "this.prisma.withSystem((tx) => tx.crsReport.count()).catch(() => 0),"
+        },
+        {
+          "line": 3611,
+          "source": "const candidates = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 3908,
+          "source": "const candidates = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 3920,
+          "source": "const b = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 3965,
+          "source": "const b = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 3995,
+          "source": "const m = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 4027,
+          "source": "const legislators = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 4197,
+          "source": "await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 4233,
+          "source": "this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 4240,
+          "source": "this.prisma.withSystem((tx) => tx.secFiling.count({ where })),"
+        },
+        {
+          "line": 4284,
+          "source": "this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 4291,
+          "source": "this.prisma.withSystem((tx) => tx.faraRegistration.count({ where })),"
+        },
+        {
+          "line": 4738,
+          "source": "this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 4745,
+          "source": "this.prisma.withSystem((tx) => tx.federalGrant.count({ where })),"
+        },
+        {
+          "line": 4825,
+          "source": "this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 4832,
+          "source": "this.prisma.withSystem((tx) => tx.gaoReport.count({ where })),"
+        },
+        {
+          "line": 4873,
+          "source": "this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 4880,
+          "source": "this.prisma.withSystem((tx) => tx.stateBill.count({ where })),"
+        },
+        {
+          "line": 4931,
+          "source": "const bill = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 4963,
+          "source": "this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 4971,
+          "source": "this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 4989,
+          "source": "this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 5001,
+          "source": "const rb = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 5089,
+          "source": "const votes = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 5223,
+          "source": "const legislator = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 5250,
+          "source": "const candidates = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 5739,
+          "source": "this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 5746,
+          "source": "this.prisma.withSystem((tx) => tx.intelArticle.count({ where })),"
+        },
+        {
+          "line": 5832,
+          "source": "this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 5839,
+          "source": "this.prisma.withSystem((tx) => tx.crsReport.count({ where })),"
+        },
+        {
+          "line": 5871,
+          "source": "const data = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 5913,
+          "source": "const series = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 5955,
+          "source": "const data = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 6155,
+          "source": "const results = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {"
+        },
+        {
+          "line": 6353,
+          "source": "const currentDenied = new Set(await this.prisma.withTenantUser(ctx.tenantId, ctx.userId,"
+        },
+        {
+          "line": 6523,
+          "source": "const clioNote = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 6562,
+          "source": "return this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 7043,
+          "source": "const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 7098,
+          "source": "const thread = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 7372,
+          "source": "const artifact = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 7486,
+          "source": "? await this.prisma.withTenant(ctx.tenantId, (tx) => assertTextArtifactCurrentProposal(tx, operationReceipt))"
+        },
+        {
+          "line": 7655,
+          "source": "const deterministic = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 7676,
+          "source": "const legacy = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 7755,
+          "source": "const existingTaskCount = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 7813,
+          "source": "const created = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 7864,
+          "source": "const tasks = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 7886,
+          "source": "const result = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 7918,
+          "source": "const task = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 7961,
+          "source": "const result = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 8184,
+          "source": "const allowed = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>"
+        },
+        {
+          "line": 8207,
+          "source": "const allowed = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {"
+        },
+        {
+          "line": 8442,
+          "source": "const deniedClientIds = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>"
+        },
+        {
+          "line": 8624,
+          "source": "const existing = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 8634,
+          "source": "const exact = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 8641,
+          "source": "const near = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 8718,
+          "source": "const existing = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 8739,
+          "source": "const picked = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 8752,
+          "source": "ldaMatch = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 8760,
+          "source": "const candidates = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 8788,
+          "source": "const dupByEntity = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 8881,
+          "source": "* runs through withTenant, so a write can never cross tenants. The model is"
+        },
+        {
+          "line": 9000,
+          "source": "const [existingFacilities, existingCapabilities] = await this.prisma.withTenant("
+        },
+        {
+          "line": 9095,
+          "source": "const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 9130,
+          "source": "const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 9157,
+          "source": "const [lastFrom, count, lastMeeting] = await this.prisma.withTenant("
+        },
+        {
+          "line": 9241,
+          "source": "const client = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {"
+        },
+        {
+          "line": 9269,
+          "source": "const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 9285,
+          "source": "const history = await this.prisma.withTenant(ctx.tenantId, async (tx) =>"
+        },
+        {
+          "line": 9439,
+          "source": "const artifact = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 9516,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 9534,
+          "source": "const meeting = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 9556,
+          "source": "const meeting = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 9597,
+          "source": "const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 9607,
+          "source": "const matches = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 9641,
+          "source": "const allowed = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 9653,
+          "source": "const conversation = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 9673,
+          "source": "return this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "gitBlob": "c5542d0eb3ee109c77adb07b0b453008fc29d18a",
+      "sha256": "d5d2acdb53d66d3cb6ca1fd837fdbbe0ad2648f72b34efbb2a2396d464521def",
+      "matches": [
+        {
+          "line": 3,
+          "source": "import { isResearchPortfolioArtifact, authorizeResearchPortfolioArtifact, authorizeResearchPortfolioConversation } from '../research-portfolios/research-portfolio-artifact-authority.js';"
+        },
+        {
+          "line": 372,
+          "source": "const conversations = await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 393,
+          "source": "await authorizeResearchPortfolioConversation(tx, ctx, conversation);"
+        },
+        {
+          "line": 481,
+          "source": "return this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 563,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 622,
+          "source": "await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 635,
+          "source": "const restored = await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 648,
+          "source": "const messages = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 777,
+          "source": "const linked = await this.prisma.withTenant(ctx.tenantId, async (tx) =>"
+        },
+        {
+          "line": 863,
+          "source": "const conversation = await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 873,
+          "source": "await authorizeResearchPortfolioConversation(tx, ctx, row);"
+        },
+        {
+          "line": 897,
+          "source": "const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 934,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 962,
+          "source": "const artifact = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 1039,
+          "source": "const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 1063,
+          "source": "const existing = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 1078,
+          "source": "await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 1109,
+          "source": "const conversations = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 1141,
+          "source": "? await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 1153,
+          "source": "const since = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 1193,
+          "source": "const updated = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 1276,
+          "source": "const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 1336,
+          "source": "const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 1384,
+          "source": "return this.prisma.withTenant(ctx.tenantId,async(tx)=>{"
+        },
+        {
+          "line": 1388,
+          "source": "for(const row of rows){try{await authorizeResearchPortfolioConversation(tx,ctx,row);await authorizeWorkspaceGenerationSource(tx,ctx,row);allowed.add(row.id);}catch(error){if(error instanceof ForbiddenException||error instanceof NotFoundException)continue;throw error;}}"
+        },
+        {
+          "line": 1414,
+          "source": ".withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 1528,
+          "source": "const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 2324,
+          "source": "// Context Compiler v1 (G1): loading, tenancy discipline (withTenantUser \u2014"
+        },
+        {
+          "line": 2334,
+          "source": "? await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 2378,
+          "source": "const eligible = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>"
+        },
+        {
+          "line": 2425,
+          "source": "return this.prisma.withTenant(tenantId, (tx) =>"
+        },
+        {
+          "line": 2551,
+          "source": "const { rows, labels } = await this.prisma.withTenantUser(tenantId, userId, async (tx) => {"
+        },
+        {
+          "line": 2622,
+          "source": "const tenant = await this.prisma.withTenant(tenantId, (tx) =>"
+        },
+        {
+          "line": 2661,
+          "source": "// withTenantUser (not withTenant): identifies the user to the ethical-wall"
+        },
+        {
+          "line": 2663,
+          "source": "const memories = await this.prisma.withTenantUser(tenantId, userId, async (tx) => {"
+        },
+        {
+          "line": 2707,
+          "source": "* Mirrors the search_memory tool's proven, RLS-scoped query (withTenantUser +"
+        },
+        {
+          "line": 2728,
+          "source": "const rows = await this.prisma.withTenantUser(tenantId, userId, async (tx) => {"
+        },
+        {
+          "line": 3049,
+          "source": "// not other users' personal alerts. withTenantUser still sets the GUCs so the"
+        },
+        {
+          "line": 3051,
+          "source": "return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>"
+        },
+        {
+          "line": 3083,
+          "source": "return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>"
+        },
+        {
+          "line": 3098,
+          "source": "const parent = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 3113,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async tx => {"
+        },
+        {
+          "line": 3117,
+          "source": "const {metadata} = await authorizeResearchPortfolioArtifact(tx,ctx,current);"
+        },
+        {
+          "line": 3138,
+          "source": "return this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 3189,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 3286,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 3444,
+          "source": "const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 3629,
+          "source": ".withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 3649,
+          "source": "const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 3759,
+          "source": "return this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 3806,
+          "source": "const staleClients = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 3819,
+          "source": "const exists = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 3832,
+          "source": "await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 3889,
+          "source": "// withTenantUser: identifies the user for the ethical-wall check (and for"
+        },
+        {
+          "line": 3892,
+          "source": "const results = await this.prisma.withTenantUser(tenantId, userId, async (tx) => {"
+        },
+        {
+          "line": 3938,
+          "source": "return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {"
+        },
+        {
+          "line": 4093,
+          "source": "await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {"
+        },
+        {
+          "line": 4169,
+          "source": "// Single withTenantUser transaction (both GUCs set): the hold-check read,"
+        },
+        {
+          "line": 4172,
+          "source": "// chat-tool forget_memory verb's single-transaction pattern. withTenantUser"
+        },
+        {
+          "line": 4173,
+          "source": "// (not withTenant) is required so the memory_items projection row is visible"
+        },
+        {
+          "line": 4175,
+          "source": "await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {"
+        },
+        {
+          "line": 4343,
+          "source": "// Single atomic withTenantUser transaction \u2014 same rationale as forgetMemory"
+        },
+        {
+          "line": 4345,
+          "source": "await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/prisma/prisma.service.ts",
+      "gitBlob": "98e6a31989303e6519724bbbb155975036074e7f",
+      "sha256": "be1d9c40075d525e9fe5e32caa362aabdeed0b51b8db909f97918d4b2a3c0bda",
+      "matches": [
+        {
+          "line": 6,
+          "source": "* hook can inject the tenant predicate. `bypass` marks a `withSystem`"
+        },
+        {
+          "line": 71,
+          "source": "* Per-request tenant-scoped queries go through `withTenant(tenantId, fn)`."
+        },
+        {
+          "line": 76,
+          "source": "* `withSystem(fn)` is the same pattern but with the bypass flag set, used"
+        },
+        {
+          "line": 106,
+          "source": "* `where.tenantId = <scope tenant>`. A `bypass` scope (withSystem) injects"
+        },
+        {
+          "line": 145,
+          "source": "async withTenant<T>("
+        },
+        {
+          "line": 150,
+          "source": "return this.scopedClient({ tenantId }).$transaction("
+        },
+        {
+          "line": 154,
+          "source": "// SET LOCAL is bound to the transaction. set_config(..., true) returns"
+        },
+        {
+          "line": 159,
+          "source": "await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;"
+        },
+        {
+          "line": 178,
+          "source": "* Like {@link withTenant}, but ALSO sets `app.current_user` in the same"
+        },
+        {
+          "line": 183,
+          "source": "* it), so this is purely additive: existing `withTenant` callers on other"
+        },
+        {
+          "line": 185,
+          "source": "* `withTenant` instead of this method will silently see zero private-item"
+        },
+        {
+          "line": 189,
+          "source": "async withTenantUser<T>("
+        },
+        {
+          "line": 195,
+          "source": "return this.scopedClient({ tenantId }).$transaction("
+        },
+        {
+          "line": 197,
+          "source": "await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;"
+        },
+        {
+          "line": 198,
+          "source": "await tx.$executeRaw`SELECT set_config('app.current_user', ${userId}, true)`;"
+        },
+        {
+          "line": 206,
+          "source": "* Like {@link withTenant} but retries the whole transaction when Postgres"
+        },
+        {
+          "line": 216,
+          "source": "async withTenantRetry<T>("
+        },
+        {
+          "line": 224,
+          "source": "return await this.withTenant(tenantId, fn, opts);"
+        },
+        {
+          "line": 242,
+          "source": "async withSystem<T>("
+        },
+        {
+          "line": 248,
+          "source": "return this.scopedClient({ bypass: true }).$transaction("
+        },
+        {
+          "line": 251,
+          "source": "await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;"
+        },
+        {
+          "line": 254,
+          "source": "// Same escape hatch withTenant/withTenantUser already had. Without it a"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-access.ts",
+      "gitBlob": "331a9e1121afed01f9fd3c7cef6952ab0b251375",
+      "sha256": "37056fe9c97ca1abae17eaa6eac779beea72fc4a35859e2e25c903bf7f6f6757",
+      "matches": [
+        {
+          "line": 31,
+          "source": "export async function loadAuthorizedResearchPortfolio("
+        },
+        {
+          "line": 37,
+          "source": "const row = await tx.researchPortfolio.findFirst({"
+        },
+        {
+          "line": 53,
+          "source": "export async function loadAuthorizedResearchPortfolioCurrentFacts("
+        },
+        {
+          "line": 59,
+          "source": "const row = await tx.researchPortfolio.findFirst({"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-analytics.service.ts",
+      "gitBlob": "dbbd4c7bfb3e883af27d76a8e307284fdef07a1a",
+      "sha256": "442d141d99276b31479ebf71d16baa6627b72e307541a8c09b1e27fdfcf65570",
+      "matches": [
+        {
+          "line": 18,
+          "source": "import { loadAuthorizedResearchPortfolio } from './research-portfolio-access.js';"
+        },
+        {
+          "line": 67,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 68,
+          "source": "const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');"
+        },
+        {
+          "line": 69,
+          "source": "const members = await tx.researchPortfolioMember.findMany({"
+        },
+        {
+          "line": 78,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 79,
+          "source": "await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');"
+        },
+        {
+          "line": 89,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 90,
+          "source": "await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');"
+        },
+        {
+          "line": 105,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 109,
+          "source": "await tx.$queryRaw(Prisma.sql`SELECT id FROM research_portfolios WHERE id = ${portfolioId}::uuid AND tenant_id = ${ctx.tenantId}::uuid FOR UPDATE`);"
+        },
+        {
+          "line": 110,
+          "source": "const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'editor');"
+        },
+        {
+          "line": 123,
+          "source": "tx.researchPortfolioMember.findMany({ where: { tenantId: ctx.tenantId, portfolioId }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }),"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-artifact-authority.ts",
+      "gitBlob": "cfdc3bddfd6827c9432b7f0e96b3057ca28c5a0e",
+      "sha256": "1a2ac26366dfd1a9495bbd1e78e96649a8962245b2bb9c37b9d779e36d22c2e4",
+      "matches": [
+        {
+          "line": 8,
+          "source": "import { loadAuthorizedResearchPortfolio } from './research-portfolio-access.js';"
+        },
+        {
+          "line": 39,
+          "source": "export async function authorizeResearchPortfolioConversation("
+        },
+        {
+          "line": 73,
+          "source": "await tx.$executeRaw`SELECT id FROM research_portfolios WHERE tenant_id=${ctx.tenantId}::uuid AND id=${scope.researchPortfolioId}::uuid FOR SHARE`;"
+        },
+        {
+          "line": 74,
+          "source": "await tx.$executeRaw`SELECT id FROM research_portfolio_grants WHERE tenant_id=${ctx.tenantId}::uuid AND portfolio_id=${scope.researchPortfolioId}::uuid AND principal_user_id=${ctx.userId}::uuid FOR SHARE`;"
+        },
+        {
+          "line": 76,
+          "source": "await loadAuthorizedResearchPortfolio(tx, ctx, scope.researchPortfolioId, 'viewer');"
+        },
+        {
+          "line": 82,
+          "source": "export async function authorizeResearchPortfolioArtifact("
+        },
+        {
+          "line": 108,
+          "source": "const current = await authorizeResearchPortfolioConversation(tx, ctx, conversation);"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-bill-changes.ts",
+      "gitBlob": "e4bd22113a9113f03315f6ed990f4f5b908ee20f",
+      "sha256": "eb0f1952f2481528791a051c9586a848c8ca49f27b3e3790529e8109d8988c68",
+      "matches": [
+        {
+          "line": 26,
+          "source": "type BillChangeClient = Pick<PrismaClient, 'researchPortfolioMember' | 'researchPortfolio' | 'researchPortfolioEvent'>;"
+        },
+        {
+          "line": 70,
+          "source": "export async function recordResearchPortfolioBillChanges("
+        },
+        {
+          "line": 74,
+          "source": "const members = await prisma.researchPortfolioMember.findMany({"
+        },
+        {
+          "line": 109,
+          "source": "const portfolio = await prisma.researchPortfolio.findFirst({"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-changes.service.ts",
+      "gitBlob": "d126b58a5c19c93ebdfe923ee4f80f423782aa14",
+      "sha256": "dbf02d84c364f04bc28d34c51a2bbf26cc7296cb1e3f682b86e042d29912d10f",
+      "matches": [
+        {
+          "line": 19,
+          "source": "import { loadAuthorizedResearchPortfolio } from './research-portfolio-access.js';"
+        },
+        {
+          "line": 61,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 62,
+          "source": "const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');"
+        },
+        {
+          "line": 102,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 103,
+          "source": "const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');"
+        },
+        {
+          "line": 134,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 135,
+          "source": "const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');"
+        },
+        {
+          "line": 189,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 190,
+          "source": "const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');"
+        },
+        {
+          "line": 208,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 209,
+          "source": "const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');"
+        },
+        {
+          "line": 277,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 278,
+          "source": "const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');"
+        },
+        {
+          "line": 377,
+          "source": ": await tx.researchPortfolioMember.findFirst({"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-current-authority.ts",
+      "gitBlob": "97f97edc6e67fbc6df9d8102795a316d2b72caf3",
+      "sha256": "3e46b874b437f90c9070a74c52d07e0a30f6c482af5c3c8da705c18df93fc100",
+      "matches": [
+        {
+          "line": 7,
+          "source": "loadAuthorizedResearchPortfolioCurrentFacts,"
+        },
+        {
+          "line": 76,
+          "source": "export async function readResearchPortfolioResourceRevision("
+        },
+        {
+          "line": 103,
+          "source": "const row = await read(() => loadAuthorizedResearchPortfolioCurrentFacts(tx, ctx, portfolioId, detail));"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-import.service.ts",
+      "gitBlob": "b91d167fd6b997740f9f48f113c5bced72a245fe",
+      "sha256": "6ed3c76dd020049a10963ee78f4ab326edfdfc8b48160c78875c5bb99f5fc3d4",
+      "matches": [
+        {
+          "line": 137,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 234,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 264,
+          "source": "const result = await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 589,
+          "source": "const existing = await tx.researchPortfolioMember.findUnique({"
+        },
+        {
+          "line": 671,
+          "source": "const existing = await tx.researchPortfolioMember.findUnique({"
+        },
+        {
+          "line": 689,
+          "source": "const member = await tx.researchPortfolioMember.create({"
+        },
+        {
+          "line": 740,
+          "source": "const bumped = await tx.researchPortfolio.updateMany({"
+        },
+        {
+          "line": 880,
+          "source": "await tx.researchPortfolio.findUniqueOrThrow({"
+        },
+        {
+          "line": 1074,
+          "source": "const updated = await tx.researchPortfolioMember.updateMany({"
+        },
+        {
+          "line": 1109,
+          "source": "const bumped = await tx.researchPortfolio.updateMany({"
+        },
+        {
+          "line": 1170,
+          "source": "const portfolio = await tx.researchPortfolio.findFirst({"
+        },
+        {
+          "line": 1217,
+          "source": "const portfolio = await tx.researchPortfolio.findUniqueOrThrow({"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-institutional.service.ts",
+      "gitBlob": "aa6c922ed3236f5536c7d3fad133cbbfefacd5f1",
+      "sha256": "fcb1087ce8ff5426bf5e5a73c4d09d8d1e703f1befccdaa291deeb1b3186d4fa",
+      "matches": [
+        {
+          "line": 18,
+          "source": "authorizeResearchPortfolioArtifact,"
+        },
+        {
+          "line": 19,
+          "source": "authorizeResearchPortfolioConversation,"
+        },
+        {
+          "line": 21,
+          "source": "import { loadAuthorizedResearchPortfolio } from './research-portfolio-access.js';"
+        },
+        {
+          "line": 57,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 62,
+          "source": "const { scope, metadata } = await authorizeResearchPortfolioArtifact(tx, ctx, artifact);"
+        },
+        {
+          "line": 81,
+          "source": "const authorized = await authorizeResearchPortfolioArtifact(tx, ctx, child);"
+        },
+        {
+          "line": 160,
+          "source": "const read = await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 168,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 294,
+          "source": "const scope = await authorizeResearchPortfolioConversation(tx, ctx, conversation);"
+        },
+        {
+          "line": 296,
+          "source": "const portfolio = await loadAuthorizedResearchPortfolio("
+        },
+        {
+          "line": 321,
+          "source": "await authorizeResearchPortfolioArtifact(tx, ctx, artifact);"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-meri-scope.service.ts",
+      "gitBlob": "1a1132aacc19d8565778ecf83614b2cff658cd3e",
+      "sha256": "35417378d7cdd373ccab8ecfc72f6e0c52ce521d80f93b52a8790c1e998e0ea9",
+      "matches": [
+        {
+          "line": 6,
+          "source": "import { loadAuthorizedResearchPortfolio } from './research-portfolio-access.js';"
+        },
+        {
+          "line": 65,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 66,
+          "source": "const row = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-output.service.ts",
+      "gitBlob": "b574cfe0d6c5f5b645e8d59f054f7a8e37b2adff",
+      "sha256": "790115c1c318820735b144477fb6f0b8688f75316b4000270a728b709c3bda51",
+      "matches": [
+        {
+          "line": 24,
+          "source": "loadAuthorizedResearchPortfolio,"
+        },
+        {
+          "line": 238,
+          "source": "const identifiers = await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 245,
+          "source": "Prisma.sql`SELECT id FROM research_portfolios WHERE id = ${portfolioId}::uuid AND tenant_id = ${ctx.tenantId}::uuid FOR UPDATE`,"
+        },
+        {
+          "line": 247,
+          "source": "const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'editor');"
+        },
+        {
+          "line": 308,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 309,
+          "source": "await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');"
+        },
+        {
+          "line": 328,
+          "source": "await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 329,
+          "source": "const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'editor');"
+        },
+        {
+          "line": 370,
+          "source": "const retryable = await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 371,
+          "source": "const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'editor');"
+        },
+        {
+          "line": 402,
+          "source": "await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 403,
+          "source": "const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, requiredRole);"
+        },
+        {
+          "line": 496,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 497,
+          "source": "await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');"
+        },
+        {
+          "line": 537,
+          "source": "const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, requiredRole);"
+        },
+        {
+          "line": 545,
+          "source": "this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {"
+        },
+        {
+          "line": 666,
+          "source": ".withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {"
+        },
+        {
+          "line": 688,
+          "source": "await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {"
+        },
+        {
+          "line": 717,
+          "source": "return await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {"
+        },
+        {
+          "line": 814,
+          "source": "const claimed = await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 844,
+          "source": "? await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 845,
+          "source": "await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');"
+        },
+        {
+          "line": 861,
+          "source": "await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 862,
+          "source": "await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');"
+        },
+        {
+          "line": 908,
+          "source": "await this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-phase11.service.ts",
+      "gitBlob": "73c31f020432d225e55c3b65fe0401de0eb3c5bb",
+      "sha256": "4c2f320d5f601c0d5f0a0bc6fe25d6660a0b0d3a57948b6178bccc6693ccc8e3",
+      "matches": [
+        {
+          "line": 36,
+          "source": "loadAuthorizedResearchPortfolio as loadAuthorized,"
+        },
+        {
+          "line": 69,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx: any) => {"
+        },
+        {
+          "line": 103,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 110,
+          "source": "Prisma.sql`SELECT id FROM research_portfolios WHERE id = ${portfolioId}::uuid AND tenant_id = ${ctx.tenantId}::uuid FOR UPDATE`,"
+        },
+        {
+          "line": 207,
+          "source": "? await tx.researchPortfolioMember.findFirst({ where, select: { id: true } })"
+        },
+        {
+          "line": 230,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx: any) => {"
+        },
+        {
+          "line": 251,
+          "source": "await this.prisma.withTenant(ctx.tenantId, async (tx: any) => {"
+        },
+        {
+          "line": 271,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 299,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 314,
+          "source": "return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx: any) => {"
+        },
+        {
+          "line": 321,
+          "source": "return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx: any) => {"
+        },
+        {
+          "line": 429,
+          "source": "const members = await tx.researchPortfolioMember.findMany({"
+        },
+        {
+          "line": 688,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 709,
+          "source": "const members = await tx.researchPortfolioMember.findMany({"
+        },
+        {
+          "line": 797,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 799,
+          "source": "Prisma.sql`SELECT \"id\" FROM \"research_portfolios\" WHERE \"id\" = ${portfolioId}::uuid AND \"tenant_id\" = ${ctx.tenantId}::uuid FOR UPDATE`,"
+        },
+        {
+          "line": 925,
+          "source": "const bumped = await tx.researchPortfolio.updateMany({"
+        },
+        {
+          "line": 974,
+          "source": "return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx: any) => {"
+        },
+        {
+          "line": 1119,
+          "source": "const target = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx: any) => {"
+        },
+        {
+          "line": 1170,
+          "source": "const row = await this.prisma.withTenant(ctx.tenantId, async (tx: any) => {"
+        },
+        {
+          "line": 1192,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx: any) => {"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-query-projections.ts",
+      "gitBlob": "22116e677439767aa3383029fc24d91ff56af6e9",
+      "sha256": "b88c3e58f0337344238576eb9da6633c8617a37fafaae0819a65996921ffb934",
+      "matches": [
+        {
+          "line": 28,
+          "source": "name: 'research_portfolios', table: 'research_portfolios', schema: 'meri_private' as const,"
+        },
+        {
+          "line": 44,
+          "source": "name: 'research_portfolio_members', table: 'research_portfolio_members', schema: 'meri_private' as const,"
+        },
+        {
+          "line": 58,
+          "source": "referencedRelation: 'research_portfolios', referencedFields: Object.freeze(['portfolio_id']),"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-review-notes.ts",
+      "gitBlob": "624ea92dd9816c94f1698d5fa3cd695ffd0813b5",
+      "sha256": "1085ab72e11e24bac44073650afd2457da8431b960a2c1fa74ae9e4233bb54d5",
+      "matches": [
+        {
+          "line": 5,
+          "source": "import { loadAuthorizedResearchPortfolio } from './research-portfolio-access.js';"
+        },
+        {
+          "line": 42,
+          "source": "Prisma.sql`SELECT id FROM research_portfolios WHERE id = ${portfolioId}::uuid AND tenant_id = ${ctx.tenantId}::uuid FOR UPDATE`,"
+        },
+        {
+          "line": 44,
+          "source": "const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');"
+        },
+        {
+          "line": 82,
+          "source": "await tx.researchPortfolio.update({"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-review.service.ts",
+      "gitBlob": "9d211c8841c796270ebbd55de69700230fae7fd8",
+      "sha256": "75721bd9a3b125d3d1e4c7e3f40338ef9c566e83a9dfff9698821cc07e059cef",
+      "matches": [
+        {
+          "line": 75,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 209,
+          "source": "return this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 667,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 681,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 1526,
+          "source": "const grant = await tx.researchPortfolioGrant.findUnique({"
+        },
+        {
+          "line": 1555,
+          "source": "const portfolio = await tx.researchPortfolio.findUnique({"
+        },
+        {
+          "line": 1581,
+          "source": "const result = await tx.researchPortfolio.updateMany({"
+        },
+        {
+          "line": 1694,
+          "source": "const portfolio = await tx.researchPortfolio.findUnique({"
+        },
+        {
+          "line": 1709,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 1722,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-rules.service.ts",
+      "gitBlob": "854130363cc9903e1fdc70add1888c0e44f6b519",
+      "sha256": "b095a850f2ca49e70f201e1857cbb0805f3eb85c7f2eb502500b5ac8e907a868",
+      "matches": [
+        {
+          "line": 44,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 74,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 117,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 195,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 237,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 250,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 266,
+          "source": "return this.prisma.withTenant(ctx.tenantId, (tx) =>"
+        },
+        {
+          "line": 301,
+          "source": "const members = await tx.researchPortfolioMember.findMany({"
+        },
+        {
+          "line": 399,
+          "source": "const members = await tx.researchPortfolioMember.findMany({"
+        },
+        {
+          "line": 439,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 531,
+          "source": "const updated = await tx.researchPortfolio.updateMany({"
+        },
+        {
+          "line": 579,
+          "source": "const existing = await tx.researchPortfolioMember.findUnique({"
+        },
+        {
+          "line": 592,
+          "source": "await tx.researchPortfolioMember.create({"
+        },
+        {
+          "line": 610,
+          "source": "await tx.researchPortfolioMember.update({"
+        },
+        {
+          "line": 630,
+          "source": "await tx.researchPortfolioMember.update({"
+        },
+        {
+          "line": 646,
+          "source": "await tx.researchPortfolioMember.update({"
+        },
+        {
+          "line": 667,
+          "source": "const grant = await tx.researchPortfolioGrant.findUnique({"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-share-payload.service.ts",
+      "gitBlob": "14bb64d943dc8e6389de323ff7383786f40867dc",
+      "sha256": "4121b31898e71bd1b679c40e08faa7bf2945c7d9602cdea2b287bd4f4874f03a",
+      "matches": [
+        {
+          "line": 25,
+          "source": "loadAuthorizedResearchPortfolio,"
+        },
+        {
+          "line": 298,
+          "source": "const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'editor');"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-share.service.ts",
+      "gitBlob": "f6e128233bc88b7d365f59e18fb2c2cec196f31d",
+      "sha256": "97c54ac5d8063b17f01bdf4d4225c505ade3a2764485750118d0ed4e43c3412f",
+      "matches": [
+        {
+          "line": 53,
+          "source": "loadAuthorizedResearchPortfolio,"
+        },
+        {
+          "line": 149,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 150,
+          "source": "await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');"
+        },
+        {
+          "line": 161,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 164,
+          "source": "const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'owner');"
+        },
+        {
+          "line": 193,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 195,
+          "source": "const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'owner');"
+        },
+        {
+          "line": 216,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 218,
+          "source": "const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'owner');"
+        },
+        {
+          "line": 240,
+          "source": "return this.prisma.withTenant(ctx.tenantId, (tx) => this.tenantSharingDto(tx, ctx.tenantId));"
+        },
+        {
+          "line": 250,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 283,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 284,
+          "source": "await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');"
+        },
+        {
+          "line": 303,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 305,
+          "source": "const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'editor');"
+        },
+        {
+          "line": 358,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 359,
+          "source": "await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');"
+        },
+        {
+          "line": 378,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 398,
+          "source": "return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {"
+        },
+        {
+          "line": 401,
+          "source": "const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'editor');"
+        },
+        {
+          "line": 505,
+          "source": "return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {"
+        },
+        {
+          "line": 508,
+          "source": "await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'editor');"
+        },
+        {
+          "line": 527,
+          "source": "return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {"
+        },
+        {
+          "line": 528,
+          "source": "await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'editor');"
+        },
+        {
+          "line": 542,
+          "source": "return this.prisma.withSystem(async (tx) => {"
+        },
+        {
+          "line": 562,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 564,
+          "source": "const portfolio = await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'editor');"
+        },
+        {
+          "line": 581,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 588,
+          "source": "const portfolio = await tx.researchPortfolio.findFirst({"
+        },
+        {
+          "line": 599,
+          "source": "return this.prisma.withSystem(async (tx) => ({"
+        },
+        {
+          "line": 610,
+          "source": "const session = await this.prisma.withSystem(async (tx) => {"
+        },
+        {
+          "line": 651,
+          "source": "return this.prisma.withSystem(async (tx) => {"
+        },
+        {
+          "line": 667,
+          "source": "const live = await this.prisma.withSystem(async (tx) => {"
+        },
+        {
+          "line": 735,
+          "source": "await tx.$queryRaw`SELECT id FROM research_portfolios"
+        },
+        {
+          "line": 746,
+          "source": "await tx.$queryRaw`SELECT id FROM research_portfolios"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-sql-authority.ts",
+      "gitBlob": "e132a80c167d4e4dda3a4d3144582730f4e25a3b",
+      "sha256": "ff000b946b2d00f4cab7e43f4a60a5eefececb0a982f0a3de7b2b8c2e4243092",
+      "matches": [
+        {
+          "line": 6,
+          "source": "import { authorizeResearchPortfolioConversation } from './research-portfolio-artifact-authority.js';"
+        },
+        {
+          "line": 7,
+          "source": "import { loadAuthorizedResearchPortfolioCurrentFacts } from './research-portfolio-access.js';"
+        },
+        {
+          "line": 8,
+          "source": "import { readResearchPortfolioResourceRevision } from './research-portfolio-current-authority.js';"
+        },
+        {
+          "line": 39,
+          "source": "const captured = await authorizeResearchPortfolioConversation(tx, ctx, conversation, { lock: false });"
+        },
+        {
+          "line": 44,
+          "source": "const observed = await readResearchPortfolioResourceRevision("
+        },
+        {
+          "line": 47,
+          "source": "const current = await loadAuthorizedResearchPortfolioCurrentFacts(tx, ctx, captured.researchPortfolioId, true);"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-watch-worker.service.ts",
+      "gitBlob": "15907d7e77f41e02d9b0a297a40db8660730fbb1",
+      "sha256": "21c09dbad4f8def5b41d62155a3c07edd5cc6dfd327c51a1e4480bb68191d303",
+      "matches": [
+        {
+          "line": 14,
+          "source": "import { loadAuthorizedResearchPortfolio } from './research-portfolio-access.js';"
+        },
+        {
+          "line": 129,
+          "source": "const identities = await this.prisma.withTenant(tenantId, (tx) =>"
+        },
+        {
+          "line": 175,
+          "source": "Prisma.sql`SELECT \"id\" FROM \"research_portfolios\" WHERE \"tenant_id\" = ${identity.tenantId}::uuid AND \"id\" = ${identity.portfolioId}::uuid FOR SHARE`,"
+        },
+        {
+          "line": 189,
+          "source": "const portfolio = await loadAuthorizedResearchPortfolio("
+        },
+        {
+          "line": 226,
+          "source": "return this.prisma.withTenantUser(identity.tenantId, identity.subscriberUserId, async (tx) => {"
+        },
+        {
+          "line": 275,
+          "source": "await this.prisma.withTenantUser(identity.tenantId, identity.subscriberUserId, (tx) =>"
+        },
+        {
+          "line": 288,
+          "source": "return await this.prisma.withTenantUser("
+        },
+        {
+          "line": 465,
+          "source": "await this.prisma.withTenantUser(identity.tenantId, identity.subscriberUserId, (tx) =>"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolios.service.ts",
+      "gitBlob": "3153834a38e4340f0cdbd704caabd8792b7bc645",
+      "sha256": "6de60a9f3c0229deb7da3d98643a55e2a1a2824e920d4f6c5c61cfc5460c1521",
+      "matches": [
+        {
+          "line": 80,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 81,
+          "source": "const rows = await tx.researchPortfolio.findMany({"
+        },
+        {
+          "line": 119,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 121,
+          "source": "const row = await tx.researchPortfolio.findUniqueOrThrow({"
+        },
+        {
+          "line": 183,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 187,
+          "source": "const portfolio = await tx.researchPortfolio.create({"
+        },
+        {
+          "line": 196,
+          "source": "const grant = await tx.researchPortfolioGrant.create({"
+        },
+        {
+          "line": 239,
+          "source": "const result = await tx.researchPortfolio.updateMany({"
+        },
+        {
+          "line": 270,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 272,
+          "source": "const grants = await tx.researchPortfolioGrant.findMany({"
+        },
+        {
+          "line": 295,
+          "source": "const existing = await tx.researchPortfolioGrant.findUnique({"
+        },
+        {
+          "line": 307,
+          "source": "const grant = await tx.researchPortfolioGrant.upsert({"
+        },
+        {
+          "line": 351,
+          "source": "const grant = await tx.researchPortfolioGrant.findUnique({"
+        },
+        {
+          "line": 362,
+          "source": "await tx.researchPortfolioGrant.delete({ where: { id: grant.id } });"
+        },
+        {
+          "line": 375,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 485,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 487,
+          "source": "const members = await tx.researchPortfolioMember.findMany({"
+        },
+        {
+          "line": 516,
+          "source": "const existing = await tx.researchPortfolioMember.findUnique({"
+        },
+        {
+          "line": 531,
+          "source": "const member = await tx.researchPortfolioMember.create({"
+        },
+        {
+          "line": 580,
+          "source": "const rows = await tx.researchPortfolioMember.findMany({"
+        },
+        {
+          "line": 602,
+          "source": "await tx.researchPortfolioMember.update({"
+        },
+        {
+          "line": 642,
+          "source": "const member = await tx.researchPortfolioMember.findFirst({"
+        },
+        {
+          "line": 649,
+          "source": "await tx.researchPortfolioMember.update({"
+        },
+        {
+          "line": 685,
+          "source": "const result = await tx.researchPortfolio.updateMany({"
+        },
+        {
+          "line": 722,
+          "source": "return this.prisma.withTenant(ctx.tenantId, async (tx) => {"
+        },
+        {
+          "line": 725,
+          "source": "Prisma.sql`SELECT id FROM research_portfolios WHERE id = ${id}::uuid AND tenant_id = ${ctx.tenantId}::uuid FOR UPDATE`,"
+        },
+        {
+          "line": 734,
+          "source": "const updated = await tx.researchPortfolio.findUniqueOrThrow({"
+        },
+        {
+          "line": 760,
+          "source": "const row = await tx.researchPortfolio.findFirst({"
+        },
+        {
+          "line": 792,
+          "source": "const owners = await tx.researchPortfolioGrant.count({"
+        },
+        {
+          "line": 800,
+          "source": "const result = await tx.researchPortfolio.updateMany({"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/tracker/tracker-change-detector.service.ts",
+      "gitBlob": "c26985f1ce5006eb9d42940ef25ef25f4e901abf",
+      "sha256": "8a2f79f674890b68be3f6d54dd9929b42fc724cf17485ab211a2d58a01bb9322",
+      "matches": [
+        {
+          "line": 17,
+          "source": "import { recordResearchPortfolioBillChanges } from '../research-portfolios/research-portfolio-bill-changes.js';"
+        },
+        {
+          "line": 178,
+          "source": "const tracked = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 196,
+          "source": "const portfolioMembers = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 197,
+          "source": "tx.researchPortfolioMember.findMany({"
+        },
+        {
+          "line": 321,
+          "source": "const c = await this.prisma.withTenant(row.tenantId, (tx) =>"
+        },
+        {
+          "line": 414,
+          "source": "await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 415,
+          "source": "recordResearchPortfolioBillChanges(tx as never, {"
+        },
+        {
+          "line": 608,
+          "source": "const written = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 609,
+          "source": "recordResearchPortfolioBillChanges(tx as never, {"
+        },
+        {
+          "line": 647,
+          "source": "* MUST run under `withSystem` (RLS bypass): once the intel_full_rls_hold"
+        },
+        {
+          "line": 652,
+          "source": "* (breaks the no-double-send invariant). withSystem sets app.bypass_rls so the"
+        },
+        {
+          "line": 662,
+          "source": "const rows = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 694,
+          "source": "const tracked = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 706,
+          "source": "const prefs = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 866,
+          "source": "const tracked = await this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 882,
+          "source": "? this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 897,
+          "source": "? this.prisma.withSystem((tx) =>"
+        },
+        {
+          "line": 1021,
+          "source": "await this.prisma.withSystem((tx) =>"
+        }
+      ]
+    },
+    {
+      "path": "scripts/verify-research-portfolios-phases1-4.mjs",
+      "gitBlob": "1caf5069335450cade21e43cdcb2b056e1013326",
+      "sha256": "861e10b7602acd31aae31d1a23c8af340aa9d7dbce4b4478dce3ce66ed9e6da9",
+      "matches": [
+        {
+          "line": 54,
+          "source": "\"id: 'portfolio-research-portfolios'\", \"featureFlag: 'research_portfolios'\","
+        }
+      ]
+    },
+    {
+      "path": "scripts/wave5-database-qualification.mjs",
+      "gitBlob": "19f43e57e31cc8b1ef60f47e87279587b0bed923",
+      "sha256": "fa4fc989c7c79c627f90e4e593feddfe5f0f5ca68446bb66df88055401fef749",
+      "matches": [
+        {
+          "line": 43,
+          "source": "async function withTenantClient(tenantId, fn) {"
+        },
+        {
+          "line": 45,
+          "source": "await c.query(`SET app.tenant_id = '${tenantId}'`);"
+        },
+        {
+          "line": 78,
+          "source": "INSERT INTO research_portfolios (tenant_id, name, purpose, mode, lifecycle, owner_user_id, revision)"
+        },
+        {
+          "line": 87,
+          "source": "INSERT INTO research_portfolio_grants (tenant_id, portfolio_id, principal_user_id, role, granted_by_user_id)"
+        },
+        {
+          "line": 108,
+          "source": "await c.query('DELETE FROM research_portfolio_grants WHERE portfolio_id = $1', [PORTFOLIO_ID]);"
+        },
+        {
+          "line": 109,
+          "source": "await c.query('DELETE FROM research_portfolios WHERE id = $1', [PORTFOLIO_ID]);"
+        },
+        {
+          "line": 126,
+          "source": "await withTenantClient(TEST_TENANT_ID, async (c) => {"
+        },
+        {
+          "line": 127,
+          "source": "const r = await c.query('SELECT id, name FROM research_portfolios WHERE id = $1 AND tenant_id = $2', [PORTFOLIO_ID, TEST_TENANT_ID]);"
+        },
+        {
+          "line": 137,
+          "source": "const r = await c.query('SELECT id FROM research_portfolios WHERE id = $1 AND tenant_id = $2', [PORTFOLIO_ID, OTHER_TENANT]);"
+        },
+        {
+          "line": 143,
+          "source": "await withTenantClient(TEST_TENANT_ID, async (c) => {"
+        },
+        {
+          "line": 145,
+          "source": "SELECT rp.id FROM research_portfolios rp"
+        },
+        {
+          "line": 146,
+          "source": "JOIN research_portfolio_grants g ON g.portfolio_id = rp.id AND g.tenant_id = rp.tenant_id"
+        },
+        {
+          "line": 157,
+          "source": "await withTenantClient(TEST_TENANT_ID, async (c) => {"
+        },
+        {
+          "line": 160,
+          "source": "SELECT role FROM research_portfolio_grants"
+        },
+        {
+          "line": 205,
+          "source": "await withTenantClient(TEST_TENANT_ID, async (c) => {"
+        },
+        {
+          "line": 237,
+          "source": "await withTenantClient(TEST_TENANT_ID, async (c) => {"
+        },
+        {
+          "line": 240,
+          "source": "INSERT INTO research_portfolio_grants (tenant_id, portfolio_id, principal_user_id, role, granted_by_user_id)"
+        },
+        {
+          "line": 246,
+          "source": "SELECT role FROM research_portfolio_grants"
+        },
+        {
+          "line": 253,
+          "source": "DELETE FROM research_portfolio_grants"
+        },
+        {
+          "line": 258,
+          "source": "SELECT role FROM research_portfolio_grants"
+        },
+        {
+          "line": 270,
+          "source": "await withTenantClient(TEST_TENANT_ID, async (c) => {"
+        },
+        {
+          "line": 291,
+          "source": "await withTenantClient(TEST_TENANT_ID, async (c) => {"
+        },
+        {
+          "line": 304,
+          "source": "await withTenantClient(TEST_TENANT_ID, async (c) => {"
+        },
+        {
+          "line": 334,
+          "source": "await withTenantClient(TEST_TENANT_ID, async (c) => {"
+        },
+        {
+          "line": 347,
+          "source": "await withTenantClient(TEST_TENANT_ID, async (c) => {"
+        }
+      ]
+    }
+  ],
+  "prior36MigrationSourceEvidence": {
+    "absolutePath": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-29\\capiro-migration-recovery-20261029\\work\\research-classic-db-source-20261031\\prerequisite-source-assistance\\schema-column-rls-source-index.json",
+    "sha256": "3ade22b0d7f8d7847aa2a33b2b6c948af9602d80b3501ae7b9e419617e294af3",
+    "canonicalGitPins": {
+      "apps/api/prisma/migrations/20260501000000_init_identity_tenancy/migration.sql": {
+        "gitBlob": "196a091fe9a561af95a6014eb57ef02c2e05f12e",
+        "sha256": "d7d178d03a5dcec7086f4515fa877e5c269f211195a7a48e8cb07ae07ab311e6"
+      },
+      "apps/api/prisma/migrations/20260502000000_user_admin_brand_clients/migration.sql": {
+        "gitBlob": "50ec4777f512c0c62e1e2570a8f1c30c7117c376",
+        "sha256": "7cf65c125e45737add64e5a178b4375ae4d948614426b52834ad83edea105603"
+      },
+      "apps/api/prisma/migrations/20260503020000_engagement_manager_core/migration.sql": {
+        "gitBlob": "c63ed7fe8be313bd5f246024d228edeb10a49123",
+        "sha256": "ee3ab31046ae79feb74c4c80847c3227b366ba3028f3da2e0c76302445b4e191"
+      },
+      "apps/api/prisma/migrations/20260505203000_engagement_outreach_records/migration.sql": {
+        "gitBlob": "e225272b92e64cbb5b38bacdd43389de6672701c",
+        "sha256": "fd9127ad371caeb81dc06968852e5aca7ed2d28dd3b0316a34b4f4050b838ddd"
+      },
+      "apps/api/prisma/migrations/20260507020000_soft_delete_outreach_records/migration.sql": {
+        "gitBlob": "e204f8a0db908057cbdce91c6e91ccd31cfebf02",
+        "sha256": "bdea39ae950b614370d7643624f2435a622cdd22a12e80ce2d157829301d015e"
+      },
+      "apps/api/prisma/migrations/20260517175724_add_client_capabilities_people/migration.sql": {
+        "gitBlob": "bd50c52606bc7cdef2b4f97953ce8281ae69bac7",
+        "sha256": "ffb17bf6d49001e6868332c0d5dfb985b5643c347623a5b91eb32b720126e21a"
+      },
+      "apps/api/prisma/migrations/20260519015221_add_engagement_campaigns/migration.sql": {
+        "gitBlob": "570fab4a8ad61d80fea4d9e3712608b3c26d785f",
+        "sha256": "71184f478379922c99f65c0b23131c2e2c6b59a0289b9b97592202a01ccdae81"
+      },
+      "apps/api/prisma/migrations/20260523070000_portfolio_schema_additions/migration.sql": {
+        "gitBlob": "1e6f0bdeb7b9fcf575ed597dc941d5fc93f7383d",
+        "sha256": "429c116f0ff3be7a504ec3bb84d303527493a52378d37e33cc4fe134720195e6"
+      },
+      "apps/api/prisma/migrations/20260529143000_add_acquisition_personnel/migration.sql": {
+        "gitBlob": "9e77931c57f90ac5b03b732e4f63b71047046562",
+        "sha256": "a8bd35814d45d13e659aabea7025fd42d12a6a929fa046093d8faf13d01c9515"
+      },
+      "apps/api/prisma/migrations/20260601120000_add_tracked_bill/migration.sql": {
+        "gitBlob": "f9dba99da6ef3f8fa02239d00895cfa712f5fc6b",
+        "sha256": "71467521026eea8fd44596b21a23a6a573b9366779dc9cd8601b1fdbf4baa04f"
+      },
+      "apps/api/prisma/migrations/20260606170000_add_client_issue_codes/migration.sql": {
+        "gitBlob": "46359b7b21b9a9cd0ff6d1883e5be2981ec9a255",
+        "sha256": "d5dd5889f5c5058d42f06539e1dbcab9998ab8b490f0986e80d5de070b6d3cca"
+      },
+      "apps/api/prisma/migrations/20260607120000_meeting_is_internal/migration.sql": {
+        "gitBlob": "876efa9b308f7f990fcc749d5901d34f35d13d80",
+        "sha256": "b2a482e1dd8dd95ef4ccc37af3353830b90317892384671c00d58d132e79a224"
+      },
+      "apps/api/prisma/migrations/20260607190000_add_client_relevance_inputs/migration.sql": {
+        "gitBlob": "c79fbe4371c74cb74929fde30ebecac3ce578f96",
+        "sha256": "6c6faeba87df0dc49f137bdd257ce23f787967133c54244ab838169af3e9f13f"
+      },
+      "apps/api/prisma/migrations/20260607200000_add_action_recommendation/migration.sql": {
+        "gitBlob": "9469604063987df6b5d8cdf73b0c243204b43d57",
+        "sha256": "01f2f4e20f56b22a554d5c49ff76ee28464ec40664276afbf10f6e6817a25cb9"
+      },
+      "apps/api/prisma/migrations/20260608120000_client_lda_association_phase0/migration.sql": {
+        "gitBlob": "0e2451d9b3fd15e314b4c64790dc8e1a10356d27",
+        "sha256": "91589730e2469f4e40c4b61286541b5a6ff27eb51bceb592dfe87a4bb481cf29"
+      },
+      "apps/api/prisma/migrations/20260625120000_client_targets/migration.sql": {
+        "gitBlob": "afe1cb2145b30a4f9ca4db3a11efbaa39b6533bb",
+        "sha256": "df305961ff0b01584109aa28c1ea6da4b6907ec8cd44d600524e8999d99eb4d5"
+      },
+      "apps/api/prisma/migrations/20260627140000_add_tracker_tables/migration.sql": {
+        "gitBlob": "0d9ba9bcdcfb2d106922ca765419222d0166680f",
+        "sha256": "e1b9aab309755014743bc142575e74e4c2ce621d6336f0206ba4d4844f209f0d"
+      },
+      "apps/api/prisma/migrations/20260710120000_meetings_v2_visibility/migration.sql": {
+        "gitBlob": "4a4d0b7c2ad0add9293bf8706c651d8bb4976ea8",
+        "sha256": "767777df0f448209e5867abb011a667d52892ac547d239b157fc8e98975e46a9"
+      },
+      "apps/api/prisma/migrations/20260719220000_client_memory_walls/migration.sql": {
+        "gitBlob": "e8f9b0ab74eb8ee7324e34d00cae3c85ca837d4f",
+        "sha256": "4198b1fc80c801f0c2b0ff1a7ad8f72916e3d68502731abd78a0e0f0ee5db8c7"
+      },
+      "apps/api/prisma/migrations/20260725010000_client_target_state_directory/migration.sql": {
+        "gitBlob": "65108378f528f382cbdcb710a71d2818bbac0105",
+        "sha256": "adbbb9e5315cd40e9d25d6ac23686eb25482516d04924c3958bfb2c4e2a82cc6"
+      },
+      "apps/api/prisma/migrations/20260726010000_client_target_tier/migration.sql": {
+        "gitBlob": "c61735e16a3477d3af94653a36d72d01105ed8c9",
+        "sha256": "c87a9c70322c5bd21755c20ea84cd5efd8b4292948859d3288d08729b3a75d2c"
+      },
+      "apps/api/prisma/migrations/20260803160000_meeting_timezone/migration.sql": {
+        "gitBlob": "97f3b6d6b28687c08562bc9ab068c12a43b706db",
+        "sha256": "487b7ffa3aac3420b105955adbeb50595f8372bbf84fe311c307e9e042a9931d"
+      },
+      "apps/api/prisma/migrations/20260809010000_client_applicant_types/migration.sql": {
+        "gitBlob": "31cd78ee2863ed89a0b1428044b5464ea9351fe1",
+        "sha256": "90f9959cdadc61d4d742327cbab6ab6b204212024963d9ac6d8b01fe362ad40a"
+      },
+      "apps/api/prisma/migrations/20260810020000_funding_opportunities_closeout/migration.sql": {
+        "gitBlob": "e54f5bfcdb068b923059d34c4a15301f01923c75",
+        "sha256": "49f8887d8621e877d0a3bcc9a99998e10a7ee0666bdfeee8df106ba850182a3e"
+      },
+      "apps/api/prisma/migrations/20261120010000_client_person_hierarchy/migration.sql": {
+        "gitBlob": "3c4e75f56e2ed0f6c52f744af822d9f9722143e5",
+        "sha256": "05f8aafeabfbc1890e5368f28b4032314c36f812c7566302977c27b0211a4d5e"
+      },
+      "apps/api/prisma/migrations/20261120020000_client_activity/migration.sql": {
+        "gitBlob": "91f6002cc1daa11307b1968f17a75cee35b4eede",
+        "sha256": "22c9d127a79c7c5c910a382293f769e4787f6e11f6cbfa6728daae820ed657df"
+      },
+      "apps/api/prisma/migrations/20261120220000_client_team_members/migration.sql": {
+        "gitBlob": "55eaa02afa869946171d6191324bcb82180e8c78",
+        "sha256": "eaa3cd1255b7c2688c3cfe11739371a3d1ef57aa36765ee35b5f5d9072707c2a"
+      },
+      "apps/api/prisma/migrations/20280909010000_client_target_staff_kind/migration.sql": {
+        "gitBlob": "0cb3462dc5e88cdc6c69c705bbda101e68251a38",
+        "sha256": "7a2d5fe7d0521e0ea7e0bdb0ae0acd8826e95f545f61d5ce085f6ae732373788"
+      },
+      "apps/api/prisma/migrations/20280924010000_business_development_phase1/migration.sql": {
+        "gitBlob": "b8850f10738656f253aa9e12143952a34a927ee2",
+        "sha256": "3331e5ce6c682dd108aac1108404804f82e40696c5bdae2d279469d5f8c378cf"
+      },
+      "apps/api/prisma/migrations/20280924040000_district_actions/migration.sql": {
+        "gitBlob": "b2ff7d021daf5d37a0474da8cd9a9420a1b1f85e",
+        "sha256": "9a6df7b3b1c73d10ea12d47cc07ed40810efd7a867cf817fa4d7328692ebabc5"
+      },
+      "apps/api/prisma/migrations/20280929010000_research_portfolios_phase1/migration.sql": {
+        "gitBlob": "0c9bd70f997a970896b36efaaed7fbfd78e7227d",
+        "sha256": "de13dbdd18a1920fc9908adcec148546c10838fcff4e257eea3e84adfc129ea7"
+      },
+      "apps/api/prisma/migrations/20280929020000_research_portfolios_phase2_rules/migration.sql": {
+        "gitBlob": "243a64b07091eea3cd901d44d057258a872965c6",
+        "sha256": "a88c430f058ed634b19e841f7e4e9c6904c7c65b3336e8c7f3401ec251a7a280"
+      },
+      "apps/api/prisma/migrations/20281011010000_client_objectives/migration.sql": {
+        "gitBlob": "3c3bb03b6a237d8d779307cb8737aa88bb490c97",
+        "sha256": "cd6a1f08162b55b04325d7ef017fdabc23d1d28870fd1c6ce863789f70fca5e2"
+      },
+      "apps/api/prisma/migrations/20281012020000_client_ordered_owners/migration.sql": {
+        "gitBlob": "1f11f1b9e62acc4b6f729e131b80671d63141e04",
+        "sha256": "e567aa59b18e501d1e7341d1624500ca0f8f87e1301ed7df515eab51059dfbba"
+      },
+      "apps/api/prisma/migrations/20281027100000_private_saved_business_policies/migration.sql": {
+        "gitBlob": "42d955d7d88e35722bd99463dd778ede83b1f490",
+        "sha256": "124b77b8a3cb5487d3e8c6f454e32d36215d4e93c09bb5fc7adc56317d347278"
+      },
+      "apps/api/prisma/migrations/20281029150000_research_portfolio_bill_tracking/migration.sql": {
+        "gitBlob": "1d9c84d3664873c021afdce5b4209214f263da10",
+        "sha256": "73ecb67ce0b661205ceb2307af81267b15b7b1b5ad8c0a34bc8b5d2cfc0e060e"
+      }
+    }
+  }
+}

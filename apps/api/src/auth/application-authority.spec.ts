@@ -363,6 +363,7 @@ describe('actual Meri and scope-owner source integration', () => {
     };
     const resources = load(sources('context/application-authority-resource.helpers.ts'), {
       '@nestjs/common': nest, '../research-portfolios/research-portfolio-artifact-authority.js': scopes,
+      './workspace-generation-source.authorization.js': { authorizeWorkspaceGenerationSource: async () => null },
     });
     const unavailable = unavailableModule();
     const cls = load(sources('auth/application-authority.controller.ts'), {

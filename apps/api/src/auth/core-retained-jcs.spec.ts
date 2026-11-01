@@ -67,4 +67,27 @@ describe('RFC 8785 canonicalization for retained-read codecs', () => {
     const shared = { v: 1 };
     expect(canonicalizeCoreRetainedJson({ a: shared, b: shared })).toBe('{"a":{"v":1},"b":{"v":1}}');
   });
+
+  it.each(['root', 'nested'])('refuses %s indexed accessors without invoking them', placement => {
+    let calls = 0;
+    const deferred = Object.defineProperty([], '0', { enumerable: true, get: () => { calls++; return 1; } });
+    expect(() => canonicalizeCoreRetainedJson(placement === 'root' ? deferred : { rows: [deferred] })).toThrow(CoreRetainedJcsError);
+    expect(calls).toBe(0);
+  });
+
+  it.each([
+    ['named member', Object.assign([1], { extra: true })],
+    ['symbol member', Object.assign([1], { [Symbol('extra')]: true })],
+    ['hidden member', Object.defineProperty([1], 'extra', { value: true })],
+    ['hidden element', Object.defineProperty([1], '0', { enumerable: false })],
+    ['toJSON accessor', Object.defineProperty([1], 'toJSON', { get: () => { throw Error('must not execute'); } })],
+    ['proxy array', new Proxy([1], { ownKeys: () => { throw Error('must not execute'); } })],
+  ])('refuses arrays with %s', (_label, value) => {
+    expect(() => canonicalizeCoreRetainedJson(value)).toThrow(CoreRetainedJcsError);
+  });
+
+  it('preserves ordinary, empty, frozen and repeated arrays without coercion', () => {
+    const rows = Object.freeze([null, true, 'row', { n: 2 }]);
+    expect(canonicalizeCoreRetainedJson([[], rows, rows])).toBe('[[],[null,true,"row",{"n":2}],[null,true,"row",{"n":2}]]');
+  });
 });

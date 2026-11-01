@@ -1,6 +1,14 @@
+import * as normalizationRuntime from './private-sql-normalization-runtime.js';
+import { PRIVATE_SQL_NORMALIZATION_PINS } from './private-sql-normalization-pins.js';
 import { ForbiddenException } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
-import { PrivateSqlDbService, type PrivateSqlExecutionContext } from './private-sql-db.service.js';
+import {
+  PrivateSqlDbService,
+  capturePrivateSqlContext,
+  type PrivateSqlExecutionContext,
+} from './private-sql-db.service.js';
+import { RESEARCH_PORTFOLIO_QUERY_RELATIONS } from '../../research-portfolios/research-portfolio-query-projections.js';
+import { CLASSIC_OUTREACH_QUERY_RELATION } from '../../engagement/classic-outreach-query-projection.js';
 import { compileScopedSql } from './sql-query-compiler.js';
 
 jest.mock('@prisma/client', () => ({ PrismaClient: jest.fn() }));
@@ -96,6 +104,8 @@ describe('private SQL execution isolation (mock transport; native role proof rem
       ACTOR,
       'general',
       '',
+      '',
+      '',
     ]);
     expect(f.tx.$queryRawUnsafe).toHaveBeenLastCalledWith(query.sql, CLIENT);
     expect(f.tx.$queryRawUnsafe.mock.calls[0][0]).toContain('capiro_private_query_ro');
@@ -142,7 +152,7 @@ describe('private SQL execution isolation (mock transport; native role proof rem
     await f.service.runPrivateSql(compiled(), supplied);
     expect(
       f.tx.$executeRawUnsafe.mock.calls.find(([sql]) => sql.includes('set_config'))?.slice(1),
-    ).toEqual([TENANT, ACTOR, 'client', CLIENT]);
+    ).toEqual([TENANT, ACTOR, 'client', CLIENT, '', '']);
   });
   it.each([1, 2])('withholds the result when current owner denies at check %i', async (at) => {
     const f = fixture();
@@ -201,6 +211,195 @@ describe('private SQL execution isolation (mock transport; native role proof rem
     await expect(f.service.runPrivateSql(compiled(), f.authority)).rejects.toMatchObject({
       code: 'SOURCE_UNAVAILABLE',
     });
+  });
+
+  it('binds the captured Research portfolio and clears Classic IDs while preserving currentness', async () => {
+    const f = fixture();
+    const query = compileScopedSql(
+      { sql: 'SELECT COUNT(*) AS count FROM research_portfolios', parameters: [] },
+      RESEARCH_PORTFOLIO_QUERY_RELATIONS,
+    );
+    await f.service.runPrivateSql(
+      query,
+      context({ scopeKind: 'research_portfolio', clientId: null, researchPortfolioId: CLIENT }),
+    );
+    expect(
+      f.tx.$executeRawUnsafe.mock.calls.find(([sql]) => sql.includes('set_config'))?.slice(1),
+    ).toEqual([TENANT, ACTOR, 'research_portfolio', '', CLIENT, '']);
+    expect(f.events).toEqual(['begin', 'data', 'commit']);
+  });
+  it.each([0, 1, 100])(
+    'binds a complete immutable Classic set of %i IDs before execution',
+    async (size) => {
+      const ids = Array.from(
+        { length: size },
+        (_, i) => '20000000-0000-4000-8000-' + String(i).padStart(12, '0'),
+      );
+      const originalIds = [...ids];
+      const f = fixture();
+      const query = compileScopedSql(
+        { sql: 'SELECT COUNT(*) AS count FROM classic_outreach_records', parameters: [] },
+        [CLASSIC_OUTREACH_QUERY_RELATION],
+        { classic_outreach_records: ids },
+      );
+      const supplied = context({
+        scopeKind: 'classic_outreach',
+        clientId: CLIENT,
+        classicOutreachIds: ids,
+        assertCurrent: async () => {
+          ids.splice(0, ids.length, ACTOR);
+        },
+      });
+      await f.service.runPrivateSql(query, supplied);
+      expect(
+        f.tx.$executeRawUnsafe.mock.calls.find(([sql]) => sql.includes('set_config'))?.slice(1),
+      ).toEqual([TENANT, ACTOR, 'classic_outreach', CLIENT, '', originalIds.join(',')]);
+      expect(f.tx.$queryRawUnsafe).toHaveBeenLastCalledWith(query.sql, ...query.params);
+    },
+  );
+  it('freezes copied Classic IDs and does not convert missing authority to the empty set', () => {
+    const ids = [CLIENT];
+    const captured = capturePrivateSqlContext(
+      context({ scopeKind: 'classic_outreach', clientId: null, classicOutreachIds: ids }),
+    );
+    expect(Object.isFrozen(captured)).toBe(true);
+    if (captured.scopeKind !== 'classic_outreach') throw new Error('expected Classic');
+    expect(Object.isFrozen(captured.classicOutreachIds)).toBe(true);
+    ids[0] = ACTOR;
+    expect(captured.classicOutreachIds).toEqual([CLIENT]);
+  });
+  it.each([
+    { scopeKind: 'research_portfolio', clientId: null },
+    { scopeKind: 'research_portfolio', clientId: CLIENT, researchPortfolioId: CLIENT },
+    { scopeKind: 'research_portfolio', clientId: null, researchPortfolioId: 'not-a-uuid' },
+    {
+      scopeKind: 'research_portfolio',
+      clientId: null,
+      researchPortfolioId: CLIENT,
+      classicOutreachIds: [],
+    },
+    { scopeKind: 'general', clientId: null, researchPortfolioId: CLIENT },
+    { scopeKind: 'client', clientId: CLIENT, classicOutreachIds: [] },
+    { scopeKind: 'classic_outreach', clientId: null },
+    { scopeKind: 'classic_outreach', clientId: 'invalid', classicOutreachIds: [] },
+    { scopeKind: 'classic_outreach', clientId: null, classicOutreachIds: [CLIENT, CLIENT] },
+    {
+      scopeKind: 'classic_outreach',
+      clientId: null,
+      classicOutreachIds: ['abcdefab-0000-4000-8000-000000000001'.toUpperCase()],
+    },
+    { scopeKind: 'classic_outreach', clientId: null, classicOutreachIds: ['bad,ids'] },
+    { scopeKind: 'classic_outreach', clientId: null, classicOutreachIds: new Array(1) },
+    {
+      scopeKind: 'classic_outreach',
+      clientId: null,
+      classicOutreachIds: Array.from(
+        { length: 101 },
+        (_, i) => '20000000-0000-4000-8000-' + String(i).padStart(12, '0'),
+      ),
+    },
+    {
+      scopeKind: 'classic_outreach',
+      clientId: null,
+      classicOutreachIds: [],
+      researchPortfolioId: CLIENT,
+    },
+  ])(
+    'refuses malformed or ambiguous domain authority before opening a transaction %#',
+    async (selectors) => {
+      const f = fixture();
+      await expect(
+        f.service.assertAvailable({ ...context(), ...selectors } as PrivateSqlExecutionContext),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(f.client.$transaction).not.toHaveBeenCalled();
+    },
+  );
+  it('rejects cross-source compiled relations before currentness or DB work', async () => {
+    const queries = [
+      compiled(),
+      compileScopedSql(
+        { sql: 'SELECT COUNT(*) AS count FROM research_portfolios', parameters: [] },
+        RESEARCH_PORTFOLIO_QUERY_RELATIONS,
+      ),
+      compileScopedSql(
+        { sql: 'SELECT COUNT(*) AS count FROM classic_outreach_records', parameters: [] },
+        [CLASSIC_OUTREACH_QUERY_RELATION],
+        { classic_outreach_records: [] },
+      ),
+    ];
+    const contexts = [
+      context(),
+      context({ scopeKind: 'research_portfolio', researchPortfolioId: CLIENT }),
+      context({ scopeKind: 'classic_outreach', classicOutreachIds: [] }),
+    ];
+    for (let i = 0; i < queries.length; i++)
+      for (let j = 0; j < contexts.length; j++)
+        if (i !== j) {
+          const f = fixture(),
+            supplied = contexts[j]!;
+          await expect(f.service.runPrivateSql(queries[i]!, supplied)).rejects.toMatchObject({
+            code: 'SOURCE_UNAVAILABLE',
+          });
+          expect(supplied.assertCurrent).not.toHaveBeenCalled();
+          expect(f.client.$transaction).not.toHaveBeenCalled();
+        }
+  });
+  it('clears domain GUCs explicitly across reused transport transactions for every scope', async () => {
+    const f = fixture();
+    f.tx.$queryRawUnsafe.mockReset().mockResolvedValue([{ allowed: true }]);
+    for (const supplied of [
+      context({ scopeKind: 'research_portfolio', researchPortfolioId: CLIENT }),
+      context({ scopeKind: 'classic_outreach', classicOutreachIds: [CLIENT] }),
+      context({ scopeKind: 'client', clientId: CLIENT }),
+      context(),
+    ])
+      await f.service.assertAvailable(supplied);
+    const bindings = f.tx.$executeRawUnsafe.mock.calls
+      .filter(([sql]) => sql.includes('set_config'))
+      .map((call) => call.slice(1));
+    expect(bindings).toEqual([
+      [TENANT, ACTOR, 'research_portfolio', '', CLIENT, ''],
+      [TENANT, ACTOR, 'classic_outreach', '', '', CLIENT],
+      [TENANT, ACTOR, 'client', CLIENT, '', ''],
+      [TENANT, ACTOR, 'general', '', '', ''],
+    ]);
+  });
+  it('requires the coupled exact expanded catalog and minimal owner column privileges', async () => {
+    const f = fixture();
+    await f.service.assertAvailable(f.authority);
+    const admission = f.tx.$queryRawUnsafe.mock.calls[0][0];
+    expect(admission).toContain('(SELECT count(*) FROM views) = 19');
+    expect(admission).toContain('(SELECT count(*) FROM sources) = 23');
+    expect(admission).toContain('source_columns (table_name, columns)');
+    expect(admission).toContain('pg_catalog.cardinality(expected.columns)');
+    expect(admission).toContain('NOT a.attname = ANY(expected.columns)');
+    expect(admission).toContain("relname <> 'visible_clients'");
+    expect(admission).toContain('s.relforcerowsecurity');
+  });
+
+  it('refuses canonical runtime drift before authority or database work', async () => {
+    jest
+      .spyOn(normalizationRuntime, 'privateSqlNormalizationRuntimeAdmitted')
+      .mockReturnValue(false);
+    const f = fixture();
+    await expect(f.service.runPrivateSql(compiled(), f.authority)).rejects.toMatchObject({
+      code: 'SOURCE_UNAVAILABLE',
+    });
+    expect(f.events).toEqual([]);
+    expect(f.client.$transaction).not.toHaveBeenCalled();
+  });
+  it('admits only the pinned pure helper definition and owner/reader EXECUTE ACL', async () => {
+    const f = fixture();
+    await f.service.assertAvailable(f.authority);
+    const admission = f.tx.$queryRawUnsafe.mock.calls[0][0];
+    expect(admission).toContain(PRIVATE_SQL_NORMALIZATION_PINS.functionBodySha256);
+    expect(admission).toContain('(SELECT count(*) FROM normalization_function) = 1');
+    expect(admission).toContain(
+      'f.prosecdef OR f.proleakproof OR f.proretset OR NOT f.proisstrict',
+    );
+    expect(admission).toContain('a.grantee NOT IN (reader.oid, owner.oid)');
+    expect(admission).toContain('a.grantee = reader.oid AND a.is_grantable');
+    expect(admission).toContain("f.proconfig IS DISTINCT FROM ARRAY['search_path=pg_catalog']");
   });
   it('owns and closes only its separate lazy client', async () => {
     const f = fixture();
