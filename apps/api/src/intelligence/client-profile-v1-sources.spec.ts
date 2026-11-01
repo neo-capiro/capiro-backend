@@ -36,6 +36,23 @@ describe('settleWithConcurrency', () => {
     expect(results.slice(1).map((r) => (r as PromiseFulfilledResult<string>).value)).toEqual(['one', 'two', 'three', 'four', 'five']);
   });
 
+  it('starts no further source once the signal aborts and rejects the unstarted positions with the abort reason', async () => {
+    const gates = Array.from({ length: 5 }, () => deferred<string>());
+    const started: number[] = [];
+    const starts = gates.map((gate, index) => () => { started.push(index); return gate.promise; });
+    const controller = new AbortController();
+    const settled = settleWithConcurrency(starts, 2, controller.signal);
+    await Promise.resolve();
+    expect(started).toEqual([0, 1]);
+    controller.abort(new Error('request budget exceeded'));
+    gates[0]!.resolve('zero');
+    gates[1]!.resolve('one');
+    const results = await settled;
+    expect(started).toEqual([0, 1]);
+    expect(results.map((r) => r.status)).toEqual(['fulfilled', 'fulfilled', 'rejected', 'rejected', 'rejected']);
+    expect(results[2]).toMatchObject({ status: 'rejected', reason: new Error('request budget exceeded') });
+  });
+
   it('handles an empty list and rejects a non-positive limit', async () => {
     await expect(settleWithConcurrency([], 3)).resolves.toEqual([]);
     await expect(settleWithConcurrency([async () => 1], 0)).rejects.toThrow(RangeError);
@@ -106,6 +123,17 @@ describe('collectProfileV1Sources', () => {
     expect(budgetLabels).toHaveLength(25);
     expect(budgetLabels[4]).toBe('trackedBills');
     expect(budgetLabels[23]).toBe('hearingAlerts');
+  });
+
+  it('hands the context signal to the limiter so an aborted profile starts no source', async () => {
+    const h = harness();
+    const controller = new AbortController();
+    controller.abort();
+    const { settled, settledSourceLabels } = await collectProfileV1Sources(h.prisma, h.ports, { ...context, signal: controller.signal });
+    expect(settled).toHaveLength(settledSourceLabels.length);
+    expect(settled.every((r) => r.status === 'rejected')).toBe(true);
+    expect(h.raw.ports.getClientProfile).not.toHaveBeenCalled();
+    expect(h.raw.prisma.withTenant).not.toHaveBeenCalled();
   });
 
   it('keeps the positional contract: a failing source settles only its own slot', async () => {

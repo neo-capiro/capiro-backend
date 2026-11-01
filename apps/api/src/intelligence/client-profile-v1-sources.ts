@@ -69,6 +69,7 @@ export async function collectProfileV1Sources(
       ports.withSourceBudget(settledSourceLabels[index] ?? `source_${index}`, clientId, start()),
     ),
     concurrency,
+    context.signal,
   );
   return { settled, settledSourceLabels };
 }

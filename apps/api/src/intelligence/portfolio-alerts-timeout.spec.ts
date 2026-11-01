@@ -7,8 +7,9 @@ import { IntelligenceService } from './intelligence.service.js';
  * budget (20s, non-cancelling) made the HTTP request appear stuck and left
  * Needs Attention unresolved on os.capiro.ai landing.
  *
- * The request must fail open with an empty alerts payload inside a hard
- * wall-clock budget so the dashboard can paint.
+ * The request must answer inside a hard wall-clock budget so the dashboard
+ * can paint: at the budget the run is stopped and whatever it had aggregated
+ * is returned, marked partial.
  */
 describe('IntelligenceService.getPortfolioAlerts request budget', () => {
   const tenantId = '00000000-0000-0000-0000-000000000001';
@@ -31,12 +32,21 @@ describe('IntelligenceService.getPortfolioAlerts request budget', () => {
     return { service, prisma };
   };
 
-  it('fails open with empty alerts when the roll-up exceeds the request budget', async () => {
+  it('stops the run and answers with its partial result when the roll-up exceeds the request budget', async () => {
     const { service } = makeService();
     const never = new Promise(() => {
       /* intentionally never settles */
     });
-    jest.spyOn(service as any, 'computePortfolioAlerts').mockReturnValue(never);
+    const abort = jest.fn(() => ({
+      alerts: [],
+      total: 0,
+      clientCount: 2,
+      generatedAt: new Date().toISOString(),
+      partial: true as const,
+    }));
+    jest
+      .spyOn(service as any, 'computePortfolioAlerts')
+      .mockReturnValue({ result: never, abort });
 
     // Keep the unit test fast: shrink the budget for this process.
     const original = (IntelligenceService as any).PORTFOLIO_ALERTS_REQUEST_BUDGET_MS;
@@ -51,9 +61,11 @@ describe('IntelligenceService.getPortfolioAlerts request budget', () => {
         expect.objectContaining({
           alerts: [],
           total: 0,
+          clientCount: 2,
+          partial: true,
         }),
       );
-      expect(Array.isArray(result.alerts)).toBe(true);
+      expect(abort).toHaveBeenCalledTimes(1);
       expect(typeof result.generatedAt).toBe('string');
     } finally {
       (IntelligenceService as any).PORTFOLIO_ALERTS_REQUEST_BUDGET_MS = original;
@@ -76,7 +88,10 @@ describe('IntelligenceService.getPortfolioAlerts request budget', () => {
       clientCount: 2,
       generatedAt: '2026-08-21T00:00:00.000Z',
     };
-    jest.spyOn(service as any, 'computePortfolioAlerts').mockResolvedValue(payload);
+    const abort = jest.fn();
+    jest
+      .spyOn(service as any, 'computePortfolioAlerts')
+      .mockReturnValue({ result: Promise.resolve(payload), abort });
 
     const original = (IntelligenceService as any).PORTFOLIO_ALERTS_REQUEST_BUDGET_MS;
     (IntelligenceService as any).PORTFOLIO_ALERTS_REQUEST_BUDGET_MS = 5_000;
@@ -84,6 +99,7 @@ describe('IntelligenceService.getPortfolioAlerts request budget', () => {
       await expect(service.getPortfolioAlerts(tenantId, userId, { limit: 30 })).resolves.toEqual(
         payload,
       );
+      expect(abort).not.toHaveBeenCalled();
     } finally {
       (IntelligenceService as any).PORTFOLIO_ALERTS_REQUEST_BUDGET_MS = original;
     }

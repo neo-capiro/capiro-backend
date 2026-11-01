@@ -137,6 +137,21 @@ describe('IntelligenceService.getClientProfileV1', () => {
     expect(payload.sections.relationships).toBeDefined();
   });
 
+  test('stops after the sources settle when the caller has already aborted', async () => {
+    const { service, prisma } = makeService();
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      service.getClientProfileV1(clientId, tenantId, undefined, controller.signal),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    // Only the client guard read ran: no source started and none of the
+    // follow-up reads (ROI quarters, committee jurisdiction) were reached.
+    expect(prisma.withTenant).toHaveBeenCalledTimes(1);
+    expect((service as any).getClientProfile).not.toHaveBeenCalled();
+    expect((service as any).buildRoiQuarterSeries).not.toHaveBeenCalled();
+  });
+
   test('treats a soft-archived ("deleted") client as not-found', async () => {
     const { service, tenantTx } = makeService();
     // The guard query is the first client.findFirst call; archived → 404 so a

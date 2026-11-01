@@ -54,7 +54,7 @@ describe('Portfolio alert current cache map and expiry', () => {
 });
 
 describe('Portfolio alert in-flight promise and key identity', () => {
-  test('coalesces the stored compute chain while keeping independent HTTP budget promises', async () => {
+  test('coalesces concurrent callers onto the one budgeted in-flight answer', async () => {
     const pendingProfile = deferred<unknown>();
     const h = harness({
       rows: { clients: [client()], [`profile:${clientId}`]: pendingProfile.promise },
@@ -62,15 +62,13 @@ describe('Portfolio alert in-flight promise and key identity', () => {
     const compute = jest.spyOn(h.runtime, 'computePortfolioAlerts');
     const requestBudget = jest.spyOn(h.runtime, 'withPortfolioAlertsRequestBudget');
     const first = h.service.getPortfolioAlerts(tenantId, userId);
-    const underlying = h.runtime.portfolioAlertsInflight.get(key)!;
+    const inflight = h.runtime.portfolioAlertsInflight.get(key)!;
     const second = h.service.getPortfolioAlerts(tenantId, userId);
-    expect(first).not.toBe(second);
-    expect(underlying).not.toBe(first);
-    expect(underlying).not.toBe(compute.mock.results[0]!.value);
-    expect(h.runtime.portfolioAlertsInflight.get(key)).toBe(underlying);
-    expect(requestBudget.mock.calls[0]![1]).toBe(underlying);
-    expect(requestBudget.mock.calls[1]![1]).toBe(underlying);
+    expect(inflight).toBe(requestBudget.mock.results[0]!.value);
+    expect(inflight).not.toBe(compute.mock.results[0]!.value.result);
+    expect(h.runtime.portfolioAlertsInflight.get(key)).toBe(inflight);
     expect(compute).toHaveBeenCalledTimes(1);
+    expect(requestBudget).toHaveBeenCalledTimes(1);
     await h.started(`profile:${clientId}`);
     pendingProfile.resolve(profile([alert()]));
     const values = await Promise.all([first, second]);
