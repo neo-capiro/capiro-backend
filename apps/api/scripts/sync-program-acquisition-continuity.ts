@@ -7,6 +7,13 @@
  * command is an inventory-only dry run.
  */
 import { Prisma, PrismaClient } from '@prisma/client';
+import { openSync, readSync, closeSync } from 'node:fs';
+import { runPrismaTransaction } from '../src/prisma/prisma-transaction-deadline.js';
+import {
+  awardEnrichmentFileArgument, continuityWritesEnabled as writesEnabled, enrichAwardCohort,
+  MAX_ENRICHMENT_FILE_BYTES, parseAwardEnrichmentFile,
+  validateAwardEnrichmentIds, type AwardEnrichmentSnapshot, type AwardEnrichmentHead, type AwardEnrichmentReceipt,
+} from './lib/procurement-award-enrichment.js';
 import {
   AcquisitionContinuityStore,
   acquisitionRecordKindFromNoticeType,
@@ -177,8 +184,70 @@ function capFromArgs(): number {
   return value;
 }
 
-export function writesEnabled(commit: boolean, env: NodeJS.ProcessEnv = process.env): boolean {
-  return commit && env.PROGRAM_ACQUISITION_CONTINUITY_ENABLED === 'true';
+export { writesEnabled };
+
+export async function projectFiniteAwardEnrichment(
+  prisma: Pick<PrismaClient, '$queryRaw' | '$transaction'>,
+  options: { awardIds: readonly string[]; commit: boolean; env?: NodeJS.ProcessEnv },
+) {
+  validateAwardEnrichmentIds(options.awardIds);
+  const readAndAppend = (client: Pick<PrismaClient, '$queryRaw'>) => {
+    const store = new AcquisitionContinuityStore(client as never);
+    return enrichAwardCohort({
+      readAwards: (ids) => client.$queryRaw<AwardEnrichmentSnapshot[]>`
+      SELECT award_unique_id AS "awardUniqueId", piid, source_record_jsonb AS "sourceRecord",
+        to_char(last_synced_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "sourceObservedAt"
+      FROM public.federal_award WHERE award_unique_id = ANY(${[...ids]}::text[])
+      ORDER BY award_unique_id COLLATE "C" LIMIT 26
+    `,
+      readHeads: (keys) => client.$queryRaw<AwardEnrichmentHead[]>`
+      WITH scoped AS MATERIALIZED (
+        SELECT identity_key, source_record_id, recorded_at, source_observed_at, raw_jsonb
+        FROM public.acquisition_record_revision
+        WHERE identity_key = ANY(${[...keys]}::text[]) AND source_system = 'usaspending' AND record_kind = 'award'
+          AND jsonb_typeof(raw_jsonb->'generated_internal_id') = 'string'
+          AND jsonb_typeof(raw_jsonb->'Award ID') = 'string'
+          AND raw_jsonb->>'generated_internal_id' = source_record_id
+          AND raw_jsonb->>'Award ID' = split_part(source_record_id, '_', 3)
+          AND identity_key = 'usaspending|award|' || source_record_id
+      ), clocks AS (SELECT identity_key, max(recorded_at) AS latest FROM scoped GROUP BY identity_key)
+      SELECT r.identity_key AS "identityKey", r.raw_jsonb AS "sourceRecord",
+        to_char(r.source_observed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "sourceObservedAt",
+        to_char(r.recorded_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "recordedAt"
+      FROM scoped r JOIN clocks c ON c.identity_key = r.identity_key AND c.latest = r.recorded_at
+      ORDER BY r.identity_key COLLATE "C" LIMIT 26
+    `,
+      appendRecord: (input) => store.appendRecord(input),
+    }, options);
+  };
+  const enabled = writesEnabled(options.commit, options.env);
+  let staged: AwardEnrichmentReceipt | undefined;
+  try {
+    return await runPrismaTransaction<AwardEnrichmentReceipt>(
+      (work, engine) => prisma.$transaction(work, engine),
+      async (tx) => {
+        if (!enabled) return;
+        await tx.$executeRaw`SET LOCAL lock_timeout = '1s'`;
+        // Standard table locking blocks every concurrent catalog writer, including older producers.
+        // Re-read and validate heads after the lock, under READ COMMITTED rather than an older snapshot.
+        await tx.$executeRaw`LOCK TABLE public.acquisition_record_revision IN SHARE ROW EXCLUSIVE MODE`;
+      },
+      async (tx) => {
+        staged = await readAndAppend(tx);
+        if (staged.status === 'WRITE_OUTCOME_UNRESOLVED') throw new Error('Finite catalog append failed');
+        return staged;
+      },
+      { timeoutMs: 15000, deadline: { at: Date.now() + 15000 }, readOnly: !enabled,
+        isolationLevel: enabled ? 'ReadCommitted' : 'RepeatableRead' },
+    );
+  } catch (error) {
+    if (!enabled || !staged || staged.status === 'REFUSED') throw error;
+    // A transaction rejection can include a lost COMMIT acknowledgement. Neither staged rows nor rollback
+    // are asserted durable here; the same attempt must be reconciled by its executor before any retry.
+    return { ...staged, status: 'TRANSACTION_OUTCOME_UNRESOLVED', inserted: null, existing: null,
+      outcomes: staged.outcomes.map((outcome) => outcome.state === 'inserted' || outcome.state === 'existing'
+        ? { ...outcome, state: 'write_outcome_unresolved' as const } : outcome) };
+  }
 }
 
 export async function projectProgramAcquisitionContinuity(
@@ -437,21 +506,42 @@ export async function projectProgramAcquisitionContinuity(
   return summary;
 }
 
-async function main(): Promise<void> {
+export async function runProgramAcquisitionContinuityCli(createClient: () => PrismaClient = () => new PrismaClient()): Promise<void> {
+  if (flag('help')) {
+    console.log('Usage: sync-program-acquisition-continuity [--cap 1..5000] [--sam-cursor cursor] [--awards-cursor cursor] [--commit]\n'
+      + '       sync-program-acquisition-continuity --award-ids-file <JSON array of 1..25 full award IDs> [--commit]\n'
+      + 'Finite mode reads existing source snapshots only. Writes require --commit and PROGRAM_ACQUISITION_CONTINUITY_ENABLED=true.\n'
+      + 'Exit 0: completed/read-only validation; 1: failure or unknown write outcome; 2: missing configuration or finite cohort refusal.');
+    return;
+  }
+  const file = awardEnrichmentFileArgument(process.argv.slice(2));
+  let awardIds: string[] | null = null;
+  if (file !== null) {
+    const fd = openSync(file, 'r');
+    try {
+      const buffer = Buffer.alloc(MAX_ENRICHMENT_FILE_BYTES + 1);
+      const bytes = readSync(fd, buffer, 0, buffer.length, 0);
+      awardIds = parseAwardEnrichmentFile(buffer.subarray(0, bytes).toString('utf8'));
+    } finally { closeSync(fd); }
+  }
   if (!process.env.DATABASE_URL) {
     console.error('Usage: apps/api/scripts/sync-program-acquisition-continuity.ts requires DATABASE_URL (database configuration is required)');
-    process.exit(2);
+    process.exitCode = 2;
+    return;
   }
-  const prisma = new PrismaClient();
+  const prisma = createClient();
   try {
     await prisma.$connect();
-    const summary = await projectProgramAcquisitionContinuity(prisma, {
+    const summary = awardIds ? await projectFiniteAwardEnrichment(prisma, { awardIds, commit: flag('commit') })
+      : await projectProgramAcquisitionContinuity(prisma, {
       commit: flag('commit'),
       cap: capFromArgs(),
       samCursor: arg('sam-cursor'),
       awardsCursor: arg('awards-cursor'),
     });
     console.log(JSON.stringify(summary, null, 2));
+    if ('status' in summary && summary.status === 'REFUSED') process.exitCode = 2;
+    if ('status' in summary && (summary.status === 'WRITE_OUTCOME_UNRESOLVED' || summary.status === 'TRANSACTION_OUTCOME_UNRESOLVED')) process.exitCode = 1;
   } finally {
     await prisma.$disconnect();
   }
@@ -459,7 +549,7 @@ async function main(): Promise<void> {
 
 const direct = typeof require !== 'undefined' && typeof module !== 'undefined' && require.main === module;
 if (direct) {
-  void main().catch((error) => {
+  void runProgramAcquisitionContinuityCli().catch((error) => {
     console.error('[sync-program-acquisition-continuity] FAILED', error instanceof Error ? error.message : String(error));
     process.exit(1);
   });
