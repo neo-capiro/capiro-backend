@@ -35,7 +35,7 @@ export async function readObjectiveSavedGeneration(
       AND input#>>'{objectiveGeneration,receipt,source,clientId}'=${binding.clientId}
       AND input#>>'{objectiveGeneration,receipt,source,objectiveId}'=${binding.objectiveId}
       AND input#>>'{objectiveGeneration,receipt,source,objectiveVersion}'=${String(binding.objectiveVersion)}
-    ORDER BY id LIMIT 2`;
+    ORDER BY id LIMIT 2 FOR SHARE`;
   if (candidates.length > 1)
     throw new ServiceUnavailableException(
       'The saved generation could not be selected. Retry this read.',

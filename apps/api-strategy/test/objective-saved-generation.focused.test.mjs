@@ -92,7 +92,7 @@ test('candidate query remains actor/client/revision/canonical scoped and refuses
   for (const fragment of [
     "status='completed'",
     "input ? 'canonicalGeneration'",
-    'ORDER BY id LIMIT 2',
+    'ORDER BY id LIMIT 2 FOR SHARE',
   ])
     assert.ok(q.sql.includes(fragment));
 });
