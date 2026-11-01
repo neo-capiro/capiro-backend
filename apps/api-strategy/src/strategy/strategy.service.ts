@@ -20,6 +20,7 @@ import {
   type DomainAggregateQuery,
 } from './domain-aggregate.js';
 import { loadStrategyDetail } from './detail.js';
+import { readObjectiveSavedGeneration } from './objective-saved-generation.js';
 import {
   readObjectiveSavedReview,
   type ObjectiveSavedReviewQueryDto,
@@ -108,6 +109,12 @@ export class StrategyService {
   async objectiveSavedReview(ctx: AuthTenantContext, id: string, input: ObjectiveSavedReviewQueryDto) {
     return this.prisma.withTenantUser(ctx.tenantId, ctx.clerkUserId, (tx) =>
       readObjectiveSavedReview(tx, ctx, id, input),
+    );
+  }
+
+  async objectiveSavedGeneration(ctx: AuthTenantContext, input: ObjectiveDestinationQueryDto) {
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.clerkUserId, (tx) =>
+      readObjectiveSavedGeneration(tx, ctx, input),
     );
   }
 

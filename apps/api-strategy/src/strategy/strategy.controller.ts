@@ -133,6 +133,15 @@ export class StrategyController {
     }
   }
 
+  @Get('objective-saved-generation')
+  @Header('Cache-Control', 'private, no-store')
+  objectiveSavedGeneration(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Query() query: ObjectiveDestinationQueryDto,
+  ) {
+    return this.strategies.objectiveSavedGeneration(ctx, query);
+  }
+
   @Get(':id')
   byId(@CurrentTenant() ctx: AuthTenantContext, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.strategies.byId(ctx.tenantId, id);
