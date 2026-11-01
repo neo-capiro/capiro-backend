@@ -632,6 +632,19 @@ export class PlannerService {
       : checkedMaterialization(stored as StoredMaterialization, source, ctx.tenantId, ctx.clerkUserId),
       replayed: true };
   }
+  // Old public materializations used different output identities. Their absence
+  // cannot be inferred from canonical IDs or one browser's recovery journal.
+  // Both writers hold the tenant Planner gate; preserve any historical attempt
+  // (including archived receipts or an earlier author/revision) for recovery.
+  if (binding && await tx.spPlannerResource.findFirst({ where: {
+    tenantId: ctx.tenantId,
+    kind: STRATEGY_MATERIALIZATION_RECEIPT,
+    OR: [
+      { data: { path: ['input', 'expected', 'strategyId'], equals: source.strategyId } },
+      { data: { path: ['result', 'source', 'strategyId'], equals: source.strategyId } },
+    ],
+  }, select: { id: true } }))
+    materializationError('MATERIALIZATION_OUTCOME_UNCONFIRMED', input.requestId);
   const current = await tx.spNode.findMany({
     where: { tenantId: ctx.tenantId, strategyId: source.strategyId },
     select: { id: true, archivedAt: true },
