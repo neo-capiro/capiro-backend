@@ -296,8 +296,9 @@ describe('private SQL execution isolation (scripted transport; native role proof
   it.each([
     ['57014', 'QUERY_TIMEOUT', false],
     ['22P02', 'INVALID_QUERY', true],
-    ['42P01', 'UNKNOWN_RELATION', true],
-    ['42501', 'UNKNOWN_RELATION', true],
+    // Relation and permission errors are restated by translateDatabaseError; PostgreSQL's text never travels.
+    ['42P01', 'UNKNOWN_RELATION', false],
+    ['42501', 'UNKNOWN_RELATION', false],
     ['53300', 'SOURCE_UNAVAILABLE', false],
   ])(
     'translates private driver failure %s to %s (PostgreSQL message kept: %s)',

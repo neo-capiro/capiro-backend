@@ -353,10 +353,29 @@ export function translateDatabaseError(
   if (sqlstate === '57014' || sqlstate === '55P03')
     return new SqlQueryError('QUERY_TIMEOUT', 'The query exceeded its execution time limit. Narrow the query.', detail);
   if (['42P01', '3F000', '42501'].includes(sqlstate)) {
-    const named = /(?:relation|table|view|schema|for) "?([A-Za-z0-9_.]+)"?/.exec(message)?.[1]?.split('.').pop();
-    const candidates = named ? nearestNames(named, surface.map((relation) => relation.name)) : [];
-    if (candidates.length) detail.candidates = candidates;
-    return new SqlQueryError('UNKNOWN_RELATION', message, detail);
+    // PostgreSQL's own text would confirm whether an unpublished table or schema exists ("permission denied for table
+    // clients"). The model only needs to know that the identifier it wrote is not published here; the SQLSTATE still travels.
+    // The meri_public and meri_private views are security_invoker = false, so a 42501 names what the model addressed,
+    // never an underlying table. `typed` is the identifier as the model wrote it (possibly schema-qualified); `relation`
+    // its last part.
+    const typed = /(?:relation|table|view|schema) "?([A-Za-z0-9_.]+)"?/.exec(message)?.[1];
+    const relation = typed?.split('.').pop();
+    const published = relation !== undefined && surface.some((r) => r.name === relation);
+    const names = surface.map((r) => r.name);
+    const published_ = 'use only the relations describe_capiro_data lists';
+    let text: string;
+    if (sqlstate === '42P01' && /missing FROM-clause entry/.test(message) && typed)
+      text = `${typed} is not in the FROM clause; alias every relation you reference and use those aliases.`;
+    else if (sqlstate === '42501' && published)
+      text = `Only a read-only SELECT is permitted on ${relation}; locking and write clauses are refused.`;
+    else if (sqlstate === '42P01' && published && typed !== relation)
+      text = `${typed} is not available: address the published relation ${relation} without a schema prefix.`;
+    else if (typed) {
+      const candidates = nearestNames(relation!, names);
+      if (candidates.length) detail.candidates = candidates;
+      text = `${typed} is not published in this source; ${published_}.`;
+    } else text = `The statement named a relation or schema that is not published in this source; ${published_}.`;
+    return new SqlQueryError('UNKNOWN_RELATION', text, detail);
   }
   if (sqlstate === '42703') {
     const named = /column "?([A-Za-z0-9_.]+)"? does not exist/.exec(message)?.[1]?.split('.').pop();
