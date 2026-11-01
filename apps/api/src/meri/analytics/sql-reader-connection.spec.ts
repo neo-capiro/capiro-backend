@@ -174,9 +174,13 @@ describe('reader transport', () => {
     const pgError = (code: string, message: string, extra: Record<string, unknown> = {}) => Object.assign(new Error(message), { code, ...extra });
     it.each([
       [pgError('42703', 'column b.titel does not exist', { position: '24', hint: 'Perhaps you meant "b.title".' }), { code: 'UNKNOWN_FIELD', message: 'column b.titel does not exist', position: 8, hint: 'Perhaps you meant "b.title".', sqlstate: '42703', candidates: ['title'] }],
-      [pgError('42P01', 'relation "congress_bill" does not exist', { position: '31' }), { code: 'UNKNOWN_RELATION', position: 15, sqlstate: '42P01', candidates: ['congress_bills', 'congress_members'] }],
-      [pgError('42501', 'permission denied for table clients'), { code: 'UNKNOWN_RELATION', message: 'permission denied for table clients', sqlstate: '42501' }],
-      [pgError('3F000', 'schema "meri_private" does not exist'), { code: 'UNKNOWN_RELATION', sqlstate: '3F000' }],
+      [pgError('42P01', 'relation "congress_bill" does not exist', { position: '31' }), { code: 'UNKNOWN_RELATION', message: 'congress_bill is not published in this source; use only the relations describe_capiro_data lists.', position: 15, sqlstate: '42P01', candidates: ['congress_bills', 'congress_members'] }],
+      // Permission and schema errors never echo PostgreSQL's text: it would confirm that an unpublished object exists.
+      [pgError('42501', 'permission denied for table clients'), { code: 'UNKNOWN_RELATION', message: 'clients is not published in this source; use only the relations describe_capiro_data lists.', sqlstate: '42501' }],
+      [pgError('42501', 'permission denied for schema secret_schema'), { code: 'UNKNOWN_RELATION', message: 'secret_schema is not published in this source; use only the relations describe_capiro_data lists.', sqlstate: '42501' }],
+      [pgError('42501', 'permission denied for table congress_bills'), { code: 'UNKNOWN_RELATION', message: 'Only a read-only SELECT is permitted on congress_bills; locking and write clauses are refused.', sqlstate: '42501' }],
+      [pgError('42501', 'permission denied'), { code: 'UNKNOWN_RELATION', message: 'The statement named a relation or schema that is not published in this source; use only the relations describe_capiro_data lists.', sqlstate: '42501' }],
+      [pgError('3F000', 'schema "meri_private" does not exist'), { code: 'UNKNOWN_RELATION', message: 'meri_private is not published in this source; use only the relations describe_capiro_data lists.', sqlstate: '3F000' }],
       [pgError('57014', 'canceling statement due to statement timeout'), { code: 'QUERY_TIMEOUT', sqlstate: '57014' }],
       [pgError('55P03', 'could not obtain lock'), { code: 'QUERY_TIMEOUT', sqlstate: '55P03' }],
       [pgError('22P02', 'invalid input syntax for type integer: "abc"', { position: '8' }), { code: 'INVALID_QUERY', message: 'invalid input syntax for type integer: "abc"', sqlstate: '22P02' }],
@@ -190,7 +194,8 @@ describe('reader transport', () => {
       const translated = translateDatabaseError(error, gated, surface);
       expect(translated).toBeInstanceOf(SqlQueryError);
       expect(translated.toEnvelope()).toMatchObject(expected);
-      expect(JSON.stringify(translated.toEnvelope())).not.toContain('secret');
+      expect(JSON.stringify(translated.toEnvelope())).not.toContain('secret connection');
+      expect(JSON.stringify(translated.toEnvelope())).not.toMatch(/permission denied|schema .* does not exist|relation .* does not exist/);
     });
     it('leaves a position inside the wrapper prefix out and passes gate errors through', () => {
       expect(translateDatabaseError(pgError('42601', 'syntax error', { position: '3' }), gated, surface).toEnvelope()).not.toHaveProperty('position');

@@ -353,10 +353,18 @@ export function translateDatabaseError(
   if (sqlstate === '57014' || sqlstate === '55P03')
     return new SqlQueryError('QUERY_TIMEOUT', 'The query exceeded its execution time limit. Narrow the query.', detail);
   if (['42P01', '3F000', '42501'].includes(sqlstate)) {
-    const named = /(?:relation|table|view|schema|for) "?([A-Za-z0-9_.]+)"?/.exec(message)?.[1]?.split('.').pop();
-    const candidates = named ? nearestNames(named, surface.map((relation) => relation.name)) : [];
+    // PostgreSQL's own text would confirm whether an unpublished table or schema exists ("permission denied for table
+    // clients"). The model only needs to know that the name it wrote is not published here; the SQLSTATE still travels.
+    const named = /(?:relation|table|view|schema) "?([A-Za-z0-9_.]+)"?/.exec(message)?.[1]?.split('.').pop();
+    const published = named !== undefined && surface.some((relation) => relation.name === named);
+    const candidates = named && !published ? nearestNames(named, surface.map((relation) => relation.name)) : [];
     if (candidates.length) detail.candidates = candidates;
-    return new SqlQueryError('UNKNOWN_RELATION', message, detail);
+    const text = published
+      ? `Only a read-only SELECT is permitted on ${named}; locking and write clauses are refused.`
+      : named
+        ? `${named} is not published in this source; use only the relations describe_capiro_data lists.`
+        : 'The statement named a relation or schema that is not published in this source; use only the relations describe_capiro_data lists.';
+    return new SqlQueryError('UNKNOWN_RELATION', text, detail);
   }
   if (sqlstate === '42703') {
     const named = /column "?([A-Za-z0-9_.]+)"? does not exist/.exec(message)?.[1]?.split('.').pop();

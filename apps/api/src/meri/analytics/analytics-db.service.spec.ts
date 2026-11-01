@@ -101,7 +101,8 @@ describe('dedicated public SQL execution', () => {
     answers.splice(2, 2, Object.assign(new Error(`pg message for ${code}`), { code, position: '20' }));
     const error = await service.runPublicSql(gated()).catch((e: unknown) => e);
     expect(error).toMatchObject({ code: expected, detail: { sqlstate: code } });
-    expect(String((error as Error).message).includes('pg message')).toBe(expected !== 'SOURCE_UNAVAILABLE' && expected !== 'QUERY_TIMEOUT');
+    // Relation refusals are restated by translateDatabaseError (the name the model wrote, or none); outages and timeouts are fixed text.
+    expect(String((error as Error).message).includes('pg message')).toBe(!['SOURCE_UNAVAILABLE', 'QUERY_TIMEOUT', 'UNKNOWN_RELATION'].includes(expected));
   });
 });
 
