@@ -4,6 +4,7 @@ import { describePrivateSqlDomains } from './private-sql-domain-metadata.js';
 import { RESEARCH_PORTFOLIO_QUERY_RELATIONS } from '../../research-portfolios/research-portfolio-query-projections.js';
 import { CLIENT_MEETING_QUERY_RELATION } from '../../engagement/meeting-query-projection.js';
 import { CLASSIC_OUTREACH_QUERY_RELATION } from '../../engagement/classic-outreach-query-projection.js';
+import type { PublishedRelation } from './sql-reader-connection.js';
 
 const id = (n: number) => `10000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const context = {
@@ -78,13 +79,23 @@ describe('private domains use one text gate and trusted DB context', () => {
       CLIENT_MEETING_QUERY_RELATION,
       CLASSIC_OUTREACH_QUERY_RELATION,
     ]) {
-      const catalog = {
-        ...relation,
+      const catalog: PublishedRelation = {
+        name: relation.name,
+        description: relation.description,
+        grain: relation.grain,
         fields: relation.fields.map((field) => ({
           ...field,
           pgType: 'synthetic_catalog_type',
           nullable: true,
         })),
+        primaryKey: [...relation.primaryKey],
+        relationships: relation.relationships.map((link) => ({
+          ...link,
+          fields: [...link.fields],
+          referencedFields: [...link.referencedFields],
+        })),
+        coverage: { ...relation.coverage, limitations: [...relation.coverage.limitations] },
+        freshness: { ...relation.freshness },
       };
       const [described] = describePrivateSqlDomains([catalog]);
       expect(described!.fields).toHaveLength(relation.fields.length);

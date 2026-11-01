@@ -46,6 +46,10 @@ import { MeriToolsService, TOOL_DEFINITIONS } from './meri-tools.service.js';
 import { MERI_CAPABILITY_REGISTRY } from '@capiro/shared';
 import { EventEmitter } from 'node:events';
 import { withMeriToolRequestControl } from './meri-tool-request-control.js';
+import { parseFloridaBudgetRead } from './florida-budget-read.contract.js';
+import { parseBudgetComparison, parseVersionComparison } from './legislative-comparison.contract.js';
+import { parseLegiwatchReview } from './legiwatch-review.contract.js';
+import { parseRelevancePreview } from './legiwatch-relevance.contract.js';
 import {
   withMeriFundingReadObservation,
   withMeriReadObservation,
@@ -128,17 +132,13 @@ describe('buyer workspace Meri tool', () => {
 
 const EXPECTED_TOOLS = [
   'search_legiwatch_news',
-  'get_florida_budget_project',
-  'compare_florida_budget_amounts',
   'prepare_legiwatch_briefing',
   'search_legislative_research',
   'get_legal_reference',
-  'compare_legislative_versions',
   'save_legislative_research',
-  'get_legiwatch_review',
-  'preview_legiwatch_relevance',
   'save_legiwatch_relevance',
   'apply_legiwatch_suggestion',
+  'watch_action',
   // Engagement + research
   'get_client_context',
   'search_capiro_data',
@@ -184,6 +184,7 @@ const EXPECTED_TOOLS = [
   // Vote/status truth layer (LegiWatch A5)
   'get_bill_status',
   'read_bill_text',
+  'read_federal_draft_source',
   'get_certification_status',
   'search_floor_votes',
   // Budget-score spine (Bucket-#3 C4.F1, SC2.4)
@@ -295,11 +296,45 @@ const EXPECTED_TOOLS = [
   'build_opportunity_action_plan',
 ] as const;
 
+// These remain registered capabilities, but their fixed HTTP owners need the
+// original interactive request. They must not re-enter the local dispatcher.
+const REQUEST_BOUND_TOOLS = [
+  'get_florida_budget_project',
+  'compare_florida_budget_amounts',
+  'compare_legislative_versions',
+  'get_legiwatch_review',
+  'preview_legiwatch_relevance',
+] as const;
+
+const REQUEST_BOUND_CONTRACTS: Record<(typeof REQUEST_BOUND_TOOLS)[number], {
+  parse: (input: unknown) => unknown;
+  input: Record<string, unknown>;
+}> = {
+  get_florida_budget_project: {
+    parse: parseFloridaBudgetRead,
+    input: { clientId: null, folderId: null, q: '', fiscalYear: '2026-27', projectId: '', offset: 0, sessionKey: '' },
+  },
+  compare_florida_budget_amounts: {
+    parse: parseBudgetComparison,
+    input: { clientId: null, leftId: 'left', leftRevision: 'revision-left', rightId: 'right', rightRevision: 'revision-right' },
+  },
+  compare_legislative_versions: {
+    parse: parseVersionComparison,
+    input: { clientId: null, jurisdiction: 'FL', sessionKey: '2026', leftId: 'left', leftRevision: 'revision-left', rightId: 'right', rightRevision: 'revision-right' },
+  },
+  get_legiwatch_review: {
+    parse: parseLegiwatchReview,
+    input: { clientId: null, view: 'folders' },
+  },
+  preview_legiwatch_relevance: {
+    parse: parseRelevancePreview,
+    input: { clientId: null, folderId: 'folder', jurisdiction: 'FL', sessionKey: '2026', billId: 'bill', fields: ['title'] },
+  },
+};
+
 /** Tools whose schema must enforce required inputs, and exactly which. */
 const REQUIRED_INPUTS: Record<string, string[]> = {
   search_legiwatch_news: ['view'],
-  get_florida_budget_project: ['fiscalYear'],
-  compare_florida_budget_amounts: ['leftId', 'leftRevision', 'rightId', 'rightRevision'],
   prepare_legiwatch_briefing: [
     'folderId',
     'template',
@@ -313,14 +348,6 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   ],
   search_legislative_research: ['jurisdiction', 'sessionKey'],
   get_legal_reference: ['jurisdiction', 'view'],
-  compare_legislative_versions: [
-    'jurisdiction',
-    'sessionKey',
-    'leftId',
-    'leftRevision',
-    'rightId',
-    'rightRevision',
-  ],
   save_legislative_research: [
     'jurisdiction',
     'sessionKey',
@@ -379,6 +406,8 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
     'designId',
     'clientId',
     'branding',
+    'previewHash',
+    'expectedDesignVersion',
   ],
   revoke_research_portfolio_share_link: ['conversationId', 'linkId'],
   search_client_knowledge: ['query'],
@@ -389,8 +418,6 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   draft_policy_memo: ['clientId'],
   save_note: ['body'],
   save_chat_attachments: ['clientId', 'conversationId', 'attachmentIds'],
-  get_legiwatch_review: ['view'],
-  preview_legiwatch_relevance: ['folderId', 'jurisdiction', 'sessionKey', 'billId'],
   save_legiwatch_relevance: [
     'folderId',
     'jurisdiction',
@@ -413,6 +440,7 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
     'requestKey',
     'action',
   ],
+  watch_action: ['family', 'targetKind', 'targetKey', 'operation', 'expectedVersion'],
   send_email: ['to', 'subject', 'body'],
   reply_email: ['threadId', 'body'],
   get_email_thread: ['threadId'],
@@ -434,6 +462,7 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   resolve_entity: ['query'],
   get_bill_status: ['billId'],
   read_bill_text: ['billId'],
+  read_federal_draft_source: ['billId', 'versionCode', 'revisionId', 'versionHash', 'textHash'],
   get_certification_status: ['program', 'query'],
   get_state_bill_status: ['billId'],
   get_state_legislator: ['query'],
@@ -484,6 +513,37 @@ function schemas() {
       MERI_STATUS_PROVENANCE_SURFACES: 'chat',
     },
   });
+}
+
+function knowledgeFixture(client: { id: string; name: string } | null = {
+  id: 'client-1',
+  name: 'Civic Client',
+}) {
+  const findFirst = jest.fn(async () => client);
+  const authorizedClient = jest.fn(async () => client && { id: client.id });
+  const memoryAllowed = jest.fn(async () => [{ allowed: true }]);
+  const authorityTx = { client: { findFirst: authorizedClient }, $queryRawUnsafe: memoryAllowed };
+  const withTenantUser = jest.fn(
+    async (
+      _tenantId: string,
+      _userId: string,
+      read: (tx: typeof authorityTx) => Promise<unknown>,
+    ) => read(authorityTx),
+  );
+  const withTenant = jest.fn(
+    async (
+      _tenantId: string,
+      read: (tx: { client: { findFirst: typeof findFirst } }) => Promise<unknown>,
+    ) => read({ client: { findFirst } }),
+  );
+  const search = jest.fn(async () => [{ id: 'kb-1' }]);
+  const warn = jest.fn();
+  const service = Object.assign(Object.create(MeriToolsService.prototype), {
+    prisma: { withTenant, withTenantUser },
+    clientKb: { search },
+    logger: { warn },
+  }) as MeriToolsService;
+  return { service, findFirst, authorizedClient, memoryAllowed, withTenant, withTenantUser, search, warn };
 }
 
 describe('Meri tool registration', () => {
@@ -748,20 +808,7 @@ describe('Meri tool registration', () => {
   it('uses the trusted KB instant on no-client, results, empty and unavailable branches', async () => {
     const actor = { tenantId: 'tenant-1', userId: 'user-1' } as const;
     const asOf = '2026-10-17T12:34:56.789Z';
-    const findFirst = jest.fn(async () => ({ id: 'client-1', name: 'Civic Client' }));
-    const withTenant = jest.fn(
-      async (
-        _tenantId: string,
-        read: (tx: { client: { findFirst: typeof findFirst } }) => Promise<unknown>,
-      ) => read({ client: { findFirst } }),
-    );
-    const search = jest.fn(async () => [{ id: 'kb-1' }]);
-    const warn = jest.fn();
-    const service = Object.assign(Object.create(MeriToolsService.prototype), {
-      prisma: { withTenant },
-      clientKb: { search },
-      logger: { warn },
-    }) as MeriToolsService;
+    const { service, findFirst, authorizedClient, memoryAllowed, withTenant, withTenantUser, search, warn } = knowledgeFixture();
     const observed = <T>(run: () => T): T =>
       withMeriReadObservation({ operationId: 'search_client_knowledge', asOf }, run);
 
@@ -778,6 +825,7 @@ describe('Meri tool registration', () => {
       note: expect.stringContaining('No client is linked'),
     });
     expect(withTenant).not.toHaveBeenCalled();
+    expect(withTenantUser).not.toHaveBeenCalled();
     expect(search).not.toHaveBeenCalled();
 
     const input = {
@@ -794,6 +842,13 @@ describe('Meri tool registration', () => {
       results: [{ id: 'kb-1' }],
     });
     expect(withTenant).toHaveBeenCalledWith(actor.tenantId, expect.any(Function));
+    expect(withTenantUser).toHaveBeenCalledTimes(2);
+    expect(withTenantUser).toHaveBeenCalledWith(actor.tenantId, actor.userId, expect.any(Function));
+    expect(authorizedClient).toHaveBeenCalledWith({
+      where: { id: input.clientId, tenantId: actor.tenantId, status: { not: 'archived' } },
+      select: { id: true },
+    });
+    expect(memoryAllowed).toHaveBeenCalledWith(expect.any(String), actor.tenantId, input.clientId, actor.userId);
     expect(findFirst).toHaveBeenCalledWith({
       where: { id: input.clientId },
       select: { id: true, name: true },
@@ -827,15 +882,7 @@ describe('Meri tool registration', () => {
 
   it('keeps KB validation and missing-client lookup as execution failures', async () => {
     const actor = { tenantId: 'tenant-1', userId: 'user-1' } as const;
-    const findFirst = jest.fn(async () => null);
-    const search = jest.fn();
-    const service = Object.assign(Object.create(MeriToolsService.prototype), {
-      prisma: {
-        withTenant: async (_tenantId: string, read: (tx: unknown) => Promise<unknown>) =>
-          read({ client: { findFirst } }),
-      },
-      clientKb: { search },
-    }) as MeriToolsService;
+    const { service, search, withTenant, withTenantUser } = knowledgeFixture(null);
     const observed = <T>(run: () => T): T =>
       withMeriReadObservation(
         {
@@ -852,6 +899,7 @@ describe('Meri tool registration', () => {
         }),
       ),
     ).rejects.toThrow('query is required');
+    expect(withTenantUser).not.toHaveBeenCalled();
     await expect(
       observed(() =>
         service.execute(actor as never, 'search_client_knowledge', {
@@ -860,8 +908,25 @@ describe('Meri tool registration', () => {
         }),
       ),
     ).rejects.toThrow('Client not found');
+    expect(withTenantUser).toHaveBeenCalledTimes(1);
+    expect(withTenant).not.toHaveBeenCalled();
     expect(search).not.toHaveBeenCalled();
   });
+
+  it.each(['before search', 'after search'] as const)(
+    'withholds KB results when current memory-wall access is denied %s',
+    async (when) => {
+      const actor = { tenantId: 'tenant-1', userId: 'user-1' } as const;
+      const { service, memoryAllowed, search, warn } = knowledgeFixture();
+      if (when === 'after search') memoryAllowed.mockResolvedValueOnce([{ allowed: true }]);
+      memoryAllowed.mockResolvedValueOnce([{ allowed: false }]);
+      await expect(service.execute(actor as never, 'search_client_knowledge', {
+        query: 'Civic', clientId: 'client-1',
+      })).rejects.toThrow('Client not found');
+      expect(search).toHaveBeenCalledTimes(when === 'after search' ? 1 : 0);
+      expect(warn).not.toHaveBeenCalled();
+    },
+  );
 
   it.each([
     'get_research_portfolio',
@@ -1040,6 +1105,25 @@ describe('Meri tool registration', () => {
     expect(new Set(definedNames).size).toBe(definedNames.length);
   });
 
+  it.each(REQUEST_BOUND_TOOLS)('%s retains its capability without a context-only local schema', (name) => {
+    expect(MERI_CAPABILITY_REGISTRY.find((tool) => tool.name === name)).toMatchObject({
+      name, backend: 'meri', readOnly: true, surfaces: ['full_chat'],
+    });
+    expect(TOOL_DEFINITIONS.map((tool) => tool.name)).not.toContain(name);
+    expect(schemas().map((schema) => schema.name)).not.toContain(name);
+  });
+
+  it.each(REQUEST_BOUND_TOOLS)('%s enforces required inputs at its request-bound owner', (name) => {
+    const { parse, input } = REQUEST_BOUND_CONTRACTS[name];
+    expect(parse(input)).toMatchObject(input);
+    for (const field of Object.keys(input)) {
+      const missing = { ...input };
+      delete missing[field];
+      expect(() => parse(missing)).toThrow();
+    }
+    expect(() => parse({ ...input, actorId: 'model-supplied-actor' })).toThrow();
+  });
+
   it('emits one anthropic schema per tool definition (no orphans either way)', () => {
     const toolSchemas = schemas();
     expect(toolSchemas).toHaveLength(TOOL_DEFINITIONS.length);
@@ -1097,6 +1181,7 @@ describe('Meri tool registration', () => {
   it('legacy read-only chat excludes every side-effecting (write) tool from the model surface', () => {
     const svc = Object.create(MeriToolsService.prototype) as MeriToolsService;
     const writeTools = [
+      'watch_action',
       'prepare_legiwatch_briefing',
       'save_legislative_research',
       'save_legiwatch_relevance',
@@ -1135,6 +1220,7 @@ describe('Meri tool registration', () => {
     for (const t of [
       'get_client_context',
       'search_congress_bills',
+      'read_federal_draft_source',
       'run_analysis',
       'query_intelligence',
       'get_business_development_context',
@@ -1238,12 +1324,13 @@ describe('Meri tool registration', () => {
     });
     try {
       const result = await (MeriToolsService.prototype as any).legiwatchTool.call(
-        { isSideEffecting: () => true },
+        Object.create(MeriToolsService.prototype),
         { tenantId: 'tenant-1', clerkUserId: 'owner-1' },
         'prepare_legiwatch_briefing',
         { requestKey: 'same-key' },
       );
       expect(result).toMatchObject({
+        selectionId: 'selection-1',
         documentId: 'draft-1',
         location: '/workspace/draft/draft-1',
         status: 'saved',
@@ -1268,7 +1355,7 @@ describe('Meri tool registration', () => {
     try {
       await expect(
         (MeriToolsService.prototype as any).legiwatchTool.call(
-          { isSideEffecting: () => true },
+          Object.create(MeriToolsService.prototype),
           { tenantId: 'tenant-1', clerkUserId: 'owner-1' },
           'prepare_legiwatch_briefing',
           { requestKey: 'same-key' },

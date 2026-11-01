@@ -210,7 +210,7 @@ function fixture(
       ? { source: domain, sql: `SELECT COUNT(*) AS total FROM ${surface[0]!.name}`, parameters: [] }
       : { ...query, ...(requested ? { clientId: requested } : {}) },
     operation: 'query_capiro_data' | 'describe_capiro_data' = 'query_capiro_data',
-  ) =>
+  ): ReturnType<MeriPrivateSqlService['read']> =>
     domain
       ? controller.executeTool(ctx, operation, input, req)
       : withMeriToolRequestControl(req, () => service.read(ctx, req, operation, input));
