@@ -26,6 +26,7 @@ import { PrismaClient } from '@prisma/client';
 import { readFileSync } from 'node:fs';
 import { appendSamRecords, sourceText, validProducerRun, SAM_ACTION_CONTRACT, type AwardCandidate, type ProducerRun, type SamRecord } from './lib/sam-contract-action.js';
 import { AcquisitionContinuityStore } from '../src/program-element/acquisition-continuity/acquisition-continuity.store.js';
+import { parseFiniteSamConfig, runFiniteSamCohort, type FiniteSamPorts } from './lib/sam-finite-cohort.js';
 
 const SEARCH_URL = 'https://api.sam.gov/contract-awards/v1/search';
 const PAGE_LIMIT = 100;
@@ -215,8 +216,46 @@ async function main(): Promise<void> {
 }
 
 const direct = typeof require !== 'undefined' && typeof module !== 'undefined' && require.main === module;
+export const SAM_FINITE_HELP = `SAM action producer: legacy arguments remain unchanged.
+Finite mode: --award-keys-file FILE --award-keys-sha256 SHA256 --evidence-dir NEW_ABSOLUTE_DIR
+  --expires-at UTC_INSTANT --producer-commit SHA40 --image-digest sha256:HEX64 --run-id ID --target-id ID [--commit]
+  [--max-pages 1..25] [--max-records 1..2500] [--max-body-bytes 1..2097152]
+  [--max-total-bytes 1..16777216] [--response-timeout-ms 1..10000] [--task-timeout-ms 1..120000]
+One page-zero request per distinct PIID; one attempt; no redirects, automatic retry, resume or replay.
+Writes require --commit AND PROGRAM_ACQUISITION_CONTINUITY_ENABLED=true. SAM_GOV_API_KEY required.
+Fresh private POSIX evidence directory; raw bytes and full identities stay there. Qualification remains independent.
+Exit 0: bounded commit/dry-run completed; 1: refusal/failure; 2: uncertain write outcome; 3: task watchdog expired.
+An exit or process stop does not establish database rollback. Reconcile retained write-intent before any new invocation.`;
+
+export async function runSamActionProducerCli(args = process.argv.slice(2), env = process.env, ports?: FiniteSamPorts,
+  expire: () => void = () => { console.error('FINITE_TASK_WATCHDOG_EXPIRED: reconcile private evidence; database outcome may be unknown'); process.exit(3); }): Promise<number> {
+  if (args.includes('--help')) { console.log(SAM_FINITE_HELP); return 0; }
+  const finiteFlags = ['--award-keys-file', '--award-keys-sha256', '--evidence-dir', '--expires-at', '--max-pages',
+    '--max-records', '--max-body-bytes', '--max-total-bytes', '--response-timeout-ms', '--task-timeout-ms'];
+  if (!args.some((arg) => finiteFlags.includes(arg.split('=')[0]!))) {
+    await main(); return process.exitCode ? Number(process.exitCode) : 0;
+  }
+  const safeFiniteError = (error: unknown) => new Error(error instanceof Error && /^FINITE_[A-Z0-9_]+$/.test(error.message)
+    ? error.message : 'FINITE_CONFIGURATION_OR_EVIDENCE_FAILED');
+  let config: ReturnType<typeof parseFiniteSamConfig>;
+  try { config = parseFiniteSamConfig(args, env, ports?.now()); } catch (error) { throw safeFiniteError(error); }
+  let retainDeadline = () => {};
+  const expired = () => { try { retainDeadline(); } catch { /* Pre-write intent remains retained. */ } expire(); };
+  const timer = setTimeout(expired, Math.max(1, config.deadlineAt - (ports?.now() ?? Date.now())));
+  try {
+    const receipt = await runFiniteSamCohort(config, ports, (retain) => { retainDeadline = retain; });
+    if ((ports?.now() ?? Date.now()) >= config.deadlineAt) { expired(); return 3; }
+    console.log(JSON.stringify({ contract: receipt.contract, mode: receipt.mode, state: receipt.state,
+      pages: receipt.pages.length, examined: receipt.examined, mapped: receipt.mapped, unvalidated: receipt.unvalidated, rejected: receipt.rejected,
+      inserted: receipt.inserted, existing: receipt.existing, reason: receipt.reason,
+      qualification: receipt.qualification, receiptFile: receipt.artifacts.some((item) => item.file === 'receipt.json') ? 'receipt.json' : null,
+      receiptSha256: receipt.artifacts.find((item) => item.file === 'receipt.json')?.sha256 ?? null }));
+    return receipt.state === 'TRANSACTION_OUTCOME_UNRESOLVED' ? 2 : receipt.state === 'REFUSED' ? 1 : 0;
+  } catch (error) { throw safeFiniteError(error); }
+  finally { clearTimeout(timer); }
+}
 if (direct) {
-  void main().catch((error) => {
+  void runSamActionProducerCli().then((code) => { process.exitCode = code; }).catch((error) => {
     console.error('[ingest-contract-award-transactions] FAILED', error instanceof Error ? error.message : String(error));
     process.exit(1);
   });

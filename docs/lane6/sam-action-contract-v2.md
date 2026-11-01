@@ -1,5 +1,7 @@
 # SAM action contract v2
 
+For the opt-in bounded invocation of this same producer, including exact cohort bytes, fixed page-zero limits and private evidence/unknown-outcome handling, see [Finite SAM action invocation](sam-finite-cohort.md).
+
 This change corrects source attribution and defines the consumer interface. It does not qualify a population, apply SQL, change a scheduled job, or establish a financial result. DB owns the separately reviewed forward migration and qualified population; Release owns the existing image pipeline. The service change requires the v2 relations before activation. Migration 315 and its 14 views remain untouched.
 
 ## Source authority and supported records

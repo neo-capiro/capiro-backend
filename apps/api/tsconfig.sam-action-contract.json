@@ -1,6 +1,9 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": { "noEmit": true, "incremental": false },
-  "include": ["scripts/lib/sam-contract-action.ts", "scripts/lib/sam-action-projection.ts", "scripts/lib/sam-contract-action.spec.ts"],
+  "include": ["scripts/lib/sam-contract-action.ts", "scripts/lib/sam-action-projection.ts", "scripts/lib/sam-contract-action.spec.ts",
+    "scripts/ingest-contract-award-transactions-v1.ts", "scripts/ingest-contract-award-transactions-v1.spec.ts",
+    "scripts/lib/sam-finite-cohort.ts", "scripts/lib/sam-finite-cohort.spec.ts",
+    "scripts/lib/sam-finite-evidence.ts", "scripts/lib/sam-finite-evidence.spec.ts"],
   "exclude": ["node_modules", "dist"]
 }
