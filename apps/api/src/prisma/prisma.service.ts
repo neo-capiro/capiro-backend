@@ -10,6 +10,18 @@ import { Prisma, PrismaClient } from '@prisma/client';
  */
 type TenantScope = { tenantId: string; bypass?: false } | { bypass: true };
 
+/** Establish all tenant authority locally, regardless of pooled session defaults.
+ * Raw SQL does not pass through the model predicate extension. A tenant-only
+ * call has no user authority and must not inherit a previous session's user.
+ */
+async function setTenantContext(tx: Prisma.TransactionClient, tenantId: string, userId = '') {
+  await tx.$executeRaw`SELECT
+    set_config('app.bypass_rls', 'off', true),
+    set_config('app.current_tenant', ${tenantId}, true),
+    set_config('app.current_user', ${userId}, true),
+    set_config('row_security', 'on', true)`;
+}
+
 /**
  * Model operations that accept a `where` we can constrain to the current
  * tenant. create / createMany are intentionally excluded — their rows are
@@ -71,7 +83,10 @@ export function applyTenantScope(
  * Per-request tenant-scoped queries go through `withTenant(tenantId, fn)`.
  * That opens a transaction, sets the GUC with `SET LOCAL`, and hands the
  * caller a transactional client. When the transaction commits, the GUC is
- * automatically discarded, no leakage between requests.
+ * automatically discarded. Each tenant transaction also overrides inherited
+ * bypass/user settings; transaction cleanup alone cannot neutralize session
+ * defaults. Raw SQL still requires effective database RLS policies and an
+ * ordinary non-BYPASSRLS/non-superuser role (FORCE RLS for table owners).
  *
  * `withSystem(fn)` is the same pattern but with the bypass flag set, used
  * for cross-tenant admin work and webhook ingestion. Use sparingly and
@@ -151,12 +166,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       async (tx) => {
         // PostgreSQL requires transaction characteristics before any data query.
         if (opts?.readOnly) await tx.$executeRaw`SET TRANSACTION READ ONLY`;
-        // SET LOCAL is bound to the transaction. set_config(..., true) returns
-        // the value, which we discard. Parameter binding via $executeRaw is
-        // safe against injection. (The GUC is now belt-and-suspenders: the
-        // real isolation is the tenant-scope query hook, since capiro_app
-        // bypasses the RLS that reads this GUC.)
-        await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;
+        await setTenantContext(tx as unknown as Prisma.TransactionClient, tenantId);
         return fn(tx as unknown as Prisma.TransactionClient);
       },
       // Prisma's interactive-transaction default is 5000 ms. Most tenant
@@ -194,8 +204,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   ): Promise<T> {
     return this.scopedClient({ tenantId }).$transaction(
       async (tx) => {
-        await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;
-        await tx.$executeRaw`SELECT set_config('app.current_user', ${userId}, true)`;
+        await setTenantContext(tx as unknown as Prisma.TransactionClient, tenantId, userId);
         return fn(tx as unknown as Prisma.TransactionClient);
       },
       opts?.timeoutMs ? { timeout: opts.timeoutMs } : undefined,
