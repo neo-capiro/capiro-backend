@@ -19,6 +19,7 @@ import { buildWebSearchRequest, normalizeWebResults, type NormalizedWebResult } 
 import { SamEntityEnrichmentService } from '../intelligence/sam-entity.service.js';
 import { ClientPeRelevanceService } from '../intelligence/client-pe-relevance.service.js';
 import { IntelligenceService } from '../intelligence/intelligence.service.js';
+import { clientIntelligenceReads } from '../intelligence/client-read-cache.js';
 import { fingerprintName, sharesDistinctiveToken } from '../intelligence/entity-resolution.service.js';
 import { ClientsService, type UpdateClientInput } from './clients.service.js';
 import { ClientPeopleService } from './client-people.service.js';
@@ -2087,6 +2088,7 @@ export class ClientProfileFillService {
     });
     // Enrichment applies only the selected mapping; other generated facts still need review.
     await this.audit(scope.tx, ctx, clientId, finding, null, mapping);
+    scope.afterCommit.push(() => clientIntelligenceReads(this.intelligence).invalidate(ctx.tenantId, clientId));
   }
 
   private async audit(
