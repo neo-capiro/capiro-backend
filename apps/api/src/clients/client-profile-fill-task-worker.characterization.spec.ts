@@ -27,6 +27,7 @@ it('sweeps recovery, claim, actual task execution and finalization in order', as
   const h = harness({ tasks: [task()] });
   await h.service.sweepOnce();
   expect(h.phases).toEqual([
+    'expire',
     'recover',
     'claim',
     'actor',
@@ -106,6 +107,7 @@ it('fails a run without an actor before creating heartbeats or specialist effect
     'queued',
     'Fill run has no actor for governed execution',
     'worker:lease-one',
+    '{}',
   ]);
   expect(jest.getTimerCount()).toBe(0);
 });
@@ -163,6 +165,7 @@ it('retries a thrown specialist error using the original lease and sanitized mes
     'failed',
     'api_key=[redacted] unavailable',
     'worker:lease-one',
+    '{}',
   ]);
   expect(h.callsOf('finish')).toEqual([]);
   expect(jest.getTimerCount()).toBe(0);
@@ -206,7 +209,7 @@ it('times out at five minutes and prevents a late specialist from writing its cu
   expect(h.callsOf('fail')).toEqual([]);
   await jest.advanceTimersByTimeAsync(1);
   await work;
-  expect(h.callsOf('fail')[0]!.args[4]).toBe('Fill completion specialist exceeded its task budget');
+  expect(h.callsOf('fail')[0]!.args[4]).toBe('Fill completion specialist exceeded its task budget; outstanding external outcomes remain unresolved');
   expect(h.callsOf('finish')).toEqual([]);
   expect(jest.getTimerCount()).toBe(0);
   stalled.resolve({});

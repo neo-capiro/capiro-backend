@@ -139,7 +139,8 @@ describe('Completion run finalization — stale candidate and nonterminal guards
     const h = harness({ lockFound: false });
     await h.finalize();
     expect(h.calls.map((call) => call.operation)).toEqual(['candidates', 'run-lock']);
-    expect(h.calls[1]!.sql).toContain("status <> 'cancelled' FOR UPDATE");
+    expect(h.calls[1]!.sql).toContain("status = 'running'");
+    expect(h.calls[1]!.sql).toContain("started_at + interval '1800000 milliseconds' > clock_timestamp() FOR UPDATE");
     expect(h.calls[1]!.args).toEqual(['run-one', 'tenant-one']);
     expect(h.tx.$executeRawUnsafe).not.toHaveBeenCalled();
   });

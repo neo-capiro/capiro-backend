@@ -1,3 +1,4 @@
+import { fillRunBeforeDeadline } from './client-profile-fill-run-deadline.js';
 import type { Prisma } from '@prisma/client';
 
 /** Both task families retain the same failed-to-queued transition. Call with the
@@ -21,6 +22,9 @@ export function queueFailedFillTask(
             max_attempts = GREATEST(max_attempts, attempt + 3), updated_at = now()
       WHERE id = $1::uuid AND run_id = $2::uuid AND tenant_id = $3::uuid
         AND client_id = $4::uuid AND status = 'failed'
+        AND EXISTS (SELECT 1 FROM client_profile_fill_run r
+          WHERE r.id = $2::uuid AND r.tenant_id = $3::uuid AND r.client_id = $4::uuid
+            AND r.status <> 'cancelled' AND ${fillRunBeforeDeadline('r')})
         ${expected ? 'AND attempt = $5 AND task_type = $6' : ''}`,
     taskId,
     runId,
@@ -64,10 +68,15 @@ export async function requeueFillReviewChecks(
         SET status = 'queued', next_attempt_at = now(), completed_at = NULL,
             error_code = NULL, error_message = NULL, claimed_at = NULL,
             heartbeat_at = NULL, worker_id = NULL,
-            output_summary_jsonb = '{}'::jsonb,
+            output_summary_jsonb = CASE WHEN status = 'running' OR
+              output_summary_jsonb ->> 'externalOutcome' = 'unresolved'
+              THEN '{"externalOutcome":"unresolved"}'::jsonb ELSE '{}'::jsonb END,
             max_attempts = GREATEST(max_attempts, attempt + 3), updated_at = now()
       WHERE run_id = $1::uuid AND tenant_id = $2::uuid
-        AND task_type IN ('reconciliation', 'completion_audit') AND status <> 'cancelled'`,
+        AND task_type IN ('reconciliation', 'completion_audit') AND status <> 'cancelled'
+        AND EXISTS (SELECT 1 FROM client_profile_fill_run r
+          WHERE r.id = $1::uuid AND r.tenant_id = $2::uuid
+            AND r.status <> 'cancelled' AND ${fillRunBeforeDeadline('r')})`,
     runId,
     tenantId,
   );

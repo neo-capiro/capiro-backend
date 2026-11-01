@@ -1,3 +1,4 @@
+import { fillRunBeforeDeadline } from './client-profile-fill-run-deadline.js';
 import { NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { buildClientProfileFillCompletionPlan } from './client-profile-fill-completion-projection.js';
@@ -13,7 +14,8 @@ export async function seedCompletionTasks(
   const run = await tx.$queryRawUnsafe<Array<{ id: string }>>(
     `SELECT id FROM client_profile_fill_run
       WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid
-        AND workflow_version >= 2 AND status <> 'cancelled' AND stage <> 'failed' FOR UPDATE`,
+        AND workflow_version >= 2 AND status = 'running' AND stage <> 'failed'
+        AND ${fillRunBeforeDeadline()} FOR UPDATE`,
     runId,
     tenantId,
     clientId,

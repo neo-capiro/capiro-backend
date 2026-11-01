@@ -1,3 +1,4 @@
+import { fillRunBeforeDeadline } from './client-profile-fill-run-deadline.js';
 import { ForbiddenException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -19,7 +20,7 @@ export function resolveFillRunActor(
        JOIN tenant_memberships tm ON tm.tenant_id=r.tenant_id AND tm.user_id=r.created_by_user_id
        JOIN users u ON u.id=tm.user_id JOIN tenants t ON t.id=tm.tenant_id
        WHERE r.id=$1::uuid AND r.tenant_id=$2::uuid AND r.client_id=$3::uuid
-         AND r.status<>'cancelled' AND tm.status::text='active' AND t.status::text='active'`,
+         AND r.status='running' AND ${fillRunBeforeDeadline('r')} AND tm.status::text='active' AND t.status::text='active'`,
       runId,
       tenantId,
       clientId,

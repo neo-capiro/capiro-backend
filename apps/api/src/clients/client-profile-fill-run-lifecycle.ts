@@ -1,3 +1,4 @@
+import { fillRunBeforeDeadline } from './client-profile-fill-run-deadline.js';
 import { queueFailedFillTask } from './client-profile-fill-retry.js';
 import { BadRequestException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
@@ -88,7 +89,7 @@ export class ClientProfileFillRunLifecycle {
       const runs = await tx.$queryRawUnsafe<Array<{ id: string }>>(
         `SELECT id FROM client_profile_fill_run
           WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid
-            AND status <> 'cancelled' FOR UPDATE`,
+            AND status <> 'cancelled' AND ${fillRunBeforeDeadline()} FOR UPDATE`,
         runId,
         ctx.tenantId,
         clientId,
@@ -118,7 +119,7 @@ export class ClientProfileFillRunLifecycle {
       tx.$queryRawUnsafe<Array<{ runId: string; tenantId: string }>>(
         `SELECT r.id AS "runId", r.tenant_id AS "tenantId"
            FROM client_profile_fill_run r
-          WHERE r.status <> 'cancelled'
+          WHERE r.status = 'running' AND ${fillRunBeforeDeadline('r')}
             AND EXISTS (SELECT 1 FROM client_profile_fill_extension_task extension
                          WHERE extension.run_id = r.id AND extension.tenant_id = r.tenant_id
                            AND (r.completed_at IS NULL OR extension.updated_at > r.completed_at))
@@ -141,7 +142,7 @@ export class ClientProfileFillRunLifecycle {
         // Serialize with retry, then re-read BOTH task groups under the lock.
         const locked = await tx.$queryRawUnsafe<Array<{ id: string }>>(
           `SELECT id FROM client_profile_fill_run WHERE id = $1::uuid
-            AND tenant_id = $2::uuid AND status <> 'cancelled' FOR UPDATE`,
+            AND tenant_id = $2::uuid AND status = 'running' AND ${fillRunBeforeDeadline()} FOR UPDATE`,
           run.runId,
           run.tenantId,
         );

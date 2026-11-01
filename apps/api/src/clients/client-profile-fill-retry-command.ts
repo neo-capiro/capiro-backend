@@ -1,3 +1,4 @@
+import { fillRunBeforeDeadline } from './client-profile-fill-run-deadline.js';
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { isUUID } from 'class-validator';
 import type { Prisma } from '@prisma/client';
@@ -87,7 +88,8 @@ export async function retryResearchTask(
     };
     const runs = await tx.$queryRawUnsafe<Array<{ id: string }>>(
       `SELECT id FROM client_profile_fill_run WHERE id=$1::uuid AND tenant_id=$2::uuid
-        AND client_id=$3::uuid AND workflow_version>=2 AND status<>'cancelled' FOR UPDATE`,
+        AND client_id=$3::uuid AND workflow_version>=2 AND status<>'cancelled'
+        AND ${fillRunBeforeDeadline()} FOR UPDATE`,
       runId,
       ctx.tenantId,
       clientId,

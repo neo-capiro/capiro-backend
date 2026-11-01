@@ -47,7 +47,7 @@ interface Call {
 }
 export interface Options {
   tasks?: Task[];
-  run?: { status: string; createdByUserId: string | null } | null;
+  run?: { status: string; createdByUserId: string | null; deadlineAt?: Date } | null;
   pending?: number;
   profile?: unknown;
   profilePromise?: Promise<unknown>;
@@ -62,6 +62,7 @@ export interface Options {
   facilityRows?: unknown[];
 }
 function operation(sql: string) {
+  if (sql.includes('ORDER BY r.started_at')) return 'expire';
   if (sql.includes('stale_worker')) return 'recover';
   if (sql.includes('WITH candidates')) return 'claim';
   if (sql.includes('created_by_user_id AS')) return 'actor';
@@ -70,7 +71,7 @@ function operation(sql: string) {
   if (sql.includes('waiting_for_dependency')) return 'defer';
   if (sql.includes('task_error')) return 'fail';
   if (sql.includes('SET heartbeat_at = now()')) return 'heartbeat';
-  if (sql.includes('output_summary_jsonb = $5::jsonb')) return 'finish';
+  if (sql.includes('output_summary_jsonb = output_summary_jsonb || $5::jsonb')) return 'finish';
   if (sql.includes('INSERT INTO client_profile_fill_source_cursor')) return 'cursor';
   if (sql.includes('INSERT INTO client_profile_fill_finding')) return 'finding';
   return 'read';
@@ -104,7 +105,7 @@ function txFor(calls: Call[], phases: string[], options: Options, transaction: n
       if (op === 'actor')
         return options.run === null
           ? []
-          : [options.run ?? { status: 'running', createdByUserId: 'actor-one' }];
+          : [{ deadlineAt: new Date(now.getTime() + 30 * 60_000), ...(options.run ?? { status: 'running', createdByUserId: 'actor-one' }) }];
       if (op === 'dependencies') return [{ pending: options.pending ?? 0 }];
       return [];
     }),

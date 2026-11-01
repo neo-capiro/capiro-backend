@@ -266,7 +266,8 @@ describe('Completion run lifecycle — extension retry', () => {
     expect(await h.service.retryTask(ctx, clientId, runId, 'extension-task')).toBe(h.review);
     const lock = h.calls.find((call) => call.operation === 'run-lock')!;
     expect(lock.args).toEqual([runId, ctx.tenantId, clientId]);
-    expect(lock.sql).toContain("status <> 'cancelled' FOR UPDATE");
+    expect(lock.sql).toContain("status <> 'cancelled'");
+    expect(lock.sql).toContain("started_at + interval '1800000 milliseconds' > clock_timestamp() FOR UPDATE");
     expect(h.prisma.withTenantUser).toHaveBeenCalledWith(
       ctx.tenantId,
       ctx.userId,
@@ -291,7 +292,8 @@ describe('Completion run lifecycle — extension retry', () => {
     expect(writes[1]!.sql).toContain(
       "task_type IN ('reconciliation', 'completion_audit') AND status <> 'cancelled'",
     );
-    expect(writes[1]!.sql).toContain("output_summary_jsonb = '{}'::jsonb");
+    expect(writes[1]!.sql).toContain("output_summary_jsonb = CASE WHEN status = 'running' OR");
+    expect(writes[1]!.sql).toContain("output_summary_jsonb ->> 'externalOutcome' = 'unresolved'");
     expect(writes[2]!.sql).toContain("status = 'running', stage = 'research'");
     expect(h.workflow.retryTask).not.toHaveBeenCalled();
     expect(h.events.slice(-3)).toEqual(['2:commit', 'outside:sweep', 'outside:read']);

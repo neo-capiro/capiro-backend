@@ -1,3 +1,4 @@
+import { fillTaskBudget, FillRunDeadlineError, FillTaskTimeoutError } from './client-profile-fill-run-deadline.js';
 import type { TenantContext } from '@capiro/shared';
 import { runWithFillTask } from './client-profile-fill-execution.js';
 import type { AdvocacyHistoryTaskResult } from './client-profile-fill-advocacy-discovery.shared.js';
@@ -53,7 +54,7 @@ export class ClientProfileFillTaskRuntime {
   async executeClaimedTask(task: CompletionTaskRow): Promise<void> {
     const runRows = await this.ports.loadRunActor(task);
     const run = runRows[0];
-    if (!run || run.status === 'cancelled') {
+    if (!run || run.status !== 'running') {
       await this.ports.finishTask(task, 'cancelled', { count: 0 });
       return;
     }
@@ -66,9 +67,10 @@ export class ClientProfileFillTaskRuntime {
     }, 15_000);
     heartbeat.unref?.();
     try {
+      fillTaskBudget(run.deadlineAt, TASK_TIMEOUT_MS);
       const ctx = await this.ports.resolveActor(task);
       const result = await runWithFillTask(ctx, task, 'extension', () =>
-        this.withTaskTimeout(this.ports.executeTask(ctx, task)),
+        this.withTaskTimeout(() => this.ports.executeTask(ctx, task), run.deadlineAt),
       );
       await this.ports.finishTask(
         task,
@@ -86,15 +88,17 @@ export class ClientProfileFillTaskRuntime {
     }
   }
 
-  async withTaskTimeout<T>(promise: Promise<T>): Promise<T> {
+  async withTaskTimeout<T>(operation: Promise<T> | (() => Promise<T>), deadlineAt?: Date): Promise<T> {
+    const budget = deadlineAt ? fillTaskBudget(deadlineAt, TASK_TIMEOUT_MS) : TASK_TIMEOUT_MS;
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       return await Promise.race([
-        promise,
+        typeof operation === 'function' ? operation() : operation,
         new Promise<T>((_resolve, reject) => {
           timer = setTimeout(
-            () => reject(new Error('Fill completion specialist exceeded its task budget')),
-            TASK_TIMEOUT_MS,
+            () => reject(budget < TASK_TIMEOUT_MS ? new FillRunDeadlineError() :
+              new FillTaskTimeoutError('Fill completion specialist')),
+            budget,
           );
           timer.unref?.();
         }),

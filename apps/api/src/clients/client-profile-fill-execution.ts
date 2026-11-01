@@ -1,3 +1,4 @@
+import { fillRunBeforeDeadline } from './client-profile-fill-run-deadline.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { ConflictException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
@@ -58,12 +59,11 @@ export async function assertFillExecution(
   const runs = await tx.$queryRawUnsafe<Array<{ id: string }>>(
     `SELECT id FROM client_profile_fill_run WHERE id=$1::uuid AND tenant_id=$2::uuid
       AND client_id=$3::uuid AND created_by_user_id=$4::uuid AND status<>'cancelled'
-      AND ($5::boolean OR status='running') FOR SHARE`,
+      AND status='running' AND ${fillRunBeforeDeadline()} FOR SHARE`,
     task.runId,
     tenantId,
     clientId,
     actor.userId,
-    scope.kind === 'extension',
   );
   const table =
     scope.kind === 'core' ? 'client_profile_fill_task' : 'client_profile_fill_extension_task';
