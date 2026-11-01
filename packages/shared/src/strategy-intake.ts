@@ -113,12 +113,15 @@ export function objectiveIntentFromSnapshot(snapshot: Record<string, any>): Obje
     askType: snapshot.askType, minimumWin: snapshot.minimumWin, limits: snapshot.limits };
 }
 /** Exact saved answers become the existing Strategy DTO; legacy records retain their original shape. */
-export function objectiveStrategyDraftInput(clientId: string, selectedType: StrategyIntakeType, intent: ObjectiveGenerationIntent) {
+export function objectiveStrategyDraftInput(clientId: string, selectedType: StrategyIntakeType, intent: ObjectiveGenerationIntent,
+  mode: 'initial' | 'regenerate' = 'initial') {
   if ('kind' in intent) {
     const answers = parseStrategyIntake(intent.strategyIntake, { requireComplete: true });
-    if (answers.type !== selectedType) throw new StrategyIntakeValidationError('type', 'Saved objective type changed');
+    if (mode !== 'regenerate' && answers.type !== selectedType)
+      throw new StrategyIntakeValidationError('type', 'Saved objective type changed');
     const { schemaVersion: _version, ...fields } = answers;
-    return { clientId, ...fields };
+    // Regeneration's selected type is resolved from the saved canonical Strategy by the owner.
+    return { clientId, ...fields, type: selectedType };
   }
   return { clientId, type: selectedType, goal: intent.outcome };
 }

@@ -70,6 +70,7 @@ export function createCanonicalRegenerationRequestPublication(
     effectExpiresAtMs: v.effectExpiresAtMs }, 'regenerate');
   const a = p.admission;
   const basis = checkCanonicalStrategyBasis(v.basis, a);
+  if ('kind' in p.identity.source.intent && p.tail.input.typeHint !== basis.snapshot.meta.type) return conflict();
   if (a.expectedStrategyVersionId === null || basis.strategyId !== a.canonical.canonicalStrategyId ||
       basis.expectedStrategyVersionId !== a.expectedStrategyVersionId ||
       basis.sourceAdmissionSha256 !== canonicalGenerationAdmissionSha256(a) ||

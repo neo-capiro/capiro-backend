@@ -207,7 +207,7 @@ export function canonicalRequestPublicationParts(raw: CanonicalRequestPublicatio
   try { intent = parseObjectiveGenerationIntent(c.intent); } catch { return invalid(); }
   if ('kind' in intent) {
     const answers = intent.strategyIntake;
-    if (input.typeHint !== answers.type || input.goal !== answers.goal || input.ownerUserId !== answers.ownerUserId ||
+    if ((mode === 'initial' && input.typeHint !== answers.type) || input.goal !== answers.goal || input.ownerUserId !== answers.ownerUserId ||
         input.targetDate !== answers.targetDate || input.meriContext !== answers.meriContext) return conflict();
   }
   if (c.schemaVersion !== 1 || c.tenantId !== a.canonical.tenantId || c.clerkUserId !== a.clerkUserId ||

@@ -1,4 +1,5 @@
 import { objectiveIntentFromSnapshot, parseObjectiveGenerationIntent } from '@capiro/shared/strategy-intake';
+import { readObjectiveCanonicalStrategyTypeWithinTx } from '@capiro/shared/objective-strategy-intake';
 import {
   BadRequestException,
   ConflictException,
@@ -313,7 +314,9 @@ export class ObjectiveGenerationContextService {
         try { intent = parseObjectiveGenerationIntent(objectiveIntentFromSnapshot(saved)); }
         catch { throw new BadRequestException('Invalid saved Objective'); }
         if ('kind' in intent) {
-          if (intent.strategyIntake.type !== input.generationType) throw new BadRequestException('Saved objective type changed');
+          const savedType = await readObjectiveCanonicalStrategyTypeWithinTx(tx, input.tenantId, source.clientId, source.objectiveId);
+          if ((savedType ?? intent.strategyIntake.type) !== input.generationType)
+            throw new BadRequestException('Saved generation type changed');
           const owners = await tx.$queryRaw<Array<{ userId: string }>>`
             SELECT u.id::text AS "userId" FROM tenant_memberships tm JOIN users u ON u.id=tm.user_id
             WHERE tm.tenant_id=${input.tenantId}::uuid AND tm.status::text='active'
@@ -452,7 +455,7 @@ export class ObjectiveGenerationContextService {
       }),
     }));
     try {
-      const { recordsText, intentText } = objectivePacketAddition(groups, observed.intent, prompt);
+      const { recordsText, intentText } = objectivePacketAddition(groups, observed.intent, prompt, input.generationType);
       // Compose from typed parts. Literal header/tag text inside authorized data
       // cannot redirect insertion or undercount the existing prompt budgets.
       governed.prompt = prompt.compose(intentText, recordsText);

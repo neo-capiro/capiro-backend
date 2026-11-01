@@ -41,6 +41,7 @@ describe('Objective authoritative admission and exact request', () => {
       source: f.source,
       intent: f.intent,
       sourceDigest: digest({ source: f.source, intent: f.intent }),
+      generationType: f.request.type, generationMode: 'initial',
     });
   });
   test.each([
@@ -210,6 +211,28 @@ describe('Objective worker durable outcomes', () => {
       worker,
     };
   }
+  test.each([false, true])('worker preserves the queued existing Strategy type and refuses a later changed type (stale=%s)', async stale => {
+    const f = workerFixture();
+    const answers = { schemaVersion: 1, type: 'appropriations', goal: 'Saved goal', ownerUserId: 'user_selected',
+      targetDate: null, meriContext: 'Saved context' };
+    Object.assign(f.state.snapshot, { strategyIntake: answers, ownerUserId: id(90) });
+    f.state.canonicalStrategyType = stale ? 'coalition' : 'authorization';
+    const original = f.tx.$queryRaw;
+    f.tx.$queryRaw = (async (parts: TemplateStringsArray, ...values: unknown[]) =>
+      parts.join('').includes('SELECT u.id::text AS') ? [{ userId: id(90) }] : original(parts, ...values)) as any;
+    for (const job of [f.job, f.state.job]) {
+      job.input.objectiveGeneration!.request.type = 'authorization';
+      job.input.objectiveGeneration!.fingerprint = digest(job.input.objectiveGeneration!.request);
+    }
+    await f.run();
+    if (stale) expect(f.draft).not.toHaveBeenCalled();
+    else {
+      expect(f.draft).toHaveBeenCalledTimes(1);
+      expect(f.draft.mock.calls[0]![3]).toEqual({ clientId: f.request.clientId, type: 'authorization',
+        goal: answers.goal, ownerUserId: answers.ownerUserId, targetDate: null, meriContext: answers.meriContext });
+    }
+    expect((f.state.snapshot as any).strategyIntake).toEqual(answers);
+  });
   test('lost completion response reconciles the atomically completed job with no second completion or regeneration', async () => {
     const f = workerFixture();
     f.draft.mockImplementation(async (...args: any[]) => {
@@ -419,6 +442,45 @@ describe('Objective transaction persistence fence', () => {
 
 
 describe('shared intake admission', () => {
+  test('regeneration queues the current Strategy type with exact saved answers and refuses stale worker inputs', async () => {
+    const f = objectiveFixture();
+    const answers = { schemaVersion: 1, type: 'appropriations', goal: 'Saved goal', ownerUserId: 'user_selected',
+      targetDate: null, meriContext: 'Saved context' };
+    Object.assign(f.state.snapshot, { strategyIntake: answers, ownerUserId: id(90) });
+    f.state.canonicalStrategyType = 'authorization';
+    const unsafe = f.tx.$queryRawUnsafe;
+    f.tx.$queryRawUnsafe = async (sql: string, ...values: unknown[]) => {
+      if (sql.startsWith('SELECT s.type::text AS type')) {
+        expect(values).toEqual([f.actor.tenantId, f.request.clientId, f.request.objective.objectiveId]);
+        expect(sql).toContain('s.client_id=p.client_id AND s.id=p.canonical_strategy_id');
+      }
+      return unsafe(sql, ...values);
+    };
+    const original = f.tx.$queryRaw;
+    f.tx.$queryRaw = (async (parts: TemplateStringsArray, ...values: unknown[]) =>
+      parts.join('').includes('SELECT u.id::text AS') ? [{ userId: id(90) }] : original(parts, ...values)) as any;
+    let stored: any;
+    f.tx.spDraftJob.findUnique = async () => stored ?? null;
+    f.tx.spDraftJob.create = async ({ data }: any) => (stored = { ...data, id: id(5), strategyId: null, errorMessage: null });
+    const svc = new DraftJobService({ withTenant: async (_: any, fn: any) => fn(f.tx) } as any, {} as any);
+    const first = await svc.submitObjective(f.actor, f.request);
+    const { schemaVersion: _schema, ...fields } = answers;
+    expect(stored.input.dto).toEqual({ clientId: f.request.clientId, ...fields, type: 'authorization' });
+    expect(stored.input.objectiveGeneration.request.type).toBe('authorization');
+    expect(stored.input.objectiveGeneration.fingerprint).toBe(digest(stored.input.objectiveGeneration.request));
+    expect(await svc.submitObjective(f.actor, f.request)).toEqual(first);
+    const admitted = await admitObjective(f.tx, f.actor, stored.input.objectiveGeneration.request);
+    expect(admitted.intent).toEqual({ kind: 'strategy-intake', strategyIntake: answers });
+    expect(admitted.generationMode).toBe('regenerate');
+    f.state.canonicalStrategyType = 'coalition';
+    await expect(admitObjective(f.tx, f.actor, stored.input.objectiveGeneration.request)).rejects.toThrow('ready and complete');
+  });
+  test('first generation cannot substitute a different selected type', async () => {
+    const f = objectiveFixture();
+    Object.assign(f.state.snapshot, { strategyIntake: { schemaVersion: 1, type: 'coalition', goal: 'Saved goal',
+      ownerUserId: 'user_selected', targetDate: null, meriContext: '' } });
+    await expect(admitObjective(f.tx, f.actor, f.request, { normalizeRegenerationType: true })).rejects.toThrow('ready and complete');
+  });
   test('preserves complete answers and resolves the selected active owner in the actual tenant', async () => {
     const f = objectiveFixture();
     const answers = { schemaVersion: 1, type: f.request.type, goal: 'G'.repeat(4000), ownerUserId: 'user_selected',

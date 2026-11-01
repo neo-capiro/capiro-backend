@@ -130,6 +130,24 @@ describe('Objective required context observation and budget coverage', () => {
       expect(f.directory.getMemberDetail).not.toHaveBeenCalled();
     }
   });
+  test('regeneration preserves the current Strategy type while retaining the original intake type as source context', async () => {
+    const f = fixture();
+    const intake = { schemaVersion: 1, type: 'appropriations', goal: 'Updated goal',
+      ownerUserId: 'user_selected', targetDate: null, meriContext: 'Updated context' };
+    Object.assign(f.state.snapshot, { strategyIntake: intake, ownerUserId: 'native-selected' });
+    f.state.canonicalStrategyType = 'authorization'; f.input.generationType = 'authorization';
+    const original = f.tx.$queryRaw;
+    f.tx.$queryRaw = (async (parts: TemplateStringsArray, ...values: unknown[]) =>
+      parts.join('').includes('SELECT u.id::text AS') ? [{ userId: 'native-selected' }] : original(parts, ...values)) as any;
+    const observed = await f.service.observe(f.input);
+    expect(observed.intent).toEqual({ kind: 'strategy-intake', strategyIntake: intake });
+    const admission = f.service.bind(f.input, observed, f.bundle, 'a'.repeat(64), [], f.prompt);
+    expect(admission.type).toBe('authorization');
+    expect(f.bundle.governedContext.prompt).toContain('GENERATION STRATEGY TYPE (data):\n\"authorization\"');
+    expect(f.bundle.governedContext.prompt).toContain(JSON.stringify(observed.intent));
+    f.state.canonicalStrategyType = 'coalition';
+    await expect(f.service.observe(f.input)).rejects.toThrow('Saved generation type changed');
+  });
   test('saved source keys, current staff classification and all five intent fields survive governed binding', async () => {
     const f = fixture();
     const observed = await f.service.observe(f.input);

@@ -305,7 +305,7 @@ export class DraftJobWorkerService implements OnModuleInit, OnModuleDestroy {
       if (digest(admitted.source) !== digest(envelope.receipt.source)) throw new ObjectiveLeaseLost();
       // The presentation goal is also derived again, never browser or stale job text.
       await this.meriService.draft(job.tenantId, job.ownerUserId, undefined,
-        objectiveStrategyDraftInput(envelope.request.clientId, envelope.request.type, admitted.intent), runtime);
+        objectiveStrategyDraftInput(envelope.request.clientId, envelope.request.type, admitted.intent, admitted.generationMode), runtime);
       // Completion already committed with the writer. Never finalize a second time.
     } catch (error) {
       // A lost response is not evidence of rollback. A durable completed receipt wins.

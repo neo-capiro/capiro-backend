@@ -14,6 +14,16 @@ describe('shared Strategy questionnaire contract', () => {
       expect(objectiveStrategyDraftInput('client', type, intent)).toEqual({ clientId: 'client', ...fields });
     }
   });
+  test('regeneration retains source intake while using the owner-resolved existing Strategy type and null date', () => {
+    const value = { ...answers(), targetDate: null };
+    const intent = objectiveIntentFromSnapshot({ strategyIntake: value });
+    expect(() => objectiveStrategyDraftInput('client', 'coalition', intent)).toThrow();
+    expect(objectiveStrategyDraftInput('client', 'coalition', intent, 'regenerate')).toEqual({
+      clientId: 'client', type: 'coalition', goal: value.goal, ownerUserId: value.ownerUserId,
+      targetDate: null, meriContext: value.meriContext,
+    });
+    expect(intent).toEqual({ kind: 'strategy-intake', strategyIntake: value });
+  });
   test('partial saved draft uses the same three required answers', () => {
     expect(parseStrategyIntake(emptyStrategyIntake())).toEqual(emptyStrategyIntake());
     expect(strategyIntakeReadiness(emptyStrategyIntake())).toEqual({ checklist: { type: false, goal: false,
