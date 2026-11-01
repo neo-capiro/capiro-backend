@@ -59,6 +59,8 @@ const FORBIDDEN_MIGRATION_HISTORY_PATTERNS: Array<{ code: string; re: RegExp; la
  * learning dispatch, 06a834c6 Tango dispatch consolidation and b9557778 award
  * ingestion dispatch. Recovery/status/deploy arms, legacy refusal and dispatcher
  * preamble (including pool cap) are unchanged; see the recovery runbook.
+ * Forecast successor 877b3863 adds only two explicit, exec-terminated jobs that
+ * preserve supplied DATABASE_URL; existing startup, recovery and defaults remain exact.
  * These are RAW UTF-8 source hashes after CRLF -> LF only, including comments.
  * A caller must not pre-strip comments: text inside multiline shell strings can
  * begin with # without being a shell comment. No runtime/operator authorization
@@ -66,7 +68,7 @@ const FORBIDDEN_MIGRATION_HISTORY_PATTERNS: Array<{ code: string; re: RegExp; la
  * Any source-envelope change needs an explicit review of this protocol.
  */
 const MANUAL_RECOVERY_SOURCE_SHA256 = {
-  'scripts/entrypoint.sh': 'aacdb3fc6f92c521aefbed1d345583edbe01b21d8bc7eabb5de5d2a2d0cdf16d',
+  'scripts/entrypoint.sh': '5b4b1669a0ff24478c8d941a8b1580b6e0da6386189a6b4fe77a294f6834934d',
   'scripts/entrypoint-legacy.sh': '4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a',
   'scripts/entrypoint-dispatcher.inc': '2aded7b73ac289a92adcf37b7285032a713f74ed5317851654f4f6c9a900d54e',
 } as const;
