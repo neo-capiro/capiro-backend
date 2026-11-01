@@ -674,11 +674,22 @@ export class OutreachCampaignService {
       generationJobId: unit.job.id,
       expectedArtifactVersion: object(unit.item.payload).baseVersion,
     });
+    // A list expands into separate recipient units. Keep the selected target's
+    // context with that exact member; shared group drafts do not inherit it.
+    const listMemberId =
+      parent?.kind === 'list'
+        ? parent.members?.find(
+            (member) =>
+              member.role === 'to' &&
+              saved.generationKey === `list:${parent.id}:${member.id}`,
+          )?.id
+        : undefined;
     const selections = (state.contextSelections ?? []).filter(
       (selection) =>
         selection.scope.kind === 'campaign' ||
         (selection.scope.kind === 'target' &&
-          saved.generationKey === `individual:${selection.scope.targetKey}`) ||
+          (saved.generationKey === `individual:${selection.scope.targetKey}` ||
+            listMemberId === selection.scope.targetKey)) ||
         (selection.scope.kind === 'group' &&
           saved.generationKey === `group:${selection.scope.groupRef}`),
     );
