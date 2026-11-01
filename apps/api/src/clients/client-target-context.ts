@@ -14,7 +14,7 @@ interface SavedTarget {
   memberId: string;
   sourceDirectory: string;
 }
-interface ObjectiveContext {
+export interface ObjectiveContext {
   id: string;
   outcome: string;
   status: string;
@@ -22,7 +22,7 @@ interface ObjectiveContext {
   askType: string | null;
   minimumWin: string;
 }
-interface StepContext {
+export interface StepContext {
   id: string;
   strategyId: string;
   strategyTitle: string;
