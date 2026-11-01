@@ -96,7 +96,8 @@ describe('ClientActivityService email history', () => {
 
     const result = await service.list(ctx, 'client-1');
 
-    expect(engagement.listMailThreads).toHaveBeenCalledWith(ctx, { clientId: 'client-1' });
+    // The timeline reads mail after its own transaction, under its bounded budget.
+    expect(engagement.listMailThreads).toHaveBeenCalledWith(ctx, { clientId: 'client-1' }, { budgetMs: 5_000 });
     expect(result).toEqual([
       expect.objectContaining({
         id: 'email:mail-1',

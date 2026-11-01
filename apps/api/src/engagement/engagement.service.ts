@@ -85,7 +85,7 @@ import { activeMailMessageWhere } from './mail-message-state.js';
 import { readOutreachAudienceType, type OutreachAudienceType } from './outreach-audience-types.js';
 import { queryMailMessages, type MailQueryOptions } from './mail-query.js';
 import { readMailThreadPage, readMailThreadHttpPage, type MailThreadPageInput, type MailThreadHttpPageInput } from './mail-thread-pages.js';
-import { readMailThreadList, type MailThreadListInput } from './mail-thread-list.js';
+import { readMailThreadList, type MailThreadListInput, type MailThreadListOptions } from './mail-thread-list.js';
 // ── Phase 1 — governed generation gateway ───────────────────────────────────
 import {
   GenerationGatewayService,
@@ -2722,14 +2722,14 @@ export class EngagementService {
     return queryMailMessages(this.prisma, ctx, input, options);
   }
 
-  listMailThreadPage(ctx: TenantContext, query: MailThreadListInput) {
+  listMailThreadPage(ctx: TenantContext, query: MailThreadListInput, options?: MailThreadListOptions) {
     return readMailThreadList(this.prisma, ctx, query,
-      (tx, clientId) => this.clientProfileEmails(tx, ctx.tenantId, clientId));
+      (tx, clientId) => this.clientProfileEmails(tx, ctx.tenantId, clientId), options);
   }
 
   /** Existing derived activity/evidence callers retain their bounded first-page array. */
-  async listMailThreads(ctx: TenantContext, query: { clientId?: string; recipientEmails?: string[] }) {
-    return (await this.listMailThreadPage(ctx, query)).items;
+  async listMailThreads(ctx: TenantContext, query: { clientId?: string; recipientEmails?: string[] }, options?: MailThreadListOptions) {
+    return (await this.listMailThreadPage(ctx, query, options)).items;
   }
 
   /**
