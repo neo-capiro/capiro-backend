@@ -74,9 +74,8 @@ describe('readDbLaneSettings', () => {
     expect(DB_LANE_DEFAULTS.authority.statementTimeoutMs).toBe(2_000);
   });
 
-  it('reads overrides and the off switch', () => {
+  it('reads bounded pool overrides without a lane switch', () => {
     const settings = readDbLaneSettings({
-      [DB_LANE_ENV.switch]: 'off',
       [DB_LANE_ENV.authorityConnectionLimit]: '5',
       [DB_LANE_ENV.authorityPoolTimeoutSeconds]: '3',
       [DB_LANE_ENV.authorityStatementTimeoutMs]: '1500',
@@ -84,16 +83,18 @@ describe('readDbLaneSettings', () => {
       [DB_LANE_ENV.backgroundPoolTimeoutSeconds]: '20',
     });
     expect(settings).toEqual({
-      enabled: false,
       authority: { connectionLimit: 5, poolTimeoutSeconds: 3, statementTimeoutMs: 1500 },
       background: { connectionLimit: 6, poolTimeoutSeconds: 20, statementTimeoutMs: null },
     });
-    expect(readDbLaneSettings({ [DB_LANE_ENV.switch]: 'ON' }).enabled).toBe(true);
-    expect(readDbLaneSettings({ [DB_LANE_ENV.switch]: '' }).enabled).toBe(true);
+  });
+
+  it.each(['off', 'on', 'OFF', '', 'maybe'])('rejects retired CORE_DB_LANES=%s explicitly', (value) => {
+    expect(() => readDbLaneSettings({ CORE_DB_LANES: value })).toThrow(
+      'CORE_DB_LANES is no longer supported; remove it from configuration. Database lanes are always enabled.',
+    );
   });
 
   it('rejects a malformed value instead of silently defaulting', () => {
-    expect(() => readDbLaneSettings({ [DB_LANE_ENV.switch]: 'maybe' })).toThrow(RangeError);
     expect(() => readDbLaneSettings({ [DB_LANE_ENV.authorityConnectionLimit]: '0' })).toThrow(RangeError);
     expect(() => readDbLaneSettings({ [DB_LANE_ENV.authorityStatementTimeoutMs]: '5' })).toThrow(RangeError);
     expect(() => readDbLaneSettings({ [DB_LANE_ENV.backgroundConnectionLimit]: 'four' })).toThrow(RangeError);

@@ -96,7 +96,7 @@ export interface DbLaneSelection {
 
 /**
  * Owns the dedicated lane clients. Exported for tests; `PrismaService` builds
- * one when a base connection URL is known and lanes are not switched off.
+ * one whenever a base connection URL is known.
  */
 export class DbLanes {
   private readonly clients = new Map<Exclude<DbLane, 'request'>, PrismaClient>();
@@ -128,7 +128,7 @@ export class DbLanes {
   }
 
   select(lane: DbLane): DbLaneSelection {
-    if (lane === 'request' || !this.settings.enabled) {
+    if (lane === 'request') {
       return { lane: 'request', client: undefined, statementTimeoutMs: null, poolTimeoutSeconds: null };
     }
     const pool = this.pool(lane);
@@ -247,7 +247,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       .map((m) => m.name),
   );
 
-  /** Dedicated lane pools; `undefined` when no base URL is known or lanes are off. */
+  /** Dedicated lane pools; `undefined` only when no base URL is known. */
   private readonly lanes: DbLanes | undefined;
 
   constructor(@Optional() @Inject(PRISMA_SERVICE_OPTIONS) options?: Prisma.PrismaClientOptions) {
@@ -256,11 +256,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   private static buildLanes(options: Prisma.PrismaClientOptions | undefined): DbLanes | undefined {
+    const settings = readDbLaneSettings();
     const explicit = options as (Prisma.PrismaClientOptions & { datasourceUrl?: string; datasources?: { db?: { url?: string } } }) | undefined;
     const baseUrl = explicit?.datasources?.db?.url ?? explicit?.datasourceUrl ?? process.env.DATABASE_URL;
     if (!baseUrl) return undefined;
-    const settings = readDbLaneSettings();
-    if (!settings.enabled) return undefined;
     return new DbLanes(settings, baseUrl, options);
   }
 
