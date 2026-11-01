@@ -1,6 +1,6 @@
 import { emptyStrategyIntake } from '@capiro/shared/strategy-intake';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
-import type { ClientObjective } from '@prisma/client';
+import type { ClientObjective, Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { ClientObjectivesService } from './objectives.service.js';
@@ -647,8 +647,8 @@ describe('saved shared Strategy intake', () => {
     expect(result.strategyIntake).toEqual(updated);
     expect(result.version).toBe(2);
     expect(result.outcome).toBe('');
-    expect(objectiveRevisionSnapshotHash(f.sqlState.revisions.at(-1)!.snapshot)).not.toBe(
-      objectiveRevisionSnapshotHash(f.sqlState.revisions[0]!.snapshot));
+    expect(objectiveRevisionSnapshotHash(f.sqlState.revisions.at(-1)!.snapshot as Prisma.JsonValue)).not.toBe(
+      objectiveRevisionSnapshotHash(f.sqlState.revisions[0]!.snapshot as Prisma.JsonValue));
   });
   test('confirm ready carries shared answers into the canonical source hash and preserves separate work consent', async () => {
     const f = savedSetup();
