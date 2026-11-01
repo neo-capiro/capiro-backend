@@ -1,4 +1,4 @@
-import { NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma-client/index.js';
 import type { AuthTenantContext } from '../auth/tenant-context.js';
 import { UUID } from '../meri/objective-generation.types.js';
@@ -36,13 +36,9 @@ export async function readObjectiveSavedGeneration(
       AND input#>>'{objectiveGeneration,receipt,source,objectiveId}'=${binding.objectiveId}
       AND input#>>'{objectiveGeneration,receipt,source,objectiveVersion}'=${String(binding.objectiveVersion)}
     ORDER BY id LIMIT 2 FOR SHARE`;
-  if (candidates.length > 1)
-    throw new ServiceUnavailableException(
-      'The saved generation could not be selected. Retry this read.',
-    );
   const candidate = candidates[0];
   if (
-    !candidate ||
+    candidates.length !== 1 || !candidate ||
     ![candidate.generationJobId, candidate.strategyId, candidate.strategyVersionId].every(
       (value) => typeof value === 'string' && UUID.test(value),
     )

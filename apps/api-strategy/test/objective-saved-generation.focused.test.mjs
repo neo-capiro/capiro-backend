@@ -77,7 +77,7 @@ test('candidate query remains actor/client/revision/canonical scoped and refuses
   f.tx.candidates.push({ ...f.candidate, generationJobId: id(8) });
   await assert.rejects(
     () => readObjectiveSavedGeneration(f.tx, f.ctx, f.binding),
-    /could not be selected/,
+    /Saved Strategy unavailable/,
   );
   assert.equal(f.tx.reads.length, 0);
   const q = f.tx.queries[0];
