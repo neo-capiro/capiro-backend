@@ -1,3 +1,5 @@
+// These unit fixtures inject transaction owners; do not initialize a generated Prisma service.
+jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class {} }));
 import { createHash } from 'node:crypto';
 import { createObjectiveStrategyRequestCodec, OBJECTIVE_STRATEGY_TYPES } from '@capiro/shared/objective-strategy-intake';
 import { ObjectiveCanonicalProducerService } from './objective-canonical-producer.service.js';
@@ -52,6 +54,19 @@ function fixture() {
   return { fresh, job, row, tx, queries, check: () => service.requireReservation(tx, job, fresh) };
 }
 describe('canonical reservation promotion source', () => {
+  test('original recovery binds all shared answers to the saved revision and reserved DTO', async () => {
+    const f = fixture();
+    const answers = { schemaVersion: 1, type: 'earmark', goal: 'G'.repeat(4000), ownerUserId: 'user_selected',
+      targetDate: '2028-02-29', meriContext: 'C'.repeat(8000) };
+    f.row.snapshot.strategyIntake = answers;
+    const { schemaVersion: _version, ...fields } = answers;
+    f.job.input.dto = { clientId: id(2), ...fields };
+    const hash = applicationHash(f.row.snapshot); f.fresh.canonical.snapshotHash = hash;
+    for (const row of [f.row.intake, f.row.consent, f.row.receipt]) row.source_snapshot_hash = hash;
+    await expect(f.check()).resolves.toBeUndefined();
+    f.job.input.dto.targetDate = '2028-03-01';
+    await expect(f.check()).rejects.toThrow();
+  });
   test('accepts only the actual original native C1 pair and untouched queued input', async () => {
     const f = fixture(); await expect(f.check()).resolves.toBeUndefined();
     expect(f.queries).toHaveLength(1);

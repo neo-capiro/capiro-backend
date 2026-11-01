@@ -1,12 +1,11 @@
+import { parseObjectiveGenerationIntent, type ObjectiveGenerationIntent } from '@capiro/shared/strategy-intake';
 import { createHash } from 'node:crypto';
 import { types as nodeTypes } from 'node:util';
 
 export interface ObjectiveTypedSource {
   clientId: string; objectiveId: string; objectiveVersion: number; objectiveRevisionId: string;
 }
-export interface ObjectiveTypedIntent {
-  outcome: string; governmentProblem: string; askType: string; minimumWin: string; limits: string;
-}
+export type ObjectiveTypedIntent = ObjectiveGenerationIntent;
 export interface ObjectiveTypedEvidence {
   ref: string; sourceId: string; asOfMs: number; scope: 'client' | 'tenant-shared'; clientId: string | null;
   /** Review status of this historical artifact, not current canonical truth.
@@ -110,10 +109,9 @@ export function projectObjectiveTypedContext(raw: unknown, sourceEvidence: reado
     objectiveVersion: typeof s.objectiveVersion === 'number' && Number.isInteger(s.objectiveVersion) &&
       s.objectiveVersion >= 1 && s.objectiveVersion <= 2147483647 ? s.objectiveVersion : fail(),
     objectiveRevisionId: uuid(s.objectiveRevisionId) };
-  const i = read(r.intent, ['outcome', 'governmentProblem', 'askType', 'minimumWin', 'limits']);
-  const intent: ObjectiveTypedIntent = { outcome: text(i.outcome, 2000), governmentProblem: text(i.governmentProblem, 4000),
-    askType: typeof i.askType === 'string' && ['funding', 'policy_authority', 'both', 'protect_funding', 'meri_propose'].includes(i.askType)
-      ? i.askType : fail(), minimumWin: text(i.minimumWin, 2000), limits: text(i.limits, 4000, true) };
+  if (nodeTypes.isProxy(r.intent)) return fail();
+  let intent: ObjectiveTypedIntent;
+  try { intent = parseObjectiveGenerationIntent(r.intent); } catch { return fail(); }
   const sourceDigest = sha(r.sourceDigest), snapshotSha256 = sha(r.snapshotSha256), coverageDigest = sha(r.coverageDigest);
   if (sourceDigest !== digest({ source, intent })) return fail();
   const compiledAtMs = milliseconds(r.compiledAt);

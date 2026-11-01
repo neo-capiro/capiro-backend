@@ -1,3 +1,4 @@
+import { parseObjectiveGenerationIntent, type ObjectiveGenerationIntent } from '@capiro/shared/strategy-intake';
 import { createHash } from 'node:crypto';
 import { types as nodeTypes } from 'node:util';
 import { applicationHash, CanonicalApplicationError } from '../planner/objective-canonical-application.js';
@@ -17,9 +18,7 @@ export interface CanonicalRequestOwner { ownerRef: string; clerkUserId: string }
 export interface CanonicalRequestSource {
   clientId: string; objectiveId: string; objectiveVersion: number; objectiveRevisionId: string;
 }
-export interface CanonicalRequestIntent {
-  outcome: string; governmentProblem: string; askType: string; minimumWin: string; limits: string;
-}
+export type CanonicalRequestIntent = ObjectiveGenerationIntent;
 export interface CanonicalRequestEvidence {
   ref: string; sourceId: string; asOfMs: number; scope: 'client' | 'tenant-shared'; clientId: string | null;
   reviewState: 'accepted' | 'pending';
@@ -204,10 +203,13 @@ export function canonicalRequestPublicationParts(raw: CanonicalRequestPublicatio
   const source: CanonicalRequestSource = { clientId: uuid(s.clientId), objectiveId: uuid(s.objectiveId),
     objectiveRevisionId: uuid(s.objectiveRevisionId), objectiveVersion: time(s.objectiveVersion) };
   if (source.objectiveVersion < 1 || source.objectiveVersion > 2147483647) return invalid();
-  const i = object(c.intent, ['outcome', 'governmentProblem', 'askType', 'minimumWin', 'limits']);
-  if (!['funding', 'policy_authority', 'both', 'protect_funding', 'meri_propose'].includes(i.askType)) return invalid();
-  const intent: CanonicalRequestIntent = { outcome: text(i.outcome, 2000), governmentProblem: text(i.governmentProblem, 4000),
-    askType: i.askType, minimumWin: text(i.minimumWin, 2000), limits: text(i.limits, 4000, true) };
+  let intent: CanonicalRequestIntent;
+  try { intent = parseObjectiveGenerationIntent(c.intent); } catch { return invalid(); }
+  if ('kind' in intent) {
+    const answers = intent.strategyIntake;
+    if ((mode === 'initial' && input.typeHint !== answers.type) || input.goal !== answers.goal || input.ownerUserId !== answers.ownerUserId ||
+        input.targetDate !== answers.targetDate || input.meriContext !== answers.meriContext) return conflict();
+  }
   if (c.schemaVersion !== 1 || c.tenantId !== a.canonical.tenantId || c.clerkUserId !== a.clerkUserId ||
       c.requestId !== a.generationRequestId || source.clientId !== a.canonical.clientId || source.objectiveId !== a.canonical.objectiveId ||
       source.objectiveVersion !== a.canonical.requestedObjectiveVersion || source.objectiveRevisionId !== a.canonical.requestedObjectiveRevisionId ||
