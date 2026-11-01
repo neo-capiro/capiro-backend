@@ -84,4 +84,3 @@ test('an original canonical receipt reaches replay validation without inspecting
   assert.equal(f.counters.legacyQueries.length, 0);
   assert.equal(f.counters.outputQueries, 0);
 });
-
