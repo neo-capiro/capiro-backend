@@ -170,6 +170,10 @@ USER capiro
 WORKDIR /app/apps/api
 # Validate the production runtime dependency graph before publishing the image.
 RUN --network=none node -e "const assert=require('node:assert/strict'); const sanitize=require('sanitize-html'); assert.equal(sanitize('<strong>safe</strong><script>unsafe</script>'), '<strong>safe</strong>'); require('./dist/meri/meri-tools.service.js'); require('./dist/memory/memory-candidate.service.js');"
+# Core reads PDF text with unpdf (pure JS) and pdf-parse (loads @napi-rs/canvas
+# at import and only warns when that binding breaks). Both must read a fixture
+# with no pdf.js warning; see the script for the load-order constraint.
+RUN --network=none node scripts/verify-pdf-text-extraction.cjs
 EXPOSE 4000
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/usr/local/bin/entrypoint.sh"]
 CMD ["serve"]
