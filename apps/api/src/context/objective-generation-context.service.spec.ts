@@ -100,6 +100,36 @@ function fixture() {
   return { ...f, directory, representation, service, input, bundle, prompt };
 }
 describe('Objective required context observation and budget coverage', () => {
+  test('complete shared answers reach the lossless bound prompt with existing authorized relationships', async () => {
+    const f = fixture();
+    const intake = { schemaVersion: 1, type: f.request.type, goal: 'G'.repeat(4000),
+      ownerUserId: 'user_selected', targetDate: '2027-11-01', meriContext: 'C'.repeat(8000) };
+    Object.assign(f.state.snapshot, { strategyIntake: intake, ownerUserId: 'native-selected',
+      outcome: '', governmentProblem: '', minimumWin: '', askType: null });
+    const original = f.tx.$queryRaw;
+    f.tx.$queryRaw = (async (parts: TemplateStringsArray, ...values: unknown[]) =>
+      parts.join('').includes('SELECT u.id::text AS') ? [{ userId: 'native-selected' }] : original(parts, ...values)) as any;
+    const observed = await f.service.observe(f.input);
+    expect(observed.intent).toEqual({ kind: 'strategy-intake', strategyIntake: intake });
+    const admission = f.service.bind(f.input, observed, f.bundle, 'a'.repeat(64), [], f.prompt);
+    expect(f.bundle.governedContext.prompt).toContain(JSON.stringify(observed.intent));
+    for (const context of ['PROFILE', 'TENANT_NOTE', 'CURRENT_OFFICE', 'CURRENT_EMAIL', 'CONTACT_PHONE'])
+      expect(f.bundle.governedContext.prompt).toContain(context);
+    expect(admission.context.state).toBe('complete');
+  });
+  test('shared intake refuses changed type and revoked selected owner before external directory work', async () => {
+    for (const defect of ['type', 'owner']) {
+      const f = fixture();
+      Object.assign(f.state.snapshot, { ownerUserId: 'native-selected', strategyIntake: { schemaVersion: 1,
+        type: defect === 'type' ? 'coalition' : f.request.type, goal: 'Goal', ownerUserId: 'user_selected',
+        targetDate: null, meriContext: '' } });
+      const original = f.tx.$queryRaw;
+      f.tx.$queryRaw = (async (parts: TemplateStringsArray, ...values: unknown[]) =>
+        parts.join('').includes('SELECT u.id::text AS') ? [] : original(parts, ...values)) as any;
+      await expect(f.service.observe(f.input)).rejects.toThrow();
+      expect(f.directory.getMemberDetail).not.toHaveBeenCalled();
+    }
+  });
   test('saved source keys, current staff classification and all five intent fields survive governed binding', async () => {
     const f = fixture();
     const observed = await f.service.observe(f.input);

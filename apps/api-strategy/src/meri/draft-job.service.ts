@@ -1,3 +1,4 @@
+import { objectiveStrategyDraftInput } from '@capiro/shared/strategy-intake';
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { AuthTenantContext } from '../auth/tenant-context.js';
 import { Prisma } from '../../generated/prisma-client/index.js';
@@ -60,7 +61,7 @@ export class DraftJobService {
         return existing;
       }
       const input: DraftJobInput = { bearer: null,
-        dto: { clientId: request.clientId, type: request.type, goal: admitted.intent.outcome },
+        dto: objectiveStrategyDraftInput(request.clientId, request.type, admitted.intent),
         objectiveGeneration: { request, fingerprint, receipt: pendingReceipt(request, admitted.source) } };
       return tx.spDraftJob.create({ data: { tenantId: ctx.tenantId, clientId: request.clientId, ownerUserId: ctx.clerkUserId,
         requestKey: key, input: json(input), status: 'queued', deadlineAt: new Date(Date.now() + DEFAULT_DEADLINE_MS) } });

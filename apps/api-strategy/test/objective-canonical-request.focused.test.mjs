@@ -300,3 +300,25 @@ test('lookup refuses malformed proxy/accessor input without evaluating it', () =
   Object.defineProperty(p.executionContext, 'prompt', { enumerable: true, get() { calls++; throw Error(); } });
   refused(() => verify(p, f), 'OUTCOME_UNCONFIRMED'); assert.equal(calls, 0);
 });
+
+
+test('shared intake publication binds every exact stored answer and survives retained reconstruction', () => {
+  const f = fixture();
+  const answers = { schemaVersion: 1, type: 'authorization', goal: 'G'.repeat(4000),
+    ownerUserId: 'user_fixture', targetDate: '2028-02-29', meriContext: 'C'.repeat(8000) };
+  f.context.intent = { kind: 'strategy-intake', strategyIntake: answers };
+  f.context.sourceDigest = applicationHash({ source: f.context.source, intent: f.context.intent });
+  f.dto = { clientId: f.dto.clientId, type: answers.type, goal: answers.goal,
+    ownerUserId: answers.ownerUserId, targetDate: answers.targetDate, meriContext: answers.meriContext };
+  f.prompt += JSON.stringify(f.context.intent); f.context.promptSha256 = sha(f.prompt);
+  const publication = create(f);
+  assert.deepEqual(publication.request.source.intent, f.context.intent);
+  assert.equal(publication.request.input.goal.length, 4000);
+  assert.equal(publication.request.input.meriContext.length, 8000);
+  assert.deepEqual(verify(publication, f), publication);
+  for (const field of ['type', 'goal', 'ownerUserId', 'targetDate', 'meriContext']) {
+    const changed = clone(f);
+    changed.dto[field] = field === 'type' ? 'coalition' : field === 'targetDate' ? '2028-03-01' : 'changed';
+    refused(() => create(changed), 'REQUEST_CONFLICT');
+  }
+});

@@ -1,3 +1,4 @@
+import { objectiveIntentFromSnapshot, parseObjectiveGenerationIntent } from '@capiro/shared/strategy-intake';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { requireObjectiveDestinationRevision } from '../strategy/objective-destination.js';
 import type { AuthTenantContext } from '../auth/tenant-context.js';
@@ -31,32 +32,19 @@ export async function admitObjective(
     snapshot.version !== source.objectiveVersion
   )
     throw new NotFoundException('Objective generation not found');
-  const limits: Record<string, number> = {
-    outcome: 2000,
-    governmentProblem: 4000,
-    minimumWin: 2000,
-    limits: 4000,
-  };
-  if (
-    snapshot.status !== 'ready' ||
-    snapshot.deletedAt != null ||
-    Object.entries(limits).some(
-      ([k, max]) =>
-        typeof snapshot[k] !== 'string' ||
-        snapshot[k].length > max ||
-        (k !== 'limits' && !snapshot[k].trim()),
-    ) ||
-    !['funding', 'policy_authority', 'both', 'protect_funding', 'meri_propose'].includes(
-      snapshot.askType,
-    )
-  )
-    throw new BadRequestException('Objective must be ready and complete before generating');
-  const intent: ObjectiveIntent = {
-    outcome: snapshot.outcome,
-    governmentProblem: snapshot.governmentProblem,
-    askType: snapshot.askType,
-    minimumWin: snapshot.minimumWin,
-    limits: snapshot.limits,
-  };
+  let intent: ObjectiveIntent;
+  try {
+    if (snapshot.status !== 'ready' || snapshot.deletedAt != null) throw new Error();
+    intent = parseObjectiveGenerationIntent(objectiveIntentFromSnapshot(snapshot));
+    if ('kind' in intent) {
+      if (intent.strategyIntake.type !== request.type) throw new Error();
+      const owners = await tx.$queryRaw<Array<{ userId: string }>>`
+        SELECT u.id::text AS "userId" FROM tenant_memberships tm JOIN users u ON u.id=tm.user_id
+        WHERE tm.tenant_id=${actor.tenantId}::uuid AND tm.status::text='active'
+          AND u.clerk_user_id=${intent.strategyIntake.ownerUserId}`;
+      if (owners.length !== 1 || owners[0]!.userId !== snapshot.ownerUserId) throw new Error();
+    }
+  } catch { throw new BadRequestException('Objective must be ready and complete before generating'); }
+
   return { source, intent, sourceDigest: digest({ source, intent }) };
 }

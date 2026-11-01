@@ -1,6 +1,8 @@
+import type { StrategyIntakeDraft } from '@capiro/shared/strategy-intake';
 import {
   IsIn,
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -15,6 +17,10 @@ import {
 } from './objective-rules.js';
 
 export class ObjectiveDraftDto {
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsObject()
+  strategyIntake?: StrategyIntakeDraft;
+
   @ValidateIf((_object, value) => value !== undefined)
   @IsString()
   @MaxLength(2000)

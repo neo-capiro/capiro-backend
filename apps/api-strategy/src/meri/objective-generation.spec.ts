@@ -1,3 +1,6 @@
+jest.mock('./meri.service.js', () => ({ MeriService: class {} }));
+// These unit fixtures inject transaction owners; do not initialize a generated Prisma service.
+jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class {} }));
 import { objectiveFixture, id } from './objective-generation.fixture.js';
 import { admitObjective } from './objective-generation-admission.js';
 import { objectivePersistence, safeObjectiveFailure } from './objective-generation-completion.js';
@@ -411,5 +414,27 @@ describe('Objective transaction persistence fence', () => {
       code: 'OBJECTIVE_GENERATION_FAILED',
       message: 'This Objective strategy could not be generated.',
     });
+  });
+});
+
+
+describe('shared intake admission', () => {
+  test('preserves complete answers and resolves the selected active owner in the actual tenant', async () => {
+    const f = objectiveFixture();
+    const answers = { schemaVersion: 1, type: f.request.type, goal: 'G'.repeat(4000), ownerUserId: 'user_selected',
+      targetDate: '2028-02-29', meriContext: 'C'.repeat(8000) };
+    Object.assign(f.state.snapshot, { strategyIntake: answers, ownerUserId: id(90), outcome: '', governmentProblem: '', minimumWin: '', askType: null });
+    const original = f.tx.$queryRaw;
+    f.tx.$queryRaw = (async (parts: TemplateStringsArray, ...values: unknown[]) => {
+      if (parts.join('').includes('SELECT u.id::text AS')) {
+        expect(values).toEqual([f.actor.tenantId, answers.ownerUserId]); return [{ userId: id(90) }];
+      }
+      return original(parts, ...values);
+    }) as any;
+    const admitted = await admitObjective(f.tx, f.actor, f.request);
+    expect(admitted.intent).toEqual({ kind: 'strategy-intake', strategyIntake: answers });
+    f.tx.$queryRaw = (async (parts: TemplateStringsArray, ...values: unknown[]) =>
+      parts.join('').includes('SELECT u.id::text AS') ? [] : original(parts, ...values)) as any;
+    await expect(admitObjective(f.tx, f.actor, f.request)).rejects.toThrow('ready and complete');
   });
 });

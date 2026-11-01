@@ -182,7 +182,8 @@ export function objectivePacketAddition(
   const retrievalLength = recordsText.length + original.retrieval.length +
     (recordsText && original.retrieval ? 1 : 0);
   const steeringLength = intentText.length + 1 + (original.steering || OBJECTIVE_EMPTY_STEERING).length;
-  if (retrievalLength > 24000 || steeringLength > 12000)
+  const intake = intent && typeof intent === 'object' && 'kind' in intent && intent.kind === 'strategy-intake';
+  if (retrievalLength > 24000 || steeringLength > (intake ? 28000 : 12000))
     throw new ObjectivePacketBudgetError('government_targets');
   return { recordsText, intentText };
 }

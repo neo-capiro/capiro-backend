@@ -1,3 +1,4 @@
+import { parseStrategyIntake, strategyIntakeReadiness, type StrategyIntakeDraft } from '@capiro/shared/strategy-intake';
 import { BadRequestException } from '@nestjs/common';
 
 export const OBJECTIVE_ASK_TYPES = [
@@ -12,6 +13,7 @@ export type ObjectiveStatus = 'draft' | 'in_review' | 'ready';
 export type ObjectiveTransition = 'request_review' | 'confirm_ready';
 
 export interface ObjectiveFields {
+  strategyIntake?: StrategyIntakeDraft;
   outcome: string;
   governmentProblem: string;
   askType: string | null;
@@ -40,6 +42,7 @@ export function normalizeObjectiveFields(
 }
 
 export function objectiveReadiness(fields: ObjectiveFields) {
+  if (fields.strategyIntake !== undefined) return strategyIntakeReadiness(parseStrategyIntake(fields.strategyIntake));
   const checklist = {
     outcome: fields.outcome.trim().length > 0,
     governmentProblem: fields.governmentProblem.trim().length > 0,
@@ -54,7 +57,8 @@ export function requireObjectiveReady(fields: ObjectiveFields): void {
   const readiness = objectiveReadiness(fields);
   if (!readiness.isReady) {
     throw new BadRequestException({
-      message: 'Complete outcome, government problem, ask type and minimum win first',
+      message: fields.strategyIntake !== undefined ? 'Complete objective type, goal statement and owner first' :
+        'Complete outcome, government problem, ask type and minimum win first',
       code: 'OBJECTIVE_INCOMPLETE',
       readiness,
     });

@@ -1,3 +1,4 @@
+import { parseStrategyIntake, StrategyIntakeValidationError, type StrategyIntakeDraft } from '@capiro/shared/strategy-intake';
 import {
   BadRequestException,
   ConflictException,
@@ -30,8 +31,11 @@ import {
 import { appendObjectiveReadyIntent } from './objective-work-intent.js';
 import { reserveCanonicalObjectivePlan } from './objective-canonical-plan.js';
 
-function presentObjective(record: ClientObjective) {
+type ObjectiveRecord = ClientObjective & { strategyIntake?: StrategyIntakeDraft };
+
+function presentObjective(record: ObjectiveRecord) {
   return {
+    ...(record.strategyIntake !== undefined ? { strategyIntake: { ...record.strategyIntake } } : {}),
     id: record.id,
     clientId: record.clientId,
     requestId: record.clientRequestId,
@@ -86,7 +90,7 @@ export class ClientObjectivesService {
         orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
       });
       await this.assertClient(tx, ctx, clientId);
-      return records.map(presentObjective);
+      return (await this.withSavedIntakes(tx, ctx, records)).map(presentObjective);
     });
   }
 
@@ -100,7 +104,7 @@ export class ClientObjectivesService {
         where, orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }], take: 3,
       });
       await this.assertClient(tx, ctx, clientId);
-      return { status: total > records.length ? 'partial' : 'complete', total, items: records.map(presentObjective) };
+      return { status: total > records.length ? 'partial' : 'complete', total, items: (await this.withSavedIntakes(tx, ctx, records)).map(presentObjective) };
     });
   }
 
@@ -116,6 +120,7 @@ export class ClientObjectivesService {
   }
 
   async create(ctx: TenantContext, clientId: string, input: CreateObjectiveInput) {
+    const strategyIntake = this.parseIntake(input.strategyIntake);
     const fields = {
       outcome: '',
       governmentProblem: '',
@@ -126,10 +131,12 @@ export class ClientObjectivesService {
     };
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await this.assertClient(tx, ctx, clientId);
-      const ownerUserId = input.ownerUserId === undefined ? ctx.userId : input.ownerUserId;
+      const ownerUserId = strategyIntake !== undefined
+        ? await this.intakeOwner(tx, ctx, clientId, strategyIntake, input.ownerUserId)
+        : input.ownerUserId === undefined ? ctx.userId : input.ownerUserId;
       await this.assertOwner(tx, ctx, clientId, ownerUserId);
       const createRequestHash = createHash('sha256')
-        .update(JSON.stringify({ ...fields, ownerUserId }))
+        .update(JSON.stringify({ ...fields, ownerUserId, ...(strategyIntake !== undefined ? { strategyIntake } : {}) }))
         .digest('hex');
       await this.assertClient(tx, ctx, clientId);
       const inserted = await tx.clientObjective.createMany({
@@ -157,8 +164,12 @@ export class ClientObjectivesService {
             'This draft request was already used. Reload the Objective or start a new draft.',
         });
       }
-      if (inserted.count === 1) await this.recordRevision(tx, ctx, record, 'create');
-      return presentObjective(record);
+      if (inserted.count === 1) {
+        const saved = { ...record, ...(strategyIntake !== undefined ? { strategyIntake } : {}) };
+        await this.recordRevision(tx, ctx, saved, 'create');
+        return presentObjective(saved);
+      }
+      return presentObjective((await this.withSavedIntakes(tx, ctx, [record]))[0]!);
     });
   }
 
@@ -169,11 +180,15 @@ export class ClientObjectivesService {
     expectedVersion: number,
     input: ObjectiveDraftInput,
   ) {
+    const incomingIntake = this.parseIntake(input.strategyIntake);
     const fields = normalizeObjectiveFields(input);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await this.assertClient(tx, ctx, clientId);
       const current = await this.findObjective(tx, ctx, clientId, id, expectedVersion);
-      const ownerUserId = input.ownerUserId === undefined ? current.ownerUserId : input.ownerUserId;
+      const strategyIntake = incomingIntake === undefined ? current.strategyIntake : incomingIntake;
+      const ownerUserId = strategyIntake !== undefined
+        ? await this.intakeOwner(tx, ctx, clientId, strategyIntake, input.ownerUserId)
+        : input.ownerUserId === undefined ? current.ownerUserId : input.ownerUserId;
       if (ownerUserId !== current.ownerUserId)
         await this.assertOwner(tx, ctx, clientId, ownerUserId);
       const fieldKeys: (keyof ObjectiveFields)[] = [
@@ -185,7 +200,8 @@ export class ClientObjectivesService {
       ];
       const changed =
         fieldKeys.some((key) => fields[key] !== undefined && current[key] !== fields[key]) ||
-        ownerUserId !== current.ownerUserId;
+        ownerUserId !== current.ownerUserId ||
+        JSON.stringify(strategyIntake) !== JSON.stringify(current.strategyIntake);
       if (!changed) return presentObjective(current);
       const record = await this.writeVersion(tx, ctx, current, {
         ...fields,
@@ -194,8 +210,9 @@ export class ClientObjectivesService {
         readyAt: null,
         reviewRequestedAt: null,
       });
-      await this.recordRevision(tx, ctx, record, 'edit');
-      return presentObjective(record);
+      const saved = { ...record, ...(strategyIntake !== undefined ? { strategyIntake } : {}) };
+      await this.recordRevision(tx, ctx, saved, 'edit');
+      return presentObjective(saved);
     });
   }
 
@@ -210,6 +227,10 @@ export class ClientObjectivesService {
       await this.assertClient(tx, ctx, clientId);
       const current = await this.findObjective(tx, ctx, clientId, id, expectedVersion);
       requireObjectiveReady(current);
+      if (current.strategyIntake) {
+        const owner = await this.intakeOwner(tx, ctx, clientId, current.strategyIntake);
+        if (owner !== current.ownerUserId) throw new BadRequestException('Objective owner changed. Save the intake again.');
+      }
       const status = action === 'confirm_ready' ? 'ready' : 'in_review';
       if (current.status === status) return presentObjective(current);
       const now = new Date();
@@ -245,6 +266,48 @@ export class ClientObjectivesService {
       const record = await this.writeVersion(tx, ctx, current, { deletedAt: new Date() });
       await this.recordRevision(tx, ctx, record, 'delete');
       return { id, deleted: true, version: record.version };
+    });
+  }
+
+  private parseIntake(raw: unknown): StrategyIntakeDraft | undefined {
+    if (raw === undefined) return undefined;
+    try { return parseStrategyIntake(raw); }
+    catch (error) {
+      if (error instanceof StrategyIntakeValidationError)
+        throw new BadRequestException({ code: 'STRATEGY_INTAKE_INVALID', field: error.field, message: error.message });
+      throw error;
+    }
+  }
+
+  private async intakeOwner(tx: Prisma.TransactionClient, ctx: TenantContext, clientId: string,
+    intake: StrategyIntakeDraft, explicitOwner?: string | null): Promise<string | null> {
+    const member = intake.ownerUserId === null ? null : await tx.tenantMembership.findFirst({
+      where: { tenantId: ctx.tenantId, status: 'active', user: { clerkUserId: intake.ownerUserId } },
+      select: { userId: true },
+    });
+    await this.assertClient(tx, ctx, clientId);
+    if (intake.ownerUserId !== null && !member)
+      throw new BadRequestException('Objective owner must be an active member of this tenant');
+    const owner = member?.userId ?? null;
+    if (explicitOwner !== undefined && explicitOwner !== owner)
+      throw new BadRequestException('Objective owner must match the saved Strategy intake');
+    return owner;
+  }
+
+  /** The matching revision alone owns answers. Never search an older revision for a fallback. */
+  private async withSavedIntakes(tx: Prisma.TransactionClient, ctx: TenantContext,
+    records: ClientObjective[]): Promise<ObjectiveRecord[]> {
+    if (!records.length) return [];
+    const revisions = await tx.clientObjectiveRevision.findMany({
+      where: { tenantId: ctx.tenantId, OR: records.map(r => ({ clientId: r.clientId, objectiveId: r.id, version: r.version })) },
+      select: { objectiveId: true, version: true, snapshot: true },
+    });
+    for (const clientId of new Set(records.map(r => r.clientId))) await this.assertClient(tx, ctx, clientId);
+    return records.map(record => {
+      const revision = revisions.find(r => r.objectiveId === record.id && r.version === record.version);
+      const snapshot = revision?.snapshot as Record<string, unknown> | undefined;
+      return { ...record, ...(snapshot && Object.hasOwn(snapshot, 'strategyIntake')
+        ? { strategyIntake: this.parseIntake(snapshot.strategyIntake)! } : {}) };
     });
   }
 
@@ -287,13 +350,13 @@ export class ClientObjectivesService {
     await this.assertClient(tx, ctx, clientId);
     if (!record) throw new NotFoundException('Objective not found');
     if (version !== undefined && record.version !== version) this.conflict();
-    return record;
+    return (await this.withSavedIntakes(tx, ctx, [record]))[0]!;
   }
 
   private async writeVersion(
     tx: Prisma.TransactionClient,
     ctx: TenantContext,
-    current: ClientObjective,
+    current: ObjectiveRecord,
     data: Prisma.ClientObjectiveUpdateManyMutationInput,
   ) {
     await this.assertClient(tx, ctx, current.clientId);
@@ -314,7 +377,7 @@ export class ClientObjectivesService {
     });
     await this.assertClient(tx, ctx, current.clientId);
     if (!record) throw new NotFoundException('Objective not found');
-    return record;
+    return { ...record, ...(current.strategyIntake !== undefined ? { strategyIntake: current.strategyIntake } : {}) };
   }
 
   private conflict(): never {
@@ -327,7 +390,7 @@ export class ClientObjectivesService {
   private async recordRevision(
     tx: Prisma.TransactionClient,
     ctx: TenantContext,
-    record: ClientObjective,
+    record: ObjectiveRecord,
     operation: string,
   ) {
     await this.assertClient(tx, ctx, record.clientId);

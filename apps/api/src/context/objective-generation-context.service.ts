@@ -1,3 +1,4 @@
+import { objectiveIntentFromSnapshot, parseObjectiveGenerationIntent } from '@capiro/shared/strategy-intake';
 import {
   BadRequestException,
   ConflictException,
@@ -12,7 +13,6 @@ import {
 } from '@capiro/shared';
 import { DirectoryService } from '../directory/directory.service.js';
 import { RepresentationResolverService } from '../clients/representation-resolver.service.js';
-import { requireObjectiveReady } from '../clients/objectives/objective-rules.js';
 import { classifyStaffKind } from '../clients/client-targets.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { readObjectiveSources } from './objective-generation-sources.js';
@@ -309,23 +309,19 @@ export class ObjectiveGenerationContextService {
           saved.version !== source.objectiveVersion
         )
           throw new BadRequestException('Objective must be ready before generating');
-        const intent = {
-          outcome: saved.outcome,
-          governmentProblem: saved.governmentProblem,
-          askType: saved.askType,
-          minimumWin: saved.minimumWin,
-          limits: saved.limits,
-        };
-        if (
-          Object.entries({
-            outcome: 2000,
-            governmentProblem: 4000,
-            minimumWin: 2000,
-            limits: 4000,
-          }).some(([k, max]) => typeof saved[k] !== 'string' || saved[k].length > max)
-        )
-          throw new BadRequestException('Invalid saved Objective');
-        requireObjectiveReady(intent);
+        let intent;
+        try { intent = parseObjectiveGenerationIntent(objectiveIntentFromSnapshot(saved)); }
+        catch { throw new BadRequestException('Invalid saved Objective'); }
+        if ('kind' in intent) {
+          if (intent.strategyIntake.type !== input.generationType) throw new BadRequestException('Saved objective type changed');
+          const owners = await tx.$queryRaw<Array<{ userId: string }>>`
+            SELECT u.id::text AS "userId" FROM tenant_memberships tm JOIN users u ON u.id=tm.user_id
+            WHERE tm.tenant_id=${input.tenantId}::uuid AND tm.status::text='active'
+              AND u.clerk_user_id=${intent.strategyIntake.ownerUserId}`;
+          if (owners.length !== 1 || owners[0]!.userId !== saved.ownerUserId)
+            throw new BadRequestException('Objective owner is no longer available');
+        }
+
         return {
           source,
           intent,
