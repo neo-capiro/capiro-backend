@@ -25,14 +25,17 @@ export function parseImportArgs(args: string[], now: Date) {
       failure = true;
       continue;
     }
+    const value = args[i + 1];
     if (
+      arg === undefined ||
       !['--input', '--edition', '--sha256', '--observed-at'].includes(arg) ||
       values.has(arg) ||
-      !args[i + 1] ||
-      args[i + 1].startsWith('--')
+      !value ||
+      value.startsWith('--')
     )
       throw new Error('Invalid import arguments');
-    values.set(arg, args[++i]);
+    values.set(arg, value);
+    i++;
   }
   const observed = values.get('--observed-at') ?? '';
   const observedAt = new Date(observed);

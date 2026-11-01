@@ -106,6 +106,44 @@ describe('forecast producer state transitions', () => {
     ).toEqual({ checkId: '5', accepted: 2, rejected: 1, replay: true });
     expect(p.writes).toHaveLength(1); // advisory lock only
   });
+  it('missing inserted check receipt rejects before any forecast or terminal mutation', async () => {
+    const p = port();
+    p.tx.$queryRaw.mockResolvedValue([]);
+    await expect(
+      persistForecastSnapshot(
+        p.prisma,
+        { candidates: [candidate()], withdrawnRins: [], rejected: [] },
+        metadata,
+      ),
+    ).rejects.toThrow('Forecast check receipt unavailable');
+    expect(p.writes).toHaveLength(2); // advisory lock and source archive attempted in the transaction
+    expect(p.writes.some((write) => write.sql.includes('INSERT INTO government_forecast(id'))).toBe(
+      false,
+    );
+  });
+  it('missing locked head rejects without creating a revision or observation', async () => {
+    const p = port();
+    p.tx.$queryRaw.mockImplementation(async (strings: TemplateStringsArray) => {
+      if (strings.join('?').includes('RETURNING id')) return [{ id: 1n }] as never;
+      return [];
+    });
+    await expect(
+      persistForecastSnapshot(
+        p.prisma,
+        { candidates: [candidate()], withdrawnRins: [], rejected: [] },
+        metadata,
+      ),
+    ).rejects.toThrow('Forecast head unavailable');
+    expect(
+      p.writes.some((write) => write.sql.includes('INSERT INTO government_forecast_revision')),
+    ).toBe(false);
+    expect(
+      p.writes.some((write) => write.sql.includes('INSERT INTO government_forecast_observation')),
+    ).toBe(false);
+    expect(p.writes.some((write) => write.sql.includes('UPDATE government_forecast_check'))).toBe(
+      false,
+    );
+  });
   it('refuses an older edition/observation rather than reverting current history', async () => {
     const p = port();
     p.tx.$queryRaw
@@ -135,8 +173,8 @@ describe('forecast producer state transitions', () => {
     const p = port();
     await recordForecastCheckFailure(p.prisma, metadata.observedAt);
     expect(p.writes).toHaveLength(1);
-    expect(p.writes[0].sql).toContain("'failed'");
-    expect(p.writes[0].sql).not.toContain('UPDATE');
+    expect(p.writes[0]).toMatchObject({ sql: expect.stringContaining("'failed'") });
+    expect(p.writes[0]).toMatchObject({ sql: expect.not.stringContaining('UPDATE') });
   });
   it.each(['withdrawn', 'source_completed'])(
     'holds a new projection against a %s identity',
@@ -249,8 +287,8 @@ describe('forecast producer state transitions', () => {
       x.sql.includes('INSERT INTO government_forecast_terminal'),
     );
     expect(terminal).toHaveLength(3);
-    expect(terminal[0].sql).toContain("'source_completed'");
-    expect(terminal[1].sql).toContain("'withdrawn'");
+    expect(terminal[0]).toMatchObject({ sql: expect.stringContaining("'source_completed'") });
+    expect(terminal[1]).toMatchObject({ sql: expect.stringContaining("'withdrawn'") });
     expect(terminal.every((x) => x.sql.includes('ON CONFLICT (source_key) DO NOTHING'))).toBe(true);
   });
 });
