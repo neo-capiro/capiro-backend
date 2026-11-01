@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import type { TenantContext } from '@capiro/shared';
 import { EngagementService } from '../engagement/engagement.service';
 import { MeriResearchService } from './meri-research.service';
 import { researchToolVersion } from './meri-research-durable-result';
@@ -38,7 +39,7 @@ const MAIL_SEARCH_TOOL_SCHEMA = {
   properties: { query: { type: 'string' }, asOf: { type: 'string' } },
 };
 const MAIL_SEARCH_TOOL_VERSION = researchToolVersion(MAIL_SEARCH_TOOL_SCHEMA);
-const ctx = { tenantId: 'tenant-1', userId: 'user-1', tenantSlug: 'tenant' } as never;
+const ctx: TenantContext = { tenantId: 'tenant-1', userId: 'user-1', tenantSlug: 'tenant', clerkUserId: 'user-1', role: 'standard_user' };
 
 const DEBRIEF_SCHEMA = {
   type: 'object',

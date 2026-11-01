@@ -39,8 +39,8 @@ test('owned-title search is a bounded canonical metadata query, not transcript s
 test('archived owned rows have an explicit discoverable state without active-only authority', async () => {
   const f = fixture([row(3, 'archived')]);
   const result = await listManagedConversations(f.prisma, ctx, { ...request, status: 'archived' });
-  expect(result.conversations[0].status).toBe('archived');
-  expect(f.tx.clioConversation.findMany.mock.calls[0][0].where.status).toBe('archived');
+  expect(result.conversations[0]?.status).toBe('archived');
+  expect(f.tx.clioConversation.findMany.mock.calls[0]?.[0].where.status).toBe('archived');
 });
 
 test('stable paging uses the last returned title row and the exact owner filter', async () => {
@@ -49,7 +49,7 @@ test('stable paging uses the last returned title row and the exact owner filter'
   expect(page.conversations).toHaveLength(20);
   expect(page.nextBefore).toEqual({ updatedAt: '2026-10-24T12:00:00.000Z', conversationId: id(22) });
   await listManagedConversations(f.prisma, ctx, { ...request, before: page.nextBefore });
-  expect(f.tx.clioConversation.findMany.mock.calls[1][0].where).toMatchObject({
+  expect(f.tx.clioConversation.findMany.mock.calls[1]?.[0].where).toMatchObject({
     tenantId: ctx.tenantId, userId: ctx.userId,
     OR: [{ updatedAt: { lt: new Date(page.nextBefore!.updatedAt) } },
       { updatedAt: new Date(page.nextBefore!.updatedAt), id: { lt: id(22) } }],

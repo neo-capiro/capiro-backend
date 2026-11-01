@@ -583,56 +583,63 @@ describe('Meri tool registration', () => {
     expect(read).toHaveBeenCalledWith(ctx, input);
   });
 
-  it.each(['get_legiwatch_review', 'apply_legiwatch_suggestion'] as const)(
-    '%s injects authenticated identity and validates the client before the owner-service call',
-    async (name) => {
-      const original = global.fetch,
-        secret = process.env.INTERNAL_SERVICE_SECRET;
-      const ctx = {
-          tenantId: '11111111-1111-4111-8111-111111111111',
-          clerkUserId: 'current-actor',
-        },
-        input = {
-          view: 'suggestions',
-          clientId: 'client-1',
-          folderId: 'folder-1',
-          jurisdiction: 'FL',
-          sessionKey: '2026',
-          tenantId: 'spoofed',
-          actor: 'spoofed',
-        };
-      const ensureClientVisible = jest.fn(async () => 'client-1'),
-        service = Object.assign(Object.create(MeriToolsService.prototype), {
-          ensureClientVisible,
-        }) as MeriToolsService;
-      try {
-        process.env.INTERNAL_SERVICE_SECRET = 'synthetic-adapter-secret';
-        global.fetch = jest.fn(
-          async () => ({ ok: true, json: async () => ({ rows: [], effects: [] }) }) as Response,
-        );
-        await service.execute(ctx as never, name, input);
-        expect(ensureClientVisible).toHaveBeenCalledWith(ctx, 'client-1');
-        const [url, request] = (global.fetch as jest.Mock).mock.calls[0]!;
-        expect(url).toContain(
-          '/internal/legiwatch/meri/' + (name === 'get_legiwatch_review' ? 'read' : 'apply'),
-        );
-        expect(JSON.parse(request.body)).toMatchObject({
-          tenantId: ctx.tenantId,
-          actor: ctx.clerkUserId,
-          input: { folderId: 'folder-1', jurisdiction: 'FL', sessionKey: '2026' },
-        });
-        ensureClientVisible.mockRejectedValueOnce(new Error('client withdrawn'));
-        await expect(service.execute(ctx as never, name, input)).rejects.toThrow(
-          'client withdrawn',
-        );
-        expect(global.fetch).toHaveBeenCalledTimes(1);
-      } finally {
-        global.fetch = original;
-        if (secret === undefined) delete process.env.INTERNAL_SERVICE_SECRET;
-        else process.env.INTERNAL_SERVICE_SECRET = secret;
-      }
-    },
-  );
+  it('get_legiwatch_review is absent from generic dispatch even with a configured owner adapter', async () => {
+    const original = global.fetch, secret = process.env.INTERNAL_SERVICE_SECRET;
+    const ensureClientVisible = jest.fn(async () => 'client-1');
+    const service = Object.assign(Object.create(MeriToolsService.prototype), { ensureClientVisible }) as MeriToolsService;
+    const ctx = { tenantId: 'synthetic-tenant', userId: 'synthetic-actor', clerkUserId: 'current-actor' };
+    try {
+      process.env.INTERNAL_SERVICE_SECRET = 'synthetic-adapter-secret';
+      global.fetch = jest.fn(async () => ({ ok: true, json: async () => ({ rows: [] }) }) as Response);
+      // The runtime boundary must reject this removed name specifically, not
+      // merely fail because owner identity or configuration is unavailable.
+      await expect(Reflect.apply(service.execute, service, [ctx, 'get_legiwatch_review', { clientId: 'client-1' }]))
+        .rejects.toThrow('Unhandled Meri tool: get_legiwatch_review');
+      expect(ensureClientVisible).not.toHaveBeenCalled();
+      expect(global.fetch).not.toHaveBeenCalled();
+    } finally {
+      global.fetch = original;
+      if (secret === undefined) delete process.env.INTERNAL_SERVICE_SECRET;
+      else process.env.INTERNAL_SERVICE_SECRET = secret;
+    }
+  });
+
+  it('retained apply_legiwatch_suggestion adapter injects owner identity and checks the client wall before transport', async () => {
+    const original = global.fetch, secret = process.env.INTERNAL_SERVICE_SECRET,
+      base = process.env.TRACKER_APP_BASE_URL;
+    const ctx = { tenantId: 'synthetic-tenant', userId: 'synthetic-actor', clerkUserId: 'current-actor' };
+    const input = { clientId: 'client-1', folderId: 'folder-1', jurisdiction: 'FL', sessionKey: '2026',
+      tenantId: 'spoofed', actor: 'spoofed' };
+    const ensureClientVisible = jest.fn(async () => 'client-1');
+    const service = Object.assign(Object.create(MeriToolsService.prototype), { ensureClientVisible }) as MeriToolsService;
+    try {
+      process.env.INTERNAL_SERVICE_SECRET = 'synthetic-adapter-secret';
+      process.env.TRACKER_APP_BASE_URL = 'https://synthetic-owner.invalid';
+      global.fetch = jest.fn(async () => ({ ok: true, json: async () => ({ effects: [] }) }) as Response);
+      // This retained runtime adapter is outside the current finite public
+      // tool-name type; exercise its existing registration without widening it.
+      const apply = () => Reflect.apply(service.execute, service, [ctx, 'apply_legiwatch_suggestion', input]);
+      await expect(apply()).resolves.toMatchObject({ tool: 'apply_legiwatch_suggestion', result: { effects: [] } });
+      expect(ensureClientVisible).toHaveBeenCalledWith(ctx, 'client-1');
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      const [url, request] = (global.fetch as jest.Mock).mock.calls[0]!;
+      expect(url).toBe('https://synthetic-owner.invalid/intel-api/internal/legiwatch/meri/apply');
+      expect(request).toMatchObject({ method: 'POST', redirect: 'error',
+        headers: { 'content-type': 'application/json', 'x-internal-service-secret': 'synthetic-adapter-secret' } });
+      expect(JSON.parse(request.body)).toEqual({ tenantId: ctx.tenantId, actor: ctx.clerkUserId,
+        tool: 'apply_legiwatch_suggestion', input });
+      ensureClientVisible.mockRejectedValueOnce(new Error('client withdrawn'));
+      await expect(apply()).rejects.toThrow('client withdrawn');
+      expect(ensureClientVisible).toHaveBeenCalledTimes(2);
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+    } finally {
+      global.fetch = original;
+      if (secret === undefined) delete process.env.INTERNAL_SERVICE_SECRET;
+      else process.env.INTERNAL_SERVICE_SECRET = secret;
+      if (base === undefined) delete process.env.TRACKER_APP_BASE_URL;
+      else process.env.TRACKER_APP_BASE_URL = base;
+    }
+  });
   it('passes authorized actor, client and continuation parameters to canonical funding handlers', async () => {
     const actor = { tenantId: 'tenant-1', userId: 'user-1', role: 'standard_user' } as const;
     const opportunityTools = {

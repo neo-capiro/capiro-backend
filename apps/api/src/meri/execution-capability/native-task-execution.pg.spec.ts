@@ -163,7 +163,8 @@ pgDescribe('native task receiver — actual PostgreSQL effect and receipt', () =
     expect(first).toMatchObject({ status: 'observed', outcome: { result: { title: 'Synthetic native task', clientId: client } } });
     expect(await counts()).toEqual({ tasks: 1, receipts: 1, completed: 1 });
     expect((await h.sql('SELECT jti IS NULL AS native FROM clio_meri_execution_consumptions')).rows).toEqual([{ native: true }]);
-    expect(await read(proposal)).toEqual({ state: 'OUTCOME', outcome: first!.outcome });
+    if (!first || !('outcome' in first)) throw new Error('Expected completed task outcome');
+    expect(await read(proposal)).toEqual({ state: 'OUTCOME', outcome: first.outcome });
   });
 
   it('rolls the actual task update and receipt claim back together on completion failure', async () => {
@@ -254,7 +255,8 @@ pgDescribe('native task receiver — actual PostgreSQL effect and receipt', () =
     await revoke(completed);
     await h.sql('SELECT pg_sleep(GREATEST(0,extract(epoch FROM ($1::timestamptz-clock_timestamp()))) + 0.02)', [absent.expiresAt]);
     expect(await execute(completed)).toEqual(result);
-    expect(await read(completed)).toEqual({ state: 'OUTCOME', outcome: result!.outcome });
+    if (!result || !('outcome' in result)) throw new Error('Expected replayed task outcome');
+    expect(await read(completed)).toEqual({ state: 'OUTCOME', outcome: result.outcome });
     await expect(execute(absent)).rejects.toMatchObject({ status: 409 });
     expect(await counts()).toEqual({ tasks: 1, receipts: 1, completed: 1 });
     await h.sql("UPDATE tenant_memberships SET status='removed' WHERE user_id=$1", [actor]);
