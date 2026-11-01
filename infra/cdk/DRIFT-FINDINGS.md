@@ -356,3 +356,26 @@ token, so the open web client resumes it (#2083). Neo approved it on 2026-10-06
 for after the first T5 pass. T5 run 12 (`a31f24a0`) passed at 00:57 UTC. Both
 replicas logged `meri_job_sweeper_enabled` at 00:59:32 UTC. Codified in
 `compute-stack.ts` (API environment) in the same PR as this entry.
+
+## WAF — SQLi_BODY and GenericLFI_BODY scoped down on live `capiro-dev-waf` (2026-11-01 UTC, Neo's OK; live only, not in CDK)
+
+Web ACL `capiro-dev-waf` took lock-token `e1e3f893…` to `e2443bde…` (capacity 1107 to 1145). It had blocked
+Meri's control gateway calling Core's SQL tool (`SQLi_BODY` on `POST /api/clio/tools/query_capiro_data`,
+shown to the model as ACCESS_DENIED) and user chat text on app.capiro.ai (`SQLi_BODY` on
+`/api/conversations/list`, `GenericLFI_BODY` on `/api/conversations/input/allocate` and `/input/admit`).
+Same shape as the `CrossSiteScripting_BODY` carve-out: the managed rule is excluded (Count, label still
+emitted) and a custom Block rule re-blocks the label except for the named requests.
+
+| Rule | Change |
+| --- | --- |
+| `AWS-AWSManagedRulesSQLiRuleSet` (3) | `ExcludedRules` = `SQLi_BODY` |
+| `AWS-AWSManagedRulesCommonRuleSet` (1) | `ExcludedRules` += `GenericLFI_BODY` |
+| `block-sqli-body-outside-sql-tool-and-chat` (5, new) | Block `SQLi_Body` label unless `POST` + `/api/clio/tools/query_capiro_data` + host `first-chat-preview.app-dev.capiro.ai`, or `POST` + host `app.capiro.ai` + `/api/conversations/input/allocate`, `/input/admit` or `/list` |
+| `block-lfi-body-outside-chat-routes` (6, new) | Block `GenericLFI_Body` label unless `POST` + host `app.capiro.ai` + the same three chat paths |
+
+All other rules are unchanged. `SQLiExtendedPatterns_BODY` still blocks everywhere, so a SQL body with a
+tautology or `UNION SELECT` is still refused at the edge on the SQL tool path; plain `SELECT ... WHERE`
+bodies reach Core (401 without auth). Core's statement gate and read-only database roles remain the SQL gate.
+Rollback: re-apply the previous rule list with `update-web-acl` and the current lock token.
+No CDK code changed: `compute-stack.ts` still codifies the ACL without the SQLi rule set, so the
+reconciliation above must also decide these two carve-outs deliberately.
