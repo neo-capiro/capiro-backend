@@ -3,6 +3,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { OutreachCampaignService } from './outreach-campaign.service.js';
 import type { OutreachCampaignState } from './outreach-campaign.contract.js';
+import type { GatewayEnrichmentInput } from './generation/generation-gateway.service.js';
 const ctx = {
   tenantId: '00000000-0000-4000-8000-000000000001',
   userId: '00000000-0000-4000-8000-000000000002',
@@ -80,6 +81,7 @@ function fixture() {
   };
   const gateway = { executeSdk: jest.fn<any>() };
   const drafts = { getVersion: jest.fn<any>() };
+  const context = { resolveMany: jest.fn<any>() };
   const service = new OutreachCampaignService(
     prisma as never,
     engagement as never,
@@ -87,12 +89,53 @@ function fixture() {
     gateway as never,
     drafts as never,
     {} as never,
-    {} as never,
+    context as never,
     {} as never,
   );
-  return { service, tx, engagement, jobs, gateway, row: () => row };
+  return { service, tx, engagement, jobs, gateway, context, row: () => row };
 }
 describe('saved Outreach campaign owner', () => {
+  test.each(['individual:one', 'list:separate:one', 'group:shared'])(
+    'carries only applicable saved context into SDK preparation for %s',
+    async (generationKey) => {
+      const f = fixture();
+      const manual = (id: string, text: string, scope: any, contextClass: any) => ({
+        locator: { source: 'manual' as const, id, title: text, text, sourceLabel: null },
+        contextClass,
+        scope,
+      });
+      const campaignContext = manual(requestKey, 'CAMPAIGN_CONTEXT', { kind: 'campaign' }, 'campaign_fact');
+      const ownContext = manual(jobId, 'ONE_PRIVATE_CONTEXT', { kind: 'target', targetKey: 'one' }, 'target_specific');
+      const otherContext = manual(itemId, 'TWO_PRIVATE_CONTEXT', { kind: 'target', targetKey: 'two' }, 'target_specific');
+      const groupContext = manual(conversationId, 'GROUP_CONTEXT', { kind: 'group', groupRef: 'shared' }, 'group_safe');
+      const campaign = await f.service.create(ctx, { requestKey, state: {
+        ...state,
+        recipients: [...state.recipients,
+          { id: 'separate', kind: 'list', role: 'to', name: 'Separate', members: state.recipients.map(({ kind: _kind, ...member }) => member) },
+          { id: 'shared', kind: 'group', role: 'to', name: 'Shared', members: state.recipients.map(({ kind: _kind, ...member }) => member) },
+        ],
+        contextSelections: [campaignContext, ownContext, otherContext, groupContext],
+      } });
+      f.context.resolveMany.mockImplementation(async (_ctx: unknown, selections: any[]) => selections.map(selection => ({
+        ...selection, contextKey: selection.locator.id, snapshotHash: 'same',
+        title: selection.locator.title, summary: selection.locator.text,
+        usableAsEvidence: true, verificationClass: 'user_supplied', clientId: null,
+        sourceSnapshot: { lastVerifiedAt: null },
+      })));
+      f.jobs.getSdkUnit.mockResolvedValue({
+        job: { id: jobId, outreachRecordId: campaign.id, params: { revision: 1, state: campaign.state } },
+        item: { id: itemId, recipientKey: generationKey, status: 'sdk_pending', payload: {} },
+      });
+      f.gateway.executeSdk.mockRejectedValue(new Error('stop after preparation input'));
+      await expect(f.service.claim(ctx, { generationJobId: jobId, itemId })).rejects.toThrow('stop after');
+      const expected = generationKey === 'group:shared' ? groupContext : ownContext;
+      expect(f.context.resolveMany).toHaveBeenCalledWith(ctx, [campaignContext, expected]);
+      const enrichment = f.gateway.executeSdk.mock.calls[0]![2] as GatewayEnrichmentInput;
+      const evidence = await Promise.all(enrichment.channels.map((channel: any) => channel.load()));
+      expect(evidence.sort()).toEqual([campaignContext.locator.text, expected.locator.text].sort());
+      expect(enrichment.auditLedger.map((entry: any) => entry.serialized).sort()).toEqual(evidence);
+    },
+  );
   test('a denied native parent cannot fall through to an older session snapshot', async () => {
     const f = fixture();
     const campaign = await f.service.create(ctx, { requestKey, state });
