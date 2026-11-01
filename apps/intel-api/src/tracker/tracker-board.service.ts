@@ -1,4 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { readTrackerMaterialChanges, TrackerMetricsError } from '@capiro/shared';
+import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SourceDataRepository } from '../sourcedata/source-data.repository.js';
 import { StateSourceDataRepository } from '../sourcedata/state-source-data.repository.js';
@@ -149,6 +151,16 @@ export class TrackerBoardService {
     private readonly watchlists: TrackerWatchlistService,
     private readonly stateRepo: StateSourceDataRepository,
   ) {}
+
+  async materialChanges(ctx: WorkspaceTenantContext, clientId: string, query: unknown) {
+    try { return await readTrackerMaterialChanges(this.prisma, ctx, clientId, 'intelligence', query); }
+    catch (error) {
+      if (error instanceof TrackerMetricsError && error.reason === 'invalid_request') throw new BadRequestException('Invalid metric scope');
+      if (error instanceof TrackerMetricsError && error.reason === 'client_not_readable') throw new NotFoundException('Client not found');
+      throw new ServiceUnavailableException({ code: 'TRACKER_METRICS_UNAVAILABLE',
+        reason: error instanceof TrackerMetricsError ? error.reason : 'source_unavailable', message: 'Material changes are unavailable. Please retry.' });
+    }
+  }
 
   private stateStatusToBoardStage(status: string | null): BillStage {
     return trackerBoardStateSupport.stateStatusToBoardStage(this, status);

@@ -32,7 +32,8 @@ function fixture() {
   const row = { id: ctx.tenantId, name: 'Before', clerkOrgId: 'org-a', status: 'active' };
   let inTransaction = false;
   const tx = {
-    $queryRaw: jest.fn(async () => []),
+    $queryRaw: jest.fn(async () => [{ actor: '' }]),
+    $executeRaw: jest.fn(async () => 0),
     tenantMembership: {
       findUnique: jest.fn(
         async ({ where }: any) =>

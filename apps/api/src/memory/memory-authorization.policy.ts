@@ -122,7 +122,7 @@ export function evaluateGovernedMemoryAuthorization(
   if (subject.scope === 'client' || subject.memoryClass === 'client_steering') {
     if (!subject.clientId) return { allowed: false, reason: 'wrong_client_scope' };
     if (!facts.ethicalWallAllowed) return { allowed: false, reason: 'ethical_wall' };
-    if (!readOnly && facts.clientStatus && facts.clientStatus !== 'active') {
+    if (facts.clientStatus && facts.clientStatus !== 'active') {
       return { allowed: false, reason: 'archived_client' };
     }
     if (readOnly || operation === 'propose') {

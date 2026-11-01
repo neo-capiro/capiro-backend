@@ -1,3 +1,4 @@
+import { expireFillRuns, FillRunDeadlineError, FillTaskTimeoutError, fillRunBeforeDeadline, fillTaskRunAdmissible, FILL_RUN_DEADLINE_SQL } from './client-profile-fill-run-deadline.js';
 import { randomUUID } from 'node:crypto';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { ClientProfileFillCompletionTaskType } from './client-profile-fill-completion-projection.js';
@@ -17,6 +18,7 @@ export interface TaskLedgerPorts {
 export interface RunActorRow {
   createdByUserId: string | null;
   status: string;
+  deadlineAt: Date;
 }
 
 /** Canonical system-scoped extension-task claims, prerequisites and lease transitions. */
@@ -28,6 +30,7 @@ export class ClientProfileFillTaskLedger {
   ) {}
 
   async recoverStaleTasks(): Promise<void> {
+    await expireFillRuns(this.prisma);
     const cutoff = new Date(Date.now() - TASK_STALE_MS);
     await this.prisma.withSystem((tx) =>
       tx.$executeRawUnsafe(
@@ -39,11 +42,13 @@ export class ClientProfileFillTaskLedger {
                   WHEN attempt + 1 >= max_attempts THEN next_attempt_at
                   ELSE now() + make_interval(secs => LEAST(120, 5 * (attempt + 1)))
                 END,
+                output_summary_jsonb = output_summary_jsonb || '{"externalOutcome":"unresolved"}'::jsonb,
                 error_code = 'stale_worker',
                 error_message = 'Worker heartbeat expired; task recovered from durable state',
                 worker_id = NULL, claimed_at = NULL, heartbeat_at = NULL, updated_at = now()
           WHERE status = 'running'
-            AND COALESCE(heartbeat_at, claimed_at, updated_at) < $1`,
+            AND COALESCE(heartbeat_at, claimed_at, updated_at) < $1
+            AND ${fillTaskRunAdmissible('client_profile_fill_extension_task')}`,
         cutoff,
       ),
     );
@@ -56,9 +61,12 @@ export class ClientProfileFillTaskLedger {
            SELECT t.id
              FROM client_profile_fill_extension_task t
              JOIN client_profile_fill_run r ON r.id = t.run_id
+               AND r.tenant_id = t.tenant_id AND r.client_id = t.client_id
             WHERE t.status = 'queued'
               AND t.next_attempt_at <= now()
-              AND r.status <> 'cancelled'
+              AND r.status = 'running'
+              AND ${fillRunBeforeDeadline('r')}
+              AND r.stage <> 'preparing'
               AND NOT EXISTS (
                 SELECT 1
                   FROM client_profile_fill_extension_task dependency
@@ -139,11 +147,12 @@ export class ClientProfileFillTaskLedger {
     await this.prisma.withSystem((tx) =>
       tx.$executeRawUnsafe(
         `UPDATE client_profile_fill_extension_task
-            SET status = $4, output_summary_jsonb = $5::jsonb,
+            SET status = $4, output_summary_jsonb = output_summary_jsonb || $5::jsonb,
                 completed_at = now(), heartbeat_at = NULL, worker_id = NULL,
                 error_code = NULL, error_message = NULL, updated_at = now()
           WHERE id = $1::uuid AND run_id = $2::uuid AND tenant_id = $3::uuid
-            AND status = 'running' AND worker_id = $6`,
+            AND status = 'running' AND worker_id = $6
+            AND ${fillTaskRunAdmissible('client_profile_fill_extension_task')}`,
         task.id,
         task.runId,
         task.tenantId,
@@ -162,7 +171,8 @@ export class ClientProfileFillTaskLedger {
                 claimed_at = NULL, heartbeat_at = NULL, worker_id = NULL,
                 error_code = 'waiting_for_dependency', error_message = $4, updated_at = now()
           WHERE id = $1::uuid AND run_id = $2::uuid AND tenant_id = $3::uuid
-            AND status = 'running' AND worker_id = $5`,
+            AND status = 'running' AND worker_id = $5
+            AND ${fillTaskRunAdmissible('client_profile_fill_extension_task')}`,
         task.id,
         task.runId,
         task.tenantId,
@@ -186,16 +196,20 @@ export class ClientProfileFillTaskLedger {
                   ELSE now() + make_interval(secs => LEAST(120, 5 * (attempt + 1)))
                 END,
                 error_code = 'task_error', error_message = $5,
+                output_summary_jsonb = output_summary_jsonb || $7::jsonb,
                 claimed_at = NULL, heartbeat_at = NULL, worker_id = NULL,
                 updated_at = now()
           WHERE id = $1::uuid AND run_id = $2::uuid AND tenant_id = $3::uuid
-            AND status = 'running' AND worker_id = $6`,
+            AND status = 'running' AND worker_id = $6
+            AND ${fillTaskRunAdmissible('client_profile_fill_extension_task')}`,
         task.id,
         task.runId,
         task.tenantId,
         terminal ? 'failed' : 'queued',
         this.ports.safeError(error),
         task.workerId,
+        JSON.stringify(error instanceof FillRunDeadlineError || error instanceof FillTaskTimeoutError
+          ? { externalOutcome: 'unresolved' } : {}),
       ),
     );
   }
@@ -205,7 +219,8 @@ export class ClientProfileFillTaskLedger {
       tx.$executeRawUnsafe(
         `UPDATE client_profile_fill_extension_task
             SET heartbeat_at = now(), updated_at = now()
-          WHERE id = $1::uuid AND status = 'running' AND worker_id = $2`,
+          WHERE id = $1::uuid AND status = 'running' AND worker_id = $2
+            AND ${fillTaskRunAdmissible('client_profile_fill_extension_task')}`,
         task.id,
         task.workerId,
       ),
@@ -214,8 +229,9 @@ export class ClientProfileFillTaskLedger {
 
   loadRunActor(task: CompletionTaskRow): Promise<RunActorRow[]> {
     return this.prisma.withSystem((tx) =>
-      tx.$queryRawUnsafe<Array<{ createdByUserId: string | null; status: string }>>(
-        `SELECT created_by_user_id AS "createdByUserId", status
+      tx.$queryRawUnsafe<RunActorRow[]>(
+        `SELECT created_by_user_id AS "createdByUserId", status,
+                ${FILL_RUN_DEADLINE_SQL} AS "deadlineAt"
            FROM client_profile_fill_run
           WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid`,
         task.runId,

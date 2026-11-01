@@ -115,138 +115,95 @@ describe('Completion reconciliation — informational conflicts and insertion co
   );
 });
 
-describe('Completion reconciliation — canonical Matter association authority', () => {
-  test.each([
-    {
-      status: 'pending',
-      kind: 'program_element',
-      proposal: { peCode: 'PE123' },
-      type: 'program_element',
-    },
-    {
-      status: 'informational',
-      kind: 'program_element',
-      proposal: { peCode: 'PE123' },
-      type: 'program_element',
-    },
-    {
-      status: 'accepted',
-      kind: 'program_element',
-      proposal: { peCode: 'PE123' },
-      type: 'program_element',
-    },
-    {
-      status: 'rejected',
-      kind: 'bill_recommendation',
-      proposal: { billId: 'PE123' },
-      type: 'bill',
-    },
-  ])(
-    'links a $status $kind by exact Matter identifier with the original actor and no status narrowing',
-    async ({ status, kind, proposal, type }) => {
+describe('Completion reconciliation — provisional Matter associations', () => {
+  test.each(['pending', 'informational', 'accepted'])(
+    'saves only an informational candidate for a %s source',
+    async (status) => {
       const h = harness({
-        associations: [{ id: 'source-finding', kind, status, proposedValue: proposal }],
+        associations: [
+          {
+            id: 'source-finding',
+            kind: 'program_element',
+            status,
+            proposedValue: { peCode: 'PE123' },
+          },
+        ],
         matterIds: { PE123: 'matter-one' },
       });
       expect(await h.reconcile()).toBe(1);
       const scan = h.state.calls.find((call) => call.operation === 'associations')!;
       expect(scan.args).toEqual([ctx.tenantId, clientId, runId]);
-      expect(scan.sql).not.toContain('status =');
+      expect(scan.sql).toContain("status <> 'rejected'");
       const lookup = h.state.calls.find((call) => call.operation === 'matter-lookup')!;
       expect(lookup.args).toEqual([ctx.tenantId, clientId, 'PE123']);
-      expect(lookup.sql).toContain(
-        kind === 'program_element' ? 'primary_pe_code = $3' : 'primary_bill_id = $3',
-      );
-      const link = h.state.calls.find((call) => call.operation === 'matter-link')!;
-      expect(link.args).toEqual([
-        ctx.tenantId,
-        'matter-one',
-        type,
-        'PE123',
-        'PE123',
-        JSON.stringify({ findingId: 'source-finding' }),
-        ctx.userId,
-      ]);
-      expect(link.sql).toContain('ON CONFLICT (matter_id, link_type, link_key) DO UPDATE');
-      expect(link.sql).toContain('metadata_jsonb || EXCLUDED.metadata_jsonb');
-      expect(link.transaction).not.toBe(lookup.transaction);
+      expect(lookup.sql).toContain('ORDER BY id LIMIT 1');
+      expect(h.state.calls.filter((call) => call.operation === 'matter-link')).toEqual([]);
+      expect(h.findingWrites()[0]).toMatchObject({
+        kind: 'matter_link_candidate',
+        status: 'informational',
+        proposedValue: {
+          matterId: 'matter-one',
+          findingId: 'source-finding',
+          linkType: 'program_element',
+          linkKey: 'PE123',
+        },
+      });
     },
   );
-  test('skips absent identifiers and unmatched Matters without creating a Matter or linking another client', async () => {
+  test('does not revive ignored sources or fabricate an unmatched association', async () => {
     const h = harness({
       associations: [
-        { id: 'blank', kind: 'program_element', proposedValue: { peCode: '' } },
+        {
+          id: 'ignored',
+          status: 'rejected',
+          kind: 'program_element',
+          proposedValue: { peCode: 'PE123' },
+        },
         { id: 'absent', kind: 'bill_recommendation', proposedValue: {} },
         { id: 'unmatched', kind: 'bill_recommendation', proposedValue: { billId: 'HR1' } },
       ],
+      matterIds: { PE123: 'matter-one' },
     });
     expect(await h.reconcile()).toBe(0);
     expect(h.state.calls.filter((call) => call.operation === 'matter-lookup')).toHaveLength(1);
-    expect(h.state.calls.filter((call) => call.operation === 'matter-link')).toEqual([]);
+    expect(h.findingWrites()).toEqual([]);
   });
-});
-
-describe('Completion reconciliation — phase ordering and best-effort links', () => {
-  test('commits canonical Matter association before writing a review-only possible-duplicate finding', async () => {
+  test('keeps association candidates and possible duplicate findings independently reviewable', async () => {
     const h = harness({
       rows: [advocacy('b'), advocacy('a')],
       associations: [
-        {
-          id: 'pe',
-          kind: 'program_element',
-          proposedValue: { peCode: 'PE123', title: 'Capability' },
-        },
-      ],
-      matterIds: { PE123: 'matter-one' },
-    });
-    expect(await h.reconcile()).toBe(2);
-    const operations = h.state.calls.map((call) => call.operation);
-    expect(operations.indexOf('matter-link')).toBeLessThan(operations.indexOf('terminal-check'));
-    const finding = h.findingWrites()[0]!;
-    expect(finding).toMatchObject({
-      kind: 'advocacy_duplicate_candidate',
-      source: 'reconciliation',
-      status: 'informational',
-      factKind: 'recommendation',
-      confidence: 0.6,
-      currentValue: null,
-      proposedValue: {
-        type: 'possible_duplicate',
-        findingIds: ['b', 'a'],
-        message:
-          'Two different sources may describe the same advocacy activity on the same day. Review before accepting both.',
-      },
-      evidence: [
-        { source: 'client_submission', metadata: { findingId: 'b' } },
-        { source: 'lda', metadata: { findingId: 'a' } },
-      ],
-    });
-    expect(finding.targetKey).toMatch(/^advocacy-duplicate:[a-f0-9]{20}$/);
-    expect(h.state.calls.filter((call) => call.operation === 'duplicate-update')).toEqual([]);
-  });
-  test('logs sanitized link failure, continues to another canonical link and still emits duplicate flags', async () => {
-    const h = harness({
-      rows: [advocacy('a'), advocacy('b')],
-      associations: [
-        { id: 'pe', kind: 'program_element', proposedValue: { peCode: 'PE123' } },
         {
           id: 'bill',
           kind: 'bill_recommendation',
           proposedValue: { billId: 'HR1', title: 'Bill title' },
         },
       ],
-      matterIds: { PE123: 'matter-one', HR1: 'matter-two' },
-      linkErrors: { PE123: new Error('authorization: pretend-secret') },
+      matterIds: { HR1: 'matter-one' },
     });
     expect(await h.reconcile()).toBe(2);
-    expect(h.warning).toHaveBeenCalledWith(
-      'Advocacy matter finding link failed for client-one/matter-one: authorization=[redacted]',
-    );
-    expect(h.state.transactions.filter((tx) => tx.result === 'rollback')).toHaveLength(1);
-    const links = h.state.committedCalls.filter((call) => call.operation === 'matter-link');
-    expect(links).toHaveLength(1);
-    expect(links[0]!.args.slice(1, 5)).toEqual(['matter-two', 'bill', 'HR1', 'Bill title']);
-    expect(h.findingWrites()[0]!.kind).toBe('advocacy_duplicate_candidate');
+    const findings = h.findingWrites();
+    expect(findings.map((f) => f.kind)).toEqual([
+      'matter_link_candidate',
+      'advocacy_duplicate_candidate',
+    ]);
+    expect(findings.every((f) => f.status === 'informational')).toBe(true);
+    expect(findings[0]!.proposedValue).toMatchObject({
+      linkType: 'bill',
+      linkKey: 'HR1',
+      label: 'Bill title',
+    });
+    expect(findings[1]!.proposedValue.findingIds).toEqual(['b', 'a']);
+    expect(h.state.calls.some((call) => call.operation === 'matter-link')).toBe(false);
+  });
+  test('failed candidate persistence stops the task without writing a canonical link', async () => {
+    const h = harness({
+      associations: [{ id: 'pe', kind: 'program_element', proposedValue: { peCode: 'PE123' } }],
+      matterIds: { PE123: 'matter-one' },
+      insertResults: [new Error('proposal unavailable')],
+    });
+    await expect(h.reconcile()).rejects.toThrow('proposal unavailable');
+    expect(h.state.committedCalls).toEqual([]);
+    expect(h.state.calls.some((call) => call.operation === 'matter-link')).toBe(false);
   });
 });
 
@@ -326,16 +283,19 @@ describe('Completion reconciliation — partial commits and propagation', () => 
     expect(h.state.committedCalls.map((call) => call.operation)).toEqual(['duplicate-update']);
     expect(h.state.transactions.map((tx) => tx.result)).toEqual(['commit', 'commit', 'rollback']);
   });
-  test('preserves an already committed Matter link when duplicate-finding persistence fails later', async () => {
+  test('preserves only the association proposal when later duplicate-finding persistence fails', async () => {
     const h = harness({
       rows: [advocacy('a'), advocacy('b')],
       associations: [{ id: 'pe', kind: 'program_element', proposedValue: { peCode: 'PE123' } }],
       matterIds: { PE123: 'matter-one' },
-      insertResults: [new Error('finding unavailable')],
+      insertResults: [1, new Error('finding unavailable')],
     });
     await expect(h.reconcile()).rejects.toThrow('finding unavailable');
-    expect(h.state.committedCalls.map((call) => call.operation)).toEqual(['matter-link']);
+    expect(h.state.committedCalls.map((call) => call.operation)).toEqual([
+      'retire-prior',
+      'finding-insert',
+    ]);
     expect(h.state.transactions.at(-1)!.result).toBe('rollback');
-    expect(h.state.committedCalls.some((call) => call.operation === 'retire-prior')).toBe(false);
+    expect(h.state.committedCalls.some((call) => call.operation === 'matter-link')).toBe(false);
   });
 });

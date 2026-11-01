@@ -2,11 +2,41 @@ import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 import type {
   CapiroServiceName,
   EngagementBackgroundOwner,
+  EngagementBackgroundWorkerRestriction,
   EngagementExternalAction,
   EngagementExternalActionMode,
+  EngagementMailHandoffBoundary,
+  EngagementMailHandoffContext,
+  EngagementMailHandoffDisposition,
+  EngagementMailHandoffHandle,
+  EngagementMailHandoffObservation,
+  EngagementMailHandoffOutcome,
+  EngagementMailHandoffPhase,
+  EngagementMailHandoffSelection,
   EngagementProcessMode,
   EngagementRuntimeSnapshot,
 } from './engagement-runtime.types.js';
+import {
+  mailHandoff as processMailHandoff,
+  type EngagementMailHandoffBarrier,
+} from './engagement-mail-handoff.js';
+import { meetingDebriefJobEnabled, meetingPrepEnabled } from '../meeting-prep-policy.js';
+
+/**
+ * The existing versioned-outreach feature flag, read the way the config schema reads it. Absent
+ * means OFF: ownership alone must never start the ordinary sender, so every admission branch in
+ * `ordinaryOutreachSendWorkerEnabled()` is gated on this.
+ */
+export function ordinaryOutreachSendEnabled(): boolean {
+  const value = (process.env.ENGAGEMENT_VERSIONED_OUTREACH ?? '').trim().toLowerCase();
+  return ['true', '1', 'yes', 'on'].includes(value);
+}
+
+/**
+ * The only duty names that may inherit the final note-taker ownership exception. An arbitrary or
+ * unnamed worker never does, and the generic selector keeps its exact meaning.
+ */
+export const FINAL_NOTETAKER_DUTIES: readonly string[] = ['notetaker-reconcile', 'client-notetaker'];
 
 /**
  * Central runtime policy service for the Engagement API extraction.
@@ -31,6 +61,9 @@ export class EngagementRuntimePolicyService {
   private readonly externalActionsMode: EngagementExternalActionMode;
   private readonly callbacksEnabled: boolean;
   private readonly recallWebhookEnabled: boolean;
+  private readonly backgroundWorkerRestriction?: EngagementBackgroundWorkerRestriction;
+  /** The barrier this policy owns: the process singleton in Nest, or a test instance. */
+  private readonly mailHandoffBarrier: EngagementMailHandoffBarrier;
 
   constructor(config: {
     serviceName: CapiroServiceName;
@@ -39,13 +72,31 @@ export class EngagementRuntimePolicyService {
     externalActions: EngagementExternalActionMode;
     callbacksEnabled: boolean;
     recallWebhookEnabled: boolean;
-  }) {
+    backgroundWorkerRestriction?: EngagementBackgroundWorkerRestriction;
+    mailHandoff?: EngagementMailHandoffSelection;
+  }, barrier?: EngagementMailHandoffBarrier) {
     this.serviceName = config.serviceName;
     this.processMode = config.processMode;
     this.backgroundOwner = config.backgroundOwner;
     this.externalActionsMode = config.externalActions;
     this.callbacksEnabled = config.callbacksEnabled;
     this.recallWebhookEnabled = config.recallWebhookEnabled;
+    this.backgroundWorkerRestriction = config.backgroundWorkerRestriction;
+    // The policy OWNS its barrier: the process singleton under normal Nest wiring,
+    // or an explicitly supplied instance for isolated cases. Binding is once-only
+    // inside the barrier, so a helper constructed with an omitted selection cannot
+    // reset an existing fence or mix generations.
+    this.mailHandoffBarrier = barrier ?? processMailHandoff;
+    this.mailHandoffBarrier.bind({
+      serviceName: config.serviceName,
+      processMode: config.processMode,
+      backgroundOwner: config.backgroundOwner,
+      externalActions: config.externalActions,
+      callbacksEnabled: config.callbacksEnabled,
+      recallWebhookEnabled: config.recallWebhookEnabled,
+      backgroundWorkerRestriction: config.backgroundWorkerRestriction,
+      mailHandoff: config.mailHandoff,
+    });
   }
 
   snapshot(): EngagementRuntimeSnapshot {
@@ -56,7 +107,99 @@ export class EngagementRuntimePolicyService {
       externalActions: this.externalActionsMode,
       callbacksEnabled: this.callbacksEnabled,
       recallWebhookEnabled: this.recallWebhookEnabled,
+      backgroundWorkerRestriction: this.backgroundWorkerRestriction,
     };
+  }
+
+  /**
+   * Mail-handoff admission fence. Delegated by every service/provider boundary
+   * that performs an actual state or provider effect, so the refusal happens
+   * before the effect rather than at an HTTP route.
+   */
+  mailHandoffPhase(): EngagementMailHandoffPhase {
+    return this.mailHandoffBarrier.phase();
+  }
+
+  assertMailHandoffInitiation(boundary: EngagementMailHandoffBoundary): void {
+    this.mailHandoffBarrier.assertInitiation(boundary);
+  }
+
+  /**
+   * Route a boundary to the correct decision. Grant writes (token refresh and
+   * token persistence) require a LIVE admitted record, so an already-admitted
+   * callback or queue drain keeps its nested refresh while a new writer is
+   * refused. Every other boundary is a new-work gate.
+   */
+  assertMailHandoffBoundary(
+    boundary: EngagementMailHandoffBoundary,
+    context?: EngagementMailHandoffContext,
+  ): void {
+    if (boundary === 'grant_refresh' || boundary === 'grant_persist') {
+      this.mailHandoffBarrier.assertGrantWrite(boundary, context);
+      return;
+    }
+    this.mailHandoffBarrier.assertInitiation(boundary);
+  }
+
+  /**
+   * Run one admitted unit inside its live record and settle it exactly once.
+   * `disposition` lets the effect owner retain a real unknown outcome.
+   */
+  runAdmittedMailHandoffWork<T>(
+    boundary: EngagementMailHandoffBoundary,
+    work: () => Promise<T> | T,
+    disposition?: () => EngagementMailHandoffOutcome,
+  ): Promise<T> {
+    return this.mailHandoffBarrier.runAdmitted(boundary, work, disposition);
+  }
+
+  /**
+   * Explicit trusted continuation for an already-admitted owner (scheduled
+   * sync/renewal, deferred notification drain, admitted disconnect). Requires a
+   * live record; otherwise the NEW-admission gate for the same boundary applies.
+   */
+  assertMailHandoffContinuation(boundary: EngagementMailHandoffBoundary): void {
+    this.mailHandoffBarrier.assertOwnedContinuation(boundary);
+  }
+
+  /** Enter an already-issued live handle (deferred queue drain). Never mints. */
+  runMailHandoffInAdmission<T>(
+    boundary: EngagementMailHandoffBoundary,
+    context: EngagementMailHandoffContext,
+    work: () => Promise<T> | T,
+  ): Promise<T> {
+    return this.mailHandoffBarrier.runInAdmission(boundary, context, work);
+  }
+
+  admitMailHandoffWork(boundary: EngagementMailHandoffBoundary): EngagementMailHandoffHandle {
+    return this.mailHandoffBarrier.admitWork(boundary);
+  }
+
+  /**
+   * Retain already-admitted work as a child of the live record in scope, so a
+   * deferred queue item outlives its HTTP parent without opening a new admission.
+   */
+  retainMailHandoffAdmission(boundary: EngagementMailHandoffBoundary): EngagementMailHandoffHandle {
+    return this.mailHandoffBarrier.retainAdmission(boundary);
+  }
+
+  /** The call-local outcome box of the live record in scope, if any. */
+  mailHandoffDisposition(): EngagementMailHandoffDisposition | undefined {
+    return this.mailHandoffBarrier.mailHandoffDisposition();
+  }
+
+  /** Synchronously stop admitting NEW mail work in this process (shutdown join). */
+  beginMailHandoffLocalShutdown(): void {
+    this.mailHandoffBarrier.beginLocalShutdown();
+  }
+
+  /** Resolve when this process owns no further admitted work. */
+  waitForMailHandoffLocalSettlement(): Promise<void> {
+    return this.mailHandoffBarrier.waitForLocalSettlement();
+  }
+
+  mailHandoffObservation(): EngagementMailHandoffObservation | null {
+    return this.mailHandoffBarrier.observation();
   }
 
   private notetakerPostureEnabled(): boolean {
@@ -73,10 +216,18 @@ export class EngagementRuntimePolicyService {
    * `integrations_only`).
    * The separately explicit notetaker posture adds only its two existing guard
    * names; generic workers remain disabled.
+   * An explicitly configured `backgroundWorkerRestriction` narrows an otherwise
+   * generic owner immediately after the disabled-owner and owner-identity
+   * guards: only the exact `engagement-sync-scheduler` name is admitted, while
+   * no argument, a blank name and every other name stay denied rather than
+   * falling through to generic ownership.
    */
   backgroundWorkersEnabled(workerName?: string): boolean {
     if (this.backgroundOwner === 'disabled') return false;
     if (this.backgroundOwner !== this.serviceName) return false;
+    if (this.backgroundWorkerRestriction) {
+      return workerName === 'engagement-sync-scheduler';
+    }
     if (this.externalActionsMode === 'integrations_and_notetaker') {
       return this.notetakerPostureEnabled() &&
         ['engagement-sync-scheduler', 'notetaker-reconcile', 'client-notetaker'].includes(workerName ?? '');
@@ -85,32 +236,6 @@ export class EngagementRuntimePolicyService {
       return this.serviceName === 'api' && workerName === 'engagement-sync-scheduler';
     }
     return true;
-  }
-
-  /**
-   * Dedicated exception for Outreach V3 full generation. It does not change
-   * global background ownership and cannot start any other Engagement worker.
-   */
-  outreachV3FullGenerationWorkerEnabled(): boolean {
-    return (
-      this.externalActionsMode !== 'integrations_only' &&
-      this.externalActionsMode !== 'integrations_and_notetaker' &&
-      this.serviceName === 'engagement-api' &&
-      process.env.OUTREACH_V3_STATE_ENABLED === 'true' &&
-      process.env.OUTREACH_V3_GENERATION_ENABLED === 'true' &&
-      process.env.OUTREACH_V3_DRAFTS_ENABLED === 'true' &&
-      process.env.OUTREACH_V3_FULL_GENERATION_ENABLED === 'true'
-    );
-  }
-
-  assertOutreachV3FullGenerationWorker(): void {
-    if (!this.outreachV3FullGenerationWorkerEnabled()) {
-      throw new ServiceUnavailableException({
-        statusCode: 503,
-        code: 'OUTREACH_V3_FULL_GENERATION_WORKER_DISABLED',
-        message: 'The Outreach V3 full-generation worker is disabled.',
-      });
-    }
   }
 
   /** Dedicated exception for the send-intent worker, scoped to V3 sessions. */
@@ -131,6 +256,208 @@ export class EngagementRuntimePolicyService {
         statusCode: 503,
         code: 'OUTREACH_V3_SEND_WORKER_DISABLED',
         message: 'The Outreach V3 send-intent worker is disabled.',
+      });
+    }
+  }
+
+  /**
+   * Dedicated exception for the comprehensive meeting-prep worker on the final API owner.
+   *
+   * It admits ONLY the meeting-prep worker, and only on the accepted final API tuple: the API
+   * service in its active process mode, the API background owner, external actions enabled,
+   * callbacks enabled, the existing `integration_sync_scheduler` restriction and an unphased
+   * (open) mail-handoff barrier.
+   *
+   * The Recall webhook axis is deliberately NOT constrained. Both explicitly reviewed final API
+   * variants — Recall disabled (today's accepted production stage) and Recall enabled (the accepted
+   * capture stage) — admit prep, so flipping only that axis cannot regress this worker. The runtime
+   * environment resolver admits both as well, but only when the Recall switch is explicit; an
+   * omitted or blank value stays refused, so this is never implicit recall arming.
+   *
+   * The comprehensive-prep feature flag gates every branch in `meetingPrepWorkerEnabled()` below, so
+   * it is not re-checked here. The generic scheduler-only selector keeps its exact meaning and is
+   * not widened, and no other tuple axis is optional.
+   */
+  private meetingPrepComprehensiveExceptionEnabled(): boolean {
+    return (
+      this.serviceName === 'api' &&
+      this.processMode === 'active' &&
+      this.backgroundOwner === 'api' &&
+      this.externalActionsMode === 'enabled' &&
+      this.callbacksEnabled &&
+      this.backgroundWorkerRestriction === 'integration_sync_scheduler' &&
+      this.mailHandoffPhase() === 'off'
+    );
+  }
+
+  /**
+   * The single ownership predicate for the meeting-prep worker: startup and tick both consult it.
+   * The existing comprehensive-prep feature flag is required for EVERY branch, so a legacy generic
+   * owner keeps its original flag-off behavior (no timer, no tick) instead of starting on ownership
+   * alone. When the flag is on, the existing named background policy remains authoritative where it
+   * already admits prep; the dedicated exception above is the only additional admission and applies
+   * to the meeting-prep worker alone.
+   */
+  meetingPrepWorkerEnabled(): boolean {
+    if (!meetingPrepEnabled()) return false;
+    if (this.backgroundWorkersEnabled('meeting-prep-worker')) return true;
+    return this.meetingPrepComprehensiveExceptionEnabled();
+  }
+
+  /**
+   * The single ownership predicate for the debrief worker (D1). The debrief job gate is
+   * required for every branch, so a flag-off process never starts a timer and never sweeps.
+   * Ownership follows the same named background policy and the same reviewed API tuple that
+   * already admits prep; no new admission axis is introduced.
+   */
+  meetingDebriefWorkerEnabled(): boolean {
+    if (!meetingDebriefJobEnabled()) return false;
+    if (this.backgroundWorkersEnabled('meeting-debrief-worker')) return true;
+    return this.meetingPrepComprehensiveExceptionEnabled();
+  }
+
+  assertMeetingDebriefWorker(): void {
+    if (!this.meetingDebriefWorkerEnabled()) {
+      this.logger.log(
+        `meeting-debrief-worker disabled by engagement runtime policy ` +
+          `(service=${this.serviceName} owner=${this.backgroundOwner} mode=${this.processMode})`,
+      );
+      throw new ServiceUnavailableException({
+        statusCode: 503,
+        code: 'ENGAGEMENT_BACKGROUND_DISABLED',
+        worker: 'meeting-debrief-worker',
+        message: 'Background workers are disabled in the engagement-api shadow runtime.',
+      });
+    }
+  }
+
+  /**
+   * Dedicated exception for the ordinary canonical send-intent worker on the final API owner.
+   *
+   * It admits ONLY the ordinary sender, and only on the accepted final API tuple: the API service
+   * in its active process mode, the API background owner, external actions enabled, callbacks
+   * enabled, the existing `integration_sync_scheduler` restriction and an unphased (open)
+   * mail-handoff barrier.
+   *
+   * As with prep, the Recall webhook axis is deliberately NOT constrained: both explicitly reviewed
+   * final API stages (Recall disabled today, Recall enabled for the accepted capture receiver)
+   * admit the ordinary sender, so flipping only that axis cannot regress it. The resolver requires
+   * the switch to be explicit for either stage, so this is not implicit recall arming.
+   *
+   * The existing versioned-outreach flag gates every branch in
+   * `ordinaryOutreachSendWorkerEnabled()` below, so it is not re-checked here. The generic
+   * scheduler-only selector keeps its exact meaning and is never widened, and unnamed
+   * `backgroundWorkersEnabled()` stays false on this tuple.
+   */
+  private ordinaryOutreachSendExceptionEnabled(): boolean {
+    return (
+      this.serviceName === 'api' &&
+      this.processMode === 'active' &&
+      this.backgroundOwner === 'api' &&
+      this.externalActionsMode === 'enabled' &&
+      this.callbacksEnabled &&
+      this.backgroundWorkerRestriction === 'integration_sync_scheduler' &&
+      this.mailHandoffPhase() === 'off'
+    );
+  }
+
+  /**
+   * The single ownership predicate for the ordinary canonical sender: startup and every tick/sweep
+   * consult it. The existing `ENGAGEMENT_VERSIONED_OUTREACH` flag is required for EVERY branch, so a
+   * flag-off process never starts a timer and never sweeps, even when the ownership tuple matches.
+   * Where the existing named background policy already admits this worker, that admission stands; the
+   * dedicated exception above is the only additional admission and applies to this worker alone.
+   * The V3-only selector is a separate existing path and is not changed here.
+   */
+  ordinaryOutreachSendWorkerEnabled(): boolean {
+    if (!ordinaryOutreachSendEnabled()) return false;
+    if (this.backgroundWorkersEnabled('outreach-send-intent-worker')) return true;
+    return this.ordinaryOutreachSendExceptionEnabled();
+  }
+
+  assertOrdinaryOutreachSendWorker(): void {
+    if (!this.ordinaryOutreachSendWorkerEnabled()) {
+      this.logger.log(
+        `outreach-send-intent-worker disabled by engagement runtime policy ` +
+          `(service=${this.serviceName} owner=${this.backgroundOwner} mode=${this.processMode})`,
+      );
+      throw new ServiceUnavailableException({
+        statusCode: 503,
+        code: 'ENGAGEMENT_BACKGROUND_DISABLED',
+        worker: 'outreach-send-intent-worker',
+        message: 'Background workers are disabled in the engagement-api shadow runtime.',
+      });
+    }
+  }
+
+  /**
+   * Dedicated exception for the named note-taker duties on the accepted final API owner that will
+   * receive Recall callbacks: API service, active process, API background owner, external actions
+   * enabled, callbacks enabled, Recall webhooks enabled, the existing `integration_sync_scheduler`
+   * restriction and an unphased (open) mail-handoff barrier.
+   *
+   * Recall enabled is required here on purpose: while the final stage is Recall disabled, the new
+   * owner stays closed, so recovery is never admitted before the receiver handoff exists.
+   *
+   * `NOTETAKER_ENABLED` is deliberately absent. That flag gates NEW CAPTURE only; existing sessions
+   * must still be recovered, cleaned up, expired and repaired after capture is disabled, a
+   * preference is revoked or consent is lost. Gating this predicate on capture would silently
+   * disable that safety behavior.
+   */
+  private finalNotetakerExceptionEnabled(): boolean {
+    return (
+      this.serviceName === 'api' &&
+      this.processMode === 'active' &&
+      this.backgroundOwner === 'api' &&
+      this.externalActionsMode === 'enabled' &&
+      this.callbacksEnabled &&
+      this.recallWebhookEnabled &&
+      this.backgroundWorkerRestriction === 'integration_sync_scheduler' &&
+      this.mailHandoffPhase() === 'off'
+    );
+  }
+
+  /**
+   * The single ownership predicate for the named note-taker duties: worker startup, the worker
+   * tick, the guarded service proxy and the raw sweep/client gates all consult it. A legitimate
+   * existing named owner keeps whatever the generic policy already admits; the dedicated exception
+   * is the only additional admission and applies to these two duty names alone.
+   */
+  finalNotetakerWorkerEnabled(workerName?: string): boolean {
+    if (!FINAL_NOTETAKER_DUTIES.includes(workerName ?? '')) return false;
+    if (this.backgroundWorkersEnabled(workerName)) return true;
+    return this.finalNotetakerExceptionEnabled();
+  }
+
+  assertFinalNotetakerWorker(workerName: string): void {
+    if (!this.finalNotetakerWorkerEnabled(workerName)) {
+      this.logger.log(
+        `${workerName} disabled by engagement runtime policy ` +
+          `(service=${this.serviceName} owner=${this.backgroundOwner} mode=${this.processMode} ` +
+          `recall=${this.recallWebhookEnabled})`,
+      );
+      throw new ServiceUnavailableException({
+        statusCode: 503,
+        code: 'ENGAGEMENT_BACKGROUND_DISABLED',
+        worker: workerName,
+        message: 'Background workers are disabled in the engagement-api shadow runtime.',
+      });
+    }
+  }
+
+  assertMeetingPrepWorker(): void {
+    if (!this.meetingPrepWorkerEnabled()) {
+      this.logger.log(
+        `meeting-prep-worker disabled by engagement runtime policy ` +
+          `(service=${this.serviceName} owner=${this.backgroundOwner} mode=${this.processMode})`,
+      );
+      // Same stable denial contract as every other background-owner refusal; the worker name keeps it
+      // distinguishable without adding a new error taxonomy for this internal ownership change.
+      throw new ServiceUnavailableException({
+        statusCode: 503,
+        code: 'ENGAGEMENT_BACKGROUND_DISABLED',
+        worker: 'meeting-prep-worker',
+        message: 'Background workers are disabled in the engagement-api shadow runtime.',
       });
     }
   }

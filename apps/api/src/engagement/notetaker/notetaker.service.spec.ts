@@ -19,6 +19,8 @@ import { EngagementRuntimePolicyService } from '../runtime/engagement-runtime-po
 const runtimePolicy = {
   backgroundWorkersEnabled: () => true,
   assertBackgroundOwner: () => {},
+  finalNotetakerWorkerEnabled: () => true,
+  assertFinalNotetakerWorker: () => {},
   assertExternalAction: () => {},
   assertCallbacksEnabled: () => {},
   externalActionAllowed: () => true,

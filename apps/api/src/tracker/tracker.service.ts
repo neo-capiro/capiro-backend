@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
@@ -6,7 +6,8 @@ import {
   toWordBoundaryPattern,
 } from '../intelligence/bill-keyword-match.helpers.js';
 import { IntelligenceService } from '../intelligence/intelligence.service.js';
-import { issueAreaForSector, normalizeIssueArea } from '@capiro/shared';
+import { clientIntelligenceReads } from '../intelligence/client-read-cache.js';
+import { issueAreaForSector, normalizeIssueArea, readTrackerMaterialChanges, TrackerMetricsError, type TenantContext } from '@capiro/shared';
 import { EMBEDDING_MODEL, embedText, normalize, vectorLiteral } from '../embeddings/embedder.js';
 import { normalizeE164 } from './sms/sms.service.js';
 import {
@@ -92,6 +93,16 @@ export class TrackerService {
 
   issueAreas(): readonly string[] {
     return ISSUE_AREAS;
+  }
+
+  async materialChanges(ctx: TenantContext, clientId: string, query: unknown) {
+    try { return await readTrackerMaterialChanges(this.prisma, ctx, clientId, 'core', query); }
+    catch (error) {
+      if (error instanceof TrackerMetricsError && error.reason === 'invalid_request') throw new BadRequestException('Invalid metric scope');
+      if (error instanceof TrackerMetricsError && error.reason === 'client_not_readable') throw new NotFoundException('Client not found');
+      throw new ServiceUnavailableException({ code: 'TRACKER_METRICS_UNAVAILABLE',
+        reason: error instanceof TrackerMetricsError ? error.reason : 'source_unavailable', message: 'Material changes are unavailable. Please retry.' });
+    }
   }
 
   // ── Watchlist ──────────────────────────────────────────────────────────────
@@ -370,6 +381,7 @@ export class TrackerService {
         create: { tenantId, clientId, billId: trimmed, source, createdBy: userId },
       }),
     );
+    clientIntelligenceReads(this.intelligence).invalidate(tenantId, clientId);
     await this.recordFeedback(clientId, tenantId, userId, trimmed, 'tracked');
     return { tracked: true };
   }
@@ -382,6 +394,7 @@ export class TrackerService {
     await this.prisma.withTenant(tenantId, (tx) =>
       tx.trackedBill.deleteMany({ where: { clientId, billId: (billId ?? '').trim() } }),
     );
+    clientIntelligenceReads(this.intelligence).invalidate(tenantId, clientId);
     return { untracked: true };
   }
 

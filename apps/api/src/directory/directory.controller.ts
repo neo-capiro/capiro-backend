@@ -31,6 +31,12 @@ class FavoriteContactDto {
 export class DirectoryController {
   constructor(private readonly service: DirectoryService) {}
 
+  /** Global catalog aggregate under the same role guard as Directory browsing. */
+  @Get('metrics')
+  metrics() {
+    return this.service.getMetrics();
+  }
+
   @Get('contacts')
   contacts(
     @Query('q') q?: string,

@@ -178,4 +178,25 @@ describe('enrichFromKgCache', () => {
     expect(res.clientsWalked).toBeLessThan(2);
     expect(res.truncated).toBe(true);
   });
+
+  it('reports a ceiling reached on the last client instead of claiming complete enrichment', async () => {
+    const tx = fakeTx([Array.from({ length: 10 }, (_, k) => edge({ dst_id: `d${k}` }))]);
+    const res = await enrichFromKgCache(tx, {
+      tenantId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', deniedClientIds: [],
+      clients: [{ id: CLIENT_A, name: 'A' }], edgeCeiling: 5,
+    });
+    expect(res.clientsWalked).toBe(res.clientsTotal);
+    expect(res.relations).toHaveLength(5);
+    expect(res.truncated).toBe(true);
+  });
+
+  it('reports the database row budget as potentially truncated even after deduplication', async () => {
+    const tx = fakeTx([[edge(), edge()]]);
+    const res = await enrichFromKgCache(tx, {
+      tenantId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', deniedClientIds: [],
+      clients: [{ id: CLIENT_A, name: 'A' }], perClientRowBudget: 2,
+    });
+    expect(res.relations).toHaveLength(1);
+    expect(res.truncated).toBe(true);
+  });
 });

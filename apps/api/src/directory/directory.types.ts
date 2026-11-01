@@ -179,6 +179,26 @@ export interface DirectoryTotals {
   staff: number;
 }
 
+/** Selection health is separate from publisher freshness, which this reader
+ * cannot establish from a snapshot path or a successful S3 request. */
+export interface DirectorySnapshotObservation {
+  state: 'current' | 'previous_fallback' | 'stale_cache' | 'unknown';
+  loadedAt: string;
+  checkedAt: string;
+  publisherObservedAt: null;
+}
+
+export interface DirectoryMetrics {
+  metric: 'directory_contacts';
+  definitionVersion: 1;
+  scope: 'global_catalog';
+  count: number;
+  complete: true;
+  capped: false;
+  observedAt: string;
+  snapshot: DirectorySnapshotObservation & { sourceId: string };
+}
+
 export interface DirectoryStaffer {
   id: string;
   fullName: string;

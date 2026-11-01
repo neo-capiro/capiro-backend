@@ -7,6 +7,8 @@ export interface BuyerWorkspaceInput {
   peCode: string;
   asOfFy: number;
   knownAt: string;
+  acquisitionCursor?: string;
+  fundingCursor?: string;
   mentionsCursor?: string;
   lifecycleCursor?: string;
 }
@@ -18,6 +20,34 @@ export type WorkspaceSection<T> =
 
 export function unsupportedSection(code: string, detail: string): WorkspaceSection<never> {
   return { state: 'unsupported', data: null, coverage: { unresolvedReasons: [{ code, detail }] }, freshness: null };
+}
+
+export function buyerWorkspaceCursor(value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string' || value.length === 0 || value.length > 4096 || value.trim() !== value)
+    throw new BadRequestException('Buyer workspace cursor must be an exact non-empty continuation of at most 4096 characters.');
+  return value;
+}
+
+/** Source coverage describes the source, while this section may contain only
+ * one page. Preserve the reader's data and never upgrade unsupported coverage. */
+function pagedSection<T extends {
+  page: { hasMore: boolean };
+  coverage: {
+    state: 'complete' | 'partial' | 'unsupported';
+    unresolvedReasons: Array<{ code: string; count: number | null; detail: string | null }>;
+    sourceFreshness: unknown;
+  };
+}>(data: T, section: 'acquisition' | 'funding') {
+  const state = data.page.hasMore && data.coverage.state === 'complete' ? 'partial' : data.coverage.state;
+  const coverage = data.page.hasMore ? {
+    ...data.coverage, state, unresolvedReasons: [...data.coverage.unresolvedReasons, {
+      code: section + '_page_incomplete', count: null,
+      detail: 'More rows remain; follow this section’s next cursor with the same fiscal year and knowledge timestamp.',
+    }],
+  } : data.coverage;
+  const freshness: T['coverage']['sourceFreshness'] = data.coverage.sourceFreshness;
+  return { state, data, coverage, freshness };
 }
 
 @Injectable()
@@ -41,16 +71,20 @@ export class BuyerWorkspaceService {
     if (!Number.isFinite(date.getTime())) throw new BadRequestException('knownAt must be a valid ISO date/time.');
     const knownAt = date.toISOString();
     const scope = { peCode, asOfFy: input.asOfFy, knownAt };
+    const acquisitionCursor = buyerWorkspaceCursor(input.acquisitionCursor);
+    const fundingCursor = buyerWorkspaceCursor(input.fundingCursor);
+    const mentionsCursor = buyerWorkspaceCursor(input.mentionsCursor);
+    const lifecycleCursor = buyerWorkspaceCursor(input.lifecycleCursor);
     // The two source-backed readers independently enforce the same temporal scope.
     // Their rows, evidence, review state, and accounting classifications are kept intact.
     const [acquisition, funding, mentions, lifecycle] = await Promise.all([
-      this.acquisition.read(scope),
-      this.funding.read(scope),
+      this.acquisition.read({ ...scope, cursor: acquisitionCursor }),
+      this.funding.read({ ...scope, cursor: fundingCursor }),
       this.federalEvidence.currentQualifiedMentions(peCode, {
-        knownAt, limit: 100, cursor: input.mentionsCursor,
+        knownAt, limit: 100, cursor: mentionsCursor,
       }),
       this.federalEvidence.lifecycleTimeline({ peCode }, {
-        knownAt, limit: 100, cursor: input.lifecycleCursor,
+        knownAt, limit: 100, cursor: lifecycleCursor,
       }),
     ]);
     if (acquisition.asOfFy !== input.asOfFy || acquisition.knownAt !== knownAt ||
@@ -74,18 +108,8 @@ export class BuyerWorkspaceService {
         },
         freshness: { knownAt, sourceAsOf: null },
       },
-      acquisition: {
-        state: acquisition.coverage.state,
-        data: acquisition,
-        coverage: acquisition.coverage,
-        freshness: acquisition.coverage.sourceFreshness,
-      },
-      fundingExecution: {
-        state: funding.coverage.state,
-        data: funding,
-        coverage: funding.coverage,
-        freshness: funding.coverage.sourceFreshness,
-      },
+      acquisition: pagedSection(acquisition, 'acquisition'),
+      fundingExecution: pagedSection(funding, 'funding'),
     };
   }
 }

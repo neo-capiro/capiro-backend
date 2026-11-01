@@ -72,6 +72,16 @@ function ports(options: { identityExpiresInMs?: number; clientId?: string } = {}
 }
 
 describe('artifact current authority (capiro.meri-artifact-authority.v1)', () => {
+  it('admits exact official-source import through existing generation permission and current client authority', async () => {
+    const request = parseApplicationAuthorityArtifactBody({ ...createCase.request, intent: 'federal-import' });
+    const f = ports();
+    const receipt = await readApplicationAuthorityArtifact(request, 'standard_user', f.ports);
+    expect(receipt.intent).toBe('federal-import');
+    expect(receipt.operations).toContain('artifact.generate');
+    await expect(readApplicationAuthorityArtifact(request, 'client_portal_user', ports().ports)).rejects.toThrow();
+    await expect(readApplicationAuthorityArtifact(request, 'standard_user', { ...ports().ports,
+      clientVisible: async () => { throw new ForbiddenException(); } })).rejects.toThrow(ForbiddenException);
+  });
   it('pins the vendored Meri vector bytes', () => {
     expect(createHash('sha256').update(vectorBytes).digest('hex')).toBe('99a283d6a9e2bda4c2a747a305b5f457b4c9899c6f3478e12c881aed958c5caa');
     expect(vector.route).toEqual({ method: 'POST', path: '/api/clio/application-authority/artifact', successStatus: 200 });
@@ -80,6 +90,37 @@ describe('artifact current authority (capiro.meri-artifact-authority.v1)', () =>
     ));
     expect(ARTIFACT_INTENT_OPERATIONS.history).toEqual(['artifact.inspect']);
     expect(ARTIFACT_INTENT_OPERATIONS.list).toEqual(['artifact.inspect']);
+    expect(ARTIFACT_INTENT_OPERATIONS['federal-prepare']).toEqual(['artifact.download', 'artifact.inspect']);
+    expect(ARTIFACT_INTENT_OPERATIONS['federal-load']).toEqual(['artifact.download', 'artifact.inspect']);
+    expect(ARTIFACT_INTENT_OPERATIONS['federal-publish']).toEqual(['artifact.download', 'artifact.generate', 'artifact.inspect', 'artifact.revise']);
+    expect(ARTIFACT_INTENT_OPERATIONS['federal-import']).toEqual(['artifact.generate']);
+    // SCRUM-222: browser-imported bytes reuse the existing generation operation only.
+    expect(ARTIFACT_INTENT_OPERATIONS['browser-import']).toEqual(['artifact.generate']);
+  });
+
+  it('admits browser import through the same generation permission and current client authority', async () => {
+    const request = parseApplicationAuthorityArtifactBody({ ...createCase.request, intent: 'browser-import' });
+    const f = ports();
+    const receipt = await readApplicationAuthorityArtifact(request, 'standard_user', f.ports);
+    expect(receipt.intent).toBe('browser-import');
+    expect(receipt.operations).toContain('artifact.generate');
+    await expect(readApplicationAuthorityArtifact(request, 'client_portal_user', ports().ports)).rejects.toThrow();
+    await expect(readApplicationAuthorityArtifact(request, 'standard_user', { ...ports().ports,
+      clientVisible: async () => { throw new ForbiddenException(); } })).rejects.toThrow(ForbiddenException);
+  });
+
+  it.each([
+    ['office-import', 'artifact.generate'],
+    ['office-edit', 'artifact.revise'],
+  ] as const)('admits %s only through existing current artifact permissions and client walls', async (intent, operation) => {
+    const request = parseApplicationAuthorityArtifactBody({ ...createCase.request, intent });
+    expect(ARTIFACT_INTENT_OPERATIONS[intent]).toEqual([operation]);
+    const receipt = await readApplicationAuthorityArtifact(request, 'standard_user', ports().ports);
+    expect(receipt.intent).toBe(intent);
+    expect(receipt.operations).toContain(operation);
+    await expect(readApplicationAuthorityArtifact(request, 'client_portal_user', ports().ports)).rejects.toThrow();
+    await expect(readApplicationAuthorityArtifact(request, 'standard_user', { ...ports().ports,
+      clientVisible: async () => { throw new ForbiddenException(); } })).rejects.toThrow(ForbiddenException);
   });
 
   it("ports Meri's receipt check faithfully: it accepts each vector receipt and refuses all 18 vector refusals", () => {
@@ -119,7 +160,7 @@ describe('artifact current authority (capiro.meri-artifact-authority.v1)', () =>
     }
   });
 
-  it.each(['history', 'list', 'results'])('admits %s only through current private-conversation read authority', async intent => {
+  it.each(['history', 'list', 'results'] as const)('admits %s only through current private-conversation read authority', async intent => {
     const request = parseApplicationAuthorityArtifactBody({ ...createCase.request, intent });
     const f = ports();
     const receipt = await readApplicationAuthorityArtifact(request, 'standard_user', f.ports);

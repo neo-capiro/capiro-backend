@@ -1,3 +1,4 @@
+import { withMemoryConversationRetention } from './conversation-serving/transaction.js';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext, TenantRole } from '@capiro/shared';
@@ -89,6 +90,7 @@ export class MemorySettingsReviewReadinessService {
   async assertSubmissionReady(
     ctx: ReviewActorContext,
     input: SettingsMemoryCandidateInput,
+    transaction?: Prisma.TransactionClient,
   ): Promise<{ eligibleReviewers: MemoryReviewerIdentity[] }> {
     if (!settingsMemoryReviewEnabledForTenant(ctx.tenantId)) {
       throw new ConflictException(
@@ -97,15 +99,19 @@ export class MemorySettingsReviewReadinessService {
       );
     }
 
-    const eligibleReviewers = await this.prisma.withTenantUser(
-      ctx.tenantId,
-      ctx.userId,
-      async (tx) => {
+    const read = async (tx: Prisma.TransactionClient) => {
+        // A reviewer cannot be removed or lose an existing grant between readiness
+        // and the caller's atomic candidate insert. Ordinary read-only callers keep
+        // the same short transaction and canonical authorization policy.
+        await tx.$executeRaw`SELECT id FROM tenant_memberships WHERE tenant_id=${ctx.tenantId}::uuid ORDER BY id FOR SHARE`;
+        if (input.clientId) await tx.$executeRaw`SELECT id FROM memory_access_grant
+          WHERE tenant_id=${ctx.tenantId}::uuid AND client_id=${input.clientId}::uuid ORDER BY id FOR SHARE`;
         const subject = await this.syntheticSubjectInTx(tx, ctx, input);
         const members = await activeTenantMembersInTx(tx, ctx.tenantId);
         return this.eligibleReviewersInTx(tx, ctx.tenantId, subject, members);
-      },
-    );
+      };
+    const eligibleReviewers = transaction ? await read(transaction)
+      : await withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, read);
 
     if (eligibleReviewers.length === 0) {
       const message =
@@ -126,7 +132,7 @@ export class MemorySettingsReviewReadinessService {
     pending: PendingSettingsCandidate,
     options: { reviewEnabled?: boolean } = {},
   ): Promise<PendingSettingsCandidate> {
-    return this.prisma.withTenantUser(tenantId, viewerUserId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, tenantId, viewerUserId, async (tx) => {
       const row = (await tx.memoryCandidate.findFirst({
         where: { id: pending.candidateId, tenantId, status: 'pending' },
         select: {
@@ -248,7 +254,7 @@ export class MemorySettingsReviewReadinessService {
       };
     }
 
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const rows = await tx.memoryCandidate.findMany({
         where: {
           tenantId: ctx.tenantId,

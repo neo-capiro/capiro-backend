@@ -36,19 +36,17 @@ const uuid = z
   .uuid()
   .regex(/^[a-f0-9-]+$/);
 const digest = z.string().regex(/^[a-f0-9]{64}$/);
-const jurisdiction = z
-  .string()
-  .regex(/^(US|[A-Z]{2})$/);
+const jurisdiction = z.string().regex(/^(US|[A-Z]{2})$/);
 const source = z
   .object({
-    kind: z.string().min(1).max(40),
+    kind: z.literal('research'),
     id: z.string().min(1).max(200),
     revision: z.string().min(1).max(200),
   })
   .strict();
 const citation = z
   .object({
-    kind: z.string().min(1).max(40),
+    kind: z.literal('research'),
     id: z.string().min(1).max(200),
     revision: z.string().min(1).max(200),
     locator: z.string().min(1).max(200),
@@ -76,7 +74,7 @@ const briefingSelection = z
     folderId: uuid,
     jurisdiction: jurisdiction.optional(),
     sessionKey: z.string().min(1).max(120).optional(),
-    template: z.enum(['research_update', 'daily_legislative_brief', 'morning_news_brief']),
+    template: z.enum(['research_update', 'daily_legislative_brief']),
     title: z.string().min(1).max(200),
     analysis: z.string().min(1).max(30000),
     cutoff: z.string().min(1).max(40),
@@ -126,8 +124,7 @@ export type LegislativeDocumentResearchRequest = z.infer<
   typeof legislativeDocumentResearchRequestSchema
 >;
 export type LegislativeDocumentRequest =
-  | LegislativeDocumentBriefingRequest
-  | LegislativeDocumentResearchRequest;
+  LegislativeDocumentBriefingRequest | LegislativeDocumentResearchRequest;
 export const legislativeDocumentSelectionSchema = z
   .object({ conversationId: uuid, selectedClientId: uuid.nullable() })
   .strict();
@@ -153,7 +150,10 @@ function schemaFor(tool: string) {
   throw new BadRequestException('Unknown legislative document effect');
 }
 /** Exact owner request. An absent client/folder scope stays absent so the server re-derives it. */
-export function legislativeDocumentRequest(tool: string, input: unknown): LegislativeDocumentRequest {
+export function legislativeDocumentRequest(
+  tool: string,
+  input: unknown,
+): LegislativeDocumentRequest {
   const raw = input as Record<string, unknown> | null;
   const parsed = schemaFor(tool).safeParse(
     raw && {
@@ -263,8 +263,14 @@ export function legislativeDocumentReceipt(tool: string, result: unknown, input:
       tool: z.literal(tool),
       status: z.enum(['saved', 'selection_saved', 'unknown']),
       selectionId: z.string().min(1).max(200).nullable(),
-      documentId: z.string().regex(/^[a-zA-Z0-9-]{1,100}$/).nullable(),
-      location: z.string().regex(/^\/workspace\/draft\/[a-zA-Z0-9-]{1,100}$/).nullable(),
+      documentId: z
+        .string()
+        .regex(/^[a-zA-Z0-9-]{1,100}$/)
+        .nullable(),
+      location: z
+        .string()
+        .regex(/^\/workspace\/draft\/[a-zA-Z0-9-]{1,100}$/)
+        .nullable(),
       reused: z.boolean(),
     })
     .safeParse(r);

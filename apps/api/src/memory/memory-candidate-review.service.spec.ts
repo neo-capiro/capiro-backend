@@ -1,3 +1,6 @@
+// PostgreSQL retention is qualified separately with real roles and transactions.
+jest.mock('./conversation-serving/transaction.js', () =>
+  jest.requireActual('./conversation-serving/unit-boundary.fixture.js'));
 import { describe, expect, it, jest } from '@jest/globals';
 import {
   BadRequestException,
@@ -377,7 +380,13 @@ describe('MemoryCandidateReviewService', () => {
         outcome: 'rejected',
       });
       expect(h.approve).toHaveBeenCalledWith(TENANT, 'candidate-1', USER, ctx);
-      expect(h.reject).toHaveBeenCalledWith(TENANT, 'candidate-1', USER, ctx);
+      expect(h.reject).toHaveBeenCalledWith(
+        TENANT,
+        'candidate-1',
+        USER,
+        ctx,
+        'Not supported by the source.',
+      );
       expect(h.assertAssignedForDecision).toHaveBeenCalledWith(ctx, 'candidate-1', 'approve');
       expect(h.assertAssignedForDecision).toHaveBeenCalledWith(ctx, 'candidate-1', 'review');
       expect(h.completeDecision).toHaveBeenCalledWith(ctx, 'candidate-1', 'approved');

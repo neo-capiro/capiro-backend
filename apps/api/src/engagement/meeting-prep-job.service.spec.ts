@@ -1,5 +1,7 @@
 import { MeetingPrepJobService } from './meeting-prep-job.service.js';
 import { mondayBoardScopeFromQuery } from '../retrieval/adapters/monday-board-scope.js';
+import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
+import { EngagementMailHandoffBarrier } from './runtime/engagement-mail-handoff.js';
 
 describe('durable meeting prep jobs', () => {
   const ctx = {
@@ -279,6 +281,149 @@ describe('durable meeting prep jobs', () => {
         leaseToken: null,
         leaseUntil: null,
       },
+    });
+  });
+
+  describe('background worker tick ownership', () => {
+    function workerHarness(assertMeetingPrepWorker: () => void) {
+      const tx = { meetingPrepJob: { updateMany: jest.fn(async () => ({ count: 0 })),
+                                     findFirst: jest.fn(async () => null) } };
+      const prisma = {
+        withSystem: jest.fn(async (run: (tx: unknown) => unknown) => run(tx)),
+        withTenantUser: jest.fn(),
+      };
+      const runtime = { assertMeetingPrepWorker: jest.fn(assertMeetingPrepWorker),
+                        assertExternalAction: jest.fn() };
+      const service = new MeetingPrepJobService(
+        prisma as never,
+        {} as never,
+        { encrypt: jest.fn(), decrypt: jest.fn() } as never,
+        runtime as never,
+      );
+      return { service, prisma, runtime, tx };
+    }
+
+    test('allowed tick consults the prep owner and reaches the existing system claim', async () => {
+      const h = workerHarness(() => {});
+      await h.service.runWorkerTick();
+      expect(h.runtime.assertMeetingPrepWorker).toHaveBeenCalledTimes(1);
+      expect(h.runtime.assertExternalAction).toHaveBeenCalledWith('meeting_prep_generate');
+      expect(h.prisma.withSystem).toHaveBeenCalledTimes(1);
+      expect(h.tx.meetingPrepJob.findFirst).toHaveBeenCalledTimes(1);
+    });
+
+    test('denied tick refuses before any database or provider work', async () => {
+      const h = workerHarness(() => {
+        throw new Error('MEETING_PREP_WORKER_DISABLED');
+      });
+      await expect(h.service.runWorkerTick()).rejects.toThrow('MEETING_PREP_WORKER_DISABLED');
+      expect(h.prisma.withSystem).not.toHaveBeenCalled();
+      expect(h.tx.meetingPrepJob.updateMany).not.toHaveBeenCalled();
+      expect(h.runtime.assertExternalAction).not.toHaveBeenCalled();
+    });
+
+    describe('through the real runtime policy', () => {
+      const realRuntime = (
+        overrides: Record<string, unknown> = {},
+        mailHandoff = { phase: 'off', generation: null, fenceUtc: null },
+      ) =>
+        new EngagementRuntimePolicyService(
+          {
+            serviceName: 'api',
+            processMode: 'active',
+            backgroundOwner: 'api',
+            externalActions: 'enabled',
+            callbacksEnabled: true,
+            recallWebhookEnabled: false,
+            backgroundWorkerRestriction: 'integration_sync_scheduler',
+            ...overrides,
+            mailHandoff,
+          } as never,
+          new EngagementMailHandoffBarrier(),
+        );
+
+      /** The same wiring as workerHarness, but the assertion is the real policy method. */
+      const realHarness = (runtime: EngagementRuntimePolicyService) => {
+        const tx = {
+          meetingPrepJob: {
+            updateMany: jest.fn(async () => ({ count: 0 })),
+            findFirst: jest.fn(async () => null),
+          },
+        };
+        const prisma = {
+          withSystem: jest.fn(async (run: (tx: unknown) => unknown) => run(tx)),
+          withTenantUser: jest.fn(),
+        };
+        return {
+          service: new MeetingPrepJobService(
+            prisma as never,
+            {} as never,
+            { encrypt: jest.fn(), decrypt: jest.fn() } as never,
+            runtime,
+          ),
+          prisma,
+          tx,
+        };
+      };
+
+      test.each([false, true])(
+        'the tick reaches the existing system claim with Recall=%s',
+        async (recallWebhookEnabled) => {
+          const h = realHarness(realRuntime({ recallWebhookEnabled }));
+          await h.service.runWorkerTick();
+          expect(h.prisma.withSystem).toHaveBeenCalledTimes(1);
+          expect(h.tx.meetingPrepJob.findFirst).toHaveBeenCalledTimes(1);
+        },
+      );
+
+      test.each([
+        ['callbacks disabled', { callbacksEnabled: false }],
+        ['wrong process mode', { processMode: 'shadow' }],
+        ['wrong background owner', { backgroundOwner: 'disabled' }],
+      ])('refuses on %s before any claim or provider work', async (_label, overrides) => {
+        const h = realHarness(realRuntime(overrides));
+        let body: Record<string, unknown> | undefined;
+        try {
+          await h.service.runWorkerTick();
+        } catch (error) {
+          body = (error as { getResponse?: () => Record<string, unknown> }).getResponse?.();
+          expect((error as { getStatus?: () => number }).getStatus?.()).toBe(503);
+        }
+        expect(body).toMatchObject({
+          statusCode: 503,
+          code: 'ENGAGEMENT_BACKGROUND_DISABLED',
+          worker: 'meeting-prep-worker',
+        });
+        expect(h.prisma.withSystem).not.toHaveBeenCalled();
+        expect(h.tx.meetingPrepJob.updateMany).not.toHaveBeenCalled();
+      });
+
+      test('refuses a non-open mail-handoff phase with Recall enabled', async () => {
+        const h = realHarness(
+          realRuntime({ recallWebhookEnabled: true }, {
+            phase: 'writers_closed',
+            generation: 'mail-app-20261029-01',
+            fenceUtc: '2026-10-29T16:49:59Z',
+          }),
+        );
+        await expect(h.service.runWorkerTick()).rejects.toThrow();
+        expect(h.prisma.withSystem).not.toHaveBeenCalled();
+      });
+
+      test('the comprehensive-prep flag off short-circuits the real policy too', async () => {
+        process.env.MEETING_PREP_COMPREHENSIVE_ENABLED = 'false';
+        const h = realHarness(realRuntime({ recallWebhookEnabled: true }));
+        await h.service.runWorkerTick();
+        expect(h.prisma.withSystem).not.toHaveBeenCalled();
+      });
+    });
+
+    test('the comprehensive-prep flag off short-circuits the tick', async () => {
+      process.env.MEETING_PREP_COMPREHENSIVE_ENABLED = 'false';
+      const h = workerHarness(() => {});
+      await h.service.runWorkerTick();
+      expect(h.runtime.assertMeetingPrepWorker).not.toHaveBeenCalled();
+      expect(h.prisma.withSystem).not.toHaveBeenCalled();
     });
   });
 });

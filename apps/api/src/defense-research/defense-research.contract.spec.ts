@@ -60,6 +60,8 @@ describe('Defense research Phase 3-8 contracts', () => {
     expect(service).toContain("distinct: ['identityKey']");
     expect(service).toContain('this.prisma.acquisitionAwardTransactionRevision.findMany');
     expect(service).toContain("distinct: ['transactionIdentityKey']");
+    expect(service).toContain("sourceSystem: { not: 'sam_gov' }");
+    expect(service).toContain('readQualifiedSamActions(this.prisma, identityKey)');
     expect(service).toContain("rel.relationshipClass === 'source_stated_financial_allocation'");
     expect(service).toContain("rel.relationshipClass === 'deterministic_financial_allocation'");
     expect(service).toContain("reviewStatus: includeSpeculative ? { in: ['accepted', 'candidate'] } : 'accepted'");

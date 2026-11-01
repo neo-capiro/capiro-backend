@@ -1,6 +1,10 @@
 import { NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { EngagementService } from './engagement.service.js';
+import { OutreachCampaignService } from './outreach-campaign.service.js';
+import { OutreachCampaignController } from './outreach-campaign.controller.js';
+import { decodeCampaignCursor, encodeCampaignCursor } from './outreach-campaign-summary.js';
 
 const TENANT = '11111111-1111-4111-8111-111111111111';
 const USER = '22222222-2222-4222-8222-222222222222';
@@ -97,9 +101,18 @@ const clients = [
 function matches(value: unknown, condition: unknown): boolean {
   if (condition === undefined) return true;
   if (condition === null || typeof condition !== 'object' || condition instanceof Date) {
+    if (condition instanceof Date && value instanceof Date) return value.getTime() === condition.getTime();
     return value === condition;
   }
   const predicates = condition as Record<string, unknown>;
+  if ('path' in predicates) {
+    const selected = (predicates.path as string[]).reduce<unknown>((current, key) =>
+      current && typeof current === 'object' && !Array.isArray(current)
+        ? (current as Record<string, unknown>)[key] : undefined, value);
+    return predicates.equals === Prisma.AnyNull
+      ? selected === undefined || selected === null
+      : selected === predicates.equals;
+  }
   if ('is' in predicates) return matches(value, predicates.is);
   if ('isNot' in predicates) return !matches(value, predicates.isNot);
   if ('equals' in predicates) return matches(value, predicates.equals);
@@ -112,8 +125,11 @@ function matches(value: unknown, condition: unknown): boolean {
   if ('none' in predicates) {
     return Array.isArray(value) && value.every((item) => !matches(item, predicates.none));
   }
-  if (value instanceof Date && ('gte' in predicates || 'lte' in predicates)) {
+  if ('contains' in predicates) return typeof value === 'string' && value.toLowerCase().includes(String(predicates.contains).toLowerCase());
+  if (typeof value === 'string' && 'lt' in predicates) return value < String(predicates.lt);
+  if (value instanceof Date && ('gte' in predicates || 'lte' in predicates || 'lt' in predicates)) {
     return (!('gte' in predicates) || value.getTime() >= (predicates.gte as Date).getTime()) &&
+      (!('lt' in predicates) || value.getTime() < (predicates.lt as Date).getTime()) &&
       (!('lte' in predicates) || value.getTime() <= (predicates.lte as Date).getTime());
   }
   if (!value || typeof value !== 'object') return false;
@@ -170,10 +186,14 @@ function record(
       }] : [],
     } : null,
     type: 'follow_up',
+    title: `Synthetic ${id}`,
+    updatedAt: new Date('2026-10-17T00:00:00.000Z'),
+    recipientCount: 0,
     status: 'draft',
     deletedAt: null as Date | null,
     sentAt: null,
     createdAt: new Date('2026-10-17T00:00:00.000Z'),
+    createdAtMicroseconds: 0,
     body: `Body of ${id}`,
     metadata: {},
     recipients: [],
@@ -208,6 +228,7 @@ function harness(
 ) {
   const events: string[] = [];
   const tx = {
+    tenantMembership: { findFirst: jest.fn(async () => ({ role: 'standard_user' })) },
     client: {
       findFirst: jest.fn(async ({ where }: { where: Record<string, unknown> }) =>
         clients.find((row) => matches(row, where)) ?? null),
@@ -225,13 +246,24 @@ function harness(
       update: jest.fn(async () => { throw new Error('Unexpected campaign update'); }),
     },
     outreachRecord: {
-      findMany: jest.fn(async ({ where, include, take }: {
+      findMany: jest.fn(async ({ where, include, take, orderBy, cursor }: {
         where: Record<string, unknown>;
         include?: unknown;
         take?: number;
-      }) => records
+        orderBy?: unknown;
+        cursor?: { id: string };
+      }) => {
+        // Emulate PostgreSQL's precision before Date decoding, including the
+        // inclusive native anchor even when later access predicates hide it.
+        const compare = (left: ReturnType<typeof record>, right: ReturnType<typeof record>) =>
+          right.createdAt.getTime() - left.createdAt.getTime() ||
+          right.createdAtMicroseconds - left.createdAtMicroseconds ||
+          (Array.isArray(orderBy) ? right.id.localeCompare(left.id) : 0);
+        const anchor = cursor ? records.find((row) => row.id === cursor.id) : undefined;
+        return records
         .filter((row) => matches(row, where))
-        .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+        .filter((row) => !anchor || compare(row, anchor) >= 0)
+        .sort(compare)
         .slice(0, take)
         .map((row) => include && row.meeting ? {
           ...row,
@@ -242,7 +274,8 @@ function harness(
             preps: row.meeting.preps.slice(0, 1),
             debriefs: row.meeting.debriefs.slice(0, 1),
           },
-        } : row)),
+        } : row);
+      }),
       findFirst: jest.fn(async ({ where, include }: {
         where: Record<string, unknown>;
         include?: unknown;
@@ -293,10 +326,193 @@ function harness(
     versionedOutreach: false,
     directory: { findContactsByEmails: jest.fn(async () => []) },
   }) as EngagementService;
-  return { service, tx, events };
+  return { service, tx, events, prisma };
 }
 
+describe('canonical Outreach controller and native paged read', () => {
+  const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+  function paged(records: ReturnType<typeof record>[]) {
+    const h = harness([], records);
+    const sends = new Map<string, { status: string; totals: object }>();
+    Object.assign(h.tx, {
+      $queryRaw: jest.fn(async (query: { strings: string[]; values: unknown[] }) => {
+        expect(query.values.slice(0, 2)).toEqual([TENANT, USER]);
+        const sql = query.strings.join('');
+        if (sql.includes('outreach_send_intents')) {
+          expect(sql).toContain('test_mode = false');
+          return [...sends].filter(([recordId]) => query.values.includes(recordId)).map(([outreachRecordId, send]) => ({
+            ...send, outreachRecordId, id: id(90), createdAt: new Date('2026-10-30T00:00:00Z'), finishedAt: null,
+          }));
+        }
+        if (sql.includes('outreach_jobs')) return [];
+        throw new Error('Unexpected summary query');
+      }),
+    });
+    const service = new OutreachCampaignService(h.prisma as never, h.service, {} as never, {} as never,
+      { readinessForOutreachRecords: async () => new Map() } as never, {} as never, {} as never, {} as never);
+    return { ...h, sends, controller: new OutreachCampaignController(service) };
+  }
+
+  it('filters audience before either canonical page limit without changing owner/client/child authority', async () => {
+    const rows = Array.from({ length: 12 }, (_, n) => record(id(n + 1), null));
+    // The newer wrong-audience rows must not crowd the two older matching rows off page one.
+    rows[0]!.metadata = { direction: 'to-clients' };
+    rows[1]!.metadata = { workflow: { state: { direction: 'to-clients' } }, direction: 'on-behalf' };
+    rows[2]!.metadata = { direction: 'to-clients' };
+    rows[2]!.createdByUserId = id(900);
+    rows[3]!.metadata = { direction: 'to-clients' };
+    rows[3]!.tenantId = id(901);
+    const hidden = { ...record(id(30), WALLED), metadata: { direction: 'to-clients' } };
+    const childHidden = { ...record(id(29), null, VISIBLE, { prep: WALLED }), metadata: { direction: 'to-clients' } };
+    const h = paged([...rows, hidden, childHidden]);
+    const first = await h.controller.records(ctx, { direction: 'to-clients', limit: '1' }) as any;
+    // Child checks remain fail-closed after selection and retain a continuation.
+    expect(first.items).toEqual([]);
+    expect(first.nextCursor).toBeTruthy();
+    const second = await h.controller.records(ctx, { direction: 'to-clients', limit: '1', cursor: first.nextCursor }) as any;
+    expect(second.items.map((row: any) => row.id)).toEqual([id(2)]);
+    const third = await h.controller.records(ctx, { direction: 'to-clients', limit: '1', cursor: second.nextCursor }) as any;
+    expect(third.items.map((row: any) => row.id)).toEqual([id(1)]);
+    expect(third.nextCursor).toBeNull();
+    expect(h.tx.outreachRecord.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 2, where: expect.objectContaining({ tenantId: TENANT, createdByUserId: USER }) }));
+    await expect(h.controller.records(ctx, { direction: 'on-behalf', cursor: first.nextCursor })).rejects.toThrow('Invalid outreach cursor');
+    await expect(h.controller.records(ctx, { cursor: first.nextCursor })).rejects.toThrow('Invalid outreach cursor');
+  });
+
+  it('uses the same filtered legacy interpretation in campaign and record pages and preserves other selectors', async () => {
+    const clientLegacy = { ...record(id(1), VISIBLE), metadata: { direction: 'to-clients' } };
+    const externalLegacy = record(id(2), VISIBLE); // follow_up without direction stays External.
+    const anotherClient = { ...record(id(3), GRANTED), metadata: { direction: 'to-clients' } };
+    const deleted = { ...record(id(4), VISIBLE), metadata: { direction: 'to-clients' }, deletedAt: new Date() };
+    const h = paged([clientLegacy, externalLegacy, anotherClient, deleted]);
+    const query = { direction: 'to-clients', clientId: VISIBLE, q: 'synthetic', from: '2026-10-16T00:00:00Z', to: '2026-10-18T00:00:00Z', limit: '1' };
+    for (const read of [h.controller.list.bind(h.controller), h.controller.records.bind(h.controller)]) {
+      const result = await read(ctx, query) as any;
+      expect(result.items.map((row: any) => row.id)).toEqual([id(1)]);
+      expect(result.nextCursor).toBeNull();
+      const trash = await read(ctx, { ...query, deleted: 'true' }) as any;
+      expect(trash.items.map((row: any) => row.id)).toEqual([id(4)]);
+      const noMatch = await read(ctx, { ...query, q: 'no match' }) as any;
+      expect(noMatch).toEqual({ items: [], nextCursor: null });
+    }
+    const external = await h.controller.list(ctx, { direction: 'on-behalf' }) as any;
+    expect(external.items.map((row: any) => row.id)).toEqual([id(2)]);
+    expect(external.items[0].state.direction).toBe('on-behalf');
+    const category = await h.controller.list(ctx, { direction: 'to-clients', view: 'sent', limit: '1' }) as any;
+    expect(category.items).toEqual([]);
+    expect(category.nextCursor).toBeTruthy();
+  });
+
+  it('pages same-timestamp records once and filters tenant, owner and wall before the page limit', async () => {
+    const rows = [record(id(1), null), record(id(2), null), record(id(3), null), record(id(8), WALLED),
+      { ...record(id(9), null), tenantId: '77777777-7777-4777-8777-777777777777' },
+      { ...record(id(10), null), createdByUserId: '88888888-8888-4888-8888-888888888888' }];
+    const h = paged(rows);
+    const first = await h.controller.list(ctx, { limit: '2' }) as any;
+    expect(first.items.map((row: any) => row.id)).toEqual([id(3), id(2)]);
+    expect(decodeCampaignCursor(first.nextCursor)).toEqual({ id: id(2) });
+    const next = await h.controller.list(ctx, { limit: '2', cursor: first.nextCursor }) as any;
+    expect(next.items.map((row: any) => row.id)).toEqual([id(1)]);
+    expect(next.nextCursor).toBeNull();
+  });
+
+  it('retains database microseconds and advances after a subsequently revoked anchor', async () => {
+    const rows = [
+      { ...record(id(3), null), createdAtMicroseconds: 100 },
+      { ...record(id(1), null), createdAtMicroseconds: 900 },
+      { ...record(id(2), null), createdAtMicroseconds: 500 },
+    ];
+    const h = paged(rows);
+    const first = await h.controller.list(ctx, { limit: '1' }) as any;
+    expect(first.items.map((row: any) => row.id)).toEqual([id(1)]);
+    rows[1]!.clientId = WALLED;
+    rows[1]!.client = clients.find((row) => row.id === WALLED)!;
+    const second = await h.controller.list(ctx, { limit: '1', cursor: first.nextCursor }) as any;
+    expect(second.items.map((row: any) => row.id)).toEqual([id(2)]);
+    expect(h.tx.outreachRecord.findMany).toHaveBeenLastCalledWith(expect.objectContaining({
+      cursor: { id: id(1) }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    }));
+    const last = await h.controller.list(ctx, { limit: '1', cursor: second.nextCursor }) as any;
+    expect(last.items.map((row: any) => row.id)).toEqual([id(3)]);
+    expect(last.nextCursor).toBeNull();
+  });
+
+  it('passes search and selected client through native visibility and preserves unknown query refusal', async () => {
+    const h = paged([record(id(1), VISIBLE), record(id(2), GRANTED), record(id(3), WALLED)]);
+    const page = await h.controller.list(ctx, { clientId: VISIBLE, q: id(1).slice(-3) }) as any;
+    expect(page.items.map((row: any) => row.id)).toEqual([id(1)]);
+    expect((await h.controller.list(ctx, { clientId: WALLED }) as any).items).toEqual([]);
+    await expect(h.controller.list(ctx, { cursor: 'bad' })).rejects.toThrow('Invalid outreach cursor');
+    await expect(h.controller.list(ctx, { cursor: encodeCampaignCursor({ id: id(99) }) })).rejects.toThrow('cursor is no longer available');
+    await expect(h.controller.list(ctx, { unrecognized: 'value' })).rejects.toThrow('Invalid outreach request');
+  });
+
+  it('returns recorded delivery evidence and excludes newsletters without losing pagination', async () => {
+    const sent = { ...record(id(1), null), status: 'sent', sentAt: new Date('2026-10-29T00:00:00Z') };
+    const partial = record(id(2), null);
+    const rich = { ...record(id(3), null), type: 'outbound_campaign', metadata: { newsletterStageId: id(40), newsletterRevision: 1 } };
+    const h = paged([sent as never, partial, rich]);
+    h.sends.set(sent.id, { status: 'complete', totals: { sent: 2 } });
+    h.sends.set(partial.id, { status: 'partial', totals: { sent: 1, unknown: 1 } });
+    const page = await h.controller.list(ctx, {}) as any;
+    expect(page.items.map((row: any) => [row.id, row.category, row.recordedSendStatus, row.hasWorkflow])).toEqual([
+      [id(2), 'attention', 'partial', false], [id(1), 'sent', 'complete', false],
+    ]);
+    expect(page.items[0].delivery.totals).toEqual({ sent: 1, unknown: 1 });
+    expect((await h.controller.list(ctx, { view: 'sent' }) as any).items.map((row: any) => row.id)).toEqual([id(1)]);
+  });
+
+  it('carries a cursor across a revoked page without exposing its rows', async () => {
+    const h = paged([record(id(1), null), record(id(2), GRANTED), record(id(3), GRANTED)]);
+    // Canonical record authority now checks each current wall through the same
+    // clientMemoryAllowed oracle as detail, rather than a separate bulk roster.
+    h.tx.$queryRawUnsafe.mockResolvedValueOnce([{ allowed: false }]).mockResolvedValueOnce([{ allowed: false }]);
+    const first = await h.controller.list(ctx, { limit: '2' }) as any;
+    expect(first.items).toEqual([]);
+    expect(first.nextCursor).toBeTruthy();
+    const next = await h.controller.list(ctx, { limit: '2', cursor: first.nextCursor }) as any;
+    expect(next.items.map((row: any) => row.id)).toEqual([id(1)]);
+  });
+
+  it('pages all saved record types and retains rich newsletter discrimination', async () => {
+    const rich = { ...record(id(2), null), type: 'outbound_campaign', metadata: { newsletterStageId: id(40), newsletterRevision: 1 } };
+    const prep = { ...record(id(1), null), type: 'prep' };
+    const h = paged([rich, prep]);
+    const first = await h.controller.records(ctx, { limit: '1' });
+    expect(first.items[0]).toMatchObject({ id: rich.id, hasWorkflow: false, metadata: rich.metadata });
+    const next = await h.controller.records(ctx, { limit: '1', cursor: first.nextCursor! });
+    expect(next.items[0]).toMatchObject({ id: prep.id, type: 'prep', hasWorkflow: false });
+    expect(next.nextCursor).toBeNull();
+    expect((await h.controller.list(ctx, {}) as any).items).toEqual([
+      expect.objectContaining({ id: prep.id, type: 'prep' }),
+    ]);
+  });
+
+  it('leaves reserved roots to the legacy session list and admits their canonical import', async () => {
+    const root = record(id(1), null);
+    const h = paged([root]);
+    const before = (await h.controller.list(ctx, {}) as any).items[0];
+    root.type = 'outreach_v3';
+    expect((await h.controller.list(ctx, {}) as any).items).toEqual([]);
+    root.type = 'campaign';
+    root.metadata = { workflow: { revision: 1, state: before.state } };
+    const after = (await h.controller.list(ctx, {}) as any).items[0];
+    expect(after).toMatchObject({ id: root.id, type: 'campaign', hasWorkflow: true });
+  });
+});
+
 describe('Engagement outreach client visibility', () => {
+  it.each(['preps detail', 'preps list', 'debriefs detail', 'debriefs list'])(
+    'refuses tied latest children through the actual %s reader', async (which) => {
+      const row: any = record('tied-latest', VISIBLE, VISIBLE, { prep: VISIBLE, debrief: VISIBLE });
+      const kind = which.startsWith('preps') ? 'preps' : 'debriefs';
+      row.meeting[kind][0].createdAt = new Date('2026-10-31T00:00:00Z');
+      row.meeting[kind].push({ ...row.meeting[kind][0], id: 'equally-latest-visible-child' });
+      const h = harness([], [row]);
+      if (which.endsWith('detail')) await expect(h.service.getOutreachRecord(ctx, row.id)).rejects.toBeInstanceOf(NotFoundException);
+      else expect(await h.service.listOutreachRecords(ctx, {})).toEqual([]);
+    },
+  );
   it('filters denied and archived associated campaigns before an unscoped list reaches Meri totals', async () => {
     const h = harness([
       campaign('denied', WALLED),

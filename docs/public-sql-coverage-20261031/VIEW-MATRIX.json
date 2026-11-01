@@ -1,0 +1,327 @@
+{
+  "version": 1,
+  "sourceBase": "e023eee01783f04b59ec8ab88d86ab586ee55826",
+  "readerRole": "capiro_analytics_ro",
+  "schema": "public",
+  "relations": [
+    {
+      "logicalName": "committee_hearings",
+      "sourceTable": "committee_hearing",
+      "viewName": "meri_public_committee_hearings",
+      "columns": [
+        {
+          "name": "id",
+          "type": "string",
+          "nullable": false
+        },
+        {
+          "name": "geographic_jurisdiction",
+          "type": "string",
+          "nullable": true
+        },
+        {
+          "name": "legislative_session",
+          "type": "string",
+          "nullable": true
+        },
+        {
+          "name": "congress",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "chamber",
+          "type": "string",
+          "nullable": false
+        },
+        {
+          "name": "committee_name",
+          "type": "string",
+          "nullable": false
+        },
+        {
+          "name": "committee_system_code",
+          "type": "string",
+          "nullable": true
+        },
+        {
+          "name": "state_committee_id",
+          "type": "string",
+          "nullable": true
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "nullable": false
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "nullable": true
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "nullable": false
+        },
+        {
+          "name": "starts_at",
+          "type": "timestamp",
+          "nullable": true
+        },
+        {
+          "name": "scheduled_end",
+          "type": "timestamp",
+          "nullable": true
+        },
+        {
+          "name": "timezone",
+          "type": "string",
+          "nullable": false
+        },
+        {
+          "name": "time_precision",
+          "type": "string",
+          "nullable": true
+        },
+        {
+          "name": "location",
+          "type": "string",
+          "nullable": true
+        },
+        {
+          "name": "event_status",
+          "type": "string",
+          "nullable": false
+        },
+        {
+          "name": "url",
+          "type": "string",
+          "nullable": true
+        },
+        {
+          "name": "source_revision",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "last_official_update_at",
+          "type": "timestamp",
+          "nullable": true
+        },
+        {
+          "name": "calendar_revision",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "calendar_checked_at",
+          "type": "timestamp",
+          "nullable": true
+        },
+        {
+          "name": "calendar_check_state",
+          "type": "string",
+          "nullable": false
+        },
+        {
+          "name": "synced_at",
+          "type": "timestamp",
+          "nullable": false
+        }
+      ],
+      "primaryKey": [
+        "id"
+      ],
+      "sourcePredicate": "canonical_hearing_id IS NULL AND visibility = 'public'",
+      "dependentTables": []
+    },
+    {
+      "logicalName": "committee_hearing_bills",
+      "sourceTable": "committee_hearing_bill",
+      "viewName": "meri_public_committee_hearing_bills",
+      "columns": [
+        {
+          "name": "id",
+          "type": "string",
+          "nullable": false
+        },
+        {
+          "name": "hearing_id",
+          "type": "string",
+          "nullable": false
+        },
+        {
+          "name": "bill_id",
+          "type": "string",
+          "nullable": false
+        },
+        {
+          "name": "congress",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "synced_at",
+          "type": "timestamp",
+          "nullable": false
+        }
+      ],
+      "primaryKey": [
+        "id"
+      ],
+      "sourcePredicate": "hearing_id IN (SELECT id FROM public.committee_hearing WHERE canonical_hearing_id IS NULL AND visibility = 'public')",
+      "dependentTables": [
+        "committee_hearing"
+      ]
+    },
+    {
+      "logicalName": "legislative_agenda_items",
+      "sourceTable": "legislative_agenda_item",
+      "viewName": "meri_public_legislative_agenda_items",
+      "columns": [
+        {
+          "name": "id",
+          "type": "string",
+          "nullable": false,
+          "parameterType": "UUID"
+        },
+        {
+          "name": "hearing_id",
+          "type": "string",
+          "nullable": false
+        },
+        {
+          "name": "item_key",
+          "type": "string",
+          "nullable": false
+        },
+        {
+          "name": "position",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "kind",
+          "type": "string",
+          "nullable": false
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "nullable": false
+        },
+        {
+          "name": "bill_scope",
+          "type": "string",
+          "nullable": true
+        },
+        {
+          "name": "state_bill_key",
+          "type": "string",
+          "nullable": true
+        },
+        {
+          "name": "federal_bill_id",
+          "type": "string",
+          "nullable": true
+        },
+        {
+          "name": "source_url",
+          "type": "string",
+          "nullable": false
+        },
+        {
+          "name": "active",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "revision",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "first_seen_at",
+          "type": "timestamp",
+          "nullable": false
+        },
+        {
+          "name": "last_seen_at",
+          "type": "timestamp",
+          "nullable": false
+        }
+      ],
+      "primaryKey": [
+        "id"
+      ],
+      "sourcePredicate": "hearing_id IN (SELECT id FROM public.committee_hearing WHERE canonical_hearing_id IS NULL AND visibility = 'public')",
+      "dependentTables": [
+        "committee_hearing"
+      ]
+    },
+    {
+      "logicalName": "state_bill_calendar_events",
+      "sourceTable": "state_bill_calendar_event",
+      "viewName": "meri_public_state_bill_calendar_events",
+      "columns": [
+        {
+          "name": "id",
+          "type": "string",
+          "nullable": false,
+          "parameterType": "UUID"
+        },
+        {
+          "name": "bill_key",
+          "type": "string",
+          "nullable": false
+        },
+        {
+          "name": "event_key",
+          "type": "string",
+          "nullable": false
+        },
+        {
+          "name": "event_type",
+          "type": "string",
+          "nullable": false
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "nullable": false
+        },
+        {
+          "name": "time",
+          "type": "string",
+          "nullable": true
+        },
+        {
+          "name": "location",
+          "type": "string",
+          "nullable": true
+        },
+        {
+          "name": "present",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "first_seen_at",
+          "type": "timestamp",
+          "nullable": false
+        },
+        {
+          "name": "last_synced_at",
+          "type": "timestamp",
+          "nullable": false
+        }
+      ],
+      "primaryKey": [
+        "id"
+      ],
+      "sourcePredicate": null,
+      "dependentTables": []
+    }
+  ]
+}

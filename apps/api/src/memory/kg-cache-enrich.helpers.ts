@@ -86,6 +86,7 @@ export function keepCacheEdge(r: { edge_type: string; source: string | null }): 
 export function cacheEdgesToFkRelations(
   rows: readonly KgWalkEdgeRow[],
   labelByNodeKey: ReadonlyMap<string, string>,
+  includeSourceReferences = false,
 ): FkRelation[] {
   return rows.map((r) => ({
     srcType: r.src_kind,
@@ -94,7 +95,15 @@ export function cacheEdgesToFkRelations(
     dstType: r.dst_kind,
     dstSlug: r.dst_id,
     dstLabel: labelByNodeKey.get(`${r.dst_kind}:${r.dst_id}`) ?? r.dst_id,
-    relation: `${r.edge_type}${aggSuffix(r.agg_weight, r.agg_count)}`,
+    relation: includeSourceReferences
+      ? r.edge_type
+      : `${r.edge_type}${aggSuffix(r.agg_weight, r.agg_count)}`,
+    ...(includeSourceReferences
+      ? {
+          basis: 'derived' as const,
+          sources: [{ kind: 'kg_cache_projection' as const, id: cacheEdgeKey(r) }],
+        }
+      : {}),
   }));
 }
 
@@ -106,6 +115,7 @@ export interface KgCacheEnrichResult {
 }
 
 export interface KgCacheEnrichOpts {
+  includeSourceReferences?: boolean;
   tenantId: string;
   /** Walled clients this viewer may not see (from fetchDeniedClientIds). */
   deniedClientIds: readonly string[];
@@ -165,11 +175,16 @@ export async function enrichFromKgCache(
     // overload resolution fails with 42883 (function does not exist) and the
     // whole enrichment silently falls back to the plain backbone.
     clientsWalked += 1;
+    // Hitting a database row budget cannot establish that the walk exhausted.
+    if (rows.length >= budget) truncated = true;
     for (const r of rows) {
       if (!keepCacheEdge(r)) continue;
       const key = cacheEdgeKey(r);
       if (!dedup.has(key)) dedup.set(key, r);
-      if (dedup.size >= ceiling) break;
+      if (dedup.size >= ceiling) {
+        truncated = true;
+        break;
+      }
     }
   }
   if (clientsWalked < seeds.length) truncated = true;
@@ -180,7 +195,7 @@ export async function enrichFromKgCache(
   for (const c of seeds) labelByNodeKey.set(`client:${c.id}`, c.name);
 
   return {
-    relations: cacheEdgesToFkRelations(kept, labelByNodeKey),
+    relations: cacheEdgesToFkRelations(kept, labelByNodeKey, opts.includeSourceReferences),
     clientsWalked,
     clientsTotal: seeds.length,
     truncated,

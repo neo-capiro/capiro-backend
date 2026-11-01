@@ -89,10 +89,21 @@ describe('OutreachStateRepository.listOwnedSessions', () => {
     await list(repository, tx, { search: '  50%_\\ topic  ', limit: 25, offset: 100 });
     const where = seen.sql.slice(seen.sql.indexOf('WHERE'), seen.sql.indexOf('ORDER BY'));
     expect(where).toContain("strpos(lower(COALESCE(s.title, '')), lower(?)) > 0");
-    expect(where).toContain("strpos(lower(COALESCE(v.spec_jsonb -> 'goal' ->> 'topic', '')), lower(?)) > 0");
-    expect(where).toContain("strpos(lower(COALESCE(v.spec_jsonb -> 'goal' ->> 'goal', '')), lower(?)) > 0");
+    expect(where).toContain(
+      "strpos(lower(COALESCE(v.spec_jsonb -> 'goal' ->> 'topic', '')), lower(?)) > 0",
+    );
+    expect(where).toContain(
+      "strpos(lower(COALESCE(v.spec_jsonb -> 'goal' ->> 'goal', '')), lower(?)) > 0",
+    );
     expect(where).not.toContain('ILIKE');
-    expect(seen.values).toEqual([ctx.tenantId, ctx.userId, false, ...Array(4).fill('50%_\\ topic'), 25, 100]);
+    expect(seen.values).toEqual([
+      ctx.tenantId,
+      ctx.userId,
+      false,
+      ...Array(4).fill('50%_\\ topic'),
+      25,
+      100,
+    ]);
     expect(seen.sql.indexOf('ORDER BY')).toBeLessThan(seen.sql.indexOf('LIMIT'));
   });
 
@@ -106,15 +117,22 @@ describe('OutreachStateRepository.listOwnedSessions', () => {
   it('reads draft-vs-sent from the artifact root, scoped to tenant and the reserved type', async () => {
     const { repository, tx, seen } = harness(
       [{ id: 'session-a' }, { id: 'session-b' }],
-      [{ id: 'session-a', status: 'sent', sentAt: new Date('2026-08-17T00:00:00.000Z') }],
+      [
+        {
+          id: 'session-a',
+          type: 'outreach_v3',
+          status: 'sent',
+          sentAt: new Date('2026-08-17T00:00:00.000Z'),
+        },
+      ],
     );
     const rows = await list(repository, tx);
 
     expect(seen.recordWhere).toEqual({
       tenantId: ctx.tenantId,
+      createdByUserId: ctx.userId,
       id: { in: ['session-a', 'session-b'] },
-      type: 'outreach_v3',
-      deletedAt: null,
+      type: { in: ['outreach_v3', 'campaign'] },
     });
     expect(rows[0]).toMatchObject({
       id: 'session-a',
@@ -122,7 +140,51 @@ describe('OutreachStateRepository.listOwnedSessions', () => {
       sentAt: new Date('2026-08-17T00:00:00.000Z'),
     });
     // No artifact root yet = no recorded send. Never a claimed one.
-    expect(rows[1]).toMatchObject({ id: 'session-b', recordStatus: null, sentAt: null });
+    expect(rows[1]).toMatchObject({
+      id: 'session-b',
+      recordStatus: null,
+      sentAt: null,
+      hasWorkflow: false,
+    });
+  });
+
+  it('identifies imported canonical workflows on every legacy page without hiding unimported sessions', async () => {
+    const { repository, tx } = harness(
+      [{ id: 'old-import' }, { id: 'new-import' }, { id: 'legacy' }, { id: 'deleted-import' }],
+      [
+        {
+          id: 'old-import',
+          type: 'campaign',
+          status: 'draft',
+          sentAt: null,
+          metadata: { workflow: { revision: 1 } },
+        },
+        {
+          id: 'new-import',
+          type: 'outreach_v3',
+          status: 'sent',
+          sentAt: null,
+          metadata: { workflow: { revision: 2 } },
+        },
+        { id: 'legacy', type: 'outreach_v3', status: 'draft', sentAt: null, metadata: {} },
+        {
+          id: 'deleted-import',
+          type: 'campaign',
+          status: 'draft',
+          sentAt: null,
+          deletedAt: new Date(),
+          metadata: { workflow: { revision: 1 } },
+        },
+      ],
+    );
+    expect(
+      (await list(repository, tx, { offset: 100 })).map((row) => [row.id, row.hasWorkflow]),
+    ).toEqual([
+      ['old-import', true],
+      ['new-import', true],
+      ['legacy', false],
+      ['deleted-import', true],
+    ]);
   });
 
   it('never names a legacy Outreach table in raw SQL, and never treats status=completed as a send', async () => {
@@ -143,14 +205,11 @@ describe('OutreachStateRepository.listOwnedSessions', () => {
     expect(seen.sql).not.toContain("'completed'");
   });
 
-  it('uses the same reserved artifact-root type the artifact-root service writes', () => {
+  it('uses the reserved artifact-root type retained by the state owner', () => {
     // The type string is declared locally to avoid a persistence→drafts module
     // dependency, so it needs a real cross-check rather than a copy of itself.
-    const service = readFileSync(
-      resolve(__dirname, '../drafts/outreach-v3-artifact-root.service.ts'),
-      'utf8',
-    );
-    expect(service).toContain("OUTREACH_V3_INTERNAL_RECORD_TYPE = 'outreach_v3'");
+    const service = readFileSync(resolve(__dirname, './outreach-state.repository.ts'), 'utf8');
+    expect(service).toContain("OUTREACH_V3_ARTIFACT_ROOT_TYPE = 'outreach_v3'");
   });
 
   it('skips the artifact-root read entirely when there are no sessions', async () => {

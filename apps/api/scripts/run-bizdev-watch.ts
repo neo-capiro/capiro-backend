@@ -28,6 +28,7 @@ import {
   validateRunConfig,
   BIZDEV_WATCH_SOURCE_FAMILIES,
   type BizDevWatchRunnerDb,
+  type BizDevWatchRunConfig,
   type BizDevProjectionDb,
   type BizDevWatchSourceEventSink,
 } from '../src/business-development/bizdev-watch-runner.js';
@@ -36,24 +37,90 @@ import { createSourceEventDispositionSink } from '../src/business-development/bi
 dotenvConfig();
 
 /**
+ * Interactive-transaction budget for the audited runner transactions (TD7 fix).
+ *
+ * Prisma's interactive default is 5s, which a VALID bounded source page can exceed: the TD7 run died at 5107ms
+ * with "Transaction already closed" while a legal page was in flight. Nothing here changes coverage, retries,
+ * projections or the lease — it only stops a legal transaction from being killed by a default nobody chose.
+ *
+ * What this budget IS: a configured, conservative, finite per-transaction cap (`maxWait` for pool
+ * acquisition, `timeout` for the work).
+ * What it is NOT: proof that the transaction fits the lease. The pass claims ONE `lease_until` before
+ * discovery, and later per-watch transactions start after earlier work has already spent part of that window,
+ * so a fixed duration can never mean "remaining time". The runner therefore reports the claimed window to
+ * this adapter (`noteOwnershipDeadline`), and every transaction is clamped to what actually REMAINS:
+ *
+ *   timeout = min(BIZDEV_TRANSACTION_MAX_MS, remaining - BIZDEV_TRANSACTION_RESERVE_MS)
+ *   maxWait = min(BIZDEV_TRANSACTION_MAX_WAIT_MS, timeout)
+ *
+ * and a transaction is REFUSED outright once the remaining window is below `BIZDEV_TRANSACTION_MIN_MS`
+ * (fail closed and visible; the runner then records the failure and releases the lease through its own path).
+ * The cap also stops a large configured lease (up to 3600s) from producing hour-long transactions.
+ */
+export const BIZDEV_TRANSACTION_MAX_MS = 120_000;
+export const BIZDEV_TRANSACTION_MAX_WAIT_MS = 5_000;
+export const BIZDEV_TRANSACTION_RESERVE_MS = 5_000;
+export const BIZDEV_TRANSACTION_MIN_MS = 10_000;
+
+/** The configured ceiling when no ownership window is known (it always is, in the CLI path). */
+export function bizDevTransactionBudget(): { maxWait: number; timeout: number } {
+  return { maxWait: BIZDEV_TRANSACTION_MAX_WAIT_MS, timeout: BIZDEV_TRANSACTION_MAX_MS };
+}
+
+/**
+ * Budget for one transaction, clamped to the time actually remaining in the claimed ownership window.
+ * Returns null when the window is too small to start a transaction at all.
+ */
+export function bizDevTransactionOptionsFor(
+  deadlineAt: number | null,
+  now: number = Date.now(),
+): { maxWait: number; timeout: number } | null {
+  if (deadlineAt == null) return bizDevTransactionBudget();
+  const remaining = deadlineAt - now - BIZDEV_TRANSACTION_RESERVE_MS;
+  if (remaining < BIZDEV_TRANSACTION_MIN_MS) return null;
+  const timeout = Math.min(BIZDEV_TRANSACTION_MAX_MS, remaining);
+  return { maxWait: Math.min(BIZDEV_TRANSACTION_MAX_WAIT_MS, timeout), timeout };
+}
+
+/**
  * Adapter over a raw PrismaClient exposing BOTH audited transaction shapes
  * the runner needs: withTenant (per-tenant scoped, sets app.current_tenant)
  * and withSystem (the audited RLS-bypass path, sets app.bypass_rls) — the
  * SAME GUC semantics as the app's PrismaService, used by the runner for the
  * bounded cross-tenant candidate + tenant-settings discovery ONLY.
  */
-function runnerDbFromClient(prisma: PrismaClient): BizDevWatchRunnerDb {
+export function runnerDbFromClient(
+  prisma: PrismaClient,
+  now: () => number = Date.now,
+): BizDevWatchRunnerDb {
+  // The ONE ownership window this pass claimed (reported by the runner); null until it is known.
+  let deadlineAt: number | null = null;
+  const run = <T,>(cb: (tx: Prisma.TransactionClient) => Promise<T>) => {
+    const options = bizDevTransactionOptionsFor(deadlineAt, now());
+    if (!options) {
+      // Fail closed inside the remaining window: never start a transaction that may outlive the lease.
+      return Promise.reject(
+        new Error(
+          'Ownership window exhausted: no transaction budget remains inside the claimed lease (the run must not start further work)',
+        ),
+      );
+    }
+    return prisma.$transaction(cb, options);
+  };
   return {
+    noteOwnershipDeadline: (leaseUntil: Date) => {
+      deadlineAt = leaseUntil.getTime();
+    },
     withTenant: <T,>(
       tenantId: string,
       fn: (tx: Prisma.TransactionClient) => Promise<T>,
     ) =>
-      prisma.$transaction(async (tx) => {
+      run(async (tx) => {
         await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;
         return fn(tx as unknown as Prisma.TransactionClient);
       }),
     withSystem: <T,>(fn: (tx: Prisma.TransactionClient) => Promise<T>) =>
-      prisma.$transaction(async (tx) => {
+      run(async (tx) => {
         await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
         return fn(tx as unknown as Prisma.TransactionClient);
       }),
@@ -170,23 +237,33 @@ async function main(): Promise<number> {
 
   if (!validateThisRun()) return 2;
   const prisma = new PrismaClient();
+  // MB-05: the ONE authorized egress of this verb. With both the configured Meri Control origin and the
+  // shared internal service secret present, committed canonical alerts are offered to the existing routine
+  // delivery owner; without them the sink is absent and this run makes NO network call at all.
+  const origin = process.env.MERI_CONTROL_ORIGIN;
+  const secret = process.env.INTERNAL_SERVICE_SECRET;
+  const sourceEvents: BizDevWatchSourceEventSink | null =
+    origin && secret ? createSourceEventDispositionSink({ origin, secret }) : null;
+  return runOnceWithClient(prisma, config, sourceEvents);
+}
+
+/**
+ * ONE run against an already-constructed client: exactly the composition main() uses, with the clean
+ * `$disconnect()` in `finally` (never `process.exit()` inside it). Exported so the transaction-lifetime tests
+ * prove the CLI's own cleanup on the real path rather than a counter nobody calls.
+ */
+export async function runOnceWithClient(
+  prisma: PrismaClient,
+  config: BizDevWatchRunConfig,
+  sourceEvents: BizDevWatchSourceEventSink | null,
+): Promise<number> {
   try {
+    // Explicit finite transaction bounds: a legal source page must outlive Prisma's 5s default, and every
+    // transaction is clamped to the time actually remaining in the lease this pass claimed.
     const db = runnerDbFromClient(prisma);
     // Global projections are read through the same client handle (no
     // tenant_id, no RLS — the dossier's direct-delegate pattern).
     const projections = prisma as unknown as BizDevProjectionDb;
-    // MB-05: the ONE authorized egress of this verb. With both the configured Meri Control origin
-    // and the shared internal service secret present, committed canonical alerts are offered to
-    // the existing routine delivery owner; without them the sink is absent and this run makes NO
-    // network call at all (the pre-MB-05 behaviour, unchanged). It is never a runtime/control
-    // bearer, and the binding read comes from Meri's own durable owner.
-    const origin = process.env.MERI_CONTROL_ORIGIN;
-    const secret = process.env.INTERNAL_SERVICE_SECRET;
-    // The per-alert disposition owner: it reports Meri's exact terminal answer FOR EACH offered alert, so
-    // the runner advances its durable oldest-first recovery cursor only over what Meri definitively
-    // answered and never past an UNKNOWN. It reports the same aggregate counts as before.
-    const sourceEvents: BizDevWatchSourceEventSink | null =
-      origin && secret ? createSourceEventDispositionSink({ origin, secret }) : null;
     const metrics = await runBizDevWatchEvaluation(db, projections, config, undefined, sourceEvents);
     // One structured JSON metric summary.
     process.stdout.write(JSON.stringify(metrics) + '\n');

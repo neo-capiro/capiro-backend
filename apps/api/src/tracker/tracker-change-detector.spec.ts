@@ -139,6 +139,447 @@ describe('selectMaterialEvents', () => {
   });
 });
 
+describe('portfolio-only federal recipients (reachability)', () => {
+  // Reproduced defect: runDetectionCycle read only legacy trackedBill rows and
+  // returned early when there were none, so a federal bill tracked ONLY by a
+  // Research Portfolio had no detection path at all. The fix keeps this detector
+  // as the single source owner: no trackedBill row is fabricated, no client or
+  // notification context is read, and each fan-out is scoped to its own tenant.
+  function harness(opts: {
+    members: Array<{
+      tenantId: string;
+      portfolioId: string;
+      targetId: string;
+      createdAt: Date;
+      evidence?: unknown;
+    }>;
+    bill: Record<string, unknown>;
+    tracked?: unknown[];
+    /** Default-mode action history: the real config default is TRUE. */
+    history?: boolean;
+    actions?: Array<{ billId: string; text: string; date: Date; chamber?: string | null }>;
+  }) {
+    const events: any[] = [];
+    const seen = new Set<string>();
+    const tx: any = {
+      trackedBill: { findMany: jest.fn(async () => opts.tracked ?? []) },
+      researchPortfolioMember: {
+        findMany: jest.fn(async (args: any) => {
+          const where = args?.where ?? {};
+          return opts.members.filter(
+            (member) =>
+              (where.tenantId == null || member.tenantId === where.tenantId) &&
+              (where.portfolioId?.in == null ||
+                where.portfolioId.in.includes(member.portfolioId)) &&
+              (where.createdAt?.lte == null ||
+                member.createdAt.getTime() <= where.createdAt.lte.getTime()),
+          );
+        }),
+      },
+      congressBill: { findMany: jest.fn(async () => [opts.bill]) },
+      congressBillAction: { findMany: jest.fn(async () => opts.actions ?? []) },
+      researchPortfolio: {
+        findFirst: jest.fn(async () => ({ revision: 3, lifecycle: 'active' })),
+      },
+      researchPortfolioEvent: {
+        // Mirrors research_portfolio_events_idempotency_key: UNIQUE (tenantId,
+        // idempotencyKey). Replay therefore inserts nothing.
+        createMany: jest.fn(async ({ data, skipDuplicates }: any) => {
+          let count = 0;
+          for (const row of data) {
+            const key = `${row.tenantId}:${row.idempotencyKey}`;
+            if (seen.has(key)) {
+              if (!skipDuplicates) throw new Error('unique violation');
+              continue;
+            }
+            seen.add(key);
+            events.push(row);
+            count += 1;
+          }
+          return { count };
+        }),
+      },
+    };
+    const prisma: any = {
+      withSystem: jest.fn((fn: (tx: unknown) => unknown) => fn(tx)),
+      withTenant: jest.fn(),
+      // The bill catalog and action-history reads are plain client calls.
+      congressBill: tx.congressBill,
+      congressBillAction: tx.congressBillAction,
+    };
+    const alerts = { fanOut: jest.fn() };
+    const config = {
+      get: jest.fn((key: string) =>
+        key === 'TRACKER_SCAN_ACTION_HISTORY' ? (opts.history ?? false) : false,
+      ),
+    };
+    const summaries = { summarize: jest.fn() };
+    const svc = new TrackerChangeDetectorService(
+      prisma as unknown as PrismaService,
+      alerts as never,
+      {} as never,
+      config as never,
+      summaries as never,
+    );
+    return { svc, tx, prisma, alerts, events };
+  }
+
+  const bill = {
+    id: '119-hr-8800',
+    title: 'Department of Defense Appropriations Act, 2027',
+    latestActionText: 'Passed/agreed to in House',
+    latestActionDate: d('2026-09-10'),
+    url: 'https://www.congress.gov/bill/119th-congress/house-bill/8800',
+    subjects: ['Defense'],
+    policyArea: 'Armed Forces and National Security',
+  };
+
+  it('establishes a silent baseline for a membership whose bill has not moved since', async () => {
+    const h = harness({
+      members: [
+        {
+          tenantId: 'tenant-a',
+          portfolioId: 'portfolio-a',
+          targetId: '119-hr-8800',
+          createdAt: d('2026-10-01T00:00:00Z'),
+        },
+      ],
+      bill: { ...bill, latestActionDate: d('2026-09-10') },
+    });
+
+    const result = await h.svc.runDetectionCycle();
+
+    expect(h.tx.researchPortfolioMember.findMany).toHaveBeenCalled();
+    expect(result.scanned).toBe(1);
+    expect(result.baseline).toBe(1);
+    expect(result.changed).toBe(0);
+    expect(h.events).toHaveLength(0);
+    // No client delivery, no client/user context, no trackedBill fabrication.
+    expect(h.alerts.fanOut).not.toHaveBeenCalled();
+    expect(h.prisma.withTenant).not.toHaveBeenCalled();
+    expect(h.tx.researchPortfolioMember.findMany).not.toHaveBeenCalledWith(
+      expect.objectContaining({ create: expect.anything() }),
+    );
+  });
+
+  it('delivers the next eligible material change to a portfolio-only member', async () => {
+    const h = harness({
+      members: [
+        {
+          tenantId: 'tenant-a',
+          portfolioId: 'portfolio-a',
+          targetId: '119-hr-8800',
+          createdAt: d('2026-10-01T00:00:00Z'),
+        },
+      ],
+      // The move is dated AFTER the portfolio adopted the bill (adoption is the
+      // baseline; a later move is the eligible change).
+      bill: { ...bill, latestActionDate: d('2026-10-05') },
+    });
+
+    const result = await h.svc.runDetectionCycle();
+
+    expect(result.changed).toBe(1);
+    expect(h.events).toHaveLength(1);
+    expect(h.events[0]).toMatchObject({
+      tenantId: 'tenant-a',
+      portfolioId: 'portfolio-a',
+      eventKind: 'bill_changed',
+      actorKind: 'system',
+      actorUserId: null,
+    });
+    expect(h.alerts.fanOut).not.toHaveBeenCalled();
+    expect(h.prisma.withTenant).not.toHaveBeenCalled();
+  });
+
+  it('does not hand an old change to a portfolio added after it', async () => {
+    // Reproduced defect: grouping by tenant+bill on the EARLIEST membership let a
+    // later portfolio receive the same historical event, because the shared
+    // fan-out cutoff was the cycle time rather than the change's own time.
+    const members = [
+      {
+        tenantId: 'tenant-a',
+        portfolioId: 'original-portfolio',
+        targetId: '119-hr-8800',
+        createdAt: d('2026-10-01T00:00:00Z'),
+      },
+    ];
+    const h = harness({
+      members,
+      // The move happened on Oct 10, after the original portfolio adopted the bill.
+      bill: { ...bill, latestActionDate: d('2026-10-10') },
+    });
+
+    const first = await h.svc.runDetectionCycle();
+    expect(first.changed).toBe(1);
+    expect(h.events.map((event) => event.portfolioId)).toEqual(['original-portfolio']);
+
+    // A second portfolio joins on Oct 20 — after the change.
+    members.push({
+      tenantId: 'tenant-a',
+      portfolioId: 'later-portfolio',
+      targetId: '119-hr-8800',
+      createdAt: d('2026-10-20T00:00:00Z'),
+    });
+    const second = await h.svc.runDetectionCycle();
+
+    expect(second.changed).toBe(0);
+    expect(h.events.map((event) => event.portfolioId)).toEqual(['original-portfolio']);
+
+    // A genuinely new move (Oct 25) reaches both — the later portfolio is not
+    // permanently excluded, it just misses the change that predates it.
+    h.tx.congressBill.findMany.mockResolvedValue([
+      { ...bill, latestActionDate: d('2026-10-25') },
+    ]);
+    const third = await h.svc.runDetectionCycle();
+
+    expect(third.changed).toBe(1);
+    // Both portfolios now hold the Oct 25 change (the Oct 10 event stays only with
+    // the portfolio that already existed when it happened).
+    const oct25 = h.events.filter((event) => event.payload.actionDate === '2026-10-25');
+    expect(oct25.map((event) => event.portfolioId).sort()).toEqual([
+      'later-portfolio',
+      'original-portfolio',
+    ]);
+  });
+
+  // Same-day precision comes from the canonical facts recorded at adoption, not
+  // from a timestamp cutoff: an identical action already in those facts is what
+  // the portfolio knew, while a different action that day is genuinely new.
+  const adoption = (latestActionDate: string, latestActionText: string) => ({
+    facts: { latestActionDate, latestActionText },
+  });
+
+  it('stays silent for a portfolio added later the same day with the action already adopted', async () => {
+    const members = [
+      {
+        tenantId: 'tenant-a',
+        portfolioId: 'original-portfolio',
+        targetId: '119-hr-8800',
+        createdAt: d('2026-10-01T00:00:00Z'),
+        evidence: adoption('2026-09-01', 'Introduced in House'),
+      },
+    ];
+    const h = harness({
+      members,
+      bill: { ...bill, latestActionDate: d('2026-10-10') },
+    });
+
+    const first = await h.svc.runDetectionCycle();
+    expect(first.changed).toBe(1);
+
+    // Added Oct 10 16:00, with the Oct 10 passage already in its adopted facts.
+    members.push({
+      tenantId: 'tenant-a',
+      portfolioId: 'same-day-portfolio',
+      targetId: '119-hr-8800',
+      createdAt: d('2026-10-10T16:00:00Z'),
+      evidence: adoption('2026-10-10', 'Passed/agreed to in House'),
+    });
+    const second = await h.svc.runDetectionCycle();
+
+    expect(second.changed).toBe(0);
+    expect(h.events.map((event) => event.portfolioId)).toEqual(['original-portfolio']);
+  });
+
+  it('emits a genuinely different same-day action once, and never again', async () => {
+    const h = harness({
+      members: [
+        {
+          tenantId: 'tenant-a',
+          portfolioId: 'same-day-portfolio',
+          targetId: '119-hr-8800',
+          createdAt: d('2026-10-10T16:00:00Z'),
+          evidence: adoption('2026-10-10', 'Reported by the Committee on Appropriations'),
+        },
+      ],
+      bill: { ...bill, latestActionDate: d('2026-10-10') },
+    });
+
+    const first = await h.svc.runDetectionCycle();
+    expect(first.changed).toBe(1);
+    expect(h.events).toHaveLength(1);
+    expect(h.events[0].payload.actionDate).toBe('2026-10-10');
+    // occurredAt is the real detection time, never a synthetic end-of-day value.
+    expect(h.events[0].occurredAt.getTime()).toBeLessThanOrEqual(Date.now());
+
+    const replay = await h.svc.runDetectionCycle();
+    expect(replay.changed).toBe(0);
+    expect(h.events).toHaveLength(1);
+  });
+
+  it('gives same-tenant portfolios only the events their own facts do not cover', async () => {
+    const h = harness({
+      members: [
+        {
+          tenantId: 'tenant-a',
+          portfolioId: 'informed-portfolio',
+          targetId: '119-hr-8800',
+          createdAt: d('2026-10-10T16:00:00Z'),
+          evidence: adoption('2026-10-10', 'Passed/agreed to in House'),
+        },
+        {
+          tenantId: 'tenant-a',
+          portfolioId: 'behind-portfolio',
+          targetId: '119-hr-8800',
+          createdAt: d('2026-10-02T00:00:00Z'),
+          evidence: adoption('2026-10-02', 'Referred to committee'),
+        },
+      ],
+      bill: { ...bill, latestActionDate: d('2026-10-10') },
+    });
+
+    const result = await h.svc.runDetectionCycle();
+
+    expect(result.changed).toBe(1);
+    expect(h.events.map((event) => event.portfolioId)).toEqual(['behind-portfolio']);
+  });
+
+  // The real default is history mode (TRACKER_SCAN_ACTION_HISTORY defaults true).
+  // Date-only history rows cannot prove they happened after an adoption, so each
+  // recipient's own adopted-date boundary bounds its history, and only a latest
+  // rollup proven different from the adopted facts may arrive as a same-day change.
+  const historyActions = [
+    {
+      billId: '119-hr-8800',
+      text: 'Ordered to be Reported by the Yeas and Nays.',
+      date: d('2026-10-10'),
+      chamber: 'House',
+    },
+    { billId: '119-hr-8800', text: 'Passed/agreed to in House', date: d('2026-10-10'), chamber: 'House' },
+  ];
+
+  it('in default history mode, does not replay same-day history the later portfolio already adopted', async () => {
+    const members = [
+      {
+        tenantId: 'tenant-a',
+        portfolioId: 'original-portfolio',
+        targetId: '119-hr-8800',
+        createdAt: d('2026-10-01T00:00:00Z'),
+        evidence: adoption('2026-09-01', 'Introduced in House'),
+      },
+    ];
+    const h = harness({
+      members,
+      history: true,
+      actions: historyActions,
+      bill: { ...bill, latestActionDate: d('2026-10-10') },
+    });
+
+    const first = await h.svc.runDetectionCycle();
+    expect(first.changed).toBe(1);
+    // Both same-day actions were new to the portfolio that existed on Oct 1.
+    expect(h.events).toHaveLength(2);
+
+    // Joins Oct 10 16:00; both actions already existed and its facts hold the
+    // latest one, so neither the earlier history row nor the rollup is news.
+    members.push({
+      tenantId: 'tenant-a',
+      portfolioId: 'same-day-portfolio',
+      targetId: '119-hr-8800',
+      createdAt: d('2026-10-10T16:00:00Z'),
+      evidence: adoption('2026-10-10', 'Passed/agreed to in House'),
+    });
+    const second = await h.svc.runDetectionCycle();
+
+    expect(second.changed).toBe(0);
+    expect(h.events).toHaveLength(2);
+    expect(h.events.map((event) => event.portfolioId)).toEqual([
+      'original-portfolio',
+      'original-portfolio',
+    ]);
+  });
+
+  it('in default history mode, still delivers a latest rollup that changed after adoption', async () => {
+    const h = harness({
+      members: [
+        {
+          tenantId: 'tenant-a',
+          portfolioId: 'later-portfolio',
+          targetId: '119-hr-8800',
+          createdAt: d('2026-10-10T16:00:00Z'),
+          evidence: adoption('2026-10-10', 'Ordered to be Reported by the Yeas and Nays.'),
+        },
+      ],
+      history: true,
+      actions: historyActions,
+      bill: { ...bill, latestActionDate: d('2026-10-10') },
+    });
+
+    const first = await h.svc.runDetectionCycle();
+    expect(first.changed).toBe(1);
+    // The rollup is the only thing newer than what this portfolio adopted.
+    expect(h.events).toHaveLength(1);
+    expect(h.events[0].payload.changeType).toBe('bill_passed_chamber');
+
+    const replay = await h.svc.runDetectionCycle();
+    expect(replay.changed).toBe(0);
+    expect(h.events).toHaveLength(1);
+  });
+
+  it('does not let an earlier portfolio baseline suppress a later portfolio eligible action', async () => {
+    const h = harness({
+      members: [
+        {
+          tenantId: 'tenant-a',
+          portfolioId: 'early-portfolio',
+          targetId: '119-hr-8800',
+          createdAt: d('2026-10-01T00:00:00Z'),
+          evidence: adoption('2026-09-01', 'Introduced in House'),
+        },
+        {
+          tenantId: 'tenant-a',
+          portfolioId: 'late-portfolio',
+          targetId: '119-hr-8800',
+          createdAt: d('2026-10-10T16:00:00Z'),
+          evidence: adoption('2026-10-10', 'Ordered to be Reported by the Yeas and Nays.'),
+        },
+      ],
+      history: true,
+      actions: historyActions,
+      bill: { ...bill, latestActionDate: d('2026-10-10') },
+    });
+
+    await h.svc.runDetectionCycle();
+
+    const later = h.events.filter((event) => event.portfolioId === 'late-portfolio');
+    // The earlier portfolio's history selection de-dupes by changeType; that must
+    // not decide what the later portfolio is allowed to see.
+    expect(later.map((event) => event.payload.changeType)).toEqual(['bill_passed_chamber']);
+  });
+
+  it('scopes each tenant to its own portfolios', async () => {
+    const h = harness({
+      members: [
+        {
+          tenantId: 'tenant-a',
+          portfolioId: 'portfolio-a',
+          targetId: '119-hr-8800',
+          createdAt: d('2026-10-01T00:00:00Z'),
+        },
+        {
+          tenantId: 'tenant-b',
+          portfolioId: 'portfolio-b',
+          targetId: '119-hr-8800',
+          createdAt: d('2026-10-01T00:00:00Z'),
+        },
+      ],
+      bill: { ...bill, latestActionDate: d('2026-10-05') },
+    });
+
+    await h.svc.runDetectionCycle();
+
+    // Each event belongs to the tenant whose portfolio tracks the bill —
+    // tenant-b never inherits tenant-a's portfolio or its client context.
+    expect(h.events).toHaveLength(2);
+    expect(h.events.map((event) => `${event.tenantId}:${event.portfolioId}`).sort()).toEqual([
+      'tenant-a:portfolio-a',
+      'tenant-b:portfolio-b',
+    ]);
+    expect(h.prisma.withTenant).not.toHaveBeenCalled();
+  });
+});
+
 describe('intelOwnedTenantIds — RLS double-send guard (regression)', () => {
   // Once intel_full_rls_hold FORCE-enables RLS on intel_feature_flag, a bare
   // read on apps/api's connection (no GUC) returns 0 rows → apps/api would think

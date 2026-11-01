@@ -1,3 +1,6 @@
+// PostgreSQL retention is qualified separately with real roles and transactions.
+jest.mock('./conversation-serving/transaction.js', () =>
+  jest.requireActual('./conversation-serving/unit-boundary.fixture.js'));
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it, jest } from '@jest/globals';
@@ -60,11 +63,13 @@ describe('MemoryGovernanceReadService', () => {
       expect(sql.sql).toContain('strpos(lower(mi.title), lower(?)) > 0');
       expect(sql.sql.indexOf('strpos')).toBeLessThan(sql.sql.indexOf('LIMIT'));
       expect(sql.sql).not.toContain(query);
-      expect(sql.values).toEqual([ctx.tenantId, ctx.userId, query, 250]);
+      expect(sql.values).toEqual([ctx.tenantId, ctx.userId, query, 251]);
       expect(sql.sql).toContain("mi.visibility = 'tenant' OR mi.owner_user_id");
       expect(sql.sql).toContain(deniedClient);
       expect(withTenantUser).toHaveBeenCalledWith(ctx.tenantId, ctx.userId, expect.any(Function));
-      expect(authorization.evaluateInTx).toHaveBeenCalledWith(tx, ctx, { id: 'denied' }, 'read');
+      expect(authorization.evaluateInTx).toHaveBeenCalledWith(tx, ctx, { id: 'denied' }, 'read', {
+        emitDenialMetrics: false,
+      });
     } finally {
       enabled.mockRestore();
     }
@@ -87,7 +92,7 @@ describe('MemoryGovernanceReadService', () => {
       );
       await service.listItems(ctx, 'active', 999, '   ');
       expect(tx.$queryRaw.mock.calls[0]![0].sql).not.toContain('strpos');
-      expect(tx.$queryRaw.mock.calls[0]![0].values.at(-1)).toBe(250);
+      expect(tx.$queryRaw.mock.calls[0]![0].values.at(-1)).toBe(251);
     } finally {
       enabled.mockRestore();
     }
@@ -133,6 +138,7 @@ describe('MemoryGovernanceReadService', () => {
       await expect(service.listItems(ctx, 'active')).resolves.toEqual({
         enabled: false,
         items: [],
+        nextCursor: null,
       });
       await expect(service.getItem(ctx, 'item-1')).resolves.toEqual({
         enabled: false,
@@ -141,6 +147,7 @@ describe('MemoryGovernanceReadService', () => {
       await expect(service.listTransitions(ctx)).resolves.toEqual({
         enabled: false,
         transitions: [],
+        nextCursor: null,
       });
       await expect(service.projectionHealth(ctx)).resolves.toMatchObject({
         enabled: false,

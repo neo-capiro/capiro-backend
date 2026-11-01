@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { MemoryRetentionPolicyController } from './memory-retention-policy.controller.js';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { KnowledgeModule } from '../knowledge/knowledge.module.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
@@ -46,14 +47,21 @@ import { MemoryReviewSummaryController } from './memory-review-summary.controlle
 import { MemoryProposalController } from './memory-proposal.controller.js';
 import { MemoryVersionController } from './memory-version.controller.js';
 import { MemoryOwnerItemsController } from './memory-owner-items.controller.js';
+import { MemoryOwnerHistoryService } from './memory-owner-history.service.js';
+import { MemoryOwnerEvidenceService } from './memory-owner-evidence.service.js';
 import { MemoryOwnerItemsService } from './memory-owner-items.service.js';
 import { MemoryGovernanceController } from './memory-governance.controller.js';
 import { InternalMemoryController } from './internal-memory.controller.js';
+import { SettingsMemoryDraftController } from './settings-drafts/controller.js';
+import { SettingsMemoryDraftService } from './settings-drafts/service.js';
+import { SettingsMemorySubmissionService } from './settings-drafts/submission.js';
 
 /** Institutional Memory module. */
 @Module({
   imports: [PrismaModule, TenantModule, KnowledgeModule, ApplicationAuthorityModule],
   controllers: [
+    MemoryRetentionPolicyController,
+    SettingsMemoryDraftController,
     MemoryController,
     MemoryReviewController,
     MemoryReviewInboxController,
@@ -65,11 +73,15 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     InternalMemoryController,
   ],
   providers: [
+    SettingsMemoryDraftService,
+    SettingsMemorySubmissionService,
     LineageAwareMemoryStoreService,
     { provide: GovernedMemoryStoreService, useExisting: LineageAwareMemoryStoreService },
     { provide: MemoryStoreService, useExisting: LineageAwareMemoryStoreService },
     ImmutableMemoryVersionService,
     MemoryOwnerItemsService,
+    MemoryOwnerHistoryService,
+    MemoryOwnerEvidenceService,
     MemoryFkLoader,
     StrictMemoryProjectorService,
     GovernedMemoryIngestService,

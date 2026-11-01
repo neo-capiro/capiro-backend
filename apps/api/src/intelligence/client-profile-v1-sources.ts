@@ -1,8 +1,9 @@
 import { EngagementTaskStatus } from '@prisma/client';
 import { FEC_DISCLAIMER } from './fec-disclaimer.js';
-import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
-import { dateBoundsInZone } from './time-bounds.js';
+import type { CommitteeHearing } from '@prisma/client';
+import { readFederalHearingWindow } from './federal-hearing-window.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
+import { PROFILE_V1_SOURCE_CONCURRENCY, settleWithConcurrency, shared, type ProfileV1SourceStart } from './profile-v1-source-limiter.js';
 import type {
   ProfileV1Context,
   ProfileV1Ports,
@@ -13,15 +14,24 @@ export async function collectProfileV1Sources(
   prisma: PrismaService,
   ports: ProfileV1Ports,
   context: ProfileV1Context,
+  concurrency = PROFILE_V1_SOURCE_CONCURRENCY,
 ) {
-  const { clientId, tenantId } = context;
-  const mappingRowsPromise = prisma.withTenant(tenantId, (tx) =>
-    tx.clientIntelMapping.findMany({
-      where: { clientId },
-      select: { source: true, confirmed: true, externalId: true },
-    }),
+  const { clientId, tenantId, now, day21 } = context;
+  const mappingRows = shared(() =>
+    prisma.withTenant(tenantId, (tx) =>
+      tx.clientIntelMapping.findMany({
+        where: { clientId },
+        select: { source: true, confirmed: true, externalId: true },
+      }),
+    ),
   );
-  const trackedBillsPromise = ports.getTrackedBills(clientId, tenantId);
+  // Tracked bills feed three sources (4, 5 and 23); the first slot that needs
+  // them starts the one shared read.
+  const trackedBills = shared(() => ports.getTrackedBills(clientId, tenantId));
+  // The federal hearing window is read once per process-minute and shared by
+  // the calendar feed (11) and, through getHearingAlerts (23), the alerts;
+  // previously both ran the same query on every load.
+  const hearings = shared(() => readFederalHearingWindow(prisma, now, day21));
   const settledSourceLabels = [
     'profile',
     'lobbyingRoi',
@@ -49,21 +59,16 @@ export async function collectProfileV1Sources(
     'hearingAlerts',
     'clientRelevantRegulations',
   ] as const;
-  const sources: Array<Promise<unknown>> = [
-    ...startProfileSources(ports, context, trackedBillsPromise),
-    ...readCalendarAndActivity(prisma, context),
-    ...startDistrictAndAlertSources(
-      prisma,
-      ports,
-      context,
-      trackedBillsPromise,
-      mappingRowsPromise,
-    ),
+  const sources: ProfileV1SourceStart[] = [
+    ...startProfileSources(ports, context, trackedBills),
+    ...readCalendarAndActivity(prisma, context, hearings),
+    ...startDistrictAndAlertSources(prisma, ports, context, trackedBills, mappingRows),
   ];
-  const settled = await Promise.allSettled(
-    sources.map((work, index) =>
-      ports.withSourceBudget(settledSourceLabels[index] ?? `source_${index}`, clientId, work),
+  const settled = await settleWithConcurrency(
+    sources.map((start, index) => () =>
+      ports.withSourceBudget(settledSourceLabels[index] ?? `source_${index}`, clientId, start()),
     ),
+    concurrency,
   );
   return { settled, settledSourceLabels };
 }
@@ -71,16 +76,16 @@ export async function collectProfileV1Sources(
 function startProfileSources(
   ports: ProfileV1Ports,
   context: ProfileV1Context,
-  trackedBillsPromise: ReturnType<ProfileV1Ports['getTrackedBills']>,
-): Array<Promise<unknown>> {
-  const { client, clientId, tenantId, day7 } = context;
+  trackedBills: () => ReturnType<ProfileV1Ports['getTrackedBills']>,
+): ProfileV1SourceStart[] {
+  const { clientId, tenantId, day7 } = context;
   return [
-    ports.getClientProfile(clientId, tenantId),
-    ports.getLobbyingRoi(clientId, tenantId),
-    ports.getFecMoneyFlow(clientId, tenantId),
-    ports.getDistrictNexus(clientId, tenantId),
-    trackedBillsPromise,
-    ports.getBillRegulationLinks(clientId, tenantId, trackedBillsPromise),
+    () => ports.getClientProfile(clientId, tenantId),
+    () => ports.getLobbyingRoi(clientId, tenantId),
+    () => ports.getFecMoneyFlow(clientId, tenantId),
+    () => ports.getDistrictNexus(clientId, tenantId),
+    () => trackedBills(),
+    () => ports.getBillRegulationLinks(clientId, tenantId, trackedBills()),
     // [6] Knowledge graph: REMOVED from the client Intelligence tab. The graph
     // is being relocated to the Intelligence Center (it still has its own
     // dedicated endpoint + getKnowledgeGraph() method, used by
@@ -91,78 +96,75 @@ function startProfileSources(
     // is unchanged) but resolve a static empty graph instead of touching the
     // DB. scopedGraph is built from this empty shape; the Relationships
     // section no longer renders the graph, so nothing downstream regresses.
-    Promise.resolve({
-      nodes: [] as Array<{ id: string; type: string; label: string }>,
-      edges: [] as Array<{ source: string; target: string; type: string }>,
-      resolutionQuality: { avgConfidence: 0, confirmedCount: 0, unconfirmedCount: 0 },
-    } as unknown as Awaited<ReturnType<ProfileV1Ports['getKnowledgeGraph']>>),
-    ports.computeEngagementHealth(clientId, tenantId),
-    ports.getExStaffers(clientId, tenantId),
-    ports.getCommentPeriodAlerts(tenantId),
-    ports.getChanges(tenantId, day7.toISOString(), clientId),
+    () =>
+      Promise.resolve({
+        nodes: [] as Array<{ id: string; type: string; label: string }>,
+        edges: [] as Array<{ source: string; target: string; type: string }>,
+        resolutionQuality: { avgConfidence: 0, confirmedCount: 0, unconfirmedCount: 0 },
+      } as unknown as Awaited<ReturnType<ProfileV1Ports['getKnowledgeGraph']>>),
+    () => ports.computeEngagementHealth(clientId, tenantId),
+    () => ports.getExStaffers(clientId, tenantId),
+    () => ports.getCommentPeriodAlerts(tenantId),
+    () => ports.getChanges(tenantId, day7.toISOString(), clientId),
   ];
 }
 
 function readCalendarAndActivity(
   prisma: PrismaService,
   context: ProfileV1Context,
-): Array<Promise<unknown>> {
-  const { clientId, tenantId, now, day14, day21 } = context;
+  hearings: () => Promise<CommitteeHearing[]>,
+): ProfileV1SourceStart[] {
+  const { clientId, tenantId, day14 } = context;
   return [
-    prisma.committeeHearing.findMany({
-      // `date` is @db.Date, stored at UTC midnight of the hearing's Eastern day.
-      // `gte: now` therefore excluded TODAY's hearings for the whole working
-      // day — 00:00Z >= 13:00Z is false — so a hearing happening right now was
-      // never in this feed. Compare against the start of the Eastern day.
-      where: federalHearingWhere({
-        date: { gte: dateBoundsInZone(now, 'America/New_York').start, lte: day21 },
-      }),
-      orderBy: [{ date: 'asc' }, { time: 'asc' }],
-      take: 40,
-    }),
-    prisma.withTenant(tenantId, (tx) =>
-      tx.meeting.findMany({
-        where: { clientId, startsAt: { gte: day14 } },
-        select: { startsAt: true },
-        orderBy: { startsAt: 'asc' },
-      }),
-    ),
-    prisma.withTenant(tenantId, (tx) =>
-      tx.mailThread.findMany({
-        where: { clientId, lastMessageAt: { gte: day14 } },
-        select: { lastMessageAt: true },
-        orderBy: { lastMessageAt: 'asc' },
-      }),
-    ),
-    prisma.withTenant(tenantId, (tx) =>
-      tx.engagementTask.findMany({
-        where: {
-          clientId,
-          status: EngagementTaskStatus.done,
-          updatedAt: { gte: day14 },
-        },
-        select: { updatedAt: true },
-        orderBy: { updatedAt: 'asc' },
-      }),
-    ),
-    prisma.withTenant(tenantId, (tx) =>
-      tx.meetingDebrief.findMany({
-        where: { clientId, createdAt: { gte: day14 } },
-        select: { createdAt: true },
-        orderBy: { createdAt: 'asc' },
-      }),
-    ),
+    () => hearings(),
+    () =>
+      prisma.withTenant(tenantId, (tx) =>
+        tx.meeting.findMany({
+          where: { clientId, startsAt: { gte: day14 } },
+          select: { startsAt: true },
+          orderBy: { startsAt: 'asc' },
+        }),
+      ),
+    () =>
+      prisma.withTenant(tenantId, (tx) =>
+        tx.mailThread.findMany({
+          where: { clientId, lastMessageAt: { gte: day14 } },
+          select: { lastMessageAt: true },
+          orderBy: { lastMessageAt: 'asc' },
+        }),
+      ),
+    () =>
+      prisma.withTenant(tenantId, (tx) =>
+        tx.engagementTask.findMany({
+          where: {
+            clientId,
+            status: EngagementTaskStatus.done,
+            updatedAt: { gte: day14 },
+          },
+          select: { updatedAt: true },
+          orderBy: { updatedAt: 'asc' },
+        }),
+      ),
+    () =>
+      prisma.withTenant(tenantId, (tx) =>
+        tx.meetingDebrief.findMany({
+          where: { clientId, createdAt: { gte: day14 } },
+          select: { createdAt: true },
+          orderBy: { createdAt: 'asc' },
+        }),
+      ),
     // Outreach sent per day, feeds the 5th Activity row in the snapshot
     // panel (Meetings / Outreach sent / Tasks done / Bills tracked /
     // Critical alerts). Mockup spec requires this row; previously only
     // surfaced as an aggregate inside computeEngagementHealth.
-    prisma.withTenant(tenantId, (tx) =>
-      tx.outreachRecord.findMany({
-        where: { clientId, sentAt: { gte: day14 } },
-        select: { sentAt: true },
-        orderBy: { sentAt: 'asc' },
-      }),
-    ),
+    () =>
+      prisma.withTenant(tenantId, (tx) =>
+        tx.outreachRecord.findMany({
+          where: { clientId, sentAt: { gte: day14 } },
+          select: { sentAt: true },
+          orderBy: { sentAt: 'asc' },
+        }),
+      ),
   ];
 }
 
@@ -170,47 +172,47 @@ function startDistrictAndAlertSources(
   prisma: PrismaService,
   ports: ProfileV1Ports,
   context: ProfileV1Context,
-  trackedBillsPromise: ReturnType<ProfileV1Ports['getTrackedBills']>,
-  mappingRowsPromise: Promise<
-    Array<{ source: string; confirmed: boolean; externalId: string | null }>
-  >,
-): Array<Promise<unknown>> {
-  const { client, clientId, tenantId, userId, now, day21, day7, day30 } = context;
+  trackedBills: () => ReturnType<ProfileV1Ports['getTrackedBills']>,
+  mappingRows: () => Promise<Array<{ source: string; confirmed: boolean; externalId: string | null }>>,
+): ProfileV1SourceStart[] {
+  const { clientId, tenantId, userId, now, day21, day7, day30 } = context;
   return [
-    mappingRowsPromise,
+    () => mappingRows(),
     // Real USAspending spend-by-district (the data-driven path). Appended at the
     // end of the array so the existing positional settle() indices are unchanged.
     // Drives the Financial Footprint district panel's job/spend bars; the
     // free-text getDistrictNexus (index 3) remains as a fallback / capability list.
-    ports.getDistrictNexusSpend(clientId, tenantId),
+    () => ports.getDistrictNexusSpend(clientId, tenantId),
     // ── New alert-source feeders (compute-on-read), appended at the END so the
     // existing positional settle() indices (0–18) are unchanged. Each is wrapped
     // so a failure degrades only its own alert type, never the aggregate. ──
     // [19] Overdue comment deadlines: FedReg docs whose comment window JUST
     // closed (last 7d) and that match this client — "did we file?" nudge.
-    ports.getOverdueCommentAlerts(clientId, tenantId, now, day7),
+    () => ports.getOverdueCommentAlerts(clientId, tenantId, now, day7),
     // [20] New competitor LDA activity on the client's issue codes (last 30d).
-    ports.getCompetitorLdaAlerts(clientId, tenantId, day30),
+    () => ports.getCompetitorLdaAlerts(clientId, tenantId, day30),
     // [21] New federal contract awards relevant to the client (last 30d).
-    ports.getContractAwardAlerts(clientId, tenantId, day30),
+    () => ports.getContractAwardAlerts(clientId, tenantId, day30),
     // [22] Per-user worklist state (ack/dismiss/snooze) for this client's alerts.
-    userId
-      ? prisma.withTenant(tenantId, (tx) =>
-          tx.alertState.findMany({
-            where: { userId, clientId },
-            select: { alertId: true, state: true, snoozedUntil: true },
-          }),
-        )
-      : Promise.resolve([] as Array<{ alertId: string; state: string; snoozedUntil: Date | null }>),
+    () =>
+      userId
+        ? prisma.withTenant(tenantId, (tx) =>
+            tx.alertState.findMany({
+              where: { userId, clientId },
+              select: { alertId: true, state: true, snoozedUntil: true },
+            }),
+          )
+        : Promise.resolve([] as Array<{ alertId: string; state: string; snoozedUntil: Date | null }>),
     // [23] Upcoming hearings & markups matched to this client (next 21d). The
     // legacy Hearings panel was removed from the UI; this surfaces the same
-    // signal as time-sensitive alert rows on the Top alerts card.
-    ports.getHearingAlerts(clientId, tenantId, now, day21, trackedBillsPromise),
+    // signal as time-sensitive alert rows on the Top alerts card. Shares the
+    // tracked bills read above and the cached hearing window.
+    () => ports.getHearingAlerts(clientId, tenantId, now, day21, trackedBills()),
     // [24] Regulatory matters relevant to this client with NO dependency on
     // bill tracking (see getBillRegulationLinks, index 5, and
     // getClientRelevantRegulations below) — a client that tracks no bills
     // otherwise gets a permanently empty Regulatory panel.
-    ports.getClientRelevantRegulations(clientId, tenantId, now),
+    () => ports.getClientRelevantRegulations(clientId, tenantId, now),
   ];
 }
 

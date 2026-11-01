@@ -328,3 +328,93 @@ describe('meeting command input binding', () => {
     expect(() => parseMeetingCommand(value)).toThrow('Review');
   });
 });
+
+describe('D2 audited debrief context on the meeting command', () => {
+  const contextSummary = {
+    version: 'd2-debrief-context-v1',
+    boundTokens: 8000,
+    totalTokens: 1234,
+    sourceTruncated: false,
+    sections: [
+      { name: 'source', tokens: 900, state: 'kept' as const },
+      { name: 'prep', tokens: 120, state: 'shortened' as const },
+    ],
+  };
+  const debriefCreate = {
+    schemaVersion: 1,
+    requestId: id(3),
+    operation: 'debrief-create',
+    meetingId: id(5),
+    expectedClientId: null,
+    expectedRevision: now,
+    meeting: null,
+    artifacts: [],
+    artifact: {
+      id: null,
+      revision: null,
+      body: 'Composed debrief body',
+      confidential: false,
+      generatedFrom: contextSummary,
+    },
+  };
+
+  test('accepts the summary on a debrief create and keeps it intact', () => {
+    expect(parseMeetingCommand(debriefCreate).artifact?.generatedFrom).toEqual(contextSummary);
+  });
+
+  test('a debrief create without the summary still parses', () => {
+    const { generatedFrom: _omit, ...artifact } = debriefCreate.artifact;
+    const parsed = parseMeetingCommand({ ...debriefCreate, artifact });
+    expect(parsed.artifact).not.toHaveProperty('generatedFrom');
+  });
+
+  test('refuses the summary on a note create', () => {
+    expect(() =>
+      parseMeetingCommand({ ...debriefCreate, operation: 'note-create' }),
+    ).toThrow('Review');
+  });
+
+  test('refuses the summary on a debrief update and on approve', () => {
+    for (const operation of ['debrief-update', 'debrief-approve'] as const) {
+      expect(() => parseMeetingCommand({ ...debriefCreate, operation })).toThrow('Review');
+    }
+  });
+
+  test('refuses a malformed summary (negative token count)', () => {
+    expect(() =>
+      parseMeetingCommand({
+        ...debriefCreate,
+        artifact: {
+          ...debriefCreate.artifact,
+          generatedFrom: { ...contextSummary, totalTokens: -1 },
+        },
+      }),
+    ).toThrow('Review');
+  });
+
+  test('refuses an oversized section list and unknown keys', () => {
+    const tooMany = Array.from({ length: 21 }, (_, index) => ({
+      name: `section-${index}`,
+      tokens: 1,
+      state: 'kept' as const,
+    }));
+    expect(() =>
+      parseMeetingCommand({
+        ...debriefCreate,
+        artifact: {
+          ...debriefCreate.artifact,
+          generatedFrom: { ...contextSummary, sections: tooMany },
+        },
+      }),
+    ).toThrow('Review');
+    expect(() =>
+      parseMeetingCommand({
+        ...debriefCreate,
+        artifact: {
+          ...debriefCreate.artifact,
+          generatedFrom: { ...contextSummary, raw: 'provider envelope' },
+        },
+      }),
+    ).toThrow('Review');
+  });
+});

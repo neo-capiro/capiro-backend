@@ -1,0 +1,146 @@
+{
+  "synthetic": true,
+  "request": {
+    "to": "bill:119-hr-1",
+    "depth": 3,
+    "clientId": "00000003-0000-4000-8000-000000000001"
+  },
+  "response": {
+    "tool": "find_path_to",
+    "target": "bill:119-hr-1",
+    "clientId": "00000003-0000-4000-8000-000000000001",
+    "observedAt": "2026-10-29T09:00:00.000Z",
+    "temporalCoverage": "current_only",
+    "paths": [
+      {
+        "nodes": [
+          {
+            "id": "client:00000003-0000-4000-8000-000000000001",
+            "type": "client",
+            "label": "Selected client"
+          },
+          {
+            "id": "person:00000004-0000-4000-8000-000000000001",
+            "type": "person",
+            "label": "Authorized contact"
+          },
+          {
+            "id": "bill:119-hr-1",
+            "type": "bill",
+            "label": "119-hr-1"
+          }
+        ],
+        "edges": [
+          {
+            "src": "client:00000003-0000-4000-8000-000000000001",
+            "dst": "person:00000004-0000-4000-8000-000000000001",
+            "relation": "contact",
+            "origin": "fk",
+            "basis": "direct",
+            "sources": [
+              {
+                "kind": "client_person",
+                "id": "00000004-0000-4000-8000-000000000001"
+              }
+            ]
+          },
+          {
+            "src": "person:00000004-0000-4000-8000-000000000001",
+            "dst": "bill:119-hr-1",
+            "relation": "mentions",
+            "origin": "mention",
+            "basis": "thematic",
+            "sources": [
+              {
+                "kind": "memory_item",
+                "id": "00000005-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ],
+        "basis": "thematic"
+      }
+    ],
+    "coverage": {
+      "state": "complete",
+      "scope": "one_shortest_path_per_visible_client",
+      "maxDepth": 3,
+      "maxPaths": 20,
+      "clientsSearched": 1,
+      "reasons": []
+    },
+    "summary": "1 source-linked route(s) within 3 hops in the authorized current graph projection."
+  },
+  "general": {
+    "request": {
+      "to": "bill:119-hr-1",
+      "depth": 3
+    },
+    "response": {
+      "tool": "find_path_to",
+      "target": "bill:119-hr-1",
+      "clientId": null,
+      "observedAt": "2026-10-29T09:00:00.000Z",
+      "temporalCoverage": "current_only",
+      "paths": [
+        {
+          "nodes": [
+            {
+              "id": "client:00000003-0000-4000-8000-000000000001",
+              "type": "client",
+              "label": "Selected client"
+            },
+            {
+              "id": "person:00000004-0000-4000-8000-000000000001",
+              "type": "person",
+              "label": "Authorized contact"
+            },
+            {
+              "id": "bill:119-hr-1",
+              "type": "bill",
+              "label": "119-hr-1"
+            }
+          ],
+          "edges": [
+            {
+              "src": "client:00000003-0000-4000-8000-000000000001",
+              "dst": "person:00000004-0000-4000-8000-000000000001",
+              "relation": "contact",
+              "origin": "fk",
+              "basis": "direct",
+              "sources": [
+                {
+                  "kind": "client_person",
+                  "id": "00000004-0000-4000-8000-000000000001"
+                }
+              ]
+            },
+            {
+              "src": "person:00000004-0000-4000-8000-000000000001",
+              "dst": "bill:119-hr-1",
+              "relation": "mentions",
+              "origin": "mention",
+              "basis": "thematic",
+              "sources": [
+                {
+                  "kind": "memory_item",
+                  "id": "00000005-0000-4000-8000-000000000001"
+                }
+              ]
+            }
+          ],
+          "basis": "thematic"
+        }
+      ],
+      "coverage": {
+        "state": "complete",
+        "scope": "one_shortest_path_per_visible_client",
+        "maxDepth": 3,
+        "maxPaths": 20,
+        "clientsSearched": 2,
+        "reasons": []
+      },
+      "summary": "1 source-linked route(s) within 3 hops in the authorized current graph projection."
+    }
+  }
+}

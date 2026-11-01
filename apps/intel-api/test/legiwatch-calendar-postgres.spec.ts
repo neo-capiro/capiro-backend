@@ -3,13 +3,13 @@ import { PrismaService } from '../src/prisma/prisma.service.js';
 import { FolderSourceDataRepository } from '../src/sourcedata/folder-source-data.repository.js';
 import { SourceDataRepository } from '../src/sourcedata/source-data.repository.js';
 import { FolderTrackerService } from '../src/tracker/folders/folder-tracker.service.js';
-import { ReportService } from '../src/tracker/reports/report.service.js';
-import { ReportRecipientsService } from '../src/tracker/reports/recipients.service.js';
-import { ReportDeliveryService } from '../src/tracker/reports/report-delivery.service.js';
+import { DraftAccessService } from '../src/tracker/delivery/draft-access.service.js';
+import { RecipientsService } from '../src/tracker/delivery/recipients.service.js';
+import { DeliveryService } from '../src/tracker/delivery/delivery.service.js';
 import { CalendarPreparationService } from '../src/tracker/calendar/calendar-preparation.service.js';
 import { AgendaRuleService } from '../src/tracker/calendar/agenda-rule.service.js';
-import { capturedRule } from '../src/tracker/reports/record-rule.service.js';
-import { json, object } from '../src/tracker/reports/report-domain.js';
+import { capturedRule } from '../src/tracker/delivery/record-rule.service.js';
+import { json, object } from '../src/tracker/delivery/delivery-domain.js';
 import type { FeatureFlagService } from '../src/feature-flags/feature-flag.service.js';
 import type { IntelEmailService } from '../src/intel-alert/intel-email.service.js';
 import type { WorkspaceTenantContext } from '../src/auth/tenant-context.js';
@@ -20,11 +20,11 @@ describe('Phase 3 private preparation and agenda delivery on PostgreSQL', () => 
     folders = new FolderTrackerService(p, source, new SourceDataRepository(p));
   const enabled = jest.fn(async () => true),
     flags = { isEnabled: enabled } as unknown as FeatureFlagService;
-  const reports = new ReportService(folders, flags),
+  const reports = new DraftAccessService(folders, flags),
     rules = new AgendaRuleService(reports),
     prep = new CalendarPreparationService(folders, flags);
   const send = jest.fn(async () => ({ outcome: 'accepted', messageId: 'test-only' }));
-  const delivery = new ReportDeliveryService(reports, new ReportRecipientsService(reports), {
+  const delivery = new DeliveryService(reports, new RecipientsService(reports), {
     sendReport: send,
   } as unknown as IntelEmailService);
   const tenant = randomUUID(),

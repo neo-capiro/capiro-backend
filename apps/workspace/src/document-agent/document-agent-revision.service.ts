@@ -5,6 +5,9 @@ import { denyProspectTransfer } from '../prospect-resources/prospect-draft-acces
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { computeContentHash, computeOutlineHash } from './document-agent-state.js';
+import { workspaceProspectGenerationSourceWithinTx } from '@capiro/shared/workspace-prospect-generation-source';
+import { PROSPECT_GENERATION, type ProspectGenerationPayload } from './prospect-generation/contract.js';
+import type { Prisma } from '../../generated/prisma-client/index.js';
 
 /** Error code for stale proposals. */
 export const PROPOSAL_STALE_CODE = 'PROPOSAL_STALE';
@@ -15,6 +18,37 @@ type ProposalClient = Pick<PrismaService, 'wsDraft' | 'wsAgentProposal'>;
 @Injectable()
 export class DocumentAgentRevisionService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /** Explicit prospect admission shares the proposal table and current source
+   * owner. Legacy proposal/transfer callers retain their existing refusal. */
+  async createProspectGeneration(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    draftId: string,
+    actorId: string,
+    payload: ProspectGenerationPayload,
+  ) {
+    await workspaceProspectGenerationSourceWithinTx(
+      tx,
+      tenantId,
+      { clerkUserId: actorId },
+      payload.source,
+      { edit: true },
+    );
+    return tx.wsAgentProposal.create({
+      data: {
+        id: payload.input.requestId,
+        tenantId,
+        draftId,
+        createdById: actorId,
+        type: PROSPECT_GENERATION,
+        status: 'pending',
+        baseRevision: 0,
+        baseHash: payload.input.expectedStateHash,
+        payload: payload as never,
+      },
+    });
+  }
 
   /**
    * Create a revision proposal. Stores baseRevision + baseHash for staleness

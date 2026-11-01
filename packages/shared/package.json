@@ -6,16 +6,30 @@
   "types": "./dist/index.d.ts",
   "typesVersions": {
     "*": {
-      "workspace-share-lifecycle": ["dist/workspace-share-lifecycle.d.ts"],
-      "workspace-template-studio": ["dist/workspace-template-studio.d.ts"],
-      "core-retained-read-request": ["dist/core-retained-read-request.d.ts"],
-      "core-retained-authority-probe": ["dist/core-retained-authority-probe.d.ts"],
-      "core-retained-authority-http": ["dist/core-retained-authority-http.d.ts"],
+      "workspace-share-lifecycle": [
+        "dist/workspace-share-lifecycle.d.ts"
+      ],
+      "workspace-template-studio": [
+        "dist/workspace-template-studio.d.ts"
+      ],
+      "core-retained-read-request": [
+        "dist/core-retained-read-request.d.ts"
+      ],
+      "core-retained-authority-probe": [
+        "dist/core-retained-authority-probe.d.ts"
+      ],
+      "core-retained-authority-http": [
+        "dist/core-retained-authority-http.d.ts"
+      ],
       "core-retained-principal": [
         "dist/core-retained-principal.d.ts"
       ],
-      "core-retained-jcs": ["dist/core-retained-jcs.d.ts"],
-      "core-retained-trust": ["dist/core-retained-trust.d.ts"],
+      "core-retained-jcs": [
+        "dist/core-retained-jcs.d.ts"
+      ],
+      "core-retained-trust": [
+        "dist/core-retained-trust.d.ts"
+      ],
       "ai-model-policy": [
         "dist/ai-model-policy.d.ts"
       ],
@@ -57,6 +71,18 @@
       ],
       "objective-planner-owner-codec": [
         "dist/objective-planner-owner-codec.d.ts"
+      ],
+      "prospect-brief-refresh": [
+        "dist/prospect-brief-refresh.d.ts"
+      ],
+      "site-workflows": [
+        "dist/site-workflows.d.ts"
+      ],
+      "settings-memory-drafts": [
+        "dist/settings-memory-drafts.d.ts"
+      ],
+      "workspace-prospect-generation-source": [
+        "dist/workspace-prospect-generation-source.d.ts"
       ]
     }
   },
@@ -198,6 +224,29 @@
       "require": "./dist/objective-planner-owner-codec.js",
       "import": "./dist/objective-planner-owner-codec.js",
       "default": "./dist/objective-planner-owner-codec.js"
+    },
+    "./prospect-brief-refresh": {
+      "types": "./dist/prospect-brief-refresh.d.ts",
+      "import": "./dist/prospect-brief-refresh.js",
+      "default": "./dist/prospect-brief-refresh.js"
+    },
+    "./site-workflows": {
+      "types": "./dist/site-workflows.d.ts",
+      "require": "./dist/site-workflows.js",
+      "import": "./dist/site-workflows.js",
+      "default": "./dist/site-workflows.js"
+    },
+    "./settings-memory-drafts": {
+      "types": "./dist/settings-memory-drafts.d.ts",
+      "require": "./dist/settings-memory-drafts.js",
+      "import": "./dist/settings-memory-drafts.js",
+      "default": "./dist/settings-memory-drafts.js"
+    },
+    "./workspace-prospect-generation-source": {
+      "types": "./dist/workspace-prospect-generation-source.d.ts",
+      "require": "./dist/workspace-prospect-generation-source.js",
+      "import": "./dist/workspace-prospect-generation-source.js",
+      "default": "./dist/workspace-prospect-generation-source.js"
     }
   },
   "scripts": {

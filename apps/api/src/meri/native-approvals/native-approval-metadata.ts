@@ -1,11 +1,12 @@
+import { parseNativeMemoryArguments } from './native-memory-command.js';
 import { parseNativeMailArguments } from '../execution-capability/native-mail-command.js';
 import { ConflictException, Injectable, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import {
-  nativeCanonicalSha256, parseArtifactFileArguments, parseArtifactFileAttachments, parseRunBinding,
+  assertBrowserReadback, nativeCanonicalSha256, parseArtifactFileArguments, parseArtifactFileAttachments, parseRunBinding,
   parseTaskCreateArguments, parseTaskUpdateArguments, sameJson, UUID,
-  type NativeApprovalProposal,
+  type NativeApprovalProposal, type NativeBrowserPrepared, type NativeRunBinding,
 } from './native-approval.contract.js';
 
 const unavailable = () => new ServiceUnavailableException('Approval metadata unavailable');
@@ -31,6 +32,21 @@ function normalizedInput(proposal: NativeApprovalProposal, request: unknown, com
     if (!sameJson(context, { binding: c.binding, scopes: c.scopes })) throw mismatch();
     if (!sameJson(request, c.arguments)) throw mismatch();
     args = c.arguments;
+  } else if (c.action === 'memory.propose') {
+    const context = closed(commandContext, ['binding', 'conversationClientId']);
+    if (!sameJson(context.binding, c.binding) || (context.conversationClientId !== null &&
+        (typeof context.conversationClientId !== 'string' || !UUID.test(context.conversationClientId)))) throw mismatch();
+    const selected = c.scopes.length === 1 && c.scopes[0]!.kind === 'client' ? c.scopes[0]!.resourceId : null;
+    if (context.conversationClientId !== selected) throw mismatch();
+    const raw = closed(request, ['content'], ['key', 'scope', 'ttlDays']);
+    for (const key of ['content', 'key', 'scope']) if ((key === 'content' || raw[key] != null) &&
+      (typeof raw[key] !== 'string' || [...raw[key] as string].length > 16384)) throw mismatch();
+    if (raw.ttlDays != null && (typeof raw.ttlDays !== 'number' || !Number.isFinite(raw.ttlDays))) throw mismatch();
+    const requested = (typeof raw.scope === 'string' ? raw.scope.trim().toLowerCase() : '') || 'personal';
+    const scope = requested === 'user_private' ? 'personal' : requested;
+    args = parseNativeMemoryArguments({ content: (raw.content as string).trim(), key: typeof raw.key === 'string' ? raw.key.trim() || null : null,
+      scope, clientId: scope === 'client' ? selected : null,
+      ttlDays: raw.ttlDays == null || (raw.ttlDays as number) <= 0 ? null : Math.min(raw.ttlDays as number, 365) });
   } else if (c.action === 'mail.send') {
     const context = closed(commandContext, ['binding']);
     if (!sameJson(context.binding, c.binding)) throw mismatch();
@@ -94,7 +110,7 @@ function normalizedInput(proposal: NativeApprovalProposal, request: unknown, com
 /** The initial binding proves preparation custody. Later generations, a started
  * turn, or its admission expiry do not revoke an explicit Core approval. */
 function initialPreparation(value: unknown, proposal: NativeApprovalProposal): void {
-  if (!['task.create', 'task.update', 'artifact.file', 'mail.send'].includes(proposal.command.action)) throw mismatch();
+  if (!['task.create', 'task.update', 'artifact.file', 'mail.send', 'memory.propose'].includes(proposal.command.action)) throw mismatch();
   const p = closed(value, ['kind', 'record', 'recordSha256', 'generation', 'latestGeneration', 'started']);
   const r = closed(p.record, ['schemaVersion', 'state', 'binding', 'selectedClientId', 'policyRevision', 'versions',
     'configurationSha256', 'expiresAtMs', 'createdAtMs']);
@@ -129,12 +145,12 @@ function verifyReadback(actual: unknown, proposal: NativeApprovalProposal): void
     const r = closed(m.record, ['operation', 'action', 'binding', 'request', 'inputSha256', 'commandId',
       'idempotencyKey', 'proposalId', 'scopes', 'createdAt', 'expiresAt', 'requiredApprover']);
     const c = proposal.command;
-    const operation = c.action === 'mail.send' ? 'mail_send' : c.action === 'document.draft' ? 'create_word' : c.action === 'task.create' ? 'create_task'
+    const operation = c.action === 'memory.propose' ? 'save_memory' : c.action === 'mail.send' ? 'mail_send' : c.action === 'document.draft' ? 'create_word' : c.action === 'task.create' ? 'create_task'
       : c.action === 'artifact.file' ? 'save_chat_attachments' : 'update_task';
     // An effect may already have committed before its preparation run
     // subsequently failed. Retained metadata remains valid for reconciliation.
     const states = ['queued', 'starting', 'running', 'paused', 'waiting-for-approval', 'completed',
-      ...(['task.create', 'task.update', 'artifact.file', 'mail.send'].includes(c.action) ? ['failed'] : [])];
+      ...(['task.create', 'task.update', 'artifact.file', 'mail.send', 'memory.propose'].includes(c.action) ? ['failed'] : [])];
     const input = normalizedInput(proposal, r.request, m.commandContext);
     const expected = { operation: { id: operation, version: '0.2.0' }, action: c.action,
       binding: c.binding, request: r.request, inputSha256: nativeCanonicalSha256(input),
@@ -155,9 +171,8 @@ function verifyReadback(actual: unknown, proposal: NativeApprovalProposal): void
 export class NativeApprovalMetadataVerifier {
   constructor(@Optional() private readonly config?: ConfigService) {}
 
-  async verify(proposal: NativeApprovalProposal, transaction?: Prisma.TransactionClient): Promise<void> {
-    // Keep network I/O outside the caller's proposal lock/database transaction.
-    if (transaction) throw unavailable();
+  /** One bounded read of Meri's internal approval metadata (never inside a DB transaction). */
+  private async readInternal(body: unknown): Promise<unknown> {
     const origin = this.config?.get<string>('MERI_CONTROL_ORIGIN');
     const secret = this.config?.get<string>('INTERNAL_SERVICE_SECRET');
     let base: URL;
@@ -170,7 +185,7 @@ export class NativeApprovalMetadataVerifier {
       const response = await fetch(new URL('/v1/internal/approval-metadata/read', base), {
         method: 'POST', redirect: 'error', signal: abort.signal,
         headers: { 'content-type': 'application/json', 'x-internal-service-secret': secret },
-        body: JSON.stringify({ schemaVersion: 1, proposalId: proposal.proposalId, binding: proposal.command.binding }),
+        body: JSON.stringify(body),
       });
       if (response.status !== 200 || !response.body) throw unavailable();
       reader = response.body.getReader();
@@ -184,13 +199,38 @@ export class NativeApprovalMetadataVerifier {
       }
       const actual = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks)));
       if (abort.signal.aborted) throw unavailable();
-      return verifyReadback(actual, proposal);
+      return actual;
     } catch (error) {
       if (error instanceof ConflictException) throw error;
       throw unavailable();
     } finally {
       clearTimeout(timer); abort.abort();
       if (reader) await reader.cancel().catch(() => undefined);
+    }
+  }
+
+  async verify(proposal: NativeApprovalProposal, transaction?: Prisma.TransactionClient): Promise<void> {
+    // Keep network I/O outside the caller's proposal lock/database transaction.
+    if (transaction) throw unavailable();
+    const actual = await this.readInternal({ schemaVersion: 1, proposalId: proposal.proposalId, binding: proposal.command.binding });
+    return verifyReadback(actual, proposal);
+  }
+
+  /**
+   * SCRUM-222: the retained browser preparation is the only authority for the
+   * subject, the complete binding, the scopes and the current run custody.
+   * Absent, unavailable, stale or substituted preparation refuses here, before
+   * any Core decision or consumption effect.
+   */
+  async verifyBrowser(request: {
+    proposalId: string; binding: NativeRunBinding; subjectSha256: string;
+  }): Promise<NativeBrowserPrepared> {
+    const actual = await this.readInternal({ schemaVersion: 1, proposalId: request.proposalId, binding: request.binding });
+    try {
+      return assertBrowserReadback(actual, request);
+    } catch {
+      // A malformed, substituted or foreign preparation is a refusal, never a 200.
+      throw new ConflictException('Approval proposal does not match its prepared record');
     }
   }
 }

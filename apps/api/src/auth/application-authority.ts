@@ -307,6 +307,17 @@ export const ARTIFACT_INTENT_OPERATIONS: Readonly<Record<string, readonly Artifa
   download: ['artifact.download'],
   preview: ['artifact.download', 'artifact.inspect'],
   'preview-publish': ['artifact.download', 'artifact.inspect', 'artifact.preview-publish'],
+  'federal-prepare': ['artifact.download', 'artifact.inspect'],
+  'federal-load': ['artifact.download', 'artifact.inspect'],
+  'federal-publish': ['artifact.download', 'artifact.generate', 'artifact.inspect', 'artifact.revise'],
+  'federal-import': ['artifact.generate'],
+  // Browser-imported bytes reach publication only through the existing
+  // generation operation; the browser ingress owner supplies provenance.
+  'browser-import': ['artifact.generate'],
+  // Explicit attended original-file adoption and editing use current artifact
+  // permissions; neither intent grants an SDK run or changes client walls.
+  'office-import': ['artifact.generate'],
+  'office-edit': ['artifact.revise'],
 });
 /** Contract §4.2 v1 rule: existing semantics, no new policy. */
 const ARTIFACT_ADMITTED_ROLES = Object.freeze(['standard_user', 'user_admin', 'capiro_admin']);

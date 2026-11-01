@@ -5,10 +5,7 @@ import {
   LiveHearingSourceTypeDto,
   RecordingPolicyDto,
 } from './dto/session.dto.js';
-import {
-  approvedPublicCapture,
-  stateCaptureEnabled,
-} from './capture/public-capture-permission.js';
+import { approvedPublicCapture, stateCaptureEnabled } from './capture/public-capture-permission.js';
 import { capturableHearingView, STATE_CAPTURE_LINK_ONLY } from './state-capture-policy.js';
 
 const FLORIDA_PAGE = 'https://www.flsenate.gov/Media/VideoPlayer/6382';
@@ -37,7 +34,12 @@ type SessionFixture = Omit<typeof stateSession, 'hearingId'> & { hearingId: stri
 
 function harness(
   session: SessionFixture = stateSession,
-  stateRows: Array<{ id: string }> = [{ id: 'hearing-fl' }],
+  stateRows: Array<{
+    id: string;
+    sourceUrl: string;
+    browserAllowed: boolean;
+    federal?: boolean;
+  }> = [{ id: 'hearing-fl', sourceUrl: FLORIDA_PAGE, browserAllowed: true }],
 ) {
   const create = jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({
     id: 'created',
@@ -66,7 +68,7 @@ function stateDto(overrides: Record<string, unknown> = {}) {
     audioSource: LiveHearingAudioSourceDto.browser_mic,
     recordingPolicy: RecordingPolicyDto.transcript_only,
     hearingId: 'hearing-fl',
-    sourceUrl: 'https://example.gov/event',
+    sourceUrl: FLORIDA_PAGE,
     ...overrides,
   };
 }
@@ -76,9 +78,7 @@ function renderSql(call: unknown[]): string {
   const [parts, ...values] = call as [TemplateStringsArray, ...unknown[]];
   return parts.reduce(
     (sql, part, index) =>
-      sql +
-      part +
-      (index < values.length ? ((values[index] as { sql?: string })?.sql ?? '?') : ''),
+      sql + part + (index < values.length ? ((values[index] as { sql?: string })?.sql ?? '?') : ''),
     '',
   );
 }
@@ -114,153 +114,97 @@ describe('LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED', () => {
   });
 });
 
-describe('state proceedings remain link-only while the switch is off', () => {
+describe('public Florida browser recording is independent of unattended capture', () => {
   beforeEach(() => {
     delete process.env[FLAG];
   });
 
-  it('never accepts a grant unless the hearing has a canonical federal row', async () => {
+  it('keeps automatic public capture restricted to the federal view while state capture is off', async () => {
     const { prisma, query } = permissionHarness();
     await expect(approvedPublicCapture(prisma as never, 'hearing-fl')).resolves.toEqual([]);
-    expect(query).toHaveBeenCalledTimes(1);
     expect(renderSql(query.mock.calls[0]!)).toContain('FROM federal_committee_hearing');
   });
 
-  it('cannot create a browser or server capture session for a state hearing id', async () => {
-    for (const audioSource of [
-      LiveHearingAudioSourceDto.browser_mic,
-      LiveHearingAudioSourceDto.stream_url,
-    ]) {
+  it.each(['false', 'true'])(
+    'creates and starts an authorized public browser session when unattended capture is %s',
+    async (flag) => {
+      process.env[FLAG] = flag;
       const h = harness();
       await expect(
-        h.service.create('tenant-1', 'user-1', stateDto({ audioSource }) as never),
-      ).rejects.toThrow(STATE_CAPTURE_LINK_ONLY);
-      expect(h.create).not.toHaveBeenCalled();
-    }
-  });
+        h.service.create('tenant-1', 'user-1', stateDto() as never),
+      ).resolves.toMatchObject({ sourceUrl: FLORIDA_PAGE });
+      await expect(
+        h.service.assertCaptureAllowed('tenant-1', 'session-fl', 'user-1'),
+      ).resolves.toBe(stateSession);
+      expect(h.query).toHaveBeenCalled();
+    },
+  );
 
-  it('cannot start an existing Florida browser session, even when a grant may exist', async () => {
-    const h = harness();
-    await expect(
-      h.service.assertCaptureAllowed('tenant-1', 'session-fl', 'user-1'),
-    ).rejects.toThrow(STATE_CAPTURE_LINK_ONLY);
-    expect(h.query).not.toHaveBeenCalled();
-  });
-
-  it('rejects a Florida source when hearingId is missing or substituted', async () => {
-    for (const hearingId of [null, 'federal-hearing-id']) {
-      const session = { ...stateSession, hearingId };
-      const h = harness(session, []);
+  it.each([null, 'federal-hearing-id'])(
+    'rejects an unbound/substituted Florida source (%s)',
+    async (hearingId) => {
+      const h = harness({ ...stateSession, hearingId }, []);
       await expect(
         h.service.assertCaptureAllowed('tenant-1', 'session-fl', 'user-1'),
       ).rejects.toThrow(STATE_CAPTURE_LINK_ONLY);
-      expect(h.query).not.toHaveBeenCalled();
-    }
+    },
+  );
+
+  it('rejects private, canceled, mismatched, unsupported-state and expired-source rows at the canonical boundary', async () => {
+    const h = harness(stateSession, [
+      { id: 'hearing-fl', sourceUrl: FLORIDA_PAGE, browserAllowed: false },
+    ]);
+    await expect(h.service.create('tenant-1', 'user-1', stateDto() as never)).rejects.toThrow(
+      STATE_CAPTURE_LINK_ONLY,
+    );
+    expect(h.create).not.toHaveBeenCalled();
+    const sql = renderSql(h.query.mock.calls[0]!);
+    expect(sql).toContain("h.visibility='public'");
+    expect(sql).toContain("COALESCE(h.geographic_jurisdiction,'US') IN ('US','FL')");
+    expect(sql).toContain('c.expires_at>clock_timestamp()');
+    expect(sql).toContain('h.canonical_hearing_id IS NULL');
   });
 
   it.each([
-    'http://www.flsenate.gov/Media/VideoPlayer/6382',
-    'https://user:password@www.flhouse.gov:8443/Sections/Committees/committee-meeting.aspx',
-    'ftp://thefloridachannel.org/videos/example-hearing/',
-  ])('denies a Florida publisher host even when the source URL is unsafe: %s', async (sourceUrl) => {
-    const h = harness({ ...stateSession, hearingId: null, sourceUrl }, []);
+    'http://www.flsenate.gov/watch',
+    'https://user:pw@www.flhouse.gov:8443/watch',
+    'https://unknown.example/watch',
+  ])('rejects an unsafe/nonofficial Florida source %s', async (sourceUrl) => {
+    const h = harness({ ...stateSession, sourceUrl }, [
+      { id: 'hearing-fl', sourceUrl, browserAllowed: true },
+    ]);
     await expect(
       h.service.assertCaptureAllowed('tenant-1', 'session-fl', 'user-1'),
     ).rejects.toThrow(STATE_CAPTURE_LINK_ONLY);
-    expect(h.query).not.toHaveBeenCalled();
   });
 
-  it('cannot mint a WebSocket ticket for a Florida session', async () => {
-    const h = harness();
-    const tickets = { mint: jest.fn() };
-    const controller = new HearingController(
-      h.service,
-      {} as never,
-      {} as never,
-      {} as never,
-      tickets as never,
-    );
-    await expect(
-      controller.wsTicket(
-        { tenantId: 'tenant-1', clerkUserId: 'user-1' } as never,
-        'session-fl',
-      ),
-    ).rejects.toThrow(STATE_CAPTURE_LINK_ONLY);
-    expect(tickets.mint).not.toHaveBeenCalled();
-  });
-
-  it('does not expose Florida through the REST stream resolver', async () => {
-    const h = harness();
-    const resolver = { resolve: jest.fn() };
-    const controller = new HearingController(
-      h.service,
-      {} as never,
-      {} as never,
-      resolver as never,
-      {} as never,
-    );
-    await expect(
-      controller.resolveStream(
-        { tenantId: 'tenant-1', clerkUserId: 'user-1' } as never,
-        { pageUrl: FLORIDA_PAGE, hearingId: 'federal-hearing-id' } as never,
-      ),
-    ).rejects.toThrow(STATE_CAPTURE_LINK_ONLY);
-    expect(resolver.resolve).not.toHaveBeenCalled();
-  });
-
-  it('preserves the federal session path', async () => {
-    const federal = {
-      ...stateSession,
-      id: 'session-us',
-      hearingId: 'hearing-us',
-      sourceUrl: FEDERAL_PAGE,
-    };
-    const h = harness(federal, []);
-    await expect(
-      h.service.assertCaptureAllowed('tenant-1', 'session-us', 'user-1'),
-    ).resolves.toBe(federal);
-  });
-});
-
-describe('state proceedings flow through once the switch is on', () => {
-  beforeEach(() => {
-    process.env[FLAG] = 'true';
-  });
-
-  it('reads grants against the capturable (federal + state) view', async () => {
-    const { prisma, query } = permissionHarness();
-    await expect(approvedPublicCapture(prisma as never, 'hearing-fl')).resolves.toEqual([]);
-    expect(renderSql(query.mock.calls[0]!)).toContain('FROM capturable_committee_hearing');
-  });
-
-  it('admits a Florida session source without a jurisdiction probe', async () => {
-    const h = harness();
-    await expect(
-      h.service.assertCaptureAllowed('tenant-1', 'session-fl', 'user-1'),
-    ).resolves.toBe(stateSession);
-    expect(h.query).not.toHaveBeenCalled();
-  });
-
-  it('creates a capture session for a state hearing id', async () => {
-    const h = harness();
-    await h.service.create('tenant-1', 'user-1', stateDto() as never);
-    expect(h.create).toHaveBeenCalledTimes(1);
-  });
-
-  it('exposes Florida through the REST stream resolver', async () => {
+  it('permits the existing guarded resolver and WebSocket ticket for the canonical public browser source', async () => {
     const h = harness();
     const resolver = { resolve: jest.fn(async () => ({ status: 'unresolvable' })) };
+    const tickets = { mint: jest.fn(async () => ({ ticket: 'test-ticket' })) };
     const controller = new HearingController(
       h.service,
       {} as never,
       {} as never,
       resolver as never,
-      {} as never,
+      tickets as never,
     );
-    await controller.resolveStream(
-      { tenantId: 'tenant-1', clerkUserId: 'user-1' } as never,
-      { pageUrl: FLORIDA_PAGE, hearingId: 'hearing-fl' } as never,
-    );
-    expect(resolver.resolve).toHaveBeenCalledWith({ pageUrl: FLORIDA_PAGE, hearingId: 'hearing-fl' });
+    const ctx = { tenantId: 'tenant-1', clerkUserId: 'user-1' } as never;
+    await controller.resolveStream(ctx, { pageUrl: FLORIDA_PAGE, hearingId: 'hearing-fl' });
+    await controller.wsTicket(ctx, 'session-fl');
+    expect(resolver.resolve).toHaveBeenCalledWith({
+      pageUrl: FLORIDA_PAGE,
+      hearingId: 'hearing-fl',
+    });
+    expect(tickets.mint).toHaveBeenCalledWith('tenant-1', 'user-1', 'session-fl');
+  });
+
+  it('preserves the federal browser path', async () => {
+    const federal = { ...stateSession, hearingId: 'hearing-us', sourceUrl: FEDERAL_PAGE };
+    await expect(
+      harness(federal, [
+        { id: 'hearing-us', sourceUrl: FEDERAL_PAGE, browserAllowed: true, federal: true },
+      ]).service.assertCaptureAllowed('tenant-1', 'session-us', 'user-1'),
+    ).resolves.toBe(federal);
   });
 });

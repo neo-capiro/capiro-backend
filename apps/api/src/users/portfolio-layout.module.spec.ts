@@ -141,13 +141,11 @@ describe('Portfolio layout actual UsersModule and synthetic registered HTTP', ()
     expect(f.row).toBeNull();
   });
 
-  it('preserves existing admin impersonation home membership and target actor ownership without new target membership', async () => {
+  it('refuses personal layout writes and reads under impersonation', async () => {
     f = await fixture('capiro_admin', true);
     expect(f.membership.tenantId).toBe(HOME);
     const saved = await f.invoke('put', { contractVersion: 1, expectedVersion: 0, order: [] });
-    expect(saved.statusCode).toBe(200); expect(saved.body).toMatchObject({ tenantId: T, userId: U, version: 1 });
-    f.impersonation.endedAt = new Date() as any;
-    // Fresh middleware now denies the ended existing session; no replacement membership/session is selected.
+    expect(saved.statusCode).toBe(403); expect(f.row).toBeNull();
     expect((await f.invoke('get')).statusCode).toBe(403);
   });
 });

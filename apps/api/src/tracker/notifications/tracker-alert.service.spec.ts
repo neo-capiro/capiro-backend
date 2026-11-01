@@ -126,7 +126,9 @@ function fixture() {
   };
   const settings: Record<string, unknown> = {
     TRACKER_ALERTS_ENABLED: true,
-    TRACKER_APP_BASE_URL: 'https://example.test',
+    // Core's protected-retrieval transport and the browser origin are separate owners.
+    TRACKER_APP_BASE_URL: 'https://first-chat-preview.app-dev.capiro.ai',
+    LEGIWATCH_APP_BASE_URL: 'https://app.capiro.ai',
   };
   const config = {
     get: (key: string) => settings[key],
@@ -158,6 +160,20 @@ function fixture() {
 }
 
 describe('Tracker durable delivery claims', () => {
+  it('links the browser to the app origin instead of the Core transport host', async () => {
+    const f = fixture();
+    f.prefs[0]!.emailCadence = 'realtime';
+    await f.service.fanOut(event);
+    const [, , html, text] = f.email.send.mock.calls[0]!;
+    const board = `https://app.capiro.ai/legiwatch?tab=feed&client=${encodeURIComponent(event.clientId)}`;
+    // The HTML anchor escapes the query separator; the plain-text alternative keeps it raw.
+    expect(html).toContain(board.replace('&', '&amp;'));
+    expect(text).toContain(board);
+    // The retrieval transport stays on the preview Core host and must not leak into a link.
+    expect(`${html}${text}`).not.toContain('first-chat-preview.app-dev.capiro.ai');
+    expect(f.config.get('TRACKER_APP_BASE_URL')).toBe('https://first-chat-preview.app-dev.capiro.ai');
+  });
+
   it('allows only one concurrent realtime dispatch for the same unique claim', async () => {
     const f = fixture();
     f.prefs[0]!.emailCadence = 'realtime';

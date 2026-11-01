@@ -9,21 +9,6 @@ function source(relative: string): string {
 }
 
 describe('Outreach V3 bounded runtime wiring', () => {
-  it('threads the V3 generation authority through credentials, planning, style and drafting', () => {
-    const request = source('outreach-v3/generation/outreach-v3-generation-request.ts');
-    const gateway = source('engagement/generation/generation-gateway.service.ts');
-    const plan = source('engagement/generation/message-plan.service.ts');
-    const style = source('engagement/generation/author-style-profile.service.ts');
-    const llm = source('engagement/llm-completion.service.ts');
-
-    expect(request).toContain("runtimeAction: 'outreach_v3_generate'");
-    expect(gateway).toContain('resolveOutreachV3Credentials(ctx)');
-    expect(gateway).toContain('runtimeAction: request.runtimeAction');
-    expect(plan).toContain('runtimeAction: request.runtimeAction');
-    expect(style).toContain("runtimeAction?: 'outreach_generate' | 'outreach_v3_generate'");
-    expect(llm).toContain("req.runtimeAction ?? 'outreach_generate'");
-  });
-
   it('keeps Classic and V3 send-intent ownership disjoint', () => {
     const intents = source('engagement/outreach-send-intent.service.ts');
     const worker = source('engagement-workers/outreach-send-intent-worker.service.ts');

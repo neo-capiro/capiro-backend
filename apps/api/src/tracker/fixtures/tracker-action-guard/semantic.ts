@@ -16,16 +16,27 @@ export const actionNames = {
 } as const;
 export const originalActionPins = {
   api: {
-    declarations: 'b1fd9acea493b04d36fa919a4d166c337c19e3f25bd44d9d2dc88979a33af905',
-    comments: '433cfd10e9d41f2bf9d51a6a6f0f9b1f9251a41459be33ba6319a190812589e4',
+    // Updated deliberately for Research Portfolio bill tracking: the detector now
+    // (a) reads portfolio recipients alongside the legacy tracked-bill scan, and
+    // (b) fans material federal changes out to portfolio-only recipients through
+    // fanOutPortfolioOnlyFederal, which decides each recipient from the canonical
+    // adoption facts stored with the membership (adoptionFacts, adoptionBoundary,
+    // recipientNeedsEvent): each recipient's history is bounded by the day it
+    // adopted, so same-day history it already knew is silent while a latest rollup
+    // that genuinely changed after adoption — same day included — is delivered. The guard stays exact: only the owned file's recorded shape
+    // moved, and the ownership assertions themselves are unchanged.
+    declarations: '82e52baab45a676df7219a6dace55b58bc0e2699534ce0a83273aff34e17aef2',
+    comments: '04ee360732e01ccc4f595821b6e56514394e2897be3657dc1af4efa31c33a691',
   },
   intel: {
     declarations: '84745c3078c0c76db15fefd82509391a1a976d758bca770143a0777a00fac9df',
     comments: 'bed74dd46c72508c725d850ae96c2719137f85d87c2cbdb4c8984f740ac7c8f4',
   },
   barrel: {
-    declarations: '1276c9abe859c65c0afca391edb730d6879317d24b1331018263031a3df99623',
-    comments: 'dec43d3b8cc8ae8c15557f32955ab7ee0c9085d3a131e15a63479cd41568f897',
+    // Additive tracker-metrics export; canonical classifier/selector pins are unchanged.
+    declarations: '78b4abd64afedb79eea86413a75c4eeb7721eb7b49894b9c504ae8c2c5e24e82',
+    // Actual main9ce6ee2 already has this comment shape; metrics changes no barrel comments.
+    comments: '7f96fe07834bfb1c2013a59faeb2738240dfa8a14b655857a452e8ab07d3baea',
   },
   classifierStatements: 'ddcfbfd03e51e8a2a6c200b120ff04ca3ca1e8e50257262ec1d5745bd370af8f',
   classifierRules: 'bae33f1fd12935a867cead917e27992bb05b0a2bf5f242ab38cb95c258876496',

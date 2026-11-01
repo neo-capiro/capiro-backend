@@ -29,7 +29,9 @@ test('owned-title search is a bounded canonical metadata query, not transcript s
   const result = await listManagedConversations(f.prisma, ctx, { ...request, title: 'Budget' });
   expect(f.tx.clioConversation.findMany).toHaveBeenCalledWith(expect.objectContaining({
     where: { tenantId: ctx.tenantId, userId: ctx.userId, status: 'active',
-      bootstrapReceipt: { isNot: null }, title: { contains: 'Budget', mode: 'insensitive' } },
+      AND: [{ OR: [{ bootstrapReceipt: { isNot: null } },
+        { metadata: { path: ['researchPortfolioScope', 'kind'], equals: 'research_portfolio' } }] }],
+      title: { contains: 'Budget', mode: 'insensitive' } },
     take: 21, orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
   }));
   expect(result.conversations[0]).toMatchObject({ title: 'User title 3', scopeKind: 'general', clientId: null, revision: '0' });

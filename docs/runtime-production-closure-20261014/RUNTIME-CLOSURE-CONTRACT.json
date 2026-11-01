@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "inputSHA256": {
     "package.json": "e4996714d6c89ce4b13e1d2429d8883f00881fe3c9ff3e9ae09cc46ac1e23a5d",
-    "pnpm-lock.yaml": "cfad17a52f8e14b6bda1833245f65ff959ef20b8f50f684252a31e288862292b",
-    "apps/api/package.json": "959f8469c1c047e958a88d29060582f696500944b2e4ad770b88f8071d754754",
-    "packages/shared/package.json": "33e421519983a455bb7691f74784270d7c9c79cb48874e183d37fda9b35d80f5",
+    "pnpm-lock.yaml": "23e8c69466f1138bcf6966b318dd19138a8f261c03260830a1f76b420eea8ddc",
+    "apps/api/package.json": "6681923a78d096a8eaffc06abfa14fc203c6cc0b30b19ebfbc6cebfb36cd4c6a",
+    "packages/shared/package.json": "0cbe9e379edb8eddb1e7008a71fe280ab315e119cb7dbc29bae79cfe6040d793",
     "packages/meriv2-core/package.json": "d124c8cac43b05a1f43ba3f0f7223d328188881463c5378c60724a26f43f515a",
     "packages/defense-contracts/package.json": "5b36d4bf65df01c497cfd6d92c6b62133ad40e2935387c615ae380421edd1b47",
     "packages/defense-domain/package.json": "95281d87b0a4b80979b28c8a2f2199e5f1915c5a825184324e02c4af9be2d1e8"
@@ -1430,6 +1430,44 @@
       "peerDependenciesMeta": {}
     },
     {
+      "key": "@modelcontextprotocol/client@2.4.0",
+      "name": "@modelcontextprotocol/client",
+      "version": "2.4.0",
+      "peerContext": "",
+      "resolution": {
+        "integrity": "sha512-LgrD2OphHuG12vfKFKz6SOnq7bKHQmhGJIAYdD+MZBn2npHEyry6uD8zvktodtl5CQM85MO0anUyD9JwmUmxww=="
+      },
+      "os": null,
+      "cpu": null,
+      "libc": null,
+      "hasBin": false,
+      "requiresBuild": false,
+      "engines": {
+        "node": ">=20"
+      },
+      "peerDependencies": {},
+      "peerDependenciesMeta": {}
+    },
+    {
+      "key": "@modelcontextprotocol/core@2.4.0",
+      "name": "@modelcontextprotocol/core",
+      "version": "2.4.0",
+      "peerContext": "",
+      "resolution": {
+        "integrity": "sha512-z8QBKqdfXLPzkLQuG4xp8hrVEMm1PZ1IgxMN2sMbJiFiAKOWXnAzogXn2W4aqIBlP1ea6U5yiqVquvUNM1Cj6Q=="
+      },
+      "os": null,
+      "cpu": null,
+      "libc": null,
+      "hasBin": false,
+      "requiresBuild": false,
+      "engines": {
+        "node": ">=20"
+      },
+      "peerDependencies": {},
+      "peerDependenciesMeta": {}
+    },
+    {
       "key": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@4.6.7)",
       "name": "@modelcontextprotocol/sdk",
       "version": "1.32.0",
@@ -2167,6 +2205,86 @@
       "peerDependenciesMeta": {}
     },
     {
+      "key": "@openai/agents-core@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "name": "@openai/agents-core",
+      "version": "0.21.0",
+      "peerContext": "(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "resolution": {
+        "integrity": "sha512-P2jJhc85xrKpe9GUOHAVfPHqK52my49fD1CI0LnfYEvBUwZxJXQI6lgSwby9nWhvQECveM9OvBUglAXuArsHXw=="
+      },
+      "os": null,
+      "cpu": null,
+      "libc": null,
+      "hasBin": false,
+      "requiresBuild": false,
+      "engines": null,
+      "peerDependencies": {
+        "zod": "^4.0.0"
+      },
+      "peerDependenciesMeta": {
+        "zod": {
+          "optional": true
+        }
+      }
+    },
+    {
+      "key": "@openai/agents-openai@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "name": "@openai/agents-openai",
+      "version": "0.21.0",
+      "peerContext": "(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "resolution": {
+        "integrity": "sha512-Y1u1ek6FwKx8j+T7gRYcm4kKyN0irqsyZm0XUDZ+g+8s15tu4EhNwNJ92zOHGx7Vjkr2RugWBxTeNspHjw/lQw=="
+      },
+      "os": null,
+      "cpu": null,
+      "libc": null,
+      "hasBin": false,
+      "requiresBuild": false,
+      "engines": null,
+      "peerDependencies": {
+        "zod": "^4.0.0"
+      },
+      "peerDependenciesMeta": {}
+    },
+    {
+      "key": "@openai/agents-realtime@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(zod@4.6.7)",
+      "name": "@openai/agents-realtime",
+      "version": "0.21.0",
+      "peerContext": "(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(zod@4.6.7)",
+      "resolution": {
+        "integrity": "sha512-nI0jGkSdivlXzS7HXAB1EVplaeSyoAvfM2ofHheJDJdshs3UQl3x405nmTflKWye+wQrqemK4uxL06NIhgvjHg=="
+      },
+      "os": null,
+      "cpu": null,
+      "libc": null,
+      "hasBin": false,
+      "requiresBuild": false,
+      "engines": null,
+      "peerDependencies": {
+        "zod": "^4.0.0"
+      },
+      "peerDependenciesMeta": {}
+    },
+    {
+      "key": "@openai/agents@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "name": "@openai/agents",
+      "version": "0.21.0",
+      "peerContext": "(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "resolution": {
+        "integrity": "sha512-NpJ74/dGbpYZiRYF474pCaBpxqh4A8+WHbZmaEZVQpRqieZAVH+MV4fesR9MtRGUZfpW5B91zuHzIilQp2iSxQ=="
+      },
+      "os": null,
+      "cpu": null,
+      "libc": null,
+      "hasBin": false,
+      "requiresBuild": false,
+      "engines": null,
+      "peerDependencies": {
+        "zod": "^4.0.0"
+      },
+      "peerDependenciesMeta": {}
+    },
+    {
       "key": "@opentelemetry/api-logs@0.222.0",
       "name": "@opentelemetry/api-logs",
       "version": "0.222.0",
@@ -2593,6 +2711,25 @@
       "peerDependenciesMeta": {}
     },
     {
+      "key": "@smithy/hash-node@4.5.2",
+      "name": "@smithy/hash-node",
+      "version": "4.5.2",
+      "peerContext": "",
+      "resolution": {
+        "integrity": "sha512-OcD8fGClTkP0BWHVEAgUp1RZyCw8cKfqTPQ+DgrSF5jvR8zKkw2Aud79L4G/1Fu3QKLcsHExxRIPQCcKx7+xkg=="
+      },
+      "os": null,
+      "cpu": null,
+      "libc": null,
+      "hasBin": false,
+      "requiresBuild": false,
+      "engines": {
+        "node": ">=18.0.0"
+      },
+      "peerDependencies": {},
+      "peerDependenciesMeta": {}
+    },
+    {
       "key": "@smithy/node-http-handler@4.12.1",
       "name": "@smithy/node-http-handler",
       "version": "4.12.1",
@@ -2656,6 +2793,23 @@
       "peerContext": "",
       "resolution": {
         "integrity": "sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ=="
+      },
+      "os": null,
+      "cpu": null,
+      "libc": null,
+      "hasBin": false,
+      "requiresBuild": false,
+      "engines": null,
+      "peerDependencies": {},
+      "peerDependenciesMeta": {}
+    },
+    {
+      "key": "@standard-schema/spec@1.1.0",
+      "name": "@standard-schema/spec",
+      "version": "1.1.0",
+      "peerContext": "",
+      "resolution": {
+        "integrity": "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="
       },
       "os": null,
       "cpu": null,
@@ -2794,6 +2948,23 @@
       "peerContext": "",
       "resolution": {
         "integrity": "sha512-T8L6i7wCuyoK8A/ZeLYt1+q0ty3Zb9+qbSSvrIVitzT3YjZqkTZ40IbRsPanlB4h1QB3JVL1SYCdR6ngtFYcuA=="
+      },
+      "os": null,
+      "cpu": null,
+      "libc": null,
+      "hasBin": false,
+      "requiresBuild": false,
+      "engines": null,
+      "peerDependencies": {},
+      "peerDependenciesMeta": {}
+    },
+    {
+      "key": "@types/ws@8.18.2",
+      "name": "@types/ws",
+      "version": "8.18.2",
+      "peerContext": "",
+      "resolution": {
+        "integrity": "sha512-67MQl+fpWKVTT1NYdnmo3U4sc/xPo/zQBncVnI74qmQa0z/b+1g6iYqNmGCPbxO+zz2aklb08a0oHfegiVd0/w=="
       },
       "os": null,
       "cpu": null,
@@ -7069,6 +7240,51 @@
       "peerDependenciesMeta": {}
     },
     {
+      "key": "openai@7.23.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "name": "openai",
+      "version": "7.23.0",
+      "peerContext": "(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "resolution": {
+        "integrity": "sha512-0ecOXnFSMNWZq6cUBcTV6Lf93y+fm8BH/+QzFvpoP1UGNOE5pnytRa6HAPGCw+3IS9SIAW7rc1M8yyzN1PiBAQ=="
+      },
+      "os": null,
+      "cpu": null,
+      "libc": null,
+      "hasBin": false,
+      "requiresBuild": false,
+      "engines": {
+        "node": ">=22.0.0"
+      },
+      "peerDependencies": {
+        "@aws-sdk/credential-provider-node": ">=3.972.0 <4",
+        "@smithy/hash-node": ">=4.3.0 <5",
+        "@smithy/signature-v4": ">=5.4.0 <6",
+        "undici": ">=5 <9",
+        "ws": "^8.21.0",
+        "zod": "^3.25 || ^4.0"
+      },
+      "peerDependenciesMeta": {
+        "@aws-sdk/credential-provider-node": {
+          "optional": true
+        },
+        "@smithy/hash-node": {
+          "optional": true
+        },
+        "@smithy/signature-v4": {
+          "optional": true
+        },
+        "undici": {
+          "optional": true
+        },
+        "ws": {
+          "optional": true
+        },
+        "zod": {
+          "optional": true
+        }
+      }
+    },
+    {
       "key": "option@0.2.4",
       "name": "option",
       "version": "0.2.4",
@@ -9443,6 +9659,35 @@
       "peerDependenciesMeta": {}
     },
     {
+      "key": "ws@8.22.0",
+      "name": "ws",
+      "version": "8.22.0",
+      "peerContext": "",
+      "resolution": {
+        "integrity": "sha512-Ydggc987+RO0AnWtZ/7Wq9FtNvcrL1b/RO0ud9mWjUPgDrsAAwQSF51sm2hm1XofbU/4jkpGEsLFsZZxU+1DOg=="
+      },
+      "os": null,
+      "cpu": null,
+      "libc": null,
+      "hasBin": false,
+      "requiresBuild": false,
+      "engines": {
+        "node": ">=10.0.0"
+      },
+      "peerDependencies": {
+        "bufferutil": "^4.0.1",
+        "utf-8-validate": ">=5.0.2"
+      },
+      "peerDependenciesMeta": {
+        "bufferutil": {
+          "optional": true
+        },
+        "utf-8-validate": {
+          "optional": true
+        }
+      }
+    },
+    {
       "key": "xml-js@1.6.11",
       "name": "xml-js",
       "version": "1.6.11",
@@ -9749,6 +9994,12 @@
       "dependencyName": "@nestjs/throttler",
       "kind": "dependencies",
       "to": "@nestjs/throttler@6.7.1(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)(reflect-metadata@0.2.2)"
+    },
+    {
+      "from": "importer:apps/api",
+      "dependencyName": "@openai/agents",
+      "kind": "dependencies",
+      "to": "@openai/agents@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)"
     },
     {
       "from": "importer:apps/api",
@@ -10781,6 +11032,36 @@
       "dependencyName": "reflect-metadata",
       "kind": "dependencies",
       "to": "reflect-metadata@0.2.2"
+    },
+    {
+      "from": "@openai/agents@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "dependencyName": "@openai/agents-core",
+      "kind": "dependencies",
+      "to": "@openai/agents-core@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)"
+    },
+    {
+      "from": "@openai/agents@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "dependencyName": "@openai/agents-openai",
+      "kind": "dependencies",
+      "to": "@openai/agents-openai@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)"
+    },
+    {
+      "from": "@openai/agents@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "dependencyName": "@openai/agents-realtime",
+      "kind": "dependencies",
+      "to": "@openai/agents-realtime@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(zod@4.6.7)"
+    },
+    {
+      "from": "@openai/agents@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "dependencyName": "openai",
+      "kind": "dependencies",
+      "to": "openai@7.23.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)"
+    },
+    {
+      "from": "@openai/agents@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "dependencyName": "zod",
+      "kind": "dependencies",
+      "to": "zod@4.6.7"
     },
     {
       "from": "@prisma/client@5.22.0(prisma@5.22.0)",
@@ -12569,6 +12850,114 @@
       "dependencyName": "type-is",
       "kind": "dependencies",
       "to": "type-is@1.6.18"
+    },
+    {
+      "from": "@openai/agents-core@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "dependencyName": "@standard-schema/spec",
+      "kind": "dependencies",
+      "to": "@standard-schema/spec@1.1.0"
+    },
+    {
+      "from": "@openai/agents-core@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "dependencyName": "debug",
+      "kind": "dependencies",
+      "to": "debug@4.4.3"
+    },
+    {
+      "from": "@openai/agents-core@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "dependencyName": "openai",
+      "kind": "dependencies",
+      "to": "openai@7.23.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)"
+    },
+    {
+      "from": "@openai/agents-core@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "dependencyName": "@modelcontextprotocol/client",
+      "kind": "optionalDependencies",
+      "to": "@modelcontextprotocol/client@2.4.0"
+    },
+    {
+      "from": "@openai/agents-core@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "dependencyName": "zod",
+      "kind": "optionalDependencies",
+      "to": "zod@4.6.7"
+    },
+    {
+      "from": "@openai/agents-openai@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "dependencyName": "@openai/agents-core",
+      "kind": "dependencies",
+      "to": "@openai/agents-core@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)"
+    },
+    {
+      "from": "@openai/agents-openai@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "dependencyName": "openai",
+      "kind": "dependencies",
+      "to": "openai@7.23.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)"
+    },
+    {
+      "from": "@openai/agents-openai@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "dependencyName": "zod",
+      "kind": "dependencies",
+      "to": "zod@4.6.7"
+    },
+    {
+      "from": "@openai/agents-realtime@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(zod@4.6.7)",
+      "dependencyName": "@openai/agents-core",
+      "kind": "dependencies",
+      "to": "@openai/agents-core@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)"
+    },
+    {
+      "from": "@openai/agents-realtime@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(zod@4.6.7)",
+      "dependencyName": "@types/ws",
+      "kind": "dependencies",
+      "to": "@types/ws@8.18.2"
+    },
+    {
+      "from": "@openai/agents-realtime@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(zod@4.6.7)",
+      "dependencyName": "ws",
+      "kind": "dependencies",
+      "to": "ws@8.22.0"
+    },
+    {
+      "from": "@openai/agents-realtime@0.21.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(zod@4.6.7)",
+      "dependencyName": "zod",
+      "kind": "dependencies",
+      "to": "zod@4.6.7"
+    },
+    {
+      "from": "openai@7.23.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "dependencyName": "@aws-sdk/credential-provider-node",
+      "kind": "optionalDependencies",
+      "to": "@aws-sdk/credential-provider-node@3.972.84"
+    },
+    {
+      "from": "openai@7.23.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "dependencyName": "@smithy/hash-node",
+      "kind": "optionalDependencies",
+      "to": "@smithy/hash-node@4.5.2"
+    },
+    {
+      "from": "openai@7.23.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "dependencyName": "@smithy/signature-v4",
+      "kind": "optionalDependencies",
+      "to": "@smithy/signature-v4@5.7.4"
+    },
+    {
+      "from": "openai@7.23.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "dependencyName": "undici",
+      "kind": "optionalDependencies",
+      "to": "undici@6.29.1"
+    },
+    {
+      "from": "openai@7.23.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "dependencyName": "ws",
+      "kind": "optionalDependencies",
+      "to": "ws@8.22.0"
+    },
+    {
+      "from": "openai@7.23.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.4)(undici@6.29.1)(ws@8.22.0)(zod@4.6.7)",
+      "dependencyName": "zod",
+      "kind": "optionalDependencies",
+      "to": "zod@4.6.7"
     },
     {
       "from": "cheerio-select@2.1.0",
@@ -14503,6 +14892,66 @@
       "to": "streamsearch@1.1.0"
     },
     {
+      "from": "@modelcontextprotocol/client@2.4.0",
+      "dependencyName": "@modelcontextprotocol/core",
+      "kind": "dependencies",
+      "to": "@modelcontextprotocol/core@2.4.0"
+    },
+    {
+      "from": "@modelcontextprotocol/client@2.4.0",
+      "dependencyName": "cross-spawn",
+      "kind": "dependencies",
+      "to": "cross-spawn@7.0.6"
+    },
+    {
+      "from": "@modelcontextprotocol/client@2.4.0",
+      "dependencyName": "eventsource",
+      "kind": "dependencies",
+      "to": "eventsource@3.0.7"
+    },
+    {
+      "from": "@modelcontextprotocol/client@2.4.0",
+      "dependencyName": "eventsource-parser",
+      "kind": "dependencies",
+      "to": "eventsource-parser@3.1.1"
+    },
+    {
+      "from": "@modelcontextprotocol/client@2.4.0",
+      "dependencyName": "jose",
+      "kind": "dependencies",
+      "to": "jose@6.2.12"
+    },
+    {
+      "from": "@modelcontextprotocol/client@2.4.0",
+      "dependencyName": "pkce-challenge",
+      "kind": "dependencies",
+      "to": "pkce-challenge@5.0.1"
+    },
+    {
+      "from": "@modelcontextprotocol/client@2.4.0",
+      "dependencyName": "zod",
+      "kind": "dependencies",
+      "to": "zod@4.6.7"
+    },
+    {
+      "from": "@types/ws@8.18.2",
+      "dependencyName": "@types/node",
+      "kind": "dependencies",
+      "to": "@types/node@22.19.21"
+    },
+    {
+      "from": "@smithy/hash-node@4.5.2",
+      "dependencyName": "@smithy/core",
+      "kind": "dependencies",
+      "to": "@smithy/core@3.35.0"
+    },
+    {
+      "from": "@smithy/hash-node@4.5.2",
+      "dependencyName": "tslib",
+      "kind": "dependencies",
+      "to": "tslib@2.8.1"
+    },
+    {
       "from": "css-select@5.2.2",
       "dependencyName": "boolbase",
       "kind": "dependencies",
@@ -15107,6 +15556,12 @@
       "dependencyName": "webidl-conversions",
       "kind": "dependencies",
       "to": "webidl-conversions@3.0.1"
+    },
+    {
+      "from": "@modelcontextprotocol/core@2.4.0",
+      "dependencyName": "zod",
+      "kind": "dependencies",
+      "to": "zod@4.6.7"
     },
     {
       "from": "nth-check@2.1.1",

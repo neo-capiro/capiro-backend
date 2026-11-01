@@ -1,5 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
 import { EngagementRuntimePolicyService } from './engagement-runtime-policy.service.js';
+import { EngagementMailHandoffBarrier } from './engagement-mail-handoff.js';
 import { guardEngagementServiceRuntime } from '../governed-engagement.factory.js';
 import { MeetingCapturePersistenceService } from '../../meeting-capture/meeting-capture-persistence.service.js';
 import { AiCredentialResolverService } from '../../ai-credentials/ai-credential-resolver.service.js';
@@ -15,6 +16,7 @@ function makePolicy(config: {
   externalActions: EngagementExternalActionMode;
   callbacksEnabled: boolean;
   recallWebhookEnabled: boolean;
+  backgroundWorkerRestriction?: 'integration_sync_scheduler';
 }) {
   return new EngagementRuntimePolicyService(config);
 }
@@ -72,7 +74,6 @@ describe('integrations_and_notetaker bounded API owner', () => {
       'outreach-v3-full-generation', 'outreach-v3-send-intent', 'mailbox-indexing-worker']) {
       expect(policy.backgroundWorkersEnabled(name)).toBe(false);
     }
-    expect(policy.outreachV3FullGenerationWorkerEnabled()).toBe(false);
     expect(policy.outreachV3SendIntentWorkerEnabled()).toBe(false);
   });
   it('refuses capture actions and named workers on an incomplete policy', () => {
@@ -342,8 +343,7 @@ describe('EngagementRuntimePolicyService', () => {
       expect(() => policy.assertBackgroundOwner(workerName)).toThrow();
     });
 
-    it('keeps both V3 worker methods denied in this posture', () => {
-      expect(policy.outreachV3FullGenerationWorkerEnabled()).toBe(false);
+    it('keeps the V3 send worker denied in this posture', () => {
       expect(policy.outreachV3SendIntentWorkerEnabled()).toBe(false);
     });
 
@@ -453,6 +453,226 @@ describe('EngagementRuntimePolicyService', () => {
       });
       expect(() => policy.assertRecallWebhookEnabled()).not.toThrow();
       expect(policy.isRecallWebhookEnabled()).toBe(true);
+    });
+  });
+
+  describe('opt-in background worker restriction', () => {
+    const posture = {
+      serviceName: 'api',
+      processMode: 'active',
+      backgroundOwner: 'api',
+      externalActions: 'enabled',
+      callbacksEnabled: true,
+      recallWebhookEnabled: false,
+      backgroundWorkerRestriction: 'integration_sync_scheduler',
+    } as const;
+    const policy = makePolicy(posture);
+
+    it('admits only the exact integration sync scheduler name', () => {
+      expect(policy.backgroundWorkersEnabled('engagement-sync-scheduler')).toBe(true);
+      expect(() => policy.assertBackgroundOwner('engagement-sync-scheduler')).not.toThrow();
+    });
+
+    it.each([
+      undefined,
+      '',
+      '  ',
+      'engagement-sync-scheduler-v2',
+      'engagement-outreach-scheduler',
+      'engagement-notetaker-reconcile',
+      'notetaker-reconcile',
+      'client-notetaker',
+      'mailbox-indexing-worker',
+      'attachment-indexing-worker',
+      'krisp-notetaker-worker',
+      'meeting-prep-worker',
+      'outreach-v3-full-generation',
+      'outreach-v3-send-intent',
+    ])('denies the non-exact worker name %p instead of falling through to generic ownership', (workerName) => {
+      expect(policy.backgroundWorkersEnabled(workerName)).toBe(false);
+      expect(() => policy.assertBackgroundOwner(workerName ?? '')).toThrow();
+    });
+
+    it('keeps every external-action decision identical to the unrestricted api/active/enabled baseline', () => {
+      const baseline = makePolicy({
+        serviceName: 'api',
+        processMode: 'active',
+        backgroundOwner: 'api',
+        externalActions: 'enabled',
+        callbacksEnabled: true,
+        recallWebhookEnabled: false,
+      });
+      const actions = [...ALL_ACTIONS, 'outreach_reasoning', 'outreach_v3_generate',
+        'outreach_v3_send', 'outreach_v3_test_send'] as EngagementExternalAction[];
+      for (const action of actions) {
+        expect(policy.externalActionAllowed(action)).toBe(baseline.externalActionAllowed(action));
+        expect(policy.externalActionAllowed(action, { testMode: true }))
+          .toBe(baseline.externalActionAllowed(action, { testMode: true }));
+      }
+      // The enabled API baseline itself is unchanged by this story: manual
+      // disconnect, sync, subscription and the attachment boundaries stay admitted.
+      for (const action of [
+        'integration_disconnect',
+        'integration_sync',
+        'integration_subscription',
+        'attachment_external_read',
+        'attachment_external_write',
+      ] as EngagementExternalAction[]) {
+        expect(policy.externalActionAllowed(action)).toBe(true);
+      }
+      // Existing V3 denials stay denied for the api service name.
+      for (const action of ['outreach_v3_generate', 'outreach_v3_send', 'outreach_reasoning',
+        'outreach_v3_test_send'] as EngagementExternalAction[]) {
+        expect(policy.externalActionAllowed(action)).toBe(false);
+      }
+    });
+
+    it('keeps callbacks admitted and Recall denied in the intended tuple', () => {
+      expect(() => policy.assertCallbacksEnabled('integration_oauth_callback')).not.toThrow();
+      expect(policy.isRecallWebhookEnabled()).toBe(false);
+      expect(() => policy.assertRecallWebhookEnabled()).toThrow(/Recall/);
+    });
+
+    it('still refuses every worker when the owner is disabled', () => {
+      const disabledOwner = makePolicy({ ...posture, backgroundOwner: 'disabled' });
+      expect(disabledOwner.backgroundWorkersEnabled('engagement-sync-scheduler')).toBe(false);
+      expect(() => disabledOwner.assertBackgroundOwner('engagement-sync-scheduler')).toThrow();
+    });
+
+    it('still refuses a mismatched owner before the restriction applies', () => {
+      const mismatched = makePolicy({ ...posture, serviceName: 'engagement-api' });
+      expect(mismatched.backgroundWorkersEnabled('engagement-sync-scheduler')).toBe(false);
+      expect(() => mismatched.assertBackgroundOwner('engagement-sync-scheduler')).toThrow();
+    });
+
+    it('reports the restriction in the sanitized snapshot', () => {
+      expect(policy.snapshot().backgroundWorkerRestriction).toBe('integration_sync_scheduler');
+      expect(JSON.stringify(policy.snapshot())).not.toMatch(
+        /password|secret|token|apiKey|credential/i,
+      );
+    });
+  });
+
+  describe('dedicated meeting-prep worker exception', () => {
+    const barrier = () => new EngagementMailHandoffBarrier();
+    const open = { phase: 'off', generation: null, fenceUtc: null } as const;
+    const finalTuple = {
+      serviceName: 'api',
+      processMode: 'active',
+      backgroundOwner: 'api',
+      externalActions: 'enabled',
+      callbacksEnabled: true,
+      recallWebhookEnabled: false,
+      backgroundWorkerRestriction: 'integration_sync_scheduler',
+    } as const;
+    const build = (overrides: Record<string, unknown> = {},
+                   mailHandoff: { phase: string; generation: string | null; fenceUtc: string | null } = open) =>
+      new EngagementRuntimePolicyService(
+        { ...finalTuple, ...overrides, mailHandoff } as never, barrier());
+
+    beforeEach(() => { process.env.MEETING_PREP_COMPREHENSIVE_ENABLED = 'true'; });
+    afterEach(() => { delete process.env.MEETING_PREP_COMPREHENSIVE_ENABLED; });
+
+    it.each([false, true])(
+      'admits prep on the reviewed final tuple with Recall=%s',
+      (recallWebhookEnabled) => {
+        const policy = build({ recallWebhookEnabled });
+        expect(policy.isRecallWebhookEnabled()).toBe(recallWebhookEnabled);
+        expect(policy.meetingPrepWorkerEnabled()).toBe(true);
+        expect(() => policy.assertMeetingPrepWorker()).not.toThrow();
+        // the generic selector keeps its exact scheduler-only meaning in both variants
+        expect(policy.backgroundWorkersEnabled()).toBe(false);
+        expect(policy.backgroundWorkersEnabled('meeting-prep-worker')).toBe(false);
+        // the comprehensive flag still gates both variants
+        delete process.env.MEETING_PREP_COMPREHENSIVE_ENABLED;
+        expect(policy.meetingPrepWorkerEnabled()).toBe(false);
+        process.env.MEETING_PREP_COMPREHENSIVE_ENABLED = 'true';
+      },
+    );
+
+    it('admits only the prep worker on the exact final API tuple', () => {
+      const policy = build();
+      expect(policy.meetingPrepWorkerEnabled()).toBe(true);
+      expect(() => policy.assertMeetingPrepWorker()).not.toThrow();
+      // the generic selector keeps its exact scheduler-only meaning
+      expect(policy.backgroundWorkersEnabled()).toBe(false);
+      expect(policy.backgroundWorkersEnabled('meeting-prep-worker')).toBe(false);
+      expect(policy.backgroundWorkersEnabled('engagement-sync-scheduler')).toBe(true);
+      expect(() => policy.assertBackgroundOwner('meeting-prep-worker')).toThrow();
+    });
+
+    it('denies when the comprehensive-prep flag is off', () => {
+      delete process.env.MEETING_PREP_COMPREHENSIVE_ENABLED;
+      const policy = build();
+      expect(policy.meetingPrepWorkerEnabled()).toBe(false);
+      expect(() => policy.assertMeetingPrepWorker()).toThrow();
+    });
+
+    it.each([
+      ['shadow process', { processMode: 'shadow' }],
+      ['disabled background owner', { backgroundOwner: 'disabled' }],
+      ['mismatched owner', { serviceName: 'engagement-api', backgroundOwner: 'engagement-api' }],
+      ['external actions disabled', { externalActions: 'disabled' }],
+      ['callbacks disabled', { callbacksEnabled: false }],
+      ['integrations_only', { externalActions: 'integrations_only' }],
+      ['integrations_and_notetaker', { externalActions: 'integrations_and_notetaker', processMode: 'shadow' }],
+    ])('denies on %s', (_label, overrides) => {
+      const policy = build(overrides);
+      expect(policy.meetingPrepWorkerEnabled()).toBe(false);
+      expect(() => policy.assertMeetingPrepWorker()).toThrow();
+    });
+
+    it('never admits an old closed writer posture', () => {
+      const closed = build({}, {
+        phase: 'writers_closed',
+        generation: 'mail-app-20261029-01',
+        fenceUtc: '2026-10-29T16:49:59Z',
+      });
+      expect(closed.meetingPrepWorkerEnabled()).toBe(false);
+      expect(() => closed.assertMeetingPrepWorker()).toThrow();
+    });
+
+    it.each(['initiation_fenced', 'callback_fenced', 'writers_closed'])(
+      'refuses the %s mail-handoff phase in both Recall variants',
+      (phase) => {
+        for (const recallWebhookEnabled of [false, true]) {
+          const policy = build({ recallWebhookEnabled }, {
+            phase,
+            generation: 'mail-app-20261029-01',
+            fenceUtc: '2026-10-29T16:49:59Z',
+          });
+          expect(policy.meetingPrepWorkerEnabled()).toBe(false);
+          expect(() => policy.assertMeetingPrepWorker()).toThrow();
+        }
+      },
+    );
+
+    it('keeps the legacy named policy authoritative where it already admits prep', () => {
+      const legacy = new EngagementRuntimePolicyService({
+        serviceName: 'api', processMode: 'active', backgroundOwner: 'api',
+        externalActions: 'enabled', callbacksEnabled: true, recallWebhookEnabled: true,
+      } as never, barrier());
+      expect(legacy.backgroundWorkersEnabled('meeting-prep-worker')).toBe(true);
+      expect(legacy.meetingPrepWorkerEnabled()).toBe(true);
+      // without the flag the dedicated exception cannot add anything on a restricted owner
+      delete process.env.MEETING_PREP_COMPREHENSIVE_ENABLED;
+      expect(build().meetingPrepWorkerEnabled()).toBe(false);
+    });
+
+    it('denies with the pre-existing ENGAGEMENT_BACKGROUND_DISABLED contract', () => {
+      const policy = build({ processMode: 'shadow' });
+      let body: Record<string, unknown> | undefined;
+      try {
+        policy.assertMeetingPrepWorker();
+      } catch (error) {
+        body = (error as { getResponse?: () => Record<string, unknown> }).getResponse?.();
+        expect((error as { getStatus?: () => number }).getStatus?.()).toBe(503);
+      }
+      expect(body).toMatchObject({
+        statusCode: 503,
+        code: 'ENGAGEMENT_BACKGROUND_DISABLED',
+        worker: 'meeting-prep-worker',
+      });
     });
   });
 });

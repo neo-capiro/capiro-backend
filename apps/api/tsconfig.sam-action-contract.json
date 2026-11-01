@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "incremental": false },
+  "include": ["scripts/lib/sam-contract-action.ts", "scripts/lib/sam-action-projection.ts", "scripts/lib/sam-contract-action.spec.ts"],
+  "exclude": ["node_modules", "dist"]
+}

@@ -45,10 +45,16 @@ function serialize(value: unknown, stack: Set<object>): string {
   try {
     if (Array.isArray(object)) {
       if (Object.getPrototypeOf(object) !== Array.prototype) throw new CoreRetainedJcsError('Non-plain array');
+      // JSON arrays have only their length and dense own data elements. Do not
+      // invoke indexed getters or silently drop named/symbol properties.
+      if (Reflect.ownKeys(object).length !== object.length + 1) throw new CoreRetainedJcsError('Non-JSON array member');
       const parts: string[] = [];
       for (let index = 0; index < object.length; index += 1) {
-        if (!Object.prototype.hasOwnProperty.call(object, index)) throw new CoreRetainedJcsError('Sparse array');
-        parts.push(serialize(object[index], stack));
+        const descriptor = Object.getOwnPropertyDescriptor(object, index);
+        if (!descriptor || !descriptor.enumerable || !('value' in descriptor)) {
+          throw new CoreRetainedJcsError('Sparse, accessor or non-enumerable array member');
+        }
+        parts.push(serialize(descriptor.value, stack));
       }
       return `[${parts.join(',')}]`;
     }

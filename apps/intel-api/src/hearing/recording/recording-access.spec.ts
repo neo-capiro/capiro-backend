@@ -11,6 +11,8 @@ describe('retained hearing audio status and access', () => {
 
   function setup() {
     const session = {
+      id: sessionId,
+      createdBy: userId,
       recordingPolicy: 'audio_and_transcript',
       sourceUrl: 'https://owned.example/hearing',
       hearingId: null,
@@ -46,11 +48,19 @@ describe('retained hearing audio status and access', () => {
         findFirst: jest.fn().mockResolvedValue({ ...recording.epochs[0], recording }),
       },
       hearingMediaPermission: { findFirst: jest.fn().mockResolvedValue({ id: 'permission' }) },
+      liveHearingSession: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
     };
     const prisma = { withTenant: jest.fn(async (_tenant, work) => work(tx)) };
     const sessions = { getAccessible: jest.fn().mockResolvedValue(session) };
-    const permissions = { find: jest.fn().mockResolvedValue({ retentionDays: 30 }) };
-    const storage = { playbackUrl: jest.fn().mockResolvedValue('https://private.example/signed') };
+    const permissions = {
+      find: jest.fn().mockResolvedValue({ retentionDays: 30 }),
+      canEnablePublic: jest.fn().mockResolvedValue(false),
+      enablePublic: jest.fn(),
+    };
+    const storage = {
+      assertReady: jest.fn(),
+      playbackUrl: jest.fn().mockResolvedValue('https://private.example/signed'),
+    };
     const service = new HearingRecordingService(
       prisma as never,
       sessions as never,
@@ -73,6 +83,41 @@ describe('retained hearing audio status and access', () => {
     );
     expect(tx.$queryRaw).not.toHaveBeenCalled();
     expect(tx.hearingRecording.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('offers explicit enable for an eligible public source without creating a permission on read', async () => {
+    const { service, permissions } = setup();
+    permissions.find.mockResolvedValue(null as never);
+    permissions.canEnablePublic.mockResolvedValue(true);
+    await expect(service.capability(tenantId, sessionId, userId)).resolves.toMatchObject({
+      available: true,
+      retentionDays: 30,
+    });
+    expect(permissions.enablePublic).not.toHaveBeenCalled();
+  });
+
+  it('uses the public permission writer only in explicit enable before changing the session policy', async () => {
+    const { service, permissions, tx } = setup();
+    permissions.find.mockResolvedValue(null as never);
+    await expect(service.enable(tenantId, sessionId, userId)).resolves.toEqual({
+      recordingPolicy: 'audio_and_transcript',
+    });
+    expect(permissions.enablePublic).toHaveBeenCalledWith(tx, sessionId);
+    expect(tx.liveHearingSession.updateMany).toHaveBeenCalledWith({
+      where: { tenantId, id: sessionId, createdBy: userId, status: 'scheduled', startedAt: null },
+      data: { recordingPolicy: 'audio_and_transcript' },
+    });
+  });
+
+  it('preserves a current explicit grant and refuses enable by another session creator', async () => {
+    const { service, permissions, sessions } = setup();
+    await service.enable(tenantId, sessionId, userId);
+    expect(permissions.enablePublic).not.toHaveBeenCalled();
+    sessions.getAccessible.mockResolvedValue({
+      createdBy: 'another-user',
+      recordingPolicy: 'transcript_only',
+    } as never);
+    await expect(service.enable(tenantId, sessionId, userId)).rejects.toThrow('Only the creator');
   });
 
   it('offers actionable capability status without granting recording access after membership or feature withdrawal', async () => {

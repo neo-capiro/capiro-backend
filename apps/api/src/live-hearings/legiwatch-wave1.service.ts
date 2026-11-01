@@ -536,6 +536,7 @@ export class LegiWatchWave1Service {
           resolutionState: true,
           officialPageUrl: true,
           provider: true,
+          expiresAt: true,
         },
       }),
       // domain_status / terminal_reason_code are SQL-owned columns that are not
@@ -998,6 +999,7 @@ export class LegiWatchWave1Service {
             capturePolicy: true,
             priority: true,
             updatedAt: true,
+            expiresAt: true,
           },
         })
       : [];
@@ -1019,6 +1021,7 @@ export class LegiWatchWave1Service {
             capturePolicy: candidate.capturePolicy,
             priority: candidate.priority,
             updatedAt: candidate.updatedAt,
+            expiresAt: candidate.expiresAt,
           })),
         });
         return [hearingId, playback] as const;

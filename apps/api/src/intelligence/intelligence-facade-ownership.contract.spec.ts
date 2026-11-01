@@ -30,13 +30,13 @@ const coreNames = `
   capabilityFallbackTerms findRelevantBills findRelevantBillsByEmbeddings
   findRelevantBillsByKeyword findActiveRegulations findCompetitors getChanges getMappings
   searchLdaClients searchFecEmployers searchFecCommittees searchContractors
-  searchAssistanceRecipients createManualMapping rejectMappingCandidate resolveMapping
+  searchAssistanceRecipients createManualMapping createManualMappingInTransaction rejectMappingCandidate resolveMapping
   confirmMapping markChangeConsumed getUnreadChangesCount getLobbyingRoi getPacGiving
   getFecMoneyFlow getCompetitorBoard getExStaffers getClientBills getSetupCompleteness
   getIssueCodeSignal computeOfficeRecommendations getClientRelevanceTerms getTrackedBills
   getManualTrackedBillIds fetchBillsByIds listTrackedBills addTrackedBill removeTrackedBill
   findTrackedBillsByEmbeddings findTrackedBillsByKeyword getIssueLeaderboard
-  computeEngagementHealth getCommentPeriodAlerts alertCountdownLabel getClientIssueCodes
+  computeEngagementHealth getRecordedActivityIndex getCommentPeriodAlerts alertCountdownLabel getClientIssueCodes
   getHearingAlerts getOverdueCommentAlerts getCompetitorLdaAlerts getContractAwardAlerts
   resolveContractorUeisForAlerts setAlertState clearAlertState listClientBriefs addClientBrief
   deleteClientBrief walkClientGraph getKnowledgeGraph getOutreachContext
@@ -122,10 +122,10 @@ it('closes the facade and all eight new source modules within complete Cleanup b
   }
 });
 
-it('keeps exactly the original ninety-five own declarations as concrete or canonical delegates', () => {
+it('keeps the original declarations and approved additions as concrete or canonical delegates', () => {
   const { ast, cls } = root();
   const methods = cls.members.filter(ts.isMethodDeclaration);
-  expect(coreNames).toHaveLength(95);
+  expect(coreNames).toHaveLength(97);
   expect(methods.map((method) => method.name.getText(ast))).toEqual(coreNames);
   let ownerDelegates = 0;
   for (const method of methods) {
@@ -142,7 +142,7 @@ it('keeps exactly the original ninety-five own declarations as concrete or canon
       ownerDelegates++;
     }
   }
-  expect(ownerDelegates).toBe(88);
+  expect(ownerDelegates).toBe(90);
   expect(methods.some((method) => /^create.*Sources$/.test(method.name.getText(ast)))).toBe(false);
   const visit = (node: ts.Node) => {
     expect(

@@ -20,13 +20,19 @@ function harness(status = 'confirmed', initialClient: string | null = 'c1') {
     attendees: [],
   };
   const tx = {
+    tenantMembership: { findFirst: jest.fn(async () => ({ role: 'standard_user' })) },
+    $queryRawUnsafe: jest.fn(async () => [{ allowed: true }]),
     $queryRaw: jest.fn(async () => [{ id: 'm1' }]),
     meeting: {
-      findFirst: jest.fn(async () => ({ ...current })),
+      findFirst: jest.fn(async ({ where }) =>
+        where.OR?.some((entry: any) => entry.preps) ? null : { ...current }),
       findMany: jest.fn(async () => []),
       update: jest.fn(async ({ data }) => Object.assign(current, data)),
     },
-    client: { findUnique: jest.fn(async ({ where }) => ({ id: where.id, name: 'Client' })) },
+    client: {
+      findFirst: jest.fn(async ({ where }) => ({ id: where.id })),
+      findUnique: jest.fn(async ({ where }) => ({ id: where.id, name: 'Client' })),
+    },
     mailThread: { findMany: jest.fn(async () => []) },
     engagementTask: { findMany: jest.fn(async () => []) },
     meetingPrep: {
@@ -198,6 +204,8 @@ describe('meeting prep persistence', () => {
 
   test('manual edits invalidate claim links even if subsequently approved', async () => {
     const tx = {
+      // updateMeetingPrep now takes the parent-assignment lock before it stamps/edits.
+      $queryRaw: jest.fn(async () => [{ id: 'm1' }]),
       meetingPrep: {
         findFirst: async () => ({
           id: 'p1',

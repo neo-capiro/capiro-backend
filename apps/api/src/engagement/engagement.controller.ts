@@ -55,7 +55,8 @@ import {
   type OutreachAudienceType,
 } from './outreach-audience-types.js';
 import { MeetingPrepJobService } from './meeting-prep-job.service.js';
-import { MEETING_PREP_DEPTHS, meetingPrepEnabled, type MeetingPrepDepth } from './meeting-prep-policy.js';
+import { MeetingDebriefJobService } from './meeting-debrief-job.service.js';
+import { MEETING_PREP_DEPTHS, meetingPrepEnabled, type MeetingPrepDepth, meetingDebriefJobEnabled } from './meeting-prep-policy.js';
 import { OutreachJobService, outreachRecipientKey } from './outreach-job.service.js';
 import { NotetakerService } from './notetaker/notetaker.service.js';
 import { OutreachDraftService } from './outreach-draft.service.js';
@@ -272,7 +273,15 @@ class CreateNoteDto {
   accessLevel?: string;
 }
 
-class CreateDebriefDto extends CreateNoteDto {}
+class CreateDebriefDto extends CreateNoteDto {
+  /**
+   * D2: the assembled-context summary returned by the debrief draft/job, persisted on
+   * the debrief row so a reviewer can see exactly what the model was given.
+   */
+  @IsOptional()
+  @IsObject()
+  generatedFrom?: Record<string, unknown>;
+}
 
 // Phase 2 §d — per-artifact sharing (ENGAGEMENT_ARTIFACT_SHARING_V2). 'note' is
 // deliberately singular (one artifact reference), unlike the plural 'notes' used
@@ -301,6 +310,12 @@ class GenerateDebriefDraftDto {
   @IsString()
   @MinLength(1)
   sourceText!: string;
+
+  /** Idempotency key for the async job (D1); a retry with the same key never regenerates. */
+  @IsOptional()
+  @IsString()
+  @Length(8, 128)
+  requestKey?: string;
 }
 
 class ClientNotetakerConsentDto {
@@ -2024,6 +2039,7 @@ export class EngagementController {
     private readonly sendIntents: OutreachSendIntentService,
     private readonly runtimePolicy: EngagementRuntimePolicyService,
     @Optional() private readonly meetingPrepJobs?: MeetingPrepJobService,
+    @Optional() private readonly meetingDebriefJobs?: MeetingDebriefJobService,
   ) {}
 
   @Get('capabilities')
@@ -2050,8 +2066,12 @@ export class EngagementController {
         // Convenience booleans for the UI
         externalActionsEnabled: snapshot.externalActions === 'enabled',
         backgroundWorkersEnabled: this.runtimePolicy.backgroundWorkersEnabled(),
-        outreachV3FullGenerationEnabled: this.runtimePolicy.outreachV3FullGenerationWorkerEnabled(),
+        outreachSdkGenerationEnabled: snapshot.externalActions === 'enabled',
         outreachV3SendIntentEnabled: this.runtimePolicy.outreachV3SendIntentWorkerEnabled(),
+        // Bounded, content-free mail-handoff readback for this process: configured
+        // phase, local drain state and work counters only. `null` when the handoff is
+        // unset/off, so the default surface is unchanged.
+        mailHandoff: this.runtimePolicy.mailHandoffObservation(),
       },
     };
   }
@@ -2261,14 +2281,55 @@ export class EngagementController {
     return this.service.approveMeetingAttachment(ctx, meetingId, attachmentId);
   }
 
+  // D1: with MEETING_DEBRIEF_JOB_ENABLED=true this returns 202 + job and generation runs
+  // off the request path. With the gate off it keeps the existing synchronous 201.
   @Post('meetings/:id/debrief-draft')
+  @HttpCode(202)
   @EngagementRuntimeAction('meeting_debrief_generate')
   generateDebriefDraft(
     @CurrentTenant() ctx: TenantContext,
     @Param('id') meetingId: string,
     @Body() body: GenerateDebriefDraftDto,
+    @Res({ passthrough: true }) response?: ExpressResponse,
   ) {
+    if (meetingDebriefJobEnabled() && this.meetingDebriefJobs)
+      return this.meetingDebriefJobs.submit(ctx, meetingId, body);
+    response?.status(201);
     return this.service.generateMeetingDebriefDraft(ctx, meetingId, body);
+  }
+
+  @Get('meetings/:id/debrief-jobs/latest')
+  latestDebriefJob(@CurrentTenant() ctx: TenantContext, @Param('id') meetingId: string) {
+    return this.meetingDebriefJobs?.get(ctx, meetingId) ?? null;
+  }
+
+  @Get('meetings/:id/debrief-jobs/:jobId')
+  debriefJob(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') meetingId: string,
+    @Param('jobId') jobId: string,
+  ) {
+    return this.meetingDebriefJobs?.get(ctx, meetingId, jobId) ?? null;
+  }
+
+  @Delete('meetings/:id/debrief-jobs/:jobId')
+  cancelDebriefJob(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') meetingId: string,
+    @Param('jobId') jobId: string,
+  ) {
+    return this.meetingDebriefJobs?.cancel(ctx, meetingId, jobId) ?? null;
+  }
+
+  @Post('meetings/:id/debrief-jobs/:jobId/resume')
+  @HttpCode(202)
+  @EngagementRuntimeAction('meeting_debrief_generate')
+  resumeDebriefJob(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') meetingId: string,
+    @Param('jobId') jobId: string,
+  ) {
+    return this.meetingDebriefJobs?.resume(ctx, meetingId, jobId) ?? null;
   }
 
   @Post('meetings/:id/notetaker')
@@ -2354,6 +2415,11 @@ export class EngagementController {
   @EngagementRuntimeAction('meeting_prep_generate')
   resumePrepJob(@CurrentTenant() ctx: TenantContext, @Param('id') meetingId: string, @Param('jobId') jobId: string) {
     return this.meetingPrepJobs?.resume(ctx, meetingId, jobId) ?? null;
+  }
+
+  @Get('meeting-preps/:id')
+  readPrep(@CurrentTenant() ctx: TenantContext, @Param('id') prepId: string) {
+    return this.service.readMeetingPrep(ctx, prepId);
   }
 
   @Patch('meeting-preps/:id')
@@ -2538,14 +2604,6 @@ export class EngagementController {
     return this.service.deleteAiTemplate(ctx, id);
   }
 
-  // Live, billable AI call. Cap well below the global 600/min per-IP limit
-  // (A7); the global 30/s `short` burst limit still applies unchanged.
-  @Throttle({ long: { ttl: 60_000, limit: 30 } })
-  @Get('outreach/ai-templates/:id/preview')
-  previewAiTemplate(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
-    return this.service.previewAiTemplate(ctx, id);
-  }
-
   @Get('outreach/insights')
   outreachInsights(@CurrentTenant() ctx: TenantContext, @Query('clientId') clientId?: string) {
     return this.service.getOutreachInsights(ctx, { clientId });
@@ -2562,26 +2620,6 @@ export class EngagementController {
     return this.service.generateTalkingPoints(ctx, body);
   }
 
-  // The most expensive endpoint: fans out one AI call per recipient (up to 100).
-  // Cap at 120/min per IP (A7) — an order of magnitude below the global 600/min,
-  // but with headroom for a many-group campaign: one "Generate" click costs
-  // (1 flat chunk + N group) parallel POSTs, and a regenerate-all repeats them.
-  // Only the per-minute window is overridden — the 30/s `short` limit is left
-  // intact so those near-simultaneous POSTs are not falsely rejected.
-  @Throttle({ long: { ttl: 60_000, limit: 120 } })
-  @Post('outreach/generate-batch')
-  @EngagementRuntimeAction('outreach_generate')
-  generateBatchEmails(
-    @CurrentTenant() ctx: TenantContext,
-    @Body() body: GenerateBatchEmailDto,
-    // HP-05 (Gate L): forwarded so an 'intel' context item can be rehydrated
-    // from intel-api's packet endpoint under the caller's own identity — see
-    // AlertPacketClientService. Never logged, never persisted.
-    @Headers('authorization') authHeader?: string,
-  ) {
-    return this.service.generateBatchEmails(ctx, body, authHeader);
-  }
-
   @Post('outreach/send-batch')
   @EngagementRuntimeAction('outreach_send')
   sendBatchEmails(@CurrentTenant() ctx: TenantContext, @Body() body: SendBatchEmailDto) {
@@ -2593,28 +2631,6 @@ export class EngagementController {
   @Post('outreach/prior-contact')
   getPriorContact(@CurrentTenant() ctx: TenantContext, @Body() body: GetPriorContactDto) {
     return this.service.getRecipientPriorContact(ctx, body);
-  }
-
-  // Async generation job (plan W4): returns 202 + jobId in ms; the claim-sweep
-  // worker drafts off the request path. Gated on OUTREACH_ASYNC_GEN so the sync
-  // generate-batch above stays the path until the async flag is flipped on.
-  @Throttle({ long: { ttl: 60_000, limit: 120 } })
-  @Post('outreach/jobs/generate')
-  @EngagementRuntimeAction('outreach_generate')
-  async submitGenerateJob(
-    @CurrentTenant() ctx: TenantContext,
-    @Body() body: OutreachGenerateJobDto,
-  ) {
-    if (!this.outreachJobs.asyncEnabled('generate')) {
-      throw new BadRequestException('Async outreach generation is not enabled in this environment');
-    }
-    const { requestKey, recipients, ...params } = body;
-    return this.outreachJobs.submit(ctx, {
-      requestKey,
-      kind: 'generate',
-      params: params as Record<string, unknown>,
-      recipients: (recipients ?? []) as Array<Record<string, unknown>>,
-    });
   }
 
   // Async send job (plan W4.3): at-most-once, idempotent on requestKey. Each
@@ -2662,25 +2678,6 @@ export class EngagementController {
     return this.outreachJobs.cancelJob(ctx, id);
   }
 
-  // Retry ONE failed generation item (plan W4.4) without resubmitting the whole
-  // batch. Gated the same way as generate-job submission.
-  @Post('outreach/jobs/:id/items/:itemId/retry')
-  retryOutreachJobItem(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('id') id: string,
-    @Param('itemId') itemId: string,
-  ) {
-    if (!this.outreachJobs.asyncEnabled('generate')) {
-      throw new BadRequestException('Async outreach generation is not enabled in this environment');
-    }
-    return this.outreachJobs.retryItem(ctx, id, itemId);
-  }
-
-  // ── Phase 0: immutable draft versions ──────────────────────────────────────
-  // All declared BEFORE 'outreach/:id' so the dynamic route cannot swallow
-  // 'draft-artifacts' / 'draft-versions' / 'send-intents' as record ids.
-
-  /** Every draft slot for one outreach record, with its current version. */
   @Get('outreach/:outreachRecordId/draft-artifacts')
   listDraftArtifacts(
     @CurrentTenant() ctx: TenantContext,
@@ -2823,18 +2820,6 @@ export class EngagementController {
     @Body() body: UpdateOutreachRecordDto,
   ) {
     return this.service.updateOutreachRecord(ctx, id, body);
-  }
-
-  // Single-record AI regeneration (billable). Cap below the global per-IP limit (A7).
-  @Throttle({ long: { ttl: 60_000, limit: 40 } })
-  @Post('outreach/:id/generate-draft')
-  @EngagementRuntimeAction('outreach_generate')
-  generateOutreachDraft(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('id') id: string,
-    @Body() body: GenerateOutreachDraftDto,
-  ) {
-    return this.service.generateOutreachDraft(ctx, id, body);
   }
 
   @Post('outreach/:id/open-email')
@@ -3120,16 +3105,6 @@ export class EngagementController {
     @Param('recipientId') recipientId: string,
   ) {
     return this.service.removeCampaignRecipient(ctx, id, recipientId);
-  }
-
-  @Post('campaigns/:id/generate')
-  @EngagementRuntimeAction('outreach_generate')
-  generateCampaignEmail(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('id') id: string,
-    @Body() body: GenerateCampaignEmailDto,
-  ) {
-    return this.service.generateCampaignEmail(ctx, id, body);
   }
 
   @Post('campaigns/:id/send')

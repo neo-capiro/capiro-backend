@@ -6,8 +6,10 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import type { WorkspaceReadBudget } from '../prisma/workspace-read-budget.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import type { ResolvedRole } from './role-policy.js';
 import { canManageCollaborators, canRead } from './role-policy.js';
@@ -59,18 +61,22 @@ export class CollaboratorsService {
     draftId: string,
     clerkUserId: string,
     signal?: AbortSignal,
+    requireCompleteSource = false,
+    budget?: WorkspaceReadBudget,
   ): Promise<ResolvedRole> {
-    const draft = await this.prisma.wsDraft.findFirst({
+    const readDraft = (db: Pick<PrismaService, 'wsDraft'>) => db.wsDraft.findFirst({
       where: { id: draftId, tenantId },
       select: { ownerId: true },
     });
+    const draft = await (budget ? budget.transaction(this.prisma, readDraft) : readDraft(this.prisma));
     if (!draft) return null;
-    if (!(await this.sourceAccess(tenantId, draftId, clerkUserId, signal))) return null;
+    if (!(await this.sourceAccess(tenantId, draftId, clerkUserId, signal, requireCompleteSource, budget))) return null;
     if (draft.ownerId === clerkUserId) return 'owner';
-    const row = await this.prisma.wsCollaborator.findFirst({
+    const readCollaborator = (db: Pick<PrismaService, 'wsCollaborator'>) => db.wsCollaborator.findFirst({
       where: { tenantId, draftId, subjectId: clerkUserId, status: 'active' },
       select: { role: true },
     });
+    const row = await (budget ? budget.transaction(this.prisma, readCollaborator) : readCollaborator(this.prisma));
     return row?.role ?? null;
   }
 
@@ -94,22 +100,30 @@ export class CollaboratorsService {
     draftId: string,
     clerkUserId: string,
     signal?: AbortSignal,
+    requireCompleteSource = false,
+    budget?: WorkspaceReadBudget,
   ): Promise<boolean> {
-    const origin = await this.prisma.wsDraft.findFirst({
+    const readOrigin = (db: Pick<PrismaService, 'wsDraft'>) => db.wsDraft.findFirst({
       where: { tenantId, id: draftId },
       select: { id: true, tenantId: true, ownerId: true, prospectId: true, clientId: true, client: true, config: true },
     });
-    if (!origin || !(await draftClientSourceAccess(this.prisma, origin, clerkUserId)) || !(await prospectDraftSourceAccess(this.prisma, origin, clerkUserId)))
+    const origin = await (budget ? budget.transaction(this.prisma, readOrigin) : readOrigin(this.prisma));
+    if (!origin || !(await draftClientSourceAccess(this.prisma, origin, clerkUserId, budget)) || !(await prospectDraftSourceAccess(this.prisma, origin, clerkUserId, budget)))
       return false;
-    const rows = await this.prisma.$queryRaw<
+    const readSource = (db: Pick<PrismaService, '$queryRaw'>) => db.$queryRaw<
       Array<{ source_key: string; owner_id: string; source_type: string }>
     >`SELECT source_key,owner_id,source_type FROM ws_source_action WHERE tenant_id=${tenantId}::uuid AND draft_id=${draftId}::uuid AND source_type IN ('legiwatch_research','legiwatch_editorial')`;
+    const rows = await (budget ? budget.transaction(this.prisma, readSource) : readSource(this.prisma));
     if (!rows.length) return true;
     const source = rows[0]!;
     if (source.owner_id !== clerkUserId) return false;
     const base = process.env.INTEL_API_BASE_URL,
       secret = process.env.INTERNAL_SERVICE_SECRET;
-    if (!base || !secret) return false;
+    const unavailable = () => {
+      if (requireCompleteSource) throw new ServiceUnavailableException({ code: 'WORKSPACE_SAVED_WORK_UNAVAILABLE' });
+      return false;
+    };
+    if (!base || !secret) return unavailable();
     try {
       const query = new URLSearchParams({ tenantId, ownerId: clerkUserId });
       const response = await fetch(
@@ -122,11 +136,13 @@ export class CollaboratorsService {
           redirect: 'error',
         },
       );
-      if (!response.ok) return false;
+      if (!response.ok) return [403, 404].includes(response.status) ? false : unavailable();
       const result = (await response.json()) as { allowed?: boolean; selectionId?: string };
+      if (requireCompleteSource && (!result || typeof result.allowed !== 'boolean' || result.selectionId !== source.source_key))
+        return unavailable();
       return result.allowed === true && result.selectionId === source.source_key;
     } catch {
-      return false;
+      return unavailable();
     }
   }
 

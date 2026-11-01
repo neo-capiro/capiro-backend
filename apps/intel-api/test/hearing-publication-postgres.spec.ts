@@ -9,9 +9,9 @@ import { SmsService } from '../src/tracker/sms/sms.service.js';
 import { FolderSourceDataRepository } from '../src/sourcedata/folder-source-data.repository.js';
 import { SourceDataRepository } from '../src/sourcedata/source-data.repository.js';
 import { FolderTrackerService } from '../src/tracker/folders/folder-tracker.service.js';
-import { ReportService } from '../src/tracker/reports/report.service.js';
-import { ReportRecipientsService } from '../src/tracker/reports/recipients.service.js';
-import { ReportDeliveryService } from '../src/tracker/reports/report-delivery.service.js';
+import { DraftAccessService } from '../src/tracker/delivery/draft-access.service.js';
+import { RecipientsService } from '../src/tracker/delivery/recipients.service.js';
+import { DeliveryService } from '../src/tracker/delivery/delivery.service.js';
 import { HearingPublicationService } from '../src/hearing/hearing-publication.service.js';
 import { HearingCryptoService } from '../src/hearing/hearing-crypto.service.js';
 import { HearingSessionService } from '../src/hearing/hearing-session.service.js';
@@ -38,8 +38,8 @@ describe('hearing publications and SMS on PostgreSQL', () => {
     new FolderSourceDataRepository(p),
     new SourceDataRepository(p),
   );
-  const reports = new ReportService(folders, flags as any),
-    recipients = new ReportRecipientsService(reports);
+  const reports = new DraftAccessService(folders, flags as any),
+    recipients = new RecipientsService(reports);
   const crypto = new HearingCryptoService(
     new ConfigService({ HEARING_ENCRYPTION_KEY: '1'.repeat(64) }),
   );
@@ -57,7 +57,7 @@ describe('hearing publications and SMS on PostgreSQL', () => {
   const sms = { send: sendSms } as unknown as SmsService,
     verify = new SmsVerificationService(p, sms);
   const sendEmail = jest.fn(async () => ({ outcome: 'accepted', messageId: 'synthetic-ses' }));
-  const delivery = new ReportDeliveryService(
+  const delivery = new DeliveryService(
     reports,
     recipients,
     { sendReport: sendEmail } as any,

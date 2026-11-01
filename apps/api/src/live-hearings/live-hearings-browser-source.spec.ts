@@ -27,10 +27,8 @@ import {
   type BrowserSourceCandidate,
 } from './live-hearings-browser-source.js';
 
-const FBI_ISVP_PAGE =
-  'https://www.senate.gov/isvp/?comm=judiciary&filename=judiciary091526';
-const CONGRESS_GOV_LISTING =
-  'https://www.congress.gov/event/119th-congress/senate-event/338740';
+const FBI_ISVP_PAGE = 'https://www.senate.gov/isvp/?comm=judiciary&filename=judiciary091526';
+const CONGRESS_GOV_LISTING = 'https://www.congress.gov/event/119th-congress/senate-event/338740';
 
 function candidate(partial: Partial<BrowserSourceCandidate>): BrowserSourceCandidate {
   return {
@@ -99,9 +97,7 @@ describe('selectBrowserSource', () => {
   });
 
   it('falls back to the official listing page only when no candidate is usable', () => {
-    expect(
-      selectBrowserSource({ hearingUrl: CONGRESS_GOV_LISTING, candidates: [] }),
-    ).toEqual({
+    expect(selectBrowserSource({ hearingUrl: CONGRESS_GOV_LISTING, candidates: [] })).toEqual({
       sourceUrl: CONGRESS_GOV_LISTING,
       sourceKind: 'official_listing_page',
       sourceProvider: null,
@@ -216,8 +212,37 @@ describe('selectBrowserSource', () => {
   });
 });
 
-
 describe('strict official external links', () => {
+  it('accepts an exact Florida Channel live event and withdraws it when its schedule binding expires', () => {
+    const page = 'https://thefloridachannel.org/watch/event/1_liveexample/?eid=recLiveRulesExample';
+    const live = candidate({
+      provider: 'florida-channel-live',
+      officialPageUrl: page,
+      capturePolicy: 'LICENSE_REQUIRED',
+      expiresAt: '2026-10-31T15:00:00Z',
+    });
+    for (const choose of [selectOfficialPlaybackSource, selectBrowserSource]) {
+      expect(
+        choose({ hearingUrl: null, candidates: [live], now: new Date('2026-10-31T14:59:59Z') })
+          ?.sourceUrl,
+      ).toContain('/watch/event/1_liveexample');
+      expect(
+        choose({ hearingUrl: null, candidates: [live], now: new Date('2026-10-31T15:00:00Z') }),
+      ).toBeNull();
+      expect(
+        choose({ hearingUrl: page, candidates: [live], now: new Date('2026-10-31T15:00:00Z') }),
+      ).toBeNull();
+    }
+    expect(strictOfficialSourceUrl(page, 'florida-channel-live')).toContain(
+      '?eid=recLiveRulesExample',
+    );
+    for (const invalid of [
+      page.replace('?eid=recLiveRulesExample', ''),
+      page.replace('1_liveexample', 'other'),
+      page + '&token=secret',
+    ])
+      expect(strictOfficialSourceUrl(invalid, 'florida-channel-live')).toBeNull();
+  });
   it.each([
     'http://www.flsenate.gov/watch',
     'https://user:pw@www.flsenate.gov/watch',

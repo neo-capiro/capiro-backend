@@ -178,6 +178,22 @@ export class ClientFacilitiesService {
     if (persisted?.count) this.clientKb.indexFacilityFireAndForget(tenantId, facilityId);
   }
 
+  /** Read-only research preview. Reuses the canonical Census calculation without
+   * changing a facility, retry state, geocode candidates or retrieval index. */
+  async previewFacilityDistrict(ctx: TenantContext, clientId: string, id: string) {
+    const facility = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clientFacility.findFirst({ where: { id, tenantId: ctx.tenantId, clientId } }),
+    );
+    if (!facility) throw new NotFoundException('Facility not found');
+    const outcome = await computeFacilityGeocode(facility);
+    return {
+      ...facility,
+      ...(outcome.update ?? {}),
+      geocodeStatus: outcome.status,
+      geocodeMatchedAddress: outcome.matchedAddress,
+    };
+  }
+
   /** Run the deterministic Census resolver immediately for an explicit retry. */
   async resolveFacilityDistrict(ctx: TenantContext, clientId: string, id: string) {
     const facility = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
@@ -231,39 +247,47 @@ export class ClientFacilitiesService {
   }
 
   async createFacility(ctx: TenantContext, clientId: string, input: CreateFacilityInput) {
+    const facility = await this.prisma.withTenant(ctx.tenantId,
+      tx => this.createFacilityInTransaction(tx, ctx, clientId, input));
+    return this.afterFacilityCreated(ctx, facility);
+  }
+
+  async createFacilityInTransaction(tx: Prisma.TransactionClient, ctx: TenantContext, clientId: string, input: CreateFacilityInput) {
     this.validateStateDistricts(input);
-    const facility = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const client = await tx.client.findFirst({
-        where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
-        select: { id: true },
-      });
-      if (!client) throw new NotFoundException('Client not found');
-      return tx.clientFacility.create({
-        data: {
-          tenantId: ctx.tenantId,
-          clientId,
-          name: input.name,
-          addressLine: input.addressLine ?? null,
-          city: input.city ?? null,
-          state: input.state ?? null,
-          zip: input.zip ?? null,
-          congressionalDistrict:
-            normalizeDistrictForStorage(input.state, input.congressionalDistrict) ?? null,
-          // The public write API may not forge automatic provenance.
-          districtSource:
-            input.districtSource === 'geocoded' ? 'user' : (input.districtSource ?? 'user'),
-          stateHouseDistrict: input.stateHouseDistrict ?? null,
-          stateSenateDistrict: input.stateSenateDistrict ?? null,
-          employeeCount: input.employeeCount ?? null,
-          notes: input.notes ?? null,
-          geocodeStatus:
-            input.addressLine?.trim() && input.city?.trim() && input.state?.trim()
-              ? 'pending'
-              : null,
-          geocodeInputHash: null,
-        },
-      });
+    const client = await tx.client.findFirst({
+      where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
+      select: { id: true },
     });
+    if (!client) throw new NotFoundException('Client not found');
+    return tx.clientFacility.create({
+      data: {
+        tenantId: ctx.tenantId,
+        clientId,
+        name: input.name,
+        addressLine: input.addressLine ?? null,
+        city: input.city ?? null,
+        state: input.state ?? null,
+        zip: input.zip ?? null,
+        congressionalDistrict:
+          normalizeDistrictForStorage(input.state, input.congressionalDistrict) ?? null,
+        // The public write API may not forge automatic provenance.
+        districtSource:
+          input.districtSource === 'geocoded' ? 'user' : (input.districtSource ?? 'user'),
+        stateHouseDistrict: input.stateHouseDistrict ?? null,
+        stateSenateDistrict: input.stateSenateDistrict ?? null,
+        employeeCount: input.employeeCount ?? null,
+        notes: input.notes ?? null,
+        geocodeStatus:
+          input.addressLine?.trim() && input.city?.trim() && input.state?.trim()
+            ? 'pending'
+            : null,
+        geocodeInputHash: null,
+      },
+    });
+  }
+
+  /** Invoke only after the owning transaction commits. */
+  afterFacilityCreated(ctx: TenantContext, facility: Awaited<ReturnType<ClientFacilitiesService['createFacilityInTransaction']>>) {
     // Client KB (F5): keep retrieval in sync with the Facilities tab.
     this.clientKb.indexFacilityFireAndForget(ctx.tenantId, facility.id);
     this.geocodeFacilityFireAndForget(ctx.tenantId, facility.id);

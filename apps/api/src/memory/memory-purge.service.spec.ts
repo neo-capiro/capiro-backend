@@ -59,7 +59,8 @@ function makeService(opts?: {
         }
         return Promise.resolve(shape);
       }
-      if (/legal_hold = true/.test(sql)) return Promise.resolve(held);
+      if (/WITH RECURSIVE/.test(sql)) return Promise.resolve(held.map(row => ({ kind: 'item', id: row.id })));
+      if (/AS items,/.test(sql)) return Promise.resolve([{ items: BigInt(held.length), candidates: 0n }]);
       if (/count\(\*\)/.test(sql)) return Promise.resolve([{ n: 0n }]);
       return Promise.resolve([]);
     },
@@ -107,9 +108,9 @@ describe('MemoryPurgeService.purgeClient', () => {
   it('execute issues the cross-store deletes and audits a purge action', async () => {
     const { svc, rec } = makeService();
     const result = await svc.purgeClient(T, C, actor, { dryRun: false, reason: 'offboarding' });
-    // The admission lock precedes the existing six cross-store deletes.
-    expect(rec.executed.filter(sql => /DELETE FROM/.test(sql))).toHaveLength(6);
-    expect(rec.executed[0]).toBe('LOCK TABLE memory_items IN EXCLUSIVE MODE');
+    // Both grant stores are cleared after the hold and lineage snapshot.
+    expect(rec.executed.filter(sql => /DELETE FROM/.test(sql))).toHaveLength(7);
+    expect(rec.executed[0]).toBe('LOCK TABLE memory_candidate, memory_items IN EXCLUSIVE MODE');
     const admission = rec.statements.indexOf(rec.executed[0]!);
     expect(admission).toBeLessThan(rec.statements.findIndex(sql => /ORDER BY id FOR UPDATE/.test(sql)));
     expect(admission).toBeLessThan(rec.statements.findIndex(sql => /legal_hold = true/.test(sql)));

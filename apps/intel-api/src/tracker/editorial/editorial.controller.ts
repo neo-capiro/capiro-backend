@@ -13,61 +13,15 @@ export class Phase8Controller {
     readonly evidence: Phase8EvidenceService,
     readonly editorial: EditorialService,
   ) {}
-  @Get('news') news(@CurrentTenant() ctx: WorkspaceTenantContext, @Query() b: unknown) {
-    return this.evidence.news(ctx, b);
-  }
-  @Get('news/monitors') monitors(@CurrentTenant() ctx: WorkspaceTenantContext) {
-    return this.evidence.monitors(ctx);
-  }
-  @Post('news/monitors/:id/configure') configureMonitor(
-    @CurrentTenant() ctx: WorkspaceTenantContext,
-    @Param('id') id: string,
-    @Body() b: unknown,
-  ) {
-    return this.evidence.configureMonitor(ctx, id, b);
-  }
-  @Post('news/monitors/:id/scan') scan(
-    @CurrentTenant() ctx: WorkspaceTenantContext,
-    @Param('id') id: string,
-  ) {
-    return this.evidence.scan(ctx, id);
-  }
-  @Get('budget') budget(@CurrentTenant() ctx: WorkspaceTenantContext, @Query() b: unknown) {
-    return this.evidence.budget(ctx, b);
-  }
-  @Post('budget/compare') compare(
-    @CurrentTenant() ctx: WorkspaceTenantContext,
-    @Body() b: unknown,
-  ) {
-    return this.evidence.compare(ctx, b);
-  }
-  @Get('personnel') personnel(@CurrentTenant() ctx: WorkspaceTenantContext, @Query() b: unknown) {
-    return this.evidence.personnel(ctx, b);
-  }
-  @Post('track') track(@CurrentTenant() ctx: WorkspaceTenantContext, @Body() b: unknown) {
-    return this.evidence.track(ctx, b);
-  }
   @Get('source/:kind/:id') exact(
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('kind') kind: string,
     @Param('id') id: string,
     @Query() b: unknown,
   ) {
-    return this.evidence.run(ctx, b, kind === 'budget' ? 'budget' : 'news', (tx) =>
-      this.evidence.exact(tx, kind, id),
-    );
-  }
-  @Post('imports/preview') previewImport(
-    @CurrentTenant() ctx: WorkspaceTenantContext,
-    @Body() b: unknown,
-  ) {
-    return this.evidence.importPreview(ctx, b);
-  }
-  @Post('imports/stage') stageImport(
-    @CurrentTenant() ctx: WorkspaceTenantContext,
-    @Body() b: unknown,
-  ) {
-    return this.evidence.importPreview(ctx, b, true);
+    if (kind === 'research')
+      return this.evidence.research.run(ctx, b, (tx) => this.evidence.exact(tx, kind, id));
+    return this.evidence.run(ctx, b, 'editorial', (tx) => this.evidence.exact(tx, kind, id));
   }
   @Post('briefings/drafts') draft(
     @CurrentTenant() ctx: WorkspaceTenantContext,

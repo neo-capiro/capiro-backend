@@ -1,3 +1,5 @@
+import { lockMeetingAssociation, hasBoundMeetingRecords } from './meeting-automatic-association.js';
+import { outreachAudienceWhere, type OutreachDirection } from './outreach-audience.js';
 import { forwardedMessageHtml } from './mail-forward-source.js';
 import { assertSingleMailAuthority, assertSingleMailIntentReadAuthority, resolveSingleMailReply } from './single-mail-authority.js';
 import { REPLY_UNAVAILABLE, type PreparedMailReply } from './single-mail-reply.js';
@@ -77,12 +79,13 @@ import {
   ownMailThreadWhere,
   ownMeetingWhere,
   ownOutreachRecordWhere,
+  resolvePrepClientId,
 } from './engagement-access.helpers.js';
 import { activeMailMessageWhere } from './mail-message-state.js';
 import { readOutreachAudienceType, type OutreachAudienceType } from './outreach-audience-types.js';
 import { queryMailMessages, type MailQueryOptions } from './mail-query.js';
 import { readMailThreadPage, readMailThreadHttpPage, type MailThreadPageInput, type MailThreadHttpPageInput } from './mail-thread-pages.js';
-import { readMailThreadList, type MailThreadListInput } from './mail-thread-list.js';
+import { readMailThreadList, type MailThreadListInput, type MailThreadListOptions } from './mail-thread-list.js';
 // ── Phase 1 — governed generation gateway ───────────────────────────────────
 import {
   GenerationGatewayService,
@@ -105,8 +108,16 @@ import { extractXlsxText, isSpreadsheetAttachment } from './xlsx-extract.js';
 import { extractPptxText, isPowerPointAttachment } from './pptx-extract.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { currentMeetingPrepExecution } from './meeting-prep-job-runtime.js';
+import { boundDebriefContext } from './meeting-debrief-context.js';
+import { MEETING_DEBRIEF_POLICY } from './meeting-prep-policy.js';
 import { currentMeetingGovernedContext } from './meeting-context-runtime.js';
 import { assertSavedMeetingPrepAccess,filterResearchPortfolioMeetingPreps } from './meeting-prep-source-access.js';
+import {
+  readClassicOutreachRecord,
+  assertOutreachPrepSourcesReadable as assertClassicPrepSourcesReadable,
+  assertOutreachClientsReadable as assertClassicClientsReadable,
+  outreachClientReadable as classicClientReadable,
+} from './classic-outreach-authority.js';
 import {RESEARCH_PORTFOLIO_TASK_SOURCE,assertOwnedResearchPortfolioTask} from './research-portfolio-task-access.js';
 import {authorizeResearchPortfolioArtifact} from '../research-portfolios/research-portfolio-artifact-authority.js';
 import { meetingPrepPdfSections, renderMeetingPrepPdf } from './meeting-prep-pdf.js';
@@ -826,6 +837,7 @@ export interface UpdateOutreachRecordInput {
 }
 
 export interface OutreachQuery {
+  direction?: OutreachDirection;
   clientId?: string;
   from?: string;
   to?: string;
@@ -834,6 +846,10 @@ export interface OutreachQuery {
   // When true, return ONLY soft-deleted records (the "trash"/recovery view).
   // Defaults to false: the normal list excludes deleted records.
   deleted?: boolean;
+  /** Internal canonical campaign list selectors; the ordinary list keeps its contract. */
+  after?: { id: string };
+  campaignsOnly?: boolean;
+  search?: string;
 }
 
 const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
@@ -887,13 +903,6 @@ export function isAllowedAttachmentContentType(contentType: string): boolean {
 }
 const REPORT_STATUSES: ReportStatus[] = ['auto', 'not_started', 'in_progress', 'complete'];
 
-/** AiUsageEvent workflows counted against the daily outreach token budget (W3.4). */
-const OUTREACH_BUDGET_WORKFLOWS = [
-  'outreach_campaign',
-  'outreach_draft',
-  'template_preview',
-  'campaign_email',
-] as const;
 const OUTBOUND_CAMPAIGN_VARIABLES = [
   'current_date_time',
   'attendee_names',
@@ -1117,7 +1126,6 @@ export class EngagementService {
   private readonly bucket?: string;
   private readonly openAiApiKey?: string;
   private readonly attachmentPdfVision = new AttachmentPdfVisionReader();
-  private readonly outreachDailyTokenBudget: number;
   /** Phase 0: immutable versioned drafts + durable send intents (default off). */
   private readonly versionedOutreach: boolean;
   /** Phase 0: refuse a REAL send of a pre-v2-prompt draft (default off). */
@@ -1153,7 +1161,6 @@ export class EngagementService {
   ) {
     this.bucket = config.get('ASSETS_BUCKET', { infer: true });
     this.openAiApiKey = config.get('OPENAI_API_KEY', { infer: true });
-    this.outreachDailyTokenBudget = config.get('OUTREACH_DAILY_TOKEN_BUDGET', { infer: true });
     this.versionedOutreach = config.get('ENGAGEMENT_VERSIONED_OUTREACH', { infer: true });
     this.externalSendV2Required = config.get('ENGAGEMENT_EXTERNAL_SEND_V2_REQUIRED', {
       infer: true,
@@ -1264,47 +1271,6 @@ export class EngagementService {
       );
     }
     return record.id;
-  }
-
-  /**
-   * Per-tenant daily outreach token budget status (plan W3.4 / A7). Sums today's
-   * (UTC) input+output tokens across outreach generation workflows and compares
-   * to OUTREACH_DAILY_TOKEN_BUDGET. Best-effort: any read failure fails OPEN (no
-   * block) — a metering hiccup must never wedge outreach. Budget 0 = disabled.
-   */
-  private async outreachBudgetStatus(ctx: TenantContext): Promise<{
-    used: number;
-    budget: number;
-    ratio: number;
-    hardStop: boolean;
-    softWarn: boolean;
-  }> {
-    const budget = this.outreachDailyTokenBudget;
-    if (!budget || budget <= 0) {
-      return { used: 0, budget: 0, ratio: 0, hardStop: false, softWarn: false };
-    }
-    try {
-      const now = new Date();
-      const startOfDay = new Date(
-        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-      );
-      const agg = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.aiUsageEvent.aggregate({
-          where: {
-            tenantId: ctx.tenantId,
-            workflow: { in: [...OUTREACH_BUDGET_WORKFLOWS] },
-            createdAt: { gte: startOfDay },
-          },
-          _sum: { inputTokens: true, outputTokens: true },
-        }),
-      );
-      const used = (agg._sum.inputTokens ?? 0) + (agg._sum.outputTokens ?? 0);
-      const ratio = used / budget;
-      return { used, budget, ratio, hardStop: used >= budget, softWarn: ratio >= 0.8 };
-    } catch (err) {
-      this.logger.warn(`Outreach budget check failed (failing open): ${(err as Error).message}`);
-      return { used: 0, budget, ratio: 0, hardStop: false, softWarn: false };
-    }
   }
 
   /**
@@ -1484,7 +1450,7 @@ export class EngagementService {
           orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
           ...(take ? { take } : {}),
         });
-        return this.decorateMeetings(tx, ctx, rows);
+        return projectMeetingListRows(await this.decorateMeetings(tx, ctx, rows));
       }
 
       await assertMeetingClient(tx, ctx, query.clientId);
@@ -1518,7 +1484,7 @@ export class EngagementService {
         orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
         ...(take ? { take } : {}),
       });
-      return this.decorateMeetings(tx, ctx, rows);
+      return projectMeetingListRows(await this.decorateMeetings(tx, ctx, rows));
     });
   }
 
@@ -1630,7 +1596,25 @@ export class EngagementService {
           artifactId = (await this.createMeetingNote(ctx, meetingId!, input, execution)).id;
           break;
         case 'debrief-create':
-          artifactId = (await this.createMeetingDebrief(ctx, meetingId!, input, execution)).id;
+          artifactId = (
+            await this.createMeetingDebrief(
+              ctx,
+              meetingId!,
+              {
+                ...input,
+                // D2: the audited context travels with the debrief it produced.
+                // createMeetingDebrief persists it in generated_from_jsonb; the
+                // command schema refuses it on every other artifact operation.
+                ...(command.artifact!.generatedFrom
+                  ? {
+                      generatedFrom: command.artifact!
+                        .generatedFrom as unknown as Record<string, unknown>,
+                    }
+                  : {}),
+              },
+              execution,
+            )
+          ).id;
           break;
         case 'note-update':
           await this.updateMeetingNote(ctx, meetingId!, artifactId!, {
@@ -1830,11 +1814,7 @@ export class EngagementService {
   ): Promise<void> {
     // Read the prior client only after this lock. Otherwise a concurrent A→B
     // followed by an A→A save can skip child propagation using a stale read.
-    await tx.$queryRaw(Prisma.sql`
-      SELECT id FROM meetings
-      WHERE id = ${meetingId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
-      FOR UPDATE
-    `);
+    await lockMeetingAssociation(tx, ctx.tenantId, meetingId);
   }
 
   /** Move the meeting's denormalized children atomically with its client. */
@@ -2742,14 +2722,14 @@ export class EngagementService {
     return queryMailMessages(this.prisma, ctx, input, options);
   }
 
-  listMailThreadPage(ctx: TenantContext, query: MailThreadListInput) {
+  listMailThreadPage(ctx: TenantContext, query: MailThreadListInput, options?: MailThreadListOptions) {
     return readMailThreadList(this.prisma, ctx, query,
-      (tx, clientId) => this.clientProfileEmails(tx, ctx.tenantId, clientId));
+      (tx, clientId) => this.clientProfileEmails(tx, ctx.tenantId, clientId), options);
   }
 
   /** Existing derived activity/evidence callers retain their bounded first-page array. */
-  async listMailThreads(ctx: TenantContext, query: { clientId?: string; recipientEmails?: string[] }) {
-    return (await this.listMailThreadPage(ctx, query)).items;
+  async listMailThreads(ctx: TenantContext, query: { clientId?: string; recipientEmails?: string[] }, options?: MailThreadListOptions) {
+    return (await this.listMailThreadPage(ctx, query, options)).items;
   }
 
   /**
@@ -2767,6 +2747,15 @@ export class EngagementService {
    * surfaces can never disagree again.
    */
   async listOutreachRecords(ctx: TenantContext, query: OutreachQuery) {
+    return (await this.readOutreachRecordPage(ctx, query, false)).items;
+  }
+
+  /** Pagination shares the ordinary reader's owner, client-wall and source checks. */
+  async listOutreachRecordPage(ctx: TenantContext, query: OutreachQuery) {
+    return this.readOutreachRecordPage(ctx, query, true);
+  }
+
+  private async readOutreachRecordPage(ctx: TenantContext, query: OutreachQuery, paginated: boolean) {
     const type = normalizeOutreachType(query.type);
     const limit = clampInt(query.limit, 50, 1, 100);
     const dateWindow =
@@ -2777,8 +2766,15 @@ export class EngagementService {
           }
         : undefined;
 
-    const rows = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const page = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const ownerWhere = ownOutreachRecordWhere(ctx.userId);
+      // Keep ordering inside PostgreSQL: created_at has microsecond precision,
+      // which a JavaScript Date cursor cannot represent. A revoked anchor may
+      // still advance the page, but missing or foreign anchors cannot do so.
+      if (query.after && !await tx.outreachRecord.findFirst({
+        where: { tenantId: ctx.tenantId, ...ownerWhere, id: query.after.id },
+        select: { id: true },
+      })) throw new BadRequestException('Outreach cursor is no longer available; reload the list');
       const selected = await tx.outreachRecord.findMany({
         where: {
           tenantId: ctx.tenantId,
@@ -2786,57 +2782,40 @@ export class EngagementService {
           deletedAt: query.deleted ? { not: null } : null,
           ...(query.clientId ? { clientId: query.clientId } : {}),
           ...(type ? { type } : {}),
+          ...(query.campaignsOnly ? { type: { in: ['campaign', 'outbound_campaign', 'follow_up', 'prep'] } } : {}),
+          ...(query.search ? { title: { contains: query.search, mode: 'insensitive' as const } } : {}),
           // A record belongs to the window if it was created OR sent within it:
           // drafts sent days after creation must keep showing as sent once the
           // creation date scrolls out of the range filter.
           ...(dateWindow ? { OR: [{ createdAt: dateWindow }, { sentAt: dateWindow }] } : {}),
           // Filter parent and linked-meeting client access before `take`, so
           // hidden records cannot crowd visible rows off the page.
-          AND: [ownerWhere, outreachReadableRecordWhere(ctx)],
+          AND: [ownerWhere, outreachReadableRecordWhere(ctx),
+            ...(query.direction ? [outreachAudienceWhere(query.direction)] : []),
+            ...(query.after ? [{ NOT: { id: query.after.id } }] : [])],
         },
+        ...(query.after ? { cursor: { id: query.after.id } } : {}),
         include: outreachInclude(),
-        orderBy: { createdAt: 'desc' },
-        take: limit,
+        orderBy: paginated ? [{ createdAt: 'desc' }, { id: 'desc' }] : { createdAt: 'desc' },
+        take: paginated ? limit + 1 : limit,
       });
-      const currentClients = await this.outreachReadableClientIds(tx, ctx, selected.flatMap((row) => [
-        row.clientId,
-        row.meeting?.clientId ?? null,
-        ...(row.meeting?.preps.map((prep) => prep.clientId) ?? []),
-        ...(row.meeting?.debriefs.map((debrief) => debrief.clientId) ?? []),
-      ]));
+      const scanned = selected.slice(0, limit);
+      const last = scanned[scanned.length - 1];
+      const nextCursor = selected.length > limit && last
+        ? { id: last.id }
+        : null;
       const visible: typeof selected = [];
-      for (const row of selected) {
-        // Recheck after the row read. The body can derive from the latest
-        // linked prep/debrief, so an inaccessible child hides the whole card.
-        if (!outreachClientInSet(currentClients, row.clientId) ||
-            !outreachClientInSet(currentClients, row.meeting?.clientId ?? null)) continue;
-        if (!row.meeting) {
-          visible.push(row);
-          continue;
+      for (const row of scanned) {
+        try {
+          visible.push(await readClassicOutreachRecord(tx, ctx, row.id, async () => row, Boolean(query.deleted)));
+        } catch (error) {
+          if (!(error instanceof ForbiddenException || error instanceof NotFoundException)) throw error;
         }
-        let childrenReadable = true;
-        for (const prep of row.meeting.preps) {
-          if (!outreachClientInSet(currentClients, prep.clientId)) {
-            childrenReadable = false;
-            break;
-          }
-          try {
-            await assertSavedMeetingPrepAccess(tx, ctx, prep.generatedFrom);
-          } catch (error) {
-            if (error instanceof ForbiddenException || error instanceof NotFoundException) {
-              childrenReadable = false;
-              break;
-            }
-            throw error;
-          }
-        }
-        if (!childrenReadable || row.meeting.debriefs.some((debrief) =>
-          !outreachClientInSet(currentClients, debrief.clientId))) continue;
-        visible.push(row);
       }
-      return visible;
+      return { items: visible, nextCursor };
     }, { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS });
-    if (!this.versionedOutreach || rows.length === 0) return rows;
+    const rows = page.items;
+    if (!this.versionedOutreach || rows.length === 0) return page;
 
     // Only unsent campaign/outbound_campaign drafts need this — a sent record's
     // stats already reflect delivery, and follow_up/prep records don't drive
@@ -2847,10 +2826,10 @@ export class EngagementService {
       )
       .map((r) => r.id);
     const readiness = await this.draft.readinessForOutreachRecords(ctx.tenantId, candidateIds);
-    return rows.map((row) => {
+    return { ...page, items: rows.map((row) => {
       const counts = readiness.get(row.id);
       return counts ? { ...row, draftReadiness: counts } : row;
-    });
+    }) };
   }
 
   async getOutreachRecord(ctx: TenantContext, id: string) {
@@ -2861,29 +2840,8 @@ export class EngagementService {
         ...ownOutreachRecordWhere(ctx.userId),
         deletedAt: null,
       };
-      // The first read carries only association ids. A meeting can name a
-      // client even when the outreach record does not, and its latest prep or
-      // debrief can name a different client again. Check every association
-      // before loading their bodies and attendee/client projections.
-      const association = await tx.outreachRecord.findFirst({
-        where,
-        select: outreachAssociationSelect(),
-      });
-      if (!association) throw new NotFoundException('Outreach record not found');
-      await this.assertOutreachClientsReadable(
-        tx, ctx, outreachAssociationClientIds(association), 'Outreach record not found',
-      );
-      await this.assertOutreachPrepSourcesReadable(tx, ctx, association);
-
-      const row = await tx.outreachRecord.findFirst({ where, include: outreachInclude() });
-      if (!row || outreachAssociationKey(row) !== outreachAssociationKey(association))
-        throw new NotFoundException('Outreach record not found');
-      // A grant or association may change while the include is loading.
-      await this.assertOutreachClientsReadable(
-        tx, ctx, outreachAssociationClientIds(row), 'Outreach record not found',
-      );
-      await this.assertOutreachPrepSourcesReadable(tx, ctx, row);
-      return row;
+      return readClassicOutreachRecord(tx, ctx, id,
+        () => tx.outreachRecord.findFirst({ where, include: outreachInclude() }));
     }, { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS });
   }
 
@@ -2893,15 +2851,7 @@ export class EngagementService {
     association: OutreachAssociationRow,
     notFoundMessage = 'Outreach record not found',
   ): Promise<void> {
-    for (const prep of association.meeting?.preps ?? []) {
-      try {
-        await assertSavedMeetingPrepAccess(tx, ctx, prep.generatedFrom);
-      } catch (error) {
-        if (error instanceof ForbiddenException || error instanceof NotFoundException)
-          throw new NotFoundException(notFoundMessage);
-        throw error;
-      }
-    }
+    await assertClassicPrepSourcesReadable(tx, ctx, association, notFoundMessage);
   }
 
   private async assertOutreachClientsReadable(
@@ -2910,10 +2860,7 @@ export class EngagementService {
     clientIds: readonly string[],
     notFoundMessage = 'Client not found',
   ): Promise<void> {
-    for (const clientId of clientIds) {
-      if (!(await this.outreachClientReadable(tx, ctx, clientId)))
-        throw new NotFoundException(notFoundMessage);
-    }
+    await assertClassicClientsReadable(tx, ctx, clientIds, notFoundMessage);
   }
 
   private async outreachClientReadable(
@@ -2921,12 +2868,7 @@ export class EngagementService {
     ctx: TenantContext,
     clientId: string | null,
   ): Promise<boolean> {
-    if (clientId === null) return true;
-    const client = await tx.client.findFirst({
-      where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
-      select: { id: true },
-    });
-    return Boolean(client) && clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId);
+    return classicClientReadable(tx, ctx, clientId);
   }
 
   private async outreachReadableClientIds(
@@ -3085,143 +3027,6 @@ export class EngagementService {
     _clientId: string | null,
   ): Promise<string | null> {
     throw new Error('phase26_engagement_context_plane_required');
-  }
-
-  async generateOutreachDraft(
-    ctx: TenantContext,
-    id: string,
-    input: {
-      objective?: string;
-      direction?: 'on-behalf' | 'to-clients';
-      recipients?: OutreachRecipientInput[];
-      contextPool?: OutreachContextPoolItemInput[];
-      promptTemplate?: string;
-      metadata?: Record<string, unknown>;
-    },
-  ) {
-    const record = await this.getOutreachRecord(ctx, id);
-    if (record.status !== 'draft') {
-      throw new BadRequestException('Only draft outreach can be regenerated');
-    }
-
-    const direction = normalizeOutreachDirection(
-      input.direction ?? readMetadataString(record.metadata, 'direction'),
-    );
-    const contextPool = normalizeOutreachContextPool(
-      input.contextPool ?? readMetadataUnknown(record.metadata, 'contextPool'),
-    );
-    const recipients = applyOutreachDirection(
-      normalizeOutreachRecipients(input.recipients ?? record.recipients),
-      direction,
-    );
-    if ((record.type === 'campaign' || record.type === 'outbound_campaign') && !recipients.length) {
-      throw new BadRequestException('At least one recipient is required before drafting');
-    }
-    const generatedAt = new Date();
-    const requestMetadata =
-      record.type === 'outbound_campaign'
-        ? {
-            ...(input.metadata ?? {}),
-            outboundCurrentDateTime:
-              readString(input.metadata?.outboundCurrentDateTime) || generatedAt.toISOString(),
-          }
-        : record.type === 'campaign'
-          ? {
-              ...(input.metadata ?? {}),
-              campaignCurrentDateTime:
-                readString(input.metadata?.campaignCurrentDateTime) || generatedAt.toISOString(),
-              campaignCurrentDateTimeDisplay: formatCurrentDateTime(
-                readString(input.metadata?.campaignCurrentDateTime) || generatedAt.toISOString(),
-              ),
-            }
-          : input.metadata;
-    const promptTemplate =
-      input.promptTemplate ?? readMetadataString(record.metadata, 'promptTemplate') ?? null;
-    const objective = input.objective ?? readMetadataString(record.metadata, 'objective');
-    const existingBody = outboundTemplateBody(record, requestMetadata) ?? record.body ?? null;
-
-    // Phase 20: the live single-record regenerate route uses the same governed
-    // GenerationGateway / Context Plane seam as Classic batch and Outreach V3.
-    /**
-     * Phase 26 cutover: the governed GenerationGateway is the ONLY generation
-     * path. The former flag-off branch below this point compiled an ungoverned
-     * ContextPacket through the shared compiler and called the provider without
-     * a Context Plane packet; it has been removed rather than left reachable.
-     */
-    const templateId = promptTemplate || 'system-outreach-message';
-    const gatewayRecipients: OutreachRecipientInput[] = recipients.length
-      ? recipients
-      : [{ name: record.client?.name ?? 'Recipient' }];
-    const batch = await this.generateBatchEmailsViaGateway(
-      ctx,
-      {
-        ...(record.client?.id ? { clientId: record.client.id } : {}),
-        templateId,
-        outreachRecordId: this.versionedOutreach ? id : undefined,
-        recipients: gatewayRecipients,
-        ...(objective ? { objective } : {}),
-        tone: 'professional',
-        direction,
-        audienceKind: gatewayRecipients.length > 1 ? 'group' : 'individual',
-        ...(existingBody?.trim()
-          ? {
-              ...(record.subject ? { existingSubject: record.subject } : {}),
-              existingBody,
-              ...(objective ? { reviseInstruction: objective } : {}),
-            }
-          : {}),
-      },
-      { versionedRecordId: this.versionedOutreach ? id : null },
-    );
-    const generated = batch.results[0];
-    if (!generated || generated.status === 'error' || !generated.body?.trim()) {
-      throw new BadRequestException(
-        generated?.error ?? 'Governed generation could not produce a draft.',
-      );
-    }
-    const draftSubject =
-      record.type === 'campaign'
-        ? resolveGeneratedCampaignDraft(
-            generated.subject,
-            recipients,
-            mergeJsonObjects(record.metadata, requestMetadata ?? {}),
-          )
-        : generated.subject;
-    const draftBody =
-      record.type === 'campaign'
-        ? resolveGeneratedCampaignDraft(
-            generated.body,
-            recipients,
-            mergeJsonObjects(record.metadata, requestMetadata ?? {}),
-          )
-        : generated.body;
-    const nextMetadata = mergeJsonObjects(
-      mergeJsonObjects(record.metadata, {
-        ...(requestMetadata ?? {}),
-        objective: objective ?? null,
-        promptTemplate,
-        clioContextNote: generated.contextNote,
-        ai: {
-          provider: generated.manifest?.provider ?? null,
-          model: generated.manifest?.model ?? null,
-          generatedAt: generatedAt.toISOString(),
-          promptSpecVersion: generated.manifest?.promptSpecVersion ?? 'v2.2-gateway',
-          generatedSubject: draftSubject ?? null,
-          generatedBody: draftBody ?? null,
-          contextPacketId: generated.manifest?.contextPacketId ?? null,
-        },
-      }),
-      { direction, contextPool },
-    );
-    return this.updateOutreachRecord(ctx, id, {
-      direction,
-      subject: draftSubject,
-      body: draftBody,
-      recipients,
-      contextPool,
-      metadata: nextMetadata,
-      lastStep: Math.max(record.lastStep, 5),
-    });
   }
 
   async openOutreachInConnectedEmail(ctx: TenantContext, id: string) {
@@ -3795,57 +3600,6 @@ export class EngagementService {
     });
   }
 
-  async previewAiTemplate(ctx: TenantContext, id: string) {
-    const systemTemplate = SYSTEM_AI_TEMPLATES.find((t) => t.id === id);
-    let templatePrompt: string;
-    let templateName: string;
-
-    if (systemTemplate) {
-      templatePrompt = systemTemplate.prompt;
-      templateName = systemTemplate.name;
-    } else {
-      // Phase 0 §3.h1: custom templates are OWNER-private, exactly like the
-      // list/update/delete paths already are. Without `userId` this read was
-      // tenant-wide, so any colleague's private prompt could be previewed by id.
-      // A foreign id returns the SAME not-found as a nonexistent one — ownership
-      // is never disclosed.
-      const dbTemplate = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.outreachAiTemplate.findFirst({
-          where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
-        }),
-      );
-      if (!dbTemplate) throw new NotFoundException('AI template not found');
-      templatePrompt = dbTemplate.prompt;
-      templateName = dbTemplate.name;
-    }
-
-    const mockRecipient = {
-      name: 'Jane Smith',
-      title: 'Legislative Director',
-      office: 'House Committee on Science, Space, and Technology',
-      chamber: 'House',
-      state: 'TX',
-      district: '21',
-      party: 'R',
-      committee: 'House Science, Space, and Technology Committee',
-    };
-
-    const generated = await this.ai.generateOutreachDraft(
-      {
-        workflow: 'campaign',
-        client: { name: 'Sample Client Organization', industry: 'Technology' },
-        recipients: [mockRecipient],
-        context: { preview: true, templateName },
-        promptTemplate: 'custom',
-        objective: templatePrompt,
-      },
-      ctx,
-    );
-    await this.recordAiUsage(ctx, 'template_preview', generated);
-
-    return { subject: generated.subject, body: generated.body, templateName };
-  }
-
   async getOutreachInsights(ctx: TenantContext, query: { clientId?: string }) {
     const clientId = query.clientId?.trim() || null;
 
@@ -4023,71 +3777,38 @@ export class EngagementService {
     return { talkingPoints };
   }
 
-  async generateBatchEmails(
-    ctx: TenantContext,
-    input: GenerateBatchEmailInput,
-    /**
-     * HP-05 (Gate L): the inbound request's own Authorization header, forwarded
-     * unmodified so an 'intel' context item can be rehydrated from intel-api's
-     * packet endpoint under the SAME identity that authenticated this call — see
-     * AlertPacketClientService. Not part of GenerateBatchEmailInput's validated
-     * body; threaded as its own parameter from the controller.
-     */
-    authHeader?: string,
-  ) {
-    const {
-      templateId,
-      insights,
-      additionalContext,
-      tone,
-      clientId,
-      contextItems,
-      direction,
-      audienceKind,
-      existingSubject,
-      existingBody,
-      reviseInstruction,
-    } = input;
-
-    // Phase 0: with versioning on, every generated draft becomes an immutable
-    // audited row under a durable OutreachRecord. Validate that parent ONCE,
-    // before spending a single AI call — if the record is missing/foreign/sent
-    // there is nowhere safe to persist the result.
-    const versioned = this.versionedOutreach;
-    const versionedRecordId = versioned
-      ? await this.assertOwnedDraftRecord(ctx, input.outreachRecordId)
-      : null;
-
-    // Daily token budget gate (W3.4): hard-stop before spending anything when the
-    // tenant has hit its ceiling for the day; a typed 429 the wizard renders with
-    // the admin contact. (Soft-warn at 80% rides back on the response below.)
-    const budget = await this.outreachBudgetStatus(ctx);
-    if (budget.hardStop) {
-      throw new HttpException(
-        {
-          statusCode: HttpStatus.TOO_MANY_REQUESTS,
-          error: 'OUTREACH_TOKEN_BUDGET_EXCEEDED',
-          message:
-            'Your organization has reached its daily outreach AI limit. Drafting resets at 00:00 UTC — contact your Capiro admin to raise the limit.',
-        },
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
+  async prepareOutreachSdkInput(ctx: TenantContext, input: GenerateBatchEmailInput, authHeader?: string) {
+    const record = await this.getOutreachRecord(ctx, input.outreachRecordId ?? '');
+    if (record.status !== 'draft' || record.clientId !== (input.clientId ?? null) || input.recipients.length !== 1)
+      throw new BadRequestException('Outreach generation does not match the saved campaign');
+    assertGatewayContextContract(input.contextItems ?? []);
+    const items = (input.contextItems ?? []).map(normalizeSelectedContextItem);
+    const recipient = input.recipients[0]!;
+    let templatePrompt: string | undefined = SYSTEM_AI_TEMPLATES.find(t => t.id === input.templateId)?.prompt;
+    if (!templatePrompt && input.templateId) {
+      const template = await this.prisma.withTenant(ctx.tenantId, tx => tx.outreachAiTemplate.findFirst({
+        where: { id: input.templateId, tenantId: ctx.tenantId, userId: ctx.userId },
+      }));
+      if (!template) throw new NotFoundException('Template not found');
+      templatePrompt = template.prompt;
     }
-
-    /**
-     * Phase 26 cutover: batch generation runs through the governed gateway
-     * unconditionally. The legacy branch that used to follow (its own prompt
-     * assembly, auditor and sendability decision, fed by an ungoverned
-     * ContextPacket) has been removed, so there is no reachable Outreach
-     * generation path that skips the Context Plane.
-     */
-    return this.generateBatchEmailsViaGateway(ctx, input, {
-      versionedRecordId,
-      budgetWarning: budget.softWarn
-        ? `Your organization has used ${Math.round(budget.ratio * 100)}% of today's outreach AI limit.`
-        : undefined,
-      authHeader,
+    const client = record.clientId ? await this.prisma.withTenant(ctx.tenantId, tx => tx.client.findFirst({
+      where: { id: record.clientId!, tenantId: ctx.tenantId },
+    })) : null;
+    const clientBrief = client ? renderGatewayClientBrief(pruneForAi(client)) : null;
+    const matches = recipient.email ? await this.directory.findContactsByEmails([recipient.email], 1) : [];
+    const directoryByEmail = new Map(matches.map(m => [m.attendeeEmail.toLowerCase(), m]));
+    const isGroup = input.audienceKind === 'group';
+    const request = this.toGatewayRequest({ input, items, templatePrompt: templatePrompt ?? 'Write a clear message following the main idea and selected context.',
+      recipient, index: 0, directoryByEmail, isGroup, isReviseSingle: Boolean(input.existingBody),
+      versionedRecordId: record.id, pinned: input.pinnedIdentity ?? null, authHeader });
+    const enrichment = await this.buildGatewayEnrichment(ctx, { clientId: record.clientId,
+      clientBrief, clientName: client?.name ?? null, recipient,
+      directoryMatch: recipient.email ? directoryByEmail.get(recipient.email.toLowerCase()) ?? null : null,
+      isGroup, insights: [], additionalContext: null, items,
+      trackedBillIds: record.clientId ? await this.outreachTrackedBillIds(ctx, record.clientId) : [],
     });
+    return { request, enrichment };
   }
 
   /**
@@ -4100,191 +3821,6 @@ export class EngagementService {
    * moved behind the gateway, which is the point of the section. What is left here
    * is the data-loading this service already owned.
    */
-  private async generateBatchEmailsViaGateway(
-    ctx: TenantContext,
-    input: GenerateBatchEmailInput,
-    opts: {
-      versionedRecordId: string | null;
-      budgetWarning?: string;
-      /**
-       * HP-05 (Gate L): the inbound request's Authorization header, threaded all
-       * the way to EvidenceSourceService so an 'intel' item is rehydrated from
-       * intel-api under the caller's own identity.
-       *
-       * This USED to stop here, which was survivable only because
-       * ENGAGEMENT_GENERATION_GATEWAY defaulted off. It is not survivable with the
-       * gateway on: AlertPacketClientService returns null without a header,
-       * resolveIntelAlert records that as a CRITICAL failure, and
-       * GenerationGatewayService blocks any draft with a critical failure — so
-       * every LegiWatch-grounded draft would have come back empty. Threaded as
-       * part of enabling the gateway (generate() -> compileOutreachPacket ->
-       * resolveSelectedItems).
-       */
-      authHeader?: string;
-    },
-  ): Promise<{ results: OutreachBatchDraftResult[]; budgetWarning?: string }> {
-    const {
-      templateId,
-      insights,
-      additionalContext,
-      mainIdea,
-      tone,
-      clientId,
-      contextItems,
-      direction,
-      audienceKind,
-      existingSubject,
-      existingBody,
-      reviseInstruction,
-    } = input;
-
-    // §3.b1: reject a stale client still shipping external bodies, rather than
-    // ignoring the field and letting the caller believe it was used.
-    assertGatewayContextContract(contextItems ?? []);
-    const items = (contextItems ?? []).map(normalizeSelectedContextItem);
-
-    const isGroup = audienceKind === 'group';
-    const isReviseSingle = Boolean(existingBody) && input.recipients.length === 1;
-    const recipients = dedupeOutreachRecipients(input.recipients);
-
-    // Template resolution is unchanged: a system template is global, a custom one
-    // is owner-scoped (Phase 0 §3.h1).
-    const systemTemplate = SYSTEM_AI_TEMPLATES.find((t) => t.id === templateId);
-    let templatePrompt: string;
-    if (systemTemplate) {
-      templatePrompt = systemTemplate.prompt;
-    } else {
-      const dbTemplate = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.outreachAiTemplate.findFirst({
-          where: { id: templateId, tenantId: ctx.tenantId, userId: ctx.userId },
-        }),
-      );
-      if (!dbTemplate) throw new NotFoundException('Template not found');
-      templatePrompt = dbTemplate.prompt;
-      await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.outreachAiTemplate.update({
-          where: { id: templateId },
-          data: { usageCount: { increment: 1 } },
-        }),
-      );
-    }
-
-    // ---- Client-level context, resolved ONCE ----
-    let clientBrief: string | null = null;
-    let clientName: string | null = null;
-    if (clientId) {
-      const [row, relationship] = await Promise.all([
-        this.prisma.withTenant(ctx.tenantId, (tx) =>
-          tx.client.findFirst({ where: { id: clientId, tenantId: ctx.tenantId } }),
-        ),
-        this.clientContext(ctx, clientId).catch(() => null),
-      ]);
-      if (row) {
-        clientName = row.name;
-        const pruned = pruneForAi(row);
-        clientBrief = renderGatewayClientBrief(pruned);
-      }
-      if (relationship) {
-        const snapshot = renderClientRelationshipSnapshot(relationship);
-        if (snapshot) clientBrief = [clientBrief, snapshot].filter(Boolean).join('\n\n');
-      }
-    }
-
-    // Directory profiles for the whole batch in ONE scan (unchanged approach).
-    const batchRecipientEmails = unique(
-      recipients.map((r) => r.email?.trim().toLowerCase() ?? '').filter(Boolean),
-    );
-    const directoryByEmail = new Map<string, DirectoryEmailMatch>();
-    if (batchRecipientEmails.length) {
-      const matches = await this.directory
-        .findContactsByEmails(batchRecipientEmails, Math.max(batchRecipientEmails.length, 200))
-        .catch(() => [] as DirectoryEmailMatch[]);
-      for (const match of matches) {
-        const key = match.attendeeEmail.toLowerCase();
-        if (!directoryByEmail.has(key)) directoryByEmail.set(key, match);
-      }
-    }
-
-    const trackedBillIds = clientId
-      ? await this.outreachTrackedBillIds(ctx, clientId).catch(() => [])
-      : [];
-
-    // ---- Pin ONE provider/model for the whole campaign (§3.k) ----
-    const identity = await this.gateway.resolvePinnedIdentity(ctx, {});
-    if (!identity) {
-      throw new ServiceUnavailableException(
-        'Outreach drafting is not configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY (or a tenant AI key).',
-      );
-    }
-    const pinned = input.pinnedIdentity ?? identity.pinned;
-
-    // ---- Per-recipient generation ----
-    const generateOne = async (
-      recipient: OutreachRecipientInput,
-      index: number,
-    ): Promise<OutreachBatchDraftResult> => {
-      const recipientId =
-        recipient.id?.toString() ||
-        recipient.directoryContactId?.toString() ||
-        recipient.email?.toString() ||
-        recipient.name?.toString() ||
-        String(index);
-      const generationKeys = resolveGenerationKeys(recipient, recipientId);
-
-      const request = this.toGatewayRequest({
-        input,
-        items,
-        templatePrompt,
-        recipient,
-        index,
-        directoryByEmail,
-        isGroup,
-        isReviseSingle,
-        versionedRecordId: opts.versionedRecordId,
-        pinned,
-        ...(opts.authHeader ? { authHeader: opts.authHeader } : {}),
-      });
-
-      const enrichment = await this.buildGatewayEnrichment(ctx, {
-        clientId: clientId ?? null,
-        clientBrief,
-        clientName,
-        recipient,
-        directoryMatch: recipient.email
-          ? (directoryByEmail.get(recipient.email.trim().toLowerCase()) ?? null)
-          : null,
-        isGroup,
-        insights: insights ?? [],
-        additionalContext: additionalContext ?? null,
-        items,
-        trackedBillIds,
-      });
-
-      const result = await this.gateway.generate(ctx, request, enrichment, identity.creds);
-      return this.toBatchResult(result, recipientId, generationKeys);
-    };
-
-    // Warm the prompt cache on recipient #1 before fanning out: the gateway's
-    // static prefix is byte-stable per campaign, so its cache WRITE must land
-    // before drafts 2..N read it.
-    const OUTREACH_GEN_CONCURRENCY = 4;
-    let results: OutreachBatchDraftResult[];
-    if (recipients.length > 1) {
-      const head = await generateOne(recipients[0]!, 0);
-      const tail = await mapWithConcurrency(
-        recipients.slice(1),
-        OUTREACH_GEN_CONCURRENCY,
-        (recipient, i) => generateOne(recipient, i + 1),
-      );
-      results = [head, ...tail];
-    } else {
-      results = [await generateOne(recipients[0]!, 0)];
-    }
-
-    return { results, ...(opts.budgetWarning ? { budgetWarning: opts.budgetWarning } : {}) };
-  }
-
-  /** Assemble a GenerationRequest for one recipient slot. */
   private toGatewayRequest(o: {
     input: GenerateBatchEmailInput;
     items: OutreachSelectedContextItemInput[];
@@ -5919,8 +5455,19 @@ export class EngagementService {
   }
 
   createTask(ctx: TenantContext, input: CreateTaskInput, internal?: {tx:Prisma.TransactionClient;sourceType:string;sourceId:string}) {
-    const write=(tx:Prisma.TransactionClient)=>
-      tx.engagementTask.create({
+    const write = async (tx: Prisma.TransactionClient) => {
+      if (input.meetingId) {
+        // Compare the caller's association assertion under the same parent lock
+        // used by reassignment and sync. Never silently rehome a delayed task.
+        await this.lockMeetingClientAssignment(tx, ctx, input.meetingId);
+        ctx = await currentMeetingActor(tx, ctx);
+        const parent = await this.ensureOwnMeeting(tx, ctx, input.meetingId);
+        await assertMeetingClient(tx, ctx, parent.clientId);
+        if (parent.clientId !== (input.clientId ?? null)) {
+          throw new ConflictException('The meeting client changed. Reload the meeting before creating the task.');
+        }
+      }
+      return tx.engagementTask.create({
         data: {
           tenantId: ctx.tenantId,
           clientId: input.clientId ?? null,
@@ -5935,6 +5482,7 @@ export class EngagementService {
           ...(internal?{sourceType:internal.sourceType,sourceId:internal.sourceId}:{}),
         },
       });
+    };
     return internal?write(internal.tx):this.prisma.withTenant(ctx.tenantId,write);
   }
 
@@ -5962,7 +5510,7 @@ export class EngagementService {
     const artifact=await tx.clioArtifact.findFirst({where:{id:input.artifactId,tenantId:ctx.tenantId,userId:ctx.userId}});if(!artifact)throw new NotFoundException('Research Portfolio artifact not found');
     await authorizeResearchPortfolioArtifact(tx,ctx,artifact);
     if(await tx.meetingPrep.findFirst({where:{tenantId:ctx.tenantId,meetingId:input.meetingId,status:'approved'},select:{id:true}}))throw new ConflictException('An approved meeting preparation already exists; preserve it and use the private draft');
-    return tx.meetingPrep.create({data:{tenantId:ctx.tenantId,meetingId:input.meetingId,clientId:null,status:'edited',summary:input.summary,agenda:input.agenda,followUps:input.followUps,talkingPoints:[],risks:[],emailEvidence:[],provider:null,model:null,sharedAt:null,sharedByUserId:null,editedByUserId:ctx.userId,generatedFrom:{schemaVersion:'research_portfolio_institutional_v1',briefing:true,artifactId:artifact.id,meetingId:input.meetingId,actorUserId:ctx.userId,reviewStatus:'unreviewed_draft'}}});
+    return tx.meetingPrep.create({data:{tenantId:ctx.tenantId,meetingId:input.meetingId,clientId:await resolvePrepClientId(tx,ctx.tenantId,input.meetingId,null),status:'edited',summary:input.summary,agenda:input.agenda,followUps:input.followUps,talkingPoints:[],risks:[],emailEvidence:[],provider:null,model:null,sharedAt:null,sharedByUserId:null,editedByUserId:ctx.userId,generatedFrom:{schemaVersion:'research_portfolio_institutional_v1',briefing:true,artifactId:artifact.id,meetingId:input.meetingId,actorUserId:ctx.userId,reviewStatus:'unreviewed_draft'}}});
   }
 
   async updateTask(ctx: TenantContext, id: string, input: UpdateTaskInput, internal?: { tx: Prisma.TransactionClient }) {
@@ -5989,7 +5537,12 @@ export class EngagementService {
   async createMeetingNote(
     ctx: TenantContext,
     meetingId: string,
-    input: { body: string; confidential?: boolean; accessLevel?: string; approved?: boolean },
+    input: {
+      body: string;
+      confidential?: boolean;
+      accessLevel?: string;
+      approved?: boolean;
+    },
     execution?: MeetingExecution,
   ) {
     const encrypted = this.notesCrypto.encrypt(input.body);
@@ -6094,7 +5647,14 @@ export class EngagementService {
   async createMeetingDebrief(
     ctx: TenantContext,
     meetingId: string,
-    input: { body: string; confidential?: boolean; accessLevel?: string; approved?: boolean },
+    input: {
+      body: string;
+      confidential?: boolean;
+      accessLevel?: string;
+      approved?: boolean;
+      /** D2: the assembled-context summary returned by the debrief draft/job. */
+      generatedFrom?: Record<string, unknown>;
+    },
     execution?: MeetingExecution,
   ) {
     const encrypted = this.notesCrypto.encrypt(input.body);
@@ -6119,6 +5679,10 @@ export class EngagementService {
           confidential: input.confidential ?? true,
           accessLevel: input.accessLevel ?? 'tenant_members',
           ...(input.approved ? { status: MeetingDebriefStatus.approved, approvedAt: new Date(), approvedByUserId: ctx.userId } : {}),
+          // D2: keep what the model actually saw with the artifact it produced.
+          ...(input.generatedFrom
+            ? { generatedFromJsonb: input.generatedFrom as Prisma.InputJsonValue }
+            : {}),
         },
         select: debriefMetadataSelect(),
       }));
@@ -6254,6 +5818,14 @@ export class EngagementService {
     });
   }
 
+  /**
+   * D2: the debrief context is BOUNDED and auditable. Only the reviewed source, the
+   * meeting's own notes and prep, the attendee roster, minimal identity and bounded
+   * continuity (open commitments + the client's last few debriefs) reach the model.
+   * No mail threads, no client timeline, no directory or client-memory dump — those
+   * inputs turned a three-line source into a 53k-token prompt. What the model saw is
+   * returned as `contextSummary` and can be persisted with the artifact.
+   */
   async generateMeetingDebriefDraft(
     ctx: TenantContext,
     meetingId: string,
@@ -6265,148 +5837,181 @@ export class EngagementService {
     const context = await this.prisma.withTenant(
       ctx.tenantId,
       async (tx) => {
+        // Read the complete context only after any concurrent assignment commits.
+        // This transaction ends before provider delivery.
+        await this.lockMeetingClientAssignment(tx, ctx, meetingId);
+        ctx = await currentMeetingActor(tx, ctx);
         const meeting = await tx.meeting.findFirst({
           where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
           include: {
             client: true,
             attendees: true,
-            attachments: { orderBy: { createdAt: 'desc' } },
             preps: { orderBy: { createdAt: 'desc' }, take: 1 },
             tasks: {
               where: {
                 status: { notIn: [EngagementTaskStatus.done, EngagementTaskStatus.canceled] },
               },
+              select: { title: true, status: true, dueDate: true },
+              orderBy: { dueDate: 'asc' },
+              take: 20,
             },
           },
         });
         if (!meeting) throw new NotFoundException('Meeting not found');
-        meeting.preps=await filterResearchPortfolioMeetingPreps(tx,ctx,meeting.preps);
+        meeting.preps = await filterResearchPortfolioMeetingPreps(tx, ctx, meeting.preps);
 
         const effectiveClientId = await this.resolveEffectiveMeetingClientId(tx, ctx, meeting);
+        await assertMeetingClient(tx, ctx, effectiveClientId);
         const effectiveClient =
-          effectiveClientId && effectiveClientId !== meeting.clientId
+          effectiveClientId === null
+            ? null
+            : effectiveClientId !== meeting.clientId
             ? await tx.client.findUnique({ where: { id: effectiveClientId } })
             : meeting.client;
 
-        const meetingAssociationWhere = effectiveClientId
-          ? await this.clientMeetingAssociationWhere(tx, ctx.tenantId, effectiveClientId)
-          : null;
-        const recentMeetings =
-          !currentMeetingPrepExecution() && meetingAssociationWhere
-            ? await tx.meeting.findMany({
-                where: {
-                  AND: [
-                    {
-                      tenantId: ctx.tenantId,
-                      id: { not: meeting.id },
-                      ...ownMeetingWhere(ctx.userId),
-                    },
-                    meetingAssociationWhere,
-                  ],
-                },
-                select: {
-                  id: true,
-                  subject: true,
-                  startsAt: true,
-                  endsAt: true,
-                  location: true,
-                  associationReason: true,
-                },
-                orderBy: { startsAt: 'desc' },
-                take: 5,
-              })
-            : [];
-
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-        // Fetch recent email threads from last 30 days associated to this client only.
-        // Do NOT infer context from attendee/to/cc domains, which can pull unrelated people.
-        const threadFilters: Prisma.MailThreadWhereInput[] = [];
-        if (effectiveClientId) {
-          threadFilters.push(
-            await this.clientMailThreadAssociationWhere(tx, ctx.tenantId, effectiveClientId),
-          );
-        }
-
-        const recentThreads =
-          !currentMeetingPrepExecution() && threadFilters.length
-            ? await tx.mailThread.findMany({
+        // Bounded continuity: this client's own most recent debriefs, nothing wider.
+        // A tenant/client match does NOT admit a body: the same predicate the debrief
+        // readers apply (confidential / accessLevel / author + canReadEncryptedEntry)
+        // decides readability BEFORE anything is decrypted into the prompt. Over-fetch
+        // so restricted rows cannot starve the continuity window.
+        const recentDebriefs = effectiveClientId
+          ? (
+              await tx.meetingDebrief.findMany({
                 where: {
                   tenantId: ctx.tenantId,
-                  ...ownMailThreadWhere(ctx.userId),
-                  lastMessageAt: { gte: thirtyDaysAgo },
-                  OR: threadFilters,
+                  clientId: effectiveClientId,
+                  meetingId: { not: meeting.id },
                 },
                 select: {
-                  id: true,
-                  subject: true,
-                  snippet: true,
-                  lastMessageAt: true,
-                  status: true,
-                  messages: {
-                    select: {
-                      fromEmail: true,
-                      fromName: true,
-                      subject: true,
-                      bodyText: true,
-                      sentAt: true,
-                    },
-                    orderBy: { sentAt: 'desc' },
-                    take: 3,
-                  },
+                  createdAt: true,
+                  bodyCiphertext: true,
+                  iv: true,
+                  authTag: true,
+                  confidential: true,
+                  accessLevel: true,
+                  authorUserId: true,
                 },
-                orderBy: [{ lastMessageAt: 'desc' }, { updatedAt: 'desc' }],
-                take: 15,
+                orderBy: { createdAt: 'desc' },
+                take: MEETING_DEBRIEF_POLICY.recentDebriefs * 3,
               })
-            : [];
+            )
+              .filter((row) => canReadEncryptedEntry(ctx, row))
+              .slice(0, MEETING_DEBRIEF_POLICY.recentDebriefs)
+          : [];
 
-        return {
-          meeting,
-          client: effectiveClient,
-          effectiveClientId,
-          recentMeetings,
-          recentThreads,
-        };
+        return { meeting, client: effectiveClient, effectiveClientId, recentDebriefs };
       },
       { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS },
     );
 
-    const [visibleNotes, clientContext, directoryProfiles] = await Promise.all([
-      this.listMeetingNotes(ctx, meetingId)
-        .then((notes) => notes.filter((note) => !note.restricted))
-        .catch(() => []),
-      context.effectiveClientId
-        ? this.clientContext(ctx, context.effectiveClientId).catch(() => null)
-        : Promise.resolve(null),
-      this.directoryProfilesForMeeting(context.meeting).catch(() => []),
-    ]);
+    const visibleNotes = await this.listMeetingNotes(ctx, meetingId)
+      .then((notes) => notes.filter((note) => !note.restricted))
+      .catch(() => []);
 
-    // Firm identity + author voice + client strategic memory — for FRAMING/tone
-    // only (the debrief prompt is strictly grounded in the meeting notes and
-    // labels this as background, never as meeting facts).
-    const steeringContext = await this.loadUserVoiceBlock(
-      ctx,
-      context.client?.id ?? context.meeting.clientId ?? null,
-    );
-    const generated = await this.ai.generateMeetingDebrief(
-      {
-        meeting: pruneForAi(context.meeting),
-        client: context.client ? pruneForAi(context.client) : null,
-        attendees: context.meeting.attendees.map(pruneForAi),
-        prep: context.meeting.preps[0] ? pruneForAi(context.meeting.preps[0]) : null,
-        source: { method: input.method, text: sourceText },
-        visibleNotes: visibleNotes.map(pruneForAi),
-        clientContext: clientContext ? pruneForAi(clientContext) : null,
-        congressionalDirectoryMatches: directoryProfiles.map(pruneForAi),
-        recentMeetings: context.recentMeetings.map(pruneForAi),
-        recentThreads: context.recentThreads.map((thread) => prepareThreadForAi(thread)),
-        steeringContext,
+    // The governed Context Plane block IS the steering content when a debrief bundle
+    // exists: the provider seam substitutes it verbatim. Compose it here, before the
+    // bound, so the bound and the recorded summary describe the content actually sent
+    // instead of being invalidated by a post-bound replacement.
+    const governed = currentMeetingGovernedContext();
+    const governedBlock =
+      governed?.mode === 'debrief' ? governed.modelContextBlock : null;
+    const steeringContext =
+      governedBlock ??
+      (await this.loadUserVoiceBlock(
+        ctx,
+        context.effectiveClientId,
+      ));
+
+    const priorDebriefs = context.recentDebriefs.flatMap((row) => {
+      const body = this.notesCrypto.decrypt({
+        bodyCiphertext: row.bodyCiphertext,
+        iv: row.iv,
+        authTag: row.authTag,
+      });
+      const recap = (body ?? '').replace(/\s+/g, ' ').trim();
+      return recap ? [{ createdAt: row.createdAt.toISOString(), recap: recap.slice(0, 600) }] : [];
+    });
+
+    const assembled = boundDebriefContext({
+      meeting: {
+        id: context.meeting.id,
+        subject: context.meeting.subject,
+        startsAt: context.meeting.startsAt,
+        endsAt: context.meeting.endsAt,
+        location: context.meeting.location,
+        status: context.meeting.status,
+        description: context.meeting.description,
       },
-      ctx,
-    );
+      client: context.client
+        ? { id: context.client.id, name: context.client.name, sectorTag: context.client.sectorTag }
+        : null,
+      attendees: context.meeting.attendees.map((attendee) => ({
+        name: attendee.name,
+        email: attendee.email,
+        role: attendee.role,
+      })),
+      prep: context.meeting.preps[0]
+        ? {
+            id: context.meeting.preps[0].id,
+            status: context.meeting.preps[0].status,
+            summary: context.meeting.preps[0].summary,
+            agenda: context.meeting.preps[0].agenda,
+            talkingPoints: context.meeting.preps[0].talkingPoints,
+            risks: context.meeting.preps[0].risks,
+            followUps: context.meeting.preps[0].followUps,
+          }
+        : null,
+      source: { method: input.method, text: sourceText },
+      visibleNotes: visibleNotes.map((note) => ({
+        body: note.body,
+        createdAt: note.createdAt,
+      })),
+      openTasks: context.meeting.tasks.map((task) => ({
+        title: task.title,
+        status: task.status,
+        dueOn: task.dueDate ? task.dueDate.toISOString().slice(0, 10) : null,
+      })),
+      recentDebriefs: priorDebriefs,
+      steeringContext,
+    });
+
+    // FINAL HARD BOUND, before dispatch. The canonical block is composed to fit the
+    // debrief budget by the Context Plane renderer, so a total still above the limit means
+    // the mandatory content could not be composed within it: refuse deterministically here
+    // instead of sending an over-bound payload to the provider.
+    if (assembled.summary.totalTokens > MEETING_DEBRIEF_POLICY.contextTokens)
+      throw new Error('meeting_debrief_context_budget_exhausted');
+
+    const generated = await this.ai.generateMeetingDebrief(assembled.input, ctx);
     await this.recordAiUsage(ctx, 'meeting_debrief', generated);
-    return generated;
+    // A draft is returned without a write. Still refuse stale client context if
+    // the parent or the caller's authority changed while the provider ran.
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await this.lockMeetingClientAssignment(tx, ctx, meetingId);
+      ctx = await currentMeetingActor(tx, ctx);
+      const current = await tx.meeting.findFirst({
+        where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
+        select: { clientId: true, isInternal: true },
+      });
+      if (!current) throw new NotFoundException('Meeting not found');
+      await assertMeetingClient(tx, ctx, current.clientId);
+      if ((current.isInternal ? null : current.clientId) !== context.effectiveClientId) {
+        throw new BadRequestException(
+          'The meeting client changed while debrief was generating. Generate again for the current client.',
+        );
+      }
+    }, { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS });
+    // Provider, model and token counts only: no raw envelope, no thinking block.
+    return {
+      recap: generated.recap,
+      actionItems: generated.actionItems,
+      notes: generated.notes,
+      provider: generated.provider,
+      model: generated.model,
+      usage: generated.usage,
+      usedTenantKey: generated.usedTenantKey,
+      contextSummary: assembled.summary,
+    };
   }
 
   async listMeetingNotes(ctx: TenantContext, meetingId: string, clientId?: string) {
@@ -6979,15 +6584,21 @@ export class EngagementService {
     const context = await this.prisma.withTenant(
       ctx.tenantId,
       async (tx) => {
+        await this.lockMeetingClientAssignment(tx, ctx, meetingId);
+        ctx = await currentMeetingActor(tx, ctx);
         const meeting = await tx.meeting.findFirst({
           where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
           include: { client: true, attendees: true },
         });
         if (!meeting) throw new NotFoundException('Meeting not found');
+        if (['cancelled', 'canceled'].includes(meeting.status.toLowerCase())) {
+          throw new BadRequestException('Prep cannot be generated for a cancelled meeting.');
+        }
 
         // Honor the canonical stored/manual assignment; infer only for an
         // unassigned meeting that has not been explicitly cleared.
         const correctClientId = await this.resolveEffectiveMeetingClientId(tx, ctx, meeting);
+        await assertMeetingClient(tx, ctx, correctClientId);
 
         // Fetch the correct client based on the association result.
         const client = correctClientId
@@ -7124,7 +6735,10 @@ export class EngagementService {
           take: PREP_TASK_LIMIT,
         });
 
-        return { meeting, client, recentMeetings, recentThreads, tasks };
+        return {
+          meeting: { ...meeting, clientId: correctClientId, client },
+          client, effectiveClientId: correctClientId, recentMeetings, recentThreads, tasks,
+        };
       },
       { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS },
     );
@@ -7135,7 +6749,7 @@ export class EngagementService {
     // the author's voice. Best-effort (null when nothing is written).
     const steeringContext = await this.loadUserVoiceBlock(
       ctx,
-      context.client?.id ?? context.meeting.clientId ?? null,
+      context.effectiveClientId,
     );
     const promptContext = {
       meeting: pruneForAi(context.meeting),
@@ -7180,9 +6794,7 @@ export class EngagementService {
     const generationPromptHash = generated.promptHash ?? promptHash;
     await this.recordAiUsage(ctx, 'meeting_prep', generated);
 
-    const correctClientId = context.meeting.isInternal
-      ? null
-      : (context.client?.id ?? context.meeting.clientId);
+    const correctClientId = context.effectiveClientId;
     const created = await this.prisma.withTenantUser(
       ctx.tenantId,
       ctx.userId,
@@ -7190,11 +6802,13 @@ export class EngagementService {
         // Serialize with client reassignment while persisting an artifact generated
         // outside the transaction. Never attach the old client's context to a new client.
         await this.lockMeetingClientAssignment(tx, ctx, meetingId);
+        ctx = await currentMeetingActor(tx, ctx);
         const current = await tx.meeting.findFirst({
           where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
           select: { clientId: true, isInternal: true, status: true },
         });
         if (!current) throw new NotFoundException('Meeting not found');
+        await assertMeetingClient(tx, ctx, current.clientId);
         if ((current.isInternal ? null : current.clientId) !== correctClientId) {
           throw new BadRequestException(
             'The meeting client changed while prep was generating. Generate again for the current client.',
@@ -7218,7 +6832,9 @@ export class EngagementService {
           data: {
             tenantId: ctx.tenantId,
             meetingId,
-            clientId: correctClientId,
+            // One rule for every create site: an unstamped row for a client-scoped
+            // meeting is what made legacy preps permanently read-only.
+            clientId: await resolvePrepClientId(tx, ctx.tenantId, meetingId, correctClientId),
             // A prep is usable the moment it is saved; approval is not a gate.
             status: MeetingPrepStatus.approved,
             agenda: generated.agenda,
@@ -7296,6 +6912,41 @@ export class EngagementService {
     return created;
   }
 
+  /**
+   * The stored prep through the documented detail read (H2).
+   *
+   * Ownership alone is not current authorization. This composes the read through the
+   * same canonical seams the meeting read path uses: a live membership
+   * (`currentMeetingActor`), the meeting's owner/connection boundary
+   * (`ensureOwnMeeting`), the parent client's wall and archival state
+   * (`assertMeetingClient`) and the saved prep's own source access. The returned row
+   * is then bound to the parent that was actually admitted, so a row that moved
+   * between the awaited checks is not returned under the old grant.
+   */
+  async readMeetingPrep(ctx: TenantContext, prepId: string) {
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      ctx = await currentMeetingActor(tx, ctx);
+      const prep = await tx.meetingPrep.findFirst({
+        where: { id: prepId, tenantId: ctx.tenantId },
+        select: { id: true, meetingId: true, generatedFrom: true },
+      });
+      if (!prep) throw new NotFoundException('Meeting prep not found');
+      const meeting = await this.ensureOwnMeeting(tx, ctx, prep.meetingId);
+      await assertMeetingClient(tx, ctx, meeting.clientId);
+      await assertSavedMeetingPrepAccess(tx, ctx, prep.generatedFrom);
+      const row = await tx.meetingPrep.findFirst({
+        where: { id: prepId, tenantId: ctx.tenantId },
+      });
+      if (!row) throw new NotFoundException('Meeting prep not found');
+      if (
+        row.meetingId !== meeting.id ||
+        (row.clientId !== null && row.clientId !== meeting.clientId)
+      )
+        throw new NotFoundException('Meeting prep not found');
+      return projectMeetingPrepListItems(row);
+    });
+  }
+
   async updateMeetingPrep(ctx: TenantContext, prepId: string, input: UpdateMeetingPrepInput) {
     const updated = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const prep = await tx.meetingPrep.findFirst({
@@ -7311,23 +6962,49 @@ export class EngagementService {
       });
       if (!prep) throw new NotFoundException('Meeting prep not found');
       await this.ensureOwnMeeting(tx, ctx, prep.meetingId);
-      await assertSavedMeetingPrepAccess(tx, ctx, prep.generatedFrom);
-      assertExpectedRevision(input.expectedRevision, prep.updatedAt, 'meeting_prep', prepId, {
-        id: prep.id,
-        status: prep.status,
-        clientId: prep.clientId,
+      // WP1: the attribution write below takes the SAME parent-assignment lock the canonical
+      // reassignment and generated-prep persistence take, and then re-reads the row under it.
+      // Without that, a null observation made before a concurrent A->B reassignment could be
+      // stamped back as A, leaving the saved preparation unreadable against its parent.
+      await this.lockMeetingClientAssignment(tx, ctx, prep.meetingId);
+      const current = await tx.meetingPrep.findFirst({
+        where: { id: prepId, tenantId: ctx.tenantId },
+        select: {
+          id: true,
+          meetingId: true,
+          generatedFrom: true,
+          updatedAt: true,
+          status: true,
+          clientId: true,
+        },
+      });
+      if (!current) throw new NotFoundException('Meeting prep not found');
+      await assertSavedMeetingPrepAccess(tx, ctx, current.generatedFrom);
+      assertExpectedRevision(input.expectedRevision, current.updatedAt, 'meeting_prep', prepId, {
+        id: current.id,
+        status: current.status,
+        clientId: current.clientId,
       });
       const generatedFrom =
-        prep.generatedFrom &&
-        typeof prep.generatedFrom === 'object' &&
-        !Array.isArray(prep.generatedFrom)
-          ? prep.generatedFrom
+        current.generatedFrom &&
+        typeof current.generatedFrom === 'object' &&
+        !Array.isArray(current.generatedFrom)
+          ? current.generatedFrom
           : null;
       const grounding = generatedFrom?.grounding;
+      // WP1: bind a legacy unstamped row to its meeting's client in this same write,
+      // so the first successful save also ends the client's read-only state. An
+      // already-stamped row is never re-stamped here — client reassignment is the
+      // canonical reassignMeetingClient path, not this one.
+      const stampedClientId =
+        current.clientId === null
+          ? await resolvePrepClientId(tx, ctx.tenantId, current.meetingId, null)
+          : current.clientId;
 
       return tx.meetingPrep.update({
         where: { id: prepId },
         data: {
+          ...(current.clientId === null && stampedClientId ? { clientId: stampedClientId } : {}),
           ...('summary' in input ? { summary: input.summary?.trim() || null } : {}),
           ...('agenda' in input ? { agenda: normalizeStringArray(input.agenda) } : {}),
           ...('talkingPoints' in input
@@ -9604,6 +9281,8 @@ export class EngagementService {
       attendees: Array<{ email: string | null }>;
     },
   ): Promise<string | null> {
+    // Both generation callers hold the parent lock before loading this complete
+    // snapshot. Do not refresh only an ID and leave their embedded context stale.
     if (meeting.isInternal) return null;
     // The stored client is canonical. Generation must not independently choose
     // another client and save that second attribution on the prep/debrief.
@@ -9626,7 +9305,12 @@ export class EngagementService {
       attendeeEmails: [...attendeeEmails, meeting.organizerEmail ?? ''],
     });
 
+    if (await hasBoundMeetingRecords(tx, ctx.tenantId, meeting.id, meeting.clientId, association.clientId)) {
+      return meeting.clientId;
+    }
+
     if (!meeting.clientId && association.clientId) {
+      await assertMeetingClient(tx, ctx, association.clientId);
       await tx.meeting.update({
         where: { id: meeting.id },
         data: {
@@ -11010,129 +10694,6 @@ export class EngagementService {
     return { ok: true };
   }
 
-  async generateCampaignEmail(ctx: TenantContext, id: string, input: { customContext?: string }) {
-    const campaign = await this.getCampaign(ctx, id);
-    const sourceContext = (campaign.sourceContext ?? {}) as Record<string, unknown>;
-    const meetingId = typeof sourceContext.meetingId === 'string' ? sourceContext.meetingId : null;
-    const debriefId = typeof sourceContext.debriefId === 'string' ? sourceContext.debriefId : null;
-    const customContext =
-      typeof sourceContext.customContext === 'string'
-        ? sourceContext.customContext
-        : typeof input.customContext === 'string'
-          ? input.customContext
-          : null;
-
-    const [meeting, debrief, prep] = await Promise.all([
-      meetingId ? this.getMeeting(ctx, meetingId).catch(() => null) : Promise.resolve(null),
-      debriefId
-        ? this.prisma
-            .withTenant(ctx.tenantId, (tx) =>
-              tx.meetingDebrief.findFirst({
-                where: { id: debriefId, tenantId: ctx.tenantId },
-              }),
-            )
-            .catch(() => null)
-        : Promise.resolve(null),
-      meetingId
-        ? this.prisma
-            .withTenant(ctx.tenantId, async (tx) => {
-              const candidate = await tx.meetingPrep.findFirst({
-                where: { meetingId, tenantId: ctx.tenantId },
-                orderBy: { createdAt: 'desc' },
-              });
-              await assertSavedMeetingPrepAccess(tx, ctx, candidate?.generatedFrom);
-              return candidate;
-            })
-            .catch(() => null)
-        : Promise.resolve(null),
-    ]);
-
-    const clientId = campaign.clientId;
-    const client = clientId ? await this.clientContext(ctx, clientId).catch(() => null) : null;
-    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const current = await tx.engagementCampaign.findFirst({
-        where: { id, tenantId: ctx.tenantId }, select: { clientId: true },
-      });
-      if (!current || current.clientId !== campaign.clientId)
-        throw new NotFoundException('Campaign not found');
-      const associatedClients = [current.clientId, meeting?.clientId ?? null,
-        debrief?.clientId ?? null, prep?.clientId ?? null];
-      for (const linkedMeetingId of new Set([meeting?.id, debrief?.meetingId, prep?.meetingId])) {
-        if (!linkedMeetingId) continue;
-        const parent = await tx.meeting.findFirst({
-          where: { id: linkedMeetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
-          select: { clientId: true },
-        });
-        if (!parent) throw new NotFoundException('Campaign source meeting not found');
-        if (meeting?.id === linkedMeetingId && parent.clientId !== meeting.clientId)
-          throw new NotFoundException('Campaign source meeting not found');
-        associatedClients.push(parent.clientId);
-      }
-      await this.assertOutreachClientsReadable(
-        tx, ctx, associatedClients.filter((value): value is string => value !== null),
-        'Campaign not found',
-      );
-      if (prep) await assertSavedMeetingPrepAccess(tx, ctx, prep.generatedFrom);
-    }, { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS });
-    const firstRecipient = campaign.recipients[0] ?? null;
-    // Phase 26 cutover: campaign follow-up context is always governed. This was
-    // flag-gated, so with the flag off the provider was called with the raw
-    // custom context and no Context Plane packet at all.
-    const governed = await this.gateway.resolveGovernedContext(ctx, {
-      clientId: clientId ?? null,
-      recipientName: firstRecipient?.name ?? null,
-      recipientEmail: firstRecipient?.email ?? null,
-      objective: customContext ?? 'Draft the campaign follow-up email.',
-    });
-    const campaignContext =
-      [customContext, governed.promptBlock].filter(Boolean).join('\n\n') || null;
-
-    const result = await this.ai.generateCampaignEmail(
-      {
-        campaign: pruneForAi(campaign),
-        client: client ? pruneForAi(client) : null,
-        meeting: meeting ? pruneForAi(meeting) : null,
-        debrief: debrief ? pruneForAi(debrief) : null,
-        prep: prep ? pruneForAi(prep) : null,
-        recipients: campaign.recipients.map((r) => ({
-          name: r.name,
-          email: r.email,
-          title: r.title,
-          office: r.office,
-        })),
-        campaignType: campaign.type,
-        customContext: campaignContext,
-      },
-      ctx,
-    );
-    await this.recordAiUsage(ctx, 'campaign_email', result);
-
-    return this.updateCampaign(ctx, id, {
-      subject: result.subject,
-      body: result.body,
-      metadata: {
-        aiGenerated: {
-          provider: result.provider,
-          model: result.model,
-          at: new Date().toISOString(),
-        },
-      },
-    }, campaign.clientId);
-  }
-
-  /**
-   * COMPATIBILITY ROUTE (Phase 0 §3.d2) — the EngagementCampaign send.
-   *
-   * A third raw-body external-send path, on its own
-   * EngagementCampaign/EngagementCampaignRecipient tables, with no first-party web
-   * caller at the time of writing. Closed under the same flag anyway: an
-   * authenticated, callable route that mails arbitrary stored text to real
-   * recipients is a bypass whether or not our own UI happens to use it.
-   *
-   * sendCampaignTest() below is deliberately NOT gated — it delivers only to the
-   * authenticated user's own mailbox, touches no external recipient, and stays
-   * useful during the cutover (same rule as sendBatchEmails' testMode).
-   */
   async sendCampaignEmails(ctx: TenantContext, id: string) {
     if (this.versionedOutreach) {
       throw new BadRequestException(
@@ -11259,6 +10820,44 @@ function meetingInclude() {
       orderBy: [{ dueDate: 'asc' as const }, { createdAt: 'desc' as const }],
     },
   };
+}
+
+/**
+ * D5: a calendar LIST row carries artifact metadata only.
+ *
+ * `decorateMeetings` already projects notes/debriefs through
+ * projectMeetingArtifactMetadata (no bodies). Preps were still full rows, so their
+ * summary/agenda/talking points/risks/follow-ups/generatedFrom travelled in every list
+ * payload (~93 KB for a two-meeting calendar once preps existed). The list keeps the
+ * identity, lifecycle status and timestamps the list consumers read; the body stays
+ * behind the authorised detail read (getMeeting), which is unchanged.
+ */
+const MEETING_LIST_PREP_FIELDS = [
+  'id',
+  'meetingId',
+  'clientId',
+  'status',
+  'createdAt',
+  'updatedAt',
+  'sharedAt',
+  'sharedByUserId',
+  'provider',
+  'model',
+] as const;
+function projectMeetingListPrepMetadata(prep: object): Record<string, unknown> {
+  const source = prep as Record<string, unknown>;
+  return Object.fromEntries(
+    MEETING_LIST_PREP_FIELDS.filter((field) => field in source).map((field) => [
+      field,
+      source[field],
+    ]),
+  );
+}
+function projectMeetingListRows<T extends { preps: unknown[] }>(rows: T[]): T[] {
+  return rows.map((row) => ({
+    ...row,
+    preps: row.preps.map((prep) => projectMeetingListPrepMetadata(prep as object)),
+  })) as T[];
 }
 
 // The four prep list columns whose canonical item arms are "a plain string" or

@@ -1,0 +1,290 @@
+[
+  {
+    "name": "research_portfolios",
+    "primaryKey": [
+      "portfolio_id"
+    ],
+    "fields": [
+      {
+        "name": "portfolio_id",
+        "type": "string",
+        "nullable": false,
+        "parameterType": "UUID"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "nullable": false
+      },
+      {
+        "name": "purpose",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "name": "mode",
+        "type": "string",
+        "nullable": false
+      },
+      {
+        "name": "lifecycle",
+        "type": "string",
+        "nullable": false
+      },
+      {
+        "name": "revision",
+        "type": "integer",
+        "nullable": false
+      },
+      {
+        "name": "my_role",
+        "type": "string",
+        "nullable": false
+      },
+      {
+        "name": "archived_at",
+        "type": "timestamp",
+        "nullable": true
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp",
+        "nullable": false
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "research_portfolio_members",
+    "primaryKey": [
+      "portfolio_id",
+      "id"
+    ],
+    "fields": [
+      {
+        "name": "portfolio_id",
+        "type": "string",
+        "nullable": false,
+        "parameterType": "UUID"
+      },
+      {
+        "name": "id",
+        "type": "string",
+        "nullable": false,
+        "parameterType": "UUID"
+      },
+      {
+        "name": "target_kind",
+        "type": "string",
+        "nullable": false
+      },
+      {
+        "name": "target_id",
+        "type": "string",
+        "nullable": false
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "name": "disposition",
+        "type": "string",
+        "nullable": false
+      },
+      {
+        "name": "origin",
+        "type": "string",
+        "nullable": false
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "name": "resolved_at",
+        "type": "timestamp",
+        "nullable": true
+      },
+      {
+        "name": "revision",
+        "type": "integer",
+        "nullable": false
+      },
+      {
+        "name": "created_by_user_id",
+        "type": "string",
+        "nullable": false,
+        "parameterType": "UUID"
+      },
+      {
+        "name": "updated_by_user_id",
+        "type": "string",
+        "nullable": false,
+        "parameterType": "UUID"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp",
+        "nullable": false
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "classic_outreach_records",
+    "primaryKey": [
+      "id"
+    ],
+    "fields": [
+      {
+        "name": "id",
+        "type": "string",
+        "nullable": false,
+        "parameterType": "UUID"
+      },
+      {
+        "name": "client_id",
+        "type": "string",
+        "nullable": true,
+        "parameterType": "UUID"
+      },
+      {
+        "name": "type",
+        "type": "string",
+        "nullable": false
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "nullable": false
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "nullable": false
+      },
+      {
+        "name": "subject",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "name": "body",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "name": "recipient_count",
+        "type": "integer",
+        "nullable": false
+      },
+      {
+        "name": "sent_at",
+        "type": "timestamp",
+        "nullable": true
+      },
+      {
+        "name": "opened_in_email_at",
+        "type": "timestamp",
+        "nullable": true
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp",
+        "nullable": false
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "client_meetings",
+    "primaryKey": [
+      "client_id",
+      "id"
+    ],
+    "fields": [
+      {
+        "name": "client_id",
+        "type": "string",
+        "nullable": false,
+        "parameterType": "UUID"
+      },
+      {
+        "name": "id",
+        "type": "string",
+        "nullable": false,
+        "parameterType": "UUID"
+      },
+      {
+        "name": "subject",
+        "type": "string",
+        "nullable": false
+      },
+      {
+        "name": "starts_at",
+        "type": "timestamp",
+        "nullable": false
+      },
+      {
+        "name": "ends_at",
+        "type": "timestamp",
+        "nullable": false
+      },
+      {
+        "name": "time_zone",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "nullable": false
+      },
+      {
+        "name": "source",
+        "type": "string",
+        "nullable": false
+      },
+      {
+        "name": "is_internal",
+        "type": "boolean",
+        "nullable": false
+      },
+      {
+        "name": "is_virtual",
+        "type": "boolean",
+        "nullable": false
+      },
+      {
+        "name": "provider",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp",
+        "nullable": false
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp",
+        "nullable": false
+      }
+    ]
+  }
+]

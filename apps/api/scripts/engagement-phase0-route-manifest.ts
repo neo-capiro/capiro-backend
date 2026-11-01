@@ -27,6 +27,7 @@ interface ControllerDef {
 function getDefs(): ControllerDef[] {
   return [
     { absolutePath: path.join(API_ROOT, 'src/engagement/krisp/krisp-notetaker.controller.ts'), repoPath: 'apps/api/src/engagement/krisp/krisp-notetaker.controller.ts', controllerName: 'KrispNotetakerController', controllerPrefix: 'clio/krisp-notetaker', barePrefix: false },
+    { absolutePath: path.join(API_ROOT, 'src/engagement/outreach-campaign.controller.ts'), repoPath: 'apps/api/src/engagement/outreach-campaign.controller.ts', controllerName: 'OutreachCampaignController', controllerPrefix: 'engagement/outreach', barePrefix: false },
     { absolutePath: path.join(API_ROOT, 'src/engagement/engagement.controller.ts'), repoPath: 'apps/api/src/engagement/engagement.controller.ts', controllerName: 'EngagementController', controllerPrefix: 'engagement', barePrefix: false },
     { absolutePath: path.join(API_ROOT, 'src/engagement/plans/engagement-plans.controller.ts'), repoPath: 'apps/api/src/engagement/plans/engagement-plans.controller.ts', controllerName: 'EngagementPlansController', controllerPrefix: 'engagement/plans', barePrefix: false },
     { absolutePath: path.join(API_ROOT, 'src/engagement/newsletter-outreach.controller.ts'), repoPath: 'apps/api/src/engagement/newsletter-outreach.controller.ts', controllerName: 'NewsletterOutreachController', controllerPrefix: 'engagement/newsletters', barePrefix: false },
@@ -84,7 +85,13 @@ function classify(method: string, fullPath: string, ctrl: string, handler: strin
   // Capture/generation runs in the background worker; provider reads also enforce
   // the runtime policy inside KrispNotetakerService.read.
   if (ctrl === 'KrispNotetakerController') return method === 'GET' ? 'read' : 'write';
+  if (ctrl === 'OutreachCampaignController') {
+    if (['generate', 'claim', 'complete'].includes(handler)) return 'generation';
+    if (method === 'GET' || handler === 'read') return 'read';
+    return 'write';
+  }
   if (ctrl === 'RecallWebhookController') return 'webhook';
+  if (method === 'GET' && ctrl === 'NewsletterOutreachController' && ['sendStatus', 'sendRequest'].includes(handler)) return 'read';
   if (fullPath.startsWith('/api/internal/')) return 'internal_secret';
   if (/^(Microsoft|Google)IntegrationActionsController$/.test(ctrl)) {
     if (handler === 'readCalendarCommand') return 'read';
