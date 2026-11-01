@@ -8,6 +8,35 @@ import { ObjectiveQuestionsService } from './objective-questions.service.js';
 @UseGuards(ObjectiveOperationalGuard)
 export class ObjectiveQuestionsController {
   constructor(private readonly service: ObjectiveQuestionsService) {}
+  @Get('evidence')
+  evidenceList(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') client: string,
+    @Param('objectiveId') objective: string,
+    @Query('kind') kind?: string,
+    @Query('search') search?: string,
+    @Query('cursor') cursor?: string,
+  ) {
+    return this.service.evidenceList(ctx, client, objective, kind, search, cursor);
+  }
+  @Post('evidence/preview')
+  evidencePreview(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') client: string,
+    @Param('objectiveId') objective: string,
+    @Body() body: unknown,
+  ) {
+    return this.service.evidencePreview(ctx, client, objective, body);
+  }
+  @Post('evidence/document-history')
+  evidenceHistory(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') client: string,
+    @Param('objectiveId') objective: string,
+    @Body() body: unknown,
+  ) {
+    return this.service.evidenceHistory(ctx, client, objective, body);
+  }
   @Get()
   list(
     @CurrentTenant() ctx: TenantContext,
