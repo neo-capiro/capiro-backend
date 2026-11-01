@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { selectStrategyReferenceRows } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { parseDbDate } from '../strategy/dates.js';
 import type { ReferenceForkDto, ReferenceUiKind } from './dto/reference-fork.dto.js';
@@ -57,10 +58,11 @@ export class ReferenceService {
         source: {},
       };
 
+      const selected = selectStrategyReferenceRows(baseline, overrides);
       for (const kind of KINDS) {
-        const tenantRows = overrides.filter((r) => r.kind === kind);
-        const rows = tenantRows.length > 0 ? tenantRows : baseline.filter((r) => r.kind === kind);
-        const overridden = tenantRows.length > 0;
+        const entries = selected.filter(entry => entry.row.kind === kind);
+        const rows = entries.map(entry => entry.row);
+        const overridden = entries.some(entry => entry.source === 'override');
         if (kind === 'congress_milestone') {
           result.congress = rows;
           result.source.congress = overridden ? 'override' : 'baseline';

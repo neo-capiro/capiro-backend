@@ -85,12 +85,13 @@ export function projectSavedStrategy(raw: unknown) {
 /** Read only. The shared source reader enforces current Core authority; native
  * generations additionally reconstruct their retained original custody. Neither
  * historical evidence nor a successful review grants Planner consent. */
-export async function readObjectiveSavedReview(
+export async function readObjectiveSavedReviewState(
   tx: Prisma.TransactionClient,
   ctx: AuthTenantContext,
   strategyId: string,
   input: ObjectiveSavedReviewQueryDto,
 ) {
+  let evidence: ReadonlyArray<{ ref: string; reviewState: string; asOfMs: number }> = [];
   const binding = normalizeObjectiveDestination({
     clientId: input.clientId,
     objectiveId: input.objectiveId,
@@ -127,6 +128,7 @@ export async function readObjectiveSavedReview(
         ...ctx,
         generationJobId: s.generationJobId,
       });
+      evidence = canonical.publication.request.context.evidence;
       await requireCanonicalGenerationReadWithinTx(tx, canonical.admission, ctx.clerkUserId);
       if (
         canonical.receipt.snapshotDigest !== s.snapshotDigest ||
@@ -150,7 +152,7 @@ export async function readObjectiveSavedReview(
     select: { id: true, archivedAt: true },
   });
   const rows = new Map(current.map((n) => [n.id, n]));
-  return {
+  const review = {
     destination: {
       kind: 'strategy_saved_review' as const,
       resourceId: s.strategyId,
@@ -174,4 +176,11 @@ export async function readObjectiveSavedReview(
           : ('available' as const),
     })),
   };
+  return { review, evidence, generationType: snapshot.meta.type,
+    nodes: (saved.snapshot as unknown as StrategySnapshot).nodes.map(node => ({ id: node.id, provenance: node.provenance })) };
+}
+
+export async function readObjectiveSavedReview(tx: Prisma.TransactionClient, ctx: AuthTenantContext,
+  strategyId: string, input: ObjectiveSavedReviewQueryDto) {
+  return (await readObjectiveSavedReviewState(tx, ctx, strategyId, input)).review;
 }

@@ -71,6 +71,20 @@ function fixture() {
 }
 const verify = (p, f) => check(p, { admission: f.admission, dto: f.dto });
 
+test('generic owner evidence round-trips without changing retained profile-fill refs', () => {
+  const f=fixture(), old=clone(f.context.evidence);
+  for(const kind of ['context-fact','governed-memory','calendar-baseline','calendar-override']) {
+    const sourceId=id(60+f.context.evidence.length);
+    f.context.evidence.push({ref:`${kind}:${sourceId}:${hash('e')}`,sourceId,asOfMs:start-100,
+      scope:'tenant-shared',clientId:null,reviewState:'accepted'});
+  }
+  const p=create(f); verify(p,f); assert.deepEqual(p.request.context.evidence.slice(0,2),old);
+  const foreign=clone(f); foreign.context.evidence[2].scope='client';foreign.context.evidence[2].clientId=id(99);
+  refused(()=>create(foreign));
+  const changed=clone(p);changed.request.context.evidence[2].ref=changed.request.context.evidence[2].ref.replace(hash('e'),hash('f'));
+  assert.throws(()=>verify(changed,f), error=>error.code==='OUTCOME_UNCONFIRMED');
+});
+
 test('custody names the three actual modules and declared source-only dependency rewrites', t => {
   assert.equal(custody.length, 3); assert.deepEqual(custody.map(x => x.replacementSpecifiers.length), [1, 1, 2]);
   t.diagnostic(JSON.stringify({ sourceCustody: custody }));

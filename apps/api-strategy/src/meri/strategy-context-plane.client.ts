@@ -2,6 +2,7 @@ import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config';
 import { digest, SHA256, UUID, SAFE_FAILURES, type ObjectiveAdmission } from './objective-generation.types.js';
 import { BadRequestException, ConflictException } from '@nestjs/common';
+import type { CurrentObjectiveEvidence } from '../strategy/objective-saved-citations.js';
 import type {
   StrategyGovernedOperation,
   StrategyGovernedTurnContext,
@@ -9,6 +10,8 @@ import type {
 
 export type StrategyContextMode = 'draft' | 'assistant' | 'document';
 export type StrategyArtifactKind = 'workspace_draft' | 'outreach_record';
+// Core's memory-review-revision owner permits 200k body characters across 50 sections, joined with two newlines.
+const MAX_GOVERNED_MEMORY_VALUE_CHARS = 200_000 + (50 - 1) * 2;
 
 export interface StrategyContextPlaneRequest {
   objective?: { objectiveId: string; objectiveVersion: number };
@@ -191,6 +194,40 @@ export class StrategyContextPlaneClient {
         typeof body.checkedAt !== 'string' || !Number.isFinite(Date.parse(body.checkedAt)))
       throw new BadRequestException({ code: 'OBJECTIVE_CONTEXT_INCOMPLETE', message: SAFE_FAILURES.OBJECTIVE_CONTEXT_INCOMPLETE });
     return body.checkedAt;
+  }
+
+  /** Reuse the current Core actor/source reader; no compilation or packet write occurs. */
+  async readObjectiveEvidence(request: StrategyContextPlaneRequest): Promise<CurrentObjectiveEvidence[]> {
+    if (!this.sharedSecret) throw new ServiceUnavailableException('Objective source read unavailable');
+    const startedAt = Date.now();
+    const response = await fetch(`${this.apiBaseUrl}/api/internal/strategy/context/objective-check`, {
+      method: 'POST', headers: { 'content-type': 'application/json', 'x-internal-service-secret': this.sharedSecret },
+      body: JSON.stringify(request), signal: AbortSignal.timeout(this.timeoutMs),
+    });
+    if (!response.ok) throw new ServiceUnavailableException('Objective source read unavailable');
+    const body: any = await response.json();
+    const checkedAt = typeof body?.checkedAt === 'string' ? Date.parse(body.checkedAt) : NaN;
+    if (body?.complete !== true || !Number.isFinite(checkedAt) || checkedAt < startedAt - 5_000 || checkedAt > Date.now() + 5_000 ||
+        body?.tenantId !== request.tenantId || body.clerkUserId !== request.clerkUserId ||
+        body.requestId !== request.generationRequestId || body.source?.clientId !== request.clientId ||
+        body.source.objectiveId !== request.objective?.objectiveId || body.source.objectiveVersion !== request.objective?.objectiveVersion ||
+        !Array.isArray(body.evidence) || body.evidence.length > 256) throw new ServiceUnavailableException('Objective source read unavailable');
+    const refs = new Set<string>();
+    return body.evidence.map((e: any) => {
+      const prefix = { context_fact: 'context-fact', governed_memory: 'governed-memory',
+        reference_calendar: 'calendar-(?:baseline|override)' }[e?.kind as CurrentObjectiveEvidence['kind']];
+      if (!e || typeof e !== 'object' || Object.keys(e).sort().join(',') !==
+          'asOfMs,clientId,kind,locator,ref,reviewState,scope,sourceId,text,title,version' ||
+          typeof e.ref !== 'string' || e.ref.length > 256 || refs.has(e.ref) || !UUID.test(e.sourceId) ||
+          !SHA256.test(e.version) || !prefix || !new RegExp(`^${prefix}:${e.sourceId}:${e.version}$`).test(e.ref) ||
+          !['context_fact', 'governed_memory', 'reference_calendar'].includes(e.kind) ||
+          !['accepted', 'pending'].includes(e.reviewState) || !Number.isSafeInteger(e.asOfMs) || e.asOfMs < 0 || e.asOfMs > checkedAt ||
+          !(e.scope === 'client' && e.clientId === request.clientId || e.scope === 'tenant-shared' && e.clientId === null) ||
+            ['title', 'locator'].some(k => typeof e[k] !== 'string' || e[k].length > 24_000) ||
+            typeof e.text !== 'string' || e.text.length > (e.kind === 'governed_memory' ? MAX_GOVERNED_MEMORY_VALUE_CHARS : 24_000))
+        throw new ServiceUnavailableException('Objective source read unavailable');
+      refs.add(e.ref); return e as CurrentObjectiveEvidence;
+    });
   }
 }
 

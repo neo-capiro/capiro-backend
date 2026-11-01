@@ -3,12 +3,16 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import type { OperationalScope } from '../operational/objective-operational.types.js';
 import {
   advanceQuestion,
-  presentQuestion,
   questionCommandDigest,
   questionConflict,
   type QuestionCommand,
   type QuestionState,
 } from './objective-question.rules.js';
+import {
+  presentQuestionEvidence,
+  requireCurrentQuestionEvidence,
+  type QuestionEvidenceOwner,
+} from './objective-question.evidence.js';
 
 type Tx = ObjectiveOperationalTx;
 type Scope = Pick<
@@ -32,13 +36,18 @@ interface Revision {
   snapshot: QuestionState;
   committedAt: Date;
 }
-export function presentRevision(row: Revision, scope: Scope) {
+export async function presentRevision(
+  row: Revision,
+  scope: Scope,
+  evidence?: QuestionEvidenceOwner,
+) {
   return {
     requestId: row.requestId,
     actorUserId: row.actorUserId,
     action: row.action,
     committedAt: row.committedAt.toISOString(),
-    question: presentQuestion(row.snapshot, scope.objectiveVersion),
+    ...(row.snapshot.evidenceRefs?.length ? { payloadDigest: row.payloadDigest } : {}),
+    question: await presentQuestionEvidence(row.snapshot, scope.objectiveVersion, evidence),
   };
 }
 export async function findQuestionReceipt(
@@ -54,12 +63,30 @@ export async function findQuestionReceipt(
     AND objective_id=${scope.objectiveId}::uuid AND actor_user_id=${actor.userId}::uuid AND request_id=${requestId}::uuid`;
   return rows[0] ?? null;
 }
+export async function readQuestionCitation(
+  tx: Tx,
+  actor: ObjectiveOperationalActor,
+  scope: Scope,
+  id: string,
+  version: number,
+  digest: string,
+) {
+  const rows = await tx.$queryRaw<Array<{ snapshot: QuestionState }>>`
+    SELECT snapshot FROM client_objective_question_revisions WHERE tenant_id=${actor.tenantId}::uuid
+    AND client_id=${scope.clientId}::uuid AND objective_id=${scope.objectiveId}::uuid
+    AND question_id=${id}::uuid AND version=${version}`;
+  const citation = rows[0]?.snapshot.evidenceRefs?.find((ref) => ref.digest === digest);
+  if (!citation || citation.selector.kind !== 'document')
+    throw new NotFoundException('Question citation unavailable.');
+  return citation;
+}
 export async function readQuestions(
   tx: Tx,
   actor: ObjectiveOperationalActor,
   scope: Scope,
   after: string | null,
   status: string | null,
+  evidence?: QuestionEvidenceOwner,
 ) {
   const rows = await tx.$queryRaw<
     Array<{ snapshot: QuestionState }>
@@ -73,7 +100,11 @@ export async function readQuestions(
   if (!counts[0]) throw new Error('Question count observation unavailable.');
   return {
     ...counts[0],
-    items: rows.slice(0, 50).map((row) => presentQuestion(row.snapshot, scope.objectiveVersion)),
+    items: await Promise.all(
+      rows
+        .slice(0, 50)
+        .map((row) => presentQuestionEvidence(row.snapshot, scope.objectiveVersion, evidence)),
+    ),
     nextCursor: rows.length > 50 ? rows[49]!.snapshot.id : null,
   };
 }
@@ -83,6 +114,7 @@ export async function readQuestionHistory(
   scope: Scope,
   questionId: string,
   before: number | null,
+  evidence?: QuestionEvidenceOwner,
 ) {
   const rows = await tx.$queryRaw<
     Revision[]
@@ -91,7 +123,7 @@ export async function readQuestionHistory(
     AND question_id=${questionId}::uuid AND (${before}::int IS NULL OR version<${before}::int) ORDER BY version DESC LIMIT 51`;
   if (!rows.length && before === null) throw new NotFoundException('Question not available.');
   return {
-    items: rows.slice(0, 50).map((row) => presentRevision(row, scope)),
+    items: await Promise.all(rows.slice(0, 50).map((row) => presentRevision(row, scope, evidence))),
     nextCursor: rows.length > 50 ? rows[49]!.snapshot.version : null,
   };
 }
@@ -100,6 +132,7 @@ export async function commitQuestion(
   actor: ObjectiveOperationalActor,
   scope: Scope,
   command: QuestionCommand,
+  evidence?: QuestionEvidenceOwner,
 ) {
   // Serialize the original actor/request before touching a Question, including concurrent creates.
   const requestKey = [
@@ -114,7 +147,7 @@ export async function commitQuestion(
   const prior = await findQuestionReceipt(tx, actor, scope, command.requestId);
   if (prior) {
     if (prior.payloadDigest !== digest) questionConflict('OBJECTIVE_QUESTION_REQUEST_CONFLICT');
-    return presentRevision(prior, scope);
+    return presentRevision(prior, scope, evidence);
   }
   const records = await tx.$queryRaw<
     Array<{ snapshot: QuestionState }>
@@ -123,6 +156,20 @@ export async function commitQuestion(
   let next: QuestionState;
   try {
     next = advanceQuestion(records[0]?.snapshot ?? null, command, scope);
+    if (command.action === 'close') await requireCurrentQuestionEvidence(next, evidence);
+    if (command.action === 'answer' && command.evidenceRefs !== undefined) {
+      if (command.evidenceRefs.length && !evidence)
+        throw new Error('Question evidence owner unavailable.');
+      next.evidenceRefs = [];
+      for (const selector of command.evidenceRefs) {
+        const resolved = await evidence!.resolve(selector);
+        if (resolved.digest !== selector.expectedDigest)
+          questionConflict('OBJECTIVE_QUESTION_SOURCE_STALE');
+        next.evidenceRefs.push(resolved);
+      }
+      // Repeat the owning current-source check immediately before the durable write.
+      await requireCurrentQuestionEvidence(next, evidence);
+    }
   } catch (error) {
     // Only transition/CAS refusal after original-request reconciliation is definitive.
     if (error instanceof ConflictException) refused(command.requestId);
@@ -148,5 +195,5 @@ export async function commitQuestion(
     VALUES (${actor.tenantId}::uuid,${scope.clientId}::uuid,${scope.objectiveId}::uuid,${next.id}::uuid,${next.version},${next.sourceRevisionId}::uuid,${next.sourceObjectiveVersion},${actor.userId}::uuid,${command.requestId}::uuid,${digest},${command.action},${snapshot}::jsonb)
     RETURNING request_id::text AS "requestId", payload_digest AS "payloadDigest", actor_user_id::text AS "actorUserId", action,snapshot,committed_at AS "committedAt"`;
   if (!rows[0]) throw new Error('Original Question receipt unavailable.');
-  return presentRevision(rows[0], scope);
+  return presentRevision(rows[0], scope, evidence);
 }

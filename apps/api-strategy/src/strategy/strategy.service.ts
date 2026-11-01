@@ -23,8 +23,11 @@ import { loadStrategyDetail } from './detail.js';
 import { readObjectiveSavedGeneration } from './objective-saved-generation.js';
 import {
   readObjectiveSavedReview,
+  readObjectiveSavedReviewState,
   type ObjectiveSavedReviewQueryDto,
 } from './objective-saved-review.js';
+import { hasOriginalAcceptedCitation, projectSavedObjectiveCitations } from './objective-saved-citations.js';
+import { StrategyContextPlaneClient } from '../meri/strategy-context-plane.client.js';
 import { ATTACHED_ARTIFACT_WHERE, LIVE_NODE_WHERE } from './live-node.js';
 import { lockStrategyForMutation } from './mutation-lock.js';
 import type { CreateStrategyDto, StrategyTypeValue } from './dto/create-strategy.dto.js';
@@ -48,6 +51,7 @@ export class StrategyService {
     private readonly prisma: PrismaService,
     private readonly versioning: VersioningService,
     private readonly links: PlannerLinksService,
+    private readonly contextPlane?: StrategyContextPlaneClient,
   ) {}
 
   async activeAggregate(
@@ -110,6 +114,22 @@ export class StrategyService {
     return this.prisma.withTenantUser(ctx.tenantId, ctx.clerkUserId, (tx) =>
       readObjectiveSavedReview(tx, ctx, id, input),
     );
+  }
+
+  async objectiveSavedCitations(ctx: AuthTenantContext, id: string, input: ObjectiveSavedReviewQueryDto) {
+    const read = () => this.prisma.withTenantUser(ctx.tenantId, ctx.clerkUserId, tx =>
+      readObjectiveSavedReviewState(tx, ctx, id, input));
+    const saved = await read();
+    const needsCurrent = hasOriginalAcceptedCitation(saved);
+    if (needsCurrent && !this.contextPlane) throw new NotFoundException('Saved sources unavailable');
+    const current = needsCurrent ? await this.contextPlane!.readObjectiveEvidence({ tenantId: ctx.tenantId, clerkUserId: ctx.clerkUserId,
+      clientId: saved.review.source.clientId, mode: 'draft', generationRequestId: saved.review.source.generationRequestId,
+      generationType: saved.generationType, objective: { objectiveId: saved.review.source.objectiveId,
+        objectiveVersion: saved.review.source.objectiveVersion } }) : [];
+    const fresh = await read();
+    if (fresh.review.source.snapshotDigest !== saved.review.source.snapshotDigest)
+      throw new NotFoundException('Saved sources unavailable');
+    return projectSavedObjectiveCitations(fresh, current);
   }
 
   async objectiveSavedGeneration(ctx: AuthTenantContext, input: ObjectiveDestinationQueryDto) {
