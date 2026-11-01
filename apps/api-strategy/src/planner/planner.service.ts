@@ -1,3 +1,4 @@
+import { readObjectiveSavedSource } from '../strategy/objective-saved-source.js';
 import {
   ConflictException,
   ForbiddenException,
@@ -123,12 +124,7 @@ import {
   type StoredCanonicalMaterializationV3,
 } from './strategy-materialization.js';
 import { planCanonicalRegeneration, CanonicalRegenerationError, type CanonicalRegenerationInput } from './canonical-regeneration-plan.js';
-import {
-  digest,
-  requestKey,
-  validObjectiveOutcome,
-  type ObjectiveJobEnvelope,
-} from '../meri/objective-generation.types.js';
+import { digest } from '../meri/objective-generation.types.js';
 import {
   normalizeObjectiveDestination,
   requireObjectiveDestinationRevision,
@@ -362,88 +358,17 @@ export class PlannerService {
     );
     return row;
   }
-  /** No outside actions: Planner lock -> job -> Strategy -> version -> Core authority. */
+  /** No outside actions; retain the existing source admission and error contract. */
   private async materializationSource(
     tx: Tx,
     ctx: AuthTenantContext,
     input: MaterializationInput,
     recorded: true | null,
   ) {
-    const unavailable = (): never =>
-      materializationError('MATERIALIZATION_NOT_AVAILABLE', input.requestId);
-    const jobLocks = await tx.$queryRaw<
-      Array<{ id: string }>
-    >`SELECT id FROM sp_draft_job WHERE tenant_id=${ctx.tenantId}::uuid AND id=${input.generationJobId}::uuid AND owner_user_id=${ctx.clerkUserId} FOR SHARE`;
-    if (!jobLocks[0]) return unavailable();
-    const job = await tx.spDraftJob.findFirst({
-      where: { tenantId: ctx.tenantId, id: input.generationJobId, ownerUserId: ctx.clerkUserId },
+    return readObjectiveSavedSource(tx, ctx, input, {
+      unavailable: () => materializationError('MATERIALIZATION_NOT_AVAILABLE', input.requestId),
+      stale: () => materializationError('MATERIALIZATION_SOURCE_STALE', input.requestId, recorded),
     });
-    const envelope = (job?.input as { objectiveGeneration?: ObjectiveJobEnvelope } | null)
-      ?.objectiveGeneration;
-    const receipt = envelope?.receipt;
-    if (
-      !job ||
-      !envelope ||
-      !receipt ||
-      !validObjectiveOutcome(receipt, job.status, job.strategyId, job.errorMessage) ||
-      job.status !== 'completed' ||
-      !receipt.result ||
-      envelope.request.requestId !== receipt.requestId ||
-      envelope.request.clientId !== receipt.source.clientId ||
-      envelope.request.objective.objectiveId !== receipt.source.objectiveId ||
-      envelope.request.objective.objectiveVersion !== receipt.source.objectiveVersion ||
-      job.clientId !== receipt.source.clientId ||
-      job.requestKey !== requestKey(ctx.tenantId, ctx.clerkUserId, receipt.requestId)
-    )
-      return unavailable();
-    const result = receipt.result;
-    if (
-      result.strategyId !== input.expected.strategyId ||
-      result.strategyVersionId !== input.expected.strategyVersionId ||
-      receipt.source.objectiveRevisionId !== input.expected.objectiveRevisionId
-    )
-      return unavailable();
-    const strategies = await tx.$queryRaw<
-      Array<{ id: string }>
-    >`SELECT id FROM sp_strategy WHERE tenant_id=${ctx.tenantId}::uuid AND id=${result.strategyId}::uuid AND client_id=${job.clientId}::uuid AND archived_at IS NULL FOR SHARE`;
-    if (!strategies[0]) return unavailable();
-    const versions = await tx.$queryRaw<
-      Array<{ id: string }>
-    >`SELECT id FROM sp_version WHERE tenant_id=${ctx.tenantId}::uuid AND strategy_id=${result.strategyId}::uuid AND id=${result.strategyVersionId}::uuid FOR SHARE`;
-    if (!versions[0]) return unavailable();
-    const version = await tx.spVersion.findFirst({
-      where: {
-        tenantId: ctx.tenantId,
-        strategyId: result.strategyId,
-        id: result.strategyVersionId,
-        coalescible: false,
-        authorKind: 'meri',
-      },
-    });
-    if (!version) return unavailable();
-    let authority;
-    try {
-      authority = await requireObjectiveDestinationRevision(tx, ctx, receipt.source);
-    } catch (error) {
-      if (error instanceof ConflictException)
-        materializationError('MATERIALIZATION_SOURCE_STALE', input.requestId, recorded);
-      if (error instanceof NotFoundException) return unavailable();
-      throw error;
-    }
-    if (authority.objectiveRevisionId !== receipt.source.objectiveRevisionId)
-      materializationError('MATERIALIZATION_SOURCE_STALE', input.requestId, recorded);
-    const snapshot = version.snapshot as unknown as { meta?: { id?: string; clientId?: string } };
-    if (snapshot?.meta?.id !== result.strategyId || snapshot.meta.clientId !== job.clientId)
-      return unavailable();
-    const source: MaterializationSource = {
-      generationJobId: job.id,
-      generationRequestId: receipt.requestId,
-      ...receipt.source,
-      strategyId: result.strategyId,
-      strategyVersionId: result.strategyVersionId,
-      snapshotDigest: digest(version.snapshot),
-    };
-    return { source, snapshot: version.snapshot, objectiveReceiptSha256: digest(receipt) };
   }
   private materializationView(tx: Tx, ctx: AuthTenantContext, stored: Pick<StoredMaterialization, 'result'>,
     replayed: boolean): Promise<MaterializationResult>;
