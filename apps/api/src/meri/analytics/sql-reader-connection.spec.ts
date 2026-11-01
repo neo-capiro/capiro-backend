@@ -175,6 +175,10 @@ describe('reader transport', () => {
     it.each([
       [pgError('42703', 'column b.titel does not exist', { position: '24', hint: 'Perhaps you meant "b.title".' }), { code: 'UNKNOWN_FIELD', message: 'column b.titel does not exist', position: 8, hint: 'Perhaps you meant "b.title".', sqlstate: '42703', candidates: ['title'] }],
       [pgError('42P01', 'relation "congress_bill" does not exist', { position: '31' }), { code: 'UNKNOWN_RELATION', message: 'congress_bill is not published in this source; use only the relations describe_capiro_data lists.', position: 15, sqlstate: '42P01', candidates: ['congress_bills', 'congress_members'] }],
+      // A schema-qualified published name is a 42P01 (search_path is fixed): say to drop the prefix, never that writes are refused.
+      [pgError('42P01', 'relation "analytics.congress_bills" does not exist', { position: '31' }), { code: 'UNKNOWN_RELATION', message: 'analytics.congress_bills is not available: address the published relation congress_bills without a schema prefix.', position: 15, sqlstate: '42P01' }],
+      [pgError('42P01', 'relation "public.secret_table" does not exist'), { code: 'UNKNOWN_RELATION', message: 'public.secret_table is not published in this source; use only the relations describe_capiro_data lists.', sqlstate: '42P01' }],
+      [pgError('42P01', 'missing FROM-clause entry for table "b"', { position: '24' }), { code: 'UNKNOWN_RELATION', message: 'b is not in the FROM clause; alias every relation you reference and use those aliases.', position: 8, sqlstate: '42P01' }],
       // Permission and schema errors never echo PostgreSQL's text: it would confirm that an unpublished object exists.
       [pgError('42501', 'permission denied for table clients'), { code: 'UNKNOWN_RELATION', message: 'clients is not published in this source; use only the relations describe_capiro_data lists.', sqlstate: '42501' }],
       [pgError('42501', 'permission denied for schema secret_schema'), { code: 'UNKNOWN_RELATION', message: 'secret_schema is not published in this source; use only the relations describe_capiro_data lists.', sqlstate: '42501' }],
@@ -195,7 +199,8 @@ describe('reader transport', () => {
       expect(translated).toBeInstanceOf(SqlQueryError);
       expect(translated.toEnvelope()).toMatchObject(expected);
       expect(JSON.stringify(translated.toEnvelope())).not.toContain('secret connection');
-      expect(JSON.stringify(translated.toEnvelope())).not.toMatch(/permission denied|schema .* does not exist|relation .* does not exist/);
+      // PostgreSQL's relation, schema and permission phrasing never travels; the identifier the model typed may.
+      expect(JSON.stringify(translated.toEnvelope())).not.toMatch(/permission denied|relation .* does not exist|schema .* does not exist|missing FROM-clause/);
     });
     it('leaves a position inside the wrapper prefix out and passes gate errors through', () => {
       expect(translateDatabaseError(pgError('42601', 'syntax error', { position: '3' }), gated, surface).toEnvelope()).not.toHaveProperty('position');
