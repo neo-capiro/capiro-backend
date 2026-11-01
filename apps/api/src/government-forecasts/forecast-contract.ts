@@ -26,7 +26,6 @@ export interface ForecastRecord extends ForecastContent {
   observedAt: string;
   recordedAt: string;
 }
-export const OBSERVATION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function civilDay(value: unknown): value is string {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
