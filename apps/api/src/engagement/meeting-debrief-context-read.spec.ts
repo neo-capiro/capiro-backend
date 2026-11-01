@@ -1,4 +1,5 @@
 import type { TenantContext } from '@capiro/shared';
+import { describe, it, expect, jest } from '@jest/globals';
 import { readMeetingDebriefContext } from './meeting-debrief-context-read.js';
 
 const ctx: TenantContext = {
