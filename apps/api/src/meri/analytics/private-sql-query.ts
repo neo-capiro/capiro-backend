@@ -19,7 +19,7 @@ export function createPrivateSqlQueries(db: Db) {
         generatedAt = new Date().toISOString();
       try {
         const head = { version, generatedAt, scope: { kind: 'client_records' as const, clientId: context.clientId } };
-        return describeEnvelope(head, input, await db.describe(context));
+        return describeEnvelope(head, input, await db.describe(context), 'client_records');
       } catch (error) {
         return failure(error, generatedAt);
       }

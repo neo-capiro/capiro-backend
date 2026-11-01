@@ -1,5 +1,6 @@
 import type { PublishedRelation, SqlResultColumn, SqlResultRow } from './sql-reader-connection.js';
-import { SQL_QUERY_LIMITS, SqlQueryError, type GatedSqlStatement } from './sql-statement-gate.js';
+import { SQL_QUERY_LIMITS, SqlQueryError, type GatedSqlStatement, type SqlSource } from './sql-statement-gate.js';
+import { sqlContractDescriptor } from './sql-contract-descriptor.js';
 
 const bytes = (value: unknown) => Buffer.byteLength(JSON.stringify(value), 'utf8');
 
@@ -62,7 +63,7 @@ export function queryEnvelope<Head extends Record<string, unknown>>(
 }
 
 /** The describe envelope: the surface as the reader role sees it, optionally narrowed to named relations. */
-export function describeEnvelope<Head extends Record<string, unknown>>(head: Head, input: unknown, surface: readonly PublishedRelation[]) {
+export function describeEnvelope<Head extends Record<string, unknown>>(head: Head, input: unknown, surface: readonly PublishedRelation[], source: SqlSource) {
   if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some((k) => k !== 'relations'))
     throw new SqlQueryError('INVALID_QUERY', 'Use an optional list of published relation names.');
   const names = (input as { relations?: unknown }).relations;
@@ -76,7 +77,7 @@ export function describeEnvelope<Head extends Record<string, unknown>>(head: Hea
       });
   }
   const relations = surface.filter((relation) => names === undefined || (names as string[]).includes(relation.name));
-  const result = { ...head, ok: true as const, relations, limits: SQL_QUERY_LIMITS };
+  const result = { ...head, ok: true as const, relations, limits: SQL_QUERY_LIMITS, contract: sqlContractDescriptor(source, relations) };
   if (bytes(result) > SQL_QUERY_LIMITS.maxOutputBytes) throw new SqlQueryError('OUTPUT_LIMIT', 'Published metadata exceeds the output budget.');
   return result;
 }
