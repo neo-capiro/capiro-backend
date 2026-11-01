@@ -115,7 +115,7 @@ describe('Portfolio alert global sorting and canonical sidecar', () => {
 });
 
 describe('Portfolio alert profile failure boundaries', () => {
-  test('continues after one profile rejects and counts the full queried roster', async () => {
+  test('continues after one profile rejects, counts the full queried roster and stays partial', async () => {
     const h = harness({
       rows: {
         clients: [client(), client({ id: 'second', name: 'Second' })],
@@ -124,13 +124,13 @@ describe('Portfolio alert profile failure boundaries', () => {
       errors: { [`profile:${clientId}`]: new Error('Profile unavailable') },
     });
     const value = await h.runtime.computePortfolioAlerts(tenantId, userId, 12, 40).result;
-    expect(value).toMatchObject({ total: 1, clientCount: 2 });
+    expect(value).toMatchObject({ total: 1, clientCount: 2, partial: true });
     expect(value.alerts[0]!.clientId).toBe('second');
     expect(h.warnings).toHaveBeenCalledWith(
       `portfolio-alerts: profile-v1 failed for client ${clientId}: Profile unavailable`,
     );
   });
-  test('retains already appended rows if a later malformed alert fails the same client loop', async () => {
+  test('drops every row of a client whose alert loop fails on a malformed alert and stays partial', async () => {
     const bad = null as unknown as Record<string, unknown>;
     const h = harness({
       rows: {
@@ -140,7 +140,8 @@ describe('Portfolio alert profile failure boundaries', () => {
       },
     });
     const value = await h.runtime.computePortfolioAlerts(tenantId, userId, 12, 40).result;
-    expect(value.alerts.map((row) => row.id)).toEqual([`${clientId}:kept`, 'second:alert-one']);
+    expect(value.alerts.map((row) => row.id)).toEqual(['second:alert-one']);
+    expect(value).toMatchObject({ total: 1, clientCount: 2, partial: true });
     expect(h.warnings).toHaveBeenCalledTimes(1);
   });
   test.each([null, {}, { sections: { snapshot: {} } }])(

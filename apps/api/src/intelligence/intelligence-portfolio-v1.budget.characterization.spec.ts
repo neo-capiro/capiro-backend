@@ -319,15 +319,13 @@ describe('Portfolio alert carried per-client results across budget-limited runs'
     await drain();
   };
   const clientIds = (value: AlertResult) => value.alerts.map((row) => row.clientId).sort();
-  const carriedIds = (h: Harness) => [
-    ...(
+  const carriedMap = (h: Harness) =>
+    (
       h.service as unknown as {
         finalSources: { portfolioAlerts: { carried: Map<string, Map<string, unknown>> } };
       }
-    ).finalSources.portfolioAlerts.carried
-      .get(key)!
-      .keys(),
-  ];
+    ).finalSources.portfolioAlerts.carried;
+  const carriedIds = (h: Harness) => [...carriedMap(h).get(key)!.keys()];
 
   test('three budget-limited runs converge on the full roster by carrying finished clients forward', async () => {
     budgets.PORTFOLIO_ALERTS_REQUEST_BUDGET_MS = 20;
@@ -343,8 +341,9 @@ describe('Portfolio alert carried per-client results across budget-limited runs'
       const answer = await request;
       await drop(h, opened, stopped);
       expect(h.runtime.portfolioAlertsInflight.size).toBe(0);
+      // The full answer expires with its oldest carried client (Acme, run one).
       expect(h.runtime.portfolioAlertsCache.get(key)).toEqual({
-        expiresAt: Date.now() + (answer.partial ? 20000 : 120000),
+        expiresAt: answer.partial ? Date.now() + 20000 : now.getTime() + 120000,
         value: answer,
       });
       answers.push(answer);
@@ -452,5 +451,111 @@ describe('Portfolio alert carried per-client results across budget-limited runs'
       'third',
     ]);
     expect(carriedIds(h)).toEqual(['second', 'third', clientId]);
+  });
+
+  test('keeps no entry for a failed client, so the answer stays partial and the next run walks it first', async () => {
+    const h = harness({
+      rows: { clients: [client(), second], 'profile:second': profile([alert({ id: 'second' })]) },
+      queues: {
+        [`profile:${clientId}`]: [
+          new Error('Profile unavailable'),
+          profile([alert({ id: 'first' })]),
+        ],
+      },
+    });
+    const compute = () => h.runtime.computePortfolioAlerts(tenantId, userId, 12, 40);
+    const failed = await compute().result;
+    expect(clientIds(failed)).toEqual(['second']);
+    expect(failed).toMatchObject({ total: 1, clientCount: 2, partial: true });
+    expect(carriedIds(h)).toEqual(['second']);
+    const recovered = await compute().result;
+    expect(clientIds(recovered)).toEqual([clientId, 'second']);
+    expect(recovered).not.toHaveProperty('partial');
+    expect(h.source.mock.calls.map((call) => call[0])).toEqual([
+      clientId,
+      'second',
+      clientId,
+      'second',
+    ]);
+  });
+
+  test('caps the cached answer at the expiry of its oldest carried client', async () => {
+    budgets.PORTFOLIO_ALERTS_REQUEST_BUDGET_MS = 20;
+    const { opened, rows } = pendingProfiles();
+    const h = harness({ rows: { clients: [client(), second, third], ...rows } });
+    const first = h.service.getPortfolioAlerts(tenantId, userId);
+    await finish(opened, 2);
+    await jest.advanceTimersByTimeAsync(20);
+    expect(await first).toMatchObject({ total: 2, partial: true });
+    await drop(h, opened, 2);
+    await jest.advanceTimersByTimeAsync(20000);
+    // Third finishes now; Acme and Second are carried from the start of the
+    // clock, so the full answer expires with them rather than a TTL from now.
+    const merged = h.service.getPortfolioAlerts(tenantId, userId);
+    await finish(opened, 1);
+    await jest.advanceTimersByTimeAsync(20);
+    const answer = await merged;
+    await drop(h, opened, 4);
+    expect(answer).toMatchObject({ total: 3, clientCount: 3 });
+    expect(answer).not.toHaveProperty('partial');
+    expect(h.runtime.portfolioAlertsCache.get(key)).toEqual({
+      expiresAt: now.getTime() + 120000,
+      value: answer,
+    });
+    expect(Date.now()).toBe(now.getTime() + 20040);
+  });
+
+  test('sweeps keys whose carried entries have all expired on the next run of any key', async () => {
+    const h = harness({
+      queues: { clients: [[client()], [second], [client()]] },
+      rows: { [`profile:${clientId}`]: profile([alert()]), 'profile:second': profile([alert()]) },
+    });
+    await h.runtime.computePortfolioAlerts(tenantId, userId, 12, 40).result;
+    await h.runtime.computePortfolioAlerts('other-tenant', userId, 12, 40).result;
+    expect([...carriedMap(h).keys()]).toEqual([key, `other-tenant:${userId}:12:40`]);
+    jest.setSystemTime(now.getTime() + 120000);
+    const again = await h.runtime.computePortfolioAlerts(tenantId, userId, 12, 40).result;
+    expect(again).not.toHaveProperty('partial');
+    expect([...carriedMap(h).keys()]).toEqual([key]);
+    expect(carriedIds(h)).toEqual([clientId]);
+  });
+
+  test('keeps carried entries isolated per tenant/user key', async () => {
+    budgets.PORTFOLIO_ALERTS_REQUEST_BUDGET_MS = 20;
+    const { opened, rows } = pendingProfiles();
+    const h = harness({
+      queues: { clients: [[client(), second], [third], [client(), second]] },
+      rows,
+    });
+    const other = ['other-tenant', 'other-user'] as const;
+    const mine = h.service.getPortfolioAlerts(tenantId, userId);
+    await finish(opened, 1);
+    await jest.advanceTimersByTimeAsync(20);
+    expect(clientIds(await mine)).toEqual([clientId]);
+    await drop(h, opened, 1);
+    const theirs = h.service.getPortfolioAlerts(...other);
+    await finish(opened, 1);
+    const otherAnswer = await theirs;
+    expect(clientIds(otherAnswer)).toEqual(['third']);
+    expect(otherAnswer).toMatchObject({ clientCount: 1 });
+    expect(otherAnswer).not.toHaveProperty('partial');
+    await jest.advanceTimersByTimeAsync(20000);
+    const merged = h.service.getPortfolioAlerts(tenantId, userId);
+    await finish(opened, 1);
+    await jest.advanceTimersByTimeAsync(20);
+    const answer = await merged;
+    await drop(h, opened, 4);
+    expect(clientIds(answer)).toEqual([clientId, 'second']);
+    expect(answer).toMatchObject({ total: 2, clientCount: 2 });
+    expect(answer).not.toHaveProperty('partial');
+    expect([...carriedMap(h).get(`other-tenant:other-user:12:40`)!.keys()]).toEqual(['third']);
+    expect(carriedIds(h)).toEqual([clientId, 'second']);
+    expect(h.source.mock.calls.map((call) => [call[0], call[1], call[2]])).toEqual([
+      [clientId, tenantId, userId],
+      ['second', tenantId, userId],
+      ['third', ...other],
+      ['second', tenantId, userId],
+      [clientId, tenantId, userId],
+    ]);
   });
 });

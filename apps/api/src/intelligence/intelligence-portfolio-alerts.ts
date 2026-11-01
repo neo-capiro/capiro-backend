@@ -72,7 +72,8 @@ export class IntelligencePortfolioAlerts {
    * A budget-stopped roll-up answers with the clients it reached plus the
    * still-valid entries from earlier runs, so successive runs converge on the
    * whole roster instead of each returning a different alphabetical slice.
-   * Entries leave with their client (roster change) or after the result TTL.
+   * Entries leave with their client (roster change) or after the result TTL;
+   * a key leaves once every entry behind it has expired.
    */
   private readonly carried = new Map<string, Map<string, CarriedClientAlerts>>();
 
@@ -149,10 +150,12 @@ export class IntelligencePortfolioAlerts {
         // not restart the fan-out, but for a shorter time: a partial (or the
         // empty one from a run aborted while gate-queued) must not stand for
         // the whole poll interval.
+        // A merged answer is only as fresh as its oldest carried client.
         const ttl = result.partial
           ? Math.min(this.ports.ttlMs(), PORTFOLIO_ALERTS_PARTIAL_TTL_MS)
           : this.ports.ttlMs();
-        this.ports.cache().set(cacheKey, { expiresAt: Date.now() + ttl, value: result });
+        const expiresAt = Math.min(Date.now() + ttl, this.carriedExpiresAt(cacheKey));
+        this.ports.cache().set(cacheKey, { expiresAt, value: result });
         return result;
       })
       .catch((err) => {
@@ -190,6 +193,7 @@ export class IntelligencePortfolioAlerts {
     const controller = new AbortController();
     const { signal } = controller;
     const cacheKey = portfolioAlertsCacheKey(tenantId, userId, limit, maxClients);
+    this.sweepCarried(Date.now());
     const entries = this.carried.get(cacheKey) ?? new Map<string, CarriedClientAlerts>();
     this.carried.set(cacheKey, entries);
     // Unset until the roster is read: an abort before that answers empty.
@@ -221,7 +225,7 @@ export class IntelligencePortfolioAlerts {
       const ids = new Set(roster.map((client) => client.id));
       const now = Date.now();
       for (const [id, entry] of entries) {
-        if (!ids.has(id) || entry.computedAt + this.ports.ttlMs() <= now) entries.delete(id);
+        if (!ids.has(id) || this.entryExpiresAt(entry) <= now) entries.delete(id);
       }
       const order = [
         ...rotated.filter((client) => !entries.has(client.id)),
@@ -236,10 +240,13 @@ export class IntelligencePortfolioAlerts {
         const alerts: PortfolioAlertsResult['alerts'] = [];
         try {
           await this.tagClientAlerts(client, tenantId, userId, signal, alerts);
+          entries.set(client.id, { computedAt: Date.now(), alerts });
         } catch (err) {
           // The budget stopped this client's profile; its alerts are simply
           // not part of this roll-up.
           if (signal.aborted) break;
+          // A failed client keeps no entry: the answer stays partial and the
+          // next run walks it first.
           this.ports
             .logger()
             .warn(
@@ -248,7 +255,6 @@ export class IntelligencePortfolioAlerts {
               }`,
             );
         }
-        entries.set(client.id, { computedAt: Date.now(), alerts });
       }
 
       return this.projectPortfolioAlerts(roster, entries, limit);
@@ -302,6 +308,30 @@ export class IntelligencePortfolioAlerts {
     }
   }
 
+  private entryExpiresAt(entry: CarriedClientAlerts): number {
+    return entry.computedAt + this.ports.ttlMs();
+  }
+
+  /** Drop keys with nothing valid left to carry, so departed callers do not stay resident. */
+  private sweepCarried(now: number): void {
+    for (const [key, entries] of this.carried) {
+      if ([...entries.values()].every((entry) => this.entryExpiresAt(entry) <= now)) {
+        this.carried.delete(key);
+      }
+    }
+  }
+
+  /** When the oldest still-valid entry behind this key's answer expires. */
+  private carriedExpiresAt(cacheKey: string): number {
+    const now = Date.now();
+    let expiresAt = Number.POSITIVE_INFINITY;
+    for (const entry of this.carried.get(cacheKey)?.values() ?? []) {
+      const entryExpiresAt = this.entryExpiresAt(entry);
+      if (entryExpiresAt > now) expiresAt = Math.min(expiresAt, entryExpiresAt);
+    }
+    return expiresAt;
+  }
+
   /**
    * Merge the roster's valid per-client entries into one ranked list. The
    * answer is partial while the roster is unread or any client has no entry
@@ -317,7 +347,7 @@ export class IntelligencePortfolioAlerts {
     let partial = roster === undefined;
     for (const client of roster ?? []) {
       const entry = carried.get(client.id);
-      if (entry && entry.computedAt + this.ports.ttlMs() > now) tagged.push(...entry.alerts);
+      if (entry && this.entryExpiresAt(entry) > now) tagged.push(...entry.alerts);
       else partial = true;
     }
 
