@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { closeSync, constants, fstatSync, fsyncSync, lstatSync, mkdirSync, openSync, readSync, writeSync } from 'node:fs';
-import { isAbsolute, join } from 'node:path';
+import { dirname, isAbsolute, join } from 'node:path';
 import { parseSamResponseJson } from './sam-response-json.js';
 import type { SamRecord } from './sam-contract-action.js';
 
@@ -25,6 +25,9 @@ export function createPrivateEvidenceDirectory(path: string): FiniteEvidence {
   const stat = lstatSync(path);
   if (!stat.isDirectory() || stat.isSymbolicLink() || (stat.mode & 0o777) !== 0o700 || stat.uid !== process.getuid!())
     throw new Error('PRIVATE_EVIDENCE_DIRECTORY_INVALID');
+  // Persist the new run-directory entry before any provider/DB effect can depend on its evidence.
+  const parent = openSync(dirname(path), constants.O_RDONLY);
+  try { fsyncSync(parent); } finally { closeSync(parent); }
   return { write(name, bytes) {
     if (!/^[a-z0-9-]+\.(?:json|bin)$/.test(name)) throw new Error('EVIDENCE_FILENAME_INVALID');
     const fd = openSync(join(path, name), constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | (constants.O_NOFOLLOW ?? 0), 0o600);

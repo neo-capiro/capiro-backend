@@ -1,4 +1,6 @@
 import { stageSamPage, sha256Bytes, createPrivateEvidenceDirectory } from './sam-finite-evidence.js';
+import fs = require('node:fs');
+import { dirname, join, resolve } from 'node:path';
 
 function input(fetcher: typeof fetch, maxBytes = 2048) {
   const files = new Map<string, Buffer>();
@@ -64,5 +66,61 @@ describe('finite SAM raw evidence and single-attempt streaming', () => {
   });
   it('requires explicit POSIX private evidence and never treats Windows chmod as private ACL enforcement', () => {
     expect(() => createPrivateEvidenceDirectory('relative-output')).toThrow('PRIVATE_POSIX_EVIDENCE_DIRECTORY_REQUIRED');
+  });
+});
+
+/** Portable call-order proof; this deliberately does not claim native POSIX crash durability. */
+function withPrivateFs(work: (events: string[], fsync: jest.SpyInstance) => void) {
+  const platform = Object.getOwnPropertyDescriptor(process, 'platform')!;
+  const getuid = Object.getOwnPropertyDescriptor(process, 'getuid');
+  const events: string[] = [];
+  try {
+    Object.defineProperty(process, 'platform', { configurable: true, value: 'linux' });
+    Object.defineProperty(process, 'getuid', { configurable: true, value: () => 1000 });
+    jest.spyOn(fs, 'mkdirSync').mockImplementation(() => { events.push('mkdir'); return undefined; });
+    jest.spyOn(fs, 'lstatSync').mockImplementation(() => {
+      events.push('validate');
+      return { mode: 0o40700, uid: 1000, isDirectory: () => true, isSymbolicLink: () => false } as fs.Stats;
+    });
+    jest.spyOn(fs, 'openSync').mockImplementation((path) => { events.push(`open:${String(path)}`); return 7; });
+    const fsync = jest.spyOn(fs, 'fsyncSync').mockImplementation(() => { events.push('fsync'); });
+    jest.spyOn(fs, 'closeSync').mockImplementation(() => { events.push('close'); });
+    jest.spyOn(fs, 'writeSync').mockImplementation((...args: unknown[]) => { events.push('write'); return Number(args[3]); });
+    work(events, fsync);
+  } finally {
+    jest.restoreAllMocks();
+    Object.defineProperty(process, 'platform', platform);
+    if (getuid) Object.defineProperty(process, 'getuid', getuid);
+    else delete (process as unknown as Record<string, unknown>).getuid;
+  }
+}
+describe('private run-directory creation durability', () => {
+  it('syncs and closes the parent after validation and before returning the evidence writer', () => {
+    withPrivateFs((events) => {
+      const directory = resolve('synthetic-parent/new-run');
+      const evidence = createPrivateEvidenceDirectory(directory);
+      expect(events).toEqual(['mkdir', 'validate', `open:${dirname(directory)}`, 'fsync', 'close']);
+      events.push('provider-can-start');
+      evidence.write('write-intent.json', Buffer.from('{}'));
+      expect(events).toEqual(['mkdir', 'validate', `open:${dirname(directory)}`, 'fsync', 'close', 'provider-can-start',
+        `open:${join(directory, 'write-intent.json')}`, 'write', 'fsync', 'close', `open:${directory}`, 'fsync', 'close']);
+    });
+  });
+  it('closes the parent descriptor and refuses writer admission when parent fsync fails', () => {
+    withPrivateFs((events, fsync) => {
+      const directory = resolve('synthetic-parent/new-run');
+      fsync.mockImplementation(() => { events.push('fsync-failed'); throw new Error('synthetic fsync failure'); });
+      expect(() => createPrivateEvidenceDirectory(directory)).toThrow('synthetic fsync failure');
+      expect(events).toEqual(['mkdir', 'validate', `open:${dirname(directory)}`, 'fsync-failed', 'close']);
+      expect(fs.writeSync).not.toHaveBeenCalled(); expect(fs.mkdirSync).toHaveBeenCalledTimes(1);
+    });
+  });
+  it('does not retry or close a nonexistent descriptor when opening the parent fails', () => {
+    withPrivateFs((events) => {
+      jest.spyOn(fs, 'openSync').mockImplementation(() => { events.push('open-failed'); throw new Error('synthetic open failure'); });
+      expect(() => createPrivateEvidenceDirectory(resolve('synthetic-parent/new-run'))).toThrow('synthetic open failure');
+      expect(events).toEqual(['mkdir', 'validate', 'open-failed']); expect(fs.closeSync).not.toHaveBeenCalled();
+      expect(fs.writeSync).not.toHaveBeenCalled(); expect(fs.mkdirSync).toHaveBeenCalledTimes(1);
+    });
   });
 });
