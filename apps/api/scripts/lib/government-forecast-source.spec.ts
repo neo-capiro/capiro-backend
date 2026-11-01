@@ -270,6 +270,7 @@ describe('one durable refresh occurrence and original importer', () => {
     expect(d.fetch).not.toHaveBeenCalled();
     expect(d.importSnapshot).not.toHaveBeenCalled();
     expect(await load(archiveDir, 'outcome.json')).toMatchObject({ status: 'dry-run' });
+    await expect(load(archiveDir, 'failed-run.json')).rejects.toMatchObject({ code: 'ENOENT' });
   });
   it('a definite source failure records only failure and exits unsuccessful', async () => {
     const d = deps();

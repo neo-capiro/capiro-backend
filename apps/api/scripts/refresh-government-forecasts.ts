@@ -72,6 +72,7 @@ export async function runRefresh(input: RefreshInput, deps = defaults) {
     await lock.close();
   }
   let uncertain = false;
+  let runCreated = false;
   const runDir = join(input.archiveDir, input.runId);
   const retain = (name: string, bytes: Uint8Array) =>
     writeFile(join(runDir, name), bytes, { flag: 'wx', mode: 0o600, flush: true });
@@ -79,6 +80,7 @@ export async function runRefresh(input: RefreshInput, deps = defaults) {
     retain(name, Buffer.from(JSON.stringify(value, null, 2) + '\n'));
   try {
     await mkdir(runDir); // Stable occurrence cannot overwrite or silently replay a prior run.
+    runCreated = true;
     const attemptedAt = deps.now().toISOString();
     await record('attempt.json', { runId: input.runId, attemptedAt, apply: input.apply });
     let source;
@@ -128,11 +130,12 @@ export async function runRefresh(input: RefreshInput, deps = defaults) {
       }).catch(() => undefined);
       throw new Error('FORECAST_DATABASE_OUTCOME_UNKNOWN');
     }
-    await record('failed-run.json', {
-      status: 'failed',
-      pendingDatabaseOutcome: false,
-      kind: error instanceof SourceCheckFailure ? 'source-check' : 'local-or-dry-run',
-    }).catch(() => undefined);
+    if (runCreated)
+      await record('failed-run.json', {
+        status: 'failed',
+        pendingDatabaseOutcome: false,
+        kind: error instanceof SourceCheckFailure ? 'source-check' : 'local-or-dry-run',
+      }).catch(() => undefined);
     throw error;
   } finally {
     if (!uncertain) await unlink(marker);
