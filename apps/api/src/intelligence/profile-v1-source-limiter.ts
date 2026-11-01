@@ -20,10 +20,16 @@ export type ProfileV1SourceStart = () => Promise<unknown>;
  * Start each thunk at most `limit` at a time, in index order, and settle them
  * all. Result positions match the input positions, so the positional
  * `settle(index, fallback)` readers below are unchanged.
+ *
+ * Once `signal` aborts, no further thunk starts: the ones already running
+ * settle normally and every unstarted position is rejected with the abort
+ * reason. The caller's budget has expired, so the database must not take on
+ * reads whose answer nobody will use.
  */
 export async function settleWithConcurrency(
   starts: ReadonlyArray<ProfileV1SourceStart>,
   limit: number,
+  signal?: AbortSignal,
 ): Promise<PromiseSettledResult<unknown>[]> {
   if (!Number.isSafeInteger(limit) || limit < 1) throw new RangeError('concurrency limit must be a positive integer');
   const results: PromiseSettledResult<unknown>[] = new Array(starts.length);
@@ -32,6 +38,10 @@ export async function settleWithConcurrency(
     while (next < starts.length) {
       const index = next;
       next += 1;
+      if (signal?.aborted) {
+        results[index] = { status: 'rejected', reason: signal.reason };
+        continue;
+      }
       try {
         results[index] = { status: 'fulfilled', value: await starts[index]!() };
       } catch (reason) {

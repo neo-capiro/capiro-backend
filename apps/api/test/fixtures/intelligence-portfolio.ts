@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { IntelligenceService } from '../../src/intelligence/intelligence.service.js';
+import type { PortfolioAlertsRun } from '../../src/intelligence/intelligence-portfolio-alerts.js';
 import { now, profile } from './intelligence-portfolio.rows.js';
 export * from './intelligence-portfolio.rows.js';
 
@@ -11,6 +12,7 @@ jest.mock('../../src/embeddings/embedder.js', () => {
 });
 
 export type AlertResult = Awaited<ReturnType<IntelligenceService['getPortfolioAlerts']>>;
+export type { PortfolioAlertsRun };
 export interface Runtime {
   portfolioAlertsCache: Map<string, { expiresAt: number; value: unknown }>;
   portfolioAlertsInflight: Map<string, Promise<unknown>>;
@@ -21,11 +23,8 @@ export interface Runtime {
     user: string | undefined,
     limit: number,
     maxClients: number,
-  ): Promise<AlertResult>;
-  withPortfolioAlertsRequestBudget<T extends AlertResult>(
-    key: string,
-    work: Promise<T>,
-  ): Promise<T>;
+  ): PortfolioAlertsRun;
+  withPortfolioAlertsRequestBudget(key: string, run: PortfolioAlertsRun): Promise<AlertResult>;
 }
 export interface Budgets {
   PORTFOLIO_ALERTS_REQUEST_BUDGET_MS: number;
@@ -208,7 +207,7 @@ function prismaIo(state: State) {
 export interface Harness {
   service: IntelligenceService;
   runtime: Runtime;
-  source: jest.SpyInstance<Promise<unknown>, [string, string, string?]>;
+  source: jest.SpyInstance<Promise<unknown>, [string, string, string?, AbortSignal?]>;
   warnings: jest.SpyInstance<void, unknown[]>;
   prisma: ReturnType<typeof prismaIo>['prisma'];
   transactions: ReturnType<typeof prismaIo>['transactions'];

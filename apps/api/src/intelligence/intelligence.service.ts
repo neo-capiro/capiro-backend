@@ -21,6 +21,7 @@ import { OfficeRecommenderService } from './office-recommender.service.js';
 import type { OfficeRecommendation } from './office-recommender.service.js';
 import type * as FacadeOwners from './intelligence-facade-owners.js';
 import type * as FacadeContracts from './intelligence-facade-contracts.js';
+import type { PortfolioAlertsRun } from './intelligence-portfolio-alerts.js';
 import * as FacadePolicy from './intelligence-facade-policy-values.js';
 import {
   createProfileV1,
@@ -156,9 +157,14 @@ export class IntelligenceService {
     now: Date,
   ) { return buildProfileV1RegulatoryLifecycle(regLinks, clientRelevantRegs, now); }
 
-  async getClientProfileV1(clientId: string, tenantId: string, userId?: string) {
+  async getClientProfileV1(
+    clientId: string,
+    tenantId: string,
+    userId?: string,
+    signal?: AbortSignal,
+  ) {
     return withBillKeywordProfileDeadline(() =>
-      this.getClientProfileV1WithinBillDeadline(clientId, tenantId, userId),
+      this.getClientProfileV1WithinBillDeadline(clientId, tenantId, userId, signal),
     );
   }
 
@@ -166,7 +172,8 @@ export class IntelligenceService {
     clientId: string,
     tenantId: string,
     userId?: string,
-  ) { return this.profileV1.getClientProfileV1WithinBillDeadline(clientId, tenantId, userId); }
+    signal?: AbortSignal,
+  ) { return this.profileV1.getClientProfileV1WithinBillDeadline(clientId, tenantId, userId, signal); }
 
   private pickLdaClientIds(
     cached: number[] | null | undefined,
@@ -433,9 +440,10 @@ export class IntelligenceService {
 
   private emptyPortfolioAlerts(): FacadeContracts.PortfolioAlertsResult { return this.finalSources.portfolioAlerts.emptyPortfolioAlerts(); }
 
-  private async withPortfolioAlertsRequestBudget<
-    T extends ReturnType<IntelligenceService['emptyPortfolioAlerts']>,
-  >(cacheKey: string, work: Promise<T>): Promise<T> { return this.finalSources.portfolioAlerts.withPortfolioAlertsRequestBudget(cacheKey, work); }
+  private async withPortfolioAlertsRequestBudget(
+    cacheKey: string,
+    run: PortfolioAlertsRun,
+  ): Promise<FacadeContracts.PortfolioAlertsResult> { return this.finalSources.portfolioAlerts.withPortfolioAlertsRequestBudget(cacheKey, run); }
 
   async getPortfolioAlerts(
     tenantId: string,
@@ -448,7 +456,7 @@ export class IntelligenceService {
     userId: string | undefined,
     limit: number,
     maxClients: number,
-  ): Promise<FacadeContracts.PortfolioAlertsResult> { return this.finalSources.portfolioAlerts.computePortfolioAlerts( tenantId, userId, limit, maxClients, ); }
+  ): PortfolioAlertsRun { return this.finalSources.portfolioAlerts.computePortfolioAlerts( tenantId, userId, limit, maxClients, ); }
 
   async getPortfolioRollup(tenantId: string): Promise<FacadeContracts.PortfolioRollup> { return this.finalSources.rollup.getPortfolioRollup(tenantId); }
 

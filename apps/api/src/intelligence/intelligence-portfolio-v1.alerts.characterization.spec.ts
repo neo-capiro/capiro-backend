@@ -72,7 +72,7 @@ describe('Portfolio alert global sorting and canonical sidecar', () => {
         ]),
       },
     });
-    const value = await h.runtime.computePortfolioAlerts(tenantId, userId, 4, 40);
+    const value = await h.runtime.computePortfolioAlerts(tenantId, userId, 4, 40).result;
     expect(value.alerts.map((row) => row.id)).toEqual([
       'second:soon',
       'second:new',
@@ -81,8 +81,8 @@ describe('Portfolio alert global sorting and canonical sidecar', () => {
     ]);
     expect(value).toMatchObject({ total: 7, clientCount: 2, generatedAt: now.toISOString() });
     expect(h.source.mock.calls).toEqual([
-      [clientId, tenantId, userId],
-      ['second', tenantId, userId],
+      [clientId, tenantId, userId, expect.any(AbortSignal)],
+      ['second', tenantId, userId, expect.any(AbortSignal)],
     ]);
   });
   test('namespaces null/numeric IDs, overwrites foreign client tags, retains nested references and never hides incomplete alerts', async () => {
@@ -96,7 +96,7 @@ describe('Portfolio alert global sorting and canonical sidecar', () => {
         ]),
       },
     });
-    const value = await h.runtime.computePortfolioAlerts(tenantId, userId, 12, 40);
+    const value = await h.runtime.computePortfolioAlerts(tenantId, userId, 12, 40).result;
     expect(value.alerts[0]).toMatchObject({
       id: `${clientId}:5`,
       clientId,
@@ -123,7 +123,7 @@ describe('Portfolio alert profile failure boundaries', () => {
       },
       errors: { [`profile:${clientId}`]: new Error('Profile unavailable') },
     });
-    const value = await h.runtime.computePortfolioAlerts(tenantId, userId, 12, 40);
+    const value = await h.runtime.computePortfolioAlerts(tenantId, userId, 12, 40).result;
     expect(value).toMatchObject({ total: 1, clientCount: 2 });
     expect(value.alerts[0]!.clientId).toBe('second');
     expect(h.warnings).toHaveBeenCalledWith(
@@ -139,7 +139,7 @@ describe('Portfolio alert profile failure boundaries', () => {
         'profile:second': profile([alert()]),
       },
     });
-    const value = await h.runtime.computePortfolioAlerts(tenantId, userId, 12, 40);
+    const value = await h.runtime.computePortfolioAlerts(tenantId, userId, 12, 40).result;
     expect(value.alerts.map((row) => row.id)).toEqual([`${clientId}:kept`, 'second:alert-one']);
     expect(h.warnings).toHaveBeenCalledTimes(1);
   });
@@ -147,7 +147,7 @@ describe('Portfolio alert profile failure boundaries', () => {
     'keeps missing profile snapshot %p empty without a warning',
     async (result) => {
       const h = harness({ rows: { clients: [client()], [`profile:${clientId}`]: result } });
-      expect(await h.runtime.computePortfolioAlerts(tenantId, userId, 12, 40)).toEqual({
+      expect(await h.runtime.computePortfolioAlerts(tenantId, userId, 12, 40).result).toEqual({
         alerts: [],
         total: 0,
         clientCount: 1,
