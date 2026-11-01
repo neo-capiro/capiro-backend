@@ -147,6 +147,20 @@ const BLOCKED_FUNCTIONS = new Set([
   'dblink_exec',
 ]);
 
+/** Describe the same restrictions used below; no second policy list. */
+export function sqlGrammarDescriptor() {
+  return {
+    version: 'postgresql-select/1' as const,
+    statements: ['SELECT', 'WITH_SELECT'] as const,
+    parameterStyle: 'dollar-numbered-contiguous' as const,
+    blockedKeywords: [...BLOCKED_KEYWORDS],
+    blockedFunctions: [...BLOCKED_FUNCTIONS],
+    // The execution gate uses exact names, not wildcard or prefix rules.
+    blockedFunctionPatterns: [] as string[],
+    sourceMixing: false as const,
+  };
+}
+
 export interface GatedSqlStatement {
   /** The wrapped statement actually sent: `SELECT * FROM (<model sql>) AS q LIMIT $n`. */
   sql: string;

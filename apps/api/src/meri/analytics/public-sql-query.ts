@@ -12,7 +12,7 @@ function failure(error: unknown, generatedAt: string) {
 export async function describeCapiroData(input: unknown, db: Pick<AnalyticsDbService, 'describePublic'>) {
   const generatedAt = new Date().toISOString();
   try {
-    return describeEnvelope({ version, generatedAt }, input, await db.describePublic());
+    return describeEnvelope({ version, generatedAt }, input, await db.describePublic(), 'public');
   } catch (error) {
     return failure(error, generatedAt);
   }
