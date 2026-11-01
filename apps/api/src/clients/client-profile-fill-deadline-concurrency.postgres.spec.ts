@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { appendFileSync } from 'node:fs';
+import { isAbsolute } from 'node:path';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -12,6 +14,9 @@ import { ClientProfileFillWorkflowService } from './client-profile-fill-workflow
 // DB-owner-only execution. The existing fixture additionally restricts the URL
 // to its disposable enrichment database, port and administrator. No fallback.
 const url = process.env.FILL_REVIEW_TEST_DATABASE_URL;
+const custodyFile = process.env.FILL_DEADLINE_CUSTODY_FILE;
+if (url && (!custodyFile || !isAbsolute(custodyFile)))
+  throw Error('An explicit owner-private absolute FILL_DEADLINE_CUSTODY_FILE is required');
 const tables = ['client_profile_fill_task', 'client_profile_fill_extension_task'] as const;
 function barrier<T = void>() {
   let resolve!: (value: T) => void;
@@ -26,6 +31,22 @@ function barrier<T = void>() {
   let ctx: TenantContext;
   let runId: string, clientId: string, taskId: string;
   let system: PrismaService;
+  function recordCustody(state: 'allocated' | 'closed') {
+    // Journal generated identities before inserts for supervisor-death cleanup.
+    appendFileSync(
+      custodyFile!,
+      JSON.stringify({
+        schemaVersion: 1,
+        state,
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        clientId,
+        runId,
+        taskId,
+      }) + '\n',
+      { encoding: 'utf8', mode: 0o600 },
+    );
+  }
   beforeAll(async () => {
     store = await reviewDatabase(url!);
   }, 60_000);
@@ -65,6 +86,7 @@ function barrier<T = void>() {
       clerkUserId: `synthetic-${userId}`,
       role: 'user_admin',
     };
+    recordCustody('allocated');
     await store.db.tenant.create({
       data: { id: tenantId, slug: ctx.tenantSlug, name: 'Synthetic deadline', status: 'active' },
     });
@@ -128,6 +150,8 @@ function barrier<T = void>() {
         await tx.user.deleteMany({ where: { id: ctx.userId } });
         expect(await tx.tenant.count({ where: { id: ctx.tenantId } })).toBe(0);
         expect(await tx.user.count({ where: { id: ctx.userId } })).toBe(0);
+        expect(await tx.client.count({ where: { id: clientId } })).toBe(0);
+        expect(await tx.tenantMembership.count({ where: { tenantId: ctx.tenantId } })).toBe(0);
         for (const table of ['client_profile_fill_finding', ...tables, 'client_profile_fill_run']) {
           const rows = await tx.$queryRawUnsafe<Array<{ count: number }>>(
             `SELECT count(*)::int AS count FROM ${table} WHERE tenant_id=$1::uuid`,
@@ -138,6 +162,7 @@ function barrier<T = void>() {
       },
       { timeout: 15_000 },
     );
+    recordCustody('closed');
   });
 
   async function insertFinding(tx: Prisma.TransactionClient, accepted: boolean) {
