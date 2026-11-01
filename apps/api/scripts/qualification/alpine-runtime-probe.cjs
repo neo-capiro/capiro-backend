@@ -601,7 +601,7 @@ async function retainedDispatcher(manifest) {
   const root = fs.realpathSync('/app/node_modules/.pnpm'); manifest = fs.realpathSync(manifest);
   assert(contained(root, manifest), 'dispatcher owner escapes store');
   const metadata = JSON.parse(fs.readFileSync(manifest, 'utf8')), ownerRequire = createRequire(manifest);
-  const allowed = { '@napi-rs/canvas': ['0.1.80', '1.0.9'], esbuild: ['0.21.5', '0.28.2'], '@swc/core': ['1.16.2'] };
+  const allowed = { '@napi-rs/canvas': ['0.1.80'], esbuild: ['0.21.5', '0.28.2'], '@swc/core': ['1.16.2'] };
   assert(allowed[metadata.name]?.includes(metadata.version), 'unreviewed retained dispatcher/version');
   const entry = fs.realpathSync(ownerRequire.resolve('./'));
   assert(contained(path.dirname(manifest), entry), 'dispatcher entry escapes owner');

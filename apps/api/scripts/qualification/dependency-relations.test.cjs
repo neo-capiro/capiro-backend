@@ -34,9 +34,9 @@ test('required and optional peer-only placements preserve existing graph obligat
   assert.equal(helper.classifyDependencyRelations(peer, node, [edge]).size, 0);
   assert.equal(helper.classifyDependencyRelations({ peerDependencies: { child: '^1' } }, node, [{ ...edge, kind: 'dependencies' }]).size, 0);
 });
-test('all 508 frozen nodes and 994 edges retain their exact placement; every optional-peer overlap stays physically required', () => {
+test('all 507 frozen nodes and 1017 edges retain their exact placement; every optional-peer overlap stays physically required', () => {
   const contract = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../../../docs/runtime-production-closure-20261014/RUNTIME-CLOSURE-CONTRACT.json')));
-  assert.equal(contract.nodes.length, 508); assert.equal(contract.edges.length, 994);
+  assert.equal(contract.nodes.length, 507); assert.equal(contract.edges.length, 1017);
   const before = JSON.stringify(contract), nodes = new Map(contract.nodes.map(n => [n.key, n]));
   let overlaps = 0;
   for (const relation of contract.edges) {
@@ -48,7 +48,7 @@ test('all 508 frozen nodes and 994 edges retain their exact placement; every opt
       assert.equal(selected.physicalRequired, true);
     }
   }
-  assert.equal(overlaps, 11); assert.equal(JSON.stringify(contract), before);
+  assert.equal(overlaps, 17); assert.equal(JSON.stringify(contract), before);
 });
 const fixtureSource = fs.readFileSync(path.join(__dirname, 'runtime-closure-contract.test.cjs'), 'utf8');
 const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
