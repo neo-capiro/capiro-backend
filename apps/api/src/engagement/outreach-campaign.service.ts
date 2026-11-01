@@ -137,13 +137,14 @@ export class OutreachCampaignService {
       deleted: query.deleted === 'true',
       search: query.q?.trim(),
       campaignsOnly: true,
-      after: decodeCampaignCursor(query.cursor),
+      direction: query.direction,
+      after: decodeCampaignCursor(query.cursor, query.direction),
     });
     const rows = page.items.filter((row) => this.isOrdinary(row)).map((row) => this.project(row));
     const items = await this.summarize(ctx, rows);
     return {
       items: query.view ? items.filter((row) => row.category === query.view) : items,
-      nextCursor: encodeCampaignCursor(page.nextCursor),
+      nextCursor: encodeCampaignCursor(page.nextCursor, query.direction),
     };
   }
 
@@ -210,14 +211,15 @@ export class OutreachCampaignService {
       to: query.to,
       deleted: query.deleted === 'true',
       search: query.q?.trim(),
-      after: decodeCampaignCursor(query.cursor),
+      direction: query.direction,
+      after: decodeCampaignCursor(query.cursor, query.direction),
     });
     return {
       items: page.items.map((row) => ({
         ...row,
         hasWorkflow: Boolean(object(row.metadata).workflow),
       })),
-      nextCursor: encodeCampaignCursor(page.nextCursor),
+      nextCursor: encodeCampaignCursor(page.nextCursor, query.direction),
     };
   }
 
