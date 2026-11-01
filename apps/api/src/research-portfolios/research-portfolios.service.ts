@@ -31,7 +31,8 @@ import type {
 } from '@capiro/shared';
 import { clientMemoryAllowed, fetchDeniedClientIds } from '../memory/memory-wall.helpers.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { readCanonicalResearchTarget } from './research-portfolio-targets.js';
+import { canonicalFacts, readCanonicalResearchTarget } from './research-portfolio-targets.js';
+import { readResearchPortfolioMetrics } from './research-portfolio-metrics.js';
 
 type Tx = Prisma.TransactionClient;
 type RequiredRole = 'viewer' | 'editor' | 'owner';
@@ -65,9 +66,15 @@ function asIso(value: Date): string {
   return value.toISOString();
 }
 
+
+
 @Injectable()
 export class ResearchPortfoliosService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async metrics(ctx: TenantContext, query: unknown) {
+    return readResearchPortfolioMetrics(this.prisma, ctx, query);
+  }
 
   async list(
     ctx: TenantContext,
@@ -161,6 +168,7 @@ export class ResearchPortfoliosService {
           eventKind: event.eventKind,
           aggregateRevision: event.aggregateRevision,
           actorUserId: event.actorUserId,
+          actorKind: event.actorKind === 'system' ? 'system' : 'user',
           occurredAt: asIso(event.occurredAt),
           payload: event.payload as Readonly<Record<string, unknown>>,
         })),
@@ -533,6 +541,10 @@ export class ResearchPortfoliosService {
             targetId,
             label: input.label?.trim() || canonical?.label || null,
             disposition: input.unresolvedInput ? 'unresolved' : 'included',
+            // Canonical facts are captured at add time so a later snapshot freezes the
+            // legislative/source state the member was added from (bill status, actions,
+            // source revision) instead of re-reading live data.
+            evidence: { facts: canonical?.facts ?? {} } as Prisma.InputJsonValue,
             unresolvedInput: input.unresolvedInput as Prisma.InputJsonValue | undefined,
             createdByUserId: ctx.userId,
             updatedByUserId: ctx.userId,
@@ -646,6 +658,7 @@ export class ResearchPortfoliosService {
             targetId,
             label: input.label?.trim() || canonical.label,
             disposition: 'included',
+            evidence: { facts: canonical.facts } as Prisma.InputJsonValue,
             reason: 'Resolved to a canonical typed target',
             unresolvedInput: Prisma.JsonNull,
             resolvedAt: new Date(),
@@ -909,6 +922,7 @@ export class ResearchPortfoliosService {
       reason: member.reason,
       unresolvedInput: member.unresolvedInput as Readonly<Record<string, unknown>> | null,
       resolvedAt: member.resolvedAt ? asIso(member.resolvedAt) : null,
+      facts: canonicalFacts(member.evidence),
       revision: member.revision,
       createdByUserId: member.createdByUserId,
       updatedByUserId: member.updatedByUserId,

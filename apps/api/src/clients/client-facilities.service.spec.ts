@@ -368,6 +368,29 @@ describe('ClientFacilitiesService — CRUD', () => {
     expect(updated.districtSource).toBe('user');
   });
 
+  test.each(['matched', 'no_match', 'error'] as const)('research preview leaves all facility and retry state unchanged (%s)', async status => {
+    const row = { id: 'f1', tenantId: TENANT_A, clientId: 'client-1', name: 'HQ',
+      addressLine: '1 Main St', city: 'Austin', state: 'TX', zip: '78701',
+      congressionalDistrict: '03', geocodeStatus: 'manual_review', geocodeAttemptCount: 3,
+      geocodeNextAttemptAt: new Date('2026-10-30T00:00:00Z'), geocodeCandidates: [{ address: 'Saved candidate' }] };
+    const prisma = makePrisma({ clients: [seedClient(TENANT_A)], facilities: [{ ...row }] });
+    const indexed = jest.fn();
+    const svc = new ClientFacilitiesService(prisma as never, { indexFacilityFireAndForget: indexed } as never);
+    const provider = jest.spyOn(facilityGeocode, 'computeFacilityGeocode').mockResolvedValue({ status,
+      update: status === 'matched' ? { congressionalDistrict: '05', geocodeStatus: status } : null,
+      matchedAddress: status === 'matched' ? '1 MAIN ST' : null, candidates: null, discrepancy: null } as never);
+    try {
+      const preview = await svc.previewFacilityDistrict(ctx(TENANT_A), 'client-1', 'f1');
+      expect(preview.geocodeStatus).toBe(status);
+      expect(preview.congressionalDistrict).toBe(status === 'matched' ? '05' : '03');
+      expect(prisma.__store.facilities).toEqual([row]);
+      expect(indexed).not.toHaveBeenCalled();
+      await expect(svc.previewFacilityDistrict(ctx(TENANT_B), 'client-1', 'f1')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(svc.previewFacilityDistrict(ctx(TENANT_A), 'other-client', 'f1')).rejects.toBeInstanceOf(NotFoundException);
+      expect(provider).toHaveBeenCalledTimes(1);
+    } finally { provider.mockRestore(); }
+  });
+
   test('resolveFacilityDistrict does not keep the tenant transaction open during provider resolution', async () => {
     const prisma = makePrisma({
       clients: [seedClient(TENANT_A)],

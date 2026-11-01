@@ -9,7 +9,22 @@ import { Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { VersioningService } from './versioning.service.js';
 import { parseDbDate } from './dates.js';
+import { PlannerLinksService } from '../planner/planner-links.service.js';
+import {
+  aggregateQuery,
+  aggregateRows,
+  aggregateFingerprint,
+  aggregateSourceKey,
+  observeDomainAggregate,
+  requireAggregateActor,
+  type DomainAggregateQuery,
+} from './domain-aggregate.js';
 import { loadStrategyDetail } from './detail.js';
+import { readObjectiveSavedGeneration } from './objective-saved-generation.js';
+import {
+  readObjectiveSavedReview,
+  type ObjectiveSavedReviewQueryDto,
+} from './objective-saved-review.js';
 import { ATTACHED_ARTIFACT_WHERE, LIVE_NODE_WHERE } from './live-node.js';
 import { lockStrategyForMutation } from './mutation-lock.js';
 import type { CreateStrategyDto, StrategyTypeValue } from './dto/create-strategy.dto.js';
@@ -32,7 +47,76 @@ export class StrategyService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly versioning: VersioningService,
+    private readonly links: PlannerLinksService,
   ) {}
+
+  async activeAggregate(
+    ctx: AuthTenantContext,
+    raw: DomainAggregateQuery,
+    authorization?: string,
+    signal?: AbortSignal,
+  ) {
+    const query = aggregateQuery(raw);
+    return observeDomainAggregate(
+      'strategy.active',
+      query,
+      this.links,
+      authorization,
+      (budget) =>
+        this.prisma.withTenantUser(
+          ctx.tenantId,
+          ctx.clerkUserId,
+          async (tx) => {
+            await budget.query(tx, () => requireAggregateActor(tx, ctx, true));
+            const rows = await aggregateRows(budget, (after, take) =>
+              budget.query(tx, () =>
+                tx.spStrategy.findMany({
+                  where: {
+                    tenantId: ctx.tenantId,
+                    archivedAt: null,
+                    ...(query.clientId ? { clientId: query.clientId } : {}),
+                    ...(after ? { id: { gt: after } } : {}),
+                  },
+                  orderBy: { id: 'asc' },
+                  select: { id: true, clientId: true, updatedAt: true },
+                  take,
+                }),
+              ),
+            );
+            // Strategy has no independent status or General/null-client lifecycle.
+            for (const row of rows) {
+              budget.remaining();
+              aggregateQuery({ clientId: row.clientId });
+            }
+            return {
+              fingerprint: aggregateFingerprint(rows),
+              sources: rows.map((row) => ({ clientId: row.clientId })),
+              count: (readable: ReadonlySet<string>) =>
+                new Set(
+                  rows.filter((row) => readable.has(aggregateSourceKey(row))).map((row) => row.id),
+                ).size,
+            };
+          },
+          {
+            isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+            timeoutMs: budget.remaining(),
+          },
+        ),
+      undefined,
+      { signal },
+    );
+  }
+  async objectiveSavedReview(ctx: AuthTenantContext, id: string, input: ObjectiveSavedReviewQueryDto) {
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.clerkUserId, (tx) =>
+      readObjectiveSavedReview(tx, ctx, id, input),
+    );
+  }
+
+  async objectiveSavedGeneration(ctx: AuthTenantContext, input: ObjectiveDestinationQueryDto) {
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.clerkUserId, (tx) =>
+      readObjectiveSavedGeneration(tx, ctx, input),
+    );
+  }
 
   async objectiveDestination(
     ctx: AuthTenantContext,

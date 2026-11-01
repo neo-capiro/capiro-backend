@@ -67,7 +67,9 @@ const pins = {
   originalData: 'deb83545b4976147bf9bdbca9bf3ab59f214de83313170999a7b38b4bd523ec3',
   moduleWiring: '596120b8195e9fea987edd8a880f75811d518696e09619487308e6d2508d589d',
   publicHelpers: 'f72ffd327953adc480d51cd40c116a8a9ee316141dccc2287d86b7763f90af8e',
-  fixedAssets: 'b94ff8225cb4c05402d0f83f7571d332afdd124c173ea5aaa2a5d8c619f3a2a7',
+  // Only tracker-board.controller.ts changes: the additive no-store material-
+  // changes route is exercised with its real service in tracker-material-changes.spec.ts.
+  fixedAssets: 'fd466e4b599c648d4cd9885b3825c08f19586c038e665994791026b78c80668f',
 };
 
 function hash(bytes: string | Buffer): string {
@@ -171,8 +173,10 @@ it('bounds all twelve discovered production modules and every complete nested fu
 it('preserves all twenty-five original headers, defaults, modifiers and arities with the unchanged four-DI constructor', () => {
   const { owner } = facade();
   const methods = owner.members.filter(ts.isMethodDeclaration);
-  expect(methods).toHaveLength(25);
-  expect(digest(methods.map(signature))).toBe(pins.methodHeaders);
+  expect(methods).toHaveLength(26);
+  const originalMethods = methods.filter(method => method.name.getText() !== 'materialChanges');
+  expect(originalMethods).toHaveLength(25);
+  expect(digest(originalMethods.map(signature))).toBe(pins.methodHeaders);
   const ctor = owner.members.find(ts.isConstructorDeclaration);
   expect(ctor?.parameters).toHaveLength(4);
   expect(digest(shape(ctor))).toBe(pins.constructor);

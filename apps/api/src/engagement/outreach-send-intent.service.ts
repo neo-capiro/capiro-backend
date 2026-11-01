@@ -594,8 +594,14 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
   // ── Worker ────────────────────────────────────────────────────────────────
 
   async runSweep(v3Only = false): Promise<void> {
+    // Ordinary and V3 ownership must be decided by the same predicates the worker's startup and
+    // tick use. The ordinary branch previously asserted the generic named background policy, which
+    // is false under the accepted scheduler-only restriction, so every real ordinary sweep was
+    // refused before touching the database. The dedicated predicate requires the existing
+    // versioned-outreach flag and the accepted final tuple, and leaves unnamed generic admission,
+    // the restriction list and the V3-only branch untouched.
     if (v3Only) this.runtimePolicy.assertOutreachV3SendIntentWorker();
-    else this.runtimePolicy.assertBackgroundOwner('outreach-send-intent-worker');
+    else this.runtimePolicy.assertOrdinaryOutreachSendWorker();
     await this.reconcileStale(v3Only);
     const intentId = await this.findRunnableIntentId(v3Only);
     if (!intentId) return;
@@ -603,22 +609,29 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
   }
 
   private async findRunnableIntentId(v3Only = false): Promise<string | null> {
+    // Ownership must constrain the population before LIMIT. A bounded page of
+    // the other worker's intents may remain pending indefinitely on this owner.
     const rows = await this.prisma.withSystem((tx) =>
-      tx.outreachSendIntent.findMany({
-        where: {
-          status: { in: ['queued', 'running'] },
-          deliveries: { some: { status: 'pending' } },
-        },
-        orderBy: { createdAt: 'asc' },
-        take: 100,
-        select: { id: true, tenantId: true, outreachRecordId: true },
-      }),
+      tx.$queryRaw<Array<{ id: string }>>`
+        SELECT intent.id
+        FROM outreach_send_intents AS intent
+        WHERE intent.status IN ('queued', 'running')
+          AND EXISTS (
+            SELECT 1 FROM outreach_deliveries AS delivery
+            WHERE delivery.send_intent_id = intent.id
+              AND delivery.tenant_id = intent.tenant_id
+              AND delivery.status = 'pending'
+          )
+          AND EXISTS (
+            SELECT 1 FROM outreach_events AS event
+            WHERE event.tenant_id = intent.tenant_id
+              AND event.session_id = intent.outreach_record_id
+          ) = ${v3Only}
+        ORDER BY intent.created_at ASC, intent.id ASC
+        LIMIT 1
+      `,
     );
-    for (const row of rows) {
-      const isV3 = await this.isOutreachV3Session(row.tenantId, row.outreachRecordId);
-      if (isV3 === v3Only) return row.id;
-    }
-    return null;
+    return rows[0]?.id ?? null;
   }
 
   private async processIntent(intentId: string): Promise<void> {
@@ -966,26 +979,27 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
    */
   private async reconcileStale(v3Only = false): Promise<void> {
     const cutoff = new Date(Date.now() - this.staleMs);
+    // Apply the same tenant/session ownership predicate before the finite batch
+    // limit, so another owner's abandoned claims cannot hide our own forever.
     const candidates = await this.prisma.withSystem((tx) =>
-      tx.outreachDelivery.findMany({
-        where: { status: 'sending', claimedAt: { lt: cutoff } },
-        orderBy: { claimedAt: 'asc' },
-        take: RECONCILE_STALE_BATCH * 2,
-        select: {
-          id: true,
-          sendIntent: { select: { tenantId: true, outreachRecordId: true } },
-        },
-      }),
+      tx.$queryRaw<Array<{ id: string }>>`
+        SELECT delivery.id
+        FROM outreach_deliveries AS delivery
+        JOIN outreach_send_intents AS intent
+          ON intent.id = delivery.send_intent_id
+          AND intent.tenant_id = delivery.tenant_id
+        WHERE delivery.status = 'sending'
+          AND delivery.claimed_at < ${cutoff}
+          AND EXISTS (
+            SELECT 1 FROM outreach_events AS event
+            WHERE event.tenant_id = intent.tenant_id
+              AND event.session_id = intent.outreach_record_id
+          ) = ${v3Only}
+        ORDER BY delivery.claimed_at ASC, delivery.id ASC
+        LIMIT ${RECONCILE_STALE_BATCH}
+      `,
     );
-    const ids: string[] = [];
-    for (const row of candidates) {
-      if (ids.length >= RECONCILE_STALE_BATCH) break;
-      const isV3 = await this.isOutreachV3Session(
-        row.sendIntent.tenantId,
-        row.sendIntent.outreachRecordId,
-      );
-      if (isV3 === v3Only) ids.push(row.id);
-    }
+    const ids = candidates.map((row) => row.id);
     if (!ids.length) return;
     const aged = await this.prisma.withSystem((tx) =>
       tx.outreachDelivery.updateMany({

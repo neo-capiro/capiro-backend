@@ -22,8 +22,8 @@ export enum LiveHearingAudioSourceDto {
 }
 
 /**
- * audio_and_transcript is retained for wire compatibility but is normalized to
- * transcript_only until an encrypted audio sink and retention lifecycle exist.
+ * Session creation starts transcript_only. The recording enable action checks
+ * current source permission before selecting retained audio for a session.
  */
 export enum RecordingPolicyDto {
   transcript_only = 'transcript_only',

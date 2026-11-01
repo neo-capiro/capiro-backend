@@ -35,13 +35,14 @@ async function injectedCandidate() {
 
   const update = jest.fn(async () => ({}));
   const tx = {
+    $executeRaw: jest.fn(async () => 0),
     $queryRaw: jest.fn(async () => [{
       id: candidateId, proposedBy: ownerId, scope: 'personal', sourceKind: 'explicit_user',
       sourceType: 'meri', clientId: null,
     }]),
     memoryCandidate: { update },
   };
-  const withTenantUser = jest.fn(async (_tenant: string, _user: string, work: (tx: typeof tx) => Promise<unknown>) => work(tx));
+  const withTenantUser = jest.fn(async (_tenant: string, _user: string, work: (borrowed: typeof tx) => Promise<unknown>) => work(tx));
   const moduleRef = await Test.createTestingModule({
     providers: [
       ...candidateProviders,

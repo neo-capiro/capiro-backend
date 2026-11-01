@@ -1,5 +1,7 @@
+import { fillRunBeforeDeadline } from './client-profile-fill-run-deadline.js';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
+import { assertFillExecution } from './client-profile-fill-execution.js';
 import type { ContextRequest } from '@capiro/meriv2-core';
 import {
   ContextPlaneGatewayService,
@@ -242,8 +244,9 @@ export class ClientProfileFillContextPlaneService {
       canonicalClientId: bundle.canonicalClient.id,
       coverage: bundle.coverage,
     };
-    const updated = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.$executeRawUnsafe(
+    const updated = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await assertFillExecution(tx, ctx.tenantId, bundle.canonicalClient.id, runId);
+      return tx.$executeRawUnsafe(
         `UPDATE client_profile_fill_run
             SET source_states_jsonb = jsonb_set(
                   COALESCE(source_states_jsonb, '{}'::jsonb),
@@ -252,13 +255,14 @@ export class ClientProfileFillContextPlaneService {
                   true
                 ),
                 updated_at = now()
-          WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid`,
+          WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid AND status = 'running'
+            AND ${fillRunBeforeDeadline()}`,
         runId,
         ctx.tenantId,
         bundle.canonicalClient.id,
         JSON.stringify(state),
-      ),
-    );
+      );
+    });
     if (Number(updated) !== 1) throw new Error('crm_fill_context_plane_run_not_found');
   }
 
@@ -282,7 +286,8 @@ export class ClientProfileFillContextPlaneService {
                   $5::jsonb,
                   true
                 )
-          WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid`,
+          WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid AND status = 'running'
+            AND ${fillRunBeforeDeadline()}`,
         runId,
         ctx.tenantId,
         clientId,

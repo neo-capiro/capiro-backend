@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { nativeGenerationSourceWire } from './native-generation-source.js';
 import type {
   NativeGenerationResult,
   NativeGenerationTurnOutcome,
@@ -145,7 +146,7 @@ export class NativeGenerationConversationClient implements NativeGenerationTurnP
     request: NativeGenerationTurnRequest,
     options: { credential: string; signal?: AbortSignal },
   ): Promise<NativeGenerationTurnOutcome> {
-    const body = await this.post(WORKSPACE_GENERATION_PATHS.turn, request, options.credential, options.signal);
+    const body = await this.post(WORKSPACE_GENERATION_PATHS.turn, wireTurn(request), options.credential, options.signal);
     const outcome = parseWireOutcome(body?.outcome);
     if (outcome === null) throw this.malformed('turn');
     return toTurnOutcome(outcome, request.requestId);
@@ -237,14 +238,15 @@ export function nativeGenerationClientFromEnvironment(
   return new NativeGenerationConversationClient({ origin, serviceSecret, ...(fetchImpl === undefined ? {} : { fetchImpl }) });
 }
 
-/** The closed exact-turn body. It carries ids and pins — never authority, never text. */
+/** Exact selected sources are evidence; current credentials still own authority. */
 function wireTurn(request: NativeGenerationTurnRequest): Record<string, unknown> {
   return {
     ...wireSubject(request),
     phase: request.phase,
     expectedRevision: request.expectedRevision,
     paidGeneration: true,
-    sources: request.sources.map((source) => ({ id: source.id, kind: source.kind })),
+    sources: request.sources.map(nativeGenerationSourceWire),
+    ...(request.writingBrief === undefined ? {} : { writingBrief: request.writingBrief }),
   };
 }
 

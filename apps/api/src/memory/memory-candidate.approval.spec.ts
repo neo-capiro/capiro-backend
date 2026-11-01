@@ -1,3 +1,6 @@
+// PostgreSQL retention is qualified separately with real roles and transactions.
+jest.mock('./conversation-serving/transaction.js', () =>
+  jest.requireActual('./conversation-serving/unit-boundary.fixture.js'));
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { MemoryCandidateService } from './memory-candidate.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -310,7 +313,8 @@ describe('MemoryCandidateService — W8 Meri personal submissions are owner-only
   it('hides it from every other viewer of the review queue', async () => {
     const { service } = makeOwnerService({ scope: 'personal', sourceType: 'meri', proposedBy: OWNER, ownerUserId: OWNER });
     expect((await service.listPending('tenant-1', OTHER)).map((row) => row.id)).toEqual(['b', 'c']);
-    expect((await service.listPending('tenant-1', OWNER)).map((row) => row.id)).toEqual(['a', 'b', 'c']);
+    // Legacy personal proposals are private too, regardless of sourceType.
+    expect((await service.listPending('tenant-1', OWNER)).map((row) => row.id)).toEqual(['a', 'b']);
   });
 
   it.each([

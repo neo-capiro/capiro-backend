@@ -81,6 +81,10 @@ interface ApplicationAuthorityRequestProvenance {
 // actual request object; there is no reusable/durable authorization receipt.
 const applicationAuthorityRequests = new WeakMap<Request, ApplicationAuthorityRequestProvenance>();
 const MERI_CONTROL_POST_PATHS = new Set([
+  '/engagement/outreach/sdk/claim',
+  '/engagement/outreach/sdk/read',
+  '/engagement/outreach/sdk/complete',
+  '/engagement/outreach/sdk/fail',
   '/clio/application-authority/identity',
   '/clio/application-authority/context',
   '/clio/application-authority/membership',
@@ -166,6 +170,13 @@ export class TenantContextMiddleware implements NestMiddleware {
   ) {}
 
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
+    // Support access is confined to the exact audited session owner. Ordinary
+    // application, personal, approval and delegated routes cannot inherit it.
+    if (req.header('x-capiro-impersonate-tenant') !== undefined ||
+        req.header('x-capiro-impersonation-session') !== undefined) {
+      res.setHeader('Cache-Control', 'no-store');
+      throw new ForbiddenException('Impersonation is available only in the audited support workspace');
+    }
     // This mirror is first so neither signed-service bypasses nor the ordinary
     // Clerk resolver can run on the reserved roster Host, even if process
     // registration changes. The main bootstrap gate also covers excluded paths.
@@ -374,7 +385,6 @@ export class TenantContextMiddleware implements NestMiddleware {
       claimedTenantId?: string | null;
     } | null = null;
     let selectedAuthorityMembership: { id: string; tenantId: string } | undefined;
-    let selectedAuthorityImpersonation: string | null = null;
 
     // Step 3, resolve membership using RLS bypass. The lookup is not
     // tenant-scoped (we are still resolving the tenant), so it MUST run
@@ -540,39 +550,6 @@ export class TenantContextMiddleware implements NestMiddleware {
         .update({ where: { id: user.id }, data: { lastSeenAt: new Date() } })
         .catch(() => undefined);
 
-      // Impersonation override (capiro_admin only). If the caller is a
-      // capiro_admin AND has an active session AND the request carries the
-      // x-capiro-impersonate-tenant header, swap the tenant context to the
-      // impersonated tenant. Every request executed under impersonation is
-      // attributed to the actor (audit_logs.actor_user_id) so reads/writes
-      // are traceable.
-      const wantsImpersonate = req.header('x-capiro-impersonate-tenant')?.trim().toLowerCase();
-      if (wantsImpersonate && chosen.role === 'capiro_admin') {
-        const session = await tx.impersonationSession.findFirst({
-          where: { actorUserId: user.id, endedAt: null, expiresAt: { gt: new Date() } },
-          include: { tenant: true },
-        });
-        if (!session) {
-          throw new ForbiddenException(
-            'No active impersonation session, start one via /capiro-admin/impersonate',
-          );
-        }
-        if (session.tenant.slug.toLowerCase() !== wantsImpersonate) {
-          throw new ForbiddenException(
-            `Impersonation session is for tenant ${session.tenant.slug}, header asks for ${wantsImpersonate}`,
-          );
-        }
-        selectedAuthorityImpersonation = session.id;
-        const context: TenantContext = {
-          tenantId: session.tenantId,
-          tenantSlug: session.tenant.slug,
-          userId: user.id,
-          clerkUserId: user.clerkUserId,
-          role: 'capiro_admin', // role stays, capiro_admin acting as
-        };
-        return context;
-      }
-
       const context: TenantContext = {
         tenantId: chosen.tenantId,
         tenantSlug: chosen.tenant.slug,
@@ -608,7 +585,7 @@ export class TenantContextMiddleware implements NestMiddleware {
         membershipId: selectedAuthorityMembership.id,
         membershipTenantId: selectedAuthorityMembership.tenantId,
         requestedSlug,
-        impersonationId: selectedAuthorityImpersonation,
+        impersonationId: null,
       });
     }
     this.store.run(ctx, () => next());

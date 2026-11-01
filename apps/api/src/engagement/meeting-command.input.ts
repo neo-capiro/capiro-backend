@@ -11,6 +11,32 @@ const instant = z
   .string()
   .datetime({ offset: true })
   .transform((value) => new Date(value).toISOString());
+/**
+ * D2: the audited debrief context summary travels with the debrief it produced, so a
+ * reviewer can see what the model was given. It is a small, bounded object of
+ * primitives (no functions, no nesting beyond the section list) and it is accepted only
+ * on a debrief create — the operation that persists meeting_debriefs.generated_from_jsonb.
+ */
+export const debriefContextSummarySchema = z
+  .object({
+    version: z.string().trim().min(1).max(64),
+    boundTokens: z.number().int().nonnegative(),
+    totalTokens: z.number().int().nonnegative(),
+    sourceTruncated: z.boolean(),
+    sections: z
+      .array(
+        z
+          .object({
+            name: z.string().trim().min(1).max(64),
+            tokens: z.number().int().nonnegative(),
+            state: z.enum(['kept', 'shortened', 'dropped']),
+          })
+          .strict(),
+      )
+      .max(20),
+  })
+  .strict();
+
 const commandSchema = z
   .object({
     schemaVersion: z.literal(1),
@@ -48,6 +74,9 @@ const commandSchema = z
         revision: instant.nullable(),
         body: z.string().trim().min(1).max(20000).nullable(),
         confidential: z.boolean().nullable(),
+        // Optional and debrief-create only: every existing command body validates
+        // exactly as before, and no other artifact type may carry it.
+        generatedFrom: debriefContextSummarySchema.optional(),
       })
       .strict()
       .nullable(),
@@ -108,6 +137,9 @@ const commandSchema = z
           ? value.artifact.body !== null || value.artifact.confidential !== null
           : value.artifact.body === null || value.artifact.confidential === null
       )
+        issue();
+      // The audited debrief context is only meaningful where it is persisted.
+      if (value.artifact.generatedFrom !== undefined && value.operation !== 'debrief-create')
         issue();
     }
   });

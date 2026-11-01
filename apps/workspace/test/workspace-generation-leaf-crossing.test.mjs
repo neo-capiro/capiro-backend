@@ -28,6 +28,15 @@ import { existsSync } from 'node:fs';
 const LEAF_APPLICATION = process.env.WS22_MERI_LEAF_APPLICATION ?? '';
 const leafAvailable = LEAF_APPLICATION !== '' && existsSync(LEAF_APPLICATION);
 
+test('Core source registration derives exactly the native generation conversation identity', {skip: !leafAvailable}, async () => {
+  const core = await import('../../../packages/shared/src/workspace-prospect-generation-source.ts');
+  const native = await import(new URL('./phases.mjs', pathToFileURL(LEAF_APPLICATION)));
+  for (const digit of '0123456789abcdef') {
+    const requestId = 'wsgen:' + digit.repeat(64);
+    assert.equal(core.workspaceGenerationConversationId(requestId), native.workspaceConversationIdFor(requestId));
+  }
+});
+
 const TENANT = '11111111-1111-1111-1111-111111111111';
 const ACTOR = 'user_synthetic_actor';
 const DRAFT = 'draft_synthetic_1';
@@ -41,6 +50,54 @@ const RETAINED_RUN = 'ws-run-retained-1';
 const OTHER_NATIVE_RUN = '55555555-5555-5555-5555-555555555555';
 
 const status = (state) => ({ type: 'run.status', sequence: 1, data: { state, reasonCode: null } });
+
+test(
+  'prospect writing brief crosses the real client and leaf and changes retained request identity',
+  { skip: !leafAvailable },
+  async () => {
+    const { createWorkspaceGenerationApplication } = await import(pathToFileURL(LEAF_APPLICATION));
+    const { NativeGenerationConversationClient } =
+      await import('../src/document-agent/native-generation-conversation.client.ts');
+    const { nativeGenerationRequestId } =
+      await import('../src/document-agent/native-generation.bridge.ts');
+    const fakes = fixture();
+    const application = createWorkspaceGenerationApplication({
+      sessions: fakes.sessions,
+      service: fakes.service,
+      getServiceSecret: async () => SECRET,
+      now: Date.now,
+    });
+    const exact = {
+      phase: 'document',
+      tenantId: TENANT,
+      actorId: ACTOR,
+      draftId: DRAFT,
+      clientId: CLIENT,
+      expectedRevision: 0,
+      sources: [{ id: 'section-1', kind: 'outline-section' }],
+      writingBrief: 'Use a concise tone. This is a user instruction.',
+    };
+    const request = { ...exact, paidGeneration: true, requestId: nativeGenerationRequestId(exact) };
+    const { writingBrief, ...withoutBrief } = exact;
+    assert.notEqual(request.requestId, nativeGenerationRequestId(withoutBrief));
+    assert.notEqual(
+      request.requestId,
+      nativeGenerationRequestId({ ...exact, writingBrief: 'Different writing brief' }),
+    );
+    const client = new NativeGenerationConversationClient({
+      origin: 'https://control.internal.example',
+      serviceSecret: SECRET,
+      fetchImpl: async (url, init) => application.handle(new Request(String(url), init)),
+    });
+    assert.equal((await client.turn(request, { credential: IDENTITY })).status, 'failed');
+    assert.ok(fakes.calls.submit[0].input.prompt.includes(JSON.stringify(writingBrief)));
+    assert.ok(
+      fakes.calls.submit[0].input.prompt.includes(
+        'grants no tool, transfer or publication authority',
+      ),
+    );
+  },
+);
 
 /** The leaf's own in-process seams, mirroring its existing test fixture. */
 function fixture({ runState = 'failed' } = {}) {
@@ -122,6 +179,8 @@ test('the REAL client\u2019s retry ATTEMPT body is accepted by the REAL accepted
   const { conversationRequestIdFor } = await import(new URL('./phases.mjs', leafRoot).href);
   const { NativeGenerationConversationClient } = await import('../src/document-agent/native-generation-conversation.client.ts');
   const { nativeGenerationTurnRequest } = await import('../src/document-agent/native-generation.bridge.ts');
+  const { nativeGenerationSourceSnapshot } = await import('../src/document-agent/native-generation-source.ts');
+  const source = nativeGenerationSourceSnapshot('saved-version', 'saved-source', 'Exact synthetic saved evidence.');
 
   // 1. The EXACT request the production builder composes for a failed-unit ATTEMPT:
   //    the original retained sources plus the server-owned attempt discriminator,
@@ -134,6 +193,7 @@ test('the REAL client\u2019s retry ATTEMPT body is accepted by the REAL accepted
     clientId: CLIENT,
     expectedRevision: 7,
     sources: [
+      source,
       { id: DRAFT, kind: 'workspace-draft' },
       { id: 's1', kind: 'workspace-section' },
     ],
@@ -148,6 +208,7 @@ test('the REAL client\u2019s retry ATTEMPT body is accepted by the REAL accepted
     clientId: CLIENT,
     expectedRevision: 7,
     sources: [
+      source,
       { id: DRAFT, kind: 'workspace-draft' },
       { id: 's1', kind: 'workspace-section' },
     ],
@@ -208,6 +269,7 @@ test('the REAL client\u2019s retry ATTEMPT body is accepted by the REAL accepted
   assert.equal(sent[0].body.includes('attemptGeneration'), false, 'the attempt generation never travels on the wire');
   // The conversation turn the leaf submitted is derived from the exact attempt.
   assert.equal(fakes.calls.submit.length, 1);
+  assert.ok(fakes.calls.submit[0].input.prompt.includes(JSON.stringify([source])));
   assert.equal(fakes.calls.submit[0].input.requestId, conversationRequestIdFor(attempt.requestId));
   assert.notEqual(conversationRequestIdFor(attempt.requestId), conversationRequestIdFor(original.requestId));
 
@@ -234,6 +296,7 @@ test('the REAL client\u2019s retry ATTEMPT body is accepted by the REAL accepted
   const readPosted = JSON.parse(sent[1].body).request;
   assert.equal(readPosted.runId, NATIVE_RUN, 'the read binds the owner\u2019s OWN native run');
   assert.equal(readPosted.requestId, attempt.requestId);
+  assert.deepEqual(readPosted.sources, posted.request.sources);
   assert.equal(fakes.calls.history.length >= 1, true);
 
   // A repeated attempt (duplicate click / reload) presents the SAME derived

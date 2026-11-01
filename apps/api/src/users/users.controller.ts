@@ -168,9 +168,7 @@ export class UsersController {
       entitlements: entitlementsForTenant(profile.tenant?.settings, profile.tenant?.planTier),
       features: {
         meetingsV2: meetingsV2Enabled(profile.tenant?.settings),
-        outreachAsyncGen:
-          this.config.get('OUTREACH_ASYNC_GEN', { infer: true }) &&
-          outreachAsyncFlagEnabled(profile.tenant?.settings),
+        outreachAsyncGen: outreachAsyncFlagEnabled(profile.tenant?.settings),
         outreachAsyncSend:
           this.config.get('OUTREACH_ASYNC_SEND', { infer: true }) &&
           outreachAsyncFlagEnabled(profile.tenant?.settings),
@@ -304,9 +302,7 @@ export class UsersController {
       entitlements: entitlementsForTenant(profile.tenant?.settings, profile.tenant?.planTier),
       features: {
         meetingsV2: meetingsV2Enabled(profile.tenant?.settings),
-        outreachAsyncGen:
-          this.config.get('OUTREACH_ASYNC_GEN', { infer: true }) &&
-          outreachAsyncFlagEnabled(profile.tenant?.settings),
+        outreachAsyncGen: outreachAsyncFlagEnabled(profile.tenant?.settings),
         outreachAsyncSend:
           this.config.get('OUTREACH_ASYNC_SEND', { infer: true }) &&
           outreachAsyncFlagEnabled(profile.tenant?.settings),

@@ -178,7 +178,7 @@ function discoveryServices(state: State) {
       }),
     },
     facilities: {
-      resolveFacilityDistrict: jest.fn(async (...args: unknown[]) => {
+      previewFacilityDistrict: jest.fn(async (...args: unknown[]) => {
         record(state, 'resolve', args);
         const outcome = state.options.resolverOutcomes?.[state.resolverIndex++] ?? resolved();
         if (outcome instanceof Error) throw outcome;

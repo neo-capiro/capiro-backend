@@ -60,6 +60,11 @@ if [ -n "${MERI_CONTROL_ORIGIN+x}${MERI_CONTROL_CA_BASE64+x}${MERI_CONTROL_CA_SH
 fi
 
 case "${1:-serve}" in
+  learning-signal-candidate-generation)
+    shift
+    compose_database_url
+    exec ./node_modules/.bin/tsx scripts/run-learning-signal-candidate-generation.ts "$@"
+    ;;
   migration-status)
     compose_database_url
     echo "Running prisma migrate status (READ-ONLY; migration history is never edited)"

@@ -11,7 +11,7 @@
  * backtest routes no longer exist, and their tables are dropped by migration
  * 20280917010000_drop_legiwatch_watch_presets.
  */
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Header, Param, Query, UseGuards } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -27,7 +27,11 @@ export class LegiWatchWave2Controller {
   // ── W2-5 · watchlist coverage ────────────────────────────────────────────
 
   @Get('clients/:clientId/coverage')
-  watchlistCoverage(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
-    return this.coverage.watchlistCoverage(ctx.tenantId, clientId);
+  @Header('Cache-Control', 'private, no-store')
+  watchlistCoverage(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string, @Query() query: Record<string, unknown> = {}) {
+    if (Object.keys(query).some(key => key !== 'trackerBackend') ||
+        query.trackerBackend !== undefined && !['core', 'intelligence'].includes(query.trackerBackend as string))
+      throw new BadRequestException('Invalid coverage backend');
+    return this.coverage.watchlistCoverage(ctx, clientId, (query.trackerBackend ?? 'intelligence') as 'core' | 'intelligence');
   }
 }

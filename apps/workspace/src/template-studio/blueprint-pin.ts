@@ -3,13 +3,8 @@ import { isUUID } from 'class-validator';
 import type { Prisma } from '../../generated/prisma-client/index.js';
 import type { BlueprintPin } from '../document-agent/document-agent-state.js';
 
-/** Resolve an explicit pin through the existing Blueprint owner, never a latest-version lookup. */
-export async function resolveBlueprintPin(
-  db: Pick<Prisma.TransactionClient, 'wsBlueprintVersion'>,
-  tenantId: string,
-  input: unknown,
-  use: 'adopt' | 'retained' = 'adopt',
-) {
+/** Canonical request tuple shared by adoption and retained creation receipts. */
+export function parseBlueprintPin(input: unknown): BlueprintPin {
   if (!input || typeof input !== 'object' || Array.isArray(input))
     throw new BadRequestException('A complete blueprint pin is required');
   const pin = input as Record<string, unknown>;
@@ -26,6 +21,22 @@ export async function resolveBlueprintPin(
   )
     throw new BadRequestException('A complete blueprint pin is required');
 
+  return {
+    blueprintId: pin.blueprintId.toLowerCase(),
+    versionId: pin.versionId.toLowerCase(),
+    version: pin.version,
+    definitionHash: pin.definitionHash,
+  };
+}
+
+/** Resolve an explicit pin through the existing Blueprint owner, never a latest-version lookup. */
+export async function resolveBlueprintPin(
+  db: Pick<Prisma.TransactionClient, 'wsBlueprintVersion'>,
+  tenantId: string,
+  input: unknown,
+  use: 'adopt' | 'retained' = 'adopt',
+) {
+  const pin = parseBlueprintPin(input);
   const version = await db.wsBlueprintVersion.findFirst({
     where: {
       id: pin.versionId,

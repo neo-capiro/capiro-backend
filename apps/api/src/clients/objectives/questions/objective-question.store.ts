@@ -1,0 +1,152 @@
+import type { ObjectiveOperationalActor, ObjectiveOperationalTx } from '@capiro/shared';
+import { ConflictException, NotFoundException } from '@nestjs/common';
+import type { OperationalScope } from '../operational/objective-operational.types.js';
+import {
+  advanceQuestion,
+  presentQuestion,
+  questionCommandDigest,
+  questionConflict,
+  type QuestionCommand,
+  type QuestionState,
+} from './objective-question.rules.js';
+
+type Tx = ObjectiveOperationalTx;
+type Scope = Pick<
+  OperationalScope,
+  'clientId' | 'objectiveId' | 'objectiveVersion' | 'currentRevisionId'
+>;
+function refused(requestId: string): never {
+  throw new ConflictException({
+    error: { code: 'OBJECTIVE_QUESTION_REFUSED' },
+    requestId,
+    outcome: 'not_committed',
+    message:
+      'This Question command was refused without changes. Reload its current source and review again.',
+  });
+}
+interface Revision {
+  requestId: string;
+  payloadDigest: string;
+  actorUserId: string;
+  action: QuestionCommand['action'];
+  snapshot: QuestionState;
+  committedAt: Date;
+}
+export function presentRevision(row: Revision, scope: Scope) {
+  return {
+    requestId: row.requestId,
+    actorUserId: row.actorUserId,
+    action: row.action,
+    committedAt: row.committedAt.toISOString(),
+    question: presentQuestion(row.snapshot, scope.objectiveVersion),
+  };
+}
+export async function findQuestionReceipt(
+  tx: Tx,
+  actor: ObjectiveOperationalActor,
+  scope: Scope,
+  requestId: string,
+): Promise<Revision | null> {
+  const rows = await tx.$queryRaw<
+    Revision[]
+  >`SELECT request_id::text AS "requestId", payload_digest AS "payloadDigest", actor_user_id::text AS "actorUserId", action,snapshot,committed_at AS "committedAt"
+    FROM client_objective_question_revisions WHERE tenant_id=${actor.tenantId}::uuid AND client_id=${scope.clientId}::uuid
+    AND objective_id=${scope.objectiveId}::uuid AND actor_user_id=${actor.userId}::uuid AND request_id=${requestId}::uuid`;
+  return rows[0] ?? null;
+}
+export async function readQuestions(
+  tx: Tx,
+  actor: ObjectiveOperationalActor,
+  scope: Scope,
+  after: string | null,
+  status: string | null,
+) {
+  const rows = await tx.$queryRaw<
+    Array<{ snapshot: QuestionState }>
+  >`SELECT snapshot FROM client_objective_questions
+    WHERE tenant_id=${actor.tenantId}::uuid AND client_id=${scope.clientId}::uuid AND objective_id=${scope.objectiveId}::uuid
+    AND (${after}::uuid IS NULL OR id>${after}::uuid) AND (${status}::text IS NULL OR status=${status}) ORDER BY id LIMIT 51`;
+  const counts = await tx.$queryRaw<
+    Array<{ total: number; openCount: number }>
+  >`SELECT count(*)::int AS total,count(*) FILTER(WHERE status='open')::int AS "openCount"
+    FROM client_objective_questions WHERE tenant_id=${actor.tenantId}::uuid AND client_id=${scope.clientId}::uuid AND objective_id=${scope.objectiveId}::uuid`;
+  if (!counts[0]) throw new Error('Question count observation unavailable.');
+  return {
+    ...counts[0],
+    items: rows.slice(0, 50).map((row) => presentQuestion(row.snapshot, scope.objectiveVersion)),
+    nextCursor: rows.length > 50 ? rows[49]!.snapshot.id : null,
+  };
+}
+export async function readQuestionHistory(
+  tx: Tx,
+  actor: ObjectiveOperationalActor,
+  scope: Scope,
+  questionId: string,
+  before: number | null,
+) {
+  const rows = await tx.$queryRaw<
+    Revision[]
+  >`SELECT request_id::text AS "requestId", payload_digest AS "payloadDigest", actor_user_id::text AS "actorUserId", action,snapshot,committed_at AS "committedAt"
+    FROM client_objective_question_revisions WHERE tenant_id=${actor.tenantId}::uuid AND client_id=${scope.clientId}::uuid AND objective_id=${scope.objectiveId}::uuid
+    AND question_id=${questionId}::uuid AND (${before}::int IS NULL OR version<${before}::int) ORDER BY version DESC LIMIT 51`;
+  if (!rows.length && before === null) throw new NotFoundException('Question not available.');
+  return {
+    items: rows.slice(0, 50).map((row) => presentRevision(row, scope)),
+    nextCursor: rows.length > 50 ? rows[49]!.snapshot.version : null,
+  };
+}
+export async function commitQuestion(
+  tx: Tx,
+  actor: ObjectiveOperationalActor,
+  scope: Scope,
+  command: QuestionCommand,
+) {
+  // Serialize the original actor/request before touching a Question, including concurrent creates.
+  const requestKey = [
+    actor.tenantId,
+    scope.clientId,
+    scope.objectiveId,
+    actor.userId,
+    command.requestId,
+  ].join(':');
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${requestKey}, 0))::text`;
+  const digest = questionCommandDigest(command);
+  const prior = await findQuestionReceipt(tx, actor, scope, command.requestId);
+  if (prior) {
+    if (prior.payloadDigest !== digest) questionConflict('OBJECTIVE_QUESTION_REQUEST_CONFLICT');
+    return presentRevision(prior, scope);
+  }
+  const records = await tx.$queryRaw<
+    Array<{ snapshot: QuestionState }>
+  >`SELECT snapshot FROM client_objective_questions
+    WHERE tenant_id=${actor.tenantId}::uuid AND client_id=${scope.clientId}::uuid AND objective_id=${scope.objectiveId}::uuid AND id=${command.questionId}::uuid FOR UPDATE`;
+  let next: QuestionState;
+  try {
+    next = advanceQuestion(records[0]?.snapshot ?? null, command, scope);
+  } catch (error) {
+    // Only transition/CAS refusal after original-request reconciliation is definitive.
+    if (error instanceof ConflictException) refused(command.requestId);
+    throw error;
+  }
+  const snapshot = JSON.stringify(next);
+  if (command.action === 'create') {
+    const inserted = await tx.$queryRaw<
+      Array<{ id: string }>
+    >`INSERT INTO client_objective_questions (id,tenant_id,client_id,objective_id,version,status,snapshot)
+      VALUES (${next.id}::uuid,${actor.tenantId}::uuid,${scope.clientId}::uuid,${scope.objectiveId}::uuid,${next.version},${next.status},${snapshot}::jsonb)
+      ON CONFLICT DO NOTHING RETURNING id`;
+    if (inserted.length !== 1) refused(command.requestId);
+  } else {
+    const updated = await tx.$queryRaw<
+      Array<{ id: string }>
+    >`UPDATE client_objective_questions SET version=${next.version},status=${next.status},snapshot=${snapshot}::jsonb
+      WHERE tenant_id=${actor.tenantId}::uuid AND client_id=${scope.clientId}::uuid AND objective_id=${scope.objectiveId}::uuid AND id=${next.id}::uuid AND version=${command.expectedVersion} RETURNING id`;
+    if (updated.length !== 1) refused(command.requestId);
+  }
+  const rows = await tx.$queryRaw<Revision[]>`INSERT INTO client_objective_question_revisions
+    (tenant_id,client_id,objective_id,question_id,version,source_revision_id,source_objective_version,actor_user_id,request_id,payload_digest,action,snapshot)
+    VALUES (${actor.tenantId}::uuid,${scope.clientId}::uuid,${scope.objectiveId}::uuid,${next.id}::uuid,${next.version},${next.sourceRevisionId}::uuid,${next.sourceObjectiveVersion},${actor.userId}::uuid,${command.requestId}::uuid,${digest},${command.action},${snapshot}::jsonb)
+    RETURNING request_id::text AS "requestId", payload_digest AS "payloadDigest", actor_user_id::text AS "actorUserId", action,snapshot,committed_at AS "committedAt"`;
+  if (!rows[0]) throw new Error('Original Question receipt unavailable.');
+  return presentRevision(rows[0], scope);
+}

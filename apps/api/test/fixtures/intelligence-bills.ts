@@ -228,11 +228,15 @@ function queryShape(args: unknown[], unsafe = false): Query {
 function queryOperation(query: Query, scope: Call['scope']): string {
   const sql = query.sql;
   if (sql.includes('statement_timeout')) return 'statementTimeout';
-  if (scope === 'keyword') return /COUNT\(\*\)/i.test(sql) ? 'keywordCount' : 'keywordRows';
+  // Catalog reads keep their names inside the shared bill-read deadline
+  // transaction; only the keyword COUNT and its IN (SELECT …) rows are the
+  // keyword matcher's own statements.
   if (sql.includes('context_embeddings')) return 'embeddingCandidates';
+  if (sql.includes('FROM federal_register_document')) return 'regulations';
+  if (scope === 'keyword' && /COUNT\(\*\)/i.test(sql)) return 'keywordCount';
+  if (scope === 'keyword' && /cb\.id IN \(SELECT/.test(sql)) return 'keywordRows';
   if (sql.includes('FROM lda_issue_code')) return 'issueNames';
   if (sql.includes('FROM lda_client')) return 'issueCodes';
-  if (sql.includes('FROM federal_register_document')) return 'regulations';
   if (sql.includes('FROM gao_report')) return 'gaoReports';
   if (sql.includes('FROM crs_report')) return 'crsReports';
   if (/SELECT id FROM congress_bill WHERE id/.test(sql)) return 'billExists';

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { runInDbLane } from '../prisma/db-lane.js';
 import { MicrosoftGraphSyncService } from './microsoft/microsoft-graph-sync.service.js';
 import { GoogleSyncService } from './google/google-sync.service.js';
 import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
@@ -89,7 +90,9 @@ export class EngagementSyncSchedulerService implements OnModuleInit, OnModuleDes
     this.timer = setInterval(() => {
       if (this.ticking) return; // overlap-skip: a slow batch must not stack ticks
       this.ticking = true;
-      this.tick()
+      // Every transaction a scheduled sync opens goes to the background pool,
+      // never the request pool (prisma/db-lane.ts).
+      runInDbLane('background', () => this.tick())
         .catch((err) =>
           this.logger.error(`engagement auto-sync tick failed: ${(err as Error).message}`),
         )
@@ -110,14 +113,21 @@ export class EngagementSyncSchedulerService implements OnModuleInit, OnModuleDes
   /** One scheduler pass: claim due connections, sync each, watchdog hourly. */
   async tick(): Promise<void> {
     this.runtimePolicy.assertBackgroundOwner('engagement-sync-scheduler');
-    const claimed = await this.claimDueConnections();
-    for (const connection of claimed) {
-      await this.syncClaimed(connection);
-    }
-    this.tickCount += 1;
-    if (this.tickCount % STALE_CHECK_EVERY_TICKS === 1) {
-      await this.warnOnStaleConnections();
-    }
+    // Own the WHOLE tick: the scheduler_tick record stays live until every candidate
+    // has been claimed and synced through the real integration proxies, so their
+    // nested tenant work is a continuation of this owner instead of passing through
+    // the NEW-work gate again. N's candidate query, per-connection withMailboxSyncClaim
+    // execution, error handling and recovery scheduling are unchanged inside it.
+    return this.runtimePolicy.runAdmittedMailHandoffWork('scheduler_tick', async () => {
+      const claimed = await this.claimDueConnections();
+      for (const connection of claimed) {
+        await this.syncClaimed(connection);
+      }
+      this.tickCount += 1;
+      if (this.tickCount % STALE_CHECK_EVERY_TICKS === 1) {
+        await this.warnOnStaleConnections();
+      }
+    });
   }
 
   /** Candidate selection reserves nothing: the common provider claim owns execution. */

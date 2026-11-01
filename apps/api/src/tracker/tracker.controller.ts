@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -39,6 +39,12 @@ export class TrackerController {
   }
 
   // ── Board ──────────────────────────────────────────────────────────────
+  @Get('clients/:clientId/tracker/material-changes')
+  @Header('Cache-Control', 'private, no-store')
+  materialChanges(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string, @Query() query: Record<string, unknown>) {
+    return this.tracker.materialChanges(ctx, clientId, query);
+  }
+
   @Get('clients/:clientId/tracker/board')
   getBoard(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.tracker.getBoard(clientId, ctx.tenantId, ctx.userId);

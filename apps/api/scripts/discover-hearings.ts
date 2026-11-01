@@ -35,6 +35,7 @@ import {
   currentCongress,
 } from '../src/hearing-discovery/adapters/congress-gov.adapter.js';
 import { HouseRepositoryAdapter } from '../src/hearing-discovery/adapters/house-repository.adapter.js';
+import { discoverSenateCommitteeCalendars } from '../src/hearing-discovery/senate-committee-discovery.js';
 import {
   SENATE_SCHEDULE_URL,
   SenateScheduleAdapter,
@@ -65,7 +66,7 @@ interface Flags {
   dryRun: boolean;
   daysAhead: number;
   delayMs: number;
-  maxPages: number;
+  maxPages?: number;
   listLimit: number;
   limit: number | null;
   congress: number;
@@ -95,7 +96,10 @@ function parseFlags(argv: string[]): Flags {
     dryRun: map.get('dry-run') === 'true',
     daysAhead: num('days-ahead', Number(process.env.HEARING_DISCOVERY_DAYS_AHEAD ?? 21)),
     delayMs: num('delay-ms', Number(process.env.HEARING_DISCOVERY_DELAY_MS ?? 150)),
-    maxPages: num('max-pages', Number(process.env.HEARING_DISCOVERY_MAX_PAGES ?? 8)),
+    maxPages:
+      map.has('max-pages') || process.env.HEARING_DISCOVERY_MAX_PAGES
+        ? num('max-pages', Number(process.env.HEARING_DISCOVERY_MAX_PAGES))
+        : undefined,
     listLimit: num('list-limit', Number(process.env.HEARING_DISCOVERY_LIST_LIMIT ?? 250)),
     limit: map.has('limit') ? num('limit', 0) : null,
     congress: num('congress', currentCongress()),
@@ -208,7 +212,9 @@ async function runDryRun(flags: Flags): Promise<void> {
 
 async function main(): Promise<void> {
   if (!process.env.DATABASE_URL) {
-    console.error('Usage: apps/api/scripts/discover-hearings.ts requires DATABASE_URL (database configuration is required)');
+    console.error(
+      'Usage: apps/api/scripts/discover-hearings.ts requires DATABASE_URL (database configuration is required)',
+    );
     process.exit(2);
   }
   if (process.argv.includes('--source=florida')) {
@@ -266,14 +272,14 @@ async function main(): Promise<void> {
         const now = new Date();
         await sourceRepo.markChecked(source.id, now);
         let events: SourceEvent[];
+        let sourceError: string | undefined;
         try {
           events = await adapter.discoverEvents(source, ctx);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
-          // Record the failure against the source BEFORE rethrowing, so the
-          // coverage dashboard shows a failing feed even when the job dies.
-          await sourceRepo.recordOutcome(source.id, { ok: false, error: message }, now);
-          throw err;
+          // A central outage must not suppress the independent committee feeds.
+          sourceError = message;
+          events = [];
         }
         const limited = flags.limit != null && events.length > flags.limit;
         if (flags.limit != null) events = events.slice(0, flags.limit);
@@ -283,7 +289,18 @@ async function main(): Promise<void> {
         const { totals } = await reconciler.reconcileBatch(source, events, now, (m) =>
           console.log(m),
         );
+        // Existing Senate cadence also discovers registered committee calendars;
+        // provenance repair of existing rows cannot discover new announcements.
+        const committee =
+          flags.source === 'senate-schedule'
+            ? await discoverSenateCommitteeCalendars(prisma, {
+                congress: flags.congress,
+                ctx,
+                now,
+              })
+            : null;
         const discoveryErrors = [...(adapter.discoveryErrors ?? [])];
+        if (sourceError) discoveryErrors.push(sourceError);
         if (totals.errors > 0)
           discoveryErrors.push(`${totals.errors} event(s) failed reconciliation`);
         if (limited)
@@ -299,6 +316,8 @@ async function main(): Promise<void> {
           adapter.parserVersion,
         );
         // Valid events are retained, but a partial pass cannot advance SyncRun.
+        if (committee?.errors)
+          discoveryErrors.push(`${committee.errors} committee calendar source(s) failed`);
         if (discoveryErrors.length)
           throw new Error(`Partial discovery: ${discoveryErrors.join('; ').slice(0, 1_000)}`);
         console.log(
@@ -309,9 +328,13 @@ async function main(): Promise<void> {
             `matches=${JSON.stringify(totals.matches)}`,
         );
         return {
-          inserted: totals.hearingsCreated,
-          updated: totals.hearingsUpdated,
-          skipped: totals.events - totals.hearingsCreated - totals.hearingsUpdated,
+          inserted: totals.hearingsCreated + (committee?.inserted ?? 0),
+          updated: totals.hearingsUpdated + (committee?.updated ?? 0),
+          skipped:
+            totals.events -
+            totals.hearingsCreated -
+            totals.hearingsUpdated +
+            (committee?.skipped ?? 0),
           errors: totals.errors,
         };
       },

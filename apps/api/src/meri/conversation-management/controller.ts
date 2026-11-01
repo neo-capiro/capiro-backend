@@ -8,6 +8,7 @@ import { CurrentTenant } from '../../tenant/current-tenant.decorator.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { MANAGEMENT_VERSION } from './contract.js';
 import { listManagedConversations } from './list.js';
+import { listConversationDeletions, readConversationDeletion } from './deletion-read.js';
 import { manageConversation, readManagedConversationMetadata, readManagementRequest } from './service.js';
 
 /** Only Meri's authenticated backend calls the fixed metadata boundary. User
@@ -25,6 +26,16 @@ export class ConversationManagementController {
   summaries(@CurrentTenant() ctx: TenantContext, @Body() body: unknown, @Req() req: Request) {
     this.service(req);
     return listManagedConversations(this.prisma, ctx, body);
+  }
+  @Post('deletions/list') @HttpCode(200)
+  deletions(@CurrentTenant() ctx: TenantContext, @Body() body: unknown, @Req() req: Request) {
+    this.service(req);
+    return listConversationDeletions(this.prisma, ctx, body);
+  }
+  @Post('deletions/read') @HttpCode(200)
+  deletion(@CurrentTenant() ctx: TenantContext, @Body() body: unknown, @Req() req: Request) {
+    this.service(req);
+    return readConversationDeletion(this.prisma, ctx, body);
   }
   @Post('metadata') @HttpCode(200)
   metadata(@CurrentTenant() ctx: TenantContext, @Body() body: unknown, @Req() req: Request) {

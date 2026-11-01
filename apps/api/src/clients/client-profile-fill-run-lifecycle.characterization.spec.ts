@@ -187,6 +187,15 @@ describe('Completion run lifecycle — extension seeding', () => {
 });
 
 describe('Completion run lifecycle — existing run and cancellation', () => {
+  test.each(['preparing', 'failed', 'completed'])('explicit start recovery preserves %s instead of adopting another active run', async stage => {
+    const h = harness({ activeRun: 'unrelated-run' });
+    h.workflow.startRun.mockResolvedValueOnce({ id: runId, status: stage === 'preparing' ? 'running' : stage, stage } as never);
+    const input = { requestId: '30000000-0000-4000-8000-000000000001', sources: ['lda' as const] };
+    expect(await h.service.startRun(ctx, clientId, input)).toBe(h.review);
+    expect(h.workflow.startRun).toHaveBeenCalledWith(ctx, clientId, input);
+    expect(h.calls.some(call => call.operation === 'active-run' || call.operation === 'seed-task')).toBe(false);
+    expect(h.service.getRun).toHaveBeenCalledWith(ctx, clientId, runId);
+  });
   test('returns an active extension run without starting or seeding another core run', async () => {
     const h = harness({ activeRun: 'existing-run' });
     await h.service.startRun(ctx, clientId, { sources: ['lda'] });
@@ -257,7 +266,8 @@ describe('Completion run lifecycle — extension retry', () => {
     expect(await h.service.retryTask(ctx, clientId, runId, 'extension-task')).toBe(h.review);
     const lock = h.calls.find((call) => call.operation === 'run-lock')!;
     expect(lock.args).toEqual([runId, ctx.tenantId, clientId]);
-    expect(lock.sql).toContain("status <> 'cancelled' FOR UPDATE");
+    expect(lock.sql).toContain("status <> 'cancelled'");
+    expect(lock.sql).toContain("started_at + interval '1800000 milliseconds' > clock_timestamp() FOR UPDATE");
     expect(h.prisma.withTenantUser).toHaveBeenCalledWith(
       ctx.tenantId,
       ctx.userId,
@@ -282,7 +292,8 @@ describe('Completion run lifecycle — extension retry', () => {
     expect(writes[1]!.sql).toContain(
       "task_type IN ('reconciliation', 'completion_audit') AND status <> 'cancelled'",
     );
-    expect(writes[1]!.sql).toContain("output_summary_jsonb = '{}'::jsonb");
+    expect(writes[1]!.sql).toContain("output_summary_jsonb = CASE WHEN status = 'running' OR");
+    expect(writes[1]!.sql).toContain("output_summary_jsonb ->> 'externalOutcome' = 'unresolved'");
     expect(writes[2]!.sql).toContain("status = 'running', stage = 'research'");
     expect(h.workflow.retryTask).not.toHaveBeenCalled();
     expect(h.events.slice(-3)).toEqual(['2:commit', 'outside:sweep', 'outside:read']);

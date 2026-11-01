@@ -1,10 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
-import {
-  HttpStatus,
-  Logger,
-  RequestMethod,
-  ValidationPipe,
-} from '@nestjs/common';
+import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { json, raw, type NextFunction, type Request, type Response } from 'express';
 import { PrismaClientExceptionFilter } from '../common/prisma-exception.filter.js';
 import { objectiveAdmissionRawBody } from './objective-admission-raw-body.js';
@@ -27,10 +22,7 @@ import { meriReadDelegationRawBody } from '../auth/read-delegation/read-delegati
  *   6. default JSON parser
  *   7. ValidationPipe
  *   8. PrismaClientExceptionFilter
- *   9. route-miss/record-miss log observer
  */
-
-const logger = new Logger('HttpRouteMiss');
 
 export interface ConfigureApiHttpAppOptions {
   /** When set, every response gets `X-Capiro-Service: <value>` header. */
@@ -176,8 +168,11 @@ export function configureApiHttpApp(
   // A permitted 5 MiB CSV needs up to 6,990,508 base64 characters plus its
   // import metadata. The import service retains its decoded-file bound.
   const researchImportJson = json({ limit: 7_100_000 });
+  // One private Office save: at most 20 MiB decoded bytes plus base64/metadata.
+  const officeDraftJson = json({ limit: 28_000_000 });
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.method === 'POST') {
+      if (req.path === '/api/clio/office-drafts/save') return officeDraftJson(req, res, next);
       if (/^\/api\/clio\/artifacts\/[A-Za-z0-9_-]+\/version$/.test(req.path)) {
         return artifactVersionJson(req, res, next);
       }
@@ -203,24 +198,6 @@ export function configureApiHttpApp(
 
   // 8. Map known Prisma errors (e.g. malformed UUID) to 4xx
   app.useGlobalFilters(new PrismaClientExceptionFilter());
-
-  // 9. Tell a route miss apart from a record miss in the server log.
-  //
-  // A missing endpoint and a missing record both answer 404, so an unavailable
-  // action reads like a permissions/record problem instead of a version skew.
-  // This middleware only observes the finished response (it never answers), and
-  // distinguishes them by whether Express matched a route: an unmatched path has
-  // no `req.route`. Nothing user-facing changes.
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    res.on('finish', () => {
-      if (res.statusCode !== HttpStatus.NOT_FOUND) return;
-      const matched = Boolean((req as Request & { route?: unknown }).route);
-      logger.log(
-        `${matched ? 'record-miss' : 'route-miss'} ${req.method} ${req.originalUrl}`,
-      );
-    });
-    next();
-  });
 }
 
 /**

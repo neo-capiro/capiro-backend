@@ -1,3 +1,6 @@
+// PostgreSQL retention is qualified separately with real roles and transactions.
+jest.mock('./conversation-serving/transaction.js', () =>
+  jest.requireActual('./conversation-serving/unit-boundary.fixture.js'));
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { describe, expect, jest, test } from '@jest/globals';
@@ -147,6 +150,7 @@ function makeVersionHarness(
       if (/INSERT INTO memory_items/i.test(sql)) return [created];
       if (/FROM memory_candidate/i.test(sql)) return [candidate];
       if (/FROM memory_items/i.test(sql)) return [targetRow];
+      if (/FROM clients/i.test(sql)) return [{ status: 'active', memory_wall: false }];
       return [];
     },
     $executeRaw: async (strings: unknown) => {
@@ -483,6 +487,7 @@ describe('ImmutableMemoryVersionService.decideLearningSignalCandidate', () => {
           if (/set_config/i.test(sql)) return [{ set_config: 'on' }];
           if (/FROM memory_candidate/i.test(sql)) return [brokenHarness.candidate];
           if (/FROM memory_items/i.test(sql)) return [];
+          if (/FROM clients/i.test(sql)) return [{ status: 'active', memory_wall: false }];
           return [];
         },
         $executeRaw: async () => 1,

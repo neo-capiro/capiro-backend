@@ -1,3 +1,5 @@
+import { withMemoryConversationRetention } from './conversation-serving/transaction.js';
+import { unreadMemoryNotificationPages } from './memory-review-notification-scan.js';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext, TenantRole } from '@capiro/shared';
@@ -23,8 +25,7 @@ import {
 import { settingsMemoryReviewEnabledForTenant } from './memory-settings-review-readiness.service.js';
 import type { MemorySection } from './memory.types.js';
 
-const MAX_SUMMARY_SCAN = 1_000;
-const MAX_NOTIFICATION_SCAN = 1_000;
+const SUMMARY_PAGE_SIZE = 200;
 
 interface ActiveViewer {
   tenantId: string;
@@ -44,6 +45,7 @@ interface InboxRow {
   assignedTo: string | null;
   decidedBy: string | null;
   createdAt: Date;
+  createdAtCursor: string;
   decidedAt: Date | null;
   candidateKind: string | null;
   sourceKind: string;
@@ -228,7 +230,7 @@ export class MemoryReviewInboxService {
       return { enabled: false, view, items: [], nextCursor: null };
     }
 
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const viewer = await this.requireActiveViewerInTx(tx, ctx);
       this.assertViewAllowed(view, viewer.role);
       const scanLimit = Math.min(250, limit * 4 + 1);
@@ -262,7 +264,7 @@ export class MemoryReviewInboxService {
         nextCursor:
           (hasExtraVisible || rows.length === scanLimit) && cursorRow
             ? encodeMemoryReviewCursor({
-                createdAt: cursorRow.createdAt.toISOString(),
+                createdAt: cursorRow.createdAtCursor,
                 id: cursorRow.reviewRequestId,
               })
             : null,
@@ -285,9 +287,8 @@ export class MemoryReviewInboxService {
       };
     }
 
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const viewer = await this.requireActiveViewerInTx(tx, ctx);
-      const rows = await this.querySummaryRowsInTx(tx, ctx, viewer.role, MAX_SUMMARY_SCAN + 1);
       const counts = {
         needsMyReview: 0,
         submittedByMe: 0,
@@ -295,30 +296,42 @@ export class MemoryReviewInboxService {
         blocked: 0,
         history: 0,
       };
-      for (const row of rows.slice(0, MAX_SUMMARY_SCAN)) {
-        const item = await this.projectRowInTx(tx, ctx, viewer, row);
-        if (!item) continue;
-        const open = item.status === 'pending' || item.status === 'changes_requested';
-        const viewerIsSubmitter = row.requestedBy === ctx.userId;
-        const actionable =
-          item.status === 'pending' &&
-          row.assignedTo === ctx.userId &&
-          (item.capabilities.approve || item.capabilities.reject);
-        const adminVisible = isAdmin(viewer.role) && item.capabilities.open;
-        if (open && (viewerIsSubmitter || actionable || adminVisible)) {
-          counts.allPending += 1;
+      let after: string | null = null;
+      while (true) {
+        const rows: InboxRow[] = await this.querySummaryRowsInTx(
+          tx,
+          ctx,
+          viewer.role,
+          SUMMARY_PAGE_SIZE,
+          after,
+        );
+        for (const row of rows) {
+          const item = await this.projectRowInTx(tx, ctx, viewer, row);
+          if (!item) continue;
+          const open = item.status === 'pending' || item.status === 'changes_requested';
+          const viewerIsSubmitter = row.requestedBy === ctx.userId;
+          const actionable =
+            item.status === 'pending' &&
+            row.assignedTo === ctx.userId &&
+            (item.capabilities.approve || item.capabilities.reject);
+          const adminVisible = isAdmin(viewer.role) && item.capabilities.open;
+          if (open && (viewerIsSubmitter || actionable || adminVisible)) {
+            counts.allPending += 1;
+          }
+          if (open && viewerIsSubmitter) counts.submittedByMe += 1;
+          if (actionable) counts.needsMyReview += 1;
+          if (open && adminVisible && item.blockedReason) counts.blocked += 1;
+          if (!open && (viewerIsSubmitter || row.assignedTo === ctx.userId || adminVisible)) {
+            counts.history += 1;
+          }
         }
-        if (open && viewerIsSubmitter) counts.submittedByMe += 1;
-        if (actionable) counts.needsMyReview += 1;
-        if (open && adminVisible && item.blockedReason) counts.blocked += 1;
-        if (!open && (viewerIsSubmitter || row.assignedTo === ctx.userId || adminVisible)) {
-          counts.history += 1;
-        }
+        if (rows.length < SUMMARY_PAGE_SIZE) break;
+        after = rows[rows.length - 1]!.reviewRequestId;
       }
       return {
         enabled: true,
         counts,
-        truncated: rows.length > MAX_SUMMARY_SCAN,
+        truncated: false,
       };
     });
   }
@@ -338,7 +351,7 @@ export class MemoryReviewInboxService {
     if (!settingsMemoryReviewEnabledForTenant(ctx.tenantId)) {
       throw new NotFoundException('Memory review is not available.');
     }
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const viewer = await this.requireActiveViewerInTx(tx, ctx);
       const row = await this.loadDetailRowInTx(tx, ctx.tenantId, selector);
       if (!row) throw new NotFoundException('Memory review was not found.');
@@ -397,14 +410,16 @@ export class MemoryReviewInboxService {
     if (!settingsMemoryReviewEnabledForTenant(ctx.tenantId)) {
       return { enabled: false, items: [], nextCursor: null };
     }
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const viewer = await this.requireActiveViewerInTx(tx, ctx);
       const scanLimit = Math.min(250, limit * 4 + 1);
       const cursorClause = cursor
         ? Prisma.sql`AND (notification.created_at, notification.id) <
             (${cursor.createdAt}::timestamptz, ${cursor.id}::uuid)`
         : Prisma.sql``;
-      const rows = await tx.$queryRaw<NotificationRow[]>(Prisma.sql`
+      const rows = await tx.$queryRaw<
+        Array<NotificationRow & { createdAtCursor: string }>
+      >(Prisma.sql`
         SELECT notification.id::text AS id,
                notification.review_request_id::text AS "reviewRequestId",
                notification.candidate_id::text AS "candidateId",
@@ -412,7 +427,8 @@ export class MemoryReviewInboxService {
                notification.event_type AS "eventType",
                notification.title,
                notification.read_at AS "readAt",
-               notification.created_at AS "createdAt"
+               notification.created_at AS "createdAt",
+               to_char(notification.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "createdAtCursor"
         FROM memory_review_in_app_notification notification
         WHERE notification.tenant_id = ${ctx.tenantId}::uuid
           AND notification.recipient_user_id = ${ctx.userId}::uuid
@@ -421,7 +437,7 @@ export class MemoryReviewInboxService {
         LIMIT ${scanLimit}
       `);
       const items: MemoryReviewNotificationItem[] = [];
-      let lastReturnedRow: NotificationRow | null = null;
+      let lastReturnedRow: (NotificationRow & { createdAtCursor: string }) | null = null;
       let hasExtraVisible = false;
       for (const row of rows) {
         if (!(await this.notificationVisibleInTx(tx, viewer, row))) continue;
@@ -445,7 +461,7 @@ export class MemoryReviewInboxService {
         nextCursor:
           (hasExtraVisible || rows.length === scanLimit) && cursorRow
             ? encodeMemoryReviewCursor({
-                createdAt: cursorRow.createdAt.toISOString(),
+                createdAt: cursorRow.createdAtCursor,
                 id: cursorRow.id,
               })
             : null,
@@ -457,27 +473,13 @@ export class MemoryReviewInboxService {
     if (!settingsMemoryReviewEnabledForTenant(ctx.tenantId)) {
       return { enabled: false, count: 0 };
     }
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const viewer = await this.requireActiveViewerInTx(tx, ctx);
-      const rows = await tx.$queryRaw<NotificationRow[]>(Prisma.sql`
-        SELECT notification.id::text AS id,
-               notification.review_request_id::text AS "reviewRequestId",
-               notification.candidate_id::text AS "candidateId",
-               notification.client_id::text AS "clientId",
-               notification.event_type AS "eventType",
-               notification.title,
-               notification.read_at AS "readAt",
-               notification.created_at AS "createdAt"
-        FROM memory_review_in_app_notification notification
-        WHERE notification.tenant_id = ${ctx.tenantId}::uuid
-          AND notification.recipient_user_id = ${ctx.userId}::uuid
-          AND notification.read_at IS NULL
-        ORDER BY notification.created_at DESC, notification.id DESC
-        LIMIT ${MAX_NOTIFICATION_SCAN + 1}
-      `);
       let count = 0;
-      for (const row of rows.slice(0, MAX_NOTIFICATION_SCAN)) {
-        if (await this.notificationVisibleInTx(tx, viewer, row)) count += 1;
+      for await (const rows of unreadMemoryNotificationPages(tx, ctx)) {
+        for (const row of rows) {
+          if (await this.notificationVisibleInTx(tx, viewer, row)) count += 1;
+        }
       }
       return { enabled: true, count };
     });
@@ -487,7 +489,7 @@ export class MemoryReviewInboxService {
     if (!settingsMemoryReviewEnabledForTenant(ctx.tenantId)) {
       throw new NotFoundException('Memory review notification was not found.');
     }
-    await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    await withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const viewer = await this.requireActiveViewerInTx(tx, ctx);
       const rows = await tx.$queryRaw<NotificationRow[]>(Prisma.sql`
         SELECT notification.id::text AS id,
@@ -523,39 +525,27 @@ export class MemoryReviewInboxService {
 
   async markAllNotificationsRead(ctx: TenantContext): Promise<number> {
     if (!settingsMemoryReviewEnabledForTenant(ctx.tenantId)) return 0;
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const viewer = await this.requireActiveViewerInTx(tx, ctx);
-      const rows = await tx.$queryRaw<NotificationRow[]>(Prisma.sql`
-        SELECT notification.id::text AS id,
-               notification.review_request_id::text AS "reviewRequestId",
-               notification.candidate_id::text AS "candidateId",
-               notification.client_id::text AS "clientId",
-               notification.event_type AS "eventType",
-               notification.title,
-               notification.read_at AS "readAt",
-               notification.created_at AS "createdAt"
-        FROM memory_review_in_app_notification notification
-        WHERE notification.tenant_id = ${ctx.tenantId}::uuid
-          AND notification.recipient_user_id = ${ctx.userId}::uuid
-          AND notification.read_at IS NULL
-        ORDER BY notification.created_at DESC, notification.id DESC
-        LIMIT ${MAX_NOTIFICATION_SCAN}
-      `);
-      const visibleIds: string[] = [];
-      for (const row of rows) {
-        if (await this.notificationVisibleInTx(tx, viewer, row)) {
-          visibleIds.push(row.id);
+      let updated = 0;
+      for await (const rows of unreadMemoryNotificationPages(tx, ctx)) {
+        const visibleIds: string[] = [];
+        for (const row of rows) {
+          if (await this.notificationVisibleInTx(tx, viewer, row)) {
+            visibleIds.push(row.id);
+          }
         }
+        if (visibleIds.length === 0) continue;
+        updated += await tx.$executeRaw(Prisma.sql`
+          UPDATE memory_review_in_app_notification
+          SET read_at = now()
+          WHERE tenant_id = ${ctx.tenantId}::uuid
+            AND recipient_user_id = ${ctx.userId}::uuid
+            AND read_at IS NULL
+            AND id IN (${Prisma.join(visibleIds.map((id) => Prisma.sql`${id}::uuid`))})
+        `);
       }
-      if (visibleIds.length === 0) return 0;
-      return tx.$executeRaw(Prisma.sql`
-        UPDATE memory_review_in_app_notification
-        SET read_at = now()
-        WHERE tenant_id = ${ctx.tenantId}::uuid
-          AND recipient_user_id = ${ctx.userId}::uuid
-          AND read_at IS NULL
-          AND id IN (${Prisma.join(visibleIds.map((id) => Prisma.sql`${id}::uuid`))})
-      `);
+      return updated;
     });
   }
 
@@ -634,6 +624,7 @@ export class MemoryReviewInboxService {
     ctx: TenantContext,
     viewerRole: TenantRole,
     limit: number,
+    after: string | null,
   ): Promise<InboxRow[]> {
     const participantClause = isAdmin(viewerRole)
       ? Prisma.sql``
@@ -648,7 +639,8 @@ export class MemoryReviewInboxService {
         AND rr.surface = 'memory'
         AND rr.subject_type = 'memory_candidate'
         ${participantClause}
-      ORDER BY rr.created_at DESC, rr.id DESC
+        ${after ? Prisma.sql`AND rr.id > ${after}::uuid` : Prisma.empty}
+      ORDER BY rr.id ASC
       LIMIT ${limit}
     `);
   }
@@ -928,6 +920,7 @@ function inboxSelect(includePayload = false): Prisma.Sql {
            rr.assigned_to::text AS "assignedTo",
            rr.decided_by::text AS "decidedBy",
            rr.created_at AS "createdAt",
+           to_char(rr.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "createdAtCursor",
            rr.decided_at AS "decidedAt",
            rr.payload_jsonb ->> 'candidateKind' AS "candidateKind",
            mc.source_kind AS "sourceKind",
@@ -953,9 +946,14 @@ function inboxSelect(includePayload = false): Prisma.Sql {
                : Prisma.sql``
            }
     FROM review_request rr
-    JOIN memory_candidate mc
-      ON mc.tenant_id = rr.tenant_id
-     AND mc.id::text = rr.subject_id
+    -- Keep the protected candidate lookup parameterized by one review identity,
+    -- including before statistics catch up with a newly imported population.
+    JOIN LATERAL (
+      SELECT candidate.* FROM memory_candidate candidate
+      WHERE candidate.tenant_id = rr.tenant_id
+        AND candidate.id = memory_review_candidate_identity(rr.subject_id)
+      OFFSET 0
+    ) mc ON true
     JOIN users submitter ON submitter.id = rr.requested_by
     LEFT JOIN users reviewer ON reviewer.id = rr.assigned_to
     LEFT JOIN users decider ON decider.id = rr.decided_by

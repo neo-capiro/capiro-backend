@@ -1,7 +1,9 @@
 import type {
   CapiroServiceName,
   EngagementBackgroundOwner,
+  EngagementBackgroundWorkerRestriction,
   EngagementExternalActionMode,
+  EngagementMailHandoffSelection,
   EngagementProcessMode,
 } from './engagement-runtime.types.js';
 
@@ -15,6 +17,76 @@ export interface EngagementRuntimeEnvironment {
   externalActions: EngagementExternalActionMode;
   callbacksEnabled: boolean;
   recallWebhookEnabled: boolean;
+  backgroundWorkerRestriction?: EngagementBackgroundWorkerRestriction;
+  /** Mail-handoff selection; absent or 'off' preserves legacy behavior. */
+  mailHandoff?: EngagementMailHandoffSelection;
+}
+
+const MAIL_HANDOFF_PHASES = ['off', 'initiation_fenced', 'callback_fenced', 'writers_closed'] as const;
+
+/**
+ * Parse the operator mail-handoff selection.
+ *
+ * Omitted or blank keeps legacy behavior (no selection). A phase must be one of
+ * the four known values; the companion generation/fence instant may not appear
+ * without a phase, because a companion alone is an ambiguous half-configuration
+ * that must fail closed rather than silently leave the fence off. An instant must
+ * be a real ISO-8601 value: an unparseable one is rejected, and an omitted one is
+ * recorded as unproven (null) rather than substituted with the epoch.
+ */
+export function parseEngagementMailHandoffSelection(
+  raw: Record<string, unknown>,
+): EngagementMailHandoffSelection | undefined {
+  const rawPhase = raw.ENGAGEMENT_MAIL_HANDOFF_PHASE;
+  const rawGeneration = raw.ENGAGEMENT_MAIL_HANDOFF_GENERATION;
+  const rawFenceUtc = raw.ENGAGEMENT_MAIL_HANDOFF_FENCE_UTC;
+  const phase = rawPhase == null ? '' : String(rawPhase).trim().toLowerCase();
+  const generation = rawGeneration == null ? '' : String(rawGeneration).trim();
+  const fenceUtcRaw = rawFenceUtc == null ? '' : String(rawFenceUtc).trim();
+
+  if (phase === '') {
+    if (generation !== '' || fenceUtcRaw !== '') {
+      throw new Error(
+        'ENGAGEMENT_MAIL_HANDOFF_GENERATION and ENGAGEMENT_MAIL_HANDOFF_FENCE_UTC require ' +
+          'ENGAGEMENT_MAIL_HANDOFF_PHASE; a companion without a phase is a partial ' +
+          'configuration and is refused.',
+      );
+    }
+    return undefined;
+  }
+  if (phase === 'off') {
+    if (generation !== '' || fenceUtcRaw !== '') {
+      throw new Error(
+        'ENGAGEMENT_MAIL_HANDOFF_PHASE=off must not carry a generation or fence instant; ' +
+          'an explicit off selection is the legacy behavior with no companion values.',
+      );
+    }
+    // An explicit 'off' is the legacy behavior, not a selection: keep it absent so
+    // every consumer's "no selection" path stays the single legacy path.
+    return undefined;
+  }
+  if (!MAIL_HANDOFF_PHASES.includes(phase as (typeof MAIL_HANDOFF_PHASES)[number])) {
+    throw new Error(
+      `ENGAGEMENT_MAIL_HANDOFF_PHASE must be one of: ${MAIL_HANDOFF_PHASES.join(', ')} ` +
+        `(got ${JSON.stringify(String(rawPhase))})`,
+    );
+  }
+  let fenceUtc: string | null = null;
+  if (fenceUtcRaw !== '') {
+    const parsed = new Date(fenceUtcRaw);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new Error(
+        'ENGAGEMENT_MAIL_HANDOFF_FENCE_UTC must be an ISO-8601 instant ' +
+          `(got ${JSON.stringify(String(rawFenceUtc))})`,
+      );
+    }
+    fenceUtc = parsed.toISOString();
+  }
+  return {
+    phase: phase as (typeof MAIL_HANDOFF_PHASES)[number],
+    generation: generation === '' ? null : generation,
+    fenceUtc,
+  };
 }
 
 function exactEnum<T extends string>(
@@ -43,6 +115,29 @@ export function parseExactBooleanEnvironment(
     `${name} must be an exact boolean value: true/1/yes/on or false/0/no/off ` +
       `(got ${JSON.stringify(String(raw))})`,
   );
+}
+
+/**
+ * Parse the opt-in background-worker restriction.
+ *
+ * Omitted or blank keeps the legacy generic-ownership behavior, so a
+ * hand-edited task definition that blanks the value cannot crash-loop the API
+ * over a variable it deliberately does not set. A non-blank value must be the
+ * single supported token: anything else fails closed instead of being silently
+ * ignored or widened into a worker list.
+ */
+export function parseEngagementBackgroundWorkerRestriction(
+  raw: unknown,
+): EngagementBackgroundWorkerRestriction | undefined {
+  const value = raw == null ? '' : String(raw).trim().toLowerCase();
+  if (value === '') return undefined;
+  if (value !== 'integration_sync_scheduler') {
+    throw new Error(
+      'ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION must be omitted or exactly ' +
+        `'integration_sync_scheduler' (got ${JSON.stringify(String(raw))})`,
+    );
+  }
+  return value;
 }
 
 /**
@@ -75,6 +170,12 @@ export const ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT =
  * OAuth/subscriptions. One named exception is admitted: serviceName=api with an
  * explicitly set ENGAGEMENT_BACKGROUND_OWNER=api may run only the existing
  * engagement-sync-scheduler under the runtime policy.
+ *
+ * One further opt-in control narrows an otherwise generic owner:
+ * ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION=integration_sync_scheduler admits
+ * only the existing engagement-sync-scheduler worker, and only on the
+ * api/active/api/enabled/callbacks=true/Recall=false tuple. Omitted keeps the
+ * legacy generic ownership behavior unchanged.
  * integrations_and_notetaker separately enables existing Recall capture and
  * debrief generation, with an explicit API owner and both callback gates on.
  *
@@ -129,6 +230,10 @@ export function resolveEngagementRuntimeEnvironment(
     raw.ENGAGEMENT_RECALL_WEBHOOK_ENABLED,
     true,
   );
+  const backgroundWorkerRestriction = parseEngagementBackgroundWorkerRestriction(
+    raw.ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION,
+  );
+  const mailHandoff = parseEngagementMailHandoffSelection(raw);
 
   const resolved: EngagementRuntimeEnvironment = {
     serviceName,
@@ -137,7 +242,42 @@ export function resolveEngagementRuntimeEnvironment(
     externalActions,
     callbacksEnabled,
     recallWebhookEnabled,
+    backgroundWorkerRestriction,
+    mailHandoff,
   };
+
+  // The restriction narrows the worker surface, so it is valid only for the
+  // intended main-API tuple. An explicit selection outside that tuple fails
+  // closed rather than quietly changing which workers run.
+  //
+  // The Recall webhook axis has TWO deliberately reviewed final API stages: Recall
+  // disabled (today's deployable sender/prep stage) and Recall enabled (the accepted
+  // capture-receiver handoff, which the named note-taker owner needs). Both are
+  // admitted here. Recall's resolver fallback and schema default are TRUE, so the
+  // switch must be EXPLICIT for either stage: an omitted or blank value keeps failing
+  // closed instead of silently arming callbacks through the default.
+  if (backgroundWorkerRestriction) {
+    const recallExplicit =
+      raw.ENGAGEMENT_RECALL_WEBHOOK_ENABLED != null &&
+      String(raw.ENGAGEMENT_RECALL_WEBHOOK_ENABLED).trim() !== '';
+    const compatible =
+      serviceName === 'api' &&
+      processMode === 'active' &&
+      backgroundOwner === 'api' &&
+      externalActions === 'enabled' &&
+      callbacksEnabled &&
+      recallExplicit;
+    if (!compatible) {
+      throw new Error(
+        'ENGAGEMENT_BACKGROUND_WORKER_RESTRICTION=integration_sync_scheduler requires ' +
+          'CAPIRO_SERVICE_NAME=api, ENGAGEMENT_PROCESS_MODE=active, ' +
+          'ENGAGEMENT_BACKGROUND_OWNER=api, ENGAGEMENT_EXTERNAL_ACTIONS=enabled, ' +
+          'ENGAGEMENT_CALLBACKS_ENABLED=true and an explicit ' +
+          'ENGAGEMENT_RECALL_WEBHOOK_ENABLED (true for the capture stage, false for ' +
+          'the sender/prep stage).',
+      );
+    }
+  }
 
   if (externalActions === 'integrations_and_notetaker') {
     const explicit = ['CAPIRO_SERVICE_NAME', 'ENGAGEMENT_PROCESS_MODE', 'ENGAGEMENT_BACKGROUND_OWNER',

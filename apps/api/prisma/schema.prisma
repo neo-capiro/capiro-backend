@@ -134,6 +134,9 @@ enum BillingStatus {
 }
 
 model Tenant {
+  firmImportJobs         FirmImportJob[]
+  siteWorkflowRevisions MeriSiteWorkflowRevision[]
+  officeDrafts MeriOfficeDraft[]
   supportRequests SupportRequest[]
   engagementPlans EngagementPlan[]
   krispPreferences KrispNotetakerPreference[]
@@ -145,6 +148,7 @@ model Tenant {
 
   clientNotetakerPreferences ClientNotetakerPreference[]
   meetingPrepJobs            MeetingPrepJob[]
+  meetingDebriefJobs         MeetingDebriefJob[]
   meetingPrepMondayMappings  MeetingPrepMondayMapping[]
   mobileDeviceTokens         MobileDeviceToken[]
   id                         String                      @id @default(uuid()) @db.Uuid
@@ -576,6 +580,7 @@ model CanonicalEntityBackfillCheckpoint {
 }
 
 model User {
+  firmImportJobs FirmImportJob[] @relation("FirmImportJobRequester")
   supportRequests SupportRequest[]
   krispPreferences KrispNotetakerPreference[]
   krispImports KrispMeetingImport[]
@@ -586,6 +591,7 @@ model User {
 
   clientNotetakerPreferences ClientNotetakerPreference[]
   meetingPrepJobs            MeetingPrepJob[]
+  meetingDebriefJobs         MeetingDebriefJob[]
   meetingPrepMondayMappings  MeetingPrepMondayMapping[]
   mobileDeviceTokens         MobileDeviceToken[]
   id                         String                      @id @default(uuid()) @db.Uuid
@@ -646,6 +652,7 @@ model User {
   userPortfolioLayouts             UserPortfolioLayout[]
   clioMessages                     ClioMessage[]                  @relation("ClioMessageUser")
   clioArtifacts                    ClioArtifact[]                 @relation("ClioArtifactUser")
+  officeDrafts                     MeriOfficeDraft[]
   clioNotes                        ClioNote[]                     @relation("ClioNoteUser")
   clioResearchSessions             ClioResearchSession[]          @relation("ClioResearchSessionUser")
   clioAttachments                  ClioAttachment[]               @relation("ClioAttachmentUser")
@@ -1116,6 +1123,7 @@ model ClientObjective {
   client            Client    @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade)
   revisions         ClientObjectiveRevision[]
   operationalState  ClientObjectiveOperationalState?
+  questions         ClientObjectiveQuestion[]
 
   @@unique([tenantId, clientId, id], map: "client_objectives_scope_key")
   @@unique([tenantId, clientId, clientRequestId], map: "client_objectives_request_key")
@@ -1137,10 +1145,48 @@ model ClientObjectiveRevision {
   workIntents ClientObjectiveWorkIntent[]
   operationalLinks ClientObjectiveResourceLink[]
   operationalReceipts ClientObjectiveOperationalReceipt[]
+  questionRevisions ClientObjectiveQuestionRevision[]
 
   @@unique([tenantId, objectiveId, version], map: "client_objective_revisions_version_key")
   @@unique([tenantId, clientId, objectiveId, id, version], map: "client_objective_revisions_intent_scope_key")
   @@map("client_objective_revisions")
+}
+
+/// Versioned Objective-context Questions; Core owns authority and transitions.
+model ClientObjectiveQuestion {
+  id          String @id @db.Uuid
+  tenantId    String @map("tenant_id") @db.Uuid
+  clientId    String @map("client_id") @db.Uuid
+  objectiveId String @map("objective_id") @db.Uuid
+  version     Int
+  status      String @db.VarChar(16)
+  snapshot    Json
+  objective ClientObjective @relation(fields: [tenantId, clientId, objectiveId], references: [tenantId, clientId, id], onDelete: Cascade, onUpdate: NoAction, map: "client_objective_questions_objective_fk")
+  revisions ClientObjectiveQuestionRevision[]
+  @@unique([tenantId, clientId, objectiveId, id], map: "client_objective_questions_scope_key")
+  @@index([tenantId, clientId, objectiveId, status, id], map: "client_objective_questions_list_idx")
+  @@map("client_objective_questions")
+}
+
+model ClientObjectiveQuestionRevision {
+  tenantId               String @map("tenant_id") @db.Uuid
+  clientId               String @map("client_id") @db.Uuid
+  objectiveId            String @map("objective_id") @db.Uuid
+  questionId             String @map("question_id") @db.Uuid
+  version                Int
+  sourceRevisionId       String @map("source_revision_id") @db.Uuid
+  sourceObjectiveVersion Int @map("source_objective_version")
+  actorUserId            String @map("actor_user_id") @db.Uuid
+  requestId              String @map("request_id") @db.Uuid
+  payloadDigest          String @map("payload_digest") @db.Char(64)
+  action                 String @db.VarChar(16)
+  snapshot               Json
+  committedAt            DateTime @default(dbgenerated("clock_timestamp()")) @map("committed_at") @db.Timestamptz(6)
+  question ClientObjectiveQuestion @relation(fields: [tenantId, clientId, objectiveId, questionId], references: [tenantId, clientId, objectiveId, id], onDelete: Cascade, onUpdate: NoAction, map: "client_objective_question_revisions_question_fk")
+  source ClientObjectiveRevision @relation(fields: [tenantId, clientId, objectiveId, sourceRevisionId, sourceObjectiveVersion], references: [tenantId, clientId, objectiveId, id, version], onDelete: Cascade, onUpdate: NoAction, map: "client_objective_question_revisions_source_fk")
+  @@id([tenantId, clientId, objectiveId, questionId, version])
+  @@unique([tenantId, clientId, objectiveId, actorUserId, requestId], map: "client_objective_question_revisions_request_key")
+  @@map("client_objective_question_revisions")
 }
 
 /// Inert confirmation intent. No dispatcher or workload authority is attached.
@@ -1466,6 +1512,7 @@ model Meeting {
   krispImports KrispMeetingImport[]
 
   prepJobs           MeetingPrepJob[]
+  debriefJobs        MeetingDebriefJob[]
   id                 String            @id @default(uuid()) @db.Uuid
   tenantId           String            @map("tenant_id") @db.Uuid
   clientId           String?           @map("client_id") @db.Uuid
@@ -1874,6 +1921,36 @@ model MeetingPrepJob {
   @@map("meeting_prep_jobs")
 }
 
+model MeetingDebriefJob {
+  tenant      Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meeting     Meeting        @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  debrief     MeetingDebrief? @relation(fields: [debriefId], references: [id], onDelete: SetNull)
+  id          String         @id @default(uuid()) @db.Uuid
+  tenantId    String         @map("tenant_id") @db.Uuid
+  userId      String         @map("user_id") @db.Uuid
+  meetingId   String         @map("meeting_id") @db.Uuid
+  requestKey  String         @map("request_key") @db.VarChar(128)
+  requestHash String         @map("request_hash") @db.VarChar(64)
+  status      String         @default("queued") @db.VarChar(24)
+  stage       String         @default("queued") @db.VarChar(48)
+  input       Json
+  checkpoints Json           @default("{}")
+  leaseToken  String?        @map("lease_token") @db.Uuid
+  leaseUntil  DateTime?      @map("lease_until") @db.Timestamptz(6)
+  deadlineAt  DateTime       @map("deadline_at") @db.Timestamptz(6)
+  attempts    Int            @default(0)
+  debriefId   String?        @map("debrief_id") @db.Uuid
+  errorCode   String?        @map("error_code") @db.VarChar(64)
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, userId, requestKey])
+  @@index([status, leaseUntil, createdAt])
+  @@index([tenantId, userId, meetingId, createdAt])
+  @@map("meeting_debrief_jobs")
+}
+
 model MeetingPrepMondayMapping {
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1948,9 +2025,13 @@ model MeetingDebrief {
   // above.
   sharedAt       DateTime?            @map("shared_at") @db.Timestamptz(6)
   sharedByUserId String?              @map("shared_by_user_id") @db.Uuid
+  // D2 (2026-10): the assembled-context summary the model actually saw, written when the
+  // debrief row is created from a generated draft. Nullable: existing rows predate it.
+  generatedFromJsonb Json?         @map("generated_from_jsonb")
   createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  debriefJobs MeetingDebriefJob[]
   tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   meeting  Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
   client   Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
@@ -2363,6 +2444,7 @@ model ClioConversation {
   notes     ClioNote[]
   bootstrapReceipt ClioConversationBootstrapReceipt?
   managementReceipts ClioConversationManagementReceipt[]
+  officeDrafts MeriOfficeDraft[]
 
   @@index([tenantId, userId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_user_updated_idx")
   @@index([tenantId, clientId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_client_updated_idx")
@@ -2952,6 +3034,9 @@ model ClioNote {
 }
 
 model ClioMemory {
+  /// NULL is an explicitly restricted legacy ownership disposition.
+  retentionSubjectId String? @map("retention_subject_id") @db.Uuid
+  retentionSubject MemoryRetentionSubject? @relation(fields: [tenantId, retentionSubjectId], references: [tenantId, id], onDelete: Restrict, map: "clio_memory_retention_subject_fk")
   id          String                 @id @default(uuid()) @db.Uuid
   tenantId    String                 @map("tenant_id") @db.Uuid
   // Stored as TEXT in the DB with a CHECK constraint (scope IN
@@ -2987,6 +3072,7 @@ model ClioMemory {
   @@unique([tenantId, scope, ownerUserId, key], map: "clio_memory_tenant_scope_owner_key_uniq")
   @@index([tenantId, scope, ownerUserId, updatedAt(sort: Desc)], map: "clio_memory_scope_owner_updated_idx")
   @@index([tenantId, scope, updatedAt(sort: Desc)], map: "clio_memory_scope_updated_idx")
+  @@index([tenantId, retentionSubjectId], map: "clio_memory_retention_subject")
   @@map("clio_memory")
 }
 
@@ -11572,11 +11658,120 @@ model ProgramOfficeProgramLink {
   @@map("program_office_program_link")
 }
 
+/// Content-free lifecycle binding. Owner IDs have no cascading FK so the
+/// closed period survives the owner's removal and payload cleanup.
+model MemoryRetentionSubject {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  ownerKind String @map("owner_kind") @db.VarChar(16)
+  ownerId String @map("owner_id") @db.Uuid
+  policyVersion Int @default(1) @map("policy_version")
+  openedAt DateTime @default(now()) @map("opened_at") @db.Timestamptz(6)
+  closedAt DateTime? @map("closed_at") @db.Timestamptz(6)
+  purgeAfter DateTime? @map("purge_after") @db.Timestamptz(6)
+  closedReason String? @map("closed_reason") @db.VarChar(32)
+  items MemoryItem[]
+  candidates MemoryCandidate[]
+  clioMemories ClioMemory[]
+  tombstones MemoryRetentionTombstone[]
+  authoredSettingsDrafts MemorySettingsDraft[] @relation("settingsDraftAuthorPeriod")
+  ownedSettingsDrafts MemorySettingsDraft[] @relation("settingsDraftOwnerPeriod")
+  settingsDraftReceipts MemorySettingsDraftReceipt[]
+  settingsSubmissions MemorySettingsSubmission[]
+
+  @@unique([tenantId, id])
+  @@map("memory_retention_subjects")
+}
+
+/// Immutable content-free deletion outcome, used to refuse old INSERT retries.
+model MemoryRetentionTombstone {
+  tenantId String @map("tenant_id") @db.Uuid
+  store String @db.VarChar(24)
+  rowId String @map("row_id") @db.Uuid
+  retentionSubjectId String? @map("retention_subject_id") @db.Uuid
+  purgedAt DateTime @default(now()) @map("purged_at") @db.Timestamptz(6)
+  retentionSubject MemoryRetentionSubject? @relation(fields: [tenantId, retentionSubjectId], references: [tenantId, id], onDelete: Restrict)
+
+  @@id([tenantId, store, rowId])
+  @@map("memory_retention_tombstones")
+}
+
+/// Private staging; never indexed or recalled. Expiry erases sections and retains identity.
+model MemorySettingsDraft {
+  id String @id @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  authorUserId String @map("author_user_id") @db.Uuid
+  authorPeriodId String @map("author_period_id") @db.Uuid
+  ownerPeriodId String @map("owner_period_id") @db.Uuid
+  type String @db.VarChar(64)
+  slug String @db.VarChar(128)
+  scope String @db.VarChar(12)
+  clientId String? @map("client_id") @db.Uuid
+  baseItemId String? @map("base_item_id") @db.Uuid
+  baseVersion String? @map("base_version") @db.VarChar(64)
+  revision Int
+  state String @default("draft") @db.VarChar(16)
+  sections Json?
+  legalHold Boolean @default(false) @map("legal_hold")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  authorPeriod MemoryRetentionSubject @relation("settingsDraftAuthorPeriod",fields:[tenantId,authorPeriodId],references:[tenantId,id],onDelete:Restrict)
+  ownerPeriod MemoryRetentionSubject @relation("settingsDraftOwnerPeriod",fields:[tenantId,ownerPeriodId],references:[tenantId,id],onDelete:Restrict)
+  receipts MemorySettingsDraftReceipt[]
+  submissions MemorySettingsSubmission[]
+  @@unique([tenantId,id])
+  @@index([tenantId,authorUserId,type,slug],map:"memory_settings_drafts_owner")
+  @@map("memory_settings_drafts")
+}
+
+/// Immutable content-free response recovery; a receipt describes the original operation.
+model MemorySettingsDraftReceipt {
+  tenantId String @map("tenant_id") @db.Uuid
+  authorUserId String @map("author_user_id") @db.Uuid
+  authorPeriodId String @map("author_period_id") @db.Uuid
+  requestId String @map("request_id") @db.Uuid
+  draftId String @map("draft_id") @db.Uuid
+  type String @db.VarChar(64)
+  slug String @db.VarChar(128)
+  requestHash String @map("request_hash") @db.VarChar(64)
+  revision Int
+  state String @db.VarChar(16)
+  recordedAt DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  draft MemorySettingsDraft @relation(fields:[tenantId,draftId],references:[tenantId,id],onDelete:Restrict)
+  authorPeriod MemoryRetentionSubject @relation(fields:[tenantId,authorPeriodId],references:[tenantId,id],onDelete:Restrict)
+  @@id([tenantId,authorUserId,requestId])
+  @@map("memory_settings_draft_receipts")
+}
+
+/// Atomic private-draft handoff to an independently governed candidate.
+model MemorySettingsSubmission {
+  tenantId String @map("tenant_id") @db.Uuid
+  authorUserId String @map("author_user_id") @db.Uuid
+  authorPeriodId String @map("author_period_id") @db.Uuid
+  requestId String @map("request_id") @db.Uuid
+  requestHash String @map("request_hash") @db.VarChar(64)
+  draftId String @map("draft_id") @db.Uuid
+  draftRevision Int @map("draft_revision")
+  candidateId String @map("candidate_id") @db.Uuid
+  type String @db.VarChar(64)
+  slug String @db.VarChar(128)
+  submittedAt DateTime @default(now()) @map("submitted_at") @db.Timestamptz(6)
+  draft MemorySettingsDraft @relation(fields:[tenantId,draftId],references:[tenantId,id],onDelete:Restrict)
+  authorPeriod MemoryRetentionSubject @relation(fields:[tenantId,authorPeriodId],references:[tenantId,id],onDelete:Restrict)
+  @@id([tenantId,authorUserId,requestId])
+  @@unique([tenantId,draftId])
+  @@map("memory_settings_submissions")
+}
+
 /// Canonical institutional-memory item (plan §0.5). Projected to an Obsidian-
 /// format markdown file in the vault; consumed structurally by the AI /
 /// Intelligence Center. Facts live in the referenced entity row (entityId);
 /// this holds the interpretation/narrative around them. RLS-FORCED on tenant_id.
 model MemoryItem {
+  /// Immutable ownership period; reactivation cannot rebind existing content.
+  retentionSubjectId String? @map("retention_subject_id") @db.Uuid
+  retentionSubject MemoryRetentionSubject? @relation(fields: [tenantId, retentionSubjectId], references: [tenantId, id], onDelete: Restrict, map: "memory_items_retention_subject_fk")
   id            String   @id @default(uuid()) @db.Uuid
   tenantId      String   @map("tenant_id") @db.Uuid
   clientId      String?  @map("client_id") @db.Uuid
@@ -11707,6 +11902,7 @@ model MemoryItem {
   @@index([entityId], map: "memory_items_entity_idx")
   @@index([tenantId, status], map: "memory_items_tenant_status_idx")
   @@index([tenantId, governedStatus, memoryClass, memoryScope, clientId], map: "memory_items_governed_recall_idx")
+  @@index([tenantId, retentionSubjectId], map: "memory_items_retention_subject")
   @@map("memory_items")
 }
 
@@ -11741,6 +11937,9 @@ model MemoryEdge {
 /// once committed (clio_memory stays the fast write/recall path per D1;
 /// memory_items remains the write-through governance projection).
 model MemoryCandidate {
+  /// NULL is an explicitly restricted legacy ownership disposition.
+  retentionSubjectId String? @map("retention_subject_id") @db.Uuid
+  retentionSubject MemoryRetentionSubject? @relation(fields: [tenantId, retentionSubjectId], references: [tenantId, id], onDelete: Restrict, map: "memory_candidate_retention_subject_fk")
   id         String  @id @default(uuid()) @db.Uuid
   tenantId   String  @map("tenant_id") @db.Uuid
   proposedBy String  @map("proposed_by") @db.Uuid
@@ -11853,6 +12052,7 @@ model MemoryCandidate {
   @@index([tenantId, status], map: "memory_candidate_tenant_status_idx")
   @@index([tenantId, proposedBy], map: "memory_candidate_tenant_proposed_by_idx")
   @@index([tenantId, governedStatus, memoryClass, clientId, createdAt(sort: Desc)], map: "memory_candidate_governed_queue_idx")
+  @@index([tenantId, retentionSubjectId], map: "memory_candidate_retention_subject")
   @@map("memory_candidate")
 }
 
@@ -15650,6 +15850,8 @@ model BusinessDevelopmentBrief {
 /// deferrable current-version pointer constraint and the per-brief version
 /// numbering unique.
 model BusinessDevelopmentBriefVersion {
+  refreshProposals BusinessDevelopmentBriefRefreshProposal[]
+
   id                     String   @id @default(uuid()) @db.Uuid
   tenantId               String   @map("tenant_id") @db.Uuid
   briefId                String   @map("brief_id") @db.Uuid
@@ -15921,6 +16123,10 @@ enum ResearchPortfolioMemberKind {
   project
   budget_line
   award
+  /// Federal bill identity is congress + bill type + number (congress_bill.id).
+  federal_bill
+  /// State bill identity is jurisdiction + legislative session + type/number (state_bill.id).
+  state_bill
 
   @@map("research_portfolio_member_kind")
 }
@@ -15969,6 +16175,9 @@ enum ResearchPortfolioEventKind {
   share_design_saved
   share_link_published
   share_link_revoked
+  /// Material legislative change recorded by the source ingestion owner for a
+  /// portfolio that tracks the bill. The actor is the legislative source, not a user.
+  bill_changed
 
   @@map("research_portfolio_event_kind")
 }
@@ -16102,7 +16311,10 @@ model ResearchPortfolioEvent {
   portfolioId        String                     @map("portfolio_id") @db.Uuid
   eventKind          ResearchPortfolioEventKind @map("event_kind")
   aggregateRevision  Int                        @map("aggregate_revision")
-  actorUserId        String                     @map("actor_user_id") @db.Uuid
+  /// null when the actor is a source ingestion owner (actorKind = 'system').
+  actorUserId        String?                    @map("actor_user_id") @db.Uuid
+  /// 'user' for product mutations; 'system' for source-owned legislative events.
+  actorKind          String                     @default("user") @map("actor_kind") @db.VarChar(16)
   occurredAt         DateTime                   @default(now()) @map("occurred_at") @db.Timestamptz(6)
   idempotencyKey     String?                    @map("idempotency_key") @db.VarChar(128)
   payloadFingerprint String?                    @map("payload_fingerprint") @db.VarChar(64)
@@ -16161,6 +16373,9 @@ enum ResearchPortfolioReviewTargetKind {
   project
   budget_line
   award
+  /// Bills can open reviews (rule change, source cycle, dispute) like any other subject.
+  federal_bill
+  state_bill
   rule
   portfolio
 
@@ -17870,4 +18085,145 @@ model WsShareLink {
   @@index([tenantId, portfolioId, publishedAt(sort: Desc)], map: "ws_share_link_portfolio_idx")
   @@index([tenantId, expiresAt], map: "ws_share_link_expiry_idx")
   @@map("ws_share_link")
+}
+
+
+/// Immutable exact-content review; acceptance appends through the existing version owner.
+model BusinessDevelopmentBriefRefreshProposal {
+  id String @id @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  briefId String @map("brief_id") @db.Uuid
+  baseVersionId String @map("base_version_id") @db.Uuid
+  createdByUserId String @map("created_by_user_id") @db.Uuid
+  payload Json
+  proposalHash String @map("proposal_hash") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  baseVersion BusinessDevelopmentBriefVersion @relation(fields: [tenantId,baseVersionId,briefId], references: [tenantId,id,briefId], onDelete: Cascade, map: "brief_refresh_base_fkey")
+  @@index([tenantId,briefId,createdByUserId,createdAt(sort: Desc)], map: "brief_refresh_owner_idx")
+  @@map("business_development_brief_refresh_proposals")
+}
+
+model MeriSiteWorkflowRevision {
+  tenantId String @map("tenant_id") @db.Uuid
+  siteId String @map("site_id") @db.VarChar(64)
+  workflowId String @map("workflow_id") @db.VarChar(64)
+  version Int
+  manifest Json
+  manifestSha256 String @map("manifest_sha256") @db.VarChar(64)
+  enabled Boolean
+  requestId String @map("request_id") @db.Uuid
+  requestSha256 String @map("request_sha256") @db.VarChar(64)
+  createdByUserId String @map("created_by_user_id") @db.Uuid
+  createdAt DateTime @default(dbgenerated("clock_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  @@id([tenantId,siteId,workflowId,version])
+  @@unique([tenantId,createdByUserId,requestId])
+  @@map("meri_site_workflow_revisions")
+}
+
+/// Private editor saves. The runtime artifact owner alone publishes immutable versions.
+model MeriOfficeDraft {
+  tenantId String @map("tenant_id") @db.Uuid
+  actorUserId String @map("actor_user_id") @db.Uuid
+  conversationId String @map("conversation_id") @db.Uuid
+  draftId String @map("draft_id") @db.Uuid
+  artifactId String @map("artifact_id") @db.Uuid
+  baseVersionId String @map("base_version_id") @db.Uuid
+  baseSha256 String @map("base_sha256") @db.VarChar(64)
+  format String @db.VarChar(4)
+  filename String @db.VarChar(195)
+  sequence Int @default(0)
+  bytes Bytes?
+  sha256 String? @db.VarChar(64)
+  state String @default("draft") @db.VarChar(20)
+  publishIntent String? @map("publish_intent") @db.VarChar(128)
+  publishedVersionId String? @map("published_version_id") @db.Uuid
+  lockToken String? @map("lock_token") @db.VarChar(1024)
+  lockExpiresAt DateTime? @map("lock_expires_at") @db.Timestamptz(6)
+  editorId String? @map("editor_id") @db.Uuid
+  editorEpoch Int @default(0) @map("editor_epoch")
+  editorExpiresAt DateTime? @map("editor_expires_at") @db.Timestamptz(6)
+  createdAt DateTime @default(dbgenerated("clock_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(dbgenerated("clock_timestamp()")) @map("updated_at") @db.Timestamptz(6)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor User @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
+  conversation ClioConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  @@id([tenantId,actorUserId,draftId])
+  @@index([tenantId,artifactId], map: "meri_office_draft_artifact_idx")
+  @@index([expiresAt], map: "meri_office_draft_expiry_idx")
+  @@map("meri_office_drafts")
+}
+
+// ---------------------------------------------------------------------------
+// Durable view of the existing LDA client importer (POST /firm/import).
+// The importer stays synchronous: a job/items row set is committed before any
+// client work, and each item outcome is written in the same transaction as its
+// canonical Client + confirmed clientIntelMapping effect. No queue or worker.
+// ---------------------------------------------------------------------------
+enum FirmImportJobStatus {
+  queued
+  running
+  partially_completed
+  failed
+  completed
+
+  @@map("firm_import_job_status")
+}
+
+enum FirmImportItemOutcome {
+  pending
+  created
+  already_present
+  rejected
+
+  @@map("firm_import_item_outcome")
+}
+
+model FirmImportJob {
+  id                String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  requestedByUserId String   @map("requested_by_user_id") @db.Uuid
+  /// Stable client-supplied request identity (retry/lookup) and its exact hash.
+  requestKey        String   @map("request_key") @db.VarChar(128)
+  requestSha256     String   @map("request_sha256") @db.Char(64)
+  ldaRegistrantId   Int      @map("lda_registrant_id")
+  requestedIds      Int[]    @map("requested_ids")
+  status            FirmImportJobStatus @default(queued)
+  startedAt         DateTime? @map("started_at") @db.Timestamptz(6)
+  finishedAt        DateTime? @map("finished_at") @db.Timestamptz(6)
+  /// Ordering is millisecond-precision by contract: this column is
+  /// timestamptz(3) with a millisecond-truncated default, so the ISO-8601
+  /// cursor round-trips exactly through JavaScript Date; id breaks ties.
+  createdAt         DateTime @default(dbgenerated("date_trunc('milliseconds', clock_timestamp())")) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant          Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "firm_import_jobs_tenant_fkey")
+  requestedBy     User                @relation("FirmImportJobRequester", fields: [requestedByUserId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "firm_import_jobs_requested_by_fkey")
+  items           FirmImportJobItem[]
+
+  @@unique([tenantId, requestKey], map: "firm_import_jobs_tenant_request_key")
+  @@unique([tenantId, id], map: "firm_import_jobs_tenant_id_key")
+  @@index([tenantId, createdAt(sort: Desc), id(sort: Desc)], map: "firm_import_jobs_page_idx")
+  @@index([tenantId, status, createdAt(sort: Desc), id(sort: Desc)], map: "firm_import_jobs_status_idx")
+  @@map("firm_import_jobs")
+}
+
+model FirmImportJobItem {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  jobId       String   @map("job_id") @db.Uuid
+  ldaClientId Int      @map("lda_client_id")
+  outcome     FirmImportItemOutcome @default(pending)
+  /// Closed code (NOT_OWN_CLIENT|LDA_CLIENT_NOT_FOUND|CLIENT_SLOT_LIMIT|INTERNAL_ERROR).
+  code        String?  @db.VarChar(64)
+  clientId    String?  @map("client_id") @db.Uuid
+  processedAt DateTime? @map("processed_at") @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  job FirmImportJob @relation(fields: [tenantId, jobId], references: [tenantId, id], onDelete: Cascade, onUpdate: NoAction, map: "firm_import_job_items_job_fkey")
+
+  @@unique([tenantId, jobId, ldaClientId], map: "firm_import_job_items_identity_key")
+  @@map("firm_import_job_items")
 }

@@ -3,10 +3,10 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import type { Prisma } from '../../generated/prisma-client/index.js';
 import {
   object,
-  type ReportBill,
+  type PublishedBill,
   type PublishedEvent,
   type Committee,
-} from '../tracker/reports/report-domain.js';
+} from '../tracker/delivery/delivery-domain.js';
 
 /** Florida's canonical provider uses H/S; the legislature also displays HB/SB.
  * This is a lookup alias only: never rename canonical IDs or coerce proposals.
@@ -105,7 +105,7 @@ export class FolderSourceDataRepository {
   /** Batch global facts for operational reports. Private folder context never
    * crosses this repository. Optional coverage remains unknown until ingestion.
    */
-  async reportBills(ids: string[]): Promise<ReportBill[]> {
+  async publishedBills(ids: string[]): Promise<PublishedBill[]> {
     if (!ids.length) return [];
     const [base, extra, records, legacy, related] = await Promise.all([
       this.bills(ids),
@@ -263,15 +263,6 @@ export class FolderSourceDataRepository {
         events,
       };
     });
-  }
-  async reportCoverage(ids: string[]) {
-    if (!ids.length) return [];
-    return this.prisma.$queryRawUnsafe<
-      Array<{ id: string; checked: Date | null; status: string | null }>
-    >(
-      'SELECT id,source_checked_at AS checked,source_check_status AS status FROM state_bill WHERE id=ANY($1::text[])',
-      ids,
-    );
   }
   async bills(ids: string[]): Promise<FolderSourceBill[]> {
     if (!ids.length) return [];

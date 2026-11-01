@@ -30,3 +30,5 @@ tests/support/legacy-web/source-data/** -text
 apps/api/prisma/migrations/20261024010000_tango_funding_consolidation/migration.sql -text
 apps/api/prisma/migrations/20261026184000_tango_funding_embedding_prefix/migration.sql -text
 apps/api/scripts/funding-worker/entrypoint.sh text eol=lf
+# Preserve the independently accepted public SQL projection migration checksum.
+apps/api/prisma/migrations/20281031160000_public_sql_hearing_projections/migration.sql -text

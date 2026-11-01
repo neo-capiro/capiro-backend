@@ -1,3 +1,4 @@
+import { describe, it, expect, jest } from '@jest/globals';
 jest.mock('@aws-sdk/client-s3', () => ({ S3Client: class {}, DeleteObjectCommand: class {}, GetObjectCommand: class {}, HeadObjectCommand: class {}, PutObjectCommand: class {} }), {virtual: true});
 jest.mock('@aws-sdk/s3-presigned-post', () => ({ createPresignedPost: jest.fn() }), {virtual: true});
 jest.mock('@aws-sdk/s3-request-presigner', () => ({ getSignedUrl: jest.fn() }), {virtual: true});
@@ -81,6 +82,33 @@ function fixture() {
 }
 
 describe('A1 Portfolio authoritative boundaries', () => {
+  it('reads the persisted debrief context after creation without echoing it in receipts or lists', async () => {
+    const f = fixture();
+    const generatedFrom = { version: 'd2-debrief-context-v1', boundTokens: 8000, totalTokens: 123,
+      sourceTruncated: false, sections: [{ name: 'source', tokens: 123, state: 'kept' }] };
+    let stored: any;
+    f.service.notesCrypto.encrypt = () => ({ bodyCiphertext: 'encrypted', iv: 'iv', authTag: 'tag', keyVersion: 'v1' });
+    f.tx.meetingDebrief.create = jest.fn(async ({ data }: any) => {
+      stored = { id: 'd1', status: 'draft', createdAt: now, updatedAt: now,
+        sharedAt: null, approvedAt: null, ...JSON.parse(JSON.stringify(data)) };
+      return stored;
+    });
+    f.tx.meetingDebrief.findFirst = jest.fn(async () => stored);
+    f.tx.meetingDebrief.findMany.mockImplementation(async () => [stored]);
+    const created = await f.service.createMeetingDebrief(ctx, 'm1', {
+      body: 'Synthetic source', generatedFrom, confidential: false,
+    });
+    expect(created).not.toHaveProperty('generatedFrom');
+    expect(created).not.toHaveProperty('generatedFromJsonb');
+    const readback = await f.service.getMeetingDebriefContext(ctx, 'm1', 'd1');
+    expect(readback).toEqual({ id: 'd1', meetingId: 'm1', clientId: 'c1',
+      revision: now.toISOString(), generatedFrom });
+    expect(f.service.notesCrypto.decrypt).not.toHaveBeenCalled();
+    const listed = (await f.service.listMeetingDebriefs(ctx, 'm1'))[0];
+    expect(listed).not.toHaveProperty('generatedFrom');
+    expect(listed).not.toHaveProperty('generatedFromJsonb');
+  });
+
   it('verifies omitted-page positions and uses keyset reads for repeatable continuation', async () => {
     const f = fixture();
     f.service.decorateMeetings = jest.fn(async (_tx: unknown, _ctx: unknown, rows: unknown[]) => rows);

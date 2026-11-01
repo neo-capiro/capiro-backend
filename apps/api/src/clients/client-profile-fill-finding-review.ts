@@ -1,10 +1,15 @@
+import {
+  commitReviewedFindings,
+  type ReviewCommand,
+  type ReviewTransaction,
+} from './client-profile-fill-review-store.js';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { ClientProfileFillService } from './client-profile-fill.service.js';
 import type { ClientAdvocacyMatterService } from './client-advocacy-matter.service.js';
 import type { ClientProfileFillCompletionService } from './client-profile-fill-completion.service.js';
-import { asRecord, asString } from './client-profile-fill.helpers.js';
+import { asRecord } from './client-profile-fill.helpers.js';
 import {
   auditAdvanced,
   type AdvancedFindingRow,
@@ -33,7 +38,7 @@ const NON_APPLYABLE_ADVANCED_KINDS = new Set([
   'profile_completion',
 ]);
 
-/** Complete human review workflow; each writer retains its original transaction boundaries. */
+/** Human review composes canonical writers with the finding acceptance transaction. */
 export class ClientProfileFillFindingReview {
   private readonly recordApplication: ClientProfileFillAdvocacyRecordApplication;
   private readonly outcomeApplication: ClientProfileFillOutcomeApplication;
@@ -56,55 +61,36 @@ export class ClientProfileFillFindingReview {
     );
   }
 
-  async applyFindings(ctx: TenantContext, clientId: string, runId: string, findingIds: string[]) {
-    const findings = await this.loadFindings(ctx.tenantId, clientId, runId, findingIds);
-    if (findings.length !== new Set(findingIds).size) {
-      throw new BadRequestException('One or more findings are no longer available');
-    }
-    const advanced = findings.filter((finding) => ADVANCED_FINDING_KINDS.has(finding.kind));
-    const coreIds = findings
-      .filter((finding) => !ADVANCED_FINDING_KINDS.has(finding.kind))
-      .map((finding) => finding.id);
-
-    if (coreIds.length) await this.fill.applyFindings(ctx, clientId, runId, coreIds);
-    advanced.sort((a, b) => {
-      if (a.kind === 'advocacy_record' && b.kind === 'advocacy_outcome') return -1;
-      if (a.kind === 'advocacy_outcome' && b.kind === 'advocacy_record') return 1;
-      return 0;
-    });
-    for (const finding of advanced) {
-      if (finding.status !== 'pending') {
-        throw new BadRequestException('Only pending findings can be applied');
-      }
-      if (NON_APPLYABLE_ADVANCED_KINDS.has(finding.kind)) {
-        throw new BadRequestException(
-          'This item is informational and is not applied to the client record',
-        );
-      }
-      await this.applyAdvancedFinding(ctx, clientId, finding);
-      await this.markAccepted(ctx, clientId, finding.id);
-    }
-    return this.ports.getRun(ctx, clientId, runId);
+  async applyFindings(ctx: TenantContext, clientId: string, runId: string, command: ReviewCommand) {
+    return commitReviewedFindings(
+      this.prisma,
+      ctx,
+      clientId,
+      runId,
+      command,
+      (scope, finding) => this.applyReviewedFinding(scope, ctx, clientId, finding),
+      {
+        warn: this.ports.warn,
+        afterApplied: (findings) => this.fill.afterReviewedFindings(ctx, clientId, runId, findings),
+      },
+    );
   }
 
-  /**
-   * §22/23 follow-up: a reviewer picks "Attach to Matter X" / "Create new
-   * Matter" directly on a still-pending advocacy_record finding. That
-   * choice IS the review/approval decision — there is no separate staging
-   * queue, no "save for later" state, and no second apply workflow. This
-   * commits immediately: record upsert + Matter assign/lock (atomic, see
-   * `applyAdvocacyRecord`) then `markAccepted` through the SAME
-   * accept/audit path every other applied finding uses.
-   *
-   * Idempotent: if the finding is already `accepted` (a duplicate
-   * invocation — e.g. a double-click, or a client retry after a response
-   * was lost in transit), this makes NO writes at all and simply returns
-   * the Matter the record already resolved to, read fresh. It does not
-   * matter whether the retry's `target` matches the original choice —
-   * once a finding is accepted, this method's job is done; further
-   * correction goes through the existing reassign/detach/merge paths, not
-   * a second application of this action.
-   */
+  private async applyReviewedFinding(
+    scope: ReviewTransaction,
+    ctx: TenantContext,
+    clientId: string,
+    finding: AdvancedFindingRow,
+  ) {
+    if (NON_APPLYABLE_ADVANCED_KINDS.has(finding.kind))
+      throw new BadRequestException(
+        'This item is informational and is not applied to the client record',
+      );
+    if (ADVANCED_FINDING_KINDS.has(finding.kind))
+      return this.applyAdvancedFinding(ctx, clientId, finding, scope);
+    return this.fill.applyFindingInTransaction(scope, ctx, clientId, finding);
+  }
+
   async applyAdvocacyFindingToMatter(
     ctx: TenantContext,
     clientId: string,
@@ -113,74 +99,45 @@ export class ClientProfileFillFindingReview {
     target:
       | { matterId: string }
       | { newMatter: { title: string; matterType?: string; summary?: string | null } },
-  ): Promise<{ findingId: string; matterId: string | null; alreadyApplied: boolean }> {
-    if ('matterId' in target === 'newMatter' in target) {
+    command: ReviewCommand,
+  ) {
+    if ('matterId' in target === 'newMatter' in target)
       throw new BadRequestException('Provide exactly one of matterId or newMatter');
-    }
-    const findings = await this.loadFindings(ctx.tenantId, clientId, runId, [findingId]);
-    const finding = findings[0];
-    if (!finding) throw new BadRequestException('Finding is no longer available');
-    if (finding.kind !== 'advocacy_record') {
-      throw new BadRequestException('Only advocacy findings support direct Matter assignment');
-    }
-
-    if (finding.status === 'accepted') {
-      const currentMatterId = await this.lookupAppliedAdvocacyMatterId(ctx, clientId, finding);
-      return { findingId, matterId: currentMatterId, alreadyApplied: true };
-    }
-    if (finding.status !== 'pending') {
-      throw new BadRequestException('Only pending findings can be applied');
-    }
-
-    const matterId = await this.recordApplication.applyAdvocacyRecord(
+    if (command?.findings?.length !== 1 || command.findings[0]?.id !== findingId)
+      throw new BadRequestException('The review must select this advocacy finding');
+    return commitReviewedFindings(
+      this.prisma,
       ctx,
       clientId,
-      finding,
-      target,
+      runId,
+      command,
+      async (scope, finding) => {
+        if (finding.kind !== 'advocacy_record')
+          throw new BadRequestException('Only advocacy findings support direct Matter assignment');
+        await this.recordApplication.applyAdvocacyRecord(ctx, clientId, finding, target, scope);
+      },
+      { target, warn: this.ports.warn },
     );
-    await this.markAccepted(ctx, clientId, finding.id);
-    return { findingId, matterId, alreadyApplied: false };
-  }
-
-  /** Read-only lookup used by the idempotent-replay branch of
-   *  `applyAdvocacyFindingToMatter` — never writes anything. */
-  private async lookupAppliedAdvocacyMatterId(
-    ctx: TenantContext,
-    clientId: string,
-    finding: AdvancedFindingRow,
-  ): Promise<string | null> {
-    const proposed = asRecord(finding.proposedValue);
-    const externalKey = asString(proposed.externalKey);
-    if (!externalKey) return null;
-    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.$queryRawUnsafe<Array<{ matterId: string | null }>>(
-        `SELECT matter_id AS "matterId" FROM client_advocacy_record
-          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND external_key = $3`,
-        ctx.tenantId,
-        clientId,
-        externalKey,
-      ),
-    );
-    return rows[0]?.matterId ?? null;
   }
 
   private async applyAdvancedFinding(
     ctx: TenantContext,
     clientId: string,
     finding: AdvancedFindingRow,
+    scope: ReviewTransaction,
   ): Promise<void> {
     switch (finding.kind) {
       case 'federal_footprint':
-        await this.applyFederalFootprint(ctx, clientId, finding);
+        await this.applyFederalFootprint(ctx, clientId, finding, scope);
         return;
       case 'advocacy_record':
-        await this.recordApplication.applyAdvocacyRecord(ctx, clientId, finding);
+        await this.recordApplication.applyAdvocacyRecord(ctx, clientId, finding, undefined, scope);
         return;
       case 'advocacy_outcome':
-        await this.outcomeApplication.applyAdvocacyOutcome(ctx, clientId, finding);
+        await this.outcomeApplication.applyAdvocacyOutcome(ctx, clientId, finding, scope);
         return;
       case 'regulatory_outcome':
-        await this.outcomeApplication.applyRegulatoryOutcome(ctx, clientId, finding);
+        await this.outcomeApplication.applyRegulatoryOutcome(ctx, clientId, finding, scope);
         return;
       default:
         throw new BadRequestException(`Unsupported completion finding: ${finding.kind}`);
@@ -191,8 +148,10 @@ export class ClientProfileFillFindingReview {
     ctx: TenantContext,
     clientId: string,
     finding: AdvancedFindingRow,
+    scope: ReviewTransaction,
   ) {
-    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const tx = scope.tx;
+    {
       const before = await tx.client.findFirst({
         where: { id: clientId, tenantId: ctx.tenantId },
         select: { intakeData: true },
@@ -221,53 +180,7 @@ export class ClientProfileFillFindingReview {
         asRecord(before.intakeData).federalMarket,
         finding.proposedValue,
       );
-    });
-  }
-
-  private async markAccepted(ctx: TenantContext, clientId: string, findingId: string) {
-    await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.$executeRawUnsafe(
-        `UPDATE client_profile_fill_finding
-            SET status = 'accepted', reviewed_by = $4::uuid, reviewed_at = now(),
-                applied_at = now(), rejection_reason = NULL, updated_at = now()
-          WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid
-            AND status = 'pending'`,
-        findingId,
-        ctx.tenantId,
-        clientId,
-        ctx.userId,
-      ),
-    );
-  }
-
-  private async loadFindings(
-    tenantId: string,
-    clientId: string,
-    runId: string,
-    findingIds: string[],
-  ) {
-    return this.prisma.withTenant(tenantId, (tx) =>
-      tx.$queryRawUnsafe<AdvancedFindingRow[]>(
-        `SELECT id,
-                kind,
-                target_key AS "targetKey",
-                source,
-                fact_kind AS "factKind",
-                current_value_jsonb AS "currentValue",
-                proposed_value_jsonb AS "proposedValue",
-                evidence_jsonb AS evidence,
-                confidence,
-                status,
-                content_hash AS "contentHash"
-           FROM client_profile_fill_finding
-          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND run_id = $3::uuid
-            AND id = ANY($4::uuid[])`,
-        tenantId,
-        clientId,
-        runId,
-        [...new Set(findingIds)],
-      ),
-    );
+    }
   }
 
   async applyAdvocacyRecord(

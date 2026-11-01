@@ -75,7 +75,7 @@
           "ownerClass": "ClientAlertsV1",
           "ownerField": "alerts",
           "rootDisposition": "original method header; concrete delegate",
-          "ownerMemberSHA256": "911f61d111865083d42c34cac8e7027c5b330f1d2c502c8a9e2448b5f52f19b7"
+          "ownerMemberSHA256": "657e5ad2141e774faaa8e7aa65fe948c956a61739604a9aafb0a87f7372bb617"
         },
         {
           "name": "getOverdueCommentAlerts",

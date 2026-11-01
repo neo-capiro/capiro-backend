@@ -15,8 +15,6 @@ export const TRACKER_V2_FEATURE = 'tracker_v2';
 export const BILL_360_FEATURE = 'bill_360';
 /** Explicit opt-in only, including the internal tenant. Import does not enable it. */
 export const FOLDER_TRACKER_FEATURE = 'legiwatch_folder_tracker_v1';
-export const REPORTS_UPDATES_FEATURE = 'legiwatch_reports_updates_v1';
-export const REPORT_DELIVERY_FEATURE = 'legiwatch_report_delivery_v1';
 export const STATE_CALENDAR_FEATURE = 'legiwatch_state_calendar_v1';
 export const AGENDA_ALERTS_FEATURE = 'legiwatch_agenda_alerts_v1';
 export const HEARING_RECORDING_FEATURE = 'legiwatch_hearing_recording_v1';
@@ -105,6 +103,7 @@ export class FeatureFlagService {
     if (row) return row.enabled;
     if (
       [
+        // Existing Meri source reads retain their explicit opt-in gate.
         'legiwatch_news_v1',
         'legiwatch_florida_budget_v1',
         'legiwatch_editorial_v1',
@@ -114,8 +113,6 @@ export class FeatureFlagService {
         'legiwatch_internal_workflows_v1',
         'legiwatch_keyword_delivery_v1',
         FOLDER_TRACKER_FEATURE,
-        REPORTS_UPDATES_FEATURE,
-        REPORT_DELIVERY_FEATURE,
         STATE_CALENDAR_FEATURE,
         AGENDA_ALERTS_FEATURE,
         HEARING_RECORDING_FEATURE,

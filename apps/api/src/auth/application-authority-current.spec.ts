@@ -543,22 +543,13 @@ describe('combined current authority registered HTTP boundary', () => {
     expect(f.transactions).toEqual([]);
   });
 
-  it('preserves original impersonation identity on the same system tx and clips its expiry', async () => {
+  it('refuses impersonation on the current-authority route before reading target data', async () => {
     f.impersonate();
     const options = { headers: { 'x-capiro-impersonate-tenant': 'target' } };
     const response = await f.request('current', input, options);
-    expect(response.statusCode).toBe(200);
-    expect(response.body.principal).toEqual({ tenantId: targetTenantId, actorId });
-    expect(response.body.expiresAtMs).toBe(f.impersonation.expiresAt.getTime());
-    const reads = f.observations.filter(({ operation }) => operation === 'tenantMembership.findFirst');
-    expect(reads[0]!.args.where).toEqual({ id: f.membership.id, tenantId, userId: actorId, status: 'active' });
-    expect(reads.some(({ args }) => args.where.tenantId === targetTenantId)).toBe(true);
-    expect(new Set(f.observations.map(({ tx }) => tx)).size).toBe(1);
-    const expired = await f.request('current', input, { ...options, afterAuthentication() {
-      f.impersonation.expiresAt = new Date(Date.now() - 1);
-    } });
-    expect(expired.statusCode).toBe(403);
-    expect(expired.body.message).toBe('Application authority unavailable');
+    expect(response.statusCode).toBe(403);
+    expect(response.body.message).toContain('audited support workspace');
+    expect(f.observations).toEqual([]);
   });
 
   it('caps the receipt at the original session expiry when it is sooner than two minutes', async () => {

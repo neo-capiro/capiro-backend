@@ -1,4 +1,5 @@
 import type { TenantContext } from '@capiro/shared';
+import { resolveFillRunActor } from './client-profile-fill-worker-actor.js';
 import type { HttpAdapterHost } from '@nestjs/core';
 import type { IntelligenceService } from '../intelligence/intelligence.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -157,6 +158,7 @@ function createRuntimeOwners(
     executeClaimedTask: (task) => taskRuntime.executeClaimedTask(task),
     finalizeRuns: () => runLifecycle.finalizeRuns(),
     loadRunActor: (task) => taskLedger.loadRunActor(task),
+    resolveActor: (task) => resolveFillRunActor(prisma, task.tenantId, task.clientId, task.runId),
     executeTask: ports.executeTask,
     finishTask: (task, status, summary) => taskLedger.finishTask(task, status, summary),
     deferTask: (task, reason) => taskLedger.deferTask(task, reason),
@@ -206,7 +208,7 @@ export function createClientProfileFillCompletionOwners(
     persistFinding: ports.persistFinding,
     recordCursor: ports.recordCursor,
   });
-  const reconciliation = new ClientProfileFillReconciliation(prisma, advocacyMatters, {
+  const reconciliation = new ClientProfileFillReconciliation(prisma, {
     persistFinding: ports.persistFinding,
     warn: ports.warn,
     safeError: ports.safeError,

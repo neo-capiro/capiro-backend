@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { ForbiddenException } from '@nestjs/common';
+import { GoneException } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
@@ -15,28 +15,17 @@ const ctx: TenantContext = {
   clerkUserId: 'admin',
   role: 'user_admin',
 };
-const CLIENT = '33333333-3333-4333-8333-333333333333';
-const sections = [{ key: 'mission', body: 'Protect the active truth.' }];
 
 function harness(opts: { existing?: any; wallAllowed?: boolean; pending?: any } = {}) {
   const getByTypeSlug = jest.fn(async () => opts.existing ?? null);
-  const upsertSectionsForCurrentTenant = jest.fn(async () => ({
-    updatedAt: '2026-07-30T00:00:00.000Z',
-  }));
   const clientMemoryAllowedForCurrentUser = jest.fn(async () => opts.wallAllowed ?? true);
-  const proposeSettingsSections = jest.fn(async () => ({
-    candidateId: '44444444-4444-4444-8444-444444444444',
-    status: 'pending_review',
-    submittedAt: '2026-07-30T00:00:00.000Z',
-  }));
   const findPendingSettingsCandidate = jest.fn(async () => opts.pending ?? null);
   const requireItem = jest.fn(async () => undefined);
   const store = {
     getByTypeSlug,
-    upsertSectionsForCurrentTenant,
     clientMemoryAllowedForCurrentUser,
   };
-  const candidates = { proposeSettingsSections, findPendingSettingsCandidate };
+  const candidates = { findPendingSettingsCandidate };
   const controller = new MemoryController(
     store as unknown as MemoryStoreService,
     {} as any,
@@ -53,66 +42,41 @@ function harness(opts: { existing?: any; wallAllowed?: boolean; pending?: any } 
   return {
     controller,
     getByTypeSlug,
-    upsertSectionsForCurrentTenant,
     clientMemoryAllowedForCurrentUser,
-    proposeSettingsSections,
     findPendingSettingsCandidate,
   };
 }
 
 describe('Settings shared-memory review lifecycle', () => {
-  it('creates a firm candidate and leaves the active item unchanged', async () => {
-    const active = {
-      id: 'item-1',
-      title: 'Firm Soul',
-      sections: [{ key: 'mission', heading: 'Mission', owner: 'human', body: 'Current' }],
-    };
-    const h = harness({ existing: active });
-    await expect(
-      h.controller.updateSections(ctx, 'firm-soul', 'firm', { sections }),
-    ).resolves.toEqual({
-      status: 'pending_review',
-      candidateId: '44444444-4444-4444-8444-444444444444',
-      activeItemUnchanged: true,
+  it('returns an explicit 410 without reading or writing through any provider, including repeats', async () => {
+    const touched = jest.fn((name: string) => {
+      throw new Error('Unexpected provider: ' + name);
     });
-    expect(h.proposeSettingsSections).toHaveBeenCalledWith(
-      ctx,
-      expect.objectContaining({ type: 'firm-soul', slug: 'firm', scope: 'firm' }),
+    const provider = new Proxy({}, { get: (_target, property) => touched(String(property)) });
+    const controller = new MemoryController(
+      provider as never,
+      provider as never,
+      provider as never,
+      provider as never,
+      provider as never,
+      provider as never,
+      provider as never,
+      provider as never,
+      provider as never,
+      provider as never,
+      provider as never,
     );
-    expect(h.upsertSectionsForCurrentTenant).not.toHaveBeenCalled();
-    expect(active.sections[0]?.body).toBe('Current');
-  });
-
-  it('creates only a candidate for a first-time shared file', async () => {
-    const h = harness();
-    await h.controller.updateSections(ctx, 'firm-soul', 'firm', { sections });
-    expect(h.proposeSettingsSections).toHaveBeenCalledTimes(1);
-    expect(h.upsertSectionsForCurrentTenant).not.toHaveBeenCalled();
-  });
-
-  it('fails closed on a client ethical wall before creating a candidate', async () => {
-    const h = harness({ wallAllowed: false });
-    await expect(
-      h.controller.updateSections(ctx, 'client-soul', CLIENT, { sections }),
-    ).rejects.toBeInstanceOf(ForbiddenException);
-    expect(h.proposeSettingsSections).not.toHaveBeenCalled();
-  });
-
-  it('keeps owner-only user files on the immediate save path', async () => {
-    const userCtx = { ...ctx, role: 'standard_user' as const };
-    const h = harness();
-    await expect(
-      h.controller.updateSections(userCtx, 'user-profile', 'spoofed', { sections }),
-    ).resolves.toMatchObject({ ok: true });
-    expect(h.upsertSectionsForCurrentTenant).toHaveBeenCalledWith(
-      'user-profile',
-      userCtx.userId,
-      'user',
-      null,
-      sections,
-      expect.any(Set),
-    );
-    expect(h.proposeSettingsSections).not.toHaveBeenCalled();
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await expect(controller.updateSections()).rejects.toBeInstanceOf(GoneException);
+      await expect(controller.updateSections()).rejects.toMatchObject({
+        status: 410,
+        response: {
+          code: 'MEMORY_SETTINGS_DRAFT_REQUIRED',
+          message: expect.stringContaining('private memory draft'),
+        },
+      });
+    }
+    expect(touched).not.toHaveBeenCalled();
   });
 
   it('returns pending state on reload without replacing active sections', async () => {

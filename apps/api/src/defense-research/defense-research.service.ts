@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { readQualifiedSamActions } from './qualified-sam-actions.js';
 import { readPublicPESemanticSuggestions } from './defense-research-semantic.js';
 import { parseCanonicalDecimalString } from '../defense-budget/contracts/decimal-string.js';
 import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
@@ -3512,16 +3513,20 @@ export class DefenseResearchService {
     identityKey: string,
   ): Promise<readonly DefenseAcquisitionRecordActionDto[]> {
     if (!identityKey.trim()) throw new BadRequestException('identityKey is required.');
-    const rows = await this.prisma.acquisitionAwardTransactionRevision.findMany({
-      where: { OR: [{ awardIdentityKey: identityKey }, { parentAwardIdentityKey: identityKey }] },
-      orderBy: [
-        { transactionIdentityKey: 'asc' },
-        { revision: 'desc' },
-        { recordedAt: 'desc' },
-        { id: 'desc' },
-      ],
-      distinct: ['transactionIdentityKey'],
-    });
+    const [otherSourceRows, qualifiedSamRows] = await Promise.all([
+      this.prisma.acquisitionAwardTransactionRevision.findMany({
+        where: { sourceSystem: { not: 'sam_gov' }, OR: [{ awardIdentityKey: identityKey }, { parentAwardIdentityKey: identityKey }] },
+        orderBy: [
+          { transactionIdentityKey: 'asc' },
+          { revision: 'desc' },
+          { recordedAt: 'desc' },
+          { id: 'desc' },
+        ],
+        distinct: ['transactionIdentityKey'],
+      }),
+      readQualifiedSamActions(this.prisma, identityKey),
+    ]);
+    const rows = [...otherSourceRows, ...qualifiedSamRows].sort((a, b) => a.transactionIdentityKey.localeCompare(b.transactionIdentityKey));
     return rows.map((row) => ({
       transactionIdentityKey: row.transactionIdentityKey,
       awardIdentityKey: row.awardIdentityKey,
@@ -3536,8 +3541,8 @@ export class DefenseResearchService {
       correctsIdentityKey: row.correctsIdentityKey,
       supersedesId: row.supersedesId,
       sourceUrl: row.sourceUrl,
-      sourceObservedAt: row.sourceObservedAt?.toISOString() ?? null,
-      recordedAt: row.recordedAt.toISOString(),
+      sourceObservedAt: typeof row.sourceObservedAt === 'string' ? row.sourceObservedAt : row.sourceObservedAt?.toISOString() ?? null,
+      recordedAt: typeof row.recordedAt === 'string' ? row.recordedAt : row.recordedAt.toISOString(),
       raw: row.raw,
     }));
   }

@@ -156,7 +156,9 @@ export function firstChatCoreIntegrationsConfiguration(input: unknown) {
     throw new Error('Explicit same-account customer-managed key ARNs required (or an empty list)');
 
   const apiOrigin = `https://${FIRST_CHAT_CORE_HOST}`;
-  const successRedirect = 'https://portfolio-preview.app.capiro.ai/settings/integrations';
+  // The browser lands back on the single public app origin after either provider
+  // completes; the callbacks themselves stay on this Core host.
+  const successRedirect = 'https://app.capiro.ai/settings/integrations';
   const environment = {
     CAPIRO_SERVICE_NAME: 'api',
     ENGAGEMENT_PROCESS_MODE: 'shadow',
@@ -205,6 +207,78 @@ function guardedPriority(value: number): number {
   if (value !== FIRST_CHAT_CORE_GUARD_PRIORITY)
     throw new Error('Existing preview guard priority 7 required');
   return value;
+}
+
+/** The five note-taker credentials the existing service needs. Values never enter source. */
+export const FIRST_CHAT_CORE_NOTETAKER_SECRET_NAMES = [
+  'OPENAI_API_KEY',
+  'ANTHROPIC_API_KEY',
+  'RECALL_API_KEY',
+  'RECALL_WEBHOOK_SECRET',
+  'NOTES_ENCRYPTION_KEY',
+] as const;
+
+/**
+ * ARN-only note-taker configuration for the focused release overlay.
+ *
+ * This overlay adds exactly three things and nothing else: the explicit
+ * `MEETING_ARTIFACT_AGENT_SDK=true` switch, the five credential references the
+ * service already mounts, and the durable `secretsmanager:GetSecretValue` grant
+ * that today exists only as a hand-attached managed policy.
+ *
+ * It deliberately emits no process mode, background owner, external-action,
+ * Recall, callback, mail-fence or NOTETAKER_ENABLED value. Those belong to the
+ * accepted running posture (`api` / `active` / `enabled` / Recall off /
+ * `integration_sync_scheduler`) and are owned by the deployment template, not by
+ * a permissions change. The runtime's `notetakerPostureEnabled()` guard is left
+ * exactly as it is; functional admission in the accepted posture is a separately
+ * tracked compatibility question, not something this overlay may paper over by
+ * changing ownership.
+ *
+ * No KMS surface: all five secrets declare no customer key, so this emits no
+ * `kms:Decrypt` grant and must not disturb the role's existing conditional KMS
+ * statement for the data and secrets keys. No wildcard, no `*` resource, no
+ * secret value. A caller renders the overlay and applies it; nothing here calls
+ * AWS.
+ */
+export function firstChatCoreNoteTakerConfiguration(input: unknown) {
+  const binding = exactKeys(input, ['secretArns'], 'Preview note taker');
+  const secretArns = exactKeys(
+    binding.secretArns,
+    FIRST_CHAT_CORE_NOTETAKER_SECRET_NAMES,
+    'Preview note taker secret references',
+  );
+  for (const [name, arn] of Object.entries(secretArns)) {
+    if (
+      typeof arn !== 'string' ||
+      !new RegExp(
+        `^arn:aws:secretsmanager:${region}:${account}:secret:[A-Za-z0-9/_+=.@-]+-[A-Za-z0-9]{6}$`,
+      ).test(arn)
+    )
+      throw new Error(`${name}: complete same-account secret ARN required`);
+  }
+  if (new Set(Object.values(secretArns)).size !== FIRST_CHAT_CORE_NOTETAKER_SECRET_NAMES.length)
+    throw new Error('Distinct note taker secret references required');
+
+  return {
+    environment: [{ name: 'MEETING_ARTIFACT_AGENT_SDK', value: 'true' }],
+    secrets: Object.entries(secretArns).map(([name, valueFrom]) => ({
+      name,
+      valueFrom: valueFrom as string,
+    })),
+    // GetSecretValue only: the reference is a plain secret value, and the existing
+    // grant carries no DescribeSecret, so adding it would widen nothing useful.
+    executionRolePolicy: {
+      Version: '2012-10-17',
+      Statement: [
+        {
+          Effect: 'Allow',
+          Action: ['secretsmanager:GetSecretValue'],
+          Resource: Object.values(secretArns),
+        },
+      ],
+    },
+  };
 }
 
 function queryDatabaseBinding(value: unknown, pins: FirstChatCoreQueryDatabases | undefined) {
@@ -497,7 +571,13 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
         PRIVATE_QUERY_DB_NAME: 'capiro',
         PRIVATE_QUERY_DB_SSLMODE: 'require',
         CLERK_JWT_ISSUER: live.clerkIssuer,
-        WEB_ORIGIN: 'https://portfolio-preview.app.capiro.ai',
+        WEB_ORIGIN: 'https://app.capiro.ai',
+        // Browser-facing links resolve to the single public app origin. TRACKER_APP_BASE_URL
+        // below stays this preview Core's protected-retrieval transport, which is why a
+        // browser deep link must read LEGIWATCH_APP_BASE_URL instead.
+        APP_SIGN_IN_URL: 'https://app.capiro.ai/sign-in',
+        APP_BASE_URL: 'https://app.capiro.ai',
+        LEGIWATCH_APP_BASE_URL: 'https://app.capiro.ai',
         ASSETS_BUCKET: assets.bucket.bucketName,
         MEMORY_GOVERNANCE_LIFECYCLE: 'enforce',
         MEMORY_GOVERNANCE_TENANTS: binding.ownerMemory.tenantId,
@@ -673,8 +753,8 @@ export function previewFirstChatCoreApplication(
     terminationProtection: true,
     cfg: {
       envName: 'preview',
-      appHost: 'portfolio-preview.app.capiro.ai',
-      rootDomain: 'portfolio-preview.app.capiro.ai',
+      appHost: 'app.capiro.ai',
+      rootDomain: 'app.capiro.ai',
       protectFromDestroy: true,
     },
   });

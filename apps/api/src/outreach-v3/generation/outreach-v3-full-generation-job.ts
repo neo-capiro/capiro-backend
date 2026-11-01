@@ -1,16 +1,12 @@
 import { createHash } from 'node:crypto';
-import { isReasoningEffort, type ReasoningEffort } from '../../engagement/generation/reasoning-effort.js';
-import type { PinnedGenerationIdentity } from '../../engagement/generation/generation-gateway.types.js';
 import {
-  isOutreachV3ApproachApprovalCurrent,
-  remainingOutreachV3GenerationKeys,
-  type OutreachV3ApproachApprovalSnapshot,
-} from './outreach-v3-generation-approach.js';
-import type { OutreachV3GenerationPlan } from './outreach-v3-generation-plan.js';
+  isReasoningEffort,
+  type ReasoningEffort,
+} from '../../engagement/generation/reasoning-effort.js';
+import type { PinnedGenerationIdentity } from '../../engagement/generation/generation-gateway.types.js';
 
 export const OUTREACH_V3_FULL_GENERATION_JOB_VERSION =
   'outreach_v3_full_generation_job_v1' as const;
-export const OUTREACH_V3_FULL_GENERATION_BATCH_SIZE = 10;
 export const OUTREACH_V3_FULL_GENERATION_MAX_ITEMS = 500;
 
 export interface OutreachV3FullGenerationJobItem {
@@ -28,51 +24,6 @@ export interface OutreachV3FullGenerationJobDescriptor {
   items: OutreachV3FullGenerationJobItem[];
   batchSize: number;
   jobKey: string;
-}
-
-/**
- * Build the only safe durable payload for V3 async full generation.
- *
- * It intentionally contains no auth header, provider credential, recipient
- * address/text, Evidence Packet text, browser context, or mutable draft body.
- * Workers must re-load the exact Campaign Spec and reauthorize every slot from
- * its generationKey immediately before generation.
- */
-export function buildOutreachV3FullGenerationJob(input: {
-  plan: OutreachV3GenerationPlan;
-  approachApproval: OutreachV3ApproachApprovalSnapshot | null;
-  completedGenerationKeys: readonly string[];
-  pinned: PinnedGenerationIdentity;
-}): OutreachV3FullGenerationJobDescriptor {
-  if (!input.plan.eligible) {
-    throw new Error('OUTREACH_V3_FULL_GENERATION_NOT_ELIGIBLE:plan');
-  }
-  if (!isOutreachV3ApproachApprovalCurrent(input.plan, input.approachApproval)) {
-    throw new Error('OUTREACH_V3_FULL_GENERATION_NOT_ELIGIBLE:approach_approval');
-  }
-  const remaining = remainingOutreachV3GenerationKeys(
-    input.plan,
-    input.approachApproval,
-    input.completedGenerationKeys,
-  );
-  if (remaining.length > OUTREACH_V3_FULL_GENERATION_MAX_ITEMS) {
-    throw new Error('OUTREACH_V3_FULL_GENERATION_TOO_LARGE');
-  }
-  const base = {
-    schemaVersion: OUTREACH_V3_FULL_GENERATION_JOB_VERSION,
-    sessionId: input.plan.sessionId,
-    stateVersion: input.plan.stateVersion,
-    specHash: input.plan.specHash,
-    planHash: input.plan.planHash,
-    approachApprovalHash: input.approachApproval!.approvalHash,
-    pinned: input.pinned,
-    items: remaining.map((generationKey) => ({ generationKey })),
-    batchSize: OUTREACH_V3_FULL_GENERATION_BATCH_SIZE,
-  };
-  return {
-    ...base,
-    jobKey: sha256(JSON.stringify(base)),
-  };
 }
 
 /** Strict parser for the durable JSONB job payload. Fails closed on drift/corruption. */
@@ -157,35 +108,6 @@ export function parseOutreachV3FullGenerationJob(
   return sha256(JSON.stringify(base)) === jobKey ? descriptor : null;
 }
 
-export function isOutreachV3FullGenerationJobCurrent(
-  job: OutreachV3FullGenerationJobDescriptor,
-  plan: OutreachV3GenerationPlan,
-  approval: OutreachV3ApproachApprovalSnapshot | null,
-): boolean {
-  if (!isOutreachV3ApproachApprovalCurrent(plan, approval)) return false;
-  return (
-    job.schemaVersion === OUTREACH_V3_FULL_GENERATION_JOB_VERSION &&
-    job.sessionId === plan.sessionId &&
-    job.stateVersion === plan.stateVersion &&
-    job.specHash === plan.specHash &&
-    job.planHash === plan.planHash &&
-    job.approachApprovalHash === approval!.approvalHash &&
-    job.items.every((item) => plan.slots.some((slot) => slot.generationKey === item.generationKey))
-  );
-}
-
-/** Deterministic bounded claim ordering for one worker pass. */
-export function nextOutreachV3FullGenerationBatch(
-  job: OutreachV3FullGenerationJobDescriptor,
-  unfinishedGenerationKeys: readonly string[],
-): string[] {
-  const jobKeys = new Set(job.items.map((item) => item.generationKey));
-  return [...new Set(unfinishedGenerationKeys)]
-    .filter((key) => jobKeys.has(key))
-    .sort(compareStrings)
-    .slice(0, job.batchSize);
-}
-
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -198,10 +120,6 @@ function isString(value: unknown): value is string {
 
 function isHash(value: unknown): value is string {
   return typeof value === 'string' && /^[a-f0-9]{64}$/u.test(value);
-}
-
-function compareStrings(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 function sha256(value: string): string {

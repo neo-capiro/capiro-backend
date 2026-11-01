@@ -38,7 +38,7 @@ import {
 import type { EvidencePacketV2 } from './evidence-packet.types.js';
 import type { GatewayStyleSample } from './generation-gateway.types.js';
 import type { MessagePlan } from './message-plan.schema.js';
-import type { AuthorStyleProfile } from './author-style-profile.service.js';
+import type { AuthorStyleProfile } from './author-style-profile.types.js';
 import { REVISION_OUTPUT_CONTRACT } from './draft-revision.js';
 
 export const GATEWAY_PROMPT_SPEC_VERSION = 'v2.3-gateway';
@@ -87,7 +87,8 @@ export const GATEWAY_PRECEDENCE_LADDER = [
 
 export interface GatewayPromptInput {
   packet: EvidencePacketV2;
-  plan: MessagePlan;
+  /** Null while the native SDK is producing the plan and draft together. */
+  plan: MessagePlan | null;
   styleProfile: AuthorStyleProfile | null;
   styleProfileBlock: string | null;
   /** User-supplied exemplar emails. Voice only; never a source of facts. */
@@ -273,7 +274,7 @@ export function buildGatewayPrompt(input: GatewayPromptInput): GatewayPrompt {
     ? 'Do NOT write any greeting, closing, signature or sign-off inside a section — the template already contains them and they would appear twice.'
     : signatureRule;
 
-  const planBlock = [
+  const planBlock = plan ? [
     isRevision
       ? 'VALIDATED MESSAGE PLAN (background for verifying NEW claims; do not recompose the draft from it):'
       : 'VALIDATED MESSAGE PLAN (express this; it has already been checked against the evidence):',
@@ -304,7 +305,7 @@ export function buildGatewayPrompt(input: GatewayPromptInput): GatewayPrompt {
       : null,
   ]
     .filter((s): s is string => Boolean(s))
-    .join('\n');
+    .join('\n') : 'MESSAGE PLAN: first produce a grounded plan from the planning instructions, then express only its supported claims in the draft. Core validates both before saving a version.';
 
   // ── userStatic: byte-stable campaign prefix ──
   const staticParts = [

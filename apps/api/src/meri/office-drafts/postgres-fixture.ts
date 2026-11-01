@@ -1,0 +1,83 @@
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { Prisma, PrismaClient } from '@prisma/client';
+import { Client } from 'pg';
+import type { PrismaService } from '../../prisma/prisma.service.js';
+
+export async function officeDatabase(url: string) {
+  if (!/^postgresql:\/\/office_fixture_admin@127\.0\.0\.1:55487\/office_drafts_[a-z0-9_]+$/.test(url))
+    throw Error('Only the task-owned Office fixture is admitted');
+  const admin = new Client({ connectionString: url }); await admin.connect();
+  try {
+    const role = await admin.query("SELECT rolsuper,rolbypassrls FROM pg_roles WHERE rolname='capiro_app'");
+    if (role.rows.length !== 1 || role.rows[0].rolsuper || role.rows[0].rolbypassrls) throw Error('Ordinary role required');
+    const present = await admin.query("SELECT to_regclass('public.meri_office_drafts') present");
+    if (!present.rows[0].present) {
+      await admin.query('CREATE EXTENSION IF NOT EXISTS citext');
+      const sql = execFileSync(process.execPath, [join(__dirname, '../../../node_modules/prisma/build/index.js'),
+        'migrate', 'diff', '--from-empty', '--to-schema-datamodel', join(__dirname, '../../../prisma/schema.prisma'),
+        '--script'], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
+      const tables = new Set(['tenants', 'users', 'tenant_memberships', 'clients', 'client_memory_access',
+        'clio_conversations', 'clio_conversation_bootstrap_receipts', 'audit_logs']);
+      const names = new Set(Prisma.dmmf.datamodel.models.filter(m => tables.has(m.dbName ?? m.name))
+        .flatMap(m => m.fields.filter(f => f.kind === 'enum').map(f => f.type)));
+      const enums = new Set(Prisma.dmmf.datamodel.enums.filter(e => names.has(e.name)).map(e => e.dbName ?? e.name));
+      const statements = sql.split(/;\s*(?:\n|$)/).map(s => s.trim()).filter(s => {
+        const table = s.match(/CREATE TABLE "([^"]+)"/); if (table) return tables.has(table[1]!);
+        const enumeration = s.match(/CREATE TYPE "([^"]+)"/); if (enumeration) return enums.has(enumeration[1]!);
+        const index = s.match(/CREATE (?:UNIQUE )?INDEX "[^"]+" ON "([^"]+)"/); return !!index && tables.has(index[1]!);
+      });
+      if (statements.filter(s => /CREATE TABLE /.test(s)).length !== tables.size) throw Error('Incomplete fixture');
+      for (const s of statements) await admin.query(s);
+      // This retained raw-SQL projection is deliberately absent from Prisma's
+      // current Client model; client owner locks still read its applied column.
+      await admin.query(readFileSync(join(__dirname,
+        '../../../prisma/migrations/20260816235000_add_client_account_owner/migration.sql'), 'utf8'));
+      await admin.query(`CREATE FUNCTION current_tenant_id() RETURNS uuid LANGUAGE sql STABLE AS
+        $$SELECT nullif(current_setting('app.current_tenant',true),'')::uuid$$;
+        CREATE FUNCTION rls_bypass() RETURNS boolean LANGUAGE sql STABLE AS
+          $$SELECT current_setting('app.bypass_rls',true)='on'$$;
+        GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO capiro_app;`);
+      const conversationPolicy = readFileSync(join(__dirname,
+        '../../../prisma/migrations/20260510010000_clio_nanoclaw_workspace/migration.sql'), 'utf8')
+        .match(/ALTER TABLE "clio_conversations" ENABLE ROW LEVEL SECURITY;[\s\S]*?WITH CHECK[^;]+;/)?.[0];
+      if (!conversationPolicy) throw Error('Canonical conversation RLS missing');
+      await admin.query(conversationPolicy);
+      await admin.query(readFileSync(join(__dirname, '../../../prisma/migrations/20281024020000_meri_conversation_management/migration.sql'), 'utf8'));
+      await admin.query(readFileSync(join(__dirname, '../../../prisma/migrations/20281029020000_office_draft_owner/migration.sql'), 'utf8'));
+      await admin.query(readFileSync(join(__dirname, '../../../prisma/migrations/20281029070000_office_editor_admission/migration.sql'), 'utf8'));
+      await admin.query(readFileSync(join(__dirname, '../../../prisma/migrations/20281029120000_office_disposal_fence/migration.sql'), 'utf8'));
+    }
+    const editor = await admin.query("SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='meri_office_drafts' AND column_name='editor_epoch'");
+    const disposal = await admin.query("SELECT to_regclass('public.meri_office_disposed_subjects') present");
+    if (!disposal.rows[0].present) throw Error('Use a fresh disposal-fence fixture; preserve earlier databases');
+    if (editor.rows.length !== 1) throw Error('Use a fresh editor-admission fixture; old applied test DDL is retained');
+    const bypass = await admin.query("SELECT position('app.bypass_rls' in pg_get_functiondef('rls_bypass()'::regprocedure))>0 AS supported");
+    if (!bypass.rows[0]?.supported) throw Error('Use a fresh retention fixture; preserve the earlier test database');
+    const management = await admin.query("SELECT to_regclass('public.clio_conversation_management_receipts') present");
+    if (!management.rows[0]?.present) throw Error('Use a fresh Trash fixture; preserve earlier test databases');
+    const access = await admin.query("SELECT to_regclass('public.audit_logs') IS NOT NULL AND EXISTS(SELECT 1 FROM pg_policies WHERE tablename='clio_conversations' AND policyname='clio_conversations_isolation') AND EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='clients' AND column_name='account_owner_user_id') AS present");
+    if (!access.rows[0]?.present) throw Error('Use a fresh client-access fixture; preserve earlier test databases');
+  } finally { await admin.end(); }
+  const db = new PrismaClient({ datasources: { db: { url } } });
+  const withScope = async <T>(tenantId: string, userId: string | null, fn: (tx: Prisma.TransactionClient) => Promise<T>) =>
+    db.$transaction(async tx => {
+      await tx.$executeRawUnsafe('SET LOCAL ROLE capiro_app');
+      await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;
+      if (userId) await tx.$executeRaw`SELECT set_config('app.current_user', ${userId}, true)`;
+      return fn(tx);
+    }, { timeout: 15000 });
+  const scoped = {
+    withSystem: <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>, opts?: { readOnly?: boolean }) =>
+      db.$transaction(async tx => {
+        if (opts?.readOnly) await tx.$executeRawUnsafe('SET TRANSACTION READ ONLY');
+        await tx.$executeRawUnsafe('SET LOCAL ROLE capiro_app');
+        await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
+        return fn(tx);
+      }, { timeout: 15000 }),
+    withTenant: <T>(tenantId: string, fn: (tx: Prisma.TransactionClient) => Promise<T>) => withScope(tenantId, null, fn),
+    withTenantUser: <T>(tenantId: string, userId: string, fn: (tx: Prisma.TransactionClient) => Promise<T>) => withScope(tenantId, userId, fn),
+  } as PrismaService;
+  return { db, scoped };
+}

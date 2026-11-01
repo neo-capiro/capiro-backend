@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   NotFoundException,
   Optional,
   Param,
@@ -80,6 +81,8 @@ import type {
   ResearchPortfolioOperationDto,
   ReconcileResearchPortfolioOperationDto,
   ResearchPortfolioTourStateDto,
+  ResearchPortfolioBillDetailDto,
+  ResearchPortfolioBillSearchResponseDto,
 } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -93,8 +96,9 @@ import { ResearchPortfolioAnalyticsService } from './research-portfolio-analytic
 import { ResearchPortfolioOutputService } from './research-portfolio-output.service.js';
 import { ResearchPortfolioPhase11Service } from './research-portfolio-phase11.service.js';
 import { ResearchPortfolioInstitutionalService } from './research-portfolio-institutional.service.js';
+import { ResearchPortfolioBillsService } from './research-portfolio-bills.service.js';
 
-const RESERVED_STATIC_IDS = new Set(['templates', 'taxonomy', 'tour-state']);
+const RESERVED_STATIC_IDS = new Set(['templates', 'taxonomy', 'tour-state', 'metrics']);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function ensurePortfolioId(id: string): void {
@@ -116,8 +120,48 @@ export class ResearchPortfoliosController {
     private readonly analyticsService: ResearchPortfolioAnalyticsService,
     private readonly outputService: ResearchPortfolioOutputService,
     private readonly phase11: ResearchPortfolioPhase11Service,
+    private readonly bills: ResearchPortfolioBillsService,
     @Optional() private readonly institutional?: ResearchPortfolioInstitutionalService,
   ) {}
+
+  @Get('metrics')
+  @Header('Cache-Control', 'private, no-store')
+  metrics(@CurrentTenant() ctx: TenantContext, @Query() query: unknown) {
+    return this.service.metrics(ctx, query);
+  }
+
+  // Bill discovery/detail are static routes and must precede :id.
+  @Get('bill-search')
+  async billSearch(
+    @CurrentTenant() ctx: TenantContext,
+    @Query('q') q?: string,
+    @Query('jurisdiction') jurisdiction?: string,
+    @Query('session') session?: string,
+    @Query('status') status?: string,
+    @Query('topic') topic?: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+  ): Promise<ResearchPortfolioBillSearchResponseDto> {
+    const parsed = limit === undefined ? undefined : Number.parseInt(limit, 10);
+    return this.bills.search(ctx, {
+      q,
+      jurisdiction,
+      session,
+      status,
+      topic,
+      cursor: cursor ?? null,
+      limit: Number.isFinite(parsed) ? parsed : undefined,
+    });
+  }
+
+  @Get('bills/:kind/:billId')
+  async billDetail(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('kind') kind: string,
+    @Param('billId') billId: string,
+  ): Promise<ResearchPortfolioBillDetailDto> {
+    return this.bills.detail(ctx, kind, billId);
+  }
 
   @Get(':id/drafts/:artifactId')
   async readDraft(

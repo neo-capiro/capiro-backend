@@ -30,7 +30,9 @@ import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { validateClientFundingProfile } from './client-funding-profile.validation.js';
 import { requireClientCapacity } from './client-capacity.js';
 import { requireOwnerActor, requireOwnerClient } from './client-ordered-owner.access.js';
+import { readPortfolioMetrics } from './portfolio-metrics.js';
 import { fetchDeniedClientIds } from '../memory/memory-wall.helpers.js';
+import { retireClientOfficeDraftsInTx } from '../meri/office-drafts/client-retention.js';
 
 export interface CreateClientInput {
   name: string;
@@ -1117,6 +1119,10 @@ export class ClientsService {
     return this.withLogoUrls(clients);
   }
 
+  metrics(ctx: TenantContext) {
+    return readPortfolioMetrics(this.prisma, ctx);
+  }
+
   /** Preview-only native roster: narrow the database read before logo signing. */
   async listPreviewVisible(
     ctx: TenantContext,
@@ -1387,77 +1393,87 @@ export class ClientsService {
   }
 
   async update(ctx: TenantContext, id: string, input: UpdateClientInput) {
-    const { client, before } = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      // Capacity transitions already acquire capacity/tenant before client.
-      // Keep that order, then hold current actor and wall grants through commit.
-      if (input.status !== undefined)
-        await requireClientCapacity(tx, ctx.tenantId, this.billingEnforced, {
-          clientId: id,
-          status: input.status,
-        });
-      await requireOwnerClient(tx, ctx, id, false, true);
-      const before = await tx.client.findFirst({
-        where: { id, tenantId: ctx.tenantId },
-        select: { uei: true, name: true, applicantTypes: true, intakeData: true, naicsCodes: true, setAsideCertifications: true },
-      });
-      if (!before) throw new NotFoundException('Client not found');
-      input = { ...input, ...validateClientFundingProfile(input, before) };
-      const client = await tx.client.update({
-        where: { id, tenantId: ctx.tenantId },
-        data: {
-          ...('name' in input ? { name: input.name } : {}),
-          ...('website' in input ? { website: input.website ?? null } : {}),
-          ...('description' in input
-            ? { description: input.description ?? null }
-            : {}),
-          ...('productDescription' in input
-            ? { productDescription: input.productDescription ?? null }
-            : {}),
-          ...('primaryContactName' in input
-            ? { primaryContactName: input.primaryContactName ?? null }
-            : {}),
-          ...('primaryContactEmail' in input
-            ? { primaryContactEmail: input.primaryContactEmail ?? null }
-            : {}),
-          ...('primaryContactPhone' in input
-            ? { primaryContactPhone: input.primaryContactPhone ?? null }
-            : {}),
-          ...('intakeData' in input
-            ? { intakeData: (input.intakeData ?? {}) as object }
-            : {}),
-          ...('status' in input ? { status: input.status! } : {}),
-          ...('profileType' in input
-            ? { profileType: input.profileType ?? null }
-            : {}),
-          ...('sectorTag' in input
-            ? { sectorTag: input.sectorTag ?? null }
-            : {}),
-          ...('submissionTracks' in input
-            ? { submissionTracks: input.submissionTracks ?? [] }
-            : {}),
-          ...('issueCodes' in input
-            ? { issueCodes: input.issueCodes ?? [] }
-            : {}),
-          ...('profileStatus' in input
-            ? { profileStatus: input.profileStatus! }
-            : {}),
-          ...('uei' in input ? { uei: input.uei ?? null } : {}),
-          ...('cageCode' in input ? { cageCode: input.cageCode ?? null } : {}),
-          ...('naicsCodes' in input
-            ? { naicsCodes: input.naicsCodes ?? [] }
-            : {}),
-          ...('pscCodes' in input ? { pscCodes: input.pscCodes ?? [] } : {}),
-          ...('applicantTypes' in input
-            ? { applicantTypes: input.applicantTypes ?? [] }
-            : {}),
-          ...('setAsideCertifications' in input
-            ? { setAsideCertifications: input.setAsideCertifications ?? [] }
-            : {}),
-        },
-      });
-      return { client, before };
-    });
+    const result = await this.prisma.withTenant(ctx.tenantId,
+      tx => this.updateInTransaction(tx, ctx, id, input));
+    return this.afterUpdate(ctx, id, result);
+  }
 
+  /** Reuse the canonical writer inside a caller-owned transaction. */
+  async updateInTransaction(tx: Prisma.TransactionClient, ctx: TenantContext, id: string, input: UpdateClientInput) {
+    // Capacity transitions already acquire capacity/tenant before client.
+    // Keep that order, then hold current actor and wall grants through commit.
+    if (input.status !== undefined)
+      await requireClientCapacity(tx, ctx.tenantId, this.billingEnforced, {
+        clientId: id,
+        status: input.status,
+      });
+    await requireOwnerClient(tx, ctx, id, false, true);
+    const before = await tx.client.findFirst({
+      where: { id, tenantId: ctx.tenantId },
+      select: { uei: true, name: true, applicantTypes: true, intakeData: true, naicsCodes: true, setAsideCertifications: true },
+    });
+    if (!before) throw new NotFoundException('Client not found');
+    input = { ...input, ...validateClientFundingProfile(input, before) };
+    const client = await tx.client.update({
+      where: { id, tenantId: ctx.tenantId },
+      data: {
+        ...('name' in input ? { name: input.name } : {}),
+        ...('website' in input ? { website: input.website ?? null } : {}),
+        ...('description' in input
+          ? { description: input.description ?? null }
+          : {}),
+        ...('productDescription' in input
+          ? { productDescription: input.productDescription ?? null }
+          : {}),
+        ...('primaryContactName' in input
+          ? { primaryContactName: input.primaryContactName ?? null }
+          : {}),
+        ...('primaryContactEmail' in input
+          ? { primaryContactEmail: input.primaryContactEmail ?? null }
+          : {}),
+        ...('primaryContactPhone' in input
+          ? { primaryContactPhone: input.primaryContactPhone ?? null }
+          : {}),
+        ...('intakeData' in input
+          ? { intakeData: (input.intakeData ?? {}) as object }
+          : {}),
+        ...('status' in input ? { status: input.status! } : {}),
+        ...('profileType' in input
+          ? { profileType: input.profileType ?? null }
+          : {}),
+        ...('sectorTag' in input
+          ? { sectorTag: input.sectorTag ?? null }
+          : {}),
+        ...('submissionTracks' in input
+          ? { submissionTracks: input.submissionTracks ?? [] }
+          : {}),
+        ...('issueCodes' in input
+          ? { issueCodes: input.issueCodes ?? [] }
+          : {}),
+        ...('profileStatus' in input
+          ? { profileStatus: input.profileStatus! }
+          : {}),
+        ...('uei' in input ? { uei: input.uei ?? null } : {}),
+        ...('cageCode' in input ? { cageCode: input.cageCode ?? null } : {}),
+        ...('naicsCodes' in input
+          ? { naicsCodes: input.naicsCodes ?? [] }
+          : {}),
+        ...('pscCodes' in input ? { pscCodes: input.pscCodes ?? [] } : {}),
+        ...('applicantTypes' in input
+          ? { applicantTypes: input.applicantTypes ?? [] }
+          : {}),
+        ...('setAsideCertifications' in input
+          ? { setAsideCertifications: input.setAsideCertifications ?? [] }
+          : {}),
+      },
+    });
+    if (client.status === 'archived') await retireClientOfficeDraftsInTx(tx, ctx.tenantId, id);
+    return { client, before, input };
+  }
+
+  /** Invoke only after the owning transaction commits. */
+  async afterUpdate(ctx: TenantContext, id: string, result: Awaited<ReturnType<ClientsService['updateInTransaction']>>) {
+    const { client, before, input } = result;
     // When the UEI was set or changed, re-run entity resolution so
     // contracting (tier-1 UEI auto-confirm) and assistance_recipient (exact-UEI
     // match) mappings get created — they could not fire before the UEI existed.
@@ -1484,8 +1500,12 @@ export class ClientsService {
     }
 
     // Client KB (F5): keep the profile (Overview tab) index in sync.
-    this.clientKb.indexClientProfileFireAndForget(ctx.tenantId, id);
+    this.indexProfileAfterCommit(ctx, id);
     return this.withLogoUrl(client);
+  }
+
+  indexProfileAfterCommit(ctx: TenantContext, id: string) {
+    this.clientKb.indexClientProfileFireAndForget(ctx.tenantId, id);
   }
 
   archive(ctx: TenantContext, id: string) {
@@ -1639,6 +1659,8 @@ export class ClientsService {
           data: { memoryWall: input.memoryWall },
         });
       }
+
+      if (input.memoryWall) await retireClientOfficeDraftsInTx(tx, ctx.tenantId, clientId, requested);
 
       await tx.auditLog.create({
         data: {
@@ -1952,20 +1974,56 @@ export class ClientsService {
     };
   }
 
-  private async withLogoUrls<T extends { logoS3Key: string | null }>(
+  private async withLogoUrls<T extends { id: string; logoS3Key: string | null }>(
     clients: T[],
   ): Promise<Array<T & { logoUrl: string | null }>> {
-    return Promise.all(clients.map((client) => this.withLogoUrl(client)));
+    return clients.map((client) => this.withLogoUrl(client));
   }
 
-  private async withLogoUrl<T extends { logoS3Key: string | null }>(
+  /**
+   * M1: the app address of a client logo is stable and session-authenticated.
+   * A presigned S3 URL embedded temporary AWS credentials (X-Amz-Security-Token)
+   * in every client payload and died after 300 s, so logos broke silently.
+   * The field name and its nullability are unchanged for existing consumers.
+   */
+  private withLogoUrl<T extends { id: string; logoS3Key: string | null }>(
     client: T,
-  ): Promise<T & { logoUrl: string | null }> {
+  ): T & { logoUrl: string | null } {
     return {
       ...client,
-      logoUrl: client.logoS3Key
-        ? await this.signedGetUrl(client.logoS3Key)
-        : null,
+      logoUrl: client.logoS3Key ? `/api/client-logo/${client.id}` : null,
+    };
+  }
+
+  /**
+   * M1: stream the stored logo object to an authorized current-tenant caller.
+   * Uses the SAME client-access predicate as {@link get}: current membership,
+   * client lock, account-owner projection, wall and archival state. Never
+   * redirects to S3 and never returns a presigned URL.
+   */
+  async readLogo(
+    ctx: TenantContext,
+    id: string,
+  ): Promise<{ contentType: string; body: Buffer }> {
+    const row = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await requireOwnerClient(tx, ctx, id, false, true);
+      return tx.client.findFirst({
+        where: { id, tenantId: ctx.tenantId },
+        select: { logoS3Key: true, logoContentType: true },
+      });
+    });
+    const contentType = row?.logoContentType ?? '';
+    // Only the already-validated whitelist may become a response header.
+    if (!row?.logoS3Key || !ALLOWED_LOGO_MIME.has(contentType))
+      throw new NotFoundException('Client logo not found');
+    if (!this.bucket) throw new NotFoundException('Client logo not found');
+    const object = await this.s3
+      .send(new GetObjectCommand({ Bucket: this.bucket, Key: row.logoS3Key }))
+      .catch(() => null);
+    if (!object?.Body) throw new NotFoundException('Client logo not found');
+    return {
+      contentType,
+      body: Buffer.from(await object.Body.transformToByteArray()),
     };
   }
 

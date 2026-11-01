@@ -29,6 +29,8 @@ import { CreateArtifactDto } from './dto/artifact.dto.js';
 import { ReportExportDto, ReportPreflightDto } from '../reports/dto/report-export.dto.js';
 import { StrategyReportService } from '../reports/strategy-report.service.js';
 import { ObjectiveDestinationQueryDto } from './objective-destination.js';
+import { ObjectiveSavedReviewQueryDto } from './objective-saved-review.js';
+import { aggregateRequest, type DomainAggregateQuery } from './domain-aggregate.js';
 
 /**
  * /strategy-api/strategies — library read + manual create (G2), node CRUD +
@@ -55,6 +57,17 @@ export class StrategyController {
     return this.strategies.create(ctx.tenantId, ctx.clerkUserId, dto);
   }
 
+  @Get('metrics/active')
+  @Header('Cache-Control', 'private, no-store')
+  activeAggregate(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Query() query: DomainAggregateQuery,
+    @Req() req: Request,
+  ) {
+    return aggregateRequest(req, (signal) =>
+      this.strategies.activeAggregate(ctx, query, req.headers.authorization, signal),
+    );
+  }
   /** Read-only readiness and branding metadata for the current report snapshot. */
   @Get(':id/reports/preflight')
   reportPreflight(
@@ -120,6 +133,15 @@ export class StrategyController {
     }
   }
 
+  @Get('objective-saved-generation')
+  @Header('Cache-Control', 'private, no-store')
+  objectiveSavedGeneration(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Query() query: ObjectiveDestinationQueryDto,
+  ) {
+    return this.strategies.objectiveSavedGeneration(ctx, query);
+  }
+
   @Get(':id')
   byId(@CurrentTenant() ctx: AuthTenantContext, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.strategies.byId(ctx.tenantId, id);
@@ -133,6 +155,16 @@ export class StrategyController {
     @Query() query: ObjectiveDestinationQueryDto,
   ) {
     return this.strategies.objectiveDestination(ctx, id, query);
+  }
+
+  @Header('Cache-Control', 'private, no-store')
+  @Get(':id/objective-saved-review')
+  objectiveSavedReview(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Query() query: ObjectiveSavedReviewQueryDto,
+  ) {
+    return this.strategies.objectiveSavedReview(ctx, id, query);
   }
 
   @Patch(':id')

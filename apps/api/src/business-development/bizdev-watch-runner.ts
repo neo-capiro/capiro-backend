@@ -249,6 +249,14 @@ export interface BizDevWatchIdentityAnchor {
 export interface BizDevWatchRunnerDb {
   withTenant<T>(tenantId: string, fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T>;
   withSystem<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T>;
+  /**
+   * OPTIONAL adapter hint: the ownership window THIS pass claimed, i.e. the exact `lease_until` the lease CAS
+   * above wrote. It is computed once, before discovery, and every subsequent transaction runs inside that
+   * window. An adapter that sets transaction timeouts uses this to clamp them to the time actually REMAINING
+   * rather than assuming a fixed duration is remaining. Purely advisory: omitting it changes no runner
+   * behaviour, and the lease itself remains the only authority.
+   */
+  noteOwnershipDeadline?(leaseUntil: Date): void;
 }
 
 /** Direct (global, non-tenant-scoped) projection delegate. */
@@ -429,6 +437,8 @@ export async function runBizDevWatchEvaluation(
   const claimToken = randomUUID();
   const now = clock();
   const leaseUntil = new Date(now.getTime() + config.leaseSeconds * 1000);
+  // Hand the ONE ownership window for this pass to the adapter (no-op when it does not need it).
+  db.noteOwnershipDeadline?.(leaseUntil);
 
   // ── SYSTEM discovery: bounded, enrolled-tenant-only, parameterized ─────
   // Runs EXCLUSIVELY through db.withSystem (the audited RLS-bypass

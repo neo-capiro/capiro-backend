@@ -8,6 +8,7 @@ import {
 } from '@aws-sdk/client-s3';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
+import { retireMemberOfficeDraftsInTx } from '../meri/office-drafts/member-retention.js';
 import { ClerkProvisioningService } from '../auth/clerk-provisioning.service.js';
 import { IdentityOutboxService } from '../auth/identity-outbox.service.js';
 import { ClerkService } from '../auth/clerk.service.js';
@@ -482,6 +483,7 @@ export class CapiroAdminService {
         where: { id: membership.id },
         data: { status: 'removed' },
       });
+      await retireMemberOfficeDraftsInTx(tx, tenantId, userId);
       // Audit routed to the AFFECTED tenant (tenantId) so its own admins can see
       // that Capiro removed one of their users (SOC2 transparency). before =
       // the pre-removal membership snapshot.
@@ -512,78 +514,6 @@ export class CapiroAdminService {
     if (jobId) await this.outbox.attemptNow(jobId);
 
     return { ok: true };
-  }
-
-  /**
-   * Start an impersonation session. Reason required + audit logged. Sessions
-   * auto-expire after 60 minutes.
-   */
-  async startImpersonation(actorUserId: string, tenantId: string, reason: string) {
-    const trimmed = reason.trim();
-    if (trimmed.length < 10) {
-      throw new BadRequestException('Reason must be at least 10 characters');
-    }
-    return this.prisma.withSystem(async (tx) => {
-      const tenant = await tx.tenant.findUnique({ where: { id: tenantId } });
-      if (!tenant) throw new NotFoundException('Tenant not found');
-      await tx.impersonationSession.updateMany({
-        where: { actorUserId, endedAt: null },
-        data: { endedAt: new Date(), endedReason: 'replaced' },
-      });
-      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
-      const session = await tx.impersonationSession.create({
-        data: { actorUserId, tenantId, reason: trimmed, expiresAt },
-      });
-      await tx.auditLog.create({
-        data: {
-          tenantId,
-          actorUserId,
-          actorRole: 'capiro_admin',
-          action: 'impersonation.start',
-          entityType: 'impersonation_session',
-          entityId: session.id,
-          after: { reason: trimmed, expiresAt: expiresAt.toISOString() },
-        },
-      });
-      return {
-        sessionId: session.id,
-        tenantId: tenant.id,
-        tenantSlug: tenant.slug,
-        expiresAt,
-      };
-    });
-  }
-
-  async endImpersonation(actorUserId: string) {
-    return this.prisma.withSystem(async (tx) => {
-      // Capture the sessions being closed BEFORE ending them so each can be
-      // audited to its own affected tenant (updateMany doesn't return the rows).
-      const sessions = await tx.impersonationSession.findMany({
-        where: { actorUserId, endedAt: null },
-        select: { id: true, tenantId: true },
-      });
-      const endedAt = new Date();
-      await tx.impersonationSession.updateMany({
-        where: { actorUserId, endedAt: null },
-        data: { endedAt, endedReason: 'manual' },
-      });
-      // One audit row per ended session, routed to that session's affected tenant
-      // (mirrors the impersonation.start row startImpersonation already writes).
-      for (const s of sessions) {
-        await tx.auditLog.create({
-          data: {
-            tenantId: s.tenantId,
-            actorUserId,
-            actorRole: 'capiro_admin',
-            action: 'impersonation.end',
-            entityType: 'impersonation_session',
-            entityId: s.id,
-            after: { endedReason: 'manual', endedAt: endedAt.toISOString() },
-          },
-        });
-      }
-      return { ended: sessions.length };
-    });
   }
 
   async sendPasswordReset(clerkUserId: string) {

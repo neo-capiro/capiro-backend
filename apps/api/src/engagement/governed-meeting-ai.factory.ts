@@ -3,7 +3,12 @@ import {
   type MeetingDebriefDraftInput,
   type MeetingPrepInput,
 } from './engagement-ai.service.js';
-import { requireMeetingGovernedContext } from './meeting-context-runtime.js';
+import {
+  requireMeetingGovernedContext,
+  type MeetingGovernedContext,
+} from './meeting-context-runtime.js';
+import { debriefContextTokens } from './meeting-debrief-context.js';
+import { MEETING_DEBRIEF_POLICY } from './meeting-prep-policy.js';
 
 export const RAW_ENGAGEMENT_AI_SERVICE = Symbol('RAW_ENGAGEMENT_AI_SERVICE');
 
@@ -50,13 +55,26 @@ export function createGovernedMeetingAiService(
           const sanitized: MeetingDebriefDraftInput = {
             ...input,
             meeting: sanitizeCurrentMeeting(input.meeting),
-            // The source transcript and visible notes remain intact and are the
-            // only evidence of what happened. Legacy private history is removed.
-            clientContext: null,
-            recentMeetings: [],
-            recentThreads: [],
-            steeringContext: bundle.modelContextBlock,
+            // The source transcript, own notes/prep, roster and bounded continuity are
+            // the only evidence of what happened (D2). The input contract has no
+            // client timeline, directory matches or mail fields to strip.
+            //
+            // The canonical Context Plane block is authoritative for meeting steering
+            // and is always supplied, exactly as the original seam did. The assembly
+            // composes it BEFORE the bound and the bound no longer reduces the steering
+            // slot, so this is not a post-bound insertion in the governed path.
+            // The assembly composes the canonical block BEFORE the bound and may have
+            // reduced it by whole approved items to fit. Re-substituting the full bundle
+            // here would undo that reduction after the bound and push the input back over
+            // the limit, so an already-composed canonical block is kept as sent.
+            steeringContext: isCanonicalProjectionOf(input.steeringContext, bundle)
+              ? (input.steeringContext as string)
+              : bundle.modelContextBlock,
           };
+          // The provider seam dispatches nothing above the debrief's hard bound: the
+          // canonical substitution happens here, so the check has to happen here too.
+          if (debriefContextTokens(sanitized) > MEETING_DEBRIEF_POLICY.contextTokens)
+            throw new Error('meeting_debrief_context_budget_exhausted');
           return target.generateMeetingDebrief(sanitized, ctx);
         };
       }
@@ -65,6 +83,32 @@ export function createGovernedMeetingAiService(
       return typeof value === 'function' ? value.bind(target) : value;
     },
   });
+}
+
+/**
+ * Is this steering the assembly's OWN canonical projection for this bundle?
+ *
+ * The assembly composes the canonical block before the bound and may reduce it by whole
+ * approved items; the seam must accept that reduced projection rather than re-substituting
+ * the full block after the bound. Acceptance is tied to the composition identity — the plane
+ * framing AND this bundle's packet identity — not to an opening-tag substring, and a
+ * projection that lost its closing boundary or any typed item's closing tag is not accepted.
+ */
+function isCanonicalProjectionOf(
+  steering: unknown,
+  bundle: MeetingGovernedContext,
+): boolean {
+  if (typeof steering !== 'string') return false;
+  if (!steering.startsWith('<capiro_meeting_context_plane>')) return false;
+  if (!steering.trimEnd().endsWith('</capiro_meeting_context_plane>')) return false;
+  const packetId = bundle.packetId ?? 'not-persisted';
+  if (!steering.includes(`CONTEXT_PACKET_ID: ${packetId}`)) return false;
+  // Escape-free counting: the previous literal here held a real backspace byte where the
+  // word boundary belonged, so it never matched a canonical item and every reduced
+  // projection of this bundle was rejected and re-substituted with the full block.
+  const opening = steering.split('<context_item').length - 1;
+  const closing = steering.split('</context_item>').length - 1;
+  return opening === closing;
 }
 
 function assertInputScope(

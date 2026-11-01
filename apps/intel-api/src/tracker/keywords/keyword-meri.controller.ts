@@ -6,7 +6,7 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
-import { object } from '../reports/report-domain.js';
+import { object } from '../delivery/delivery-domain.js';
 import { WorkflowSourceGuard } from './internal-workflow.controller.js';
 import { KeywordRuleService } from './keyword-rule.service.js';
 import { KeywordDiscoveryService } from './keyword-discovery.service.js';
@@ -14,6 +14,7 @@ import { InternalWorkflowService } from './internal-workflow.service.js';
 import { SemanticSuggestionService } from './semantic-suggestion.service.js';
 import { Phase8EvidenceService } from '../editorial/evidence.service.js';
 import { EditorialService } from '../editorial/editorial.service.js';
+import { RetainedSourceReaderService } from '../editorial/retained-source-reader.service.js';
 import { ResearchService } from '../research/research.service.js';
 @Controller('internal/legiwatch/meri')
 @UseGuards(WorkflowSourceGuard)
@@ -26,6 +27,7 @@ export class KeywordMeriController {
     readonly research: ResearchService,
     readonly phase8: Phase8EvidenceService,
     readonly editorial: EditorialService,
+    readonly sources: RetainedSourceReaderService,
   ) {}
   @Post('read') read(@Body() body: unknown) {
     return this.route(body, false);
@@ -62,9 +64,9 @@ export class KeywordMeriController {
         return this.phase8.run(ctx, input, input.kind === 'budget' ? 'budget' : 'news', (tx) =>
           this.phase8.exact(tx, String(input.kind), String(input.id)),
         );
-      if (input.view === 'personnel') return this.phase8.personnel(ctx, input);
-      if (input.view === 'monitors') return this.phase8.monitors(ctx);
-      return this.phase8.news(ctx, input);
+      if (input.view === 'personnel') return this.sources.personnel(ctx, input);
+      if (input.view !== 'articles') throw new BadRequestException('UNSUPPORTED_SOURCE_VIEW');
+      return this.sources.news(ctx, input);
     }
     if (
       [

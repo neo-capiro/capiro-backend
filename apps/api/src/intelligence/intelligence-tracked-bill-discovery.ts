@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { EMBEDDING_MODEL, embedText, normalize, vectorLiteral } from '../embeddings/embedder.js';
 import { buildKeywordMatchTerms, matchingBillIdsSql } from './bill-keyword-match.helpers.js';
 import { withBillKeywordSqlDeadline } from './bill-keyword-deadline.js';
+import { ClientReadCache } from './client-read-cache.js';
 import {
   projectBillDetail,
   type BillDetailRow,
@@ -18,7 +19,24 @@ export class IntelligenceTrackedBillDiscovery {
     private readonly ports: TrackedBillPorts,
   ) {}
 
+  /**
+   * Tracked bills are rebuilt from the same inputs by every profile-v1 load,
+   * hearing-alert pass, relationship read and portfolio roll-up, and each
+   * rebuild costs an embedding call plus several seconds of database time
+   * under load. Tenant-scoped reads are reused for CLIENT_INTELLIGENCE_READ_TTL_MS
+   * and dropped the moment a tracked bill or intel mapping for the client is
+   * written through Core (ClientIntelligenceReads.invalidate). Client
+   * capability edits are covered by the TTL only.
+   */
   async getTrackedBills(clientId: string, tenantId?: string): Promise<TrackedBillsResult> {
+    if (!tenantId) return this.discoverTrackedBills(clientId, tenantId);
+    return this.ports.clientReads().trackedBills.remember(
+      ClientReadCache.key(tenantId, clientId),
+      () => this.discoverTrackedBills(clientId, tenantId),
+    );
+  }
+
+  private async discoverTrackedBills(clientId: string, tenantId?: string): Promise<TrackedBillsResult> {
     // Union across ALL confirmed LDA registrants, not just one. A large client
     // (e.g. RTX) files its lobbying under several registrant-name variants —
     // "RTX CORPORATION", "RTX CORPORATION AND AFFILIATES", "RAYTHEON TECHNOLOGIES
@@ -88,6 +106,8 @@ export class IntelligenceTrackedBillDiscovery {
     if (query.length < 10) return null;
 
     try {
+      // The embedding call is network work and stays outside the database
+      // transaction below, which exists only to carry a server-side deadline.
       const vector = await embedText(query);
       const vecLiteral = vectorLiteral(vector);
       // Relevance floor: cosine similarity (1 - distance) must clear this to count
@@ -97,47 +117,48 @@ export class IntelligenceTrackedBillDiscovery {
       // default keeps genuinely on-topic bills while dropping tangential matches,
       // and a tighter floor is used for thin-signal (no-capability) clients.
       const SIMILARITY_FLOOR = similarityFloor;
-      const candidateRows = await this.prisma.$queryRawUnsafe<
-        Array<{ source_id: string; score: number }>
-      >(
-        `SELECT ce.source_id,
-                (1 - (ce.embedding <=> $1::vector))::float8 AS score
-           FROM context_embeddings ce
-          WHERE ce.source_type = 'bill'
-            AND ce.model = $2
-            AND ce.embedding IS NOT NULL
-            AND (1 - (ce.embedding <=> $1::vector)) >= $3
-          ORDER BY ce.embedding <=> $1::vector
-          LIMIT 200`,
-        vecLiteral,
-        EMBEDDING_MODEL,
-        SIMILARITY_FLOOR,
-      );
+      // Both reads share the bill-read statement deadline: a nearest-neighbour
+      // scan that cannot finish inside the budget is cancelled by Postgres
+      // instead of running on after the profile has already failed open. The
+      // source_type = 'bill' predicate is served by the partial HNSW index
+      // context_embeddings_bill_embedding_hnsw.
+      return await withBillKeywordSqlDeadline(this.prisma, async (dbQuery) => {
+        const candidateRows = await dbQuery<Array<{ source_id: string; score: number }>>(Prisma.sql`
+          SELECT ce.source_id,
+                 (1 - (ce.embedding <=> ${vecLiteral}::vector))::float8 AS score
+            FROM context_embeddings ce
+           WHERE ce.source_type = 'bill'
+             AND ce.model = ${EMBEDDING_MODEL}
+             AND ce.embedding IS NOT NULL
+             AND (1 - (ce.embedding <=> ${vecLiteral}::vector)) >= ${SIMILARITY_FLOOR}
+           ORDER BY ce.embedding <=> ${vecLiteral}::vector
+           LIMIT 200`);
 
-      const rankedIds = Array.from(
-        new Set(
-          candidateRows
-            .filter((r) => typeof r.source_id === 'string' && r.source_id.trim().length > 0)
-            .map((r) => r.source_id.trim()),
-        ),
-      );
-      if (!rankedIds.length) return null;
+        const rankedIds = Array.from(
+          new Set(
+            candidateRows
+              .filter((r) => typeof r.source_id === 'string' && r.source_id.trim().length > 0)
+              .map((r) => r.source_id.trim()),
+          ),
+        );
+        if (!rankedIds.length) return null;
 
-      const bills = await this.prisma.$queryRaw<BillDetailRow[]>`
-        SELECT cb.id, cb.title, cb.latest_action_date, cb.latest_action_text, cb.status,
-               ARRAY(SELECT a.text FROM congress_bill_action a WHERE a.bill_id = cb.id) AS action_texts,
-               cb.sponsor_name, cb.sponsor_party, cb.subjects
-        FROM congress_bill cb
-        WHERE cb.id = ANY(${rankedIds}::text[])
-        ORDER BY cb.latest_action_date DESC NULLS LAST
-        LIMIT 50
-      `;
-      if (!bills.length) return null;
+        const bills = await dbQuery<BillDetailRow[]>(Prisma.sql`
+          SELECT cb.id, cb.title, cb.latest_action_date, cb.latest_action_text, cb.status,
+                 ARRAY(SELECT a.text FROM congress_bill_action a WHERE a.bill_id = cb.id) AS action_texts,
+                 cb.sponsor_name, cb.sponsor_party, cb.subjects
+          FROM congress_bill cb
+          WHERE cb.id = ANY(${rankedIds}::text[])
+          ORDER BY cb.latest_action_date DESC NULLS LAST
+          LIMIT 50
+        `);
+        if (!bills.length) return null;
 
-      return {
-        total: rankedIds.length,
-        bills: bills.map(projectBillDetail),
-      };
+        return {
+          total: rankedIds.length,
+          bills: bills.map(projectBillDetail),
+        };
+      });
     } catch (error) {
       this.ports.warn(
         `Tracked-bills embeddings lookup failed, falling back to keyword matcher: ${(error as Error).message}`,

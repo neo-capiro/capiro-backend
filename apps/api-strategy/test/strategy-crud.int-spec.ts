@@ -31,7 +31,7 @@ suite('G3 node CRUD + versioning + restore (integration)', () => {
     prisma = new PrismaService();
     await prisma.onModuleInit();
     const versioning = new VersioningService();
-    strategies = new StrategyService(prisma, versioning);
+    strategies = new StrategyService(prisma, versioning, {} as never);
     nodes = new NodeService(prisma, versioning);
     versions = new VersionService(prisma, versioning);
     // The API migration owns the client-to-tenant FK. Create our parent row

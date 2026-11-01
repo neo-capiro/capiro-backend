@@ -1,8 +1,14 @@
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { EngagementTaskStatus } from '@prisma/client';
+import type { TenantContext } from '@capiro/shared';
+import { readClientRecordedActivityIndex } from './client-recorded-activity-index.js';
 
 export class ClientContextV1Health {
   constructor(private readonly prisma: PrismaService) {}
+
+  getRecordedActivityIndex(ctx: TenantContext, clientId: string, signal?: AbortSignal) {
+    return readClientRecordedActivityIndex(this.prisma, ctx, clientId, signal);
+  }
 
   async computeEngagementHealth(clientId: string, tenantId: string) {
     const now = new Date();

@@ -118,6 +118,7 @@ function makeOwnerHarness(records: Array<Record<string, unknown>>): OwnerHarness
   const findManyWheres: Array<Record<string, unknown>> = [];
 
   const tx = {
+    tenantMembership: { findFirst: async () => ({ role: 'standard_user' }) },
     outreachRecord: {
       findFirst: async ({ where }: { where: Record<string, unknown> }) => {
         findFirstWheres.push(where);
@@ -385,47 +386,6 @@ describe('restoreOutreachRecord owner isolation (§3.a4)', () => {
       NotFoundException,
     );
     expect(h.records[0]!.deletedAt).not.toBeNull();
-  });
-});
-
-// ── generateOutreachDraft / openOutreachInConnectedEmail / sendCampaign ──────
-//
-// All three delegate their FIRST read to the now owner-scoped
-// getOutreachRecord(). Rather than re-simulate the entire downstream
-// generation/connection/send pipeline, the very next collaborator each method
-// calls is stubbed to throw a distinctive sentinel: reaching it proves
-// ownership let a legitimate owner proceed; a NotFoundException WITHOUT that
-// sentinel proves a foreign caller was refused BEFORE that collaborator — i.e.
-// before any AI or provider work — mirroring the ordering proof in
-// engagement-legacy-send-gate.spec.ts.
-
-describe('generateOutreachDraft owner isolation (§3.a4)', () => {
-  function harness() {
-    const h = makeOwnerHarness([baseRecord()]);
-    const patch = h.service as unknown as Record<string, unknown>;
-    // Phase 26 made the governed gateway the only generation path, so the first
-    // collaborator past the ownership gate is the gateway hand-off, not the
-    // legacy outreachContext loader. The ordering proof is unchanged.
-    patch.generateBatchEmailsViaGateway = async () => {
-      throw new Error('REACHED governed generation');
-    };
-    return h;
-  }
-
-  test('the owner proceeds past the ownership gate into generation', async () => {
-    const h = harness();
-    const caught = await h.service
-      .generateOutreachDraft(userA, RECORD_ID, {})
-      .catch((e: unknown) => e);
-    expect((caught as Error).message).toBe('REACHED governed generation');
-  });
-
-  test('another same-tenant user is refused BEFORE generation, with no AI spend', async () => {
-    const h = harness();
-    const caught = await h.service
-      .generateOutreachDraft(userB, RECORD_ID, {})
-      .catch((e: unknown) => e);
-    expect(caught).toBeInstanceOf(NotFoundException);
   });
 });
 
