@@ -22,11 +22,13 @@ import { ReportSnapshotService } from '../reports/report-snapshot.service.js';
 import { StrategyReportService } from '../reports/strategy-report.service.js';
 import { StrategyAiCredentialResolver } from '../meri/strategy-ai-credential.resolver.js';
 import { StrategyOrchestratorClient } from '../meri/strategy-orchestrator.client.js';
+import { StrategyContextPlaneClient } from '../meri/strategy-context-plane.client.js';
 
 @Module({
   controllers: [StrategyController],
   providers: [
     StrategyService,
+    StrategyContextPlaneClient,
     PlannerLinksService,
     NodeService,
     VersionService,

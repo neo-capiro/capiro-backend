@@ -19,6 +19,7 @@ import { ObjectiveGenerationContextService, ObjectiveContextIncomplete, objectiv
 import { ContextResolverService } from './context-resolver.service.js';
 import { OBJECTIVE_EMPTY_STEERING } from './objective-generation-background.js';
 import type { ObjectiveTypedContext } from './objective-generation-typed-context.js';
+import { projectObjectiveSourceEvidence, type ObjectiveSourceEvidence } from './objective-generation-evidence.js';
 
 export const PHASE_26 = 26;
 const MAILBOX_PROVIDERS = ['microsoft_365', 'google_workspace', 'imap_caldav'] as const;
@@ -92,6 +93,7 @@ export interface StrategyCoverageProjection {
 }
 
 export interface StrategyContextPlaneBundle {
+  objectiveSourceEvidence?: ObjectiveSourceEvidence[];
   objectiveAdmission?: ReturnType<ObjectiveGenerationContextService['bind']>;
   /** Private runtime projection; never a public field-level coverage manifest. */
   objectiveTypedContext?: ObjectiveTypedContext;
@@ -201,7 +203,8 @@ export class StrategyContextPlaneService {
         coverage.sources.every(s => s.coverageComplete && s.paginationComplete && !s.truncated && s.sourceStatus === 'healthy');
       return { tenantId: input.tenantId, clerkUserId: input.clerkUserId, requestId: input.generationRequestId,
         source: observed.source, sourceDigest: observed.sourceDigest, localDigest: observed.localDigest,
-        externalDigest: observed.externalDigest, historyDigest: historyDigest(records, security, observed.background.digest),
+        externalDigest: observed.externalDigest, historyDigest: historyDigest(records, security, observed.background.digest, observed.calendars),
+        evidence: projectObjectiveSourceEvidence(records, input.clientId, observed.observedAt, observed.calendars),
         checkedAt: new Date().toISOString(), complete: complete && observed.issues.length === 0 };
     }
 
@@ -276,6 +279,8 @@ export class StrategyContextPlaneService {
     const prompt = buildStrategyPrompt(promptInput);
 
     const bundle: StrategyContextPlaneBundle = {
+      ...(objective ? { objectiveSourceEvidence: projectObjectiveSourceEvidence(records, input.clientId,
+        objective.observedAt, objective.calendars) } : {}),
       kind: result.kind,
       packet: result.packet,
       records,
@@ -322,7 +327,7 @@ export class StrategyContextPlaneService {
         },
       },
     };
-    if (objective) bundle.objectiveAdmission = this.objectiveContext!.bind(input, objective, bundle, historyDigest(records, security, objective.background.digest),
+    if (objective) bundle.objectiveAdmission = this.objectiveContext!.bind(input, objective, bundle, historyDigest(records, security, objective.background.digest, objective.calendars),
       records.map(r => ({ id: r.recordId, domain: r.domain, ...safePayloadFor(r), provenance: r.provenance ?? null })), {
         retrieval: projection.text, steering: strategySteering(result.packet),
         compose: (intentText, recordsText) => buildStrategyPrompt({ ...promptInput,
@@ -492,10 +497,11 @@ export class StrategyContextPlaneService {
   }
 }
 
-function historyDigest(records: RetrievalRecord[], security: SecurityEnvelope, backgroundDigest?: string): string {
+function historyDigest(records: RetrievalRecord[], security: SecurityEnvelope, backgroundDigest?: string, calendars?: unknown): string {
   return objectiveDigest({ userId: security.userId, clientIds: [...security.authorizedClientIds].sort(),
     mailboxIds: [...security.authorizedMailboxConnectionIds].sort(),
     ...(backgroundDigest ? { backgroundDigest } : {}),
+    ...(calendars ? { calendars } : {}),
     records: records.map(r => ({ domain: r.domain, recordId: r.recordId, payload: safePayloadFor(r), provenance: r.provenance ?? null }))
       .sort((a, b) => `${a.domain}:${a.recordId}`.localeCompare(`${b.domain}:${b.recordId}`)) });
 }
@@ -672,6 +678,8 @@ function safePayloadFor(record: RetrievalRecord): Record<string, unknown> {
       'nodes',
       'documentId',
       'documentTitle',
+      'documentWitness',
+      'state', 'checksum', 'revision',
       'fact',
       'sourceRef',
       'authority',
@@ -696,6 +704,7 @@ function safePayloadFor(record: RetrievalRecord): Record<string, unknown> {
       'validFrom',
       'validTo',
       'sourceType',
+      'sourceKind', 'memoryItemId', 'value', 'governance', 'scope', 'contentStatus', 'contentLimitation',
     ],
   };
   const keys = byDomain[record.domain] ?? common;

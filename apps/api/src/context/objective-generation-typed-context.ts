@@ -8,7 +8,7 @@ export interface ObjectiveTypedIntent {
   outcome: string; governmentProblem: string; askType: string; minimumWin: string; limits: string;
 }
 export interface ObjectiveTypedEvidence {
-  ref: string; sourceId: string; asOfMs: number; scope: 'client'; clientId: string;
+  ref: string; sourceId: string; asOfMs: number; scope: 'client' | 'tenant-shared'; clientId: string | null;
   /** Review status of this historical artifact, not current canonical truth.
    * An accepted recommendation remains a recommendation in the full prompt. */
   reviewState: 'accepted' | 'pending';
@@ -94,7 +94,7 @@ function findingRows(raw: unknown): unknown[] {
  * governedContext.prompt; this hash is its raw UTF-8 SHA, not JSON-string SHA.
  * The full saved revision hash must be captured by the actual snapshot owner;
  * it is deliberately distinct from the hash of {source,intent} below. */
-export function projectObjectiveTypedContext(raw: unknown): ObjectiveTypedContext {
+export function projectObjectiveTypedContext(raw: unknown, sourceEvidence: readonly ObjectiveTypedEvidence[] = []): ObjectiveTypedContext {
   const r = read(raw, ['tenantId', 'clerkUserId', 'requestId', 'source', 'intent', 'snapshotSha256',
     'sourceDigest', 'packetId', 'compiledAt', 'coverageDigest', 'prompt', 'findings',
     'packetPersisted', 'packetDegraded', 'coverageComplete', 'paginationComplete', 'truncated']);
@@ -135,6 +135,19 @@ export function projectObjectiveTypedContext(raw: unknown): ObjectiveTypedContex
         f.disposition !== (f.status === 'accepted' ? 'historical_reviewed_applied' : 'candidate_unverified')) return fail();
     evidence.push({ ref: `profile-fill:${sourceId}:${contentHash}`, sourceId, asOfMs,
       scope: 'client', clientId: source.clientId, reviewState: f.status });
+    if (evidence.length > 256) return fail();
+  }
+  for (const item of sourceEvidence) {
+    const e = read(item, ['ref', 'sourceId', 'asOfMs', 'scope', 'clientId', 'reviewState']);
+    const sourceId = uuid(e.sourceId), ref = text(e.ref, 256);
+    const match = /^(context-fact|governed-memory|calendar-baseline|calendar-override):([^:]+):([a-f0-9]{64})$/.exec(ref);
+    if (!match || match[2] !== sourceId || ids.has(ref) || typeof e.asOfMs !== 'number' ||
+        !Number.isSafeInteger(e.asOfMs) || e.asOfMs < 0 || e.asOfMs > compiledAtMs ||
+        !(e.scope === 'client' && e.clientId === source.clientId || e.scope === 'tenant-shared' && e.clientId === null) ||
+        !['accepted', 'pending'].includes(e.reviewState as string)) return fail();
+    ids.add(ref);
+    evidence.push({ ref, sourceId, asOfMs: e.asOfMs, scope: e.scope, clientId: e.clientId as string | null,
+      reviewState: e.reviewState as 'accepted' | 'pending' });
     if (evidence.length > 256) return fail();
   }
   evidence.sort((a, b) => a.ref < b.ref ? -1 : a.ref > b.ref ? 1 : 0);

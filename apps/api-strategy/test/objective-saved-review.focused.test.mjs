@@ -52,7 +52,7 @@ export async function requireCanonicalGenerationReadWithinTx(tx, admission, cler
 export async function readCanonicalSavedGeneration(tx, scope) {
   tx.calls.canonical++; tx.calls.canonicalScope=scope;
   if(tx.state.custodyError)throw new CanonicalApplicationError('OUTCOME_UNCONFIRMED');
-  return {receipt:{snapshotDigest:tx.state.custodyDigest??tx.digest(tx.snapshot),
+  return {publication:{request:{context:{evidence:[]}}},receipt:{snapshotDigest:tx.state.custodyDigest??tx.digest(tx.snapshot),
     objectiveReceipt:tx.state.custodyReceipt??tx.receipt}};
 }`);
 const reviewUrl = await load(

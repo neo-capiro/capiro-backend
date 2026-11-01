@@ -21,7 +21,7 @@ export interface CanonicalRequestIntent {
   outcome: string; governmentProblem: string; askType: string; minimumWin: string; limits: string;
 }
 export interface CanonicalRequestEvidence {
-  ref: string; sourceId: string; asOfMs: number; scope: 'client'; clientId: string;
+  ref: string; sourceId: string; asOfMs: number; scope: 'client' | 'tenant-shared'; clientId: string | null;
   reviewState: 'accepted' | 'pending';
 }
 /** Closed local mirror of the actual Core ObjectiveTypedContext projection.
@@ -219,13 +219,16 @@ export function canonicalRequestPublicationParts(raw: CanonicalRequestPublicatio
   const evidence: CanonicalRequestEvidence[] = list(c.evidence, 256).map(rawEvidence => {
     const e = object(rawEvidence, ['ref', 'sourceId', 'asOfMs', 'scope', 'clientId', 'reviewState']);
     const ref = text(e.ref, 256), sourceId = uuid(e.sourceId), asOfMs = time(e.asOfMs);
-    const prefix = `profile-fill:${sourceId}:`;
-    if (!ref.startsWith(prefix)) return invalid();
-    sha(ref.slice(prefix.length));
-    if (seen.has(ref) || sourceIds.has(sourceId) || asOfMs > compiledAtMs || e.scope !== 'client' || e.clientId !== source.clientId ||
+    const match = /^(profile-fill|context-fact|governed-memory|calendar-baseline|calendar-override):([^:]+):([a-f0-9]{64})$/.exec(ref);
+    if (!match || match[2] !== sourceId) return invalid();
+    sha(match[3]);
+    const identity = `${match[1]}:${sourceId}`;
+    const scoped = e.scope === 'client' && e.clientId === source.clientId || e.scope === 'tenant-shared' && e.clientId === null;
+    if (seen.has(ref) || sourceIds.has(identity) || asOfMs > compiledAtMs || !scoped ||
+        match[1] === 'profile-fill' && e.scope !== 'client' || match[1]!.startsWith('calendar-') && e.scope !== 'tenant-shared' ||
         !['accepted', 'pending'].includes(e.reviewState)) return conflict();
-    seen.add(ref); sourceIds.add(sourceId);
-    return { ref, sourceId, asOfMs, scope: 'client', clientId: source.clientId, reviewState: e.reviewState };
+    seen.add(ref); sourceIds.add(identity);
+    return { ref, sourceId, asOfMs, scope: e.scope, clientId: e.clientId, reviewState: e.reviewState };
   });
   const ownerRefs = new Set<string>();
   const owners: CanonicalRequestOwner[] = list(v.owners, 100).map(rawOwner => {

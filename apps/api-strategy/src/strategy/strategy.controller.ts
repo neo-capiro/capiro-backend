@@ -167,6 +167,16 @@ export class StrategyController {
     return this.strategies.objectiveSavedReview(ctx, id, query);
   }
 
+  @Header('Cache-Control', 'private, no-store')
+  @Get(':id/objective-saved-citations')
+  objectiveSavedCitations(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Query() query: ObjectiveSavedReviewQueryDto,
+  ) {
+    return this.strategies.objectiveSavedCitations(ctx, id, query);
+  }
+
   @Patch(':id')
   patch(
     @CurrentTenant() ctx: AuthTenantContext,

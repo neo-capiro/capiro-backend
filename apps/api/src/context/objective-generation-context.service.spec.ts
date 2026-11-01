@@ -24,6 +24,7 @@ function fixture() {
   f.tx.$queryRaw = (async (strings: TemplateStringsArray, ...values: unknown[]) => {
     if (strings.join('').includes('objective_background_evidence'))
       return [{ background: { runs: [], tasks: [], findings: [] } }];
+    if (strings.join('').includes('FROM sp_reference_entry')) return [];
     return originalQuery(strings, ...values);
   }) as typeof f.tx.$queryRaw;
   for (const [group, rows] of Object.entries(f.state.sources)) {

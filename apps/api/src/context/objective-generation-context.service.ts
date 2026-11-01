@@ -8,6 +8,7 @@ import { createHash } from 'node:crypto';
 import {
   ClientObjectiveDestinationError,
   requireClientObjectiveDestinationRevision,
+  readStrategyReferenceWitness,
 } from '@capiro/shared';
 import { DirectoryService } from '../directory/directory.service.js';
 import { RepresentationResolverService } from '../clients/representation-resolver.service.js';
@@ -16,6 +17,7 @@ import { classifyStaffKind } from '../clients/client-targets.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { readObjectiveSources } from './objective-generation-sources.js';
 import { ObjectiveTypedContextError, projectObjectiveTypedContext } from './objective-generation-typed-context.js';
+import { typedObjectiveSourceEvidence } from './objective-generation-evidence.js';
 import {
   BackgroundSnapshotError,
   OBJECTIVE_BACKGROUND_FIELDS,
@@ -56,6 +58,7 @@ const OBJECTIVE_POLICY_OMITTED_FIELDS: Record<string, readonly string[]> = {
   government_profile_support: ['ein'],
 };
 export const OBJECTIVE_FIELD_INVENTORY: Record<string, string[]> = {
+  objective_sources: ['ref', 'sourceId', 'asOfMs', 'scope', 'clientId', 'reviewState', 'kind', 'title', 'text', 'locator', 'version'],
   ...OBJECTIVE_BACKGROUND_FIELDS,
   government_profile_support: [
     'id',
@@ -329,6 +332,7 @@ export class ObjectiveGenerationContextService {
           snapshotSha256: objectiveDigest(saved),
           sourceDigest: objectiveDigest({ source, intent }),
           background: await readObjectiveBackground(tx, input.tenantId, input.clientId),
+          calendars: await readStrategyReferenceWitness(tx, input.tenantId),
           sources: await readObjectiveSources(
             tx,
             input.tenantId,
@@ -385,6 +389,7 @@ export class ObjectiveGenerationContextService {
       throw new ObjectiveContextIncomplete();
     const { mailbox_authority: _mailboxAuthority, ...contextSources } = observed.sources;
     const groups: Record<string, any[]> = {
+      objective_sources: bundle.objectiveSourceEvidence ?? [],
       ...contextSources,
       // Keep the model boundary safe even if an older source reader supplies
       // the omitted field. Do not read its value or report it as absent.
@@ -424,9 +429,9 @@ export class ObjectiveGenerationContextService {
       enumerationComplete: true,
       fields: records.flatMap((record) => {
         const fields: any[] = [];
-        const sourceReference = String(record.id ?? record.targetId ?? input.clientId);
+        const sourceReference = String(record.ref ?? record.id ?? record.targetId ?? input.clientId);
         const sourceVersionOrAsOf =
-          record.updated_at ??
+          record.version ?? record.updated_at ??
           record.updatedAt ??
           record.computed_at ??
           record.synced_at ??
@@ -485,7 +490,7 @@ export class ObjectiveGenerationContextService {
           coverageDigest, prompt: governed.prompt, findings: observed.background.groups.profile_fill_findings,
           packetPersisted: packet.persisted, packetDegraded: packet.degraded, coverageComplete: coverage.complete,
           paginationComplete: coverage.paginationComplete, truncated: coverage.truncated,
-        });
+        }, typedObjectiveSourceEvidence(bundle.objectiveSourceEvidence ?? []));
       } catch (error) {
         if (error instanceof ObjectiveTypedContextError) throw new ObjectiveContextIncomplete('profile_fill_corpus');
         throw error;
