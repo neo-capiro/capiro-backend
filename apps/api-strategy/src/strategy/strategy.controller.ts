@@ -29,6 +29,7 @@ import { CreateArtifactDto } from './dto/artifact.dto.js';
 import { ReportExportDto, ReportPreflightDto } from '../reports/dto/report-export.dto.js';
 import { StrategyReportService } from '../reports/strategy-report.service.js';
 import { ObjectiveDestinationQueryDto } from './objective-destination.js';
+import { ObjectiveSavedReviewQueryDto } from './objective-saved-review.js';
 import { aggregateRequest, type DomainAggregateQuery } from './domain-aggregate.js';
 
 /**
@@ -132,6 +133,15 @@ export class StrategyController {
     }
   }
 
+  @Get('objective-saved-generation')
+  @Header('Cache-Control', 'private, no-store')
+  objectiveSavedGeneration(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Query() query: ObjectiveDestinationQueryDto,
+  ) {
+    return this.strategies.objectiveSavedGeneration(ctx, query);
+  }
+
   @Get(':id')
   byId(@CurrentTenant() ctx: AuthTenantContext, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.strategies.byId(ctx.tenantId, id);
@@ -145,6 +155,16 @@ export class StrategyController {
     @Query() query: ObjectiveDestinationQueryDto,
   ) {
     return this.strategies.objectiveDestination(ctx, id, query);
+  }
+
+  @Header('Cache-Control', 'private, no-store')
+  @Get(':id/objective-saved-review')
+  objectiveSavedReview(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Query() query: ObjectiveSavedReviewQueryDto,
+  ) {
+    return this.strategies.objectiveSavedReview(ctx, id, query);
   }
 
   @Patch(':id')

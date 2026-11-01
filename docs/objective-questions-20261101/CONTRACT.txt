@@ -1,0 +1,24 @@
+Objective Questions v1
+
+Approved product contract, 1 November 2026: Open -> Answered -> Closed; existing Objective editors may create/answer/close/reopen. Reopening keeps the same Question identity and appends a version. Changed Objective/evidence versions require review again before decisions/actions. Current access always applies.
+
+This implementation's evidence kind is objective_context only. An answer binds the exact canonical Objective revision ID/version and a human-authored evidence note. It does not import, verify, grant access to, or promise invalidation for external intelligence/document sources. That broader evidence integration remains unsupported and is labeled in the UI.
+
+Core is the sole authorization owner. Every command, list, history and receipt read uses loadCurrentOperationalScopeWithinTx and the existing canonical destination authority, including actual active member role, current tenant/client state, client memory wall and undeleted Objective. Mutations use the same standard_user/user_admin/capiro_admin roles as existing Objective editing. The transport guard also disallows tenant impersonation. A browser hint or historical receipt grants no permission.
+
+GET /clients/:clientId/objectives/:objectiveId/questions?status=...&after=...
+  Current head list, ID-keyset pages of 50 with nextCursor, actual total/openCount, current Objective version. Status filter is optional. No effects.
+GET .../questions/history/:questionId?before=...
+  Immutable revision history in descending version pages of 50. Authors, committed timestamps, source versions, answer and evidence notes remain historical. Stale is derived against the current Objective version. No effects.
+GET .../questions/receipts/:requestId
+  Actor-scoped original command result under fresh current authority. A missing result is outcome=unknown, never no-write proof.
+POST .../questions
+  Closed command: requestId, questionId, expectedVersion, expectedObjectiveVersion, action. Create adds title and requires version0; answer adds nonblank answer/evidenceNote and requires Open; close requires Answered and exact fresh source; reopen requires Answered/Closed and clears current answer while preserving prior revisions. All state changes increment version and append one immutable revision. There is no automation/action beyond this Question-domain transition.
+
+Commands acquire the existing authority locks, then a request-scoped advisory lock, reconcile any original receipt, then lock the Question head and perform CAS. Identical request replay returns the original committed revision without another write, even after later Objective edits. A changed payload for an already-used request conflicts. Successful current updates and history inserts commit atomically.
+
+OBJECTIVE_QUESTION_REFUSED is a definitive no-write 409 emitted only after the original request is checked under its lock and before a transition/CAS mutation. Infrastructure errors, authority failures, missing receipts and unrecognized conflicts remain unknown. The UI saves the original command before dispatch using the existing encrypted recovery journal, never silently resubmits on mount, and requires explicit same-command retry or status recovery. A terminal refusal is retired only after a fresh current-source read and explicit acknowledgement. Storage disappearance while the session remembers its command is a hold, never a replacement identity.
+
+Persistence: client_objective_questions + append-only client_objective_question_revisions, scoped source/question foreign keys, tenant FORCE RLS, conditional existing capiro_app grants and history UPDATE/DELETE revocation. Prisma models and image-local schema pins are updated. New forward migration only; DB owner must inspect/apply it under existing custody. No SQL execution is part of source acceptance.
+
+Required native/deployed acceptance: ordinary-role initial create/answer/close/reopen and reload; exact actor/request replay after lost reply; two concurrent same-request commits produce one revision; two competing expected versions produce one transition; current tenant/member/client/wall denials, Objective deletion and cross-client/actor receipt refusal; Objective edit marks prior answer stale and rejects close; history and pagination retain all versions; denied/failed reads hide stale UI; source errors and missing original outcomes retain the pending request. Distinguish native transaction/HTTP/browser evidence from offline synthetic ports and static rendering.
