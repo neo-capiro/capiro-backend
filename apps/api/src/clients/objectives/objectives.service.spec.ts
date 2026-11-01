@@ -1,3 +1,4 @@
+import { emptyStrategyIntake } from '@capiro/shared/strategy-intake';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import type { ClientObjective } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
@@ -52,7 +53,7 @@ function setup(current: ClientObjective = record) {
   const tx = {
     $queryRawUnsafe: jest.fn().mockResolvedValue([{ allowed: true }]),
     client: { findFirst: jest.fn().mockResolvedValue({ id: clientId }) },
-    tenantMembership: { findFirst: jest.fn().mockResolvedValue({ id: 'active-member' }) },
+    tenantMembership: { findFirst: jest.fn().mockResolvedValue({ id: 'active-member', userId: ctx.userId }) },
     clientObjective: {
       count: jest.fn().mockResolvedValue(1),
       findFirst: jest.fn().mockResolvedValue(current),
@@ -67,6 +68,7 @@ function setup(current: ClientObjective = record) {
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     clientObjectiveRevision: {
+      findMany: jest.fn(async () => sqlState.revisions),
       create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => {
         const revision = {
           ...data,
@@ -592,7 +594,98 @@ describe('ClientObjectivesService', () => {
 });
 
 describe('automatic Objective context',()=>{
- test('actual owner bounds records and preserves count/revision/limits with access before and after',async()=>{const f=setup({...record,limits:'Synthetic limit'});f.tx.clientObjective.count.mockResolvedValue(7);const r=await f.service.readContext(ctx,clientId);expect(r).toMatchObject({status:'partial',total:7,items:[{id:objectiveId,version:1,limits:'Synthetic limit'}]});expect(f.tx.clientObjective.findMany).toHaveBeenCalledWith({where:{tenantId:ctx.tenantId,clientId,deletedAt:null},orderBy:[{updatedAt:'desc'},{id:'asc'}],take:3});expect(f.tx.client.findFirst).toHaveBeenCalledTimes(2);});
+ test('actual owner bounds records and preserves count/revision/limits with access before and after',async()=>{const f=setup({...record,limits:'Synthetic limit'});f.tx.clientObjective.count.mockResolvedValue(7);const r=await f.service.readContext(ctx,clientId);expect(r).toMatchObject({status:'partial',total:7,items:[{id:objectiveId,version:1,limits:'Synthetic limit'}]});expect(f.tx.clientObjective.findMany).toHaveBeenCalledWith({where:{tenantId:ctx.tenantId,clientId,deletedAt:null},orderBy:[{updatedAt:'desc'},{id:'asc'}],take:3});expect(f.tx.client.findFirst).toHaveBeenCalledTimes(3);});
  test('wall revocation during the bounded read prevents release',async()=>{const f=setup();f.tx.clientObjective.findMany.mockImplementation(async()=>{f.tx.$queryRawUnsafe.mockResolvedValue([{allowed:false}]);return [record];});await expect(f.service.readContext(ctx,clientId)).rejects.toBeInstanceOf(NotFoundException);});
  test('foreign or archived client cannot read the Objective count',async()=>{const f=setup();f.tx.client.findFirst.mockResolvedValue(null);await expect(f.service.readContext(ctx,clientId)).rejects.toBeInstanceOf(NotFoundException);expect(f.tx.clientObjective.count).not.toHaveBeenCalled();});
+});
+
+
+describe('saved shared Strategy intake', () => {
+  const answers = () => ({ ...emptyStrategyIntake(ctx.clerkUserId), type: 'authorization' as const,
+    goal: ' G'.repeat(1900), targetDate: '2027-02-28', meriContext: 'saved context'.repeat(500) });
+  function savedSetup() {
+    const f = setup({ ...record, outcome: '', governmentProblem: '', minimumWin: '', askType: null });
+    f.sqlState.revisions.push({ objectiveId, version: 1, snapshot: { ...record, strategyIntake: answers() } });
+    return f;
+  }
+  test('create/retry preserve full answers in immutable revision and bind active Clerk owner to native UUID', async () => {
+    const f = setup(), intake = answers();
+    const first = await f.service.create(ctx, clientId, { requestId, strategyIntake: intake });
+    expect(first.strategyIntake).toEqual(intake);
+    expect(first.ownerUserId).toBe(ctx.userId);
+    expect(first.outcome).toBe('');
+    expect(first.governmentProblem).toBe('');
+    expect(first.minimumWin).toBe('');
+    expect(first.readiness).toEqual({ checklist: { type: true, goal: true, ownerUserId: true },
+      completedFields: 3, requiredFields: 3, isReady: true });
+    expect(f.tx.tenantMembership.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: { tenantId: ctx.tenantId, status: 'active', user: { clerkUserId: ctx.clerkUserId } },
+    }));
+    expect((f.sqlState.revisions[0]!.snapshot as any).strategyIntake).toEqual(intake);
+    f.tx.clientObjective.createMany.mockResolvedValue({ count: 0 });
+    expect((await f.service.create(ctx, clientId, { requestId, strategyIntake: intake })).strategyIntake).toEqual(intake);
+    await expect(f.service.create(ctx, clientId, { requestId, strategyIntake: { ...intake, meriContext: 'changed' } }))
+      .rejects.toBeInstanceOf(ConflictException);
+    expect(f.sqlState.revisions).toHaveLength(1);
+  });
+  test('get/list/context hydrate only the exact current revision and leave old records unchanged', async () => {
+    const f = savedSetup();
+    expect((await f.service.get(ctx, clientId, objectiveId)).strategyIntake).toEqual(answers());
+    expect((await f.service.list(ctx, clientId))[0]!.strategyIntake).toEqual(answers());
+    expect((await f.service.readContext(ctx, clientId)).items[0]!.strategyIntake).toEqual(answers());
+    f.sqlState.revisions[0]!.version = 0;
+    expect(await f.service.get(ctx, clientId, objectiveId)).not.toHaveProperty('strategyIntake');
+    const legacy = setup();
+    expect((await legacy.service.get(ctx, clientId, objectiveId)).readiness.requiredFields).toBe(4);
+  });
+  test('edit advances the revision and changes the snapshot hash without legacy-field synthesis', async () => {
+    const f = savedSetup();
+    const updated = { ...answers(), goal: 'new goal', meriContext: 'new context' };
+    f.tx.clientObjective.findFirst.mockResolvedValueOnce({ ...record, outcome: '', governmentProblem: '', minimumWin: '', askType: null })
+      .mockResolvedValue({ ...record, outcome: '', governmentProblem: '', minimumWin: '', askType: null, version: 2 });
+    const result = await f.service.update(ctx, clientId, objectiveId, 1, { strategyIntake: updated });
+    expect(result.strategyIntake).toEqual(updated);
+    expect(result.version).toBe(2);
+    expect(result.outcome).toBe('');
+    expect(objectiveRevisionSnapshotHash(f.sqlState.revisions.at(-1)!.snapshot)).not.toBe(
+      objectiveRevisionSnapshotHash(f.sqlState.revisions[0]!.snapshot));
+  });
+  test('confirm ready carries shared answers into the canonical source hash and preserves separate work consent', async () => {
+    const f = savedSetup();
+    f.tx.clientObjective.findFirst.mockResolvedValueOnce({ ...record, outcome: '', governmentProblem: '', minimumWin: '', askType: null })
+      .mockResolvedValue({ ...record, outcome: '', governmentProblem: '', minimumWin: '', askType: null, version: 2, status: 'ready' });
+    const result = await f.service.transition(ctx, clientId, objectiveId, 1, 'confirm_ready');
+    expect(result.strategyIntake).toEqual(answers());
+    const revision = f.sqlState.revisions.at(-1)!;
+    expect(f.sqlState.canonical!.snapshotHash).toBe(objectiveRevisionSnapshotHash(revision.snapshot as any));
+    expect(f.sqlState.intents).toHaveLength(1);
+    expect(f.tx.$queryRaw.mock.calls.map(call => call[0].join('')).join('\n')).not.toContain('INSERT INTO client_objective_work_consents');
+  });
+  test('review and delete carry the exact saved intake into the new snapshot', async () => {
+    for (const action of ['review', 'delete']) {
+      const f = savedSetup();
+      f.tx.clientObjective.findFirst.mockResolvedValueOnce(record).mockResolvedValue({ ...record, version: 2,
+        status: action === 'review' ? 'in_review' : 'draft', deletedAt: action === 'delete' ? now : null });
+      if (action === 'review') await f.service.transition(ctx, clientId, objectiveId, 1, 'request_review');
+      else await f.service.remove(ctx, clientId, objectiveId, 1);
+      expect((f.sqlState.revisions.at(-1)!.snapshot as any).strategyIntake).toEqual(answers());
+    }
+  });
+  test('revoked/foreign owner and conflicting native UUID refuse before a new revision', async () => {
+    const f = savedSetup(); f.tx.tenantMembership.findFirst.mockResolvedValue(null);
+    await expect(f.service.transition(ctx, clientId, objectiveId, 1, 'confirm_ready')).rejects.toBeInstanceOf(BadRequestException);
+    await expect(f.service.update(ctx, clientId, objectiveId, 1, { strategyIntake: answers() })).rejects.toBeInstanceOf(BadRequestException);
+    expect(f.tx.clientObjectiveRevision.create).not.toHaveBeenCalled();
+    const g = setup();
+    await expect(g.service.create(ctx, clientId, { requestId, strategyIntake: answers(), ownerUserId: objectiveId }))
+      .rejects.toBeInstanceOf(BadRequestException);
+    expect(g.tx.clientObjective.createMany).not.toHaveBeenCalled();
+  });
+  test('incomplete intake remains a recoverable draft and cannot confirm ready', async () => {
+    const f = savedSetup();
+    (f.sqlState.revisions[0]!.snapshot as any).strategyIntake = emptyStrategyIntake();
+    expect((await f.service.get(ctx, clientId, objectiveId)).readiness.isReady).toBe(false);
+    await expect(f.service.transition(ctx, clientId, objectiveId, 1, 'confirm_ready')).rejects.toBeInstanceOf(BadRequestException);
+    expect(f.tx.clientObjective.updateMany).not.toHaveBeenCalled();
+  });
 });

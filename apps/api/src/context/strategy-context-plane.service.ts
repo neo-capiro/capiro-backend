@@ -1,3 +1,4 @@
+import { objectiveIntentGoal } from '@capiro/shared/strategy-intake';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type {
   ContextRequest,
@@ -147,7 +148,7 @@ export class StrategyContextPlaneService {
   private async resolveInternal(input: StrategyContextPlaneInput, verificationOnly: boolean): Promise<any> {
     if (input.objective && !this.objectiveContext) throw new ObjectiveContextIncomplete();
     const objective = input.objective ? await this.objectiveContext!.observe(input) : null;
-    if (objective) input = { ...input, query: objective.intent.outcome };
+    if (objective) input = { ...input, query: objectiveIntentGoal(objective.intent) };
     const route = routeFor(input);
     const security = await this.securityEnvelope(input);
     // Anchor validation runs BEFORE the resolver, Retrieval V2 and packet
@@ -918,6 +919,8 @@ function buildStrategyPrompt(input: {
     `truncated=${coverage.truncated}`,
     '',
     'GOVERNED STEERING:',
+    input.objectiveIntentText ? 'Use the saved Objective intent as the generation brief. Preserve its selected owner, target date and context; do not invent missing legacy questionnaire answers. When regenerating an existing Strategy, preserve the current Strategy type supplied by the canonical plan; the saved Objective intake type remains source context.' : '',
+    input.objectiveIntentText ? 'For recommended people and offices, cite stable directory/source IDs and explain objective fit. Deduplicate by stable IDs. Saved government targets identify client-selected contacts, not proven relationships. Distinguish supported client relationships and possible introductions from other suggestions. Use relationship status, strength, notes or contact details only when present in authorized evidence; do not invent them. An empty government_targets list means no recorded client targets were found and does not block generation.' : '',
     input.objectiveIntentText ?? '',
     steering || OBJECTIVE_EMPTY_STEERING,
     '',

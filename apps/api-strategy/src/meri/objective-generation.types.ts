@@ -1,3 +1,4 @@
+import { type ObjectiveGenerationIntent } from '@capiro/shared/strategy-intake';
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { types as nodeTypes } from 'node:util';
@@ -16,13 +17,7 @@ export interface ObjectiveSource {
   objectiveVersion: number;
   objectiveRevisionId: string;
 }
-export interface ObjectiveIntent {
-  outcome: string;
-  governmentProblem: string;
-  askType: string;
-  minimumWin: string;
-  limits: string;
-}
+export type ObjectiveIntent = ObjectiveGenerationIntent;
 export interface ObjectiveIssue {
   group: string;
   code: string;

@@ -83,6 +83,18 @@ export function createObjectiveStrategyRequestCodec(deps: {
 export interface ObjectiveStrategyIntakeTx {
   $queryRawUnsafe<T = unknown>(query: string, ...values: any[]): Promise<T>;
 }
+/** Scoped type hint for preserving an existing Strategy. The existing canonical
+ * admission and frozen-basis fences still prove ownership and current version. */
+export async function readObjectiveCanonicalStrategyTypeWithinTx(tx: ObjectiveStrategyIntakeTx,
+  tenantId: string, clientId: string, objectiveId: string): Promise<ObjectiveStrategyType | null> {
+  const rows = await tx.$queryRawUnsafe<Array<{ type: ObjectiveStrategyType }>>(`SELECT s.type::text AS type
+    FROM client_objective_canonical_plans p JOIN sp_strategy s ON s.tenant_id=p.tenant_id
+      AND s.client_id=p.client_id AND s.id=p.canonical_strategy_id
+    WHERE p.tenant_id=$1::uuid AND p.client_id=$2::uuid AND p.objective_id=$3::uuid AND s.archived_at IS NULL`,
+    tenantId, clientId, objectiveId);
+  if (!Array.isArray(rows) || rows.length > 1 || rows[0] && !OBJECTIVE_STRATEGY_TYPES.includes(rows[0].type)) return fail();
+  return rows[0]?.type ?? null;
+}
 export interface ObjectiveStrategyJobRow {
   readonly id: string; readonly tenantId: string; readonly clientId: string; readonly ownerUserId: string;
   readonly status: string; readonly attempt: number; readonly claimedBy: string | null;

@@ -83,6 +83,9 @@
       ],
       "workspace-prospect-generation-source": [
         "dist/workspace-prospect-generation-source.d.ts"
+      ],
+      "strategy-intake": [
+        "dist/strategy-intake.d.ts"
       ]
     }
   },
@@ -247,6 +250,12 @@
       "require": "./dist/workspace-prospect-generation-source.js",
       "import": "./dist/workspace-prospect-generation-source.js",
       "default": "./dist/workspace-prospect-generation-source.js"
+    },
+    "./strategy-intake": {
+      "types": "./dist/strategy-intake.d.ts",
+      "require": "./dist/strategy-intake.js",
+      "import": "./dist/strategy-intake.js",
+      "default": "./dist/strategy-intake.js"
     }
   },
   "scripts": {
