@@ -206,10 +206,11 @@ async function syncCollection(args: {
           sourceModifiedAt: parseDate(doc.lastModified ?? row.lastModified),
           publishedAt: parseDate(doc.dateIssued ?? row.dateIssued),
           rawContent: doc.raw,
+          capture: doc.capture,
           extractedText: doc.text,
           completeness: 'complete',
           inventoryWindowEnd: new Date(cursor.until),
-          observationKey: `${checkpointSource}:${cursor.until}:${row.packageId}:${doc.lastModified ?? row.lastModified ?? 'unversioned'}`,
+          observationKey: `${checkpointSource}:${cursor.until}:${row.packageId}:${doc.lastModified ?? row.lastModified ?? 'unversioned'}:${doc.capture.version}`,
           historical,
           metadata: {
             title: doc.title ?? row.title ?? null,

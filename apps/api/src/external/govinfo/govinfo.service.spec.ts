@@ -95,6 +95,38 @@ describe('GovInfoService', () => {
     });
     fetchMock = globalThis.fetch as jest.MockedFunction<typeof fetch>;
   });
+  test('federal XML captures exact response bytes and a typed receipt through the existing fetch owner', async () => {
+    const { svc } = makeService();
+    const raw = '\uFEFF<?xml version="1.0" encoding="UTF-8"?>\r\n<bill>€ 😀</bill>\r\n';
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({ download: { xmlLink: 'https://www.govinfo.gov/content/synthetic.xml' } }),
+      )
+      .mockResolvedValueOnce(
+        new Response(Buffer.from(raw), {
+          headers: { 'content-type': 'application/xml; charset=utf-8' },
+        }),
+      );
+    const result = await svc.getFederalPackageText('BILLS-119hr1ih');
+    expect(result.raw).toBe(raw);
+    expect(result.text).toBe(raw);
+    expect(result.capture).toMatchObject({
+      version: 'federal-source-capture/1',
+      format: 'xml',
+      byteLength: Buffer.byteLength(raw),
+      utf8RoundTrip: true,
+    });
+    expect(fetchMock.mock.calls[1][1]?.redirect).toBe('error');
+  });
+  test('failed federal fetch cancels its body and releases no capture', async () => {
+    const { svc } = makeService();
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({ cancel() { cancelled = true; } });
+    fetchMock.mockResolvedValueOnce(jsonResponse({ download: { xmlLink: 'https://www.govinfo.gov/content/synthetic.xml' } }))
+      .mockResolvedValueOnce(new Response(body, { status: 503 }));
+    await expect(svc.getFederalPackageText('BILLS-119hr1ih')).rejects.toThrow('GovInfo text fetch failed');
+    expect(cancelled).toBe(true);
+  });
   test('resumes CHRG beyond 100 with a frozen, credential-free source continuation', async () => {
     const { svc } = makeService();
     const since = '2026-01-01T00:00:00Z',

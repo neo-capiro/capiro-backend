@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { BadRequestException } from '@nestjs/common';
 import type { PrismaService } from '../prisma/prisma.service.js';
+import { assertFederalSourceCapture } from '../program-element/federal-evidence/capture.js';
 
 // These are UTF-8 byte limits, applied by PostgreSQL before returning content.
 export const FEDERAL_DRAFT_TEXT_BYTES = 131072;
@@ -27,6 +28,7 @@ type Row = {
   fetchedAt: Date;
   rawContent: string | null;
   text: string | null;
+  capture?: unknown;
 };
 
 /** A bounded exact read from the existing federal source owner. The route's native
@@ -36,8 +38,9 @@ export async function readFederalDraftSource(
   prisma: Pick<PrismaService, '$queryRaw'>,
   input: Record<string, unknown>,
 ) {
+  const qualified = input.representation === 'retained-raw-utf8/1';
   if (
-    Object.keys(input).length !== fields.length ||
+    Object.keys(input).length !== fields.length + (qualified ? 1 : 0) ||
     fields.some((key) => typeof input[key] !== 'string') ||
     !/^\d{3}-(hr|s|hjres|sjres|hconres|sconres|hres|sres)-[1-9]\d{0,5}$/.test(
       input.billId as string,
@@ -48,12 +51,14 @@ export async function readFederalDraftSource(
     !SHA.test(input.textHash as string)
   )
     throw new BadRequestException('Exact federal source selection required');
+  const selected = Object.fromEntries(fields.map((key) => [key, input[key]]));
   const unavailable = (reason: string) => ({
     tool: 'read_federal_draft_source',
     authoritativeOwner: 'federal_evidence_current',
     currentStatus: 'unavailable',
     reason,
-    selection: { ...input },
+    selection: selected,
+    ...(qualified ? { representation: 'retained-raw-utf8/1' } : {}),
   });
   const rows = await prisma.$queryRaw<Row[]>`
     SELECT r.id AS "revisionId", r.source_key AS "sourceKey", r.provider, r.collection,
@@ -62,7 +67,8 @@ export async function readFederalDraftSource(
       r.parser_version AS "evidenceParserVersion", r.source_url AS "sourceLocator",
       r.source_modified_at AS "sourceModifiedAt", r.published_at AS "publishedAt", r.fetched_at AS "fetchedAt",
       CASE WHEN octet_length(r.raw_content) <= ${FEDERAL_DRAFT_RAW_BYTES} THEN r.raw_content ELSE NULL END AS "rawContent",
-      CASE WHEN octet_length(r.extracted_text) <= ${FEDERAL_DRAFT_TEXT_BYTES} THEN r.extracted_text ELSE NULL END AS text
+      CASE WHEN octet_length(r.extracted_text) <= ${FEDERAL_DRAFT_TEXT_BYTES} THEN r.extracted_text ELSE NULL END AS text,
+      CASE WHEN octet_length((r.metadata_jsonb->'capture')::text) <= 2048 THEN r.metadata_jsonb->'capture' ELSE NULL END AS capture
     FROM federal_evidence_current c
     JOIN federal_evidence_revision r ON r.id = c.revision_id AND r.source_key = c.source_key
     WHERE c.state = 'present' AND r.completeness = 'complete' AND r.collection = 'BILLS'
@@ -99,12 +105,35 @@ export async function readFederalDraftSource(
     !hosts[row.provider]?.includes(url.hostname)
   )
     return unavailable('publisher_locator_unsupported');
-  const { rawContent, ...source } = row;
+  const { rawContent, capture: storedCapture, ...source } = row;
+  let raw;
+  if (qualified) {
+    if (!storedCapture) return unavailable('raw_capture_unreported');
+    try {
+      const capture = assertFederalSourceCapture(rawContent, storedCapture);
+      if (
+        !row.evidenceParserVersion.endsWith('+federal-source-capture/1') ||
+        capture.format === 'htm' ||
+        rawContent !== row.text
+      )
+        return unavailable('raw_capture_unsupported');
+      raw = {
+        text: rawContent,
+        sha256: row.versionHash,
+        byteLength: capture.byteLength,
+        format: capture.format,
+        capture,
+      };
+    } catch {
+      return unavailable('raw_capture_unverified');
+    }
+  }
   return {
     tool: 'read_federal_draft_source',
     authoritativeOwner: 'federal_evidence_current',
     currentStatus: 'available',
     source,
+    ...(qualified ? { representation: 'retained-raw-utf8/1', raw } : {}),
     integrity: {
       retainedContent: 'sha256_verified',
       extractedText: 'sha256_verified',

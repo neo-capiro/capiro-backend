@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { Prisma, type PrismaClient } from '@prisma/client';
+import { assertFederalSourceCapture, FEDERAL_CAPTURE_VERSION, type FederalSourceCapture } from './capture.js';
 
 const PARSER_VERSION = 'federal-legislative-exact-code-v1';
 const PROGRAM_CODE_RE = /\b(?:[01]\d{6}[A-Z]|[0-9]{4}[A-Z]{1,2}[0-9A-Z]{2,14})\b/g;
@@ -32,6 +33,7 @@ export interface FederalEvidenceSnapshotInput {
   sourceModifiedAt?: Date | null;
   publishedAt?: Date | null;
   rawContent: string;
+  capture?: FederalSourceCapture;
   extractedText: string;
   completeness: 'complete' | 'partial' | 'unreadable';
   /** Frozen end of the fully enumerated provider window. */
@@ -423,6 +425,11 @@ export async function persistFederalEvidenceSnapshot(
   input: FederalEvidenceSnapshotInput,
 ): Promise<FederalEvidencePersistResult> {
   validateSnapshot(input);
+  const capture = input.capture === undefined ? undefined : assertFederalSourceCapture(input.rawContent, input.capture);
+  // A qualified capture must not deduplicate to an old immutable row lacking its receipt.
+  const revisionParserVersion = capture ? `${PARSER_VERSION}+${FEDERAL_CAPTURE_VERSION}` : PARSER_VERSION;
+  if (Object.hasOwn(input.metadata ?? {}, 'capture')) throw new Error('FEDERAL_CAPTURE_METADATA_RESERVED');
+  const metadata = { ...input.metadata, ...(capture ? { capture } : {}) };
   const sourceKey = sourceKeyOf(input);
   const contentHash = sha256(input.rawContent);
   const extractionHash = sha256(input.extractedText);
@@ -444,10 +451,10 @@ export async function persistFederalEvidenceSnapshot(
       ) VALUES (
         ${sourceKey}, ${input.provider}, ${input.collection}, ${input.packageId},
         ${input.billId ?? null}, ${input.versionCode ?? null}, ${input.lineageKey},
-        ${contentHash}, ${extractionHash}, ${PARSER_VERSION}, ${input.sourceUrl},
+        ${contentHash}, ${extractionHash}, ${revisionParserVersion}, ${input.sourceUrl},
         ${input.sourceModifiedAt ?? null}, ${input.publishedAt ?? null},
         ${input.rawContent}, ${input.extractedText}, ${input.completeness},
-        ${JSON.stringify(input.metadata ?? {})}::jsonb
+        ${JSON.stringify(metadata)}::jsonb
       )
       ON CONFLICT (source_key, content_hash, extraction_hash, parser_version) DO NOTHING
       RETURNING id`;
@@ -456,7 +463,7 @@ export async function persistFederalEvidenceSnapshot(
       : await tx.$queryRaw<Array<{ id: string }>>`
           SELECT id FROM federal_evidence_revision
            WHERE source_key = ${sourceKey} AND content_hash = ${contentHash}
-             AND extraction_hash = ${extractionHash} AND parser_version = ${PARSER_VERSION}`;
+             AND extraction_hash = ${extractionHash} AND parser_version = ${revisionParserVersion}`;
     const revisionId = revisionRows[0]?.id;
     if (!revisionId) throw new Error('FEDERAL_EVIDENCE_REVISION_NOT_FOUND');
 
