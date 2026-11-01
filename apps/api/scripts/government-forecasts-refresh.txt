@@ -1,0 +1,84 @@
+Government forecast daily refresh — existing public-data job binding
+
+Commands in the existing API image entrypoint:
+  sync-government-forecasts <existing local importer arguments>
+  refresh-government-forecasts --archive-dir /qualified/durable/forecast-archive --run-id daily-20261101 [--apply]
+Both preserve the supplied DATABASE_URL exactly. Neither calls the legacy DB_*
+composer or changes the role, pool, TLS, migration or serving configuration.
+Dry-run/help do not require database credentials. --apply requires the custodian's
+already qualified DATABASE_URL. No default backfill-all entry or background loop.
+
+Release binds the existing scheduler to one DAILY occurrence, one stable run-id
+per logical occurrence, the qualified image digest, and a persistent archive root
+shared across every execution of this producer. Root chose daily; no schedule is
+created by this change. Disable automatic retries: duplicate occurrences refuse,
+and unknown outcomes require reconciliation rather than another source fetch.
+Ephemeral /tmp or a different archive root per task cannot provide this custody;
+verify durable storage, disk capacity/retention and visibility before activation.
+All archives contain public publisher facts; keep the operator directory writable
+only by the allocated job role. No log or receipt contains database credentials.
+
+Hermes remains the sole data custodian. Before any --apply, bind installed schema
+20281101120000 and its exact migration checksum, application-role table/sequence
+and advisory-lock rights, actual pool/headroom, snapshot and readback allocations.
+Source acceptance and the previous a0a415 image do not qualify this new source.
+Use the successor image only after sole Release qualification. No new pipeline.
+
+Collection: fetch the fixed official XML listing, select the newest canonical
+edition link, collect its XML, then recheck the listing's newest edition. A changed
+edition refuses rather than importing a superseded selection. Only HTTPS on the
+fixed www.reginfo.gov paths is used; redirects fail. Three GETs, no retries, one
+90-second network deadline; each listing <=1MiB, XML <=40MiB, streamed enforcement
+even without Content-Length. Require HTTP200, appropriate media type and strict
+UTF-8. Preserve both listings, exact source.xml, response metadata, hashes and the
+actual full-body collection time. Parser/hash/edition qualification uses the
+accepted importer. Source RUN_DATE is not publisher issue date; issuedAt stays
+unknown. Month and unknown periods, terminal identity and partial-coverage rules
+are unchanged. Fresh collection does not make an old edition newly published.
+
+Archive state:
+  .forecast-refresh-active: exclusive producer marker, fsynced before collection.
+  <run-id>/attempt.json: original attemptedAt and mode.
+  <run-id>/listing-before.html, source.xml, listing-after.html: complete responses.
+  <run-id>/source.json: original sha256, edition, observedAt, URLs, counts and clock.
+  <run-id>/import-intent.json: exact original importer arguments, before invocation.
+  <run-id>/import-result.json: validated JSON receipt from the existing importer.
+  <run-id>/outcome.json: dry-run/import-returned/source-failure-recorded.
+Files are exclusive-create and flushed before subsequent stages. An existing
+run directory never overwrites or silently replays a previous occurrence.
+
+The existing sync script runs in one bounded Node child using the installed tsx
+loader; deadline150s, stdout/stderr buffer64KiB. No shell interpolation and no new
+database operator. Successful --apply receipt includes checkId/accepted/rejected/
+replay. A process error, timeout, malformed/missing receipt, or inability to retain
+the returned receipt after possible write is UNKNOWN. The active marker remains,
+blocking every later occurrence using that same root. A process crash also leaves
+the marker. No age-based unlock and no automatic replay. import-returned is a CLI
+receipt, not independent DB readback or live acceptance.
+
+A definite fetch/edition/parser failure retains source-failure.json. In --apply
+mode ONLY, it invokes the existing --record-failure command with the original
+attemptedAt. A failure recording that check is itself an unknown database outcome.
+Disk/setup errors do not masquerade as source failures. Dry-run never records a
+database check. Failed source checks exit nonzero and cannot refresh observations.
+Network/system exception text and child stderr are not copied into public output.
+
+Recovery belongs to the SAME Hermes custodian: freeze the existing scheduler,
+verify the original process/transaction is terminal, inspect the active marker and
+original import-intent, and reconcile the check row and archived source by exact
+hash+observedAt (or original attemptedAt for a failed check). A missing receipt
+while the transaction may still run is not proof of rollback. If replay is needed
+and explicitly allocated after reconciliation, use sync-government-forecasts with
+those SAME retained arguments; do not rerun refresh to invent a new observation.
+The accepted importer returns an existing successful receipt for an exact replay.
+Only after custody resolves the outcome may Hermes retain its resolution evidence
+and clear this exact marker under the existing operator workflow. Never remove
+the occurrence archive. This change does not add an unlock/retry mutation command.
+
+Readback: compare the original checkId/hash/edition/attemptedAt and counts, source
+bytes, affected current/revision/observation joins and terminal evidence against
+the bounded before-state. Verify signed-in staff range/history reads and partial
+coverage, source edition and observation age separately. Record the actual daily
+schedule binding and first subsequent successful check; a new command alone is
+not ongoing-refresh evidence. The UI marks observations stale after seven days;
+failed jobs must alert through existing job monitoring, not silently renew them.
