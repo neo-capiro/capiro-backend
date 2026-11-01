@@ -13,6 +13,40 @@ import callers from './fixtures/first-chat-wave2-routes.json';
 import writes from '../lib/preview/first-chat-preview-writes.json';
 
 const host = 'first-chat-preview.app-dev.capiro.ai';
+
+test('personal Portfolio order uses the existing exact Core PUT rule without broadening admission', () =>
+  render(false, (edge) => {
+    const rule = edge.Resources.Wave2Writes31.Properties;
+    assert.equal(rule.Priority, 36);
+    assert.deepEqual(rule.ListenerArn, { Ref: 'PreviewHttps' });
+    assert.deepEqual(rule.Actions, [{ Type: 'forward', TargetGroupArn: { Ref: 'CoreTarget' } }]);
+    assert.deepEqual(rule.Conditions, [
+      { Field: 'host-header', HostHeaderConfig: { Values: [host] } },
+      { Field: 'http-request-method', HttpRequestMethodConfig: { Values: ['PUT'] } },
+      { Field: 'path-pattern', PathPatternConfig: { RegexValues: [
+        '^/api/tenant-admin/team/[A-Za-z0-9_-]+/billing-admin$',
+        '^/api/tenant-admin/team/[A-Za-z0-9_-]+/role$',
+        '^/api/me/portfolio-layout$',
+      ] } },
+    ]);
+    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule')
+      .map((resource) => resource.Properties).sort((a, b) => a.Priority - b.Priority);
+    assert.equal(rules.length, 94);
+    const pathname = '/api/me/portfolio-layout';
+    for (const method of ['PUT', 'GET', 'HEAD'])
+      assert.deepEqual(routeDestination(rules, method, pathname), { Ref: 'CoreTarget' });
+    for (const method of ['POST', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE'])
+      assert.equal(routeDestination(rules, method, pathname), null, method);
+    for (const hostname of ['app.capiro.ai', 'os.capiro.ai', 'arbitrary.invalid'])
+      assert.equal(routeDestination(rules, 'PUT', pathname, hostname), null, hostname);
+    for (const neighbor of [pathname + '/', pathname + '/extra', pathname + '.invalid',
+      '/api/me/portfolio-layouts', '/api/users/me/portfolio-layout', '/extra' + pathname])
+      assert.equal(routeDestination(rules, 'PUT', neighbor), null, neighbor);
+    for (const suffix of ['billing-admin', 'role'])
+      assert.deepEqual(routeDestination(rules, 'PUT', `/api/tenant-admin/team/synthetic-user_1/${suffix}`),
+        { Ref: 'CoreTarget' });
+  }));
+
 function render(includeDns: boolean, check: (edge: any, dns: any) => void) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'preview-edge-'));
   try {

@@ -277,7 +277,8 @@
       "method": "PUT",
       "pathRegexes": [
         "^/api/tenant-admin/team/[A-Za-z0-9_-]+/billing-admin$",
-        "^/api/tenant-admin/team/[A-Za-z0-9_-]+/role$"
+        "^/api/tenant-admin/team/[A-Za-z0-9_-]+/role$",
+        "^/api/me/portfolio-layout$"
       ]
     },
     {
