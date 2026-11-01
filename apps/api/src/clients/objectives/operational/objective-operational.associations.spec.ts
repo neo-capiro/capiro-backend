@@ -99,7 +99,7 @@ const links = (
   removedAt: null,
 }));
 function fixture() {
-  const tx = { $executeRaw: jest.fn(async () => 1) };
+  const tx = { $executeRaw: jest.fn(async (_sql: unknown, ..._values: unknown[]) => 1) };
   const withTenant = jest.fn(async (_tenant, action) => action(tx));
   jest.mocked(loadCurrentOperationalScopeWithinTx).mockResolvedValue(scope);
   jest.mocked(readOperationalSetVersion).mockResolvedValue(7);

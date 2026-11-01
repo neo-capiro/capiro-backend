@@ -148,7 +148,9 @@ test.each([
   expect(outbox).toHaveLength(changed ? 1 : 0);
   expect(statements.filter(({ query }) => query.includes('INSERT INTO federal_evidence_mention_event')))
     .toHaveLength(changed ? 1 : 0);
-  if (changed) expect(JSON.parse(outbox[0].values[2] as string)).toMatchObject({
+  const firstOutbox = outbox[0];
+  if (changed && !firstOutbox) throw new Error('Changed evidence did not enqueue its event');
+  if (changed && firstOutbox) expect(JSON.parse(firstOutbox.values[2] as string)).toMatchObject({
     eventType: 'text_changed', previousRevisionId: 'old-revision', currentRevisionId: 'capture-revision',
     after: { contentHash: hash(text), extractionHash: hash(text) }, historical: false,
   });

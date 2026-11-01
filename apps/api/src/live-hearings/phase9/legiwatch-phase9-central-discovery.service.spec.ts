@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { LegiWatchPhase9CentralDiscoveryService } from './legiwatch-phase9-central-discovery.service.js';
 import { LegiWatchPhase9JobsService } from './legiwatch-phase9-jobs.service.js';
 import {
@@ -189,8 +190,10 @@ describe('scheduled central discovery runtime wiring', () => {
       .run({ job: 'central-discovery' })
       .catch((e) => e);
     expect(error).toBeInstanceOf(LegiWatchPhase9PartialFailure);
+    if (!(error instanceof LegiWatchPhase9PartialFailure))
+      throw new Error('Expected partial discovery failure');
     expect(read.mock.calls.filter(([url]) => url.includes('offset='))).toHaveLength(2);
-    expect(error.runtimeMetrics.discoveryWatermarks['congress-gov']).toBe(previous);
+    expect(error.runtimeMetrics.discoveryWatermarks).toMatchObject({ 'congress-gov': previous });
   });
 
   it('reconciles registered committee-only announcements independently of central Senate failure', async () => {
@@ -208,6 +211,8 @@ describe('scheduled central discovery runtime wiring', () => {
       .run({ job: 'central-discovery' })
       .catch((e) => e);
     expect(error).toBeInstanceOf(LegiWatchPhase9PartialFailure);
+    if (!(error instanceof LegiWatchPhase9PartialFailure))
+      throw new Error('Expected partial discovery failure');
     expect(h.listEnabled).toHaveBeenCalledWith({
       adapterKey: 'senate-committee-calendar',
       chamber: 'senate',
@@ -221,7 +226,7 @@ describe('scheduled central discovery runtime wiring', () => {
     expect(error.runtimeMetrics).toEqual(
       expect.objectContaining({ sourcesAttempted: 4, sourcesSucceeded: 3, sourcesFailed: 1 }),
     );
-    expect(error.runtimeMetrics.discoveryWatermarks['committee-only']).toBeDefined();
+    expect(error.runtimeMetrics.discoveryWatermarks).toMatchObject({ 'committee-only': expect.any(String) });
   });
 
   it('records unrecognized HTTP200 committee markup as failure without a second fetch or cursor advance', async () => {
@@ -236,19 +241,23 @@ describe('scheduled central discovery runtime wiring', () => {
       watermarks: { unrecognized: previous },
     });
     h.committee.mockRestore();
-    const read = jest
-      .spyOn(sourceHttp, 'fetchText')
-      .mockResolvedValue({
-        ok: true,
-        status: 200,
-        body: '<html><h1>Hearings</h1></html>',
-        error: null,
-        durationMs: 1,
-      });
+    const read = jest.spyOn(sourceHttp, 'fetchText').mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: '<html><h1>Hearings</h1></html>',
+      contentHash: createHash('sha256').update('<html><h1>Hearings</h1></html>').digest('hex'),
+      etag: null,
+      lastModified: null,
+      notModified: false,
+      error: null,
+      durationMs: 1,
+    });
     const error = await jobsService(h.service)
       .run({ job: 'central-discovery' })
       .catch((e) => e);
     expect(error).toBeInstanceOf(LegiWatchPhase9PartialFailure);
+    if (!(error instanceof LegiWatchPhase9PartialFailure))
+      throw new Error('Expected partial discovery failure');
     expect(read).toHaveBeenCalledTimes(1);
     expect(h.outcomes).toHaveBeenCalledWith(
       'unrecognized',
@@ -256,7 +265,7 @@ describe('scheduled central discovery runtime wiring', () => {
       expect.any(Date),
     );
     expect(h.reconcile.mock.calls.some(([s]) => s.id === 'unrecognized')).toBe(false);
-    expect(error.runtimeMetrics.discoveryWatermarks.unrecognized).toBe(previous);
+    expect(error.runtimeMetrics.discoveryWatermarks).toMatchObject({ unrecognized: previous });
   });
 });
 

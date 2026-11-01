@@ -14,23 +14,29 @@ const CANDIDATE = '44444444-4444-4444-8444-444444444444';
 const PROPOSER = '55555555-5555-4555-8555-555555555555';
 const APPROVER = '66666666-6666-4666-8666-666666666666';
 
-function sqlText(strings: unknown, values: unknown[] = []): string {
-  if (Array.isArray(strings)) return Prisma.sql(strings as TemplateStringsArray, ...values).text;
-  const sql = strings as { strings?: string[]; raw?: string[] };
-  return (sql.strings ?? sql.raw ?? []).join('?');
+function sqlText(strings: TemplateStringsArray | Prisma.Sql, values: unknown[] = []): string {
+  if ('text' in strings) return strings.text;
+  return Prisma.sql(strings, ...values).text;
 }
 
 function harness(existingId?: string) {
   const queries: string[] = [];
   const tx = {
-    $queryRaw: jest.fn(async (strings: unknown, ...values: unknown[]) => {
-      queries.push(sqlText(strings, values));
-      return [{ id: existingId ?? values[0] }];
-    }),
-    $executeRaw: jest.fn(async (strings: unknown, ...values: unknown[]) => {
-      queries.push(sqlText(strings, values));
-      return 1;
-    }),
+    $queryRaw: jest.fn(
+      async (
+        strings: TemplateStringsArray | Prisma.Sql,
+        ...values: unknown[]
+      ): Promise<Array<{ id: unknown } | { ready: boolean }>> => {
+        queries.push(sqlText(strings, values));
+        return [{ id: existingId ?? values[0] }];
+      },
+    ),
+    $executeRaw: jest.fn(
+      async (strings: TemplateStringsArray | Prisma.Sql, ...values: unknown[]) => {
+        queries.push(sqlText(strings, values));
+        return 1;
+      },
+    ),
   };
   const prisma = {
     withSystem: jest.fn(async (fn: (value: typeof tx) => unknown) => fn(tx)),
@@ -72,10 +78,12 @@ function baseItem(): MemoryItem {
 describe('MemoryStoreService projection governance restoration', () => {
   it('refuses to overwrite a hidden Settings identity on the conflict path', async () => {
     const h = harness();
-    h.tx.$queryRaw.mockImplementationOnce(async (strings: unknown, ...values: unknown[]) => {
-      h.queries.push(sqlText(strings, values));
-      return [];
-    });
+    h.tx.$queryRaw.mockImplementationOnce(
+      async (strings: TemplateStringsArray | Prisma.Sql, ...values: unknown[]) => {
+        h.queries.push(sqlText(strings, values));
+        return [];
+      },
+    );
     await expect(
       h.service.upsertSystem(baseItem(), undefined, {
         expectedExistingId: null,
@@ -89,14 +97,18 @@ describe('MemoryStoreService projection governance restoration', () => {
   it('pins a previously read Settings identity and its current governed state under conflict', async () => {
     const h = harness();
     h.tx.$queryRaw
-      .mockImplementationOnce(async (strings: unknown, ...values: unknown[]) => {
-        h.queries.push(sqlText(strings, values));
-        return [{ ready: true }];
-      })
-      .mockImplementationOnce(async (strings: unknown, ...values: unknown[]) => {
-        h.queries.push(sqlText(strings, values));
-        return [];
-      });
+      .mockImplementationOnce(
+        async (strings: TemplateStringsArray | Prisma.Sql, ...values: unknown[]) => {
+          h.queries.push(sqlText(strings, values));
+          return [{ ready: true }];
+        },
+      )
+      .mockImplementationOnce(
+        async (strings: TemplateStringsArray | Prisma.Sql, ...values: unknown[]) => {
+          h.queries.push(sqlText(strings, values));
+          return [];
+        },
+      );
     await expect(
       h.service.upsertSystem(baseItem(), undefined, {
         expectedExistingId: ITEM,

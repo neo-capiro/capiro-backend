@@ -68,19 +68,31 @@ function fixture(snapshot: Snapshot | null, locked: Snapshot | null = snapshot) 
   };
   const updates: Array<Record<string, unknown>> = [];
   const yields: Array<Record<string, unknown>> = [];
-  const query = jest.fn(async (sql: string, ...params: unknown[]) => {
-    if (sql.includes('SET index_claim_token')) {
-      if (!state.claimable) return [];
-      const token = String(params[1]);
-      // Mirror the database: the claim is now the row's current claim, so the
-      // later lock sees this attempt as the owner.
-      if (state.locked) state.locked.indexClaimToken = token;
-      return [{ token, generation: state.claimGeneration }];
-    }
-    if (sql.includes('AS present')) return [{ present: state.present }];
-    if (sql.includes('FOR UPDATE')) return state.locked ? [{ ...state.locked }] : [];
-    return [];
-  });
+  const query = jest.fn(
+    async (
+      sql: string,
+      ...params: unknown[]
+    ): Promise<
+      Array<
+        | Snapshot
+        | { token: string; generation: number }
+        | { present: boolean }
+        | { tenantId: string; id: string }
+      >
+    > => {
+      if (sql.includes('SET index_claim_token')) {
+        if (!state.claimable) return [];
+        const token = String(params[1]);
+        // Mirror the database: the claim is now the row's current claim, so the
+        // later lock sees this attempt as the owner.
+        if (state.locked) state.locked.indexClaimToken = token;
+        return [{ token, generation: state.claimGeneration }];
+      }
+      if (sql.includes('AS present')) return [{ present: state.present }];
+      if (sql.includes('FOR UPDATE')) return state.locked ? [{ ...state.locked }] : [];
+      return [];
+    },
+  );
   const execute = jest.fn(async (sql: string) => {
     if (sql.includes('pg_advisory_xact_lock')) state.advisoryLocks += 1;
     if (sql.trimStart().startsWith('DELETE')) state.purges += 1;

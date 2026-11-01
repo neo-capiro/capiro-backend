@@ -22,6 +22,7 @@ suite('retained brief refresh with ordinary-role PostgreSQL transactions', () =>
     const ready = await db.$queryRawUnsafe<Array<{ exists: boolean }>>(
       "SELECT to_regclass('public.business_development_brief_refresh_proposals') IS NOT NULL AS exists",
     );
+    if (!ready[0]) throw new Error('Migration readiness query returned no row');
     if (ready[0].exists) return;
     // Split source migrations at statement boundaries through the database's own parser.
     const { Client } = await import('pg');

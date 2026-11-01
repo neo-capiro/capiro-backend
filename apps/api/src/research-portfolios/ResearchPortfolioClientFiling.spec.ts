@@ -280,7 +280,7 @@ describe('Checkpoint-only generic filing reconciliation guards', () => {
   it('cannot start a document writer when the original checkpoint has disappeared', async () => {
     const h = fixture();
     await expect(
-      h.service.saveToClient(ctx, 'portfolio-owned', 'artifact-owned', h.input, 'viewer', true),
+      h.service.saveToClient(ctx, 'portfolio-owned', 'artifact-owned', h.input, 'editor', true),
     ).rejects.toMatchObject({ status: 404 });
     expect(h.writer.createAttachmentFromBuffer).not.toHaveBeenCalled();
     expect(h.tx.researchPortfolioClientFilingJob.create).not.toHaveBeenCalled();

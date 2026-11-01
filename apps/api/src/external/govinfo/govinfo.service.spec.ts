@@ -116,15 +116,24 @@ describe('GovInfoService', () => {
       byteLength: Buffer.byteLength(raw),
       utf8RoundTrip: true,
     });
-    expect(fetchMock.mock.calls[1][1]?.redirect).toBe('error');
+    expect(fetchMock.mock.calls[1]?.[1]?.redirect).toBe('error');
   });
   test('failed federal fetch cancels its body and releases no capture', async () => {
     const { svc } = makeService();
     let cancelled = false;
-    const body = new ReadableStream<Uint8Array>({ cancel() { cancelled = true; } });
-    fetchMock.mockResolvedValueOnce(jsonResponse({ download: { xmlLink: 'https://www.govinfo.gov/content/synthetic.xml' } }))
+    const body = new ReadableStream<Uint8Array>({
+      cancel() {
+        cancelled = true;
+      },
+    });
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({ download: { xmlLink: 'https://www.govinfo.gov/content/synthetic.xml' } }),
+      )
       .mockResolvedValueOnce(new Response(body, { status: 503 }));
-    await expect(svc.getFederalPackageText('BILLS-119hr1ih')).rejects.toThrow('GovInfo text fetch failed');
+    await expect(svc.getFederalPackageText('BILLS-119hr1ih')).rejects.toThrow(
+      'GovInfo text fetch failed',
+    );
     expect(cancelled).toBe(true);
   });
   test('resumes CHRG beyond 100 with a frozen, credential-free source continuation', async () => {

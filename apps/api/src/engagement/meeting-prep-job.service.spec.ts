@@ -286,14 +286,20 @@ describe('durable meeting prep jobs', () => {
 
   describe('background worker tick ownership', () => {
     function workerHarness(assertMeetingPrepWorker: () => void) {
-      const tx = { meetingPrepJob: { updateMany: jest.fn(async () => ({ count: 0 })),
-                                     findFirst: jest.fn(async () => null) } };
+      const tx = {
+        meetingPrepJob: {
+          updateMany: jest.fn(async () => ({ count: 0 })),
+          findFirst: jest.fn(async () => null),
+        },
+      };
       const prisma = {
         withSystem: jest.fn(async (run: (tx: unknown) => unknown) => run(tx)),
         withTenantUser: jest.fn(),
       };
-      const runtime = { assertMeetingPrepWorker: jest.fn(assertMeetingPrepWorker),
-                        assertExternalAction: jest.fn() };
+      const runtime = {
+        assertMeetingPrepWorker: jest.fn(assertMeetingPrepWorker),
+        assertExternalAction: jest.fn(),
+      };
       const service = new MeetingPrepJobService(
         prisma as never,
         {} as never,
@@ -325,7 +331,11 @@ describe('durable meeting prep jobs', () => {
     describe('through the real runtime policy', () => {
       const realRuntime = (
         overrides: Record<string, unknown> = {},
-        mailHandoff = { phase: 'off', generation: null, fenceUtc: null },
+        mailHandoff: import('./runtime/engagement-mail-handoff.js').EngagementMailHandoffConfig = {
+          phase: 'off',
+          generation: null,
+          fenceUtc: null,
+        },
       ) =>
         new EngagementRuntimePolicyService(
           {
@@ -400,11 +410,14 @@ describe('durable meeting prep jobs', () => {
 
       test('refuses a non-open mail-handoff phase with Recall enabled', async () => {
         const h = realHarness(
-          realRuntime({ recallWebhookEnabled: true }, {
-            phase: 'writers_closed',
-            generation: 'mail-app-20261029-01',
-            fenceUtc: '2026-10-29T16:49:59Z',
-          }),
+          realRuntime(
+            { recallWebhookEnabled: true },
+            {
+              phase: 'writers_closed',
+              generation: 'mail-app-20261029-01',
+              fenceUtc: '2026-10-29T16:49:59Z',
+            },
+          ),
         );
         await expect(h.service.runWorkerTick()).rejects.toThrow();
         expect(h.prisma.withSystem).not.toHaveBeenCalled();

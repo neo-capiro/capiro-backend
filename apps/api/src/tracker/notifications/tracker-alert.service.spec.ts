@@ -118,7 +118,7 @@ function fixture() {
     withSystem: jest.fn(async (fn: (value: typeof tx) => Promise<unknown>) => fn(tx)),
   } as unknown as PrismaService;
   const email = {
-    send: jest.fn(async () => {
+    send: jest.fn(async (_to: string, _subject: string, _html: string, _text: string) => {
       expect(transactionOpen).toBe(false);
       expect(logs.some((row) => row.status === 'outcome_unknown')).toBe(true);
       return { status: 'accepted', messageId: 'receipt' };
@@ -171,7 +171,9 @@ describe('Tracker durable delivery claims', () => {
     expect(text).toContain(board);
     // The retrieval transport stays on the preview Core host and must not leak into a link.
     expect(`${html}${text}`).not.toContain('first-chat-preview.app-dev.capiro.ai');
-    expect(f.config.get('TRACKER_APP_BASE_URL')).toBe('https://first-chat-preview.app-dev.capiro.ai');
+    expect(f.config.get('TRACKER_APP_BASE_URL')).toBe(
+      'https://first-chat-preview.app-dev.capiro.ai',
+    );
   });
 
   it('allows only one concurrent realtime dispatch for the same unique claim', async () => {

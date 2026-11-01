@@ -3,6 +3,7 @@ import type { TenantContext } from '@capiro/shared';
 import { reviewDatabase } from './client-profile-fill-review.postgres-fixture.js';
 import { readReviewSnapshot, reviewHash } from './client-profile-fill-review-snapshot.js';
 import { ClientProfileFillFindingReview } from './client-profile-fill-finding-review.js';
+import { clientIntelligenceReads } from '../intelligence/client-read-cache.js';
 import { ClientProfileFillService } from './client-profile-fill.service.js';
 import { ClientsService } from './clients.service.js';
 import { ClientPeopleService } from './client-people.service.js';
@@ -94,6 +95,7 @@ const url = process.env.FILL_REVIEW_TEST_DATABASE_URL;
       const mappings = new ClientMappingV1Review(scoped, {
         awardBearingMappingSource: () => false,
         prepopulation: () => undefined,
+        clientReads: () => clientIntelligenceReads(scoped),
       });
       const intelligence = {
         createManualMappingInTransaction: mappings.createManualMappingInTransaction.bind(mappings),

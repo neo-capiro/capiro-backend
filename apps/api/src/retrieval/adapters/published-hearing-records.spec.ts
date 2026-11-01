@@ -161,6 +161,7 @@ describe('published hearing exact-record continuation', () => {
         const result = await f.read(cursor),
           record = result.records[0]!;
         const fragment = record.payload as Record<string, unknown>;
+        if (!record.provenance) throw new Error('Published hearing fragment has no provenance');
         contentHash ??= record.provenance.contentHash;
         expect(Buffer.from(fragment.text as string, 'utf8').toString('utf8')).toBe(fragment.text);
         expect(fragment.characterStart).toBe(joined.length);
@@ -198,6 +199,7 @@ describe('published hearing exact-record continuation', () => {
         expect(result.records).toHaveLength(1);
         const record = result.records[0]!;
         const fragment = record.payload as Record<string, unknown>;
+        if (!record.provenance) throw new Error('Published hearing fragment has no provenance');
         expectedHash ??= record.provenance.contentHash as string;
         expect(record.recordId).toBe(`${view}:synthetic-record:${expectedHash}:${part}`);
         expect(record.provenance).toMatchObject({
@@ -265,13 +267,15 @@ describe('published hearing exact-record continuation', () => {
     const f = harness();
     const first = await f.read();
     const saved = parseHearingContentCursor(first.nextCursor!, 'published-record')!;
+    const chunkCount = (first.records[0]!.payload as Record<string, unknown>).chunkCount;
+    if (typeof chunkCount !== 'number') throw new Error('Published fragment has no chunk count');
     for (const changed of [
       { ...saved, key: 'published:other-record' },
       { ...saved, key: 'event:synthetic-record' },
       { ...saved, hash: 'b'.repeat(64) },
       { ...saved, part: 0 },
       { ...saved, part: 1.5 },
-      { ...saved, part: (first.records[0]!.payload as Record<string, number>).chunkCount },
+      { ...saved, part: chunkCount },
     ])
       expect(await f.read(encodeHearingContentCursor(changed))).toMatchObject({
         records: [],

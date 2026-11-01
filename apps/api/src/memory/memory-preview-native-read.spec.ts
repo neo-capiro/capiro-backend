@@ -55,7 +55,9 @@ function fixture(options: {
     { pageOwnPersonalPending: page, ownPersonalCandidateStatus: status } as never,
     {} as never, {} as never, {} as never, {} as never, {} as never, preview,
   );
-  const owner = new MemoryOwnerItemsController({ list } as never, preview);
+  const history = { list: jest.fn(async () => { throw new Error('Unexpected memory history read'); }) };
+  const evidence = { list: jest.fn(async () => { throw new Error('Unexpected memory evidence read'); }) };
+  const owner = new MemoryOwnerItemsController({ list } as never, history as never, evidence as never, preview);
   return { req, res, headers, read, page, status, list, controller, owner };
 }
 

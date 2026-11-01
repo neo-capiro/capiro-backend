@@ -1,10 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createServer } from 'node:http';
+import { ConfigService } from '@nestjs/config';
 import type { PoolClient } from 'pg';
 import { PrismaService as IntelPrisma } from '../../../intel-api/src/prisma/prisma.service.js';
 import { HearingRecordWorkflowService } from '../../../intel-api/src/hearing/hearing-record-workflow.service.js';
 import { HearingRecordRetrievalController } from '../../../intel-api/src/hearing/hearing-record-retrieval.controller.js';
+import { PublicHearingAudioAccessService } from '../../../intel-api/src/hearing/capture/public-hearing-audio-access.service.js';
+import { RecordingStorageService } from '../../../intel-api/src/hearing/recording/recording-storage.service.js';
 import { HearingCryptoService } from '../../../intel-api/src/hearing/hearing-crypto.service.js';
 import { FolderTrackerService } from '../../../intel-api/src/tracker/folders/folder-tracker.service.js';
 import { FolderSourceDataRepository } from '../../../intel-api/src/sourcedata/folder-source-data.repository.js';
@@ -67,7 +70,14 @@ export async function hearingOwner(h: Awaited<ReturnType<typeof fixture>>) {
     {} as never,
     {} as never,
   );
-  const controller = new HearingRecordRetrievalController(workflow);
+  // This fixture exercises text retrieval; the current media collaborator stays
+  // real but disabled, so an accidental media call cannot reach object storage.
+  const audio = new PublicHearingAudioAccessService(
+    db,
+    flags,
+    new RecordingStorageService(new ConfigService({ HEARING_AUDIO_STORAGE_ENABLED: 'false' })),
+  );
+  const controller = new HearingRecordRetrievalController(workflow, audio);
   let calls = 0;
   let beforeRead: ((call: number) => Promise<void>) | undefined;
   let afterRead: ((call: number, result: Record<string, unknown>) => Promise<void>) | undefined;

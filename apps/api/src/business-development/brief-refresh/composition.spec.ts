@@ -33,8 +33,12 @@ const auth = (evidence: EvidenceItem[]) => ({
   canonicalEntityId: null,
   evidence,
 });
-function base(evidence: EvidenceItem[]): BriefVersionDetail {
-  const sections = generateSections(auth(evidence)),
+function base(
+  evidence: EvidenceItem[],
+  judgment?: BriefVersionDetail['sections']['judgment'],
+): BriefVersionDetail {
+  const generatedSections = generateSections(auth(evidence)),
+    sections = judgment ? { ...generatedSections, judgment } : generatedSections,
     sourceSnapshot = { generatedAt: '2026-01-01T00:00:00Z', ...auth(evidence) };
   return {
     id: 'version',
@@ -52,8 +56,7 @@ function base(evidence: EvidenceItem[]): BriefVersionDetail {
 test('preserved edited text keeps its exact original citation when fresh citation order changes', () => {
   const a = ev('A'),
     b = ev('B'),
-    v = base([a, b]);
-  v.sections.judgment = { text: 'User judgment of A', provenance: 'edited', citationIndexes: [0] };
+    v = base([a, b], { text: 'User judgment of A', provenance: 'edited', citationIndexes: [0] });
   const p = composeRefresh(v, auth([b, a]), true);
   expect(p.proposed.judgment.text).toBe('User judgment of A');
   expect(p.proposed.judgment.citationIndexes).toEqual([1]);
@@ -62,11 +65,12 @@ test('preserved edited text keeps its exact original citation when fresh citatio
 });
 test('a revised source cannot silently replace an edited section original citation', () => {
   const a = ev('A'),
-    v = base([a]);
-  v.sections.judgment = { text: 'Original judgment', provenance: 'edited', citationIndexes: [0] };
+    v = base([a], { text: 'Original judgment', provenance: 'edited', citationIndexes: [0] });
   const revised = { ...a, title: 'Revised fact', sourceUpdatedAt: '2026-02-01' };
   const p = composeRefresh(v, auth([revised]), true);
-  expect(p.citations[p.proposed.judgment.citationIndexes[0]]).toEqual(v.citations[0]);
+  const [citationIndex] = p.proposed.judgment.citationIndexes;
+  if (citationIndex === undefined) throw new Error('The preserved judgment lost its citation');
+  expect(p.citations[citationIndex]).toEqual(v.citations[0]);
   expect(p.sourceSnapshot.evidence).toEqual([revised, a]);
 });
 test('source identity ignores observation clock but binds source dates and factual content', () => {

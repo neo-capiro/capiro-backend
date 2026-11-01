@@ -93,7 +93,7 @@ function crypto() {
 }
 
 function prisma(failOn?: 'token' | 'connection') {
-  const tokenUpdate = jest.fn(async () => {
+  const tokenUpdate = jest.fn(async (_input: { data: Record<string, unknown> }) => {
     if (failOn === 'token') throw new Error('commit failed');
     return {};
   });
@@ -148,7 +148,11 @@ describe('GoogleTokenService mail-handoff composition (N)', () => {
       .mockRejectedValue(new Error('fetch must not be called'));
     const svc = service(db, runtimePolicy);
 
-    const accessToken = await svc.getValidAccessToken('t1', 'conn-1', token({ expiresAt: FUTURE() }));
+    const accessToken = await svc.getValidAccessToken(
+      't1',
+      'conn-1',
+      token({ expiresAt: FUTURE() }),
+    );
 
     expect(accessToken).toBe('cached-access-plain');
     // The canonical current-claim read still ran, before any admission.
@@ -215,7 +219,9 @@ describe('GoogleTokenService mail-handoff composition (N)', () => {
 
     expect(accessToken).toBe('new-access');
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-    const data = (db.tokenUpdate.mock.calls[0]?.[0] as { data: Record<string, unknown> }).data;
+    const call = db.tokenUpdate.mock.calls[0];
+    if (!call) throw new Error('The refreshed token was not persisted');
+    const { data } = call[0];
     expect(data.accessTokenCiphertext).toBe('enc:new-access');
     expect(data.refreshTokenCiphertext).toBe('enc:refresh-plain');
     expect(data.keyVersion).toBe(7);
