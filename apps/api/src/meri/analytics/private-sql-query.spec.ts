@@ -1,6 +1,6 @@
 import { ForbiddenException } from '@nestjs/common';
 import { createPrivateSqlQueries } from './private-sql-query.js';
-import type { PrivateSqlExecutionContext } from './private-sql-db.service.js';
+import type { PrivateSqlDbService, PrivateSqlExecutionContext } from './private-sql-db.service.js';
 import type { PublishedRelation, SqlResultRow } from './sql-reader-connection.js';
 import { PRIVATE_RELATION_NAMES, SqlQueryError } from './sql-statement-gate.js';
 
@@ -33,7 +33,7 @@ const input = { sql: 'SELECT o.title FROM client_objectives o', parameters: [], 
 const fixture = (rows: SqlResultRow[] = []) => {
   const db = {
     describe: jest.fn(async () => surface),
-    runPrivateSql: jest.fn(async () => ({ columns: [{ name: 'title', type: 'string' as const, pgType: 'text', nullable: true }], rows, surface })),
+    runPrivateSql: jest.fn(async (..._args: Parameters<PrivateSqlDbService['runPrivateSql']>) => ({ columns: [{ name: 'title', type: 'string' as const, pgType: 'text', nullable: true }], rows, surface })),
   };
   return { db, queries: createPrivateSqlQueries(db) };
 };

@@ -106,9 +106,9 @@ describe('selected-client retained contacts source', () => {
   function fixture(rows: Array<Record<string, unknown>>) {
     const findFirstClient = jest.fn(async () => ({ id: CLIENT, name: 'Selected Client', people: [{ email: 'ada@example.com', name: 'Ada Example' }] }));
     const contactsFindMany = jest.fn(async () => rows);
-    const mailFindFirst = jest.fn(async (_query: unknown) => ({ receivedAt: new Date('2026-10-17T12:00:00.000Z') }));
-    const mailCount = jest.fn(async (_query: unknown) => 2);
-    const attendeeFindFirst = jest.fn(async (_query: unknown) => ({ meeting: { startsAt: new Date('2026-10-17T13:00:00.000Z') } }));
+    const mailFindFirst = jest.fn(async (_query: { where: unknown }) => ({ receivedAt: new Date('2026-10-17T12:00:00.000Z') }));
+    const mailCount = jest.fn(async (_query: { where: unknown }) => 2);
+    const attendeeFindFirst = jest.fn(async (_query: { where: unknown }) => ({ meeting: { startsAt: new Date('2026-10-17T13:00:00.000Z') } }));
     const tx = {
       client: { findFirst: findFirstClient },
       engagementContact: { findMany: contactsFindMany },
@@ -116,8 +116,8 @@ describe('selected-client retained contacts source', () => {
       meetingAttendee: { findFirst: attendeeFindFirst },
     };
     const prisma = {
-      withTenantUser: jest.fn(async (_tenantId: string, _userId: string, read: (tx: typeof tx) => Promise<unknown>) => read(tx)),
-      withTenant: jest.fn(async (_tenantId: string, read: (tx: typeof tx) => Promise<unknown>) => read(tx)),
+      withTenantUser: jest.fn(async (_tenantId: string, _userId: string, read: (transaction: typeof tx) => Promise<unknown>) => read(tx)),
+      withTenant: jest.fn(async (_tenantId: string, read: (transaction: typeof tx) => Promise<unknown>) => read(tx)),
     };
     return { service: serviceWith(prisma), findFirstClient, contactsFindMany, mailFindFirst, mailCount, attendeeFindFirst };
   }

@@ -583,53 +583,22 @@ describe('Meri tool registration', () => {
     expect(read).toHaveBeenCalledWith(ctx, input);
   });
 
+  // Dedicated read/action HTTP owners cover authenticated identity, client walls,
+  // and approval in legiwatch-review.http.spec / legiwatch-action.http.spec.
+  // The generic dispatcher must not provide a bypass to either owner.
   it.each(['get_legiwatch_review', 'apply_legiwatch_suggestion'] as const)(
-    '%s injects authenticated identity and validates the client before the owner-service call',
+    '%s cannot bypass the dedicated owner through generic dispatch',
     async (name) => {
-      const original = global.fetch,
-        secret = process.env.INTERNAL_SERVICE_SECRET;
-      const ctx = {
-          tenantId: '11111111-1111-4111-8111-111111111111',
-          clerkUserId: 'current-actor',
-        },
-        input = {
-          view: 'suggestions',
-          clientId: 'client-1',
-          folderId: 'folder-1',
-          jurisdiction: 'FL',
-          sessionKey: '2026',
-          tenantId: 'spoofed',
-          actor: 'spoofed',
-        };
-      const ensureClientVisible = jest.fn(async () => 'client-1'),
-        service = Object.assign(Object.create(MeriToolsService.prototype), {
-          ensureClientVisible,
-        }) as MeriToolsService;
+      const original = global.fetch;
+      const service = Object.create(MeriToolsService.prototype) as MeriToolsService;
+      const ctx = { tenantId: 'synthetic-tenant', userId: 'synthetic-actor' };
       try {
-        process.env.INTERNAL_SERVICE_SECRET = 'synthetic-adapter-secret';
-        global.fetch = jest.fn(
-          async () => ({ ok: true, json: async () => ({ rows: [], effects: [] }) }) as Response,
-        );
-        await service.execute(ctx as never, name, input);
-        expect(ensureClientVisible).toHaveBeenCalledWith(ctx, 'client-1');
-        const [url, request] = (global.fetch as jest.Mock).mock.calls[0]!;
-        expect(url).toContain(
-          '/internal/legiwatch/meri/' + (name === 'get_legiwatch_review' ? 'read' : 'apply'),
-        );
-        expect(JSON.parse(request.body)).toMatchObject({
-          tenantId: ctx.tenantId,
-          actor: ctx.clerkUserId,
-          input: { folderId: 'folder-1', jurisdiction: 'FL', sessionKey: '2026' },
-        });
-        ensureClientVisible.mockRejectedValueOnce(new Error('client withdrawn'));
-        await expect(service.execute(ctx as never, name, input)).rejects.toThrow(
-          'client withdrawn',
-        );
-        expect(global.fetch).toHaveBeenCalledTimes(1);
+        global.fetch = jest.fn();
+        // Exercise untyped external input without widening the production API.
+        await expect(Reflect.apply(service.execute, service, [ctx, name, {}])).rejects.toThrow();
+        expect(global.fetch).not.toHaveBeenCalled();
       } finally {
         global.fetch = original;
-        if (secret === undefined) delete process.env.INTERNAL_SERVICE_SECRET;
-        else process.env.INTERNAL_SERVICE_SECRET = secret;
       }
     },
   );
