@@ -603,12 +603,17 @@ export class PlannerService {
   const stored = binding
     ? await this.canonicalStrategyPlanCreationInTransaction(tx, ctx, input.requestId, binding)
     : await this.storedMaterialization(tx, ctx, input.requestId);
-  const { source, snapshot, objectiveReceiptSha256 } = await this.materializationSource(
+  const { source, snapshot, objectiveReceiptSha256, canonical } = await this.materializationSource(
     tx,
     ctx,
     stored?.input ?? input,
     stored ? true : null,
   );
+  // Canonical generations require their separate consent/application owner.
+  // Retain recorded legacy attempts for original-result recovery; never create
+  // a second plan from a canonical source through the public legacy route.
+  if (canonical && !binding && !stored)
+    materializationError('MATERIALIZATION_NOT_AVAILABLE', input.requestId);
   if (binding) {
     requireCanonicalMaterializationSource(input, source, binding, ctx.tenantId);
     if (objectiveReceiptSha256 !== binding.objectiveReceiptSha256)
