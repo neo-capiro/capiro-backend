@@ -96,10 +96,13 @@ export function deriveAdvocacyFreshness(
 ): AdvocacySourceFreshness {
   if (!lastSuccessAt) return 'unknown';
   const lastSuccess = Date.parse(lastSuccessAt);
-  if (!Number.isFinite(lastSuccess)) return 'unknown';
+  const observedAt = now.getTime();
+  if (!Number.isFinite(lastSuccess) || !Number.isFinite(observedAt) || lastSuccess > observedAt) {
+    return 'unknown';
+  }
   const multiplier = ADVOCACY_FRESHNESS_CADENCE_MULTIPLIER[source] ?? 1;
   const windowMs = Math.max(1, cadenceHours) * multiplier * 60 * 60_000;
-  return now.getTime() - lastSuccess <= windowMs ? 'fresh' : 'stale';
+  return observedAt - lastSuccess <= windowMs ? 'fresh' : 'stale';
 }
 
 export function updateAdvocacySourceHealth(
