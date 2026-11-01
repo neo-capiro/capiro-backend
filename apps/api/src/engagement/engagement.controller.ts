@@ -2248,6 +2248,15 @@ export class EngagementController {
     return this.service.listMeetingDebriefs(ctx, meetingId, clientId);
   }
 
+  @Get('meetings/:id/debriefs/:debriefId/context')
+  meetingDebriefContext(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') meetingId: string,
+    @Param('debriefId') debriefId: string,
+  ) {
+    return this.service.getMeetingDebriefContext(ctx, meetingId, debriefId);
+  }
+
   @Patch('meetings/:id/debriefs/:debriefId')
   updateDebrief(
     @CurrentTenant() ctx: TenantContext,
