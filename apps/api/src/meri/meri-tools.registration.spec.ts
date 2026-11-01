@@ -53,31 +53,34 @@ import {
 
 describe('public SQL native tools', () => {
   function service() {
-    const runPublicSql = jest.fn().mockResolvedValue([{ total: '9007199254740993.01' }]);
+    const surface = [{ name: 'program_element_projects', description: 'Synthetic', grain: '', fields: [], primaryKey: [], relationships: [],
+      coverage: { basis: 'ingested_public_records', limitations: [] }, freshness: { field: null, sourceAsOf: null, sourceVersion: null } }];
+    const runPublicSql = jest.fn().mockResolvedValue({ columns: [{ name: 'total', type: 'decimal', pgType: 'numeric', nullable: true }], rows: [{ total: '9007199254740993.01' }], surface });
+    const describePublic = jest.fn().mockResolvedValue(surface);
     const create = jest.fn().mockResolvedValue({});
     return { runPublicSql, create, tools: Object.assign(Object.create(MeriToolsService.prototype), {
-      analyticsDb: { runPublicSql }, prisma: { withSystem: (run: (tx: unknown) => unknown) => run({ meriAnalyticsQueryLog: { create } }) },
+      analyticsDb: { runPublicSql, describePublic }, prisma: { withSystem: (run: (tx: unknown) => unknown) => run({ meriAnalyticsQueryLog: { create } }) },
       logger: { error: jest.fn() },
     }) as MeriToolsService };
   }
-  it('dispatches logical metadata through the existing native tool registry', async () => {
+  it('dispatches the published surface through the existing native tool registry', async () => {
     const { tools, runPublicSql } = service();
     const result = await tools.execute({} as never, 'describe_capiro_data', { relations: ['program_element_projects'] });
-    expect(result).toMatchObject({ version: '0.1.0', ok: true, relations: [{ name: 'program_element_projects' }] });
+    expect(result).toMatchObject({ version: '0.2.0', ok: true, relations: [{ name: 'program_element_projects' }] });
     expect(runPublicSql).not.toHaveBeenCalled();
   });
-  it('executes compiled public SQL through its existing owner and audit seam', async () => {
+  it('executes gated public SQL through its existing owner and audit seam', async () => {
     const { tools, runPublicSql, create } = service();
     const result = await tools.execute({ tenantId: 'synthetic-tenant', userId: 'synthetic-user' } as never, 'query_capiro_data', {
       sql: 'SELECT SUM(b.amount) AS total FROM program_element_budget_positions b WHERE b.pe_code=$1', parameters: ['0600001A'],
     });
-    expect(result).toMatchObject({ version: '0.1.0', ok: true, rows: [{ total: '9007199254740993.01' }], rowCount: 1 });
-    expect(runPublicSql).toHaveBeenCalledWith(expect.objectContaining({ params: ['0600001A'], relationsUsed: ['program_element_budget_positions'] }));
-    expect(create).toHaveBeenCalledWith({ data: expect.objectContaining({ datasetKey: 'public_sql', rowCount: 1, params: ['0600001A'] }) });
+    expect(result).toMatchObject({ version: '0.2.0', ok: true, rows: [{ total: '9007199254740993.01' }], rowCount: 1 });
+    expect(runPublicSql).toHaveBeenCalledWith(expect.objectContaining({ params: ['0600001A', 201], relationsUsed: ['program_element_budget_positions'] }));
+    expect(create).toHaveBeenCalledWith({ data: expect.objectContaining({ datasetKey: 'public_sql', rowCount: 1, params: ['0600001A', 201] }) });
   });
-  it('refuses private SQL before execution or query audit', async () => {
+  it('refuses client-record relations at the gate before execution or query audit', async () => {
     const { tools, runPublicSql, create } = service();
-    expect(await tools.execute({} as never, 'query_capiro_data', { sql: 'SELECT c.id FROM clients c', parameters: [] }))
+    expect(await tools.execute({} as never, 'query_capiro_data', { sql: 'SELECT o.id FROM client_objectives o', parameters: [] }))
       .toMatchObject({ ok: false, error: { code: 'UNKNOWN_RELATION' } });
     expect(runPublicSql).not.toHaveBeenCalled(); expect(create).not.toHaveBeenCalled();
   });

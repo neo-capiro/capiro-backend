@@ -2881,7 +2881,7 @@ export class MeriToolsService {
       resolve_entity: () => this.resolveEntity(input),
       search_lda_filings: () => this.searchLdaFilings(input),
       list_global_datasets: () => this.listGlobalDatasets(),
-      describe_capiro_data: () => describeCapiroData(this.publicCapiroDataInput(input)),
+      describe_capiro_data: () => describeCapiroData(this.publicCapiroDataInput(input), this.analyticsDb),
       query_capiro_data: () => this.queryCapiroData(ctx, input),
       query_global_data: () => this.queryGlobalData(ctx, input),
       search_sec_filings: () => this.searchSecFilings(input),
@@ -4087,11 +4087,12 @@ export class MeriToolsService {
     };
   }
 
-  // ── Global-data analytics (query_global_data / list_global_datasets) ───
-  // See apps/api/src/meri/analytics/ for the registry + compiler this wraps.
-  // Deliberately thin: this method's only jobs are (1) parse the raw tool
-  // input into a QuerySpec, (2) compile + execute it, (3) write the audit
-  // log row. All actual safety validation lives in query-spec-compiler.ts.
+  // ── Capiro data analytics (query_global_data / query_capiro_data) ───
+  // See apps/api/src/meri/analytics/. query_global_data compiles a QuerySpec
+  // against the dataset registry; query_capiro_data passes the model's SELECT
+  // through the statement gate to the reader role. Both only (1) parse the raw
+  // tool input, (2) execute through the dedicated analytics owner and (3)
+  // write the audit log row.
 
   private listGlobalDatasets() {
     return {
@@ -4102,13 +4103,13 @@ export class MeriToolsService {
   }
 
   private queryCapiroData(ctx: TenantContext, input: Record<string, unknown>) {
-    return queryCapiroData(this.publicCapiroDataInput(input), { runPublicSql: async (compiled) => {
+    return queryCapiroData(this.publicCapiroDataInput(input), { runPublicSql: async (gated) => {
       const startedAt = Date.now();
-      const audit = { sql: compiled.sql, params: compiled.params, datasetKey: 'public_sql' };
+      const audit = { sql: gated.sql, params: gated.params, datasetKey: 'public_sql' };
       try {
-        const rows = await this.analyticsDb.runPublicSql(compiled);
-        await this.recordAnalyticsQuery(ctx, audit, Math.min(rows.length, compiled.rowLimit), Date.now() - startedAt, null);
-        return rows;
+        const fetched = await this.analyticsDb.runPublicSql(gated);
+        await this.recordAnalyticsQuery(ctx, audit, Math.min(fetched.rows.length, gated.rowLimit), Date.now() - startedAt, null);
+        return fetched;
       } catch (error) {
         // Execution errors are already sanitized by the dedicated analytics owner.
         await this.recordAnalyticsQuery(ctx, audit, null, Date.now() - startedAt,
@@ -4130,7 +4131,7 @@ export class MeriToolsService {
   /** Existing query audit owner, with fixed private metadata rather than private SQL or bound values. */
   recordPrivateSqlQuery(ctx: TenantContext, summary: {
     relations: string[]; rowCount: number | null; durationMs: number;
-    outcome: 'ok' | import('./analytics/sql-query-compiler.js').PublicSqlErrorCode;
+    outcome: 'ok' | import('./analytics/sql-statement-gate.js').SqlQueryErrorCode;
   }) {
     return this.recordAnalyticsQuery(ctx, {
       datasetKey: 'client_records', sql: 'query_capiro_data', params: [...summary.relations],

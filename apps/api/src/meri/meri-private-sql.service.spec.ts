@@ -98,17 +98,23 @@ function fixture(selected: string | null = null, requested?: string) {
           : true,
   } as any).verifyRequest(req);
   let during = async () => {};
+  const surface = ['client_objectives', 'client_activity'].map((name) => ({
+    name, description: 'Synthetic', grain: '', fields: [{ name: 'id', type: 'string' as const, pgType: 'uuid', nullable: false, description: 'ID' }],
+    primaryKey: ['id'], relationships: [], coverage: { basis: 'authorized_client_records', limitations: [] },
+    freshness: { field: null, sourceAsOf: null, sourceVersion: null },
+  }));
   const db = {
-    runPrivateSql: jest.fn(async (_compiled: unknown, context: PrivateSqlExecutionContext) => {
+    runPrivateSql: jest.fn(async (_gated: unknown, context: PrivateSqlExecutionContext) => {
       await context.assertCurrent();
       await during();
       await context.assertCurrent();
-      return [{ total: '0' }];
+      return { columns: [{ name: 'total', type: 'integer' as const, pgType: 'int8', nullable: true }], rows: [{ total: '0' }], surface };
     }),
-    assertAvailable: jest.fn(async (context: PrivateSqlExecutionContext) => {
+    describe: jest.fn(async (context: PrivateSqlExecutionContext) => {
       await context.assertCurrent();
       await during();
       await context.assertCurrent();
+      return surface;
     }),
   };
   const audit = jest.fn(async (_ctx: unknown, _summary: any) => {}),
@@ -143,7 +149,7 @@ describe('interactive private query binding', () => {
     const f = fixture(selected, requested),
       page = await f.read();
     expect(page).toMatchObject({
-      version: '0.2.0',
+      version: '0.3.0',
       ok: true,
       scope: { kind: 'client_records', clientId: requested ?? selected },
       rows: [{ total: '0' }],
@@ -177,13 +183,13 @@ describe('interactive private query binding', () => {
       expect(f.db.runPrivateSql).toHaveBeenCalledTimes(1);
     },
   );
-  it('checks describe currentness and keeps all 193 owner fields without physical metadata', async () => {
+  it('checks describe currentness and publishes the reader surface without physical metadata', async () => {
     const f = fixture(),
       page = await f.read({ source: 'client_records' }, 'describe_capiro_data');
     expect(page.ok).toBe(true);
     if (!page.ok || !('relations' in page)) throw Error('metadata expected');
-    expect(page.relations.map((r) => r.fields.length)).toEqual([23, 23, 11, 10, 14, 18, 4, 16, 12, 11, 22, 8, 11, 10]);
-    expect(JSON.stringify(page)).not.toContain('parameterType');
+    expect(page.relations.map((r) => r.name)).toEqual(['client_objectives', 'client_activity']);
+    expect(JSON.stringify(page)).not.toContain('"table"');
     const denied = fixture();
     denied.setDuring(async () => {
       denied.receipt.membershipRevision = 'd'.repeat(64);

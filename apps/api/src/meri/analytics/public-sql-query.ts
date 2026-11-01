@@ -1,49 +1,31 @@
 import type { AnalyticsDbService } from './analytics-db.service.js';
-import { PUBLIC_SQL_LIMITS, PUBLIC_SQL_RELATIONS, publicSqlRelation } from './public-sql-registry.js';
-import { compilePublicSql, PublicSqlError } from './sql-query-compiler.js';
-import { packSqlRows } from './sql-query-output.js';
+import { describeEnvelope, queryEnvelope } from './sql-query-output.js';
+import { gateSqlStatement, SqlQueryError } from './sql-statement-gate.js';
 
-const version = '0.1.0' as const;
+const version = '0.2.0' as const;
 function failure(error: unknown, generatedAt: string) {
-  const known = error instanceof PublicSqlError ? error : new PublicSqlError('SOURCE_UNAVAILABLE', 'Public data is currently unavailable.');
-  return { version, generatedAt, ok: false as const, error: { code: known.code, message: known.message } };
+  const known = error instanceof SqlQueryError ? error : new SqlQueryError('SOURCE_UNAVAILABLE', 'Public data is currently unavailable.');
+  return { version, generatedAt, ok: false as const, error: known.toEnvelope() };
 }
-function bytes(value: unknown): number { return Buffer.byteLength(JSON.stringify(value), 'utf8'); }
 
-export function describeCapiroData(input: unknown) {
+/** The public surface as capiro_analytics_ro sees it in meri_public, with the migration's published metadata. */
+export async function describeCapiroData(input: unknown, db: Pick<AnalyticsDbService, 'describePublic'>) {
   const generatedAt = new Date().toISOString();
   try {
-    if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some((k) => k !== 'relations'))
-      throw new PublicSqlError('INVALID_QUERY', 'Use an optional list of published relation names.');
-    const names = (input as { relations?: unknown }).relations;
-    if (names !== undefined && (!Array.isArray(names) || !names.length || names.length > PUBLIC_SQL_RELATIONS.length ||
-      new Set(names).size !== names.length || names.some((name) => typeof name !== 'string' || !publicSqlRelation(name))))
-      throw new PublicSqlError('UNKNOWN_RELATION', 'Use unique relation names published by describe_capiro_data.');
-    const relations = PUBLIC_SQL_RELATIONS.filter((r) => names === undefined || (names as string[]).includes(r.name))
-      .map(({ table: _table, predicate: _predicate, ...published }) => ({ ...published,
-        fields: published.fields.map(({ parameterType: _parameterType, ...field }) => field) }));
-    const result = { version, generatedAt, ok: true as const, relations, limits: PUBLIC_SQL_LIMITS };
-    if (bytes(result) > PUBLIC_SQL_LIMITS.maxOutputBytes) throw new PublicSqlError('OUTPUT_LIMIT', 'Public metadata exceeds the output budget.');
-    return result;
-  } catch (error) { return failure(error, generatedAt); }
+    return describeEnvelope({ version, generatedAt }, input, await db.describePublic());
+  } catch (error) {
+    return failure(error, generatedAt);
+  }
 }
 
-/** Thin native-tool seam; execution remains inside the dedicated analytics DB owner. */
+/** Thin native-tool seam; the gate admits the statement and the dedicated analytics owner executes it. */
 export async function queryCapiroData(input: unknown, db: Pick<AnalyticsDbService, 'runPublicSql'>) {
   const generatedAt = new Date().toISOString();
   try {
-    const compiled = compilePublicSql(input);
-    const fetched = await db.runPublicSql(compiled);
-    const rowLimitReached = fetched.length > compiled.rowLimit;
-    const candidates = fetched.slice(0, compiled.rowLimit);
-    const rows: typeof fetched = [];
-    const result = { version, generatedAt, ok: true as const, columns: compiled.columns, rows,
-      rowCount: rows.length, relationsUsed: compiled.relationsUsed, rowLimitReached, byteTruncated: false,
-      limits: { rowLimit: compiled.rowLimit, maxOutputBytes: PUBLIC_SQL_LIMITS.maxOutputBytes },
-      coverage: { basis: 'query_bounded' as const, sourceUniverseComplete: false as const, sqlLimit: compiled.sqlLimit,
-        relations: compiled.relationsUsed.map((name) => ({ name, sourceAsOf: null, sourceVersion: null,
-          limitations: publicSqlRelation(name)!.coverage.limitations })) } };
-    packSqlRows(result, candidates, compiled.rowLimit, PUBLIC_SQL_LIMITS.maxOutputBytes);
-    return result;
-  } catch (error) { return failure(error, generatedAt); }
+    const gated = gateSqlStatement(input, 'public');
+    const fetched = await db.runPublicSql(gated);
+    return queryEnvelope({ version, generatedAt }, gated, fetched, fetched.surface);
+  } catch (error) {
+    return failure(error, generatedAt);
+  }
 }

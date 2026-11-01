@@ -155,20 +155,22 @@ async function fixture() {
     withTenant: PrismaService.prototype.withTenant,
   };
   let during = async () => {};
+  const count = (total: string) => ({ columns: [{ name: 'total', type: 'integer' as const, pgType: 'int8', nullable: true }], rows: [{ total }], surface: [] });
   const db = {
-    runPrivateSql: jest.fn(async (_compiled: unknown, c: PrivateSqlExecutionContext) => {
+    runPrivateSql: jest.fn(async (_gated: unknown, c: PrivateSqlExecutionContext) => {
       await c.assertCurrent();
       await during();
       await c.assertCurrent();
-      return [{ total: '2' }];
+      return count('2');
     }),
-    assertAvailable: jest.fn(async (c: PrivateSqlExecutionContext) => {
+    describe: jest.fn(async (c: PrivateSqlExecutionContext) => {
       await c.assertCurrent();
       await during();
       await c.assertCurrent();
+      return [];
     }),
   };
-  const publicDb = { runPublicSql: jest.fn(async () => [{ total: '3' }]) };
+  const publicDb = { runPublicSql: jest.fn(async () => count('3')) };
   const tools = Object.assign(Object.create(MeriToolsService.prototype), {
     prisma,
     analyticsDb: publicDb,
@@ -458,7 +460,7 @@ describe('private SQL actual interactive HTTP authority', () => {
     for (const body of [publicQuery, { ...publicQuery, source: 'public' }]) {
       const result = await f.send(body);
       expect(result.statusCode).toBe(200);
-      expect(result.body).toMatchObject({ version: '0.1.0', ok: true, rows: [{ total: '3' }] });
+      expect(result.body).toMatchObject({ version: '0.2.0', ok: true, rows: [{ total: '3' }] });
     }
     expect(f.db.runPrivateSql).not.toHaveBeenCalled();
     expect(f.publicDb.runPublicSql).toHaveBeenCalledTimes(2);
