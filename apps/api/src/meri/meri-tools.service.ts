@@ -1295,6 +1295,11 @@ export class MeriToolsService {
           revisionId: str('Exact current revision ID from read_bill_text.'),
           versionHash: str('Exact retained content SHA-256 from read_bill_text.'),
           textHash: str('Exact extracted text SHA-256 from read_bill_text.'),
+          representation: {
+            type: 'string',
+            enum: ['retained-raw-utf8/1'],
+            description: 'Dedicated workbench captured response-body representation; omitted preserves the existing text response.',
+          },
         },
         ['billId', 'versionCode', 'revisionId', 'versionHash', 'textHash'],
       ),
