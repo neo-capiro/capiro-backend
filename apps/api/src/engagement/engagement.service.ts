@@ -1,4 +1,5 @@
 import { lockMeetingAssociation, hasBoundMeetingRecords } from './meeting-automatic-association.js';
+import { readAttachmentCitation, listAttachmentCitationIds } from './attachments/attachment-citation.js';
 import { readMeetingDebriefContext } from './meeting-debrief-context-read.js';
 import { outreachAudienceWhere, type OutreachDirection } from './outreach-audience.js';
 import { forwardedMessageHtml } from './mail-forward-source.js';
@@ -7663,6 +7664,35 @@ export class EngagementService {
     return { disclosure: verdict.disclosure };
   }
 
+  listCitationAttachmentIds(tx: Prisma.TransactionClient, ctx: TenantContext, clientId: string,
+    search: string, cursor?: string) {
+    return listAttachmentCitationIds(tx, ctx, clientId, search, cursor);
+  }
+
+  readCitationAttachment(tx: Prisma.TransactionClient, ctx: TenantContext, clientId: string, id: string) {
+    return readAttachmentCitation(tx, ctx, clientId, id, {
+      authorize: async (row) => {
+        await this.validateAttachmentParents(ctx, row);
+        await this.authorizeAttachmentVersion(ctx, row);
+      },
+      readiness: (row) => this.attachmentContent.readiness(row, this.scanner.scanRequired),
+    });
+  }
+
+  /** Explicit navigation only: derive the authorized head through the existing
+   * chain owner without signing URLs or replacing the cited original version. */
+  async readCitationHistoryAnchor(tx: Prisma.TransactionClient, ctx: TenantContext,
+    clientId: string, attachmentId: string, contentHash: string) {
+    const original = await this.readCitationAttachment(tx, ctx, clientId, attachmentId);
+    if (original.contentHash !== contentHash) throw new NotFoundException('Attachment citation unavailable.');
+    const history = await this.listAttachmentHistory(ctx, { attachmentId, pageSize: 1 }, { metadataOnly: true });
+    const head = await this.readCitationAttachment(tx, ctx, clientId, history.headId);
+    if (!head.isCurrent || history.attachmentId !== attachmentId)
+      throw new NotFoundException('Attachment citation unavailable.');
+    return { attachmentId, contentHash, headId: history.headId,
+      originalId: history.originalId, versionCount: history.versionCount };
+  }
+
   async listAttachments(
     ctx: TenantContext,
     query: {
@@ -7799,6 +7829,7 @@ export class EngagementService {
   async listAttachmentHistory(
     ctx: TenantContext,
     query: { attachmentId: string; cursor?: string; pageSize?: number },
+    options: { metadataOnly?: boolean } = {},
   ): Promise<ClientFileHistoryPage> {
     const owner: ClientFileHistoryOwner = {
       prisma: this.prisma,
@@ -7829,7 +7860,7 @@ export class EngagementService {
       // the exact version the caller selected, and never a link to the head's object.
       // They keep their own controls (null preview outside the inline allowlist, null when
       // no bucket is configured).
-      links: async (row) => ({
+      links: options.metadataOnly ? async () => ({ downloadUrl: null, previewUrl: null }) : async (row) => ({
         downloadUrl: await this.createAttachmentDownloadUrl(row.s3Key),
         previewUrl: await this.createAttachmentPreviewUrl(row.s3Key, row.contentType),
       }),
