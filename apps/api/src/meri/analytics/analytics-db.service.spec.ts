@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
-import { AnalyticsDbService, normalizeRow, normalizePublicSqlRow } from './analytics-db.service.js';
-import { compilePublicSql } from './sql-query-compiler.js';
+import { AnalyticsDbService, normalizeRow } from './analytics-db.service.js';
+import { gateSqlStatement } from './sql-statement-gate.js';
 
 describe('normalizeRow', () => {
   it('flattens BigInt COUNT(*), Decimal SUM/AVG, and Date values to JSON-safe primitives', () => {
@@ -30,67 +30,83 @@ describe('normalizeRow', () => {
 });
 
 describe('dedicated public SQL execution', () => {
-  const compiled = () => compilePublicSql({ sql: 'SELECT b.congress, b.title FROM congress_bills b WHERE b.id=$1', parameters: ['119-hr-1'] });
-  function fixture(role = true, grant = true) {
-    const tx = { $executeRawUnsafe: jest.fn().mockResolvedValue(0),
-      $queryRawUnsafe: jest.fn().mockResolvedValueOnce([{ allowed: role }]).mockResolvedValueOnce([{ allowed: grant }])
-        .mockResolvedValue([{ congress: '119', title: 'Synthetic bill' }]) };
-    const transaction = jest.fn((run: (connection: typeof tx) => unknown) => run(tx));
+  const gated = () => gateSqlStatement({ sql: 'SELECT b.congress, b.title FROM congress_bills b WHERE b.id=$1', parameters: ['119-hr-1'] }, 'public');
+  const catalogRow = { relation: 'congress_bills', relation_comment: '{"description":"Bills","limitations":["partial"]}', column_name: 'congress', column_type: 'integer', typname: 'int4', column_comment: null };
+  function fixture(admission: unknown = { rows: [{ allowed: true }] }) {
+    const answers: unknown[] = [
+      admission,
+      { rows: [catalogRow] },
+      { fields: [{ name: 'congress', dataTypeID: 23 }, { name: 'title', dataTypeID: 25 }], rows: [['119', 'Synthetic bill']] },
+      { rows: [{ oid: '23', typname: 'int4' }, { oid: '25', typname: 'text' }] },
+    ];
+    const queries: { text: string; values?: unknown[] }[] = [];
+    const client = {
+      query: jest.fn(async (input: string | { text: string; values?: unknown[] }, values?: unknown[]) => {
+        const text = typeof input === 'string' ? input : input.text;
+        queries.push({ text, values: typeof input === 'string' ? values : input.values });
+        if (/^(BEGIN|SET LOCAL|COMMIT|ROLLBACK|SELECT pg_catalog.set_config)/.test(text)) return { rows: [], fields: [] };
+        const next = answers.shift();
+        if (next instanceof Error) throw next;
+        return next;
+      }),
+      release: jest.fn(),
+    };
     const service = new AnalyticsDbService();
-    (service as unknown as { client: unknown }).client = { $transaction: transaction };
-    return { service, tx, transaction };
+    (service as unknown as { pool: unknown }).pool = { connect: async () => client, end: async () => {} };
+    return { service, queries, answers };
   }
-  it('starts READ ONLY before any query, verifies actual role/grant, then binds exact compiler SQL', async () => {
-    const { service, tx, transaction } = fixture(), query = compiled();
-    expect(await service.runPublicSql(query)).toEqual([{ congress: '119', title: 'Synthetic bill' }]);
-    expect(tx.$executeRawUnsafe.mock.calls.map(([sql]) => sql)).toEqual([
-      'SET TRANSACTION READ ONLY', 'SET LOCAL search_path = pg_catalog', "SET LOCAL statement_timeout = '8000ms'",
-      "SET LOCAL lock_timeout = '1000ms'", "SET LOCAL idle_in_transaction_session_timeout = '10000ms'", "SET LOCAL timezone = 'UTC'",
+  it('starts READ ONLY on meri_public, admits the actual role, reads the surface once, then binds the exact gated SQL', async () => {
+    const { service, queries, answers } = fixture();
+    const query = gated();
+    const result = await service.runPublicSql(query);
+    expect(result.rows).toEqual([{ congress: '119', title: 'Synthetic bill' }]);
+    expect(result.columns).toEqual([
+      { name: 'congress', type: 'integer', pgType: 'int4', nullable: true },
+      { name: 'title', type: 'string', pgType: 'text', nullable: true },
     ]);
-    expect(tx.$executeRawUnsafe.mock.invocationCallOrder[0]).toBeLessThan(tx.$queryRawUnsafe.mock.invocationCallOrder[0]!);
-    expect(tx.$queryRawUnsafe.mock.calls[0][0]).toContain("current_user = 'capiro_analytics_ro' AND session_user = 'capiro_analytics_ro'");
-    expect(tx.$queryRawUnsafe.mock.calls[0][0]).toContain('pg_catalog.pg_auth_members');
-    expect(tx.$queryRawUnsafe.mock.calls[0][0]).toContain("pg_catalog.has_any_column_privilege(current_user, c.oid, 'INSERT,UPDATE,REFERENCES')");
-    expect(tx.$queryRawUnsafe.mock.calls[1][1]).toBe('public.congress_bill');
-    expect(tx.$queryRawUnsafe).toHaveBeenLastCalledWith(query.sql, '119-hr-1');
-    expect(transaction).toHaveBeenCalledWith(expect.any(Function), { timeout: 10000, maxWait: 2000 });
+    expect(result.surface).toEqual([expect.objectContaining({ name: 'congress_bills', description: 'Bills', coverage: { basis: 'ingested_public_records', limitations: ['partial'] } })]);
+    expect(queries.map((q) => q.text).slice(0, 6)).toEqual([
+      'BEGIN READ ONLY',
+      'SET LOCAL search_path = "meri_public"',
+      "SET LOCAL statement_timeout = '8000ms'",
+      "SET LOCAL lock_timeout = '1000ms'",
+      "SET LOCAL idle_in_transaction_session_timeout = '10000ms'",
+      "SET LOCAL timezone = 'UTC'",
+    ]);
+    expect(queries[6]!.values).toEqual(['capiro_analytics_ro', false]);
+    expect(queries[7]!.values).toEqual(['meri_public']);
+    expect(queries[8]).toEqual({ text: query.sql, values: ['119-hr-1', 201] });
+    expect(queries.at(-1)!.text).toBe('COMMIT');
+    answers.push({ rows: [{ allowed: true }] });
+    expect(await service.describePublic()).toEqual(result.surface);
   });
-  it.each([[false, true, 1], [true, false, 2]])('refuses bad actual role or unavailable grant before data SQL', async (role, grant, calls) => {
-    const { service, tx } = fixture(Boolean(role), Boolean(grant));
-    await expect(service.runPublicSql(compiled())).rejects.toMatchObject({ code: 'SOURCE_UNAVAILABLE' });
-    expect(tx.$queryRawUnsafe).toHaveBeenCalledTimes(Number(calls));
+  it('refuses a bad actual role before data SQL and never commits', async () => {
+    const { service, queries } = fixture({ rows: [{ allowed: false }] });
+    await expect(service.runPublicSql(gated())).rejects.toMatchObject({ code: 'SOURCE_UNAVAILABLE' });
+    expect(queries.map((q) => q.text)).not.toContain(expect.stringContaining('FROM congress_bills'));
+    expect(queries.map((q) => q.text)).toContain('ROLLBACK');
   });
   it.each([
-    ['57014', 'QUERY_TIMEOUT'], ['55P03', 'QUERY_TIMEOUT'], ['42803', 'INVALID_QUERY'], ['42883', 'INVALID_QUERY'],
-    ['22P02', 'INVALID_QUERY'], ['22007', 'INVALID_QUERY'], ['22008', 'INVALID_QUERY'],
-    ['42P08', 'INVALID_QUERY'], ['42P18', 'INVALID_QUERY'],
-    ['42501', 'SOURCE_UNAVAILABLE'], ['42P01', 'SOURCE_UNAVAILABLE'],
-  ])('classifies fixed driver code %s without disclosing driver details', async (code, expected) => {
-    const { service, tx } = fixture();
-    tx.$queryRawUnsafe.mockRejectedValue({ code: 'P2010', meta: { code, message: 'private SQL and connection information' } });
-    await expect(service.runPublicSql(compiled())).rejects.toMatchObject({ code: expected });
-    await expect(service.runPublicSql(compiled())).rejects.not.toThrow(/private/);
-  });
-  it('keeps exact numeric strings, dates, booleans and nulls and refuses lossy driver numbers', () => {
-    const columns = [
-      { name: 'amount', type: 'decimal' as const, nullable: true }, { name: 'n', type: 'integer' as const, nullable: false },
-      { name: 'date', type: 'date' as const, nullable: false }, { name: 'flag', type: 'boolean' as const, nullable: false },
-    ];
-    expect(normalizePublicSqlRow({ amount: '9007199254740993.01', n: '9007199254740993', date: new Date('2026-01-01T00:00:00Z'), flag: true }, columns))
-      .toEqual({ amount: '9007199254740993.01', n: '9007199254740993', date: '2026-01-01', flag: true });
-    expect(normalizePublicSqlRow({ amount: null, n: '0', date: new Date('2026-01-01T00:00:00Z'), flag: false }, columns).amount).toBeNull();
-    expect(() => normalizePublicSqlRow({ amount: 100.1, n: '0', date: new Date(), flag: true }, columns)).toThrow();
+    ['57014', 'QUERY_TIMEOUT'],
+    ['55P03', 'QUERY_TIMEOUT'],
+    ['42803', 'INVALID_QUERY'],
+    ['42883', 'INVALID_QUERY'],
+    ['22P02', 'INVALID_QUERY'],
+    ['42703', 'UNKNOWN_FIELD'],
+    ['42501', 'UNKNOWN_RELATION'],
+    ['42P01', 'UNKNOWN_RELATION'],
+    ['53300', 'SOURCE_UNAVAILABLE'],
+  ])('translates driver code %s to %s, keeping the PostgreSQL message only for query mistakes', async (code, expected) => {
+    const { service, answers } = fixture();
+    answers.splice(2, 2, Object.assign(new Error(`pg message for ${code}`), { code, position: '20' }));
+    const error = await service.runPublicSql(gated()).catch((e: unknown) => e);
+    expect(error).toMatchObject({ code: expected, detail: { sqlstate: code } });
+    expect(String((error as Error).message).includes('pg message')).toBe(expected !== 'SOURCE_UNAVAILABLE' && expected !== 'QUERY_TIMEOUT');
   });
 });
 
 describe('AnalyticsDbService', () => {
-  const REQUIRED_VARS = [
-    'ANALYTICS_DB_HOST',
-    'ANALYTICS_DB_PORT',
-    'ANALYTICS_DB_USER',
-    'ANALYTICS_DB_PASSWORD',
-    'ANALYTICS_DB_NAME',
-  ];
+  const REQUIRED_VARS = ['ANALYTICS_DB_HOST', 'ANALYTICS_DB_PORT', 'ANALYTICS_DB_USER', 'ANALYTICS_DB_PASSWORD', 'ANALYTICS_DB_NAME'];
   const originalEnv: Record<string, string | undefined> = {};
 
   beforeEach(() => {
@@ -110,29 +126,28 @@ describe('AnalyticsDbService', () => {
   it('never falls back to DATABASE_URL: refuses to run with no ANALYTICS_DB_* vars set, even if DATABASE_URL is set', async () => {
     process.env.DATABASE_URL = 'postgresql://capiro_app:secret@writer-host:5432/capiro';
     const service = new AnalyticsDbService();
-    await expect(
-      service.run({ sql: 'SELECT 1', params: [], datasetKey: 'lda_registrations' }),
-    ).rejects.toThrow(/ANALYTICS_DB_HOST/);
+    await expect(service.run({ sql: 'SELECT 1', params: [], datasetKey: 'lda_registrations' })).rejects.toThrow(/ANALYTICS_DB_HOST/);
+    await expect(service.runPublicSql(gateSqlStatement({ sql: 'SELECT 1', parameters: [] }, 'public'))).rejects.toMatchObject({ code: 'SOURCE_UNAVAILABLE' });
     delete process.env.DATABASE_URL;
   });
 
   it('reports every missing var, not just the first', async () => {
     process.env.ANALYTICS_DB_HOST = 'reader-host';
     const service = new AnalyticsDbService();
-    await expect(
-      service.run({ sql: 'SELECT 1', params: [], datasetKey: 'lda_registrations' }),
-    ).rejects.toThrow(/ANALYTICS_DB_PORT.*ANALYTICS_DB_USER.*ANALYTICS_DB_PASSWORD.*ANALYTICS_DB_NAME/);
+    await expect(service.run({ sql: 'SELECT 1', params: [], datasetKey: 'lda_registrations' })).rejects.toThrow(
+      /ANALYTICS_DB_PORT.*ANALYTICS_DB_USER.*ANALYTICS_DB_PASSWORD.*ANALYTICS_DB_NAME/,
+    );
   });
 
-  it('refuses to build a connection from a masked "***" password placeholder', async () => {
+  it('refuses a masked "***" password placeholder and any user other than the reader role', async () => {
     process.env.ANALYTICS_DB_HOST = 'reader-host';
     process.env.ANALYTICS_DB_PORT = '5432';
     process.env.ANALYTICS_DB_USER = 'capiro_analytics_ro';
     process.env.ANALYTICS_DB_PASSWORD = '***';
     process.env.ANALYTICS_DB_NAME = 'capiro';
-    const service = new AnalyticsDbService();
-    await expect(
-      service.run({ sql: 'SELECT 1', params: [], datasetKey: 'lda_registrations' }),
-    ).rejects.toThrow(/masked placeholder/);
+    await expect(new AnalyticsDbService().run({ sql: 'SELECT 1', params: [], datasetKey: 'lda_registrations' })).rejects.toThrow(/masked placeholder/);
+    process.env.ANALYTICS_DB_PASSWORD = 'secret';
+    process.env.ANALYTICS_DB_USER = 'capiro_app';
+    await expect(new AnalyticsDbService().run({ sql: 'SELECT 1', params: [], datasetKey: 'lda_registrations' })).rejects.toThrow(/must use capiro_analytics_ro/);
   });
 });
