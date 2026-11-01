@@ -62,12 +62,21 @@ function afterPosition(position?: Position) {
       (t.last_message_at = ${position.lastMessageAt}::timestamptz AND ${tail}))`;
 }
 
+/** The interactive mail page keeps its full budget; derived readers pass a smaller one. */
+export const MAIL_THREAD_LIST_BUDGET_MS = 10_000;
+export interface MailThreadListOptions {
+  /** Server-side statement budget for the page read; the transaction gets 2 s more to unwind. */
+  budgetMs?: number;
+}
+
 /** Live activity ordering: mutations may move an existing row. Clients dedupe IDs and explicitly refresh. */
 export async function readMailThreadList(prisma: PrismaService, ctx: TenantContext, input: MailThreadListInput,
-  profileEmails: (tx: Prisma.TransactionClient, clientId: string) => Promise<string[]>) {
+  profileEmails: (tx: Prisma.TransactionClient, clientId: string) => Promise<string[]>, options: MailThreadListOptions = {}) {
   const page = listPage(ctx, input);
+  const budgetMs = options.budgetMs ?? MAIL_THREAD_LIST_BUDGET_MS;
+  if (!Number.isSafeInteger(budgetMs) || budgetMs < 100 || budgetMs > MAIL_THREAD_LIST_BUDGET_MS) throw new RangeError('Invalid mail list budget');
   return prisma.withTenant(ctx.tenantId, async tx => {
-    await tx.$executeRaw`SELECT set_config('statement_timeout', '10000ms', true)`;
+    await tx.$executeRaw`SELECT set_config('statement_timeout', ${`${budgetMs}ms`}, true)`;
     const { clientId, asOf } = page.filters;
     await requireMailReadScope(tx, ctx, clientId || undefined);
     const emails = clientId ? [...new Set([...(await profileEmails(tx, clientId)), ...page.recipients])] : [];
@@ -116,5 +125,5 @@ export async function readMailThreadList(prisma: PrismaService, ctx: TenantConte
       mailboxes: boxes.slice(0, 50).map(box => ({ id: box.id, email: box.accountEmail, coverage: getMailSyncCoverage(box) })),
       notice: 'Stored active mail with live activity ordering. New sync or edits can move threads between pages; refresh to restart and deduplicate repeated IDs. Previews and mailbox coverage are bounded, not all provider history.',
     };
-  }, { readOnly: true, isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeoutMs: 12000 });
+  }, { readOnly: true, isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeoutMs: budgetMs + 2_000 });
 }

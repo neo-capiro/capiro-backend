@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { runInDbLane } from '../prisma/db-lane.js';
 import { MicrosoftGraphSyncService } from './microsoft/microsoft-graph-sync.service.js';
 import { GoogleSyncService } from './google/google-sync.service.js';
 import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
@@ -89,7 +90,9 @@ export class EngagementSyncSchedulerService implements OnModuleInit, OnModuleDes
     this.timer = setInterval(() => {
       if (this.ticking) return; // overlap-skip: a slow batch must not stack ticks
       this.ticking = true;
-      this.tick()
+      // Every transaction a scheduled sync opens goes to the background pool,
+      // never the request pool (prisma/db-lane.ts).
+      runInDbLane('background', () => this.tick())
         .catch((err) =>
           this.logger.error(`engagement auto-sync tick failed: ${(err as Error).message}`),
         )

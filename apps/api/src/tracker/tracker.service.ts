@@ -6,6 +6,7 @@ import {
   toWordBoundaryPattern,
 } from '../intelligence/bill-keyword-match.helpers.js';
 import { IntelligenceService } from '../intelligence/intelligence.service.js';
+import { clientIntelligenceReads } from '../intelligence/client-read-cache.js';
 import { issueAreaForSector, normalizeIssueArea, readTrackerMaterialChanges, TrackerMetricsError, type TenantContext } from '@capiro/shared';
 import { EMBEDDING_MODEL, embedText, normalize, vectorLiteral } from '../embeddings/embedder.js';
 import { normalizeE164 } from './sms/sms.service.js';
@@ -380,6 +381,7 @@ export class TrackerService {
         create: { tenantId, clientId, billId: trimmed, source, createdBy: userId },
       }),
     );
+    clientIntelligenceReads(this.intelligence).invalidate(tenantId, clientId);
     await this.recordFeedback(clientId, tenantId, userId, trimmed, 'tracked');
     return { tracked: true };
   }
@@ -392,6 +394,7 @@ export class TrackerService {
     await this.prisma.withTenant(tenantId, (tx) =>
       tx.trackedBill.deleteMany({ where: { clientId, billId: (billId ?? '').trim() } }),
     );
+    clientIntelligenceReads(this.intelligence).invalidate(tenantId, clientId);
     return { untracked: true };
   }
 

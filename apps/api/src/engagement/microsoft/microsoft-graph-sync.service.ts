@@ -74,6 +74,7 @@ import type { TenantContext } from '@capiro/shared';
 import { deriveMeetingVirtuality } from '@capiro/shared';
 import type { AppConfig } from '../../config/config.schema.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { runInDbLane } from '../../prisma/db-lane.js';
 import { harvestMailContacts } from '../contact-harvest.js';
 import { ClientAssociationService } from '../client-association.service.js';
 import { markMailMessageRemovedInTx } from '../mail-message-state.js';
@@ -1022,13 +1023,13 @@ export class MicrosoftGraphSyncService {
       // one, otherwise the plain run. The existing catch/finally attach to that
       // single value, and the child is finalized exactly once AFTER the work
       // promise settles, so a reported unknown/failed is never overwritten.
-      const execution = task.admission
+      const execution = runInDbLane('background', () => task.admission
         ? this.runtimePolicy!.runMailHandoffInAdmission(
             'callback_notification_admit',
             task.admission.context,
             () => task.run(),
           )
-        : task.run();
+        : task.run());
       void execution
         .catch((err: unknown) => {
           if (task.admission && !task.admission.disposition.hasReport()) {

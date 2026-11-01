@@ -15,6 +15,7 @@ import { ReadDelegationModule } from './auth/read-delegation/read-delegation.con
 import { MeriMemoryReceivingModule } from './meri/memory-receiving/meri-memory-receiving.controller.js';
 import { TenantModule } from './tenant/tenant.module.js';
 import { TenantContextMiddleware } from './tenant/tenant-context.middleware.js';
+import { DbLaneMiddleware } from './prisma/db-lane.middleware.js';
 import { UsersModule } from './users/users.module.js';
 import { HealthController } from './health/health.controller.js';
 import { WebhooksModule } from './webhooks/webhooks.module.js';
@@ -163,6 +164,11 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
+    // Lane marking runs before authentication so the tenant-context
+    // middleware's own membership resolution already opens on the dedicated
+    // authority pool for Meri's control-plane routes (see prisma/db-lane.ts).
+    consumer.apply(DbLaneMiddleware).forRoutes('*');
+
     consumer
       .apply(TenantContextMiddleware)
       .exclude(

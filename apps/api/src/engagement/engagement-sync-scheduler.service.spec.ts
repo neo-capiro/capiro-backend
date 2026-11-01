@@ -1,4 +1,5 @@
 import { EngagementSyncSchedulerService } from './engagement-sync-scheduler.service.js';
+import { currentDbLane } from '../prisma/db-lane.js';
 import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 import { harness } from './mailbox-oauth.a1-fixture.js';
 
@@ -138,6 +139,24 @@ describe('EngagementSyncSchedulerService', () => {
     service.onModuleInit();
     expect((service as unknown as { timer?: unknown }).timer).toBeUndefined();
     service.onModuleDestroy();
+  });
+
+  it('runs every scheduled tick in the background database lane', async () => {
+    jest.useFakeTimers();
+    try {
+      const { service, microsoft, queryRaw } = makeScheduler({ claimed: [conn({ id: 'ms-1' })] });
+      const lanes: string[] = [];
+      queryRaw.mockImplementation(async () => { lanes.push(currentDbLane()); return lanes.length === 1 ? [conn({ id: 'ms-1' })] : []; });
+      microsoft.syncConnectionByTenant.mockImplementation(async () => { lanes.push(currentDbLane()); return { connectionId: 'x' }; });
+      service.onModuleInit();
+      await jest.advanceTimersByTimeAsync(60_000);
+      service.onModuleDestroy();
+      expect(lanes.length).toBeGreaterThanOrEqual(2);
+      expect(new Set(lanes)).toEqual(new Set(['background']));
+      expect(currentDbLane()).toBe('request');
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('dispatches claimed connections to the matching provider service', async () => {

@@ -76,7 +76,7 @@ export class IntelligenceManualBillTracking {
     if (!client) {
       throw new NotFoundException(`Client ${clientId} not found`);
     }
-    return this.prisma.withTenant(tenantId, (tx) =>
+    const tracked = await this.prisma.withTenant(tenantId, (tx) =>
       tx.trackedBill.upsert({
         where: { clientId_billId: { clientId, billId: trimmedId } },
         update: { note: note ?? undefined },
@@ -89,12 +89,16 @@ export class IntelligenceManualBillTracking {
         },
       }),
     );
+    // A manual pin changes the tracked set every cached derived read is built from.
+    this.ports.clientReads().invalidate(tenantId, clientId);
+    return tracked;
   }
 
   async removeTrackedBill(clientId: string, tenantId: string, billId: string) {
     await this.prisma.withTenant(tenantId, (tx) =>
       tx.trackedBill.deleteMany({ where: { clientId, billId: billId.trim() } }),
     );
+    this.ports.clientReads().invalidate(tenantId, clientId);
     return { removed: true };
   }
 }
