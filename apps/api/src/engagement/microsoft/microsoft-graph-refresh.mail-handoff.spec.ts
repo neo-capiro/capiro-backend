@@ -88,7 +88,7 @@ interface RefreshFacade {
 function service(
   prismaFake: ReturnType<typeof prisma>,
   runtimePolicy: EngagementRuntimePolicyService,
-  msal: jest.Mock,
+  msal: (request: { scopes: string[]; refreshToken: string }) => Promise<ReturnType<typeof msalResult>>,
   persist: jest.Mock,
 ) {
   const svc = Object.create(MicrosoftGraphSyncService.prototype) as Record<string, unknown>;
@@ -125,7 +125,12 @@ describe('MicrosoftGraphSyncService private refresh admission (N)', () => {
   it('refuses an unowned selected missing-identity refresh before its reconnect write', async () => {
     const { runtimePolicy } = policy('initiation_fenced');
     const db = prisma();
-    const svc = service(db, runtimePolicy, jest.fn(), jest.fn(async () => undefined));
+    const svc = service(
+      db,
+      runtimePolicy,
+      jest.fn(async () => { throw new Error('Unexpected token refresh'); }),
+      jest.fn(async () => undefined),
+    );
 
     await expect(
       svc.getValidAccessToken('t1', 'conn-1', token({ homeAccountId: null })),
@@ -138,7 +143,12 @@ describe('MicrosoftGraphSyncService private refresh admission (N)', () => {
   it('keeps the original identity reconnect write and error when the refresh is owned', async () => {
     const { barrier, runtimePolicy } = policy('initiation_fenced');
     const db = prisma();
-    const svc = service(db, runtimePolicy, jest.fn(), jest.fn(async () => undefined));
+    const svc = service(
+      db,
+      runtimePolicy,
+      jest.fn(async () => { throw new Error('Unexpected token refresh'); }),
+      jest.fn(async () => undefined),
+    );
 
     await expect(
       barrier.runAdmitted('oauth_callback_continue', async () => {
@@ -154,7 +164,9 @@ describe('MicrosoftGraphSyncService private refresh admission (N)', () => {
   it('preserves provider scopes and the success path for an owned refresh', async () => {
     const { barrier, runtimePolicy } = policy('initiation_fenced');
     const db = prisma();
-    const msal = jest.fn(async () => msalResult());
+    const msal = jest.fn(async (_request: { scopes: string[]; refreshToken: string }) =>
+      msalResult(),
+    );
     const persist = jest.fn(async () => undefined);
     const svc = service(db, runtimePolicy, msal, persist);
 
@@ -163,7 +175,9 @@ describe('MicrosoftGraphSyncService private refresh admission (N)', () => {
     );
 
     expect(accessToken).toBe('ms-access');
-    const request = msal.mock.calls[0]?.[0] as { scopes: string[]; refreshToken: string };
+    const call = msal.mock.calls[0];
+    if (!call) throw new Error('The refresh request was not sent');
+    const [request] = call;
     expect(request.refreshToken).toBe('refresh-plain');
     expect(request.scopes).toEqual([...MICROSOFT_SCOPES, 'Teams.ReadBasic.All']);
     expect(persist).toHaveBeenCalledTimes(1);

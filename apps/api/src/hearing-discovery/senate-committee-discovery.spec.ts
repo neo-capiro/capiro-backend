@@ -3,6 +3,7 @@ import { CommitteeSourceRepository } from './committee-source.repository.js';
 import { HearingReconcilerService } from './hearing-reconciler.service.js';
 import { SenateCommitteeCalendarAdapter } from './adapters/senate-committee-calendar.adapter.js';
 import * as sourceHttp from './adapters/source-http.js';
+import { createHash } from 'node:crypto';
 
 describe('registered Senate committee calendar discovery', () => {
   afterEach(() => jest.restoreAllMocks());
@@ -17,15 +18,17 @@ describe('registered Senate committee calendar discovery', () => {
       .spyOn(CommitteeSourceRepository.prototype, 'recordOutcome')
       .mockResolvedValue('failing');
     const reconcile = jest.spyOn(HearingReconcilerService.prototype, 'reconcileBatch');
-    const fetch = jest
-      .spyOn(sourceHttp, 'fetchText')
-      .mockResolvedValue({
-        ok: true,
-        status: 200,
-        body: '<html><h1>Hearings</h1></html>',
-        error: null,
-        durationMs: 1,
-      });
+    const fetch = jest.spyOn(sourceHttp, 'fetchText').mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: '<html><h1>Hearings</h1></html>',
+      contentHash: createHash('sha256').update('<html><h1>Hearings</h1></html>').digest('hex'),
+      etag: null,
+      lastModified: null,
+      notModified: false,
+      error: null,
+      durationMs: 1,
+    });
     const now = new Date();
     const result = await discoverSenateCommitteeCalendars({} as never, {
       congress: 119,

@@ -139,7 +139,7 @@ describe('syncMailIncremental orchestration (Phase F apply loop)', () => {
       const result = await withMailboxProviderBudget(() =>
         (service as any).syncMailIncremental('tenant', connection, state, 'synthetic'),
       );
-      expect(result.hasMore).toBe(true);
+      expect(result).toMatchObject({ hasMore: true });
       expect(state.historyId).toBe('100');
       expect(state.incrementalPendingOps).toEqual([{ id: 'second', action: 'upsert' }]);
       const resumed = await (service as any).syncMailIncremental(

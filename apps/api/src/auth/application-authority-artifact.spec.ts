@@ -110,9 +110,9 @@ describe('artifact current authority (capiro.meri-artifact-authority.v1)', () =>
   });
 
   it.each([
-    ['office-import', 'artifact.generate'],
-    ['office-edit', 'artifact.revise'],
-  ] as const)('admits %s only through existing current artifact permissions and client walls', async (intent, operation) => {
+    { intent: 'office-import', operation: 'artifact.generate' },
+    { intent: 'office-edit', operation: 'artifact.revise' },
+  ] as const)('admits $intent only through existing current artifact permissions and client walls', async ({ intent, operation }) => {
     const request = parseApplicationAuthorityArtifactBody({ ...createCase.request, intent });
     expect(ARTIFACT_INTENT_OPERATIONS[intent]).toEqual([operation]);
     const receipt = await readApplicationAuthorityArtifact(request, 'standard_user', ports().ports);

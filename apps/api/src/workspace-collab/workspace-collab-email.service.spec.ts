@@ -94,7 +94,9 @@ describe('ordinary collaborator email one-attempt receipt', () => {
     expect(input.Content.Simple.Body.Html.Data).toContain(`/modules/workspace?draftId=${dto.draftId}`);
     expect(JSON.stringify(input)).not.toContain('evil.test');
     expect(mockSend.mock.calls[0][1].abortSignal).toBeInstanceOf(AbortSignal);
-    expect(JSON.parse(f.fetchMock.mock.calls[0][1].body)).toEqual({ tenantId, actorId: 'owner', ...dto });
+    const fetchCall = f.fetchMock.mock.calls[0];
+    if (!fetchCall) throw new Error('The invitation authority was not read');
+    expect(JSON.parse(fetchCall[1].body)).toEqual({ tenantId, actorId: 'owner', ...dto });
   });
 
   it('fences simultaneous requests and exact retry after a lost acknowledgement', async () => {
