@@ -2,7 +2,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { Prisma } from '@prisma/client';
-import { readMailThreadList } from './mail-thread-list.js';
+import { MAIL_THREAD_LIST_BUDGET_MS, readMailThreadList } from './mail-thread-list.js';
 
 const tenant = '10000000-0000-4000-8000-000000000001', actor = '20000000-0000-4000-8000-000000000001';
 const client = '30000000-0000-4000-8000-000000000001';
@@ -90,5 +90,22 @@ describe('bounded live mail thread list', () => {
     const result = await h.read(); expect(result.coverageTruncated).toBe(true); expect(result.mailboxes).toHaveLength(50);
     expect(h.tx.integrationConnection.findMany).toHaveBeenLastCalledWith(expect.objectContaining({ take: 51,
       where: { tenantId: tenant, createdByUserId: actor, provider: { in: ['microsoft_365', 'google_workspace'] } } }));
+  });
+
+  it('applies the default 10 s statement budget and lets a derived reader pass a smaller one', async () => {
+    const h = harness();
+    await h.read({ clientId: client });
+    const budgets = (h.tx.$executeRaw.mock.calls as unknown as unknown[][])
+      .filter((call) => (call[0] as string[]).join('').includes('statement_timeout')).map((call) => call[1]);
+    expect(budgets).toEqual([`${MAIL_THREAD_LIST_BUDGET_MS}ms`]);
+    expect((h.prisma.withTenant.mock.calls[0] as unknown[])[2]).toMatchObject({ readOnly: true, timeoutMs: MAIL_THREAD_LIST_BUDGET_MS + 2_000 });
+
+    const derived = harness();
+    await readMailThreadList(derived.prisma as any, ctx, { asOf, limit: 2, clientId: client }, derived.profile, { budgetMs: 5_000 });
+    const derivedBudgets = (derived.tx.$executeRaw.mock.calls as unknown as unknown[][])
+      .filter((call) => (call[0] as string[]).join('').includes('statement_timeout')).map((call) => call[1]);
+    expect(derivedBudgets).toEqual(['5000ms']);
+    expect((derived.prisma.withTenant.mock.calls[0] as unknown[])[2]).toMatchObject({ timeoutMs: 7_000 });
+    await expect(readMailThreadList(derived.prisma as any, ctx, { asOf, limit: 2 }, derived.profile, { budgetMs: 20_000 })).rejects.toThrow(RangeError);
   });
 });

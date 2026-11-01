@@ -1,3 +1,4 @@
+import type { ClientIntelligenceReads } from './client-read-cache.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { Prisma } from '@prisma/client';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
@@ -6,6 +7,8 @@ import type { ClientPrepopulationService } from './client-prepopulation.service.
 export interface ClientMappingV1ReviewPorts {
   awardBearingMappingSource(source: string): boolean;
   prepopulation(): ClientPrepopulationService | undefined;
+  /** Derived per-client reads (tracked bills, regulation links) to drop after a mapping write. */
+  clientReads(): ClientIntelligenceReads;
 }
 
 type ManualMappingInput = {
@@ -71,6 +74,7 @@ export class ClientMappingV1Review {
     }
 
     const mapping = await this.persistManualMapping(clientId, tenantId, input);
+    this.ports.clientReads().invalidate(tenantId, clientId);
 
     if (input.source === 'lda') {
       await this.ports.prepopulation()?.prepopulate(tenantId, clientId);
@@ -93,7 +97,7 @@ export class ClientMappingV1Review {
       tx.client.findFirst({ where: { id: clientId }, select: { id: true } }),
     );
     if (!client) throw new NotFoundException('Client not found');
-    return this.prisma.withTenant(tenantId, async (tx) => {
+    const rejected = await this.prisma.withTenant(tenantId, async (tx) => {
       const before = await tx.clientIntelMapping.findUnique({
         where: {
           clientId_source_externalId: {
@@ -150,6 +154,8 @@ export class ClientMappingV1Review {
       });
       return saved;
     });
+    this.ports.clientReads().invalidate(tenantId, clientId);
+    return rejected;
   }
 
   async confirmMapping(
@@ -164,6 +170,7 @@ export class ClientMappingV1Review {
     tenantId: string,
   ) {
     const mapping = await this.persistReviewedMapping(mappingId, input, tenantId);
+    this.ports.clientReads().invalidate(tenantId, mapping.clientId);
     if (mapping.source === 'lda') {
       await this.ports.prepopulation()?.prepopulate(tenantId, mapping.clientId);
     }

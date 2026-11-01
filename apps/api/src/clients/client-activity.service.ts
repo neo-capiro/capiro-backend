@@ -1,9 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { isISO8601 } from 'class-validator';
 import type { Prisma } from '@prisma/client';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
-import { PrismaService } from '../prisma/prisma.service.js';
+import { isDatabaseBusyError, PrismaService } from '../prisma/prisma.service.js';
 import { EngagementService } from '../engagement/engagement.service.js';
 import {
   ownMeetingWhere,
@@ -88,8 +88,21 @@ export interface CreateActivityInput extends ActivityDetailsInput {
   pinned?: boolean;
 }
 
+/**
+ * Server-side budget for the synced-mail section of the timeline. The mail
+ * read is a derived section of a page that is otherwise cheap; under database
+ * saturation it used to run for up to 12 s, holding a second pooled connection
+ * next to the timeline's own transaction, and its statement timeout then
+ * failed the WHOLE timeline (the 2026-11-01 00:17Z burst). It now runs after
+ * the timeline transaction has released its connection and, when the database
+ * is busy, degrades to an empty mail section with a warning.
+ */
+export const TIMELINE_MAIL_BUDGET_MS = 5_000;
+
 @Injectable()
 export class ClientActivityService {
+  private readonly logger = new Logger(ClientActivityService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly engagement: EngagementService,
@@ -107,7 +120,10 @@ export class ClientActivityService {
     const rawLimit = options.limit ?? 200;
     const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 500) : 200;
 
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    // One transaction for the stored rows and the owned derived rows; the
+    // synced-mail read opens its own bounded transaction only after this one
+    // has released its connection (see TIMELINE_MAIL_BUDGET_MS).
+    const stored = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await this.requireClientWall(tx, ctx, clientId);
       const client = await tx.client.findFirst({
         where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
@@ -115,7 +131,7 @@ export class ClientActivityService {
       });
       if (!client) throw new NotFoundException('Client not found');
 
-      const [recorded, meetings, attachments, outreach, mailThreads] = await Promise.all([
+      const [recorded, meetings, attachments, outreach] = await Promise.all([
         tx.clientActivity.findMany({
           where: { tenantId: ctx.tenantId, clientId },
           orderBy: { occurredAt: 'desc' },
@@ -159,95 +175,117 @@ export class ClientActivityService {
             status: true,
           },
         }),
-        this.engagement.listMailThreads(ctx, { clientId }),
       ]);
 
       const details = await projectActivityDetails(tx, ctx, clientId, recorded);
-      const items: ActivityItem[] = [
-        ...recorded.map((row, index) => ({
-          ...details[index],
-          id: row.id,
-          kind: row.kind as ActivityKind,
-          occurredAt: row.occurredAt.toISOString(),
-          createdAt: row.createdAt?.toISOString(),
-          title: row.title,
-          body: row.body,
-          personId: row.personId,
-          sourceType: row.sourceType,
-          sourceId: row.sourceId,
-          pinned: row.pinned,
-          dueAt: row.dueAt ? row.dueAt.toISOString() : null,
-          settledAt: row.settledAt ? row.settledAt.toISOString() : null,
-          origin: 'recorded' as const,
-        })),
-        ...meetings.map((row) => ({
-          id: `meeting:${row.id}`,
-          kind: 'meeting' as const,
-          occurredAt: row.startsAt.toISOString(),
-          title: row.subject,
-          body: row.location,
-          personId: null,
-          sourceType: 'meeting',
-          sourceId: row.id,
-          pinned: false,
-          dueAt: null,
-          settledAt: null,
-          origin: 'derived' as const,
-        })),
-        ...attachments.map((row) => ({
-          id: `document:${row.id}`,
-          kind: 'document' as const,
-          occurredAt: row.createdAt.toISOString(),
-          title: row.fileName,
-          body: row.source,
-          personId: null,
-          sourceType: 'attachment',
-          sourceId: row.id,
-          pinned: false,
-          dueAt: null,
-          settledAt: null,
-          origin: 'derived' as const,
-        })),
-        ...outreach.map((row) => ({
-          id: `outreach:${row.id}`,
-          kind: 'outreach' as const,
-          occurredAt: row.createdAt.toISOString(),
-          title: row.subject ?? row.title,
-          body: [row.type, row.status].filter(Boolean).join(' · ') || null,
-          personId: null,
-          sourceType: 'outreach',
-          sourceId: row.id,
-          pinned: false,
-          dueAt: null,
-          settledAt: null,
-          origin: 'derived' as const,
-        })),
-        ...mailThreads.map((row) => ({
-          id: `email:${row.id}`,
-          kind: 'email' as const,
-          occurredAt: (row.lastMessageAt ?? row.createdAt).toISOString(),
-          title: row.subject,
-          body: row.snippet,
-          personId: null,
-          sourceType: 'mail_thread',
-          sourceId: row.id,
-          pinned: false,
-          dueAt: null,
-          settledAt: null,
-          origin: 'derived' as const,
-        })),
-      ];
-
-      const filtered = options.kinds?.length
-        ? items.filter((item) => options.kinds!.includes(item.kind))
-        : items;
-
-      // Newest first (§9). Pinned rows are NOT hoisted here — the UI shows them
-      // in their own rail so the timeline stays chronological.
-      return filtered
-        .sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt))
-        .slice(0, limit);
+      return { recorded, meetings, attachments, outreach, details };
     });
+    const { recorded, meetings, attachments, outreach, details } = stored;
+    const mailThreads = await this.timelineMailThreads(ctx, clientId);
+    const items: ActivityItem[] = [
+      ...recorded.map((row, index) => ({
+        ...details[index],
+        id: row.id,
+        kind: row.kind as ActivityKind,
+        occurredAt: row.occurredAt.toISOString(),
+        createdAt: row.createdAt?.toISOString(),
+        title: row.title,
+        body: row.body,
+        personId: row.personId,
+        sourceType: row.sourceType,
+        sourceId: row.sourceId,
+        pinned: row.pinned,
+        dueAt: row.dueAt ? row.dueAt.toISOString() : null,
+        settledAt: row.settledAt ? row.settledAt.toISOString() : null,
+        origin: 'recorded' as const,
+      })),
+      ...meetings.map((row) => ({
+        id: `meeting:${row.id}`,
+        kind: 'meeting' as const,
+        occurredAt: row.startsAt.toISOString(),
+        title: row.subject,
+        body: row.location,
+        personId: null,
+        sourceType: 'meeting',
+        sourceId: row.id,
+        pinned: false,
+        dueAt: null,
+        settledAt: null,
+        origin: 'derived' as const,
+      })),
+      ...attachments.map((row) => ({
+        id: `document:${row.id}`,
+        kind: 'document' as const,
+        occurredAt: row.createdAt.toISOString(),
+        title: row.fileName,
+        body: row.source,
+        personId: null,
+        sourceType: 'attachment',
+        sourceId: row.id,
+        pinned: false,
+        dueAt: null,
+        settledAt: null,
+        origin: 'derived' as const,
+      })),
+      ...outreach.map((row) => ({
+        id: `outreach:${row.id}`,
+        kind: 'outreach' as const,
+        occurredAt: row.createdAt.toISOString(),
+        title: row.subject ?? row.title,
+        body: [row.type, row.status].filter(Boolean).join(' · ') || null,
+        personId: null,
+        sourceType: 'outreach',
+        sourceId: row.id,
+        pinned: false,
+        dueAt: null,
+        settledAt: null,
+        origin: 'derived' as const,
+      })),
+      ...mailThreads.map((row) => ({
+        id: `email:${row.id}`,
+        kind: 'email' as const,
+        occurredAt: (row.lastMessageAt ?? row.createdAt).toISOString(),
+        title: row.subject,
+        body: row.snippet,
+        personId: null,
+        sourceType: 'mail_thread',
+        sourceId: row.id,
+        pinned: false,
+        dueAt: null,
+        settledAt: null,
+        origin: 'derived' as const,
+      })),
+    ];
+
+    const filtered = options.kinds?.length
+      ? items.filter((item) => options.kinds!.includes(item.kind))
+      : items;
+
+    // Newest first (§9). Pinned rows are NOT hoisted here — the UI shows them
+    // in their own rail so the timeline stays chronological.
+    return filtered
+      .sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt))
+      .slice(0, limit);
+  }
+
+  /**
+   * The client's synced mail threads for the timeline, or an empty section
+   * when the database cancelled or could not admit the read in time. Access
+   * refusals and other failures still propagate.
+   */
+  private async timelineMailThreads(
+    ctx: TenantContext,
+    clientId: string,
+  ): Promise<Awaited<ReturnType<EngagementService['listMailThreads']>>> {
+    try {
+      return await this.engagement.listMailThreads(ctx, { clientId }, { budgetMs: TIMELINE_MAIL_BUDGET_MS });
+    } catch (err) {
+      if (!isDatabaseBusyError(err)) throw err;
+      this.logger.warn(
+        `client activity mail section skipped for client ${clientId}: database busy (${err instanceof Error ? err.message.split('\n')[0] : String(err)})`,
+      );
+      return [];
+    }
   }
 
   private async requireClientWall(

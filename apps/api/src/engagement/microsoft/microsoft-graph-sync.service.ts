@@ -71,6 +71,7 @@ import type { TenantContext } from '@capiro/shared';
 import { deriveMeetingVirtuality } from '@capiro/shared';
 import type { AppConfig } from '../../config/config.schema.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { runInDbLane } from '../../prisma/db-lane.js';
 import { harvestMailContacts } from '../contact-harvest.js';
 import { ClientAssociationService } from '../client-association.service.js';
 import { markMailMessageRemovedInTx } from '../mail-message-state.js';
@@ -995,8 +996,10 @@ export class MicrosoftGraphSyncService {
       state.running.add(task.key);
       state.active += 1;
 
-      void task
-        .run()
+      // A notification sync is background work: its transactions open on the
+      // background pool so a burst of mailbox syncs cannot starve request
+      // handlers (prisma/db-lane.ts). The webhook request itself is unaffected.
+      void runInDbLane('background', () => task.run())
         .catch((err: unknown) => {
           this.logger.error(
             `Graph notification sync failed for connection ${task.connectionId}: ${

@@ -1,5 +1,13 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
+import {
+  currentDbLane,
+  laneDatabaseUrl,
+  readDbLaneSettings,
+  type DbLane,
+  type DbLanePoolSettings,
+  type DbLaneSettings,
+} from './db-lane.js';
 
 /**
  * The tenant scope baked into a per-call query-extended client so its query
@@ -55,6 +63,110 @@ export function applyTenantScope(
   return next;
 }
 
+/** Injection token for optional PrismaClient options (tests and fixtures pass them directly). */
+export const PRISMA_SERVICE_OPTIONS = Symbol('PRISMA_SERVICE_OPTIONS');
+
+type TransactionOptions = {
+  timeoutMs?: number;
+  isolationLevel?: Prisma.TransactionIsolationLevel;
+  readOnly?: boolean;
+};
+
+/** The pool a transaction helper opens on, resolved from the current lane. */
+export interface DbLaneSelection {
+  lane: DbLane;
+  /** `undefined` means the service's own (request) client. */
+  client: PrismaClient | undefined;
+  statementTimeoutMs: number | null;
+  poolTimeoutSeconds: number | null;
+}
+
+/**
+ * Owns the dedicated lane clients. Exported for tests; `PrismaService` builds
+ * one when a base connection URL is known and lanes are not switched off.
+ */
+export class DbLanes {
+  private readonly clients = new Map<Exclude<DbLane, 'request'>, PrismaClient>();
+
+  constructor(
+    readonly settings: DbLaneSettings,
+    private readonly baseUrl: string,
+    private readonly clientOptions: Prisma.PrismaClientOptions | undefined,
+    private readonly factory: (options: Prisma.PrismaClientOptions) => PrismaClient = (options) => new PrismaClient(options),
+  ) {}
+
+  pool(lane: Exclude<DbLane, 'request'>): DbLanePoolSettings {
+    return this.settings[lane];
+  }
+
+  /** The lane's client, created on first use so an unused lane never connects. */
+  client(lane: Exclude<DbLane, 'request'>): PrismaClient {
+    const existing = this.clients.get(lane);
+    if (existing) return existing;
+    // `datasourceUrl` and `datasources` are mutually exclusive in Prisma 5;
+    // the lane always sets its own datasource URL.
+    const { datasourceUrl: _ignored, ...rest } = (this.clientOptions ?? {}) as Prisma.PrismaClientOptions & { datasourceUrl?: string };
+    const created = this.factory({
+      ...rest,
+      datasources: { db: { url: laneDatabaseUrl(this.baseUrl, this.pool(lane)) } },
+    });
+    this.clients.set(lane, created);
+    return created;
+  }
+
+  select(lane: DbLane): DbLaneSelection {
+    if (lane === 'request' || !this.settings.enabled) {
+      return { lane: 'request', client: undefined, statementTimeoutMs: null, poolTimeoutSeconds: null };
+    }
+    const pool = this.pool(lane);
+    return { lane, client: this.client(lane), statementTimeoutMs: pool.statementTimeoutMs, poolTimeoutSeconds: pool.poolTimeoutSeconds };
+  }
+
+  async connect(lane: Exclude<DbLane, 'request'>): Promise<void> {
+    await this.client(lane).$connect();
+  }
+
+  async disconnectAll(): Promise<void> {
+    const open = [...this.clients.values()];
+    this.clients.clear();
+    await Promise.all(open.map((client) => client.$disconnect()));
+  }
+
+  describe(): string {
+    const { authority, background } = this.settings;
+    return `authority(connection_limit=${authority.connectionLimit}, pool_timeout=${authority.poolTimeoutSeconds}s, statement_timeout=${authority.statementTimeoutMs}ms) ` +
+      `background(connection_limit=${background.connectionLimit}, pool_timeout=${background.poolTimeoutSeconds}s)`;
+  }
+}
+
+const REQUEST_LANE: DbLaneSelection = Object.freeze({ lane: 'request', client: undefined, statementTimeoutMs: null, poolTimeoutSeconds: null });
+
+/** The pool for a transaction opened now, from the current async lane. */
+function selectLane(lanes: DbLanes | undefined): DbLaneSelection {
+  return lanes ? lanes.select(currentDbLane()) : REQUEST_LANE;
+}
+
+/**
+ * Interactive-transaction options. Unchanged for the request lane (callers'
+ * `timeoutMs` / `isolationLevel` pass through; nothing when unspecified).
+ * A lane with a statement timeout defaults the transaction timeout to just
+ * above it, and waits for a connection no longer than its pool timeout.
+ */
+export function laneTransactionOptions(selection: DbLaneSelection, opts: TransactionOptions | undefined) {
+  const options: { timeout?: number; isolationLevel?: Prisma.TransactionIsolationLevel; maxWait?: number } = {};
+  if (opts?.timeoutMs) options.timeout = opts.timeoutMs;
+  else if (selection.statementTimeoutMs !== null) options.timeout = selection.statementTimeoutMs + 1_000;
+  if (opts?.isolationLevel) options.isolationLevel = opts.isolationLevel;
+  if (selection.poolTimeoutSeconds !== null) options.maxWait = selection.poolTimeoutSeconds * 1_000;
+  return Object.keys(options).length ? options : undefined;
+}
+
+/** SET LOCAL is bound to the transaction, so the lane's limit never leaks onto another pooled caller. */
+async function applyLaneStatementTimeout(tx: Prisma.TransactionClient, selection: DbLaneSelection): Promise<void> {
+  if (selection.statementTimeoutMs === null) return;
+  await tx.$executeRaw`SELECT set_config('statement_timeout', ${`${selection.statementTimeoutMs}ms`}, true)`;
+}
+
 /**
  * RLS-aware Prisma client.
  *
@@ -76,6 +188,12 @@ export function applyTenantScope(
  * `withSystem(fn)` is the same pattern but with the bypass flag set, used
  * for cross-tenant admin work and webhook ingestion. Use sparingly and
  * always log via the audit_logs table.
+ *
+ * Connection pools: the service itself is the ordinary request pool. The
+ * transaction helpers additionally honour the current database lane (see
+ * `db-lane.ts`): Meri's conversation-authority routes and background mailbox
+ * sync open their transactions on their own small pools, with the same
+ * tenant-scope extension and GUCs, so heavy request work cannot starve them.
  */
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
@@ -90,11 +208,36 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       .map((m) => m.name),
   );
 
+  /** Dedicated lane pools; `undefined` when no base URL is known or lanes are off. */
+  private readonly lanes: DbLanes | undefined;
+
+  constructor(@Optional() @Inject(PRISMA_SERVICE_OPTIONS) options?: Prisma.PrismaClientOptions) {
+    super(options);
+    this.lanes = PrismaService.buildLanes(options);
+  }
+
+  private static buildLanes(options: Prisma.PrismaClientOptions | undefined): DbLanes | undefined {
+    const explicit = options as (Prisma.PrismaClientOptions & { datasourceUrl?: string; datasources?: { db?: { url?: string } } }) | undefined;
+    const baseUrl = explicit?.datasources?.db?.url ?? explicit?.datasourceUrl ?? process.env.DATABASE_URL;
+    if (!baseUrl) return undefined;
+    const settings = readDbLaneSettings();
+    if (!settings.enabled) return undefined;
+    return new DbLanes(settings, baseUrl, options);
+  }
+
   async onModuleInit(): Promise<void> {
     await this.$connect();
     this.logger.log(
       `Prisma connected (tenant-scope enforcement active on ${this.tenantScopedModels.size} models)`,
     );
+    if (this.lanes) {
+      // The authority lane must be warm before Meri's first control call;
+      // the background lane connects on its first scheduler tick.
+      await this.lanes.connect('authority');
+      this.logger.log(`Prisma database lanes active: ${this.lanes.describe()}`);
+    } else {
+      this.logger.log('Prisma database lanes inactive: every transaction uses the request pool');
+    }
   }
 
   /**
@@ -108,10 +251,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
    * Prisma client extension is a lightweight proxy over the same connection
    * pool (no new connection), and baking the scope in a closure sidesteps the
    * ALS-context-loss that makes an AsyncLocalStorage approach silently no-op.
+   * `base` selects the pool: a lane client, or this service when omitted
+   * (request lane; callers pass exactly one argument then, as before).
    */
-  private scopedClient(scope: TenantScope) {
+  private scopedClient(scope: TenantScope, base: PrismaClient = this) {
     const scopedModels = this.tenantScopedModels;
-    return this.$extends(
+    return base.$extends(
       Prisma.defineExtension({
         name: 'tenant-scope',
         query: {
@@ -135,6 +280,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   async onModuleDestroy(): Promise<void> {
     await this.$disconnect();
+    if (this.lanes) await this.lanes.disconnectAll();
   }
 
   /**
@@ -147,10 +293,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
     opts?: { timeoutMs?: number; isolationLevel?: Prisma.TransactionIsolationLevel; readOnly?: boolean },
   ): Promise<T> {
-    return this.scopedClient({ tenantId }).$transaction(
+    const selection = selectLane(this.lanes);
+    return (selection.client ? this.scopedClient({ tenantId }, selection.client) : this.scopedClient({ tenantId })).$transaction(
       async (tx) => {
         // PostgreSQL requires transaction characteristics before any data query.
         if (opts?.readOnly) await tx.$executeRaw`SET TRANSACTION READ ONLY`;
+        await applyLaneStatementTimeout(tx as unknown as Prisma.TransactionClient, selection);
         // SET LOCAL is bound to the transaction. set_config(..., true) returns
         // the value, which we discard. Parameter binding via $executeRaw is
         // safe against injection. (The GUC is now belt-and-suspenders: the
@@ -167,10 +315,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       //    the start of the transaction"
       // every time the intel tab loaded. Callers can pass a higher
       // timeoutMs for known-slow paths.
-      opts?.timeoutMs || opts?.isolationLevel
-        ? { ...(opts.timeoutMs ? { timeout: opts.timeoutMs } : {}),
-            ...(opts.isolationLevel ? { isolationLevel: opts.isolationLevel } : {}) }
-        : undefined,
+      laneTransactionOptions(selection, opts),
     );
   }
 
@@ -192,13 +337,15 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
     opts?: { timeoutMs?: number },
   ): Promise<T> {
-    return this.scopedClient({ tenantId }).$transaction(
+    const selection = selectLane(this.lanes);
+    return (selection.client ? this.scopedClient({ tenantId }, selection.client) : this.scopedClient({ tenantId })).$transaction(
       async (tx) => {
+        await applyLaneStatementTimeout(tx as unknown as Prisma.TransactionClient, selection);
         await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;
         await tx.$executeRaw`SELECT set_config('app.current_user', ${userId}, true)`;
         return fn(tx as unknown as Prisma.TransactionClient);
       },
-      opts?.timeoutMs ? { timeout: opts.timeoutMs } : undefined,
+      laneTransactionOptions(selection, opts),
     );
   }
 
@@ -243,11 +390,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
     opts?: { timeoutMs?: number; isolationLevel?: Prisma.TransactionIsolationLevel; readOnly?: boolean },
   ): Promise<T> {
+    const selection = selectLane(this.lanes);
     // bypass:true → the tenant-scope hook does NOT inject a tenant predicate,
     // preserving the intentional cross-tenant reach of system paths.
-    return this.scopedClient({ bypass: true }).$transaction(
+    return (selection.client ? this.scopedClient({ bypass: true }, selection.client) : this.scopedClient({ bypass: true })).$transaction(
       async (tx) => {
         if (opts?.readOnly) await tx.$executeRaw`SET TRANSACTION READ ONLY`;
+        await applyLaneStatementTimeout(tx as unknown as Prisma.TransactionClient, selection);
         await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
         return fn(tx as unknown as Prisma.TransactionClient);
       },
@@ -256,10 +405,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       // with no way to extend it — which is how a slow-but-legitimate write
       // (MemoryStoreService.upsertSystem, the Client Soul save) failed under
       // pool pressure rather than merely running slowly.
-      opts?.timeoutMs || opts?.isolationLevel
-        ? { ...(opts.timeoutMs ? { timeout: opts.timeoutMs } : {}),
-            ...(opts.isolationLevel ? { isolationLevel: opts.isolationLevel } : {}) }
-        : undefined,
+      laneTransactionOptions(selection, opts),
     );
   }
 }
@@ -288,4 +434,19 @@ export function isRetryableTransactionError(err: unknown): boolean {
     /(?:^|[^0-9A-Za-z])40P01\b/.test(message) ||
     /(?:^|[^0-9A-Za-z])40001\b/.test(message)
   );
+}
+
+/**
+ * True when a Postgres statement was cancelled by `statement_timeout`
+ * (SQLSTATE 57014) or the request could not get a pooled connection /
+ * transaction in time (P2024 / P2028). Callers with a degradable section use
+ * this to fail that section open instead of the whole response.
+ */
+export function isDatabaseBusyError(err: unknown): boolean {
+  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    if (err.code === 'P2024' || err.code === 'P2028') return true;
+    if (err.code === 'P2010' && (err.meta as { code?: unknown } | undefined)?.code === '57014') return true;
+  }
+  const message = err instanceof Error ? err.message : String(err);
+  return /canceling statement due to statement timeout|(?:^|[^0-9A-Za-z])57014\b/.test(message);
 }
