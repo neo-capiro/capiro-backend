@@ -32,6 +32,7 @@ import type {
 import { clientMemoryAllowed, fetchDeniedClientIds } from '../memory/memory-wall.helpers.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { canonicalFacts, readCanonicalResearchTarget } from './research-portfolio-targets.js';
+import { readResearchPortfolioMetrics } from './research-portfolio-metrics.js';
 
 type Tx = Prisma.TransactionClient;
 type RequiredRole = 'viewer' | 'editor' | 'owner';
@@ -70,6 +71,10 @@ function asIso(value: Date): string {
 @Injectable()
 export class ResearchPortfoliosService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async metrics(ctx: TenantContext, query: unknown) {
+    return readResearchPortfolioMetrics(this.prisma, ctx, query);
+  }
 
   async list(
     ctx: TenantContext,

@@ -2,6 +2,7 @@ import { lockMeetingAssociation, hasBoundMeetingRecords } from './meeting-automa
 import { readMeetingDebriefContext } from './meeting-debrief-context-read.js';
 import { outreachAudienceWhere, type OutreachDirection } from './outreach-audience.js';
 import { forwardedMessageHtml } from './mail-forward-source.js';
+import { readClassicOutreachMetrics } from './classic-outreach-metrics.js';
 import { assertSingleMailAuthority, assertSingleMailIntentReadAuthority, resolveSingleMailReply } from './single-mail-authority.js';
 import { REPLY_UNAVAILABLE, type PreparedMailReply } from './single-mail-reply.js';
 import { requireOwnerClient } from '../clients/client-ordered-owner.access.js';
@@ -2749,6 +2750,10 @@ export class EngagementService {
    */
   async listOutreachRecords(ctx: TenantContext, query: OutreachQuery) {
     return (await this.readOutreachRecordPage(ctx, query, false)).items;
+  }
+
+  async outreachMetrics(ctx: TenantContext, query: unknown) {
+    return readClassicOutreachMetrics(this.prisma, ctx, query);
   }
 
   /** Pagination shares the ordinary reader's owner, client-wall and source checks. */
