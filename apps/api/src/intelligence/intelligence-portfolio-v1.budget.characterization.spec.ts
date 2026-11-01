@@ -1,5 +1,6 @@
 import {
   type AlertResult,
+  type Harness,
   type PortfolioAlertsRun,
   alert,
   budgets,
@@ -278,5 +279,178 @@ describe('Portfolio private budget fallback timer and failure protocol', () => {
     expect(h.runtime.portfolioAlertsCache.get(key)!.value).toMatchObject({ total: 1, clientCount: 1 });
     expect(h.runtime.portfolioAlertsCache.get(key)!.value).not.toHaveProperty('partial');
     expect(h.runtime.portfolioAlertsInflight.size).toBe(0);
+  });
+});
+
+describe('Portfolio alert carried per-client results across budget-limited runs', () => {
+  const second = client({ id: 'second', name: 'Second' });
+  const third = client({ id: 'third', name: 'Third' });
+  type Opened = Array<{ id: string; profile: ReturnType<typeof deferred<unknown>> }>;
+  /** Every profile read opens its own pending promise for the test to settle. */
+  const pendingProfiles = () => {
+    const opened: Opened = [];
+    const row = (id: string) => () => {
+      const profile = deferred<unknown>();
+      opened.push({ id, profile });
+      return profile.promise;
+    };
+    return {
+      opened,
+      rows: {
+        [`profile:${clientId}`]: row(clientId),
+        'profile:second': row('second'),
+        'profile:third': row('third'),
+      },
+    };
+  };
+  /** Finish the next `count` clients in walk order with one alert each; the one after stays pending. */
+  const finish = async (opened: Opened, count: number) => {
+    const first = opened.length;
+    for (let i = 0; i < count; i++) {
+      await drain();
+      const current = opened[first + i]!;
+      current.profile.resolve(profile([alert({ id: current.id })]));
+    }
+    await drain();
+  };
+  /** Drain the client the budget stopped: its profile fails with the abort reason. */
+  const drop = async (h: Harness, opened: Opened, index: number) => {
+    opened[index]!.profile.reject(h.source.mock.calls[index]![3]!.reason);
+    await drain();
+  };
+  const clientIds = (value: AlertResult) => value.alerts.map((row) => row.clientId).sort();
+  const carriedIds = (h: Harness) => [
+    ...(
+      h.service as unknown as {
+        finalSources: { portfolioAlerts: { carried: Map<string, Map<string, unknown>> } };
+      }
+    ).finalSources.portfolioAlerts.carried
+      .get(key)!
+      .keys(),
+  ];
+
+  test('three budget-limited runs converge on the full roster by carrying finished clients forward', async () => {
+    budgets.PORTFOLIO_ALERTS_REQUEST_BUDGET_MS = 20;
+    const { opened, rows } = pendingProfiles();
+    const h = harness({ rows: { clients: [client(), second, third], ...rows } });
+    const answers: AlertResult[] = [];
+    for (const stopped of [1, 3, 5]) {
+      // The next poll lands after the partial answer's TTL.
+      if (answers.length) await jest.advanceTimersByTimeAsync(20000);
+      const request = h.service.getPortfolioAlerts(tenantId, userId);
+      await finish(opened, 1);
+      await jest.advanceTimersByTimeAsync(20);
+      const answer = await request;
+      await drop(h, opened, stopped);
+      expect(h.runtime.portfolioAlertsInflight.size).toBe(0);
+      expect(h.runtime.portfolioAlertsCache.get(key)).toEqual({
+        expiresAt: Date.now() + (answer.partial ? 20000 : 120000),
+        value: answer,
+      });
+      answers.push(answer);
+    }
+    expect(answers.map(clientIds)).toEqual([
+      [clientId],
+      [clientId, 'second'],
+      [clientId, 'second', 'third'],
+    ]);
+    expect(answers[0]).toMatchObject({ total: 1, clientCount: 3, partial: true });
+    expect(answers[1]).toMatchObject({ total: 2, clientCount: 3, partial: true });
+    expect(answers[2]).toMatchObject({ total: 3, clientCount: 3 });
+    expect(answers[2]).not.toHaveProperty('partial');
+    // Each run walked the clients it still lacked first, from its rotated start.
+    expect(opened.map((entry) => entry.id)).toEqual([
+      clientId,
+      'second',
+      'second',
+      'third',
+      'third',
+      clientId,
+    ]);
+    expect(carriedIds(h)).toEqual([clientId, 'second', 'third']);
+    expect(h.warnings).toHaveBeenCalledTimes(3);
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  test('recomputes carried entries older than the TTL first and never merges them', async () => {
+    const { opened, rows } = pendingProfiles();
+    const h = harness({ rows: { clients: [client(), second, third], ...rows } });
+    const compute = () => h.runtime.computePortfolioAlerts(tenantId, userId, 12, 40);
+    const complete = compute();
+    await finish(opened, 3);
+    expect(await complete.result).toMatchObject({ total: 3, clientCount: 3 });
+    expect(await complete.result).not.toHaveProperty('partial');
+    // A minute later only Second is refreshed before the budget stops the run;
+    // every entry is still valid, so the answer is complete.
+    jest.setSystemTime(now.getTime() + 60000);
+    const refresh = compute();
+    await finish(opened, 1);
+    const refreshed = refresh.abort();
+    await drop(h, opened, 4);
+    expect(refreshed).toMatchObject({ total: 3, clientCount: 3 });
+    expect(refreshed).not.toHaveProperty('partial');
+    expect(await refresh.result).toEqual(refreshed);
+    // At the TTL of the first run Acme and Third are stale and walk first; only
+    // Third finishes, Second's valid entry is carried and stale Acme is neither
+    // carried nor fresh, so the answer stays partial.
+    jest.setSystemTime(now.getTime() + 120000);
+    const stale = compute();
+    await finish(opened, 1);
+    const answer = stale.abort();
+    await drop(h, opened, 6);
+    expect(clientIds(answer)).toEqual(['second', 'third']);
+    expect(answer).toMatchObject({ total: 2, clientCount: 3, partial: true });
+    expect(opened.map((entry) => entry.id)).toEqual([
+      clientId,
+      'second',
+      'third',
+      'second',
+      'third',
+      'third',
+      clientId,
+    ]);
+    expect(carriedIds(h)).toEqual(['second', 'third']);
+  });
+
+  test('evicts carried entries for clients that left the roster', async () => {
+    const { opened, rows } = pendingProfiles();
+    const h = harness({
+      queues: {
+        clients: [
+          [client(), second],
+          [second, third],
+          [client(), second, third],
+        ],
+      },
+      rows,
+    });
+    const compute = () => h.runtime.computePortfolioAlerts(tenantId, userId, 12, 40);
+    const complete = compute();
+    await finish(opened, 2);
+    expect(await complete.result).toMatchObject({ total: 2, clientCount: 2 });
+    // Acme leaves and Third joins: Third walks first, the stopped Second is
+    // carried and nothing of Acme remains.
+    const changed = compute();
+    await finish(opened, 1);
+    const answer = changed.abort();
+    await drop(h, opened, 3);
+    expect(clientIds(answer)).toEqual(['second', 'third']);
+    expect(answer).toMatchObject({ total: 2, clientCount: 2 });
+    expect(answer).not.toHaveProperty('partial');
+    expect(carriedIds(h)).toEqual(['second', 'third']);
+    // Acme returns without its old entry, so it is recomputed before the carried clients.
+    const returned = compute();
+    await finish(opened, 1);
+    expect(returned.abort()).toMatchObject({ total: 3, clientCount: 3 });
+    await drop(h, opened, 5);
+    expect(opened.map((entry) => entry.id)).toEqual([
+      clientId,
+      'second',
+      'third',
+      'second',
+      clientId,
+      'third',
+    ]);
+    expect(carriedIds(h)).toEqual(['second', 'third', clientId]);
   });
 });

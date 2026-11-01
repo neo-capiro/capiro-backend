@@ -51,12 +51,30 @@ export interface PortfolioAlertsPorts {
 
 type PortfolioClient = { id: string; name: string };
 
+/** One client's most recent tagged alerts and when that profile finished. */
+type CarriedClientAlerts = { computedAt: number; alerts: PortfolioAlertsResult['alerts'] };
+
 /** A roll-up stopped at the budget is retried sooner than a complete one. */
 export const PORTFOLIO_ALERTS_PARTIAL_TTL_MS = 20_000;
+
+const portfolioAlertsCacheKey = (
+  tenantId: string,
+  userId: string | undefined,
+  limit: number,
+  maxClients: number,
+): string => `${tenantId}:${userId ?? 'anon'}:${limit}:${maxClients}`;
 
 export class IntelligencePortfolioAlerts {
   /** Per-tenant run counter; rotates where each roll-up starts in the roster. */
   private readonly rosterTurns = new Map<string, number>();
+  /**
+   * Per cache key, the latest per-client result (one entry per roster client).
+   * A budget-stopped roll-up answers with the clients it reached plus the
+   * still-valid entries from earlier runs, so successive runs converge on the
+   * whole roster instead of each returning a different alphabetical slice.
+   * Entries leave with their client (roster change) or after the result TTL.
+   */
+  private readonly carried = new Map<string, Map<string, CarriedClientAlerts>>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -110,7 +128,7 @@ export class IntelligencePortfolioAlerts {
     // the full profile-v1 fan-out, so this is the dominant cost. Kept modest by
     // default; raise only with the cron-precompute path (see note below).
     const maxClients = Math.max(1, Math.min(opts?.maxClients ?? 40, 200));
-    const cacheKey = `${tenantId}:${userId ?? 'anon'}:${limit}:${maxClients}`;
+    const cacheKey = portfolioAlertsCacheKey(tenantId, userId, limit, maxClients);
 
     const cached = this.ports.cache().get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
@@ -171,8 +189,11 @@ export class IntelligencePortfolioAlerts {
   ): PortfolioAlertsRun {
     const controller = new AbortController();
     const { signal } = controller;
-    let clients: PortfolioClient[] = [];
-    const tagged: PortfolioAlertsResult['alerts'] = [];
+    const cacheKey = portfolioAlertsCacheKey(tenantId, userId, limit, maxClients);
+    const entries = this.carried.get(cacheKey) ?? new Map<string, CarriedClientAlerts>();
+    this.carried.set(cacheKey, entries);
+    // Unset until the roster is read: an abort before that answers empty.
+    let roster: PortfolioClient[] | undefined;
     // The roster is alphabetical and the budget stops the serial walk early,
     // so each run starts one client further along; successive runs cover
     // different parts of the roster instead of starving its tail.
@@ -181,10 +202,10 @@ export class IntelligencePortfolioAlerts {
 
     const run = async () => {
       // Aborted while queued behind another roll-up: never start the fan-out.
-      if (signal.aborted) return this.projectPortfolioAlerts(tagged, clients, limit, true);
+      if (signal.aborted) return this.projectPortfolioAlerts(roster, entries, limit);
 
       // Active (non-archived) clients for the tenant.
-      const roster = await this.prisma.withTenant(tenantId, (tx) =>
+      roster = await this.prisma.withTenant(tenantId, (tx) =>
         tx.client.findMany({
           where: { status: { not: 'archived' } },
           select: { id: true, name: true },
@@ -193,15 +214,28 @@ export class IntelligencePortfolioAlerts {
         }),
       );
       const start = roster.length > 0 ? turn % roster.length : 0;
-      clients = [...roster.slice(start), ...roster.slice(0, start)];
+      const rotated = [...roster.slice(start), ...roster.slice(0, start)];
+      // Drop clients that left the roster and entries past the result TTL,
+      // then walk the clients with nothing valid to carry before refreshing
+      // the rest, so a budget-stopped run still adds to the merged answer.
+      const ids = new Set(roster.map((client) => client.id));
+      const now = Date.now();
+      for (const [id, entry] of entries) {
+        if (!ids.has(id) || entry.computedAt + this.ports.ttlMs() <= now) entries.delete(id);
+      }
+      const order = [
+        ...rotated.filter((client) => !entries.has(client.id)),
+        ...rotated.filter((client) => entries.has(client.id)),
+      ];
 
       // SERIAL: one client aggregate at a time. Never parallelize here — the
       // per-client profile-v1 already fans out widely; running several at once
       // is what starved the pool.
-      for (const client of clients) {
+      for (const client of order) {
         if (signal.aborted) break;
+        const alerts: PortfolioAlertsResult['alerts'] = [];
         try {
-          await this.tagClientAlerts(client, tenantId, userId, signal, tagged);
+          await this.tagClientAlerts(client, tenantId, userId, signal, alerts);
         } catch (err) {
           // The budget stopped this client's profile; its alerts are simply
           // not part of this roll-up.
@@ -214,9 +248,10 @@ export class IntelligencePortfolioAlerts {
               }`,
             );
         }
+        entries.set(client.id, { computedAt: Date.now(), alerts });
       }
 
-      return this.projectPortfolioAlerts(tagged, clients, limit, signal.aborted);
+      return this.projectPortfolioAlerts(roster, entries, limit);
     };
 
     // Chain onto the process-wide gate so roll-ups never overlap. We attach the
@@ -233,8 +268,7 @@ export class IntelligencePortfolioAlerts {
       result: gated,
       abort: () => {
         controller.abort();
-        // Snapshot a copy: the loop may still append the client in flight.
-        return this.projectPortfolioAlerts([...tagged], clients, limit, true);
+        return this.projectPortfolioAlerts(roster, entries, limit);
       },
     };
   }
@@ -268,12 +302,25 @@ export class IntelligencePortfolioAlerts {
     }
   }
 
+  /**
+   * Merge the roster's valid per-client entries into one ranked list. The
+   * answer is partial while the roster is unread or any client has no entry
+   * younger than the result TTL.
+   */
   private projectPortfolioAlerts(
-    tagged: PortfolioAlertsResult['alerts'],
-    clients: PortfolioClient[],
+    roster: PortfolioClient[] | undefined,
+    carried: Map<string, CarriedClientAlerts>,
     limit: number,
-    partial: boolean,
   ): PortfolioAlertsResult {
+    const now = Date.now();
+    const tagged: PortfolioAlertsResult['alerts'] = [];
+    let partial = roster === undefined;
+    for (const client of roster ?? []) {
+      const entry = carried.get(client.id);
+      if (entry && entry.computedAt + this.ports.ttlMs() > now) tagged.push(...entry.alerts);
+      else partial = true;
+    }
+
     // Global re-rank: severity, then soonest deadline (countdownDays asc when
     // present), then most-recent `when`. Mirrors the per-client ordering
     // intent while making cross-client urgency comparable.
@@ -296,8 +343,8 @@ export class IntelligencePortfolioAlerts {
     return {
       alerts: tagged.slice(0, limit),
       total: tagged.length,
-      clientCount: clients.length,
-      generatedAt: new Date().toISOString(),
+      clientCount: roster?.length ?? 0,
+      generatedAt: new Date(now).toISOString(),
       ...(partial ? { partial: true as const } : {}),
     };
   }

@@ -198,7 +198,7 @@
           "ownerClass": "IntelligencePortfolioAlerts",
           "ownerField": "portfolioAlerts",
           "rootDisposition": "original method header; concrete delegate",
-          "ownerMemberSHA256": "1f51140bdf3300c6d472d513aa0b4a24a96d639c4a748d847e2b2671a2c0c1e6"
+          "ownerMemberSHA256": "ad8926e3d0c3eb6c9ab848fd466a243e2fee66f78d974319e6140701da8950fa"
         },
         {
           "name": "computePortfolioAlerts",
@@ -207,7 +207,7 @@
           "ownerClass": "IntelligencePortfolioAlerts",
           "ownerField": "portfolioAlerts",
           "rootDisposition": "original method header; concrete delegate",
-          "ownerMemberSHA256": "d2f0f17830df9c18976cf1f145a94c03da342ca7beda7d0a2c6450041fd67008"
+          "ownerMemberSHA256": "cbf47611d2d7f82407acb71a675e72ca2b21f36ece7caef29ec1795c2440a2fa"
         },
         {
           "name": "getPortfolioRollup",
