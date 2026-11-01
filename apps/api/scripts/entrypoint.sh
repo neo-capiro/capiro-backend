@@ -60,6 +60,16 @@ if [ -n "${MERI_CONTROL_ORIGIN+x}${MERI_CONTROL_CA_BASE64+x}${MERI_CONTROL_CA_SH
 fi
 
 case "${1:-serve}" in
+  # Forecast jobs use the custodian's already qualified DATABASE_URL unchanged.
+  # Never synthesize credentials/pool limits or send these through the legacy path.
+  sync-government-forecasts)
+    shift
+    exec ./node_modules/.bin/tsx scripts/sync-government-forecasts.ts "$@"
+    ;;
+  refresh-government-forecasts)
+    shift
+    exec ./node_modules/.bin/tsx scripts/refresh-government-forecasts.ts "$@"
+    ;;
   learning-signal-candidate-generation)
     shift
     compose_database_url
