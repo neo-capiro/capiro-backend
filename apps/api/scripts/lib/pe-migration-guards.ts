@@ -54,7 +54,11 @@ const FORBIDDEN_MIGRATION_HISTORY_PATTERNS: Array<{ code: string; re: RegExp; la
 /**
  * Approved container recovery interface: f06cdced / PR816, required by the later
  * a966a263 Phase A contract. The original envelope is pinned at d70bb972;
- * the successor pins remove only the retired workflow-template seed callers.
+ * the 3f747849 successor removed retired workflow-template seed callers. The
+ * current envelope also includes the reviewed 96951770 Meri CA setup, baf487a4
+ * learning dispatch, 06a834c6 Tango dispatch consolidation and b9557778 award
+ * ingestion dispatch. Recovery/status/deploy arms, legacy refusal and dispatcher
+ * preamble (including pool cap) are unchanged; see the recovery runbook.
  * These are RAW UTF-8 source hashes after CRLF -> LF only, including comments.
  * A caller must not pre-strip comments: text inside multiline shell strings can
  * begin with # without being a shell comment. No runtime/operator authorization
@@ -62,9 +66,9 @@ const FORBIDDEN_MIGRATION_HISTORY_PATTERNS: Array<{ code: string; re: RegExp; la
  * Any source-envelope change needs an explicit review of this protocol.
  */
 const MANUAL_RECOVERY_SOURCE_SHA256 = {
-  'scripts/entrypoint.sh': 'a16c4ebffbb10da7a18a6a38f2f67bd35f39a875fdf4411b7015c395bb26e98d',
+  'scripts/entrypoint.sh': 'aacdb3fc6f92c521aefbed1d345583edbe01b21d8bc7eabb5de5d2a2d0cdf16d',
   'scripts/entrypoint-legacy.sh': '4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a',
-  'scripts/entrypoint-dispatcher.inc': '1651d7fac414eff859be16039fbce6117782a4611d19894f9e32097dda86e420',
+  'scripts/entrypoint-dispatcher.inc': '2aded7b73ac289a92adcf37b7285032a713f74ed5317851654f4f6c9a900d54e',
 } as const;
 const MANUAL_RECOVERY_MODES = ['rolled-back', 'applied'] as const;
 type ManualRecoveryMode = (typeof MANUAL_RECOVERY_MODES)[number];

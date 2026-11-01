@@ -123,6 +123,8 @@ Choose exactly one posture after the same ticket, operator, separate-approver an
 
 The canonical source guard checks the complete reviewed raw entrypoint trio and exact operator-arm protocol before accepting those two resolution sites. The attestation proves source identity and confinement within that finite envelope, not current deployed callers, external helper/environment behavior or authorization to execute recovery. Any changed source envelope requires review; do not strip comments, broaden branch matching, add a path-name exemption or silence an unproven-source refusal to pass the gate. Native recovery/replay remains a separately authorized operator action.
 
+The envelope at `32f2b56b` was compared in full with the previously pinned `3f747849` sources. The active wrapper adds only private Meri CA setup (`96951770`) before the unchanged argv selector and a separate learning-candidate command (`baf487a4`) that ends in `exec`. CA setup is fail-closed under `set -e`; it does not select a recovery mode. The dispatcher adds contract-award ingestion (`b9557778`) and consolidates the ordinary SAM/Grants/Tango commands and usage text (`06a834c6`). These explicit arms also end in `exec`; none calls migration recovery. The complete migration-status, two manual-resolution and migrate-deploy arms, default delegation, compatibility wrapper, and dispatcher preamble/migration refusal remain byte-identical. URL composition and its existing pool cap are unchanged. The refreshed hashes attest this finite source envelope only; all exact-arm, history-mutation and replay prohibitions still apply, including hostile changes to the new CA and dispatch sites.
+
 ## 5. Record approval and execution
 
 The ticket must contain:
