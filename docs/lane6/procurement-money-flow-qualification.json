@@ -2,7 +2,7 @@
   "status": "UNRUN_NATIVE_POSTGRESQL_AND_DEPLOYED_ACCEPTANCE",
   "contract": "defproc-scoped-money-flow/v1",
   "sourcePrerequisite": "20281031150000_defproc_qualified_sam_actions_v2",
-  "newMigration": "20281101140000_defproc_scoped_money_flow",
+  "newMigration": "20281101170000_defproc_scoped_money_flow",
   "custody": "Actual Hermes migration session through Root; never run synthetic qualification against live business data",
   "cases": [
     { "id": "P01", "fixture": "Two canonical awards share numeric PIID0001 but different submitting agencies", "expect": "Exact selected full-key scope excludes the other award; no PIID quarantine or parent expansion" },

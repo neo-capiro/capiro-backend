@@ -21,7 +21,7 @@ Each group reports latest source revision, observation/recorded clocks and catal
 
 ## Forward deployment and proof
 
-Migration `20281101140000_defproc_scoped_money_flow` adds one SECURITY DEFINER function with `search_path=pg_catalog`. It removes every non-owner default function grantee, then grants only EXECUTE on this function to capiro_app. It grants no table, private schema, old function or qualification rights. The role must already exist. Immutable applied150000 is unchanged. The actual Hermes migration custodian, via Root, must review/qualify/apply this source using the established snapshot/image/target procedure; this change does not execute it.
+Migration `20281101170000_defproc_scoped_money_flow` adds one SECURITY DEFINER function with `search_path=pg_catalog`. It removes every non-owner default function grantee, then grants only EXECUTE on this function to capiro_app. It grants no table, private schema, old function or qualification rights. The role must already exist. Immutable applied150000 is unchanged. The actual Hermes migration custodian, via Root, must review/qualify/apply this source using the established snapshot/image/target procedure; this change does not execute it.
 
 Required before live acceptance: exact-image normal source gates; native PostgreSQL synthetic fixture/ACL qualification; fresh finite cohort and actual producer-login/rights evidence; any authorized original-source refresh; independently qualified action population; and exact serving route/image. Preserve previous inventory57014 and unknown-rights results. No migration replays or operator-as-producer shortcuts.
 
