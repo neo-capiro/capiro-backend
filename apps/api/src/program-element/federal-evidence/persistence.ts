@@ -70,6 +70,7 @@ interface CurrentRow {
   revisionId: string | null;
   billId: string | null;
   contentHash: string | null;
+  extractionHash: string | null;
   observationKey: string;
 }
 
@@ -168,8 +169,10 @@ async function currentRow(tx: Prisma.TransactionClient, sourceKey: string): Prom
            c.revision_id AS "revisionId",
            c.bill_id AS "billId",
            c.content_hash AS "contentHash",
+           r.extraction_hash AS "extractionHash",
            c.observation_key AS "observationKey"
       FROM federal_evidence_current c
+      LEFT JOIN federal_evidence_revision r ON r.id = c.revision_id
      WHERE c.source_key = ${sourceKey}
      LIMIT 1`;
   return rows[0] ?? null;
@@ -537,7 +540,9 @@ export async function persistFederalEvidenceSnapshot(
     if (
       previousCurrent?.state === 'present' &&
       previousCurrent.revisionId &&
-      previousCurrent.revisionId !== revisionId
+      previousCurrent.revisionId !== revisionId &&
+      // A new provenance/parser identity can retain exactly the same source text.
+      (previousCurrent.contentHash !== contentHash || previousCurrent.extractionHash !== extractionHash)
     ) {
       events.push({
         eventType: 'text_changed',

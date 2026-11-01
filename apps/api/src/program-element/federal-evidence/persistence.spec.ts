@@ -1,5 +1,6 @@
 import { persistFederalEvidenceSnapshot } from './persistence.js';
 import { captureFederalResponse } from './capture.js';
+import { createHash } from 'node:crypto';
 
 describe('persistFederalEvidenceSnapshot transaction bounds', () => {
   it('gives a large bill version time to fill its passage index, still bounded', async () => {
@@ -103,4 +104,52 @@ test('mismatched or forged metadata capture is rejected before a persistence tra
     }),
   ).rejects.toThrow('FEDERAL_CAPTURE_METADATA_RESERVED');
   expect(transaction).not.toHaveBeenCalled();
+});
+
+test.each([
+  ['provenance-only recapture', 'Synthetic', 'Synthetic', false],
+  ['changed source bytes', 'Earlier raw source', 'Synthetic', true],
+  ['changed extracted text', 'Synthetic', 'Earlier extraction', true],
+])('%s preserves revision/observation and emits only genuine text changes', async (_, priorRaw, priorText, changed) => {
+  const { text, capture } = await captureFederalResponse(new Response('Synthetic'), 'txt');
+  const hash = (value: string) => createHash('sha256').update(value).digest('hex');
+  const statements: Array<{ query: string; values: unknown[] }> = [];
+  const tx = {
+    $executeRaw: jest.fn(async (sql: TemplateStringsArray, ...values: unknown[]) => {
+      statements.push({ query: sql.join('?'), values });
+      return 1;
+    }),
+    $queryRaw: jest.fn(async (sql: TemplateStringsArray, ...values: unknown[]) => {
+      const query = sql.join('?');
+      statements.push({ query, values });
+      if (query.includes('FROM federal_evidence_current c')) {
+        expect(query).toContain('r.extraction_hash AS "extractionHash"');
+        expect(query).toContain('LEFT JOIN federal_evidence_revision r ON r.id = c.revision_id');
+        return [{ state: 'present', revisionId: 'old-revision', billId: null,
+          contentHash: hash(priorRaw as string), extractionHash: hash(priorText as string), observationKey: 'prior' }];
+      }
+      if (query.includes('INSERT INTO federal_evidence_revision')) return [{ id: 'capture-revision' }];
+      if (query.includes('INSERT INTO federal_evidence_observation')) return [{ id: 2n }];
+      if (query.includes('INSERT INTO federal_evidence_mention_event')) return [{ id: 'event' }];
+      return [];
+    }),
+  };
+  const result = await persistFederalEvidenceSnapshot({
+    $transaction: async (body: (client: typeof tx) => Promise<unknown>) => body(tx),
+  } as never, {
+    provider: 'govinfo', collection: 'BILLS', packageId: 'BILLS-119hr1ih', lineageKey: '119-hr-1:house',
+    sourceUrl: 'https://www.govinfo.gov/content/synthetic.txt', rawContent: text, extractedText: text,
+    capture, completeness: 'complete', inventoryWindowEnd: new Date('2026-01-01'), observationKey: 'recapture',
+    mentions: [],
+  });
+  expect(result).toMatchObject({ revisionId: 'capture-revision', revisionInserted: true,
+    observationInserted: true, eventTypes: changed ? ['text_changed'] : [] });
+  const outbox = statements.filter(({ query }) => query.includes('INSERT INTO federal_evidence_change_outbox'));
+  expect(outbox).toHaveLength(changed ? 1 : 0);
+  expect(statements.filter(({ query }) => query.includes('INSERT INTO federal_evidence_mention_event')))
+    .toHaveLength(changed ? 1 : 0);
+  if (changed) expect(JSON.parse(outbox[0].values[2] as string)).toMatchObject({
+    eventType: 'text_changed', previousRevisionId: 'old-revision', currentRevisionId: 'capture-revision',
+    after: { contentHash: hash(text), extractionHash: hash(text) }, historical: false,
+  });
 });
