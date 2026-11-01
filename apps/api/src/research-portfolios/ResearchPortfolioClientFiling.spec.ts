@@ -1,7 +1,7 @@
 import { ResearchPortfolioOutputService } from './research-portfolio-output.service.js';
 import { createHash } from 'node:crypto';
 const ctx: any = { tenantId: 'tenant-owned', userId: 'actor-owned' };
-function fixture() {
+function fixture(grantRole: 'viewer' | 'editor' = 'editor') {
   const state = {
     membership: true,
     grant: true,
@@ -28,7 +28,7 @@ function fixture() {
       findFirst: jest.fn(async () =>
         state.grant
           ? {
-              grants: [{ role: 'viewer' }],
+              grants: [{ role: grantRole }],
               clientLinks: state.link ? [{ clientId: 'client-owned' }] : [],
             }
           : null,
@@ -278,21 +278,27 @@ describe('durable client filing reauthorization and uncertain recovery', () => {
 
 describe('Checkpoint-only generic filing reconciliation guards', () => {
   it('cannot start a document writer when the original checkpoint has disappeared', async () => {
-    const h = fixture();
+    const h = fixture('editor');
     await expect(
       h.service.saveToClient(ctx, 'portfolio-owned', 'artifact-owned', h.input, 'editor', true),
-    ).rejects.toMatchObject({ status: 404 });
+    ).rejects.toMatchObject({ status: 404, message: 'Original client-filing checkpoint not found' });
+    expect(h.tx.researchPortfolioOutputArtifact.findFirst).toHaveBeenCalledTimes(1);
+    expect(h.tx.researchPortfolioClientFilingJob.findUnique).toHaveBeenCalledTimes(1);
     expect(h.writer.createAttachmentFromBuffer).not.toHaveBeenCalled();
     expect(h.tx.researchPortfolioClientFilingJob.create).not.toHaveBeenCalled();
     expect(h.jobs).toHaveLength(0);
     expect(h.receipts).toHaveLength(0);
   });
-  it('reauthorizes the generic editor requirement inside the domain transaction', async () => {
-    const h = fixture();
-    await expect(
-      h.service.saveToClient(ctx, 'portfolio-owned', 'artifact-owned', h.input, 'editor', true),
-    ).rejects.toMatchObject({ status: 403 });
+  it.each([false, true])('refuses a viewer before artifacts or writes (reconciliationOnly=%s)', async (reconciliationOnly) => {
+    const h = fixture('viewer');
+    const work = reconciliationOnly
+      ? h.service.saveToClient(ctx, 'portfolio-owned', 'artifact-owned', h.input, 'editor', true)
+      : h.save();
+    await expect(work).rejects.toMatchObject({ status: 403, message: 'Research portfolio editor access required' });
     expect(h.tx.researchPortfolioOutputArtifact.findFirst).not.toHaveBeenCalled();
+    expect(h.tx.researchPortfolioClientFilingJob.findUnique).not.toHaveBeenCalled();
     expect(h.writer.createAttachmentFromBuffer).not.toHaveBeenCalled();
+    expect(h.jobs).toHaveLength(0);
+    expect(h.receipts).toHaveLength(0);
   });
 });
