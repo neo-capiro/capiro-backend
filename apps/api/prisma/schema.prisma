@@ -1123,6 +1123,7 @@ model ClientObjective {
   client            Client    @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade)
   revisions         ClientObjectiveRevision[]
   operationalState  ClientObjectiveOperationalState?
+  questions         ClientObjectiveQuestion[]
 
   @@unique([tenantId, clientId, id], map: "client_objectives_scope_key")
   @@unique([tenantId, clientId, clientRequestId], map: "client_objectives_request_key")
@@ -1144,10 +1145,48 @@ model ClientObjectiveRevision {
   workIntents ClientObjectiveWorkIntent[]
   operationalLinks ClientObjectiveResourceLink[]
   operationalReceipts ClientObjectiveOperationalReceipt[]
+  questionRevisions ClientObjectiveQuestionRevision[]
 
   @@unique([tenantId, objectiveId, version], map: "client_objective_revisions_version_key")
   @@unique([tenantId, clientId, objectiveId, id, version], map: "client_objective_revisions_intent_scope_key")
   @@map("client_objective_revisions")
+}
+
+/// Versioned Objective-context Questions; Core owns authority and transitions.
+model ClientObjectiveQuestion {
+  id          String @id @db.Uuid
+  tenantId    String @map("tenant_id") @db.Uuid
+  clientId    String @map("client_id") @db.Uuid
+  objectiveId String @map("objective_id") @db.Uuid
+  version     Int
+  status      String @db.VarChar(16)
+  snapshot    Json
+  objective ClientObjective @relation(fields: [tenantId, clientId, objectiveId], references: [tenantId, clientId, id], onDelete: Cascade, onUpdate: NoAction, map: "client_objective_questions_objective_fk")
+  revisions ClientObjectiveQuestionRevision[]
+  @@unique([tenantId, clientId, objectiveId, id], map: "client_objective_questions_scope_key")
+  @@index([tenantId, clientId, objectiveId, status, id], map: "client_objective_questions_list_idx")
+  @@map("client_objective_questions")
+}
+
+model ClientObjectiveQuestionRevision {
+  tenantId               String @map("tenant_id") @db.Uuid
+  clientId               String @map("client_id") @db.Uuid
+  objectiveId            String @map("objective_id") @db.Uuid
+  questionId             String @map("question_id") @db.Uuid
+  version                Int
+  sourceRevisionId       String @map("source_revision_id") @db.Uuid
+  sourceObjectiveVersion Int @map("source_objective_version")
+  actorUserId            String @map("actor_user_id") @db.Uuid
+  requestId              String @map("request_id") @db.Uuid
+  payloadDigest          String @map("payload_digest") @db.Char(64)
+  action                 String @db.VarChar(16)
+  snapshot               Json
+  committedAt            DateTime @default(dbgenerated("clock_timestamp()")) @map("committed_at") @db.Timestamptz(6)
+  question ClientObjectiveQuestion @relation(fields: [tenantId, clientId, objectiveId, questionId], references: [tenantId, clientId, objectiveId, id], onDelete: Cascade, onUpdate: NoAction, map: "client_objective_question_revisions_question_fk")
+  source ClientObjectiveRevision @relation(fields: [tenantId, clientId, objectiveId, sourceRevisionId, sourceObjectiveVersion], references: [tenantId, clientId, objectiveId, id, version], onDelete: Cascade, onUpdate: NoAction, map: "client_objective_question_revisions_source_fk")
+  @@id([tenantId, clientId, objectiveId, questionId, version])
+  @@unique([tenantId, clientId, objectiveId, actorUserId, requestId], map: "client_objective_question_revisions_request_key")
+  @@map("client_objective_question_revisions")
 }
 
 /// Inert confirmation intent. No dispatcher or workload authority is attached.
