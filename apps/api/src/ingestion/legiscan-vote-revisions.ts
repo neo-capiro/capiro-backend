@@ -214,5 +214,11 @@ export async function persistVoteRevision(
         legiscanPeopleId: { notIn: evidence.members.map((m) => m.providerPersonId) },
       },
     });
+    // Resolve only a failed frozen-archive check for this exact canonical vote.
+    // Keep this in the same transaction as its immutable revision and positions.
+    await tx.$executeRaw`UPDATE state_bill_record_check SET state='available',checked_at=clock_timestamp(),
+      next_check_at=NULL,error_code=NULL,revision_hash=${revisionHash},provider_hash=${observation.providerBillHash ?? null}
+      WHERE bill_key=${billKey} AND kind='vote' AND source_identity=${id}
+        AND state='partial' AND error_code='LEGISCAN_VOTE_DETAIL_INCOMPLETE'`;
   });
 }
