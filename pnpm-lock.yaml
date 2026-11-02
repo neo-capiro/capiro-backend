@@ -25,7 +25,7 @@ overrides:
   stripe@17.7.0>qs: 6.16.0
   express-rate-limit@8.7.0>ip-address: 10.7.4
   socks@2.8.9>ip-address: 10.7.4
-  unpdf@1.8.1>@napi-rs/canvas: '-'
+  unpdf@1.8.1>@napi-rs/canvas: 0.1.80
 
 importers:
 
@@ -204,7 +204,7 @@ importers:
         version: 6.29.1
       unpdf:
         specifier: ^1.8.1
-        version: 1.8.1
+        version: 1.8.1(@napi-rs/canvas@0.1.80)
       word-extractor:
         specifier: ^1.0.4
         version: 1.0.4
@@ -8154,7 +8154,7 @@ packages:
     resolution: {integrity: sha512-xkURhy2SoGpOIH0a1gLHNkASPIQYonadDJs2AQwPEfUakafeD9EA1WTWWsaR++gfTCXJpV27W7tU1nXuk82UKQ==}
     engines: {node: '>=22'}
     peerDependencies:
-      '@napi-rs/canvas': '*'
+      '@napi-rs/canvas': 0.1.80
     peerDependenciesMeta:
       '@napi-rs/canvas':
         optional: true
@@ -16878,7 +16878,9 @@ snapshots:
 
   universalify@2.0.1: {}
 
-  unpdf@1.8.1: {}
+  unpdf@1.8.1(@napi-rs/canvas@0.1.80):
+    optionalDependencies:
+      '@napi-rs/canvas': 0.1.80
 
   unpipe@1.0.0: {}
 
