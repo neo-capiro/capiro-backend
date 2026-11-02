@@ -54,6 +54,118 @@ function floridaPage(
 }
 
 describe('ordered statutory structure', () => {
+  it('keeps Florida numbered definitions and their lettered children as observed siblings across pages', () => {
+    const first = structurePdfPage(
+      floridaPage(351, [
+        'Section 3. Definitions.',
+        '(1) “Act” means this act.',
+        '(a) First qualification.',
+        '(b) Second qualification.',
+        '(2) “Agency” means the office.',
+        '(3) “Ambulatory surgical center” means an office',
+      ]),
+      '',
+      15,
+    );
+    expect(first.sections.map((section) => section.path)).toEqual([
+      ['3'],
+      ['3', '(1)'],
+      ['3', '(1)', '(a)'],
+      ['3', '(1)', '(b)'],
+      ['3', '(2)'],
+      ['3', '(3)'],
+    ]);
+    const second = structurePdfPage(
+      floridaPage(376, [
+        'that provides the specified services.',
+        '(4) “Applicant” means a person.',
+        '(a) First condition.',
+        '(c) Additional condition.',
+        '(d) Final condition.',
+      ]),
+      '',
+      16,
+      first.sections.at(-1)!,
+    );
+    expect(second.sections.map((section) => section.path)).toEqual([
+      ['3', '(3)'],
+      ['3', '(4)'],
+      ['3', '(4)', '(a)'],
+      ['3', '(4)', '(c)'],
+      ['3', '(4)', '(d)'],
+    ]);
+    expect(second.sections[0]!.sourceLocator).toBe('page:16');
+    expect(second.sections[0]!.text).toContain('that provides');
+  });
+  it('preserves federal letter-number-uppercase-Roman hierarchy without treating deep alphabetic siblings as Roman', () => {
+    const result = structureText(
+      [
+        'SECTION 1. Program.',
+        '(a) Authority.',
+        '(1) Requirement.',
+        '(A) Condition.',
+        '(i) First clause.',
+        '(ii) Second clause.',
+        '(iii) Third clause.',
+        '(iv) Fourth clause.',
+        '(v) Fifth clause.',
+        '(B) Another condition.',
+        '(2) Another requirement.',
+        '(c) Alphabetic sibling.',
+        '(d) Next sibling.',
+        '(1) Requirement.',
+        '(A) Condition.',
+        '(h) Alphabetic sibling.',
+        '(i) Next alphabetic sibling.',
+        'SECTION 2. Different numbering.',
+        '(1) Numeric root.',
+        '(a) Letter child.',
+        '(2) Numeric sibling.',
+        'SECTION 3. Federal hierarchy under a later letter.',
+        '(h) Authority.',
+        '(1) Requirement.',
+        '(A) Condition.',
+        '(i) Roman child.',
+      ].join('\n'),
+    );
+    expect(result.sections.map((section) => section.path)).toEqual([
+      ['1'],
+      ['1', '(a)'],
+      ['1', '(a)', '(1)'],
+      ['1', '(a)', '(1)', '(A)'],
+      ...['i', 'ii', 'iii', 'iv', 'v'].map((label) => ['1', '(a)', '(1)', '(A)', `(${label})`]),
+      ['1', '(a)', '(1)', '(B)'],
+      ['1', '(a)', '(2)'],
+      ['1', '(c)'],
+      ['1', '(d)'],
+      ['1', '(d)', '(1)'],
+      ['1', '(d)', '(1)', '(A)'],
+      ['1', '(h)'],
+      ['1', '(i)'],
+      ['2'],
+      ['2', '(1)'],
+      ['2', '(1)', '(a)'],
+      ['2', '(2)'],
+      ['3'],
+      ['3', '(h)'],
+      ['3', '(h)', '(1)'],
+      ['3', '(h)', '(1)', '(A)'],
+      ['3', '(h)', '(1)', '(A)', '(i)'],
+    ]);
+  });
+  it('does not invent missing ancestor labels for unfamiliar or incomplete plain-text numbering', () => {
+    const result = structureText(
+      'SECTION 1. Program.\n(A) Uppercase start.\n(B) Sibling.\n(2) Numeric start.\n(3) Sibling.\n(a1) Unclassified.',
+    );
+    expect(result.sections.map((section) => section.path)).toEqual([
+      ['1'],
+      ['1', '(A)'],
+      ['1', '(B)'],
+      ['1', '(2)'],
+      ['1', '(3)'],
+      ['1', '(a1)'],
+    ]);
+  });
   it('preserves mixed inline order, hierarchy, tables, definitions and references', () => {
     const result = structureMarkup(
       `<bill><section id="s2"><num>2</num><heading>Definitions</heading><text>The <b>covered</b> entity.</text><subsection id="s2a"><num>(a)</num><text>“Agency” means the office under section 101.2.</text><table><tr><th>Year</th><th>Amount</th></tr><tr><td>2026</td><td>$5</td></tr></table></subsection><text>Final parent text.</text></section></bill>`,

@@ -95,7 +95,7 @@ describe('bill passage worker recovery', () => {
     const construct = jest.fn(() => db);
     jest.doMock('@prisma/client', () => ({ PrismaClient: construct }));
     jest.doMock('../src/ingestion/bill-passage-embedding.js', () => ({ embedBillPassage: embed }));
-    const { structureText } = await import('../src/ingestion/bill-document-structure');
+    const { structureText } = await import('../src/ingestion/bill-document-structure.js');
     const extract = jest.fn(async () => ({
       id: 'extraction-abc',
       completeness: options.incomplete ? 'failed' : 'complete',
@@ -121,7 +121,7 @@ describe('bill passage worker recovery', () => {
       runWithSyncRun: async (_db: any, _source: string, fn: () => unknown) => fn(),
     }));
     jest.spyOn(console, 'log').mockImplementation(() => {});
-    const { main } = await import('./embed-bill-passages');
+    const { main } = await import('./embed-bill-passages.js');
     return { main, db, embed, extract, construct, provider, events, durable: () => durable };
   }
   it('imports without allocating Prisma or requiring CLI configuration', async () => {
@@ -138,6 +138,9 @@ describe('bill passage worker recovery', () => {
         a[0].startsWith('INSERT INTO federal_evidence_checkpoint'),
       );
       expect(checkpoint[1]).toMatch(/:states:FL$/);
+      expect(checkpoint[1]).toContain(`:${phase}:bill-structure-v2:`);
+      if (phase === 'embed')
+        expect(checkpoint[1]).toMatch(/:bill-structure-v2:[0-9a-f]{12}:bill-structured-utf16-v2:/);
       const query = h.db.$queryRawUnsafe.mock.calls.find((a: any[]) =>
         a[0].includes('FROM state_bill_published_record'),
       );

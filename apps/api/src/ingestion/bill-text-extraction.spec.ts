@@ -1,6 +1,11 @@
 import { createHash } from 'node:crypto';
 import { deriveBillExtraction, ensureBillTextExtraction } from './bill-text-extraction';
-import { structureText } from './bill-document-structure';
+import {
+  BILL_EXTRACTION_VERSION,
+  billStructureHash,
+  structureText,
+} from './bill-document-structure';
+import { passages, sha256 } from './bill-text-passages';
 const text = 'SECTION 2. Definitions\n(a) “Agency” means the office.\nSECTION 3. Short';
 const hash = (s: string) => createHash('sha256').update(s).digest('hex');
 const input = {
@@ -10,6 +15,37 @@ const input = {
   evidence: { mime: 'text/plain', contentSnapshotBase64: Buffer.from(text).toString('base64') },
 };
 describe('immutable extraction owner', () => {
+  it('rederives old parser snapshots without altering immutable text or reusable passage content hashes', async () => {
+    const raw =
+      'Section 3. Definitions.\n(1) “Act” means this act.\n(2) “Agency” means the office.';
+    const old = structureText(raw);
+    Object.assign(old, { parserVersion: 'bill-structure-v1' });
+    old.sections[2]!.path = ['3', '(1)', '(2)'];
+    old.structureHash = billStructureHash(old);
+    const frozen = JSON.stringify(old);
+    const upgraded = await deriveBillExtraction({
+      ...input,
+      documentHash: hash(raw),
+      evidence: {
+        mime: 'text/plain',
+        contentSnapshotBase64: Buffer.from(raw).toString('base64'),
+        structure: old,
+      },
+    });
+    expect(BILL_EXTRACTION_VERSION).toBe('bill-structure-v2');
+    expect(upgraded.structure.parserVersion).toBe(BILL_EXTRACTION_VERSION);
+    expect(upgraded.structure.sections[2]!.path).toEqual(['3', '(2)']);
+    expect(upgraded.structure.structureHash).not.toBe(old.structureHash);
+    expect(upgraded.structure.textHash).toBe(old.textHash);
+    expect(passages(upgraded.structure.sections).map((row) => sha256(row.text))).toEqual(
+      passages(old.sections).map((row) => sha256(row.text)),
+    );
+    expect(JSON.stringify(old)).toBe(frozen);
+    const db: any = { $queryRawUnsafe: jest.fn(async () => []), $transaction: jest.fn() };
+    await ensureBillTextExtraction(db, input, { commit: false });
+    expect(db.$queryRawUnsafe.mock.calls[0][3]).toBe(BILL_EXTRACTION_VERSION);
+    expect(db.$transaction).not.toHaveBeenCalled();
+  });
   it('qualifies retained bytes, records missing/mismatched bytes as failures, and never fabricates complete text', async () => {
     expect((await deriveBillExtraction(input)).completeness).toBe('complete');
     expect(

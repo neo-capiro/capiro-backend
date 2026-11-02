@@ -3,7 +3,7 @@ import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { load } from 'cheerio';
 import { extractPdfText, type PdfTextItem } from '../meri/meri-attachment-extract.js';
 
-export const BILL_EXTRACTION_VERSION = 'bill-structure-v1';
+export const BILL_EXTRACTION_VERSION = 'bill-structure-v2';
 export type BillTable = { startOffset: number; endOffset: number; rows: string[][] };
 export type BillStructuredSection = {
   locator: string;
@@ -300,6 +300,60 @@ export function structureMarkup(raw: string, format: 'xml' | 'html'): BillDocume
   return finish(drafts, warnings);
 }
 
+type LabelFamily = 'number' | 'lower' | 'upper' | 'roman' | 'unknown';
+function labelFamily(label: string): LabelFamily {
+  return /^\d+$/.test(label)
+    ? 'number'
+    : /^[a-z]+$/.test(label)
+      ? 'lower'
+      : /^[A-Z]+$/.test(label)
+        ? 'upper'
+        : 'unknown';
+}
+function romanValue(label: string): number {
+  if (!/^(?=[ivxlcdm]+$)m{0,3}(cm|cd|d?c{0,3})(xc|xl|l?x{0,3})(ix|iv|v?i{0,3})$/.test(label))
+    return 0;
+  const values: Record<string, number> = { i: 1, v: 5, x: 10, l: 50, c: 100, d: 500, m: 1000 };
+  return [...label].reduce(
+    (sum, char, index) =>
+      sum + (values[char]! < (values[label[index + 1]!] ?? 0) ? -values[char]! : values[char]!),
+    0,
+  );
+}
+
+/** Reuse observed label families instead of assigning fixed federal depths to state text. */
+function subsectionPath(path: string[], label: string): string[] {
+  const labels = path.slice(1).map((part) => part.replace(/^\(|\)$/g, ''));
+  const families = labels.map((part, index): LabelFamily =>
+    index > 0 && labelFamily(labels[index - 1]!) === 'upper' && romanValue(part)
+      ? 'roman'
+      : labelFamily(part),
+  );
+  let family = labelFamily(label);
+  const upper = families.lastIndexOf('upper');
+  const previousRoman = upper >= 0 ? labels[upper + 1] : undefined;
+  // A single c/d/i/l/m/v/x is also an ordinary letter. Only a Roman opening or
+  // evidenced sequence under an uppercase label qualifies; path length does not.
+  if (
+    family === 'lower' &&
+    upper >= 0 &&
+    romanValue(label) &&
+    (label === 'i' ||
+      label.length > 1 ||
+      (previousRoman && romanValue(label) === romanValue(previousRoman) + 1))
+  )
+    family = 'roman';
+  const sibling = families.lastIndexOf(family);
+  if (family !== 'unknown' && sibling >= 0) return [...path.slice(0, sibling + 1), `(${label})`];
+  const parent = families.at(-1);
+  const child =
+    (parent === 'lower' && family === 'number') ||
+    (parent === 'number' && (family === 'lower' || family === 'upper')) ||
+    (parent === 'upper' && family === 'roman');
+  // Missing or unfamiliar ancestry stays directly under the known section.
+  return [...(child ? path : path.slice(0, 1)), `(${label})`];
+}
+
 /** Conservative section detection: no title/number is invented when plain text has none. */
 export function structureText(
   raw: string,
@@ -329,18 +383,11 @@ export function structureText(
     } else if (subsection && context.path.length) {
       flush();
       const label = subsection[1]!;
-      const depth = /^\d+$/.test(label)
-        ? 2
-        : /^[A-Z]+$/.test(label)
-          ? 3
-          : /^[ivxlcdm]+$/.test(label) && context.path.length > 2
-            ? 4
-            : 1;
       context = {
         ...context,
         number: `(${label})`,
         heading: null,
-        path: [...context.path.slice(0, depth), `(${label})`],
+        path: subsectionPath(context.path, label),
       };
     }
     body += line + '\n';

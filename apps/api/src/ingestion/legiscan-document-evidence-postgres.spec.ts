@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { documentEvidence, persistDocumentEvidence } from './legiscan-document-evidence.js';
 import type { LegiscanDocument } from '../external/legiscan/legiscan.client.js';
+import { BILL_EXTRACTION_VERSION } from './bill-document-structure.js';
 describe('immutable document bytes and source observations on PostgreSQL', () => {
   jest.setTimeout(30000);
   let p: PrismaClient, setup: Client;
@@ -127,7 +128,7 @@ describe('immutable document bytes and source observations on PostgreSQL', () =>
     >`SELECT state_record_id FROM published_record_source_observation WHERE source_key=${`state:${billKey}:document:legiscan:supplement:${providerId}`} ORDER BY id`;
     expect(trail.map((r) => r.state_record_id)).toEqual([rows[0]!.id, rows[1]!.id, rows[0]!.id]);
     expect((rows[0]!.evidence as { parserVersion: string }).parserVersion).toBe(
-      'bill-structure-v1',
+      BILL_EXTRACTION_VERSION,
     );
   });
   it('rejects wrong bill, unqualified document identity, invalid provider hash and unreadable text encoding', async () => {

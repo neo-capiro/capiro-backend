@@ -13,6 +13,7 @@ import {
 } from '../src/ingestion/state-document-retrieval.js';
 import { persistDocumentEvidence } from '../src/ingestion/legiscan-document-evidence.js';
 import type { StateDocumentStub } from '../src/ingestion/state-document-stub.js';
+import { BILL_EXTRACTION_VERSION } from '../src/ingestion/bill-document-structure.js';
 
 const HOST = 'capiro-newstack-preview-clone.cluster-csryw28ai752.us-east-1.rds.amazonaws.com';
 export function parseStateTextArgs(argv: string[], env: NodeJS.ProcessEnv) {
@@ -137,7 +138,7 @@ export async function drainStateDocuments(
         Array<{ id: string; evidence: any; complete: boolean }>
       >`
         SELECT p.id::text,p.evidence,EXISTS(SELECT 1 FROM bill_text_extraction x WHERE x.source_kind='state'
-          AND x.revision_id=p.id AND x.parser_version='bill-structure-v1' AND x.completeness='complete') AS complete
+          AND x.revision_id=p.id AND x.parser_version=${BILL_EXTRACTION_VERSION} AND x.completeness='complete') AS complete
         FROM state_bill_published_record p WHERE p.bill_key=${row.billKey} AND p.kind='document'
         AND p.evidence->>'documentKind'=${stub.kind} AND p.evidence->>'providerId'=${String(stub.providerId)}
         AND lower(p.evidence->>'providerHash')=lower(${stub.providerHash})`;

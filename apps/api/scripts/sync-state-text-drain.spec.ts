@@ -5,6 +5,7 @@ import {
   StateDocumentRetrievalError,
 } from '../src/ingestion/state-document-retrieval.js';
 import { persistDocumentEvidence } from '../src/ingestion/legiscan-document-evidence.js';
+import { BILL_EXTRACTION_VERSION } from '../src/ingestion/bill-document-structure.js';
 jest.mock('../src/ingestion/state-document-retrieval.js', () => ({
   retrieveStateDocument: jest.fn(),
   StateDocumentRetrievalError: class extends Error {
@@ -70,6 +71,8 @@ test('complete existing version is skipped without requests', async () => {
   ]);
   await drainStateDocuments(prisma, options);
   expect(retrieveStateDocument).not.toHaveBeenCalled();
+  expect(prisma.$queryRaw.mock.calls[0].slice(1)).toContain(BILL_EXTRACTION_VERSION);
+  expect(prisma.$queryRaw.mock.calls[0][0].join('')).not.toContain('bill-structure-v1');
 });
 test('retained verified raw bytes await extraction without another publisher or API fetch', async () => {
   const prisma = database();
@@ -89,7 +92,7 @@ test('retained verified raw bytes await extraction without another publisher or 
 });
 test('legacy ID-only checks fan out exact hashes atomically without marking the aggregate available', async () => {
   const prisma = database(),
-    execute = jest.fn(async () => 1);
+    execute = jest.fn(async (_query: TemplateStringsArray, ..._bindings: unknown[]) => 1);
   prisma.$transaction.mockImplementation(async (fn: any) => fn({ $executeRaw: execute }));
   prisma.$queryRawUnsafe.mockImplementation(async (sql: string) =>
     sql.includes("[0-9]+$'")
@@ -104,10 +107,10 @@ test('legacy ID-only checks fan out exact hashes atomically without marking the 
   );
   await drainStateDocuments(prisma, options);
   expect(execute).toHaveBeenCalledTimes(3);
-  expect(execute.mock.calls[0].slice(1)).toContain('text:20:' + stub.providerHash);
-  expect(execute.mock.calls[1].slice(1)).toContain('text:20:' + 'b'.repeat(32));
-  expect(execute.mock.calls[2][0].join('')).toContain("state='metadata_only'");
-  expect(execute.mock.calls[2][0].join('')).toContain('next_check_at=NULL');
+  expect(execute.mock.calls[0]!.slice(1)).toContain('text:20:' + stub.providerHash);
+  expect(execute.mock.calls[1]!.slice(1)).toContain('text:20:' + 'b'.repeat(32));
+  expect(execute.mock.calls[2]![0].join('')).toContain("state='metadata_only'");
+  expect(execute.mock.calls[2]![0].join('')).toContain('next_check_at=NULL');
 });
 test('budget-held version stays pending and cannot claim available', async () => {
   const prisma = database();
