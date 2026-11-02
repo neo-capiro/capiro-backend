@@ -121,6 +121,15 @@ Preserve existing state writer schedules; no quota or budget increase is implied
 
 ## Frozen archive import without provider calls
 
+First stage the exact independently captured global discovery manifest, using
+`import-state-discovery --manifest FILE --sha256 SHA256` for offline preview and
+the same `--commit --expected-host CLONE_HOST` pair for the clone. It requires
+all 51 unique jurisdictions marked complete, pins each expected session and
+archive hash/count, and preserves the exact manifest bytes in the existing
+archive owner. Coverage treats a missing expected session receipt as unknown;
+an empty jurisdiction is known empty only when this manifest says so. The
+`fy26-state-discovery` receipt does not imply any metadata or text was loaded.
+
 `import-state-dataset-cache` validates an exact SHA256, state, session and full
 provider parent count before writing. The existing ZIP parser bounds compressed
 bytes to 120 MB, expanded JSON to 512 MB and entries to 50,000; the importer
