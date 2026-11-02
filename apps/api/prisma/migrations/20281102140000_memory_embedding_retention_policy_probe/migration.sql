@@ -15,6 +15,13 @@
 -- m.id. CASE keeps the cast off rows of other source types, whose source ids
 -- are not uuids, and the uuid pattern guard refuses a malformed memory source
 -- id (no row, so the embedding stays invisible) instead of raising.
+--
+-- Prisma runs this file as one implicit transaction. The policy swap takes a
+-- brief ACCESS EXCLUSIVE lock on context_embeddings; the local lock_timeout
+-- makes the deploy fail fast behind a long reader instead of queueing every
+-- other caller behind the lock request (precedent: 20281031150000).
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '60s';
 DROP POLICY IF EXISTS memory_embedding_owner_retention ON context_embeddings;
 CREATE POLICY memory_embedding_owner_retention ON context_embeddings AS RESTRICTIVE FOR SELECT
   USING (
