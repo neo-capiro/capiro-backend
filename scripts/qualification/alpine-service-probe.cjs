@@ -94,7 +94,7 @@ if (service === 'workspace') {
   local('@capiro/auth');
   local('@capiro/strategy-verifier');
   local('playwright-core');
-  assert.match(run(process.env.STRATEGY_PDF_CHROMIUM_PATH || '/usr/bin/chromium', ['--version']), /Chromium 155\./);
+  assert.match(run(process.env.STRATEGY_PDF_CHROMIUM_PATH || '/usr/bin/chromium', ['--version']), /Chromium 156\./);
   serviceCheck = strategyPdfCheck();
 } else if (service === 'engagement-api') {
   // engagement-main.ts compiles at dist/ and imports the sibling app module.
