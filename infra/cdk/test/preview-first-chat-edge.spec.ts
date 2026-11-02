@@ -5,47 +5,21 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { Template } from 'aws-cdk-lib/assertions';
 import {
+  PREVIEW_EDGE_PREFIXES,
   PREVIEW_EDGE_SERVICES,
+  PREVIEW_ENGAGEMENT_TARGET,
   PREVIEW_ONBOARD_TARGET,
   previewFirstChatEdgeApplication,
 } from '../lib/preview/first-chat-preview-edge';
-import callers from './fixtures/first-chat-wave2-routes.json';
-import writes from '../lib/preview/first-chat-preview-writes.json';
 
 const host = 'first-chat-preview.app-dev.capiro.ai';
-
-test('personal Portfolio order uses the existing exact Core PUT rule without broadening admission', () =>
-  render(false, (edge) => {
-    const rule = edge.Resources.Wave2Writes31.Properties;
-    assert.equal(rule.Priority, 36);
-    assert.deepEqual(rule.ListenerArn, { Ref: 'PreviewHttps' });
-    assert.deepEqual(rule.Actions, [{ Type: 'forward', TargetGroupArn: { Ref: 'CoreTarget' } }]);
-    assert.deepEqual(rule.Conditions, [
-      { Field: 'host-header', HostHeaderConfig: { Values: [host] } },
-      { Field: 'http-request-method', HttpRequestMethodConfig: { Values: ['PUT'] } },
-      { Field: 'path-pattern', PathPatternConfig: { RegexValues: [
-        '^/api/tenant-admin/team/[A-Za-z0-9_-]+/billing-admin$',
-        '^/api/tenant-admin/team/[A-Za-z0-9_-]+/role$',
-        '^/api/me/portfolio-layout$',
-      ] } },
-    ]);
-    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule')
-      .map((resource) => resource.Properties).sort((a, b) => a.Priority - b.Priority);
-    assert.equal(rules.length, 95);
-    const pathname = '/api/me/portfolio-layout';
-    for (const method of ['PUT', 'GET', 'HEAD'])
-      assert.deepEqual(routeDestination(rules, method, pathname), { Ref: 'CoreTarget' });
-    for (const method of ['POST', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE'])
-      assert.equal(routeDestination(rules, method, pathname), null, method);
-    for (const hostname of ['app.capiro.ai', 'os.capiro.ai', 'arbitrary.invalid'])
-      assert.equal(routeDestination(rules, 'PUT', pathname, hostname), null, hostname);
-    for (const neighbor of [pathname + '/', pathname + '/extra', pathname + '.invalid',
-      '/api/me/portfolio-layouts', '/api/users/me/portfolio-layout', '/extra' + pathname])
-      assert.equal(routeDestination(rules, 'PUT', neighbor), null, neighbor);
-    for (const suffix of ['billing-admin', 'role'])
-      assert.deepEqual(routeDestination(rules, 'PUT', `/api/tenant-admin/team/synthetic-user_1/${suffix}`),
-        { Ref: 'CoreTarget' });
-  }));
+const id = '11111111-1111-4111-8111-111111111111';
+const child = '22222222-2222-4222-8222-222222222222';
+const methods = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
+const core = { Ref: 'CoreTarget' };
+const strategy = { Ref: 'StrategyTarget' };
+const workspace = { Ref: 'WorkspaceTarget' };
+const intel = { Ref: 'IntelTarget' };
 
 function render(includeDns: boolean, check: (edge: any, dns: any) => void) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'preview-edge-'));
@@ -61,341 +35,189 @@ function render(includeDns: boolean, check: (edge: any, dns: any) => void) {
 }
 const ofType = (template: any, type: string): any[] =>
   Object.values(template.Resources).filter((resource: any) => resource.Type === type);
+const listenerRules = (edge: any) =>
+  ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule')
+    .map((resource) => resource.Properties)
+    .sort((a, b) => Number(a.Priority) - Number(b.Priority));
 
+/** ALB first-match evaluation: host, optional method, then glob or regex paths. */
 function routeDestination(rules: any[], method: string, pathname: string, hostname = host) {
+  const glob = (pattern: string) =>
+    new RegExp(
+      '^' +
+        pattern
+          .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+          .replace(/\*/g, '.*')
+          .replace(/\?/g, '.') +
+        '$',
+    );
   for (const rule of rules) {
     const condition = (field: string) => rule.Conditions.find((c: any) => c.Field === field);
-    if (
-      !condition('host-header').HostHeaderConfig.Values.includes(hostname) ||
-      !condition('http-request-method').HttpRequestMethodConfig.Values.includes(method)
-    ) continue;
+    if (!condition('host-header').HostHeaderConfig.Values.includes(hostname)) continue;
+    const verbs = condition('http-request-method')?.HttpRequestMethodConfig.Values;
+    if (verbs && !verbs.includes(method)) continue;
     const paths = condition('path-pattern').PathPatternConfig;
     const matches = paths.RegexValues
       ? paths.RegexValues.some((regex: string) => new RegExp(regex).test(pathname))
-      : paths.Values.some((glob: string) => pathname.startsWith(glob.slice(0, -1)));
+      : paths.Values.some((pattern: string) => glob(pattern).test(pathname));
     if (matches) return rule.Actions[0].TargetGroupArn;
   }
   return null;
 }
 
-test('saved owner POSTs and the Strategy client-check binding remain preview-only', () =>
+test('the preview host forwards each service namespace, every method, to its own target', () =>
   render(false, (edge) => {
-    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map((r) => r.Properties);
-    for (const [pathname, target] of [
-      ['/workspace-api/saved-records/read', 'WorkspaceTarget'],
-      ['/strategy-api/saved-reads', 'StrategyTarget'],
-    ]) {
-      assert.deepEqual(routeDestination(rules, 'POST', pathname), { Ref: target });
-      for (const method of ['PUT', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE'])
-        assert.equal(routeDestination(rules, method, pathname), null);
-      for (const hostname of ['app.capiro.ai', 'arbitrary.invalid'])
-        assert.equal(routeDestination(rules, 'POST', pathname, hostname), null);
-      for (const neighbor of [`${pathname}/extra`, `${pathname}.invalid`, `/extra${pathname}`])
-        assert.equal(routeDestination(rules, 'POST', neighbor), null);
-    }
-    assert.equal(edge.Resources.SavedWorkspaceReads.Properties.Priority, 72);
-    assert.equal(edge.Resources.SavedStrategyReads.Properties.Priority, 73);
-    assert.equal(edge.Resources.Wave2Writes66.Properties.Priority, 71);
-    assert.equal(edge.Outputs.StrategySavedReadEnvironment.Value,
-      JSON.stringify({ API_INTERNAL_URL: `https://${host}` }));
-  }));
-
-test('sharing writes admit only the exact owner and public capability routes', () =>
-  render(false, (edge) => {
-    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map((r) => r.Properties);
-    const owner = '/api/research-portfolios/synthetic-portfolio_1';
-    const token = 'a'.repeat(64);
-    const routes: [string, string][] = [
-      ...['enable', 'pin', 'disable'].map((action): [string, string] => ['POST', `${owner}/sharing/${action}`]),
-      ['POST', `${owner}/dashboard-designs`],
-      ['POST', `${owner}/share-links`],
-      ['POST', `${owner}/share-links/synthetic-link_1/revoke`],
-      ['POST', '/api/research-share-links/synthetic-link_1/revoke'],
-      ['POST', '/api/research-share-links/settings'],
-      ['POST', `/api/public/research-share/${token}/pin`],
-      ['POST', `/api/public/research-share/${token}/dashboard`],
-      ['POST', `/api/public/research-share/${token}/logo`],
-      ['POST', `${owner}/share-preview`],
-      ['PUT', `${owner}/dashboard-designs/synthetic-design_1`],
-    ];
-    for (const [method, pathname] of routes) {
-      assert.deepEqual(routeDestination(rules, method, pathname), { Ref: 'CoreTarget' });
-      for (const other of ['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE'].filter((m) => m !== method))
-        assert.equal(routeDestination(rules, other, pathname), null, `${other} ${pathname}`);
-      for (const hostname of ['app.capiro.ai', 'arbitrary.invalid'])
-        assert.equal(routeDestination(rules, method, pathname, hostname), null);
-      for (const neighbor of [`${pathname}/extra`, `${pathname}.invalid`, `/extra${pathname}`])
-        assert.equal(routeDestination(rules, method, neighbor), null, neighbor);
-    }
-    for (const pathname of [
-      `${owner}/sharing/unallocated`, `${owner}/dashboard-designs/synthetic-design_1`,
-      '/api/research-portfolios/invalid.id/sharing/enable',
-      `/api/public/research-share/${'a'.repeat(63)}/pin`,
-      `/api/public/research-share/${'g'.repeat(64)}/pin`,
-      `/api/public/research-share/${'a'.repeat(63)}/logo`,
-      `/api/public/research-share/${'g'.repeat(64)}/logo`,
-      '/api/research-share-links/settings/extra',
-      '/api/research-share-links/invalid.id/revoke',
-      `/api/public/research-share/${token}/unallocated`,
-    ]) assert.equal(routeDestination(rules, 'POST', pathname), null, pathname);
-    for (const [id, priority] of Object.entries({
-      Wave3WorkspaceQualifiedWrites: 64, FinishedNewsletterPosts: 65,
-      FinishedNewsletterSave: 66, FinishedNewsletterOpen: 67,
-      Wave2Writes63: 68, Wave2Writes64: 69, Wave2Writes65: 70,
-    })) assert.equal(edge.Resources[id].Properties.Priority, priority, id);
-    assert.equal(new Set(rules.map((r) => r.Priority)).size, rules.length);
-  }));
-
-test('sharing prerequisites admit only portfolio creation and exact snapshot/client-link POST routes', () =>
-  render(false, (edge) => {
-    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map((r) => r.Properties);
-    const owner = '/api/research-portfolios/synthetic-portfolio_1';
-    const routes = ['/api/research-portfolios', `${owner}/snapshots`, `${owner}/client-links`];
-    for (const pathname of routes) {
-      assert.deepEqual(routeDestination(rules, 'POST', pathname), { Ref: 'CoreTarget' }, pathname);
-      for (const method of ['PUT', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE'])
-        assert.equal(routeDestination(rules, method, pathname), null, `${method} ${pathname}`);
-      for (const hostname of ['app.capiro.ai', 'arbitrary.invalid'])
-        assert.equal(routeDestination(rules, 'POST', pathname, hostname), null);
-      for (const neighbor of [`${pathname}/`, `${pathname}/extra`, `${pathname}.invalid`, `/extra${pathname}`])
-        assert.equal(routeDestination(rules, 'POST', neighbor), null, neighbor);
-      // Existing GET/HEAD reads remain admitted independently of this POST rule.
-      for (const method of ['GET', 'HEAD'])
-        assert.deepEqual(routeDestination(rules, method, pathname), { Ref: 'CoreTarget' });
-    }
-    for (const pathname of [
-      '/api/research-portfolios//snapshots', '/api/research-portfolios/invalid.id/snapshots',
-      '/api/research-portfolios/parent/child/snapshots', '/api/research-portfolios/templates',
-      '/api/research-portfolios//client-links', '/api/research-portfolios/invalid.id/client-links',
-      '/api/research-portfolios/parent/child/client-links', `${owner}/client-links/synthetic-client`,
-      `${owner}/snapshots/synthetic-snapshot`,
-    ]) assert.equal(routeDestination(rules, 'POST', pathname), null, pathname);
-    const added = edge.Resources.Wave2Writes66.Properties;
-    assert.equal(added.Priority, 71);
-    assert.deepEqual(added.ListenerArn, { Ref: 'PreviewHttps' });
-    assert.deepEqual(added.Actions, [{ TargetGroupArn: { Ref: 'CoreTarget' }, Type: 'forward' }]);
+    const rules = listenerRules(edge);
     assert.deepEqual(
-      added.Conditions.find((c: any) => c.Field === 'http-request-method').HttpRequestMethodConfig.Values,
-      ['POST'],
-    );
-    assert.deepEqual(
-      added.Conditions.find((c: any) => c.Field === 'path-pattern').PathPatternConfig.RegexValues,
+      rules.map((rule) => [
+        rule.Priority,
+        rule.Conditions.find((c: any) => c.Field === 'path-pattern').PathPatternConfig.Values,
+      ]),
       [
-        '^/api/research-portfolios$',
-        '^/api/research-portfolios/[A-Za-z0-9_-]+/snapshots$',
-        '^/api/research-portfolios/[A-Za-z0-9_-]+/client-links$',
+        [190, ['/api/engagement/outreach-v3/*']],
+        [200, ['/api/*']],
+        [201, ['/strategy-api/*']],
+        [202, ['/workspace-api/*']],
+        [203, ['/intel-api/*']],
+        [204, ['/onboard-api/*']],
+        [205, ['/webhooks/*']],
       ],
     );
-    assert.equal(added.Conditions.reduce((count: number, condition: any) => count +
-      (condition.PathPatternConfig?.RegexValues.length ?? condition.HostHeaderConfig?.Values.length ??
-        condition.HttpRequestMethodConfig?.Values.length ?? 0), 0), 5);
-  }));
-
-test('artifact version POST admits only its exact Core route on the preview host', () =>
-  render(false, (edge) => {
-    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map((r) => r.Properties);
-    const pathname = '/api/clio/artifacts/11111111-1111-4111-8111-111111111111/version';
-    assert.deepEqual(routeDestination(rules, 'POST', pathname), { Ref: 'CoreTarget' });
-    for (const method of ['PUT', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE'])
-      assert.equal(routeDestination(rules, method, pathname), null, `${method} ${pathname}`);
-    for (const hostname of ['app.capiro.ai', 'arbitrary.invalid'])
-      assert.equal(routeDestination(rules, 'POST', pathname, hostname), null);
-    for (const neighbor of [
-      `${pathname}/`, `${pathname}/extra`, `${pathname}.invalid`, `/extra${pathname}`,
-      '/api/clio/artifacts//version', '/api/clio/artifacts/invalid.id/version',
-      '/api/clio/artifacts/parent/child/version', '/api/clio/artifacts/synthetic-artifact_1',
-      '/api/clio/artifacts/synthetic-artifact_1/versions',
-    ]) assert.equal(routeDestination(rules, 'POST', neighbor), null, neighbor);
-    for (const method of ['GET', 'HEAD'])
-      assert.deepEqual(routeDestination(rules, method,
-        '/api/research-portfolios/synthetic-portfolio_1/drafts/synthetic-artifact_1'),
-      { Ref: 'CoreTarget' });
-    const added = edge.Resources.ArtifactVersions.Properties;
-    assert.equal(added.Priority, 75);
-    assert.deepEqual(added.ListenerArn, { Ref: 'PreviewHttps' });
-    assert.deepEqual(added.Actions, [{ TargetGroupArn: { Ref: 'CoreTarget' }, Type: 'forward' }]);
     assert.deepEqual(
-      added.Conditions.find((c: any) => c.Field === 'http-request-method').HttpRequestMethodConfig.Values,
-      ['POST'],
+      PREVIEW_EDGE_PREFIXES.map((route) => route.owner),
+      ['engagement', 'core', 'strategy', 'workspace', 'intel', 'onboard', 'core'],
     );
-    assert.deepEqual(
-      added.Conditions.find((c: any) => c.Field === 'path-pattern').PathPatternConfig.RegexValues,
-      ['^/api/clio/artifacts/[A-Za-z0-9_-]+/version$'],
-    );
-    for (const [id, priority] of Object.entries({
-      Wave2Writes66: 71, SavedWorkspaceReads: 72, SavedStrategyReads: 73, Wave2Writes69: 74,
-    })) assert.equal(edge.Resources[id].Properties.Priority, priority, id);
-  }));
-
-test('research portfolio import uploads admit only the exact Core POST on the preview host', () =>
-  render(false, (edge) => {
-    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map((r) => r.Properties);
-    const pathname = '/api/research-portfolios/11111111-1111-4111-8111-111111111111/imports';
-    assert.deepEqual(routeDestination(rules, 'POST', pathname), { Ref: 'CoreTarget' });
-    for (const method of ['PUT', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE'])
-      assert.equal(routeDestination(rules, method, pathname), null, `${method} ${pathname}`);
-    for (const hostname of ['app.capiro.ai', 'arbitrary.invalid'])
-      assert.equal(routeDestination(rules, 'POST', pathname, hostname), null);
-    for (const neighbor of [
-      `${pathname}/`, `${pathname}/extra`, `${pathname}.invalid`, `/extra${pathname}`,
-      '/api/research-portfolios//imports', '/api/research-portfolios/invalid.id/imports',
-      '/api/research-portfolios/parent/child/imports', '/api/research-portfolios/imports',
-    ]) assert.equal(routeDestination(rules, 'POST', neighbor), null, neighbor);
-    for (const action of ['approve', 'delete', 'publish'])
-      assert.equal(routeDestination(rules, 'POST', `${pathname}/synthetic-job_1/${action}`), null);
-    for (const method of ['GET', 'HEAD'])
-      assert.deepEqual(routeDestination(rules, method, `${pathname}/synthetic-job_1`),
-        { Ref: 'CoreTarget' });
-    const added = edge.Resources.ResearchPortfolioImportUploads.Properties;
-    assert.equal(added.Priority, 76);
-    assert.deepEqual(added.ListenerArn, { Ref: 'PreviewHttps' });
-    assert.deepEqual(added.Actions, [{ TargetGroupArn: { Ref: 'CoreTarget' }, Type: 'forward' }]);
-    assert.deepEqual(
-      added.Conditions.find((c: any) => c.Field === 'http-request-method').HttpRequestMethodConfig.Values,
-      ['POST'],
-    );
-    assert.deepEqual(
-      added.Conditions.find((c: any) => c.Field === 'path-pattern').PathPatternConfig.RegexValues,
-      ['^/api/research-portfolios/[A-Za-z0-9_-]+/imports$'],
-    );
-    assert.equal(edge.Resources.ArtifactVersions.Properties.Priority, 75);
-  }));
-
-test('recovered native research controls admit their finite user routes only', () =>
-  render(false, (edge) => {
-    // Fixed frontend 1281d906 native operations plus the authorized bulk-review
-    // and member-resolution controls. Core remains the authorization owner.
-    const id = '11111111-1111-4111-8111-111111111111';
-    const child = '22222222-2222-4222-8222-222222222222';
-    const portfolio = `/api/research-portfolios/${id}`;
-    const comparison = `/api/defense-budget/saved-comparisons/${id}`;
-    const writes: [string, string][] = [
-      ...['archive', 'restore', 'members', 'members/decisions', 'bookmarks',
-        'subscriptions', 'outputs', 'rules', 'rules/preview', 'fit/refresh',
-        'watch-conversion/preview', 'watch-conversion/apply']
-        .map((suffix): [string, string] => ['POST', `${portfolio}/${suffix}`]),
-      ...['assign', 'decision', 'notes']
-        .map((action): [string, string] => ['POST', `${portfolio}/reviews/${child}/${action}`]),
-      ...['preview', 'apply', 'pause', 'resume', 'cancel', 'retry', 'reconcile', 'compensate']
-        .map((action): [string, string] => ['POST', `${portfolio}/imports/${child}/${action}`]),
-      ...['cancel', 'retry', 'reconcile']
-        .map((action): [string, string] => ['POST', `${portfolio}/output-jobs/${child}/${action}`]),
-      ['POST', `${portfolio}/outputs/${child}/client-files`],
-      ['POST', `${portfolio}/operations/${child}/reconcile`],
-      ['POST', '/api/research-portfolios/tour-state/research-portfolios-v1'],
-      ['POST', '/api/defense-budget/saved-comparisons'],
-      ...['versions', 'archive', 'restore']
-        .map((action): [string, string] => ['POST', `${comparison}/${action}`]),
-      ['POST', `${comparison}/versions/${child}/add-selection-to-portfolio`],
-      ['PATCH', portfolio],
-      ['PATCH', `${portfolio}/bookmarks/${child}`],
-      ['PATCH', `${portfolio}/subscriptions/${child}`],
-      ['PATCH', `${portfolio}/changes/${child}/state`],
-      ...['bookmarks', 'client-links', 'grants']
-        .map((kind): [string, string] => ['DELETE', `${portfolio}/${kind}/${child}`]),
-      ['PUT', `${portfolio}/grants/${child}`],
-      ['POST', '/api/program-elements/0603270A/watch'],
-      ['POST', `${portfolio}/reviews/bulk`],
-      ['POST', `${portfolio}/members/${child}/resolve`],
-    ];
-    assert.equal(writes.length, 45);
-    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map((r) => r.Properties);
-    for (const [method, pathname] of writes) {
-      assert.deepEqual(routeDestination(rules, method, pathname), { Ref: 'CoreTarget' }, `${method} ${pathname}`);
-      for (const wrongMethod of ['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE']) {
-        if (writes.some(([m, p]) => m === wrongMethod && p === pathname)) continue;
-        assert.equal(routeDestination(rules, wrongMethod, pathname), null, `${wrongMethod} ${pathname}`);
-      }
-      for (const hostname of ['app.capiro.ai', 'arbitrary.invalid'])
-        assert.equal(routeDestination(rules, method, pathname, hostname), null);
-      // A dot is valid inside the terminal tour-version parameter.
-      const suffix = pathname.startsWith('/api/research-portfolios/tour-state/') ? '!' : '.invalid';
-      for (const neighbor of [`${pathname}/`, `${pathname}/extra`, `${pathname}${suffix}`, `/extra${pathname}`])
-        assert.equal(routeDestination(rules, method, neighbor), null, `${method} ${neighbor}`);
+    for (const rule of rules) {
+      assert.deepEqual(rule.ListenerArn, { Ref: 'PreviewHttps' });
+      // Host and path only: no method condition, so every method reaches the owner.
+      assert.deepEqual(
+        rule.Conditions.map((c: any) => c.Field),
+        ['host-header', 'path-pattern'],
+      );
+      assert.deepEqual(rule.Conditions[0].HostHeaderConfig.Values, [host]);
+      assert.equal(rule.Actions.length, 1);
+      assert.equal(rule.Actions[0].Type, 'forward');
     }
-    assert.deepEqual(routeDestination(rules, 'POST', '/api/program-elements/1234AB12/watch'), { Ref: 'CoreTarget' });
-    assert.deepEqual(routeDestination(rules, 'POST', '/api/research-portfolios/tour-state/research.v1'), { Ref: 'CoreTarget' });
-    for (const pathname of [
-      `${portfolio}/imports/${child}/approve`, `${portfolio}/output-jobs/${child}/apply`,
-      `${portfolio}/operations/${child}/cancel`, `${portfolio}/reviews/${child}/delete`,
-      `${portfolio}/watch-conversion/reconcile`, `${comparison}/delete`,
-      `${comparison}/versions/${child}/publish`, `${portfolio}/annual-review/refresh`,
-      `${portfolio}/reviews/bulk/decisions`, `${portfolio}/members/${child}/resolve-all`,
-      `${portfolio}/reviews/bulk-delete`, `${portfolio}/members/resolve`,
-      '/api/research-portfolios/templates', '/api/program-elements/0603270A/watch/extra',
-      `/api/program-elements/${'A'.repeat(31)}/watch`,
-      `/api/research-portfolios/tour-state/${'v'.repeat(65)}`,
-    ]) assert.equal(routeDestination(rules, 'POST', pathname), null, pathname);
-
-    const additions = [
-      'ResearchPortfolioLifecyclePosts', 'ResearchPortfolioReviewRulePosts',
-      'ResearchPortfolioWorkflowPosts', 'ResearchPortfolioJobPosts',
-      'ResearchSavedComparisonPosts', 'ResearchPortfolioPatches',
-      'ResearchPortfolioChangeState', 'ResearchPortfolioRemovals',
-      'ResearchPortfolioGrants', 'ResearchProgramElementWatch',
-      'ResearchPortfolioBulkAndResolve',
+    const expected: [string, unknown][] = [
+      ['/api/clients', core],
+      ['/strategy-api/planner/strategies', strategy],
+      ['/workspace-api/drafts', workspace],
+      ['/intel-api/clients/x/tracker/track', intel],
+      ['/onboard-api/setup/state', PREVIEW_ONBOARD_TARGET],
+      ['/webhooks/clerk', core],
+      ['/webhooks/recall/bot-status', core],
     ];
-    additions.forEach((name, index) => {
-      const added = edge.Resources[name].Properties;
-      assert.equal(added.Priority, 77 + index);
-      assert.deepEqual(added.ListenerArn, { Ref: 'PreviewHttps' });
-      assert.deepEqual(added.Actions, [{ TargetGroupArn: { Ref: 'CoreTarget' }, Type: 'forward' }]);
-      const paths = added.Conditions.find((c: any) => c.Field === 'path-pattern').PathPatternConfig.RegexValues;
-      for (const regex of paths) {
-        assert.ok(regex.startsWith('^') && regex.endsWith('$') && regex.length <= 128);
-        for (const otherOwner of [
-          '/api/internal/research-portfolios/recompute', '/api/clio/tools/manage_research_portfolio',
-          `/api/public/research-share/${'a'.repeat(64)}/pin`,
-        ]) assert.equal(new RegExp(regex).test(otherOwner), false, `${name} ${otherOwner}`);
-      }
-    });
-    assert.equal(edge.Resources.ArtifactVersions.Properties.Priority, 75);
-    assert.equal(edge.Resources.ResearchPortfolioImportUploads.Properties.Priority, 76);
+    for (const [pathname, target] of expected)
+      for (const method of methods)
+        assert.deepEqual(routeDestination(rules, method, pathname), target, `${method} ${pathname}`);
   }));
 
-test('provider callbacks and Microsoft notifications reach preview Core without new routes', () =>
+test('Outreach v3 reaches the preview engagement-api while the rest of engagement stays on Core', () =>
   render(false, (edge) => {
-    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map(
-      (r) => r.Properties,
-    );
-    for (const [method, pathname] of [
-      ['GET', '/api/engagement/integrations/microsoft/callback'],
-      ['GET', '/api/engagement/integrations/google/callback'],
-      ['POST', '/api/engagement/integrations/microsoft/notifications'],
-    ]) {
-      assert.deepEqual(routeDestination(rules, method!, pathname!), { Ref: 'CoreTarget' });
-      assert.equal(routeDestination(rules, method!, pathname!, 'app.capiro.ai'), null);
-    }
-  }));
-
-test('six internal file and owner-memory POST admissions stay finite and preview-only', () =>
-  render(false, (edge) => {
-    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map((r) => r.Properties);
+    const rules = listenerRules(edge);
     for (const pathname of [
-      '/api/engagement/attachments/upload-url',
-      '/api/engagement/attachments/confirm',
-      '/api/memory/candidates/synthetic-candidate_1/owner-decision',
-      '/api/memory/version-candidates/synthetic-version_1/approve',
-      '/api/memory/version-candidates/synthetic-version_1/reject',
-      '/api/memory/items/synthetic-item_1/review-correction',
-    ]) {
-      assert.deepEqual(routeDestination(rules, 'POST', pathname), { Ref: 'CoreTarget' }, pathname);
-      for (const method of ['PUT', 'PATCH', 'OPTIONS', 'TRACE'])
+      '/api/engagement/outreach-v3/sessions',
+      '/api/engagement/outreach-v3/templates/from-scratch',
+      `/api/engagement/outreach-v3/sessions/${id}/generation`,
+      `/api/engagement/outreach-v3/sessions/${id}/send`,
+    ])
+      for (const method of methods)
+        assert.deepEqual(routeDestination(rules, method, pathname), PREVIEW_ENGAGEMENT_TARGET, `${method} ${pathname}`);
+    for (const pathname of [
+      '/api/engagement/mail/send',
+      '/api/engagement/meetings',
+      '/api/engagement/outreach',
+      '/api/engagement/outreach/send-intents',
+      '/api/engagement/integrations/microsoft/notifications',
+      '/api/engagement/outreach-v3',
+      '/api/engagement/outreach-v3x/sessions',
+    ])
+      assert.deepEqual(routeDestination(rules, 'POST', pathname), core, pathname);
+    assert.equal(
+      routeDestination(rules, 'POST', '/api/engagement/outreach-v3/sessions', 'app.capiro.ai'),
+      null,
+    );
+  }));
+
+test('product writes the per-path allowlist dropped now reach their owning service', () =>
+  render(false, (edge) => {
+    const rules = listenerRules(edge);
+    // Each answered the edge 404 PREVIEW_ROUTE_NOT_FOUND on 2 Nov 2026, or was
+    // forwarded only by a hand-added live rule outside this definition.
+    const writes: [string, string, unknown][] = [
+      ['POST', '/api/clio/action-proposals', core],
+      ['POST', `/api/clio/action-proposals/${id}/approve`, core],
+      ['POST', '/api/clio/conversations', core],
+      ['POST', `/api/clients/${id}/objectives`, core],
+      ['PATCH', `/api/clients/${id}/objectives`, core],
+      ['DELETE', `/api/clients/${id}/objectives`, core],
+      ['POST', `/api/clients/${id}/objectives/transition`, core],
+      ['POST', `/api/clients/${id}/objectives/${child}/generation/commands`, core],
+      ['POST', `/api/clients/${id}/objectives/${child}/questions`, core],
+      ['POST', '/api/clio/mcp-servers/from-catalog', core],
+      ['DELETE', `/api/clio/mcp-servers/${id}`, core],
+      ['POST', `/api/engagement/meetings/${id}/prep`, core],
+      ['PATCH', `/api/engagement/meeting-preps/${id}`, core],
+      ['POST', '/api/engagement/outreach/send-intents', core],
+      ['POST', `/api/business-development/prospects/${id}/watch`, core],
+      ['POST', '/api/clio/office-drafts/save', core],
+      ['POST', '/api/workspace/collaborator-invite-email', core],
+      ['POST', '/strategy-api/planner/strategy-materializations', strategy],
+      ['PATCH', `/strategy-api/planner/strategies/${id}`, strategy],
+      ['POST', `/intel-api/clients/${id}/tracker/test-alert`, intel],
+      ['POST', '/onboard-api/setup/complete', PREVIEW_ONBOARD_TARGET],
+    ];
+    for (const [method, pathname, target] of writes)
+      assert.deepEqual(routeDestination(rules, method, pathname), target, `${method} ${pathname}`);
+  }));
+
+test('internal routes reach only their owning service, which enforces its service secret', () =>
+  render(false, (edge) => {
+    const rules = listenerRules(edge);
+    // Backend services call these through this host (API_INTERNAL_URL), so the
+    // edge forwards them; each owner fails closed without the secret or signed proof.
+    const internal: [string, unknown][] = [
+      ['/api/internal/ai-credentials/resolve', core],
+      ['/api/internal/routines/current', core],
+      ['/api/internal/objective-workload-authority/decisions', core],
+      ['/strategy-api/internal/objective-canonical/generation-requests', strategy],
+      ['/workspace-api/internal/workspace/collaborator-invitations/email-context', workspace],
+      ['/intel-api/internal/hearing-record-retrieval', intel],
+    ];
+    for (const [pathname, target] of internal)
+      for (const method of ['GET', 'POST'])
+        assert.deepEqual(routeDestination(rules, method, pathname), target, `${method} ${pathname}`);
+    assert.equal(
+      edge.Outputs.StrategySavedReadEnvironment.Value,
+      JSON.stringify({ API_INTERNAL_URL: `https://${host}` }),
+    );
+  }));
+
+test('other hosts, unknown prefixes and prefix look-alikes keep the listener 404', () =>
+  render(false, (edge) => {
+    const rules = listenerRules(edge);
+    for (const hostname of [
+      'app.capiro.ai',
+      'os.capiro.ai',
+      'office-preview.app-dev.capiro.ai',
+      'arbitrary.invalid',
+    ])
+      for (const pathname of ['/api/clients', '/strategy-api/planner/strategies', '/workspace-api/drafts'])
+        assert.equal(routeDestination(rules, 'POST', pathname, hostname), null, `${hostname} ${pathname}`);
+    for (const pathname of [
+      '/',
+      '/api',
+      '/apiextra/clients',
+      '/API/clients',
+      '/strategy-api',
+      '/meri-api/runs',
+      '/webhooks',
+      '/health',
+      '/extra/api/clients',
+      '/onboard/setup',
+    ])
+      for (const method of ['GET', 'POST'])
         assert.equal(routeDestination(rules, method, pathname), null, `${method} ${pathname}`);
-      for (const hostname of ['app.capiro.ai', 'arbitrary.invalid'])
-        assert.equal(routeDestination(rules, 'POST', pathname, hostname), null);
-      for (const neighbor of [`${pathname}/unallocated`, `${pathname}-extra`, `/extra${pathname}`])
-        assert.equal(routeDestination(rules, 'POST', neighbor), null, neighbor);
-    }
-    for (const pathname of [
-      '/api/memory/candidates/invalid.id/owner-decision',
-      '/api/memory/candidates/parent/child/owner-decision',
-      '/api/memory/version-candidates//approve',
-      '/api/memory/items/invalid.id/review-correction',
-      '/api/engagement/attachments/prospect-copies/synthetic-file',
-      '/api/engagement/attachments/unallocated',
-      '/api/unallocated',
-    ]) assert.equal(routeDestination(rules, 'POST', pathname), null, pathname);
   }));
 
 test('dedicated edge reuses only existing network/certificate and has no shared-listener mutation', () =>
@@ -409,6 +231,8 @@ test('dedicated edge reuses only existing network/certificate and has no shared-
       'AWS::WAFv2::WebACLAssociation',
       'AWS::EC2::SecurityGroup',
       'AWS::EC2::SecurityGroupIngress',
+      'AWS::SecretsManager::Secret',
+      'AWS::IAM::ManagedPolicy',
     ]);
     for (const resource of Object.values(edge.Resources) as any[])
       assert.ok(allowed.has(resource.Type));
@@ -432,6 +256,7 @@ test('dedicated edge reuses only existing network/certificate and has no shared-
     const [listener] = ofType(edge, 'AWS::ElasticLoadBalancingV2::Listener');
     assert.deepEqual(listener.Properties.LoadBalancerArn, { Ref: 'PreviewLoadBalancer' });
     assert.equal(listener.Properties.Port, 443);
+    assert.equal(listener.Properties.SslPolicy, 'ELBSecurityPolicy-TLS13-1-2-2021-06');
     assert.equal(
       listener.Properties.Certificates[0].CertificateArn,
       'arn:aws:acm:us-east-1:967807252336:certificate/70b04aad-4971-4bba-81a8-30da1b1d97b5',
@@ -448,6 +273,31 @@ test('dedicated edge reuses only existing network/certificate and has no shared-
     ]);
     assert.equal(JSON.stringify(edge).includes('listener/app/capiro-prod-alb'), false);
     assert.equal(ofType(edge, 'AWS::ElasticLoadBalancingV2::TargetGroup').length, 4);
+  }));
+
+test('the Workspace export signing key stays retained and readable only through the existing execution role', () =>
+  render(false, (edge) => {
+    const secret = edge.Resources.WorkspaceExportSigningSecret;
+    assert.equal(secret.DeletionPolicy, 'Retain');
+    assert.equal(secret.UpdateReplacePolicy, 'Retain');
+    assert.equal(secret.Properties.Name, '/capiro/preview/workspace/export-signing');
+    assert.deepEqual(secret.Properties.GenerateSecretString, {
+      ExcludePunctuation: true,
+      IncludeSpace: false,
+      PasswordLength: 64,
+    });
+    const policy = edge.Resources.WorkspaceExportSigningRead.Properties;
+    assert.deepEqual(policy.PolicyDocument.Statement, [
+      {
+        Action: ['secretsmanager:GetSecretValue'],
+        Effect: 'Allow',
+        Resource: { Ref: 'WorkspaceExportSigningSecret' },
+      },
+    ]);
+    assert.deepEqual(policy.Roles, ['Capiro-dev-Compute-ApiTaskDefExecutionRoleE6ABB053-YlEDKuUPHjLg']);
+    assert.deepEqual(edge.Outputs.WorkspaceExportSigningSecretArn.Value, {
+      Ref: 'WorkspaceExportSigningSecret',
+    });
   }));
 
 test('private Meri HTTPS admits only the new preview backend identity, preserving shared SG access', () =>
@@ -501,121 +351,6 @@ test('service attachment outputs retain old and new preview targets with origina
     assert.equal(JSON.stringify(edge).includes('capiro-dev-onboard-api'), false);
   }));
 
-test('finite method/path routes admit their owners and reject unintended cross-products, suffixes and hosts', () =>
-  render(false, (edge) => {
-    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map(
-      (r) => r.Properties,
-    );
-    assert.equal(rules.length, 5 + writes.groups.length);
-    for (const rule of rules) {
-      assert.deepEqual(rule.ListenerArn, { Ref: 'PreviewHttps' });
-      const conditions = rule.Conditions;
-      assert.deepEqual(
-        conditions.find((c: any) => c.Field === 'host-header').HostHeaderConfig.Values,
-        [host],
-      );
-      const paths = conditions.find((c: any) => c.Field === 'path-pattern').PathPatternConfig;
-      const expressions = paths.RegexValues ?? paths.Values;
-      const methods = conditions.find((c: any) => c.Field === 'http-request-method')
-        .HttpRequestMethodConfig.Values;
-      assert.ok(expressions.length <= 3 && expressions.length + methods.length + 1 <= 5);
-      assert.ok(expressions.every((p: string) => p.length <= 128));
-    }
-    function destination(method: string, pathname: string, hostname = host) {
-      return routeDestination(rules, method, pathname, hostname);
-    }
-    const concrete = (route: string) =>
-      route.replace(/:[A-Za-z]+/g, '11111111-1111-4111-8111-111111111111');
-    const registeredPath = (template: string, pathname: string) =>
-      new RegExp(
-        `^${template
-          .split('/')
-          .map((segment) =>
-            segment.startsWith(':')
-              ? '[A-Za-z0-9_-]+'
-              : segment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
-          )
-          .join('/')}$`,
-      ).test(pathname);
-    const target = (owner: string) =>
-      owner === 'onboard'
-        ? PREVIEW_ONBOARD_TARGET
-        : { Ref: `${owner[0]!.toUpperCase()}${owner.slice(1)}Target` };
-    for (const row of callers) {
-      const pathname = concrete(row.path);
-      assert.deepEqual(
-        destination(row.method, pathname),
-        target(row.service),
-        `${row.method} ${row.path}`,
-      );
-      for (const method of ['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE']) {
-        const registered = callers.find(
-          (r) => r.method === method && registeredPath(r.path, pathname),
-        );
-        assert.deepEqual(
-          destination(method, pathname),
-          registered ? target(registered.service) : null,
-          `unintended method/path cross-product: ${method} ${row.path}`,
-        );
-      }
-      assert.equal(destination(row.method, `${pathname}/unallocated`), null);
-      assert.equal(destination(row.method, pathname, 'app.capiro.ai'), null);
-      assert.equal(destination(row.method, pathname, 'arbitrary.invalid'), null);
-    }
-    for (const [prefix, owner] of [
-      ['api', 'core'],
-      ['strategy-api', 'strategy'],
-      ['workspace-api', 'workspace'],
-      ['intel-api', 'intel'],
-    ]) {
-      for (const method of ['GET', 'HEAD'])
-        assert.deepEqual(destination(method, `/${prefix}/existing-read`), target(owner!));
-      assert.equal(destination('POST', `/${prefix}/unallocated`), null);
-    }
-    assert.deepEqual(destination('POST', '/api/clio/tools/client_context.read'), target('core'));
-    assert.deepEqual(destination('POST', '/api/clio/conversations/bootstrap'), target('core'));
-    assert.deepEqual(
-      destination('GET', '/api/engagement/meeting-commands/11111111-1111-4111-8111-111111111111'),
-      target('core'),
-    );
-    assert.deepEqual(
-      destination(
-        'GET',
-        '/api/business-development/prospects/11111111-1111-4111-8111-111111111111/contacts/transfers/22222222-2222-4222-8222-222222222222',
-      ),
-      target('core'),
-    );
-    assert.deepEqual(
-      destination('GET', '/api/engagement/attachments/prospect-copies/11111111-1111-4111-8111-111111111111'),
-      target('core'),
-    );
-    assert.equal(destination('POST', '/api/engagement/attachments/prospect-copies/11111111-1111-4111-8111-111111111111'), null);
-    for (const provider of ['microsoft', 'google']) {
-      const route =
-        '/api/engagement/integrations/' +
-        provider +
-        '/11111111-1111-4111-8111-111111111111/calendar-commands';
-      assert.deepEqual(
-        destination('GET', route + '/22222222-2222-4222-8222-222222222222'),
-        target('core'),
-      );
-      assert.equal(destination('POST', route + '/22222222-2222-4222-8222-222222222222'), null);
-    }
-    assert.deepEqual(
-      destination('GET', '/api/engagement/attachments/deletions/11111111-1111-4111-8111-111111111111'),
-      target('core'),
-    );
-    assert.equal(destination('DELETE', '/api/engagement/attachments/deletions/11111111-1111-4111-8111-111111111111'), null);
-    assert.equal(destination('POST', '/api/clio/application-authority/history-release'), null);
-    assert.deepEqual(
-      destination(
-        'GET',
-        '/workspace-api/prospects/11111111-1111-4111-8111-111111111111/clients/22222222-2222-4222-8222-222222222222/brief-copies/33333333-3333-4333-8333-333333333333',
-      ),
-      target('workspace'),
-    );
-  }));
-
 test('DNS is a separately rendered exact preview alias, with the wildcard left outside ownership', () =>
   render(true, (edge, dns) => {
     assert.equal(ofType(edge, 'AWS::Route53::RecordSet').length, 0);
@@ -630,214 +365,4 @@ test('DNS is a separately rendered exact preview alias, with the wildcard left o
         EvaluateTargetHealth: false,
       },
     });
-  }));
-
-test('client capability create admits only the canonical lowercase-UUID POST route on the preview host', () =>
-  render(false, (edge) => {
-    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule')
-      .map((r) => r.Properties)
-      .sort((a, b) => Number(a.Priority) - Number(b.Priority));
-    const pathname = '/api/clients/11111111-1111-4111-8111-111111111111/capabilities';
-    // The canonical writer path (FE716 saveCapability) must reach Core and must not
-    // fall through to the listener's 404 default.
-    assert.deepEqual(routeDestination(rules, 'POST', pathname), { Ref: 'CoreTarget' });
-    for (const method of ['PUT', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE'])
-      assert.equal(routeDestination(rules, method, pathname), null, `${method} ${pathname}`);
-    for (const hostname of ['app.capiro.ai', 'arbitrary.invalid'])
-      assert.equal(routeDestination(rules, 'POST', pathname, hostname), null, hostname);
-    for (const neighbor of [
-      `${pathname}/`,
-      `${pathname}/extra`,
-      `${pathname}.invalid`,
-      `/extra${pathname}`,
-      '/api/clients//capabilities',
-      '/api/clients/not-a-uuid/capabilities',
-      '/api/clients/11111111111141118111111111111111/capabilities',
-      '/api/clients/11111111-1111-4111-8111-11111111111/capabilities',
-      '/api/clients/11111111-1111-4111-8111-1111111111111/capabilities',
-      '/api/clients/AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA/capabilities',
-      '/api/clients/11111111-1111-4111-8111-111111111111/capabilities/synthetic',
-    ])
-      assert.equal(routeDestination(rules, 'POST', neighbor), null, neighbor);
-    // Reads on the same path keep using the existing /api/* read rule.
-    for (const method of ['GET', 'HEAD'])
-      assert.deepEqual(routeDestination(rules, method, pathname), { Ref: 'CoreTarget' });
-    const added = edge.Resources.ClientCapabilityCreate.Properties;
-    assert.equal(added.Priority, 93);
-    assert.deepEqual(added.ListenerArn, { Ref: 'PreviewHttps' });
-    assert.deepEqual(added.Actions, [{ TargetGroupArn: { Ref: 'CoreTarget' }, Type: 'forward' }]);
-    assert.deepEqual(
-      added.Conditions.find((c: any) => c.Field === 'host-header').HostHeaderConfig.Values,
-      [host],
-    );
-    assert.deepEqual(
-      added.Conditions.find((c: any) => c.Field === 'http-request-method').HttpRequestMethodConfig
-        .Values,
-      ['POST'],
-    );
-    assert.deepEqual(
-      added.Conditions.find((c: any) => c.Field === 'path-pattern').PathPatternConfig.RegexValues,
-      ['^/api/clients/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/capabilities$'],
-    );
-    // Every earlier rule keeps its accepted priority.
-    assert.equal(edge.Resources.PublicNewsletterCapabilityPosts.Properties.Priority, 88);
-    assert.equal(edge.Resources.CoreInternalOnboardingTenants.Properties.Priority, 92);
-    assert.equal(Math.max(...rules.map((rule) => Number(rule.Priority))), 95);
-  }));
-
-test('Meri governed action proposals admit only the exact Core proposal POST routes on the preview host', () =>
-  render(false, (edge) => {
-    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule')
-      .map((r) => r.Properties)
-      .sort((a, b) => Number(a.Priority) - Number(b.Priority));
-    // Meri control prepares every governed write (Research Portfolio management, watch, LegiWatch, client record,
-    // business-development, legislative document and sharing proposals) with this one Core POST and decides it with
-    // the approve/dismiss POSTs. Until 2 Nov 2026 none of the three was forwarded: the listener's fixed 404
-    // answered, Core never saw the request, and every proposal card ended "Result uncertain" or "Failed".
-    const create = '/api/clio/action-proposals';
-    const proposal = `${create}/11111111-1111-4111-8111-111111111111`;
-    for (const pathname of [create, `${proposal}/approve`, `${proposal}/dismiss`]) {
-      assert.deepEqual(routeDestination(rules, 'POST', pathname), { Ref: 'CoreTarget' }, pathname);
-      for (const method of ['PUT', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE'])
-        assert.equal(routeDestination(rules, method, pathname), null, `${method} ${pathname}`);
-      for (const hostname of ['app.capiro.ai', 'arbitrary.invalid'])
-        assert.equal(routeDestination(rules, 'POST', pathname, hostname), null, hostname);
-    }
-    // The existing read rule keeps serving the recovery list on the same path.
-    for (const method of ['GET', 'HEAD'])
-      assert.deepEqual(routeDestination(rules, method, create), { Ref: 'CoreTarget' });
-    for (const neighbor of [
-      `${create}/`,
-      `${create}/extra`,
-      `${create}.invalid`,
-      `/extra${create}`,
-      `${proposal}`,
-      `${proposal}/`,
-      `${proposal}/approve/`,
-      `${proposal}/execute`,
-      `${create}/not-a-uuid/approve`,
-      `${create}/11111111111141118111111111111111/approve`,
-      `${create}/AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA/dismiss`,
-    ])
-      assert.equal(routeDestination(rules, 'POST', neighbor), null, neighbor);
-    const added = edge.Resources.MeriActionProposals.Properties;
-    assert.equal(added.Priority, 95);
-    assert.deepEqual(added.ListenerArn, { Ref: 'PreviewHttps' });
-    assert.deepEqual(added.Actions, [{ TargetGroupArn: { Ref: 'CoreTarget' }, Type: 'forward' }]);
-    assert.deepEqual(
-      added.Conditions.find((c: any) => c.Field === 'host-header').HostHeaderConfig.Values,
-      [host],
-    );
-    assert.deepEqual(
-      added.Conditions.find((c: any) => c.Field === 'http-request-method').HttpRequestMethodConfig
-        .Values,
-      ['POST'],
-    );
-    assert.deepEqual(
-      added.Conditions.find((c: any) => c.Field === 'path-pattern').PathPatternConfig.RegexValues,
-      [
-        '^/api/clio/action-proposals$',
-        '^/api/clio/action-proposals/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/(approve|dismiss)$',
-      ],
-    );
-    // Every earlier rule keeps its accepted priority.
-    assert.equal(edge.Resources.ClientCapabilityCreate.Properties.Priority, 93);
-    assert.equal(edge.Resources.ClientCapabilityUpdate.Properties.Priority, 94);
-  }));
-
-test('client capability update admits only the canonical two-UUID PATCH route on the preview host', () =>
-  render(false, (edge) => {
-    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule')
-      .map((r) => r.Properties)
-      .sort((a, b) => Number(a.Priority) - Number(b.Priority));
-    const client = '11111111-1111-4111-8111-111111111111';
-    const capability = '22222222-2222-4222-8222-222222222222';
-    const pathname = `/api/clients/${client}/capabilities/${capability}`;
-    // The ordinary writer sends PATCH when the capability id already exists.
-    assert.deepEqual(routeDestination(rules, 'PATCH', pathname), { Ref: 'CoreTarget' });
-    for (const method of ['POST', 'PUT', 'DELETE', 'OPTIONS', 'TRACE'])
-      assert.equal(routeDestination(rules, method, pathname), null, `${method} ${pathname}`);
-    for (const hostname of ['app.capiro.ai', 'arbitrary.invalid'])
-      assert.equal(routeDestination(rules, 'PATCH', pathname, hostname), null, hostname);
-    for (const neighbor of [
-      `${pathname}/`,
-      `${pathname}/extra`,
-      `/extra${pathname}`,
-      `/api/clients/${client}/capabilities`,
-      `/api/clients//capabilities/${capability}`,
-      `/api/clients/not-a-uuid/capabilities/${capability}`,
-      `/api/clients/${client}/capabilities/not-a-uuid`,
-      '/api/clients/AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA/capabilities/' + capability,
-      `/api/clients/${client}/capabilities/BBBBBBBB-BBBB-4BBB-8BBB-BBBBBBBBBBBB`,
-      `/api/clients/${client.replace(/-/g, '')}/capabilities/${capability}`,
-      `/api/clients/${client}/capabilities/${capability.replace(/-/g, '')}`,
-    ])
-      assert.equal(routeDestination(rules, 'PATCH', neighbor), null, neighbor);
-    // The create route and its priority are untouched.
-    assert.deepEqual(routeDestination(rules, 'POST', `/api/clients/${client}/capabilities`), {
-      Ref: 'CoreTarget',
-    });
-    const added = edge.Resources.ClientCapabilityUpdate.Properties;
-    assert.equal(added.Priority, 94);
-    assert.deepEqual(added.ListenerArn, { Ref: 'PreviewHttps' });
-    assert.deepEqual(added.Actions, [{ TargetGroupArn: { Ref: 'CoreTarget' }, Type: 'forward' }]);
-    assert.deepEqual(
-      added.Conditions.find((c: any) => c.Field === 'host-header').HostHeaderConfig.Values,
-      [host],
-    );
-    assert.deepEqual(
-      added.Conditions.find((c: any) => c.Field === 'http-request-method').HttpRequestMethodConfig
-        .Values,
-      ['PATCH'],
-    );
-    const regexes = added.Conditions.find((c: any) => c.Field === 'path-pattern').PathPatternConfig
-      .RegexValues;
-    assert.deepEqual(regexes, [
-      '^/api/clients/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/capabilities/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$',
-    ]);
-    // ALB allows at most three path values and five condition values in total.
-    assert.ok(regexes[0].length <= 128, `${regexes[0].length} characters`);
-    assert.equal(edge.Resources.ClientCapabilityCreate.Properties.Priority, 93);
-    assert.equal(edge.Resources.CoreInternalOnboardingTenants.Properties.Priority, 92);
-  }));
-
-test('appending the newsletter capability group leaves every existing rule mapping intact', () =>
-  render(false, (edge) => {
-    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule')
-      .map((r) => r.Properties)
-      .sort((a, b) => Number(a.Priority) - Number(b.Priority));
-    const pathsOf = (rule: any) =>
-      rule.Conditions.find((c: any) => c.Field === 'path-pattern').PathPatternConfig
-        .RegexValues;
-    // Five fixed routes precede the manifest; every manifest group keeps its accepted
-    // position, so no existing construct identity or priority shifts when one is appended.
-    assert.equal(rules.length, 5 + writes.groups.length);
-    assert.deepEqual(
-      rules.slice(0, 5).map((r) => Number(r.Priority)),
-      [1, 2, 3, 4, 5],
-    );
-    writes.groups.forEach((group: any, index: number) => {
-      const rule = rules[index + 5];
-      const label = group.id ?? `Wave2Writes${index + 1}`;
-      assert.equal(Number(rule.Priority), index + 6, label);
-      assert.deepEqual(pathsOf(rule), group.pathRegexes, label);
-    });
-    const newsletter = rules[82 + 5];
-    assert.equal(Number(newsletter.Priority), 88);
-    assert.deepEqual(pathsOf(newsletter), [
-      '^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/unsubscribe$',
-      '^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/preferences$',
-      '^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/survey$',
-    ]);
-    // The onboarding admissions occupy group positions 83-86 (rule indices 88-91, priorities
-    // 89-92). The two capability routes are appended after them and have their own tests.
-    assert.deepEqual(
-      rules.slice(88, 92).map((rule) => [Number(rule.Priority), pathsOf(rule)[0]]),
-      [
-        [89, '^/onboard-api/public/config$'],
-        [90, '^/onboard-api/setup/tasks/[A-Za-z0-9_-]+/transition$'],
-        [91, '^/onboard-api/setup/it-invites/[A-Za-z0-9_-]+/resend$'],
-        [92, '^/api/internal/onboarding/tenants$'],
-      ],
-    );
   }));
