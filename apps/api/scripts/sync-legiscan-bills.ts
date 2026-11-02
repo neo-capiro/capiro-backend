@@ -23,6 +23,8 @@
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { withStateBillWriter } from '../src/ingestion/state-bill-writer.js';
+import { withLegiscanApiAllowed } from '../src/ingestion/legiscan-provider-capacity.js';
+import { LegiscanProviderCapacityError } from '../src/external/legiscan/legiscan-capacity.js';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 import {
   getBill,
@@ -67,7 +69,7 @@ const STATES = WIDE_FY26
   ? [...new Set([...CONFIGURED_STATES, ...ALL_US_STATE_CODES])]
   : CONFIGURED_STATES;
 const DRAIN_CAP = Number(process.env.LEGISCAN_DRAIN_CAP ?? '400');
-const MONTHLY_BUDGET = Number(process.env.LEGISCAN_MONTHLY_BUDGET ?? '28000');
+const MONTHLY_BUDGET = Math.min(9000, Number(process.env.LEGISCAN_MONTHLY_BUDGET ?? '9000'));
 
 /** Add `delta` to a cursor's month-to-date query counter, rolling over on a calendar-month change. */
 async function bumpCursorQueries(
@@ -99,7 +101,9 @@ export async function main() {
   if (!LEGISCAN_API_KEY) throw new Error('LEGISCAN_API_KEY env var is required');
   const prisma = new PrismaClient();
   try {
-    await withStateBillWriter(prisma, STATES, (writer) => run(writer, FY26));
+    await withLegiscanApiAllowed(prisma, LEGISCAN_API_KEY, () =>
+      withStateBillWriter(prisma, STATES, (writer) => run(writer, FY26)),
+    );
   } finally {
     await prisma.$disconnect();
   }
@@ -434,7 +438,17 @@ async function run(prisma: PrismaClient, FY26: FiscalYearMode): Promise<void> {
                   await prisma.$executeRaw`UPDATE state_bill_record_check SET state=${state === 'extracted' ? 'available' : 'partial'},
                   checked_at=now(),next_check_at=now()+interval '7 days',error_code=NULL,provider_hash=${stub.hash ?? null}
                   WHERE bill_key=${normalized.billKey} AND kind='document' AND source_identity=${identity}`;
-                } catch {
+                } catch (error) {
+                  if (error instanceof LegiscanProviderCapacityError) {
+                    if (error.requestAttempts === 0) {
+                      queriesForBill--;
+                      requestsThisRun--;
+                    }
+                    await prisma.$executeRaw`UPDATE state_bill_record_check SET state='pending',error_code='EXISTING_PROVIDER_CAPACITY_HOLD',
+                      attempts=greatest(0,attempts-1),next_check_at=clock_timestamp()+${error.retryAfterMs}*interval '1 millisecond'
+                      WHERE bill_key=${normalized.billKey} AND kind='document' AND source_identity=${identity}`;
+                    throw error;
+                  }
                   errors++;
                   await prisma.$executeRaw`UPDATE state_bill_record_check SET state='failed',error_code='DOCUMENT_RETRIEVAL_OR_EXTRACTION_FAILED',
                   next_check_at=now()+least(interval '3 days',interval '3 hours'*power(2,least(attempts,4)))
@@ -545,6 +559,24 @@ async function run(prisma: PrismaClient, FY26: FiscalYearMode): Promise<void> {
             });
             if (!isWide) await bumpCursorQueries(prisma, cursorId, queriesForBill);
           } catch (err) {
+            if (err instanceof LegiscanProviderCapacityError) {
+              const current = await prisma.stateSyncCursor.findUnique({ where: { id: cursorId } });
+              const pending = [
+                ...new Set([
+                  ...(current?.pendingBills ?? []),
+                  billId,
+                  ...queue.ids,
+                  ...queue.retained,
+                  ...(retries.get(cursorId) ?? []),
+                ]),
+              ];
+              await prisma.stateSyncCursor.update({
+                where: { id: cursorId },
+                data: { pendingBills: { set: pending } },
+              });
+              if (!isWide) await bumpCursorQueries(prisma, cursorId, queriesForBill);
+              throw err;
+            }
             if (isWide && !queue.retained.includes(billId)) queue.retained.push(billId);
             errors++;
             if (admitted)

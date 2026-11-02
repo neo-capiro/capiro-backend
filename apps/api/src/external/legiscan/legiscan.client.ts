@@ -16,6 +16,11 @@
  * verified against the Phase 0 implementation plan §2 S1.1).
  */
 
+import {
+  assertLegiscanCapacityAllowed,
+  observeLegiscanCapacityError,
+} from './legiscan-capacity.js';
+
 const LEGISCAN_BASE = 'https://api.legiscan.com/';
 const PACE_MS = 250;
 
@@ -58,6 +63,7 @@ async function legiscanFetch<T>(
   transport: LegiscanTransport = SYNC_TRANSPORT,
 ): Promise<T> {
   await pace();
+  await assertLegiscanCapacityAllowed(apiKey, attempt - 1);
   if (attempt > 1) onRetry?.();
   const url = new URL(LEGISCAN_BASE);
   url.searchParams.set('key', apiKey);
@@ -88,6 +94,7 @@ async function legiscanFetch<T>(
   if (!res.ok) throw new Error(`LegiScan HTTP ${res.status} for op=${op}`);
   const body = (await res.json()) as LegiscanEnvelope & T;
   if (body.status && body.status !== 'OK') {
+    await observeLegiscanCapacityError(apiKey, body.alert?.message ?? '', attempt);
     const msg = body.alert?.message ? `: ${body.alert.message}` : '';
     throw new Error(`LegiScan op=${op} status=${body.status}${msg}`);
   }
@@ -117,6 +124,7 @@ export async function getSessionList(
   state: string,
   transport?: LegiscanTransport,
   onRetry?: () => void,
+  requireCompleteInventory = false,
 ): Promise<LegiscanSession[]> {
   const body = await legiscanFetch<{ sessions?: LegiscanSession[] }>(
     apiKey,
@@ -126,6 +134,8 @@ export async function getSessionList(
     onRetry,
     transport,
   );
+  if (requireCompleteInventory && !Array.isArray(body.sessions))
+    throw Error('LEGISCAN_SESSION_INVENTORY_MISSING');
   return body.sessions ?? [];
 }
 
@@ -411,11 +421,16 @@ export interface LegiscanDatasetListing {
 export async function getDatasetList(
   apiKey: string,
   state: string,
+  onRetry?: () => void,
+  transport?: LegiscanTransport,
 ): Promise<LegiscanDatasetListing[]> {
   const body = await legiscanFetch<{ datasetlist?: LegiscanDatasetListing[] }>(
     apiKey,
     'getDatasetList',
     { state: state.toUpperCase() },
+    1,
+    onRetry,
+    transport,
   );
   return body.datasetlist ?? [];
 }
@@ -432,11 +447,20 @@ export async function getDataset(
   apiKey: string,
   sessionId: number,
   accessKey: string,
+  onRetry?: () => void,
+  transport?: LegiscanTransport,
 ): Promise<LegiscanDataset | null> {
-  const body = await legiscanFetch<{ dataset?: LegiscanDataset }>(apiKey, 'getDataset', {
-    id: sessionId,
-    access_key: accessKey,
-  });
+  const body = await legiscanFetch<{ dataset?: LegiscanDataset }>(
+    apiKey,
+    'getDataset',
+    {
+      id: sessionId,
+      access_key: accessKey,
+    },
+    1,
+    onRetry,
+    transport,
+  );
   return body.dataset ?? null;
 }
 

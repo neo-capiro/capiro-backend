@@ -63,5 +63,6 @@ docker run --rm --name "$run_id-tests" --read-only --network "container:$pg_id" 
   "$@" --entrypoint node "$builder" --experimental-vm-modules node_modules/jest/bin/jest.js \
   --runInBand --runTestsByPath src/retrieval/bill-text.pg.spec.ts \
   src/ingestion/state-bill-writer.pg.spec.ts src/ingestion/state-document-queue.pg.spec.ts \
+  src/ingestion/legiscan-provider-capacity.pg.spec.ts \
   src/ingestion/bill-text-extraction-postgres.spec.ts
 printf 'BILL_POSTGRES_QUALIFICATION_OK image=%s\n' "$image"

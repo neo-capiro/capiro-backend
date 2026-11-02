@@ -21,6 +21,41 @@ def baseline():
             logConfiguration={'logDriver':'awslogs','options':{'awslogs-group':'/capiro/dev/sync-jobs','awslogs-stream-prefix':'ecs'}})])
 
 class ReleaseTests(unittest.TestCase):
+    def test_florida_passage_scope_is_explicit_and_cannot_replace_global_schedule(self):
+        for phase in ('embed','extract'):
+            command=self.task(job='state-passages',passage_states=['FL'],phase=phase)['containerDefinitions'][0]['command']
+            self.assertEqual(command[command.index('--states')+1],'FL')
+        self.assertNotIn('--states',self.task(job='state-passages')['containerDefinitions'][0]['command'])
+        with self.assertRaisesRegex(ValueError,'REQUIRE_STATE_JOB'):self.task(job='federal-passages',passage_states=['FL'])
+        with patch('sys.argv',['release','--job','state-passages','--states','FL','--operation','schedule','--commit','--source-sha',SHA,'--limit','1000']),patch.object(r,'aws') as aws:
+            with self.assertRaisesRegex(ValueError,'ONE_SHOT'):r.main()
+            aws.assert_not_called()
+
+    def test_federal_archive_and_generation_are_pinned_and_secret_minimal(self):
+        archive={'type':'hr','hash':'c'*64,'bills':10000}
+        task=self.task(job='federal-archive',federal=archive)['containerDefinitions'][0]
+        self.assertEqual(task['command'][:5],['import-federal-billstatus-cache','--congress','119','--type','hr'])
+        self.assertEqual([s['name'] for s in task['secrets']],['DB_USER','DB_PASSWORD'])
+        generation={'hashes':[format(i,'064x') for i in range(8)],'amendment_hash':'d'*64,'amendments':7119,'stage':'hydrate','request_cap':100}
+        for stage in ('hydrate','finalize'):
+            task=self.task(job='federal-inventory',federal={**generation,'stage':stage})['containerDefinitions'][0]
+            self.assertEqual([s['name'] for s in task['secrets']],['DB_USER','DB_PASSWORD'])
+            self.assertIn('--amendment-list-hash',task['command'])
+        for stage in ('metadata','inventory'):
+            with self.assertRaisesRegex(ValueError,'CONGRESS_REFERENCE_REQUIRED'):self.task(job='federal-inventory',federal={**generation,'stage':stage})
+            task=self.task(job='federal-inventory',federal={**generation,'stage':stage},congress_arn=f'arn:aws:secretsmanager:{r.REGION}:{r.ACCOUNT}:secret:capiro/dev/congress_gov_api_key-AbCd')['containerDefinitions'][0]
+            self.assertEqual([s['name'] for s in task['secrets']],['DB_USER','DB_PASSWORD','CONGRESS_API_KEY'])
+        for change in [{'hashes':['a'*64]*8},{'amendment_hash':'latest'},{'request_cap':4801},{'stage':'all'}]:
+            with self.assertRaises(ValueError):self.task(job='federal-inventory',federal={**generation,**change})
+        for job in ('federal-inventory','federal-archive'):
+            with self.assertRaisesRegex(ValueError,'NOT_SCHEDULEABLE'):r.schedule_snapshot(job)
+
+    def test_federal_scope_rejections_precede_cloud_access(self):
+        for args in [ ['--job','federal-archive','--federal-type','hr'],['--job','federal-inventory','--archive-hashes',','.join(['a'*64]*8),'--amendment-list-hash','b'*64,'--federal-stage','hydrate'],['--job','state-drain','--federal-stage','metadata'] ]:
+            with patch('sys.argv',['release','--source-sha',SHA,*args]),patch.object(r,'aws') as aws:
+                with self.assertRaises(ValueError):r.main()
+                aws.assert_not_called()
+
     def test_publisher_only_has_no_provider_key_and_extraction_is_explicit_one_shot(self):
         container=self.task(job='state-drain',publisher_only=True)['containerDefinitions'][0]
         self.assertIn('--publisher-only',container['command'])
@@ -97,7 +132,7 @@ class ReleaseTests(unittest.TestCase):
                 ['sync-state-text-drain','--limit','3','--commit','--expected-host',r.HOST])
             self.assertEqual([secret['name'] for secret in container['secrets']],['DB_USER','DB_PASSWORD','LEGISCAN_API_KEY'])
             env={entry['name']:entry['value'] for entry in container['environment']}
-            self.assertEqual(env['LEGISCAN_MONTHLY_BUDGET'],'27000')
+            self.assertEqual(env['LEGISCAN_MONTHLY_BUDGET'],'9000')
             self.assertEqual(env['LEGISCAN_DRAIN_CAP'],'3')
             self.assertEqual(env['LEGISCAN_DOCUMENT_REFRESH_CAP'],'3')
             self.assertEqual(env['LEGISCAN_VOTE_REFRESH_CAP'],'25')

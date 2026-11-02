@@ -7,6 +7,7 @@ import { currentQuotaMonth, LEGISCAN_HARD_CAP, monthToDateQueries } from './legi
 import type { LegalResearchManifest } from './legal-research-manifest.js';
 import { inventoryObservedAt } from './legislative-corpus.js';
 import { withStateBillWriter } from './state-bill-writer.js';
+import { withLegiscanApiAllowed } from './legiscan-provider-capacity.js';
 import { retrieveStateDocument, StateDocumentRetrievalError } from './state-document-retrieval.js';
 import type { StateDocumentStub } from './state-document-stub.js';
 
@@ -20,60 +21,62 @@ export async function refreshResearchBillInventory(
   providerSessionId: number,
   cursorId: string,
 ) {
-  return withStateBillWriter(prisma, [manifest.jurisdiction], async (prisma) => {
-    if (!apiKey) throw Error('LEGISCAN_PROVIDER_NOT_CONFIGURED');
-    if (!bill.legiscanBillId || !bill.legiscanChangeHash)
-      throw Error('CANONICAL_BILL_IDENTITY_REQUIRED');
-    const month = currentQuotaMonth(),
-      reservationId = randomUUID();
-    const budget = Math.min(
-      27000,
-      LEGISCAN_HARD_CAP,
-      Number(process.env.LEGISCAN_MONTHLY_BUDGET ?? 27000),
-    );
-    await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('legiscan-research-quota',0))`;
-      const cursors = await tx.stateSyncCursor.findMany({
-        select: { queriesUsed: true, quotaMonth: true },
-      });
-      if (!Number.isFinite(budget) || monthToDateQueries(cursors, month) + 4 > budget)
-        throw Error('EXISTING_PROVIDER_BUDGET_HOLD');
-      const updated =
-        await tx.$executeRaw`UPDATE state_sync_cursor SET queries_used=CASE WHEN quota_month=${month} THEN queries_used+4 ELSE 4 END,quota_month=${month} WHERE id=${cursorId}`;
-      if (updated !== 1) throw Error('EXISTING_PROVIDER_CURSOR_REQUIRED');
-      await tx.$executeRaw`INSERT INTO legal_source_receipt(id,source,scope,manifest,complete) VALUES(${reservationId},'legiscan-research-inventory-reservation',${JSON.stringify({ jurisdiction: manifest.jurisdiction, sessionKey: manifest.sessionKey, billId: bill.id })}::jsonb,${JSON.stringify({ providerBillId: bill.legiscanBillId, reservedQueries: 4, quotaMonth: month })}::jsonb,false)`;
-    });
-    let attempts = 1;
-    try {
-      const raw = await getBill(apiKey, bill.legiscanBillId, () => {
-        attempts++;
-      });
-      if (
-        !raw ||
-        raw.bill_id !== bill.legiscanBillId ||
-        raw.state !== manifest.jurisdiction ||
-        raw.session?.session_id !== providerSessionId ||
-        raw.change_hash !== bill.legiscanChangeHash
-      )
-        throw Error('CANONICAL_BILL_REVISION_REFRESH_REQUIRED');
-      const inventory = {
-        ...reportSourceFacts(raw).documentInventory,
-        observedAt: new Date().toISOString(),
-      };
-      if (!inventory.sourceListComplete || inventory.expected.length > 500)
-        throw Error('PROVIDER_DOCUMENT_INVENTORY_INCOMPLETE');
+  return withLegiscanApiAllowed(prisma, apiKey, () =>
+    withStateBillWriter(prisma, [manifest.jurisdiction], async (prisma) => {
+      if (!apiKey) throw Error('LEGISCAN_PROVIDER_NOT_CONFIGURED');
+      if (!bill.legiscanBillId || !bill.legiscanChangeHash)
+        throw Error('CANONICAL_BILL_IDENTITY_REQUIRED');
+      const month = currentQuotaMonth(),
+        reservationId = randomUUID();
+      const budget = Math.min(
+        9000,
+        LEGISCAN_HARD_CAP,
+        Number(process.env.LEGISCAN_MONTHLY_BUDGET ?? 9000),
+      );
       await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('legiscan-research-quota',0))`;
+        const cursors = await tx.stateSyncCursor.findMany({
+          select: { queriesUsed: true, quotaMonth: true },
+        });
+        if (!Number.isFinite(budget) || monthToDateQueries(cursors, month) + 4 > budget)
+          throw Error('EXISTING_PROVIDER_BUDGET_HOLD');
         const updated =
-          await tx.$executeRaw`UPDATE state_bill SET report_source_facts=jsonb_set(coalesce(report_source_facts,'{}'::jsonb),'{documentInventory}',${JSON.stringify(inventory)}::jsonb) WHERE id=${bill.id} AND legiscan_bill_id=${bill.legiscanBillId} AND legiscan_change_hash=${bill.legiscanChangeHash}`;
-        if (updated !== 1) throw Error('CANONICAL_BILL_REVISION_CHANGED_DURING_REFRESH');
-        await tx.$executeRaw`INSERT INTO legal_source_receipt(id,source,scope,manifest,complete) VALUES(${randomUUID()},'legiscan-research-document-inventory',${JSON.stringify({ jurisdiction: manifest.jurisdiction, sessionKey: manifest.sessionKey, billId: bill.id })}::jsonb,${JSON.stringify({ inventory, reservationId, attempts })}::jsonb,true)`;
+          await tx.$executeRaw`UPDATE state_sync_cursor SET queries_used=CASE WHEN quota_month=${month} THEN queries_used+4 ELSE 4 END,quota_month=${month} WHERE id=${cursorId}`;
+        if (updated !== 1) throw Error('EXISTING_PROVIDER_CURSOR_REQUIRED');
+        await tx.$executeRaw`INSERT INTO legal_source_receipt(id,source,scope,manifest,complete) VALUES(${reservationId},'legiscan-research-inventory-reservation',${JSON.stringify({ jurisdiction: manifest.jurisdiction, sessionKey: manifest.sessionKey, billId: bill.id })}::jsonb,${JSON.stringify({ providerBillId: bill.legiscanBillId, reservedQueries: 4, quotaMonth: month })}::jsonb,false)`;
       });
-      return inventory;
-    } finally {
-      if (attempts < 4)
-        await prisma.$executeRaw`UPDATE state_sync_cursor SET queries_used=greatest(0,queries_used-${4 - attempts}) WHERE id=${cursorId} AND quota_month=${month}`;
-    }
-  });
+      let attempts = 1;
+      try {
+        const raw = await getBill(apiKey, bill.legiscanBillId, () => {
+          attempts++;
+        });
+        if (
+          !raw ||
+          raw.bill_id !== bill.legiscanBillId ||
+          raw.state !== manifest.jurisdiction ||
+          raw.session?.session_id !== providerSessionId ||
+          raw.change_hash !== bill.legiscanChangeHash
+        )
+          throw Error('CANONICAL_BILL_REVISION_REFRESH_REQUIRED');
+        const inventory = {
+          ...reportSourceFacts(raw).documentInventory,
+          observedAt: new Date().toISOString(),
+        };
+        if (!inventory.sourceListComplete || inventory.expected.length > 500)
+          throw Error('PROVIDER_DOCUMENT_INVENTORY_INCOMPLETE');
+        await prisma.$transaction(async (tx) => {
+          const updated =
+            await tx.$executeRaw`UPDATE state_bill SET report_source_facts=jsonb_set(coalesce(report_source_facts,'{}'::jsonb),'{documentInventory}',${JSON.stringify(inventory)}::jsonb) WHERE id=${bill.id} AND legiscan_bill_id=${bill.legiscanBillId} AND legiscan_change_hash=${bill.legiscanChangeHash}`;
+          if (updated !== 1) throw Error('CANONICAL_BILL_REVISION_CHANGED_DURING_REFRESH');
+          await tx.$executeRaw`INSERT INTO legal_source_receipt(id,source,scope,manifest,complete) VALUES(${randomUUID()},'legiscan-research-document-inventory',${JSON.stringify({ jurisdiction: manifest.jurisdiction, sessionKey: manifest.sessionKey, billId: bill.id })}::jsonb,${JSON.stringify({ inventory, reservationId, attempts })}::jsonb,true)`;
+        });
+        return inventory;
+      } finally {
+        if (attempts < 4)
+          await prisma.$executeRaw`UPDATE state_sync_cursor SET queries_used=greatest(0,queries_used-${4 - attempts}) WHERE id=${cursorId} AND quota_month=${month}`;
+      }
+    }),
+  );
 }
 
 /** Selected documents use the existing provider, evidence writer and quota cursor.

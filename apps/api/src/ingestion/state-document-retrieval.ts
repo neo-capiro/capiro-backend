@@ -5,6 +5,8 @@ import {
   type LegiscanDocument,
 } from '../external/legiscan/legiscan.client.js';
 import { reservedLegiscanQuery } from './legiscan-query-reservation.js';
+import { withLegiscanApiAllowed } from './legiscan-provider-capacity.js';
+import { LegiscanProviderCapacityError } from '../external/legiscan/legiscan-capacity.js';
 import { fetchStatePublisherDocument, PublisherDocumentError } from './state-publisher-document.js';
 import { validDocumentIdentity, type StateDocumentStub } from './state-document-stub.js';
 
@@ -66,27 +68,29 @@ export async function retrieveStateDocument(prisma: PrismaClient, request: State
   }
   if (request.publisherOnly || !request.apiKey)
     throw new StateDocumentRetrievalError(publisherFailure, retryAfterMs, publisherFailure);
-  const apiKey=request.apiKey;
+  const apiKey = request.apiKey;
   try {
-    const result = await reservedLegiscanQuery(
-      prisma,
-      {
-        ...request,
-        operation: request.stub.kind === 'text' ? 'getBillText' : 'getSupportingDocument',
-        providerId: request.stub.providerId,
-      },
-      async (retry) =>
-        checkedDocument(
-          request.stub.kind === 'text'
-            ? await getBillText(apiKey, request.stub.providerId, retry)
-            : await getSupportingDocument(
-                apiKey,
-                request.stub.kind,
-                request.stub.providerId,
-                retry,
-              ),
-          request,
-        ),
+    const result = await withLegiscanApiAllowed(prisma, apiKey, () =>
+      reservedLegiscanQuery(
+        prisma,
+        {
+          ...request,
+          operation: request.stub.kind === 'text' ? 'getBillText' : 'getSupportingDocument',
+          providerId: request.stub.providerId,
+        },
+        async (retry) =>
+          checkedDocument(
+            request.stub.kind === 'text'
+              ? await getBillText(apiKey, request.stub.providerId, retry)
+              : await getSupportingDocument(
+                  apiKey,
+                  request.stub.kind,
+                  request.stub.providerId,
+                  retry,
+                ),
+            request,
+          ),
+      ),
     );
     return {
       document: result.value,
@@ -95,6 +99,12 @@ export async function retrieveStateDocument(prisma: PrismaClient, request: State
       publisherFailure,
     };
   } catch (error) {
+    if (error instanceof LegiscanProviderCapacityError)
+      throw new StateDocumentRetrievalError(
+        'EXISTING_PROVIDER_CAPACITY_HOLD',
+        error.retryAfterMs,
+        publisherFailure,
+      );
     if (error instanceof StateDocumentRetrievalError) throw error;
     if (error instanceof Error && error.message.startsWith('EXISTING_PROVIDER_'))
       throw new StateDocumentRetrievalError(error.message, retryAfterMs, publisherFailure);

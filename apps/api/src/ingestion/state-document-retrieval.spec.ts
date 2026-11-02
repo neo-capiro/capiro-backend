@@ -47,7 +47,12 @@ function database(used = 0) {
       findMany: jest.fn(async () => [{ queriesUsed: used, quotaMonth: currentQuotaMonth() }]),
     },
   };
-  return { ...tx, $transaction: jest.fn(async (run) => run(tx)), tx } as any;
+  return {
+    ...tx,
+    $queryRawUnsafe: jest.fn(async () => []),
+    $transaction: jest.fn(async (run) => run(tx)),
+    tx,
+  } as any;
 }
 beforeEach(() => {
   jest.clearAllMocks();
@@ -81,6 +86,22 @@ test('publisher-only failure cannot spend provider quota', async () => {
     'DOCUMENT_PROVIDER_HASH_MISMATCH',
   );
   expect(prisma.$transaction).not.toHaveBeenCalled();
+});
+test('provider capacity hold leaves publisher failure pending without reserving API units', async () => {
+  const prisma = database();
+  prisma.$queryRawUnsafe.mockResolvedValue([{ cursor: { exhausted: true } }]);
+  await expect(
+    retrieveStateDocument(prisma, { ...request, apiKey: 'synthetic-document-held' }),
+  ).rejects.toMatchObject({
+    message: 'EXISTING_PROVIDER_CAPACITY_HOLD',
+    publisherFailure: 'DOCUMENT_PROVIDER_HASH_MISMATCH',
+  });
+  expect(prisma.$transaction).not.toHaveBeenCalled();
+  expect(getBillText).not.toHaveBeenCalled();
+  (fetchStatePublisherDocument as jest.Mock).mockResolvedValue(doc);
+  expect(
+    await retrieveStateDocument(prisma, { ...request, apiKey: 'synthetic-document-held' }),
+  ).toMatchObject({ acquisition: 'publisher', apiAttempts: 0 });
 });
 test('provider fallback charges initial call and all retries, refunds only unused reserved units', async () => {
   const prisma = database();

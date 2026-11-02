@@ -338,6 +338,12 @@ case "${1:-serve}" in
     echo "Running qualify-defense-budget-drain-image-v1 (isolated Postgres+MinIO only; never touches production)"
     exec ./node_modules/.bin/tsx scripts/qualify-defense-budget-drain-image-v1.ts "$@"
     ;;
+  record-legiscan-capacity-hold|import-federal-billstatus-cache|sync-federal-bill-inventory)
+    verb="$1"
+    shift
+    compose_database_url
+    exec ./node_modules/.bin/tsx "scripts/$verb.ts" "$@"
+    ;;
   *)
     exec /bin/sh /usr/local/lib/capiro/entrypoint-legacy.sh "$@"
     ;;

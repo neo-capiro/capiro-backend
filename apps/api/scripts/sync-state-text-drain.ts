@@ -74,7 +74,7 @@ export async function drainStateDocuments(
        WHERE d.kind='document' AND d.next_check_at<=clock_timestamp()
        AND d.source_identity ~ '^(text|amendment|supplement):[0-9]+$'
        AND upper(b.state)=ANY($1::text[]) AND ${STATE_FY26_SQL}
-       ORDER BY d.next_check_at,d.bill_key,d.source_identity LIMIT $2`,
+       ORDER BY CASE WHEN d.source_identity ~ '^(text|amendment):' THEN 0 ELSE 1 END,d.next_check_at,d.bill_key,d.source_identity LIMIT $2`,
       options.states,
       options.limit,
     );
@@ -105,7 +105,7 @@ export async function drainStateDocuments(
      WHERE d.kind='document' AND d.next_check_at<=clock_timestamp() AND d.state<>'review_required'
        AND d.source_identity ~ '^(text|amendment|supplement):[0-9]+:'
        AND upper(b.state)=ANY($1::text[]) AND b.legiscan_bill_id IS NOT NULL AND ${STATE_FY26_SQL}
-     ORDER BY d.next_check_at,d.bill_key,d.source_identity LIMIT $2`,
+     ORDER BY CASE WHEN d.source_identity ~ '^(text|amendment):' THEN 0 ELSE 1 END,d.next_check_at,d.bill_key,d.source_identity LIMIT $2`,
     options.states,
     options.limit,
   );
@@ -199,7 +199,9 @@ export async function drainStateDocuments(
         if (error instanceof StateDocumentRetrievalError) {
           failure = error.message;
           retryAfter = Math.max(retryAfter, error.retryAfterMs);
-          failed = failure !== 'EXISTING_PROVIDER_BUDGET_HOLD';
+          failed = !['EXISTING_PROVIDER_BUDGET_HOLD', 'EXISTING_PROVIDER_CAPACITY_HOLD'].includes(
+            failure,
+          );
         } else {
           failure = 'DOCUMENT_EXTRACTION_FAILED';
           failed = true;

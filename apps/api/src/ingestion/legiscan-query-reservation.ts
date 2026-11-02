@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
+import { LegiscanProviderCapacityError } from '../external/legiscan/legiscan-capacity.js';
 import { currentQuotaMonth, LEGISCAN_HARD_CAP, monthToDateQueries } from './legiscan-quota.util.js';
 
 /** One bounded provider request through the existing cursor/transaction lock.
@@ -19,10 +20,10 @@ export async function reservedLegiscanQuery<T>(
   const month = currentQuotaMonth(),
     reservationId = randomUUID();
   const budget = Math.min(
-    27000,
-    30000,
+    9000,
+    10000,
     LEGISCAN_HARD_CAP,
-    Number(process.env.LEGISCAN_MONTHLY_BUDGET ?? 27000),
+    Number(process.env.LEGISCAN_MONTHLY_BUDGET ?? 9000),
   );
   await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('legiscan-research-quota',0))`;
@@ -46,6 +47,9 @@ export async function reservedLegiscanQuery<T>(
       attempts++;
     });
     return { value, attempts };
+  } catch (error) {
+    if (error instanceof LegiscanProviderCapacityError) attempts = error.requestAttempts;
+    throw error;
   } finally {
     if (attempts < 4)
       await prisma.$executeRaw`UPDATE state_sync_cursor SET queries_used=greatest(0,queries_used-${4 - attempts}) WHERE id=${request.cursorId} AND quota_month=${month}`;

@@ -189,10 +189,13 @@ it('persists authoritative archive/inventory before any metadata and can stage o
   expect(upsertNormalizedStateBill).not.toHaveBeenCalled();
   expect(db.stateSyncCursor.upsert).not.toHaveBeenCalled();
 });
-it('refuses conflicting retained receipt/archive before parent work',async()=>{
-  const f=await fixture([bill(1)]),{db}=database();
+it('refuses conflicting retained receipt/archive before parent work', async () => {
+  const f = await fixture([bill(1)]),
+    { db } = database();
   db.$queryRaw.mockResolvedValue([]);
-  await expect(importFrozenStateDataset(db,f.archive,f.scope,{limit:1})).rejects.toThrow('RECEIPT_CONFLICT');
+  await expect(importFrozenStateDataset(db, f.archive, f.scope, { limit: 1 })).rejects.toThrow(
+    'RECEIPT_CONFLICT',
+  );
   expect(upsertNormalizedStateBill).not.toHaveBeenCalled();
   expect(db.stateSyncCursor.upsert).not.toHaveBeenCalled();
 });
@@ -269,12 +272,40 @@ it('does not advance the durable cursor when a child write fails', async () => {
     imported: 1,
   });
 });
-it('uses canonical completed checkpoint status for empty and fully processed scopes',async()=>{
-  for(const admitted of [false,true]){
-    const f=await fixture([bill(1,admitted?{}:{history:[]})]),{db}=database();
-    expect(await importFrozenStateDataset(db,f.archive,f.scope,{limit:1})).toMatchObject({scanComplete:true});
-    const calls=db.$executeRaw.mock.calls.filter((call:any)=>call[0].join('').includes('federal_evidence_checkpoint'));
+it('uses canonical completed checkpoint status for empty and fully processed scopes', async () => {
+  for (const admitted of [false, true]) {
+    const f = await fixture([bill(1, admitted ? {} : { history: [] })]),
+      { db } = database();
+    expect(await importFrozenStateDataset(db, f.archive, f.scope, { limit: 1 })).toMatchObject({
+      scanComplete: true,
+    });
+    const calls = db.$executeRaw.mock.calls.filter((call: any) =>
+      call[0].join('').includes('federal_evidence_checkpoint'),
+    );
     expect(calls.at(-1).slice(1)).toContain('completed');
-    expect(calls.flatMap((call:any)=>call.slice(1))).not.toContain('complete');
+    expect(calls.flatMap((call: any) => call.slice(1))).not.toContain('complete');
   }
+});
+it('seeds a missing hash from the current same-provider parent, never the stale archive hash', async () => {
+  const f = await fixture([bill(1)]),
+    current = 'e'.repeat(32),
+    { db } = database({ 'tx-2025-hb1': { legiscanBillId: 1, legiscanChangeHash: current } });
+  await importFrozenStateDataset(db, f.archive, f.scope, { limit: 1 });
+  const update = db.$executeRaw.mock.calls.find((call: any) =>
+    call[0].join('').includes('UPDATE state_sync_cursor'),
+  );
+  expect(update.slice(1)).toContain(current);
+  expect(update.slice(1)).not.toContain('a'.repeat(32));
+  expect(upsertNormalizedStateBill).not.toHaveBeenCalled();
+});
+it('honors the refresh slice deadline before metadata writes and refuses limits above1000', async () => {
+  const f = await fixture([bill(1)]),
+    { db } = database();
+  await expect(importFrozenStateDataset(db, f.archive, f.scope, { limit: 1001 })).rejects.toThrow(
+    'LIMIT',
+  );
+  await expect(
+    importFrozenStateDataset(db, f.archive, f.scope, { limit: 1000, deadline: Date.now() - 1 }),
+  ).rejects.toThrow();
+  expect(upsertNormalizedStateBill).not.toHaveBeenCalled();
 });

@@ -92,10 +92,21 @@ under the same rule and release lock after checking for concurrent changes.
 Confirm a later timer-triggered task, exact digest and zero-error receipt before
 declaring schedule acceptance; manual canaries alone do not establish that.
 
-Neo confirmed a 30,000-query monthly LegiScan allowance. Root must freshly audit
-tracked usage and reserve remaining calls before provider work; the confirmed
-allowance does not establish how many calls remain. Keep the existing 27,000
-soft budget and 30,000 hard limit. `state-dataset` and `state-drain` are explicit
+The configured LegiScan account reported 10,095 of 10,000 queries used on
+2026-11-02, resetting December 1; Neo accepted that actual limit. The effective
+soft budget is 9,000 and hard ceiling 10,000. No API requests remain authorized
+for this month. The existing checkpoint stores a durable month/key capacity
+hold checked before every API attempt/retry; it does not fabricate usage counts.
+Root can seed the captured observation with `record-legiscan-capacity-hold
+--month 2026-11 --observed-used 10095 --observed-limit 10000 --commit
+--expected-host <clone-host>`, supplying the same configured key privately in
+the environment. This makes zero provider calls. A new month or different key
+uses a different hold. Same-key recovery requires explicit `--release
+--confirmed-account-change`, fresh reported usage below the limit and a process
+restart; never probe repeatedly to discover recovery. Cached imports and
+publisher-only downloads remain available. Prioritize Florida one-shots first,
+then continue the remaining jurisdictions and federal scope.
+`state-dataset` and `state-drain` are explicit
 commit-only, one-shot commands; neither can be scheduled by this operator.
 Datasets require exactly one state per invocation. Dataset exports supply bill,
 roll-call and person metadata; they do not contain `getBillText` bodies. Full
@@ -110,6 +121,24 @@ explicit gap; the existing API fallback requires a successful quota reservation
 and charges failed attempts and retries. At the soft budget, publisher retrieval
 can continue while API calls remain held. The direct CLI also supports
 `--publisher-only`. State passages embed stored text without provider calls.
+
+For the Florida-first run use `--job state-drain --states FL --publisher-only`.
+The bounded queue gives text and amendments precedence over supplements and
+keeps each historical hash's retry state independent. Use `--job state-passages
+--states FL --phase extract`, then the same scope with `--phase embed`; the
+state filter has its own checkpoint and does not reset the global cursor.
+Filtered passage jobs cannot replace an existing global schedule.
+
+Federal cached metadata uses `--job federal-archive --federal-type hr
+--archive-hash <staged-sha256> --archive-bills <exact-count>`. Run each of the
+eight types through its exact retained archive. The amendment list is staged
+by the offline cache CLI and must match its frozen hash. `--job
+federal-inventory --archive-hashes <eight-distinct-sha256s>
+--amendment-list-hash <sha256> --federal-stage metadata|inventory|hydrate|finalize`
+runs one bounded phase (`--limit`, `--request-cap`). Only metadata/inventory
+inject the existing `capiro/dev/congress_gov_api_key` reference. Archive,
+hydrate and finalize carry no provider credentials. These jobs are one-shot
+only and retain the same source, clone, role, image and receipt guards.
 
 State metadata, masterlist, status derivation, historical import, research
 hydration and text drain share per-state checkpoint leases; actual mutations
@@ -182,6 +211,26 @@ The wide drain preserves unrelated pending work, updates only admitted known
 parents and queues exact document hashes for publisher-first hydration. New
 wide API calls use the same four-attempt reservation owner as document fallback,
 charge retries/failures, and refuse calls at the existing soft/hard budgets.
-This option refreshes known parents; it alone does not establish fresh discovery
-of late-published FY26 parents. Report frozen source age and that discovery gap
-until the bounded dataset-refresh cycle is qualified.
+This option refreshes known parents. After qualification, optionally set
+`LEGISCAN_FY26_DATASET_REFRESH_ENABLED=true` and the exact image `GIT_SHA` on the
+same existing hourly masterlist job to discover late-published FY26 parents.
+It starts a cycle only at least seven days after the previous completed global
+receipt. Each invocation performs one state discovery or one session's archive
+stage/import, with at most 1,000 parent writes and a ten-minute slice deadline.
+Provider calls use bounded single-attempt transport and the existing reservation
+owner. Failed requests remain charged; later hourly opportunities resume.
+
+The archive phase acquires only the selected state's shared writer lease after
+the masterlist leases are released. The existing checkpoint
+`fy26-state-dataset-refresh` records pending phases, source observation time and
+explicit failures. Missing historical sessions, mismatched archives or budget
+holds never publish a replacement global denominator. The previous global
+manifest remains authoritative until the full cycle is qualified. A cycle may
+span more than a week; report its pending state and source age without asserting
+a weekly completion guarantee.
+
+Initial publisher backfill can use operator `--job state-drain --publisher-only`
+to omit the LegiScan credential and prohibit API fallback. Run structured
+extraction separately with `--job state-passages --phase extract` or
+`--job federal-passages --phase extract`; these are one-shot phases and do not
+replace the existing embedding schedules.

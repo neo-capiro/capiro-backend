@@ -1,6 +1,8 @@
 import type { PrismaClient } from '@prisma/client';
 import { ALL_US_STATE_CODES, PRIORITY_STATE_CODES } from '../external/legiscan/us-states.js';
 import { getMasterListRaw } from '../external/legiscan/legiscan.client.js';
+import { withLegiscanApiAllowed } from './legiscan-provider-capacity.js';
+import { LegiscanProviderCapacityError } from '../external/legiscan/legiscan-capacity.js';
 import { reservedLegiscanQuery } from './legiscan-query-reservation.js';
 import { loadPinnedStateInventory } from './state-bill-inventory-read.js';
 
@@ -68,10 +70,12 @@ export async function refreshKnownFy26Wide(prisma: PrismaClient, apiKey: string)
       );
       if (!wideListDue(attempted[0]?.at)) continue;
       try {
-        const result = await reservedLegiscanQuery(
-          prisma,
-          { state, cursorId, operation: 'getMasterListRaw', providerId: sessionId },
-          (retry) => getMasterListRaw(apiKey, sessionId, undefined, retry),
+        const result = await withLegiscanApiAllowed(prisma, apiKey, () =>
+          reservedLegiscanQuery(
+            prisma,
+            { state, cursorId, operation: 'getMasterListRaw', providerId: sessionId },
+            (retry) => getMasterListRaw(apiKey, sessionId, undefined, retry),
+          ),
         );
         queries += result.attempts;
         const pending = new Set(cursor.pendingBills);
@@ -90,6 +94,8 @@ export async function refreshKnownFy26Wide(prisma: PrismaClient, apiKey: string)
         });
         queued += toQueue.length;
       } catch (error) {
+        if (error instanceof LegiscanProviderCapacityError)
+          return { queries, queued, errors, budgetHeld: true, reason: error.message };
         if (error instanceof Error && error.message === 'EXISTING_PROVIDER_BUDGET_HOLD')
           return { queries, queued, errors, budgetHeld: true };
         errors++;

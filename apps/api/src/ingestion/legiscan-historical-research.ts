@@ -1,4 +1,5 @@
 import { withStateBillWriter } from './state-bill-writer.js';
+import { withLegiscanApiAllowed } from './legiscan-provider-capacity.js';
 import { createHash } from 'node:crypto';
 import type { PrismaClient } from '@prisma/client';
 import type { LegiscanSession } from '../external/legiscan/legiscan.client.js';
@@ -34,7 +35,11 @@ export interface FrozenDatasetScope {
 
 /** Offline validation precedes any write. The exact frozen ZIP is the source;
  * current provider listings are neither queried nor substituted. */
-export async function inspectFrozenStateDataset(archive: Buffer, scope: FrozenDatasetScope) {
+export async function inspectFrozenStateDataset(
+  archive: Buffer,
+  scope: FrozenDatasetScope,
+  deadline?: number,
+) {
   if (
     !(ALL_US_STATE_CODES as readonly string[]).includes(scope.state) ||
     !Number.isSafeInteger(scope.sessionId) ||
@@ -46,7 +51,7 @@ export async function inspectFrozenStateDataset(archive: Buffer, scope: FrozenDa
     createHash('sha256').update(archive).digest('hex') !== scope.archiveHash
   )
     throw Error('FROZEN_DATASET_SCOPE_OR_HASH_MISMATCH');
-  const parsed = await parseDatasetZip(archive);
+  const parsed = await parseDatasetZip(archive, deadline);
   if (parsed.bills.length !== scope.expectedBills || Object.values(parsed.skipped).some(Boolean))
     throw Error('FROZEN_DATASET_INCOMPLETE');
   const session = parsed.bills[0]!.session;
@@ -130,11 +135,11 @@ export async function importFrozenStateDataset(
   prisma: PrismaClient,
   archive: Buffer,
   scope: FrozenDatasetScope,
-  options: { limit: number; inventoryOnly?: boolean },
+  options: { limit: number; inventoryOnly?: boolean; deadline?: number },
 ) {
   if (!Number.isInteger(options.limit) || options.limit < 1 || options.limit > 1000)
     throw Error('FROZEN_DATASET_LIMIT_INVALID');
-  const prepared = await inspectFrozenStateDataset(archive, scope);
+  const prepared = await inspectFrozenStateDataset(archive, scope, options.deadline);
   return withStateBillWriter(prisma, [scope.state], async (prisma) => {
     const { session, sessionKey, eligible, votesByBill, manifest } = prepared;
     const receiptScope = {
@@ -202,7 +207,11 @@ export async function importFrozenStateDataset(
     )
       throw Error('FROZEN_CHECKPOINT_INVALID');
     let processed = 0;
-    while (progress.offset < eligible.length && processed < options.limit) {
+    while (
+      progress.offset < eligible.length &&
+      processed < options.limit &&
+      (options.deadline === undefined || Date.now() + 60000 < options.deadline)
+    ) {
       const { raw, bill } = eligible[progress.offset]!;
       const status = await prisma.$transaction(async (tx) => {
         const existing = await tx.stateBill.findUnique({
@@ -242,8 +251,9 @@ export async function importFrozenStateDataset(
               },
             });
           }
-          if (status !== 'held')
-            await tx.$executeRaw`UPDATE state_sync_cursor SET bill_hashes=jsonb_build_object(${String(raw.bill_id)},${raw.change_hash}) || COALESCE(bill_hashes,'{}'::jsonb) WHERE id=${cursorId}`;
+          const canonicalHash = existing?.legiscanChangeHash ?? raw.change_hash;
+          if (typeof canonicalHash === 'string' && /^[a-f\d]{32}$/i.test(canonicalHash))
+            await tx.$executeRaw`UPDATE state_sync_cursor SET bill_hashes=jsonb_build_object(${String(raw.bill_id)},${canonicalHash}) || COALESCE(bill_hashes,'{}'::jsonb) WHERE id=${cursorId}`;
         }
         const next = { ...progress, offset: progress.offset + 1, [status]: progress[status] + 1 };
         const done = next.offset === eligible.length;
@@ -278,81 +288,88 @@ export async function pullHistoricalDatasets(
     datasets: Array<{ session_id: number; dataset_hash: string }>;
   },
 ) {
-  return withStateBillWriter(prisma, [state], async (prisma) => {
-    const key = process.env.LEGISCAN_API_KEY;
-    if (!key || process.env.LEGISCAN_SELECTED_HISTORY_APPLY !== 'true')
-      throw Error('SELECTED_HISTORY_NOT_CONFIGURED');
-    if (inventory.state !== state || ids.length > 4)
-      throw Error('REVIEWED_HISTORICAL_SCOPE_REQUIRED');
-    const reviewed = selectHistoricalSessions(inventory.sessions, 'selected', ids);
-    if (reviewed.some((s) => s.prior !== 1 || s.year_end >= new Date().getUTCFullYear()))
-      throw Error('EXPLICIT_COMPLETED_PRIOR_SESSION_REQUIRED');
-    const month = currentQuotaMonth(),
-      cost = 8 + 4 * ids.length,
-      cursorId = `${state}-${reviewed[0]!.session_id}`;
-    // Dataset operations have up to four transport attempts. Reserve the entire
-    // bounded run before the first request; failed runs retain that reservation.
-    await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('legiscan-research-quota',0))`;
-      const used = monthToDateQueries(
-        await tx.stateSyncCursor.findMany({ select: { queriesUsed: true, quotaMonth: true } }),
-        month,
-      );
-      const budget = Math.min(
-        LEGISCAN_HARD_CAP,
-        Number(process.env.LEGISCAN_MONTHLY_BUDGET ?? 28000),
-      );
-      if (!Number.isFinite(budget) || used + cost > budget)
-        throw Error('EXISTING_PROVIDER_BUDGET_HOLD');
-      await tx.stateSyncCursor.upsert({
-        where: { id: cursorId },
-        create: {
-          id: cursorId,
-          state,
-          sessionId: reviewed[0]!.session_id,
-          sessionKey: computeSessionKey(reviewed[0]!),
-          queriesUsed: 0,
-          quotaMonth: month,
-        },
-        update: {},
+  return withLegiscanApiAllowed(prisma, process.env.LEGISCAN_API_KEY ?? '', () =>
+    withStateBillWriter(prisma, [state], async (prisma) => {
+      const key = process.env.LEGISCAN_API_KEY;
+      if (!key || process.env.LEGISCAN_SELECTED_HISTORY_APPLY !== 'true')
+        throw Error('SELECTED_HISTORY_NOT_CONFIGURED');
+      if (inventory.state !== state || ids.length > 4)
+        throw Error('REVIEWED_HISTORICAL_SCOPE_REQUIRED');
+      const reviewed = selectHistoricalSessions(inventory.sessions, 'selected', ids);
+      if (reviewed.some((s) => s.prior !== 1 || s.year_end >= new Date().getUTCFullYear()))
+        throw Error('EXPLICIT_COMPLETED_PRIOR_SESSION_REQUIRED');
+      const month = currentQuotaMonth(),
+        cost = 8 + 4 * ids.length,
+        cursorId = `${state}-${reviewed[0]!.session_id}`;
+      // Dataset operations have up to four transport attempts. Reserve the entire
+      // bounded run before the first request; failed runs retain that reservation.
+      await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('legiscan-research-quota',0))`;
+        const used = monthToDateQueries(
+          await tx.stateSyncCursor.findMany({ select: { queriesUsed: true, quotaMonth: true } }),
+          month,
+        );
+        const budget = Math.min(
+          LEGISCAN_HARD_CAP,
+          Number(process.env.LEGISCAN_MONTHLY_BUDGET ?? 9000),
+        );
+        if (!Number.isFinite(budget) || used + cost > budget)
+          throw Error('EXISTING_PROVIDER_BUDGET_HOLD');
+        await tx.stateSyncCursor.upsert({
+          where: { id: cursorId },
+          create: {
+            id: cursorId,
+            state,
+            sessionId: reviewed[0]!.session_id,
+            sessionKey: computeSessionKey(reviewed[0]!),
+            queriesUsed: 0,
+            quotaMonth: month,
+          },
+          update: {},
+        });
+        await tx.$executeRaw`UPDATE state_sync_cursor SET queries_used=CASE WHEN quota_month=${month} THEN queries_used+${cost} ELSE ${cost} END,quota_month=${month} WHERE id=${cursorId}`;
       });
-      await tx.$executeRaw`UPDATE state_sync_cursor SET queries_used=CASE WHEN quota_month=${month} THEN queries_used+${cost} ELSE ${cost} END,quota_month=${month} WHERE id=${cursorId}`;
-    });
-    const sessions = selectHistoricalSessions(await getSessionList(key, state), 'selected', ids),
-      list = await getDatasetList(key, state),
-      outcomes = [];
-    for (const session of sessions) {
-      const previous = reviewed.find((s) => s.session_id === session.session_id),
-        listing = list.find((d) => d.session_id === session.session_id),
-        approved = inventory.datasets.find((d) => d.session_id === session.session_id);
-      if (
-        !previous ||
-        JSON.stringify([
-          previous.year_start,
-          previous.year_end,
-          previous.special,
-          previous.prior,
-        ]) !==
-          JSON.stringify([session.year_start, session.year_end, session.special, session.prior]) ||
-        !listing ||
-        !approved ||
-        approved.dataset_hash !== listing.dataset_hash
-      )
-        throw Error('REVIEWED_SESSION_OR_DATASET_CHANGED');
-      const dataset = await getDataset(key, session.session_id, listing.access_key);
-      if (
-        !dataset ||
-        dataset.session_id !== session.session_id ||
-        dataset.dataset_hash !== listing.dataset_hash ||
-        dataset.zip.length > 160_000_000
-      )
-        throw Error('DATASET_IDENTITY_OR_SIZE_UNQUALIFIED');
-      outcomes.push(
-        await applyHistoricalDataset(prisma, state, session, Buffer.from(dataset.zip, 'base64')),
-      );
-    }
-    return { reservedQueries: cost, outcomes };
-  });
+      const sessions = selectHistoricalSessions(await getSessionList(key, state), 'selected', ids),
+        list = await getDatasetList(key, state),
+        outcomes = [];
+      for (const session of sessions) {
+        const previous = reviewed.find((s) => s.session_id === session.session_id),
+          listing = list.find((d) => d.session_id === session.session_id),
+          approved = inventory.datasets.find((d) => d.session_id === session.session_id);
+        if (
+          !previous ||
+          JSON.stringify([
+            previous.year_start,
+            previous.year_end,
+            previous.special,
+            previous.prior,
+          ]) !==
+            JSON.stringify([
+              session.year_start,
+              session.year_end,
+              session.special,
+              session.prior,
+            ]) ||
+          !listing ||
+          !approved ||
+          approved.dataset_hash !== listing.dataset_hash
+        )
+          throw Error('REVIEWED_SESSION_OR_DATASET_CHANGED');
+        const dataset = await getDataset(key, session.session_id, listing.access_key);
+        if (
+          !dataset ||
+          dataset.session_id !== session.session_id ||
+          dataset.dataset_hash !== listing.dataset_hash ||
+          dataset.zip.length > 160_000_000
+        )
+          throw Error('DATASET_IDENTITY_OR_SIZE_UNQUALIFIED');
+        outcomes.push(
+          await applyHistoricalDataset(prisma, state, session, Buffer.from(dataset.zip, 'base64')),
+        );
+      }
+      return { reservedQueries: cost, outcomes };
+    }),
+  );
 }
 
 /** Additive prior-session ingestion through canonical writers. Conflicting

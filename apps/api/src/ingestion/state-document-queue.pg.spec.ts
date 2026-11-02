@@ -108,4 +108,46 @@ describe('exact historical document queue on disposable PostgreSQL', () => {
     );
     expect(await queueEventRecordRefresh(db, ['FL'])).toMatchObject({ eligible: 0, queued: 0 });
   });
+  it('prioritizes text and amendments ahead of older supplements without changing version identities', async () => {
+    jest.mocked(retrieveStateDocument).mockClear();
+    jest
+      .mocked(retrieveStateDocument)
+      .mockResolvedValue({ document: {} as any, apiAttempts: 0, acquisition: 'publisher' });
+    await db.$executeRawUnsafe('DELETE FROM state_bill_record_check');
+    const stubs = ['supplement', 'amendment', 'text'].map((kind, i) => ({
+      kind,
+      providerId: i + 1,
+      providerHash: newHash,
+    }));
+    await db.$executeRawUnsafe(
+      'UPDATE state_bill SET report_source_facts=$1::jsonb',
+      JSON.stringify({ retainedDocumentStubs: stubs }),
+    );
+    for (const stub of stubs)
+      await db.$executeRawUnsafe(
+        `INSERT INTO state_bill_record_check(bill_key,kind,source_identity,state,attempts,next_check_at)
+      VALUES('fl-2025-hb1','document',$1,'pending',0,clock_timestamp()-$2*interval '1 day')`,
+        `${stub.kind}:${stub.providerId}:${newHash}`,
+        stub.kind === 'supplement' ? 2 : 1,
+      );
+    expect(
+      await drainStateDocuments(db, {
+        states: ['FL'],
+        limit: 2,
+        commit: true,
+        publisherOnly: true,
+      }),
+    ).toMatchObject({ inserted: 2, errors: 0 });
+    expect(
+      jest
+        .mocked(retrieveStateDocument)
+        .mock.calls.map((call) => call[1].stub.kind)
+        .sort(),
+    ).toEqual(['amendment', 'text']);
+    expect(
+      await db.$queryRawUnsafe(
+        "SELECT state,attempts FROM state_bill_record_check WHERE source_identity LIKE 'supplement:%'",
+      ),
+    ).toEqual([{ state: 'pending', attempts: 0 }]);
+  });
 });

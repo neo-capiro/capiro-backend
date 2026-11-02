@@ -24,7 +24,7 @@ RULE = 'capiro-dev-sync-legiscan-bills'
 TASK_ROLE = f'arn:aws:iam::{ACCOUNT}:role/Capiro-dev-Compute-ApiTaskRole12FAD4A7-szq3QeeZJSCQ'
 EXEC_ROLE = f'arn:aws:iam::{ACCOUNT}:role/Capiro-dev-Compute-ApiMigrateTaskDefExecutionRoleEB-HuOMLdmYvwnx'
 STATES = set('AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY'.split())
-JOBS = ('index', 'federal-passages', 'state-passages', 'federal-text', 'state-dataset', 'state-drain', 'state-archive')
+JOBS = ('index', 'federal-passages', 'state-passages', 'federal-text', 'state-dataset', 'state-drain', 'state-archive', 'federal-archive', 'federal-inventory')
 SCHEDULES = {'federal-passages': 'cron(10 * * * ? *)', 'state-passages': 'cron(20 * * * ? *)',
              'federal-text': 'cron(0 * * * ? *)'}
 SCHEDULE_LIMITS = {'federal-text': 400, 'federal-passages': 1000, 'state-passages': 1000}
@@ -71,11 +71,27 @@ def image_digest(sha, qualified, write):
     require(not write or qualified == digest, 'EXACT_IMAGE_QUALIFICATION_REQUIRED')
     return digest
 
-def command_for(job, limit, commit, archive=None, publisher_only=False, phase='embed'):
+def command_for(job, limit, commit, archive=None, publisher_only=False, phase='embed', passage_states=None, federal=None):
     require(job in JOBS and type(limit) is int and 1 <= limit <= 1000, 'INVALID_JOB_OR_LIMIT')
     require(job != 'federal-text' or limit <= 400, 'FEDERAL_TEXT_CAP_EXCEEDED')
     require(not publisher_only or job == 'state-drain', 'PUBLISHER_ONLY_REQUIRES_STATE_DRAIN')
     require(phase in ('embed', 'extract') and (phase == 'embed' or job.endswith('-passages')), 'INVALID_EXTRACTION_PHASE')
+    require(passage_states is None or (job == 'state-passages' and passage_states and len(set(passage_states)) == len(passage_states) and set(passage_states) <= STATES), 'PASSAGE_STATES_REQUIRE_STATE_JOB')
+    if job in ('federal-archive', 'federal-inventory'):
+        require(archive is None and isinstance(federal, dict), 'FEDERAL_SCOPE_REQUIRED')
+        suffix = ['--commit', '--expected-host', HOST] if commit else []
+        if job == 'federal-archive':
+            require(set(federal) == {'type', 'hash', 'bills'} and federal['type'] in ('hr','s','hjres','sjres','hconres','sconres','hres','sres') and
+                    isinstance(federal['hash'], str) and re.fullmatch('[0-9a-f]{64}', federal['hash']) and type(federal['bills']) is int and 1 <= federal['bills'] <= 50000, 'INVALID_FEDERAL_ARCHIVE_SCOPE')
+            return ['import-federal-billstatus-cache', '--congress', '119', '--type', federal['type'], '--archive-hash', federal['hash'], '--expected-bills', str(federal['bills']), '--limit', str(limit)] + suffix
+        require(set(federal) == {'hashes', 'amendment_hash', 'amendments', 'stage', 'request_cap'} and isinstance(federal['hashes'], list) and len(federal['hashes']) == 8 and
+                all(isinstance(h,str) and re.fullmatch('[0-9a-f]{64}', h) for h in federal['hashes']) and len(set(federal['hashes'])) == 8 and
+                isinstance(federal['amendment_hash'],str) and re.fullmatch('[0-9a-f]{64}', federal['amendment_hash']) and
+                type(federal['amendments']) is int and 1 <= federal['amendments'] <= 100000 and federal['stage'] in ('metadata','inventory','hydrate','finalize') and
+                type(federal['request_cap']) is int and 1 <= federal['request_cap'] <= 4800, 'INVALID_FEDERAL_INVENTORY_SCOPE')
+        return ['sync-federal-bill-inventory','--congress','119','--archive-hashes',','.join(federal['hashes']),'--amendment-list-hash',federal['amendment_hash'],
+                '--expected-amendments',str(federal['amendments']),'--stage',federal['stage'],'--limit',str(limit),'--request-cap',str(federal['request_cap'])] + suffix
+    require(federal is None, 'FEDERAL_SCOPE_WRONG_JOB')
     if job == 'state-archive':
         require(isinstance(archive, dict) and set(archive) == {'state', 'session', 'hash', 'bills'}, 'ARCHIVE_SCOPE_REQUIRED')
         require(archive['state'] in STATES and type(archive['session']) is int and archive['session'] > 0 and
@@ -88,15 +104,15 @@ def command_for(job, limit, commit, archive=None, publisher_only=False, phase='e
     if job == 'index':
         return ['index-bill-passages'] + (['--commit', '--expected-host', HOST] if commit else [])
     if job.endswith('-passages'):
-        return ['embed-bill-passages', '--source', job.split('-')[0], '--limit', str(limit)] + (['--phase', 'extract'] if phase == 'extract' else []) + (['--commit', '--expected-host', HOST] if commit else [])
+        return ['embed-bill-passages', '--source', job.split('-')[0], '--limit', str(limit)] + (['--states', ','.join(passage_states)] if passage_states else []) + (['--phase', 'extract'] if phase == 'extract' else []) + (['--commit', '--expected-host', HOST] if commit else [])
     if job == 'federal-text':
         return ['sync-federal-legislative-evidence', '--collection', 'BILLS', '--congress', '119', '--full', '--historical', '--cap', str(limit)] + (['--commit'] if commit else [])
     require(commit, 'STATE_WRITER_REQUIRES_COMMIT')
     return ['backfill-legiscan-datasets'] if job == 'state-dataset' else [
         'sync-state-text-drain', '--limit', str(min(limit, 100)), '--commit', '--expected-host', HOST] + (['--publisher-only'] if publisher_only else [])
 
-def candidate_task(baseline, digest, sha, job, limit, states, commit, govinfo_arn=None, archive=None, publisher_only=False, phase='embed'):
-    command = command_for(job, limit, commit, archive, publisher_only, phase)
+def candidate_task(baseline, digest, sha, job, limit, states, commit, govinfo_arn=None, archive=None, publisher_only=False, phase='embed', passage_states=None, federal=None, congress_arn=None):
+    command = command_for(job, limit, commit, archive, publisher_only, phase, passage_states, federal)
     require(bool(re.fullmatch('sha256:[0-9a-f]{64}', digest)), 'INVALID_IMAGE_DIGEST')
     require(bool(re.fullmatch('[0-9a-f]{40}', sha)), 'INVALID_SOURCE_SHA')
     require(states and len(set(states)) == len(states) and set(states) <= STATES, 'INVALID_STATES')
@@ -120,11 +136,14 @@ def candidate_task(baseline, digest, sha, job, limit, states, commit, govinfo_ar
     if job == 'federal-text' and commit:
         require(govinfo_arn and re.fullmatch(f'arn:aws:secretsmanager:{REGION}:{ACCOUNT}:secret:capiro/dev/govinfo_api_key-[A-Za-z0-9]+', govinfo_arn), 'GOVINFO_REFERENCE_REQUIRED')
         secrets.append({'name': 'GOVINFO_API_KEY', 'valueFrom': govinfo_arn})
+    if job == 'federal-inventory' and commit and federal['stage'] in ('metadata','inventory'):
+        require(congress_arn and re.fullmatch(f'arn:aws:secretsmanager:{REGION}:{ACCOUNT}:secret:capiro/dev/congress_gov_api_key-[A-Za-z0-9]+', congress_arn), 'CONGRESS_REFERENCE_REQUIRED')
+        secrets.append({'name': 'CONGRESS_API_KEY', 'valueFrom': congress_arn})
     safe = {key: env[key] for key in ('DB_HOST', 'DB_PORT', 'DB_NAME')}
     safe.update(NODE_ENV='production', AWS_REGION_DEFAULT=REGION, BILL_FISCAL_YEAR='2026', GIT_SHA=sha, RELEASE_SHA=sha,
                 LEGISCAN_STATES=','.join(states), LEGISCAN_SESSIONS='all', LEGISCAN_DRAIN_CAP=str(limit),
                 LEGISCAN_DOCUMENT_REFRESH_CAP=str(min(limit, 100)), LEGISCAN_VOTE_REFRESH_CAP='25',
-                LEGISCAN_MONTHLY_BUDGET='27000', LEGISCAN_DOCUMENT_EVIDENCE_ENABLED='true',
+                LEGISCAN_MONTHLY_BUDGET='9000', LEGISCAN_HARD_CAP='10000', LEGISCAN_DOCUMENT_EVIDENCE_ENABLED='true',
                 LEGIWATCH_PUBLISHED_RECORD_REFRESH_ENABLED='true', FEDERAL_LEGISLATIVE_EVIDENCE_ENABLED='true')
     container = {'name': 'fy26-bills', 'image': IMAGE_PREFIX + digest, 'essential': True,
                  'command': command, 'environment': [{'name': k, 'value': v} for k, v in sorted(safe.items())],
@@ -225,10 +244,16 @@ def main():
     parser.add_argument('--operation', choices=['inspect', 'run', 'schedule'], default='inspect')
     parser.add_argument('--job', choices=JOBS, required=True)
     parser.add_argument('--limit', type=int, default=3)
-    parser.add_argument('--states', default='CA')
+    parser.add_argument('--states', help='State jobs default FL; explicit passage states use an isolated one-shot checkpoint')
     parser.add_argument('--archive-hash', help='Exact previously staged ZIP SHA256; state-archive only')
     parser.add_argument('--archive-session', type=int)
     parser.add_argument('--archive-bills', type=int, help='Exact full provider parent count in the frozen ZIP')
+    parser.add_argument('--federal-type', choices=['hr','s','hjres','sjres','hconres','sconres','hres','sres'])
+    parser.add_argument('--archive-hashes')
+    parser.add_argument('--amendment-list-hash')
+    parser.add_argument('--expected-amendments', type=int, default=7119)
+    parser.add_argument('--federal-stage', choices=['metadata','inventory','hydrate','finalize'])
+    parser.add_argument('--request-cap', type=int, default=100)
     parser.add_argument('--commit', action='store_true')
     parser.add_argument('--publisher-only', action='store_true', help='State drain without LegiScan API credentials or fallback')
     parser.add_argument('--phase', choices=['extract', 'embed'], default='embed', help='One-shot passage extraction or embedding')
@@ -236,15 +261,26 @@ def main():
     parser.add_argument('--qualified-digest', help='Exact ARM64 digest already probed and scanned by root')
     parser.add_argument('--receipt', type=Path, help='Absolute receipt path outside the checkout; required for run/schedule')
     args = parser.parse_args()
-    states = args.states.split(',')
+    states = (args.states or 'FL').split(',')
+    passage_states = states if args.states is not None and args.job == 'state-passages' else None
+    federal = None
+    if args.job == 'federal-archive':
+        require(args.archive_session is None and args.archive_hashes is None and args.amendment_list_hash is None and args.federal_stage is None, 'FEDERAL_ARCHIVE_ARGUMENT_MISMATCH')
+        federal = {'type':args.federal_type,'hash':args.archive_hash,'bills':args.archive_bills}
+    elif args.job == 'federal-inventory':
+        require(args.federal_type is None and args.archive_hash is None and args.archive_session is None and args.archive_bills is None, 'FEDERAL_INVENTORY_ARGUMENT_MISMATCH')
+        federal = {'hashes':(args.archive_hashes or '').split(','),'amendment_hash':args.amendment_list_hash,'amendments':args.expected_amendments,'stage':args.federal_stage,'request_cap':args.request_cap}
+    else:
+        require(not any(v is not None for v in (args.federal_type,args.archive_hashes,args.amendment_list_hash,args.federal_stage)) and args.expected_amendments == 7119 and args.request_cap == 100, 'FEDERAL_SCOPE_WRONG_JOB')
     archive = None
-    if args.job == 'state-archive' or any(value is not None for value in (args.archive_hash, args.archive_session, args.archive_bills)):
+    if args.job == 'state-archive' or (args.job != 'federal-archive' and any(value is not None for value in (args.archive_hash, args.archive_session, args.archive_bills))):
         require(len(states) == 1, 'ARCHIVE_REQUIRES_ONE_STATE')
         archive = {'state': states[0], 'session': args.archive_session, 'hash': args.archive_hash, 'bills': args.archive_bills}
-    command_for(args.job, args.limit, args.commit, archive, args.publisher_only, args.phase)
+    command_for(args.job, args.limit, args.commit, archive, args.publisher_only, args.phase, passage_states, federal)
     require(states and len(set(states)) == len(states) and set(states) <= STATES, 'INVALID_STATES')
     require(args.job != 'state-dataset' or len(states) == 1, 'DATASET_REQUIRES_ONE_STATE')
     if args.operation == 'schedule':
+        require(passage_states is None, 'STATE_SCOPED_PASSAGES_ARE_ONE_SHOT_ONLY')
         require(args.phase == 'embed', 'EXTRACTION_IS_ONE_SHOT_ONLY')
         require(args.commit and args.job in SCHEDULES, 'SCHEDULE_REQUIRES_SUPPORTED_COMMIT_JOB')
         require(args.limit == SCHEDULE_LIMITS[args.job], 'SCHEDULE_LIMIT_MISMATCH')
@@ -259,10 +295,11 @@ def main():
     target = aws('events', 'list-targets-by-rule', '--rule', RULE)['Targets']
     network = network_for(target)
     govinfo = aws('secretsmanager', 'describe-secret', '--secret-id', 'capiro/dev/govinfo_api_key')['ARN'] if args.job == 'federal-text' and args.commit else None
-    td = candidate_task(baseline, digest, sha, args.job, args.limit, states, args.commit, govinfo, archive, args.publisher_only, args.phase)
+    congress = aws('secretsmanager', 'describe-secret', '--secret-id', 'capiro/dev/congress_gov_api_key')['ARN'] if args.job == 'federal-inventory' and args.commit and federal['stage'] in ('metadata','inventory') else None
+    td = candidate_task(baseline, digest, sha, args.job, args.limit, states, args.commit, govinfo, archive, args.publisher_only, args.phase, passage_states, federal, congress)
     schedule = schedule_snapshot(args.job) if args.operation == 'schedule' else None
     receipt = {'operation': args.operation, 'job': args.job, 'source': sha, 'digest': digest, 'databaseHost': HOST,
-               'command': td['containerDefinitions'][0]['command'], 'states': args.states, 'limit': args.limit, 'commit': args.commit}
+               'command': td['containerDefinitions'][0]['command'], 'states': ','.join(states), 'limit': args.limit, 'commit': args.commit}
     if schedule is not None:
         receipt['scheduleBefore'] = schedule
     print(json.dumps(receipt), flush=True)
