@@ -12,7 +12,9 @@ const awardsMigration = readFileSync(resolve(__dirname, '../../../prisma/migrati
 const yearsMigration = readFileSync(resolve(__dirname, '../../../prisma/migrations/20281102120000_capiro_data_program_element_years_surface/migration.sql'), 'utf8');
 const grantsNoticesMigration = readFileSync(resolve(__dirname, '../../../prisma/migrations/20281102140000_capiro_data_grants_notices_surface/migration.sql'), 'utf8');
 const forecastsMigration = readFileSync(resolve(__dirname, '../../../prisma/migrations/20281102150000_capiro_data_government_forecasts_surface/migration.sql'), 'utf8');
-const migrations = [migration, awardsMigration, yearsMigration, grantsNoticesMigration, forecastsMigration].join('\n');
+const noticeMeaningMigration = readFileSync(resolve(__dirname, '../../../prisma/migrations/20281102170000_capiro_data_sam_notice_column_meaning/migration.sql'), 'utf8');
+// The comment-only migration comes last so its comments replace earlier ones.
+const migrations = [migration, awardsMigration, yearsMigration, grantsNoticesMigration, forecastsMigration, noticeMeaningMigration].join('\n');
 /** The forecast tables are raw SQL (no Prisma model); their CREATE TABLE text is the schema the view projects. */
 const forecastTables = readFileSync(resolve(__dirname, '../../../prisma/migrations/20281101120000_government_forecast_windows/migration.sql'), 'utf8');
 /** Views over two base tables: the FROM-clause alias of each, so a qualified select entry (`f.id`) names its table. */
@@ -200,7 +202,7 @@ describe('public legislative and opportunity SQL coverage', () => {
     expect(reader.runPublicSql).toHaveBeenCalledWith(expect.objectContaining({ sql: `SELECT * FROM (\n${sql}\n) AS q LIMIT $1` }));
   });
 
-  // These former compiler examples remain explicit: their domains are not in the
+  // These former compiler examples remain explicit: state bills, hearings and agenda items are not in the
   // current catalog, so admission is not evidence of DB access or successful rows.
   it.each<{ label: string; sql: string; parameters: SqlParameter[] }>([
     { label: 'state agenda namespace and optional bill identity', sql: `SELECT h.id AS hearing_id, a.state_bill_key, b.title AS bill_title, h.starts_at, a.source_url
@@ -212,13 +214,6 @@ describe('public legislative and opportunity SQL coverage', () => {
     { label: 'distinct state bills after calendar filtering', sql: `WITH matched AS (SELECT DISTINCT b.id FROM state_bills b
       INNER JOIN state_bill_calendar_events e ON e.bill_key=b.id WHERE e.present=$1 AND e.event_type=$2 AND b.session_key=$3)
       SELECT COUNT(*) AS bill_count FROM matched`, parameters: [true, 'hearing', '2097'] },
-    { label: 'grant estimates', sql: 'SELECT SUM(g.estimated_funding) AS estimated FROM federal_grants g WHERE g.doc_type=$1', parameters: ['synopsis'] },
-    { label: 'SAM identity and separate date bounds', sql: `SELECT s.notice_id, s.source_url FROM sam_opportunities s
-      WHERE s.notice_id=$1 AND s.active=$2 AND s.notice_type=$3 AND s.response_deadline>=$4 AND s.archive_date>=$4`,
-      parameters: ['synthetic-notice', true, 'Solicitation', '2097-01-01T00:00:00Z'] },
-    { label: 'forecast windows overlapping two quarters', sql: `SELECT g.forecast_id, g.title, g.window_from, g.window_to, g.source_url FROM government_forecasts g
-      WHERE g.status=$1 AND g.window_from<$3::date AND g.window_to>$2::date ORDER BY g.window_from, g.forecast_id`,
-      parameters: ['published', '2097-01-01', '2097-07-01'] },
   ])('preserves parameters and owner refusal for $label', async ({ sql, parameters }) => {
     const gated = gateSqlStatement({ sql, parameters }, 'public');
     expect(gated.sql).toBe(`SELECT * FROM (\n${sql}\n) AS q LIMIT $${parameters.length + 1}`);
@@ -228,6 +223,26 @@ describe('public legislative and opportunity SQL coverage', () => {
     expect(await queryCapiroData({ sql, parameters }, reader)).toMatchObject({ ok: false, error: { code: 'UNKNOWN_RELATION', sqlstate: '42P01' } });
     expect(reader.runPublicSql).toHaveBeenCalledWith(gated);
     expect(reader.runPublicSql).toHaveBeenCalledTimes(1);
+  });
+
+  // Grants, SAM notices (20281102140000) and forecasts (20281102150000) are published: the same examples pass through with their parameters
+  // and name their relations; the database, not the gate, decides the rows.
+  it.each<{ label: string; sql: string; parameters: SqlParameter[]; relations: string[] }>([
+    { label: 'grant estimates', sql: 'SELECT SUM(g.estimated_funding) AS estimated FROM federal_grants g WHERE g.doc_type=$1', parameters: ['synopsis'], relations: ['federal_grants'] },
+    { label: 'SAM identity and separate date bounds', sql: `SELECT s.notice_id, s.source_url FROM sam_opportunities s
+      WHERE s.notice_id=$1 AND s.active=$2 AND s.notice_type=$3 AND s.response_deadline>=$4`,
+      parameters: ['synthetic-notice', true, 'Solicitation', '2097-01-01T00:00:00Z'], relations: ['sam_opportunities'] },
+    { label: 'forecast windows overlapping two quarters', sql: `SELECT g.forecast_id, g.title, g.window_from, g.window_to, g.source_url FROM government_forecasts g
+      WHERE g.status=$1 AND g.window_from<$3::date AND g.window_to>$2::date ORDER BY g.window_from, g.forecast_id`,
+      parameters: ['published', '2097-01-01', '2097-07-01'], relations: ['government_forecasts'] },
+  ])('passes the published $label example through with its parameters', ({ sql, parameters, relations }) => {
+    const gated = gateSqlStatement({ sql, parameters }, 'public');
+    expect(gated.sql).toBe(`SELECT * FROM (
+${sql}
+) AS q LIMIT $${parameters.length + 1}`);
+    expect(gated.params).toEqual([...parameters, 201]);
+    expect(gated.relationsUsed).toEqual(relations);
+    for (const name of relations) expect(surface.some((relation) => relation.name === name)).toBe(true);
   });
 
   it('retains declared soft identity, units and nullable driver output on supported domains', async () => {
@@ -253,12 +268,11 @@ describe('public legislative and opportunity SQL coverage', () => {
     'SELECT h.calendar_provenance FROM committee_hearings h',
     'SELECT a.evidence FROM legislative_agenda_items a',
     'SELECT s.poc_email FROM sam_opportunities s',
-    'SELECT g.eligibility FROM federal_grants g',
+    'SELECT g.raw FROM federal_grants g',
     'SELECT f.content FROM government_forecasts f',
     'SELECT r.content FROM government_forecast_revision r',
     'SELECT s.award_amount FROM sam_opportunities s',
     'SELECT t.id FROM hearing_follow t',
-    'SELECT h.id FROM public.committee_hearing h',
     'SELECT h.id FROM meri_public_committee_hearings h',
   ])('propagates owner denial without retrying a raw relation: %s', async (sql) => {
     const reader = db(surface);
@@ -266,6 +280,12 @@ describe('public legislative and opportunity SQL coverage', () => {
     expect(await queryCapiroData({ sql, parameters: [] }, reader)).toMatchObject({ ok: false, error: { code: 'UNKNOWN_RELATION', sqlstate: '42501' } });
     expect(reader.runPublicSql).toHaveBeenCalledTimes(1);
     expect(reader.runPublicSql).toHaveBeenCalledWith(gateSqlStatement({ sql, parameters: [] }, 'public'));
+  });
+
+  it('refuses a base-table schema prefix at the gate, before any database call', async () => {
+    const reader = db(surface);
+    expect(await queryCapiroData({ sql: 'SELECT h.id FROM public.committee_hearing h', parameters: [] }, reader)).toMatchObject({ ok: false, error: { code: 'UNKNOWN_RELATION' } });
+    expect(reader.runPublicSql).not.toHaveBeenCalled();
   });
 
   it.each([

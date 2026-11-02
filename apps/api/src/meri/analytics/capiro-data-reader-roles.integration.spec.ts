@@ -293,7 +293,12 @@ describeDatabase('capiro data reader roles: database-enforced properties', () =>
       const unknownRelation = await queryCapiroData({ sql: 'SELECT 1 FROM congress_bill', parameters: [] }, analytics);
       expect(unknownRelation).toMatchObject({ ok: false, error: { code: 'UNKNOWN_RELATION', sqlstate: '42P01', position: 15, candidates: ['congress_bills', 'congress_bill_cosponsors', 'congress_bill_subjects'] } });
       const unpublished = await queryCapiroData({ sql: 'SELECT id FROM public.clients', parameters: [] }, analytics);
-      expect(unpublished).toMatchObject({ ok: false, error: { code: 'UNKNOWN_RELATION', sqlstate: '42501', message: 'permission denied for table clients' } });
+      expect(unpublished).toMatchObject({ ok: false, error: { code: 'UNKNOWN_RELATION' } });
+      // The role itself can read public.sam_opportunity (query_global_data's grant); the gate is what keeps it off this tool.
+      const baseTable = await queryCapiroData({ sql: 'SELECT s.poc_email FROM public.sam_opportunity s', parameters: [] }, analytics);
+      expect(baseTable).toMatchObject({ ok: false, error: { code: 'UNKNOWN_RELATION' } });
+      if (baseTable.ok) throw new Error('expected refusal');
+      expect(baseTable.error).not.toHaveProperty('sqlstate');
       const badCast = await queryCapiroData({ sql: 'SELECT $1::int AS n', parameters: ['abc'] }, analytics);
       expect(badCast).toMatchObject({ ok: false, error: { code: 'INVALID_QUERY', sqlstate: '22P02' } });
       const timeout = await queryCapiroData({ sql: "SELECT pg_catalog.pg_sleep(20)", parameters: [] }, analytics);
