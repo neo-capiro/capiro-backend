@@ -837,9 +837,9 @@ export class TrackerService {
     const lower = terms.map((t) => t.toLowerCase()).filter((t) => t.length >= MIN_TERM_LEN);
     if (!lower.length) return [];
     const patterns = lower.map(toWordBoundaryPattern);
-    // Index-backed UNION rewrite (see bill-keyword-match.helpers.ts). includePolicyRegex
-    // is false to preserve this query's original clause set (it never matched a
-    // policy_area regex, only policy_area equality).
+    // Shared matcher (see bill-keyword-match.helpers.ts). includePolicyRegex is false
+    // to preserve this query's original clause set (it never matched a policy_area
+    // regex, only policy_area equality).
     const matchingIds = matchingBillIdsSql(lower, patterns, {
       congress,
       includePolicyRegex: false,

@@ -104,8 +104,8 @@ export class IntelligenceRelevantBillDiscovery {
   async findRelevantBillsByKeyword(allTerms: string[]): Promise<RelevantBillsResult> {
     // Whole-word keyword fallback (legacy source). Keeps behavior stable when
     // embeddings are unavailable or backfill has not populated bill vectors.
-    // Matching is index-backed via matchingBillIdsSql (UNION of per-table trigram
-    // branches); see bill-keyword-match.helpers.ts for the why + parity proof.
+    // Matching is matchingBillIdsSql; see bill-keyword-match.helpers.ts for the
+    // query shape and its measured plans.
     const { lowerTerms, wordPatterns } = buildKeywordMatchTerms(allTerms);
     const matchingIds = matchingBillIdsSql(lowerTerms, wordPatterns);
 

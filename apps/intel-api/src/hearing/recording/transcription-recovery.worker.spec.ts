@@ -123,7 +123,7 @@ describe('transcript recovery cursor and recorded context', () => {
 
         await worker.seed();
         expect(executed[0]).toContain('s.hearing_id IS NULL OR EXISTS');
-        expect(executed[0]).toContain(`FROM ${view} f`);
+        expect(executed[0]).toContain('FROM capturable_committee_hearing f');
         expect(executed[1]).toContain(`JOIN ${view} f`);
         await expect(worker.runOne()).resolves.toBe(false);
         expect(queried[0]).toContain("j.kind='public'");
@@ -186,12 +186,10 @@ describe('transcript recovery cursor and recorded context', () => {
       });
 
       await expect(worker.runOne()).resolves.toBe(true);
-      expect(writes.some((sql) => sql.includes('INSERT INTO public_hearing_transcript_segment'))).toBe(
-        false,
-      );
       expect(
-        writes.find((sql) => sql.includes('last_error=')),
-      ).toBeDefined();
+        writes.some((sql) => sql.includes('INSERT INTO public_hearing_transcript_segment')),
+      ).toBe(false);
+      expect(writes.find((sql) => sql.includes('last_error='))).toBeDefined();
       expect(queries).toHaveBeenCalledTimes(6);
     } finally {
       if (publicAudio === undefined) delete process.env.HEARING_PUBLIC_AUDIO_STORAGE_ENABLED;
@@ -219,10 +217,48 @@ describe('transcript recovery cursor and recorded context', () => {
       {} as never,
     );
     const query = jest.fn().mockResolvedValue([{ id: 'federal-substitute' }]);
-    await expect(
-      (worker as any).authorize({ $queryRaw: query }, floridaSource),
-    ).rejects.toThrow(STATE_CAPTURE_LINK_ONLY);
+    await expect((worker as any).authorize({ $queryRaw: query }, floridaSource)).rejects.toThrow(
+      STATE_CAPTURE_LINK_ONLY,
+    );
     expect(query).not.toHaveBeenCalled();
+  });
+
+  it('recovers a saved Florida browser recording under its original grant without enabling unattended capture', async () => {
+    const previous = process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED;
+    delete process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED;
+    try {
+      const worker = new TranscriptionRecoveryWorker(
+        {} as never,
+        { enabled: true } as never,
+        {} as never,
+      );
+      const source = {
+        ...floridaSource,
+        kind: 'browser',
+        tenantId: 'tenant',
+        sessionId: 'session',
+        recordingId: 'recording',
+        permissionId: 'original-grant',
+        actor: 'creator',
+      };
+      const query = jest.fn().mockResolvedValue([{ id: 'authorized' }]);
+      await expect(
+        (worker as any).authorize({ $queryRaw: query }, source),
+      ).resolves.toBeUndefined();
+      const [parts, ...values] = query.mock.calls[0]!;
+      expect(renderSql(parts, values)).toContain('capturable_committee_hearing');
+      expect(query.mock.calls[1]!.slice(1)).toContain('original-grant');
+      const withdrawn = jest
+        .fn()
+        .mockResolvedValueOnce([{ id: 'canonical' }])
+        .mockResolvedValueOnce([]);
+      await expect((worker as any).authorize({ $queryRaw: withdrawn }, source)).rejects.toThrow(
+        'source_transcription_permission_unavailable',
+      );
+    } finally {
+      if (previous === undefined) delete process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED;
+      else process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED = previous;
+    }
   });
 
   it('authorizes a Florida publisher source against the capturable view once the switch is on', async () => {
@@ -242,7 +278,10 @@ describe('transcript recovery cursor and recorded context', () => {
       await expect(
         (worker as any).authorize({ $queryRaw: query }, floridaSource),
       ).resolves.toBeUndefined();
-      const [parts, ...values] = query.mock.calls[0]! as unknown as [TemplateStringsArray, ...unknown[]];
+      const [parts, ...values] = query.mock.calls[0]! as unknown as [
+        TemplateStringsArray,
+        ...unknown[],
+      ];
       expect(renderSql(parts, values)).toContain('FROM capturable_committee_hearing');
     } finally {
       for (const [key, value] of [
@@ -260,9 +299,7 @@ describe('transcript recovery cursor and recorded context', () => {
 function renderSql(parts: TemplateStringsArray, values: unknown[]): string {
   return parts.reduce(
     (sql, part, index) =>
-      sql +
-      part +
-      (index < values.length ? ((values[index] as { sql?: string })?.sql ?? '?') : ''),
+      sql + part + (index < values.length ? ((values[index] as { sql?: string })?.sql ?? '?') : ''),
     '',
   );
 }

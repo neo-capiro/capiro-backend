@@ -53,10 +53,6 @@ import {
   isMeriReadTokenRequest,
 } from '../auth/read-delegation/read-delegation-request.js';
 import {
-  isSignedMemoryHelperPost, isSignedMemoryPagePost, isSignedMemoryProposalPost,
-  signedMemoryPageEnabled, signedMemoryProposalEnabled,
-} from '../auth/read-delegation/signed-memory-http-gate.js';
-import {
   captureRetainedNativeAuthority,
   requiresVerifiedRetainedNativeAuthority,
   type RetainedNativeAuthorityCapture,
@@ -80,6 +76,8 @@ interface ApplicationAuthorityRequestProvenance {
 // The existing owner shares only private, ephemeral provenance keyed by the
 // actual request object; there is no reusable/durable authorization receipt.
 const applicationAuthorityRequests = new WeakMap<Request, ApplicationAuthorityRequestProvenance>();
+/** users.last_seen_at resolution; see the write in the ordinary resolver. */
+const LAST_SEEN_WRITE_INTERVAL_MS = 60_000;
 const MERI_CONTROL_POST_PATHS = new Set([
   '/engagement/outreach/sdk/claim',
   '/engagement/outreach/sdk/read',
@@ -252,19 +250,6 @@ export class TenantContextMiddleware implements NestMiddleware {
     // verified service identity. Exact paths and method only.
     if (isMeriReadTokenRequest(req)) {
       res.setHeader('Cache-Control', 'no-store');
-      // One-use source tokens must refuse before ordinary admission consumes
-      // their JTI while the corresponding fixed receiver is held. The helper
-      // has a distinct signed type and is verified/consumed only by its fixed
-      // controller, never by admitMeriReadToken or Clerk provisioning.
-      if (isSignedMemoryHelperPost(req)) {
-        if (!signedMemoryPageEnabled()) throw new ServiceUnavailableException('Passive memory helper unavailable');
-        next();
-        return;
-      }
-      if (isSignedMemoryPagePost(req) && !signedMemoryPageEnabled())
-        throw new ServiceUnavailableException('Passive memory page unavailable');
-      if (isSignedMemoryProposalPost(req) && !signedMemoryProposalEnabled())
-        throw new ServiceUnavailableException('Memory proposal page unavailable');
       await this.useMeriReadDelegation(req, next);
       return;
     }
@@ -545,10 +530,18 @@ export class TenantContextMiddleware implements NestMiddleware {
       }
       selectedAuthorityMembership = { id: chosen.id, tenantId: chosen.tenantId };
 
-      // Best-effort last_seen_at update, do not fail the request on error.
-      await tx.user
-        .update({ where: { id: user.id }, data: { lastSeenAt: new Date() } })
-        .catch(() => undefined);
+      // Best-effort last_seen_at update, do not fail the request on error. At
+      // most once a minute per user: a page load fans out into many parallel
+      // requests, and a write on every one kept creating new versions of the
+      // user row that the RepeatableRead/Serializable readers lock FOR SHARE
+      // (client list, portfolio layout), which then failed with 40001.
+      const seenAt = new Date();
+      if (!(user.lastSeenAt instanceof Date) ||
+          seenAt.getTime() - user.lastSeenAt.getTime() >= LAST_SEEN_WRITE_INTERVAL_MS) {
+        await tx.user
+          .update({ where: { id: user.id }, data: { lastSeenAt: seenAt } })
+          .catch(() => undefined);
+      }
 
       const context: TenantContext = {
         tenantId: chosen.tenantId,

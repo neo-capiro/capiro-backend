@@ -230,6 +230,51 @@ describe('shared state writer lease on disposable PostgreSQL', () => {
     });
     expect(await db.$queryRawUnsafe('SELECT value FROM marker')).toEqual([{ value: 4 }]);
   });
+  it('renews after its own real foreground row lock exceeds the heartbeat transaction timeout', async () => {
+    const originalInterval = global.setInterval;
+    const originalTransaction = db.$transaction.bind(db);
+    let pulse: (() => void) | undefined;
+    let enter!: () => void, renewed!: (error: unknown) => void;
+    const entered = new Promise<void>((resolve) => { enter = resolve; });
+    const heartbeat = new Promise<unknown>((resolve) => { renewed = resolve; });
+    const intervals = jest.spyOn(global, 'setInterval').mockImplementation(((callback: () => void, ms: number) => {
+      if (ms === 30000) pulse = callback;
+      return originalInterval(callback, ms);
+    }) as typeof setInterval);
+    // Observe completion without mocking the transaction, lock, timeout or SQL.
+    const transactions = jest.spyOn(db, '$transaction').mockImplementation(((callback: unknown, options?: unknown) => {
+      const result = (originalTransaction as any)(callback, options) as Promise<unknown>;
+      if (options === undefined) void result.then(() => renewed(null), (error) => renewed(error));
+      return result;
+    }) as typeof db.$transaction);
+    const log = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      const task = withStateBillWriter(db, ['PA'], async (writer) => {
+        await writer.$transaction(async (tx) => {
+          await tx.$executeRawUnsafe('UPDATE marker SET value=5');
+          enter();
+          // Prisma's unconfigured heartbeat transaction expires after 5 s;
+          // the unchanged foreground transaction explicitly permits 60 s.
+          await tx.$queryRawUnsafe('SELECT pg_sleep(6.5)::text');
+        });
+        expect(await heartbeat).toBeNull();
+        await writer.$executeRawUnsafe('UPDATE marker SET value=6');
+      });
+      await entered;
+      expect(pulse).toBeDefined();
+      pulse!();
+      await task;
+      expect(log).not.toHaveBeenCalled();
+      expect(await db.$queryRawUnsafe('SELECT value FROM marker')).toEqual([{ value: 6 }]);
+      expect(await db.$queryRawUnsafe(
+        "SELECT status,lease_token IS NULL AND lease_until IS NULL AS released FROM federal_evidence_checkpoint WHERE source='state-bills:PA'",
+      )).toEqual([{ status: 'idle', released: true }]);
+    } finally {
+      intervals.mockRestore();
+      transactions.mockRestore();
+      log.mockRestore();
+    }
+  });
   it('atomically enriches canonical metadata and rolls back it with receipt failure', async () => {
     await db.$executeRawUnsafe(
       "INSERT INTO congress_bill VALUES('119-hr-1','Preserved title',ARRAY['old'],1,'2026-01-01T00:00:00Z')",

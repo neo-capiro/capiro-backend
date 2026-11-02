@@ -32,15 +32,16 @@ export function retryableRecordingFailure(error: unknown) {
   );
 }
 
-/** LWA4 + uint32 sequence + float64 recorder elapsed milliseconds, big endian.
+/** LWA4 (legacy audio), LWV5 (retained AV), or LWT5 (transcription audio), then
+ * uint32 lane sequence + float64 recorder elapsed milliseconds, big endian.
  * The elapsed clock is measured by the browser; it is not a blob-count clock.
  * Fragments may split a MediaRecorder blob; only their ordered epoch is media.
  */
-export function decodeRecordingFrame(frame: Buffer) {
+export function decodeRecordingFrame(frame: Buffer, magic: 'LWA4' | 'LWV5' | 'LWT5' = 'LWA4') {
   if (
     frame.length <= RECORDING_FRAME_HEADER_BYTES ||
     frame.length > RECORDING_MAX_PART_BYTES + RECORDING_FRAME_HEADER_BYTES ||
-    frame.toString('ascii', 0, 4) !== 'LWA4'
+    frame.toString('ascii', 0, 4) !== magic
   ) {
     throw new Error('Invalid retained-audio frame');
   }

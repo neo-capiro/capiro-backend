@@ -42,6 +42,17 @@ export async function withLegislativeWriter<T>(
   let timer: ReturnType<typeof setInterval> | undefined;
   let renewal: Promise<void> = Promise.resolve(),
     lost = false;
+  let operations: Promise<void> = Promise.resolve();
+  // A foreground transaction holds the lease row until commit. Queue this
+  // owner's heartbeat behind it instead of timing out on our own row lock.
+  function serialize<R>(operation: () => Promise<R>): Promise<R> {
+    const result = operations.then(operation);
+    operations = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
+  }
   async function fence(tx: any) {
     if (lost) throw Error(`${errorPrefix}_LEASE_LOST`);
     const rows = await tx.$queryRawUnsafe(
@@ -75,12 +86,14 @@ export async function withLegislativeWriter<T>(
     return view;
   }
   async function write<R>(fn: (tx: PrismaClient) => Promise<R>, options?: object): Promise<R> {
-    return prisma.$transaction(
-      async (tx) => {
-        await fence(tx);
-        return fn(transactionView(tx));
-      },
-      { timeout: 60000, ...options },
+    return serialize(() =>
+      prisma.$transaction(
+        async (tx) => {
+          await fence(tx);
+          return fn(transactionView(tx));
+        },
+        { timeout: 60000, ...options },
+      ),
     );
   }
   const writer = new Proxy(prisma, {
@@ -118,17 +131,37 @@ export async function withLegislativeWriter<T>(
       acquired.push(source);
     }
     timer = setInterval(() => {
-      renewal = renewal
-        .then(() => prisma.$transaction(fence))
-        .catch(() => {
-          lost = true;
-        });
+      renewal = renewal.then(() =>
+        serialize(async () => {
+          try {
+            await prisma.$transaction(fence);
+          } catch (error: unknown) {
+            const firstFailure = !lost;
+            lost = true;
+            if (!firstFailure) return;
+            // Never log provider/SQL messages, connection strings or lease tokens.
+            const name = error instanceof Error ? error.name : '';
+            const code = (error as { code?: unknown } | null)?.code;
+            console.error(
+              JSON.stringify({
+                event: 'LEGISLATIVE_WRITER_RENEWAL_FAILED',
+                owner: errorPrefix,
+                errorClass: /^(?:Error|PrismaClient(?:KnownRequest|UnknownRequest|Initialization|Validation|RustPanic)Error)$/.test(name)
+                  ? name : 'Unknown',
+                errorCode: typeof code === 'string' && /^(?:P[0-9]{4}|[0-9]{2}[A-Z0-9]{3}|ECONNRESET|ETIMEDOUT)$/.test(code)
+                  ? code : null,
+              }),
+            );
+          }
+        }),
+      );
     }, 30000);
     timer.unref();
     return await run(writer);
   } finally {
     if (timer) clearInterval(timer);
     await renewal;
+    await operations;
     if (acquired.length)
       await prisma.$executeRawUnsafe(
         `UPDATE federal_evidence_checkpoint SET lease_token=NULL,lease_until=NULL,status='idle'
