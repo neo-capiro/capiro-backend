@@ -1,11 +1,14 @@
-import { Body, Controller, Get, HttpCode, Post, Query, Res } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Logger, Post, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { MicrosoftGraphSyncService } from './microsoft-graph-sync.service.js';
 import { MicrosoftOAuthService } from './microsoft-oauth.service.js';
 import { EngagementRuntimeAction } from '../runtime/engagement-runtime-action.decorator.js';
+import { oauthFailureLogDetail } from '../oauth-callback-failure.js';
 
 @Controller('engagement/integrations/microsoft')
 export class MicrosoftCallbacksController {
+  private readonly logger = new Logger(MicrosoftCallbacksController.name);
+
   constructor(
     private readonly oauth: MicrosoftOAuthService,
     private readonly graphSync: MicrosoftGraphSyncService,
@@ -51,6 +54,9 @@ export class MicrosoftCallbacksController {
       const reason = error === 'access_denied' ? 'access_denied'
         : error === 'cancelled' || error === 'user_cancelled' ? 'cancelled'
         : 'connection_failed';
+      // A refused consent used to leave no trace at all. The provider's code is
+      // the only way to tell a user cancellation from a tenant-wide block.
+      this.logger.warn(`microsoft 365 oauth callback returned provider error=${error} (${reason})`);
       res.redirect(
         302,
         `${this.oauth.getSuccessRedirect()}?provider=microsoft_365&error=${reason}`,
@@ -66,15 +72,20 @@ export class MicrosoftCallbacksController {
       return;
     }
     if (!code || !state) {
+      this.logger.warn(
+        `microsoft 365 oauth callback arrived without ${!code ? 'a code' : 'state'}; connection not attempted`,
+      );
       res.redirect(302, `${this.oauth.getSuccessRedirect()}?provider=microsoft_365&error=connection_failed`);
       return;
     }
     let result: { tenantId: string; connectionId: string };
     try {
       result = await this.oauth.handleCallback({ code, state });
-    } catch {
+    } catch (err) {
       // State, ownership and token admission still belong to the service. A
-      // refusal is a failure hint only; provider details never enter the URL.
+      // refusal is a failure hint only; provider details never enter the URL —
+      // but they do go to the log, scrubbed of anything that round-tripped.
+      this.logger.warn(`microsoft 365 oauth callback failed: ${oauthFailureLogDetail(err)}`);
       res.redirect(302, `${this.oauth.getSuccessRedirect()}?provider=microsoft_365&error=connection_failed`);
       return;
     }

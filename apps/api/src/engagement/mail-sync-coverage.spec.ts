@@ -260,4 +260,31 @@ describe('getMailSyncCoverage', () => {
     expect(getMailSyncCoverage({ ...connection, provider: 'imap_caldav', syncState: { mail: graphMail() } }))
       .toMatchObject({ sourceStatus: 'degraded', reason: 'mail_sync_coverage_unknown', captureRepair: 'not_applicable' });
   });
+
+  // A mailbox past the per-connection folder cap loses folders permanently:
+  // those messages never land, and unlike a page backlog this never self-heals
+  // on the next tick. Report it as its own reason so Settings can say why.
+  it('reports folders dropped by the provider cap instead of a healthy baseline', () => {
+    const mail = { ...graphMail(), mailFoldersDropped: 468, folderEnumerationComplete: true };
+    expect(getMailSyncCoverage({ ...connection, syncState: { mail } })).toMatchObject({
+      sourceStatus: 'degraded',
+      reason: 'mail_folders_not_synced',
+      backfillComplete: true,
+    });
+  });
+
+  it('treats a zero or absent drop count as no folder loss', () => {
+    for (const mailFoldersDropped of [0, undefined, 'many'])
+      expect(getMailSyncCoverage({
+        ...connection,
+        syncState: { mail: { ...graphMail(), mailFoldersDropped } },
+      })).toMatchObject({ reason: null });
+  });
+
+  it('keeps a provider failure ahead of the folder-cap reason', () => {
+    expect(getMailSyncCoverage({
+      ...connection,
+      syncState: { mail: { ...graphMail(), mailFoldersDropped: 9 }, health: { mail: { outcome: 'failed' } } },
+    })).toMatchObject({ sourceStatus: 'degraded', reason: 'mail_sync_failed' });
+  });
 });
