@@ -720,9 +720,15 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     cron: { minute: '35', hour: '2' }, tier: 'daily', enabled: false,
     description: 'Single Tango grant/notice/document ingestion with durable paging and account quota reserve',
   },
+  // The live rule capiro-dev-embed-funding-catalog is ENABLED at
+  // cron(20 4,10,16,22 * * ? *) (enabled out-of-band, verified 2026-11-02);
+  // enabled:true records that fact so this declaration matches reality. As
+  // with every entry here it is desired state, not a deploy. The scheduled
+  // command keeps the default active scope; historical records are embedded
+  // by one-off tasks that add --scope=all with the same bounded limits.
   {
     id: 'EmbedFundingCatalog', command: ['embed-funding-catalog', '--commit', '--limit=300', '--max-chunks=3000'],
-    cron: { minute: '20', hour: '4,10,16,22' }, tier: 'derived', enabled: false,
+    cron: { minute: '20', hour: '4,10,16,22' }, tier: 'derived', enabled: true,
     description: 'Chunk public funding text into the existing pgvector catalog',
   },
   {
