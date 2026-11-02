@@ -1,7 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
-import { emptyStrategyIntake, type StrategyIntakeDraft } from '@capiro/shared/strategy-intake';
+import {
+  emptyStrategyIntake,
+  STRATEGY_INTAKE_TYPE_LABELS,
+  STRATEGY_INTAKE_TYPES,
+  type StrategyIntakeDraft,
+} from '@capiro/shared/strategy-intake';
 import {
   objectiveReadiness,
   type ObjectiveFields,
@@ -24,6 +29,8 @@ const AFTER = [
   '20281102201000_private_objective_revision_readiness_grant',
   '20281102202000_private_objective_intake_readiness_view',
   '20281102203000_private_objective_intake_readiness_catalog',
+  '20281102210000_private_objective_intake_answers_view',
+  '20281102211000_private_objective_intake_answers_catalog',
 ];
 
 const id = (n: number) => `b0000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
@@ -126,7 +133,14 @@ describe('meri_private.client_objectives readiness follows the service rule (PGl
         2,
         [
           [1, snapshot({ ...legacyBlank, strategyIntake: answers() }, 'draft', 1)],
-          [2, snapshot({ ...legacyBlank, strategyIntake: answers() }, 'ready', 2)],
+          [
+            2,
+            snapshot(
+              { ...legacyBlank, strategyIntake: answers({ targetDate: '2027-02-28' }) },
+              'ready',
+              2,
+            ),
+          ],
         ],
       ],
       [
@@ -262,6 +276,38 @@ describe('meri_private.client_objectives readiness follows the service rule (PGl
     ]);
   });
 
+  test('an intake Objective is published with its saved intake answers; legacy and stale rows have none', async () => {
+    const result = await asReader(`SELECT id, readiness_basis, intake_type, intake_goal,
+      intake_target_date::text AS intake_target_date, outcome
+      FROM meri_private.client_objectives ORDER BY id`);
+    const none = { intake_type: null, intake_goal: null, intake_target_date: null };
+    expect(result.rows).toEqual([
+      {
+        id: intakeReady,
+        readiness_basis: 'strategy_intake',
+        intake_type: 'appropriations',
+        intake_goal: 'Synthetic goal',
+        intake_target_date: '2027-02-28',
+        outcome: '',
+      },
+      {
+        id: intakeDraft,
+        readiness_basis: 'strategy_intake',
+        intake_type: 'appropriations',
+        intake_goal: answers({ goal: ' \n ' }).goal,
+        intake_target_date: null,
+        outcome: '',
+      },
+      {
+        id: legacyReady,
+        readiness_basis: 'objective_fields',
+        ...none,
+        outcome: 'Extend authority',
+      },
+      { id: staleIntake, readiness_basis: 'objective_fields', ...none, outcome: '' },
+    ]);
+  });
+
   test('the reader still cannot read revisions or Objectives directly', async () => {
     await expect(
       asReader('SELECT snapshot FROM public.client_objective_revisions'),
@@ -272,7 +318,7 @@ describe('meri_private.client_objectives readiness follows the service rule (PGl
     });
   });
 
-  test('existing columns, owner, options and grants are unchanged; only four columns are appended', async () => {
+  test('existing columns, owner, options and grants are unchanged; readiness and intake columns are appended', async () => {
     const after = await columns();
     expect(after.slice(0, columnsBefore.length)).toEqual(columnsBefore);
     expect(after.slice(columnsBefore.length)).toEqual([
@@ -280,6 +326,9 @@ describe('meri_private.client_objectives readiness follows the service rule (PGl
       { attname: 'readiness_objective_type', type: 'boolean' },
       { attname: 'readiness_goal', type: 'boolean' },
       { attname: 'readiness_owner', type: 'boolean' },
+      { attname: 'intake_type', type: 'text' },
+      { attname: 'intake_goal', type: 'text' },
+      { attname: 'intake_target_date', type: 'date' },
     ]);
     const view = await db.query<{ owner: string; reloptions: string[]; acl: string[] }>(
       `SELECT pg_get_userbyid(relowner) AS owner, reloptions, relacl::text[] AS acl
@@ -335,5 +384,38 @@ describe('meri_private.client_objectives readiness follows the service rule (PGl
       /^Three for strategy_intake .* or four for objective_fields/,
     );
     for (const migrationName of AFTER) expect(migration(migrationName)).not.toContain('\r');
+  });
+
+  test('catalog describes intake Objectives by their answers in the shared intake vocabulary', async () => {
+    const view = await db.query<{ comment: string }>(
+      `SELECT obj_description('meri_private.client_objectives'::regclass, 'pg_class') AS comment`,
+    );
+    const limitations = (JSON.parse(view.rows[0]!.comment).limitations as string[]).join(' ');
+    expect(limitations).toContain('described by intake_type, intake_goal and intake_target_date');
+    expect(limitations).toContain('never report the legacy fields as empty, missing or skipped');
+    const comments = await db.query<{ attname: string; comment: string }>(
+      `SELECT attname, col_description(attrelid, attnum) AS comment FROM pg_attribute
+       WHERE attrelid = 'meri_private.client_objectives'::regclass
+         AND attname IN ('intake_type', 'intake_goal', 'intake_target_date', 'outcome', 'ask_type')`,
+    );
+    const byName = Object.fromEntries(
+      comments.rows.map((row) => [row.attname, JSON.parse(row.comment)]),
+    );
+    expect(byName.intake_type.enum).toEqual([...STRATEGY_INTAKE_TYPES]);
+    for (const type of STRATEGY_INTAKE_TYPES)
+      expect(byName.intake_type.description).toContain(
+        `${type} = ${STRATEGY_INTAKE_TYPE_LABELS[type]}`,
+      );
+    expect(migration('20281102210000_private_objective_intake_answers_view')).toContain(
+      `IN (${STRATEGY_INTAKE_TYPES.map((type) => `'${type}'`).join(', ')})`,
+    );
+    expect(byName.intake_goal.description).toContain(
+      'main description of a strategy_intake Objective',
+    );
+    expect(byName.intake_target_date).toBeDefined();
+    expect(byName.outcome.description).toContain(
+      'blank by design when readiness_basis is strategy_intake',
+    );
+    expect(byName.ask_type.description).toContain('use intake_type instead');
   });
 });
