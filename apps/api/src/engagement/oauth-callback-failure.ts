@@ -90,14 +90,21 @@ export function oauthFailureMessage(
   }
 }
 
-const CREDENTIAL_PAIR =
-  /(\b(?:code|access_token|refresh_token|id_token|client_secret|client_assertion|assertion|state)=)[^&\s"',]+/gi;
+const CREDENTIAL_KEYS = 'code|access_token|refresh_token|id_token|client_secret|client_assertion|assertion|state';
+/** `key=value` form: callback query strings and form-encoded token requests. */
+const CREDENTIAL_PAIR = new RegExp(`(\\b(?:${CREDENTIAL_KEYS})=)[^&\\s"',]+`, 'gi');
+/** JSON form: an MSAL or Graph error body echoed into an Error message (`"refresh_token":"…"`, with optional spaces). */
+const CREDENTIAL_JSON = new RegExp(`("(?:${CREDENTIAL_KEYS})"\\s*:\\s*")(?:[^"\\\\]|\\\\.)*(")`, 'gi');
 
 /** One safe log line: reason, provider error code, scrubbed message, bounded. */
 export function oauthFailureLogDetail(error: unknown, limit = 240): string {
   const reason = oauthCallbackFailureReason(error);
   const name = error instanceof Error && error.name ? error.name : 'Error';
   const raw = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
-  const scrubbed = raw.replace(CREDENTIAL_PAIR, '$1<redacted>').replace(/\s+/g, ' ').trim();
+  const scrubbed = raw
+    .replace(CREDENTIAL_JSON, '$1<redacted>$2')
+    .replace(CREDENTIAL_PAIR, '$1<redacted>')
+    .replace(/\s+/g, ' ')
+    .trim();
   return `${reason} (${name}): ${scrubbed.slice(0, limit)}`;
 }

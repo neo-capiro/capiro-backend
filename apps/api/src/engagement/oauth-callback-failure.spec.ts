@@ -114,6 +114,22 @@ describe('oauthFailureLogDetail', () => {
     expect(detail).not.toContain('eyJhbGciOi');
   });
 
+  it('redacts tokens in a JSON error body too, with or without spaces around the colon', () => {
+    const detail = oauthFailureLogDetail(
+      new Error(
+        'invalid_grant: AADSTS70008 token exchange body {"error":"invalid_grant","refresh_token":"0.ARefreshSecret","access_token" : "eyJAccessSecret",' +
+          '"id_token":"eyJIdSecret","client_secret":"cs-secret","code":"0.AX4ACodeSecret","state":"st\\"ate-secret","error_description":"kept"}',
+      ),
+      1000,
+    );
+    expect(detail).toContain('authorization_code_rejected');
+    expect(detail).toContain('AADSTS70008');
+    expect(detail).toContain('"error_description":"kept"');
+    expect(detail).toContain('"refresh_token":"<redacted>"');
+    expect(detail).toContain('"access_token" : "<redacted>"');
+    for (const secret of ['RefreshSecret', 'AccessSecret', 'IdSecret', 'cs-secret', 'CodeSecret', 'ate-secret']) expect(detail).not.toContain(secret);
+  });
+
   it('bounds the message length so one failure cannot flood the log', () => {
     const detail = oauthFailureLogDetail(new Error('x'.repeat(2000)));
     expect(detail.length).toBeLessThanOrEqual(320);
