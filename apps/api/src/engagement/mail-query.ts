@@ -109,6 +109,116 @@ function mailReadClientVisibility() {
   ))`;
 }
 
+/** The stored-mail ordering and coverage expression, textually identical to the expression of
+ * mail_messages_tenant_connection_activity_idx (migration 20281102130000), which the coverage
+ * aggregate reads as an Index Only Scan. It is never a WHERE predicate: see mailActivitySince. */
+export const MAIL_ACTIVITY_AT = 'COALESCE(m.received_at, m.sent_at)';
+const activityAt = Prisma.raw(MAIL_ACTIVITY_AT);
+
+/** The time window on plain columns, equivalent to COALESCE(m.received_at, m.sent_at) >= start.
+ *
+ * Core reads as capiro_app, under row-level security. A user qual may become an index condition
+ * ahead of the policy qual only if it is leakproof (restriction_is_securely_promotable); PostgreSQL's
+ * contain_leaked_vars whitelists Var, Const, BoolExpr, NullTest and leakproof operators such as
+ * timestamptz_ge, but not CoalesceExpr, so `COALESCE(received_at, sent_at) >= $1` stays a Filter
+ * after the whole mailbox was read (Core :50, 2 November 2026: count and page still scanned 37k
+ * rows while the same statement as capiro_master used the expression index). This form is
+ * promoted and plans against the plain-column indexes. */
+export function mailActivitySince(start: Date) {
+  return Prisma.sql`(m.received_at >= ${start} OR (m.received_at IS NULL AND m.sent_at >= ${start}))`;
+}
+/** COALESCE(m.received_at, m.sent_at) <= asOf OR that expression IS NULL, on plain columns for the
+ * same reason. */
+export function mailActivityNotAfter(asOf: Date) {
+  return Prisma.sql`(m.received_at <= ${asOf} OR (m.received_at IS NULL AND (m.sent_at <= ${asOf} OR m.sent_at IS NULL)))`;
+}
+
+type MailCoverageRow = {
+  account_email: string | null;
+  connection_id: string;
+  owner_tenant_id: string;
+  owner_actor_id: string;
+  provider: string;
+  status: string;
+  last_sync_at: Date | null;
+  sync_state: unknown;
+  synced_messages: number;
+  oldest_synced: Date | null;
+  newest_synced: Date | null;
+};
+
+const DISTINCT_MESSAGE_KEY = Prisma.raw("COALESCE(NULLIF(m.metadata_jsonb->>'internetMessageId', ''), m.id::text)");
+
+/** The three statements one bounded read executes, exported so the PostgreSQL plan test explains
+ * exactly what production runs. Static aliases m/c/t/cl belong to the canonical Mail owners. */
+export function mailReadCountSql(where: Prisma.Sql) {
+  return Prisma.sql`
+      SELECT count(DISTINCT (m.connection_id, ${DISTINCT_MESSAGE_KEY}))::int AS n
+      FROM mail_messages m
+      JOIN engagement_connections c ON c.id = m.connection_id
+      JOIN mail_threads t ON t.id = m.thread_id
+      WHERE ${where}
+    `;
+}
+/** Deduplicate BEFORE paginating: folder copies cannot consume the page or hide later distinct
+ * messages. Copies in different owned mailboxes are kept. */
+export function mailReadPageSql(where: Prisma.Sql, limit: number, offset: number) {
+  return Prisma.sql`
+      SELECT * FROM (
+        SELECT DISTINCT ON (m.connection_id, ${DISTINCT_MESSAGE_KEY})
+          m.id::text AS id, m.thread_id::text AS thread_id,
+          m.connection_id::text AS connection_id, m.updated_at AS message_updated_at,
+          m.created_at, c.tenant_id::text AS owner_tenant_id,
+          c.created_by_user_id::text AS owner_actor_id,
+          c.status::text AS connection_status, m.subject,
+          m.from_email::text AS from_email, m.from_name,
+          m.to_recipients_jsonb AS to_recipients, m.cc_recipients_jsonb AS cc_recipients,
+          m.sent_at, m.received_at, left(m.body_text, 400) AS preview, m.has_attachments,
+          m.metadata_jsonb->>'folder' AS folder,
+          m.metadata_jsonb->>'internetMessageId' AS internet_message_id,
+          t.client_id::text AS client_id, cl.name AS client_name, c.account_email::text AS account_email
+        FROM mail_messages m
+        JOIN engagement_connections c ON c.id = m.connection_id
+        JOIN mail_threads t ON t.id = m.thread_id
+        LEFT JOIN clients cl ON cl.id = t.client_id AND cl.tenant_id = m.tenant_id
+        WHERE ${where}
+        ORDER BY m.connection_id, ${DISTINCT_MESSAGE_KEY},
+                 ${activityAt} DESC NULLS LAST, m.id DESC
+      ) distinct_messages
+      ORDER BY COALESCE(received_at, sent_at) DESC NULLS LAST, id DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `;
+}
+/** One aggregate pass per owned mailbox as an Index Only Scan of the activity index (its INCLUDE
+ * carries thread_id, received_at and sent_at) joined to the owned-thread cover index: count, oldest
+ * and newest visible stored messages. The previous per-message EXISTS probe into mail_threads
+ * walked the whole mailbox from the heap once per read, whatever the window. */
+export function mailReadCoverageSql(ctx: TenantContext, mailboxList?: Prisma.Sql[]) {
+  return Prisma.sql`
+      SELECT c.account_email::text AS account_email, c.id::text AS connection_id,
+             c.tenant_id::text AS owner_tenant_id,
+             c.created_by_user_id::text AS owner_actor_id,
+             c.provider::text AS provider,
+             c.status::text AS status, c.last_sync_at, c.sync_state_jsonb AS sync_state,
+             COALESCE(stored.synced_messages, 0)::int AS synced_messages,
+             stored.oldest_synced, stored.newest_synced
+      FROM engagement_connections c
+      LEFT JOIN LATERAL (
+        SELECT count(*) AS synced_messages,
+               min(${activityAt}) AS oldest_synced,
+               max(${activityAt}) AS newest_synced
+        FROM mail_messages m
+        JOIN mail_threads t ON t.id = m.thread_id AND t.tenant_id = m.tenant_id AND t.connection_id = m.connection_id
+        WHERE m.tenant_id = c.tenant_id AND m.connection_id = c.id AND m.removed_at IS NULL
+          AND ${mailReadClientVisibility()}
+      ) stored ON TRUE
+      WHERE c.tenant_id = ${ctx.tenantId}::uuid AND c.created_by_user_id = ${ctx.userId}::uuid
+            AND c.provider::text IN (${Prisma.join(MAIL_PROVIDERS)})
+            ${mailboxList ? Prisma.sql`AND c.id IN (${Prisma.join(mailboxList)})` : Prisma.empty}
+      ORDER BY c.created_at
+    `;
+}
+
 /** Static aliases m/c/t belong to the canonical Mail owners; all request values stay bound. */
 export function mailReadMessageWhere(ctx: TenantContext, filters: MailReadFilters, mailboxList?: Prisma.Sql[]) {
   const { query, from, participant, clientId, folder, asOf, windowStart } = filters;
@@ -125,7 +235,7 @@ export function mailReadMessageWhere(ctx: TenantContext, filters: MailReadFilter
     Prisma.sql`c.provider::text IN (${Prisma.join(MAIL_PROVIDERS)})`,
     Prisma.sql`m.removed_at IS NULL`,
     Prisma.sql`m.created_at <= ${asOf}`,
-    Prisma.sql`(COALESCE(m.received_at, m.sent_at) <= ${asOf} OR COALESCE(m.received_at, m.sent_at) IS NULL)`,
+    mailActivityNotAfter(asOf),
   ];
   if (mailboxList) conds.push(Prisma.sql`m.connection_id IN (${Prisma.join(mailboxList)})`);
   if (query) {
@@ -145,7 +255,7 @@ export function mailReadMessageWhere(ctx: TenantContext, filters: MailReadFilter
     );
   }
   if (clientId) conds.push(Prisma.sql`t.client_id = ${clientId}::uuid`);
-  if (windowStart) conds.push(Prisma.sql`COALESCE(m.received_at, m.sent_at) >= ${windowStart}`);
+  if (windowStart) conds.push(mailActivitySince(windowStart));
   if (folder === 'inbox') conds.push(Prisma.sql`lower(m.metadata_jsonb->>'folder') = 'inbox'`);
   if (folder === 'sent')
     conds.push(Prisma.sql`lower(m.metadata_jsonb->>'folder') IN ('sent', 'sentitems')`);
@@ -199,73 +309,9 @@ export async function queryMailMessages(
   const where = mailReadMessageWhere(ctx, filters, mailboxList);
   const { total, rows, coverage } = await withMailQueryDeadline(prisma, ctx.tenantId, async (query, tx) => {
     await requireMailReadScope(tx, ctx, clientId || undefined);
-    const counted = await query<Array<{ n: number }>>(Prisma.sql`
-      SELECT count(DISTINCT (m.connection_id, COALESCE(NULLIF(m.metadata_jsonb->>'internetMessageId', ''), m.id::text)))::int AS n
-      FROM mail_messages m
-      JOIN engagement_connections c ON c.id = m.connection_id
-      JOIN mail_threads t ON t.id = m.thread_id
-      WHERE ${where}
-    `);
-    // Deduplicate BEFORE paginating: folder copies cannot consume the page or
-    // hide later distinct messages. Keep copies in different owned mailboxes.
-    const rows = await query<MailRow[]>(Prisma.sql`
-      SELECT * FROM (
-        SELECT DISTINCT ON (m.connection_id, COALESCE(NULLIF(m.metadata_jsonb->>'internetMessageId', ''), m.id::text))
-          m.id::text AS id, m.thread_id::text AS thread_id,
-          m.connection_id::text AS connection_id, m.updated_at AS message_updated_at,
-          m.created_at, c.tenant_id::text AS owner_tenant_id,
-          c.created_by_user_id::text AS owner_actor_id,
-          c.status::text AS connection_status, m.subject,
-          m.from_email::text AS from_email, m.from_name,
-          m.to_recipients_jsonb AS to_recipients, m.cc_recipients_jsonb AS cc_recipients,
-          m.sent_at, m.received_at, left(m.body_text, 400) AS preview, m.has_attachments,
-          m.metadata_jsonb->>'folder' AS folder,
-          m.metadata_jsonb->>'internetMessageId' AS internet_message_id,
-          t.client_id::text AS client_id, cl.name AS client_name, c.account_email::text AS account_email
-        FROM mail_messages m
-        JOIN engagement_connections c ON c.id = m.connection_id
-        JOIN mail_threads t ON t.id = m.thread_id
-        LEFT JOIN clients cl ON cl.id = t.client_id AND cl.tenant_id = m.tenant_id
-        WHERE ${where}
-        ORDER BY m.connection_id, COALESCE(NULLIF(m.metadata_jsonb->>'internetMessageId', ''), m.id::text),
-                 COALESCE(m.received_at, m.sent_at) DESC NULLS LAST, m.id DESC
-      ) distinct_messages
-      ORDER BY COALESCE(received_at, sent_at) DESC NULLS LAST, id DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `);
-    const coverage = await query<
-      Array<{
-        account_email: string | null;
-        connection_id: string;
-        owner_tenant_id: string;
-        owner_actor_id: string;
-        provider: string;
-        status: string;
-        last_sync_at: Date | null;
-        sync_state: unknown;
-        synced_messages: number;
-        oldest_synced: Date | null;
-        newest_synced: Date | null;
-      }>
-    >(Prisma.sql`
-      SELECT c.account_email::text AS account_email, c.id::text AS connection_id,
-             c.tenant_id::text AS owner_tenant_id,
-             c.created_by_user_id::text AS owner_actor_id,
-             c.provider::text AS provider,
-             c.status::text AS status, c.last_sync_at, c.sync_state_jsonb AS sync_state,
-             count(m.id)::int AS synced_messages,
-             min(COALESCE(m.received_at, m.sent_at)) AS oldest_synced,
-             max(COALESCE(m.received_at, m.sent_at)) AS newest_synced
-      FROM engagement_connections c
-      LEFT JOIN mail_messages m ON m.connection_id = c.id AND m.tenant_id = c.tenant_id AND m.removed_at IS NULL
-        AND EXISTS (SELECT 1 FROM mail_threads t
-          WHERE t.id = m.thread_id AND t.tenant_id = m.tenant_id AND t.connection_id = m.connection_id
-            AND ${mailReadClientVisibility()})
-      WHERE c.tenant_id = ${ctx.tenantId}::uuid AND c.created_by_user_id = ${ctx.userId}::uuid
-            AND c.provider::text IN (${Prisma.join(MAIL_PROVIDERS)})
-            ${mailboxList ? Prisma.sql`AND c.id IN (${Prisma.join(mailboxList)})` : Prisma.empty}
-      GROUP BY c.id, c.created_at ORDER BY c.created_at
-    `);
+    const counted = await query<Array<{ n: number }>>(mailReadCountSql(where));
+    const rows = await query<MailRow[]>(mailReadPageSql(where, limit, offset));
+    const coverage = await query<MailCoverageRow[]>(mailReadCoverageSql(ctx, mailboxList));
     return { total: counted[0]?.n ?? 0, rows, coverage };
   });
   const searchedMailboxes = coverage.map((c) => {

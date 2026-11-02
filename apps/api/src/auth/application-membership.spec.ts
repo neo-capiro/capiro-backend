@@ -70,9 +70,6 @@ const authority = load(source('auth/application-authority.ts'), {
 const wall = load(source('memory/memory-wall.helpers.ts'), { '@capiro/shared': shared });
 const roleMapping = load(source('auth/clerk-role.util.ts'), { '@capiro/shared': shared });
 const previewNativeReadMode = load(source('auth/preview-native-read-mode.ts'), { './mounted-request-path.js': mountedRequest });
-const signedMemoryHttpGate = load(source('auth/read-delegation/signed-memory-http-gate.ts'), {
-  '../mounted-request-path.js': mountedRequest, '@nestjs/common': nest,
-});
 const retainedNativeAuthority = load(source('auth/retained-native-authority.ts'), {
   '@nestjs/common': nest, '@capiro/shared': shared, 'node:util': { types: nodeTypes },
 });
@@ -86,7 +83,6 @@ const tenantOwner = load(source('tenant/tenant-context.middleware.ts'), {
   '../auth/core-ed25519-key-config.js': executionKeyConfig,
   '../auth/meri-execution-request.js': executionRequest,
   '../auth/read-delegation/read-delegation-request.js': readDelegationRequest,
-  '../auth/read-delegation/signed-memory-http-gate.js': signedMemoryHttpGate,
   '../auth/mounted-request-path.js': mountedRequest,
 });
 // The actual canonical governed-memory policy (type-only imports), not a stub.

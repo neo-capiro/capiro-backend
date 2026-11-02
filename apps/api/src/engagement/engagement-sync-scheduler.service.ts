@@ -50,6 +50,49 @@ interface ClaimedConnection {
   account_email: string | null;
 }
 
+/**
+ * One line per attention class, computed from the same rows the watchdog reads.
+ * Two classes exist because two different failures both look like "nothing is
+ * syncing" and need different actions: a schedulable row that stopped running,
+ * and a row parked in needs_configuration that no scheduler will ever retry.
+ * Pure so the wording is testable without a database.
+ */
+export interface StaleConnectionRow {
+  account_email: string | null;
+  last_sync_at: Date | null;
+  status: string;
+  block: string;
+}
+
+export function summarizeStaleConnections(
+  rows: StaleConnectionRow[],
+  hours = STALE_WARN_HOURS,
+  maxParkedNames = 3,
+): string[] {
+  const lines: string[] = [];
+  const stalled = rows.filter((row) => row.status !== 'needs_configuration');
+  const parked = rows.filter((row) => row.status === 'needs_configuration');
+  if (stalled.length > 0) {
+    const detail = stalled
+      .map(
+        (row) =>
+          `${row.account_email ?? '(no address)'} last=${
+            row.last_sync_at ? row.last_sync_at.toISOString() : 'never'
+          } (${row.block})`,
+      )
+      .join('; ');
+    lines.push(`engagement connections stale >${hours}h despite auto-sync: ${detail}`);
+  }
+  if (parked.length > 0) {
+    const names = parked.slice(0, maxParkedNames).map((row) => row.account_email ?? '(no address)');
+    const more = parked.length > maxParkedNames ? ` +${parked.length - maxParkedNames} more` : '';
+    lines.push(
+      `engagement connections need re-configuration (${parked.length}): ${names.join(', ')}${more}`,
+    );
+  }
+  return lines;
+}
+
 @Injectable()
 export class EngagementSyncSchedulerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(EngagementSyncSchedulerService.name);
@@ -201,29 +244,43 @@ export class EngagementSyncSchedulerService implements OnModuleInit, OnModuleDes
     }
   }
 
-  /** Hourly: surface syncable connections that are silently stale anyway. */
+  /**
+   * Hourly: surface every connection that has stopped syncing, with the reason
+   * the scheduler cannot claim it. Covers needs_configuration (a dead refresh
+   * token is otherwise infinitely quiet: excluded from scheduling by design and
+   * from this watchdog until now) and names the exclusion for connected rows
+   * (a removed creator membership keeps a row 'connected' while no tick can
+   * ever claim it).
+   */
   private async warnOnStaleConnections(): Promise<void> {
-    const stale = await this.prisma.withSystem((tx) =>
-      tx.$queryRaw<Array<{ account_email: string | null; last_sync_at: Date | null }>>(Prisma.sql`
-        SELECT account_email::text AS account_email, last_sync_at
-        FROM engagement_connections
-        WHERE provider IN ('microsoft_365', 'google_workspace')
-          AND status IN ('connected', 'error')
-          AND (last_sync_at IS NULL OR last_sync_at < now() - make_interval(hours => ${STALE_WARN_HOURS}::int))
-        ORDER BY last_sync_at ASC NULLS FIRST
-        LIMIT 10
+    const rows = await this.prisma.withSystem((tx) =>
+      tx.$queryRaw<StaleConnectionRow[]>(Prisma.sql`
+        SELECT connection.account_email::text AS account_email,
+               connection.last_sync_at,
+               connection.status::text AS status,
+               CASE
+                 WHEN connection.status = 'needs_configuration' THEN 'needs_reconfiguration'
+                 WHEN NOT EXISTS (
+                   SELECT 1 FROM tenant_memberships AS membership
+                    WHERE membership.tenant_id = connection.tenant_id
+                      AND membership.user_id = connection.created_by_user_id
+                      AND membership.status = 'active'
+                 ) THEN 'creator_membership_inactive'
+                 WHEN connection.sync_state_jsonb->'oauthAttempt'->>'expiresAt'
+                   ~ '^[0-9]+([.][0-9]+)?$'
+                   AND (connection.sync_state_jsonb->'oauthAttempt'->>'expiresAt')::numeric
+                     > EXTRACT(EPOCH FROM clock_timestamp()) THEN 'oauth_attempt_pending'
+                 ELSE 'scheduled'
+               END AS block
+        FROM engagement_connections AS connection
+        WHERE connection.provider IN ('microsoft_365', 'google_workspace')
+          AND connection.status IN ('connected', 'error', 'needs_configuration')
+          AND (connection.last_sync_at IS NULL
+            OR connection.last_sync_at < now() - make_interval(hours => ${STALE_WARN_HOURS}::int))
+        ORDER BY connection.last_sync_at ASC NULLS FIRST, connection.id
+        LIMIT 40
       `),
     );
-    if (stale.length > 0) {
-      const detail = stale
-        .map(
-          (c) =>
-            `${c.account_email ?? '(no address)'} last=${c.last_sync_at?.toISOString() ?? 'never'}`,
-        )
-        .join('; ');
-      this.logger.warn(
-        `engagement connections stale >${STALE_WARN_HOURS}h despite auto-sync: ${detail}`,
-      );
-    }
+    for (const line of summarizeStaleConnections(rows)) this.logger.warn(line);
   }
 }

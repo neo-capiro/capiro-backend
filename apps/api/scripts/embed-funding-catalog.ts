@@ -9,24 +9,34 @@ import { runWithSyncRun, emptyCounts } from '../src/ingestion/sync-run.helper.js
 import { ATTACHMENT_BODY_SQL, ATTACHMENT_TEXT_METADATA_SQL, CURRENT_FUNDING_ATTACHMENT_SQL, LOCAL_TEXT_SQL } from '../src/external/tango/funding-document-text.js';
 
 const SOURCES = {
-  grant: { table: 'federal_grant', idType: 'text', changed: 'synced_at', type: 'funding_grant_chunk', body: "concat_ws(E'\n',title,agency,description,eligibility_text,array_to_string(eligibility,', '))", url: 'url', priority: "status IN ('posted','forecasted') AND (close_date IS NULL OR close_date >= CURRENT_DATE)" },
-  notice: { table: 'sam_opportunity', idType: 'uuid', changed: 'last_synced_at', type: 'funding_notice_chunk', body: "concat_ws(E'\n',title,agency,description,set_aside,naics_code,psc_code)", url: 'source_url', priority: 'active AND (response_deadline IS NULL OR response_deadline >= NOW())' },
-  attachment: { table: 'opportunity_attachment', idType: 'uuid', changed: 'provider_observed_at', type: 'funding_attachment_chunk', body: ATTACHMENT_BODY_SQL, url: 'source_url', priority: CURRENT_FUNDING_ATTACHMENT_SQL },
+  grant: { table: 'federal_grant', idType: 'text', changed: 'synced_at', type: 'funding_grant_chunk', body: "concat_ws(E'\n',title,agency,description,eligibility_text,array_to_string(eligibility,', '))", url: 'url', priority: "status IN ('posted','forecasted') AND (close_date IS NULL OR close_date >= CURRENT_DATE)", newest: 'close_date DESC NULLS LAST' },
+  notice: { table: 'sam_opportunity', idType: 'uuid', changed: 'last_synced_at', type: 'funding_notice_chunk', body: "concat_ws(E'\n',title,agency,description,set_aside,naics_code,psc_code)", url: 'source_url', priority: 'active AND (response_deadline IS NULL OR response_deadline >= NOW())', newest: 'posted_date DESC NULLS LAST' },
+  attachment: { table: 'opportunity_attachment', idType: 'uuid', changed: 'provider_observed_at', type: 'funding_attachment_chunk', body: ATTACHMENT_BODY_SQL, url: 'source_url', priority: CURRENT_FUNDING_ATTACHMENT_SQL, newest: 'provider_observed_at DESC NULLS LAST' },
 } as const;
 type Kind = keyof typeof SOURCES;
+/** `active`: the scheduled scope, open opportunities and their documents, oldest
+ * embedding first. `all`: the one-off historical backfill, every pending record
+ * regardless of activity, newest first so the most useful history lands first. */
+export const EMBEDDING_SCOPES = ['active', 'all'] as const;
+export type Scope = (typeof EMBEDDING_SCOPES)[number];
+const isScope = (value: string): value is Scope => (EMBEDDING_SCOPES as readonly string[]).includes(value);
 const CHUNKER = 'funding-v3-6000chars-6000bytes-400-unicode';
 // Explicit bytewise bounds let text_pattern_ops narrow the scan under RLS.
 // ':' and its immediate successor ';' select only this document's id: chunks,
 // treating any LIKE metacharacters in a source ID literally.
 const DOCUMENT_CHUNKS_SQL = 'tenant_id IS NULL AND source_type=$1 AND model=$2 AND source_id ~>=~ $3 AND source_id ~<~ $4';
-/** Only open opportunities and their documents are in the embedding scope. */
-export async function readPendingDocuments(prisma: PrismaClient, kind: Kind, limit: number) {
+/** Pending means never embedded or re-synced since; the content marker is
+ * rechecked per document, so an unchanged record costs no model call. */
+export function pendingDocumentsSql(kind: Kind, scope: Scope) {
   const source = SOURCES[kind];
-  return prisma.$queryRawUnsafe<Array<{ id: string }>>(`SELECT id::text
+  return `SELECT id::text
     FROM ${source.table} WHERE (embedded_at IS NULL OR embedded_at < ${source.changed})
     AND ${kind === 'attachment' ? `(length(provider_data->>'extracted_text')>10 OR length(${LOCAL_TEXT_SQL})>10 OR embedded_content_hash IS NOT NULL)` : 'length(description)>10'}
-    AND (${source.priority})
-    ORDER BY embedded_at ASC NULLS FIRST,id LIMIT $1`, limit);
+    ${scope === 'active' ? `AND (${source.priority})` : ''}
+    ORDER BY ${scope === 'active' ? 'embedded_at ASC NULLS FIRST' : source.newest},id LIMIT $1`;
+}
+export async function readPendingDocuments(prisma: PrismaClient, kind: Kind, limit: number, scope: Scope = 'active') {
+  return prisma.$queryRawUnsafe<Array<{ id: string }>>(pendingDocumentsSql(kind, scope), limit);
 }
 /** Fetch one body, not thousands of full PDFs. Provider text is already in
  * body; only the two small metadata fields used by the chunk plan are repeated. */
@@ -98,14 +108,16 @@ export async function embedDocument(prisma: PrismaClient, kind: Kind, row: Recor
   }, { timeout: 120_000 });
   return calls;
 }
-export const EMBEDDING_USAGE = 'Usage: embed-funding-catalog [--commit] [--limit=N] [--max-chunks=N]. Active documents only. Requires DATABASE_URL; commits require FUNDING_ALLOWED_DB_HOST and task IAM for Titan v2. Exit 0: bounded pass; 1: failure.';
+export const EMBEDDING_USAGE = 'Usage: embed-funding-catalog [--commit] [--limit=N] [--max-chunks=N] [--scope=active|all]. Default scope active: open documents only; all: every pending record, newest first. Requires DATABASE_URL; commits require FUNDING_ALLOWED_DB_HOST and task IAM for Titan v2. Exit 0: bounded pass; 1: failure.';
 export async function main(argv = process.argv.slice(2)) {
   if (argv.length === 1 && ['--help', '-h'].includes(argv[0] ?? '')) { console.log(EMBEDDING_USAGE); return; }
-  if (argv.some(arg => !/^--(?:commit|(?:limit|max-chunks)=.+)$/.test(arg))) throw new Error(EMBEDDING_USAGE);
+  if (argv.some(arg => !/^--(?:commit|(?:limit|max-chunks|scope)=.+)$/.test(arg))) throw new Error(EMBEDDING_USAGE);
   const commit = argv.includes('--commit');
   const limit = Number(argv.find(x => x.startsWith('--limit='))?.slice(8) ?? 300);
   const budget = Number(argv.find(x => x.startsWith('--max-chunks='))?.slice(13) ?? 3000);
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 10000 || !Number.isSafeInteger(budget) || budget < 1 || budget > 20000) throw new Error('Invalid embedding limits');
+  const scope = argv.find(x => x.startsWith('--scope='))?.slice(8) ?? 'active';
+  if (!isScope(scope)) throw new Error('Invalid embedding scope');
   const lock = fundingLockClient(commit);
   const prisma = new PrismaClient();
   try {
@@ -119,10 +131,11 @@ export async function main(argv = process.argv.slice(2)) {
         errorMessage: 'Interrupted embedding worker released its advisory lock before completion; completed documents are preserved' } });
     const run = async () => {
       let planned = 0, processed = 0, calls = 0, complete = true;
-      // Historical records remain stored, but never consume embedding budget.
+      // The scheduled active scope never spends budget on historical records;
+      // only an explicit --scope=all run works through them, newest first.
       for (const kind of ['grant', 'notice', 'attachment'] as const) {
         if (planned >= budget) { complete = false; continue; }
-        const rows = await readPendingDocuments(prisma, kind, limit);
+        const rows = await readPendingDocuments(prisma, kind, limit, scope);
         if (rows.length === limit) complete = false;
         for (const selectedRow of rows) {
           const row = await readDocument(prisma, kind, selectedRow.id);
@@ -135,8 +148,8 @@ export async function main(argv = process.argv.slice(2)) {
           if (processed % 200 === 0) console.log(JSON.stringify({ event: 'FUNDING_EMBEDDING_PROGRESS', kind, current: true, processed, chunks: planned }));
         }
       }
-      console.log(JSON.stringify({ event: 'FUNDING_EMBEDDINGS', scope: 'active', commit, documents: processed, chunks: planned, modelCalls: calls, complete }));
-      return { ...emptyCounts(), updated: processed, complete, incompleteReason: complete ? undefined : 'Active embedding backlog remains; bounded worker resumes pending documents' };
+      console.log(JSON.stringify({ event: 'FUNDING_EMBEDDINGS', scope, commit, documents: processed, chunks: planned, modelCalls: calls, complete }));
+      return { ...emptyCounts(), updated: processed, complete, incompleteReason: complete ? undefined : `Embedding backlog remains for scope=${scope}; bounded worker resumes pending documents` };
     };
     if (commit) await runWithSyncRun(prisma, 'embed-funding-catalog', run, { metricFormat: 'json' }); else await run();
   } finally { await lock.end(); await prisma.$disconnect(); }

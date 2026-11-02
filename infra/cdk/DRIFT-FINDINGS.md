@@ -383,3 +383,40 @@ read-only database roles remain the SQL gate.
 Rollback: re-apply the previous rule list with `update-web-acl` and the current lock token.
 No CDK code changed: `compute-stack.ts` still codifies the ACL without the SQLi rule set, so the
 reconciliation above must also decide these two carve-outs deliberately.
+
+## WAF — Approvals inbox read excepted from the SQLi_BODY re-block on live `capiro-dev-waf` (2026-11-02 UTC, Neo's OK; live only, not in CDK)
+
+Web ACL `capiro-dev-waf` took lock-token `0c9b299d…` to `42f57b82…` (capacity 1152 to 1164). The Approvals
+page read "access was denied" because `POST /api/conversations/intents/inbox` with body `{"limit":50}` emits
+the `SQLi_Body` label and rule 5 re-blocked it (WAF 403, no JSON body, which the frontend maps to access lost).
+The frontend proxies the same body to Meri's control through the same ALB, so both hosts needed the exception.
+
+| Rule | Change |
+| --- | --- |
+| `block-sqli-body-outside-sql-tool-and-chat` (5) | Carve-out += `POST` + `/api/conversations/intents/inbox` + host `app.capiro.ai`, and the same on host `meri-preview.capiro.ai` |
+
+Nothing else changed. `inbox-count` (body `{}`) and `/api/data-access/read` (body `{clientId}`) already pass
+the WAF, so they were not added; `/api/conversations/other` with the same body still returns 403.
+Rollback: re-apply the previous rule list with `update-web-acl` and the current lock token.
+No CDK code changed: the ACL in `compute-stack.ts` still lacks the SQLi rule set, so the reconciliation
+must decide this exception deliberately along with the earlier carve-outs.
+
+## Preview Core api service desiredCount 2 and clone minimum capacity 2 ACU (2026-11-02 UTC, Neo's go via Root; live only, not in CDK)
+
+The X14 diagnosis found the preview Core api at 65-82% CPU on one 1-vCPU task under acceptance and the Aurora clone
+at 100% CPU with a 0.5 ACU floor. Two live changes, in this order:
+
+| Resource | Change |
+| --- | --- |
+| Aurora cluster `capiro-newstack-preview-clone` (not CloudFormation-managed) | `ServerlessV2ScalingConfiguration` MinCapacity 0.5 to 2, MaxCapacity 16 unchanged, `modify-db-cluster --apply-immediately`, no reboot |
+| ECS service `capiro-preview-first-chat-core` (stack `Capiro-Preview-First-Chat-Core`, resource `HeldCoreService`) | `update-service --desired-count 2` on the then-current task definition (`:48`); 03:01Z, 2/2 running and healthy on both target groups |
+
+The stack still declares one task: `infra/cdk/lib/preview/first-chat-core.ts` rejects any binding whose
+`deployment.desiredCount` is not 1. This is one property of drift on the service; a stack deploy would also reset
+the task definition to the stack's revision (task-definition revisions are already rolled out of band with
+`update-service`), so do not run `cdk deploy` for this stack without reconciling both. The deployment configuration is
+unchanged (ROLLING, minimumHealthyPercent 50, maximumPercent 200, circuit breaker on without rollback, 15-minute bake).
+`MERI_TOOL_ALLOWLIST` is not set on the preview Core task (profile `standard`), so the Meri semantic search receivers
+are reachable without an environment change.
+Rollback: `aws ecs update-service --desired-count 1` for the service (only on Neo's word) and
+`modify-db-cluster --serverless-v2-scaling-configuration MinCapacity=0.5,MaxCapacity=16` for the clone.

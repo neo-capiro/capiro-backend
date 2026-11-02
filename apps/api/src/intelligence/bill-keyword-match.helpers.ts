@@ -1,43 +1,29 @@
 import { Prisma } from '@prisma/client';
 
 /**
- * Index-backed whole-word / substring keyword matching for congress_bill lookups.
+ * Whole-word / exact keyword matching for congress_bill lookups.
  *
- * WHY THIS EXISTS
- * ---------------
- * The bill-relevance queries used to match with a single cross-table predicate:
+ * Every tracked-bill, relevant-bill and tracker-candidate read on a cache miss
+ * evaluates a client's keyword terms against every bill's title and policy area
+ * and every bill subject. Typical clients carry 10-26 terms that match thousands
+ * of the ~48k bills, so no index narrows the scan: on the preview clone (2
+ * November 2026) PostgreSQL chose parallel sequential scans and ran one regex
+ * per term per row (~27 regex passes over 147k subject rows and 48k bills),
+ * about 2 s and three backends per statement, twice per read. Under real
+ * client-page traffic that saturated the database and cancelled the reads at
+ * the 5 s budget.
  *
- *   FROM congress_bill cb LEFT JOIN congress_bill_subject cbs ON cbs.bill_id = cb.id
- *   WHERE LOWER(cbs.name)  = ANY($lower) OR LOWER(cbs.name)  ~ ANY($patterns)
- *      OR LOWER(cb.policy_area) = ANY($lower) OR LOWER(cb.policy_area) ~ ANY($patterns)
- *      OR LOWER(cb.title) ~ ANY($patterns)
- *
- * That shape can never use an index, for two independent reasons:
- *   1. `col ~ ANY(array)` is a ScalarArrayOpExpr, which a pg_trgm GIN index cannot
- *      serve — only per-pattern `col ~ $p` clauses become BitmapOr index scans.
- *   2. The OR spans two tables (cbs.name OR cb.title/policy_area), so the planner
- *      must materialize the full join and filter row-by-row regardless of indexes.
- *
- * The result was two sequential scans + a 160k-row join filter (~2s per call),
- * run once per client in the portfolio roll-up fan-out — the dominant writer-CPU
- * consumer during business hours.
- *
- * THE FIX
- * -------
- * Split the cross-table OR into a UNION of per-table branches, and emit each regex
- * as an explicit per-pattern OR (not `~ ANY`). Each branch then uses a functional
- * `gin_trgm_ops` index on LOWER(col) (migration 20260724010000): the equality
- * (`= ANY`), regex (`~`), and substring (`ILIKE`) operators are all trigram-served.
- * Measured on the live dev/prod DB: ~1965ms -> ~5-30ms, IDENTICAL result set
- * (validated: old vs new returned the same 14,763 bill ids, 0 difference), and the
- * indexes are used even under a forced generic plan (i.e. with bind parameters).
- *
- * DELIBERATELY NOT MIGRATED (federal_register_document, ~9.3k rows / 11MB — small
- * and cache-resident, so a seq scan is cheap and it is not a measured CPU driver):
- *   - IntelligenceService.findActiveRegulations  (LOWER(topics)/LOWER(title) ~ ANY)
- *   - IntelligenceService.getBillRegulationLinks (title/abstract ILIKE ANY, no prefilter)
- * If federal_register_document grows materially, give it functional gin_trgm_ops
- * indexes on lower(title)/lower(abstract) and rewrite both via this helper.
+ * The shape below gives the identical ordered result set (checked on all 21
+ * term sets of the busiest tenant) for a fraction of the work:
+ *   - All whole-word patterns become ONE alternation regex, so each row is
+ *     matched in a single pass instead of once per term.
+ *   - Subject names (~1k distinct) and policy areas (~33 distinct) are matched
+ *     once per DISTINCT value, then joined back by plain equality. `OFFSET 0`
+ *     keeps the planner from pushing the regex below the DISTINCT, which would
+ *     put it back on every row.
+ *   - Bill titles are unique per bill and still take the single regex pass.
+ * Measured: 1.0-2.1 s -> 0.2-0.65 s per statement, in one backend.
+ * The equality (`= ANY`) clauses keep the exact-name match for lowercased terms.
  */
 
 /** Escape a term for use inside a POSIX regex, then wrap it in \m...\M word boundaries. */
@@ -55,42 +41,24 @@ export function buildKeywordMatchTerms(terms: string[]): {
   return { lowerTerms, wordPatterns };
 }
 
-/**
- * Build an index-friendly boolean fragment matching `columnSql` against terms:
- *
- *   ( columnSql = ANY($equality) OR columnSql ~ $p1 OR ... OR columnSql ILIKE $l1 OR ... )
- *
- * Regex/ILIKE clauses are emitted per-pattern (never `~ ANY` / `ILIKE ANY`) so the
- * planner can turn them into a BitmapOr over the trigram GIN index. Returns `FALSE`
- * when there is nothing to match — which yields the empty result set, exactly as the
- * original `= ANY('{}')` / `~ ANY('{}')` predicates did for empty inputs.
- */
-export function columnKeywordMatchSql(
-  columnSql: Prisma.Sql,
-  opts: { equalityTerms?: string[]; regexPatterns?: string[]; ilikePatterns?: string[] },
-): Prisma.Sql {
+/** One regex that matches when any of `wordPatterns` matches, or null when there are none. */
+function anyWordPattern(wordPatterns: string[]): string | null {
+  return wordPatterns.length ? wordPatterns.map((pattern) => `(?:${pattern})`).join('|') : null;
+}
+
+/** `LOWER(column) = ANY($terms) OR LOWER(column) ~ $anyWord`, or FALSE when there is nothing to match. */
+function valueMatchSql(column: Prisma.Sql, lowerTerms: string[], pattern: string | null): Prisma.Sql {
   const clauses: Prisma.Sql[] = [];
-  const equalityTerms = opts.equalityTerms ?? [];
-  if (equalityTerms.length) {
-    clauses.push(Prisma.sql`${columnSql} = ANY(${equalityTerms}::text[])`);
-  }
-  for (const pattern of opts.regexPatterns ?? []) {
-    clauses.push(Prisma.sql`${columnSql} ~ ${pattern}`);
-  }
-  for (const pattern of opts.ilikePatterns ?? []) {
-    clauses.push(Prisma.sql`${columnSql} ILIKE ${pattern}`);
-  }
-  if (!clauses.length) return Prisma.sql`FALSE`;
-  return Prisma.sql`(${Prisma.join(clauses, ' OR ')})`;
+  if (lowerTerms.length) clauses.push(Prisma.sql`LOWER(${column}) = ANY(${lowerTerms}::text[])`);
+  if (pattern) clauses.push(Prisma.sql`LOWER(${column}) ~ ${pattern}`);
+  return clauses.length ? Prisma.sql`(${Prisma.join(clauses, ' OR ')})` : Prisma.sql`FALSE`;
 }
 
 /**
  * A parenthesized subquery producing DISTINCT `congress_bill.id`s whose title,
  * policy_area (on congress_bill) or subject name (on congress_bill_subject) matches
- * the given terms. UNION of per-table branches so each branch is index-backed; the
- * UNION de-duplicates. Provably equivalent to the original single cross-table OR
- * (the subject branch inner-joins congress_bill so orphaned subject rows are
- * excluded, matching the original LEFT JOIN anchored on congress_bill).
+ * the given terms. The subject branch inner-joins congress_bill so orphaned subject
+ * rows are excluded; the UNION de-duplicates.
  *
  * @param opts.congress            when set, restricts both branches to one Congress.
  * @param opts.includePolicyRegex  when false, omits the policy_area regex clause
@@ -104,27 +72,27 @@ export function matchingBillIdsSql(
   const includePolicyRegex = opts.includePolicyRegex ?? true;
   const congressFilter =
     opts.congress != null ? Prisma.sql`cb.congress = ${opts.congress} AND ` : Prisma.empty;
-
-  const policyMatch = columnKeywordMatchSql(Prisma.sql`LOWER(cb.policy_area)`, {
-    equalityTerms: lowerTerms,
-    regexPatterns: includePolicyRegex ? wordPatterns : [],
-  });
-  const titleMatch = columnKeywordMatchSql(Prisma.sql`LOWER(cb.title)`, {
-    regexPatterns: wordPatterns,
-  });
-  const nameMatch = columnKeywordMatchSql(Prisma.sql`LOWER(cbs.name)`, {
-    equalityTerms: lowerTerms,
-    regexPatterns: wordPatterns,
-  });
+  const pattern = anyWordPattern(wordPatterns);
+  const policyMatch = valueMatchSql(Prisma.sql`area.policy_area`, lowerTerms, includePolicyRegex ? pattern : null);
+  const titleMatch = pattern ? Prisma.sql`LOWER(cb.title) ~ ${pattern}` : Prisma.sql`FALSE`;
+  const nameMatch = valueMatchSql(Prisma.sql`subject.name`, lowerTerms, pattern);
 
   return Prisma.sql`(
     SELECT cb.id
     FROM congress_bill cb
-    WHERE ${congressFilter}(${policyMatch} OR ${titleMatch})
+    WHERE ${congressFilter}(cb.policy_area IN (
+      SELECT area.policy_area
+      FROM (SELECT DISTINCT policy_area FROM congress_bill WHERE policy_area IS NOT NULL OFFSET 0) area
+      WHERE ${policyMatch}
+    ) OR ${titleMatch})
     UNION
     SELECT cb.id
     FROM congress_bill cb
     JOIN congress_bill_subject cbs ON cbs.bill_id = cb.id
-    WHERE ${congressFilter}${nameMatch}
+    WHERE ${congressFilter}cbs.name IN (
+      SELECT subject.name
+      FROM (SELECT DISTINCT name FROM congress_bill_subject OFFSET 0) subject
+      WHERE ${nameMatch}
+    )
   )`;
 }

@@ -411,6 +411,11 @@ export const configSchema = z.object({
   // Per-connection sync cadence. Delta syncs are cheap (changes-only); 20 min
   // keeps Gmail historyId cursors alive and folder coverage fresh.
   ENGAGEMENT_SYNC_INTERVAL_MINUTES: z.coerce.number().int().min(5).max(1440).default(20),
+  // Per-mailbox ceiling on synced dynamic Graph mail folders. Folders past the
+  // cap are never ingested, so their mail is invisible to Meri and to the client
+  // timeline; the drop is logged and reported in mail coverage. Raise it for
+  // mailboxes with deep folder trees (a 568-folder mailbox drops 468 at 100).
+  ENGAGEMENT_MAIL_FOLDER_CAP: z.coerce.number().int().min(2).max(2000).default(100),
 
   // SAM.gov Contract Opportunities API key (api.data.gov). Stored in Secrets
   // Manager and injected as an env var; optional so non-prod boots without it.
@@ -695,9 +700,6 @@ export const configSchema = z.object({
     .string()
     .regex(/^[a-z][a-z0-9_]{1,63}(,[a-z][a-z0-9_]{1,63})*$/)
     .optional(),
-  // Reserved A8 actions.query transport stays unavailable until the Meri
-  // one-use delegated-token adapter and independent deployment readback exist.
-  MERI_ACTION_QUERY_ALIAS_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   MERI_TOOLS_REQUIRE_SERVICE_SECRET: z
     .string()
     .default('false')

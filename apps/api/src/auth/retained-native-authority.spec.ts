@@ -10,7 +10,6 @@ import * as executionKeyConfig from './core-ed25519-key-config.js';
 import * as executionRequest from './meri-execution-request.js';
 import * as mountedRequest from './mounted-request-path.js';
 import * as readDelegationRequest from './read-delegation/read-delegation-request.js';
-import * as signedMemoryGate from './read-delegation/signed-memory-http-gate.js';
 
 const root = resolve(__dirname, '../../../..');
 const source = (name: string) => readFileSync(resolve(root, 'apps/api/src', name), 'utf8');
@@ -48,7 +47,6 @@ function owners() {
     '../auth/retained-native-authority.js': native,
     '../auth/core-ed25519-key-config.js': executionKeyConfig, '../auth/meri-execution-request.js': executionRequest,
     '../auth/read-delegation/read-delegation-request.js': readDelegationRequest,
-    '../auth/read-delegation/signed-memory-http-gate.js': signedMemoryGate,
     '../auth/mounted-request-path.js': mountedRequest,
     '../auth/clerk.service.js': {}, '../auth/preview-native-read-mode.js': load(source('auth/preview-native-read-mode.ts'), { './mounted-request-path.js': mountedRequest }),
     '../auth/clerk-role.util.js': { mapClerkRoleToCapiro() { throw new Error('No self-heal in this fixture'); } },

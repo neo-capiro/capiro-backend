@@ -43,6 +43,8 @@ import {
   type IntegrationSyncHealth,
 } from '../integration-health.js';
 import {
+  MailboxBusyError,
+  MailboxClaimLostError,
   assertMailboxSyncCurrent,
   mailboxState,
   mergeMailboxSyncState,
@@ -172,6 +174,8 @@ interface MicrosoftSyncState {
     captureReplayPreviousFolders?: Record<string, MailFolderSyncState>;
     captureReplayMissingFolders?: string[];
     folderEnumerationComplete?: boolean;
+    /** Dynamic folders this mailbox has beyond the per-connection sync cap. */
+    mailFoldersDropped?: number;
     cursor?: string | null;
     deltaLink?: string | null;
     updatedAt?: string | null;
@@ -368,6 +372,17 @@ export class MicrosoftGraphSyncService {
   private readonly privateKey?: string;
   private readonly stateSecret?: Buffer;
   private readonly notificationUrl?: string;
+  /**
+   * Per-mailbox ceiling on synced dynamic folders. Configurable so a large
+   * mailbox can be covered without a code change; a getter with a module-default
+   * fallback because several specs construct this class via Object.create and
+   * never run field initializers or the constructor.
+   */
+  private readonly mailFolderCapOverride?: number;
+
+  private get mailFolderCap(): number {
+    return this.mailFolderCapOverride ?? MAX_SYNCED_MAIL_FOLDERS;
+  }
 
   // Bounded notification-sync queue (see enqueueNotificationSync). Per-instance,
   // so the bound is per API task — total concurrency is this × task count.
@@ -409,6 +424,7 @@ export class MicrosoftGraphSyncService {
     const stateSecret = config.get('OAUTH_STATE_SECRET', { infer: true });
     this.stateSecret = stateSecret ? Buffer.from(stateSecret, 'utf8') : undefined;
     this.notificationUrl = config.get('MICROSOFT_GRAPH_NOTIFICATION_URL', { infer: true });
+    this.mailFolderCapOverride = config.get('ENGAGEMENT_MAIL_FOLDER_CAP', { infer: true });
   }
 
   readCalendarCommand(ctx: TenantContext, connectionId: string, requestId: string) {
@@ -1036,6 +1052,16 @@ export class MicrosoftGraphSyncService {
             // A no-report throw is a known no-effect failure, not an unknown effect.
             task.admission.settle('failed');
           }
+          // The database claim in mailbox-sync-claim.ts is the single-flight guard across
+          // API tasks: losing it means another task (or the scheduler) holds this mailbox,
+          // and that run plus the scheduled follow-up cover the notification. Expected, not
+          // an error, exactly as the scheduler treats it.
+          if (err instanceof MailboxBusyError || err instanceof MailboxClaimLostError) {
+            this.logger.warn(
+              `Graph notification sync for connection ${task.connectionId} skipped: ${err.message}`,
+            );
+            return;
+          }
           this.logger.error(
             `Graph notification sync failed for connection ${task.connectionId}: ${
               err instanceof Error ? err.message : err
@@ -1341,6 +1367,7 @@ export class MicrosoftGraphSyncService {
             : previousFolders
           : undefined,
         folderEnumerationComplete: enumeration.coverageComplete,
+        mailFoldersDropped: enumeration.dropped,
         cursor: Object.values(folderStates).find((folder) => folder.nextLink)?.nextLink ?? null,
         deltaLink: null,
         updatedAt: new Date().toISOString(),
@@ -1543,7 +1570,7 @@ export class MicrosoftGraphSyncService {
   private async listSyncableMailFolders(
     connectionId: string,
     accessToken: string,
-  ): Promise<{ folders: SyncableMailFolder[]; enumerated: boolean; coverageComplete: boolean }> {
+  ): Promise<{ folders: SyncableMailFolder[]; enumerated: boolean; coverageComplete: boolean; dropped: number }> {
     const FOLDER_SELECT =
       '$select=id,displayName,parentFolderId,childFolderCount,totalItemCount&$top=100';
     try {
@@ -1597,24 +1624,29 @@ export class MicrosoftGraphSyncService {
         noiseRootIds,
         inboxId,
         sentItemsId,
-        cap: MAX_SYNCED_MAIL_FOLDERS,
+        cap: this.mailFolderCap,
       });
       if (dropped > 0) {
         this.logger.warn(
-          `mail folder cap for connection ${connectionId}: syncing ${folders.length} dynamic folders, dropped ${dropped} smaller ones`,
+          `mail folder cap for connection ${connectionId}: cap ${this.mailFolderCap}, syncing ${folders.length} dynamic folders, dropped ${dropped} smaller ones (reported in mail coverage; raise ENGAGEMENT_MAIL_FOLDER_CAP to cover them)`,
         );
       }
       this.logger.log(
         `mail folder enumeration for connection ${connectionId}: ${folders.length} dynamic folders (+inbox/sentitems)`,
       );
-      return { folders, enumerated: true, coverageComplete: dropped === 0 && all.length < 2000 };
+      return {
+        folders,
+        enumerated: true,
+        coverageComplete: dropped === 0 && all.length < 2000,
+        dropped,
+      };
     } catch (error) {
       this.logger.warn(
         `mail folder enumeration failed for connection ${connectionId} — syncing inbox+sentitems only: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
-      return { folders: [], enumerated: false, coverageComplete: false };
+      return { folders: [], enumerated: false, coverageComplete: false, dropped: 0 };
     }
   }
 

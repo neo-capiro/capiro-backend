@@ -67,6 +67,8 @@ const live = {
   secretsKeyArn: `arn:aws:kms:${region}:${account}:key/f47b4c53-b9c0-4d91-ad57-4d882f87767e`,
   clerkIssuer: 'https://clerk.app.capiro.ai',
 } as const;
+/** The same inventory for sibling preview compositions (forecasts-operations.ts); one owner, re-checked together. */
+export const FIRST_CHAT_CORE_LIVE = live;
 
 /** Host and method restrictions remain independent of Core's canonical user,
  * tenant/member, conversation and client-wall authorization. */
@@ -591,6 +593,11 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
         CORE_DEPLOYMENT_PROFILE: 'standard',
         PREVIEW_NATIVE_GETS_ENABLED: 'true',
         MERI_TOOLS_REQUIRE_SERVICE_SECRET: 'true',
+        // Meri's governed writes (Research Portfolio, watch, LegiWatch, client record, business-development,
+        // legislative document and sharing proposals) are created through /api/clio/action-proposals, which
+        // answers 503 "MeriV2 action proposals are disabled." unless this gate is on (2 Nov 2026 M37: the
+        // preview answered 503 in 1 ms and every proposal card ended "Result uncertain").
+        MERIV2_ACTION_PROPOSALS_ENABLED: 'true',
         // The image boots the full AppModule. Explicitly disable its worker and
         // outbound-action posture in this separate API task.
         CAPIRO_SERVICE_NAME: 'api',

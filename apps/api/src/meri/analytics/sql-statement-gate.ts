@@ -4,12 +4,12 @@ import { Parser } from 'node-sql-parser';
  * The statement gate for Meri's query_capiro_data.
  *
  * PostgreSQL enforces everything the reader roles' grants, security-barrier
- * views, RLS context and transaction settings can enforce: writes, DDL, other
- * schemas and catalogs, unpublished relations and columns, cross-tenant rows,
- * statement time, lock waits, idle transactions, search_path and role
- * switching (see capiro-data-reader-roles.integration.spec.ts). This gate only
- * implements what the database cannot decide for a single pass-through
- * statement, plus the product rules that stay:
+ * views, RLS context and transaction settings can enforce: writes, DDL,
+ * unpublished relations and columns, cross-tenant rows, statement time, lock
+ * waits, idle transactions, search_path and role switching (see
+ * capiro-data-reader-roles.integration.spec.ts). This gate only implements
+ * what the database cannot decide for a single pass-through statement, plus
+ * the product rules that stay:
  *
  *   (b) exactly one statement; SELECT or WITH ... SELECT only (no transaction
  *       control, SET, SHOW, COPY, LISTEN, EXPLAIN, no data-modifying CTE or
@@ -19,6 +19,11 @@ import { Parser } from 'node-sql-parser';
  *       row limit applied as an outer `SELECT * FROM (<sql>) q LIMIT $n`
  *       wrapper; byte caps on input.
  *   (c) public and client-record relations are never mixed in one query.
+ *   (d) a schema qualifier names only this source's own schema. The reader
+ *       roles keep whole-table grants that other tools use (capiro_analytics_ro
+ *       reads public.federal_award, federal_grant and sam_opportunity for
+ *       query_global_data), so `public.sam_opportunity` would bypass the
+ *       curated views; the database cannot tell the two callers apart.
  *
  * The model's SQL text is passed through verbatim inside the wrapper; nothing
  * is regenerated. node-sql-parser confirms statement type and reads the
@@ -79,6 +84,12 @@ export const PUBLIC_RELATION_NAMES = Object.freeze([
   'program_element_projects',
   'program_element_budget_positions',
   'program_element_project_budget_positions',
+  'federal_awards',
+  'federal_assistance_awards',
+  'program_element_years',
+  'federal_grants',
+  'sam_opportunities',
+  'government_forecasts',
 ] as const);
 export const PRIVATE_RELATION_NAMES = Object.freeze([
   'client_objectives',
@@ -109,6 +120,16 @@ export const SOURCE_SCHEMAS: Readonly<Record<SqlSource, string>> = Object.freeze
   research_portfolio: 'meri_private',
   classic_outreach: 'meri_private',
 });
+
+/**
+ * Schemas that exist beside the published ones and that a reader role can reach (PUBLIC keeps USAGE on public,
+ * and the catalogs are readable by every role). A qualifier naming one is refused even when the statement also
+ * uses it as an alias, so `FROM public.sam_opportunity public` cannot pass. Foreign source schemas are refused
+ * earlier with the one-source message.
+ */
+function isOtherSchema(name: string): boolean {
+  return name === 'public' || name === 'information_schema' || name.startsWith('pg_') || name === 'defproc_v2_private';
+}
 
 /** Statement keywords that can only start a data-modifying statement or a SELECT INTO. */
 const BLOCKED_KEYWORDS = new Set(['insert', 'update', 'delete', 'merge', 'into']);
@@ -154,7 +175,36 @@ const BLOCKED_FUNCTIONS = new Set([
   'dblink',
   'dblink_connect',
   'dblink_exec',
+  // Functions that read a table by name or run SQL from a string execute with the reader's own privileges, which
+  // include base-table grants other tools use; the text inside the string never passes this gate.
+  'query_to_xml',
+  'query_to_xml_and_xmlschema',
+  'query_to_xmlschema',
+  'table_to_xml',
+  'table_to_xml_and_xmlschema',
+  'table_to_xmlschema',
+  'schema_to_xml',
+  'schema_to_xml_and_xmlschema',
+  'schema_to_xmlschema',
+  'database_to_xml',
+  'database_to_xml_and_xmlschema',
+  'database_to_xmlschema',
+  'cursor_to_xml',
+  'cursor_to_xmlschema',
+  'ts_stat',
+  // ts_rewrite(query tsquery, select text) executes its text argument as a query.
+  'ts_rewrite',
 ]);
+/**
+ * Server statistics and activity catalogs: every view or function whose name starts with pg_stat (pg_stats,
+ * pg_statistic*, pg_stat_activity, pg_stat_statements, pg_stat_get_backend_activity, ...). The statistics views list
+ * sampled values of every column the role can SELECT, including base-table columns the published views leave out;
+ * the activity views and functions show the query text of other sessions of the same role, and every Meri reader
+ * shares capiro_analytics_ro, so one tenant's reader would see another tenant's concurrent SQL. They resolve
+ * unqualified through pg_catalog, so the schema-prefix rule alone does not reach them. A prefix rule, not exact
+ * names, because new pg_stat_* names arrive with PostgreSQL versions and extensions.
+ */
+const isServerStatistics = (name: string) => name.startsWith('pg_stat');
 
 /** Describe the same restrictions used below; no second policy list. */
 export function sqlGrammarDescriptor() {
@@ -195,6 +245,8 @@ interface Token {
 
 const WORD_START = /[A-Za-z_\u0080-￿]/;
 const WORD_PART = /[A-Za-z0-9_$\u0080-￿]/;
+/** PostgreSQL's whitespace (scan.l space: [ \t\n\r\f\v]); JavaScript's \s also matches Unicode spaces PostgreSQL does not. */
+const PG_WHITESPACE = /[ \t\n\r\f\v]/;
 
 function fail(code: SqlQueryErrorCode, message: string): never {
   throw new SqlQueryError(code, message);
@@ -211,8 +263,9 @@ function scan(sql: string): { tokens: Token[]; statements: number; trailingSemic
     const c = sql[i]!,
       next = sql[i + 1];
     if (c === '-' && next === '-') {
-      const end = sql.indexOf('\n', i);
-      i = end < 0 ? sql.length : end + 1;
+      // PostgreSQL ends a line comment at a newline or a carriage return (scan.l non_newline is [^\n\r]).
+      const end = sql.slice(i).search(/[\n\r]/);
+      i = end < 0 ? sql.length : i + end + 1;
       continue;
     }
     if (c === '/' && next === '*') {
@@ -230,7 +283,8 @@ function scan(sql: string): { tokens: Token[]; statements: number; trailingSemic
       if (level > 0) fail('UNSUPPORTED_SQL', 'Unterminated block comment.');
       continue;
     }
-    if (/\s/.test(c)) {
+    // PostgreSQL whitespace only; other Unicode spaces are identifier characters to PostgreSQL, as to WORD_PART.
+    if (PG_WHITESPACE.test(c)) {
       i++;
       continue;
     }
@@ -268,7 +322,8 @@ function scan(sql: string): { tokens: Token[]; statements: number; trailingSemic
         trailingSemicolon = null;
         continue;
       }
-      const tag = /^\$([A-Za-z_][A-Za-z0-9_]*)?\$/.exec(sql.slice(i));
+      // scan.l: dolq_start [A-Za-z\200-\377_], dolq_cont [A-Za-z\200-\377_0-9]; every non-ASCII character qualifies.
+      const tag = /^\$([A-Za-z_\u0080-\uffff][A-Za-z0-9_\u0080-\uffff]*)?\$/.exec(sql.slice(i));
       if (tag) {
         const end = sql.indexOf(tag[0], i + tag[0].length);
         if (end < 0) fail('UNSUPPORTED_SQL', 'Unterminated dollar-quoted string.');
@@ -405,6 +460,12 @@ export function gateSqlStatement(input: unknown, source: SqlSource): GatedSqlSta
       fail('UNSUPPORTED_SQL', `${token.value.toUpperCase()} is not part of a read-only SELECT.`);
     if ((token.kind === 'word' || token.kind === 'quoted') && BLOCKED_FUNCTIONS.has(token.value.toLowerCase()) && tokens[i + 1]?.value === '(')
       fail('UNSUPPORTED_SQL', `${token.value} is not available to query_capiro_data.`);
+    // U&"..." spells an identifier through escapes (U&"\0070ublic" is public), so the names this gate reads would not
+    // be the names PostgreSQL resolves. PostgreSQL lexes U&" only when the three characters are adjacent.
+    const previous = tokens[i - 1], next = tokens[i + 1];
+    if (token.kind === 'punct' && token.value === '&' && previous?.kind === 'word' && previous.value === 'u' && previous.at + 1 === token.at
+      && next?.kind === 'quoted' && next.at === token.at + 1)
+      fail('UNSUPPORTED_SQL', 'Unicode-escaped identifiers (U&"...") are not supported; write identifiers plainly.');
   }
   const referenced = new Set(tokens.filter((token) => token.kind === 'param').map((token) => Number(token.value)));
   if (referenced.size !== parameters.length || parameters.some((_, i) => !referenced.has(i + 1)))
@@ -420,6 +481,28 @@ export function gateSqlStatement(input: unknown, source: SqlSource): GatedSqlSta
     const owner = Object.entries(SOURCE_RELATIONS).find(([name, relations]) => name !== source && relations.includes(mixed))?.[0]
       ?? Object.entries(SOURCE_SCHEMAS).find(([name, schema]) => name !== source && schema === mixed)?.[0];
     fail('UNKNOWN_RELATION', `${mixed} belongs to the ${owner} source; one query reads one source.`);
+  }
+  // (d) A qualifier (`x.` before a name) is this source's schema or a range name the statement itself introduces
+  // (a relation, alias or CTE written without a following dot). Everything else is a schema outside this source.
+  const ownSchema = SOURCE_SCHEMAS[source];
+  const isName = (token: Token | undefined) => token?.kind === 'word' || token?.kind === 'quoted';
+  const isDot = (token: Token | undefined) => token?.kind === 'punct' && token.value === '.';
+  const introduced = new Set(
+    tokens
+      .filter((token, i) => isName(token) && !isDot(tokens[i + 1]) && (!isDot(tokens[i - 1]) || tokens[i - 2]?.value === ownSchema))
+      .map((token) => token.value),
+  );
+  const statistics = tokens.find((token) => isName(token) && isServerStatistics(token.value));
+  if (statistics)
+    fail('UNKNOWN_RELATION', `${statistics.value} is a server statistics or activity catalog, not a relation of this source; name the relations describe_capiro_data lists.`);
+  for (let i = 0; i < tokens.length; i++) {
+    const qualifier = tokens[i]!;
+    if (!isName(qualifier) || !isDot(tokens[i + 1]) || qualifier.value === ownSchema) continue;
+    if (isOtherSchema(qualifier.value) || !introduced.has(qualifier.value))
+      fail(
+        'UNKNOWN_RELATION',
+        `${qualifier.value} is not a relation or alias of this query, and only this source's relations are readable; name the relations describe_capiro_data lists without a schema prefix.`,
+      );
   }
   const relationsUsed = own.filter((name) => names.includes(name));
 
