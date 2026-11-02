@@ -277,7 +277,8 @@ export function readBillDocument(
     .map((reference) => {
       const target = structure.sections.filter(
         (s) =>
-          s.number === reference || s.path.join('') === reference || s.path.join('/') === reference,
+          billSectionMatches(s, reference) ||
+          s.path.map((part) => part.replace(/\.+$/, '')).join('') === reference.replace(/\.+$/, ''),
       );
       if (target.length === 1) add(target[0]!, 'reference');
       return {

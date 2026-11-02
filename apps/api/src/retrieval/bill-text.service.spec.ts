@@ -1,9 +1,10 @@
-import { structureText } from '../ingestion/bill-document-structure.js';
+import { structureMarkup, structureText } from '../ingestion/bill-document-structure.js';
 import { BillTextService } from './bill-text.service.js';
 import {
   billDocumentQuery,
   billKeywordParts,
   validateBillTextSearch,
+  BILL_JURISDICTIONS,
   type BillTextDocumentRow,
 } from './bill-text-query.js';
 import { decodeBillReadCursor, readBillDocument } from './bill-text-read.js';
@@ -12,6 +13,14 @@ import {
   STATE_BILL_COVERAGE_SQL,
   type BillCoverageRow,
 } from './bill-text-coverage.js';
+import {
+  parseStateBillDiscovery,
+  stateBillJurisdictionInventories,
+} from '../ingestion/state-bill-inventory-read.js';
+import {
+  parseFederalBillDiscovery,
+  parseFederalBillInventory,
+} from '../ingestion/federal-bill-inventory-read.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { EmbeddingProvider } from '../embeddings/embedding-provider.js';
 
@@ -109,7 +118,7 @@ describe('immutable public bill text backend', () => {
     expect(q.conditions.join(' ')).toContain('unnest(d."actionDates")');
     expect(q.conditions.join(' ')).toMatch(/ad.date<\$/);
     expect(q.sql).not.toContain('federal_evidence_current');
-    expect(q.sql).toContain("('BILLS','AMENDMENTS')");
+    expect(q.sql).toContain("('BILLS','AMENDMENTS','PLAW')");
   });
   it('uses passage tsvectors over independent extracted text, including all-stopword literal phrases', async () => {
     const { service, query, provider } = harness();
@@ -220,6 +229,30 @@ describe('immutable public bill text backend', () => {
     if (!page.available) throw Error('fixture');
     expect(decodeBillReadCursor(page.nextCursor!).section).toBe('1');
   });
+  it('resolves XML section references with the same trailing-period normalization as exact section reads', () => {
+    const structure = structureMarkup(
+      '<bill><section><enum>1.</enum><text>Eligibility requirements.</text></section><section><enum>2.</enum><text>The program applies under section 1.</text></section></bill>',
+      'xml',
+    );
+    const row = {
+      ...document(),
+      text: structure.text,
+      structure,
+      structureHash: structure.structureHash,
+      textHash: structure.textHash,
+    };
+    const result = readBillDocument(row, { section: '2', contextChars: 3000 });
+    if (!result.available) throw Error('fixture');
+    expect(result.references).toContainEqual(
+      expect.objectContaining({ reference: '1', status: 'same_document_candidate_included' }),
+    );
+    expect(
+      result.context.some(
+        (context) =>
+          context.relation === 'reference' && context.text.includes('Eligibility requirements.'),
+      ),
+    ).toBe(true);
+  });
   it('keeps missing parents, failed versions and all 51 state jurisdictions visible', () => {
     const row: BillCoverageRow = {
       jurisdiction: 'FL',
@@ -230,6 +263,7 @@ describe('immutable public bill text backend', () => {
       expectedBills: 3,
       metadataBills: 2,
       expectedDocuments: 4,
+      sourceUnavailableDocuments: 0,
       downloadedDocuments: 2,
       completeExtractions: 1,
       partialExtractions: 0,
@@ -239,7 +273,15 @@ describe('immutable public bill text backend', () => {
       embeddedPassages: 1,
       fullyEmbeddedDocuments: 0,
     };
-    const report = billTextCoverageReport([row], 'test-model');
+    const report = billTextCoverageReport([row], 'test-model', [
+      {
+        jurisdiction: 'FL',
+        known: true,
+        expectedSessions: 1,
+        qualifiedSessions: 1,
+        missingSessions: [],
+      },
+    ]);
     expect(report.jurisdictions).toHaveLength(52);
     expect(report.jurisdictions.find((j) => j.jurisdiction === 'FL')).toMatchObject({
       status: 'failed_or_partial',
@@ -252,5 +294,155 @@ describe('immutable public bill text backend', () => {
     });
     expect(report.complete).toBe(false);
     expect(STATE_BILL_COVERAGE_SQL).toContain('LEFT JOIN state_bill');
+  });
+  it('requires every pinned discovery session and permits explicitly empty complete jurisdictions', () => {
+    const manifestSha256 = 'd'.repeat(64),
+      archiveHash = 'c'.repeat(64);
+    const states = BILL_JURISDICTIONS.filter((state) => state !== 'US').map((state) => ({
+      state,
+      status: 'complete',
+      sessions:
+        state === 'FL'
+          ? [
+              { sessionId: 1, archiveHash, expectedBills: 2 },
+              { sessionId: 2, archiveHash: 'e'.repeat(64), expectedBills: 0 },
+            ]
+          : [],
+    }));
+    const row = {
+      id: 'discovery',
+      scope: { fiscalYear: 2026, manifestSha256 },
+      manifest: { schemaVersion: 1, fiscalYear: 2026, manifestSha256, states },
+      archived: true,
+    };
+    const discovery = parseStateBillDiscovery(row);
+    expect(discovery).not.toBeNull();
+    const inventories = stateBillJurisdictionInventories(discovery, [
+      {
+        jurisdiction: 'FL',
+        sessionId: '1',
+        archiveHash,
+        expectedBills: 2,
+        receiptId: 'one',
+        qualified: true,
+      },
+    ]);
+    expect(inventories.find((state) => state.jurisdiction === 'FL')).toMatchObject({
+      known: false,
+      missingSessions: ['2'],
+    });
+    const report = billTextCoverageReport([], 'test-model', inventories);
+    expect(report.jurisdictions.find((state) => state.jurisdiction === 'FL')).toMatchObject({
+      inventoryStatus: 'unknown',
+      completionPercent: null,
+    });
+    expect(report.jurisdictions.find((state) => state.jurisdiction === 'AK')).toMatchObject({
+      status: 'complete_for_frozen_inventory',
+      completionPercent: 100,
+      expectedSessions: 0,
+    });
+    expect(report.complete).toBe(false);
+    expect(parseStateBillDiscovery({ ...row, archived: false })).toBeNull();
+    expect(
+      parseStateBillDiscovery({ ...row, manifest: { ...row.manifest, states: states.slice(1) } }),
+    ).toBeNull();
+    expect(
+      parseStateBillDiscovery({ ...row, scope: { ...row.scope, manifestSha256: 'f'.repeat(64) } }),
+    ).toBeNull();
+    const complete = billTextCoverageReport(
+      [],
+      'test-model',
+      BILL_JURISDICTIONS.map((jurisdiction) => ({
+        jurisdiction,
+        known: true,
+        expectedSessions: 0,
+        qualifiedSessions: 0,
+        missingSessions: [],
+      })),
+    );
+    expect(complete.complete).toBe(true);
+  });
+  it('requires complete federal discovery and exact parent membership, allowing known-empty published text', () => {
+    const receipt = {
+      id: 'federal-discovery',
+      complete: true,
+      observedAt: '2026-11-02T00:00:00Z',
+      scope: { fiscalYear: 2026, congress: 119 },
+      manifest: {
+        schemaVersion: 1,
+        billIds: ['119-hr-1'],
+        requiredInventoryReceiptIds: ['bill-one'],
+        sourceListComplete: true,
+        amendmentEnumerationComplete: true,
+        amendmentParentsResolved: true,
+        unresolvedAmendments: 0,
+        excludedTreatyAmendments: 0,
+        excludedNonFYAmendments: 1,
+      },
+    };
+    const discovery = parseFederalBillDiscovery(receipt)!;
+    expect(discovery).not.toBeNull();
+    expect(
+      parseFederalBillDiscovery({
+        ...receipt,
+        manifest: { ...receipt.manifest, unresolvedAmendments: 1 },
+      }),
+    ).toBeNull();
+    const inventory = {
+      id: 'bill-one',
+      complete: true,
+      observedAt: receipt.observedAt,
+      scope: { fiscalYear: 2026, congress: 119, billId: '119-hr-1' },
+      manifest: {
+        schemaVersion: 1,
+        kind: 'text',
+        providerDocumentId: '119-hr-1',
+        versions: [],
+        reportedCount: 0,
+        enumeratedCount: 0,
+        providerUpdatedAt: null,
+      },
+    };
+    expect(parseFederalBillInventory(inventory, discovery)).toEqual([
+      expect.objectContaining({ versionId: null, version: 'no_published_versions' }),
+    ]);
+    expect(
+      parseFederalBillInventory(
+        {
+          ...inventory,
+          manifest: {
+            ...inventory.manifest,
+            reportedCount: 1,
+            enumeratedCount: 1,
+            versions: [
+              {
+                versionId: 'law-version',
+                type: 'Public law',
+                formats: [],
+                collection: 'PLAW',
+                packageId: null,
+                versionCode: null,
+                sourceUrl: null,
+              },
+            ],
+          },
+        },
+        discovery,
+      ),
+    ).toEqual([
+      expect.objectContaining({ versionId: 'law-version', collection: 'PLAW', sourceUrls: [] }),
+    ]);
+    expect(
+      parseFederalBillInventory(
+        { ...inventory, scope: { ...inventory.scope, billId: '119-hr-10' } },
+        discovery,
+      ),
+    ).toBeNull();
+    expect(
+      parseFederalBillInventory(
+        { ...inventory, manifest: { ...inventory.manifest, reportedCount: 1 } },
+        discovery,
+      ),
+    ).toBeNull();
   });
 });

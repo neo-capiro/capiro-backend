@@ -1,9 +1,11 @@
 import { PrismaClient, type Prisma } from '@prisma/client';
+import { createHash } from 'node:crypto';
 import { structureText } from '../ingestion/bill-document-structure.js';
 import { CHUNKER_VERSION } from '../ingestion/bill-text-passages.js';
 import { BillTextService } from './bill-text.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { EmbeddingProvider } from '../embeddings/embedding-provider.js';
+import { BILL_JURISDICTIONS } from './bill-text-query.js';
 
 // Root supplies a disposable synthetic database. This test never uses DATABASE_URL implicitly.
 const url = process.env.BILL_TEXT_SEARCH_TEST_DATABASE_URL;
@@ -21,7 +23,8 @@ pg('bill text PostgreSQL contract', () => {
           for (const ddl of [
             `CREATE TEMP TABLE congress_bill(id text,congress int,bill_type text,bill_number text,title text,status text,introduced_date date) ON COMMIT DROP`,
             `CREATE TEMP TABLE congress_bill_action(bill_id text,date date) ON COMMIT DROP`,
-            `CREATE TEMP TABLE federal_evidence_revision(id uuid,bill_id text,collection text,version_code text,package_id text,extraction_hash text,content_hash text,source_url text,published_at timestamptz,metadata_jsonb jsonb,raw_content text) ON COMMIT DROP`,
+            `CREATE TEMP TABLE federal_evidence_revision(id uuid,bill_id text,collection text,version_code text,package_id text,extraction_hash text,content_hash text,source_url text,published_at timestamptz,metadata_jsonb jsonb,raw_content text,fetched_at timestamptz DEFAULT now()) ON COMMIT DROP`,
+            `CREATE TEMP TABLE federal_evidence_observation(revision_id uuid,state text,metadata_jsonb jsonb) ON COMMIT DROP`,
             `CREATE TEMP TABLE state_bill(id text,state text,session_key text,bill_number text,title text,status text,legiscan_progress jsonb,latest_action_date date,legiscan_bill_id int) ON COMMIT DROP`,
             `CREATE TEMP TABLE state_bill_action(bill_key text,date date,text text) ON COMMIT DROP`,
             `CREATE TEMP TABLE state_bill_published_record(id uuid,bill_key text,kind text,source_identity text,revision_hash text,event_date text,evidence jsonb,first_observed_at timestamptz) ON COMMIT DROP`,
@@ -29,7 +32,7 @@ pg('bill text PostgreSQL contract', () => {
             `CREATE TEMP TABLE bill_text_passage(extraction_id uuid,chunker_version text,ordinal int,start_offset int,end_offset int,content_text text,metadata_jsonb jsonb DEFAULT '{"semanticAvailable":true}',search_vector tsvector GENERATED ALWAYS AS(to_tsvector('english',content_text)) STORED) ON COMMIT DROP`,
             `CREATE INDEX ON bill_text_passage USING GIN(search_vector)`,
             `CREATE TEMP TABLE context_embeddings(tenant_id uuid,source_type text,source_id text,model text,metadata_jsonb jsonb,embedding vector(1024)) ON COMMIT DROP`,
-            `CREATE TEMP TABLE legal_source_receipt(id text,source text,scope jsonb,manifest jsonb,complete boolean) ON COMMIT DROP`,
+            `CREATE TEMP TABLE legal_source_receipt(id text,source text,scope jsonb,manifest jsonb,complete boolean,observed_at timestamptz DEFAULT now()) ON COMMIT DROP`,
             `CREATE TEMP TABLE legal_dataset_archive(content_hash text) ON COMMIT DROP`,
           ])
             await tx.$executeRawUnsafe(ddl);
@@ -194,20 +197,85 @@ pg('bill text PostgreSQL contract', () => {
           await expect(
             service.read({ ...readIdentity, jurisdiction: 'TX', session: '2025' }),
           ).rejects.toThrow('BILL_REVISION_NOT_FOUND');
+          for (const [invalidDate, dateFrom, dateBefore] of [
+            ['2025-10-99', '2025-10-01', '2025-11-01'],
+            ['2026-02-30', '2026-02-01', '2026-03-01'],
+            ['2026-04-31', '2026-04-01', '2026-05-01'],
+          ]) {
+            await tx.$executeRawUnsafe(
+              `UPDATE state_bill SET legiscan_progress=$2::jsonb,latest_action_date='2026-06-01' WHERE id=$1`,
+              ids[0]!.billId,
+              JSON.stringify([
+                { event: 1, date: invalidDate },
+                { event: 2, date: '2026-06-01' },
+              ]),
+            );
+            for (const dateBasis of ['introduced', 'action'] as const) {
+              expect(
+                (
+                  await service.search({
+                    mode: 'keyword',
+                    query: 'rent',
+                    billId: ids[0]!.billId,
+                    fiscalYear: 2026,
+                    dateBasis,
+                    dateFrom,
+                    dateBefore,
+                  })
+                ).totalRevisions,
+              ).toBe(0);
+            }
+            expect(
+              (
+                await service.search({
+                  mode: 'keyword',
+                  query: 'rent',
+                  billId: ids[0]!.billId,
+                  fiscalYear: 2026,
+                  dateBasis: 'action',
+                  dateFrom: '2026-06-01',
+                  dateBefore: '2026-06-02',
+                })
+              ).totalRevisions,
+            ).toBe(2);
+          }
+          await tx.$executeRawUnsafe(
+            `INSERT INTO state_bill_published_record VALUES('00000000-0000-4000-8000-000000000099',$1,'action','invalid-date','invalid','2026-02-30','{}',now())`,
+            ids[0]!.billId,
+          );
+          expect(
+            (
+              await service.search({
+                mode: 'keyword',
+                query: 'rent',
+                billId: ids[0]!.billId,
+                dateBasis: 'action',
+                dateFrom: '2026-02-01',
+                dateBefore: '2026-03-01',
+              })
+            ).totalRevisions,
+          ).toBe(0);
           await tx.$executeRawUnsafe(
             `INSERT INTO legal_dataset_archive VALUES($1)`,
             'c'.repeat(64),
           );
           await tx.$executeRawUnsafe(
-            `INSERT INTO legal_source_receipt VALUES('synthetic','fy26-state-frozen-inventory',$1::jsonb,$2::jsonb,true)`,
+            `INSERT INTO legal_source_receipt(id,source,scope,manifest,complete) VALUES('synthetic','fy26-state-frozen-inventory',$1::jsonb,$2::jsonb,true)`,
             JSON.stringify({
               fiscalYear: 2026,
               jurisdiction: 'FL',
               sessionKey: '2025',
+              providerSessionId: 1,
               archiveHash: 'c'.repeat(64),
             }),
             JSON.stringify({
               sourceListComplete: true,
+              schemaVersion: 1,
+              state: 'FL',
+              sessionId: 1,
+              archiveHash: 'c'.repeat(64),
+              inspectedBills: 2,
+              eligibleBills: 2,
               bills: [
                 {
                   billKey: ids[0]!.billId,
@@ -226,6 +294,33 @@ pg('bill text PostgreSQL contract', () => {
               ],
             }),
           );
+          await tx.$executeRawUnsafe(
+            `INSERT INTO legal_dataset_archive VALUES($1)`,
+            'd'.repeat(64),
+          );
+          const discoveryStates = BILL_JURISDICTIONS.filter((state) => state !== 'US').map(
+            (state) => ({
+              state,
+              status: 'complete',
+              sessions:
+                state === 'FL'
+                  ? [
+                      { sessionId: 1, archiveHash: 'c'.repeat(64), expectedBills: 2 },
+                      { sessionId: 2, archiveHash: 'e'.repeat(64), expectedBills: 0 },
+                    ]
+                  : [],
+            }),
+          );
+          await tx.$executeRawUnsafe(
+            `INSERT INTO legal_source_receipt(id,source,scope,manifest,complete) VALUES('discovery','fy26-state-discovery',$1::jsonb,$2::jsonb,true)`,
+            JSON.stringify({ fiscalYear: 2026, manifestSha256: 'd'.repeat(64) }),
+            JSON.stringify({
+              schemaVersion: 1,
+              fiscalYear: 2026,
+              manifestSha256: 'd'.repeat(64),
+              states: discoveryStates,
+            }),
+          );
           const coverage = await service.coverage();
           const fl = coverage.jurisdictions.find((row) => row.jurisdiction === 'FL')!;
           expect(fl.versions[0]).toMatchObject({
@@ -235,7 +330,208 @@ pg('bill text PostgreSQL contract', () => {
             downloadedDocuments: 1,
             missingParents: 1,
           });
-          expect(fl.status).toBe('partial');
+          expect(fl.status).toBe('unknown');
+          expect(fl.missingSessions).toEqual(['2']);
+          expect(coverage.jurisdictions.find((row) => row.jurisdiction === 'AK')).toMatchObject({
+            status: 'complete_for_frozen_inventory',
+            completionPercent: 100,
+          });
+          await tx.$executeRawUnsafe(
+            `INSERT INTO legal_dataset_archive VALUES($1)`,
+            'e'.repeat(64),
+          );
+          await tx.$executeRawUnsafe(
+            `INSERT INTO legal_source_receipt(id,source,scope,manifest,complete) VALUES('empty-session','fy26-state-frozen-inventory',$1::jsonb,$2::jsonb,true)`,
+            JSON.stringify({
+              fiscalYear: 2026,
+              jurisdiction: 'FL',
+              providerSessionId: 2,
+              sessionKey: '2026',
+              archiveHash: 'e'.repeat(64),
+            }),
+            JSON.stringify({
+              schemaVersion: 1,
+              state: 'FL',
+              sessionId: 2,
+              sessionKey: '2026',
+              archiveHash: 'e'.repeat(64),
+              sourceListComplete: true,
+              inspectedBills: 0,
+              eligibleBills: 0,
+              bills: [],
+            }),
+          );
+          const qualified = await service.coverage();
+          expect(qualified.jurisdictions.find((row) => row.jurisdiction === 'FL')).toMatchObject({
+            status: 'partial',
+            expectedDocuments: 2,
+            missingSessions: [],
+          });
+          // An unlisted later archive must not change the frozen denominator.
+          await tx.$executeRawUnsafe(
+            `INSERT INTO legal_source_receipt(id,source,scope,manifest,complete) SELECT 'unlisted-later',source,jsonb_set(scope,'{archiveHash}','"unlisted"'),manifest,false FROM legal_source_receipt WHERE id='synthetic'`,
+          );
+          expect(
+            (await service.coverage()).jurisdictions.find((row) => row.jurisdiction === 'FL')!
+              .expectedDocuments,
+          ).toBe(2);
+          const providerVersions = ['ih', 'enr'].map((versionCode, index) => ({
+            versionId: String(index + 1).repeat(64),
+            type: versionCode,
+            date: '2025-10-02',
+            formats: [{ type: 'xml', url: `https://example.test/federal-${versionCode}.xml` }],
+            packageId: `BILLS-119hr1${versionCode}`,
+            collection: 'BILLS',
+            versionCode,
+            sourceUrl: `https://example.test/federal-${versionCode}.xml`,
+          }));
+          const federalInventory = {
+            schemaVersion: 1,
+            kind: 'text',
+            providerDocumentId: '119-hr-1',
+            versions: [
+              ...providerVersions,
+              {
+                versionId: '3'.repeat(64),
+                type: 'Public law',
+                date: '2025-10-02',
+                formats: [],
+                packageId: null,
+                collection: 'PLAW',
+                versionCode: null,
+                sourceUrl: null,
+              },
+            ],
+            reportedCount: 3,
+            enumeratedCount: 3,
+            providerUpdatedAt: '2026-06-01T00:00:00Z',
+          };
+          for (const billId of ['119-hr-1', '119-hr-2'])
+            await tx.$executeRawUnsafe(
+              `INSERT INTO congress_bill VALUES($1,119,'hr',$2,'Synthetic federal bill','introduced','2025-10-02')`,
+              billId,
+              billId.endsWith('-1') ? '1' : '2',
+            );
+          for (const [id, billId, manifest] of [
+            ['federal-text', '119-hr-1', federalInventory],
+            [
+              'federal-empty',
+              '119-hr-2',
+              {
+                ...federalInventory,
+                providerDocumentId: '119-hr-2',
+                versions: [],
+                reportedCount: 0,
+                enumeratedCount: 0,
+              },
+            ],
+          ] as const)
+            await tx.$executeRawUnsafe(
+              `INSERT INTO legal_source_receipt(id,source,scope,manifest,complete) VALUES($1,'fy26-federal-provider-inventory',$2::jsonb,$3::jsonb,true)`,
+              id,
+              JSON.stringify({ fiscalYear: 2026, congress: 119, billId }),
+              JSON.stringify(manifest),
+            );
+          await tx.$executeRawUnsafe(
+            `INSERT INTO legal_source_receipt(id,source,scope,manifest,complete) VALUES('federal-discovery','fy26-federal-discovery',$1::jsonb,$2::jsonb,true)`,
+            JSON.stringify({ fiscalYear: 2026, congress: 119 }),
+            JSON.stringify({
+              schemaVersion: 1,
+              billIds: ['119-hr-1', '119-hr-2'],
+              requiredInventoryReceiptIds: ['federal-text', 'federal-empty', 'federal-amendment'],
+              sourceListComplete: true,
+              amendmentEnumerationComplete: true,
+              amendmentParentsResolved: true,
+              unresolvedAmendments: 0,
+              excludedTreatyAmendments: 0,
+              excludedNonFYAmendments: 0,
+            }),
+          );
+          const bytesHash = createHash('sha256').update('source').digest('hex');
+          for (const suffix of ['100', '101']) {
+            const revisionId = `00000000-0000-4000-8000-000000000${suffix}`;
+            await tx.$executeRawUnsafe(
+              `INSERT INTO federal_evidence_revision(id,bill_id,collection,version_code,package_id,extraction_hash,content_hash,source_url,published_at,metadata_jsonb,raw_content) VALUES($1::uuid,'119-hr-1','BILLS','ih','BILLS-119hr1ih',$2,$3,'https://example.test/federal-ih.xml','2025-10-02','{}','source')`,
+              revisionId,
+              suffix.repeat(22).slice(0, 64),
+              bytesHash,
+            );
+            await tx.$executeRawUnsafe(
+              `INSERT INTO federal_evidence_observation VALUES($1::uuid,'present',$2::jsonb)`,
+              revisionId,
+              JSON.stringify({
+                providerDocumentId: '119-hr-1',
+                providerVersionId: providerVersions[0]!.versionId,
+                sourceInventoryReceiptId: 'federal-text',
+              }),
+            );
+          }
+          const missingAmendmentInventory = await service.coverage();
+          expect(
+            missingAmendmentInventory.jurisdictions.find((row) => row.jurisdiction === 'US'),
+          ).toMatchObject({
+            inventoryStatus: 'unknown',
+            expectedDocuments: 3,
+            sourceUnavailableDocuments: 1,
+            downloadedDocuments: 0,
+          });
+          expect(missingAmendmentInventory.federalDiscovery!.missingReceiptIds).toEqual([
+            'federal-amendment',
+          ]);
+          await tx.$executeRawUnsafe(
+            `INSERT INTO legal_source_receipt(id,source,scope,manifest,complete) VALUES('federal-amendment','fy26-federal-provider-inventory',$1::jsonb,$2::jsonb,true)`,
+            JSON.stringify({ fiscalYear: 2026, congress: 119, billId: '119-hr-1' }),
+            JSON.stringify({
+              ...federalInventory,
+              kind: 'amendment',
+              providerDocumentId: '119-hamdt-1',
+              versions: [],
+              reportedCount: 0,
+              enumeratedCount: 0,
+            }),
+          );
+          await tx.$executeRawUnsafe(
+            `UPDATE federal_evidence_revision SET metadata_jsonb=$1::jsonb WHERE id='00000000-0000-4000-8000-000000000101'`,
+            JSON.stringify({
+              originalBytesBase64: Buffer.from('source').toString('base64'),
+              rawBytesHash: bytesHash,
+            }),
+          );
+          const federal = (await service.coverage()).jurisdictions.find(
+            (row) => row.jurisdiction === 'US',
+          )!;
+          expect(federal).toMatchObject({
+            inventoryStatus: 'frozen_discovery_inventory',
+            status: 'partial',
+            expectedDocuments: 3,
+            sourceUnavailableDocuments: 1,
+            downloadedDocuments: 1,
+          });
+          expect(federal.versions.find((row) => row.version === 'ih')).toMatchObject({
+            expectedDocuments: 1,
+            downloadedDocuments: 1,
+          }); // Parser revisions never enlarge the provider denominator.
+          expect(
+            federal.versions.find((row) => row.version === 'no_published_versions'),
+          ).toMatchObject({ expectedDocuments: 0, failedExtractions: 0 });
+          // A previously verified immutable receipt can be reused only while provider freshness is unchanged.
+          await tx.$executeRawUnsafe(
+            `INSERT INTO legal_source_receipt(id,source,scope,manifest,complete) SELECT 'federal-old',source,scope,manifest,complete FROM legal_source_receipt WHERE id='federal-text'`,
+          );
+          await tx.$executeRawUnsafe(
+            `UPDATE federal_evidence_observation SET metadata_jsonb=jsonb_set(metadata_jsonb,'{sourceInventoryReceiptId}','"federal-old"')`,
+          );
+          expect(
+            (await service.coverage()).jurisdictions.find((row) => row.jurisdiction === 'US')!
+              .downloadedDocuments,
+          ).toBe(1);
+          await tx.$executeRawUnsafe(
+            `UPDATE legal_source_receipt SET manifest=jsonb_set(manifest,'{providerUpdatedAt}','"2025-01-01T00:00:00Z"') WHERE id='federal-old'`,
+          );
+          expect(
+            (await service.coverage()).jurisdictions.find((row) => row.jurisdiction === 'US')!
+              .downloadedDocuments,
+          ).toBe(0);
         },
         { timeout: 60000 },
       );

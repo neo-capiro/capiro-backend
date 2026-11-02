@@ -1,5 +1,9 @@
 import { BILL_EXTRACTION_VERSION } from '../ingestion/bill-document-structure.js';
-import { FEDERAL_FY26_SQL, STATE_FY26_SQL } from '../ingestion/bill-text-scope.js';
+import {
+  FEDERAL_FY26_SQL,
+  STATE_FY26_SQL,
+  validBillCalendarDateSql,
+} from '../ingestion/bill-text-scope.js';
 
 export const BILL_JURISDICTIONS = [
   'US',
@@ -217,21 +221,21 @@ export function billKeywordParts(query: string): { terms: string; phrases: strin
 /** Public immutable evidence owners; no current-only join drops retained revisions. */
 export const BILL_DOCUMENTS_SQL = `WITH sources AS (
  SELECT 'federal'::text AS "sourceKind",b.id AS "billId",upper(b.bill_type)||b.bill_number AS "billNumber",'US'::text jurisdiction,
- b.congress::text session,r.version_code version,r.package_id AS "versionId",coalesce(r.metadata_jsonb->>'amendmentId',r.package_id) AS "providerDocumentId",
+ b.congress::text session,r.version_code version,r.package_id AS "versionId",coalesce(r.metadata_jsonb->>'providerDocumentId',r.metadata_jsonb->>'amendmentId',r.package_id) AS "providerDocumentId",
  r.id::text AS "revisionId",r.extraction_hash AS "revisionHash",r.content_hash AS "documentHash",r.metadata_jsonb->>'rawBytesHash' AS "originalBytesHash",r.source_url AS "sourceUrl",
  (r.published_at AT TIME ZONE 'UTC')::date::text AS "publishedDate",b.title,CASE r.collection WHEN 'AMENDMENTS' THEN 'amendment' ELSE 'text' END AS kind,b.status,b.introduced_date::text AS "introducedDate",
  (${FEDERAL_FY26_SQL}) AS "fy26",r.id AS revision_uuid,
  ARRAY(SELECT a.date::date::text FROM congress_bill_action a WHERE a.bill_id=b.id) AS "actionDates"
- FROM federal_evidence_revision r JOIN congress_bill b ON b.id=r.bill_id WHERE r.collection IN ('BILLS','AMENDMENTS')
+ FROM federal_evidence_revision r JOIN congress_bill b ON b.id=r.bill_id WHERE r.collection IN ('BILLS','AMENDMENTS','PLAW')
  UNION ALL
  SELECT 'state',b.id,b.bill_number,b.state,b.session_key,r.evidence->>'versionType',r.source_identity,r.evidence->>'providerId',
- r.id::text,r.revision_hash,coalesce(r.evidence->>'contentHash',''),r.evidence->>'contentHash',r.evidence->>'url',r.event_date,b.title,
+ r.id::text,r.revision_hash,coalesce(r.evidence->>'contentHash',''),r.evidence->>'contentHash',r.evidence->>'url',CASE WHEN ${validBillCalendarDateSql('r.event_date')} THEN r.event_date END,b.title,
  coalesce(r.evidence->>'documentKind','text'),b.status,
- (SELECT min(p->>'date') FROM jsonb_array_elements(CASE WHEN jsonb_typeof(b.legiscan_progress)='array' THEN b.legiscan_progress ELSE '[]'::jsonb END) p WHERE p->>'event'='1'),
+ (SELECT min(p->>'date') FROM jsonb_array_elements(CASE WHEN jsonb_typeof(b.legiscan_progress)='array' THEN b.legiscan_progress ELSE '[]'::jsonb END) p WHERE p->>'event'='1' AND ${validBillCalendarDateSql("p->>'date'")}),
  (${STATE_FY26_SQL}),r.id,
- ARRAY(SELECT a.event_date FROM state_bill_published_record a WHERE a.bill_key=b.id AND a.kind='action'
+ ARRAY(SELECT a.event_date FROM state_bill_published_record a WHERE a.bill_key=b.id AND a.kind='action' AND ${validBillCalendarDateSql('a.event_date')}
  UNION SELECT a.date::date::text FROM state_bill_action a WHERE a.bill_key=b.id
- UNION SELECT p->>'date' FROM jsonb_array_elements(CASE WHEN jsonb_typeof(b.legiscan_progress)='array' THEN b.legiscan_progress ELSE '[]'::jsonb END) p)
+ UNION SELECT p->>'date' FROM jsonb_array_elements(CASE WHEN jsonb_typeof(b.legiscan_progress)='array' THEN b.legiscan_progress ELSE '[]'::jsonb END) p WHERE ${validBillCalendarDateSql("p->>'date'")})
  FROM state_bill_published_record r JOIN state_bill b ON b.id=r.bill_key WHERE r.kind='document'
 ), documents AS (
  SELECT s.*,e.id::text AS "extractionId",e.structure_hash AS "structureHash",e.text_hash AS "textHash",e.parser_version AS "extractionVersion",

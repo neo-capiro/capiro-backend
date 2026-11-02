@@ -1,7 +1,11 @@
 import { BILL_EXTRACTION_VERSION } from '../ingestion/bill-document-structure.js';
 import { CHUNKER_VERSION } from '../ingestion/bill-text-passages.js';
-import { FEDERAL_FY26_SQL } from '../ingestion/bill-text-scope.js';
 import { BILL_JURISDICTIONS } from './bill-text-query.js';
+import {
+  loadPinnedStateInventory,
+  type BillJurisdictionInventory,
+} from '../ingestion/state-bill-inventory-read.js';
+import { loadPinnedFederalInventory } from '../ingestion/federal-bill-inventory-read.js';
 
 type Reader = { $queryRawUnsafe<T = unknown>(sql: string, ...values: unknown[]): Promise<T> };
 export type BillCoverageRow = {
@@ -13,6 +17,7 @@ export type BillCoverageRow = {
   expectedBills: number;
   metadataBills: number;
   expectedDocuments: number;
+  sourceUnavailableDocuments: number;
   downloadedDocuments: number;
   completeExtractions: number;
   partialExtractions: number;
@@ -26,6 +31,7 @@ const counts = [
   'expectedBills',
   'metadataBills',
   'expectedDocuments',
+  'sourceUnavailableDocuments',
   'downloadedDocuments',
   'completeExtractions',
   'partialExtractions',
@@ -42,16 +48,17 @@ const emptyCounts = () =>
 export const STATE_BILL_COVERAGE_SQL = `WITH receipts AS (
  SELECT r.*,a.content_hash IS NOT NULL AS archived FROM legal_source_receipt r
  LEFT JOIN legal_dataset_archive a ON a.content_hash=r.scope->>'archiveHash'
- WHERE r.source='fy26-state-frozen-inventory' AND r.scope->>'fiscalYear'='2026'
+ WHERE r.source='fy26-state-frozen-inventory' AND r.scope->>'fiscalYear'='2026' AND r.id=ANY($4::text[])
 ), observed AS (
  SELECT r.scope->>'jurisdiction' jurisdiction,coalesce(r.scope->>'sessionKey',r.scope->>'providerSessionId') session,
  p->>'billKey' bill_key,p->>'providerBillId' provider_bill_id,
  doc->>'kind' kind,doc->>'providerId' provider_id,doc->>'providerHash' provider_hash,doc->>'versionType' version,
+ (coalesce(nullif(doc->>'url',''),nullif(doc->>'stateUrl','')) IS NULL) unavailable,
  (r.complete AND r.archived AND r.manifest->>'sourceListComplete'='true') AS inventory_known
  FROM receipts r CROSS JOIN LATERAL jsonb_array_elements(r.manifest->'bills') p
  LEFT JOIN LATERAL jsonb_array_elements(p->'documents') doc ON true
 ), expected AS (
- SELECT jurisdiction,session,bill_key,provider_bill_id,kind,provider_id,provider_hash,version,bool_or(inventory_known) AS inventory_known
+ SELECT jurisdiction,session,bill_key,provider_bill_id,kind,provider_id,provider_hash,version,bool_and(unavailable) unavailable,bool_or(inventory_known) AS inventory_known
  FROM observed GROUP BY jurisdiction,session,bill_key,provider_bill_id,kind,provider_id,provider_hash,version
 ), stages AS (
  SELECT x.*,b.id AS metadata_bill,r.id AS revision_id,
@@ -71,38 +78,63 @@ export const STATE_BILL_COVERAGE_SQL = `WITH receipts AS (
 )
 SELECT jurisdiction,session,coalesce(kind,'no_published_documents') kind,coalesce(version,'unspecified') version,
  bool_and(inventory_known) AS "inventoryKnown",count(DISTINCT bill_key)::int AS "expectedBills",count(DISTINCT metadata_bill)::int AS "metadataBills",
- count(*) FILTER(WHERE kind IS NOT NULL)::int AS "expectedDocuments",count(*) FILTER(WHERE downloaded)::int AS "downloadedDocuments",
+ count(*) FILTER(WHERE kind IS NOT NULL)::int AS "expectedDocuments",count(*) FILTER(WHERE kind IS NOT NULL AND unavailable)::int AS "sourceUnavailableDocuments",count(*) FILTER(WHERE downloaded)::int AS "downloadedDocuments",
  count(*) FILTER(WHERE completeness='complete')::int AS "completeExtractions",count(*) FILTER(WHERE completeness='partial')::int AS "partialExtractions",
  count(*) FILTER(WHERE completeness IN ('failed','unreadable'))::int AS "failedExtractions",sum(passages)::int passages,sum(eligible)::int AS "embeddingEligiblePassages",sum(embedded)::int AS "embeddedPassages",
  count(*) FILTER(WHERE completeness='complete' AND eligible>0 AND eligible=embedded)::int AS "fullyEmbeddedDocuments"
 FROM stages GROUP BY jurisdiction,session,kind,version
 UNION ALL
 SELECT r.scope->>'jurisdiction',coalesce(r.scope->>'sessionKey',r.scope->>'providerSessionId'),'no_eligible_bills','unspecified',
- bool_and(r.complete AND r.archived AND r.manifest->>'sourceListComplete'='true'),0,0,0,0,0,0,0,0,0,0,0
+ bool_and(r.complete AND r.archived AND r.manifest->>'sourceListComplete'='true'),0,0,0,0,0,0,0,0,0,0,0,0
 FROM receipts r WHERE jsonb_array_length(r.manifest->'bills')=0 GROUP BY r.scope->>'jurisdiction',coalesce(r.scope->>'sessionKey',r.scope->>'providerSessionId')`;
 
-export const FEDERAL_BILL_COVERAGE_SQL = `WITH stages AS (
- SELECT b.congress::text session,b.id bill_id,CASE r.collection WHEN 'AMENDMENTS' THEN 'amendment' ELSE 'text' END kind,
- coalesce(r.version_code,'unspecified') version,
- coalesce(length(r.metadata_jsonb->>'originalBytesBase64')>0 AND r.metadata_jsonb->>'rawBytesHash' ~ '^[a-f0-9]{64}$',false) downloaded,e.completeness,
- coalesce(p.passages,0)::int passages,coalesce(p.eligible,0)::int eligible,coalesce(p.embedded,0)::int embedded
- FROM federal_evidence_revision r JOIN congress_bill b ON b.id=r.bill_id
- LEFT JOIN LATERAL(SELECT e.* FROM bill_text_extraction e WHERE e.source_kind='federal' AND e.revision_id=r.id AND e.parser_version=$1
- ORDER BY CASE e.completeness WHEN 'complete' THEN 0 WHEN 'partial' THEN 1 ELSE 2 END,e.created_at DESC,e.id DESC LIMIT 1)e ON true
- LEFT JOIN LATERAL(SELECT count(*) passages,count(*) FILTER(WHERE p.metadata_jsonb->>'semanticAvailable'='true') eligible,count(*) FILTER(WHERE EXISTS(SELECT 1 FROM context_embeddings v WHERE v.tenant_id IS NULL
- AND v.source_type='bill_passage' AND v.model=$3 AND v.source_id=$2||':'||e.id::text||':'||p.ordinal::text
- AND v.metadata_jsonb->>'extractionId'=e.id::text AND v.metadata_jsonb->>'structureHash'=e.structure_hash
- AND v.metadata_jsonb->>'textHash'=e.text_hash)) embedded FROM bill_text_passage p WHERE p.extraction_id=e.id AND p.chunker_version=$2)p ON true
- WHERE r.collection IN ('BILLS','AMENDMENTS') AND ${FEDERAL_FY26_SQL}
+export const FEDERAL_BILL_COVERAGE_SQL = `WITH expected AS (
+ SELECT * FROM jsonb_to_recordset($4::jsonb) x("billId" text,session text,kind text,"providerDocumentId" text,"versionId" text,version text,"packageId" text,collection text,"versionCode" text,"sourceUrls" text[],"receiptId" text,"providerUpdatedAt" text)
+), stages AS (
+ SELECT x.*,b.id AS metadata_bill,coalesce(selected.downloaded,false) downloaded,selected.completeness,
+ coalesce(selected.passages,0)::int passages,coalesce(selected.eligible,0)::int eligible,coalesce(selected.embedded,0)::int embedded
+ FROM expected x LEFT JOIN congress_bill b ON b.id=x."billId" AND b.congress::text=x.session
+ LEFT JOIN LATERAL (
+  SELECT coalesce(length(r.metadata_jsonb->>'originalBytesBase64')>0 AND r.metadata_jsonb->>'rawBytesHash' ~ '^[a-f0-9]{64}$',false) downloaded,
+  e.completeness,p.passages,p.eligible,p.embedded
+  FROM federal_evidence_revision r
+  LEFT JOIN LATERAL(SELECT e.* FROM bill_text_extraction e WHERE e.source_kind='federal' AND e.revision_id=r.id AND e.parser_version=$1
+   ORDER BY CASE e.completeness WHEN 'complete' THEN 0 WHEN 'partial' THEN 1 ELSE 2 END,e.created_at DESC,e.id DESC LIMIT 1)e ON true
+  LEFT JOIN LATERAL(SELECT count(*) passages,count(*) FILTER(WHERE p.metadata_jsonb->>'semanticAvailable'='true') eligible,count(*) FILTER(WHERE EXISTS(SELECT 1 FROM context_embeddings v WHERE v.tenant_id IS NULL
+   AND v.source_type='bill_passage' AND v.model=$3 AND v.source_id=$2||':'||e.id::text||':'||p.ordinal::text
+   AND v.metadata_jsonb->>'extractionId'=e.id::text AND v.metadata_jsonb->>'structureHash'=e.structure_hash
+   AND v.metadata_jsonb->>'textHash'=e.text_hash)) embedded FROM bill_text_passage p WHERE p.extraction_id=e.id AND p.chunker_version=$2)p ON true
+  WHERE x."versionId" IS NOT NULL AND r.bill_id=x."billId" AND r.collection=x.collection
+   AND (x."packageId" IS NULL OR r.package_id=x."packageId") AND r.version_code IS NOT DISTINCT FROM x."versionCode"
+   AND r.source_url=ANY(x."sourceUrls") AND EXISTS (
+    SELECT 1 FROM federal_evidence_observation o WHERE o.revision_id=r.id AND o.state='present'
+     AND o.metadata_jsonb->>'providerVersionId'=x."versionId" AND o.metadata_jsonb->>'providerDocumentId'=x."providerDocumentId"
+     AND (o.metadata_jsonb->>'sourceInventoryReceiptId'=x."receiptId" OR EXISTS (
+      SELECT 1 FROM legal_source_receipt origin WHERE origin.id=o.metadata_jsonb->>'sourceInventoryReceiptId'
+       AND origin.source='fy26-federal-provider-inventory' AND origin.complete
+       AND origin.scope->>'fiscalYear'='2026' AND origin.scope->>'congress'=x.session AND origin.scope->>'billId'=x."billId"
+       AND origin.manifest->>'kind'=x.kind AND origin.manifest->>'providerDocumentId'=x."providerDocumentId"
+       AND x."providerUpdatedAt" IS NOT NULL AND origin.manifest->>'providerUpdatedAt'=x."providerUpdatedAt"
+       AND origin.manifest->>'reportedCount'=origin.manifest->>'enumeratedCount'
+       AND origin.manifest->'versions' @> jsonb_build_array(jsonb_build_object('versionId',x."versionId",'packageId',x."packageId",'collection',x.collection))
+     ))
+   )
+  ORDER BY downloaded DESC,CASE e.completeness WHEN 'complete' THEN 0 WHEN 'partial' THEN 1 ELSE 2 END,
+   (p.eligible>0 AND p.eligible=p.embedded) DESC,r.fetched_at DESC,r.id DESC LIMIT 1
+ ) selected ON true
 )
-SELECT 'US'::text jurisdiction,session,kind,version,false AS "inventoryKnown",count(DISTINCT bill_id)::int AS "expectedBills",
-count(DISTINCT bill_id)::int AS "metadataBills",count(*)::int AS "expectedDocuments",count(*) FILTER(WHERE downloaded)::int AS "downloadedDocuments",
+SELECT 'US'::text jurisdiction,session,kind,version,true AS "inventoryKnown",count(DISTINCT "billId")::int AS "expectedBills",
+count(DISTINCT metadata_bill)::int AS "metadataBills",count(*) FILTER(WHERE "versionId" IS NOT NULL)::int AS "expectedDocuments",count(*) FILTER(WHERE "versionId" IS NOT NULL AND cardinality("sourceUrls")=0)::int AS "sourceUnavailableDocuments",count(*) FILTER(WHERE downloaded)::int AS "downloadedDocuments",
 count(*) FILTER(WHERE completeness='complete')::int AS "completeExtractions",count(*) FILTER(WHERE completeness='partial')::int AS "partialExtractions",
 count(*) FILTER(WHERE completeness IN ('failed','unreadable'))::int AS "failedExtractions",sum(passages)::int passages,sum(eligible)::int AS "embeddingEligiblePassages",sum(embedded)::int AS "embeddedPassages",
 count(*) FILTER(WHERE completeness='complete' AND eligible>0 AND eligible=embedded)::int AS "fullyEmbeddedDocuments"
 FROM stages GROUP BY session,kind,version`;
 
-export function billTextCoverageReport(rows: BillCoverageRow[], model: string) {
+export function billTextCoverageReport(
+  rows: BillCoverageRow[],
+  model: string,
+  inventories: readonly BillJurisdictionInventory[] = [],
+) {
   const jurisdictions = BILL_JURISDICTIONS.map((jurisdiction) => {
     const versions = rows.filter((row) => row.jurisdiction === jurisdiction);
     const totals = emptyCounts();
@@ -110,7 +142,8 @@ export function billTextCoverageReport(rows: BillCoverageRow[], model: string) {
     for (const row of versions)
       for (const key of counts)
         if (!['expectedBills', 'metadataBills'].includes(key)) totals[key] += Number(row[key]);
-    const inventoryKnown = versions.length > 0 && versions.every((row) => row.inventoryKnown);
+    const inventory = inventories.find((item) => item.jurisdiction === jurisdiction);
+    const inventoryKnown = inventory?.known === true && versions.every((row) => row.inventoryKnown);
     const { expectedBills: _expected, metadataBills: _metadata, ...stages } = totals;
     const allStages =
       inventoryKnown &&
@@ -123,7 +156,10 @@ export function billTextCoverageReport(rows: BillCoverageRow[], model: string) {
       );
     return {
       jurisdiction,
-      inventoryStatus: inventoryKnown ? 'frozen_session_inventory' : 'unknown',
+      inventoryStatus: inventoryKnown ? 'frozen_discovery_inventory' : 'unknown',
+      expectedSessions: inventory?.expectedSessions ?? null,
+      qualifiedSessions: inventory?.qualifiedSessions ?? 0,
+      missingSessions: inventory?.missingSessions ?? [],
       status: !inventoryKnown
         ? 'unknown'
         : allStages
@@ -134,9 +170,13 @@ export function billTextCoverageReport(rows: BillCoverageRow[], model: string) {
       ...stages,
       lexicalOnlyShortPassages: stages.passages - stages.embeddingEligiblePassages,
       completionPercent:
-        inventoryKnown && stages.expectedDocuments > 0
-          ? Math.floor((10000 * stages.fullyEmbeddedDocuments) / stages.expectedDocuments) / 100
-          : null,
+        inventoryKnown && stages.expectedDocuments === 0
+          ? allStages
+            ? 100
+            : 0
+          : inventoryKnown && stages.expectedDocuments > 0
+            ? Math.floor((10000 * stages.fullyEmbeddedDocuments) / stages.expectedDocuments) / 100
+            : null,
       versions: versions.map((v) => ({
         ...v,
         missingParents: v.expectedBills - v.metadataBills,
@@ -153,30 +193,51 @@ export function billTextCoverageReport(rows: BillCoverageRow[], model: string) {
     model,
     extractionVersion: BILL_EXTRACTION_VERSION,
     chunkerVersion: CHUNKER_VERSION,
-    complete: false,
-    scope: 'frozen_provider_session_inventories_and_retained_federal_revisions',
+    complete: jurisdictions.every((item) => item.status === 'complete_for_frozen_inventory'),
+    scope: 'frozen_provider_discovery_and_exact_inventory_receipts',
     jurisdictions,
     limitations: [
-      'No complete jurisdiction/session discovery receipt is inferred from a session ZIP; missing sessions remain unknown.',
-      'Federal counts describe retained revisions, not a verified complete source inventory. downloadedDocuments requires originalBytesBase64 and rawBytesHash; historical decoded raw_content alone does not establish original-byte preservation.',
+      'State inventory is known only when the archived complete discovery manifest and every exact listed session/archive receipt agree. Missing sessions remain unknown.',
+      'Federal documents are counted by frozen provider version, not parser revision. Original bytes and exact inventory/version observations are required; unchanged prior inventory anchors require matching provider update time.',
       'Metadata, downloaded originals, complete extraction, lexical passages and matching-model embeddings are separate stages.',
     ],
   };
 }
 export async function loadBillTextCoverage(db: Reader, model: string) {
+  const { discovery, inventories, qualifiedReceiptIds } = await loadPinnedStateInventory(db);
+  const federal = await loadPinnedFederalInventory(db);
   const rows = [
     ...(await db.$queryRawUnsafe<BillCoverageRow[]>(
       STATE_BILL_COVERAGE_SQL,
       BILL_EXTRACTION_VERSION,
       CHUNKER_VERSION,
       model,
+      qualifiedReceiptIds,
     )),
     ...(await db.$queryRawUnsafe<BillCoverageRow[]>(
       FEDERAL_BILL_COVERAGE_SQL,
       BILL_EXTRACTION_VERSION,
       CHUNKER_VERSION,
       model,
+      JSON.stringify(federal.versions),
     )),
   ];
-  return billTextCoverageReport(rows, model);
+  return {
+    ...billTextCoverageReport(rows, model, [
+      ...inventories,
+      ...(federal.inventory ? [federal.inventory] : []),
+    ]),
+    stateDiscovery: discovery
+      ? { receiptId: discovery.receiptId, manifestSha256: discovery.manifestSha256 }
+      : null,
+    federalDiscovery: federal.discovery
+      ? {
+          receiptId: federal.discovery.receiptId,
+          observedAt: federal.discovery.observedAt,
+          requiredInventoryReceipts: federal.discovery.requiredInventoryReceiptIds.length,
+          missingReceiptIds: federal.missingReceiptIds,
+          missingTextBills: federal.missingTextBills,
+        }
+      : null,
+  };
 }
