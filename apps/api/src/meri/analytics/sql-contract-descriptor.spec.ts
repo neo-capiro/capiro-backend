@@ -17,7 +17,8 @@ const relation: PublishedRelation = {
   coverage: { basis: 'ingested_public_records', limitations: ['Ingested records only'] },
   freshness: { field: null, sourceAsOf: null, sourceVersion: null },
 };
-const publicDigest = '9e9d961098d6dbecf431e9efa4a649325bc9ffa650c68c41cae379486d88357c';
+// Moves whenever the gate's published grammar changes (the blocked-function list is part of the digest).
+const publicDigest = '8635c272273b7dfd4bc2bcbf1e8db08f4aff49da3a751161c5236f205bacf3b1';
 const privateRelation: PublishedRelation = { ...relation, name: 'client_objectives',
   description: 'Synthetic private relation',
   coverage: { basis: 'authorized_client_records', limitations: ['Authorized stored records only'] } };
@@ -40,7 +41,7 @@ describe('SQL describe contract', () => {
       runPrivateSql: jest.fn(async () => ({ columns: [], rows: [], surface: [] })) };
     const page = await createPrivateSqlQueries(db).describe({ relations: ['client_objectives'] }, context);
     expect(page).toMatchObject({ ok: true, scope: { kind: 'client_records', clientId: null }, relations: [privateRelation],
-      contract: { source: 'client_records', revisionSha256: 'b599032c9db20b1bf0761ede62afe39c293613af8c70dae3ecce7e5e8db45012' } });
+      contract: { source: 'client_records', revisionSha256: 'c6afd7118d1396814a6b46fb25e85d41397b31afbea19488705ab5dbbd8e902d' } });
     expect(db.describe).toHaveBeenCalledWith(expect.objectContaining({ tenantId: context.tenantId, actorId: context.actorId }));
   });
 

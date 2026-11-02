@@ -197,6 +197,24 @@ describeDatabase('capiro data reader roles: database-enforced properties', () =>
       );
       expect('rows' in result && result.rows.map((row) => row.name).sort()).toEqual([...PUBLIC_RELATION_NAMES].sort());
     });
+    it('public reader reads government forecasts by window overlap: current revisions only, exact civil bounds', async () => {
+      const result = await asRole(
+        pub,
+        PUBLIC,
+        `SELECT forecast_id, title, event_type, status, window_from::text AS window_from, window_to::text AS window_to, revision, period_text
+         FROM government_forecasts WHERE (window_from < $1::date AND window_to > $2::date) OR window_from IS NULL ORDER BY forecast_id`,
+        ['2027-05-01', '2026-11-01'],
+      );
+      expect(result).toEqual({
+        rows: [
+          { forecast_id: '1'.repeat(64), title: 'Drone rule', event_type: 'proposed_rule', status: 'published', window_from: '2026-11-01', window_to: '2026-12-01', revision: 1, period_text: '11/00/2026' },
+          { forecast_id: '2'.repeat(64), title: 'Energy rule', event_type: 'final_rule', status: 'withdrawn', window_from: null, window_to: null, revision: 2, period_text: 'To Be Determined' },
+        ],
+      });
+      // The head with no accepted revision is not a row; the revision ledger itself stays unreadable.
+      expect(await asRole(pub, PUBLIC, 'SELECT count(*)::int AS n FROM government_forecasts')).toEqual({ rows: [{ n: 2 }] });
+      expect(await asRole(pub, PUBLIC, 'SELECT count(*) FROM public.government_forecast_revision')).toMatchObject({ code: '42501' });
+    });
     it('private reader sees exactly the gate vocabulary in meri_private; visible_clients is excluded', async () => {
       const result = await asRole(
         priv,
@@ -275,7 +293,12 @@ describeDatabase('capiro data reader roles: database-enforced properties', () =>
       const unknownRelation = await queryCapiroData({ sql: 'SELECT 1 FROM congress_bill', parameters: [] }, analytics);
       expect(unknownRelation).toMatchObject({ ok: false, error: { code: 'UNKNOWN_RELATION', sqlstate: '42P01', position: 15, candidates: ['congress_bills', 'congress_bill_cosponsors', 'congress_bill_subjects'] } });
       const unpublished = await queryCapiroData({ sql: 'SELECT id FROM public.clients', parameters: [] }, analytics);
-      expect(unpublished).toMatchObject({ ok: false, error: { code: 'UNKNOWN_RELATION', sqlstate: '42501', message: 'permission denied for table clients' } });
+      expect(unpublished).toMatchObject({ ok: false, error: { code: 'UNKNOWN_RELATION' } });
+      // The role itself can read public.sam_opportunity (query_global_data's grant); the gate is what keeps it off this tool.
+      const baseTable = await queryCapiroData({ sql: 'SELECT s.poc_email FROM public.sam_opportunity s', parameters: [] }, analytics);
+      expect(baseTable).toMatchObject({ ok: false, error: { code: 'UNKNOWN_RELATION' } });
+      if (baseTable.ok) throw new Error('expected refusal');
+      expect(baseTable.error).not.toHaveProperty('sqlstate');
       const badCast = await queryCapiroData({ sql: 'SELECT $1::int AS n', parameters: ['abc'] }, analytics);
       expect(badCast).toMatchObject({ ok: false, error: { code: 'INVALID_QUERY', sqlstate: '22P02' } });
       const timeout = await queryCapiroData({ sql: "SELECT pg_catalog.pg_sleep(20)", parameters: [] }, analytics);

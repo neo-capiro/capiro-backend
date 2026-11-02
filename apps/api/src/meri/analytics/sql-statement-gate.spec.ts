@@ -59,6 +59,119 @@ describe('statement gate', () => {
   ])('refuses %s with %s', (sql, code, message) => {
     expect(refusal(sql)).toMatchObject({ code, message });
   });
+  it.each([
+    // The reader role can read these base tables directly (query_global_data's grants), so the gate must stop the qualifier.
+    'SELECT s.poc_email, s.raw_jsonb FROM public.sam_opportunity s',
+    'SELECT * FROM public.federal_grant',
+    'SELECT a.contractor_name FROM "public"."federal_award" a',
+    'SELECT x.title FROM federal_grants x JOIN public.sam_opportunity s ON s.title = x.title',
+    'WITH s AS (SELECT * FROM public.sam_opportunity) SELECT s.poc_email FROM s',
+    'SELECT public.title FROM public.sam_opportunity public',
+    'SELECT c.relname FROM pg_catalog.pg_class c',
+    'SELECT t.table_name FROM information_schema.tables t',
+    'SELECT t.id FROM defproc_v2_private.anything t',
+    'SELECT x.id FROM other_schema.some_table x2',
+    'SELECT q.title FROM federal_grants g',
+  ])('refuses a schema or undefined qualifier outside this source: %s', (sql) => {
+    const error = refusal(sql);
+    expect(error.code).toBe('UNKNOWN_RELATION');
+    expect(error.message).toMatch(/is not a relation or alias of this query, and only this source's relations are readable; name the relations describe_capiro_data lists without a schema prefix\.$/);
+  });
+  it.each([
+    ["SELECT query_to_xml('SELECT poc_email FROM public.sam_opportunity', true, false, '')", 'query_to_xml'],
+    ["SELECT query_to_xml_and_xmlschema('SELECT 1', true, false, '')", 'query_to_xml_and_xmlschema'],
+    ["SELECT query_to_xmlschema('SELECT 1', true, false, '')", 'query_to_xmlschema'],
+    ["SELECT table_to_xml('public.sam_opportunity', true, false, '')", 'table_to_xml'],
+    ["SELECT table_to_xml_and_xmlschema('public.sam_opportunity', true, false, '')", 'table_to_xml_and_xmlschema'],
+    ["SELECT table_to_xmlschema('public.sam_opportunity', true, false, '')", 'table_to_xmlschema'],
+    ["SELECT schema_to_xml('public', true, false, '')", 'schema_to_xml'],
+    ["SELECT schema_to_xml_and_xmlschema('public', true, false, '')", 'schema_to_xml_and_xmlschema'],
+    ["SELECT schema_to_xmlschema('public', true, false, '')", 'schema_to_xmlschema'],
+    ["SELECT database_to_xml(true, false, '')", 'database_to_xml'],
+    ["SELECT database_to_xml_and_xmlschema(true, false, '')", 'database_to_xml_and_xmlschema'],
+    ["SELECT database_to_xmlschema(true, false, '')", 'database_to_xmlschema'],
+    ["SELECT cursor_to_xml('c', 1, false, true, '')", 'cursor_to_xml'],
+    ["SELECT cursor_to_xmlschema('c', false, true, '')", 'cursor_to_xmlschema'],
+    ["SELECT * FROM ts_stat('SELECT to_tsvector(poc_email) FROM public.sam_opportunity')", 'ts_stat'],
+    // Unquoted names are case-folded, so the refusal names the folded spelling.
+    ["SELECT QUERY_TO_XML('SELECT 1', true, false, '')", 'query_to_xml'],
+    ['SELECT "query_to_xml"(\'SELECT 1\', true, false, \'\')', 'query_to_xml'],
+  ])('refuses functions that read tables by name or run SQL from a string: %s', (sql, name) => {
+    expect(refusal(sql)).toMatchObject({ code: 'UNSUPPORTED_SQL', message: `${name} is not available to query_capiro_data.` });
+  });
+  it.each([
+    'SELECT s.poc_email FROM U&"\\0070ublic"."sam_opportunity" s JOIN sam_opportunities "\\0070ublic" ON true',
+    'SELECT s.poc_email FROM U&"\\0070ublic"."sam_opportunity" s',
+    'SELECT s.title FROM u&"sam_opportunities" s',
+    'SELECT x.title FROM sam_opportunities x WHERE x.title = U&"\\0074itle"',
+  ])('refuses Unicode-escaped identifiers: %s', (sql) => {
+    expect(refusal(sql)).toMatchObject({ code: 'UNSUPPORTED_SQL', message: 'Unicode-escaped identifiers (U&"...") are not supported; write identifiers plainly.' });
+  });
+  it('keeps bitwise AND and Unicode string literals, which are not identifiers', () => {
+    expect(gate('SELECT b.congress & 1 AS odd FROM congress_bills b').relationsUsed).toEqual(['congress_bills']);
+    expect(gate('SELECT u.congress & "u"."congress" AS same FROM congress_bills u').relationsUsed).toEqual(['congress_bills']);
+    expect(gate("SELECT U&'d\\0061t\\+000061' AS text_only, b.id FROM congress_bills b").relationsUsed).toEqual(['congress_bills']);
+  });
+  it.each(['pg_stats', 'pg_stats_ext', 'pg_stats_ext_exprs', 'pg_statistic', 'pg_statistic_ext', 'pg_statistic_ext_data'])(
+    'refuses the catalog statistics view %s, which lists sampled values of base-table columns',
+    (view) => {
+      expect(refusal(`SELECT s.most_common_vals FROM ${view} s WHERE s.tablename = 'sam_opportunity'`)).toMatchObject({
+        code: 'UNKNOWN_RELATION',
+        message: `${view} is a server statistics or activity catalog, not a relation of this source; name the relations describe_capiro_data lists.`,
+      });
+      expect(refusal(`SELECT 1 FROM "${view}"`).code).toBe('UNKNOWN_RELATION');
+    },
+  );
+  it.each([
+    'SELECT a.query FROM pg_stat_activity a',
+    'SELECT a.query FROM "pg_stat_activity" a',
+    'SELECT pg_stat_get_backend_activity(1) AS q',
+    'SELECT pg_stat_get_activity(NULL) AS q',
+    'SELECT * FROM pg_stat_get_backend_idset() AS id',
+    'SELECT s.query FROM pg_stat_statements s',
+    'SELECT * FROM pg_stat_statements(true)',
+    'SELECT c.calls FROM pg_stat_statements_info c',
+    'SELECT * FROM pg_stat_user_tables',
+  ])('refuses server activity and statistics catalogs that expose other sessions or sampled values: %s', (sql) => {
+    const error = refusal(sql);
+    expect(error.code).toBe('UNKNOWN_RELATION');
+    expect(error.message).toMatch(/^pg_stat\w* is a server statistics or activity catalog, not a relation of this source; name the relations describe_capiro_data lists\.$/);
+  });
+  it('refuses ts_rewrite, which executes its text argument as a query', () => {
+    expect(refusal("SELECT ts_rewrite('a'::tsquery, 'SELECT t, s FROM public.sam_opportunity')")).toMatchObject({
+      code: 'UNSUPPORTED_SQL', message: 'ts_rewrite is not available to query_capiro_data.',
+    });
+  });
+  it.each([
+    // A carriage return ends a line comment in PostgreSQL, so the rest of the line is SQL.
+    ['SELECT n.notice_id --x\r, (SELECT count(s.poc_email) FROM public.sam_opportunity s) AS leak FROM sam_opportunities n', 'UNKNOWN_RELATION'],
+    ["SELECT 1 AS a --x\r, query_to_xml('SELECT poc_email FROM public.sam_opportunity', true, false, '') AS leak", 'UNSUPPORTED_SQL'],
+    ['SELECT 1 AS a --x\r, (SELECT count(*) FROM pg_stats) AS leak', 'UNKNOWN_RELATION'],
+    // Non-ASCII dollar-quote tags are valid PostgreSQL; the quote boundaries must not drift.
+    ["SELECT $é$'$é$ AS a, (SELECT count(s.poc_email) FROM public.sam_opportunity s) AS leak, $é$'$é$ AS b", 'UNKNOWN_RELATION'],
+    ["SELECT $é1$'$é1$ AS a, query_to_xml('SELECT 1', true, false, '') AS leak, $é1$'$é1$ AS b", 'UNSUPPORTED_SQL'],
+  ])('reads comments and dollar quotes as PostgreSQL does: %j', (sql, code) => {
+    expect(refusal(sql).code).toBe(code);
+  });
+  it('still treats a dollar-quoted body and a newline-terminated comment as inert', () => {
+    expect(gate("SELECT $é$ public.sam_opportunity query_to_xml( $é$ AS t, b.id FROM congress_bills b").relationsUsed).toEqual(['congress_bills']);
+    expect(gate('SELECT b.id -- public.sam_opportunity pg_stats\nFROM congress_bills b').relationsUsed).toEqual(['congress_bills']);
+    expect(gate('SELECT b.id -- public.sam_opportunity pg_stats\r\nFROM congress_bills b').relationsUsed).toEqual(['congress_bills']);
+    // A no-break space is an identifier character to PostgreSQL, not whitespace, so it cannot split a name the gate reads.
+    expect(refusal('SELECT 1 FROM pg_stats\u00a0x').code).toBe('UNKNOWN_RELATION');
+  });
+  it('admits aliases, relation names, CTE names and this source\'s own schema as qualifiers', () => {
+    expect(gate('SELECT g.title, g.close_date FROM federal_grants g WHERE g.status = $1', ['posted']).relationsUsed).toEqual(['federal_grants']);
+    expect(gate('SELECT federal_grants.title FROM federal_grants').relationsUsed).toEqual(['federal_grants']);
+    expect(gate('SELECT meri_public.sam_opportunities.title FROM meri_public.sam_opportunities').relationsUsed).toEqual(['sam_opportunities']);
+    expect(gate('SELECT s.title FROM meri_public.sam_opportunities AS s').relationsUsed).toEqual(['sam_opportunities']);
+    expect(gate('WITH open_grants AS (SELECT g.title FROM federal_grants g) SELECT open_grants.title FROM open_grants').relationsUsed).toEqual(['federal_grants']);
+    expect(gate('SELECT "G".title FROM federal_grants "G"').relationsUsed).toEqual(['federal_grants']);
+    expect(gate('SELECT g.* , 1.5 AS ratio, .5 AS half FROM federal_grants g').relationsUsed).toEqual(['federal_grants']);
+    expect(gate("SELECT 'public.sam_opportunity' AS text_only, b.id FROM congress_bills b").relationsUsed).toEqual(['congress_bills']);
+    expect(gateSqlStatement({ sql: 'SELECT o.id FROM meri_private.client_objectives o', parameters: [] }, 'client_records').relationsUsed).toEqual(['client_objectives']);
+    expect(() => gateSqlStatement({ sql: 'SELECT c.id FROM public.clients c', parameters: [] }, 'client_records')).toThrow(SqlQueryError);
+  });
   it('refuses the public source from the client-record side and the private vocabulary stays fixed', () => {
     expect(() => gateSqlStatement({ sql: 'SELECT b.id FROM congress_bills b', parameters: [] }, 'client_records')).toThrow(
       'congress_bills belongs to the public source; one query reads one source.',

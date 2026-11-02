@@ -188,7 +188,7 @@ function familyFilters(operation: SemanticSearchOperation, input: SemanticSearch
   switch (operation) {
     case 'semantic_search_bills': {
       const parts: Prisma.Sql[] = [];
-      if (input.congress !== undefined) parts.push(Prisma.sql`cb.congress = ${input.congress}`);
+      if (input.congress !== undefined) parts.push(Prisma.sql`cb.congress = ${input.congress}::int`);
       if (input.status !== undefined) parts.push(Prisma.sql`cb.status = ${input.status}`);
       parts.push(...dateRange(Prisma.sql`cb.latest_action_date`, input));
       return where(parts);
@@ -255,8 +255,13 @@ export function semanticSearchSql(
 ): Prisma.Sql {
   // The family's source_type is a literal from the closed FAMILIES table, never caller text: the planner
   // can only match the family's partial HNSW index (WHERE source_type = '...') against a literal predicate,
-  // as intelligence-tracked-bill-discovery.ts does for bills.
+  // as intelligence-tracked-bill-discovery.ts does for bills. The limits are literals from the frozen
+  // SEMANTIC_SEARCH_LIMITS table for the same reason, and because Prisma binds a JavaScript integer as
+  // bigint: `left(text, bigint)` has no Postgres signature (42883, seen live on 2 November 2026), and
+  // LIMIT / comparison operands keep their natural int type. The one caller integer (limit, validated
+  // 1..maxLimit) is bound with an explicit ::int cast.
   const family = FAMILIES[operation];
+  const limits = SEMANTIC_SEARCH_LIMITS;
   const parent =
     operation === 'semantic_search_bills'
       ? Prisma.sql`ce.source_id`
@@ -271,18 +276,18 @@ export function semanticSearchSql(
          AND ce.model = ${model}
          AND ce.embedding IS NOT NULL
        ORDER BY ce.embedding <=> ${vector}::vector
-       LIMIT ${SEMANTIC_SEARCH_LIMITS.candidateLimit}
+       LIMIT ${Prisma.raw(String(limits.candidateLimit))}
     ), best AS (
       SELECT DISTINCT ON (parent_id) parent_id, content_text, score
         FROM candidates
-       WHERE parent_id IS NOT NULL AND score >= ${SEMANTIC_SEARCH_LIMITS.similarityFloor}
+       WHERE parent_id IS NOT NULL AND score >= ${Prisma.raw(String(limits.similarityFloor))}::float8
        ORDER BY parent_id, score DESC
     )
-    SELECT best.parent_id, best.score, left(best.content_text, ${SEMANTIC_SEARCH_LIMITS.snippetChars}) AS snippet, r.record
+    SELECT best.parent_id, best.score, left(best.content_text, ${Prisma.raw(String(limits.snippetChars))}) AS snippet, r.record
     ${familyProjection(operation)}
     ${familyFilters(operation, input)}
     ORDER BY best.score DESC, best.parent_id ASC
-    LIMIT ${input.limit}`;
+    LIMIT ${input.limit}::int`;
 }
 
 /** How much of the family is reachable by this read: records with a current-model vector versus all records.
