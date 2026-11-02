@@ -46,18 +46,22 @@ const counts = [
 const emptyCounts = () =>
   Object.fromEntries(counts.map((k) => [k, 0])) as Record<(typeof counts)[number], number>;
 
-/** Frozen source receipts precede parent imports. LEFT JOINs deliberately keep absent parents and document stubs in the denominator. */
-export const STATE_BILL_COVERAGE_SQL = `WITH receipts AS (
- SELECT r.*,a.content_hash IS NOT NULL AS archived FROM legal_source_receipt r
+/** Frozen source receipts precede parent imports. LEFT JOINs deliberately keep absent parents and document stubs in the denominator.
+ * Materialize receipt scalars before expansion so each document does not re-read the large inventory manifest. */
+export const STATE_BILL_COVERAGE_SQL = `WITH receipts AS MATERIALIZED (
+ SELECT r.scope->>'jurisdiction' jurisdiction,coalesce(r.scope->>'sessionKey',r.scope->>'providerSessionId') session,
+ r.manifest->'bills' bills,
+ (r.complete AND a.content_hash IS NOT NULL AND r.manifest->>'sourceListComplete'='true') AS inventory_known
+ FROM legal_source_receipt r
  LEFT JOIN legal_dataset_archive a ON a.content_hash=r.scope->>'archiveHash'
  WHERE r.source='fy26-state-frozen-inventory' AND r.scope->>'fiscalYear'='2026' AND r.id=ANY($4::text[])
 ), observed AS (
- SELECT r.scope->>'jurisdiction' jurisdiction,coalesce(r.scope->>'sessionKey',r.scope->>'providerSessionId') session,
+ SELECT r.jurisdiction,r.session,
  p->>'billKey' bill_key,p->>'providerBillId' provider_bill_id,
  doc->>'kind' kind,doc->>'providerId' provider_id,doc->>'providerHash' provider_hash,doc->>'versionType' version,
  (coalesce(nullif(doc->>'url',''),nullif(doc->>'stateUrl','')) IS NULL) publisher_url_missing,
- (r.complete AND r.archived AND r.manifest->>'sourceListComplete'='true') AS inventory_known
- FROM receipts r CROSS JOIN LATERAL jsonb_array_elements(r.manifest->'bills') p
+ r.inventory_known
+ FROM receipts r CROSS JOIN LATERAL jsonb_array_elements(r.bills) p
  LEFT JOIN LATERAL jsonb_array_elements(p->'documents') doc ON true
 ), expected AS (
  SELECT jurisdiction,session,bill_key,provider_bill_id,kind,provider_id,provider_hash,version,bool_and(publisher_url_missing) publisher_url_missing,bool_or(inventory_known) AS inventory_known
@@ -96,9 +100,9 @@ SELECT jurisdiction,session,coalesce(kind,'no_published_documents') kind,coalesc
  count(*) FILTER(WHERE completeness='complete' AND eligible>0 AND eligible=embedded)::int AS "fullyEmbeddedDocuments"
 FROM stages GROUP BY jurisdiction,session,kind,version
 UNION ALL
-SELECT r.scope->>'jurisdiction',coalesce(r.scope->>'sessionKey',r.scope->>'providerSessionId'),'no_eligible_bills','unspecified',
- bool_and(r.complete AND r.archived AND r.manifest->>'sourceListComplete'='true'),0,0,0,0,0,0,0,0,0,0,0,0,0
-FROM receipts r WHERE jsonb_array_length(r.manifest->'bills')=0 GROUP BY r.scope->>'jurisdiction',coalesce(r.scope->>'sessionKey',r.scope->>'providerSessionId')`;
+SELECT r.jurisdiction,r.session,'no_eligible_bills','unspecified',
+ bool_and(r.inventory_known),0,0,0,0,0,0,0,0,0,0,0,0,0
+FROM receipts r WHERE jsonb_array_length(r.bills)=0 GROUP BY r.jurisdiction,r.session`;
 
 export const FEDERAL_BILL_COVERAGE_SQL = `WITH expected AS (
  SELECT * FROM jsonb_to_recordset($4::jsonb) x("billId" text,session text,kind text,"providerDocumentId" text,"versionId" text,version text,"packageId" text,collection text,"versionCode" text,"sourceUrls" text[],"receiptId" text,"providerUpdatedAt" text)
