@@ -49,6 +49,57 @@ describe('buildStateBillKey', () => {
     // validator (extra hyphen segment), so DC seeded 0 bills.
     expect(buildStateBillKey('DC', '2025', 'B26-0001')).toBe('dc-2025-b260001');
   });
+  it('preserves Michigan lettered joint resolutions as distinct state/session identities', () => {
+    const numbers = ['HJR A', 'HJRB', 'HJRAA', 'SJRA', 'SJRO'];
+    const keys = numbers.map((number) => buildStateBillKey('MI', '2025', number));
+    expect(keys).toEqual([
+      'mi-2025-hjra',
+      'mi-2025-hjrb',
+      'mi-2025-hjraa',
+      'mi-2025-sjra',
+      'mi-2025-sjro',
+    ]);
+    expect(new Set(keys).size).toBe(numbers.length);
+    expect(buildStateBillKey('MI', '2025x2183', 'HJRA')).toBe('mi-2025x2183-hjra');
+    expect(buildStateBillKey('MI', '2023', 'HJRA')).toBe('mi-2023-hjra');
+  });
+  it('keeps Nebraska constitutional resolutions distinct from ordinary LR numbers', () => {
+    expect(buildStateBillKey('NE', '2025', 'LR5')).toBe('ne-2025-lr5');
+    expect(buildStateBillKey('NE', '2025', 'LR5CA')).toBe('ne-2025-lr5ca');
+    expect(buildStateBillKey('NE', '2025', 'LR317CA')).toBe('ne-2025-lr317ca');
+  });
+  it.each([
+    ['TX', '2025', 'HJRA'],
+    ['NE', '2025', 'HJRA'],
+    ['MI', '2025', 'HBA'],
+    ['MI', '2025', 'HJRAAA'],
+    ['MI', '2025', 'SJR'],
+    ['MI', '', 'HJRA'],
+    ['MI', '2025special', 'HJRA'],
+    ['TX', '2025', 'LR5CA'],
+    ['NE', '2025', 'HB5CA'],
+    ['NE', '2025', 'LRCA'],
+    ['NE', '2025', 'LR5CAB'],
+  ])('rejects unsupported resolution identity %s/%s/%s', (state, session, number) => {
+    expect(buildStateBillKey(state, session, number)).toBeNull();
+  });
+  it.each([
+    ['MI', 'HJRAA', 'mi-2025-hjraa'],
+    ['NE', 'LR5CA', 'ne-2025-lr5ca'],
+  ])(
+    'normalizes the complete %s dataset parent without replacing its provider identity',
+    (state, number, key) => {
+      const normalized = normalizeLegiscanBill(fixtureBill({ state, bill_number: number }), state);
+      expect(normalized).toMatchObject({
+        billKey: key,
+        identifier: number,
+        legiscanBillId: 1234567,
+        sessionKey: '2025',
+        legiscanSessionId: 1,
+        legiscanChangeHash: 'abc123',
+      });
+    },
+  );
 });
 
 function fixtureBill(overrides: Partial<LegiscanBill> = {}): LegiscanBill {

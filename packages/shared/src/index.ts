@@ -954,7 +954,11 @@ const PATTERNS: Record<CanonicalIdType, RegExp> = {
   piid: /^[A-Z0-9]{4,17}$/,
   naics: /^[0-9]{2,6}$/,
   peCode: /^[0-9]{7}[A-Z]{1,2}$/,
-  stateBillKey: /^[a-z]{2}-\d{4}(x\d+)?-[a-z]+\d+[a-z]?$/,
+  // MI joint resolutions use one/two-letter designations (HJR A / HJR AA);
+  // Nebraska constitutional resolutions retain their CA suffix (LR5CA).
+  // Keep both exceptions jurisdiction-specific and preserve every numeric ID.
+  stateBillKey:
+    /^(?:[a-z]{2}-\d{4}(?:x\d+)?-[a-z]+\d+[a-z]?|mi-\d{4}(?:x\d+)?-(?:hjr|sjr)[a-z]{1,2}|ne-\d{4}(?:x\d+)?-lr\d+ca)$/,
 };
 
 /** True iff `value` (after normalizeCanonicalId) is a well-formed id of `type`. */
@@ -1035,7 +1039,7 @@ export function parseStateBillDesignation(
   sessionKey?: string | null,
 ): ParsedStateBillDesignation | null {
   const cleaned = (text ?? '').trim();
-  const billNumberFrom = (body: string): string | null => {
+  const billNumberFrom = (body: string, resolvedState: string): string | null => {
     // Strip periods before matching ("H.B. 1234" -> "HB 1234") — punctuation
     // carries no meaning in a bill designation, same tolerance as the federal
     // parseBillDesignation's per-letter optional dots. The number group also
@@ -1044,24 +1048,28 @@ export function parseStateBillDesignation(
     // human lookup and the ingested key must resolve to the same DD1 id.
     const stripped = body.trim().replace(/\./g, '');
     const m = stripped.match(/^([A-Za-z]+)\s*([0-9]+(?:-[0-9]+)*)([A-Za-z]?)$/);
-    if (!m || !m[1] || !m[2]) return null;
-    return `${m[1].toLowerCase()}${m[2].replace(/-/g, '')}${(m[3] ?? '').toLowerCase()}`;
+    if (m?.[1] && m[2])
+      return `${m[1].toLowerCase()}${m[2].replace(/-/g, '')}${(m[3] ?? '').toLowerCase()}`;
+    const special = stripped.replace(/\s+/g, '').toLowerCase();
+    if (resolvedState === 'MI' && /^(?:hjr|sjr)[a-z]{1,2}$/.test(special)) return special;
+    if (resolvedState === 'NE' && /^lr\d+ca$/.test(special)) return special;
+    return null;
   };
-  const build = (resolvedState: string, billNumber: string): ParsedStateBillDesignation => ({
-    state: resolvedState,
-    billNumber,
-    key: sessionKey ? `${resolvedState.toLowerCase()}-${sessionKey}-${billNumber}` : null,
-  });
+  const build = (resolvedState: string, billNumber: string): ParsedStateBillDesignation | null => {
+    const key = sessionKey ? `${resolvedState.toLowerCase()}-${sessionKey}-${billNumber}` : null;
+    if (key && !isStateBillKey(key)) return null;
+    return { state: resolvedState, billNumber, key };
+  };
 
   const hinted = (state ?? '').toUpperCase();
   if (/^[A-Z]{2}$/.test(hinted)) {
-    const billNumber = billNumberFrom(cleaned);
+    const billNumber = billNumberFrom(cleaned, hinted);
     if (billNumber) return build(hinted, billNumber);
   }
 
   const leadingState = cleaned.match(/^([A-Za-z]{2})\s+(.+)$/);
   if (leadingState?.[1] && leadingState[2]) {
-    const billNumber = billNumberFrom(leadingState[2]);
+    const billNumber = billNumberFrom(leadingState[2], leadingState[1].toUpperCase());
     if (billNumber) return build(leadingState[1].toUpperCase(), billNumber);
   }
 
