@@ -3,6 +3,7 @@ import {
   loadFederalGeneration,
   finalizeFederalDiscovery,
   enumerateFederalInventories,
+  selectFederalInventories,
   type FederalGeneration,
 } from './federal-bill-inventory';
 import { federalInventoryManifest, writeFederalInventory } from './federal-billstatus-import';
@@ -382,6 +383,122 @@ describe('federal discovery finalization', () => {
       'PARENT_UNRESOLVED',
     );
   });
+  it('allows historical generations alongside new canonical parents but refuses missing old members', async () => {
+    const h = generationFixture(),
+      original = h.db.$queryRawUnsafe.getMockImplementation()!;
+    h.db.$queryRawUnsafe.mockImplementation(async (sql: string, ...args: any[]) =>
+      sql.includes('FROM congress_bill')
+        ? [{ id: '119-hr-1' }, { id: '119-hr-2' }]
+        : original(sql, ...args),
+    );
+    expect((await loadFederalGeneration(h.db, h.hashes, h.listHash, 119, 1)).billIds).toEqual([
+      '119-hr-1',
+    ]);
+    h.db.$queryRawUnsafe.mockImplementation(async (sql: string, ...args: any[]) =>
+      sql.includes('FROM congress_bill') ? [{ id: '119-hr-2' }] : original(sql, ...args),
+    );
+    await expect(loadFederalGeneration(h.db, h.hashes, h.listHash, 119, 1)).rejects.toThrow(
+      'ADMISSION_MISMATCH',
+    );
+  });
+  it('requires current amendment source timestamps when the fresh list supplies them', async () => {
+    const h = generationFixture();
+    (h.proof.manifest as any).memberUpdates = { '119-samdt-1': '2026-02-01' };
+    await expect(loadFederalGeneration(h.db, h.hashes, h.listHash, 119, 1, false)).rejects.toThrow(
+      'SOURCE_MOVED',
+    );
+  });
+  it('never lets an older complete receipt override this refresh cycle held inventory', async () => {
+    const h = generationFixture(),
+      g = await loadFederalGeneration(h.db, h.hashes, h.listHash, 119, 1, true, 'new-cycle');
+    const common = {
+      source: 'fy26-federal-provider-inventory',
+      observedAt: new Date(),
+      scope: {
+        fiscalYear: 2026,
+        congress: 119,
+        billId: '119-hr-1',
+        archiveHash: g.billArchives.get('119-hr-1'),
+      },
+      manifest: { kind: 'text', providerDocumentId: '119-hr-1' },
+    };
+    const old = { ...common, id: 'old', complete: true },
+      held = {
+        ...common,
+        id: 'held',
+        complete: false,
+        scope: { ...common.scope, refreshId: 'new-cycle' },
+      };
+    expect(selectFederalInventories([old, held], g).get('text:119-hr-1')).toBe(held);
+    expect(selectFederalInventories([old], g).size).toBe(0);
+  });
+  it('fetches changed held versions once while unchanged complete bulk versions require no enumeration request', async () => {
+    const h = generationFixture(),
+      g = await loadFederalGeneration(h.db, h.hashes, h.listHash, 119, 1, true, 'cycle');
+    g.amendments = [];
+    const scope = {
+      fiscalYear: 2026,
+      congress: 119,
+      billId: '119-hr-1',
+      archiveHash: g.billArchives.get('119-hr-1'),
+      refreshId: 'cycle',
+    };
+    const receipts: any[] = [
+      {
+        id: 'held',
+        source: 'fy26-federal-provider-inventory',
+        complete: false,
+        scope,
+        manifest: federalInventoryManifest({
+          kind: 'text',
+          providerDocumentId: '119-hr-1',
+          providerUpdatedAt: '2026-02-01',
+          versions: [],
+        }),
+        observedAt: new Date(),
+      },
+    ];
+    const db: any = {
+      $queryRawUnsafe: jest.fn(async (sql: string, ...args: any[]) =>
+        sql.includes("source='fy26-federal-provider-inventory'")
+          ? receipts
+          : sql.includes('cursor_jsonb AS cursor')
+            ? [{ cursor: { after: '' } }]
+            : [{ id: args[0] }],
+      ),
+      $executeRawUnsafe: jest.fn(async (sql: string, ...args: any[]) => {
+        if (sql.includes('INSERT INTO legal_source_receipt'))
+          receipts.unshift({
+            id: args[0],
+            source: args[1],
+            scope: JSON.parse(args[2]),
+            manifest: JSON.parse(args[3]),
+            complete: args[4],
+            observedAt: new Date(),
+          });
+        return 1;
+      }),
+    };
+    const published = {
+      type: 'Reported',
+      date: '2026-02-01',
+      formats: [
+        { url: 'https://www.govinfo.gov/content/pkg/BILLS-119hr1rh/xml/BILLS-119hr1rh.xml' },
+      ],
+    };
+    const fetch = jest.fn(async () => ({ textVersions: [published], pagination: { count: 1 } }));
+    expect(
+      await enumerateFederalInventories(db, g, { limit: 1, apiKey: 'synthetic', fetchJson: fetch }),
+    ).toMatchObject({ processed: 1, complete: true });
+    expect(receipts[0].manifest.versions).toEqual(
+      normalizeFederalVersions('119-hr-1', 'text', [published]),
+    );
+    expect(receipts[0].scope.refreshId).toBe('cycle');
+    expect(
+      await enumerateFederalInventories(db, g, { limit: 1, apiKey: 'synthetic', fetchJson: fetch }),
+    ).toMatchObject({ processed: 0, complete: true });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
   it('cannot declare complete with a missing amendment list, and pins actual child receipt IDs', async () => {
     const h = generationFixture(),
       g = await loadFederalGeneration(h.db, h.hashes, h.listHash, 119, 1);
@@ -408,7 +525,11 @@ describe('federal discovery finalization', () => {
     const db: any = {
       $executeRawUnsafe: jest.fn(async () => 1),
       $queryRawUnsafe: jest.fn(async (sql: string, ...args: any[]) =>
-        sql.includes("source='fy26-federal-provider-inventory'") ? receipts : [{ id: args[0] }],
+        sql.includes("source='fy26-federal-provider-inventory'")
+          ? receipts
+          : sql.includes('FROM congress_bill')
+            ? [{ id: '119-hr-1' }]
+            : [{ id: args[0] }],
       ),
     };
     await expect(finalizeFederalDiscovery(db, g)).rejects.toThrow('CHILD_INVENTORY_INCOMPLETE');
@@ -435,6 +556,16 @@ describe('federal discovery finalization', () => {
       'amendment-list',
       'bill-list',
     ]);
+    db.$queryRawUnsafe.mockImplementation(async (sql: string, ...args: any[]) =>
+      sql.includes("source='fy26-federal-provider-inventory'")
+        ? receipts
+        : sql.includes('FROM congress_bill')
+          ? [{ id: '119-hr-1' }, { id: '119-hr-2' }]
+          : [{ id: args[0] }],
+    );
+    db.$executeRawUnsafe.mockClear();
+    await expect(finalizeFederalDiscovery(db, g)).rejects.toThrow('CANONICAL_ADMISSION_MISMATCH');
+    expect(db.$executeRawUnsafe).not.toHaveBeenCalled();
   });
 });
 describe('targeted federal metadata refresh', () => {

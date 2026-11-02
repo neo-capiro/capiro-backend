@@ -174,7 +174,9 @@ export async function fetchFederalPublication(
         if (
           captureWriteFailed ||
           (error instanceof Error &&
-            /^(?:CONGRESS_REQUEST_CAP_REACHED|FEDERAL_WRITER_)/.test(error.message))
+            /^(?:CONGRESS_REQUEST_CAP_REACHED|FEDERAL_REFRESH_DEADLINE|FEDERAL_WRITER_)/.test(
+              error.message,
+            ))
         )
           throw error;
         lastError = error instanceof Error ? error : Error('FEDERAL_PUBLICATION_FETCH_FAILED');
@@ -260,10 +262,39 @@ function retainedFederalOriginalMatches(
     return false;
   }
 }
+export type FederalHydrationPass = {
+  taskHash: string;
+  listedVersions: number;
+  unavailableListedVersions: number;
+  scanned: number;
+  processed: number;
+  retained: number;
+  failed: number;
+  partial: number;
+  unreadable: number;
+  unavailable: number;
+};
+export function federalHydrationPassComplete(pass: FederalHydrationPass | null) {
+  return Boolean(
+    pass &&
+    pass.scanned === pass.listedVersions &&
+    pass.failed === 0 &&
+    pass.partial === 0 &&
+    pass.unreadable === 0 &&
+    pass.unavailable === 0 &&
+    pass.unavailableListedVersions === 0,
+  );
+}
 export async function hydrateFederalInventories(
   db: PrismaClient,
   generation: FederalGeneration,
-  options: { limit: number; beforeAttempt: () => Promise<void>; fetchImpl?: typeof fetch },
+  options: {
+    limit: number;
+    beforeAttempt: () => Promise<void>;
+    fetchImpl?: typeof fetch;
+    check?: () => void;
+    sleep?: (ms: number) => Promise<void>;
+  },
 ) {
   const selected = selectFederalInventories(
       await loadFederalInventories(db, generation),
@@ -277,30 +308,63 @@ export async function hydrateFederalInventories(
     requiredInventoryReceiptIds: [],
     observedAt: new Date(),
   };
+  let unavailableListedVersions = 0;
   for (const receipt of selected.values()) {
     if (!receipt.complete) continue;
     if (!parseFederalBillInventory(receipt, discovery))
       throw Error('FEDERAL_HYDRATION_INVENTORY_INVALID');
     for (const version of receipt.manifest.versions as FederalTextVersion[])
       if (version.formats.length) tasks.push({ receipt, version });
+      else unavailableListedVersions++;
   }
   tasks.sort((a, b) =>
     `${a.receipt.manifest.providerDocumentId}:${a.version.versionId}`.localeCompare(
       `${b.receipt.manifest.providerDocumentId}:${b.version.versionId}`,
     ),
   );
-  const source = `fy26-federal-hydrate:${generation.inventoryHash}`;
+  const source = `fy26-federal-hydrate:${generation.inventoryHash}${generation.refreshId ? ':' + federalHash(generation.refreshId) : ''}`;
   await db.$executeRawUnsafe(
     "INSERT INTO federal_evidence_checkpoint(source,status,cursor_jsonb) VALUES($1,'running','{\"offset\":0}'::jsonb) ON CONFLICT DO NOTHING",
     source,
   );
-  const rows = await db.$queryRawUnsafe<Array<{ cursor: { offset: number } }>>(
-    'SELECT cursor_jsonb AS cursor FROM federal_evidence_checkpoint WHERE source=$1',
-    source,
-  );
+  const rows = await db.$queryRawUnsafe<
+    Array<{ cursor: { offset: number; pass?: FederalHydrationPass } }>
+  >('SELECT cursor_jsonb AS cursor FROM federal_evidence_checkpoint WHERE source=$1', source);
   let offset = rows[0]?.cursor.offset;
   if (!Number.isInteger(offset) || offset! < 0) throw Error('FEDERAL_HYDRATION_CHECKPOINT_INVALID');
   offset = tasks.length ? offset! % tasks.length : 0;
+  const taskHash = federalHash(
+    JSON.stringify(tasks.map((t) => [t.receipt.id, t.version.versionId])),
+  );
+  const pass: FederalHydrationPass | null = generation.refreshId
+    ? (rows[0]?.cursor.pass ?? {
+        taskHash,
+        listedVersions: tasks.length,
+        unavailableListedVersions,
+        scanned: 0,
+        processed: 0,
+        retained: 0,
+        failed: 0,
+        partial: 0,
+        unreadable: 0,
+        unavailable: 0,
+      })
+    : null;
+  if (
+    pass &&
+    (pass.taskHash !== taskHash ||
+      pass.listedVersions !== tasks.length ||
+      pass.unavailableListedVersions !== unavailableListedVersions ||
+      ['scanned', 'processed', 'retained', 'failed', 'partial', 'unreadable', 'unavailable'].some(
+        (key) =>
+          !Number.isSafeInteger(pass[key as keyof FederalHydrationPass]) ||
+          Number(pass[key as keyof FederalHydrationPass]) < 0,
+      ) ||
+      pass.scanned > tasks.length ||
+      pass.processed + pass.retained !== pass.scanned ||
+      offset !== pass.scanned % Math.max(1, tasks.length))
+  )
+    throw Error('FEDERAL_HYDRATION_PASS_INVALID');
   let processed = 0,
     retained = 0,
     failed = 0,
@@ -309,7 +373,13 @@ export async function hydrateFederalInventories(
     partial = 0,
     scanned = 0,
     capped = false;
-  while (scanned < tasks.length && scanned < options.limit) {
+  while (
+    scanned < tasks.length &&
+    scanned < options.limit &&
+    (!pass || pass.scanned < tasks.length)
+  ) {
+    options.check?.();
+    const previousCounts = { processed, retained, failed, partial, unreadable, unavailable };
     const task = tasks[offset]!;
     const { receipt, version } = task;
     const previous = await db.$queryRawUnsafe<Retained[]>(
@@ -394,7 +464,7 @@ export async function hydrateFederalInventories(
         processed++;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'FEDERAL_HYDRATION_FAILED';
-        if (message === 'CONGRESS_REQUEST_CAP_REACHED') {
+        if (message === 'CONGRESS_REQUEST_CAP_REACHED' || message === 'FEDERAL_REFRESH_DEADLINE') {
           capped = true;
           break;
         }
@@ -424,10 +494,24 @@ export async function hydrateFederalInventories(
     }
     scanned++;
     offset = (offset + 1) % Math.max(tasks.length, 1);
+    if (pass) {
+      pass.scanned++;
+      for (const key of [
+        'processed',
+        'retained',
+        'failed',
+        'partial',
+        'unreadable',
+        'unavailable',
+      ] as const)
+        pass[key] +=
+          { processed, retained, failed, partial, unreadable, unavailable }[key] -
+          previousCounts[key];
+    }
     await db.$executeRawUnsafe(
       "UPDATE federal_evidence_checkpoint SET cursor_jsonb=$2::jsonb,status='running',updated_at=clock_timestamp() WHERE source=$1",
       source,
-      JSON.stringify({ offset }),
+      JSON.stringify({ offset, ...(pass ? { pass } : {}) }),
     );
   }
   return {
@@ -439,6 +523,7 @@ export async function hydrateFederalInventories(
     partial,
     scanned,
     listedVersions: tasks.length,
+    ...(pass ? { pass } : {}),
     capped,
     complete:
       scanned === tasks.length && failed === 0 && unreadable === 0 && partial === 0 && !capped,

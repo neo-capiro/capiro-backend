@@ -123,12 +123,14 @@ export async function fetchFederalMetadata(
 export async function refreshHeldFederalMetadata(
   db: PrismaClient,
   generation: FederalGeneration,
-  options: { limit: number; apiKey: string; fetchJson: FederalJsonFetch },
+  options: { limit: number; apiKey: string; fetchJson: FederalJsonFetch; check?: () => void },
 ) {
   const rows = await db.$queryRawUnsafe<FederalReceipt[]>(
     `SELECT DISTINCT ON(scope->>'billId') id,scope,manifest,complete,observed_at AS "observedAt" FROM legal_source_receipt
-    WHERE source='fy26-federal-metadata' AND scope->>'archiveHash'=ANY($1::text[]) ORDER BY scope->>'billId',complete DESC,observed_at DESC,id DESC`,
+    WHERE source='fy26-federal-metadata' AND scope->>'archiveHash'=ANY($1::text[])
+    AND ($2::text IS NULL OR scope->>'refreshId'=$2) ORDER BY scope->>'billId',complete DESC,observed_at DESC,id DESC`,
     generation.archiveHashes,
+    generation.refreshId ?? null,
   );
   const held = rows
     .filter(
@@ -155,16 +157,22 @@ export async function refreshHeldFederalMetadata(
     failed = 0,
     capped = false;
   for (const row of ordered.slice(0, options.limit)) {
+    options.check?.();
     try {
       const bill = await fetchFederalMetadata(row.scope.billId, options.apiKey, options.fetchJson);
       if (
-        (await enrichFederalBulkMetadata(db, bill, row.scope.archiveHash, 'congress-api')) !==
-        'enriched'
+        (await enrichFederalBulkMetadata(
+          db,
+          bill,
+          row.scope.archiveHash,
+          'congress-api',
+          generation.refreshId,
+        )) !== 'enriched'
       )
         throw Error('FEDERAL_METADATA_CANONICAL_NEWER');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'FEDERAL_METADATA_FAILED';
-      if (message === 'CONGRESS_REQUEST_CAP_REACHED') {
+      if (message === 'CONGRESS_REQUEST_CAP_REACHED' || message === 'FEDERAL_REFRESH_DEADLINE') {
         capped = true;
         break;
       }
