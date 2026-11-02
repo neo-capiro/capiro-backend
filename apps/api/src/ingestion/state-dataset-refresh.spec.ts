@@ -71,45 +71,39 @@ beforeAll(async () => {
 });
 beforeEach(() => {
   jest.clearAllMocks();
-  jest
-    .mocked(loadPinnedStateInventory)
-    .mockResolvedValue({
-      discovery: {
-        receiptId: 'old-global',
-        manifestSha256: 'c'.repeat(64),
-        states: ALL_US_STATE_CODES.map((state) => ({
-          state,
-          sessions:
-            state === 'AL' ? [{ sessionId: 1, archiveHash: 'b'.repeat(64), expectedBills: 1 }] : [],
-        })),
-      },
-      sessions: [],
-      qualifiedReceiptIds: [],
-      inventories: ALL_US_STATE_CODES.map((jurisdiction) => ({
-        jurisdiction,
-        known: true,
-        expectedSessions: 0,
-        qualifiedSessions: 0,
-        missingSessions: [],
+  jest.mocked(loadPinnedStateInventory).mockResolvedValue({
+    discovery: {
+      receiptId: 'old-global',
+      manifestSha256: 'c'.repeat(64),
+      states: ALL_US_STATE_CODES.map((state) => ({
+        state,
+        sessions:
+          state === 'AL' ? [{ sessionId: 1, archiveHash: 'b'.repeat(64), expectedBills: 1 }] : [],
       })),
-    });
-  jest
-    .mocked(reservedLegiscanQuery)
-    .mockImplementation(async (_db, _scope, call) => ({
-      value: await call(() => {}),
-      attempts: 1,
-    }));
+    },
+    sessions: [],
+    qualifiedReceiptIds: [],
+    inventories: ALL_US_STATE_CODES.map((jurisdiction) => ({
+      jurisdiction,
+      known: true,
+      expectedSessions: 0,
+      qualifiedSessions: 0,
+      missingSessions: [],
+    })),
+  });
+  jest.mocked(reservedLegiscanQuery).mockImplementation(async (_db, _scope, call) => ({
+    value: await call(() => {}),
+    attempts: 1,
+  }));
   jest.mocked(getSessionList).mockResolvedValue([session]);
   jest
     .mocked(getDatasetList)
     .mockResolvedValue([{ session_id: 1, dataset_hash: 'd'.repeat(32), access_key: 'synthetic' }]);
-  jest
-    .mocked(getDataset)
-    .mockResolvedValue({
-      session_id: 1,
-      dataset_hash: 'd'.repeat(32),
-      zip: zip.toString('base64'),
-    });
+  jest.mocked(getDataset).mockResolvedValue({
+    session_id: 1,
+    dataset_hash: 'd'.repeat(32),
+    zip: zip.toString('base64'),
+  });
   jest
     .mocked(importFrozenStateDataset)
     .mockResolvedValue({ processed: 1000, scanComplete: false, metadataComplete: false } as any);
@@ -183,6 +177,30 @@ it('retains prior global discovery on missing historical session, quota hold or 
     providerCalls: 0,
   });
   expect(retainStateDiscovery).not.toHaveBeenCalled();
+});
+it.each([
+  { year_start: undefined },
+  { year_end: undefined },
+  { year_start: '2025' },
+  { year_end: 'unknown' },
+  { year_start: 2027, year_end: 2025 },
+  { year_start: 2019, year_end: 2020, special: undefined },
+  { session_id: 0, year_start: 2019, year_end: 2020 },
+  { session_id: 1, year_start: 2019, year_end: 2020 },
+])('rejects an unresolved new source session before overlap filtering: %j', async (invalid) => {
+  // The valid previously pinned session is still present, so only full-list
+  // validation can prevent the malformed new entry from being silently lost.
+  jest
+    .mocked(getSessionList)
+    .mockResolvedValue([session, { ...session, session_id: 2, ...invalid }] as any);
+  const { db, cursor } = database();
+  expect(await refreshStateDatasetSlice(db, 'synthetic', sha)).toMatchObject({
+    status: 'failed',
+    reason: 'DATASET_REFRESH_SESSION_LIST_INVALID',
+  });
+  expect(cursor()!.states[0]).toMatchObject({ complete: false, sessions: null });
+  expect(retainStateDiscovery).not.toHaveBeenCalled();
+  expect(getDataset).not.toHaveBeenCalled();
 });
 it('publishes a replacement only after every state/session archive is qualified and marks canonical completed status', async () => {
   const cycle = newStateDatasetCycle(sha);

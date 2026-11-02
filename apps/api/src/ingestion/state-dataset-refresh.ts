@@ -210,6 +210,26 @@ export async function refreshStateDatasetSlice(
         const sessions = await query('getSessionList', undefined, (retry, transport) =>
           getSessionList(apiKey, work.state, transport, retry, true),
         );
+        // Qualify the entire source list before deciding which sessions overlap
+        // FY26. An unresolved new session cannot be silently excluded as old.
+        if (
+          !Array.isArray(sessions) ||
+          sessions.some(
+            (s) =>
+              !s ||
+              !Number.isSafeInteger(s.session_id) ||
+              s.session_id < 1 ||
+              !Number.isInteger(s.year_start) ||
+              !Number.isInteger(s.year_end) ||
+              s.year_start < 1 ||
+              s.year_end > 9999 ||
+              s.year_end < s.year_start ||
+              ![0, 1].includes(s.special) ||
+              ![0, 1].includes(s.prior),
+          ) ||
+          new Set(sessions.map((s) => s.session_id)).size !== sessions.length
+        )
+          throw Error('DATASET_REFRESH_SESSION_LIST_INVALID');
         const selected = sessions.filter((s) => s.year_start <= 2026 && s.year_end >= 2025);
         const prior = await loadPinnedStateInventory(writer, work.state);
         const expected =
@@ -219,18 +239,7 @@ export async function refreshStateDatasetSlice(
           expected.some((old) => !selected.some((current) => current.session_id === old.sessionId))
         )
           throw Error('DATASET_REFRESH_KNOWN_SESSION_DISAPPEARED');
-        if (
-          selected.length > 20 ||
-          new Set(selected.map((s) => s.session_id)).size !== selected.length ||
-          selected.some(
-            (s) =>
-              !Number.isSafeInteger(s.session_id) ||
-              s.session_id < 1 ||
-              !Number.isInteger(s.year_start) ||
-              !Number.isInteger(s.year_end),
-          )
-        )
-          throw Error('DATASET_REFRESH_SESSION_LIST_INVALID');
+        if (selected.length > 20) throw Error('DATASET_REFRESH_SESSION_LIST_INVALID');
         work.sessions = selected
           .sort((a, b) => a.session_id - b.session_id)
           .map((session) => ({ session }));

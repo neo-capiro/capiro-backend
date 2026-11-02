@@ -226,6 +226,7 @@ async function run(prisma: PrismaClient, FY26: FiscalYearMode): Promise<void> {
           madeProgress = true;
           drained++;
           let queriesForBill = 0;
+          let billFetchReturned = false;
           let admitted = FY26 === null;
           const countRetry = () => {
             if (usedThisMonth + requestsThisRun >= MONTHLY_BUDGET)
@@ -261,6 +262,7 @@ async function run(prisma: PrismaClient, FY26: FiscalYearMode): Promise<void> {
                   )
                 ).value
               : await getBill(LEGISCAN_API_KEY, billId, countRetry);
+            billFetchReturned = true;
             if (!raw) {
               if (isWide) queue.retained.push(billId);
               errors++;
@@ -507,6 +509,14 @@ async function run(prisma: PrismaClient, FY26: FiscalYearMode): Promise<void> {
                   voteFetchFailed = true;
                 }
               } catch (err) {
+                if (err instanceof LegiscanProviderCapacityError) {
+                  if (err.requestAttempts === 0) {
+                    queriesForBill--;
+                    requestsThisRun--;
+                    voteRequests--;
+                  }
+                  throw err;
+                }
                 errors++;
                 voteFetchFailed = true;
                 console.error(
@@ -560,6 +570,12 @@ async function run(prisma: PrismaClient, FY26: FiscalYearMode): Promise<void> {
             if (!isWide) await bumpCursorQueries(prisma, cursorId, queriesForBill);
           } catch (err) {
             if (err instanceof LegiscanProviderCapacityError) {
+              // The document and vote branches correct their own preincrement.
+              // Only a rejected getBill still needs its zero-attempt correction.
+              if (!billFetchReturned && err.requestAttempts === 0) {
+                queriesForBill--;
+                requestsThisRun--;
+              }
               const current = await prisma.stateSyncCursor.findUnique({ where: { id: cursorId } });
               const pending = [
                 ...new Set([
