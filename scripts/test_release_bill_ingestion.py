@@ -84,6 +84,44 @@ class ReleaseTests(unittest.TestCase):
                 with self.assertRaises(ValueError): r.main()
                 aws.assert_not_called()
 
+    def test_all_formats_has_one_shared_cap_and_no_provider_credentials(self):
+        for limit in (2, 1000):
+            container = self.task(job='state-drain', all_formats=True, limit=limit)['containerDefinitions'][0]
+            self.assertEqual(container['command'], ['sync-state-text-drain', '--limit', str(min(limit, 100)),
+                '--commit', '--expected-host', r.HOST, '--publisher-only', '--all-formats'])
+            self.assertEqual([s['name'] for s in container['secrets']], ['DB_USER', 'DB_PASSWORD'])
+            self.assertNotIn('LEGISCAN_API_KEY', {e['name'] for e in container['environment']})
+        self.assertNotIn('--all-formats', self.task(job='state-drain')['containerDefinitions'][0]['command'])
+        with self.assertRaisesRegex(ValueError, 'FORMAT_OPTIONS_CONFLICT'):
+            self.task(job='state-drain', all_formats=True, alternate_only=True)
+        for job in r.JOBS:
+            if job != 'state-drain':
+                with self.assertRaisesRegex(ValueError, 'ALL_FORMATS_REQUIRES_STATE_DRAIN'):
+                    self.task(job=job, all_formats=True)
+
+    def test_all_formats_cli_rejections_precede_cloud_access(self):
+        for extra in [['--job','state-drain','--operation','schedule','--commit'],
+                      ['--job','state-passages','--commit'],
+                      ['--job','state-drain','--alternate-only','--commit'],
+                      ['--job','state-drain','--phase','extract','--commit']]:
+            with patch('sys.argv', ['release','--source-sha',SHA,'--all-formats',*extra]), patch.object(r,'aws') as aws:
+                with self.assertRaises(ValueError): r.main()
+                aws.assert_not_called()
+
+    def test_all_formats_inspect_forwards_the_option_without_writes(self):
+        responses = [{'Account': r.ACCOUNT}, {'taskDefinition': baseline()}, {'Targets': []}]
+        argv = ['release','--source-sha',SHA,'--job','state-drain','--commit','--all-formats','--limit','2']
+        with patch('sys.argv', argv), patch.object(r,'source_sha',return_value=SHA), \
+             patch.object(r,'image_digest',return_value=DIGEST), patch.object(r,'network_for',return_value={}), \
+             patch.object(r,'aws',side_effect=responses) as aws, patch('builtins.print') as printed:
+            r.main()
+        self.assertEqual([call.args[:2] for call in aws.call_args_list],
+                         [('sts','get-caller-identity'),('ecs','describe-task-definition'),('events','list-targets-by-rule')])
+        receipt = json.loads(printed.call_args_list[0].args[0])
+        self.assertEqual(receipt['operation'], 'inspect')
+        self.assertEqual(receipt['command'], ['sync-state-text-drain','--limit','2','--commit',
+                         '--expected-host',r.HOST,'--publisher-only','--all-formats'])
+
     def test_cached_archive_is_single_state_exact_source_and_has_no_provider_secret(self):
         archive={'state':'NY','session':2188,'hash':'c'*64,'bills':25453}
         for commit in (False,True):
