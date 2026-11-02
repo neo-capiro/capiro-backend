@@ -234,7 +234,7 @@ test('current actor is checked even for zero; Strategy feature qualification is 
   };
   await requireAggregateActor(tx, ctx, true);
   assert.deepEqual(calls[0][1], [client, 'user_fixture', true]);
-  assert.match(calls[0][0], /FOR SHARE OF m,u,t/);
+  assert.match(calls[0][0], /FOR SHARE OF m,t FOR KEY SHARE OF u/);
   assert.match(calls[0][0], /strategyPlanner.enabled/);
   await assert.rejects(
     () => requireAggregateActor({ $queryRaw: async () => [] }, ctx),

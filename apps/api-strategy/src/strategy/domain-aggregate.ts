@@ -17,11 +17,11 @@ const MAX_SOURCE_CHECKS = 256; // Both authority passes together; never a capped
 const SNAPSHOT_ATTEMPTS = 3;
 const unavailable = () =>
   new ServiceUnavailableException('Complete aggregate observation unavailable');
-/** PostgreSQL 40001 from a snapshot read. The actor check locks Core's user,
- * membership and tenant rows FOR SHARE inside a RepeatableRead snapshot, so an
- * ordinary concurrent write to one of them (Core's per-minute users.last_seen_at
- * on the same page load) aborts the read. Prisma reports it as P2010 (raw query)
- * or P2034 (transaction). */
+/** PostgreSQL 40001 from a snapshot read. The actor check locks Core's membership
+ * and tenant rows FOR SHARE (the user row FOR KEY SHARE, so Core's per-minute
+ * users.last_seen_at write no longer conflicts) inside a RepeatableRead snapshot;
+ * a concurrent membership, tenant or user-key change still aborts the read and is
+ * retried. Prisma reports it as P2010 (raw query) or P2034 (transaction). */
 function serializationFailure(error: unknown): boolean {
   const known = error as { code?: unknown; meta?: { code?: unknown } } | null;
   return known?.code === 'P2034' || (known?.code === 'P2010' && known.meta?.code === '40001');
@@ -164,7 +164,7 @@ export async function requireAggregateActor(
       AND t.status::text='active'
       AND m.role::text IN ('standard_user','user_admin','capiro_admin')
       AND (NOT ${strategy} OR t.settings_jsonb->'clioFeatureFlags'->'strategyPlanner.enabled'='true'::jsonb)
-    FOR SHARE OF m,u,t`;
+    FOR SHARE OF m,t FOR KEY SHARE OF u`;
   if (rows.length !== 1) throw new ForbiddenException('Aggregate access unavailable');
 }
 
