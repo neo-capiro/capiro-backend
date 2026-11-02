@@ -5,6 +5,7 @@ import {
   normalizeFederalVersions,
   parseFederalBillStatusXml,
   normalizeFederalCosponsors,
+  qualifiedFederalTextUrl,
 } from './federal-billstatus';
 import { enrichFederalBulkMetadata } from './federal-billstatus-import';
 
@@ -123,6 +124,92 @@ describe('frozen federal BILLSTATUS adapter', () => {
     ).toThrow('PARENT_MISMATCH');
   });
 });
+describe('Congress public-law publication URLs', () => {
+  const root = 'https://www.congress.gov/119/plaws/publ131/PLAW-119publ131';
+  const publication = {
+    type: 'Public Law',
+    date: '2026-10-21T03:59:59Z',
+    formats: [
+      { type: 'Formatted Text', url: `${root}.htm` },
+      { type: 'PDF', url: `${root}.pdf` },
+      { type: 'United States Legislative Markup', url: `${root}_uslm.xml` },
+    ],
+  };
+
+  it('retains all official formats as one canonical PLAW version bound to its parent Congress', () => {
+    const versions = normalizeFederalVersions('119-hr-4307', 'text', [publication]);
+    expect(versions).toHaveLength(1);
+    expect(versions[0]).toMatchObject({
+      collection: 'PLAW',
+      packageId: 'PLAW-119publ131',
+      versionCode: null,
+      date: publication.date,
+      sourceUrl: `${root}_uslm.xml`,
+    });
+    expect(versions[0]!.formats).toHaveLength(3);
+    expect(versions[0]!.formats).toEqual(
+      expect.arrayContaining([
+        { type: 'html', url: `${root}.htm` },
+        { type: 'pdf', url: `${root}.pdf` },
+        { type: 'xml', url: `${root}_uslm.xml` },
+      ]),
+    );
+    expect(
+      normalizeFederalVersions('119-hr-4307', 'text', [
+        { ...publication, formats: [...publication.formats].reverse() },
+      ]),
+    ).toEqual(versions);
+    expect(qualifiedFederalTextUrl(`${root}.xml`).pathname).toBe(
+      '/119/plaws/publ131/PLAW-119publ131.xml',
+    );
+  });
+
+  it('recognizes the same GovInfo package while refusing conflicting law packages or parent Congress', () => {
+    const govinfo = {
+      url: 'https://www.govinfo.gov/content/pkg/PLAW-119publ131/pdf/PLAW-119publ131.pdf',
+    };
+    expect(
+      normalizeFederalVersions('119-hr-4307', 'text', [
+        { ...publication, formats: [...publication.formats, govinfo] },
+      ])[0],
+    ).toMatchObject({ collection: 'PLAW', packageId: 'PLAW-119publ131' });
+    expect(() =>
+      normalizeFederalVersions('119-hr-4307', 'text', [
+        {
+          ...publication,
+          formats: [...publication.formats, { url: govinfo.url.replaceAll('publ131', 'publ132') }],
+        },
+      ]),
+    ).toThrow('FEDERAL_VERSION_PACKAGE_CONFLICT');
+    expect(() => normalizeFederalVersions('118-hr-4307', 'text', [publication])).toThrow(
+      'FEDERAL_VERSION_PARENT_MISMATCH',
+    );
+    expect(() => normalizeFederalVersions('119-samdt-4307', 'amendment', [publication])).toThrow(
+      'FEDERAL_VERSION_PARENT_MISMATCH',
+    );
+  });
+
+  it.each([
+    root.replace('https:', 'http:') + '.pdf',
+    root.replace('www.congress.gov', 'www.congress.gov.evil.test') + '.pdf',
+    root.replace('www.congress.gov', 'www.govinfo.gov') + '.pdf',
+    root.replace('https://', 'https://synthetic@') + '.pdf',
+    root.replace('www.congress.gov', 'www.congress.gov:444') + '.pdf',
+    `${root}.pdf#fragment`,
+    `${root}.pdf?redirect=other`,
+    root.replace('/119/', '/118/') + '.pdf',
+    root.replace('/publ131/', '/publ132/') + '.pdf',
+    `${root}extra.pdf`,
+    `${root}_uslm.pdf`,
+    `${root}.pdf/extra`,
+    root.replace('/plaws/', '/plaws%2f') + '.pdf',
+    root.replaceAll('publ131', 'publ0') + '.pdf',
+    'https://www.congress.gov/119/plaws/arbitrary.xml',
+  ])('refuses unqualified law URL %s', (url) => {
+    expect(() => qualifiedFederalTextUrl(url)).toThrow('FEDERAL_TEXT_URL_UNQUALIFIED');
+  });
+});
+
 describe('authoritative federal metadata enrichment', () => {
   function db(date: string) {
     const changes: string[] = [];

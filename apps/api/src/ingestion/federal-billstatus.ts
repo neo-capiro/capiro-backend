@@ -106,6 +106,16 @@ export function federalIdentity(v: unknown, amendment = false): string {
     throw Error('BILLSTATUS_IDENTITY_INVALID');
   return `${congress}-${type}-${number}`;
 }
+/** Congress law originals use a public-law directory and the same exact package filename. */
+function congressPublicLawPackage(url: URL) {
+  if (!['www.congress.gov', 'congress.gov'].includes(url.hostname) || url.search) return null;
+  const match =
+    /^\/([1-9][0-9]*)\/plaws\/(publ[1-9][0-9]*)\/(PLAW-\1\2)(?:\.(?:htm|pdf|xml)|_uslm\.xml)$/.exec(
+      url.pathname,
+    );
+  return match ? { congress: match[1]!, packageId: match[3]! } : null;
+}
+
 /** Only official immutable publication links can enter the retrieval stage. */
 export function qualifiedFederalTextUrl(value: string): URL {
   const url = new URL(value);
@@ -118,7 +128,8 @@ export function qualifiedFederalTextUrl(value: string): URL {
       url.hostname,
     ) ||
     url.hash ||
-    !/^\/(?:content\/pkg\/|crec\/|\d+\/(?:bills|amendments|crec)\/)/.test(url.pathname)
+    (!/^\/(?:content\/pkg\/|crec\/|\d+\/(?:bills|amendments|crec)\/)/.test(url.pathname) &&
+      !congressPublicLawPackage(url))
   )
     throw Error('FEDERAL_TEXT_URL_UNQUALIFIED');
   return url;
@@ -153,7 +164,13 @@ export function normalizeFederalVersions(
         ['xml', 'html', 'txt', 'pdf'].indexOf(b.type),
     )[0];
     const packageIds = unique
-      .map((format) => /\/content\/pkg\/([^/]+)\//.exec(new URL(format.url).pathname)?.[1])
+      .map((format) => {
+        const url = new URL(format.url),
+          law = congressPublicLawPackage(url);
+        if (law && (kind !== 'text' || law.congress !== providerDocumentId.split('-')[0]))
+          throw Error('FEDERAL_VERSION_PARENT_MISMATCH');
+        return /\/content\/pkg\/([^/]+)\//.exec(url.pathname)?.[1] ?? law?.packageId;
+      })
       .filter(Boolean) as string[];
     if (new Set(packageIds).size > 1) throw Error('FEDERAL_VERSION_PACKAGE_CONFLICT');
     const versionId = federalHash(JSON.stringify([providerDocumentId, type, date, unique]));
