@@ -83,16 +83,9 @@ function assertRows(
 function assertKeywordIo(h: ReturnType<typeof harness>, method: string) {
   const count = h.callsOf('keywordCount')[0]!;
   const rows = h.callsOf('keywordRows')[0]!;
-  const values = [
-    [' defense ', 'c++'],
-    '\\m defense \\M',
-    '\\mc\\+\\+\\M',
-    '\\m defense \\M',
-    '\\mc\\+\\+\\M',
-    [' defense ', 'c++'],
-    '\\m defense \\M',
-    '\\mc\\+\\+\\M',
-  ];
+  // One alternation regex: policy areas and subject names are matched per distinct value.
+  const anyWord = '(?:\\m defense \\M)|(?:\\mc\\+\\+\\M)';
+  const values = [[' defense ', 'c++'], anyWord, anyWord, [' defense ', 'c++'], anyWord];
   expect(count.query!.values).toEqual(values);
   expect(rows.query!.values).toEqual(values);
   expect(compactSql(count.query!.sql)).toContain('SELECT COUNT(*)::bigint AS total FROM (');
@@ -185,7 +178,9 @@ it.each(methods)(
     await expect(h.subject[method]([])).resolves.toEqual({ total: 0, bills: [] });
     expect(h.callsOf('keywordCount')[0]!.query!.values).toEqual([]);
     expect(h.callsOf('keywordRows')[0]!.query!.values).toEqual([]);
-    expect(compactSql(h.callsOf('keywordCount')[0]!.query!.sql)).toContain('(FALSE OR FALSE)');
+    const countSql = compactSql(h.callsOf('keywordCount')[0]!.query!.sql);
+    expect(countSql).toContain('area WHERE FALSE ) OR FALSE)');
+    expect(countSql).toContain('subject WHERE FALSE )');
     expect(h.callsOf('keywordCount')).toHaveLength(1);
     expect(h.callsOf('keywordRows')).toHaveLength(1);
     expect(h.callsOf('statementTimeout')).toHaveLength(2);
