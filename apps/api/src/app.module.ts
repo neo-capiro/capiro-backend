@@ -184,8 +184,6 @@ export class AppModule implements NestModule {
         { path: 'api/engagement/integrations/microsoft/notifications', method: RequestMethod.ALL },
         { path: '/api/engagement/integrations/google/callback', method: RequestMethod.GET },
         { path: 'api/engagement/integrations/google/callback', method: RequestMethod.GET },
-        { path: '/api/clio/runtime/(.*)', method: RequestMethod.ALL },
-        { path: 'api/clio/runtime/(.*)', method: RequestMethod.ALL },
         { path: '/api/clio/mcp-oauth/callback', method: RequestMethod.GET },
         { path: 'api/clio/mcp-oauth/callback', method: RequestMethod.GET },
         { path: '/api/insights', method: RequestMethod.GET },

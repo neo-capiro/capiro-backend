@@ -280,7 +280,6 @@ export class TenantContextMiddleware implements NestMiddleware {
       // (GoogleOAuthService.verifyState). (Google push notifications endpoint is
       // added here in Phase 3 when users.watch/Pub/Sub lands.)
       '/api/engagement/integrations/google/callback',
-      '/api/clio/runtime',
       '/api/clio/mcp-oauth/callback',
       '/api/insights',
       // Recipient capabilities authorize these routes; no private newsletter

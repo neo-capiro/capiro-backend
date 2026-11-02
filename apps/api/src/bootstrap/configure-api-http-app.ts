@@ -87,6 +87,15 @@ export function configureApiHttpApp(
   app: INestApplication,
   options: ConfigureApiHttpAppOptions,
 ): void {
+  // 0. One trusted proxy hop: the load balancer in front of every API task.
+  //    Express then reads req.ip from the address the load balancer appended to
+  //    X-Forwarded-For and ignores client-supplied entries to its left, so IP
+  //    throttling buckets per client instead of per load-balancer node.
+  (app.getHttpAdapter().getInstance() as { set(setting: string, value: unknown): void }).set(
+    'trust proxy',
+    1,
+  );
+
   // 1. Global prefix — everything under /api, excluding /health and /webhooks/*
   app.setGlobalPrefix('api', {
     exclude: [
