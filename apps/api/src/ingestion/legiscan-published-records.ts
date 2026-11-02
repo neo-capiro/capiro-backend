@@ -137,7 +137,7 @@ export async function persistPublishedRecords(
   prisma: PrismaClient,
   billKey: string,
   raw: LegiscanBill,
-  options: { historical?: boolean } = {},
+  options: { historical?: boolean; preserveCurrentFacts?: boolean } = {},
 ) {
   const records = publishedRecords(raw);
   // Both record history and coverage become visible together. No backdated
@@ -192,13 +192,16 @@ export async function persistPublishedRecords(
       where: { id: billKey },
       select: { reportSourceFacts: true },
     });
-    const retained = (previous?.reportSourceFacts as Record<string, unknown> | null)
-      ?.retainedDocumentStubs;
+    const facts = (previous?.reportSourceFacts as Record<string, any> | null) ?? {};
+    const retained = mergeDocumentStubs(
+      facts.retainedDocumentStubs,
+      facts.documentInventory?.stubs ?? [],
+    );
     await tx.stateBill.update({
       where: { id: billKey },
       data: {
         reportSourceFacts: {
-          ...reportSourceFacts(raw),
+          ...(options.preserveCurrentFacts ? facts : reportSourceFacts(raw)),
           retainedDocumentStubs: mergeDocumentStubs(retained, stateDocumentStubs(raw)).map(
             (stub) => ({ ...stub }),
           ),

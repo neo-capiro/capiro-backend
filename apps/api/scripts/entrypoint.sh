@@ -60,7 +60,7 @@ if [ -n "${MERI_CONTROL_ORIGIN+x}${MERI_CONTROL_CA_BASE64+x}${MERI_CONTROL_CA_SH
 fi
 
 case "${1:-serve}" in
-  index-bill-passages|embed-bill-passages|sync-state-text-drain)
+  index-bill-passages|embed-bill-passages|sync-state-text-drain|import-state-dataset-cache)
     bill_command="$1"
     shift
     if [ "${1:-}" != "--help" ] && [ "${1:-}" != "-h" ]; then

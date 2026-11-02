@@ -21,6 +21,24 @@ def baseline():
             logConfiguration={'logDriver':'awslogs','options':{'awslogs-group':'/capiro/dev/sync-jobs','awslogs-stream-prefix':'ecs'}})])
 
 class ReleaseTests(unittest.TestCase):
+    def test_cached_archive_is_single_state_exact_source_and_has_no_provider_secret(self):
+        archive={'state':'NY','session':2188,'hash':'c'*64,'bills':25453}
+        for commit in (False,True):
+            task=self.task(job='state-archive',states=['NY'],archive=archive,commit=commit,limit=100)
+            container=task['containerDefinitions'][0]
+            self.assertEqual([s['name'] for s in container['secrets']],['DB_USER','DB_PASSWORD'])
+            self.assertEqual(container['command'],['import-state-dataset-cache','--state','NY','--session','2188','--archive-hash','c'*64,'--expected-bills','25453','--limit','100']+(['--commit','--expected-host',r.HOST] if commit else []))
+        with self.assertRaisesRegex(ValueError,'STATE_MISMATCH'):self.task(job='state-archive',states=['CA'],archive=archive)
+        for change in [{'hash':'latest'},{'bills':50001},{'session':0},{'extra':'injected'}]:
+            with self.assertRaises(ValueError):self.task(job='state-archive',states=['NY'],archive={**archive,**change})
+        with self.assertRaisesRegex(ValueError,'NOT_SCHEDULEABLE'):r.schedule_snapshot('state-archive')
+
+    def test_archive_scope_failures_precede_any_cloud_call(self):
+        for extra in [[],['--archive-hash','c'*64],['--archive-hash','c'*64,'--archive-session','2188','--archive-bills','25453','--operation','schedule','--commit']]:
+            with patch('sys.argv',['release','--job','state-archive','--states','NY','--source-sha',SHA,*extra]),patch.object(r,'aws') as aws:
+                with self.assertRaises(ValueError):r.main()
+                aws.assert_not_called()
+
     def task(self, **kwargs):
         options=dict(baseline=baseline(),digest=DIGEST,sha=SHA,job='federal-passages',limit=3,states=['CA'],commit=True)
         options.update(kwargs)

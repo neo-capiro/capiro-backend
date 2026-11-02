@@ -201,14 +201,12 @@ export async function hydrateResearchDocuments(
             stub: retainedStub ?? stub,
             apiKey,
           });
-          const state = await persistDocumentEvidence(
-            prisma,
-            bill.id,
-            result.document,
-            stub.kind === 'text'
-              ? undefined
-              : { id: stub.providerId, kind: stub.kind, billId: bill.legiscanBillId! },
-          );
+          const state = await persistDocumentEvidence(prisma, bill.id, result.document, {
+            id: stub.providerId,
+            kind: stub.kind,
+            billId: bill.legiscanBillId!,
+            providerHash: stub.providerHash,
+          });
           outcomes.push({
             billId: bill.id,
             providerId: stub.providerId,

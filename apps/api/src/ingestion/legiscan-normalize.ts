@@ -487,21 +487,7 @@ export async function upsertNormalizedStateBill(
     });
   }
 
-  // Retain UUIDs and any durable content references. Missing provider versions
-  // remain historical records; absence from a refresh is not a deletion order.
-  for (const version of n.versions) {
-    const existingVersion = await prisma.stateBillVersion.findUnique({
-      where: { legiscanDocId: version.legiscanDocId },
-      select: { billKey: true },
-    });
-    if (existingVersion && existingVersion.billKey !== n.billKey)
-      throw new Error('LEGISCAN_DOCUMENT_BILL_MISMATCH');
-    await prisma.stateBillVersion.upsert({
-      where: { legiscanDocId: version.legiscanDocId },
-      create: { billKey: n.billKey, ...version },
-      update: { ...version, lastSyncedAt: new Date() },
-    });
-  }
+  await upsertStateBillVersions(prisma, n);
 
   await prisma.stateBillLink.deleteMany({ where: { billKey: n.billKey } });
   if (n.links.length) {
@@ -514,6 +500,30 @@ export async function upsertNormalizedStateBill(
   if (!options.historical) await retainLegiscanCalendar(prisma, n.billKey, n.calendarSnapshot);
 
   return { isNew };
+}
+
+/** Stable document identity owner shared with additive frozen-archive import.
+ * A historical archive may create missing identities, never refresh an existing
+ * version's date/URL/type or durable references from an older observation. */
+export async function upsertStateBillVersions(
+  prisma: PrismaClient,
+  n: Pick<NormalizedStateBill, 'billKey' | 'versions'>,
+  options: { preserveExisting?: boolean } = {},
+) {
+  for (const version of n.versions) {
+    const existingVersion = await prisma.stateBillVersion.findUnique({
+      where: { legiscanDocId: version.legiscanDocId },
+      select: { billKey: true },
+    });
+    if (existingVersion && existingVersion.billKey !== n.billKey)
+      throw new Error('LEGISCAN_DOCUMENT_BILL_MISMATCH');
+    if (existingVersion && options.preserveExisting) continue;
+    await prisma.stateBillVersion.upsert({
+      where: { legiscanDocId: version.legiscanDocId },
+      create: { billKey: n.billKey, ...version },
+      update: options.preserveExisting ? {} : { ...version, lastSyncedAt: new Date() },
+    });
+  }
 }
 
 /**

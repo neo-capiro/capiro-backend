@@ -118,3 +118,43 @@ do not honor this lease. Root must replace or quiesce the original state writers
 before overlapping backfills; source integration alone does not establish one
 live writer. Only the two state writer commands receive the LegiScan secret.
 Preserve existing state writer schedules; no quota or budget increase is implied.
+
+## Frozen archive import without provider calls
+
+`import-state-dataset-cache` validates an exact SHA256, state, session and full
+provider parent count before writing. The existing ZIP parser bounds compressed
+bytes to 120 MB, expanded JSON to 512 MB and entries to 50,000; the importer
+allows at most 50,000 parents, including the reviewed NY export's 25,453. It
+retains original ZIP bytes and an immutable FY26-admitted inventory receipt
+before creating metadata. Receipt `complete` means the frozen source list is
+known, never that document download, extraction or embeddings are complete.
+
+Stage an already verified local ZIP with the qualified runtime and clone
+configuration, then import bounded batches from its stored hash:
+
+```sh
+node --import tsx scripts/import-state-dataset-cache.ts --state NY --session 2188 --expected-bills 25453 --archive "$ARCHIVE" --sha256 "$ARCHIVE_SHA" --inventory-only --commit --expected-host "$CLONE_HOST"
+python -B scripts/release-bill-ingestion.py --operation run --job state-archive --states NY --archive-session 2188 --archive-bills 25453 --archive-hash "$ARCHIVE_SHA" --limit 100 --commit --source-sha "$SOURCE_SHA" --qualified-digest "$DIGEST" --receipt "$ARCHIVE_RECEIPT"
+```
+
+Omit `--commit` for validation/preview. The ECS archive job receives database
+secrets only. It never queries LegiScan, changes recurring rules or requires new
+storage permissions. Batches resume from the existing checkpoint owner; each
+parent's writes and checkpoint advance commit together. Existing metadata,
+sponsors, links and current cursor work remain intact. Frozen evidence and
+missing version identities append only for a matching canonical provider bill.
+Conflicting identities remain explicit holds.
+
+Document retries use one existing queue row per exact kind/provider-ID/hash.
+Legacy ID-only rows fan out idempotently, preserving separate old/new hash
+retry histories; unavailable historical bytes cannot hide a retrievable newer
+hash. The ordinary metadata refresher excludes these exact-version checks.
+Valid retained bytes wait for extraction without another network request.
+
+The canonical image build now runs an isolated native PostgreSQL gate after
+runtime probes and before push. Source preparation includes six exact existing
+Jest harness files. Its only certificate exception is the required public
+[RDS trust bundle](https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem)
+at `apps/api/scripts/funding-worker/rds-global-bundle.pem`, pinned to raw Git
+SHA256 `90a6f1a7978a1b1b096dca6c57511ca48d3b8cf052f8e704baf358f34ea2f21b`.
+All other secret-file exclusions remain enforced.

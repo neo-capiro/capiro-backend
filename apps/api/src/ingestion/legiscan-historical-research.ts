@@ -9,6 +9,8 @@ import {
   upsertNormalizedStateBill,
   upsertStateSession,
   upsertStateRollCallVote,
+  stateSessionId,
+  upsertStateBillVersions,
 } from './legiscan-normalize.js';
 import { persistPublishedRecords } from './legiscan-published-records.js';
 import {
@@ -18,6 +20,253 @@ import {
 } from '../external/legiscan/legiscan.client.js';
 import { selectHistoricalSessions } from './legiscan-selected-sessions.js';
 import { currentQuotaMonth, monthToDateQueries, LEGISCAN_HARD_CAP } from './legiscan-quota.util.js';
+import { ALL_US_STATE_CODES } from '../external/legiscan/us-states.js';
+import { admitsRawBill } from './bill-fy26-admission.js';
+import { stateDocumentStubs } from './state-document-stub.js';
+import { queueBillDocumentChecks } from './bill-document-queue.js';
+
+export interface FrozenDatasetScope {
+  state: string;
+  sessionId: number;
+  archiveHash: string;
+  expectedBills: number;
+}
+
+/** Offline validation precedes any write. The exact frozen ZIP is the source;
+ * current provider listings are neither queried nor substituted. */
+export async function inspectFrozenStateDataset(archive: Buffer, scope: FrozenDatasetScope) {
+  if (
+    !(ALL_US_STATE_CODES as readonly string[]).includes(scope.state) ||
+    !Number.isSafeInteger(scope.sessionId) ||
+    scope.sessionId < 1 ||
+    !Number.isSafeInteger(scope.expectedBills) ||
+    scope.expectedBills < 1 ||
+    scope.expectedBills > 50000 ||
+    !/^[a-f\d]{64}$/.test(scope.archiveHash) ||
+    createHash('sha256').update(archive).digest('hex') !== scope.archiveHash
+  )
+    throw Error('FROZEN_DATASET_SCOPE_OR_HASH_MISMATCH');
+  const parsed = await parseDatasetZip(archive);
+  if (parsed.bills.length !== scope.expectedBills || Object.values(parsed.skipped).some(Boolean))
+    throw Error('FROZEN_DATASET_INCOMPLETE');
+  const session = parsed.bills[0]!.session;
+  if (
+    !session ||
+    !Number.isInteger(session.year_start) ||
+    !Number.isInteger(session.year_end) ||
+    session.year_start > 2026 ||
+    session.year_end < 2025 ||
+    ![0, 1].includes(session.special)
+  )
+    throw Error('FROZEN_DATASET_SESSION_INVALID');
+  const sessionKey = computeSessionKey(session);
+  const normalized = parsed.bills.map((raw) => ({
+    raw,
+    bill: normalizeLegiscanBill(raw, scope.state),
+  }));
+  if (
+    normalized.some(
+      ({ raw, bill }) =>
+        !bill ||
+        raw.state !== scope.state ||
+        raw.session?.session_id !== scope.sessionId ||
+        raw.session.year_start !== session.year_start ||
+        raw.session.year_end !== session.year_end ||
+        raw.session.special !== session.special ||
+        bill.sessionKey !== sessionKey ||
+        !Number.isSafeInteger(raw.bill_id) ||
+        raw.bill_id < 1 ||
+        !/^[a-f\d]{32}$/i.test(raw.change_hash) ||
+        !Array.isArray(raw.texts) ||
+        !Array.isArray(raw.amendments) ||
+        !Array.isArray(raw.supplements) ||
+        !Array.isArray(raw.votes),
+    ) ||
+    new Set(normalized.map((x) => x.bill!.billKey)).size !== normalized.length ||
+    new Set(normalized.map((x) => x.raw.bill_id)).size !== normalized.length
+  )
+    throw Error('FROZEN_DATASET_IDENTITY_MISMATCH');
+  const byProvider = new Map(normalized.map((x) => [x.raw.bill_id, x]));
+  const votesByBill = new Map<number, typeof parsed.votes>();
+  const voteIds = new Set(parsed.votes.map((v) => v.roll_call_id));
+  const voteParents = new Map(parsed.votes.map((v) => [v.roll_call_id, v.bill_id]));
+  if (
+    voteIds.size !== parsed.votes.length ||
+    parsed.votes.some((v) => !v.bill_id || !byProvider.has(v.bill_id)) ||
+    normalized.some((x) =>
+      x.raw.votes!.some((v) => voteParents.get(v.roll_call_id) !== x.raw.bill_id),
+    )
+  )
+    throw Error('FROZEN_DATASET_VOTE_COVERAGE_INCOMPLETE');
+  for (const vote of parsed.votes)
+    votesByBill.set(vote.bill_id!, [...(votesByBill.get(vote.bill_id!) ?? []), vote]);
+  const eligible = normalized
+    .filter((x) => admitsRawBill(x.raw, 2026))
+    .sort((a, b) => a.raw.bill_id - b.raw.bill_id);
+  const manifest = {
+    schemaVersion: 1,
+    state: scope.state,
+    sessionId: scope.sessionId,
+    sessionKey,
+    archiveHash: scope.archiveHash,
+    sourceListComplete: true,
+    inspectedBills: parsed.bills.length,
+    eligibleBills: eligible.length,
+    bills: eligible.map(({ raw, bill }) => ({
+      providerBillId: raw.bill_id,
+      providerChangeHash: raw.change_hash,
+      billKey: bill!.billKey,
+      sessionKey,
+      documents: stateDocumentStubs(raw),
+    })),
+  };
+  return { session, sessionKey, eligible, votesByBill, manifest };
+}
+
+/** Additive resumable FY26 bootstrap through the historical canonical writer.
+ * Frozen inventory persists before parents. Current metadata is never replaced
+ * by an older weekly archive, including when its provider hash differs. */
+export async function importFrozenStateDataset(
+  prisma: PrismaClient,
+  archive: Buffer,
+  scope: FrozenDatasetScope,
+  options: { limit: number; inventoryOnly?: boolean },
+) {
+  if (!Number.isInteger(options.limit) || options.limit < 1 || options.limit > 1000)
+    throw Error('FROZEN_DATASET_LIMIT_INVALID');
+  const prepared = await inspectFrozenStateDataset(archive, scope);
+  return withStateBillWriter(prisma, [scope.state], async (prisma) => {
+    const { session, sessionKey, eligible, votesByBill, manifest } = prepared;
+    const receiptScope = {
+      jurisdiction: scope.state,
+      providerSessionId: scope.sessionId,
+      sessionKey,
+      fiscalYear: 2026,
+      archiveHash: scope.archiveHash,
+    };
+    const id = createHash('sha256')
+      .update(JSON.stringify(['fy26-state-frozen-inventory', 1, receiptScope]))
+      .digest('hex');
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`INSERT INTO legal_dataset_archive(content_hash,original_bytes_base64) VALUES(${scope.archiveHash},${archive.toString('base64')}) ON CONFLICT DO NOTHING`;
+      await tx.$executeRaw`INSERT INTO legal_source_receipt(id,source,scope,manifest,complete) VALUES(${id},'fy26-state-frozen-inventory',${JSON.stringify(receiptScope)}::jsonb,${JSON.stringify(manifest)}::jsonb,true) ON CONFLICT DO NOTHING`;
+      const same = await tx.$queryRaw<
+        Array<{ id: string }>
+      >`SELECT id FROM legal_source_receipt WHERE id=${id} AND source='fy26-state-frozen-inventory' AND scope=${JSON.stringify(receiptScope)}::jsonb AND manifest=${JSON.stringify(manifest)}::jsonb AND complete
+        AND EXISTS(SELECT 1 FROM legal_dataset_archive WHERE content_hash=${scope.archiveHash} AND original_bytes_base64=${archive.toString('base64')})`;
+      if (same.length !== 1) throw Error('FROZEN_INVENTORY_RECEIPT_CONFLICT');
+    });
+    if (options.inventoryOnly)
+      return {
+        receiptId: id,
+        archiveHash: scope.archiveHash,
+        inventoryBills: eligible.length,
+        processed: 0,
+        providerCalls: 0,
+        metadataComplete: false,
+      };
+    const sessionRow = await prisma.stateSession.findUnique({
+      where: { id: stateSessionId(scope.state, scope.sessionId) },
+    });
+    if (!sessionRow) await upsertStateSession(prisma, scope.state, session);
+    else if (
+      sessionRow.legiscanSessionId !== scope.sessionId ||
+      sessionRow.sessionKey !== sessionKey ||
+      sessionRow.state !== scope.state
+    )
+      throw Error('FROZEN_CANONICAL_SESSION_CONFLICT');
+    const cursorId = `${scope.state}-${scope.sessionId}`;
+    await prisma.stateSyncCursor.upsert({
+      where: { id: cursorId },
+      create: { id: cursorId, state: scope.state, sessionId: scope.sessionId, sessionKey },
+      update: {},
+    });
+    const checkpoint = `fy26-state-archive:${scope.state}:${scope.sessionId}:${scope.archiveHash}`;
+    const initial = { offset: 0, imported: 0, retained: 0, held: 0 };
+    await prisma.$executeRaw`INSERT INTO federal_evidence_checkpoint(source,cursor_jsonb,status,completed_at) VALUES(${checkpoint},${JSON.stringify(initial)}::jsonb,${eligible.length ? 'running' : 'completed'},CASE WHEN ${eligible.length === 0} THEN clock_timestamp() ELSE NULL END) ON CONFLICT DO NOTHING`;
+    const rows = await prisma.$queryRaw<
+      Array<{ cursor: typeof initial }>
+    >`SELECT cursor_jsonb AS cursor FROM federal_evidence_checkpoint WHERE source=${checkpoint}`;
+    const progress = rows[0]?.cursor;
+    if (
+      !progress ||
+      !Number.isInteger(progress.offset) ||
+      progress.offset < 0 ||
+      progress.offset > eligible.length ||
+      ['imported', 'retained', 'held'].some(
+        (k) =>
+          !Number.isInteger(progress[k as keyof typeof initial]) ||
+          progress[k as keyof typeof initial] < 0,
+      ) ||
+      progress.imported + progress.retained + progress.held !== progress.offset
+    )
+      throw Error('FROZEN_CHECKPOINT_INVALID');
+    let processed = 0;
+    while (progress.offset < eligible.length && processed < options.limit) {
+      const { raw, bill } = eligible[progress.offset]!;
+      const status = await prisma.$transaction(async (tx) => {
+        const existing = await tx.stateBill.findUnique({
+          where: { id: bill!.billKey },
+          select: { legiscanBillId: true, legiscanChangeHash: true },
+        });
+        const status = !existing
+          ? 'imported'
+          : existing.legiscanBillId === raw.bill_id &&
+              existing.legiscanChangeHash === raw.change_hash
+            ? 'retained'
+            : 'held';
+        // The enclosing lease facade flattens nested canonical transactions.
+        const writer = tx as unknown as PrismaClient;
+        if (!existing) await upsertNormalizedStateBill(writer, bill!, { historical: true });
+        if (!existing || existing.legiscanBillId === raw.bill_id) {
+          if (existing) await upsertStateBillVersions(writer, bill!, { preserveExisting: true });
+          await persistPublishedRecords(writer, bill!.billKey, raw, {
+            historical: true,
+            preserveCurrentFacts: Boolean(existing),
+          });
+          await queueBillDocumentChecks(writer, bill!.billKey, raw, { exactVersions: true });
+          if (!existing) {
+            for (const vote of votesByBill.get(raw.bill_id) ?? [])
+              await upsertStateRollCallVote(writer, scope.state, bill!.billKey, vote, {
+                historical: true,
+                stub: raw.votes!.find((v) => v.roll_call_id === vote.roll_call_id),
+                providerBillId: raw.bill_id,
+                providerBillHash: raw.change_hash,
+              });
+            await tx.stateBill.update({
+              where: { id: bill!.billKey },
+              data: {
+                sourceCheckStatus: 'success',
+                sourceCheckedAt: new Date(),
+                sourceCheckAttemptedAt: new Date(),
+              },
+            });
+          }
+          if (status !== 'held')
+            await tx.$executeRaw`UPDATE state_sync_cursor SET bill_hashes=jsonb_build_object(${String(raw.bill_id)},${raw.change_hash}) || COALESCE(bill_hashes,'{}'::jsonb) WHERE id=${cursorId}`;
+        }
+        const next = { ...progress, offset: progress.offset + 1, [status]: progress[status] + 1 };
+        const done = next.offset === eligible.length;
+        await tx.$executeRaw`UPDATE federal_evidence_checkpoint SET cursor_jsonb=${JSON.stringify(next)}::jsonb,status=${done ? 'completed' : 'running'},completed_at=CASE WHEN ${done} THEN clock_timestamp() ELSE NULL END,updated_at=clock_timestamp() WHERE source=${checkpoint}`;
+        return status;
+      });
+      progress.offset++;
+      progress[status]++;
+      processed++;
+    }
+    return {
+      receiptId: id,
+      archiveHash: scope.archiveHash,
+      inventoryBills: eligible.length,
+      processed,
+      ...progress,
+      providerCalls: 0,
+      scanComplete: progress.offset === eligible.length,
+      metadataComplete: progress.offset === eligible.length && progress.held === 0,
+      documentBytes: 'pending_exact_version_hydration',
+    };
+  });
+}
 
 export async function pullHistoricalDatasets(
   prisma: PrismaClient,

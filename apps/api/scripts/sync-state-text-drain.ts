@@ -1,6 +1,7 @@
 /** @cleanup-smoke noArgsExit=2 */
 /** Bounded FY26 document hydration from retained metadata; no getBill discovery. */
 import 'dotenv/config';
+import { createHash } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { ALL_US_STATE_CODES } from '../src/external/legiscan/us-states.js';
 import { STATE_FY26_SQL } from '../src/ingestion/bill-text-scope.js';
@@ -63,12 +64,46 @@ export async function drainStateDocuments(
   prisma: PrismaClient,
   options: { states: string[]; limit: number; commit: boolean; publisherOnly: boolean },
 ) {
+  // Expand legacy per-provider-ID work into exact version checks. Each frozen
+  // hash owns its own retry count/backoff; one unavailable old hash must never
+  // starve a retrievable later hash under a small run cap.
+  if (options.commit) {
+    const legacy = await prisma.$queryRawUnsafe<DueDocument[]>(
+      `SELECT d.bill_key AS "billKey",d.source_identity AS identity,b.report_source_facts AS facts
+       FROM state_bill_record_check d JOIN state_bill b ON b.id=d.bill_key
+       WHERE d.kind='document' AND d.next_check_at<=clock_timestamp()
+       AND d.source_identity ~ '^(text|amendment|supplement):[0-9]+$'
+       AND upper(b.state)=ANY($1::text[]) AND ${STATE_FY26_SQL}
+       ORDER BY d.next_check_at,d.bill_key,d.source_identity LIMIT $2`,
+      options.states,
+      options.limit,
+    );
+    for (const row of legacy) {
+      if (!/^(text|amendment|supplement):[0-9]+$/.test(row.identity)) continue;
+      const stubs = (
+        row.facts?.retainedDocumentStubs ??
+        row.facts?.documentInventory?.stubs ??
+        []
+      ).filter((stub) => `${stub.kind}:${stub.providerId}` === row.identity);
+      if (!stubs.length) continue;
+      await prisma.$transaction(async (tx) => {
+        for (const stub of stubs) {
+          const identity = `${stub.kind}:${stub.providerId}:${stub.providerHash?.toLowerCase() ?? 'unknown'}`;
+          await tx.$executeRaw`INSERT INTO state_bill_record_check(bill_key,kind,source_identity,state,attempts,next_check_at)
+            VALUES(${row.billKey},'document',${identity},'pending',0,clock_timestamp()) ON CONFLICT DO NOTHING`;
+        }
+        await tx.$executeRaw`UPDATE state_bill_record_check SET state='metadata_only',error_code='EXACT_VERSION_CHECKS_ENQUEUED',next_check_at=NULL
+          WHERE bill_key=${row.billKey} AND kind='document' AND source_identity=${row.identity}`;
+      });
+    }
+  }
   const due = await prisma.$queryRawUnsafe<DueDocument[]>(
     `SELECT d.bill_key AS "billKey",b.legiscan_bill_id AS "providerBillId",upper(b.state) AS state,
       c.id AS "cursorId",d.source_identity AS identity,d.attempts,b.report_source_facts AS facts
      FROM state_bill_record_check d JOIN state_bill b ON b.id=d.bill_key
      JOIN state_sync_cursor c ON upper(c.state)=upper(b.state) AND c.session_key=b.session_key
      WHERE d.kind='document' AND d.next_check_at<=clock_timestamp() AND d.state<>'review_required'
+       AND d.source_identity ~ '^(text|amendment|supplement):[0-9]+:'
        AND upper(b.state)=ANY($1::text[]) AND b.legiscan_bill_id IS NOT NULL AND ${STATE_FY26_SQL}
      ORDER BY d.next_check_at,d.bill_key,d.source_identity LIMIT $2`,
     options.states,
@@ -82,7 +117,11 @@ export async function drainStateDocuments(
       row.facts?.retainedDocumentStubs ??
       row.facts?.documentInventory?.stubs ??
       []
-    ).filter((stub) => `${stub.kind}:${stub.providerId}` === row.identity);
+    ).filter(
+      (stub) =>
+        `${stub.kind}:${stub.providerId}:${stub.providerHash?.toLowerCase() ?? 'unknown'}` ===
+        row.identity,
+    );
     if (!stubs.length) {
       await prisma.$executeRaw`UPDATE state_bill_record_check SET state='metadata_only',error_code='RETAINED_DOCUMENT_METADATA_REQUIRED',
         next_check_at=clock_timestamp()+interval '3 hours' WHERE bill_key=${row.billKey} AND kind='document' AND source_identity=${row.identity}`;
@@ -94,12 +133,37 @@ export async function drainStateDocuments(
       retryAfter = 3 * 3600_000,
       failed = false;
     for (const stub of stubs) {
-      const retained = await prisma.$queryRaw<Array<{ id: string }>>`
-        SELECT id::text FROM state_bill_published_record WHERE bill_key=${row.billKey} AND kind='document'
-        AND evidence->>'documentKind'=${stub.kind} AND evidence->>'providerId'=${String(stub.providerId)}
-        AND lower(evidence->>'providerHash')=lower(${stub.providerHash})
-        AND evidence->>'extractionState'='extracted' AND evidence->>'coverage'='complete_document' LIMIT 1`;
-      if (retained.length) {
+      const retained = await prisma.$queryRaw<
+        Array<{ id: string; evidence: any; complete: boolean }>
+      >`
+        SELECT p.id::text,p.evidence,EXISTS(SELECT 1 FROM bill_text_extraction x WHERE x.source_kind='state'
+          AND x.revision_id=p.id AND x.parser_version='bill-structure-v1' AND x.completeness='complete') AS complete
+        FROM state_bill_published_record p WHERE p.bill_key=${row.billKey} AND p.kind='document'
+        AND p.evidence->>'documentKind'=${stub.kind} AND p.evidence->>'providerId'=${String(stub.providerId)}
+        AND lower(p.evidence->>'providerHash')=lower(${stub.providerHash})`;
+      const valid = retained.find((item) => {
+        const base64 = item.evidence?.contentSnapshotBase64;
+        if (
+          typeof base64 !== 'string' ||
+          !base64.length ||
+          base64.length > 28000000 ||
+          !/^[A-Za-z0-9+/]*={0,2}$/.test(base64)
+        )
+          return false;
+        const bytes = Buffer.from(base64, 'base64');
+        return (
+          bytes.length > 0 &&
+          bytes.length <= 20000000 &&
+          (stub.size == null || stub.size === bytes.length) &&
+          createHash('md5').update(bytes).digest('hex') === stub.providerHash?.toLowerCase() &&
+          createHash('sha256').update(bytes).digest('hex') === item.evidence.contentHash
+        );
+      });
+      if (valid) {
+        if (!valid.complete && valid.evidence?.structure?.completeness !== 'complete') {
+          allComplete = false;
+          failure = 'DOCUMENT_EXTRACTION_PENDING';
+        }
         counts.skipped++;
         continue;
       }
@@ -119,14 +183,12 @@ export async function drainStateDocuments(
           apiKey: process.env.LEGISCAN_API_KEY,
           publisherOnly: options.publisherOnly,
         });
-        const extraction = await persistDocumentEvidence(
-          prisma,
-          row.billKey,
-          result.document,
-          stub.kind === 'text'
-            ? undefined
-            : { id: stub.providerId, kind: stub.kind, billId: row.providerBillId },
-        );
+        const extraction = await persistDocumentEvidence(prisma, row.billKey, result.document, {
+          id: stub.providerId,
+          kind: stub.kind,
+          billId: row.providerBillId,
+          providerHash: stub.providerHash,
+        });
         if (extraction !== 'extracted') {
           allComplete = false;
           failure = 'DOCUMENT_EXTRACTION_PARTIAL';

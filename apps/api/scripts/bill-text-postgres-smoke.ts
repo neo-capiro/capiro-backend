@@ -61,6 +61,37 @@ async function main() {
     assert.equal(rows[1].future, true); // Unchanged successful document keeps its schedule.
     assert.equal(rows[2].future, true); // Failed document keeps its retry backoff and attempt history.
     assert.equal(rows[2].attempts, 3);
+    // Exact frozen hashes retry independently even when the publisher reuses
+    // the same document ID/URL. The ordinary getBill refresh owner excludes
+    // these hash-qualified rows; only the publisher-first drain consumes them.
+    const oldHash = 'a'.repeat(32),
+      newHash = 'b'.repeat(32);
+    await queueBillDocumentChecks(
+      db,
+      'ca-2025-ab2',
+      {
+        texts: [
+          { doc_id: 9, text_hash: oldHash },
+          { doc_id: 9, text_hash: newHash },
+        ],
+      } as any,
+      { exactVersions: true },
+    );
+    await db.$executeRawUnsafe(
+      "UPDATE state_bill_record_check SET state='review_required',attempts=10,next_check_at=now()+interval '3 days' WHERE bill_key='ca-2025-ab2' AND source_identity=$1",
+      'text:9:' + oldHash,
+    );
+    const exact = await db.$queryRawUnsafe<any[]>(
+      "SELECT source_identity,attempts,state,next_check_at<=now() due FROM state_bill_record_check WHERE bill_key='ca-2025-ab2' ORDER BY source_identity",
+    );
+    assert.equal(exact.length, 2);
+    assert.equal(exact[0].state, 'review_required');
+    assert.equal(exact[1].attempts, 0);
+    assert.equal(exact[1].due, true);
+    const legacy = await db.$queryRawUnsafe<any[]>(
+      "SELECT source_identity FROM state_bill_record_check d WHERE bill_key='ca-2025-ab2' AND d.next_check_at<=now() AND d.attempts<10 AND NOT(d.kind='document' AND d.source_identity ~ '^(text|amendment|supplement):[0-9]+:')",
+    );
+    assert.equal(legacy.length, 0);
     // Stored progress is official parent admission evidence even without history.
     await db.$executeRawUnsafe(
       'CREATE TABLE state_bill(id text PRIMARY KEY,latest_action_date date,legiscan_progress jsonb)',

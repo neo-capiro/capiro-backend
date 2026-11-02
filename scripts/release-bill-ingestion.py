@@ -24,7 +24,7 @@ RULE = 'capiro-dev-sync-legiscan-bills'
 TASK_ROLE = f'arn:aws:iam::{ACCOUNT}:role/Capiro-dev-Compute-ApiTaskRole12FAD4A7-szq3QeeZJSCQ'
 EXEC_ROLE = f'arn:aws:iam::{ACCOUNT}:role/Capiro-dev-Compute-ApiMigrateTaskDefExecutionRoleEB-HuOMLdmYvwnx'
 STATES = set('AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY'.split())
-JOBS = ('index', 'federal-passages', 'state-passages', 'federal-text', 'state-dataset', 'state-drain')
+JOBS = ('index', 'federal-passages', 'state-passages', 'federal-text', 'state-dataset', 'state-drain', 'state-archive')
 SCHEDULES = {'federal-passages': 'cron(10 * * * ? *)', 'state-passages': 'cron(20 * * * ? *)',
              'federal-text': 'cron(0 * * * ? *)'}
 SCHEDULE_LIMITS = {'federal-text': 400, 'federal-passages': 1000, 'state-passages': 1000}
@@ -71,9 +71,18 @@ def image_digest(sha, qualified, write):
     require(not write or qualified == digest, 'EXACT_IMAGE_QUALIFICATION_REQUIRED')
     return digest
 
-def command_for(job, limit, commit):
+def command_for(job, limit, commit, archive=None):
     require(job in JOBS and type(limit) is int and 1 <= limit <= 1000, 'INVALID_JOB_OR_LIMIT')
     require(job != 'federal-text' or limit <= 400, 'FEDERAL_TEXT_CAP_EXCEEDED')
+    if job == 'state-archive':
+        require(isinstance(archive, dict) and set(archive) == {'state', 'session', 'hash', 'bills'}, 'ARCHIVE_SCOPE_REQUIRED')
+        require(archive['state'] in STATES and type(archive['session']) is int and archive['session'] > 0 and
+                type(archive['bills']) is int and 1 <= archive['bills'] <= 50000 and
+                isinstance(archive['hash'], str) and re.fullmatch('[0-9a-f]{64}', archive['hash']), 'INVALID_ARCHIVE_SCOPE')
+        return ['import-state-dataset-cache', '--state', archive['state'], '--session', str(archive['session']),
+                '--archive-hash', archive['hash'], '--expected-bills', str(archive['bills']), '--limit', str(limit)] + (
+                ['--commit', '--expected-host', HOST] if commit else [])
+    require(archive is None, 'ARCHIVE_SCOPE_WRONG_JOB')
     if job == 'index':
         return ['index-bill-passages'] + (['--commit', '--expected-host', HOST] if commit else [])
     if job.endswith('-passages'):
@@ -84,13 +93,14 @@ def command_for(job, limit, commit):
     return ['backfill-legiscan-datasets'] if job == 'state-dataset' else [
         'sync-state-text-drain', '--limit', str(min(limit, 100)), '--commit', '--expected-host', HOST]
 
-def candidate_task(baseline, digest, sha, job, limit, states, commit, govinfo_arn=None):
-    command = command_for(job, limit, commit)
+def candidate_task(baseline, digest, sha, job, limit, states, commit, govinfo_arn=None, archive=None):
+    command = command_for(job, limit, commit, archive)
     require(bool(re.fullmatch('sha256:[0-9a-f]{64}', digest)), 'INVALID_IMAGE_DIGEST')
     require(bool(re.fullmatch('[0-9a-f]{40}', sha)), 'INVALID_SOURCE_SHA')
     require(states and len(set(states)) == len(states) and set(states) <= STATES, 'INVALID_STATES')
     # A dataset is the provider's atomic export. Keep each invocation to one state.
     require(job != 'state-dataset' or len(states) == 1, 'DATASET_REQUIRES_ONE_STATE')
+    require(job != 'state-archive' or states == [archive['state']], 'ARCHIVE_STATE_MISMATCH')
     require(baseline['family'] == BASELINE.split(':')[0] and baseline['revision'] == 3, 'BASELINE_MISMATCH')
     require(baseline['taskRoleArn'] == TASK_ROLE and baseline['executionRoleArn'] == EXEC_ROLE, 'ROLE_MISMATCH')
     require(baseline['networkMode'] == 'awsvpc' and 'FARGATE' in baseline['requiresCompatibilities'], 'NETWORK_MODE_MISMATCH')
@@ -214,13 +224,20 @@ def main():
     parser.add_argument('--job', choices=JOBS, required=True)
     parser.add_argument('--limit', type=int, default=3)
     parser.add_argument('--states', default='CA')
+    parser.add_argument('--archive-hash', help='Exact previously staged ZIP SHA256; state-archive only')
+    parser.add_argument('--archive-session', type=int)
+    parser.add_argument('--archive-bills', type=int, help='Exact full provider parent count in the frozen ZIP')
     parser.add_argument('--commit', action='store_true')
     parser.add_argument('--source-sha', required=True, help='Exact reviewed, merged backend-import tip')
     parser.add_argument('--qualified-digest', help='Exact ARM64 digest already probed and scanned by root')
     parser.add_argument('--receipt', type=Path, help='Absolute receipt path outside the checkout; required for run/schedule')
     args = parser.parse_args()
-    command_for(args.job, args.limit, args.commit)
     states = args.states.split(',')
+    archive = None
+    if args.job == 'state-archive' or any(value is not None for value in (args.archive_hash, args.archive_session, args.archive_bills)):
+        require(len(states) == 1, 'ARCHIVE_REQUIRES_ONE_STATE')
+        archive = {'state': states[0], 'session': args.archive_session, 'hash': args.archive_hash, 'bills': args.archive_bills}
+    command_for(args.job, args.limit, args.commit, archive)
     require(states and len(set(states)) == len(states) and set(states) <= STATES, 'INVALID_STATES')
     require(args.job != 'state-dataset' or len(states) == 1, 'DATASET_REQUIRES_ONE_STATE')
     if args.operation == 'schedule':
@@ -237,7 +254,7 @@ def main():
     target = aws('events', 'list-targets-by-rule', '--rule', RULE)['Targets']
     network = network_for(target)
     govinfo = aws('secretsmanager', 'describe-secret', '--secret-id', 'capiro/dev/govinfo_api_key')['ARN'] if args.job == 'federal-text' and args.commit else None
-    td = candidate_task(baseline, digest, sha, args.job, args.limit, states, args.commit, govinfo)
+    td = candidate_task(baseline, digest, sha, args.job, args.limit, states, args.commit, govinfo, archive)
     schedule = schedule_snapshot(args.job) if args.operation == 'schedule' else None
     receipt = {'operation': args.operation, 'job': args.job, 'source': sha, 'digest': digest, 'databaseHost': HOST,
                'command': td['containerDefinitions'][0]['command'], 'states': args.states, 'limit': args.limit, 'commit': args.commit}
