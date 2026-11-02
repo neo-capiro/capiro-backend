@@ -43,9 +43,14 @@ describe('Funding Opportunities production ingestion schedules', () => {
       expect(INGESTION_JOBS.some(job => job.id === id)).toBe(false);
     }
     expect(INGESTION_JOBS.find(job => job.id === 'SyncTangoFunding')?.command).toEqual(['sync-tango-funding', '--commit', '--max-requests=1100']);
-    for (const id of ['SyncTangoFunding', 'EmbedFundingCatalog', 'ArchiveFundingAttachments']) {
+    for (const id of ['SyncTangoFunding', 'ArchiveFundingAttachments']) {
       expect(INGESTION_JOBS.find(job => job.id === id)?.enabled).toBe(false);
     }
+    // Matches the live rule capiro-dev-embed-funding-catalog, enabled out-of-band.
+    const embed = INGESTION_JOBS.find(job => job.id === 'EmbedFundingCatalog')!;
+    expect(embed.command).toEqual(['embed-funding-catalog', '--commit', '--limit=300', '--max-chunks=3000']);
+    expect(embed.cron).toMatchObject({ minute: '20', hour: '4,10,16,22' });
+    expect(embed.enabled).toBe(true);
 
     const dibbs = INGESTION_JOBS.find((job) => job.id === 'SyncTangoDibbs')!;
     expect(dibbs.cron).toMatchObject({ minute: '5', hour: '0' });

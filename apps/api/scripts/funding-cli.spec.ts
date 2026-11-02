@@ -16,5 +16,6 @@ describe('funding CLI safe startup', () => {
     await expect(sync(['--max-requests=NaN'])).rejects.toThrow('Invalid --max-requests');
     await expect(sync(['--extract-limit=0'])).rejects.toThrow('Invalid --extract-limit');
     await expect(embed(['--limit=0'])).rejects.toThrow('Invalid embedding limits');
+    await expect(embed(['--scope=historical'])).rejects.toThrow('Invalid embedding scope');
   });
 });
