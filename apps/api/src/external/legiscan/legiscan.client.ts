@@ -116,13 +116,14 @@ export async function getSessionList(
   apiKey: string,
   state: string,
   transport?: LegiscanTransport,
+  onRetry?: () => void,
 ): Promise<LegiscanSession[]> {
   const body = await legiscanFetch<{ sessions?: LegiscanSession[] }>(
     apiKey,
     'getSessionList',
     { state: state.toUpperCase() },
     1,
-    undefined,
+    onRetry,
     transport,
   );
   return body.sessions ?? [];
@@ -146,13 +147,14 @@ export async function getMasterListRaw(
   apiKey: string,
   sessionId: number,
   transport?: LegiscanTransport,
+  onRetry?: () => void,
 ): Promise<LegiscanMasterlistBill[]> {
   const body = await legiscanFetch<{ masterlist?: Record<string, unknown> }>(
     apiKey,
     'getMasterListRaw',
     { id: sessionId },
     1,
-    undefined,
+    onRetry,
     transport,
   );
   const raw = body.masterlist ?? {};

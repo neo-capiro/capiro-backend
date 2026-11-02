@@ -5,6 +5,7 @@
     "scripts/embed-bill-passages.ts",
     "scripts/index-bill-passages.ts",
     "scripts/sync-federal-legislative-evidence.ts",
+    "scripts/sync-congress.ts",
     "scripts/backfill-legiscan-datasets.ts",
     "scripts/sync-legiscan-bills.ts",
     "scripts/sync-legiscan-masterlist.ts",

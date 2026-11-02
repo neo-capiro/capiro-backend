@@ -167,3 +167,21 @@ Jest harness files. Its only certificate exception is the required public
 at `apps/api/scripts/funding-worker/rds-global-bundle.pem`, pinned to raw Git
 SHA256 `90a6f1a7978a1b1b096dca6c57511ca48d3b8cf052f8e704baf358f34ea2f21b`.
 All other secret-file exclusions remain enforced.
+
+## Opt-in known-parent polling for the remaining states
+
+`LEGISCAN_FY26_WIDE_ENABLED=true` on the existing masterlist and bill-drain jobs
+adds the other 43 states without adding a recurring rule. The default priority
+state behavior is unchanged. Wide masterlist calls occur no more than daily
+per session, including failed attempts. They require the archived global
+discovery manifest, all expected session receipts for the jurisdiction, and an
+actually persisted admitted canonical parent with its retained hash. Unknown,
+excluded and not-yet-imported parents are not queued for speculative `getBill`.
+
+The wide drain preserves unrelated pending work, updates only admitted known
+parents and queues exact document hashes for publisher-first hydration. New
+wide API calls use the same four-attempt reservation owner as document fallback,
+charge retries/failures, and refuse calls at the existing soft/hard budgets.
+This option refreshes known parents; it alone does not establish fresh discovery
+of late-published FY26 parents. Report frozen source age and that discovery gap
+until the bounded dataset-refresh cycle is qualified.

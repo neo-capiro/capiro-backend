@@ -25,6 +25,15 @@ const getBillMock = jest.fn();
 const getRollCallMock = jest.fn();
 const getBillTextMock = jest.fn();
 const getSupportingDocumentMock = jest.fn();
+const knownWideParentsMock = jest.fn();
+const reservedQueryMock = jest.fn();
+jest.mock('../src/ingestion/state-wide-refresh.js', () => ({
+  WIDE_FY26_STATES: ['AK'],
+  knownFrozenFy26Parents: (...args: unknown[]) => knownWideParentsMock(...args),
+}));
+jest.mock('../src/ingestion/legiscan-query-reservation.js', () => ({
+  reservedLegiscanQuery: (...args: unknown[]) => reservedQueryMock(...args),
+}));
 jest.mock('../src/external/legiscan/legiscan.client.js', () => ({
   __esModule: true,
   getBill: (...args: unknown[]) => getBillMock(...args),
@@ -138,6 +147,7 @@ function makeFakePrisma(opts: { pendingBills: number[]; billHashes?: Record<stri
 }
 
 beforeEach(() => {
+  delete process.env.LEGISCAN_FY26_WIDE_ENABLED;
   process.env.LEGISCAN_DRAIN_CAP = '10';
   delete process.env.BILL_FISCAL_YEAR;
   jest.resetModules();
@@ -160,8 +170,68 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  delete process.env.LEGISCAN_FY26_WIDE_ENABLED;
   delete process.env.BILL_FISCAL_YEAR;
   jest.clearAllMocks();
+});
+
+describe('opt-in frozen known-parent wide drain', () => {
+  function setup() {
+    process.env.LEGISCAN_FY26_WIDE_ENABLED = 'true';
+    fakePrisma = makeFakePrisma({
+      pendingBills: [1, 2],
+      billHashes: { '1': 'old', '2': 'excluded' },
+    });
+    Object.assign(fakePrisma.__cursorRow, { state: 'AK', id: 'AK-7', sessionId: 7 });
+    fakePrisma.$queryRawUnsafe.mockImplementation(async (sql: string, ...args: any[]) =>
+      sql.includes('SELECT source')
+        ? args[0].map((source: string) => ({ source }))
+        : [{ source: args[0] }],
+    );
+    knownWideParentsMock.mockResolvedValue([
+      { state: 'AK', sessionId: 7, providerId: 1, billKey: 'ak-2025-hb1' },
+    ]);
+    reservedQueryMock.mockImplementation(async (_db: any, _scope: any, call: any) => ({
+      value: await call(() => {}),
+      attempts: 1,
+    }));
+    getBillMock.mockResolvedValue({
+      bill_id: 1,
+      state: 'AK',
+      session: { session_id: 7 },
+      change_hash: 'new',
+      history: [],
+      texts: [{ doc_id: 101, text_hash: 'a'.repeat(32) }],
+      amendments: [],
+      supplements: [],
+      votes: [],
+    });
+  }
+  it('drains known admitted parents only, preserves excluded pending, and queues exact texts without direct provider text calls', async () => {
+    setup();
+    await (await import('./sync-legiscan-bills.js')).main();
+    expect(getBillMock).toHaveBeenCalledTimes(1);
+    expect(getBillMock.mock.calls[0][1]).toBe(1);
+    expect(fakePrisma.__cursorRow.pendingBills).toEqual([2]);
+    expect(fakePrisma.__cursorRow.billHashes).toEqual({ '1': 'new', '2': 'excluded' });
+    expect(getBillTextMock).not.toHaveBeenCalled();
+    expect(getSupportingDocumentMock).not.toHaveBeenCalled();
+    expect(
+      fakePrisma.__executeRawCalls.some(
+        (row: any) =>
+          row.sql.includes('INSERT INTO state_bill_record_check') &&
+          JSON.stringify(row.values).includes('text:101:' + 'a'.repeat(32)),
+      ),
+    ).toBe(true);
+  });
+  it('leaves both known and unrelated work pending without a provider call at budget exhaustion', async () => {
+    setup();
+    reservedQueryMock.mockRejectedValue(Error('EXISTING_PROVIDER_BUDGET_HOLD'));
+    await (await import('./sync-legiscan-bills.js')).main();
+    expect(getBillMock).not.toHaveBeenCalled();
+    expect(fakePrisma.__cursorRow.pendingBills.sort()).toEqual([1, 2]);
+    expect(fakePrisma.__cursorRow.billHashes['1']).toBe('old');
+  });
 });
 
 describe('FY26 parent gate', () => {

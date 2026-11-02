@@ -31,7 +31,8 @@ import { PrismaClient } from '@prisma/client';
 import { withStateBillWriter } from '../src/ingestion/state-bill-writer.js';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 import { getSessionList, getMasterListRaw } from '../src/external/legiscan/legiscan.client.js';
-import { PRIORITY_STATE_CODES } from '../src/external/legiscan/us-states.js';
+import { PRIORITY_STATE_CODES, ALL_US_STATE_CODES } from '../src/external/legiscan/us-states.js';
+import { refreshKnownFy26Wide } from '../src/ingestion/state-wide-refresh.js';
 import { upsertStateSession } from '../src/ingestion/legiscan-normalize.js';
 import {
   currentQuotaMonth,
@@ -47,6 +48,7 @@ const STATES = (process.env.LEGISCAN_STATES ?? PRIORITY_STATE_CODES.join(','))
   .map((s) => s.trim().toUpperCase())
   .filter(Boolean);
 const SESSION_REFRESH_MS = 7 * 24 * 60 * 60 * 1000;
+const WIDE_FY26 = process.env.LEGISCAN_FY26_WIDE_ENABLED === 'true';
 const SOURCE_SUFFIX = process.env.LEGISCAN_MASTERLIST_SOURCE_SUFFIX?.trim();
 export const SYNC_RUN_SOURCE = SOURCE_SUFFIX
   ? `sync-legiscan-masterlist-${SOURCE_SUFFIX}`
@@ -122,7 +124,7 @@ async function main() {
 
   const prisma = new PrismaClient();
   try {
-    await withStateBillWriter(prisma, STATES, async (prisma) => {
+    await withStateBillWriter(prisma, WIDE_FY26 ? ALL_US_STATE_CODES : STATES, async (prisma) => {
       await runWithSyncRun(
         prisma as never,
         SYNC_RUN_SOURCE,
@@ -219,6 +221,13 @@ async function main() {
             }
           }
 
+          if (WIDE_FY26) {
+            const wide = await refreshKnownFy26Wide(prisma, LEGISCAN_API_KEY);
+            queued += wide.queued;
+            errors += wide.errors;
+            totalQueries += wide.queries;
+            console.log('FY26_WIDE_MASTERLIST ' + JSON.stringify(wide));
+          }
           console.log(
             `[sync-legiscan-masterlist] queued ${queued} changed bills across ${STATES.length} states (${totalQueries} queries), ${errors} errors`,
           );

@@ -31,7 +31,10 @@ import {
   getSupportingDocument,
 } from '../src/external/legiscan/legiscan.client.js';
 import { queueEventRecordRefresh } from '../src/ingestion/legiwatch-event-record-refresh.js';
-import { PRIORITY_STATE_CODES } from '../src/external/legiscan/us-states.js';
+import { PRIORITY_STATE_CODES, ALL_US_STATE_CODES } from '../src/external/legiscan/us-states.js';
+import { knownFrozenFy26Parents, WIDE_FY26_STATES } from '../src/ingestion/state-wide-refresh.js';
+import { reservedLegiscanQuery } from '../src/ingestion/legiscan-query-reservation.js';
+import { queueBillDocumentChecks } from '../src/ingestion/bill-document-queue.js';
 import { persistPublishedRecords } from '../src/ingestion/legiscan-published-records.js';
 import { queueLegiWatchReportRefresh } from '../src/ingestion/legiwatch-report-refresh.js';
 import { voteNeedsRefresh } from '../src/ingestion/legiscan-vote-revisions.js';
@@ -55,10 +58,14 @@ import {
 dotenvConfig();
 
 const LEGISCAN_API_KEY = process.env.LEGISCAN_API_KEY ?? '';
-const STATES = (process.env.LEGISCAN_STATES ?? PRIORITY_STATE_CODES.join(','))
+const WIDE_FY26 = process.env.LEGISCAN_FY26_WIDE_ENABLED === 'true';
+const CONFIGURED_STATES = (process.env.LEGISCAN_STATES ?? PRIORITY_STATE_CODES.join(','))
   .split(',')
   .map((s) => s.trim().toUpperCase())
   .filter(Boolean);
+const STATES = WIDE_FY26
+  ? [...new Set([...CONFIGURED_STATES, ...ALL_US_STATE_CODES])]
+  : CONFIGURED_STATES;
 const DRAIN_CAP = Number(process.env.LEGISCAN_DRAIN_CAP ?? '400');
 const MONTHLY_BUDGET = Number(process.env.LEGISCAN_MONTHLY_BUDGET ?? '28000');
 
@@ -137,10 +144,28 @@ async function run(prisma: PrismaClient, FY26: FiscalYearMode): Promise<void> {
       const cursors = await prisma.stateSyncCursor.findMany({
         where: { state: { in: STATES }, pendingBills: { isEmpty: false } },
       });
+      const wideParents = WIDE_FY26 ? await knownFrozenFy26Parents(prisma) : [];
+      const wideIds = new Set(
+        wideParents.map((row) => `${row.state}:${row.sessionId}:${row.providerId}`),
+      );
       const queues = new Map<string, { state: string; ids: number[]; retained: number[] }>(
         cursors.map((c) => [
           c.id,
-          { state: c.state, ids: [...(c.pendingBills as number[])], retained: [] },
+          {
+            state: c.state,
+            ids: (c.pendingBills as number[]).filter(
+              (id) =>
+                !WIDE_FY26 ||
+                !WIDE_FY26_STATES.includes(c.state as any) ||
+                wideIds.has(`${c.state}:${c.sessionId}:${id}`),
+            ),
+            retained:
+              WIDE_FY26 && WIDE_FY26_STATES.includes(c.state as any)
+                ? (c.pendingBills as number[]).filter(
+                    (id) => !wideIds.has(`${c.state}:${c.sessionId}:${id}`),
+                  )
+                : [],
+          },
         ]),
       );
 
@@ -164,6 +189,7 @@ async function run(prisma: PrismaClient, FY26: FiscalYearMode): Promise<void> {
       drainLoop: while (drained < DRAIN_CAP) {
         let madeProgress = false;
         for (const [cursorId, queue] of queues) {
+          const isWide = WIDE_FY26 && WIDE_FY26_STATES.includes(queue.state as any);
           if (drained >= DRAIN_CAP || usedThisMonth + requestsThisRun >= MONTHLY_BUDGET)
             break drainLoop;
           const billId = queue.ids.shift();
@@ -218,8 +244,21 @@ async function run(prisma: PrismaClient, FY26: FiscalYearMode): Promise<void> {
               });
             queriesForBill++;
             requestsThisRun++;
-            const raw = await getBill(LEGISCAN_API_KEY, billId, countRetry);
+            const raw = isWide
+              ? (
+                  await reservedLegiscanQuery(
+                    prisma,
+                    { state: queue.state, cursorId, operation: 'getBill', providerId: billId },
+                    (retry) =>
+                      getBill(LEGISCAN_API_KEY, billId, () => {
+                        retry();
+                        countRetry();
+                      }),
+                  )
+                ).value
+              : await getBill(LEGISCAN_API_KEY, billId, countRetry);
             if (!raw) {
+              if (isWide) queue.retained.push(billId);
               errors++;
               if (admitted)
                 await prisma.stateBill.updateMany({
@@ -233,19 +272,27 @@ async function run(prisma: PrismaClient, FY26: FiscalYearMode): Promise<void> {
                 where: { id: cursorId },
                 data: { pendingBills: { set: [...queue.ids, ...queue.retained] } },
               });
-              await bumpCursorQueries(prisma, cursorId, queriesForBill);
+              if (!isWide) await bumpCursorQueries(prisma, cursorId, queriesForBill);
               continue;
             }
+
+            if (
+              isWide &&
+              (raw.bill_id !== billId ||
+                raw.state !== queue.state ||
+                `${queue.state}-${raw.session?.session_id}` !== cursorId)
+            )
+              throw Error('FY26_WIDE_PROVIDER_PARENT_MISMATCH');
 
             // Excluded parents remain pending with their previous hash for the
             // ordinary all-session worker. Scan past them locally without marking
             // unfetched metadata/documents current or dropping canonical work.
-            if (!admitsRawBill(raw, FY26)) {
+            if (!isWide && !admitsRawBill(raw, FY26)) {
               queue.retained.push(billId);
               // Rotate retained work so a capped FY26 run reaches later eligible
               // parents on its next invocation without consuming ordinary work.
               await prisma.$executeRaw`UPDATE state_sync_cursor SET pending_bills=array_append(array_remove(pending_bills,${billId}),${billId}) WHERE id=${cursorId}`;
-              await bumpCursorQueries(prisma, cursorId, queriesForBill);
+              if (!isWide) await bumpCursorQueries(prisma, cursorId, queriesForBill);
               continue;
             }
             admitted = true;
@@ -267,7 +314,7 @@ async function run(prisma: PrismaClient, FY26: FiscalYearMode): Promise<void> {
                 where: { id: cursorId },
                 data: { pendingBills: { set: [...queue.ids, ...queue.retained] } },
               });
-              await bumpCursorQueries(prisma, cursorId, queriesForBill);
+              if (!isWide) await bumpCursorQueries(prisma, cursorId, queriesForBill);
               continue;
             }
 
@@ -282,7 +329,11 @@ async function run(prisma: PrismaClient, FY26: FiscalYearMode): Promise<void> {
             else updated++;
 
             // Same provider transport/quota owner, separately qualified source-content gate.
-            if (process.env.LEGISCAN_DOCUMENT_EVIDENCE_ENABLED === 'true') {
+            if (isWide)
+              await queueBillDocumentChecks(prisma, normalized.billKey, raw, {
+                exactVersions: true,
+              });
+            if (!isWide && process.env.LEGISCAN_DOCUMENT_EVIDENCE_ENABLED === 'true') {
               const { persistDocumentEvidence } =
                 await import('../src/ingestion/legiscan-document-evidence.js');
               const documents = [
@@ -413,7 +464,24 @@ async function run(prisma: PrismaClient, FY26: FiscalYearMode): Promise<void> {
                 queriesForBill++;
                 requestsThisRun++;
                 voteRequests++;
-                const rollCall = await getRollCall(LEGISCAN_API_KEY, stub.roll_call_id, countRetry);
+                const rollCall = isWide
+                  ? (
+                      await reservedLegiscanQuery(
+                        prisma,
+                        {
+                          state: queue.state,
+                          cursorId,
+                          operation: 'getRollCall',
+                          providerId: stub.roll_call_id,
+                        },
+                        (retry) =>
+                          getRollCall(LEGISCAN_API_KEY, stub.roll_call_id, () => {
+                            retry();
+                            countRetry();
+                          }),
+                      )
+                    ).value
+                  : await getRollCall(LEGISCAN_API_KEY, stub.roll_call_id, countRetry);
                 if (rollCall)
                   await upsertStateRollCallVote(prisma, queue.state, normalized.billKey, rollCall, {
                     stub,
@@ -455,7 +523,7 @@ async function run(prisma: PrismaClient, FY26: FiscalYearMode): Promise<void> {
                 where: { id: cursorId },
                 data: { pendingBills: { set: [...queue.ids, ...queue.retained] } },
               });
-              await bumpCursorQueries(prisma, cursorId, queriesForBill);
+              if (!isWide) await bumpCursorQueries(prisma, cursorId, queriesForBill);
               continue;
             }
             const cursor = await prisma.stateSyncCursor.findUnique({ where: { id: cursorId } });
@@ -475,8 +543,9 @@ async function run(prisma: PrismaClient, FY26: FiscalYearMode): Promise<void> {
               where: { id: cursorId },
               data: { billHashes, pendingBills: { set: [...queue.ids, ...queue.retained] } },
             });
-            await bumpCursorQueries(prisma, cursorId, queriesForBill);
+            if (!isWide) await bumpCursorQueries(prisma, cursorId, queriesForBill);
           } catch (err) {
+            if (isWide && !queue.retained.includes(billId)) queue.retained.push(billId);
             errors++;
             if (admitted)
               await prisma.stateBill.updateMany({
@@ -491,7 +560,7 @@ async function run(prisma: PrismaClient, FY26: FiscalYearMode): Promise<void> {
               where: { id: cursorId },
               data: { pendingBills: { set: [...queue.ids, ...queue.retained] } },
             });
-            await bumpCursorQueries(prisma, cursorId, queriesForBill);
+            if (!isWide) await bumpCursorQueries(prisma, cursorId, queriesForBill);
           }
         }
         if (!madeProgress) break;

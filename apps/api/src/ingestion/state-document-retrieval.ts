@@ -1,11 +1,10 @@
 import type { PrismaClient } from '@prisma/client';
-import { randomUUID } from 'node:crypto';
 import {
   getBillText,
   getSupportingDocument,
   type LegiscanDocument,
 } from '../external/legiscan/legiscan.client.js';
-import { currentQuotaMonth, LEGISCAN_HARD_CAP, monthToDateQueries } from './legiscan-quota.util.js';
+import { reservedLegiscanQuery } from './legiscan-query-reservation.js';
 import { fetchStatePublisherDocument, PublisherDocumentError } from './state-publisher-document.js';
 import { validDocumentIdentity, type StateDocumentStub } from './state-document-stub.js';
 
@@ -67,63 +66,42 @@ export async function retrieveStateDocument(prisma: PrismaClient, request: State
   }
   if (request.publisherOnly || !request.apiKey)
     throw new StateDocumentRetrievalError(publisherFailure, retryAfterMs, publisherFailure);
-  const month = currentQuotaMonth(),
-    reservationId = randomUUID();
-  const budget = Math.min(
-    27000,
-    LEGISCAN_HARD_CAP,
-    Number(process.env.LEGISCAN_MONTHLY_BUDGET ?? 27000),
-  );
-  await prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('legiscan-research-quota',0))`;
-    const used = monthToDateQueries(
-      await tx.stateSyncCursor.findMany({ select: { queriesUsed: true, quotaMonth: true } }),
-      month,
-    );
-    if (!Number.isFinite(budget) || budget <= 0 || used + 4 > budget)
-      throw new StateDocumentRetrievalError(
-        'EXISTING_PROVIDER_BUDGET_HOLD',
-        retryAfterMs,
-        publisherFailure,
-      );
-    const updated =
-      await tx.$executeRaw`UPDATE state_sync_cursor SET queries_used=CASE WHEN quota_month=${month} THEN queries_used+4 ELSE 4 END,quota_month=${month} WHERE id=${request.cursorId}`;
-    if (updated !== 1) throw new StateDocumentRetrievalError('EXISTING_PROVIDER_CURSOR_REQUIRED');
-    await tx.$executeRaw`INSERT INTO legal_source_receipt(id,source,scope,manifest,complete)
-      VALUES(${reservationId},'legiscan-research-query-reservation',${JSON.stringify({ jurisdiction: request.state, billId: request.billKey })}::jsonb,
-      ${JSON.stringify({ providerId: request.stub.providerId, kind: request.stub.kind, reservedQueries: 4, quotaMonth: month })}::jsonb,false)`;
-  });
-  let attempts = 1;
+  const apiKey=request.apiKey;
   try {
-    const retry = () => {
-      attempts++;
-    };
-    const document = checkedDocument(
-      request.stub.kind === 'text'
-        ? await getBillText(request.apiKey, request.stub.providerId, retry)
-        : await getSupportingDocument(
-            request.apiKey,
-            request.stub.kind,
-            request.stub.providerId,
-            retry,
-          ),
-      request,
+    const result = await reservedLegiscanQuery(
+      prisma,
+      {
+        ...request,
+        operation: request.stub.kind === 'text' ? 'getBillText' : 'getSupportingDocument',
+        providerId: request.stub.providerId,
+      },
+      async (retry) =>
+        checkedDocument(
+          request.stub.kind === 'text'
+            ? await getBillText(apiKey, request.stub.providerId, retry)
+            : await getSupportingDocument(
+                apiKey,
+                request.stub.kind,
+                request.stub.providerId,
+                retry,
+              ),
+          request,
+        ),
     );
     return {
-      document,
-      apiAttempts: attempts,
+      document: result.value,
+      apiAttempts: result.attempts,
       acquisition: 'legiscan-api' as const,
       publisherFailure,
     };
   } catch (error) {
     if (error instanceof StateDocumentRetrievalError) throw error;
+    if (error instanceof Error && error.message.startsWith('EXISTING_PROVIDER_'))
+      throw new StateDocumentRetrievalError(error.message, retryAfterMs, publisherFailure);
     throw new StateDocumentRetrievalError(
       'DOCUMENT_PROVIDER_RETRIEVAL_FAILED',
       retryAfterMs,
       publisherFailure,
     );
-  } finally {
-    if (attempts < 4)
-      await prisma.$executeRaw`UPDATE state_sync_cursor SET queries_used=greatest(0,queries_used-${4 - attempts}) WHERE id=${request.cursorId} AND quota_month=${month}`;
   }
 }
