@@ -19,7 +19,8 @@ const meaning = readFileSync(join(migrations, '20281101180000_capiro_data_public
 const awards = readFileSync(join(migrations, '20281102100000_capiro_data_federal_awards_surface/migration.sql'), 'utf8');
 const years = readFileSync(join(migrations, '20281102120000_capiro_data_program_element_years_surface/migration.sql'), 'utf8');
 const grantsNotices = readFileSync(join(migrations, '20281102140000_capiro_data_grants_notices_surface/migration.sql'), 'utf8');
-const noticeMeaning = readFileSync(join(migrations, '20281102150000_capiro_data_sam_notice_column_meaning/migration.sql'), 'utf8');
+const forecasts = readFileSync(join(migrations, '20281102150000_capiro_data_government_forecasts_surface/migration.sql'), 'utf8');
+const noticeMeaning = readFileSync(join(migrations, '20281102170000_capiro_data_sam_notice_column_meaning/migration.sql'), 'utf8');
 const prismaSchema = readFileSync(join(api, 'prisma/schema.prisma'), 'utf8');
 /** Column names of one Prisma model as the database spells them (`@map` or the field name). */
 function modelColumns(model: string): Set<string> {
@@ -31,6 +32,11 @@ function modelColumns(model: string): Set<string> {
     columns.add(/@map\("(\w+)"\)/.exec(line)?.[1] ?? field[1]!);
   }
   return columns;
+}
+/** Column names of one raw-SQL table (CREATE TABLE in a migration, no Prisma model). */
+function tableColumns(script: string, table: string): Set<string> {
+  const block = new RegExp(`CREATE TABLE ${table} \\(\\n([\\s\\S]*?)\\n\\);`).exec(script)!;
+  return new Set(block[1]!.split('\n').map((line) => /^\s+(\w+) \w+/.exec(line)?.[1]).filter((name): name is string => !!name && !['CHECK', 'PRIMARY', 'FOREIGN', 'UNIQUE'].includes(name)));
 }
 const unquote = (value: string) => value.replace(/''/g, "'");
 
@@ -78,7 +84,7 @@ const CONGRESS_GOV = {
 };
 
 describe('capiro_data published metadata', () => {
-  const published = new Map([...viewColumns(surface), ...viewColumns(awards), ...viewColumns(years), ...viewColumns(grantsNotices)]);
+  const published = new Map([...viewColumns(surface), ...viewColumns(awards), ...viewColumns(years), ...viewColumns(grantsNotices), ...viewColumns(forecasts)]);
   const surfaceComments = comments(surface, 'meri_public'), awardComments = comments(awards, 'meri_public'), yearComments = comments(years, 'meri_public');
   // The notice column-meaning migration replaces comments of 20281102140000; later comments win.
   const firstNoticeComments = comments(grantsNotices, 'meri_public'), noticeCorrections = comments(noticeMeaning, 'meri_public');
@@ -86,9 +92,10 @@ describe('capiro_data published metadata', () => {
     views: new Map([...firstNoticeComments.views, ...noticeCorrections.views]),
     columns: new Map([...firstNoticeComments.columns, ...noticeCorrections.columns]),
   };
+  const forecastComments = comments(forecasts, 'meri_public');
   const before: Comments = {
-    views: new Map([...surfaceComments.views, ...awardComments.views, ...yearComments.views, ...grantNoticeComments.views]),
-    columns: new Map([...surfaceComments.columns, ...awardComments.columns, ...yearComments.columns, ...grantNoticeComments.columns]),
+    views: new Map([...surfaceComments.views, ...awardComments.views, ...yearComments.views, ...grantNoticeComments.views, ...forecastComments.views]),
+    columns: new Map([...surfaceComments.columns, ...awardComments.columns, ...yearComments.columns, ...grantNoticeComments.columns, ...forecastComments.columns]),
   };
   const after = comments(meaning, 'meri_public');
   const effective = new Map([...before.columns, ...after.columns]);
@@ -198,6 +205,46 @@ describe('capiro_data published metadata', () => {
     expect(mapper).toMatch(/fullNoticeType\.slice\(0, 32\)/);
     expect(before.columns.get('sam_opportunities.notice_type')!.description).toMatch(/truncated to 32 characters/);
     for (const code of ['SBA', 'SDVOSBC', '8AN', 'WOSB', 'HZC']) expect(mapper).toContain(`'${code}'`);
+  });
+
+  it('publishes Unified Agenda forecasts from the head and its current revision content, with the Core read\'s window semantics', () => {
+    expect(forecasts).toMatch(/^SET ROLE capiro_public_projection_owner;$/m);
+    expect(forecasts).toMatch(/GRANT SELECT ON TABLE meri_public\.government_forecasts TO capiro_analytics_ro;/);
+    expect(forecasts).not.toMatch(/REVOKE|DROP|ALTER TABLE|CREATE OR REPLACE/);
+    const windows = read('prisma/migrations/20281101120000_government_forecast_windows/migration.sql');
+    const head = tableColumns(windows, 'government_forecast'), revision = tableColumns(windows, 'government_forecast_revision');
+    const columns = published.get('government_forecasts')!;
+    // Every published column is a stored head column (id and current_revision renamed) or one text member of the revision's content JSON.
+    const storedAs: Record<string, string> = { forecast_id: 'id', revision: 'current_revision', title: 'content', event_type: 'content', period_precision: 'content', period_text: 'content', edition: 'content', source_url: 'content' };
+    for (const column of columns) expect(head.has(storedAs[column] ?? column) || revision.has(storedAs[column] ?? column)).toBe(true);
+    for (const hidden of ['id', 'source_key', 'content_hash', 'current_revision', 'content', 'source_xml', 'sha256']) expect(columns).not.toContain(hidden);
+    // Exactly the rows the Core read serves: the head joined to its current revision (government-forecasts.service.ts).
+    const service = read('src/government-forecasts/government-forecasts.service.ts');
+    expect(forecasts).toMatch(/FROM public\.government_forecast f JOIN public\.government_forecast_revision r ON r\.forecast_id = f\.id AND r\.revision = f\.current_revision;/);
+    expect(service).toMatch(/ON r\.forecast_id=f\.id AND r\.revision=f\.current_revision/);
+    const view = before.views.get('government_forecasts')!;
+    expect(view.primaryKey).toEqual(['forecast_id']);
+    expect(view.freshnessField).toBe('observed_at');
+    expect(view.relationships).toEqual([]);
+    expect(view.description).toMatch(/rulemaking forecasts, not procurement or contract forecasts/);
+    // The JSON members and their vocabularies are the writer's contract (forecast-contract.ts) and the head's CHECK constraint.
+    const contract = read('src/government-forecasts/forecast-contract.ts');
+    for (const member of ['title: string', "eventType: 'proposed_rule' | 'final_rule'", 'period: ForecastPeriod', 'source: ForecastSource']) expect(contract).toContain(`  ${member};`);
+    expect(contract).toMatch(/\| \{ precision: 'month'; raw: string; year: number; month: number \}/);
+    expect(contract).toMatch(/\| \{ precision: 'unknown'; raw: string \}/);
+    expect(contract).toMatch(/interface ForecastSource \{\n  rin: string;\n  edition: string;\n  url: string;/);
+    expect(before.columns.get('government_forecasts.event_type')!.enum).toEqual(['proposed_rule', 'final_rule']);
+    expect(before.columns.get('government_forecasts.period_precision')!.enum).toEqual(['month', 'unknown']);
+    expect(windows).toMatch(/status text NOT NULL DEFAULT 'published' CHECK \(status IN \('published', 'withdrawn', 'source_completed'\)\)/);
+    expect(before.columns.get('government_forecasts.status')!.enum).toEqual(['published', 'withdrawn', 'source_completed']);
+    // The window is the civil month with an exclusive upper bound (monthBounds), and overlap is the Core read's own predicate.
+    expect(contract).toContain("const to = `${month === 12 ? year + 1 : year}-${String(month === 12 ? 1 : month + 1).padStart(2, '0')}-01`;");
+    expect(windows).toMatch(/\(window_from IS NOT NULL AND window_to IS NOT NULL AND window_from < window_to\)/);
+    expect(service).toMatch(/f\.window_from < \$\{q\.to\}::date AND f\.window_to > \$\{q\.from\}::date/);
+    expect(view.description).toMatch(/window_from < b AND window_to > a/);
+    expect(before.columns.get('government_forecasts.window_to')!.description).toMatch(/exclusive/);
+    expect(before.columns.get('government_forecasts.window_from')!.description).toMatch(/null when no month was determinable/);
+    for (const key of ['forecast_id', 'rin', 'status', 'revision', 'recorded_at']) expect(before.columns.get(`government_forecasts.${key}`)!.nullable).toBe(false);
   });
 
   it('describes exactly the public relations the statement gate names', () => {

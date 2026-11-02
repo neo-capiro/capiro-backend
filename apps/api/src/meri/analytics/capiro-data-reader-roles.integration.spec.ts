@@ -197,6 +197,24 @@ describeDatabase('capiro data reader roles: database-enforced properties', () =>
       );
       expect('rows' in result && result.rows.map((row) => row.name).sort()).toEqual([...PUBLIC_RELATION_NAMES].sort());
     });
+    it('public reader reads government forecasts by window overlap: current revisions only, exact civil bounds', async () => {
+      const result = await asRole(
+        pub,
+        PUBLIC,
+        `SELECT forecast_id, title, event_type, status, window_from::text AS window_from, window_to::text AS window_to, revision, period_text
+         FROM government_forecasts WHERE (window_from < $1::date AND window_to > $2::date) OR window_from IS NULL ORDER BY forecast_id`,
+        ['2027-05-01', '2026-11-01'],
+      );
+      expect(result).toEqual({
+        rows: [
+          { forecast_id: '1'.repeat(64), title: 'Drone rule', event_type: 'proposed_rule', status: 'published', window_from: '2026-11-01', window_to: '2026-12-01', revision: 1, period_text: '11/00/2026' },
+          { forecast_id: '2'.repeat(64), title: 'Energy rule', event_type: 'final_rule', status: 'withdrawn', window_from: null, window_to: null, revision: 2, period_text: 'To Be Determined' },
+        ],
+      });
+      // The head with no accepted revision is not a row; the revision ledger itself stays unreadable.
+      expect(await asRole(pub, PUBLIC, 'SELECT count(*)::int AS n FROM government_forecasts')).toEqual({ rows: [{ n: 2 }] });
+      expect(await asRole(pub, PUBLIC, 'SELECT count(*) FROM public.government_forecast_revision')).toMatchObject({ code: '42501' });
+    });
     it('private reader sees exactly the gate vocabulary in meri_private; visible_clients is excluded', async () => {
       const result = await asRole(
         priv,
