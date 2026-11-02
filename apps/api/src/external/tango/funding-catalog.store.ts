@@ -80,21 +80,32 @@ export class FundingCatalogStore {
   async opportunity(payload: RecordData, commit: boolean): Promise<void> {
     const providerId = text(payload.opportunity_id);
     if (!providerId) throw new Error('Missing provider opportunity identity');
+    // Missing identity fields mean null, undefined or a blank string. Any other
+    // supplied value of the wrong type is malformed and must still be rejected,
+    // never silently downgraded to an unresolved record.
+    const supplied = (v: unknown) => v !== null && v !== undefined && !(typeof v === 'string' && !v.trim());
     // Opportunity IDs identify notice families, not individual SAM notices.
     // A family's SAM URL can point to a different amendment than its explicit
     // latest notice. Prefer the provider's exact notice ID, corroborated by the
     // nested latest notice when supplied; never infer identity from chronology.
-    const nestedLatest = text(object(payload.latest_notice).notice_id);
-    const latest = payload.latest_notice_id ? noticeKey(payload.latest_notice_id)
-      : nestedLatest ? noticeKey(nestedLatest) : samUrlKey(payload.sam_url);
-    if (nestedLatest && noticeKey(nestedLatest) !== latest) throw new Error('Conflicting latest notice IDs');
-    const existing = await this.findNotice(latest);
+    const nestedLatest = supplied(object(payload.latest_notice).notice_id) ? noticeKey(object(payload.latest_notice).notice_id) : undefined;
+    const samUrl = supplied(payload.sam_url) ? payload.sam_url : undefined;
+    if (samUrl !== undefined && typeof samUrl !== 'string') throw new Error('Invalid SAM source URL');
+    // A family record may legitimately arrive with no SAM URL and no latest
+    // notice ID. That is an unresolved identity, not a malformed one: keep the
+    // snapshot only and never guess a canonical notice from history or dates.
+    const latest = supplied(payload.latest_notice_id) ? noticeKey(payload.latest_notice_id)
+      : nestedLatest ?? (samUrl ? samUrlKey(samUrl) : undefined);
+    if (nestedLatest && nestedLatest !== latest) throw new Error('Conflicting latest notice IDs');
+    const existing = latest ? await this.findNotice(latest) : null;
     // Full notice payloads own canonical lifecycle fields. Document discovery
     // may enrich an already-linked row, but never turns family data into a notice.
     if (!commit) return;
     await this.observations.writeSnapshot({ resourceType: 'opportunity', externalId: providerId, normalized: payload,
-      sourceUpdatedAt: date(payload.last_notice_date)?.toISOString() ?? null, sourceUrl: String(payload.sam_url) });
-    if (!existing) return; // kept in the snapshot; replay after the notice catalog catches up
+      sourceUpdatedAt: date(payload.last_notice_date)?.toISOString() ?? null, sourceUrl: samUrl });
+    // Without an exact identity there is no local row to enrich, link or attach
+    // to; the snapshot above is the whole record until the notice catalog catches up.
+    if (!existing) return;
     const contact = object(payload.primary_contact);
     const enrichment = compact({ pocName: text(contact.full_name), pocEmail: text(contact.email),
       ...(!existing.description ? { description: text(payload.description) } : {}) });
