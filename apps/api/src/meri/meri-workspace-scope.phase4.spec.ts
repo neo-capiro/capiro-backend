@@ -8,7 +8,7 @@ const clientA = '11111111-1111-4111-8111-111111111111';
 const clientB = '22222222-2222-4222-8222-222222222222';
 const now = new Date('2026-09-09T00:00:00Z');
 type Workspace = { id: string; tenantId: string; userId: string; name: string; clientId: string | null; createdAt: Date; updatedAt: Date };
-type Conversation = { id: string; tenantId: string; userId: string; clientId: string | null; workspaceId: string | null; archivedAt: Date | null; title: string };
+type Conversation = { id: string; tenantId: string; userId: string; clientId: string | null; workspaceId: string | null; archivedAt: Date | null; metadataRevision: bigint; title: string };
 type Where = Record<string, unknown>;
 const matches = (row: object, where: Where) => Object.entries(where).every(([key, value]) => (row as Where)[key] === value);
 
@@ -18,9 +18,9 @@ function setup() {
     { id: 'workspace-all', ...ctx, name: 'All clients work', clientId: null, createdAt: now, updatedAt: now },
   ];
   const conversations: Conversation[] = [
-    { id: 'chat-a', ...ctx, clientId: clientA, workspaceId: null, archivedAt: null, title: 'Client A chat' },
-    { id: 'chat-b', ...ctx, clientId: clientB, workspaceId: null, archivedAt: null, title: 'Client B chat' },
-    { id: 'chat-general', ...ctx, clientId: null, workspaceId: null, archivedAt: null, title: 'General chat' },
+    { id: 'chat-a', ...ctx, clientId: clientA, workspaceId: null, archivedAt: null, metadataRevision: 0n, title: 'Client A chat' },
+    { id: 'chat-b', ...ctx, clientId: clientB, workspaceId: null, archivedAt: null, metadataRevision: 0n, title: 'Client B chat' },
+    { id: 'chat-general', ...ctx, clientId: null, workspaceId: null, archivedAt: null, metadataRevision: 0n, title: 'General chat' },
   ];
   const tx = {
     client: { findFirst: jest.fn(async ({ where }: { where: Where }) =>
