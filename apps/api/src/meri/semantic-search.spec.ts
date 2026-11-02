@@ -77,14 +77,15 @@ describe('semantic search statement (pgvector-free shape)', () => {
   test.each(SEMANTIC_SEARCH_OPERATIONS)('%s ranks only its public family under the stored model', (operation) => {
     const { text, values } = statement(operation, { query: 'coastal resilience' });
     expect(text).toContain('FROM context_embeddings ce');
-    expect(text).toContain('ce.source_type = ?');
+    expect(text).toContain(`ce.source_type = '${SEMANTIC_SEARCH_SOURCE_TYPES[operation]}'`);
     expect(text).toContain('ce.tenant_id IS NULL AND ce.client_id IS NULL AND ce.owner_user_id IS NULL');
     expect(text).toContain('ce.model = ?');
     expect(text).toContain('ORDER BY ce.embedding <=> ?::vector LIMIT ?');
     expect(text).toContain('SELECT DISTINCT ON (parent_id) parent_id, content_text, score');
     expect(text).toContain('score >= ?');
     expect(text).toContain('ORDER BY best.score DESC, best.parent_id ASC LIMIT ?');
-    expect(values).toContain(SEMANTIC_SEARCH_SOURCE_TYPES[operation]);
+    // The family literal is from the closed table, never a bound caller value.
+    expect(values).not.toContain(SEMANTIC_SEARCH_SOURCE_TYPES[operation]);
     expect(values).toContain(model);
     expect(values).toContain(SEMANTIC_SEARCH_LIMITS.candidateLimit);
     expect(values).toContain(SEMANTIC_SEARCH_LIMITS.similarityFloor);

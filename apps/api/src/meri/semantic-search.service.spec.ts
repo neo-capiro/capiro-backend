@@ -1,4 +1,5 @@
 import { ForbiddenException, ServiceUnavailableException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { SemanticSearchService } from './semantic-search.service.js';
 import { SEMANTIC_SEARCH_LIMITS } from './semantic-search.js';
@@ -61,7 +62,7 @@ test('embeds the normalized query with the selected port and ranks under the mem
   expect(executeCalls[0]![0]!.join('?')).toContain("set_config('hnsw.ef_search'");
   const statement = statementOf(tx, 0);
   expect(statement.sql).toContain('FROM context_embeddings ce');
-  expect(statement.values).toContain('bill');
+  expect(statement.sql).toContain("ce.source_type = 'bill'");
   expect(statement.values).toContain('amazon.titan-embed-text-v2:0');
   expect(statement.values).toContain(`[${unit.join(',')}]`);
   expect(statement.values).toContain(119);
@@ -80,9 +81,9 @@ test('ranks grants and contract opportunities under their own source types', asy
   const { tx, service } = fixture();
   await service.read(ctx, 'semantic_search_grants', { query: 'clean water' });
   await service.read(ctx, 'semantic_search_contract_opportunities', { query: 'clean water', includeInactive: true });
-  expect(statementOf(tx, 0).values).toContain('funding_grant_chunk');
+  expect(statementOf(tx, 0).sql).toContain("ce.source_type = 'funding_grant_chunk'");
   expect(statementOf(tx, 1).sql).toContain('FROM federal_grant WHERE embedded_at IS NOT NULL');
-  expect(statementOf(tx, 2).values).toContain('funding_notice_chunk');
+  expect(statementOf(tx, 2).sql).toContain("ce.source_type = 'funding_notice_chunk'");
   expect(statementOf(tx, 3).sql).toContain('FROM sam_opportunity WHERE embedded_at IS NOT NULL');
 });
 
@@ -111,6 +112,21 @@ test.each([
   const { prisma, service } = fixture();
   await expect(service.read(ctx, 'semantic_search_bills', { query: 'water' })).rejects.toThrow(ServiceUnavailableException);
   expect(prisma.withTenantUser).not.toHaveBeenCalled();
+});
+
+test.each([
+  ['a statement cancelled by statement_timeout', new Prisma.PrismaClientKnownRequestError('Raw query failed', { code: 'P2010', clientVersion: 'test', meta: { code: '57014' } })],
+  ['a pool wait that ran out', new Prisma.PrismaClientKnownRequestError('Timed out fetching a new connection from the pool', { code: 'P2024', clientVersion: 'test' })],
+])('%s is the same closed 503, not a 500', async (_name, error) => {
+  const { prisma, service } = fixture();
+  prisma.withTenantUser.mockRejectedValueOnce(error);
+  await expect(service.read(ctx, 'semantic_search_bills', { query: 'water' })).rejects.toThrow(ServiceUnavailableException);
+});
+
+test('any other database failure is not masked as unavailable', async () => {
+  const { prisma, service } = fixture();
+  prisma.withTenantUser.mockRejectedValueOnce(new Error('relation "congress_bill" does not exist'));
+  await expect(service.read(ctx, 'semantic_search_bills', { query: 'water' })).rejects.toThrow('does not exist');
 });
 
 test('bounds a hung query-vector port and leaves no timer behind', async () => {

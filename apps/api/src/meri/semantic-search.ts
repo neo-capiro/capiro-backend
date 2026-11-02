@@ -83,10 +83,6 @@ export const SEMANTIC_SEARCH_SOURCE_TYPES: Readonly<Record<SemanticSearchOperati
     ) as Record<SemanticSearchOperation, string>,
   );
 
-export function isSemanticSearchOperation(name: string): name is SemanticSearchOperation {
-  return (SEMANTIC_SEARCH_OPERATIONS as readonly string[]).includes(name);
-}
-
 const invalid = (message: string) => new BadRequestException(message);
 const GRANT_STATUSES = ['posted', 'forecasted', 'closed', 'archived'];
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -257,6 +253,9 @@ export function semanticSearchSql(
   vector: string,
   model: string,
 ): Prisma.Sql {
+  // The family's source_type is a literal from the closed FAMILIES table, never caller text: the planner
+  // can only match the family's partial HNSW index (WHERE source_type = '...') against a literal predicate,
+  // as intelligence-tracked-bill-discovery.ts does for bills.
   const family = FAMILIES[operation];
   const parent =
     operation === 'semantic_search_bills'
@@ -267,7 +266,7 @@ export function semanticSearchSql(
       SELECT ${parent} AS parent_id, ce.content_text,
              (1 - (ce.embedding <=> ${vector}::vector))::float8 AS score
         FROM context_embeddings ce
-       WHERE ce.source_type = ${family.sourceType}
+       WHERE ce.source_type = ${Prisma.raw(`'${family.sourceType}'`)}
          AND ce.tenant_id IS NULL AND ce.client_id IS NULL AND ce.owner_user_id IS NULL
          AND ce.model = ${model}
          AND ce.embedding IS NOT NULL

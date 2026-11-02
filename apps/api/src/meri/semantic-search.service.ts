@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
-import { PrismaService } from '../prisma/prisma.service.js';
+import { isDatabaseBusyError, PrismaService } from '../prisma/prisma.service.js';
 import { EMBEDDING_DIM, embedText, normalize, vectorLiteral } from '../embeddings/embedder.js';
 import { getDefaultEmbeddingProvider } from '../embeddings/embedding-provider.factory.js';
 import type { EmbeddingProvider } from '../embeddings/embedding-provider.js';
@@ -66,6 +66,8 @@ export class SemanticSearchService {
     const vector = await boundedQueryVector(input.query, provider);
     assertMeriToolRequestActive();
     const model = provider.metadata.model;
+    // A statement cancelled by the lane's statement_timeout (57014) or a pool/transaction wait that ran out
+    // (P2024/P2028) is the same closed "unavailable" answer as a provider failure, never a 500.
     const rows = await this.prisma.withTenantUser(
       ctx.tenantId,
       ctx.userId,
@@ -86,7 +88,10 @@ export class SemanticSearchService {
         return { page, coverage: coverage[0] };
       },
       { timeoutMs: SEMANTIC_SEARCH_LIMITS.statementTimeoutMs },
-    );
+    ).catch((error: unknown) => {
+      if (isDatabaseBusyError(error)) throw unavailable();
+      throw error;
+    });
     assertMeriToolRequestActive();
     return projectSemanticSearch(operation, input, rows.page, rows.coverage, model, new Date().toISOString());
   }
