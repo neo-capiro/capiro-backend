@@ -48,24 +48,26 @@ const emptyCounts = () =>
 
 /** Frozen source receipts precede parent imports. LEFT JOINs deliberately keep absent parents and document stubs in the denominator.
  * Materialize receipt scalars before expansion so each document does not re-read the large inventory manifest. */
-export const STATE_BILL_COVERAGE_SQL = `WITH receipts AS MATERIALIZED (
+function stateCoverageSql(alternate: boolean) {
+  return `WITH receipts AS MATERIALIZED (
  SELECT r.scope->>'jurisdiction' jurisdiction,coalesce(r.scope->>'sessionKey',r.scope->>'providerSessionId') session,
  r.manifest->'bills' bills,
  (r.complete AND a.content_hash IS NOT NULL AND r.manifest->>'sourceListComplete'='true') AS inventory_known
  FROM legal_source_receipt r
  LEFT JOIN legal_dataset_archive a ON a.content_hash=r.scope->>'archiveHash'
- WHERE r.source='fy26-state-frozen-inventory' AND r.scope->>'fiscalYear'='2026' AND r.id=ANY($4::text[])
+ WHERE r.source='${alternate ? 'fy26-state-frozen-formats' : 'fy26-state-frozen-inventory'}' AND r.scope->>'fiscalYear'='2026' AND r.id=ANY($4::text[])
 ), observed AS (
  SELECT r.jurisdiction,r.session,
  p->>'billKey' bill_key,p->>'providerBillId' provider_bill_id,
  doc->>'kind' kind,doc->>'providerId' provider_id,doc->>'providerHash' provider_hash,doc->>'versionType' version,
+ ${alternate ? "doc->'format'->>'primaryProviderHash'" : 'NULL::text'} primary_hash,${alternate ? "doc->>'mime'" : 'NULL::text'} mime,${alternate ? "doc->>'stateUrl'" : 'NULL::text'} state_url,
  (coalesce(nullif(doc->>'url',''),nullif(doc->>'stateUrl','')) IS NULL) publisher_url_missing,
  r.inventory_known
  FROM receipts r CROSS JOIN LATERAL jsonb_array_elements(r.bills) p
- LEFT JOIN LATERAL jsonb_array_elements(p->'documents') doc ON true
+ LEFT JOIN LATERAL jsonb_array_elements(p->'${alternate ? 'formats' : 'documents'}') doc ON true
 ), expected AS (
- SELECT jurisdiction,session,bill_key,provider_bill_id,kind,provider_id,provider_hash,version,bool_and(publisher_url_missing) publisher_url_missing,bool_or(inventory_known) AS inventory_known
- FROM observed GROUP BY jurisdiction,session,bill_key,provider_bill_id,kind,provider_id,provider_hash,version
+ SELECT jurisdiction,session,bill_key,provider_bill_id,kind,provider_id,provider_hash,version,primary_hash,mime,state_url,bool_and(publisher_url_missing) publisher_url_missing,bool_or(inventory_known) AS inventory_known
+ FROM observed GROUP BY jurisdiction,session,bill_key,provider_bill_id,kind,provider_id,provider_hash,version,primary_hash,mime,state_url
 ), stages AS (
  SELECT x.*,b.id AS metadata_bill,r.id AS revision_id,
  coalesce(length(r.evidence->>'contentSnapshotBase64')>0,false) AS downloaded,e.completeness,e.id extraction_id,
@@ -74,6 +76,12 @@ export const STATE_BILL_COVERAGE_SQL = `WITH receipts AS MATERIALIZED (
  LEFT JOIN LATERAL(SELECT r.* FROM state_bill_published_record r
  WHERE r.kind='document' AND r.bill_key=x.bill_key AND r.evidence->>'documentKind'=x.kind
  AND r.evidence->>'providerId'=x.provider_id AND r.evidence->>'providerHash'=x.provider_hash
+ ${
+   alternate
+     ? `AND r.evidence->'format'->>'role'='alternate' AND r.evidence->'format'->>'primaryProviderHash'=x.primary_hash
+ AND r.evidence->>'mime'=x.mime AND r.evidence->>'url'=x.state_url`
+     : `AND r.evidence->'format' IS NULL`
+ }
  ORDER BY CASE WHEN r.evidence->>'extractionState'='extracted' THEN 0 ELSE 1 END,r.first_observed_at DESC,r.id DESC LIMIT 1) r ON true
  LEFT JOIN LATERAL(SELECT e.* FROM bill_text_extraction e WHERE e.source_kind='state' AND e.revision_id=r.id AND e.parser_version=$1
  ORDER BY CASE e.completeness WHEN 'complete' THEN 0 WHEN 'partial' THEN 1 ELSE 2 END,e.created_at DESC,e.id DESC LIMIT 1)e ON true
@@ -103,6 +111,18 @@ UNION ALL
 SELECT r.jurisdiction,r.session,'no_eligible_bills','unspecified',
  bool_and(r.inventory_known),0,0,0,0,0,0,0,0,0,0,0,0,0
 FROM receipts r WHERE jsonb_array_length(r.bills)=0 GROUP BY r.jurisdiction,r.session`;
+}
+export const STATE_BILL_COVERAGE_SQL = stateCoverageSql(false);
+export const STATE_FORMAT_COVERAGE_SQL = stateCoverageSql(true);
+
+export const STATE_FORMAT_RECEIPTS_SQL = `SELECT r.id,r.scope->>'jurisdiction' jurisdiction,r.scope->>'primaryReceiptId' primary_id
+ FROM legal_source_receipt r JOIN legal_source_receipt p ON p.id=r.scope->>'primaryReceiptId'
+ JOIN legal_dataset_archive a ON a.content_hash=r.scope->>'archiveHash'
+ WHERE r.source='fy26-state-frozen-formats' AND r.complete AND r.scope->>'fiscalYear'='2026'
+ AND r.manifest->>'schemaVersion'='1' AND r.manifest->>'sourceListComplete'='true'
+ AND r.manifest->>'primaryReceiptId'=p.id AND r.manifest->>'archiveHash'=a.content_hash AND p.id=ANY($1::text[])
+ AND p.scope->>'archiveHash'=r.scope->>'archiveHash' AND p.scope->>'jurisdiction'=r.scope->>'jurisdiction'
+ AND p.scope->>'providerSessionId'=r.scope->>'providerSessionId'`;
 
 export const FEDERAL_BILL_COVERAGE_SQL = `WITH expected AS (
  SELECT * FROM jsonb_to_recordset($4::jsonb) x("billId" text,session text,kind text,"providerDocumentId" text,"versionId" text,version text,"packageId" text,collection text,"versionCode" text,"sourceUrls" text[],"receiptId" text,"providerUpdatedAt" text)
@@ -160,6 +180,8 @@ export function billTextCoverageReport(
   rows: BillCoverageRow[],
   model: string,
   inventories: readonly BillJurisdictionInventory[] = [],
+  alternateRows: BillCoverageRow[] = [],
+  formatReceipts: readonly { jurisdiction: string; primary_id: string }[] = [],
 ) {
   const jurisdictions = BILL_JURISDICTIONS.map((jurisdiction) => {
     const versions = rows.filter((row) => row.jurisdiction === jurisdiction);
@@ -170,6 +192,15 @@ export function billTextCoverageReport(
         if (!['expectedBills', 'metadataBills'].includes(key)) totals[key] += Number(row[key]);
     const inventory = inventories.find((item) => item.jurisdiction === jurisdiction);
     const inventoryKnown = inventory?.known === true && versions.every((row) => row.inventoryKnown);
+    const formats = alternateRows.filter((row) => row.jurisdiction === jurisdiction);
+    const formatTotals = emptyCounts();
+    for (const row of formats) for (const key of counts) formatTotals[key] += Number(row[key]);
+    const formatsKnown =
+      jurisdiction !== 'US' &&
+      inventoryKnown &&
+      new Set(
+        formatReceipts.filter((r) => r.jurisdiction === jurisdiction).map((r) => r.primary_id),
+      ).size === inventory?.expectedSessions;
     const { expectedBills: _expected, metadataBills: _metadata, ...stages } = totals;
     const allStages =
       inventoryKnown &&
@@ -203,6 +234,32 @@ export function billTextCoverageReport(
           : inventoryKnown && stages.expectedDocuments > 0
             ? Math.floor((10000 * stages.fullyEmbeddedDocuments) / stages.expectedDocuments) / 100
             : null,
+      alternateFormats: {
+        inventoryStatus: formatsKnown ? 'frozen_format_inventory' : 'unknown',
+        expectedFormats: formatTotals.expectedDocuments,
+        downloadedFormats: formatTotals.downloadedDocuments,
+        completeExtractions: formatTotals.completeExtractions,
+        partialExtractions: formatTotals.partialExtractions,
+        failedExtractions: formatTotals.failedExtractions,
+        passages: formatTotals.passages,
+        embeddedPassages: formatTotals.embeddedPassages,
+        fullyEmbeddedFormats: formatTotals.fullyEmbeddedDocuments,
+        complete:
+          formatsKnown &&
+          formats.every(
+            (f) =>
+              f.expectedDocuments === f.fullyEmbeddedDocuments &&
+              f.metadataBills === f.expectedBills,
+          ),
+        versions: formats.map(
+          ({ expectedDocuments, downloadedDocuments, fullyEmbeddedDocuments, ...row }) => ({
+            ...row,
+            expectedFormats: expectedDocuments,
+            downloadedFormats: downloadedDocuments,
+            fullyEmbeddedFormats: fullyEmbeddedDocuments,
+          }),
+        ),
+      },
       versions: versions.map((v) => ({
         ...v,
         missingParents: v.expectedBills - v.metadataBills,
@@ -226,6 +283,7 @@ export function billTextCoverageReport(
       'State inventory is known only when the archived complete discovery manifest and every exact listed session/archive receipt agree. Missing sessions remain unknown.',
       'Federal documents are counted by frozen provider version, not parser revision. Original bytes and exact inventory/version observations are required; unchanged prior inventory anchors require matching provider update time.',
       'Metadata, downloaded originals, complete extraction, lexical passages and matching-model embeddings are separate stages.',
+      'Alternate formats are reported separately; they never satisfy a missing primary-format download or change the frozen primary denominator.',
       'Missing state publisher URLs are reported separately and do not establish source unavailability; the provider API may still supply original bytes.',
     ],
   };
@@ -233,6 +291,16 @@ export function billTextCoverageReport(
 export async function loadBillTextCoverage(db: Reader, model: string) {
   const { discovery, inventories, qualifiedReceiptIds } = await loadPinnedStateInventory(db);
   const federal = await loadPinnedFederalInventory(db);
+  const formatReceipts = await db.$queryRawUnsafe<
+    Array<{ id: string; jurisdiction: string; primary_id: string }>
+  >(STATE_FORMAT_RECEIPTS_SQL, qualifiedReceiptIds);
+  const alternateRows = await db.$queryRawUnsafe<BillCoverageRow[]>(
+    STATE_FORMAT_COVERAGE_SQL,
+    BILL_EXTRACTION_VERSION,
+    CHUNKER_VERSION,
+    model,
+    formatReceipts.map((r) => r.id),
+  );
   const rows = [
     ...(await db.$queryRawUnsafe<BillCoverageRow[]>(
       STATE_BILL_COVERAGE_SQL,
@@ -250,10 +318,13 @@ export async function loadBillTextCoverage(db: Reader, model: string) {
     )),
   ];
   return {
-    ...billTextCoverageReport(rows, model, [
-      ...inventories,
-      ...(federal.inventory ? [federal.inventory] : []),
-    ]),
+    ...billTextCoverageReport(
+      rows,
+      model,
+      [...inventories, ...(federal.inventory ? [federal.inventory] : [])],
+      alternateRows,
+      formatReceipts,
+    ),
     stateDiscovery: discovery
       ? { receiptId: discovery.receiptId, manifestSha256: discovery.manifestSha256 }
       : null,

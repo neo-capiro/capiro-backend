@@ -6,12 +6,13 @@ import {
   extractBillDocumentStructure,
 } from './bill-document-structure.js';
 import { observeStateRecord } from './published-record-observations.js';
+import { requireQualifiedAlternateFormat } from './state-document-formats.js';
 
 const sha = (value: string | Buffer) => createHash('sha256').update(value).digest('hex');
 export const DOCUMENT_EXTRACTOR_VERSION = BILL_EXTRACTION_VERSION;
 export async function documentEvidence(
   doc: LegiscanDocument,
-  expected: { billId: number; docId: number },
+  expected: { billId: number; docId: number; canonicalVersionId?: string },
 ) {
   if (doc.bill_id !== expected.billId || doc.doc_id !== expected.docId)
     throw Error('DOCUMENT_SUBJECT_MISMATCH');
@@ -78,6 +79,7 @@ export async function documentEvidence(
     parserVersion: DOCUMENT_EXTRACTOR_VERSION,
     structure,
     ...(doc.acquisition ? { acquisition: doc.acquisition } : {}),
+    ...(doc.format ? { format: doc.format, canonicalVersionId: expected.canonicalVersionId } : {}),
     extractionState,
     coverage,
     sections,
@@ -118,6 +120,27 @@ export async function persistDocumentEvidence(
     /^\d{4}-\d{2}-\d{2}$/.test(doc.date) &&
     Number.isFinite(Date.parse(doc.date)) &&
     new Date(doc.date).toISOString().slice(0, 10) === doc.date;
+  if (doc.format) {
+    if (
+      kind !== 'text' ||
+      qualifiedStub?.id !== doc.doc_id ||
+      qualifiedStub.billId !== doc.bill_id ||
+      qualifiedStub.kind !== kind ||
+      qualifiedStub.providerHash !== doc.text_hash
+    )
+      throw Error('DOCUMENT_FORMAT_SUBJECT_MISMATCH');
+    await requireQualifiedAlternateFormat(prisma, billKey, doc.bill_id, {
+      kind,
+      providerId: doc.doc_id,
+      providerHash: doc.text_hash ?? null,
+      mime: doc.mime,
+      size: doc.text_size,
+      stateUrl: doc.state_link,
+      date: doc.date,
+      versionType: doc.type,
+      format: doc.format,
+    });
+  }
   const frozenText =
     kind === 'text' &&
     !version &&
@@ -128,13 +151,14 @@ export async function persistDocumentEvidence(
     typeof qualifiedStub.providerHash === 'string' &&
     /^[a-f0-9]{32}$/i.test(qualifiedStub.providerHash) &&
     qualifiedStub.providerHash.toLowerCase() === doc.text_hash?.toLowerCase() &&
-    inventory.some(
-      (stub) =>
-        stub?.kind === 'text' &&
-        stub.providerId === doc.doc_id &&
-        typeof stub.providerHash === 'string' &&
-        stub.providerHash.toLowerCase() === qualifiedStub.providerHash!.toLowerCase(),
-    );
+    (Boolean(doc.format) ||
+      inventory.some(
+        (stub) =>
+          stub?.kind === 'text' &&
+          stub.providerId === doc.doc_id &&
+          typeof stub.providerHash === 'string' &&
+          stub.providerHash.toLowerCase() === qualifiedStub.providerHash!.toLowerCase(),
+      ));
   if (
     (kind === 'text' && (version ? version.billKey !== billKey : !frozenText)) ||
     (kind !== 'text' &&
@@ -145,11 +169,13 @@ export async function persistDocumentEvidence(
     bill?.legiscanBillId !== doc.bill_id
   )
     throw Error('DOCUMENT_SUBJECT_MISMATCH');
+  const canonicalVersionId = version?.id ?? `legiscan:${kind}:${doc.doc_id}`;
   const { evidence, revisionHash } = await documentEvidence(doc, {
     billId: doc.bill_id,
     docId: doc.doc_id,
+    ...(doc.format ? { canonicalVersionId } : {}),
   });
-  const identity = version?.id ?? `legiscan:${kind}:${doc.doc_id}`;
+  const identity = doc.format ? `${canonicalVersionId}:format:pdf` : canonicalVersionId;
   await prisma.$transaction(async (tx) => {
     await tx.stateBillPublishedRecord.createMany({
       data: [

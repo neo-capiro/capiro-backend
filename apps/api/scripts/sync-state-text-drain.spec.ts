@@ -60,6 +60,41 @@ test('dry inspection cannot fetch or persist', async () => {
   expect(retrieveStateDocument).not.toHaveBeenCalled();
   expect(prisma.$executeRaw).not.toHaveBeenCalled();
 });
+test('alternate-only selects its own queue, preserves primary failure work, and forces publisher-only', async () => {
+  const db = database();
+  const alternate = {
+    ...stub,
+    format: {
+      role: 'alternate' as const,
+      primaryProviderHash: 'b'.repeat(32),
+      receiptId: 'c'.repeat(64),
+      archiveHash: 'd'.repeat(64),
+    },
+  };
+  db.$queryRawUnsafe.mockResolvedValue([
+    {
+      ...row,
+      identity: row.identity + ':' + alternate.format.primaryProviderHash + ':alternate',
+      facts: { retainedDocumentStubs: [stub], retainedDocumentFormats: [alternate] },
+    },
+  ]);
+  expect(await drainStateDocuments(db, { ...options, alternateOnly: true })).toMatchObject({
+    inserted: 1,
+    errors: 0,
+  });
+  expect(db.$queryRawUnsafe).toHaveBeenCalledTimes(1);
+  expect(db.$queryRawUnsafe.mock.calls[0][0]).toContain("d.source_identity LIKE '%:alternate'");
+  expect(db.$transaction).not.toHaveBeenCalled();
+  expect(retrieveStateDocument).toHaveBeenCalledWith(
+    db,
+    expect.objectContaining({ publisherOnly: true, stub: alternate }),
+  );
+  expect(
+    parseStateTextArgs(['--states', 'FL', '--alternate-only'], {
+      DATABASE_URL: 'postgresql://test@localhost/test',
+    }),
+  ).toMatchObject({ alternateOnly: true, publisherOnly: true });
+});
 test('complete existing version is skipped without requests', async () => {
   const prisma = database();
   prisma.$queryRaw.mockResolvedValue([

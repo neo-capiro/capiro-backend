@@ -595,6 +595,43 @@ describe('immutable public bill text backend', () => {
     });
     expect(report.complete).toBe(false);
     expect(STATE_BILL_COVERAGE_SQL).toContain('LEFT JOIN state_bill');
+    const withFormats = billTextCoverageReport(
+      [row],
+      'test-model',
+      [
+        {
+          jurisdiction: 'FL',
+          known: true,
+          expectedSessions: 1,
+          qualifiedSessions: 1,
+          missingSessions: [],
+        },
+      ],
+      [
+        {
+          ...row,
+          expectedDocuments: 1,
+          downloadedDocuments: 1,
+          completeExtractions: 1,
+          failedExtractions: 0,
+          expectedBills: 1,
+          metadataBills: 1,
+          fullyEmbeddedDocuments: 1,
+        },
+      ],
+      [{ jurisdiction: 'FL', primary_id: 'pinned-primary' }],
+    );
+    expect(withFormats.jurisdictions.find((j) => j.jurisdiction === 'FL')).toMatchObject({
+      expectedDocuments: 4,
+      downloadedDocuments: 2,
+      completionPercent: 0,
+      alternateFormats: {
+        expectedFormats: 1,
+        downloadedFormats: 1,
+        complete: true,
+        inventoryStatus: 'frozen_format_inventory',
+      },
+    });
   });
   it('requires every pinned discovery session and permits explicitly empty complete jurisdictions', () => {
     const manifestSha256 = 'd'.repeat(64),

@@ -45,6 +45,18 @@ test('accepts only exact frozen primary bytes and keeps original citation/versio
   expect(Buffer.from(doc.doc, 'base64')).toEqual(bytes);
   expect(readBodyWithSizeLimit).toHaveBeenCalledWith(response, bytes.length, expect.anything());
 });
+test('preserves alternate-format provenance with its own immutable bytes', async () => {
+  const format = {
+    role: 'alternate' as const,
+    primaryProviderHash: 'a'.repeat(32),
+    receiptId: 'b'.repeat(64),
+    archiveHash: 'c'.repeat(64),
+  };
+  const doc = await fetchStatePublisherDocument('FL', 11, { ...stub, format });
+  expect(doc.format).toEqual(format);
+  expect(doc.text_hash).toBe(stub.providerHash);
+  expect(doc.mime).toBe('application/pdf');
+});
 test.each(['size', 'hash', 'mime', 'signature'])(
   'rejects a publisher %s mismatch',
   async (change) => {

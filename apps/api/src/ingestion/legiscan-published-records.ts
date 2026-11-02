@@ -202,6 +202,9 @@ export async function persistPublishedRecords(
       data: {
         reportSourceFacts: {
           ...(options.preserveCurrentFacts ? facts : reportSourceFacts(raw)),
+          ...(Array.isArray(facts.retainedDocumentFormats)
+            ? { retainedDocumentFormats: facts.retainedDocumentFormats }
+            : {}),
           retainedDocumentStubs: mergeDocumentStubs(retained, stateDocumentStubs(raw)).map(
             (stub) => ({ ...stub }),
           ),

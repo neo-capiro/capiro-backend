@@ -47,6 +47,7 @@ export function billIdentity(row: BillTextDocumentRow): BillTextIdentity {
     extractionVersion,
     sourceUrl,
     publishedDate,
+    ...(row.format ? { format: row.format } : {}),
   };
 }
 export function checkedBillStructure(row: BillTextDocumentRow): BillDocumentStructure | null {

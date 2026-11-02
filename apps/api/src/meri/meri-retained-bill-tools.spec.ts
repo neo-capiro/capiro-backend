@@ -604,6 +604,127 @@ describe('retained bill text through the existing authenticated tool gateway', (
       ).toBe('failed');
   });
 
+  it('pages alternate formats independently without changing primary totals or losing exact read identity', async () => {
+    const f = fixture();
+    const row = {
+      jurisdiction: 'FL',
+      session: '2026',
+      kind: 'text',
+      version: 'Introduced',
+      inventoryKnown: true,
+      expectedBills: 1,
+      metadataBills: 1,
+      expectedDocuments: 1,
+      sourceUnavailableDocuments: 0,
+      publisherUrlMissingDocuments: 0,
+      downloadedDocuments: 0,
+      completeExtractions: 0,
+      partialExtractions: 0,
+      failedExtractions: 0,
+      passages: 0,
+      embeddingEligiblePassages: 0,
+      embeddedPassages: 0,
+      fullyEmbeddedDocuments: 0,
+    };
+    const formats = Array.from({ length: 60 }, (_, i) => ({
+      ...row,
+      version: `Version ${String(i).padStart(3, '0')}`,
+      downloadedDocuments: 1,
+    }));
+    const report = {
+      ...billTextCoverageReport(
+        [row],
+        'synthetic-model',
+        [
+          {
+            jurisdiction: 'FL',
+            known: true,
+            expectedSessions: 1,
+            qualifiedSessions: 1,
+            missingSessions: [],
+          },
+        ],
+        formats,
+        [{ jurisdiction: 'FL', primary_id: 'primary' }],
+      ),
+      stateDiscovery: null,
+      federalDiscovery: null,
+    };
+    let calls = 0;
+    jest
+      .spyOn(f.owner, 'coverage')
+      .mockImplementation(async () => ({
+        ...report,
+        jurisdictions: report.jurisdictions.map((j) => ({
+          ...j,
+          alternateFormats: {
+            ...j.alternateFormats,
+            versions:
+              ++calls % 2
+                ? [...j.alternateFormats.versions].reverse()
+                : [...j.alternateFormats.versions],
+          },
+        })),
+      }));
+    const details: Record<string, unknown>[] = [];
+    for (let page = 1; page <= 31; page++) {
+      const result = survivesPromptTransport(
+        await f.route('search_state_bills', { mode: 'coverage', jurisdictions: ['FL'], page }),
+      );
+      expect(result.stageTotals).toMatchObject({ expectedDocuments: 1, downloadedDocuments: 0 });
+      expect(result.alternateStageTotals).toMatchObject({
+        expectedFormats: 60,
+        downloadedFormats: 60,
+      });
+      expect(record(result.detailPage).totalRows).toBe(62);
+      expect(classifyApiToolReadOutcome('search_state_bills', result)?.kind).toBe('partial');
+      details.push(...items(result.details).map(record));
+    }
+    expect(record(details[0]!.alternateFormats)).not.toHaveProperty('versions');
+    expect(details[1]!.unit).toBe('version_kind');
+    expect(details.slice(2).map((d) => d.version)).toEqual(formats.map((d) => d.version));
+    expect(details.slice(2).every((d) => d.unit === 'alternate_format_kind')).toBe(true);
+    const format = {
+      role: 'alternate',
+      mime: 'application/pdf',
+      primaryProviderHash: 'a'.repeat(32),
+      sourceIdentity: 'version:format:pdf',
+    };
+    const doc = document({ format });
+    const reader = fixture([doc]);
+    const search = survivesPromptTransport(
+      await reader.route('search_state_bills', { mode: 'exact', billId: doc.billId, state: 'FL' }),
+    );
+    const hit = record(items(search.results)[0]);
+    const readArgs = record(hit.readArgs);
+    expect(readArgs).not.toHaveProperty('format');
+    expect(Object.keys(readArgs).sort()).toEqual([
+      'billId',
+      'extractionId',
+      'jurisdiction',
+      'mode',
+      'offset',
+      'revisionId',
+      'session',
+    ]);
+    const read = survivesPromptTransport(
+      await reader.route('read_bill_text', { ...readArgs, length: 20, contextChars: 0 }),
+    );
+    expect(record(read.identity).format).toEqual(format);
+    expect(classifyApiToolReadOutcome('read_bill_text', read)?.kind).not.toBe('failed');
+    const next = survivesPromptTransport(
+      await reader.route('read_bill_text', {
+        mode: 'retained',
+        billId: doc.billId,
+        cursor: string(read.nextCursor),
+        length: 20,
+        contextChars: 0,
+      }),
+    );
+    expect(record(next.identity).format).toEqual(format);
+    expect(next.startOffset).toBe(read.endOffset);
+  });
+
   it.each([
     { page: 0 },
     { page: 1.5 },

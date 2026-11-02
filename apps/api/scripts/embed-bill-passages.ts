@@ -64,7 +64,7 @@ export async function main(argv = process.argv.slice(2)) {
           )
         : prisma.$queryRawUnsafe<Document[]>(
             `SELECT r.id::text id,r.bill_key AS "billId",r.evidence->>'url' AS "sourceUrl",
-      r.evidence->>'versionType' version,r.source_identity AS "versionId",r.evidence->>'providerId' AS "providerDocumentId",
+      r.evidence->>'versionType' version,coalesce(r.evidence->>'canonicalVersionId',r.source_identity) AS "versionId",r.evidence->>'providerId' AS "providerDocumentId",
       r.evidence->>'contentHash' AS "documentHash",r.revision_hash hash,r.evidence,b.state
       FROM state_bill_published_record r JOIN state_bill b ON b.id=r.bill_key
       WHERE r.kind='document' AND ${STATE_FY26_SQL}

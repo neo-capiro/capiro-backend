@@ -14,19 +14,24 @@ import {
 import { persistDocumentEvidence } from '../src/ingestion/legiscan-document-evidence.js';
 import type { StateDocumentStub } from '../src/ingestion/state-document-stub.js';
 import { BILL_EXTRACTION_VERSION } from '../src/ingestion/bill-document-structure.js';
+import { stateDocumentCheckIdentity } from '../src/ingestion/state-document-formats.js';
 
 const HOST = 'capiro-newstack-preview-clone.cluster-csryw28ai752.us-east-1.rds.amazonaws.com';
 export function parseStateTextArgs(argv: string[], env: NodeJS.ProcessEnv) {
   let limit = 10,
     commit = false,
     publisherOnly = false,
+    alternateOnly = false,
     expectedHost = '';
   let selected = env.LEGISCAN_STATES ?? '';
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i];
     if (key === '--commit') commit = true;
     else if (key === '--publisher-only') publisherOnly = true;
-    else if (key === '--limit') limit = Number(argv[++i]);
+    else if (key === '--alternate-only') {
+      alternateOnly = true;
+      publisherOnly = true;
+    } else if (key === '--limit') limit = Number(argv[++i]);
     else if (key === '--states') selected = argv[++i] ?? '';
     else if (key === '--expected-host') expectedHost = argv[++i] ?? '';
     else throw Error('UNKNOWN_STATE_TEXT_ARGUMENT');
@@ -45,7 +50,7 @@ export function parseStateTextArgs(argv: string[], env: NodeJS.ProcessEnv) {
   const db = new URL(env.DATABASE_URL);
   if (commit && (expectedHost !== HOST || db.hostname !== HOST || db.pathname !== '/capiro'))
     throw Error('STATE_TEXT_COMMIT_DATABASE_MISMATCH');
-  return { states, limit, commit, publisherOnly };
+  return { states, limit, commit, publisherOnly, alternateOnly };
 }
 
 type DueDocument = {
@@ -57,18 +62,25 @@ type DueDocument = {
   attempts: number;
   facts: {
     retainedDocumentStubs?: StateDocumentStub[];
+    retainedDocumentFormats?: StateDocumentStub[];
     documentInventory?: { stubs?: StateDocumentStub[] };
   };
 };
 
 export async function drainStateDocuments(
   prisma: PrismaClient,
-  options: { states: string[]; limit: number; commit: boolean; publisherOnly: boolean },
+  options: {
+    states: string[];
+    limit: number;
+    commit: boolean;
+    publisherOnly: boolean;
+    alternateOnly?: boolean;
+  },
 ) {
   // Expand legacy per-provider-ID work into exact version checks. Each frozen
   // hash owns its own retry count/backoff; one unavailable old hash must never
   // starve a retrievable later hash under a small run cap.
-  if (options.commit) {
+  if (options.commit && !options.alternateOnly) {
     const legacy = await prisma.$queryRawUnsafe<DueDocument[]>(
       `SELECT d.bill_key AS "billKey",d.source_identity AS identity,b.report_source_facts AS facts
        FROM state_bill_record_check d JOIN state_bill b ON b.id=d.bill_key
@@ -105,6 +117,7 @@ export async function drainStateDocuments(
      JOIN state_sync_cursor c ON upper(c.state)=upper(b.state) AND c.session_key=b.session_key
      WHERE d.kind='document' AND d.next_check_at<=clock_timestamp() AND d.state<>'review_required'
        AND d.source_identity ~ '^(text|amendment|supplement):[0-9]+:'
+       AND d.source_identity ${options.alternateOnly ? 'LIKE' : 'NOT LIKE'} '%:alternate'
        AND upper(b.state)=ANY($1::text[]) AND b.legiscan_bill_id IS NOT NULL AND ${STATE_FY26_SQL}
      ORDER BY CASE WHEN d.source_identity ~ '^(text|amendment):' THEN 0 ELSE 1 END,d.next_check_at,d.bill_key,d.source_identity LIMIT $2`,
     options.states,
@@ -114,15 +127,10 @@ export async function drainStateDocuments(
   if (!options.commit) return { ...counts, skipped: due.length };
   let attempted = 0;
   for (const row of due) {
-    const stubs = (
-      row.facts?.retainedDocumentStubs ??
-      row.facts?.documentInventory?.stubs ??
-      []
-    ).filter(
-      (stub) =>
-        `${stub.kind}:${stub.providerId}:${stub.providerHash?.toLowerCase() ?? 'unknown'}` ===
-        row.identity,
-    );
+    const stubs = [
+      ...(row.facts?.retainedDocumentStubs ?? row.facts?.documentInventory?.stubs ?? []),
+      ...(row.facts?.retainedDocumentFormats ?? []),
+    ].filter((stub) => stateDocumentCheckIdentity(stub) === row.identity);
     if (!stubs.length) {
       await prisma.$executeRaw`UPDATE state_bill_record_check SET state='metadata_only',error_code='RETAINED_DOCUMENT_METADATA_REQUIRED',
         next_check_at=clock_timestamp()+interval '3 hours' WHERE bill_key=${row.billKey} AND kind='document' AND source_identity=${row.identity}`;
@@ -154,6 +162,12 @@ export async function drainStateDocuments(
           return false;
         const bytes = Buffer.from(base64, 'base64');
         return (
+          (stub.format
+            ? item.evidence?.format?.role === 'alternate' &&
+              item.evidence.format.primaryProviderHash === stub.format.primaryProviderHash &&
+              item.evidence.mime === stub.mime &&
+              item.evidence.url === stub.stateUrl
+            : !item.evidence?.format) &&
           bytes.length > 0 &&
           bytes.length <= 20000000 &&
           (stub.size == null || stub.size === bytes.length) &&
@@ -183,7 +197,7 @@ export async function drainStateDocuments(
           cursorId: row.cursorId,
           stub,
           apiKey: process.env.LEGISCAN_API_KEY,
-          publisherOnly: options.publisherOnly,
+          publisherOnly: options.publisherOnly || Boolean(options.alternateOnly),
         });
         const extraction = await persistDocumentEvidence(prisma, row.billKey, result.document, {
           id: stub.providerId,
@@ -283,7 +297,7 @@ export async function main(argv = process.argv.slice(2)) {
 if (require.main === module) {
   if (process.argv.includes('--help') || process.argv.includes('-h')) {
     console.log(
-      'Usage: sync-state-text-drain --states CA[,NY] [--limit 1..1000] [--publisher-only] [--commit --expected-host host] (DATABASE_URL required; dry run default)',
+      'Usage: sync-state-text-drain --states CA[,NY] [--limit 1..1000] [--publisher-only] [--alternate-only] [--commit --expected-host host] (DATABASE_URL required; dry run default)',
     );
   } else if (!process.env.DATABASE_URL) {
     console.error('DATABASE_URL_REQUIRED');

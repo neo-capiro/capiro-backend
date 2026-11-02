@@ -12,10 +12,28 @@ export function assertBillToolBudget<T>(value: T, budget = BILL_TOOL_JSON_BUDGET
 
 /** Keep the canonical immutable read cursor; never truncate a serialized JSON envelope. */
 export function projectBillExcerpt(
-  original: ReturnType<typeof readBillDocument>,
+  input: ReturnType<typeof readBillDocument>,
   budget: number,
   section?: string,
 ) {
+  // Format provenance belongs in citations, never in the closed read input.
+  const original = {
+    ...input,
+    ...(input.available && 'startOffset' in input
+      ? {
+          readArgs: {
+            mode: 'retained',
+            billId: input.identity.billId,
+            jurisdiction: input.identity.jurisdiction,
+            session: input.identity.session,
+            revisionId: input.identity.revisionId,
+            extractionId: input.identity.extractionId,
+            offset: input.startOffset,
+            ...(section ? { section } : {}),
+          },
+        }
+      : {}),
+  };
   if (JSON.stringify(original, null, 2).length <= budget) return original;
   if (!original.available || !('text' in original)) return assertBillToolBudget(original, budget);
   const result = {
@@ -104,25 +122,32 @@ export function projectBillCoverage(
   request: ReturnType<typeof coveragePageRequest>,
 ) {
   const { jurisdictions, federalDiscovery, ...global } = report;
-  const details = jurisdictions.flatMap(({ versions, ...jurisdiction }) =>
-    request.jurisdictions && !request.jurisdictions.includes(jurisdiction.jurisdiction)
-      ? []
-      : [
-          { unit: 'jurisdiction' as const, ...jurisdiction },
-          // SQL GROUP BY does not promise row order. Match its identity, including
-          // inventoryKnown, so unchanged coverage cannot repeat/skip rows between pages.
-          ...[...versions]
-            .sort((a, b) => {
-              for (const key of ['session', 'kind', 'version', 'inventoryKnown'] as const) {
-                const left = JSON.stringify(a[key] ?? null),
-                  right = JSON.stringify(b[key] ?? null);
-                if (left !== right) return left < right ? -1 : 1;
-              }
-              return 0;
-            })
-            .map((version) => ({ unit: 'version_kind' as const, ...version })),
-        ],
-  );
+  const stableVersions = <
+    T extends { session: string; kind: string; version: string; inventoryKnown: boolean },
+  >(
+    rows: readonly T[],
+  ) =>
+    [...rows].sort((a, b) => {
+      for (const key of ['session', 'kind', 'version', 'inventoryKnown'] as const) {
+        const left = JSON.stringify(a[key] ?? null),
+          right = JSON.stringify(b[key] ?? null);
+        if (left !== right) return left < right ? -1 : 1;
+      }
+      return 0;
+    });
+  const details = jurisdictions.flatMap(({ versions, alternateFormats, ...jurisdiction }) => {
+    if (request.jurisdictions && !request.jurisdictions.includes(jurisdiction.jurisdiction))
+      return [];
+    const { versions: formatVersions, ...formatSummary } = alternateFormats;
+    return [
+      { unit: 'jurisdiction' as const, ...jurisdiction, alternateFormats: formatSummary },
+      ...stableVersions(versions).map((version) => ({ unit: 'version_kind' as const, ...version })),
+      ...stableVersions(formatVersions).map((version) => ({
+        unit: 'alternate_format_kind' as const,
+        ...version,
+      })),
+    ];
+  });
   const offset = (request.page - 1) * request.limit;
   const hasMore = offset + request.limit < details.length;
   return {
@@ -148,6 +173,31 @@ export function projectBillCoverage(
         ]),
       ),
     },
+    alternateStageTotals: {
+      scope: 'alternate_formats_only; primary_document_totals_are_unchanged',
+      knownJurisdictions: jurisdictions.filter(
+        (row) => row.alternateFormats.inventoryStatus !== 'unknown',
+      ).length,
+      ...Object.fromEntries(
+        [
+          'expectedFormats',
+          'downloadedFormats',
+          'completeExtractions',
+          'partialExtractions',
+          'failedExtractions',
+          'passages',
+          'embeddedPassages',
+          'fullyEmbeddedFormats',
+        ].map((field) => [
+          field,
+          jurisdictions.reduce(
+            (sum, row) =>
+              sum + Number(row.alternateFormats[field as keyof typeof row.alternateFormats]),
+            0,
+          ),
+        ]),
+      ),
+    },
     details: details.slice(offset, offset + request.limit),
     detailPage: {
       unit: 'jurisdiction_or_version_kind',
@@ -161,6 +211,6 @@ export function projectBillCoverage(
       complete: offset === 0 && details.length <= request.limit,
     },
     detailLimitation:
-      'Global statuses and stage totals are unfiltered. Details are paged; repeat mode/filters/limit with nextPage. Version expectedBills/metadataBills are repeated version-kind counts, not unique parent totals. Coverage may change between requests.',
+      'Global statuses and stage totals are unfiltered. Details are paged; repeat mode/filters/limit with nextPage. Version expectedBills/metadataBills are repeated version-kind counts, not unique parent totals. Alternate-format rows and totals never satisfy primary-format coverage. Coverage may change between requests.',
   };
 }

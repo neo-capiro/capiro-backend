@@ -13,6 +13,7 @@ import {
   publisherCooldown,
 } from './state-publisher-document.js';
 import { validDocumentIdentity, type StateDocumentStub } from './state-document-stub.js';
+import { requireQualifiedAlternateFormat } from './state-document-formats.js';
 
 export interface StateDocumentRequest {
   state: string;
@@ -57,6 +58,25 @@ function checkedDocument(
 export async function retrieveStateDocument(prisma: PrismaClient, request: StateDocumentRequest) {
   if (!validDocumentIdentity(request.stub))
     throw new StateDocumentRetrievalError('DOCUMENT_IDENTITY_OR_HASH_UNQUALIFIED');
+  if (request.stub.format) {
+    try {
+      await requireQualifiedAlternateFormat(
+        prisma,
+        request.billKey,
+        request.providerBillId,
+        request.stub,
+      );
+    } catch (error) {
+      throw new StateDocumentRetrievalError(
+        error instanceof Error &&
+          ['DOCUMENT_FORMAT_PROOF_REQUIRED', 'DOCUMENT_FORMAT_INVENTORY_MISMATCH'].includes(
+            error.message,
+          )
+          ? error.message
+          : 'DOCUMENT_FORMAT_PROOF_LOOKUP_FAILED',
+      );
+    }
+  }
   let publisherFailure = 'PUBLISHER_METADATA_UNQUALIFIED',
     retryAfterMs = 3 * 3600_000;
   try {
@@ -87,7 +107,7 @@ export async function retrieveStateDocument(prisma: PrismaClient, request: State
         );
     } else publisherFailure = 'PUBLISHER_TRANSPORT_FAILED';
   }
-  if (request.publisherOnly || !request.apiKey)
+  if (request.stub.format || request.publisherOnly || !request.apiKey)
     throw new StateDocumentRetrievalError(publisherFailure, retryAfterMs, publisherFailure);
   const apiKey = request.apiKey;
   try {
