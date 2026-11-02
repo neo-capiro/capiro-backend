@@ -166,7 +166,7 @@ describe('canonical mailbox query', () => {
   // 2 November 2026: "summarize emails from yesterday" spent Core's 10 s mail budget on a 37k-message mailbox
   // (POST /api/clio/tools/:name 10012 ms, 03:37:04Z) because the window was a heap filter after the
   // (tenant_id, connection_id) index and the coverage statement probed mail_threads once per stored message.
-  it('binds the time window on the expression the activity index carries and aggregates coverage once per mailbox', async () => {
+  it('binds the time window on plain columns, orders by the indexed expression and aggregates coverage once per mailbox', async () => {
     const h = makeService({});
     await h.searchEmails(CTX, { withinDays: 2, asOf: '2026-11-02T03:36:54Z' }, { authorizedMailboxIds: [clientId] });
     const migration = readFileSync(join(__dirname, '../../prisma/migrations/20281102130000_mail_messages_owned_connection_activity/migration.sql'), 'utf8');
@@ -177,11 +177,20 @@ describe('canonical mailbox query', () => {
     expect(migration).toContain('CREATE INDEX CONCURRENTLY IF NOT EXISTS mail_messages_tenant_connection_activity_idx');
     const [countSql, pageSql, coverageSql] = [0, 1, 2].map(call => (h.queryRaw.mock.calls[call]![0] as Prisma.Sql).sql);
     for (const sql of [countSql, pageSql]) {
-      expect(sql).toContain(`${MAIL_ACTIVITY_AT} >= `);
+      // Plain columns, never the COALESCE expression: under row-level security PostgreSQL will not promote a
+      // CoalesceExpr qual to an index condition (it is not leakproof), so it would be a filter after the whole
+      // mailbox was read. The expression stays the ordering and coverage key only.
+      expect(sql).toContain('(m.received_at >= ');
+      expect(sql).toContain(' OR (m.received_at IS NULL AND m.sent_at >= ');
+      expect(sql).toContain('(m.received_at <= ');
+      expect(sql).toContain(' OR (m.received_at IS NULL AND (m.sent_at <= ');
+      expect(sql).not.toContain(`${MAIL_ACTIVITY_AT} >=`);
+      expect(sql).not.toContain(`${MAIL_ACTIVITY_AT} <=`);
       expect(sql).toContain('m.removed_at IS NULL');
       expect(sql).toContain('m.connection_id IN (');
     }
-    expect(boundValues(h.queryRaw, 0)).toContainEqual(new Date('2026-10-31T03:36:54Z'));
+    const start = new Date('2026-10-31T03:36:54Z');
+    expect(boundValues(h.queryRaw, 0).filter(value => value instanceof Date && value.getTime() === start.getTime())).toHaveLength(2);
     expect(pageSql).toContain(`${MAIL_ACTIVITY_AT} DESC NULLS LAST, m.id DESC`);
     // Coverage: one lateral aggregate over the owned mailbox joined to the owned-thread cover index.
     expect(coverageSql).toContain('LEFT JOIN LATERAL (');

@@ -109,11 +109,29 @@ function mailReadClientVisibility() {
   ))`;
 }
 
-/** The stored-mail window and ordering expression. It must stay textually identical to the
- * expression of mail_messages_tenant_connection_activity_idx (migration
- * 20281102130000) so the window is an index condition, not a heap filter over the mailbox. */
+/** The stored-mail ordering and coverage expression, textually identical to the expression of
+ * mail_messages_tenant_connection_activity_idx (migration 20281102130000), which the coverage
+ * aggregate reads as an Index Only Scan. It is never a WHERE predicate: see mailActivitySince. */
 export const MAIL_ACTIVITY_AT = 'COALESCE(m.received_at, m.sent_at)';
 const activityAt = Prisma.raw(MAIL_ACTIVITY_AT);
+
+/** The time window on plain columns, equivalent to COALESCE(m.received_at, m.sent_at) >= start.
+ *
+ * Core reads as capiro_app, under row-level security. A user qual may become an index condition
+ * ahead of the policy qual only if it is leakproof (restriction_is_securely_promotable); PostgreSQL's
+ * contain_leaked_vars whitelists Var, Const, BoolExpr, NullTest and leakproof operators such as
+ * timestamptz_ge, but not CoalesceExpr, so `COALESCE(received_at, sent_at) >= $1` stays a Filter
+ * after the whole mailbox was read (Core :50, 2 November 2026: count and page still scanned 37k
+ * rows while the same statement as capiro_master used the expression index). This form is
+ * promoted and plans against the plain-column indexes. */
+export function mailActivitySince(start: Date) {
+  return Prisma.sql`(m.received_at >= ${start} OR (m.received_at IS NULL AND m.sent_at >= ${start}))`;
+}
+/** COALESCE(m.received_at, m.sent_at) <= asOf OR that expression IS NULL, on plain columns for the
+ * same reason. */
+export function mailActivityNotAfter(asOf: Date) {
+  return Prisma.sql`(m.received_at <= ${asOf} OR (m.received_at IS NULL AND (m.sent_at <= ${asOf} OR m.sent_at IS NULL)))`;
+}
 
 type MailCoverageRow = {
   account_email: string | null;
@@ -217,7 +235,7 @@ export function mailReadMessageWhere(ctx: TenantContext, filters: MailReadFilter
     Prisma.sql`c.provider::text IN (${Prisma.join(MAIL_PROVIDERS)})`,
     Prisma.sql`m.removed_at IS NULL`,
     Prisma.sql`m.created_at <= ${asOf}`,
-    Prisma.sql`(${activityAt} <= ${asOf} OR ${activityAt} IS NULL)`,
+    mailActivityNotAfter(asOf),
   ];
   if (mailboxList) conds.push(Prisma.sql`m.connection_id IN (${Prisma.join(mailboxList)})`);
   if (query) {
@@ -237,7 +255,7 @@ export function mailReadMessageWhere(ctx: TenantContext, filters: MailReadFilter
     );
   }
   if (clientId) conds.push(Prisma.sql`t.client_id = ${clientId}::uuid`);
-  if (windowStart) conds.push(Prisma.sql`${activityAt} >= ${windowStart}`);
+  if (windowStart) conds.push(mailActivitySince(windowStart));
   if (folder === 'inbox') conds.push(Prisma.sql`lower(m.metadata_jsonb->>'folder') = 'inbox'`);
   if (folder === 'sent')
     conds.push(Prisma.sql`lower(m.metadata_jsonb->>'folder') IN ('sent', 'sentitems')`);
