@@ -222,7 +222,7 @@ describe('immutable public bill text backend', () => {
     const row = document();
     const result = readBillDocument(row, { section: '2', length: 500, contextChars: 2000 });
     expect(result.available).toBe(true);
-    if (!result.available) throw Error('fixture');
+    if (!result.available || !('text' in result)) throw Error('Expected an available bill read');
     expect(result.text).toBe(row.text!.slice(result.startOffset, result.endOffset));
     expect(result.offsetUnit).toBe('UTF-16');
     expect(
@@ -239,7 +239,7 @@ describe('immutable public bill text backend', () => {
     const row = document('SECTION 1. Text.\n😀' + 'a'.repeat(500));
     const emoji = row.text!.indexOf('😀');
     const result = readBillDocument(row, { offset: emoji + 1, length: 20, contextChars: 0 });
-    if (!result.available) throw Error('fixture');
+    if (!result.available || !('text' in result)) throw Error('Expected an available bill read');
     expect(result.startOffset).toBe(emoji);
     expect(result.text.startsWith('😀')).toBe(true);
     const cursor = decodeBillReadCursor(result.nextCursor!);
@@ -260,7 +260,7 @@ describe('immutable public bill text backend', () => {
     });
     expect(result.identity.revisionId).toBe(row.revisionId);
     expect(query.mock.calls[0]![0]).not.toContain('is_current');
-    if (!result.available) throw Error('fixture');
+    if (!result.available || !('text' in result)) throw Error('Expected an available bill read');
     await expect(
       service.read({ cursor: result.nextCursor!, billId: 'TX-2025-HB1' }),
     ).rejects.toThrow('CURSOR_CANNOT_OVERRIDE');
@@ -284,12 +284,12 @@ describe('immutable public bill text backend', () => {
       'SECTION 1. Program.\n(a) First.\n(b) Second.\nSECTION 2. Other.\nUnrelated.',
     );
     const result = readBillDocument(row, { section: '1', length: 9000, contextChars: 0 });
-    if (!result.available) throw Error('fixture');
+    if (!result.available || !('text' in result)) throw Error('Expected an available bill read');
     expect(result.text).toContain('(a) First.');
     expect(result.text).toContain('(b) Second.');
     expect(result.text).not.toContain('Unrelated.');
     const page = readBillDocument(row, { section: '1', length: 10, contextChars: 0 });
-    if (!page.available) throw Error('fixture');
+    if (!page.available || !('text' in page)) throw Error('Expected an available bill read');
     expect(decodeBillReadCursor(page.nextCursor!).section).toBe('1');
   });
   it('resolves XML section references with the same trailing-period normalization as exact section reads', () => {
@@ -305,7 +305,7 @@ describe('immutable public bill text backend', () => {
       textHash: structure.textHash,
     };
     const result = readBillDocument(row, { section: '2', contextChars: 3000 });
-    if (!result.available) throw Error('fixture');
+    if (!result.available || !('text' in result)) throw Error('Expected an available bill read');
     expect(result.references).toContainEqual(
       expect.objectContaining({ reference: '1', status: 'same_document_candidate_included' }),
     );

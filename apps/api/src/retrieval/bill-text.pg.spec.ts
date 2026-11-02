@@ -190,6 +190,7 @@ pg('bill text PostgreSQL contract', () => {
             version: 'Introduced',
           });
           expect(semantic.totalRevisions).toBeNull();
+          if (!('candidatePassages' in semantic)) throw Error('Expected a semantic shortlist');
           expect(semantic.candidatePassages).toBe(1);
           expect(semantic.results).toHaveLength(1);
           expect(semantic.results[0]!.identity.revisionId).toBe(ids[0]!.revisionId);
@@ -211,6 +212,7 @@ pg('bill text PostgreSQL contract', () => {
             version: 'Introduced',
           });
           expect(deduplicated.results).toHaveLength(1);
+          if (!('candidatePassages' in deduplicated)) throw Error('Expected a semantic shortlist');
           expect(deduplicated.candidatePassages).toBe(2);
           await tx.$executeRawUnsafe(
             `DELETE FROM context_embeddings WHERE source_id=$1`,
@@ -224,7 +226,8 @@ pg('bill text PostgreSQL contract', () => {
             section: '2',
           });
           expect(old.available).toBe(true);
-          if (old.available) expect(old.text).toContain('rent 😀');
+          if (!old.available || !('text' in old)) throw Error('Expected an available bill read');
+          expect(old.text).toContain('rent 😀');
           await expect(
             service.read({ ...readIdentity, jurisdiction: 'TX', session: '2025' }),
           ).rejects.toThrow('BILL_REVISION_NOT_FOUND');
