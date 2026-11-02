@@ -4,7 +4,9 @@
 -- columns. No new grant: the view owner already reads snapshot. The intake
 -- owner is the native owner_user_id already published; the opaque intake owner
 -- identifier and the free-text Meri context are not exposed. Values are those
--- parseStrategyIntake accepted on write; anything else reads as null.
+-- parseStrategyIntake accepted on write; anything else reads as null. A target
+-- date PostgreSQL cannot represent (e.g. year 0000, which older writers
+-- accepted) reads as null instead of failing every query on the view (22008).
 -- Existing columns, owner, grants and security_barrier are unchanged; three
 -- columns are appended.
 BEGIN;
@@ -34,6 +36,7 @@ SELECT o.id, o.client_id, o.client_request_id AS request_id, o.outcome,
   CASE WHEN i.saved AND pg_catalog.jsonb_typeof(a.goal) = 'string' THEN a.goal #>> '{}' END AS intake_goal,
   CASE WHEN i.saved AND pg_catalog.jsonb_typeof(a.target_date) = 'string'
     AND a.target_date #>> '{}' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+    AND pg_catalog.pg_input_is_valid(a.target_date #>> '{}', 'date')
     THEN (a.target_date #>> '{}')::date END AS intake_target_date
 FROM public.client_objectives o
 JOIN meri_private.visible_clients v ON v.tenant_id = o.tenant_id AND v.client_id = o.client_id

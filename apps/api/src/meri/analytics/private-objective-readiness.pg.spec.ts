@@ -308,6 +308,57 @@ describe('meri_private.client_objectives readiness follows the service rule (PGl
     ]);
   });
 
+  test('a saved target date PostgreSQL cannot represent reads as null instead of failing the view', async () => {
+    // Year 0000 was accepted by earlier writers; 2026-02-30 is shape-valid only.
+    const bad: Array<[string, string]> = [
+      [id(36), '0000-01-01'],
+      [id(37), '0000-02-29'],
+      [id(38), '2026-02-30'],
+    ];
+    await db.exec('BEGIN');
+    try {
+      for (const [objective, targetDate] of bad) {
+        await db.query(
+          `INSERT INTO client_objectives(id,tenant_id,client_id,client_request_id,create_request_hash,created_by_user_id,status)
+           VALUES($1,$2,$3,gen_random_uuid(),repeat('a',64),$4,'ready')`,
+          [objective, tenantA, clientA, actor],
+        );
+        await db.query(
+          `INSERT INTO client_objective_revisions(tenant_id,client_id,objective_id,version,operation,actor_user_id,snapshot)
+           VALUES($1,$2,$3,1,'edit',$4,$5)`,
+          [
+            tenantA,
+            clientA,
+            objective,
+            actor,
+            // The current parser refuses these; store them as an earlier writer did.
+            JSON.stringify(
+              (({ strategyIntake, ...saved }) => ({
+                ...saved,
+                strategyIntake: { ...strategyIntake, targetDate },
+              }))(snapshot({ ...legacyBlank, strategyIntake: answers() }, 'ready', 1)),
+            ),
+          ],
+        );
+      }
+      const result = await asReader(
+        `SELECT id, intake_goal, intake_target_date::text AS intake_target_date
+         FROM meri_private.client_objectives WHERE id IN ('${id(36)}','${id(37)}','${id(38)}','${intakeReady}') ORDER BY id`,
+      );
+      expect(result.rows).toEqual([
+        { id: intakeReady, intake_goal: 'Synthetic goal', intake_target_date: '2027-02-28' },
+        ...bad.map(([objective]) => ({
+          id: objective,
+          intake_goal: 'Synthetic goal',
+          intake_target_date: null,
+        })),
+      ]);
+      expect((await db.query('SELECT * FROM meri_private.client_objectives')).rows).toHaveLength(7);
+    } finally {
+      await db.exec('ROLLBACK');
+    }
+  });
+
   test('the reader still cannot read revisions or Objectives directly', async () => {
     await expect(
       asReader('SELECT snapshot FROM public.client_objective_revisions'),
