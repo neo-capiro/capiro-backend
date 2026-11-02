@@ -58,6 +58,7 @@ docker run --rm --name "$run_id-tests" --read-only --network "container:$pg_id" 
   --security-opt no-new-privileges --pids-limit 256 --memory 3g \
   --tmpfs /tmp:rw,nosuid,size=512m -w /workspace/apps/api \
   -e CAPIRO_DISPOSABLE_PG=1 \
+  -e BILL_TEXT_PG_DIAGNOSTICS="${BILL_TEXT_PG_DIAGNOSTICS:-1}" \
   -e LEGIWATCH_PHASE5_TEST_DATABASE=disposable \
   -e BILL_DOCUMENT_TEST_DATABASE_URL=postgresql://postgres:bill_fixture@localhost:5432/bill_document_test \
   -e DATABASE_URL=postgresql://postgres:bill_fixture@localhost:5432/bill_structured_test \
