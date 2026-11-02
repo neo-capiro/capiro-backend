@@ -174,17 +174,15 @@ export function parseSineDieDate(v: string | number | null | undefined): Date | 
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
   if (!m) return null;
   const [_, ys, ms, ds] = m;
-  const year = Number(ys), month = Number(ms), day = Number(ds);
+  const year = Number(ys),
+    month = Number(ms),
+    day = Number(ds);
   // Reject impossible month/day ranges up front, then require the UTC date to
   // round-trip to the SAME Y/M/D so rollover forms (2026-02-30, 2026-13-01)
   // are rejected rather than silently shifted.
   if (month < 1 || month > 12 || day < 1 || day > 31) return null;
   const d = new Date(Date.UTC(year, month - 1, day));
-  if (
-    d.getUTCFullYear() !== year ||
-    d.getUTCMonth() !== month - 1 ||
-    d.getUTCDate() !== day
-  ) {
+  if (d.getUTCFullYear() !== year || d.getUTCMonth() !== month - 1 || d.getUTCDate() !== day) {
     return null;
   }
   return d;
@@ -411,7 +409,7 @@ export async function upsertNormalizedStateBill(
 
   // Prior-session research must not rename a current committee or create capture events.
   const currentCommitteeId = options.historical
-    ? null
+    ? undefined // Preserve an existing current referral when hydrating historical evidence.
     : await resolveCurrentCommittee(prisma, n.state, n.committee);
 
   const billData = {

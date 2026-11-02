@@ -60,6 +60,14 @@ if [ -n "${MERI_CONTROL_ORIGIN+x}${MERI_CONTROL_CA_BASE64+x}${MERI_CONTROL_CA_SH
 fi
 
 case "${1:-serve}" in
+  index-bill-passages|embed-bill-passages)
+    bill_command="$1"
+    shift
+    if [ "${1:-}" != "--help" ] && [ "${1:-}" != "-h" ]; then
+      compose_database_url
+    fi
+    exec ./node_modules/.bin/tsx "scripts/$bill_command.ts" "$@"
+    ;;
   migration-status)
     compose_database_url
     echo "Running prisma migrate status (READ-ONLY; migration history is never edited)"

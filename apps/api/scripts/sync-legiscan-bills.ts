@@ -46,8 +46,12 @@ import {
   monthToDateQueries,
   quotaExhausted,
 } from '../src/ingestion/legiscan-quota.util.js';
+import {
+  admitsRawBill,
+  fiscalYearMode,
+  type FiscalYearMode,
+} from '../src/ingestion/bill-fy26-admission.js';
 dotenvConfig();
-
 
 const LEGISCAN_API_KEY = process.env.LEGISCAN_API_KEY ?? '';
 const STATES = (process.env.LEGISCAN_STATES ?? PRIORITY_STATE_CODES.join(','))
@@ -58,7 +62,11 @@ const DRAIN_CAP = Number(process.env.LEGISCAN_DRAIN_CAP ?? '400');
 const MONTHLY_BUDGET = Number(process.env.LEGISCAN_MONTHLY_BUDGET ?? '28000');
 
 /** Add `delta` to a cursor's month-to-date query counter, rolling over on a calendar-month change. */
-async function bumpCursorQueries(prisma: PrismaClient, cursorId: string, delta: number): Promise<void> {
+async function bumpCursorQueries(
+  prisma: PrismaClient,
+  cursorId: string,
+  delta: number,
+): Promise<void> {
   const month = currentQuotaMonth();
   const cursor = await prisma.stateSyncCursor.findUnique({
     where: { id: cursorId },
@@ -79,17 +87,18 @@ async function bumpCursorQueries(prisma: PrismaClient, cursorId: string, delta: 
 
 /** Exported for the getRollCall-failure regression spec (mocks prisma + the legiscan/normalize modules). */
 export async function main() {
-if (!LEGISCAN_API_KEY) throw new Error('LEGISCAN_API_KEY env var is required');
+  const FY26 = fiscalYearMode();
+  if (!LEGISCAN_API_KEY) throw new Error('LEGISCAN_API_KEY env var is required');
   const prisma = new PrismaClient();
   try {
-    await run(prisma);
+    await run(prisma, FY26);
   } finally {
     await prisma.$disconnect();
   }
 }
 
-async function run(prisma: PrismaClient): Promise<void> {
-await runWithSyncRun(prisma as never, 'sync-legiscan-bills', async () => {
+async function run(prisma: PrismaClient, FY26: FiscalYearMode): Promise<void> {
+  const result = await runWithSyncRun(prisma as never, 'sync-legiscan-bills', async () => {
     const month = currentQuotaMonth();
     const allCursors = await prisma.stateSyncCursor.findMany({
       select: { queriesUsed: true, quotaMonth: true },
@@ -180,6 +189,7 @@ await runWithSyncRun(prisma as never, 'sync-legiscan-bills', async () => {
         madeProgress = true;
         drained++;
         let queriesForBill = 0;
+        let admitted = FY26 === null;
         const countRetry = () => {
           if (usedThisMonth + requestsThisRun >= MONTHLY_BUDGET)
             throw Error('LEGISCAN_MONTHLY_BUDGET_EXHAUSTED');
@@ -188,23 +198,30 @@ await runWithSyncRun(prisma as never, 'sync-legiscan-bills', async () => {
         };
 
         try {
-          await prisma.stateBill.updateMany({
-            where: { legiscanBillId: billId },
-            data: {
-              sourceCheckAttemptedAt: new Date(),
-              sourceCheckStatus: 'pending',
-              sourceCheckError: null,
-            },
-          });
+          // FY26: source-check state is only touched once the parent is known
+          // admissible, so an excluded existing bill keeps its prior state.
+          if (FY26 === null)
+            await prisma.stateBill.updateMany({
+              where: { legiscanBillId: billId },
+              data: {
+                sourceCheckAttemptedAt: new Date(),
+                sourceCheckStatus: 'pending',
+                sourceCheckError: null,
+              },
+            });
           queriesForBill++;
           requestsThisRun++;
           const raw = await getBill(LEGISCAN_API_KEY, billId, countRetry);
           if (!raw) {
             errors++;
-            await prisma.stateBill.updateMany({
-              where: { legiscanBillId: billId },
-              data: { sourceCheckStatus: 'failed', sourceCheckError: 'Provider returned no bill' },
-            });
+            if (admitted)
+              await prisma.stateBill.updateMany({
+                where: { legiscanBillId: billId },
+                data: {
+                  sourceCheckStatus: 'failed',
+                  sourceCheckError: 'Provider returned no bill',
+                },
+              });
             await prisma.stateSyncCursor.update({
               where: { id: cursorId },
               data: { pendingBills: { set: queue.ids } },
@@ -212,6 +229,17 @@ await runWithSyncRun(prisma as never, 'sync-legiscan-bills', async () => {
             await bumpCursorQueries(prisma, cursorId, queriesForBill);
             continue;
           }
+
+          // FY26: after a successful getBill, an inadmissible parent is
+          // dropped from the durable queue by exactly its own billId and its
+          // provider cost is recorded. No metadata/published/document write,
+          // no older-row deletion, no false source-check state.
+          if (!admitsRawBill(raw, FY26)) {
+            await prisma.$executeRaw`UPDATE state_sync_cursor SET pending_bills=array_remove(pending_bills,${billId}), bill_hashes=COALESCE(bill_hashes,'{}'::jsonb) || ${JSON.stringify({ [String(billId)]: raw.change_hash })}::jsonb WHERE id=${cursorId}`;
+            await bumpCursorQueries(prisma, cursorId, queriesForBill);
+            continue;
+          }
+          admitted = true;
 
           const normalized = normalizeLegiscanBill(raw, queue.state);
           if (!normalized) {
@@ -234,8 +262,12 @@ await runWithSyncRun(prisma as never, 'sync-legiscan-bills', async () => {
             continue;
           }
 
-          const { isNew } = await upsertNormalizedStateBill(prisma, normalized);
-          await persistPublishedRecords(prisma, normalized.billKey, raw);
+          const { isNew } = await upsertNormalizedStateBill(prisma, normalized, {
+            historical: FY26 !== null,
+          });
+          await persistPublishedRecords(prisma, normalized.billKey, raw, {
+            historical: FY26 !== null,
+          });
           await crosswalkStateBill(prisma, normalized.billKey, normalized.legiscanBillId);
           if (isNew) inserted++;
           else updated++;
@@ -432,13 +464,14 @@ await runWithSyncRun(prisma as never, 'sync-legiscan-bills', async () => {
           await bumpCursorQueries(prisma, cursorId, queriesForBill);
         } catch (err) {
           errors++;
-          await prisma.stateBill.updateMany({
-            where: { legiscanBillId: billId },
-            data: {
-              sourceCheckStatus: 'failed',
-              sourceCheckError: 'Source check or ingestion failed; retry pending',
-            },
-          });
+          if (admitted)
+            await prisma.stateBill.updateMany({
+              where: { legiscanBillId: billId },
+              data: {
+                sourceCheckStatus: 'failed',
+                sourceCheckError: 'Source check or ingestion failed; retry pending',
+              },
+            });
           console.error(`[sync-legiscan-bills] ${queue.state} bill ${billId} failed:`, err);
           await prisma.stateSyncCursor.update({
             where: { id: cursorId },
@@ -465,11 +498,14 @@ await runWithSyncRun(prisma as never, 'sync-legiscan-bills', async () => {
     );
     return { inserted, updated, skipped: 0, errors };
   });
+  if (FY26 !== null && result.errors > 0) throw Error('FY26_STATE_BILL_DRAIN_ERRORS');
 }
 
 if (require.main === module) {
   if (!process.env.DATABASE_URL) {
-    console.error('Usage: apps/api/scripts/sync-legiscan-bills.ts requires DATABASE_URL (database configuration is required)');
+    console.error(
+      'Usage: apps/api/scripts/sync-legiscan-bills.ts requires DATABASE_URL (database configuration is required)',
+    );
     process.exit(2);
   }
 

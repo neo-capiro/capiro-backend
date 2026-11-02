@@ -7,6 +7,7 @@ import {
   resolveCurrentCommittee,
   crosswalkLegiscanPerson,
   parseSineDieDate,
+  upsertNormalizedStateBill,
 } from './legiscan-normalize.js';
 import type { LegiscanBill } from '../external/legiscan/legiscan.client.js';
 import type { PrismaClient } from '@prisma/client';
@@ -553,5 +554,28 @@ describe('crosswalkLegiscanPerson (S2 people crosswalk DB wrapper)', () => {
     expect(ok).toBe(false);
     expect(updates).toHaveLength(0);
     expect(crosswalks).toHaveLength(0);
+  });
+});
+
+describe('historical bill hydration', () => {
+  it('preserves the current referral and does not update the current committee or calendar', async () => {
+    const normalized = normalizeLegiscanBill(
+      fixtureBill({ history: [], sponsors: [], texts: [], sasts: [], calendar: [] }),
+      'TX',
+    )!;
+    const db = {
+      stateBill: {
+        findUnique: jest.fn(async () => ({ id: normalized.billKey })),
+        upsert: jest.fn(),
+      },
+      stateBillSponsor: { findMany: jest.fn(async () => []) },
+      stateBillLink: { deleteMany: jest.fn() },
+      stateCommittee: { upsert: jest.fn() },
+    };
+    await upsertNormalizedStateBill(db as unknown as PrismaClient, normalized, {
+      historical: true,
+    });
+    expect(db.stateBill.upsert.mock.calls[0]?.[0].update.currentCommitteeId).toBeUndefined();
+    expect(db.stateCommittee.upsert).not.toHaveBeenCalled();
   });
 });

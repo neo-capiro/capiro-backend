@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "incremental": false },
+  "include": [
+    "scripts/embed-bill-passages.ts",
+    "scripts/index-bill-passages.ts",
+    "scripts/sync-federal-legislative-evidence.ts",
+    "scripts/backfill-legiscan-datasets.ts",
+    "scripts/sync-legiscan-bills.ts",
+    "src/ingestion/bill-text-scope.ts",
+    "src/ingestion/bill-text-passages.ts",
+    "src/ingestion/bill-fy26-admission.ts"
+  ],
+  "exclude": ["node_modules", "dist", "**/*.spec.ts"]
+}
