@@ -9,7 +9,6 @@ import * as events from 'aws-cdk-lib/aws-events';
 import * as eventsTargets from 'aws-cdk-lib/aws-events-targets';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
-import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
@@ -28,8 +27,12 @@ import { FIRST_CHAT_CORE_LIVE } from './first-chat-core';
  *   - one daily EventBridge occurrence, retry policy 0 (duplicates refuse and
  *     unknown outcomes need reconciliation, not another fetch), created DISABLED
  *     and enabled only by a re-render after the first successful run;
- *   - S3 custody for the pinned edition XML the one-off pin check is judged against;
- *   - alarms on the scripts' own failure lines and on undelivered occurrences.
+ *   - alarms on the scripts' own failure lines, on undelivered occurrences, and on
+ *     no import returned for about 30 hours once the schedule is enabled.
+ *
+ * Custody of the source bytes is the retained source.xml under the archive and the
+ * database's own source_xml column; the secret is created by Release and only
+ * referenced here, so no later stack update can reset its value.
  *
  * Clone only: identities come from the preview Core inventory (first-chat-core.ts).
  * This composition creates no ECS service, listener rule, DNS record or Aurora resource.
@@ -40,6 +43,10 @@ export const FORECASTS_CONTAINER_NAME = 'government-forecasts';
 export const FORECASTS_IMPORTER_SECRET_NAME = '/capiro/preview/government-forecasts/importer-database-url';
 /** The scripts' own terminal failure lines (sync-government-forecasts.ts, refresh-government-forecasts.ts). */
 export const FORECASTS_FAILURE_TERMS = ['Forecast import failed', 'Forecast refresh failed'] as const;
+/** The refresh's own success status, printed once per applied run (refresh-government-forecasts.ts). */
+export const FORECASTS_IMPORT_RETURNED_TERM = 'import-returned';
+/** Five six-hour windows: a missed daily occurrence plus the next day's catch-up. */
+export const FORECASTS_STALE_HOURS = 30;
 const imageRepoName = 'capiro/preview-core';
 const env = { account: '967807252336', region: 'us-east-1' };
 
@@ -88,8 +95,7 @@ export class ForecastsOperationsStack extends cdk.Stack {
   readonly rule: events.Rule;
   readonly archive: efs.FileSystem;
   readonly archiveAccessPoint: efs.AccessPoint;
-  readonly stagingBucket: s3.Bucket;
-  readonly importerSecret: secretsmanager.Secret;
+  readonly importerSecret: secretsmanager.ISecret;
   readonly alertsTopic: sns.Topic;
 
   constructor(scope: Construct, id: string, binding: ForecastsOperationsBinding) {
@@ -148,26 +154,9 @@ export class ForecastsOperationsStack extends cdk.Stack {
       posixUser: { uid: '1001', gid: '1001' },
     });
 
-    // Custody for the pinned edition XML (FORECASTS-OPERATIONS-BRIEF.md): Release uploads it, the pin check compares against it.
-    // The task never reads it: the image dispatches only its own verbs, and refresh-government-forecasts fetches the publisher itself.
-    this.stagingBucket = new s3.Bucket(this, 'Staging', {
-      bucketName: `capiro-preview-government-forecasts-staging-${env.account}`,
-      versioned: true,
-      encryption: s3.BucketEncryption.S3_MANAGED,
-      enforceSSL: true,
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_ENFORCED,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-      lifecycleRules: [{ noncurrentVersionExpiration: cdk.Duration.days(365), abortIncompleteMultipartUploadAfter: cdk.Duration.days(7) }],
-    });
-
-    // DATABASE_URL whole, as the scripts require; the value is set once by Release, never rendered here.
-    this.importerSecret = new secretsmanager.Secret(this, 'ImporterDatabaseUrl', {
-      secretName: FORECASTS_IMPORTER_SECRET_NAME,
-      description: 'postgresql URL for capiro_forecast_importer on the preview clone (sslmode=require); set by Release, never the master user',
-      secretStringValue: cdk.SecretValue.unsafePlainText('placeholder-set-by-release'),
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-    });
+    // DATABASE_URL whole, as the scripts require. Release creates the secret before the first deploy (brief step 2);
+    // referencing it by name keeps CloudFormation from ever owning or resetting its value.
+    this.importerSecret = secretsmanager.Secret.fromSecretNameV2(this, 'ImporterDatabaseUrl', FORECASTS_IMPORTER_SECRET_NAME);
 
     const logGroup = new logs.LogGroup(this, 'Logs', {
       logGroupName: '/capiro/preview/government-forecasts',
@@ -176,7 +165,7 @@ export class ForecastsOperationsStack extends cdk.Stack {
     });
     const taskRole = new iam.Role(this, 'TaskRole', {
       assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
-      description: 'Government forecasts job: archive write and public source fetch; no other AWS access',
+      description: 'Government forecasts job: archive write through its access point and public source fetch; no other AWS access',
     });
     this.taskDefinition = new ecs.FargateTaskDefinition(this, 'TaskDef', {
       family: 'capiro-preview-government-forecasts',
@@ -199,7 +188,10 @@ export class ForecastsOperationsStack extends cdk.Stack {
       new iam.PolicyStatement({
         actions: ['elasticfilesystem:ClientMount', 'elasticfilesystem:ClientWrite'],
         resources: [this.archive.fileSystemArn],
-        conditions: { StringEquals: { 'elasticfilesystem:AccessPointArn': this.archiveAccessPoint.accessPointArn } },
+        conditions: {
+          StringEquals: { 'elasticfilesystem:AccessPointArn': this.archiveAccessPoint.accessPointArn },
+          Bool: { 'elasticfilesystem:AccessedViaMountTarget': 'true' },
+        },
       }),
     );
 
@@ -209,17 +201,16 @@ export class ForecastsOperationsStack extends cdk.Stack {
       logging: ecs.LogDrivers.awsLogs({ logGroup, streamPrefix: 'forecasts' }),
       // A run-task without an override does nothing: every real invocation names its command (schedule below; one-off in the brief).
       command: ['refresh-government-forecasts', '--help'],
+      // The root filesystem is read-only; the archive mount is the only writable path besides /dev/shm for temp files.
       environment: {
-        NODE_ENV: 'production',
-        APP_ENV: 'capiro-preview',
         AWS_REGION: env.region,
         AWS_DEFAULT_REGION: env.region,
-        FORECAST_ARCHIVE_DIR: FORECASTS_ARCHIVE_DIR,
+        TMPDIR: '/dev/shm',
         GIT_SHA: binding.sourceHead,
         RELEASE_SHA: binding.sourceHead,
       },
       secrets: { DATABASE_URL: ecs.Secret.fromSecretsManager(this.importerSecret) },
-      readonlyRootFilesystem: false,
+      readonlyRootFilesystem: true,
     });
     container.addMountPoints({ containerPath: FORECASTS_ARCHIVE_DIR, sourceVolume: 'forecast-archive', readOnly: false });
 
@@ -289,12 +280,33 @@ export class ForecastsOperationsStack extends cdk.Stack {
     });
     deliveryAlarm.addAlarmAction(action);
     deliveryAlarm.addOkAction(action);
+    // Silence is a failure too once the schedule runs: no applied run reported in five six-hour windows.
+    const returned = new logs.MetricFilter(this, 'ImportReturnedMetric', {
+      logGroup,
+      metricNamespace: 'Capiro/GovernmentForecasts',
+      metricName: 'import.returned',
+      filterPattern: logs.FilterPattern.literal(`"${FORECASTS_IMPORT_RETURNED_TERM}"`),
+      metricValue: '1',
+      defaultValue: 0,
+    }).metric({ statistic: 'Sum', period: cdk.Duration.hours(6) });
+    const staleAlarm = new cloudwatch.Alarm(this, 'StaleAlarm', {
+      alarmName: 'capiro-preview-government-forecasts-stale',
+      alarmDescription: `No government-forecast import has returned for about ${FORECASTS_STALE_HOURS} hours; check the rule, the dead-letter queue and the archive marker.`,
+      metric: returned,
+      threshold: 1,
+      evaluationPeriods: FORECASTS_STALE_HOURS / 6,
+      datapointsToAlarm: FORECASTS_STALE_HOURS / 6,
+      comparisonOperator: cloudwatch.ComparisonOperator.LESS_THAN_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.BREACHING,
+      actionsEnabled: binding.scheduleEnabled,
+    });
+    staleAlarm.addAlarmAction(action);
+    staleAlarm.addOkAction(action);
 
     for (const [name, value] of Object.entries({
       TaskDefinitionArn: this.taskDefinition.taskDefinitionArn,
       ArchiveFileSystemId: this.archive.fileSystemId,
       ArchiveAccessPointId: this.archiveAccessPoint.accessPointId,
-      StagingBucketName: this.stagingBucket.bucketName,
       ImporterSecretArn: this.importerSecret.secretArn,
       DailyRuleName: this.rule.ruleName,
       AlertsTopicArn: this.alertsTopic.topicArn,

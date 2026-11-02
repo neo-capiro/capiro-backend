@@ -8,8 +8,10 @@ import {
   FORECASTS_ARCHIVE_DIR,
   FORECASTS_CONTAINER_NAME,
   FORECASTS_FAILURE_TERMS,
+  FORECASTS_IMPORT_RETURNED_TERM,
   FORECASTS_IMPORTER_SECRET_NAME,
   FORECASTS_OPERATIONS_STACK_NAME,
+  FORECASTS_STALE_HOURS,
   forecastsOperationsBinding,
   previewForecastsOperationsApplication,
 } from '../lib/preview/forecasts-operations';
@@ -27,6 +29,8 @@ const render = (input: unknown = binding) => {
   const { stack } = previewForecastsOperationsApplication(input, fresh());
   return Template.fromStack(stack);
 };
+const container = (template: Template) =>
+  (Object.values(template.findResources('AWS::ECS::TaskDefinition'))[0]!.Properties.ContainerDefinitions as Record<string, unknown>[])[0]!;
 
 test('the binding is exact: immutable digest, exact head, boolean enablement, bounded schedule', () => {
   assert.deepEqual(forecastsOperationsBinding(binding), binding);
@@ -41,18 +45,20 @@ test('the binding is exact: immutable digest, exact head, boolean enablement, bo
     assert.throws(() => forecastsOperationsBinding(bad));
 });
 
-test('the task receives DATABASE_URL whole from the importer secret and nothing composed from DB_*', () => {
+test('the task receives DATABASE_URL whole from a secret Release owns, with a read-only root and no DB_* or unused environment', () => {
   const template = render();
   template.resourceCountIs('AWS::ECS::TaskDefinition', 1);
   template.hasResourceProperties('AWS::ECS::TaskDefinition', {
     Family: 'capiro-preview-government-forecasts',
     RuntimePlatform: { CpuArchitecture: 'ARM64' },
+    Cpu: '1024',
     ContainerDefinitions: [
       Match.objectLike({
         Name: FORECASTS_CONTAINER_NAME,
         Command: ['refresh-government-forecasts', '--help'],
+        ReadonlyRootFilesystem: true,
         Secrets: [Match.objectLike({ Name: 'DATABASE_URL' })],
-        Environment: Match.not(Match.arrayWith([Match.objectLike({ Name: Match.stringLikeRegexp('^DB_') })])),
+        Environment: Match.arrayWith([{ Name: 'TMPDIR', Value: '/dev/shm' }]),
         MountPoints: [{ ContainerPath: FORECASTS_ARCHIVE_DIR, SourceVolume: 'forecast-archive', ReadOnly: false }],
       }),
     ],
@@ -63,16 +69,18 @@ test('the task receives DATABASE_URL whole from the importer secret and nothing 
       }),
     ],
   });
-  template.hasResourceProperties('AWS::SecretsManager::Secret', { Name: FORECASTS_IMPORTER_SECRET_NAME });
-  const secrets = template.findResources('AWS::SecretsManager::Secret');
-  assert.equal(Object.keys(secrets).length, 1);
-  assert.equal(Object.values(secrets)[0]!.DeletionPolicy, 'Retain');
+  const definition = container(template);
+  const names = (definition.Environment as { Name: string }[]).map((entry) => entry.Name);
+  for (const name of names) assert.doesNotMatch(name, /^DB_/);
+  for (const unused of ['NODE_ENV', 'APP_ENV', 'FORECAST_ARCHIVE_DIR']) assert.ok(!names.includes(unused), unused);
+  // The secret is referenced by name, never created or updated by this stack, so a deploy cannot reset its value.
+  template.resourceCountIs('AWS::SecretsManager::Secret', 0);
+  assert.match(JSON.stringify((definition.Secrets as unknown[])[0]), new RegExp(FORECASTS_IMPORTER_SECRET_NAME.replace(/\//g, '\\/')));
   // The image is pinned by digest, never a tag.
-  const containers = Object.values(template.findResources('AWS::ECS::TaskDefinition'))[0]!.Properties.ContainerDefinitions as { Image: unknown }[];
-  assert.match(JSON.stringify(containers[0]!.Image), /@sha256:a1e35b1a/);
+  assert.match(JSON.stringify(definition.Image), /@sha256:a1e35b1a/);
 });
 
-test('the archive is one durable encrypted EFS root with a job-owned access point, retained on delete', () => {
+test('the archive is one durable encrypted EFS root with a job-owned access point reached only through a mount target, retained on delete', () => {
   const template = render();
   template.hasResource('AWS::EFS::FileSystem', { DeletionPolicy: 'Retain', Properties: Match.objectLike({ Encrypted: true, LifecyclePolicies: Match.arrayWith([{ TransitionToIA: 'AFTER_30_DAYS' }]) }) });
   template.hasResourceProperties('AWS::EFS::AccessPoint', {
@@ -83,18 +91,18 @@ test('the archive is one durable encrypted EFS root with a job-owned access poin
   template.hasResourceProperties('AWS::IAM::Policy', {
     PolicyDocument: Match.objectLike({
       Statement: Match.arrayWith([
-        Match.objectLike({ Action: ['elasticfilesystem:ClientMount', 'elasticfilesystem:ClientWrite'], Condition: Match.objectLike({ StringEquals: Match.anyValue() }) }),
+        Match.objectLike({
+          Action: ['elasticfilesystem:ClientMount', 'elasticfilesystem:ClientWrite'],
+          Condition: { StringEquals: Match.anyValue(), Bool: { 'elasticfilesystem:AccessedViaMountTarget': 'true' } },
+        }),
       ]),
     }),
   });
 });
 
-test('staging is versioned, private and read-only for the task; the daily rule ships disabled with retry 0 and a DLQ', () => {
+test('the daily rule ships disabled with retry 0 and a DLQ; no staging bucket or other live resource exists', () => {
   const template = render();
-  template.hasResource('AWS::S3::Bucket', {
-    DeletionPolicy: 'Retain',
-    Properties: Match.objectLike({ VersioningConfiguration: { Status: 'Enabled' }, PublicAccessBlockConfiguration: Match.objectLike({ BlockPublicAcls: true, RestrictPublicBuckets: true }) }),
-  });
+  template.resourceCountIs('AWS::S3::Bucket', 0);
   template.hasResourceProperties('AWS::Events::Rule', {
     Name: 'capiro-preview-government-forecasts-daily',
     State: 'DISABLED',
@@ -113,22 +121,35 @@ test('staging is versioned, private and read-only for the task; the daily rule s
   for (const part of ['refresh-government-forecasts', '--archive-dir', FORECASTS_ARCHIVE_DIR, '--run-id', '--apply']) assert.ok(transformer.includes(part), part);
   const enabled = previewForecastsOperationsApplication({ ...binding, scheduleEnabled: true }, fresh());
   Template.fromStack(enabled.stack).hasResourceProperties('AWS::Events::Rule', { State: 'ENABLED' });
-});
-
-test('failures alarm on the scripts\' own terminal lines and on undelivered occurrences', () => {
-  const template = render();
-  template.hasResourceProperties('AWS::Logs::MetricFilter', {
-    MetricTransformations: [Match.objectLike({ MetricNamespace: 'Capiro/GovernmentForecasts', MetricName: 'task.failed' })],
-  });
-  const filter = Object.values(template.findResources('AWS::Logs::MetricFilter'))[0]!;
-  for (const term of FORECASTS_FAILURE_TERMS) assert.ok(String(filter.Properties.FilterPattern).includes(term), term);
-  template.resourceCountIs('AWS::CloudWatch::Alarm', 2);
-  template.hasResourceProperties('AWS::CloudWatch::Alarm', { AlarmName: 'capiro-preview-government-forecasts-failed', TreatMissingData: 'notBreaching' });
-  template.hasResourceProperties('AWS::CloudWatch::Alarm', { AlarmName: 'capiro-preview-government-forecasts-delivery-failed' });
   // Nothing live besides the job: no service, listener rule, DNS record or database resource.
   for (const type of ['AWS::ECS::Service', 'AWS::ElasticLoadBalancingV2::ListenerRule', 'AWS::Route53::RecordSet', 'AWS::RDS::DBCluster', 'AWS::RDS::DBInstance'])
     template.resourceCountIs(type, 0);
   assert.equal(previewForecastsOperationsApplication(binding, fresh()).stack.stackName, FORECASTS_OPERATIONS_STACK_NAME);
+});
+
+test('alarms cover the scripts\' terminal failure lines, undelivered occurrences, and silence once the schedule is enabled', () => {
+  const template = render();
+  const filters = Object.values(template.findResources('AWS::Logs::MetricFilter')).map((f) => String(f.Properties.FilterPattern));
+  assert.equal(filters.length, 2);
+  for (const term of FORECASTS_FAILURE_TERMS) assert.ok(filters.some((pattern) => pattern.includes(term)), term);
+  assert.ok(filters.some((pattern) => pattern.includes(FORECASTS_IMPORT_RETURNED_TERM)));
+  template.resourceCountIs('AWS::CloudWatch::Alarm', 3);
+  template.hasResourceProperties('AWS::CloudWatch::Alarm', { AlarmName: 'capiro-preview-government-forecasts-failed', TreatMissingData: 'notBreaching' });
+  template.hasResourceProperties('AWS::CloudWatch::Alarm', { AlarmName: 'capiro-preview-government-forecasts-delivery-failed' });
+  // Disabled schedule: the stale alarm exists but does not page; enabling the schedule enables its actions in the same render.
+  template.hasResourceProperties('AWS::CloudWatch::Alarm', {
+    AlarmName: 'capiro-preview-government-forecasts-stale',
+    ActionsEnabled: false,
+    ComparisonOperator: 'LessThanThreshold',
+    Threshold: 1,
+    TreatMissingData: 'breaching',
+    Period: 6 * 3600,
+    EvaluationPeriods: FORECASTS_STALE_HOURS / 6,
+    DatapointsToAlarm: FORECASTS_STALE_HOURS / 6,
+    MetricName: 'import.returned',
+  });
+  const enabled = Template.fromStack(previewForecastsOperationsApplication({ ...binding, scheduleEnabled: true }, fresh()).stack);
+  enabled.hasResourceProperties('AWS::CloudWatch::Alarm', { AlarmName: 'capiro-preview-government-forecasts-stale', ActionsEnabled: true });
 });
 
 test('the bin renders only from a bounded binding into a fresh directory', () => {
