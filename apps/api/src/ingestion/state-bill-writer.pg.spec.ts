@@ -13,6 +13,10 @@ import { publisherCooldown } from './state-publisher-document.js';
 import { persistVoteRevision } from './legiscan-vote-revisions.js';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import {
+  replaceCongressBillActionsAtomically,
+  type NormalizedCongressAction,
+} from '../../scripts/lib/congress-actions.js';
 
 describe('shared state writer lease on disposable PostgreSQL', () => {
   jest.setTimeout(30000);
@@ -394,6 +398,128 @@ describe('shared state writer lease on disposable PostgreSQL', () => {
       await db.$queryRawUnsafe(`SELECT has_table_privilege('capiro_app','state_bill_record_check','UPDATE') AS update,
       has_table_privilege('capiro_app','state_bill_record_check','DELETE') AS delete`),
     ).toEqual([{ update: true, delete: false }]);
+  });
+  it('keeps Congress action replacement and delivery atomic through raw Prisma and the federal callback facade', async () => {
+    const readMigration = (name: string) =>
+      readFileSync(
+        resolve(process.cwd(), 'prisma/migrations', name, 'migration.sql'),
+        'utf8',
+      ).replace(/\r\n/g, '\n');
+    const actionsDDL = readMigration('20260521030000_intel_optimization');
+    const evidenceDDL = readMigration('20280924030000_federal_legislative_evidence');
+    for (const [table, source] of [
+      ['congress_bill_action', actionsDDL],
+      ['federal_evidence_revision', evidenceDDL],
+      ['federal_evidence_mention_event', evidenceDDL],
+      ['federal_evidence_change_outbox', evidenceDDL],
+    ]) {
+      const start = source!.indexOf(`CREATE TABLE "${table}" (`),
+        end = source!.indexOf('\n);', start);
+      if (start < 0 || end < start) throw Error('CANONICAL_ACTION_FIXTURE_DDL_MISSING');
+      await db.$executeRawUnsafe(source!.slice(start, end + 3));
+      for (const index of source!.match(
+        new RegExp('CREATE (?:UNIQUE )?INDEX "' + table + '[^;]+;', 'g'),
+      ) ?? [])
+        await db.$executeRawUnsafe(index);
+    }
+    const foreignKey = actionsDDL.match(/ALTER TABLE "congress_bill_action"[^;]+;/)?.[0];
+    const immutableFunction = readMigration('20280913010000_legiwatch_record_revisions').match(
+      /CREATE FUNCTION legiwatch_reject_record_rewrite\(\)[\s\S]*?\$\$;/,
+    )?.[0];
+    const immutableTrigger = evidenceDDL.match(
+      /CREATE TRIGGER federal_evidence_mention_event_immutable[\s\S]*?;/,
+    )?.[0];
+    if (!foreignKey || !immutableFunction || !immutableTrigger)
+      throw Error('CANONICAL_ACTION_FIXTURE_CONSTRAINT_MISSING');
+    await db.$executeRawUnsafe(foreignKey);
+    await db.$executeRawUnsafe(immutableFunction);
+    await db.$executeRawUnsafe(immutableTrigger);
+    await db.$executeRawUnsafe('GRANT SELECT,INSERT,DELETE ON congress_bill_action TO capiro_app');
+    await db.$executeRawUnsafe(
+      'GRANT SELECT,INSERT ON federal_evidence_mention_event TO capiro_app',
+    );
+    await db.$executeRawUnsafe(
+      'GRANT SELECT,INSERT,UPDATE ON federal_evidence_change_outbox TO capiro_app',
+    );
+    const billId = '119-s-999';
+    await db.$executeRawUnsafe(
+      'INSERT INTO congress_bill(id,title) VALUES($1,$2)',
+      billId,
+      'Synthetic action transaction',
+    );
+    const first = {
+      date: new Date('2026-01-01'),
+      text: 'Synthetic introduction',
+      type: 'IntroReferral',
+      chamber: 'Senate',
+    };
+    const later = {
+      date: new Date('2026-01-02'),
+      text: 'Synthetic later action',
+      type: null,
+      chamber: null,
+    };
+    const failed = {
+      date: new Date('2026-01-03'),
+      text: 'Synthetic rolled-back action',
+      type: null,
+      chamber: null,
+    };
+    const run = (actions: NormalizedCongressAction[]) =>
+      withFederalBillWriter(db, (writer) =>
+        writer.$transaction(async (tx) => {
+          await tx.$executeRawUnsafe('SET LOCAL ROLE capiro_app');
+          await replaceCongressBillActionsAtomically(
+            tx as unknown as PrismaClient,
+            billId,
+            actions,
+          );
+        }),
+      );
+    const snapshot = async () => ({
+      actions: await db.$queryRawUnsafe(
+        'SELECT date,text,type,chamber FROM congress_bill_action WHERE bill_id=$1 ORDER BY date,text',
+        billId,
+      ),
+      baseline: await db.$queryRawUnsafe(
+        'SELECT cursor_jsonb,status,completed_at FROM federal_evidence_checkpoint WHERE source=$1',
+        `congress-actions:${billId}`,
+      ),
+      events: await db.$queryRawUnsafe(
+        'SELECT event_key,raw_mention,historical FROM federal_evidence_mention_event WHERE bill_id=$1 ORDER BY event_key',
+        billId,
+      ),
+      outbox: await db.$queryRawUnsafe(
+        "SELECT dedupe_key,payload_jsonb FROM federal_evidence_change_outbox WHERE payload_jsonb->>'billId'=$1 ORDER BY dedupe_key",
+        billId,
+      ),
+    });
+    // Ordinary raw Prisma remains supported, and the first backfill stays silent.
+    await replaceCongressBillActionsAtomically(db, billId, [first]);
+    expect(
+      await db.$queryRawUnsafe('SELECT count(*)::int n FROM federal_evidence_change_outbox'),
+    ).toEqual([{ n: 0 }]);
+    await run([first, later]);
+    const initial = await snapshot();
+    expect(initial.actions).toEqual([first, later]);
+    expect(initial.events).toHaveLength(1);
+    expect(initial.outbox).toHaveLength(1);
+    await run([first, later]);
+    await run([first]);
+    await run([first, later]);
+    const deduped = await snapshot();
+    expect(deduped.events).toEqual(initial.events);
+    expect(deduped.outbox).toEqual(initial.outbox);
+    // Fail after history, checkpoint and event writes, proving all roll back together.
+    await db.$executeRawUnsafe(
+      "CREATE FUNCTION fail_action_outbox() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic action outbox failure'; END $$",
+    );
+    await db.$executeRawUnsafe(
+      'CREATE TRIGGER fail_action_outbox BEFORE INSERT ON federal_evidence_change_outbox FOR EACH ROW EXECUTE FUNCTION fail_action_outbox()',
+    );
+    await expect(run([first, later, failed])).rejects.toThrow('synthetic action outbox failure');
+    expect(await snapshot()).toEqual(deduped);
+    await db.$executeRawUnsafe('DROP TRIGGER fail_action_outbox ON federal_evidence_change_outbox');
   });
   it('stages archived alternate formats with app grants, fenced rollback and no primary retry or metadata changes', async () => {
     await db.$executeRawUnsafe('ALTER TABLE state_bill ADD COLUMN report_source_facts jsonb');
