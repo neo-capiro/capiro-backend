@@ -161,6 +161,57 @@ test('source outage is unavailable, malformed persisted data is incomplete, neve
   assert.equal(result.count, null);
   assert.equal(result.reason, 'invalid_source');
 });
+test('a snapshot aborted by a concurrent authority-row write is re-read whole, then unavailable', async () => {
+  // Prisma's shapes for PostgreSQL 40001 from $queryRaw and from the transaction.
+  const raw = () => Object.assign(new Error('Raw query failed. Code: `40001`'), {
+    code: 'P2010',
+    meta: { code: '40001' },
+  });
+  const tx = () => Object.assign(new Error('Transaction failed'), { code: 'P2034' });
+  for (const conflict of [raw, tx]) {
+    let reads = 0;
+    const result = await observe(
+      'strategy.active',
+      {},
+      { validate: async () => {} },
+      bearer,
+      async () => {
+        // Every one of the three observation reads conflicts once, then succeeds.
+        if (++reads % 2 === 1) throw conflict();
+        return snapshot();
+      },
+    );
+    assert.equal(result.state, 'complete');
+    assert.equal(result.count, 301);
+    assert.equal(reads, 6);
+  }
+  let reads = 0;
+  await assert.rejects(
+    () =>
+      observe('strategy.active', {}, { validate: async () => {} }, bearer, async () => {
+        reads++;
+        throw raw();
+      }),
+    ServiceUnavailableException,
+  );
+  assert.equal(reads, 3);
+  // Other database failures, including other raw-query codes, are not retried.
+  for (const other of [
+    Object.assign(new Error('Raw query failed. Code: `42P01`'), { code: 'P2010', meta: { code: '42P01' } }),
+    new Error('could not serialize access due to concurrent update'),
+  ]) {
+    let attempts = 0;
+    await assert.rejects(
+      () =>
+        observe('strategy.active', {}, { validate: async () => {} }, bearer, async () => {
+          attempts++;
+          throw other;
+        }),
+      (error) => error === other,
+    );
+    assert.equal(attempts, 1);
+  }
+});
 test('unsafe count is withheld and General sources need no linked source bearer', async () => {
   const result = await observe(
     'planner.overdue_unfinished',
