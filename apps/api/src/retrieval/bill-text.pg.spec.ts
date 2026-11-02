@@ -33,6 +33,160 @@ import {
 const url = process.env.BILL_TEXT_SEARCH_TEST_DATABASE_URL;
 const pg = url ? describe : describe.skip;
 pg('bill text PostgreSQL contract', () => {
+  it('bounds federal observation lookup by its canonical source and rejects cross-source or cross-revision receipts', async () => {
+    const parsed = new URL(url!);
+    if (
+      process.env.CAPIRO_DISPOSABLE_PG !== '1' ||
+      parsed.pathname !== '/bill_text_test' ||
+      !['localhost', '127.0.0.1', '::1', '[::1]'].includes(parsed.hostname)
+    )
+      throw Error('DISPOSABLE_LOCAL_BILL_TEXT_TEST_DATABASE_REQUIRED');
+    const db = new Client({ connectionString: url });
+    await db.connect();
+    try {
+      await db.query('BEGIN');
+      // This isolated plan fixture has 1,000 provider versions, two parser
+      // revisions each, and unrelated observations. Temporary owners roll back.
+      await db.query(`
+        CREATE TEMP TABLE congress_bill(id text PRIMARY KEY,congress int);
+        CREATE TEMP TABLE federal_evidence_revision(id uuid PRIMARY KEY,source_key text,bill_id text,
+          collection text,package_id text,version_code text,source_url text,metadata_jsonb jsonb,fetched_at timestamptz);
+        CREATE INDEX ON federal_evidence_revision(bill_id,fetched_at DESC);
+        CREATE TEMP TABLE federal_evidence_observation(id bigserial PRIMARY KEY,source_key text,revision_id uuid,state text,metadata_jsonb jsonb);
+        CREATE TEMP TABLE legal_source_receipt(id text PRIMARY KEY,source text,scope jsonb,manifest jsonb,complete boolean);
+        CREATE TEMP TABLE bill_text_extraction(id uuid PRIMARY KEY,source_kind text,revision_id uuid,
+          parser_version text,completeness text,created_at timestamptz,structure_hash text,text_hash text);
+        CREATE INDEX ON bill_text_extraction(source_kind,revision_id,parser_version,created_at DESC);
+        CREATE TEMP TABLE bill_text_passage(extraction_id uuid,chunker_version text,ordinal int,content_text text,metadata_jsonb jsonb,
+          PRIMARY KEY(extraction_id,chunker_version,ordinal));
+        CREATE TEMP TABLE context_embeddings(tenant_id uuid,client_id uuid,owner_user_id uuid,source_type text,source_id text,
+          model text,content_text text,content_hash text,metadata_jsonb jsonb);
+        CREATE INDEX ON context_embeddings(source_type,source_id);
+        INSERT INTO congress_bill SELECT '119-hr-'||n,119 FROM generate_series(1,1000) n;
+        INSERT INTO federal_evidence_revision
+        SELECT md5(n::text||':'||parser)::uuid,'govinfo:BILLS-119hr'||n||'ih','119-hr-'||n,'BILLS','BILLS-119hr'||n||'ih','ih',
+          'https://example.test/'||n||'.xml',jsonb_build_object('originalBytesBase64','c291cmNl','rawBytesHash',repeat('a',64)),now()
+        FROM generate_series(1,1000) n CROSS JOIN generate_series(1,2) parser;
+        INSERT INTO federal_evidence_observation(source_key,revision_id,state,metadata_jsonb)
+        SELECT source_key,id,'present',jsonb_build_object('providerVersionId',package_id,'providerDocumentId',bill_id,'sourceInventoryReceiptId','inventory-'||bill_id)
+        FROM federal_evidence_revision;
+        INSERT INTO federal_evidence_observation(source_key,revision_id,state,metadata_jsonb)
+        SELECT 'unrelated:'||n,md5('unrelated:'||n)::uuid,'present','{}' FROM generate_series(1,20000) n;
+      `);
+      const migration = readFileSync(
+        join(
+          process.cwd(),
+          'prisma/migrations/20280924030000_federal_legislative_evidence/migration.sql',
+        ),
+        'utf8',
+      );
+      const index = migration.match(
+        /CREATE INDEX "federal_evidence_observation_current_idx"[\s\S]*?;/,
+      )?.[0];
+      if (!index) throw Error('CANONICAL_OBSERVATION_INDEX_REQUIRED');
+      await db.query(index);
+      for (const table of [
+        'congress_bill',
+        'federal_evidence_revision',
+        'federal_evidence_observation',
+        'legal_source_receipt',
+        'bill_text_extraction',
+        'bill_text_passage',
+        'context_embeddings',
+      ])
+        await db.query('ANALYZE ' + table);
+      const versions = Array.from({ length: 1000 }, (_, i) => ({
+        billId: `119-hr-${i + 1}`,
+        session: '119',
+        kind: 'text',
+        providerDocumentId: `119-hr-${i + 1}`,
+        versionId: `BILLS-119hr${i + 1}ih`,
+        version: 'Introduced',
+        packageId: `BILLS-119hr${i + 1}ih`,
+        collection: 'BILLS',
+        versionCode: 'ih',
+        sourceUrls: [`https://example.test/${i + 1}.xml`],
+        receiptId: `inventory-119-hr-${i + 1}`,
+        providerUpdatedAt: '2026-06-01T00:00:00Z',
+      }));
+      const values = (selected = versions) => [
+        BILL_EXTRACTION_VERSION,
+        CHUNKER_VERSION,
+        'test-model',
+        JSON.stringify(selected),
+      ];
+      await db.query("SET LOCAL statement_timeout='5s'");
+      const started = performance.now();
+      const large = (await db.query(FEDERAL_BILL_COVERAGE_SQL, values())).rows;
+      const elapsedMs = performance.now() - started;
+      expect(large).toHaveLength(1);
+      expect(large[0]).toMatchObject({
+        expectedDocuments: 1000,
+        downloadedDocuments: 1000,
+        completeExtractions: 0,
+      });
+      expect(elapsedMs).toBeLessThan(5000);
+      const plan = (
+        await db.query(
+          'EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) ' + FEDERAL_BILL_COVERAGE_SQL,
+          values(),
+        )
+      ).rows[0]['QUERY PLAN'][0];
+      const observationScans: Array<Record<string, unknown>> = [];
+      const indexes: string[] = [];
+      const visit = (node: Record<string, unknown>) => {
+        if (node['Relation Name'] === 'federal_evidence_observation') observationScans.push(node);
+        if (typeof node['Index Name'] === 'string') indexes.push(node['Index Name']);
+        for (const child of (node.Plans ?? []) as Array<Record<string, unknown>>) visit(child);
+      };
+      visit(plan.Plan);
+      expect(observationScans.length).toBeGreaterThan(0);
+      expect(indexes).toContain('federal_evidence_observation_current_idx');
+      for (const scan of observationScans) {
+        expect(scan['Node Type']).not.toBe('Seq Scan');
+        expect(
+          Number(scan['Actual Rows']) + Number(scan['Rows Removed by Filter'] ?? 0),
+        ).toBeLessThanOrEqual(2);
+      }
+      if (process.env.BILL_TEXT_PG_DIAGNOSTICS === '1')
+        console.info(
+          JSON.stringify({
+            federalObservationCoveragePlan: {
+              versions: versions.length,
+              revisions: 2000,
+              unrelatedObservations: 20000,
+              elapsedMs,
+              executionMs: plan['Execution Time'],
+              jit: plan.JIT,
+              observationScans,
+            },
+          }),
+        );
+      // On valid canonical source bindings, the added indexed predicate leaves
+      // the previous query's exact row shape and all counts unchanged.
+      const bounded = values(versions.slice(0, 5));
+      const prior = FEDERAL_BILL_COVERAGE_SQL.replace('o.source_key=r.source_key AND ', '');
+      expect((await db.query(FEDERAL_BILL_COVERAGE_SQL, bounded)).rows).toEqual(
+        (await db.query(prior, bounded)).rows,
+      );
+      const one = values(versions.slice(0, 1));
+      await db.query(
+        "UPDATE federal_evidence_observation SET source_key='wrong-source' WHERE source_key='govinfo:BILLS-119hr1ih'",
+      );
+      expect((await db.query(FEDERAL_BILL_COVERAGE_SQL, one)).rows[0].downloadedDocuments).toBe(0);
+      await db.query(
+        "UPDATE federal_evidence_observation SET source_key='govinfo:BILLS-119hr1ih',revision_id=md5('wrong-revision')::uuid WHERE source_key='wrong-source'",
+      );
+      expect((await db.query(FEDERAL_BILL_COVERAGE_SQL, one)).rows[0].downloadedDocuments).toBe(0);
+      await db.query(
+        "UPDATE federal_evidence_observation o SET revision_id=r.id FROM federal_evidence_revision r WHERE o.source_key='govinfo:BILLS-119hr1ih' AND r.source_key=o.source_key",
+      );
+      expect((await db.query(FEDERAL_BILL_COVERAGE_SQL, one)).rows[0].downloadedDocuments).toBe(1);
+    } finally {
+      await db.query('ROLLBACK').catch(() => undefined);
+      await db.end();
+    }
+  }, 60000);
   it('shares dataset leases across global, state, extraction and embedding entry scopes and fences an expired owner', async () => {
     const parsed = new URL(url!);
     if (
@@ -426,8 +580,8 @@ pg('bill text PostgreSQL contract', () => {
           for (const ddl of [
             `CREATE TEMP TABLE congress_bill(id text PRIMARY KEY,congress int,bill_type text,bill_number text,title text,status text,introduced_date date) ON COMMIT DROP`,
             `CREATE TEMP TABLE congress_bill_action(bill_id text,date date) ON COMMIT DROP`,
-            `CREATE TEMP TABLE federal_evidence_revision(id uuid PRIMARY KEY,bill_id text,collection text,version_code text,package_id text,extraction_hash text,content_hash text,source_url text,published_at timestamptz,metadata_jsonb jsonb,raw_content text,fetched_at timestamptz DEFAULT now()) ON COMMIT DROP`,
-            `CREATE TEMP TABLE federal_evidence_observation(revision_id uuid,state text,metadata_jsonb jsonb) ON COMMIT DROP`,
+            `CREATE TEMP TABLE federal_evidence_revision(id uuid PRIMARY KEY,bill_id text,collection text,version_code text,package_id text,extraction_hash text,content_hash text,source_url text,published_at timestamptz,metadata_jsonb jsonb,raw_content text,fetched_at timestamptz DEFAULT now(),source_key text NOT NULL) ON COMMIT DROP`,
+            `CREATE TEMP TABLE federal_evidence_observation(revision_id uuid,state text,metadata_jsonb jsonb,source_key text NOT NULL) ON COMMIT DROP`,
             `CREATE TEMP TABLE state_bill(id text PRIMARY KEY,state text,session_key text,bill_number text,title text,status text,legiscan_progress jsonb,latest_action_date date,legiscan_bill_id int) ON COMMIT DROP`,
             `CREATE TEMP TABLE state_bill_action(bill_key text,date date,text text) ON COMMIT DROP`,
             `CREATE TEMP TABLE state_bill_published_record(id uuid PRIMARY KEY,bill_key text,kind text,source_identity text,revision_hash text,event_date text,evidence jsonb,first_observed_at timestamptz) ON COMMIT DROP`,
@@ -1147,13 +1301,13 @@ pg('bill text PostgreSQL contract', () => {
           for (const suffix of ['100', '101']) {
             const revisionId = `00000000-0000-4000-8000-000000000${suffix}`;
             await tx.$executeRawUnsafe(
-              `INSERT INTO federal_evidence_revision(id,bill_id,collection,version_code,package_id,extraction_hash,content_hash,source_url,published_at,metadata_jsonb,raw_content) VALUES($1::uuid,'119-hr-1','BILLS','ih','BILLS-119hr1ih',$2,$3,'https://example.test/federal-ih.xml','2025-10-02','{}','source')`,
+              `INSERT INTO federal_evidence_revision(id,bill_id,collection,version_code,package_id,extraction_hash,content_hash,source_url,published_at,metadata_jsonb,raw_content,source_key) VALUES($1::uuid,'119-hr-1','BILLS','ih','BILLS-119hr1ih',$2,$3,'https://example.test/federal-ih.xml','2025-10-02','{}','source','govinfo:BILLS-119hr1ih')`,
               revisionId,
               suffix.repeat(22).slice(0, 64),
               bytesHash,
             );
             await tx.$executeRawUnsafe(
-              `INSERT INTO federal_evidence_observation VALUES($1::uuid,'present',$2::jsonb)`,
+              `INSERT INTO federal_evidence_observation VALUES($1::uuid,'present',$2::jsonb,'govinfo:BILLS-119hr1ih')`,
               revisionId,
               JSON.stringify({
                 providerDocumentId: '119-hr-1',
