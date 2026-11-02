@@ -4292,7 +4292,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'search_congress_bills',
     description:
-      'Search congressional bills in the Capiro database (118th and 119th Congress). Filter by keyword, policy area, congress number, or recent activity date. Accepts a bill designation or id ("H.R. 8800", "119-hr-8800") as the query for a direct lookup. Returns bill title, sponsor, latest action, canonical STATUS (e.g. rule_failed, passed_chamber), policy area, and cosponsors count. With textQuery it searches inside stored bill TEXT instead (119th Congress) and returns matching bills with passages; use it to find which bills mention a program, term, or phrase.',
+      'Search congressional bill metadata; existing query/textQuery behavior is unchanged. For retained full text use mode=exact (billId or billNumber+session), keyword (query with literal quoted phrases), or semantic (concept query). These modes are US-only and accept session, dateFrom/dateBefore, dateBasis, status, version, kind, fiscalYear=2026, page/limit and exact section filters; return immutable bill/version/extraction identity, UTF-16 quotes and context. Use read_bill_text mode=retained with the returned identity. mode=coverage alone returns global federal/all-state frozen FY26 inventory and per-version stage coverage. Search misses do not prove source absence.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat', 'in_editor'],
@@ -4308,7 +4308,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'read_bill_text',
     description:
-      'Read the exact current canonical full-text revision for one federal bill and version code from the immutable federal evidence owner. Returns bill/version/package identity, source locator, content and extraction hashes, bounded text, and continuation coverage. To answer a question about part of a long bill, pass query (words or "an exact phrase") to get the best matching passages with their section headings, then read on with a passage readCursor; do not page through a long bill from the start. This is bill text, not amendment text or procedural status; use get_bill_status separately for status.',
+      'Read bill text. Existing default reads the current federal bill/versionCode and accepts query or its cursor. For retained state/federal text, amendments or supplements use mode=retained, exact billId/jurisdiction/session/revisionId/extractionId returned by full-text search, plus optional section, offset, length and contextChars. Continue with mode=retained, the same billId and returned cursor. Returns immutable identities/hashes/source URL, exact UTF-16 text and bounded definitions/references with explicit incomplete context. No procedural status inference; use bill status tools separately.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
@@ -4452,7 +4452,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'search_state_bills',
     description:
-      'Search state legislature bills (LegiScan is the source of record; OpenStates cross-checks). Filter by state (2-letter code), keyword, subject, session, or canonical STATUS. Returns identifier, title, sponsor, latest action, canonical status, sponsor count, and links. Explicitly reports when NO bill matches.',
+      'Search state bill metadata by query/state/session/status by default. For retained full text use mode=exact (billId or billNumber+state+session), keyword (query with literal quoted phrases), or semantic (concept query). Full-text modes exclude US and accept state or jurisdictions, session, dateFrom/dateBefore, dateBasis, status, version, kind, fiscalYear=2026, page/limit and exact section filters. Return immutable bill/version/extraction identity, UTF-16 quotes and context; read onward with read_bill_text mode=retained. mode=coverage alone returns global federal/all-state frozen FY26 inventory and per-version stages. Missing text is not evidence of absence.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],

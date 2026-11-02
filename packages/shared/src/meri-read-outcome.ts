@@ -1,3 +1,5 @@
+import { US_STATE_BY_ABBR } from './us-states.js';
+
 export type ApiToolReadOutcomeKind = 'complete' | 'empty' | 'partial' | 'unavailable' | 'failed';
 
 export interface ApiToolReadOutcome {
@@ -841,6 +843,115 @@ function classifyBillStatus(payload: unknown): ApiToolReadOutcome {
     : invalidResult('get_bill_status');
 }
 
+function classifyRetainedBillRead(toolName: string, payload: unknown): ApiToolReadOutcome {
+  const value = record(payload);
+  if (!value || value.tool !== toolName || value.authoritativeOwner !== 'bill_text_extraction')
+    return invalidResult(toolName);
+  if (toolName !== 'read_bill_text') {
+    if (value.currentStatus !== 'available') return invalidResult(toolName);
+    if (value.operation === 'search') {
+      if (
+        !['exact', 'keyword', 'semantic'].includes(String(value.mode)) ||
+        !Array.isArray(value.results) ||
+        !(value.totalRevisions === null || typeof value.totalRevisions === 'number')
+      )
+        return invalidResult(toolName);
+      return { kind: 'partial', reason: 'bill_text_search_does_not_prove_source_coverage' };
+    }
+    if (
+      value.operation !== 'coverage' ||
+      value.fiscalYear !== 2026 ||
+      typeof value.complete !== 'boolean' ||
+      !Array.isArray(value.jurisdictions) ||
+      value.jurisdictions.length !== 52
+    )
+      return invalidResult(toolName);
+    const jurisdictions = value.jurisdictions.map((item) => record(item)?.jurisdiction);
+    if (
+      new Set(jurisdictions).size !== 52 ||
+      !jurisdictions.includes('US') ||
+      jurisdictions.some(
+        (code) =>
+          typeof code !== 'string' ||
+          (code !== 'US' &&
+            (!Object.hasOwn(US_STATE_BY_ABBR, code) ||
+              ['PR', 'GU', 'VI', 'AS', 'MP'].includes(code))),
+      )
+    )
+      return invalidResult(toolName);
+    if (
+      value.complete !==
+      value.jurisdictions.every((item) => record(item)?.status === 'complete_for_frozen_inventory')
+    )
+      return invalidResult(toolName);
+    return value.complete
+      ? { kind: 'complete' }
+      : { kind: 'partial', reason: 'bill_text_inventory_or_stages_incomplete' };
+  }
+  if (value.operation !== 'read') return invalidResult(toolName);
+  if (value.available === false && value.currentStatus === 'unavailable')
+    return { kind: 'unavailable', reason: 'bill_text_unavailable' };
+  const identity = record(value.identity),
+    coverage = record(value.coverage);
+  const hash = (v: unknown) => typeof v === 'string' && /^[a-f0-9]{64}$/.test(v);
+  const integer = (v: unknown): v is number =>
+    typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
+  if (
+    value.available !== true ||
+    value.currentStatus !== 'available' ||
+    !identity ||
+    !coverage ||
+    ['billId', 'jurisdiction', 'session', 'revisionId', 'extractionId'].some(
+      (key) => typeof identity[key] !== 'string' || !identity[key],
+    ) ||
+    ['revisionHash', 'documentHash', 'textHash', 'structureHash'].some(
+      (key) => !hash(identity[key]),
+    ) ||
+    typeof value.text !== 'string' ||
+    !integer(value.startOffset) ||
+    !integer(value.endOffset) ||
+    !integer(value.totalCharacters) ||
+    value.endOffset > value.totalCharacters ||
+    value.endOffset - value.startOffset !== value.text.length ||
+    value.offsetUnit !== 'UTF-16' ||
+    !Array.isArray(value.context) ||
+    ['contextTruncated', 'definitionsTruncated', 'referencesTruncated'].some(
+      (key) => typeof value[key] !== 'boolean',
+    ) ||
+    !(value.nextCursor === null || typeof value.nextCursor === 'string') ||
+    ['complete', 'pageComplete', 'contentComplete', 'paginationComplete', 'truncated'].some(
+      (key) => typeof coverage[key] !== 'boolean',
+    ) ||
+    coverage.nextCursor !== value.nextCursor
+  )
+    return invalidResult(toolName);
+  const complete =
+    value.completeness === 'complete' &&
+    value.startOffset === 0 &&
+    value.endOffset === value.totalCharacters &&
+    !value.contextTruncated &&
+    !value.definitionsTruncated &&
+    !value.referencesTruncated &&
+    value.nextCursor === null;
+  if (
+    coverage.complete !== complete ||
+    coverage.contentComplete !== (value.completeness === 'complete') ||
+    coverage.pageComplete !== true ||
+    coverage.paginationComplete !== (value.nextCursor === null) ||
+    coverage.truncated !==
+      (!complete &&
+        (value.startOffset !== 0 ||
+          value.endOffset !== value.totalCharacters ||
+          value.contextTruncated ||
+          value.definitionsTruncated ||
+          value.referencesTruncated))
+  )
+    return invalidResult(toolName);
+  return complete
+    ? { kind: 'complete' }
+    : { kind: 'partial', reason: 'bill_text_coverage_incomplete' };
+}
+
 /**
  * Normalize only API read contracts whose owner-produced output shapes are
  * validated here. Unqualified tools return null and retain their existing path;
@@ -850,6 +961,10 @@ export function classifyApiToolReadOutcome(
   toolName: string,
   payload: unknown,
 ): ApiToolReadOutcome | null {
+  if (
+    ['search_congress_bills', 'search_state_bills', 'read_bill_text'].includes(toolName) &&
+    record(payload)?.authoritativeOwner === 'bill_text_extraction'
+  ) return classifyRetainedBillRead(toolName, payload);
   switch (toolName) {
     case 'list_emails':
     case 'search_emails':
