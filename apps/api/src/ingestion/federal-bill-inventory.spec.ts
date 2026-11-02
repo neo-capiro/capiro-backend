@@ -5,8 +5,9 @@ import {
   enumerateFederalInventories,
   type FederalGeneration,
 } from './federal-bill-inventory';
-import { federalInventoryManifest } from './federal-billstatus-import';
-import { normalizeFederalVersions, FEDERAL_BILL_TYPES } from './federal-billstatus';
+import { federalInventoryManifest, writeFederalInventory } from './federal-billstatus-import';
+import { normalizeFederalVersions, FEDERAL_BILL_TYPES, federalHash } from './federal-billstatus';
+import { parseFederalBillInventory } from './federal-bill-inventory-read';
 import { fetchFederalMetadata } from './federal-bill-metadata';
 
 const version = {
@@ -34,7 +35,7 @@ describe('Congress complete version lists', () => {
         textVersions: [{ ...version, type: 'Modified' }],
         pagination: { count: 2 },
       });
-    const versions = await fetchFederalVersionList(
+    const { versions } = await fetchFederalVersionList(
       '119-samdt-1',
       'amendment',
       'synthetic-key',
@@ -51,7 +52,7 @@ describe('Congress complete version lists', () => {
         textVersions: [],
         pagination: { count: 0 },
       })),
-    ).toEqual([]);
+    ).toEqual({ versions: [] });
     for (const response of [
       null,
       { textVersions: [], pagination: { count: 1 } },
@@ -64,6 +65,150 @@ describe('Congress complete version lists', () => {
       await expect(
         fetchFederalVersionList('119-samdt-1', 'amendment', 'x', async () => response),
       ).rejects.toThrow();
+  });
+
+  it('retains and replays exact single-page duplicate evidence without inflating distinct coverage', async () => {
+    const payload = { pagination: { count: 2 }, textVersions: [version, structuredClone(version)] };
+    const fetch = jest.fn(async () => payload);
+    const list = await fetchFederalVersionList(
+      '119-samdt-1',
+      'amendment',
+      'synthetic-secret',
+      fetch,
+    );
+    expect(fetch).toHaveBeenCalledTimes(1);
+    // Bulk and other callers have no single-page proof and keep the strict guard.
+    expect(() =>
+      normalizeFederalVersions('119-samdt-1', 'amendment', payload.textVersions),
+    ).toThrow('FEDERAL_DUPLICATE_VERSION');
+    expect(list.versions).toEqual(normalizeFederalVersions('119-samdt-1', 'amendment', [version]));
+    expect(list.exactDuplicateProof).toMatchObject({
+      sourceUrl: 'https://api.congress.gov/v3/amendment/119/samdt/1/text',
+      offset: 0,
+      pageCount: 1,
+    });
+    expect(JSON.parse(list.exactDuplicateProof!.pageJson)).toEqual(payload);
+    expect(list.exactDuplicateProof!.pageSha256).toBe(
+      federalHash(list.exactDuplicateProof!.pageJson),
+    );
+    const input = {
+      kind: 'amendment' as const,
+      providerDocumentId: '119-samdt-1',
+      providerUpdatedAt: null,
+      ...list,
+    };
+    const manifest = federalInventoryManifest(input);
+    expect(manifest).toMatchObject({
+      reportedCount: 2,
+      enumeratedCount: 2,
+      distinctVersionCount: 1,
+      exactDuplicateCount: 1,
+    });
+    const scope = {
+      fiscalYear: 2026,
+      congress: 119,
+      billId: '119-hr-1',
+      inventoryHash: 'a'.repeat(64),
+    };
+    const receipt = {
+      id: 'synthetic-receipt',
+      scope,
+      manifest,
+      complete: true,
+      observedAt: '2026-01-01',
+    };
+    const discovery = {
+      receiptId: 'synthetic-discovery',
+      congress: 119,
+      billIds: ['119-hr-1'],
+      requiredInventoryReceiptIds: [receipt.id],
+      observedAt: '2026-01-01',
+    };
+    expect(parseFederalBillInventory(receipt, discovery)).toHaveLength(1);
+    // JSONB may reorder object keys; the retained exact JSON string remains byte-stable.
+    const reorder = (value: any): any =>
+      Array.isArray(value)
+        ? value.map(reorder)
+        : value && typeof value === 'object'
+          ? Object.fromEntries(
+              Object.keys(value)
+                .sort()
+                .map((key) => [key, reorder(value[key])]),
+            )
+          : value;
+    expect(parseFederalBillInventory(reorder(receipt), discovery)).toEqual(
+      parseFederalBillInventory(receipt, discovery),
+    );
+    const db: any = {
+      $executeRawUnsafe: jest.fn(async () => 1),
+      $queryRawUnsafe: jest.fn(async (_sql: string, id: string) => [{ id }]),
+    };
+    const firstId = await writeFederalInventory(db, scope, input, true);
+    expect(await writeFederalInventory(db, scope, input, true)).toBe(firstId);
+    const stored = JSON.parse(db.$executeRawUnsafe.mock.calls[0][4]);
+    expect(stored).toEqual(manifest);
+    expect(JSON.stringify(stored)).not.toContain('synthetic-secret');
+    expect(db.$executeRawUnsafe.mock.calls[0][5]).toBe(true);
+    for (const change of [
+      { exactDuplicateProof: undefined },
+      { reportedCount: 1, enumeratedCount: 1 },
+      { distinctVersionCount: 2 },
+      { exactDuplicateCount: 0 },
+      { versions: [{ ...list.versions[0], type: 'Changed' }] },
+      { exactDuplicateProof: { ...list.exactDuplicateProof, pageCount: 2 } },
+      {
+        exactDuplicateProof: {
+          ...list.exactDuplicateProof,
+          sourceUrl: 'https://api.congress.gov/v3/amendment/119/samdt/2/text',
+        },
+      },
+      { exactDuplicateProof: { ...list.exactDuplicateProof, pageSha256: '0'.repeat(64) } },
+    ])
+      expect(
+        parseFederalBillInventory({ ...receipt, manifest: { ...manifest, ...change } }, discovery),
+      ).toBeNull();
+    expect(() => federalInventoryManifest({ ...input, versions: [] })).toThrow(
+      'FEDERAL_DUPLICATE_PROOF_VERSION_MISMATCH',
+    );
+  });
+
+  it.each([
+    { ...version, extraProviderField: 'different' },
+    { ...version, type: ' Submitted ' },
+    { ...version, formats: [{ ...version.formats[0], type: 'Different label' }] },
+    { ...version, formats: [...version.formats, ...version.formats] },
+  ])(
+    'keeps nonidentical raw entries with colliding normalized identities closed: %j',
+    async (other) => {
+      await expect(
+        fetchFederalVersionList('119-samdt-1', 'amendment', 'x', async () => ({
+          textVersions: [version, structuredClone(version), other],
+          pagination: { count: 3 },
+        })),
+      ).rejects.toThrow('FEDERAL_DUPLICATE_VERSION');
+    },
+  );
+
+  it('rejects identical duplicates across pages and within a page of a multipage inventory', async () => {
+    for (const first of [[version], [version, version]]) {
+      const fetch = jest
+        .fn()
+        .mockResolvedValueOnce({
+          textVersions: first,
+          pagination: {
+            count: first.length + 1,
+            next: `https://api.congress.gov/v3/amendment/119/samdt/1/text?offset=${first.length}`,
+          },
+        })
+        .mockResolvedValueOnce({
+          textVersions: [version],
+          pagination: { count: first.length + 1 },
+        });
+      await expect(fetchFederalVersionList('119-samdt-1', 'amendment', 'x', fetch)).rejects.toThrow(
+        'FEDERAL_DUPLICATE_VERSION',
+      );
+      expect(fetch).toHaveBeenCalledTimes(2);
+    }
   });
 });
 function generationFixture() {

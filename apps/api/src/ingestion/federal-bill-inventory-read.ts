@@ -1,4 +1,6 @@
 import type { BillJurisdictionInventory } from './state-bill-inventory-read.js';
+import { isDeepStrictEqual } from 'node:util';
+import { replayFederalExactDuplicates } from './federal-billstatus.js';
 
 type Reader = { $queryRawUnsafe<T = unknown>(sql: string, ...values: unknown[]): Promise<T> };
 type Receipt = {
@@ -111,11 +113,29 @@ export function parseFederalBillInventory(
     !bounded(manifest.providerDocumentId) ||
     !Array.isArray(manifest.versions) ||
     !count(manifest.reportedCount) ||
-    manifest.reportedCount !== manifest.enumeratedCount ||
-    manifest.reportedCount !== manifest.versions.length
+    manifest.reportedCount !== manifest.enumeratedCount
   )
     return null;
   const kind = manifest.kind as 'text' | 'amendment';
+  if (manifest.exactDuplicateProof !== undefined) {
+    try {
+      const replay = replayFederalExactDuplicates(
+        manifest.providerDocumentId as string,
+        kind,
+        manifest.exactDuplicateProof,
+      );
+      if (
+        manifest.reportedCount !== replay.reportedCount ||
+        manifest.enumeratedCount !== replay.enumeratedCount ||
+        manifest.distinctVersionCount !== replay.versions.length ||
+        manifest.exactDuplicateCount !== replay.duplicateCount ||
+        !isDeepStrictEqual(manifest.versions, replay.versions)
+      )
+        return null;
+    } catch {
+      return null;
+    }
+  } else if (manifest.reportedCount !== manifest.versions.length) return null;
   if (
     kind === 'text'
       ? manifest.providerDocumentId !== scope.billId

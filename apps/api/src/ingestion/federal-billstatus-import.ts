@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { isDeepStrictEqual } from 'node:util';
 import { replaceCongressBillClassificationsAtomically } from './congress-classifications.js';
 import { FEDERAL_FY26_SQL } from './bill-text-scope.js';
 import { withFederalBillWriter } from './federal-bill-writer.js';
@@ -10,6 +11,8 @@ import {
   type FederalBulkScope,
   type FederalBulkBill,
   type FederalTextVersion,
+  replayFederalExactDuplicates,
+  type FederalExactDuplicateProof,
 } from './federal-billstatus.js';
 
 export type FederalReceipt = {
@@ -55,12 +58,26 @@ export function federalInventoryManifest(input: {
   providerUpdatedAt: string | null;
   versions: FederalTextVersion[];
   amendmentId?: string;
+  exactDuplicateProof?: FederalExactDuplicateProof;
 }) {
+  const replay =
+    input.exactDuplicateProof === undefined
+      ? null
+      : replayFederalExactDuplicates(
+          input.providerDocumentId,
+          input.kind,
+          input.exactDuplicateProof,
+        );
+  if (replay && !isDeepStrictEqual(replay.versions, input.versions))
+    throw Error('FEDERAL_DUPLICATE_PROOF_VERSION_MISMATCH');
   return {
     schemaVersion: 1,
     ...input,
-    reportedCount: input.versions.length,
-    enumeratedCount: input.versions.length,
+    reportedCount: replay?.reportedCount ?? input.versions.length,
+    enumeratedCount: replay?.enumeratedCount ?? input.versions.length,
+    ...(replay
+      ? { distinctVersionCount: input.versions.length, exactDuplicateCount: replay.duplicateCount }
+      : {}),
   };
 }
 export async function writeFederalInventory(
