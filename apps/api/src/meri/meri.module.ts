@@ -138,6 +138,8 @@ import { ApplicationAuthorityModule } from '../auth/application-authority.module
 import { ContextSecurityScopeModule } from '../context/context-security-scope.module.js';
 import { ConnectedAppReadService } from './connected-app-read.service.js';
 import { ConnectedAppReadController } from './connected-app-read.controller.js';
+import { SemanticSearchController } from './semantic-search.controller.js';
+import { SemanticSearchService } from './semantic-search.service.js';
 import { SavedStrategyReadController } from './saved-strategy-read.controller.js';
 import { SavedStrategyReadService } from './saved-strategy-read.service.js';
 import { SavedRecordReadController } from './saved-record-read.controller.js';
@@ -194,6 +196,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     // Register the fixed signed callback before tools/:name in this module.
     MeriMemoryHelperController,
     ConnectedAppReadController,
+    SemanticSearchController,
     SavedRecordReadController,
     LegiwatchReviewController,
     LegiwatchRelevanceController,
@@ -226,6 +229,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     KeywordWatchAdapter,
     NoteActionService,
     ConnectedAppReadService,
+    SemanticSearchService,
     SavedRecordReadService,
     LegiwatchReviewService,
     LegiwatchRelevanceActionService,
