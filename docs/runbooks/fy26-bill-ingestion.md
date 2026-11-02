@@ -100,6 +100,21 @@ commit-only, one-shot commands; neither can be scheduled by this operator.
 Datasets require exactly one state per invocation. Dataset exports supply bill,
 roll-call and person metadata; they do not contain `getBillText` bodies. Full
 document retrieval therefore requires separately budgeted bounded drains and
-may span allowance windows. State passages embed stored text without provider
-calls. Only the two state writer commands receive the LegiScan secret. Preserve
-existing state writer schedules; no quota or budget increase is implied here.
+may span allowance windows. `state-drain` now invokes `sync-state-text-drain`,
+which reads the existing due document queue and retained primary-format stubs;
+it does not spend `getBill` calls to rediscover metadata. Official publisher
+bytes are admitted only after exact frozen MD5, byte-size and MIME checks, using
+the existing DNS-pinned transport and explicit publisher/redirect policy. A
+blocked publisher, fragment-only historical URL or byte mismatch remains an
+explicit gap; the existing API fallback requires a successful quota reservation
+and charges failed attempts and retries. At the soft budget, publisher retrieval
+can continue while API calls remain held. The direct CLI also supports
+`--publisher-only`. State passages embed stored text without provider calls.
+
+State metadata, masterlist, status derivation, historical import, research
+hydration and text drain share per-state checkpoint leases; actual mutations
+are fenced by the lease token inside their transactions. Deployed older images
+do not honor this lease. Root must replace or quiesce the original state writers
+before overlapping backfills; source integration alone does not establish one
+live writer. Only the two state writer commands receive the LegiScan secret.
+Preserve existing state writer schedules; no quota or budget increase is implied.

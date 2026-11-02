@@ -213,6 +213,7 @@ export interface LegiscanDocument extends LegiscanBillText {
   doc: string;
   document_kind?: 'text' | 'amendment' | 'supplement';
   title?: string;
+  acquisition?: { source: 'publisher'; url: string };
 }
 export async function getBillText(
   apiKey: string,

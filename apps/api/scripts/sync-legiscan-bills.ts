@@ -22,6 +22,7 @@
  */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
+import { withStateBillWriter } from '../src/ingestion/state-bill-writer.js';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 import {
   getBill,
@@ -91,418 +92,428 @@ export async function main() {
   if (!LEGISCAN_API_KEY) throw new Error('LEGISCAN_API_KEY env var is required');
   const prisma = new PrismaClient();
   try {
-    await run(prisma, FY26);
+    await withStateBillWriter(prisma, STATES, (writer) => run(writer, FY26));
   } finally {
     await prisma.$disconnect();
   }
 }
 
 async function run(prisma: PrismaClient, FY26: FiscalYearMode): Promise<void> {
-  const result = await runWithSyncRun(prisma as never, 'sync-legiscan-bills', async () => {
-    const month = currentQuotaMonth();
-    const allCursors = await prisma.stateSyncCursor.findMany({
-      select: { queriesUsed: true, quotaMonth: true },
-    });
-    const usedThisMonth = monthToDateQueries(allCursors, month);
-    if (quotaExhausted(usedThisMonth, MONTHLY_BUDGET)) {
-      console.log(
-        `INGESTION_SKIP ${JSON.stringify({ source: 'sync-legiscan-bills', reason: 'quota', usedThisMonth, budget: MONTHLY_BUDGET })}`,
+  const result = await runWithSyncRun(
+    prisma as never,
+    'sync-legiscan-bills',
+    async () => {
+      const month = currentQuotaMonth();
+      const allCursors = await prisma.stateSyncCursor.findMany({
+        select: { queriesUsed: true, quotaMonth: true },
+      });
+      const usedThisMonth = monthToDateQueries(allCursors, month);
+      if (quotaExhausted(usedThisMonth, MONTHLY_BUDGET)) {
+        console.log(
+          `INGESTION_SKIP ${JSON.stringify({ source: 'sync-legiscan-bills', reason: 'quota', usedThisMonth, budget: MONTHLY_BUDGET })}`,
+        );
+        return { inserted: 0, updated: 0, skipped: 0, errors: 0 };
+      }
+
+      if (process.env.LEGISCAN_REPORT_REFRESH_TENANT) {
+        const refresh = await queueLegiWatchReportRefresh(
+          prisma,
+          process.env.LEGISCAN_REPORT_REFRESH_TENANT,
+          STATES,
+        );
+        console.log(`REPORT_SOURCE_REFRESH ${JSON.stringify(refresh)}`);
+      }
+      // Exact doc-only admission provenance for THIS run, returned by the
+      // refresh from inside its own cursor-lock transaction. Only ids the
+      // refresh itself appended may ever be deferred after the document cap —
+      // everything already pending (masterlist-changed spines, vote retries,
+      // ambiguous legacy entries) drains normally.
+      const admittedThisRun = new Map<string, Set<number>>();
+      if (process.env.LEGIWATCH_PUBLISHED_RECORD_REFRESH_ENABLED === 'true') {
+        const refresh = await queueEventRecordRefresh(prisma, STATES);
+        for (const [cursorId, ids] of Object.entries(refresh.admittedByCursor ?? {}))
+          admittedThisRun.set(cursorId, new Set(ids));
+      }
+      const cursors = await prisma.stateSyncCursor.findMany({
+        where: { state: { in: STATES }, pendingBills: { isEmpty: false } },
+      });
+      const queues = new Map<string, { state: string; ids: number[]; retained: number[] }>(
+        cursors.map((c) => [
+          c.id,
+          { state: c.state, ids: [...(c.pendingBills as number[])], retained: [] },
+        ]),
       );
-      return { inserted: 0, updated: 0, skipped: 0, errors: 0 };
-    }
 
-    if (process.env.LEGISCAN_REPORT_REFRESH_TENANT) {
-      const refresh = await queueLegiWatchReportRefresh(
-        prisma,
-        process.env.LEGISCAN_REPORT_REFRESH_TENANT,
-        STATES,
+      let inserted = 0;
+      let updated = 0;
+      let errors = 0;
+      let drained = 0;
+      let requestsThisRun = 0;
+      let voteRequests = 0;
+      let documentRequests = 0;
+      const documentCap = Math.max(
+        1,
+        Math.min(100, Number(process.env.LEGISCAN_DOCUMENT_REFRESH_CAP) || 10),
       );
-      console.log(`REPORT_SOURCE_REFRESH ${JSON.stringify(refresh)}`);
-    }
-    // Exact doc-only admission provenance for THIS run, returned by the
-    // refresh from inside its own cursor-lock transaction. Only ids the
-    // refresh itself appended may ever be deferred after the document cap —
-    // everything already pending (masterlist-changed spines, vote retries,
-    // ambiguous legacy entries) drains normally.
-    const admittedThisRun = new Map<string, Set<number>>();
-    if (process.env.LEGIWATCH_PUBLISHED_RECORD_REFRESH_ENABLED === 'true') {
-      const refresh = await queueEventRecordRefresh(prisma, STATES);
-      for (const [cursorId, ids] of Object.entries(refresh.admittedByCursor ?? {}))
-        admittedThisRun.set(cursorId, new Set(ids));
-    }
-    const cursors = await prisma.stateSyncCursor.findMany({
-      where: { state: { in: STATES }, pendingBills: { isEmpty: false } },
-    });
-    const queues = new Map<string, { state: string; ids: number[]; retained: number[] }>(
-      cursors.map((c) => [
-        c.id,
-        { state: c.state, ids: [...(c.pendingBills as number[])], retained: [] },
-      ]),
-    );
+      const voteCap = Math.max(
+        1,
+        Math.min(1000, Number(process.env.LEGISCAN_VOTE_REFRESH_CAP) || 200),
+      );
+      const retries = new Map<string, number[]>();
 
-    let inserted = 0;
-    let updated = 0;
-    let errors = 0;
-    let drained = 0;
-    let requestsThisRun = 0;
-    let voteRequests = 0;
-    let documentRequests = 0;
-    const documentCap = Math.max(
-      1,
-      Math.min(100, Number(process.env.LEGISCAN_DOCUMENT_REFRESH_CAP) || 10),
-    );
-    const voteCap = Math.max(
-      1,
-      Math.min(1000, Number(process.env.LEGISCAN_VOTE_REFRESH_CAP) || 200),
-    );
-    const retries = new Map<string, number[]>();
-
-    drainLoop: while (drained < DRAIN_CAP) {
-      let madeProgress = false;
-      for (const [cursorId, queue] of queues) {
-        if (drained >= DRAIN_CAP || usedThisMonth + requestsThisRun >= MONTHLY_BUDGET)
-          break drainLoop;
-        const billId = queue.ids.shift();
-        if (billId === undefined) continue;
-        // Doc-only deferral (2026-09-15 research-queue-budget fix): once the
-        // per-run document budget is spent, an id THIS run's
-        // queueEventRecordRefresh provably appended (its only pending work is
-        // due document record checks — not a masterlist spine change and not
-        // a pre-existing/legacy queue entry) is deferred WITHOUT a getBill.
-        // It counts as local progress and is scanned past (madeProgress), and
-        // the deferral is DURABLE: the id stays OUT of pendingBills while its
-        // unfinished document rows keep their EXISTING due
-        // state_bill_record_check.next_check_at (untouched — no invented
-        // delay), so a later run re-admits it through the same bounded
-        // refresh path once document budget exists. Ids already pending
-        // before this run's refresh are NEVER deferred: they drain normally
-        // even at the one-time quota cost.
-        if (documentRequests >= documentCap && admittedThisRun.get(cursorId)?.has(billId)) {
+      drainLoop: while (drained < DRAIN_CAP) {
+        let madeProgress = false;
+        for (const [cursorId, queue] of queues) {
+          if (drained >= DRAIN_CAP || usedThisMonth + requestsThisRun >= MONTHLY_BUDGET)
+            break drainLoop;
+          const billId = queue.ids.shift();
+          if (billId === undefined) continue;
+          // Doc-only deferral (2026-09-15 research-queue-budget fix): once the
+          // per-run document budget is spent, an id THIS run's
+          // queueEventRecordRefresh provably appended (its only pending work is
+          // due document record checks — not a masterlist spine change and not
+          // a pre-existing/legacy queue entry) is deferred WITHOUT a getBill.
+          // It counts as local progress and is scanned past (madeProgress), and
+          // the deferral is DURABLE: the id stays OUT of pendingBills while its
+          // unfinished document rows keep their EXISTING due
+          // state_bill_record_check.next_check_at (untouched — no invented
+          // delay), so a later run re-admits it through the same bounded
+          // refresh path once document budget exists. Ids already pending
+          // before this run's refresh are NEVER deferred: they drain normally
+          // even at the one-time quota cost.
+          if (documentRequests >= documentCap && admittedThisRun.get(cursorId)?.has(billId)) {
+            madeProgress = true;
+            // Atomically un-queue ONLY this proven admission: a single
+            // parameterized UPDATE ... array_remove removes exactly billId and
+            // preserves every other id (including anything appended
+            // concurrently by sync-legiscan-masterlist), with no read/write
+            // race. Its existing due document checks are left untouched (no
+            // fake attempt, no timing change) and re-admit it through the
+            // bounded refresh path on a later run once document budget exists.
+            await prisma.$executeRaw`UPDATE state_sync_cursor SET pending_bills=array_remove(pending_bills,${billId}) WHERE id=${cursorId}`;
+            continue;
+          }
           madeProgress = true;
-          // Atomically un-queue ONLY this proven admission: a single
-          // parameterized UPDATE ... array_remove removes exactly billId and
-          // preserves every other id (including anything appended
-          // concurrently by sync-legiscan-masterlist), with no read/write
-          // race. Its existing due document checks are left untouched (no
-          // fake attempt, no timing change) and re-admit it through the
-          // bounded refresh path on a later run once document budget exists.
-          await prisma.$executeRaw`UPDATE state_sync_cursor SET pending_bills=array_remove(pending_bills,${billId}) WHERE id=${cursorId}`;
-          continue;
-        }
-        madeProgress = true;
-        drained++;
-        let queriesForBill = 0;
-        let admitted = FY26 === null;
-        const countRetry = () => {
-          if (usedThisMonth + requestsThisRun >= MONTHLY_BUDGET)
-            throw Error('LEGISCAN_MONTHLY_BUDGET_EXHAUSTED');
-          queriesForBill++;
-          requestsThisRun++;
-        };
+          drained++;
+          let queriesForBill = 0;
+          let admitted = FY26 === null;
+          const countRetry = () => {
+            if (usedThisMonth + requestsThisRun >= MONTHLY_BUDGET)
+              throw Error('LEGISCAN_MONTHLY_BUDGET_EXHAUSTED');
+            queriesForBill++;
+            requestsThisRun++;
+          };
 
-        try {
-          // FY26: source-check state is only touched once the parent is known
-          // admissible, so an excluded existing bill keeps its prior state.
-          if (FY26 === null)
+          try {
+            // FY26: source-check state is only touched once the parent is known
+            // admissible, so an excluded existing bill keeps its prior state.
+            if (FY26 === null)
+              await prisma.stateBill.updateMany({
+                where: { legiscanBillId: billId },
+                data: {
+                  sourceCheckAttemptedAt: new Date(),
+                  sourceCheckStatus: 'pending',
+                  sourceCheckError: null,
+                },
+              });
+            queriesForBill++;
+            requestsThisRun++;
+            const raw = await getBill(LEGISCAN_API_KEY, billId, countRetry);
+            if (!raw) {
+              errors++;
+              if (admitted)
+                await prisma.stateBill.updateMany({
+                  where: { legiscanBillId: billId },
+                  data: {
+                    sourceCheckStatus: 'failed',
+                    sourceCheckError: 'Provider returned no bill',
+                  },
+                });
+              await prisma.stateSyncCursor.update({
+                where: { id: cursorId },
+                data: { pendingBills: { set: [...queue.ids, ...queue.retained] } },
+              });
+              await bumpCursorQueries(prisma, cursorId, queriesForBill);
+              continue;
+            }
+
+            // Excluded parents remain pending with their previous hash for the
+            // ordinary all-session worker. Scan past them locally without marking
+            // unfetched metadata/documents current or dropping canonical work.
+            if (!admitsRawBill(raw, FY26)) {
+              queue.retained.push(billId);
+              // Rotate retained work so a capped FY26 run reaches later eligible
+              // parents on its next invocation without consuming ordinary work.
+              await prisma.$executeRaw`UPDATE state_sync_cursor SET pending_bills=array_append(array_remove(pending_bills,${billId}),${billId}) WHERE id=${cursorId}`;
+              await bumpCursorQueries(prisma, cursorId, queriesForBill);
+              continue;
+            }
+            admitted = true;
+
+            const normalized = normalizeLegiscanBill(raw, queue.state);
+            if (!normalized) {
+              errors++;
+              await prisma.stateBill.updateMany({
+                where: { legiscanBillId: billId },
+                data: {
+                  sourceCheckStatus: 'failed',
+                  sourceCheckError: 'Canonical bill identity did not validate',
+                },
+              });
+              console.error(
+                `[sync-legiscan-bills] ${queue.state} bill ${billId}: DD1 key failed validation`,
+              );
+              await prisma.stateSyncCursor.update({
+                where: { id: cursorId },
+                data: { pendingBills: { set: [...queue.ids, ...queue.retained] } },
+              });
+              await bumpCursorQueries(prisma, cursorId, queriesForBill);
+              continue;
+            }
+
+            const { isNew } = await upsertNormalizedStateBill(prisma, normalized, {
+              historical: FY26 !== null,
+            });
+            await persistPublishedRecords(prisma, normalized.billKey, raw, {
+              historical: FY26 !== null,
+            });
+            await crosswalkStateBill(prisma, normalized.billKey, normalized.legiscanBillId);
+            if (isNew) inserted++;
+            else updated++;
+
+            // Same provider transport/quota owner, separately qualified source-content gate.
+            if (process.env.LEGISCAN_DOCUMENT_EVIDENCE_ENABLED === 'true') {
+              const { persistDocumentEvidence } =
+                await import('../src/ingestion/legiscan-document-evidence.js');
+              const documents = [
+                ...(raw.texts ?? []).map((s) => ({
+                  id: s.doc_id,
+                  kind: 'text' as const,
+                  hash: s.text_hash,
+                })),
+                ...(raw.amendments ?? []).map((s) => ({
+                  id: s.amendment_id,
+                  kind: 'amendment' as const,
+                  hash: s.amendment_hash,
+                })),
+                ...(raw.supplements ?? []).map((s) => ({
+                  id: s.supplement_id,
+                  kind: 'supplement' as const,
+                  hash: s.supplement_hash,
+                })),
+              ];
+              for (let i = 0; i < documents.length; i++) {
+                const stub = documents[i]!;
+                const identity = `${stub.kind}:${stub.id}`;
+                const checks = await prisma.$queryRaw<
+                  Array<{ providerHash: string | null; next: Date | null }>
+                >`
+                SELECT provider_hash AS "providerHash",next_check_at AS next FROM state_bill_record_check
+                WHERE bill_key=${normalized.billKey} AND kind='document' AND source_identity=${identity}`;
+                if (
+                  checks[0]?.providerHash === (stub.hash ?? null) &&
+                  checks[0]?.next &&
+                  checks[0].next > new Date()
+                )
+                  continue;
+                if (
+                  documentRequests >= documentCap ||
+                  usedThisMonth + requestsThisRun >= MONTHLY_BUDGET
+                ) {
+                  // Document budget spent (2026-09-15 research-queue-budget
+                  // fix): do NOT requeue the bill into ordinary pendingBills
+                  // for document-only work — that is exactly the loop that made
+                  // capped bills burn a getBill every hour. Instead persist
+                  // every remaining un-fetched document stub as an EXISTING due
+                  // state_bill_record_check row and move on; the bill's spine
+                  // and votes below still update normally, and the due checks
+                  // resume through the bounded refresh path once document
+                  // budget exists.
+                  //
+                  // provider_hash on this table denotes the last COMPLETED
+                  // fetched document revision — it is never written here (no
+                  // success is claimed for an un-fetched stub). New rows start
+                  // un-attempted (attempts=0, no attempted_at/checked_at, no
+                  // hash). Existing rows keep their hash/attempt/error history
+                  // and retry backoff exactly as-is; the only UPDATE is for a
+                  // previously available/partial row whose completed hash
+                  // differs from the current stub (the document genuinely
+                  // changed upstream), which is made due. Unchanged available
+                  // rows and failed rows with future retry time keep their
+                  // timing.
+                  for (let j = i; j < documents.length; j++) {
+                    const rest = documents[j]!;
+                    const restIdentity = `${rest.kind}:${rest.id}`;
+                    await prisma.$executeRaw`INSERT INTO state_bill_record_check(bill_key,kind,source_identity,state,attempts,next_check_at)
+                    VALUES(${normalized.billKey},'document',${restIdentity},'pending',0,now())
+                    ON CONFLICT(bill_key,kind,source_identity) DO UPDATE
+                    SET next_check_at=now()
+                    WHERE state_bill_record_check.state IN ('available','partial')
+                      AND state_bill_record_check.provider_hash IS DISTINCT FROM ${rest.hash ?? null}`;
+                  }
+                  break;
+                }
+                await prisma.$executeRaw`INSERT INTO state_bill_record_check(bill_key,kind,source_identity,state,attempted_at,attempts)
+                VALUES(${normalized.billKey},'document',${identity},'pending',now(),1)
+                ON CONFLICT(bill_key,kind,source_identity) DO UPDATE SET state='pending',attempted_at=now(),attempts=state_bill_record_check.attempts+1`;
+                try {
+                  documentRequests++;
+                  queriesForBill++;
+                  requestsThisRun++;
+                  const doc =
+                    stub.kind === 'text'
+                      ? await getBillText(LEGISCAN_API_KEY, stub.id, countRetry)
+                      : await getSupportingDocument(
+                          LEGISCAN_API_KEY,
+                          stub.kind,
+                          stub.id,
+                          countRetry,
+                        );
+                  if (!doc) throw Error('DOCUMENT_UNAVAILABLE');
+                  if (doc.doc_id !== stub.id || doc.bill_id !== raw.bill_id)
+                    throw Error('DOCUMENT_SUBJECT_MISMATCH');
+                  const state = await persistDocumentEvidence(
+                    prisma,
+                    normalized.billKey,
+                    doc,
+                    stub.kind === 'text'
+                      ? undefined
+                      : { id: stub.id, kind: stub.kind, billId: raw.bill_id },
+                  );
+                  await prisma.$executeRaw`UPDATE state_bill_record_check SET state=${state === 'extracted' ? 'available' : 'partial'},
+                  checked_at=now(),next_check_at=now()+interval '7 days',error_code=NULL,provider_hash=${stub.hash ?? null}
+                  WHERE bill_key=${normalized.billKey} AND kind='document' AND source_identity=${identity}`;
+                } catch {
+                  errors++;
+                  await prisma.$executeRaw`UPDATE state_bill_record_check SET state='failed',error_code='DOCUMENT_RETRIEVAL_OR_EXTRACTION_FAILED',
+                  next_check_at=now()+least(interval '3 days',interval '3 hours'*power(2,least(attempts,4)))
+                  WHERE bill_key=${normalized.billKey} AND kind='document' AND source_identity=${identity}`;
+                }
+              }
+            }
+
+            // A failed getRollCall must NOT let the bill's hash advance below —
+            // otherwise the next masterlist diff sees a hash that already
+            // matches LegiScan's and never re-queues the bill, permanently
+            // losing that vote (2026-07-10 hot-fix). Tracked per-bill so ONE
+            // failed roll call blocks the advance even when sibling votes
+            // succeeded.
+            let voteFetchFailed = !Array.isArray(raw.votes);
+            for (const stub of raw.votes ?? []) {
+              const existing = await prisma.stateRollCallVote.findUnique({
+                where: { id: stateRollCallId(queue.state, stub.roll_call_id) },
+                select: { currentRevisionHash: true, providerBillHash: true, lastSyncedAt: true },
+              });
+              if (!voteNeedsRefresh(existing, raw.change_hash)) continue;
+              if (voteRequests >= voteCap || usedThisMonth + requestsThisRun >= MONTHLY_BUDGET) {
+                voteFetchFailed = true;
+                break;
+              }
+              try {
+                queriesForBill++;
+                requestsThisRun++;
+                voteRequests++;
+                const rollCall = await getRollCall(LEGISCAN_API_KEY, stub.roll_call_id, countRetry);
+                if (rollCall)
+                  await upsertStateRollCallVote(prisma, queue.state, normalized.billKey, rollCall, {
+                    stub,
+                    providerBillHash: raw.change_hash,
+                    providerBillId: raw.bill_id,
+                  });
+                else {
+                  errors++;
+                  voteFetchFailed = true;
+                }
+              } catch (err) {
+                errors++;
+                voteFetchFailed = true;
+                console.error(
+                  `[sync-legiscan-bills] ${queue.state} roll call ${stub.roll_call_id} failed:`,
+                  err,
+                );
+              }
+            }
+
+            // Only advance the hash-cache AFTER a fully successful drain (see
+            // header comment — a crash before this point re-queues on the next
+            // masterlist diff instead of silently losing the change). A failed
+            // vote fetch is treated exactly like the getBill-null / DD1-invalid
+            // paths above: pendingBills still drains this billId for THIS run
+            // (no busy-loop retry within the same invocation), but billHashes
+            // is left stale so the NEXT masterlist diff detects the mismatch
+            // and re-queues the bill for a fresh drain.
+            if (voteFetchFailed) {
+              retries.set(cursorId, [...(retries.get(cursorId) ?? []), billId]);
+              await prisma.stateBill.updateMany({
+                where: { legiscanBillId: billId },
+                data: {
+                  sourceCheckStatus: 'partial',
+                  sourceCheckError: 'One or more vote records could not be checked',
+                },
+              });
+              await prisma.stateSyncCursor.update({
+                where: { id: cursorId },
+                data: { pendingBills: { set: [...queue.ids, ...queue.retained] } },
+              });
+              await bumpCursorQueries(prisma, cursorId, queriesForBill);
+              continue;
+            }
+            const cursor = await prisma.stateSyncCursor.findUnique({ where: { id: cursorId } });
             await prisma.stateBill.updateMany({
               where: { legiscanBillId: billId },
               data: {
-                sourceCheckAttemptedAt: new Date(),
-                sourceCheckStatus: 'pending',
+                sourceCheckedAt: new Date(),
+                sourceCheckStatus: 'success',
                 sourceCheckError: null,
               },
             });
-          queriesForBill++;
-          requestsThisRun++;
-          const raw = await getBill(LEGISCAN_API_KEY, billId, countRetry);
-          if (!raw) {
+            const billHashes = {
+              ...((cursor?.billHashes as Record<string, string> | undefined) ?? {}),
+            };
+            billHashes[String(billId)] = raw.change_hash;
+            await prisma.stateSyncCursor.update({
+              where: { id: cursorId },
+              data: { billHashes, pendingBills: { set: [...queue.ids, ...queue.retained] } },
+            });
+            await bumpCursorQueries(prisma, cursorId, queriesForBill);
+          } catch (err) {
             errors++;
             if (admitted)
               await prisma.stateBill.updateMany({
                 where: { legiscanBillId: billId },
                 data: {
                   sourceCheckStatus: 'failed',
-                  sourceCheckError: 'Provider returned no bill',
+                  sourceCheckError: 'Source check or ingestion failed; retry pending',
                 },
               });
+            console.error(`[sync-legiscan-bills] ${queue.state} bill ${billId} failed:`, err);
             await prisma.stateSyncCursor.update({
               where: { id: cursorId },
               data: { pendingBills: { set: [...queue.ids, ...queue.retained] } },
             });
             await bumpCursorQueries(prisma, cursorId, queriesForBill);
-            continue;
           }
-
-          // Excluded parents remain pending with their previous hash for the
-          // ordinary all-session worker. Scan past them locally without marking
-          // unfetched metadata/documents current or dropping canonical work.
-          if (!admitsRawBill(raw, FY26)) {
-            queue.retained.push(billId);
-            // Rotate retained work so a capped FY26 run reaches later eligible
-            // parents on its next invocation without consuming ordinary work.
-            await prisma.$executeRaw`UPDATE state_sync_cursor SET pending_bills=array_append(array_remove(pending_bills,${billId}),${billId}) WHERE id=${cursorId}`;
-            await bumpCursorQueries(prisma, cursorId, queriesForBill);
-            continue;
-          }
-          admitted = true;
-
-          const normalized = normalizeLegiscanBill(raw, queue.state);
-          if (!normalized) {
-            errors++;
-            await prisma.stateBill.updateMany({
-              where: { legiscanBillId: billId },
-              data: {
-                sourceCheckStatus: 'failed',
-                sourceCheckError: 'Canonical bill identity did not validate',
-              },
-            });
-            console.error(
-              `[sync-legiscan-bills] ${queue.state} bill ${billId}: DD1 key failed validation`,
-            );
-            await prisma.stateSyncCursor.update({
-              where: { id: cursorId },
-              data: { pendingBills: { set: [...queue.ids, ...queue.retained] } },
-            });
-            await bumpCursorQueries(prisma, cursorId, queriesForBill);
-            continue;
-          }
-
-          const { isNew } = await upsertNormalizedStateBill(prisma, normalized, {
-            historical: FY26 !== null,
-          });
-          await persistPublishedRecords(prisma, normalized.billKey, raw, {
-            historical: FY26 !== null,
-          });
-          await crosswalkStateBill(prisma, normalized.billKey, normalized.legiscanBillId);
-          if (isNew) inserted++;
-          else updated++;
-
-          // Same provider transport/quota owner, separately qualified source-content gate.
-          if (process.env.LEGISCAN_DOCUMENT_EVIDENCE_ENABLED === 'true') {
-            const { persistDocumentEvidence } =
-              await import('../src/ingestion/legiscan-document-evidence.js');
-            const documents = [
-              ...(raw.texts ?? []).map((s) => ({
-                id: s.doc_id,
-                kind: 'text' as const,
-                hash: s.text_hash,
-              })),
-              ...(raw.amendments ?? []).map((s) => ({
-                id: s.amendment_id,
-                kind: 'amendment' as const,
-                hash: s.amendment_hash,
-              })),
-              ...(raw.supplements ?? []).map((s) => ({
-                id: s.supplement_id,
-                kind: 'supplement' as const,
-                hash: s.supplement_hash,
-              })),
-            ];
-            for (let i = 0; i < documents.length; i++) {
-              const stub = documents[i]!;
-              const identity = `${stub.kind}:${stub.id}`;
-              const checks = await prisma.$queryRaw<
-                Array<{ providerHash: string | null; next: Date | null }>
-              >`
-                SELECT provider_hash AS "providerHash",next_check_at AS next FROM state_bill_record_check
-                WHERE bill_key=${normalized.billKey} AND kind='document' AND source_identity=${identity}`;
-              if (
-                checks[0]?.providerHash === (stub.hash ?? null) &&
-                checks[0]?.next &&
-                checks[0].next > new Date()
-              )
-                continue;
-              if (
-                documentRequests >= documentCap ||
-                usedThisMonth + requestsThisRun >= MONTHLY_BUDGET
-              ) {
-                // Document budget spent (2026-09-15 research-queue-budget
-                // fix): do NOT requeue the bill into ordinary pendingBills
-                // for document-only work — that is exactly the loop that made
-                // capped bills burn a getBill every hour. Instead persist
-                // every remaining un-fetched document stub as an EXISTING due
-                // state_bill_record_check row and move on; the bill's spine
-                // and votes below still update normally, and the due checks
-                // resume through the bounded refresh path once document
-                // budget exists.
-                //
-                // provider_hash on this table denotes the last COMPLETED
-                // fetched document revision — it is never written here (no
-                // success is claimed for an un-fetched stub). New rows start
-                // un-attempted (attempts=0, no attempted_at/checked_at, no
-                // hash). Existing rows keep their hash/attempt/error history
-                // and retry backoff exactly as-is; the only UPDATE is for a
-                // previously available/partial row whose completed hash
-                // differs from the current stub (the document genuinely
-                // changed upstream), which is made due. Unchanged available
-                // rows and failed rows with future retry time keep their
-                // timing.
-                for (let j = i; j < documents.length; j++) {
-                  const rest = documents[j]!;
-                  const restIdentity = `${rest.kind}:${rest.id}`;
-                  await prisma.$executeRaw`INSERT INTO state_bill_record_check(bill_key,kind,source_identity,state,attempts,next_check_at)
-                    VALUES(${normalized.billKey},'document',${restIdentity},'pending',0,now())
-                    ON CONFLICT(bill_key,kind,source_identity) DO UPDATE
-                    SET next_check_at=now()
-                    WHERE state_bill_record_check.state IN ('available','partial')
-                      AND state_bill_record_check.provider_hash IS DISTINCT FROM ${rest.hash ?? null}`;
-                }
-                break;
-              }
-              await prisma.$executeRaw`INSERT INTO state_bill_record_check(bill_key,kind,source_identity,state,attempted_at,attempts)
-                VALUES(${normalized.billKey},'document',${identity},'pending',now(),1)
-                ON CONFLICT(bill_key,kind,source_identity) DO UPDATE SET state='pending',attempted_at=now(),attempts=state_bill_record_check.attempts+1`;
-              try {
-                documentRequests++;
-                queriesForBill++;
-                requestsThisRun++;
-                const doc =
-                  stub.kind === 'text'
-                    ? await getBillText(LEGISCAN_API_KEY, stub.id, countRetry)
-                    : await getSupportingDocument(LEGISCAN_API_KEY, stub.kind, stub.id, countRetry);
-                if (!doc) throw Error('DOCUMENT_UNAVAILABLE');
-                if (doc.doc_id !== stub.id || doc.bill_id !== raw.bill_id)
-                  throw Error('DOCUMENT_SUBJECT_MISMATCH');
-                const state = await persistDocumentEvidence(
-                  prisma,
-                  normalized.billKey,
-                  doc,
-                  stub.kind === 'text'
-                    ? undefined
-                    : { id: stub.id, kind: stub.kind, billId: raw.bill_id },
-                );
-                await prisma.$executeRaw`UPDATE state_bill_record_check SET state=${state === 'extracted' ? 'available' : 'partial'},
-                  checked_at=now(),next_check_at=now()+interval '7 days',error_code=NULL,provider_hash=${stub.hash ?? null}
-                  WHERE bill_key=${normalized.billKey} AND kind='document' AND source_identity=${identity}`;
-              } catch {
-                errors++;
-                await prisma.$executeRaw`UPDATE state_bill_record_check SET state='failed',error_code='DOCUMENT_RETRIEVAL_OR_EXTRACTION_FAILED',
-                  next_check_at=now()+least(interval '3 days',interval '3 hours'*power(2,least(attempts,4)))
-                  WHERE bill_key=${normalized.billKey} AND kind='document' AND source_identity=${identity}`;
-              }
-            }
-          }
-
-          // A failed getRollCall must NOT let the bill's hash advance below —
-          // otherwise the next masterlist diff sees a hash that already
-          // matches LegiScan's and never re-queues the bill, permanently
-          // losing that vote (2026-07-10 hot-fix). Tracked per-bill so ONE
-          // failed roll call blocks the advance even when sibling votes
-          // succeeded.
-          let voteFetchFailed = !Array.isArray(raw.votes);
-          for (const stub of raw.votes ?? []) {
-            const existing = await prisma.stateRollCallVote.findUnique({
-              where: { id: stateRollCallId(queue.state, stub.roll_call_id) },
-              select: { currentRevisionHash: true, providerBillHash: true, lastSyncedAt: true },
-            });
-            if (!voteNeedsRefresh(existing, raw.change_hash)) continue;
-            if (voteRequests >= voteCap || usedThisMonth + requestsThisRun >= MONTHLY_BUDGET) {
-              voteFetchFailed = true;
-              break;
-            }
-            try {
-              queriesForBill++;
-              requestsThisRun++;
-              voteRequests++;
-              const rollCall = await getRollCall(LEGISCAN_API_KEY, stub.roll_call_id, countRetry);
-              if (rollCall)
-                await upsertStateRollCallVote(prisma, queue.state, normalized.billKey, rollCall, {
-                  stub,
-                  providerBillHash: raw.change_hash,
-                  providerBillId: raw.bill_id,
-                });
-              else {
-                errors++;
-                voteFetchFailed = true;
-              }
-            } catch (err) {
-              errors++;
-              voteFetchFailed = true;
-              console.error(
-                `[sync-legiscan-bills] ${queue.state} roll call ${stub.roll_call_id} failed:`,
-                err,
-              );
-            }
-          }
-
-          // Only advance the hash-cache AFTER a fully successful drain (see
-          // header comment — a crash before this point re-queues on the next
-          // masterlist diff instead of silently losing the change). A failed
-          // vote fetch is treated exactly like the getBill-null / DD1-invalid
-          // paths above: pendingBills still drains this billId for THIS run
-          // (no busy-loop retry within the same invocation), but billHashes
-          // is left stale so the NEXT masterlist diff detects the mismatch
-          // and re-queues the bill for a fresh drain.
-          if (voteFetchFailed) {
-            retries.set(cursorId, [...(retries.get(cursorId) ?? []), billId]);
-            await prisma.stateBill.updateMany({
-              where: { legiscanBillId: billId },
-              data: {
-                sourceCheckStatus: 'partial',
-                sourceCheckError: 'One or more vote records could not be checked',
-              },
-            });
-            await prisma.stateSyncCursor.update({
-              where: { id: cursorId },
-              data: { pendingBills: { set: [...queue.ids, ...queue.retained] } },
-            });
-            await bumpCursorQueries(prisma, cursorId, queriesForBill);
-            continue;
-          }
-          const cursor = await prisma.stateSyncCursor.findUnique({ where: { id: cursorId } });
-          await prisma.stateBill.updateMany({
-            where: { legiscanBillId: billId },
-            data: {
-              sourceCheckedAt: new Date(),
-              sourceCheckStatus: 'success',
-              sourceCheckError: null,
-            },
-          });
-          const billHashes = {
-            ...((cursor?.billHashes as Record<string, string> | undefined) ?? {}),
-          };
-          billHashes[String(billId)] = raw.change_hash;
-          await prisma.stateSyncCursor.update({
-            where: { id: cursorId },
-            data: { billHashes, pendingBills: { set: [...queue.ids, ...queue.retained] } },
-          });
-          await bumpCursorQueries(prisma, cursorId, queriesForBill);
-        } catch (err) {
-          errors++;
-          if (admitted)
-            await prisma.stateBill.updateMany({
-              where: { legiscanBillId: billId },
-              data: {
-                sourceCheckStatus: 'failed',
-                sourceCheckError: 'Source check or ingestion failed; retry pending',
-              },
-            });
-          console.error(`[sync-legiscan-bills] ${queue.state} bill ${billId} failed:`, err);
-          await prisma.stateSyncCursor.update({
-            where: { id: cursorId },
-            data: { pendingBills: { set: [...queue.ids, ...queue.retained] } },
-          });
-          await bumpCursorQueries(prisma, cursorId, queriesForBill);
         }
+        if (!madeProgress) break;
       }
-      if (!madeProgress) break;
-    }
 
-    // Keep incomplete bills queued even when their master-list hash is unchanged.
-    // A retry is for the next scheduled invocation; no tight in-run fetch loop.
-    for (const [cursorId, ids] of retries) {
-      const current = await prisma.stateSyncCursor.findUnique({ where: { id: cursorId } });
-      await prisma.stateSyncCursor.update({
-        where: { id: cursorId },
-        data: { pendingBills: { set: [...new Set([...(current?.pendingBills ?? []), ...ids])] } },
-      });
-    }
+      // Keep incomplete bills queued even when their master-list hash is unchanged.
+      // A retry is for the next scheduled invocation; no tight in-run fetch loop.
+      for (const [cursorId, ids] of retries) {
+        const current = await prisma.stateSyncCursor.findUnique({ where: { id: cursorId } });
+        await prisma.stateSyncCursor.update({
+          where: { id: cursorId },
+          data: { pendingBills: { set: [...new Set([...(current?.pendingBills ?? []), ...ids])] } },
+        });
+      }
 
-    console.log(
-      `[sync-legiscan-bills] drained ${drained} bills: +${inserted} new, ~${updated} updated, ${errors} errors`,
-    );
-    return { inserted, updated, skipped: 0, errors };
-  });
+      console.log(
+        `[sync-legiscan-bills] drained ${drained} bills: +${inserted} new, ~${updated} updated, ${errors} errors`,
+      );
+      return { inserted, updated, skipped: 0, errors };
+    },
+    { skipIfRunning: false },
+  );
   if (FY26 !== null && result.errors > 0) throw Error('FY26_STATE_BILL_DRAIN_ERRORS');
 }
 

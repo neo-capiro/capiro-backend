@@ -81,7 +81,8 @@ def command_for(job, limit, commit):
     if job == 'federal-text':
         return ['sync-federal-legislative-evidence', '--collection', 'BILLS', '--congress', '119', '--full', '--historical', '--cap', str(limit)] + (['--commit'] if commit else [])
     require(commit, 'STATE_WRITER_REQUIRES_COMMIT')
-    return ['backfill-legiscan-datasets' if job == 'state-dataset' else 'sync-legiscan-bills']
+    return ['backfill-legiscan-datasets'] if job == 'state-dataset' else [
+        'sync-state-text-drain', '--limit', str(min(limit, 100)), '--commit', '--expected-host', HOST]
 
 def candidate_task(baseline, digest, sha, job, limit, states, commit, govinfo_arn=None):
     command = command_for(job, limit, commit)

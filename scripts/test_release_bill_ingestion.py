@@ -62,7 +62,8 @@ class ReleaseTests(unittest.TestCase):
                 aws.assert_not_called()
             task=self.task(job=job,limit=3)
             container=task['containerDefinitions'][0]
-            self.assertEqual(container['command'],['backfill-legiscan-datasets' if job=='state-dataset' else 'sync-legiscan-bills'])
+            self.assertEqual(container['command'],['backfill-legiscan-datasets'] if job=='state-dataset' else
+                ['sync-state-text-drain','--limit','3','--commit','--expected-host',r.HOST])
             self.assertEqual([secret['name'] for secret in container['secrets']],['DB_USER','DB_PASSWORD','LEGISCAN_API_KEY'])
             env={entry['name']:entry['value'] for entry in container['environment']}
             self.assertEqual(env['LEGISCAN_MONTHLY_BUDGET'],'27000')

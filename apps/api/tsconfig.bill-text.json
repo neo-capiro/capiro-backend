@@ -7,6 +7,12 @@
     "scripts/sync-federal-legislative-evidence.ts",
     "scripts/backfill-legiscan-datasets.ts",
     "scripts/sync-legiscan-bills.ts",
+    "scripts/sync-legiscan-masterlist.ts",
+    "scripts/derive-state-bill-status.ts",
+    "scripts/sync-state-text-drain.ts",
+    "src/ingestion/research-document-hydration.ts",
+    "scripts/verify-bill-text.ts",
+    "src/retrieval/bill-text.service.ts",
     "src/ingestion/bill-text-scope.ts",
     "src/ingestion/bill-text-passages.ts",
     "src/ingestion/bill-fy26-admission.ts"

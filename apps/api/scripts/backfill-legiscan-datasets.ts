@@ -24,6 +24,7 @@ import { pullHistoricalDatasets } from '../src/ingestion/legiscan-historical-res
  */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
+import { withStateBillWriter } from '../src/ingestion/state-bill-writer.js';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 import { persistPublishedRecords } from '../src/ingestion/legiscan-published-records.js';
 import {
@@ -129,6 +130,11 @@ export async function backfillState(
   state: string,
   FY26: FiscalYearMode,
 ): Promise<{ bills: number; people: number; votes: number; errors: number; queries: number }> {
+  if (DRY_RUN) return backfillStateOwned(prisma, state, FY26);
+  return withStateBillWriter(prisma, [state], (writer) => backfillStateOwned(writer, state, FY26));
+}
+
+async function backfillStateOwned(prisma: PrismaClient, state: string, FY26: FiscalYearMode) {
   let stateLevelQueries = 0;
   let bills = 0;
   let people = 0;

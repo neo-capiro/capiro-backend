@@ -28,6 +28,7 @@
  */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
+import { withStateBillWriter } from '../src/ingestion/state-bill-writer.js';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 import { getSessionList, getMasterListRaw } from '../src/external/legiscan/legiscan.client.js';
 import { PRIORITY_STATE_CODES } from '../src/external/legiscan/us-states.js';
@@ -39,7 +40,6 @@ import {
   LEGISCAN_HARD_CAP,
 } from '../src/ingestion/legiscan-quota.util.js';
 dotenvConfig();
-
 
 const LEGISCAN_API_KEY = process.env.LEGISCAN_API_KEY ?? '';
 const STATES = (process.env.LEGISCAN_STATES ?? PRIORITY_STATE_CODES.join(','))
@@ -93,7 +93,8 @@ export function diffMasterlist(
 }
 
 /** Refresh the session list at most weekly (freshness read off state_session.lastSyncedAt). Returns [sessions, queriesSpent]. */
-async function activeSessions(prisma: PrismaClient,
+async function activeSessions(
+  prisma: PrismaClient,
   state: string,
 ): Promise<[Awaited<ReturnType<typeof prisma.stateSession.findMany>>, number]> {
   const existing = await prisma.stateSession.findMany({ where: { state, prior: false } });
@@ -111,7 +112,9 @@ async function activeSessions(prisma: PrismaClient,
 
 async function main() {
   if (!process.env.DATABASE_URL) {
-    console.error('Usage: apps/api/scripts/sync-legiscan-masterlist.ts requires DATABASE_URL (database configuration is required)');
+    console.error(
+      'Usage: apps/api/scripts/sync-legiscan-masterlist.ts requires DATABASE_URL (database configuration is required)',
+    );
     process.exit(2);
   }
 
@@ -119,100 +122,111 @@ async function main() {
 
   const prisma = new PrismaClient();
   try {
-    await runWithSyncRun(prisma as never, SYNC_RUN_SOURCE, async () => {
-    // 2026-07-10 hot-fix (W0.5): gate on the TRUE hard cap, not sync-legiscan-bills'
-    // conservative soft budget — this diff is cheap (1-3 queries/state) and
-    // must keep running even when the drain has backed off; only the real
-    // LegiScan ceiling stops it (see legiscan-quota.util.ts).
-    const month = currentQuotaMonth();
-    const allCursors = await prisma.stateSyncCursor.findMany({
-      select: { queriesUsed: true, quotaMonth: true },
-    });
-    const usedThisMonth = monthToDateQueries(allCursors, month);
-    if (quotaExhausted(usedThisMonth, LEGISCAN_HARD_CAP)) {
-      console.log(
-        `INGESTION_SKIP ${JSON.stringify({ source: SYNC_RUN_SOURCE, reason: 'quota', usedThisMonth, budget: LEGISCAN_HARD_CAP })}`,
-      );
-      return { inserted: 0, updated: 0, skipped: 0, errors: 0 };
-    }
-
-    let queued = 0;
-    let errors = 0;
-    let totalQueries = 0;
-
-    for (const state of STATES) {
-      try {
-        const [sessions, sessionListQueries] = await activeSessions(prisma, state);
-        totalQueries += sessionListQueries;
-        // Attribute the (rare, weekly) getSessionList call to the first
-        // session's cursor row — an approximation; the monthly budget
-        // governor only needs an accurate AGGREGATE, not per-session billing.
-        let attributedSessionListQueries = sessionListQueries;
-
-        for (const session of sessions) {
-          const cursorId = `${state}-${session.legiscanSessionId}`;
-          const cursor = await prisma.stateSyncCursor.findUnique({ where: { id: cursorId } });
-          const billHashes = (cursor?.billHashes as Record<string, string> | undefined) ?? {};
-          const pending = new Set<number>((cursor?.pendingBills as number[] | undefined) ?? []);
-
-          const masterlist = await getMasterListRaw(LEGISCAN_API_KEY, session.legiscanSessionId);
-          totalQueries += 1;
-          const queriesThisSession = 1 + attributedSessionListQueries;
-          attributedSessionListQueries = 0;
-
-          const diff = diffMasterlist(masterlist, billHashes, pending);
-          if (diff.unprimed) {
-            console.warn(
-              `[sync-legiscan-masterlist] ${state} session ${session.legiscanSessionId}: cursor has ` +
-                `no billHashes yet (never backfilled) but the masterlist returned ${masterlist.length} bills — ` +
-                `skipping the bill-by-bill diff to avoid an expensive cold drain. Run ` +
-                `backfill-legiscan-datasets for this state/session first.`,
+    await withStateBillWriter(prisma, STATES, async (prisma) => {
+      await runWithSyncRun(
+        prisma as never,
+        SYNC_RUN_SOURCE,
+        async () => {
+          // 2026-07-10 hot-fix (W0.5): gate on the TRUE hard cap, not sync-legiscan-bills'
+          // conservative soft budget — this diff is cheap (1-3 queries/state) and
+          // must keep running even when the drain has backed off; only the real
+          // LegiScan ceiling stops it (see legiscan-quota.util.ts).
+          const month = currentQuotaMonth();
+          const allCursors = await prisma.stateSyncCursor.findMany({
+            select: { queriesUsed: true, quotaMonth: true },
+          });
+          const usedThisMonth = monthToDateQueries(allCursors, month);
+          if (quotaExhausted(usedThisMonth, LEGISCAN_HARD_CAP)) {
+            console.log(
+              `INGESTION_SKIP ${JSON.stringify({ source: SYNC_RUN_SOURCE, reason: 'quota', usedThisMonth, budget: LEGISCAN_HARD_CAP })}`,
             );
-          } else {
-            for (const id of diff.toQueue) {
-              pending.add(id);
-              queued++;
+            return { inserted: 0, updated: 0, skipped: 0, errors: 0 };
+          }
+
+          let queued = 0;
+          let errors = 0;
+          let totalQueries = 0;
+
+          for (const state of STATES) {
+            try {
+              const [sessions, sessionListQueries] = await activeSessions(prisma, state);
+              totalQueries += sessionListQueries;
+              // Attribute the (rare, weekly) getSessionList call to the first
+              // session's cursor row — an approximation; the monthly budget
+              // governor only needs an accurate AGGREGATE, not per-session billing.
+              let attributedSessionListQueries = sessionListQueries;
+
+              for (const session of sessions) {
+                const cursorId = `${state}-${session.legiscanSessionId}`;
+                const cursor = await prisma.stateSyncCursor.findUnique({ where: { id: cursorId } });
+                const billHashes = (cursor?.billHashes as Record<string, string> | undefined) ?? {};
+                const pending = new Set<number>(
+                  (cursor?.pendingBills as number[] | undefined) ?? [],
+                );
+
+                const masterlist = await getMasterListRaw(
+                  LEGISCAN_API_KEY,
+                  session.legiscanSessionId,
+                );
+                totalQueries += 1;
+                const queriesThisSession = 1 + attributedSessionListQueries;
+                attributedSessionListQueries = 0;
+
+                const diff = diffMasterlist(masterlist, billHashes, pending);
+                if (diff.unprimed) {
+                  console.warn(
+                    `[sync-legiscan-masterlist] ${state} session ${session.legiscanSessionId}: cursor has ` +
+                      `no billHashes yet (never backfilled) but the masterlist returned ${masterlist.length} bills — ` +
+                      `skipping the bill-by-bill diff to avoid an expensive cold drain. Run ` +
+                      `backfill-legiscan-datasets for this state/session first.`,
+                  );
+                } else {
+                  for (const id of diff.toQueue) {
+                    pending.add(id);
+                    queued++;
+                  }
+                }
+
+                // LegiScan quota resets monthly — a cursor last touched in a prior
+                // calendar month must start this month's count fresh, not keep
+                // incrementing last month's total forward.
+                const month = currentQuotaMonth();
+                const sameMonth = cursor?.quotaMonth === month;
+                await prisma.stateSyncCursor.upsert({
+                  where: { id: cursorId },
+                  create: {
+                    id: cursorId,
+                    state,
+                    sessionId: session.legiscanSessionId,
+                    sessionKey: session.sessionKey,
+                    billHashes,
+                    pendingBills: [...pending],
+                    queriesUsed: queriesThisSession,
+                    quotaMonth: month,
+                    lastListAt: new Date(),
+                  },
+                  update: {
+                    pendingBills: [...pending],
+                    queriesUsed: sameMonth ? { increment: queriesThisSession } : queriesThisSession,
+                    quotaMonth: month,
+                    lastListAt: new Date(),
+                  },
+                });
+              }
+            } catch (err) {
+              errors++;
+              console.error(`[sync-legiscan-masterlist] ${state} failed:`, err);
             }
           }
 
-          // LegiScan quota resets monthly — a cursor last touched in a prior
-          // calendar month must start this month's count fresh, not keep
-          // incrementing last month's total forward.
-          const month = currentQuotaMonth();
-          const sameMonth = cursor?.quotaMonth === month;
-          await prisma.stateSyncCursor.upsert({
-            where: { id: cursorId },
-            create: {
-              id: cursorId,
-              state,
-              sessionId: session.legiscanSessionId,
-              sessionKey: session.sessionKey,
-              billHashes,
-              pendingBills: [...pending],
-              queriesUsed: queriesThisSession,
-              quotaMonth: month,
-              lastListAt: new Date(),
-            },
-            update: {
-              pendingBills: [...pending],
-              queriesUsed: sameMonth ? { increment: queriesThisSession } : queriesThisSession,
-              quotaMonth: month,
-              lastListAt: new Date(),
-            },
-          });
-        }
-      } catch (err) {
-        errors++;
-        console.error(`[sync-legiscan-masterlist] ${state} failed:`, err);
-      }
-    }
-
-    console.log(
-      `[sync-legiscan-masterlist] queued ${queued} changed bills across ${STATES.length} states (${totalQueries} queries), ${errors} errors`,
-    );
-    return { inserted: queued, updated: 0, skipped: 0, errors };
-  });
-
+          console.log(
+            `[sync-legiscan-masterlist] queued ${queued} changed bills across ${STATES.length} states (${totalQueries} queries), ${errors} errors`,
+          );
+          return { inserted: queued, updated: 0, skipped: 0, errors };
+        },
+        { skipIfRunning: false },
+      );
+    });
   } finally {
     await prisma.$disconnect();
   }

@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import type { PrismaClient, Prisma } from '@prisma/client';
 import type { LegiscanBill } from '../external/legiscan/legiscan.client.js';
 import { observeStateRecord } from './published-record-observations.js';
+import { mergeDocumentStubs, stateDocumentStubs } from './state-document-stub.js';
 
 const hash = (v: unknown) => createHash('sha256').update(JSON.stringify(v)).digest('hex');
 const dateOnly = (s?: string) =>
@@ -77,6 +78,7 @@ export function reportSourceFacts(raw: LegiscanBill) {
       providerBillId: raw.bill_id,
       providerChangeHash: raw.change_hash,
       providerSessionId: raw.session?.session_id,
+      stubs: stateDocumentStubs(raw).map((stub) => ({ ...stub })),
       sourceListComplete:
         Array.isArray(raw.texts) && Array.isArray(raw.amendments) && Array.isArray(raw.supplements),
       expected: [
@@ -186,9 +188,22 @@ export async function persistPublishedRecords(
     if (!options.historical)
       for (const r of data)
         await observeStateRecord(tx, billKey, r.kind, r.sourceIdentity, r.revisionHash);
+    const previous = await tx.stateBill.findUnique({
+      where: { id: billKey },
+      select: { reportSourceFacts: true },
+    });
+    const retained = (previous?.reportSourceFacts as Record<string, unknown> | null)
+      ?.retainedDocumentStubs;
     await tx.stateBill.update({
       where: { id: billKey },
-      data: { reportSourceFacts: reportSourceFacts(raw) },
+      data: {
+        reportSourceFacts: {
+          ...reportSourceFacts(raw),
+          retainedDocumentStubs: mergeDocumentStubs(retained, stateDocumentStubs(raw)).map(
+            (stub) => ({ ...stub }),
+          ),
+        },
+      },
     });
   });
 }

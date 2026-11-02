@@ -85,11 +85,14 @@ function makeFakePrisma(opts: { pendingBills: number[]; billHashes?: Record<stri
     __updateCalls: updateCalls,
     __executeRawCalls: executeRawCalls,
     stateBill: {
+      findUnique: jest.fn(async () => ({ reportSourceFacts: null })),
       updateMany: jest.fn(async () => ({ count: 1 })),
       update: jest.fn(async () => ({})),
     },
     stateBillPublishedRecord: { createMany: jest.fn(async () => ({ count: 0 })) },
     $transaction: async (work: (tx: unknown) => Promise<unknown>) => work(fakePrisma),
+    $queryRawUnsafe: jest.fn(async () => [{ source: 'state-bills:TX' }]),
+    $executeRawUnsafe: jest.fn(async () => 1),
     $queryRaw: jest.fn(async () => [] as unknown[]),
     $executeRaw: jest.fn(async (strings: TemplateStringsArray, ...values: unknown[]) => {
       const sql = strings.join('?');
