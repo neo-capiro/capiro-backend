@@ -17,6 +17,7 @@ const read = (path: string) => readFileSync(join(api, path), 'utf8');
 const surface = readFileSync(join(migrations, '20281101010000_capiro_data_published_surface/migration.sql'), 'utf8');
 const meaning = readFileSync(join(migrations, '20281101180000_capiro_data_public_column_meaning/migration.sql'), 'utf8');
 const awards = readFileSync(join(migrations, '20281102100000_capiro_data_federal_awards_surface/migration.sql'), 'utf8');
+const years = readFileSync(join(migrations, '20281102120000_capiro_data_program_element_years_surface/migration.sql'), 'utf8');
 const prismaSchema = readFileSync(join(api, 'prisma/schema.prisma'), 'utf8');
 /** Column names of one Prisma model as the database spells them (`@map` or the field name). */
 function modelColumns(model: string): Set<string> {
@@ -62,9 +63,12 @@ const CONGRESS_GOV = {
 };
 
 describe('capiro_data published metadata', () => {
-  const published = new Map([...viewColumns(surface), ...viewColumns(awards)]);
-  const surfaceComments = comments(surface, 'meri_public'), awardComments = comments(awards, 'meri_public');
-  const before: Comments = { views: new Map([...surfaceComments.views, ...awardComments.views]), columns: new Map([...surfaceComments.columns, ...awardComments.columns]) };
+  const published = new Map([...viewColumns(surface), ...viewColumns(awards), ...viewColumns(years)]);
+  const surfaceComments = comments(surface, 'meri_public'), awardComments = comments(awards, 'meri_public'), yearComments = comments(years, 'meri_public');
+  const before: Comments = {
+    views: new Map([...surfaceComments.views, ...awardComments.views, ...yearComments.views]),
+    columns: new Map([...surfaceComments.columns, ...awardComments.columns, ...yearComments.columns]),
+  };
   const after = comments(meaning, 'meri_public');
   const effective = new Map([...before.columns, ...after.columns]);
   const describe_ = (key: string) => effective.get(key)!.description as string;
@@ -89,6 +93,36 @@ describe('capiro_data published metadata', () => {
     expect(before.columns.get('federal_awards.amount')!.unit).toBe('USD');
     expect(before.columns.get('federal_assistance_awards.total_obligated_amount')!.unit).toBe('USD');
     expect(before.columns.get('federal_assistance_awards.award_type_code')!.enum).toEqual(['02', '03', '04', '05']);
+  });
+
+  it('publishes PE funding by fiscal year from program_element_year, in USD millions per stage, and marks the budget-position relations unpopulated', () => {
+    expect(years).toMatch(/^SET ROLE capiro_public_projection_owner;$/m);
+    expect(years).toMatch(/GRANT SELECT ON TABLE meri_public\.program_element_years TO capiro_analytics_ro;/);
+    expect(years).not.toMatch(/REVOKE|DROP|ALTER TABLE|CREATE OR REPLACE/);
+    const model = modelColumns('ProgramElementYear');
+    const columns = published.get('program_element_years')!;
+    for (const column of columns) expect(model.has(column)).toBe(true);
+    for (const storage of ['notes', 'r_doc_section', 'raw_jsonb', 'id']) expect(columns).not.toContain(storage);
+    // Active PEs only, like program_elements, so the enforced relationship never dangles.
+    expect(years).toMatch(/FROM public\.program_element_year\nWHERE EXISTS \(SELECT 1 FROM public\.program_element pe WHERE pe\.pe_code = program_element_year\.pe_code AND pe\.retired_at IS NULL\);/);
+    const view = before.views.get('program_element_years')!;
+    expect(view.primaryKey).toEqual(['pe_code', 'fy']);
+    expect(view.freshnessField).toBe('last_synced_at');
+    expect(view.relationships).toEqual([{ fields: ['pe_code'], referencedRelation: 'program_elements', referencedFields: ['pe_code'], cardinality: 'many_to_one', integrity: 'enforced' }]);
+    expect(view.description).toMatch(/USD millions/);
+    expect((view.limitations as string[]).join(' ')).toMatch(/never summed across stages/);
+    // Every money column states the unit the loaders store (program-element-read.service.ts reports the same values as USD millions).
+    for (const money of ['request', 'hasc_mark', 'sasc_mark', 'hac_d_mark', 'sac_d_mark', 'ndaa_conference', 'conference', 'enacted', 'reprogrammed', 'executed']) {
+      expect(columns).toContain(money);
+      expect(before.columns.get(`program_element_years.${money}`)!.unit).toBe('USD millions');
+    }
+    for (const key of ['pe_code', 'fy', 'last_synced_at']) expect(before.columns.get(`program_element_years.${key}`)!.nullable).toBe(false);
+    // The budget-position views keep their definitions; only a limitation is appended, naming where funding by FY lives.
+    expect(years).toMatch(/ARRAY\['program_element_budget_positions', 'program_element_project_budget_positions'\]/);
+    expect(years).toMatch(/jsonb_set\(current_comment, '\{limitations\}'/);
+    expect(years).toMatch(/expected to hold no rows; when a query over it returns nothing, state that budget position amounts are not loaded and use program_element_years or the PE budget timeline read/);
+    expect(years).toMatch(/Never estimate an amount\./);
+    expect(years).not.toMatch(/CREATE VIEW meri_public\.program_element_budget_positions/);
   });
 
   it('describes exactly the public relations the statement gate names', () => {

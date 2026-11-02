@@ -9,7 +9,8 @@ const additions = ['state_bills', 'committee_hearings', 'committee_hearing_bills
   'state_bill_calendar_events', 'federal_grants', 'sam_opportunities'];
 const migration = readFileSync(resolve(__dirname, '../../../prisma/migrations/20281101010000_capiro_data_published_surface/migration.sql'), 'utf8');
 const awardsMigration = readFileSync(resolve(__dirname, '../../../prisma/migrations/20281102100000_capiro_data_federal_awards_surface/migration.sql'), 'utf8');
-const migrations = migration + '\n' + awardsMigration;
+const yearsMigration = readFileSync(resolve(__dirname, '../../../prisma/migrations/20281102120000_capiro_data_program_element_years_surface/migration.sql'), 'utf8');
+const migrations = migration + '\n' + awardsMigration + '\n' + yearsMigration;
 const schema = readFileSync(resolve(__dirname, '../../../prisma/schema.prisma'), 'utf8');
 // A select-list entry may publish a physical column under another name (`contractor_name AS recipient_name`).
 const views = [...migrations.matchAll(/CREATE VIEW meri_public\.(\w+)\s+WITH \(security_barrier = true, security_invoker = false\) AS\s+SELECT ([\s\S]*?)\s+FROM public\.(\w+)([\s\S]*?);/g)]
@@ -89,13 +90,13 @@ describe('public legislative and opportunity SQL coverage', () => {
     expect(query.relationsUsed).toEqual([name]);
   });
 
-  it('publishes exactly the ten catalog projections without storage details or fabricated freshness', async () => {
+  it('publishes exactly the eleven catalog projections without storage details or fabricated freshness', async () => {
     expect(views.map((view) => view.name)).toEqual(PUBLIC_RELATION_NAMES);
     const result = await describeCapiroData({}, db(surface));
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('expected metadata');
     expect(result.relations.map((relation) => relation.name)).toEqual(PUBLIC_RELATION_NAMES);
-    expect(result.relations).toHaveLength(10);
+    expect(result.relations).toHaveLength(11);
     for (const relation of result.relations) {
       expect(relation).not.toHaveProperty('table');
       expect(relation).not.toHaveProperty('predicate');
