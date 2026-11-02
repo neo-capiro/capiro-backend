@@ -168,9 +168,8 @@ export class IntelligenceTrackedBillDiscovery {
   }
 
   async findTrackedBillsByKeyword(allTerms: string[]): Promise<TrackedBillMatch> {
-    // Index-backed via matchingBillIdsSql (UNION of per-table trigram branches);
-    // see bill-keyword-match.helpers.ts. Identical result set to the prior
-    // cross-table-OR query, ~350x faster.
+    // One alternation regex per row and per distinct subject/policy value;
+    // see bill-keyword-match.helpers.ts for the measured plans.
     const { lowerTerms, wordPatterns } = buildKeywordMatchTerms(allTerms);
     const matchingIds = matchingBillIdsSql(lowerTerms, wordPatterns);
 

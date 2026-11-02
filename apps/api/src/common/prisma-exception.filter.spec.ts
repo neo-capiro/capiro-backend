@@ -105,6 +105,36 @@ describe('PrismaClientExceptionFilter', () => {
     });
   });
 
+  // Retries exhausted on a RepeatableRead/Serializable read (GET /api/clients,
+  // 2 November 2026) and statement-timeout cancels were logged as "Unhandled
+  // Prisma error P2010" and answered 500.
+  test.each(['40001', '40P01', '57014'])('P2010 with Postgres %s maps to 503 with Retry-After', (pgCode) => {
+    const res = makeRes();
+    const err = new Prisma.PrismaClientKnownRequestError('Raw query failed', {
+      code: 'P2010',
+      clientVersion: '0.0.0-test',
+      meta: { code: pgCode, message: 'could not serialize access due to concurrent update' },
+    });
+
+    filter.catch(err, makeHost(res));
+
+    expect(res.status).toHaveBeenCalledWith(HttpStatus.SERVICE_UNAVAILABLE);
+    expect(res.setHeader).toHaveBeenCalledWith('Retry-After', '2');
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+      message: 'The database is temporarily busy. Please retry.',
+    });
+  });
+
+  test('P2034 (write conflict or deadlock) maps to 503 with Retry-After', () => {
+    const res = makeRes();
+
+    filter.catch(prismaError('P2034'), makeHost(res));
+
+    expect(res.status).toHaveBeenCalledWith(HttpStatus.SERVICE_UNAVAILABLE);
+    expect(res.setHeader).toHaveBeenCalledWith('Retry-After', '2');
+  });
+
   test('a 503 does not leak the engine message to the caller', () => {
     const res = makeRes();
 

@@ -169,6 +169,44 @@ describe('TenantContextMiddleware', () => {
     expect(store.run).toHaveBeenCalledTimes(1);
   });
 
+  // Every authenticated request used to write users.last_seen_at. A page load's
+  // parallel requests then kept versioning the user row that RepeatableRead and
+  // Serializable readers lock FOR SHARE, and GET /api/clients exhausted its
+  // 40001 retries (preview, 2 November 2026).
+  test.each([
+    ['never seen', null, true],
+    ['seen 10 s ago', 10_000, false],
+    ['seen 59 s ago', 59_000, false],
+    ['seen 60 s ago', 60_000, true],
+  ])('writes last_seen_at at most once a minute (%s)', async (_label, ageMs, writes) => {
+    const now = Date.parse('2026-11-02T12:00:00.000Z');
+    jest.useFakeTimers({ now, doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval', 'queueMicrotask'] });
+    try {
+      const tx = makeTx();
+      tx.user.findUnique.mockResolvedValue({
+        id: 'u1', clerkUserId: 'clerk_user', lastSeenAt: ageMs === null ? null : new Date(now - ageMs),
+      });
+      tx.tenantMembership.findMany.mockResolvedValue([{
+        id: 'm1', tenantId: 't_acme', role: 'standard_user', status: 'active',
+        tenant: { id: 't_acme', clerkOrgId: 'org_acme', slug: 'acme', status: 'active' },
+      }]);
+      const { middleware } = build({ org_id: 'org_acme', capiro_tenant_id: 't_acme', capiro_tenant_slug: 'acme', org_role: 'org:member' }, tx);
+      const { req, res } = makeReqRes();
+      const next = jest.fn();
+
+      await middleware.use(req, res, next);
+
+      expect(next).toHaveBeenCalledTimes(1);
+      if (writes) {
+        expect(tx.user.update).toHaveBeenCalledWith({ where: { id: 'u1' }, data: { lastSeenAt: new Date(now) } });
+      } else {
+        expect(tx.user.update).not.toHaveBeenCalled();
+      }
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test('self-heals a missing membership from a verified org claim and maps the role', async () => {
     const tx = makeTx();
     tx.user.findUnique.mockResolvedValue({ id: 'u_nicole', clerkUserId: 'clerk_user' });

@@ -43,16 +43,12 @@ export const toolPath = (operationId: string) => `/api/clio/tools/${operationId}
  * the tools controller also runs writes, so only these names are ever issued
  * or admitted, and the tools owner refuses any side-effecting name again at
  * dispatch. Source: the preview Core tool list (first-chat-core-meri-tools.json)
- * minus every write (create_task, update_task, save_memory, save_chat_attachments),
- * plus the separately gated A8 source operation below.
+ * minus every write (create_task, update_task, save_memory, save_chat_attachments).
  */
 export const MERI_DELEGATED_READ_TOOLS: ReadonlySet<string> = new Set([
   // Sharing admits only the conversation-bound metadata read. Publish/revoke
   // remain on the signed-in user's canonical action-proposal approval flow.
   'get_research_portfolio_share_links',
-  // Exact reserved A8 operation. Its separate, closed-by-default receiver
-  // dispatches to query_action_items only after the token/body checks.
-  'actions.query',
   'get_acquisition_person', 'get_bill_status', 'get_business_development_context', 'get_business_development_recent_changes',
   'get_committee_roster', 'get_district_federal_market', 'get_district_nexus_changes', 'get_district_nexus_context',
   'get_funding_opportunity', 'get_funding_opportunity_requirements', 'get_legal_reference', 'get_opportunity_client_context',
@@ -66,10 +62,10 @@ export const MERI_DELEGATED_READ_TOOLS: ReadonlySet<string> = new Set([
   'search_funding_opportunities', 'search_gao_reports', 'search_intel_articles', 'search_lda_filings', 'search_legislative_research',
   'search_legiwatch_news', 'search_procurement_forecasts', 'search_program_elements', 'search_public_web', 'search_sec_filings',
   'search_state_bills', 'search_state_floor_votes', 'search_tracked_bills',
-  // These exact source names remain unavailable at issuance and admission
-  // until their separate hard-off HTTP gates are qualified and changed.
-  'search_memory', 'memory.list_own_proposals',
 ]);
+// `actions.query`, `search_memory` and `memory.list_own_proposals` are served
+// only on the ordinary user bearer plus verified service identity (MeriController
+// executeTool); Meri never sends them as delegated tokens, so none is issued.
 
 /** Exact retained source operation IDs. These require the additional signed
  * correlation digest; no legacy tool receives that claim. */
@@ -79,20 +75,6 @@ export const MERI_RETAINED_SOURCE_TOOLS: ReadonlySet<string> = new Set([
   'meeting.list_upcoming_meetings', 'meeting.query_debriefs', 'meeting.read_client_meetings',
   'read_client_documents', 'find_contacts',
 ]);
-
-/** Correlation-bearing token operations. Keep the eleven retained receiver
- * names separate: actions.query has its own exact controller branch. */
-export const MERI_CORRELATED_READ_TOOLS: ReadonlySet<string> = new Set([
-  ...MERI_RETAINED_SOURCE_TOOLS, 'actions.query', 'search_memory', 'memory.list_own_proposals',
-]);
-
-export function isMeriCorrelatedReadOperationVersion(operation: { id: string; version: string } | null): boolean {
-  return operation !== null && (operation.id === 'actions.query'
-    ? operation.version === '0.2.0'
-    : operation.id === 'search_memory' || operation.id === 'memory.list_own_proposals'
-      ? operation.version === '0.2.0'
-    : isMeriRetainedSourceOperationVersion(operation));
-}
 
 /** Profile observation changed its output contract: only 0.3.0 may cross
  * this source route. Other retained source operations remain exact 0.2.0. */
@@ -208,8 +190,8 @@ export function parseTokenRequest(raw: unknown, delegationId: string): TokenRequ
       v.method !== 'POST' || typeof v.path !== 'string' || !isSha(v.bodySha256) || !(v.retryOf === null || isSha(v.retryOf))) throw invalid('token');
   const kind = v.kind as ReadTokenKind;
   const operation = v.operation === null ? null : operationRef(v.operation, 'operation');
-  const correlated = kind === 'tool' && operation !== null && MERI_CORRELATED_READ_TOOLS.has(operation.id);
-  if (correlated && !isMeriCorrelatedReadOperationVersion(operation)) throw invalid('correlated read operation');
+  const correlated = kind === 'tool' && operation !== null && MERI_RETAINED_SOURCE_TOOLS.has(operation.id);
+  if (correlated && !isMeriRetainedSourceOperationVersion(operation)) throw invalid('correlated read operation');
   if (correlated ? !isSha(v.correlationSha256) : Object.hasOwn(v, 'correlationSha256')) throw invalid('correlationSha256');
   const nulls = (...keys: string[]) => keys.every((k) => v[k] === null);
   if (kind === 'tool') {

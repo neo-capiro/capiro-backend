@@ -89,6 +89,7 @@ until docker exec "$pg_id" pg_isready -p 55433 -U postgres -d api_memory_test >/
 done
 docker exec "$pg_id" createdb -p 55433 -U postgres api_mail_test
 docker exec "$pg_id" createdb -p 55433 -U postgres api_reader_test
+docker exec "$pg_id" createdb -p 55433 -U postgres api_keyword_test
 memory_harness=apps/api/test/memory-postgres-qualification/harness.ts
 test -f "$memory_harness" || { echo "Missing tracked memory harness: $memory_harness" >&2; exit 1; }
 docker run --rm --name "$run_id-api-tests" --read-only --network "container:$pg_id" --cap-drop ALL \
@@ -104,11 +105,17 @@ docker run --rm --name "$run_id-api-tests" --read-only --network "container:$pg_
   --entrypoint /bin/sh "$builder" -ec '
     umask 077
     printf "%s\n" "{\"host\":\"127.0.0.1\",\"port\":55433,\"database\":\"api_mail_test\",\"user\":\"postgres\",\"password\":\"api_fixture\",\"scope\":\"owned local disposable test cluster; no AWS connection\"}" > "$MERI_APPROVED_MEMORY_PG_CONFIG"
-    exec node --experimental-vm-modules node_modules/jest/bin/jest.js \
+    node --experimental-vm-modules node_modules/jest/bin/jest.js \
       --runInBand --runTestsByPath src/engagement/mail-query-plan.postgres.spec.ts \
       src/meri/analytics/capiro-data-reader-roles.integration.spec.ts \
       src/meri/semantic-search.postgres.spec.ts \
       src/retrieval/adapters/memory-embedding-retention-policy.postgres.spec.ts
+    # The keyword matcher owns only transaction-local temporary catalogs in its
+    # separate synthetic database. Keep the preceding four fixture bindings intact.
+    DATABASE_URL=postgresql://postgres:api_fixture@127.0.0.1:55433/api_keyword_test \
+      CAPIRO_DISPOSABLE_PG=1 exec node --experimental-vm-modules node_modules/jest/bin/jest.js \
+      --runInBand --runTestsByPath src/intelligence/bill-keyword-match.postgres.spec.ts \
+      src/tenant/tenant-context.authority-mount.spec.ts
   '
 printf 'API_PRESERVATION_POSTGRES_QUALIFICATION_OK image=%s\n' "$image"
 printf 'BILL_POSTGRES_QUALIFICATION_OK image=%s\n' "$image"

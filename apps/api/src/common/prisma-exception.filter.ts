@@ -37,10 +37,12 @@ export class PrismaClientExceptionFilter implements ExceptionFilter {
     switch (exception.code) {
       // P2023: inconsistent column data (e.g. invalid UUID syntax in a param).
       // P2000: value too long for the column's type.
-      // P2010: raw query failed — only remapped when the underlying Postgres
-      // error is 22P02 (invalid text representation, e.g. CAST('not-a-uuid'
-      // AS uuid) in a hand-written $queryRaw WHERE clause). Any other P2010
-      // is a genuine server fault and must keep its 500 so it stays visible.
+      // P2010: raw query failed — remapped only for a known Postgres cause:
+      // 22P02 (invalid text representation, e.g. CAST('not-a-uuid' AS uuid)
+      // in a hand-written $queryRaw WHERE clause) is the caller's 400; a
+      // serialization failure or deadlock that outlived its retries
+      // (40001 / 40P01) and a statement_timeout cancel (57014) are transient
+      // 503s. Any other P2010 is a genuine server fault and keeps its 500.
       case 'P2023':
       case 'P2000':
         // Warn-log even though we answer 400: this branch reclassifies the
@@ -59,6 +61,14 @@ export class PrismaClientExceptionFilter implements ExceptionFilter {
           res
             .status(HttpStatus.BAD_REQUEST)
             .json({ statusCode: HttpStatus.BAD_REQUEST, message: 'Invalid request parameter' });
+          return;
+        }
+        if (pgCode === '40001' || pgCode === '40P01') {
+          transientUnavailable(this.logger, res, `P2010/${pgCode}`, 'transaction conflict', exception);
+          return;
+        }
+        if (pgCode === '57014') {
+          transientUnavailable(this.logger, res, 'P2010/57014', 'statement timeout', exception);
           return;
         }
         this.logger.error(
@@ -87,16 +97,11 @@ export class PrismaClientExceptionFilter implements ExceptionFilter {
       // whatever the user was saving, with no hint that a retry would work.
       case 'P2024':
       case 'P2028':
-        // ERROR, not warn: 503 is the honest answer to the caller, but a
-        // starved pool is a real server-side condition that must stay visible
-        // in the logs and in 5xx alarms.
-        this.logger.error(
-          `Prisma ${exception.code} mapped to 503 (database capacity): ${lastLine(exception.message)}`,
-        );
-        res.status(HttpStatus.SERVICE_UNAVAILABLE).setHeader('Retry-After', '2').json({
-          statusCode: HttpStatus.SERVICE_UNAVAILABLE,
-          message: 'The database is temporarily busy. Please retry.',
-        });
+        transientUnavailable(this.logger, res, exception.code, 'database capacity', exception);
+        return;
+      // P2034: write conflict or deadlock reported by Prisma itself.
+      case 'P2034':
+        transientUnavailable(this.logger, res, exception.code, 'transaction conflict', exception);
         return;
       default:
         // Preserve the previous 500 for anything we don't explicitly map, but
@@ -114,6 +119,25 @@ export class PrismaClientExceptionFilter implements ExceptionFilter {
         return;
     }
   }
+}
+
+/**
+ * ERROR, not warn: 503 is the honest answer to the caller, but a starved pool,
+ * a cancelled statement or an exhausted conflict retry is a real server-side
+ * condition that must stay visible in the logs and in 5xx alarms.
+ */
+function transientUnavailable(
+  logger: Logger,
+  res: Response,
+  code: string,
+  cause: string,
+  exception: Prisma.PrismaClientKnownRequestError,
+): void {
+  logger.error(`Prisma ${code} mapped to 503 (${cause}): ${lastLine(exception.message)}`);
+  res.status(HttpStatus.SERVICE_UNAVAILABLE).setHeader('Retry-After', '2').json({
+    statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+    message: 'The database is temporarily busy. Please retry.',
+  });
 }
 
 /** Last line of a multi-line Prisma message — the human-readable cause. */
