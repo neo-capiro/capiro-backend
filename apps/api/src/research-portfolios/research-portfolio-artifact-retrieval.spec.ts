@@ -21,6 +21,7 @@ function fixture() {
     userId: ctx.userId,
     clientId: null,
     metadata: {},
+    metadataRevision: 0n,
     messages: [{ body: 'ordinary transcript' }],
     artifacts: [{ bodyText: 'ordinary artifact' }],
   };
