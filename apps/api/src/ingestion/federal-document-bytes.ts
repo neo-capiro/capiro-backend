@@ -1,6 +1,11 @@
 import { createHash } from 'node:crypto';
 export const FEDERAL_DOCUMENT_MAX_BYTES = 30_000_000;
-export type FederalOriginalBytes = { base64: string; sha256: string; mime: string };
+export type FederalOriginalBytes = {
+  base64: string;
+  sha256: string;
+  mime: string;
+  encoding?: 'utf8' | 'pdf' | 'unsupported';
+};
 export const byteHash = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
 /** Body consumption shares the request deadline and checks actual streamed bytes, not just headers. */
 export async function readFederalBytes(response: Response, signal: AbortSignal): Promise<Buffer> {
@@ -48,7 +53,11 @@ export function decodeFederalUtf8(bytes: Buffer, mime: string): string {
     throw Error('FEDERAL_DOCUMENT_CHARSET_UNSUPPORTED');
   return text;
 }
-export function qualifyFederalOriginal(raw: string, original: FederalOriginalBytes) {
+export function qualifyFederalOriginal(
+  raw: string,
+  original: FederalOriginalBytes,
+  options: { completeness?: string; extractedText?: string } = {},
+) {
   if (!/^[A-Za-z0-9+/]*={0,2}$/.test(original.base64) || original.base64.length > 40_000_000)
     throw Error('FEDERAL_ORIGINAL_ENCODING_INVALID');
   const bytes = Buffer.from(original.base64, 'base64');
@@ -58,7 +67,24 @@ export function qualifyFederalOriginal(raw: string, original: FederalOriginalByt
     byteHash(bytes) !== original.sha256
   )
     throw Error('FEDERAL_ORIGINAL_HASH_MISMATCH');
-  if (decodeFederalUtf8(bytes, original.mime) !== raw)
+  if (original.encoding === 'pdf') {
+    if (
+      raw !== bytes.toString('base64') ||
+      (bytes.subarray(0, 5).toString() !== '%PDF-' &&
+        !(options.completeness === 'unreadable' && options.extractedText === ''))
+    )
+      throw Error('FEDERAL_ORIGINAL_DECODE_MISMATCH');
+  } else if (original.encoding === 'unsupported') {
+    if (raw !== '' || options.extractedText !== '' || options.completeness !== 'unreadable')
+      throw Error('FEDERAL_ORIGINAL_UNREADABLE_REQUIRED');
+    let failed = false;
+    try {
+      decodeFederalUtf8(bytes, original.mime);
+    } catch {
+      failed = true;
+    }
+    if (!failed) throw Error('FEDERAL_ORIGINAL_ENCODING_NOT_FAILED');
+  } else if (decodeFederalUtf8(bytes, original.mime) !== raw)
     throw Error('FEDERAL_ORIGINAL_DECODE_MISMATCH');
   return {
     parserVersion: `fed-exact-v1:bytes:${Buffer.from(original.sha256, 'hex').toString('base64url')}`,
@@ -66,7 +92,18 @@ export function qualifyFederalOriginal(raw: string, original: FederalOriginalByt
       originalBytesBase64: original.base64,
       rawBytesHash: original.sha256,
       originalMime: original.mime,
-      originalBytesEncoding: 'UTF-8',
+      originalBytesEncoding:
+        original.encoding === 'pdf'
+          ? 'binary'
+          : original.encoding === 'unsupported'
+            ? 'unsupported'
+            : 'UTF-8',
+      rawContentEncoding:
+        original.encoding === 'pdf'
+          ? 'base64'
+          : original.encoding === 'unsupported'
+            ? 'unavailable'
+            : 'UTF-8',
     },
   };
 }

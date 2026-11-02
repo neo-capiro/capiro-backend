@@ -22,8 +22,8 @@ CREATE INDEX bill_text_extraction_revision_idx ON bill_text_extraction(source_ki
 CREATE FUNCTION bill_text_extraction_validate_owner() RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
   IF NEW.source_kind='federal' THEN
-    IF NOT EXISTS (SELECT 1 FROM public.federal_evidence_revision r WHERE r.id=NEW.revision_id
-       AND r.collection IN ('BILLS','AMENDMENTS') AND r.content_hash=NEW.document_hash) THEN
+    IF NOT EXISTS (SELECT 1 FROM public.federal_evidence_revision r JOIN public.congress_bill b ON b.id=r.bill_id WHERE r.id=NEW.revision_id
+       AND r.collection IN ('BILLS','AMENDMENTS','PLAW') AND r.content_hash=NEW.document_hash) THEN
       RAISE EXCEPTION 'BILL_EXTRACTION_OWNER_MISMATCH';
     END IF;
   ELSE

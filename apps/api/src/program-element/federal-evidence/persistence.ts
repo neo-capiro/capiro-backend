@@ -431,7 +431,7 @@ export async function persistFederalEvidenceSnapshot(
   const contentHash = sha256(input.rawContent);
   const extractionHash = sha256(input.extractedText);
   const original = input.originalBytes
-    ? qualifyFederalOriginal(input.rawContent, input.originalBytes)
+    ? qualifyFederalOriginal(input.rawContent, input.originalBytes, {completeness:input.completeness,extractedText:input.extractedText})
     : null;
   const snapshotParserVersion = original?.parserVersion ?? PARSER_VERSION;
   const snapshotMetadata = { ...input.metadata, ...original?.metadata };

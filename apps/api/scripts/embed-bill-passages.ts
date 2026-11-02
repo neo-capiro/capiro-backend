@@ -28,6 +28,7 @@ type Document = {
   originalBytesHash?: string;
   versionId?: string;
   providerDocumentId?: string;
+  sourceMetadata?: import('../src/ingestion/bill-text-extraction.js').BillExtractionInput['sourceMetadata'];
   rawContent?: string;
   format?: string;
   evidence?: { contentSnapshotBase64?: string; mime?: string };
@@ -54,9 +55,9 @@ export async function main(argv = process.argv.slice(2)) {
       return args.source === 'federal'
         ? prisma.$queryRawUnsafe<Document[]>(
             `SELECT r.id::text id,r.bill_id AS "billId",r.source_url AS "sourceUrl",
-      r.version_code version,r.package_id AS "versionId",r.content_hash AS "documentHash",r.metadata_jsonb->>'rawBytesHash' AS "originalBytesHash",r.extraction_hash hash,r.raw_content AS "rawContent",r.metadata_jsonb->>'format' AS format
+      r.version_code version,r.package_id AS "versionId",r.content_hash AS "documentHash",r.metadata_jsonb->>'rawBytesHash' AS "originalBytesHash",r.extraction_hash hash,r.raw_content AS "rawContent",r.metadata_jsonb->>'format' AS format,r.metadata_jsonb AS "sourceMetadata"
       FROM federal_evidence_revision r JOIN congress_bill b ON b.id=r.bill_id
-      WHERE r.collection IN ('BILLS','AMENDMENTS') AND ${FEDERAL_FY26_SQL}
+      WHERE r.collection IN ('BILLS','AMENDMENTS','PLAW') AND ${FEDERAL_FY26_SQL}
       AND r.id::text >= $1 ORDER BY r.id::text LIMIT 10`,
             after.id,
           )
@@ -127,6 +128,7 @@ export async function main(argv = process.argv.slice(2)) {
               documentHash: doc.documentHash ?? doc.hash,
               rawContent: doc.rawContent,
               format: doc.format,
+              sourceMetadata: doc.sourceMetadata,
               evidence: doc.evidence,
             },
             { commit: args.commit, beforeWrite: fence },

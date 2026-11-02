@@ -8,6 +8,7 @@ import { fetchJson, redactSecrets } from '../../meri/sources/http.js';
 import {
   byteHash, decodeFederalUtf8, readFederalBytes, type FederalOriginalBytes,
 } from '../../ingestion/federal-document-bytes.js';
+import { extractBillDocumentStructure, type BillDocumentStructure } from '../../ingestion/bill-document-structure.js';
 import { TokenBucket } from './rate-limiter.js';
 
 const GOVINFO_API_ROOT = 'https://api.govinfo.gov/';
@@ -107,10 +108,13 @@ export type FederalEvidenceCollection = 'BILLS' | 'CRPT' | 'CPRT' | 'PLAW' | 'CR
 
 export interface FederalEvidencePackageText {
   originalBytes?: FederalOriginalBytes;
+  completeness?: 'complete' | 'partial' | 'unreadable';
+  extractionWarnings?: string[];
+  billStructure?: BillDocumentStructure;
   packageId: string;
   raw: string;
   text: string;
-  format: 'xml' | 'txt' | 'htm';
+  format: 'xml' | 'txt' | 'htm' | 'pdf';
   sourceUrl: string;
   title: string | null;
   dateIssued: string | null;
@@ -302,7 +306,7 @@ export class GovInfoService {
     };
   }
 
-  /** Qualified XML/TXT/HTML snapshot; PDF-only packages become coverage gaps. */
+  /** Retain exact original bytes; unsupported/native-unreadable content remains explicit evidence. */
   async getFederalPackageText(packageId: string): Promise<FederalEvidencePackageText> {
     const summary = await this.getPackageSummary(packageId);
     const selected = summary.download?.xmlLink
@@ -311,21 +315,36 @@ export class GovInfoService {
         ? { format: 'txt' as const, url: summary.download.txtLink }
         : summary.download?.htmLink
           ? { format: 'htm' as const, url: summary.download.htmLink }
-          : null;
+          : summary.download?.pdfLink
+            ? { format: 'pdf' as const, url: summary.download.pdfLink }
+            : null;
     if (!selected)
       throw new ServiceUnavailableException(`No qualified text available for ${packageId}`);
     const snapshot = await this.fetchTextSnapshot(selected.url);
-    const raw = decodeFederalUtf8(snapshot.bytes, snapshot.mime);
-    const originalBytes = {
-      base64: snapshot.bytes.toString('base64'),
-      sha256: byteHash(snapshot.bytes),
-      mime: snapshot.mime,
+    const originalBytes: FederalOriginalBytes = {
+      base64: snapshot.bytes.toString('base64'), sha256: byteHash(snapshot.bytes), mime: snapshot.mime,
     };
-    const text = selected.format === 'htm' ? stripHtmlTags(raw) : raw;
-    if (!text.trim()) throw new ServiceUnavailableException(`Empty federal text for ${packageId}`);
+    let raw='',text='',completeness: 'complete'|'partial'|'unreadable'='complete';
+    let billStructure:BillDocumentStructure|undefined;
+    const extractionWarnings:string[]=[];
+    if(selected.format==='pdf') {
+      originalBytes.encoding='pdf'; raw=originalBytes.base64;
+      try {
+        billStructure=await extractBillDocumentStructure(snapshot.bytes,'application/pdf');
+        text=billStructure.text;completeness=billStructure.completeness;extractionWarnings.push(...billStructure.warnings);
+      } catch { completeness='unreadable'; extractionWarnings.push('PDF_EXTRACTION_FAILED'); }
+    } else {
+      try { raw=decodeFederalUtf8(snapshot.bytes,snapshot.mime); }
+      catch (error) { originalBytes.encoding='unsupported';completeness='unreadable';extractionWarnings.push(error instanceof Error?error.message:'FEDERAL_DOCUMENT_ENCODING_UNSUPPORTED'); }
+      text=selected.format==='htm'?stripHtmlTags(raw):raw;
+      if(!text.trim()) {completeness='unreadable';if(!extractionWarnings.length)extractionWarnings.push('FEDERAL_DOCUMENT_EMPTY_TEXT');}
+    }
     return {
       packageId,
       originalBytes,
+      completeness,
+      extractionWarnings,
+      billStructure,
       raw,
       text,
       format: selected.format,

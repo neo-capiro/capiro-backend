@@ -15,6 +15,13 @@ export type BillExtractionInput = {
   documentHash: string;
   rawContent?: string;
   format?: string;
+  sourceMetadata?: {
+    originalBytesBase64?: string;
+    rawBytesHash?: string;
+    originalBytesEncoding?: string;
+    originalMime?: string;
+    billStructure?: BillDocumentStructure;
+  };
   evidence?: {
     contentSnapshotBase64?: string;
     mime?: string;
@@ -34,15 +41,30 @@ export async function deriveBillExtraction(
   input: BillExtractionInput,
 ): Promise<Omit<StoredBillExtraction, 'id'>> {
   try {
-    const bytes =
+    let bytes =
       input.sourceKind === 'state'
         ? Buffer.from(input.evidence?.contentSnapshotBase64 ?? '', 'base64')
         : Buffer.from(input.rawContent ?? '', 'utf8');
-    if (!bytes.length) throw Error('ORIGINAL_SNAPSHOT_UNAVAILABLE');
-    if (hash(bytes) !== input.documentHash) throw Error('ORIGINAL_SNAPSHOT_HASH_MISMATCH');
-    const retained = input.evidence?.structure;
     if (
-      input.sourceKind === 'state' &&
+      !bytes.length &&
+      !(input.sourceKind === 'federal' && input.sourceMetadata?.originalBytesBase64)
+    )
+      throw Error('ORIGINAL_SNAPSHOT_UNAVAILABLE');
+    if (hash(bytes) !== input.documentHash) throw Error('ORIGINAL_SNAPSHOT_HASH_MISMATCH');
+    if (input.sourceKind === 'federal' && input.sourceMetadata?.originalBytesBase64) {
+      const original = Buffer.from(input.sourceMetadata.originalBytesBase64, 'base64');
+      if (hash(original) !== input.sourceMetadata.rawBytesHash)
+        throw Error('ORIGINAL_SNAPSHOT_HASH_MISMATCH');
+      bytes = original;
+      if (input.sourceMetadata.originalBytesEncoding === 'unsupported') {
+        const structure = structureText('');
+        structure.warnings = ['FEDERAL_DOCUMENT_ENCODING_UNSUPPORTED'];
+        structure.structureHash = billStructureHash(structure);
+        return { structure, completeness: 'unreadable' };
+      }
+    }
+    const retained = input.evidence?.structure ?? input.sourceMetadata?.billStructure;
+    if (
       retained?.parserVersion === BILL_EXTRACTION_VERSION &&
       ['complete', 'partial', 'unreadable'].includes(retained.completeness) &&
       typeof retained.text === 'string' &&
@@ -103,7 +125,6 @@ export async function ensureBillTextExtraction(
     input.sourceKind,
     input.revisionId,
     BILL_EXTRACTION_VERSION,
-    billStructureHash,
     input.documentHash,
   );
   if (existing[0]) return { ...existing[0], completeness: 'complete' };
@@ -123,7 +144,6 @@ export async function ensureBillTextExtraction(
         input.sourceKind,
         input.revisionId,
         BILL_EXTRACTION_VERSION,
-        billStructureHash,
         input.documentHash,
         derived.structure.textHash,
         derived.structure.structureHash,
@@ -139,7 +159,6 @@ export async function ensureBillTextExtraction(
           input.sourceKind,
           input.revisionId,
           BILL_EXTRACTION_VERSION,
-          billStructureHash,
           input.documentHash,
           derived.structure.structureHash,
         );

@@ -77,4 +77,23 @@ describe('exact federal original byte retention', () => {
     await expect(pending).rejects.toThrow('DEADLINE');
     expect(cancelled).toBe(true);
   });
+  it('admits retained unsupported bytes only with an explicit empty unreadable projection', () => {
+    const bytes = Buffer.from([255]);
+    const bad = { ...original(bytes), encoding: 'unsupported' as const };
+    expect(
+      qualifyFederalOriginal('', bad, { completeness: 'unreadable', extractedText: '' }).metadata
+        .originalBytesEncoding,
+    ).toBe('unsupported');
+    expect(() =>
+      qualifyFederalOriginal('', bad, { completeness: 'complete', extractedText: 'invented' }),
+    ).toThrow('FEDERAL_ORIGINAL_UNREADABLE_REQUIRED');
+    const pdf = Buffer.from('%PDF-original');
+    const source = { ...original(pdf), mime: 'application/pdf', encoding: 'pdf' as const };
+    expect(
+      qualifyFederalOriginal(source.base64, source, {
+        completeness: 'partial',
+        extractedText: 'Native portion',
+      }).metadata.rawContentEncoding,
+    ).toBe('base64');
+  });
 });

@@ -1,3 +1,4 @@
+import { withFederalBillWriter } from './federal-bill-writer.js';
 import { withStateBillWriter } from './state-bill-writer.js';
 function database() {
   const tx = {
@@ -70,4 +71,12 @@ test('sorted acquisition releases only owned earlier states when a later state i
     'state-bills:NY',
   ]);
   expect(prisma.$executeRawUnsafe.mock.calls[0][1]).toEqual(['state-bills:FL']);
+});
+
+test('ordinary and FY26 federal writers share the same source and refusal semantics',async()=>{
+  const {prisma}=database();
+  await withFederalBillWriter(prisma,async()=>{});
+  expect(prisma.$queryRawUnsafe.mock.calls[0][1]).toBe('congress-bills');
+  prisma.$queryRawUnsafe.mockResolvedValue([]);
+  await expect(withFederalBillWriter(prisma,async()=>{})).rejects.toThrow('FEDERAL_WRITER_ALREADY_RUNNING');
 });

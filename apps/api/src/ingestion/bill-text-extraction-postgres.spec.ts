@@ -1,5 +1,7 @@
 /** Standalone synthetic schema: the forward migration runs without touching application data. */
 import { Client } from 'pg';
+import { PrismaClient } from '@prisma/client';
+import { ensureBillTextExtraction } from './bill-text-extraction';
 import { randomUUID, createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -9,6 +11,7 @@ import { passages, CHUNKER_VERSION, passageMetadata } from './bill-text-passages
 describe('structured extraction migration on isolated PostgreSQL', () => {
   jest.setTimeout(60000);
   const db = new Client({ connectionString: process.env.DATABASE_URL });
+  let prisma: PrismaClient;
   const schema = 'bill_fixture_' + randomUUID().replace(/-/g, '');
   const revision = randomUUID(),
     extraction = randomUUID(),
@@ -23,8 +26,12 @@ describe('structured extraction migration on isolated PostgreSQL', () => {
     )
       throw Error('DISPOSABLE_BILL_DATABASE_REQUIRED');
     await db.connect();
+    url.searchParams.set('schema', schema);
+    prisma = new PrismaClient({ datasources: { db: { url: url.href } } });
     await db.query(`CREATE SCHEMA ${schema}; SET search_path TO ${schema},public;
-      CREATE TABLE public.federal_evidence_revision(id uuid PRIMARY KEY,collection text,content_hash text);
+      CREATE TABLE public.congress_bill(id text PRIMARY KEY);
+      INSERT INTO public.congress_bill VALUES('119-hr-1');
+      CREATE TABLE public.federal_evidence_revision(id uuid PRIMARY KEY,collection text,content_hash text,bill_id text DEFAULT '119-hr-1');
       CREATE TABLE public.state_bill_published_record(id uuid PRIMARY KEY,kind text,evidence jsonb);
       CREATE TABLE context_embeddings(model text,content_hash text,tenant_id uuid,client_id uuid,owner_user_id uuid,source_type text);
       CREATE FUNCTION legiwatch_reject_record_rewrite() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'immutable'; END $$;
@@ -38,15 +45,16 @@ describe('structured extraction migration on isolated PostgreSQL', () => {
         'utf8',
       ),
     );
-    await db.query("INSERT INTO public.federal_evidence_revision VALUES($1,'BILLS',$2)", [
-      revision,
-      documentHash,
-    ]);
     await db.query(
-      `GRANT USAGE ON SCHEMA ${schema} TO capiro_app; GRANT SELECT ON public.federal_evidence_revision,public.state_bill_published_record TO capiro_app`,
+      "INSERT INTO public.federal_evidence_revision(id,collection,content_hash) VALUES($1,'BILLS',$2)",
+      [revision, documentHash],
+    );
+    await db.query(
+      `GRANT USAGE ON SCHEMA ${schema} TO capiro_app; GRANT SELECT ON public.congress_bill,public.federal_evidence_revision,public.state_bill_published_record TO capiro_app`,
     );
   });
   afterAll(async () => {
+    await prisma?.$disconnect();
     if (db) {
       await db.query(`RESET ROLE; DROP SCHEMA IF EXISTS ${schema} CASCADE`).catch(() => {});
       await db.end();
@@ -91,6 +99,20 @@ describe('structured extraction migration on isolated PostgreSQL', () => {
         await db.query('SELECT completeness FROM bill_text_extraction ORDER BY created_at')
       ).rows.map((r) => r.completeness),
     ).toEqual(['failed', 'complete']);
+  });
+  it('accepts an immutable published-law version owner without relabeling its collection', async () => {
+    const law = randomUUID();
+    await db.query(
+      "INSERT INTO public.federal_evidence_revision(id,collection,content_hash) VALUES($1,'PLAW',$2)",
+      [law, documentHash],
+    );
+    await expect(insert(randomUUID(), law)).resolves.toBeDefined();
+    const unbound = randomUUID();
+    await db.query(
+      "INSERT INTO public.federal_evidence_revision(id,collection,content_hash,bill_id) VALUES($1,'PLAW',$2,NULL)",
+      [unbound, documentHash],
+    );
+    await expect(insert(randomUUID(), unbound)).rejects.toThrow('BILL_EXTRACTION_OWNER_MISMATCH');
   });
   it('indexes long text and every tiny heading without any vectors, with exact UTF16 slices', async () => {
     const body =
@@ -149,6 +171,46 @@ describe('structured extraction migration on isolated PostgreSQL', () => {
     expect(index).toContain('owner_user_id IS NULL');
     expect(index).toContain('bill_passage');
     expect(index).toContain('state_bill_passage');
+  });
+  it('runs the actual Prisma writer through failed conflict, completed extraction, and idempotent reuse', async () => {
+    const body = 'SECTION 5. Definitions\n(a) “Office” means the synthetic office.';
+    const owner = randomUUID(),
+      hash = sha(body);
+    await db.query(
+      "INSERT INTO public.federal_evidence_revision(id,collection,content_hash) VALUES($1,'BILLS',$2)",
+      [owner, hash],
+    );
+    const input = {
+      sourceKind: 'federal' as const,
+      revisionId: owner,
+      documentHash: hash,
+      format: 'txt',
+    };
+    const failed = await ensureBillTextExtraction(prisma, input, { commit: true });
+    const repeatedFailure = await ensureBillTextExtraction(prisma, input, { commit: true });
+    expect(failed.completeness).toBe('failed');
+    expect(repeatedFailure.id).toBe(failed.id);
+    const success = await ensureBillTextExtraction(
+      prisma,
+      { ...input, rawContent: body },
+      { commit: true },
+    );
+    expect(success.completeness).toBe('complete');
+    expect(success.id).not.toBe(failed.id);
+    expect(
+      (await ensureBillTextExtraction(prisma, { ...input, rawContent: body }, { commit: true })).id,
+    ).toBe(success.id);
+    const chunks = (
+      await db.query(
+        'SELECT start_offset,end_offset,content_text FROM bill_text_passage WHERE extraction_id=$1 ORDER BY ordinal',
+        [success.id],
+      )
+    ).rows;
+    expect(chunks).toHaveLength(2);
+    for (const chunk of chunks)
+      expect(success.structure.text.slice(chunk.start_offset, chunk.end_offset)).toBe(
+        chunk.content_text,
+      );
   });
   it('grants runtime read/insert while denying rewrite, deletion and truncate', async () => {
     await db.query('SET ROLE capiro_app');

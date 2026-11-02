@@ -41,7 +41,9 @@ import {
   type CongressSubjectsResponse,
   type NormalizedCongressCommittee,
 } from './lib/congress-classifications.js';
-import { fetchCongressJson as fetchJson } from './lib/congress-http.js';
+import { fetchCongressJson } from './lib/congress-http.js';
+import { createCongressRequestPacer } from './lib/congress-request-pacer.js';
+import { withFederalBillWriter } from '../src/ingestion/federal-bill-writer.js';
 
 dotenvConfig();
 
@@ -266,6 +268,12 @@ async function main() {
       throw new Error('CONGRESS_API_KEY env var is required');
     }
 
+    await withFederalBillWriter(prisma, async (prisma) => {
+    const requestPacer = createCongressRequestPacer();
+    const fetchJson = <T>(url:string)=>fetchCongressJson<T>(url,{beforeAttempt:async()=>{
+      await requestPacer.beforeAttempt();
+      await prisma.$queryRawUnsafe('SELECT 1'); // The writer facade renews and fences before every provider attempt.
+    }});
     await runWithSyncRun(
       prisma as any,
       'sync-congress',
@@ -305,6 +313,7 @@ async function main() {
           for (const r of rows) if (r.bill_id) trackedBillIds.add(r.bill_id);
           console.log(`[sync-congress] tracked-bill set: ${trackedBillIds.size} ids`);
         } catch (err) {
+                if (err instanceof Error && err.message.startsWith('FEDERAL_WRITER_')) throw err;
           console.warn(
             '[sync-congress] tracked-bill preload failed (using lobbying gate only):',
             err,
@@ -362,6 +371,7 @@ async function main() {
                 }),
               );
             } catch (err) {
+                if (err instanceof Error && err.message.startsWith('FEDERAL_WRITER_')) throw err;
               syncErrors += 1;
               complete = false;
               stoppedByListFailure = true;
@@ -390,6 +400,7 @@ async function main() {
                     congressUrl(`/bill/${congress}/${type}/${bill.number}`),
                   );
                 } catch (err) {
+                if (err instanceof Error && err.message.startsWith('FEDERAL_WRITER_')) throw err;
                   // Proceed without detail, will use list data
                 }
 
@@ -658,6 +669,7 @@ async function main() {
                     }
                   }
                 } catch (err) {
+                if (err instanceof Error && err.message.startsWith('FEDERAL_WRITER_')) throw err;
                   console.warn(`[sync-congress] rule-link upsert failed for ${id}:`, err);
                 }
 
@@ -694,6 +706,7 @@ async function main() {
                       },
                     });
                   } catch (err) {
+                if (err instanceof Error && err.message.startsWith('FEDERAL_WRITER_')) throw err;
                     console.warn(`[sync-congress] cbo estimate upsert failed for ${id}:`, err);
                   }
                 }
@@ -712,13 +725,13 @@ async function main() {
                   // must NOT overwrite rows from a previous run. Atomic swap
                   // so readers never observe the between-state.
                   if (cosponsorsData.length > 0 && !cosponsorsFetchFailed) {
-                    await prisma.$transaction([
-                      prisma.congressBillCosponsor.deleteMany({ where: { billId: id } }),
-                      prisma.congressBillCosponsor.createMany({
+                    await prisma.$transaction(async tx => {
+                      await tx.congressBillCosponsor.deleteMany({ where: { billId: id } });
+                      await tx.congressBillCosponsor.createMany({
                         data: cosponsorsData.map((c) => ({ billId: id, ...c })),
                         skipDuplicates: true,
-                      }),
-                    ]);
+                      });
+                    });
                   }
                 }
 
@@ -754,6 +767,7 @@ async function main() {
                   console.log(`[congress-sync]   ${totalBills} bills processed...`);
                 }
               } catch (err) {
+                if (err instanceof Error && err.message.startsWith('FEDERAL_WRITER_')) throw err;
                 syncErrors += 1;
                 complete = false;
                 incompleteReasons.add('one or more bills failed during processing');
@@ -797,6 +811,7 @@ async function main() {
       },
       { overrideSince: SINCE_OVERRIDE ?? null },
     );
+    });
   } finally {
     await prisma.$disconnect();
   }

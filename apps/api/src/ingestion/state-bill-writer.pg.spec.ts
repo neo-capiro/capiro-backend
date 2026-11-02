@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { withStateBillWriter } from './state-bill-writer.js';
+import { withFederalBillWriter } from './federal-bill-writer.js';
 
 describe('shared state writer lease on disposable PostgreSQL', () => {
   jest.setTimeout(30000);
@@ -67,5 +68,25 @@ describe('shared state writer lease on disposable PostgreSQL', () => {
       ).rejects.toThrow('synthetic rollback');
     });
     expect(await db.$queryRawUnsafe('SELECT value FROM marker')).toEqual([{ value: 2 }]);
+  });
+  it('serializes ordinary Congress sync and FY26 writer while keeping state leases independent', async () => {
+    await withFederalBillWriter(db, async (standard) => {
+      await expect(withFederalBillWriter(db, async () => {})).rejects.toThrow(
+        'FEDERAL_WRITER_ALREADY_RUNNING',
+      );
+      await withStateBillWriter(db, ['FL'], async (state) => {
+        await state.$executeRawUnsafe('UPDATE marker SET value=3');
+      });
+      await db.$executeRawUnsafe(
+        "UPDATE federal_evidence_checkpoint SET lease_until=clock_timestamp()-interval '1 second' WHERE source='congress-bills'",
+      );
+      await withFederalBillWriter(db, async (current) => {
+        await expect(standard.$executeRawUnsafe('UPDATE marker SET value=99')).rejects.toThrow(
+          'FEDERAL_WRITER_LEASE_LOST',
+        );
+        await current.$executeRawUnsafe('UPDATE marker SET value=4');
+      });
+    });
+    expect(await db.$queryRawUnsafe('SELECT value FROM marker')).toEqual([{ value: 4 }]);
   });
 });

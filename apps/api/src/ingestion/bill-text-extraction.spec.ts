@@ -28,7 +28,10 @@ describe('immutable extraction owner', () => {
   it('persists every lexical section atomically before embedding and fences the transaction', async () => {
     const events: string[] = [];
     const db: any = {
-      $queryRawUnsafe: jest.fn(async (sql: string) => {
+      $queryRawUnsafe: jest.fn(async (sql: string, ...bindings: unknown[]) => {
+        const placeholders = [...sql.matchAll(/\$(\d+)/g)].map((m) => Number(m[1]));
+        expect(bindings).toHaveLength(Math.max(0, ...placeholders));
+        expect(bindings.some((value) => typeof value === 'function')).toBe(false);
         events.push(sql.startsWith('INSERT') ? 'extraction' : 'lookup');
         return sql.startsWith('INSERT') ? [{ id: 'new' }] : [];
       }),
@@ -90,5 +93,23 @@ describe('immutable extraction owner', () => {
         })
       ).structure.text,
     ).toBe(saved.text);
+  });
+  it('preserves federal unsupported original coverage without generating text or passages', async () => {
+    const bytes = Buffer.from([255]);
+    const result = await deriveBillExtraction({
+      sourceKind: 'federal',
+      revisionId: 'fixture',
+      documentHash: hash(''),
+      rawContent: '',
+      format: 'xml',
+      sourceMetadata: {
+        originalBytesBase64: bytes.toString('base64'),
+        rawBytesHash: createHash('sha256').update(bytes).digest('hex'),
+        originalBytesEncoding: 'unsupported',
+      },
+    });
+    expect(result.completeness).toBe('unreadable');
+    expect(result.structure.text).toBe('');
+    expect(result.structure.sections).toEqual([]);
   });
 });
