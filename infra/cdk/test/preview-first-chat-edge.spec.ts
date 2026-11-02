@@ -31,7 +31,7 @@ test('personal Portfolio order uses the existing exact Core PUT rule without bro
     ]);
     const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule')
       .map((resource) => resource.Properties).sort((a, b) => a.Priority - b.Priority);
-    assert.equal(rules.length, 95);
+    assert.equal(rules.length, 96);
     const pathname = '/api/me/portfolio-layout';
     for (const method of ['PUT', 'GET', 'HEAD'])
       assert.deepEqual(routeDestination(rules, method, pathname), { Ref: 'CoreTarget' });
@@ -682,7 +682,7 @@ test('client capability create admits only the canonical lowercase-UUID POST rou
     // Every earlier rule keeps its accepted priority.
     assert.equal(edge.Resources.PublicNewsletterCapabilityPosts.Properties.Priority, 88);
     assert.equal(edge.Resources.CoreInternalOnboardingTenants.Properties.Priority, 92);
-    assert.equal(Math.max(...rules.map((rule) => Number(rule.Priority))), 95);
+    assert.equal(Math.max(...rules.map((rule) => Number(rule.Priority))), 96);
   }));
 
 test('Meri governed action proposals admit only the exact Core proposal POST routes on the preview host', () =>
@@ -743,6 +743,61 @@ test('Meri governed action proposals admit only the exact Core proposal POST rou
     // Every earlier rule keeps its accepted priority.
     assert.equal(edge.Resources.ClientCapabilityCreate.Properties.Priority, 93);
     assert.equal(edge.Resources.ClientCapabilityUpdate.Properties.Priority, 94);
+  }));
+
+test('Research Portfolio conversation creation admits only the exact Core POST on the preview host', () =>
+  render(false, (edge) => {
+    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule')
+      .map((r) => r.Properties)
+      .sort((a, b) => Number(a.Priority) - Number(b.Priority));
+    // The Research Portfolio page starts its Meri conversation with Core's conversation create
+    // (frontend operation meri.research.conversation.create, body { researchPortfolioId }); Core resolves and
+    // authorizes the portfolio and stores its receipt on the conversation. Until 2 Nov 2026 the POST was never
+    // forwarded: the listener's fixed 404 answered "Start Research conversation" and Core never saw it, so no
+    // Research Portfolio conversation (the only place Meri may prepare portfolio changes) could be opened.
+    const create = '/api/clio/conversations';
+    assert.deepEqual(routeDestination(rules, 'POST', create), { Ref: 'CoreTarget' });
+    for (const method of ['PUT', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE'])
+      assert.equal(routeDestination(rules, method, create), null, method);
+    for (const hostname of ['app.capiro.ai', 'arbitrary.invalid'])
+      assert.equal(routeDestination(rules, 'POST', create, hostname), null, hostname);
+    // Reading the created conversation stays on the existing GET rule.
+    for (const method of ['GET', 'HEAD'])
+      assert.deepEqual(
+        routeDestination(rules, method, `${create}/11111111-1111-4111-8111-111111111111`),
+        { Ref: 'CoreTarget' },
+      );
+    // Neighbours stay closed unless an earlier rule already admits them exactly.
+    for (const neighbor of [
+      `${create}/`,
+      `${create}.invalid`,
+      `/extra${create}`,
+      `${create}/11111111-1111-4111-8111-111111111111`,
+      `${create}/11111111-1111-4111-8111-111111111111/stream`,
+      `${create}/workspace-generation`,
+    ])
+      assert.equal(routeDestination(rules, 'POST', neighbor), null, neighbor);
+    // The bootstrap POST keeps its own earlier rule.
+    assert.deepEqual(routeDestination(rules, 'POST', `${create}/bootstrap`), { Ref: 'CoreTarget' });
+    const added = edge.Resources.MeriResearchConversationCreate.Properties;
+    assert.equal(added.Priority, 96);
+    assert.deepEqual(added.ListenerArn, { Ref: 'PreviewHttps' });
+    assert.deepEqual(added.Actions, [{ TargetGroupArn: { Ref: 'CoreTarget' }, Type: 'forward' }]);
+    assert.deepEqual(
+      added.Conditions.find((c: any) => c.Field === 'host-header').HostHeaderConfig.Values,
+      [host],
+    );
+    assert.deepEqual(
+      added.Conditions.find((c: any) => c.Field === 'http-request-method').HttpRequestMethodConfig
+        .Values,
+      ['POST'],
+    );
+    assert.deepEqual(
+      added.Conditions.find((c: any) => c.Field === 'path-pattern').PathPatternConfig.RegexValues,
+      ['^/api/clio/conversations$'],
+    );
+    // Every earlier rule keeps its accepted priority.
+    assert.equal(edge.Resources.MeriActionProposals.Properties.Priority, 95);
   }));
 
 test('client capability update admits only the canonical two-UUID PATCH route on the preview host', () =>
