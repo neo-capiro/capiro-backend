@@ -9,6 +9,11 @@ import { Prisma } from '@prisma/client';
  *   semantic_search_grants                 source_type 'funding_grant_chunk'  (embed-funding-catalog, chunks per grant)
  *   semantic_search_contract_opportunities source_type 'funding_notice_chunk' (embed-funding-catalog, chunks per SAM notice)
  *
+ * The two funding reads also rank 'funding_attachment_chunk' passages (chunks of
+ * an opportunity's attached documents, parent opportunity_attachment.id) and join
+ * each back to its grant or notice through the attachment's soft parent link, so
+ * one opportunity is returned once, with its closest passage from either text.
+ *
  * Every row these reads rank is tenant-less public data (`tenant_id IS NULL`),
  * so no client wall applies; the HTTP owner still requires the verified
  * service identity, the signed-in member and an active membership before any
@@ -53,7 +58,13 @@ interface FamilyShape {
   readonly filters: readonly (keyof SemanticSearchInput)[];
   readonly dateField: string;
   readonly reference: string;
+  /** opportunity_attachment column naming this family's parent; bills have no attachments. */
+  readonly attachmentParent?: 'federal_grant_id' | 'sam_opportunity_id';
 }
+
+/** Chunks of attached opportunity documents (embed-funding-catalog `attachment`), shared by both funding reads. */
+export const ATTACHMENT_SOURCE_TYPE = 'funding_attachment_chunk';
+const UUID_TEXT = '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
 
 const FAMILIES: Readonly<Record<SemanticSearchOperation, FamilyShape>> = Object.freeze({
   semantic_search_bills: {
@@ -67,12 +78,14 @@ const FAMILIES: Readonly<Record<SemanticSearchOperation, FamilyShape>> = Object.
     filters: ['agency', 'status', 'dateFrom', 'dateTo'],
     dateField: 'close date',
     reference: 'federal_grant',
+    attachmentParent: 'federal_grant_id',
   },
   semantic_search_contract_opportunities: {
     sourceType: 'funding_notice_chunk',
     filters: ['agency', 'naics', 'includeInactive', 'dateFrom', 'dateTo'],
     dateField: 'response deadline',
     reference: 'sam_opportunity',
+    attachmentParent: 'sam_opportunity_id',
   },
 });
 
@@ -165,12 +178,15 @@ export function parseSemanticSearchInput(
   return input;
 }
 
-/** Rows the family statements return; `record` carries the canonical fields. */
+/** Rows the family statements return: `record` carries the canonical fields, `passage` the closest passage's
+ * citation metadata and `documents` the opportunity's attachment text coverage (both null for bills). */
 export interface SemanticSearchRow {
   parent_id: string;
   score: number;
   snippet: string;
   record: Record<string, unknown>;
+  passage?: Record<string, unknown> | null;
+  documents?: Record<string, unknown> | null;
 }
 
 function dateRange(column: Prisma.Sql, input: SemanticSearchInput): Prisma.Sql[] {
@@ -214,6 +230,31 @@ function familyFilters(operation: SemanticSearchOperation, input: SemanticSearch
   }
 }
 
+/** Citation metadata of the closest passage as embed-funding-catalog stored it (documentPlan): start and end are
+ * UTF-16 offsets into the normalized extracted text, never pages; documentHash names the text version. */
+const PASSAGE = Prisma.sql`jsonb_build_object(
+          'sourceTable', best.meta->>'sourceTable', 'sourceUrl', best.meta->>'sourceUrl', 'fileName', pa.file_name,
+          'documentHash', best.meta->>'documentHash', 'chunkIndex', best.meta->'chunkIndex', 'start', best.meta->'start',
+          'end', best.meta->'end', 'extractionMethod', best.meta->>'extractionMethod', 'truncated', best.meta->'truncated',
+          'embeddedAt', best.embedded_at)`;
+
+/** Attachment text coverage of one opportunity by the embedder's own text rule (funding-document-text.ts):
+ * provider text wins; local parser text counts only while it is bound to the archived bytes. */
+function documentCoverage(parentColumn: 'federal_grant_id' | 'sam_opportunity_id', parent: Prisma.Sql): Prisma.Sql {
+  return Prisma.sql`CROSS JOIN LATERAL (SELECT jsonb_build_object(
+          'attachments', count(*)::int,
+          'withText', (count(*) FILTER (WHERE x.provider_text OR x.local_chars > 10))::int,
+          'truncated', (count(*) FILTER (WHERE NOT x.provider_text AND x.local_truncated))::int,
+          'indexed', (count(*) FILTER (WHERE (x.provider_text OR x.local_chars > 10) AND a.embedded_at IS NOT NULL))::int) AS documents
+        FROM opportunity_attachment a
+        LEFT JOIN LATERAL (SELECT t.char_count, t.truncated FROM opportunity_document_text t
+          WHERE t.attachment_id = a.id AND t.attachment_content_sha256 = a.content_sha256
+            AND t.status = 'available' AND t.extraction_method = 'local_parser' LIMIT 1) t ON TRUE
+        CROSS JOIN LATERAL (SELECT coalesce(length(a.provider_data->>'extracted_text'), 0) > 10 AS provider_text,
+          coalesce(t.char_count, 0) AS local_chars, coalesce(t.truncated, FALSE) AS local_truncated) x
+       WHERE a.${Prisma.raw(parentColumn)} = ${parent}) d`;
+}
+
 function familyProjection(operation: SemanticSearchOperation): Prisma.Sql {
   switch (operation) {
     case 'semantic_search_bills':
@@ -225,26 +266,38 @@ function familyProjection(operation: SemanticSearchOperation): Prisma.Sql {
           'status', cb.status, 'introducedDate', cb.introduced_date, 'latestActionDate', cb.latest_action_date,
           'latestActionText', cb.latest_action_text, 'url', cb.url) AS record) r`;
     case 'semantic_search_grants':
+      // openForApplications is the posted-and-not-closed rule; a forecasted grant is announced, not yet open.
       return Prisma.sql`FROM best JOIN federal_grant g ON g.id = best.parent_id
+        LEFT JOIN opportunity_attachment pa ON pa.id = best.attachment_id
         CROSS JOIN LATERAL (SELECT jsonb_build_object(
           'id', g.id, 'title', g.title, 'agency', g.agency, 'subAgency', g.sub_agency,
           'opportunityNumber', g.opportunity_number, 'category', g.category, 'fundingInstrument', g.funding_instrument,
           'awardCeiling', g.award_ceiling, 'awardFloor', g.award_floor, 'estimatedFunding', g.estimated_funding,
-          'openDate', g.open_date, 'closeDate', g.close_date, 'status', g.status, 'url', g.url) AS record) r`;
+          'openDate', g.open_date, 'closeDate', g.close_date, 'responseDateDesc', g.response_date_desc, 'status', g.status,
+          'openForApplications', (g.status = 'posted' AND (g.close_date IS NULL OR g.close_date >= CURRENT_DATE)),
+          'url', g.url) AS record, ${PASSAGE} AS passage) r
+        ${documentCoverage('federal_grant_id', Prisma.sql`g.id`)}`;
     case 'semantic_search_contract_opportunities':
+      // currentNotice is the ingestion's current-notice rule; whether offers are taken also depends on noticeType.
       return Prisma.sql`FROM best JOIN sam_opportunity o ON o.id::text = best.parent_id
+        LEFT JOIN opportunity_attachment pa ON pa.id = best.attachment_id
         CROSS JOIN LATERAL (SELECT jsonb_build_object(
           'id', o.id, 'noticeId', o.notice_id, 'solicitationNumber', o.solicitation_number, 'title', o.title,
           'noticeType', o.notice_type, 'agency', o.agency, 'subAgency', o.sub_agency, 'office', o.office,
           'setAside', o.set_aside, 'naicsCode', o.naics_code, 'pscCode', o.psc_code, 'postedDate', o.posted_date,
-          'responseDeadline', o.response_deadline, 'active', o.active, 'url', o.source_url) AS record) r`;
+          'responseDeadline', o.response_deadline, 'active', o.active,
+          'currentNotice', (o.active AND (o.response_deadline IS NULL OR o.response_deadline >= now())),
+          'url', o.source_url) AS record, ${PASSAGE} AS passage) r
+        ${documentCoverage('sam_opportunity_id', Prisma.sql`o.id`)}`;
   }
 }
 
 /**
- * One statement per read: the nearest `candidateLimit` vectors of the family
- * (served by the family's partial HNSW index), the best chunk per parent record
- * above the similarity floor, then the canonical record with its filters.
+ * One statement per read: the nearest `candidateLimit` vectors of each passage family (each served by its own
+ * partial HNSW index), the best passage per parent record above the similarity floor, then the canonical record
+ * with its filters. The funding reads rank description and attachment passages together; an attachment passage
+ * reaches its opportunity only through an existing opportunity_attachment row whose parent link names this
+ * family, so a passage whose attachment or opportunity is gone never reaches the page.
  * `vector` must come from `vectorLiteral(await embedText(query))`.
  */
 export function semanticSearchSql(
@@ -253,37 +306,48 @@ export function semanticSearchSql(
   vector: string,
   model: string,
 ): Prisma.Sql {
-  // The family's source_type is a literal from the closed FAMILIES table, never caller text: the planner
-  // can only match the family's partial HNSW index (WHERE source_type = '...') against a literal predicate,
-  // as intelligence-tracked-bill-discovery.ts does for bills. The limits are literals from the frozen
+  // Every source_type is a literal from this closed module, never caller text: the planner can only match a
+  // family's partial HNSW index (WHERE source_type = '...') against a literal predicate, as
+  // intelligence-tracked-bill-discovery.ts does for bills. The limits are literals from the frozen
   // SEMANTIC_SEARCH_LIMITS table for the same reason, and because Prisma binds a JavaScript integer as
   // bigint: `left(text, bigint)` has no Postgres signature (42883, seen live on 2 November 2026), and
   // LIMIT / comparison operands keep their natural int type. The one caller integer (limit, validated
   // 1..maxLimit) is bound with an explicit ::int cast.
   const family = FAMILIES[operation];
   const limits = SEMANTIC_SEARCH_LIMITS;
-  const parent =
-    operation === 'semantic_search_bills'
-      ? Prisma.sql`ce.source_id`
-      : Prisma.sql`ce.metadata_jsonb->>'parentId'`;
-  return Prisma.sql`
-    WITH candidates AS (
-      SELECT ${parent} AS parent_id, ce.content_text,
+  const nearest = (sourceType: string, parent: Prisma.Sql) => Prisma.sql`
+      SELECT ${parent} AS parent_id, ce.content_text, ce.metadata_jsonb AS meta, ce.updated_at AS embedded_at,
              (1 - (ce.embedding <=> ${vector}::vector))::float8 AS score
         FROM context_embeddings ce
-       WHERE ce.source_type = ${Prisma.raw(`'${family.sourceType}'`)}
+       WHERE ce.source_type = ${Prisma.raw(`'${sourceType}'`)}
          AND ce.tenant_id IS NULL AND ce.client_id IS NULL AND ce.owner_user_id IS NULL
          AND ce.model = ${model}
          AND ce.embedding IS NOT NULL
        ORDER BY ce.embedding <=> ${vector}::vector
-       LIMIT ${Prisma.raw(String(limits.candidateLimit))}
+       LIMIT ${Prisma.raw(String(limits.candidateLimit))}`;
+  const parent = family.attachmentParent;
+  const candidates = parent
+    ? Prisma.sql`description AS (${nearest(family.sourceType, Prisma.sql`ce.metadata_jsonb->>'parentId'`)}
+    ), attachment AS (${nearest(ATTACHMENT_SOURCE_TYPE, Prisma.sql`ce.metadata_jsonb->>'parentId'`)}
+    ), candidates AS (
+      SELECT parent_id, content_text, meta, embedded_at, NULL::uuid AS attachment_id, score FROM description
+      UNION ALL
+      SELECT a.${Prisma.raw(parent)}::text, x.content_text, x.meta, x.embedded_at, a.id, x.score
+        FROM attachment x
+        JOIN opportunity_attachment a
+          ON a.id = CASE WHEN x.parent_id ~ ${Prisma.raw(`'${UUID_TEXT}'`)} THEN x.parent_id::uuid END
+       WHERE a.${Prisma.raw(parent)} IS NOT NULL`
+    : Prisma.sql`candidates AS (${nearest(family.sourceType, Prisma.sql`ce.source_id`)}`;
+  return Prisma.sql`
+    WITH ${candidates}
     ), best AS (
-      SELECT DISTINCT ON (parent_id) parent_id, content_text, score
+      SELECT DISTINCT ON (parent_id) parent_id, content_text, meta, embedded_at, ${parent ? Prisma.sql`attachment_id` : Prisma.sql`NULL::uuid AS attachment_id`}, score
         FROM candidates
        WHERE parent_id IS NOT NULL AND score >= ${Prisma.raw(String(limits.similarityFloor))}::float8
        ORDER BY parent_id, score DESC
     )
-    SELECT best.parent_id, best.score, left(best.content_text, ${Prisma.raw(String(limits.snippetChars))}) AS snippet, r.record
+    SELECT best.parent_id, best.score, left(best.content_text, ${Prisma.raw(String(limits.snippetChars))}) AS snippet, r.record,
+           ${parent ? Prisma.sql`r.passage, d.documents` : Prisma.sql`NULL::jsonb AS passage, NULL::jsonb AS documents`}
     ${familyProjection(operation)}
     ${familyFilters(operation, input)}
     ORDER BY best.score DESC, best.parent_id ASC
@@ -312,6 +376,30 @@ export interface SemanticCoverageRow {
   total: number;
 }
 
+/** Where the closest passage came from, as stored by embed-funding-catalog; every field is null when not recorded. */
+export interface SemanticPassage {
+  /** federal_grant or sam_opportunity for the opportunity's own description, opportunity_attachment for an attached document. */
+  sourceTable: 'federal_grant' | 'sam_opportunity' | 'opportunity_attachment' | null;
+  sourceUrl: string | null;
+  fileName: string | null;
+  documentHash: string | null;
+  chunkIndex: number | null;
+  /** UTF-16 offsets into the normalized extracted text, not pages. */
+  start: number | null;
+  end: number | null;
+  extractionMethod: string | null;
+  truncated: boolean | null;
+  embeddedAt: string | null;
+}
+
+/** Attached documents of the opportunity: how many carry searchable text, truncated text or passages. */
+export interface SemanticDocumentCoverage {
+  attachments: number;
+  withText: number;
+  truncated: number;
+  indexed: number;
+}
+
 export interface SemanticSearchResult {
   tool: SemanticSearchOperation;
   generatedAt: string;
@@ -329,8 +417,50 @@ export interface SemanticSearchResult {
     score: number;
     snippet: string;
     record: Record<string, unknown>;
+    passage?: SemanticPassage;
+    documents?: SemanticDocumentCoverage;
   }>;
 }
+
+const PASSAGE_TABLES = ['federal_grant', 'sam_opportunity', 'opportunity_attachment'] as const;
+const nullableText = (value: unknown) => (typeof value === 'string' && value.length > 0 ? value : null);
+const nullableCount = (value: unknown) => (Number.isSafeInteger(value) && Number(value) >= 0 ? Number(value) : null);
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === 'object' && !Array.isArray(value);
+
+function projectPassage(raw: unknown): SemanticPassage | undefined {
+  if (!isObject(raw)) return undefined;
+  const table = PASSAGE_TABLES.find((name) => name === raw.sourceTable) ?? null;
+  // jsonb_build_object renders timestamptz as PostgreSQL text ("2026-11-01T09:30:00.123456+00:00"); publish ISO 8601 UTC.
+  const at = raw.embeddedAt instanceof Date ? raw.embeddedAt : typeof raw.embeddedAt === 'string' ? new Date(raw.embeddedAt) : null;
+  const embeddedAt = at && Number.isFinite(at.getTime()) ? at.toISOString() : null;
+  return {
+    sourceTable: table,
+    sourceUrl: nullableText(raw.sourceUrl),
+    fileName: table === 'opportunity_attachment' ? nullableText(raw.fileName) : null,
+    documentHash: nullableText(raw.documentHash),
+    chunkIndex: nullableCount(raw.chunkIndex),
+    start: nullableCount(raw.start),
+    end: nullableCount(raw.end),
+    extractionMethod: nullableText(raw.extractionMethod),
+    truncated: typeof raw.truncated === 'boolean' ? raw.truncated : null,
+    embeddedAt,
+  };
+}
+
+function projectDocuments(raw: unknown): SemanticDocumentCoverage | undefined {
+  if (!isObject(raw)) return undefined;
+  const attachments = nullableCount(raw.attachments) ?? 0;
+  const bounded = (value: unknown) => Math.min(nullableCount(value) ?? 0, attachments);
+  return { attachments, withText: bounded(raw.withText), truncated: bounded(raw.truncated), indexed: bounded(raw.indexed) };
+}
+
+const STATUS_NOTES: Partial<Record<SemanticSearchOperation, string>> = {
+  semantic_search_grants:
+    'openForApplications is status posted with a close date not yet passed or not set; a forecasted grant is announced and not yet accepting applications, so name it as forecasted. A null closeDate is an unknown deadline: read responseDateDesc before calling it continuous. awardCeiling is the most one award can receive and estimatedFunding the program total; neither is money awarded, and who received awards is in the federal awards data.',
+  semantic_search_contract_opportunities:
+    'currentNotice is the active flag with a response deadline not yet passed or not set. Whether offers are taken also depends on noticeType: a Solicitation or Combined Synopsis/Solicitation takes offers, Sources Sought and Presolicitation gather interest, an Award Notice announces a winner. A solicitation number can be shared by several notices of one procurement; cite the notice id.',
+};
 
 export function projectSemanticSearch(
   operation: SemanticSearchOperation,
@@ -354,17 +484,27 @@ export function projectSemanticSearch(
         Number.isFinite(row.score) &&
         row.score >= SEMANTIC_SEARCH_LIMITS.similarityFloor &&
         row.score <= 1 &&
-        row.record &&
-        typeof row.record === 'object' &&
-        !Array.isArray(row.record),
+        isObject(row.record),
     )
-    .map((row) => ({
-      reference: `${family.reference}:${row.parent_id}`,
-      score: Math.round(row.score * 1000) / 1000,
-      snippet: typeof row.snippet === 'string' ? row.snippet : '',
-      record: row.record,
-    }));
+    .map((row) => {
+      const passage = family.attachmentParent ? projectPassage(row.passage) : undefined;
+      const documents = family.attachmentParent ? projectDocuments(row.documents) : undefined;
+      return {
+        reference: `${family.reference}:${row.parent_id}`,
+        score: Math.round(row.score * 1000) / 1000,
+        snippet: typeof row.snippet === 'string' ? row.snippet : '',
+        record: row.record,
+        ...(passage ? { passage } : {}),
+        ...(documents ? { documents } : {}),
+      };
+    });
   const filters = family.filters.filter((key) => input[key] !== undefined && input[key] !== false);
+  const ranked = family.attachmentParent
+    ? `the ${SEMANTIC_SEARCH_LIMITS.candidateLimit} closest description passages and the ${SEMANTIC_SEARCH_LIMITS.candidateLimit} closest attached-document passages, best passage per record`
+    : `the ${SEMANTIC_SEARCH_LIMITS.candidateLimit} closest vectors`;
+  const gaps = results.filter(
+    (row) => row.documents && (row.documents.withText < row.documents.attachments || row.documents.truncated > 0 || row.documents.indexed < row.documents.withText),
+  ).length;
   return {
     tool: operation,
     generatedAt,
@@ -375,12 +515,21 @@ export function projectSemanticSearch(
     total: results.length,
     coverage,
     notes: [
-      `Nearest-meaning ${kind} records by embedding similarity: the ${SEMANTIC_SEARCH_LIMITS.candidateLimit} closest vectors${filters.length ? `, then ${filters.join(', ')} filters` : ''}; similarity is not relevance. Date filters apply to the ${family.dateField}.`,
+      `Nearest-meaning ${kind} records by embedding similarity: ${ranked}${filters.length ? `, then ${filters.join(', ')} filters` : ''}; similarity is not relevance. Date filters apply to the ${family.dateField}.`,
       `${coverage.indexedRecords} of ${coverage.totalRecords} stored ${kind} records are indexed for this read; a record without an index entry cannot be found here, so an empty page means no close match among the indexed records, never that none exists${unindexed > 0 ? ` (${unindexed} records are not indexed yet)` : ''}.`,
       ...(results.length
         ? []
         : [`No close match among the indexed ${kind} records for this query${filters.length ? ' and these filters' : ''}; say that the indexed records held no close match and that ${unindexed > 0 ? `${unindexed} records are not indexed yet` : 'the whole set is indexed'}, not that no such record exists.`]),
       'Each reference is a stable record identifier; use exact reads or SQL for counts, joins and fields beyond this record.',
+      ...(family.attachmentParent
+        ? [
+            'passage is the cited text: sourceTable names the opportunity description or opportunity_attachment (an attached document, fileName); start and end are UTF-16 offsets into the normalized extracted text, not page numbers; documentHash is the text version. A passage is relevance evidence, not proof of eligibility. The record fields are current; a passage embedded (embeddedAt) before the opportunity last changed can describe earlier text.',
+            STATUS_NOTES[operation]!,
+          ]
+        : []),
+      ...(gaps
+        ? [`${gaps} of these records have attached documents without searchable text, with truncated text or not indexed yet (see documents); a requirement missing from the passages is a coverage gap, not proof it is absent.`]
+        : []),
     ],
     results,
   };

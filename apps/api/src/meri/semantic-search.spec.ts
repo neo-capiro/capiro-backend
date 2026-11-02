@@ -7,6 +7,7 @@ import {
   SEMANTIC_SEARCH_LIMITS,
   SEMANTIC_SEARCH_OPERATIONS,
   SEMANTIC_SEARCH_SOURCE_TYPES,
+  ATTACHMENT_SOURCE_TYPE,
   type SemanticSearchOperation,
 } from './semantic-search.js';
 
@@ -81,7 +82,7 @@ describe('semantic search statement (pgvector-free shape)', () => {
     expect(text).toContain('ce.tenant_id IS NULL AND ce.client_id IS NULL AND ce.owner_user_id IS NULL');
     expect(text).toContain('ce.model = ?');
     expect(text).toContain(`ORDER BY ce.embedding <=> ?::vector LIMIT ${SEMANTIC_SEARCH_LIMITS.candidateLimit}`);
-    expect(text).toContain('SELECT DISTINCT ON (parent_id) parent_id, content_text, score');
+    expect(text).toContain('SELECT DISTINCT ON (parent_id) parent_id, content_text, meta, embedded_at,');
     expect(text).toContain('ORDER BY best.score DESC, best.parent_id ASC LIMIT ?::int');
     expect(text).toContain(`left(best.content_text, ${SEMANTIC_SEARCH_LIMITS.snippetChars})`);
     expect(text).toContain(`score >= ${SEMANTIC_SEARCH_LIMITS.similarityFloor}::float8`);
@@ -94,7 +95,9 @@ describe('semantic search statement (pgvector-free shape)', () => {
     expect(values).not.toContain(SEMANTIC_SEARCH_LIMITS.snippetChars);
     expect(values).not.toContain(SEMANTIC_SEARCH_LIMITS.similarityFloor);
     expect(values.filter((value) => typeof value === 'number')).toEqual([SEMANTIC_SEARCH_LIMITS.defaultLimit]);
-    expect(values.filter((value) => value === vector)).toHaveLength(2);
+    // One nearest-neighbour scan per passage family: bills rank one, the funding reads description and attachment passages.
+    expect(values.filter((value) => value === vector)).toHaveLength(operation === 'semantic_search_bills' ? 2 : 4);
+    expect(values.filter((value) => value === model)).toHaveLength(operation === 'semantic_search_bills' ? 1 : 2);
     // The query text itself is never part of the statement.
     expect(values).not.toContain('coastal resilience');
     expect(text).not.toMatch(/coastal/);
@@ -109,6 +112,31 @@ describe('semantic search statement (pgvector-free shape)', () => {
     expect(text).toContain("'id', cb.id, 'congress', cb.congress");
     expect(text).toContain('WHERE cb.congress = ?::int AND cb.status = ? AND cb.latest_action_date >= ?::date AND cb.latest_action_date <= ?::date');
     expect(values).toEqual(expect.arrayContaining([119, 'introduced', '2025-01-01', '2026-06-30']));
+  });
+
+  test('bills carry no passage or document coverage; the funding reads rank attachment passages under their own literal family', () => {
+    const bills = statement('semantic_search_bills', { query: 'water' }).text;
+    expect(bills).not.toContain(ATTACHMENT_SOURCE_TYPE);
+    expect(bills).toContain('NULL::jsonb AS passage, NULL::jsonb AS documents');
+    for (const [operation, parent] of [['semantic_search_grants', 'federal_grant_id'], ['semantic_search_contract_opportunities', 'sam_opportunity_id']] as const) {
+      const { text, values } = statement(operation, { query: 'water' });
+      expect(text).toContain(`ce.source_type = '${ATTACHMENT_SOURCE_TYPE}'`);
+      expect(values).not.toContain(ATTACHMENT_SOURCE_TYPE);
+      // An attachment passage reaches its opportunity only through an existing attachment row of this family.
+      expect(text).toContain(`SELECT a.${parent}::text, x.content_text, x.meta, x.embedded_at, a.id, x.score FROM attachment x JOIN opportunity_attachment a ON a.id = CASE WHEN x.parent_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN x.parent_id::uuid END WHERE a.${parent} IS NOT NULL`);
+      expect(text).toContain('UNION ALL');
+      expect(text).toContain('r.record, r.passage, d.documents');
+      expect(text).toContain('LEFT JOIN opportunity_attachment pa ON pa.id = best.attachment_id');
+      expect(text).toContain(`FROM opportunity_attachment a LEFT JOIN LATERAL (SELECT t.char_count, t.truncated FROM opportunity_document_text t WHERE t.attachment_id = a.id AND t.attachment_content_sha256 = a.content_sha256 AND t.status = 'available' AND t.extraction_method = 'local_parser' LIMIT 1) t ON TRUE`);
+      expect(text).toContain(`WHERE a.${parent} = ${operation === 'semantic_search_grants' ? 'g.id' : 'o.id'}) d`);
+    }
+    expect(statement('semantic_search_grants', { query: 'water' }).text).toContain(
+      "'openForApplications', (g.status = 'posted' AND (g.close_date IS NULL OR g.close_date >= CURRENT_DATE))",
+    );
+    expect(statement('semantic_search_grants', { query: 'water' }).text).toContain("'responseDateDesc', g.response_date_desc");
+    expect(statement('semantic_search_contract_opportunities', { query: 'water' }).text).toContain(
+      "'currentNotice', (o.active AND (o.response_deadline IS NULL OR o.response_deadline >= now()))",
+    );
   });
 
   test('grants de-duplicate chunks by parentId and filter the canonical grant', () => {
@@ -185,6 +213,49 @@ describe('semantic search projection', () => {
     expect(bills.values).toEqual([model]);
     expect(flat(semanticCoverageSql('semantic_search_grants', model).sql)).toContain('FROM federal_grant WHERE embedded_at IS NOT NULL');
     expect(flat(semanticCoverageSql('semantic_search_contract_opportunities', model).sql)).toContain('FROM sam_opportunity WHERE embedded_at IS NOT NULL');
+  });
+
+  test('funding results cite their passage and attachment coverage; malformed metadata degrades to null, never invented', () => {
+    const grants = projectSemanticSearch('semantic_search_grants', input, [
+      {
+        ...row('G-1', 0.8),
+        passage: {
+          sourceTable: 'opportunity_attachment', sourceUrl: 'https://example.test/file.pdf', fileName: 'NOFO.pdf', documentHash: 'abc',
+          chunkIndex: 2, start: 12000, end: 18000, extractionMethod: 'local_parser', truncated: true, embeddedAt: '2026-11-01T09:30:00.123456+00:00',
+        },
+        documents: { attachments: 3, withText: 2, truncated: 1, indexed: 2 },
+      },
+      { ...row('G-2', 0.7), passage: { sourceTable: 'raw', chunkIndex: -1, start: '0', fileName: 'x.pdf' }, documents: { attachments: 0, withText: 4 } },
+    ], { indexed: 2, total: 2 }, model, '2026-11-02T00:00:00.000Z');
+    expect(grants.results[0]).toMatchObject({
+      passage: {
+        sourceTable: 'opportunity_attachment', fileName: 'NOFO.pdf', documentHash: 'abc', chunkIndex: 2, start: 12000, end: 18000,
+        extractionMethod: 'local_parser', truncated: true, embeddedAt: '2026-11-01T09:30:00.123Z',
+      },
+      documents: { attachments: 3, withText: 2, truncated: 1, indexed: 2 },
+    });
+    expect(grants.results[1]!.passage).toEqual({
+      sourceTable: null, sourceUrl: null, fileName: null, documentHash: null, chunkIndex: null, start: null, end: null,
+      extractionMethod: null, truncated: null, embeddedAt: null,
+    });
+    expect(grants.results[1]!.documents).toEqual({ attachments: 0, withText: 0, truncated: 0, indexed: 0 });
+    expect(grants.notes.join(' ')).toMatch(/UTF-16 offsets into the normalized extracted text, not page numbers/);
+    expect(grants.notes.join(' ')).toMatch(/forecasted grant is announced and not yet accepting applications/);
+    expect(grants.notes.join(' ')).toMatch(/A null closeDate is an unknown deadline: read responseDateDesc/);
+    expect(grants.notes.join(' ')).toMatch(/neither is money awarded/);
+    expect(grants.notes.at(-1)).toBe('1 of these records have attached documents without searchable text, with truncated text or not indexed yet (see documents); a requirement missing from the passages is a coverage gap, not proof it is absent.');
+    expect(grants.notes.length).toBeLessThanOrEqual(8);
+    for (const note of grants.notes) expect(note.length).toBeLessThanOrEqual(1024);
+    const notices = projectSemanticSearch('semantic_search_contract_opportunities',
+      parseSemanticSearchInput('semantic_search_contract_opportunities', { query: 'water' }), [], { indexed: 1, total: 2 }, model, '2026-11-02T00:00:00.000Z');
+    expect(notices.notes.join(' ')).toMatch(/also depends on noticeType/);
+    expect(notices.notes.join(' ')).toMatch(/cite the notice id/);
+    expect(notices.notes[0]).toContain('closest attached-document passages');
+    const bills = projectSemanticSearch('semantic_search_bills', parseSemanticSearchInput('semantic_search_bills', { query: 'water' }),
+      [{ ...row('119-hr-1', 0.5), passage: { sourceTable: 'federal_grant' }, documents: { attachments: 1 } }], { indexed: 1, total: 1 }, model, '2026-11-02T00:00:00.000Z');
+    expect(bills.results[0]).not.toHaveProperty('passage');
+    expect(bills.results[0]).not.toHaveProperty('documents');
+    expect(bills.notes.join(' ')).not.toMatch(/passage/);
   });
 
   test('names the family reference per operation', () => {
