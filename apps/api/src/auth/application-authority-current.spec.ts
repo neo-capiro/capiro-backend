@@ -7,7 +7,7 @@ import { Test } from '@nestjs/testing';
 import { Prisma } from '@prisma/client';
 import { ApplicationAuthorityModule } from './application-authority.module.js';
 import { ApplicationAuthorityUnavailableException } from './application-authority-unavailable.js';
-import { parseApplicationAuthorityCurrentBody } from './application-authority.js';
+import { APPLICATION_AUTHORITY_CURRENT_RECEIPT_TTL_MS, parseApplicationAuthorityCurrentBody } from './application-authority.js';
 import { ClerkService } from './clerk.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TenantContextMiddleware } from '../tenant/tenant-context.middleware.js';
@@ -60,7 +60,7 @@ async function fixture() {
   let nextTx = 0;
   let authorityTenantId = tenantId;
   const session = { id: 'sess_current_test', userId: user.clerkUserId, status: 'active', createdAt: 1,
-    expireAt: Date.now() + 600_000, abandonAt: Date.now() + 500_000, expiresAtMs: Date.now() + 300_000, actor: null };
+    expireAt: Date.now() + 600_000, abandonAt: Date.now() + 500_000, expiresAtMs: Date.now() + 480_000, actor: null };
   const nativeSession = jest.fn(async () => {
     sequence.push('session');
     if (onlineError) throw onlineError;
@@ -288,7 +288,8 @@ describe('combined current authority registered HTTP boundary', () => {
     expect(response.body.clientIds).toEqual([clientId, otherClientId]);
     expect(response.headers['cache-control']).toBe('no-store');
     expect(response.headers['content-type']).toBe('application/json; charset=utf-8');
-    expect(response.body.expiresAtMs).toBe(response.body.checkedAtMs + 120_000);
+    expect(response.body.expiresAtMs).toBe(response.body.checkedAtMs + APPLICATION_AUTHORITY_CURRENT_RECEIPT_TTL_MS);
+    expect(response.body.expiresAtMs).toBeLessThan(identity.body.expiresAtMs);
   });
 
   it('makes one online read before one repeatable-read transaction whose first SQL is READ ONLY', async () => {
@@ -552,11 +553,19 @@ describe('combined current authority registered HTTP boundary', () => {
     expect(f.observations).toEqual([]);
   });
 
-  it('caps the receipt at the original session expiry when it is sooner than two minutes', async () => {
+  it('caps the receipt at the original session expiry when it is sooner than the receipt cap', async () => {
     f.session.expiresAtMs = Date.now() + 20_000;
     const response = await f.request('current', input);
     expect(response.statusCode).toBe(200);
     expect(response.body.expiresAtMs).toBe(f.session.expiresAtMs);
+  });
+
+  it('never extends the receipt past the session evidence even when that evidence outlives the old 120 s cap', async () => {
+    f.session.expiresAtMs = Date.now() + 200_000;
+    const response = await f.request('current', input);
+    expect(response.statusCode).toBe(200);
+    expect(response.body.expiresAtMs).toBe(f.session.expiresAtMs);
+    expect(response.body.expiresAtMs).toBeLessThan(response.body.checkedAtMs + APPLICATION_AUTHORITY_CURRENT_RECEIPT_TTL_MS);
   });
 
   it.each([
