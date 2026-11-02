@@ -77,20 +77,13 @@ describe('retained source read token correlation claim', () => {
     }), config, nowMs)).toBeNull();
   });
 
-  it('requires the PR171 action successor correlation but forbids it on the original action read', async () => {
-    const correlationSha256 = sha('action successor signed correlation');
-    const successor = claims('actions.query');
-    await expect(signReadToken(signer, successor)).rejects.toThrow();
-    const { token } = await signReadToken(signer, { ...successor, correlationSha256 });
-    expect(verifyReadToken(token, config, nowMs)).toMatchObject({
-      operation: { id: 'actions.query', version: '0.2.0' }, correlationSha256,
-    });
-    expect(verifyReadToken(mutateSigned(token, (body) => { delete body.correlationSha256; }), config, nowMs)).toBeNull();
-    expect(verifyReadToken(mutateSigned(token, (body) => {
-      body.operation = { id: 'actions.query', version: '0.3.0' };
-    }), config, nowMs)).toBeNull();
-    await expect(signReadToken(signer, { ...claims('query_action_items'), correlationSha256 })).rejects.toThrow();
-    const original = await signReadToken(signer, claims('query_action_items'));
-    expect(verifyReadToken(original.token, config, nowMs)?.correlationSha256).toBeUndefined();
+  it('admits no correlation claim on the reads served only on the ordinary bearer path', async () => {
+    const correlationSha256 = sha('ordinary path correlation');
+    for (const id of ['actions.query', 'search_memory', 'memory.list_own_proposals', 'query_action_items']) {
+      await expect(signReadToken(signer, { ...claims(id), correlationSha256 })).rejects.toThrow();
+      const { token } = await signReadToken(signer, claims(id));
+      expect(verifyReadToken(token, config, nowMs)?.correlationSha256).toBeUndefined();
+      expect(verifyReadToken(mutateSigned(token, (body) => { body.correlationSha256 = correlationSha256; }), config, nowMs)).toBeNull();
+    }
   });
 });

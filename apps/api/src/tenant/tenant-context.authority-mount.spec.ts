@@ -47,10 +47,13 @@ const servicePosts = [
   `/api/clio/application-authority/read-delegations/${D}/revocations`,
   `/api/clio/application-authority/read-delegation-consents/${D}/state`,
 ];
-const heldMemory: Array<[string, string]> = [
-  ['/api/clio/tools/search_memory_eligibility', 'Passive memory helper unavailable'],
-  ['/api/clio/tools/search_memory', 'Passive memory page unavailable'],
-  ['/api/clio/tools/memory.list_own_proposals', 'Memory proposal page unavailable'],
+// Served only on the ordinary user bearer plus verified service identity: a
+// read token gets no special branch and is refused by ordinary token admission.
+const ordinaryOnlyReads = [
+  '/api/clio/tools/search_memory_eligibility',
+  '/api/clio/tools/search_memory',
+  '/api/clio/tools/memory.list_own_proposals',
+  '/api/clio/tools/actions.query',
 ];
 
 let configureProductionMiddleware: (consumer: MiddlewareConsumer) => void;
@@ -298,14 +301,12 @@ describe('fixed authority routes through production AppModule middleware mountin
     expect(f.withSystem).toHaveBeenCalledTimes(1);
   });
 
-  it.each(heldMemory)('keeps held signed-memory target %s closed before token consumption', async (path, message) => {
+  it.each(ordinaryOnlyReads)('refuses a read token on ordinary-only target %s before identity work', async (path) => {
     f = await fixture(); const authorization = 'CapiroMeriRead synthetic';
-    const result = await f.send(path, { authorization });
-    expect(result.status).toBe(503); expect(result.body.message).toBe(message);
-    expect(f.mounts[0]).toEqual({ baseUrl: path, path: '/', originalUrl: path });
-    for (const target of [`${path}/`, `${path}?x=1`, `${path}-other`, `http://core.invalid${path}`]) {
+    for (const target of [path, `${path}/`, `${path}?x=1`, `${path}-other`, `http://core.invalid${path}`]) {
       expect((await f.send(target, { authorization })).status).toBe(401);
     }
+    expect(f.mounts[0]).toEqual({ baseUrl: path, path: '/', originalUrl: path });
     expect(f.verify).not.toHaveBeenCalled(); expect(f.withSystem).not.toHaveBeenCalled();
   });
 
