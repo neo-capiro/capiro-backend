@@ -76,6 +76,8 @@ interface ApplicationAuthorityRequestProvenance {
 // The existing owner shares only private, ephemeral provenance keyed by the
 // actual request object; there is no reusable/durable authorization receipt.
 const applicationAuthorityRequests = new WeakMap<Request, ApplicationAuthorityRequestProvenance>();
+/** users.last_seen_at resolution; see the write in the ordinary resolver. */
+const LAST_SEEN_WRITE_INTERVAL_MS = 60_000;
 const MERI_CONTROL_POST_PATHS = new Set([
   '/engagement/outreach/sdk/claim',
   '/engagement/outreach/sdk/read',
@@ -528,10 +530,18 @@ export class TenantContextMiddleware implements NestMiddleware {
       }
       selectedAuthorityMembership = { id: chosen.id, tenantId: chosen.tenantId };
 
-      // Best-effort last_seen_at update, do not fail the request on error.
-      await tx.user
-        .update({ where: { id: user.id }, data: { lastSeenAt: new Date() } })
-        .catch(() => undefined);
+      // Best-effort last_seen_at update, do not fail the request on error. At
+      // most once a minute per user: a page load fans out into many parallel
+      // requests, and a write on every one kept creating new versions of the
+      // user row that the RepeatableRead/Serializable readers lock FOR SHARE
+      // (client list, portfolio layout), which then failed with 40001.
+      const seenAt = new Date();
+      if (!(user.lastSeenAt instanceof Date) ||
+          seenAt.getTime() - user.lastSeenAt.getTime() >= LAST_SEEN_WRITE_INTERVAL_MS) {
+        await tx.user
+          .update({ where: { id: user.id }, data: { lastSeenAt: seenAt } })
+          .catch(() => undefined);
+      }
 
       const context: TenantContext = {
         tenantId: chosen.tenantId,
