@@ -7,6 +7,7 @@ import { Template } from 'aws-cdk-lib/assertions';
 import {
   PREVIEW_EDGE_PREFIXES,
   PREVIEW_EDGE_SERVICES,
+  PREVIEW_ENGAGEMENT_TARGET,
   PREVIEW_ONBOARD_TARGET,
   previewFirstChatEdgeApplication,
 } from '../lib/preview/first-chat-preview-edge';
@@ -73,16 +74,18 @@ test('the preview host forwards each service namespace, every method, to its own
         rule.Conditions.find((c: any) => c.Field === 'path-pattern').PathPatternConfig.Values,
       ]),
       [
+        [190, ['/api/engagement/outreach-v3/*']],
         [200, ['/api/*']],
         [201, ['/strategy-api/*']],
         [202, ['/workspace-api/*']],
         [203, ['/intel-api/*']],
         [204, ['/onboard-api/*']],
+        [205, ['/webhooks/*']],
       ],
     );
     assert.deepEqual(
       PREVIEW_EDGE_PREFIXES.map((route) => route.owner),
-      ['core', 'strategy', 'workspace', 'intel', 'onboard'],
+      ['engagement', 'core', 'strategy', 'workspace', 'intel', 'onboard', 'core'],
     );
     for (const rule of rules) {
       assert.deepEqual(rule.ListenerArn, { Ref: 'PreviewHttps' });
@@ -101,10 +104,39 @@ test('the preview host forwards each service namespace, every method, to its own
       ['/workspace-api/drafts', workspace],
       ['/intel-api/clients/x/tracker/track', intel],
       ['/onboard-api/setup/state', PREVIEW_ONBOARD_TARGET],
+      ['/webhooks/clerk', core],
+      ['/webhooks/recall/bot-status', core],
     ];
     for (const [pathname, target] of expected)
       for (const method of methods)
         assert.deepEqual(routeDestination(rules, method, pathname), target, `${method} ${pathname}`);
+  }));
+
+test('Outreach v3 reaches the preview engagement-api while the rest of engagement stays on Core', () =>
+  render(false, (edge) => {
+    const rules = listenerRules(edge);
+    for (const pathname of [
+      '/api/engagement/outreach-v3/sessions',
+      '/api/engagement/outreach-v3/templates/from-scratch',
+      `/api/engagement/outreach-v3/sessions/${id}/generation`,
+      `/api/engagement/outreach-v3/sessions/${id}/send`,
+    ])
+      for (const method of methods)
+        assert.deepEqual(routeDestination(rules, method, pathname), PREVIEW_ENGAGEMENT_TARGET, `${method} ${pathname}`);
+    for (const pathname of [
+      '/api/engagement/mail/send',
+      '/api/engagement/meetings',
+      '/api/engagement/outreach',
+      '/api/engagement/outreach/send-intents',
+      '/api/engagement/integrations/microsoft/notifications',
+      '/api/engagement/outreach-v3',
+      '/api/engagement/outreach-v3x/sessions',
+    ])
+      assert.deepEqual(routeDestination(rules, 'POST', pathname), core, pathname);
+    assert.equal(
+      routeDestination(rules, 'POST', '/api/engagement/outreach-v3/sessions', 'app.capiro.ai'),
+      null,
+    );
   }));
 
 test('product writes the per-path allowlist dropped now reach their owning service', () =>
@@ -179,7 +211,7 @@ test('other hosts, unknown prefixes and prefix look-alikes keep the listener 404
       '/API/clients',
       '/strategy-api',
       '/meri-api/runs',
-      '/webhooks/recall',
+      '/webhooks',
       '/health',
       '/extra/api/clients',
       '/onboard/setup',
@@ -224,6 +256,7 @@ test('dedicated edge reuses only existing network/certificate and has no shared-
     const [listener] = ofType(edge, 'AWS::ElasticLoadBalancingV2::Listener');
     assert.deepEqual(listener.Properties.LoadBalancerArn, { Ref: 'PreviewLoadBalancer' });
     assert.equal(listener.Properties.Port, 443);
+    assert.equal(listener.Properties.SslPolicy, 'ELBSecurityPolicy-TLS13-1-2-2021-06');
     assert.equal(
       listener.Properties.Certificates[0].CertificateArn,
       'arn:aws:acm:us-east-1:967807252336:certificate/70b04aad-4971-4bba-81a8-30da1b1d97b5',

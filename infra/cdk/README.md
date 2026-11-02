@@ -146,12 +146,16 @@ including the retained priority-7 guard, stays unchanged. For host
 `first-chat-preview.app-dev.capiro.ai` the listener forwards each service
 namespace, every method, to that service (priorities 200-204): `/api/*` to Core,
 `/strategy-api/*`, `/workspace-api/*`, `/intel-api/*` and `/onboard-api/*` to
-their owners, the same prefixes the production listener forwards. Each service
+their owners, and `/webhooks/*` to Core (205), the same prefixes the production
+listener forwards. `/api/engagement/outreach-v3/*` goes to the preview
+engagement-api target at 190, ahead of `/api/*`: only engagement-api mounts
+Outreach v3, while preview Core serves the rest of `/api/engagement/*`. Each service
 authenticates its own routes (Clerk user with tenant and role guards, the internal
 service secret, or a signed proof); backend services reach each other's
 `internal/` routes through this host, so the edge does not deny them. Other hosts
 and prefixes keep the fixed 404. A rule for a different owner must use a priority
-below 200. The new ALB retains the existing 4000-second idle timeout and
+below 200. The listener accepts TLS 1.2 and 1.3 only
+(`ELBSecurityPolicy-TLS13-1-2-2021-06`). The new ALB retains the existing 4000-second idle timeout and
 associates with the same existing WAF ACL. It does not change that ACL or the
 shared ALB association. The stack also owns the retained Workspace Hill Day
 export signing secret and its read policy for the Workspace execution role.

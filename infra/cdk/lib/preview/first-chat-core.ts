@@ -539,6 +539,19 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
         conditions: { StringEquals: { 'kms:ViaService': `s3.${region}.amazonaws.com` } },
       }),
     );
+    // Workspace invitations, newsletter and tracker mail leave through SES from the
+    // verified capiro.ai domain only, tracked by the preview configuration set.
+    serveTask.taskRole.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        sid: 'CoreStackSesSendFromCapiroDomain',
+        actions: ['ses:SendEmail', 'ses:SendRawEmail'],
+        resources: [
+          `arn:aws:ses:${region}:${account}:identity/capiro.ai`,
+          `arn:aws:ses:${region}:${account}:configuration-set/capiro-preview-default`,
+        ],
+        conditions: { StringLike: { 'ses:FromAddress': '*@capiro.ai' } },
+      }),
+    );
     const serveLog = new logs.LogGroup(this, 'ServeLog', {
       logGroupName: '/capiro/preview-first-chat/core',
       retention: logs.RetentionDays.TWO_WEEKS,

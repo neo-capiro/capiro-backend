@@ -64,6 +64,12 @@ export const PREVIEW_EDGE_SERVICES = {
   },
 } as const;
 export const PREVIEW_ONBOARD_TARGET = targetArn('capiro-preview-onboard-api', 'e1ffa6a1394ba2ca');
+// Preview engagement-api (Core image, engagement-main entry, shadow posture),
+// created by its service owner on 2 Nov 2026; referenced here, not owned.
+export const PREVIEW_ENGAGEMENT_TARGET = targetArn(
+  'capiro-preview-edge-engagement',
+  'f119ff61807df58a',
+);
 
 /** The preview host forwards each service's whole namespace, every method, to
  * that service, as the production listener does for the same prefixes. Each
@@ -72,13 +78,27 @@ export const PREVIEW_ONBOARD_TARGET = targetArn('capiro-preview-onboard-api', 'e
  * other's internal routes through this host (`API_INTERNAL_URL`), so the edge
  * cannot deny `internal/` paths. Unknown prefixes and other hosts keep the
  * listener's 404 default. Specific rules for other owners must use a priority
- * below 200 so they precede these catch-alls. */
+ * below 200 so they precede these catch-alls.
+ *
+ * Outreach v3 is mounted only by engagement-api (EngagementApiAppModule), so its
+ * namespace goes there. Production sends all of /api/engagement/* to
+ * engagement-api; on preview, Core serves the rest of /api/engagement/* (mail,
+ * meetings, integrations, campaigns) and engagement-api runs in shadow posture. */
 export const PREVIEW_EDGE_PREFIXES = [
+  {
+    id: 'EngagementOutreachV3',
+    owner: 'engagement',
+    path: '/api/engagement/outreach-v3/*',
+    priority: 190,
+  },
   { id: 'CorePrefix', owner: 'core', path: '/api/*', priority: 200 },
   { id: 'StrategyPrefix', owner: 'strategy', path: '/strategy-api/*', priority: 201 },
   { id: 'WorkspacePrefix', owner: 'workspace', path: '/workspace-api/*', priority: 202 },
   { id: 'IntelPrefix', owner: 'intel', path: '/intel-api/*', priority: 203 },
   { id: 'OnboardPrefix', owner: 'onboard', path: '/onboard-api/*', priority: 204 },
+  // Core serves provider webhooks (Clerk, Recall, Tango) outside /api, each
+  // verifying its provider signature; production forwards /webhooks/* to Core.
+  { id: 'CoreWebhooks', owner: 'core', path: '/webhooks/*', priority: 205 },
 ] as const;
 
 /** Dedicated preview edge and backend client identity in the existing VPC.
@@ -152,7 +172,8 @@ export class FirstChatPreviewEdgeStack extends cdk.Stack {
             'arn:aws:acm:us-east-1:967807252336:certificate/70b04aad-4971-4bba-81a8-30da1b1d97b5',
         },
       ],
-      sslPolicy: 'ELBSecurityPolicy-2016-08',
+      // TLS 1.2 and 1.3 only. The office-preview host shares this listener.
+      sslPolicy: 'ELBSecurityPolicy-TLS13-1-2-2021-06',
       defaultActions: [
         {
           type: 'fixed-response',
@@ -164,7 +185,10 @@ export class FirstChatPreviewEdgeStack extends cdk.Stack {
         },
       ],
     });
-    const targets: Record<string, string> = { onboard: PREVIEW_ONBOARD_TARGET };
+    const targets: Record<string, string> = {
+      onboard: PREVIEW_ONBOARD_TARGET,
+      engagement: PREVIEW_ENGAGEMENT_TARGET,
+    };
     for (const [owner, service] of Object.entries(PREVIEW_EDGE_SERVICES)) {
       const name = owner[0]!.toUpperCase() + owner.slice(1);
       const target = new elb.CfnTargetGroup(this, `${name}Target`, {
