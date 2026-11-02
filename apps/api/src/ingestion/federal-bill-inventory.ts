@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { isDeepStrictEqual } from 'node:util';
 import { fetchCongressJson } from './congress-http.js';
 import { FEDERAL_FY26_SQL } from './bill-text-scope.js';
 import {
@@ -119,17 +120,38 @@ export async function loadFederalGeneration(
     AND EXISTS(SELECT 1 FROM legal_dataset_archive a WHERE a.content_hash=$1)`,
     amendmentListHash,
   );
-  const proof = listRows[0];
+  const expectedIds = [...amendments.keys()].sort();
   if (
-    listRows.length !== 1 ||
-    !proof?.complete ||
-    proof.scope.congress !== congress ||
-    proof.scope.fiscalYear !== 2026 ||
-    proof.manifest.reportedCount !== expectedAmendments ||
-    proof.manifest.enumeratedCount !== expectedAmendments ||
-    JSON.stringify(proof.manifest.ids) !== JSON.stringify([...amendments.keys()].sort())
+    !listRows.length ||
+    listRows.some(
+      (row) =>
+        !row.complete ||
+        row.scope.congress !== congress ||
+        row.scope.fiscalYear !== 2026 ||
+        row.scope.archiveHash !== amendmentListHash ||
+        row.manifest.schemaVersion !== 1 ||
+        row.manifest.reportedCount !== expectedAmendments ||
+        row.manifest.enumeratedCount !== expectedAmendments ||
+        JSON.stringify(row.manifest.ids) !== JSON.stringify(expectedIds),
+    )
   )
     throw Error('FEDERAL_AMENDMENT_EXACT_ENUMERATION_MISMATCH');
+  // Identical retained list bytes can have several immutable proofs when valid page
+  // boundaries change. Prefer a timestamp-bearing proof; a legacy proof must never
+  // bypass freshness, and conflicting freshness proofs are not equivalent.
+  const freshProofs = listRows.filter((row) => row.manifest.memberUpdates !== undefined);
+  const proof = [...(freshProofs.length ? freshProofs : listRows)].sort((a, b) =>
+    a.id.localeCompare(b.id),
+  )[0]!;
+  if (
+    freshProofs.some(
+      (row) =>
+        !isDeepStrictEqual(row.manifest.memberUpdates, proof.manifest.memberUpdates) ||
+        JSON.stringify(Object.keys(federalObject(row.manifest.memberUpdates)).sort()) !==
+          JSON.stringify(expectedIds),
+    )
+  )
+    throw Error('FEDERAL_AMENDMENT_SOURCE_MOVED');
   // Every nested amendment must terminate at the same direct bill; unknown/cycles are never exclusions.
   for (const binding of amendments.values()) {
     if (

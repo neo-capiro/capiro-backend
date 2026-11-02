@@ -185,7 +185,7 @@ async function members(db: PrismaClient, pages: string[], check = () => {}) {
     throw Error('FEDERAL_REFRESH_AMENDMENT_DUPLICATE');
   return all;
 }
-/** One existing writer lease is supplied by the CLI. Each invocation advances ONE bounded phase. */
+/** One existing writer lease is supplied by the CLI. Acquisition pages share one bounded slice. */
 export async function refreshFederalBills(
   db: PrismaClient,
   options: {
@@ -244,7 +244,9 @@ export async function refreshFederalBills(
   });
   let cursor = saved ? parseFederalRefreshCursor(saved.cursor) : null;
   const staleCycleRestarted = Boolean(
-    cursor && cursor.phase !== 'completed' && now() - Date.parse(cursor.startedAt) >= 7 * 86400000,
+    cursor &&
+    ['archives', 'amendments', 'verify-amendments'].includes(cursor.phase) &&
+    now() - Date.parse(cursor.startedAt) >= 7 * 86400000,
   );
   if (
     cursor?.phase === 'completed' &&
@@ -313,59 +315,78 @@ export async function refreshFederalBills(
       if (cursor.archives.length === 8) cursor.phase = 'amendments';
       result = { archives: cursor.archives.length };
     } else if (phase === 'amendments' || phase === 'verify-amendments') {
-      const offset = phase === 'amendments' ? cursor.offset : cursor.verifyOffset;
-      const url = new URL('https://api.congress.gov/v3/amendment/119');
-      url.searchParams.set('format', 'json');
-      url.searchParams.set('limit', '250');
-      url.searchParams.set('offset', String(offset));
-      url.searchParams.set('api_key', options.apiKey);
-      const page = parseFederalAmendmentPage(
-        await transport.json(url.href),
-        offset,
-        cursor.expected,
-      );
-      const bytes = Buffer.from(
-          JSON.stringify({
-            offset,
-            count: page.count,
-            complete: page.complete,
-            members: page.members,
-          }),
-        ),
-        digest = federalHash(bytes);
-      if (phase === 'amendments') {
-        const prior = await members(db, cursor.pages, check),
-          ids = new Set(prior.map((v) => federalIdentity(v, true)));
-        if (page.members.some((v) => ids.has(federalIdentity(v, true))))
-          throw Error('FEDERAL_REFRESH_AMENDMENT_DUPLICATE');
-        await stageBytes(db, bytes);
-        cursor.pages.push(digest);
-        cursor.offset += page.members.length;
-        cursor.expected = page.count;
-        if (page.complete) cursor.phase = 'verify-amendments';
-      } else {
-        if (cursor.pages[cursor.verifyPage] !== digest)
-          throw Error('FEDERAL_REFRESH_AMENDMENT_SOURCE_MOVED');
-        cursor.verifyPage++;
-        cursor.verifyOffset += page.members.length;
-        if (page.complete) {
-          if (cursor.verifyPage !== cursor.pages.length)
+      // Capture and verify as many pages as this invocation's existing request/deadline
+      // budget allows. Every accepted page is durable before attempting the next one.
+      while (cursor.phase === 'amendments' || cursor.phase === 'verify-amendments') {
+        check();
+        if (
+          cursor.phase === 'verify-amendments' &&
+          cursor.expected !== null &&
+          cursor.verifyOffset === cursor.expected
+        ) {
+          if (cursor.offset !== cursor.expected || cursor.verifyPage !== cursor.pages.length)
             throw Error('FEDERAL_REFRESH_AMENDMENT_SOURCE_MOVED');
+          // Verification is already durable. A deadline or transient database failure
+          // during local qualification resumes here without fetching offset=count.
           const list = Buffer.from(JSON.stringify(await members(db, cursor.pages, check))),
             listHash = federalHash(list);
-          await stageFederalAmendmentList(db, list, listHash, 119, page.count, cursor.pages);
-          // Exact cross-archive membership and nested parent graph proof BEFORE any metadata writes.
+          check();
+          await stageFederalAmendmentList(db, list, listHash, 119, cursor.expected, cursor.pages);
+          check();
+          // Exact cross-archive membership and nested parent graph proof BEFORE metadata writes.
           await loadFederalGeneration(
             db,
             cursor.archives.map((a) => a.hash),
             listHash,
             119,
-            page.count,
+            cursor.expected,
             false,
           );
           cursor.listHash = listHash;
           cursor.phase = 'imports';
+          break;
         }
+        const offset = cursor.phase === 'amendments' ? cursor.offset : cursor.verifyOffset;
+        const url = new URL('https://api.congress.gov/v3/amendment/119');
+        url.searchParams.set('format', 'json');
+        url.searchParams.set('limit', '250');
+        url.searchParams.set('offset', String(offset));
+        url.searchParams.set('api_key', options.apiKey);
+        const page = parseFederalAmendmentPage(
+          await transport.json(url.href),
+          offset,
+          cursor.expected,
+        );
+        const bytes = Buffer.from(
+            JSON.stringify({
+              offset,
+              count: page.count,
+              complete: page.complete,
+              members: page.members,
+            }),
+          ),
+          digest = federalHash(bytes);
+        if (cursor.phase === 'amendments') {
+          const prior = await members(db, cursor.pages, check),
+            ids = new Set(prior.map((v) => federalIdentity(v, true)));
+          if (page.members.some((v) => ids.has(federalIdentity(v, true))))
+            throw Error('FEDERAL_REFRESH_AMENDMENT_DUPLICATE');
+          await stageBytes(db, bytes);
+          cursor.pages.push(digest);
+          cursor.offset += page.members.length;
+          cursor.expected = page.count;
+          if (page.complete) cursor.phase = 'verify-amendments';
+        } else {
+          if (cursor.pages[cursor.verifyPage] !== digest)
+            throw Error('FEDERAL_REFRESH_AMENDMENT_SOURCE_MOVED');
+          cursor.verifyPage++;
+          cursor.verifyOffset += page.members.length;
+          if (page.complete) {
+            if (cursor.verifyPage !== cursor.pages.length)
+              throw Error('FEDERAL_REFRESH_AMENDMENT_SOURCE_MOVED');
+          }
+        }
+        await save();
       }
       result = {
         enumerated: cursor.offset,

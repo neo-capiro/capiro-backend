@@ -34,6 +34,7 @@ describe('refresh canonical parent persistence', () => {
           id: '119-hr-1',
           congress: 119,
           billType: 'hr',
+          url: 'https://www.congress.gov/bill/119th-congress/house-bill/1',
           title: 'Synthetic parent',
           introducedDate: new Date('2026-01-01'),
         }),
@@ -51,7 +52,35 @@ describe('refresh canonical parent persistence', () => {
       ],
     });
     expect(db.$executeRaw).not.toHaveBeenCalled();
+    expect(db.congressBill.upsert.mock.calls[0][0].update).not.toHaveProperty('url');
   });
+  it.each([
+    ['s', 'senate-bill'],
+    ['hjres', 'house-joint-resolution'],
+    ['sjres', 'senate-joint-resolution'],
+    ['hconres', 'house-concurrent-resolution'],
+    ['sconres', 'senate-concurrent-resolution'],
+    ['hres', 'house-resolution'],
+    ['sres', 'senate-resolution'],
+  ])('stores the existing canonical official URL for a new %s parent', async (type, segment) => {
+    const db = fixture(),
+      input = bill();
+    input.id = `119-${type}-1`;
+    await persistFederalBulkParent(db, input);
+    expect(db.congressBill.upsert.mock.calls[0][0].create.url).toBe(
+      `https://www.congress.gov/bill/119th-congress/${segment}/1`,
+    );
+  });
+  it.each(['119-hr-01', '119-bad-1', '119-hr-1/path', '118-hr-1'])(
+    'does not construct a stored source URL from a noncanonical refresh identity %s',
+    async (id) => {
+      const db = fixture(),
+        input = bill();
+      input.id = id;
+      await expect(persistFederalBulkParent(db, input)).rejects.toThrow('PARENT_INCOMPLETE');
+      expect(db.congressBill.upsert).not.toHaveBeenCalled();
+    },
+  );
   it.each([
     { updateDate: new Date('2026-03-01'), updateDateIncludingText: new Date('2026-02-02') },
     { updateDate: new Date('2026-02-01'), updateDateIncludingText: new Date('2026-03-01') },

@@ -6,7 +6,11 @@ import {
   selectFederalInventories,
   type FederalGeneration,
 } from './federal-bill-inventory';
-import { federalInventoryManifest, writeFederalInventory } from './federal-billstatus-import';
+import {
+  federalInventoryManifest,
+  writeFederalInventory,
+  stageFederalAmendmentList,
+} from './federal-billstatus-import';
 import { normalizeFederalVersions, FEDERAL_BILL_TYPES, federalHash } from './federal-billstatus';
 import { parseFederalBillInventory } from './federal-bill-inventory-read';
 import { fetchFederalMetadata } from './federal-bill-metadata';
@@ -299,19 +303,20 @@ function generationFixture() {
   const proof = {
     id: 'list',
     complete: true,
-    scope: { fiscalYear: 2026, congress: 119 },
-    manifest: { reportedCount: 1, enumeratedCount: 1, ids: ['119-samdt-1'] },
+    scope: { fiscalYear: 2026, congress: 119, archiveHash: listHash },
+    manifest: { schemaVersion: 1, reportedCount: 1, enumeratedCount: 1, ids: ['119-samdt-1'] },
   };
+  const proofs = [proof];
   const db: any = {
     $queryRawUnsafe: jest.fn(async (sql: string) =>
       sql.includes('fy26-federal-billstatus-archive')
         ? archives
         : sql.includes('fy26-federal-amendment-list')
-          ? [proof]
+          ? proofs
           : [{ id: '119-hr-1' }],
     ),
   };
-  return { hashes, listHash, archives, proof, db };
+  return { hashes, listHash, archives, proof, proofs, db };
 }
 describe('federal discovery finalization', () => {
   it('rotates a failed bounded inventory item so the next invocation reaches later amendments', async () => {
@@ -407,6 +412,120 @@ describe('federal discovery finalization', () => {
     await expect(loadFederalGeneration(h.db, h.hashes, h.listHash, 119, 1, false)).rejects.toThrow(
       'SOURCE_MOVED',
     );
+  });
+  it('accepts equivalent immutable list proofs with different valid page boundaries deterministically', async () => {
+    const h = generationFixture();
+    h.archives[0]!.manifest.amendments.push({
+      ...h.archives[0]!.manifest.amendments[0]!,
+      id: '119-samdt-2',
+    });
+    const bytes = Buffer.from(
+      JSON.stringify(
+        [1, 2].map((number) => ({
+          congress: 119,
+          type: 'samdt',
+          number: String(number),
+          updateDate: '2026-01-01',
+        })),
+      ),
+    );
+    const listHash = federalHash(bytes),
+      receipts: any[] = [];
+    const staged: any = {
+      $executeRawUnsafe: jest.fn(async (sql: string, ...args: any[]) => {
+        if (sql.includes('INSERT INTO legal_source_receipt'))
+          receipts.push({
+            id: args[0],
+            source: args[1],
+            scope: JSON.parse(args[2]),
+            manifest: JSON.parse(args[3]),
+            complete: args[4],
+          });
+        return 1;
+      }),
+      $queryRawUnsafe: jest.fn(async (sql: string, ...args: any[]) =>
+        sql.includes('SELECT content_hash')
+          ? [{ content_hash: args[0] }]
+          : receipts.filter((row) => row.id === args[0]),
+      ),
+      $transaction: jest.fn(async (fn: any) => fn(staged)),
+    };
+    const first = await stageFederalAmendmentList(staged, bytes, listHash, 119, 2, [
+      'a'.repeat(64),
+    ]);
+    const second = await stageFederalAmendmentList(staged, bytes, listHash, 119, 2, [
+      'b'.repeat(64),
+      'c'.repeat(64),
+    ]);
+    expect(first).not.toBe(second);
+    h.proofs.splice(0, h.proofs.length, ...receipts);
+    const g = await loadFederalGeneration(h.db, h.hashes, listHash, 119, 2);
+    expect(g.amendments).toHaveLength(2);
+    expect(g.amendmentListReceiptId).toBe([first, second].sort()[0]);
+    h.proofs.reverse();
+    expect(await loadFederalGeneration(h.db, h.hashes, listHash, 119, 2)).toEqual(g);
+  });
+  it('prefers fresh list proof over legacy proof and refuses conflicting or missing member freshness', async () => {
+    const h = generationFixture();
+    h.proof.id = 'a-legacy';
+    const fresh = {
+      ...h.proof,
+      id: 'z-fresh',
+      manifest: {
+        ...h.proof.manifest,
+        verifiedPageHashes: ['a'.repeat(64)],
+        memberUpdates: { '119-samdt-1': '2026-01-01' },
+      },
+    };
+    h.proofs.push(fresh);
+    expect(
+      (await loadFederalGeneration(h.db, h.hashes, h.listHash, 119, 1)).amendmentListReceiptId,
+    ).toBe(fresh.id);
+    fresh.manifest.memberUpdates['119-samdt-1'] = '2026-02-01';
+    await expect(loadFederalGeneration(h.db, h.hashes, h.listHash, 119, 1)).rejects.toThrow(
+      'SOURCE_MOVED',
+    );
+    const conflicting = {
+      ...fresh,
+      id: 'b-conflicting',
+      manifest: {
+        ...fresh.manifest,
+        memberUpdates: { '119-samdt-1': '2026-01-01' },
+      },
+    };
+    h.proofs.push(conflicting);
+    await expect(loadFederalGeneration(h.db, h.hashes, h.listHash, 119, 1)).rejects.toThrow(
+      'SOURCE_MOVED',
+    );
+    fresh.manifest.memberUpdates = {} as any;
+    await expect(loadFederalGeneration(h.db, h.hashes, h.listHash, 119, 1)).rejects.toThrow(
+      'SOURCE_MOVED',
+    );
+  });
+  it('keeps every equivalent proof subject to exact list hash, count, identity and completeness guards', async () => {
+    for (const mutate of [
+      (p: any) => {
+        p.scope.archiveHash = 'e'.repeat(64);
+      },
+      (p: any) => {
+        p.manifest.ids = ['119-samdt-2'];
+      },
+      (p: any) => {
+        p.manifest.reportedCount = 2;
+      },
+      (p: any) => {
+        p.complete = false;
+      },
+    ]) {
+      const h = generationFixture(),
+        other = structuredClone(h.proof);
+      other.id = 'other';
+      mutate(other);
+      h.proofs.push(other);
+      await expect(loadFederalGeneration(h.db, h.hashes, h.listHash, 119, 1)).rejects.toThrow(
+        'EXACT_ENUMERATION_MISMATCH',
+      );
+    }
   });
   it('never lets an older complete receipt override this refresh cycle held inventory', async () => {
     const h = generationFixture(),

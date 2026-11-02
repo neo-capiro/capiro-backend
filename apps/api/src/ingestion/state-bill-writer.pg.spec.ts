@@ -531,7 +531,8 @@ describe('shared state writer lease on disposable PostgreSQL', () => {
       ADD COLUMN sponsor_party text, ADD COLUMN sponsor_bioguide_id text, ADD COLUMN latest_action_text text,
       ADD COLUMN latest_action_date date, ADD COLUMN policy_area text, ADD COLUMN origin_chamber text,
       ADD COLUMN update_date_including_text timestamptz, ADD COLUMN pe_codes text[] DEFAULT '{}',
-      ADD COLUMN committees jsonb DEFAULT '[]', ADD COLUMN last_synced_at timestamptz DEFAULT now()`);
+      ADD COLUMN committees jsonb DEFAULT '[]', ADD COLUMN last_synced_at timestamptz DEFAULT now(),
+      ADD COLUMN url text`);
     await db.$executeRawUnsafe('GRANT SELECT,INSERT,UPDATE ON congress_bill TO capiro_app');
     await db.$executeRawUnsafe('GRANT SELECT ON legal_source_receipt TO capiro_app');
     const input = parseFederalBillStatusXml(
@@ -559,8 +560,13 @@ describe('shared state writer lease on disposable PostgreSQL', () => {
     ).toEqual([]);
     expect(await run()).toMatchObject({ status: 'written' });
     expect(
-      await db.$queryRawUnsafe('SELECT title FROM congress_bill WHERE id=$1', input.id),
-    ).toEqual([{ title: 'Synthetic refresh parent' }]);
+      await db.$queryRawUnsafe('SELECT title,url FROM congress_bill WHERE id=$1', input.id),
+    ).toEqual([
+      {
+        title: 'Synthetic refresh parent',
+        url: 'https://www.congress.gov/bill/119th-congress/house-bill/998',
+      },
+    ]);
     expect(
       await db.$queryRawUnsafe('SELECT text FROM congress_bill_action WHERE bill_id=$1', input.id),
     ).toEqual([{ text: 'Introduced' }]);

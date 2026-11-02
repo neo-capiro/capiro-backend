@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { congressGovBillUrl } from '@capiro/shared';
 import { replaceCongressBillActionsAtomically } from './congress-actions.js';
 import { federalDate, type FederalBulkBill } from './federal-billstatus.js';
 
@@ -6,9 +7,12 @@ import { federalDate, type FederalBulkBill } from './federal-billstatus.js';
 export async function persistFederalBulkParent(db: PrismaClient, bill: FederalBulkBill) {
   const parent = bill.parent,
     updated = federalDate(bill.metadataUpdatedAt),
-    textUpdated = federalDate(bill.providerUpdatedAt);
+    textUpdated = federalDate(bill.providerUpdatedAt),
+    sourceUrl = congressGovBillUrl(bill.id);
   if (
     !bill.eligible ||
+    !/^119-(?:hr|s|hjres|sjres|hconres|sconres|hres|sres)-[1-9][0-9]*$/.test(bill.id) ||
+    !sourceUrl ||
     !parent?.title ||
     !updated ||
     !textUpdated ||
@@ -68,6 +72,7 @@ export async function persistFederalBulkParent(db: PrismaClient, bill: FederalBu
       congress: Number(congress),
       billType: billType!,
       billNumber: billNumber!,
+      url: sourceUrl,
       ...data,
     },
     update: data,

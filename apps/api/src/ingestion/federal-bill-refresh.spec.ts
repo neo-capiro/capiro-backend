@@ -98,9 +98,11 @@ function fixture(initial: FederalRefreshCursor | null = null) {
     }),
   };
   const responses: Response[] = [];
+  const requestedOffsets: number[] = [];
   const transport = jest.fn(async (url: string, consume: any, options: any) => {
     options.validateDestination(new URL(url));
     await options.beforeRequest(new URL(url));
+    requestedOffsets.push(Number(new URL(url).searchParams.get('offset')));
     return consume(responses.shift()!, url, {
       check: () => {},
       wait: (x: any) => x,
@@ -118,7 +120,7 @@ function fixture(initial: FederalRefreshCursor | null = null) {
       sleep: async () => {},
       ...extra,
     });
-  return { db, retained, responses, transport, run, saved: () => saved };
+  return { db, retained, responses, requestedOffsets, transport, run, saved: () => saved };
 }
 const response = (members: any[], count = members.length, next?: string) =>
   new Response(
@@ -134,26 +136,24 @@ beforeEach(() => {
   jest.mocked(refreshHeldFederalMetadata).mockResolvedValue({ complete: true } as any);
   jest.mocked(enumerateFederalInventories).mockResolvedValue({ complete: true } as any);
   jest.mocked(finalizeFederalDiscovery).mockResolvedValue({ complete: true } as any);
-  jest
-    .mocked(hydrateFederalInventories)
-    .mockResolvedValue({
-      scanned: 1,
+  jest.mocked(hydrateFederalInventories).mockResolvedValue({
+    scanned: 1,
+    listedVersions: 2,
+    partial: 1,
+    complete: false,
+    pass: {
+      taskHash: 'a'.repeat(64),
       listedVersions: 2,
+      unavailableListedVersions: 0,
+      scanned: 1,
+      processed: 1,
+      retained: 0,
+      failed: 0,
       partial: 1,
-      complete: false,
-      pass: {
-        taskHash: 'a'.repeat(64),
-        listedVersions: 2,
-        unavailableListedVersions: 0,
-        scanned: 1,
-        processed: 1,
-        retained: 0,
-        failed: 0,
-        partial: 1,
-        unreadable: 0,
-        unavailable: 0,
-      },
-    } as any);
+      unreadable: 0,
+      unavailable: 0,
+    },
+  } as any);
 });
 describe('resumable bounded refresh phases', () => {
   it('acquires one fixed archive, stages it without admitting parents, and resumes the next type', async () => {
@@ -221,6 +221,113 @@ describe('resumable bounded refresh phases', () => {
     expect(importFrozenFederalBillStatus).not.toHaveBeenCalled();
     expect(finalizeFederalDiscovery).not.toHaveBeenCalled();
   });
+  it('batches both passes within the cap, checkpoints every page, and resumes the exact next offset', async () => {
+    const h = fixture(cursor());
+    const page = (number: number) =>
+      response(
+        [{ ...member, number: String(number) }],
+        3,
+        number < 3 ? `https://api.congress.gov/v3/amendment/119?offset=${number}` : undefined,
+      );
+    h.responses.push(page(1), page(2));
+    expect(await h.run({ requestCap: 2 })).toMatchObject({
+      capped: true,
+      providerCalls: 2,
+      nextPhase: 'amendments',
+      complete: false,
+    });
+    expect(h.saved()).toMatchObject({ offset: 2, verifyPage: 0, expected: 3 });
+    expect(h.requestedOffsets).toEqual([0, 1]);
+    expect(
+      h.db.federalEvidenceCheckpoint.upsert.mock.calls.map(
+        (call: any[]) => call[0].update.cursor.offset,
+      ),
+    ).toEqual([0, 1, 2, 2]);
+    expect(stageFederalAmendmentList).not.toHaveBeenCalled();
+
+    h.responses.push(page(3), page(1), page(2), page(3));
+    expect(await h.run({ requestCap: 4 })).toMatchObject({
+      providerCalls: 4,
+      nextPhase: 'imports',
+      complete: false,
+    });
+    expect(h.requestedOffsets).toEqual([0, 1, 2, 0, 1, 2]);
+    expect(h.saved()).toMatchObject({ offset: 3, verifyPage: 3, verifyOffset: 3 });
+    const savedVerification = h.db.federalEvidenceCheckpoint.upsert.mock.calls
+      .slice(4)
+      .map((call: any[]) => call[0].update.cursor.verifyOffset);
+    expect(savedVerification).toEqual([0, 0, 1, 2, 3, 3]);
+    expect(stageFederalAmendmentList).toHaveBeenCalledTimes(1);
+    expect(loadFederalGeneration).toHaveBeenCalledTimes(1);
+    expect(importFrozenFederalBillStatus).not.toHaveBeenCalled();
+    expect(finalizeFederalDiscovery).not.toHaveBeenCalled();
+  });
+  it('checkpoints the final verified page before a deadline and retries local qualification without another request', async () => {
+    const h = fixture(cursor());
+    h.responses.push(response([member]));
+    await h.run();
+    let clock = Date.parse(start);
+    const save = h.db.federalEvidenceCheckpoint.upsert.getMockImplementation()!;
+    h.db.federalEvidenceCheckpoint.upsert.mockImplementation(async (input: any) => {
+      const result = await save(input);
+      if (input.update.cursor.verifyOffset === 1) clock += 1000;
+      return result;
+    });
+    h.responses.push(response([member]));
+    expect(await h.run({ now: () => clock, deadlineMs: 1000 })).toMatchObject({
+      capped: true,
+      providerCalls: 1,
+      nextPhase: 'verify-amendments',
+      complete: false,
+    });
+    expect(h.saved()).toMatchObject({ verifyPage: 1, verifyOffset: 1, listHash: null });
+    expect(stageFederalAmendmentList).not.toHaveBeenCalled();
+    h.db.federalEvidenceCheckpoint.upsert.mockImplementation(save);
+    h.transport.mockClear();
+    expect(await h.run({ now: () => clock })).toMatchObject({
+      providerCalls: 0,
+      nextPhase: 'imports',
+      complete: false,
+    });
+    expect(h.transport).not.toHaveBeenCalled();
+    expect(h.requestedOffsets).toEqual([0, 0]);
+    expect(stageFederalAmendmentList).toHaveBeenCalledTimes(1);
+    expect(loadFederalGeneration).toHaveBeenCalledTimes(1);
+  });
+  it.each(['stage', 'graph'] as const)(
+    'retries local qualification after a transient %s database failure following the last verified page',
+    async (failure) => {
+      const h = fixture(cursor());
+      h.responses.push(response([member]));
+      await h.run();
+      if (failure === 'stage')
+        jest.mocked(stageFederalAmendmentList).mockRejectedValueOnce(Error('synthetic DB failure'));
+      else jest.mocked(loadFederalGeneration).mockRejectedValueOnce(Error('synthetic DB failure'));
+      h.responses.push(response([member]));
+      expect(await h.run()).toMatchObject({
+        error: 'FEDERAL_REFRESH_OPERATION_FAILED',
+        providerCalls: 1,
+        nextPhase: 'verify-amendments',
+        complete: false,
+      });
+      expect(h.saved()).toMatchObject({
+        startedAt: start,
+        verifyPage: 1,
+        verifyOffset: 1,
+        listHash: null,
+      });
+      h.transport.mockClear();
+      expect(await h.run()).toMatchObject({
+        providerCalls: 0,
+        nextPhase: 'imports',
+        complete: false,
+      });
+      expect(h.transport).not.toHaveBeenCalled();
+      expect(h.requestedOffsets).toEqual([0, 0]);
+      expect(h.saved().archives).toEqual(cursor().archives);
+      expect(finalizeFederalDiscovery).not.toHaveBeenCalled();
+    },
+  );
   it('retains the old complete discovery and restarts acquisition when membership moves at equal count', async () => {
     const h = fixture(cursor());
     h.responses.push(response([member]));
@@ -271,8 +378,8 @@ describe('resumable bounded refresh phases', () => {
     });
     expect(finalizeFederalDiscovery).not.toHaveBeenCalled();
   });
-  it('recaptures a seven-day partial cycle instead of remaining pinned to stale files forever', async () => {
-    const old = prepared('metadata');
+  it('recaptures a seven-day unfinished acquisition instead of remaining pinned to stale files forever', async () => {
+    const old = cursor('amendments');
     old.startedAt = '2026-10-24T00:00:00.000Z';
     const h = fixture(old),
       zip = new JSZip();
@@ -290,6 +397,70 @@ describe('resumable bounded refresh phases', () => {
     expect(h.saved().startedAt).toBe(start);
     expect(h.saved().archives).toHaveLength(1);
     expect(refreshHeldFederalMetadata).not.toHaveBeenCalled();
+    expect(finalizeFederalDiscovery).not.toHaveBeenCalled();
+  });
+  it('preserves a qualified import cursor and refresh identity older than seven days', async () => {
+    const old = prepared('imports'),
+      bytes = Buffer.from('retained qualified archive');
+    old.startedAt = '2026-10-24T00:00:00.000Z';
+    old.importIndex = 3;
+    old.archives[3]!.hash = federalHash(bytes);
+    const h = fixture(old);
+    h.retained.set(old.archives[3]!.hash, bytes.toString('base64'));
+    jest.mocked(importFrozenFederalBillStatus).mockResolvedValueOnce({ complete: false } as any);
+    expect(await h.run()).toMatchObject({
+      nextPhase: 'imports',
+      staleCycleRestarted: false,
+      providerCalls: 0,
+      complete: false,
+    });
+    expect(h.saved()).toMatchObject({ startedAt: old.startedAt, importIndex: 3 });
+    expect(importFrozenFederalBillStatus).toHaveBeenCalledWith(
+      h.db,
+      bytes,
+      expect.objectContaining({ billType: old.archives[3]!.billType }),
+      expect.objectContaining({ refreshId: old.startedAt, limit: 1, refresh: true }),
+    );
+    expect(h.transport).not.toHaveBeenCalled();
+  });
+  it('preserves qualified hydration progress and accumulated partial counts older than seven days', async () => {
+    const old = prepared('hydrate');
+    old.startedAt = '2026-10-24T00:00:00.000Z';
+    const pass = {
+      taskHash: 'a'.repeat(64),
+      listedVersions: 10,
+      unavailableListedVersions: 0,
+      scanned: 8,
+      processed: 8,
+      retained: 0,
+      failed: 1,
+      partial: 1,
+      unreadable: 0,
+      unavailable: 0,
+    };
+    const h = fixture({ ...old, hydration: pass });
+    jest.mocked(hydrateFederalInventories).mockResolvedValueOnce({
+      complete: false,
+      pass: { ...pass, scanned: 9, processed: 9 },
+    } as any);
+    expect(await h.run()).toMatchObject({
+      nextPhase: 'hydrate',
+      staleCycleRestarted: false,
+      providerCalls: 0,
+      complete: false,
+      hydration: { scanned: 9, failed: 1, partial: 1 },
+    });
+    expect(h.saved().startedAt).toBe(old.startedAt);
+    expect(loadFederalGeneration).toHaveBeenCalledWith(
+      h.db,
+      old.archives.map((a) => a.hash),
+      old.listHash,
+      119,
+      1,
+      true,
+      old.startedAt,
+    );
+    expect(h.transport).not.toHaveBeenCalled();
     expect(finalizeFederalDiscovery).not.toHaveBeenCalled();
   });
   it('keeps failed inventory and metadata phases pending and never promotes their denominator', async () => {
@@ -333,15 +504,13 @@ describe('resumable bounded refresh phases', () => {
     expect(await h.run()).toMatchObject({ nextPhase: 'hydrate', complete: false });
     expect(finalizeFederalDiscovery).toHaveBeenCalledTimes(1);
     expect(await h.run()).toMatchObject({ nextPhase: 'hydrate', partial: 1, complete: false });
-    jest
-      .mocked(hydrateFederalInventories)
-      .mockResolvedValueOnce({
-        scanned: 1,
-        listedVersions: 2,
-        partial: 0,
-        complete: false,
-        pass: { ...h.saved().hydration, scanned: 2, processed: 2 },
-      } as any);
+    jest.mocked(hydrateFederalInventories).mockResolvedValueOnce({
+      scanned: 1,
+      listedVersions: 2,
+      partial: 0,
+      complete: false,
+      pass: { ...h.saved().hydration, scanned: 2, processed: 2 },
+    } as any);
     expect(await h.run()).toMatchObject({
       nextPhase: 'completed',
       partial: 0,
