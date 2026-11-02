@@ -56,6 +56,90 @@ class ReleaseTests(unittest.TestCase):
                 with self.assertRaises(ValueError):r.main()
                 aws.assert_not_called()
 
+    def test_federal_refresh_command_is_bounded_and_has_no_stale_generation_pins(self):
+        scope = {'stage':'refresh','request_cap':4800}
+        congress = f'arn:aws:secretsmanager:{r.REGION}:{r.ACCOUNT}:secret:capiro/dev/congress_gov_api_key-AbCd'
+        for commit in (False, True):
+            container = self.task(job='federal-inventory', federal=scope, commit=commit,
+                                  congress_arn=congress, limit=1000)['containerDefinitions'][0]
+            self.assertEqual(container['command'], ['sync-federal-bill-inventory','--congress','119',
+                '--stage','refresh','--limit','1000','--request-cap','4800'] +
+                (['--commit','--expected-host',r.HOST] if commit else []))
+            self.assertEqual([s['name'] for s in container['secrets']],
+                             ['DB_USER','DB_PASSWORD'] + (['CONGRESS_API_KEY'] if commit else []))
+            self.assertEqual(container['image'], r.IMAGE_PREFIX + DIGEST)
+            self.assertNotIn('--archive-hashes', container['command'])
+            self.assertNotIn('--expected-amendments', container['command'])
+
+    def test_federal_refresh_requires_only_the_existing_congress_secret(self):
+        scope = {'stage':'refresh','request_cap':100}
+        good = f'arn:aws:secretsmanager:{r.REGION}:{r.ACCOUNT}:secret:capiro/dev/congress_gov_api_key-AbCd'
+        for arn in (None, good.replace('congress_gov_api_key','congress_api_key'),
+                    good.replace('congress_gov_api_key','legiscan_api_key'), good.replace(r.ACCOUNT,'000000000000')):
+            with self.subTest(arn=arn), self.assertRaisesRegex(ValueError,'CONGRESS_REFERENCE_REQUIRED'):
+                self.task(job='federal-inventory', federal=scope, congress_arn=arn)
+        baseline_data = baseline()
+        baseline_data['containerDefinitions'][0]['environment'][0]['value'] = 'other-host'
+        with self.assertRaisesRegex(ValueError,'DATABASE_TARGET_MISMATCH'):
+            self.task(job='federal-inventory', federal=scope, congress_arn=good, baseline=baseline_data)
+
+    def test_federal_refresh_scope_is_closed_and_rejects_noninteger_caps(self):
+        for change in ({'request_cap':0},{'request_cap':4801},{'request_cap':True},{'request_cap':1.5},
+                       {'hashes':['a'*64]*8},{'amendment_hash':'a'*64},{'amendments':7119},{'extra':'injected'}):
+            with self.subTest(change=change), self.assertRaisesRegex(ValueError,'INVALID_FEDERAL_REFRESH_SCOPE'):
+                r.command_for('federal-inventory',3,False,federal={'stage':'refresh','request_cap':100,**change})
+        with self.assertRaisesRegex(ValueError,'FEDERAL_SCOPE_WRONG_JOB'):
+            r.command_for('state-passages',3,False,federal={'stage':'refresh','request_cap':100})
+
+    def test_federal_refresh_cli_pins_caps_and_schedule_fail_before_cloud_access(self):
+        args = ['release','--source-sha',SHA,'--job','federal-inventory','--federal-stage','refresh']
+        for extra in (['--archive-hashes','a'*64], ['--amendment-list-hash','b'*64],
+                      ['--expected-amendments','7119'], ['--expected-amendments','0'],
+                      ['--archive-hash','c'*64], ['--request-cap','0'], ['--request-cap','4801'],
+                      ['--limit','1001'], ['--operation','schedule','--commit'],
+                      ['--operation','run','--commit']):
+            with self.subTest(extra=extra), patch('sys.argv',args+extra), patch.object(r,'aws') as aws:
+                with self.assertRaises(ValueError): r.main()
+                aws.assert_not_called()
+
+    def test_federal_refresh_inspect_reads_correct_secret_only_for_commit_without_cloud_writes(self):
+        for commit in (False, True):
+            responses = [{'Account':r.ACCOUNT},{'taskDefinition':baseline()},{'Targets':[]}]
+            if commit:
+                responses.append({'ARN':f'arn:aws:secretsmanager:{r.REGION}:{r.ACCOUNT}:secret:capiro/dev/congress_gov_api_key-AbCd'})
+            argv = ['release','--source-sha',SHA,'--job','federal-inventory','--federal-stage','refresh'] + (['--commit'] if commit else [])
+            with patch('sys.argv',argv), patch.object(r,'source_sha',return_value=SHA) as source, \
+                 patch.object(r,'image_digest',return_value=DIGEST) as image, patch.object(r,'network_for',return_value={}), \
+                 patch.object(r,'aws',side_effect=responses) as aws, patch('builtins.print') as printed:
+                r.main()
+            source.assert_called_once_with(SHA)
+            image.assert_called_once_with(SHA,None,False)
+            calls=[call.args for call in aws.call_args_list]
+            self.assertEqual([call[:2] for call in calls], [('sts','get-caller-identity'),
+                ('ecs','describe-task-definition'),('events','list-targets-by-rule')] +
+                ([('secretsmanager','describe-secret')] if commit else []))
+            if commit: self.assertEqual(calls[-1][2:], ('--secret-id','capiro/dev/congress_gov_api_key'))
+            receipt=json.loads(printed.call_args_list[0].args[0])
+            self.assertEqual(receipt['databaseHost'],r.HOST)
+            self.assertEqual(receipt['command'], ['sync-federal-bill-inventory','--congress','119',
+                '--stage','refresh','--limit','3','--request-cap','100'] +
+                (['--commit','--expected-host',r.HOST] if commit else []))
+
+    def test_fixed_inventory_cli_keeps_default_amendment_count_and_all_existing_pins(self):
+        hashes = ','.join(format(i,'064x') for i in range(8))
+        for extra, count in (([],7119), (['--expected-amendments','42'],42)):
+            argv=['release','--source-sha',SHA,'--job','federal-inventory','--federal-stage','hydrate',
+                  '--archive-hashes',hashes,'--amendment-list-hash','d'*64,*extra]
+            with patch('sys.argv',argv), patch.object(r,'source_sha',return_value=SHA), \
+                 patch.object(r,'image_digest',return_value=DIGEST), patch.object(r,'network_for',return_value={}), \
+                 patch.object(r,'aws',side_effect=[{'Account':r.ACCOUNT},{'taskDefinition':baseline()},{'Targets':[]}]), \
+                 patch('builtins.print') as printed:
+                r.main()
+            command=json.loads(printed.call_args_list[0].args[0])['command']
+            self.assertEqual(command,['sync-federal-bill-inventory','--congress','119',
+                '--archive-hashes',hashes,'--amendment-list-hash','d'*64,'--expected-amendments',str(count),
+                '--stage','hydrate','--limit','3','--request-cap','100'])
+
     def test_publisher_only_has_no_provider_key_and_extraction_is_explicit_one_shot(self):
         container=self.task(job='state-drain',publisher_only=True)['containerDefinitions'][0]
         self.assertIn('--publisher-only',container['command'])
