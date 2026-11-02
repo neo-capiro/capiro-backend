@@ -70,9 +70,15 @@ const floridaDefinition = [
   '(3) "Ambulatory surgical center" means a facility, the\nprimary purpose of which is to provide elective surgical care,\nin which the patient is admitted to and discharged from such\nfacility within 24 hours, and which is not part of a hospital.\nThe term does not include a facility existing for the primary\npurpose of performing terminations of pregnancy, an office',
   'maintained by a physician for the practice of medicine, or an\noffice maintained for the practice of dentistry, except that\nthat any such facility or office that is certified or seeks\ncertification as a Medicare ambulatory surgical center must be\nlicensed as an ambulatory surgical center under this chapter.',
 ];
-function pagedDefinition(parts = floridaDefinition, pages = [15, 16]) {
+function pagedDefinition(
+  parts = floridaDefinition,
+  pages = [15, 16],
+  reference = 'An ambulatory surgical center must be licensed.',
+) {
   const structure = structureText(
-    'SECTION 1. Program.\nAn ambulatory surgical center must be licensed.\nSECTION 3. Definitions.\n' +
+    'SECTION 1. Program.\n' +
+      reference +
+      '\nSECTION 3. Definitions.\n' +
       parts.join('\n') +
       '\nSECTION 4. Other.\nUnrelated provision.',
   );
@@ -93,7 +99,10 @@ function pagedDefinition(parts = floridaDefinition, pages = [15, 16]) {
     offset += text.length + 1;
     return fragment;
   });
-  structure.sections.splice(index, 1, ...fragments);
+  const following = structure.sections.findIndex(
+    (section, position) => position > index && section.number === '4',
+  );
+  structure.sections.splice(index, following - index, ...fragments);
   structure.structureHash = billStructureHash(structure);
   return {
     ...document(),
@@ -358,6 +367,110 @@ describe('immutable public bill text backend', () => {
         result.context.filter((part) => part.relation === 'definition').map((part) => part.text),
       ).toEqual([floridaDefinition[0]]);
     }
+  });
+  it('includes the actual Florida definition clauses and their page continuation, stopping before the next sibling', () => {
+    const parts = [
+      '(8) "Emergency medical condition" means:',
+      '(a) A medical condition manifesting itself by acute\nsymptoms of sufficient severity, which may include severe pain,\nsuch that the absence of immediate medical attention could\nreasonably be expected to result in any of the following:\n1. Serious jeopardy to patient health, including for a\npregnant woman or fetus.',
+      '2. Serious impairment to bodily functions.\n3. Serious dysfunction of any bodily organ or part.',
+      '(b) With respect to a pregnant woman:\n1. That there is inadequate time to effect safe transfer\nto a hospital before delivery;\n2. That a transfer may pose a threat to the health and\nsafety of the patient or fetus; or\n3. That there is evidence of the onset and persistence of\nuterine contractions or a rupture of the membranes.',
+      '(9) "Governmental unit" means the state.',
+    ];
+    const row = pagedDefinition(
+      parts,
+      [16, 16, 17, 17, 17],
+      'An emergency medical condition requires treatment.',
+    );
+    const paths = [
+      ['3', '(8)'],
+      ['3', '(8)', '(a)'],
+      ['3', '(8)', '(a)'],
+      ['3', '(8)', '(b)'],
+      ['3', '(9)'],
+    ];
+    row.structure.sections
+      .filter((section) => section.locator.includes('#definition:'))
+      .forEach((section, index) => (section.path = paths[index]!));
+    row.structure.structureHash = billStructureHash(row.structure);
+    row.structureHash = row.structure.structureHash;
+    const result = readBillDocument(row, { section: '1', contextChars: 6000 });
+    if (!result.available || !('text' in result)) throw Error('Expected an available bill read');
+    expect(
+      result.context.filter((part) => part.relation === 'definition').map((part) => part.text),
+    ).toEqual(parts.slice(0, 4));
+    expect(result.definitions[0]!.status).toBe('included');
+    expect(result.contextTruncated).toBe(false);
+    for (const contextChars of [parts[0]!.length, parts.slice(0, 4).join('').length - 5]) {
+      const bounded = readBillDocument(row, { section: '1', contextChars });
+      if (!bounded.available || !('text' in bounded))
+        throw Error('Expected an available bill read');
+      expect(bounded.definitions[0]!.status).toBe('context_limit');
+      expect(bounded.contextTruncated).toBe(true);
+      expect(bounded.context.at(-1)!.truncated).toBe(true);
+      for (const part of bounded.context)
+        expect(part.text).toBe(row.text.slice(part.startOffset, part.endOffset));
+    }
+    // Retained malformed paths provide no proof that the following clauses belong
+    // to this definition. Keep exact offsets, but do not assert completeness.
+    row.structure.sections.find((section) => section.locator.endsWith('#definition:0'))!.path = [
+      '3',
+      '(1)',
+      '(8)',
+    ];
+    row.structure.structureHash = billStructureHash(row.structure);
+    row.structureHash = row.structure.structureHash;
+    const uncertain = readBillDocument(row, { section: '1', contextChars: 6000 });
+    if (!uncertain.available || !('text' in uncertain))
+      throw Error('Expected an available bill read');
+    expect(
+      uncertain.context.filter((part) => part.relation === 'definition').map((part) => part.text),
+    ).toEqual([parts[0]]);
+    expect(uncertain.definitions[0]!.status).toBe('structure_incomplete');
+    expect(uncertain.contextTruncated).toBe(true);
+    expect(uncertain.context.find((part) => part.relation === 'definition')!.truncated).toBe(true);
+  });
+  it('keeps same-page table fragments inside a defining clause', () => {
+    const parts = [
+      '(8) "Emergency medical condition" means:',
+      '(a) A qualifying condition with these values:',
+      'Condition | Amount\nCare | 1',
+      '(b) Another condition.',
+    ];
+    const row = pagedDefinition(
+      parts,
+      [16, 16, 16, 17],
+      'An emergency medical condition requires treatment.',
+    );
+    const paths = [
+      ['3', '(8)'],
+      ['3', '(8)', '(a)'],
+      ['3', '(8)', '(a)'],
+      ['3', '(8)', '(b)'],
+    ];
+    const fragments = row.structure.sections.filter((section) =>
+      section.locator.includes('#definition:'),
+    );
+    fragments.forEach((section, index) => (section.path = paths[index]!));
+    fragments[2]!.tables = [
+      {
+        startOffset: 0,
+        endOffset: parts[2]!.length,
+        rows: [
+          ['Condition', 'Amount'],
+          ['Care', '1'],
+        ],
+      },
+    ];
+    row.structure.structureHash = billStructureHash(row.structure);
+    row.structureHash = row.structure.structureHash;
+    const result = readBillDocument(row, { section: '1', contextChars: 6000 });
+    if (!result.available || !('text' in result)) throw Error('Expected an available bill read');
+    expect(
+      result.context.filter((part) => part.relation === 'definition').map((part) => part.text),
+    ).toEqual(parts);
+    expect(result.definitions[0]!.status).toBe('included');
+    for (const part of result.context)
+      expect(part.text).toBe(row.text.slice(part.startOffset, part.endOffset));
   });
   it('bounds reads without breaking surrogate pairs and retains exact extraction in continuation', () => {
     const row = document('SECTION 1. Text.\n😀' + 'a'.repeat(500));

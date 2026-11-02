@@ -100,11 +100,16 @@ export function billSectionMatches(section: BillStructuredSection, requested: st
   );
 }
 
-/** PDF page boundaries split one logical section into adjacent immutable fragments. */
-function definitionRun(section: BillStructuredSection, structure: BillDocumentStructure) {
+/** A definition includes its contiguous clauses and immutable page/table fragments. */
+function definitionRun(
+  section: BillStructuredSection,
+  structure: BillDocumentStructure,
+  legacyPdfHierarchy: boolean,
+) {
   const run = [section];
-  let page = /^page:(\d+)$/.exec(section.sourceLocator)?.[1];
-  if (!page || !section.path.length) return run;
+  let structureIncomplete = false;
+  if (!section.path.length)
+    return { sections: run, structureIncomplete: /:\s*$/.test(section.text) };
   for (
     let index = structure.sections.indexOf(section) + 1;
     index < structure.sections.length;
@@ -112,18 +117,31 @@ function definitionRun(section: BillStructuredSection, structure: BillDocumentSt
   ) {
     const next = structure.sections[index]!;
     const previous = run.at(-1)!;
+    if (!section.path.every((part, depth) => next.path[depth] === part)) break;
+    const page = /^page:(\d+)$/.exec(previous.sourceLocator)?.[1];
+    const nextPage = /^page:(\d+)$/.exec(next.sourceLocator)?.[1];
+    const descendant = next.path.length > section.path.length;
     if (
-      next.sourceLocator !== `page:${Number(page) + 1}` ||
-      next.path.length !== section.path.length ||
-      !section.path.every((part, depth) => next.path[depth] === part) ||
+      // v1 PDF paths can incorrectly nest numeric siblings. Keep their exact reads,
+      // but do not infer clauses from that known-ambiguous hierarchy.
+      (legacyPdfHierarchy && descendant) ||
+      (page
+        ? !nextPage || ![Number(page), Number(page) + 1].includes(Number(nextPage))
+        : !descendant && next.sourceLocator !== previous.sourceLocator) ||
       next.startOffset < previous.endOffset ||
       structure.text.slice(previous.endOffset, next.startOffset).trim()
-    )
+    ) {
+      structureIncomplete = true;
       break;
+    }
     run.push(next);
-    page = String(Number(page) + 1);
   }
-  return run;
+  // A colon-only lead-in cannot establish a complete definition when its body
+  // has no provable contiguous path (including retained legacy PDF extractions).
+  return {
+    sections: run,
+    structureIncomplete: structureIncomplete || /:\s*$/.test(run.at(-1)!.text),
+  };
 }
 export type BillReadCursor = {
   extractionId: string;
@@ -297,8 +315,14 @@ export function readBillDocument(
   const definitions = structure.sections.filter((s) =>
     s.definitionTerms.some((term) => text.toLowerCase().includes(term.toLowerCase())),
   );
-  const definitionRuns = definitions.map((section) => definitionRun(section, structure));
-  definitionRuns.forEach((run) => run.forEach((section) => add(section, 'definition')));
+  const definitionRuns = definitions.map((section) =>
+    definitionRun(
+      section,
+      structure,
+      row.extractionVersion === 'bill-structure-v1' && /^page:\d+$/.test(section.sourceLocator),
+    ),
+  );
+  definitionRuns.forEach((run) => run.sections.forEach((section) => add(section, 'definition')));
   const references = [...new Set(selected.flatMap((s) => s.references))]
     .slice(0, 40)
     .map((reference) => {
@@ -369,12 +393,15 @@ export function readBillDocument(
     }
     return through >= section.endOffset;
   };
-  const completeDefinitions = definitionRuns.map((run) => run.every(fullyIncluded));
+  const includedDefinitions = definitionRuns.map((run) => run.sections.every(fullyIncluded));
+  const completeDefinitions = definitionRuns.map(
+    (run, index) => includedDefinitions[index] && !run.structureIncomplete,
+  );
   definitionRuns.forEach((run, index) => {
     if (completeDefinitions[index]) return;
     // Even a complete page fragment must disclose that the logical definition's
     // following fragment was omitted when the budget ended at the page boundary.
-    const locators = new Set(run.map((section) => section.locator));
+    const locators = new Set(run.sections.map((section) => section.locator));
     const last = context
       .filter((part) => part.relation === 'definition' && locators.has(part.locator))
       .at(-1);
@@ -417,7 +444,11 @@ export function readBillDocument(
     definitions: definitions.slice(0, 40).map((s, index) => ({
       terms: s.definitionTerms,
       locator: s.locator,
-      status: completeDefinitions[index] ? 'included' : 'context_limit',
+      status: !includedDefinitions[index]
+        ? 'context_limit'
+        : definitionRuns[index]!.structureIncomplete
+          ? 'structure_incomplete'
+          : 'included',
     })),
     references,
     referencesTruncated: new Set(selected.flatMap((s) => s.references)).size > references.length,
