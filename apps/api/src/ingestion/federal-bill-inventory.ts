@@ -6,6 +6,8 @@ import {
   federalHash,
   federalObject,
   normalizeFederalVersions,
+  replayFederalExactDuplicates,
+  type FederalExactDuplicateProof,
   type FederalAmendmentBinding,
   type FederalTextVersion,
 } from './federal-billstatus.js';
@@ -181,6 +183,7 @@ export async function fetchFederalVersionList(
     expected: number | null = null;
   const seen = new Set<string>(),
     versions: unknown[] = [];
+  let singlePageJson: string | undefined;
   while (next) {
     const url = new URL(next);
     if (
@@ -209,6 +212,8 @@ export async function fetchFederalVersionList(
     )
       throw Error('FEDERAL_API_TEXT_LIST_INCOMPLETE');
     expected = pagination.count;
+    if (seen.size === 1)
+      singlePageJson = JSON.stringify({ pagination, textVersions: payload.textVersions });
     versions.push(...payload.textVersions);
     if (versions.length > expected!) throw Error('FEDERAL_API_TEXT_LIST_COUNT_MISMATCH');
     next = pagination.next ?? null;
@@ -216,7 +221,25 @@ export async function fetchFederalVersionList(
       throw Error('FEDERAL_API_TEXT_LIST_INCOMPLETE');
   }
   if (versions.length !== expected) throw Error('FEDERAL_API_TEXT_LIST_INCOMPLETE');
-  return normalizeFederalVersions(providerDocumentId, kind, versions);
+  if (
+    seen.size === 1 &&
+    new Set(versions.map((entry) => JSON.stringify(entry))).size < versions.length
+  ) {
+    const exactDuplicateProof: FederalExactDuplicateProof = {
+      rule: 'exact-json-single-page-v1',
+      sourceUrl: base,
+      offset: 0,
+      pageCount: 1,
+      pageJson: singlePageJson!,
+      pageSha256: federalHash(singlePageJson!),
+    };
+    return {
+      versions: replayFederalExactDuplicates(providerDocumentId, kind, exactDuplicateProof)
+        .versions,
+      exactDuplicateProof,
+    };
+  }
+  return { versions: normalizeFederalVersions(providerDocumentId, kind, versions) };
 }
 
 export async function loadFederalInventories(
@@ -317,7 +340,7 @@ export async function enumerateFederalInventories(
         : { inventoryHash: generation.inventoryHash }),
     };
     try {
-      const versions = await fetchFederalVersionList(
+      const list = await fetchFederalVersionList(
         task.id,
         task.kind,
         options.apiKey,
@@ -330,7 +353,7 @@ export async function enumerateFederalInventories(
           kind: task.kind,
           providerDocumentId: task.id,
           providerUpdatedAt: task.updated,
-          versions,
+          ...list,
           ...(task.kind === 'amendment' ? { amendmentId: task.id } : {}),
         },
         true,

@@ -194,6 +194,66 @@ export function normalizeFederalVersions(
   return versions;
 }
 
+export type FederalExactDuplicateProof = {
+  rule: 'exact-json-single-page-v1';
+  sourceUrl: string;
+  offset: 0;
+  pageCount: 1;
+  pageJson: string;
+  pageSha256: string;
+};
+
+/** Replay the narrow exception without weakening the canonical version identity guard. */
+export function replayFederalExactDuplicates(
+  providerDocumentId: string,
+  kind: 'text' | 'amendment',
+  value: unknown,
+) {
+  const proof = federalObject(value),
+    match = /^(\d+)-([a-z]+)-([1-9][0-9]*)$/.exec(providerDocumentId);
+  if (
+    !match ||
+    !(kind === 'text' ? (FEDERAL_BILL_TYPES as readonly string[]) : ['hamdt', 'samdt']).includes(
+      match[2]!,
+    ) ||
+    Object.keys(proof).some(
+      (key) =>
+        !['rule', 'sourceUrl', 'offset', 'pageCount', 'pageJson', 'pageSha256'].includes(key),
+    ) ||
+    proof.rule !== 'exact-json-single-page-v1' ||
+    proof.offset !== 0 ||
+    proof.pageCount !== 1 ||
+    proof.sourceUrl !==
+      `https://api.congress.gov/v3/${kind === 'text' ? 'bill' : 'amendment'}/${match[1]}/${match[2]}/${match[3]}/text` ||
+    typeof proof.pageJson !== 'string' ||
+    proof.pageJson.length > 8_000_000 ||
+    federalHash(proof.pageJson) !== proof.pageSha256
+  )
+    throw Error('FEDERAL_DUPLICATE_PROOF_INVALID');
+  const page = federalObject(JSON.parse(proof.pageJson)),
+    pagination = federalObject(page.pagination);
+  if (
+    Object.keys(page).some((key) => !['pagination', 'textVersions'].includes(key)) ||
+    !Array.isArray(page.textVersions) ||
+    !Number.isSafeInteger(pagination.count) ||
+    pagination.count < 2 ||
+    pagination.count > 250 ||
+    pagination.count !== page.textVersions.length ||
+    (pagination.next !== undefined && pagination.next !== null)
+  )
+    throw Error('FEDERAL_DUPLICATE_PROOF_INVALID');
+  const unique = [
+    ...new Map(page.textVersions.map((entry: unknown) => [JSON.stringify(entry), entry])).values(),
+  ];
+  if (unique.length === page.textVersions.length) throw Error('FEDERAL_DUPLICATE_PROOF_INVALID');
+  return {
+    versions: normalizeFederalVersions(providerDocumentId, kind, unique),
+    reportedCount: pagination.count as number,
+    enumeratedCount: page.textVersions.length,
+    duplicateCount: page.textVersions.length - unique.length,
+  };
+}
+
 export function normalizeFederalCosponsors(values: unknown[]) {
   const cosponsors = values.map((value) => {
     const c = federalObject(value),
