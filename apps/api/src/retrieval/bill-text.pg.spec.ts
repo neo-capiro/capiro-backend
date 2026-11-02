@@ -1,16 +1,169 @@
 import { PrismaClient, type Prisma } from '@prisma/client';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { Client } from 'pg';
 import { structureText } from '../ingestion/bill-document-structure.js';
 import { CHUNKER_VERSION } from '../ingestion/bill-text-passages.js';
 import { BillTextService } from './bill-text.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { EmbeddingProvider } from '../embeddings/embedding-provider.js';
-import { BILL_JURISDICTIONS } from './bill-text-query.js';
+import {
+  BILL_JURISDICTIONS,
+  billTextSearchQuery,
+  validateBillTextSearch,
+} from './bill-text-query.js';
 
 // Root supplies a disposable synthetic database. This test never uses DATABASE_URL implicitly.
 const url = process.env.BILL_TEXT_SEARCH_TEST_DATABASE_URL;
 const pg = url ? describe : describe.skip;
 pg('bill text PostgreSQL contract', () => {
+  it('bounds the indexed public vector stage under FORCE RLS using a non-bypass application role', async () => {
+    const parsed = new URL(url!);
+    if (
+      process.env.CAPIRO_DISPOSABLE_PG !== '1' ||
+      parsed.pathname !== '/bill_text_test' ||
+      !['localhost', '127.0.0.1', '::1', '[::1]'].includes(parsed.hostname)
+    )
+      throw Error('DISPOSABLE_LOCAL_BILL_TEXT_TEST_DATABASE_REQUIRED');
+    const db = new Client({ connectionString: url });
+    const schema = 'bill_ann_' + randomUUID().replace(/-/g, '');
+    const role = schema + '_app';
+    await db.connect();
+    try {
+      await db.query('BEGIN');
+      // Schema and role are created in this transaction and rolled back even
+      // after success. No shared schema, policy, role or setting is changed.
+      await db.query(`CREATE SCHEMA ${schema}; SET LOCAL search_path TO ${schema},public;
+        CREATE ROLE ${role} NOSUPERUSER NOBYPASSRLS NOINHERIT NOLOGIN;
+        CREATE FUNCTION rls_bypass() RETURNS boolean LANGUAGE plpgsql STABLE AS $$
+          BEGIN RETURN current_setting('app.bypass_rls',true)='on'; END $$;
+        CREATE FUNCTION current_tenant_id() RETURNS uuid LANGUAGE plpgsql STABLE AS $$
+          BEGIN RETURN nullif(current_setting('app.current_tenant',true),'')::uuid;
+          EXCEPTION WHEN invalid_text_representation THEN RETURN NULL; END $$;
+        CREATE FUNCTION current_user_id() RETURNS uuid LANGUAGE plpgsql STABLE AS $$
+          BEGIN RETURN nullif(current_setting('app.current_user',true),'')::uuid;
+          EXCEPTION WHEN invalid_text_representation THEN RETURN NULL; END $$;
+        CREATE TABLE clients(id uuid,tenant_id uuid,memory_wall boolean);
+        CREATE TABLE client_memory_access(tenant_id uuid,client_id uuid,user_id uuid);
+        CREATE TABLE memory_items(id uuid,tenant_id uuid,retention_subject_id uuid);
+        CREATE FUNCTION memory_retention_visible(uuid,uuid) RETURNS boolean LANGUAGE plpgsql STABLE AS $$ BEGIN RETURN false; END $$;
+        CREATE TABLE context_embeddings(id bigserial PRIMARY KEY,tenant_id uuid,client_id uuid,owner_user_id uuid,
+          source_type text,source_id text,model text,metadata_jsonb jsonb,embedding vector(1024),content_text text,content_hash text);
+        CREATE INDEX context_embeddings_source_idx ON context_embeddings(source_type,source_id);
+        CREATE INDEX context_embeddings_tenant_client_idx ON context_embeddings(tenant_id,client_id);
+        ALTER TABLE context_embeddings ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE context_embeddings FORCE ROW LEVEL SECURITY;`);
+      // Apply the exact canonical public/tenant/owner/wall policy. The empty
+      // private-owner tables and fail-closed retention helper are fixture-only;
+      // the public vector query must never depend on a private retention grant.
+      const wall = readFileSync(
+        join(process.cwd(), 'prisma/migrations/20260719221000_memory_wall_rls/migration.sql'),
+        'utf8',
+      );
+      const policy = wall.match(/CREATE POLICY "context_embeddings_isolation"[\s\S]*?;/)?.[0];
+      if (!policy) throw Error('CANONICAL_VECTOR_RLS_POLICY_REQUIRED');
+      await db.query(policy);
+      // Restrictive owner-retention policy captured from the actual app-role
+      // plan: preserve its correlated private lookup, even with bypass set.
+      await db.query(`CREATE POLICY memory_embedding_owner_retention ON context_embeddings AS RESTRICTIVE FOR SELECT
+        USING(rls_bypass() OR source_type<>'memory_item' OR EXISTS(SELECT 1 FROM memory_items m
+          WHERE m.tenant_id=context_embeddings.tenant_id AND m.id::text=context_embeddings.source_id
+          AND memory_retention_visible(m.tenant_id,m.retention_subject_id)))`);
+      await db.query(
+        `INSERT INTO context_embeddings(tenant_id,client_id,owner_user_id,source_type,source_id,model,metadata_jsonb,embedding,content_text,content_hash)
+        SELECT CASE WHEN n>2400 THEN '00000000-0000-4000-8000-000000009999'::uuid END,
+          CASE WHEN n>1800 AND n<=2100 THEN '00000000-0000-4000-8000-000000009998'::uuid END,
+          CASE WHEN n>2100 AND n<=2400 THEN '00000000-0000-4000-8000-000000009997'::uuid END,
+          CASE WHEN n>2400 THEN 'memory_item' WHEN n>1200 AND n<=1800 THEN 'bill_passage' ELSE 'state_bill_passage' END,
+          'synthetic:'||n,CASE WHEN n>1500 AND n<=1800 THEN 'other-model' ELSE 'test-model' END,
+          jsonb_build_object('chunkerVersion',$1::text,'jurisdiction',CASE WHEN n<=600 OR n>1800 THEN 'FL' WHEN n<=1200 THEN 'TX' ELSE 'US' END),
+          ('['||sin(n)::text||','||cos(n)::text||repeat(',0',1022)||']')::vector,'synthetic public passage',repeat('a',64)
+        FROM generate_series(1,3000) n`,
+        [CHUNKER_VERSION],
+      );
+      for (const [migration, name] of [
+        [
+          '20281101010000_bill_full_text_passage_indexes',
+          'context_embeddings_bill_passage_hnsw_idx',
+        ],
+        ['20281102010000_bill_structured_extractions', 'context_embeddings_bill_passage_hash_idx'],
+      ]) {
+        const text = readFileSync(
+          join(process.cwd(), 'prisma/migrations', migration!, 'migration.sql'),
+          'utf8',
+        );
+        const index = text.match(
+          new RegExp(`CREATE INDEX (?:IF NOT EXISTS )?${name}[\\s\\S]*?;`),
+        )?.[0];
+        if (!index) throw Error('CANONICAL_VECTOR_INDEX_REQUIRED');
+        await db.query(index);
+      }
+      await db.query(`ANALYZE context_embeddings;
+        GRANT USAGE ON SCHEMA ${schema} TO ${role}; GRANT SELECT ON ALL TABLES IN SCHEMA ${schema} TO ${role};
+        SET LOCAL ROLE ${role}; SET LOCAL app.bypass_rls='off'; SET LOCAL app.current_tenant=''; SET LOCAL app.current_user='';`);
+      expect(
+        (await db.query(`SELECT rolsuper,rolbypassrls FROM pg_roles WHERE rolname=current_user`))
+          .rows,
+      ).toEqual([{ rolsuper: false, rolbypassrls: false }]);
+      expect(
+        (
+          await db.query(
+            `SELECT count(*)::int n FROM context_embeddings WHERE tenant_id IS NOT NULL`,
+          )
+        ).rows[0].n,
+      ).toBe(0);
+      const query = billTextSearchQuery(
+        validateBillTextSearch({ mode: 'semantic', query: 'licensing', jurisdictions: ['FL'] }),
+        { vector: Array.from({ length: 1024 }, (_, i) => Number(i === 0)), model: 'test-model' },
+      );
+      const nearest = query.sql.split('), semantic_revision_keys AS MATERIALIZED (')[0]! + ')';
+      // Inspect exactly the production vector stage independently of canonical
+      // hydration. Retain typed unused canonical parameters in this test SELECT.
+      const used = new Set([...nearest.matchAll(/\$(\d+)/g)].map((match) => Number(match[1])));
+      const unused = query.values
+        .map((_, i) => i + 1)
+        .filter((i) => !used.has(i))
+        .map((i) => `($${i}::text IS NULL OR $${i}::text IS NOT NULL)`)
+        .join(' AND ');
+      const sql =
+        nearest +
+        ` SELECT source_type,tenant_id,client_id,owner_user_id,model,metadata_jsonb FROM semantic_candidates WHERE ${unused || 'true'}`;
+      for (const bypass of ['off', 'on']) {
+        await db.query(`SELECT set_config('app.bypass_rls',$1,true)`, [bypass]);
+        const rows = (await db.query(sql, query.values)).rows;
+        expect(rows.length).toBeGreaterThan(0);
+        expect(rows.length).toBeLessThanOrEqual(600);
+        for (const row of rows)
+          expect(row).toMatchObject({
+            source_type: 'state_bill_passage',
+            tenant_id: null,
+            client_id: null,
+            owner_user_id: null,
+            model: 'test-model',
+            metadata_jsonb: { jurisdiction: 'FL', chunkerVersion: CHUNKER_VERSION },
+          });
+      }
+      const plan = (await db.query('EXPLAIN (ANALYZE,FORMAT JSON) ' + sql, query.values)).rows[0][
+        'QUERY PLAN'
+      ][0].Plan;
+      const scans: Array<Record<string, unknown>> = [];
+      const walk = (node: Record<string, unknown>) => {
+        if (node['Relation Name'] === 'context_embeddings') scans.push(node);
+        for (const child of (node.Plans ?? []) as Array<Record<string, unknown>>) walk(child);
+      };
+      walk(plan);
+      expect(scans).toHaveLength(1);
+      expect(scans[0]!['Actual Loops']).toBe(1);
+      // HNSW is available; a small filtered population can legitimately use the
+      // canonical partial B-tree. Do not force a planner choice or claim 1000 hits.
+      expect(scans[0]!['Index Name']).toMatch(/^context_embeddings_bill_passage_(hnsw|hash)_idx$/);
+    } finally {
+      await db.query('ROLLBACK').catch(() => undefined);
+      await db.end();
+    }
+  }, 90000);
+
   it('searches independent lexical passages, exact retained revisions, vector concepts, and missing-parent coverage', async () => {
     const parsed = new URL(url!);
     if (!/bill[_-]text[_-]test/.test(parsed.pathname))
@@ -125,6 +278,7 @@ pg('bill text PostgreSQL contract', () => {
                   extractionId,
                   structureHash,
                   textHash: structure.textHash,
+                  jurisdiction,
                   chunkerVersion: CHUNKER_VERSION,
                   startOffset: 0,
                 }),
@@ -191,7 +345,9 @@ pg('bill text PostgreSQL contract', () => {
           });
           expect(semantic.totalRevisions).toBeNull();
           if (!('candidatePassages' in semantic)) throw Error('Expected a semantic shortlist');
-          expect(semantic.candidatePassages).toBe(1);
+          // Both retained versions enter the nearest shortlist; the canonical
+          // version filter admits only Introduced afterward.
+          expect(semantic.candidatePassages).toBe(2);
           expect(semantic.results).toHaveLength(1);
           expect(semantic.results[0]!.identity.revisionId).toBe(ids[0]!.revisionId);
           expect(provider.embed).toHaveBeenCalledWith('help people afford a home');
@@ -213,10 +369,58 @@ pg('bill text PostgreSQL contract', () => {
           });
           expect(deduplicated.results).toHaveLength(1);
           if (!('candidatePassages' in deduplicated)) throw Error('Expected a semantic shortlist');
-          expect(deduplicated.candidatePassages).toBe(2);
+          expect(deduplicated.candidatePassages).toBe(3);
+          expect(deduplicated.limitation).toContain('additional matching revisions may exist');
           await tx.$executeRawUnsafe(
             `DELETE FROM context_embeddings WHERE source_id=$1`,
             duplicatePassageId,
+          );
+          // More than the candidate cap of nearer stale-namespace/other-state
+          // vectors must not consume the Florida/current-chunker shortlist.
+          await tx.$executeRawUnsafe(
+            `INSERT INTO context_embeddings
+              SELECT NULL,NULL,NULL,e.source_type,'query-noise:'||bucket||':'||n,e.model,
+                e.metadata_jsonb||CASE bucket WHEN 'old' THEN jsonb_build_object('chunkerVersion','obsolete')
+                  ELSE jsonb_build_object('jurisdiction','TX') END,e.embedding,e.content_text,e.content_hash
+              FROM context_embeddings e CROSS JOIN generate_series(1,1001) n
+              CROSS JOIN unnest(ARRAY['old','other-state']) bucket WHERE e.source_id=$1`,
+            `${CHUNKER_VERSION}:${ids[0]!.extractionId}:0`,
+          );
+          const scoped = await service.search({
+            mode: 'semantic',
+            query: 'housing',
+            jurisdictions: ['FL'],
+            version: 'Introduced',
+          });
+          expect(scoped.results.map((row) => row.identity.revisionId)).toEqual([
+            ids[0]!.revisionId,
+          ]);
+          if (!('candidatePassages' in scoped)) throw Error('Expected a semantic shortlist');
+          expect(scoped.candidatePassages).toBe(2);
+          await tx.$executeRawUnsafe(
+            `DELETE FROM context_embeddings WHERE source_id LIKE 'query-noise:%'`,
+          );
+          // Malformed source identity is a rejected candidate, never a UUID
+          // cast failure or a canonical document admitted from its metadata.
+          await tx.$executeRawUnsafe(
+            `INSERT INTO context_embeddings SELECT NULL,NULL,NULL,source_type,'query-malformed',model,
+              metadata_jsonb||'{"revisionId":"invalid-uuid"}'::jsonb,embedding,content_text,content_hash
+              FROM context_embeddings WHERE source_id=$1`,
+            `${CHUNKER_VERSION}:${ids[0]!.extractionId}:0`,
+          );
+          const malformed = await service.search({
+            mode: 'semantic',
+            query: 'housing',
+            jurisdictions: ['FL'],
+            version: 'Introduced',
+          });
+          expect(malformed.results.map((row) => row.identity.revisionId)).toEqual([
+            ids[0]!.revisionId,
+          ]);
+          if (!('candidatePassages' in malformed)) throw Error('Expected a semantic shortlist');
+          expect(malformed.candidatePassages).toBe(3);
+          await tx.$executeRawUnsafe(
+            `DELETE FROM context_embeddings WHERE source_id='query-malformed'`,
           );
           const { structureHash: _hash, ...readIdentity } = ids[0]!;
           const old = await service.read({
