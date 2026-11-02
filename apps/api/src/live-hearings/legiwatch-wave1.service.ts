@@ -34,7 +34,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { LiveHearingsPhase7Service } from './live-hearings-phase7.service.js';
 import { CommitteeDirectoryService } from './committee-directory.service.js';
 import { requireStateCalendar } from './legiwatch-calendar-access.js';
-import { STATE_CAPTURE_LINK_ONLY, stateCapturePolicy } from './legiwatch-state-capture-policy.js';
+import { stateCapturePolicy } from './legiwatch-state-capture-policy.js';
 import {
   selectOfficialPlaybackSource,
   strictOfficialSourceUrl,
@@ -407,14 +407,6 @@ export class LegiWatchWave1Service {
     const mode = input.mode ?? 'automatic';
     const assessment = await this.assess(ctx, hearing);
 
-    if (assessment.reasonCode === STATE_CAPTURE_LINK_ONLY) {
-      throw new ConflictException({
-        code: STATE_CAPTURE_LINK_ONLY,
-        message: assessment.message,
-        state: assessment.state,
-        availableModes: [],
-      });
-    }
     const refusal = refuseAttendanceRequest(assessment, mode);
     if (refusal) {
       throw new ConflictException({
@@ -588,19 +580,9 @@ export class LegiWatchWave1Service {
       subscription,
       hasTranscript: transcriptCount > 0,
     });
-    if (!statePermission) return assessment;
-    return {
-      ...assessment,
-      state: 'NOT_ELIGIBLE',
-      reasonCode: STATE_CAPTURE_LINK_ONLY,
-      message: statePermission.policy.message,
-      canRequest: false,
-      availableModes: [],
-      consentRequired: false,
-      browserAvailable: false,
-      automaticAvailable: false,
-      policy: statePermission.policy,
-    };
+    // The reviewed state policy already narrows each mode. In particular,
+    // browserAllowed does not enable unattended state capture.
+    return assessment;
   }
 
   // ── W1-3 · archive + global hearing research ─────────────────────────────

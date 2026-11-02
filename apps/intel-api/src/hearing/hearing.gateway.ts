@@ -20,6 +20,11 @@ import { WatchlistMatchPromoterService } from '../linking/watchlist-match-promot
 import { HearingRecordingService, type RecordingCapture } from './recording/recording.service.js';
 import { HearingAnalysisService } from './recording/hearing-analysis.service.js';
 import { decodeRecordingFrame, retryableRecordingFailure } from './recording/recording-domain.js';
+import {
+  VIDEO_RECORDING_MIME,
+  TRANSCRIPTION_MIME,
+  AUDIO_RECORDING_MIMES,
+} from './recording/recording-media.js';
 import type {
   ClientWsMessage,
   FinalSegment,
@@ -36,7 +41,6 @@ const MAX_BYTES_PER_SECOND = 512 * 1024;
 const MAX_PENDING_INPUT_BYTES = 2 * 1024 * 1024;
 const MAX_PENDING_INPUT_MESSAGES = 256;
 const CAPTURE_DATABASE_DEADLINE_MS = 15_000;
-const BROWSER_MIME_TYPES = new Set(['audio/webm;codecs=opus', 'audio/webm']);
 
 type CaptureState = 'connected' | 'starting' | 'ready' | 'capturing' | 'stopping' | 'ended';
 
@@ -74,6 +78,9 @@ interface LiveConn {
   rateWindowStartedAt: number;
   bytesThisWindow: number;
   recording?: RecordingCapture;
+  recordingProtocol?: number;
+  transcriptionSequence?: number;
+  transcriptionEndMs?: number;
   finalSequence?: number;
   gracefulStop?: boolean;
   transcriptFailed?: boolean;
@@ -261,9 +268,26 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     }
 
     if (msg.type === 'capture_start') {
-      await this.startCapture(conn, msg.mimeType, msg.displaySurface, msg.recordingProtocol);
+      await this.startCapture(
+        conn,
+        msg.mimeType,
+        msg.displaySurface,
+        msg.recordingProtocol,
+        msg.transcriptionMimeType,
+        msg.videoAudioAcknowledged,
+      );
     } else if (msg.type === 'capture_stop' || msg.type === 'stop') {
       conn.gracefulStop = true;
+      if (
+        conn.recordingProtocol === 2 &&
+        (msg.type !== 'capture_stop' ||
+          !Number.isInteger(msg.finalTranscriptionSequence) ||
+          msg.finalTranscriptionSequence !== conn.transcriptionSequence ||
+          conn.transcriptionSequence === -1)
+      ) {
+        conn.transcriptFailed = true;
+        this.persistTranscriptFailure(conn);
+      }
       if (
         msg.type === 'capture_stop' &&
         Number.isInteger(msg.finalSequence) &&
@@ -281,6 +305,8 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     mimeType: string,
     displaySurface?: string,
     recordingProtocol?: number,
+    transcriptionMimeType?: string,
+    videoAudioAcknowledged?: boolean,
   ): Promise<void> {
     if (conn.state !== 'connected') {
       this.send(conn.ws, {
@@ -290,11 +316,27 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       });
       return;
     }
-    if (typeof mimeType !== 'string' || !BROWSER_MIME_TYPES.has(mimeType.toLowerCase())) {
+    const video = recordingProtocol === 2;
+    if (video && videoAudioAcknowledged !== true) {
+      this.send(conn.ws, {
+        type: 'error',
+        code: 'VIDEO_ACKNOWLEDGMENT_REQUIRED',
+        message: 'Explicitly choose video and audio capture before sharing.',
+      });
+      return;
+    }
+    if (
+      typeof mimeType !== 'string' ||
+      (video
+        ? mimeType !== VIDEO_RECORDING_MIME ||
+          transcriptionMimeType !== TRANSCRIPTION_MIME ||
+          displaySurface !== 'browser'
+        : !AUDIO_RECORDING_MIMES.has(mimeType))
+    ) {
       this.send(conn.ws, {
         type: 'error',
         code: 'UNSUPPORTED_AUDIO_CONTAINER',
-        message: 'Browser capture must use audio/webm with Opus.',
+        message: 'Use the negotiated WebM media format and separate Opus transcription lane.',
       });
       return;
     }
@@ -308,7 +350,7 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     conn.recordingPolicy = currentSession.recordingPolicy;
     if (
       conn.recordingPolicy === 'audio_and_transcript' &&
-      (recordingProtocol !== 1 || !this.recordings)
+      (![1, 2].includes(recordingProtocol ?? 0) || !this.recordings)
     ) {
       this.send(conn.ws, {
         type: 'error',
@@ -317,6 +359,17 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       });
       return;
     }
+    if (video && conn.recordingPolicy !== 'audio_and_transcript') {
+      this.send(conn.ws, {
+        type: 'error',
+        code: 'VIDEO_RETENTION_REQUIRED',
+        message: 'Enable retention before video capture.',
+      });
+      return;
+    }
+    conn.recordingProtocol = recordingProtocol;
+    conn.transcriptionSequence = -1;
+    conn.transcriptionEndMs = 0;
     const pendingClaim = this.sessions.claimCapture(conn.tenantId, conn.sessionId);
     let claim: Awaited<typeof pendingClaim>;
     try {
@@ -364,6 +417,8 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
         recordingId: conn.recording.recordingId,
         epochId: conn.recording.epochId,
         startMs: conn.recording.startMs,
+        recordingProtocol,
+        mimeType,
       });
     }
     if (conn.state !== 'starting') return;
@@ -591,8 +646,28 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       if (conn.firstAudioTimer) clearTimeout(conn.firstAudioTimer);
     }
 
+    const videoProtocol = conn.recordingProtocol === 2;
+    const transcriptionLane = videoProtocol && raw.toString('ascii', 0, 4) === 'LWT5';
     let transcriptionBytes = raw;
-    if (conn.recording) {
+    if (videoProtocol) {
+      const part = decodeRecordingFrame(raw, transcriptionLane ? 'LWT5' : 'LWV5');
+      if (transcriptionLane) {
+        if (
+          part.sequence !== (conn.transcriptionSequence ?? -1) + 1 ||
+          part.endMs < (conn.transcriptionEndMs ?? 0)
+        )
+          throw new Error('Transcription lane is out of order');
+        if (
+          part.sequence === 0 &&
+          !part.bytes.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]))
+        )
+          throw new Error('Transcription lane must begin with WebM initialization');
+        conn.transcriptionSequence = part.sequence;
+        conn.transcriptionEndMs = part.endMs;
+        transcriptionBytes = part.bytes;
+      }
+    }
+    if (conn.recording && !transcriptionLane) {
       let saved;
       try {
         saved = await this.recordings!.append(conn.recording, raw);
@@ -602,7 +677,7 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
           type: 'error',
           code: 'RECORDING_STORAGE_DELAYED',
           message:
-            'Audio storage is delayed. Retrying the unsaved part; the saved checkpoint has not advanced.',
+            'Media storage is delayed. Retrying the unsaved part; the saved checkpoint has not advanced.',
         });
         return;
       }
@@ -614,9 +689,13 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
         durableEndMs: saved.durableEndMs,
       });
       if (saved.duplicate) return;
-      transcriptionBytes = decodeRecordingFrame(raw).bytes;
+      if (!videoProtocol) transcriptionBytes = decodeRecordingFrame(raw).bytes;
     }
-    if (!conn.transcriptionUnavailable && !conn.deepgram?.sendAudio(transcriptionBytes)) {
+    if (
+      (!videoProtocol || transcriptionLane) &&
+      !conn.transcriptionUnavailable &&
+      !conn.deepgram?.sendAudio(transcriptionBytes)
+    ) {
       if (conn.recording) {
         conn.transcriptionUnavailable = true;
         conn.transcriptFailed = true;

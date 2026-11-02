@@ -8,9 +8,15 @@ import { promisify } from 'node:util';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type { RecordingStorageService } from './recording-storage.service.js';
 import { CAPTURE_LEASE_STALE_MS } from '../hearing-session.service.js';
+import {
+  MAX_RECORDING_BYTES,
+  recordingContentType,
+  recordingMaps,
+  recordingProbe,
+} from './recording-media.js';
 
 const runFile = promisify(execFile);
-const MAX_ASSEMBLY_BYTES = 1024 * 1024 * 1024;
+const MAX_ASSEMBLY_BYTES = MAX_RECORDING_BYTES;
 const LEASE_MS = 90_000;
 
 /** Durable, fenced work is represented by epoch.state, not an in-memory queue. */
@@ -189,10 +195,8 @@ export class RecordingAssemblyWorker {
           'error',
           '-i',
           input,
-          '-map',
-          '0:a:0',
-          '-vn',
-          '-c:a',
+          ...recordingMaps(epoch.mimeType),
+          '-c',
           'copy',
           // Let remote players read the seek index with initial metadata.
           // Tail cues can cause Chrome to scan long signed S3 responses.
@@ -204,24 +208,37 @@ export class RecordingAssemblyWorker {
         ],
         options,
       );
-      // A successful mux is not proof that the audio decodes. Qualify every byte.
+      // A successful mux is not proof that both tracks decode. Qualify every byte.
       await runFile(
         'ffmpeg',
-        ['-nostdin', '-v', 'error', '-xerror', '-i', output, '-map', '0:a:0', '-f', 'null', '-'],
+        [
+          '-nostdin',
+          '-v',
+          'error',
+          '-xerror',
+          '-i',
+          output,
+          ...recordingMaps(epoch.mimeType),
+          '-f',
+          'null',
+          '-',
+        ],
         options,
       );
       const probe = await runFile(
         'ffprobe',
-        ['-v', 'error', '-show_entries', 'format=duration', '-of', 'json', output],
+        [
+          '-v',
+          'error',
+          '-show_entries',
+          'format=duration:stream=codec_type,codec_name,width,height',
+          '-of',
+          'json',
+          output,
+        ],
         options,
       );
-      const durationMs = Math.round(Number(JSON.parse(probe.stdout).format?.duration) * 1000);
-      if (
-        !Number.isSafeInteger(durationMs) ||
-        durationMs <= 0 ||
-        durationMs > 12 * 3600_000 + 30_000
-      )
-        throw new Error('Invalid decoded audio duration');
+      const durationMs = recordingProbe(epoch.mimeType, JSON.parse(probe.stdout));
       const digest = createHash('sha256');
       for await (const chunk of createReadStream(output)) digest.update(chunk);
       const sha256 = digest.digest('hex'),
@@ -229,7 +246,14 @@ export class RecordingAssemblyWorker {
       const key = `hearing-audio/${epoch.tenantId}/${epoch.recordingId}/${epoch.id}/playable/${sha256}.webm`;
       const body = createReadStream(output);
       try {
-        await this.storage.put(key, body, size, sha256, 'audio/webm', cancel.signal);
+        await this.storage.put(
+          key,
+          body,
+          size,
+          sha256,
+          recordingContentType(epoch.mimeType),
+          cancel.signal,
+        );
       } finally {
         body.destroy();
       }

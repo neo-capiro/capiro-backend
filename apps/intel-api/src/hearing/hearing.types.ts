@@ -38,7 +38,14 @@ export interface ExtractionResult {
 
 /** WS message envelopes (server -> browser). */
 export type ServerWsMessage =
-  | { type: 'recording_epoch'; recordingId: string; epochId: string; startMs: number }
+  | {
+      type: 'recording_epoch';
+      recordingId: string;
+      epochId: string;
+      startMs: number;
+      recordingProtocol?: number;
+      mimeType?: string;
+    }
   | {
       type: 'audio_saved';
       epochId: string;
@@ -70,7 +77,9 @@ export type ClientWsMessage =
       mimeType: string;
       displaySurface?: string;
       recordingProtocol?: number;
+      transcriptionMimeType?: string;
+      videoAudioAcknowledged?: boolean;
     }
-  | { type: 'capture_stop'; finalSequence?: number }
+  | { type: 'capture_stop'; finalSequence?: number; finalTranscriptionSequence?: number }
   | { type: 'audio'; chunk: string }
   | { type: 'stop' };

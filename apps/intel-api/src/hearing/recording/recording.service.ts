@@ -10,6 +10,11 @@ import { CAPTURE_LEASE_STALE_MS, HearingSessionService } from '../hearing-sessio
 import { RecordingPermissionService } from './recording-permission.service.js';
 import { RecordingStorageService } from './recording-storage.service.js';
 import {
+  MAX_RECORDING_BYTES,
+  VIDEO_RECORDING_MIME,
+  recordingContentType,
+} from './recording-media.js';
+import {
   assertPartOrder,
   decodeRecordingFrame,
   permissionAllowsRecording,
@@ -58,12 +63,18 @@ export class HearingRecordingService {
   async capability(tenantId: string, sessionId: string, userId: string) {
     const session = await this.sessions.getAccessible(tenantId, sessionId, userId);
     let canEnablePublic = false;
+    let canEnableVideo = false;
     try {
       // Match the capture/manifest actor policy before offering an enable action.
       // A visible transcript alone does not grant retained-media access.
       canEnablePublic = await this.actor(tenantId, userId, (tx) =>
         this.permissions.canEnablePublic(tx, sessionId),
       );
+      canEnableVideo =
+        canEnablePublic &&
+        (await this.actor(tenantId, userId, (tx) =>
+          this.permissions.canEnableVideo(tx, sessionId),
+        ));
     } catch (error) {
       if (
         error instanceof NotFoundException &&
@@ -83,8 +94,17 @@ export class HearingRecordingService {
       session.recordingPolicy === 'no_storage'
         ? null
         : await this.permissions.find(tenantId, session);
+    const videoPermission =
+      session.recordingPolicy === 'no_storage'
+        ? null
+        : await this.permissions.find(tenantId, session, true);
     return {
       available: Boolean(permission) || canEnablePublic,
+      recordingProtocols: [1, 2],
+      videoMimeType: VIDEO_RECORDING_MIME,
+      videoAvailable: Boolean(videoPermission?.operations.includes('video_retention')),
+      canEnableVideo,
+      maxRecordingBytes: MAX_RECORDING_BYTES,
       recordingPolicy: session.recordingPolicy,
       retentionDays: permission?.retentionDays ?? (canEnablePublic ? 30 : null),
       reason:
@@ -95,7 +115,7 @@ export class HearingRecordingService {
   }
 
   /** Explicit mutation before capture. Old sessions are never relabeled by a read. */
-  async enable(tenantId: string, sessionId: string, userId: string) {
+  async enable(tenantId: string, sessionId: string, userId: string, video = false) {
     const session = await this.sessions.getAccessible(tenantId, sessionId, userId);
     if (session.createdBy !== userId || session.recordingPolicy === 'no_storage') {
       throw new BadRequestException('Only the creator can choose retention before recording');
@@ -103,7 +123,8 @@ export class HearingRecordingService {
     this.storage.assertReady();
     const permission = await this.permissions.find(tenantId, session);
     const result = await this.actor(tenantId, userId, async (tx) => {
-      if (!permission) await this.permissions.enablePublic(tx, sessionId);
+      if (video) await this.permissions.enableVideo(tx, sessionId);
+      else if (!permission) await this.permissions.enablePublic(tx, sessionId);
       return tx.liveHearingSession.updateMany({
         where: { tenantId, id: sessionId, createdBy: userId, status: 'scheduled', startedAt: null },
         data: { recordingPolicy: 'audio_and_transcript' },
@@ -121,13 +142,17 @@ export class HearingRecordingService {
     captureToken: Date,
     mimeType: string,
   ): Promise<RecordingCapture> {
+    recordingContentType(mimeType);
     const session = await this.sessions.getAccessible(tenantId, sessionId, userId);
     // An expired live-channel binding cannot start another capture. Playback
     // remains governed by the original retained-media grant and retention.
     await this.sessions.assertCaptureSourceAllowed(tenantId, session.hearingId, session.sourceUrl);
     if (session.recordingPolicy !== 'audio_and_transcript')
       throw new BadRequestException('This session does not retain audio');
-    const grant = await this.permissions.require(tenantId, session);
+    const video = mimeType === VIDEO_RECORDING_MIME;
+    const grant = await this.permissions.require(tenantId, session, video);
+    if (video && !grant.operations.includes('video_retention'))
+      throw new BadRequestException('Video requires an explicit video retention grant');
     const now = new Date();
     return this.actor(tenantId, userId, async (tx) => {
       await this.lockCapture(tx, { tenantId, sessionId, captureToken });
@@ -155,11 +180,25 @@ export class HearingRecordingService {
         });
       if (recording.expiresAt <= now || recording.state === 'expired')
         throw new ConflictException('Recording retention has expired');
+      if (video) {
+        const originalGrant = await tx.hearingMediaPermission.findFirst({
+          where: { tenantId, id: recording.permissionId },
+        });
+        if (
+          !originalGrant?.operations.includes('video_retention') ||
+          !permissionAllowsRecording(originalGrant, session)
+        )
+          throw new ConflictException(
+            'This recording has no original video permission; its identity was preserved',
+          );
+      }
       const previous = await tx.hearingRecordingEpoch.findFirst({
         where: { tenantId, recordingId: recording.id },
         orderBy: { startMs: 'desc' },
       });
       if (previous?.captureToken.getTime() === captureToken.getTime()) {
+        if (previous.mimeType !== mimeType)
+          throw new ConflictException('Recording media negotiation changed');
         return {
           tenantId,
           userId,
@@ -225,7 +264,8 @@ export class HearingRecordingService {
   }
 
   async append(capture: RecordingCapture, frame: Buffer) {
-    const part = decodeRecordingFrame(frame);
+    const magic = frame.toString('ascii', 0, 4) === 'LWV5' ? 'LWV5' : 'LWA4';
+    const part = decodeRecordingFrame(frame, magic);
     const { tenantId, userId, epochId } = capture;
     const checkpoint = await this.actor(tenantId, userId, async (tx) => {
       await this.lockCapture(tx, capture);
@@ -240,13 +280,16 @@ export class HearingRecordingService {
       ) {
         throw new ConflictException('Recording attempt is closed');
       }
+      if ((epoch.mimeType === VIDEO_RECORDING_MIME) !== (magic === 'LWV5'))
+        throw new BadRequestException('Frame lane does not match recording media');
       const grant = await tx.hearingMediaPermission.findFirst({
         where: { tenantId, id: epoch.recording.permissionId },
       });
       if (
         epoch.recording.expiresAt <= new Date() ||
         !grant ||
-        !permissionAllowsRecording(grant, epoch.recording.session)
+        !permissionAllowsRecording(grant, epoch.recording.session) ||
+        (epoch.mimeType === VIDEO_RECORDING_MIME && !grant.operations.includes('video_retention'))
       ) {
         throw new ConflictException('Recording permission or retention expired');
       }
@@ -261,7 +304,11 @@ export class HearingRecordingService {
       ) {
         throw new ConflictException('Conflicting audio part');
       }
-      if (!existing) assertPartOrder(epoch, part);
+      if (!existing) {
+        assertPartOrder(epoch, part);
+        if (epoch.durableBytes + BigInt(part.bytes.length) > BigInt(MAX_RECORDING_BYTES))
+          throw new BadRequestException('Recording reached its 1 GiB media limit');
+      }
       return { epoch, existing };
     });
     if (checkpoint.existing)
@@ -301,7 +348,8 @@ export class HearingRecordingService {
         !currentRecording ||
         currentRecording.expiresAt <= new Date() ||
         !currentGrant ||
-        !permissionAllowsRecording(currentGrant, currentRecording.session)
+        !permissionAllowsRecording(currentGrant, currentRecording.session) ||
+        (magic === 'LWV5' && !currentGrant.operations.includes('video_retention'))
       ) {
         throw new ConflictException('Recording permission or retention expired during save');
       }
@@ -322,6 +370,8 @@ export class HearingRecordingService {
         };
       }
       assertPartOrder(epoch, part);
+      if (epoch.durableBytes + BigInt(part.bytes.length) > BigInt(MAX_RECORDING_BYTES))
+        throw new BadRequestException('Recording reached its 1 GiB media limit');
       await tx.hearingRecordingPart.create({
         data: {
           tenantId,
@@ -422,16 +472,23 @@ export class HearingRecordingService {
     const session = await this.sessions.getAccessible(tenantId, sessionId, userId);
     if (session.recordingPolicy !== 'audio_and_transcript')
       return { recording: null, recordingPolicy: session.recordingPolicy };
-    const { row, permissionAvailable } = await this.actor(tenantId, userId, async (tx) => {
-      const row = await tx.hearingRecording.findFirst({
-        where: { tenantId, sessionId },
-        include: { epochs: { orderBy: { startMs: 'asc' } } },
-      });
-      const permissionAvailable = Boolean(
-        row && (await this.retentionPermission(tx, tenantId, session, row.permissionId)),
-      );
-      return { row, permissionAvailable };
-    });
+    const { row, permissionAvailable, videoPermissionAvailable } = await this.actor(
+      tenantId,
+      userId,
+      async (tx) => {
+        const row = await tx.hearingRecording.findFirst({
+          where: { tenantId, sessionId },
+          include: { epochs: { orderBy: { startMs: 'asc' } } },
+        });
+        const permission =
+          row && (await this.retentionPermission(tx, tenantId, session, row.permissionId));
+        return {
+          row,
+          permissionAvailable: Boolean(permission),
+          videoPermissionAvailable: Boolean(permission?.operations.includes('video_retention')),
+        };
+      },
+    );
     if (!row) return { recording: null, recordingPolicy: session.recordingPolicy };
     const expired = row.expiresAt <= new Date() || row.state === 'expired';
     return {
@@ -450,6 +507,7 @@ export class HearingRecordingService {
         analysisState: row.analysisState,
         epochs: row.epochs.map((epoch) => ({
           id: epoch.id,
+          mimeType: recordingContentType(epoch.mimeType),
           startMs: epoch.startMs,
           durableEndMs: epoch.durableEndMs,
           transcriptState: epoch.transcriptState,
@@ -463,6 +521,7 @@ export class HearingRecordingService {
           playable:
             !expired &&
             permissionAvailable &&
+            (epoch.mimeType !== VIDEO_RECORDING_MIME || videoPermissionAvailable) &&
             epoch.state === 'ready' &&
             Boolean(epoch.artifactKey),
         })),
@@ -504,7 +563,10 @@ export class HearingRecordingService {
         session,
         row.recording.permissionId,
       );
-      return grant ? row : null;
+      return grant &&
+        (row.mimeType !== VIDEO_RECORDING_MIME || grant.operations.includes('video_retention'))
+        ? row
+        : null;
     });
     if (
       !epoch?.artifactKey ||
@@ -517,7 +579,12 @@ export class HearingRecordingService {
     const ttl = Math.min(60, Math.floor((epoch.recording.expiresAt.getTime() - Date.now()) / 1000));
     if (ttl < 1) throw new NotFoundException('Retained audio has expired');
     return {
-      url: await this.storage.playbackUrl(epoch.artifactKey, ttl),
+      url: await this.storage.playbackUrl(
+        epoch.artifactKey,
+        ttl,
+        recordingContentType(epoch.mimeType),
+      ),
+      mimeType: recordingContentType(epoch.mimeType),
       expiresAt: new Date(Date.now() + ttl * 1000),
       epochId,
       startMs: epoch.startMs,

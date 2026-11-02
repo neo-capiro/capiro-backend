@@ -9,6 +9,22 @@ describe('retained hearing audio status and access', () => {
   const userId = 'user';
   const sessionId = 'session';
 
+  it('returns authoritative video playback MIME while preserving the original recording and grant', async () => {
+    const { service, tx, recording, storage } = setup();
+    const epoch = { ...recording.epochs[0], mimeType: 'video/webm;codecs=vp8,opus', recording };
+    tx.hearingRecordingEpoch.findFirst.mockResolvedValue(epoch as never);
+    tx.hearingMediaPermission.findFirst.mockResolvedValue({
+      id: 'permission',
+      operations: ['retention', 'video_retention'],
+    });
+    const result = await service.playback(tenantId, sessionId, userId, 'epoch');
+    expect(result).toMatchObject({ epochId: 'epoch', mimeType: 'video/webm' });
+    expect(storage.playbackUrl).toHaveBeenCalledWith('private/audio.webm', 60, 'video/webm');
+    tx.hearingMediaPermission.findFirst.mockResolvedValue(null as never);
+    await expect(service.playback(tenantId, sessionId, userId, 'epoch')).rejects.toThrow();
+    expect(storage.playbackUrl).toHaveBeenCalledTimes(1);
+  });
+
   function setup() {
     const session = {
       id: sessionId,
@@ -28,6 +44,7 @@ describe('retained hearing audio status and access', () => {
       epochs: [
         {
           id: 'epoch',
+          mimeType: 'audio/webm',
           state: 'ready',
           artifactKey: 'private/audio.webm',
           startMs: 0,
@@ -47,15 +64,28 @@ describe('retained hearing audio status and access', () => {
       hearingRecordingEpoch: {
         findFirst: jest.fn().mockResolvedValue({ ...recording.epochs[0], recording }),
       },
-      hearingMediaPermission: { findFirst: jest.fn().mockResolvedValue({ id: 'permission' }) },
+      hearingMediaPermission: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'permission', operations: ['retention'] }),
+      },
       liveHearingSession: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
     };
     const prisma = { withTenant: jest.fn(async (_tenant, work) => work(tx)) };
-    const sessions = { getAccessible: jest.fn().mockResolvedValue(session) };
+    const sessions = {
+      getAccessible: jest.fn().mockResolvedValue(session),
+      assertCaptureSourceAllowed: jest.fn().mockResolvedValue(undefined),
+    };
     const permissions = {
-      find: jest.fn().mockResolvedValue({ retentionDays: 30 }),
+      find: jest.fn().mockResolvedValue({
+        retentionDays: 30,
+        operations: ['capture', 'transcription', 'retention'],
+      }),
       canEnablePublic: jest.fn().mockResolvedValue(false),
       enablePublic: jest.fn(),
+      canEnableVideo: jest.fn().mockResolvedValue(false),
+      enableVideo: jest.fn().mockResolvedValue(undefined),
+      require: jest
+        .fn()
+        .mockResolvedValue({ operations: ['capture', 'transcription', 'retention'] }),
     };
     const storage = {
       assertReady: jest.fn(),
@@ -83,6 +113,50 @@ describe('retained hearing audio status and access', () => {
     );
     expect(tx.$queryRaw).not.toHaveBeenCalled();
     expect(tx.hearingRecording.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('never upgrades an audio-only grant into video capture or playback', async () => {
+    const { service, permissions, tx, recording, storage } = setup();
+    expect(await service.capability(tenantId, sessionId, userId)).toMatchObject({
+      videoAvailable: false,
+      canEnableVideo: false,
+    });
+    await expect(
+      service.begin(tenantId, sessionId, userId, new Date(), 'video/webm;codecs=vp8,opus'),
+    ).rejects.toThrow('explicit video retention grant');
+    expect(permissions.require).toHaveBeenCalledWith(tenantId, expect.any(Object), true);
+    recording.epochs[0]!.mimeType = 'video/webm;codecs=vp8,opus';
+    tx.hearingRecordingEpoch.findFirst.mockResolvedValue({
+      ...recording.epochs[0],
+      recording,
+    } as never);
+    expect(
+      (await service.manifest(tenantId, sessionId, userId)).recording?.epochs[0]?.playable,
+    ).toBe(false);
+    await expect(service.playback(tenantId, sessionId, userId, 'epoch')).rejects.toThrow();
+    expect(storage.playbackUrl).not.toHaveBeenCalled();
+  });
+
+  it('calls the separate video grant writer only for explicit video enable', async () => {
+    const { service, permissions } = setup();
+    await service.enable(tenantId, sessionId, userId);
+    expect(permissions.enableVideo).not.toHaveBeenCalled();
+    await service.enable(tenantId, sessionId, userId, true);
+    expect(permissions.enableVideo).toHaveBeenCalledTimes(1);
+    expect(permissions.enablePublic).not.toHaveBeenCalled();
+  });
+
+  it('preserves an existing audio recording identity instead of adopting a newer video grant', async () => {
+    const { service, permissions, recording } = setup();
+    permissions.require.mockResolvedValue({
+      operations: ['capture', 'transcription', 'retention', 'video_retention'],
+    });
+    await expect(
+      service.begin(tenantId, sessionId, userId, new Date(), 'video/webm;codecs=vp8,opus'),
+    ).rejects.toThrow('identity was preserved');
+    expect(recording.id).toBe('recording');
+    expect(recording.permissionId).toBe('permission');
+    expect(recording.epochs).toHaveLength(1);
   });
 
   it('offers explicit enable for an eligible public source without creating a permission on read', async () => {
@@ -210,6 +284,6 @@ describe('retained hearing audio status and access', () => {
       startMs: 0,
       durationMs: 1000,
     });
-    expect(storage.playbackUrl).toHaveBeenCalledWith('private/audio.webm', 60);
+    expect(storage.playbackUrl).toHaveBeenCalledWith('private/audio.webm', 60, 'audio/webm');
   });
 });
