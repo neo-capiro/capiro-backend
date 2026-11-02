@@ -89,6 +89,20 @@ function fixture(alternateRows?: BillCoverageRow[]) {
 }
 
 describe('alternate-format coverage query admission', () => {
+  it('binds federal observations to the canonical indexed source without dropping exact receipt/version proof', () => {
+    expect(FEDERAL_BILL_COVERAGE_SQL).toContain(
+      "o.source_key=r.source_key AND o.revision_id=r.id AND o.state='present'",
+    );
+    for (const clause of [
+      'o.metadata_jsonb->>\'providerVersionId\'=x."versionId"',
+      'o.metadata_jsonb->>\'providerDocumentId\'=x."providerDocumentId"',
+      'o.metadata_jsonb->>\'sourceInventoryReceiptId\'=x."receiptId"',
+      'origin.manifest->>\'providerUpdatedAt\'=x."providerUpdatedAt"',
+      'r.source_url=ANY(x."sourceUrls")',
+      'r.version_code IS NOT DISTINCT FROM x."versionCode"',
+    ])
+      expect(FEDERAL_BILL_COVERAGE_SQL).toContain(clause);
+  });
   it('skips the empty qualified receipt set without claiming a known format inventory', async () => {
     const { query, load } = fixture();
     const report = await load();

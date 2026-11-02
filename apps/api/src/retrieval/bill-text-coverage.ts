@@ -153,7 +153,7 @@ export const FEDERAL_BILL_COVERAGE_SQL = `WITH expected AS (
   WHERE x."versionId" IS NOT NULL AND r.bill_id=x."billId" AND r.collection=x.collection
    AND (x."packageId" IS NULL OR r.package_id=x."packageId") AND r.version_code IS NOT DISTINCT FROM x."versionCode"
    AND r.source_url=ANY(x."sourceUrls") AND EXISTS (
-    SELECT 1 FROM federal_evidence_observation o WHERE o.revision_id=r.id AND o.state='present'
+    SELECT 1 FROM federal_evidence_observation o WHERE o.source_key=r.source_key AND o.revision_id=r.id AND o.state='present'
      AND o.metadata_jsonb->>'providerVersionId'=x."versionId" AND o.metadata_jsonb->>'providerDocumentId'=x."providerDocumentId"
      AND (o.metadata_jsonb->>'sourceInventoryReceiptId'=x."receiptId" OR EXISTS (
       SELECT 1 FROM legal_source_receipt origin WHERE origin.id=o.metadata_jsonb->>'sourceInventoryReceiptId'
