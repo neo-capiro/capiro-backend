@@ -284,8 +284,18 @@ export class ClientActivityService {
       return await this.engagement.listMailThreads(ctx, { clientId }, { budgetMs: TIMELINE_MAIL_BUDGET_MS });
     } catch (err) {
       if (!isDatabaseBusyError(err)) throw err;
+      // A Prisma error can carry an empty message; the code/name is then the only
+      // thing that identifies it, and "database busy ()" told nobody anything.
+      let detail = 'unidentified error';
+      if (err instanceof Error) {
+        const firstLine = (err.message.split('\n')[0] ?? '').trim();
+        const code = String((err as { code?: unknown }).code ?? '');
+        detail = firstLine || [err.name, code].filter(Boolean).join(' ') || 'unidentified error';
+      } else {
+        detail = String(err);
+      }
       this.logger.warn(
-        `client activity mail section skipped for client ${clientId}: database busy (${err instanceof Error ? err.message.split('\n')[0] : String(err)})`,
+        `client activity mail section skipped for client ${clientId}: database busy (${detail})`,
       );
       return [];
     }

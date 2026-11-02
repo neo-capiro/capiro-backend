@@ -21,6 +21,7 @@ import {
 } from '@nestjs/common';
 import { mailboxMsalNetwork } from '../mailbox-provider-transport.js';
 import { mailboxState } from '../mailbox-sync-claim.js';
+import { oauthCallbackFailureReason, oauthFailureMessage } from '../oauth-callback-failure.js';
 import { ConfigService } from '@nestjs/config';
 import {
   admitMailboxOAuthAttempt,
@@ -237,35 +238,62 @@ export class MicrosoftOAuthService {
     await this.prisma.withTenant(decoded.t, (tx) =>
       admitMailboxOAuthAttempt(tx, decoded, EngagementProvider.microsoft_365, 'pending'),
     );
-    // Fresh per-callback client: its token cache holds ONLY the account exchanged
-    // in this request. A shared client would let two tenants' concurrent callbacks
-    // populate one cache, and selecting the "last" cache entry could then bind the
-    // WRONG tenant's mailbox. No PKCE/code-verifier continuity with the /start
-    // client is required — we authenticate with the client certificate and carry
-    // our own signed `state`.
-    const msal = this.buildMsalClient();
-    const result = await msal.acquireTokenByCode({
-      code: params.code,
-      scopes: MICROSOFT_SCOPES,
-      redirectUri: this.redirectUri,
-    });
+    try {
+      // Fresh per-callback client: its token cache holds ONLY the account exchanged
+      // in this request. A shared client would let two tenants' concurrent callbacks
+      // populate one cache, and selecting the "last" cache entry could then bind the
+      // WRONG tenant's mailbox. No PKCE/code-verifier continuity with the /start
+      // client is required — we authenticate with the client certificate and carry
+      // our own signed `state`.
+      const msal = this.buildMsalClient();
+      const result = await msal.acquireTokenByCode({
+        code: params.code,
+        scopes: MICROSOFT_SCOPES,
+        redirectUri: this.redirectUri,
+      });
 
-    if (
-      !result?.accessToken ||
-      !result.account?.homeAccountId ||
-      !hasRequiredResourceScopes(result.scopes)
-    ) {
-      throw new BadRequestException(
-        'Microsoft did not return the required account and permissions',
-      );
+      if (
+        !result?.accessToken ||
+        !result.account?.homeAccountId ||
+        !hasRequiredResourceScopes(result.scopes)
+      ) {
+        throw new BadRequestException(
+          'Microsoft did not return the required account and permissions',
+        );
+      }
+
+      const refreshToken = this.extractRefreshToken(msal, result.account?.homeAccountId ?? null);
+      const expiresAt = result.expiresOn ?? new Date(Date.now() + 60 * 60 * 1000);
+
+      await this.persistToken(decoded, result, refreshToken, expiresAt);
+
+      return { tenantId: decoded.t, connectionId: decoded.c };
+    } catch (error) {
+      await this.recordCallbackFailure(decoded, error);
+      throw error;
     }
+  }
 
-    const refreshToken = this.extractRefreshToken(msal, result.account?.homeAccountId ?? null);
-    const expiresAt = result.expiresOn ?? new Date(Date.now() + 60 * 60 * 1000);
-
-    await this.persistToken(decoded, result, refreshToken, expiresAt);
-
-    return { tenantId: decoded.t, connectionId: decoded.c };
+  /**
+   * Explain a refused callback on the row itself. Best-effort and never masks the
+   * original error; it only fills a blank, so a message the flow already wrote
+   * (for example the missing-permission sentence) is never replaced.
+   */
+  private async recordCallbackFailure(decoded: StatePayload, error: unknown): Promise<void> {
+    const reason = oauthCallbackFailureReason(error);
+    if (reason === 'state_invalid_or_expired') return;
+    await this.prisma
+      .withTenant(decoded.t, (tx) =>
+        tx.integrationConnection.updateMany({
+          where: {
+            id: decoded.c,
+            status: EngagementConnectionStatus.needs_configuration,
+            lastError: null,
+          },
+          data: { lastError: oauthFailureMessage('Microsoft 365', reason) },
+        }),
+      )
+      .catch(() => undefined);
   }
 
   /**

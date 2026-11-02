@@ -43,6 +43,7 @@ import {
 } from '../mailbox-oauth-authority.js';
 
 import { EngagementConnectionStatus, EngagementProvider, Prisma } from '@prisma/client';
+import { oauthCallbackFailureReason, oauthFailureMessage } from '../oauth-callback-failure.js';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { GOOGLE_WORKSPACE_REQUIRED_GRANTS, GOOGLE_WORKSPACE_SCOPES } from '@capiro/shared';
 import type { TenantContext } from '@capiro/shared';
@@ -249,7 +250,20 @@ export class GoogleOAuthService {
     await this.prisma.withTenant(decoded.t, (tx) =>
       admitMailboxOAuthAttempt(tx, decoded, EngagementProvider.google_workspace, 'pending'),
     );
-    const token = await this.exchangeCode(params.code);
+    try {
+      return await this.finishCallback(decoded, params.code);
+    } catch (error) {
+      await this.recordCallbackFailure(decoded, error);
+      throw error;
+    }
+  }
+
+  /** Everything after the state fence; a refusal is explained on the row by the caller. */
+  private async finishCallback(
+    decoded: StatePayload,
+    code: string,
+  ): Promise<{ tenantId: string; connectionId: string }> {
+    const token = await this.exchangeCode(code);
     if (!token.access_token) {
       throw new BadRequestException('Google did not return an access token');
     }
@@ -288,6 +302,28 @@ export class GoogleOAuthService {
     await this.persistToken(decoded, token, expiresAt, identity);
 
     return { tenantId: decoded.t, connectionId: decoded.c };
+  }
+
+  /**
+   * Explain a refused callback on the row itself. Best-effort and never masks the
+   * original error; it only fills a blank, so the missing-permission sentence the
+   * flow already wrote is never replaced.
+   */
+  private async recordCallbackFailure(decoded: StatePayload, error: unknown): Promise<void> {
+    const reason = oauthCallbackFailureReason(error);
+    if (reason === 'state_invalid_or_expired') return;
+    await this.prisma
+      .withTenant(decoded.t, (tx) =>
+        tx.integrationConnection.updateMany({
+          where: {
+            id: decoded.c,
+            status: EngagementConnectionStatus.needs_configuration,
+            lastError: null,
+          },
+          data: { lastError: oauthFailureMessage('Google Workspace', reason) },
+        }),
+      )
+      .catch(() => undefined);
   }
 
   /**
