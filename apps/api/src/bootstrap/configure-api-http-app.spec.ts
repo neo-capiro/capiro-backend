@@ -53,6 +53,11 @@ describe('configureApiHttpApp', () => {
       expect(res.headers['x-capiro-service']).toBeUndefined();
     }, nestBootTimeoutMs);
 
+    it('trusts exactly one proxy hop, the load balancer', async () => {
+      app = await createApp(mainOpts);
+      expect(app.getHttpAdapter().getInstance().get('trust proxy')).toBe(1);
+    }, nestBootTimeoutMs);
+
     it(
       'sets the global prefix to /api excluding /health and /webhooks/*',
       async () => {
