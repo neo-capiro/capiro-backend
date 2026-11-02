@@ -6,16 +6,41 @@ import { readPublishedSurface, translateDatabaseError, type PublishedRelation, t
 import { gateSqlStatement, PUBLIC_RELATION_NAMES, SqlQueryError, type SqlParameter } from './sql-statement-gate.js';
 
 const additions = ['state_bills', 'committee_hearings', 'committee_hearing_bills', 'legislative_agenda_items',
-  'state_bill_calendar_events', 'federal_grants', 'sam_opportunities'];
+  'state_bill_calendar_events'];
 const migration = readFileSync(resolve(__dirname, '../../../prisma/migrations/20281101010000_capiro_data_published_surface/migration.sql'), 'utf8');
 const awardsMigration = readFileSync(resolve(__dirname, '../../../prisma/migrations/20281102100000_capiro_data_federal_awards_surface/migration.sql'), 'utf8');
 const yearsMigration = readFileSync(resolve(__dirname, '../../../prisma/migrations/20281102120000_capiro_data_program_element_years_surface/migration.sql'), 'utf8');
-const migrations = migration + '\n' + awardsMigration + '\n' + yearsMigration;
+const grantsNoticesMigration = readFileSync(resolve(__dirname, '../../../prisma/migrations/20281102140000_capiro_data_grants_notices_surface/migration.sql'), 'utf8');
+const migrations = [migration, awardsMigration, yearsMigration, grantsNoticesMigration].join('\n');
+/**
+ * Published text derived from one stored column (an array joined with '; ', or one JSON member normalized to a
+ * two-letter code). Each names the column it reads and the expression the view must use; every other entry is a
+ * bare (optionally aliased) scalar column.
+ */
+const DERIVED: Readonly<Record<string, { column: string; expression: string }>> = {
+  'federal_grants.eligibility': { column: 'eligibility', expression: "NULLIF(array_to_string(eligibility, '; '), '')" },
+  'federal_grants.assistance_listing_numbers': { column: 'cfda_numbers', expression: "NULLIF(array_to_string(cfda_numbers, '; '), '')" },
+  'sam_opportunities.pop_state': { column: 'place_of_performance_jsonb', expression: "CASE WHEN (CASE WHEN jsonb_typeof(place_of_performance_jsonb -> 'state') = 'object' THEN place_of_performance_jsonb -> 'state' ->> 'code' ELSE place_of_performance_jsonb ->> 'state' END) ~ '^[A-Za-z]{2}$' THEN upper(CASE WHEN jsonb_typeof(place_of_performance_jsonb -> 'state') = 'object' THEN place_of_performance_jsonb -> 'state' ->> 'code' ELSE place_of_performance_jsonb ->> 'state' END) END" },
+};
+/** Splits a select list at top-level commas only, so `NULLIF(array_to_string(a, '; '), '')` stays one entry. */
+function selectEntries(list: string): string[] {
+  const entries: string[] = [];
+  let depth = 0, quoted = false, current = '';
+  for (const char of list) {
+    if (char === "'") quoted = !quoted;
+    if (!quoted && char === '(') depth++;
+    if (!quoted && char === ')') depth--;
+    if (!quoted && depth === 0 && char === ',') { entries.push(current.trim()); current = ''; continue; }
+    current += char;
+  }
+  return [...entries, current.trim()];
+}
+
 const schema = readFileSync(resolve(__dirname, '../../../prisma/schema.prisma'), 'utf8');
 // A select-list entry may publish a physical column under another name (`contractor_name AS recipient_name`).
 const views = [...migrations.matchAll(/CREATE VIEW meri_public\.(\w+)\s+WITH \(security_barrier = true, security_invoker = false\) AS\s+SELECT ([\s\S]*?)\s+FROM public\.(\w+)([\s\S]*?);/g)]
   .map((match) => {
-    const entries = match[2]!.split(',').map((column) => column.trim().split(/\s+AS\s+/i));
+    const entries = selectEntries(match[2]!).map((column) => { const at = column.search(/\s+AS\s+\w+$/i); return at < 0 ? [column] : [column.slice(0, at), column.slice(at).trim().split(/\s+/).pop()!]; });
     return { name: match[1]!, columns: entries.map((entry) => entry[entry.length - 1]!), sources: new Map(entries.map((entry) => [entry[entry.length - 1]!, entry[0]!])), table: match[3]!, predicate: match[4]!.trim() };
   });
 const viewComments = new Map([...migrations.matchAll(/COMMENT ON VIEW meri_public\.(\w+) IS '((?:[^']|'')*)';/g)]
@@ -44,8 +69,9 @@ function pgType(type: string, attributes: string): string {
 // types. No connection is opened; actual grants remain the DB integration suite's proof.
 async function publishedSurface() {
   const rows = views.flatMap((view) => view.columns.map((name) => {
-    const field = modelFields(view.table).fields.find((entry) => entry.column === view.sources.get(name));
-    if (!field || field.array) throw new Error(`Non-scalar projection ${view.name}.${name}`);
+    const derived = DERIVED[`${view.name}.${name}`];
+    const field = derived ? { type: 'String', attributes: '' } : modelFields(view.table).fields.find((entry) => entry.column === view.sources.get(name));
+    if (!field || ('array' in field && field.array)) throw new Error(`Non-scalar projection ${view.name}.${name}`);
     const comment = columnComments.get(`${view.name}.${name}`);
     if (!comment || !viewComments.has(view.name)) throw new Error('Missing published catalog comment');
     const typname = pgType(field.type, field.attributes);
@@ -72,6 +98,15 @@ describe('public legislative and opportunity SQL coverage', () => {
     const { block, fields } = modelFields(view.table);
     expect(relation.fields.map((field) => field.name)).toEqual(view.columns);
     for (const field of relation.fields) {
+      const derived = DERIVED[`${name}.${field.name}`];
+      if (derived) {
+        // Derived text reads exactly its declared stored column with exactly its declared expression, and is nullable text.
+        expect(view.sources.get(field.name)).toBe(derived.expression);
+        // The stored column is spelled by its @map or, unmapped, by the field name itself.
+        expect(block).toMatch(new RegExp(`@map\\("${derived.column}"\\)|^\\s+${derived.column}\\s`, 'm'));
+        expect([field.type, field.pgType, field.nullable]).toEqual(['string', 'text', true]);
+        continue;
+      }
       const physical = fields.find((entry) => entry.column === view.sources.get(field.name))!;
       expect(physical.array).toBe(false);
       expect(field.nullable).toBe(physical.nullable);
@@ -80,7 +115,7 @@ describe('public legislative and opportunity SQL coverage', () => {
       const expected = physical.type === 'DateTime' ? (/\s@db\.Date(?:\s|$)/.test(physical.attributes) ? 'date' : 'timestamp') : scalarTypes[physical.type];
       expect(field.type).toBe(expected);
     }
-    const keys = relation.primaryKey.map((key) => fields.find((field) => field.column === key)!.name);
+    const keys = relation.primaryKey.map((key) => fields.find((field) => field.column === view.sources.get(key))!.name);
     expect(keys.length).toBeGreaterThan(0);
     const unique = keys.length === 1 && fields.some((field) => field.name === keys[0] && /@(id|unique)\b/.test(field.attributes));
     expect(unique || block.includes(`@@unique([${keys.join(', ')}]`)).toBe(true);
@@ -90,13 +125,13 @@ describe('public legislative and opportunity SQL coverage', () => {
     expect(query.relationsUsed).toEqual([name]);
   });
 
-  it('publishes exactly the eleven catalog projections without storage details or fabricated freshness', async () => {
+  it('publishes exactly the thirteen catalog projections without storage details or fabricated freshness', async () => {
     expect(views.map((view) => view.name)).toEqual(PUBLIC_RELATION_NAMES);
     const result = await describeCapiroData({}, db(surface));
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('expected metadata');
     expect(result.relations.map((relation) => relation.name)).toEqual(PUBLIC_RELATION_NAMES);
-    expect(result.relations).toHaveLength(11);
+    expect(result.relations).toHaveLength(13);
     for (const relation of result.relations) {
       expect(relation).not.toHaveProperty('table');
       expect(relation).not.toHaveProperty('predicate');
