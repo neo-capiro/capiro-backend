@@ -286,6 +286,28 @@ export function semanticSearchSql(
     LIMIT ${input.limit}`;
 }
 
+/** How much of the family is reachable by this read: records with a current-model vector versus all records.
+ * One statement, exact counts; the funding workers mark completion on the record, bills only in the vector table. */
+export function semanticCoverageSql(operation: SemanticSearchOperation, model: string): Prisma.Sql {
+  switch (operation) {
+    case 'semantic_search_bills':
+      return Prisma.sql`SELECT (SELECT count(*) FROM context_embeddings ce
+          WHERE ce.source_type = 'bill' AND ce.tenant_id IS NULL AND ce.model = ${model})::int AS indexed,
+        (SELECT count(*) FROM congress_bill)::int AS total`;
+    case 'semantic_search_grants':
+      return Prisma.sql`SELECT (SELECT count(*) FROM federal_grant WHERE embedded_at IS NOT NULL)::int AS indexed,
+        (SELECT count(*) FROM federal_grant)::int AS total`;
+    case 'semantic_search_contract_opportunities':
+      return Prisma.sql`SELECT (SELECT count(*) FROM sam_opportunity WHERE embedded_at IS NOT NULL)::int AS indexed,
+        (SELECT count(*) FROM sam_opportunity)::int AS total`;
+  }
+}
+
+export interface SemanticCoverageRow {
+  indexed: number;
+  total: number;
+}
+
 export interface SemanticSearchResult {
   tool: SemanticSearchOperation;
   generatedAt: string;
@@ -295,6 +317,8 @@ export interface SemanticSearchResult {
   candidateLimit: number;
   /** Records returned (never a corpus count). */
   total: number;
+  /** Records of this kind with a current-model vector versus all stored records: only indexed records can be found. */
+  coverage: { indexedRecords: number; totalRecords: number };
   notes: string[];
   results: Array<{
     reference: string;
@@ -308,10 +332,16 @@ export function projectSemanticSearch(
   operation: SemanticSearchOperation,
   input: SemanticSearchInput,
   rows: readonly SemanticSearchRow[],
+  coverageRow: SemanticCoverageRow | undefined,
   model: string,
   generatedAt: string,
 ): SemanticSearchResult {
   const family = FAMILIES[operation];
+  const count = (value: unknown) => (Number.isSafeInteger(value) && Number(value) >= 0 ? Number(value) : 0);
+  const coverage = { indexedRecords: count(coverageRow?.indexed), totalRecords: count(coverageRow?.total) };
+  if (coverage.indexedRecords > coverage.totalRecords) coverage.indexedRecords = coverage.totalRecords;
+  const kind = family.reference.replace(/_/g, ' ');
+  const unindexed = coverage.totalRecords - coverage.indexedRecords;
   const results = rows
     .filter(
       (row) =>
@@ -339,8 +369,13 @@ export function projectSemanticSearch(
     similarityFloor: SEMANTIC_SEARCH_LIMITS.similarityFloor,
     candidateLimit: SEMANTIC_SEARCH_LIMITS.candidateLimit,
     total: results.length,
+    coverage,
     notes: [
-      `Nearest-meaning ${family.reference.replace(/_/g, ' ')} records by embedding similarity: the ${SEMANTIC_SEARCH_LIMITS.candidateLimit} closest vectors${filters.length ? `, then ${filters.join(', ')} filters` : ''}; similarity is not relevance and an empty result is not proof of absence. Date filters apply to the ${family.dateField}.`,
+      `Nearest-meaning ${kind} records by embedding similarity: the ${SEMANTIC_SEARCH_LIMITS.candidateLimit} closest vectors${filters.length ? `, then ${filters.join(', ')} filters` : ''}; similarity is not relevance. Date filters apply to the ${family.dateField}.`,
+      `${coverage.indexedRecords} of ${coverage.totalRecords} stored ${kind} records are indexed for this read; a record without an index entry cannot be found here, so an empty page means no close match among the indexed records, never that none exists${unindexed > 0 ? ` (${unindexed} records are not indexed yet)` : ''}.`,
+      ...(results.length
+        ? []
+        : [`No close match among the indexed ${kind} records for this query${filters.length ? ' and these filters' : ''}; say that the indexed records held no close match and that ${unindexed > 0 ? `${unindexed} records are not indexed yet` : 'the whole set is indexed'}, not that no such record exists.`]),
       'Each reference is a stable record identifier; use exact reads or SQL for counts, joins and fields beyond this record.',
     ],
     results,

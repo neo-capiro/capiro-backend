@@ -2,6 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import {
   parseSemanticSearchInput,
   projectSemanticSearch,
+  semanticCoverageSql,
   semanticSearchSql,
   SEMANTIC_SEARCH_LIMITS,
   SEMANTIC_SEARCH_OPERATIONS,
@@ -135,27 +136,58 @@ describe('semantic search projection', () => {
     const result = projectSemanticSearch(
       'semantic_search_grants', input,
       [row('G-1', 0.812345), row('G-2', 0.2), row('', 0.9), { ...row('G-3', 1.5) }, { ...row('G-4', 0.5), record: null as never }],
-      model, '2026-11-02T00:00:00.000Z',
+      { indexed: 20595, total: 84115 }, model, '2026-11-02T00:00:00.000Z',
     );
     expect(result).toMatchObject({
       tool: 'semantic_search_grants', generatedAt: '2026-11-02T00:00:00.000Z', query: 'water', model,
       similarityFloor: SEMANTIC_SEARCH_LIMITS.similarityFloor, candidateLimit: SEMANTIC_SEARCH_LIMITS.candidateLimit, total: 1,
+      coverage: { indexedRecords: 20595, totalRecords: 84115 },
     });
+    expect(result.notes[1]).toBe(
+      '20595 of 84115 stored federal grant records are indexed for this read; a record without an index entry cannot be found here, so an empty page means no close match among the indexed records, never that none exists (63520 records are not indexed yet).',
+    );
+    expect(result.notes.some((note) => note.startsWith('No close match'))).toBe(false);
     expect(result.results).toEqual([
       { reference: 'federal_grant:G-1', score: 0.812, snippet: 'Clean water state revolving fund', record: { id: 'G-1', title: 'Water' } },
     ]);
     expect(result.notes[0]).toContain('agency filters');
     expect(result.notes[0]).toContain('close date');
-    expect(result.notes[0]).toContain('not proof of absence');
+  });
+
+  test('an empty page says the indexed records held no close match and how many are not indexed, never absence', () => {
+    const empty = projectSemanticSearch('semantic_search_contract_opportunities',
+      parseSemanticSearchInput('semantic_search_contract_opportunities', { query: 'water', naics: '33' }),
+      [], { indexed: 24165, total: 141350 }, model, '2026-11-02T00:00:00.000Z');
+    expect(empty.total).toBe(0);
+    expect(empty.coverage).toEqual({ indexedRecords: 24165, totalRecords: 141350 });
+    expect(empty.notes[2]).toBe('No close match among the indexed sam opportunity records for this query and these filters; say that the indexed records held no close match and that 117185 records are not indexed yet, not that no such record exists.');
+    const full = projectSemanticSearch('semantic_search_bills', parseSemanticSearchInput('semantic_search_bills', { query: 'water' }),
+      [], { indexed: 10, total: 10 }, model, '2026-11-02T00:00:00.000Z');
+    expect(full.notes[1]).not.toContain('not indexed yet');
+    expect(full.notes[2]).toContain('the whole set is indexed');
+    // A missing or malformed coverage row degrades to zero counts rather than inventing coverage.
+    expect(projectSemanticSearch('semantic_search_bills', parseSemanticSearchInput('semantic_search_bills', { query: 'water' }),
+      [], undefined, model, '2026-11-02T00:00:00.000Z').coverage).toEqual({ indexedRecords: 0, totalRecords: 0 });
+    expect(projectSemanticSearch('semantic_search_bills', parseSemanticSearchInput('semantic_search_bills', { query: 'water' }),
+      [], { indexed: 12, total: 10 }, model, '2026-11-02T00:00:00.000Z').coverage).toEqual({ indexedRecords: 10, totalRecords: 10 });
+  });
+
+  test('coverage counts indexed records of the family under the stored model against all stored records', () => {
+    const bills = semanticCoverageSql('semantic_search_bills', model);
+    expect(flat(bills.sql)).toContain("FROM context_embeddings ce WHERE ce.source_type = 'bill' AND ce.tenant_id IS NULL AND ce.model = ?");
+    expect(flat(bills.sql)).toContain('FROM congress_bill)::int AS total');
+    expect(bills.values).toEqual([model]);
+    expect(flat(semanticCoverageSql('semantic_search_grants', model).sql)).toContain('FROM federal_grant WHERE embedded_at IS NOT NULL');
+    expect(flat(semanticCoverageSql('semantic_search_contract_opportunities', model).sql)).toContain('FROM sam_opportunity WHERE embedded_at IS NOT NULL');
   });
 
   test('names the family reference per operation', () => {
     const generated = '2026-11-02T00:00:00.000Z';
     expect(projectSemanticSearch('semantic_search_bills', parseSemanticSearchInput('semantic_search_bills', { query: 'water' }),
-      [row('119-hr-1', 0.5)], model, generated).results[0]?.reference).toBe('congress_bill:119-hr-1');
+      [row('119-hr-1', 0.5)], { indexed: 1, total: 1 }, model, generated).results[0]?.reference).toBe('congress_bill:119-hr-1');
     expect(projectSemanticSearch('semantic_search_contract_opportunities',
       parseSemanticSearchInput('semantic_search_contract_opportunities', { query: 'water' }),
-      [row('11111111-1111-4111-8111-111111111111', 0.5)], model, generated).results[0]?.reference)
+      [row('11111111-1111-4111-8111-111111111111', 0.5)], { indexed: 1, total: 1 }, model, generated).results[0]?.reference)
       .toBe('sam_opportunity:11111111-1111-4111-8111-111111111111');
   });
 });

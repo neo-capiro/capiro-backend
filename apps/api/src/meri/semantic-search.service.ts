@@ -8,8 +8,10 @@ import { assertMeriToolRequestActive } from './meri-tool-request-control.js';
 import {
   parseSemanticSearchInput,
   projectSemanticSearch,
+  semanticCoverageSql,
   semanticSearchSql,
   SEMANTIC_SEARCH_LIMITS,
+  type SemanticCoverageRow,
   type SemanticSearchOperation,
   type SemanticSearchResult,
   type SemanticSearchRow,
@@ -78,11 +80,14 @@ export class SemanticSearchService {
         // filters still leave a full page. Transaction-local, like the lane
         // statement_timeout in PrismaService.
         await tx.$executeRaw`SELECT set_config('hnsw.ef_search', ${String(SEMANTIC_SEARCH_LIMITS.candidateLimit)}, true)`;
-        return tx.$queryRaw<SemanticSearchRow[]>(semanticSearchSql(operation, input, vector, model));
+        const page = await tx.$queryRaw<SemanticSearchRow[]>(semanticSearchSql(operation, input, vector, model));
+        // Coverage is read in the same transaction so the page and its "indexed of total" statement agree.
+        const coverage = await tx.$queryRaw<SemanticCoverageRow[]>(semanticCoverageSql(operation, model));
+        return { page, coverage: coverage[0] };
       },
       { timeoutMs: SEMANTIC_SEARCH_LIMITS.statementTimeoutMs },
     );
     assertMeriToolRequestActive();
-    return projectSemanticSearch(operation, input, rows, model, new Date().toISOString());
+    return projectSemanticSearch(operation, input, rows.page, rows.coverage, model, new Date().toISOString());
   }
 }

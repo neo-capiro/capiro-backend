@@ -25,12 +25,13 @@ const port = () => getDefaultEmbeddingProvider() as unknown as { metadata: { mod
 const statementOf = (tx: { $queryRaw: jest.Mock }, call: number) =>
   (tx.$queryRaw.mock.calls as unknown as Array<[{ sql: string; values: unknown[] }]>)[call]![0];
 
-function fixture(rows: unknown[] = []) {
+function fixture(rows: unknown[] = [], coverage = { indexed: 43424, total: 48497 }) {
   const data = { active: true, rows };
   const tx = {
     tenantMembership: { findFirst: jest.fn(async () => (data.active ? { id: 'membership' } : null)) },
     $executeRaw: jest.fn(async () => 1),
-    $queryRaw: jest.fn(async () => data.rows),
+    // The ranking statement answers first, the coverage statement second.
+    $queryRaw: jest.fn(async (statement: { sql: string }) => (statement.sql.includes('AS indexed') ? [coverage] : data.rows)),
   };
   const prisma = {
     withTenantUser: jest.fn(async (_tenant: string, _user: string, fn: (tx: unknown) => Promise<unknown>) => fn(tx)),
@@ -66,8 +67,12 @@ test('embeds the normalized query with the selected port and ranks under the mem
   expect(statement.values).toContain(119);
   expect(result).toMatchObject({
     tool: 'semantic_search_bills', query: 'rural broadband', model: 'amazon.titan-embed-text-v2:0', total: 1,
+    coverage: { indexedRecords: 43424, totalRecords: 48497 },
     results: [{ reference: 'congress_bill:119-hr-10', score: 0.71 }],
   });
+  expect(tx.$queryRaw).toHaveBeenCalledTimes(2);
+  expect(statementOf(tx, 1).sql).toContain('AS indexed');
+  expect(statementOf(tx, 1).values).toEqual(['amazon.titan-embed-text-v2:0']);
   expect(Number.isNaN(Date.parse(result.generatedAt))).toBe(false);
 });
 
@@ -76,7 +81,9 @@ test('ranks grants and contract opportunities under their own source types', asy
   await service.read(ctx, 'semantic_search_grants', { query: 'clean water' });
   await service.read(ctx, 'semantic_search_contract_opportunities', { query: 'clean water', includeInactive: true });
   expect(statementOf(tx, 0).values).toContain('funding_grant_chunk');
-  expect(statementOf(tx, 1).values).toContain('funding_notice_chunk');
+  expect(statementOf(tx, 1).sql).toContain('FROM federal_grant WHERE embedded_at IS NOT NULL');
+  expect(statementOf(tx, 2).values).toContain('funding_notice_chunk');
+  expect(statementOf(tx, 3).sql).toContain('FROM sam_opportunity WHERE embedded_at IS NOT NULL');
 });
 
 test('refuses invalid input before the provider or database is touched', async () => {
