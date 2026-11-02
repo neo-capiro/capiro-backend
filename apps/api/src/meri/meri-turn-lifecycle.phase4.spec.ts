@@ -14,6 +14,9 @@ describe('archived Meri thread deep-link recovery', () => {
     const row = { id: 'conversation', tenantId: ctx.tenantId, userId: ctx.userId,
       archivedAt: new Date('2026-09-10T10:00:00Z'), status: 'archived', clientId: null, metadataRevision: 0n };
     const tx = {
+      clioConversationBootstrapReceipt: {
+        findFirst: jest.fn(async (): Promise<{ requestId: string } | null> => null),
+      },
       clioConversation: {
         findFirst: jest.fn(async ({ where }: { where: Record<string, unknown> }) =>
           where.tenantId === row.tenantId && where.userId === row.userId &&
@@ -34,9 +37,24 @@ describe('archived Meri thread deep-link recovery', () => {
     expect(h.tx.clioConversation.update).not.toHaveBeenCalled();
     expect(h.tx.clioMessage.findMany).not.toHaveBeenCalled();
     await expect(h.service.listMessages(ctx, 'conversation')).rejects.toThrow('Meri conversation not found');
-    await h.service.restoreConversation(ctx, 'conversation');
+    const restored = await h.service.restoreConversation(ctx, 'conversation');
+    expect(JSON.parse(JSON.stringify(restored))).toMatchObject({ status: 'active', metadataRevision: '0' });
+    expect(h.row.metadataRevision).toBe(0n);
+    expect(h.tx.clioConversationBootstrapReceipt.findFirst).toHaveBeenCalledWith({
+      where: { tenantId: ctx.tenantId, conversationId: 'conversation' }, select: { requestId: true },
+    });
     expect(h.row).toMatchObject({ archivedAt: null, status: 'active' });
     await expect(h.service.listMessages(ctx, 'conversation')).resolves.toEqual([{ id: 'saved-answer', body: 'Saved before archive.' }]);
+  });
+
+  it('requires versioned management before restoring a bootstrap-bound archived conversation', async () => {
+    const h = archivedHarness();
+    h.tx.clioConversationBootstrapReceipt.findFirst.mockResolvedValueOnce({ requestId: 'bootstrap-request' });
+    await expect(h.service.restoreConversation(ctx, 'conversation')).rejects.toThrow('VERSIONED_CONVERSATION_MANAGEMENT_REQUIRED');
+    expect(h.row.status).toBe('archived');
+    expect(h.row.archivedAt).not.toBeNull();
+    expect(h.tx.clioConversation.update).not.toHaveBeenCalled();
+    expect(h.tx.clioMessage.findMany).not.toHaveBeenCalled();
   });
 
   it.each([{ tenantId: 'other-tenant' }, { userId: 'other-user' }])('rejects archive discovery and restore outside the owner (%j)', async (scope) => {
