@@ -3,7 +3,7 @@ import {
   fetchCongressJson,
   type CongressFetch,
   type CongressHttpResponse,
-} from './congress-http';
+} from '../../src/ingestion/congress-http';
 
 function response(
   status: number,

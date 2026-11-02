@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { replaceCongressBillClassificationsAtomically } from '../../scripts/lib/congress-classifications.js';
+import { replaceCongressBillClassificationsAtomically } from './congress-classifications.js';
 import { FEDERAL_FY26_SQL } from './bill-text-scope.js';
 import { withFederalBillWriter } from './federal-bill-writer.js';
 import {

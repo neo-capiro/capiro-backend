@@ -1,8 +1,8 @@
 /** @cleanup-smoke noArgsExit=2 */
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
-import { createCongressRequestPacer } from './lib/congress-request-pacer.js';
-import { fetchCongressJson } from './lib/congress-http.js';
+import { createCongressRequestPacer } from '../src/ingestion/congress-request-pacer.js';
+import { fetchCongressJson } from '../src/ingestion/congress-http.js';
 import { withFederalBillWriter } from '../src/ingestion/federal-bill-writer.js';
 import {
   enumerateFederalInventories,

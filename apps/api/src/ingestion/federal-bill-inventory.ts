@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { fetchCongressJson } from '../../scripts/lib/congress-http.js';
+import { fetchCongressJson } from './congress-http.js';
 import { FEDERAL_FY26_SQL } from './bill-text-scope.js';
 import {
   FEDERAL_BILL_TYPES,

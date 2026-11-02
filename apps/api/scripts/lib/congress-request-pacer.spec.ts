@@ -1,5 +1,5 @@
-import { createCongressRequestPacer } from './congress-request-pacer';
-import { fetchCongressJson } from './congress-http';
+import { createCongressRequestPacer } from '../../src/ingestion/congress-request-pacer';
+import { fetchCongressJson } from '../../src/ingestion/congress-http';
 describe('bounded Congress ingestion pacing', () => {
   it('serializes concurrent attempts and enforces a total request cap', async () => {
     let now = 0;

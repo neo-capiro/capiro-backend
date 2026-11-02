@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { fetchCongressSubjects } from '../../scripts/lib/congress-classifications.js';
+import { fetchCongressSubjects } from './congress-classifications.js';
 import {
   enrichFederalBulkMetadata,
   writeFederalReceipt,

@@ -40,9 +40,9 @@ import {
   type CongressCommitteesResponse,
   type CongressSubjectsResponse,
   type NormalizedCongressCommittee,
-} from './lib/congress-classifications.js';
-import { fetchCongressJson } from './lib/congress-http.js';
-import { createCongressRequestPacer } from './lib/congress-request-pacer.js';
+} from '../src/ingestion/congress-classifications.js';
+import { fetchCongressJson } from '../src/ingestion/congress-http.js';
+import { createCongressRequestPacer } from '../src/ingestion/congress-request-pacer.js';
 import { withFederalBillWriter } from '../src/ingestion/federal-bill-writer.js';
 
 dotenvConfig();

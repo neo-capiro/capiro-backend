@@ -4,7 +4,7 @@ import {
   fetchCongressSubjects,
   replaceCongressBillClassificationsAtomically,
   type CongressClassificationPrisma,
-} from './congress-classifications';
+} from '../../src/ingestion/congress-classifications';
 
 function prismaMock() {
   const tx = {
