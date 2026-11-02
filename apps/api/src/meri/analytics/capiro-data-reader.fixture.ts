@@ -36,6 +36,8 @@ export const READER_MIGRATIONS = [
   '20281027100000_private_saved_business_policies',
   '20281027101000_private_saved_business_projections',
   '20281101010000_capiro_data_published_surface',
+  '20281101180000_capiro_data_public_column_meaning',
+  '20281102100000_capiro_data_federal_awards_surface',
 ] as const;
 
 /** Base tables the published projections read (private sources, identity and public ingestion). */
@@ -65,6 +67,8 @@ const BASE_TABLES = [
   'program_element_project',
   'program_element_budget_position',
   'program_element_project_budget_position',
+  'federal_award',
+  'federal_assistance_award',
 ] as const;
 /** Tenant tables whose isolation policy the applied migrations already define (the saved-business migration adds three more). */
 const TENANT_POLICY_TABLES = [
