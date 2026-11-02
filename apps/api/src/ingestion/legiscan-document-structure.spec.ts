@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import type { Prisma } from '@prisma/client';
 jest.mock('./published-record-observations.js', () => ({
   observeStateRecord: jest.fn(async () => {}),
 }));
@@ -39,7 +40,9 @@ describe('state source bytes survive extraction failure', () => {
       date: '2026-02-30',
     } as any;
     const stub = { id: 2, kind: 'text' as const, billId: 1, providerHash: hash };
-    const create = jest.fn(async () => ({ count: 1 }));
+    const create = jest.fn(
+      async (_args: { data: Prisma.StateBillPublishedRecordCreateManyInput[] }) => ({ count: 1 }),
+    );
     const db: any = {
       stateBillVersion: { findUnique: jest.fn(async () => null) },
       stateBill: {
@@ -53,7 +56,8 @@ describe('state source bytes survive extraction failure', () => {
       $transaction: async (fn: any) => fn({ stateBillPublishedRecord: { createMany: create } }),
     };
     await expect(persistDocumentEvidence(db, 'ca-test', doc, stub)).resolves.toBe('extracted');
-    expect(create.mock.calls[0][0].data[0]).toMatchObject({
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(create.mock.calls[0]![0].data[0]).toMatchObject({
       sourceIdentity: 'legiscan:text:2',
       eventDate: null,
       evidence: { rawDate: '2026-02-30', date: null },
@@ -66,7 +70,8 @@ describe('state source bytes survive extraction failure', () => {
     ).rejects.toThrow('DOCUMENT_SUBJECT_MISMATCH');
     db.stateBillVersion.findUnique.mockResolvedValue({ id: 'normal-version', billKey: 'ca-test' });
     await persistDocumentEvidence(db, 'ca-test', { ...doc, date: '2026-02-01' }, stub);
-    expect(create.mock.calls[1][0].data[0].sourceIdentity).toBe('normal-version');
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(create.mock.calls[1]![0].data[0]!.sourceIdentity).toBe('normal-version');
     db.stateBillVersion.findUnique.mockResolvedValue({
       id: 'foreign-version',
       billKey: 'other-bill',
