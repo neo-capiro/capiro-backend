@@ -14,7 +14,11 @@ import {
   billTextSearchQuery,
   validateBillTextSearch,
 } from './bill-text-query.js';
-import { STATE_BILL_COVERAGE_SQL, FEDERAL_BILL_COVERAGE_SQL } from './bill-text-coverage.js';
+import {
+  STATE_BILL_COVERAGE_SQL,
+  STATE_FORMAT_COVERAGE_SQL,
+  FEDERAL_BILL_COVERAGE_SQL,
+} from './bill-text-coverage.js';
 import { loadPinnedStateInventory } from '../ingestion/state-bill-inventory-read.js';
 import { loadPinnedFederalInventory } from '../ingestion/federal-bill-inventory-read.js';
 
@@ -186,6 +190,7 @@ pg('bill text PostgreSQL contract', () => {
       throw Error('DEDICATED_BILL_TEXT_TEST_DATABASE_REQUIRED');
     const diagnostics = process.env.BILL_TEXT_PG_DIAGNOSTICS === '1';
     let phase = 'seed';
+    let alternateCoverageQueries = 0;
     const started = performance.now();
     const timings = new Map<string, { count: number; totalMs: number; maxMs: number }>();
     const db = new PrismaClient({
@@ -193,15 +198,18 @@ pg('bill text PostgreSQL contract', () => {
       log: [{ level: 'query', emit: 'event' }],
     });
     db.$on('query', (event) => {
+      if (event.query === STATE_FORMAT_COVERAGE_SQL) alternateCoverageQueries++;
       if (!diagnostics) return;
       const kind =
         event.query === STATE_BILL_COVERAGE_SQL
           ? 'state_coverage'
           : event.query === FEDERAL_BILL_COVERAGE_SQL
             ? 'federal_coverage'
-            : event.query.includes('semantic_candidates AS MATERIALIZED')
-              ? 'semantic'
-              : 'fixture_and_inventory';
+            : event.query === STATE_FORMAT_COVERAGE_SQL
+              ? 'alternate_format_coverage'
+              : event.query.includes('semantic_candidates AS MATERIALIZED')
+                ? 'semantic'
+                : 'fixture_and_inventory';
       const key = `${phase}:${kind}`;
       const item = timings.get(key) ?? { count: 0, totalMs: 0, maxMs: 0 };
       item.count++;
@@ -699,6 +707,7 @@ pg('bill text PostgreSQL contract', () => {
           phase = 'state_coverage';
           await explainCoverage();
           const coverage = await service.coverage();
+          expect(alternateCoverageQueries).toBe(0);
           const fl = coverage.jurisdictions.find((row) => row.jurisdiction === 'FL')!;
           expect(fl.versions[0]).toMatchObject({
             expectedBills: 2,
@@ -1013,6 +1022,9 @@ pg('bill text PostgreSQL contract', () => {
               .downloadedDocuments,
           ).toBe(0);
           phase = 'alternate_format_coverage';
+          // Every preceding coverage/tampering assertion has no qualified
+          // companion receipt, so none should plan the alternate vector joins.
+          expect(alternateCoverageQueries).toBe(0);
           const alternateRevision = '00000000-0000-4000-8000-000000000170',
             alternateExtraction = '00000000-0000-4000-8000-000000000171';
           const alternateBill = 'FL-2025-HB2',
@@ -1083,6 +1095,7 @@ pg('bill text PostgreSQL contract', () => {
           const alternateCoverage = (await service.coverage()).jurisdictions.find(
             (row) => row.jurisdiction === 'FL',
           )!;
+          expect(alternateCoverageQueries).toBe(1);
           expect(alternateCoverage).toMatchObject({
             expectedDocuments: 2,
             downloadedDocuments: 1,
