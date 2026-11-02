@@ -3,12 +3,13 @@ import * as elb from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash, X509Certificate } from 'node:crypto';
 import { Construct } from 'constructs';
 import coreRoutes from './first-chat-core-routes.json';
-import writes from './first-chat-preview-writes.json';
 
 export const FIRST_CHAT_PREVIEW_EDGE_STACK = 'Capiro-Preview-Services-Edge';
 export const PREVIEW_EDGE_CORE_TARGET_EXPORT = `${FIRST_CHAT_PREVIEW_EDGE_STACK}-CoreTargetArn`;
@@ -63,6 +64,22 @@ export const PREVIEW_EDGE_SERVICES = {
   },
 } as const;
 export const PREVIEW_ONBOARD_TARGET = targetArn('capiro-preview-onboard-api', 'e1ffa6a1394ba2ca');
+
+/** The preview host forwards each service's whole namespace, every method, to
+ * that service, as the production listener does for the same prefixes. Each
+ * service authenticates its own routes: Clerk user with tenant/role guards, the
+ * internal service secret, or a signed proof. Backend services also call each
+ * other's internal routes through this host (`API_INTERNAL_URL`), so the edge
+ * cannot deny `internal/` paths. Unknown prefixes and other hosts keep the
+ * listener's 404 default. Specific rules for other owners must use a priority
+ * below 200 so they precede these catch-alls. */
+export const PREVIEW_EDGE_PREFIXES = [
+  { id: 'CorePrefix', owner: 'core', path: '/api/*', priority: 200 },
+  { id: 'StrategyPrefix', owner: 'strategy', path: '/strategy-api/*', priority: 201 },
+  { id: 'WorkspacePrefix', owner: 'workspace', path: '/workspace-api/*', priority: 202 },
+  { id: 'IntelPrefix', owner: 'intel', path: '/intel-api/*', priority: 203 },
+  { id: 'OnboardPrefix', owner: 'onboard', path: '/onboard-api/*', priority: 204 },
+] as const;
 
 /** Dedicated preview edge and backend client identity in the existing VPC.
  * Never owns a shared listener rule, live service, certificate or production DNS. */
@@ -177,47 +194,44 @@ export class FirstChatPreviewEdgeStack extends cdk.Stack {
         ),
       });
     }
-    let priority = 1;
-    const forward = (
-      id: string,
-      owner: string,
-      methods: string[],
-      paths: string[],
-      regex: boolean,
-    ) => {
-      if (
-        !targets[owner] ||
-        paths.length > 3 ||
-        paths.length + methods.length + 1 > 5 ||
-        paths.some((path) => path.length > 128)
-      )
-        throw new Error('Invalid finite preview route');
-      new elb.CfnListenerRule(this, id, {
+    for (const route of PREVIEW_EDGE_PREFIXES)
+      new elb.CfnListenerRule(this, route.id, {
         listenerArn: listener.ref,
-        priority: priority++,
+        priority: route.priority,
         conditions: [
           { field: 'host-header', hostHeaderConfig: { values: [coreRoutes.host] } },
-          { field: 'http-request-method', httpRequestMethodConfig: { values: methods } },
-          {
-            field: 'path-pattern',
-            pathPatternConfig: regex ? { regexValues: paths } : { values: paths },
-          },
+          { field: 'path-pattern', pathPatternConfig: { values: [route.path] } },
         ],
-        actions: [{ type: 'forward', targetGroupArn: targets[owner] }],
+        actions: [{ type: 'forward', targetGroupArn: targets[route.owner] }],
       });
-    };
-    forward('CoreChatPosts', 'core', ['POST'], [...coreRoutes.post, writes.corePostAddition], true);
-    for (const [owner, prefix] of [
-      ['core', 'api'],
-      ['strategy', 'strategy-api'],
-      ['workspace', 'workspace-api'],
-      ['intel', 'intel-api'],
-    ]) {
-      forward(`${owner}Reads`, owner!, ['GET', 'HEAD'], [`/${prefix}/*`], false);
-    }
-    writes.groups.forEach((group, index) =>
-      forward('id' in group ? group.id ?? `Wave2Writes${index + 1}` : `Wave2Writes${index + 1}`, group.service, [group.method], group.pathRegexes, true),
-    );
+    // Hill Day export URLs are signed with this stable key, read through the
+    // existing task execution role. The secret is retained if removed here.
+    const exportSigning = new secretsmanager.CfnSecret(this, 'WorkspaceExportSigningSecret', {
+      name: '/capiro/preview/workspace/export-signing',
+      description: 'Dedicated stable signing key for preview Workspace Hill Day export URLs.',
+      generateSecretString: { excludePunctuation: true, includeSpace: false, passwordLength: 64 },
+    });
+    // Keep the deployed tag order (CDK sorts tags) so the stack sees no change.
+    exportSigning.addPropertyOverride('Tags', [
+      { Key: 'purpose', Value: 'portfolio-preview' },
+      { Key: 'owner', Value: 'release' },
+    ]);
+    exportSigning.cfnOptions.deletionPolicy = cdk.CfnDeletionPolicy.RETAIN;
+    exportSigning.cfnOptions.updateReplacePolicy = cdk.CfnDeletionPolicy.RETAIN;
+    new iam.CfnManagedPolicy(this, 'WorkspaceExportSigningRead', {
+      managedPolicyName: 'CapiroPreviewWorkspaceExportSigningRead',
+      policyDocument: {
+        Version: '2012-10-17',
+        Statement: [
+          { Action: ['secretsmanager:GetSecretValue'], Effect: 'Allow', Resource: exportSigning.ref },
+        ],
+      },
+      roles: ['Capiro-dev-Compute-ApiTaskDefExecutionRoleE6ABB053-YlEDKuUPHjLg'],
+    });
+    new cdk.CfnOutput(this, 'WorkspaceExportSigningSecretArn', {
+      value: exportSigning.ref,
+      description: 'ARN only; bind as Workspace ECS secret WORKSPACE_EXPORT_SIGNING_SECRET.',
+    });
     new cdk.CfnOutput(this, 'DnsName', { value: alb.attrDnsName, exportName: dnsExport });
     new cdk.CfnOutput(this, 'HostedZoneId', {
       value: alb.attrCanonicalHostedZoneId,
