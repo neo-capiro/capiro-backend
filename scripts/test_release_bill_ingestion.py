@@ -21,6 +21,19 @@ def baseline():
             logConfiguration={'logDriver':'awslogs','options':{'awslogs-group':'/capiro/dev/sync-jobs','awslogs-stream-prefix':'ecs'}})])
 
 class ReleaseTests(unittest.TestCase):
+    def test_publisher_only_has_no_provider_key_and_extraction_is_explicit_one_shot(self):
+        container=self.task(job='state-drain',publisher_only=True)['containerDefinitions'][0]
+        self.assertIn('--publisher-only',container['command'])
+        self.assertEqual([s['name'] for s in container['secrets']],['DB_USER','DB_PASSWORD'])
+        for job in ('federal-passages','state-passages'):
+            c=self.task(job=job,phase='extract')['containerDefinitions'][0]
+            self.assertIn('extract',c['command'])
+            self.assertEqual([s['name'] for s in c['secrets']],['DB_USER','DB_PASSWORD'])
+        for changes in [dict(job='state-dataset',publisher_only=True),dict(job='state-drain',phase='extract')]:
+            with self.assertRaises(ValueError):self.task(**changes)
+        with patch('sys.argv',['release','--job','state-passages','--source-sha',SHA,'--operation','schedule','--commit','--limit','1000','--phase','extract']),patch.object(r,'aws') as aws:
+            with self.assertRaisesRegex(ValueError,'ONE_SHOT'):r.main()
+            aws.assert_not_called()
     def test_cached_archive_is_single_state_exact_source_and_has_no_provider_secret(self):
         archive={'state':'NY','session':2188,'hash':'c'*64,'bills':25453}
         for commit in (False,True):
