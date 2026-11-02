@@ -33,6 +33,7 @@ export type FederalPublication = {
   structure?: BillDocumentStructure;
   warnings: string[];
   sourceUrl: string;
+  format: string;
 };
 export async function fetchFederalPublication(
   version: FederalTextVersion,
@@ -40,6 +41,8 @@ export async function fetchFederalPublication(
     beforeAttempt: () => Promise<void>;
     fetchImpl?: typeof fetch;
     sleep?: (ms: number) => Promise<void>;
+    /** Persist each captured original before trying another format or spending more budget. */
+    onCapture?: (capture: FederalPublication) => Promise<void>;
   },
 ): Promise<FederalPublication> {
   const formats = [...version.formats].sort(
@@ -50,10 +53,11 @@ export async function fetchFederalPublication(
   const fetchImpl = options.fetchImpl ?? fetch,
     sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
   let lastError: Error = Error('FEDERAL_PUBLICATION_UNAVAILABLE');
-  for (const format of formats) {
-    let response: Response | null = null;
-    for (let attempt = 0; attempt < 3 && !response; attempt++) {
+  let best: FederalPublication | null = null;
+  formatLoop: for (const format of formats) {
+    for (let attempt = 0; attempt < 3; attempt++) {
       let url = qualifiedFederalTextUrl(format.url).href;
+      let captureWriteFailed = false;
       try {
         for (let redirects = 0; redirects <= 5; redirects++) {
           await options.beforeAttempt();
@@ -138,7 +142,7 @@ export async function fetchFederalPublication(
             }
           }
           // Cite the pinned publisher URL; redirects are transport provenance only.
-          return {
+          const capture: FederalPublication = {
             rawContent,
             originalBytes,
             extractedText,
@@ -146,18 +150,38 @@ export async function fetchFederalPublication(
             structure,
             warnings,
             sourceUrl: format.url,
+            format: format.type,
           };
+          try {
+            await options.onCapture?.(capture);
+          } catch (error) {
+            captureWriteFailed = true;
+            throw error;
+          }
+          if (capture.completeness === 'complete') return capture;
+          if (
+            !best ||
+            (capture.completeness === 'partial' && best.completeness === 'unreadable') ||
+            (capture.completeness === best.completeness &&
+              capture.extractedText.length > best.extractedText.length)
+          )
+            best = capture;
+          // An HTTP-success response may still be unreadable. Other listed official
+          // formats are independent retrieval options for the same provider version.
+          continue formatLoop;
         }
       } catch (error) {
         if (
-          error instanceof Error &&
-          /^(?:CONGRESS_REQUEST_CAP_REACHED|FEDERAL_WRITER_)/.test(error.message)
+          captureWriteFailed ||
+          (error instanceof Error &&
+            /^(?:CONGRESS_REQUEST_CAP_REACHED|FEDERAL_WRITER_)/.test(error.message))
         )
           throw error;
         lastError = error instanceof Error ? error : Error('FEDERAL_PUBLICATION_FETCH_FAILED');
       }
     }
   }
+  if (best) return best;
   throw lastError;
 }
 
@@ -173,6 +197,17 @@ type Retained = {
 };
 /** Unchanged bytes can be reused only through an exact immutable receipt binding and freshness. */
 export function retainedFederalVersionMatches(
+  row: Retained,
+  receipt: FederalReceipt,
+  version: FederalTextVersion,
+): boolean {
+  return (
+    row.completeness === 'complete' &&
+    Boolean(row.extractedText.trim()) &&
+    retainedFederalOriginalMatches(row, receipt, version)
+  );
+}
+function retainedFederalOriginalMatches(
   row: Retained,
   receipt: FederalReceipt,
   version: FederalTextVersion,
@@ -270,6 +305,8 @@ export async function hydrateFederalInventories(
     retained = 0,
     failed = 0,
     unavailable = 0,
+    unreadable = 0,
+    partial = 0,
     scanned = 0,
     capped = false;
   while (scanned < tasks.length && scanned < options.limit) {
@@ -292,41 +329,68 @@ export async function hydrateFederalInventories(
     if (previous.some((row) => retainedFederalVersionMatches(row, receipt, version))) retained++;
     else {
       try {
-        const doc = await fetchFederalPublication(version, options);
-        const provider = new URL(doc.sourceUrl).hostname.includes('govinfo.gov')
-          ? 'govinfo'
-          : 'congress.gov';
-        await persistFederalEvidenceSnapshot(db, {
-          provider,
-          collection: version.collection,
-          packageId: version.packageId!,
-          billId: receipt.scope.billId,
-          versionCode: version.versionCode,
-          lineageKey:
-            version.collection === 'BILLS'
-              ? `${receipt.scope.billId}:${receipt.scope.billId.split('-')[1].startsWith('h') ? 'house' : 'senate'}`
-              : `${receipt.scope.billId}:${receipt.manifest.providerDocumentId}`,
-          sourceUrl: doc.sourceUrl,
-          sourceModifiedAt: federalDate(receipt.manifest.providerUpdatedAt),
-          publishedAt: federalDate(version.date),
-          inventoryWindowEnd: new Date(receipt.observedAt),
-          observationKey: `fy26:${federalHash(JSON.stringify([receipt.id, version.versionId, doc.originalBytes.sha256]))}`,
-          rawContent: doc.rawContent,
-          originalBytes: doc.originalBytes,
-          extractedText: doc.extractedText,
-          completeness: doc.completeness,
-          historical: true,
-          metadata: {
-            providerDocumentId: receipt.manifest.providerDocumentId,
-            providerVersionId: version.versionId,
-            sourceInventoryReceiptId: receipt.id,
-            ...(receipt.manifest.amendmentId ? { amendmentId: receipt.manifest.amendmentId } : {}),
-            versionType: version.type,
-            rawVersionDate: version.date,
-            extractionWarnings: doc.warnings,
-            ...(doc.structure ? { billStructure: doc.structure } : {}),
+        const retainedOriginals = previous.filter((row) =>
+          retainedFederalOriginalMatches(row, receipt, version),
+        );
+        const capturedUrls = new Set(retainedOriginals.map((row) => row.sourceUrl));
+        const untriedFormats = version.formats.filter((format) => !capturedUrls.has(format.url));
+        // A small request cap must still reach an alternate on the next invocation.
+        // Once every format has been captured, a later pass may retry changed bytes.
+        const doc = await fetchFederalPublication(
+          untriedFormats.length ? { ...version, formats: untriedFormats } : version,
+          {
+            ...options,
+            onCapture: async (capture) => {
+              const provider = new URL(capture.sourceUrl).hostname.includes('govinfo.gov')
+                ? 'govinfo'
+                : 'congress.gov';
+              await persistFederalEvidenceSnapshot(db, {
+                provider,
+                collection: version.collection,
+                packageId: version.packageId!,
+                billId: receipt.scope.billId,
+                versionCode: version.versionCode,
+                lineageKey:
+                  version.collection === 'BILLS'
+                    ? `${receipt.scope.billId}:${receipt.scope.billId.split('-')[1].startsWith('h') ? 'house' : 'senate'}`
+                    : `${receipt.scope.billId}:${receipt.manifest.providerDocumentId}`,
+                sourceUrl: capture.sourceUrl,
+                sourceModifiedAt: federalDate(receipt.manifest.providerUpdatedAt),
+                publishedAt: federalDate(version.date),
+                inventoryWindowEnd: new Date(receipt.observedAt),
+                observationKey: `fy26:${federalHash(JSON.stringify([receipt.id, version.versionId, capture.sourceUrl, capture.format, capture.originalBytes.sha256]))}`,
+                rawContent: capture.rawContent,
+                originalBytes: capture.originalBytes,
+                extractedText: capture.extractedText,
+                completeness: capture.completeness,
+                historical: true,
+                metadata: {
+                  providerDocumentId: receipt.manifest.providerDocumentId,
+                  providerVersionId: version.versionId,
+                  sourceInventoryReceiptId: receipt.id,
+                  ...(receipt.manifest.amendmentId
+                    ? { amendmentId: receipt.manifest.amendmentId }
+                    : {}),
+                  versionType: version.type,
+                  rawVersionDate: version.date,
+                  format: capture.format,
+                  publicationUrl: capture.sourceUrl,
+                  extractionWarnings: capture.warnings,
+                  ...(capture.structure ? { billStructure: capture.structure } : {}),
+                },
+              });
+            },
           },
-        });
+        );
+        if (
+          doc.completeness === 'partial' ||
+          (doc.completeness === 'unreadable' &&
+            retainedOriginals.some(
+              (row) => row.completeness === 'partial' && row.extractedText.trim(),
+            ))
+        )
+          partial++;
+        else if (doc.completeness === 'unreadable') unreadable++;
         processed++;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'FEDERAL_HYDRATION_FAILED';
@@ -371,9 +435,12 @@ export async function hydrateFederalInventories(
     retained,
     failed,
     unavailable,
+    unreadable,
+    partial,
     scanned,
     listedVersions: tasks.length,
     capped,
-    complete: scanned === tasks.length && failed === 0 && !capped,
+    complete:
+      scanned === tasks.length && failed === 0 && unreadable === 0 && partial === 0 && !capped,
   };
 }
