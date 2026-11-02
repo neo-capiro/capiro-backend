@@ -3,6 +3,8 @@ import { BillTextService } from './bill-text.service.js';
 import {
   billDocumentQuery,
   billKeywordParts,
+  billPhrasePrefilterTerms,
+  BILL_SEMANTIC_CANDIDATE_LIMIT,
   validateBillTextSearch,
   BILL_JURISDICTIONS,
   type BillTextDocumentRow,
@@ -11,6 +13,7 @@ import { decodeBillReadCursor, readBillDocument } from './bill-text-read.js';
 import {
   billTextCoverageReport,
   STATE_BILL_COVERAGE_SQL,
+  FEDERAL_BILL_COVERAGE_SQL,
   type BillCoverageRow,
 } from './bill-text-coverage.js';
 import {
@@ -129,6 +132,9 @@ describe('immutable public bill text backend', () => {
     });
     const [sql, ...values] = query.mock.calls[0]!;
     expect(sql).toContain('p.search_vector @@');
+    expect(sql).toContain('keyword_words AS MATERIALIZED');
+    expect(sql).toContain('GROUP BY p.extraction_id,word.value');
+    expect(sql).toContain('HAVING count(*)=(SELECT count(*) FROM keyword_words)');
     expect(sql).toContain('strpos(lower(regexp_replace(d.text');
     expect(sql).not.toContain('context_embeddings');
     expect(values).toContainEqual(['the right to']);
@@ -149,11 +155,68 @@ describe('immutable public bill text backend', () => {
     const [sql, ...values] = query.mock.calls[0]!;
     expect(sql).toContain('embedding <=>');
     expect(sql).toContain('e.tenant_id IS NULL');
+    expect(sql).toContain('e.client_id IS NULL');
+    expect(sql).toContain('e.owner_user_id IS NULL');
+    expect(sql).toContain('e.content_text=p.content_text');
+    expect(sql).toContain("e.content_hash=encode(sha256(convert_to(p.content_text,'UTF8')),'hex')");
+    expect(sql).toContain('FROM context_embeddings e');
+    expect(sql).toMatch(/ORDER BY e.embedding <=> \$\d+::vector LIMIT \$\d+/);
+    expect(sql).not.toContain('count(*) OVER()');
+    expect(values).toContain(BILL_SEMANTIC_CANDIDATE_LIMIT);
     for (const field of ['extractionId', 'structureHash', 'textHash', 'revisionId'])
       expect(sql).toContain(`metadata_jsonb->>'${field}'`);
     expect(values).toEqual(
       expect.arrayContaining(['test-model', '2025', 'introduced', 'Introduced', '2025-10-01']),
     );
+  });
+  it('reports semantic pagination only within a bounded shortlist, never as an exact corpus total', async () => {
+    const { service } = harness([
+      { ...document(), candidatePassages: 10, total: 100000 },
+      { ...document(), candidatePassages: 10, total: 100000 },
+    ]);
+    const result = await service.search({ mode: 'semantic', query: 'housing', limit: 1 });
+    expect(result.results).toHaveLength(1);
+    expect(result).toMatchObject({
+      totalRevisions: null,
+      hasMore: true,
+      hasMoreBasis: 'within_candidate_shortlist',
+      candidatePassageLimit: 1000,
+      candidatePassages: 10,
+      approximate: true,
+    });
+    expect(() =>
+      validateBillTextSearch({ mode: 'semantic', query: 'housing', limit: 20, page: 51 }),
+    ).toThrow('SEMANTIC_PAGE_EXCEEDS_CANDIDATE_LIMIT');
+  });
+  it('uses only safe phrase-interior words as lexeme prefilters and keeps an uncapped literal fallback', async () => {
+    expect(
+      billPhrasePrefilterTerms(['house', 'cost-effective', 'the right to', 'a housing subsidy']),
+    ).toBe('right housing');
+    const { service, query } = harness();
+    await service.search({ mode: 'keyword', query: '"of the"' });
+    expect(query.mock.calls[0]![0]).toContain('WHERE NOT EXISTS(SELECT 1 FROM keyword_words)');
+    expect(query.mock.calls[0]![0]).toContain('FROM bill_text_extraction e');
+  });
+  it('uses the same exact public embedding-input proof for both source coverage paths', () => {
+    for (const sql of [STATE_BILL_COVERAGE_SQL, FEDERAL_BILL_COVERAGE_SQL]) {
+      for (const scope of ['tenant_id', 'client_id', 'owner_user_id'])
+        expect(sql).toContain(`v.${scope} IS NULL`);
+      expect(sql).toContain('v.content_text=p.content_text');
+      expect(sql).toContain(
+        "v.content_hash=encode(sha256(convert_to(p.content_text,'UTF8')),'hex')",
+      );
+      for (const anchor of [
+        'billId',
+        'revisionId',
+        'extractionId',
+        'structureHash',
+        'textHash',
+        'chunkerVersion',
+      ])
+        expect(sql).toContain(`v.metadata_jsonb->>'${anchor}'`);
+    }
+    expect(STATE_BILL_COVERAGE_SQL).toContain('0::int AS "sourceUnavailableDocuments"');
+    expect(STATE_BILL_COVERAGE_SQL).toContain('AS "publisherUrlMissingDocuments"');
   });
   it('returns exact UTF16 quotes with definitions and explicit unresolved references', () => {
     const row = document();
@@ -264,6 +327,7 @@ describe('immutable public bill text backend', () => {
       metadataBills: 2,
       expectedDocuments: 4,
       sourceUnavailableDocuments: 0,
+      publisherUrlMissingDocuments: 1,
       downloadedDocuments: 2,
       completeExtractions: 1,
       partialExtractions: 0,

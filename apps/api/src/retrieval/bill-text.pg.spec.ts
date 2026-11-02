@@ -31,7 +31,7 @@ pg('bill text PostgreSQL contract', () => {
             `CREATE TEMP TABLE bill_text_extraction(id uuid,source_kind text,revision_id uuid,parser_version text,document_hash text,text_hash text,structure_hash text,extracted_text text,structure_jsonb jsonb,completeness text,warnings_jsonb jsonb,created_at timestamptz) ON COMMIT DROP`,
             `CREATE TEMP TABLE bill_text_passage(extraction_id uuid,chunker_version text,ordinal int,start_offset int,end_offset int,content_text text,metadata_jsonb jsonb DEFAULT '{"semanticAvailable":true}',search_vector tsvector GENERATED ALWAYS AS(to_tsvector('english',content_text)) STORED) ON COMMIT DROP`,
             `CREATE INDEX ON bill_text_passage USING GIN(search_vector)`,
-            `CREATE TEMP TABLE context_embeddings(tenant_id uuid,source_type text,source_id text,model text,metadata_jsonb jsonb,embedding vector(1024)) ON COMMIT DROP`,
+            `CREATE TEMP TABLE context_embeddings(tenant_id uuid,client_id uuid,owner_user_id uuid,source_type text,source_id text,model text,metadata_jsonb jsonb,embedding vector(1024),content_text text,content_hash text) ON COMMIT DROP`,
             `CREATE TEMP TABLE legal_source_receipt(id text,source text,scope jsonb,manifest jsonb,complete boolean,observed_at timestamptz DEFAULT now()) ON COMMIT DROP`,
             `CREATE TEMP TABLE legal_dataset_archive(content_hash text) ON COMMIT DROP`,
           ])
@@ -63,7 +63,7 @@ pg('bill text PostgreSQL contract', () => {
                 index,
               );
             const structure = structureText(
-              'SECTION 1. Rights.\nThe right to cost-effective shelter is established.\n' +
+              'SECTION 1. Rights.\nThe right to cost-effective shelter is established for members of the household.\n' +
                 'x'.repeat(2850) +
                 ' ' +
                 boundaryPhrase +
@@ -117,7 +117,7 @@ pg('bill text PostgreSQL contract', () => {
             // Only two documents are embedded; lexical search must still return all four.
             if (index <= 2)
               await tx.$executeRawUnsafe(
-                `INSERT INTO context_embeddings VALUES(NULL,'state_bill_passage',$1,'test-model',$2::jsonb,$3::vector)`,
+                `INSERT INTO context_embeddings(tenant_id,source_type,source_id,model,metadata_jsonb,embedding,content_text,content_hash) VALUES(NULL,'state_bill_passage',$1,'test-model',$2::jsonb,$3::vector,$4,$5)`,
                 `${CHUNKER_VERSION}:${extractionId}:0`,
                 JSON.stringify({
                   billId,
@@ -129,6 +129,8 @@ pg('bill text PostgreSQL contract', () => {
                   startOffset: 0,
                 }),
                 JSON.stringify(vector(index - 1)),
+                structure.text.slice(0, 3200),
+                createHash('sha256').update(structure.text.slice(0, 3200)).digest('hex'),
               );
             ids.push({ billId, revisionId, extractionId, structureHash });
           }
@@ -164,6 +166,11 @@ pg('bill text PostgreSQL contract', () => {
             query: '"the right to" "cost-effective"',
           });
           expect(phrase.totalRevisions).toBe(4);
+          for (const literal of ['house', 'of the', 'the right to']) {
+            expect(
+              (await service.search({ mode: 'keyword', query: `"${literal}"` })).totalRevisions,
+            ).toBe(4);
+          }
           expect(
             (await service.search({ mode: 'keyword', query: `"${boundaryPhrase}"` }))
               .totalRevisions,
@@ -182,9 +189,33 @@ pg('bill text PostgreSQL contract', () => {
             session: '2025',
             version: 'Introduced',
           });
-          expect(semantic.totalRevisions).toBe(1);
+          expect(semantic.totalRevisions).toBeNull();
+          expect(semantic.candidatePassages).toBe(1);
+          expect(semantic.results).toHaveLength(1);
           expect(semantic.results[0]!.identity.revisionId).toBe(ids[0]!.revisionId);
           expect(provider.embed).toHaveBeenCalledWith('help people afford a home');
+          const duplicatePassageId = `${CHUNKER_VERSION}:${ids[0]!.extractionId}:1`;
+          await tx.$executeRawUnsafe(
+            `INSERT INTO context_embeddings SELECT NULL,NULL,NULL,e.source_type,$1,e.model,e.metadata_jsonb,
+              e.embedding,p.content_text,encode(sha256(convert_to(p.content_text,'UTF8')),'hex')
+              FROM context_embeddings e JOIN bill_text_passage p ON p.extraction_id=$2::uuid AND p.ordinal=1
+              WHERE e.source_id=$3`,
+            duplicatePassageId,
+            ids[0]!.extractionId,
+            `${CHUNKER_VERSION}:${ids[0]!.extractionId}:0`,
+          );
+          const deduplicated = await service.search({
+            mode: 'semantic',
+            query: 'housing',
+            billId: ids[0]!.billId,
+            version: 'Introduced',
+          });
+          expect(deduplicated.results).toHaveLength(1);
+          expect(deduplicated.candidatePassages).toBe(2);
+          await tx.$executeRawUnsafe(
+            `DELETE FROM context_embeddings WHERE source_id=$1`,
+            duplicatePassageId,
+          );
           const { structureHash: _hash, ...readIdentity } = ids[0]!;
           const old = await service.read({
             ...readIdentity,
@@ -328,8 +359,67 @@ pg('bill text PostgreSQL contract', () => {
             metadataBills: 1,
             expectedDocuments: 2,
             downloadedDocuments: 1,
+            publisherUrlMissingDocuments: 2,
+            sourceUnavailableDocuments: 0,
+            embeddedPassages: 1,
             missingParents: 1,
           });
+          // Public source family alone is insufficient: every scope and immutable input anchor is checked.
+          const rejectTamperedVector = async (
+            sourceId: string,
+            billId: string,
+            jurisdiction: string,
+          ) => {
+            const [saved] = await tx.$queryRawUnsafe<
+              Array<{ content_text: string; content_hash: string; metadata_jsonb: unknown }>
+            >(
+              `SELECT content_text,content_hash,metadata_jsonb FROM context_embeddings WHERE source_id=$1`,
+              sourceId,
+            );
+            for (const mutation of [
+              "tenant_id='00000000-0000-4000-8000-000000009999'",
+              "client_id='00000000-0000-4000-8000-000000009999'",
+              "owner_user_id='00000000-0000-4000-8000-000000009999'",
+              "content_text=content_text||' changed'",
+              "content_hash=repeat('f',64)",
+              "metadata_jsonb=metadata_jsonb-'revisionId'",
+              "metadata_jsonb=metadata_jsonb-'billId'",
+              "metadata_jsonb=metadata_jsonb-'chunkerVersion'",
+            ]) {
+              await tx.$executeRawUnsafe(
+                `UPDATE context_embeddings SET ${mutation} WHERE source_id=$1`,
+                sourceId,
+              );
+              expect(
+                (
+                  await service.search({
+                    mode: 'semantic',
+                    query: 'housing',
+                    billId,
+                    version: jurisdiction === 'US' ? 'ih' : 'Introduced',
+                  })
+                ).results,
+              ).toHaveLength(0);
+              expect(
+                (await service.coverage()).jurisdictions.find(
+                  (row) => row.jurisdiction === jurisdiction,
+                )!.embeddedPassages,
+              ).toBe(0);
+              await tx.$executeRawUnsafe(
+                `UPDATE context_embeddings SET tenant_id=NULL,client_id=NULL,owner_user_id=NULL,
+                content_text=$2,content_hash=$3,metadata_jsonb=$4::jsonb WHERE source_id=$1`,
+                sourceId,
+                saved!.content_text,
+                saved!.content_hash,
+                JSON.stringify(saved!.metadata_jsonb),
+              );
+            }
+          };
+          await rejectTamperedVector(
+            `${CHUNKER_VERSION}:${ids[0]!.extractionId}:0`,
+            ids[0]!.billId,
+            'FL',
+          );
           expect(fl.status).toBe('unknown');
           expect(fl.missingSessions).toEqual(['2']);
           expect(coverage.jurisdictions.find((row) => row.jurisdiction === 'AK')).toMatchObject({
@@ -497,6 +587,38 @@ pg('bill text PostgreSQL contract', () => {
               rawBytesHash: bytesHash,
             }),
           );
+          const federalExtractionId = '00000000-0000-4000-8000-000000000201';
+          const federalRevisionId = '00000000-0000-4000-8000-000000000101';
+          await tx.$executeRawUnsafe(
+            `INSERT INTO bill_text_extraction SELECT $1::uuid,'federal',$2::uuid,parser_version,
+            document_hash,text_hash,structure_hash,extracted_text,structure_jsonb,completeness,warnings_jsonb,created_at
+            FROM bill_text_extraction WHERE id=$3::uuid`,
+            federalExtractionId,
+            federalRevisionId,
+            ids[0]!.extractionId,
+          );
+          await tx.$executeRawUnsafe(
+            `INSERT INTO bill_text_passage(extraction_id,chunker_version,ordinal,start_offset,end_offset,content_text,metadata_jsonb)
+            SELECT $1::uuid,chunker_version,ordinal,start_offset,end_offset,content_text,metadata_jsonb
+            FROM bill_text_passage WHERE extraction_id=$2::uuid`,
+            federalExtractionId,
+            ids[0]!.extractionId,
+          );
+          const federalPassageId = `${CHUNKER_VERSION}:${federalExtractionId}:0`;
+          await tx.$executeRawUnsafe(
+            `INSERT INTO context_embeddings SELECT NULL,NULL,NULL,'bill_passage',$1,model,
+            metadata_jsonb||jsonb_build_object('billId','119-hr-1','extractionId',$2::text,'revisionId',$3::text),embedding,content_text,content_hash
+            FROM context_embeddings WHERE source_id=$4`,
+            federalPassageId,
+            federalExtractionId,
+            federalRevisionId,
+            `${CHUNKER_VERSION}:${ids[0]!.extractionId}:0`,
+          );
+          expect(
+            (await service.coverage()).jurisdictions.find((row) => row.jurisdiction === 'US')!
+              .embeddedPassages,
+          ).toBe(1);
+          await rejectTamperedVector(federalPassageId, '119-hr-1', 'US');
           const federal = (await service.coverage()).jurisdictions.find(
             (row) => row.jurisdiction === 'US',
           )!;

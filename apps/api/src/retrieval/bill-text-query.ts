@@ -1,4 +1,5 @@
 import { BILL_EXTRACTION_VERSION } from '../ingestion/bill-document-structure.js';
+import { CHUNKER_VERSION } from '../ingestion/bill-text-passages.js';
 import {
   FEDERAL_FY26_SQL,
   STATE_FY26_SQL,
@@ -109,9 +110,41 @@ export type BillTextDocumentRow = BillTextIdentity & {
   warnings: string[] | null;
   score?: number;
   total?: number;
-  passageMetadata?: Record<string, unknown>;
+  candidatePassages?: number;
   hitOffset?: number;
 };
+
+/** Upper bound on the nearest passage shortlist, not a count of the searchable corpus. */
+export const BILL_SEMANTIC_CANDIDATE_LIMIT = 1000;
+
+/** Trusted SQL expressions only. Search and coverage must prove the same public, unchanged embedding input. */
+export function billPassageVectorProofSql(input: {
+  vector: string;
+  passage: string;
+  sourceKind: string;
+  billId: string;
+  revisionId: string;
+  extractionId: string;
+  structureHash: string;
+  textHash: string;
+  chunker: string;
+  model: string;
+}) {
+  const { vector: v, passage: p } = input;
+  return `${v}.tenant_id IS NULL AND ${v}.client_id IS NULL AND ${v}.owner_user_id IS NULL
+    AND ${v}.source_type=CASE ${input.sourceKind} WHEN 'federal' THEN 'bill_passage' ELSE 'state_bill_passage' END
+    AND ${v}.model=${input.model} AND ${p}.chunker_version=${input.chunker}
+    AND ${p}.metadata_jsonb->>'semanticAvailable'='true'
+    AND ${v}.source_id=${input.chunker}||':'||${input.extractionId}||':'||${p}.ordinal::text
+    AND ${v}.content_text=${p}.content_text
+    AND ${v}.content_hash=encode(sha256(convert_to(${p}.content_text,'UTF8')),'hex')
+    AND ${v}.metadata_jsonb->>'billId'=${input.billId}
+    AND ${v}.metadata_jsonb->>'revisionId'=${input.revisionId}
+    AND ${v}.metadata_jsonb->>'extractionId'=${input.extractionId}
+    AND ${v}.metadata_jsonb->>'structureHash'=${input.structureHash}
+    AND ${v}.metadata_jsonb->>'textHash'=${input.textHash}
+    AND ${v}.metadata_jsonb->>'chunkerVersion'=${input.chunker}`;
+}
 
 function short(value: unknown, name: string, max = 160): void {
   if (
@@ -191,6 +224,8 @@ export function validateBillTextSearch(request: BillTextSearchRequest) {
     page > 10000
   )
     throw Error('INVALID_PAGINATION');
+  if (request.mode === 'semantic' && (page - 1) * limit >= BILL_SEMANTIC_CANDIDATE_LIMIT)
+    throw Error('SEMANTIC_PAGE_EXCEEDS_CANDIDATE_LIMIT');
   if (request.mode === 'exact') {
     if (
       !request.billId &&
@@ -216,6 +251,14 @@ export function billKeywordParts(query: string): { terms: string; phrases: strin
   if (terms.includes('"') || phrases.length > 8 || (!terms && !phrases.length))
     throw Error('INVALID_KEYWORD_QUERY');
   return { terms, phrases };
+}
+
+/** Literal phrases may match a substring at either edge. Only interior whitespace-delimited
+ * alphabetic words are safe lexeme prefilters; edge fragments and punctuation still use the literal verifier. */
+export function billPhrasePrefilterTerms(phrases: string[]): string {
+  return phrases
+    .flatMap((phrase) => [...phrase.matchAll(/(?<= )[a-z]+(?= )/g)].map((match) => match[0]))
+    .join(' ');
 }
 
 /** Public immutable evidence owners; no current-only join drops retained revisions. */
@@ -289,4 +332,113 @@ export function billDocumentQuery(filters: BillTextFilters, extractionId: string
         : dates.join(' AND '),
     );
   return { sql: BILL_DOCUMENTS_SQL, values, conditions };
+}
+
+export function billTextSearchQuery(
+  request: ReturnType<typeof validateBillTextSearch>,
+  semantic?: { vector: number[]; model: string },
+) {
+  const q = billDocumentQuery(request);
+  const parameter = (value: unknown) => {
+    q.values.push(value);
+    return `$${q.values.length}`;
+  };
+  const limit = parameter(request.limit + (request.mode === 'semantic' ? 1 : 0));
+  const offset = parameter((request.page - 1) * request.limit);
+  let anchor = '',
+    sql: string;
+  if (request.mode === 'semantic') {
+    if (!semantic) throw Error('BILL_QUERY_VECTOR_REQUIRED');
+    const embedding = parameter(`[${semantic.vector.join(',')}]`);
+    const model = parameter(semantic.model);
+    const chunker = parameter(CHUNKER_VERSION);
+    const cap = parameter(BILL_SEMANTIC_CANDIDATE_LIMIT);
+    const proof = billPassageVectorProofSql({
+      vector: 'e',
+      passage: 'p',
+      sourceKind: 'd."sourceKind"',
+      billId: 'd."billId"',
+      revisionId: 'd."revisionId"',
+      extractionId: 'd."extractionId"',
+      structureHash: 'd."structureHash"',
+      textHash: 'd."textHash"',
+      chunker,
+      model,
+    });
+    // The outer relation is the indexed vector owner. Only distance appears in its ORDER BY;
+    // revision deduplication and stable ties happen after the bounded ANN shortlist.
+    // NOT MATERIALIZED lets the correlated extraction/revision identity reach the canonical indexes.
+    sql = `${q.sql.replace('documents AS (', 'documents AS NOT MATERIALIZED (')},
+      semantic_candidates AS MATERIALIZED (
+        SELECT e.source_id,e.metadata_jsonb->>'extractionId' AS extraction_id,
+          CASE e.source_type WHEN 'bill_passage' THEN 'federal' ELSE 'state' END AS source_kind,
+          CASE WHEN e.metadata_jsonb->>'revisionId' ~ '^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$'
+            THEN (e.metadata_jsonb->>'revisionId')::uuid END AS revision_uuid,
+          e.embedding <=> ${embedding}::vector AS distance
+        FROM context_embeddings e
+        WHERE e.tenant_id IS NULL AND e.client_id IS NULL AND e.owner_user_id IS NULL
+          AND e.source_type IN ('bill_passage','state_bill_passage') AND e.model=${model}
+          AND EXISTS (
+            SELECT 1 FROM documents d JOIN bill_text_passage p ON p.extraction_id=d."extractionId"::uuid
+            WHERE d.revision_uuid=CASE WHEN e.metadata_jsonb->>'revisionId' ~ '^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$'
+              THEN (e.metadata_jsonb->>'revisionId')::uuid END
+              AND p.extraction_id=CASE WHEN e.metadata_jsonb->>'extractionId' ~ '^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$'
+                THEN (e.metadata_jsonb->>'extractionId')::uuid END
+              AND d.completeness='complete' AND ${q.conditions.join(' AND ') || 'true'} AND ${proof}
+          )
+        ORDER BY e.embedding <=> ${embedding}::vector LIMIT ${cap}
+      ), revision_candidates AS (
+        SELECT DISTINCT ON (d."sourceKind",d."revisionId") d.*,c.distance,
+          p.start_offset AS "hitOffset"
+        FROM semantic_candidates c JOIN documents d ON d.revision_uuid=c.revision_uuid
+          AND d."sourceKind"=c.source_kind AND d."extractionId"=c.extraction_id
+        JOIN bill_text_passage p ON p.extraction_id=d."extractionId"::uuid AND p.chunker_version=${chunker}
+          AND c.source_id=${chunker}||':'||d."extractionId"||':'||p.ordinal::text
+        ORDER BY d."sourceKind",d."revisionId",c.distance,c.source_id
+      )
+      SELECT d.*,(1-d.distance)::float8 score,(SELECT count(*)::int FROM semantic_candidates) AS "candidatePassages"
+      FROM revision_candidates d ORDER BY d.distance,d.jurisdiction,d.session,d."billId",d."revisionId"
+      LIMIT ${limit} OFFSET ${offset}`;
+  } else if (request.mode === 'keyword') {
+    const parts = billKeywordParts(request.query!);
+    const terms = parameter(parts.terms);
+    const phrases = parameter(parts.phrases);
+    const safePhraseTerms = parameter(billPhrasePrefilterTerms(parts.phrases));
+    const chunker = parameter(CHUNKER_VERSION);
+    q.conditions.push(`d.completeness IN ('complete','partial') AND length(d.text)>0`);
+    q.conditions.push(`NOT EXISTS(SELECT 1 FROM unnest(${phrases}::text[]) phrase(value)
+      WHERE strpos(lower(regexp_replace(d.text,'\\s+',' ','g')),phrase.value)=0)`);
+    // Seed GIN hits once per lexeme, then intersect at extraction level so AND terms can
+    // occur in distant sections. Literal verification remains over exact full text.
+    // No safe lexeme (including all-stopword phrases) deliberately scans extracted text,
+    // without an arbitrary corpus cap that could silently discard matches.
+    sql = `${q.sql}, keyword_words AS MATERIALIZED (
+      SELECT value FROM unnest(tsvector_to_array(to_tsvector('english',${terms}||' '||${safePhraseTerms}))) word(value)
+      WHERE ${terms}='' OR cardinality(tsvector_to_array(to_tsvector('english',${terms})))>0
+    ), lexeme_hits AS MATERIALIZED (
+      SELECT p.extraction_id,word.value,min(p.start_offset) AS hit_offset,
+        max(ts_rank_cd(p.search_vector,to_tsquery('simple',quote_literal(word.value)))) AS score
+      FROM keyword_words word JOIN bill_text_passage p
+        ON p.search_vector @@ to_tsquery('simple',quote_literal(word.value)) AND p.chunker_version=${chunker}
+      GROUP BY p.extraction_id,word.value
+    ), keyword_candidates AS (
+      SELECT extraction_id,min(hit_offset) AS hit_offset,sum(score)::float8 score FROM lexeme_hits
+      GROUP BY extraction_id HAVING count(*)=(SELECT count(*) FROM keyword_words)
+      UNION ALL
+      SELECT e.id,0,0::float8 FROM bill_text_extraction e
+      WHERE NOT EXISTS(SELECT 1 FROM keyword_words) AND ${terms}=''
+    )
+    SELECT d.*,k.score,count(*) OVER()::int total,k.hit_offset AS "hitOffset"
+    FROM keyword_candidates k JOIN bill_text_extraction x ON x.id=k.extraction_id
+    JOIN documents d ON d.revision_uuid=x.revision_id AND d."sourceKind"=x.source_kind
+      AND d."extractionId"::uuid=k.extraction_id
+    WHERE ${q.conditions.join(' AND ')}
+    ORDER BY score DESC,d.jurisdiction,d.session,d."billId",d."revisionId" LIMIT ${limit} OFFSET ${offset}`;
+    anchor = parts.phrases[0] ?? parts.terms.split(/\s+/)[0] ?? '';
+  } else {
+    sql = `${q.sql} SELECT d.*,0::float8 score,count(*) OVER()::int total FROM documents d
+      WHERE ${q.conditions.join(' AND ') || 'true'}
+      ORDER BY d.jurisdiction,d.session,d."billId",d."revisionId" LIMIT ${limit} OFFSET ${offset}`;
+  }
+  return { sql, values: q.values, anchor };
 }
