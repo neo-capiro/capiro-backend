@@ -56,7 +56,7 @@ export function decodeFederalUtf8(bytes: Buffer, mime: string): string {
 export function qualifyFederalOriginal(
   raw: string,
   original: FederalOriginalBytes,
-  options: { completeness?: string; extractedText?: string } = {},
+  options: { completeness?: string; extractedText?: string; billBinding?: string } = {},
 ) {
   if (!/^[A-Za-z0-9+/]*={0,2}$/.test(original.base64) || original.base64.length > 40_000_000)
     throw Error('FEDERAL_ORIGINAL_ENCODING_INVALID');
@@ -86,8 +86,17 @@ export function qualifyFederalOriginal(
     if (!failed) throw Error('FEDERAL_ORIGINAL_ENCODING_NOT_FAILED');
   } else if (decodeFederalUtf8(bytes, original.mime) !== raw)
     throw Error('FEDERAL_ORIGINAL_DECODE_MISMATCH');
+  if (
+    options.billBinding &&
+    !/^\d+-(?:hr|s|hjres|sjres|hconres|sconres|hres|sres)-[1-9][0-9]*$/.test(options.billBinding)
+  )
+    throw Error('FEDERAL_ORIGINAL_BILL_BINDING_INVALID');
   return {
-    parserVersion: `fed-exact-v1:bytes:${Buffer.from(original.sha256, 'hex').toString('base64url')}`,
+    parserVersion: options.billBinding
+      ? `fed-plaw-bill-v1:${createHash('sha256')
+          .update(JSON.stringify([original.sha256, options.billBinding]))
+          .digest('base64url')}`
+      : `fed-exact-v1:bytes:${Buffer.from(original.sha256, 'hex').toString('base64url')}`,
     metadata: {
       originalBytesBase64: original.base64,
       rawBytesHash: original.sha256,
@@ -104,6 +113,7 @@ export function qualifyFederalOriginal(
           : original.encoding === 'unsupported'
             ? 'unavailable'
             : 'UTF-8',
+      ...(options.billBinding ? { qualifiedBillId: options.billBinding } : {}),
     },
   };
 }

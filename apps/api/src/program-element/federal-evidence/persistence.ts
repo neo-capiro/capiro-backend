@@ -1,12 +1,20 @@
 import { createHash } from 'node:crypto';
 import { Prisma, type PrismaClient } from '@prisma/client';
+import { FEDERAL_FY26_SQL } from '../../ingestion/bill-text-scope.js';
 import {
-  qualifyFederalOriginal, type FederalOriginalBytes,
+  qualifyFederalOriginal,
+  type FederalOriginalBytes,
 } from '../../ingestion/federal-document-bytes.js';
 
 const PARSER_VERSION = 'federal-legislative-exact-code-v1';
 const PROGRAM_CODE_RE = /\b(?:[01]\d{6}[A-Z]|[0-9]{4}[A-Z]{1,2}[0-9A-Z]{2,14})\b/g;
-const SOURCE_HOSTS = new Set(['www.govinfo.gov', 'govinfo.gov', 'api.govinfo.gov', 'www.congress.gov', 'congress.gov']);
+const SOURCE_HOSTS = new Set([
+  'www.govinfo.gov',
+  'govinfo.gov',
+  'api.govinfo.gov',
+  'www.congress.gov',
+  'congress.gov',
+]);
 
 export interface FederalEvidenceMentionInput {
   candidateKey?: string;
@@ -25,7 +33,7 @@ export interface FederalEvidenceMentionInput {
 
 export interface FederalEvidenceSnapshotInput {
   provider: 'govinfo' | 'congress.gov' | 'committee';
-  collection: 'BILLS' | 'CRPT' | 'CPRT' | 'PLAW' | 'CREC' | 'COMMITTEE';
+  collection: 'BILLS' | 'AMENDMENTS' | 'CRPT' | 'CPRT' | 'PLAW' | 'CREC' | 'COMMITTEE';
   packageId: string;
   billId?: string | null;
   versionCode?: string | null;
@@ -117,7 +125,10 @@ function validateSnapshot(input: FederalEvidenceSnapshotInput): void {
     throw new Error('FEDERAL_EVIDENCE_IDENTITY_REQUIRED');
   if (!Number.isFinite(input.inventoryWindowEnd.getTime()))
     throw new Error('FEDERAL_EVIDENCE_WINDOW_REQUIRED');
-  if (input.rawContent.length > 30_000_000 || input.extractedText.length > 30_000_000)
+  if (
+    input.rawContent.length > (input.originalBytes?.encoding === 'pdf' ? 40_000_000 : 30_000_000) ||
+    input.extractedText.length > 30_000_000
+  )
     throw new Error('FEDERAL_EVIDENCE_CONTENT_TOO_LARGE');
   if (input.completeness === 'complete' && !input.extractedText.trim())
     throw new Error('COMPLETE_FEDERAL_EVIDENCE_REQUIRES_TEXT');
@@ -164,7 +175,10 @@ function mentionSnapshot(row: MentionRow): Record<string, unknown> {
   };
 }
 
-async function currentRow(tx: Prisma.TransactionClient, sourceKey: string): Promise<CurrentRow | null> {
+async function currentRow(
+  tx: Prisma.TransactionClient,
+  sourceKey: string,
+): Promise<CurrentRow | null> {
   const rows = await tx.$queryRaw<CurrentRow[]>`
     SELECT c.state,
            c.revision_id AS "revisionId",
@@ -431,11 +445,35 @@ export async function persistFederalEvidenceSnapshot(
   const contentHash = sha256(input.rawContent);
   const extractionHash = sha256(input.extractedText);
   const original = input.originalBytes
-    ? qualifyFederalOriginal(input.rawContent, input.originalBytes, {completeness:input.completeness,extractedText:input.extractedText})
+    ? qualifyFederalOriginal(input.rawContent, input.originalBytes, {
+        completeness: input.completeness,
+        extractedText: input.extractedText,
+        ...(input.collection === 'PLAW' && input.billId ? { billBinding: input.billId } : {}),
+      })
     : null;
   const snapshotParserVersion = original?.parserVersion ?? PARSER_VERSION;
   const snapshotMetadata = { ...input.metadata, ...original?.metadata };
   return prisma.$transaction(async (tx) => {
+    if (input.collection === 'PLAW' && input.originalBytes && input.billId) {
+      if (
+        typeof input.metadata?.sourceInventoryReceiptId !== 'string' ||
+        typeof input.metadata?.providerVersionId !== 'string'
+      )
+        throw Error('FEDERAL_PLAW_INVENTORY_BINDING_REQUIRED');
+      const owners = await tx.$queryRawUnsafe<unknown[]>(
+        `SELECT b.id FROM congress_bill b WHERE b.id=$1 AND ${FEDERAL_FY26_SQL}
+          AND EXISTS(SELECT 1 FROM legal_source_receipt p CROSS JOIN LATERAL jsonb_array_elements(p.manifest->'versions') v
+            WHERE p.id=$2 AND p.source='fy26-federal-provider-inventory' AND p.complete AND p.scope->>'billId'=b.id
+              AND v->>'versionId'=$3 AND v->>'packageId'=$4 AND v->>'collection'='PLAW'
+              AND (v->>'sourceUrl'=$5 OR EXISTS(SELECT 1 FROM jsonb_array_elements(v->'formats') f WHERE f->>'url'=$5)))`,
+        input.billId,
+        input.metadata.sourceInventoryReceiptId,
+        input.metadata.providerVersionId,
+        input.packageId,
+        input.sourceUrl,
+      );
+      if (owners.length !== 1) throw Error('FEDERAL_PLAW_BILL_BINDING_UNQUALIFIED');
+    }
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${sourceKey}, 0))`;
     const previousCurrent = await currentRow(tx, sourceKey);
     const previousRevisionId =
@@ -497,7 +535,8 @@ export async function persistFederalEvidenceSnapshot(
     for (const mention of qualified) {
       const rawMention = mention.rawMention.trim();
       const candidateKey = mention.candidateKey ?? `${mention.matchType}:${cleanCode(rawMention)}`;
-      const languageHash = mention.languageHash ?? sha256(mention.evidence.replace(/\s+/g, ' ').trim());
+      const languageHash =
+        mention.languageHash ?? sha256(mention.evidence.replace(/\s+/g, ' ').trim());
       await tx.$executeRaw`
         INSERT INTO federal_evidence_mention(
           revision_id, candidate_key, raw_mention, canonical_pe_code, match_type,

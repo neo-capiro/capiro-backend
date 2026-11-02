@@ -22,6 +22,7 @@ import {
 } from '../src/program-element/federal-evidence/persistence.js';
 import { runWithSyncRun, type RunCounts } from '../src/ingestion/sync-run.helper.js';
 import { FEDERAL_FY26_SQL } from '../src/ingestion/bill-text-scope.js';
+import { withFederalBillWriter } from '../src/ingestion/federal-bill-writer.js';
 import {
   FY26_YEAR,
   fiscalYearMode,
@@ -407,21 +408,26 @@ async function main(): Promise<void> {
     } as unknown as ConfigService<AppConfig, true>;
     const gov = new GovInfoService(prisma, config);
     const result = await runWithSyncRun(prisma, 'sync-federal-legislative-evidence', async () => {
-      const counts = await syncCollection({
-        prisma,
-        gov,
-        collection: collectionArg,
-        congress,
-        full,
-        historical,
-        cap,
-        fy26,
-      });
-      // The global replay queue may contain older/out-of-scope sources. A scoped
-      // text backfill must not drain unrelated work merely because it shares a writer.
-      const replay = fy26 === null ? await replayPendingFederalEvidenceMentions(prisma, cap) : null;
-      console.log(JSON.stringify({ ...counts, pendingReplay: replay }, null, 2));
-      return counts;
+      const run = async (writer: PrismaService) => {
+        const counts = await syncCollection({
+          prisma: writer,
+          gov,
+          collection: collectionArg,
+          congress,
+          full,
+          historical,
+          cap,
+          fy26,
+        });
+        // A scoped text backfill does not drain unrelated global replay work.
+        const replay =
+          fy26 === null ? await replayPendingFederalEvidenceMentions(writer, cap) : null;
+        console.log(JSON.stringify({ ...counts, pendingReplay: replay }, null, 2));
+        return counts;
+      };
+      return ['BILLS', 'PLAW'].includes(collectionArg)
+        ? await withFederalBillWriter(prisma, (writer) => run(writer as PrismaService))
+        : await run(prisma);
     });
     if (fy26 !== null && result.errors > 0) throw Error('FY26_FEDERAL_TEXT_ERRORS');
     console.log(

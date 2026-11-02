@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { withStateBillWriter } from './state-bill-writer.js';
 import { withFederalBillWriter } from './federal-bill-writer.js';
+import { enrichFederalBulkMetadata } from './federal-billstatus-import.js';
 
 describe('shared state writer lease on disposable PostgreSQL', () => {
   jest.setTimeout(30000);
@@ -25,6 +26,18 @@ describe('shared state writer lease on disposable PostgreSQL', () => {
       lease_token uuid,lease_until timestamptz,updated_at timestamptz DEFAULT clock_timestamp())`);
     await db.$executeRawUnsafe('CREATE TABLE marker(value integer)');
     await db.$executeRawUnsafe('INSERT INTO marker VALUES(0)');
+    await db.$executeRawUnsafe(
+      'CREATE TABLE congress_bill(id text PRIMARY KEY,title text,subjects text[],cosponsors_count integer,update_date timestamptz)',
+    );
+    await db.$executeRawUnsafe(
+      'CREATE TABLE congress_bill_subject(id text PRIMARY KEY,bill_id text REFERENCES congress_bill(id),name text)',
+    );
+    await db.$executeRawUnsafe(
+      `CREATE TABLE congress_bill_cosponsor(id uuid PRIMARY KEY,bill_id text REFERENCES congress_bill(id),bioguide_id text,full_name text,party text,state text,district integer,sponsorship_date date,is_original boolean,withdrawn_date date,last_synced_at timestamptz,UNIQUE(bill_id,bioguide_id))`,
+    );
+    await db.$executeRawUnsafe(
+      'CREATE TABLE legal_source_receipt(id text PRIMARY KEY,source text,scope jsonb,manifest jsonb,complete boolean,observed_at timestamptz DEFAULT clock_timestamp())',
+    );
   });
   afterAll(async () => {
     await db?.$disconnect();
@@ -88,5 +101,75 @@ describe('shared state writer lease on disposable PostgreSQL', () => {
       });
     });
     expect(await db.$queryRawUnsafe('SELECT value FROM marker')).toEqual([{ value: 4 }]);
+  });
+  it('atomically enriches canonical metadata and rolls back it with receipt failure', async () => {
+    await db.$executeRawUnsafe(
+      "INSERT INTO congress_bill VALUES('119-hr-1','Preserved title',ARRAY['old'],1,'2026-01-01T00:00:00Z')",
+    );
+    const bill = {
+      id: '119-hr-1',
+      eligible: true,
+      providerUpdatedAt: '2026-02-01',
+      metadataUpdatedAt: '2026-02-01',
+      subjects: ['Synthetic subject'],
+      cosponsors: [
+        {
+          bioguideId: 'A000001',
+          fullName: 'Synthetic member',
+          party: 'X',
+          state: 'FL',
+          district: 1,
+          sponsorshipDate: '2026-01-01',
+          withdrawnDate: null,
+          isOriginal: true,
+        },
+      ],
+      cosponsorEpisodes: [],
+      versions: [],
+      amendments: [],
+    };
+    await withFederalBillWriter(db, (writer) =>
+      enrichFederalBulkMetadata(writer, bill, 'a'.repeat(64)),
+    );
+    expect(
+      await db.$queryRawUnsafe('SELECT title,subjects,cosponsors_count FROM congress_bill'),
+    ).toEqual([{ title: 'Preserved title', subjects: ['Synthetic subject'], cosponsors_count: 1 }]);
+    expect(
+      await db.$queryRawUnsafe('SELECT bioguide_id,withdrawn_date FROM congress_bill_cosponsor'),
+    ).toEqual([{ bioguide_id: 'A000001', withdrawn_date: null }]);
+    await db.$executeRawUnsafe(
+      "CREATE FUNCTION fail_receipt() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic receipt failure'; END $$",
+    );
+    await db.$executeRawUnsafe(
+      'CREATE TRIGGER fail_receipt BEFORE INSERT ON legal_source_receipt FOR EACH ROW EXECUTE FUNCTION fail_receipt()',
+    );
+    await expect(
+      withFederalBillWriter(db, (writer) =>
+        enrichFederalBulkMetadata(
+          writer,
+          { ...bill, subjects: [], cosponsors: [] },
+          'b'.repeat(64),
+        ),
+      ),
+    ).rejects.toThrow('synthetic receipt failure');
+    expect(await db.$queryRawUnsafe('SELECT subjects,cosponsors_count FROM congress_bill')).toEqual(
+      [{ subjects: ['Synthetic subject'], cosponsors_count: 1 }],
+    );
+    expect(
+      await db.$queryRawUnsafe('SELECT count(*)::int AS n FROM congress_bill_cosponsor'),
+    ).toEqual([{ n: 1 }]);
+    await db.$executeRawUnsafe('DROP TRIGGER fail_receipt ON legal_source_receipt');
+    expect(
+      await withFederalBillWriter(db, (writer) =>
+        enrichFederalBulkMetadata(
+          writer,
+          { ...bill, metadataUpdatedAt: '2026-01-15', subjects: [], cosponsors: [] },
+          'c'.repeat(64),
+        ),
+      ),
+    ).toBe('held');
+    expect(await db.$queryRawUnsafe('SELECT subjects FROM congress_bill')).toEqual([
+      { subjects: ['Synthetic subject'] },
+    ]);
   });
 });
