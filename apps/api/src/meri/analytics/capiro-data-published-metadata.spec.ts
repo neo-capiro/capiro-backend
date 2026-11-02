@@ -21,6 +21,7 @@ const years = readFileSync(join(migrations, '20281102120000_capiro_data_program_
 const grantsNotices = readFileSync(join(migrations, '20281102140000_capiro_data_grants_notices_surface/migration.sql'), 'utf8');
 const forecasts = readFileSync(join(migrations, '20281102150000_capiro_data_government_forecasts_surface/migration.sql'), 'utf8');
 const noticeMeaning = readFileSync(join(migrations, '20281102170000_capiro_data_sam_notice_column_meaning/migration.sql'), 'utf8');
+const fundingRules = readFileSync(join(migrations, '20281102180000_capiro_data_funding_answer_rules/migration.sql'), 'utf8');
 const prismaSchema = readFileSync(join(api, 'prisma/schema.prisma'), 'utf8');
 /** Column names of one Prisma model as the database spells them (`@map` or the field name). */
 function modelColumns(model: string): Set<string> {
@@ -86,11 +87,12 @@ const CONGRESS_GOV = {
 describe('capiro_data published metadata', () => {
   const published = new Map([...viewColumns(surface), ...viewColumns(awards), ...viewColumns(years), ...viewColumns(grantsNotices), ...viewColumns(forecasts)]);
   const surfaceComments = comments(surface, 'meri_public'), awardComments = comments(awards, 'meri_public'), yearComments = comments(years, 'meri_public');
-  // The notice column-meaning migration replaces comments of 20281102140000; later comments win.
+  // The notice column-meaning and funding answer-rule migrations replace comments of 20281102140000; later comments win.
   const firstNoticeComments = comments(grantsNotices, 'meri_public'), noticeCorrections = comments(noticeMeaning, 'meri_public');
+  const answerRules = comments(fundingRules, 'meri_public');
   const grantNoticeComments: Comments = {
-    views: new Map([...firstNoticeComments.views, ...noticeCorrections.views]),
-    columns: new Map([...firstNoticeComments.columns, ...noticeCorrections.columns]),
+    views: new Map([...firstNoticeComments.views, ...noticeCorrections.views, ...answerRules.views]),
+    columns: new Map([...firstNoticeComments.columns, ...noticeCorrections.columns, ...answerRules.columns]),
   };
   const forecastComments = comments(forecasts, 'meri_public');
   const before: Comments = {
@@ -169,15 +171,14 @@ describe('capiro_data published metadata', () => {
     expect(before.views.get('sam_opportunities')!.primaryKey).toEqual(['notice_id']);
     expect(before.views.get('federal_grants')!.freshnessField).toBe('synced_at');
     expect(before.views.get('sam_opportunities')!.freshnessField).toBe('last_synced_at');
-    // Open is the writers' and readers' predicate: status posted or forecasted with a null or future close date
-    // (funding-catalog.reconcile.ts, district-nexus isOpportunityActive); a null close date is not closed.
+    // The writer's vocabulary; the ingestion keeps posted and forecasted grants current (funding-catalog.reconcile.ts),
+    // while an answer calls only a posted grant with a null or future close date open (20281102180000).
     const mapper = read('src/external/tango/funding-catalog.mapper.ts'), reconcile = read('src/external/tango/funding-catalog.reconcile.ts');
     expect(mapper).toMatch(/\{ P: 'posted', F: 'forecasted', C: 'closed', A: 'archived' \}/);
     expect(reconcile).toMatch(/status IN \('posted','forecasted'\)/);
     expect(reconcile).toMatch(/close_date IS NULL OR close_date >= /);
     expect(before.columns.get('federal_grants.status')!.enum).toEqual(['posted', 'forecasted', 'closed', 'archived']);
-    expect(before.views.get('federal_grants')!.description).toMatch(/Open means status posted or forecasted and close_date null or today or later/);
-    expect(before.columns.get('federal_grants.close_date')!.description).toMatch(/May be null/);
+    expect(before.columns.get('federal_grants.close_date')!.description).toMatch(/Null means the deadline is unknown or unspecified/);
     expect(mapper).toMatch(/docType: status === 'forecasted' \? 'forecast' : 'synopsis'/);
     expect(before.columns.get('federal_grants.doc_type')!.enum).toEqual(['synopsis', 'forecast']);
     expect(mapper).toMatch(/url: `https:\/\/www\.grants\.gov\/search-results-detail\/\$\{row\.grant_id\}`/);
@@ -205,6 +206,49 @@ describe('capiro_data published metadata', () => {
     expect(mapper).toMatch(/fullNoticeType\.slice\(0, 32\)/);
     expect(before.columns.get('sam_opportunities.notice_type')!.description).toMatch(/truncated to 32 characters/);
     for (const code of ['SBA', 'SDVOSBC', '8AN', 'WOSB', 'HZC']) expect(mapper).toContain(`'${code}'`);
+  });
+
+  it('states the funding answer rules: posted-and-not-closed is open, forecasts apart, unknown deadlines, money not awarded, current notices', () => {
+    // Comments only, under the projection owner, on the two funding views.
+    expect(fundingRules).not.toMatch(/CREATE|ALTER|DROP|GRANT|REVOKE|INSERT|UPDATE|DELETE/);
+    expect(fundingRules).toMatch(/^SET ROLE capiro_public_projection_owner;$/m);
+    expect(fundingRules.trim().endsWith('RESET ROLE;')).toBe(true);
+    expect([...answerRules.views.keys()].sort()).toEqual(['federal_grants', 'sam_opportunities']);
+    expect([...answerRules.columns.keys()].sort()).toEqual([
+      'federal_grants.award_ceiling', 'federal_grants.close_date', 'federal_grants.estimated_funding', 'federal_grants.opportunity_number',
+      'federal_grants.response_date_desc', 'federal_grants.status',
+      'sam_opportunities.notice_type', 'sam_opportunities.response_deadline', 'sam_opportunities.solicitation_number',
+    ]);
+    const grants = before.views.get('federal_grants')!, notices = before.views.get('sam_opportunities')!;
+    // Keys, grain and freshness are unchanged by the replacement.
+    for (const [name, view] of [['federal_grants', grants], ['sam_opportunities', notices]] as const)
+      for (const key of ['grain', 'primaryKey', 'freshnessField', 'relationships'])
+        expect(view[key]).toEqual(firstNoticeComments.views.get(name)![key]);
+    expect(grants.description).toContain("status = 'posted' AND (close_date IS NULL OR close_date >= CURRENT_DATE)");
+    expect(grants.description).toMatch(/Forecasted grants .* not yet accepting applications: report them separately and call them forecasted, never open/);
+    expect(grants.description).toMatch(/A null close_date is an unknown or unspecified deadline: read response_date_desc/);
+    expect(grants.description).not.toMatch(/posted or forecasted/);
+    const grantLimits = (grants.limitations as string[]).join(' ');
+    expect(grantLimits).toMatch(/none of them is money already awarded/);
+    expect(grantLimits).toMatch(/federal_assistance_awards relation/);
+    expect(grantLimits).toMatch(/not proof it is absent/);
+    expect(describe_('federal_grants.estimated_funding')).toMatch(/total program funding .* not money awarded/);
+    expect(describe_('federal_grants.award_ceiling')).toMatch(/maximum one award can receive.*not money awarded/);
+    expect(before.columns.get('federal_grants.status')!.enum).toEqual(['posted', 'forecasted', 'closed', 'archived']);
+    for (const money of ['award_ceiling', 'estimated_funding']) expect(before.columns.get(`federal_grants.${money}`)!.unit).toBe('USD');
+    // The awards relation the grants comment points at carries the opportunity number.
+    expect(published.get('federal_assistance_awards')).toEqual(expect.arrayContaining(['funding_opportunity_number', 'assistance_listing_number']));
+    expect(notices.description).toContain('active AND (response_deadline IS NULL OR response_deadline >= now())');
+    expect(notices.description).toMatch(/Solicitation and Combined Synopsis\/Solicitation take offers/);
+    const noticeLimits = (notices.limitations as string[]).join(' ');
+    expect(noticeLimits).toMatch(/solicitation_number is not a unique notice identifier/);
+    expect(noticeLimits).toMatch(/federal_awards relation and no published key links a notice to its award/);
+    // The 20281102170000 corrections survive the replacement.
+    expect(noticeLimits).toMatch(/base_type and archive_date are null on every notice the current writer loads/);
+    expect(noticeLimits).toMatch(/provider's flag at synchronization/);
+    expect(before.columns.get('sam_opportunities.notice_type')!.nullable).toBe(false);
+    expect(before.columns.get('sam_opportunities.notice_type')!.description).toMatch(/truncated to 32 characters/);
+    expect(before.columns.get('sam_opportunities.solicitation_number')!.description).toMatch(/not a unique notice identifier/);
   });
 
   it('publishes Unified Agenda forecasts from the head and its current revision content, with the Core read\'s window semantics', () => {

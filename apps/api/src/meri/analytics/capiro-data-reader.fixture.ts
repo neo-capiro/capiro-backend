@@ -43,6 +43,7 @@ export const READER_MIGRATIONS = [
   '20281101120000_government_forecast_windows',
   '20281102150000_capiro_data_government_forecasts_surface',
   '20281102170000_capiro_data_sam_notice_column_meaning',
+  '20281102180000_capiro_data_funding_answer_rules',
 ] as const;
 
 /** Base tables the published projections read (private sources, identity and public ingestion). */
