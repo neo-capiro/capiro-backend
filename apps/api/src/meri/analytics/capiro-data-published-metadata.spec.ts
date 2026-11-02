@@ -19,6 +19,7 @@ const meaning = readFileSync(join(migrations, '20281101180000_capiro_data_public
 const awards = readFileSync(join(migrations, '20281102100000_capiro_data_federal_awards_surface/migration.sql'), 'utf8');
 const years = readFileSync(join(migrations, '20281102120000_capiro_data_program_element_years_surface/migration.sql'), 'utf8');
 const grantsNotices = readFileSync(join(migrations, '20281102140000_capiro_data_grants_notices_surface/migration.sql'), 'utf8');
+const noticeMeaning = readFileSync(join(migrations, '20281102150000_capiro_data_sam_notice_column_meaning/migration.sql'), 'utf8');
 const prismaSchema = readFileSync(join(api, 'prisma/schema.prisma'), 'utf8');
 /** Column names of one Prisma model as the database spells them (`@map` or the field name). */
 function modelColumns(model: string): Set<string> {
@@ -79,7 +80,12 @@ const CONGRESS_GOV = {
 describe('capiro_data published metadata', () => {
   const published = new Map([...viewColumns(surface), ...viewColumns(awards), ...viewColumns(years), ...viewColumns(grantsNotices)]);
   const surfaceComments = comments(surface, 'meri_public'), awardComments = comments(awards, 'meri_public'), yearComments = comments(years, 'meri_public');
-  const grantNoticeComments = comments(grantsNotices, 'meri_public');
+  // The notice column-meaning migration replaces comments of 20281102140000; later comments win.
+  const firstNoticeComments = comments(grantsNotices, 'meri_public'), noticeCorrections = comments(noticeMeaning, 'meri_public');
+  const grantNoticeComments: Comments = {
+    views: new Map([...firstNoticeComments.views, ...noticeCorrections.views]),
+    columns: new Map([...firstNoticeComments.columns, ...noticeCorrections.columns]),
+  };
   const before: Comments = {
     views: new Map([...surfaceComments.views, ...awardComments.views, ...yearComments.views, ...grantNoticeComments.views]),
     columns: new Map([...surfaceComments.columns, ...awardComments.columns, ...yearComments.columns, ...grantNoticeComments.columns]),
@@ -174,6 +180,21 @@ describe('capiro_data published metadata', () => {
     expect(mapper).toMatch(/sourceUrl: `https:\/\/sam\.gov\/opp\/\$\{id\}\/view`/);
     expect(before.columns.get('sam_opportunities.notice_id')!.description).toMatch(/32 lowercase hexadecimal characters/);
     expect(before.columns.get('sam_opportunities.active')!.description).toMatch(/an active notice can be past its response_deadline/);
+    // The current writer stores the provider's active flag and never sets base_type or archive_date.
+    expect(mapper).toMatch(/active: typeof row\.active === 'boolean' \? row\.active : undefined/);
+    const noticeWriter = /export function noticeFields[\s\S]*?\r?\n\}/.exec(mapper)![0];
+    expect(noticeWriter).not.toMatch(/baseType|archiveDate|base_type|archive_date/);
+    expect(before.columns.get('sam_opportunities.active')!.description).toMatch(/provider's active flag .* not computed from archive_date/);
+    for (const column of ['base_type', 'archive_date'])
+      expect(before.columns.get(`sam_opportunities.${column}`)!.description).toMatch(/null on every notice the current writer loads/);
+    expect((before.views.get('sam_opportunities')!.limitations as string[]).join(' ')).toMatch(/base_type and archive_date are null on every notice the current writer loads/);
+    expect((before.views.get('sam_opportunities')!.limitations as string[]).join(' ')).not.toMatch(/follows the archive date/);
+    // Comments only, on this one view, under the projection owner.
+    expect(noticeMeaning).not.toMatch(/CREATE|ALTER|DROP|GRANT|REVOKE|INSERT|UPDATE|DELETE/);
+    expect([...noticeCorrections.views.keys()]).toEqual(['sam_opportunities']);
+    expect([...noticeCorrections.columns.keys()].sort()).toEqual(['sam_opportunities.active', 'sam_opportunities.archive_date', 'sam_opportunities.base_type']);
+    expect(noticeMeaning).toMatch(/^SET ROLE capiro_public_projection_owner;$/m);
+    expect(noticeMeaning.trim().endsWith('RESET ROLE;')).toBe(true);
     expect(mapper).toMatch(/fullNoticeType\.slice\(0, 32\)/);
     expect(before.columns.get('sam_opportunities.notice_type')!.description).toMatch(/truncated to 32 characters/);
     for (const code of ['SBA', 'SDVOSBC', '8AN', 'WOSB', 'HZC']) expect(mapper).toContain(`'${code}'`);

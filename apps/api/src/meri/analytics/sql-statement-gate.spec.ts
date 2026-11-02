@@ -59,6 +59,36 @@ describe('statement gate', () => {
   ])('refuses %s with %s', (sql, code, message) => {
     expect(refusal(sql)).toMatchObject({ code, message });
   });
+  it.each([
+    // The reader role can read these base tables directly (query_global_data's grants), so the gate must stop the qualifier.
+    'SELECT s.poc_email, s.raw_jsonb FROM public.sam_opportunity s',
+    'SELECT * FROM public.federal_grant',
+    'SELECT a.contractor_name FROM "public"."federal_award" a',
+    'SELECT x.title FROM federal_grants x JOIN public.sam_opportunity s ON s.title = x.title',
+    'WITH s AS (SELECT * FROM public.sam_opportunity) SELECT s.poc_email FROM s',
+    'SELECT public.title FROM public.sam_opportunity public',
+    'SELECT c.relname FROM pg_catalog.pg_class c',
+    'SELECT t.table_name FROM information_schema.tables t',
+    'SELECT t.id FROM defproc_v2_private.anything t',
+    'SELECT x.id FROM other_schema.some_table x2',
+    'SELECT q.title FROM federal_grants g',
+  ])('refuses a schema or undefined qualifier outside this source: %s', (sql) => {
+    const error = refusal(sql);
+    expect(error.code).toBe('UNKNOWN_RELATION');
+    expect(error.message).toMatch(/is not a relation or alias of this query, and only this source's relations are readable; name the relations describe_capiro_data lists without a schema prefix\.$/);
+  });
+  it('admits aliases, relation names, CTE names and this source\'s own schema as qualifiers', () => {
+    expect(gate('SELECT g.title, g.close_date FROM federal_grants g WHERE g.status = $1', ['posted']).relationsUsed).toEqual(['federal_grants']);
+    expect(gate('SELECT federal_grants.title FROM federal_grants').relationsUsed).toEqual(['federal_grants']);
+    expect(gate('SELECT meri_public.sam_opportunities.title FROM meri_public.sam_opportunities').relationsUsed).toEqual(['sam_opportunities']);
+    expect(gate('SELECT s.title FROM meri_public.sam_opportunities AS s').relationsUsed).toEqual(['sam_opportunities']);
+    expect(gate('WITH open_grants AS (SELECT g.title FROM federal_grants g) SELECT open_grants.title FROM open_grants').relationsUsed).toEqual(['federal_grants']);
+    expect(gate('SELECT "G".title FROM federal_grants "G"').relationsUsed).toEqual(['federal_grants']);
+    expect(gate('SELECT g.* , 1.5 AS ratio, .5 AS half FROM federal_grants g').relationsUsed).toEqual(['federal_grants']);
+    expect(gate("SELECT 'public.sam_opportunity' AS text_only, b.id FROM congress_bills b").relationsUsed).toEqual(['congress_bills']);
+    expect(gateSqlStatement({ sql: 'SELECT o.id FROM meri_private.client_objectives o', parameters: [] }, 'client_records').relationsUsed).toEqual(['client_objectives']);
+    expect(() => gateSqlStatement({ sql: 'SELECT c.id FROM public.clients c', parameters: [] }, 'client_records')).toThrow(SqlQueryError);
+  });
   it('refuses the public source from the client-record side and the private vocabulary stays fixed', () => {
     expect(() => gateSqlStatement({ sql: 'SELECT b.id FROM congress_bills b', parameters: [] }, 'client_records')).toThrow(
       'congress_bills belongs to the public source; one query reads one source.',

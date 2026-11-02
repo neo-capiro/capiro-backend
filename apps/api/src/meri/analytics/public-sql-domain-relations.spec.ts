@@ -11,7 +11,9 @@ const migration = readFileSync(resolve(__dirname, '../../../prisma/migrations/20
 const awardsMigration = readFileSync(resolve(__dirname, '../../../prisma/migrations/20281102100000_capiro_data_federal_awards_surface/migration.sql'), 'utf8');
 const yearsMigration = readFileSync(resolve(__dirname, '../../../prisma/migrations/20281102120000_capiro_data_program_element_years_surface/migration.sql'), 'utf8');
 const grantsNoticesMigration = readFileSync(resolve(__dirname, '../../../prisma/migrations/20281102140000_capiro_data_grants_notices_surface/migration.sql'), 'utf8');
-const migrations = [migration, awardsMigration, yearsMigration, grantsNoticesMigration].join('\n');
+const noticeMeaningMigration = readFileSync(resolve(__dirname, '../../../prisma/migrations/20281102150000_capiro_data_sam_notice_column_meaning/migration.sql'), 'utf8');
+// The comment-only migration comes last so its comments replace earlier ones.
+const migrations = [migration, awardsMigration, yearsMigration, grantsNoticesMigration, noticeMeaningMigration].join('\n');
 /**
  * Published text derived from one stored column (an array joined with '; ', or one JSON member normalized to a
  * two-letter code). Each names the column it reads and the expression the view must use; every other entry is a
@@ -159,7 +161,7 @@ describe('public legislative and opportunity SQL coverage', () => {
     expect(reader.runPublicSql).toHaveBeenCalledWith(expect.objectContaining({ sql: `SELECT * FROM (\n${sql}\n) AS q LIMIT $1` }));
   });
 
-  // These former compiler examples remain explicit: their domains are not in the
+  // These former compiler examples remain explicit: state bills, hearings and agenda items are not in the
   // current catalog, so admission is not evidence of DB access or successful rows.
   it.each<{ label: string; sql: string; parameters: SqlParameter[] }>([
     { label: 'state agenda namespace and optional bill identity', sql: `SELECT h.id AS hearing_id, a.state_bill_key, b.title AS bill_title, h.starts_at, a.source_url
@@ -171,10 +173,6 @@ describe('public legislative and opportunity SQL coverage', () => {
     { label: 'distinct state bills after calendar filtering', sql: `WITH matched AS (SELECT DISTINCT b.id FROM state_bills b
       INNER JOIN state_bill_calendar_events e ON e.bill_key=b.id WHERE e.present=$1 AND e.event_type=$2 AND b.session_key=$3)
       SELECT COUNT(*) AS bill_count FROM matched`, parameters: [true, 'hearing', '2097'] },
-    { label: 'grant estimates', sql: 'SELECT SUM(g.estimated_funding) AS estimated FROM federal_grants g WHERE g.doc_type=$1', parameters: ['synopsis'] },
-    { label: 'SAM identity and separate date bounds', sql: `SELECT s.notice_id, s.source_url FROM sam_opportunities s
-      WHERE s.notice_id=$1 AND s.active=$2 AND s.notice_type=$3 AND s.response_deadline>=$4 AND s.archive_date>=$4`,
-      parameters: ['synthetic-notice', true, 'Solicitation', '2097-01-01T00:00:00Z'] },
   ])('preserves parameters and owner refusal for $label', async ({ sql, parameters }) => {
     const gated = gateSqlStatement({ sql, parameters }, 'public');
     expect(gated.sql).toBe(`SELECT * FROM (\n${sql}\n) AS q LIMIT $${parameters.length + 1}`);
@@ -184,6 +182,23 @@ describe('public legislative and opportunity SQL coverage', () => {
     expect(await queryCapiroData({ sql, parameters }, reader)).toMatchObject({ ok: false, error: { code: 'UNKNOWN_RELATION', sqlstate: '42P01' } });
     expect(reader.runPublicSql).toHaveBeenCalledWith(gated);
     expect(reader.runPublicSql).toHaveBeenCalledTimes(1);
+  });
+
+  // Grants and SAM notices are published (20281102140000): the same examples pass through with their parameters
+  // and name their relations; the database, not the gate, decides the rows.
+  it.each<{ label: string; sql: string; parameters: SqlParameter[]; relations: string[] }>([
+    { label: 'grant estimates', sql: 'SELECT SUM(g.estimated_funding) AS estimated FROM federal_grants g WHERE g.doc_type=$1', parameters: ['synopsis'], relations: ['federal_grants'] },
+    { label: 'SAM identity and separate date bounds', sql: `SELECT s.notice_id, s.source_url FROM sam_opportunities s
+      WHERE s.notice_id=$1 AND s.active=$2 AND s.notice_type=$3 AND s.response_deadline>=$4`,
+      parameters: ['synthetic-notice', true, 'Solicitation', '2097-01-01T00:00:00Z'], relations: ['sam_opportunities'] },
+  ])('passes the published $label example through with its parameters', ({ sql, parameters, relations }) => {
+    const gated = gateSqlStatement({ sql, parameters }, 'public');
+    expect(gated.sql).toBe(`SELECT * FROM (
+${sql}
+) AS q LIMIT $${parameters.length + 1}`);
+    expect(gated.params).toEqual([...parameters, 201]);
+    expect(gated.relationsUsed).toEqual(relations);
+    for (const name of relations) expect(surface.some((relation) => relation.name === name)).toBe(true);
   });
 
   it('retains declared soft identity, units and nullable driver output on supported domains', async () => {
@@ -209,10 +224,9 @@ describe('public legislative and opportunity SQL coverage', () => {
     'SELECT h.calendar_provenance FROM committee_hearings h',
     'SELECT a.evidence FROM legislative_agenda_items a',
     'SELECT s.poc_email FROM sam_opportunities s',
-    'SELECT g.eligibility FROM federal_grants g',
+    'SELECT g.raw FROM federal_grants g',
     'SELECT s.award_amount FROM sam_opportunities s',
     'SELECT t.id FROM hearing_follow t',
-    'SELECT h.id FROM public.committee_hearing h',
     'SELECT h.id FROM meri_public_committee_hearings h',
   ])('propagates owner denial without retrying a raw relation: %s', async (sql) => {
     const reader = db(surface);
@@ -220,6 +234,12 @@ describe('public legislative and opportunity SQL coverage', () => {
     expect(await queryCapiroData({ sql, parameters: [] }, reader)).toMatchObject({ ok: false, error: { code: 'UNKNOWN_RELATION', sqlstate: '42501' } });
     expect(reader.runPublicSql).toHaveBeenCalledTimes(1);
     expect(reader.runPublicSql).toHaveBeenCalledWith(gateSqlStatement({ sql, parameters: [] }, 'public'));
+  });
+
+  it('refuses a base-table schema prefix at the gate, before any database call', async () => {
+    const reader = db(surface);
+    expect(await queryCapiroData({ sql: 'SELECT h.id FROM public.committee_hearing h', parameters: [] }, reader)).toMatchObject({ ok: false, error: { code: 'UNKNOWN_RELATION' } });
+    expect(reader.runPublicSql).not.toHaveBeenCalled();
   });
 
   it.each([

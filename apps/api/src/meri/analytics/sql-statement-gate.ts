@@ -4,12 +4,12 @@ import { Parser } from 'node-sql-parser';
  * The statement gate for Meri's query_capiro_data.
  *
  * PostgreSQL enforces everything the reader roles' grants, security-barrier
- * views, RLS context and transaction settings can enforce: writes, DDL, other
- * schemas and catalogs, unpublished relations and columns, cross-tenant rows,
- * statement time, lock waits, idle transactions, search_path and role
- * switching (see capiro-data-reader-roles.integration.spec.ts). This gate only
- * implements what the database cannot decide for a single pass-through
- * statement, plus the product rules that stay:
+ * views, RLS context and transaction settings can enforce: writes, DDL,
+ * unpublished relations and columns, cross-tenant rows, statement time, lock
+ * waits, idle transactions, search_path and role switching (see
+ * capiro-data-reader-roles.integration.spec.ts). This gate only implements
+ * what the database cannot decide for a single pass-through statement, plus
+ * the product rules that stay:
  *
  *   (b) exactly one statement; SELECT or WITH ... SELECT only (no transaction
  *       control, SET, SHOW, COPY, LISTEN, EXPLAIN, no data-modifying CTE or
@@ -19,6 +19,11 @@ import { Parser } from 'node-sql-parser';
  *       row limit applied as an outer `SELECT * FROM (<sql>) q LIMIT $n`
  *       wrapper; byte caps on input.
  *   (c) public and client-record relations are never mixed in one query.
+ *   (d) a schema qualifier names only this source's own schema. The reader
+ *       roles keep whole-table grants that other tools use (capiro_analytics_ro
+ *       reads public.federal_award, federal_grant and sam_opportunity for
+ *       query_global_data), so `public.sam_opportunity` would bypass the
+ *       curated views; the database cannot tell the two callers apart.
  *
  * The model's SQL text is passed through verbatim inside the wrapper; nothing
  * is regenerated. node-sql-parser confirms statement type and reads the
@@ -114,6 +119,16 @@ export const SOURCE_SCHEMAS: Readonly<Record<SqlSource, string>> = Object.freeze
   research_portfolio: 'meri_private',
   classic_outreach: 'meri_private',
 });
+
+/**
+ * Schemas that exist beside the published ones and that a reader role can reach (PUBLIC keeps USAGE on public,
+ * and the catalogs are readable by every role). A qualifier naming one is refused even when the statement also
+ * uses it as an alias, so `FROM public.sam_opportunity public` cannot pass. Foreign source schemas are refused
+ * earlier with the one-source message.
+ */
+function isOtherSchema(name: string): boolean {
+  return name === 'public' || name === 'information_schema' || name.startsWith('pg_') || name === 'defproc_v2_private';
+}
 
 /** Statement keywords that can only start a data-modifying statement or a SELECT INTO. */
 const BLOCKED_KEYWORDS = new Set(['insert', 'update', 'delete', 'merge', 'into']);
@@ -425,6 +440,25 @@ export function gateSqlStatement(input: unknown, source: SqlSource): GatedSqlSta
     const owner = Object.entries(SOURCE_RELATIONS).find(([name, relations]) => name !== source && relations.includes(mixed))?.[0]
       ?? Object.entries(SOURCE_SCHEMAS).find(([name, schema]) => name !== source && schema === mixed)?.[0];
     fail('UNKNOWN_RELATION', `${mixed} belongs to the ${owner} source; one query reads one source.`);
+  }
+  // (d) A qualifier (`x.` before a name) is this source's schema or a range name the statement itself introduces
+  // (a relation, alias or CTE written without a following dot). Everything else is a schema outside this source.
+  const ownSchema = SOURCE_SCHEMAS[source];
+  const isName = (token: Token | undefined) => token?.kind === 'word' || token?.kind === 'quoted';
+  const isDot = (token: Token | undefined) => token?.kind === 'punct' && token.value === '.';
+  const introduced = new Set(
+    tokens
+      .filter((token, i) => isName(token) && !isDot(tokens[i + 1]) && (!isDot(tokens[i - 1]) || tokens[i - 2]?.value === ownSchema))
+      .map((token) => token.value),
+  );
+  for (let i = 0; i < tokens.length; i++) {
+    const qualifier = tokens[i]!;
+    if (!isName(qualifier) || !isDot(tokens[i + 1]) || qualifier.value === ownSchema) continue;
+    if (isOtherSchema(qualifier.value) || !introduced.has(qualifier.value))
+      fail(
+        'UNKNOWN_RELATION',
+        `${qualifier.value} is not a relation or alias of this query, and only this source's relations are readable; name the relations describe_capiro_data lists without a schema prefix.`,
+      );
   }
   const relationsUsed = own.filter((name) => names.includes(name));
 
