@@ -54,6 +54,15 @@ export const UNCONNECTED_OBJECTIVE_WORK_OWNER: ObjectiveWorkOwnerPort = Object.f
   },
   async policyWithinTx() { return workFailure('AUTHORITY_UNAVAILABLE'); },
 });
+/** Consent and job deadlines are bounded by the verified Clerk session lifetime, not the ~60 s
+ * request token; the 30-minute policy, tenant and action caps still apply in the consent terms.
+ * A proof without a usable session lifetime keeps the request expiry (fail closed). */
+export function consentSessionExpiresAtMs(
+  proof: Pick<ApplicationAuthorityIdentityProof, 'expiresAtMs' | 'sessionExpiresAtMs'>): number {
+  const session = proof.sessionExpiresAtMs;
+  return typeof session === 'number' && Number.isSafeInteger(session) && session >= proof.expiresAtMs
+    ? session : proof.expiresAtMs;
+}
 function iso(value: unknown): string {
   const d = value instanceof Date ? value : new Date(value as string);
   if (!Number.isFinite(d.getTime())) return workFailure('RECEIPT_UNVERIFIABLE');
@@ -269,9 +278,9 @@ export class ObjectiveWorkService {
       policy: async (a, kind, state) => {
         requireWrite(); sameAction(kind);
         const facts = await this.ownerPort.policyWithinTx(tx, a, kind, state);
-        // The bound owner may only reduce; the original verified request expiry
+        // The bound owner may only reduce; the original verified session lifetime
         // is captured once and cannot be replaced by the browser or owner.
-        return { ...facts, originalTokenExpiresAtMs: proof.expiresAtMs };
+        return { ...facts, originalTokenExpiresAtMs: consentSessionExpiresAtMs(proof) };
       },
       insertConsent: (a, kind, row) => { requireWrite(); sameAction(kind); return this.insertConsent(tx, a, kind, row); },
       casControl: async (a, kind, before, after) => {
