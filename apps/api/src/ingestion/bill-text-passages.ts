@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { parseArgs } from 'node:util';
+import { ALL_US_STATE_CODES } from '../external/legiscan/us-states.js';
 import type { BillStructuredSection } from './bill-document-structure.js';
 export const CHUNKER_VERSION = 'bill-structured-utf16-v2';
 export const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
@@ -104,6 +105,7 @@ export function parseBillTextArgs(argv: string[], env: NodeJS.ProcessEnv) {
     options: {
       source: { type: 'string' },
       phase: { type: 'string' },
+      states: { type: 'string' },
       limit: { type: 'string' },
       after: { type: 'string' },
       commit: { type: 'boolean' },
@@ -112,6 +114,13 @@ export function parseBillTextArgs(argv: string[], env: NodeJS.ProcessEnv) {
   });
   if (a.source !== 'federal' && a.source !== 'state')
     throw Error('SOURCE_MUST_BE_FEDERAL_OR_STATE');
+  const states = a.states === undefined ? [] : [...new Set(a.states.split(','))].sort();
+  const stateCodes = new Set<string>(ALL_US_STATE_CODES);
+  if (
+    a.states !== undefined &&
+    (a.source !== 'state' || states.some((state) => !stateCodes.has(state)))
+  )
+    throw Error('STATES_REQUIRE_VALID_STATE_SOURCE');
   const phase = a.phase ?? 'embed';
   if (phase !== 'extract' && phase !== 'embed') throw Error('PHASE_MUST_BE_EXTRACT_OR_EMBED');
   const limit = Number(a.limit ?? 100);
@@ -125,6 +134,7 @@ export function parseBillTextArgs(argv: string[], env: NodeJS.ProcessEnv) {
   return {
     source: a.source as 'federal' | 'state',
     phase: phase as 'extract' | 'embed',
+    states,
     limit,
     commit: a.commit === true,
     cursor: parseCursor(a.after),

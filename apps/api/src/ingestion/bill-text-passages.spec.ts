@@ -51,6 +51,20 @@ describe('complete immutable text passages', () => {
   });
 });
 describe('bounded write admission', () => {
+  it('normalizes explicit state priority without changing the default all-state scope', () => {
+    expect(parseBillTextArgs(['--source', 'state', '--states', 'FL,GA,FL'], {}).states).toEqual([
+      'FL',
+      'GA',
+    ]);
+    expect(parseBillTextArgs(['--source', 'state'], {}).states).toEqual([]);
+    for (const states of ['', 'fl', 'ZZ', 'FL,'])
+      expect(() => parseBillTextArgs(['--source', 'state', '--states', states], {})).toThrow(
+        'STATES_REQUIRE_VALID_STATE_SOURCE',
+      );
+    expect(() => parseBillTextArgs(['--source', 'federal', '--states', 'FL'], {})).toThrow(
+      'STATES_REQUIRE_VALID_STATE_SOURCE',
+    );
+  });
   it('is dry by default and requires exact host for writes', () => {
     expect(parseBillTextArgs(['--source', 'federal'], {}).commit).toBe(false);
     expect(() =>

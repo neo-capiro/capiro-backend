@@ -49,6 +49,7 @@ export async function main(argv = process.argv.slice(2)) {
         : null;
     const sourceType = args.source === 'federal' ? 'bill_passage' : 'state_bill_passage';
     source = `bill-text:fy26:${args.source}:${args.phase}:${provider ? sha256(provider.metadata.model).slice(0, 12) : BILL_EXTRACTION_VERSION}:${CHUNKER_VERSION}`;
+    if (args.states.length) source += `:states:${args.states.join(',')}`;
     let cursor = args.cursor;
 
     async function documents(after: Cursor): Promise<Document[]> {
@@ -67,8 +68,10 @@ export async function main(argv = process.argv.slice(2)) {
       r.evidence->>'contentHash' AS "documentHash",r.revision_hash hash,r.evidence,b.state
       FROM state_bill_published_record r JOIN state_bill b ON b.id=r.bill_key
       WHERE r.kind='document' AND ${STATE_FY26_SQL}
+      AND (cardinality($2::text[])=0 OR b.state=ANY($2::text[]))
       AND r.id::text >= $1 ORDER BY r.id::text LIMIT 10`,
             after.id,
+            args.states,
           );
     }
     async function save(next: Cursor, complete = false) {
@@ -291,7 +294,7 @@ export async function main(argv = process.argv.slice(2)) {
 if (require.main === module) {
   if (process.argv.includes('--help') || process.argv.includes('-h')) {
     console.log(
-      'Usage: embed-bill-passages --source federal|state [--phase extract|embed] [--limit 1..1000] [--after cursor] [--commit --expected-host host] (requires DATABASE_URL; dry run by default)',
+      'Usage: embed-bill-passages --source federal|state [--states FL,GA] [--phase extract|embed] [--limit 1..1000] [--after cursor] [--commit --expected-host host] (requires DATABASE_URL; dry run by default)',
     );
     process.exit(0);
   } else if (!process.env.DATABASE_URL) {

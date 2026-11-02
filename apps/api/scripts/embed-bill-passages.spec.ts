@@ -20,6 +20,7 @@ describe('bill passage worker recovery', () => {
       initializationFailure?: boolean;
       phase?: 'extract' | 'embed';
       incomplete?: boolean;
+      states?: string;
     } = {},
   ) {
     jest.resetModules();
@@ -33,6 +34,7 @@ describe('bill passage worker recovery', () => {
       '--limit',
       '1',
       ...(options.dry ? [] : ['--commit', '--expected-host', 'preview']),
+      ...(options.states ? ['--states', options.states] : []),
     ];
     process.env.DATABASE_URL = 'postgresql://fixture:unused@preview/bill_test';
     process.env.DB_HOST = 'preview';
@@ -127,6 +129,22 @@ describe('bill passage worker recovery', () => {
     expect(h.construct).not.toHaveBeenCalled();
     expect(h.provider).not.toHaveBeenCalled();
   });
+  it.each(['extract', 'embed'] as const)(
+    'uses a distinct Florida %s cursor and parameterized filter',
+    async (phase) => {
+      const h = await setup({ source: 'state', phase, states: 'FL' });
+      await h.main();
+      const checkpoint = h.db.$queryRawUnsafe.mock.calls.find((a: any[]) =>
+        a[0].startsWith('INSERT INTO federal_evidence_checkpoint'),
+      );
+      expect(checkpoint[1]).toMatch(/:states:FL$/);
+      const query = h.db.$queryRawUnsafe.mock.calls.find((a: any[]) =>
+        a[0].includes('FROM state_bill_published_record'),
+      );
+      expect(query[0]).toContain('b.state=ANY($2::text[])');
+      expect(query[2]).toEqual(['FL']);
+    },
+  );
   it('rejects missing database configuration before resource allocation', async () => {
     const h = await setup({ dry: true });
     delete process.env.DATABASE_URL;
