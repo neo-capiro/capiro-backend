@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import type { PrismaClient } from '@prisma/client';
 import type { LegiscanDocument } from '../external/legiscan/legiscan.client.js';
 import { withGuardedWebResponse, readBodyWithSizeLimit } from '../meri/hardenedWebTransport.js';
 import { validDocumentIdentity, type StateDocumentStub } from './state-document-stub.js';
@@ -63,12 +64,67 @@ export class PublisherDocumentError extends Error {
   constructor(
     code: string,
     readonly retryAfterMs = 0,
+    readonly host?: string,
+    readonly httpStatus?: number,
   ) {
     super(code);
   }
 }
 const nextRequest = new Map<string, number>();
 const queues = new Map<string, Promise<unknown>>();
+
+export interface PublisherCooldown {
+  remaining(host: string): Promise<number>;
+  hold(host: string, delayMs: number, status: number): Promise<number>;
+}
+
+/** Existing checkpoint timestamps and grants own the host hold across worker processes. */
+export function publisherCooldown(
+  prisma: Pick<PrismaClient, '$queryRawUnsafe'>,
+): PublisherCooldown {
+  const remaining = `greatest(0,ceil(extract(epoch FROM (window_end-clock_timestamp()))*1000))::float8`;
+  async function query(host: string, sql: string, ...values: unknown[]) {
+    try {
+      const rows = await prisma.$queryRawUnsafe<Array<{ remaining: number }>>(
+        sql,
+        'bill-publisher:cooldown:' + host,
+        ...values,
+      );
+      const delay = rows[0]?.remaining ?? 0;
+      if (!Number.isFinite(delay) || delay < 0) throw Error('INVALID_COOLDOWN');
+      return delay;
+    } catch {
+      throw new PublisherDocumentError('PUBLISHER_COOLDOWN_STATE_FAILED', 0, host);
+    }
+  }
+  return {
+    remaining: (host) =>
+      query(
+        host,
+        `SELECT ${remaining} AS remaining FROM federal_evidence_checkpoint WHERE source=$1`,
+      ),
+    hold: (host, delayMs, status) => {
+      if (
+        !Number.isFinite(delayMs) ||
+        delayMs < 1000 ||
+        delayMs > 86400000 ||
+        ![429, 503].includes(status)
+      )
+        throw new PublisherDocumentError('PUBLISHER_COOLDOWN_STATE_FAILED', 0, host);
+      return query(
+        host,
+        `INSERT INTO federal_evidence_checkpoint(source,status,window_end,last_error,updated_at)
+         VALUES($1,'idle',clock_timestamp()+$2*interval '1 millisecond',$3,clock_timestamp())
+         ON CONFLICT(source) DO UPDATE SET
+           window_end=greatest(federal_evidence_checkpoint.window_end,EXCLUDED.window_end),
+           last_error=EXCLUDED.last_error,updated_at=clock_timestamp()
+         RETURNING ${remaining} AS remaining`,
+        delayMs,
+        'PUBLISHER_HTTP_' + status,
+      );
+    },
+  };
+}
 
 export function publisherDestination(state: string, url: URL): void {
   if (
@@ -93,16 +149,16 @@ export function publisherRetryDelay(value: string | null, now = Date.now()): num
 
 /** Request starts per host are >=1 second apart, without worker sleeps for
  * long Retry-After windows. The durable queue receives the remaining delay. */
-async function paced<T>(host: string, run: () => Promise<T>): Promise<T> {
+async function paced(host: string, cooldown?: PublisherCooldown): Promise<void> {
   const previous = queues.get(host) ?? Promise.resolve();
   const pending = previous
     .catch(() => {})
     .then(async () => {
-      const wait = (nextRequest.get(host) ?? 0) - Date.now();
-      if (wait > 1000) throw new PublisherDocumentError('PUBLISHER_RETRY_AFTER', wait);
+      const durableWait = cooldown ? await cooldown.remaining(host) : 0;
+      const wait = Math.max((nextRequest.get(host) ?? 0) - Date.now(), durableWait);
+      if (wait > 1000) throw new PublisherDocumentError('PUBLISHER_COOLDOWN_ACTIVE', wait, host);
       if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
       nextRequest.set(host, Date.now() + 1000);
-      return run();
     });
   queues.set(host, pending);
   try {
@@ -116,6 +172,7 @@ export async function fetchStatePublisherDocument(
   state: string,
   billId: number,
   stub: StateDocumentStub,
+  cooldown?: PublisherCooldown,
 ): Promise<LegiscanDocument> {
   if (
     !validDocumentIdentity(stub) ||
@@ -134,13 +191,38 @@ export async function fetchStatePublisherDocument(
   if (url.hash) throw new PublisherDocumentError('PUBLISHER_HISTORICAL_URL_UNQUALIFIED');
   if (url.protocol === 'http:') url.protocol = 'https:';
   publisherDestination(state, url);
-  return withGuardedWebResponse(
+  const deadlineAt = Date.now() + 30000;
+  let pendingCooldownHost: string | undefined;
+  async function checkState<T>(host: string, operation: () => Promise<T>): Promise<T> {
+    pendingCooldownHost = host;
+    const result = await operation();
+    // The outer transport deadline may win while the database promise settles.
+    // Retain that provenance instead of allowing an API fallback on a timeout.
+    if (Date.now() < deadlineAt) pendingCooldownHost = undefined;
+    return result;
+  }
+  const durable = cooldown
+    ? {
+        remaining: (host: string) => checkState(host, () => cooldown.remaining(host)),
+        hold: (host: string, delay: number, status: number) =>
+          checkState(host, () => cooldown.hold(host, delay, status)),
+      }
+    : undefined;
+  return withGuardedWebResponse<LegiscanDocument>(
     url.href,
     async (response, finalUrl, scope) => {
       if (response.status === 429 || response.status === 503) {
         const delay = publisherRetryDelay(response.headers.get('retry-after'));
-        nextRequest.set(new URL(finalUrl).hostname, Date.now() + delay);
-        throw new PublisherDocumentError('PUBLISHER_RETRY_AFTER', delay);
+        const host = new URL(finalUrl).hostname;
+        nextRequest.set(host, Math.max(nextRequest.get(host) ?? 0, Date.now() + delay));
+        const retainedDelay = durable ? await durable.hold(host, delay, response.status) : delay;
+        nextRequest.set(host, Math.max(nextRequest.get(host) ?? 0, Date.now() + retainedDelay));
+        throw new PublisherDocumentError(
+          'PUBLISHER_RETRY_AFTER',
+          retainedDelay,
+          host,
+          response.status,
+        );
       }
       if (!response.ok) throw new PublisherDocumentError('PUBLISHER_HTTP_' + response.status);
       const mime = response.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase();
@@ -175,7 +257,11 @@ export async function fetchStatePublisherDocument(
         Accept: stub.mime!,
       },
       validateDestination: (destination) => publisherDestination(state, destination),
-      beforeRequest: (destination) => paced(destination.hostname, async () => {}),
+      beforeRequest: (destination) => paced(destination.hostname, durable),
     },
-  );
+  ).catch((error: unknown) => {
+    if (pendingCooldownHost && !(error instanceof PublisherDocumentError))
+      throw new PublisherDocumentError('PUBLISHER_COOLDOWN_STATE_FAILED', 0, pendingCooldownHost);
+    throw error;
+  });
 }

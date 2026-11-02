@@ -12,6 +12,9 @@ jest.mock('../src/ingestion/state-document-retrieval.js', () => ({
     constructor(
       message: string,
       public retryAfterMs = 3600000,
+      public publisherFailure?: string,
+      public publisherHost?: string,
+      public publisherHttpStatus?: number,
     ) {
       super(message);
     }
@@ -128,6 +131,71 @@ test('partial structure is retained but never credited as complete', async () =>
   const result = await drainStateDocuments(prisma, options);
   expect(result.complete).toBe(false);
   expect(prisma.$executeRaw.mock.calls.at(-1).slice(1)).toContain('DOCUMENT_EXTRACTION_PARTIAL');
+});
+
+test.each(['PUBLISHER_RETRY_AFTER', 'PUBLISHER_COOLDOWN_ACTIVE'])(
+  '%s stops the batch without consuming any document failure counter',
+  async (code) => {
+    const prisma = database();
+    prisma.$queryRawUnsafe.mockImplementation(async (sql: string) =>
+      sql.includes("[0-9]+$'")
+        ? []
+        : [
+            { ...row, attempts: 9 },
+            { ...row, billKey: 'untouched', attempts: 9 },
+          ],
+    );
+    (retrieveStateDocument as jest.Mock).mockRejectedValue(
+      new StateDocumentRetrievalError(
+        code,
+        120000,
+        code,
+        'www.flsenate.gov',
+        code === 'PUBLISHER_RETRY_AFTER' ? 429 : undefined,
+      ),
+    );
+    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      const result = await drainStateDocuments(prisma, { ...options, limit: 100 });
+      expect(result).toMatchObject({
+        errors: 0,
+        skipped: 1,
+        complete: false,
+        incompleteReason: code,
+      });
+      expect(retrieveStateDocument).toHaveBeenCalledTimes(1);
+      expect(persistDocumentEvidence).not.toHaveBeenCalled();
+      expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
+      const update = prisma.$executeRaw.mock.calls[0];
+      expect(update[0].join('')).toContain("state='pending'");
+      expect(update[0].join('')).not.toContain('attempts=');
+      expect(update[0].join('')).toContain('ELSE attempted_at END');
+      expect(update[1]).toBe(code);
+      expect(update[2]).toBe(code === 'PUBLISHER_RETRY_AFTER');
+      expect(update[3]).toBe(3 * 3600000);
+      expect(JSON.parse(log.mock.calls[0]![0])).toMatchObject({
+        event: 'PUBLISHER_BACKOFF',
+        complete: false,
+        host: 'www.flsenate.gov',
+        requestAttempted: code === 'PUBLISHER_RETRY_AFTER',
+        retryAfterMs: 3 * 3600000,
+      });
+    } finally {
+      log.mockRestore();
+    }
+  },
+);
+
+test('an unreadable durable cooldown aborts before any document state mutation', async () => {
+  const prisma = database();
+  (retrieveStateDocument as jest.Mock).mockRejectedValue(
+    new StateDocumentRetrievalError('PUBLISHER_COOLDOWN_STATE_FAILED'),
+  );
+  await expect(drainStateDocuments(prisma, options)).rejects.toThrow(
+    'PUBLISHER_COOLDOWN_STATE_FAILED',
+  );
+  expect(persistDocumentEvidence).not.toHaveBeenCalled();
+  expect(prisma.$executeRaw).not.toHaveBeenCalled();
 });
 test('separate exact hashes do not let an unavailable old version starve a newer one at cap one', async () => {
   const prisma = database();

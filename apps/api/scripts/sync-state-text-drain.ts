@@ -6,7 +6,7 @@ import { PrismaClient } from '@prisma/client';
 import { ALL_US_STATE_CODES } from '../src/external/legiscan/us-states.js';
 import { STATE_FY26_SQL } from '../src/ingestion/bill-text-scope.js';
 import { withStateBillWriter } from '../src/ingestion/state-bill-writer.js';
-import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
+import { runWithSyncRun, type RunCounts } from '../src/ingestion/sync-run.helper.js';
 import {
   retrieveStateDocument,
   StateDocumentRetrievalError,
@@ -110,7 +110,7 @@ export async function drainStateDocuments(
     options.states,
     options.limit,
   );
-  const counts = { inserted: 0, updated: 0, skipped: 0, errors: 0, complete: false };
+  const counts: RunCounts = { inserted: 0, updated: 0, skipped: 0, errors: 0, complete: false };
   if (!options.commit) return { ...counts, skipped: due.length };
   let attempted = 0;
   for (const row of due) {
@@ -133,6 +133,7 @@ export async function drainStateDocuments(
       failure = '',
       retryAfter = 3 * 3600_000,
       failed = false;
+    let backoff: { host?: string; httpStatus?: number; requestAttempted: boolean } | undefined;
     for (const stub of stubs) {
       const retained = await prisma.$queryRaw<
         Array<{ id: string; evidence: any; complete: boolean }>
@@ -199,7 +200,17 @@ export async function drainStateDocuments(
         allComplete = false;
         if (error instanceof StateDocumentRetrievalError) {
           failure = error.message;
+          if (failure === 'PUBLISHER_COOLDOWN_STATE_FAILED') throw error;
           retryAfter = Math.max(retryAfter, error.retryAfterMs);
+          if (['PUBLISHER_RETRY_AFTER', 'PUBLISHER_COOLDOWN_ACTIVE'].includes(failure)) {
+            backoff = {
+              host: error.publisherHost,
+              httpStatus: error.publisherHttpStatus,
+              requestAttempted: failure === 'PUBLISHER_RETRY_AFTER',
+            };
+            counts.skipped++;
+            break;
+          }
           failed = !['EXISTING_PROVIDER_BUDGET_HOLD', 'EXISTING_PROVIDER_CAPACITY_HOLD'].includes(
             failure,
           );
@@ -210,6 +221,26 @@ export async function drainStateDocuments(
         if (failed) counts.errors++;
         else counts.skipped++;
       }
+    }
+    if (backoff) {
+      // Host capacity is not a failed document. Only an actual HTTP response
+      // records attempted_at; neither backoff path consumes the review counter.
+      await prisma.$executeRaw`UPDATE state_bill_record_check SET state='pending',error_code=${failure},
+        attempted_at=CASE WHEN ${backoff.requestAttempted} THEN clock_timestamp() ELSE attempted_at END,
+        next_check_at=clock_timestamp()+${retryAfter}*interval '1 millisecond'
+        WHERE bill_key=${row.billKey} AND kind='document' AND source_identity=${row.identity}`;
+      counts.incompleteReason = failure;
+      counts.stats = { publisherBackoff: { ...backoff, retryAfterMs: retryAfter } };
+      console.log(
+        JSON.stringify({
+          event: 'PUBLISHER_BACKOFF',
+          reason: failure,
+          complete: false,
+          ...backoff,
+          retryAfterMs: retryAfter,
+        }),
+      );
+      return counts;
     }
     if (allComplete) {
       await prisma.$executeRaw`UPDATE state_bill_record_check SET state='available',checked_at=clock_timestamp(),error_code=NULL,

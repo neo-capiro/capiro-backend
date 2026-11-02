@@ -3,6 +3,7 @@ import {
   fetchStatePublisherDocument,
   publisherDestination,
   publisherRetryDelay,
+  publisherCooldown,
 } from './state-publisher-document.js';
 import { withGuardedWebResponse, readBodyWithSizeLimit } from '../meri/hardenedWebTransport.js';
 jest.mock('../meri/hardenedWebTransport.js', () => ({
@@ -120,7 +121,115 @@ test('Retry-After dates and malformed values remain bounded', () => {
   expect(publisherRetryDelay('Thu, 01 Jan 1970 00:02:00 GMT', 0)).toBe(120000);
   expect(publisherRetryDelay('invalid')).toBe(60000);
   expect(publisherRetryDelay('999999999')).toBe(86400000);
+  expect(publisherRetryDelay('0')).toBe(1000);
+  expect(publisherRetryDelay(null)).toBe(60000);
 });
+
+test.each([429, 503])(
+  'persists an actual HTTP %s host hold before returning explicit backoff',
+  async (status) => {
+    response = new Response('', { status, headers: { 'retry-after': '120' } });
+    const cooldown = { remaining: jest.fn(async () => 0), hold: jest.fn(async () => 180000) };
+    await expect(fetchStatePublisherDocument('FL', 11, stub, cooldown)).rejects.toMatchObject({
+      message: 'PUBLISHER_RETRY_AFTER',
+      retryAfterMs: 180000,
+      host: 'www.flsenate.gov',
+      httpStatus: status,
+    });
+    expect(cooldown.hold).toHaveBeenCalledWith('www.flsenate.gov', 120000, status);
+    expect(readBodyWithSizeLimit).not.toHaveBeenCalled();
+  },
+);
+
+test('a durable hold suppresses a fresh host before a response and another host remains independent', async () => {
+  const consume = jest.fn();
+  (withGuardedWebResponse as jest.Mock).mockImplementation(async (url, callback, options) => {
+    const destination = new URL(url);
+    options.validateDestination(destination);
+    await options.beforeRequest(destination);
+    consume();
+    return callback(response, url, {});
+  });
+  const cooldown = {
+    remaining: jest.fn(async (host: string) => (host === 'www.flhouse.gov' ? 120000 : 0)),
+    hold: jest.fn(async () => 0),
+  };
+  await expect(
+    fetchStatePublisherDocument(
+      'FL',
+      11,
+      { ...stub, stateUrl: 'https://www.flhouse.gov/file.pdf' },
+      cooldown,
+    ),
+  ).rejects.toMatchObject({
+    message: 'PUBLISHER_COOLDOWN_ACTIVE',
+    retryAfterMs: 120000,
+    host: 'www.flhouse.gov',
+  });
+  expect(consume).not.toHaveBeenCalled();
+  expect(cooldown.hold).not.toHaveBeenCalled();
+  await expect(
+    fetchStatePublisherDocument(
+      'AR',
+      11,
+      { ...stub, stateUrl: 'https://www.arkleg.state.ar.us/file.pdf' },
+      cooldown,
+    ),
+  ).resolves.toMatchObject({ doc_id: 23 });
+  expect(consume).toHaveBeenCalledTimes(1);
+});
+
+test('checkpoint failures fail closed with a distinct operational error', async () => {
+  const db: any = {
+    $queryRawUnsafe: jest.fn(async () => {
+      throw Error('synthetic database failure');
+    }),
+  };
+  const cooldown = publisherCooldown(db);
+  await expect(cooldown.remaining('www.flsenate.gov')).rejects.toThrow(
+    'PUBLISHER_COOLDOWN_STATE_FAILED',
+  );
+  await expect(cooldown.hold('www.flsenate.gov', 60000, 429)).rejects.toThrow(
+    'PUBLISHER_COOLDOWN_STATE_FAILED',
+  );
+});
+
+test.each(['read', 'hold'])(
+  'a transport deadline during durable cooldown %s cannot become a provider fallback',
+  async (stage) => {
+    let settle!: (remaining: number) => void;
+    const pendingState = new Promise<number>((resolve) => {
+      settle = resolve;
+    });
+    const never = () => pendingState;
+    const cooldown = { remaining: stage === 'read' ? never : async () => 0, hold: never };
+    response = new Response('', { status: 503, headers: { 'retry-after': '120' } });
+    (withGuardedWebResponse as jest.Mock).mockImplementation(async (url, consume, options) => {
+      const pending =
+        stage === 'read' ? options.beforeRequest(new URL(url)) : consume(response, url, {});
+      void pending.catch(() => {});
+      await Promise.resolve();
+      await Promise.resolve();
+      throw Error('synthetic transport deadline');
+    });
+    try {
+      await expect(
+        fetchStatePublisherDocument(
+          'FL',
+          11,
+          { ...stub, stateUrl: 'https://www.flhouse.gov/file.pdf' },
+          cooldown,
+        ),
+      ).rejects.toMatchObject({
+        message: 'PUBLISHER_COOLDOWN_STATE_FAILED',
+        host: 'www.flhouse.gov',
+      });
+    } finally {
+      settle(0);
+      await pendingState;
+    }
+  },
+);
 
 test('successive request starts to the same publisher are paced at least one second apart', async () => {
   jest.useFakeTimers();

@@ -7,7 +7,11 @@ import {
 import { reservedLegiscanQuery } from './legiscan-query-reservation.js';
 import { withLegiscanApiAllowed } from './legiscan-provider-capacity.js';
 import { LegiscanProviderCapacityError } from '../external/legiscan/legiscan-capacity.js';
-import { fetchStatePublisherDocument, PublisherDocumentError } from './state-publisher-document.js';
+import {
+  fetchStatePublisherDocument,
+  PublisherDocumentError,
+  publisherCooldown,
+} from './state-publisher-document.js';
 import { validDocumentIdentity, type StateDocumentStub } from './state-document-stub.js';
 
 export interface StateDocumentRequest {
@@ -24,6 +28,8 @@ export class StateDocumentRetrievalError extends Error {
     code: string,
     readonly retryAfterMs = 3 * 3600_000,
     readonly publisherFailure?: string,
+    readonly publisherHost?: string,
+    readonly publisherHttpStatus?: number,
   ) {
     super(code);
   }
@@ -58,12 +64,27 @@ export async function retrieveStateDocument(prisma: PrismaClient, request: State
       request.state,
       request.providerBillId,
       request.stub,
+      publisherCooldown(prisma),
     );
     return { document, apiAttempts: 0, acquisition: 'publisher' as const };
   } catch (error) {
     if (error instanceof PublisherDocumentError) {
       publisherFailure = error.message;
       retryAfterMs = Math.max(retryAfterMs, error.retryAfterMs);
+      if (
+        [
+          'PUBLISHER_RETRY_AFTER',
+          'PUBLISHER_COOLDOWN_ACTIVE',
+          'PUBLISHER_COOLDOWN_STATE_FAILED',
+        ].includes(publisherFailure)
+      )
+        throw new StateDocumentRetrievalError(
+          publisherFailure,
+          retryAfterMs,
+          publisherFailure,
+          error.host,
+          error.httpStatus,
+        );
     } else publisherFailure = 'PUBLISHER_TRANSPORT_FAILED';
   }
   if (request.publisherOnly || !request.apiKey)
