@@ -81,8 +81,7 @@ describe('Tango funding catalog opportunity identity', () => {
     expect(h.snapshots.find(s => s.externalId === 'family-gamma').sourceUrl ?? null).toBeNull();
     expect(h.prisma.samOpportunity.update).toHaveBeenCalledTimes(1);
     expect(d.checkpoint).toHaveBeenCalledTimes(1);
-    expect(d.checkpoint.mock.calls[0][0]).toBeNull();
-    expect(d.checkpoint.mock.calls[0][3]).toBe(2);
+    expect(d.checkpoint).toHaveBeenCalledWith(null, expect.any(Date), expect.any(Date), 2);
   });
 
   test('a SAM URL alone still resolves the canonical notice', async () => {
