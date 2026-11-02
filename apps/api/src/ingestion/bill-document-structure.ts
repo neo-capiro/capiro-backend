@@ -314,13 +314,15 @@ export function structureText(
     body = '';
   };
   for (const line of raw.replace(/\r\n?/g, '\n').split('\n')) {
-    const section = /^\s*(?:SEC(?:TION)?\.?|§)\s*([0-9]+[A-Za-z0-9.-]*)[.\s]+(.*)$/i.exec(line);
+    // A complete number token must end the line or precede whitespace. Treating a
+    // decimal dot as the delimiter backtracks "section 381.028, ..." into a fake 381 heading.
+    const section = /^\s*(?:SEC(?:TION)?\.?|§)\s*([0-9]+[A-Za-z0-9.-]*)(?:\s+(.*))?$/i.exec(line);
     const subsection = /^\s*\(([A-Za-z0-9]{1,4})\)\s+(.+)$/.exec(line);
     if (section) {
       flush();
       context = {
         number: section[1]!.replace(/\.$/, ''),
-        heading: section[2]!.trim() || null,
+        heading: section[2]?.trim() || null,
         path: [section[1]!.replace(/\.$/, '')],
         sourceLocator,
       };
@@ -345,6 +347,104 @@ export function structureText(
   }
   flush();
   return finish(drafts);
+}
+
+type PdfCell = { x: number; right: number; y: number; text: string };
+
+/** These publisher frames and the isolated, right-aligned gutter are jointly required.
+ * A sequence of numbers by itself is also a perfectly valid data table. */
+function floridaNumberedPage(
+  lines: PdfCell[][],
+): { furniture: Set<PdfCell[]>; labels: PdfCell[][] } | null {
+  const lineText = (line: PdfCell[]) =>
+    line
+      .map((cell) => cell.text)
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  const banner = lines.find(
+    (line) => lineText(line).replace(/\s/g, '') === 'FLORIDAHOUSEOFREPRESENTATIVES',
+  );
+  const amendment = lines.find((line) => /^HOUSE AMENDMENT$/.test(lineText(line)));
+  const billHeader = lines.find((line) =>
+    banner
+      ? /^(?:CS\/)*(?:HB|HJR|HCR|HR|HM)\s+\d+\s+\d{4}$/.test(lineText(line))
+      : /^Bill No\.\s+(?:CS\/)*(?:HB|HJR|HCR|HR|HM)\s+\d+\s+\(\d{4}\)$/.test(lineText(line)),
+  );
+  const pageFooter = lines.find((line) => /^Page \d+ of \d+$/.test(lineText(line)));
+  const coding = lines.find((line) =>
+    /^CODING: Words stricken are deletions; words underlined are additions\.$/.test(lineText(line)),
+  );
+  const approved = lines.find((line) =>
+    /^Approved For Filing:\s+\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}:\d{2}\s+[AP]M$/.test(
+      lineText(line),
+    ),
+  );
+  const top = banner ?? amendment;
+  if (
+    !top ||
+    !billHeader ||
+    !pageFooter ||
+    !(banner ? coding : approved) ||
+    (banner && coding![0]!.y >= pageFooter[0]!.y) ||
+    (!banner && approved![0]!.y <= pageFooter[0]!.y) ||
+    top[0]!.y <= billHeader[0]!.y ||
+    billHeader[0]!.y <= pageFooter[0]!.y
+  )
+    return null;
+  const body = lines.filter(
+    (line) => line[0]!.y < billHeader[0]!.y && line[0]!.y > pageFooter[0]!.y,
+  );
+  const labels = body.filter((line) => {
+    const label = line[0]!;
+    return (
+      /^\d{1,5}$/.test(label.text.trim()) &&
+      label.x >= 0 &&
+      label.right > label.x &&
+      label.right >= 30 &&
+      label.right <= 65 &&
+      (line.length === 1 || line[1]!.x - label.right >= 12)
+    );
+  });
+  if (labels.length < 4 || (!banner && approved![0]!.y >= labels.at(-1)![0]!.y)) return null;
+  const numberedBody = body.filter(
+    (line) => line[0]!.y <= labels[0]![0]!.y && line[0]!.y >= labels.at(-1)![0]!.y,
+  );
+  const step = labels[0]![0]!.y - labels[1]![0]!.y;
+  if (
+    labels.length < numberedBody.length * 0.8 ||
+    step < 14 ||
+    step > 28 ||
+    !labels.every(
+      (line, index) =>
+        Math.abs(line[0]!.right - labels[0]![0]!.right) <= 2 &&
+        (index === 0 ||
+          (Number(line[0]!.text) === Number(labels[index - 1]![0]!.text) + 1 &&
+            Math.abs(labels[index - 1]![0]!.y - line[0]!.y - step) <= 3)),
+    )
+  )
+    return null;
+  // Only exact, geometrically separated frame text is removed. Preambles/chamber
+  // action blocks and all table cells within the numbered body remain evidence.
+  const furniture = new Set([top, billHeader, pageFooter]);
+  if (banner && coding && coding[0]!.y < pageFooter[0]!.y) furniture.add(coding);
+  if (!banner && approved && approved[0]!.y < labels.at(-1)![0]!.y) furniture.add(approved);
+  for (const line of lines) {
+    const value = lineText(line),
+      y = line[0]!.y;
+    if (banner && y < pageFooter[0]!.y && /^(?:hb|hjr|hcr|hr|hm)\d+-\d+$/i.test(value))
+      furniture.add(line);
+    if (
+      !banner &&
+      y > labels[0]![0]!.y &&
+      y < billHeader[0]!.y &&
+      /^Amendment No\.\s*\d*$/.test(value)
+    )
+      furniture.add(line);
+    if (!banner && y < labels.at(-1)![0]!.y && y > approved![0]!.y && /^\d{6}$/.test(value))
+      furniture.add(line);
+  }
+  return { furniture, labels };
 }
 
 /** Native PDF geometry identifies rows and stable column boundaries without inferring missing cells. */
@@ -378,20 +478,28 @@ export function structurePdfPage(
     else rows.push({ y, items: [item] });
   }
   rows.sort((a, b) => b.y - a.y);
-  const lines = rows.map((row) => {
+  let lines = rows.map((row) => {
     row.items.sort((a, b) => a.transform![4]! - b.transform![4]!);
-    const cells: Array<{ x: number; text: string }> = [];
+    const cells: PdfCell[] = [];
     let previousEnd = -Infinity;
     for (const item of row.items) {
       const x = item.transform![4]!;
       const gap = x - previousEnd;
       if (!cells.length || gap > Math.max(12, (item.height ?? 10) * 1.5))
-        cells.push({ x, text: item.str! });
-      else cells.at(-1)!.text += (gap > 1 ? ' ' : '') + item.str!;
+        cells.push({ x, right: x + (item.width ?? 0), y: row.y, text: item.str! });
+      else {
+        cells.at(-1)!.text += (gap > 1 ? ' ' : '') + item.str!;
+        cells.at(-1)!.right = Math.max(cells.at(-1)!.right, x + (item.width ?? 0));
+      }
       previousEnd = x + (item.width ?? 0);
     }
     return cells;
   });
+  const florida = floridaNumberedPage(lines);
+  if (florida) {
+    for (const line of florida.labels) line.shift();
+    lines = lines.filter((line) => !florida.furniture.has(line));
+  }
   // Numbered bill PDFs print a narrow sequential margin before the legal text.
   // Remove only a run of at least four short consecutive line labels, never years/amount columns.
   const numbered = lines.filter(
@@ -403,6 +511,7 @@ export function structurePdfPage(
   );
   const layoutWarnings: string[] = [];
   if (
+    !florida &&
     numbered.length >= 4 &&
     numbered.length >= lines.length * 0.6 &&
     numbered.every(
