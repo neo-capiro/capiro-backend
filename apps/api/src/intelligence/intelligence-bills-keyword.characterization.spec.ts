@@ -85,7 +85,9 @@ function assertKeywordIo(h: ReturnType<typeof harness>, method: string) {
   const rows = h.callsOf('keywordRows')[0]!;
   // One alternation regex: policy areas and subject names are matched per distinct value.
   const anyWord = '(?:\\m defense \\M)|(?:\\mc\\+\\+\\M)';
-  const values = [[' defense ', 'c++'], anyWord, anyWord, [' defense ', 'c++'], anyWord];
+  // Titles are prefiltered by a plain substring test on the same lowercased terms.
+  const substrings = ['% defense %', '%c++%'];
+  const values = [[' defense ', 'c++'], anyWord, substrings, anyWord, [' defense ', 'c++'], anyWord];
   expect(count.query!.values).toEqual(values);
   expect(rows.query!.values).toEqual(values);
   expect(compactSql(count.query!.sql)).toContain('SELECT COUNT(*)::bigint AS total FROM (');

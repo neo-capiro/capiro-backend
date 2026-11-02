@@ -1,10 +1,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
-import {
-  matchingBillIdsSql,
-  toWordBoundaryPattern,
-} from '../intelligence/bill-keyword-match.helpers.js';
+import { matchingBillIdsSql } from '../intelligence/bill-keyword-match.helpers.js';
 import { IntelligenceService } from '../intelligence/intelligence.service.js';
 import { clientIntelligenceReads } from '../intelligence/client-read-cache.js';
 import { issueAreaForSector, normalizeIssueArea, readTrackerMaterialChanges, TrackerMetricsError, type TenantContext } from '@capiro/shared';
@@ -836,11 +833,10 @@ export class TrackerService {
   private async keywordCandidateIds(terms: string[], congress: number): Promise<string[]> {
     const lower = terms.map((t) => t.toLowerCase()).filter((t) => t.length >= MIN_TERM_LEN);
     if (!lower.length) return [];
-    const patterns = lower.map(toWordBoundaryPattern);
     // Shared matcher (see bill-keyword-match.helpers.ts). includePolicyRegex is false
     // to preserve this query's original clause set (it never matched a policy_area
     // regex, only policy_area equality).
-    const matchingIds = matchingBillIdsSql(lower, patterns, {
+    const matchingIds = matchingBillIdsSql(lower, {
       congress,
       includePolicyRegex: false,
     });
