@@ -3,6 +3,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { replaceCongressBillClassificationsAtomically } from './congress-classifications.js';
 import { FEDERAL_FY26_SQL } from './bill-text-scope.js';
 import { withFederalBillWriter } from './federal-bill-writer.js';
+import { persistFederalBulkParent } from './federal-bulk-parent.js';
 import {
   federalDate,
   federalHash,
@@ -59,6 +60,7 @@ export function federalInventoryManifest(input: {
   versions: FederalTextVersion[];
   amendmentId?: string;
   exactDuplicateProof?: FederalExactDuplicateProof;
+  reusedReceiptId?: string;
 }) {
   const replay =
     input.exactDuplicateProof === undefined
@@ -100,6 +102,7 @@ export async function stageFederalAmendmentList(
   hash: string,
   congress: number,
   expectedCount: number,
+  pageHashes?: string[],
 ) {
   if (bytes.length > 10_000_000 || !/^[a-f0-9]{64}$/.test(hash) || federalHash(bytes) !== hash)
     throw Error('FEDERAL_AMENDMENT_LIST_HASH_MISMATCH');
@@ -107,6 +110,14 @@ export async function stageFederalAmendmentList(
   if (!Array.isArray(list) || list.length !== expectedCount)
     throw Error('FEDERAL_AMENDMENT_LIST_COUNT_MISMATCH');
   const ids = list.map((value) => federalIdentity(value, true)).sort();
+  if (
+    pageHashes &&
+    (!pageHashes.length ||
+      pageHashes.length > 400 ||
+      pageHashes.some((h) => !/^[a-f0-9]{64}$/.test(h)) ||
+      list.some((value) => !federalDate((value as { updateDate: string }).updateDate)))
+  )
+    throw Error('FEDERAL_AMENDMENT_LIST_FRESHNESS_INVALID');
   if (ids.some((id) => !id.startsWith(`${congress}-`)) || new Set(ids).size !== ids.length)
     throw Error('FEDERAL_AMENDMENT_LIST_IDENTITY_MISMATCH');
   return db.$transaction(async (tx) => {
@@ -125,7 +136,23 @@ export async function stageFederalAmendmentList(
       tx,
       'fy26-federal-amendment-list',
       { fiscalYear: 2026, congress, archiveHash: hash },
-      { schemaVersion: 1, ids, reportedCount: expectedCount, enumeratedCount: ids.length },
+      {
+        schemaVersion: 1,
+        ids,
+        reportedCount: expectedCount,
+        enumeratedCount: ids.length,
+        ...(pageHashes
+          ? {
+              verifiedPageHashes: pageHashes,
+              memberUpdates: Object.fromEntries(
+                list.map((v) => [
+                  federalIdentity(v, true),
+                  (v as { updateDate: string }).updateDate,
+                ]),
+              ),
+            }
+          : {}),
+      },
       true,
     );
   });
@@ -137,6 +164,7 @@ export async function enrichFederalBulkMetadata(
   bill: FederalBulkBill,
   archiveHash: string,
   acquisitionSource: 'govinfo-billstatus' | 'congress-api' = 'govinfo-billstatus',
+  refreshId?: string,
 ) {
   return db.$transaction(async (tx) => {
     const rows = await tx.$queryRawUnsafe<Array<{ updateDate: Date | null }>>(
@@ -183,11 +211,18 @@ export async function enrichFederalBulkMetadata(
     await writeFederalReceipt(
       tx,
       'fy26-federal-metadata',
-      { fiscalYear: 2026, congress: Number(bill.id.split('-')[0]), billId: bill.id, archiveHash },
+      {
+        fiscalYear: 2026,
+        congress: Number(bill.id.split('-')[0]),
+        billId: bill.id,
+        archiveHash,
+        ...(refreshId ? { refreshId } : {}),
+      },
       {
         schemaVersion: 1,
         acquisitionSource,
         providerUpdatedAt: bill.metadataUpdatedAt,
+        ...(bill.sourceContentHash ? { sourceContentHash: bill.sourceContentHash } : {}),
         subjectsCount: bill.subjects.length,
         cosponsorsCount: bill.cosponsors.length,
         cosponsorEpisodes: bill.cosponsorEpisodes,
@@ -210,11 +245,15 @@ export async function importFrozenFederalBillStatus(
     limit: number;
     inventoryOnly?: boolean;
     amendmentList?: { bytes: Buffer; hash: string; expectedCount: number };
+    /** Only the bounded refresh owner may admit new official FY26 parents. */
+    refresh?: boolean;
+    refreshId?: string;
+    check?: () => void;
   },
 ) {
   if (!Number.isInteger(options.limit) || options.limit < 1 || options.limit > 1000)
     throw Error('BILLSTATUS_IMPORT_LIMIT_INVALID');
-  const prepared = await inspectFrozenFederalBillStatus(archive, scope);
+  const prepared = await inspectFrozenFederalBillStatus(archive, scope, options.check);
   return withFederalBillWriter(prisma, async (db) => {
     if (options.amendmentList)
       await stageFederalAmendmentList(
@@ -230,8 +269,9 @@ export async function importFrozenFederalBillStatus(
       scope.billType,
     );
     if (
+      !options.refresh &&
       JSON.stringify(admitted.map((b) => b.id).sort()) !==
-      JSON.stringify(prepared.eligible.map((b) => b.id).sort())
+        JSON.stringify(prepared.eligible.map((b) => b.id).sort())
     )
       throw Error('BILLSTATUS_CANONICAL_ELIGIBILITY_MISMATCH');
     const receiptScope = {
@@ -268,7 +308,7 @@ export async function importFrozenFederalBillStatus(
         complete: false,
         providerCalls: 0,
       };
-    const source = `fy26-federal-billstatus:${scope.archiveHash}`;
+    const source = `${options.refresh ? 'fy26-federal-refresh-import' : 'fy26-federal-billstatus'}:${scope.archiveHash}${options.refreshId ? ':' + federalHash(options.refreshId) : ''}`;
     await db.$executeRawUnsafe(
       "INSERT INTO federal_evidence_checkpoint(source,status,cursor_jsonb) VALUES($1,'running',$2::jsonb) ON CONFLICT DO NOTHING",
       source,
@@ -287,13 +327,48 @@ export async function importFrozenFederalBillStatus(
       throw Error('BILLSTATUS_CHECKPOINT_INVALID');
     let processed = 0;
     while (cursor.offset < prepared.eligible.length && processed < options.limit) {
+      options.check?.();
       const bill = prepared.eligible[cursor.offset]!;
       const result = await db.$transaction(async (tx) => {
-        const result = await enrichFederalBulkMetadata(
-          tx as unknown as PrismaClient,
-          bill,
-          scope.archiveHash,
-        );
+        const parent = options.refresh
+          ? await persistFederalBulkParent(tx as unknown as PrismaClient, bill)
+          : null;
+        const result =
+          parent?.status === 'reused'
+            ? 'enriched'
+            : await enrichFederalBulkMetadata(
+                tx as unknown as PrismaClient,
+                bill,
+                scope.archiveHash,
+                'govinfo-billstatus',
+                options.refreshId,
+              );
+        if (parent?.status === 'reused')
+          await writeFederalReceipt(
+            tx,
+            'fy26-federal-metadata',
+            {
+              fiscalYear: 2026,
+              congress: scope.congress,
+              billId: bill.id,
+              archiveHash: scope.archiveHash,
+              ...(options.refreshId ? { refreshId: options.refreshId } : {}),
+            },
+            {
+              schemaVersion: 1,
+              acquisitionSource: 'govinfo-billstatus',
+              providerUpdatedAt: bill.metadataUpdatedAt,
+              sourceContentHash: bill.sourceContentHash,
+              subjectsChecked: true,
+              cosponsorsChecked: true,
+              subjectsCount: bill.subjects.length,
+              cosponsorsCount: bill.cosponsors.length,
+              activeCosponsorsCount: bill.cosponsors.filter((c) => !c.withdrawnDate).length,
+              cosponsorEpisodes: bill.cosponsorEpisodes,
+              reusedReceiptId: parent.reusedReceiptId,
+            },
+            true,
+          );
         await writeFederalInventory(
           tx,
           {
@@ -301,14 +376,15 @@ export async function importFrozenFederalBillStatus(
             congress: scope.congress,
             billId: bill.id,
             archiveHash: scope.archiveHash,
+            ...(options.refreshId ? { refreshId: options.refreshId } : {}),
           },
           {
             kind: 'text',
             providerDocumentId: bill.id,
-            providerUpdatedAt: bill.providerUpdatedAt,
+            providerUpdatedAt: parent?.providerUpdatedAt ?? bill.providerUpdatedAt,
             versions: bill.versions,
           },
-          bill.versions.every((v) => v.formats.length > 0),
+          parent?.status !== 'held' && bill.versions.every((v) => v.formats.length > 0),
         );
         const next = { ...cursor, offset: cursor.offset + 1, [result]: cursor[result] + 1 };
         await tx.$executeRawUnsafe(

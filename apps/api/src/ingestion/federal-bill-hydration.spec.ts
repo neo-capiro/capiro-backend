@@ -2,6 +2,7 @@ import {
   fetchFederalPublication,
   retainedFederalVersionMatches,
   hydrateFederalInventories,
+  federalHydrationPassComplete,
 } from './federal-bill-hydration';
 import * as persistence from '../program-element/federal-evidence/persistence';
 import { federalInventoryManifest } from './federal-billstatus-import';
@@ -44,6 +45,117 @@ function syntheticPdf() {
     .join('')}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
   return Buffer.from(pdf);
 }
+describe('durable refresh hydration pass', () => {
+  it('atomically saves per-version outcomes with the cursor so a successful final slice cannot erase earlier failures', async () => {
+    const second = {
+      ...version,
+      versionId: 'f'.repeat(64),
+      type: 'Modified',
+      packageId: version.packageId + '-second',
+    };
+    const receipt: any = {
+      id: 'refresh-list',
+      source: 'fy26-federal-provider-inventory',
+      scope: {
+        fiscalYear: 2026,
+        congress: 119,
+        billId: '119-hr-1',
+        inventoryHash: 'generation',
+        refreshId: 'cycle',
+      },
+      complete: true,
+      observedAt: new Date(),
+      manifest: federalInventoryManifest({
+        kind: 'amendment',
+        providerDocumentId: '119-samdt-1',
+        providerUpdatedAt: '2026-01-01',
+        versions: [version, second],
+      }),
+    };
+    const generation: any = {
+      congress: 119,
+      inventoryHash: 'generation',
+      refreshId: 'cycle',
+      archiveHashes: ['archive'],
+      billIds: ['119-hr-1'],
+      billArchives: new Map([['119-hr-1', 'archive']]),
+      amendments: [{ id: '119-samdt-1', billId: '119-hr-1' }],
+    };
+    let cursor: any = { offset: 0 };
+    const db: any = {
+      $executeRawUnsafe: jest.fn(async (sql: string, ...args: any[]) => {
+        if (sql.includes('SET cursor_jsonb')) cursor = JSON.parse(args[1]);
+        return 1;
+      }),
+      $queryRawUnsafe: jest.fn(async (sql: string, ...args: any[]) =>
+        sql.includes("WHERE source='fy26-federal-provider-inventory'")
+          ? [receipt]
+          : sql.includes('cursor_jsonb AS cursor')
+            ? [{ cursor }]
+            : sql.includes('SELECT id FROM legal_source_receipt')
+              ? [{ id: args[0] }]
+              : [],
+      ),
+    };
+    const failed = await hydrateFederalInventories(db, generation, {
+      limit: 1,
+      beforeAttempt: async () => {},
+      sleep: async () => {},
+      fetchImpl: (async () => new Response('', { status: 404 })) as any,
+    });
+    expect(failed.pass).toMatchObject({ scanned: 1, failed: 1, unavailable: 1 });
+    expect(cursor.pass).toEqual(failed.pass);
+    const write = jest
+      .spyOn(persistence, 'persistFederalEvidenceSnapshot')
+      .mockResolvedValue({
+        sourceKey: 'source',
+        revisionId: 'revision',
+        observationInserted: true,
+        revisionInserted: true,
+        eventTypes: [],
+        pendingUnknownCodes: [],
+      });
+    const fetched = jest.fn(
+      async () =>
+        new Response(
+          '<html><body><h1>Section 1.</h1><p>Synthetic complete provision.</p></body></html>',
+          { headers: { 'content-type': 'text/html' } },
+        ),
+    );
+    const success = await hydrateFederalInventories(db, generation, {
+      limit: 1000,
+      beforeAttempt: async () => {},
+      fetchImpl: fetched as any,
+    });
+    expect(success).toMatchObject({
+      scanned: 1,
+      failed: 0,
+      pass: { scanned: 2, processed: 2, failed: 1, unavailable: 1 },
+    });
+    expect(fetched).toHaveBeenCalledTimes(1);
+    expect(federalHydrationPassComplete(success.pass!)).toBe(false);
+    const resumed = await hydrateFederalInventories(db, generation, {
+      limit: 1000,
+      beforeAttempt: async () => {},
+      fetchImpl: fetched as any,
+    });
+    expect(resumed.scanned).toBe(0);
+    expect(resumed.pass).toEqual(success.pass);
+    expect(fetched).toHaveBeenCalledTimes(1);
+    expect(
+      db.$executeRawUnsafe.mock.calls
+        .filter((c: any[]) => c[0].includes('SET cursor_jsonb'))
+        .every((c: any[]) => c[1].startsWith('fy26-federal-hydrate:generation:')),
+    ).toBe(true);
+    receipt.manifest.versions.push({ ...second, versionId: 'e'.repeat(64) });
+    receipt.manifest.reportedCount = 3;
+    receipt.manifest.enumeratedCount = 3;
+    await expect(
+      hydrateFederalInventories(db, generation, { limit: 1, beforeAttempt: async () => {} }),
+    ).rejects.toThrow('PASS_INVALID');
+    write.mockRestore();
+  });
+});
 const fallbackVersion = normalizeFederalVersions('119-hr-1', 'text', [
   {
     type: 'Introduced',

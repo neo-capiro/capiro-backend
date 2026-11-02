@@ -13,6 +13,8 @@ import { publisherCooldown } from './state-publisher-document.js';
 import { persistVoteRevision } from './legiscan-vote-revisions.js';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { persistFederalBulkParent } from './federal-bulk-parent.js';
+import { parseFederalBillStatusXml } from './federal-billstatus.js';
 import {
   replaceCongressBillActionsAtomically,
   type NormalizedCongressAction,
@@ -520,6 +522,68 @@ describe('shared state writer lease on disposable PostgreSQL', () => {
     await expect(run([first, later, failed])).rejects.toThrow('synthetic action outbox failure');
     expect(await snapshot()).toEqual(deduped);
     await db.$executeRawUnsafe('DROP TRIGGER fail_action_outbox ON federal_evidence_change_outbox');
+  });
+  it('admits refresh parents and actions atomically and holds older archives under the same federal lease', async () => {
+    // Extend only this isolated synthetic parent table with the canonical projection columns.
+    await db.$executeRawUnsafe(`ALTER TABLE congress_bill
+      ADD COLUMN congress integer, ADD COLUMN bill_type text, ADD COLUMN bill_number text,
+      ADD COLUMN introduced_date date, ADD COLUMN sponsor_name text, ADD COLUMN sponsor_state text,
+      ADD COLUMN sponsor_party text, ADD COLUMN sponsor_bioguide_id text, ADD COLUMN latest_action_text text,
+      ADD COLUMN latest_action_date date, ADD COLUMN policy_area text, ADD COLUMN origin_chamber text,
+      ADD COLUMN update_date_including_text timestamptz, ADD COLUMN pe_codes text[] DEFAULT '{}',
+      ADD COLUMN committees jsonb DEFAULT '[]', ADD COLUMN last_synced_at timestamptz DEFAULT now(),
+      ADD COLUMN url text`);
+    await db.$executeRawUnsafe('GRANT SELECT,INSERT,UPDATE ON congress_bill TO capiro_app');
+    await db.$executeRawUnsafe('GRANT SELECT ON legal_source_receipt TO capiro_app');
+    const input = parseFederalBillStatusXml(
+      `<billStatus><bill><congress>119</congress><type>HR</type><number>998</number><title>Synthetic refresh parent</title><introducedDate>2026-01-01</introducedDate><updateDate>2026-01-02T00:00:00Z</updateDate><actions><item><actionDate>2026-01-01</actionDate><text>Introduced</text></item></actions></bill></billStatus>`,
+      { congress: 119, billType: 'hr' },
+    );
+    const run = (fail = false) =>
+      withFederalBillWriter(db, (writer) =>
+        writer.$transaction(async (tx) => {
+          await tx.$executeRawUnsafe('SET LOCAL ROLE capiro_app');
+          const result = await persistFederalBulkParent(tx as unknown as PrismaClient, input);
+          if (fail) throw Error('synthetic after-refresh-parent failure');
+          return result;
+        }),
+      );
+    await expect(run(true)).rejects.toThrow('after-refresh-parent failure');
+    expect(await db.$queryRawUnsafe('SELECT id FROM congress_bill WHERE id=$1', input.id)).toEqual(
+      [],
+    );
+    expect(
+      await db.$queryRawUnsafe(
+        'SELECT bill_id FROM congress_bill_action WHERE bill_id=$1',
+        input.id,
+      ),
+    ).toEqual([]);
+    expect(await run()).toMatchObject({ status: 'written' });
+    expect(
+      await db.$queryRawUnsafe('SELECT title,url FROM congress_bill WHERE id=$1', input.id),
+    ).toEqual([
+      {
+        title: 'Synthetic refresh parent',
+        url: 'https://www.congress.gov/bill/119th-congress/house-bill/998',
+      },
+    ]);
+    expect(
+      await db.$queryRawUnsafe('SELECT text FROM congress_bill_action WHERE bill_id=$1', input.id),
+    ).toEqual([{ text: 'Introduced' }]);
+    await db.$executeRawUnsafe(
+      "UPDATE congress_bill SET title='Newer canonical title',update_date_including_text='2026-02-01' WHERE id=$1",
+      input.id,
+    );
+    expect(await run()).toMatchObject({ status: 'held' });
+    expect(
+      await db.$queryRawUnsafe('SELECT title FROM congress_bill WHERE id=$1', input.id),
+    ).toEqual([{ title: 'Newer canonical title' }]);
+    expect(
+      await db.$queryRawUnsafe(
+        "SELECT count(*)::int n FROM federal_evidence_change_outbox WHERE payload_jsonb->>'billId'=$1",
+        input.id,
+      ),
+    ).toEqual([{ n: 0 }]);
   });
   it('stages archived alternate formats with app grants, fenced rollback and no primary retry or metadata changes', async () => {
     await db.$executeRawUnsafe('ALTER TABLE state_bill ADD COLUMN report_source_facts jsonb');

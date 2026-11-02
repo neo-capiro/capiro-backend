@@ -11,10 +11,11 @@ import {
 } from '../src/ingestion/federal-bill-inventory.js';
 import { hydrateFederalInventories } from '../src/ingestion/federal-bill-hydration.js';
 import { refreshHeldFederalMetadata } from '../src/ingestion/federal-bill-metadata.js';
+import { refreshFederalBills } from '../src/ingestion/federal-bill-refresh.js';
 
 const HOST = 'capiro-newstack-preview-clone.cluster-csryw28ai752.us-east-1.rds.amazonaws.com';
 const USAGE =
-  'sync-federal-bill-inventory --congress 119 --archive-hashes HASH,...(8) --amendment-list-hash HASH --stage inventory|metadata|hydrate|finalize [--expected-amendments 7119] [--limit 1..1000] [--request-cap 1..4800] [--commit --expected-host CLONE_HOST]';
+  'sync-federal-bill-inventory --congress 119 (--stage refresh | --archive-hashes HASH,...(8) --amendment-list-hash HASH --stage inventory|metadata|hydrate|finalize [--expected-amendments 7119]) [--limit 1..1000] [--request-cap 1..4800] [--commit --expected-host CLONE_HOST]';
 export function parseFederalInventoryArgs(argv: string[], env: NodeJS.ProcessEnv) {
   let congress = 0,
     archiveHashes: string[] = [],
@@ -40,10 +41,14 @@ export function parseFederalInventoryArgs(argv: string[], env: NodeJS.ProcessEnv
   }
   if (
     congress !== 119 ||
-    archiveHashes.length !== 8 ||
-    new Set(archiveHashes).size !== 8 ||
-    [...archiveHashes, amendmentListHash].some((hash) => !/^[a-f0-9]{64}$/.test(hash)) ||
-    !['inventory', 'metadata', 'hydrate', 'finalize'].includes(stage) ||
+    (stage === 'refresh'
+      ? archiveHashes.length !== 0 ||
+        amendmentListHash !== '' ||
+        argv.includes('--expected-amendments')
+      : archiveHashes.length !== 8 ||
+        new Set(archiveHashes).size !== 8 ||
+        [...archiveHashes, amendmentListHash].some((hash) => !/^[a-f0-9]{64}$/.test(hash))) ||
+    !['inventory', 'metadata', 'hydrate', 'finalize', 'refresh'].includes(stage) ||
     !Number.isInteger(expectedAmendments) ||
     expectedAmendments < 1 ||
     expectedAmendments > 100000 ||
@@ -64,13 +69,13 @@ export function parseFederalInventoryArgs(argv: string[], env: NodeJS.ProcessEnv
     (commit && expectedHost !== HOST)
   )
     throw Error('FEDERAL_INVENTORY_DATABASE_MISMATCH');
-  if (commit && ['inventory', 'metadata'].includes(stage) && !env.CONGRESS_API_KEY)
+  if (commit && ['inventory', 'metadata', 'refresh'].includes(stage) && !env.CONGRESS_API_KEY)
     throw Error('CONGRESS_API_KEY_REQUIRED');
   return {
     congress,
     archiveHashes,
     amendmentListHash,
-    stage: stage as 'inventory' | 'metadata' | 'hydrate' | 'finalize',
+    stage: stage as 'inventory' | 'metadata' | 'hydrate' | 'finalize' | 'refresh',
     expectedAmendments,
     limit,
     requestCap,
@@ -90,6 +95,36 @@ export async function main(argv = process.argv.slice(2)) {
   const options = parseFederalInventoryArgs(argv, process.env),
     prisma = new PrismaClient();
   try {
+    if (options.stage === 'refresh') {
+      if (!options.commit) {
+        const checkpoint = await prisma.federalEvidenceCheckpoint.findUnique({
+          where: { source: 'fy26-federal-refresh:119' },
+          select: { status: true },
+        });
+        console.log(
+          'FEDERAL_BILL_INVENTORY_PREVIEW ' +
+            JSON.stringify({
+              stage: 'refresh',
+              status: checkpoint?.status ?? 'not_started',
+              providerCalls: 0,
+              mutations: 0,
+            }),
+        );
+        return;
+      }
+      const result = await withFederalBillWriter(prisma, (db) =>
+        refreshFederalBills(db, {
+          limit: options.limit,
+          requestCap: options.requestCap,
+          apiKey: process.env.CONGRESS_API_KEY!,
+        }),
+      );
+      console.log(
+        'FEDERAL_BILL_INVENTORY_RESULT ' + JSON.stringify({ stage: 'refresh', ...result }),
+      );
+      if ('error' in result && result.error) process.exitCode = 1;
+      return;
+    }
     if (!options.commit) {
       const generation = await loadFederalGeneration(
         prisma,

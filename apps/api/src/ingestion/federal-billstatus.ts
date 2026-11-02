@@ -34,6 +34,26 @@ export type FederalAmendmentBinding = {
 export type FederalBulkBill = {
   id: string;
   eligible: boolean;
+  /** Exact XML proof for unchanged-parent reuse; absent on targeted API metadata. */
+  sourceContentHash?: string;
+  parent?: {
+    title: string | null;
+    introducedDate: string | null;
+    originChamber: string | null;
+    policyArea: string | null;
+    sponsorName: string | null;
+    sponsorState: string | null;
+    sponsorParty: string | null;
+    sponsorBioguideId: string | null;
+    latestActionText: string | null;
+    latestActionDate: string | null;
+    actions: Array<{
+      date: string | null;
+      text: string | null;
+      type: string | null;
+      chamber: string | null;
+    }>;
+  };
   providerUpdatedAt: string | null;
   metadataUpdatedAt: string | null;
   subjects: string[];
@@ -356,9 +376,33 @@ export function parseFederalBillStatusXml(
       textVersionCount: count == null ? null : Number(count),
     };
   });
+  const sponsor = federalObject(list(federalObject(bill.sponsors).item)[0]);
+  const latest = federalObject(bill.latestAction);
   return {
     id,
     eligible: eligibleFY26(string(bill.introducedDate), actionDates),
+    sourceContentHash: federalHash(xml),
+    parent: {
+      title: string(bill.title),
+      introducedDate: string(bill.introducedDate),
+      originChamber: string(bill.originChamber),
+      policyArea: string(federalObject(bill.policyArea).name),
+      sponsorName: string(sponsor.fullName),
+      sponsorState: string(sponsor.state),
+      sponsorParty: string(sponsor.party),
+      sponsorBioguideId: string(sponsor.bioguideId),
+      latestActionText: string(latest.text),
+      latestActionDate: optionalDate(latest.actionDate),
+      actions: list(federalObject(bill.actions).item).map((value) => {
+        const action = federalObject(value);
+        return {
+          date: string(action.actionDate),
+          text: string(action.text) ?? string(action.actionCode) ?? string(action.type),
+          type: string(action.type),
+          chamber: string(action.chamber),
+        };
+      }),
+    },
     subjects: [...new Set(subjects)].sort(),
     cosponsors: normalizedCosponsors.current,
     cosponsorEpisodes: normalizedCosponsors.episodes,
@@ -369,7 +413,11 @@ export function parseFederalBillStatusXml(
   };
 }
 
-export async function inspectFrozenFederalBillStatus(archive: Buffer, scope: FederalBulkScope) {
+export async function inspectFrozenFederalBillStatus(
+  archive: Buffer,
+  scope: FederalBulkScope,
+  check = () => {},
+) {
   if (
     !Number.isInteger(scope.congress) ||
     scope.congress < 1 ||
@@ -389,6 +437,7 @@ export async function inspectFrozenFederalBillStatus(archive: Buffer, scope: Fed
   const bills: FederalBulkBill[] = [];
   let expanded = 0;
   for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    check();
     const original =
       (entry as typeof entry & { unsafeOriginalName?: string }).unsafeOriginalName ?? entry.name;
     if (entry.dir || original !== entry.name || !/^BILLSTATUS-\d+[a-z]+\d+\.xml$/.test(original))

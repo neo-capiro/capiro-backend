@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { isDeepStrictEqual } from 'node:util';
 import { fetchCongressJson } from './congress-http.js';
 import { FEDERAL_FY26_SQL } from './bill-text-scope.js';
 import {
@@ -21,6 +22,7 @@ import { parseFederalBillInventory } from './federal-bill-inventory-read.js';
 
 type Reader = Pick<PrismaClient, '$queryRawUnsafe'>;
 export type FederalGeneration = {
+  refreshId?: string;
   congress: number;
   inventoryHash: string;
   archiveHashes: string[];
@@ -37,6 +39,8 @@ export async function loadFederalGeneration(
   amendmentListHash: string,
   congress = 119,
   expectedAmendments = 7119,
+  requireParents = true,
+  refreshId?: string,
 ): Promise<FederalGeneration> {
   const hashes = [...new Set(archiveHashes)].sort();
   if (
@@ -116,19 +120,47 @@ export async function loadFederalGeneration(
     AND EXISTS(SELECT 1 FROM legal_dataset_archive a WHERE a.content_hash=$1)`,
     amendmentListHash,
   );
-  const proof = listRows[0];
+  const expectedIds = [...amendments.keys()].sort();
   if (
-    listRows.length !== 1 ||
-    !proof?.complete ||
-    proof.scope.congress !== congress ||
-    proof.scope.fiscalYear !== 2026 ||
-    proof.manifest.reportedCount !== expectedAmendments ||
-    proof.manifest.enumeratedCount !== expectedAmendments ||
-    JSON.stringify(proof.manifest.ids) !== JSON.stringify([...amendments.keys()].sort())
+    !listRows.length ||
+    listRows.some(
+      (row) =>
+        !row.complete ||
+        row.scope.congress !== congress ||
+        row.scope.fiscalYear !== 2026 ||
+        row.scope.archiveHash !== amendmentListHash ||
+        row.manifest.schemaVersion !== 1 ||
+        row.manifest.reportedCount !== expectedAmendments ||
+        row.manifest.enumeratedCount !== expectedAmendments ||
+        JSON.stringify(row.manifest.ids) !== JSON.stringify(expectedIds),
+    )
   )
     throw Error('FEDERAL_AMENDMENT_EXACT_ENUMERATION_MISMATCH');
+  // Identical retained list bytes can have several immutable proofs when valid page
+  // boundaries change. Prefer a timestamp-bearing proof; a legacy proof must never
+  // bypass freshness, and conflicting freshness proofs are not equivalent.
+  const freshProofs = listRows.filter((row) => row.manifest.memberUpdates !== undefined);
+  const proof = [...(freshProofs.length ? freshProofs : listRows)].sort((a, b) =>
+    a.id.localeCompare(b.id),
+  )[0]!;
+  if (
+    freshProofs.some(
+      (row) =>
+        !isDeepStrictEqual(row.manifest.memberUpdates, proof.manifest.memberUpdates) ||
+        JSON.stringify(Object.keys(federalObject(row.manifest.memberUpdates)).sort()) !==
+          JSON.stringify(expectedIds),
+    )
+  )
+    throw Error('FEDERAL_AMENDMENT_SOURCE_MOVED');
   // Every nested amendment must terminate at the same direct bill; unknown/cycles are never exclusions.
   for (const binding of amendments.values()) {
+    if (
+      proof.manifest.memberUpdates &&
+      (!binding.providerUpdatedAt ||
+        new Date(proof.manifest.memberUpdates[binding.id]).getTime() !==
+          new Date(binding.providerUpdatedAt).getTime())
+    )
+      throw Error('FEDERAL_AMENDMENT_SOURCE_MOVED');
     const visited = new Set<string>([binding.id]);
     let parent = binding.amendedAmendmentId;
     while (parent) {
@@ -140,13 +172,18 @@ export async function loadFederalGeneration(
     }
   }
   const billIds = [...billArchives.keys()].sort();
-  const admitted = await db.$queryRawUnsafe<Array<{ id: string }>>(
-    `SELECT b.id FROM congress_bill b WHERE b.congress=$1 AND ${FEDERAL_FY26_SQL} ORDER BY b.id`,
-    congress,
-  );
-  if (JSON.stringify(admitted.map((b) => b.id).sort()) !== JSON.stringify(billIds))
+  const admitted = requireParents
+    ? await db.$queryRawUnsafe<Array<{ id: string }>>(
+        `SELECT b.id FROM congress_bill b WHERE b.congress=$1 AND ${FEDERAL_FY26_SQL} ORDER BY b.id`,
+        congress,
+      )
+    : [];
+  // A completed older generation remains usable when daily sync admits newer parents.
+  const admittedIds = new Set(admitted.map((b) => b.id));
+  if (requireParents && billIds.some((id) => !admittedIds.has(id)))
     throw Error('FEDERAL_GENERATION_CANONICAL_ADMISSION_MISMATCH');
   return {
+    ...(refreshId ? { refreshId } : {}),
     congress,
     inventoryHash: federalHash(JSON.stringify([congress, hashes, amendmentListHash])),
     archiveHashes: hashes,
@@ -264,6 +301,7 @@ export function selectFederalInventories(
   for (const receipt of receipts) {
     const m = federalObject(receipt.manifest),
       scope = federalObject(receipt.scope);
+    if (generation.refreshId && scope.refreshId !== generation.refreshId) continue;
     if (!generation.billArchives.has(scope.billId) || !['text', 'amendment'].includes(m.kind))
       continue;
     if (
@@ -284,7 +322,16 @@ export function selectFederalInventories(
 export async function enumerateFederalInventories(
   db: PrismaClient,
   generation: FederalGeneration,
-  options: { limit: number; apiKey: string; fetchJson: FederalJsonFetch },
+  options: {
+    limit: number;
+    apiKey: string;
+    fetchJson: FederalJsonFetch;
+    check?: () => void;
+    reuse?: (
+      task: { kind: 'text' | 'amendment'; id: string; billId: string; updated: string | null },
+      scope: Record<string, unknown>,
+    ) => Promise<boolean>;
+  },
 ) {
   const selected = selectFederalInventories(
     await loadFederalInventories(db, generation),
@@ -331,36 +378,40 @@ export async function enumerateFederalInventories(
     failed = 0,
     capped = false;
   for (const task of ordered.slice(0, options.limit)) {
+    options.check?.();
     const scope = {
       fiscalYear: 2026,
       congress: generation.congress,
       billId: task.billId,
+      ...(generation.refreshId ? { refreshId: generation.refreshId } : {}),
       ...(task.kind === 'text'
         ? { archiveHash: generation.billArchives.get(task.billId)! }
         : { inventoryHash: generation.inventoryHash }),
     };
     try {
-      const list = await fetchFederalVersionList(
-        task.id,
-        task.kind,
-        options.apiKey,
-        options.fetchJson,
-      );
-      await writeFederalInventory(
-        db,
-        scope,
-        {
-          kind: task.kind,
-          providerDocumentId: task.id,
-          providerUpdatedAt: task.updated,
-          ...list,
-          ...(task.kind === 'amendment' ? { amendmentId: task.id } : {}),
-        },
-        true,
-      );
+      if (!(await options.reuse?.(task, scope))) {
+        const list = await fetchFederalVersionList(
+          task.id,
+          task.kind,
+          options.apiKey,
+          options.fetchJson,
+        );
+        await writeFederalInventory(
+          db,
+          scope,
+          {
+            kind: task.kind,
+            providerDocumentId: task.id,
+            providerUpdatedAt: task.updated,
+            ...list,
+            ...(task.kind === 'amendment' ? { amendmentId: task.id } : {}),
+          },
+          true,
+        );
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'FEDERAL_INVENTORY_FAILED';
-      if (message === 'CONGRESS_REQUEST_CAP_REACHED') {
+      if (message === 'CONGRESS_REQUEST_CAP_REACHED' || message === 'FEDERAL_REFRESH_DEADLINE') {
         capped = true;
         break;
       }
@@ -397,7 +448,11 @@ export async function enumerateFederalInventories(
   return { processed, failed, capped, remaining, complete: remaining === 0 };
 }
 
-export async function finalizeFederalDiscovery(db: ReceiptWriter, generation: FederalGeneration) {
+export async function finalizeFederalDiscovery(
+  db: ReceiptWriter,
+  generation: FederalGeneration,
+  refreshedAt?: string,
+) {
   const selected = selectFederalInventories(
     await loadFederalInventories(db as Reader, generation),
     generation,
@@ -418,6 +473,15 @@ export async function finalizeFederalDiscovery(db: ReceiptWriter, generation: Fe
   for (const key of required)
     if (!parseFederalBillInventory(selected.get(key)!, discovery))
       throw Error('FEDERAL_DISCOVERY_CHILD_INVENTORY_INVALID');
+  const admitted = await db.$queryRawUnsafe<Array<{ id: string }>>(
+    `SELECT b.id FROM congress_bill b WHERE b.congress=$1 AND ${FEDERAL_FY26_SQL} ORDER BY b.id`,
+    generation.congress,
+  );
+  if (
+    JSON.stringify(admitted.map((b) => b.id).sort()) !==
+    JSON.stringify([...generation.billIds].sort())
+  )
+    throw Error('FEDERAL_DISCOVERY_CANONICAL_ADMISSION_MISMATCH');
   const requiredInventoryReceiptIds = required.map((key) => selected.get(key)!.id).sort();
   const id = await writeFederalReceipt(
     db,
@@ -425,6 +489,7 @@ export async function finalizeFederalDiscovery(db: ReceiptWriter, generation: Fe
     { fiscalYear: 2026, congress: generation.congress, inventoryHash: generation.inventoryHash },
     {
       schemaVersion: 1,
+      ...(refreshedAt ? { refreshedAt } : {}),
       billIds: generation.billIds,
       requiredInventoryReceiptIds,
       archiveReceiptIds: generation.archiveReceiptIds,
