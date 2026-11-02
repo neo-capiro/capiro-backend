@@ -49,7 +49,7 @@ test('native preservation probes use the same build stage and explicit isolated 
   const script = readFileSync(new URL('../../apps/api/scripts/qualification/run-bill-postgres-probes.sh', import.meta.url), 'utf8');
   assert.match(script, /docker network create --internal/);
   assert.doesNotMatch(script, /--network\s+host|--publish(?:=|\s)|docker run[^\n]*\s-p\s/);
-  assert.match(script, /pgvector\/pgvector:pg16@sha256:[a-f0-9]{64}/);
+  assert.match(script, /pg_image=967807252336\.dkr\.ecr\.us-east-1\.amazonaws\.com\/capiro\/dev\/scratch-pg-ssl@sha256:016a18f2a5269b23ca05de83826094011cc4e1a9e9cb28c186a3ba9f079ef1d9(?:\r?\n|$)/);
   assert.match(script, /dst=\/workspace\/\$memory_harness,readonly/);
   assert.match(script, /--entrypoint \/bin\/sh "\$builder" -ec/);
   assert.match(script, /MEMORY_POSTGRES_OWNED_ENDPOINT_ACK=127\.0\.0\.1:55433/);
