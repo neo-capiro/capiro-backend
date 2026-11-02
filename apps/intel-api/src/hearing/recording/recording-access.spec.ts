@@ -137,6 +137,33 @@ describe('retained hearing audio status and access', () => {
     expect(storage.playbackUrl).not.toHaveBeenCalled();
   });
 
+  it.each(['revoked', 'expired', 'video_removed', 'transcription_removed', 'source_changed', 'allowed'])(
+    'authorizes every independent transcription frame against the original video grant (%s)',
+    async (condition) => {
+      const { service, tx, recording } = setup();
+      const captureToken = new Date();
+      const capture = { tenantId, userId, sessionId, recordingId: 'recording', epochId: 'epoch', captureToken, startMs: 0 };
+      const source = { sourceUrl: 'https://owned.example/hearing', hearingId: null };
+      tx.hearingRecordingEpoch.findFirst.mockResolvedValue({
+        id: 'epoch', recordingId: 'recording', state: 'recording', captureToken,
+        mimeType: 'video/webm;codecs=vp8,opus', recording: { ...recording, sessionId, session: source },
+      } as never);
+      tx.hearingMediaPermission.findFirst.mockResolvedValue({
+        id: 'permission', mode: 'browser', ...source,
+        sourceUrl: condition === 'source_changed' ? 'https://other.example/hearing' : source.sourceUrl,
+        revokedAt: condition === 'revoked' ? new Date() : null,
+        expiresAt: new Date(condition === 'expired' ? '2000-01-01' : '2099-01-01'),
+        retentionDays: 30,
+        operations: ['capture', 'transcription', 'retention', 'video_retention'].filter((operation) =>
+          !(condition === 'video_removed' && operation === 'video_retention') &&
+          !(condition === 'transcription_removed' && operation === 'transcription')),
+      } as never);
+      if (condition === 'allowed') await expect(service.authorizeTranscription(capture)).resolves.toBeUndefined();
+      else await expect(service.authorizeTranscription(capture)).rejects.toThrow('permission or retention expired');
+      expect(tx.hearingMediaPermission.findFirst).toHaveBeenLastCalledWith({ where: { tenantId, id: 'permission' } });
+    },
+  );
+
   it('calls the separate video grant writer only for explicit video enable', async () => {
     const { service, permissions } = setup();
     await service.enable(tenantId, sessionId, userId);

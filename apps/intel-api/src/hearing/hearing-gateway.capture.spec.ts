@@ -229,7 +229,8 @@ describe('retained audio retry boundary', () => {
     const append = jest
       .fn()
       .mockResolvedValue({ sequence: 0, durableBytes: 4, durableEndMs: 500, duplicate: false });
-    Object.assign(gateway, { recordings: { append } });
+    const authorizeTranscription = jest.fn().mockResolvedValue(undefined);
+    Object.assign(gateway, { recordings: { append, authorizeTranscription } });
     const sendAudio = jest.fn(() => true);
     const conn = {
       ...baseConn(ws.socket),
@@ -254,6 +255,13 @@ describe('retained audio retry boundary', () => {
     await (gateway as any).onAudioFrame(conn, frame('LWT5'));
     expect(append).toHaveBeenCalledTimes(1);
     expect(sendAudio).toHaveBeenCalledWith(frame('LWT5').subarray(16));
+    expect(authorizeTranscription).toHaveBeenCalledWith(conn.recording);
+    authorizeTranscription.mockRejectedValue(new Error('Recording permission withdrawn'));
+    const next = frame('LWT5');
+    next.writeUInt32BE(1, 4);
+    await expect((gateway as any).onAudioFrame(conn, next)).rejects.toThrow('permission withdrawn');
+    expect(sendAudio).toHaveBeenCalledTimes(1);
+    expect(conn.transcriptionSequence).toBe(0);
     await expect((gateway as any).onAudioFrame(conn, frame('LWT5'))).rejects.toThrow(
       'out of order',
     );

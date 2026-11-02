@@ -16,14 +16,26 @@ export function recordingMaps(mimeType: string) {
     : ['-map', '0:a:0', '-vn'];
 }
 
-/** Metadata accompanies a full decode check; neither mux success nor MIME is proof. */
-export function recordingProbe(
-  mimeType: string,
-  probe: {
-    format?: { duration?: string };
-    streams?: Array<{ codec_type?: string; codec_name?: string; width?: number; height?: number }>;
-  },
-) {
+export interface RecordingProbe {
+  format?: { duration?: string };
+  streams?: Array<{
+    codec_type?: string;
+    codec_name?: string;
+    width?: number;
+    height?: number;
+    r_frame_rate?: string;
+    avg_frame_rate?: string;
+  }>;
+}
+
+function frameRate(value: string | undefined) {
+  const [numerator, denominator = '1'] = (value ?? '').split('/');
+  const rate = Number(numerator) / Number(denominator);
+  return Number.isFinite(rate) && rate > 0 ? rate : null;
+}
+
+/** Validate untrusted stream metadata before decoding; raw WebM may lack duration. */
+export function recordingStreamProbe(mimeType: string, probe: RecordingProbe) {
   const video = recordingContentType(mimeType) === 'video/webm';
   const audioTracks = probe.streams?.filter((s) => s.codec_type === 'audio') ?? [];
   const videoTracks = probe.streams?.filter((s) => s.codec_type === 'video') ?? [];
@@ -40,8 +52,26 @@ export function recordingProbe(
       : videoTracks.length !== 0
   )
     throw new Error('Recording video tracks do not match negotiated media');
+  if (video) {
+    const rates = [videoTracks[0]?.r_frame_rate, videoTracks[0]?.avg_frame_rate]
+      .map(frameRate)
+      .filter((rate): rate is number => rate !== null);
+    if (!rates.length || rates.some((rate) => rate > 24))
+      throw new Error('Recording video frame rate exceeds negotiated 24 fps or is unknown');
+  }
+  if (probe.streams?.length !== audioTracks.length + videoTracks.length)
+    throw new Error('Recording contains unsupported additional tracks');
+}
+
+/** Metadata accompanies a full decode check; neither mux success nor MIME is proof. */
+export function recordingProbe(mimeType: string, probe: RecordingProbe) {
+  recordingStreamProbe(mimeType, probe);
   const durationMs = Math.round(Number(probe.format?.duration) * 1000);
-  if (!Number.isSafeInteger(durationMs) || durationMs <= 0 || durationMs > 12 * 3600_000 + 30_000)
+  if (
+    !Number.isSafeInteger(durationMs) ||
+    durationMs <= 0 ||
+    durationMs > 12 * 3600_000 + 30_000
+  )
     throw new Error('Invalid decoded media duration');
   return durationMs;
 }

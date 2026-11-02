@@ -263,36 +263,50 @@ export class HearingRecordingService {
     if (!rows.length) throw new ConflictException('Recording capture lease is no longer owned');
   }
 
+  private async activeEpoch(tx: Prisma.TransactionClient, capture: RecordingCapture) {
+    await this.lockCapture(tx, capture);
+    const epoch = await tx.hearingRecordingEpoch.findFirst({
+      where: { tenantId: capture.tenantId, id: capture.epochId },
+      include: { recording: { include: { session: true } } },
+    });
+    if (
+      !epoch ||
+      epoch.state !== 'recording' ||
+      epoch.recordingId !== capture.recordingId ||
+      epoch.recording.sessionId !== capture.sessionId ||
+      epoch.captureToken.getTime() !== capture.captureToken.getTime()
+    )
+      throw new ConflictException('Recording attempt is closed');
+    const grant = await tx.hearingMediaPermission.findFirst({
+      where: { tenantId: capture.tenantId, id: epoch.recording.permissionId },
+    });
+    if (
+      epoch.recording.expiresAt <= new Date() ||
+      !grant ||
+      !permissionAllowsRecording(grant, epoch.recording.session) ||
+      (epoch.mimeType === VIDEO_RECORDING_MIME && !grant.operations.includes('video_retention'))
+    )
+      throw new ConflictException('Recording permission or retention expired');
+    return epoch;
+  }
+
+  /** The non-retained audio lane uses the same original grant and epoch as AV. */
+  async authorizeTranscription(capture: RecordingCapture) {
+    await this.actor(capture.tenantId, capture.userId, async (tx) => {
+      const epoch = await this.activeEpoch(tx, capture);
+      if (epoch.mimeType !== VIDEO_RECORDING_MIME)
+        throw new BadRequestException('Separate transcription requires a video epoch');
+    });
+  }
+
   async append(capture: RecordingCapture, frame: Buffer) {
     const magic = frame.toString('ascii', 0, 4) === 'LWV5' ? 'LWV5' : 'LWA4';
     const part = decodeRecordingFrame(frame, magic);
     const { tenantId, userId, epochId } = capture;
     const checkpoint = await this.actor(tenantId, userId, async (tx) => {
-      await this.lockCapture(tx, capture);
-      const epoch = await tx.hearingRecordingEpoch.findFirst({
-        where: { tenantId, id: epochId },
-        include: { recording: { include: { session: true } } },
-      });
-      if (
-        !epoch ||
-        epoch.state !== 'recording' ||
-        epoch.captureToken.getTime() !== capture.captureToken.getTime()
-      ) {
-        throw new ConflictException('Recording attempt is closed');
-      }
+      const epoch = await this.activeEpoch(tx, capture);
       if ((epoch.mimeType === VIDEO_RECORDING_MIME) !== (magic === 'LWV5'))
         throw new BadRequestException('Frame lane does not match recording media');
-      const grant = await tx.hearingMediaPermission.findFirst({
-        where: { tenantId, id: epoch.recording.permissionId },
-      });
-      if (
-        epoch.recording.expiresAt <= new Date() ||
-        !grant ||
-        !permissionAllowsRecording(grant, epoch.recording.session) ||
-        (epoch.mimeType === VIDEO_RECORDING_MIME && !grant.operations.includes('video_retention'))
-      ) {
-        throw new ConflictException('Recording permission or retention expired');
-      }
       const existing = await tx.hearingRecordingPart.findFirst({
         where: { tenantId, epochId, sequence: part.sequence },
       });

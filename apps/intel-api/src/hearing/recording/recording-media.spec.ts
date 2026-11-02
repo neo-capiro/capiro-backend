@@ -36,10 +36,14 @@ it('does not declare an audio-only or unsupported artifact to be video', () => {
     ...audio,
     streams: [
       ...audio.streams,
-      { codec_type: 'video', codec_name: 'vp8', width: 640, height: 360 },
+      { codec_type: 'video', codec_name: 'vp8', width: 640, height: 360, r_frame_rate: '24/1' },
     ],
   };
   expect(recordingProbe(VIDEO_RECORDING_MIME, av)).toBe(1000);
+  for (const r_frame_rate of ['25/1', '60000/1001', '0/0', 'invalid'])
+    expect(() => recordingProbe(VIDEO_RECORDING_MIME, {
+      ...av, streams: [audio.streams[0]!, { ...av.streams[1], r_frame_rate }],
+    })).toThrow('frame rate');
   expect(() => recordingProbe('audio/webm', av)).toThrow();
   expect(() =>
     recordingProbe(VIDEO_RECORDING_MIME, {
@@ -124,7 +128,7 @@ it('assembles and decodes synthetic VP8+Opus while separate recovery selects onl
           '-v',
           'error',
           '-show_entries',
-          'format=duration:stream=codec_type,codec_name,width,height',
+          'format=duration:stream=codec_type,codec_name,width,height,r_frame_rate,avg_frame_rate',
           '-of',
           'json',
           output,

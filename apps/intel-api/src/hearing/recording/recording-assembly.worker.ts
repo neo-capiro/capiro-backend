@@ -13,6 +13,7 @@ import {
   recordingContentType,
   recordingMaps,
   recordingProbe,
+  recordingStreamProbe,
 } from './recording-media.js';
 
 const runFile = promisify(execFile);
@@ -187,6 +188,16 @@ export class RecordingAssemblyWorker {
         windowsHide: true,
         signal: cancel.signal,
       };
+      const probeFile = async (path: string) =>
+        JSON.parse((await runFile(
+          'ffprobe',
+          ['-v', 'error', '-max_alloc', '67108864', '-threads', '1', '-show_entries',
+            'format=duration:stream=codec_type,codec_name,width,height,r_frame_rate,avg_frame_rate',
+            '-of', 'json', path],
+          options,
+        )).stdout);
+      // Validate original track count/codec/geometry/rate before mux or decode.
+      recordingStreamProbe(epoch.mimeType, await probeFile(input));
       await runFile(
         'ffmpeg',
         [
@@ -208,7 +219,9 @@ export class RecordingAssemblyWorker {
         ],
         options,
       );
-      // A successful mux is not proof that both tracks decode. Qualify every byte.
+      const durationMs = recordingProbe(epoch.mimeType, await probeFile(output));
+      // A successful mux is not proof that both tracks decode. Qualify every byte
+      // only after validating stream limits, with bounded decoder allocations.
       await runFile(
         'ffmpeg',
         [
@@ -216,6 +229,10 @@ export class RecordingAssemblyWorker {
           '-v',
           'error',
           '-xerror',
+          '-max_alloc',
+          '67108864',
+          '-threads',
+          '1',
           '-i',
           output,
           ...recordingMaps(epoch.mimeType),
@@ -225,20 +242,6 @@ export class RecordingAssemblyWorker {
         ],
         options,
       );
-      const probe = await runFile(
-        'ffprobe',
-        [
-          '-v',
-          'error',
-          '-show_entries',
-          'format=duration:stream=codec_type,codec_name,width,height',
-          '-of',
-          'json',
-          output,
-        ],
-        options,
-      );
-      const durationMs = recordingProbe(epoch.mimeType, JSON.parse(probe.stdout));
       const digest = createHash('sha256');
       for await (const chunk of createReadStream(output)) digest.update(chunk);
       const sha256 = digest.digest('hex'),

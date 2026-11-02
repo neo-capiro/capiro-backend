@@ -662,6 +662,9 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
           !part.bytes.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]))
         )
           throw new Error('Transcription lane must begin with WebM initialization');
+        if (!conn.recording || !this.recordings)
+          throw new Error('Transcription lane requires an active video recording');
+        await this.recordings.authorizeTranscription(conn.recording);
         conn.transcriptionSequence = part.sequence;
         conn.transcriptionEndMs = part.endMs;
         transcriptionBytes = part.bytes;
