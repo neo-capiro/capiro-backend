@@ -14,6 +14,7 @@
 
 import { describe, expect, test } from '@jest/globals';
 import { MicrosoftGraphSyncService } from './microsoft-graph-sync.service.js';
+import { MailboxBusyError, MailboxClaimLostError } from '../mailbox-sync-claim.js';
 
 const EXPECTED_BOUND = 2;
 
@@ -181,6 +182,34 @@ describe('handleNotifications fan-out bound', () => {
     expect(started).toHaveLength(5);
     expect(errors).toHaveLength(5);
     expect(errors[0]).toContain('Graph notification sync failed for connection');
+  });
+
+  // Two preview API tasks since 2026-11-02 03:01Z: Graph fans the same burst to both, the database claim in
+  // mailbox-sync-claim.ts lets one run and the other loses it. That is the single-flight guard working, so it is
+  // a warning like the scheduler's, not 14 ERROR lines per burst; the slot is still released.
+  test('losing the mailbox claim to another task is a warning, releases the slot and keeps draining', async () => {
+    const service = Object.create(MicrosoftGraphSyncService.prototype) as MicrosoftGraphSyncService;
+    const patch = service as unknown as Record<string, unknown>;
+    const errors: string[] = []; const warnings: string[] = [];
+    patch.logger = { warn: (msg: string) => warnings.push(msg), error: (msg: string) => errors.push(msg), log: () => {} };
+    patch.prisma = {
+      withSystem: async (fn: (tx: unknown) => unknown) =>
+        fn({ integrationConnection: { findMany: async () => connectionsFixture(5) } }),
+    };
+    const started: string[] = [];
+    patch.syncConnectionByTenant = async (_tenantId: string, connectionId: string) => {
+      started.push(connectionId);
+      throw started.length % 2 ? new MailboxBusyError() : new MailboxClaimLostError();
+    };
+
+    await service.handleNotifications({ value: notificationsFor(5) });
+    for (let i = 0; i < 10; i += 1) await new Promise((r) => setImmediate(r));
+
+    expect(started).toHaveLength(5);
+    expect(errors).toHaveLength(0);
+    expect(warnings).toHaveLength(5);
+    expect(warnings[0]).toContain('skipped: This mailbox is already syncing');
+    expect(warnings[1]).toContain('skipped: Mailbox work was superseded');
   });
 });
 
