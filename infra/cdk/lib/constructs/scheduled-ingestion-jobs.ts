@@ -65,6 +65,7 @@ export class ScheduledIngestionJobs extends Construct {
           cluster: props.cluster,
           taskDefinition: props.taskDefinition,
           taskCount: 1,
+          ...(job.retryAttempts === undefined ? {} : { retryAttempts: job.retryAttempts }),
           subnetSelection: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
           securityGroups: [props.securityGroup as ec2.SecurityGroup],
           containerOverrides: [

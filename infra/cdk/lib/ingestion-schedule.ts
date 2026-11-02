@@ -51,6 +51,8 @@ export interface ScheduledIngestionJob {
    * infra_cdk_taskdef_drift memory — that deploy has its own risks).
    */
   enabled?: boolean;
+  /** Explicit delivery retry limit; omit to preserve the existing target default. */
+  retryAttempts?: number;
 }
 
 // NOTE: AWS EventBridge cron requires exactly one of day-of-month / day-of-week

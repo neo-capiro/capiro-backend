@@ -1,0 +1,97 @@
+Government Forecasts: ordinary additive operations deployment
+
+DATA-POPULATION-FORECASTS-RECEIPT-20261102 proves no government-forecast rule,
+task family, DATABASE_URL secret or suitable shared archive exists. All six
+tables were empty at its retained read. Tango's rule/task and Clio's EFS are
+unrelated and must not be repurposed. The earlier "existing daily schedule"
+premise is withdrawn. Existing ScheduledIngestionJobs is CODE reuse, not proof
+of an existing deployed Forecast resource.
+
+Use the same CDK operations-app path already used by defense-budget and MeriV2
+operations; do not deploy the shared/drifted Compute stack. This app has no
+lookups, assets, Docker bundling, provider fetch or database connection:
+
+  pnpm --filter @capiro/infra-cdk exec cdk synth --app "ts-node --prefer-ts-exts bin/government-forecast-operations.ts"
+
+Stack: Capiro-preview-GovernmentForecastOperations (termination protection).
+The sole current Claude shipper performs ordinary reviewed CDK diff/deployment
+with actual CloudFormation parameter values. This is source preparation, not
+authorization to run those effects or a fully bound deployment request.
+
+Concrete now:
+- Existing qualified Core48 ARM64 image pinned by registry digest, from
+  CORE-CUT2-RECEIPT-20261102: capiro/preview-core@sha256:bad6082aba3a67526ed3a835ab6a417749c4aae58635d4a422ac4edd2feb0ce8;
+  source4ee2a11ec050d5abf4f25b9d0bdaceb737d41b81. No new application build.
+- New dedicated capiro-preview-government-forecasts Fargate task,512CPU/2048MiB,
+  private subnets/no public IP. Bare RunTask only prints --help. API services,
+  old clone task definitions, Tango and all existing schedules are unchanged.
+- New encrypted, backed-up, RETAIN EFS filesystem and retained access point,
+  two private mount targets, dedicated NFS security group. AP enforces UID/GID1001,
+  owned0700directory; mounted at /var/lib/capiro/government-forecasts with TLS+IAM.
+  Task role can mount/write only through that AP; no ClientRootAccess grant.
+  Filesystem policy denies other principals and unencrypted access.
+- Dedicated task/execution/EventBridge roles, one retained log group. Secret
+  reads only on execution role for the one supplied ARN; no credential creation,
+  parameter value, plaintext override, output or secret read in this app.
+- Producer network egress443 for publisher/runtime endpoints;5432 only to the
+  supplied clone DB security group;2049 only to own EFS. Adds one narrow ingress
+  rule to that supplied clone DB SG. This is a real deployment effect to review.
+- New rule capiro-preview-government-forecasts, daily04:13UTC, retryAttempts0,
+  disabled by default. Uses the existing scheduled-ingestion construct. Only
+  this job opts into retry0; prior jobs preserve their original default.
+- The EventBridge input transformer maps $.id to --run-id (a stable UUID on
+  duplicate deliveries of that event). The archive's exclusive marker still
+  provides overlap/unknown-outcome custody; event identity is not exactly-once.
+
+Actual executor/custodian inputs still REQUIRED (no defaults; not ready values):
+  CloneVpcId
+  ClonePrivateSubnetA / ClonePrivateSubnetB
+  CloneSubnetAzA / CloneSubnetAzB
+  CloneClusterArn
+  CloneDatabaseSecurityGroupId
+  ForecastDatabaseUrlSecretArn
+CloudFormation rules check distinct subnets/AZs, supplied AZ matches and common
+VPC. The shipper still must establish that VPC/cluster/DB SG are the intended
+preview clone and subnets have working private HTTPS/NAT or endpoint egress.
+Those identities cannot be inferred from display aliases or an old task family.
+
+The acknowledged data custodian supplies the ACTUAL complete Secrets Manager ARN
+whose raw secret string is the authorized importer role's clone DATABASE_URL:
+database capiro, clone writer host, sslmode=require, connection_limit=1. No JSON
+key is selected by this task. No implicit master-role fallback. The custodian
+must create/qualify the role, exact grants/lock rights and secret through its
+existing authorized workflow before binding this parameter; this template does
+not provision credentials or SQL roles. Core-Cut2 supplies the image qualification
+that was missing for Strategy7; it does not qualify any new database identity.
+ForecastSecretKmsKeyArn is the secret's actual customer key ARN if applicable;
+empty means AWS-managed Secrets Manager key. Explicitly reconcile that fact.
+For a customer key, its key policy must also admit the new execution role; this
+stack grants scoped role-side decrypt and does not rewrite an existing key policy.
+
+After the ordinary disabled-stack deployment, outputs identify actual task,
+task/execution roles, task SG, archive/AP, rule and log group. No dummy mount,
+secret ARN or assumed live resource is an execution binding. Before first apply,
+the current custodian/shipper allocates snapshot/headroom, network/storage access,
+finite run identity and exact role/lock checks. Do not rerun the applied schema.
+For the ONE finite initial invocation use the returned task definition and task
+SG, same supplied private subnets, Fargate platform1.4.0 or qualified successor,
+no public IP, and override container "forecast" command to:
+  refresh-government-forecasts --archive-dir /var/lib/capiro/government-forecasts --run-id <custodian-bound-initial-id> --apply
+The angle-bracket run ID is explicitly UNBOUND, not a ready command. Nothing
+requires staging old XML in S3: the accepted refresh command collects the current
+official bounded snapshot into the persistent archive and uses the same importer.
+The retained1916-candidate cohort is a baseline, not a newly fetched population.
+
+Only after successful finite apply and readback, configure existing operational
+monitoring for task startup/stopped exit and the retained refresh failure logs;
+EventBridge FailedInvocations/retry0 does not observe an ECS container's later
+exit. Confirm daily04:13UTC fits current capacity allocation. Then shipper changes
+EnableDailyRule=false to true through the same stack. No enable-on-create default.
+The existing CLI keeps .forecast-refresh-active on unknown commit/receipt; all
+runs share the AP/root. Disable the rule and reconcile ORIGINAL hash/observedAt
+and process outcome before the custodian clears that marker. No age unlock,
+automatic retry, new timestamp or secret-in-RunTask override.
+
+Completion requires actual first import/checkId+row readback and subsequent daily
+check; public month uncertainty/history remain unchanged. This change touches no
+Meri packet, Objective branch, migration, database or application producer source.
