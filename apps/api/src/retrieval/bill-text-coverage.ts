@@ -294,13 +294,18 @@ export async function loadBillTextCoverage(db: Reader, model: string) {
   const formatReceipts = await db.$queryRawUnsafe<
     Array<{ id: string; jurisdiction: string; primary_id: string }>
   >(STATE_FORMAT_RECEIPTS_SQL, qualifiedReceiptIds);
-  const alternateRows = await db.$queryRawUnsafe<BillCoverageRow[]>(
-    STATE_FORMAT_COVERAGE_SQL,
-    BILL_EXTRACTION_VERSION,
-    CHUNKER_VERSION,
-    model,
-    formatReceipts.map((r) => r.id),
-  );
+  // An empty qualified receipt set cannot contribute any alternate rows. Avoid
+  // planning/JIT-compiling the document/vector joins for that known empty set.
+  // A qualified receipt with an empty manifest still follows the normal query.
+  const alternateRows = formatReceipts.length
+    ? await db.$queryRawUnsafe<BillCoverageRow[]>(
+        STATE_FORMAT_COVERAGE_SQL,
+        BILL_EXTRACTION_VERSION,
+        CHUNKER_VERSION,
+        model,
+        formatReceipts.map((r) => r.id),
+      )
+    : [];
   const rows = [
     ...(await db.$queryRawUnsafe<BillCoverageRow[]>(
       STATE_BILL_COVERAGE_SQL,
