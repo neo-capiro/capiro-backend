@@ -143,6 +143,7 @@ export function billPassageVectorProofSql(input: {
     AND ${v}.metadata_jsonb->>'extractionId'=${input.extractionId}
     AND ${v}.metadata_jsonb->>'structureHash'=${input.structureHash}
     AND ${v}.metadata_jsonb->>'textHash'=${input.textHash}
+    AND ${v}.metadata_jsonb->>'extractionVersion'='${BILL_EXTRACTION_VERSION}'
     AND ${v}.metadata_jsonb->>'chunkerVersion'=${input.chunker}`;
 }
 
@@ -362,7 +363,10 @@ export function billTextSearchQuery(
     const model = parameter(semantic.model);
     const chunker = parameter(CHUNKER_VERSION);
     const cap = parameter(BILL_SEMANTIC_CANDIDATE_LIMIT);
-    const vectorFilters = [`e.metadata_jsonb->>'chunkerVersion'=${chunker}`];
+    const vectorFilters = [
+      `e.metadata_jsonb->>'chunkerVersion'=${chunker}`,
+      `e.metadata_jsonb->>'extractionVersion'=${parameter(BILL_EXTRACTION_VERSION)}`,
+    ];
     if (request.jurisdictions)
       vectorFilters.push(
         `e.metadata_jsonb->>'jurisdiction'=ANY(${parameter(request.jurisdictions)}::text[])`,

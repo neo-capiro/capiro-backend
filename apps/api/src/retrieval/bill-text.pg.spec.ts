@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Client } from 'pg';
-import { structureText } from '../ingestion/bill-document-structure.js';
+import { BILL_EXTRACTION_VERSION, structureText } from '../ingestion/bill-document-structure.js';
 import { CHUNKER_VERSION } from '../ingestion/bill-text-passages.js';
 import { BillTextService } from './bill-text.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -77,10 +77,10 @@ pg('bill text PostgreSQL contract', () => {
           CASE WHEN n>2100 AND n<=2400 THEN '00000000-0000-4000-8000-000000009997'::uuid END,
           CASE WHEN n>2400 THEN 'memory_item' WHEN n>1200 AND n<=1800 THEN 'bill_passage' ELSE 'state_bill_passage' END,
           'synthetic:'||n,CASE WHEN n>1500 AND n<=1800 THEN 'other-model' ELSE 'test-model' END,
-          jsonb_build_object('chunkerVersion',$1::text,'jurisdiction',CASE WHEN n<=600 OR n>1800 THEN 'FL' WHEN n<=1200 THEN 'TX' ELSE 'US' END),
+          jsonb_build_object('chunkerVersion',$1::text,'extractionVersion',$2::text,'jurisdiction',CASE WHEN n<=600 OR n>1800 THEN 'FL' WHEN n<=1200 THEN 'TX' ELSE 'US' END),
           ('['||sin(n)::text||','||cos(n)::text||repeat(',0',1022)||']')::vector,'synthetic public passage',repeat('a',64)
         FROM generate_series(1,3000) n`,
-        [CHUNKER_VERSION],
+        [CHUNKER_VERSION, BILL_EXTRACTION_VERSION],
       );
       for (const [migration, name] of [
         [
@@ -141,15 +141,21 @@ pg('bill text PostgreSQL contract', () => {
             client_id: null,
             owner_user_id: null,
             model: 'test-model',
-            metadata_jsonb: { jurisdiction: 'FL', chunkerVersion: CHUNKER_VERSION },
+            metadata_jsonb: {
+              jurisdiction: 'FL',
+              chunkerVersion: CHUNKER_VERSION,
+              extractionVersion: BILL_EXTRACTION_VERSION,
+            },
           });
       }
       const plan = (await db.query('EXPLAIN (ANALYZE,FORMAT JSON) ' + sql, query.values)).rows[0][
         'QUERY PLAN'
       ][0].Plan;
       const scans: Array<Record<string, unknown>> = [];
+      const indexes: string[] = [];
       const walk = (node: Record<string, unknown>) => {
         if (node['Relation Name'] === 'context_embeddings') scans.push(node);
+        if (typeof node['Index Name'] === 'string') indexes.push(node['Index Name']);
         for (const child of (node.Plans ?? []) as Array<Record<string, unknown>>) walk(child);
       };
       walk(plan);
@@ -157,7 +163,9 @@ pg('bill text PostgreSQL contract', () => {
       expect(scans[0]!['Actual Loops']).toBe(1);
       // HNSW is available; a small filtered population can legitimately use the
       // canonical partial B-tree. Do not force a planner choice or claim 1000 hits.
-      expect(scans[0]!['Index Name']).toMatch(/^context_embeddings_bill_passage_(hnsw|hash)_idx$/);
+      expect(
+        indexes.some((name) => /^context_embeddings_bill_passage_(hnsw|hash)_idx$/.test(name)),
+      ).toBe(true);
     } finally {
       await db.query('ROLLBACK').catch(() => undefined);
       await db.end();
@@ -280,6 +288,7 @@ pg('bill text PostgreSQL contract', () => {
                   textHash: structure.textHash,
                   jurisdiction,
                   chunkerVersion: CHUNKER_VERSION,
+                  extractionVersion: BILL_EXTRACTION_VERSION,
                   startOffset: 0,
                 }),
                 JSON.stringify(vector(index - 1)),
@@ -375,16 +384,24 @@ pg('bill text PostgreSQL contract', () => {
             `DELETE FROM context_embeddings WHERE source_id=$1`,
             duplicatePassageId,
           );
-          // More than the candidate cap of nearer stale-namespace/other-state
-          // vectors must not consume the Florida/current-chunker shortlist.
+          // More than the cap of strictly nearer vectors from each obsolete
+          // generation/namespace or another state must not starve current FL
+          // passages. Parser v1 and v2 deliberately share the same chunker.
+          await tx.$executeRawUnsafe(
+            'UPDATE context_embeddings SET embedding=$1::vector',
+            JSON.stringify(vector(1)),
+          );
           await tx.$executeRawUnsafe(
             `INSERT INTO context_embeddings
               SELECT NULL,NULL,NULL,e.source_type,'query-noise:'||bucket||':'||n,e.model,
-                e.metadata_jsonb||CASE bucket WHEN 'old' THEN jsonb_build_object('chunkerVersion','obsolete')
-                  ELSE jsonb_build_object('jurisdiction','TX') END,e.embedding,e.content_text,e.content_hash
+                CASE bucket WHEN 'unstamped' THEN e.metadata_jsonb-'extractionVersion'
+                  ELSE e.metadata_jsonb||CASE bucket WHEN 'old' THEN jsonb_build_object('chunkerVersion','obsolete')
+                    WHEN 'old-parser' THEN jsonb_build_object('extractionVersion','bill-structure-v1')
+                    ELSE jsonb_build_object('jurisdiction','TX') END END,$2::vector,e.content_text,e.content_hash
               FROM context_embeddings e CROSS JOIN generate_series(1,1001) n
-              CROSS JOIN unnest(ARRAY['old','other-state']) bucket WHERE e.source_id=$1`,
+              CROSS JOIN unnest(ARRAY['old','old-parser','unstamped','other-state']) bucket WHERE e.source_id=$1`,
             `${CHUNKER_VERSION}:${ids[0]!.extractionId}:0`,
+            JSON.stringify(vector(0)),
           );
           const scoped = await service.search({
             mode: 'semantic',
@@ -399,6 +416,11 @@ pg('bill text PostgreSQL contract', () => {
           expect(scoped.candidatePassages).toBe(2);
           await tx.$executeRawUnsafe(
             `DELETE FROM context_embeddings WHERE source_id LIKE 'query-noise:%'`,
+          );
+          await tx.$executeRawUnsafe(
+            'UPDATE context_embeddings SET embedding=$1::vector WHERE source_id=$2',
+            JSON.stringify(vector(0)),
+            `${CHUNKER_VERSION}:${ids[0]!.extractionId}:0`,
           );
           // Malformed source identity is a rejected candidate, never a UUID
           // cast failure or a canonical document admitted from its metadata.
@@ -592,6 +614,8 @@ pg('bill text PostgreSQL contract', () => {
               "metadata_jsonb=metadata_jsonb-'revisionId'",
               "metadata_jsonb=metadata_jsonb-'billId'",
               "metadata_jsonb=metadata_jsonb-'chunkerVersion'",
+              "metadata_jsonb=metadata_jsonb-'extractionVersion'",
+              "metadata_jsonb=jsonb_set(metadata_jsonb,'{extractionVersion}','\"bill-structure-v1\"')",
             ]) {
               await tx.$executeRawUnsafe(
                 `UPDATE context_embeddings SET ${mutation} WHERE source_id=$1`,

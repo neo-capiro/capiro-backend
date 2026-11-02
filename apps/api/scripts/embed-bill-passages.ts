@@ -183,6 +183,7 @@ export async function main(argv = process.argv.slice(2)) {
               contentHash: sha256(chunk.text),
               ...passageMetadata(chunk),
               extractionId: extraction.id,
+              extractionVersion: BILL_EXTRACTION_VERSION,
               structureHash: extraction.structure.structureHash,
               textHash: extraction.structure.textHash,
               previousPassageId: chunk.ordinal

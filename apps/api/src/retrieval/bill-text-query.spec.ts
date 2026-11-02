@@ -1,9 +1,11 @@
 import {
   BILL_SEMANTIC_CANDIDATE_LIMIT,
+  billPassageVectorProofSql,
   billTextSearchQuery,
   validateBillTextSearch,
 } from './bill-text-query.js';
 import { CHUNKER_VERSION } from '../ingestion/bill-text-passages.js';
+import { BILL_EXTRACTION_VERSION } from '../ingestion/bill-document-structure.js';
 
 const semantic = {
   vector: Array.from({ length: 1024 }, (_, i) => Number(i === 0)),
@@ -31,6 +33,7 @@ describe('bounded bill semantic query', () => {
     expect(nearest).toContain("e.source_type IN ('bill_passage','state_bill_passage')");
     expect(nearest).toMatch(/e\.model=\$\d+/);
     expect(nearest).toContain("e.metadata_jsonb->>'chunkerVersion'");
+    expect(nearest).toMatch(/e\.metadata_jsonb->>'extractionVersion'=\$\d+/);
     expect(nearest).toContain("e.metadata_jsonb->>'jurisdiction'=ANY(");
     expect(nearest).toMatch(/ORDER BY e\.embedding <=> \$\d+::vector LIMIT \$\d+/);
     for (const kind of ['federal', 'state'])
@@ -49,6 +52,27 @@ describe('bounded bill semantic query', () => {
       expect(hydration).toContain(`e.metadata_jsonb->>'${key}'`);
     expect(values).toContain(BILL_SEMANTIC_CANDIDATE_LIMIT);
     expect(values).toContain(CHUNKER_VERSION);
+    expect(values).toContain(BILL_EXTRACTION_VERSION);
+  });
+
+  it('requires current extraction generation in the shared semantic and coverage vector proof', () => {
+    const proof = billPassageVectorProofSql({
+      vector: 'v',
+      passage: 'p',
+      sourceKind: 'kind',
+      billId: 'bill',
+      revisionId: 'revision',
+      extractionId: 'extraction',
+      structureHash: 'structure_hash',
+      textHash: 'text_hash',
+      chunker: 'chunker',
+      model: 'model',
+    });
+    expect(proof).toContain(`v.metadata_jsonb->>'extractionVersion'='${BILL_EXTRACTION_VERSION}'`);
+    expect(proof).toContain('v.content_text=p.content_text');
+    expect(proof).toContain(
+      "v.content_hash=encode(sha256(convert_to(p.content_text,'UTF8')),'hex')",
+    );
   });
 
   it('parameterizes cheap scope predicates and retains selective canonical filters after the shortlist', () => {
