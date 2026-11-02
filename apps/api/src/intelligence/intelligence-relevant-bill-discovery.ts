@@ -2,7 +2,7 @@ import type { PrismaService } from '../prisma/prisma.service.js';
 import { Prisma } from '@prisma/client';
 import { EMBEDDING_MODEL, embedText, normalize, vectorLiteral } from '../embeddings/embedder.js';
 import { expandTerms } from './term-expansion.js';
-import { buildKeywordMatchTerms, matchingBillIdsSql } from './bill-keyword-match.helpers.js';
+import { matchingBillIdsSql } from './bill-keyword-match.helpers.js';
 import { withBillKeywordSqlDeadline } from './bill-keyword-deadline.js';
 import {
   projectRelevantBill,
@@ -106,8 +106,7 @@ export class IntelligenceRelevantBillDiscovery {
     // embeddings are unavailable or backfill has not populated bill vectors.
     // Matching is matchingBillIdsSql; see bill-keyword-match.helpers.ts for the
     // query shape and its measured plans.
-    const { lowerTerms, wordPatterns } = buildKeywordMatchTerms(allTerms);
-    const matchingIds = matchingBillIdsSql(lowerTerms, wordPatterns);
+    const matchingIds = matchingBillIdsSql(allTerms);
 
     return withBillKeywordSqlDeadline(this.prisma, async (query) => {
       const countRows = await query<Array<{ total: bigint }>>(Prisma.sql`

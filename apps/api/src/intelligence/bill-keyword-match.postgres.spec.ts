@@ -1,5 +1,5 @@
 import { Prisma, PrismaClient } from '@prisma/client';
-import { buildKeywordMatchTerms, matchingBillIdsSql } from './bill-keyword-match.helpers.js';
+import { matchingBillIdsSql } from './bill-keyword-match.helpers.js';
 
 jest.setTimeout(60_000);
 
@@ -8,8 +8,10 @@ jest.setTimeout(60_000);
 const describeDb =
   process.env.DATABASE_URL && process.env.CAPIRO_DISPOSABLE_PG === '1' ? describe : describe.skip;
 
-/** The previous matcher: one regex clause per term per row (the result-set oracle). */
-function perTermBillIdsSql(lowerTerms: string[], wordPatterns: string[], congress?: number, includePolicyRegex = true) {
+/** The original matcher: one regex clause per term per row (the result-set oracle). */
+function perTermBillIdsSql(terms: string[], congress?: number, includePolicyRegex = true) {
+  const lowerTerms = terms.map((term) => term.toLowerCase());
+  const wordPatterns = lowerTerms.map((term) => `\\m${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\M`);
   const any = (column: Prisma.Sql, equality: boolean, regex: boolean) => {
     const clauses: Prisma.Sql[] = [];
     if (equality && lowerTerms.length) clauses.push(Prisma.sql`${column} = ANY(${lowerTerms}::text[])`);
@@ -50,7 +52,9 @@ describeDb('bill keyword matcher on native PostgreSQL', () => {
         ('119-s-5', 119, 'An unrelated title', 'Health', '2026-01-15'),
         ('118-hr-6', 118, 'Cyber workforce act', 'Armed Forces and National Security', '2024-05-01'),
         ('118-s-7', 118, 'Untitled measure', NULL, '2024-06-01'),
-        ('119-s-8', 119, 'Another unrelated title', 'Taxation', '2026-04-01')`);
+        ('119-s-8', 119, 'Another unrelated title', 'Taxation', '2026-04-01'),
+        ('119-hr-10', 119, 'Review of section a\\b and 50_50 cost shares', NULL, '2026-05-01'),
+        ('119-hr-11', 119, 'The 50x50 act', NULL, '2026-05-02')`);
       await tx.$executeRawUnsafe(`INSERT INTO congress_bill_subject (bill_id, name) VALUES
         ('119-s-5', 'Cybersecurity and identity theft'),
         ('119-s-5', 'Health'),
@@ -63,27 +67,26 @@ describeDb('bill keyword matcher on native PostgreSQL', () => {
     }, { timeout: 30_000 })).rejects.toBe(rollback);
   }
 
-  const terms = ['Defense', 'c++', 'Armed Forces and National Security', 'Cyber', 'water resources development', 'military'];
+  const terms = ['Defense', 'c++', 'Armed Forces and National Security', 'Cyber', 'water resources development', 'military', 'a\\b', '50_50'];
 
   it('returns the same ordered bills as one regex clause per term', async () => {
     await withCatalog(async (tx) => {
-      const { lowerTerms, wordPatterns } = buildKeywordMatchTerms(terms);
-      const current = await tx.$queryRaw<Array<{ id: string }>>(ordered(matchingBillIdsSql(lowerTerms, wordPatterns)));
-      const oracle = await tx.$queryRaw<Array<{ id: string }>>(ordered(perTermBillIdsSql(lowerTerms, wordPatterns)));
+      const current = await tx.$queryRaw<Array<{ id: string }>>(ordered(matchingBillIdsSql(terms)));
+      const oracle = await tx.$queryRaw<Array<{ id: string }>>(ordered(perTermBillIdsSql(terms)));
       expect(current).toEqual(oracle);
       // Whole words only ("defenseless" is not "defense", "Cybersecurity" is not
-      // "cyber"), exact-name equality, regex metacharacters taken literally,
-      // NULLs and orphaned subjects excluded.
-      expect(current.map((row) => row.id)).toEqual(['119-s-8', '119-hr-1', '118-s-7', '118-hr-6', '119-hr-3']);
+      // "cyber"), exact-name equality, regex and LIKE metacharacters (+, _, \)
+      // taken literally ("50x50" is not "50_50"), NULLs and orphaned subjects excluded.
+      expect(current.map((row) => row.id)).toEqual(['119-hr-10', '119-s-8', '119-hr-1', '118-s-7', '118-hr-6', '119-hr-3']);
     });
   });
 
   it('keeps the tracker shape: one Congress and no policy-area regex', async () => {
     await withCatalog(async (tx) => {
-      const { lowerTerms, wordPatterns } = buildKeywordMatchTerms(['water', 'cyber', 'armed forces and national security']);
-      const options = { congress: 119, includePolicyRegex: false };
-      const current = await tx.$queryRaw<Array<{ id: string }>>(ordered(matchingBillIdsSql(lowerTerms, wordPatterns, options)));
-      const oracle = await tx.$queryRaw<Array<{ id: string }>>(ordered(perTermBillIdsSql(lowerTerms, wordPatterns, 119, false)));
+      const tracker = ['water', 'cyber', 'armed forces and national security'];
+      const current = await tx.$queryRaw<Array<{ id: string }>>(
+        ordered(matchingBillIdsSql(tracker, { congress: 119, includePolicyRegex: false })));
+      const oracle = await tx.$queryRaw<Array<{ id: string }>>(ordered(perTermBillIdsSql(tracker, 119, false)));
       expect(current).toEqual(oracle);
       // "Water Resources Development" is a policy area: no regex on it here, but
       // the title still matches whole-word "water".
@@ -93,7 +96,7 @@ describeDb('bill keyword matcher on native PostgreSQL', () => {
 
   it('matches nothing without terms', async () => {
     await withCatalog(async (tx) => {
-      const rows = await tx.$queryRaw<Array<{ id: string }>>(ordered(matchingBillIdsSql([], [])));
+      const rows = await tx.$queryRaw<Array<{ id: string }>>(ordered(matchingBillIdsSql([])));
       expect(rows).toEqual([]);
     });
   });
