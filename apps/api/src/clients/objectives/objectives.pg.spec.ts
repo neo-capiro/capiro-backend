@@ -7,7 +7,10 @@ const migration = readFileSync(
   'utf8',
 );
 const intakeReadyMigration = readFileSync(
-  resolve(process.cwd(), 'prisma/migrations/20281102200000_client_objective_intake_ready/migration.sql'),
+  resolve(
+    process.cwd(),
+    'prisma/migrations/20281102200000_client_objective_intake_ready/migration.sql',
+  ),
   'utf8',
 );
 const tenantA = '11111111-1111-4111-8111-111111111111';
@@ -92,9 +95,17 @@ describe('Objective migration on local ephemeral PostgreSQL (PGlite)', () => {
       }
       await original.exec(intakeReadyMigration);
       expect((await original.query(intakeTransition, [objectiveA, 'in_review'])).rows).toEqual([
-        { status: 'in_review', outcome: '', government_problem: '', ask_type: null, minimum_win: '' },
+        {
+          status: 'in_review',
+          outcome: '',
+          government_problem: '',
+          ask_type: null,
+          minimum_win: '',
+        },
       ]);
-      expect((await original.query(intakeTransition, [objectiveA, 'ready'])).rows[0]).toMatchObject({ status: 'ready' });
+      expect((await original.query(intakeTransition, [objectiveA, 'ready'])).rows[0]).toMatchObject(
+        { status: 'ready' },
+      );
     } finally {
       await original.close();
     }
@@ -108,7 +119,11 @@ describe('Objective migration on local ephemeral PostgreSQL (PGlite)', () => {
           `SELECT conname FROM pg_constraint WHERE conrelid='client_objectives'::regclass AND contype='c' ORDER BY conname`,
         )
       ).rows.map((row) => row.conname),
-    ).toEqual(['client_objectives_ask_check', 'client_objectives_status_check', 'client_objectives_version_check']);
+    ).toEqual([
+      'client_objectives_ask_check',
+      'client_objectives_status_check',
+      'client_objectives_version_check',
+    ]);
     await expect(
       db.query(`UPDATE client_objectives SET status='approved' WHERE id=$1`, [objectiveA]),
     ).rejects.toMatchObject({ code: '23514' });
