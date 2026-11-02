@@ -6,6 +6,7 @@ import {
 import { BillTextService } from '../retrieval/bill-text.service.js';
 import {
   BILL_JURISDICTIONS,
+  BILL_SEMANTIC_CANDIDATE_LIMIT,
   validateBillTextSearch,
   type BillTextSearchRequest,
 } from '../retrieval/bill-text-query.js';
@@ -14,6 +15,13 @@ import {
   BILL_READ_MAX_CHARS,
   decodeBillReadCursor,
 } from '../retrieval/bill-text-read.js';
+import {
+  assertBillToolBudget,
+  BILL_TOOL_SEARCH_LIMIT,
+  coveragePageRequest,
+  projectBillCoverage,
+  projectBillExcerpt,
+} from './meri-retained-bill-projection.js';
 
 type SearchTool = 'search_congress_bills' | 'search_state_bills';
 const text = (description: string) => ({ type: 'string', description });
@@ -22,7 +30,7 @@ export const retainedBillSearchProperties = {
     type: 'string',
     enum: ['exact', 'keyword', 'semantic', 'coverage'],
     description:
-      'Explicit full-text mode. Omit for the existing metadata search. coverage accepts only mode and returns global US/all-state frozen FY26 stage coverage.',
+      'Explicit full-text mode. Omit for existing metadata search. Full-text pages contain at most 2 results; use returned nextPage and returned limit with the same filters. Semantic pagination is limited to the bounded candidate shortlist. coverage returns global US/all-state FY26 statuses and stage totals plus paged detail rows; accepts mode, jurisdictions (details only), page and limit (effective maximum 2).',
   },
   billId: text('Exact canonical bill ID for full-text modes'),
   billNumber: text('Exact bill number; requires one jurisdiction and session'),
@@ -30,7 +38,8 @@ export const retainedBillSearchProperties = {
     type: 'array',
     maxItems: 52,
     items: { type: 'string', enum: BILL_JURISDICTIONS },
-    description: 'US only for search_congress_bills; state codes only for search_state_bills',
+    description:
+      'US only for search_congress_bills; state codes only for search_state_bills. In coverage mode filters detail rows only; global totals always remain unfiltered.',
   },
   session: text('Exact canonical session; e.g. 119 for federal bills'),
   status: text('Exact canonical status filter'),
@@ -79,13 +88,13 @@ export async function retainedBillTool(
   try {
     if (tool !== 'read_bill_text') {
       if (input.mode === 'coverage') {
-        if (Object.keys(input).some((key) => key !== 'mode')) throw Error('INVALID_COVERAGE_FIELD');
-        return {
+        const page = coveragePageRequest(input);
+        return assertBillToolBudget({
           ...common,
           operation: 'coverage' as const,
           currentStatus: 'available',
-          ...(await owner.coverage()),
-        };
+          ...projectBillCoverage(await owner.coverage(), page),
+        });
       }
       const request = { ...input };
       if (tool === 'search_state_bills' && request.state !== undefined) {
@@ -110,12 +119,31 @@ export async function retainedBillTool(
         )
       )
         throw Error('INVALID_TOOL_JURISDICTION');
-      return {
+      const result = await owner.search({
+        ...validated,
+        limit: Math.min(validated.limit!, BILL_TOOL_SEARCH_LIMIT),
+      });
+      return assertBillToolBudget({
         ...common,
         operation: 'search' as const,
         currentStatus: 'available',
-        ...(await owner.search(validated)),
-      };
+        ...result,
+        results: result.results.map((hit) => ({
+          ...projectBillExcerpt(hit, 4000, validated.section),
+          score: hit.score,
+        })),
+        requestedLimit: validated.limit,
+        nextPage:
+          result.hasMore &&
+          result.page < 10000 &&
+          (result.mode !== 'semantic' || result.page * result.limit < BILL_SEMANTIC_CANDIDATE_LIMIT)
+            ? result.page + 1
+            : null,
+        paging:
+          result.mode === 'semantic'
+            ? 'Use nextPage and returned limit with the same filters. hasMore describes only the bounded candidate shortlist; at its cap refine query/filters for other matches. Use read_bill_text with hit identity/nextCursor for more verbatim text. Results may change between requests.'
+            : 'Repeat the same filters with nextPage and returned limit. Use read_bill_text with each hit identity/nextCursor for more verbatim text. At the page cap refine the query. Search pages may change as retained evidence grows.',
+      });
     }
     if (
       input.mode !== 'retained' ||
@@ -161,7 +189,11 @@ export async function retainedBillTool(
         throw Error('INVALID_BILL_READ_CURSOR_IDENTITY');
       delete request.billId; // The schema keeps billId required for both readers; cursor is the immutable identity owner.
     }
-    const result = await owner.read(request);
+    const section =
+      typeof request.cursor === 'string'
+        ? decodeBillReadCursor(request.cursor).section
+        : (request.section as string | undefined);
+    const result = projectBillExcerpt(await owner.read(request), 9200, section);
     const readable = result.available && 'text' in result;
     const contentComplete = readable && result.completeness === 'complete';
     const truncated =
@@ -171,7 +203,7 @@ export async function retainedBillTool(
         result.contextTruncated ||
         result.definitionsTruncated ||
         result.referencesTruncated);
-    return {
+    return assertBillToolBudget({
       ...common,
       operation: 'read' as const,
       currentStatus: readable ? 'available' : 'unavailable',
@@ -184,7 +216,7 @@ export async function retainedBillTool(
         truncated: !readable || truncated,
         nextCursor: readable ? result.nextCursor : null,
       },
-    };
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
     if (message === 'BILL_REVISION_NOT_FOUND') throw new NotFoundException(message);

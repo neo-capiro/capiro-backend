@@ -21,6 +21,10 @@ import { BillTextService } from '../retrieval/bill-text.service.js';
 import { MeriController } from './meri.controller.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { currentOwnerResultAuthorizesReplay } from './meri-research-replay-authorization.js';
+import { summarizeJsonForPrompt } from './meri-research.helpers.js';
+import { wrapToolResultForPrompt } from '@capiro/meriv2-core';
+import { billTextCoverageReport } from '../retrieval/bill-text-coverage.js';
+import { decodeBillReadCursor } from '../retrieval/bill-text-read.js';
 
 const CTX: TenantContext = {
   tenantId: '11111111-1111-4111-8111-111111111111',
@@ -140,7 +144,18 @@ function fixture(rows: BillTextDocumentRow[] = [document()]) {
     serviceGuard.canActivate(execution);
     return controller.executeTool(CTX, name, input, req);
   }
-  return { route, tools, query, embed, legacyFind, withSystem };
+  return { route, tools, owner, query, embed, legacyFind, withSystem };
+}
+
+function survivesPromptTransport(value: unknown) {
+  const result = record(value);
+  const summarized = summarizeJsonForPrompt(result, 12000);
+  expect(summarized.length).toBeLessThanOrEqual(11000);
+  expect(JSON.parse(summarized)).toEqual(result);
+  const wrapped = wrapToolResultForPrompt(string(result.tool), result, 12000);
+  expect(wrapped).not.toContain('[truncated tool result]');
+  expect(JSON.parse(wrapped.slice(wrapped.indexOf('\n') + 1))).toEqual(result);
+  return result;
 }
 
 describe('retained bill text through the existing authenticated tool gateway', () => {
@@ -446,7 +461,8 @@ describe('retained bill text through the existing authenticated tool gateway', (
         status: 'complete_for_frozen_inventory',
       })),
     };
-    expect(classifyApiToolReadOutcome('search_state_bills', complete)?.kind).toBe('complete');
+    // Global stage completion does not imply the paged detail rows were all returned.
+    expect(classifyApiToolReadOutcome('search_state_bills', complete)?.kind).toBe('partial');
     expect(
       classifyApiToolReadOutcome('search_state_bills', {
         ...complete,
@@ -456,6 +472,290 @@ describe('retained bill text through the existing authenticated tool gateway', (
     expect(
       classifyApiToolReadOutcome('search_state_bills', { ...coverage, complete: true })?.kind,
     ).toBe('failed');
+  });
+
+  it('transports all 52 coverage statuses and exact global stages while paging every detail row', async () => {
+    const f = fixture();
+    const rows = BILL_JURISDICTIONS.flatMap((jurisdiction) =>
+      ['Introduced', 'Enrolled'].map((version) => ({
+        jurisdiction,
+        session: '2026',
+        kind: 'text',
+        version,
+        inventoryKnown: true,
+        expectedBills: 100,
+        metadataBills: 90,
+        expectedDocuments: 110,
+        sourceUnavailableDocuments: 1,
+        publisherUrlMissingDocuments: 2,
+        downloadedDocuments: 80,
+        completeExtractions: 70,
+        partialExtractions: 5,
+        failedExtractions: 5,
+        passages: 700,
+        embeddingEligiblePassages: 600,
+        embeddedPassages: 400,
+        fullyEmbeddedDocuments: 50,
+      })),
+    );
+    const report = {
+      ...billTextCoverageReport(
+        rows,
+        'synthetic-model',
+        BILL_JURISDICTIONS.map((jurisdiction) => ({
+          jurisdiction,
+          known: true,
+          expectedSessions: 1,
+          qualifiedSessions: 1,
+          missingSessions: [],
+        })),
+      ),
+      stateDiscovery: { receiptId: 'synthetic-state-receipt', manifestSha256: 'c'.repeat(64) },
+      federalDiscovery: null,
+    };
+    expect(JSON.stringify(report, null, 2).length).toBeGreaterThan(12000);
+    jest.spyOn(f.owner, 'coverage').mockResolvedValue(report);
+    const first = survivesPromptTransport(
+      await f.route('search_state_bills', { mode: 'coverage' }),
+    );
+    expect(items(first.jurisdictions)).toHaveLength(52);
+    expect(items(first.jurisdictions).map(record).at(-1)?.jurisdiction).toBe('WY');
+    expect(first.stateDiscovery).toEqual(report.stateDiscovery);
+    expect(first.limitations).toEqual(report.limitations);
+    expect(first.stageTotals).toMatchObject({
+      expectedDocuments: 52 * 2 * 110,
+      passages: 52 * 2 * 700,
+      knownJurisdictions: 52,
+    });
+    expect(record(first.stageTotals)).not.toHaveProperty('expectedBills');
+    expect(record(first.stageTotals)).not.toHaveProperty('metadataBills');
+    const detail = items(first.details).map(record);
+    expect(detail[1]).toMatchObject({
+      unit: 'version_kind',
+      expectedBills: 100,
+      metadataBills: 90,
+    });
+    let page: unknown = record(first.detailPage).nextPage;
+    while (typeof page === 'number') {
+      const next = survivesPromptTransport(
+        await f.route('search_state_bills', { mode: 'coverage', page }),
+      );
+      expect(next.stageTotals).toEqual(first.stageTotals);
+      detail.push(...items(next.details).map(record));
+      page = record(next.detailPage).nextPage;
+      expect(classifyApiToolReadOutcome('search_state_bills', next)?.kind).toBe('partial');
+    }
+    expect(detail).toHaveLength(52 * 3);
+    expect(detail.at(-1)).toMatchObject({ jurisdiction: 'WY', version: 'Enrolled' });
+    const filtered = survivesPromptTransport(
+      await f.route('search_state_bills', { mode: 'coverage', jurisdictions: ['FL'], page: 2 }),
+    );
+    expect(filtered.stageTotals).toEqual(first.stageTotals);
+    expect(filtered.jurisdictions).toEqual(first.jurisdictions);
+    expect(filtered.detailPage).toMatchObject({
+      totalRows: 3,
+      returnedRows: 1,
+      hasMore: false,
+      nextPage: null,
+      complete: false,
+    });
+    expect(items(filtered.details).map(record)[0]).toMatchObject({
+      jurisdiction: 'FL',
+      version: 'Enrolled',
+    });
+    for (const patch of [
+      { hasMore: true },
+      { complete: true },
+      { nextPage: 9 },
+      { returnedRows: 2 },
+      { unknown: 1 },
+    ])
+      expect(
+        classifyApiToolReadOutcome('search_state_bills', {
+          ...filtered,
+          detailPage: { ...record(filtered.detailPage), ...patch },
+        })?.kind,
+      ).toBe('failed');
+  });
+
+  it.each([
+    { page: 0 },
+    { page: 1.5 },
+    { limit: 21 },
+    { jurisdictions: [] },
+    { jurisdictions: ['FL', 'FL'] },
+    { jurisdictions: ['ZZ'] },
+    { cursor: 'unknown' },
+  ])('rejects malformed coverage paging before reading: %j', async (input) => {
+    const f = fixture();
+    await expect(
+      f.route('search_state_bills', { mode: 'coverage', ...input }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(f.query).not.toHaveBeenCalled();
+  });
+
+  it('bounds large search envelopes with canonical paging and retains every hit identity and read continuation', async () => {
+    const structure = structureText(
+      `SECTION 1. Housing.\n${'Housing assistance 😀. '.repeat(1100)}`,
+    );
+    const base = document({
+      text: structure.text,
+      structure,
+      textHash: structure.textHash,
+      structureHash: structure.structureHash,
+      total: 5,
+    });
+    const rows = Array.from({ length: 5 }, (_, index) => ({
+      ...base,
+      billId: `FL-2026-HB${index + 1}`,
+      candidatePassages: 41,
+    }));
+    const f = fixture(rows);
+    const first = survivesPromptTransport(
+      await f.route('search_state_bills', { mode: 'keyword', query: 'housing', limit: 20 }),
+    );
+    expect(first).toMatchObject({
+      page: 1,
+      limit: 2,
+      requestedLimit: 20,
+      hasMore: true,
+      nextPage: 2,
+      totalRevisions: 5,
+    });
+    expect(items(first.results)).toHaveLength(2);
+    expect(first.limitation).toContain('Missing or failed extractions');
+    for (const hit of items(first.results).map(record)) {
+      const cursor = decodeBillReadCursor(string(hit.nextCursor));
+      expect(cursor).toMatchObject({
+        ...Object.fromEntries(
+          ['billId', 'revisionId', 'extractionId', 'structureHash'].map((key) => [
+            key,
+            record(hit.identity)[key],
+          ]),
+        ),
+        offset: hit.endOffset,
+      });
+      expect(structure.text.slice(number(hit.startOffset), number(hit.endOffset))).toBe(hit.text);
+    }
+    f.query.mockResolvedValue([rows[4]]);
+    const last = survivesPromptTransport(
+      await f.route('search_state_bills', {
+        mode: 'keyword',
+        query: 'housing',
+        limit: 20,
+        page: 3,
+      }),
+    );
+    expect(last).toMatchObject({
+      page: 3,
+      limit: 2,
+      hasMore: false,
+      nextPage: null,
+      totalRevisions: 5,
+    });
+    f.query.mockResolvedValue(rows);
+    const semantic = survivesPromptTransport(
+      await f.route('search_state_bills', {
+        mode: 'semantic',
+        query: 'residential support',
+        limit: 20,
+      }),
+    );
+    expect(semantic).toMatchObject({
+      totalRevisions: null,
+      approximate: true,
+      candidatePassageLimit: 1000,
+      candidatePassages: 41,
+      hasMoreBasis: 'within_candidate_shortlist',
+      hasMore: true,
+      nextPage: 2,
+    });
+    expect(semantic.limitation).toContain('additional matching revisions may exist');
+    expect(semantic.paging).toContain('at its cap refine query/filters');
+    const continuation = survivesPromptTransport(
+      await f.route('search_state_bills', {
+        mode: 'semantic',
+        query: 'residential support',
+        page: semantic.nextPage,
+        limit: semantic.limit,
+      }),
+    );
+    expect(continuation).toMatchObject({ page: 2, limit: 2, nextPage: 3 });
+    const boundary = survivesPromptTransport(
+      await f.route('search_state_bills', {
+        mode: 'semantic',
+        query: 'residential support',
+        page: 500,
+        limit: 2,
+      }),
+    );
+    expect(boundary).toMatchObject({ page: 500, hasMore: true, nextPage: null });
+    expect(classifyApiToolReadOutcome('search_state_bills', boundary)?.kind).toBe('partial');
+    const calls = f.query.mock.calls.length;
+    await expect(
+      f.route('search_state_bills', {
+        mode: 'semantic',
+        query: 'residential support',
+        page: 501,
+        limit: 2,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(f.query).toHaveBeenCalledTimes(calls);
+    expect(
+      classifyApiToolReadOutcome('search_state_bills', { ...boundary, nextPage: 501 })?.kind,
+    ).toBe('failed');
+  });
+
+  it('transports long verbatim reads without losing UTF-16 text, immutable section cursors or incompleteness', async () => {
+    const structure = structureText(`SECTION 1. Aid.\n${'Housing "assistance" 😀. '.repeat(1600)}`);
+    const row = document({
+      text: structure.text,
+      structure,
+      textHash: structure.textHash,
+      structureHash: structure.structureHash,
+    });
+    const f = fixture([row]);
+    let input: Record<string, unknown> = {
+      ...identity(row),
+      section: '1',
+      length: 9000,
+      contextChars: 6000,
+    };
+    let joined = '',
+      pageCount = 0;
+    do {
+      const result = survivesPromptTransport(await f.route('read_bill_text', input));
+      expect(record(result.identity)).toMatchObject({
+        billId: row.billId,
+        revisionId: row.revisionId,
+        extractionId: row.extractionId,
+        textHash: row.textHash,
+        sourceUrl: row.sourceUrl,
+      });
+      expect(structure.text.slice(number(result.startOffset), number(result.endOffset))).toBe(
+        result.text,
+      );
+      expect(number(result.startOffset)).toBe(joined.length);
+      expect(classifyApiToolReadOutcome('read_bill_text', result)?.kind).toBe('partial');
+      expect(record(result.coverage).nextCursor).toBe(result.nextCursor);
+      joined += string(result.text);
+      if (result.nextCursor === null) break;
+      expect(decodeBillReadCursor(string(result.nextCursor))).toMatchObject({
+        section: '1',
+        offset: result.endOffset,
+        structureHash: row.structureHash,
+      });
+      input = {
+        mode: 'retained',
+        billId: row.billId,
+        cursor: result.nextCursor,
+        length: 9000,
+        contextChars: 6000,
+      };
+      if (++pageCount > 30) throw Error('Read did not progress');
+    } while (true);
+    expect(joined).toBe(structure.text);
+    expect(pageCount).toBeGreaterThan(1);
   });
 
   it('advertises the explicit modes on the existing read-only tools while keeping billId required', () => {
