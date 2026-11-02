@@ -1,4 +1,8 @@
-import { structureMarkup, structureText } from '../ingestion/bill-document-structure.js';
+import {
+  billStructureHash,
+  structureMarkup,
+  structureText,
+} from '../ingestion/bill-document-structure.js';
 import { BillTextService } from './bill-text.service.js';
 import {
   billDocumentQuery,
@@ -58,6 +62,45 @@ function document(
     text: structure.text,
     structure,
     total: 1,
+  };
+}
+
+// Public HB1207 definition, with the source's exact page 15/16 text boundary.
+const floridaDefinition = [
+  '(3) "Ambulatory surgical center" means a facility, the\nprimary purpose of which is to provide elective surgical care,\nin which the patient is admitted to and discharged from such\nfacility within 24 hours, and which is not part of a hospital.\nThe term does not include a facility existing for the primary\npurpose of performing terminations of pregnancy, an office',
+  'maintained by a physician for the practice of medicine, or an\noffice maintained for the practice of dentistry, except that\nthat any such facility or office that is certified or seeks\ncertification as a Medicare ambulatory surgical center must be\nlicensed as an ambulatory surgical center under this chapter.',
+];
+function pagedDefinition(parts = floridaDefinition, pages = [15, 16]) {
+  const structure = structureText(
+    'SECTION 1. Program.\nAn ambulatory surgical center must be licensed.\nSECTION 3. Definitions.\n' +
+      parts.join('\n') +
+      '\nSECTION 4. Other.\nUnrelated provision.',
+  );
+  const index = structure.sections.findIndex((section) => section.definitionTerms.length > 0);
+  const original = structure.sections[index]!;
+  let offset = original.startOffset;
+  const fragments = parts.map((text, part) => {
+    const fragment = {
+      ...original,
+      text,
+      startOffset: offset,
+      endOffset: offset + text.length,
+      locator: `page:${pages[part]}#definition:${part}`,
+      sourceLocator: `page:${pages[part]}`,
+      definitionTerms: part === 0 ? original.definitionTerms : [],
+      references: [],
+    };
+    offset += text.length + 1;
+    return fragment;
+  });
+  structure.sections.splice(index, 1, ...fragments);
+  structure.structureHash = billStructureHash(structure);
+  return {
+    ...document(),
+    text: structure.text,
+    textHash: structure.textHash,
+    structureHash: structure.structureHash,
+    structure,
   };
 }
 function harness(rows = [document()]) {
@@ -234,6 +277,87 @@ describe('immutable public bill text backend', () => {
       expect.objectContaining({ reference: '999', status: 'unresolved_external_or_absent' }),
     );
     expect(result.context.reduce((n, c) => n + c.text.length, 0)).toBeLessThanOrEqual(2000);
+  });
+  it('includes the actual Florida definition continuation instead of presenting its first page as complete', () => {
+    const row = pagedDefinition();
+    const before = JSON.stringify(row.structure);
+    const result = readBillDocument(row, { section: '1', contextChars: 2400 });
+    if (!result.available || !('text' in result)) throw Error('Expected an available bill read');
+    expect(
+      result.context.filter((part) => part.relation === 'definition').map((part) => part.text),
+    ).toEqual(floridaDefinition);
+    expect(result.definitions).toEqual([expect.objectContaining({ status: 'included' })]);
+    expect(result.contextTruncated).toBe(false);
+    expect(JSON.stringify(row.structure)).toBe(before);
+    for (const part of result.context)
+      expect(part.text).toBe(row.text.slice(part.startOffset, part.endOffset));
+  });
+  it('discloses omitted definition tails even when a context budget ends exactly at the page boundary', () => {
+    const row = pagedDefinition();
+    for (const contextChars of [
+      0,
+      20,
+      floridaDefinition[0]!.length,
+      floridaDefinition[0]!.length + 17,
+    ]) {
+      const result = readBillDocument(row, { section: '1', contextChars });
+      if (!result.available || !('text' in result)) throw Error('Expected an available bill read');
+      expect(result.definitions[0]!.status).toBe('context_limit');
+      expect(result.contextTruncated).toBe(true);
+      expect(result.context.reduce((n, part) => n + part.text.length, 0)).toBeLessThanOrEqual(
+        contextChars,
+      );
+      if (contextChars)
+        expect(
+          result.context.filter((part) => part.relation === 'definition').at(-1)!.truncated,
+        ).toBe(true);
+      for (const part of result.context)
+        expect(part.text).toBe(row.text.slice(part.startOffset, part.endOffset));
+    }
+  });
+  it('follows a whole three-page definition run with exact Unicode offsets and bounded continuation', () => {
+    const parts = [
+      '(3) "Ambulatory surgical center" means a facility, the\nprimary purpose of which is to provide elective surgical care,',
+      'in which the patient is admitted to and discharged from such\nfacility within 24 hours. 😀 Additional conditions continue',
+      'on this third page of the same logical definition.',
+    ];
+    const row = pagedDefinition(parts, [89, 90, 91]);
+    const result = readBillDocument(row, { section: '1', contextChars: 6000 });
+    if (!result.available || !('text' in result)) throw Error('Expected an available bill read');
+    expect(
+      result.context.filter((part) => part.relation === 'definition').map((part) => part.text),
+    ).toEqual(parts);
+    expect(result.definitions[0]!.status).toBe('included');
+    const bounded = readBillDocument(row, {
+      section: '1',
+      contextChars: parts[0]!.length + parts[1]!.length,
+    });
+    if (!bounded.available || !('text' in bounded)) throw Error('Expected an available bill read');
+    expect(bounded.context.filter((part) => part.relation === 'definition')).toHaveLength(2);
+    expect(bounded.context.at(-1)!.truncated).toBe(true);
+    expect(bounded.definitions[0]!.status).toBe('context_limit');
+    expect(bounded.contextTruncated).toBe(true);
+    for (const part of bounded.context)
+      expect(part.text).toBe(row.text.slice(part.startOffset, part.endOffset));
+  });
+  it('does not infer definition continuation across skipped pages or an intervening logical path', () => {
+    const skipped = pagedDefinition(floridaDefinition, [15, 17]);
+    const interrupted = pagedDefinition(
+      [floridaDefinition[0]!, 'An intervening section.', floridaDefinition[1]!],
+      [15, 16, 17],
+    );
+    interrupted.structure.sections.find((section) => section.sourceLocator === 'page:16')!.path = [
+      '4',
+    ];
+    interrupted.structure.structureHash = billStructureHash(interrupted.structure);
+    interrupted.structureHash = interrupted.structure.structureHash;
+    for (const row of [skipped, interrupted]) {
+      const result = readBillDocument(row, { section: '1', contextChars: 6000 });
+      if (!result.available || !('text' in result)) throw Error('Expected an available bill read');
+      expect(
+        result.context.filter((part) => part.relation === 'definition').map((part) => part.text),
+      ).toEqual([floridaDefinition[0]]);
+    }
   });
   it('bounds reads without breaking surrogate pairs and retains exact extraction in continuation', () => {
     const row = document('SECTION 1. Text.\n😀' + 'a'.repeat(500));

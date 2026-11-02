@@ -99,6 +99,32 @@ export function billSectionMatches(section: BillStructuredSection, requested: st
     section.path.map((part) => part.replace(/\.+$/, '')).join('/') === normalized
   );
 }
+
+/** PDF page boundaries split one logical section into adjacent immutable fragments. */
+function definitionRun(section: BillStructuredSection, structure: BillDocumentStructure) {
+  const run = [section];
+  let page = /^page:(\d+)$/.exec(section.sourceLocator)?.[1];
+  if (!page || !section.path.length) return run;
+  for (
+    let index = structure.sections.indexOf(section) + 1;
+    index < structure.sections.length;
+    index++
+  ) {
+    const next = structure.sections[index]!;
+    const previous = run.at(-1)!;
+    if (
+      next.sourceLocator !== `page:${Number(page) + 1}` ||
+      next.path.length !== section.path.length ||
+      !section.path.every((part, depth) => next.path[depth] === part) ||
+      next.startOffset < previous.endOffset ||
+      structure.text.slice(previous.endOffset, next.startOffset).trim()
+    )
+      break;
+    run.push(next);
+    page = String(Number(page) + 1);
+  }
+  return run;
+}
 export type BillReadCursor = {
   extractionId: string;
   revisionId: string;
@@ -271,7 +297,8 @@ export function readBillDocument(
   const definitions = structure.sections.filter((s) =>
     s.definitionTerms.some((term) => text.toLowerCase().includes(term.toLowerCase())),
   );
-  definitions.forEach((s) => add(s, 'definition'));
+  const definitionRuns = definitions.map((section) => definitionRun(section, structure));
+  definitionRuns.forEach((run) => run.forEach((section) => add(section, 'definition')));
   const references = [...new Set(selected.flatMap((s) => s.references))]
     .slice(0, 40)
     .map((reference) => {
@@ -329,6 +356,30 @@ export function readBillDocument(
     if (first > 0) add(structure.sections[first - 1]!, 'previous');
     if (last + 1 < structure.sections.length) add(structure.sections[last + 1]!, 'next');
   }
+  const spans = [{ startOffset, endOffset }, ...context].sort(
+    (a, b) => a.startOffset - b.startOffset,
+  );
+  const fullyIncluded = (section: BillStructuredSection) => {
+    let through = section.startOffset;
+    for (const span of spans) {
+      if (span.endOffset <= through) continue;
+      if (span.startOffset > through) return false;
+      through = Math.max(through, span.endOffset);
+      if (through >= section.endOffset) return true;
+    }
+    return through >= section.endOffset;
+  };
+  const completeDefinitions = definitionRuns.map((run) => run.every(fullyIncluded));
+  definitionRuns.forEach((run, index) => {
+    if (completeDefinitions[index]) return;
+    // Even a complete page fragment must disclose that the logical definition's
+    // following fragment was omitted when the budget ended at the page boundary.
+    const locators = new Set(run.map((section) => section.locator));
+    const last = context
+      .filter((part) => part.relation === 'definition' && locators.has(part.locator))
+      .at(-1);
+    if (last) last.truncated = true;
+  });
   return {
     ...common,
     available: true,
@@ -363,15 +414,15 @@ export function readBillDocument(
         })),
     })),
     context,
-    definitions: definitions.slice(0, 40).map((s) => ({
+    definitions: definitions.slice(0, 40).map((s, index) => ({
       terms: s.definitionTerms,
       locator: s.locator,
-      status: added.has(s.locator) ? 'included' : 'context_limit',
+      status: completeDefinitions[index] ? 'included' : 'context_limit',
     })),
     references,
     referencesTruncated: new Set(selected.flatMap((s) => s.references)).size > references.length,
     definitionsTruncated: definitions.length > 40,
-    contextTruncated: remaining === 0,
+    contextTruncated: remaining === 0 || completeDefinitions.some((complete) => !complete),
     nextCursor:
       endOffset < sectionEnd ? encodeBillReadCursor(row, endOffset, request.section) : null,
   };
