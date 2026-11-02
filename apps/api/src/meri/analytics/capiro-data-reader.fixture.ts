@@ -13,7 +13,7 @@ import { Client } from 'pg';
  * database it:
  *
  *   1. drops everything a previous run created (schemas, tables, the four
- *      reader/owner roles and what they own) — never point it at shared data;
+ *      reader/owner roles, fixture source owner and what they own) — never point it at shared data;
  *   2. creates the base tables the published projections read, exactly as
  *      `prisma migrate diff --from-empty --to-schema-datamodel` emits them
  *      from the current schema.prisma, plus the canonical tenant RLS helper
@@ -36,6 +36,10 @@ export const READER_MIGRATIONS = [
   '20281027100000_private_saved_business_policies',
   '20281027101000_private_saved_business_projections',
   '20281101010000_capiro_data_published_surface',
+  '20281101130000_research_canonical_contact_helper',
+  '20281101140000_research_canonical_meeting16',
+  '20281101150000_research_tenant_policies',
+  '20281101160000_research_classic_19',
   '20281101180000_capiro_data_public_column_meaning',
   '20281102100000_capiro_data_federal_awards_surface',
   '20281102120000_capiro_data_program_element_years_surface',
@@ -65,6 +69,13 @@ const BASE_TABLES = [
   'tracked_bill',
   'engagement_campaigns',
   'engagement_campaign_recipients',
+  'meetings',
+  'engagement_connections',
+  'meeting_attendees',
+  'research_portfolios',
+  'research_portfolio_grants',
+  'research_portfolio_members',
+  'outreach_records',
   'congress_bill',
   'congress_bill_subject',
   'congress_bill_cosponsor',
@@ -88,7 +99,7 @@ const RAW_SQL_TABLES = [
   'government_forecast',
   'government_forecast_source',
 ] as const;
-/** Tenant tables whose isolation policy the applied migrations already define (the saved-business migration adds three more). */
+/** Canonical tenant-policy sources; saved-business and Research migrations add their own policies. */
 const TENANT_POLICY_TABLES = [
   'tenant_memberships',
   'clients',
@@ -102,8 +113,13 @@ const TENANT_POLICY_TABLES = [
   'engagement_tasks',
   'action_recommendation',
   'tracked_bill',
+  'meetings',
+  'engagement_connections',
+  'meeting_attendees',
+  'outreach_records',
 ] as const;
-const ROLES = ['capiro_analytics_ro', 'capiro_private_query_ro', 'capiro_private_projection_owner', 'capiro_public_projection_owner'] as const;
+const FIXTURE_SOURCE_OWNER = 'capiro_reader_fixture_source_owner';
+const ROLES = ['capiro_analytics_ro', 'capiro_private_query_ro', 'capiro_private_projection_owner', 'capiro_public_projection_owner', FIXTURE_SOURCE_OWNER] as const;
 
 export const READER_TEST_PASSWORD = 'capiro-data-reader-test';
 const apiRoot = path.resolve(__dirname, '..', '..', '..');
@@ -121,6 +137,10 @@ export const FIXTURE = Object.freeze({
   objectiveA1: id(31),
   objectiveA2: id(32),
   objectiveB1: id(33),
+  meetingA1: id(201),
+  meetingA2Walled: id(202),
+  meetingB1: id(203),
+  meetingOtherOwner: id(204),
 });
 
 function baseSchemaSql(): string {
@@ -138,16 +158,18 @@ function baseSchemaSql(): string {
   return [...enums, ...tables].join('\n');
 }
 
+/** The Research policy migration verifies these exact canonical function bodies. */
+function tenantHelpersSql(): string {
+  const sql = readFileSync(path.join(apiRoot, 'prisma', 'migrations', '20260501000000_init_identity_tenancy', 'migration.sql'), 'utf8');
+  return ['current_tenant_id', 'rls_bypass'].map((name) => {
+    const matches = [...sql.matchAll(new RegExp(`CREATE OR REPLACE FUNCTION ${name}\\(\\)[\\s\\S]*?\\$\\$ LANGUAGE plpgsql STABLE;`, 'g'))];
+    if (matches.length !== 1) throw new Error(`fixture: expected one canonical ${name} helper`);
+    return matches[0]![0];
+  }).join('\n');
+}
+
 const RLS_SQL = `
-CREATE OR REPLACE FUNCTION current_tenant_id() RETURNS UUID AS $$
-DECLARE v_raw TEXT := current_setting('app.current_tenant', true);
-BEGIN
-  IF v_raw IS NULL OR v_raw = '' THEN RETURN NULL; END IF;
-  RETURN v_raw::uuid;
-EXCEPTION WHEN invalid_text_representation THEN RETURN NULL;
-END; $$ LANGUAGE plpgsql STABLE;
-CREATE OR REPLACE FUNCTION rls_bypass() RETURNS BOOLEAN AS $$
-BEGIN RETURN current_setting('app.bypass_rls', true) = 'on'; END; $$ LANGUAGE plpgsql STABLE;
+${tenantHelpersSql()}
 ALTER TABLE tenants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tenants FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenants_isolation ON tenants USING (rls_bypass() OR id = current_tenant_id()) WITH CHECK (rls_bypass() OR id = current_tenant_id());
@@ -191,6 +213,11 @@ INSERT INTO client_objectives (id, tenant_id, client_id, client_request_id, crea
 INSERT INTO client_people (id, tenant_id, client_id, name, placement_source, review_required, updated_at) VALUES
   ('${id(61)}', '${f.tenantA}', '${f.clientA1}', 'Person A1', 'manual', false, now()),
   ('${id(62)}', '${f.tenantB}', '${f.clientB1}', 'Person B1', 'manual', false, now());
+INSERT INTO meetings (id, tenant_id, client_id, created_by_user_id, subject, starts_at, ends_at, updated_at) VALUES
+  ('${f.meetingA1}', '${f.tenantA}', '${f.clientA1}', '${f.actorA}', 'Owned visible meeting', now(), now() + interval '1 hour', now()),
+  ('${f.meetingA2Walled}', '${f.tenantA}', '${f.clientA2Walled}', '${f.actorA}', 'Owned walled meeting', now(), now() + interval '1 hour', now()),
+  ('${f.meetingB1}', '${f.tenantB}', '${f.clientB1}', '${f.actorB}', 'Other tenant meeting', now(), now() + interval '1 hour', now()),
+  ('${f.meetingOtherOwner}', '${f.tenantA}', '${f.clientA1}', '${f.actorB}', 'Other actor meeting', now(), now() + interval '1 hour', now());
 INSERT INTO congress_bill (id, congress, bill_type, bill_number, title, status, introduced_date, sponsor_bioguide_id, update_date, last_synced_at) VALUES
   ('119-hr-1', 119, 'hr', '1', 'Drone Act', 'introduced', '2025-01-03', 'A000001', '2025-01-04T01:02:03.123456Z', '2025-01-05T00:00:00Z'),
   ('119-s-2', 119, 's', '2', 'Energy Act', 'enacted', '2025-02-03', 'B000002', NULL, '2025-02-05T00:00:00Z'),
@@ -258,8 +285,13 @@ export async function prepareReaderFixture(adminUrl: string): Promise<ReaderFixt
     const types = await admin.query<{ typname: string }>("SELECT typname FROM pg_catalog.pg_type WHERE typtype = 'e' AND typnamespace = 'public'::regnamespace");
     for (const row of types.rows) await admin.query(`DROP TYPE IF EXISTS "${row.typname}" CASCADE`);
     await admin.query('CREATE EXTENSION IF NOT EXISTS citext; CREATE EXTENSION IF NOT EXISTS pg_trgm; CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
+    // The canonical Research policy migration requires a non-superuser source
+    // owner distinct from both reader roles; this role owns only fixture tables.
+    await admin.query(`CREATE ROLE ${FIXTURE_SOURCE_OWNER} NOLOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOREPLICATION NOINHERIT`);
     await admin.query(baseSchemaSql());
     await admin.query(RLS_SQL);
+    for (const table of ['research_portfolios', 'research_portfolio_grants', 'research_portfolio_members'])
+      await admin.query(`ALTER TABLE ${table} OWNER TO ${FIXTURE_SOURCE_OWNER}`);
     for (const name of READER_MIGRATIONS) {
       const sql = readFileSync(path.join(apiRoot, 'prisma', 'migrations', name, 'migration.sql'), 'utf8').replace(
         /ON DATABASE capiro\b/g,

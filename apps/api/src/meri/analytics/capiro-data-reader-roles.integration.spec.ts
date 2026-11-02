@@ -3,7 +3,7 @@ import { asRole, FIXTURE, prepareReaderFixture, type ReaderFixture } from './cap
 import { PrivateSqlDbService, type PrivateSqlExecutionContext } from './private-sql-db.service.js';
 import { createPrivateSqlQueries } from './private-sql-query.js';
 import { describeCapiroData, queryCapiroData } from './public-sql-query.js';
-import { gateSqlStatement, PRIVATE_RELATION_NAMES, PUBLIC_RELATION_NAMES } from './sql-statement-gate.js';
+import { gateSqlStatement, PRIVATE_RELATION_NAMES, PUBLIC_RELATION_NAMES, RESEARCH_RELATION_NAMES, CLASSIC_RELATION_NAMES } from './sql-statement-gate.js';
 
 /**
  * Proof that the database, not application code, enforces the properties the
@@ -215,13 +215,15 @@ describeDatabase('capiro data reader roles: database-enforced properties', () =>
       expect(await asRole(pub, PUBLIC, 'SELECT count(*)::int AS n FROM government_forecasts')).toEqual({ rows: [{ n: 2 }] });
       expect(await asRole(pub, PUBLIC, 'SELECT count(*) FROM public.government_forecast_revision')).toMatchObject({ code: '42501' });
     });
-    it('private reader sees exactly the gate vocabulary in meri_private; visible_clients is excluded', async () => {
+    it('private reader sees exactly all three private source vocabularies in meri_private; visible_clients is excluded', async () => {
       const result = await asRole(
         priv,
         PRIVATE,
         "SELECT c.relname AS name FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'meri_private' AND has_table_privilege(c.oid, 'SELECT') ORDER BY 1",
       );
-      expect('rows' in result && result.rows.map((row) => row.name).sort()).toEqual([...PRIVATE_RELATION_NAMES].sort());
+      expect('rows' in result && result.rows.map((row) => row.name).sort()).toEqual([
+        ...PRIVATE_RELATION_NAMES, ...RESEARCH_RELATION_NAMES, ...CLASSIC_RELATION_NAMES,
+      ].sort());
     });
     it('neither reader holds a write, reference or trigger privilege on any relation', async () => {
       const probe = `SELECT count(*)::int AS n FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -287,7 +289,7 @@ describeDatabase('capiro data reader roles: database-enforced properties', () =>
     });
     it('returns the PostgreSQL error with position, hint and nearest names', async () => {
       const unknownColumn = await queryCapiroData({ sql: 'SELECT b.titel FROM congress_bills b', parameters: [] }, analytics);
-      expect(unknownColumn).toMatchObject({ ok: false, error: { code: 'UNKNOWN_FIELD', sqlstate: '42703', position: 8, candidates: ['title', 'quantity'] } });
+      expect(unknownColumn).toMatchObject({ ok: false, error: { code: 'UNKNOWN_FIELD', sqlstate: '42703', position: 8, candidates: ['title', 'edition', 'quantity'] } });
       if (unknownColumn.ok) throw new Error('expected refusal');
       expect(unknownColumn.error.message).toBe('column b.titel does not exist');
       const unknownRelation = await queryCapiroData({ sql: 'SELECT 1 FROM congress_bill', parameters: [] }, analytics);
@@ -309,6 +311,17 @@ describeDatabase('capiro data reader roles: database-enforced properties', () =>
       expect(capped).toMatchObject({ ok: true, rowCount: 2, rowLimitReached: true, coverage: { sqlLimit: null } });
       const own = await queryCapiroData({ sql: 'SELECT id FROM congress_bills ORDER BY id LIMIT 1', parameters: [], rowLimit: 2 }, analytics);
       expect(own).toMatchObject({ ok: true, rowCount: 1, rowLimitReached: false, coverage: { sqlLimit: 1 } });
+    });
+    it('private meetings preserve actor ownership, tenant isolation and current client walls', async () => {
+      const queries = createPrivateSqlQueries(privateDb);
+      const input = { sql: 'SELECT client_id, id FROM client_meetings ORDER BY id', parameters: [] };
+      expect(await queries.query(input, context())).toMatchObject({
+        ok: true, rows: [{ client_id: FIXTURE.clientA1, id: FIXTURE.meetingA1 }], relationsUsed: ['client_meetings'],
+      });
+      expect(await queries.query(input, context({ tenantId: FIXTURE.tenantB, actorId: FIXTURE.actorB }))).toMatchObject({
+        ok: true, rows: [{ client_id: FIXTURE.clientB1, id: FIXTURE.meetingB1 }],
+      });
+      expect(await queries.query(input, context({ scopeKind: 'client', clientId: FIXTURE.clientA2Walled }))).toMatchObject({ ok: true, rows: [] });
     });
     it('private describe and query run under the admitted context and the reader role', async () => {
       const queries = createPrivateSqlQueries(privateDb);
