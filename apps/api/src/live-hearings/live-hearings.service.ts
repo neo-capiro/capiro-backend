@@ -1,6 +1,7 @@
 import { projectCaptureResolution } from './live-hearings-capture-projection.js';
 import { committeeCatalogCode, committeeCatalogReadCodes } from '../hearing-discovery/committee-catalog-alias.js';
 import { HEARING_DOCUMENT_UPDATE_TYPES, mergeHearingDocuments } from './live-hearings-documents.js';
+import { selectOfficialWatchMedia, type OfficialWatchMedia } from './live-hearings-watch-media.js';
 import {
   resolveCanonicalHearingId,
   resolveCanonicalHearingIds,
@@ -104,6 +105,7 @@ export interface CalendarEvent {
   /** Stable publisher page for external Watch/Replay; never direct media. */
   officialPlaybackUrl: string | null;
   officialPlaybackKind: 'official_player_page' | 'official_listing_page' | null;
+  officialWatchMedia: OfficialWatchMedia | null;
   witnesses: string[];
   streamAvailability: string;
   streamState: string;
@@ -1323,6 +1325,7 @@ export class LiveHearingsService {
         officialPageUrl: strictOfficialSourceUrl(row.url),
         officialPlaybackUrl: playback?.sourceUrl ?? null,
         officialPlaybackKind: playback?.sourceKind ?? null,
+        officialWatchMedia: selectOfficialWatchMedia(row.visibility, hearingCandidates),
         witnesses: row.witnesses ?? [],
         streamAvailability: row.streamAvailability,
         ...captureResolution,
@@ -1346,9 +1349,8 @@ export class LiveHearingsService {
         streamCandidates: hearingCandidates.map((c) => ({
           provider: c.provider,
           officialPageUrl: strictOfficialSourceUrl(c.officialPageUrl, c.provider),
-          // The raw media URL is deliberately NOT exposed: it can be expiring,
-          // IP-bound or licence-restricted, and a normal user has no reason to
-          // hold one. The UI needs to know a stream EXISTS, not where it is.
+          // Candidate URLs remain private here. The separate watch projection
+          // exposes only supported, approved public media, never capture identity.
           hasMediaUrl: c.mediaUrl != null,
           mediaType: c.mediaType,
           resolutionState: c.resolutionState,
