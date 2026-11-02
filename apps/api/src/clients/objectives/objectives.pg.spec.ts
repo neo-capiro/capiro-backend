@@ -6,6 +6,10 @@ const migration = readFileSync(
   resolve(process.cwd(), 'prisma/migrations/20281011010000_client_objectives/migration.sql'),
   'utf8',
 );
+const intakeReadyMigration = readFileSync(
+  resolve(process.cwd(), 'prisma/migrations/20281102200000_client_objective_intake_ready/migration.sql'),
+  'utf8',
+);
 const tenantA = '11111111-1111-4111-8111-111111111111';
 const tenantB = '22222222-2222-4222-8222-222222222222';
 const clientA = '33333333-3333-4333-8333-333333333333';
@@ -16,9 +20,8 @@ const objectiveB = '77777777-7777-4777-8777-777777777777';
 
 describe('Objective migration on local ephemeral PostgreSQL (PGlite)', () => {
   let db: PGlite;
-  beforeAll(async () => {
-    db = new PGlite();
-    await db.exec(`
+  async function bootstrap(target: PGlite) {
+    await target.exec(`
       CREATE ROLE capiro_app;
       CREATE FUNCTION rls_bypass() RETURNS boolean LANGUAGE sql AS $$ SELECT false $$;
       CREATE FUNCTION current_tenant_id() RETURNS uuid LANGUAGE sql AS $$
@@ -26,19 +29,24 @@ describe('Objective migration on local ephemeral PostgreSQL (PGlite)', () => {
       CREATE TABLE tenants(id uuid PRIMARY KEY);
       CREATE TABLE clients(id uuid PRIMARY KEY, tenant_id uuid NOT NULL REFERENCES tenants(id), UNIQUE(tenant_id,id));
     `);
-    await db.query('INSERT INTO tenants VALUES ($1), ($2)', [tenantA, tenantB]);
-    await db.query('INSERT INTO clients VALUES ($1,$2),($3,$4)', [
+    await target.query('INSERT INTO tenants VALUES ($1), ($2)', [tenantA, tenantB]);
+    await target.query('INSERT INTO clients VALUES ($1,$2),($3,$4)', [
       clientA,
       tenantA,
       clientB,
       tenantB,
     ]);
-    await db.exec(migration);
-    await db.query(
+    await target.exec(migration);
+    await target.query(
       `INSERT INTO client_objectives(id,tenant_id,client_id,created_by_user_id,client_request_id,create_request_hash)
       VALUES($1,$2,$3,$4,gen_random_uuid(),repeat('a',64)),($5,$6,$7,$4,gen_random_uuid(),repeat('b',64))`,
       [objectiveA, tenantA, clientA, actor, objectiveB, tenantB, clientB],
     );
+  }
+  beforeAll(async () => {
+    db = new PGlite();
+    await bootstrap(db);
+    await db.exec(intakeReadyMigration);
   }, 60000);
 
   afterAll(async () => {
@@ -65,9 +73,47 @@ describe('Objective migration on local ephemeral PostgreSQL (PGlite)', () => {
     ).rejects.toMatchObject({ code: '23503' });
   });
 
-  test('real SQL allows partial drafts and refuses Ready until exactly four fields exist', async () => {
+  // The service's transition write for an Objective saved through the shared
+  // Strategy intake: answers live in the revision snapshot, legacy columns stay blank.
+  const intakeTransition = `UPDATE client_objectives SET status=$2::varchar,version=version+1,
+    ready_at=CASE WHEN $2::varchar='ready' THEN now() END,
+    review_requested_at=CASE WHEN $2::varchar='in_review' THEN now() END
+    WHERE id=$1 RETURNING status,outcome,government_problem,ask_type,minimum_win`;
+
+  test('intake Objective review/ready: original row CHECK refuses it (preview 500); forward migration admits it', async () => {
+    const original = new PGlite();
+    try {
+      await bootstrap(original);
+      for (const status of ['in_review', 'ready']) {
+        await expect(original.query(intakeTransition, [objectiveA, status])).rejects.toMatchObject({
+          code: '23514',
+          message: expect.stringContaining('client_objectives_ready_check'),
+        });
+      }
+      await original.exec(intakeReadyMigration);
+      expect((await original.query(intakeTransition, [objectiveA, 'in_review'])).rows).toEqual([
+        { status: 'in_review', outcome: '', government_problem: '', ask_type: null, minimum_win: '' },
+      ]);
+      expect((await original.query(intakeTransition, [objectiveA, 'ready'])).rows[0]).toMatchObject({ status: 'ready' });
+    } finally {
+      await original.close();
+    }
+  }, 60000);
+
+  test('forward migration is LF-exact and drops only the ready CHECK; status and ask values stay checked', async () => {
+    expect(intakeReadyMigration).not.toContain('\r');
+    expect(
+      (
+        await db.query<{ conname: string }>(
+          `SELECT conname FROM pg_constraint WHERE conrelid='client_objectives'::regclass AND contype='c' ORDER BY conname`,
+        )
+      ).rows.map((row) => row.conname),
+    ).toEqual(['client_objectives_ask_check', 'client_objectives_status_check', 'client_objectives_version_check']);
     await expect(
-      db.query(`UPDATE client_objectives SET status='ready' WHERE id=$1`, [objectiveA]),
+      db.query(`UPDATE client_objectives SET status='approved' WHERE id=$1`, [objectiveA]),
+    ).rejects.toMatchObject({ code: '23514' });
+    await expect(
+      db.query(`UPDATE client_objectives SET ask_type='other' WHERE id=$1`, [objectiveA]),
     ).rejects.toMatchObject({ code: '23514' });
     await db.query(
       `UPDATE client_objectives SET outcome='Extend authority',government_problem='Authority expires',
