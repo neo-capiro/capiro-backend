@@ -3,6 +3,9 @@ import { PrismaClient } from '@prisma/client';
 import { withStateBillWriter } from './state-bill-writer.js';
 import { withFederalBillWriter } from './federal-bill-writer.js';
 import { enrichFederalBulkMetadata } from './federal-billstatus-import.js';
+import { publisherCooldown } from './state-publisher-document.js';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 describe('shared state writer lease on disposable PostgreSQL', () => {
   jest.setTimeout(30000);
@@ -22,8 +25,32 @@ describe('shared state writer lease on disposable PostgreSQL', () => {
     await admin.$executeRawUnsafe(`CREATE SCHEMA ${schema}`);
     url.searchParams.set('schema', schema);
     db = new PrismaClient({ datasources: { db: { url: url.href } } });
-    await db.$executeRawUnsafe(`CREATE TABLE federal_evidence_checkpoint(source text PRIMARY KEY,status text,
-      lease_token uuid,lease_until timestamptz,updated_at timestamptz DEFAULT clock_timestamp())`);
+    const migration = readFileSync(
+      resolve(
+        process.cwd(),
+        'prisma/migrations/20280924030000_federal_legislative_evidence/migration.sql',
+      ),
+      'utf8',
+    );
+    const checkpointDDL = migration.match(
+      /CREATE TABLE "federal_evidence_checkpoint" \([\s\S]*?\n\);/,
+    )?.[0];
+    if (
+      !checkpointDDL ||
+      !migration.includes(
+        'GRANT SELECT, INSERT, UPDATE ON federal_evidence_change_outbox, federal_evidence_checkpoint TO capiro_app;',
+      )
+    )
+      throw Error('CANONICAL_CHECKPOINT_CONTRACT_MISSING');
+    await db.$executeRawUnsafe(checkpointDDL);
+    await db.$executeRawUnsafe(
+      `DO $$ BEGIN IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='capiro_app') THEN CREATE ROLE capiro_app; END IF; END $$`,
+    );
+    await db.$executeRawUnsafe(`GRANT USAGE ON SCHEMA ${schema} TO capiro_app`);
+    // The checkpoint subset of the canonical migration grant; unrelated outbox is not in this fixture.
+    await db.$executeRawUnsafe(
+      'GRANT SELECT, INSERT, UPDATE ON federal_evidence_checkpoint TO capiro_app',
+    );
     await db.$executeRawUnsafe('CREATE TABLE marker(value integer)');
     await db.$executeRawUnsafe('INSERT INTO marker VALUES(0)');
     await db.$executeRawUnsafe(
@@ -38,6 +65,46 @@ describe('shared state writer lease on disposable PostgreSQL', () => {
     await db.$executeRawUnsafe(
       'CREATE TABLE legal_source_receipt(id text PRIMARY KEY,source text,scope jsonb,manifest jsonb,complete boolean,observed_at timestamptz DEFAULT clock_timestamp())',
     );
+  });
+  it('persists per-host cooldowns across clients with atomic maximum expiry and existing app grants', async () => {
+    const asApp = <T>(run: (tx: any) => Promise<T>) =>
+      db.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe('SET LOCAL ROLE capiro_app');
+        return run(tx);
+      });
+    const host = 'www.flsenate.gov';
+    await Promise.all([
+      asApp((tx) => publisherCooldown(tx).hold(host, 3600000, 429)),
+      asApp((tx) => publisherCooldown(tx).hold(host, 60000, 503)),
+    ]);
+    const first = await db.$queryRawUnsafe<Array<{ deadline: Date }>>(
+      'SELECT window_end AS deadline FROM federal_evidence_checkpoint WHERE source=$1',
+      'bill-publisher:cooldown:' + host,
+    );
+    // A different adapter/client after the first process exits sees the shared hold.
+    expect(await asApp((tx) => publisherCooldown(tx).remaining(host))).toBeGreaterThan(3500000);
+    expect(await asApp((tx) => publisherCooldown(tx).remaining('www.flhouse.gov'))).toBe(0);
+    await asApp((tx) => publisherCooldown(tx).hold(host, 1000, 503));
+    expect(
+      await db.$queryRawUnsafe(
+        'SELECT window_end AS deadline FROM federal_evidence_checkpoint WHERE source=$1',
+        'bill-publisher:cooldown:' + host,
+      ),
+    ).toEqual(first);
+    await db.$executeRawUnsafe(
+      "UPDATE federal_evidence_checkpoint SET window_end=clock_timestamp()-interval '1 second' WHERE source=$1",
+      'bill-publisher:cooldown:' + host,
+    );
+    expect(await asApp((tx) => publisherCooldown(tx).remaining(host))).toBe(0);
+    const privileges = await asApp((tx) =>
+      tx.$queryRawUnsafe(
+        `SELECT has_table_privilege(current_user,'federal_evidence_checkpoint','SELECT') AS read,
+       has_table_privilege(current_user,'federal_evidence_checkpoint','INSERT') AS insert,
+       has_table_privilege(current_user,'federal_evidence_checkpoint','UPDATE') AS update,
+       has_table_privilege(current_user,'federal_evidence_checkpoint','DELETE') AS delete`,
+      ),
+    );
+    expect(privileges).toEqual([{ read: true, insert: true, update: true, delete: false }]);
   });
   afterAll(async () => {
     await db?.$disconnect();

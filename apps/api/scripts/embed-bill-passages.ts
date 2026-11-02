@@ -48,7 +48,7 @@ export async function main(argv = process.argv.slice(2)) {
         ? (await import('../src/ingestion/bill-passage-embedding.js')).embedBillPassage
         : null;
     const sourceType = args.source === 'federal' ? 'bill_passage' : 'state_bill_passage';
-    source = `bill-text:fy26:${args.source}:${args.phase}:${provider ? sha256(provider.metadata.model).slice(0, 12) : BILL_EXTRACTION_VERSION}:${CHUNKER_VERSION}`;
+    source = `bill-text:fy26:${args.source}:${args.phase}:${BILL_EXTRACTION_VERSION}${provider ? ':' + sha256(provider.metadata.model).slice(0, 12) : ''}:${CHUNKER_VERSION}`;
     if (args.states.length) source += `:states:${args.states.join(',')}`;
     let cursor = args.cursor;
 
@@ -183,6 +183,7 @@ export async function main(argv = process.argv.slice(2)) {
               contentHash: sha256(chunk.text),
               ...passageMetadata(chunk),
               extractionId: extraction.id,
+              extractionVersion: BILL_EXTRACTION_VERSION,
               structureHash: extraction.structure.structureHash,
               textHash: extraction.structure.textHash,
               previousPassageId: chunk.ordinal

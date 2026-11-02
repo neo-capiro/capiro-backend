@@ -86,6 +86,9 @@ export class BillTextService {
       dateBasis: request.dateBasis ?? 'published',
       dateEndExclusive: true,
       limitation:
+        (request.mode === 'semantic'
+          ? 'Filters are validated within the bounded nearest-passage shortlist; additional matching revisions may exist beyond it. '
+          : '') +
         'Missing or failed extractions are not negative evidence. Inspect coverage for unverified source inventory and incomplete stages.',
     };
   }

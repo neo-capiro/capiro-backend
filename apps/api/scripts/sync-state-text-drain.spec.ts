@@ -5,12 +5,16 @@ import {
   StateDocumentRetrievalError,
 } from '../src/ingestion/state-document-retrieval.js';
 import { persistDocumentEvidence } from '../src/ingestion/legiscan-document-evidence.js';
+import { BILL_EXTRACTION_VERSION } from '../src/ingestion/bill-document-structure.js';
 jest.mock('../src/ingestion/state-document-retrieval.js', () => ({
   retrieveStateDocument: jest.fn(),
   StateDocumentRetrievalError: class extends Error {
     constructor(
       message: string,
       public retryAfterMs = 3600000,
+      public publisherFailure?: string,
+      public publisherHost?: string,
+      public publisherHttpStatus?: number,
     ) {
       super(message);
     }
@@ -70,6 +74,8 @@ test('complete existing version is skipped without requests', async () => {
   ]);
   await drainStateDocuments(prisma, options);
   expect(retrieveStateDocument).not.toHaveBeenCalled();
+  expect(prisma.$queryRaw.mock.calls[0].slice(1)).toContain(BILL_EXTRACTION_VERSION);
+  expect(prisma.$queryRaw.mock.calls[0][0].join('')).not.toContain('bill-structure-v1');
 });
 test('retained verified raw bytes await extraction without another publisher or API fetch', async () => {
   const prisma = database();
@@ -89,7 +95,7 @@ test('retained verified raw bytes await extraction without another publisher or 
 });
 test('legacy ID-only checks fan out exact hashes atomically without marking the aggregate available', async () => {
   const prisma = database(),
-    execute = jest.fn(async () => 1);
+    execute = jest.fn(async (_query: TemplateStringsArray, ..._bindings: unknown[]) => 1);
   prisma.$transaction.mockImplementation(async (fn: any) => fn({ $executeRaw: execute }));
   prisma.$queryRawUnsafe.mockImplementation(async (sql: string) =>
     sql.includes("[0-9]+$'")
@@ -104,10 +110,10 @@ test('legacy ID-only checks fan out exact hashes atomically without marking the 
   );
   await drainStateDocuments(prisma, options);
   expect(execute).toHaveBeenCalledTimes(3);
-  expect(execute.mock.calls[0].slice(1)).toContain('text:20:' + stub.providerHash);
-  expect(execute.mock.calls[1].slice(1)).toContain('text:20:' + 'b'.repeat(32));
-  expect(execute.mock.calls[2][0].join('')).toContain("state='metadata_only'");
-  expect(execute.mock.calls[2][0].join('')).toContain('next_check_at=NULL');
+  expect(execute.mock.calls[0]!.slice(1)).toContain('text:20:' + stub.providerHash);
+  expect(execute.mock.calls[1]!.slice(1)).toContain('text:20:' + 'b'.repeat(32));
+  expect(execute.mock.calls[2]![0].join('')).toContain("state='metadata_only'");
+  expect(execute.mock.calls[2]![0].join('')).toContain('next_check_at=NULL');
 });
 test('budget-held version stays pending and cannot claim available', async () => {
   const prisma = database();
@@ -125,6 +131,71 @@ test('partial structure is retained but never credited as complete', async () =>
   const result = await drainStateDocuments(prisma, options);
   expect(result.complete).toBe(false);
   expect(prisma.$executeRaw.mock.calls.at(-1).slice(1)).toContain('DOCUMENT_EXTRACTION_PARTIAL');
+});
+
+test.each(['PUBLISHER_RETRY_AFTER', 'PUBLISHER_COOLDOWN_ACTIVE'])(
+  '%s stops the batch without consuming any document failure counter',
+  async (code) => {
+    const prisma = database();
+    prisma.$queryRawUnsafe.mockImplementation(async (sql: string) =>
+      sql.includes("[0-9]+$'")
+        ? []
+        : [
+            { ...row, attempts: 9 },
+            { ...row, billKey: 'untouched', attempts: 9 },
+          ],
+    );
+    (retrieveStateDocument as jest.Mock).mockRejectedValue(
+      new StateDocumentRetrievalError(
+        code,
+        120000,
+        code,
+        'www.flsenate.gov',
+        code === 'PUBLISHER_RETRY_AFTER' ? 429 : undefined,
+      ),
+    );
+    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      const result = await drainStateDocuments(prisma, { ...options, limit: 100 });
+      expect(result).toMatchObject({
+        errors: 0,
+        skipped: 1,
+        complete: false,
+        incompleteReason: code,
+      });
+      expect(retrieveStateDocument).toHaveBeenCalledTimes(1);
+      expect(persistDocumentEvidence).not.toHaveBeenCalled();
+      expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
+      const update = prisma.$executeRaw.mock.calls[0];
+      expect(update[0].join('')).toContain("state='pending'");
+      expect(update[0].join('')).not.toContain('attempts=');
+      expect(update[0].join('')).toContain('ELSE attempted_at END');
+      expect(update[1]).toBe(code);
+      expect(update[2]).toBe(code === 'PUBLISHER_RETRY_AFTER');
+      expect(update[3]).toBe(3 * 3600000);
+      expect(JSON.parse(log.mock.calls[0]![0])).toMatchObject({
+        event: 'PUBLISHER_BACKOFF',
+        complete: false,
+        host: 'www.flsenate.gov',
+        requestAttempted: code === 'PUBLISHER_RETRY_AFTER',
+        retryAfterMs: 3 * 3600000,
+      });
+    } finally {
+      log.mockRestore();
+    }
+  },
+);
+
+test('an unreadable durable cooldown aborts before any document state mutation', async () => {
+  const prisma = database();
+  (retrieveStateDocument as jest.Mock).mockRejectedValue(
+    new StateDocumentRetrievalError('PUBLISHER_COOLDOWN_STATE_FAILED'),
+  );
+  await expect(drainStateDocuments(prisma, options)).rejects.toThrow(
+    'PUBLISHER_COOLDOWN_STATE_FAILED',
+  );
+  expect(persistDocumentEvidence).not.toHaveBeenCalled();
+  expect(prisma.$executeRaw).not.toHaveBeenCalled();
 });
 test('separate exact hashes do not let an unavailable old version starve a newer one at cap one', async () => {
   const prisma = database();

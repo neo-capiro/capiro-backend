@@ -21,6 +21,7 @@ describe('bill passage worker recovery', () => {
       phase?: 'extract' | 'embed';
       incomplete?: boolean;
       states?: string;
+      reuseVector?: boolean;
     } = {},
   ) {
     jest.resetModules();
@@ -40,6 +41,9 @@ describe('bill passage worker recovery', () => {
     process.env.DB_HOST = 'preview';
     let durable = options.cursor ?? { id: '', chunk: -1 };
     const events: string[] = [];
+    const vectorMetadata = new Map<string, Record<string, unknown>>([
+      ['historical-v1:0', { extractionVersion: 'bill-structure-v1' }],
+    ]);
     const doc = {
       id: 'abc',
       billId: '119-hr-1',
@@ -75,17 +79,30 @@ describe('bill passage worker recovery', () => {
         throw Error('UNEXPECTED_TEST_QUERY');
       }),
       $executeRawUnsafe: jest.fn(async (sql: string, ...args: unknown[]) => {
+        if (options.reuseVector && sql.startsWith('INSERT INTO context_embeddings')) {
+          vectorMetadata.set(String(args[1]), {});
+          events.push('reused-vector');
+        }
         if (sql.includes('SET cursor_jsonb')) {
           durable = JSON.parse(String(args[2]));
           events.push('checkpoint:' + durable.chunk);
         }
-        if (sql.includes('SET metadata_jsonb')) events.push('metadata');
+        if (sql.includes('SET metadata_jsonb')) {
+          events.push('metadata');
+          if (options.reuseVector) vectorMetadata.set(String(args[1]), JSON.parse(String(args[3])));
+        }
         return 1;
       }),
       $transaction: jest.fn(async (fn: (tx: any) => unknown) => fn(db)),
       $disconnect: jest.fn(async () => {}),
     };
-    const embed = jest.fn(async (_db: any, args: any) => {
+    const embed = jest.fn(async (_db: any, args: any, embeddingProvider: any) => {
+      if (options.reuseVector) {
+        const actual = jest.requireActual<
+          typeof import('../src/ingestion/bill-passage-embedding.js')
+        >('../src/ingestion/bill-passage-embedding.js');
+        return actual.embedBillPassage(_db, args, embeddingProvider);
+      }
       events.push('provider');
       if (options.providerFailure) throw Error('PROVIDER_FAILURE');
       if (!(await args.beforeWrite(db))) return 'skipped';
@@ -95,7 +112,7 @@ describe('bill passage worker recovery', () => {
     const construct = jest.fn(() => db);
     jest.doMock('@prisma/client', () => ({ PrismaClient: construct }));
     jest.doMock('../src/ingestion/bill-passage-embedding.js', () => ({ embedBillPassage: embed }));
-    const { structureText } = await import('../src/ingestion/bill-document-structure');
+    const { structureText } = await import('../src/ingestion/bill-document-structure.js');
     const extract = jest.fn(async () => ({
       id: 'extraction-abc',
       completeness: options.incomplete ? 'failed' : 'complete',
@@ -110,9 +127,12 @@ describe('bill passage worker recovery', () => {
     jest.doMock('../src/ingestion/bill-text-extraction.js', () => ({
       ensureBillTextExtraction: extract,
     }));
+    const providerEmbed = jest.fn(async () => {
+      throw Error('UNEXPECTED_PROVIDER_INVOCATION');
+    });
     const provider = jest.fn(() => {
       if (options.initializationFailure) throw Error('PROVIDER_INITIALIZATION_FAILED');
-      return { metadata: { model: 'test' } };
+      return { metadata: { model: 'test', dimensions: 1024 }, embed: providerEmbed };
     });
     jest.doMock('../src/embeddings/embedding-provider.factory.js', () => ({
       getDefaultEmbeddingProvider: provider,
@@ -121,8 +141,19 @@ describe('bill passage worker recovery', () => {
       runWithSyncRun: async (_db: any, _source: string, fn: () => unknown) => fn(),
     }));
     jest.spyOn(console, 'log').mockImplementation(() => {});
-    const { main } = await import('./embed-bill-passages');
-    return { main, db, embed, extract, construct, provider, events, durable: () => durable };
+    const { main } = await import('./embed-bill-passages.js');
+    return {
+      main,
+      db,
+      embed,
+      extract,
+      construct,
+      provider,
+      providerEmbed,
+      vectorMetadata,
+      events,
+      durable: () => durable,
+    };
   }
   it('imports without allocating Prisma or requiring CLI configuration', async () => {
     const h = await setup();
@@ -138,6 +169,9 @@ describe('bill passage worker recovery', () => {
         a[0].startsWith('INSERT INTO federal_evidence_checkpoint'),
       );
       expect(checkpoint[1]).toMatch(/:states:FL$/);
+      expect(checkpoint[1]).toContain(`:${phase}:bill-structure-v2:`);
+      if (phase === 'embed')
+        expect(checkpoint[1]).toMatch(/:bill-structure-v2:[0-9a-f]{12}:bill-structured-utf16-v2:/);
       const query = h.db.$queryRawUnsafe.mock.calls.find((a: any[]) =>
         a[0].includes('FROM state_bill_published_record'),
       );
@@ -174,10 +208,31 @@ describe('bill passage worker recovery', () => {
       jurisdiction: 'CA',
       locator: 'document#0',
       extractionId: 'extraction-abc',
+      extractionVersion: 'bill-structure-v2',
       offsetBasis: 'structured_document_text',
       startOffset: 0,
       endOffset: 'The full state legislative provision.'.length,
       offsetUnit: 'UTF-16',
+    });
+  });
+  it('stamps the current extraction generation after exact-vector reuse without altering the old source metadata', async () => {
+    const h = await setup({ source: 'state', reuseVector: true });
+    await h.main();
+    expect(h.providerEmbed).not.toHaveBeenCalled();
+    expect(h.events).toEqual(['checkpoint:-1', 'reused-vector', 'metadata', 'checkpoint:0']);
+    const copy = h.db.$executeRawUnsafe.mock.calls.find((call: unknown[]) =>
+      String(call[0]).startsWith('INSERT INTO context_embeddings'),
+    );
+    expect(copy[0]).toContain('AND model=$3 AND content_hash=$4 AND content_text=$5');
+    expect(copy[0]).not.toContain('extractionVersion');
+    expect(copy[0]).not.toContain('metadata_jsonb');
+    expect(h.vectorMetadata.get('historical-v1:0')).toEqual({
+      extractionVersion: 'bill-structure-v1',
+    });
+    expect(h.vectorMetadata.get('bill-structured-utf16-v2:extraction-abc:0')).toMatchObject({
+      extractionVersion: 'bill-structure-v2',
+      extractionId: 'extraction-abc',
+      revisionId: 'abc',
     });
   });
   it('dry run calls neither provider nor database writes', async () => {

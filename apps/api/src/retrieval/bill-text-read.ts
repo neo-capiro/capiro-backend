@@ -99,6 +99,50 @@ export function billSectionMatches(section: BillStructuredSection, requested: st
     section.path.map((part) => part.replace(/\.+$/, '')).join('/') === normalized
   );
 }
+
+/** A definition includes its contiguous clauses and immutable page/table fragments. */
+function definitionRun(
+  section: BillStructuredSection,
+  structure: BillDocumentStructure,
+  legacyPdfHierarchy: boolean,
+) {
+  const run = [section];
+  let structureIncomplete = false;
+  if (!section.path.length)
+    return { sections: run, structureIncomplete: /:\s*$/.test(section.text) };
+  for (
+    let index = structure.sections.indexOf(section) + 1;
+    index < structure.sections.length;
+    index++
+  ) {
+    const next = structure.sections[index]!;
+    const previous = run.at(-1)!;
+    if (!section.path.every((part, depth) => next.path[depth] === part)) break;
+    const page = /^page:(\d+)$/.exec(previous.sourceLocator)?.[1];
+    const nextPage = /^page:(\d+)$/.exec(next.sourceLocator)?.[1];
+    const descendant = next.path.length > section.path.length;
+    if (
+      // v1 PDF paths can incorrectly nest numeric siblings. Keep their exact reads,
+      // but do not infer clauses from that known-ambiguous hierarchy.
+      (legacyPdfHierarchy && descendant) ||
+      (page
+        ? !nextPage || ![Number(page), Number(page) + 1].includes(Number(nextPage))
+        : !descendant && next.sourceLocator !== previous.sourceLocator) ||
+      next.startOffset < previous.endOffset ||
+      structure.text.slice(previous.endOffset, next.startOffset).trim()
+    ) {
+      structureIncomplete = true;
+      break;
+    }
+    run.push(next);
+  }
+  // A colon-only lead-in cannot establish a complete definition when its body
+  // has no provable contiguous path (including retained legacy PDF extractions).
+  return {
+    sections: run,
+    structureIncomplete: structureIncomplete || /:\s*$/.test(run.at(-1)!.text),
+  };
+}
 export type BillReadCursor = {
   extractionId: string;
   revisionId: string;
@@ -271,7 +315,14 @@ export function readBillDocument(
   const definitions = structure.sections.filter((s) =>
     s.definitionTerms.some((term) => text.toLowerCase().includes(term.toLowerCase())),
   );
-  definitions.forEach((s) => add(s, 'definition'));
+  const definitionRuns = definitions.map((section) =>
+    definitionRun(
+      section,
+      structure,
+      row.extractionVersion === 'bill-structure-v1' && /^page:\d+$/.test(section.sourceLocator),
+    ),
+  );
+  definitionRuns.forEach((run) => run.sections.forEach((section) => add(section, 'definition')));
   const references = [...new Set(selected.flatMap((s) => s.references))]
     .slice(0, 40)
     .map((reference) => {
@@ -329,6 +380,33 @@ export function readBillDocument(
     if (first > 0) add(structure.sections[first - 1]!, 'previous');
     if (last + 1 < structure.sections.length) add(structure.sections[last + 1]!, 'next');
   }
+  const spans = [{ startOffset, endOffset }, ...context].sort(
+    (a, b) => a.startOffset - b.startOffset,
+  );
+  const fullyIncluded = (section: BillStructuredSection) => {
+    let through = section.startOffset;
+    for (const span of spans) {
+      if (span.endOffset <= through) continue;
+      if (span.startOffset > through) return false;
+      through = Math.max(through, span.endOffset);
+      if (through >= section.endOffset) return true;
+    }
+    return through >= section.endOffset;
+  };
+  const includedDefinitions = definitionRuns.map((run) => run.sections.every(fullyIncluded));
+  const completeDefinitions = definitionRuns.map(
+    (run, index) => includedDefinitions[index] && !run.structureIncomplete,
+  );
+  definitionRuns.forEach((run, index) => {
+    if (completeDefinitions[index]) return;
+    // Even a complete page fragment must disclose that the logical definition's
+    // following fragment was omitted when the budget ended at the page boundary.
+    const locators = new Set(run.sections.map((section) => section.locator));
+    const last = context
+      .filter((part) => part.relation === 'definition' && locators.has(part.locator))
+      .at(-1);
+    if (last) last.truncated = true;
+  });
   return {
     ...common,
     available: true,
@@ -363,15 +441,19 @@ export function readBillDocument(
         })),
     })),
     context,
-    definitions: definitions.slice(0, 40).map((s) => ({
+    definitions: definitions.slice(0, 40).map((s, index) => ({
       terms: s.definitionTerms,
       locator: s.locator,
-      status: added.has(s.locator) ? 'included' : 'context_limit',
+      status: !includedDefinitions[index]
+        ? 'context_limit'
+        : definitionRuns[index]!.structureIncomplete
+          ? 'structure_incomplete'
+          : 'included',
     })),
     references,
     referencesTruncated: new Set(selected.flatMap((s) => s.references)).size > references.length,
     definitionsTruncated: definitions.length > 40,
-    contextTruncated: remaining === 0,
+    contextTruncated: remaining === 0 || completeDefinitions.some((complete) => !complete),
     nextCursor:
       endOffset < sectionEnd ? encodeBillReadCursor(row, endOffset, request.section) : null,
   };

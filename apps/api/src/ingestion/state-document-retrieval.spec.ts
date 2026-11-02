@@ -8,10 +8,13 @@ jest.mock('./state-publisher-document.js', () => ({
     constructor(
       message: string,
       public retryAfterMs = 0,
+      public host?: string,
+      public httpStatus?: number,
     ) {
       super(message);
     }
   },
+  publisherCooldown: jest.fn(() => ({ remaining: jest.fn(), hold: jest.fn() })),
 }));
 jest.mock('../external/legiscan/legiscan.client.js', () => ({
   getBillText: jest.fn(),
@@ -85,6 +88,30 @@ test('publisher-only failure cannot spend provider quota', async () => {
   await expect(retrieveStateDocument(prisma, { ...request, publisherOnly: true })).rejects.toThrow(
     'DOCUMENT_PROVIDER_HASH_MISMATCH',
   );
+  expect(prisma.$transaction).not.toHaveBeenCalled();
+});
+test.each([
+  'PUBLISHER_RETRY_AFTER',
+  'PUBLISHER_COOLDOWN_ACTIVE',
+  'PUBLISHER_COOLDOWN_STATE_FAILED',
+])('refuses API fallback during %s and retains publisher diagnostics', async (code) => {
+  const prisma = database();
+  (fetchStatePublisherDocument as jest.Mock).mockRejectedValue(
+    new PublisherDocumentError(
+      code,
+      120000,
+      'www.flsenate.gov',
+      code === 'PUBLISHER_RETRY_AFTER' ? 429 : undefined,
+    ),
+  );
+  await expect(retrieveStateDocument(prisma, request)).rejects.toMatchObject({
+    message: code,
+    retryAfterMs: 3 * 3600000,
+    publisherHost: 'www.flsenate.gov',
+    publisherHttpStatus: code === 'PUBLISHER_RETRY_AFTER' ? 429 : undefined,
+  });
+  expect(getBillText).not.toHaveBeenCalled();
+  expect(getSupportingDocument).not.toHaveBeenCalled();
   expect(prisma.$transaction).not.toHaveBeenCalled();
 });
 test('provider capacity hold leaves publisher failure pending without reserving API units', async () => {

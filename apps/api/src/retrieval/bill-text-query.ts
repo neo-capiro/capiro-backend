@@ -143,6 +143,7 @@ export function billPassageVectorProofSql(input: {
     AND ${v}.metadata_jsonb->>'extractionId'=${input.extractionId}
     AND ${v}.metadata_jsonb->>'structureHash'=${input.structureHash}
     AND ${v}.metadata_jsonb->>'textHash'=${input.textHash}
+    AND ${v}.metadata_jsonb->>'extractionVersion'='${BILL_EXTRACTION_VERSION}'
     AND ${v}.metadata_jsonb->>'chunkerVersion'=${input.chunker}`;
 }
 
@@ -261,15 +262,22 @@ export function billPhrasePrefilterTerms(phrases: string[]): string {
     .join(' ');
 }
 
-/** Public immutable evidence owners; no current-only join drops retained revisions. */
-export const BILL_DOCUMENTS_SQL = `WITH sources AS (
+/** Public immutable evidence owners; no current-only join drops retained revisions.
+ * Semantic hydration joins only the already bounded revision keys before reading
+ * source metadata/action arrays or selecting an extraction. */
+function billDocumentsSql(shortlisted = false) {
+  const keys = (kind: 'federal' | 'state') =>
+    shortlisted
+      ? ` JOIN semantic_revision_keys k ON k.source_kind='${kind}' AND k.revision_uuid=r.id`
+      : '';
+  return `WITH sources AS (
  SELECT 'federal'::text AS "sourceKind",b.id AS "billId",upper(b.bill_type)||b.bill_number AS "billNumber",'US'::text jurisdiction,
  b.congress::text session,r.version_code version,r.package_id AS "versionId",coalesce(r.metadata_jsonb->>'providerDocumentId',r.metadata_jsonb->>'amendmentId',r.package_id) AS "providerDocumentId",
  r.id::text AS "revisionId",r.extraction_hash AS "revisionHash",r.content_hash AS "documentHash",r.metadata_jsonb->>'rawBytesHash' AS "originalBytesHash",r.source_url AS "sourceUrl",
  (r.published_at AT TIME ZONE 'UTC')::date::text AS "publishedDate",b.title,CASE r.collection WHEN 'AMENDMENTS' THEN 'amendment' ELSE 'text' END AS kind,b.status,b.introduced_date::text AS "introducedDate",
  (${FEDERAL_FY26_SQL}) AS "fy26",r.id AS revision_uuid,
  ARRAY(SELECT a.date::date::text FROM congress_bill_action a WHERE a.bill_id=b.id) AS "actionDates"
- FROM federal_evidence_revision r JOIN congress_bill b ON b.id=r.bill_id WHERE r.collection IN ('BILLS','AMENDMENTS','PLAW')
+ FROM federal_evidence_revision r${keys('federal')} JOIN congress_bill b ON b.id=r.bill_id WHERE r.collection IN ('BILLS','AMENDMENTS','PLAW')
  UNION ALL
  SELECT 'state',b.id,b.bill_number,b.state,b.session_key,r.evidence->>'versionType',r.source_identity,r.evidence->>'providerId',
  r.id::text,r.revision_hash,coalesce(r.evidence->>'contentHash',''),r.evidence->>'contentHash',r.evidence->>'url',CASE WHEN ${validBillCalendarDateSql('r.event_date')} THEN r.event_date END,b.title,
@@ -279,8 +287,8 @@ export const BILL_DOCUMENTS_SQL = `WITH sources AS (
  ARRAY(SELECT a.event_date FROM state_bill_published_record a WHERE a.bill_key=b.id AND a.kind='action' AND ${validBillCalendarDateSql('a.event_date')}
  UNION SELECT a.date::date::text FROM state_bill_action a WHERE a.bill_key=b.id
  UNION SELECT p->>'date' FROM jsonb_array_elements(CASE WHEN jsonb_typeof(b.legiscan_progress)='array' THEN b.legiscan_progress ELSE '[]'::jsonb END) p WHERE ${validBillCalendarDateSql("p->>'date'")})
- FROM state_bill_published_record r JOIN state_bill b ON b.id=r.bill_key WHERE r.kind='document'
-), documents AS (
+ FROM state_bill_published_record r${keys('state')} JOIN state_bill b ON b.id=r.bill_key WHERE r.kind='document'
+), documents AS ${shortlisted ? 'MATERIALIZED ' : ''}(
  SELECT s.*,e.id::text AS "extractionId",e.structure_hash AS "structureHash",e.text_hash AS "textHash",e.parser_version AS "extractionVersion",
  e.extracted_text text,e.structure_jsonb structure,e.completeness,e.warnings_jsonb warnings
  FROM sources s LEFT JOIN LATERAL (
@@ -289,6 +297,8 @@ export const BILL_DOCUMENTS_SQL = `WITH sources AS (
  ORDER BY CASE e.completeness WHEN 'complete' THEN 0 WHEN 'partial' THEN 1 ELSE 2 END,e.created_at DESC,e.id DESC LIMIT 1
  ) e ON true
 )`;
+}
+export const BILL_DOCUMENTS_SQL = billDocumentsSql();
 
 export function billDocumentQuery(filters: BillTextFilters, extractionId: string | null = null) {
   validateBillTextFilters(filters);
@@ -353,6 +363,16 @@ export function billTextSearchQuery(
     const model = parameter(semantic.model);
     const chunker = parameter(CHUNKER_VERSION);
     const cap = parameter(BILL_SEMANTIC_CANDIDATE_LIMIT);
+    const vectorFilters = [
+      `e.metadata_jsonb->>'chunkerVersion'=${chunker}`,
+      `e.metadata_jsonb->>'extractionVersion'=${parameter(BILL_EXTRACTION_VERSION)}`,
+    ];
+    if (request.jurisdictions)
+      vectorFilters.push(
+        `e.metadata_jsonb->>'jurisdiction'=ANY(${parameter(request.jurisdictions)}::text[])`,
+      );
+    if (request.billId)
+      vectorFilters.push(`e.metadata_jsonb->>'billId'=${parameter(request.billId)}`);
     const proof = billPassageVectorProofSql({
       vector: 'e',
       passage: 'p',
@@ -365,12 +385,15 @@ export function billTextSearchQuery(
       chunker,
       model,
     });
-    // The outer relation is the indexed vector owner. Only distance appears in its ORDER BY;
-    // revision deduplication and stable ties happen after the bounded ANN shortlist.
-    // NOT MATERIALIZED lets the correlated extraction/revision identity reach the canonical indexes.
-    sql = `${q.sql.replace('documents AS (', 'documents AS NOT MATERIALIZED (')},
-      semantic_candidates AS MATERIALIZED (
-        SELECT e.source_id,e.metadata_jsonb->>'extractionId' AS extraction_id,
+    // Keep canonical joins out of the nearest-vector stage. A correlated EXISTS
+    // here can become a document-first nested loop that rescans the RLS vector
+    // owner before LIMIT. Public scope/model/cheap metadata filters stay here;
+    // every canonical filter and immutable input proof still applies afterward.
+    // The planner may use HNSW or a small indexed exact scan without forced GUCs.
+    sql = `WITH semantic_candidates AS MATERIALIZED (
+        SELECT e.source_id,e.source_type,e.tenant_id,e.client_id,e.owner_user_id,e.model,
+          e.metadata_jsonb,e.content_text,e.content_hash,
+          e.metadata_jsonb->>'extractionId' AS extraction_id,
           CASE e.source_type WHEN 'bill_passage' THEN 'federal' ELSE 'state' END AS source_kind,
           CASE WHEN e.metadata_jsonb->>'revisionId' ~ '^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$'
             THEN (e.metadata_jsonb->>'revisionId')::uuid END AS revision_uuid,
@@ -378,23 +401,19 @@ export function billTextSearchQuery(
         FROM context_embeddings e
         WHERE e.tenant_id IS NULL AND e.client_id IS NULL AND e.owner_user_id IS NULL
           AND e.source_type IN ('bill_passage','state_bill_passage') AND e.model=${model}
-          AND EXISTS (
-            SELECT 1 FROM documents d JOIN bill_text_passage p ON p.extraction_id=d."extractionId"::uuid
-            WHERE d.revision_uuid=CASE WHEN e.metadata_jsonb->>'revisionId' ~ '^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$'
-              THEN (e.metadata_jsonb->>'revisionId')::uuid END
-              AND p.extraction_id=CASE WHEN e.metadata_jsonb->>'extractionId' ~ '^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$'
-                THEN (e.metadata_jsonb->>'extractionId')::uuid END
-              AND d.completeness='complete' AND ${q.conditions.join(' AND ') || 'true'} AND ${proof}
-          )
+          AND ${vectorFilters.join(' AND ')}
         ORDER BY e.embedding <=> ${embedding}::vector LIMIT ${cap}
-      ), revision_candidates AS (
-        SELECT DISTINCT ON (d."sourceKind",d."revisionId") d.*,c.distance,
+      ), semantic_revision_keys AS MATERIALIZED (
+        SELECT DISTINCT source_kind,revision_uuid FROM semantic_candidates WHERE revision_uuid IS NOT NULL
+      ), ${billDocumentsSql(true).slice('WITH '.length)}, revision_candidates AS (
+        SELECT DISTINCT ON (d."sourceKind",d."revisionId") d.*,e.distance,
           p.start_offset AS "hitOffset"
-        FROM semantic_candidates c JOIN documents d ON d.revision_uuid=c.revision_uuid
-          AND d."sourceKind"=c.source_kind AND d."extractionId"=c.extraction_id
+        FROM semantic_candidates e JOIN documents d ON d.revision_uuid=e.revision_uuid
+          AND d."sourceKind"=e.source_kind AND d."extractionId"=e.extraction_id
         JOIN bill_text_passage p ON p.extraction_id=d."extractionId"::uuid AND p.chunker_version=${chunker}
-          AND c.source_id=${chunker}||':'||d."extractionId"||':'||p.ordinal::text
-        ORDER BY d."sourceKind",d."revisionId",c.distance,c.source_id
+          AND e.source_id=${chunker}||':'||d."extractionId"||':'||p.ordinal::text
+        WHERE d.completeness='complete' AND ${q.conditions.join(' AND ') || 'true'} AND ${proof}
+        ORDER BY d."sourceKind",d."revisionId",e.distance,e.source_id
       )
       SELECT d.*,(1-d.distance)::float8 score,(SELECT count(*)::int FROM semantic_candidates) AS "candidatePassages"
       FROM revision_candidates d ORDER BY d.distance,d.jurisdiction,d.session,d."billId",d."revisionId"
