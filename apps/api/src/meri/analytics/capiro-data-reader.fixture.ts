@@ -47,6 +47,8 @@ export const READER_MIGRATIONS = [
   '20281102201000_private_objective_revision_readiness_grant',
   '20281102202000_private_objective_intake_readiness_view',
   '20281102203000_private_objective_intake_readiness_catalog',
+  '20281102210000_private_objective_intake_answers_view',
+  '20281102211000_private_objective_intake_answers_catalog',
 ] as const;
 
 /** Base tables the published projections read (private sources, identity and public ingestion). */
