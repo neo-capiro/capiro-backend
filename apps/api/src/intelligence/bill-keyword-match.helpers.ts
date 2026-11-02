@@ -21,24 +21,23 @@ import { Prisma } from '@prisma/client';
  *     once per DISTINCT value, then joined back by plain equality. `OFFSET 0`
  *     keeps the planner from pushing the regex below the DISTINCT, which would
  *     put it back on every row.
- *   - Bill titles are unique per bill and still take the single regex pass.
- * Measured: 1.0-2.1 s -> 0.2-0.65 s per statement, in one backend.
- * The equality (`= ANY`) clauses keep the exact-name match for lowercased terms.
+ *   - Bill titles are unique per bill. A whole-word match is also a substring
+ *     match, so `LIKE ANY('%term%')` (a plain substring test, ~25-70 ms over all
+ *     titles) admits only candidate titles to the regex (~150-470 ms when run
+ *     on every title). Both run on LOWER(title) with the same lowercased terms.
+ * Measured on the preview clone: 1.0-2.1 s -> 0.2-0.65 s per statement in one
+ * backend (alternation + distinct values), then 0.1-0.35 s with the title
+ * prefilter. The equality (`= ANY`) clauses keep the exact-name match.
  */
 
 /** Escape a term for use inside a POSIX regex, then wrap it in \m...\M word boundaries. */
-export function toWordBoundaryPattern(term: string): string {
+function toWordBoundaryPattern(term: string): string {
   return `\\m${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\M`;
 }
 
-/** Lowercase the terms and build their whole-word regex patterns in one pass. */
-export function buildKeywordMatchTerms(terms: string[]): {
-  lowerTerms: string[];
-  wordPatterns: string[];
-} {
-  const lowerTerms = terms.map((t) => t.toLowerCase());
-  const wordPatterns = lowerTerms.map(toWordBoundaryPattern);
-  return { lowerTerms, wordPatterns };
+/** `%term%` for LIKE, with the LIKE metacharacters and the escape character taken literally. */
+function toSubstringPattern(term: string): string {
+  return `%${term.replace(/[\\%_]/g, '\\$&')}%`;
 }
 
 /** One regex that matches when any of `wordPatterns` matches, or null when there are none. */
@@ -57,7 +56,8 @@ function valueMatchSql(column: Prisma.Sql, lowerTerms: string[], pattern: string
 /**
  * A parenthesized subquery producing DISTINCT `congress_bill.id`s whose title,
  * policy_area (on congress_bill) or subject name (on congress_bill_subject) matches
- * the given terms. The subject branch inner-joins congress_bill so orphaned subject
+ * one of `terms` as a whole word or, for policy area and subject, by exact
+ * case-insensitive name. The subject branch inner-joins congress_bill so orphaned subject
  * rows are excluded; the UNION de-duplicates.
  *
  * @param opts.congress            when set, restricts both branches to one Congress.
@@ -65,16 +65,20 @@ function valueMatchSql(column: Prisma.Sql, lowerTerms: string[], pattern: string
  *                                 (the tracker candidate query never matched it).
  */
 export function matchingBillIdsSql(
-  lowerTerms: string[],
-  wordPatterns: string[],
+  terms: readonly string[],
   opts: { congress?: number; includePolicyRegex?: boolean } = {},
 ): Prisma.Sql {
   const includePolicyRegex = opts.includePolicyRegex ?? true;
   const congressFilter =
     opts.congress != null ? Prisma.sql`cb.congress = ${opts.congress} AND ` : Prisma.empty;
-  const pattern = anyWordPattern(wordPatterns);
+  const lowerTerms = terms.map((term) => term.toLowerCase());
+  const pattern = anyWordPattern(lowerTerms.map(toWordBoundaryPattern));
   const policyMatch = valueMatchSql(Prisma.sql`area.policy_area`, lowerTerms, includePolicyRegex ? pattern : null);
-  const titleMatch = pattern ? Prisma.sql`LOWER(cb.title) ~ ${pattern}` : Prisma.sql`FALSE`;
+  // Written as one AND inside the OR so the cheap substring test runs first;
+  // the planner reorders only top-level quals.
+  const titleMatch = pattern
+    ? Prisma.sql`(LOWER(cb.title) LIKE ANY(${lowerTerms.map(toSubstringPattern)}::text[]) AND LOWER(cb.title) ~ ${pattern})`
+    : Prisma.sql`FALSE`;
   const nameMatch = valueMatchSql(Prisma.sql`subject.name`, lowerTerms, pattern);
 
   return Prisma.sql`(

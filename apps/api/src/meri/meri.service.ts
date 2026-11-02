@@ -403,8 +403,7 @@ export class MeriService implements MeriTurnMaintenance {
     const authorization = new Map<string, Promise<boolean>>();
     return Promise.all(
       conversations.map(async (conversation) => ({
-        ...conversation,
-        metadata: publicConversationMetadata(conversation.metadata),
+        ...publicConversation(conversation),
         summary: await this.authorizeOrdinaryConversationSummary(
           ctx,
           { conversationId: conversation.id, clientId: conversation.clientId },
@@ -478,7 +477,7 @@ export class MeriService implements MeriTurnMaintenance {
     }
     const profile = await this.currentProfile(ctx);
 
-    return this.prisma.withTenant(ctx.tenantId, (tx) =>
+    const created = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioConversation.create({
         data: {
           tenantId: ctx.tenantId,
@@ -508,6 +507,7 @@ export class MeriService implements MeriTurnMaintenance {
         },
       }),
     );
+    return publicConversation(created);
   }
 
   /** Core owns the immutable General/client binding; Meri owns run admission. */
@@ -525,7 +525,7 @@ export class MeriService implements MeriTurnMaintenance {
     // Exact links may discover an owned archived row so the user can explicitly
     // restore it. Transcript reads and new turns still require an active row.
     const conversation = await this.ensureConversationAnyStatus(ctx, conversationId);
-    return { ...conversation, metadata: publicConversationMetadata(conversation.metadata) };
+    return publicConversation(conversation);
   }
 
   async updateConversation(
@@ -557,7 +557,7 @@ export class MeriService implements MeriTurnMaintenance {
     }
 
     if (!Object.keys(data).length) {
-      return { ...conversation, metadata: publicConversationMetadata(conversation.metadata) };
+      return publicConversation(conversation);
     }
 
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
@@ -613,7 +613,7 @@ export class MeriService implements MeriTurnMaintenance {
         ]);
       }
 
-      return { ...updated, metadata: publicConversationMetadata(updated.metadata) };
+      return publicConversation(updated);
     });
   }
 
@@ -631,7 +631,7 @@ export class MeriService implements MeriTurnMaintenance {
 
   async restoreConversation(ctx: TenantContext, conversationId: string) {
     const conversation = await this.ensureConversationAnyStatus(ctx, conversationId);
-    if (!conversation.archivedAt) return { ...conversation, metadata: publicConversationMetadata(conversation.metadata) };
+    if (!conversation.archivedAt) return publicConversation(conversation);
     const restored = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await assertLegacyManagementAllowed(tx, ctx.tenantId, conversationId);
       return tx.clioConversation.update({
@@ -640,7 +640,7 @@ export class MeriService implements MeriTurnMaintenance {
         include: { client: { select: { id: true, name: true } } },
       });
     });
-    return { ...restored, metadata: publicConversationMetadata(restored.metadata) };
+    return publicConversation(restored);
   }
 
   async listMessages(ctx: TenantContext, conversationId: string) {
@@ -4799,6 +4799,17 @@ function extractToolArtifacts(value: unknown): Array<{
     });
   }
   return out;
+}
+
+/** A conversation row as returned to callers: JSON cannot carry the BigInt
+ * management revision, so it travels as the decimal string the management
+ * receipts already use, and server-only metadata is removed. */
+function publicConversation<T extends { metadata: unknown; metadataRevision: bigint }>(row: T) {
+  return {
+    ...row,
+    metadata: publicConversationMetadata(row.metadata),
+    metadataRevision: row.metadataRevision.toString(),
+  };
 }
 
 /** Historical Case46 rows keep a signed internal transport in conversation

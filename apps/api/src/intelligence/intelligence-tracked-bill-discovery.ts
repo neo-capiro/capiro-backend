@@ -1,7 +1,7 @@
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { Prisma } from '@prisma/client';
 import { EMBEDDING_MODEL, embedText, normalize, vectorLiteral } from '../embeddings/embedder.js';
-import { buildKeywordMatchTerms, matchingBillIdsSql } from './bill-keyword-match.helpers.js';
+import { matchingBillIdsSql } from './bill-keyword-match.helpers.js';
 import { withBillKeywordSqlDeadline } from './bill-keyword-deadline.js';
 import { ClientReadCache } from './client-read-cache.js';
 import {
@@ -170,8 +170,7 @@ export class IntelligenceTrackedBillDiscovery {
   async findTrackedBillsByKeyword(allTerms: string[]): Promise<TrackedBillMatch> {
     // One alternation regex per row and per distinct subject/policy value;
     // see bill-keyword-match.helpers.ts for the measured plans.
-    const { lowerTerms, wordPatterns } = buildKeywordMatchTerms(allTerms);
-    const matchingIds = matchingBillIdsSql(lowerTerms, wordPatterns);
+    const matchingIds = matchingBillIdsSql(allTerms);
 
     return withBillKeywordSqlDeadline(this.prisma, async (query) => {
       const countRows = await query<Array<{ total: bigint }>>(Prisma.sql`

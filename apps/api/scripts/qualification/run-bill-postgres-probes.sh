@@ -115,7 +115,13 @@ docker run --rm --name "$run_id-api-tests" --read-only --network "container:$pg_
     DATABASE_URL=postgresql://postgres:api_fixture@127.0.0.1:55433/api_keyword_test \
       CAPIRO_DISPOSABLE_PG=1 exec node --experimental-vm-modules node_modules/jest/bin/jest.js \
       --runInBand --runTestsByPath src/intelligence/bill-keyword-match.postgres.spec.ts \
-      src/tenant/tenant-context.authority-mount.spec.ts
+      src/tenant/tenant-context.authority-mount.spec.ts \
+      src/auth/capiro-throttler.guard.spec.ts \
+      src/meri/meri-report-read-authorization.spec.ts \
+      src/meri/meri-turn-lifecycle.phase4.spec.ts \
+      src/meri/meri-workspace-scope.phase4.spec.ts \
+      src/meri/meri.service.create-conversation.spec.ts \
+      src/research-portfolios/research-portfolio-artifact-retrieval.spec.ts
   '
 printf 'API_PRESERVATION_POSTGRES_QUALIFICATION_OK image=%s\n' "$image"
 printf 'BILL_POSTGRES_QUALIFICATION_OK image=%s\n' "$image"

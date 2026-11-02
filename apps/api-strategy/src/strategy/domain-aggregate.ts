@@ -14,8 +14,18 @@ const MAX_ROWS = 10_000;
 const MAX_BYTES = 8 * 1024 * 1024;
 const PAGE_SIZE = 256;
 const MAX_SOURCE_CHECKS = 256; // Both authority passes together; never a capped total.
+const SNAPSHOT_ATTEMPTS = 3;
 const unavailable = () =>
   new ServiceUnavailableException('Complete aggregate observation unavailable');
+/** PostgreSQL 40001 from a snapshot read. The actor check locks Core's membership
+ * and tenant rows FOR SHARE (the user row FOR KEY SHARE, so Core's per-minute
+ * users.last_seen_at write no longer conflicts) inside a RepeatableRead snapshot;
+ * a concurrent membership, tenant or user-key change still aborts the read and is
+ * retried. Prisma reports it as P2010 (raw query) or P2034 (transaction). */
+function serializationFailure(error: unknown): boolean {
+  const known = error as { code?: unknown; meta?: { code?: unknown } } | null;
+  return known?.code === 'P2034' || (known?.code === 'P2010' && known.meta?.code === '40001');
+}
 
 export interface AggregateBudget {
   signal: AbortSignal;
@@ -154,7 +164,7 @@ export async function requireAggregateActor(
       AND t.status::text='active'
       AND m.role::text IN ('standard_user','user_admin','capiro_admin')
       AND (NOT ${strategy} OR t.settings_jsonb->'clioFeatureFlags'->'strategyPlanner.enabled'='true'::jsonb)
-    FOR SHARE OF m,u,t`;
+    FOR SHARE OF m,t FOR KEY SHARE OF u`;
   if (rows.length !== 1) throw new ForbiddenException('Aggregate access unavailable');
 }
 
@@ -253,19 +263,31 @@ export async function observeDomainAggregate(
     }
     return result;
   };
+  // Each attempt is a whole new snapshot transaction, bounded by the same budget.
+  const snapshot = async () => {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await read(budget);
+      } catch (error) {
+        if (!serializationFailure(error)) throw error;
+        if (attempt >= SNAPSHOT_ATTEMPTS) throw unavailable();
+        budget.remaining();
+      }
+    }
+  };
   try {
     budget.remaining();
-    const first = await read(budget);
+    const first = await snapshot();
     budget.remaining();
     const before = await authorize(first.sources);
-    const second = await read(budget);
+    const second = await snapshot();
     budget.remaining();
     if (first.fingerprint !== second.fingerprint) return incomplete('source_changed');
     const after = await authorize(second.sources);
     if (before.size !== after.size || [...before].some((key) => !after.has(key)))
       return incomplete('authorization_changed');
     // Cover Planner grants/source edits occurring during the second Core access pass.
-    const last = await read(budget);
+    const last = await snapshot();
     budget.remaining();
     if (second.fingerprint !== last.fingerprint) return incomplete('source_changed');
     const count = last.count(after);

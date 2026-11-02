@@ -539,6 +539,19 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
         conditions: { StringEquals: { 'kms:ViaService': `s3.${region}.amazonaws.com` } },
       }),
     );
+    // Workspace invitations, newsletter and tracker mail leave through SES from the
+    // verified capiro.ai domain only, tracked by the preview configuration set.
+    serveTask.taskRole.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        sid: 'CoreStackSesSendFromCapiroDomain',
+        actions: ['ses:SendEmail', 'ses:SendRawEmail'],
+        resources: [
+          `arn:aws:ses:${region}:${account}:identity/capiro.ai`,
+          `arn:aws:ses:${region}:${account}:configuration-set/capiro-preview-default`,
+        ],
+        conditions: { StringLike: { 'ses:FromAddress': '*@capiro.ai' } },
+      }),
+    );
     const serveLog = new logs.LogGroup(this, 'ServeLog', {
       logGroupName: '/capiro/preview-first-chat/core',
       retention: logs.RetentionDays.TWO_WEEKS,
@@ -598,6 +611,12 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
         // answers 503 "MeriV2 action proposals are disabled." unless this gate is on (2 Nov 2026 M37: the
         // preview answered 503 in 1 ms and every proposal card ended "Result uncertain").
         MERIV2_ACTION_PROPOSALS_ENABLED: 'true',
+        // Outreach v3 state in Core: Objective operational cycles read and gate a linked
+        // outreach session only when this is on (objective-local-resources.ts). Template
+        // Studio and the rest of /api/engagement/outreach-v3/* are mounted only by the
+        // preview engagement-api, which reads the same clone with the same app role.
+        // Every Outreach v3 action stays engagement-api only, so this starts no send.
+        OUTREACH_V3_STATE_ENABLED: 'true',
         // The image boots the full AppModule. Explicitly disable its worker and
         // outbound-action posture in this separate API task.
         CAPIRO_SERVICE_NAME: 'api',

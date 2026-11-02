@@ -31,7 +31,6 @@ describe('isAuthorityRequestPath', () => {
     '/api/clio/conversations',
     '/api/clio/conversations/abc/messages',
     '/api/clio/application-authority-extra',
-    '/api/clio/runtime/turn',
     '/api/intelligence/clients/abc/profile-v1',
     '/api/clients/abc/activity',
     '/api/engagement/integrations/microsoft/notifications',

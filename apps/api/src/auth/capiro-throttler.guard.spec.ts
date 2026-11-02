@@ -246,13 +246,25 @@ describe('authority throttling through the real Nest middleware/guard pipeline',
     expect(f.trackers[0]).not.toMatch(/^authority-user:/);
   });
 
-  it('falls back to IP without provenance despite forged claims, context, and body', async () => {
+  it('falls back to IP without provenance despite forged claims, context, body and forwarding entries', async () => {
     f = await fixture(false);
     const route = 'clio/application-authority/current';
-    for (let hit = 0; hit < 30; hit++) expect((await f.post(route, `native-${hit}`)).status).toBe(200);
-    expect((await f.post(route, 'native-another').set('X-Forwarded-For', '203.0.113.12')).status).toBe(429);
+    // The load balancer appends the client address; anything to its left is client-supplied.
+    const client = '198.51.100.7';
+    for (let hit = 0; hit < 30; hit++)
+      expect((await f.post(route, `native-${hit}`).set('X-Forwarded-For', client)).status).toBe(200);
+    expect((await f.post(route, 'native-another').set('X-Forwarded-For', `203.0.113.12, ${client}`)).status).toBe(429);
     expect(new Set(f.trackers).size).toBe(1);
     expect(f.trackers[0]).not.toMatch(/^authority-user:/);
+  });
+
+  it('buckets IP-tracked requests per client address the load balancer appended', async () => {
+    f = await fixture();
+    for (let hit = 0; hit < 30; hit++)
+      expect((await f.post('ordinary', 'native-a').set('X-Forwarded-For', '198.51.100.7')).status).toBe(200);
+    expect((await f.post('ordinary', 'native-a').set('X-Forwarded-For', '198.51.100.7')).status).toBe(429);
+    expect((await f.post('ordinary', 'native-a').set('X-Forwarded-For', '198.51.100.8')).status).toBe(200);
+    expect(new Set(f.trackers).size).toBe(2);
   });
 
   it.each(['identity/', 'IDENTITY', 'identity-extra'])('retains IP tracking for non-exact authority path %s', async (path) => {

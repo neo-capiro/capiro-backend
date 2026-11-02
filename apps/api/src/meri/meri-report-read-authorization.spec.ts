@@ -175,6 +175,7 @@ function harness(options: {
     userId: ctx.userId,
     clientId: null,
     archivedAt: null,
+    metadataRevision: 0n,
     summary: options.summary ?? null,
     messages: [reportMessage],
     artifacts: [report, ordinary],

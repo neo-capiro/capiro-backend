@@ -484,6 +484,7 @@ test('standard canonical authentication remains mandatory and background/externa
     assert.equal(e.NODE_ENV, 'production');
     assert.equal(e.MERI_TOOLS_REQUIRE_SERVICE_SECRET, 'true');
     assert.equal(e.MERIV2_ACTION_PROPOSALS_ENABLED, 'true');
+    assert.equal(e.OUTREACH_V3_STATE_ENABLED, 'true');
     assert.equal(e.PREVIEW_NATIVE_GETS_ENABLED, 'true');
     for (const n of [
       'MERI_TOOL_ALLOWLIST',
@@ -551,7 +552,7 @@ test('ordinary Files receives only approved tenant engagement keys and the S3-sc
       ),
     );
     const statements = policies[0].Properties.PolicyDocument.Statement;
-    assert.equal(statements.length, 3);
+    assert.equal(statements.length, 4);
     assert.deepEqual(statements[0], {
       Effect: 'Allow',
       Action: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'],
@@ -577,6 +578,17 @@ test('ordinary Files receives only approved tenant engagement keys and the S3-sc
       Action: ['kms:Decrypt', 'kms:GenerateDataKey'],
       Resource: { 'Fn::ImportValue': keyExport.Export.Name },
       Condition: { StringEquals: { 'kms:ViaService': 's3.us-east-1.amazonaws.com' } },
+    });
+    // SES send only from the capiro.ai domain identity and the preview configuration set.
+    assert.deepEqual(statements[3], {
+      Sid: 'CoreStackSesSendFromCapiroDomain',
+      Effect: 'Allow',
+      Action: ['ses:SendEmail', 'ses:SendRawEmail'],
+      Resource: [
+        'arn:aws:ses:us-east-1:967807252336:identity/capiro.ai',
+        'arn:aws:ses:us-east-1:967807252336:configuration-set/capiro-preview-default',
+      ],
+      Condition: { StringLike: { 'ses:FromAddress': '*@capiro.ai' } },
     });
     const execution = JSON.stringify(s.Resources.ServeExecutionRoleDefaultPolicyBD488DD2);
     assert.equal(execution.includes('s3:'), false);
