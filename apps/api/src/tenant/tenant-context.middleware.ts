@@ -705,14 +705,14 @@ export class TenantContextMiddleware implements NestMiddleware {
    * The original authentication pipeline can provision/update/audit; this
    * method cannot repair missing authority or choose a different membership. */
   async readApplicationAuthority(req: Request, ctx: TenantContext): Promise<ApplicationAuthorityIdentityProof> {
-    const session = await this.readApplicationAuthoritySession(req, ctx);
+    const session = await this.readApplicationAuthoritySession(req, ctx, true);
     const evidence = await session.readCurrent();
     return { ...evidence, recheckCurrent: () => session.readCurrent() };
   }
 
   /** Authenticate before opening a snapshot. The closure binds the private
    * request provenance and verified session; callers cannot substitute either. */
-  async readApplicationAuthoritySession(req: Request, ctx: TenantContext): Promise<{
+  async readApplicationAuthoritySession(req: Request, ctx: TenantContext, sessionLifetime = false): Promise<{
     readCurrent(transaction?: Prisma.TransactionClient): Promise<ApplicationAuthorityIdentityEvidence>;
   }> {
     const denied = () => new ForbiddenException('Application authority unavailable');
@@ -724,7 +724,7 @@ export class TenantContextMiddleware implements NestMiddleware {
           : null)
       : await this.clerk.assertActiveApplicationAuthoritySession(provenance.claims);
     if (!session) throw denied();
-    return { readCurrent: (transaction) => this.readCurrentApplicationAuthority(provenance, ctx, session, transaction, true) };
+    return { readCurrent: (transaction) => this.readCurrentApplicationAuthority(provenance, ctx, session, transaction, true, sessionLifetime) };
   }
 
   /** Unmounted history-release identity leaf. The request must already carry
@@ -816,7 +816,8 @@ export class TenantContextMiddleware implements NestMiddleware {
     session: ActiveApplicationAuthoritySession,
     transaction?: Prisma.TransactionClient,
     preserveTransactionUnavailable = false,
-  ): Promise<ApplicationAuthorityIdentityEvidence> {
+    sessionLifetime = false,
+  ): Promise<ApplicationAuthorityIdentityEvidence & { sessionExpiresAtMs?: number }> {
     const denied = () => new ForbiddenException('Application authority unavailable');
     if (provenance.context !== ctx || ctx.clerkUserId !== provenance.claims.sub) throw denied();
     try {
@@ -840,6 +841,7 @@ export class TenantContextMiddleware implements NestMiddleware {
             (provenance.requestedSlug && membership.tenant.slug !== provenance.requestedSlug)) throw denied();
         let impersonationFacts: unknown = null;
         let expiresAtMs = session.expiresAtMs;
+        let impersonationExpiresAtMs = Number.MAX_SAFE_INTEGER;
         if (provenance.impersonationId !== null) {
           if (membership.role !== 'capiro_admin') throw denied();
           const impersonation = await tx.impersonationSession.findFirst({
@@ -850,13 +852,19 @@ export class TenantContextMiddleware implements NestMiddleware {
               impersonation.actorUserId !== ctx.userId || impersonation.tenantId !== ctx.tenantId ||
               impersonation.endedAt !== null || impersonation.tenant.id !== ctx.tenantId ||
               impersonation.tenant.status !== 'active' || impersonation.tenant.slug !== ctx.tenantSlug) throw denied();
-          expiresAtMs = Math.min(expiresAtMs, impersonation.expiresAt.getTime());
+          impersonationExpiresAtMs = impersonation.expiresAt.getTime();
+          expiresAtMs = Math.min(expiresAtMs, impersonationExpiresAtMs);
           impersonationFacts = [impersonation.id, impersonation.actorUserId, impersonation.tenantId,
             impersonation.startedAt.getTime(), impersonation.expiresAt.getTime(), impersonation.endedAt,
             impersonation.tenant.status, impersonation.tenant.clerkOrgId];
         } else if (ctx.tenantId !== membership.tenantId || ctx.tenantSlug !== membership.tenant.slug) throw denied();
         if (!Number.isSafeInteger(expiresAtMs) || expiresAtMs <= Date.now()) throw denied();
+        // Only readApplicationAuthority asks for the verified native session lifetime, under the same
+        // impersonation bound. An absent or unusable value is omitted and its consumer keeps expiresAtMs.
+        const sessionExpiresAtMs = sessionLifetime && Number.isSafeInteger(session.sessionExpiresAtMs)
+          ? Math.min(session.sessionExpiresAtMs!, impersonationExpiresAtMs) : undefined;
         return {
+          ...(sessionExpiresAtMs !== undefined && sessionExpiresAtMs >= expiresAtMs ? { sessionExpiresAtMs } : {}),
           principal: { tenantId: ctx.tenantId, actorId: user.id },
           identityRevision: applicationAuthorityRevision('identity', [
             [session.id, session.userId, session.status, session.createdAt, session.expireAt, session.abandonAt, session.actor],

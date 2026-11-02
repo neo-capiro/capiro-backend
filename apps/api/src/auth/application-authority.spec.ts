@@ -183,6 +183,18 @@ describe('actual Clerk owner bounded read-only session assertion', () => {
     expect(f.events).toEqual(['getSession:sess_test']);
     expect(value.expiresAtMs).toBe(Math.min(claim.exp * 1000, f.row.expireAt, f.row.abandonAt));
   });
+  it('exposes the verified session lifetime separately; request expiry stays the ~60 s token bound', async () => {
+    const f = clerkFixture(); const claim = { ...claims(), exp: Math.floor(Date.now() / 1000) + 60 };
+    (f.row as any).expireAt = Date.now() + 7_200_000; (f.row as any).abandonAt = Date.now() + 3_600_000;
+    const value = await f.clerk.assertActiveApplicationAuthoritySession(claim);
+    expect(value.expiresAtMs).toBe(claim.exp * 1000);
+    expect(value.sessionExpiresAtMs).toBe(f.row.abandonAt);
+    // A cached proof for a shorter-lived caller token keeps its own request bound and the same session lifetime.
+    const cached = await f.clerk.assertActiveApplicationAuthoritySession({ ...claim, exp: claim.exp - 30 });
+    expect(f.events).toEqual(['getSession:sess_test']);
+    expect(cached.expiresAtMs).toBe((claim.exp - 30) * 1000);
+    expect(cached.sessionExpiresAtMs).toBe(f.row.abandonAt);
+  });
   for (const [name, mutate] of [
     ['missing sid', (c: any) => delete c.sid], ['missing exp', (c: any) => delete c.exp],
     ['expired JWT', (c: any) => { c.exp = 1; }], ['path-shaped sid', (c: any) => { c.sid = '../session'; }],
@@ -263,6 +275,30 @@ describe('actual middleware selected-provenance current authority', () => {
     f.setSessionReader(async () => { mutate(f); return { ...session(), expiresAtMs: Date.now() + 60_000 }; });
     await expect(f.owner.readApplicationAuthority(f.req, selected)).rejects.toThrow('Application authority unavailable');
   });
+  it('carries the session lifetime only on readApplicationAuthority; request expiry and other consumers are unchanged', async () => {
+    const f = tenantFixture(); const selected = await f.authenticate();
+    const requestExpiresAtMs = Date.now() + 60_000, sessionExpiresAtMs = Date.now() + 3_600_000;
+    f.setSessionReader(async () => ({ ...session(), expiresAtMs: requestExpiresAtMs, sessionExpiresAtMs }));
+    const proof = await f.owner.readApplicationAuthority(f.req, selected);
+    expect(proof.expiresAtMs).toBe(requestExpiresAtMs);
+    expect(proof.sessionExpiresAtMs).toBe(sessionExpiresAtMs);
+    const other = await (await f.owner.readApplicationAuthoritySession(f.req, selected)).readCurrent();
+    expect(other.expiresAtMs).toBe(requestExpiresAtMs);
+    expect(Object.keys(other).sort()).toEqual(['expiresAtMs', 'identityRevision', 'principal']);
+    expect(Object.keys(contract.applicationAuthorityIdentityReceipt(proof)).sort())
+      .toEqual(['checkedAtMs', 'expiresAtMs', 'identityRevision', 'principal']);
+  });
+  for (const [name, lifetime] of [['absent', undefined], ['not an integer', 1.5], ['shorter than the request', -1]] as const) {
+    it(`omits a session lifetime that is ${name}, so its consumer keeps the request expiry`, async () => {
+      const f = tenantFixture(); const selected = await f.authenticate();
+      const requestExpiresAtMs = Date.now() + 60_000;
+      f.setSessionReader(async () => ({ ...session(), expiresAtMs: requestExpiresAtMs,
+        ...(lifetime === undefined ? {} : { sessionExpiresAtMs: lifetime < 0 ? requestExpiresAtMs - 1 : Date.now() + lifetime }) }));
+      const proof = await f.owner.readApplicationAuthority(f.req, selected);
+      expect(proof.expiresAtMs).toBe(requestExpiresAtMs);
+      expect(Object.hasOwn(proof, 'sessionExpiresAtMs')).toBe(false);
+    });
+  }
   it('excludes activity but includes exact membership version', async () => {
     const f = tenantFixture(); const selected = await f.authenticate();
     const fixed = { ...session(), expiresAtMs: Date.now() + 60_000 };

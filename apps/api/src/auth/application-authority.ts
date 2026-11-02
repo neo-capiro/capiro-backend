@@ -17,6 +17,9 @@ export interface ApplicationAuthorityIdentityReceipt extends ApplicationAuthorit
 }
 /** Internal, request-local proof. Its callback is never included in a receipt. */
 export interface ApplicationAuthorityIdentityProof extends ApplicationAuthorityIdentityEvidence {
+  /** Verified native Clerk session lifetime (never shorter than expiresAtMs), for objective work
+   * consent terms only. Absent for template credentials; request authentication uses expiresAtMs. */
+  sessionExpiresAtMs?: number;
   recheckCurrent(): Promise<ApplicationAuthorityIdentityEvidence>;
 }
 export interface ApplicationAuthorityContextRequest {
