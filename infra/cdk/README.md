@@ -142,13 +142,23 @@ pnpm --filter @capiro/infra-cdk exec cdk destroy --all $CTX
 `bin/preview-first-chat-core.ts --render-edge <fresh-output-directory>` renders
 `Capiro-Preview-Services-Edge` without DNS. It uses the existing Core VPC, public
 subnets, ALB security group and issued certificate. Every shared listener rule,
-including the retained priority-7 guard, stays unchanged. The new listener denies
-unallocated requests and forwards only the finite existing method/path pairs in
-`first-chat-preview-writes.json`; the test fixture records their caller owners.
-The new ALB retains the existing 4000-second idle timeout and associates with the
-same existing WAF ACL. It does not change that ACL or the shared ALB association.
-Each new write expression names one complete path, grouped only by service and
-method; the dedicated edge has room without compressing unrelated path names.
+including the retained priority-7 guard, stays unchanged. For host
+`first-chat-preview.app-dev.capiro.ai` the listener forwards each service
+namespace, every method, to that service (priorities 200-204): `/api/*` to Core,
+`/strategy-api/*`, `/workspace-api/*`, `/intel-api/*` and `/onboard-api/*` to
+their owners, and `/webhooks/*` to Core (205), the same prefixes the production
+listener forwards. `/api/engagement/outreach-v3/*` goes to the preview
+engagement-api target at 190, ahead of `/api/*`: only engagement-api mounts
+Outreach v3, while preview Core serves the rest of `/api/engagement/*`. Each service
+authenticates its own routes (Clerk user with tenant and role guards, the internal
+service secret, or a signed proof); backend services reach each other's
+`internal/` routes through this host, so the edge does not deny them. Other hosts
+and prefixes keep the fixed 404. A rule for a different owner must use a priority
+below 200. The listener accepts TLS 1.2 and 1.3 only
+(`ELBSecurityPolicy-TLS13-1-2-2021-06`). The new ALB retains the existing 4000-second idle timeout and
+associates with the same existing WAF ACL. It does not change that ACL or the
+shared ALB association. The stack also owns the retained Workspace Hill Day
+export signing secret and its read policy for the Workspace execution role.
 
 Apply the edge before updating the existing Core service. Core retains its old
 target and imports the new Core target export. The edge's three satellite
