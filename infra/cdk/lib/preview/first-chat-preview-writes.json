@@ -770,6 +770,15 @@
       "pathRegexes": [
         "^/api/clients/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/capabilities/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$"
       ]
+    },
+    {
+      "id": "MeriActionProposals",
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/clio/action-proposals$",
+        "^/api/clio/action-proposals/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/(approve|dismiss)$"
+      ]
     }
   ]
 }

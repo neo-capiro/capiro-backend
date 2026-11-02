@@ -31,7 +31,7 @@ test('personal Portfolio order uses the existing exact Core PUT rule without bro
     ]);
     const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule')
       .map((resource) => resource.Properties).sort((a, b) => a.Priority - b.Priority);
-    assert.equal(rules.length, 94);
+    assert.equal(rules.length, 95);
     const pathname = '/api/me/portfolio-layout';
     for (const method of ['PUT', 'GET', 'HEAD'])
       assert.deepEqual(routeDestination(rules, method, pathname), { Ref: 'CoreTarget' });
@@ -682,7 +682,67 @@ test('client capability create admits only the canonical lowercase-UUID POST rou
     // Every earlier rule keeps its accepted priority.
     assert.equal(edge.Resources.PublicNewsletterCapabilityPosts.Properties.Priority, 88);
     assert.equal(edge.Resources.CoreInternalOnboardingTenants.Properties.Priority, 92);
-    assert.equal(Math.max(...rules.map((rule) => Number(rule.Priority))), 94);
+    assert.equal(Math.max(...rules.map((rule) => Number(rule.Priority))), 95);
+  }));
+
+test('Meri governed action proposals admit only the exact Core proposal POST routes on the preview host', () =>
+  render(false, (edge) => {
+    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule')
+      .map((r) => r.Properties)
+      .sort((a, b) => Number(a.Priority) - Number(b.Priority));
+    // Meri control prepares every governed write (Research Portfolio management, watch, LegiWatch, client record,
+    // business-development, legislative document and sharing proposals) with this one Core POST and decides it with
+    // the approve/dismiss POSTs. Until 2 Nov 2026 none of the three was forwarded: the listener's fixed 404
+    // answered, Core never saw the request, and every proposal card ended "Result uncertain" or "Failed".
+    const create = '/api/clio/action-proposals';
+    const proposal = `${create}/11111111-1111-4111-8111-111111111111`;
+    for (const pathname of [create, `${proposal}/approve`, `${proposal}/dismiss`]) {
+      assert.deepEqual(routeDestination(rules, 'POST', pathname), { Ref: 'CoreTarget' }, pathname);
+      for (const method of ['PUT', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE'])
+        assert.equal(routeDestination(rules, method, pathname), null, `${method} ${pathname}`);
+      for (const hostname of ['app.capiro.ai', 'arbitrary.invalid'])
+        assert.equal(routeDestination(rules, 'POST', pathname, hostname), null, hostname);
+    }
+    // The existing read rule keeps serving the recovery list on the same path.
+    for (const method of ['GET', 'HEAD'])
+      assert.deepEqual(routeDestination(rules, method, create), { Ref: 'CoreTarget' });
+    for (const neighbor of [
+      `${create}/`,
+      `${create}/extra`,
+      `${create}.invalid`,
+      `/extra${create}`,
+      `${proposal}`,
+      `${proposal}/`,
+      `${proposal}/approve/`,
+      `${proposal}/execute`,
+      `${create}/not-a-uuid/approve`,
+      `${create}/11111111111141118111111111111111/approve`,
+      `${create}/AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA/dismiss`,
+    ])
+      assert.equal(routeDestination(rules, 'POST', neighbor), null, neighbor);
+    const added = edge.Resources.MeriActionProposals.Properties;
+    assert.equal(added.Priority, 95);
+    assert.deepEqual(added.ListenerArn, { Ref: 'PreviewHttps' });
+    assert.deepEqual(added.Actions, [{ TargetGroupArn: { Ref: 'CoreTarget' }, Type: 'forward' }]);
+    assert.deepEqual(
+      added.Conditions.find((c: any) => c.Field === 'host-header').HostHeaderConfig.Values,
+      [host],
+    );
+    assert.deepEqual(
+      added.Conditions.find((c: any) => c.Field === 'http-request-method').HttpRequestMethodConfig
+        .Values,
+      ['POST'],
+    );
+    assert.deepEqual(
+      added.Conditions.find((c: any) => c.Field === 'path-pattern').PathPatternConfig.RegexValues,
+      [
+        '^/api/clio/action-proposals$',
+        '^/api/clio/action-proposals/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/(approve|dismiss)$',
+      ],
+    );
+    // Every earlier rule keeps its accepted priority.
+    assert.equal(edge.Resources.ClientCapabilityCreate.Properties.Priority, 93);
+    assert.equal(edge.Resources.ClientCapabilityUpdate.Properties.Priority, 94);
   }));
 
 test('client capability update admits only the canonical two-UUID PATCH route on the preview host', () =>
