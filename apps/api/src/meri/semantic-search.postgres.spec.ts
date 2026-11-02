@@ -105,10 +105,10 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
   it('executes the bill statement with Prisma-bound parameters and truncates the snippet to the limit', async () => {
     const rows = await read('semantic_search_bills', { query: 'water' });
     expect(rows.map((row) => row.parent_id)).toEqual(['119-hr-1', '118-hr-3']);
-    expect(rows[0].snippet).toHaveLength(SEMANTIC_SEARCH_LIMITS.snippetChars);
-    expect(rows[0].score).toBeCloseTo(1, 5);
-    expect(rows[1].score).toBeCloseTo(Math.SQRT1_2, 5);
-    expect(rows[0].record).toMatchObject({ id: '119-hr-1', congress: 119, billType: 'hr', billNumber: '1', status: 'introduced', sponsorName: 'Rep. River' });
+    expect(rows[0]!.snippet).toHaveLength(SEMANTIC_SEARCH_LIMITS.snippetChars);
+    expect(rows[0]!.score).toBeCloseTo(1, 5);
+    expect(rows[1]!.score).toBeCloseTo(Math.SQRT1_2, 5);
+    expect(rows[0]!.record).toMatchObject({ id: '119-hr-1', congress: 119, billType: 'hr', billNumber: '1', status: 'introduced', sponsorName: 'Rep. River' });
   });
 
   it('binds every bill filter with its natural type and caps the page', async () => {
@@ -122,7 +122,7 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
     // The orthogonal broadband chunk scores 0, under the 0.35 floor: only the water grant's best chunk returns.
     const rows = await read('semantic_search_grants', { query: 'water' });
     expect(rows.map((row) => [row.parent_id, row.snippet])).toEqual([['G-1', 'grant chunk two, the closest']]);
-    expect(rows[0].record).toMatchObject({ id: 'G-1', opportunityNumber: 'EPA-W-1', agency: 'Environmental Protection Agency' });
+    expect(rows[0]!.record).toMatchObject({ id: 'G-1', opportunityNumber: 'EPA-W-1', agency: 'Environmental Protection Agency' });
     expect((await read('semantic_search_grants', { query: 'broadband', agency: 'commerce' }, axis(1))).map((row) => row.parent_id)).toEqual(['G-2']);
     expect(await read('semantic_search_grants', { query: 'broadband', agency: 'no such agency' }, axis(1))).toHaveLength(0);
     expect(await read('semantic_search_grants', { query: 'water', status: 'closed' })).toHaveLength(0);
@@ -136,7 +136,7 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
     expect((await read('semantic_search_contract_opportunities', { query: 'cabling' }, axis(1))).map((row) => row.parent_id)).toEqual([SAM_B]);
     expect((await read('semantic_search_contract_opportunities', { query: 'water', naics: '3364' })).map((row) => row.parent_id)).toEqual([SAM_A]);
     expect(await read('semantic_search_contract_opportunities', { query: 'water', agency: 'navy', dateTo: '2026-12-30' })).toHaveLength(0);
-    expect(withInactive[0].record).toMatchObject({ id: SAM_A, noticeId: 'N-1', solicitationNumber: 'SOL-1', naicsCode: '336411', active: true });
+    expect(withInactive[0]!.record).toMatchObject({ id: SAM_A, noticeId: 'N-1', solicitationNumber: 'SOL-1', naicsCode: '336411', active: true });
   });
 
   it('ranks only public rows of the stored model: tenant copies and other models never reach the page', async () => {
