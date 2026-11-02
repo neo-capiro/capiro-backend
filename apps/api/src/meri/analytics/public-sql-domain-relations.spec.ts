@@ -8,12 +8,18 @@ import { gateSqlStatement, PUBLIC_RELATION_NAMES, SqlQueryError, type SqlParamet
 const additions = ['state_bills', 'committee_hearings', 'committee_hearing_bills', 'legislative_agenda_items',
   'state_bill_calendar_events', 'federal_grants', 'sam_opportunities'];
 const migration = readFileSync(resolve(__dirname, '../../../prisma/migrations/20281101010000_capiro_data_published_surface/migration.sql'), 'utf8');
+const awardsMigration = readFileSync(resolve(__dirname, '../../../prisma/migrations/20281102100000_capiro_data_federal_awards_surface/migration.sql'), 'utf8');
+const migrations = migration + '\n' + awardsMigration;
 const schema = readFileSync(resolve(__dirname, '../../../prisma/schema.prisma'), 'utf8');
-const views = [...migration.matchAll(/CREATE VIEW meri_public\.(\w+)\s+WITH \(security_barrier = true, security_invoker = false\) AS\s+SELECT ([\s\S]*?)\s+FROM public\.(\w+)([\s\S]*?);/g)]
-  .map((match) => ({ name: match[1]!, columns: match[2]!.split(',').map((column) => column.trim()), table: match[3]!, predicate: match[4]!.trim() }));
-const viewComments = new Map([...migration.matchAll(/COMMENT ON VIEW meri_public\.(\w+) IS '((?:[^']|'')*)';/g)]
+// A select-list entry may publish a physical column under another name (`contractor_name AS recipient_name`).
+const views = [...migrations.matchAll(/CREATE VIEW meri_public\.(\w+)\s+WITH \(security_barrier = true, security_invoker = false\) AS\s+SELECT ([\s\S]*?)\s+FROM public\.(\w+)([\s\S]*?);/g)]
+  .map((match) => {
+    const entries = match[2]!.split(',').map((column) => column.trim().split(/\s+AS\s+/i));
+    return { name: match[1]!, columns: entries.map((entry) => entry[entry.length - 1]!), sources: new Map(entries.map((entry) => [entry[entry.length - 1]!, entry[0]!])), table: match[3]!, predicate: match[4]!.trim() };
+  });
+const viewComments = new Map([...migrations.matchAll(/COMMENT ON VIEW meri_public\.(\w+) IS '((?:[^']|'')*)';/g)]
   .map((match) => [match[1]!, match[2]!.replace(/''/g, "'")]));
-const columnComments = new Map([...migration.matchAll(/COMMENT ON COLUMN meri_public\.(\w+)\.(\w+) IS '((?:[^']|'')*)';/g)]
+const columnComments = new Map([...migrations.matchAll(/COMMENT ON COLUMN meri_public\.(\w+)\.(\w+) IS '((?:[^']|'')*)';/g)]
   .map((match) => [`${match[1]}.${match[2]}`, match[3]!.replace(/''/g, "'")]));
 function modelFields(table: string) {
   const block = [...schema.matchAll(/model \w+ \{([\s\S]*?)\n\}/g)]
@@ -37,7 +43,7 @@ function pgType(type: string, attributes: string): string {
 // types. No connection is opened; actual grants remain the DB integration suite's proof.
 async function publishedSurface() {
   const rows = views.flatMap((view) => view.columns.map((name) => {
-    const field = modelFields(view.table).fields.find((entry) => entry.column === name);
+    const field = modelFields(view.table).fields.find((entry) => entry.column === view.sources.get(name));
     if (!field || field.array) throw new Error(`Non-scalar projection ${view.name}.${name}`);
     const comment = columnComments.get(`${view.name}.${name}`);
     if (!comment || !viewComments.has(view.name)) throw new Error('Missing published catalog comment');
@@ -65,7 +71,7 @@ describe('public legislative and opportunity SQL coverage', () => {
     const { block, fields } = modelFields(view.table);
     expect(relation.fields.map((field) => field.name)).toEqual(view.columns);
     for (const field of relation.fields) {
-      const physical = fields.find((entry) => entry.column === field.name)!;
+      const physical = fields.find((entry) => entry.column === view.sources.get(field.name))!;
       expect(physical.array).toBe(false);
       expect(field.nullable).toBe(physical.nullable);
       expect(field.pgType).toBe(pgType(physical.type, physical.attributes));
@@ -83,13 +89,13 @@ describe('public legislative and opportunity SQL coverage', () => {
     expect(query.relationsUsed).toEqual([name]);
   });
 
-  it('publishes exactly the eight catalog projections without storage details or fabricated freshness', async () => {
+  it('publishes exactly the ten catalog projections without storage details or fabricated freshness', async () => {
     expect(views.map((view) => view.name)).toEqual(PUBLIC_RELATION_NAMES);
     const result = await describeCapiroData({}, db(surface));
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('expected metadata');
     expect(result.relations.map((relation) => relation.name)).toEqual(PUBLIC_RELATION_NAMES);
-    expect(result.relations).toHaveLength(8);
+    expect(result.relations).toHaveLength(10);
     for (const relation of result.relations) {
       expect(relation).not.toHaveProperty('table');
       expect(relation).not.toHaveProperty('predicate');
@@ -169,7 +175,6 @@ describe('public legislative and opportunity SQL coverage', () => {
     'SELECT s.poc_email FROM sam_opportunities s',
     'SELECT g.eligibility FROM federal_grants g',
     'SELECT s.award_amount FROM sam_opportunities s',
-    'SELECT f.id FROM federal_awards f',
     'SELECT t.id FROM hearing_follow t',
     'SELECT h.id FROM public.committee_hearing h',
     'SELECT h.id FROM meri_public_committee_hearings h',
