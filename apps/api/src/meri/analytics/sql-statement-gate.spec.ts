@@ -77,6 +77,51 @@ describe('statement gate', () => {
     expect(error.code).toBe('UNKNOWN_RELATION');
     expect(error.message).toMatch(/is not a relation or alias of this query, and only this source's relations are readable; name the relations describe_capiro_data lists without a schema prefix\.$/);
   });
+  it.each([
+    ["SELECT query_to_xml('SELECT poc_email FROM public.sam_opportunity', true, false, '')", 'query_to_xml'],
+    ["SELECT query_to_xml_and_xmlschema('SELECT 1', true, false, '')", 'query_to_xml_and_xmlschema'],
+    ["SELECT query_to_xmlschema('SELECT 1', true, false, '')", 'query_to_xmlschema'],
+    ["SELECT table_to_xml('public.sam_opportunity', true, false, '')", 'table_to_xml'],
+    ["SELECT table_to_xml_and_xmlschema('public.sam_opportunity', true, false, '')", 'table_to_xml_and_xmlschema'],
+    ["SELECT table_to_xmlschema('public.sam_opportunity', true, false, '')", 'table_to_xmlschema'],
+    ["SELECT schema_to_xml('public', true, false, '')", 'schema_to_xml'],
+    ["SELECT schema_to_xml_and_xmlschema('public', true, false, '')", 'schema_to_xml_and_xmlschema'],
+    ["SELECT schema_to_xmlschema('public', true, false, '')", 'schema_to_xmlschema'],
+    ["SELECT database_to_xml(true, false, '')", 'database_to_xml'],
+    ["SELECT database_to_xml_and_xmlschema(true, false, '')", 'database_to_xml_and_xmlschema'],
+    ["SELECT database_to_xmlschema(true, false, '')", 'database_to_xmlschema'],
+    ["SELECT cursor_to_xml('c', 1, false, true, '')", 'cursor_to_xml'],
+    ["SELECT cursor_to_xmlschema('c', false, true, '')", 'cursor_to_xmlschema'],
+    ["SELECT * FROM ts_stat('SELECT to_tsvector(poc_email) FROM public.sam_opportunity')", 'ts_stat'],
+    // Unquoted names are case-folded, so the refusal names the folded spelling.
+    ["SELECT QUERY_TO_XML('SELECT 1', true, false, '')", 'query_to_xml'],
+    ['SELECT "query_to_xml"(\'SELECT 1\', true, false, \'\')', 'query_to_xml'],
+  ])('refuses functions that read tables by name or run SQL from a string: %s', (sql, name) => {
+    expect(refusal(sql)).toMatchObject({ code: 'UNSUPPORTED_SQL', message: `${name} is not available to query_capiro_data.` });
+  });
+  it.each([
+    'SELECT s.poc_email FROM U&"\\0070ublic"."sam_opportunity" s JOIN sam_opportunities "\\0070ublic" ON true',
+    'SELECT s.poc_email FROM U&"\\0070ublic"."sam_opportunity" s',
+    'SELECT s.title FROM u&"sam_opportunities" s',
+    'SELECT x.title FROM sam_opportunities x WHERE x.title = U&"\\0074itle"',
+  ])('refuses Unicode-escaped identifiers: %s', (sql) => {
+    expect(refusal(sql)).toMatchObject({ code: 'UNSUPPORTED_SQL', message: 'Unicode-escaped identifiers (U&"...") are not supported; write identifiers plainly.' });
+  });
+  it('keeps bitwise AND and Unicode string literals, which are not identifiers', () => {
+    expect(gate('SELECT b.congress & 1 AS odd FROM congress_bills b').relationsUsed).toEqual(['congress_bills']);
+    expect(gate('SELECT u.congress & "u"."congress" AS same FROM congress_bills u').relationsUsed).toEqual(['congress_bills']);
+    expect(gate("SELECT U&'d\\0061t\\+000061' AS text_only, b.id FROM congress_bills b").relationsUsed).toEqual(['congress_bills']);
+  });
+  it.each(['pg_stats', 'pg_stats_ext', 'pg_stats_ext_exprs', 'pg_statistic', 'pg_statistic_ext', 'pg_statistic_ext_data'])(
+    'refuses the catalog statistics view %s, which lists sampled values of base-table columns',
+    (view) => {
+      expect(refusal(`SELECT s.most_common_vals FROM ${view} s WHERE s.tablename = 'sam_opportunity'`)).toMatchObject({
+        code: 'UNKNOWN_RELATION',
+        message: `${view} is a catalog statistics view, not a relation of this source; name the relations describe_capiro_data lists.`,
+      });
+      expect(refusal(`SELECT 1 FROM "${view}"`).code).toBe('UNKNOWN_RELATION');
+    },
+  );
   it('admits aliases, relation names, CTE names and this source\'s own schema as qualifiers', () => {
     expect(gate('SELECT g.title, g.close_date FROM federal_grants g WHERE g.status = $1', ['posted']).relationsUsed).toEqual(['federal_grants']);
     expect(gate('SELECT federal_grants.title FROM federal_grants').relationsUsed).toEqual(['federal_grants']);

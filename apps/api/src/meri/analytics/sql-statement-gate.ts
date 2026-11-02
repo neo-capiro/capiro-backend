@@ -174,7 +174,30 @@ const BLOCKED_FUNCTIONS = new Set([
   'dblink',
   'dblink_connect',
   'dblink_exec',
+  // Functions that read a table by name or run SQL from a string execute with the reader's own privileges, which
+  // include base-table grants other tools use; the text inside the string never passes this gate.
+  'query_to_xml',
+  'query_to_xml_and_xmlschema',
+  'query_to_xmlschema',
+  'table_to_xml',
+  'table_to_xml_and_xmlschema',
+  'table_to_xmlschema',
+  'schema_to_xml',
+  'schema_to_xml_and_xmlschema',
+  'schema_to_xmlschema',
+  'database_to_xml',
+  'database_to_xml_and_xmlschema',
+  'database_to_xmlschema',
+  'cursor_to_xml',
+  'cursor_to_xmlschema',
+  'ts_stat',
 ]);
+/**
+ * Catalog statistics views. They list sampled column values (most_common_vals, histogram_bounds) for every column
+ * the role can SELECT, including base-table columns the published views leave out, and they resolve unqualified
+ * through pg_catalog, so the schema-prefix rule alone does not reach them.
+ */
+const CATALOG_STATISTICS = new Set(['pg_stats', 'pg_stats_ext', 'pg_stats_ext_exprs', 'pg_statistic', 'pg_statistic_ext', 'pg_statistic_ext_data']);
 
 /** Describe the same restrictions used below; no second policy list. */
 export function sqlGrammarDescriptor() {
@@ -425,6 +448,12 @@ export function gateSqlStatement(input: unknown, source: SqlSource): GatedSqlSta
       fail('UNSUPPORTED_SQL', `${token.value.toUpperCase()} is not part of a read-only SELECT.`);
     if ((token.kind === 'word' || token.kind === 'quoted') && BLOCKED_FUNCTIONS.has(token.value.toLowerCase()) && tokens[i + 1]?.value === '(')
       fail('UNSUPPORTED_SQL', `${token.value} is not available to query_capiro_data.`);
+    // U&"..." spells an identifier through escapes (U&"\0070ublic" is public), so the names this gate reads would not
+    // be the names PostgreSQL resolves. PostgreSQL lexes U&" only when the three characters are adjacent.
+    const previous = tokens[i - 1], next = tokens[i + 1];
+    if (token.kind === 'punct' && token.value === '&' && previous?.kind === 'word' && previous.value === 'u' && previous.at + 1 === token.at
+      && next?.kind === 'quoted' && next.at === token.at + 1)
+      fail('UNSUPPORTED_SQL', 'Unicode-escaped identifiers (U&"...") are not supported; write identifiers plainly.');
   }
   const referenced = new Set(tokens.filter((token) => token.kind === 'param').map((token) => Number(token.value)));
   if (referenced.size !== parameters.length || parameters.some((_, i) => !referenced.has(i + 1)))
@@ -451,6 +480,9 @@ export function gateSqlStatement(input: unknown, source: SqlSource): GatedSqlSta
       .filter((token, i) => isName(token) && !isDot(tokens[i + 1]) && (!isDot(tokens[i - 1]) || tokens[i - 2]?.value === ownSchema))
       .map((token) => token.value),
   );
+  const statistics = tokens.find((token) => isName(token) && CATALOG_STATISTICS.has(token.value));
+  if (statistics)
+    fail('UNKNOWN_RELATION', `${statistics.value} is a catalog statistics view, not a relation of this source; name the relations describe_capiro_data lists.`);
   for (let i = 0; i < tokens.length; i++) {
     const qualifier = tokens[i]!;
     if (!isName(qualifier) || !isDot(tokens[i + 1]) || qualifier.value === ownSchema) continue;
