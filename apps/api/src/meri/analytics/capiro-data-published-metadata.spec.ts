@@ -16,6 +16,19 @@ const migrations = join(api, 'prisma/migrations');
 const read = (path: string) => readFileSync(join(api, path), 'utf8');
 const surface = readFileSync(join(migrations, '20281101010000_capiro_data_published_surface/migration.sql'), 'utf8');
 const meaning = readFileSync(join(migrations, '20281101180000_capiro_data_public_column_meaning/migration.sql'), 'utf8');
+const awards = readFileSync(join(migrations, '20281102100000_capiro_data_federal_awards_surface/migration.sql'), 'utf8');
+const prismaSchema = readFileSync(join(api, 'prisma/schema.prisma'), 'utf8');
+/** Column names of one Prisma model as the database spells them (`@map` or the field name). */
+function modelColumns(model: string): Set<string> {
+  const block = new RegExp(`\\r?\\nmodel ${model} \\{\\r?\\n([\\s\\S]*?)\\r?\\n\\}`).exec(prismaSchema)!;
+  const columns = new Set<string>();
+  for (const line of block[1]!.split(/\r?\n/)) {
+    const field = /^\s+([A-Za-z]\w*)\s+\S/.exec(line);
+    if (!field || line.trim().startsWith('//') || line.trim().startsWith('@@')) continue;
+    columns.add(/@map\("(\w+)"\)/.exec(line)?.[1] ?? field[1]!);
+  }
+  return columns;
+}
 const unquote = (value: string) => value.replace(/''/g, "'");
 
 type Comments = { views: Map<string, Record<string, unknown>>; columns: Map<string, Record<string, unknown>> };
@@ -29,7 +42,9 @@ function comments(script: string, schema: 'meri_public' | 'meri_private'): Comme
 /** View columns as the CREATE VIEW statements publish them. */
 function viewColumns(script: string): Map<string, string[]> {
   const result = new Map<string, string[]>();
-  for (const m of script.matchAll(/CREATE VIEW meri_public\.(\w+)\s*\nWITH[^\n]*\n\s*SELECT ([^\n]*)\n/g)) result.set(m[1]!, m[2]!.split(',').map((c) => c.trim()));
+  // A select-list entry publishes its alias when it has one (`contractor_name AS recipient_name`).
+  for (const m of script.matchAll(/CREATE VIEW meri_public\.(\w+)\s*\nWITH[^\n]*\n\s*SELECT ([^\n]*)\n/g))
+    result.set(m[1]!, m[2]!.split(',').map((c) => c.trim().split(/\s+AS\s+/i).pop()!));
   return result;
 }
 
@@ -47,13 +62,36 @@ const CONGRESS_GOV = {
 };
 
 describe('capiro_data published metadata', () => {
-  const published = viewColumns(surface);
-  const before = comments(surface, 'meri_public');
+  const published = new Map([...viewColumns(surface), ...viewColumns(awards)]);
+  const surfaceComments = comments(surface, 'meri_public'), awardComments = comments(awards, 'meri_public');
+  const before: Comments = { views: new Map([...surfaceComments.views, ...awardComments.views]), columns: new Map([...surfaceComments.columns, ...awardComments.columns]) };
   const after = comments(meaning, 'meri_public');
   const effective = new Map([...before.columns, ...after.columns]);
   const describe_ = (key: string) => effective.get(key)!.description as string;
 
-  it('describes exactly the eight public relations the statement gate names', () => {
+  it('publishes federal awards and assistance awards from the writers\' columns, with the recipient name and a stable key', () => {
+    expect(awards).toMatch(/^SET ROLE capiro_public_projection_owner;$/m);
+    expect(awards).toMatch(/GRANT SELECT ON TABLE meri_public\.federal_awards, meri_public\.federal_assistance_awards TO capiro_analytics_ro;/);
+    expect(awards).not.toMatch(/REVOKE|DROP|ALTER TABLE/);
+    // The aliased recipient name is federal_award.contractor_name; every other published column exists on the base table.
+    const contract = modelColumns('FederalAward'), assistance = modelColumns('FederalAssistanceAward');
+    for (const column of published.get('federal_awards')!) expect(contract.has(column === 'recipient_name' ? 'contractor_name' : column)).toBe(true);
+    for (const column of published.get('federal_assistance_awards')!) expect(assistance.has(column)).toBe(true);
+    expect(awards).toMatch(/contractor_name AS recipient_name/);
+    for (const name of ['federal_awards', 'federal_assistance_awards']) {
+      const view = before.views.get(name)!;
+      expect(view.primaryKey).toEqual(['award_unique_id']);
+      expect(view.freshnessField).toBe('last_synced_at');
+      expect(view.description).toMatch(/GROUP BY recipient_name/);
+      expect(before.columns.get(`${name}.recipient_name`)!.description).toMatch(/as published .*group by recipient_uei/);
+    }
+    expect(before.views.get('federal_awards')!.relationships).toEqual([{ fields: ['pe_code'], referencedRelation: 'program_elements', referencedFields: ['pe_code'], cardinality: 'many_to_one', integrity: 'soft' }]);
+    expect(before.columns.get('federal_awards.amount')!.unit).toBe('USD');
+    expect(before.columns.get('federal_assistance_awards.total_obligated_amount')!.unit).toBe('USD');
+    expect(before.columns.get('federal_assistance_awards.award_type_code')!.enum).toEqual(['02', '03', '04', '05']);
+  });
+
+  it('describes exactly the public relations the statement gate names', () => {
     expect([...published.keys()].sort()).toEqual([...PUBLIC_RELATION_NAMES].sort());
     for (const name of PUBLIC_RELATION_NAMES) expect(before.views.has(name)).toBe(true);
     for (const name of after.views.keys()) expect(published.has(name)).toBe(true);
