@@ -109,7 +109,18 @@ export function projectBillCoverage(
       ? []
       : [
           { unit: 'jurisdiction' as const, ...jurisdiction },
-          ...versions.map((version) => ({ unit: 'version_kind' as const, ...version })),
+          // SQL GROUP BY does not promise row order. Match its identity, including
+          // inventoryKnown, so unchanged coverage cannot repeat/skip rows between pages.
+          ...[...versions]
+            .sort((a, b) => {
+              for (const key of ['session', 'kind', 'version', 'inventoryKnown'] as const) {
+                const left = JSON.stringify(a[key] ?? null),
+                  right = JSON.stringify(b[key] ?? null);
+                if (left !== right) return left < right ? -1 : 1;
+              }
+              return 0;
+            })
+            .map((version) => ({ unit: 'version_kind' as const, ...version })),
         ],
   );
   const offset = (request.page - 1) * request.limit;

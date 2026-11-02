@@ -474,14 +474,17 @@ describe('retained bill text through the existing authenticated tool gateway', (
     ).toBe('failed');
   });
 
-  it('transports all 52 coverage statuses and exact global stages while paging every detail row', async () => {
+  it('pages every detail exactly once despite alternating SQL group order, retaining all 52 statuses and global stages', async () => {
     const f = fixture();
     const rows = BILL_JURISDICTIONS.flatMap((jurisdiction) =>
-      ['Introduced', 'Enrolled'].map((version) => ({
+      [
+        { session: '2026', kind: 'text', version: 'Introduced' },
+        { session: '2025', kind: 'text', version: 'Introduced' },
+        { session: '2026', kind: 'amendment', version: 'Introduced' },
+        { session: '2026', kind: 'text', version: 'Enrolled' },
+      ].map((identity) => ({
         jurisdiction,
-        session: '2026',
-        kind: 'text',
-        version,
+        ...identity,
         inventoryKnown: true,
         expectedBills: 100,
         metadataBills: 90,
@@ -514,7 +517,17 @@ describe('retained bill text through the existing authenticated tool gateway', (
       federalDiscovery: null,
     };
     expect(JSON.stringify(report, null, 2).length).toBeGreaterThan(12000);
-    jest.spyOn(f.owner, 'coverage').mockResolvedValue(report);
+    let coverageCalls = 0;
+    jest.spyOn(f.owner, 'coverage').mockImplementation(async () => {
+      coverageCalls++;
+      return {
+        ...report,
+        jurisdictions: report.jurisdictions.map((row) => ({
+          ...row,
+          versions: coverageCalls % 2 ? [...row.versions].reverse() : [...row.versions],
+        })),
+      };
+    });
     const first = survivesPromptTransport(
       await f.route('search_state_bills', { mode: 'coverage' }),
     );
@@ -523,8 +536,8 @@ describe('retained bill text through the existing authenticated tool gateway', (
     expect(first.stateDiscovery).toEqual(report.stateDiscovery);
     expect(first.limitations).toEqual(report.limitations);
     expect(first.stageTotals).toMatchObject({
-      expectedDocuments: 52 * 2 * 110,
-      passages: 52 * 2 * 700,
+      expectedDocuments: 52 * 4 * 110,
+      passages: 52 * 4 * 700,
       knownJurisdictions: 52,
     });
     expect(record(first.stageTotals)).not.toHaveProperty('expectedBills');
@@ -545,15 +558,28 @@ describe('retained bill text through the existing authenticated tool gateway', (
       page = record(next.detailPage).nextPage;
       expect(classifyApiToolReadOutcome('search_state_bills', next)?.kind).toBe('partial');
     }
-    expect(detail).toHaveLength(52 * 3);
-    expect(detail.at(-1)).toMatchObject({ jurisdiction: 'WY', version: 'Enrolled' });
+    expect(detail).toHaveLength(52 * 5);
+    expect(
+      new Set(
+        detail.map((row) =>
+          JSON.stringify([row.unit, row.jurisdiction, row.session, row.kind, row.version]),
+        ),
+      ).size,
+    ).toBe(detail.length);
+    expect(detail.slice(1, 5).map((row) => [row.session, row.kind, row.version])).toEqual([
+      ['2025', 'text', 'Introduced'],
+      ['2026', 'amendment', 'Introduced'],
+      ['2026', 'text', 'Enrolled'],
+      ['2026', 'text', 'Introduced'],
+    ]);
+    expect(detail.at(-1)).toMatchObject({ jurisdiction: 'WY', version: 'Introduced' });
     const filtered = survivesPromptTransport(
-      await f.route('search_state_bills', { mode: 'coverage', jurisdictions: ['FL'], page: 2 }),
+      await f.route('search_state_bills', { mode: 'coverage', jurisdictions: ['FL'], page: 3 }),
     );
     expect(filtered.stageTotals).toEqual(first.stageTotals);
     expect(filtered.jurisdictions).toEqual(first.jurisdictions);
     expect(filtered.detailPage).toMatchObject({
-      totalRows: 3,
+      totalRows: 5,
       returnedRows: 1,
       hasMore: false,
       nextPage: null,
@@ -561,7 +587,7 @@ describe('retained bill text through the existing authenticated tool gateway', (
     });
     expect(items(filtered.details).map(record)[0]).toMatchObject({
       jurisdiction: 'FL',
-      version: 'Enrolled',
+      version: 'Introduced',
     });
     for (const patch of [
       { hasMore: true },
