@@ -11,13 +11,14 @@ export const PRIVATE_SQL_ROLE_CHECK = `WITH reader AS (
 ), sources AS (
   SELECT c.* FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
   WHERE n.nspname = 'public' AND c.relname IN
-    ('tenants','tenant_memberships','clients','client_memory_access','client_objectives','client_activity',
+    ('tenants','tenant_memberships','clients','client_memory_access','client_objectives','client_objective_revisions','client_activity',
      'client_ordered_owners','client_team_members','client_targets','client_people','engagement_contacts','engagement_tasks','action_recommendation','tracked_bill','engagement_campaigns','engagement_campaign_recipients','meetings','engagement_connections','meeting_attendees','research_portfolios','research_portfolio_grants','research_portfolio_members','outreach_records')
 ), source_columns (table_name, columns) AS (
   VALUES ('action_recommendation', ARRAY['action_type','client_id','created_at','deadline','deadline_source','delta_id','dismissal_reason','district_key','id','issue_title','outcome','owner_user_id','pe_code','priority','program_id','recommended_action','status','suggested_artifact_type','tenant_id','uncertainty','updated_at','what_changed','why_it_matters']::text[]),
     ('client_activity', ARRAY['actor_user_id','body','client_id','created_at','created_by_user_id','due_at','id','kind','metadata_jsonb','occurred_at','person_id','pinned','settled_at','source_id','source_type','tenant_id','title','updated_at']::text[]),
     ('client_memory_access', ARRAY['client_id','tenant_id','user_id']::text[]),
     ('client_objectives', ARRAY['ask_type','client_id','client_request_id','created_at','created_by_user_id','deleted_at','government_problem','id','limits','minimum_win','outcome','owner_user_id','ready_at','review_requested_at','status','tenant_id','updated_at','version']::text[]),
+    ('client_objective_revisions', ARRAY['client_id','objective_id','snapshot','tenant_id','version']::text[]),
     ('client_ordered_owners', ARRAY['client_id','rank','tenant_id','user_id']::text[]),
     ('client_people', ARRAY['client_id','created_at','email','hierarchy_level','id','last_contact','name','notes','phone','placement_confidence','placement_source','reports_to_person_id','review_required','role','tenant_id','title','updated_at']::text[]),
     ('client_targets', ARRAY['added_at','added_by_user_id','chamber','client_id','committee','id','member_id','member_name','party','source','source_directory','staff_kind','state','tenant_id','tier']::text[]),
@@ -91,7 +92,7 @@ SELECT (
     OR (v.relname <> 'visible_clients' AND NOT pg_catalog.has_table_privilege(reader.oid, v.oid, 'SELECT')))
   AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_class c WHERE c.relowner = reader.oid
     OR (c.relowner = owner.oid AND c.oid NOT IN (SELECT oid FROM views)))
-  AND (SELECT count(*) FROM sources) = 23
+  AND (SELECT count(*) FROM sources) = 24
   AND NOT EXISTS (SELECT 1 FROM sources s WHERE s.relkind NOT IN ('r','p')
     OR NOT s.relrowsecurity OR NOT s.relforcerowsecurity OR s.relowner IN (reader.oid, owner.oid)
     OR pg_catalog.has_table_privilege(owner.oid, s.oid, 'SELECT')

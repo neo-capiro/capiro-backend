@@ -44,6 +44,9 @@ export const READER_MIGRATIONS = [
   '20281102150000_capiro_data_government_forecasts_surface',
   '20281102170000_capiro_data_sam_notice_column_meaning',
   '20281102180000_capiro_data_funding_answer_rules',
+  '20281102201000_private_objective_revision_readiness_grant',
+  '20281102202000_private_objective_intake_readiness_view',
+  '20281102203000_private_objective_intake_readiness_catalog',
 ] as const;
 
 /** Base tables the published projections read (private sources, identity and public ingestion). */
@@ -54,6 +57,7 @@ const BASE_TABLES = [
   'clients',
   'client_memory_access',
   'client_objectives',
+  'client_objective_revisions',
   'client_activity',
   'client_ordered_owners',
   'client_team_members',
@@ -94,6 +98,7 @@ const TENANT_POLICY_TABLES = [
   'clients',
   'client_memory_access',
   'client_objectives',
+  'client_objective_revisions',
   'client_activity',
   'client_ordered_owners',
   'client_team_members',
