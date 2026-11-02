@@ -41,6 +41,23 @@ const row = {
   facts: { retainedDocumentStubs: [stub] },
 };
 const options = { states: ['FL'], limit: 1, commit: true, publisherOnly: false };
+const alternateStub = {
+  ...stub,
+  providerHash: 'b'.repeat(32),
+  mime: 'application/pdf',
+  stateUrl: 'https://example.gov/20.pdf',
+  format: {
+    role: 'alternate' as const,
+    primaryProviderHash: stub.providerHash,
+    receiptId: 'c'.repeat(64),
+    archiveHash: 'd'.repeat(64),
+  },
+};
+const alternateRow = {
+  ...row,
+  identity: `text:20:${alternateStub.providerHash}:${stub.providerHash}:alternate`,
+  facts: { retainedDocumentStubs: [stub], retainedDocumentFormats: [alternateStub] },
+};
 function database() {
   return {
     $queryRawUnsafe: jest.fn(async () => [row]),
@@ -54,11 +71,100 @@ beforeEach(() => {
   (retrieveStateDocument as jest.Mock).mockResolvedValue({ document: {}, apiAttempts: 0 });
   (persistDocumentEvidence as jest.Mock).mockResolvedValue('extracted');
 });
-test('dry inspection cannot fetch or persist', async () => {
-  const prisma = database();
-  await drainStateDocuments(prisma, { ...options, commit: false });
-  expect(retrieveStateDocument).not.toHaveBeenCalled();
-  expect(prisma.$executeRaw).not.toHaveBeenCalled();
+test.each([false, true])(
+  'dry inspection cannot fetch or persist (all formats=%s)',
+  async (allFormats) => {
+    const prisma = database();
+    await drainStateDocuments(prisma, { ...options, commit: false, allFormats });
+    if (allFormats)
+      expect(prisma.$queryRawUnsafe.mock.calls[0][0]).not.toContain("LIKE '%:alternate'");
+    else expect(prisma.$queryRawUnsafe.mock.calls[0][0]).toContain("NOT LIKE '%:alternate'");
+    expect(retrieveStateDocument).not.toHaveBeenCalled();
+    expect(prisma.$executeRaw).not.toHaveBeenCalled();
+  },
+);
+
+test.each([false, true])(
+  'all-formats shares one bounded queue and publisher-only path (primary failure=%s)',
+  async (primaryFailure) => {
+    const db = database();
+    db.$queryRawUnsafe.mockResolvedValueOnce([]).mockResolvedValueOnce([row, alternateRow]);
+    if (primaryFailure)
+      (retrieveStateDocument as jest.Mock).mockRejectedValueOnce(
+        new StateDocumentRetrievalError(
+          'PUBLISHER_UNAVAILABLE',
+          3600000,
+          'DOCUMENT_PROVIDER_HASH_MISMATCH',
+        ),
+      );
+    const previous = process.env.LEGISCAN_API_KEY;
+    process.env.LEGISCAN_API_KEY = 'synthetic-key-must-not-be-forwarded';
+    try {
+      expect(
+        await drainStateDocuments(db, { ...options, limit: 2, allFormats: true }),
+      ).toMatchObject({
+        inserted: primaryFailure ? 1 : 2,
+        errors: primaryFailure ? 1 : 0,
+        complete: false,
+      });
+    } finally {
+      if (previous === undefined) delete process.env.LEGISCAN_API_KEY;
+      else process.env.LEGISCAN_API_KEY = previous;
+    }
+    expect(db.$queryRawUnsafe).toHaveBeenCalledTimes(2);
+    const selection = db.$queryRawUnsafe.mock.calls[1];
+    expect(selection.slice(1)).toEqual([['FL'], 2]);
+    expect(selection[0]).toContain('LIMIT $2');
+    expect(selection[0]).not.toContain("LIKE '%:alternate'");
+    expect(retrieveStateDocument).toHaveBeenCalledTimes(2);
+    for (const [index, selected] of [stub, alternateStub].entries())
+      expect(retrieveStateDocument).toHaveBeenNthCalledWith(
+        index + 1,
+        db,
+        expect.objectContaining({ stub: selected, publisherOnly: true, apiKey: undefined }),
+      );
+    expect(db.$executeRaw).toHaveBeenCalledTimes(2);
+    expect(db.$executeRaw.mock.calls[0].slice(1)).toContain(row.identity);
+    expect(db.$executeRaw.mock.calls[1].slice(1)).toContain(alternateRow.identity);
+    if (primaryFailure) expect(db.$executeRaw.mock.calls[0].slice(1)).toContain('failed');
+  },
+);
+
+test('all-formats uses one request cap across both queues', async () => {
+  const db = database();
+  // Even a wider returned page cannot turn the shared run cap into a cap per format.
+  db.$queryRawUnsafe.mockResolvedValueOnce([]).mockResolvedValueOnce([row, alternateRow]);
+  await drainStateDocuments(db, { ...options, limit: 1, allFormats: true });
+  expect(db.$queryRawUnsafe.mock.calls[1].slice(1)).toEqual([['FL'], 1]);
+  expect(retrieveStateDocument).toHaveBeenCalledTimes(1);
+  expect(db.$executeRaw).toHaveBeenCalledTimes(1);
+  expect(db.$executeRaw.mock.calls[0].slice(1)).toContain(row.identity);
+});
+
+test('all-formats is explicit and rejects alternate-only before any work', async () => {
+  const env = { DATABASE_URL: 'postgresql://test@localhost/test' };
+  expect(parseStateTextArgs(['--states', 'FL', '--all-formats'], env)).toMatchObject({
+    allFormats: true,
+    alternateOnly: false,
+    publisherOnly: true,
+  });
+  expect(parseStateTextArgs(['--states', 'FL'], env)).toMatchObject({
+    allFormats: false,
+    alternateOnly: false,
+    publisherOnly: false,
+  });
+  for (const flags of [
+    ['--all-formats', '--alternate-only'],
+    ['--alternate-only', '--all-formats'],
+  ])
+    expect(() => parseStateTextArgs(['--states', 'FL', ...flags], env)).toThrow(
+      'FORMAT_OPTIONS_CONFLICT',
+    );
+  const db = database();
+  await expect(
+    drainStateDocuments(db, { ...options, allFormats: true, alternateOnly: true }),
+  ).rejects.toThrow('FORMAT_OPTIONS_CONFLICT');
+  expect(db.$queryRawUnsafe).not.toHaveBeenCalled();
 });
 test('alternate-only selects its own queue, preserves primary failure work, and forces publisher-only', async () => {
   const db = database();
@@ -168,16 +274,21 @@ test('partial structure is retained but never credited as complete', async () =>
   expect(prisma.$executeRaw.mock.calls.at(-1).slice(1)).toContain('DOCUMENT_EXTRACTION_PARTIAL');
 });
 
-test.each(['PUBLISHER_RETRY_AFTER', 'PUBLISHER_COOLDOWN_ACTIVE'])(
-  '%s stops the batch without consuming any document failure counter',
-  async (code) => {
+test.each([
+  ['PUBLISHER_RETRY_AFTER', false],
+  ['PUBLISHER_COOLDOWN_ACTIVE', false],
+  ['PUBLISHER_RETRY_AFTER', true],
+  ['PUBLISHER_COOLDOWN_ACTIVE', true],
+] as const)(
+  '%s stops the batch without consuming any document failure counter (all formats=%s)',
+  async (code, allFormats) => {
     const prisma = database();
     prisma.$queryRawUnsafe.mockImplementation(async (sql: string) =>
       sql.includes("[0-9]+$'")
         ? []
         : [
             { ...row, attempts: 9 },
-            { ...row, billKey: 'untouched', attempts: 9 },
+            { ...(allFormats ? alternateRow : row), billKey: 'untouched', attempts: 9 },
           ],
     );
     (retrieveStateDocument as jest.Mock).mockRejectedValue(
@@ -191,7 +302,7 @@ test.each(['PUBLISHER_RETRY_AFTER', 'PUBLISHER_COOLDOWN_ACTIVE'])(
     );
     const log = jest.spyOn(console, 'log').mockImplementation(() => {});
     try {
-      const result = await drainStateDocuments(prisma, { ...options, limit: 100 });
+      const result = await drainStateDocuments(prisma, { ...options, limit: 100, allFormats });
       expect(result).toMatchObject({
         errors: 0,
         skipped: 1,

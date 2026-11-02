@@ -21,11 +21,105 @@ import {
 } from './bill-text-coverage.js';
 import { loadPinnedStateInventory } from '../ingestion/state-bill-inventory-read.js';
 import { loadPinnedFederalInventory } from '../ingestion/federal-bill-inventory-read.js';
+import { withBillPassageWriter } from '../../scripts/embed-bill-passages.js';
+import { withStateBillWriter } from '../ingestion/state-bill-writer.js';
+import { withFederalBillWriter } from '../ingestion/federal-bill-writer.js';
+import {
+  loadProvenBillPassages,
+  billPassageIsProven,
+} from '../ingestion/bill-passage-embedding.js';
 
 // Root supplies a disposable synthetic database. This test never uses DATABASE_URL implicitly.
 const url = process.env.BILL_TEXT_SEARCH_TEST_DATABASE_URL;
 const pg = url ? describe : describe.skip;
 pg('bill text PostgreSQL contract', () => {
+  it('shares dataset leases across global, state, extraction and embedding entry scopes and fences an expired owner', async () => {
+    const parsed = new URL(url!);
+    if (
+      process.env.CAPIRO_DISPOSABLE_PG !== '1' ||
+      parsed.pathname !== '/bill_text_test' ||
+      !['localhost', '127.0.0.1', '::1', '[::1]'].includes(parsed.hostname)
+    )
+      throw Error('DISPOSABLE_LOCAL_BILL_TEXT_TEST_DATABASE_REQUIRED');
+    const admin = new PrismaClient({ datasources: { db: { url: url! } } });
+    const schema = 'bill_passage_writer_' + randomUUID().replaceAll('-', '');
+    let db: PrismaClient | undefined;
+    let created = false;
+    try {
+      await admin.$executeRawUnsafe(`CREATE SCHEMA ${schema}`);
+      created = true;
+      parsed.searchParams.set('schema', schema);
+      db = new PrismaClient({ datasources: { db: { url: parsed.href } } });
+      const database = db;
+      const migration = readFileSync(
+        join(
+          process.cwd(),
+          'prisma/migrations/20280924030000_federal_legislative_evidence/migration.sql',
+        ),
+        'utf8',
+      );
+      const checkpoint = migration.match(
+        /CREATE TABLE "federal_evidence_checkpoint" \([\s\S]*?\n\);/,
+      )?.[0];
+      if (!checkpoint) throw Error('CANONICAL_CHECKPOINT_CONTRACT_MISSING');
+      await database.$executeRawUnsafe(checkpoint);
+      await database.$executeRawUnsafe('CREATE TABLE marker(value integer)');
+      await database.$executeRawUnsafe('INSERT INTO marker VALUES(0)');
+      const global = { source: 'state' as const, states: [] };
+      const florida = { source: 'state' as const, states: ['FL'] };
+      const federal = { source: 'federal' as const, states: [] };
+      const loser = jest.fn(async () => {});
+      // Phases have separate progress cursors, but the entry scopes below are
+      // deliberately phase/model independent and use the ordinary writer owner.
+      await withBillPassageWriter(database, global, async (writer) => {
+        await expect(withBillPassageWriter(database, florida, loser)).rejects.toThrow(
+          'STATE_WRITER_ALREADY_RUNNING',
+        );
+        await expect(withStateBillWriter(database, ['FL'], loser)).rejects.toThrow(
+          'STATE_WRITER_ALREADY_RUNNING',
+        );
+        await writer.$executeRawUnsafe('UPDATE marker SET value=1');
+      });
+      await withBillPassageWriter(database, florida, async (writer) => {
+        await expect(withBillPassageWriter(database, global, loser)).rejects.toThrow(
+          'STATE_WRITER_ALREADY_RUNNING',
+        );
+        // The failed global acquisition releases its earlier state leases only.
+        await writer.$executeRawUnsafe('UPDATE marker SET value=2');
+      });
+      await withBillPassageWriter(database, federal, async (writer) => {
+        await expect(withBillPassageWriter(database, federal, loser)).rejects.toThrow(
+          'FEDERAL_WRITER_ALREADY_RUNNING',
+        );
+        await expect(withFederalBillWriter(database, loser)).rejects.toThrow(
+          'FEDERAL_WRITER_ALREADY_RUNNING',
+        );
+        await writer.$executeRawUnsafe('UPDATE marker SET value=3');
+      });
+      expect(loser).not.toHaveBeenCalled();
+      await withBillPassageWriter(database, global, async (stale) => {
+        await database.$executeRawUnsafe(
+          "UPDATE federal_evidence_checkpoint SET lease_until=clock_timestamp()-interval '1 second' WHERE source='state-bills:FL'",
+        );
+        await withBillPassageWriter(database, florida, async (successor) => {
+          await expect(stale.$executeRawUnsafe('UPDATE marker SET value=99')).rejects.toThrow(
+            'STATE_WRITER_LEASE_LOST',
+          );
+          await successor.$executeRawUnsafe('UPDATE marker SET value=4');
+        });
+      });
+      expect(await database.$queryRawUnsafe('SELECT value FROM marker')).toEqual([{ value: 4 }]);
+      expect(
+        await database.$queryRawUnsafe(
+          'SELECT count(*)::int n FROM federal_evidence_checkpoint WHERE lease_token IS NOT NULL',
+        ),
+      ).toEqual([{ n: 0 }]);
+    } finally {
+      await db?.$disconnect();
+      if (created) await admin.$executeRawUnsafe(`DROP SCHEMA ${schema} CASCADE`);
+      await admin.$disconnect();
+    }
+  }, 60000);
   it('bounds the indexed public vector stage under FORCE RLS using a non-bypass application role', async () => {
     const parsed = new URL(url!);
     if (
@@ -178,6 +272,112 @@ pg('bill text PostgreSQL contract', () => {
       expect(
         indexes.some((name) => /^context_embeddings_bill_passage_(hnsw|hash)_idx$/.test(name)),
       ).toBe(true);
+      // Exercise the worker's proof through an actual non-bypass role, on one
+      // long document surrounded by unrelated passage rows. No per-passage IO.
+      await db.query(`RESET ROLE;
+        CREATE TABLE bill_text_extraction(id uuid PRIMARY KEY,source_kind text,revision_id uuid,
+          document_hash text,parser_version text,structure_hash text,text_hash text);
+        CREATE TABLE bill_text_passage(extraction_id uuid,chunker_version text,ordinal int,
+          start_offset int,end_offset int,content_text text,metadata_jsonb jsonb,
+          PRIMARY KEY(extraction_id,chunker_version,ordinal));`);
+      const proofIdentity = {
+        extractionId: '00000000-0000-4000-8000-000000000011',
+        sourceKind: 'state' as const,
+        revisionId: '00000000-0000-4000-8000-000000000001',
+        documentHash: 'a'.repeat(64),
+        structureHash: 'b'.repeat(64),
+        textHash: 'c'.repeat(64),
+        billId: 'FL-proof',
+        model: 'test-model',
+      };
+      await db.query(`INSERT INTO bill_text_extraction VALUES($1,'state',$2,$3,$4,$5,$6)`, [
+        proofIdentity.extractionId,
+        proofIdentity.revisionId,
+        proofIdentity.documentHash,
+        BILL_EXTRACTION_VERSION,
+        proofIdentity.structureHash,
+        proofIdentity.textHash,
+      ]);
+      await db.query(
+        `INSERT INTO bill_text_passage
+        SELECT $1::uuid,$2,n,n*4000,n*4000+4000,repeat('qualified passage ',222)||'okok','{"semanticAvailable":true}'::jsonb
+        FROM generate_series(0,999) n`,
+        [proofIdentity.extractionId, CHUNKER_VERSION],
+      );
+      await db.query(
+        `INSERT INTO bill_text_passage
+        SELECT '00000000-0000-4000-8000-000000009999'::uuid,$1,n,n*20,n*20+20,'unrelated short text','{"semanticAvailable":true}'::jsonb
+        FROM generate_series(0,4999) n`,
+        [CHUNKER_VERSION],
+      );
+      await db.query(
+        `UPDATE context_embeddings v SET source_id=$1||':'||p.extraction_id::text||':'||p.ordinal::text,
+        content_text=p.content_text,content_hash=encode(sha256(convert_to(p.content_text,'UTF8')),'hex'),
+        metadata_jsonb=jsonb_build_object('billId',$2::text,'revisionId',$3::text,'extractionId',$4::text,
+          'structureHash',$5::text,'textHash',$6::text,'extractionVersion',$7::text,'chunkerVersion',$1::text,
+          'startOffset',p.start_offset,'endOffset',p.end_offset)
+        FROM bill_text_passage p WHERE p.extraction_id=$4::uuid AND v.source_id='synthetic:'||(p.ordinal+1)::text`,
+        [
+          CHUNKER_VERSION,
+          proofIdentity.billId,
+          proofIdentity.revisionId,
+          proofIdentity.extractionId,
+          proofIdentity.structureHash,
+          proofIdentity.textHash,
+          BILL_EXTRACTION_VERSION,
+        ],
+      );
+      await db.query(`ANALYZE bill_text_extraction; ANALYZE bill_text_passage; ANALYZE context_embeddings;
+        GRANT SELECT ON bill_text_extraction,bill_text_passage TO ${role}; SET LOCAL ROLE ${role};
+        SET LOCAL app.bypass_rls='off'; SET LOCAL statement_timeout='5s';`);
+      let proofSql = '',
+        proofValues: unknown[] = [];
+      const proofReader = {
+        async $queryRawUnsafe<T>(sql: string, ...values: unknown[]): Promise<T> {
+          proofSql = sql;
+          proofValues = values;
+          return (await db.query(sql, values)).rows as T;
+        },
+      };
+      const proofStarted = performance.now();
+      const proven = await loadProvenBillPassages(proofReader, proofIdentity);
+      const proofMs = performance.now() - proofStarted;
+      expect(proven.size).toBe(1000);
+      expect(proofMs).toBeLessThan(5000);
+      expect(
+        (
+          await db.query(`SELECT rolsuper,rolbypassrls,current_setting('app.bypass_rls') AS bypass
+        FROM pg_roles WHERE rolname=current_user`)
+        ).rows,
+      ).toEqual([{ rolsuper: false, rolbypassrls: false, bypass: 'off' }]);
+      const proofPlan = (
+        await db.query('EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) ' + proofSql, proofValues)
+      ).rows[0]['QUERY PLAN'][0];
+      const passageScans: Array<Record<string, number>> = [];
+      const proofIndexes: string[] = [];
+      const walkProof = (node: Record<string, unknown>) => {
+        if (node['Relation Name'] === 'bill_text_passage')
+          passageScans.push(node as Record<string, number>);
+        if (typeof node['Index Name'] === 'string') proofIndexes.push(node['Index Name']);
+        for (const child of (node.Plans ?? []) as Array<Record<string, unknown>>) walkProof(child);
+      };
+      walkProof(proofPlan.Plan);
+      expect(passageScans.length).toBeGreaterThan(0);
+      for (const scan of passageScans)
+        expect(scan['Actual Rows']! * scan['Actual Loops']!).toBeLessThanOrEqual(1000);
+      expect(proofIndexes).toContain('context_embeddings_source_idx');
+      if (process.env.BILL_TEXT_PG_DIAGNOSTICS === '1')
+        console.info(
+          JSON.stringify({
+            billPassageProofPlan: {
+              passages: proven.size,
+              elapsedMs: proofMs,
+              executionMs: proofPlan['Execution Time'],
+              jit: proofPlan.JIT,
+              indexes: proofIndexes,
+            },
+          }),
+        );
     } finally {
       await db.query('ROLLBACK').catch(() => undefined);
       await db.end();
@@ -209,7 +409,9 @@ pg('bill text PostgreSQL contract', () => {
               ? 'alternate_format_coverage'
               : event.query.includes('semantic_candidates AS MATERIALIZED')
                 ? 'semantic'
-                : 'fixture_and_inventory';
+                : event.query.includes('FROM bill_text_extraction e JOIN bill_text_passage')
+                  ? 'proven_passages'
+                  : 'fixture_and_inventory';
       const key = `${phase}:${kind}`;
       const item = timings.get(key) ?? { count: 0, totalMs: 0, maxMs: 0 };
       item.count++;
@@ -732,12 +934,42 @@ pg('bill text PostgreSQL contract', () => {
               `SELECT content_text,content_hash,metadata_jsonb FROM context_embeddings WHERE source_id=$1`,
               sourceId,
             );
+            const metadata = saved!.metadata_jsonb as Record<string, string>;
+            const proofIdentity = {
+              extractionId: metadata.extractionId!,
+              revisionId: metadata.revisionId!,
+              billId,
+              sourceKind: jurisdiction === 'US' ? ('federal' as const) : ('state' as const),
+              documentHash: 'b'.repeat(64),
+              structureHash: metadata.structureHash!,
+              textHash: metadata.textHash!,
+              model: 'test-model',
+            };
+            const currentProof = await loadProvenBillPassages(tx, proofIdentity);
+            expect([...currentProof.keys()]).toEqual([0]);
+            const expectedChunk = {
+              ordinal: 0,
+              start: 0,
+              end: saved!.content_text.length,
+              text: saved!.content_text,
+            };
+            expect(billPassageIsProven(currentProof.get(0), expectedChunk, metadata)).toBe(true);
+            for (const changedIdentity of [
+              { model: 'wrong-model' },
+              { documentHash: 'f'.repeat(64) },
+              { structureHash: 'f'.repeat(64) },
+              { textHash: 'f'.repeat(64) },
+            ])
+              expect(
+                (await loadProvenBillPassages(tx, { ...proofIdentity, ...changedIdentity })).size,
+              ).toBe(0);
             for (const mutation of [
               "tenant_id='00000000-0000-4000-8000-000000009999'",
               "client_id='00000000-0000-4000-8000-000000009999'",
               "owner_user_id='00000000-0000-4000-8000-000000009999'",
               "content_text=content_text||' changed'",
               "content_hash=repeat('f',64)",
+              "model='wrong-model'",
               "metadata_jsonb=metadata_jsonb-'revisionId'",
               "metadata_jsonb=metadata_jsonb-'billId'",
               "metadata_jsonb=metadata_jsonb-'chunkerVersion'",
@@ -763,8 +995,9 @@ pg('bill text PostgreSQL contract', () => {
                   (row) => row.jurisdiction === jurisdiction,
                 )!.embeddedPassages,
               ).toBe(0);
+              expect((await loadProvenBillPassages(tx, proofIdentity)).size).toBe(0);
               await tx.$executeRawUnsafe(
-                `UPDATE context_embeddings SET tenant_id=NULL,client_id=NULL,owner_user_id=NULL,
+                `UPDATE context_embeddings SET tenant_id=NULL,client_id=NULL,owner_user_id=NULL,model='test-model',
                 content_text=$2,content_hash=$3,metadata_jsonb=$4::jsonb WHERE source_id=$1`,
                 sourceId,
                 saved!.content_text,
@@ -772,6 +1005,19 @@ pg('bill text PostgreSQL contract', () => {
                 JSON.stringify(saved!.metadata_jsonb),
               );
             }
+            // Shared source/hash proof alone does not certify worker citation offsets.
+            await tx.$executeRawUnsafe(
+              `UPDATE context_embeddings SET metadata_jsonb=jsonb_set(metadata_jsonb,'{startOffset}','999') WHERE source_id=$1`,
+              sourceId,
+            );
+            const staleOffsets = await loadProvenBillPassages(tx, proofIdentity);
+            expect(staleOffsets.size).toBe(1);
+            expect(billPassageIsProven(staleOffsets.get(0), expectedChunk, metadata)).toBe(false);
+            await tx.$executeRawUnsafe(
+              `UPDATE context_embeddings SET metadata_jsonb=$2::jsonb WHERE source_id=$1`,
+              sourceId,
+              JSON.stringify(metadata),
+            );
           };
           await rejectTamperedVector(
             `${CHUNKER_VERSION}:${ids[0]!.extractionId}:0`,

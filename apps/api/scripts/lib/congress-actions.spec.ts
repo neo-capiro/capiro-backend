@@ -1,25 +1,61 @@
 import {
+  replaceCongressBillActionsAtomically,
   syncCongressBillActions,
   type CongressActionPrisma,
   type CongressActionsResponse,
+  type NormalizedCongressAction,
 } from './congress-actions';
+import type { PrismaClient } from '@prisma/client';
+import { withFederalBillWriter } from '../../src/ingestion/federal-bill-writer';
 
 function prismaMock() {
+  let inTransaction = false;
+  const requireTransaction = () => {
+    if (!inTransaction) throw Error('ACTION_OPERATION_OUTSIDE_TRANSACTION');
+  };
   const deleteOperation = { operation: 'delete' };
   const createOperation = { operation: 'create' };
   const baselineOperation = { operation: 'baseline' };
   const raw = {
     congressBillAction: {
-      deleteMany: jest.fn(() => deleteOperation),
-      createMany: jest.fn(() => createOperation),
-      findMany: jest.fn(async () => []),
+      deleteMany: jest.fn(async () => {
+        requireTransaction();
+        return deleteOperation;
+      }),
+      createMany: jest.fn(async () => {
+        requireTransaction();
+        return createOperation;
+      }),
+      findMany: jest.fn(async (): Promise<NormalizedCongressAction[]> => {
+        requireTransaction();
+        return [];
+      }),
     },
     federalEvidenceCheckpoint: {
-      findUnique: jest.fn(async (): Promise<{ status: string } | null> => null),
-      upsert: jest.fn(() => baselineOperation),
+      findUnique: jest.fn(async (): Promise<{ status: string } | null> => {
+        requireTransaction();
+        return null;
+      }),
+      upsert: jest.fn(async () => {
+        requireTransaction();
+        return baselineOperation;
+      }),
     },
-    $executeRaw: jest.fn(() => ({ operation: 'raw' })),
-    $transaction: jest.fn(async () => undefined),
+    $executeRaw: jest.fn(async () => {
+      requireTransaction();
+      return { operation: 'raw' };
+    }),
+    $queryRawUnsafe: jest.fn(async () => [{ source: 'congress-bills' }]),
+    $executeRawUnsafe: jest.fn(async () => 1),
+    $transaction: jest.fn(async (run: (tx: unknown) => Promise<unknown>): Promise<unknown> => {
+      if (typeof run !== 'function') throw Error('CALLBACK_TRANSACTION_REQUIRED');
+      inTransaction = true;
+      try {
+        return await run(raw);
+      } finally {
+        inTransaction = false;
+      }
+    }),
   };
 
   return {
@@ -109,11 +145,8 @@ describe('Congress bill action ingestion', () => {
         },
       ],
     });
-    expect(db.raw.$transaction).toHaveBeenCalledWith([
-      db.deleteOperation,
-      db.createOperation,
-      db.baselineOperation,
-    ]);
+    expect(db.raw.$transaction).toHaveBeenCalledWith(expect.any(Function));
+    expect(db.raw.$executeRaw).not.toHaveBeenCalled();
   });
 
   it('treats a successful empty response as an authoritative empty history', async () => {
@@ -127,7 +160,7 @@ describe('Congress bill action ingestion', () => {
 
     expect(result).toEqual({ ok: true, actions: [] });
     expect(db.raw.congressBillAction.createMany).not.toHaveBeenCalled();
-    expect(db.raw.$transaction).toHaveBeenCalledWith([db.deleteOperation, db.baselineOperation]);
+    expect(db.raw.$transaction).toHaveBeenCalledWith(expect.any(Function));
   });
 
   it('emits the first later action after an authoritative empty baseline', async () => {
@@ -144,12 +177,61 @@ describe('Congress bill action ingestion', () => {
 
     expect(result).toMatchObject({ ok: true, actions: [{ text: 'Introduced in House' }] });
     expect(db.raw.$executeRaw).toHaveBeenCalledTimes(1);
-    expect(db.raw.$transaction).toHaveBeenCalledWith([
-      db.deleteOperation,
-      db.createOperation,
-      db.baselineOperation,
-      { operation: 'raw' },
-    ]);
+    expect(db.raw.$transaction).toHaveBeenCalledWith(expect.any(Function));
+  });
+
+  it('uses the actual federal callback facade with one fenced transaction for both reads and writes', async () => {
+    const db = prismaMock();
+    const action = {
+      date: new Date('2026-01-01'),
+      text: 'Synthetic action',
+      type: null,
+      chamber: null,
+    };
+    await withFederalBillWriter(db.raw as unknown as PrismaClient, (writer) =>
+      replaceCongressBillActionsAtomically(writer, '119-hr-999', [action]),
+    );
+    expect(db.raw.$transaction).toHaveBeenCalledTimes(1);
+    expect(db.raw.$queryRawUnsafe).toHaveBeenCalledTimes(2); // acquire, then transaction fence
+    const fence = db.raw.$queryRawUnsafe.mock.invocationCallOrder[1]!;
+    expect(fence).toBeLessThan(
+      db.raw.federalEvidenceCheckpoint.findUnique.mock.invocationCallOrder[0]!,
+    );
+    expect(fence).toBeLessThan(db.raw.congressBillAction.findMany.mock.invocationCallOrder[0]!);
+    expect(db.raw.congressBillAction.createMany).toHaveBeenCalledWith({
+      data: [{ billId: '119-hr-999', ...action }],
+    });
+    expect(db.raw.$executeRaw).not.toHaveBeenCalled();
+  });
+
+  it('refuses a lost federal lease before reading or replacing action history', async () => {
+    const db = prismaMock();
+    db.raw.$queryRawUnsafe
+      .mockResolvedValueOnce([{ source: 'congress-bills' }])
+      .mockResolvedValueOnce([]);
+    await expect(
+      withFederalBillWriter(db.raw as unknown as PrismaClient, (writer) =>
+        replaceCongressBillActionsAtomically(writer, '119-hr-999', []),
+      ),
+    ).rejects.toThrow('FEDERAL_WRITER_LEASE_LOST');
+    expect(db.raw.federalEvidenceCheckpoint.findUnique).not.toHaveBeenCalled();
+    expect(db.raw.congressBillAction.findMany).not.toHaveBeenCalled();
+    expect(db.raw.congressBillAction.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('keeps a completed baseline from emitting unchanged actions', async () => {
+    const db = prismaMock();
+    const action = {
+      date: new Date('2026-01-01'),
+      text: 'Synthetic unchanged action',
+      type: null,
+      chamber: null,
+    };
+    db.raw.federalEvidenceCheckpoint.findUnique.mockResolvedValue({ status: 'completed' });
+    db.raw.congressBillAction.findMany.mockResolvedValue([action]);
+    await replaceCongressBillActionsAtomically(db.prisma, '119-hr-999', [action]);
+    expect(db.raw.$executeRaw).not.toHaveBeenCalled();
+    expect(db.raw.federalEvidenceCheckpoint.upsert).toHaveBeenCalledTimes(1);
   });
 
   it('uses a trimmed actionCode when Congress returns a valid action with null text', async () => {
