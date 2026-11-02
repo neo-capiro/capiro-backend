@@ -71,11 +71,13 @@ def image_digest(sha, qualified, write):
     require(not write or qualified == digest, 'EXACT_IMAGE_QUALIFICATION_REQUIRED')
     return digest
 
-def command_for(job, limit, commit, archive=None, publisher_only=False, phase='embed', passage_states=None, federal=None, alternate_only=False):
+def command_for(job, limit, commit, archive=None, publisher_only=False, phase='embed', passage_states=None, federal=None, alternate_only=False, all_formats=False):
     require(job in JOBS and type(limit) is int and 1 <= limit <= 1000, 'INVALID_JOB_OR_LIMIT')
     require(job != 'federal-text' or limit <= 400, 'FEDERAL_TEXT_CAP_EXCEEDED')
     require(not alternate_only or job == 'state-drain', 'ALTERNATE_ONLY_REQUIRES_STATE_DRAIN')
-    publisher_only = publisher_only or alternate_only
+    require(not all_formats or job == 'state-drain', 'ALL_FORMATS_REQUIRES_STATE_DRAIN')
+    require(not (alternate_only and all_formats), 'STATE_TEXT_FORMAT_OPTIONS_CONFLICT')
+    publisher_only = publisher_only or alternate_only or all_formats
     require(not publisher_only or job == 'state-drain', 'PUBLISHER_ONLY_REQUIRES_STATE_DRAIN')
     require(phase in ('embed', 'extract') and (phase == 'embed' or job.endswith('-passages')), 'INVALID_EXTRACTION_PHASE')
     require(passage_states is None or (job == 'state-passages' and passage_states and len(set(passage_states)) == len(passage_states) and set(passage_states) <= STATES), 'PASSAGE_STATES_REQUIRE_STATE_JOB')
@@ -111,10 +113,10 @@ def command_for(job, limit, commit, archive=None, publisher_only=False, phase='e
         return ['sync-federal-legislative-evidence', '--collection', 'BILLS', '--congress', '119', '--full', '--historical', '--cap', str(limit)] + (['--commit'] if commit else [])
     require(commit, 'STATE_WRITER_REQUIRES_COMMIT')
     return ['backfill-legiscan-datasets'] if job == 'state-dataset' else [
-        'sync-state-text-drain', '--limit', str(min(limit, 100)), '--commit', '--expected-host', HOST] + (['--publisher-only'] if publisher_only else []) + (['--alternate-only'] if alternate_only else [])
+        'sync-state-text-drain', '--limit', str(min(limit, 100)), '--commit', '--expected-host', HOST] + (['--publisher-only'] if publisher_only else []) + (['--alternate-only'] if alternate_only else []) + (['--all-formats'] if all_formats else [])
 
-def candidate_task(baseline, digest, sha, job, limit, states, commit, govinfo_arn=None, archive=None, publisher_only=False, phase='embed', passage_states=None, federal=None, congress_arn=None, alternate_only=False):
-    command = command_for(job, limit, commit, archive, publisher_only, phase, passage_states, federal, alternate_only)
+def candidate_task(baseline, digest, sha, job, limit, states, commit, govinfo_arn=None, archive=None, publisher_only=False, phase='embed', passage_states=None, federal=None, congress_arn=None, alternate_only=False, all_formats=False):
+    command = command_for(job, limit, commit, archive, publisher_only, phase, passage_states, federal, alternate_only, all_formats)
     require(bool(re.fullmatch('sha256:[0-9a-f]{64}', digest)), 'INVALID_IMAGE_DIGEST')
     require(bool(re.fullmatch('[0-9a-f]{40}', sha)), 'INVALID_SOURCE_SHA')
     require(states and len(set(states)) == len(states) and set(states) <= STATES, 'INVALID_STATES')
@@ -133,7 +135,7 @@ def candidate_task(baseline, digest, sha, job, limit, states, commit, govinfo_ar
     secret_map = {x['name']: x for x in old['secrets']}
     require({'DB_USER', 'DB_PASSWORD', 'LEGISCAN_API_KEY'} <= secret_map.keys(), 'MISSING_SECRET_REFERENCE')
     require(not ({'DATABASE_URL', 'DB_HOST', 'DB_PORT', 'DB_NAME'} & secret_map.keys()), 'AMBIGUOUS_DATABASE_TARGET')
-    secret_names = ['DB_USER', 'DB_PASSWORD'] + (['LEGISCAN_API_KEY'] if job == 'state-dataset' or (job == 'state-drain' and not (publisher_only or alternate_only)) else [])
+    secret_names = ['DB_USER', 'DB_PASSWORD'] + (['LEGISCAN_API_KEY'] if job == 'state-dataset' or (job == 'state-drain' and not (publisher_only or alternate_only or all_formats)) else [])
     secrets = [copy.deepcopy(secret_map[name]) for name in secret_names]
     if job == 'federal-text' and commit:
         require(govinfo_arn and re.fullmatch(f'arn:aws:secretsmanager:{REGION}:{ACCOUNT}:secret:capiro/dev/govinfo_api_key-[A-Za-z0-9]+', govinfo_arn), 'GOVINFO_REFERENCE_REQUIRED')
@@ -259,6 +261,7 @@ def main():
     parser.add_argument('--commit', action='store_true')
     parser.add_argument('--publisher-only', action='store_true', help='State drain without LegiScan API credentials or fallback')
     parser.add_argument('--alternate-only', action='store_true', help='One-shot state alternate PDF drain; forces publisher-only and omits LegiScan credentials')
+    parser.add_argument('--all-formats', action='store_true', help='One bounded state drain of primary and alternate formats; forces publisher-only and omits LegiScan credentials')
     parser.add_argument('--phase', choices=['extract', 'embed'], default='embed', help='One-shot passage extraction or embedding')
     parser.add_argument('--source-sha', required=True, help='Exact reviewed, merged backend-import tip')
     parser.add_argument('--qualified-digest', help='Exact ARM64 digest already probed and scanned by root')
@@ -279,11 +282,12 @@ def main():
     if args.job == 'state-archive' or (args.job != 'federal-archive' and any(value is not None for value in (args.archive_hash, args.archive_session, args.archive_bills))):
         require(len(states) == 1, 'ARCHIVE_REQUIRES_ONE_STATE')
         archive = {'state': states[0], 'session': args.archive_session, 'hash': args.archive_hash, 'bills': args.archive_bills}
-    command_for(args.job, args.limit, args.commit, archive, args.publisher_only, args.phase, passage_states, federal, args.alternate_only)
+    command_for(args.job, args.limit, args.commit, archive, args.publisher_only, args.phase, passage_states, federal, args.alternate_only, args.all_formats)
     require(states and len(set(states)) == len(states) and set(states) <= STATES, 'INVALID_STATES')
     require(args.job != 'state-dataset' or len(states) == 1, 'DATASET_REQUIRES_ONE_STATE')
     if args.operation == 'schedule':
         require(not args.alternate_only, 'ALTERNATE_FORMATS_ARE_ONE_SHOT_ONLY')
+        require(not args.all_formats, 'ALL_FORMATS_ARE_ONE_SHOT_ONLY')
         require(passage_states is None, 'STATE_SCOPED_PASSAGES_ARE_ONE_SHOT_ONLY')
         require(args.phase == 'embed', 'EXTRACTION_IS_ONE_SHOT_ONLY')
         require(args.commit and args.job in SCHEDULES, 'SCHEDULE_REQUIRES_SUPPORTED_COMMIT_JOB')
@@ -300,7 +304,7 @@ def main():
     network = network_for(target)
     govinfo = aws('secretsmanager', 'describe-secret', '--secret-id', 'capiro/dev/govinfo_api_key')['ARN'] if args.job == 'federal-text' and args.commit else None
     congress = aws('secretsmanager', 'describe-secret', '--secret-id', 'capiro/dev/congress_gov_api_key')['ARN'] if args.job == 'federal-inventory' and args.commit and federal['stage'] in ('metadata','inventory') else None
-    td = candidate_task(baseline, digest, sha, args.job, args.limit, states, args.commit, govinfo, archive, args.publisher_only, args.phase, passage_states, federal, congress, args.alternate_only)
+    td = candidate_task(baseline, digest, sha, args.job, args.limit, states, args.commit, govinfo, archive, args.publisher_only, args.phase, passage_states, federal, congress, args.alternate_only, args.all_formats)
     schedule = schedule_snapshot(args.job) if args.operation == 'schedule' else None
     receipt = {'operation': args.operation, 'job': args.job, 'source': sha, 'digest': digest, 'databaseHost': HOST,
                'command': td['containerDefinitions'][0]['command'], 'states': ','.join(states), 'limit': args.limit, 'commit': args.commit}
