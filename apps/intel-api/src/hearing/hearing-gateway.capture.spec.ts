@@ -4,6 +4,11 @@
  * each test the connection the manager opened so it can emit Open/Close exactly
  * when the scenario requires.
  */
+// The gateway tests inject the orchestrator; do not require its separate built package.
+jest.mock('./orchestrator.client.js', () => ({ OrchestratorClient: jest.fn() }));
+jest.mock('../linking/bill-hearing-linker.service.js', () => ({
+  BillHearingLinkerService: jest.fn(),
+}));
 jest.mock('@deepgram/sdk', () => {
   const conns: Array<{
     on: (event: string, cb: (payload?: unknown) => void) => void;
@@ -180,6 +185,163 @@ function baseConn(socket: WebSocket) {
 }
 
 describe('retained audio retry boundary', () => {
+  it.each([true, false])(
+    'seals the original video epoch after both final lanes (audio tail matches=%s)',
+    async (matches) => {
+      const { gateway } = makeGateway();
+      const ws = fakeSocket();
+      const seal = jest.fn().mockResolvedValue(undefined);
+      const markTranscriptPartial = jest.fn().mockResolvedValue(undefined);
+      Object.assign(gateway, { recordings: { seal, markTranscriptPartial } });
+      const capture = { epochId: 'original-video-epoch', recordingId: 'original-recording' };
+      const conn = {
+        ...baseConn(ws.socket),
+        state: 'capturing',
+        hasAudio: true,
+        recordingProtocol: 2,
+        transcriptionSequence: 3,
+        recording: capture,
+        deepgram: { stopAndWait: jest.fn().mockResolvedValue(undefined) },
+      };
+      (gateway as any).conns.set(ws.socket, conn);
+      await (gateway as any).onMessage(
+        ws.socket,
+        Buffer.from(
+          JSON.stringify({
+            type: 'capture_stop',
+            finalSequence: 4,
+            finalTranscriptionSequence: matches ? 3 : 2,
+          }),
+        ),
+        false,
+      );
+      expect(seal).toHaveBeenCalledWith(capture, 4, undefined, !matches, false);
+      expect(ws.sentJson()).toContainEqual({
+        type: 'status',
+        status: matches ? 'ended' : 'failed',
+      });
+      expect(markTranscriptPartial).toHaveBeenCalledTimes(matches ? 0 : 1);
+    },
+  );
+  it('persists only the AV lane and forwards only the independent Opus lane to transcription', async () => {
+    const { gateway } = makeGateway();
+    const ws = fakeSocket();
+    const append = jest
+      .fn()
+      .mockResolvedValue({ sequence: 0, durableBytes: 4, durableEndMs: 500, duplicate: false });
+    const authorizeTranscription = jest.fn().mockResolvedValue(undefined);
+    Object.assign(gateway, { recordings: { append, authorizeTranscription } });
+    const sendAudio = jest.fn(() => true);
+    const conn = {
+      ...baseConn(ws.socket),
+      state: 'capturing',
+      hasAudio: true,
+      recordingProtocol: 2,
+      transcriptionSequence: -1,
+      transcriptionEndMs: 0,
+      recording: { epochId: 'epoch' },
+      deepgram: { sendAudio },
+    };
+    const frame = (magic: string) => {
+      const bytes = Buffer.alloc(20);
+      bytes.write(magic);
+      bytes.writeDoubleBE(500, 8);
+      bytes.set([0x1a, 0x45, 0xdf, 0xa3], 16);
+      return bytes;
+    };
+    await (gateway as any).onAudioFrame(conn, frame('LWV5'));
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(sendAudio).not.toHaveBeenCalled();
+    await (gateway as any).onAudioFrame(conn, frame('LWT5'));
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(sendAudio).toHaveBeenCalledWith(frame('LWT5').subarray(16));
+    expect(authorizeTranscription).toHaveBeenCalledWith(conn.recording);
+    authorizeTranscription.mockRejectedValue(new Error('Recording permission withdrawn'));
+    const next = frame('LWT5');
+    next.writeUInt32BE(1, 4);
+    await expect((gateway as any).onAudioFrame(conn, next)).rejects.toThrow('permission withdrawn');
+    expect(sendAudio).toHaveBeenCalledTimes(1);
+    expect(conn.transcriptionSequence).toBe(0);
+    await expect((gateway as any).onAudioFrame(conn, frame('LWT5'))).rejects.toThrow(
+      'out of order',
+    );
+    await expect((gateway as any).onAudioFrame(conn, frame('LWA4'))).rejects.toThrow();
+  });
+  it('rejects incompatible v2 negotiation before claiming a session or opening transcription', async () => {
+    const { gateway, sessions } = makeGateway();
+    const ws = fakeSocket();
+    await (gateway as any).startCapture(
+      baseConn(ws.socket),
+      'video/webm;codecs=vp8,opus',
+      'browser',
+      2,
+      'video/webm',
+      true,
+    );
+    expect(sessions.claimCapture).not.toHaveBeenCalled();
+    expect(ws.sentJson()).toContainEqual(
+      expect.objectContaining({ code: 'UNSUPPORTED_AUDIO_CONTAINER' }),
+    );
+  });
+  it('requires explicit video/audio acknowledgment before claiming or sending bytes', async () => {
+    const { gateway, sessions } = makeGateway();
+    const ws = fakeSocket();
+    await (gateway as any).startCapture(
+      baseConn(ws.socket),
+      'video/webm;codecs=vp8,opus',
+      'browser',
+      2,
+      'audio/webm;codecs=opus',
+    );
+    expect(sessions.claimCapture).not.toHaveBeenCalled();
+    expect(ws.sentJson()).toContainEqual(
+      expect.objectContaining({ code: 'VIDEO_ACKNOWLEDGMENT_REQUIRED' }),
+    );
+  });
+  it('confirms the exact v2 media contract and original epoch before capture ready', async () => {
+    jest.useFakeTimers();
+    const { gateway, sessions } = makeGateway({
+      claimCapture: jest.fn(async () => ({ startedAt: new Date() })),
+    });
+    (sessions.assertCaptureAllowed as jest.Mock).mockResolvedValue({
+      recordingPolicy: 'audio_and_transcript',
+    });
+    const begin = jest
+      .fn()
+      .mockResolvedValue({ recordingId: 'original-recording', epochId: 'video-epoch', startMs: 0 });
+    Object.assign(gateway, { recordings: { begin } });
+    const ws = fakeSocket(),
+      conn = baseConn(ws.socket);
+    try {
+      await (gateway as any).startCapture(
+        conn,
+        'video/webm;codecs=vp8,opus',
+        'browser',
+        2,
+        'audio/webm;codecs=opus',
+        true,
+      );
+      expect(begin).toHaveBeenCalledWith(
+        'tenant-1',
+        'session-1',
+        'user-1',
+        expect.any(Date),
+        'video/webm;codecs=vp8,opus',
+      );
+      expect(ws.sentJson()).toContainEqual({
+        type: 'recording_epoch',
+        recordingId: 'original-recording',
+        epochId: 'video-epoch',
+        startMs: 0,
+        recordingProtocol: 2,
+        mimeType: 'video/webm;codecs=vp8,opus',
+      });
+      expect(ws.sentJson()).not.toContainEqual({ type: 'status', status: 'capture_ready' });
+    } finally {
+      clearConnTimers(conn);
+      jest.useRealTimers();
+    }
+  });
   it.each(['provider error', 'start timeout'])(
     'saves the first retained frame despite a transcription %s',
     async (failure) => {

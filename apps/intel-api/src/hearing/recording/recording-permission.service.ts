@@ -34,7 +34,25 @@ export class RecordingPermissionService {
     }
   }
 
-  async find(tenantId: string, source: { sourceUrl?: string | null; hearingId?: string | null }) {
+  async canEnableVideo(tx: Prisma.TransactionClient, sessionId: string): Promise<boolean> {
+    if (!(await this.canEnablePublic(tx, sessionId))) return false;
+    const rows = await tx.$queryRaw<Array<{ available: boolean }>>`SELECT
+      to_regprocedure('public.enable_public_hearing_browser_video_recording(text)') IS NOT NULL AS available`;
+    return rows[0]?.available === true;
+  }
+
+  async enableVideo(tx: Prisma.TransactionClient, sessionId: string): Promise<void> {
+    this.storage.assertReady();
+    if (!(await this.canEnableVideo(tx, sessionId)))
+      throw new ForbiddenException('Video permission is unavailable for this source');
+    await tx.$queryRaw`SELECT public.enable_public_hearing_browser_video_recording(${sessionId})`;
+  }
+
+  async find(
+    tenantId: string,
+    source: { sourceUrl?: string | null; hearingId?: string | null },
+    video = false,
+  ) {
     if (
       !this.storage.enabled ||
       !(await this.flags.isEnabled(HEARING_RECORDING_FEATURE, tenantId)) ||
@@ -51,6 +69,7 @@ export class RecordingPermissionService {
           mode: 'browser',
           revokedAt: null,
           expiresAt: { gt: now },
+          ...(video ? { operations: { has: 'video_retention' } } : {}),
         },
         orderBy: { reviewedAt: 'desc' },
         take: 20,
@@ -70,8 +89,9 @@ export class RecordingPermissionService {
   async require(
     tenantId: string,
     source: { sourceUrl?: string | null; hearingId?: string | null },
+    video = false,
   ) {
-    const grant = await this.find(tenantId, source);
+    const grant = await this.find(tenantId, source, video);
     if (!grant)
       throw new ForbiddenException(
         'Audio retention requires enabled storage and current source-specific permission',

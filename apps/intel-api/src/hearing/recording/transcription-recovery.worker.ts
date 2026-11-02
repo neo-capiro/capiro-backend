@@ -14,6 +14,7 @@ import {
   stateCaptureEnabled,
 } from '../state-capture-policy.js';
 import { RecordingStorageService } from './recording-storage.service.js';
+import { VIDEO_RECORDING_MIME } from './recording-media.js';
 import { pcmWave } from '../capture/public-hearing-audio.store.js';
 import { globalPublicAudioSource } from '../capture/global-public-audio-policy.js';
 import {
@@ -46,6 +47,7 @@ interface Source {
   permissionId?: string;
   artifactKey?: string;
   artifactHash?: string;
+  video?: boolean;
   startMs: number;
   durationMs: number;
   sampleRate: number;
@@ -72,7 +74,8 @@ export class TranscriptionRecoveryWorker {
         JOIN intel_live_hearing_session s ON s.id=r.session_id AND s.tenant_id=r.tenant_id
         WHERE e.state='ready' AND e.transcript_state='partial' AND e.artifact_key IS NOT NULL AND r.expires_at>now()
           AND (s.hearing_id IS NULL OR EXISTS(
-            SELECT 1 FROM ${Prisma.raw(capturableHearingView())} f WHERE f.id=s.hearing_id
+            SELECT 1 FROM capturable_committee_hearing f WHERE f.id=s.hearing_id
+              AND COALESCE(f.geographic_jurisdiction,'US') IN ('US','FL')
           ))
           AND (${epochId ?? null}::text IS NULL OR e.id=${epochId ?? null}) ON CONFLICT(kind,epoch_id) DO NOTHING`;
       await tx.$executeRaw`INSERT INTO intel_hearing_transcription_recovery(kind,epoch_id)
@@ -115,6 +118,7 @@ export class TranscriptionRecoveryWorker {
         permissionId: epoch.recording.permissionId,
         artifactKey: epoch.artifactKey,
         artifactHash: epoch.artifactHash,
+        video: epoch.mimeType === VIDEO_RECORDING_MIME,
         startMs: epoch.startMs,
         durationMs: epoch.decodedDurationMs,
         sampleRate: 16000,
@@ -155,11 +159,13 @@ export class TranscriptionRecoveryWorker {
     tx: Prisma.TransactionClient,
     source: Source,
   ): Promise<void> {
-    // With state capture off, a legacy/substituted federal id must not make a
-    // known Florida publisher source recoverable. New sessions are blocked at
-    // admission; this closes the same boundary for already-saved audio and
-    // historical recovery jobs.
-    if (!stateCaptureEnabled() && isFloridaStatePublisherUrl(source.sourceUrl)) {
+    // Unattended state recovery remains OFF. Browser recordings already have
+    // their own source-bound grant, rechecked below on every recovery chunk.
+    if (
+      source.kind === 'public' &&
+      !stateCaptureEnabled() &&
+      isFloridaStatePublisherUrl(source.sourceUrl)
+    ) {
       throw Error(STATE_CAPTURE_LINK_ONLY);
     }
     if (!source.hearingId) {
@@ -167,8 +173,9 @@ export class TranscriptionRecoveryWorker {
       return;
     }
     const canonical = await tx.$queryRaw<Array<{ id: string }>>`
-      SELECT id FROM ${Prisma.raw(capturableHearingView())}
+      SELECT id FROM ${Prisma.raw(source.kind === 'browser' ? 'capturable_committee_hearing' : capturableHearingView())}
       WHERE id=${source.hearingId}
+        AND (${source.kind !== 'browser'} OR COALESCE(geographic_jurisdiction,'US') IN ('US','FL'))
       LIMIT 1
       FOR SHARE`;
     if (!canonical.length) throw Error(STATE_CAPTURE_LINK_ONLY);
@@ -193,6 +200,7 @@ export class TranscriptionRecoveryWorker {
       WHERE p.source_url=${source.sourceUrl} AND p.hearing_id IS NOT DISTINCT FROM ${source.hearingId}
         AND p.mode=${source.kind === 'browser' ? 'browser' : 'server'} AND p.revoked_at IS NULL AND p.expires_at>clock_timestamp()
         AND p.operations @> ARRAY['transcription','retention']::text[]
+        AND (${source.video !== true} OR p.operations @> ARRAY['video_retention']::text[])
         AND (${source.permissionId ?? null}::text IS NULL OR p.id=${source.permissionId ?? null})
         AND EXISTS(SELECT 1 FROM users u JOIN tenant_memberships tm ON tm.user_id=u.id
           WHERE u.clerk_user_id=${source.actor ?? null} OR u.clerk_user_id=p.reviewed_by
@@ -228,7 +236,8 @@ export class TranscriptionRecoveryWorker {
               JOIN intel_live_hearing_session s ON s.id=r.session_id AND s.tenant_id=r.tenant_id
               WHERE e.id=j.epoch_id AND (
                 s.hearing_id IS NULL OR EXISTS(
-                  SELECT 1 FROM ${Prisma.raw(capturableHearingView())} f WHERE f.id=s.hearing_id
+                  SELECT 1 FROM capturable_committee_hearing f WHERE f.id=s.hearing_id
+                    AND COALESCE(f.geographic_jurisdiction,'US') IN ('US','FL')
                 )
               )
             ))

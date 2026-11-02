@@ -99,7 +99,7 @@ export class RecordingStorageService {
   async playbackUrl(
     key: string,
     expiresIn: number,
-    contentType: 'audio/webm' | 'audio/wav' = 'audio/webm',
+    contentType: 'audio/webm' | 'audio/wav' | 'video/webm' = 'audio/webm',
   ) {
     return getSignedUrl(
       this.s3,
