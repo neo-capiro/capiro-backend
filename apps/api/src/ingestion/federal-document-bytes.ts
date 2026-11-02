@@ -1,0 +1,119 @@
+import { createHash } from 'node:crypto';
+export const FEDERAL_DOCUMENT_MAX_BYTES = 30_000_000;
+export type FederalOriginalBytes = {
+  base64: string;
+  sha256: string;
+  mime: string;
+  encoding?: 'utf8' | 'pdf' | 'unsupported';
+};
+export const byteHash = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
+/** Body consumption shares the request deadline and checks actual streamed bytes, not just headers. */
+export async function readFederalBytes(response: Response, signal: AbortSignal): Promise<Buffer> {
+  if (Number(response.headers.get('content-length') ?? 0) > FEDERAL_DOCUMENT_MAX_BYTES) {
+    void response.body?.cancel().catch(() => {});
+    throw Error('FEDERAL_DOCUMENT_SIZE_LIMIT');
+  }
+  if (!response.body) throw Error('FEDERAL_DOCUMENT_BODY_UNAVAILABLE');
+  const reader = response.body.getReader();
+  const parts: Buffer[] = [];
+  let total = 0;
+  let rejectAbort: (error: Error) => void = () => {};
+  const aborted = new Promise<never>((_, reject) => {
+    rejectAbort = reject;
+  });
+  const abort = () => rejectAbort(Error('FEDERAL_DOCUMENT_DEADLINE'));
+  signal.addEventListener('abort', abort, { once: true });
+  try {
+    if (signal.aborted) throw Error('FEDERAL_DOCUMENT_DEADLINE');
+    for (;;) {
+      const next = await Promise.race([reader.read(), aborted]);
+      if (next.done) break;
+      total += next.value.byteLength;
+      if (total > FEDERAL_DOCUMENT_MAX_BYTES) throw Error('FEDERAL_DOCUMENT_SIZE_LIMIT');
+      parts.push(Buffer.from(next.value));
+    }
+    return Buffer.concat(parts, total);
+  } finally {
+    signal.removeEventListener('abort', abort);
+    void reader.cancel().catch(() => {});
+  }
+}
+export function decodeFederalUtf8(bytes: Buffer, mime: string): string {
+  const charset = /charset\s*=\s*["']?([^;\s"']+)/i.exec(mime)?.[1]?.toLowerCase();
+  if (charset && !['utf-8', 'utf8', 'us-ascii'].includes(charset))
+    throw Error('FEDERAL_DOCUMENT_CHARSET_UNSUPPORTED');
+  let text: string;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    throw Error('FEDERAL_DOCUMENT_ENCODING_UNSUPPORTED');
+  }
+  const declared = /^\s*<\?xml[^>]*encoding\s*=\s*["']([^"']+)/i.exec(text)?.[1]?.toLowerCase();
+  if (declared && !['utf-8', 'utf8', 'us-ascii'].includes(declared))
+    throw Error('FEDERAL_DOCUMENT_CHARSET_UNSUPPORTED');
+  return text;
+}
+export function qualifyFederalOriginal(
+  raw: string,
+  original: FederalOriginalBytes,
+  options: { completeness?: string; extractedText?: string; billBinding?: string } = {},
+) {
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(original.base64) || original.base64.length > 40_000_000)
+    throw Error('FEDERAL_ORIGINAL_ENCODING_INVALID');
+  const bytes = Buffer.from(original.base64, 'base64');
+  if (
+    !bytes.length ||
+    bytes.length > FEDERAL_DOCUMENT_MAX_BYTES ||
+    byteHash(bytes) !== original.sha256
+  )
+    throw Error('FEDERAL_ORIGINAL_HASH_MISMATCH');
+  if (original.encoding === 'pdf') {
+    if (
+      raw !== bytes.toString('base64') ||
+      (bytes.subarray(0, 5).toString() !== '%PDF-' &&
+        !(options.completeness === 'unreadable' && options.extractedText === ''))
+    )
+      throw Error('FEDERAL_ORIGINAL_DECODE_MISMATCH');
+  } else if (original.encoding === 'unsupported') {
+    if (raw !== '' || options.extractedText !== '' || options.completeness !== 'unreadable')
+      throw Error('FEDERAL_ORIGINAL_UNREADABLE_REQUIRED');
+    let failed = false;
+    try {
+      decodeFederalUtf8(bytes, original.mime);
+    } catch {
+      failed = true;
+    }
+    if (!failed) throw Error('FEDERAL_ORIGINAL_ENCODING_NOT_FAILED');
+  } else if (decodeFederalUtf8(bytes, original.mime) !== raw)
+    throw Error('FEDERAL_ORIGINAL_DECODE_MISMATCH');
+  if (
+    options.billBinding &&
+    !/^\d+-(?:hr|s|hjres|sjres|hconres|sconres|hres|sres)-[1-9][0-9]*$/.test(options.billBinding)
+  )
+    throw Error('FEDERAL_ORIGINAL_BILL_BINDING_INVALID');
+  return {
+    parserVersion: options.billBinding
+      ? `fed-plaw-bill-v1:${createHash('sha256')
+          .update(JSON.stringify([original.sha256, options.billBinding]))
+          .digest('base64url')}`
+      : `fed-exact-v1:bytes:${Buffer.from(original.sha256, 'hex').toString('base64url')}`,
+    metadata: {
+      originalBytesBase64: original.base64,
+      rawBytesHash: original.sha256,
+      originalMime: original.mime,
+      originalBytesEncoding:
+        original.encoding === 'pdf'
+          ? 'binary'
+          : original.encoding === 'unsupported'
+            ? 'unsupported'
+            : 'UTF-8',
+      rawContentEncoding:
+        original.encoding === 'pdf'
+          ? 'base64'
+          : original.encoding === 'unsupported'
+            ? 'unavailable'
+            : 'UTF-8',
+      ...(options.billBinding ? { qualifiedBillId: options.billBinding } : {}),
+    },
+  };
+}

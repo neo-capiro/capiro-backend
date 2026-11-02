@@ -21,6 +21,14 @@ import {
   replayPendingFederalEvidenceMentions,
 } from '../src/program-element/federal-evidence/persistence.js';
 import { runWithSyncRun, type RunCounts } from '../src/ingestion/sync-run.helper.js';
+import { FEDERAL_FY26_SQL } from '../src/ingestion/bill-text-scope.js';
+import { withFederalBillWriter } from '../src/ingestion/federal-bill-writer.js';
+import {
+  FY26_YEAR,
+  fiscalYearMode,
+  fy26ScopedSuffix,
+  type FiscalYearMode,
+} from '../src/ingestion/bill-fy26-admission.js';
 import { assertFullFederalEvidenceReconciliationSafe } from './lib/federal-legislative-sync-safety.js';
 
 dotenvConfig();
@@ -60,7 +68,11 @@ function parseDate(value?: string | null): Date | null {
   return Number.isFinite(parsed.getTime()) ? parsed : null;
 }
 
-function billIdentity(packageId: string): { billId: string | null; versionCode: string | null; lineageKey: string } {
+function billIdentity(packageId: string): {
+  billId: string | null;
+  versionCode: string | null;
+  lineageKey: string;
+} {
   const match = /^BILLS-(\d+)([a-z]+)(\d+)([a-z]+)$/i.exec(packageId);
   if (!match) return { billId: null, versionCode: null, lineageKey: packageId };
   const congress = match[1]!;
@@ -68,7 +80,11 @@ function billIdentity(packageId: string): { billId: string | null; versionCode: 
   const number = match[3]!;
   const versionCode = match[4]!.toLowerCase();
   const billId = `${congress}-${billType}-${number}`;
-  const chamber = billType.startsWith('h') ? 'house' : billType.startsWith('s') ? 'senate' : 'joint';
+  const chamber = billType.startsWith('h')
+    ? 'house'
+    : billType.startsWith('s')
+      ? 'senate'
+      : 'joint';
   return { billId, versionCode, lineageKey: `${billId}:${chamber}` };
 }
 
@@ -80,8 +96,9 @@ function checkpointSourceFor(
   collection: FederalEvidenceCollection,
   congress: number,
   full: boolean,
+  scopedSuffix = '',
 ): string {
-  return `govinfo-federal:${full ? 'full' : 'incremental'}:${collection}:${congress}`;
+  return `govinfo-federal:${full ? 'full' : 'incremental'}:${collection}:${congress}${scopedSuffix}`;
 }
 
 async function recordCoverageGap(
@@ -98,7 +115,7 @@ async function recordCoverageGap(
       SET detail = EXCLUDED.detail, last_observed_at = clock_timestamp(), resolved_at = NULL`;
 }
 
-async function syncCollection(args: {
+export async function syncCollection(args: {
   prisma: PrismaService;
   gov: GovInfoService;
   collection: FederalEvidenceCollection;
@@ -106,13 +123,31 @@ async function syncCollection(args: {
   full: boolean;
   historical: boolean;
   cap: number;
+  /** Non-null only for the FY26 BILLS scope (SCRUM-247). */
+  fy26: FiscalYearMode;
 }): Promise<RunCounts & { complete: boolean; coverageGaps: number; pendingUnknown: number }> {
-  const { prisma, gov, collection, congress, full, historical, cap } = args;
+  const { prisma, gov, collection, congress, full, historical, cap, fy26 } = args;
   // Incremental and full reconciliation keep independent resumable cursors so
   // an hourly run cannot overwrite a capped/failed full-corpus page (or vice
   // versa). Only complete full inventories participate in removal detection.
-  const checkpointSource = checkpointSourceFor(collection, congress, full);
-  const inventorySource = `govinfo-federal-inventory:${collection}:${congress}`;
+  // FY26 reuses the same scoped namespace with a :fy26 suffix so an existing
+  // all-session baseline can never mark this bounded work as already done.
+  const scopeSuffix = fy26ScopedSuffix(fy26);
+  const checkpointSource = checkpointSourceFor(collection, congress, full, scopeSuffix);
+  const inventorySource = `govinfo-federal-inventory:${collection}:${congress}${scopeSuffix}`;
+  // FY26 admission is a PARENT-bill gate resolved once before any provider
+  // text request, so an excluded package costs neither a provider call nor a
+  // snapshot write. Non-BILLS collections pass fy26 = null and are untouched.
+  const eligibleBillIds =
+    fy26 === FY26_YEAR
+      ? new Set(
+          (
+            await prisma.$queryRawUnsafe<Array<{ id: string }>>(
+              `SELECT b.id FROM congress_bill b WHERE ${FEDERAL_FY26_SQL}`,
+            )
+          ).map((row) => row.id),
+        )
+      : null;
   const leaseToken = randomUUID();
   const claimed = await prisma.$queryRaw<CheckpointRow[]>`
     INSERT INTO federal_evidence_checkpoint(source, status, lease_token, lease_until)
@@ -123,17 +158,27 @@ async function syncCollection(args: {
       WHERE federal_evidence_checkpoint.lease_until IS NULL
          OR federal_evidence_checkpoint.lease_until < clock_timestamp()
     RETURNING cursor_jsonb AS cursor, status, completed_at AS "completedAt"`;
-  if (!claimed[0])
-    return { inserted: 0, updated: 0, skipped: 0, errors: 0, complete: false, coverageGaps: 0, pendingUnknown: 0 };
+  if (!claimed[0]) {
+    if (fy26 !== null) throw Error('FY26_FEDERAL_TEXT_LEASE_NOT_ACQUIRED');
+    return {
+      inserted: 0,
+      updated: 0,
+      skipped: 0,
+      errors: 0,
+      complete: false,
+      coverageGaps: 0,
+      pendingUnknown: 0,
+    };
+  }
 
   const old = claimed[0];
   const priorCursorWasComplete = Boolean(
     old.cursor &&
-      old.completedAt &&
-      old.cursor.next === null &&
-      old.cursor.offset === 0 &&
-      old.completedAt.toISOString().replace(/\.\d+Z$/, 'Z') ===
-        old.cursor.until.replace(/\.\d+Z$/, 'Z'),
+    old.completedAt &&
+    old.cursor.next === null &&
+    old.cursor.offset === 0 &&
+    old.completedAt.toISOString().replace(/\.\d+Z$/, 'Z') ===
+      old.cursor.until.replace(/\.\d+Z$/, 'Z'),
   );
   const resume = Boolean(old.cursor && !priorCursorWasComplete && old.cursor.full === full);
   const cursor: Cursor = resume
@@ -166,11 +211,18 @@ async function syncCollection(args: {
       );
       for (; cursor.offset < page.packages.length && processed < cap; cursor.offset += 1) {
         const row = page.packages[cursor.offset]!;
+        processed += 1;
         if (row.congress != null && Number(row.congress) !== congress) {
           skipped += 1;
           continue;
         }
-        processed += 1;
+        // Cap counts every inspected package, so a bounded run still ends even
+        // when most pages are outside the FY26 parent scope.
+        const identity = billIdentity(row.packageId);
+        if (eligibleBillIds && (!identity.billId || !eligibleBillIds.has(identity.billId))) {
+          skipped += 1;
+          continue;
+        }
         const key = sourceKey(row.packageId);
         if (full) {
           await prisma.$executeRaw`
@@ -188,13 +240,18 @@ async function syncCollection(args: {
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           if (/No qualified text available|Empty federal text/i.test(message)) {
-            await recordCoverageGap(prisma, collection, row.packageId, 'qualified_text_unavailable', message);
+            await recordCoverageGap(
+              prisma,
+              collection,
+              row.packageId,
+              'qualified_text_unavailable',
+              message,
+            );
             coverageGaps += 1;
             continue;
           }
           throw error;
         }
-        const identity = billIdentity(row.packageId);
         const result = await persistFederalEvidenceSnapshot(prisma, {
           provider: 'govinfo',
           collection,
@@ -206,14 +263,17 @@ async function syncCollection(args: {
           sourceModifiedAt: parseDate(doc.lastModified ?? row.lastModified),
           publishedAt: parseDate(doc.dateIssued ?? row.dateIssued),
           rawContent: doc.raw,
+          originalBytes: doc.originalBytes,
           extractedText: doc.text,
-          completeness: 'complete',
+          completeness: doc.completeness ?? 'complete',
           inventoryWindowEnd: new Date(cursor.until),
           observationKey: `${checkpointSource}:${cursor.until}:${row.packageId}:${doc.lastModified ?? row.lastModified ?? 'unversioned'}`,
           historical,
           metadata: {
             title: doc.title ?? row.title ?? null,
             format: doc.format,
+            extractionWarnings: doc.extractionWarnings ?? [],
+            ...(doc.billStructure ? { billStructure: doc.billStructure } : {}),
             providerCollection: doc.collection,
             discoveryWindow: { since: cursor.since, until: cursor.until },
           },
@@ -242,7 +302,9 @@ async function syncCollection(args: {
       if (complete) break;
     }
 
-    if (complete && full) {
+    // Removal reconciliation is disabled entirely in FY26 mode: this bounded
+    // scope never deletes or retires older evidence.
+    if (complete && full && fy26 === null) {
       const missing = await prisma.$queryRaw<Array<{ sourceKey: string }>>`
         SELECT source_key AS "sourceKey"
           FROM federal_evidence_inventory_member
@@ -282,7 +344,9 @@ async function syncCollection(args: {
 
 async function main(): Promise<void> {
   if (!process.env.DATABASE_URL) {
-    console.error('Usage: sync-federal-legislative-evidence [--collection <name>] [--congress <n>] [--cap <n>] [--full] [--historical] [--commit] (requires DATABASE_URL)');
+    console.error(
+      'Usage: sync-federal-legislative-evidence [--collection <name>] [--congress <n>] [--cap <n>] [--full] [--historical] [--commit] (requires DATABASE_URL)',
+    );
     process.exitCode = 2;
     return;
   }
@@ -294,20 +358,39 @@ async function main(): Promise<void> {
     throw new Error(`--collection must be one of ${[...ALLOWED_COLLECTIONS].join(', ')}`);
   const congress = Number(arg('congress') ?? currentCongress());
   const cap = Number(arg('cap') ?? DEFAULT_CAP);
-  if (!Number.isSafeInteger(congress) || congress < 1) throw new Error('--congress must be positive');
+  if (!Number.isSafeInteger(congress) || congress < 1)
+    throw new Error('--congress must be positive');
   if (!Number.isSafeInteger(cap) || cap < 1 || cap > 1000)
     throw new Error('--cap must be an integer from 1 to 1000');
+  // Validate BILL_FISCAL_YEAR for every collection, then apply the FY26 scope
+  // to BILLS only; other collections keep their existing all-session scope.
+  const fiscalYear = fiscalYearMode();
+  if (fiscalYear !== null && collectionArg !== 'BILLS')
+    throw Error('FY26_SCOPE_REQUIRES_BILLS_COLLECTION');
+  const fy26 = collectionArg === 'BILLS' ? fiscalYear : null;
 
   const prisma = new PrismaService();
-  await prisma.$connect();
   try {
+    await prisma.$connect();
     const checkpoint = await prisma.federalEvidenceCheckpoint.findUnique({
-      where: { source: checkpointSourceFor(collectionArg, congress, full) },
+      where: {
+        source: checkpointSourceFor(collectionArg, congress, full, fy26ScopedSuffix(fy26)),
+      },
     });
-    const hasCompletedFullBaseline = checkpoint?.status === 'completed' && checkpoint.completedAt != null;
+    const hasCompletedFullBaseline =
+      checkpoint?.status === 'completed' && checkpoint.completedAt != null;
     console.log(
       JSON.stringify(
-        { mode: commit ? 'COMMIT' : 'DRY_RUN', collection: collectionArg, congress, full, historical, cap, checkpoint },
+        {
+          mode: commit ? 'COMMIT' : 'DRY_RUN',
+          collection: collectionArg,
+          congress,
+          full,
+          historical,
+          cap,
+          fy26,
+          checkpoint,
+        },
         null,
         2,
       ),
@@ -325,20 +408,35 @@ async function main(): Promise<void> {
     } as unknown as ConfigService<AppConfig, true>;
     const gov = new GovInfoService(prisma, config);
     const result = await runWithSyncRun(prisma, 'sync-federal-legislative-evidence', async () => {
-      const counts = await syncCollection({
-        prisma,
-        gov,
-        collection: collectionArg,
-        congress,
-        full,
-        historical,
-        cap,
-      });
-      const replay = await replayPendingFederalEvidenceMentions(prisma, cap);
-      console.log(JSON.stringify({ ...counts, pendingReplay: replay }, null, 2));
-      return counts;
+      const run = async (writer: PrismaService) => {
+        const counts = await syncCollection({
+          prisma: writer,
+          gov,
+          collection: collectionArg,
+          congress,
+          full,
+          historical,
+          cap,
+          fy26,
+        });
+        // A scoped text backfill does not drain unrelated global replay work.
+        const replay =
+          fy26 === null ? await replayPendingFederalEvidenceMentions(writer, cap) : null;
+        console.log(JSON.stringify({ ...counts, pendingReplay: replay }, null, 2));
+        return counts;
+      };
+      return ['BILLS', 'PLAW'].includes(collectionArg)
+        ? await withFederalBillWriter(prisma, (writer) => run(writer as PrismaService))
+        : await run(prisma);
     });
-    console.log(JSON.stringify({ status: 'complete', result }, null, 2));
+    if (fy26 !== null && result.errors > 0) throw Error('FY26_FEDERAL_TEXT_ERRORS');
+    console.log(
+      JSON.stringify(
+        { status: result.complete === false ? 'partial' : 'complete', result },
+        null,
+        2,
+      ),
+    );
   } finally {
     await prisma.$disconnect();
   }
@@ -353,7 +451,11 @@ function currentCongress(now = new Date()): number {
   return congress;
 }
 
-void main().catch((error) => {
-  console.error('[sync-federal-legislative-evidence] FAILED', error instanceof Error ? error.message : String(error));
-  process.exit(1);
-});
+if (require.main === module)
+  void main().catch((error) => {
+    console.error(
+      '[sync-federal-legislative-evidence] FAILED',
+      error instanceof Error ? error.message : String(error),
+    );
+    process.exit(1);
+  });

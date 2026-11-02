@@ -11,6 +11,15 @@
 import { getDocumentProxy } from 'unpdf';
 import { DOC_TEXT_MAX_CHARS, PDF_MAX_PAGES } from './meri-attachment.helpers.js';
 
+/** Optional source-ingestion layout view; ordinary attachment extraction is unchanged. */
+export interface PdfTextItem {
+  str?: string;
+  hasEOL?: boolean;
+  transform?: number[];
+  width?: number;
+  height?: number;
+}
+
 export interface PdfExtraction {
   text: string;
   pages: number;
@@ -38,6 +47,7 @@ export async function extractPdfText(
     ) => Promise<{ text: string; partial: boolean }>;
     signal?: AbortSignal;
     onPage?: (page: number, text: string) => void;
+    onPageLayout?: (page: number, items: readonly PdfTextItem[], truncated: boolean) => void;
     /** Explicit bounded source-ingestion limits; ordinary uploads retain defaults. */
     limits?: { pages: number; characters: number };
     /** First 1-based page to decode. Typed section readers use this to avoid
@@ -99,6 +109,7 @@ export async function extractPdfText(
           nativeCharacters: pageText.length,
           truncated: pageWindowOffset > 0 || characterEnd < pageText.length,
         };
+        options.onPageLayout?.(i, content.items as PdfTextItem[], selectedPage.truncated);
         options.onPage?.(i, part);
         parts.push(part);
         chars = part.length;
@@ -113,6 +124,7 @@ export async function extractPdfText(
         break;
       }
       const part = pageText.slice(0, remaining);
+      options.onPageLayout?.(i, content.items as PdfTextItem[], part.length < pageText.length);
       options.onPage?.(i, part);
       parts.push(part);
       chars += part.length + separatorChars;

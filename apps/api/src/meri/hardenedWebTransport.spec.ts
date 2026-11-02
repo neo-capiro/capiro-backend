@@ -318,6 +318,40 @@ describe('guarded transport lifecycle', () => {
     expect(mockLookup).toHaveBeenCalledTimes(1);
   });
 
+  test('publisher policy runs before DNS on every hop and refuses foreign redirect hosts', async () => {
+    global.fetch = jest.fn().mockResolvedValue(
+      new Response(null, {
+        status: 302,
+        headers: { location: 'https://foreign.example/file' },
+      }),
+    );
+    const destinations: string[] = [];
+    await expect(
+      withGuardedWebResponse('https://first.example/file', async () => null, {
+        validateDestination: (url) => {
+          destinations.push(url.hostname);
+          if (url.hostname !== 'first.example') throw Error('PUBLISHER_HOST_UNQUALIFIED');
+        },
+      }),
+    ).rejects.toThrow('PUBLISHER_HOST_UNQUALIFIED');
+    expect(destinations).toEqual(['first.example', 'foreign.example']);
+    expect(mockLookup).toHaveBeenCalledTimes(1);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  test('publisher pacing refusal happens before any DNS or request and remains under the deadline', async () => {
+    global.fetch = jest.fn();
+    await expect(
+      withGuardedWebResponse('https://first.example/file', async () => null, {
+        beforeRequest: async () => {
+          throw Error('PUBLISHER_RETRY_AFTER');
+        },
+      }),
+    ).rejects.toThrow('PUBLISHER_RETRY_AFTER');
+    expect(mockLookup).not.toHaveBeenCalled();
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
   test('rejects a hostname redirect whose DNS contains a private answer', async () => {
     mockLookup
       .mockResolvedValueOnce([{ address: '93.184.216.34', family: 4 }])

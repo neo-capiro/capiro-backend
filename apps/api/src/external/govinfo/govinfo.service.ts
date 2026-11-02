@@ -5,6 +5,10 @@ import { XMLParser } from 'fast-xml-parser';
 import type { AppConfig } from '../../config/config.schema.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { fetchJson, redactSecrets } from '../../meri/sources/http.js';
+import {
+  byteHash, decodeFederalUtf8, readFederalBytes, type FederalOriginalBytes,
+} from '../../ingestion/federal-document-bytes.js';
+import { extractBillDocumentStructure, type BillDocumentStructure } from '../../ingestion/bill-document-structure.js';
 import { TokenBucket } from './rate-limiter.js';
 
 const GOVINFO_API_ROOT = 'https://api.govinfo.gov/';
@@ -103,10 +107,14 @@ export interface GovInfoPackageRow {
 export type FederalEvidenceCollection = 'BILLS' | 'CRPT' | 'CPRT' | 'PLAW' | 'CREC';
 
 export interface FederalEvidencePackageText {
+  originalBytes?: FederalOriginalBytes;
+  completeness?: 'complete' | 'partial' | 'unreadable';
+  extractionWarnings?: string[];
+  billStructure?: BillDocumentStructure;
   packageId: string;
   raw: string;
   text: string;
-  format: 'xml' | 'txt' | 'htm';
+  format: 'xml' | 'txt' | 'htm' | 'pdf';
   sourceUrl: string;
   title: string | null;
   dateIssued: string | null;
@@ -298,7 +306,7 @@ export class GovInfoService {
     };
   }
 
-  /** Qualified XML/TXT/HTML snapshot; PDF-only packages become coverage gaps. */
+  /** Retain exact original bytes; unsupported/native-unreadable content remains explicit evidence. */
   async getFederalPackageText(packageId: string): Promise<FederalEvidencePackageText> {
     const summary = await this.getPackageSummary(packageId);
     const selected = summary.download?.xmlLink
@@ -307,14 +315,36 @@ export class GovInfoService {
         ? { format: 'txt' as const, url: summary.download.txtLink }
         : summary.download?.htmLink
           ? { format: 'htm' as const, url: summary.download.htmLink }
-          : null;
+          : summary.download?.pdfLink
+            ? { format: 'pdf' as const, url: summary.download.pdfLink }
+            : null;
     if (!selected)
       throw new ServiceUnavailableException(`No qualified text available for ${packageId}`);
-    const raw = await this.fetchText(selected.url);
-    const text = selected.format === 'htm' ? stripHtmlTags(raw) : raw;
-    if (!text.trim()) throw new ServiceUnavailableException(`Empty federal text for ${packageId}`);
+    const snapshot = await this.fetchTextSnapshot(selected.url);
+    const originalBytes: FederalOriginalBytes = {
+      base64: snapshot.bytes.toString('base64'), sha256: byteHash(snapshot.bytes), mime: snapshot.mime,
+    };
+    let raw='',text='',completeness: 'complete'|'partial'|'unreadable'='complete';
+    let billStructure:BillDocumentStructure|undefined;
+    const extractionWarnings:string[]=[];
+    if(selected.format==='pdf') {
+      originalBytes.encoding='pdf'; raw=originalBytes.base64;
+      try {
+        billStructure=await extractBillDocumentStructure(snapshot.bytes,'application/pdf');
+        text=billStructure.text;completeness=billStructure.completeness;extractionWarnings.push(...billStructure.warnings);
+      } catch { completeness='unreadable'; extractionWarnings.push('PDF_EXTRACTION_FAILED'); }
+    } else {
+      try { raw=decodeFederalUtf8(snapshot.bytes,snapshot.mime); }
+      catch (error) { originalBytes.encoding='unsupported';completeness='unreadable';extractionWarnings.push(error instanceof Error?error.message:'FEDERAL_DOCUMENT_ENCODING_UNSUPPORTED'); }
+      text=selected.format==='htm'?stripHtmlTags(raw):raw;
+      if(!text.trim()) {completeness='unreadable';if(!extractionWarnings.length)extractionWarnings.push('FEDERAL_DOCUMENT_EMPTY_TEXT');}
+    }
     return {
       packageId,
+      originalBytes,
+      completeness,
+      extractionWarnings,
+      billStructure,
       raw,
       text,
       format: selected.format,
@@ -502,6 +532,27 @@ export class GovInfoService {
       update: { response: sanitized as object, fetchedAt: new Date() },
     });
     return sanitized;
+  }
+
+  private async fetchTextSnapshot(link: string): Promise<{ bytes: Buffer; mime: string }> {
+    const key = this.requireKey();
+    const url = new URL(link);
+    if (url.protocol !== 'https:' ||
+        !['www.govinfo.gov', 'api.govinfo.gov', 'govinfo.gov'].includes(url.hostname) ||
+        url.username || url.password)
+      throw new ServiceUnavailableException('Unqualified GovInfo text URL');
+    url.searchParams.set('api_key', key);
+    await this.limiter.acquire();
+    const signal = AbortSignal.timeout(30000);
+    const response = await fetch(url.toString(), { signal, redirect: 'error' });
+    if (!response.ok) {
+      void response.body?.cancel().catch(() => {});
+      throw new ServiceUnavailableException(`GovInfo text fetch failed (${response.status})`);
+    }
+    return {
+      bytes: await readFederalBytes(response, signal),
+      mime: response.headers.get('content-type') ?? 'application/octet-stream',
+    };
   }
 
   /** Fetch raw text (e.g. bill XML) through the rate limiter, with api_key auth. */

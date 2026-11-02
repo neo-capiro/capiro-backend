@@ -78,6 +78,8 @@ phases:
         test "$(docker image inspect "$IMAGE" --format '{{.Architecture}}')" = arm64
         stage=runtime-smoke
         sh apps/api/scripts/qualification/run-alpine-runtime-probes.sh "$IMAGE"
+        stage=bill-postgres-smoke
+        sh apps/api/scripts/qualification/run-bill-postgres-probes.sh "$IMAGE"
         stage=docker-push
         docker push "$IMAGE"
         stage=registry-digest

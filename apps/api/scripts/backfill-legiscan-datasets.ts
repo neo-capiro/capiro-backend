@@ -24,6 +24,8 @@ import { pullHistoricalDatasets } from '../src/ingestion/legiscan-historical-res
  */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
+import { withStateBillWriter } from '../src/ingestion/state-bill-writer.js';
+import { withLegiscanApiAllowed } from '../src/ingestion/legiscan-provider-capacity.js';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 import { persistPublishedRecords } from '../src/ingestion/legiscan-published-records.js';
 import {
@@ -56,8 +58,13 @@ import {
   quotaExhausted,
   LEGISCAN_HARD_CAP,
 } from '../src/ingestion/legiscan-quota.util.js';
+import {
+  admitsRawBill,
+  fiscalYearMode,
+  type FiscalYearMode,
+} from '../src/ingestion/bill-fy26-admission.js';
+import { queueBillDocumentChecks } from '../src/ingestion/bill-document-queue.js';
 dotenvConfig();
-
 
 const LEGISCAN_API_KEY = process.env.LEGISCAN_API_KEY ?? '';
 const RAW_STATES = (process.env.LEGISCAN_STATES ?? PRIORITY_STATE_CODES.join(','))
@@ -72,7 +79,16 @@ const SESSION_ALLOWLIST = selectedSessionIds(process.env.LEGISCAN_SESSION_IDS);
 
 const DRY_RUN = process.env.LEGISCAN_DATASET_DRY_RUN === 'true';
 
-
+/** Session years select discovery only; the raw parent decides FY26 admission. */
+function discoverySessions<T>(sessions: T[], fy26: FiscalYearMode): T[] {
+  if (fy26 === null) return sessions;
+  return sessions.filter((session) => {
+    const dates = session as { year_start?: number; year_end?: number };
+    if (!Number.isInteger(dates.year_start)) throw Error('FY26_SESSION_YEAR_REQUIRED');
+    const end = dates.year_end ?? dates.year_start!;
+    return dates.year_start! <= 2026 && end >= 2025;
+  });
+}
 
 /**
  * (2026-07-10 hot-fix) The cost to attribute to ONE session's cursor this
@@ -110,9 +126,19 @@ export function nextQueriesUsed(
     : queriesForThisCursor;
 }
 
-async function backfillState(prisma: PrismaClient,
+export async function backfillState(
+  prisma: PrismaClient,
   state: string,
+  FY26: FiscalYearMode,
 ): Promise<{ bills: number; people: number; votes: number; errors: number; queries: number }> {
+  return withLegiscanApiAllowed(prisma, LEGISCAN_API_KEY, () =>
+    DRY_RUN
+      ? backfillStateOwned(prisma, state, FY26)
+      : withStateBillWriter(prisma, [state], (writer) => backfillStateOwned(writer, state, FY26)),
+  );
+}
+
+async function backfillStateOwned(prisma: PrismaClient, state: string, FY26: FiscalYearMode) {
   let stateLevelQueries = 0;
   let bills = 0;
   let people = 0;
@@ -126,7 +152,10 @@ async function backfillState(prisma: PrismaClient,
     return { bills, people, votes, errors, queries: stateLevelQueries };
   }
 
-  const targetSessions = selectHistoricalSessions(sessions, SESSIONS_MODE, SESSION_ALLOWLIST);
+  const targetSessions = discoverySessions(
+    selectHistoricalSessions(sessions, SESSIONS_MODE, SESSION_ALLOWLIST),
+    FY26,
+  );
 
   if (!DRY_RUN)
     for (const session of targetSessions) await upsertStateSession(prisma, state, session);
@@ -209,14 +238,20 @@ async function backfillState(prisma: PrismaClient,
       const billHashes: Record<string, string> = {};
       const billIdToKey = new Map<number, string>();
       for (const raw of parsed.bills) {
+        // Only admitted and persisted parents may advance the shared hash.
+        // Existing excluded hashes/pending work remain owned by ordinary sync.
+        if (!admitsRawBill(raw, FY26)) continue;
         try {
           const normalized = normalizeLegiscanBill(raw, state);
           if (!normalized) {
             errors++;
             continue;
           }
-          await upsertNormalizedStateBill(prisma, normalized);
-          await persistPublishedRecords(prisma, normalized.billKey, raw);
+          await upsertNormalizedStateBill(prisma, normalized, { historical: FY26 !== null });
+          await persistPublishedRecords(prisma, normalized.billKey, raw, {
+            historical: FY26 !== null,
+          });
+          if (FY26 !== null) await queueBillDocumentChecks(prisma, normalized.billKey, raw);
           await crosswalkStateBill(prisma, normalized.billKey, normalized.legiscanBillId);
           billHashes[String(raw.bill_id)] = raw.change_hash;
           billIdToKey.set(raw.bill_id, normalized.billKey);
@@ -227,19 +262,24 @@ async function backfillState(prisma: PrismaClient,
         }
       }
 
-      for (const person of parsed.people) {
-        try {
-          if (await crosswalkLegiscanPerson(prisma, state, person)) people++;
-        } catch (err) {
-          errors++;
-          console.error(`[backfill-legiscan] ${state} person ${person.people_id} failed:`, err);
+      // FY26: the dataset's session-wide people list is unrelated to FY26
+      // admission, so person crosswalks are skipped in that mode.
+      if (FY26 === null)
+        for (const person of parsed.people) {
+          try {
+            if (await crosswalkLegiscanPerson(prisma, state, person)) people++;
+          } catch (err) {
+            errors++;
+            console.error(`[backfill-legiscan] ${state} person ${person.people_id} failed:`, err);
+          }
         }
-      }
 
       const successfulVotes = new Set<number>();
       for (const vote of parsed.votes) {
         try {
           const billKey = vote.bill_id ? (billIdToKey.get(vote.bill_id) ?? null) : null;
+          // FY26: only an admitted parent's votes are processed.
+          if (FY26 !== null && billKey === null) continue;
           const parent = parsed.bills.find((b) => b.bill_id === vote.bill_id);
           await upsertStateRollCallVote(prisma, state, billKey, vote, {
             stub: parent?.votes?.find((v) => v.roll_call_id === vote.roll_call_id),
@@ -331,7 +371,7 @@ async function backfillState(prisma: PrismaClient,
     }
   }
 
-  if (!DRY_RUN) await backfillStateBillLinkTargets(prisma);
+  if (!DRY_RUN && FY26 === null) await backfillStateBillLinkTargets(prisma);
 
   return { bills, people, votes, errors, queries: totalQueriesThisRun };
 }
@@ -347,8 +387,12 @@ function normalizeSessionKeyFor(session: {
 }
 
 async function main() {
+  const FY26 = fiscalYearMode();
+  if (FY26 !== null && SESSIONS_MODE === 'selected')
+    throw Error('FY26_SELECTED_RESEARCH_PATH_NOT_SUPPORTED_USE_ALL');
+  if (FY26 !== null && STATES.length !== 1) throw Error('FY26_DATASET_REQUIRES_ONE_STATE');
   if (SESSIONS_MODE === 'selected' && STATES.length !== 1)
-  throw Error('SELECTED_HISTORY_REQUIRES_ONE_STATE');
+    throw Error('SELECTED_HISTORY_REQUIRES_ONE_STATE');
 
   if (DRY_RUN) {
     const file = process.env.LEGISCAN_SESSION_INVENTORY_FILE;
@@ -366,7 +410,10 @@ async function main() {
     )
       throw Error('INVALID_RETAINED_SESSION_INVENTORY');
 
-    const sessions = selectHistoricalSessions(inventory.sessions, SESSIONS_MODE, SESSION_ALLOWLIST);
+    const sessions = discoverySessions(
+      selectHistoricalSessions(inventory.sessions, SESSIONS_MODE, SESSION_ALLOWLIST),
+      FY26,
+    );
 
     console.log(
       'HISTORICAL_SESSION_MANIFEST ' +
@@ -392,70 +439,74 @@ async function main() {
   }
 
   if (!process.env.DATABASE_URL) {
-    console.error('Usage: apps/api/scripts/backfill-legiscan-datasets.ts requires DATABASE_URL (database configuration is required)');
+    console.error(
+      'Usage: apps/api/scripts/backfill-legiscan-datasets.ts requires DATABASE_URL (database configuration is required)',
+    );
     process.exit(2);
   }
   const prisma = new PrismaClient();
   try {
     if (SESSIONS_MODE === 'selected') {
-    const path = process.env.LEGISCAN_SESSION_INVENTORY_FILE;
-    if (!path) throw Error('REVIEWED_SESSION_INVENTORY_REQUIRED');
-    console.log(
-      'HISTORICAL_APPLY_RECEIPT ' +
-        JSON.stringify(
-          await pullHistoricalDatasets(
-            prisma,
-            STATES[0]!,
-            SESSION_ALLOWLIST,
-            JSON.parse(readFileSync(path, 'utf8')),
+      const path = process.env.LEGISCAN_SESSION_INVENTORY_FILE;
+      if (!path) throw Error('REVIEWED_SESSION_INVENTORY_REQUIRED');
+      console.log(
+        'HISTORICAL_APPLY_RECEIPT ' +
+          JSON.stringify(
+            await pullHistoricalDatasets(
+              prisma,
+              STATES[0]!,
+              SESSION_ALLOWLIST,
+              JSON.parse(readFileSync(path, 'utf8')),
+            ),
           ),
-        ),
-    );
-    return;
-  }
+      );
+      return;
+    }
 
-  if (!LEGISCAN_API_KEY) throw new Error('LEGISCAN_API_KEY env var is required');
-  console.log(`[backfill-legiscan] states: ${STATES.join(', ')} (sessions=${SESSIONS_MODE})`);
+    if (!LEGISCAN_API_KEY) throw new Error('LEGISCAN_API_KEY env var is required');
+    console.log(`[backfill-legiscan] states: ${STATES.join(', ')} (sessions=${SESSIONS_MODE})`);
 
-  await runWithSyncRun(prisma as never, 'backfill-legiscan-datasets', async () => {
-    // 2026-07-10 hot-fix: gate on the TRUE hard cap, not sync-legiscan-bills'
-    // conservative soft budget — this script is the explicit cheap fallback
-    // for when that soft budget trips (see header comment), so it must keep
-    // running past it; only the real LegiScan ceiling stops it.
-    const month = currentQuotaMonth();
-    const allCursors = await prisma.stateSyncCursor.findMany({
-      select: { queriesUsed: true, quotaMonth: true },
+    const source =
+      FY26 === null ? 'backfill-legiscan-datasets' : `backfill-legiscan-datasets:fy26:${STATES[0]}`;
+    const result = await runWithSyncRun(prisma as never, source, async () => {
+      // 2026-07-10 hot-fix: gate on the TRUE hard cap, not sync-legiscan-bills'
+      // conservative soft budget — this script is the explicit cheap fallback
+      // for when that soft budget trips (see header comment), so it must keep
+      // running past it; only the real LegiScan ceiling stops it.
+      const month = currentQuotaMonth();
+      const allCursors = await prisma.stateSyncCursor.findMany({
+        select: { queriesUsed: true, quotaMonth: true },
+      });
+      const usedThisMonth = monthToDateQueries(allCursors, month);
+      if (quotaExhausted(usedThisMonth, LEGISCAN_HARD_CAP)) {
+        console.log(
+          `INGESTION_SKIP ${JSON.stringify({ source: 'backfill-legiscan-datasets', reason: 'quota', usedThisMonth, budget: LEGISCAN_HARD_CAP })}`,
+        );
+        return { inserted: 0, updated: 0, skipped: 0, errors: 0 };
+      }
+
+      let bills = 0;
+      let people = 0;
+      let votes = 0;
+      let errors = 0;
+
+      for (const state of STATES) {
+        const r = await backfillState(prisma, state, FY26);
+        bills += r.bills;
+        people += r.people;
+        votes += r.votes;
+        errors += r.errors;
+        console.log(
+          `[backfill-legiscan] ${state}: +${r.bills} bills, +${r.people} people, +${r.votes} votes, ${r.errors} errors, ${r.queries} queries`,
+        );
+      }
+
+      console.log(
+        `[backfill-legiscan] DONE: ${bills} bills, ${people} people, ${votes} votes, ${errors} errors`,
+      );
+      return { inserted: bills + people + votes, updated: 0, skipped: 0, errors };
     });
-    const usedThisMonth = monthToDateQueries(allCursors, month);
-    if (quotaExhausted(usedThisMonth, LEGISCAN_HARD_CAP)) {
-      console.log(
-        `INGESTION_SKIP ${JSON.stringify({ source: 'backfill-legiscan-datasets', reason: 'quota', usedThisMonth, budget: LEGISCAN_HARD_CAP })}`,
-      );
-      return { inserted: 0, updated: 0, skipped: 0, errors: 0 };
-    }
-
-    let bills = 0;
-    let people = 0;
-    let votes = 0;
-    let errors = 0;
-
-    for (const state of STATES) {
-      const r = await backfillState(prisma, state);
-      bills += r.bills;
-      people += r.people;
-      votes += r.votes;
-      errors += r.errors;
-      console.log(
-        `[backfill-legiscan] ${state}: +${r.bills} bills, +${r.people} people, +${r.votes} votes, ${r.errors} errors, ${r.queries} queries`,
-      );
-    }
-
-    console.log(
-      `[backfill-legiscan] DONE: ${bills} bills, ${people} people, ${votes} votes, ${errors} errors`,
-    );
-    return { inserted: bills + people + votes, updated: 0, skipped: 0, errors };
-  });
-
+    if (FY26 !== null && result.errors > 0) throw Error('FY26_STATE_DATASET_ERRORS');
   } finally {
     await prisma.$disconnect();
   }

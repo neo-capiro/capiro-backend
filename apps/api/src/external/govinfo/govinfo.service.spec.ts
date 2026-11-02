@@ -20,6 +20,7 @@ function jsonResponse(body: unknown, ok = true, status = 200) {
 
 function textResponse(text: string) {
   return {
+    body: new Response(text).body,
     ok: true,
     status: 200,
     statusText: 'OK',
@@ -310,5 +311,68 @@ describe('GovInfoService', () => {
 
     expect(result.pdfBuffer.equals(pdf)).toBe(true);
     expect(sendMock).toHaveBeenCalledTimes(2); // GetObject (miss) + PutObject (write)
+  });
+  test('federal snapshot retains exact UTF8 original bytes independently of decoded content', async () => {
+    const { svc } = makeService();
+    const original = Buffer.concat([
+      Buffer.from([239, 187, 191]),
+      Buffer.from('<bill>Exact original</bill>'),
+    ]);
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          packageId: 'BILLS-119hr1ih',
+          download: { xmlLink: 'https://www.govinfo.gov/content/pkg/test.xml' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(original, { headers: { 'content-type': 'application/xml; charset=utf-8' } }),
+      );
+    const result = await svc.getFederalPackageText('BILLS-119hr1ih');
+    expect(result.raw).toBe('<bill>Exact original</bill>');
+    expect(Buffer.from(result.originalBytes!.base64, 'base64')).toEqual(original);
+    expect(result.originalBytes!.sha256).toMatch(/^[a-f0-9]{64}$/);
+  });
+  test('federal source preserves unsupported declared encoding as explicit unreadable evidence', async () => {
+    const { svc } = makeService();
+    const original = Buffer.from([255, 254, 253]);
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          packageId: 'BILLS-119hr2ih',
+          download: { xmlLink: 'https://www.govinfo.gov/content/pkg/test2.xml' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(original, {
+          headers: { 'content-type': 'application/xml; charset=windows-1252' },
+        }),
+      );
+    const result = await svc.getFederalPackageText('BILLS-119hr2ih');
+    expect(result.completeness).toBe('unreadable');
+    expect(result.raw).toBe('');
+    expect(result.text).toBe('');
+    expect(result.originalBytes?.encoding).toBe('unsupported');
+    expect(result.originalBytes?.base64).toBe(original.toString('base64'));
+    expect(result.extractionWarnings).toContain('FEDERAL_DOCUMENT_CHARSET_UNSUPPORTED');
+  });
+  test('PDF-only federal source retains original payload even when native extraction is unavailable', async () => {
+    const { svc } = makeService();
+    const original = Buffer.from('Unusable declared PDF original');
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          packageId: 'BILLS-119hr3ih',
+          download: { pdfLink: 'https://www.govinfo.gov/content/pkg/test3.pdf' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(original, { headers: { 'content-type': 'application/pdf' } }),
+      );
+    const result = await svc.getFederalPackageText('BILLS-119hr3ih');
+    expect(result.format).toBe('pdf');
+    expect(result.completeness).toBe('unreadable');
+    expect(result.originalBytes?.base64).toBe(original.toString('base64'));
+    expect(result.raw).toBe(original.toString('base64'));
   });
 });

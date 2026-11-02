@@ -37,6 +37,14 @@ describe('legiscanFetch envelope-status handling (via getSessionList)', () => {
     const r = await getSessionList('key', 'TX');
     expect(r).toEqual([]);
   });
+  it('strict discovery refuses absent sessions rather than publishing a complete empty state', async () => {
+    global.fetch = jest.fn().mockResolvedValue(jsonResponse({ status: 'OK' }));
+    await expect(getSessionList('key', 'TX', undefined, undefined, true)).rejects.toThrow(
+      'SESSION_INVENTORY_MISSING',
+    );
+    global.fetch = jest.fn().mockResolvedValue(jsonResponse({ status: 'OK', sessions: [] }));
+    expect(await getSessionList('key', 'TX', undefined, undefined, true)).toEqual([]);
+  });
 
   it('REGRESSION-GUARD: throws with the LegiScan alert message when status is not OK', async () => {
     global.fetch = jest

@@ -14,6 +14,7 @@ import { HearingsRetrievalAdapter } from './adapters/hearings-retrieval.adapter.
 import { DistrictNexusRetrievalAdapter } from './adapters/district-nexus-retrieval.adapter.js';
 import { PublicDomainRetrievalAdapter } from './adapters/public-domain-retrieval.adapter.js';
 import { PublicBillReadService } from './adapters/public-bill-read.service.js';
+import { BillTextService } from './bill-text.service.js';
 import { GovernmentWorkRetrievalModule } from './government-work-retrieval.module.js';
 import { validateRetrievalAdapterRegistry } from './retrieval-adapter-registry.js';
 import { SemanticDataCatalogService } from './data-catalog/semantic-data-catalog.service.js';
@@ -48,6 +49,7 @@ import { RetrievalV2Service } from './retrieval-v2.service.js';
     InstitutionalKnowledgeRetrievalAdapter,
     StrategyWorkRetrievalAdapter,
     PublicBillReadService,
+    BillTextService,
     PublicDomainRetrievalAdapter,
     {
       provide: RETRIEVAL_SOURCE_ADAPTERS,
@@ -77,6 +79,7 @@ import { RetrievalV2Service } from './retrieval-v2.service.js';
     RetrievalV2Service,
   ],
   exports: [
+    BillTextService,
     InstitutionalKnowledgeRetrievalAdapter,
     SemanticDataCatalogService,
     RetrievalPlannerV2Service,

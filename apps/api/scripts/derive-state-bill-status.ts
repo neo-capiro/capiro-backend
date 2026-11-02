@@ -22,11 +22,15 @@
  */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
-import { deriveStateBillStatus, classifyStateVoteMotion, stateBillReplacement } from '@capiro/shared';
+import {
+  deriveStateBillStatus,
+  classifyStateVoteMotion,
+  stateBillReplacement,
+} from '@capiro/shared';
+import { ALL_US_STATE_CODES } from '../src/external/legiscan/us-states.js';
+import { withStateBillWriter } from '../src/ingestion/state-bill-writer.js';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 dotenvConfig();
-
-
 
 const BATCH_SIZE = 5000;
 
@@ -231,10 +235,7 @@ export function deriveStateStatusAt(input: StateStatusDateInput): Date | null {
   const actionDates = (input.actions ?? [])
     .filter((action) => actionEstablishesStatus(input.status, action.text))
     .map((action) => action.date);
-  const latestActionDate = actionEstablishesStatus(
-    input.status,
-    input.latestActionText ?? '',
-  )
+  const latestActionDate = actionEstablishesStatus(input.status, input.latestActionText ?? '')
     ? input.latestActionDate
     : null;
   // A classified passage vote is the strongest evidence for the
@@ -282,127 +283,144 @@ export function buildStatusUpdateData(
 
 async function main() {
   if (!process.env.DATABASE_URL) {
-    console.error('Usage: apps/api/scripts/derive-state-bill-status.ts requires DATABASE_URL (database configuration is required)');
+    console.error(
+      'Usage: apps/api/scripts/derive-state-bill-status.ts requires DATABASE_URL (database configuration is required)',
+    );
     process.exit(2);
   }
 
   const prisma = new PrismaClient();
   try {
-    await runWithSyncRun(prisma as never, 'derive-state-bill-status', async () => {
-    let updated = 0;
-    let skipped = 0;
-    let errors = 0;
+    await withStateBillWriter(prisma, ALL_US_STATE_CODES, async (prisma) => {
+      await runWithSyncRun(
+        prisma as never,
+        'derive-state-bill-status',
+        async () => {
+          let updated = 0;
+          let skipped = 0;
+          let errors = 0;
 
-    // 1. Passage/veto sets from state_roll_call_vote — each bill's MOST
-    // RECENT real passage-type motion outcome (S3 hot-fix: mutual exclusivity).
-    const votes = await prisma.stateRollCallVote.findMany({
-      where: { passed: { not: null }, billKey: { not: null } },
-      select: { billKey: true, motion: true, passed: true, date: true, legiscanRollCallId: true },
-    });
-    const { passedChamber, failedChamber, latestByBill } = buildPassageOutcomeSets(votes);
-
-    // 2. Session sine-die map, keyed by (state, sessionKey) — the DD1 join.
-    const sessions = await prisma.stateSession.findMany({
-      where: { sineDie: { not: null } },
-      select: { state: true, sessionKey: true, sineDie: true },
-    });
-    const sineDieByKey = new Map<string, string>();
-    for (const s of sessions) {
-      if (s.sineDie) {
-        sineDieByKey.set(sineDieKey(s.state, s.sessionKey), s.sineDie.toISOString().slice(0, 10));
-      }
-    }
-
-    // 3. Recompute every bill in bounded batches; write ONLY when the status
-    // actually changes (unlike the federal verb's unconditional rewrite —
-    // 100k+ state rows make no-op writes worth skipping; deviation noted in
-    // the Phase 0 plan).
-    const today = new Date().toISOString().slice(0, 10);
-    let lastId: string | undefined;
-    for (;;) {
-      const bills = await prisma.stateBill.findMany({
-        take: BATCH_SIZE,
-        ...(lastId ? { cursor: { id: lastId }, skip: 1 } : {}),
-        orderBy: { id: 'asc' },
-        select: {
-          id: true,
-          state: true,
-          sessionKey: true,
-          status: true,
-          legiscanStatus: true,
-          legiscanProgress: true,
-          latestActionText: true,
-          latestActionDate: true,
-          textDate: true,
-          statusAt: true,
-          actions: {
-            select: { date: true, text: true, orderKey: true },
-          },
-        },
-      });
-      if (bills.length === 0) break;
-
-      for (const b of bills) {
-        try {
-          const progressEvents = Array.isArray(b.legiscanProgress)
-            ? (b.legiscanProgress as unknown as Array<{ event: number; date: string }>)
-            : [];
-          const text = b.latestActionText ?? '';
-          const res = deriveStateBillStatus({
-            legiscanStatus: b.legiscanStatus,
-            progressEvents,
-            latestActionText: text,
-            passedChamber: passedChamber.has(b.id),
-            failedChamber: failedChamber.has(b.id),
-            vetoed: VETOED_TEXT.test(text),
-            overridden: OVERRIDDEN_TEXT.test(text),
-            sessionSineDie: sineDieByKey.get(sineDieKey(b.state, b.sessionKey)) ?? null,
-            today,
+          // 1. Passage/veto sets from state_roll_call_vote — each bill's MOST
+          // RECENT real passage-type motion outcome (S3 hot-fix: mutual exclusivity).
+          const votes = await prisma.stateRollCallVote.findMany({
+            where: { passed: { not: null }, billKey: { not: null } },
+            select: {
+              billKey: true,
+              motion: true,
+              passed: true,
+              date: true,
+              legiscanRollCallId: true,
+            },
           });
-          const passageOutcome = latestByBill.get(b.id);
-          const statusAt = deriveStateStatusAt({
-            status: res.status,
-            progressEvents,
-            actions: b.actions,
-            latestActionDate: b.latestActionDate,
-            latestActionText: b.latestActionText,
-            passageVoteDate: passageOutcome?.date ?? null,
-            sessionSineDie: sineDieByKey.get(sineDieKey(b.state, b.sessionKey)) ?? null,
+          const { passedChamber, failedChamber, latestByBill } = buildPassageOutcomeSets(votes);
+
+          // 2. Session sine-die map, keyed by (state, sessionKey) — the DD1 join.
+          const sessions = await prisma.stateSession.findMany({
+            where: { sineDie: { not: null } },
+            select: { state: true, sessionKey: true, sineDie: true },
           });
-          const statusChanged = res.status !== b.status;
-          // Null is meaningful: the fail-closed resolver must be able to clear
-          // a legacy date that was manufactured from latestAction/textDate/now.
-          const statusDateChanged = statusDateNeedsRepair(statusAt, b.statusAt);
-          if (!statusChanged && !statusDateChanged) {
-            skipped++;
-            continue;
+          const sineDieByKey = new Map<string, string>();
+          for (const s of sessions) {
+            if (s.sineDie) {
+              sineDieByKey.set(
+                sineDieKey(s.state, s.sessionKey),
+                s.sineDie.toISOString().slice(0, 10),
+              );
+            }
           }
-          await prisma.stateBill.update({
-            where: { id: b.id },
-            data: statusChanged
-              ? buildStatusUpdateData(b, res.status, new Date(), statusAt)
-              : {
-                  // Historical date repair only: do not advance
-                  // statusDerivedAt and emit a false state-change alert when
-                  // the canonical status itself did not change.
-                  statusAt,
-                  statusSource: 'derived',
-                },
-          });
-          updated++;
-        } catch (err) {
-          errors++;
-          console.error(`[derive-state-bill-status] ${b.id} failed:`, err);
-        }
-      }
-      lastId = bills[bills.length - 1]!.id;
-    }
-    console.log(
-      `[derive-state-bill-status] ${updated} updated, ${skipped} unchanged, ${passedChamber.size} passed-chamber sets, ${failedChamber.size} failed-chamber sets, ${errors} errors`,
-    );
-    return { inserted: 0, updated, skipped, errors };
-  });
 
+          // 3. Recompute every bill in bounded batches; write ONLY when the status
+          // actually changes (unlike the federal verb's unconditional rewrite —
+          // 100k+ state rows make no-op writes worth skipping; deviation noted in
+          // the Phase 0 plan).
+          const today = new Date().toISOString().slice(0, 10);
+          let lastId: string | undefined;
+          for (;;) {
+            const bills = await prisma.stateBill.findMany({
+              take: BATCH_SIZE,
+              ...(lastId ? { cursor: { id: lastId }, skip: 1 } : {}),
+              orderBy: { id: 'asc' },
+              select: {
+                id: true,
+                state: true,
+                sessionKey: true,
+                status: true,
+                legiscanStatus: true,
+                legiscanProgress: true,
+                latestActionText: true,
+                latestActionDate: true,
+                textDate: true,
+                statusAt: true,
+                actions: {
+                  select: { date: true, text: true, orderKey: true },
+                },
+              },
+            });
+            if (bills.length === 0) break;
+
+            for (const b of bills) {
+              try {
+                const progressEvents = Array.isArray(b.legiscanProgress)
+                  ? (b.legiscanProgress as unknown as Array<{ event: number; date: string }>)
+                  : [];
+                const text = b.latestActionText ?? '';
+                const res = deriveStateBillStatus({
+                  legiscanStatus: b.legiscanStatus,
+                  progressEvents,
+                  latestActionText: text,
+                  passedChamber: passedChamber.has(b.id),
+                  failedChamber: failedChamber.has(b.id),
+                  vetoed: VETOED_TEXT.test(text),
+                  overridden: OVERRIDDEN_TEXT.test(text),
+                  sessionSineDie: sineDieByKey.get(sineDieKey(b.state, b.sessionKey)) ?? null,
+                  today,
+                });
+                const passageOutcome = latestByBill.get(b.id);
+                const statusAt = deriveStateStatusAt({
+                  status: res.status,
+                  progressEvents,
+                  actions: b.actions,
+                  latestActionDate: b.latestActionDate,
+                  latestActionText: b.latestActionText,
+                  passageVoteDate: passageOutcome?.date ?? null,
+                  sessionSineDie: sineDieByKey.get(sineDieKey(b.state, b.sessionKey)) ?? null,
+                });
+                const statusChanged = res.status !== b.status;
+                // Null is meaningful: the fail-closed resolver must be able to clear
+                // a legacy date that was manufactured from latestAction/textDate/now.
+                const statusDateChanged = statusDateNeedsRepair(statusAt, b.statusAt);
+                if (!statusChanged && !statusDateChanged) {
+                  skipped++;
+                  continue;
+                }
+                await prisma.stateBill.update({
+                  where: { id: b.id },
+                  data: statusChanged
+                    ? buildStatusUpdateData(b, res.status, new Date(), statusAt)
+                    : {
+                        // Historical date repair only: do not advance
+                        // statusDerivedAt and emit a false state-change alert when
+                        // the canonical status itself did not change.
+                        statusAt,
+                        statusSource: 'derived',
+                      },
+                });
+                updated++;
+              } catch (err) {
+                errors++;
+                console.error(`[derive-state-bill-status] ${b.id} failed:`, err);
+              }
+            }
+            lastId = bills[bills.length - 1]!.id;
+          }
+          console.log(
+            `[derive-state-bill-status] ${updated} updated, ${skipped} unchanged, ${passedChamber.size} passed-chamber sets, ${failedChamber.size} failed-chamber sets, ${errors} errors`,
+          );
+          return { inserted: 0, updated, skipped, errors };
+        },
+        { skipIfRunning: false },
+      );
+    });
   } finally {
     await prisma.$disconnect();
   }

@@ -158,6 +158,9 @@ export async function withGuardedWebResponse<T>(
     maxRedirects?: number;
     signal?: AbortSignal;
     headers?: Record<string, string>;
+    /** Optional publisher policy, applied before DNS/connection on every hop. */
+    validateDestination?: (url: URL) => void;
+    beforeRequest?: (url: URL) => Promise<void>;
   } = {},
 ): Promise<T> {
   const deadlineMs = options.deadlineMs ?? 10_000;
@@ -183,6 +186,8 @@ export async function withGuardedWebResponse<T>(
     const visited = new Set<string>();
     for (let hop = 0; ; hop += 1) {
       scope.check();
+      options.validateDestination?.(current);
+      if (options.beforeRequest) await scope.wait(options.beforeRequest(current));
       if (visited.has(current.href)) throw new BadRequestException('Redirect cycle detected');
       visited.add(current.href);
       const { pinned, family } = await scope.wait(resolveAndPinAddress(current.hostname));
