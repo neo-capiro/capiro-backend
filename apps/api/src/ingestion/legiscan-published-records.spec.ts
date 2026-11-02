@@ -17,6 +17,34 @@ const raw = {
   state_link: 'https://example.gov/bill',
 } as LegiscanBill;
 describe('published-record ingestion', () => {
+  it('keeps archived alternate format proof when current primary metadata is refreshed', async () => {
+    const formats = [
+      {
+        kind: 'text',
+        providerId: 2,
+        providerHash: 'a'.repeat(32),
+        format: { role: 'alternate', receiptId: 'b'.repeat(64) },
+      },
+    ];
+    const db: any = {
+      stateBill: {
+        findUnique: jest.fn(async () => ({
+          reportSourceFacts: { retainedDocumentFormats: formats },
+        })),
+        update: jest.fn(),
+      },
+      stateBillPublishedRecord: { createMany: jest.fn() },
+    };
+    db.$transaction = (run: any) => run(db);
+    await persistPublishedRecords(db, 'bill', {
+      history: [],
+      amendments: [],
+      texts: [],
+    } as unknown as LegiscanBill);
+    expect(
+      db.stateBill.update.mock.calls[0][0].data.reportSourceFacts.retainedDocumentFormats,
+    ).toEqual(formats);
+  });
   it('adds frozen stubs without replacing current facts or current published membership', async () => {
     const current = {
       coverage: { actions: true },

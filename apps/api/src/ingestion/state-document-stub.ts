@@ -1,4 +1,4 @@
-import type { LegiscanBill } from '../external/legiscan/legiscan.client.js';
+import type { LegiscanBill, LegiscanDocumentFormat } from '../external/legiscan/legiscan.client.js';
 
 export interface StateDocumentStub {
   kind: 'text' | 'amendment' | 'supplement';
@@ -11,6 +11,7 @@ export interface StateDocumentStub {
   date?: string | null;
   versionType?: string | null;
   title?: string | null;
+  format?: LegiscanDocumentFormat;
 }
 
 /** Preserve original primary-format metadata; alternate-format hashes are not
@@ -75,7 +76,12 @@ export function mergeDocumentStubs(
       !Number.isSafeInteger(stub.providerId)
     )
       continue;
-    const key = JSON.stringify([stub.kind, stub.providerId, stub.providerHash]);
+    const key = JSON.stringify([
+      stub.kind,
+      stub.providerId,
+      stub.providerHash,
+      stub.format?.primaryProviderHash ?? null,
+    ]);
     if (!byIdentity.has(key)) byIdentity.set(key, stub);
   }
   return [...byIdentity.values()];

@@ -39,3 +39,13 @@ it('rejects ambiguous byte sources, wrong clone/schema, unbounded limits and unk
       parseCacheArgs([...args, '--commit', '--expected-host', host], { DATABASE_URL: url }),
     ).toThrow('DATABASE_MISMATCH');
 });
+it('allows a bounded format-only phase without metadata reimport and rejects conflicting phases', () => {
+  expect(parseCacheArgs([...args, '--formats-only', '--limit', '1'], {})).toMatchObject({
+    formatsOnly: true,
+    inventoryOnly: false,
+    limit: 1,
+  });
+  expect(() => parseCacheArgs([...args, '--formats-only', '--inventory-only'], {})).toThrow(
+    'INVALID_CACHE_SCOPE',
+  );
+});

@@ -69,6 +69,21 @@ class ReleaseTests(unittest.TestCase):
         with patch('sys.argv',['release','--job','state-passages','--source-sha',SHA,'--operation','schedule','--commit','--limit','1000','--phase','extract']),patch.object(r,'aws') as aws:
             with self.assertRaisesRegex(ValueError,'ONE_SHOT'):r.main()
             aws.assert_not_called()
+    def test_alternate_only_is_explicit_one_shot_without_provider_credentials(self):
+        container = self.task(job='state-drain', alternate_only=True)['containerDefinitions'][0]
+        self.assertIn('--alternate-only', container['command'])
+        self.assertIn('--publisher-only', container['command'])
+        self.assertEqual([s['name'] for s in container['secrets']], ['DB_USER', 'DB_PASSWORD'])
+        self.assertNotIn('--alternate-only', self.task(job='state-drain')['containerDefinitions'][0]['command'])
+        for job in r.JOBS:
+            if job != 'state-drain':
+                with self.assertRaisesRegex(ValueError, 'ALTERNATE_ONLY_REQUIRES_STATE_DRAIN'):
+                    self.task(job=job, alternate_only=True)
+        for extra in [['--job','state-drain','--operation','schedule','--commit'], ['--job','state-passages','--commit']]:
+            with patch('sys.argv', ['release','--source-sha',SHA,'--alternate-only',*extra]), patch.object(r,'aws') as aws:
+                with self.assertRaises(ValueError): r.main()
+                aws.assert_not_called()
+
     def test_cached_archive_is_single_state_exact_source_and_has_no_provider_secret(self):
         archive={'state':'NY','session':2188,'hash':'c'*64,'bills':25453}
         for commit in (False,True):

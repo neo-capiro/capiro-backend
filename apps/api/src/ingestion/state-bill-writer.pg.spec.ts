@@ -1,4 +1,10 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
+import JSZip from 'jszip';
+import { inspectFrozenStateFormats, importFrozenStateFormats } from './legiscan-frozen-formats.js';
+import {
+  requireQualifiedAlternateFormat,
+  stateDocumentCheckIdentity,
+} from './state-document-formats.js';
 import { PrismaClient } from '@prisma/client';
 import { withStateBillWriter } from './state-bill-writer.js';
 import { withFederalBillWriter } from './federal-bill-writer.js';
@@ -290,7 +296,7 @@ describe('shared state writer lease on disposable PostgreSQL', () => {
   });
   it('resolves only the exact partial vote check atomically with the fenced canonical revision', async () => {
     await db.$executeRawUnsafe(
-      "INSERT INTO state_bill VALUES('tx-2025-hb1','TX',1),('tx-2025-hb2','TX',2)",
+      "INSERT INTO state_bill(id,state,legiscan_bill_id) VALUES('tx-2025-hb1','TX',1),('tx-2025-hb2','TX',2)",
     );
     await db.$executeRawUnsafe(`INSERT INTO state_bill_record_check(bill_key,kind,source_identity,state,attempts,next_check_at,error_code,provider_hash)
       VALUES('tx-2025-hb1','vote','tx-rc-9','partial',1,clock_timestamp()+interval '3 hours','LEGISCAN_VOTE_DETAIL_INCOMPLETE','old'),
@@ -388,5 +394,153 @@ describe('shared state writer lease on disposable PostgreSQL', () => {
       await db.$queryRawUnsafe(`SELECT has_table_privilege('capiro_app','state_bill_record_check','UPDATE') AS update,
       has_table_privilege('capiro_app','state_bill_record_check','DELETE') AS delete`),
     ).toEqual([{ update: true, delete: false }]);
+  });
+  it('stages archived alternate formats with app grants, fenced rollback and no primary retry or metadata changes', async () => {
+    await db.$executeRawUnsafe('ALTER TABLE state_bill ADD COLUMN report_source_facts jsonb');
+    await db.$executeRawUnsafe(
+      'CREATE TABLE legal_dataset_archive(content_hash text PRIMARY KEY,original_bytes_base64 text NOT NULL)',
+    );
+    await db.$executeRawUnsafe(
+      'GRANT SELECT,INSERT ON legal_source_receipt,legal_dataset_archive TO capiro_app',
+    );
+    await db.$executeRawUnsafe('GRANT UPDATE(report_source_facts) ON state_bill TO capiro_app');
+    const raw = {
+      state: 'FL',
+      bill_id: 710,
+      bill_number: 'S710',
+      change_hash: 'a'.repeat(32),
+      title: 'Synthetic formats',
+      status: 1,
+      session: {
+        session_id: 2220,
+        year_start: 2026,
+        year_end: 2026,
+        special: 0,
+        prior: 0,
+        session_name: 'Regular',
+      },
+      history: [{ date: '2026-01-01', action: 'Filed' }],
+      progress: [],
+      sponsors: [],
+      votes: [],
+      amendments: [],
+      supplements: [],
+      texts: [
+        {
+          doc_id: 711,
+          date: '2026-01-01',
+          type: 'Introduced',
+          mime: 'text/html',
+          text_hash: 'b'.repeat(32),
+          text_size: 100,
+          state_link: 'https://www.flsenate.gov/synthetic/HTML',
+          alt_bill_text: 1,
+          alt_mime: 'application/pdf',
+          alt_text_size: 200,
+          alt_text_hash: 'c'.repeat(32),
+          alt_state_link: 'https://www.flsenate.gov/synthetic/PDF',
+        },
+      ],
+    };
+    const zip = new JSZip();
+    zip.file('FL/bill/710.json', JSON.stringify({ bill: raw }));
+    const archive = await zip.generateAsync({ type: 'nodebuffer' });
+    const scope = {
+      state: 'FL',
+      sessionId: 2220,
+      expectedBills: 1,
+      archiveHash: createHash('sha256').update(archive).digest('hex'),
+    };
+    const prepared = await inspectFrozenStateFormats(archive, scope),
+      item = prepared.manifest.bills[0]!;
+    await db.$executeRawUnsafe(
+      'INSERT INTO legal_dataset_archive VALUES($1,$2)',
+      scope.archiveHash,
+      archive.toString('base64'),
+    );
+    await db.$executeRawUnsafe(
+      "INSERT INTO legal_source_receipt(id,source,scope,manifest,complete) VALUES($1,'fy26-state-frozen-inventory',$2::jsonb,$3::jsonb,true)",
+      prepared.manifest.primaryReceiptId,
+      JSON.stringify(prepared.primaryScope),
+      JSON.stringify(prepared.prepared.manifest),
+    );
+    await db.$executeRawUnsafe(
+      "INSERT INTO state_bill(id,state,legiscan_bill_id,report_source_facts) VALUES($1,'FL',710,'{\"newerPrimaryMetadata\":true}')",
+      item.billKey,
+    );
+    const primaryIdentity = 'text:711:' + 'b'.repeat(32);
+    await db.$executeRawUnsafe(
+      "INSERT INTO state_bill_record_check(bill_key,kind,source_identity,state,attempts,next_check_at,error_code) VALUES($1,'document',$2,'failed',9,now()+interval '3 hours','DOCUMENT_PROVIDER_HASH_MISMATCH')",
+      item.billKey,
+      primaryIdentity,
+    );
+    const primary = await db.$queryRawUnsafe(
+      'SELECT * FROM state_bill_record_check WHERE bill_key=$1',
+      item.billKey,
+    );
+    const run = () =>
+      withStateBillWriter(db, ['FL'], (writer) =>
+        writer.$transaction(async (tx) => {
+          await tx.$executeRawUnsafe('SET LOCAL ROLE capiro_app');
+          return importFrozenStateFormats(tx as unknown as PrismaClient, archive, scope, {
+            limit: 1,
+          });
+        }),
+      );
+    await db.$executeRawUnsafe(
+      "CREATE FUNCTION fail_format_checkpoint() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.source LIKE 'fy26-state-formats:%' THEN RAISE EXCEPTION 'synthetic format checkpoint failure'; END IF; RETURN NEW; END $$",
+    );
+    await db.$executeRawUnsafe(
+      'CREATE TRIGGER fail_format_checkpoint BEFORE UPDATE ON federal_evidence_checkpoint FOR EACH ROW EXECUTE FUNCTION fail_format_checkpoint()',
+    );
+    await expect(run()).rejects.toThrow('synthetic format checkpoint failure');
+    expect(
+      await db.$queryRawUnsafe(
+        'SELECT * FROM state_bill_record_check WHERE bill_key=$1',
+        item.billKey,
+      ),
+    ).toEqual(primary);
+    expect(
+      await db.$queryRawUnsafe(
+        'SELECT report_source_facts FROM state_bill WHERE id=$1',
+        item.billKey,
+      ),
+    ).toEqual([{ report_source_facts: { newerPrimaryMetadata: true } }]);
+    await db.$executeRawUnsafe(
+      'DROP TRIGGER fail_format_checkpoint ON federal_evidence_checkpoint',
+    );
+    expect(await run()).toMatchObject({
+      complete: true,
+      queued: 1,
+      processed: 1,
+      primaryDocumentsChanged: 0,
+    });
+    expect(await run()).toMatchObject({ complete: true, queued: 1, processed: 0 });
+    expect(
+      await db.$queryRawUnsafe(
+        'SELECT * FROM state_bill_record_check WHERE bill_key=$1 AND source_identity=$2',
+        item.billKey,
+        primaryIdentity,
+      ),
+    ).toEqual(primary);
+    expect(
+      await db.$queryRawUnsafe(
+        'SELECT state,attempts FROM state_bill_record_check WHERE bill_key=$1 AND source_identity=$2',
+        item.billKey,
+        stateDocumentCheckIdentity(item.formats[0]!),
+      ),
+    ).toEqual([{ state: 'pending', attempts: 0 }]);
+    expect(await requireQualifiedAlternateFormat(db, item.billKey, 710, item.formats[0]!)).toEqual(
+      item.formats[0],
+    );
+    await expect(
+      requireQualifiedAlternateFormat(db, item.billKey, 999, item.formats[0]!),
+    ).rejects.toThrow('DOCUMENT_FORMAT_INVENTORY_MISMATCH');
+    expect(
+      await db.$queryRawUnsafe(
+        'SELECT manifest FROM legal_source_receipt WHERE id=$1',
+        prepared.manifest.primaryReceiptId,
+      ),
+    ).toEqual([{ manifest: prepared.prepared.manifest }]);
   });
 });

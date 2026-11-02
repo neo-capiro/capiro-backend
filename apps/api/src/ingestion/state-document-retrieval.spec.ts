@@ -90,6 +90,33 @@ test('publisher-only failure cannot spend provider quota', async () => {
   );
   expect(prisma.$transaction).not.toHaveBeenCalled();
 });
+test('alternate format proof precedes transport and never falls back to the primary API even with a key', async () => {
+  const prisma = database();
+  const stub = {
+    ...request.stub,
+    mime: 'application/pdf',
+    stateUrl: 'https://www.flsenate.gov/alternate/PDF',
+    format: {
+      role: 'alternate' as const,
+      primaryProviderHash: 'b'.repeat(32),
+      receiptId: 'c'.repeat(64),
+      archiveHash: 'd'.repeat(64),
+    },
+  };
+  prisma.$queryRawUnsafe.mockResolvedValue([{ stub }]);
+  await expect(retrieveStateDocument(prisma, { ...request, stub })).rejects.toThrow(
+    'DOCUMENT_PROVIDER_HASH_MISMATCH',
+  );
+  expect(fetchStatePublisherDocument).toHaveBeenCalledTimes(1);
+  expect(getBillText).not.toHaveBeenCalled();
+  expect(prisma.$transaction).not.toHaveBeenCalled();
+  jest.mocked(fetchStatePublisherDocument).mockClear();
+  prisma.$queryRawUnsafe.mockResolvedValue([]);
+  await expect(retrieveStateDocument(prisma, { ...request, stub })).rejects.toThrow(
+    'DOCUMENT_FORMAT_INVENTORY_MISMATCH',
+  );
+  expect(fetchStatePublisherDocument).not.toHaveBeenCalled();
+});
 test.each([
   'PUBLISHER_RETRY_AFTER',
   'PUBLISHER_COOLDOWN_ACTIVE',

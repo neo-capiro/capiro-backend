@@ -1012,6 +1012,100 @@ pg('bill text PostgreSQL contract', () => {
             (await service.coverage()).jurisdictions.find((row) => row.jurisdiction === 'US')!
               .downloadedDocuments,
           ).toBe(0);
+          phase = 'alternate_format_coverage';
+          const alternateRevision = '00000000-0000-4000-8000-000000000170',
+            alternateExtraction = '00000000-0000-4000-8000-000000000171';
+          const alternateBill = 'FL-2025-HB2',
+            alternateHash = 'c'.repeat(32);
+          await tx.$executeRawUnsafe(
+            `INSERT INTO state_bill VALUES($1,'FL','2025','HB2','Alternative original','introduced','[]','2026-01-01',99)`,
+            alternateBill,
+          );
+          await tx.$executeRawUnsafe(
+            `INSERT INTO legal_source_receipt(id,source,scope,manifest,complete) VALUES('formats','fy26-state-frozen-formats',$1::jsonb,$2::jsonb,true)`,
+            JSON.stringify({
+              fiscalYear: 2026,
+              jurisdiction: 'FL',
+              sessionKey: '2025',
+              providerSessionId: 1,
+              archiveHash: 'c'.repeat(64),
+              primaryReceiptId: 'synthetic',
+            }),
+            JSON.stringify({
+              schemaVersion: 1,
+              sourceListComplete: true,
+              primaryReceiptId: 'synthetic',
+              archiveHash: 'c'.repeat(64),
+              bills: [
+                {
+                  billKey: alternateBill,
+                  providerBillId: 99,
+                  formats: [
+                    {
+                      kind: 'text',
+                      providerId: 99,
+                      providerHash: alternateHash,
+                      versionType: 'Introduced',
+                      mime: 'application/pdf',
+                      stateUrl: 'https://example.test/alternate.pdf',
+                      format: { primaryProviderHash: '99' },
+                    },
+                  ],
+                },
+              ],
+            }),
+          );
+          await tx.$executeRawUnsafe(
+            `INSERT INTO state_bill_published_record VALUES($1::uuid,$2,'document','text:99:format:pdf',$3,'2026-01-01',$4::jsonb,now())`,
+            alternateRevision,
+            alternateBill,
+            'e'.repeat(64),
+            JSON.stringify({
+              documentKind: 'text',
+              providerId: '99',
+              providerHash: alternateHash,
+              versionType: 'Introduced',
+              canonicalVersionId: 'text:99',
+              mime: 'application/pdf',
+              contentHash: 'b'.repeat(64),
+              contentSnapshotBase64: 'c291cmNl',
+              url: 'https://example.test/alternate.pdf',
+              extractionState: 'extracted',
+              format: { role: 'alternate', primaryProviderHash: '99' },
+            }),
+          );
+          await tx.$executeRawUnsafe(
+            `INSERT INTO bill_text_extraction SELECT $1::uuid,source_kind,$2::uuid,parser_version,document_hash,text_hash,structure_hash,extracted_text,structure_jsonb,completeness,warnings_jsonb,created_at FROM bill_text_extraction WHERE id=$3::uuid`,
+            alternateExtraction,
+            alternateRevision,
+            ids[0]!.extractionId,
+          );
+          const alternateCoverage = (await service.coverage()).jurisdictions.find(
+            (row) => row.jurisdiction === 'FL',
+          )!;
+          expect(alternateCoverage).toMatchObject({
+            expectedDocuments: 2,
+            downloadedDocuments: 1,
+            alternateFormats: { expectedFormats: 1, downloadedFormats: 1, completeExtractions: 1 },
+          });
+          const alternateRead = await service.read({
+            billId: alternateBill,
+            jurisdiction: 'FL',
+            session: '2025',
+            revisionId: alternateRevision,
+            extractionId: alternateExtraction,
+          });
+          expect(alternateRead.identity).toMatchObject({
+            versionId: 'text:99',
+            revisionId: alternateRevision,
+            extractionId: alternateExtraction,
+            format: {
+              role: 'alternate',
+              mime: 'application/pdf',
+              primaryProviderHash: '99',
+              sourceIdentity: 'text:99:format:pdf',
+            },
+          });
         },
         { timeout: 60000 },
       );

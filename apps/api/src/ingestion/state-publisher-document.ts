@@ -247,6 +247,7 @@ export async function fetchStatePublisherDocument(
         text_hash: stub.providerHash!,
         doc: bytes.toString('base64'),
         acquisition: { source: 'publisher', url: finalUrl },
+        ...(stub.format ? { format: stub.format } : {}),
       };
     },
     {

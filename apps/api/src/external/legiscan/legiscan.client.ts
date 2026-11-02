@@ -219,13 +219,25 @@ export interface LegiscanBillText {
   state_link?: string;
   text_hash?: string;
   text_size?: number;
+  alt_bill_text?: number;
+  alt_mime?: string;
+  alt_state_link?: string;
+  alt_text_hash?: string;
+  alt_text_size?: number;
 }
+export type LegiscanDocumentFormat = {
+  role: 'alternate';
+  primaryProviderHash: string;
+  receiptId: string;
+  archiveHash: string;
+};
 export interface LegiscanDocument extends LegiscanBillText {
   bill_id: number;
   doc: string;
   document_kind?: 'text' | 'amendment' | 'supplement';
   title?: string;
   acquisition?: { source: 'publisher'; url: string };
+  format?: LegiscanDocumentFormat;
 }
 export async function getBillText(
   apiKey: string,

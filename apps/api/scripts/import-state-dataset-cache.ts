@@ -8,10 +8,14 @@ import {
   inspectFrozenStateDataset,
   importFrozenStateDataset,
 } from '../src/ingestion/legiscan-historical-research.js';
+import {
+  importFrozenStateFormats,
+  inspectFrozenStateFormats,
+} from '../src/ingestion/legiscan-frozen-formats.js';
 
 const HOST = 'capiro-newstack-preview-clone.cluster-csryw28ai752.us-east-1.rds.amazonaws.com';
 const USAGE =
-  'import-state-dataset-cache --state XX --session ID --expected-bills N (--archive FILE --sha256 SHA256 | --archive-hash SHA256) [--limit 1..1000] [--inventory-only] [--commit --expected-host CLONE_HOST]';
+  'import-state-dataset-cache --state XX --session ID --expected-bills N (--archive FILE --sha256 SHA256 | --archive-hash SHA256) [--limit 1..1000] [--inventory-only | --formats-only] [--commit --expected-host CLONE_HOST]';
 export function parseCacheArgs(argv: string[], env: NodeJS.ProcessEnv) {
   let state = '',
     sessionId = 0,
@@ -22,11 +26,13 @@ export function parseCacheArgs(argv: string[], env: NodeJS.ProcessEnv) {
     limit = 100,
     expectedHost = '',
     commit = false,
-    inventoryOnly = false;
+    inventoryOnly = false,
+    formatsOnly = false;
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i];
     if (key === '--commit') commit = true;
     else if (key === '--inventory-only') inventoryOnly = true;
+    else if (key === '--formats-only') formatsOnly = true;
     else if (key === '--state') state = argv[++i] ?? '';
     else if (key === '--session') sessionId = Number(argv[++i]);
     else if (key === '--expected-bills') expectedBills = Number(argv[++i]);
@@ -38,6 +44,7 @@ export function parseCacheArgs(argv: string[], env: NodeJS.ProcessEnv) {
     else throw Error('UNKNOWN_CACHE_ARGUMENT');
   }
   if (
+    (inventoryOnly && formatsOnly) ||
     !(ALL_US_STATE_CODES as readonly string[]).includes(state) ||
     !Number.isSafeInteger(sessionId) ||
     sessionId < 1 ||
@@ -71,6 +78,7 @@ export function parseCacheArgs(argv: string[], env: NodeJS.ProcessEnv) {
     limit,
     commit,
     inventoryOnly,
+    formatsOnly,
   };
 }
 export async function main(argv = process.argv.slice(2)) {
@@ -102,10 +110,20 @@ export async function main(argv = process.argv.slice(2)) {
     if (options.commit) {
       console.log(
         'FROZEN_STATE_DATASET_RESULT ' +
-          JSON.stringify(await importFrozenStateDataset(prisma!, archive, options, options)),
+          JSON.stringify(
+            await (options.formatsOnly ? importFrozenStateFormats : importFrozenStateDataset)(
+              prisma!,
+              archive,
+              options,
+              options,
+            ),
+          ),
       );
     } else {
-      const prepared = await inspectFrozenStateDataset(archive, options);
+      const formats = options.formatsOnly
+        ? await inspectFrozenStateFormats(archive, options)
+        : null;
+      const prepared = formats?.prepared ?? (await inspectFrozenStateDataset(archive, options));
       console.log(
         'FROZEN_STATE_DATASET_PREVIEW ' +
           JSON.stringify({
@@ -116,6 +134,14 @@ export async function main(argv = process.argv.slice(2)) {
             inspectedBills: prepared.manifest.inspectedBills,
             eligibleBills: prepared.manifest.eligibleBills,
             documents: prepared.manifest.bills.reduce((n, b) => n + b.documents.length, 0),
+            ...(formats
+              ? {
+                  alternateFormats: formats.manifest.bills.reduce(
+                    (n, b) => n + b.formats.length,
+                    0,
+                  ),
+                }
+              : {}),
             providerCalls: 0,
             mutations: 0,
           }),

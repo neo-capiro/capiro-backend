@@ -21,6 +21,59 @@ const version = {
   ],
 };
 describe('Congress complete version lists', () => {
+  it('retains Congress public-law package identity through the complete inventory receipt', async () => {
+    const base = 'https://www.congress.gov/119/plaws/publ131/PLAW-119publ131';
+    const payload = {
+      pagination: { count: 1 },
+      textVersions: [
+        {
+          type: 'Public Law',
+          date: '2026-10-21T03:59:59Z',
+          formats: ['.htm', '.pdf', '_uslm.xml'].map((suffix) => ({ url: base + suffix })),
+        },
+      ],
+    };
+    const fetch = jest.fn(async () => payload);
+    const list = await fetchFederalVersionList('119-hr-4307', 'text', 'synthetic-key', fetch);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const manifest = federalInventoryManifest({
+      kind: 'text',
+      providerDocumentId: '119-hr-4307',
+      providerUpdatedAt: null,
+      ...list,
+    });
+    const versions = parseFederalBillInventory(
+      {
+        id: 'synthetic-receipt',
+        scope: { fiscalYear: 2026, congress: 119, billId: '119-hr-4307' },
+        manifest,
+        complete: true,
+        observedAt: '2026-11-02',
+      },
+      {
+        receiptId: 'synthetic-discovery',
+        congress: 119,
+        billIds: ['119-hr-4307'],
+        requiredInventoryReceiptIds: ['synthetic-receipt'],
+        observedAt: '2026-11-02',
+      },
+    );
+    expect(versions).toHaveLength(1);
+    expect(versions![0]).toMatchObject({
+      billId: '119-hr-4307',
+      collection: 'PLAW',
+      packageId: 'PLAW-119publ131',
+      sourceUrls: expect.arrayContaining([base + '.htm', base + '.pdf', base + '_uslm.xml']),
+    });
+    expect(versions![0]!.sourceUrls).toHaveLength(3);
+    await expect(
+      fetchFederalVersionList('119-hr-4307', 'text', 'synthetic-key', async () => ({
+        ...payload,
+        pagination: { count: 2 },
+      })),
+    ).rejects.toThrow('FEDERAL_API_TEXT_LIST_INCOMPLETE');
+  });
+
   it('paginates exact official amendment paths and retains stable version identities', async () => {
     const fetch = jest
       .fn()
