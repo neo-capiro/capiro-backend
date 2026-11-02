@@ -32,6 +32,11 @@ it('preserves public watching without recording opt-in and omits unsafe or restr
     'https://user:password@media.example.org/video.mp4',
     'https://media.example.org/video.mp4?token=synthetic',
     'https://media.example.org/video.mp4?X-Amz-Signature=synthetic',
+    'https://media.example.org/live.m3u8?__token__=synthetic',
+    'https://media.example.org/live.m3u8?hdntl=synthetic',
+    'https://media.example.org/live.m3u8?auth_key=synthetic',
+    'https://media.example.org/live.m3u8?publisher_key=synthetic',
+    'https://media.example.org/video.mp4#token=synthetic',
     'https://media.example.org/video/player',
     'http://media.example.org/video.mp4',
   ])

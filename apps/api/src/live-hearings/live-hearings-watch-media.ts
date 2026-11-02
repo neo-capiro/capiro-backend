@@ -43,15 +43,13 @@ export function selectOfficialWatchMedia(
         url.username ||
         url.password ||
         url.port ||
+        // Unknown query/fragment keys can carry publisher authorization too.
+        url.search ||
+        url.hash ||
         !host.includes('.') ||
         host.includes(':') ||
         /^[\d.]+$/.test(host) ||
-        /(^|\.)(localhost|local|internal|lan|home|home\.arpa|test|invalid)$/.test(host) ||
-        [...url.searchParams.keys()].some((key) =>
-          /^(?:token|sig|signature|expires?|policy|key-pair-id|x-amz-.+|auth|auth_token|access_token|jwt|hdnea|hdnts)$/i.test(
-            key,
-          ),
-        )
+        /(^|\.)(localhost|local|internal|lan|home|home\.arpa|test|invalid)$/.test(host)
       )
         continue;
       const extension = url.pathname.toLowerCase().split('.').at(-1);
