@@ -1,5 +1,13 @@
 # Core A8 action read receiving outline — 18 October 2026
 
+> **Superseded 2 November 2026.** Meri never composed the one-use delegated
+> token adapter. `actions.query` is served on the ordinary user bearer plus
+> verified service identity (`MeriController.executeTool` →
+> `admitActionQueryAlias` → `query_action_items`). The delegated `tool` token for
+> it, the `MERI_ACTION_QUERY_ALIAS_ENABLED` switch and the hard-off signed memory
+> gates were removed; Core issues no delegated token for `actions.query`,
+> `search_memory` or `memory.list_own_proposals`.
+
 Base: integrated Core source candidate `8ab53574a62b16155eec60aa01609ce7d8d50df3`,
 which includes the first alias source `868aafea8a6d731a0cab4210c169a955359daecc`.
 Meri sources: PR166 `15288a7954862e348af86bf1eab119fdb30863a0` and PR171

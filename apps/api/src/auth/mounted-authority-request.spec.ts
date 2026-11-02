@@ -2,9 +2,6 @@ import { describe, expect, it } from '@jest/globals';
 import type { Request } from 'express';
 import { isMeriExecutionCapabilityPost, isMeriRoutineUnattendedGrantPost } from './meri-execution-request.js';
 import { isMeriReadDelegationServicePost } from './read-delegation/read-delegation-request.js';
-import {
-  isSignedMemoryHelperPost, isSignedMemoryPagePost, isSignedMemoryProposalPost,
-} from './read-delegation/signed-memory-http-gate.js';
 import { coreRosterPreviewDecision, isPreviewNativeReadRoute } from './preview-native-read-mode.js';
 
 const executionBearer = `Bearer ${Buffer.from(JSON.stringify({ typ: 'capiro-meri-execution+jwt' })).toString('base64url')}.payload.signature`;
@@ -16,9 +13,6 @@ const cases: Array<{ path: string; test: (req: Request) => boolean; authorizatio
   { path: `/api/clio/application-authority/read-delegations/${delegationId}/tokens`, test: isMeriReadDelegationServicePost },
   { path: `/api/clio/application-authority/read-delegations/${delegationId}/revocations`, test: isMeriReadDelegationServicePost },
   { path: `/api/clio/application-authority/read-delegation-consents/${delegationId}/state`, test: isMeriReadDelegationServicePost },
-  { path: '/api/clio/tools/search_memory_eligibility', test: isSignedMemoryHelperPost },
-  { path: '/api/clio/tools/search_memory', test: isSignedMemoryPagePost },
-  { path: '/api/clio/tools/memory.list_own_proposals', test: isSignedMemoryProposalPost },
 ];
 
 function mounted(path: string, authorization?: string): Request {
