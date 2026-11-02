@@ -4,7 +4,8 @@ set -eu
 image=${1:?Usage: run-bill-postgres-probes.sh <locally-built-candidate-image>}
 case "$(uname -m)" in aarch64|arm64) ;; *) echo 'Native ARM64 host required' >&2; exit 64 ;; esac
 test "$(docker image inspect "$image" --format '{{.Os}}/{{.Architecture}}')" = linux/arm64
-pg_image=pgvector/pgvector:pg16@sha256:016a18f2a5269b23ca05de83826094011cc4e1a9e9cb28c186a3ba9f079ef1d9
+# Exact upstream pgvector/pgvector bytes mirrored to ECR; avoids anonymous Docker Hub pulls in gates.
+pg_image=967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/scratch-pg-ssl@sha256:016a18f2a5269b23ca05de83826094011cc4e1a9e9cb28c186a3ba9f079ef1d9
 run_id="bill-pg-$(date +%s)-$$"
 builder="$run_id:build"
 pg_id=
