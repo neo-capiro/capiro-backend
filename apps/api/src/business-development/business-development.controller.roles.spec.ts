@@ -248,6 +248,8 @@ describe('Phase 4 brief route contract', () => {
     'createBriefVersion',
     'saveBriefVersion',
     'buildRefreshProposal',
+    'prepareRefreshProposal',
+    'getRefreshProposal',
     'acceptRefreshProposal',
     'listBriefVersions',
     'getBriefVersion',

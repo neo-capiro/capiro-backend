@@ -1,3 +1,6 @@
+import { CapabilitiesModule } from '../capabilities/capabilities.module.js';
+import { OutreachCampaignController } from './outreach-campaign.controller.js';
+import { OutreachCampaignService } from './outreach-campaign.service.js';
 import { MailIncomingFilesController } from './mail-incoming-files.controller.js';
 import { MailIncomingFilesService } from './mail-incoming-files.service.js';
 import { ManagedMcpModule } from '../meri/managed-mcp.module.js';
@@ -39,6 +42,7 @@ import {
 } from './governed-meeting-ai.factory.js';
 import { MeetingContextPlaneService } from './meeting-context-plane.service.js';
 import { MeetingPrepJobService } from './meeting-prep-job.service.js';
+import { MeetingDebriefJobService } from './meeting-debrief-job.service.js';
 import { OutreachJobService } from './outreach-job.service.js';
 import { RaceSafeOutreachJobService } from './race-safe-outreach-job.service.js';
 import { NotetakerService } from './notetaker/notetaker.service.js';
@@ -65,14 +69,11 @@ import { AttachmentScannerService } from './attachment-scanner.service.js';
 import { OutreachTruthService } from './generation/outreach-truth.service.js';
 import { EvidenceSourceService } from './generation/evidence-source.service.js';
 import { EvidencePacketService } from './generation/evidence-packet.service.js';
-import { AuthorStyleProfileService } from './generation/author-style-profile.service.js';
 import { MessagePlanService } from './generation/message-plan.service.js';
 import { GenerationVerifierService } from './generation/generation-verifier.service.js';
 import { GenerationGatewayService } from './generation/generation-gateway.service.js';
-import { OutreachEvaluationRunner } from './generation/outreach-evaluation.runner.js';
 import { AlertPacketClientService } from './generation/alert-packet-client.service.js';
 import { OutreachContextPlaneService } from './generation/outreach-context-plane.service.js';
-import { OutreachV3LivePreviewService } from './generation/outreach-v3-live-preview.service.js';
 import { EngagementRuntimeModule } from './runtime/engagement-runtime.module.js';
 import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 import { guardEngagementAiService } from './runtime/engagement-ai-runtime.boundary.js';
@@ -97,6 +98,7 @@ import {
 
 @Module({
   imports: [
+    CapabilitiesModule,
     PrismaModule,
     ManagedMcpModule,
     DirectoryModule,
@@ -110,8 +112,9 @@ import {
     QualityTelemetryModule,
     EvaluationModule,
   ],
-  controllers: [MailIncomingFilesController, EngagementController, EngagementPlansController, OutcomeController, KrispNotetakerController, NewsletterOutreachController, NewsletterPublicController],
+  controllers: [OutreachCampaignController, MailIncomingFilesController, EngagementController, EngagementPlansController, OutcomeController, KrispNotetakerController, NewsletterOutreachController, NewsletterPublicController],
   providers: [
+    OutreachCampaignService,
     MailIncomingFilesService,
     EngagementPlansService,
     KrispNotetakerService,
@@ -169,6 +172,7 @@ import {
     },
     MeetingContextPlaneService,
     MeetingPrepJobService,
+    MeetingDebriefJobService,
     { provide: RAW_ENGAGEMENT_SERVICE, useClass: EngagementService },
     {
       provide: EngagementService,
@@ -249,18 +253,16 @@ import {
     OutreachTruthService,
     EvidenceSourceService,
     EvidencePacketService,
-    AuthorStyleProfileService,
     MessagePlanService,
     GenerationVerifierService,
-    OutreachEvaluationRunner,
     GenerationGatewayService,
     AlertPacketClientService,
     OutreachContextPlaneService,
-    OutreachV3LivePreviewService,
   ],
   exports: [
     KrispNotetakerService,
     MeetingPrepJobService,
+    MeetingDebriefJobService,
     EngagementRuntimeModule,
     AiCredentialsModule,
     OutcomeService,
@@ -277,7 +279,6 @@ import {
     OutreachSendIntentService,
     GenerationGatewayService,
     EvidencePacketService,
-    OutreachV3LivePreviewService,
   ],
 })
 export class EngagementModule {}

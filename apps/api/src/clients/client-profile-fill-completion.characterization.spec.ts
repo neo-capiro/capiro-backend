@@ -139,11 +139,11 @@ describe('Client fill completion pure-rule compatibility', () => {
     },
   );
 
-  test('freshness retains invalid, future, unknown-source and clamped-cadence behavior', () => {
+  test('freshness refuses invalid and future dates while retaining source and cadence boundaries', () => {
     expect(deriveAdvocacyFreshness('lda', 'invalid', 24, now)).toBe('unknown');
     expect(deriveAdvocacyFreshness('unknown', '2026-08-25T12:00:00.000Z', 24, now)).toBe('fresh');
     expect(deriveAdvocacyFreshness('unknown', '2026-08-25T11:59:59.999Z', 24, now)).toBe('stale');
-    expect(deriveAdvocacyFreshness('lda', '2026-08-27T12:00:00.000Z', 24, now)).toBe('fresh');
+    expect(deriveAdvocacyFreshness('lda', '2026-08-27T12:00:00.000Z', 24, now)).toBe('unknown');
     expect(deriveAdvocacyFreshness('lda', '2026-08-26T11:00:00.000Z', -1, now)).toBe('fresh');
     expect(deriveAdvocacyFreshness('lda', '2026-08-26T10:59:59.999Z', 0, now)).toBe('stale');
   });

@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { DirectoryService } from '../directory/directory.service.js';
+import { toFacilityDistrictCode } from '../common/district-code.util.js';
+import { isValidDistrictForState, US_HOUSE_SEATS } from '../common/us-congressional-districts.js';
 
 /**
  * Office Recommender (v2) — replaces the legacy sponsor/FEC/ex-staffer scorer.
@@ -60,6 +62,27 @@ interface RecommenderInput {
 }
 
 const MAX_RESULTS = 12;
+
+/** Bare/zero-padded numeric districts and same-state directory prefixes share one key. */
+function houseDistrictKey(
+  state: string,
+  raw: string | null | undefined,
+  directoryMember = false,
+): string | null {
+  const value = (raw ?? '').trim().toUpperCase();
+  // The canonical House mapper emits the bare state for a sole seat reported
+  // as 0/null. Accept that observed member shape only with known apportionment;
+  // a bare/absent facility district or an unknown multi-seat member stays unresolved.
+  if (directoryMember && value === state && US_HOUSE_SEATS[state] === 1) return `${state}-0`;
+  const match = /^(?:([A-Z]{2})-)?(\d{1,2})$/.exec(value);
+  if (!match || (match[1] && match[1] !== state)) return null;
+  const district = match[2]!;
+  if (!isValidDistrictForState(state, district.padStart(2, '0'))) return null;
+  // Reuse the existing single-seat 1 -> facility 00 convention after strict
+  // shape/state validation; do not let that converter repair arbitrary input.
+  const code = toFacilityDistrictCode(state, district);
+  return code === null ? null : `${state}-${Number(code)}`;
+}
 
 @Injectable()
 export class OfficeRecommenderService {
@@ -155,8 +178,8 @@ export class OfficeRecommenderService {
         const st = (f.state ?? '').toUpperCase().trim();
         if (st) {
           facilityStates.add(st);
-          const dist = (f.congressionalDistrict ?? '').trim();
-          if (dist) facilityDistricts.add(`${st}-${String(Number(dist))}`);
+          const district = houseDistrictKey(st, f.congressionalDistrict);
+          if (district) facilityDistricts.add(district);
         }
       }
     } catch (err) {
@@ -218,14 +241,9 @@ export class OfficeRecommenderService {
         if (m.chamber === 'Senate') {
           districtHit = facilityStates.has(st);
         } else {
-          // House district id arrives as "NH-1" / "TX-12" or bare "12"; normalize.
-          const distRaw = (m.district ?? '').trim();
-          const distNum = distRaw.includes('-') ? distRaw.split('-').pop()! : distRaw;
-          const key = distNum ? `${st}-${String(Number(distNum))}` : '';
-          districtHit =
-            (key.length > 0 && facilityDistricts.has(key)) ||
-            // a statewide facility with no district still gives a softer state nexus
-            facilityStates.has(st);
+          // A state proves Senate constituency, not which House office represents a facility.
+          const key = houseDistrictKey(st, m.district, true);
+          districtHit = key !== null && facilityDistricts.has(key);
         }
       }
 
@@ -269,10 +287,10 @@ export class OfficeRecommenderService {
         state: stateDisplay,
         chamber: m.chamber,
         committee: jurisdictionCommittee
-          ? (m.committees ?? []).find((c) => this.norm(c) === jurisdictionCommittee) ??
+          ? ((m.committees ?? []).find((c) => this.norm(c) === jurisdictionCommittee) ??
             m.committees?.[0] ??
-            null
-          : m.committees?.[0] ?? null,
+            null)
+          : (m.committees?.[0] ?? null),
         score,
         tags,
         billCount: committeeBills,

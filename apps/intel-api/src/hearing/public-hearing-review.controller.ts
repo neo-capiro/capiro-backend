@@ -3,7 +3,7 @@ import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { HearingPublicationService } from './hearing-publication.service.js';
-import { object } from '../tracker/reports/report-domain.js';
+import { object } from '../tracker/delivery/delivery-domain.js';
 
 @Controller('public-hearings/:hearingId/review-context')
 @UseGuards(TenantGuard)

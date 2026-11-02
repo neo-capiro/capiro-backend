@@ -67,3 +67,35 @@ export function meetingPrepEnabled(): boolean {
 export function conservativeTokens(value: string): number {
   return Buffer.byteLength(value, 'utf8');
 }
+
+/** Debrief D1/D2 budgets. The job deadline must stay >= 10 minutes (D1). */
+export const MEETING_DEBRIEF_POLICY = {
+  version: 'meeting-debrief-v1',
+  /** Hard upper bound on the assembled model context (D2). */
+  contextTokens: 8_000,
+  deadlineMs: 15 * 60_000,
+  leaseMs: 90_000,
+  heartbeatMs: 15_000,
+  maxAttempts: 3,
+  /** Bounded continuity: how many of the client's own prior debriefs may be read. */
+  recentDebriefs: 3,
+  /** Per-section caps keep one section from crowding out the reviewed source. */
+  sectionTokens: {
+    prep: 2_000,
+    visibleNotes: 2_000,
+    attendees: 1_000,
+    meeting: 800,
+    client: 400,
+    openTasks: 600,
+    recentDebriefs: 900,
+    steeringContext: 600,
+  },
+} as const;
+
+/**
+ * Rollout gate for the async debrief job (D1). While it is off the route keeps its
+ * existing synchronous 201 behaviour, and the worker never claims a job.
+ */
+export function meetingDebriefJobEnabled(): boolean {
+  return process.env.MEETING_DEBRIEF_JOB_ENABLED === 'true';
+}

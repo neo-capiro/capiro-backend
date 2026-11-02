@@ -34,7 +34,8 @@ export async function fetchFederalMetadata(
     const values: unknown[] = [],
       seen = new Set<number>();
     let next: string | null = `${base}/${resource}?limit=250&offset=0`,
-      expected: number | null = null;
+      expected: number | null = null,
+      received = 0;
     while (next) {
       const url = new URL(next),
         offset = Number(url.searchParams.get('offset') ?? 0);
@@ -44,7 +45,7 @@ export async function fetchFederalMetadata(
         url.username ||
         url.password ||
         url.hash ||
-        offset !== values.length ||
+        offset !== received ||
         seen.has(offset)
       )
         throw Error('FEDERAL_METADATA_PAGINATION_SCOPE_INVALID');
@@ -52,16 +53,29 @@ export async function fetchFederalMetadata(
       url.searchParams.set('limit', '250');
       const response = federalObject(await call(url.href)),
         pagination = federalObject(response.pagination);
-      let page: unknown[];
+      let page: unknown[],
+        policyAreaCount = 0;
       if (resource === 'subjects') {
         const normalized = await fetchCongressSubjects(async () => response);
         if (!normalized.ok) throw Error('FEDERAL_METADATA_SUBJECTS_INCOMPLETE');
         page = normalized.data;
+        const policyArea = response.subjects.policyArea;
+        if (policyArea !== undefined && policyArea !== null) {
+          if (
+            typeof policyArea !== 'object' ||
+            Array.isArray(policyArea) ||
+            typeof policyArea.name !== 'string' ||
+            !policyArea.name.trim()
+          )
+            throw Error('FEDERAL_METADATA_SUBJECTS_INCOMPLETE');
+          policyAreaCount = 1;
+        }
       } else {
         if (!Array.isArray(response.cosponsors))
           throw Error('FEDERAL_METADATA_COSPONSORS_INCOMPLETE');
         page = response.cosponsors;
       }
+      const pageCount = page.length + policyAreaCount;
       const count =
         resource === 'cosponsors'
           ? (pagination.countIncludingWithdrawnCosponsors ?? pagination.count)
@@ -69,7 +83,7 @@ export async function fetchFederalMetadata(
       // Subjects without pagination are documented as one complete subresource;
       // cosponsors require their explicit total, including withdrawn episodes.
       const total =
-        resource === 'subjects' && count === undefined && !pagination.next ? page.length : count;
+        resource === 'subjects' && count === undefined && !pagination.next ? pageCount : count;
       if (
         !Number.isInteger(total) ||
         total < 0 ||
@@ -79,11 +93,14 @@ export async function fetchFederalMetadata(
         throw Error('FEDERAL_METADATA_COUNT_INVALID');
       expected = total;
       values.push(...page);
+      // The subjects endpoint paginates legislative subjects AND policy area.
+      // Track its raw cardinality without storing policyArea as a legislative subject.
+      received += pageCount;
       next = pagination.next ?? null;
-      if (values.length > total || (next && (!page.length || typeof next !== 'string')))
+      if (received > total || (next !== null && (!pageCount || typeof next !== 'string' || !next)))
         throw Error('FEDERAL_METADATA_TRUNCATED');
     }
-    if (values.length !== expected) throw Error('FEDERAL_METADATA_TRUNCATED');
+    if (received !== expected) throw Error('FEDERAL_METADATA_TRUNCATED');
     return values;
   }
   const subjects = (await all('subjects')) as string[],

@@ -12,10 +12,9 @@ import { SourceDataRepository } from '../src/sourcedata/source-data.repository.j
 import { KeywordSourceRepository } from '../src/sourcedata/keyword-source.repository.js';
 import { FolderTrackerService } from '../src/tracker/folders/folder-tracker.service.js';
 import { FeatureFlagService } from '../src/feature-flags/feature-flag.service.js';
-import { ReportService } from '../src/tracker/reports/report.service.js';
+import { DraftAccessService } from '../src/tracker/delivery/draft-access.service.js';
 import { KeywordRuleService } from '../src/tracker/keywords/keyword-rule.service.js';
 import { ResearchService } from '../src/tracker/research/research.service.js';
-import { ResearchImportService } from '../src/tracker/research/research-import.service.js';
 import { StatuteMonitorService } from '../src/tracker/research/statute-monitor.service.js';
 import { CalendarPreparationService } from '../src/tracker/calendar/calendar-preparation.service.js';
 import { InternalWorkflowService } from '../src/tracker/keywords/internal-workflow.service.js';
@@ -30,7 +29,7 @@ describe('Phase 7 exact research, tenant boundaries and durable Workspace receip
     new SourceDataRepository(p),
   );
   const flags = new FeatureFlagService(p, new ConfigService()),
-    reports = new ReportService(folders, flags);
+    reports = new DraftAccessService(folders, flags);
   const keywords = new KeywordRuleService(reports, new KeywordSourceRepository(p)),
     research = new ResearchService(keywords);
   const collaborators = new CollaboratorsService(ws, {} as never),
@@ -72,7 +71,6 @@ describe('Phase 7 exact research, tenant boundaries and durable Workspace receip
       for (const feature of [
         'legiwatch_research_v1',
         'legiwatch_internal_workflows_v1',
-        'legiwatch_reports_updates_v1',
         'legiwatch_state_calendar_v1',
       ])
         await tx.featureFlag.create({ data: { tenantId: tenant, feature, enabled: true } });
@@ -256,111 +254,10 @@ describe('Phase 7 exact research, tenant boundaries and durable Workspace receip
     expect(result.steps.draftId).toBe((saved as any).draft.draftId);
     expect((await actions.execute(ctx, action.id)).steps.draftId).toBe(result.steps.draftId);
   });
-  test('legal import retries retain one source membership and preserve a manual removal', async () => {
-    const importer = new ResearchImportService(research),
-      referenceId = 'synthetic-reference-' + randomUUID(),
-      revisionId = randomUUID(),
-      sourceAccount = 'synthetic-p7-' + randomUUID();
-    const raw = {
-      folder_id: 'source-folder',
-      statute_label: 'Sec. 395.003',
-      title: 'Synthetic title',
-      statute_url: '',
-    };
-    const staged = await p.withSystem(async (tx) => {
-      await tx.$executeRaw`INSERT INTO legal_reference(id,jurisdiction,code_kind,reference_kind,chapter,section,identity) VALUES(${referenceId},'FL','statute','section','395','395.003','{"jurisdiction":"FL","code":"statute","kind":"section","chapter":"395","section":"395.003","subdivisions":[]}'::jsonb)`;
-      await tx.$executeRaw`INSERT INTO legal_text_revision(id,reference_id,edition,source_url,content_hash,extraction_hash,parser_version,title,sections,complete,coverage) VALUES(${revisionId},${referenceId},'2026','https://www.flsenate.gov/','fixture','fixture','fixture','Synthetic fixture','[]'::jsonb,true,'{}'::jsonb)`;
-      await tx.legiWatchSourceMapping.create({
-        data: {
-          tenantId: tenant,
-          sourceAccount,
-          kind: 'folder',
-          sourceId: 'source-folder',
-          targetId: folderId,
-          sourceHash: 'fixture',
-          targetVersion: 0,
-          runId: randomUUID(),
-        },
-      });
-      return tx.legiWatchStagedConfiguration.create({
-        data: {
-          tenantId: tenant,
-          sourceAccount,
-          kind: 'statute',
-          sourceId: 'source-membership',
-          payload: raw,
-          provenance: { captureId: 'synthetic' },
-        },
-      });
-    });
-    const request = {
-      ...scope(),
-      stagedId: staged.id,
-      sourceHash: hash(staged.payload),
-      expectedVersion: staged.version,
-      status: 'imported',
-      reason: 'Synthetic explicit mapping',
-      requestKey: randomUUID(),
-      edition: '2026',
-      referenceId,
-      revisionId,
-      resolutionBasis: 'Synthetic test fixture',
-      expectedMembershipVersion: 0,
-    };
-    const first: any = await importer.decide(ctx, request);
-    expect(first.status).toBe('imported');
-    expect(first.targetVersion).toBe(1);
-    expect(await importer.decide(ctx, request)).toEqual(first);
-    await research.saveMembership(ctx, {
-      ...scope(),
-      referenceId,
-      remove: true,
-      expectedVersion: 1,
-      requestKey: randomUUID(),
-    });
-    const retried: any = await importer.decide(ctx, {
-      ...request,
-      requestKey: randomUUID(),
-      expectedMembershipVersion: 2,
-    });
-    expect(retried).toMatchObject({ status: 'unresolved', reason: 'MANUAL_REMOVAL_PRESERVED' });
-    const [membership] = await p.$queryRaw<
-      Array<{ removed: boolean; source_memberships: unknown[] }>
-    >`SELECT removed,source_memberships FROM intel_legiwatch_legal_membership WHERE tenant_id=${tenant} AND folder_id=${folderId} AND reference_id=${referenceId}`;
-    expect(membership!.removed).toBe(true);
-    expect(membership!.source_memberships).toHaveLength(1);
-  });
-  test('report review pins edited Workspace output, detects changed text and recovers one immutable report', async () => {
+  test('research draft pins edited Workspace output, detects changed text and recovers one immutable draft', async () => {
     const saved: any = await research.saveResearch(ctx, saveInput()),
       service = new ResearchReportService(research);
-    const base = await p.withSystem(async (tx) => {
-      const report = await tx.legiWatchReport.create({
-        data: {
-          tenantId: tenant,
-          ownerClerkId: actor,
-          name: 'Synthetic research report',
-          folderIds: [folderId],
-          jurisdiction: 'FL',
-          sessionKey: session,
-          settings: {},
-        },
-      });
-      return tx.legiWatchReportRun.create({
-        data: {
-          tenantId: tenant,
-          reportId: report.id,
-          definitionVersion: report.version,
-          createdBy: actor,
-          audience: 'internal',
-          cutoff: '2026-09-13',
-          snapshot: { rows: [] },
-          rendered: { html: '<html><body>Base report</body></html>', text: 'Base report' },
-          contentHash: hash('base'),
-          complete: true,
-        },
-      });
-    });
-    const b = { selectionId: saved.selectionId, runId: base.id },
+    const b = { selectionId: saved.selectionId },
       first = await service.preview(ctx, b);
     await ws.wsDocument.updateMany({
       where: { tenantId: tenant, draftId: saved.draft.draftId },

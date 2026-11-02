@@ -4,12 +4,13 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
   firstChatCoreIntegrationsConfiguration,
+  firstChatCoreNoteTakerConfiguration,
   previewFirstChatCoreApplication,
 } from '../lib/preview/first-chat-core';
 import { previewFirstChatEdgeApplication } from '../lib/preview/first-chat-preview-edge';
 
 const usage =
-  'Usage: preview-first-chat-core --render <image-binding.json> <fresh-output-directory> | --render-integrations <integration-binding.json> <fresh-output.json> | --render-edge <fresh-output-directory> | --render-edge-with-dns <fresh-output-directory> | --help';
+  'Usage: preview-first-chat-core --render <image-binding.json> <fresh-output-directory> | --render-integrations <integration-binding.json> <fresh-output.json> | --render-notetaker <note-taker-binding.json> <fresh-output.json> | --render-edge <fresh-output-directory> | --render-edge-with-dns <fresh-output-directory> | --help';
 
 /** Renders a source proposal. No AWS call, task, migration, or image build. */
 export function main(args: string[]): number {
@@ -32,7 +33,7 @@ export function main(args: string[]): number {
       return 2;
     }
   }
-  if (args.length !== 3 || !['--render', '--render-integrations'].includes(args[0]!)) {
+  if (args.length !== 3 || !['--render', '--render-integrations', '--render-notetaker'].includes(args[0]!)) {
     console.error(usage);
     return 2;
   }
@@ -57,6 +58,13 @@ export function main(args: string[]): number {
       const configuration = firstChatCoreIntegrationsConfiguration(binding);
       fs.writeFileSync(output, JSON.stringify(configuration, null, 2) + '\n', { flag: 'wx' });
       console.log('Rendered preview integration overlay only. No AWS operation performed.');
+      return 0;
+    }
+    if (args[0] === '--render-notetaker') {
+      if (path.extname(output) !== '.json') throw new Error('JSON output required');
+      const configuration = firstChatCoreNoteTakerConfiguration(binding);
+      fs.writeFileSync(output, JSON.stringify(configuration, null, 2) + '\n', { flag: 'wx' });
+      console.log('Rendered preview note-taker overlay only. No AWS operation performed.');
       return 0;
     }
     const { app } = previewFirstChatCoreApplication(binding, output);

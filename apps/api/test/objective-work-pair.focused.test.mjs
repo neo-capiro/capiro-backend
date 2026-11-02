@@ -131,18 +131,36 @@ const writes = owner => owner.events.filter(e => ['insertControl', 'insertConsen
 const stored = (owner, r) => owner.data.receipts[receiptKey(owner.data.authority, r.command.workAction, r.command.requestId)];
 const seedSingle = (owner, r) => executeWorkCommand(r, owner.single(r.command.workAction));
 
-test('actual source custody and explicit route retain one proof/transaction owner and unavailable default', t => {
+test('actual source custody and explicit route retain one proof owner for replay and refuse new paired writes', async t => {
   const service = readFileSync(new URL('../src/clients/objectives/work/objective-work.service.ts', import.meta.url), 'utf8');
   const controller = readFileSync(new URL('../src/clients/objectives/work/objective-work.controller.ts', import.meta.url), 'utf8');
   assert.match(controller, /@Post\('confirm-pair'\)/);
   const pairStore = service.slice(service.indexOf('private pairStore'), service.indexOf('private async proofTransaction'));
   assert.equal((pairStore.match(/this\.proofTransaction\(/g) ?? []).length, 1);
-  assert.match(pairStore, /const owned = this\.ports\(tx,/);
-  assert.match(pairStore, /strategy: port\(request\.strategy, 'objective\.strategy\.draft'\)/);
-  assert.match(pairStore, /planner: port\(request\.planner, 'objective\.plan\.prepare'\)/);
-  assert.match(pairStore, /if \(expires\.length === 0\) return/);
-  assert.match(pairStore, /LEAST\(\$\{expires\[0\]!\}::timestamptz,\$\{expires\[1\]!\}::timestamptz\)/);
+  const replayPorts = service.slice(service.indexOf('private replayPorts'), service.indexOf('private replayOnlyStrategyStore'));
+  assert.match(replayPorts, /this\.ports\(tx, ctx, request, action, proof, false\)/);
+  assert.match(replayPorts, /FROM client_objective_strategy_intakes/);
+  assert.match(replayPorts, /command_receipt_id=\$\{stored\.receipt\.receiptId\}::uuid/);
+  assert.match(replayPorts, /selected\.length !== 0\) workFailure\('AUTHORITY_UNAVAILABLE', id\)/);
   assert.match(service, /state: 'unavailable' as const/);
+  // Run the actual isolated pairStore method: a new pair must refuse before opening any proof transaction.
+  const probeSource = stripTypeScriptTypes(`export class Probe { ${pairStore} }`, { mode: 'strip' });
+  const { Probe } = await import(`data:text/javascript;base64,${Buffer.from(
+    `import { ObjectiveWorkError } from ${JSON.stringify(`data:text/javascript;base64,${Buffer.from(stripped).toString('base64')}`)};\n${probeSource}`
+  ).toString('base64')}`);
+  const probe = new Probe(), r = request(), ctx = {}, proof = {}, tx = {}, calls = [];
+  probe.proofTransaction = async (...args) => {
+    calls.push('proof'); assert.deepEqual(args.slice(0, 3), [ctx, proof, r.strategy.command.requestId]);
+    return args[3](tx);
+  };
+  probe.replayPorts = (...args) => { calls.push(args); return { action: args[4] }; };
+  const owner = probe.pairStore(ctx, r, proof);
+  await fail(() => owner.transaction(true, async () => assert.fail('new pair must not run')), 'AUTHORITY_UNAVAILABLE');
+  assert.deepEqual(calls, []);
+  assert.deepEqual(await owner.transaction(false, async ports => ports), {
+    strategy: { action: STRATEGY }, planner: { action: PLANNER },
+  });
+  assert.deepEqual(calls, ['proof', [tx, ctx, r.strategy, proof, STRATEGY], [tx, ctx, r.planner, proof, PLANNER]]);
   t.diagnostic(JSON.stringify({ kernelSha256: SHA(kernelBytes), policySha256: SHA(policyBytes), regenerationSha256: SHA(regenerationBytes),
     serviceSha256: SHA(service), controllerSha256: SHA(controller) }));
 });

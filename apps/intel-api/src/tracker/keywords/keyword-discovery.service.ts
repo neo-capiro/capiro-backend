@@ -8,7 +8,7 @@ import {
 import { randomUUID } from 'node:crypto';
 import type { WorkspaceTenantContext } from '../../auth/tenant-context.js';
 import type { Prisma } from '../../../generated/prisma-client/index.js';
-import { object } from '../reports/report-domain.js';
+import { object } from '../delivery/delivery-domain.js';
 import { hash } from '../folders/folder-tracker.service.js';
 import { membershipState, writeMembershipDecision } from '../folders/folder-decisions.js';
 import { compileDefinitions, queryReadiness, type KeywordRule } from './keyword-domain.js';

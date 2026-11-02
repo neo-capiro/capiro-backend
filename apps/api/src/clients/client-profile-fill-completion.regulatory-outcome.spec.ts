@@ -1,32 +1,9 @@
-import { BadRequestException } from '@nestjs/common';
+import { ClientProfileFillOutcomeApplication } from './client-profile-fill-outcome-application.js';
 import { ClientProfileFillCompletionService } from './client-profile-fill-completion.service.js';
 import { ClientAdvocacyMatterService } from './client-advocacy-matter.service.js';
 
-/**
- * Deterministic regulatory outcome correlation — the "Government Movement
- * -> Outcome" step `suggestFederalRegisterCorrelations` (PR #1310)
- * deliberately left as separately-confirmed follow-on work.
- *
- * `emitRegulatoryOutcomeFindings` has no reachable public entry point in
- * this codebase without simulating the full task-queue worker loop
- * (start run -> sweep -> runTask -> executeTask -> gatherAdvocacyHistory ->
- * gatherFederalRegisterBackfill) — none of that machinery's gather* methods
- * have direct unit coverage anywhere in this file's existing test suite
- * either (see client-profile-fill-completion.service.spec.ts, which only
- * covers this service's pure exported functions). Reached directly here
- * via `(service as any)` instead, the one place in this spec file that
- * departs from the established public-entry-point convention, specifically
- * because "duplicate rerun idempotency" and "tenant/client isolation" are
- * required, direct-test-worthy properties of the new wiring itself, not
- * just of the pure functions it calls.
- *
- * `applyRegulatoryOutcome` IS reachable publicly via `applyFindings`
- * (mirroring `client-profile-fill-pending-finding-matter-assign.service.spec.ts`'s
- * own convention exactly), so it is tested that way — including through the
- * real `ClientAdvocacyMatterService` wired to the same tx mock, same reason
- * that spec file gives: the Matter-link half of this feature lives at the
- * boundary between the two services.
- */
+/** Discovery remains provisional; writer tests cover evidence semantics and
+ * post-commit links. Real receipt/acceptance atomicity is exercised in PostgreSQL. */
 describe('ClientProfileFillCompletionService — deterministic regulatory outcome correlation', () => {
   const tenantId = '11111111-1111-1111-1111-111111111111';
   const userId = 'user-1';
@@ -86,7 +63,8 @@ describe('ClientProfileFillCompletionService — deterministic regulatory outcom
       {} as never,
       advocacyMatters,
     );
-    return { service, tx, prisma };
+    const outcomes = new ClientProfileFillOutcomeApplication(prisma as never, advocacyMatters, {warn:jest.fn(),safeError:()=> 'Synthetic failure'});
+    return { service, tx, prisma, outcomes };
   }
 
   describe('emitRegulatoryOutcomeFindings', () => {
@@ -176,7 +154,7 @@ describe('ClientProfileFillCompletionService — deterministic regulatory outcom
     });
   });
 
-  describe('applyRegulatoryOutcome (via the public applyFindings entry point)', () => {
+  describe('regulatory outcome canonical writer (atomic acceptance covered by PostgreSQL)', () => {
     function pendingRegulatoryOutcomeFinding(overrides: Partial<Record<string, unknown>> = {}) {
       return {
         id: findingId,
@@ -207,69 +185,25 @@ describe('ClientProfileFillCompletionService — deterministic regulatory outcom
       };
     }
 
-    test('accepting the finding creates a causation-free OutcomeEvent and links it into the Matter', async () => {
-      const { service, tx } = makeHarness();
-      // loadFindings is the only $queryRawUnsafe call this path strictly
-      // needs (linkToMatter is a plain INSERT, no read first); getRun's own
-      // follow-up queries at the end of applyFindings fall back to the tx
-      // mock's default `[]` return and are not what this test asserts on.
-      tx.$queryRawUnsafe.mockResolvedValueOnce([pendingRegulatoryOutcomeFinding()]);
-
-      const result = await service.applyFindings(ctx, clientId, runId, [findingId]);
-
-      expect(result).toBeDefined();
+    test('creates a causation-free OutcomeEvent and links it after a standalone commit', async () => {
+      const { outcomes, tx } = makeHarness();
+      tx.$queryRawUnsafe.mockResolvedValue([{ id: matterId }]);
+      await outcomes.applyRegulatoryOutcome(ctx, clientId, pendingRegulatoryOutcomeFinding() as never);
       expect(tx.outcomeEvent.create).toHaveBeenCalledTimes(1);
-      const createArgs = (tx.outcomeEvent.create as jest.Mock).mock.calls[0][0];
-      expect(createArgs.data).toMatchObject({
-        tenantId,
-        clientId,
-        kind: 'regulatory_action_published',
-        sourceType: 'regulatory_document',
-        sourceId: '2026-00002',
-        recordedBy: userId,
-      });
-      expect(createArgs.data.evidence).toMatchObject({
-        docketId: 'DOD-2026-OS-0001',
-        documentNumber: '2026-00002',
-        matchedOn: 'docket_id',
-        causationClaimed: false,
-      });
-
-      const matterLinkInsert = tx.$executeRawUnsafe.mock.calls.find((call) =>
-        String(call[0]).includes('INSERT INTO client_advocacy_matter_link'),
-      );
-      expect(matterLinkInsert).toBeDefined();
-      expect(matterLinkInsert).toContain('outcome_event');
-      expect(matterLinkInsert).toContain('outcome-event-1');
-
-      const acceptUpdate = tx.$executeRawUnsafe.mock.calls.find((call) =>
-        String(call[0]).includes('client_profile_fill_finding') && String(call[0]).includes("'accepted'"),
-      );
-      expect(acceptUpdate).toBeDefined();
+      const args = tx.outcomeEvent.create.mock.calls[0]![0];
+      expect(args.data).toMatchObject({ tenantId,clientId,kind:'regulatory_action_published',sourceType:'regulatory_document',recordedBy:userId });
+      expect(args.data.evidence).toMatchObject({ docketId:'DOD-2026-OS-0001',documentNumber:'2026-00002',matchedOn:'docket_id',causationClaimed:false });
+      expect(tx.$executeRawUnsafe.mock.calls.some(call=>String(call[0]).includes('INSERT INTO client_advocacy_matter_link'))).toBe(true);
     });
-
-    test('review state preserved: a finding that is no longer pending cannot be applied a second time', async () => {
-      const { service, tx } = makeHarness();
-      tx.$queryRawUnsafe.mockResolvedValueOnce([
-        pendingRegulatoryOutcomeFinding({ status: 'accepted' }),
-      ]);
-
-      await expect(service.applyFindings(ctx, clientId, runId, [findingId])).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
-      expect(tx.outcomeEvent.create).not.toHaveBeenCalled();
-    });
-
-    test('a rejected finding also cannot be re-applied — rejection is a terminal state, not a retryable one', async () => {
-      const { service, tx } = makeHarness();
-      tx.$queryRawUnsafe.mockResolvedValueOnce([
-        pendingRegulatoryOutcomeFinding({ status: 'rejected' }),
-      ]);
-
-      await expect(service.applyFindings(ctx, clientId, runId, [findingId])).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
-      expect(tx.outcomeEvent.create).not.toHaveBeenCalled();
+    test('a composed review defers the Matter link until its enclosing transaction commits', async () => {
+      const { outcomes,tx } = makeHarness();
+      tx.$queryRawUnsafe.mockResolvedValue([{ id:matterId }]);
+      const afterCommit:Array<()=>unknown|Promise<unknown>>=[];
+      await outcomes.applyRegulatoryOutcome(ctx,clientId,pendingRegulatoryOutcomeFinding() as never,{tx:tx as never,afterCommit});
+      expect(tx.outcomeEvent.create).toHaveBeenCalledTimes(1);
+      expect(tx.$executeRawUnsafe.mock.calls.some(call=>String(call[0]).includes('INSERT INTO client_advocacy_matter_link'))).toBe(false);
+      expect(afterCommit).toHaveLength(1);await afterCommit[0]!();
+      expect(tx.$executeRawUnsafe.mock.calls.some(call=>String(call[0]).includes('INSERT INTO client_advocacy_matter_link'))).toBe(true);
     });
   });
 });

@@ -3,18 +3,13 @@ import { BadRequestException, Injectable, Logger, ServiceUnavailableException } 
 import { ConfigService } from '@nestjs/config';
 import { parseProviderUsage, type ProviderUsage, type TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
+import type { MeetingDebriefContextInput } from './meeting-debrief-context.js';
 import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
 import { FederalSpendingService } from '../federal-spending/federal-spending.service.js';
 import {
   AiCredentialResolverService,
   type ResolvedAiCredential,
 } from './ai-credential-resolver.service.js';
-import {
-  buildOutreachPromptV2,
-  OUTREACH_PROMPT_SPEC_VERSION,
-  resolveOutreachMaxTokens,
-  type OutreachPromptV2,
-} from './outreach-prompt/prompt-spec-v2.js';
 import { LlmCompletionService } from './llm-completion.service.js';
 import {
   AgentSdkCompletionService,
@@ -25,10 +20,6 @@ import { MEETING_PREP_POLICY } from './meeting-prep-policy.js';
 import { generateComprehensiveMeetingPrep, type ComprehensiveBriefing } from './meeting-prep-comprehensive.js';
 import { verifyMailRewrite } from './mail-rewrite-verifier.js';
 import { prepAttendees, prepEvidenceSources, prepMeetingLogistics, buildPrepEvidence, type PrepEvidenceSource, type MeetingPrepGrounding } from './meeting-prep-grounding.js';
-
-/** Legacy v1 outreach system line (Anthropic only; v1 OpenAI had none). */
-const LEGACY_OUTREACH_SYSTEM =
-  'You draft precise lobbying outreach from supplied CRM context. Return only valid JSON that matches the requested schema.';
 
 const AI_TIMEOUT_MS = 90_000;
 
@@ -145,51 +136,8 @@ export const POST_MEETING_MEMO_GUIDANCE_TEXT = [
   'For optional sections, include them only when source context supports them.',
 ].join('\n');
 
-const POST_MEETING_MEMO_GUIDANCE = POST_MEETING_MEMO_GUIDANCE_TEXT;
-
-const PROMPT_TEMPLATE_GUIDANCE: Record<string, string> = {
-  thank_you:
-    "Tone: warm, gracious thank-you. Acknowledge the recipient's recent action or support, name the specific reason for thanks, and close with a brief offer to stay in touch. No new asks.",
-  follow_up:
-    'Tone: polite follow-up. Reference the prior touchpoint or meeting (use supplied notes/debriefs if present), restate one clear ask or next step, and propose a concrete next action.',
-  memo: 'Format as a concise memo / position paper. Lead with a one-line summary, then short Background, Ask, and Supporting Points sections. Keep under 300 words; use plain language.',
-  post_meeting_memo: POST_MEETING_MEMO_GUIDANCE,
-  introduction:
-    "Tone: introductory, professional. Briefly introduce the client and why you are reaching out, the relevance to the recipient's portfolio, and a low-friction first ask (e.g., a 15-minute conversation).",
-  meeting_request:
-    'Goal: request a meeting. State the reason for meeting, suggested 2-3 scheduling windows, who would attend, and a one-sentence agenda. Keep it short.',
-  status_update:
-    'Tone: brief progress update. List 2-4 short bullets on activity since last contact, current status, and next planned step. No new asks unless directly tied to the update.',
-};
-
-export interface OutreachDraftResult {
-  subject: string;
-  body: string;
-  contextNote: string;
-  provider: 'openai' | 'anthropic';
-  model: string;
-  usage?: ProviderUsage;
-  usedTenantKey?: boolean;
-  /** Prompt-assembly spec that produced this draft ('v1' legacy | 'v2' PromptSpec v2). */
-  promptSpecVersion?: string;
-  raw: unknown;
-}
-
-export interface MeetingDebriefDraftInput {
-  meeting: Record<string, unknown>;
-  client: Record<string, unknown> | null;
-  attendees: Array<Record<string, unknown>>;
-  prep: Record<string, unknown> | null;
-  source: { method: 'upload' | 'manual' | 'voice'; text: string };
-  visibleNotes: Array<Record<string, unknown>>;
-  clientContext: Record<string, unknown> | null;
-  congressionalDirectoryMatches: Array<Record<string, unknown>>;
-  recentMeetings: Array<Record<string, unknown>>;
-  recentThreads: Array<Record<string, unknown>>;
-  /** Firm identity + author voice + client strategic memory (rendered),
-   *  standing background for framing/tone only — never treated as meeting facts. */
-  steeringContext?: string | null;
-}
+/** D2: bounded context only — no mail threads, no client timeline, no directory. */
+export type MeetingDebriefDraftInput = MeetingDebriefContextInput;
 
 export interface MeetingDebriefDraftResult {
   recap: string;
@@ -199,28 +147,6 @@ export interface MeetingDebriefDraftResult {
   model: string;
   usage?: ProviderUsage;
   usedTenantKey?: boolean;
-  raw: unknown;
-}
-
-export interface CampaignEmailInput {
-  campaign: Record<string, unknown>;
-  client: Record<string, unknown> | null;
-  meeting: Record<string, unknown> | null;
-  debrief: Record<string, unknown> | null;
-  prep: Record<string, unknown> | null;
-  recipients: Array<Record<string, unknown>>;
-  campaignType: string;
-  customContext?: string | null;
-}
-
-export interface CampaignEmailResult {
-  subject: string;
-  body: string;
-  provider: 'openai' | 'anthropic';
-  model: string;
-  usage?: ProviderUsage;
-  usedTenantKey?: boolean;
-  raw: unknown;
 }
 
 export interface RewriteEmailInput {
@@ -275,17 +201,6 @@ const meetingPrepJsonSchema = {
       },
     },
     limitations: { type: 'array', items: { type: 'string' } },
-  },
-};
-
-const outreachDraftJsonSchema = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['subject', 'body', 'contextNote'],
-  properties: {
-    subject: { type: 'string' },
-    body: { type: 'string' },
-    contextNote: { type: 'string' },
   },
 };
 
@@ -351,10 +266,10 @@ Do not include markdown fences, introductory text, commentary, or fields outside
 /**
  * Rules body for the meeting-debrief generator. The context section at the end
  * of buildDebriefPrompt() supplies the actual data as a single JSON dump
- * (meeting/client/attendees/prep/source/visibleNotes/clientContext/
- * congressionalDirectoryMatches/recentMeetings/recentThreads) rather than the
- * per-field tags implied below — "supplied JSON context" in section 1 and the
- * final instruction both refer to that dump.
+ * (meeting/client/attendees/prep/source/visibleNotes/openTasks/recentDebriefs)
+ * rather than the per-field tags implied below — "supplied JSON context" in
+ * section 1 and the final instruction both refer to that dump. The dump is
+ * bounded before it is built; see meeting-debrief-context.ts.
  */
 const MEETING_DEBRIEF_INSTRUCTIONS = `Create a polished, CRM-ready meeting debrief from the supplied transcript, notes, meeting metadata, and contextual records.
 
@@ -369,7 +284,7 @@ Source priority:
 1. \`source.text\`: primary evidence of what was said during the meeting
 2. \`visibleNotes\`: user-entered notes about the meeting
 3. Confirmed meeting and attendance metadata
-4. Client, contact, directory, preparation, recent-meeting, and recent-thread context
+4. Client identity, attendee roster, preparation, and labelled continuity (open commitments and earlier debriefs for this client)
 
 Context may help identify names, organizations, acronyms, or the significance of a discussion. It must not be treated as evidence that something occurred during this meeting.
 
@@ -736,16 +651,6 @@ Before returning the JSON, confirm that:
 * The output contains valid JSON only
 * The output contains exactly \`recap\`, \`actionItems\`, and \`notes\``;
 
-const campaignEmailJsonSchema = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['subject', 'body'],
-  properties: {
-    subject: { type: 'string' },
-    body: { type: 'string' },
-  },
-};
-
 @Injectable()
 export class EngagementAiService {
   private readonly logger = new Logger(EngagementAiService.name);
@@ -754,9 +659,6 @@ export class EngagementAiService {
   private readonly preferredProvider?: 'openai' | 'anthropic';
   private readonly openaiModel: string;
   private readonly anthropicModel: string;
-  private readonly outreachPromptSpec: 'v1' | 'v2';
-  private readonly outreachProvider?: 'openai' | 'anthropic';
-  private readonly outreachDraftModel: string;
   /** Debrief-only model overrides (see config.schema DEBRIEF_*_MODEL). */
   private readonly debriefOpenaiModel: string;
   private readonly debriefAnthropicModel: string;
@@ -792,9 +694,6 @@ export class EngagementAiService {
     this.preferredProvider = config.get('AI_PROVIDER', { infer: true });
     this.openaiModel = config.get('OPENAI_MODEL', { infer: true });
     this.anthropicModel = config.get('ANTHROPIC_MODEL', { infer: true });
-    this.outreachPromptSpec = config.get('OUTREACH_PROMPT_SPEC', { infer: true });
-    this.outreachProvider = config.get('OUTREACH_PROVIDER', { infer: true });
-    this.outreachDraftModel = config.get('OUTREACH_DRAFT_MODEL', { infer: true });
     this.debriefOpenaiModel = config.get('DEBRIEF_OPENAI_MODEL', { infer: true });
     this.debriefAnthropicModel = config.get('DEBRIEF_ANTHROPIC_MODEL', { infer: true });
     this.meetingPrepOpenaiModel = config.get('MEETING_PREP_OPENAI_MODEL', { infer: true });
@@ -806,37 +705,6 @@ export class EngagementAiService {
    * user prefix + a cached system block). The batch generator uses this to decide
    * whether the warm-first fan-out (draft #1 first, then parallelize) is worth the
    * extra latency — it only pays off when there is a cache to warm.
-   */
-  get outreachCachingEnabled(): boolean {
-    return this.outreachPromptSpec === 'v2';
-  }
-
-  /**
-   * Assemble the outreach prompt for the active spec version. v2 (PromptSpec v2,
-   * plan §3.1) applies to the campaign workflow only — follow_up/prep/outbound
-   * keep their own bespoke guidance under v1 regardless of the flag. Returns a
-   * `{ system, user }` split; v1 has no real system prompt so `system` is null
-   * and the caller uses its existing one-line system string.
-   */
-  private assembleOutreachPrompt(input: OutreachDraftInput): {
-    system: string | null;
-    user: string;
-    spec: OutreachPromptV2 | null;
-  } {
-    if (this.outreachPromptSpec === 'v2' && input.workflow === 'campaign') {
-      const templateGuidanceText =
-        input.promptTemplate && input.promptTemplate !== 'custom'
-          ? (PROMPT_TEMPLATE_GUIDANCE[input.promptTemplate] ?? null)
-          : null;
-      const spec = buildOutreachPromptV2({ ...input, templateGuidanceText });
-      return { system: spec.system, user: spec.user, spec };
-    }
-    return { system: null, user: this.buildOutreachPrompt(input), spec: null };
-  }
-
-  /**
-   * Try to extract a client name from various AI input shapes for federal
-   * contractor lookup. Returns null when no name is present.
    */
   private extractClientName(input: { client?: Record<string, unknown> | null }): string | null {
     const c = input.client;
@@ -970,50 +838,6 @@ export class EngagementAiService {
     );
   }
 
-  async generateOutreachDraft(
-    input: OutreachDraftInput,
-    ctx?: TenantContext | null,
-    opts?: { creds?: ResolvedAiCredential[] },
-  ): Promise<OutreachDraftResult> {
-    const federalContext = await this.buildFederalContextBlock(this.extractClientName(input));
-    const enriched = federalContext
-      ? { ...input, context: { ...input.context, federalLobbyIntel: federalContext } }
-      : input;
-    // Campaign-sticky provider (M2/W3.2): when the caller supplies a pre-resolved
-    // credential list (the batch pins ONE provider for the whole campaign), use it
-    // as-is instead of re-resolving per recipient — so a mid-campaign fallback can
-    // never split one send across two provider "voices".
-    if (opts?.creds) {
-      return this.invokeWithCreds('AI outreach drafting', opts.creds, (cred) =>
-        this.draftOutreachViaClient(enriched, cred),
-      );
-    }
-    return this.withCredentialFallback(
-      'AI outreach drafting',
-      ctx,
-      (cred) => this.draftOutreachViaClient(enriched, cred),
-      { preferredProvider: this.outreachProvider },
-    );
-  }
-
-  /**
-   * Resolve the ordered outreach credential list (global resolver order, then the
-   * outreach provider preference applied — Anthropic-first per D2 when configured).
-   * The batch generator resolves this ONCE and pins the winning provider across the
-   * whole campaign (M2). Returns [] when nothing is configured; the caller decides
-   * whether that is a hard failure.
-   */
-  async resolveOutreachCredentials(ctx?: TenantContext | null): Promise<ResolvedAiCredential[]> {
-    const creds = await this.credentials.resolveOrder(ctx ?? null);
-    return this.applyPreferredProvider(creds, this.outreachProvider);
-  }
-
-  /** Credential order for V3 generation under the dedicated runtime action. */
-  async resolveOutreachV3Credentials(ctx: TenantContext): Promise<ResolvedAiCredential[]> {
-    const creds = await this.credentials.resolveOrderForOutreachV3Generation(ctx);
-    return this.applyPreferredProvider(creds, this.outreachProvider);
-  }
-
   async generateMeetingDebrief(
     input: MeetingDebriefDraftInput,
     ctx?: TenantContext | null,
@@ -1122,26 +946,6 @@ export class EngagementAiService {
         };
       }
     });
-  }
-
-  async generateCampaignEmail(
-    input: CampaignEmailInput,
-    ctx?: TenantContext | null,
-  ): Promise<CampaignEmailResult> {
-    const federalContext = await this.buildFederalContextBlock(this.extractClientName(input));
-    const enriched = federalContext
-      ? {
-          ...input,
-          customContext: input.customContext
-            ? `${input.customContext}\n\n${federalContext}`
-            : federalContext,
-        }
-      : input;
-    return this.withCredentialFallback('AI campaign email generation', ctx, (cred) =>
-      cred.provider === 'openai'
-        ? this.generateCampaignWithOpenAi(enriched, cred)
-        : this.generateCampaignWithAnthropic(enriched, cred),
-    );
   }
 
   private resolveProvider(): 'openai' | 'anthropic' | null {
@@ -1262,89 +1066,6 @@ export class EngagementAiService {
    * system + max_tokens 2400; OpenAI sends no `instructions` and no
    * `max_output_tokens` (empty system + undefined budget ⇒ the client omits both).
    */
-  private async draftOutreachViaClient(
-    input: OutreachDraftInput,
-    cred: ResolvedAiCredential,
-  ): Promise<OutreachDraftResult> {
-    const assembled = this.assembleOutreachPrompt(input);
-    const isV2 = Boolean(assembled.spec);
-
-    // Task-tier model (W3.2/D2): a tenant's explicit modelOverride always wins
-    // (BYOK); otherwise the configured OUTREACH_DRAFT_MODEL applies on Anthropic.
-    // When OUTREACH_DRAFT_MODEL is unset (the default), there is NO override —
-    // the resolved cred model is used, preserving current behavior so a deploy
-    // never silently changes the drafting model.
-    const model =
-      cred.modelOverridden || cred.provider !== 'anthropic' || !this.outreachDraftModel
-        ? cred.model
-        : this.outreachDraftModel;
-
-    const baseMax = isV2
-      ? resolveOutreachMaxTokens({
-          promptTemplate: input.promptTemplate,
-          length:
-            typeof input.context?.length === 'string' ? (input.context.length as string) : null,
-        })
-      : cred.provider === 'anthropic'
-        ? 2400
-        : undefined;
-
-    const system = isV2
-      ? assembled.spec!.system
-      : cred.provider === 'anthropic'
-        ? LEGACY_OUTREACH_SYSTEM
-        : '';
-    const userStatic = isV2 ? assembled.spec!.userStatic : '';
-    const userVolatile = isV2 ? assembled.spec!.userVolatile : assembled.user;
-
-    // Truncation policy: v2 retries once at 1.5x then fails typed; v1 does not
-    // retry (historical behavior).
-    const truncationRetries = isV2 ? 1 : 0;
-    let result: Awaited<ReturnType<LlmCompletionService['complete']>> | null = null;
-    for (let attempt = 0; attempt <= truncationRetries; attempt++) {
-      const maxTokens =
-        baseMax != null ? Math.ceil(baseMax * (attempt === 0 ? 1 : 1.5)) : undefined;
-      result = await this.llm.complete({
-        provider: cred.provider,
-        apiKey: cred.apiKey,
-        model,
-        system,
-        userStatic,
-        userVolatile,
-        jsonSchema: outreachDraftJsonSchema,
-        jsonSchemaName: 'outreach_draft',
-        maxTokens,
-        // Prompt caching (W3.3) on the byte-stable v2 prefix (Anthropic).
-        cacheSystem: isV2,
-        cacheUserStatic: isV2,
-        // Zero-trust Wave 1 (RC8): outreach drafts carry budget figures/bill
-        // numbers — low temperature cuts the numeric-scramble sampling variance.
-        // Anthropic-only inside the client (see LlmCompletionRequest.temperature).
-        temperature: 0.2,
-        timeoutMs: AI_TIMEOUT_MS,
-      });
-      if (!result.truncated || attempt === truncationRetries) break;
-    }
-    if (result && result.truncated && isV2) {
-      throw new ServiceUnavailableException(
-        `${cred.provider} outreach draft was truncated at the token limit after a retry; shorten the template or reduce attached context.`,
-      );
-    }
-
-    const parsed = parseJsonObject(result!.text);
-    return {
-      subject: typeof parsed.subject === 'string' ? parsed.subject.trim() : '',
-      body: typeof parsed.body === 'string' ? parsed.body.trim() : '',
-      contextNote: typeof parsed.contextNote === 'string' ? parsed.contextNote.trim() : '',
-      provider: cred.provider,
-      model,
-      usage: result!.usage,
-      usedTenantKey: cred.usedTenantKey,
-      promptSpecVersion: isV2 ? OUTREACH_PROMPT_SPEC_VERSION : 'v1',
-      raw: result!.raw,
-    };
-  }
-
   /**
    * "Rewrite with Meri" on the email compose window: the user's rough notes
    * in, a coherent HTML body out. Reuses `withCredentialFallback` (the same
@@ -1454,7 +1175,6 @@ export class EngagementAiService {
         model,
         usage: result.usage,
         usedTenantKey: cred.usedTenantKey,
-        raw: result.raw,
       };
     }
     const response = await fetchWithTimeout('https://api.openai.com/v1/responses', {
@@ -1497,7 +1217,6 @@ export class EngagementAiService {
       model,
       usage: parseProviderUsage(json),
       usedTenantKey: cred.usedTenantKey,
-      raw: json,
     };
   }
 
@@ -1552,96 +1271,6 @@ export class EngagementAiService {
       model,
       usage: parseProviderUsage(json),
       usedTenantKey: cred.usedTenantKey,
-      raw: json,
-    };
-  }
-
-  private async generateCampaignWithOpenAi(
-    input: CampaignEmailInput,
-    cred: ResolvedAiCredential,
-  ): Promise<CampaignEmailResult> {
-    const response = await fetchWithTimeout('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${cred.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(prepareOpenAiResponsesRequest({
-        model: cred.model,
-        input: this.buildCampaignPrompt(input),
-        text: {
-          format: {
-            type: 'json_schema',
-            name: 'campaign_email',
-            strict: true,
-            schema: campaignEmailJsonSchema,
-          },
-        },
-      })),
-    });
-
-    const json = (await response.json()) as Record<string, unknown>;
-    if (!response.ok) {
-      throw new ServiceUnavailableException(
-        `OpenAI campaign email failed: ${readProviderError(json, response.status)}`,
-      );
-    }
-
-    const parsed = parseJsonObject(extractOpenAiText(json));
-    return {
-      subject: typeof parsed.subject === 'string' ? parsed.subject.trim() : '',
-      body: typeof parsed.body === 'string' ? parsed.body.trim() : '',
-      provider: 'openai',
-      model: cred.model,
-      usage: parseProviderUsage(json),
-      usedTenantKey: cred.usedTenantKey,
-      raw: json,
-    };
-  }
-
-  private async generateCampaignWithAnthropic(
-    input: CampaignEmailInput,
-    cred: ResolvedAiCredential,
-  ): Promise<CampaignEmailResult> {
-    const response = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': cred.apiKey,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(prepareAnthropicRequest({
-        model: cred.model,
-        max_tokens: 2400,
-        system:
-          'You draft professional government affairs follow-up emails from lobbying CRM context. Return only valid JSON that matches the requested schema.',
-        messages: [
-          {
-            role: 'user',
-            content: `${this.buildCampaignPrompt(input)}\n\nJSON schema:\n${JSON.stringify(
-              campaignEmailJsonSchema,
-            )}`,
-          },
-        ],
-      })),
-    });
-
-    const json = (await response.json()) as Record<string, unknown>;
-    if (!response.ok) {
-      throw new ServiceUnavailableException(
-        `Anthropic campaign email failed: ${readProviderError(json, response.status)}`,
-      );
-    }
-
-    const parsed = parseJsonObject(extractAnthropicText(json));
-    return {
-      subject: typeof parsed.subject === 'string' ? parsed.subject.trim() : '',
-      body: typeof parsed.body === 'string' ? parsed.body.trim() : '',
-      provider: 'anthropic',
-      model: cred.model,
-      usage: parseProviderUsage(json),
-      usedTenantKey: cred.usedTenantKey,
-      raw: json,
     };
   }
 
@@ -1761,158 +1390,6 @@ export class EngagementAiService {
     ].join('\n\n');
   }
 
-  private buildOutreachPrompt(input: OutreachDraftInput): string {
-    // A group campaign is ONE shared email to many recipients, represented here
-    // by a single stand-in recipient. The default campaign guidance tells the
-    // model to greet that recipient by first name and tailor to their committee
-    // — correct for individuals/list members, but wrong for a group (it would
-    // address the whole group as one member). Swap in a collective-salutation
-    // rule for groups; the individual/list branch is byte-identical to before so
-    // their generated prompts are unchanged.
-    const campaignGuidance =
-      input.audienceKind === 'group'
-        ? 'Draft ONE shared email addressed to a group of congressional recipients. ALWAYS open the email body with a brief, natural COLLECTIVE greeting (e.g. "Hi all —", "Hello everyone,", or a salutation appropriate to the group); never open with "Dear", and never single out one member by first name. Do NOT tailor the message to any single member\'s committee, district/state, agency role, or record — write a message appropriate for EVERY recipient listed in the supplied context. Do not output literal variable tokens such as {district}, {committee}, {personal_note}, {address}, or {member_priority}. Do not invent recipient-specific facts.'
-        : 'Draft a campaign for congressional recipients. ALWAYS open the email body with a brief, natural greeting that addresses the recipient by their real first name from the recipient data / RECIPIENT PROFILE (e.g. "Hi Dana —" or "Dana,"); never open with "Dear", and if no recipient name is available use a short professional greeting such as "Hello,". This greeting rule applies to every template, including memo- and brief-style templates. Do not output literal variable tokens such as {district}, {committee}, {personal_note}, {address}, or {member_priority}. Use supplied recipient data only when it is present; otherwise write around the missing detail. Do not invent recipient-specific facts.';
-    const workflowGuidance = {
-      campaign: campaignGuidance,
-      follow_up:
-        'Draft a post-meeting follow-up email. Include a brief recap, action items, and next steps from the supplied debrief/prep/context.',
-      prep: 'Draft a clean prep distribution summary suitable for a colleague or client before the meeting. Include logistics, context, talking points, and participants from the approved prep.',
-      outbound_campaign:
-        'Draft an outbound campaign email using the supplied recent meeting attendees, prep summaries, debrief summaries, and directory office locations. Use existingSubject/existingBody and context.metadata.outboundTemplate as the selected template structure when present. Keep the letterhead near the top with Date, Participant Names, and Location. Use context.metadata.outboundCurrentDateTime as the current generated date/time. If no usable template content is present, create the email from the recipient context fields instead. Apply context.metadata.outboundTone when present. Preserve useful variables such as {current_date_time}, {attendee_names}, {attendee_emails}, {prep_summary}, {debrief_summary}, {meeting_location}, {meeting_subject}, and {meeting_date_time} so the final send can personalize each recipient preview. Do not invent missing details.',
-    }[input.workflow];
-
-    const templateGuidance =
-      input.promptTemplate && input.promptTemplate !== 'custom'
-        ? PROMPT_TEMPLATE_GUIDANCE[input.promptTemplate]
-        : null;
-
-    // Explicit tone directive (W0 interim). The wizard's chosen tone rides in
-    // context.tone but was only ever part of the JSON context dump, where the
-    // model routinely ignored it. Surface it as a first-class instruction. The
-    // full tone/length contract lands with PromptSpec v2 (W2).
-    const tone =
-      typeof input.context?.tone === 'string' && (input.context.tone as string).trim()
-        ? (input.context.tone as string).trim()
-        : null;
-    const toneGuidance = tone ? `Write in a ${tone} register.` : null;
-
-    // The v2 outreach wizard sends a curated `contextItems` block as part
-    // of `input.context`. Each item carries the user's intent: shared items
-    // form the spine of the message, personalized items must be reflected
-    // for that specific recipient, and per-item `Instruction:` lines are
-    // direct user directives (e.g. "lead with this", "omit the deadline
-    // language"). We hoist the block out of the raw JSON dump so the model
-    // sees it as a first-class section with explicit guidance, and we
-    // remove it from the JSON to avoid duplication that dilutes attention.
-    const direction = typeof input.context?.direction === 'string' ? input.context.direction : null;
-    const contextItemsBlock =
-      typeof input.context?.contextItems === 'string' &&
-      (input.context.contextItems as string).trim().length > 0
-        ? (input.context.contextItems as string).trim()
-        : null;
-    // Voice/style grounding (hoisted out of the JSON dump so the "use only
-    // supplied context" rule doesn't suppress it — style is HOW to write, not a
-    // fact to cite).
-    const writingStyleBlock =
-      typeof input.context?.userWritingStyle === 'string' &&
-      (input.context.userWritingStyle as string).trim().length > 0
-        ? (input.context.userWritingStyle as string).trim()
-        : null;
-    // Recipient profile (who you're writing to — directory-derived). Hoisted like
-    // the voice block so it reads as a first-class section rather than a JSON
-    // field. Callers that don't set context.recipientProfile are unaffected.
-    const recipientProfileBlock =
-      typeof input.context?.recipientProfile === 'string' &&
-      (input.context.recipientProfile as string).trim().length > 0
-        ? (input.context.recipientProfile as string).trim()
-        : null;
-    const hoistFromContext = Boolean(
-      contextItemsBlock || writingStyleBlock || recipientProfileBlock,
-    );
-    const contextWithoutItems = hoistFromContext
-      ? Object.fromEntries(
-          Object.entries(input.context ?? {}).filter(
-            ([k]) =>
-              k !== 'contextItems' &&
-              k !== 'direction' &&
-              k !== 'userWritingStyle' &&
-              k !== 'recipientProfile',
-          ),
-        )
-      : (input.context ?? {});
-    // Keep the internal audience-routing flag out of the JSON context dump — it's
-    // already reflected in the salutation guidance above, and excluding it keeps
-    // the individual/list prompt byte-identical whether the flag is omitted or
-    // explicitly 'individual'.
-    const { audienceKind: _audienceKind, ...inputWithoutRouting } = input;
-    const inputForJson: OutreachDraftInput = hoistFromContext
-      ? { ...inputWithoutRouting, context: contextWithoutItems }
-      : inputWithoutRouting;
-
-    const directionGuidance = direction
-      ? direction === 'on-behalf'
-        ? "Direction: on-behalf-of-client. The sender is the lobbyist's user, writing as the representative of `client`. The recipient is a congressional or federal-agency contact. Use the client's voice and the client's asks; reference the client by name where natural. Sign as the user, not the client."
-        : "Direction: from-lobbyist-to-clients. The sender is the lobbyist writing directly to their own portfolio client(s). The tone is internal briefing, informative, candid, action-oriented. Do not write as if pitching the client; you ARE the client's trusted operator."
-      : null;
-
-    // Sign-off must use the real logged-in user's name, never an invented one.
-    const senderName =
-      typeof input.context?.senderName === 'string' && input.context.senderName.trim()
-        ? input.context.senderName.trim()
-        : null;
-    const senderSignature =
-      typeof input.context?.senderSignature === 'string' && input.context.senderSignature.trim()
-        ? input.context.senderSignature.trim()
-        : null;
-    // Campaign drafts (the v2 Outreach wizard) MUST NOT carry a signature block:
-    // the sender's saved signature is appended separately at send time via the
-    // wizard's "Append my email signature" toggle (see sendBatchEmails). Baking a
-    // signature into the draft here produced duplicate/stale sign-offs the user
-    // had to delete by hand. Other workflows (follow-up, prep) open a mailto and
-    // never get an auto-append, so they keep signing off as before.
-    const signatureGuidance =
-      input.workflow === 'campaign'
-        ? 'Do NOT add a signature block, sender name, title, company, or contact details at the end of the email — the app inserts the sender\'s signature separately after generation. You may end with a short closing line such as "Best," or "Thank you," on its own line, but write nothing after it.'
-        : senderName
-          ? `Sign off the email as the sender, ${senderName}. Use exactly this signature block at the end and do not invent a different name, company, or title:\n${senderSignature ?? senderName}`
-          : 'Do not fabricate a sender name in the sign-off. If no sender name is provided, end the email without a made-up signature (use a neutral close such as "Best regards,").';
-
-    const contextItemsGuidance = contextItemsBlock
-      ? [
-          'CURATED CONTEXT, treat this as the source-of-truth for what to include and how. The list below is grouped into:',
-          '  • "Shared context", must inform every recipient\'s draft. These are the campaign\'s spine.',
-          '  • "Personalized context for this recipient", must be reflected explicitly in this draft only. If a per-item `Instruction:` line is present, follow it (e.g. "lead with this", "omit the deadline language", "soften the ask").',
-          'When a personalized item conflicts with a shared item, the personalized item wins for that recipient. If an item is a `[note]` kind, treat its body and Instruction as a direct user directive to obey, not as fact to cite.',
-          'CRITICAL for `[note]` items: incorporate the note using ONLY the information it literally contains. Do NOT invent, embellish, or infer any additional specifics — for example, if a note says "It was nice meeting you at dinner last week", you may reference the dinner warmly but must NOT fabricate what was discussed, who attended, decisions made, topics, or any detail not explicitly written. When in doubt, paraphrase the note rather than expanding it.',
-          'Do not cite items the user did not curate, do not pull from the raw JSON dump if those facts are not in the curated block. Do not enumerate the items back to the recipient; weave them into a coherent message.',
-          '',
-          contextItemsBlock,
-        ].join('\n')
-      : null;
-
-    return [
-      workflowGuidance,
-      directionGuidance,
-      templateGuidance ? `Prompt template: ${input.promptTemplate}. ${templateGuidance}` : null,
-      toneGuidance,
-      'Use only the provided client, meeting, recipient, and engagement context. Do not invent facts.',
-      'Never return unresolved template variables or bracket placeholders in subject or body. Use real provided values or omit the unsupported line/phrase.',
-      recipientProfileBlock
-        ? `RECIPIENT PROFILE (who you are writing to — use for the correct salutation/title and to tailor the ask to their committee assignments and issue portfolio; treat as facts, do not invent anything beyond it):\n${recipientProfileBlock}`
-        : null,
-      writingStyleBlock
-        ? `AUTHOR VOICE & STRATEGY (style guidance — apply to HOW you write, not as facts to cite; never copy sample content verbatim or invent details from it):\n${writingStyleBlock}`
-        : null,
-      contextItemsGuidance,
-      signatureGuidance,
-      'Return JSON with subject, body, and contextNote. The body must be directly editable by the user.',
-      JSON.stringify(inputForJson, null, 2),
-    ]
-      .filter((line): line is string => Boolean(line))
-      .join('\n\n');
-  }
-
   private buildDebriefPrompt(input: MeetingDebriefDraftInput): string {
     const sourceText = (input.source?.text ?? '').trim();
     const hasSource = sourceText.length > 0;
@@ -1931,40 +1408,14 @@ export class EngagementAiService {
       steeringBlock
         ? `FIRM, AUTHOR & CLIENT BACKGROUND (standing memory for FRAMING and TONE only — NOT a record of this meeting; never state it as an attendee, commitment, or event that occurred here):\n${steeringBlock}`
         : '',
-      'Supplied JSON context (fields: meeting, client, attendees, prep, source, visibleNotes, clientContext, congressionalDirectoryMatches, recentMeetings, recentThreads). Apply the source-priority order from section 1 to these fields. Return JSON only with recap, actionItems, and notes:',
+      'Supplied JSON context (fields: meeting, client, attendees, prep, source, visibleNotes, openTasks, recentDebriefs). `openTasks` and `recentDebriefs` are labelled continuity from the firm’s own record, not evidence of what was said in this meeting. Apply the source-priority order from section 1 to these fields. Return JSON only with recap, actionItems, and notes:',
       JSON.stringify(inputForJson, null, 2),
     ]
       .filter(Boolean)
       .join('\n\n');
   }
 
-  private buildCampaignPrompt(input: CampaignEmailInput): string {
-    const typeGuidance: Record<string, string> = {
-      post_meeting_followup:
-        'This is a post-meeting follow-up email. Reference the specific meeting that occurred, key discussion points, commitments made, and next steps. The tone should be warm, professional, and action-oriented. Reference the attendees by name and role where available.',
-      congressional_outreach:
-        "This is a congressional outreach email. It should be policy-focused, referencing the client's program, capabilities, or legislative ask. Tailor to the recipient's committee jurisdiction and known priorities.",
-      program_update:
-        'This is a program update email to keep congressional contacts informed of client progress. Highlight recent milestones, upcoming activities, and any asks for continued support.',
-      custom:
-        'Draft a professional government affairs email using the supplied context. Match the tone and substance to the campaign objective.',
-    };
 
-    const guidance = typeGuidance[input.campaignType] ?? typeGuidance.custom;
-
-    return [
-      `Campaign type: ${input.campaignType}. ${guidance}`,
-      'Use only the provided client, meeting, debrief, prep, and recipient context. Do not invent facts, commitments, or positions.',
-      'The email should read as if written by a senior government affairs professional, not generic.',
-      'Reference specific discussion points, action items, and next steps from the supplied meeting/debrief context when available.',
-      'Do not use template variables or bracket placeholders (e.g. {recipient_name}, {recipient_title}, {meeting_date}, {action_items}); write the real values from the supplied context, or omit the detail when it is not available. Never leave an unresolved placeholder in the subject or body.',
-      'Return JSON with subject and body.',
-      input.customContext ? `Additional campaign context from user: ${input.customContext}` : '',
-      JSON.stringify(input, null, 2),
-    ]
-      .filter(Boolean)
-      .join('\n\n');
-  }
 }
 
 /** A tenant's BYOK model wins; otherwise the prep-scoped model, or the resolved one when unset. */

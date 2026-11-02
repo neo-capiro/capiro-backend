@@ -8,6 +8,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   MaxLength,
   Max,
   Min,
@@ -576,17 +577,33 @@ export class SaveBriefVersionDto extends BriefIdempotencyDto {
   title?: string;
 }
 
-export class AcceptBriefRefreshDto extends BriefIdempotencyDto {
-  /** The version the proposal was built from; the accepted proposal becomes
-   * that version's successor only if it is still current. */
+export class PrepareBriefRefreshDto {
+  @IsUUID()
+  proposalId!: string;
+
   @IsInt()
   @Min(1)
-  @Type(() => Number)
+  @Max(100)
   expectedVersionNumber!: number;
 
-  @IsOptional()
   @IsBoolean()
-  keepUserEdits?: boolean;
+  keepUserEdits!: boolean;
+}
+
+export class AcceptBriefRefreshDto {
+  @IsUUID()
+  proposalId!: string;
+
+  @IsString()
+  @Matches(/^[0-9a-f]{64}$/)
+  proposalHash!: string;
+}
+
+export class BriefRefreshParam {
+  @IsUUID()
+  prospectId!: string;
+  @IsUUID()
+  proposalId!: string;
 }
 
 export class BriefCitationParam {

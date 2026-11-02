@@ -26,6 +26,11 @@ import {
   senateDailyCalendar,
   houseDailyCalendar,
 } from './adapters/florida-calendar.adapter.js';
+import {
+  fetchFloridaLiveSchedule,
+  floridaLiveCandidate,
+  type FloridaLiveStream,
+} from './adapters/florida-live-schedule.js';
 
 const FLORIDA_TIME_ZONE = 'America/New_York';
 // Florida publishes regular sessions as YYYY and special/organizational
@@ -142,6 +147,8 @@ export type FloridaDiscoveryOptions = {
   probeCache?: Map<string, string | null>;
   /** Shared across session passes so throttling cannot restart on the next session. */
   throttledHosts?: Map<string, FloridaSourceRateLimitError>;
+  /** Optional broadcast enrichment; official chamber schedules own the event. */
+  liveStreams?: readonly FloridaLiveStream[];
 };
 
 export async function discoverFloridaCalendar(
@@ -544,6 +551,13 @@ export async function discoverFloridaCalendar(
                 );
               }
             }
+            const liveCandidate = floridaLiveCandidate(observation, options.liveStreams ?? []);
+            if (candidates && liveCandidate) {
+              await candidates.recordCandidates(outcome.hearingId, [liveCandidate], {
+                now: new Date(),
+                sourceId: source.id,
+              });
+            }
             log(
               JSON.stringify({
                 hearingId: outcome.hearingId,
@@ -792,6 +806,7 @@ type FloridaCalendarSessionRunOptions = {
 
 type FloridaCalendarSessionDependencies = {
   discover?: typeof discoverFloridaCalendar;
+  liveSchedule?: typeof fetchFloridaLiveSchedule;
   archive?: (
     prisma: PrismaClient,
     options: {
@@ -889,6 +904,17 @@ export async function discoverFloridaCalendarSessions(
   const throttledHosts = new Map<string, FloridaSourceRateLimitError>();
   const results: Awaited<ReturnType<typeof discoverFloridaCalendar>> = [];
   const seenSenateNoticeIds = new Set<string>();
+  let liveStreams: FloridaLiveStream[] = [];
+  const today = floridaCalendarDate();
+  if (prisma && !options.dryRun && options.from <= today && today <= options.to) {
+    try {
+      liveStreams = await (dependencies.liveSchedule ?? fetchFloridaLiveSchedule)();
+    } catch {
+      // A broadcast enrichment outage must not hide a published chamber event
+      // or misreport its calendar coverage. Keep the separate failure visible.
+      options.log?.(JSON.stringify({ marker: 'FLORIDA_LIVE_SCHEDULE_UNAVAILABLE' }));
+    }
+  }
 
   for (const session of sessions) {
     const primary = session === primarySession;
@@ -904,6 +930,7 @@ export async function discoverFloridaCalendarSessions(
         delayMs,
         throttledHosts,
         seenSenateNoticeIds,
+        liveStreams,
         dryRun: options.dryRun,
         log: options.log,
       })),

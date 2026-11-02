@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
@@ -37,6 +37,12 @@ import {
 @UseGuards(TenantGuard, TrackerOwnerGuard)
 export class TrackerBoardController {
   constructor(private readonly svc: TrackerBoardService) {}
+
+  @Get(':clientId/tracker/material-changes')
+  @Header('Cache-Control', 'private, no-store')
+  materialChanges(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('clientId') clientId: string, @Query() query: Record<string, unknown>) {
+    return this.svc.materialChanges(ctx, clientId, query);
+  }
 
   @Get('_all/tracker/counts')
   getPortfolioCounts(@CurrentTenant() ctx: WorkspaceTenantContext) {

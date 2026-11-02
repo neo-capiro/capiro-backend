@@ -7,7 +7,7 @@ import {
 import { randomUUID } from 'node:crypto';
 import { ResearchService } from './research.service.js';
 import type { WorkspaceTenantContext } from '../../auth/tenant-context.js';
-import { object } from '../reports/report-domain.js';
+import { object } from '../delivery/delivery-domain.js';
 import { requestKey } from '../keywords/keyword-rule.service.js';
 import { hash } from '../folders/folder-tracker.service.js';
 @Injectable()

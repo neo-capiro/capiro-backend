@@ -10,6 +10,10 @@ import {
 } from '../../ingestion/federal-document-bytes.js';
 import { extractBillDocumentStructure, type BillDocumentStructure } from '../../ingestion/bill-document-structure.js';
 import { TokenBucket } from './rate-limiter.js';
+import {
+  captureFederalResponse,
+  type FederalSourceCapture,
+} from '../../program-element/federal-evidence/capture.js';
 
 const GOVINFO_API_ROOT = 'https://api.govinfo.gov/';
 // api.data.gov default ceiling is 1000 requests/hour per key.
@@ -115,6 +119,7 @@ export interface FederalEvidencePackageText {
   raw: string;
   text: string;
   format: 'xml' | 'txt' | 'htm' | 'pdf';
+  capture?: FederalSourceCapture;
   sourceUrl: string;
   title: string | null;
   dateIssued: string | null;
@@ -307,7 +312,10 @@ export class GovInfoService {
   }
 
   /** Retain exact original bytes; unsupported/native-unreadable content remains explicit evidence. */
-  async getFederalPackageText(packageId: string): Promise<FederalEvidencePackageText> {
+  async getFederalPackageText(
+    packageId: string,
+    options: { retainOriginalBytes?: boolean } = {},
+  ): Promise<FederalEvidencePackageText> {
     const summary = await this.getPackageSummary(packageId);
     const selected = summary.download?.xmlLink
       ? { format: 'xml' as const, url: summary.download.xmlLink }
@@ -315,11 +323,27 @@ export class GovInfoService {
         ? { format: 'txt' as const, url: summary.download.txtLink }
         : summary.download?.htmLink
           ? { format: 'htm' as const, url: summary.download.htmLink }
-          : summary.download?.pdfLink
+          : options.retainOriginalBytes && summary.download?.pdfLink
             ? { format: 'pdf' as const, url: summary.download.pdfLink }
             : null;
     if (!selected)
       throw new ServiceUnavailableException(`No qualified text available for ${packageId}`);
+    // Existing API and unscoped ingestion callers retain the deployed strict
+    // UTF-8 receipt contract. FY26 explicitly opts into immutable PDF/failed-byte
+    // retention without changing those callers' decoding or failure behavior.
+    if (!options.retainOriginalBytes) {
+      const { text: raw, capture } = await captureFederalResponse(
+        await this.fetchTextResponse(selected.url),
+        selected.format as FederalSourceCapture['format'],
+      );
+      const text = selected.format === 'htm' ? stripHtmlTags(raw) : raw;
+      if (!text.trim()) throw new ServiceUnavailableException(`Empty federal text for ${packageId}`);
+      return {
+        packageId, raw, capture, text, format: selected.format, sourceUrl: selected.url,
+        title: summary.title ?? null, dateIssued: summary.dateIssued ?? null,
+        lastModified: summary.lastModified ?? null, collection: summary.collectionCode ?? null,
+      };
+    }
     const snapshot = await this.fetchTextSnapshot(selected.url);
     const originalBytes: FederalOriginalBytes = {
       base64: snapshot.bytes.toString('base64'), sha256: byteHash(snapshot.bytes), mime: snapshot.mime,
@@ -557,6 +581,16 @@ export class GovInfoService {
 
   /** Fetch raw text (e.g. bill XML) through the rate limiter, with api_key auth. */
   private async fetchText(link: string): Promise<string> {
+    const res = await this.fetchTextResponse(link);
+    if (Number(res.headers?.get('content-length') ?? 0) > 30000000)
+      throw new ServiceUnavailableException('GovInfo text exceeds qualified size');
+    const content = await res.text();
+    if (content.length > 30000000)
+      throw new ServiceUnavailableException('GovInfo text exceeds qualified size');
+    return content;
+  }
+
+  private async fetchTextResponse(link: string): Promise<Response> {
     const key = this.requireKey();
     const url = new URL(link);
     if (
@@ -573,16 +607,12 @@ export class GovInfoService {
       redirect: 'error',
     });
     if (!res.ok) {
+      await res.body?.cancel().catch(() => {});
       throw new ServiceUnavailableException(
         `GovInfo text fetch failed (${res.status}) for ${redactSecrets(url.toString(), [key])}`,
       );
     }
-    if (Number(res.headers?.get('content-length') ?? 0) > 30000000)
-      throw new ServiceUnavailableException('GovInfo text exceeds qualified size');
-    const content = await res.text();
-    if (content.length > 30000000)
-      throw new ServiceUnavailableException('GovInfo text exceeds qualified size');
-    return content;
+    return res;
   }
 
   /**

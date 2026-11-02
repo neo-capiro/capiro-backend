@@ -8,6 +8,7 @@ import {
   normalizeMemoryGovernanceBucket,
 } from './memory-governance.controller.js';
 
+const VERSION = 'mv1:123:' + 'a'.repeat(32);
 const ctx: TenantContext = {
   tenantId: '11111111-1111-4111-8111-111111111111',
   tenantSlug: 'test',
@@ -17,6 +18,23 @@ const ctx: TenantContext = {
 };
 
 describe('MemoryGovernanceController', () => {
+  it.each([
+    'approve',
+    'confirm',
+    'markStale',
+    'revoke',
+    'secondApprove',
+    'retryProjection',
+  ] as const)('requires a server-observed version for %s', async (action) => {
+    const controller = new MemoryGovernanceController({} as MemoryGovernanceService);
+    for (const value of [undefined, '', '1', 'mv1:123:wrong']) {
+      const body = { reason: 'Reviewed.', expectedVersion: value as unknown as string };
+      await expect(controller[action](ctx, 'item-1', body)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+    }
+  });
+
   it('is administrator-only', () => {
     expect(Reflect.getMetadata(ROLES_KEY, MemoryGovernanceController)).toEqual(['user_admin']);
   });
@@ -34,6 +52,7 @@ describe('MemoryGovernanceController', () => {
       getItem: jest.fn(async () => ({ enabled: true, item: { id: 'item-1' } })),
       listTransitions: jest.fn(async () => ({ enabled: true, transitions: [] })),
       projectionHealth: jest.fn(async () => ({ enabled: true, counts: {} })),
+      getProjectionJob: jest.fn(async () => ({ enabled: true, job: { id: 'job-1' } })),
       retryProjection: jest.fn(async () => ({ outcome: 'projection_retry_queued' })),
       listClients: jest.fn(async () => ({ enabled: true, clients: [] })),
       approve: jest.fn(async () => ({ outcome: 'approved' })),
@@ -50,30 +69,53 @@ describe('MemoryGovernanceController', () => {
     await controller.getItem(ctx, 'item-1');
     await controller.listTransitions(ctx, '50');
     await controller.projectionHealth(ctx);
-    await controller.retryProjection(ctx, 'job-1');
+    await controller.getProjectionJob(ctx, 'job-1');
+    await controller.retryProjection(ctx, 'job-1', { expectedVersion: VERSION });
     await controller.listClients(ctx);
-    await controller.approve(ctx, 'item-1', { reason: 'Reviewed and approved as firm identity.' });
-    await controller.confirm(ctx, 'item-1');
-    await controller.markStale(ctx, 'item-1', { reason: 'Needs reconfirmation.' });
-    await controller.revoke(ctx, 'item-1', { reason: 'No longer applicable.' });
-    await controller.secondApprove(ctx, 'item-1');
+    await controller.approve(ctx, 'item-1', {
+      expectedVersion: VERSION,
+      reason: 'Reviewed and approved as firm identity.',
+    });
+    await controller.confirm(ctx, 'item-1', { expectedVersion: VERSION });
+    await controller.markStale(ctx, 'item-1', {
+      expectedVersion: VERSION,
+      reason: 'Needs reconfirmation.',
+    });
+    await controller.revoke(ctx, 'item-1', {
+      expectedVersion: VERSION,
+      reason: 'No longer applicable.',
+    });
+    await controller.secondApprove(ctx, 'item-1', { expectedVersion: VERSION });
 
     expect(governance.overview).toHaveBeenCalledWith(ctx);
-    expect(governance.listItems).toHaveBeenCalledWith(ctx, 'active', 25, undefined);
-    expect(governance.listItems).toHaveBeenCalledWith(ctx, 'active', 25, 'crm_finding_accepted');
+    expect(governance.listItems).toHaveBeenCalledWith(ctx, 'active', 25, undefined, undefined);
+    expect(governance.listItems).toHaveBeenCalledWith(
+      ctx,
+      'active',
+      25,
+      'crm_finding_accepted',
+      undefined,
+    );
     expect(governance.getItem).toHaveBeenCalledWith(ctx, 'item-1');
-    expect(governance.listTransitions).toHaveBeenCalledWith(ctx, 50);
+    expect(governance.listTransitions).toHaveBeenCalledWith(ctx, 50, undefined);
     expect(governance.projectionHealth).toHaveBeenCalledWith(ctx);
-    expect(governance.retryProjection).toHaveBeenCalledWith(ctx, 'job-1');
+    expect(governance.getProjectionJob).toHaveBeenCalledWith(ctx, 'job-1');
+    expect(governance.retryProjection).toHaveBeenCalledWith(ctx, 'job-1', VERSION);
     expect(governance.listClients).toHaveBeenCalledWith(ctx);
     expect(governance.approve).toHaveBeenCalledWith(
       ctx,
       'item-1',
       'Reviewed and approved as firm identity.',
+      VERSION,
     );
-    expect(governance.confirm).toHaveBeenCalledWith(ctx, 'item-1');
-    expect(governance.markStale).toHaveBeenCalledWith(ctx, 'item-1', 'Needs reconfirmation.');
-    expect(governance.revoke).toHaveBeenCalledWith(ctx, 'item-1', 'No longer applicable.');
-    expect(governance.secondApprove).toHaveBeenCalledWith(ctx, 'item-1');
+    expect(governance.confirm).toHaveBeenCalledWith(ctx, 'item-1', VERSION);
+    expect(governance.markStale).toHaveBeenCalledWith(
+      ctx,
+      'item-1',
+      'Needs reconfirmation.',
+      VERSION,
+    );
+    expect(governance.revoke).toHaveBeenCalledWith(ctx, 'item-1', 'No longer applicable.', VERSION);
+    expect(governance.secondApprove).toHaveBeenCalledWith(ctx, 'item-1', VERSION);
   });
 });

@@ -1,3 +1,4 @@
+import { objectiveIntentFromSnapshot } from '@capiro/shared/strategy-intake';
 import type { Prisma } from '../../generated/prisma-client/index.js';
 import { applicationHash, CanonicalApplicationError } from '../planner/objective-canonical-application.js';
 import { GENERATION_REQUEST, canonicalGenerationAdmissionSha256, type CanonicalGenerationAdmission } from './objective-canonical-generation.js';
@@ -67,8 +68,7 @@ export async function readCanonicalRequestPublication(tx: Prisma.TransactionClie
   if (revisions.length !== 1 || !snapshot || applicationHash(snapshot) !== a.canonical.snapshotHash ||
       snapshot.id !== a.canonical.objectiveId || snapshot.clientId !== a.canonical.clientId ||
       snapshot.version !== a.canonical.requestedObjectiveVersion) return unavailable();
-  const intent = { outcome: snapshot.outcome, governmentProblem: snapshot.governmentProblem,
-    askType: snapshot.askType, minimumWin: snapshot.minimumWin, limits: snapshot.limits };
+  const intent = objectiveIntentFromSnapshot(snapshot);
   if (applicationHash(intent) !== applicationHash(publication.request.source.intent) ||
       applicationHash(s.compiled.intent) !== applicationHash(intent) ||
       applicationHash({ source: s.compiled.source, intent }) !== s.compiled.context.sourceDigest) return unavailable();

@@ -1,0 +1,1016 @@
+{
+  "schema": "meri-buyer-workspace-conformance/1",
+  "synthetic": true,
+  "vectors": [
+    {
+      "name": "source-backed",
+      "request": {
+        "peCode": " 0601234a ",
+        "asOfFy": 2027,
+        "knownAt": "2026-09-24T00:00:00Z"
+      },
+      "response": {
+        "tool": "get_pe_buyer_workspace",
+        "subject": {
+          "type": "pe",
+          "id": "0601234A"
+        },
+        "asOfFy": 2027,
+        "knownAt": "2026-09-24T00:00:00.000Z",
+        "budget": {
+          "state": "unsupported",
+          "data": null,
+          "coverage": {
+            "unresolvedReasons": [
+              {
+                "code": "budget_temporal_read_unavailable",
+                "detail": "Canonical PE budget read does not support pinned knownAt."
+              }
+            ]
+          },
+          "freshness": null
+        },
+        "federalEvidence": {
+          "state": "complete",
+          "data": {
+            "mentions": {
+              "items": [
+                {
+                  "id": "00000000-0000-4000-8000-000000000001",
+                  "rawMention": "PE 0601234A",
+                  "canonicalPeCode": "0601234A",
+                  "matchType": "exact",
+                  "qualificationState": "qualified",
+                  "confidence": 1,
+                  "locator": "characters:0-25",
+                  "evidence": "Synthetic source language.",
+                  "languageHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "matcherVersion": "synthetic/1",
+                  "qualifiedBy": null,
+                  "createdAt": "2026-09-24T00:00:00.000Z",
+                  "revisionId": "00000000-0000-4000-8000-000000000002",
+                  "sourceKey": "synthetic:BILLS:119-hr-42",
+                  "provider": "govinfo",
+                  "collection": "BILLS",
+                  "packageId": "BILLS-119hr42",
+                  "billId": "119-hr-42",
+                  "versionCode": "ih",
+                  "lineageKey": "119-hr-42",
+                  "contentHash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                  "extractionHash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                  "sourceUrl": "https://example.invalid/bill",
+                  "sourceModifiedAt": null,
+                  "publishedAt": "2026-09-24T00:00:00.000Z",
+                  "fetchedAt": "2026-09-24T00:00:00.000Z"
+                }
+              ],
+              "hasMore": false,
+              "nextCursor": null
+            },
+            "lifecycle": {
+              "items": [
+                {
+                  "id": "00000000-0000-4000-8000-000000000003",
+                  "eventKey": "synthetic-event",
+                  "sourceKey": "synthetic:BILLS:119-hr-42",
+                  "billId": "119-hr-42",
+                  "eventType": "added",
+                  "candidateKey": "synthetic-candidate",
+                  "rawMention": "PE 0601234A",
+                  "canonicalPeCode": "0601234A",
+                  "previousRevisionId": null,
+                  "currentRevisionId": "00000000-0000-4000-8000-000000000002",
+                  "before": null,
+                  "after": {
+                    "rawMention": "PE 0601234A",
+                    "canonicalPeCode": "0601234A",
+                    "matchType": "exact",
+                    "qualificationState": "qualified",
+                    "confidence": 1,
+                    "locator": "characters:0-25",
+                    "evidence": "Synthetic source language.",
+                    "languageHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                  },
+                  "historical": false,
+                  "createdAt": "2026-09-24T00:00:00.000Z",
+                  "revisionId": "00000000-0000-4000-8000-000000000002",
+                  "provider": "govinfo",
+                  "collection": "BILLS",
+                  "packageId": "BILLS-119hr42",
+                  "versionCode": "ih",
+                  "lineageKey": "119-hr-42",
+                  "contentHash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                  "extractionHash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                  "sourceUrl": "https://example.invalid/bill",
+                  "sourceModifiedAt": null,
+                  "publishedAt": "2026-09-24T00:00:00.000Z",
+                  "fetchedAt": "2026-09-24T00:00:00.000Z",
+                  "locator": "characters:0-25",
+                  "evidence": "Synthetic source language.",
+                  "languageHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "matchType": "exact",
+                  "qualificationState": "qualified",
+                  "confidence": 1,
+                  "beforeEvidence": {
+                    "availability": "unavailable",
+                    "reason": "This event has no qualified, independently pinned evidence for this side.",
+                    "revisionId": null,
+                    "contentHash": null,
+                    "extractionHash": null,
+                    "sourceUrl": null,
+                    "locator": null,
+                    "textSpan": null,
+                    "evidence": null,
+                    "languageHash": null,
+                    "qualificationState": null,
+                    "publishedAt": null,
+                    "sourceModifiedAt": null
+                  },
+                  "afterEvidence": {
+                    "availability": "available",
+                    "reason": null,
+                    "revisionId": "00000000-0000-4000-8000-000000000002",
+                    "contentHash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                    "extractionHash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                    "sourceUrl": "https://example.invalid/bill",
+                    "locator": "characters:0-25",
+                    "textSpan": {
+                      "start": 0,
+                      "end": 25
+                    },
+                    "evidence": "Synthetic source language.",
+                    "languageHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                    "qualificationState": "qualified",
+                    "publishedAt": "2026-09-24T00:00:00.000Z",
+                    "sourceModifiedAt": null
+                  }
+                }
+              ],
+              "hasMore": false,
+              "nextCursor": null
+            }
+          },
+          "coverage": {
+            "state": "complete",
+            "unresolvedReasons": []
+          },
+          "freshness": {
+            "knownAt": "2026-09-24T00:00:00.000Z",
+            "sourceAsOf": null
+          }
+        },
+        "acquisition": {
+          "state": "complete",
+          "data": {
+            "subject": {
+              "type": "pe",
+              "id": "0601234A"
+            },
+            "asOfFy": 2027,
+            "knownAt": "2026-09-24T00:00:00.000Z",
+            "accepted": [
+              {
+                "stableKey": "accepted",
+                "relationshipId": "relation-accepted",
+                "relationshipKind": "notice_to_vehicle",
+                "status": "accepted",
+                "from": {
+                  "entityType": "notice",
+                  "id": null,
+                  "sourceNativeId": "synthetic-notice",
+                  "label": "Synthetic notice"
+                },
+                "to": {
+                  "entityType": "vehicle",
+                  "id": null,
+                  "sourceNativeId": "synthetic-notice",
+                  "label": "Synthetic notice"
+                },
+                "sourceNativeIds": {
+                  "notice": "synthetic-notice",
+                  "order": null
+                },
+                "path": [
+                  {
+                    "entityType": "notice",
+                    "id": null,
+                    "sourceNativeId": "synthetic-notice",
+                    "label": "Synthetic notice"
+                  }
+                ],
+                "parent": null,
+                "validity": {
+                  "validFromFy": 2027,
+                  "validToFy": null,
+                  "knownFrom": "2026-09-24T00:00:00.000Z",
+                  "knownTo": null
+                },
+                "evidence": [
+                  {
+                    "kind": "provider_identifier",
+                    "sourceUrl": "https://example.invalid/source",
+                    "sourceNativeId": "record-1",
+                    "sourceVersion": "v1",
+                    "pageNumber": 2,
+                    "quote": "Synthetic source passage",
+                    "contentHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                  }
+                ],
+                "unresolvedReasons": [],
+                "financialFact": {
+                  "classification": "source_stated_financial_allocation",
+                  "reviewState": "verified",
+                  "sourceAmountUsd": "20.005",
+                  "actionEffect": "ordinary",
+                  "evidencePresent": true
+                },
+                "authoritativeAmountUsd": "20.005"
+              }
+            ],
+            "candidates": [
+              {
+                "stableKey": "candidate",
+                "relationshipId": "relation-candidate",
+                "relationshipKind": "notice_to_vehicle",
+                "status": "candidate",
+                "from": {
+                  "entityType": "notice",
+                  "id": null,
+                  "sourceNativeId": "synthetic-notice",
+                  "label": "Synthetic notice"
+                },
+                "to": {
+                  "entityType": "vehicle",
+                  "id": null,
+                  "sourceNativeId": "synthetic-notice",
+                  "label": "Synthetic notice"
+                },
+                "sourceNativeIds": {
+                  "notice": "synthetic-notice",
+                  "order": null
+                },
+                "path": [
+                  {
+                    "entityType": "notice",
+                    "id": null,
+                    "sourceNativeId": "synthetic-notice",
+                    "label": "Synthetic notice"
+                  }
+                ],
+                "parent": null,
+                "validity": {
+                  "validFromFy": 2027,
+                  "validToFy": null,
+                  "knownFrom": "2026-09-24T00:00:00.000Z",
+                  "knownTo": null
+                },
+                "evidence": [
+                  {
+                    "kind": "provider_identifier",
+                    "sourceUrl": "https://example.invalid/source",
+                    "sourceNativeId": "record-1",
+                    "sourceVersion": "v1",
+                    "pageNumber": 2,
+                    "quote": "Synthetic source passage",
+                    "contentHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                  }
+                ],
+                "unresolvedReasons": [],
+                "financialFact": {
+                  "classification": "inferred_relevance",
+                  "reviewState": "candidate",
+                  "sourceAmountUsd": "20.005",
+                  "actionEffect": "ordinary",
+                  "evidencePresent": true
+                },
+                "authoritativeAmountUsd": null
+              }
+            ],
+            "unresolved": [
+              {
+                "stableKey": "unresolved",
+                "relationshipId": "relation-unresolved",
+                "relationshipKind": "notice_to_vehicle",
+                "status": "unresolved",
+                "from": {
+                  "entityType": "notice",
+                  "id": null,
+                  "sourceNativeId": "synthetic-notice",
+                  "label": "Synthetic notice"
+                },
+                "to": {
+                  "entityType": "vehicle",
+                  "id": null,
+                  "sourceNativeId": "synthetic-notice",
+                  "label": "Synthetic notice"
+                },
+                "sourceNativeIds": {
+                  "notice": "synthetic-notice",
+                  "order": null
+                },
+                "path": [
+                  {
+                    "entityType": "notice",
+                    "id": null,
+                    "sourceNativeId": "synthetic-notice",
+                    "label": "Synthetic notice"
+                  }
+                ],
+                "parent": null,
+                "validity": {
+                  "validFromFy": 2027,
+                  "validToFy": null,
+                  "knownFrom": "2026-09-24T00:00:00.000Z",
+                  "knownTo": null
+                },
+                "evidence": [
+                  {
+                    "kind": "provider_identifier",
+                    "sourceUrl": "https://example.invalid/source",
+                    "sourceNativeId": "record-1",
+                    "sourceVersion": "v1",
+                    "pageNumber": 2,
+                    "quote": "Synthetic source passage",
+                    "contentHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                  }
+                ],
+                "unresolvedReasons": [
+                  "Relationship has not been resolved"
+                ],
+                "financialFact": {
+                  "classification": "inferred_relevance",
+                  "reviewState": "candidate",
+                  "sourceAmountUsd": "20.005",
+                  "actionEffect": "ordinary",
+                  "evidencePresent": true
+                },
+                "authoritativeAmountUsd": null
+              }
+            ],
+            "page": {
+              "limit": 50,
+              "hasMore": false,
+              "nextCursor": null
+            },
+            "coverage": {
+              "state": "complete",
+              "supportedRelationshipKinds": [
+                "notice_to_vehicle"
+              ],
+              "unsupportedRelationshipKinds": [],
+              "unresolvedReasons": [],
+              "sourceFreshness": [
+                {
+                  "source": "synthetic",
+                  "sourceAsOf": "2026-09-24",
+                  "lastObservedAt": "2026-09-24T00:00:00.000Z",
+                  "state": "current"
+                }
+              ]
+            }
+          },
+          "coverage": {
+            "state": "complete",
+            "supportedRelationshipKinds": [
+              "notice_to_vehicle"
+            ],
+            "unsupportedRelationshipKinds": [],
+            "unresolvedReasons": [],
+            "sourceFreshness": [
+              {
+                "source": "synthetic",
+                "sourceAsOf": "2026-09-24",
+                "lastObservedAt": "2026-09-24T00:00:00.000Z",
+                "state": "current"
+              }
+            ]
+          },
+          "freshness": [
+            {
+              "source": "synthetic",
+              "sourceAsOf": "2026-09-24",
+              "lastObservedAt": "2026-09-24T00:00:00.000Z",
+              "state": "current"
+            }
+          ]
+        },
+        "fundingExecution": {
+          "state": "complete",
+          "data": {
+            "subject": {
+              "type": "pe",
+              "id": "0601234A"
+            },
+            "asOfFy": 2027,
+            "knownAt": "2026-09-24T00:00:00.000Z",
+            "enacted": {
+              "cumulativeSnapshots": [
+                {
+                  "stableKey": "a-snapshot",
+                  "factId": "fact-a-snapshot",
+                  "authorityState": "enacted",
+                  "measure": "cumulative_snapshot",
+                  "fiscalYear": 2027,
+                  "validFromFy": 2027,
+                  "validToFy": null,
+                  "availabilityStart": "2026-10-01",
+                  "availabilityEnd": null,
+                  "recordedAt": "2026-09-24T00:00:00.000Z",
+                  "accountId": "0300",
+                  "snapshotGroupId": "account-0300",
+                  "amountUsd": "100.00",
+                  "amountBasis": "snapshot",
+                  "executionMetric": "obligations",
+                  "asOfDate": "2026-09-24",
+                  "periodStart": null,
+                  "periodEnd": null,
+                  "transferGroupId": null,
+                  "transferLeg": null,
+                  "allocationCertification": "not_applicable",
+                  "reviewState": "verified",
+                  "exactAccountLevel": false,
+                  "evidence": [
+                    {
+                      "sourceFamily": "synthetic",
+                      "sourceNativeId": "record-1",
+                      "sourceUrl": "https://example.invalid/source",
+                      "sourceVersion": "v1",
+                      "contentHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "quote": "Synthetic source passage"
+                    }
+                  ],
+                  "unresolvedReasons": [],
+                  "authoritativeAmountUsd": null
+                }
+              ],
+              "transactionDeltas": [
+                {
+                  "stableKey": "b-negative",
+                  "factId": "fact-b-negative",
+                  "authorityState": "enacted",
+                  "measure": "transaction_delta",
+                  "fiscalYear": 2027,
+                  "validFromFy": 2027,
+                  "validToFy": null,
+                  "availabilityStart": "2026-10-01",
+                  "availabilityEnd": null,
+                  "recordedAt": "2026-09-24T00:00:00.000Z",
+                  "accountId": "0300",
+                  "snapshotGroupId": null,
+                  "amountUsd": "-12.50",
+                  "amountBasis": "transaction_delta",
+                  "executionMetric": "obligations",
+                  "asOfDate": "2026-09-24",
+                  "periodStart": null,
+                  "periodEnd": null,
+                  "transferGroupId": null,
+                  "transferLeg": null,
+                  "allocationCertification": "not_applicable",
+                  "reviewState": "verified",
+                  "exactAccountLevel": false,
+                  "evidence": [
+                    {
+                      "sourceFamily": "synthetic",
+                      "sourceNativeId": "record-1",
+                      "sourceUrl": "https://example.invalid/source",
+                      "sourceVersion": "v1",
+                      "contentHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "quote": "Synthetic source passage"
+                    }
+                  ],
+                  "unresolvedReasons": [],
+                  "authoritativeAmountUsd": null
+                }
+              ],
+              "transferLegs": [
+                {
+                  "stableKey": "f-transfer-out",
+                  "factId": "fact-f-transfer-out",
+                  "authorityState": "enacted",
+                  "measure": "transfer_leg",
+                  "fiscalYear": 2027,
+                  "validFromFy": 2027,
+                  "validToFy": null,
+                  "availabilityStart": "2026-10-01",
+                  "availabilityEnd": null,
+                  "recordedAt": "2026-09-24T00:00:00.000Z",
+                  "accountId": "0300",
+                  "snapshotGroupId": null,
+                  "amountUsd": "-5.00",
+                  "amountBasis": "transaction_delta",
+                  "executionMetric": "obligations",
+                  "asOfDate": "2026-09-24",
+                  "periodStart": null,
+                  "periodEnd": null,
+                  "transferGroupId": "pair-1",
+                  "transferLeg": "outflow",
+                  "allocationCertification": "not_applicable",
+                  "reviewState": "verified",
+                  "exactAccountLevel": false,
+                  "evidence": [
+                    {
+                      "sourceFamily": "synthetic",
+                      "sourceNativeId": "record-1",
+                      "sourceUrl": "https://example.invalid/source",
+                      "sourceVersion": "v1",
+                      "contentHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "quote": "Synthetic source passage"
+                    }
+                  ],
+                  "unresolvedReasons": [],
+                  "authoritativeAmountUsd": null
+                },
+                {
+                  "stableKey": "g-transfer-in",
+                  "factId": "fact-g-transfer-in",
+                  "authorityState": "enacted",
+                  "measure": "transfer_leg",
+                  "fiscalYear": 2027,
+                  "validFromFy": 2027,
+                  "validToFy": null,
+                  "availabilityStart": "2026-10-01",
+                  "availabilityEnd": null,
+                  "recordedAt": "2026-09-24T00:00:00.000Z",
+                  "accountId": "0300",
+                  "snapshotGroupId": null,
+                  "amountUsd": "5.00",
+                  "amountBasis": "transaction_delta",
+                  "executionMetric": "obligations",
+                  "asOfDate": "2026-09-24",
+                  "periodStart": null,
+                  "periodEnd": null,
+                  "transferGroupId": "pair-1",
+                  "transferLeg": "inflow",
+                  "allocationCertification": "not_applicable",
+                  "reviewState": "verified",
+                  "exactAccountLevel": false,
+                  "evidence": [
+                    {
+                      "sourceFamily": "synthetic",
+                      "sourceNativeId": "record-1",
+                      "sourceUrl": "https://example.invalid/source",
+                      "sourceVersion": "v1",
+                      "contentHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "quote": "Synthetic source passage"
+                    }
+                  ],
+                  "unresolvedReasons": [],
+                  "authoritativeAmountUsd": null
+                }
+              ],
+              "totals": {
+                "cumulativeSnapshotUsd": "100.00",
+                "transactionDeltaUsd": "-12.50"
+              }
+            },
+            "proposed": {
+              "cumulativeSnapshots": [],
+              "transactionDeltas": [
+                {
+                  "stableKey": "c-proposed",
+                  "factId": "fact-c-proposed",
+                  "authorityState": "proposed",
+                  "measure": "transaction_delta",
+                  "fiscalYear": 2027,
+                  "validFromFy": 2027,
+                  "validToFy": null,
+                  "availabilityStart": "2026-10-01",
+                  "availabilityEnd": null,
+                  "recordedAt": "2026-09-24T00:00:00.000Z",
+                  "accountId": "0300",
+                  "snapshotGroupId": null,
+                  "amountUsd": "30.00",
+                  "amountBasis": "transaction_delta",
+                  "executionMetric": "obligations",
+                  "asOfDate": "2026-09-24",
+                  "periodStart": null,
+                  "periodEnd": null,
+                  "transferGroupId": null,
+                  "transferLeg": null,
+                  "allocationCertification": "not_applicable",
+                  "reviewState": "verified",
+                  "exactAccountLevel": false,
+                  "evidence": [
+                    {
+                      "sourceFamily": "synthetic",
+                      "sourceNativeId": "record-1",
+                      "sourceUrl": "https://example.invalid/source",
+                      "sourceVersion": "v1",
+                      "contentHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "quote": "Synthetic source passage"
+                    }
+                  ],
+                  "unresolvedReasons": [],
+                  "authoritativeAmountUsd": null
+                }
+              ],
+              "transferLegs": [],
+              "totals": {
+                "cumulativeSnapshotUsd": "0.00",
+                "transactionDeltaUsd": "30.00"
+              }
+            },
+            "transferPairs": [
+              {
+                "transferGroupId": "pair-1",
+                "authorityState": "enacted",
+                "outflow": {
+                  "stableKey": "f-transfer-out",
+                  "factId": "fact-f-transfer-out",
+                  "authorityState": "enacted",
+                  "measure": "transfer_leg",
+                  "fiscalYear": 2027,
+                  "validFromFy": 2027,
+                  "validToFy": null,
+                  "availabilityStart": "2026-10-01",
+                  "availabilityEnd": null,
+                  "recordedAt": "2026-09-24T00:00:00.000Z",
+                  "accountId": "0300",
+                  "snapshotGroupId": null,
+                  "amountUsd": "-5.00",
+                  "amountBasis": "transaction_delta",
+                  "executionMetric": "obligations",
+                  "asOfDate": "2026-09-24",
+                  "periodStart": null,
+                  "periodEnd": null,
+                  "transferGroupId": "pair-1",
+                  "transferLeg": "outflow",
+                  "allocationCertification": "not_applicable",
+                  "reviewState": "verified",
+                  "exactAccountLevel": false,
+                  "evidence": [
+                    {
+                      "sourceFamily": "synthetic",
+                      "sourceNativeId": "record-1",
+                      "sourceUrl": "https://example.invalid/source",
+                      "sourceVersion": "v1",
+                      "contentHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "quote": "Synthetic source passage"
+                    }
+                  ],
+                  "unresolvedReasons": [],
+                  "authoritativeAmountUsd": null
+                },
+                "inflow": {
+                  "stableKey": "g-transfer-in",
+                  "factId": "fact-g-transfer-in",
+                  "authorityState": "enacted",
+                  "measure": "transfer_leg",
+                  "fiscalYear": 2027,
+                  "validFromFy": 2027,
+                  "validToFy": null,
+                  "availabilityStart": "2026-10-01",
+                  "availabilityEnd": null,
+                  "recordedAt": "2026-09-24T00:00:00.000Z",
+                  "accountId": "0300",
+                  "snapshotGroupId": null,
+                  "amountUsd": "5.00",
+                  "amountBasis": "transaction_delta",
+                  "executionMetric": "obligations",
+                  "asOfDate": "2026-09-24",
+                  "periodStart": null,
+                  "periodEnd": null,
+                  "transferGroupId": "pair-1",
+                  "transferLeg": "inflow",
+                  "allocationCertification": "not_applicable",
+                  "reviewState": "verified",
+                  "exactAccountLevel": false,
+                  "evidence": [
+                    {
+                      "sourceFamily": "synthetic",
+                      "sourceNativeId": "record-1",
+                      "sourceUrl": "https://example.invalid/source",
+                      "sourceVersion": "v1",
+                      "contentHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "quote": "Synthetic source passage"
+                    }
+                  ],
+                  "unresolvedReasons": [],
+                  "authoritativeAmountUsd": null
+                },
+                "state": "paired",
+                "unresolvedReason": null
+              }
+            ],
+            "allocations": [
+              {
+                "stableKey": "d-allocation",
+                "factId": "fact-d-allocation",
+                "authorityState": "enacted",
+                "measure": "allocation",
+                "fiscalYear": 2027,
+                "validFromFy": 2027,
+                "validToFy": null,
+                "availabilityStart": "2026-10-01",
+                "availabilityEnd": null,
+                "recordedAt": "2026-09-24T00:00:00.000Z",
+                "accountId": "0300",
+                "snapshotGroupId": null,
+                "amountUsd": "15.50",
+                "amountBasis": null,
+                "executionMetric": "obligations",
+                "asOfDate": "2026-09-24",
+                "periodStart": null,
+                "periodEnd": null,
+                "transferGroupId": null,
+                "transferLeg": null,
+                "allocationCertification": "certified",
+                "reviewState": "verified",
+                "exactAccountLevel": true,
+                "evidence": [
+                  {
+                    "sourceFamily": "synthetic",
+                    "sourceNativeId": "record-1",
+                    "sourceUrl": "https://example.invalid/source",
+                    "sourceVersion": "v1",
+                    "contentHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "quote": "Synthetic source passage"
+                  }
+                ],
+                "unresolvedReasons": [],
+                "authoritativeAmountUsd": "15.50"
+              }
+            ],
+            "residuals": [
+              {
+                "stableKey": "e-residual",
+                "factId": "fact-e-residual",
+                "authorityState": "enacted",
+                "measure": "residual",
+                "fiscalYear": 2027,
+                "validFromFy": 2027,
+                "validToFy": null,
+                "availabilityStart": "2026-10-01",
+                "availabilityEnd": null,
+                "recordedAt": "2026-09-24T00:00:00.000Z",
+                "accountId": "0300",
+                "snapshotGroupId": null,
+                "amountUsd": null,
+                "amountBasis": null,
+                "executionMetric": "obligations",
+                "asOfDate": "2026-09-24",
+                "periodStart": null,
+                "periodEnd": null,
+                "transferGroupId": null,
+                "transferLeg": null,
+                "allocationCertification": "not_applicable",
+                "reviewState": "verified",
+                "exactAccountLevel": false,
+                "evidence": [
+                  {
+                    "sourceFamily": "synthetic",
+                    "sourceNativeId": "record-1",
+                    "sourceUrl": "https://example.invalid/source",
+                    "sourceVersion": "v1",
+                    "contentHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "quote": "Synthetic source passage"
+                  }
+                ],
+                "unresolvedReasons": [
+                  "Unmatched source observation"
+                ],
+                "authoritativeAmountUsd": null
+              }
+            ],
+            "page": {
+              "limit": 50,
+              "hasMore": false,
+              "nextCursor": null
+            },
+            "coverage": {
+              "state": "complete",
+              "unresolvedReasons": [],
+              "sourceFreshness": [
+                {
+                  "source": "synthetic",
+                  "sourceAsOf": "2026-09-24T00:00:00.000Z",
+                  "state": "current"
+                }
+              ]
+            }
+          },
+          "coverage": {
+            "state": "complete",
+            "unresolvedReasons": [],
+            "sourceFreshness": [
+              {
+                "source": "synthetic",
+                "sourceAsOf": "2026-09-24T00:00:00.000Z",
+                "state": "current"
+              }
+            ]
+          },
+          "freshness": [
+            {
+              "source": "synthetic",
+              "sourceAsOf": "2026-09-24T00:00:00.000Z",
+              "state": "current"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "unsupported-sources",
+      "request": {
+        "peCode": " 0601234a ",
+        "asOfFy": 2027,
+        "knownAt": "2026-09-24T00:00:00Z"
+      },
+      "response": {
+        "tool": "get_pe_buyer_workspace",
+        "subject": {
+          "type": "pe",
+          "id": "0601234A"
+        },
+        "asOfFy": 2027,
+        "knownAt": "2026-09-24T00:00:00.000Z",
+        "budget": {
+          "state": "unsupported",
+          "data": null,
+          "coverage": {
+            "unresolvedReasons": [
+              {
+                "code": "budget_temporal_read_unavailable",
+                "detail": "Canonical PE budget read does not support pinned knownAt."
+              }
+            ]
+          },
+          "freshness": null
+        },
+        "federalEvidence": {
+          "state": "complete",
+          "data": {
+            "mentions": {
+              "items": [],
+              "hasMore": false,
+              "nextCursor": null
+            },
+            "lifecycle": {
+              "items": [],
+              "hasMore": false,
+              "nextCursor": null
+            }
+          },
+          "coverage": {
+            "state": "complete",
+            "unresolvedReasons": []
+          },
+          "freshness": {
+            "knownAt": "2026-09-24T00:00:00.000Z",
+            "sourceAsOf": null
+          }
+        },
+        "acquisition": {
+          "state": "unsupported",
+          "data": {
+            "subject": {
+              "type": "pe",
+              "id": "0601234A"
+            },
+            "asOfFy": 2027,
+            "knownAt": "2026-09-24T00:00:00.000Z",
+            "accepted": [],
+            "candidates": [],
+            "unresolved": [],
+            "page": {
+              "limit": 50,
+              "hasMore": false,
+              "nextCursor": null
+            },
+            "coverage": {
+              "state": "unsupported",
+              "supportedRelationshipKinds": [
+                "notice_to_vehicle"
+              ],
+              "unsupportedRelationshipKinds": [],
+              "unresolvedReasons": [
+                {
+                  "code": "source_unavailable",
+                  "count": null,
+                  "detail": "Synthetic unavailable source"
+                }
+              ],
+              "sourceFreshness": [
+                {
+                  "source": "synthetic",
+                  "sourceAsOf": "2026-09-24",
+                  "lastObservedAt": "2026-09-24T00:00:00.000Z",
+                  "state": "unavailable"
+                }
+              ]
+            }
+          },
+          "coverage": {
+            "state": "unsupported",
+            "supportedRelationshipKinds": [
+              "notice_to_vehicle"
+            ],
+            "unsupportedRelationshipKinds": [],
+            "unresolvedReasons": [
+              {
+                "code": "source_unavailable",
+                "count": null,
+                "detail": "Synthetic unavailable source"
+              }
+            ],
+            "sourceFreshness": [
+              {
+                "source": "synthetic",
+                "sourceAsOf": "2026-09-24",
+                "lastObservedAt": "2026-09-24T00:00:00.000Z",
+                "state": "unavailable"
+              }
+            ]
+          },
+          "freshness": [
+            {
+              "source": "synthetic",
+              "sourceAsOf": "2026-09-24",
+              "lastObservedAt": "2026-09-24T00:00:00.000Z",
+              "state": "unavailable"
+            }
+          ]
+        },
+        "fundingExecution": {
+          "state": "unsupported",
+          "data": {
+            "subject": {
+              "type": "pe",
+              "id": "0601234A"
+            },
+            "asOfFy": 2027,
+            "knownAt": "2026-09-24T00:00:00.000Z",
+            "enacted": {
+              "cumulativeSnapshots": [],
+              "transactionDeltas": [],
+              "transferLegs": [],
+              "totals": {
+                "cumulativeSnapshotUsd": "0.00",
+                "transactionDeltaUsd": "0.00"
+              }
+            },
+            "proposed": {
+              "cumulativeSnapshots": [],
+              "transactionDeltas": [],
+              "transferLegs": [],
+              "totals": {
+                "cumulativeSnapshotUsd": "0.00",
+                "transactionDeltaUsd": "0.00"
+              }
+            },
+            "transferPairs": [],
+            "allocations": [],
+            "residuals": [],
+            "page": {
+              "limit": 50,
+              "hasMore": false,
+              "nextCursor": null
+            },
+            "coverage": {
+              "state": "unsupported",
+              "unresolvedReasons": [
+                {
+                  "code": "source_unavailable",
+                  "count": null,
+                  "detail": "Synthetic unavailable source"
+                }
+              ],
+              "sourceFreshness": [
+                {
+                  "source": "synthetic",
+                  "sourceAsOf": "2026-09-24T00:00:00.000Z",
+                  "state": "unavailable"
+                }
+              ]
+            }
+          },
+          "coverage": {
+            "state": "unsupported",
+            "unresolvedReasons": [
+              {
+                "code": "source_unavailable",
+                "count": null,
+                "detail": "Synthetic unavailable source"
+              }
+            ],
+            "sourceFreshness": [
+              {
+                "source": "synthetic",
+                "sourceAsOf": "2026-09-24T00:00:00.000Z",
+                "state": "unavailable"
+              }
+            ]
+          },
+          "freshness": [
+            {
+              "source": "synthetic",
+              "sourceAsOf": "2026-09-24T00:00:00.000Z",
+              "state": "unavailable"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

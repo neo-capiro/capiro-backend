@@ -28,7 +28,12 @@ export class IntelligenceClientProfileV1 {
     private readonly prisma: PrismaService,
     private readonly ports: ProfileV1Ports,
   ) {}
-  async getClientProfileV1WithinBillDeadline(clientId: string, tenantId: string, userId?: string) {
+  async getClientProfileV1WithinBillDeadline(
+    clientId: string,
+    tenantId: string,
+    userId?: string,
+    signal?: AbortSignal,
+  ) {
     const { prisma, ports } = this;
     const client = await prisma.withTenant(tenantId, (tx) =>
       tx.client.findFirst({
@@ -37,9 +42,13 @@ export class IntelligenceClientProfileV1 {
       }),
     );
     if (!client || client.status === 'archived') throw new NotFoundException('Client not found');
-    const context = createProfileV1Context(client, clientId, tenantId, userId);
+    const context = createProfileV1Context(client, clientId, tenantId, userId, signal);
     const { now } = context;
     const { settled, settledSourceLabels } = await collectProfileV1Sources(prisma, ports, context);
+    // The caller's budget ran out while the sources settled: the follow-up
+    // reads (committee jurisdiction, office recommendations, ROI quarters)
+    // would only feed an answer nobody is waiting for.
+    signal?.throwIfAborted();
     const values = settleProfileV1Sources(ports, context, settled, settledSourceLabels);
     const { profile, roi, trackedBills, regLinks, mappingRows, clientRelevantRegs } = values;
     const confirmedSources = new Set(mappingRows.filter((m) => m.confirmed).map((m) => m.source));
@@ -135,6 +144,7 @@ function createProfileV1Context(
   clientId: string,
   tenantId: string,
   userId?: string,
+  signal?: AbortSignal,
 ): ProfileV1Context {
   const now = new Date();
   const day14 = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
@@ -146,6 +156,7 @@ function createProfileV1Context(
     clientId,
     tenantId,
     userId,
+    signal,
     now,
     day14,
     day21,

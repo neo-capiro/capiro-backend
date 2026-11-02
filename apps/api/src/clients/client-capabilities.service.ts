@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -113,40 +114,48 @@ export class ClientCapabilitiesService {
   }
 
   async createCapability(ctx: TenantContext, clientId: string, input: CreateCapabilityInput) {
-    const created = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await this.assertClient(ctx.tenantId, clientId, tx as any);
-      const created = await tx.clientCapability.create({
-        data: {
-          tenantId: ctx.tenantId,
-          clientId,
-          name: input.name,
-          type: input.type ?? 'product',
-          description: input.description ?? null,
-          sector: input.sector ?? null,
-          tags: normalizeCapabilityTags(input.tags) as object,
-          issueCodes: normalizeCapabilityIssueCodes(input.issueCodes) as object,
-          trl: input.trl ?? null,
-          mrl: input.mrl ?? null,
-          peNumber: input.peNumber ?? null,
-          peNumbers: input.peNumbers ?? [],
-          keywords: input.keywords ?? [],
-          appropriationAccount: input.appropriationAccount ?? null,
-          serviceBranch: input.serviceBranch ?? null,
-          targetSubcommittee: input.targetSubcommittee ?? null,
-          fundingAsk: input.fundingAsk ?? null,
-          fundingAskLabel: input.fundingAskLabel ?? null,
-          justification: input.justification ?? null,
-          districtNexus: input.districtNexus ?? null,
-          existingContracts: input.existingContracts ?? null,
-          notes: input.notes ?? null,
-          sortOrder: input.sortOrder ?? 0,
-        },
-      });
-      await tx.clientCapabilityFitRecommendation.deleteMany({
-        where: { clientId, tenantId: ctx.tenantId },
-      });
-      return created;
+    const created = await this.prisma.withTenant(ctx.tenantId,
+      tx => this.createCapabilityInTransaction(tx, ctx, clientId, input));
+    return this.afterCapabilityCreated(ctx, created);
+  }
+
+  async createCapabilityInTransaction(tx: Prisma.TransactionClient, ctx: TenantContext, clientId: string, input: CreateCapabilityInput) {
+    await this.assertClient(ctx.tenantId, clientId, tx as any);
+    const created = await tx.clientCapability.create({
+      data: {
+        tenantId: ctx.tenantId,
+        clientId,
+        name: input.name,
+        type: input.type ?? 'product',
+        description: input.description ?? null,
+        sector: input.sector ?? null,
+        tags: normalizeCapabilityTags(input.tags) as object,
+        issueCodes: normalizeCapabilityIssueCodes(input.issueCodes) as object,
+        trl: input.trl ?? null,
+        mrl: input.mrl ?? null,
+        peNumber: input.peNumber ?? null,
+        peNumbers: input.peNumbers ?? [],
+        keywords: input.keywords ?? [],
+        appropriationAccount: input.appropriationAccount ?? null,
+        serviceBranch: input.serviceBranch ?? null,
+        targetSubcommittee: input.targetSubcommittee ?? null,
+        fundingAsk: input.fundingAsk ?? null,
+        fundingAskLabel: input.fundingAskLabel ?? null,
+        justification: input.justification ?? null,
+        districtNexus: input.districtNexus ?? null,
+        existingContracts: input.existingContracts ?? null,
+        notes: input.notes ?? null,
+        sortOrder: input.sortOrder ?? 0,
+      },
     });
+    await tx.clientCapabilityFitRecommendation.deleteMany({
+      where: { clientId, tenantId: ctx.tenantId },
+    });
+    return created;
+  }
+
+  /** Invoke only after the owning transaction commits. */
+  afterCapabilityCreated(ctx: TenantContext, created: Awaited<ReturnType<ClientCapabilitiesService['createCapabilityInTransaction']>>) {
     // Embed asynchronously, the capability is searchable via Meri within
     // a second or two of the create response landing.
     this.embeddings.embedCapabilityFireAndForget(created.id);

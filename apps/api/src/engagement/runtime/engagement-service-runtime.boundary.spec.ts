@@ -21,11 +21,7 @@ function shadowPolicy(): EngagementRuntimePolicyService {
 describe('EngagementService runtime boundary', () => {
   it('covers all EngagementService methods behind externally sensitive controller handlers', () => {
     expect(guardedEngagementServiceMethods()).toEqual({
-      previewAiTemplate: { action: 'outreach_generate' },
       generateTalkingPoints: { action: 'outreach_generate' },
-      generateBatchEmails: { action: 'outreach_generate' },
-      generateOutreachDraft: { action: 'outreach_generate' },
-      generateCampaignEmail: { action: 'outreach_generate' },
       generateMeetingPrep: { action: 'meeting_prep_generate' },
       generateMeetingDebriefDraft: { action: 'meeting_debrief_generate' },
       sendBatchEmails: { action: 'outreach_send' },

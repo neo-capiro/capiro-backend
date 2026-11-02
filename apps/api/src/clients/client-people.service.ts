@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -185,89 +186,97 @@ export class ClientPeopleService {
    * contact date is strictly better information.
    */
   async upsertPersonForImport(ctx: TenantContext, clientId: string, input: CreatePersonInput) {
-    const result = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const client = await tx.client.findFirst({
-        where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
-        select: { id: true },
-      });
-      if (!client) throw new NotFoundException('Client not found');
+    const result = await this.prisma.withTenant(ctx.tenantId,
+      tx => this.upsertPersonForImportInTransaction(tx, ctx, clientId, input));
+    return this.afterPersonImport(ctx, result);
+  }
 
-      const email = input.email?.trim() || null;
-      const existing = email
-        ? await tx.clientPerson.findFirst({
-            where: { tenantId: ctx.tenantId, clientId, email },
-          })
-        : await tx.clientPerson.findFirst({
-            where: {
-              tenantId: ctx.tenantId,
-              clientId,
-              name: { equals: input.name, mode: 'insensitive' },
-            },
-          });
+  async upsertPersonForImportInTransaction(tx: Prisma.TransactionClient, ctx: TenantContext, clientId: string, input: CreatePersonInput) {
+    const client = await tx.client.findFirst({
+      where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
+      select: { id: true },
+    });
+    if (!client) throw new NotFoundException('Client not found');
 
-      const lastContact = input.lastContact ? new Date(input.lastContact) : null;
-      if (!existing) {
-        // Imported contacts get the same title inference as hand-created ones —
-        // this path skipping it is why whole imported rosters sat "Unplaced ·
-        // No title match" with titles the rules matched perfectly.
-        const inferred = inferPlacementFromTitle(input.title);
-        const created = await tx.clientPerson.create({
-          data: {
+    const email = input.email?.trim() || null;
+    const existing = email
+      ? await tx.clientPerson.findFirst({
+          where: { tenantId: ctx.tenantId, clientId, email },
+        })
+      : await tx.clientPerson.findFirst({
+          where: {
             tenantId: ctx.tenantId,
             clientId,
-            name: input.name,
-            title: input.title ?? null,
-            email,
-            phone: input.phone ?? null,
-            role: input.role ?? null,
-            lastContact,
-            notes: input.notes ?? null,
-            hierarchyLevel: inferred.level,
-            placementConfidence: inferred.confidence,
-            reviewRequired: inferred.reviewRequired,
-            placementSource: 'auto_title',
+            name: { equals: input.name, mode: 'insensitive' },
           },
         });
-        return { person: created, created: true };
-      }
 
-      const fill = <T>(current: T | null, incoming: T | null | undefined): T | null | undefined =>
-        current === null || current === undefined || current === ('' as unknown as T)
-          ? (incoming ?? undefined)
-          : undefined;
-      const advanced =
-        lastContact && (!existing.lastContact || lastContact > existing.lastContact)
-          ? lastContact
-          : undefined;
-      // An import that fills a previously-blank title re-runs inference for a
-      // still-automatic placement, same as a human title edit would. Manual
-      // placement always wins and is never touched here.
-      const filledTitle = fill(existing.title, input.title);
-      const reinfer =
-        typeof filledTitle === 'string' && existing.placementSource !== 'manual'
-          ? inferPlacementFromTitle(filledTitle)
-          : null;
-      const updated = await tx.clientPerson.update({
-        where: { id: existing.id },
+    const lastContact = input.lastContact ? new Date(input.lastContact) : null;
+    if (!existing) {
+      // Imported contacts get the same title inference as hand-created ones —
+      // this path skipping it is why whole imported rosters sat "Unplaced ·
+      // No title match" with titles the rules matched perfectly.
+      const inferred = inferPlacementFromTitle(input.title);
+      const created = await tx.clientPerson.create({
         data: {
-          title: filledTitle,
-          email: fill(existing.email, email),
-          phone: fill(existing.phone, input.phone),
-          role: fill(existing.role, input.role),
-          notes: fill(existing.notes, input.notes),
-          ...(advanced ? { lastContact: advanced } : {}),
-          ...(reinfer
-            ? {
-                hierarchyLevel: reinfer.level,
-                placementConfidence: reinfer.confidence,
-                reviewRequired: reinfer.reviewRequired,
-                placementSource: 'auto_title',
-              }
-            : {}),
+          tenantId: ctx.tenantId,
+          clientId,
+          name: input.name,
+          title: input.title ?? null,
+          email,
+          phone: input.phone ?? null,
+          role: input.role ?? null,
+          lastContact,
+          notes: input.notes ?? null,
+          hierarchyLevel: inferred.level,
+          placementConfidence: inferred.confidence,
+          reviewRequired: inferred.reviewRequired,
+          placementSource: 'auto_title',
         },
       });
-      return { person: updated, created: false };
+      return { person: created, created: true };
+    }
+
+    const fill = <T>(current: T | null, incoming: T | null | undefined): T | null | undefined =>
+      current === null || current === undefined || current === ('' as unknown as T)
+        ? (incoming ?? undefined)
+        : undefined;
+    const advanced =
+      lastContact && (!existing.lastContact || lastContact > existing.lastContact)
+        ? lastContact
+        : undefined;
+    // An import that fills a previously-blank title re-runs inference for a
+    // still-automatic placement, same as a human title edit would. Manual
+    // placement always wins and is never touched here.
+    const filledTitle = fill(existing.title, input.title);
+    const reinfer =
+      typeof filledTitle === 'string' && existing.placementSource !== 'manual'
+        ? inferPlacementFromTitle(filledTitle)
+        : null;
+    const updated = await tx.clientPerson.update({
+      where: { id: existing.id },
+      data: {
+        title: filledTitle,
+        email: fill(existing.email, email),
+        phone: fill(existing.phone, input.phone),
+        role: fill(existing.role, input.role),
+        notes: fill(existing.notes, input.notes),
+        ...(advanced ? { lastContact: advanced } : {}),
+        ...(reinfer
+          ? {
+              hierarchyLevel: reinfer.level,
+              placementConfidence: reinfer.confidence,
+              reviewRequired: reinfer.reviewRequired,
+              placementSource: 'auto_title',
+            }
+          : {}),
+      },
     });
+    return { person: updated, created: false };
+  }
+
+  /** Invoke only after the owning transaction commits. */
+  afterPersonImport(ctx: TenantContext, result: Awaited<ReturnType<ClientPeopleService['upsertPersonForImportInTransaction']>>) {
     this.clientKb.indexPersonFireAndForget(ctx.tenantId, result.person.id);
     return result;
   }

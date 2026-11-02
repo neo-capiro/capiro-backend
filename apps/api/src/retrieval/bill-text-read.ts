@@ -154,7 +154,10 @@ export type BillReadCursor = {
   section?: string;
 };
 export function encodeBillReadCursor(
-  row: BillTextDocumentRow,
+  row: Pick<
+    BillTextDocumentRow,
+    'extractionId' | 'revisionId' | 'billId' | 'jurisdiction' | 'session' | 'structureHash'
+  >,
   offset: number,
   section?: string,
 ): string {

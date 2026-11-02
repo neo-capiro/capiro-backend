@@ -1,0 +1,51 @@
+{
+  "synthetic": true,
+  "request": {
+    "billId": "119-hr-1",
+    "versionCode": "enr",
+    "revisionId": "11111111-1111-4111-8111-111111111111",
+    "versionHash": "b564e47b50ce4b67fa8734690f761a1472b5bbf92ce232f9244787636c7b9e18",
+    "textHash": "2624cd7c99b91e7bf18b85433c634ec22a0ccb2875ce95311d20bc6e6e20b9ba"
+  },
+  "response": {
+    "tool": "read_federal_draft_source",
+    "authoritativeOwner": "federal_evidence_current",
+    "currentStatus": "available",
+    "source": {
+      "revisionId": "11111111-1111-4111-8111-111111111111",
+      "sourceKey": "fixture-bill",
+      "provider": "govinfo",
+      "collection": "BILLS",
+      "packageId": "BILLS-119hr1enr",
+      "billId": "119-hr-1",
+      "versionCode": "enr",
+      "lineageKey": "bill:119-hr-1",
+      "versionHash": "b564e47b50ce4b67fa8734690f761a1472b5bbf92ce232f9244787636c7b9e18",
+      "textHash": "2624cd7c99b91e7bf18b85433c634ec22a0ccb2875ce95311d20bc6e6e20b9ba",
+      "evidenceParserVersion": "federal-legislative-exact-code-v1",
+      "sourceLocator": "https://www.govinfo.gov/content/pkg/BILLS-119hr1enr/html/BILLS-119hr1enr.htm",
+      "sourceModifiedAt": "2026-01-02T00:00:00.000Z",
+      "publishedAt": "2026-01-01T00:00:00.000Z",
+      "fetchedAt": "2026-01-03T00:00:00.000Z",
+      "text": "SEC. 1. Synthetic authorization.\nThe amount is $20.\n"
+    },
+    "integrity": {
+      "retainedContent": "sha256_verified",
+      "extractedText": "sha256_verified",
+      "originalHttpBytes": "unreported"
+    },
+    "coverage": {
+      "complete": true,
+      "truncated": false,
+      "textEncoding": "utf-8",
+      "textNormalization": "unreported",
+      "legalStructure": "unqualified"
+    },
+    "currency": {
+      "currentAtRead": true,
+      "enactment": "unresolved",
+      "legalCurrency": "unresolved"
+    },
+    "trust": "external_untrusted"
+  }
+}

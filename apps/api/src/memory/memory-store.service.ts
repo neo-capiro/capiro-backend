@@ -14,7 +14,6 @@ import type { IngestContext, MemoryItem, MemoryItemType, MemorySection } from '.
 import { MEMORY_SCHEMA_VERSION, defaultMemoryGovernanceFields } from './memory.types.js';
 import { renderMemoryItem, vaultPathForItem } from './memory-render.helpers.js';
 import { extractWikiLinks } from './memory-parse.helpers.js';
-import { mergeEditedSections, fileDefForType } from './memory-catalog.js';
 import { embedMemoryItem } from './memory-embedding-lifecycle.js';
 import {
   clientMemoryAllowed,
@@ -36,6 +35,11 @@ import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { MemoryTransitionAuditService } from './memory-transition-audit.service.js';
 import { MemoryCleanupOutboxService } from './memory-cleanup-outbox.service.js';
 import { memoryGovernanceCenterEnabled } from './memory-governance-center.switch.js';
+import {
+  assertMemoryGovernanceVersion,
+  memoryGovernanceVersionSql,
+  requireMemoryGovernanceVersion,
+} from './memory-governance-version.js';
 import {
   assertSyntheticApprovedMemoryInTx,
   readSyntheticMemoryRetirementInTx,
@@ -358,11 +362,7 @@ export class MemoryStoreService {
 
   /**
    * Upsert an item for a tenant via the trusted (RLS-bypass) path, then
-   * re-derive its wikilink edges. Used by ingestion workers and seeding, and
-   * also by the interactive Settings-editor save (upsertSectionsForCurrentTenant)
-   * — that caller passes a higher `opts.timeoutMs` since it runs inline on a
-   * user's save click rather than in a background worker; see withSystem's
-   * doc comment for why the default 5s cap is unsafe under pool pressure.
+   * re-derive its wikilink edges. Used by ingestion workers and seeding.
    */
   async upsertSystem(
     item: MemoryItem,
@@ -611,74 +611,6 @@ export class MemoryStoreService {
     return { ...updated, updatedAt: new Date().toISOString() };
   }
 
-  /**
-   * Create-or-update the human sections of a Settings memory file. Unlike
-   * updateSectionsForCurrentTenant, this CREATES the item from the catalog
-   * skeleton when it doesn't exist yet — so a brand-new firm/client/user file
-   * (and Meri-drafted content for one) persists on first save. Scope/visibility/
-   * owner are derived from the catalog + caller:
-   *   - firm files   -> visibility 'tenant', owner null, slug 'firm'
-   *   - client files -> visibility 'tenant', owner null, slug <clientId>
-   *   - user files   -> visibility 'user',   owner <caller>, slug <userId>
-   */
-  async upsertSectionsForCurrentTenant(
-    type: MemoryItemType,
-    slug: string,
-    scope: 'firm' | 'client' | 'user',
-    clientId: string | null,
-    edits: Array<{ key: string; body: string }>,
-    allowedKeys: Set<string>,
-  ): Promise<MemoryItem> {
-    const ctx = this.tenantCtx.require();
-    const existing = await this.getByTypeSlug(type, slug);
-
-    // Canonical merge: walks the catalog skeleton so every human-editable section
-    // is present + saveable (fixes "some files don't save" for stale rows), keeps
-    // engine-owned + unlisted sections intact. Pure + unit-tested in the catalog.
-    const mergedSections: MemorySection[] = mergeEditedSections(
-      type,
-      existing?.sections ?? null,
-      edits,
-      allowedKeys,
-    );
-
-    const label = fileDefForType(type)?.label ?? type;
-    const item: MemoryItem = existing
-      ? { ...existing, sections: mergedSections }
-      : {
-          id: '',
-          tenantId: ctx.tenantId,
-          clientId: scope === 'client' ? clientId : null,
-          ownerUserId: scope === 'user' ? ctx.userId : null,
-          type,
-          visibility: scope === 'user' ? 'user' : 'tenant',
-          entityId: null,
-          slug,
-          title: label,
-          aliases: [],
-          tags: ['memory-file', scope],
-          source: 'manual',
-          sourceRef: null,
-          provenance: 'human',
-          sections: mergedSections,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          schemaVersion: MEMORY_SCHEMA_VERSION,
-          ...defaultMemoryGovernanceFields(),
-        };
-
-    // Interactive save (Settings editor / Client Soul), not a background
-    // ingestion pass: the default 5s interactive-transaction timeout leaves no
-    // headroom under Prisma pool pressure, which has intermittently turned a
-    // slow-but-legitimate save into an outright failure (503). Give it more
-    // room to wait out a transient pool stall rather than aborting the write.
-    await this.upsertSystem(item, undefined, {
-      timeoutMs: 15_000,
-      expectedExistingId: existing?.id ?? null,
-    });
-    return { ...item, updatedAt: new Date().toISOString() };
-  }
-
   // ── Phase 1 (1D) — user-facing memory verbs ──────────────────────────────
   // All three run under withTenantUser so the 1C owner-aware RLS policy admits
   // the caller's own private items. They operate on the canonical memory_items
@@ -857,6 +789,21 @@ export class MemoryStoreService {
     return this.forgetMemoryGuarded(itemId, reason);
   }
 
+  /** Governance uses the same locked revoke/cleanup transaction with an exact observed version. */
+  async forgetMemoryAtVersion(
+    itemId: string,
+    reason: string,
+    expectedVersion: string,
+  ): Promise<MemoryVerbResult> {
+    return this.forgetMemoryGuarded(
+      itemId,
+      reason,
+      undefined,
+      undefined,
+      requireMemoryGovernanceVersion(expectedVersion),
+    );
+  }
+
   /** Internal fixture operation only; never exposed by a controller or DTO. */
   async forgetSyntheticFixture(
     itemId: string,
@@ -937,6 +884,7 @@ export class MemoryStoreService {
     reason?: string,
     fixtureGuard?: SyntheticApprovedMemoryGuard,
     correctionGuard?: SyntheticCorrectionRetirementGuard,
+    expectedVersion?: string,
   ): Promise<MemoryVerbResult> {
     const ctx = this.tenantCtx.require();
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
@@ -954,15 +902,17 @@ export class MemoryStoreService {
           client_id: string | null;
           status: string;
           legal_hold: boolean;
+          version: string;
         }>
-      >`
-        SELECT title, slug, visibility, owner_user_id, client_id, status, legal_hold
-        FROM memory_items
+      >(Prisma.sql`
+        SELECT title, slug, visibility, owner_user_id, client_id, status, legal_hold,
+               ${memoryGovernanceVersionSql('mi')} AS version
+        FROM memory_items mi
         WHERE id = ${itemId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
           AND status <> 'revoked'
         LIMIT 1
         FOR UPDATE
-      `;
+      `);
       const row = rows[0];
       if (!row) return { found: false };
       const decision = evaluateMemoryMutation(
@@ -987,6 +937,9 @@ export class MemoryStoreService {
           ? { found: true, blockedByLegalHold: true, title: row.title }
           : { found: false };
       }
+
+      if (expectedVersion !== undefined)
+        assertMemoryGovernanceVersion(row.version, expectedVersion);
 
       await tx.$executeRaw`
         UPDATE memory_items

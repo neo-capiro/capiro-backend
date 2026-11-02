@@ -7,6 +7,7 @@ import {
 import { upsertNormalizedStateBill, upsertStateRollCallVote } from './legiscan-normalize.js';
 import { persistPublishedRecords } from './legiscan-published-records.js';
 import { queueBillDocumentChecks } from './bill-document-queue.js';
+import { withStateBillWriter } from './state-bill-writer.js';
 import {
   getDataset,
   getDatasetList,
@@ -14,7 +15,7 @@ import {
 } from '../external/legiscan/legiscan.client.js';
 
 jest.mock('./state-bill-writer.js', () => ({
-  withStateBillWriter: (_db: any, _states: any, run: any) => run(_db),
+  withStateBillWriter: jest.fn((_db: any, _states: any, run: any) => run(_db)),
 }));
 jest.mock('./legiscan-normalize.js', () => ({
   ...jest.requireActual('./legiscan-normalize.js'),
@@ -77,9 +78,17 @@ async function fixture(bills: any[], votes: any[] = []) {
     },
   };
 }
-function database(existing: Record<string, any> = {}) {
+function database(existing: Record<string, any> = {}, initialPending: number[] = []) {
   let checkpoint: any = null;
   const events: string[] = [];
+  let checks = new Map<
+    string,
+    { billKey: string; state: string; attempts: number; providerHash: string }
+  >();
+  let pending = [...initialPending];
+  let transactionId = 0,
+    activeTransaction = 0;
+  const writes: Array<{ sql: string; args: any[]; transaction: number }> = [];
   const db: any = {
     stateSession: {
       findUnique: jest
@@ -95,27 +104,60 @@ function database(existing: Record<string, any> = {}) {
     $executeRaw: jest.fn(async (sql: TemplateStringsArray, ...args: any[]) => {
       const text = sql.join('?');
       events.push(text);
+      writes.push({ sql: text, args, transaction: activeTransaction });
+      if (text.startsWith('INSERT INTO state_bill_record_check') && !checks.has(args[1]))
+        checks.set(args[1], {
+          billKey: args[0],
+          state: 'partial',
+          attempts: 1,
+          providerHash: args[2],
+        });
+      if (
+        text.startsWith('UPDATE state_sync_cursor SET pending_bills') &&
+        !pending.includes(args[0])
+      )
+        pending.push(args[0]);
       if (text.startsWith('INSERT INTO federal_evidence_checkpoint') && !checkpoint)
         checkpoint = JSON.parse(args[1]);
       if (text.startsWith('UPDATE federal_evidence_checkpoint')) checkpoint = JSON.parse(args[0]);
       return 1;
     }),
-    $queryRaw: jest.fn(async (sql: TemplateStringsArray, ...args: any[]) =>
-      sql.join('').includes('legal_source_receipt')
+    $queryRaw: jest.fn(async (sql: TemplateStringsArray, ...args: any[]) => {
+      const text = sql.join('');
+      if (text.includes('SELECT count(*)::integer AS count FROM state_bill_record_check'))
+        return [{ count: [...checks.values()].filter((c) => c.state === 'partial').length }];
+      return text.includes('legal_source_receipt')
         ? [{ id: args[0] }]
-        : [{ cursor: { ...checkpoint } }],
-    ),
+        : [{ cursor: { ...checkpoint } }];
+    }),
+    $queryRawUnsafe: jest.fn(async () => [{ source: 'state-bills:TX' }]),
+    $executeRawUnsafe: jest.fn(async () => 1),
   };
   db.$transaction = jest.fn(async (fn: any) => {
-    const before = checkpoint && { ...checkpoint };
+    const before = checkpoint && { ...checkpoint },
+      beforeChecks = new Map(checks),
+      beforePending = [...pending];
+    const parentTransaction = activeTransaction;
+    activeTransaction = ++transactionId;
     try {
       return await fn(db);
     } catch (error) {
       checkpoint = before;
+      checks = beforeChecks;
+      pending = beforePending;
       throw error;
+    } finally {
+      activeTransaction = parentTransaction;
     }
   });
-  return { db, events, progress: () => checkpoint };
+  return {
+    db,
+    events,
+    writes,
+    progress: () => checkpoint,
+    checks: () => checks,
+    pending: () => pending,
+  };
 }
 beforeEach(() => jest.clearAllMocks());
 afterEach(() => {
@@ -308,4 +350,168 @@ it('honors the refresh slice deadline before metadata writes and refuses limits 
     importFrozenStateDataset(db, f.archive, f.scope, { limit: 1000, deadline: Date.now() - 1 }),
   ).rejects.toThrow();
   expect(upsertNormalizedStateBill).not.toHaveBeenCalled();
+});
+
+const rollCall = (id: number, parent: number, invalid = false) => ({
+  roll_call_id: id,
+  bill_id: parent,
+  date: '2026-02-01',
+  chamber: 'H',
+  desc: 'Synthetic roll call',
+  yea: 1,
+  nay: 0,
+  nv: 0,
+  absent: 0,
+  total: invalid ? 2 : 1,
+  votes: [{ people_id: 1, vote_text: 'Yea' }],
+});
+
+it('commits valid metadata and sibling votes, records exact partial checks, and resumes without duplicate attempts', async () => {
+  const f = await fixture(
+    [bill(1, { votes: [{ roll_call_id: 9 }, { roll_call_id: 10 }] }), bill(2)],
+    [rollCall(9, 1, true), rollCall(10, 1)],
+  );
+  const h = database({}, [99, 1]);
+  expect(await importFrozenStateDataset(h.db, f.archive, f.scope, { limit: 1 })).toMatchObject({
+    offset: 1,
+    imported: 1,
+    voteImportFailures: 1,
+    partialVoteImportBills: 1,
+    scanComplete: false,
+    parentMetadataComplete: false,
+    metadataComplete: false,
+    unresolvedVoteChecks: 1,
+  });
+  expect(h.checks().get('tx-rc-9')).toEqual({
+    billKey: 'tx-2025-hb1',
+    state: 'partial',
+    attempts: 1,
+    providerHash: 'a'.repeat(32),
+  });
+  expect(h.pending()).toEqual([99, 1]);
+  expect(upsertNormalizedStateBill).toHaveBeenCalledTimes(1);
+  expect(persistPublishedRecords).toHaveBeenCalledTimes(1);
+  expect(queueBillDocumentChecks).toHaveBeenCalledTimes(1);
+  expect(upsertStateRollCallVote).toHaveBeenCalledTimes(1);
+  expect(upsertStateRollCallVote).toHaveBeenCalledWith(
+    h.db,
+    'TX',
+    'tx-2025-hb1',
+    expect.objectContaining({ roll_call_id: 10 }),
+    expect.objectContaining({ historical: true, providerBillId: 1 }),
+  );
+  expect(h.db.stateBill.update).toHaveBeenCalledWith(
+    expect.objectContaining({
+      data: expect.objectContaining({ sourceCheckStatus: 'partial', sourceCheckedAt: null }),
+    }),
+  );
+  expect(h.writes.some((w) => w.sql.includes('SET bill_hashes'))).toBe(false);
+  expect(await importFrozenStateDataset(h.db, f.archive, f.scope, { limit: 1 })).toMatchObject({
+    offset: 2,
+    imported: 2,
+    scanComplete: true,
+    parentMetadataComplete: true,
+    metadataComplete: false,
+    voteImportPartial: true,
+    unresolvedVoteChecks: 1,
+  });
+  expect(await importFrozenStateDataset(h.db, f.archive, f.scope, { limit: 1 })).toMatchObject({
+    processed: 0,
+    voteImportFailures: 1,
+    unresolvedVoteChecks: 1,
+  });
+  expect(h.checks().get('tx-rc-9')?.attempts).toBe(1);
+  expect(upsertNormalizedStateBill).toHaveBeenCalledTimes(2);
+  // The canonical live vote writer resolves the existing partial check after a complete retry.
+  h.checks().get('tx-rc-9')!.state = 'available';
+  expect(await importFrozenStateDataset(h.db, f.archive, f.scope, { limit: 1 })).toMatchObject({
+    processed: 0,
+    metadataComplete: true,
+    parentMetadataComplete: true,
+    voteImportPartial: true,
+    voteImportFailures: 1,
+    unresolvedVoteChecks: 0,
+  });
+});
+
+it('does not turn a vote database/lease error into a partial import or advance the checkpoint', async () => {
+  const f = await fixture(
+      [bill(1, { votes: [{ roll_call_id: 9 }, { roll_call_id: 10 }] })],
+      [rollCall(9, 1, true), rollCall(10, 1)],
+    ),
+    h = database({}, [99]);
+  jest.mocked(upsertStateRollCallVote).mockRejectedValueOnce(Error('STATE_WRITER_LEASE_LOST'));
+  await expect(importFrozenStateDataset(h.db, f.archive, f.scope, { limit: 1 })).rejects.toThrow(
+    'STATE_WRITER_LEASE_LOST',
+  );
+  expect(h.progress().offset).toBe(0);
+  expect(h.checks().size).toBe(0);
+  expect(h.pending()).toEqual([99]);
+  expect(await importFrozenStateDataset(h.db, f.archive, f.scope, { limit: 1 })).toMatchObject({
+    offset: 1,
+    imported: 1,
+    partialVoteImportBills: 1,
+    voteImportFailures: 1,
+  });
+  expect(h.pending()).toEqual([99, 1]);
+  expect(h.checks().get('tx-rc-9')?.attempts).toBe(1);
+});
+
+it('keeps partial checks, retry admission and parent checkpoint inside the real writer fence', async () => {
+  jest
+    .mocked(withStateBillWriter)
+    .mockImplementationOnce(jest.requireActual('./state-bill-writer.js').withStateBillWriter);
+  const f = await fixture([bill(1, { votes: [{ roll_call_id: 9 }] })], [rollCall(9, 1, true)]),
+    h = database();
+  await importFrozenStateDataset(h.db, f.archive, f.scope, { limit: 1 });
+  const partial = h.writes.find((w) => w.sql.startsWith('INSERT INTO state_bill_record_check'))!;
+  const pending = h.writes.find((w) =>
+    w.sql.startsWith('UPDATE state_sync_cursor SET pending_bills'),
+  )!;
+  const checkpoint = h.writes.find((w) => w.sql.startsWith('UPDATE federal_evidence_checkpoint'))!;
+  expect(partial.transaction).toBeGreaterThan(0);
+  expect(pending.transaction).toBe(partial.transaction);
+  expect(checkpoint.transaction).toBe(partial.transaction);
+  expect(
+    h.db.$queryRawUnsafe.mock.calls.some((call: any[]) => call[0].includes('FOR UPDATE')),
+  ).toBe(true);
+});
+
+it('retains old checkpoint compatibility and refuses a lost state lease before partial writes', async () => {
+  const f = await fixture([bill(1)]),
+    h = database();
+  await importFrozenStateDataset(h.db, f.archive, f.scope, { limit: 1 });
+  delete h.progress().voteImportFailures;
+  delete h.progress().partialVoteImportBills;
+  expect(await importFrozenStateDataset(h.db, f.archive, f.scope, { limit: 1 })).toMatchObject({
+    processed: 0,
+    voteImportFailures: 0,
+    metadataComplete: true,
+  });
+  jest
+    .mocked(withStateBillWriter)
+    .mockImplementationOnce(jest.requireActual('./state-bill-writer.js').withStateBillWriter);
+  h.db.$queryRawUnsafe.mockResolvedValueOnce([]);
+  await expect(importFrozenStateDataset(h.db, f.archive, f.scope, { limit: 1 })).rejects.toThrow(
+    'STATE_WRITER_ALREADY_RUNNING',
+  );
+});
+
+it('counts inconsistent vote details separately from partial parent imports', async () => {
+  const f = await fixture(
+      [bill(1, { votes: [{ roll_call_id: 9 }, { roll_call_id: 10 }] })],
+      [rollCall(9, 1, true), rollCall(10, 1, true)],
+    ),
+    h = database();
+  expect(await importFrozenStateDataset(h.db, f.archive, f.scope, { limit: 1 })).toMatchObject({
+    imported: 1,
+    partialVoteImportBills: 1,
+    voteImportFailures: 2,
+    unresolvedVoteChecks: 2,
+    parentMetadataComplete: true,
+    metadataComplete: false,
+    scanComplete: true,
+  });
+  expect(h.pending()).toEqual([1]);
+  expect(upsertStateRollCallVote).not.toHaveBeenCalled();
 });

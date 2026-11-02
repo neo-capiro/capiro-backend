@@ -85,15 +85,6 @@ class ResendInvitationDto {
   redirectUrl?: string;
 }
 
-class ImpersonateDto {
-  @IsUUID()
-  tenantId!: string;
-
-  @IsString()
-  @Length(10, 500)
-  reason!: string;
-}
-
 class AuditLogQueryDto {
   @IsOptional()
   @IsString()
@@ -263,16 +254,6 @@ export class CapiroAdminController {
   @Post('users/:clerkUserId/password-reset')
   sendPasswordReset(@Param('clerkUserId') clerkUserId: string) {
     return this.service.sendPasswordReset(clerkUserId);
-  }
-
-  @Post('impersonate')
-  startImpersonation(@CurrentTenant() ctx: TenantContext, @Body() body: ImpersonateDto) {
-    return this.service.startImpersonation(ctx.userId, body.tenantId, body.reason);
-  }
-
-  @Post('impersonate/end')
-  endImpersonation(@CurrentTenant() ctx: TenantContext) {
-    return this.service.endImpersonation(ctx.userId);
   }
 
   // --- AI keys & usage console ----------------------------------------------

@@ -1,0 +1,7 @@
+{
+  "extends": "../private-sql-db-domains-20261031/offline-tsconfig.json",
+  "files": [
+    "../../apps/api/src/meri/analytics/private-sql-db.service.spec.ts",
+    "../../apps/api/src/meri/analytics/private-sql-normalization-runtime.spec.ts"
+  ]
+}

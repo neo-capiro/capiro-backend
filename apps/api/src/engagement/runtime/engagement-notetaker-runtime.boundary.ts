@@ -1,21 +1,45 @@
 import type { MeetingBotProvider } from '../notetaker/meeting-bot.provider.js';
 import type { NotetakerService } from '../notetaker/notetaker.service.js';
 import { EngagementRuntimePolicyService } from './engagement-runtime-policy.service.js';
-import type { EngagementExternalAction } from './engagement-runtime.types.js';
+import type {
+  EngagementExternalAction,
+  EngagementMailHandoffBoundary,
+} from './engagement-runtime.types.js';
 
 interface ExternalMethodMetadata {
   action: EngagementExternalAction;
   requiresCallbacks?: boolean;
   requiresRecallWebhook?: boolean;
+  /**
+   * Capture initiation admission for the assigned initiation scope. Recall
+   * continuations (receiveWebhook/handleBotEvent) deliberately carry no handoff:
+   * they keep their existing callback and webhook gates.
+   */
+  handoff?: {
+    boundary: EngagementMailHandoffBoundary;
+    mode: 'initiation' | 'continuation';
+  };
 }
 
 export const NOTETAKER_EXTERNAL_METHODS: Readonly<
   Record<string, ExternalMethodMetadata>
 > = {
-  dispatch: { action: 'notetaker_dispatch' },
-  enableClientPreference: { action: 'notetaker_dispatch' },
-  disableClientPreference: { action: 'notetaker_remove' },
-  remove: { action: 'notetaker_remove' },
+  dispatch: {
+    action: 'notetaker_dispatch',
+    handoff: { boundary: 'capture_initiation', mode: 'initiation' },
+  },
+  enableClientPreference: {
+    action: 'notetaker_dispatch',
+    handoff: { boundary: 'capture_initiation', mode: 'initiation' },
+  },
+  disableClientPreference: {
+    action: 'notetaker_remove',
+    handoff: { boundary: 'capture_initiation', mode: 'initiation' },
+  },
+  remove: {
+    action: 'notetaker_remove',
+    handoff: { boundary: 'capture_initiation', mode: 'initiation' },
+  },
   receiveWebhook: {
     action: 'notetaker_dispatch',
     requiresCallbacks: true,
@@ -91,12 +115,24 @@ export function guardNotetakerService(
           if (external.requiresRecallWebhook) {
             policy.assertRecallWebhookEnabled('recall_webhook');
           }
+          // Capture initiation (dispatch / preference enable-disable / remove) is
+          // NEW work: gate it here and own the whole returned promise so the
+          // record stays live until the real dispatch or removal finishes. Recall
+          // continuations never reach this branch.
+          if (external.handoff?.mode === 'initiation') {
+            policy.assertMailHandoffBoundary(external.handoff.boundary);
+            return policy.runAdmittedMailHandoffWork(external.handoff.boundary, () =>
+              Reflect.apply(value, target, args),
+            );
+          }
           return Reflect.apply(value, target, args);
         };
       }
       if (NOTETAKER_BACKGROUND_METHODS.has(property)) {
         return (...args: unknown[]) => {
-          policy.assertBackgroundOwner('notetaker-reconcile');
+          // Same final-owner predicate as the worker startup/tick and the raw sweep gates, so a
+          // proxy call cannot slip past ownership the raw object would refuse.
+          policy.assertFinalNotetakerWorker('notetaker-reconcile');
           return Reflect.apply(value, target, args);
         };
       }

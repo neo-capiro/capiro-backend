@@ -33,6 +33,44 @@ function completionHtml(title: string, message: string): string {
   );
 }
 
+/** Outcome parameters this controller owns on the success destination. */
+const CONNECTOR_OUTCOME_KEYS = ['provider', 'mcp_connected', 'mcp_error'];
+
+function queryParamName(pair: string): string {
+  const name = pair.split('=')[0] ?? '';
+  try {
+    return decodeURIComponent(name);
+  } catch {
+    return name;
+  }
+}
+
+/**
+ * Merge the connector outcome into the configured success destination.
+ *
+ * The destination is configuration, not a URL this controller built: it may be
+ * relative or absolute and may already carry a query string and a fragment. The
+ * earlier `base + '?provider=mcp...'` form turned an existing query into part of
+ * the first value (`page=connected-services?provider=mcp`), so the outcome is
+ * merged into that query instead: the configured path, its other parameters and
+ * its fragment survive verbatim, and only the three outcome keys are (re)written
+ * with controlled encoding.
+ */
+function withConnectorOutcome(base: string, outcome: Record<string, string>): string {
+  const hashAt = base.indexOf('#');
+  const hash = hashAt === -1 ? '' : base.slice(hashAt);
+  const withoutHash = hashAt === -1 ? base : base.slice(0, hashAt);
+  const queryAt = withoutHash.indexOf('?');
+  const path = queryAt === -1 ? withoutHash : withoutHash.slice(0, queryAt);
+  const kept = (queryAt === -1 ? '' : withoutHash.slice(queryAt + 1))
+    .split('&')
+    .filter((pair) => pair.length > 0 && !CONNECTOR_OUTCOME_KEYS.includes(queryParamName(pair)));
+  const added = Object.entries(outcome).map(
+    ([key, value]) => `${key}=${encodeURIComponent(value)}`,
+  );
+  return `${path}?${[...kept, ...added].join('&')}${hash}`;
+}
+
 @Controller('clio/mcp-oauth')
 export class MeriMcpOAuthController {
   constructor(
@@ -79,7 +117,13 @@ export class MeriMcpOAuthController {
             );
           return;
         }
-        res.redirect(302, base + '?provider=mcp&mcp_error=Sign-in%20did%20not%20complete');
+        res.redirect(
+          302,
+          withConnectorOutcome(base, {
+            provider: 'mcp',
+            mcp_error: 'Sign-in did not complete',
+          }),
+        );
       } catch {
         failure();
       }
@@ -89,11 +133,11 @@ export class MeriMcpOAuthController {
       const result = await this.oauth.handleCallback({ code, state, issuer });
       const app = await this.managedMcp.appForServer(result.tenantId, result.serverId);
       const count = await this.mcp.discoverTools(result.tenantId, result.serverId);
+      if (!count) {
+        failure();
+        return;
+      }
       if (app) {
-        if (!count) {
-          failure();
-          return;
-        }
         await this.managedMcp.finalizeConnection(result.tenantId, result.serverId);
         res
           .status(200)
@@ -106,7 +150,10 @@ export class MeriMcpOAuthController {
           );
         return;
       }
-      res.redirect(302, base + '?provider=mcp&mcp_connected=' + encodeURIComponent(result.name));
+      res.redirect(
+        302,
+        withConnectorOutcome(base, { provider: 'mcp', mcp_connected: result.name }),
+      );
     } catch {
       failure();
     }

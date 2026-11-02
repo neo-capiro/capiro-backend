@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Res, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
 import { IsIn, IsInt, IsString, Max, Min } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
@@ -35,6 +36,24 @@ export class BrandingController {
   @Get()
   get(@CurrentTenant() ctx: TenantContext) {
     return this.service.getBranding(ctx);
+  }
+
+  /**
+   * M1 (firm half): stable, session-authenticated firm-logo bytes, mirroring the accepted
+   * client-logo route. The app's branding payload must not carry a presigned S3 URL, so the
+   * image stops embedding temporary AWS credentials and stops expiring after five minutes.
+   */
+  @Get('logo')
+  async logo(@CurrentTenant() ctx: TenantContext, @Res() res: Response) {
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader(
+      'Content-Security-Policy',
+      "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'",
+    );
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    const logo = await this.service.readLogo(ctx);
+    res.setHeader('Content-Type', logo.contentType);
+    res.send(logo.body);
   }
 
   @Post('logo/upload-url')

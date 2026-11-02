@@ -69,7 +69,17 @@ export function decodeMemoryReviewCursor(value: unknown): MemoryReviewCursor | n
     ) {
       throw new Error('invalid cursor fields');
     }
-    return { createdAt: new Date(createdAt).toISOString(), id };
+    const normalized = new Date(createdAt).toISOString();
+    // PostgreSQL pages order by microseconds. Date.toISOString() drops the last
+    // three digits and would skip tied records on the next page. Older cursor
+    // timestamp formats retain their existing normalization behavior.
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/.test(createdAt)) {
+      if (createdAt.slice(0, 23) !== normalized.slice(0, 23)) {
+        throw new Error('invalid cursor date');
+      }
+      return { createdAt, id };
+    }
+    return { createdAt: normalized, id };
   } catch {
     throw new BadRequestException('Memory review cursor is invalid.');
   }

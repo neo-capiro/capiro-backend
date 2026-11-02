@@ -7,6 +7,7 @@ import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { ClientTargetsService } from './client-targets.service.js';
 import { ObjectiveDestinationQueryDto } from './objectives/objective-destination.js';
+import { TargetContextQueryDto } from './client-target-context.js';
 
 class AddTargetDto {
   // Widened to 128: OpenStates state-legislator ids ("ocd-person/<uuid>") are
@@ -63,6 +64,17 @@ export class ClientTargetsController {
     @Query() query: ObjectiveDestinationQueryDto,
   ) {
     return this.service.objectiveDestination(ctx, clientId, targetId, query);
+  }
+
+  @Get(':targetId/context')
+  @Header('Cache-Control', 'private, no-store')
+  context(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId', ParseUUIDPipe) clientId: string,
+    @Param('targetId', ParseUUIDPipe) targetId: string,
+    @Query() query: TargetContextQueryDto,
+  ) {
+    return this.service.context(ctx, clientId, targetId, query);
   }
 
   @Post()

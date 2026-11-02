@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   Param,
   ParseUUIDPipe,
   Post,
@@ -13,7 +12,6 @@ import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../../auth/roles.decorator.js';
 import { RolesGuard } from '../../auth/roles.guard.js';
 import { CurrentTenant } from '../../tenant/current-tenant.decorator.js';
-import { EngagementRuntimeAction } from '../../engagement/runtime/engagement-runtime-action.decorator.js';
 import { OutreachV3ExceptionFilter } from '../api/outreach-v3-exception.filter.js';
 import { OutreachV3StateGuard } from '../api/outreach-v3-state.guard.js';
 import { OutreachCommandError } from '../state/outreach-command-errors.js';
@@ -22,7 +20,6 @@ import { OutreachV3FullGenerationGuard } from './outreach-v3-full-generation.gua
 import { OutreachV3FullGenerationService } from './outreach-v3-full-generation.service.js';
 import { OutreachV3GenerationGuard } from './outreach-v3-generation.guard.js';
 import { OutreachV3GenerationService } from './outreach-v3-generation.service.js';
-import { OutreachV3SampleGenerationService } from './outreach-v3-sample-generation.service.js';
 
 @Controller('engagement/outreach-v3/sessions/:sessionId/generation')
 @UseGuards(OutreachV3StateGuard, OutreachV3GenerationGuard, RolesGuard)
@@ -31,7 +28,6 @@ import { OutreachV3SampleGenerationService } from './outreach-v3-sample-generati
 export class OutreachV3GenerationController {
   constructor(
     private readonly generation: OutreachV3GenerationService,
-    private readonly samples: OutreachV3SampleGenerationService,
     private readonly approach: OutreachV3ApproachApprovalService,
     private readonly full: OutreachV3FullGenerationService,
   ) {}
@@ -39,16 +35,6 @@ export class OutreachV3GenerationController {
   @Get('plan')
   plan(@CurrentTenant() ctx: TenantContext, @Param('sessionId', ParseUUIDPipe) sessionId: string) {
     return this.generation.plan(ctx, sessionId);
-  }
-
-  @Post('samples')
-  @EngagementRuntimeAction('outreach_v3_generate')
-  generateSamples(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('sessionId', ParseUUIDPipe) sessionId: string,
-    @Headers('authorization') authHeader?: string,
-  ) {
-    return this.samples.generateSamples(ctx, sessionId, authHeader);
   }
 
   /**
@@ -87,17 +73,6 @@ export class OutreachV3GenerationController {
     return this.approach.approveReviewPacket(ctx, sessionId);
   }
 
-  @Post('full')
-  @EngagementRuntimeAction('outreach_v3_generate')
-  @UseGuards(OutreachV3FullGenerationGuard)
-  startFullGeneration(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('sessionId', ParseUUIDPipe) sessionId: string,
-    @Body() body: unknown,
-  ) {
-    return this.full.submit(ctx, sessionId, requestKey(body));
-  }
-
   /**
    * Server-truth recovery (Workstream H). Returns the most recent full
    * generation job for this session, or `{ job: null }` when none has ever
@@ -132,18 +107,6 @@ export class OutreachV3GenerationController {
   ) {
     return this.full.cancel(ctx, sessionId, jobId);
   }
-
-  @Post('jobs/:jobId/items/:itemId/retry')
-  @EngagementRuntimeAction('outreach_v3_generate')
-  @UseGuards(OutreachV3FullGenerationGuard)
-  retryFullGenerationItem(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('sessionId', ParseUUIDPipe) sessionId: string,
-    @Param('jobId', ParseUUIDPipe) jobId: string,
-    @Param('itemId', ParseUUIDPipe) itemId: string,
-  ) {
-    return this.full.retryItem(ctx, sessionId, jobId, itemId);
-  }
 }
 
 function approvalVersionIds(body: unknown): string[] {
@@ -163,15 +126,6 @@ function approvalVersionIds(body: unknown): string[] {
 function assertEmptyReviewPacketBody(body: unknown): void {
   if (body === undefined || body === null) return;
   strictObject(body, [], invalidReviewPacketBody);
-}
-
-function requestKey(body: unknown): string {
-  const record = strictObject(body, ['requestKey'], invalidRequestKey);
-  const value = record.requestKey;
-  if (typeof value !== 'string' || value.trim().length < 8 || value.trim().length > 128) {
-    throw invalidRequestKey();
-  }
-  return value.trim();
 }
 
 function strictObject(
@@ -198,14 +152,6 @@ function invalidReviewPacketBody(): OutreachCommandError {
   return new OutreachCommandError(
     'OUTREACH_COMMAND_INVALID',
     'Review-packet approval accepts no client-supplied fields.',
-    400,
-  );
-}
-
-function invalidRequestKey(): OutreachCommandError {
-  return new OutreachCommandError(
-    'OUTREACH_COMMAND_INVALID',
-    'Full generation accepts only a requestKey between 8 and 128 characters.',
     400,
   );
 }

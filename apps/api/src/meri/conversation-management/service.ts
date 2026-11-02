@@ -2,8 +2,10 @@ import { ConflictException, ForbiddenException, GoneException, NotFoundException
 import type { TenantContext } from '@capiro/shared';
 import type { Prisma } from '@prisma/client';
 import type { PrismaService } from '../../prisma/prisma.service.js';
+import { retireConversationOfficeDraftsInTx } from '../office-drafts/retention-subject.js';
+import { authorizeResearchPortfolioConversation } from '../../research-portfolios/research-portfolio-artifact-authority.js';
 import { MANAGEMENT_VERSION, TRASH_MS, managementDigest, parseManagementRequest,
-  type ConversationMetadata, type ManagementReceipt, type ManagementRequest } from './contract.js';
+  type ConversationMetadata, type ManagementReceipt, type ManagementRequest, type ResearchConversationCapture } from './contract.js';
 export { readConversationRetentionState, type ConversationRetentionIdentity, type ConversationRetentionState } from './retention.js';
 
 /** Private Core response. Meri owns run exclusion and retention transitions;
@@ -20,7 +22,22 @@ export async function assertManagedMembership(tx: Tx, ctx: TenantContext) {
     status: 'active', tenant: { status: 'active' } }, select: { id: true } });
   if (!membership) throw new ForbiddenException('Current conversation access unavailable');
 }
-export async function visibleBinding(tx: Tx, ctx: TenantContext, row: ManagedRow) {
+export async function visibleBinding(tx: Tx, ctx: TenantContext, row: ManagedRow, { research = false } = {}): Promise<ResearchConversationCapture | undefined> {
+  if (!research && row.metadata && typeof row.metadata === 'object' &&
+      Object.hasOwn(row.metadata, 'researchPortfolioScope')) throw new NotFoundException('Chat not found');
+  // Read-only history explicitly admits the canonical Research capture. Lifecycle
+  // mutations retain their bootstrap/retention contract and never infer General.
+  if (research) {
+    const captured = await authorizeResearchPortfolioConversation(tx, ctx, row, { lock: false });
+    if (captured) {
+      if (row.bootstrapReceipt || !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/.test(captured.researchPortfolioId) ||
+          !Number.isSafeInteger(captured.researchPortfolioRevision) || captured.researchPortfolioName.length > 400 ||
+          Array.from(captured.researchPortfolioName).length > 200) throw new NotFoundException('Chat not found');
+      return Object.freeze({ kind: captured.kind, researchPortfolioId: captured.researchPortfolioId,
+        researchPortfolioName: captured.researchPortfolioName, researchPortfolioRevision: captured.researchPortfolioRevision,
+        scopeVersion: captured.scopeVersion });
+    }
+  }
   const b = row.bootstrapReceipt;
   if (row.tenantId !== ctx.tenantId || row.userId !== ctx.userId || !b || b.tenantId !== ctx.tenantId ||
       b.actorUserId !== ctx.userId || b.conversationId !== row.id || b.clientId !== row.clientId ||
@@ -31,10 +48,11 @@ export async function visibleBinding(tx: Tx, ctx: TenantContext, row: ManagedRow
     if (!client) throw new NotFoundException('Chat not found');
   }
 }
-export function metadata(row: ManagedRow): ConversationMetadata {
+export function metadata(row: ManagedRow, scope?: ResearchConversationCapture): ConversationMetadata {
   if (!['active', 'archived', 'trashed'].includes(row.status)) throw new NotFoundException('Chat not found');
   return { conversationId: row.id, title: row.title, status: row.status as ConversationMetadata['status'],
-    revision: row.metadataRevision.toString(), scopeKind: row.bootstrapReceipt!.scopeKind as 'client' | 'general', clientId: row.clientId,
+    revision: row.metadataRevision.toString(), ...(scope ? { scopeKind: 'research_portfolio' as const, clientId: null, scope } :
+      { scopeKind: row.bootstrapReceipt!.scopeKind as 'client' | 'general', clientId: row.clientId }),
     updatedAt: row.updatedAt.toISOString(), archivedAt: row.archivedAt?.toISOString() ?? null,
     trashedAt: row.trashedAt?.toISOString() ?? null, restoreUntil: row.restoreUntil?.toISOString() ?? null };
 }
@@ -120,8 +138,10 @@ export async function readManagementRequest(prisma: PrismaService, ctx: TenantCo
 
 export async function manageConversation(prisma: PrismaService, ctx: TenantContext, raw: unknown): Promise<ManagementReadback> {
   const request = parseManagementRequest(raw);
-  return prisma.withTenant(ctx.tenantId, async tx => {
+  return prisma.withTenantUser(ctx.tenantId, ctx.userId, async tx => {
       const state = await commandState(tx, ctx, request, true);
+      if (request.operation === 'trash' && (!state.receipt || state.row.status === 'trashed'))
+        await retireConversationOfficeDraftsInTx(tx, ctx.tenantId, ctx.userId, request.conversationId);
       if (state.receipt) return readback(request, state);
       const { row, releaseRetention: release } = state;
       const now = state.now!;
@@ -154,8 +174,8 @@ export async function readManagedConversationMetadata(prisma: PrismaService,
     const row = await tx.clioConversation.findFirst({ where: { id: conversationId,
       tenantId: principal.tenantId, userId: principal.actorId }, include });
     if (!row) throw new NotFoundException('Chat not found');
-    await visibleBinding(tx, { tenantId: principal.tenantId, userId: principal.actorId } as TenantContext, row);
-    return metadata(row);
+    const scope = await visibleBinding(tx, { tenantId: principal.tenantId, userId: principal.actorId } as TenantContext, row, { research: true });
+    return metadata(row, scope);
   });
 }
 

@@ -195,6 +195,8 @@ export class StrategyWorkRetrievalAdapter implements RetrievalSourceAdapter {
                 'templateKey', d.template_key,
                 'title', d.title,
                 'state', d.state::text,
+                'checksum', d.checksum,
+                'revision', d.frontmatter->>'document_id',
                 'validUntil', d.valid_until,
                 'updatedAt', d.updated_at
               ) AS payload
@@ -219,6 +221,11 @@ export class StrategyWorkRetrievalAdapter implements RetrievalSourceAdapter {
                 'documentTitle', d.title,
                 'templateKey', d.template_key,
                 'fact', f.fact,
+                'state', f.state::text,
+                'documentWitness', jsonb_build_object('clientId', d.client_id::text, 'scope', d.scope::text,
+                  'state', d.state::text, 'checksum', d.checksum, 'revision', d.frontmatter->>'document_id',
+                  'authority', d.frontmatter->>'authority', 'sourceOfTruth', d.frontmatter->'source_of_truth',
+                  'validUntil', d.valid_until, 'updatedAt', d.updated_at),
                 'sourceRef', f.source_ref,
                 'authority', f.authority,
                 'asOf', f.as_of,
@@ -232,6 +239,8 @@ export class StrategyWorkRetrievalAdapter implements RetrievalSourceAdapter {
              AND d.id = f.document_id
             WHERE f.tenant_id = ${request.caller.tenantId}::uuid
               AND (f.client_id IS NULL OR f.client_id IN (${clientSql}))
+              AND d.client_id IS NOT DISTINCT FROM f.client_id
+              AND (d.client_id IS NOT NULL OR d.scope = 'firm'::sp_context_scope)
               AND f.state = 'active'::sp_fact_state
               AND d.state = 'active'::sp_context_doc_state
               AND (d.valid_until IS NULL OR d.valid_until >= CURRENT_DATE)

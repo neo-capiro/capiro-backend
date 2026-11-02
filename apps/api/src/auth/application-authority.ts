@@ -168,6 +168,22 @@ export interface ApplicationAuthorityConversation {
   archivedAt: Date | null;
 }
 
+/**
+ * Upper bound on how long a combined current receipt stays valid after it is
+ * issued. The receipt never outlives its evidence: readApplicationAuthorityCurrent
+ * still takes min() with the session and impersonation expiry.
+ *
+ * Why 300 s: Meri control caps a session at sessions.maxTtlMs (300 s on preview)
+ * and the frontend renews 45 s before expiry, so a 120 s receipt made every idle
+ * tab re-confirm through this route about every 75 s. Every Meri operation
+ * re-verifies at Core before acting (session issuance and recheck, gate admit and
+ * release), and Core's own in-process consumers call ApplicationCurrentService.read
+ * again instead of trusting a stored receipt, so this lifetime only bounds how
+ * long an idle tab trusts its receipt before re-confirming; it does not widen
+ * the revocation window.
+ */
+export const APPLICATION_AUTHORITY_CURRENT_RECEIPT_TTL_MS = 300_000;
+
 /** Every port is read on the caller's single consistent database snapshot. */
 export async function readApplicationAuthorityCurrent(
   input: ApplicationAuthorityCurrentRequest,
@@ -194,7 +210,7 @@ export async function readApplicationAuthorityCurrent(
   }
   const checkedAtMs = Date.now();
   const identity = applicationAuthorityIdentityReceipt({
-    ...evidence, expiresAtMs: Math.min(evidence.expiresAtMs, checkedAtMs + 120_000),
+    ...evidence, expiresAtMs: Math.min(evidence.expiresAtMs, checkedAtMs + APPLICATION_AUTHORITY_CURRENT_RECEIPT_TTL_MS),
   }, checkedAtMs);
   const receipt: ApplicationAuthorityCurrentReceipt = {
     ...identity, ...membership,
@@ -307,6 +323,17 @@ export const ARTIFACT_INTENT_OPERATIONS: Readonly<Record<string, readonly Artifa
   download: ['artifact.download'],
   preview: ['artifact.download', 'artifact.inspect'],
   'preview-publish': ['artifact.download', 'artifact.inspect', 'artifact.preview-publish'],
+  'federal-prepare': ['artifact.download', 'artifact.inspect'],
+  'federal-load': ['artifact.download', 'artifact.inspect'],
+  'federal-publish': ['artifact.download', 'artifact.generate', 'artifact.inspect', 'artifact.revise'],
+  'federal-import': ['artifact.generate'],
+  // Browser-imported bytes reach publication only through the existing
+  // generation operation; the browser ingress owner supplies provenance.
+  'browser-import': ['artifact.generate'],
+  // Explicit attended original-file adoption and editing use current artifact
+  // permissions; neither intent grants an SDK run or changes client walls.
+  'office-import': ['artifact.generate'],
+  'office-edit': ['artifact.revise'],
 });
 /** Contract §4.2 v1 rule: existing semantics, no new policy. */
 const ARTIFACT_ADMITTED_ROLES = Object.freeze(['standard_user', 'user_admin', 'capiro_admin']);

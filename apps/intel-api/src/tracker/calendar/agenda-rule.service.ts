@@ -1,10 +1,16 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import type { WorkspaceTenantContext } from '../../auth/tenant-context.js';
 import { AGENDA_ALERTS_FEATURE } from '../../feature-flags/feature-flag.service.js';
-import { RecordRuleService, type RuleRecipient } from '../reports/record-rule.service.js';
-import { ReportService } from '../reports/report.service.js';
-import { digest, escapeHtml, json, object } from '../reports/report-domain.js';
-import { localOccurrence, localTime } from '../reports/report-schedule.js';
+import { RecordRuleService, type RuleRecipient } from '../delivery/record-rule.service.js';
+import { DraftAccessService } from '../delivery/draft-access.service.js';
+import {
+  legislativeAppOrigin,
+  digest,
+  escapeHtml,
+  json,
+  object,
+} from '../delivery/delivery-domain.js';
+import { localOccurrence, localTime } from '../delivery/delivery-schedule.js';
 import { isFolderAdmin } from '../folders/folder-tracker.service.js';
 
 type Transition = {
@@ -25,7 +31,7 @@ export function renderedAgenda(
   const before = object(event.before),
     after = object(event.after),
     timing = object(after.time);
-  const app = (process.env.REPORT_APP_ORIGIN ?? 'https://os.capiro.ai').replace(/\/+$/, '');
+  const app = legislativeAppOrigin();
   const title = `Agenda update: ${String(after.title ?? before.title ?? 'Committee meeting')}`;
   const content = `${String(after.status ?? 'unknown')} · ${String(timing.date ?? 'Date unconfirmed')} · ${String(timing.rawTime ?? 'Time unconfirmed')}\n${String(after.location ?? 'Room unconfirmed')}\nChanges: ${(Array.isArray(event.changedFields) ? event.changedFields : []).join(', ')}\n${billIds.map((id) => `${id}: ${app}/bills/${encodeURIComponent(id)}`).join('\n')}\nPublished source: ${String(event.sourceUrl)}\nOpen event: ${app}/legiwatch/hearings/${encodeURIComponent(String(event.hearingId))}\nMatched folders:\n${folderIds.map((id) => `${app}/legiwatch?tab=bills&folder=${encodeURIComponent(id)}`).join('\n')}`;
   const value = (facts: Record<string, unknown>, key: string): string => {
@@ -79,7 +85,7 @@ export function agendaBillIds(before: unknown, after: unknown): string[] {
 @Injectable()
 export class AgendaRuleService extends RecordRuleService {
   protected readonly family = 'agenda' as const;
-  constructor(reports: ReportService) {
+  constructor(reports: DraftAccessService) {
     super(reports);
   }
   async capabilities(ctx: WorkspaceTenantContext) {

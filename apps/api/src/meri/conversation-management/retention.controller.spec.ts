@@ -25,6 +25,7 @@ test.each([undefined, 'wrong-secret'])('an interactive bearer or wrong service s
   expect(() => f.guard.canActivate(f.context)).toThrow();
   expect(() => f.controller.read(subject, f.request)).toThrow('Verified service identity required');
   expect(() => f.controller.finalize(subject, f.request)).toThrow('Verified service identity required');
+  expect(() => f.controller.verify(subject, f.request)).toThrow('Verified service identity required');
   expect(f.prisma.withTenant).not.toHaveBeenCalled();
 });
 

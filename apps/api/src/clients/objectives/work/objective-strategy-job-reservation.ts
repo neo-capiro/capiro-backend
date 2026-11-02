@@ -1,3 +1,4 @@
+import { objectiveIntentFromSnapshot, objectiveIntentGoal, objectiveStrategyDraftInput } from '@capiro/shared/strategy-intake';
 import { createHash } from 'node:crypto';
 import { types as nodeTypes } from 'node:util';
 import type { Prisma } from '@prisma/client';
@@ -36,7 +37,7 @@ function captured(raw: ObjectiveStrategyReservationInput): ObjectiveStrategyRese
     if (!exact(UUID, r[k])) return unavailable();
   if (!exact(SHA, r.wrapperSha256) || !exact(SHA, r.requestFingerprint) || typeof r.originalClerkUserId !== 'string' ||
       !r.originalClerkUserId || r.originalClerkUserId.length > 128 || typeof r.intentOutcome !== 'string' ||
-      !r.intentOutcome.trim() || r.intentOutcome.length > 2000 || !Number.isSafeInteger(r.originalDeadlineAtMs) ||
+      !r.intentOutcome.trim() || r.intentOutcome.length > 4000 || !Number.isSafeInteger(r.originalDeadlineAtMs) ||
       r.originalDeadlineAtMs < 0 || r.originalDeadlineAtMs > 8_640_000_000_000_000) return unavailable();
   const request = codec.parseObjectiveDraft(r.typedRequest), s = r.source;
   if (!s || typeof s !== 'object' || nodeTypes.isProxy(s) || Array.isArray(s) ||
@@ -69,13 +70,13 @@ export async function createObjectiveStrategyReservationWithinTx(tx: Tx, raw: Ob
       i.generation_request_id !== r.typedRequest.requestId || codec.digest(i.typed_request) !== codec.digest(r.typedRequest) ||
       i.request_fingerprint !== r.requestFingerprint || i.job_request_key !== r.jobRequestKey ||
       i.source_revision_id !== r.source.objectiveRevisionId || i.source_objective_version !== r.source.objectiveVersion ||
-      Number(row.deadlineMs) !== r.originalDeadlineAtMs || row.snapshot?.outcome !== r.intentOutcome ||
+      Number(row.deadlineMs) !== r.originalDeadlineAtMs || objectiveIntentGoal(objectiveIntentFromSnapshot(row.snapshot)) !== r.intentOutcome ||
       row.snapshot?.id !== r.objectiveId || row.snapshot?.clientId !== r.clientId ||
       row.snapshot?.version !== r.source.objectiveVersion || row.snapshot?.status !== 'ready' || row.snapshot?.deletedAt != null)
     return unavailable();
   const marker = codec.parseReservation({ schemaVersion: 1, intakeId: r.intakeId, consentId: r.consentId,
     commandReceiptId: r.commandReceiptId, wrapperSha256: r.wrapperSha256 });
-  const input = { dto: { clientId: r.clientId, type: r.typedRequest.type, goal: r.intentOutcome }, bearer: null,
+  const input = { dto: objectiveStrategyDraftInput(r.clientId, r.typedRequest.type, objectiveIntentFromSnapshot(row.snapshot)), bearer: null,
     objectiveGeneration: { request: r.typedRequest, fingerprint: r.requestFingerprint,
       receipt: codec.pendingReceipt(r.typedRequest, r.source) }, objectiveCanonicalReservation: marker };
   const inserted = await tx.$queryRawUnsafe<Array<{ id: string }>>(`INSERT INTO sp_draft_job

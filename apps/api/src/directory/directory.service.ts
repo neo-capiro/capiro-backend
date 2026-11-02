@@ -57,6 +57,8 @@ import type {
 import type {
   Chamber,
   DirectoryContact,
+  DirectoryMetrics,
+  DirectorySnapshotObservation,
   MemberPressOverlay,
   MemberNewsItem,
   MemberNewsPayload,
@@ -115,6 +117,7 @@ export type {
 
 interface CachedContacts {
   expiresAt: number;
+  observation: DirectorySnapshotObservation;
   data: {
     sourceId: string;
     contacts: DirectoryContact[];
@@ -207,6 +210,25 @@ export class DirectoryService implements OnModuleInit {
     );
     const base = await this.getDirectoryData();
     return this.browse.toPagedPayload(base, query, page, pageSize);
+  }
+
+  async getMetrics(): Promise<DirectoryMetrics> {
+    const { data, observation } = await this.getDirectoryObservation();
+    // Same complete unfiltered contact population as getContacts, before paging.
+    // Staff associations and organizations are intentionally different units.
+    const count = data.totals.all;
+    if (!Number.isSafeInteger(count) || count < 0)
+      throw new ServiceUnavailableException('Directory count is unavailable');
+    return {
+      metric: 'directory_contacts',
+      definitionVersion: 1,
+      scope: 'global_catalog',
+      count,
+      complete: true,
+      capped: false,
+      observedAt: new Date().toISOString(),
+      snapshot: { sourceId: data.sourceId, ...observation },
+    };
   }
 
   /**
@@ -631,12 +653,16 @@ export class DirectoryService implements OnModuleInit {
   }
 
   private async getDirectoryData(): Promise<CachedContacts['data']> {
+    return (await this.getDirectoryObservation()).data;
+  }
+
+  private async getDirectoryObservation(): Promise<Pick<CachedContacts, 'data' | 'observation'>> {
     const now = Date.now();
     if (this.cache && this.cache.expiresAt > now) {
-      return this.cache.data;
+      return this.cache;
     }
 
-    const { prefix, previousPrefix } = await this.resolveSnapshotPrefixes();
+    const { prefix, previousPrefix, pointerConfirmed } = await this.resolveSnapshotPrefixes();
     // Try the resolved snapshot, then the previous validated snapshot as a rollback
     // path, so a broken/partial current snapshot never blanks the directory.
     const candidates =
@@ -648,8 +674,17 @@ export class DirectoryService implements OnModuleInit {
         // 30 min TTL: the cold build (3 gzip S3 pulls + full index build) is
         // expensive and the snapshot changes slowly. With onModuleInit pre-warm,
         // typeahead search stays fast.
-        this.cache = { data: payload, expiresAt: now + 30 * 60_000 };
-        return payload;
+        const observation: DirectorySnapshotObservation = {
+          state: candidate !== prefix ? 'previous_fallback' : pointerConfirmed ? 'current' : 'unknown',
+          loadedAt: new Date().toISOString(),
+          checkedAt: new Date(now).toISOString(),
+          // The existing publisher pointer has no declared observation-time contract.
+          // Never infer freshness from its path, cache TTL or request completion.
+          publisherObservedAt: null,
+        };
+        const result = { data: payload, observation, expiresAt: now + 30 * 60_000 };
+        this.cache = result;
+        return result;
       } catch (error) {
         this.logger.error(
           `Failed to load directory snapshot from s3://${this.bucket}/${candidate}`,
@@ -666,7 +701,14 @@ export class DirectoryService implements OnModuleInit {
           ', ',
         )})`,
       );
-      return this.cache.data;
+      return {
+        data: this.cache.data,
+        observation: {
+          ...this.cache.observation,
+          state: 'stale_cache',
+          checkedAt: new Date(now).toISOString(),
+        },
+      };
     }
     throw new ServiceUnavailableException('Directory data is temporarily unavailable');
   }
@@ -683,18 +725,19 @@ export class DirectoryService implements OnModuleInit {
   private async resolveSnapshotPrefixes(): Promise<{
     prefix: string;
     previousPrefix: string | null;
+    pointerConfirmed: boolean;
   }> {
     if (this.explicitPrefix) {
-      return { prefix: this.explicitPrefix, previousPrefix: null };
+      return { prefix: this.explicitPrefix, previousPrefix: null, pointerConfirmed: false };
     }
     const pointer = await this.fetchJsonSafe<DirectorySnapshotPointer>(this.latestKey);
     const prefix = typeof pointer?.snapshot_prefix === 'string' ? pointer.snapshot_prefix : null;
     if (!prefix) {
-      return { prefix: DEFAULT_DIRECTORY_PREFIX, previousPrefix: null };
+      return { prefix: DEFAULT_DIRECTORY_PREFIX, previousPrefix: null, pointerConfirmed: false };
     }
     const previousPrefix =
       typeof pointer?.previous_snapshot_prefix === 'string' ? pointer.previous_snapshot_prefix : null;
-    return { prefix, previousPrefix };
+    return { prefix, previousPrefix, pointerConfirmed: true };
   }
 
   /** Load + build the full directory payload for one snapshot prefix. */
@@ -704,6 +747,8 @@ export class DirectoryService implements OnModuleInit {
       this.fetchGzipJson<unknown[]>(`${prefix}/combined/staff-list-current.json.gz`),
       this.fetchGzipJson<unknown>(`${prefix}/combined/office-list-current.json.gz`),
     ]);
+    if (!Array.isArray(members) || !Array.isArray(staff))
+      throw new ServiceUnavailableException('Directory snapshot population is invalid');
 
     const [bioOverlay, pressOverlay] = await Promise.all([
       this.loadBioOverlay(),

@@ -1,3 +1,4 @@
+import { readSyncedMeetingAssociation, hasBoundMeetingRecords } from '../meeting-automatic-association.js';
 import {
   hasPendingCalendarCommand,
   readCalendarCommand,
@@ -760,24 +761,7 @@ export class GoogleSyncService {
             return true;
           });
         const organizerEmail = normalizeEmail(event.organizer?.email);
-        const existing = await tx.meeting.findUnique({
-          where: {
-            tenantId_source_externalId: {
-              tenantId,
-              source: EngagementSource.google,
-              externalId: event.id!,
-            },
-          },
-          select: {
-            id: true,
-            clientId: true,
-            isInternal: true,
-            associationScore: true,
-            associationReason: true,
-            associationSignals: true,
-            status: true,
-          },
-        });
+        const existing = await readSyncedMeetingAssociation(tx, tenantId, EngagementSource.google, event.id!);
         // Resurrection guard: a previously-deleted meeting must not be
         // revived when a full calendar refresh re-encounters its id.
         if (existing?.status === 'deleted' && event.status !== 'cancelled') {
@@ -800,12 +784,15 @@ export class GoogleSyncService {
               existing.id,
             )
           : false;
-        const clientId = existing?.isInternal
-          ? null
-          : existing &&
-              (hasManualOverride || hasManualAssociationSignal(existing.associationSignals))
-            ? existing.clientId
-            : association.clientId;
+        // Reassociation of existing material belongs to the intentional UI owner.
+        const preserveAssociation = Boolean(
+          existing && (
+            existing.isInternal || hasManualOverride || hasManualAssociationSignal(existing.associationSignals) ||
+            await hasBoundMeetingRecords(tx, tenantId, existing.id, existing.clientId, association.clientId)
+          ),
+        );
+        const clientId = existing?.isInternal ? null :
+          existing && preserveAssociation ? existing.clientId : association.clientId;
 
         const contactsByEmail = await upsertContacts(tx, tenantId, attendees);
         // Classify virtuality from Google's structured conference fields (Meet
@@ -836,23 +823,14 @@ export class GoogleSyncService {
             provider: 'google_calendar',
           } as Prisma.InputJsonValue,
           associationScore:
-            existing &&
-            (existing.isInternal ||
-              hasManualOverride ||
-              hasManualAssociationSignal(existing.associationSignals))
+            existing && preserveAssociation
               ? existing.associationScore
               : association.score,
           associationReason:
-            existing &&
-            (existing.isInternal ||
-              hasManualOverride ||
-              hasManualAssociationSignal(existing.associationSignals))
+            existing && preserveAssociation
               ? existing.associationReason
               : association.reason,
-          associationSignals: (existing &&
-          (existing.isInternal ||
-            hasManualOverride ||
-            hasManualAssociationSignal(existing.associationSignals))
+          associationSignals: (existing && preserveAssociation
             ? existing.associationSignals
             : association.signals) as Prisma.InputJsonValue,
         };

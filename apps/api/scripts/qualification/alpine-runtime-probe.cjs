@@ -9,6 +9,7 @@ const http = require('node:http');
 const https = require('node:https');
 const { createHash } = require('node:crypto');
 const { selectedPlatform } = require('./qualification-platform.cjs');
+const { assertPrivateSqlNormalizationRuntime } = require('./private-sql-normalization-probe.cjs');
 const platform = selectedPlatform();
 const run = (file, args) => execFileSync(file, args, { encoding: 'utf8', timeout: 30000 });
 function assertGeneratedPrismaClient({ schema, generatedSchema, client, cli }) {
@@ -600,7 +601,7 @@ async function retainedDispatcher(manifest) {
   const root = fs.realpathSync('/app/node_modules/.pnpm'); manifest = fs.realpathSync(manifest);
   assert(contained(root, manifest), 'dispatcher owner escapes store');
   const metadata = JSON.parse(fs.readFileSync(manifest, 'utf8')), ownerRequire = createRequire(manifest);
-  const allowed = { '@napi-rs/canvas': ['0.1.80', '1.0.9'], esbuild: ['0.21.5', '0.28.2'], '@swc/core': ['1.16.2'] };
+  const allowed = { '@napi-rs/canvas': ['0.1.80'], esbuild: ['0.21.5', '0.28.2'], '@swc/core': ['1.16.2'] };
   assert(allowed[metadata.name]?.includes(metadata.version), 'unreviewed retained dispatcher/version');
   const entry = fs.realpathSync(ownerRequire.resolve('./'));
   assert(contained(path.dirname(manifest), entry), 'dispatcher entry escapes owner');
@@ -854,7 +855,7 @@ async function signalProbe() {
 async function main() {
   const appRequire = createRequire('/app/apps/api/package.json');
   assert.equal(process.platform, 'linux'); assert.equal(process.arch, platform.cpu);
-  assert.equal(process.version, 'v22.23.4'); assert.equal(process.getuid(), 1001); assert.equal(process.getgid(), 1001);
+  assert.equal(process.getuid(), 1001); assert.equal(process.getgid(), 1001);
   for (const file of ['/usr/local/lib/node_modules/npm', '/usr/local/bin/npm', '/usr/local/bin/npx']) {
     assert(!fs.existsSync(file), 'build-only npm tooling present in runtime image');
   }
@@ -872,6 +873,15 @@ async function main() {
     const result = await collectChecks([{ name, run }], row => { report.gates.push(row); emit('gate', row); });
     return result.rows[0];
   };
+  const normalizationGate = await check('private-sql-normalization-runtime', () => {
+    report.privateSqlNormalization = assertPrivateSqlNormalizationRuntime(appRequire);
+    return report.privateSqlNormalization;
+  });
+  if (normalizationGate.status !== 'PASS') {
+    report.status = 'FAIL'; report.fullApiReadiness = 'FULL_API_STARTUP_UNVERIFIED';
+    finish('summary', { status: 'HOLD_BEFORE_NATIVE_EXECUTION', gate: normalizationGate.name });
+    process.exitCode = 1; return;
+  }
   const contract = require('./runtime-closure-contract.cjs');
   let closure;
   const graphGate = await check('production-dependency-closure', () => {

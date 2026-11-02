@@ -53,15 +53,15 @@ export function currentMemoryReadSql(columnsAvailable: boolean, alias = ''): str
   const governed = governedRecallEligibilitySql(alias);
   const prefix = alias ? `${alias}.` : '';
   const legacy = `${prefix}status = 'active'
-    AND (${prefix}expires_at IS NULL OR ${prefix}expires_at > now())`;
+    AND (${prefix}expires_at IS NULL OR ${prefix}expires_at > clock_timestamp())`;
   if (!columnsAvailable) {
     return `AND ${legacy} AND ${prefix}slug NOT LIKE 'clio:%'`;
   }
   return `AND ${legacy} AND (
     (${prefix}governed_status IS NULL
       AND ${prefix}slug NOT LIKE 'clio:%'
-      AND (${prefix}effective_from IS NULL OR ${prefix}effective_from <= now())
-      AND (${prefix}valid_until IS NULL OR ${prefix}valid_until > now())
+      AND (${prefix}effective_from IS NULL OR ${prefix}effective_from <= clock_timestamp())
+      AND (${prefix}valid_until IS NULL OR ${prefix}valid_until > clock_timestamp())
       AND ${prefix}controlling_item_id IS NULL
       AND COALESCE(${prefix}conflict_status, 'none') NOT IN ('open', 'controlling'))
     OR ${governed}

@@ -4,7 +4,6 @@ import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EngagementService } from './engagement.service.js';
-import { GenerationGatewayService } from './generation/generation-gateway.service.js';
 import {
   OutreachJobService,
   type SubmitOutreachJobInput,
@@ -23,11 +22,10 @@ export class RaceSafeOutreachJobService extends OutreachJobService {
   constructor(
     prisma: PrismaService,
     engagement: EngagementService,
-    gateway: GenerationGatewayService,
     config: ConfigService<AppConfig, true>,
     runtimePolicy: EngagementRuntimePolicyService,
   ) {
-    super(prisma, engagement, gateway, config, runtimePolicy);
+    super(prisma, engagement, config, runtimePolicy);
   }
 
   /** Request/core construction must never start a worker timer. */

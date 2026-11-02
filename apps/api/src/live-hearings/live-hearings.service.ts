@@ -1283,6 +1283,7 @@ export class LiveHearingsService {
           capturePolicy: candidate.capturePolicy,
           priority: candidate.priority,
           updatedAt: candidate.updatedAt,
+          expiresAt: candidate.expiresAt,
         })),
       });
       return {

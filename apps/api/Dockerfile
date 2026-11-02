@@ -13,9 +13,9 @@
 # files (which live under pnpm's symlinked store at .pnpm/@prisma+client@*/.prisma).
 # Instead, install production dependencies and generate Prisma in a fresh stage.
 
-# sanitize-html in the frozen lockfile requires Node >=22.12.0. Keep build and
-# runtime on the same supported release so CommonJS can load its ESM parser.
-ARG NODE_VERSION=22.23.3
+# The canonical private-SQL normalizer requires this exact Node release and its
+# V8/ICU/Unicode behavior. Keep build and runtime aligned; qualification is separate.
+ARG NODE_VERSION=24.22.1
 
 # -------- base ----------------------------------------------------------------
 # Use the ECR Public mirror so release builds are not coupled to Docker Hub's
@@ -170,6 +170,10 @@ USER capiro
 WORKDIR /app/apps/api
 # Validate the production runtime dependency graph before publishing the image.
 RUN --network=none node -e "const assert=require('node:assert/strict'); const sanitize=require('sanitize-html'); assert.equal(sanitize('<strong>safe</strong><script>unsafe</script>'), '<strong>safe</strong>'); require('./dist/meri/meri-tools.service.js'); require('./dist/memory/memory-candidate.service.js');"
+# Core reads PDF text with unpdf (pure JS) and pdf-parse (loads @napi-rs/canvas
+# at import and only warns when that binding breaks). Both must read a fixture
+# with no pdf.js warning; see the script for the load-order constraint.
+RUN --network=none node scripts/verify-pdf-text-extraction.cjs
 EXPOSE 4000
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/usr/local/bin/entrypoint.sh"]
 CMD ["serve"]

@@ -5,12 +5,12 @@ const path = require('node:path');
 const { createRequire, isBuiltin } = require('node:module');
 const { createHash } = require('node:crypto');
 const { selectedPlatform } = require('./qualification-platform.cjs');
-const CONTRACT_SHA256 = 'd95678631e8884d30232df54b1ec2d94cd2a1b2800c51f2a3cf2e0211ed3cd6c';
+const CONTRACT_SHA256 = '5075889c74fde835d1e189a32e1f42d7eb0835e7dcaa9783402d88e680d340c4';
 // SHA-256 of the pinned Git-archive schema after only the image-local generator
 // target rewrite. A Windows CRLF checkout is not the admitted build input.
 const IMAGE_LOCAL_PRISMA_SCHEMA_SHA256 = Object.freeze({
-  arm64: '1838612de68e575b76315ba5880eeeedac3ad8e419d6f75c518d6bc1c6098ee8',
-  x64: 'de0c4c111644388d3ad8e61509b1cdf3ff4ec56de47c9409b3aa61d35159af37',
+  arm64: '939bf7fb13a521b9b0c5a5f0a38b8c63311435509fe8c5ee07e1fcb6b591535c',
+  x64: '2f124ec04041d23c77dfdf25f6cb4cf8960edb8fe5f59e16aa9be95ab872bef5',
 });
 const vendorWasm = {
   'pdfjs-dist@5.4.296': {
@@ -83,35 +83,9 @@ const archivePlatforms = Object.freeze({
       "glibc"
     ]
   },
-  "@napi-rs/canvas-linux-arm64-gnu@1.0.9": {
-    "integrity": "sha512-012oiYtKaE7i9oxc8q7nraT7kDOpLcaCmFLzVe9Ty34RHDdoDzbWLrVh827CNxYh/EADX1eSikA3ymLjo/nNuw==",
-    "manifestSHA256": "e0b3545cfa25999da346795a164a1188aa5ddec42fd07dc3f8f8b63330acac45",
-    "os": [
-      "linux"
-    ],
-    "cpu": [
-      "arm64"
-    ],
-    "libc": [
-      "glibc"
-    ]
-  },
   "@napi-rs/canvas-linux-arm64-musl@0.1.80": {
     "integrity": "sha512-1XbCOz/ymhj24lFaIXtWnwv/6eFHXDrjP0jYkc6iHQ9q8oXKzUX1Lc6bu+wuGiLhGh2GS/2JlfORC5ZcXimRcg==",
     "manifestSHA256": "2a97da49c2667cdb4178bd7de384a71925c8309b0536dd91e0dc59acdab678a2",
-    "os": [
-      "linux"
-    ],
-    "cpu": [
-      "arm64"
-    ],
-    "libc": [
-      "musl"
-    ]
-  },
-  "@napi-rs/canvas-linux-arm64-musl@1.0.9": {
-    "integrity": "sha512-Ls5UWYFFn63casTZEczbeyEg3vRDRkv9lscuGwfchtY5yLLQhgOB8SN4YGxmfJ5vTaBwZ2YUxBS3NtmjJmFXdA==",
-    "manifestSHA256": "b50f0cfa15b67996ceec96b90691a6367c443a8fb27476a80b37a740382ae34f",
     "os": [
       "linux"
     ],
@@ -127,19 +101,9 @@ const archivePlatforms = Object.freeze({
     "manifestSHA256": "4784efb91449657a0cd0d7753a98c50888687dd4ef4ac1ee78a12183da7a3a31",
     "os": ["linux"], "cpu": ["x64"], "libc": ["glibc"]
   },
-  "@napi-rs/canvas-linux-x64-gnu@1.0.9": {
-    "integrity": "sha512-6kaz3w0QMy77PDWk6rJ1ksIihdad3qzEyX2o2oGT8GwCaypfT5mhjr8buOO5hstyLxcWXDScuz56RsINLtBPIQ==",
-    "manifestSHA256": "ff5183ad72e20d10dceb4f18d59a4326edf023b5ae2d022a2f2b8ed8a693ffc2",
-    "os": ["linux"], "cpu": ["x64"], "libc": ["glibc"]
-  },
   "@napi-rs/canvas-linux-x64-musl@0.1.80": {
     "integrity": "sha512-x0XvZWdHbkgdgucJsRxprX/4o4sEed7qo9rCQA9ugiS9qE2QvP0RIiEugtZhfLH3cyI+jIRFJHV4Fuz+1BHHMg==",
     "manifestSHA256": "479e39e8af197977ffa141231f01a4a5a693b1785eb6593ece45a4d9ddd4cfe3",
-    "os": ["linux"], "cpu": ["x64"], "libc": ["musl"]
-  },
-  "@napi-rs/canvas-linux-x64-musl@1.0.9": {
-    "integrity": "sha512-xrGvmS3v55hmZ86ls/kBLVNMUTYio3f6Ik0DireemG994VfPAwiA3ZXA0Uf1bByctkB3NQ1Sfb+H5bkdUnnzfQ==",
-    "manifestSHA256": "49ce74c87cb8a8800da596426a309ecc072178616261d4e3c4aefb2e16bba387",
     "os": ["linux"], "cpu": ["x64"], "libc": ["musl"]
   }
 });
@@ -471,7 +435,6 @@ function artifactOwner(file, closure) {
   // probe still has to observe their actual resolution/load and operations.
   const amd64Native = {
     '@napi-rs/canvas-linux-x64-musl@0.1.80': ['skia.linux-x64-musl.node', 28798328, 'f84fb53d2362daac1bc17bf7af0e3a3e970231ada84f5e5fae84b03639561448', 'CANVAS_REAL_PIXEL'],
-    '@napi-rs/canvas-linux-x64-musl@1.0.9': ['skia.linux-x64-musl.node', 31014168, '52227736fb518b3f367bf56bcf7eb86c4f6d5f1b500a4f1e6f2abbb6b68cd460', 'CANVAS_REAL_PIXEL'],
     '@libsql/linux-x64-musl@0.5.29': ['index.node', 9906912, 'bed7fdfd3f4139dab101ebafdec8a74ec62799fd65714f1a98918c905597e63d', 'LIBSQL_MEMORY_QUERY'],
     '@swc/core-linux-x64-musl@1.16.2': ['swc.linux-x64-musl.node', 39591464, 'f43d35411329023ef3469624cb38250fe31b6317cec8b741a9db9702b74adbd4', 'SWC_TRANSFORM'],
     '@img/sharp-linuxmusl-x64@0.35.5': ['lib/sharp-linuxmusl-x64-0.35.5.node', 301328, '14ce8ddd283c101f225089152da805632568bfa372d336ccbfdd811f4f1dca02', 'SHARP_REAL_PIXEL'],

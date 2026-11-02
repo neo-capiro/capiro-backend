@@ -11,6 +11,7 @@ import {
   upsertStateSession,
   upsertStateRollCallVote,
   stateSessionId,
+  stateRollCallId,
   upsertStateBillVersions,
 } from './legiscan-normalize.js';
 import { persistPublishedRecords } from './legiscan-published-records.js';
@@ -25,6 +26,7 @@ import { ALL_US_STATE_CODES } from '../external/legiscan/us-states.js';
 import { admitsRawBill } from './bill-fy26-admission.js';
 import { stateDocumentStubs } from './state-document-stub.js';
 import { queueBillDocumentChecks } from './bill-document-queue.js';
+import { voteRevision } from './legiscan-vote-revisions.js';
 
 export interface FrozenDatasetScope {
   state: string;
@@ -168,6 +170,7 @@ export async function importFrozenStateDataset(
         inventoryBills: eligible.length,
         processed: 0,
         providerCalls: 0,
+        parentMetadataComplete: false,
         metadataComplete: false,
       };
     const sessionRow = await prisma.stateSession.findUnique({
@@ -187,23 +190,37 @@ export async function importFrozenStateDataset(
       update: {},
     });
     const checkpoint = `fy26-state-archive:${scope.state}:${scope.sessionId}:${scope.archiveHash}`;
-    const initial = { offset: 0, imported: 0, retained: 0, held: 0 };
+    const initial = {
+      offset: 0,
+      imported: 0,
+      retained: 0,
+      held: 0,
+      voteImportFailures: 0,
+      partialVoteImportBills: 0,
+    };
     await prisma.$executeRaw`INSERT INTO federal_evidence_checkpoint(source,cursor_jsonb,status,completed_at) VALUES(${checkpoint},${JSON.stringify(initial)}::jsonb,${eligible.length ? 'running' : 'completed'},CASE WHEN ${eligible.length === 0} THEN clock_timestamp() ELSE NULL END) ON CONFLICT DO NOTHING`;
     const rows = await prisma.$queryRaw<
       Array<{ cursor: typeof initial }>
     >`SELECT cursor_jsonb AS cursor FROM federal_evidence_checkpoint WHERE source=${checkpoint}`;
     const progress = rows[0]?.cursor;
+    // Existing archive checkpoints predate explicit partial-vote accounting.
+    if (progress) {
+      progress.voteImportFailures ??= 0;
+      progress.partialVoteImportBills ??= 0;
+    }
     if (
       !progress ||
       !Number.isInteger(progress.offset) ||
       progress.offset < 0 ||
       progress.offset > eligible.length ||
-      ['imported', 'retained', 'held'].some(
+      ['imported', 'retained', 'held', 'voteImportFailures', 'partialVoteImportBills'].some(
         (k) =>
           !Number.isInteger(progress[k as keyof typeof initial]) ||
           progress[k as keyof typeof initial] < 0,
       ) ||
-      progress.imported + progress.retained + progress.held !== progress.offset
+      progress.imported + progress.retained + progress.held !== progress.offset ||
+      progress.partialVoteImportBills > progress.imported ||
+      progress.voteImportFailures < progress.partialVoteImportBills
     )
       throw Error('FROZEN_CHECKPOINT_INVALID');
     let processed = 0;
@@ -213,7 +230,8 @@ export async function importFrozenStateDataset(
       (options.deadline === undefined || Date.now() + 60000 < options.deadline)
     ) {
       const { raw, bill } = eligible[progress.offset]!;
-      const status = await prisma.$transaction(async (tx) => {
+      const outcome = await prisma.$transaction(async (tx) => {
+        let voteFailures = 0;
         const existing = await tx.stateBill.findUnique({
           where: { id: bill!.billKey },
           select: { legiscanBillId: true, legiscanChangeHash: true },
@@ -235,35 +253,85 @@ export async function importFrozenStateDataset(
           });
           await queueBillDocumentChecks(writer, bill!.billKey, raw, { exactVersions: true });
           if (!existing) {
-            for (const vote of votesByBill.get(raw.bill_id) ?? [])
-              await upsertStateRollCallVote(writer, scope.state, bill!.billKey, vote, {
+            for (const vote of votesByBill.get(raw.bill_id) ?? []) {
+              const observation = {
                 historical: true,
                 stub: raw.votes!.find((v) => v.roll_call_id === vote.roll_call_id),
                 providerBillId: raw.bill_id,
                 providerBillHash: raw.change_hash,
-              });
+              };
+              try {
+                // Validate before writes: a database/lease failure must still
+                // abort the enclosing fenced transaction, never be swallowed.
+                voteRevision(vote, observation);
+              } catch (error) {
+                if (
+                  !(error instanceof Error) ||
+                  error.message !== 'LEGISCAN_VOTE_DETAIL_INCOMPLETE'
+                )
+                  throw error;
+                voteFailures++;
+                // The exact failed payload remains in the immutable archive.
+                // A partial check is not a canonical vote revision/position.
+                await tx.$executeRaw`INSERT INTO state_bill_record_check(
+                  bill_key,kind,source_identity,state,attempted_at,attempts,next_check_at,error_code,provider_hash)
+                  VALUES(${bill!.billKey},'vote',${stateRollCallId(scope.state, vote.roll_call_id)},'partial',clock_timestamp(),1,
+                    clock_timestamp()+interval '3 hours','LEGISCAN_VOTE_DETAIL_INCOMPLETE',${raw.change_hash})
+                  ON CONFLICT(bill_key,kind,source_identity) DO NOTHING`;
+                continue;
+              }
+              await upsertStateRollCallVote(writer, scope.state, bill!.billKey, vote, observation);
+            }
             await tx.stateBill.update({
               where: { id: bill!.billKey },
               data: {
-                sourceCheckStatus: 'success',
-                sourceCheckedAt: new Date(),
+                sourceCheckStatus: voteFailures ? 'partial' : 'success',
+                sourceCheckError: voteFailures
+                  ? 'One or more vote records could not be checked'
+                  : null,
+                sourceCheckedAt: voteFailures ? null : new Date(),
                 sourceCheckAttemptedAt: new Date(),
               },
             });
           }
           const canonicalHash = existing?.legiscanChangeHash ?? raw.change_hash;
-          if (typeof canonicalHash === 'string' && /^[a-f\d]{32}$/i.test(canonicalHash))
+          if (voteFailures) {
+            // The ordinary failed-vote drain consumes this exact parent queue.
+            // Preserve its stale hash and every other writer's pending work.
+            await tx.$executeRaw`UPDATE state_sync_cursor SET pending_bills=CASE
+              WHEN ${raw.bill_id}=ANY(COALESCE(pending_bills,ARRAY[]::integer[])) THEN pending_bills
+              ELSE array_append(COALESCE(pending_bills,ARRAY[]::integer[]),${raw.bill_id}) END WHERE id=${cursorId}`;
+          } else if (typeof canonicalHash === 'string' && /^[a-f\d]{32}$/i.test(canonicalHash))
             await tx.$executeRaw`UPDATE state_sync_cursor SET bill_hashes=jsonb_build_object(${String(raw.bill_id)},${canonicalHash}) || COALESCE(bill_hashes,'{}'::jsonb) WHERE id=${cursorId}`;
         }
-        const next = { ...progress, offset: progress.offset + 1, [status]: progress[status] + 1 };
+        const next = {
+          ...progress,
+          offset: progress.offset + 1,
+          [status]: progress[status] + 1,
+          voteImportFailures: progress.voteImportFailures + voteFailures,
+          partialVoteImportBills: progress.partialVoteImportBills + (voteFailures ? 1 : 0),
+        };
         const done = next.offset === eligible.length;
         await tx.$executeRaw`UPDATE federal_evidence_checkpoint SET cursor_jsonb=${JSON.stringify(next)}::jsonb,status=${done ? 'completed' : 'running'},completed_at=CASE WHEN ${done} THEN clock_timestamp() ELSE NULL END,updated_at=clock_timestamp() WHERE source=${checkpoint}`;
-        return status;
+        return { status, voteFailures } as const;
       });
       progress.offset++;
-      progress[status]++;
+      progress[outcome.status]++;
+      progress.voteImportFailures += outcome.voteFailures;
+      progress.partialVoteImportBills += outcome.voteFailures ? 1 : 0;
       processed++;
     }
+    // Historical import failures stay in the checkpoint; current completeness
+    // is re-read so a later successful canonical vote retry can resolve them.
+    const unresolved = await prisma.$queryRaw<Array<{ count: number }>>`
+      SELECT count(*)::integer AS count FROM state_bill_record_check c
+      WHERE c.kind='vote' AND c.state IN ('pending','partial','failed','review_required')
+        AND c.error_code='LEGISCAN_VOTE_DETAIL_INCOMPLETE'
+        AND EXISTS(SELECT 1 FROM legal_source_receipt r CROSS JOIN LATERAL jsonb_array_elements(r.manifest->'bills') b
+          WHERE r.id=${id} AND b->>'billKey'=c.bill_key AND b->>'providerChangeHash'=c.provider_hash)`;
+    const unresolvedVoteChecks = unresolved[0]?.count;
+    if (!Number.isSafeInteger(unresolvedVoteChecks) || unresolvedVoteChecks! < 0)
+      throw Error('FROZEN_VOTE_CHECK_COVERAGE_INVALID');
     return {
       receiptId: id,
       archiveHash: scope.archiveHash,
@@ -272,7 +340,11 @@ export async function importFrozenStateDataset(
       ...progress,
       providerCalls: 0,
       scanComplete: progress.offset === eligible.length,
-      metadataComplete: progress.offset === eligible.length && progress.held === 0,
+      parentMetadataComplete: progress.offset === eligible.length && progress.held === 0,
+      metadataComplete:
+        progress.offset === eligible.length && progress.held === 0 && unresolvedVoteChecks === 0,
+      voteImportPartial: progress.voteImportFailures > 0,
+      unresolvedVoteChecks,
       documentBytes: 'pending_exact_version_hydration',
     };
   });

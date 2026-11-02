@@ -4,6 +4,7 @@ import { withStateBillWriter } from './state-bill-writer.js';
 import { withFederalBillWriter } from './federal-bill-writer.js';
 import { enrichFederalBulkMetadata } from './federal-billstatus-import.js';
 import { publisherCooldown } from './state-publisher-document.js';
+import { persistVoteRevision } from './legiscan-vote-revisions.js';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -64,6 +65,54 @@ describe('shared state writer lease on disposable PostgreSQL', () => {
     );
     await db.$executeRawUnsafe(
       'CREATE TABLE legal_source_receipt(id text PRIMARY KEY,source text,scope jsonb,manifest jsonb,complete boolean,observed_at timestamptz DEFAULT clock_timestamp())',
+    );
+    // Only the canonical vote owner's required state columns; vote/record DDL
+    // comes from the immutable migrations, including indexes and app grants.
+    await db.$executeRawUnsafe(
+      'CREATE TABLE state_bill(id text PRIMARY KEY,state text,legiscan_bill_id integer)',
+    );
+    const migrationText = (name: string) =>
+      readFileSync(
+        resolve(process.cwd(), 'prisma/migrations', name, 'migration.sql'),
+        'utf8',
+      ).replace(/\r\n/g, '\n');
+    const truth = migrationText('20260710000000_state_truth_layer');
+    const records = migrationText('20280910010000_legiwatch_published_records');
+    for (const [table, source] of [
+      ['state_roll_call_vote', truth],
+      ['state_member_vote', truth],
+      ['state_bill_published_record', records],
+    ]) {
+      const start = source!.indexOf('CREATE TABLE "' + table + '" (');
+      const end = source!.indexOf('\n);', start);
+      if (start < 0 || end < start) throw Error('CANONICAL_VOTE_FIXTURE_DDL_MISSING');
+      await db.$executeRawUnsafe(source!.slice(start, end + 3));
+      const indexes =
+        source!.match(new RegExp('CREATE (?:UNIQUE )?INDEX "' + table + '[^;]+;', 'g')) ?? [];
+      for (const index of indexes) await db.$executeRawUnsafe(index);
+    }
+    await db.$executeRawUnsafe(
+      'ALTER TABLE state_roll_call_vote ADD COLUMN current_revision_hash TEXT, ADD COLUMN provider_bill_hash TEXT, ALTER COLUMN date DROP NOT NULL',
+    );
+    await db.$executeRawUnsafe(
+      "ALTER TABLE state_bill_published_record ADD CONSTRAINT published_record_kind CHECK(kind IN ('action','amendment','vote','document'))",
+    );
+    await db.$executeRawUnsafe(
+      'ALTER TABLE state_bill_published_record ADD CONSTRAINT published_record_bill_fk FOREIGN KEY(bill_key) REFERENCES state_bill(id)',
+    );
+    const checkMigration = migrationText('20280913011000_legiwatch_record_checks');
+    for (const statement of checkMigration
+      .split(';')
+      .map((value) => value.trim())
+      .filter(Boolean))
+      await db.$executeRawUnsafe(statement);
+    await db.$executeRawUnsafe('GRANT SELECT ON state_bill TO capiro_app');
+    await db.$executeRawUnsafe(
+      'GRANT SELECT,INSERT,UPDATE,DELETE ON state_roll_call_vote,state_member_vote TO capiro_app',
+    );
+    await db.$executeRawUnsafe('GRANT SELECT,INSERT ON state_bill_published_record TO capiro_app');
+    await db.$executeRawUnsafe(
+      'REVOKE UPDATE,DELETE,TRUNCATE ON state_bill_published_record FROM capiro_app',
     );
   });
   it('persists per-host cooldowns across clients with atomic maximum expiry and existing app grants', async () => {
@@ -238,5 +287,106 @@ describe('shared state writer lease on disposable PostgreSQL', () => {
     expect(await db.$queryRawUnsafe('SELECT subjects FROM congress_bill')).toEqual([
       { subjects: ['Synthetic subject'] },
     ]);
+  });
+  it('resolves only the exact partial vote check atomically with the fenced canonical revision', async () => {
+    await db.$executeRawUnsafe(
+      "INSERT INTO state_bill VALUES('tx-2025-hb1','TX',1),('tx-2025-hb2','TX',2)",
+    );
+    await db.$executeRawUnsafe(`INSERT INTO state_bill_record_check(bill_key,kind,source_identity,state,attempts,next_check_at,error_code,provider_hash)
+      VALUES('tx-2025-hb1','vote','tx-rc-9','partial',1,clock_timestamp()+interval '3 hours','LEGISCAN_VOTE_DETAIL_INCOMPLETE','old'),
+      ('tx-2025-hb1','vote','tx-rc-10','partial',1,clock_timestamp(),'LEGISCAN_VOTE_DETAIL_INCOMPLETE','old'),
+      ('tx-2025-hb2','vote','tx-rc-9','partial',1,clock_timestamp(),'LEGISCAN_VOTE_DETAIL_INCOMPLETE','old'),
+      ('tx-2025-hb1','document','tx-rc-9','partial',1,clock_timestamp(),'LEGISCAN_VOTE_DETAIL_INCOMPLETE','old')`);
+    const vote = {
+      roll_call_id: 9,
+      bill_id: 1,
+      yea: 1,
+      nay: 0,
+      nv: 0,
+      absent: 0,
+      total: 1,
+      desc: 'Synthetic complete vote',
+      votes: [{ people_id: 1, vote_text: 'Yea' }],
+    };
+    const write = (value = vote, state = 'TX', billKey = 'tx-2025-hb1') =>
+      withStateBillWriter(db, [state], (writer) =>
+        writer.$transaction(async (tx) => {
+          await tx.$executeRawUnsafe('SET LOCAL ROLE capiro_app');
+          await persistVoteRevision(tx as unknown as PrismaClient, state, billKey, value, {
+            historical: true,
+            providerBillId: 1,
+            providerBillHash: 'corrected',
+            stub: { roll_call_id: 9 },
+          });
+        }),
+      );
+    await expect(write({ ...vote, total: 2 })).rejects.toThrow('LEGISCAN_VOTE_DETAIL_INCOMPLETE');
+    await expect(write(vote, 'TX', 'tx-2025-hb2')).rejects.toThrow('LEGISCAN_VOTE_BILL_MISMATCH');
+    await expect(write(vote, 'FL')).rejects.toThrow('LEGISCAN_VOTE_BILL_MISMATCH');
+    expect(
+      await db.$queryRawUnsafe('SELECT count(*)::int AS n FROM state_bill_published_record'),
+    ).toEqual([{ n: 0 }]);
+    await write();
+    const first = await db.stateBillPublishedRecord.findFirstOrThrow({
+      where: { billKey: 'tx-2025-hb1', kind: 'vote' },
+    });
+    const member = await db.stateMemberVote.findFirstOrThrow({ where: { voteId: 'tx-rc-9' } });
+    expect(
+      await db.$queryRawUnsafe(`SELECT state,attempts,next_check_at,error_code,revision_hash FROM state_bill_record_check
+      WHERE bill_key='tx-2025-hb1' AND kind='vote' AND source_identity='tx-rc-9'`),
+    ).toEqual([
+      {
+        state: 'available',
+        attempts: 1,
+        next_check_at: null,
+        error_code: null,
+        revision_hash: first.revisionHash,
+      },
+    ]);
+    expect(
+      await db.$queryRawUnsafe(
+        "SELECT count(*)::int AS n FROM state_bill_record_check WHERE state='partial'",
+      ),
+    ).toEqual([{ n: 3 }]);
+    await db.$executeRawUnsafe(`UPDATE state_bill_record_check SET state='partial',error_code='LEGISCAN_VOTE_DETAIL_INCOMPLETE'
+      WHERE bill_key='tx-2025-hb1' AND kind='vote' AND source_identity='tx-rc-9'`);
+    await db.$executeRawUnsafe(
+      "CREATE FUNCTION fail_vote_check() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic vote check failure'; END $$",
+    );
+    await db.$executeRawUnsafe(
+      'CREATE TRIGGER fail_vote_check BEFORE UPDATE ON state_bill_record_check FOR EACH ROW EXECUTE FUNCTION fail_vote_check()',
+    );
+    const corrected = { ...vote, desc: 'Corrected motion' };
+    await expect(write(corrected)).rejects.toThrow('synthetic vote check failure');
+    expect(
+      await db.stateRollCallVote.findUniqueOrThrow({ where: { id: 'tx-rc-9' } }),
+    ).toMatchObject({ currentRevisionHash: first.revisionHash, motion: vote.desc });
+    expect(await db.stateBillPublishedRecord.count()).toBe(1);
+    expect(await db.stateMemberVote.findUniqueOrThrow({ where: { id: member.id } })).toEqual(
+      member,
+    );
+    expect(
+      await db.$queryRawUnsafe(
+        "SELECT count(*)::int AS n FROM state_bill_record_check WHERE state='partial'",
+      ),
+    ).toEqual([{ n: 4 }]);
+    await db.$executeRawUnsafe('DROP TRIGGER fail_vote_check ON state_bill_record_check');
+    await write(corrected);
+    expect(await db.stateBillPublishedRecord.count()).toBe(2);
+    expect(
+      await db.stateBillPublishedRecord.findUniqueOrThrow({ where: { id: first.id } }),
+    ).toEqual(first);
+    expect(await db.stateMemberVote.findUniqueOrThrow({ where: { id: member.id } })).toEqual(
+      member,
+    );
+    expect(
+      await db.$queryRawUnsafe(
+        "SELECT count(*)::int AS n FROM state_bill_record_check WHERE state='partial'",
+      ),
+    ).toEqual([{ n: 3 }]);
+    expect(
+      await db.$queryRawUnsafe(`SELECT has_table_privilege('capiro_app','state_bill_record_check','UPDATE') AS update,
+      has_table_privilege('capiro_app','state_bill_record_check','DELETE') AS delete`),
+    ).toEqual([{ update: true, delete: false }]);
   });
 });

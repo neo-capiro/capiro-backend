@@ -401,9 +401,9 @@ export class MeriMcpService {
       scope,
     });
     this.invalidate(ctx.tenantId);
-    // For token/none connectors the server is reachable now — replace the
-    // best-effort seeded allowlist with the server's ACTUAL tools. OAuth
-    // connectors are discovered after the callback (tokens aren't stored yet).
+    // Check the catalog's permitted tools against the provider. Discovery is
+    // evidence of availability, not permission to add provider-advertised tools.
+    // OAuth connectors are discovered after the callback.
     if (entry.authType !== 'oauth') {
       await this.discoverTools(ctx.tenantId, row.id).catch(() => {});
     }
@@ -457,10 +457,10 @@ export class MeriMcpService {
   }
 
   /**
-   * Discover a connector's REAL tools (tools/list) and set its allowlist to
-   * them — so connecting just works without anyone guessing tool names (the
-   * registry is fail-closed: only allowlisted tools register). Best-effort: on
-   * failure it records lastError and leaves the existing allowlist in place.
+   * Discover current tools (tools/list). Catalog connections retain their
+   * approved policy; discovery cannot grant tools or read-only classification.
+   * Managed apps use their fixed read-only policy. Custom setup retains its
+   * existing discovery behavior. Failure records an unavailable state.
    * Called right after a non-OAuth connect and after a successful OAuth
    * callback (tokens are stored by then). Takes tenantId — not ctx — so the
    * unauthenticated OAuth callback controller can invoke it.
@@ -473,14 +473,29 @@ export class MeriMcpService {
     if (!server || !server.enabled || server.connectionStatus === 'disconnected') return 0;
     if (server.catalogId === 'meriv3-krisp' && !(await krispTenantEnabled(this.prisma, tenantId))) return 0;
     const managed = managedAppDefinition(server.catalogId);
+    let discoveryRevision = server.updatedAt;
     try {
       const client = this.clientFor(server);
       const discovered = Array.from(new Set((await client.listTools()).map((tool) => tool.name)));
+      // Token refresh may update the row during discovery. Rejoin current policy
+      // after provider I/O, then compare that revision when committing readiness.
+      const current = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.clioMcpServer.findFirst({ where: { id: serverId, tenantId } }),
+      );
+      if (!this.enabled() || !current || !current.enabled ||
+          current.connectionStatus !== server.connectionStatus ||
+          current.catalogId !== server.catalogId || current.name !== server.name ||
+          current.endpoint !== server.endpoint || current.transport !== server.transport ||
+          current.authType !== server.authType || current.scope !== server.scope ||
+          current.ownerUserId !== server.ownerUserId) return 0;
+      discoveryRevision = current.updatedAt;
+      const catalog = server.catalogId ? getCatalogEntry(server.catalogId) : undefined;
       const names = managed
         ? filterManagedReadOnlyTools(managed.id, discovered)
-        : discovered.slice(0, 50);
-      if (managed && !names.length) throw new Error('No supported read tools are available.');
-      const catalog = server.catalogId ? getCatalogEntry(server.catalogId) : undefined;
+        : catalog
+          ? discovered.filter((name) => asStringArray(current.toolAllowlist).includes(name)).slice(0, 50)
+          : discovered.slice(0, 50);
+      if ((managed || catalog) && !names.length) throw new Error('No permitted tools are available.');
       const readOnly = managed
         ? names
         : (catalog?.suggestedTools ?? [])
@@ -492,11 +507,14 @@ export class MeriMcpService {
             id: serverId,
             tenantId,
             enabled: true,
-            connectionStatus: { not: 'disconnected' },
+            connectionStatus: server.connectionStatus,
+            updatedAt: current.updatedAt,
           },
           data: {
-            toolAllowlist: names as Prisma.InputJsonValue,
-            readOnlyTools: readOnly as Prisma.InputJsonValue,
+            ...(!catalog || managed ? {
+              toolAllowlist: names as Prisma.InputJsonValue,
+              readOnlyTools: readOnly as Prisma.InputJsonValue,
+            } : {}),
             lastSyncAt: new Date(),
             lastError: null,
             // Managed connections become ready only in finalizeConnection.
@@ -513,14 +531,13 @@ export class MeriMcpService {
       await this.prisma
         .withTenant(tenantId, (tx) =>
           tx.clioMcpServer.updateMany({
-            where: { id: serverId, tenantId, connectionStatus: { not: 'disconnected' } },
+            where: { id: serverId, tenantId, enabled: true,
+              connectionStatus: server.connectionStatus, updatedAt: discoveryRevision },
             data: {
               lastError: managed
                 ? 'The app could not finish connecting. Please try again.'
                 : 'Tool discovery failed.',
-              ...(managed || server.authType !== 'oauth'
-                ? { connectionStatus: needsReauth ? 'needs_reauth' : 'error' }
-                : {}),
+              connectionStatus: needsReauth ? 'needs_reauth' : 'error',
             },
           }),
         )
@@ -594,7 +611,8 @@ export class MeriMcpService {
         const entry = registry.byBridgedName.get(schema.name);
         if (!entry || this.breaker.isOpen(`${ctx.tenantId}:mcp:${entry.serverId}`)) return false;
         const server = visible.get(entry.serverId);
-        if (!server || (server.authType === 'oauth' && server.connectionStatus !== 'connected'))
+        if (!server || !this.currentToolPolicy(server, entry) ||
+            (server.authType === 'oauth' && server.connectionStatus !== 'connected'))
           return false;
         const managed = managedAppDefinition(server.catalogId);
         // A cached admitted managed entry must still resolve to the SAME managed
@@ -669,6 +687,8 @@ export class MeriMcpService {
     const failures: McpRegistryFailure[] = [];
     let retryKrispRateLimit = false;
     for (const server of servers) {
+      const observedStatus = server.connectionStatus;
+      const observedRevision = server.updatedAt;
       const managed = managedAppDefinition(server.catalogId);
       if (
         managed &&
@@ -706,15 +726,15 @@ export class MeriMcpService {
         }
         await this.prisma
           .withTenant(ctx.tenantId, (tx) =>
-            tx.clioMcpServer.update({
-              where: { id: server.id },
+            tx.clioMcpServer.updateMany({
+              where: { id: server.id, tenantId: ctx.tenantId, enabled: true,
+                connectionStatus: observedStatus, updatedAt: observedRevision },
               data: { lastSyncAt: new Date(), lastError: null },
             }),
           )
           .catch(() => {});
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        this.logger.warn(`MCP listTools failed [${server.name}]: ${message}`);
+        this.logger.warn(`MCP listTools failed [${server.name}]`);
         // An OAuth connector that can no longer authorize (refresh token gone /
         // expired) surfaces as UnauthorizedError — flag it for reconnection.
         const needsReauth =
@@ -734,14 +754,15 @@ export class MeriMcpService {
         await this.prisma
           .withTenant(ctx.tenantId, (tx) =>
             tx.clioMcpServer.updateMany({
-              where: { id: server.id, connectionStatus: { not: 'disconnected' } },
+              where: { id: server.id, tenantId: ctx.tenantId, enabled: true,
+                connectionStatus: observedStatus, updatedAt: observedRevision },
               data: {
                 lastError: managed
                   ? 'The app could not be reached. Please try again.'
-                  : message.slice(0, 500),
+                  : 'Tool discovery failed.',
                 ...(needsReauth
                   ? { connectionStatus: 'needs_reauth' }
-                  : managed && !krispRateLimit
+                  : !krispRateLimit
                     ? { connectionStatus: 'error' }
                     : {}),
               },
@@ -848,6 +869,9 @@ export class MeriMcpService {
       where: { id: entry.serverId, enabled: true },
     });
     if (!server) throw new NotFoundException('MCP server not found or disabled');
+    if (!this.currentToolPolicy(server, entry)) {
+      throw new ForbiddenException('MCP tool permission changed; refresh the tool list.');
+    }
     if (options?.connectedRead) {
       const expected = options.connectedRead;
       const current = await this.assertConnectedReadCurrent(ctx, expected.connectionId, bridgedName);
@@ -920,6 +944,13 @@ export class MeriMcpService {
   }
 
   // ── Internals ────────────────────────────────────────────────────────────
+
+  /** A cached schema never keeps a removed permission or an obsolete read-only classification. */
+  private currentToolPolicy(server: ServerRow, entry: RegisteredMcpTool): boolean {
+    return server.name === entry.serverName &&
+      asStringArray(server.toolAllowlist).includes(entry.toolName) &&
+      asStringArray(server.readOnlyTools).includes(entry.toolName) === entry.readOnly;
+  }
 
   /** Servers visible to the caller: firm-wide ∪ own personal. RLS scopes to tenant. */
   private async visibleServers(

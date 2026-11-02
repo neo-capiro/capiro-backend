@@ -227,7 +227,7 @@ export class MeetingPrepJobService {
   /** Only the explicit background-owner module calls this system-level claim. */
   async runWorkerTick(): Promise<void> {
     if (!meetingPrepEnabled()) return;
-    this.runtime.assertBackgroundOwner('meeting-prep-worker');
+    this.runtime.assertMeetingPrepWorker();
     this.runtime.assertExternalAction('meeting_prep_generate');
     const now = new Date();
     const token = randomUUID();
@@ -430,6 +430,21 @@ export class MeetingPrepJobService {
       leaseUntil: { gt: new Date() },
       deadlineAt: { gt: new Date() },
     };
+  }
+
+  /**
+   * Shared meeting-job admission for the sibling debrief job: one policy owner for
+   * current membership, meeting ownership, client wall/archival state and the
+   * assignment digest. Not a second authorization layer.
+   */
+  async authorizeJobMeeting(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    meetingId: string,
+    expected?: string,
+    allowCancelled = true,
+  ) {
+    return this.authorize(tx, ctx, meetingId, expected, allowCancelled);
   }
 
   private async authorize(

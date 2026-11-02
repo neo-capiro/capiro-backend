@@ -422,14 +422,11 @@
         "generated sample drafts"
       ],
       "currentRouteRefs": [
-        "GET /api/engagement/outreach/ai-templates/:id/preview",
-        "POST /api/engagement/campaigns/:id/generate",
-        "POST /api/engagement/outreach/generate-batch",
-        "POST /api/engagement/outreach/jobs/generate",
-        "POST /api/engagement/outreach/:id/generate-draft",
+        "POST /api/engagement/outreach/campaigns/:id/generate",
+        "POST /api/engagement/outreach/sdk/claim",
+        "POST /api/engagement/outreach/sdk/complete",
         "POST /api/engagement/outreach/draft-artifacts/:artifactId/versions",
-        "POST /api/engagement/outreach/insights/talking-points",
-        "POST /api/engagement/outreach/jobs/:id/items/:itemId/retry"
+        "POST /api/engagement/outreach/insights/talking-points"
       ],
       "capabilityClass": "external_action_blocked_in_shadow",
       "shadowExpectation": "503_external_action_disabled",
@@ -447,14 +444,11 @@
       "stateLabel": "17 · Representative samples",
       "menuGroup": "Flow",
       "routeManifestKeys": [
-        "GET /api/engagement/outreach/ai-templates/:id/preview",
-        "POST /api/engagement/campaigns/:id/generate",
-        "POST /api/engagement/outreach/:id/generate-draft",
+        "POST /api/engagement/outreach/campaigns/:id/generate",
         "POST /api/engagement/outreach/draft-artifacts/:artifactId/versions",
-        "POST /api/engagement/outreach/generate-batch",
         "POST /api/engagement/outreach/insights/talking-points",
-        "POST /api/engagement/outreach/jobs/:id/items/:itemId/retry",
-        "POST /api/engagement/outreach/jobs/generate"
+        "POST /api/engagement/outreach/sdk/claim",
+        "POST /api/engagement/outreach/sdk/complete"
       ]
     },
     {
@@ -1241,14 +1235,11 @@
       "visibleStage": "Drafts",
       "requiredData": [],
       "currentRouteRefs": [
-        "GET /api/engagement/outreach/ai-templates/:id/preview",
-        "POST /api/engagement/campaigns/:id/generate",
-        "POST /api/engagement/outreach/generate-batch",
-        "POST /api/engagement/outreach/jobs/generate",
-        "POST /api/engagement/outreach/:id/generate-draft",
+        "POST /api/engagement/outreach/campaigns/:id/generate",
+        "POST /api/engagement/outreach/sdk/claim",
+        "POST /api/engagement/outreach/sdk/complete",
         "POST /api/engagement/outreach/draft-artifacts/:artifactId/versions",
-        "POST /api/engagement/outreach/insights/talking-points",
-        "POST /api/engagement/outreach/jobs/:id/items/:itemId/retry"
+        "POST /api/engagement/outreach/insights/talking-points"
       ],
       "capabilityClass": "external_action_blocked_in_shadow",
       "shadowExpectation": "503_external_action_disabled",
@@ -1263,14 +1254,11 @@
       "stateLabel": "Generating samples",
       "menuGroup": "Loading",
       "routeManifestKeys": [
-        "GET /api/engagement/outreach/ai-templates/:id/preview",
-        "POST /api/engagement/campaigns/:id/generate",
-        "POST /api/engagement/outreach/:id/generate-draft",
+        "POST /api/engagement/outreach/campaigns/:id/generate",
         "POST /api/engagement/outreach/draft-artifacts/:artifactId/versions",
-        "POST /api/engagement/outreach/generate-batch",
         "POST /api/engagement/outreach/insights/talking-points",
-        "POST /api/engagement/outreach/jobs/:id/items/:itemId/retry",
-        "POST /api/engagement/outreach/jobs/generate"
+        "POST /api/engagement/outreach/sdk/claim",
+        "POST /api/engagement/outreach/sdk/complete"
       ]
     },
     {
@@ -1278,14 +1266,11 @@
       "visibleStage": "Drafts",
       "requiredData": [],
       "currentRouteRefs": [
-        "GET /api/engagement/outreach/ai-templates/:id/preview",
-        "POST /api/engagement/campaigns/:id/generate",
-        "POST /api/engagement/outreach/generate-batch",
-        "POST /api/engagement/outreach/jobs/generate",
-        "POST /api/engagement/outreach/:id/generate-draft",
+        "POST /api/engagement/outreach/campaigns/:id/generate",
+        "POST /api/engagement/outreach/sdk/claim",
+        "POST /api/engagement/outreach/sdk/complete",
         "POST /api/engagement/outreach/draft-artifacts/:artifactId/versions",
-        "POST /api/engagement/outreach/insights/talking-points",
-        "POST /api/engagement/outreach/jobs/:id/items/:itemId/retry"
+        "POST /api/engagement/outreach/insights/talking-points"
       ],
       "capabilityClass": "external_action_blocked_in_shadow",
       "shadowExpectation": "503_external_action_disabled",
@@ -1300,14 +1285,11 @@
       "stateLabel": "Generating remaining drafts",
       "menuGroup": "Loading",
       "routeManifestKeys": [
-        "GET /api/engagement/outreach/ai-templates/:id/preview",
-        "POST /api/engagement/campaigns/:id/generate",
-        "POST /api/engagement/outreach/:id/generate-draft",
+        "POST /api/engagement/outreach/campaigns/:id/generate",
         "POST /api/engagement/outreach/draft-artifacts/:artifactId/versions",
-        "POST /api/engagement/outreach/generate-batch",
         "POST /api/engagement/outreach/insights/talking-points",
-        "POST /api/engagement/outreach/jobs/:id/items/:itemId/retry",
-        "POST /api/engagement/outreach/jobs/generate"
+        "POST /api/engagement/outreach/sdk/claim",
+        "POST /api/engagement/outreach/sdk/complete"
       ]
     },
     {

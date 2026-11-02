@@ -1,3 +1,4 @@
+import type { ClientIntelligenceReads } from './client-read-cache.js';
 export type RelevantBill = {
   id: string;
   congress: number;
@@ -87,6 +88,27 @@ export type BillRegulationRow = {
   significant_rule: boolean;
   html_url: string | null;
 };
+/** One tracked bill with the Federal Register documents linked to it by topic or citation. */
+export type BillRegulationLink = {
+  bill: { identifier: string; title: string; latestActionDate: Date | null };
+  regulations: Array<{
+    documentNumber: string;
+    type: string;
+    title: string;
+    agencyNames: string[];
+    publicationDate: Date;
+    commentEndDate: Date | null;
+    effectiveDate: Date | null;
+    significantRule: boolean;
+    htmlUrl: string | null;
+    matchedTopics: string[];
+  }>;
+};
+export type BillRegulationLinksResult = {
+  links: BillRegulationLink[];
+  totalBills: number;
+  totalRegulations: number;
+};
 export type BillGaoRow = {
   id: string;
   title: string;
@@ -114,6 +136,7 @@ export interface RelevantBillPorts {
   warn(message: string): void;
 }
 export interface TrackedBillPorts {
+  clientReads(): ClientIntelligenceReads;
   getManualTrackedBillIds(clientId: string, tenantId: string): Promise<string[]>;
   getClientRelevanceTerms(clientId: string, tenantId: string): Promise<BillRelevanceTerms>;
   fetchBillsByIds(ids: string[]): Promise<BillDetail[]>;
@@ -126,9 +149,11 @@ export interface TrackedBillPorts {
   warn(message: string): void;
 }
 export interface ManualBillPorts {
+  clientReads(): ClientIntelligenceReads;
   fetchBillsByIds(ids: string[]): Promise<BillDetail[]>;
 }
 export interface BillEnrichmentPorts {
+  clientReads(): ClientIntelligenceReads;
   getTrackedBills(clientId: string, tenantId?: string): Promise<TrackedBillsResult>;
 }
 

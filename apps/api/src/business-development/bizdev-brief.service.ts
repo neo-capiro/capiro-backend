@@ -6,7 +6,23 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import type { TenantContext } from '@capiro/shared';
+import { isPrepareBriefRefreshInput, isAcceptBriefRefreshInput } from '@capiro/shared';
+import type {
+  TenantContext,
+  PrepareBriefRefreshInput,
+  AcceptBriefRefreshInput,
+} from '@capiro/shared';
+import { composeRefresh, refreshConflict, refreshSourceHash } from './brief-refresh/composition.js';
+import {
+  requireRefreshScope,
+  readRetainedRefresh,
+  assertPrepareReplay,
+  retainRefresh,
+  refreshVersionKey,
+  refreshFingerprint,
+  type RetainedRefresh,
+  type RefreshTransaction,
+} from './brief-refresh/store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { BizDevDossierService } from './bizdev-dossier.service.js';
 import type { EvidenceItem } from './bizdev-evidence.types.js';
@@ -41,7 +57,6 @@ import {
   generateSections,
   hashSections,
   hashSnapshot,
-  preserveUserEdits,
   sha256Hex,
   validateCitations,
   validateSections,
@@ -814,66 +829,21 @@ export class BizDevBriefService {
     return sha256Hex({ op: 'edit', sections, title: title?.trim() || null });
   }
 
-  /** Content fingerprint for a refresh-accept attempt. */
-  private acceptFingerprint(keepUserEdits: boolean | undefined): string {
-    return sha256Hex({ op: 'accept', keepUserEdits: keepUserEdits ?? true });
-  }
-
-  // ── 4. build a refresh proposal/diff (no writes) ───────────────────────────
-
+  /** Legacy read-only comparison. Saving always requires a retained proposal. */
   async buildRefreshProposal(
     ctx: TenantContext,
     prospectId: string,
   ): Promise<BriefRefreshProposal> {
-    return this.observed(
-      'brief.refresh_proposal',
-      () => this.buildRefreshProposalInternalPublic(ctx, prospectId),
-      () => 'built',
-    );
-  }
-
-  /** Read-only public proposal builder body (telemetry-free). */
-  private async buildRefreshProposalInternalPublic(
-    ctx: TenantContext,
-    prospectId: string,
-  ): Promise<BriefRefreshProposal> {
     const prospect = await this.requireProspect(ctx, prospectId);
-    const current = await this.currentVersionRowFor(ctx, prospect.id);
-    if (!current?.currentVersion) {
-      throw new NotFoundException('Brief not found');
-    }
-    const base = this.toVersionDetail(current.currentVersion);
-
-    const auth = await this.authorizedEvidenceFor(ctx, prospect);
-    const fresh = generateSections({
-      identityName: auth.identityName,
-      identityBasis: auth.identityBasis,
-      evidence: auth.evidence,
-    });
-
-    // NEVER overwrite user edits: sections the user edited keep their text in
-    // the proposal; the diff shows what the fresh generation would say.
-    const proposed = preserveUserEdits(base.sections, fresh);
-    const snapshot = buildSourceSnapshot(
-      new Date().toISOString(),
-      {
-        canonicalEntityId: auth.canonicalEntityId,
-        canonicalName: auth.canonicalName,
-        identityBasis: auth.identityBasis,
-      },
-      auth.evidence,
+    const current = await this.currentVersionRowFor(ctx, prospectId);
+    if (!current?.currentVersion) throw new NotFoundException('Brief not found');
+    return composeRefresh(
+      this.toVersionDetail(current.currentVersion),
+      await this.authorizedEvidenceFor(ctx, prospect),
+      true,
     );
-
-    return {
-      baseVersionNumber: base.versionNumber,
-      proposed,
-      diff: diffSections(base.sections, fresh),
-      sourceSnapshot: snapshot,
-      snapshotHash: hashSnapshot(snapshot),
-    };
   }
 
-  /** Current version detail for a prospect's brief (tenant-scoped). */
   private async currentVersionRowFor(ctx: TenantContext, prospectId: string) {
     return this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.businessDevelopmentBrief.findFirst({
@@ -887,196 +857,181 @@ export class BizDevBriefService {
     );
   }
 
-  // ── 5. explicitly accept/save a refresh proposal as a new version ─────────
-
-  async acceptRefreshProposal(
+  async prepareRefreshProposal(
     ctx: TenantContext,
     prospectId: string,
-    input: {
-      idempotencyKey: string;
-      expectedVersionNumber: number;
-      keepUserEdits?: boolean;
-    },
-  ): Promise<{ brief: BriefSummary; version: BriefVersionDetail; created: boolean }> {
-    return this.observed(
-      'brief.refresh_accept',
-      () => this.acceptRefreshProposalInternal(ctx, prospectId, input),
-      (r) => (r.created ? 'accepted' : 'replay'),
-    );
-  }
-
-  private async acceptRefreshProposalInternal(
-    ctx: TenantContext,
-    prospectId: string,
-    input: {
-      idempotencyKey: string;
-      expectedVersionNumber: number;
-      keepUserEdits?: boolean;
-    },
-  ): Promise<{ brief: BriefSummary; version: BriefVersionDetail; created: boolean }> {
+    input: PrepareBriefRefreshInput,
+  ) {
+    if (!isPrepareBriefRefreshInput(input))
+      throw new BadRequestException('Invalid refresh request');
+    // Resolve an original request before contacting sources, including after a lost response.
+    const replay = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await requireRefreshScope(tx, ctx, prospectId, 'read');
+      return readRetainedRefresh(tx, ctx, prospectId, input.proposalId);
+    });
+    if (replay) {
+      assertPrepareReplay(replay, input);
+      return replay;
+    }
     const prospect = await this.requireProspect(ctx, prospectId);
-    const proposal = await this.buildRefreshProposalInternal(ctx, prospect);
-
+    const auth = await this.authorizedEvidenceFor(ctx, prospect);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await tx.$queryRaw`SELECT "id" FROM "business_development_prospects"
-        WHERE "id" = ${prospect.id}::uuid AND "tenant_id" = ${ctx.tenantId}::uuid
-        FOR UPDATE`;
-
-      const root = await tx.businessDevelopmentBrief.findFirst({
-        where: { tenantId: ctx.tenantId, prospectId: prospect.id },
-        select: { ...briefSelect, currentVersion: { select: versionSummarySelect } },
-      });
-      if (!root || !root.currentVersion) {
-        throw new NotFoundException('Brief not found');
-      }
-
-      // Idempotency: same key + same accept content replays; different
-      // operation or content is an explicit conflict.
-      const already = await tx.businessDevelopmentBriefVersion.findFirst({
-        where: {
-          tenantId: ctx.tenantId,
-          briefId: root.id,
-          idempotencyKey: input.idempotencyKey,
-        },
-        select: versionDetailSelect,
-      });
+      await requireRefreshScope(tx, ctx, prospectId, 'write');
+      const already = await readRetainedRefresh(tx, ctx, prospectId, input.proposalId);
       if (already) {
-        const conflict = this.idempotencyReplayConflict(
-          input.idempotencyKey,
-          { op: 'accept', fingerprint: this.acceptFingerprint(input.keepUserEdits) },
-          {
-            idempotencyOp: already.idempotencyOp ?? '',
-            idempotencyFingerprint: already.idempotencyFingerprint ?? '',
-          },
-        );
-        if (conflict) throw conflict;
-        return {
-          brief: this.toSummary(root),
-          version: this.toVersionDetail(already),
-          created: false,
-        };
+        assertPrepareReplay(already, input);
+        return already;
       }
-
-      if (root.currentVersion.versionNumber !== input.expectedVersionNumber) {
+      const root = await tx.businessDevelopmentBrief.findFirst({
+        where: { tenantId: ctx.tenantId, prospectId },
+        select: { ...briefSelect, currentVersion: { select: versionDetailSelect } },
+      });
+      if (!root?.currentVersion) throw new NotFoundException('Brief not found');
+      if (root.status !== 'draft') refreshConflict('Archived briefs cannot be refreshed.');
+      if (root.currentVersion.versionNumber !== input.expectedVersionNumber)
         throw this.versionConflict(
           root.id,
           input.expectedVersionNumber,
           this.toVersionSummary(root.currentVersion),
         );
-      }
-
-      const versionNumber = root.currentVersion.versionNumber + 1;
-      if (versionNumber > BRIEF_MAX_VERSIONS) {
-        throw new BadRequestException(
-          `This brief has reached its version limit (${BRIEF_MAX_VERSIONS}).`,
-        );
-      }
-
-      // Citations for the accepted proposal: derive from the fresh evidence
-      // (validated above against the same authorized source the proposal
-      // was built from).
-      const citations = citationsFromEvidence(proposal.evidence);
-      const sections = input.keepUserEdits === false ? proposal.fresh : proposal.merged;
-
-      try {
-        const created = await tx.businessDevelopmentBriefVersion.create({
-          data: {
-            tenantId: ctx.tenantId,
-            briefId: root.id,
-            versionNumber,
-            sections: sections as unknown as Prisma.InputJsonValue,
-            sectionsHash: hashSections(sections),
-            sourceSnapshot: proposal.snapshot as unknown as Prisma.InputJsonValue,
-            snapshotHash: proposal.snapshotHash,
-            citations: citations as unknown as Prisma.InputJsonValue,
-            idempotencyKey: input.idempotencyKey,
-            idempotencyOp: 'accept',
-            idempotencyFingerprint: this.acceptFingerprint(input.keepUserEdits),
-            createdByUserId: ctx.userId,
-          },
-          select: versionDetailSelect,
-        });
-        const updatedRoot = await tx.businessDevelopmentBrief.update({
-          where: { id: root.id },
-          data: { currentVersionId: created.id, updatedAt: new Date() },
-          select: briefSelect,
-        });
-        return {
-          brief: this.toSummary({ ...updatedRoot, currentVersionId: created.id }),
-          version: this.toVersionDetail(created),
-          created: true,
-        };
-      } catch (error) {
-        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-          const raced = await tx.businessDevelopmentBriefVersion.findFirst({
-            where: {
-              tenantId: ctx.tenantId,
-              briefId: root.id,
-              idempotencyKey: input.idempotencyKey,
-            },
-            select: versionDetailSelect,
-          });
-          if (raced) {
-            const conflict = this.idempotencyReplayConflict(
-              input.idempotencyKey,
-              { op: 'accept', fingerprint: this.acceptFingerprint(input.keepUserEdits) },
-              {
-                idempotencyOp: raced.idempotencyOp ?? '',
-                idempotencyFingerprint: raced.idempotencyFingerprint ?? '',
-              },
-            );
-            if (conflict) throw conflict;
-            return {
-              brief: this.toSummary(root),
-              version: this.toVersionDetail(raced),
-              created: false,
-            };
-          }
-        }
-        throw error;
-      }
+      const content = composeRefresh(
+        this.toVersionDetail(root.currentVersion),
+        auth,
+        input.keepUserEdits,
+      );
+      const identity = {
+        ...input,
+        tenantId: ctx.tenantId,
+        prospectId,
+        briefId: root.id,
+        baseVersionId: root.currentVersion.id,
+        createdByUserId: ctx.userId,
+        sourceHash: refreshSourceHash(auth),
+        createdAt: new Date().toISOString(),
+        ...content,
+      };
+      const proposal: RetainedRefresh = { ...identity, proposalHash: sha256Hex(identity) };
+      await retainRefresh(tx, proposal);
+      return proposal;
     });
   }
 
-  /** Internal proposal builder shared by build (read-only) and accept. */
-  private async buildRefreshProposalInternal(
+  private async refreshReceipt(
+    tx: RefreshTransaction,
     ctx: TenantContext,
-    prospect: { id: string; displayName: string; canonicalEntityId: string | null },
-  ): Promise<{
-    merged: BriefSections;
-    fresh: BriefSections;
-    snapshot: BriefSourceSnapshot;
-    snapshotHash: string;
-    evidence: EvidenceItem[];
-  }> {
-    const current = await this.currentVersionRowFor(ctx, prospect.id);
-    if (!current?.currentVersion) {
-      throw new NotFoundException('Brief not found');
-    }
-    const base = this.toVersionDetail(current.currentVersion);
-    const auth = await this.authorizedEvidenceFor(ctx, prospect);
-    const fresh = generateSections({
-      identityName: auth.identityName,
-      identityBasis: auth.identityBasis,
-      evidence: auth.evidence,
-    });
-    const merged = preserveUserEdits(base.sections, fresh);
-    const snapshot = buildSourceSnapshot(
-      new Date().toISOString(),
-      {
-        canonicalEntityId: auth.canonicalEntityId,
-        canonicalName: auth.canonicalName,
-        identityBasis: auth.identityBasis,
+    proposal: RetainedRefresh,
+  ) {
+    const version = await tx.businessDevelopmentBriefVersion.findFirst({
+      where: {
+        tenantId: ctx.tenantId,
+        briefId: proposal.briefId,
+        idempotencyKey: refreshVersionKey(proposal.proposalId),
       },
-      auth.evidence,
+      select: versionDetailSelect,
+    });
+    if (!version) return null;
+    if (
+      version.idempotencyOp !== 'accept' ||
+      version.idempotencyFingerprint !== refreshFingerprint(proposal)
+    )
+      refreshConflict('The saved refresh receipt could not be verified.');
+    return this.toVersionDetail(version);
+  }
+
+  async getRefreshProposal(ctx: TenantContext, prospectId: string, proposalId: string) {
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await requireRefreshScope(tx, ctx, prospectId, 'read');
+      const proposal = await readRetainedRefresh(tx, ctx, prospectId, proposalId);
+      if (!proposal) throw new NotFoundException('Refresh proposal not found');
+      return { proposal, acceptedVersion: await this.refreshReceipt(tx, ctx, proposal) };
+    });
+  }
+
+  async acceptRefreshProposal(
+    ctx: TenantContext,
+    prospectId: string,
+    input: AcceptBriefRefreshInput,
+  ): Promise<{ brief: BriefSummary; version: BriefVersionDetail; created: boolean }> {
+    if (!isAcceptBriefRefreshInput(input))
+      throw new BadRequestException(
+        'Prepare and review an exact refresh proposal before accepting.',
+      );
+    const retained = await this.getRefreshProposal(ctx, prospectId, input.proposalId);
+    if (retained.proposal.proposalHash !== input.proposalHash)
+      refreshConflict('The reviewed proposal changed.');
+    const prospect = await this.requireProspect(ctx, prospectId);
+    // A committed receipt remains readable even if the source is unavailable or has changed.
+    const sourceHash = retained.acceptedVersion
+      ? null
+      : refreshSourceHash(await this.authorizedEvidenceFor(ctx, prospect));
+    return this.observed(
+      'brief.refresh_accept',
+      () =>
+        this.prisma.withTenant(ctx.tenantId, async (tx) => {
+          await requireRefreshScope(tx, ctx, prospectId, 'read');
+          const proposal = await readRetainedRefresh(tx, ctx, prospectId, input.proposalId);
+          if (!proposal || proposal.proposalHash !== input.proposalHash)
+            refreshConflict('The reviewed proposal is unavailable.');
+          const root = await tx.businessDevelopmentBrief.findFirst({
+            where: { tenantId: ctx.tenantId, prospectId },
+            select: { ...briefSelect, currentVersion: { select: versionSummarySelect } },
+          });
+          if (!root?.currentVersion || root.id !== proposal.briefId)
+            throw new NotFoundException('Brief not found');
+          const original = await this.refreshReceipt(tx, ctx, proposal);
+          if (original)
+            return {
+              brief: {
+                ...this.toSummary(root),
+                currentVersionNumber: root.currentVersion.versionNumber,
+              },
+              version: original,
+              created: false,
+            };
+          await requireRefreshScope(tx, ctx, prospectId, 'write');
+          if (root.status !== 'draft') refreshConflict('Archived briefs cannot be refreshed.');
+          if (root.currentVersionId !== proposal.baseVersionId)
+            throw this.versionConflict(
+              root.id,
+              proposal.expectedVersionNumber,
+              this.toVersionSummary(root.currentVersion),
+            );
+          if (sourceHash !== proposal.sourceHash)
+            refreshConflict('The dossier sources changed. Prepare and review a new refresh.');
+          const versionNumber = root.currentVersion.versionNumber + 1;
+          if (versionNumber > BRIEF_MAX_VERSIONS)
+            throw new BadRequestException('This brief has reached its version limit.');
+          // Copy the immutable reviewed bytes; NEVER regenerate content during acceptance.
+          const created = await tx.businessDevelopmentBriefVersion.create({
+            data: {
+              tenantId: ctx.tenantId,
+              briefId: root.id,
+              versionNumber,
+              sections: proposal.proposed as unknown as Prisma.InputJsonValue,
+              sectionsHash: hashSections(proposal.proposed),
+              sourceSnapshot: proposal.sourceSnapshot as unknown as Prisma.InputJsonValue,
+              snapshotHash: proposal.snapshotHash,
+              citations: proposal.citations as unknown as Prisma.InputJsonValue,
+              idempotencyKey: refreshVersionKey(proposal.proposalId),
+              idempotencyOp: 'accept',
+              idempotencyFingerprint: refreshFingerprint(proposal),
+              createdByUserId: ctx.userId,
+            },
+            select: versionDetailSelect,
+          });
+          const updated = await tx.businessDevelopmentBrief.update({
+            where: { id: root.id },
+            data: { currentVersionId: created.id, updatedAt: new Date() },
+            select: briefSelect,
+          });
+          return {
+            brief: { ...this.toSummary(updated), currentVersionNumber: versionNumber },
+            version: this.toVersionDetail(created),
+            created: true,
+          };
+        }),
+      (r) => (r.created ? 'accepted' : 'replay'),
     );
-    return {
-      merged,
-      fresh,
-      snapshot,
-      snapshotHash: hashSnapshot(snapshot),
-      evidence: auth.evidence,
-    };
   }
 
   // ── 6. list version summaries + get a specific saved version ───────────────

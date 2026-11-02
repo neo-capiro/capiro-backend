@@ -7,6 +7,7 @@
 // is no fallback path to the retired `WorkspaceReasoningGateway` /
 // `GenerationService` seam to exercise.
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import { nativeGenerationSourceSnapshot } from './native-generation-source.js';
 import {
   NativeGenerationConversationClient,
   NativeGenerationOwnerError,
@@ -20,6 +21,20 @@ import {
 
 const ORIGIN = 'https://control.internal.example';
 const SECRET = 's'.repeat(32);
+
+it('sends the same selected snapshot on dispatch and retained-request readback', async () => {
+  const source = nativeGenerationSourceSnapshot(
+    'version-1',
+    'saved-source',
+    'Selected synthetic saved text.',
+  );
+  const request = turnRequest({ sources: [source] });
+  const f = harness(() => body({ outcome: { status: 'unknown', requestId: request.requestId } }));
+  await f.client.turn(request, { credential: 'synthetic' });
+  await f.client.readTurn(request, 'synthetic');
+  expect(json(f.calls[0]!).request.sources).toEqual([source]);
+  expect(json(f.calls[1]!).request.sources).toEqual([source]);
+});
 
 const subject = (over: Partial<NativeGenerationTurnSubject> = {}): NativeGenerationTurnSubject => ({
   requestId: 'req-1',

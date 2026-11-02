@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
+import type { MeriResearchPortfolioScope } from '../../research-portfolios/research-portfolio-meri-scope.service.js';
 
 export const MANAGEMENT_VERSION = 'meri.conversation-management.v1' as const;
 export const TRASH_MS = 30 * 24 * 60 * 60 * 1000;
@@ -25,11 +26,13 @@ export function managementDigest(r: ManagementRequest) {
   return createHash('sha256').update(JSON.stringify([r.version, r.requestId, r.conversationId,
     r.expectedRevision, r.operation, r.operation === 'rename' ? r.title : null])).digest('hex');
 }
+export type ResearchConversationCapture = Pick<MeriResearchPortfolioScope,
+  'kind' | 'researchPortfolioId' | 'researchPortfolioName' | 'researchPortfolioRevision' | 'scopeVersion'>;
 export type ConversationMetadata = {
   conversationId: string; title: string; status: 'active' | 'archived' | 'trashed'; revision: string;
-  scopeKind: 'client' | 'general'; clientId: string | null;
   updatedAt: string; archivedAt: string | null; trashedAt: string | null; restoreUntil: string | null;
-};
+} & ({ scopeKind: 'client' | 'general'; clientId: string | null; scope?: never } |
+  { scopeKind: 'research_portfolio'; clientId: null; scope: ResearchConversationCapture });
 export type ManagementReceipt = { version: typeof MANAGEMENT_VERSION; requestId: string; conversation: ConversationMetadata };
 export type ListRequest = { version: typeof MANAGEMENT_VERSION; status: ConversationMetadata['status']; title: string;
   before: { updatedAt: string; conversationId: string } | null };

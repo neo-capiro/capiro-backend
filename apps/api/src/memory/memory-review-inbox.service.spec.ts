@@ -1,3 +1,7 @@
+// PostgreSQL retention is qualified separately with real roles and transactions.
+jest.mock('./conversation-serving/transaction.js', () =>
+  jest.requireActual('./conversation-serving/unit-boundary.fixture.js'),
+);
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
@@ -45,6 +49,7 @@ function inboxRow(overrides: Record<string, unknown> = {}) {
     assignedTo: USER,
     decidedBy: null,
     createdAt: new Date('2026-08-06T12:00:00.000Z'),
+    createdAtCursor: '2026-08-06T12:00:00.000000Z',
     decidedAt: null,
     candidateKind: 'standard',
     sourceKind: 'settings_sections',

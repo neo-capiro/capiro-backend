@@ -22,7 +22,7 @@ import {
   parseResearchPortfolioCsv,
   ResearchPortfolioCsvError,
 } from './research-portfolio-import-csv.js';
-import { readCanonicalResearchTarget } from './research-portfolio-targets.js';
+import { readCanonicalResearchTarget, RESEARCH_PORTFOLIO_MEMBER_KINDS } from './research-portfolio-targets.js';
 import { ResearchPortfolioRulesService } from './research-portfolio-rules.service.js';
 import { ResearchPortfolioReviewService } from './research-portfolio-review.service.js';
 import { parseRule, stableJson } from './research-portfolio-rules.js';
@@ -34,13 +34,7 @@ type ImportAction =
 type ImportJob = Awaited<ReturnType<Tx['researchPortfolioImportJob']['findFirstOrThrow']>>;
 
 const ROLE_LEVEL: Record<RequiredRole, number> = { viewer: 1, editor: 2, owner: 3 };
-const MEMBER_KINDS = new Set<ResearchPortfolioMemberKind>([
-  'program',
-  'program_element',
-  'project',
-  'budget_line',
-  'award',
-]);
+const MEMBER_KINDS = RESEARCH_PORTFOLIO_MEMBER_KINDS;
 const SCHEMAS: Record<
   ResearchPortfolioImportWorksheetKind,
   { required: readonly string[]; optional: readonly string[] }

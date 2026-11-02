@@ -25,12 +25,19 @@ export interface GraphNode {
 }
 
 /** A merged edge with provenance so the UI can distinguish fact vs. analysis. */
+export type GraphRelationBasis = 'direct' | 'thematic' | 'derived';
+export interface GraphSourceReference {
+  kind: 'tracked_bill_relationship' | 'client_person' | 'memory_item' | 'kg_cache_projection';
+  id: string;
+}
 export interface GraphEdge {
   src: string; // node id
   dst: string; // node id
   relation: string;
   /** 'fk' = authoritative DB relation; 'mention' = analyst wikilink. */
   origin: 'fk' | 'mention';
+  basis?: GraphRelationBasis;
+  sources?: GraphSourceReference[];
 }
 
 export interface KnowledgeGraph {
@@ -49,6 +56,8 @@ export interface FkRelation {
   dstLabel?: string;
   dstAttrs?: Record<string, string>;
   relation: string;
+  basis?: GraphRelationBasis;
+  sources?: GraphSourceReference[];
 }
 
 function nodeId(type: string, slug: string): string {
@@ -64,7 +73,7 @@ function nodeId(type: string, slug: string): string {
  */
 export function buildKnowledgeGraph(
   fkRelations: FkRelation[],
-  wikiEdges: MemoryEdge[],
+  wikiEdges: Array<MemoryEdge & { sources?: GraphSourceReference[] }>,
   itemNodeById: Map<string, { type: string; slug: string; label: string }>,
 ): KnowledgeGraph {
   const nodes = new Map<string, GraphNode>();
@@ -98,15 +107,37 @@ export function buildKnowledgeGraph(
     return id;
   };
 
-  const addEdge = (src: string, dst: string, relation: string, origin: 'fk' | 'mention'): void => {
+  const addEdge = (
+    src: string,
+    dst: string,
+    relation: string,
+    origin: 'fk' | 'mention',
+    basis?: GraphRelationBasis,
+    sources?: GraphSourceReference[],
+  ): void => {
     const key = `${src}|${relation}|${dst}|${origin}`;
-    if (!edges.has(key)) edges.set(key, { src, dst, relation, origin });
+    if (!edges.has(key))
+      edges.set(key, {
+        src,
+        dst,
+        relation,
+        origin,
+        ...(basis ? { basis } : {}),
+        ...(sources ? { sources: [] } : {}),
+      });
+    const edge = edges.get(key)!;
+    if (sources) {
+      edge.sources ??= [];
+      for (const source of sources)
+        if (!edge.sources.some((row) => row.kind === source.kind && row.id === source.id))
+          edge.sources.push(source);
+    }
   };
 
   for (const fk of fkRelations) {
     const src = addNode(fk.srcType, fk.srcSlug, fk.srcLabel, fk.srcAttrs);
     const dst = addNode(fk.dstType, fk.dstSlug, fk.dstLabel, fk.dstAttrs);
-    addEdge(src, dst, fk.relation, 'fk');
+    addEdge(src, dst, fk.relation, 'fk', fk.basis, fk.sources);
   }
 
   for (const we of wikiEdges) {
@@ -114,7 +145,7 @@ export function buildKnowledgeGraph(
     if (!srcNode) continue; // edge whose source item we can't resolve — skip
     const src = addNode(srcNode.type, srcNode.slug, srcNode.label);
     const dst = addNode(we.dstType, we.dstSlug);
-    addEdge(src, dst, we.relation, 'mention');
+    addEdge(src, dst, we.relation, 'mention', we.sources ? 'thematic' : undefined, we.sources);
   }
 
   return {

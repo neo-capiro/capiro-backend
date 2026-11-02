@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { randomUUID } from 'node:crypto';
 import { MeriService } from './meri.service.js';
+import { bootstrapConversation } from './meri-conversation-bootstrap.js';
 
 const TENANT = '11111111-1111-4111-8111-111111111111';
 const OTHER_TENANT = '22222222-2222-4222-8222-222222222222';
@@ -50,7 +51,7 @@ interface Store {
 }
 
 /** Each withTenant call has its own commit/rollback boundary, like Prisma's transaction. */
-function harness(options: { raceOnFirstReceipt?: boolean } = {}) {
+function harness(options: { raceOnFirstReceipt?: boolean; raceWinnerPurpose?: 'outreach_generation' } = {}) {
   const store: Store = {
     clients: [
       { id: CLIENT, tenantId: TENANT, status: 'active', memoryWall: false, memoryAccessGrants: [] },
@@ -111,7 +112,7 @@ function harness(options: { raceOnFirstReceipt?: boolean } = {}) {
                   Object.is(conversation[key as keyof ConversationRow], value),
                 ),
             );
-            return row ? { id: row.id } : null;
+            return row ? { id: row.id, metadata: row.metadata } : null;
           },
           create: async ({ data }: { data: Omit<ConversationRow, 'id' | 'status' | 'archivedAt'> }) => {
             const row: ConversationRow = {
@@ -149,7 +150,7 @@ function harness(options: { raceOnFirstReceipt?: boolean } = {}) {
                 status: 'active',
                 archivedAt: null,
                 title: 'New Meri session',
-                metadata: {},
+                metadata: options.raceWinnerPurpose ? { purpose: options.raceWinnerPurpose } : {},
               });
               store.receipts.push({ ...data, conversationId: raceWinnerId });
             }
@@ -186,7 +187,7 @@ function harness(options: { raceOnFirstReceipt?: boolean } = {}) {
   };
   // No other MeriService collaborators are used by this narrow operation.
   const service = Object.assign(Object.create(MeriService.prototype), { prisma }) as MeriService;
-  return { service, store, transactionCount: () => transactionCount, raceWinnerId: () => raceWinnerId };
+  return { service, prisma, store, transactionCount: () => transactionCount, raceWinnerId: () => raceWinnerId };
 }
 
 const input = (requestId = randomUUID(), clientId = CLIENT) => ({
@@ -196,6 +197,27 @@ const input = (requestId = randomUUID(), clientId = CLIENT) => ({
 });
 
 describe('MeriService.bootstrapConversation', () => {
+  test.each([undefined, 'outreach_generation'] as const)('replay is bound to the server purpose %s', async (purpose) => {
+    const h = harness();
+    const request = input();
+    const bootstrap = (expectedPurpose?: 'outreach_generation') => bootstrapConversation(h.prisma as never,
+      context(), request, async () => ({ email: null }), { brand: 'Meri', runtime: 'claude-agent-sdk', purpose: expectedPurpose });
+    const first = await bootstrap(purpose);
+    expect(await bootstrap(purpose)).toEqual(first);
+    await expect(bootstrap(purpose ? undefined : 'outreach_generation')).rejects.toThrow('different purpose');
+    expect(h.store.conversations).toHaveLength(1);
+    expect(h.store.receipts).toHaveLength(1);
+  });
+
+  test.each([undefined, 'outreach_generation'] as const)('a concurrent winner with purpose %s cannot cross purposes', async (purpose) => {
+    const h = harness({ raceOnFirstReceipt: true, raceWinnerPurpose: purpose });
+    await expect(bootstrapConversation(h.prisma as never, context(), input(), async () => ({ email: null }),
+      { brand: 'Meri', runtime: 'claude-agent-sdk', purpose: purpose ? undefined : 'outreach_generation' }))
+      .rejects.toThrow('different purpose');
+    expect(h.store.conversations).toHaveLength(1);
+    expect(h.store.receipts).toHaveLength(1);
+  });
+
   test('General requires an explicit v2 kind and persists one idempotent owner binding', async () => {
     const h = harness();
     h.store.clients.length = 0;

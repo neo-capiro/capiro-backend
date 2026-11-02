@@ -154,7 +154,7 @@ test('integration opt-in routes providers to preview and enables only named API-
     );
     assert.equal(
       e[`${provider}_OAUTH_SUCCESS_REDIRECT`],
-      'https://portfolio-preview.app.capiro.ai/settings/integrations',
+      'https://app.capiro.ai/settings/integrations',
     );
   }
   assert.equal(
@@ -415,6 +415,13 @@ test('qualified ARM task uses persistent clone, version-pinned canonical secret 
     assert.equal(e.TRACKER_APP_BASE_URL, `https://${FIRST_CHAT_CORE_HOST}`);
     assert.equal(e.WORKSPACE_API_BASE_URL, `https://${FIRST_CHAT_CORE_HOST}`);
     assert.equal(e.STRATEGY_API_BASE_URL, `https://${FIRST_CHAT_CORE_HOST}`);
+    // Browser-facing settings follow the single public app origin; the identically
+    // named TRACKER_APP_BASE_URL above stays the protected-retrieval transport.
+    assert.equal(e.WEB_ORIGIN, 'https://app.capiro.ai');
+    assert.equal(e.APP_SIGN_IN_URL, 'https://app.capiro.ai/sign-in');
+    assert.equal(e.APP_BASE_URL, 'https://app.capiro.ai');
+    assert.equal(e.LEGIWATCH_APP_BASE_URL, 'https://app.capiro.ai');
+    assert.notEqual(e.TRACKER_APP_BASE_URL, e.LEGIWATCH_APP_BASE_URL);
     assert.equal(e.MERI_CONTROL_ORIGIN, 'https://control.meri-preview.internal');
     assert.equal(
       e.MERI_CONTROL_CA_SHA256,
@@ -606,7 +613,7 @@ test('canonical Assets remain private, encrypted, retained, versioned and limite
     assert.equal(encryption.BucketKeyEnabled, true);
     assert.equal(encryption.ServerSideEncryptionByDefault.SSEAlgorithm, 'aws:kms');
     assert.deepEqual(bucket.Properties.CorsConfiguration.CorsRules[0].AllowedOrigins, [
-      'https://portfolio-preview.app.capiro.ai',
+      'https://app.capiro.ai',
     ]);
     assert.deepEqual(bucket.Properties.CorsConfiguration.CorsRules[0].AllowedMethods, [
       'PUT',

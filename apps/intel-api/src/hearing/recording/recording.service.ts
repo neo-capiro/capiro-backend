@@ -57,10 +57,13 @@ export class HearingRecordingService {
 
   async capability(tenantId: string, sessionId: string, userId: string) {
     const session = await this.sessions.getAccessible(tenantId, sessionId, userId);
+    let canEnablePublic = false;
     try {
       // Match the capture/manifest actor policy before offering an enable action.
       // A visible transcript alone does not grant retained-media access.
-      await this.actor(tenantId, userId, async () => undefined);
+      canEnablePublic = await this.actor(tenantId, userId, (tx) =>
+        this.permissions.canEnablePublic(tx, sessionId),
+      );
     } catch (error) {
       if (
         error instanceof NotFoundException &&
@@ -81,12 +84,13 @@ export class HearingRecordingService {
         ? null
         : await this.permissions.find(tenantId, session);
     return {
-      available: Boolean(permission),
+      available: Boolean(permission) || canEnablePublic,
       recordingPolicy: session.recordingPolicy,
-      retentionDays: permission?.retentionDays ?? null,
-      reason: permission
-        ? null
-        : 'Retained audio requires enabled storage and current source-specific permission',
+      retentionDays: permission?.retentionDays ?? (canEnablePublic ? 30 : null),
+      reason:
+        permission || canEnablePublic
+          ? null
+          : 'Retained audio requires enabled storage and current source-specific permission',
     };
   }
 
@@ -96,13 +100,15 @@ export class HearingRecordingService {
     if (session.createdBy !== userId || session.recordingPolicy === 'no_storage') {
       throw new BadRequestException('Only the creator can choose retention before recording');
     }
-    await this.permissions.require(tenantId, session);
-    const result = await this.actor(tenantId, userId, (tx) =>
-      tx.liveHearingSession.updateMany({
+    this.storage.assertReady();
+    const permission = await this.permissions.find(tenantId, session);
+    const result = await this.actor(tenantId, userId, async (tx) => {
+      if (!permission) await this.permissions.enablePublic(tx, sessionId);
+      return tx.liveHearingSession.updateMany({
         where: { tenantId, id: sessionId, createdBy: userId, status: 'scheduled', startedAt: null },
         data: { recordingPolicy: 'audio_and_transcript' },
-      }),
-    );
+      });
+    });
     if (result.count !== 1)
       throw new ConflictException('Retention must be selected before the first capture');
     return { recordingPolicy: 'audio_and_transcript' };
@@ -116,6 +122,9 @@ export class HearingRecordingService {
     mimeType: string,
   ): Promise<RecordingCapture> {
     const session = await this.sessions.getAccessible(tenantId, sessionId, userId);
+    // An expired live-channel binding cannot start another capture. Playback
+    // remains governed by the original retained-media grant and retention.
+    await this.sessions.assertCaptureSourceAllowed(tenantId, session.hearingId, session.sourceUrl);
     if (session.recordingPolicy !== 'audio_and_transcript')
       throw new BadRequestException('This session does not retain audio');
     const grant = await this.permissions.require(tenantId, session);

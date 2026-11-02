@@ -1,10 +1,34 @@
-import { Body, Controller, Get, Post, Put, Query, UseGuards } from '@nestjs/common';
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsInt, IsString, Length, Min } from 'class-validator';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { Type } from 'class-transformer';
+import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { FirmOnboardingService } from './firm-onboarding.service.js';
+import { IMPORT_JOB_PAGE_MAX } from './firm-import-job.contracts.js';
 
 class SearchRegistrantsQueryDto {
   @IsString()
@@ -27,6 +51,33 @@ class ImportClientsDto {
   @ArrayMaxSize(100)
   @IsInt({ each: true })
   ldaClientIds!: number[];
+
+  /**
+   * Stable client-supplied request identity for interrupted-response lookup.
+   * Optional so existing callers keep their behavior; a replayed identity with
+   * the same selection reconciles the persisted job, a changed one conflicts.
+   */
+  @IsOptional()
+  @IsUUID()
+  requestId?: string;
+}
+
+class ListImportJobsQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(IMPORT_JOB_PAGE_MAX)
+  limit?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  cursor?: string;
+
+  @IsOptional()
+  @IsUUID()
+  requestId?: string;
 }
 
 /**
@@ -64,6 +115,36 @@ export class FirmOnboardingController {
   @Post('import')
   @Roles('user_admin')
   importClients(@CurrentTenant() ctx: TenantContext, @Body() body: ImportClientsDto) {
-    return this.svc.importClients(ctx, body.ldaClientIds);
+    return this.svc.importClients(ctx, body.ldaClientIds, { requestId: body.requestId });
+  }
+
+  /**
+   * Durable status of the existing importer. Reads stay at the same bar as the
+   * rest of onboarding (any member); tenant scoping/foreign-id behavior comes
+   * from the service's withTenant reads.
+   */
+  @Get('import-jobs')
+  listImportJobs(@CurrentTenant() ctx: TenantContext, @Query() query: ListImportJobsQueryDto) {
+    return this.svc.listImportJobs(ctx, {
+      limit: query.limit,
+      cursor: query.cursor,
+      requestKey: query.requestId,
+    });
+  }
+
+  @Get('import-jobs/:jobId')
+  getImportJob(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('jobId', new ParseUUIDPipe({ version: '4' })) jobId: string,
+  ) {
+    return this.svc.getImportJob(ctx, jobId);
+  }
+
+  @Get('import-jobs/:jobId/status')
+  getImportJobStatus(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('jobId', new ParseUUIDPipe({ version: '4' })) jobId: string,
+  ) {
+    return this.svc.getImportJobStatus(ctx, jobId);
   }
 }

@@ -1,6 +1,5 @@
 import { Injectable, Logger, type OnModuleInit, type OnModuleDestroy } from '@nestjs/common';
 import { MeetingPrepJobService } from '../engagement/meeting-prep-job.service.js';
-import { meetingPrepEnabled } from '../engagement/meeting-prep-policy.js';
 import { EngagementRuntimePolicyService } from '../engagement/runtime/engagement-runtime-policy.service.js';
 
 @Injectable()
@@ -13,7 +12,7 @@ export class MeetingPrepWorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly runtime: EngagementRuntimePolicyService,
   ) {}
   onModuleInit(): void {
-    if (this.timer || !meetingPrepEnabled() || !this.runtime.backgroundWorkersEnabled()) return;
+    if (this.timer || !this.runtime.meetingPrepWorkerEnabled()) return;
     this.timer = setInterval(() => void this.tick(), 5_000);
     this.timer.unref?.();
   }

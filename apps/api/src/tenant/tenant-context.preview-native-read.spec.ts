@@ -87,6 +87,22 @@ function expectNoLocalMutation(mutations: readonly unknown[]) {
 
 describe('TenantContextMiddleware preview native GET context', () => {
   beforeEach(() => { process.env.PREVIEW_NATIVE_GETS_ENABLED = 'true'; });
+  it.each(['versions', 'evidence'])('keeps %s GET/HEAD on existing-member resolution, including malformed IDs', async leaf => {
+    for (const method of ['GET', 'HEAD']) {
+      for (const itemId of ['11111111-1111-4111-8111-111111111111', 'not-a-uuid']) {
+        const path = `/api/memory/owner/items/${itemId}/${leaf}?limit=25`;
+        const h = fixture(path, previewHost, method);
+        await h.middleware.use(h.request, h.response, h.next);
+        expect(h.active).toHaveBeenCalledTimes(1);
+        expect(h.next).toHaveBeenCalledTimes(1);
+        expect(h.request.tenantContext).toMatchObject({ userId: user.id, tenantId: membership.tenantId });
+        expect(h.tx.user.findUnique).toHaveBeenCalled();
+        expect(h.tx.tenantMembership.findMany).toHaveBeenCalled();
+        expect(h.tx.user.findFirst).not.toHaveBeenCalled();
+        expectNoLocalMutation(h.mutations);
+      }
+    }
+  });
   afterEach(() => {
     if (priorPreviewSetting === undefined) delete process.env.PREVIEW_NATIVE_GETS_ENABLED;
     else process.env.PREVIEW_NATIVE_GETS_ENABLED = priorPreviewSetting;

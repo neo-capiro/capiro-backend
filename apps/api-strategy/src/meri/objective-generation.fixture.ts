@@ -124,6 +124,7 @@ export function objectiveFixture() {
     job: structuredClone(job),
     sources,
     snapshot,
+    canonicalStrategyType: null as string | null,
     authorized: true,
     wall: false,
     grant: true,
@@ -180,6 +181,7 @@ export function objectiveFixture() {
     $queryRawUnsafe: async (sql: string, ..._values: unknown[]) => {
       state.events.push(sql);
       if (sql === 'SELECT pg_advisory_xact_lock(hashtextextended($1,0))::text') return [{}];
+      if (sql.startsWith('SELECT s.type::text AS type')) return state.canonicalStrategyType === null ? [] : [{ type: state.canonicalStrategyType }];
       throw new Error(`Unhandled fixture SQL: ${sql}`);
     },
     $executeRaw: async (strings: TemplateStringsArray, ...values: any[]) => {

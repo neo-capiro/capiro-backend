@@ -1,3 +1,5 @@
+import { US_STATE_BY_ABBR } from './us-states.js';
+
 export type ApiToolReadOutcomeKind = 'complete' | 'empty' | 'partial' | 'unavailable' | 'failed';
 
 export interface ApiToolReadOutcome {
@@ -841,6 +843,200 @@ function classifyBillStatus(payload: unknown): ApiToolReadOutcome {
     : invalidResult('get_bill_status');
 }
 
+function classifyRetainedBillRead(toolName: string, payload: unknown): ApiToolReadOutcome {
+  const value = record(payload);
+  if (!value || value.tool !== toolName || value.authoritativeOwner !== 'bill_text_extraction')
+    return invalidResult(toolName);
+  if (toolName !== 'read_bill_text') {
+    if (value.currentStatus !== 'available') return invalidResult(toolName);
+    if (value.operation === 'search') {
+      if (
+        !['exact', 'keyword', 'semantic'].includes(String(value.mode)) ||
+        !Array.isArray(value.results) ||
+        !(value.totalRevisions === null || typeof value.totalRevisions === 'number') ||
+        !Number.isSafeInteger(value.page) ||
+        typeof value.page !== 'number' ||
+        value.page < 1 ||
+        !Number.isSafeInteger(value.limit) ||
+        typeof value.limit !== 'number' ||
+        value.limit < 1 ||
+        value.limit > 2 ||
+        value.results.length > value.limit ||
+        !(value.hasMore === null || typeof value.hasMore === 'boolean') ||
+        value.nextPage !==
+          (value.hasMore &&
+          value.page < 10000 &&
+          (value.mode !== 'semantic' || value.page * value.limit < 1000)
+            ? value.page + 1
+            : null)
+      )
+        return invalidResult(toolName);
+      return { kind: 'partial', reason: 'bill_text_search_does_not_prove_source_coverage' };
+    }
+    if (
+      value.operation !== 'coverage' ||
+      value.fiscalYear !== 2026 ||
+      typeof value.complete !== 'boolean' ||
+      !Array.isArray(value.jurisdictions) ||
+      value.jurisdictions.length !== 52
+    )
+      return invalidResult(toolName);
+    const jurisdictions = value.jurisdictions.map((item) => record(item)?.jurisdiction);
+    if (
+      new Set(jurisdictions).size !== 52 ||
+      !jurisdictions.includes('US') ||
+      jurisdictions.some(
+        (code) =>
+          typeof code !== 'string' ||
+          (code !== 'US' &&
+            (!Object.hasOwn(US_STATE_BY_ABBR, code) ||
+              ['PR', 'GU', 'VI', 'AS', 'MP'].includes(code))),
+      )
+    )
+      return invalidResult(toolName);
+    if (
+      value.complete !==
+      value.jurisdictions.every((item) => record(item)?.status === 'complete_for_frozen_inventory')
+    )
+      return invalidResult(toolName);
+    const detail = record(value.detailPage);
+    if (detail) {
+      const keys = [
+        'unit',
+        'page',
+        'limit',
+        'totalRows',
+        'returnedRows',
+        'hasMore',
+        'nextPage',
+        'jurisdictions',
+        'complete',
+      ];
+      const number = (v: unknown): v is number =>
+        typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
+      if (
+        Object.keys(detail).some((key) => !keys.includes(key)) ||
+        detail.unit !== 'jurisdiction_or_version_kind' ||
+        !number(detail.page) ||
+        detail.page < 1 ||
+        detail.page > 10000 ||
+        !number(detail.limit) ||
+        detail.limit < 1 ||
+        detail.limit > 2 ||
+        !number(detail.totalRows) ||
+        !number(detail.returnedRows) ||
+        !Array.isArray(value.details) ||
+        value.details.length !== detail.returnedRows ||
+        !(
+          detail.jurisdictions === null ||
+          (Array.isArray(detail.jurisdictions) &&
+            detail.jurisdictions.length > 0 &&
+            new Set(detail.jurisdictions).size === detail.jurisdictions.length &&
+            detail.jurisdictions.every((code) => jurisdictions.includes(code)))
+        )
+      )
+        return invalidResult(toolName);
+      const offset = (detail.page - 1) * detail.limit;
+      const hasMore = offset + detail.limit < detail.totalRows;
+      if (
+        detail.returnedRows !== Math.min(detail.limit, Math.max(0, detail.totalRows - offset)) ||
+        detail.hasMore !== hasMore ||
+        detail.nextPage !== (hasMore ? detail.page + 1 : null) ||
+        detail.complete !== (offset === 0 && detail.totalRows <= detail.limit)
+      )
+        return invalidResult(toolName);
+      if (!detail.complete || detail.jurisdictions !== null)
+        return { kind: 'partial', reason: 'bill_text_coverage_details_paged_or_filtered' };
+    } else return invalidResult(toolName);
+    return value.complete
+      ? { kind: 'complete' }
+      : { kind: 'partial', reason: 'bill_text_inventory_or_stages_incomplete' };
+  }
+  if (value.operation !== 'read') return invalidResult(toolName);
+  if (value.available === false && value.currentStatus === 'unavailable')
+    return { kind: 'unavailable', reason: 'bill_text_unavailable' };
+  if (value.projection !== undefined) {
+    const projection = record(value.projection);
+    const counts = ['omittedSections', 'omittedContext', 'omittedDefinitions', 'omittedReferences'];
+    if (
+      !projection ||
+      Object.keys(projection).some((key) => ![...counts, 'reason', 'followUp'].includes(key)) ||
+      projection.reason !== 'prompt_budget' ||
+      typeof projection.followUp !== 'string' ||
+      counts.some(
+        (key) =>
+          typeof projection[key] !== 'number' ||
+          !Number.isSafeInteger(projection[key]) ||
+          projection[key] < 0,
+      ) ||
+      ((Number(projection.omittedSections) > 0 || Number(projection.omittedContext) > 0) &&
+        value.contextTruncated !== true) ||
+      (Number(projection.omittedDefinitions) > 0 && value.definitionsTruncated !== true) ||
+      (Number(projection.omittedReferences) > 0 && value.referencesTruncated !== true)
+    )
+      return invalidResult(toolName);
+  }
+  const identity = record(value.identity),
+    coverage = record(value.coverage);
+  const hash = (v: unknown) => typeof v === 'string' && /^[a-f0-9]{64}$/.test(v);
+  const integer = (v: unknown): v is number =>
+    typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
+  if (
+    value.available !== true ||
+    value.currentStatus !== 'available' ||
+    !identity ||
+    !coverage ||
+    ['billId', 'jurisdiction', 'session', 'revisionId', 'extractionId'].some(
+      (key) => typeof identity[key] !== 'string' || !identity[key],
+    ) ||
+    ['revisionHash', 'documentHash', 'textHash', 'structureHash'].some(
+      (key) => !hash(identity[key]),
+    ) ||
+    typeof value.text !== 'string' ||
+    !integer(value.startOffset) ||
+    !integer(value.endOffset) ||
+    !integer(value.totalCharacters) ||
+    value.endOffset > value.totalCharacters ||
+    value.endOffset - value.startOffset !== value.text.length ||
+    value.offsetUnit !== 'UTF-16' ||
+    !Array.isArray(value.context) ||
+    ['contextTruncated', 'definitionsTruncated', 'referencesTruncated'].some(
+      (key) => typeof value[key] !== 'boolean',
+    ) ||
+    !(value.nextCursor === null || typeof value.nextCursor === 'string') ||
+    ['complete', 'pageComplete', 'contentComplete', 'paginationComplete', 'truncated'].some(
+      (key) => typeof coverage[key] !== 'boolean',
+    ) ||
+    coverage.nextCursor !== value.nextCursor
+  )
+    return invalidResult(toolName);
+  const complete =
+    value.completeness === 'complete' &&
+    value.startOffset === 0 &&
+    value.endOffset === value.totalCharacters &&
+    !value.contextTruncated &&
+    !value.definitionsTruncated &&
+    !value.referencesTruncated &&
+    value.nextCursor === null;
+  if (
+    coverage.complete !== complete ||
+    coverage.contentComplete !== (value.completeness === 'complete') ||
+    coverage.pageComplete !== true ||
+    coverage.paginationComplete !== (value.nextCursor === null) ||
+    coverage.truncated !==
+      (!complete &&
+        (value.startOffset !== 0 ||
+          value.endOffset !== value.totalCharacters ||
+          value.contextTruncated ||
+          value.definitionsTruncated ||
+          value.referencesTruncated))
+  )
+    return invalidResult(toolName);
+  return complete
+    ? { kind: 'complete' }
+    : { kind: 'partial', reason: 'bill_text_coverage_incomplete' };
+}
+
 /**
  * Normalize only API read contracts whose owner-produced output shapes are
  * validated here. Unqualified tools return null and retain their existing path;
@@ -850,6 +1046,11 @@ export function classifyApiToolReadOutcome(
   toolName: string,
   payload: unknown,
 ): ApiToolReadOutcome | null {
+  if (
+    ['search_congress_bills', 'search_state_bills', 'read_bill_text'].includes(toolName) &&
+    record(payload)?.authoritativeOwner === 'bill_text_extraction'
+  )
+    return classifyRetainedBillRead(toolName, payload);
   switch (toolName) {
     case 'list_emails':
     case 'search_emails':

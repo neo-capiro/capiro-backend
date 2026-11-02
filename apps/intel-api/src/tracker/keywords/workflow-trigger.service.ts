@@ -7,7 +7,7 @@ import {
 import { randomUUID } from 'node:crypto';
 import type { WorkspaceTenantContext } from '../../auth/tenant-context.js';
 import { InternalWorkflowService } from './internal-workflow.service.js';
-import { object } from '../reports/report-domain.js';
+import { object } from '../delivery/delivery-domain.js';
 import { checkedVersion } from './keyword-rule.service.js';
 import { hash } from '../folders/folder-tracker.service.js';
 
@@ -22,7 +22,6 @@ type Workflow = {
     folderIds: string[];
     jurisdiction: string;
     sessionKey: string;
-    reportId?: string;
     folderVersions?: Record<string, number>;
   };
   baseline_at: Date;
@@ -47,7 +46,7 @@ export class WorkflowTriggerService {
       await this.actions.rules.folder(tx, ctx, folderId);
       return tx.$queryRaw<
         Workflow[]
-      >`SELECT * FROM intel_legiwatch_workflow WHERE tenant_id=${ctx.tenantId} AND owner_clerk_id=${ctx.clerkUserId} AND config->'folderIds' ? ${folderId} ORDER BY name,id LIMIT 100`;
+      >`SELECT * FROM intel_legiwatch_workflow WHERE tenant_id=${ctx.tenantId} AND owner_clerk_id=${ctx.clerkUserId} AND template IN ('hearing_preparation','added_bill_review','published_review') AND config->'folderIds' ? ${folderId} ORDER BY name,id LIMIT 100`;
     });
   }
   async save(ctx: WorkspaceTenantContext, body: unknown, id?: string) {
@@ -58,7 +57,7 @@ export class WorkflowTriggerService {
       typeof b.name !== 'string' ||
       !b.name.trim() ||
       b.name.length > 200 ||
-      !['hearing_preparation', 'added_bill_review', 'published_review', 'report_review'].includes(
+      !['hearing_preparation', 'added_bill_review', 'published_review'].includes(
         String(b.template),
       ) ||
       !Array.isArray(c.folderIds) ||
@@ -74,19 +73,10 @@ export class WorkflowTriggerService {
       folderIds: [...new Set(c.folderIds)] as string[],
       jurisdiction: c.jurisdiction,
       sessionKey: c.sessionKey,
-      ...(b.template === 'report_review' ? { reportId: String(c.reportId ?? '') } : {}),
     };
     await this.actions.calendar.scope(ctx, { ...config, session: config.sessionKey });
     return this.folders.withActor(ctx, async (tx) => {
       for (const f of config.folderIds.sort()) await this.actions.rules.folder(tx, ctx, f, true);
-      if (b.template === 'report_review') {
-        const report = await this.actions.rules.reports.get(tx, ctx, config.reportId!);
-        if (
-          report.ownerClerkId !== ctx.clerkUserId ||
-          report.folderIds.some((f) => !config.folderIds.includes(f))
-        )
-          throw new BadRequestException('REPORT_OWNER_SCOPE_REQUIRED');
-      }
       if (id) {
         const n =
           await tx.$executeRaw`UPDATE intel_legiwatch_workflow SET name=${name},template=${String(b.template)},config=${JSON.stringify(config)}::jsonb,version=version+1,state='paused',cursor=NULL,updated_at=now()
@@ -141,7 +131,7 @@ export class WorkflowTriggerService {
       (tx) =>
         tx.$queryRaw<
           Workflow[]
-        >`SELECT * FROM intel_legiwatch_workflow WHERE tenant_id=${tenantId} AND state='active' ORDER BY updated_at,id LIMIT 10`,
+        >`SELECT * FROM intel_legiwatch_workflow WHERE tenant_id=${tenantId} AND template IN ('hearing_preparation','added_bill_review','published_review') AND state='active' ORDER BY updated_at,id LIMIT 10`,
     );
     const results = [];
     for (const row of rows) {

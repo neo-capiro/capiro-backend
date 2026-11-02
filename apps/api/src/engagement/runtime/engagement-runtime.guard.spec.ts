@@ -132,7 +132,6 @@ describe('EngagementRuntimeGuard', () => {
     'copyProspectAttachment',
     'prepPdfAttachment',
     'sendSingleMail',
-    'generateBatchEmails',
   ])('retains external-action refusal for %s', (handler) => {
     const guard = new EngagementRuntimeGuard(reflector, makePolicy());
     expect(() => guard.canActivate(contextFor('EngagementController', handler))).toThrow();

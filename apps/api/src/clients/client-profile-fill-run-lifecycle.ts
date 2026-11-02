@@ -1,10 +1,12 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { fillRunBeforeDeadline } from './client-profile-fill-run-deadline.js';
+import { queueFailedFillTask } from './client-profile-fill-retry.js';
+import { BadRequestException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { ClientProfileFillWorkflowService } from './client-profile-fill-workflow.service.js';
 import type { ClientProfileFillCompletionService } from './client-profile-fill-completion.service.js';
 import { buildFillRunSummary, requeueFillReviewChecks } from './client-profile-fill-retry.js';
-import { buildClientProfileFillCompletionPlan } from './client-profile-fill-completion-projection.js';
+import { seedCompletionTasks } from './client-profile-fill-completion-plan-store.js';
 import { TERMINAL_TASK_STATUSES } from './client-profile-fill-completion-runtime.shared.js';
 
 export interface RunLifecyclePorts {
@@ -27,41 +29,9 @@ export class ClientProfileFillRunLifecycle {
   ) {}
 
   async ensureCompletionTasks(ctx: TenantContext, clientId: string, runId: string): Promise<void> {
-    const plan = buildClientProfileFillCompletionPlan();
-    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const run = await tx.$queryRawUnsafe<Array<{ id: string }>>(
-        `SELECT id FROM client_profile_fill_run
-          WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid
-            AND workflow_version >= 2`,
-        runId,
-        ctx.tenantId,
-        clientId,
-      );
-      if (!run.length) throw new NotFoundException('Agentic Fill with Meri run not found');
-      for (const task of plan) {
-        await tx.$executeRawUnsafe(
-          `INSERT INTO client_profile_fill_extension_task
-             (run_id, tenant_id, client_id, task_type, task_key, depends_on)
-           VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6::text[])
-           ON CONFLICT (run_id, task_key) DO NOTHING`,
-          runId,
-          ctx.tenantId,
-          clientId,
-          task.taskType,
-          task.taskKey,
-          task.dependsOn,
-        );
-      }
-      await tx.$executeRawUnsafe(
-        `UPDATE client_profile_fill_run
-            SET setup_jsonb = setup_jsonb || '{"completionWorkflowVersion":1}'::jsonb,
-                updated_at = now()
-          WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid`,
-        runId,
-        ctx.tenantId,
-        clientId,
-      );
-    });
+    await this.prisma.withTenant(ctx.tenantId, tx =>
+      seedCompletionTasks(tx, ctx.tenantId, clientId, runId),
+    );
   }
 
   async cancelRun(ctx: TenantContext, clientId: string, runId: string) {
@@ -119,25 +89,13 @@ export class ClientProfileFillRunLifecycle {
       const runs = await tx.$queryRawUnsafe<Array<{ id: string }>>(
         `SELECT id FROM client_profile_fill_run
           WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid
-            AND status <> 'cancelled' FOR UPDATE`,
+            AND status <> 'cancelled' AND ${fillRunBeforeDeadline()} FOR UPDATE`,
         runId,
         ctx.tenantId,
         clientId,
       );
       if (!runs.length) throw new BadRequestException('This run cannot be retried');
-      const count = await tx.$executeRawUnsafe(
-        `UPDATE client_profile_fill_extension_task
-            SET status = 'queued', next_attempt_at = now(), completed_at = NULL,
-                error_code = NULL, error_message = NULL, claimed_at = NULL,
-                heartbeat_at = NULL, worker_id = NULL,
-                max_attempts = GREATEST(max_attempts, attempt + 3), updated_at = now()
-          WHERE id = $1::uuid AND run_id = $2::uuid AND tenant_id = $3::uuid
-            AND client_id = $4::uuid AND status = 'failed'`,
-        taskId,
-        runId,
-        ctx.tenantId,
-        clientId,
-      );
+      const count = await queueFailedFillTask(tx, 'extension', ctx.tenantId, clientId, runId, taskId);
       if (Number(count) === 1) {
         await requeueFillReviewChecks(tx, runId, ctx.tenantId);
         await tx.$executeRawUnsafe(
@@ -161,7 +119,7 @@ export class ClientProfileFillRunLifecycle {
       tx.$queryRawUnsafe<Array<{ runId: string; tenantId: string }>>(
         `SELECT r.id AS "runId", r.tenant_id AS "tenantId"
            FROM client_profile_fill_run r
-          WHERE r.status <> 'cancelled'
+          WHERE r.status = 'running' AND ${fillRunBeforeDeadline('r')}
             AND EXISTS (SELECT 1 FROM client_profile_fill_extension_task extension
                          WHERE extension.run_id = r.id AND extension.tenant_id = r.tenant_id
                            AND (r.completed_at IS NULL OR extension.updated_at > r.completed_at))
@@ -184,7 +142,7 @@ export class ClientProfileFillRunLifecycle {
         // Serialize with retry, then re-read BOTH task groups under the lock.
         const locked = await tx.$queryRawUnsafe<Array<{ id: string }>>(
           `SELECT id FROM client_profile_fill_run WHERE id = $1::uuid
-            AND tenant_id = $2::uuid AND status <> 'cancelled' FOR UPDATE`,
+            AND tenant_id = $2::uuid AND status = 'running' AND ${fillRunBeforeDeadline()} FOR UPDATE`,
           run.runId,
           run.tenantId,
         );

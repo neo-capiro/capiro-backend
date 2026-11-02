@@ -40,6 +40,45 @@ beforeEach(() => jest.clearAllMocks());
 describe('Congress discovery completeness', () => {
   const adapter = (maxPages = 8, listLimit = 250) =>
     new CongressGovAdapter({ apiKey: 'test-only', congresses: [119], maxPages, listLimit });
+  it('completes a publisher inventory beyond the former eight-page prefix without an operator cap', async () => {
+    for (let page = 0; page < 10; page++) {
+      json
+        .mockResolvedValueOnce(
+          ok({
+            committeeMeetings: [item(String(page))],
+            pagination: {
+              count: 10,
+              ...(page < 9 ? { next: 'next' } : {}),
+            },
+          }),
+        )
+        .mockResolvedValueOnce(ok(meeting(String(page))));
+    }
+    const instance = new CongressGovAdapter({
+      apiKey: 'test-only',
+      congresses: [119],
+      listLimit: 1,
+    });
+    expect(await instance.discoverEvents(source, ctx)).toHaveLength(10);
+    expect(instance.discoveryErrors).toEqual([]);
+    expect(json.mock.calls.filter(([url]) => url.includes('offset='))).toHaveLength(10);
+  });
+
+  it('fails an unbounded full-page response without authoritative pagination metadata', async () => {
+    json
+      .mockResolvedValueOnce(ok({ committeeMeetings: [item('1')], pagination: { next: 'next' } }))
+      .mockResolvedValueOnce(ok(meeting('1')));
+    const instance = new CongressGovAdapter({
+      apiKey: 'test-only',
+      congresses: [119],
+      listLimit: 1,
+    });
+    await instance.discoverEvents(source, ctx);
+    expect(instance.discoveryErrors).toContain(
+      'committee-meeting full page missing valid pagination count',
+    );
+    expect(json).toHaveBeenCalledTimes(2);
+  });
   it('recovers one transient timeout with a bounded retry', async () => {
     json
       .mockResolvedValueOnce(failure(0, 'timeout after 20000ms'))

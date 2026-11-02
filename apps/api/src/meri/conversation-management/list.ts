@@ -12,7 +12,9 @@ export async function listManagedConversations(prisma: PrismaService, ctx: Tenan
     const result: ConversationMetadata[] = [];
     const before = request.before;
       const where: Prisma.ClioConversationWhereInput = { tenantId: ctx.tenantId, userId: ctx.userId, status: request.status,
-        bootstrapReceipt: { isNot: null }, ...(request.title ? { title: { contains: request.title, mode: 'insensitive' } } : {}),
+        AND: [{ OR: [{ bootstrapReceipt: { isNot: null } },
+          { metadata: { path: ['researchPortfolioScope', 'kind'], equals: 'research_portfolio' } }] }],
+        ...(request.title ? { title: { contains: request.title, mode: 'insensitive' } } : {}),
         ...(before ? { OR: [{ updatedAt: { lt: new Date(before.updatedAt) } },
           { updatedAt: new Date(before.updatedAt), id: { lt: before.conversationId } }] } : {}) };
       const rows = await tx.clioConversation.findMany({ where, orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
@@ -20,8 +22,8 @@ export async function listManagedConversations(prisma: PrismaService, ctx: Tenan
       for (const row of rows.slice(0, 20)) {
         // Status is an intentional owner filter. Lost access or an unavailable
         // authority is not an archive result and must withhold the page.
-        await visibleBinding(tx, ctx, row);
-        result.push(metadata(row));
+        const scope = await visibleBinding(tx, ctx, row, { research: true });
+        result.push(metadata(row, scope));
       }
       const last = result.at(-1);
       return { version: MANAGEMENT_VERSION, conversations: result,

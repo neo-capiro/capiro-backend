@@ -6,12 +6,12 @@ import { SourceDataRepository } from '../src/sourcedata/source-data.repository.j
 import { KeywordSourceRepository } from '../src/sourcedata/keyword-source.repository.js';
 import { FolderTrackerService } from '../src/tracker/folders/folder-tracker.service.js';
 import { FeatureFlagService } from '../src/feature-flags/feature-flag.service.js';
-import { ReportService } from '../src/tracker/reports/report.service.js';
-import { ReportDeliveryService } from '../src/tracker/reports/report-delivery.service.js';
+import { DraftAccessService } from '../src/tracker/delivery/draft-access.service.js';
+import { DeliveryService } from '../src/tracker/delivery/delivery.service.js';
 import { KeywordRuleService } from '../src/tracker/keywords/keyword-rule.service.js';
 import { KeywordDiscoveryService } from '../src/tracker/keywords/keyword-discovery.service.js';
 import { KeywordDeliveryService } from '../src/tracker/keywords/keyword-delivery.service.js';
-import { localOccurrence } from '../src/tracker/reports/report-schedule.js';
+import { localOccurrence } from '../src/tracker/delivery/delivery-schedule.js';
 import type { KeywordRule } from '../src/tracker/keywords/keyword-domain.js';
 
 jest.setTimeout(90000);
@@ -22,12 +22,12 @@ describe('Phase 6 typed keyword delivery through the existing runner', () => {
       new FolderSourceDataRepository(p),
       new SourceDataRepository(p),
     );
-  const reports = new ReportService(folders, new FeatureFlagService(p, new ConfigService())),
+  const reports = new DraftAccessService(folders, new FeatureFlagService(p, new ConfigService())),
     rules = new KeywordRuleService(reports, new KeywordSourceRepository(p)),
     discovery = new KeywordDiscoveryService(rules),
     keywords = new KeywordDeliveryService(rules);
   const email = { sendReport: jest.fn() },
-    runner = new ReportDeliveryService(
+    runner = new DeliveryService(
       reports,
       {} as never,
       email as never,
@@ -54,11 +54,7 @@ describe('Phase 6 typed keyword delivery through the existing runner', () => {
       await tx.$executeRaw`INSERT INTO tenants(id,slug,name) VALUES(${tenant}::uuid,${tenant},'Synthetic keyword delivery')`;
       await tx.$executeRaw`INSERT INTO users(id,clerk_user_id,email) VALUES(${user}::uuid,${actor},${actor + '@example.invalid'})`;
       await tx.$executeRaw`INSERT INTO tenant_memberships(tenant_id,user_id,role,status) VALUES(${tenant}::uuid,${user}::uuid,'standard_user','active')`;
-      for (const feature of [
-        'legiwatch_keyword_discovery_v1',
-        'legiwatch_keyword_delivery_v1',
-        'legiwatch_reports_updates_v1',
-      ])
+      for (const feature of ['legiwatch_keyword_discovery_v1', 'legiwatch_keyword_delivery_v1'])
         await tx.featureFlag.create({ data: { tenantId: tenant, feature, enabled: true } });
     });
     folderId = (await folders.create(ctx, { name: 'Synthetic review' })).id;

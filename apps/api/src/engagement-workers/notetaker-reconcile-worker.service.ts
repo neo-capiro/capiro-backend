@@ -16,7 +16,10 @@ export class NotetakerReconcileWorkerService implements OnModuleInit, OnModuleDe
   ) {}
 
   onModuleInit(): void {
-    if (this.timer || !this.runtime.backgroundWorkersEnabled('notetaker-reconcile')) return;
+    // Startup and the tick consult the same final-owner predicate. `NOTETAKER_ENABLED` is
+    // deliberately not consulted here: that flag gates new capture, while this worker also performs
+    // cleanup, stuck-recording recovery, stranded-drafting repair and expiry for existing sessions.
+    if (this.timer || !this.runtime.finalNotetakerWorkerEnabled('notetaker-reconcile')) return;
     this.timer = setInterval(() => void this.tick(), RECONCILE_SWEEP_INTERVAL_MS);
     this.timer.unref?.();
   }
@@ -30,7 +33,7 @@ export class NotetakerReconcileWorkerService implements OnModuleInit, OnModuleDe
     if (this.running) return;
     this.running = true;
     try {
-      this.runtime.assertBackgroundOwner('notetaker-reconcile');
+      this.runtime.assertFinalNotetakerWorker('notetaker-reconcile');
       await this.notetaker.runReconcileSweep();
     } catch (error) {
       this.logger.error(`notetaker reconciliation sweep failed: ${(error as Error).message}`);

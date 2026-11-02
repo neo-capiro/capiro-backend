@@ -170,8 +170,11 @@ it('budgets all 25 slots in exact order and shares one mapping and tracked-bill 
   expect(budget.mock.calls[4]![2]).toBe(tracked);
   expect(h.sources.getBillRegulationLinks.mock.calls[0]![2]).toBe(tracked);
   expect(h.sources.getHearingAlerts.mock.calls[0]![4]).toBe(tracked);
-  expect(budget.mock.calls[17]![2]).toBe(h.prisma.withTenant.mock.results[1]!.value);
-  expect(h.events.indexOf('mappings')).toBeLessThan(h.events.indexOf('getTrackedBills'));
+  // Sources start lazily, at most four at a time, in slot order: the mapping
+  // read (slot 17) is budgeted as the exact promise withTenant returned and
+  // now starts after the tracked bills (slot 4).
+  expect(h.prisma.withTenant.mock.results.map((result) => result.value)).toContain(budget.mock.calls[17]![2]);
+  expect(h.events.indexOf('getTrackedBills')).toBeLessThan(h.events.indexOf('mappings'));
   expect(h.sources.getKnowledgeGraph).not.toHaveBeenCalled();
   expect(payload.sections.relationships.scopedGraph).toMatchObject({
     nodes: [],

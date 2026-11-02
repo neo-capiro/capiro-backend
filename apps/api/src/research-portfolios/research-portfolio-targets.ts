@@ -1,8 +1,26 @@
 import type { Prisma } from '@prisma/client';
-import type { ResearchPortfolioMemberKind, ResearchPortfolioRuleCandidateDto } from '@capiro/shared';
+import {
+  humanizeBillId,
+  type ResearchPortfolioMemberKind,
+  type ResearchPortfolioRuleCandidateDto,
+} from '@capiro/shared';
 
 type Tx = Prisma.TransactionClient;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * The complete set of typed member kinds. Every writer/validator reads this one
+ * set so a new kind cannot be accepted by one path and silently dropped by another.
+ */
+export const RESEARCH_PORTFOLIO_MEMBER_KINDS: ReadonlySet<ResearchPortfolioMemberKind> = new Set([
+  'program',
+  'program_element',
+  'project',
+  'budget_line',
+  'award',
+  'federal_bill',
+  'state_bill',
+]);
 
 function component(value: string | null | undefined, fallback: string | null | undefined = null): string | null {
   const normalized = (value || fallback || '').trim().toUpperCase().replaceAll('.', '');
@@ -15,6 +33,15 @@ export interface CanonicalResearchTarget {
   id: string;
   label: string;
   facts: Readonly<Record<string, unknown>>;
+}
+
+/** The canonical facts captured when a member was added; never fabricated. */
+export function canonicalFacts(evidence: unknown): Readonly<Record<string, unknown>> | null {
+  if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence)) return null;
+  const facts = (evidence as Record<string, unknown>).facts;
+  return facts && typeof facts === 'object' && !Array.isArray(facts)
+    ? (facts as Record<string, unknown>)
+    : null;
 }
 
 async function capabilities(tx: Tx, peCode: string): Promise<readonly string[]> {
@@ -32,6 +59,78 @@ export async function readCanonicalResearchTarget(tx: Tx, kind: ResearchPortfoli
     const row = await tx.programElement.findUnique({ where: { peCode: id } });
     if (!row) return null;
     return { kind, id: row.peCode, label: row.title, facts: { entityKind: kind, component: component(row.serviceCode, row.service), account: row.appropriationType, sourceFamily: row.source, publisher: 'Department of Defense', qualification: row.sourceConfidence != null && row.sourceConfidence < 0.8 ? 'candidate' : 'qualified', fiscalYear: row.firstSeenFy, capability: await capabilities(tx, row.peCode), field: row.raw } };
+  }
+  if (kind === 'federal_bill') {
+    // Federal identity is congress + bill type + number, which is exactly
+    // congress_bill.id. A number alone ("H.R. 8800") is not an identity.
+    const row = await tx.congressBill.findUnique({ where: { id: id.toLowerCase() } });
+    if (!row) return null;
+    const identifier = humanizeBillId(row.id);
+    return {
+      kind,
+      id: row.id,
+      label: identifier + ' — ' + row.title,
+      facts: {
+        entityKind: kind,
+        jurisdiction: 'US',
+        congress: row.congress,
+        billType: row.billType,
+        billNumber: row.billNumber,
+        identifier,
+        title: row.title,
+        session: String(row.congress),
+        status: row.status,
+        statusAt: row.statusAt?.toISOString() ?? null,
+        latestActionText: row.latestActionText,
+        latestActionDate: row.latestActionDate?.toISOString().slice(0, 10) ?? null,
+        originChamber: row.originChamber,
+        policyArea: row.policyArea,
+        subjects: row.subjects,
+        sponsor: row.sponsorName,
+        sourceFamily: 'congress.gov',
+        publisher: 'Congress.gov',
+        sourceUrl: row.url,
+        sourceRevision: (row.updateDateIncludingText ?? row.lastSyncedAt)?.toISOString() ?? null,
+        fundingBasis: 'not_applicable',
+        qualification: 'qualified',
+      },
+    };
+  }
+  if (kind === 'state_bill') {
+    // State identity is jurisdiction + legislative session + type/number, which is
+    // state_bill.id. The same number in another state or session is a different bill.
+    const row = await tx.stateBill.findUnique({ where: { id } });
+    if (!row) return null;
+    return {
+      kind,
+      id: row.id,
+      label: row.identifier + ' — ' + row.title,
+      facts: {
+        entityKind: kind,
+        jurisdiction: row.state,
+        session: row.session,
+        sessionKey: row.sessionKey,
+        billNumber: row.billNumber,
+        identifier: row.identifier,
+        title: row.title,
+        chamber: row.chamber,
+        status: row.status,
+        statusAt: row.statusAt?.toISOString() ?? null,
+        latestActionText: row.latestActionText,
+        latestActionDate: row.latestActionDate?.toISOString().slice(0, 10) ?? null,
+        subjects: row.subjects,
+        sponsor: row.sponsorName,
+        // The committee holding the bill now is mutable bill state; freezing it with the
+        // membership keeps a published snapshot showing the referral it was taken from.
+        currentCommitteeId: row.currentCommitteeId,
+        sourceFamily: 'legiscan',
+        publisher: row.state,
+        sourceUrl: row.stateUrl ?? row.url,
+        sourceRevision: (row.statusDerivedAt ?? row.syncedAt)?.toISOString() ?? null,
+        fundingBasis: 'not_applicable',
+        qualification: 'qualified',
+      },
+    };
   }
   if (!UUID.test(id)) return null;
   if (kind === 'program') {

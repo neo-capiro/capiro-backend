@@ -1,4 +1,3 @@
-import { ResearchImportService } from './research/research-import.service.js';
 import { ResearchReportService } from './research/research-report.service.js';
 import { ResearchDeadlineService } from './research/research-deadline.service.js';
 import { StatuteMonitorService } from './research/statute-monitor.service.js';
@@ -9,6 +8,7 @@ import { HearingModule } from '../hearing/hearing.module.js';
 import { ResearchController, ResearchSourceController } from './research/research.controller.js';
 
 import { Phase8EvidenceService } from './editorial/evidence.service.js';
+import { RetainedSourceReaderService } from './editorial/retained-source-reader.service.js';
 import { EditorialService } from './editorial/editorial.service.js';
 import { Phase8Controller, EditorialSourceController } from './editorial/editorial.controller.js';
 import { ResearchService } from './research/research.service.js';
@@ -52,15 +52,12 @@ import {
   FolderTrackerGuard,
 } from './folders/folder-tracker.controller.js';
 import { FolderTrackerService } from './folders/folder-tracker.service.js';
-import { FolderImportService } from './folders/folder-import.service.js';
-import { FolderReportService } from './folders/folder-report.service.js';
-import { FolderImportController } from './folders/folder-import.controller.js';
-import { ReportController } from './reports/report.controller.js';
-import { ReportService } from './reports/report.service.js';
-import { ReportRecipientsService } from './reports/recipients.service.js';
-import { ReportDeliveryService } from './reports/report-delivery.service.js';
-import { ReportSubscriptionService } from './reports/report-subscription.service.js';
-import { RecordRuleService } from './reports/record-rule.service.js';
+import { DeliveryController, MonitoringRuleController } from './delivery/delivery.controller.js';
+import { BriefingRolloutController } from './delivery/briefing-rollout.controller.js';
+import { DraftAccessService } from './delivery/draft-access.service.js';
+import { RecipientsService } from './delivery/recipients.service.js';
+import { DeliveryService } from './delivery/delivery.service.js';
+import { RecordRuleService } from './delivery/record-rule.service.js';
 import { CalendarPreparationService } from './calendar/calendar-preparation.service.js';
 import { CalendarPreparationController } from './calendar/calendar-preparation.controller.js';
 import { AgendaRuleService } from './calendar/agenda-rule.service.js';
@@ -104,10 +101,11 @@ import { ClientBriefContextClient } from '../hearing/client-brief-context.client
     PublicHearingReviewController,
     CalendarPreparationController,
     AgendaRuleController,
-    ReportController,
+    DeliveryController,
+    BriefingRolloutController,
+    MonitoringRuleController,
     BillCorpusController,
     FolderTrackerController,
-    FolderImportController,
     TrackerWatchlistController,
     TrackerBoardController,
     TrackerTaxonomyController,
@@ -116,9 +114,9 @@ import { ClientBriefContextClient } from '../hearing/client-brief-context.client
   providers: [
     ResearchService,
     Phase8EvidenceService,
+    RetainedSourceReaderService,
     EditorialService,
 
-    ResearchImportService,
     ResearchReportService,
     ResearchDeadlineService,
     StatuteMonitorService,
@@ -141,14 +139,11 @@ import { ClientBriefContextClient } from '../hearing/client-brief-context.client
     ClientBriefContextClient,
     CalendarPreparationService,
     AgendaRuleService,
-    ReportService,
-    ReportRecipientsService,
-    ReportDeliveryService,
-    ReportSubscriptionService,
+    DraftAccessService,
+    RecipientsService,
+    DeliveryService,
     RecordRuleService,
     FolderTrackerService,
-    FolderImportService,
-    FolderReportService,
     FolderTrackerGuard,
     TrackerWatchlistService,
     TrackerBoardService,

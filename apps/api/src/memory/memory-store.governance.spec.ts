@@ -36,8 +36,8 @@ function harness(opts: HarnessOpts = {}) {
   const enqueued: Array<Record<string, unknown>> = [];
 
   const tx = {
-    $queryRaw: jest.fn(async (strings: TemplateStringsArray) => {
-      const sql = strings.join('?');
+    $queryRaw: jest.fn(async (strings: TemplateStringsArray | { sql: string }) => {
+      const sql = 'sql' in strings ? strings.sql : strings.join('?');
       sqls.push(sql);
       if (sql.includes('SELECT governed_status FROM memory_items')) {
         return [{ governed_status: opts.governedStatus ?? 'active' }];

@@ -1,3 +1,4 @@
+import { objectiveIntentFromSnapshot, objectiveStrategyDraftInput } from '@capiro/shared/strategy-intake';
 import { HttpException, Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { createObjectiveStrategyRequestCodec, readObjectiveStrategyIntakeWithinTx } from '@capiro/shared/objective-strategy-intake';
@@ -70,7 +71,7 @@ export class ObjectiveCanonicalProducerService {
     const request = reservationCodec.parseObjectiveDraft(i.typed_request), fingerprint = reservationCodec.digest(request),
       source = { clientId: job.clientId, objectiveId: canonical.objectiveId, objectiveVersion: canonical.requestedObjectiveVersion,
         objectiveRevisionId: canonical.requestedObjectiveRevisionId };
-    const expected = { dto: { clientId: job.clientId, type: request.type, goal: row.snapshot.outcome }, bearer: null,
+    const expected = { dto: objectiveStrategyDraftInput(job.clientId, request.type, objectiveIntentFromSnapshot(row.snapshot)), bearer: null,
       objectiveGeneration: { request, fingerprint, receipt: reservationCodec.pendingReceipt(request, source) },
       objectiveCanonicalReservation: marker };
     const deadline = Number(row.deadlineMs), reserved = Number(row.reservedMs), consentExpires = Number(row.consentExpiresMs);

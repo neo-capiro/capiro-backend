@@ -8,21 +8,16 @@ import type { Prisma, LegiWatchDelivery } from '../../generated/prisma-client/in
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { HearingRecordWorkflowService } from './hearing-record-workflow.service.js';
 import {
-  ReportRecipientsService,
+  RecipientsService,
   type RecipientSnapshot,
-} from '../tracker/reports/recipients.service.js';
+} from '../tracker/delivery/recipients.service.js';
 import {
   RECORD_DELIVERY_FEATURE,
   HEARING_SMS_FEATURE,
 } from '../feature-flags/feature-flag.service.js';
-import { digest, escapeHtml, json, object, text } from '../tracker/reports/report-domain.js';
+import { digest, escapeHtml, json, object, text } from '../tracker/delivery/delivery-domain.js';
 import { type HearingSmsRecipient } from './hearing-publication.service.js';
 import { smsSize } from '../tracker/sms/sms.service.js';
-import {
-  selectedRecordBriefs,
-  developmentKey,
-  type IncludedRecordBrief,
-} from '../tracker/reports/record-report-composition.js';
 
 export type RecordDeliveryPacket = {
   schema: 'legiwatch.record-delivery.v1';
@@ -41,97 +36,8 @@ export const recordSms = (title: string, claims: Array<{ text: string }>) =>
 export class HearingRecordDeliveryService {
   constructor(
     readonly workflow: HearingRecordWorkflowService,
-    readonly recipients: ReportRecipientsService,
+    readonly recipients: RecipientsService,
   ) {}
-  async reportBriefs(
-    ctx: WorkspaceTenantContext,
-    reportId: string,
-    input: unknown,
-  ): Promise<IncludedRecordBrief[]> {
-    const refs = selectedRecordBriefs(input);
-    if (!refs.length) return [];
-    await this.workflow.authorize(ctx, RECORD_DELIVERY_FEATURE);
-    const folders = await this.workflow.actor(ctx, async (tx) => {
-      const report = await this.workflow.reports.get(tx, ctx, reportId),
-        out = [];
-      if (report.archived) throw new ConflictException('REPORT_CHANGED_REVIEW_AGAIN');
-      for (const id of report.folderIds)
-        out.push(await this.workflow.reports.folders.folder(tx, ctx, id));
-      return out;
-    });
-    const out: IncludedRecordBrief[] = [];
-    for (const ref of refs) {
-      const brief = await this.workflow.brief(ctx, ref.eventId, ref.briefId),
-        doc = await this.workflow.approvedDocument(ctx, ref.eventId, ref.briefId, ref.contentHash);
-      if (
-        brief.payload.sourceHash !== ref.sourceHash ||
-        brief.version !== ref.version ||
-        brief.approvedAt?.toISOString() !== ref.approvedAt
-      )
-        throw new ConflictException('SELECTED_BRIEF_CHANGED_REVIEW_AGAIN');
-      if (
-        !brief.payload.clientId ||
-        !folders.length ||
-        folders.some((f) => f.archived || f.clientId !== brief.payload.clientId) ||
-        !brief.payload.folders.length ||
-        brief.payload.folders.some(
-          (f) => !folders.some((r) => r.id === f.id && r.version === f.version),
-        )
-      )
-        throw new BadRequestException('BRIEF_REQUIRES_EXACT_REPORT_CLIENT_AND_FOLDER_SCOPE');
-      out.push({
-        ...ref,
-        title: doc.title,
-        markdown: doc.markdown,
-        kind: brief.payload.correction ? 'record_correction' : 'record_brief',
-        developmentKeys: brief.payload.claims
-          .filter((c) => c.kind !== 'analysis' && c.outcome === 'supported')
-          .flatMap((c) =>
-            c.references.map((ref) => brief.payload.records.find((r) => r.id === ref.id)!),
-          )
-          .filter((r) => r.billId && ['action', 'amendment'].includes(r.kind))
-          .map((r) => developmentKey(r.billId!, r.identity, r.hash)),
-      });
-    }
-    return out;
-  }
-  async reportOptions(ctx: WorkspaceTenantContext, reportId: string, offset = 0) {
-    await this.workflow.authorize(ctx, RECORD_DELIVERY_FEATURE);
-    if (!Number.isSafeInteger(offset) || offset < 0)
-      throw new BadRequestException('INVALID_RECORD_PAGE');
-    await this.workflow.actor(ctx, (tx) => this.workflow.reports.get(tx, ctx, reportId));
-    const rows = await this.workflow.actor(
-      ctx,
-      (tx) => tx.$queryRaw<
-        Array<{ id: string; event_id: string }>
-      >`SELECT id,event_id FROM intel_hearing_record_brief
-      WHERE tenant_id=${ctx.tenantId} AND owner_clerk_id=${ctx.clerkUserId} ORDER BY created_at DESC,id DESC LIMIT 51 OFFSET ${offset}`,
-    );
-    const options = [];
-    for (const row of rows.slice(0, 50)) {
-      try {
-        const b = await this.workflow.brief(ctx, row.event_id, row.id);
-        if (!b.current || !b.approvedAt) continue;
-        const selected = {
-          eventId: row.event_id,
-          briefId: b.id,
-          contentHash: b.contentHash,
-          sourceHash: b.payload.sourceHash,
-          version: b.version,
-          approvedAt: b.approvedAt.toISOString(),
-        };
-        await this.reportBriefs(ctx, reportId, [selected]);
-        options.push({
-          ...selected,
-          title: b.payload.title,
-          correction: Boolean(b.payload.correction),
-        });
-      } catch {
-        /* A private or stale candidate is omitted without revealing it. */
-      }
-    }
-    return { options, next: rows.length > 50 ? offset + 50 : null };
-  }
   async priorAudience(ctx: WorkspaceTenantContext, eventId: string, briefId: string) {
     const brief = await this.workflow.brief(ctx, eventId, briefId),
       correction = object(object(brief.payload).correction);

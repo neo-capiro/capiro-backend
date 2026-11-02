@@ -134,6 +134,8 @@ export type PortfolioAlertsResult = {
   total: number;
   clientCount: number;
   generatedAt: string;
+  /** Set when the request budget stopped the roll-up before every client ran. */
+  partial?: true;
 };
 
 export type PortfolioAlertsOptions = { limit?: number; maxClients?: number };

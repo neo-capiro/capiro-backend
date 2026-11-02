@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../src/prisma/prisma.service.js';
-import { reportRuntime } from '../src/tracker/reports/report-runtime.js';
+import { monitoringRuntime } from '../src/tracker/delivery/monitoring-runtime.js';
 import { HearingCryptoService } from '../src/hearing/hearing-crypto.service.js';
-import { digest } from '../src/tracker/reports/report-domain.js';
+import { digest } from '../src/tracker/delivery/delivery-domain.js';
 import type { RecordClaim } from '../src/hearing/published-record-domain.js';
 if (
   process.env.LEGIWATCH_PHASE5_TEST_DATABASE !== 'disposable' ||
@@ -13,7 +13,7 @@ if (
 describe('published record workflow on PostgreSQL', () => {
   jest.setTimeout(30000);
   const p = new PrismaService({ transactionOptions: { timeout: 20000, maxWait: 10000 } }),
-    runtime = reportRuntime(p),
+    runtime = monitoringRuntime(p),
     w = runtime.records;
   const tenantId = randomUUID(),
     userId = randomUUID(),
@@ -322,105 +322,5 @@ describe('published record workflow on PostgreSQL', () => {
     const visited = new Set(snapshot.mock.calls.map((c) => c[0]));
     expect(ids.every((id) => visited.has(id))).toBe(true);
     snapshot.mockRestore();
-  });
-  it('reserves an explicit daily brief once under concurrent draft occurrences and rechecks folder access', async () => {
-    const folder = await runtime.reports.folders.create(ctx, {
-      name: 'Daily brief qualification',
-      clientId,
-      jurisdiction: 'FL',
-      defaultSession: '2098',
-    });
-    const run = await w.reconcile(ctx, eventId, {
-      sourceSelections: [{ identity: 'v1', locators: ['record'] }],
-    });
-    const brief = await w.generateBrief(ctx, eventId, run.id, { clientId, folderIds: [folder.id] });
-    await w.approveBrief(ctx, eventId, brief.id, {
-      contentHash: brief.contentHash,
-      attestSupported: true,
-    });
-    const approved = await w.brief(ctx, eventId, brief.id);
-    const refs = [
-      {
-        eventId,
-        briefId: brief.id,
-        contentHash: brief.contentHash,
-        sourceHash: brief.payload.sourceHash,
-        version: brief.version,
-        approvedAt: approved.approvedAt!.toISOString(),
-      },
-    ];
-    const report = await runtime.reports.save(ctx, {
-      name: 'Daily brief qualification',
-      folderIds: [folder.id],
-      jurisdiction: 'FL',
-      sessionKey: '2098',
-      settings: { committees: 'off', actions: 'five_days', summary: true },
-    });
-    const sub = await runtime.subscriptions.save(ctx, {
-      reportId: report.id,
-      mode: 'draft',
-      timezone: 'UTC',
-      localMinutes: 720,
-      subject: 'Synthetic daily',
-      recordBriefs: refs,
-    });
-    expect(sub.recordBriefs).toEqual(refs);
-    const now = new Date();
-    const make = async (key: string, selected: unknown) =>
-      p.legiWatchReportOccurrence.create({
-        data: {
-          tenantId,
-          subscriptionId: sub.id,
-          subscriptionVersion: sub.version,
-          occurrenceKey: key,
-          intendedAt: now,
-          windowStart: new Date(now.getTime() - 86400000),
-          windowEnd: now,
-          configuration: {
-            ownerClerkId: actor,
-            reportId: report.id,
-            reportVersion: report.version,
-            timezone: 'UTC',
-            subject: 'Synthetic daily',
-            introduction: '',
-            recipients: [],
-            mode: 'draft',
-            manual: true,
-            recordBriefs: selected,
-          } as never,
-        },
-      });
-    const a = await make('race-a', refs),
-      b = await make('race-b', refs);
-    await Promise.all([
-      runtime.subscriptions.generateOccurrence(tenantId, a.id, now),
-      runtime.subscriptions.generateOccurrence(tenantId, b.id, now),
-    ]);
-    const results = await p.legiWatchReportOccurrence.findMany({
-      where: { id: { in: [a.id, b.id] } },
-    });
-    expect(results.map((r) => r.error)).toEqual([null, null]);
-    expect(results.filter((r) => r.state === 'draft')).toHaveLength(1);
-    expect(results.filter((r) => r.state === 'no_change')).toHaveLength(1);
-    const composition = results.find((r) => r.state === 'draft')!.composition as Record<
-      string,
-      unknown
-    >;
-    expect(composition.recordBriefs).toEqual(refs);
-    expect(composition.plainText).toContain('CAPIRO BRIEF BASED ON PUBLISHED RECORDS');
-    const none = await make('unselected', []);
-    await runtime.subscriptions.generateOccurrence(tenantId, none.id, now);
-    expect(
-      (await p.legiWatchReportOccurrence.findUniqueOrThrow({ where: { id: none.id } })).state,
-    ).toBe('no_change');
-    await p.$executeRaw`UPDATE intel_legiwatch_folder SET archived=true,version=version+1 WHERE tenant_id=${tenantId} AND id=${folder.id}`;
-    await expect(w.brief(ctx, eventId, brief.id)).rejects.toThrow();
-    const history = await runtime.subscriptions.history(ctx, sub.id);
-    expect(
-      history.find((r) => r.id === results.find((r) => r.state === 'draft')!.id)!.composition,
-    ).toBeNull();
-    expect(await p.legiWatchDelivery.count({ where: { tenantId, subscriptionId: sub.id } })).toBe(
-      0,
-    );
   });
 });

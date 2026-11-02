@@ -3,6 +3,7 @@ import type { TenantRole } from '@capiro/shared';
 import type { OrganizationMembershipRole, User } from '@clerk/backend';
 import { ClerkService } from './clerk.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { retireMemberOfficeDraftsInTx } from '../meri/office-drafts/member-retention.js';
 
 type ProvisionableRole = Extract<TenantRole, 'capiro_admin' | 'user_admin' | 'standard_user'>;
 type SystemTx = Parameters<Parameters<PrismaService['withSystem']>[0]>[0];
@@ -280,6 +281,7 @@ export class ClerkProvisioningService {
           where: { id: source.id },
           data: { userId: targetUserId },
         });
+        await retireMemberOfficeDraftsInTx(tx, source.tenantId, sourceUserId);
         continue;
       }
 
@@ -299,6 +301,7 @@ export class ClerkProvisioningService {
         where: { id: source.id },
         data: { status: 'removed' },
       });
+      await retireMemberOfficeDraftsInTx(tx, source.tenantId, sourceUserId);
     }
 
     await tx.user.update({

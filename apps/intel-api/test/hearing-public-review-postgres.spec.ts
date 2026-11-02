@@ -9,8 +9,8 @@ import { HearingPublicationService } from '../src/hearing/hearing-publication.se
 import { FolderTrackerService } from '../src/tracker/folders/folder-tracker.service.js';
 import { FolderSourceDataRepository } from '../src/sourcedata/folder-source-data.repository.js';
 import { SourceDataRepository } from '../src/sourcedata/source-data.repository.js';
-import { ReportService } from '../src/tracker/reports/report.service.js';
-import { ReportRecipientsService } from '../src/tracker/reports/recipients.service.js';
+import { DraftAccessService } from '../src/tracker/delivery/draft-access.service.js';
+import { RecipientsService } from '../src/tracker/delivery/recipients.service.js';
 import { PostgresPublicHearingInsightStore } from '../src/hearing/intelligence/postgres-public-hearing-insight.store.js';
 
 if (
@@ -41,10 +41,10 @@ describe('canonical server capture reviewed publications on PostgreSQL', () => {
     new FolderSourceDataRepository(p),
     new SourceDataRepository(p),
   );
-  const reports = new ReportService(folders, { isEnabled: async () => true } as any);
+  const reports = new DraftAccessService(folders, { isEnabled: async () => true } as any);
   const publications = new HearingPublicationService(
     reports,
-    new ReportRecipientsService(reports),
+    new RecipientsService(reports),
     sessions,
     new HearingCryptoService(new ConfigService({ HEARING_ENCRYPTION_KEY: '1'.repeat(64) })),
   );

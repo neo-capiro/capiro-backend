@@ -13,8 +13,10 @@ const briefingRequest = {
   cutoff: '2026-10-26T00:00:00.000Z',
   timezone: 'America/New_York',
   requestKey: 'synthetic-legislative-document',
-  sources: [{ kind: 'news', id: 'n1', revision }],
-  citations: [{ kind: 'news', id: 'n1', revision, locator: 'body', start: 0, end: 4, quote: 'text' }],
+  sources: [{ kind: 'research', id: 'n1', revision }],
+  citations: [
+    { kind: 'research', id: 'n1', revision, locator: 'body', start: 0, end: 4, quote: 'text' },
+  ],
 };
 const researchRequest = {
   clientId: null as string | null,
@@ -83,7 +85,7 @@ describe('canonical legislative-document write boundary', () => {
       input,
     );
   const citation = (index: number) => ({
-    kind: 'news',
+    kind: 'research',
     id: `n${index}`,
     revision,
     locator: 'body',

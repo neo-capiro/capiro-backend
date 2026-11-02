@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { digest, object } from '../tracker/reports/report-domain.js';
+import { digest, object } from '../tracker/delivery/delivery-domain.js';
 export type AssessmentOutcome =
   | 'supported'
   | 'partially_supported'
@@ -121,7 +121,10 @@ export function validateRecordClaims(
     if (
       c.kind === 'quote' &&
       !c.references.some((ref) =>
-        sourcePassage(records.find((r) => r.id === ref.id)!, ref.locator)?.includes(c.text),
+        sourcePassage(
+          records.find((r) => r.id === ref.id)!,
+          ref.locator,
+        )?.includes(c.text),
       )
     )
       throw new BadRequestException('QUOTE_MUST_MATCH_SOURCE_RANGE');

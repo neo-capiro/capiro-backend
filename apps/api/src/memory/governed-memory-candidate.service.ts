@@ -1,3 +1,4 @@
+import { withMemoryConversationRetention } from './conversation-serving/transaction.js';
 import { createHash } from 'node:crypto';
 import {
   BadRequestException,
@@ -150,7 +151,7 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
     reviewerUserId: string,
     actorContext?: CandidateActorContext,
   ): Promise<void> {
-    await this.governedPrisma.withTenantUser(tenantId, reviewerUserId, async (tx) => {
+    await withMemoryConversationRetention(this.governedPrisma,tenantId, reviewerUserId, async (tx) => {
       const candidate = await this.lockPendingDispositionCandidateInTx(tx, tenantId, candidateId);
       this.requireGovernedIndependentReviewer(candidate, reviewerUserId);
       this.requireMeriPersonalRejectionOwner(candidate, reviewerUserId);
@@ -181,7 +182,7 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
     fixtureGuard?: SyntheticCandidateWithdrawalGuard,
   ): Promise<void> {
     this.requireWithdrawalEnabled();
-    await this.governedPrisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    await withMemoryConversationRetention(this.governedPrisma,ctx.tenantId, ctx.userId, async (tx) => {
       const candidate = await this.lockPendingDispositionCandidateInTx(
         tx,
         ctx.tenantId,
@@ -250,7 +251,7 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
         : { enabled: false, candidates: [] };
     }
 
-    const page = await this.governedPrisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    const page = await withMemoryConversationRetention(this.governedPrisma,ctx.tenantId, ctx.userId, async (tx) => {
       if (input?.clientId && !await tx.client.findFirst({
         where: { id: input.clientId, tenantId: ctx.tenantId }, select: { id: true },
       })) throw new ForbiddenException('Selected proposal client is unavailable.');

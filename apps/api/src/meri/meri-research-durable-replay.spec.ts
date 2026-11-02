@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import type { TenantContext } from '@capiro/shared';
 import { EngagementService } from '../engagement/engagement.service';
 import { MeriResearchService } from './meri-research.service';
 import { researchToolVersion } from './meri-research-durable-result';
@@ -38,7 +39,7 @@ const MAIL_SEARCH_TOOL_SCHEMA = {
   properties: { query: { type: 'string' }, asOf: { type: 'string' } },
 };
 const MAIL_SEARCH_TOOL_VERSION = researchToolVersion(MAIL_SEARCH_TOOL_SCHEMA);
-const ctx = { tenantId: 'tenant-1', userId: 'user-1', tenantSlug: 'tenant' } as never;
+const ctx: TenantContext = { tenantId: 'tenant-1', userId: 'user-1', tenantSlug: 'tenant', clerkUserId: 'user-1', role: 'standard_user' };
 
 const DEBRIEF_SCHEMA = {
   type: 'object',
@@ -295,12 +296,35 @@ function completeMailSearchResult(asOf = '2026-09-28T00:00:00.000Z') {
 const MAILBOX_ID = '44444444-4444-4444-8444-444444444444';
 const MAPPED_AS_OF = new Date('2026-09-28T12:00:00.000Z');
 
+function mappedMailAuthority() {
+  return {
+    $executeRaw: jest.fn().mockResolvedValue(0),
+    $queryRawUnsafe: jest.fn().mockResolvedValue([{ allowed: true }]),
+    tenantMembership: { findFirst: jest.fn().mockResolvedValue({ id: 'membership-1' }) },
+    client: { findFirst: jest.fn().mockResolvedValue({ id: 'authorized-client' }) },
+  };
+}
+
 async function mappedMailThread(clientId: string | null) {
   const threadId = '11111111-1111-4111-8111-111111111111';
   const engagement = Object.create(EngagementService.prototype) as any;
   engagement.prisma = {
     withTenant: async (_tenantId: string, callback: any) =>
       callback({
+        ...mappedMailAuthority(),
+        mailMessage: {
+          count: jest.fn().mockResolvedValue(1),
+          findMany: jest.fn().mockResolvedValue([{
+            id: '22222222-2222-4222-8222-222222222222',
+            tenantId: ctx.tenantId, threadId, connectionId: MAILBOX_ID,
+            subject: 'Mapped canonical source', bodyText: 'ACTUAL_MAPPED_MAIL_BODY',
+            updatedAt: new Date('2026-09-28T00:01:00.000Z'),
+            createdAt: new Date('2026-09-27T12:00:00.000Z'),
+            metadata: { bodyCompleteness: 'full' }, fromEmail: 'sender@example.test',
+            fromName: 'Sender', toRecipients: [], ccRecipients: [],
+            sentAt: new Date('2026-09-27T12:00:00.000Z'), receivedAt: null,
+          }]),
+        },
         mailThread: {
           findFirst: jest.fn(async () => ({
             id: threadId,
@@ -308,23 +332,8 @@ async function mappedMailThread(clientId: string | null) {
             clientId,
             subject: 'Mapped canonical source',
             updatedAt: new Date('2026-09-28T00:00:00.000Z'),
-            connection: { accountEmail: 'owner@example.test', status: 'connected' },
-            messages: [
-              {
-                id: '22222222-2222-4222-8222-222222222222',
-                connectionId: MAILBOX_ID,
-                subject: 'Mapped canonical source',
-                bodyText: 'ACTUAL_MAPPED_MAIL_BODY',
-                updatedAt: new Date('2026-09-28T00:01:00.000Z'),
-                metadata: { bodyCompleteness: 'full' },
-                fromEmail: 'sender@example.test',
-                fromName: 'Sender',
-                toRecipients: [],
-                ccRecipients: [],
-                sentAt: new Date('2026-09-27T12:00:00.000Z'),
-                receivedAt: null,
-              },
-            ],
+            connection: { id: MAILBOX_ID, tenantId: ctx.tenantId, createdByUserId: ctx.userId,
+              accountEmail: 'owner@example.test', status: 'connected' },
           })),
         },
       }),
@@ -339,6 +348,9 @@ function mappedMailRow(index: number, clientId: string | null) {
     id: `22222222-2222-4222-8222-22222222222${index}`,
     thread_id: `11111111-1111-4111-8111-11111111111${index}`,
     connection_id: MAILBOX_ID,
+    owner_tenant_id: ctx.tenantId,
+    owner_actor_id: ctx.userId,
+    connection_status: 'connected',
     message_updated_at: MAPPED_AS_OF,
     subject: `Mapped source ${index}`,
     from_email: 'sender@example.test',
@@ -365,6 +377,8 @@ async function mappedMailSearch(
   const coverage = [
     {
       connection_id: MAILBOX_ID,
+      owner_tenant_id: ctx.tenantId,
+      owner_actor_id: ctx.userId,
       account_email: 'owner@example.test',
       provider: 'google_workspace',
       status: 'connected',
@@ -390,7 +404,7 @@ async function mappedMailSearch(
   const engagement = Object.create(EngagementService.prototype) as any;
   engagement.prisma = {
     withTenant: async (_tenantId: string, callback: any) =>
-      callback({ $queryRaw: queries, $executeRaw: jest.fn().mockResolvedValue(0) }),
+      callback({ ...mappedMailAuthority(), $queryRaw: queries }),
   };
   const tools = Object.create(MeriToolsService.prototype) as any;
   tools.engagement = engagement;

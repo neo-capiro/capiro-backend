@@ -6,14 +6,17 @@ import { DefenseBudgetEvidenceLocatorService } from './defense-budget-evidence-l
 
 import { DefenseSavedComparisonsService } from './defense-saved-comparisons.service.js';
 import { DefenseSavedComparisonsController } from './defense-saved-comparisons.controller.js';
+import { ProcurementMoneyFlowController, ProcurementHubController } from './procurement-money-flow.controller.js';
+import { ProcurementMoneyFlowService } from './procurement-money-flow.service.js';
 
 @Module({
   imports: [PrismaModule],
-  controllers: [DefenseResearchController, DefenseSavedComparisonsController],
+  controllers: [DefenseResearchController, DefenseSavedComparisonsController, ProcurementMoneyFlowController, ProcurementHubController],
   providers: [
     DefenseResearchService,
     DefenseSavedComparisonsService,
     DefenseBudgetEvidenceLocatorService,
+    ProcurementMoneyFlowService,
   ],
   exports: [DefenseResearchService, DefenseSavedComparisonsService],
 })

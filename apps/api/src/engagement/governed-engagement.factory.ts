@@ -12,30 +12,28 @@ import type { EngagementExternalAction } from './runtime/engagement-runtime.type
 
 export const RAW_ENGAGEMENT_SERVICE = Symbol('RAW_ENGAGEMENT_SERVICE');
 
-type GenerateDraft = EngagementService['generateOutreachDraft'];
-type GenerateBatch = EngagementService['generateBatchEmails'];
 type GenerateMeetingPrep = EngagementService['generateMeetingPrep'];
 type GenerateMeetingDebrief = EngagementService['generateMeetingDebriefDraft'];
 
 interface GovernedEngagementMethods {
   loadUserVoiceBlock: (ctx: TenantContext, clientId: string | null) => Promise<string | null>;
-  generateOutreachDraft: GenerateDraft;
-  generateBatchEmails: GenerateBatch;
   generateMeetingPrep: GenerateMeetingPrep;
   generateMeetingDebriefDraft: GenerateMeetingDebrief;
 }
 
 interface RuntimeMethodMetadata {
-  action: EngagementExternalAction;
+  action?: EngagementExternalAction;
   testMode?: boolean;
+  /** Mail-handoff capture of the whole returned promise (initiation only). */
+  handoff?: { boundary: 'integration_create'; mode: 'initiation' };
 }
 
 const RUNTIME_ACTION_BY_METHOD: Readonly<Record<string, RuntimeMethodMetadata>> = {
-  previewAiTemplate: { action: 'outreach_generate' },
+  // A new integration connection is new mail work: gate it and own the real promise.
+  // The service body is unchanged, and N's deliberate omission of the attachment
+  // external-write entries is preserved.
+  createIntegration: { handoff: { boundary: 'integration_create', mode: 'initiation' } },
   generateTalkingPoints: { action: 'outreach_generate' },
-  generateBatchEmails: { action: 'outreach_generate' },
-  generateOutreachDraft: { action: 'outreach_generate' },
-  generateCampaignEmail: { action: 'outreach_generate' },
   generateMeetingPrep: { action: 'meeting_prep_generate' },
   generateMeetingDebriefDraft: { action: 'meeting_debrief_generate' },
   sendBatchEmails: { action: 'outreach_send' },
@@ -105,15 +103,8 @@ export function createGovernedEngagementService(
     throw new Error('phase26_engagement_context_plane_required');
   };
 
-  const generateDraft = methods.generateOutreachDraft.bind(service);
-  const generateBatch = methods.generateBatchEmails.bind(service);
   const generateMeetingPrep = methods.generateMeetingPrep.bind(service);
   const generateMeetingDebrief = methods.generateMeetingDebriefDraft.bind(service);
-
-  methods.generateOutreachDraft = ((...args: Parameters<GenerateDraft>) =>
-    boundary.guard(() => generateDraft(...args))) as GenerateDraft;
-  methods.generateBatchEmails = ((...args: Parameters<GenerateBatch>) =>
-    boundary.guard(() => generateBatch(...args))) as GenerateBatch;
 
   methods.generateMeetingPrep = (async (
     ctx: TenantContext,
@@ -165,9 +156,19 @@ export function guardEngagementServiceRuntime(
       const metadata = RUNTIME_ACTION_BY_METHOD[property];
       if (!metadata) return value.bind(target);
       return (...args: unknown[]) => {
-        runtimePolicy.assertExternalAction(metadata.action, {
-          testMode: metadata.testMode,
-        });
+        if (metadata.action) {
+          runtimePolicy.assertExternalAction(metadata.action, {
+            testMode: metadata.testMode,
+          });
+        }
+        if (metadata.handoff?.mode === 'initiation') {
+          // Synchronous NEW-work gate, then the admission owns the whole promise so
+          // the record stays live until createIntegration actually finishes.
+          runtimePolicy.assertMailHandoffBoundary(metadata.handoff.boundary);
+          return runtimePolicy.runAdmittedMailHandoffWork(metadata.handoff.boundary, () =>
+            Reflect.apply(value, target, args),
+          );
+        }
         return Reflect.apply(value, target, args);
       };
     },

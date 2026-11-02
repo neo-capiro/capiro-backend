@@ -1,45 +1,9 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { lockMemoryRetentionInTx, retainedMemoryInTx } from './memory-retention-selection.js';
 
-type ReceiptColumnShape = {
-  relationKind: string;
-  persistence: string;
-  rowSecurityEnabled: boolean;
-  rowSecurityForced: boolean;
-  hasChildren: boolean;
-  columnName: string;
-  typeName: string;
-  builtInType: boolean;
-  typeModifier: number;
-  notNull: boolean;
-  hasDefault: boolean;
-};
-
-// Original 020000 receipt columns minus the separately disposed candidate
-// JSONB column. pg_attribute exposes all live columns, so an unexpected
-// renamed payload field or type change cannot silently pass this allowlist.
-const CONTENT_FREE_RECEIPT_COLUMNS = [
-  ['tenant_id', 'uuid', -1, true, false],
-  ['candidate_id', 'uuid', -1, true, false],
-  ['candidate_sha256', 'bpchar', 68, true, false],
-  ['proposer_user_id', 'uuid', -1, true, false],
-  ['review_id', 'uuid', -1, true, false],
-  ['created_at', 'timestamptz', 6, true, true],
-] as const;
-
-function isContentFreeReceiptShape(rows: ReceiptColumnShape[]): boolean {
-  return rows.length === CONTENT_FREE_RECEIPT_COLUMNS.length && rows.every((row, i) => {
-    const expected = CONTENT_FREE_RECEIPT_COLUMNS[i];
-    return expected !== undefined &&
-      row.relationKind === 'r' && row.persistence === 'p' &&
-      row.rowSecurityEnabled === true && row.rowSecurityForced === true &&
-      row.hasChildren === false && row.builtInType === true &&
-      row.columnName === expected[0] && row.typeName === expected[1] &&
-      row.typeModifier === expected[2] && row.notNull === expected[3] &&
-      row.hasDefault === expected[4];
-  });
-}
+import { memoryReceiptsAreContentFreeInTx } from './memory-receipt-retention.js';
 
 /**
  * Phase 6 — retention / right-to-be-forgotten EXECUTION (master plan gap #7).
@@ -47,7 +11,8 @@ function isContentFreeReceiptShape(rows: ReceiptColumnShape[]): boolean {
  * Client offboarding must remove a client's institutional memory end-to-end
  * across every store that holds it: memory_items (+ their context_embeddings and
  * memory_edges), the clio_memory client-scope rows that project into them,
- * pending memory_candidate proposals, and the client_memory_access wall grants.
+ * memory_candidate proposals, client_memory_access wall grants and
+ * memory_access_grant permissions.
  * The original Meri submission receipt can retain candidate JSONB even after
  * its pending memory_candidate has gone. Its receipt has no client_id, so a
  * client purge cannot safely attribute every retained payload to a client.
@@ -57,8 +22,9 @@ function isContentFreeReceiptShape(rows: ReceiptColumnShape[]): boolean {
  * as a suppression marker.
  *
  * Invariants:
- *  - LEGAL HOLD is absolute: a memory_item with legal_hold=true (and its
- *    clio source, if any) is NEVER deleted; it is reported as heldBack.
+ *  - LEGAL HOLD preserves candidates, canonical items and their provenance;
+ *    retained items and candidates are reported separately. Revision dependencies
+ *    outside this client also retain their sources.
  *  - TENANT-SCOPED: every statement filters tenant_id — a purge in tenant A
  *    can never touch tenant B's identically-keyed client (covered by the spec).
  *  - AUDITED: an audit_logs row records actor, client, dryRun, and counts.
@@ -82,46 +48,22 @@ export class MemoryPurgeService {
   ): Promise<MemoryPurgeResult> {
     const dryRun = opts.dryRun !== false; // default TRUE — never delete unless explicit
     return this.prisma.withSystem(async (tx) => {
-      // A regular SELECT holds ACCESS SHARE on the receipt through this
-      // transaction. This prevents concurrent DDL from adding/dropping the
-      // candidate column or altering the verified shape between the catalog
-      // check and destructive deletes, without a new table-lock privilege.
-      // Receipt inserts can continue; their content-free shape is locked.
-      await tx.$queryRaw`SELECT 1 FROM clio_meri_memory_submissions
-        WHERE tenant_id = ${tenantId}::uuid LIMIT 1`;
-      const receiptShape = await tx.$queryRaw<ReceiptColumnShape[]>`
-        SELECT c.relkind::text AS "relationKind",
-               c.relpersistence::text AS "persistence",
-               c.relrowsecurity AS "rowSecurityEnabled",
-               c.relforcerowsecurity AS "rowSecurityForced",
-               c.relhassubclass AS "hasChildren",
-               a.attname AS "columnName", t.typname AS "typeName",
-               (t.typnamespace = 'pg_catalog'::regnamespace) AS "builtInType",
-               a.atttypmod AS "typeModifier", a.attnotnull AS "notNull",
-               a.atthasdef AS "hasDefault"
-        FROM pg_catalog.pg_class c
-        JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid
-        JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
-        WHERE c.oid = 'clio_meri_memory_submissions'::regclass
-          AND a.attnum > 0 AND NOT a.attisdropped
-        ORDER BY a.attnum
-      `;
-      const receiptPayloadDispositionHold = !isContentFreeReceiptShape(receiptShape);
+      const receiptPayloadDispositionHold = !await memoryReceiptsAreContentFreeInTx(tx, tenantId);
       if (!dryRun && receiptPayloadDispositionHold) {
         throw new ServiceUnavailableException(
           'Client memory purge is held until the Meri receipt has the verified content-free shape.',
         );
       }
 
-      // Row locks cannot prevent a new legal-held item from being inserted
-      // after the held-set read. Serialize memory-item writes for this short
+      // Row locks cannot prevent a new legal-held item or candidate from being
+      // inserted after the held-set read. Serialize source writes for this short
       // offboarding transaction so its clio source and projection cannot be
       // swept while the new held item survives. EXCLUSIVE also waits for an
       // existing SELECT FOR UPDATE before taking the table lock: allowing that
       // writer's ROW SHARE lock would deadlock its later UPDATE against our
       // row-lock wait. Plain reads remain available. The existing transaction
       // timeout bounds lock waits and releases the lock on failure.
-      if (!dryRun) await tx.$executeRaw`LOCK TABLE memory_items IN EXCLUSIVE MODE`;
+      if (!dryRun) await lockMemoryRetentionInTx(tx);
 
       // Match embedding writers: source rows first, then their projections.
       // Execute deletes only this locked set; dry-run remains read-only.
@@ -131,25 +73,28 @@ export class MemoryPurgeService {
         ORDER BY id FOR UPDATE
       `;
       const lockedIds = lockedItems?.map((row) => row.id);
-      // Legal-held memory_items for this client are excluded from every delete;
-      // their clio: sources are preserved too.
-      const held = await tx.$queryRaw<Array<{ id: string; slug: string }>>`
-        SELECT id, slug FROM memory_items
-        WHERE tenant_id = ${tenantId}::uuid AND client_id = ${clientId}::uuid AND legal_hold = true
+      const retained = await retainedMemoryInTx(tx, tenantId, clientId);
+      const heldItemIds = retained.itemIds;
+      const heldClioIds = retained.clioIds;
+      const withheld = await tx.$queryRaw<Array<{ items: bigint; candidates: bigint }>>`
+        SELECT
+          (SELECT count(*) FROM memory_items WHERE tenant_id = ${tenantId}::uuid
+            AND client_id = ${clientId}::uuid AND id = ANY(${heldItemIds}::uuid[])) AS items,
+          (SELECT count(*) FROM memory_candidate WHERE tenant_id = ${tenantId}::uuid
+            AND client_id = ${clientId}::uuid AND id = ANY(${retained.candidateIds}::uuid[])) AS candidates
       `;
-      const heldItemIds = held.map((h) => h.id);
-      const heldClioIds = held
-        .map((h) => (h.slug.startsWith('clio:') ? h.slug.slice('clio:'.length) : null))
-        .filter((v): v is string => v !== null);
+      const heldBack = Number(withheld[0]?.items ?? 0);
+      const retainedCandidates = Number(withheld[0]?.candidates ?? 0);
 
       // Selection counts (what a purge would remove) — computed the same way for
       // dry-run and execute so the report is truthful.
-      const counts = await this.selectionCounts(tx, tenantId, clientId, heldItemIds, heldClioIds, lockedIds);
+      const counts = await this.selectionCounts(tx, tenantId, clientId, retained, lockedIds);
       const result: MemoryPurgeResult = {
         tenantId,
         clientId,
         dryRun,
-        heldBack: held.length,
+        heldBack,
+        retainedCandidates,
         deleted: counts,
         receiptPayloadDispositionHold,
       };
@@ -167,13 +112,14 @@ export class MemoryPurgeService {
             AND src_item_id IN (
               SELECT id FROM memory_items
               WHERE tenant_id = ${tenantId}::uuid AND client_id = ${clientId}::uuid
-                AND legal_hold = false
+                AND legal_hold = false AND id <> ALL(${heldItemIds}::uuid[])
                 AND id = ANY(${lockedIds!}::uuid[])
             )
         `;
         await tx.$executeRaw`
           DELETE FROM memory_items
           WHERE tenant_id = ${tenantId}::uuid AND client_id = ${clientId}::uuid AND legal_hold = false
+            AND id <> ALL(${heldItemIds}::uuid[])
             AND id = ANY(${lockedIds!}::uuid[])
         `;
         await tx.$executeRaw`
@@ -184,9 +130,14 @@ export class MemoryPurgeService {
         await tx.$executeRaw`
           DELETE FROM memory_candidate
           WHERE tenant_id = ${tenantId}::uuid AND client_id = ${clientId}::uuid
+            AND legal_hold = false AND id <> ALL(${retained.candidateIds}::uuid[])
         `;
         await tx.$executeRaw`
           DELETE FROM client_memory_access
+          WHERE tenant_id = ${tenantId}::uuid AND client_id = ${clientId}::uuid
+        `;
+        await tx.$executeRaw`
+          DELETE FROM memory_access_grant
           WHERE tenant_id = ${tenantId}::uuid AND client_id = ${clientId}::uuid
         `;
       }
@@ -201,7 +152,8 @@ export class MemoryPurgeService {
           entityId: clientId,
           before: {
             reason: opts.reason,
-            heldBack: held.length,
+            heldBack,
+            retainedCandidates,
             selection: { ...counts },
             receiptPayloadDispositionHold,
           } as Prisma.InputJsonObject,
@@ -209,8 +161,8 @@ export class MemoryPurgeService {
       });
 
       this.logger.log(
-        `memory purge ${dryRun ? '(dry-run) ' : ''}client ${clientId} tenant ${tenantId}: ` +
-          `${JSON.stringify(counts)} heldBack=${held.length}`,
+        `memory purge ${dryRun ? '(dry-run) ' : ''}${JSON.stringify(counts)} ` +
+          `heldBack=${heldBack} retainedCandidates=${retainedCandidates}`,
       );
       return result;
     });
@@ -220,15 +172,16 @@ export class MemoryPurgeService {
     tx: Prisma.TransactionClient,
     tenantId: string,
     clientId: string,
-    heldItemIds: string[],
-    heldClioIds: string[],
+    retained: Awaited<ReturnType<typeof retainedMemoryInTx>>,
     lockedIds?: string[],
   ): Promise<MemoryPurgeCounts> {
+    const { itemIds: heldItemIds, clioIds: heldClioIds, candidateIds } = retained;
     const one = async (sql: Promise<Array<{ n: bigint }>>): Promise<number> =>
       Number((await sql)[0]?.n ?? 0);
-    const [memoryItems, embeddings, edges, clioMemory, candidates, grants] = await Promise.all([
+    const [memoryItems, embeddings, edges, clioMemory, candidates, grants, accessGrants] = await Promise.all([
       one(tx.$queryRaw`SELECT count(*) AS n FROM memory_items
         WHERE tenant_id = ${tenantId}::uuid AND client_id = ${clientId}::uuid AND legal_hold = false
+          AND id <> ALL(${heldItemIds}::uuid[])
           ${lockedIds ? Prisma.sql`AND id = ANY(${lockedIds}::uuid[])` : Prisma.empty}`),
       one(tx.$queryRaw`SELECT count(*) AS n FROM context_embeddings
         WHERE tenant_id = ${tenantId}::uuid AND client_id = ${clientId}::uuid
@@ -237,16 +190,20 @@ export class MemoryPurgeService {
         WHERE tenant_id = ${tenantId}::uuid AND src_item_id IN (
           SELECT id FROM memory_items WHERE tenant_id = ${tenantId}::uuid
             AND client_id = ${clientId}::uuid AND legal_hold = false
+            AND id <> ALL(${heldItemIds}::uuid[])
             ${lockedIds ? Prisma.sql`AND id = ANY(${lockedIds}::uuid[])` : Prisma.empty})`),
       one(tx.$queryRaw`SELECT count(*) AS n FROM clio_memory
         WHERE tenant_id = ${tenantId}::uuid AND scope = 'client' AND client_id = ${clientId}::uuid
           AND id <> ALL(${heldClioIds}::uuid[])`),
       one(tx.$queryRaw`SELECT count(*) AS n FROM memory_candidate
-        WHERE tenant_id = ${tenantId}::uuid AND client_id = ${clientId}::uuid`),
+        WHERE tenant_id = ${tenantId}::uuid AND client_id = ${clientId}::uuid
+          AND legal_hold = false AND id <> ALL(${candidateIds}::uuid[])`),
       one(tx.$queryRaw`SELECT count(*) AS n FROM client_memory_access
         WHERE tenant_id = ${tenantId}::uuid AND client_id = ${clientId}::uuid`),
+      one(tx.$queryRaw`SELECT count(*) AS n FROM memory_access_grant
+        WHERE tenant_id = ${tenantId}::uuid AND client_id = ${clientId}::uuid`),
     ]);
-    return { memoryItems, embeddings, edges, clioMemory, candidates, grants };
+    return { memoryItems, embeddings, edges, clioMemory, candidates, grants, accessGrants };
   }
 }
 
@@ -257,14 +214,17 @@ export interface MemoryPurgeCounts {
   clioMemory: number;
   candidates: number;
   grants: number;
+  accessGrants: number;
 }
 
 export interface MemoryPurgeResult {
   tenantId: string;
   clientId: string;
   dryRun: boolean;
-  /** memory_items withheld because legal_hold=true (and their clio sources). */
+  /** Canonical items retained for holds or retained candidate provenance. */
   heldBack: number;
+  /** Candidate rows retained for holds or dependencies of retained revisions. */
+  retainedCandidates: number;
   deleted: MemoryPurgeCounts;
   /** True unless the receipt has the verified content-free table shape. */
   receiptPayloadDispositionHold: boolean;

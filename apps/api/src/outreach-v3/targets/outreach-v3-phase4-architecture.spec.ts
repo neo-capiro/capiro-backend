@@ -91,21 +91,6 @@ describe('Outreach V3 Revised Phase 4 architecture', () => {
     expect(reducer).not.toMatch(/PrismaService|DirectoryService|CapabilityRegistry|fetch\(/);
   });
 
-  it('allows reasoning to propose but never apply grounded target changes', () => {
-    const reasoningRoot = resolve(API_ROOT, 'src/outreach-v3/reasoning');
-    const source = productionFiles(reasoningRoot)
-      .map((file) => readFileSync(file, 'utf8'))
-      .join('\n');
-    expect(source).toContain('search_targets');
-    expect(source).toContain('get_target_profile');
-    expect(source).toContain('analyze_relationships');
-    expect(source).toContain('createModelProposalWithinTx');
-    expect(source).not.toContain('OutreachCommandEngineService');
-    expect(source).not.toContain('.applyProposal(');
-    expect(source).not.toContain('.applyBatch(');
-    expect(source).not.toContain('SEND_EMAIL_NOW');
-  });
-
   it('does not run Outreach V3 as a separate service outside engagement-api', () => {
     expect(existsSync(resolve(REPO_ROOT, 'apps/outreach-api'))).toBe(false);
     // Scoped to `*.module.ts` (not a full apps/ text scan, which includes the

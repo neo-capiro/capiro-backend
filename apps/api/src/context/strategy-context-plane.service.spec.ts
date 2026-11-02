@@ -4,6 +4,10 @@ import {
   StrategyContextPlaneService,
 } from './strategy-context-plane.service.js';
 
+// These collaborators are supplied by each unit fixture; loading model runtimes is not part of a context read test.
+jest.mock('./context-plane-gateway.service.js', () => ({ ContextPlaneGatewayService: class {} }));
+jest.mock('./context-resolver.service.js', () => ({ ContextResolverService: class {} }));
+
 const TENANT = '11111111-1111-4111-8111-111111111111';
 const USER = '22222222-2222-4222-8222-222222222222';
 const CLIENT = '33333333-3333-4333-8333-333333333333';
@@ -691,7 +695,7 @@ describe('StrategyContextPlaneService Phase 26', () => {
 describe('Objective history observation boundary', () => {
   test('rechecks current mailbox envelope and history through existing resolver without compiling another packet', async () => {
     const h = harness();
-    const observed = { source: { clientId: CLIENT, objectiveId: NODE, objectiveVersion: 1, objectiveRevisionId: STRATEGY },
+    const observed = { observedAt: new Date().toISOString(), calendars: [] as Record<string, unknown>[], source: { clientId: CLIENT, objectiveId: NODE, objectiveVersion: 1, objectiveRevisionId: STRATEGY },
       intent: { outcome: 'saved goal' }, sourceDigest: 'a'.repeat(64), localDigest: 'b'.repeat(64), externalDigest: 'c'.repeat(64), background: { digest: 'd'.repeat(64) }, issues: [] };
     const resolver = { resolveAndRetrieve: jest.fn(async () => context({ type: 'strategy_draft', id: CLIENT })) };
     const objective = { observe: jest.fn(async () => observed) };
@@ -709,6 +713,10 @@ describe('Objective history observation boundary', () => {
     observed.background.digest = 'e'.repeat(64);
     const researchChanged = await service.checkObjective(input);
     expect(researchChanged.historyDigest).not.toBe(changed.historyDigest);
+      observed.calendars = [{id:NODE,kind:'congress_milestone',source:'baseline',label:'Milestone',fy:2027,startsOn:'2026-11-01',endsOn:null,tone:null,position:0}];
+      const calendarChanged = await service.checkObjective(input);
+      expect(calendarChanged.historyDigest).not.toBe(researchChanged.historyDigest);
+      expect(calendarChanged.evidence[0]!.ref).toMatch(/^calendar-baseline:/);
     expect(h.gateway.requestContext).not.toHaveBeenCalled();
     expect(first).toHaveProperty('checkedAt');
   });

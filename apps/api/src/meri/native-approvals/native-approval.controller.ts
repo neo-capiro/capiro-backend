@@ -1,3 +1,4 @@
+import { MeriMemoryReceivingModule } from '../memory-receiving/meri-memory-receiving.controller.js';
 import { Body, Controller, Header, HttpCode, Module, Post, Req, Res, UseGuards } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import type { TenantContext } from '@capiro/shared';
@@ -66,6 +67,42 @@ export class NativeApprovalController {
     return this.approvals.revoke(req, ctx, body);
   }
 
+  /** Browser consequential-action decision (SCRUM-222): the attended approver's
+   * bearer authenticates the human and the retained preparation supplies the
+   * subject; only its digest becomes the decision's commandSha256. */
+  @Post('browser/record')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  browserRecord(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
+    return this.approvals.recordBrowser(req, ctx, body);
+  }
+
+  /** ONE permissive answer, only for the transaction that inserts the fresh
+   * CLAIMED row. Every repeat/restart/ambiguity answers a non-permissive readback. */
+  @Post('browser/consume')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  browserConsume(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
+    return this.approvals.consumeBrowser(req, ctx, body);
+  }
+
+  /** Status readback: retained decision/consumption facts, never a grant. */
+  @Post('browser/status')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  browserStatus(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
+    return this.approvals.statusBrowser(req, ctx, body);
+  }
+
+  /** Effect settlement: one CLAIMED row may complete once with the actual
+   * browser result. A completion record is evidence, never permission. */
+  @Post('browser/result')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  browserResult(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
+    return this.approvals.resultBrowser(req, ctx, body);
+  }
+
   /** Approved-execution capability issuance (D016 #9): Meri's decide route,
    * attended approver's native bearer + verified service identity. */
   @Post('execution')
@@ -77,7 +114,7 @@ export class NativeApprovalController {
 }
 
 @Module({
-  imports: [PrismaModule, ApplicationAuthorityModule, EngagementModule, TenantModule, ClientDocumentsModule],
+  imports: [PrismaModule, ApplicationAuthorityModule, EngagementModule, TenantModule, ClientDocumentsModule, MeriMemoryReceivingModule],
   controllers: [NativeApprovalController],
   providers: [
     NativeApprovalService, NativeApprovalMetadataVerifier, ToolServiceSecretGuard, NativeExecutionService, MeriExecutionReceiverService, MeriClientFilingService,

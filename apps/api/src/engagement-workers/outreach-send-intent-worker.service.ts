@@ -22,10 +22,15 @@ export class OutreachSendIntentWorkerService implements OnModuleInit, OnModuleDe
   }
 
   onModuleInit(): void {
+    // Startup consults the same ownership predicate as every tick. The ordinary canonical sender is
+    // admitted only through `ordinaryOutreachSendWorkerEnabled()`, which requires the existing
+    // versioned-outreach flag; the V3-only selector stays a separate existing path. Unnamed
+    // `backgroundWorkersEnabled()` is deliberately not consulted: it is false on the accepted
+    // scheduler-only tuple and must stay that way.
     if (
       this.timer ||
       !this.enabled ||
-      (!this.runtime.backgroundWorkersEnabled() &&
+      (!this.runtime.ordinaryOutreachSendWorkerEnabled() &&
         !this.runtime.outreachV3SendIntentWorkerEnabled())
     )
       return;
@@ -42,14 +47,17 @@ export class OutreachSendIntentWorkerService implements OnModuleInit, OnModuleDe
     if (this.running) return;
     this.running = true;
     try {
-      const v3Only = !this.runtime.backgroundWorkersEnabled();
-      if (v3Only) this.runtime.assertOutreachV3SendIntentWorker();
-      else this.runtime.assertBackgroundOwner('outreach-send-intent-worker');
+      // Ownership is re-evaluated on every tick, not only at startup: a process that loses the
+      // tuple or the flag stops sweeping without waiting for a restart. Ordinary ownership selects
+      // the ordinary sweep; only a process without it falls back to the existing V3-only filter.
+      const ordinary = this.runtime.ordinaryOutreachSendWorkerEnabled();
+      if (ordinary) this.runtime.assertOrdinaryOutreachSendWorker();
+      else this.runtime.assertOutreachV3SendIntentWorker();
       await (
         this.intents as OutreachSendIntentService & {
           runWorkerSweep(v3Only?: boolean): Promise<void>;
         }
-      ).runWorkerSweep(v3Only);
+      ).runWorkerSweep(!ordinary);
     } catch (error) {
       this.logger.error(`outreach send-intent sweep failed: ${(error as Error).message}`);
     } finally {

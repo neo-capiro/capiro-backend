@@ -1,3 +1,11 @@
+import { withMemoryConversationRetention } from './conversation-serving/transaction.js';
+import { memoryGovernanceVersionSql } from './memory-governance-version.js';
+import {
+  decodeGovernancePage,
+  encodeGovernancePage,
+  governancePageBinding,
+  type GovernancePageRow,
+} from './memory-governance-page.js';
 import {
   BadRequestException,
   ForbiddenException,
@@ -15,7 +23,8 @@ import { fetchDeniedClientIds, wallExclusionSql } from './memory-wall.helpers.js
 
 export type MemoryGovernanceBucket = 'all' | 'active' | 'review_due' | 'conflicts' | 'history';
 
-interface ItemRow {
+interface ItemRow extends GovernancePageRow {
+  version: string;
   id: string;
   title: string;
   type: string;
@@ -87,7 +96,7 @@ interface VersionRow {
   createdAt: Date;
 }
 
-interface TransitionRow {
+interface TransitionRow extends GovernancePageRow {
   id: string;
   memoryItemId: string | null;
   memoryCandidateId: string | null;
@@ -105,6 +114,7 @@ interface TransitionRow {
 }
 
 interface ProjectionJobRow {
+  version: string;
   id: string;
   operation: string;
   status: string;
@@ -128,6 +138,7 @@ interface ConflictMemberRow {
 }
 
 export interface GovernanceCapabilities {
+  approve: boolean;
   confirm: boolean;
   markStale: boolean;
   revoke: boolean;
@@ -157,7 +168,7 @@ export class MemoryGovernanceReadService {
   async overview(ctx: TenantContext) {
     if (!memoryGovernanceCenterEnabled()) return disabledOverview();
 
-    const counts = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    const counts = await withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
       const itemRows = await tx.$queryRaw<
         Array<{
@@ -236,21 +247,33 @@ export class MemoryGovernanceReadService {
         pendingReview: review.enabled ? review.candidates.length : 0,
       },
       reviewEnabled: review.enabled,
+      // listReviewable scans all pending candidates without take/limit and filters current review authority.
+      pendingReviewCountStatus: review.enabled ? ('complete' as const) : ('unavailable' as const),
     };
   }
 
-  async listItems(ctx: TenantContext, bucket: MemoryGovernanceBucket, limit = 100, query = '') {
-    if (!memoryGovernanceCenterEnabled()) return { enabled: false, items: [] };
+  async listItems(
+    ctx: TenantContext,
+    bucket: MemoryGovernanceBucket,
+    limit = 100,
+    query = '',
+    rawCursor?: string,
+  ) {
+    if (!memoryGovernanceCenterEnabled()) return { enabled: false, items: [], nextCursor: null };
     if (typeof query !== 'string') throw new BadRequestException('Memory search must be text.');
     const search = query.trim();
     if (search.length > 200)
       throw new BadRequestException('Memory search must be at most 200 characters.');
     const bounded = Math.min(250, Math.max(1, Math.floor(limit)));
 
-    const items = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    const binding = governancePageBinding(ctx, `items:${bucket}`, search);
+    const cursor = decodeGovernancePage(rawCursor, binding);
+    const page = await withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
       const rows = await tx.$queryRaw<ItemRow[]>(Prisma.sql`
         SELECT mi.id::text AS id,
+               ${memoryGovernanceVersionSql('mi')} AS version,
+               to_char(mi.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "cursorAt",
                mi.title,
                mi.type,
                mi.client_id::text AS "clientId",
@@ -285,38 +308,41 @@ export class MemoryGovernanceReadService {
         LEFT JOIN clients c ON c.id = mi.client_id AND c.tenant_id = mi.tenant_id
         WHERE mi.tenant_id = ${ctx.tenantId}::uuid
           AND (mi.visibility = 'tenant' OR mi.owner_user_id = ${ctx.userId}::uuid)
+          ${cursor ? Prisma.sql`AND (mi.created_at, mi.id) < (${cursor.cursorAt}::timestamptz, ${cursor.id}::uuid)` : Prisma.empty}
           ${bucketSql(bucket)}
           ${search ? Prisma.sql`AND strpos(lower(mi.title), lower(${search})) > 0` : Prisma.empty}
           ${Prisma.raw(wallExclusionSql(denied, 'mi.client_id'))}
-        ORDER BY
-          CASE WHEN mi.governed_status = 'conflicted' THEN 0
-               WHEN mi.governed_status = 'stale' THEN 1
-               ELSE 2 END,
-          COALESCE(mi.review_due_at, mi.updated_at) ASC,
-          mi.updated_at DESC
-        LIMIT ${bounded}
+        ORDER BY mi.created_at DESC, mi.id DESC
+        LIMIT ${bounded + 1}
       `);
 
       const visible = [];
-      for (const row of rows) {
+      for (const row of rows.slice(0, bounded)) {
         const subject = await this.authorization.loadItemInTx(tx, ctx.tenantId, row.id);
         if (!subject) continue;
-        const decision = await this.authorization.evaluateInTx(tx, ctx, subject, 'read');
+        const decision = await this.authorization.evaluateInTx(tx, ctx, subject, 'read', {
+          emitDenialMetrics: false,
+        });
         if (!decision.allowed) continue;
         visible.push(presentItem(row, await this.capabilities(tx, ctx, row)));
       }
-      return visible;
+      const last = rows.slice(0, bounded).at(-1);
+      return {
+        items: visible,
+        nextCursor: rows.length > bounded && last ? encodeGovernancePage(last, binding) : null,
+      };
     });
 
-    return { enabled: true, items };
+    return { enabled: true, ...page };
   }
 
   async getItem(ctx: TenantContext, itemId: string) {
     if (!memoryGovernanceCenterEnabled()) return { enabled: false, item: null };
 
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const rows = await tx.$queryRaw<ItemDetailRow[]>(Prisma.sql`
         SELECT mi.id::text AS id,
+               ${memoryGovernanceVersionSql('mi')} AS version,
                mi.title,
                mi.type,
                mi.slug,
@@ -382,7 +408,9 @@ export class MemoryGovernanceReadService {
 
       const subject = await this.authorization.loadItemInTx(tx, ctx.tenantId, itemId);
       if (!subject) throw new NotFoundException('Memory item not found.');
-      const read = await this.authorization.evaluateInTx(tx, ctx, subject, 'read');
+      const read = await this.authorization.evaluateInTx(tx, ctx, subject, 'read', {
+        emitDenialMetrics: false,
+      });
       if (!read.allowed) throw new ForbiddenException(`Memory operation denied: ${read.reason}`);
 
       const sourceEvidence =
@@ -470,14 +498,18 @@ export class MemoryGovernanceReadService {
     });
   }
 
-  async listTransitions(ctx: TenantContext, limit = 100) {
-    if (!memoryGovernanceCenterEnabled()) return { enabled: false, transitions: [] };
+  async listTransitions(ctx: TenantContext, limit = 100, rawCursor?: string) {
+    if (!memoryGovernanceCenterEnabled())
+      return { enabled: false, transitions: [], nextCursor: null };
     const bounded = Math.min(250, Math.max(1, Math.floor(limit)));
 
-    const rows = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    const binding = governancePageBinding(ctx, 'transitions');
+    const cursor = decodeGovernancePage(rawCursor, binding);
+    const rows = await withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
       return tx.$queryRaw<TransitionRow[]>(Prisma.sql`
         SELECT a.id::text AS id,
+               to_char(a.occurred_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "cursorAt",
                a.memory_item_id::text AS "memoryItemId",
                a.memory_candidate_id::text AS "memoryCandidateId",
                a.actor_user_id::text AS "actorUserId",
@@ -497,15 +529,22 @@ export class MemoryGovernanceReadService {
         LEFT JOIN memory_candidate mc
           ON mc.id = a.memory_candidate_id AND mc.tenant_id = a.tenant_id
         WHERE a.tenant_id = ${ctx.tenantId}::uuid
+          ${cursor ? Prisma.sql`AND (a.occurred_at, a.id) < (${cursor.cursorAt}::timestamptz, ${cursor.id}::uuid)` : Prisma.empty}
           ${privateTransitionSql(ctx.userId)}
           ${Prisma.raw(
             wallExclusionSql(denied, 'COALESCE(a.client_id, mi.client_id, mc.client_id)'),
           )}
-        ORDER BY a.occurred_at DESC
-        LIMIT ${bounded}
+        ORDER BY a.occurred_at DESC, a.id DESC
+        LIMIT ${bounded + 1}
       `);
     });
-    return { enabled: true, transitions: rows.map(presentTransition) };
+    const page = rows.slice(0, bounded),
+      last = page.at(-1);
+    return {
+      enabled: true,
+      transitions: page.map(presentTransition),
+      nextCursor: rows.length > bounded && last ? encodeGovernancePage(last, binding) : null,
+    };
   }
 
   async projectionHealth(ctx: TenantContext) {
@@ -515,10 +554,11 @@ export class MemoryGovernanceReadService {
         counts: emptyProjectionCounts(),
         oldestDueAt: null,
         recentFailures: [],
+        recentFailuresPage: { limit: 50, returned: 0, hasMore: false },
       };
     }
 
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
       const counts = await tx.$queryRaw<
         Array<{
@@ -553,6 +593,7 @@ export class MemoryGovernanceReadService {
         Array<ProjectionJobRow & { memoryItemId: string | null; title: string | null }>
       >(Prisma.sql`
         SELECT o.id::text AS id,
+               ${memoryGovernanceVersionSql('o')} AS version,
                o.memory_item_id::text AS "memoryItemId",
                mi.title,
                o.operation,
@@ -589,6 +630,11 @@ export class MemoryGovernanceReadService {
           superseded: count(row?.superseded),
         },
         oldestDueAt: iso(row?.oldestDueAt),
+        recentFailuresPage: {
+          limit: 50,
+          returned: failures.length,
+          hasMore: count(row?.failed) + count(row?.deadLetter) > failures.length,
+        },
         recentFailures: failures.map((job) => ({
           ...presentProjection(job),
           memoryItemId: job.memoryItemId,
@@ -600,7 +646,7 @@ export class MemoryGovernanceReadService {
 
   async listClients(ctx: TenantContext) {
     if (!memoryGovernanceCenterEnabled()) return { enabled: false, clients: [] };
-    const clients = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    const clients = await withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
       return tx.$queryRaw<
         Array<{ id: string; name: string; status: string; memoryWall: boolean }>
@@ -623,17 +669,36 @@ export class MemoryGovernanceReadService {
     const subject = await this.authorization.loadItemInTx(tx, ctx.tenantId, row.id);
     if (!subject) return noCapabilities();
 
-    const confirm = await this.authorization.evaluateInTx(tx, ctx, subject, 'confirm');
-    const stale = await this.authorization.evaluateInTx(tx, ctx, subject, 'mark_stale');
-    const revoke = await this.authorization.evaluateInTx(tx, ctx, subject, 'revoke');
-    const propose = await this.authorization.evaluateInTx(tx, ctx, subject, 'propose');
-    const resolve = await this.authorization.evaluateInTx(tx, ctx, subject, 'resolve_conflict');
-    const approve = await this.authorization.evaluateInTx(tx, ctx, subject, 'approve');
-    const read = await this.authorization.evaluateInTx(tx, ctx, subject, 'read');
+    const confirm = await this.authorization.evaluateInTx(tx, ctx, subject, 'confirm', {
+      emitDenialMetrics: false,
+    });
+    const stale = await this.authorization.evaluateInTx(tx, ctx, subject, 'mark_stale', {
+      emitDenialMetrics: false,
+    });
+    const revoke = await this.authorization.evaluateInTx(tx, ctx, subject, 'revoke', {
+      emitDenialMetrics: false,
+    });
+    const propose = await this.authorization.evaluateInTx(tx, ctx, subject, 'propose', {
+      emitDenialMetrics: false,
+    });
+    const resolve = await this.authorization.evaluateInTx(tx, ctx, subject, 'resolve_conflict', {
+      emitDenialMetrics: false,
+    });
+    const approve = await this.authorization.evaluateInTx(tx, ctx, subject, 'approve', {
+      emitDenialMetrics: false,
+    });
+    const read = await this.authorization.evaluateInTx(tx, ctx, subject, 'read', {
+      emitDenialMetrics: false,
+    });
 
     const terminal =
       TERMINAL.has(row.governedStatus) || ['revoked', 'superseded'].includes(row.legacyStatus);
     return {
+      approve:
+        approve.allowed &&
+        row.governedStatus === 'pending_review' &&
+        row.memoryClass !== 'legacy_unclassified' &&
+        row.assertedByUserId !== ctx.userId,
       confirm: confirm.allowed && ['active', 'stale', 'conflicted'].includes(row.governedStatus),
       markStale: stale.allowed && row.governedStatus === 'active',
       revoke: revoke.allowed && !terminal && !row.legalHold,
@@ -724,6 +789,7 @@ export class MemoryGovernanceReadService {
   private itemProjection(tx: Prisma.TransactionClient, tenantId: string, itemId: string) {
     return tx.$queryRaw<ProjectionJobRow[]>(Prisma.sql`
       SELECT id::text AS id,
+             ${memoryGovernanceVersionSql('o')} AS version,
              operation,
              status,
              attempts,
@@ -734,7 +800,7 @@ export class MemoryGovernanceReadService {
              completed_at AS "completedAt",
              dead_lettered_at AS "deadLetteredAt",
              superseded_at AS "supersededAt"
-      FROM memory_cleanup_outbox
+      FROM memory_cleanup_outbox o
       WHERE tenant_id = ${tenantId}::uuid AND memory_item_id = ${itemId}::uuid
       ORDER BY created_at DESC
       LIMIT 20
@@ -848,6 +914,7 @@ function bucketSql(bucket: MemoryGovernanceBucket): Prisma.Sql {
 
 function presentItem(row: ItemRow, capabilities: GovernanceCapabilities) {
   return {
+    version: row.version,
     id: row.id,
     title: row.title,
     type: row.type,
@@ -892,8 +959,9 @@ function presentVersion(row: VersionRow) {
 }
 
 function presentTransition(row: TransitionRow) {
+  const { cursorAt: _cursorAt, ...publicRow } = row;
   return {
-    ...row,
+    ...publicRow,
     occurredAt: row.occurredAt.toISOString(),
   };
 }
@@ -912,6 +980,7 @@ function presentProjection(row: ProjectionJobRow) {
 
 function noCapabilities(): GovernanceCapabilities {
   return {
+    approve: false,
     confirm: false,
     markStale: false,
     revoke: false,
@@ -935,6 +1004,7 @@ function disabledOverview() {
       projectionAttention: 0,
     },
     reviewEnabled: false,
+    pendingReviewCountStatus: 'unavailable' as const,
   };
 }
 

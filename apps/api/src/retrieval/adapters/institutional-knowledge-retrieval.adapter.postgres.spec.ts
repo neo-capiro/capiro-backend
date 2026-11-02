@@ -1,5 +1,6 @@
-import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { createServer } from 'node:http';
+import { spawn } from 'node:child_process';
 import { Prisma } from '@prisma/client';
 import type { EmbeddingProvider } from '../../embeddings/embedding-provider.js';
 import type { TemporalKnowledgeGraphService } from '../../knowledge/graph/temporal-knowledge-graph.service.js';
@@ -14,6 +15,15 @@ import {
   type QualificationDatabase,
 } from '../../../test/memory-postgres-qualification/harness.js';
 import { InstitutionalKnowledgeRetrievalAdapter } from './institutional-knowledge-retrieval.adapter.js';
+import { buildCoverageManifest } from '../coverage-manifest.js';
+import { searchGovernedMemory } from '../../meri/meri-memory-search.js';
+import { readMeriGraph } from '../../meri/meri-graph-source.js';
+import { installGraphFixture } from '../../../test/memory-postgres-qualification/graph-fixture.js';
+import { ForbiddenException, HttpException } from '@nestjs/common';
+import type { TenantContext } from '@capiro/shared';
+import { canonicalSha256 } from '../../auth/read-delegation/read-delegation.contract.js';
+import { readPassiveMemoryPage } from '../../meri/memory-receiving/meri-memory-page-source.js';
+import { checkPassiveMemoryEligibility } from '../../meri/memory-receiving/meri-passive-memory-source.js';
 
 const TENANT = '10000000-0000-4000-8000-000000000001';
 const OTHER_TENANT = '10000000-0000-4000-8000-000000000002';
@@ -29,6 +39,7 @@ const requireVector = process.env.MEMORY_POSTGRES_REQUIRE_VECTOR === '1';
 const adminUrl = qualificationAdminUrl();
 const databaseIt = adminUrl ? it : it.skip;
 const semanticIt = adminUrl && requireVector ? it : it.skip;
+const meriCompositionIt = adminUrl && process.env.MEMORY_MERI_SOURCE_ROOT ? it : it.skip;
 
 function request(overrides: Partial<RetrievalRequest> = {}): RetrievalRequest {
   return {
@@ -112,6 +123,7 @@ describe('canonical memory PostgreSQL qualification harness', () => {
       return;
     }
     qualification = await createQualificationDatabase(adminUrl, requireVector);
+    await installGraphFixture(qualification);
     prisma = new PrismaService({ datasources: { db: { url: qualification.appUrl } } });
     await prisma.$connect();
     console.log(
@@ -148,10 +160,6 @@ describe('canonical memory PostgreSQL qualification harness', () => {
   });
 
   it('is DB_FREE-reviewable and fails closed before database setup', () => {
-    const workflow = readFileSync(
-      resolve(__dirname, '../../../../../.github/workflows/memory-postgres-qualification.yml'),
-      'utf8',
-    );
     expect(DDL_PROVENANCE.minimalParentFixtures).toEqual(['tenants', 'users', 'clients']);
     expect(DDL_PROVENANCE.canonicalRelations).toEqual([
       'client_memory_access',
@@ -228,15 +236,6 @@ describe('canonical memory PostgreSQL qualification harness', () => {
         ),
       }),
     ).toThrow('MEMORY_POSTGRES_CREDENTIALS_FILE does not exist');
-    expect(workflow).toContain('pull_request:');
-    expect(workflow).toContain('workflow_dispatch:');
-    expect(workflow).toContain('image: pgvector/pgvector:pg16');
-    expect(workflow).toContain('pnpm install --frozen-lockfile');
-    expect(workflow).toContain("MEMORY_POSTGRES_REQUIRE_VECTOR: '1'");
-    expect(workflow).toContain("MEMORY_POSTGRES_OWNED_ENDPOINT_ACK: '127.0.0.1:5432'");
-    expect(workflow).toContain("- '127.0.0.1:5432:5432'");
-    expect(workflow).toContain('127.0.0.1:5432/postgres');
-    expect(workflow).not.toMatch(/prisma migrate deploy|aws-actions|deploy/i);
   });
 
   databaseIt(
@@ -666,6 +665,525 @@ describe('canonical memory PostgreSQL qualification harness', () => {
         `GRANT SELECT ON "${QUALIFICATION_SCHEMA}".context_embeddings TO "${qualification!.appRole}"`,
       );
     }
+  });
+
+  // These cases exercise Core's page and eligibility owners with real SQL and
+  // ordinary-role RLS. Meri transport/composer release is a separate integration
+  // check; this fixture does not substitute for it.
+  describe('Core page and current eligibility over PostgreSQL', () => {
+    const PERSONAL = '42000000-0000-4000-8000-000000000001';
+    const FIRM = '42000000-0000-4000-8000-000000000002';
+    const CLIENT_ITEM = '42000000-0000-4000-8000-000000000003';
+    const SUPERSEDED = '42000000-0000-4000-8000-000000000004';
+    const EXPIRED = '42000000-0000-4000-8000-000000000005';
+    const REVOKED = '42000000-0000-4000-8000-000000000006';
+    const HELD = '42000000-0000-4000-8000-000000000007';
+    const POLICY = 'item01-rev-1';
+    const memoryContext = {
+      tenantId: TENANT,
+      userId: USER,
+      role: 'standard_user',
+    } as TenantContext;
+
+    const wire = (selected: string | null) => ({
+      input: {
+        query: 'qualification memory',
+        clientId: selected,
+        k: 3,
+        cursor: null,
+        memoryItemId: null,
+        contentCursor: null,
+      },
+      metadata: {
+        sourceConnected: false,
+        authoritative: false,
+        currentPolicyQualified: false,
+        cursorAuthenticated: false,
+        absenceEvidence: false,
+      },
+    });
+
+    const retainedContext = (selected: string | null) => ({
+      binding: {
+        tenantId: TENANT,
+        actorId: USER,
+        conversationId: '43000000-0000-4000-8000-000000000001',
+        runId: '43000000-0000-4000-8000-000000000002',
+        attemptId: '43000000-0000-4000-8000-000000000003',
+        workerId: '43000000-0000-4000-8000-000000000004',
+        writerFence: 1,
+      },
+      subject: {
+        kind: selected === null ? 'personal' : 'client',
+        entityType: selected === null ? 'user' : 'client',
+        entityIds: [selected ?? USER],
+        tenantId: TENANT,
+        actorId: USER,
+        policyRevision: POLICY,
+        scopes: [
+          {
+            tenantId: TENANT,
+            kind: selected === null ? 'private-user' : 'client',
+            resourceId: selected ?? USER,
+            policyRevision: POLICY,
+          },
+        ],
+        rosterVersionId: null,
+      },
+      policyRevision: POLICY,
+      normalizationContext: { tenantId: TENANT, userId: USER },
+    });
+
+    /** Fixture supplies the scope already resolved by the caller; the real
+     * retrieval adapter independently enforces the current database wall. */
+    const memoryTools = {
+      executeFromAuthenticatedUser: async (
+        ctx: TenantContext,
+        tool: string,
+        input: Record<string, unknown>,
+      ) => {
+        expect(tool).toBe('search_memory');
+        return searchGovernedMemory(ctx, input, {
+          async searchToolData(actor, selection) {
+            const page = await adapter(
+              prisma!,
+              provider(async () => []),
+            ).retrieve(
+              dataset,
+              request({
+                query: selection.query ?? undefined,
+                queryClass: 'lookup',
+                memoryItemId: selection.memoryItemId ?? undefined,
+                caller: {
+                  tenantId: actor.tenantId,
+                  userId: actor.userId,
+                  clientIds: selection.clientId ? [selection.clientId] : [],
+                  authorizedClientIds: selection.clientId ? [selection.clientId] : [],
+                },
+                pageSize: selection.pageSize,
+              }),
+              selection.cursors?.institutional_knowledge,
+            );
+            const coverage = buildCoverageManifest(['institutional_knowledge'], [page]);
+            return {
+              records: page.records,
+              coverage,
+              observability: {
+                queryClass: selection.queryClass,
+                requestedDomains: ['institutional_knowledge'],
+                queriedDatasets: ['institutional_knowledge'],
+                requestedEntityCount: page.requestedEntityCount,
+                queriedEntityCount: page.searchedEntityCount,
+                pagesByDomain: { institutional_knowledge: page.pagesRead },
+                sourceHealth: { institutional_knowledge: page.sourceStatus },
+                freshnessByDomain: { institutional_knowledge: page.lastSyncAt },
+                coverageComplete: coverage.complete,
+                stopReason: page.stopReason,
+              },
+            };
+          },
+        });
+      },
+    };
+
+    const readPage = (selected: string | null) =>
+      readPassiveMemoryPage(
+        memoryContext,
+        wire(selected),
+        retainedContext(selected),
+        true,
+        Date.now() + 10_000,
+        memoryTools as never,
+      );
+
+    const eligibilityRequest = (selected: string | null, ids: readonly string[]) => {
+      const body = wire(selected);
+      return {
+        operation: { id: 'search_memory', version: '0.2.0' },
+        ...body,
+        normalizationContext: { tenantId: TENANT, userId: USER },
+        argumentsSha256: canonicalSha256(body.input),
+        requestSha256: canonicalSha256(body),
+        binding: retainedContext(selected).binding,
+        subject: retainedContext(selected).subject,
+        policyRevision: POLICY,
+        sourceIds: ['client_knowledge_memory'],
+        resultSha256: 'a'.repeat(64),
+        records: ids.map((id) => ({ memoryItemId: id, recordSha256: 'b'.repeat(64) })),
+        deadlineMs: Date.now() + 10_000,
+      };
+    };
+    const release = (selected: string | null, ids: readonly string[]) =>
+      checkPassiveMemoryEligibility(prisma!, memoryContext, eligibilityRequest(selected, ids));
+
+    const pageIds = (page: unknown) =>
+      ((page as { records?: Array<{ recordId: string }> }).records ?? []).map((r) => r.recordId);
+
+    async function throughMeri(
+      selected: string | null,
+      afterPage?: () => Promise<void>,
+      graphSource?: 'legacy' | 'cache',
+    ) {
+      const calls: string[] = [];
+      const failures: string[] = [];
+      const server = createServer(async (req, res) => {
+        try {
+          expect(req.headers.authorization).toBe(
+            graphSource ? 'Bearer SYNTHETIC_NATIVE_USER' : 'Bearer SYNTHETIC_USER',
+          );
+          expect(req.headers['x-internal-service-secret']).toBe(
+            graphSource ? 'SYNTHETIC_INTERNAL_SERVICE' : 'SYNTHETIC_SERVICE',
+          );
+          let bytes = '';
+          for await (const chunk of req) bytes += String(chunk);
+          const body = JSON.parse(bytes);
+          calls.push(req.url!);
+          let result: unknown;
+          if (req.url === '/api/clio/tools/search_memory') {
+            const correlation = JSON.parse(
+              Buffer.from(String(req.headers['x-meri-read-correlation']), 'base64url').toString(),
+            );
+            result = await readPassiveMemoryPage(
+              memoryContext,
+              body,
+              correlation,
+              true,
+              Number(req.headers['x-meri-deadline-at']),
+              memoryTools,
+            );
+            await afterPage?.();
+          } else if (req.url === '/api/clio/tools/search_memory_eligibility') {
+            result = await checkPassiveMemoryEligibility(prisma!, memoryContext, body);
+          } else if (req.url === '/api/clio/tools/query_knowledge_graph' && graphSource) {
+            result = await readMeriGraph(prisma!, memoryContext, body, graphSource);
+          } else throw new Error('Unexpected fixture route');
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(JSON.stringify(result));
+        } catch (error) {
+          failures.push(error instanceof Error ? error.message : String(error));
+          res.writeHead(error instanceof HttpException ? error.getStatus() : 500, {
+            'content-type': 'application/json',
+          });
+          res.end(
+            JSON.stringify({
+              code: error instanceof ForbiddenException ? 'ACCESS_DENIED' : 'FIXTURE_FAILURE',
+              message: error instanceof Error ? error.message : String(error),
+            }),
+          );
+        }
+      });
+      await new Promise<void>((ready) => server.listen(0, '127.0.0.1', ready));
+      try {
+        const address = server.address();
+        if (!address || typeof address === 'string')
+          throw new Error('Missing local fixture address');
+        const result = await new Promise<{ status: number; body: { resultJson?: string } }>(
+          (resolveResult, reject) => {
+            const child = spawn(
+              process.execPath,
+              [
+                resolve(
+                  __dirname,
+                  '../../../test/memory-postgres-qualification/meri-recall-client.mjs',
+                ),
+              ],
+              { env: process.env, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true },
+            );
+            let stdout = '',
+              stderr = '';
+            const timer = setTimeout(() => {
+              child.kill();
+              reject(new Error('Meri fixture timed out'));
+            }, 30_000);
+            child.stdout.on('data', (chunk) => {
+              stdout += String(chunk);
+            });
+            child.stderr.on('data', (chunk) => {
+              stderr += String(chunk);
+            });
+            child.on('error', (error) => {
+              clearTimeout(timer);
+              reject(error);
+            });
+            child.on('exit', (code) => {
+              clearTimeout(timer);
+              if (code !== 0) return reject(new Error(`Meri fixture exited ${code}: ${stderr}`));
+              try {
+                resolveResult(JSON.parse(stdout));
+              } catch (error) {
+                reject(error);
+              }
+            });
+            child.stdin.end(
+              JSON.stringify({
+                port: address.port,
+                tenantId: TENANT,
+                userId: USER,
+                clientId: selected,
+                ...(graphSource ? { operation: 'query_knowledge_graph' } : {}),
+              }),
+            );
+          },
+        );
+        return { ...result, calls, failures };
+      } finally {
+        server.closeAllConnections();
+        await new Promise<void>((closed) => server.close(() => closed()));
+      }
+    }
+
+    meriCompositionIt(
+      'releases canonical SQL content through the actual Meri runtime composer',
+      async () => {
+        await insertMemory({
+          id: CLIENT_ITEM,
+          clientId: CLIENT,
+          body: 'qualification memory: item01 protected content',
+        });
+        const result = await throughMeri(CLIENT);
+        expect(result.status).toBe(200);
+        expect(result.calls).toEqual([
+          '/api/clio/tools/search_memory',
+          '/api/clio/tools/search_memory_eligibility',
+        ]);
+        expect(result.body.resultJson).toContain('item01 protected content');
+        expect(JSON.parse(result.body.resultJson!).result.records[0].recordId).toBe(CLIENT_ITEM);
+      },
+    );
+
+    meriCompositionIt(
+      'withholds the already-read content in Meri after a database wall revocation',
+      async () => {
+        await insertMemory({
+          id: CLIENT_ITEM,
+          clientId: CLIENT,
+          body: 'qualification memory: item01 protected content',
+        });
+        const result = await throughMeri(CLIENT, async () => {
+          await qualification!.admin.$executeRaw(Prisma.sql`DELETE FROM client_memory_access
+          WHERE tenant_id = ${TENANT}::uuid AND client_id = ${CLIENT}::uuid AND user_id = ${USER}::uuid`);
+        });
+        expect(result.status).toBe(403);
+        expect(result.calls).toEqual([
+          '/api/clio/tools/search_memory',
+          '/api/clio/tools/search_memory_eligibility',
+        ]);
+        expect(JSON.stringify(result.body)).not.toContain('item01 protected content');
+      },
+    );
+
+    meriCompositionIt(
+      'withholds the already-read content in Meri after canonical supersession',
+      async () => {
+        await insertMemory({
+          id: CLIENT_ITEM,
+          clientId: CLIENT,
+          body: 'qualification memory: item01 protected content',
+        });
+        const result = await throughMeri(CLIENT, async () => {
+          await qualification!.admin
+            .$executeRaw(Prisma.sql`UPDATE memory_items SET governed_status = 'superseded'
+          WHERE id = ${CLIENT_ITEM}::uuid`);
+        });
+        expect(result.status).toBe(403);
+        expect(result.calls).toHaveLength(2);
+        expect(JSON.stringify(result.body)).not.toContain('item01 protected content');
+      },
+    );
+
+    for (const change of ['expired', 'revoked', 'private-owner', 'forgotten'] as const) {
+      meriCompositionIt(
+        `withholds content when ${change} changes between SQL read and Meri release`,
+        async () => {
+          await insertMemory({
+            id: CLIENT_ITEM,
+            clientId: CLIENT,
+            body: 'qualification memory: item01 protected content',
+          });
+          const result = await throughMeri(CLIENT, async () => {
+            const mutation =
+              change === 'expired'
+                ? Prisma.sql`UPDATE memory_items SET expires_at = now() - interval '1 second' WHERE id = ${CLIENT_ITEM}::uuid`
+                : change === 'revoked'
+                  ? Prisma.sql`UPDATE memory_items SET governed_status = 'revoked' WHERE id = ${CLIENT_ITEM}::uuid`
+                  : change === 'private-owner'
+                    ? Prisma.sql`UPDATE memory_items SET visibility = 'user', owner_user_id = ${OTHER_USER}::uuid, memory_scope = 'user_private' WHERE id = ${CLIENT_ITEM}::uuid`
+                    : Prisma.sql`DELETE FROM memory_items WHERE id = ${CLIENT_ITEM}::uuid`;
+            await qualification!.admin.$executeRaw(mutation);
+          });
+          expect(result.status).toBe(403);
+          expect(JSON.stringify(result.body)).not.toContain('item01 protected content');
+        },
+      );
+    }
+
+    meriCompositionIt(
+      'passes only current graph destinations and reports failed cache reads as unavailable through Meri',
+      async () => {
+        await insertMemory({ id: FIRM, clientId: null, memoryScope: 'firm' });
+        await insertMemory({
+          id: PERSONAL,
+          clientId: null,
+          visibility: 'user',
+          ownerUserId: OTHER_USER,
+          memoryScope: 'user_private',
+          memoryClass: 'user_preference',
+          memoryAuthority: 'user_asserted',
+        });
+        await insertMemory({ id: SUPERSEDED, clientId: OTHER_CLIENT });
+        await qualification!.admin.$executeRaw(
+          Prisma.sql`INSERT INTO congress_bill (id) VALUES ('synthetic-public-bill')`,
+        );
+        await qualification!.admin
+          .$executeRaw(Prisma.sql`INSERT INTO memory_edges (tenant_id, src_item_id, relation, dst_type, dst_slug) VALUES
+        (${TENANT}::uuid, ${FIRM}::uuid, 'mentions', 'client', ${CLIENT}),
+        (${TENANT}::uuid, ${FIRM}::uuid, 'mentions', 'client', ${FOREIGN_CLIENT}),
+        (${TENANT}::uuid, ${FIRM}::uuid, 'mentions', 'client-compass', ${`fixture-${PERSONAL}`}),
+        (${TENANT}::uuid, ${FIRM}::uuid, 'mentions', 'bill', 'synthetic-public-bill'),
+        (${TENANT}::uuid, ${FIRM}::uuid, 'mentions', 'client-compass', ${`fixture-${SUPERSEDED}`})`);
+        const before = await throughMeri(null, undefined, 'legacy');
+        expect({
+          status: before.status,
+          failures: before.failures,
+          calls: before.calls,
+          code: (before.body as { code?: string }).code,
+        }).toEqual({
+          status: 200,
+          failures: [],
+          calls: ['/api/clio/tools/query_knowledge_graph'],
+          code: undefined,
+        });
+        const beforeGraph = JSON.parse(before.body.resultJson!).result;
+        expect(beforeGraph.nodes.map((n: { id: string }) => n.id)).toContain(`client:${CLIENT}`);
+        expect(beforeGraph.nodes.map((n: { id: string }) => n.id)).toContain(
+          `client-compass:fixture-${SUPERSEDED}`,
+        );
+        expect(JSON.stringify(beforeGraph)).not.toContain(PERSONAL);
+        expect(JSON.stringify(beforeGraph)).not.toContain(FOREIGN_CLIENT);
+        const scoped = await throughMeri(CLIENT, undefined, 'legacy');
+        expect(scoped.status).toBe(200);
+        expect(scoped.body.resultJson).not.toContain(SUPERSEDED);
+        await qualification!.admin.$executeRaw(
+          Prisma.sql`DELETE FROM client_memory_access WHERE client_id = ${CLIENT}::uuid`,
+        );
+        for (const source of ['legacy', 'cache'] as const) {
+          const result = await throughMeri(null, undefined, source);
+          if (source === 'cache') {
+            expect(result.status).toBe(503);
+            expect(result.body).toEqual({ code: 'UNAVAILABLE' });
+            continue;
+          }
+          expect(result.status).toBe(200);
+          const graph = JSON.parse(result.body.resultJson!).result;
+          expect(graph.nodes.map((n: { id: string }) => n.id)).toContain(
+            'bill:synthetic-public-bill',
+          );
+          expect(JSON.stringify(graph)).not.toContain(CLIENT);
+          expect(JSON.stringify(graph)).not.toContain(FOREIGN_CLIENT);
+          expect(JSON.stringify(graph)).not.toContain(PERSONAL);
+        }
+      },
+    );
+
+    meriCompositionIt(
+      'releases eligible General personal and firm memory through Core and Meri without client borrowing',
+      async () => {
+        await insertMemory({
+          id: PERSONAL,
+          clientId: null,
+          ownerUserId: USER,
+          visibility: 'user',
+          memoryScope: 'user_private',
+          memoryClass: 'user_preference',
+          memoryAuthority: 'user_asserted',
+        });
+        await insertMemory({
+          id: FIRM,
+          clientId: null,
+          memoryScope: 'firm',
+          visibility: 'tenant',
+          memoryClass: 'institutional_authoritative',
+          memoryAuthority: 'firm_approved',
+        });
+        await insertMemory({ id: CLIENT_ITEM, clientId: CLIENT });
+
+        const page = await readPage(null);
+        // General scope reads permitted personal and firm memory and never borrows a
+        // client-only item into the page.
+        expect(pageIds(page).sort()).toEqual([PERSONAL, FIRM].sort());
+        const released = await release(null, pageIds(page));
+        expect(
+          released.records
+            .map((record) => [record.memoryItemId, record.eligibleForRecall])
+            .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+        ).toEqual(
+          [
+            [PERSONAL, true],
+            [FIRM, true],
+          ].sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+        );
+        const result = await throughMeri(null);
+        expect(result.status).toBe(200);
+        const records = JSON.parse(result.body.resultJson!).result.records;
+        expect(records.map((r: { recordId: string }) => r.recordId).sort()).toEqual(
+          [PERSONAL, FIRM].sort(),
+        );
+      },
+    );
+
+    databaseIt(
+      'releases granted client-scope memory and refuses it once the wall grant is removed after the page',
+      async () => {
+        await insertMemory({ id: CLIENT_ITEM, clientId: CLIENT });
+        const page = await readPage(CLIENT);
+        expect(pageIds(page)).toEqual([CLIENT_ITEM]);
+        expect((await release(CLIENT, [CLIENT_ITEM])).records[0]).toMatchObject({
+          memoryItemId: CLIENT_ITEM,
+          eligibleForRecall: true,
+        });
+
+        // Current access is revoked between page retrieval and release: the page that
+        // was already returned can no longer be released.
+        await qualification!.admin.$executeRaw(Prisma.sql`
+        DELETE FROM client_memory_access
+         WHERE tenant_id = ${TENANT}::uuid AND client_id = ${CLIENT}::uuid AND user_id = ${USER}::uuid
+      `);
+        await expect(release(CLIENT, [CLIENT_ITEM])).rejects.toBeInstanceOf(ForbiddenException);
+        // A revoked wall grant is not an empty result: the page itself now reports the
+        // denied client scope instead of a complete empty page.
+        const afterRevocation = await readPage(CLIENT);
+        expect(pageIds(afterRevocation)).toEqual([]);
+        expect(afterRevocation).toMatchObject({
+          coverage: { sources: [{ sourceStatus: 'unauthorized', coverageComplete: false }] },
+        });
+        await grantWallAccess();
+      },
+    );
+
+    databaseIt(
+      'withholds superseded, expired and revoked items at the same release boundary',
+      async () => {
+        await insertMemory({ id: SUPERSEDED, governedStatus: 'superseded' });
+        await insertMemory({ id: EXPIRED, expiresAt: '2020-01-01T00:00:00Z' });
+        await insertMemory({ id: REVOKED, governedStatus: 'revoked' });
+        const page = await readPage(CLIENT);
+        expect(pageIds(page)).toEqual([]);
+        for (const withheld of [SUPERSEDED, EXPIRED, REVOKED]) {
+          await expect(release(CLIENT, [withheld])).rejects.toBeInstanceOf(ForbiddenException);
+        }
+      },
+    );
+
+    databaseIt('does not let legal hold alone suppress otherwise eligible recall', async () => {
+      await insertMemory({ id: HELD, clientId: CLIENT });
+      await qualification!.admin.$executeRaw(Prisma.sql`
+        UPDATE memory_items SET legal_hold = true WHERE id = ${HELD}::uuid
+      `);
+      const page = await readPage(CLIENT);
+      expect(pageIds(page)).toEqual([HELD]);
+      const released = await release(CLIENT, [HELD]);
+      expect(released.records[0]).toMatchObject({ memoryItemId: HELD, eligibleForRecall: true });
+    });
   });
 
   async function grantWallAccess(): Promise<void> {

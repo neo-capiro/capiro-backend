@@ -17,9 +17,7 @@ export class OutreachJobWorkerService implements OnModuleInit, OnModuleDestroy {
     config: ConfigService<AppConfig, true>,
     private readonly runtime: EngagementRuntimePolicyService,
   ) {
-    this.enabled =
-      config.get('OUTREACH_ASYNC_GEN', { infer: true }) ||
-      config.get('OUTREACH_ASYNC_SEND', { infer: true });
+    this.enabled = config.get('OUTREACH_ASYNC_SEND', { infer: true });
     this.sweepMs = config.get('OUTREACH_JOB_SWEEP_MS', { infer: true });
   }
 
@@ -39,9 +37,7 @@ export class OutreachJobWorkerService implements OnModuleInit, OnModuleDestroy {
     this.running = true;
     try {
       this.runtime.assertBackgroundOwner('outreach-job-worker');
-      await (
-        this.jobs as OutreachJobService & { runWorkerTick(): Promise<void> }
-      ).runWorkerTick();
+      await (this.jobs as OutreachJobService & { runWorkerTick(): Promise<void> }).runWorkerTick();
     } catch (error) {
       this.logger.error(`outreach job sweep failed: ${(error as Error).message}`);
     } finally {

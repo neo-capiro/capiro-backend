@@ -65,7 +65,9 @@ export class TrackerAlertService {
    * still live, so a fix here is not a no-op.
    */
   private boardUrl(clientId: string): string {
-    const base = this.config.get('TRACKER_APP_BASE_URL', { infer: true }).replace(/\/$/, '');
+    // A browser deep link, so it must follow the browser origin owner rather than
+    // TRACKER_APP_BASE_URL, which also carries Core's protected-retrieval transport.
+    const base = this.config.get('LEGIWATCH_APP_BASE_URL', { infer: true }).replace(/\/$/, '');
     return `${base}/legiwatch?tab=feed&client=${encodeURIComponent(clientId)}`;
   }
 

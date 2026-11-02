@@ -1,12 +1,12 @@
-import { compileKeywordQuery, evaluateKeywordQuery, type KeywordAst } from './legiwatch-query.js';
+import { compileKeywordQuery, type KeywordAst } from './legiwatch-query.js';
 
 export const NEWS_QUERY_VERSION = 'legiwatch-news-query-v1';
 export const PHASE8_FEATURES = {
+  // Retained Meri source reads still require the original capability gate.
   news: 'legiwatch_news_v1',
   budget: 'legiwatch_florida_budget_v1',
   editorial: 'legiwatch_editorial_v1',
 } as const;
-export type NewsFields = 'title' | 'title_summary' | 'available_text';
 export function compileNewsQuery(raw: string) {
   const compiled = compileKeywordQuery(raw);
   function provider(n: KeywordAst): string {
@@ -33,25 +33,6 @@ export function compileNewsQuery(raw: string) {
       reasons: [(error as Error).message],
     };
   }
-}
-export function matchNews(
-  raw: string,
-  article: { title: string; summary?: string | null; body?: string | null; bodyComplete?: boolean },
-  fields: NewsFields = 'available_text',
-) {
-  const compiled = compileNewsQuery(raw);
-  // A separator that cannot be phrase whitespace prevents a phrase crossing fields.
-  const text = [
-    article.title,
-    ...(fields !== 'title' ? [article.summary ?? ''] : []),
-    ...(fields === 'available_text' ? [article.body ?? ''] : []),
-  ].join('\n|\n');
-  const complete = fields !== 'available_text' || article.bodyComplete === true;
-  return {
-    ...evaluateKeywordQuery(compiled, text, complete),
-    fields,
-    parserVersion: NEWS_QUERY_VERSION,
-  };
 }
 export function canonicalNewsUrl(raw: string) {
   const url = new URL(raw);
@@ -150,11 +131,10 @@ export function compareBudgetAmounts(left: BudgetAmount, right: BudgetAmount) {
     percentage,
   };
 }
-export type BriefingTemplate = 'research_update' | 'daily_legislative_brief' | 'morning_news_brief';
+export type BriefingTemplate = 'research_update' | 'daily_legislative_brief';
 export const BRIEFING_TEMPLATES: Record<BriefingTemplate, string> = {
   research_update: 'Research Update',
   daily_legislative_brief: 'Daily Legislative Brief',
-  morning_news_brief: 'Morning News Brief',
 };
 export type BriefingSchedule = {
   timezone: string;
@@ -210,35 +190,3 @@ export function briefingOccurrence(now: Date, schedule: BriefingSchedule): strin
     return null;
   return `${values.year}-${values.month}-${values.day}@${schedule.timezone}`;
 }
-export const PHASE8_ALERT_FAMILIES = {
-  'alert-01': {
-    family: 'research_update',
-    displayName: 'Research Desk',
-    categoryNamespace: 'lobbytools-updates-alert',
-    categories: ['1', '6', '4', '5', '10', '3', '11', '9'],
-  },
-  'alert-02': {
-    family: 'budget',
-    displayName: 'Budget Alert',
-    categoryNamespace: 'lobbytools-budget-alert',
-    categories: ['69', '61', '55', '49', '56'],
-  },
-  'alert-03': {
-    family: 'daily_legislative_brief',
-    displayName: 'Daily Briefing',
-    categoryNamespace: null,
-    categories: [],
-  },
-  'alert-39': {
-    family: 'morning_news_brief',
-    displayName: 'Morning Edition',
-    categoryNamespace: null,
-    categories: [],
-  },
-  'alert-40': {
-    family: 'news_keyword',
-    displayName: 'News Keyword',
-    categoryNamespace: null,
-    categories: [],
-  },
-} as const;

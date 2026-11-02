@@ -2,6 +2,7 @@ import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { requireStateCalendar } from './legiwatch-calendar-access.js';
 import type { StrictScheduleAssessment } from './live-hearings-phase7-schedule.guard.js';
+import { strictOfficialSourceUrl } from './live-hearings-browser-source.js';
 
 export interface StateCaptureHearing {
   id: string;
@@ -26,7 +27,8 @@ export function stateCaptureEnabled(
  * capture-eligibility read on either side must select through this, not the
  * raw view name, so the two sides can never disagree about jurisdiction.
  */
-export function capturableHearingView(): 'capturable_committee_hearing' | 'federal_committee_hearing' {
+export function capturableHearingView():
+  'capturable_committee_hearing' | 'federal_committee_hearing' {
   return stateCaptureEnabled() ? 'capturable_committee_hearing' : 'federal_committee_hearing';
 }
 
@@ -48,14 +50,20 @@ export async function stateCapturePolicy(
     return undefined;
   if (stateCaptureEnabled()) return undefined;
   await requireStateCalendar(prisma, ctx.tenantId);
+  const browserAllowed =
+    hearing.geographicJurisdiction?.trim().toUpperCase() === 'FL' &&
+    hearing.visibility === 'public' &&
+    !['canceled', 'cancelled'].includes(hearing.eventStatus) &&
+    Boolean(strictOfficialSourceUrl(hearing.url));
   return {
-    browserAllowed: false,
+    browserAllowed,
     policy: {
       allowed: false,
-      state: 'BLOCKED',
+      state: browserAllowed ? 'BROWSER_ONLY' : 'BLOCKED',
       reasonCode: STATE_CAPTURE_LINK_ONLY,
-      message:
-        'State proceedings are available as official external Watch/Replay links only. Capiro capture is not enabled for this source.',
+      message: browserAllowed
+        ? 'Browser recording is available from the official source. Automatic state recording is not enabled.'
+        : 'This state proceeding is not available for Capiro recording.',
     },
   };
 }

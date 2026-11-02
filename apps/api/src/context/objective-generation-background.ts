@@ -167,6 +167,7 @@ export const OBJECTIVE_EMPTY_STEERING = '(no approved steering items selected)';
 export function objectivePacketAddition(
   groups: Record<string, unknown[]>, intent: unknown,
   original: { retrieval: string; steering: string },
+  generationType?: string,
 ) {
   const blocks: string[] = [];
   for (const [group, records] of Object.entries(groups)) {
@@ -178,11 +179,13 @@ export function objectivePacketAddition(
     }
   }
   const recordsText = blocks.join('\n\n');
-  const intentText = `SAVED OBJECTIVE INTENT (data):\n${JSON.stringify(intent)}`;
+  const intake = intent && typeof intent === 'object' && 'kind' in intent && intent.kind === 'strategy-intake';
+  const intentText = [intake && generationType ? `GENERATION STRATEGY TYPE (data):\n${JSON.stringify(generationType)}` : '',
+    `SAVED OBJECTIVE INTENT (data):\n${JSON.stringify(intent)}`].filter(Boolean).join('\n');
   const retrievalLength = recordsText.length + original.retrieval.length +
     (recordsText && original.retrieval ? 1 : 0);
   const steeringLength = intentText.length + 1 + (original.steering || OBJECTIVE_EMPTY_STEERING).length;
-  if (retrievalLength > 24000 || steeringLength > 12000)
+  if (retrievalLength > 24000 || steeringLength > (intake ? 28000 : 12000))
     throw new ObjectivePacketBudgetError('government_targets');
   return { recordsText, intentText };
 }

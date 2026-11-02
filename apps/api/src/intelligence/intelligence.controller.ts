@@ -8,10 +8,11 @@ import {
   Delete,
   Query,
   Res,
+  Req,
   Body,
   UseGuards,
 } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { DirectoryService } from '../directory/directory.service.js';
 import type { AppConfig } from '../config/config.schema.js';
@@ -335,8 +336,21 @@ export class IntelligenceController {
   }
 
   @Get('clients/:clientId/health-score')
-  getHealthScore(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
-    return this.service.computeEngagementHealth(clientId, ctx.tenantId);
+  async getHealthScore(
+    @CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string,
+    @Req() request: Request, @Res({ passthrough: true }) response: Response,
+  ) {
+    const abort = new AbortController();
+    const cancel = () => abort.abort();
+    request.once('aborted', cancel);
+    response.once('close', cancel);
+    response.setHeader('Cache-Control', 'no-store');
+    if (request.aborted || response.destroyed) cancel();
+    try { return await this.service.getRecordedActivityIndex(ctx, clientId, abort.signal); }
+    finally {
+      request.removeListener('aborted', cancel);
+      response.removeListener('close', cancel);
+    }
   }
 
   @Get('clients/:clientId/setup-completeness')

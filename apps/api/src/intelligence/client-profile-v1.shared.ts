@@ -6,6 +6,8 @@ export interface ProfileV1Context {
   clientId: string;
   tenantId: string;
   userId?: string;
+  /** Set by the portfolio roll-up; once aborted no further source starts. */
+  signal?: AbortSignal;
   now: Date;
   day14: Date;
   day21: Date;

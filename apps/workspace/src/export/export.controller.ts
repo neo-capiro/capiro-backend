@@ -1,16 +1,32 @@
-import { Controller, Get, Param, Query, Res, UseGuards } from '@nestjs/common';
+import { Controller, Get, Header, Param, ParseUUIDPipe, Query, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { ExportService } from './export.service.js';
+import { SavedSnapshotExportService } from './saved-snapshot-export.service.js';
 
 /** Document export endpoints (Phase 7). Both .docx and .pdf are server-rendered
  *  (deterministic — the PDF no longer depends on the browser print pipeline). */
 @Controller('drafts/:draftId/export')
 @UseGuards(TenantGuard)
 export class ExportController {
-  constructor(private readonly exportService: ExportService) {}
+  constructor(
+    private readonly exportService: ExportService,
+    private readonly snapshots: SavedSnapshotExportService,
+  ) {}
+
+  /** Complete saved JSON, including rich fields/provenance; no live-draft fallback. */
+  @Get('snapshot/:versionId')
+  @Header('Cache-Control', 'private, no-store')
+  @Header('Content-Disposition', 'attachment; filename="workspace-saved-version.json"')
+  snapshot(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('draftId', ParseUUIDPipe) draftId: string,
+    @Param('versionId', ParseUUIDPipe) versionId: string,
+  ) {
+    return this.snapshots.read(ctx.tenantId, draftId, versionId, ctx.clerkUserId);
+  }
 
   /**
    * GET /workspace-api/drafts/:draftId/export/docx?part=<all|main|documentId>

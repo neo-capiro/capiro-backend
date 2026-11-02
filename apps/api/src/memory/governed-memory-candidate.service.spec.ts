@@ -92,6 +92,7 @@ function harness(
   }));
 
   const tx = {
+    $executeRaw: jest.fn(async () => 0),
     client: {
       findFirst: jest.fn(async () => ({ id: CLIENT })),
       findMany: jest.fn(async () => [{ id: CLIENT, name: 'Test Client' }]),

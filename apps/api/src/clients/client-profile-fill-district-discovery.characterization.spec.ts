@@ -49,7 +49,7 @@ describe('District discovery — canonical facility boundary', () => {
         take: 25,
       },
     ]);
-    expect(h.facilities.resolveFacilityDistrict).toHaveBeenCalledWith(ctx, clientId, row.id);
+    expect(h.facilities.previewFacilityDistrict).toHaveBeenCalledWith(ctx, clientId, row.id);
     expect(h.callsOf('resolve')[0]!.transaction).toBeNull();
     expect(h.events).toEqual([
       '1:begin',
@@ -98,7 +98,7 @@ describe('District discovery — informational payload', () => {
       contentHash: expect.stringMatching(/^[a-f0-9]{64}$/),
       evidence: [
         {
-          label: 'Resolved Headquarters through the Census-authoritative district pipeline',
+          label: 'Previewed Headquarters through the Census-authoritative district pipeline; facility unchanged',
           source: 'U.S. Census Geocoder / TIGER geography',
           metadata: { geocodeStatus: 'matched' },
         },
@@ -146,8 +146,8 @@ describe('District discovery — coverage frontier', () => {
     const rows = Array.from({ length: 26 }, (_, index) => facility({ id: `facility-${index}` }));
     const h = harness({ facilities: rows });
     expect(await h.districts()).toBe(25);
-    expect(h.facilities.resolveFacilityDistrict).toHaveBeenCalledTimes(25);
-    expect(h.facilities.resolveFacilityDistrict).toHaveBeenLastCalledWith(
+    expect(h.facilities.previewFacilityDistrict).toHaveBeenCalledTimes(25);
+    expect(h.facilities.previewFacilityDistrict).toHaveBeenLastCalledWith(
       ctx,
       clientId,
       'facility-24',

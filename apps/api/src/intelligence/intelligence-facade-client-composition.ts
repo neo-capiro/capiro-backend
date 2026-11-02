@@ -1,3 +1,4 @@
+import { clientIntelligenceReads } from './client-read-cache.js';
 import { ClientIdentityV1Profile } from './client-identity-v1.js';
 import { ClientIdentityV1Lda } from './client-identity-v1-lda.js';
 import { ClientIdentityV1Filings } from './client-identity-v1-filings.js';
@@ -44,6 +45,7 @@ export function createClientSources(
     mappingReview: new ClientMappingV1Review(host['prisma'], {
       awardBearingMappingSource: (source) => awardBearingMappingSource(source),
       prepopulation: () => host['prepopulation'],
+      clientReads: () => clientIntelligenceReads(host),
     }),
     mappingSetup: new ClientMappingV1Setup(host['prisma']),
     graph: new ClientContextV1Graph(host['prisma'], {

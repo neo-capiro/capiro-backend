@@ -90,9 +90,8 @@ run(
     'test/hearing-records-postgres.spec.ts',
     'src/hearing/published-record-domain.spec.ts',
     'src/hearing/hearing-record-retrieval.controller.spec.ts',
-    'src/tracker/reports/record-report-composition.spec.ts',
   ],
-  [4, 26],
+  [3, 24],
 );
 run(
   'core',

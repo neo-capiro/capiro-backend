@@ -22,32 +22,30 @@ export async function discoverEditorialWork(
     ORDER BY u.clerk_user_id
   `,
   );
-  const monitors: WorkRow[] = [],
-    configurations: EditorialConfigurationRow[] = [];
+  const configurations: EditorialConfigurationRow[] = [];
   for (const owner of owners) {
     const rows = await prisma.withTenant(tenantId, async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.folder_actor',${owner.owner_clerk_id},true)`;
-      const news = await tx.$queryRaw<WorkRow[]>`
-        SELECT id,owner_clerk_id,last_attempt_at FROM intel_legiwatch_news_monitor
-        WHERE tenant_id=${tenantId} AND owner_clerk_id=${owner.owner_clerk_id} AND state='active'
-        ORDER BY last_attempt_at NULLS FIRST,id LIMIT 10
-      `;
+      // Retired active rows must not consume the bounded batch while awaiting review.
+      // Keep eligibility aligned with currentEditorialConfiguration's runtime guard.
       const briefs = await tx.$queryRaw<EditorialConfigurationRow[]>`
         SELECT id,owner_clerk_id,last_attempt_at,version,config,standing_approval
         FROM intel_legiwatch_editorial_config
         WHERE tenant_id=${tenantId} AND owner_clerk_id=${owner.owner_clerk_id} AND state='active'
+          AND config->'policyVersion'='2'::jsonb
+          AND config->>'template' IN ('research_update','daily_legislative_brief')
+          AND config->'includedKinds'='["research"]'::jsonb
+          AND NOT (config ?| ARRAY['reportId','reportVersion','monitorIds','categoryMapping'])
         ORDER BY last_attempt_at NULLS FIRST,id LIMIT 10
       `;
-      return { news, briefs };
+      return briefs;
     });
-    monitors.push(...rows.news);
-    configurations.push(...rows.briefs);
+    configurations.push(...rows);
   }
   const oldest = (a: WorkRow, b: WorkRow) =>
     (a.last_attempt_at?.getTime() ?? 0) - (b.last_attempt_at?.getTime() ?? 0) ||
     a.id.localeCompare(b.id);
   return {
-    monitors: monitors.sort(oldest).slice(0, 10),
     configurations: configurations.sort(oldest).slice(0, 10),
   };
 }

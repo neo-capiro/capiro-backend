@@ -366,7 +366,7 @@ describe('MeriManagedMcpService personal owner request chain', () => {
           id: row.id,
           tenantId: OWNER.tenantId,
           enabled: true,
-          connectionStatus: { in: ['pending', 'connected'] },
+          connectionStatus: 'connected',
         }),
         data: { toolAllowlist: ['list_bases'], readOnlyTools: ['list_bases'] },
       }),
@@ -727,7 +727,7 @@ describe('post-admission static-authority mutation at the final id-scoped bounda
     const { error } = await runCase((row) => {
       row.name = 'renamed-connector';
     });
-    expect((error as Error).message).toBe('This app connection is unavailable. Please reconnect.');
+    expect((error as Error).message).toBe('MCP tool permission changed; refresh the tool list.');
   });
 
   test('a scope change off personal at the final id-scoped read is denied before provider I/O', async () => {
@@ -756,7 +756,7 @@ describe('post-admission static-authority mutation at the final id-scoped bounda
       row.toolAllowlist = [];
       row.readOnlyTools = [];
     });
-    expect((error as Error).message).toBe('Connected-app tool is unavailable or not read-only.');
+    expect((error as Error).message).toBe('MCP tool permission changed; refresh the tool list.');
   });
 
   // The catalog window. When catalogId leaves the managed set at the final

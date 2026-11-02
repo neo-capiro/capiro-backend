@@ -26,6 +26,7 @@
 //   * `NativeGenerationProposalOwner` is the EXISTING owner
 //     (`DocumentAgentRevisionService.createProposal`) — not a new store.
 import { createHash } from 'node:crypto';
+import { nativeGenerationSourceWire, type NativeGenerationSource } from './native-generation-source.js';
 import {
   computeOutlineHash,
   type ContextConflict,
@@ -68,7 +69,7 @@ export type NativeGenerationIntent = {
 };
 
 /** One exact retained Workspace source id the turn is scoped to. */
-export type NativeGenerationSource = { id: string; kind: string };
+export type { NativeGenerationSource } from './native-generation-source.js';
 
 /**
  * The exact retained native request identity. A read or cancel addresses THESE
@@ -98,6 +99,8 @@ export type NativeGenerationTurnRequest = NativeGenerationTurnSubject & {
   expectedRevision: number;
   paidGeneration: true;
   sources: NativeGenerationSource[];
+  /** Explicit user drafting instructions, separate from quoted source evidence. */
+  writingBrief?: string;
 };
 
 /** The native result payload, narrowed per phase. */
@@ -209,8 +212,8 @@ function canonical(value: unknown): string {
  * The request identity of the EXACT request. It is derived from the canonical
  * fact set (never chosen by a caller), so reloading the same request replays
  * the same native turn and any changed input produces a different identity.
- * No source text or prompt content enters the identity — only opaque ids,
- * phase, revision and the exact retained source ids.
+ * Selected snapshots bind their exact bytes and ordering. Legacy ID-only
+ * requests keep their original identity for retained-request recovery.
  */
 export function nativeGenerationRequestId(exact: {
   tenantId: string;
@@ -220,6 +223,7 @@ export function nativeGenerationRequestId(exact: {
   phase: NativeGenerationPhase;
   expectedRevision: number;
   sources: NativeGenerationSource[];
+  writingBrief?: string;
   /**
    * The server-derived retry discriminator: the exact retained run a failed-unit
    * ATTEMPT is a continuation of. A retry of EVERY unit would otherwise re-derive
@@ -257,9 +261,9 @@ export function nativeGenerationRequestId(exact: {
           : { attemptGeneration }),
       }
     : rest;
-  const sources = [...exact.sources]
-    .map((source) => ({ id: source.id, kind: source.kind }))
-    .sort((a, b) => (a.kind === b.kind ? (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) : a.kind < b.kind ? -1 : 1));
+  const sources = exact.sources.map(nativeGenerationSourceWire);
+  if (!sources.some((source) => source.text !== undefined))
+    sources.sort((a, b) => (a.kind === b.kind ? (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) : a.kind < b.kind ? -1 : 1));
   return `wsgen:${createHash('sha256')
     .update(canonical({ kind: 'workspace-native-generation/1', ...body, sources }), 'utf8')
     .digest('hex')}`;

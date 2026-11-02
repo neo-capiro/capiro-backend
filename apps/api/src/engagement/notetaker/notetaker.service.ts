@@ -237,7 +237,7 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
    * transcription within the same tick.
    */
   async runReconcileSweep(): Promise<void> {
-    this.runtimePolicy.assertBackgroundOwner('notetaker-reconcile');
+    this.runtimePolicy.assertFinalNotetakerWorker('notetaker-reconcile');
     try {
       await this.reconcileClientMeetings();
     } catch (err) {
@@ -566,7 +566,7 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
   }
 
   async reconcileClientMeetings(): Promise<void> {
-    this.runtimePolicy.assertBackgroundOwner('client-notetaker');
+    this.runtimePolicy.assertFinalNotetakerWorker('client-notetaker');
     let cursor: string | undefined;
     do {
       const preferences = await this.prisma.withSystem((tx) => tx.clientNotetakerPreference.findMany({

@@ -20,6 +20,7 @@ describe('Strategy library assignment summaries', () => {
         withTenant: async (_tenant: string, fn: Function) => fn({ spStrategy: { findMany } }),
       } as never,
       {} as never,
+      {} as never,
     );
     expect(await service.list('t')).toEqual([
       expect.objectContaining({

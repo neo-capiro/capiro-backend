@@ -236,7 +236,9 @@ export async function syncCollection(args: {
         }
         let doc: Awaited<ReturnType<GovInfoService['getFederalPackageText']>>;
         try {
-          doc = await gov.getFederalPackageText(row.packageId);
+          doc = fy26 === FY26_YEAR
+            ? await gov.getFederalPackageText(row.packageId, { retainOriginalBytes: true })
+            : await gov.getFederalPackageText(row.packageId);
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           if (/No qualified text available|Empty federal text/i.test(message)) {
@@ -264,10 +266,11 @@ export async function syncCollection(args: {
           publishedAt: parseDate(doc.dateIssued ?? row.dateIssued),
           rawContent: doc.raw,
           originalBytes: doc.originalBytes,
+          capture: doc.capture,
           extractedText: doc.text,
           completeness: doc.completeness ?? 'complete',
           inventoryWindowEnd: new Date(cursor.until),
-          observationKey: `${checkpointSource}:${cursor.until}:${row.packageId}:${doc.lastModified ?? row.lastModified ?? 'unversioned'}`,
+          observationKey: `${checkpointSource}:${cursor.until}:${row.packageId}:${doc.lastModified ?? row.lastModified ?? 'unversioned'}:${doc.capture?.version ?? doc.originalBytes?.sha256 ?? 'unqualified'}`,
           historical,
           metadata: {
             title: doc.title ?? row.title ?? null,

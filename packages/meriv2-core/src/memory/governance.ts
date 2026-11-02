@@ -327,11 +327,13 @@ export function governedRecallEligibilitySql(alias = ''): string {
   const validUntil = `${prefix}valid_until`;
   const expiresAt = `${prefix}expires_at`;
 
+  // now() is frozen at transaction start, including time spent waiting for a
+  // source lock. Eligibility must use the database clock at the actual read.
   return `(
               ${legacyStatus} = 'active'
-              AND (${effectiveFrom} IS NULL OR ${effectiveFrom} <= now())
-              AND (${validUntil} IS NULL OR ${validUntil} > now())
-              AND (${expiresAt} IS NULL OR ${expiresAt} > now())
+              AND (${effectiveFrom} IS NULL OR ${effectiveFrom} <= clock_timestamp())
+              AND (${validUntil} IS NULL OR ${validUntil} > clock_timestamp())
+              AND (${expiresAt} IS NULL OR ${expiresAt} > clock_timestamp())
               AND (
                 (
                   ${status} IN ('active', 'stale')

@@ -12,12 +12,6 @@
       "handler": "plan"
     },
     {
-      "method": "POST",
-      "path": "/api/engagement/outreach-v3/sessions/:sessionId/generation/samples",
-      "handler": "generateSamples",
-      "maxSlots": 3
-    },
-    {
       "method": "GET",
       "path": "/api/engagement/outreach-v3/sessions/:sessionId/generation/approach-approval",
       "handler": "getApproachApproval"
@@ -36,12 +30,6 @@
       "acceptsClientFields": false
     },
     {
-      "method": "POST",
-      "path": "/api/engagement/outreach-v3/sessions/:sessionId/generation/full",
-      "handler": "startFullGeneration",
-      "asyncOnly": true
-    },
-    {
       "method": "GET",
       "path": "/api/engagement/outreach-v3/sessions/:sessionId/generation/jobs/latest",
       "handler": "getLatestFullGenerationJob"
@@ -55,22 +43,16 @@
       "method": "POST",
       "path": "/api/engagement/outreach-v3/sessions/:sessionId/generation/jobs/:jobId/cancel",
       "handler": "cancelFullGenerationJob"
-    },
-    {
-      "method": "POST",
-      "path": "/api/engagement/outreach-v3/sessions/:sessionId/generation/jobs/:jobId/items/:itemId/retry",
-      "handler": "retryFullGenerationItem",
-      "failedItemsOnly": true
     }
   ],
   "authority": {
-    "modelCall": true,
-    "representativeSamples": true,
-    "draftWrite": true,
+    "modelCall": false,
+    "representativeSamples": false,
+    "draftWrite": false,
     "approachApproval": true,
     "reviewPacketApproval": true,
-    "fullGeneration": true,
-    "fullGenerationAsyncOnly": true,
+    "fullGeneration": false,
+    "fullGenerationAsyncOnly": false,
     "preflight": false,
     "sendIntent": false,
     "mailProviderAction": false,

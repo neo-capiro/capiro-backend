@@ -21,14 +21,13 @@ import {
   KEYWORD_WORKFLOWS_FEATURE,
   requestKey,
 } from './keyword-rule.service.js';
-import { object } from '../reports/report-domain.js';
+import { object } from '../delivery/delivery-domain.js';
 import { hash } from '../folders/folder-tracker.service.js';
 type WorkflowInput = {
   template:
     | 'hearing_preparation'
     | 'added_bill_review'
     | 'published_review'
-    | 'report_review'
     | 'legal_research'
     | 'legal_deadline';
 
@@ -40,8 +39,6 @@ type WorkflowInput = {
   sessionKey: string;
   contextHash: string;
   eventRevision: number | null;
-  reportId: string | null;
-  reportVersion: number | null;
   billId: string | null;
   workflowVersion?: number;
   triggerKey?: string;
@@ -60,7 +57,6 @@ type WorkflowAction = {
     contextItemId?: string;
     reviewUrl?: string;
     recordRunId?: string;
-    reportRunId?: string;
   };
   lease_token: string | null;
   attempts: number;
@@ -85,7 +81,6 @@ export class InternalWorkflowService {
         'hearing_preparation',
         'added_bill_review',
         'published_review',
-        'report_review',
         'legal_research',
         'legal_deadline',
       ].includes(String(b.template)) ||
@@ -132,8 +127,6 @@ export class InternalWorkflowService {
         folderIds: scope.folders.map((f) => f.id),
         jurisdiction: b.jurisdiction,
         sessionKey: b.sessionKey,
-        reportId: null,
-        reportVersion: null,
         billId: null,
         contextHash: hash([
           source.prefill.context.contentHash,
@@ -163,17 +156,6 @@ export class InternalWorkflowService {
     }
     if (b.template === 'added_bill_review' && !scope.assignments.some((a) => a.billId === b.billId))
       throw new BadRequestException('CURRENT_FOLDER_MEMBERSHIP_REQUIRED');
-    let reportVersion: number | null = null;
-    if (b.template === 'report_review')
-      await this.rules.reports.folders.withActor(ctx, async (tx) => {
-        const r = await this.rules.reports.get(tx, ctx, String(b.reportId ?? ''));
-        if (
-          r.ownerClerkId !== ctx.clerkUserId ||
-          r.folderIds.some((id) => !scope.folders.some((f) => f.id === id))
-        )
-          throw new ForbiddenException('REPORT_OWNER_SCOPE_REQUIRED');
-        reportVersion = r.version;
-      });
     let recordBoundary: unknown = null;
     if (b.template === 'published_review') {
       if (!this.records)
@@ -193,8 +175,6 @@ export class InternalWorkflowService {
       folderIds: scope.folders.map((f) => f.id),
       jurisdiction: b.jurisdiction,
       sessionKey: b.sessionKey,
-      reportId: b.reportId ? String(b.reportId) : null,
-      reportVersion,
       billId: b.billId ? String(b.billId) : null,
       contextHash: hash({
         folders: scope.folders,
@@ -212,7 +192,6 @@ export class InternalWorkflowService {
             }
           : null,
         recordBoundary,
-        reportVersion,
       }),
     };
     return {
@@ -277,7 +256,7 @@ export class InternalWorkflowService {
     return this.rules.reports.folders.withActor(ctx, async (tx) => {
       const [r] = await tx.$queryRaw<
         WorkflowAction[]
-      >`SELECT * FROM intel_legiwatch_workflow_action WHERE tenant_id=${ctx.tenantId} AND owner_clerk_id=${ctx.clerkUserId} AND id=${id}`;
+      >`SELECT * FROM intel_legiwatch_workflow_action WHERE tenant_id=${ctx.tenantId} AND owner_clerk_id=${ctx.clerkUserId} AND template IN ('hearing_preparation','added_bill_review','published_review','legal_research','legal_deadline') AND id=${id}`;
       if (!r) throw new NotFoundException('WORKFLOW_ACTION_NOT_FOUND');
       return r;
     });
@@ -288,7 +267,7 @@ export class InternalWorkflowService {
       await this.rules.folder(tx, ctx, folderId);
       return tx.$queryRaw<
         WorkflowAction[]
-      >`SELECT * FROM intel_legiwatch_workflow_action WHERE tenant_id=${ctx.tenantId} AND owner_clerk_id=${ctx.clerkUserId}
+      >`SELECT * FROM intel_legiwatch_workflow_action WHERE tenant_id=${ctx.tenantId} AND owner_clerk_id=${ctx.clerkUserId} AND template IN ('hearing_preparation','added_bill_review','published_review','legal_research','legal_deadline')
     AND input->'folderIds' ? ${folderId} ORDER BY created_at DESC,id DESC LIMIT 100`;
     });
   }
@@ -456,39 +435,13 @@ export class InternalWorkflowService {
           },
           'complete',
         );
-      } else if (action.template === 'report_review') {
-        await this.current(ctx, action);
-        const run = await this.rules.reports.generate(
-          ctx,
-          action.input.reportId!,
-          {
-            cutoff: new Date().toISOString().slice(0, 10),
-            audience: 'external',
-            expectedVersion: action.input.reportVersion,
-          },
-          new Date(),
-          'phase6:' + id,
-        );
-        await this.step(
-          ctx,
-          id,
-          token,
-          {
-            reportRunId: run.id,
-            reviewUrl: `/legiwatch?tab=settings&reportView=reports&reportId=${encodeURIComponent(action.input.reportId!)}&reportRun=${encodeURIComponent(run.id)}`,
-          },
-          'complete',
-        );
       } else {
         // The existing tenant-wide task list is not a qualified private sink.
         // Retain a durable owner-scoped review with an existing protected deep link.
         const i = action.input;
-        const reviewUrl =
-          i.template === 'report_review'
-            ? `/legiwatch?tab=settings&reportView=reports&reportId=${encodeURIComponent(i.reportId!)}`
-            : i.eventId
-              ? `/legiwatch/hearings/${encodeURIComponent(i.eventId)}`
-              : `/legiwatch?tab=bills&folder=${encodeURIComponent(i.folderIds[0]!)}&jurisdiction=${i.jurisdiction}&session=${encodeURIComponent(i.sessionKey)}`;
+        const reviewUrl = i.eventId
+          ? `/legiwatch/hearings/${encodeURIComponent(i.eventId)}`
+          : `/legiwatch?tab=bills&folder=${encodeURIComponent(i.folderIds[0]!)}&jurisdiction=${i.jurisdiction}&session=${encodeURIComponent(i.sessionKey)}`;
         await this.step(ctx, id, token, { reviewUrl }, 'complete', 'PRIVATE_REVIEW_ITEM');
       }
       return this.get(ctx, id);
@@ -540,7 +493,7 @@ export class InternalWorkflowService {
     const pending = await this.rules.reports.folders.prisma.withSystem(
       (tx) => tx.$queryRaw<
         Array<{ id: string; owner_clerk_id: string }>
-      >`SELECT id,owner_clerk_id FROM intel_legiwatch_workflow_action WHERE tenant_id=${tenantId}
+      >`SELECT id,owner_clerk_id FROM intel_legiwatch_workflow_action WHERE tenant_id=${tenantId} AND template IN ('hearing_preparation','added_bill_review','published_review','legal_research','legal_deadline')
    AND state IN ('pending','running','partial','failed') AND attempts<5 AND (lease_until IS NULL OR lease_until<now()) ORDER BY updated_at,id LIMIT 5`,
     );
     const results = [];

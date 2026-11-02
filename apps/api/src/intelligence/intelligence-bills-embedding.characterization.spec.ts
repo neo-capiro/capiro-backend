@@ -14,6 +14,28 @@ function candidateSql(limit: number) {
           LIMIT ${limit}`;
 }
 const compactSql = (sql?: string) => (sql ?? '').replace(/\s+/g, ' ').trim();
+/**
+ * Tracked-bill candidates run as a bound statement inside the shared
+ * bill-read deadline transaction (one SET LOCAL statement_timeout before each
+ * read), so the vector literal is bound at each of its three uses.
+ */
+const trackedCandidateSql = `SELECT ce.source_id,
+  (1 - (ce.embedding <=> ?::vector))::float8 AS score
+  FROM context_embeddings ce
+  WHERE ce.source_type = 'bill' AND ce.model = ? AND ce.embedding IS NOT NULL
+  AND (1 - (ce.embedding <=> ?::vector)) >= ?
+  ORDER BY ce.embedding <=> ?::vector LIMIT 200`;
+const trackedEvents = (operations: string[], outcome: 'commit' | 'rollback') => [
+  'embed',
+  'transaction',
+  'keyword.begin',
+  ...operations.flatMap((operation) => ['statementTimeout', operation]),
+  `keyword.${outcome}`,
+];
+const eventsFor = (method: (typeof methods)[number], operations: string[], outcome: 'commit' | 'rollback') =>
+  method === 'findTrackedBillsByEmbeddings' && operations.length
+    ? trackedEvents(operations, outcome)
+    : ['embed', ...operations];
 
 const messages = (h: ReturnType<typeof harness>) =>
   h.warnings.mock.calls.map(([message]) => message);
@@ -259,12 +281,16 @@ it('tracked embeddings preserve .65/200/50 and their distinct optional status/ac
     },
   });
   const result = await h.subject.findTrackedBillsByEmbeddings(['Research policy']);
-  expect(h.callsOf('embeddingCandidates')[0]!.query!.sql).toBe(candidateSql(200));
+  expect(compactSql(h.callsOf('embeddingCandidates')[0]!.query!.sql)).toBe(compactSql(trackedCandidateSql));
+  expect(h.callsOf('embeddingCandidates')[0]).toMatchObject({ scope: 'keyword', transaction: 1 });
   expect(h.callsOf('embeddingCandidates')[0]!.query!.values).toEqual([
     '[0.1,0.2]',
     EMBEDDING_MODEL,
+    '[0.1,0.2]',
     0.65,
+    '[0.1,0.2]',
   ]);
+  expect(h.callsOf('statementTimeout')).toHaveLength(2);
   expect(h.callsOf('billRows')[0]!.query!.values).toEqual([['bill-A', 'bill-B', 'bill-C']]);
   expect(compactSql(h.callsOf('billRows')[0]!.query!.sql)).toContain(
     'ORDER BY cb.latest_action_date DESC NULLS LAST LIMIT 50',
@@ -273,7 +299,8 @@ it('tracked embeddings preserve .65/200/50 and their distinct optional status/ac
     'ARRAY(SELECT a.text FROM congress_bill_action a WHERE a.bill_id = cb.id) AS action_texts',
   );
   assertTrackedRows(result, latest, subjects, actions);
-  expect(h.events).toEqual(['embed', 'embeddingCandidates', 'billRows']);
+  expect(h.events).toEqual(trackedEvents(['embeddingCandidates', 'billRows'], 'commit'));
+  expect(h.transactions[0]!.outcome).toBe('commit');
 });
 
 it.each([0, 0.81])(
@@ -283,7 +310,7 @@ it.each([0, 0.81])(
     await expect(
       h.subject.findTrackedBillsByEmbeddings(['Research policy'], floor),
     ).resolves.toBeNull();
-    expect(h.callsOf('embeddingCandidates')[0]!.query!.values[2]).toBe(floor);
+    expect(h.callsOf('embeddingCandidates')[0]!.query!.values[3]).toBe(floor);
   },
 );
 
@@ -295,7 +322,7 @@ it.each(methods)(
       rows: { embeddingCandidates: [{ source_id: 'bill-A', score: 0.9 }], billRows: [] },
     });
     await expect(h.subject[method](['Research policy'])).resolves.toBeNull();
-    expect(h.events).toEqual(['embed', 'embeddingCandidates', 'billRows']);
+    expect(h.events).toEqual(eventsFor(method, ['embeddingCandidates', 'billRows'], 'commit'));
     expect(messages(h)).toEqual([]);
   },
 );
@@ -318,11 +345,15 @@ it.each(methods)(
       expect(h.callsOf('keywordCount')).toHaveLength(0);
       expect(h.callsOf('keywordRows')).toHaveLength(0);
       expect(h.events).toEqual(
-        operation === 'embed'
-          ? ['embed']
-          : operation === 'embeddingCandidates'
-            ? ['embed', 'embeddingCandidates']
-            : ['embed', 'embeddingCandidates', 'billRows'],
+        eventsFor(
+          method,
+          operation === 'embed'
+            ? []
+            : operation === 'embeddingCandidates'
+              ? ['embeddingCandidates']
+              : ['embeddingCandidates', 'billRows'],
+          'rollback',
+        ),
       );
     }
   },

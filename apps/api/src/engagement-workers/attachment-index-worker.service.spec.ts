@@ -117,8 +117,9 @@ describe('attachment indexing resumer', () => {
   describe('due discovery', () => {
     function kbFixture(enabled = true) {
       const query = jest.fn().mockResolvedValue([]);
-      const withSystem = jest.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
-        fn({ $queryRawUnsafe: query }),
+      const withSystem = jest.fn(
+        async (fn: (tx: unknown) => Promise<unknown>, _options?: { readOnly?: boolean }) =>
+          fn({ $queryRawUnsafe: query }),
       );
       const service = Object.create(ClientKbService.prototype) as ClientKbService;
       Object.assign(service, {
@@ -227,7 +228,9 @@ describe('attachment indexing resumer', () => {
         .useValue(runtimeStub())
         .compile();
       try {
-        expect(moduleRef.get(AttachmentIndexWorkerService)).toBeInstanceOf(AttachmentIndexWorkerService);
+        expect(moduleRef.get(AttachmentIndexWorkerService)).toBeInstanceOf(
+          AttachmentIndexWorkerService,
+        );
         expect(moduleRef.get(ClientKbService)).toBeInstanceOf(ClientKbService);
       } finally {
         // No app.init: constructor/DI qualification never starts background work.

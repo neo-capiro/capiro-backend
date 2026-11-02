@@ -38,7 +38,7 @@ export class DraftStrategyDto {
 
   @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'targetDate must be YYYY-MM-DD' })
-  targetDate?: string;
+  targetDate?: string | null;
 
   @IsOptional()
   @IsArray()

@@ -2,8 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import { AGENCY_SECTOR_MAP, normalizeSector, type SectorTag } from '@capiro/shared';
 import type { FederalRegisterDocument } from '@prisma/client';
 import type { PrismaService } from '../prisma/prisma.service.js';
-import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
-import { dateBoundsInZone } from './time-bounds.js';
+import { readFederalHearingWindow } from './federal-hearing-window.js';
 import type { TrackedBillsResult } from './intelligence-bill-discovery.shared.js';
 import { addCapabilityKeywords } from './client-alerts-v1.shared.js';
 import type { AlertRow, ClientAlertsPorts } from './client-alerts-v1.shared.js';
@@ -51,15 +50,9 @@ export class ClientAlertsV1 {
       }));
       if (billVariants.length === 0) return [];
 
-      const hearings = await this.prisma.committeeHearing.findMany({
-        // Start-of-Eastern-day, not `now`: see the note at the portfolio feed above.
-        // `date` is a UTC-midnight @db.Date, so `gte: now` dropped today's rows.
-        where: federalHearingWhere({
-          date: { gte: dateBoundsInZone(now, 'America/New_York').start, lte: until },
-        }),
-        orderBy: [{ date: 'asc' }, { time: 'asc' }],
-        take: 40,
-      });
+      // The same window profile-v1's calendar feed reads; shared for a minute
+      // (federal-hearing-window.ts) so one profile load runs it once.
+      const hearings = await readFederalHearingWindow(this.prisma, now, until);
 
       const out: AlertRow[] = [];
       for (const h of hearings) {

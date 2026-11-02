@@ -29,4 +29,11 @@ describe('MATERIAL_BILLS_QUERY (2026-07-10 hot-fix: emit-windowing regression gu
   it('still selects status_at for display/dedupeKey purposes', () => {
     expect(MATERIAL_BILLS_QUERY).toMatch(/status_at AS "statusAt"/);
   });
+  it('selects the change detection time for the portfolio fan-out cutoff', () => {
+    // The sweep's previous checkpoint bounds the WINDOW; the change's own
+    // detection time is the baseline cut-off. Passing the checkpoint instead
+    // dropped memberships created inside the window (and all of them on the
+    // epoch first run).
+    expect(MATERIAL_BILLS_QUERY).toMatch(/status_derived_at AS "derivedAt"/);
+  });
 });

@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { WorkspaceTenantContext } from '../../auth/tenant-context.js';
 import { KeywordRuleService, requestKey } from './keyword-rule.service.js';
 import { keywordScope } from '../../sourcedata/keyword-source.repository.js';
-import { object } from '../reports/report-domain.js';
+import { object } from '../delivery/delivery-domain.js';
 import { hash } from '../folders/folder-tracker.service.js';
 import { membershipState } from '../folders/folder-decisions.js';
 @Injectable()

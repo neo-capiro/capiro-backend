@@ -26,6 +26,9 @@ const FUNDING_READS = [
   'get_funding_opportunity',
   'get_opportunity_client_context',
   'get_opportunity_government_landscape',
+  'explain_opportunity_match',
+  'compare_funding_opportunities',
+  'build_opportunity_action_plan',
 ] as const;
 
 type FundingReadOperation = (typeof FUNDING_READS)[number];

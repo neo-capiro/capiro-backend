@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { MemoryAccessGrantService } from './memory-access-grant.service.js';
@@ -9,6 +9,7 @@ const ADMIN = '22222222-2222-4222-8222-222222222222';
 const TARGET = '33333333-3333-4333-8333-333333333333';
 const CLIENT = '44444444-4444-4444-8444-444444444444';
 const FUTURE = '2030-01-01T00:00:00.000Z';
+const GRANT = '55555555-5555-4555-8555-555555555555';
 
 const ctx: TenantContext = {
   tenantId: TENANT,
@@ -18,7 +19,7 @@ const ctx: TenantContext = {
   role: 'user_admin',
 };
 
-function harness(opts: { wallAllowed: boolean; activeMember?: boolean }) {
+function harness(opts: { wallAllowed: boolean; activeMember?: boolean; currentManager?: boolean; prior?: object }) {
   const sqls: string[] = [];
   const params: unknown[][] = [];
   const tx = {
@@ -30,10 +31,12 @@ function harness(opts: { wallAllowed: boolean; activeMember?: boolean }) {
       const sql = strings.join('?');
       sqls.push(sql);
       params.push(args);
+      if (sql.includes('SELECT m.role')) return opts.currentManager === false ? [] : [{ role: 'user_admin' }];
       if (sql.includes('FROM tenant_memberships')) {
         return opts.activeMember === false ? [] : [{ allowed: true }];
       }
-      if (sql.includes('INSERT INTO memory_access_grant')) return [{ id: 'grant-1' }];
+      if (sql.includes('INSERT INTO memory_access_grant')) return [{ id: args[0] }];
+      if (sql.includes('AND id=')) return opts.prior ? [opts.prior] : [];
       if (sql.includes('FROM memory_access_grant')) return [];
       return [];
     }),
@@ -52,6 +55,7 @@ function harness(opts: { wallAllowed: boolean; activeMember?: boolean }) {
 }
 
 const completeGrant = {
+  id: GRANT,
   userId: TARGET,
   permissions: ['approve'],
   reason: 'Client policy lead for FY27 review',
@@ -130,7 +134,7 @@ describe('MemoryAccessGrantService.grant', () => {
       permissions: ['edit', 'approve'],
     });
     expect(result).toEqual({
-      id: 'grant-1',
+      id: GRANT,
       permissions: ['approve', 'edit'],
       expiresAt: FUTURE,
     });
@@ -154,7 +158,7 @@ describe('MemoryAccessGrantService.grant', () => {
   it('reports revoked:false when there was no active grant (idempotent)', async () => {
     const tx = {
       $queryRawUnsafe: jest.fn(async () => [{ allowed: true }]),
-      $queryRaw: jest.fn(async () => []),
+      $queryRaw: jest.fn(async () => [{ role: 'user_admin' }]),
       $executeRaw: jest.fn(async () => 0),
     };
     const prisma = {
@@ -164,5 +168,33 @@ describe('MemoryAccessGrantService.grant', () => {
     } as unknown as PrismaService;
     const service = new MemoryAccessGrantService(prisma);
     await expect(service.revoke(ctx, CLIENT, TARGET)).resolves.toEqual({ revoked: false });
+  });
+});
+
+describe('grant current authority and retained request recovery', () => {
+  it.each(['list', 'grant', 'revoke'] as const)('rechecks current manager/client eligibility before %s', async (operation) => {
+    const h = harness({wallAllowed: true, currentManager: false});
+    const action = operation === 'list' ? h.service.list(ctx, CLIENT) : operation === 'grant'
+      ? h.service.grant(ctx, CLIENT, completeGrant) : h.service.revoke(ctx, CLIENT, TARGET);
+    await expect(action).rejects.toBeInstanceOf(ForbiddenException);
+    expect(h.sqls.some(sql => /INSERT INTO|UPDATE memory_access_grant/.test(sql))).toBe(false);
+  });
+  const prior = {id: GRANT, clientId: CLIENT, userId: TARGET, grantedByUserId: ADMIN,
+    permissions: ['approve'], reason: completeGrant.reason, expiresAt: new Date(FUTURE)};
+  it('returns the original exact grant after a lost acknowledgement without replacing it', async () => {
+    const h = harness({wallAllowed: true, prior});
+    await expect(h.service.grant(ctx, CLIENT, completeGrant)).resolves.toEqual({id: GRANT, permissions: ['approve'], expiresAt: FUTURE});
+    expect(h.sqls.some(sql => /INSERT INTO|UPDATE memory_access_grant/.test(sql))).toBe(false);
+  });
+  it('refuses reuse of an identifier for altered permissions', async () => {
+    const h = harness({wallAllowed: true, prior});
+    await expect(h.service.grant(ctx, CLIENT, {...completeGrant, permissions: ['edit']})).rejects.toBeInstanceOf(ConflictException);
+    expect(h.sqls.some(sql => /INSERT INTO|UPDATE memory_access_grant/.test(sql))).toBe(false);
+  });
+  it('rejects ambiguous dates and malformed identifiers before entering persistence', async () => {
+    const h = harness({wallAllowed: true});
+    await expect(h.service.grant(ctx, CLIENT, {...completeGrant, expiresAt: '2030'})).rejects.toBeInstanceOf(BadRequestException);
+    await expect(h.service.grant(ctx, CLIENT, {...completeGrant, id: 'not-a-uuid'})).rejects.toBeInstanceOf(BadRequestException);
+    expect(h.sqls).toHaveLength(0);
   });
 });

@@ -1,26 +1,4 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { runInNewContext } from 'node:vm';
-import * as ts from 'typescript';
-
-// Execute only this production method. Loading ClientsService would construct
-// unrelated asset/provider dependencies and is unnecessary for this contract.
-const source = ts.createSourceFile(
-  'clients.service.ts',
-  readFileSync(join(__dirname, 'clients.service.ts'), 'utf8'),
-  ts.ScriptTarget.Latest,
-  true,
-);
-const owner = source.statements.find(
-  (node): node is ts.ClassDeclaration =>
-    ts.isClassDeclaration(node) && node.name?.text === 'ClientsService',
-);
-const methods = owner?.members.filter(
-  (node): node is ts.MethodDeclaration =>
-    ts.isMethodDeclaration(node) && node.name.getText(source) === 'setMemoryAccess',
-);
-if (methods?.length !== 1) throw new Error('Expected one canonical setMemoryAccess method');
-const method = methods[0]!;
+import { clientsServiceFragment } from './clients.service-fragment.fixture.js';
 class NotFoundException extends Error {
   readonly status = 404;
 }
@@ -34,6 +12,7 @@ type Arguments = Record<string, unknown>;
 type Row = { userId: string };
 type Tag = (parts: TemplateStringsArray, ...values: unknown[]) => Promise<Array<{ id: string }>>;
 type Tx = {
+  retireOffice: (args: Arguments) => Promise<unknown>;
   $queryRaw: Tag;
   client: {
     findFirst: (args: Arguments) => Promise<{ id: string; memoryWall: boolean } | null>;
@@ -49,16 +28,11 @@ type Tx = {
 };
 type Prisma = { withTenant: (tenant: string, callback: (tx: Tx) => Promise<Result>) => Promise<Result> };
 type Fragment = { setMemoryAccess: (ctx: Context, client: string, input: Input) => Promise<Result> };
-const sandbox = { module: { exports: {} }, NotFoundException, BadRequestException };
-runInNewContext(
-  ts.transpileModule(
-    `class Fragment { constructor(prisma) { this.prisma = prisma; } ${method.getText(source)} }
-     module.exports = Fragment;`,
-    { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } },
-  ).outputText,
-  sandbox,
-);
-const FragmentClass = sandbox.module.exports as new (prisma: Prisma) => Fragment;
+const FragmentClass = clientsServiceFragment(['setMemoryAccess'], {
+  NotFoundException, BadRequestException,
+  retireClientOfficeDraftsInTx: (tx: Tx, tenantId: string, clientId: string, allowedActors: string[]) =>
+    tx.retireOffice({ tenantId, clientId, allowedActors }),
+}) as new (prisma: Prisma) => Fragment;
 const ctx = {
   tenantId: '11111111-1111-4111-8111-111111111111',
   userId: '22222222-2222-4222-8222-222222222222',
@@ -74,6 +48,7 @@ function fixture() {
     return value;
   };
   const tx: Tx = {
+    retireOffice: record('retire-office', undefined),
     $queryRaw: async (parts, ...values) => {
       calls.push({ name: 'lock', args: { parts: [...parts], values } });
       return [{ id: clientId }];
@@ -131,7 +106,7 @@ describe('ClientsService.setMemoryAccess client-first lock contract (exact metho
     release([{ id: clientId }]);
     await operation;
     expect(f.calls.slice(2).map((call) => call.name)).toEqual([
-      'client', 'members', 'roster', 'add', 'remove', 'update', 'audit',
+      'client', 'members', 'roster', 'add', 'remove', 'update', 'retire-office', 'audit',
     ]);
   });
 
@@ -190,6 +165,7 @@ describe('ClientsService.setMemoryAccess client-first lock contract (exact metho
       { name: 'add', args: { data: [{ tenantId: ctx.tenantId, clientId, userId: 'u2', grantedBy: ctx.userId }] } },
       { name: 'remove', args: { where: { tenantId: ctx.tenantId, clientId, userId: { in: ['old'] } } } },
       { name: 'update', args: { where: { id: clientId }, data: { memoryWall: true } } },
+      { name: 'retire-office', args: { tenantId: ctx.tenantId, clientId, allowedActors: ['u2', 'u1'] } },
       { name: 'audit', args: { data: {
         tenantId: ctx.tenantId, actorUserId: ctx.userId, actorRole: ctx.role,
         action: 'client.memory_wall.update', entityType: 'client', entityId: clientId,
@@ -206,8 +182,8 @@ describe('ClientsService.setMemoryAccess client-first lock contract (exact metho
     f.tx.client.findFirst = async () => ({ id: clientId, memoryWall: true });
     f.tx.clientMemoryAccess.findMany = async () => [{ userId: 'u2' }, { userId: 'u1' }];
     await f.service.setMemoryAccess(ctx, clientId, input);
-    expect(f.calls.map((call) => call.name)).toEqual(['tenant', 'lock', 'members', 'audit']);
-    expect(f.calls[3]!.args).toMatchObject({ data: {
+    expect(f.calls.map((call) => call.name)).toEqual(['tenant', 'lock', 'members', 'retire-office', 'audit']);
+    expect(f.calls[4]!.args).toMatchObject({ data: {
       before: { memoryWall: true, grantedUserIds: ['u1', 'u2'] },
       after: { memoryWall: true, grantedUserIds: ['u1', 'u2'] },
     } });
@@ -228,7 +204,13 @@ describe('ClientsService.setMemoryAccess client-first lock contract (exact metho
     expect(result.grantedUserIds).toEqual([]);
   });
 
-  test.each(['client', 'members', 'roster', 'add', 'remove', 'update', 'audit'] as const)(
+  test('disabling the wall preserves private drafts', async () => {
+    const f = fixture();
+    await f.service.setMemoryAccess(ctx, clientId, { memoryWall: false, userIds: [] });
+    expect(f.calls.some(call => call.name === 'retire-office')).toBe(false);
+  });
+
+  test.each(['client', 'members', 'roster', 'add', 'remove', 'update', 'retire-office', 'audit'] as const)(
     'preserves error propagation and stops later operations when %s fails',
     async (stage) => {
       const f = fixture();
@@ -243,9 +225,10 @@ describe('ClientsService.setMemoryAccess client-first lock contract (exact metho
       if (stage === 'add') f.tx.clientMemoryAccess.createMany = reject;
       if (stage === 'remove') f.tx.clientMemoryAccess.deleteMany = reject;
       if (stage === 'update') f.tx.client.update = reject;
+      if (stage === 'retire-office') f.tx.retireOffice = reject;
       if (stage === 'audit') f.tx.auditLog.create = reject;
       await expect(f.service.setMemoryAccess(ctx, clientId, input)).rejects.toBe(failure);
-      const order = ['tenant', 'lock', 'client', 'members', 'roster', 'add', 'remove', 'update', 'audit'];
+      const order = ['tenant', 'lock', 'client', 'members', 'roster', 'add', 'remove', 'update', 'retire-office', 'audit'];
       expect(f.calls.map((call) => call.name)).toEqual(order.slice(0, order.indexOf(stage) + 1));
     },
   );

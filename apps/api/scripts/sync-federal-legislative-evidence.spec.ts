@@ -31,7 +31,8 @@ function fixture(packages: Array<{ packageId: string; congress?: number; dateIss
     listFederalEvidencePage: jest.fn(async () => ({ packages, nextPage: null })),
     getFederalPackageText: jest.fn(async () => ({
       sourceUrl: 'https://www.govinfo.gov/fixture',
-      raw: Buffer.from('immutable bytes'),
+      raw: 'immutable bytes',
+      originalBytes: { base64: Buffer.from('immutable bytes').toString('base64'), sha256: 'a'.repeat(64), mime: 'text/plain' },
       text: 'Complete text of this version.',
       dateIssued: '2025-02-01',
       format: 'text',
@@ -69,11 +70,14 @@ it('preserves every admitted parent version, even published before FY26, without
     h.prisma,
     expect.objectContaining({
       billId: '119-hr-1',
-      rawContent: Buffer.from('immutable bytes'),
+      rawContent: 'immutable bytes',
+      originalBytes: expect.objectContaining({ sha256: 'a'.repeat(64) }),
+      observationKey: expect.stringMatching(/:a{64}$/),
       versionCode: 'ih',
       historical: true,
     }),
   );
+  expect(h.gov.getFederalPackageText).toHaveBeenCalledWith('BILLS-119hr1ih', { retainOriginalBytes: true });
   expect(persistFederalEvidenceRemoval).not.toHaveBeenCalled();
   expect(h.prisma.$queryRaw).toHaveBeenCalledTimes(1);
   expect(h.prisma.$queryRaw.mock.calls[0][1]).toBe('govinfo-federal:full:BILLS:119:fy26');
@@ -103,4 +107,22 @@ it('refuses a FY26 run that did not acquire its checkpoint lease', async () => {
   await expect(h.run()).rejects.toThrow('FY26_FEDERAL_TEXT_LEASE_NOT_ACQUIRED');
   expect(h.gov.listFederalEvidencePage).not.toHaveBeenCalled();
   expect(h.prisma.$executeRaw).not.toHaveBeenCalled();
+});
+
+it('preserves the deployed capture default and observation namespace for unscoped ingestion', async () => {
+  const h = fixture([{ packageId: 'BILLS-119hr1ih', congress: 119 }]);
+  const capture = { version: 'federal-source-capture/1' };
+  h.gov.getFederalPackageText.mockResolvedValueOnce({
+    sourceUrl: 'https://www.govinfo.gov/fixture', raw: 'Synthetic', text: 'Synthetic',
+    format: 'txt', collection: 'BILLS', capture,
+  });
+  const counts = await syncCollection({ prisma: h.prisma, gov: h.gov, collection: 'BILLS',
+    congress: 119, full: false, historical: false, cap: 1, fy26: null });
+  expect(counts).toMatchObject({ inserted: 1, errors: 0, complete: true });
+  expect(h.gov.getFederalPackageText).toHaveBeenCalledWith('BILLS-119hr1ih');
+  expect(h.prisma.$queryRawUnsafe).not.toHaveBeenCalled();
+  expect(persistFederalEvidenceSnapshot).toHaveBeenCalledWith(h.prisma, expect.objectContaining({
+    capture, originalBytes: undefined,
+    observationKey: expect.stringMatching(/:federal-source-capture\/1$/),
+  }));
 });

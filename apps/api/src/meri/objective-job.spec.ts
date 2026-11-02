@@ -34,7 +34,7 @@ describe('native saved Objective job subject', () => {
     expect((await read(f, false)).effectExpiresAtMs).toBe(5000);
     await expect(read(f)).rejects.toThrow(); f.state.wall = false; await expect(read(f, false)).rejects.toThrow();
   });
-  function service(f: ReturnType<typeof objectiveJobFixture>, run = async () => ({ rows: ['actual-owner-dto'] })) {
+  function service(f: ReturnType<typeof objectiveJobFixture>, run: () => Promise<unknown> = async () => ({ rows: ['actual-owner-dto'] })) {
     return new ObjectiveJobService(f.prisma, {} as never, {} as never, { handles: () => true, read: run } as never);
   }
   const body = (f: ReturnType<typeof objectiveJobFixture>) => ({ schemaVersion: 1, generationJobId: id(5),

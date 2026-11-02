@@ -62,7 +62,7 @@ const KB_CARRIER = KB_FIXTURE.vectors[0]!.carrier;
 const malformedCases: [string, string, Record<string, unknown>, string][] = [
   ['changed original request', NAME, { ...BODY, query: BODY.query.trim() }, GOLDEN_CARRIER],
   ['other route', 'get_funding_opportunity', BODY, GOLDEN_CARRIER],
-  ['unlisted route', 'explain_opportunity_match', BODY, GOLDEN_CARRIER],
+  ['unlisted route', 'unlisted_funding_operation', BODY, GOLDEN_CARRIER],
   ['padding', NAME, BODY, `${GOLDEN_CARRIER}=`],
   ['invalid alphabet', NAME, BODY, `${GOLDEN_CARRIER}*`],
 ];

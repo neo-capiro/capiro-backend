@@ -73,18 +73,17 @@ run(
   false,
   process.env.LEGIWATCH_SAVED_TEST_DATABASE_URL,
 );
-run(
-  'phase1-folders',
-  'intel-api',
-  ['test/folder-tracker-postgres.spec.ts', 'test/folder-import-postgres.spec.ts'],
-  [2, 17],
-);
+run('phase1-folders', 'intel-api', ['test/folder-tracker-postgres.spec.ts'], [1, 8]);
 run('phase1-source', 'api', ['src/ingestion/legiscan-documents-postgres.spec.ts'], [1, 2]);
 run(
-  'phase2-reports',
+  'monitoring-delivery',
   'intel-api',
-  ['test/legiwatch-reports-postgres.spec.ts', 'src/tracker/reports/report-domain.spec.ts'],
-  [2, 34],
+  [
+    'src/tracker/delivery/delivery-domain.spec.ts',
+    'src/tracker/delivery/simplification.spec.ts',
+    'test/monitoring-delivery-postgres.spec.ts',
+  ],
+  [3, 11],
 );
 run(
   'phase2-source',

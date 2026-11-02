@@ -34,6 +34,19 @@ async function fixture() {
   return { input, tx, s, events };
 }
 describe('native Strategy job reservation source', () => {
+  test('shared intake reservation carries every exact saved answer and refuses changed selection', async () => {
+    const f = await fixture();
+    const answers = { schemaVersion: 1, type: 'earmark', goal: 'G'.repeat(4000),
+      ownerUserId: 'user_selected', targetDate: '2027-11-01', meriContext: 'C'.repeat(8000) };
+    f.s.native.snapshot.strategyIntake = answers; f.input.intentOutcome = answers.goal;
+    await createObjectiveStrategyReservationWithinTx(f.tx, f.input);
+    expect(JSON.parse(f.s.inserts[0][5]).dto).toEqual({ clientId: id(2), type: answers.type,
+      goal: answers.goal, ownerUserId: answers.ownerUserId, targetDate: answers.targetDate, meriContext: answers.meriContext });
+    const g = await fixture(); g.s.native.snapshot.strategyIntake = { ...answers, type: 'coalition' };
+    g.input.intentOutcome = answers.goal;
+    await expect(createObjectiveStrategyReservationWithinTx(g.tx, g.input)).rejects.toThrow();
+    expect(g.s.inserts).toHaveLength(0);
+  });
   test('creator gate returns a Prisma-supported scalar on the same transaction and original lock key', async () => {
     const calls: Array<{ sql: string; values: any[] }> = [];
     const expected = 'SELECT pg_advisory_xact_lock(hashtextextended($1,0))::text';

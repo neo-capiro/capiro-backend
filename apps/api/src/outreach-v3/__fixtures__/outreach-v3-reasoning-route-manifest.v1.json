@@ -7,10 +7,20 @@
   "requiresStateFlag": "OUTREACH_V3_STATE_ENABLED",
   "disabledBehavior": 404,
   "routes": [
-    { "method": "POST", "path": "/api/engagement/outreach-v3/sessions/:sessionId/reasoning/conversations", "handler": "createConversation" },
-    { "method": "GET", "path": "/api/engagement/outreach-v3/reasoning/conversations/:conversationId", "handler": "getConversation" },
-    { "method": "GET", "path": "/api/engagement/outreach-v3/reasoning/conversations/:conversationId/turns", "handler": "listTurns" },
-    { "method": "POST", "path": "/api/engagement/outreach-v3/reasoning/conversations/:conversationId/turns", "handler": "respond" },
-    { "method": "POST", "path": "/api/engagement/outreach-v3/reasoning/conversations/:conversationId/archive", "handler": "archiveConversation" }
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach-v3/reasoning/conversations/:conversationId",
+      "handler": "getConversation"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach-v3/reasoning/conversations/:conversationId/turns",
+      "handler": "listTurns"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach-v3/reasoning/conversations/:conversationId/archive",
+      "handler": "archiveConversation"
+    }
   ]
 }

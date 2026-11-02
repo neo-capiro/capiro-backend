@@ -55,7 +55,7 @@ describe('LDA mapping awaited postcommit cascade', () => {
     const { h } = fixture({ prepopulate: error });
     await expect(invoke(h, path)).rejects.toBe(error);
     expect(h.transactions.map((tx) => tx.outcome)).toEqual(
-      path === 'manual' ? ['commit', 'commit'] : ['commit'],
+      ['commit'],
     );
     expect(h.callsOf('audit')).toHaveLength(1);
     expect(h.events.at(-1)).toBe('prepopulate');
@@ -124,7 +124,7 @@ describe('LDA mapping late collaborator addition and actual identity route', () 
     expect(h.callsOf('mappings')[0]).toMatchObject({
       scope: 'tenant',
       tenantId,
-      transaction: 3,
+      transaction: 2,
       args: [{ where: { clientId, source: 'lda', confirmed: true }, select: { externalId: true } }],
     });
     expect(h.events.slice(-5)).toEqual([
@@ -134,7 +134,7 @@ describe('LDA mapping late collaborator addition and actual identity route', () 
       'mappings',
       'tenant:commit',
     ]);
-    expect(h.transactions.map((tx) => tx.outcome)).toEqual(['commit', 'commit', 'commit']);
+    expect(h.transactions.map((tx) => tx.outcome)).toEqual(['commit', 'commit']);
   });
 });
 

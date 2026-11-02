@@ -68,68 +68,34 @@ describe('Outreach V3 Revised Phase 3 architecture', () => {
     expect(reasoningSource).not.toContain('.applyProposal(');
   });
 
-  it('keeps the provider tool surface read-only while allowing Phase 4 target intelligence', () => {
-    const tools = readApi('src/outreach-v3/reasoning/outreach-reasoning-tools.ts');
-    for (const allowed of [
-      'get_capiro_record',
-      'get_client_context',
-      'get_recent_activity',
-      'search_targets',
-      'get_target_profile',
-      'analyze_relationships',
-      'analyze_target_coverage',
-      'find_similar_targets',
-    ]) {
-      expect(tools).toContain(`'${allowed}'`);
-    }
-    // Later phases (5/6) legitimately added governed read tools like
-    // search_memory / research_government — only write/side-effecting
-    // actions must stay permanently absent from the read-only tool surface.
-    for (const forbiddenName of ['SEND_EMAIL_NOW', 'REQUEST_FULL_GENERATION']) {
-      expect(tools).not.toContain(`'${forbiddenName}'`);
-    }
-    expect(tools).toContain('assertOutreachReasoningToolContract');
-  });
-
-  it('defaults to Capiro-managed provider storage and gates provider state separately', () => {
-    const service = readApi('src/outreach-v3/reasoning/outreach-reasoning.service.ts');
-    expect(service).toContain("if (!raw || raw === 'capiro_managed') return 'capiro_managed'");
-    expect(service).toContain('OUTREACH_V3_REASONING_PROVIDER_STATE_ENABLED');
-    expect(service).toContain("store: conversation.stateMode === 'provider_state'");
-    expect(service).toContain("conversation!.stateMode === 'capiro_managed' ? input.message : null");
-  });
-
   it('keeps visible conversation state separate from Campaign Spec truth', () => {
     const migration = readApi(
       'prisma/migrations/20261001012000_outreach_v3_reasoning_conversations/migration.sql',
     );
     expect(migration).toContain('outreach_reasoning_conversations');
     expect(migration).toContain('outreach_reasoning_turns');
-    expect(migration).not.toMatch(/spec_jsonb|spec_hash|current_state_version|wizard_step|current_stage/i);
-    const stripped = migration.split('\n').filter((line) => !line.trim().startsWith('--')).join('\n');
+    expect(migration).not.toMatch(
+      /spec_jsonb|spec_hash|current_state_version|wizard_step|current_stage/i,
+    );
+    const stripped = migration
+      .split('\n')
+      .filter((line) => !line.trim().startsWith('--'))
+      .join('\n');
     expect(stripped).not.toMatch(/chain.?of.?thought|scratchpad|hidden_reasoning|reasoning_text/i);
     expect(migration).toContain('outreach_reasoning_turns_append_only');
     expect(migration).toContain('FORCE ROW LEVEL SECURITY');
   });
 
-  it('freezes the exact dark reasoning route manifest and Phase 2 state prerequisite', () => {
+  it('keeps only historical get/list/archive routes and no provider dependency', () => {
     const controller = readApi('src/outreach-v3/reasoning/outreach-v3-reasoning.controller.ts');
-    const manifest = JSON.parse(
-      readApi('src/outreach-v3/__fixtures__/outreach-v3-reasoning-route-manifest.v1.json'),
-    ) as {
-      runtime: string;
-      featureFlag: string;
-      requiresStateFlag: string;
-      disabledBehavior: number;
-      routes: Array<{ method: string; path: string; handler: string }>;
-    };
-    const expected = [...manifest.routes].sort((a, b) =>
-      `${a.method} ${a.path}`.localeCompare(`${b.method} ${b.path}`),
-    );
-    expect(controllerRoutes(controller)).toEqual(expected);
-    expect(manifest.runtime).toBe('engagement-api');
-    expect(manifest.featureFlag).toBe('OUTREACH_V3_REASONING_ENABLED');
-    expect(manifest.requiresStateFlag).toBe('OUTREACH_V3_STATE_ENABLED');
-    expect(manifest.disabledBehavior).toBe(404);
+    const module = readApi('src/outreach-v3/reasoning/outreach-v3-reasoning.module.ts');
+    expect(
+      controllerRoutes(controller)
+        .map((route) => route.handler)
+        .sort(),
+    ).toEqual(['archiveConversation', 'getConversation', 'listTurns']);
+    expect(module).not.toContain('OpenAiOutreachReasoningProvider');
+    expect(module).not.toContain('OutreachReasoningTurnClaimService');
+    expect(module).not.toContain('AiCredentialsModule');
   });
 });

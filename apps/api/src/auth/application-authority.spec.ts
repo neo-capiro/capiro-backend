@@ -277,13 +277,10 @@ describe('actual middleware selected-provenance current authority', () => {
     f.membership.updatedAt = new Date(4);
     expect((await f.owner.readApplicationAuthority(f.req, selected)).identityRevision).not.toBe(first.identityRevision);
   });
-  it('rechecks exact selected impersonation and clips original operator expiry', async () => {
-    const f = tenantFixture({ impersonated: true }); const selected = await f.authenticate();
-    const receipt = await f.owner.readApplicationAuthority(f.req, selected);
-    expect(receipt.principal).toEqual({ tenantId: clientId, actorId });
-    expect(receipt.expiresAtMs).toBe(f.impersonation.expiresAt.getTime());
-    f.impersonation.endedAt = new Date();
-    await expect(f.owner.readApplicationAuthority(f.req, selected)).rejects.toThrow();
+  it('refuses impersonation on application-authority routes', async () => {
+    const f = tenantFixture({ impersonated: true });
+    await expect(f.authenticate()).rejects.toThrow('audited support workspace');
+    expect(f.responseHeaders['Cache-Control']).toBe('no-store');
   });
   it('stamps no-store even on missing bearer denial', async () => {
     const f = tenantFixture(); delete f.req.headers.authorization;
@@ -366,6 +363,7 @@ describe('actual Meri and scope-owner source integration', () => {
     };
     const resources = load(sources('context/application-authority-resource.helpers.ts'), {
       '@nestjs/common': nest, '../research-portfolios/research-portfolio-artifact-authority.js': scopes,
+      './workspace-generation-source.authorization.js': { authorizeWorkspaceGenerationSource: async () => null },
     });
     const unavailable = unavailableModule();
     const cls = load(sources('auth/application-authority.controller.ts'), {

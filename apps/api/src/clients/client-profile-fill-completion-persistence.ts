@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { assertFillExecution } from './client-profile-fill-execution.js';
 import type { TenantContext } from '@capiro/shared';
 import type { Prisma } from '@prisma/client';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -38,6 +39,7 @@ export class ClientProfileFillCompletionPersistence {
       )
       .digest('hex');
     return this.prisma.withTenant(tenantId, async (tx) => {
+      await assertFillExecution(tx, tenantId, clientId, runId);
       if (task && !(await this.hasTaskLease(tx, tenantId, clientId, runId, task))) return false;
       if (await this.hasTerminalFinding(tx, tenantId, clientId, contentHash)) return false;
       await this.retirePending(tx, tenantId, clientId, runId, contentHash);
@@ -166,8 +168,9 @@ export class ClientProfileFillCompletionPersistence {
     source: string,
     watermark: Record<string, unknown>,
   ) {
-    await this.prisma.withTenant(tenantId, (tx) =>
-      tx.$executeRawUnsafe(
+    await this.prisma.withTenant(tenantId, async (tx) => {
+      await assertFillExecution(tx, tenantId, clientId);
+      return tx.$executeRawUnsafe(
         `INSERT INTO client_profile_fill_source_cursor
            (tenant_id, client_id, source, watermark_jsonb, last_successful_at,
             last_attempt_at, last_error, updated_at)
@@ -180,7 +183,7 @@ export class ClientProfileFillCompletionPersistence {
         clientId,
         source,
         JSON.stringify(watermark),
-      ),
-    );
+      );
+    });
   }
 }

@@ -10,6 +10,7 @@ import * as executionKeyConfig from './core-ed25519-key-config.js';
 import * as executionRequest from './meri-execution-request.js';
 import * as mountedRequest from './mounted-request-path.js';
 import * as readDelegationRequest from './read-delegation/read-delegation-request.js';
+import * as signedMemoryGate from './read-delegation/signed-memory-http-gate.js';
 
 const root = resolve(__dirname, '../../../..');
 const source = (name: string) => readFileSync(resolve(root, 'apps/api/src', name), 'utf8');
@@ -26,7 +27,7 @@ const nest = { Injectable: decorator, Logger: class { log() {} warn() {} error()
 
 function owners() {
   // All source owners share one isolated VM realm. No SDK, DB client or app starts.
-  const vm = createContext({ Buffer, Date, Promise, console: { log() {} } });
+  const vm = createContext({ Buffer, Date, Promise, process: { env: {} }, console: { log() {} } });
   function load(text: string, ports: Record<string, unknown>) {
     const module = { exports: {} as any };
     const output = ts.transpileModule(text, { compilerOptions: { target: ts.ScriptTarget.ES2022,
@@ -47,6 +48,7 @@ function owners() {
     '../auth/retained-native-authority.js': native,
     '../auth/core-ed25519-key-config.js': executionKeyConfig, '../auth/meri-execution-request.js': executionRequest,
     '../auth/read-delegation/read-delegation-request.js': readDelegationRequest,
+    '../auth/read-delegation/signed-memory-http-gate.js': signedMemoryGate,
     '../auth/mounted-request-path.js': mountedRequest,
     '../auth/clerk.service.js': {}, '../auth/preview-native-read-mode.js': load(source('auth/preview-native-read-mode.ts'), { './mounted-request-path.js': mountedRequest }),
     '../auth/clerk-role.util.js': { mapClerkRoleToCapiro() { throw new Error('No self-heal in this fixture'); } },
@@ -177,17 +179,8 @@ describe('actual native capture and codec-gated current-owner recheck source', (
     await expect(f.owner.requiresVerifiedRetainedNativeAuthority(proof)).rejects.toMatchObject({ status: 401 });
   });
 
-  it('preserves original membership/home tenant and impersonation identity with its minimum cutoff', async () => {
-    const f = await fixture(true); const captured = await f.capture();
-    const frame = JSON.parse(captured.currentAuthority);
-    expect(frame.membershipTenantId).toBe(f.tenant.id);
-    expect(frame.context.tenantId).toBe(f.impersonation.tenantId);
-    expect(frame.impersonationId).toBe(f.impersonation.id);
-    expect(captured.originalExpiresAtMs).toBe(f.impersonation.expiresAt.getTime());
-    const { proof } = f.verify(captured);
-    expect((await f.owner.requiresVerifiedRetainedNativeAuthority(proof)).context).toEqual(f.req.tenantContext);
-    f.impersonation.endedAt = new Date();
-    await expect(f.owner.requiresVerifiedRetainedNativeAuthority(proof)).rejects.toMatchObject({ status: 403 });
+  it('refuses new retained authority capture under impersonation', async () => {
+    await expect(fixture(true)).rejects.toMatchObject({ status: 403 });
   });
 
   it('never extends a shortened signed cutoff and refuses its expiry after the online await', async () => {

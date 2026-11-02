@@ -93,6 +93,7 @@ function harness(
   } = {},
 ) {
   const tx = {
+    $executeRaw: jest.fn(async () => 0),
     $queryRaw: jest.fn(async () => options.memberRows ?? members),
     client: { findFirst: jest.fn(async () => ({ status: 'active' })) },
     user: { findFirst: jest.fn(async () => null) },

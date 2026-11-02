@@ -1,0 +1,23 @@
+{
+  "status": "UNRUN_NATIVE_POSTGRESQL_AND_DEPLOYED_ACCEPTANCE",
+  "contract": "defproc-scoped-money-flow/v1",
+  "sourcePrerequisite": "20281031150000_defproc_qualified_sam_actions_v2",
+  "newMigration": "20281101170000_defproc_scoped_money_flow",
+  "custody": "Actual Hermes migration session through Root; never run synthetic qualification against live business data",
+  "cases": [
+    { "id": "P01", "fixture": "Two canonical awards share numeric PIID0001 but different submitting agencies", "expect": "Exact selected full-key scope excludes the other award; no PIID quarantine or parent expansion" },
+    { "id": "P02", "fixture": "Qualified +70368744177664.01 and -0.01 selected actions", "expect": "obligationUsd70368744177664.00 exactly; actions2; outlayUsdNULL/outlayKnown0; group sums equal totals" },
+    { "id": "P03", "fixture": "Zero selected rows, including legacy/unqualified/forked-only population", "expect": "state unavailable, totalsNULL, groups[], diagnostic counts retained; no published zero spending" },
+    { "id": "P04", "fixture": "Same-clock conflicting action payloads; prior/repeated revisions", "expect": "Canonical selected/fork semantics reused; no unqualified amount included" },
+    { "id": "P05", "fixture": "Two awards same contractor name but no UEI; third malformed UEI", "expect": "Three distinct award vendor keys; unresolved; no legal identity inferred from names" },
+    { "id": "P06", "fixture": "Canonical same UEI and identical labels across two awards", "expect": "May group across awards only with source_uei attribution; exact signed total conserved" },
+    { "id": "P07", "fixture": "Missing catalog observation and equal-known-clock contradictory catalog snapshots", "expect": "Explicit missing_catalog_attributes and award_observation_fork groups; no invented attributes" },
+    { "id": "P08", "fixture": "Action date Sep30, Oct1 and NULL", "expect": "Correct fiscal year rollover and separate undated group" },
+    { "id": "P09", "fixture": "Approval/knowledge/source-through boundaries one microsecond apart, revoked header and backdated nonmember", "expect": "Admitted existing classifier boundary/revocation behavior; exact microsecond response strings" },
+    { "id": "P10", "fixture": "NULL, empty,26-key, duplicate, noncanonical, half-parent key and invalid/future clock requests", "expect": "22023 with no partial response" },
+    { "id": "P11", "fixture": "501 groups or result above1MiB", "expect": "54000; no truncated total or group list" },
+    { "id": "P12", "fixture": "Actual capiro_app plus PUBLIC/job/serve roles and custom default EXECUTE grantee", "expect": "Only owner and capiro_app execute new function; private/base/qualification and all old ACLs unchanged" },
+    { "id": "P13", "fixture": "Snapshot old14 views, v2 functions/tables/ACLs and ledger before isolated forward", "expect": "Only one new function/explicit function grant, old definitions/data/rights unchanged; no migration replay" },
+    { "id": "P14", "fixture": "Authenticated serving API and Hub same finite real qualified cohort, original source receipt and SQL proof", "expect": "Same knownAt/scope/selected amounts/coverage/source semantics; ordinary authorized role; no provider raw payload" }
+  ]
+}

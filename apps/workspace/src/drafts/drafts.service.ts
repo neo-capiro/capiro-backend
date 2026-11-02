@@ -1,5 +1,6 @@
 import { isHeldDraftClientAssociation, nextDraftClient, requireDraftClient, withDraftClientAssociation } from './draft-client-access.js';
 import { createProspectDraft } from '../prospect-resources/prospect-draft-create.js';
+import { prospectBlueprintSections } from '../prospect-resources/prospect-blueprint-seed.js';
 import {
   withProspectDraft,
   assertProspectDraft,
@@ -27,6 +28,11 @@ import { canEdit } from '../collaborators/role-policy.js';
 import type { CreateDraftDto, UpdateDraftDto, ListDraftsQueryDto } from './dto/draft.dto.js';
 import type { SaveDraftDto } from './dto/save-draft.dto.js';
 import { ordinaryDraftState, saveOrdinaryDraft } from './ordinary-draft-save.js';
+import { readAtomicDraftState } from './atomic-draft-save.js';
+import { saveProspectDraft } from './prospect-draft-save.js';
+import type { SaveProspectDraftDto } from './dto/prospect-save.dto.js';
+import { savedWorkCount } from './saved-work-count.js';
+import type { SavedWorkCountQueryDto } from './dto/saved-work-count.dto.js';
 
 /**
  * Drafts service (Phase 3, AC-3.3). Every method is tenant-scoped: tenantId is
@@ -50,9 +56,21 @@ export class DraftsService {
     return ordinaryDraftState(this.prisma, this.collaborators, tenantId, draftId, actorId);
   }
 
+  prospectState(tenantId: string, draftId: string, actorId: string, prospectId: string) {
+    return readAtomicDraftState(this.prisma, this.collaborators, tenantId, draftId, actorId, prospectId);
+  }
+
+  saveProspect(tenantId: string, draftId: string, actorId: string, input: SaveProspectDraftDto) {
+    return saveProspectDraft(this.prisma, this.collaborators, tenantId, draftId, actorId, input);
+  }
+
   save(tenantId: string, draftId: string, actorId: string, input: SaveDraftDto) {
     return saveOrdinaryDraft(this.prisma, this.collaborators, tenantId, draftId, actorId, input,
       tx => this.update(tenantId, draftId, actorId, input.draft ?? {}, tx));
+  }
+
+  savedWorkCount(tenantId: string, actorId: string, query: SavedWorkCountQueryDto) {
+    return savedWorkCount(this.prisma, this.collaborators, tenantId, actorId, query);
   }
 
   async create(
@@ -75,14 +93,12 @@ export class DraftsService {
     if (!dto.prospectId && !clientId && dto.client?.trim())
       throw new ConflictException('Select an explicit client UUID; a client name cannot establish association');
     const canonicalClient = await requireDraftClient(this.prisma, db, tenantId, ownerId, clientId);
-    if (dto.prospectId && dto.blueprintPin)
-      throw new ConflictException('Blueprint selection is supported on ordinary drafts');
     const blueprint = dto.blueprintPin
       ? await resolveBlueprintPin(db, tenantId, dto.blueprintPin)
       : undefined;
     const product = dto.product ?? '';
     const meta = product ? WSC.meta(product) : null;
-    const sections = product ? WSC.suggestedSections(product) : [];
+    const sections = product ? WSC.suggestedSections(product) : dto.prospectId ? ['Body'] : [];
     const pages = product ? WSC.suggestedPages(product) : 2;
     const funding = product ? WSC.isFunding(product) : false;
 
@@ -104,6 +120,7 @@ export class DraftsService {
       coverLetter: meta?.cover ?? false,
       selectedTemplate: null,
       sections,
+      ...(dto.prospectId ? { sectionContent: Object.fromEntries(sections.map(name => [name, ''])) } : {}),
       pages,
       tone: 'Formal',
       toneContext: '',
@@ -117,6 +134,7 @@ export class DraftsService {
       agent.phase = 'design';
       agent.revision = 1;
       config.documentAgent = agent;
+      if (dto.prospectId) Object.assign(config, prospectBlueprintSections(blueprint.version.definition, blueprint.pin.definitionHash));
     }
 
     const draft = await db.wsDraft.create({
@@ -422,6 +440,8 @@ export class DraftsService {
       const current = await db.wsDraft.findFirstOrThrow({
         where: { id, tenantId }, include: { documents: { select: { id: true } } },
       });
+      if (current.prospectId && !transaction)
+        throw new ConflictException({ code: 'WORKSPACE_PROSPECT_ATOMIC_SAVE_REQUIRED' });
       if (isHeldDraftClientAssociation(current) && current.ownerId !== actorId)
         throw new NotFoundException('Draft not found');
       if (associatingLegacy) {

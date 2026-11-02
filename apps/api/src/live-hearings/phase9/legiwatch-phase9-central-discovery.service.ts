@@ -6,6 +6,7 @@ import {
 } from '../../hearing-discovery/adapters/congress-gov.adapter.js';
 import { HouseRepositoryAdapter } from '../../hearing-discovery/adapters/house-repository.adapter.js';
 import { SenateScheduleAdapter } from '../../hearing-discovery/adapters/senate-schedule.adapter.js';
+import { SenateCommitteeCalendarAdapter } from '../../hearing-discovery/adapters/senate-committee-calendar.adapter.js';
 import { CommitteeSourceRepository } from '../../hearing-discovery/committee-source.repository.js';
 import { HearingReconcilerService } from '../../hearing-discovery/hearing-reconciler.service.js';
 import { SourceRegistryService } from '../../hearing-discovery/source-registry.service.js';
@@ -61,6 +62,10 @@ export class LegiWatchPhase9CentralDiscoveryService {
     const resolveHouseCode = await registry.systemCodeByNameResolver('house');
     const centralSources = await registry.ensureCentralSources(congress);
     const committeeRegistration = await registry.ensureCommitteeSiteSources();
+    const senateCommitteeSources = await sourceRepository.listEnabled({
+      adapterKey: 'senate-committee-calendar',
+      chamber: 'senate',
+    });
 
     const adapters = new Map<string, CommitteeSourceAdapter>([
       [
@@ -68,7 +73,7 @@ export class LegiWatchPhase9CentralDiscoveryService {
         new CongressGovAdapter({
           apiKey: process.env.CONGRESS_API_KEY ?? '',
           congresses: [congress],
-          maxPages: boundedInteger(input.maxCongressPages ?? 8, 1, 50),
+          maxPages: input.maxCongressPages,
           resolveCommitteeName,
         }),
       ],
@@ -80,6 +85,7 @@ export class LegiWatchPhase9CentralDiscoveryService {
         }),
       ],
       ['senate-schedule', new SenateScheduleAdapter({ congress, resolveCommitteeName })],
+      ['senate-committee-calendar', new SenateCommitteeCalendarAdapter({ congress })],
     ]);
 
     const result: LegiWatchCentralDiscoveryResult = {
@@ -101,7 +107,9 @@ export class LegiWatchPhase9CentralDiscoveryService {
       discoveryWatermarks: await loadDiscoveryWatermarks(this.prisma, now),
     };
 
-    for (const source of centralSources.sort(
+    // Committee-only announcements use the same reconciler, health receipts,
+    // and completed-source cursors as the central publisher feeds.
+    for (const source of [...centralSources, ...senateCommitteeSources].sort(
       (left, right) =>
         left.priority - right.priority || left.adapterKey.localeCompare(right.adapterKey),
     )) {

@@ -1,5 +1,7 @@
+// PostgreSQL retention is qualified separately with real roles and transactions.
+jest.mock('./conversation-serving/transaction.js', () =>
+  jest.requireActual('./conversation-serving/unit-boundary.fixture.js'));
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
-import { ConflictException } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
@@ -25,24 +27,13 @@ const ctx: TenantContext = {
   role: 'user_admin',
 };
 
-const input = {
-  type: 'firm-soul' as const,
-  slug: 'firm',
-  title: 'Firm Soul',
-  scope: 'firm' as const,
-  clientId: null,
-  sections: [{ key: 'who', heading: 'Who', owner: 'human' as const, body: 'Updated.' }],
-};
-
 function harness() {
   // Untyped jest.fn() infers its resolved value as `never`, so mockResolvedValue
   // of a real payload fails TS2345. Pin each mock to the service's return type.
-  const proposeExistingCorrection = jest.fn<() => Promise<PendingSettingsCandidate | null>>();
   const findPendingSettingsCorrection = jest.fn<() => Promise<PendingSettingsCandidate | null>>();
   const isImmutableVersionCandidate = jest.fn<() => Promise<boolean>>();
   const approveCandidate = jest.fn<() => Promise<VersionCandidateDecisionResult>>();
   const rejectCandidate = jest.fn<() => Promise<VersionCandidateDecisionResult>>();
-  const assertSubmissionReady = jest.fn<() => Promise<{ eligibleReviewers: [] }>>();
   const describePendingCandidate = jest.fn<
     (
       tenantId: string,
@@ -59,10 +50,8 @@ function harness() {
         } as PendingSettingsCandidate)
       : pending,
   );
-  assertSubmissionReady.mockResolvedValue({ eligibleReviewers: [] });
 
   const settings = {
-    proposeExistingCorrection,
     findPendingSettingsCorrection,
     isImmutableVersionCandidate,
   } as unknown as SettingsMemoryVersionCandidateService;
@@ -71,7 +60,6 @@ function harness() {
     rejectCandidate,
   } as unknown as ImmutableMemoryVersionService;
   const readiness = {
-    assertSubmissionReady,
     describePendingCandidate,
   } as unknown as MemorySettingsReviewReadinessService;
   const query = jest.fn<() => Promise<Array<{ id: string; created_at: Date }>>>();
@@ -94,12 +82,11 @@ function harness() {
   return {
     service,
     settings: {
-      proposeExistingCorrection,
       findPendingSettingsCorrection,
       isImmutableVersionCandidate,
     },
     versions: { approveCandidate, rejectCandidate },
-    readiness: { assertSubmissionReady, describePendingCandidate },
+    readiness: { describePendingCandidate },
     inherited: { withTenantUser, query: tx.$queryRaw },
   };
 }
@@ -120,37 +107,6 @@ afterEach(() => {
 });
 
 describe('SettingsAwareMemoryCandidateService', () => {
-  it('preflights and routes an existing shared Settings file to an immutable correction candidate', async () => {
-    enableForTenant();
-    const h = harness();
-    h.settings.proposeExistingCorrection.mockResolvedValue({
-      candidateId: 'candidate-1',
-      status: 'pending_review',
-      submittedAt: '2026-08-01T00:00:00.000Z',
-    });
-
-    await expect(h.service.proposeSettingsSections(ctx, input)).resolves.toMatchObject({
-      candidateId: 'candidate-1',
-      status: 'pending_review',
-    });
-    expect(h.readiness.assertSubmissionReady).toHaveBeenCalledWith(ctx, input);
-    expect(h.settings.proposeExistingCorrection).toHaveBeenCalledTimes(1);
-  });
-
-  it('creates no candidate when review readiness fails', async () => {
-    enableForTenant();
-    const h = harness();
-    h.readiness.assertSubmissionReady.mockRejectedValue(
-      new ConflictException('No eligible independent reviewer.'),
-    );
-
-    await expect(h.service.proposeSettingsSections(ctx, input)).rejects.toBeInstanceOf(
-      ConflictException,
-    );
-    expect(h.settings.proposeExistingCorrection).not.toHaveBeenCalled();
-    expect(h.inherited.withTenantUser).not.toHaveBeenCalled();
-  });
-
   it('routes compatibility approval through immutable activation', async () => {
     enableForTenant();
     const h = harness();

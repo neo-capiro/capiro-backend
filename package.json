@@ -27,7 +27,8 @@
       "@capiro/workspace@0.0.0>sanitize-html": "2.18.1",
       "stripe@17.7.0>qs": "6.16.0",
       "express-rate-limit@8.7.0>ip-address": "10.7.4",
-      "socks@2.8.9>ip-address": "10.7.4"
+      "socks@2.8.9>ip-address": "10.7.4",
+      "unpdf@1.8.1>@napi-rs/canvas": "-"
     },
     "neverBuiltDependencies": [
       "@nestjs/core"

@@ -71,6 +71,20 @@ function fixture() {
 }
 const verify = (p, f) => check(p, { admission: f.admission, dto: f.dto });
 
+test('generic owner evidence round-trips without changing retained profile-fill refs', () => {
+  const f=fixture(), old=clone(f.context.evidence);
+  for(const kind of ['context-fact','governed-memory','calendar-baseline','calendar-override']) {
+    const sourceId=id(60+f.context.evidence.length);
+    f.context.evidence.push({ref:`${kind}:${sourceId}:${hash('e')}`,sourceId,asOfMs:start-100,
+      scope:'tenant-shared',clientId:null,reviewState:'accepted'});
+  }
+  const p=create(f); verify(p,f); assert.deepEqual(p.request.context.evidence.slice(0,2),old);
+  const foreign=clone(f); foreign.context.evidence[2].scope='client';foreign.context.evidence[2].clientId=id(99);
+  refused(()=>create(foreign));
+  const changed=clone(p);changed.request.context.evidence[2].ref=changed.request.context.evidence[2].ref.replace(hash('e'),hash('f'));
+  assert.throws(()=>verify(changed,f), error=>error.code==='OUTCOME_UNCONFIRMED');
+});
+
 test('custody names the three actual modules and declared source-only dependency rewrites', t => {
   assert.equal(custody.length, 3); assert.deepEqual(custody.map(x => x.replacementSpecifiers.length), [1, 1, 2]);
   t.diagnostic(JSON.stringify({ sourceCustody: custody }));
@@ -285,4 +299,26 @@ test('lookup refuses malformed proxy/accessor input without evaluating it', () =
   let calls = 0; const f = fixture(), p = clone(create(f));
   Object.defineProperty(p.executionContext, 'prompt', { enumerable: true, get() { calls++; throw Error(); } });
   refused(() => verify(p, f), 'OUTCOME_UNCONFIRMED'); assert.equal(calls, 0);
+});
+
+
+test('shared intake publication binds every exact stored answer and survives retained reconstruction', () => {
+  const f = fixture();
+  const answers = { schemaVersion: 1, type: 'authorization', goal: 'G'.repeat(4000),
+    ownerUserId: 'user_fixture', targetDate: '2028-02-29', meriContext: 'C'.repeat(8000) };
+  f.context.intent = { kind: 'strategy-intake', strategyIntake: answers };
+  f.context.sourceDigest = applicationHash({ source: f.context.source, intent: f.context.intent });
+  f.dto = { clientId: f.dto.clientId, type: answers.type, goal: answers.goal,
+    ownerUserId: answers.ownerUserId, targetDate: answers.targetDate, meriContext: answers.meriContext };
+  f.prompt += JSON.stringify(f.context.intent); f.context.promptSha256 = sha(f.prompt);
+  const publication = create(f);
+  assert.deepEqual(publication.request.source.intent, f.context.intent);
+  assert.equal(publication.request.input.goal.length, 4000);
+  assert.equal(publication.request.input.meriContext.length, 8000);
+  assert.deepEqual(verify(publication, f), publication);
+  for (const field of ['type', 'goal', 'ownerUserId', 'targetDate', 'meriContext']) {
+    const changed = clone(f);
+    changed.dto[field] = field === 'type' ? 'coalition' : field === 'targetDate' ? '2028-03-01' : 'changed';
+    refused(() => create(changed), 'REQUEST_CONFLICT');
+  }
 });

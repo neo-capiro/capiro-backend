@@ -3,6 +3,7 @@ import type { TenantContext } from '@capiro/shared';
 import type { Prisma } from '@prisma/client';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { authorizeResearchPortfolioConversation } from '../research-portfolios/research-portfolio-artifact-authority.js';
+import { authorizeWorkspaceGenerationSource } from './workspace-generation-source.authorization.js';
 
 /** Shared current resource reads; ordinary legacy callers retain their 404s. */
 export async function loadOwnedActiveClioConversation(
@@ -22,6 +23,7 @@ export async function loadOwnedActiveClioConversation(
       include: { client: { select: { id: true, name: true } } },
     });
     if (row) {
+      await authorizeWorkspaceGenerationSource(tx, ctx, row, { lock: !transaction });
       // The supplied transaction is /current's read-only consistent snapshot.
       // Legacy callers keep the existing membership/portfolio/grant locks.
       if (transaction) {

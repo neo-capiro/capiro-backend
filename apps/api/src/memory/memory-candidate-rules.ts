@@ -77,6 +77,12 @@ interface MemoryCandidateRule {
  * docs/runbooks/meriv2-memory-context-assurance-rollback.md.
  */
 const MEMORY_CANDIDATE_RULES: readonly MemoryCandidateRule[] = [
+  {
+    id: 'memory.settings.requires_review',
+    outcome: 'WARN',
+    reason: 'Settings drafts require an explicit owner or shared-memory review before publication.',
+    matches: (i) => i.sourceKind === 'settings_sections',
+  },
   // Phase 27B: every candidate LearningSignalCandidateService proposes must
   // land pending, regardless of scope — a personal-scope learning-signal
   // candidate must NOT hit memory.personal.auto_commit below and silently

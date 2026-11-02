@@ -16,6 +16,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsBoolean,
+  IsHash,
   IsIn,
   IsInt,
   IsOptional,
@@ -37,6 +38,10 @@ import {
 import { ClientProfileFillCompletionService } from './client-profile-fill-completion.service.js';
 
 class StartClientProfileFillDto {
+  /** Reuse this UUID after an interrupted response; it is also the durable run ID. */
+  @IsUUID()
+  requestId!: string;
+
   @IsOptional()
   @IsArray()
   // Explicit [] is meaningful: a legacy document-only run carries
@@ -70,20 +75,49 @@ class StartClientProfileFillDto {
   @Min(1, { each: true })
   ldaClientIds?: number[];
 
-  /** Optional website entered in the setup gate. It is persisted before the
-   * public-web specialist starts so every task sees the same canonical site. */
+  /** Optional research-only website. Saved with the run; canonical client
+   * website changes require a separate finding review/application. */
   @IsOptional()
   @IsString()
   @MaxLength(500)
   website?: string;
 }
 
+class RetryResearchTaskDto {
+  @IsUUID()
+  requestId!: string;
+
+  @IsInt()
+  @Min(0)
+  @Max(2147483647)
+  expectedAttempt!: number;
+
+  @IsString()
+  @MaxLength(80)
+  expectedTaskType!: string;
+}
+
+class ReviewedFindingDto {
+  @IsUUID()
+  id!: string;
+
+  @IsHash('sha256')
+  revision!: string;
+}
+
 class ApplyClientProfileFillDto {
+  @IsUUID()
+  requestId!: string;
+
+  @IsHash('sha256')
+  expectedClientRevision!: string;
+
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(200)
-  @IsUUID('all', { each: true })
-  findingIds!: string[];
+  @ValidateNested({ each: true })
+  @Type(() => ReviewedFindingDto)
+  findings!: ReviewedFindingDto[];
 }
 
 class RejectClientProfileFillDto {
@@ -125,7 +159,7 @@ class NewMatterForFindingDto {
  *  is required — enforced in the service, not here, so the error message
  *  can name both fields together rather than two separate DTO-level
  *  "required" complaints depending on which one is missing. */
-class AssignFindingMatterDto {
+class AssignFindingMatterDto extends ApplyClientProfileFillDto {
   @IsOptional()
   @IsUUID()
   matterId?: string;
@@ -180,6 +214,7 @@ export class ClientProfileFillController {
       ]),
     ];
     return this.service.startRun(ctx, clientId, {
+      requestId: body.requestId,
       sources: body.sources,
       attachmentIds,
       ldaClientIds: body.ldaClientIds,
@@ -216,8 +251,9 @@ export class ClientProfileFillController {
     @Param('clientId') clientId: string,
     @Param('runId') runId: string,
     @Param('taskId') taskId: string,
+    @Body() body: RetryResearchTaskDto,
   ) {
-    return this.service.retryTask(ctx, clientId, runId, taskId);
+    return this.service.retryTask(ctx, clientId, runId, taskId, body);
   }
 
   @Post('runs/:runId/apply')
@@ -228,7 +264,12 @@ export class ClientProfileFillController {
     @Param('runId') runId: string,
     @Body() body: ApplyClientProfileFillDto,
   ) {
-    return this.service.applyFindings(ctx, clientId, runId, body.findingIds);
+    return this.service.applyFindings(ctx, clientId, runId, body);
+  }
+
+  @Get('runs/:runId/review')
+  review(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string, @Param('runId') runId: string) {
+    return this.service.getReview(ctx, clientId, runId);
   }
 
   /** §22/23 follow-up: "Attach to Matter X" / "Create new Matter" directly
@@ -258,7 +299,7 @@ export class ClientProfileFillController {
     if (!target) {
       throw new BadRequestException('Provide exactly one of matterId or newMatter');
     }
-    return this.service.applyAdvocacyFindingToMatter(ctx, clientId, runId, findingId, target);
+    return this.service.applyAdvocacyFindingToMatter(ctx, clientId, runId, findingId, target, body);
   }
 
   @Post('findings/:findingId/reject')

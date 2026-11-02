@@ -44,10 +44,10 @@ function fixture(operationId: 'resolve_entity' | 'find_contacts', input: Record<
   result: Record<string, unknown>, readScope: Record<string, unknown>) {
   const binding = { tenantId: T, actorId: A, conversationId: C, runId: C,
     attemptId: C, workerId: C, writerFence: 1 };
-  const subject = { kind: 'client', entityType: 'client', entityIds: [C], tenantId: T, actorId: A, policyRevision: 'a'.repeat(64), scopes: [], rosterVersionId: null };
-  const admission = { operation: { id: operationId, version: '0.2.0' as const }, binding, subject,
+  const subject: RetainedSourceV02Admission['subject'] = { kind: 'client', entityType: 'client', entityIds: [C], tenantId: T, actorId: A, policyRevision: 'a'.repeat(64), scopes: [], rosterVersionId: null };
+  const admission: RetainedSourceV02Admission = { policyRevision: subject.policyRevision, operation: { id: operationId, version: '0.2.0' as const }, binding, subject,
     input, metadata, normalizationContext, argumentsSha256: sha(input), requestSha256: sha({ input, metadata }),
-    clientId: C, hardExpiryMs: Date.parse(AS_OF) + 5000 } as RetainedSourceV02Admission;
+    clientId: C, hardExpiryMs: Date.parse(AS_OF) + 5000 };
   const ownerRead = { operation: operationId, tenantId: T, actorId: A, subjectKind: 'client',
     subjectEntityId: C, inputSha256: sha(input), contextSha256: sha(normalizationContext),
     observedAt: AS_OF, resultSha256: sha(result), readScope, result };
@@ -87,9 +87,9 @@ describe('retained 0.2 identity and contacts canonical source projection', () =>
     for (const mutate of [
       (r: Record<string, unknown>) => { r.extra = 'verified'; },
       (r: Record<string, unknown>) => { r.matchesFound = 2; },
-      (r: Record<string, unknown>) => { (r.matches as Record<string, unknown>[])[0].canonicalId = 'B000001'; },
-      (r: Record<string, unknown>) => { (r.matches as Record<string, unknown>[])[0].matchedBy = 'name-search'; },
-      (r: Record<string, unknown>) => { (r.matches as Record<string, unknown>[])[0].district = '1'; },
+      (r: Record<string, unknown>) => { (r.matches as Record<string, unknown>[])[0]!.canonicalId = 'B000001'; },
+      (r: Record<string, unknown>) => { (r.matches as Record<string, unknown>[])[0]!.matchedBy = 'name-search'; },
+      (r: Record<string, unknown>) => { (r.matches as Record<string, unknown>[])[0]!.district = '1'; },
     ]) {
       const value = structuredClone(f.ownerRead.result) as Record<string, unknown>;
       mutate(value);
@@ -122,8 +122,8 @@ describe('retained 0.2 identity and contacts canonical source projection', () =>
       (r: Record<string, unknown>) => { r.complete = true; },
       (r: Record<string, unknown>) => { r.clientId = T; },
       (r: Record<string, unknown>) => { r.note = 'Verified profile completeness'; },
-      (r: Record<string, unknown>) => { (r.contacts as Record<string, unknown>[])[0].email = null; },
-      (r: Record<string, unknown>) => { (r.contacts as Record<string, unknown>[])[0].extra = true; },
+      (r: Record<string, unknown>) => { (r.contacts as Record<string, unknown>[])[0]!.email = null; },
+      (r: Record<string, unknown>) => { (r.contacts as Record<string, unknown>[])[0]!.extra = true; },
     ]) {
       const value = structuredClone(f.ownerRead.result) as Record<string, unknown>;
       mutate(value);
