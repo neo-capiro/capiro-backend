@@ -37,6 +37,7 @@ until docker exec "$pg_id" pg_isready -U postgres -d bill_test >/dev/null 2>&1; 
 done
 docker exec "$pg_id" createdb -U postgres bill_text_test
 docker exec "$pg_id" createdb -U postgres bill_structured_test
+docker exec "$pg_id" createdb -U postgres bill_document_test
 docker exec "$pg_id" psql -U postgres -d bill_text_test -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION vector'
 docker run --rm --name "$run_id-runtime" --read-only --network "container:$pg_id" --cap-drop ALL \
   --security-opt no-new-privileges --pids-limit 256 --memory 1g \
@@ -57,6 +58,8 @@ docker run --rm --name "$run_id-tests" --read-only --network "container:$pg_id" 
   --security-opt no-new-privileges --pids-limit 256 --memory 3g \
   --tmpfs /tmp:rw,nosuid,size=512m -w /workspace/apps/api \
   -e CAPIRO_DISPOSABLE_PG=1 \
+  -e LEGIWATCH_PHASE5_TEST_DATABASE=disposable \
+  -e BILL_DOCUMENT_TEST_DATABASE_URL=postgresql://postgres:bill_fixture@localhost:5432/bill_document_test \
   -e DATABASE_URL=postgresql://postgres:bill_fixture@localhost:5432/bill_structured_test \
   -e BILL_TEXT_SEARCH_TEST_DATABASE_URL=postgresql://postgres:bill_fixture@localhost:5432/bill_text_test \
   -e BILL_STATE_WRITER_TEST_DATABASE_URL=postgresql://postgres:bill_fixture@localhost:5432/bill_text_test \
@@ -64,5 +67,6 @@ docker run --rm --name "$run_id-tests" --read-only --network "container:$pg_id" 
   --runInBand --runTestsByPath src/retrieval/bill-text.pg.spec.ts \
   src/ingestion/state-bill-writer.pg.spec.ts src/ingestion/state-document-queue.pg.spec.ts \
   src/ingestion/legiscan-provider-capacity.pg.spec.ts \
-  src/ingestion/bill-text-extraction-postgres.spec.ts
+  src/ingestion/bill-text-extraction-postgres.spec.ts \
+  src/ingestion/legiscan-document-evidence-postgres.spec.ts
 printf 'BILL_POSTGRES_QUALIFICATION_OK image=%s\n' "$image"
