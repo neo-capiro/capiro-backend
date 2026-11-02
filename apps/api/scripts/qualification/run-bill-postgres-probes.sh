@@ -10,7 +10,7 @@ builder="$run_id:build"
 pg_id=
 network_id=
 cleanup() {
-  docker rm -f "$run_id-runtime" "$run_id-tests" >/dev/null 2>&1 || true
+  docker rm -f "$run_id-runtime" "$run_id-tests" "$run_id-api-tests" >/dev/null 2>&1 || true
   test -z "$pg_id" || docker rm -f "$pg_id" >/dev/null 2>&1 || true
   test -z "$network_id" || docker network rm "$network_id" >/dev/null 2>&1 || true
   docker image rm "$builder" >/dev/null 2>&1 || true
@@ -70,4 +70,45 @@ docker run --rm --name "$run_id-tests" --read-only --network "container:$pg_id" 
   src/ingestion/legiscan-provider-capacity.pg.spec.ts \
   src/ingestion/bill-text-extraction-postgres.spec.ts \
   src/ingestion/legiscan-document-evidence-postgres.spec.ts
+
+# Preserve the API's deployed mail, SQL-reader and semantic/memory behavior on
+# the same candidate build stage. Their existing local-only harness requires
+# IPv4 loopback port 55433. It is private to this disposable container namespace;
+# no host port is published. Separate databases keep the destructive fixtures apart.
+docker rm -f "$pg_id" >/dev/null
+pg_id=
+pg_id=$(docker run -d --name "$run_id-api-pg" --network "$network_id" --memory 1g \
+  --security-opt no-new-privileges --pids-limit 256 \
+  --tmpfs /var/lib/postgresql/data:rw,nosuid,size=768m \
+  -e POSTGRES_PASSWORD=api_fixture -e POSTGRES_DB=api_memory_test "$pg_image" -p 55433)
+attempt=0
+until docker exec "$pg_id" pg_isready -p 55433 -U postgres -d api_memory_test >/dev/null 2>&1; do
+  attempt=$((attempt + 1))
+  test "$attempt" -lt 60 || { docker logs "$pg_id"; exit 1; }
+  sleep 1
+done
+docker exec "$pg_id" createdb -p 55433 -U postgres api_mail_test
+docker exec "$pg_id" createdb -p 55433 -U postgres api_reader_test
+memory_harness=apps/api/test/memory-postgres-qualification/harness.ts
+test -f "$memory_harness" || { echo "Missing tracked memory harness: $memory_harness" >&2; exit 1; }
+docker run --rm --name "$run_id-api-tests" --read-only --network "container:$pg_id" --cap-drop ALL \
+  --security-opt no-new-privileges --pids-limit 256 --memory 3g \
+  --tmpfs /tmp:rw,nosuid,size=512m -w /workspace/apps/api \
+  -e DATABASE_URL=postgresql://postgres:api_fixture@127.0.0.1:55433/api_memory_test \
+  -e CAPIRO_DATA_TEST_DATABASE_URL=postgresql://postgres:api_fixture@127.0.0.1:55433/api_reader_test \
+  -e MEMORY_POSTGRES_ADMIN_URL=postgresql://postgres:api_fixture@127.0.0.1:55433/api_memory_test \
+  -e MEMORY_POSTGRES_OWNED_ENDPOINT_ACK=127.0.0.1:55433 \
+  -e MEMORY_POSTGRES_REQUIRE_VECTOR=1 \
+  -e MERI_APPROVED_MEMORY_PG_CONFIG=/tmp/api-mail-postgres.json \
+  "$@" --mount "type=bind,src=$(pwd)/$memory_harness,dst=/workspace/$memory_harness,readonly" \
+  --entrypoint /bin/sh "$builder" -ec '
+    umask 077
+    printf "%s\n" "{\"host\":\"127.0.0.1\",\"port\":55433,\"database\":\"api_mail_test\",\"user\":\"postgres\",\"password\":\"api_fixture\",\"scope\":\"owned local disposable test cluster; no AWS connection\"}" > "$MERI_APPROVED_MEMORY_PG_CONFIG"
+    exec node --experimental-vm-modules node_modules/jest/bin/jest.js \
+      --runInBand --runTestsByPath src/engagement/mail-query-plan.postgres.spec.ts \
+      src/meri/analytics/capiro-data-reader-roles.integration.spec.ts \
+      src/meri/semantic-search.postgres.spec.ts \
+      src/retrieval/adapters/memory-embedding-retention-policy.postgres.spec.ts
+  '
+printf 'API_PRESERVATION_POSTGRES_QUALIFICATION_OK image=%s\n' "$image"
 printf 'BILL_POSTGRES_QUALIFICATION_OK image=%s\n' "$image"

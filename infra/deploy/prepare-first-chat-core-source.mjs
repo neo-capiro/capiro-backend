@@ -7,7 +7,7 @@ import { closeSync, existsSync, fstatSync, mkdirSync, openSync, readSync, writeF
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inflateRawSync } from 'node:zlib';
-import { sourcePathAllowed } from './first-chat-source-policy.mjs';
+import { nativePostgresHarnessPaths, sourcePathAllowed } from './first-chat-source-policy.mjs';
 
 const inputPaths = [
   '.dockerignore',
@@ -23,6 +23,7 @@ const inputPaths = [
   'apps/api/jest.native-tango.cjs',
   'apps/api/jest.worker-database.cjs',
   'apps/api/jest.setup.ts',
+  ...nativePostgresHarnessPaths,
   'apps/api/src',
   'apps/api/prisma',
   'apps/api/scripts',

@@ -99,7 +99,8 @@ describe('reader transport', () => {
     await expect(withReadOnlyTransaction(unreachable, { role: 'r', searchPath: 's', statementTimeoutMs: 1 }, async () => 'x')).rejects.toMatchObject({ code: 'SOURCE_UNAVAILABLE' });
   });
   it('executes the gated statement in array mode and types columns from pg_type, suffixing duplicates', async () => {
-    const gated = gateSqlStatement({ sql: 'SELECT b.id, s.id, b.congress, b.last_synced_at, b.ok FROM congress_bills b', parameters: [] }, 'public');
+    // Two relations so the duplicate `id` output is real SQL; the fake client supplies the rows.
+    const gated = gateSqlStatement({ sql: 'SELECT b.id, s.id, b.congress, b.last_synced_at, b.ok FROM congress_bills b JOIN congress_bill_subjects s ON s.bill_id = b.id', parameters: [] }, 'public');
     const { client, queries } = fakeClient([
       { fields: [{ name: 'id', dataTypeID: 25 }, { name: 'id', dataTypeID: 25 }, { name: 'congress', dataTypeID: 23 }, { name: 'last_synced_at', dataTypeID: 1184 }, { name: 'ok', dataTypeID: 16 }], rows: [['a', 'b', '119', '2026-01-01 00:00:00.123456+00', true], ['c', null, null, null, false]] },
       { rows: [{ oid: '25', typname: 'text' }, { oid: '23', typname: 'int4' }, { oid: '1184', typname: 'timestamptz' }, { oid: '16', typname: 'bool' }] },

@@ -80,15 +80,20 @@ describe('semantic search statement (pgvector-free shape)', () => {
     expect(text).toContain(`ce.source_type = '${SEMANTIC_SEARCH_SOURCE_TYPES[operation]}'`);
     expect(text).toContain('ce.tenant_id IS NULL AND ce.client_id IS NULL AND ce.owner_user_id IS NULL');
     expect(text).toContain('ce.model = ?');
-    expect(text).toContain('ORDER BY ce.embedding <=> ?::vector LIMIT ?');
+    expect(text).toContain(`ORDER BY ce.embedding <=> ?::vector LIMIT ${SEMANTIC_SEARCH_LIMITS.candidateLimit}`);
     expect(text).toContain('SELECT DISTINCT ON (parent_id) parent_id, content_text, score');
-    expect(text).toContain('score >= ?');
-    expect(text).toContain('ORDER BY best.score DESC, best.parent_id ASC LIMIT ?');
+    expect(text).toContain('ORDER BY best.score DESC, best.parent_id ASC LIMIT ?::int');
+    expect(text).toContain(`left(best.content_text, ${SEMANTIC_SEARCH_LIMITS.snippetChars})`);
+    expect(text).toContain(`score >= ${SEMANTIC_SEARCH_LIMITS.similarityFloor}::float8`);
     // The family literal is from the closed table, never a bound caller value.
     expect(values).not.toContain(SEMANTIC_SEARCH_SOURCE_TYPES[operation]);
     expect(values).toContain(model);
-    expect(values).toContain(SEMANTIC_SEARCH_LIMITS.candidateLimit);
-    expect(values).toContain(SEMANTIC_SEARCH_LIMITS.similarityFloor);
+    // Limits are literals from the frozen table: Prisma binds a JavaScript integer as bigint, which
+    // left(text, bigint) refuses (42883) and the planner cannot fold into LIMIT estimates.
+    expect(values).not.toContain(SEMANTIC_SEARCH_LIMITS.candidateLimit);
+    expect(values).not.toContain(SEMANTIC_SEARCH_LIMITS.snippetChars);
+    expect(values).not.toContain(SEMANTIC_SEARCH_LIMITS.similarityFloor);
+    expect(values.filter((value) => typeof value === 'number')).toEqual([SEMANTIC_SEARCH_LIMITS.defaultLimit]);
     expect(values.filter((value) => value === vector)).toHaveLength(2);
     // The query text itself is never part of the statement.
     expect(values).not.toContain('coastal resilience');
@@ -102,7 +107,7 @@ describe('semantic search statement (pgvector-free shape)', () => {
     expect(text).toContain('SELECT ce.source_id AS parent_id');
     expect(text).toContain('JOIN congress_bill cb ON cb.id = best.parent_id');
     expect(text).toContain("'id', cb.id, 'congress', cb.congress");
-    expect(text).toContain('WHERE cb.congress = ? AND cb.status = ? AND cb.latest_action_date >= ?::date AND cb.latest_action_date <= ?::date');
+    expect(text).toContain('WHERE cb.congress = ?::int AND cb.status = ? AND cb.latest_action_date >= ?::date AND cb.latest_action_date <= ?::date');
     expect(values).toEqual(expect.arrayContaining([119, 'introduced', '2025-01-01', '2026-06-30']));
   });
 

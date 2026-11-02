@@ -39,6 +39,10 @@ export const READER_MIGRATIONS = [
   '20281101180000_capiro_data_public_column_meaning',
   '20281102100000_capiro_data_federal_awards_surface',
   '20281102120000_capiro_data_program_element_years_surface',
+  '20281102140000_capiro_data_grants_notices_surface',
+  '20281101120000_government_forecast_windows',
+  '20281102150000_capiro_data_government_forecasts_surface',
+  '20281102170000_capiro_data_sam_notice_column_meaning',
 ] as const;
 
 /** Base tables the published projections read (private sources, identity and public ingestion). */
@@ -70,7 +74,18 @@ const BASE_TABLES = [
   'program_element_project_budget_position',
   'program_element_year',
   'federal_award',
+  'federal_grant',
+  'sam_opportunity',
   'federal_assistance_award',
+] as const;
+/** Tables the forecast migration above creates itself (raw SQL, no Prisma model); dropped before replay so the fixture stays idempotent. */
+const RAW_SQL_TABLES = [
+  'government_forecast_terminal',
+  'government_forecast_observation',
+  'government_forecast_check',
+  'government_forecast_revision',
+  'government_forecast',
+  'government_forecast_source',
 ] as const;
 /** Tenant tables whose isolation policy the applied migrations already define (the saved-business migration adds three more). */
 const TENANT_POLICY_TABLES = [
@@ -142,6 +157,16 @@ CREATE POLICY ${table}_isolation ON ${table} USING (rls_bypass() OR tenant_id = 
 ).join('\n')}
 `;
 
+/** A government_forecast_revision.content document in the forecast-contract.ts shape. */
+function forecastContent(title: string, eventType: string, status: string, period: Record<string, unknown>): string {
+  const rin = '0000-AA0' + (title.startsWith('Drone') ? '1' : '2');
+  return JSON.stringify({
+    title, eventType, period, status, confidence: 'not_supplied',
+    source: { rin, edition: '202510', url: `https://www.reginfo.gov/public/do/eAgendaViewRule?pubId=202510&RIN=${rin}`, issuedAt: null, sha256: 'c'.repeat(64) },
+    ...(status === 'withdrawn' ? { withdrawalEvidence: { action: 'Withdrawn', rawDate: '10/15/2026' } } : {}),
+  });
+}
+
 function rowsSql(): string {
   const f = FIXTURE;
   return `
@@ -187,6 +212,14 @@ INSERT INTO program_element_budget_position (id, pe_code, position_cycle, assert
   ('${id(83)}', '0601102N', 'pb_fy2026', 2026, 123456789012.34, 'total');
 INSERT INTO program_element_project_budget_position (id, pe_code, project_code, position_cycle, asserted_fy, amount, value_kind) VALUES
   ('${id(91)}', '0601101A', 'P1', 'pb_fy2026', 2026, 7.00, 'total');
+INSERT INTO government_forecast (id, source_key, rin, current_revision, content_hash, observed_at, window_from, window_to, status) VALUES
+  (repeat('1', 64), '0000-AA01:proposed_rule', '0000-AA01', 1, repeat('a', 64), '2026-11-01T00:00:00Z', '2026-11-01', '2026-12-01', 'published'),
+  (repeat('2', 64), '0000-AA02:final_rule', '0000-AA02', 2, repeat('b', 64), '2026-11-01T00:00:00Z', NULL, NULL, 'withdrawn'),
+  (repeat('3', 64), '0000-AA03:final_rule', '0000-AA03', 0, NULL, NULL, NULL, NULL, 'published');
+INSERT INTO government_forecast_revision (forecast_id, revision, content, observed_at) VALUES
+  (repeat('1', 64), 1, '${forecastContent('Drone rule', 'proposed_rule', 'published', { precision: 'month', raw: '11/00/2026', year: 2026, month: 11 })}', '2026-11-01T00:00:00Z'),
+  (repeat('2', 64), 1, '${forecastContent('Energy rule', 'final_rule', 'published', { precision: 'unknown', raw: 'To Be Determined' })}', '2026-10-01T00:00:00Z'),
+  (repeat('2', 64), 2, '${forecastContent('Energy rule', 'final_rule', 'withdrawn', { precision: 'unknown', raw: 'To Be Determined' })}', '2026-11-01T00:00:00Z');
 `;
 }
 
@@ -211,7 +244,7 @@ export async function prepareReaderFixture(adminUrl: string): Promise<ReaderFixt
   try {
     await admin.query('DROP SCHEMA IF EXISTS meri_private CASCADE');
     await admin.query('DROP SCHEMA IF EXISTS meri_public CASCADE');
-    for (const table of ['meri_analytics_query_log', ...BASE_TABLES]) await admin.query(`DROP TABLE IF EXISTS ${table} CASCADE`);
+    for (const table of ['meri_analytics_query_log', ...RAW_SQL_TABLES, ...BASE_TABLES]) await admin.query(`DROP TABLE IF EXISTS ${table} CASCADE`);
     for (const role of ROLES) {
       const exists = await admin.query('SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = $1', [role]);
       if (exists.rowCount) {
