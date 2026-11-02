@@ -37,8 +37,10 @@ function buildHarness(options: {
     }>;
   };
 }): Harness {
+  // Prisma returns the BigInt management revision on every conversation row.
   const conversationCreate = jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({
     id: randomUUID(),
+    metadataRevision: 0n,
     ...data,
   }));
   const tx = {
@@ -114,6 +116,26 @@ describe('MeriService.createConversation — ordinary (no prospectId) creation',
       .data.metadata;
     expect(metadata[MERI_PROSPECT_SCOPE_METADATA_KEY]).toBeUndefined();
     expect(Object.keys(metadata).sort()).toEqual(['brand', 'runtime', 'userEmail']);
+  });
+});
+
+describe('MeriService.createConversation — response body', () => {
+  test('serializes as JSON: the BigInt revision travels as its decimal string', async () => {
+    const h = buildHarness({});
+    const created = await h.service.createConversation(ctx, { title: 'Hello' });
+    const body = JSON.parse(JSON.stringify(created)) as Record<string, unknown>;
+    expect(body).toMatchObject({ tenantId: TENANT, userId: USER, clientId: null, metadataRevision: '0' });
+  });
+
+  test('the exact-link read of the same row serializes as JSON too', async () => {
+    const h = buildHarness({});
+    const row = { id: randomUUID(), tenantId: TENANT, userId: USER, clientId: null, metadata: {}, metadataRevision: 3n };
+    const tx = { clioConversation: { findFirst: jest.fn(async () => row) } };
+    (h.service as unknown as { prisma: unknown }).prisma = {
+      withTenant: async (_t: string, cb: (value: typeof tx) => unknown) => cb(tx),
+    };
+    const body = JSON.parse(JSON.stringify(await h.service.getConversation(ctx, row.id)));
+    expect(body).toMatchObject({ id: row.id, metadataRevision: '3' });
   });
 });
 

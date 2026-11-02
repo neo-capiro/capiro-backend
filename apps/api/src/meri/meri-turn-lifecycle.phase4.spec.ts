@@ -12,7 +12,7 @@ const ctx = { tenantId: '11111111-1111-4111-8111-111111111111', userId: '2222222
 describe('archived Meri thread deep-link recovery', () => {
   function archivedHarness() {
     const row = { id: 'conversation', tenantId: ctx.tenantId, userId: ctx.userId,
-      archivedAt: new Date('2026-09-10T10:00:00Z'), status: 'archived', clientId: null };
+      archivedAt: new Date('2026-09-10T10:00:00Z'), status: 'archived', clientId: null, metadataRevision: 0n };
     const tx = {
       clioConversation: {
         findFirst: jest.fn(async ({ where }: { where: Record<string, unknown> }) =>
