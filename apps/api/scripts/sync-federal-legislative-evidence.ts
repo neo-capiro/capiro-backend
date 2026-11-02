@@ -262,6 +262,7 @@ export async function syncCollection(args: {
           sourceModifiedAt: parseDate(doc.lastModified ?? row.lastModified),
           publishedAt: parseDate(doc.dateIssued ?? row.dateIssued),
           rawContent: doc.raw,
+          originalBytes: doc.originalBytes,
           extractedText: doc.text,
           completeness: 'complete',
           inventoryWindowEnd: new Date(cursor.until),

@@ -48,7 +48,7 @@ describe('bill ingestion CLI safety', () => {
   }
   it('registers the bill verbs in the safe wrapper and preserves legacy delegation', () => {
     const entrypoint = readFileSync(join(__dirname, 'entrypoint.sh'), 'utf8');
-    const billCase = entrypoint.indexOf('index-bill-passages|embed-bill-passages)');
+    const billCase = entrypoint.search(/^\s+index-bill-passages\|embed-bill-passages(?:\|[a-z-]+)*\)/m);
     const fallback = entrypoint.indexOf('exec /bin/sh /usr/local/lib/capiro/entrypoint-legacy.sh');
     expect(billCase).toBeGreaterThan(-1);
     expect(billCase).toBeLessThan(fallback);

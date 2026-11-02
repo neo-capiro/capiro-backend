@@ -20,6 +20,7 @@ function jsonResponse(body: unknown, ok = true, status = 200) {
 
 function textResponse(text: string) {
   return {
+    body: new Response(text).body,
     ok: true,
     status: 200,
     statusText: 'OK',
@@ -310,5 +311,26 @@ describe('GovInfoService', () => {
 
     expect(result.pdfBuffer.equals(pdf)).toBe(true);
     expect(sendMock).toHaveBeenCalledTimes(2); // GetObject (miss) + PutObject (write)
+  });
+  test('federal snapshot retains exact UTF8 original bytes independently of decoded content', async () => {
+    const { svc } = makeService();
+    const original = Buffer.concat([
+      Buffer.from([239, 187, 191]),
+      Buffer.from('<bill>Exact original</bill>'),
+    ]);
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          packageId: 'BILLS-119hr1ih',
+          download: { xmlLink: 'https://www.govinfo.gov/content/pkg/test.xml' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(original, { headers: { 'content-type': 'application/xml; charset=utf-8' } }),
+      );
+    const result = await svc.getFederalPackageText('BILLS-119hr1ih');
+    expect(result.raw).toBe('<bill>Exact original</bill>');
+    expect(Buffer.from(result.originalBytes!.base64, 'base64')).toEqual(original);
+    expect(result.originalBytes!.sha256).toMatch(/^[a-f0-9]{64}$/);
   });
 });

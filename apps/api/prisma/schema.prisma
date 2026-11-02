@@ -17871,3 +17871,40 @@ model WsShareLink {
   @@index([tenantId, expiresAt], map: "ws_share_link_expiry_idx")
   @@map("ws_share_link")
 }
+
+// Append-only structured projections of public immutable legislative revisions.
+model BillTextExtraction {
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sourceKind     String @map("source_kind")
+  revisionId     String @map("revision_id") @db.Uuid
+  parserVersion  String @map("parser_version")
+  documentHash   String @map("document_hash") @db.Char(64)
+  textHash       String @map("text_hash") @db.Char(64)
+  structureHash  String @map("structure_hash") @db.Char(64)
+  extractedText  String @map("extracted_text")
+  structureJsonb Json @map("structure_jsonb")
+  completeness   String
+  warningsJsonb  Json @default("[]") @map("warnings_jsonb")
+  createdAt      DateTime @default(dbgenerated("clock_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  passages       BillTextPassage[]
+
+  @@unique([sourceKind, revisionId, parserVersion, documentHash, structureHash], map: "bill_text_extraction_snapshot_key")
+  @@index([sourceKind, revisionId, parserVersion, createdAt(sort: Desc)], map: "bill_text_extraction_revision_idx")
+  @@map("bill_text_extraction")
+}
+
+model BillTextPassage {
+  extractionId String @map("extraction_id") @db.Uuid
+  chunkerVersion String @map("chunker_version")
+  ordinal Int
+  startOffset Int @map("start_offset")
+  endOffset Int @map("end_offset")
+  contentText String @map("content_text")
+  metadataJsonb Json @map("metadata_jsonb")
+  searchVector Unsupported("tsvector")? @default(dbgenerated()) @map("search_vector")
+  extraction BillTextExtraction @relation(fields: [extractionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@id([extractionId, chunkerVersion, ordinal])
+  @@index([searchVector], type: Gin, map: "bill_text_passage_search_idx")
+  @@map("bill_text_passage")
+}

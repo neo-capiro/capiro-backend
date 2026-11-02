@@ -18,6 +18,8 @@ describe('bill passage worker recovery', () => {
       cursor?: { id: string; chunk: number };
       source?: 'federal' | 'state';
       initializationFailure?: boolean;
+      phase?: 'extract' | 'embed';
+      incomplete?: boolean;
     } = {},
   ) {
     jest.resetModules();
@@ -26,6 +28,8 @@ describe('bill passage worker recovery', () => {
       'embed-bill-passages',
       '--source',
       options.source ?? 'federal',
+      '--phase',
+      options.phase ?? 'embed',
       '--limit',
       '1',
       ...(options.dry ? [] : ['--commit', '--expected-host', 'preview']),
@@ -45,7 +49,14 @@ describe('bill passage worker recovery', () => {
       providerDocumentId: '7',
       state: options.source === 'state' ? 'CA' : undefined,
       evidence: {
-        sections: [{ locator: 'Section 2', text: 'The full state legislative provision.' }],
+        sections: [
+          {
+            locator: 'document#0',
+            extractionId: 'extraction-abc',
+            offsetBasis: 'structured_document_text',
+            text: 'The full state legislative provision.',
+          },
+        ],
       },
       text: 'The complete legislative text. '.repeat(400),
     };
@@ -81,7 +92,22 @@ describe('bill passage worker recovery', () => {
     });
     const construct = jest.fn(() => db);
     jest.doMock('@prisma/client', () => ({ PrismaClient: construct }));
-    jest.doMock('../src/embeddings/embedder.js', () => ({ embedAndUpsert: embed }));
+    jest.doMock('../src/ingestion/bill-passage-embedding.js', () => ({ embedBillPassage: embed }));
+    const { structureText } = await import('../src/ingestion/bill-document-structure');
+    const extract = jest.fn(async () => ({
+      id: 'extraction-abc',
+      completeness: options.incomplete ? 'failed' : 'complete',
+      structure: structureText(
+        options.incomplete
+          ? ''
+          : options.source === 'state'
+            ? 'The full state legislative provision.'
+            : doc.text,
+      ),
+    }));
+    jest.doMock('../src/ingestion/bill-text-extraction.js', () => ({
+      ensureBillTextExtraction: extract,
+    }));
     const provider = jest.fn(() => {
       if (options.initializationFailure) throw Error('PROVIDER_INITIALIZATION_FAILED');
       return { metadata: { model: 'test' } };
@@ -94,7 +120,7 @@ describe('bill passage worker recovery', () => {
     }));
     jest.spyOn(console, 'log').mockImplementation(() => {});
     const { main } = await import('./embed-bill-passages');
-    return { main, db, embed, construct, provider, events, durable: () => durable };
+    return { main, db, embed, extract, construct, provider, events, durable: () => durable };
   }
   it('imports without allocating Prisma or requiring CLI configuration', async () => {
     const h = await setup();
@@ -128,7 +154,9 @@ describe('bill passage worker recovery', () => {
       documentHash: 'original-byte-hash',
       revisionHash: 'source-hash',
       jurisdiction: 'CA',
-      locator: 'Section 2',
+      locator: 'document#0',
+      extractionId: 'extraction-abc',
+      offsetBasis: 'structured_document_text',
       startOffset: 0,
       endOffset: 'The full state legislative provision.'.length,
       offsetUnit: 'UTF-16',
@@ -142,7 +170,7 @@ describe('bill passage worker recovery', () => {
   });
   it('does not run when another writer owns the lease', async () => {
     const h = await setup({ leasedElsewhere: true });
-    await h.main();
+    await expect(h.main()).rejects.toThrow('BILL_TEXT_LEASE_NOT_ACQUIRED');
     expect(h.embed).not.toHaveBeenCalled();
     expect(h.db.$executeRawUnsafe).not.toHaveBeenCalled();
   });
@@ -150,12 +178,12 @@ describe('bill passage worker recovery', () => {
     const h = await setup();
     await h.main();
     expect(h.events).toEqual(['checkpoint:-1', 'provider', 'vector', 'metadata', 'checkpoint:0']);
-    expect(h.durable()).toEqual({ id: 'abc', chunk: 0 });
+    expect(h.durable()).toEqual({ id: 'abc', chunk: 0, extractionId: 'extraction-abc' });
   });
   it('resumes at the next chunk of the exact immutable revision', async () => {
     const h = await setup({ cursor: { id: 'abc', chunk: 0 } });
     await h.main();
-    expect(h.embed.mock.calls[0]![1].sourceId).toMatch(/:abc:1$/);
+    expect(h.embed.mock.calls[0]![1].sourceId).toMatch(/:extraction-abc:1$/);
     expect(h.durable().chunk).toBe(1);
   });
   it('does not advance past a provider failure and always disconnects', async () => {
@@ -163,6 +191,21 @@ describe('bill passage worker recovery', () => {
     await expect(h.main()).rejects.toThrow('PROVIDER_FAILURE');
     expect(h.durable()).toEqual({ id: '', chunk: -1 });
     expect(h.db.$disconnect).toHaveBeenCalled();
+  });
+  it('extracts with a distinct durable phase and no provider initialization', async () => {
+    const h = await setup({ phase: 'extract' });
+    await h.main();
+    expect(h.provider).not.toHaveBeenCalled();
+    expect(h.embed).not.toHaveBeenCalled();
+    expect(h.extract).toHaveBeenCalledTimes(1);
+    expect(h.durable()).toEqual({ id: 'abc~', chunk: -1 });
+    expect(h.db.$queryRawUnsafe.mock.calls[0][1]).toContain(':extract:');
+  });
+  it('advances failed extraction attempts so subsequent versions are not starved', async () => {
+    const h = await setup({ phase: 'extract', incomplete: true });
+    await h.main();
+    expect(h.durable()).toEqual({ id: 'abc~', chunk: -1 });
+    expect(h.embed).not.toHaveBeenCalled();
   });
   it('cannot advance or attach metadata after losing its lease', async () => {
     const h = await setup({ loseLease: true });

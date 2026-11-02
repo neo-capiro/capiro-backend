@@ -3,18 +3,19 @@
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
-import { embedAndUpsert } from '../src/embeddings/embedder.js';
+import { ensureBillTextExtraction } from '../src/ingestion/bill-text-extraction.js';
+import { BILL_EXTRACTION_VERSION } from '../src/ingestion/bill-document-structure.js';
 import { getDefaultEmbeddingProvider } from '../src/embeddings/embedding-provider.factory.js';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 import { FEDERAL_FY26_SQL, STATE_FY26_SQL } from '../src/ingestion/bill-text-scope.js';
 import {
   CHUNKER_VERSION,
   passages,
+  passageMetadata,
   parseBillTextArgs,
   encodeCursor,
   sha256,
   type Cursor,
-  type Section,
 } from '../src/ingestion/bill-text-passages.js';
 
 type Document = {
@@ -24,10 +25,12 @@ type Document = {
   version: string | null;
   hash: string;
   documentHash?: string;
+  originalBytesHash?: string;
   versionId?: string;
   providerDocumentId?: string;
-  text?: string;
-  evidence?: { sections?: Section[]; contentHash?: string };
+  rawContent?: string;
+  format?: string;
+  evidence?: { contentSnapshotBase64?: string; mime?: string };
   state?: string;
 };
 export async function main(argv = process.argv.slice(2)) {
@@ -38,28 +41,31 @@ export async function main(argv = process.argv.slice(2)) {
   let source = '';
   const token = randomUUID();
   try {
-    const provider = getDefaultEmbeddingProvider();
+    const provider = args.phase === 'embed' ? getDefaultEmbeddingProvider() : null;
+    const embedBillPassage =
+      args.phase === 'embed'
+        ? (await import('../src/ingestion/bill-passage-embedding.js')).embedBillPassage
+        : null;
     const sourceType = args.source === 'federal' ? 'bill_passage' : 'state_bill_passage';
-    source = `bill-text:fy26:${args.source}:${sha256(provider.metadata.model).slice(0, 12)}:${CHUNKER_VERSION}`;
+    source = `bill-text:fy26:${args.source}:${args.phase}:${provider ? sha256(provider.metadata.model).slice(0, 12) : BILL_EXTRACTION_VERSION}:${CHUNKER_VERSION}`;
     let cursor = args.cursor;
 
     async function documents(after: Cursor): Promise<Document[]> {
       return args.source === 'federal'
         ? prisma.$queryRawUnsafe<Document[]>(
             `SELECT r.id::text id,r.bill_id AS "billId",r.source_url AS "sourceUrl",
-      r.version_code version,r.package_id AS "versionId",r.content_hash AS "documentHash",r.extraction_hash hash,r.extracted_text text
+      r.version_code version,r.package_id AS "versionId",r.content_hash AS "documentHash",r.metadata_jsonb->>'rawBytesHash' AS "originalBytesHash",r.extraction_hash hash,r.raw_content AS "rawContent",r.metadata_jsonb->>'format' AS format
       FROM federal_evidence_revision r JOIN congress_bill b ON b.id=r.bill_id
-      WHERE r.collection='BILLS' AND r.completeness='complete' AND ${FEDERAL_FY26_SQL}
+      WHERE r.collection IN ('BILLS','AMENDMENTS') AND ${FEDERAL_FY26_SQL}
       AND r.id::text >= $1 ORDER BY r.id::text LIMIT 10`,
             after.id,
           )
         : prisma.$queryRawUnsafe<Document[]>(
             `SELECT r.id::text id,r.bill_key AS "billId",r.evidence->>'url' AS "sourceUrl",
       r.evidence->>'versionType' version,r.source_identity AS "versionId",r.evidence->>'providerId' AS "providerDocumentId",
-      r.evidence->>'contentHash' AS "documentHash",r.revision_hash hash,(r.evidence - 'contentSnapshotBase64') evidence,b.state
+      r.evidence->>'contentHash' AS "documentHash",r.revision_hash hash,r.evidence,b.state
       FROM state_bill_published_record r JOIN state_bill b ON b.id=r.bill_key
-      WHERE r.kind='document' AND r.evidence->>'extractionState'='extracted'
-      AND r.evidence->>'coverage'='complete_document' AND ${STATE_FY26_SQL}
+      WHERE r.kind='document' AND ${STATE_FY26_SQL}
       AND r.id::text >= $1 ORDER BY r.id::text LIMIT 10`,
             after.id,
           );
@@ -82,8 +88,25 @@ export async function main(argv = process.argv.slice(2)) {
       if (changed !== 1) throw Error('BILL_TEXT_LEASE_LOST');
       cursor = next;
     }
+    const fence = async (tx: import('@prisma/client').Prisma.TransactionClient) =>
+      (
+        await tx.$queryRawUnsafe<unknown[]>(
+          `SELECT 1 FROM federal_evidence_checkpoint
+       WHERE source=$1 AND lease_token=$2::uuid AND lease_until>clock_timestamp() FOR UPDATE`,
+          source,
+          token,
+        )
+      ).length === 1;
     async function run() {
-      const counts = { inserted: 0, updated: 0, skipped: 0, errors: 0, complete: false };
+      const counts = {
+        inserted: 0,
+        updated: 0,
+        skipped: 0,
+        errors: 0,
+        partial: 0,
+        failed: 0,
+        complete: false,
+      };
       let processed = 0;
       let scanned = 0;
       while (processed < args.limit && scanned < args.limit * 10) {
@@ -96,29 +119,50 @@ export async function main(argv = process.argv.slice(2)) {
         let advanced = false;
         for (const doc of docs) {
           scanned++;
-          const sections =
-            args.source === 'federal'
-              ? [{ locator: 'document', text: doc.text ?? '' }]
-              : doc.evidence?.sections;
-          if (
-            !Array.isArray(sections) ||
-            sections.some((s) => typeof s.text !== 'string' || typeof s.locator !== 'string')
-          )
-            throw Error(`INVALID_DOCUMENT_SECTIONS:${doc.id}`);
-          const chunks = passages(sections);
-          if (!chunks.length) throw Error(`EMPTY_QUALIFIED_DOCUMENT:${doc.id}`);
-          for (const chunk of chunks) {
-            if (doc.id === cursor.id && chunk.ordinal <= cursor.chunk) continue;
+          const extraction = await ensureBillTextExtraction(
+            prisma,
+            {
+              sourceKind: args.source,
+              revisionId: doc.id,
+              documentHash: doc.documentHash ?? doc.hash,
+              rawContent: doc.rawContent,
+              format: doc.format,
+              evidence: doc.evidence,
+            },
+            { commit: args.commit, beforeWrite: fence },
+          );
+          if (extraction.completeness !== 'complete') {
+            counts[
+              extraction.completeness === 'failed' || extraction.completeness === 'unreadable'
+                ? 'failed'
+                : 'partial'
+            ]++;
+          }
+          const chunks = passages(extraction.structure.sections);
+          if (args.phase === 'extract' || !chunks.length) {
+            processed++;
+            advanced = true;
+            await save({ id: doc.id + '~', chunk: -1 });
             if (processed >= args.limit) break;
-            if (!chunk.text.trim()) {
+            continue;
+          }
+          for (const chunk of chunks) {
+            if (
+              doc.id === cursor.id &&
+              (!cursor.extractionId || cursor.extractionId === extraction.id) &&
+              chunk.ordinal <= cursor.chunk
+            )
+              continue;
+            if (processed >= args.limit) break;
+            if (chunk.text.trim().length < 10) {
               counts.skipped++;
               processed++;
               advanced = true;
-              await save({ id: doc.id, chunk: chunk.ordinal });
+              await save({ id: doc.id, chunk: chunk.ordinal, extractionId: extraction.id });
               continue;
             }
-            const indexedText = `Bill ${doc.billId} | ${chunk.locator}\n${chunk.text}`;
-            const sourceId = `${CHUNKER_VERSION}:${doc.id}:${chunk.ordinal}`;
+            const indexedText = chunk.text;
+            const sourceId = `${CHUNKER_VERSION}:${extraction.id}:${chunk.ordinal}`;
             const metadata = {
               billId: doc.billId,
               revisionId: doc.id,
@@ -129,19 +173,25 @@ export async function main(argv = process.argv.slice(2)) {
               jurisdiction: doc.state ?? 'US',
               documentHash: doc.documentHash ?? doc.hash,
               revisionHash: doc.hash,
+              originalBytesHash:
+                doc.originalBytesHash ?? (args.source === 'state' ? doc.documentHash : null),
               contentHash: sha256(chunk.text),
-              chunkerVersion: CHUNKER_VERSION,
-              ordinal: chunk.ordinal,
-              section: chunk.section,
-              locator: chunk.locator,
-              startOffset: chunk.start,
-              endOffset: chunk.end,
-              offsetUnit: 'UTF-16',
+              ...passageMetadata(chunk),
+              extractionId: extraction.id,
+              structureHash: extraction.structure.structureHash,
+              textHash: extraction.structure.textHash,
+              previousPassageId: chunk.ordinal
+                ? `${CHUNKER_VERSION}:${extraction.id}:${chunk.ordinal - 1}`
+                : null,
+              nextPassageId:
+                chunk.ordinal + 1 < chunks.length
+                  ? `${CHUNKER_VERSION}:${extraction.id}:${chunk.ordinal + 1}`
+                  : null,
               fiscalYear: 2026,
             };
             if (args.commit) {
               await save(cursor); // Renew before the bounded provider request; all writes are fenced.
-              const outcome = await embedAndUpsert(
+              const outcome = await embedBillPassage!(
                 prisma,
                 {
                   tenantId: null,
@@ -149,17 +199,9 @@ export async function main(argv = process.argv.slice(2)) {
                   sourceId,
                   text: indexedText,
                   bypassRls: true,
-                  beforeWrite: async (tx) =>
-                    (
-                      await tx.$queryRawUnsafe<unknown[]>(
-                        `SELECT 1 FROM federal_evidence_checkpoint
-              WHERE source=$1 AND lease_token=$2::uuid AND lease_until>clock_timestamp() FOR UPDATE`,
-                        source,
-                        token,
-                      )
-                    ).length === 1,
+                  beforeWrite: fence,
                 },
-                provider,
+                provider!,
               );
               const updated = await prisma.$transaction(async (tx) => {
                 await tx.$executeRawUnsafe("SET LOCAL app.bypass_rls='on'");
@@ -175,7 +217,7 @@ export async function main(argv = process.argv.slice(2)) {
               WHERE tenant_id IS NULL AND source_type=$1 AND source_id=$2 AND model=$3 AND content_hash=$5`,
                   sourceType,
                   sourceId,
-                  provider.metadata.model,
+                  provider!.metadata.model,
                   JSON.stringify(metadata),
                   sha256(indexedText),
                 );
@@ -185,7 +227,7 @@ export async function main(argv = process.argv.slice(2)) {
             } else counts.skipped++;
             processed++;
             advanced = true;
-            await save({ id: doc.id, chunk: chunk.ordinal });
+            await save({ id: doc.id, chunk: chunk.ordinal, extractionId: extraction.id });
           }
           if (processed >= args.limit) break;
           // Lexicographic successor excludes the completed document without discarding a partial one.
@@ -202,7 +244,9 @@ export async function main(argv = process.argv.slice(2)) {
           processed,
           scanned,
           nextCursor: encodeCursor(cursor),
-          unsupportedDocuments: 'excluded; audit separately; not complete text coverage',
+          phase: args.phase,
+          coverage:
+            'Counts are this bounded pass; query version coverage for total complete/partial/failed state',
         }),
       );
       return counts;
@@ -222,7 +266,7 @@ export async function main(argv = process.argv.slice(2)) {
     );
     if (!rows.length) {
       console.log(JSON.stringify({ source, status: 'leased_elsewhere' }));
-      return;
+      throw Error('BILL_TEXT_LEASE_NOT_ACQUIRED');
     }
     leased = true;
     cursor = rows[0]!.cursor ?? { id: '', chunk: -1 };
@@ -245,7 +289,7 @@ export async function main(argv = process.argv.slice(2)) {
 if (require.main === module) {
   if (process.argv.includes('--help') || process.argv.includes('-h')) {
     console.log(
-      'Usage: embed-bill-passages --source federal|state [--limit 1..1000] [--after cursor] [--commit --expected-host host] (requires DATABASE_URL; dry run by default)',
+      'Usage: embed-bill-passages --source federal|state [--phase extract|embed] [--limit 1..1000] [--after cursor] [--commit --expected-host host] (requires DATABASE_URL; dry run by default)',
     );
     process.exit(0);
   } else if (!process.env.DATABASE_URL) {

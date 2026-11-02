@@ -5,6 +5,9 @@ import { XMLParser } from 'fast-xml-parser';
 import type { AppConfig } from '../../config/config.schema.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { fetchJson, redactSecrets } from '../../meri/sources/http.js';
+import {
+  byteHash, decodeFederalUtf8, readFederalBytes, type FederalOriginalBytes,
+} from '../../ingestion/federal-document-bytes.js';
 import { TokenBucket } from './rate-limiter.js';
 
 const GOVINFO_API_ROOT = 'https://api.govinfo.gov/';
@@ -103,6 +106,7 @@ export interface GovInfoPackageRow {
 export type FederalEvidenceCollection = 'BILLS' | 'CRPT' | 'CPRT' | 'PLAW' | 'CREC';
 
 export interface FederalEvidencePackageText {
+  originalBytes?: FederalOriginalBytes;
   packageId: string;
   raw: string;
   text: string;
@@ -310,11 +314,18 @@ export class GovInfoService {
           : null;
     if (!selected)
       throw new ServiceUnavailableException(`No qualified text available for ${packageId}`);
-    const raw = await this.fetchText(selected.url);
+    const snapshot = await this.fetchTextSnapshot(selected.url);
+    const raw = decodeFederalUtf8(snapshot.bytes, snapshot.mime);
+    const originalBytes = {
+      base64: snapshot.bytes.toString('base64'),
+      sha256: byteHash(snapshot.bytes),
+      mime: snapshot.mime,
+    };
     const text = selected.format === 'htm' ? stripHtmlTags(raw) : raw;
     if (!text.trim()) throw new ServiceUnavailableException(`Empty federal text for ${packageId}`);
     return {
       packageId,
+      originalBytes,
       raw,
       text,
       format: selected.format,
@@ -502,6 +513,27 @@ export class GovInfoService {
       update: { response: sanitized as object, fetchedAt: new Date() },
     });
     return sanitized;
+  }
+
+  private async fetchTextSnapshot(link: string): Promise<{ bytes: Buffer; mime: string }> {
+    const key = this.requireKey();
+    const url = new URL(link);
+    if (url.protocol !== 'https:' ||
+        !['www.govinfo.gov', 'api.govinfo.gov', 'govinfo.gov'].includes(url.hostname) ||
+        url.username || url.password)
+      throw new ServiceUnavailableException('Unqualified GovInfo text URL');
+    url.searchParams.set('api_key', key);
+    await this.limiter.acquire();
+    const signal = AbortSignal.timeout(30000);
+    const response = await fetch(url.toString(), { signal, redirect: 'error' });
+    if (!response.ok) {
+      void response.body?.cancel().catch(() => {});
+      throw new ServiceUnavailableException(`GovInfo text fetch failed (${response.status})`);
+    }
+    return {
+      bytes: await readFederalBytes(response, signal),
+      mime: response.headers.get('content-type') ?? 'application/octet-stream',
+    };
   }
 
   /** Fetch raw text (e.g. bill XML) through the rate limiter, with api_key auth. */

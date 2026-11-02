@@ -52,7 +52,7 @@ describe('immutable document bytes and source observations on PostgreSQL', () =>
     >`SELECT state_record_id FROM published_record_source_observation WHERE source_key=${`state:${billKey}:document:legiscan:supplement:${providerId}`} ORDER BY id`;
     expect(trail.map((r) => r.state_record_id)).toEqual([rows[0]!.id, rows[1]!.id, rows[0]!.id]);
     expect((rows[0]!.evidence as { parserVersion: string }).parserVersion).toBe(
-      'utf8-normalized-character-locators-v1',
+      'bill-structure-v1',
     );
   });
   it('rejects wrong bill, unqualified document identity, invalid provider hash and unreadable text encoding', async () => {
@@ -65,9 +65,15 @@ describe('immutable document bytes and source observations on PostgreSQL', () =>
     await expect(
       persistDocumentEvidence(p, billKey, { ...doc('Wrong'), text_hash: '0'.repeat(32) }, stub),
     ).rejects.toThrow('DOCUMENT_PROVIDER_HASH_MISMATCH');
-    await expect(
-      documentEvidence(doc('\uFFFD'), { billId: providerId, docId: providerId }),
-    ).rejects.toThrow('DOCUMENT_TEXT_ENCODING_UNQUALIFIED');
+    const unreadable = await documentEvidence(doc('\uFFFD'), {
+      billId: providerId,
+      docId: providerId,
+    });
+    expect(unreadable.evidence).toMatchObject({
+      extractionState: 'unreadable',
+      sections: [],
+      structure: { warnings: ['DOCUMENT_TEXT_ENCODING_UNQUALIFIED'] },
+    });
     expect(await p.stateBillPublishedRecord.count({ where: { billKey } })).toBe(2);
   });
   it('labels unavailable content and blank text without claiming usable evidence', async () => {
@@ -82,5 +88,19 @@ describe('immutable document bytes and source observations on PostgreSQL', () =>
     });
     const blank = await documentEvidence(doc('   '), { billId: providerId, docId: providerId });
     expect(blank.evidence.extractionState).toBe('unreadable');
+  });
+  it('retains provider-validated bad text bytes as unreadable for later reprocessing', async () => {
+    const invalid = doc('\uFFFD');
+    expect(await persistDocumentEvidence(p, billKey, invalid, stub)).toBe('unreadable');
+    const rows = await p.stateBillPublishedRecord.findMany({
+      where: { billKey, kind: 'document' },
+    });
+    const failed = rows
+      .map((r) => r.evidence as any)
+      .find((e) => e.extractionState === 'unreadable');
+    expect(failed.contentSnapshotBase64).toBe(invalid.doc);
+    expect(failed.structure.sections).toEqual([]);
+    expect(failed.structure.text).toBe('');
+    expect(rows).toHaveLength(3);
   });
 });

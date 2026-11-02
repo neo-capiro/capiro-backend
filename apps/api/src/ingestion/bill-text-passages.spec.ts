@@ -21,7 +21,7 @@ describe('FY26 bill parent admission', () => {
 describe('complete immutable text passages', () => {
   it('round-trips long Unicode text without splitting astral characters or truncating short tails', () => {
     const text = 'a'.repeat(5999) + '😀' + 'b'.repeat(6001) + 'the end';
-    const rows = passages([{ locator: 'page:1', text }]);
+    const rows = passages([{ locator: 'page:1', text }], 6000, 0);
     expect(rows.map((p) => p.text).join('')).toBe(text);
     for (const row of rows) {
       expect(row.text).toBe(text.slice(row.start, row.end));
