@@ -10,11 +10,14 @@
 --
 -- This expression index turns the window into an index condition for the count
 -- and the page, and lets the per-mailbox coverage aggregate (count, oldest,
--- newest) read the same expression from the index; thread_id rides along so the
--- owned-thread visibility join needs no heap visit. The earlier two-column
--- index stays until this one is verified valid in production; it is then
--- redundant and can be dropped CONCURRENTLY in its own single-statement
--- migration.
+-- newest) run as an Index Only Scan: thread_id rides along for the owned-thread
+-- visibility join, and received_at/sent_at because min/max(COALESCE(...)) read
+-- the columns, not the indexed expression (review of #415: with thread_id alone
+-- coverage still fetched all 37k heap tuples, 7,479 buffers; with the three
+-- columns and a set visibility map it is 0 heap fetches, 430 buffers, 16 ms).
+-- The earlier two-column index stays until this one shows idx_scan use in
+-- production; it is then redundant and can be dropped CONCURRENTLY in its own
+-- single-statement migration.
 --
 -- Exactly one statement: Prisma sends a migration file as one script, which
 -- Postgres runs as an implicit transaction, and CREATE INDEX CONCURRENTLY is
@@ -25,11 +28,12 @@
 -- an INVALID index:
 --   SELECT indexrelid::regclass FROM pg_index WHERE NOT indisvalid;
 -- and DROP INDEX CONCURRENTLY any listed name before re-running. Then run
---   ANALYZE mail_messages;
--- once: the planner currently estimates the largest mailbox at 5.9k rows
--- against 37k stored.
+--   VACUUM (ANALYZE) mail_messages;
+-- once: the Index Only Scan needs the visibility map set (a plain index build
+-- does not set it), and the planner currently estimates the largest mailbox at
+-- 5.9k rows against 37k stored.
 
 CREATE INDEX CONCURRENTLY IF NOT EXISTS mail_messages_tenant_connection_activity_idx
   ON mail_messages (tenant_id, connection_id, (COALESCE(received_at, sent_at)) DESC NULLS LAST)
-  INCLUDE (thread_id)
+  INCLUDE (thread_id, received_at, sent_at)
   WHERE removed_at IS NULL;

@@ -111,7 +111,7 @@ function mailReadClientVisibility() {
 
 /** The stored-mail window and ordering expression. It must stay textually identical to the
  * expression of mail_messages_tenant_connection_activity_idx (migration
- * 20281102110000) so the window is an index condition, not a heap filter over the mailbox. */
+ * 20281102130000) so the window is an index condition, not a heap filter over the mailbox. */
 export const MAIL_ACTIVITY_AT = 'COALESCE(m.received_at, m.sent_at)';
 const activityAt = Prisma.raw(MAIL_ACTIVITY_AT);
 
@@ -171,9 +171,10 @@ export function mailReadPageSql(where: Prisma.Sql, limit: number, offset: number
       LIMIT ${limit} OFFSET ${offset}
     `;
 }
-/** One aggregate pass per owned mailbox over the activity index joined to the owned-thread cover
- * index: count, oldest and newest visible stored messages. The previous per-message EXISTS probe
- * into mail_threads walked the whole mailbox once per read, whatever the window. */
+/** One aggregate pass per owned mailbox as an Index Only Scan of the activity index (its INCLUDE
+ * carries thread_id, received_at and sent_at) joined to the owned-thread cover index: count, oldest
+ * and newest visible stored messages. The previous per-message EXISTS probe into mail_threads
+ * walked the whole mailbox from the heap once per read, whatever the window. */
 export function mailReadCoverageSql(ctx: TenantContext, mailboxList?: Prisma.Sql[]) {
   return Prisma.sql`
       SELECT c.account_email::text AS account_email, c.id::text AS connection_id,

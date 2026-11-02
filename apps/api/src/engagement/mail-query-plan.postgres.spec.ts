@@ -18,7 +18,7 @@ import {
  * condition and the lateral coverage aggregate into one join without a per-message subplan.
  */
 const configPath = process.env.MERI_APPROVED_MEMORY_PG_CONFIG;
-const MIGRATION = join(__dirname, '../../prisma/migrations/20281102110000_mail_messages_owned_connection_activity/migration.sql');
+const MIGRATION = join(__dirname, '../../prisma/migrations/20281102130000_mail_messages_owned_connection_activity/migration.sql');
 const TENANT = '00000000-0000-4000-8000-00000000000a', USER = '00000000-0000-4000-8000-00000000000b';
 const MAILBOX = '00000000-0000-4000-8000-00000000000c', OTHER_MAILBOX = '00000000-0000-4000-8000-00000000000d';
 const ctx = { tenantId: TENANT, userId: USER } as unknown as TenantContext;
@@ -113,7 +113,8 @@ const messageScan = (plan: PlanNode[]) => plan.find(n => n['Relation Name'] === 
     await prisma.$executeRawUnsafe(statement.replace(/;\s*$/u, ''));
     const valid = await prisma.$queryRaw<Array<{ indisvalid: boolean }>>`SELECT indisvalid FROM pg_index WHERE indexrelid = 'mail_messages_tenant_connection_activity_idx'::regclass`;
     assert.deepEqual(valid, [{ indisvalid: true }]);
-    await prisma.$executeRawUnsafe('ANALYZE mail_messages');
+    // The release step: a plain index build leaves the visibility map unset, and an Index Only Scan needs it.
+    await prisma.$executeRawUnsafe('VACUUM (ANALYZE) mail_messages');
     const { count, page, coverage } = statements();
     for (const sql of [count, page]) {
       const plan = await explain(prisma, sql);
@@ -128,6 +129,13 @@ const messageScan = (plan: PlanNode[]) => plan.find(n => n['Relation Name'] === 
     assert.equal(plan.some(n => n['Parent Relationship'] === 'SubPlan' && nodes(n).some(m => m['Relation Name'] === 'mail_threads')), false,
       'coverage no longer probes mail_threads once per stored message');
     assert.ok(plan.some(n => n['Relation Name'] === 'mail_threads' && n['Parent Relationship'] !== 'SubPlan'), 'threads are joined once');
+    // Review of #415: with INCLUDE (thread_id) alone the aggregate still fetched every heap tuple for received_at/sent_at.
+    const coverageScan = messageScan(plan);
+    assert.equal(coverageScan['Node Type'], 'Index Only Scan', `coverage reads the mailbox from the index alone, got ${coverageScan['Node Type']}`);
+    assert.equal(coverageScan['Index Name'], 'mail_messages_tenant_connection_activity_idx');
+    const analyzed = await prisma.$queryRaw<Array<{ 'QUERY PLAN': Array<{ Plan: PlanNode }> }>>(Prisma.sql`EXPLAIN (ANALYZE, FORMAT JSON) ${coverage}`);
+    const executed = messageScan(nodes(analyzed[0]!['QUERY PLAN'][0]!.Plan));
+    assert.equal(Number(executed['Heap Fetches']), 0, 'the visibility map is set, so no heap fetch');
     const result = await prisma.$queryRaw<Array<{ connection_id: string; synced_messages: number; oldest_synced: Date | null; newest_synced: Date | null }>>(coverage);
     assert.equal(result.length, 1); assert.equal(result[0]!.connection_id, MAILBOX);
     assert.equal(result[0]!.synced_messages, 20000);

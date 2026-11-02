@@ -169,11 +169,10 @@ describe('canonical mailbox query', () => {
   it('binds the time window on the expression the activity index carries and aggregates coverage once per mailbox', async () => {
     const h = makeService({});
     await h.searchEmails(CTX, { withinDays: 2, asOf: '2026-11-02T03:36:54Z' }, { authorizedMailboxIds: [clientId] });
-    const migration = readFileSync(join(__dirname, '../../prisma/migrations/20281102110000_mail_messages_owned_connection_activity/migration.sql'), 'utf8');
-    const indexExpression = /ON mail_messages \(tenant_id, connection_id, \((COALESCE\(received_at, sent_at\))\) DESC NULLS LAST\)\s+INCLUDE \(thread_id\)\s+WHERE removed_at IS NULL/.exec(migration);
+    const migration = readFileSync(join(__dirname, '../../prisma/migrations/20281102130000_mail_messages_owned_connection_activity/migration.sql'), 'utf8');
+    const indexExpression = /ON mail_messages \(tenant_id, connection_id, \((COALESCE\(received_at, sent_at\))\) DESC NULLS LAST\)\s+INCLUDE \(thread_id, received_at, sent_at\)\s+WHERE removed_at IS NULL/.exec(migration);
     expect(indexExpression?.[1]).toBe(MAIL_ACTIVITY_AT.replaceAll('m.', ''));
     const statement = migration.split('\n').filter(line => !line.startsWith('--')).join('\n').trim();
-    expect(statement.split(';').filter(part => part.trim())).toHaveLength(1);
     expect(statement.split(';').filter(part => part.trim())).toHaveLength(1);
     expect(migration).toContain('CREATE INDEX CONCURRENTLY IF NOT EXISTS mail_messages_tenant_connection_activity_idx');
     const [countSql, pageSql, coverageSql] = [0, 1, 2].map(call => (h.queryRaw.mock.calls[call]![0] as Prisma.Sql).sql);
