@@ -806,5 +806,53 @@
     "service": "core",
     "method": "POST",
     "path": "/api/engagement/integrations/google/:connectionId/calendar-commands"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clients/:clientId/objectives",
+    "owner": "Objective intake and editor save (portfolio objectives writer)"
+  },
+  {
+    "service": "core",
+    "method": "PATCH",
+    "path": "/api/clients/:clientId/objectives",
+    "owner": "Objective editor update (portfolio objectives writer, ?objectiveId=)"
+  },
+  {
+    "service": "core",
+    "method": "DELETE",
+    "path": "/api/clients/:clientId/objectives",
+    "owner": "Objective list delete (portfolio objectives writer, ?objectiveId=)"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clients/:clientId/objectives/transition",
+    "owner": "Objective ready and review transition (portfolio objectives writer)"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clients/:clientId/objectives/:objectiveId/generation/commands",
+    "owner": "Objective Planner continuation consent existing FE operation"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clients/:clientId/objectives/:objectiveId/questions",
+    "owner": "Objective Questions existing FE operation"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clients/:clientId/objectives/:objectiveId/questions/evidence/document-history",
+    "owner": "Objective Question evidence existing FE operation"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clients/:clientId/objectives/:objectiveId/questions/evidence/preview",
+    "owner": "Objective Question evidence existing FE operation"
   }
 ]

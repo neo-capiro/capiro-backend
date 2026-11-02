@@ -31,7 +31,7 @@ test('personal Portfolio order uses the existing exact Core PUT rule without bro
     ]);
     const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule')
       .map((resource) => resource.Properties).sort((a, b) => a.Priority - b.Priority);
-    assert.equal(rules.length, 95);
+    assert.equal(rules.length, 99);
     const pathname = '/api/me/portfolio-layout';
     for (const method of ['PUT', 'GET', 'HEAD'])
       assert.deepEqual(routeDestination(rules, method, pathname), { Ref: 'CoreTarget' });
@@ -682,7 +682,7 @@ test('client capability create admits only the canonical lowercase-UUID POST rou
     // Every earlier rule keeps its accepted priority.
     assert.equal(edge.Resources.PublicNewsletterCapabilityPosts.Properties.Priority, 88);
     assert.equal(edge.Resources.CoreInternalOnboardingTenants.Properties.Priority, 92);
-    assert.equal(Math.max(...rules.map((rule) => Number(rule.Priority))), 95);
+    assert.equal(Math.max(...rules.map((rule) => Number(rule.Priority))), 99);
   }));
 
 test('Meri governed action proposals admit only the exact Core proposal POST routes on the preview host', () =>
@@ -743,6 +743,58 @@ test('Meri governed action proposals admit only the exact Core proposal POST rou
     // Every earlier rule keeps its accepted priority.
     assert.equal(edge.Resources.ClientCapabilityCreate.Properties.Priority, 93);
     assert.equal(edge.Resources.ClientCapabilityUpdate.Properties.Priority, 94);
+  }));
+
+test('Objective record, Planner-consent and Questions writes reach preview Core; neighbors stay at the 404', () =>
+  render(false, (edge) => {
+    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule')
+      .map((r) => r.Properties)
+      .sort((a, b) => Number(a.Priority) - Number(b.Priority));
+    // Until 2 Nov 2026 the edge forwarded only the Strategy-intake command: saving, readying or deleting an
+    // Objective, consenting to its Planner continuation and answering its Questions all met the fixed 404, so
+    // no Objective could reach generation. The writer sends the record id as `?objectiveId=`, outside the path.
+    const client = '/api/clients/11111111-1111-4111-8111-111111111111/objectives';
+    const objective = `${client}/22222222-2222-4222-8222-222222222222`;
+    const admitted: [string, string][] = [
+      ['POST', client],
+      ['PATCH', client],
+      ['DELETE', client],
+      ['POST', `${client}/transition`],
+      ['POST', `${objective}/generation/commands`],
+      ['POST', `${objective}/generation/strategy-commands`],
+      ['POST', `${objective}/questions`],
+      ['POST', `${objective}/questions/evidence/document-history`],
+      ['POST', `${objective}/questions/evidence/preview`],
+    ];
+    for (const [method, pathname] of admitted) {
+      assert.deepEqual(routeDestination(rules, method, pathname), { Ref: 'CoreTarget' }, `${method} ${pathname}`);
+      for (const hostname of ['app.capiro.ai', 'arbitrary.invalid'])
+        assert.equal(routeDestination(rules, method, pathname, hostname), null, hostname);
+    }
+    for (const method of ['PUT', 'OPTIONS', 'TRACE'])
+      assert.equal(routeDestination(rules, method, client), null, method);
+    const rejected: [string, string][] = [
+      ['PUT', `${objective}/generation/commands`],
+      ['PATCH', `${client}/transition`],
+      ['DELETE', `${objective}/questions`],
+      ['POST', `${client}/`],
+      ['POST', `${client}/transition/extra`],
+      ['POST', `${objective}`],
+      ['POST', `${objective}/generation/confirm-pair`],
+      ['POST', `${objective}/generation/commands/extra`],
+      ['POST', `${objective}/questions/evidence`],
+      ['POST', `/extra${client}`],
+    ];
+    for (const [method, pathname] of rejected)
+      assert.equal(routeDestination(rules, method, pathname), null, `${method} ${pathname}`);
+    // Every earlier rule keeps its accepted priority; the four groups are appended after the proposals.
+    assert.equal(edge.Resources.MeriActionProposals.Properties.Priority, 95);
+    assert.deepEqual(
+      ['ObjectiveRecordPosts', 'ObjectiveRecordUpdate', 'ObjectiveRecordDelete', 'ObjectiveQuestionPosts'].map(
+        (id) => edge.Resources[id].Properties.Priority,
+      ),
+      [96, 97, 98, 99],
+    );
   }));
 
 test('client capability update admits only the canonical two-UUID PATCH route on the preview host', () =>

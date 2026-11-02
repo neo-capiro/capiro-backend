@@ -779,6 +779,42 @@
         "^/api/clio/action-proposals$",
         "^/api/clio/action-proposals/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/(approve|dismiss)$"
       ]
+    },
+    {
+      "id": "ObjectiveRecordPosts",
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/clients/[A-Za-z0-9_-]+/objectives$",
+        "^/api/clients/[A-Za-z0-9_-]+/objectives/transition$",
+        "^/api/clients/[A-Za-z0-9_-]+/objectives/[A-Za-z0-9_-]+/generation/commands$"
+      ]
+    },
+    {
+      "id": "ObjectiveRecordUpdate",
+      "service": "core",
+      "method": "PATCH",
+      "pathRegexes": [
+        "^/api/clients/[A-Za-z0-9_-]+/objectives$"
+      ]
+    },
+    {
+      "id": "ObjectiveRecordDelete",
+      "service": "core",
+      "method": "DELETE",
+      "pathRegexes": [
+        "^/api/clients/[A-Za-z0-9_-]+/objectives$"
+      ]
+    },
+    {
+      "id": "ObjectiveQuestionPosts",
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/clients/[A-Za-z0-9_-]+/objectives/[A-Za-z0-9_-]+/questions$",
+        "^/api/clients/[A-Za-z0-9_-]+/objectives/[A-Za-z0-9_-]+/questions/evidence/document-history$",
+        "^/api/clients/[A-Za-z0-9_-]+/objectives/[A-Za-z0-9_-]+/questions/evidence/preview$"
+      ]
     }
   ]
 }
