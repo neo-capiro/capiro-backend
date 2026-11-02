@@ -12,6 +12,8 @@ import { RecordingStorageService } from './recording-storage.service.js';
 import {
   MAX_RECORDING_BYTES,
   VIDEO_RECORDING_MIME,
+  isVideoRecordingMime,
+  normalizeRecordingMime,
   recordingContentType,
 } from './recording-media.js';
 import {
@@ -149,7 +151,7 @@ export class HearingRecordingService {
     await this.sessions.assertCaptureSourceAllowed(tenantId, session.hearingId, session.sourceUrl);
     if (session.recordingPolicy !== 'audio_and_transcript')
       throw new BadRequestException('This session does not retain audio');
-    const video = mimeType === VIDEO_RECORDING_MIME;
+    const video = isVideoRecordingMime(mimeType);
     const grant = await this.permissions.require(tenantId, session, video);
     if (video && !grant.operations.includes('video_retention'))
       throw new BadRequestException('Video requires an explicit video retention grant');
@@ -197,7 +199,7 @@ export class HearingRecordingService {
         orderBy: { startMs: 'desc' },
       });
       if (previous?.captureToken.getTime() === captureToken.getTime()) {
-        if (previous.mimeType !== mimeType)
+        if (normalizeRecordingMime(previous.mimeType) !== normalizeRecordingMime(mimeType))
           throw new ConflictException('Recording media negotiation changed');
         return {
           tenantId,
@@ -284,7 +286,7 @@ export class HearingRecordingService {
       epoch.recording.expiresAt <= new Date() ||
       !grant ||
       !permissionAllowsRecording(grant, epoch.recording.session) ||
-      (epoch.mimeType === VIDEO_RECORDING_MIME && !grant.operations.includes('video_retention'))
+      (isVideoRecordingMime(epoch.mimeType) && !grant.operations.includes('video_retention'))
     )
       throw new ConflictException('Recording permission or retention expired');
     return epoch;
@@ -294,7 +296,7 @@ export class HearingRecordingService {
   async authorizeTranscription(capture: RecordingCapture) {
     await this.actor(capture.tenantId, capture.userId, async (tx) => {
       const epoch = await this.activeEpoch(tx, capture);
-      if (epoch.mimeType !== VIDEO_RECORDING_MIME)
+      if (!isVideoRecordingMime(epoch.mimeType))
         throw new BadRequestException('Separate transcription requires a video epoch');
     });
   }
@@ -305,7 +307,7 @@ export class HearingRecordingService {
     const { tenantId, userId, epochId } = capture;
     const checkpoint = await this.actor(tenantId, userId, async (tx) => {
       const epoch = await this.activeEpoch(tx, capture);
-      if ((epoch.mimeType === VIDEO_RECORDING_MIME) !== (magic === 'LWV5'))
+      if (isVideoRecordingMime(epoch.mimeType) !== (magic === 'LWV5'))
         throw new BadRequestException('Frame lane does not match recording media');
       const existing = await tx.hearingRecordingPart.findFirst({
         where: { tenantId, epochId, sequence: part.sequence },
@@ -535,7 +537,7 @@ export class HearingRecordingService {
           playable:
             !expired &&
             permissionAvailable &&
-            (epoch.mimeType !== VIDEO_RECORDING_MIME || videoPermissionAvailable) &&
+            (!isVideoRecordingMime(epoch.mimeType) || videoPermissionAvailable) &&
             epoch.state === 'ready' &&
             Boolean(epoch.artifactKey),
         })),
@@ -578,7 +580,7 @@ export class HearingRecordingService {
         row.recording.permissionId,
       );
       return grant &&
-        (row.mimeType !== VIDEO_RECORDING_MIME || grant.operations.includes('video_retention'))
+        (!isVideoRecordingMime(row.mimeType) || grant.operations.includes('video_retention'))
         ? row
         : null;
     });

@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import {
   AUDIO_RECORDING_MIMES,
   VIDEO_RECORDING_MIME,
+  isVideoRecordingMime,
   recordingContentType,
   recordingMaps,
   recordingProbe,
@@ -32,6 +33,12 @@ it('does not declare an audio-only or unsupported artifact to be video', () => {
   for (const mime of AUDIO_RECORDING_MIMES) expect(recordingContentType(mime)).toBe('audio/webm');
   expect(recordingContentType(VIDEO_RECORDING_MIME)).toBe('video/webm');
   expect(() => recordingContentType('video/webm')).toThrow();
+  // Earlier epochs stored the browser's raw, case-insensitively accepted string.
+  for (const stored of ['Audio/WebM;codecs=OPUS', 'AUDIO/WEBM'])
+    expect([recordingContentType(stored), isVideoRecordingMime(stored)]).toEqual(['audio/webm', false]);
+  expect(recordingMaps('Audio/WebM')).toEqual(['-map', '0:a:0', '-vn']);
+  expect(recordingProbe('Audio/WebM;Codecs=Opus', audio)).toBe(1000);
+  expect(isVideoRecordingMime('Video/WebM;codecs=VP8,Opus')).toBe(true);
   const av = {
     ...audio,
     streams: [

@@ -4,9 +4,19 @@ export const TRANSCRIPTION_MIME = 'audio/webm;codecs=opus';
 export const MAX_RECORDING_BYTES = 1024 * 1024 * 1024;
 export const AUDIO_RECORDING_MIMES = new Set(['audio/webm', TRANSCRIPTION_MIME]);
 
+/** MIME types are case-insensitive, and earlier epochs stored the browser's raw string. */
+export function normalizeRecordingMime(mimeType: string) {
+  return mimeType.toLowerCase();
+}
+
+export function isVideoRecordingMime(mimeType: string) {
+  return normalizeRecordingMime(mimeType) === VIDEO_RECORDING_MIME;
+}
+
 export function recordingContentType(mimeType: string): 'video/webm' | 'audio/webm' {
-  if (mimeType === VIDEO_RECORDING_MIME) return 'video/webm';
-  if (AUDIO_RECORDING_MIMES.has(mimeType)) return 'audio/webm';
+  const normalized = normalizeRecordingMime(mimeType);
+  if (normalized === VIDEO_RECORDING_MIME) return 'video/webm';
+  if (AUDIO_RECORDING_MIMES.has(normalized)) return 'audio/webm';
   throw new Error('Unsupported recording media type');
 }
 

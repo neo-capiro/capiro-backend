@@ -25,6 +25,18 @@ describe('retained hearing audio status and access', () => {
     expect(storage.playbackUrl).toHaveBeenCalledTimes(1);
   });
 
+  it('serves a historical epoch whose raw browser MIME was stored in mixed case', async () => {
+    const { service, tx, recording, storage } = setup();
+    recording.epochs[0]!.mimeType = 'Audio/WebM;codecs=OPUS';
+    tx.hearingRecordingEpoch.findFirst.mockResolvedValue({ ...recording.epochs[0], recording });
+    const manifest = await service.manifest(tenantId, sessionId, userId);
+    expect(JSON.stringify(manifest)).toContain('"mimeType":"audio/webm"');
+    await expect(service.playback(tenantId, sessionId, userId, 'epoch')).resolves.toMatchObject({
+      mimeType: 'audio/webm',
+    });
+    expect(storage.playbackUrl).toHaveBeenCalledWith('private/audio.webm', 60, 'audio/webm');
+  });
+
   function setup() {
     const session = {
       id: sessionId,

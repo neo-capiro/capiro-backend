@@ -14,7 +14,7 @@ import {
   stateCaptureEnabled,
 } from '../state-capture-policy.js';
 import { RecordingStorageService } from './recording-storage.service.js';
-import { VIDEO_RECORDING_MIME } from './recording-media.js';
+import { isVideoRecordingMime } from './recording-media.js';
 import { pcmWave } from '../capture/public-hearing-audio.store.js';
 import { globalPublicAudioSource } from '../capture/global-public-audio-policy.js';
 import {
@@ -118,7 +118,7 @@ export class TranscriptionRecoveryWorker {
         permissionId: epoch.recording.permissionId,
         artifactKey: epoch.artifactKey,
         artifactHash: epoch.artifactHash,
-        video: epoch.mimeType === VIDEO_RECORDING_MIME,
+        video: isVideoRecordingMime(epoch.mimeType),
         startMs: epoch.startMs,
         durationMs: epoch.decodedDurationMs,
         sampleRate: 16000,

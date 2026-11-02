@@ -24,6 +24,7 @@ import {
   VIDEO_RECORDING_MIME,
   TRANSCRIPTION_MIME,
   AUDIO_RECORDING_MIMES,
+  normalizeRecordingMime,
 } from './recording/recording-media.js';
 import type {
   ClientWsMessage,
@@ -325,13 +326,15 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       });
       return;
     }
+    const negotiatedMime = typeof mimeType === 'string' ? normalizeRecordingMime(mimeType) : null;
     if (
-      typeof mimeType !== 'string' ||
+      negotiatedMime === null ||
       (video
-        ? mimeType !== VIDEO_RECORDING_MIME ||
-          transcriptionMimeType !== TRANSCRIPTION_MIME ||
+        ? negotiatedMime !== VIDEO_RECORDING_MIME ||
+          typeof transcriptionMimeType !== 'string' ||
+          normalizeRecordingMime(transcriptionMimeType) !== TRANSCRIPTION_MIME ||
           displaySurface !== 'browser'
-        : !AUDIO_RECORDING_MIMES.has(mimeType))
+        : !AUDIO_RECORDING_MIMES.has(negotiatedMime))
     ) {
       this.send(conn.ws, {
         type: 'error',
@@ -409,7 +412,7 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
         conn.sessionId,
         conn.userId,
         claim.startedAt,
-        mimeType,
+        negotiatedMime,
       );
       conn.timelineOffsetMs = conn.recording.startMs;
       this.send(conn.ws, {
@@ -418,7 +421,7 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
         epochId: conn.recording.epochId,
         startMs: conn.recording.startMs,
         recordingProtocol,
-        mimeType,
+        mimeType: negotiatedMime,
       });
     }
     if (conn.state !== 'starting') return;

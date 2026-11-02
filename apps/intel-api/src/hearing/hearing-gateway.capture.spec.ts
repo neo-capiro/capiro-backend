@@ -298,7 +298,10 @@ describe('retained audio retry boundary', () => {
       expect.objectContaining({ code: 'VIDEO_ACKNOWLEDGMENT_REQUIRED' }),
     );
   });
-  it('confirms the exact v2 media contract and original epoch before capture ready', async () => {
+  it.each([
+    ['video/webm;codecs=vp8,opus', 'audio/webm;codecs=opus'],
+    ['Video/WebM;codecs=VP8,Opus', 'Audio/WebM;Codecs=Opus'],
+  ])('confirms the v2 media contract (%s) canonically and the original epoch before capture ready', async (videoMime, transcriptionMime) => {
     jest.useFakeTimers();
     const { gateway, sessions } = makeGateway({
       claimCapture: jest.fn(async () => ({ startedAt: new Date() })),
@@ -315,10 +318,10 @@ describe('retained audio retry boundary', () => {
     try {
       await (gateway as any).startCapture(
         conn,
-        'video/webm;codecs=vp8,opus',
+        videoMime,
         'browser',
         2,
-        'audio/webm;codecs=opus',
+        transcriptionMime,
         true,
       );
       expect(begin).toHaveBeenCalledWith(
