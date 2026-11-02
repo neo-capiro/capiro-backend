@@ -48,7 +48,9 @@ docker run --rm --name "$run_id-runtime" --read-only --network "container:$pg_id
 # The Docker build stage intentionally omits test harness files. Mount only the
 # committed harness from this verified source, read-only, without changing it.
 set --
-for harness in apps/api/jest*.cjs apps/api/jest.setup.ts; do
+for name in jest.config.cjs jest.native-runtime-environment.cjs jest.native-sanitize-html.cjs jest.native-tango.cjs jest.worker-database.cjs jest.setup.ts; do
+  harness="apps/api/$name"
+  test -f "$harness" || { echo "Missing tracked Jest harness: $harness" >&2; exit 1; }
   set -- "$@" --mount "type=bind,src=$(pwd)/$harness,dst=/workspace/$harness,readonly"
 done
 docker run --rm --name "$run_id-tests" --read-only --network "container:$pg_id" --cap-drop ALL \
