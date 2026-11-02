@@ -16,7 +16,7 @@ import { InstitutionalKnowledgeRetrievalAdapter } from './institutional-knowledg
 /**
  * The owner-retention policies of 20281029050000 on top of the memory
  * qualification harness, and the probe-shaped context_embeddings policy of
- * 20281102140000 applied from its migration file. On preview (2 November 2026)
+ * 20281102160000 applied from its migration file. On preview (2 November 2026)
  * every semantic recall expired its transaction: the retention policy's
  * memory_items subquery compared `m.id::text` with the embedding source id, so
  * each embedding probe scanned the tenant's memory items and evaluated
@@ -36,7 +36,7 @@ const dataset = { domain: 'institutional_knowledge' } as SemanticDatasetDescript
 const migrationsDir = resolve(process.cwd(), 'prisma/migrations');
 const retentionMigration = readFileSync(resolve(migrationsDir, '20281029050000_memory_owner_retention/migration.sql'), 'utf8');
 const probeMigration = readFileSync(
-  resolve(migrationsDir, '20281102140000_memory_embedding_retention_policy_probe/migration.sql'),
+  resolve(migrationsDir, '20281102160000_memory_embedding_retention_policy_probe/migration.sql'),
   'utf8',
 );
 
@@ -201,7 +201,7 @@ run('memory embedding retention policy on PostgreSQL with pgvector', () => {
     expect(plan).not.toContain('Index Scan using memory_items_pkey on memory_items m');
   });
 
-  it('20281102140000 applies from its migration file and turns the subquery into a primary-key probe', async () => {
+  it('20281102160000 applies from its migration file and turns the subquery into a primary-key probe', async () => {
     await ddl(migrationStatements(probeMigration));
     const plan = await explain();
     expect(plan).toContain('Index Scan using memory_items_pkey on memory_items m');

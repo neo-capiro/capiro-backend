@@ -483,6 +483,7 @@ test('standard canonical authentication remains mandatory and background/externa
       assert.ok(!secretNames.includes(name));
     assert.equal(e.NODE_ENV, 'production');
     assert.equal(e.MERI_TOOLS_REQUIRE_SERVICE_SECRET, 'true');
+    assert.equal(e.MERIV2_ACTION_PROPOSALS_ENABLED, 'true');
     assert.equal(e.PREVIEW_NATIVE_GETS_ENABLED, 'true');
     for (const n of [
       'MERI_TOOL_ALLOWLIST',

@@ -82,6 +82,9 @@ export const PUBLIC_RELATION_NAMES = Object.freeze([
   'federal_awards',
   'federal_assistance_awards',
   'program_element_years',
+  'federal_grants',
+  'sam_opportunities',
+  'government_forecasts',
 ] as const);
 export const PRIVATE_RELATION_NAMES = Object.freeze([
   'client_objectives',

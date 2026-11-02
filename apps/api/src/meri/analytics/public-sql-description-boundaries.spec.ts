@@ -19,7 +19,7 @@ describe('published SQL description selection', () => {
     if (!result.ok) throw new Error('expected metadata');
     expect(db.describePublic).toHaveBeenCalledTimes(1);
     expect(result.relations.map((relation) => relation.name)).toEqual(names);
-    expect(result.relations).toHaveLength(11);
+    expect(result.relations).toHaveLength(14);
     expect(result.contract).toMatchObject({ version: 'capiro.sql-contract/1', source: 'public' });
     expect(Buffer.byteLength(JSON.stringify(result))).toBeLessThanOrEqual(262144);
   });
