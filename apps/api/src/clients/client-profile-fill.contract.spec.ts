@@ -70,10 +70,11 @@ describe('Fill with Meri architecture contract', () => {
     expect(service).toContain('this.facilities.createFacility');
   });
 
-  it('accepts a drawer website seed, persists it before enrichment, and crawls linked pages', () => {
+  it('keeps a drawer website seed with the run and crawls linked pages without a canonical seed writer', () => {
     expect(controller).toContain('website?: string');
     expect(service).toContain('seedWebsite');
-    expect(service).toContain('maybeSeedWebsite');
+    expect(service).toContain('JSON.stringify({ researchInputVersion: 1, website })');
+    expect(service).not.toContain('maybeSeedWebsite');
     expect(service).toContain('discoverSameOriginPageCandidates');
     expect(service).toContain('fetchPublicPages');
   });

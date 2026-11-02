@@ -23,21 +23,16 @@
  * system (`LiveHearingsService.coverage()`), reused directly for the
  * `hearing` family rather than a second telemetry model.
  *
- * ── the one cross-service read, and why it is safe ──
- *
- * `WatchlistTopic`/`WatchlistTerm` live in intel-api's own Prisma schema, not
- * apps/api's — but both services run against the SAME physical Postgres
- * database (the established disposable-DB testing convention documents this
- * directly), and this codebase already has a precedent for exactly this kind
- * of read: `TrackerWatchlistService.assertClientInTenant` (intel-api) reads
- * apps/api-owned `clients`/`tenant_memberships`/`users` via `withSystem` +
- * raw SQL for the identical reason. This service does the mirror-image read
- * — apps/api reading intel-api-owned `intel_watchlist`/`intel_watchlist_topic`
- * — the same way: `withSystem` (RLS bypass, since intel-api's RLS policies are
- * not guaranteed to exist under apps/api's role) with an explicit
- * `tenant_id = $1` predicate in every query, never omitted.
+ * The selected tracker backend owns configuration: Core uses client_watchlist;
+ * Intelligence uses intel_watchlist topics and terms. Core tags and unmapped
+ * Intelligence criteria are reported explicitly as unsupported configuration.
+ * The existing cross-schema Intelligence read requires both catalogs on the
+ * selected database; deployment must verify target alignment and role access.
+ * Every configuration query has tenant/client predicates. Current membership
+ * and the canonical client wall are checked before and after reading coverage.
  */
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { readTrackerClientScope, trackerMetricsClientId, TrackerMetricsError, type TenantContext, type TrackerMetricsBackend } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { LiveHearingsService } from './live-hearings.service.js';
 
@@ -97,6 +92,8 @@ export interface SignalFamilyCoverage {
 
 export interface WatchlistCoverageResponse {
   clientId: string;
+  backend: TrackerMetricsBackend;
+  configuration: CoverageConfiguration;
   asOf: string;
   overall: {
     coveredConcepts: number;
@@ -116,6 +113,13 @@ export interface WatchlistCoverageResponse {
   recommendations: string[];
 }
 
+interface CoverageConfiguration {
+  model: 'client_watchlist' | 'intel_watchlist'; configured: boolean; complete: boolean;
+  topicCount: number; tagCount: number; flatTermCount: number; issueAreaCount: number;
+  reason: 'CORE_WATCHLIST_MODEL_UNSUPPORTED' | 'UNMAPPED_WATCHLIST_CONFIGURATION' | null;
+}
+type ConfiguredTopics = { topics: Array<{ id: string; label: string; families: SignalFamily[] }>; configuration: CoverageConfiguration };
+
 @Injectable()
 export class LegiWatchWave2CoverageService {
   constructor(
@@ -123,21 +127,39 @@ export class LegiWatchWave2CoverageService {
     private readonly liveHearings: LiveHearingsService,
   ) {}
 
-  async watchlistCoverage(tenantId: string, clientId: string): Promise<WatchlistCoverageResponse> {
-    await this.assertClientInTenant(tenantId, clientId);
-    const asOf = new Date();
+  async watchlistCoverage(ctx: TenantContext, rawClientId: string, backend: TrackerMetricsBackend = 'intelligence'): Promise<WatchlistCoverageResponse> {
+    try {
+      const actor = { ...ctx }, clientId = trackerMetricsClientId(rawClientId);
+      if (!['core', 'intelligence'].includes(backend)) throw new TrackerMetricsError('invalid_request');
+      const before = await this.prisma.withTenant(actor.tenantId, tx => readTrackerClientScope(tx, actor, clientId));
+      const configured = await this.loadConfiguredTopics(actor.tenantId, clientId, backend);
+      const result = await this.calculateCoverage(clientId, backend, configured);
+      const latest = await this.loadConfiguredTopics(actor.tenantId, clientId, backend);
+      const after = await this.prisma.withTenant(actor.tenantId, tx => readTrackerClientScope(tx, actor, clientId));
+      if (before !== after || JSON.stringify(configured) !== JSON.stringify(latest)) throw new TrackerMetricsError('scope_changed');
+      return result;
+    } catch (error) {
+      if (error instanceof TrackerMetricsError && error.reason === 'invalid_request') throw new BadRequestException('Invalid coverage scope');
+      if (error instanceof TrackerMetricsError && error.reason === 'client_not_readable') throw new NotFoundException('Client not found');
+      throw new ServiceUnavailableException({ code: 'WATCHLIST_COVERAGE_UNAVAILABLE',
+        reason: error instanceof TrackerMetricsError ? error.reason : 'source_unavailable', message: 'Watchlist coverage is unavailable. Please retry.' });
+    }
+  }
 
-    const topics = await this.loadConfiguredTopics(tenantId, clientId);
+  private async calculateCoverage(clientId: string, backend: TrackerMetricsBackend, configured: ConfiguredTopics): Promise<WatchlistCoverageResponse> {
+    const asOf = new Date();
+    const { topics, configuration } = configured;
     if (!topics.length) {
       return {
-        clientId,
+        clientId, backend, configuration,
         asOf: asOf.toISOString(),
-        overall: { coveredConcepts: 0, totalConcepts: 0, percentage: null, status: 'NOT_CONFIGURED' },
+        overall: { coveredConcepts: 0, totalConcepts: 0, percentage: null, status: configuration.configured ? 'UNSUPPORTED' : 'NOT_CONFIGURED' },
         concepts: [],
         signalFamilies: [],
         sourceHealth: { healthy: 0, degraded: 0, failing: 0, stale: 0, acceptedExceptions: 0 },
         recommendations: [
-          'No monitoring concepts are configured for this client yet. Configure the watchlist to see coverage.',
+          configuration.configured ? 'The saved watchlist is configured, but its criteria cannot be measured by the monitoring-topic coverage model.' :
+            'No monitoring concepts are configured for this client yet. Configure the watchlist to see coverage.',
         ],
       };
     }
@@ -233,36 +255,25 @@ export class LegiWatchWave2CoverageService {
       acceptedExceptions: hearingFreshness?.acceptedExceptions ?? 0,
     };
 
-    const overallStatus: OverallStatus =
-      coveredConcepts === totalConcepts
-        ? 'COVERED'
-        : concepts.some((c) => c.status === 'UNAVAILABLE')
-          ? 'PARTIAL'
-          : coveredConcepts > 0
-            ? 'PARTIAL'
-            : 'UNSUPPORTED';
+    const overallStatus: OverallStatus = !configuration.complete ? 'PARTIAL' :
+      coveredConcepts === totalConcepts ? 'COVERED' : coveredConcepts > 0 ? 'PARTIAL' :
+        concepts.reduce<ConceptStatus>((status, concept) => worse(status, concept.status), 'COVERED');
 
     return {
-      clientId,
+      clientId, backend, configuration,
       asOf: asOf.toISOString(),
       overall: {
         coveredConcepts,
         totalConcepts,
-        percentage: totalConcepts > 0 ? Math.round((coveredConcepts / totalConcepts) * 100) : null,
+        percentage: configuration.complete && totalConcepts > 0 ? Math.round((coveredConcepts / totalConcepts) * 100) : null,
         status: overallStatus,
       },
       concepts,
       signalFamilies,
       sourceHealth,
-      recommendations: buildRecommendations(concepts),
+      recommendations: [...buildRecommendations(concepts), ...(!configuration.complete ?
+        ['Saved flat terms or issue-area settings are not represented by the topic coverage denominator; a complete percentage is unavailable.'] : [])],
     };
-  }
-
-  private async assertClientInTenant(tenantId: string, clientId: string): Promise<void> {
-    const found = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.client.findFirst({ where: { id: clientId }, select: { id: true } }),
-    );
-    if (!found) throw new NotFoundException('Client not found');
   }
 
   /**
@@ -274,28 +285,56 @@ export class LegiWatchWave2CoverageService {
   private async loadConfiguredTopics(
     tenantId: string,
     clientId: string,
-  ): Promise<Array<{ id: string; label: string; families: SignalFamily[] }>> {
+    backend: TrackerMetricsBackend,
+  ): Promise<ConfiguredTopics> {
+    if (backend === 'core') {
+      const saved = await this.prisma.withTenant(tenantId, tx => tx.clientWatchlist.findFirst({
+        where: { tenantId, clientId }, select: { tags: true, issueAreas: true },
+      }));
+      if (saved && !Array.isArray(saved.tags)) throw new TrackerMetricsError('source_unavailable');
+      const tagCount = saved ? (saved.tags as unknown[]).length : 0, issueAreaCount = saved?.issueAreas.length ?? 0;
+      const configured = tagCount + issueAreaCount > 0;
+      return { topics: [], configuration: { model: 'client_watchlist', configured, complete: !configured,
+        topicCount: 0, tagCount, flatTermCount: 0, issueAreaCount,
+        reason: configured ? 'CORE_WATCHLIST_MODEL_UNSUPPORTED' : null } };
+    }
     const rows = await this.prisma.withSystem((tx) =>
-      tx.$queryRawUnsafe<Array<{ id: string; label: string; termTypes: string[] }>>(
-        `SELECT t.id, t.label,
-                COALESCE(array_agg(DISTINCT term.term_type) FILTER (WHERE term.term_type IS NOT NULL), ARRAY[]::text[]) AS "termTypes"
+      tx.$queryRawUnsafe<Array<{ id: string; label: string; termTypes: string[]; jurisdictions: string[] }>>(
+        `SELECT t.id, t.label, w.jurisdictions,
+                COALESCE(array_agg(DISTINCT term.term_type ORDER BY term.term_type) FILTER (WHERE term.term_type IS NOT NULL), ARRAY[]::text[]) AS "termTypes"
          FROM intel_watchlist_topic t
-         JOIN intel_watchlist w ON w.id = t.watchlist_id
-         LEFT JOIN intel_watchlist_term term ON term.topic_id = t.id
+         JOIN intel_watchlist w ON w.id = t.watchlist_id AND w.tenant_id=t.tenant_id
+         LEFT JOIN intel_watchlist_term term ON term.topic_id = t.id AND term.tenant_id=w.tenant_id AND term.watchlist_id=w.id
          WHERE w.tenant_id = $1 AND w.client_id = $2 AND w.active = true
-         GROUP BY t.id, t.label
-         ORDER BY t.label ASC`,
+         GROUP BY t.id, t.label, w.jurisdictions
+         ORDER BY t.label ASC, t.id ASC`,
         tenantId,
         clientId,
       ),
     );
-    return rows.map((r) => ({
+    const settings = await this.prisma.withSystem(tx => tx.$queryRawUnsafe<Array<{ issueAreas: string[]; flatTermCount: string }>>(
+      `SELECT w.issue_areas AS "issueAreas", count(term.id)::text AS "flatTermCount"
+       FROM intel_watchlist w LEFT JOIN intel_watchlist_term term ON term.watchlist_id=w.id
+         AND term.tenant_id=w.tenant_id AND term.topic_id IS NULL
+       WHERE w.tenant_id=$1 AND w.client_id=$2 AND w.active=true
+       GROUP BY w.id, w.issue_areas ORDER BY w.id`, tenantId, clientId,
+    ));
+    const flatTermCount = settings.reduce((sum, row) => sum + Number(row.flatTermCount), 0);
+    if (!Number.isSafeInteger(flatTermCount) || flatTermCount < 0) throw new TrackerMetricsError('source_unavailable');
+    const issueAreaCount = settings.reduce((sum, row) => sum + row.issueAreas.length, 0);
+    const complete = flatTermCount === 0 && issueAreaCount === 0;
+    const topics = rows.map((r) => ({
       id: r.id,
       label: r.label,
       families: [
-        ...new Set(r.termTypes.flatMap((type) => TERM_TYPE_TO_FAMILIES[type] ?? [])),
+        ...new Set(r.termTypes.flatMap((type): SignalFamily[] => type === 'bill' && r.jurisdictions.length ?
+          [...(r.jurisdictions.includes('US') ? ['bill' as const] : []), ...(r.jurisdictions.some(j => j !== 'US') ? ['state_bill' as const] : [])] :
+          TERM_TYPE_TO_FAMILIES[type] ?? [])),
       ],
     }));
+    return { topics, configuration: { model: 'intel_watchlist', configured: topics.length + flatTermCount + issueAreaCount > 0,
+      complete, topicCount: topics.length, tagCount: 0, flatTermCount, issueAreaCount,
+      reason: complete ? null : 'UNMAPPED_WATCHLIST_CONFIGURATION' } };
   }
 
   private async loadFreshness(family: SignalFamily): Promise<FamilyFreshness> {

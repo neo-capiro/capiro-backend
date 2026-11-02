@@ -89,6 +89,15 @@ describe('HearingSessionService capture ownership', () => {
 
   it('normalizes unsupported source and audio-retention requests to the implemented browser path', async () => {
     const h = makeSessionHarness();
+    h.rawResults.push([
+      {
+        id: 'hearing-1',
+        sourceUrl: 'https://www.senate.gov/hearings/owned-fixture',
+        browserAllowed: true,
+        bindingExpired: false,
+        federal: true,
+      },
+    ]);
     const svc = new HearingSessionService(h.prisma);
 
     await svc.create('tenant-1', 'user-1', {

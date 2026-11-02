@@ -1,5 +1,4 @@
 import {
-  MESSAGE_PLAN_MAX_OUTPUT_TOKENS,
   normalizeSourceId,
   sourceIdVariants,
 } from './message-plan.service.js';
@@ -66,12 +65,6 @@ function buildResolver(evidence: ReadonlyArray<{ sourceType: string; sourceId: s
 
 describe('message-plan source citation resolution (live outage regression)', () => {
   const resolve = buildResolver(REAL_EVIDENCE);
-
-  it('keeps the reasoning-model token ceiling that fixed the earlier truncation bug', () => {
-    // Guards against a regression back to the 2000 ceiling that caused the
-    // *previous* MESSAGE_PLAN_INVALID outage (empty text / incomplete response).
-    expect(MESSAGE_PLAN_MAX_OUTPUT_TOKENS).toBeGreaterThanOrEqual(8000);
-  });
 
   it('accepts the exact sourceId (unchanged behavior)', () => {
     for (const e of REAL_EVIDENCE) {

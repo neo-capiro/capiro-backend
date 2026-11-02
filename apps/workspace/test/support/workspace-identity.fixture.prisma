@@ -1,0 +1,61 @@
+// Disposable save/authority fixture only. Scalar columns used by the native
+// Workspace resolver and prospect scope mirror Core identity/source tables.
+// Unrelated vector/search tables, RLS and production migrations are not modeled.
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+model Tenant {
+  id String @id @db.Uuid
+  slug String @unique
+  name String
+  status String @default("active")
+  clerkOrgId String? @map("clerk_org_id")
+  settings Json @default("{}") @map("settings_jsonb")
+  updatedAt DateTime @map("updated_at")
+  @@map("tenants")
+}
+model User {
+  id String @id @db.Uuid
+  clerkUserId String @unique @map("clerk_user_id")
+  email String
+  updatedAt DateTime @map("updated_at")
+  @@map("users")
+}
+model TenantMembership {
+  id String @id @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  role String
+  status String @default("active")
+  updatedAt DateTime @map("updated_at")
+  @@map("tenant_memberships")
+}
+model Client {
+  id String @id @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  name String
+  status String @default("active")
+  memoryWall Boolean @default(false) @map("memory_wall")
+  @@map("clients")
+}
+model ClientMemoryAccess {
+  id String @id @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  @@map("client_memory_access")
+}
+model BusinessDevelopmentProspect {
+  id String @id @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  displayName String @map("display_name")
+  status String @default("active")
+  dismissedAt DateTime? @map("dismissed_at")
+  linkedClientId String? @map("linked_client_id") @db.Uuid
+  updatedAt DateTime @map("updated_at")
+  @@map("business_development_prospects")
+}

@@ -20,6 +20,7 @@
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
+import { recordResearchPortfolioBillChanges } from '../src/research-portfolios/research-portfolio-bill-changes.js';
 dotenvConfig();
 
 
@@ -49,6 +50,8 @@ interface MaterialBill {
   identifier: string;
   status: string;
   statusAt: Date;
+  /** When ingestion detected/stamped this status — the change's own detection time. */
+  derivedAt: Date;
   latestActionText: string | null;
 }
 
@@ -68,7 +71,7 @@ async function readIntelCrossTenant<T>(prisma: PrismaClient, fn: (tx: PrismaClie
 // (rather than inlined) so a regression spec can assert the windowing column
 // without needing a live Postgres connection — this script's core query has
 // no other unit-test path.
-export const MATERIAL_BILLS_QUERY = `SELECT id, state, identifier, status, status_at AS "statusAt", latest_action_text AS "latestActionText"
+export const MATERIAL_BILLS_QUERY = `SELECT id, state, identifier, status, status_at AS "statusAt", status_derived_at AS "derivedAt", latest_action_text AS "latestActionText"
          FROM state_bill
         WHERE status_derived_at > $1
           AND status = ANY($2::text[])`;
@@ -118,6 +121,34 @@ async function main() {
 
     for (const b of bills) {
       try {
+        // Research Portfolio fan-out happens regardless of client tracking: a
+        // portfolio tracks the bill directly. Same detected transition, deduped by
+        // the portfolio event idempotency key. The bypass context is the script
+        // equivalent of withSystem for tenant-scoped portfolio tables.
+        try {
+          await readIntelCrossTenant(prisma, (tx) =>
+            recordResearchPortfolioBillChanges(tx as never, {
+              targetKind: 'state_bill',
+              targetId: b.id,
+              changeType: `state_bill_${b.status}`,
+              label: b.status.replace(/_/g, ' '),
+              detail: b.latestActionText ?? `${b.state} ${b.identifier} status changed to ${b.status}.`,
+              actionDate: b.statusAt.toISOString().slice(0, 10),
+              sourceUrl: null,
+              sourceLabel: `${b.state} legislature (LegiScan)`,
+              // The change's OWN detection time — never the sweep's previous
+              // checkpoint. The checkpoint is only the query window; using it as
+              // the baseline cut-off dropped memberships created during the window
+              // (and every membership on the epoch first run).
+              detectedAt: b.derivedAt,
+            }),
+          );
+        } catch (err) {
+          // A portfolio fan-out failure must not suppress the client change row.
+          errors++;
+          console.error(`[emit-state-changes] ${b.id} portfolio fan-out failed:`, err);
+        }
+
         const relatedClientIds = Array.from(relatedByBill.get(b.id) ?? []);
         if (!relatedClientIds.length) {
           skipped++;

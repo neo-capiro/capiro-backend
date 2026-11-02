@@ -68,6 +68,21 @@ case "${1:-serve}" in
     fi
     exec ./node_modules/.bin/tsx "scripts/$bill_command.ts" "$@"
     ;;
+  # Forecast jobs use the custodian's already qualified DATABASE_URL unchanged.
+  # Never synthesize credentials/pool limits or send these through the legacy path.
+  sync-government-forecasts)
+    shift
+    exec ./node_modules/.bin/tsx scripts/sync-government-forecasts.ts "$@"
+    ;;
+  refresh-government-forecasts)
+    shift
+    exec ./node_modules/.bin/tsx scripts/refresh-government-forecasts.ts "$@"
+    ;;
+  learning-signal-candidate-generation)
+    shift
+    compose_database_url
+    exec ./node_modules/.bin/tsx scripts/run-learning-signal-candidate-generation.ts "$@"
+    ;;
   migration-status)
     compose_database_url
     echo "Running prisma migrate status (READ-ONLY; migration history is never edited)"

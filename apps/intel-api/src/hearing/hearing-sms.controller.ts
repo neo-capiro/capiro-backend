@@ -2,8 +2,8 @@ import { Body, Controller, Get, Header, Param, Post, UseGuards } from '@nestjs/c
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
-import { ReportService } from '../tracker/reports/report.service.js';
-import { object, text } from '../tracker/reports/report-domain.js';
+import { DraftAccessService } from '../tracker/delivery/draft-access.service.js';
+import { object, text } from '../tracker/delivery/delivery-domain.js';
 import { HEARING_SMS_FEATURE } from '../feature-flags/feature-flag.service.js';
 import {
   SmsVerificationService,
@@ -18,7 +18,7 @@ import { SmsService } from '../tracker/sms/sms.service.js';
 @UseGuards(TenantGuard)
 export class HearingSmsController {
   constructor(
-    private readonly reports: ReportService,
+    private readonly reports: DraftAccessService,
     private readonly verify: SmsVerificationService,
     private readonly sms: SmsService,
   ) {}

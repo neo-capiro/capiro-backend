@@ -121,30 +121,12 @@ describe('Outreach V3 Revised Phase 5 architecture', () => {
     expect(references).toContain('if (!visibleMeeting) throw contextNotFound()');
   });
 
-  it('lets reasoning discover context and strategy but never apply or send', () => {
-    const reasoningRoot = resolve(API_ROOT, 'src/outreach-v3/reasoning');
-    const source = productionFiles(reasoningRoot)
-      .map((file) => readFileSync(file, 'utf8'))
-      .join('\n');
-    for (const tool of [
-      'search_memory',
-      'research_government',
-      'get_document',
-      'recommend_outreach_strategy',
-    ]) {
-      expect(source).toContain(tool);
-    }
-    expect(source).toContain('createModelProposalWithinTx');
-    expect(source).not.toContain('OutreachCommandEngineService');
-    expect(source).not.toContain('.applyProposal(');
-    expect(source).not.toContain('.applyBatch(');
-    expect(source).not.toContain('SEND_EMAIL_NOW');
-  });
-
   it('does not introduce another runtime, LangGraph, or LangSmith', () => {
     const packageJson = readFileSync(resolve(REPO_ROOT, 'package.json'), 'utf8');
     const apiPackage = readApi('package.json');
-    expect(`${packageJson}\n${apiPackage}`).not.toMatch(/@langchain\/langgraph|LANGGRAPH_|LANGSMITH_/);
+    expect(`${packageJson}\n${apiPackage}`).not.toMatch(
+      /@langchain\/langgraph|LANGGRAPH_|LANGSMITH_/,
+    );
 
     expect(existsSync(resolve(REPO_ROOT, 'apps/outreach-api'))).toBe(false);
     // Scoped to `*.module.ts` (not a full apps/ text scan, which includes the

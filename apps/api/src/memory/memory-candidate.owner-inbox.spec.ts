@@ -1,3 +1,6 @@
+// PostgreSQL retention is qualified separately with real roles and transactions.
+jest.mock('./conversation-serving/transaction.js', () =>
+  jest.requireActual('./conversation-serving/unit-boundary.fixture.js'));
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import { PGlite } from '@electric-sql/pglite';

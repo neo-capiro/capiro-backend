@@ -5,7 +5,7 @@
 # never `COPY packages/<name> packages/<name>` wholesale. A full-directory copy
 # overwrites the per-package node_modules pnpm just created (or collides with a
 # hoisted layout). The main API Dockerfile uses the same src/tsconfig-only pattern.
-ARG NODE_VERSION=20.16.0
+ARG NODE_VERSION=22.23.3
 
 FROM public.ecr.aws/docker/library/node:${NODE_VERSION}-bookworm-slim AS base
 ENV PNPM_HOME=/pnpm
@@ -85,10 +85,22 @@ RUN --mount=type=cache,id=pnpm-defense-api,target=/pnpm/store \
 FROM public.ecr.aws/docker/library/node:${NODE_VERSION}-bookworm-slim AS runtime
 ENV NODE_ENV=production
 ENV NODE_OPTIONS=--enable-source-maps
+# Upgrade only Perl packages already in the slim runtime image. Bookworm's
+# 5.36.0-7+deb12u4 security release fixes ten scanned Perl CVEs; --only-upgrade
+# does not introduce Perl packages that were absent from the base image. This is
+# the same reviewed block apps/api/Dockerfile uses, carried verbatim apart from
+# the surrounding package list (Defense installs no wget).
 RUN groupadd --system --gid 1001 capiro \
  && useradd --system --uid 1001 --gid capiro --shell /usr/sbin/nologin capiro \
  && apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates dumb-init openssl \
+ && apt-get install -y --no-install-recommends --no-remove --only-upgrade perl-base perl perl-modules-5.36 libperl5.36 \
+ && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' perl-base)" ge 5.36.0-7+deb12u4 \
+ && for package in perl perl-modules-5.36 libperl5.36; do \
+      if [ "$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null || true)" = 'install ok installed' ]; then \
+        dpkg --compare-versions "$(dpkg-query -W -f='${Version}' "$package")" ge 5.36.0-7+deb12u4 || exit 1; \
+      fi; \
+    done \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

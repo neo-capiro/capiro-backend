@@ -117,6 +117,19 @@ test('refuses duplicate declarations instead of merging unrelated models', () =>
   assert.throws(() => composeSchema(core, workspace.replace('WsDraft', 'User')), /Duplicate fixture declaration: User/);
 });
 
+test('combines only matching shared-link storage with complementary owner relations', () => {
+  const stored = ' id String @id\n clientId String?\n @@map("ws_share_link")';
+  const coreLink = core + '\nmodel WsShareLink {\n' + stored + '\n client Client? @relation(fields: [clientId], references: [id])\n}';
+  const workspaceLink = workspace + '\nmodel WsShareLink {\n' + stored + '\n draft WsDraft? @relation(fields: [clientId], references: [id])\n guestComments WsGuestComment[]\n}';
+  const combined = composeSchema(coreLink, workspaceLink);
+  assert.equal((combined.match(/model WsShareLink/g) || []).length, 1);
+  assert.match(combined, /client Client\?/);
+  assert.match(combined, /draft WsDraft\?/);
+  assert.match(combined, /guestComments WsGuestComment\[\]/);
+  assert.throws(() => composeSchema(coreLink, workspaceLink.replace('clientId String?', 'clientId Int?')), /storage declarations differ/);
+  assert.throws(() => composeSchema(coreLink, workspaceLink.replace('@@map("ws_share_link")', '@@map("other")')), /storage declarations differ/);
+});
+
 test('fixture additions cannot supply a connection or generator', () => {
   assert.throws(() => composeSchema(core, undefined, workspace), /models\/enums only/);
 });

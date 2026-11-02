@@ -17,6 +17,8 @@ import {
   type MemoryGovernanceBucket,
 } from './memory-governance.service.js';
 
+import { requireMemoryGovernanceVersion } from './memory-governance-version.js';
+
 const BUCKETS = new Set<MemoryGovernanceBucket>([
   'all',
   'active',
@@ -43,9 +45,10 @@ export class MemoryGovernanceController {
     @Query('bucket') rawBucket?: string,
     @Query('limit') rawLimit?: string,
     @Query('q') query?: string,
+    @Query('cursor') cursor?: string,
   ) {
     const bucket = normalizeBucket(rawBucket);
-    return this.governance.listItems(ctx, bucket, normalizeLimit(rawLimit), query);
+    return this.governance.listItems(ctx, bucket, normalizeLimit(rawLimit), query, cursor);
   }
 
   @Get('items/:id')
@@ -54,8 +57,12 @@ export class MemoryGovernanceController {
   }
 
   @Get('transitions')
-  listTransitions(@CurrentTenant() ctx: TenantContext, @Query('limit') rawLimit?: string) {
-    return this.governance.listTransitions(ctx, normalizeLimit(rawLimit));
+  listTransitions(
+    @CurrentTenant() ctx: TenantContext,
+    @Query('limit') rawLimit?: string,
+    @Query('cursor') cursor?: string,
+  ) {
+    return this.governance.listTransitions(ctx, normalizeLimit(rawLimit), cursor);
   }
 
   @Get('projection-health')
@@ -64,8 +71,24 @@ export class MemoryGovernanceController {
   }
 
   @Post('projection-jobs/:id/retry')
-  async retryProjection(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
-    return { ok: true, ...(await this.governance.retryProjection(ctx, id)) };
+  async retryProjection(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() body: { expectedVersion: string },
+  ) {
+    return {
+      ok: true,
+      ...(await this.governance.retryProjection(
+        ctx,
+        id,
+        requireMemoryGovernanceVersion(body?.expectedVersion),
+      )),
+    };
+  }
+
+  @Get('projection-jobs/:id')
+  getProjectionJob(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    return this.governance.getProjectionJob(ctx, id);
   }
 
   @Get('clients')
@@ -77,37 +100,83 @@ export class MemoryGovernanceController {
   async approve(
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,
-    @Body() body: { reason?: string },
+    @Body() body: { reason?: string; expectedVersion: string },
   ) {
-    return { ok: true, ...(await this.governance.approve(ctx, id, body?.reason ?? '')) };
+    return {
+      ok: true,
+      ...(await this.governance.approve(
+        ctx,
+        id,
+        body?.reason ?? '',
+        requireMemoryGovernanceVersion(body?.expectedVersion),
+      )),
+    };
   }
 
   @Post('items/:id/confirm')
-  async confirm(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
-    return { ok: true, ...(await this.governance.confirm(ctx, id)) };
+  async confirm(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() body: { expectedVersion: string },
+  ) {
+    return {
+      ok: true,
+      ...(await this.governance.confirm(
+        ctx,
+        id,
+        requireMemoryGovernanceVersion(body?.expectedVersion),
+      )),
+    };
   }
 
   @Post('items/:id/mark-stale')
   async markStale(
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,
-    @Body() body: { reason?: string },
+    @Body() body: { reason?: string; expectedVersion: string },
   ) {
-    return { ok: true, ...(await this.governance.markStale(ctx, id, body?.reason ?? '')) };
+    return {
+      ok: true,
+      ...(await this.governance.markStale(
+        ctx,
+        id,
+        body?.reason ?? '',
+        requireMemoryGovernanceVersion(body?.expectedVersion),
+      )),
+    };
   }
 
   @Post('items/:id/revoke')
   async revoke(
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,
-    @Body() body: { reason?: string },
+    @Body() body: { reason?: string; expectedVersion: string },
   ) {
-    return { ok: true, ...(await this.governance.revoke(ctx, id, body?.reason ?? '')) };
+    return {
+      ok: true,
+      ...(await this.governance.revoke(
+        ctx,
+        id,
+        body?.reason ?? '',
+        requireMemoryGovernanceVersion(body?.expectedVersion),
+      )),
+    };
   }
 
   @Post('items/:id/second-approve')
-  async secondApprove(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
-    return { ok: true, ...(await this.governance.secondApprove(ctx, id)) };
+  async secondApprove(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() body: { expectedVersion: string },
+  ) {
+    return {
+      ok: true,
+      ...(await this.governance.secondApprove(
+        ctx,
+        id,
+        requireMemoryGovernanceVersion(body?.expectedVersion),
+      )),
+    };
   }
 }
 

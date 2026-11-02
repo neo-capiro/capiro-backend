@@ -76,6 +76,19 @@ describe('TenantContextMiddleware', () => {
     jest.clearAllMocks();
   });
 
+  test.each(['x-capiro-impersonate-tenant', 'x-capiro-impersonation-session'])(
+    'refuses %s on ordinary, personal, approval and delegated paths before any tenant read', async (header) => {
+      for (const path of ['/api/clients', '/api/me', '/api/me/portfolio-layout', '/api/clio/tools/create_task', '/api/clio/application-authority/current']) {
+        const tx = makeTx(); const { middleware } = build({}, tx); const next = jest.fn();
+        const req = { headers: { [header]: 'synthetic' }, method: 'POST', path, originalUrl: path, header: (name: string) => name === header ? 'synthetic' : undefined } as unknown as Request;
+        const res = { setHeader: jest.fn() } as unknown as Response;
+        await expect(middleware.use(req, res, next)).rejects.toThrow('audited support workspace');
+        expect(tx.user.findUnique).not.toHaveBeenCalled(); expect(next).not.toHaveBeenCalled();
+        expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-store');
+      }
+    },
+  );
+
   test('bypasses tenant auth for the public /api/insights route (no bearer token required)', async () => {
     const tx = makeTx();
     const { middleware } = build({}, tx);

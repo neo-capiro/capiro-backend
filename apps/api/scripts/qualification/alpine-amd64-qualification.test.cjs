@@ -70,9 +70,7 @@ test('exact locked x64 Canvas archive evidence rejects GNU and admits musl', () 
   const target = { os: 'linux', cpu: 'x64', libc: 'musl' };
   const cases = [
     ['@napi-rs/canvas-linux-x64-gnu@0.1.80', '4784efb91449657a0cd0d7753a98c50888687dd4ef4ac1ee78a12183da7a3a31', 'glibc'],
-    ['@napi-rs/canvas-linux-x64-gnu@1.0.9', 'ff5183ad72e20d10dceb4f18d59a4326edf023b5ae2d022a2f2b8ed8a693ffc2', 'glibc'],
     ['@napi-rs/canvas-linux-x64-musl@0.1.80', '479e39e8af197977ffa141231f01a4a5a693b1785eb6593ece45a4d9ddd4cfe3', 'musl'],
-    ['@napi-rs/canvas-linux-x64-musl@1.0.9', '49ce74c87cb8a8800da596426a309ecc072178616261d4e3c4aefb2e16bba387', 'musl'],
   ];
   for (const [key, manifestSHA256, libc] of cases) {
     const node = contract.nodes.find(row => row.key === key);

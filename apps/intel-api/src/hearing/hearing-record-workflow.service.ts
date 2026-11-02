@@ -8,8 +8,8 @@ import {
 import { randomUUID } from 'node:crypto';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import type { Prisma } from '../../generated/prisma-client/index.js';
-import { ReportService } from '../tracker/reports/report.service.js';
-import { digest, object, text } from '../tracker/reports/report-domain.js';
+import { DraftAccessService } from '../tracker/delivery/draft-access.service.js';
+import { digest, object, text } from '../tracker/delivery/delivery-domain.js';
 import {
   PUBLISHED_RECORDS_FEATURE,
   RECORD_BRIEFS_FEATURE,
@@ -66,7 +66,7 @@ type WorkLease = { id: string; token: string; resultId: string | null };
 @Injectable()
 export class HearingRecordWorkflowService {
   constructor(
-    readonly reports: ReportService,
+    readonly reports: DraftAccessService,
     readonly source: HearingRecordsRepository,
     readonly crypto: HearingCryptoService,
     readonly publications: HearingPublicationService,
@@ -304,55 +304,6 @@ export class HearingRecordWorkflowService {
       missing: [
         'Hearing minutes and vote coverage depend on the publisher. Missing records do not establish that no action occurred.',
       ],
-    };
-  }
-  async billContext(
-    ctx: WorkspaceTenantContext,
-    billId: string,
-    clientId?: string,
-    folderId?: string,
-  ) {
-    await this.authorize(ctx);
-    if (clientId) await this.actor(ctx, (tx) => this.lockContext(tx, ctx, clientId));
-    if (folderId)
-      await this.actor(ctx, async (tx) => {
-        const f = await this.reports.folders.folder(tx, ctx, folderId);
-        if (f.archived || f.clientId !== (clientId ?? null))
-          throw new ForbiddenException('FOLDER_CLIENT_SCOPE_MISMATCH');
-      });
-    const events = await this.source.prisma.$queryRaw<
-      Array<{ id: string; title: string }>
-    >`SELECT DISTINCT h.id,h.title FROM committee_hearing h JOIN legislative_agenda_item a ON a.hearing_id=h.id
-      WHERE h.visibility='public' AND a.active AND a.state_bill_key=${text(billId, 200)} ORDER BY h.id LIMIT 51`;
-    const rows = await this.actor(
-      ctx,
-      (tx) => tx.$queryRaw<
-        Array<{ id: string; event_id: string }>
-      >`SELECT id,event_id FROM intel_hearing_record_brief WHERE tenant_id=${ctx.tenantId} AND owner_clerk_id=${ctx.clerkUserId}
-      AND event_id=ANY(${events.slice(0, 50).map((e) => e.id)}::text[]) AND client_id IS NOT DISTINCT FROM ${clientId ?? null}::text ORDER BY created_at DESC,id DESC LIMIT 51`,
-    );
-    const briefs = [];
-    for (const row of rows.slice(0, 50)) {
-      try {
-        const b = await this.brief(ctx, row.event_id, row.id);
-        if (
-          b.current &&
-          b.approvedAt &&
-          (!folderId || b.payload.folders.some((f) => f.id === folderId))
-        )
-          briefs.push({
-            id: b.id,
-            eventId: row.event_id,
-            title: b.payload.title,
-            version: b.version,
-            contentHash: b.contentHash,
-          });
-      } catch {}
-    }
-    return {
-      events: events.slice(0, 50),
-      briefs,
-      complete: events.length <= 50 && rows.length <= 50,
     };
   }
   async refreshRecords(ctx: WorkspaceTenantContext, eventId: string) {

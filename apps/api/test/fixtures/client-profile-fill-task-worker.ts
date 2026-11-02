@@ -1,4 +1,6 @@
 import type { TenantContext } from '@capiro/shared';
+import * as actorOwner from '../../src/clients/client-profile-fill-worker-actor.js';
+import * as ownerAccess from '../../src/clients/client-ordered-owner.access.js';
 import {
   ClientProfileFillCompletionService,
   type ClientProfileFillCompletionTaskType,
@@ -45,13 +47,14 @@ interface Call {
 }
 export interface Options {
   tasks?: Task[];
-  run?: { status: string; createdByUserId: string | null } | null;
+  run?: { status: string; createdByUserId: string | null; deadlineAt?: Date } | null;
   pending?: number;
   profile?: unknown;
   profilePromise?: Promise<unknown>;
   recoverError?: Error;
   claimError?: Error;
   actorError?: Error;
+  accessError?: Error;
   finalizeError?: Error;
   heartbeatError?: Error;
   finishError?: Error;
@@ -59,6 +62,7 @@ export interface Options {
   facilityRows?: unknown[];
 }
 function operation(sql: string) {
+  if (sql.includes('ORDER BY r.started_at')) return 'expire';
   if (sql.includes('stale_worker')) return 'recover';
   if (sql.includes('WITH candidates')) return 'claim';
   if (sql.includes('created_by_user_id AS')) return 'actor';
@@ -67,7 +71,7 @@ function operation(sql: string) {
   if (sql.includes('waiting_for_dependency')) return 'defer';
   if (sql.includes('task_error')) return 'fail';
   if (sql.includes('SET heartbeat_at = now()')) return 'heartbeat';
-  if (sql.includes('output_summary_jsonb = $5::jsonb')) return 'finish';
+  if (sql.includes('output_summary_jsonb = output_summary_jsonb || $5::jsonb')) return 'finish';
   if (sql.includes('INSERT INTO client_profile_fill_source_cursor')) return 'cursor';
   if (sql.includes('INSERT INTO client_profile_fill_finding')) return 'finding';
   return 'read';
@@ -92,12 +96,16 @@ function txFor(calls: Call[], phases: string[], options: Options, transaction: n
   };
   return {
     $queryRawUnsafe: jest.fn(async (sql: string, ...args: unknown[]) => {
+      // Current actor policy is qualified in PostgreSQL. This orchestration fixture
+      // supplies a live lease while retaining the actual local timeout fence.
+      if (sql.includes('FOR SHARE') && (sql.includes('worker_id=$5') || sql.includes('created_by_user_id=$4')))
+        return [{ id: 'current-lease' }];
       const op = capture(sql, args);
       if (op === 'claim') return options.tasks ?? [];
       if (op === 'actor')
         return options.run === null
           ? []
-          : [options.run ?? { status: 'running', createdByUserId: 'actor-one' }];
+          : [{ deadlineAt: new Date(now.getTime() + 30 * 60_000), ...(options.run ?? { status: 'running', createdByUserId: 'actor-one' }) }];
       if (op === 'dependencies') return [{ pending: options.pending ?? 0 }];
       return [];
     }),
@@ -126,6 +134,11 @@ function txFor(calls: Call[], phases: string[], options: Options, transaction: n
   };
 }
 export function harness(options: Options = {}) {
+  jest.spyOn(actorOwner, 'resolveFillRunActor').mockImplementation(async (_prisma, tenantId) => {
+    if (options.accessError) throw options.accessError;
+    return { tenantId, tenantSlug: 'current-tenant', userId: 'actor-one', clerkUserId: 'current-clerk', role: 'user_admin' };
+  });
+  jest.spyOn(ownerAccess, 'requireOwnerClient').mockResolvedValue({ version: 1, primary: null });
   const calls: Call[] = [],
     phases: string[] = [];
   let transaction = 0;
@@ -151,7 +164,7 @@ export function harness(options: Options = {}) {
     }),
   };
   const facilities = {
-    resolveFacilityDistrict: jest.fn(async (...args: unknown[]) => ({
+    previewFacilityDistrict: jest.fn(async (...args: unknown[]) => ({
       congressionalDistrict: 'VA-08',
       stateHouseDistrict: null,
       stateSenateDistrict: null,

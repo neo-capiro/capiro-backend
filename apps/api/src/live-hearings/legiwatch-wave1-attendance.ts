@@ -76,6 +76,7 @@ export interface AttendanceCandidateRow {
   /** Present when the caller projects it (the Wave 1 service does); used to
    *  decide browser availability via the same source selection as join. */
   officialPageUrl?: string | null;
+  expiresAt?: Date | string | null;
 }
 
 export interface AttendanceCaptureRow {
@@ -189,6 +190,7 @@ function deriveCapabilities(input: {
       provider: (c as { provider?: string }).provider ?? 'unknown',
       officialPageUrl: c.officialPageUrl ?? '',
       capturePolicy: c.capturePolicy,
+      expiresAt: c.expiresAt,
     })),
   });
   const browserAvailable = isPublic && !canceled && source != null;

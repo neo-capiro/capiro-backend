@@ -1,3 +1,5 @@
+import type { ReviewTransaction } from './client-profile-fill-review-store.js';
+import { withinFinding, afterFindingCommit } from './client-profile-fill-review-transaction.js';
 import { BadRequestException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { Prisma } from '@prisma/client';
@@ -19,12 +21,17 @@ export class ClientProfileFillOutcomeApplication {
     private readonly reporter: FindingApplicationReporter,
   ) {}
 
-  async applyAdvocacyOutcome(ctx: TenantContext, clientId: string, finding: AdvancedFindingRow) {
+  async applyAdvocacyOutcome(
+    ctx: TenantContext,
+    clientId: string,
+    finding: AdvancedFindingRow,
+    scope?: ReviewTransaction,
+  ) {
     const proposed = asRecord(finding.proposedValue);
     const externalKey = requiredString(proposed.advocacyExternalKey, 'Advocacy record');
     const outcomeKind = requiredString(proposed.outcomeKind, 'Outcome kind');
     const outcomeEventId = asString(proposed.outcomeEventId);
-    const matterId = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const matterId = await withinFinding(this.prisma, ctx.tenantId, scope, async (tx) => {
       const changed = await tx.$executeRawUnsafe(
         `UPDATE client_advocacy_record
             SET outcome = $4,
@@ -63,20 +70,22 @@ export class ClientProfileFillOutcomeApplication {
     // was matched against, so the Matter's timeline shows what happened
     // after the ask without claiming causation (causationClaimed stays
     // false on the record itself, set above).
-    if (matterId && outcomeEventId) {
-      try {
-        await this.advocacyMatters.linkToMatter(ctx, matterId, {
-          linkType: 'outcome_event',
-          linkKey: outcomeEventId,
-          label: `Observed outcome: ${outcomeKind}`,
-          metadata: { causationClaimed: false, outcomeKind },
-        });
-      } catch (error) {
-        this.reporter.warn(
-          `Advocacy matter outcome link failed for ${clientId}/${matterId}: ${this.reporter.safeError(error)}`,
-        );
+    await afterFindingCommit(scope, async () => {
+      if (matterId && outcomeEventId) {
+        try {
+          await this.advocacyMatters.linkToMatter(ctx, matterId, {
+            linkType: 'outcome_event',
+            linkKey: outcomeEventId,
+            label: `Observed outcome: ${outcomeKind}`,
+            metadata: { causationClaimed: false, outcomeKind },
+          });
+        } catch (error) {
+          this.reporter.warn(
+            `Advocacy matter outcome link failed for ${clientId}/${matterId}: ${this.reporter.safeError(error)}`,
+          );
+        }
       }
-    }
+    });
   }
 
   /**
@@ -100,6 +109,7 @@ export class ClientProfileFillOutcomeApplication {
     ctx: TenantContext,
     clientId: string,
     finding: AdvancedFindingRow,
+    scope?: ReviewTransaction,
   ): Promise<void> {
     const proposed = asRecord(finding.proposedValue);
     const matterId = requiredString(proposed.matterId, 'Advocacy matter');
@@ -118,7 +128,17 @@ export class ClientProfileFillOutcomeApplication {
       matchedOn: 'docket_id',
       causationClaimed: false,
     };
-    const outcomeEvent = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const outcomeEvent = await withinFinding(this.prisma, ctx.tenantId, scope, async (tx) => {
+      const matter = await tx.$queryRawUnsafe<Array<{ id: string }>>(
+        `SELECT id FROM client_advocacy_matter WHERE tenant_id=$1::uuid AND client_id=$2::uuid AND id=$3::uuid FOR SHARE`,
+        ctx.tenantId,
+        clientId,
+        matterId,
+      );
+      if (!matter.length)
+        throw new BadRequestException(
+          'The related advocacy Matter is no longer available for this client',
+        );
       const created = await tx.outcomeEvent.create({
         data: {
           tenantId: ctx.tenantId,
@@ -138,22 +158,24 @@ export class ClientProfileFillOutcomeApplication {
     // Same looseness as applyAdvocacyOutcome's own Matter link: the
     // OutcomeEvent is already durably recorded above; a Matter-link failure
     // is logged, never rolled back into losing that record.
-    try {
-      await this.advocacyMatters.linkToMatter(ctx, matterId, {
-        linkType: 'outcome_event',
-        linkKey: outcomeEvent.id,
-        label: `Observed government movement: ${evidence.documentType ?? 'Federal Register document'} on docket ${docketId}`,
-        metadata: {
-          causationClaimed: false,
-          matchedOn: 'docket_id',
-          relationship: 'strongly_aligned',
-          documentNumber,
-        },
-      });
-    } catch (error) {
-      this.reporter.warn(
-        `Regulatory matter outcome link failed for ${clientId}/${matterId}: ${this.reporter.safeError(error)}`,
-      );
-    }
+    await afterFindingCommit(scope, async () => {
+      try {
+        await this.advocacyMatters.linkToMatter(ctx, matterId, {
+          linkType: 'outcome_event',
+          linkKey: outcomeEvent.id,
+          label: `Observed government movement: ${evidence.documentType ?? 'Federal Register document'} on docket ${docketId}`,
+          metadata: {
+            causationClaimed: false,
+            matchedOn: 'docket_id',
+            relationship: 'strongly_aligned',
+            documentNumber,
+          },
+        });
+      } catch (error) {
+        this.reporter.warn(
+          `Regulatory matter outcome link failed for ${clientId}/${matterId}: ${this.reporter.safeError(error)}`,
+        );
+      }
+    });
   }
 }

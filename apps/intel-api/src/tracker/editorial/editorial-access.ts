@@ -1,8 +1,9 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '../../../generated/prisma-client/index.js';
 import type { WorkspaceTenantContext } from '../../auth/tenant-context.js';
-import { object, digest } from '../reports/report-domain.js';
+import { object, digest } from '../delivery/delivery-domain.js';
 import { hash } from '../folders/folder-tracker.service.js';
+import { currentEditorialConfiguration } from './editorial-domain.js';
 export async function assertEditorialAccess(
   tx: Prisma.TransactionClient,
   ctx: WorkspaceTenantContext,
@@ -143,6 +144,7 @@ export async function assertEditorialAccess(
     const config = configs[0];
     if (
       !config ||
+      !currentEditorialConfiguration(config.config) ||
       config.state !== 'active' ||
       config.version !== review.configVersion ||
       config.config.sendEnabled !== true ||

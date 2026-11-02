@@ -14,6 +14,13 @@ describe('preview native memory route predicate', () => {
     '/api/memory/candidates/mine?limit=25',
     '/api/memory/candidates/mine/11111111-1111-4111-8111-111111111111/status',
     '/api/memory/owner/items',
+    '/api/memory/owner/items/11111111-1111-4111-8111-111111111111/versions?limit=25',
+    '/api/memory/owner/items/11111111-1111-4111-8111-111111111111/evidence',
+    '/API/MEMORY/OWNER/ITEMS/11111111-1111-4111-8111-111111111111/VERSIONS/',
+    // Invalid IDs still match the dynamic GET handler. Validation must not
+    // fall through to ordinary provisioning before that handler refuses them.
+    '/api/memory/owner/items/not-a-uuid/versions',
+    '/api/memory/owner/items/clio:11111111-1111-4111-8111-111111111111/evidence',
     '/API/MEMORY/OWNER/ITEMS/',
   ])('matches only the exact GET handler shape (%s)', (target) => {
     const path = target.split('?')[0]!;
@@ -33,6 +40,10 @@ describe('preview native memory route predicate', () => {
     ['GET', '/api/memory/candidates/mine/other'],
     ['GET', '/api/memory/candidates/mine/other/status/extra'],
     ['GET', '/api/memory/owner/items/other'],
+    ['GET', '/api/memory/owner/items/id/versions/extra'],
+    ['GET', '/api/memory/owner/items/id/evidence-extra'],
+    ['POST', '/api/memory/owner/items/id/versions'],
+    ['PUT', '/api/memory/owner/items/id/evidence'],
     ['POST', '/api/memory/candidates/mine'],
     ['POST', '/api/memory/candidates/other/owner-decision'],
     ['PUT', '/api/memory/owner/items'],
@@ -83,6 +94,9 @@ describe('first-chat client records exact native admission', () => {
     ['GET', '/api/client-account-owners'], ['GET', '/api/client-account-owners/options'],
     ['GET', `/api/clients/${id}/account-owners`], ['PUT', `/api/clients/${id}/account-owners`],
     ['GET', '/api/billing/state'],
+    // ClientsController declares `metrics` before `:id`, so the exact word is a
+    // canonical current-session read and not a malformed client id.
+    ['GET', '/api/clients/metrics'], ['HEAD', '/api/clients/metrics'],
   ])('admits only the allocated method and route %s %s', (method, path) => {
     expect(firstChatClientPreviewDecision(req(method, path), true)).toBe('preview');
   });
@@ -94,6 +108,20 @@ describe('first-chat client records exact native admission', () => {
     ['GET', '/api/clients/'], ['GET', '/api/clients/not-a-uuid'],
   ])('keeps native near misses and ambiguous input held %s %s', (method, path) => {
     expect(firstChatClientPreviewDecision(req(method, path), true)).toBe('not-found');
+  });
+  it.each([
+    ['GET', '/api/clients/metrics/'], ['GET', '/api/clients/METRICS'],
+    ['GET', '/api/clients/metrics-extra'], ['GET', '/api/clients/metrics/account-owners'],
+    ['GET', '/api/clients/%6detRICS'], ['GET', '/api/clients/metrics/../metrics'],
+    ['GET', '/api/clients/metrics?limit=1'], ['GET', '/api/clients/metrics?includeArchived=true'],
+    ['PUT', '/api/clients/metrics'], ['DELETE', '/api/clients/metrics'],
+  ])('keeps the metrics near miss held %s %s', (method, path) => {
+    expect(firstChatClientPreviewDecision(req(method, path), true)).toBe('not-found');
+  });
+  it('keeps POST /api/clients/metrics on ordinary authentication, as before', () => {
+    // The metrics controller is GET-only; the POST family path stays delegated to
+    // ordinary authentication exactly as it was before this read was admitted.
+    expect(firstChatClientPreviewDecision(req('POST', '/api/clients/metrics'), true)).toBe('unrelated');
   });
   it.each([
     ['POST', '/api/clients/bulk-import'], ['PUT', `/api/client-account-owners/${id}`],

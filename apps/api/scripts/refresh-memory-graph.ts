@@ -27,6 +27,8 @@ import { TenantContextStore } from '../src/tenant/tenant-context.store.js';
 import { MemoryStoreService } from '../src/memory/memory-store.service.js';
 import { MemoryIngestService } from '../src/memory/memory-ingest.service.js';
 import { purgeExpiredMemoryInTx } from '../src/memory/memory-embedding-lifecycle.js';
+import { purgeMemoryOwnerRetentionInTx } from '../src/memory/memory-owner-retention.js';
+import { expireSettingsMemoryDraftsInTx } from '../src/memory/settings-drafts/retention.js';
 import type { TenantContext } from '@capiro/shared';
 
 function flag(name: string): boolean {
@@ -77,7 +79,18 @@ async function main(): Promise<void> {
     return;
   }
 
-  // ── G2 ephemeral purge (runs FIRST, before re-projection, so an expired
+  try {
+    for (const target of targets) {
+      const purged = await prisma.withSystem(tx => purgeMemoryOwnerRetentionInTx(tx, target.id));
+      console.log(`[purge] Core owner-retention stores: ${JSON.stringify(purged)}`);
+      const drafts = await prisma.withSystem(tx => expireSettingsMemoryDraftsInTx(tx, target.id));
+      console.log(`[purge] Private memory drafts: ${JSON.stringify(drafts)}`);
+    }
+  } catch (err) {
+    console.error(`[purge] owner retention FAILED (will retry): ${(err as Error).message}`);
+  }
+
+  // ── G2 ephemeral purge (runs before re-projection, so an expired
   // clio_memory row can't be re-projected in the same sweep). Expired working
   // memory is erased outright — no tombstone: unlike forget_memory (a
   // governance action on durable history), expiry is the designed end of

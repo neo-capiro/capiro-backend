@@ -43,9 +43,14 @@ describe('Knowledge Plane Phase 24 Meetings architecture contract', () => {
     expect(serviceFactory).toContain('return activeMeeting.modelContextBlock');
     expect(aiFactory).toContain("requireMeetingGovernedContext('prep')");
     expect(aiFactory).toContain("requireMeetingGovernedContext('debrief')");
-    expect(aiFactory).toContain('recentMeetings: []');
-    expect(aiFactory).toContain('recentThreads: []');
-    expect(aiFactory).toContain('clientContext: null');
+    // D2 debrief contract: the seam supplies ONLY the canonical steering block; the
+    // removed history fields (clientContext / recentMeetings / recentThreads /
+    // congressionalDirectoryMatches) must not come back into the debrief input.
+    expect(aiFactory).toContain('steeringContext: bundle.modelContextBlock');
+    expect(aiFactory).not.toContain('clientContext:');
+    expect(aiFactory).not.toContain('recentMeetings:');
+    expect(aiFactory).not.toContain('recentThreads:');
+    expect(aiFactory).not.toContain('congressionalDirectoryMatches');
   });
 
   test('notetaker and meeting-capture persistence reuse the governed debrief-draft path', () => {

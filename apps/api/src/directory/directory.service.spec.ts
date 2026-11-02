@@ -394,9 +394,7 @@ describe('DirectoryContactMapper.buildContacts - staff isCurrent at this office'
     },
   ];
 
-  // buildContacts always appends a synthetic TEST_DIRECTORY_CONTACT ("Avery
-  // Testwell") and sorts alphabetically by memberName, so it is not safe to
-  // assume array position — find this fixture's own contact by id instead.
+  // Mapping sorts alphabetically by memberName; find this fixture by identity.
   function findOwnContact(): any {
     const contacts = new DirectoryContactMapper().buildContacts(MEMBERS_RAW, STAFF_RAW);
     return contacts.find((c: any) => c.id === 'member-700');

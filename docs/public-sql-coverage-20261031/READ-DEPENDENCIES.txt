@@ -1,0 +1,45 @@
+Public SQL read dependencies — source proposal, no execution
+Base e023eee01783f04b59ec8ab88d86ab586ee55826
+Role: capiro_analytics_ro. Schema: public. New hearing storage is restricted views; no raw-parent reader access.
+
+state_bills -> public.state_bill
+Columns: id, state, session, session_key, identifier, bill_number, title, chamber, status, status_at, status_source, sponsor_name, sponsor_party, sponsor_count, latest_action_date, url, state_url, legiscan_bill_id, source_checked_at, source_check_status, synced_at
+Row key: id
+Compiler predicate: (none)
+Reader dependency: SELECT on public.state_bill; historical table grant status unverified
+
+committee_hearings -> public.meri_public_committee_hearings
+Columns: id, geographic_jurisdiction, legislative_session, congress, chamber, committee_name, committee_system_code, state_committee_id, title, type, date, starts_at, scheduled_end, timezone, time_precision, location, event_status, url, source_revision, last_official_update_at, calendar_revision, calendar_checked_at, calendar_check_state, synced_at
+Row key: id
+Compiler predicate: (none)
+Reader dependency: SELECT on public.meri_public_committee_hearings; exact DB-owned view/owner/predicate package in VIEW-MATRIX.json required
+
+committee_hearing_bills -> public.meri_public_committee_hearing_bills
+Columns: id, hearing_id, bill_id, congress, synced_at
+Row key: id
+Compiler predicate: (none)
+Reader dependency: SELECT on public.meri_public_committee_hearing_bills; exact DB-owned view/owner/predicate package in VIEW-MATRIX.json required
+
+legislative_agenda_items -> public.meri_public_legislative_agenda_items
+Columns: id, hearing_id, item_key, position, kind, title, bill_scope, state_bill_key, federal_bill_id, source_url, active, revision, first_seen_at, last_seen_at
+Row key: id
+Compiler predicate: (none)
+Reader dependency: SELECT on public.meri_public_legislative_agenda_items; exact DB-owned view/owner/predicate package in VIEW-MATRIX.json required
+
+state_bill_calendar_events -> public.meri_public_state_bill_calendar_events
+Columns: id, bill_key, event_key, event_type, date, time, location, present, first_seen_at, last_synced_at
+Row key: id
+Compiler predicate: (none)
+Reader dependency: SELECT on public.meri_public_state_bill_calendar_events; exact DB-owned view/owner/predicate package in VIEW-MATRIX.json required
+
+federal_grants -> public.federal_grant
+Columns: id, title, agency, sub_agency, opportunity_number, category, funding_instrument, status, doc_type, award_ceiling, award_floor, estimated_funding, expected_awards, open_date, close_date, response_date_desc, cost_sharing, revision, url, last_updated_at, detail_synced_at, synced_at
+Row key: id
+Compiler predicate: (none)
+Reader dependency: SELECT on public.federal_grant; historical table grant status unverified
+
+sam_opportunities -> public.sam_opportunity
+Columns: id, notice_id, solicitation_number, title, notice_type, base_type, agency, sub_agency, office, set_aside, set_aside_code, naics_code, psc_code, posted_date, response_deadline, archive_date, active, source_url, last_synced_at
+Row key: notice_id
+Compiler predicate: (none)
+Reader dependency: SELECT on public.sam_opportunity; historical table grant status unverified

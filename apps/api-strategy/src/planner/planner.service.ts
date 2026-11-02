@@ -1,3 +1,4 @@
+import { readObjectiveSavedSource } from '../strategy/objective-saved-source.js';
 import {
   ConflictException,
   ForbiddenException,
@@ -69,9 +70,19 @@ import {
 import {
   plannerProjectAccessDecision,
   plannerTaskAccessDecision,
+  plannerResourceTaskOverdue,
   plannerResourceDueTimestamp as plannerDueTimestamp,
   plannerResourceScheduledInstant as plannerScheduledInstant,
 } from '@capiro/shared';
+import {
+  aggregateQuery,
+  aggregateRows,
+  aggregateFingerprint,
+  aggregateSourceKey,
+  observeDomainAggregate,
+  requireAggregateActor,
+  type DomainAggregateQuery,
+} from '../strategy/domain-aggregate.js';
 import {
   Prisma,
   type SpPlannerProject,
@@ -113,12 +124,7 @@ import {
   type StoredCanonicalMaterializationV3,
 } from './strategy-materialization.js';
 import { planCanonicalRegeneration, CanonicalRegenerationError, type CanonicalRegenerationInput } from './canonical-regeneration-plan.js';
-import {
-  digest,
-  requestKey,
-  validObjectiveOutcome,
-  type ObjectiveJobEnvelope,
-} from '../meri/objective-generation.types.js';
+import { digest } from '../meri/objective-generation.types.js';
 import {
   normalizeObjectiveDestination,
   requireObjectiveDestinationRevision,
@@ -352,88 +358,17 @@ export class PlannerService {
     );
     return row;
   }
-  /** No outside actions: Planner lock -> job -> Strategy -> version -> Core authority. */
+  /** No outside actions; retain the existing source admission and error contract. */
   private async materializationSource(
     tx: Tx,
     ctx: AuthTenantContext,
     input: MaterializationInput,
     recorded: true | null,
   ) {
-    const unavailable = (): never =>
-      materializationError('MATERIALIZATION_NOT_AVAILABLE', input.requestId);
-    const jobLocks = await tx.$queryRaw<
-      Array<{ id: string }>
-    >`SELECT id FROM sp_draft_job WHERE tenant_id=${ctx.tenantId}::uuid AND id=${input.generationJobId}::uuid AND owner_user_id=${ctx.clerkUserId} FOR SHARE`;
-    if (!jobLocks[0]) return unavailable();
-    const job = await tx.spDraftJob.findFirst({
-      where: { tenantId: ctx.tenantId, id: input.generationJobId, ownerUserId: ctx.clerkUserId },
+    return readObjectiveSavedSource(tx, ctx, input, {
+      unavailable: () => materializationError('MATERIALIZATION_NOT_AVAILABLE', input.requestId),
+      stale: () => materializationError('MATERIALIZATION_SOURCE_STALE', input.requestId, recorded),
     });
-    const envelope = (job?.input as { objectiveGeneration?: ObjectiveJobEnvelope } | null)
-      ?.objectiveGeneration;
-    const receipt = envelope?.receipt;
-    if (
-      !job ||
-      !envelope ||
-      !receipt ||
-      !validObjectiveOutcome(receipt, job.status, job.strategyId, job.errorMessage) ||
-      job.status !== 'completed' ||
-      !receipt.result ||
-      envelope.request.requestId !== receipt.requestId ||
-      envelope.request.clientId !== receipt.source.clientId ||
-      envelope.request.objective.objectiveId !== receipt.source.objectiveId ||
-      envelope.request.objective.objectiveVersion !== receipt.source.objectiveVersion ||
-      job.clientId !== receipt.source.clientId ||
-      job.requestKey !== requestKey(ctx.tenantId, ctx.clerkUserId, receipt.requestId)
-    )
-      return unavailable();
-    const result = receipt.result;
-    if (
-      result.strategyId !== input.expected.strategyId ||
-      result.strategyVersionId !== input.expected.strategyVersionId ||
-      receipt.source.objectiveRevisionId !== input.expected.objectiveRevisionId
-    )
-      return unavailable();
-    const strategies = await tx.$queryRaw<
-      Array<{ id: string }>
-    >`SELECT id FROM sp_strategy WHERE tenant_id=${ctx.tenantId}::uuid AND id=${result.strategyId}::uuid AND client_id=${job.clientId}::uuid AND archived_at IS NULL FOR SHARE`;
-    if (!strategies[0]) return unavailable();
-    const versions = await tx.$queryRaw<
-      Array<{ id: string }>
-    >`SELECT id FROM sp_version WHERE tenant_id=${ctx.tenantId}::uuid AND strategy_id=${result.strategyId}::uuid AND id=${result.strategyVersionId}::uuid FOR SHARE`;
-    if (!versions[0]) return unavailable();
-    const version = await tx.spVersion.findFirst({
-      where: {
-        tenantId: ctx.tenantId,
-        strategyId: result.strategyId,
-        id: result.strategyVersionId,
-        coalescible: false,
-        authorKind: 'meri',
-      },
-    });
-    if (!version) return unavailable();
-    let authority;
-    try {
-      authority = await requireObjectiveDestinationRevision(tx, ctx, receipt.source);
-    } catch (error) {
-      if (error instanceof ConflictException)
-        materializationError('MATERIALIZATION_SOURCE_STALE', input.requestId, recorded);
-      if (error instanceof NotFoundException) return unavailable();
-      throw error;
-    }
-    if (authority.objectiveRevisionId !== receipt.source.objectiveRevisionId)
-      materializationError('MATERIALIZATION_SOURCE_STALE', input.requestId, recorded);
-    const snapshot = version.snapshot as unknown as { meta?: { id?: string; clientId?: string } };
-    if (snapshot?.meta?.id !== result.strategyId || snapshot.meta.clientId !== job.clientId)
-      return unavailable();
-    const source: MaterializationSource = {
-      generationJobId: job.id,
-      generationRequestId: receipt.requestId,
-      ...receipt.source,
-      strategyId: result.strategyId,
-      strategyVersionId: result.strategyVersionId,
-      snapshotDigest: digest(version.snapshot),
-    };
-    return { source, snapshot: version.snapshot, objectiveReceiptSha256: digest(receipt) };
   }
   private materializationView(tx: Tx, ctx: AuthTenantContext, stored: Pick<StoredMaterialization, 'result'>,
     replayed: boolean): Promise<MaterializationResult>;
@@ -668,12 +603,17 @@ export class PlannerService {
   const stored = binding
     ? await this.canonicalStrategyPlanCreationInTransaction(tx, ctx, input.requestId, binding)
     : await this.storedMaterialization(tx, ctx, input.requestId);
-  const { source, snapshot, objectiveReceiptSha256 } = await this.materializationSource(
+  const { source, snapshot, objectiveReceiptSha256, canonical } = await this.materializationSource(
     tx,
     ctx,
     stored?.input ?? input,
     stored ? true : null,
   );
+  // Canonical generations require their separate consent/application owner.
+  // Retain recorded legacy attempts for original-result recovery; never create
+  // a second plan from a canonical source through the public legacy route.
+  if (canonical && !binding && !stored)
+    materializationError('MATERIALIZATION_NOT_AVAILABLE', input.requestId);
   if (binding) {
     requireCanonicalMaterializationSource(input, source, binding, ctx.tenantId);
     if (objectiveReceiptSha256 !== binding.objectiveReceiptSha256)
@@ -692,6 +632,19 @@ export class PlannerService {
       : checkedMaterialization(stored as StoredMaterialization, source, ctx.tenantId, ctx.clerkUserId),
       replayed: true };
   }
+  // Old public materializations used different output identities. Their absence
+  // cannot be inferred from canonical IDs or one browser's recovery journal.
+  // Both writers hold the tenant Planner gate; preserve any historical attempt
+  // (including archived receipts or an earlier author/revision) for recovery.
+  if (binding && await tx.spPlannerResource.findFirst({ where: {
+    tenantId: ctx.tenantId,
+    kind: STRATEGY_MATERIALIZATION_RECEIPT,
+    OR: [
+      { data: { path: ['input', 'expected', 'strategyId'], equals: source.strategyId } },
+      { data: { path: ['result', 'source', 'strategyId'], equals: source.strategyId } },
+    ],
+  }, select: { id: true } }))
+    materializationError('MATERIALIZATION_OUTCOME_UNCONFIRMED', input.requestId);
   const current = await tx.spNode.findMany({
     where: { tenantId: ctx.tenantId, strategyId: source.strategyId },
     select: { id: true, archivedAt: true },
@@ -1278,6 +1231,123 @@ export class PlannerService {
         };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeoutMs: 15_000 },
+    );
+  }
+  async overdueAggregate(
+    ctx: AuthTenantContext,
+    raw: DomainAggregateQuery,
+    authorization?: string,
+    signal?: AbortSignal,
+  ) {
+    const query = aggregateQuery(raw),
+      asOf = new Date();
+    return observeDomainAggregate(
+      'planner.overdue_unfinished',
+      query,
+      this.links,
+      authorization,
+      (budget) =>
+        this.prisma.withTenant(
+          ctx.tenantId,
+          async (tx) => {
+            await budget.query(
+              tx,
+              () =>
+                tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`planner:${ctx.tenantId}`}, 0))`,
+            );
+            await budget.query(tx, () => requireAggregateActor(tx, ctx));
+            const projects = await aggregateRows(budget, (after, take) =>
+              budget.query(tx, () =>
+                tx.spPlannerProject.findMany({
+                  where: { tenantId: ctx.tenantId, ...(after ? { id: { gt: after } } : {}) },
+                  orderBy: { id: 'asc' },
+                  take,
+                }),
+              ),
+            );
+            const rows = await aggregateRows(budget, (after, take) =>
+              budget.query(tx, () =>
+                tx.spPlannerTask.findMany({
+                  where: {
+                    tenantId: ctx.tenantId,
+                    archived: false,
+                    ...(after ? { id: { gt: after } } : {}),
+                  },
+                  orderBy: { id: 'asc' },
+                  take,
+                }),
+              ),
+            );
+            const projectRows = projects
+              .map((row) => {
+                budget.remaining();
+                return {
+                  ...row,
+                  data: validateProject(projectData(row)),
+                };
+              })
+              .sort((a, b) => a.id.localeCompare(b.id));
+            const tasks = rows
+              .map((row) => {
+                budget.remaining();
+                return { ...row, data: validateTask(taskData(row)) };
+              })
+              .filter(
+                (row) => !query.clientId || row.data.clientId?.toLowerCase() === query.clientId,
+              );
+            // Removing source grants can only reduce these canonical local roles.
+            // Provably unreadable or non-overdue tasks need no external source read.
+            const eligible = tasks.filter((row) => {
+              budget.remaining();
+              return (
+                plannerTaskAccessDecision(row, projectRows, ctx.clerkUserId) &&
+                plannerResourceTaskOverdue(
+                  { ...row.data, timeZone: row.data.timeZone ?? 'UTC' },
+                  asOf,
+                )
+              );
+            });
+            const referenced = new Set(
+              eligible.flatMap((row) => row.data.memberships.map((link) => link.projectId)),
+            );
+            const relevantProjects = projectRows.filter(
+              (row) => referenced.has(row.id) && plannerProjectAccessDecision(row, ctx.clerkUserId),
+            );
+            return {
+              fingerprint: aggregateFingerprint([projectRows, tasks]),
+              sources: [
+                ...relevantProjects.map((row) => ({ clientId: row.data.clientId })),
+                ...eligible.map((row) => ({
+                  clientId: row.data.clientId,
+                  meetingId: row.data.meetingId,
+                })),
+              ],
+              count: (readable: ReadonlySet<string>) => {
+                const readableProjects = relevantProjects.filter((row) =>
+                  readable.has(aggregateSourceKey(row.data)),
+                );
+                return new Set(
+                  eligible
+                    .filter((row) => {
+                      budget.remaining();
+                      return (
+                        readable.has(aggregateSourceKey(row.data)) &&
+                        plannerTaskAccessDecision(row, readableProjects, ctx.clerkUserId) &&
+                        plannerResourceTaskOverdue(
+                          { ...row.data, timeZone: row.data.timeZone ?? 'UTC' },
+                          asOf,
+                        )
+                      );
+                    })
+                    .map((row) => row.id),
+                ).size;
+              },
+            };
+          },
+          { timeoutMs: budget.remaining() },
+        ),
+      asOf,
+      { signal },
     );
   }
   async tasks(

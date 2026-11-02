@@ -92,6 +92,8 @@ export class SenateCommitteeCalendarAdapter implements CommitteeSourceAdapter {
       throw new Error(`senate committee calendar fetch failed: ${res.error ?? `HTTP ${res.status}`}`);
     }
     const rows = parseSenateCommitteePage(res.body, url);
+    const parserError = committeeCalendarParserError(rows);
+    if (parserError) throw new Error(parserError);
     return rows.map((row) => this.toSourceEvent(row, source, ctx));
   }
 
@@ -99,9 +101,7 @@ export class SenateCommitteeCalendarAdapter implements CommitteeSourceAdapter {
     const url = this.options.url ?? source.sourceUrl;
     const res = await fetchText(url, { accept: 'text/html', timeoutMs: 15_000 });
     const rows = res.body ? parseSenateCommitteePage(res.body, url) : [];
-    const parserError = res.ok && rows.length === 0
-      ? 'HTTP reachable, but no verifiable dated committee entries were parsed'
-      : null;
+    const parserError = res.ok ? committeeCalendarParserError(rows) : null;
     return {
       ok: res.ok && !parserError,
       status: res.status,
@@ -147,6 +147,12 @@ export class SenateCommitteeCalendarAdapter implements CommitteeSourceAdapter {
       },
     };
   }
+}
+
+function committeeCalendarParserError(rows: SenateCommitteeEventRow[]): string | null {
+  return rows.length === 0
+    ? 'HTTP reachable, but no verifiable dated committee entries were parsed'
+    : null;
 }
 
 /** Status prefixes published by the committees, mapped without invention. */

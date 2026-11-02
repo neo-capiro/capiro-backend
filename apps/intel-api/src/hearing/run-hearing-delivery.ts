@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { hostname } from 'node:os';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { Phase9RuntimeHeartbeat } from './phase9-runtime-heartbeat.js';
-import { reportRuntime } from '../tracker/reports/report-runtime.js';
+import { monitoringRuntime } from '../tracker/delivery/monitoring-runtime.js';
 
 /** Selected new kinds use the existing leased dispatcher and runtime registry. */
 async function main() {
@@ -23,7 +23,7 @@ async function main() {
   });
   try {
     await heartbeat.begin();
-    const { delivery } = reportRuntime(prisma);
+    const { delivery } = monitoringRuntime(prisma);
     const scopes = await prisma.withSystem((tx) =>
       tx.featureFlag.findMany({
         where: {

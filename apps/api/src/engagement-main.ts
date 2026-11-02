@@ -7,6 +7,8 @@ import {
   configureApiHttpServerTimeouts,
 } from './bootstrap/configure-api-http-app.js';
 import { assertEngagementRuntimeEnvironment } from './engagement/runtime/engagement-runtime-env.js';
+import { EngagementRuntimePolicyService } from './engagement/runtime/engagement-runtime-policy.service.js';
+import { installMailHandoffShutdownJoin } from './engagement/runtime/engagement-mail-handoff-shutdown.js';
 
 async function bootstrap() {
   const posture = assertEngagementRuntimeEnvironment(process.env as Record<string, unknown>);
@@ -16,6 +18,13 @@ async function bootstrap() {
 
   const app = await NestFactory.create(EngagementApiAppModule, { bufferLogs: true });
   const logger = new Logger('EngagementApiBootstrap');
+  const runtimePolicy = app.get(EngagementRuntimePolicyService);
+  if (runtimePolicy.mailHandoffObservation()) {
+    // Selected handoff: this serving bootstrap binds the single drain-then-teardown
+    // signal path. Nest's own shutdown hooks stay disabled here (as they always
+    // were), so nothing races the drain.
+    installMailHandoffShutdownJoin(app, runtimePolicy, logger);
+  }
 
   configureApiHttpApp(app, {
     serviceHeader: 'engagement-api',

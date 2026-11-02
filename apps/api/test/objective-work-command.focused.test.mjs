@@ -398,7 +398,9 @@ test('GET is read-only, minimal, and uses authoritative reconciliation rather th
   const before = clone(owner.data);
   const view = await readWorkGeneration(readRequest(), owner);
   assert.deepEqual(Object.keys(view).sort(), ['schemaVersion', 'clientId', 'objective', 'workAction',
-    'control', 'consent', 'reconciliation', 'commandReceipt', 'observedAt'].sort());
+    'requestedSource', 'control', 'consent', 'reconciliation', 'accounting', 'commandReceipt', 'observedAt'].sort());
+  assert.deepEqual(view.requestedSource, { revision: { id: I.revision, version: 1 }, canonicalBindingVersion: 1 });
+  assert.equal(view.accounting, null);
   assert.deepEqual(view.control, { version: 0, currentAuthorizationRequestId: null, cancelledAt: null });
   assert.equal(view.commandReceipt, null);
   assert.equal(view.consent, null);
@@ -413,6 +415,25 @@ test('GET is read-only, minimal, and uses authoritative reconciliation rather th
   const json = JSON.stringify(view);
   for (const privateValue of [I.canonical, I.strategy, I.project, I.membership, 'a'.repeat(64)])
     assert.equal(json.includes(privateValue), false);
+});
+
+test('GET separates current requested revision from original terminal accounting without exposing owner internals', async () => {
+  const owner = new MemoryOwner();
+  seedConsent(owner, { action: PLAN });
+  owner.data.authority.objectiveVersion = 2;
+  owner.data.authority.objectiveRevisionId = id(410);
+  Object.assign(owner.data.states[PLAN].source, { sourceRevisionId: id(410), sourceObjectiveVersion: 2,
+    canonicalBindingVersion: 2 });
+  owner.data.reconciliation[PLAN] = accounted('applied');
+  const before = clone(owner.data);
+  const view = await readWorkGeneration(readRequest({ workAction: PLAN }), owner);
+  assert.deepEqual(view.requestedSource, { revision: { id: id(410), version: 2 }, canonicalBindingVersion: 2 });
+  assert.equal(view.reconciliation, 'accounted');
+  assert.deepEqual(view.accounting, { outcome: 'applied', sourceRevision: { id: I.revision, version: 1 } });
+  assert.deepEqual(owner.data, before);
+  assert.equal(owner.events.every(e => !e.write), true);
+  for (const privateValue of [I.canonical, I.strategy, I.project, I.membership, id(90), id(91), id(92), id(93), 'c'.repeat(64)])
+    assert.equal(JSON.stringify(view).includes(privateValue), false);
 });
 
 test('GET reports expiry equality, recovers only current actor/action receipt and never revives consent', async () => {

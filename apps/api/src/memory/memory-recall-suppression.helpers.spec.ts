@@ -17,7 +17,7 @@ describe('currentMemoryReadSql', () => {
     const sql = currentMemoryReadSql(false, 'mi');
     expect(sql).toContain("mi.slug NOT LIKE 'clio:%'");
     expect(sql).toContain("mi.status = 'active'");
-    expect(sql).toContain('mi.expires_at > now()');
+    expect(sql).toContain('mi.expires_at > clock_timestamp()');
     expect(sql).not.toContain('governed_status');
     expect(sql).not.toContain('effective_from');
   });
@@ -25,14 +25,14 @@ describe('currentMemoryReadSql', () => {
   it('requires the shared current-memory predicate for every governed row', () => {
     const sql = currentMemoryReadSql(true, 'mi');
     expect(sql).toMatch(/mi\.governed_status IS NULL\s+AND mi\.slug NOT LIKE 'clio:%'/);
-    expect(sql).toMatch(/mi\.slug NOT LIKE 'clio:%'[\s\S]*mi\.effective_from <= now\(\)/);
+    expect(sql).toMatch(/mi\.slug NOT LIKE 'clio:%'[\s\S]*mi\.effective_from <= clock_timestamp\(\)/);
     expect(sql).toContain('mi.controlling_item_id IS NULL');
     expect(sql).toContain("COALESCE(mi.conflict_status, 'none') NOT IN ('open', 'controlling')");
     expect(sql).toContain("mi.governed_status IN ('active', 'stale')");
     expect(sql).toContain("mi.governed_status = 'conflicted'");
     expect(sql).toContain('mi.controlling_item_id = mi.id');
-    expect(sql).toContain('mi.effective_from <= now()');
-    expect(sql).toContain('mi.valid_until > now()');
+    expect(sql).toContain('mi.effective_from <= clock_timestamp()');
+    expect(sql).toContain('mi.valid_until > clock_timestamp()');
     expect(sql).toContain("mi.status = 'active'");
   });
 
@@ -54,15 +54,17 @@ describe('currentMemoryReadSql', () => {
     expect(oldSchema).toContain("mi.slug NOT LIKE 'clio:%'");
     expect(oldSchema).not.toContain('governed_status');
     const migrated = memoryEmbeddingEligibilitySql(true);
-    expect(migrated).toContain('mi.effective_from <= now()');
+    expect(migrated).toContain('mi.effective_from <= clock_timestamp()');
     expect(migrated).toContain("mi.governed_status IN ('active', 'stale')");
     expect(migrated).toContain("mi.visibility = 'tenant' AND mi.owner_user_id IS NULL");
   });
 
   it('keeps both model-facing graph inputs behind the owner and current-memory gate', () => {
     const source = readFileSync(join(__dirname, '..', 'meri', 'meri-tools.service.ts'), 'utf8');
-    const graph = source.split('private async loadGraphForCtx(')[1]?.split('private async queryKnowledgeGraph(')[0];
-    expect(graph).toBeDefined();
+    expect(source).toContain('return readMeriPaths(this.prisma, ctx, input');
+    const paths = readFileSync(join(__dirname, '..', 'meri', 'meri-graph-paths.ts'), 'utf8');
+    expect(paths).toContain('loadMeriGraph(prisma, ctx, source, input.clientId, true)');
+    const graph = readFileSync(join(__dirname, '..', 'meri', 'meri-graph-source.ts'), 'utf8');
     expect(graph).toContain("visibility = 'tenant' AND owner_user_id IS NULL");
     expect(graph).toContain("visibility = 'user' AND owner_user_id = ${ctx.userId}::uuid");
     expect(graph).toContain('WHERE tenant_id = ${ctx.tenantId}::uuid');

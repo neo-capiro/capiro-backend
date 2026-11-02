@@ -1,4 +1,7 @@
-import { ResearchPortfolioSharePayloadService } from './research-portfolio-share-payload.service.js';
+import {
+  ResearchPortfolioSharePayloadService,
+  changeSummary,
+} from './research-portfolio-share-payload.service.js';
 
 const ctx: any = { tenantId: 'tenant', userId: 'owner' };
 const input = { snapshotId: 'snapshot', designId: 'design', clientId: 'one', branding: false };
@@ -160,6 +163,94 @@ function fixture() {
 }
 
 describe('exact research sharing payload', () => {
+  it('carries a bill subject with its frozen legislative facts and no funding', async () => {
+    const h = fixture();
+    h.snapshot.membership.push({
+      id: 'bill-member',
+      targetKind: 'federal_bill',
+      targetId: '119-hr-8800',
+      label: 'H.R. 8800 — Defense Appropriations',
+      disposition: 'included',
+      // Frozen at snapshot time: a later legislative change cannot rewrite this.
+      facts: {
+        jurisdiction: 'US',
+        session: '119',
+        status: 'reported',
+        latestActionDate: '2026-09-10',
+        sourceRevision: '2026-09-11T00:00:00.000Z',
+        fundingBasis: 'not_applicable',
+      },
+    });
+    h.snapshot.projection.coverage.notApplicableMembers = 1;
+    const { payload } = await h.service.prepare(ctx, 'portfolio', input, h.tx);
+    const subject = (payload.dashboard.data as any).subjects.find(
+      (entry: any) => entry.targetId === '119-hr-8800',
+    );
+    expect(subject).toMatchObject({
+      targetKind: 'federal_bill',
+      disposition: 'included',
+      facts: { status: 'reported', fundingBasis: 'not_applicable' },
+    });
+    // The bill is not a funding row and is counted separately from unavailable.
+    expect(
+      (payload.dashboard.data as any).totals.reduce(
+        (sum: number, total: any) => sum + total.contributionCount,
+        0,
+      ),
+    ).toBe(1);
+    expect((payload.dashboard.data as any).coverage.notApplicableMembers).toBe(1);
+  });
+
+  it('publishes a bill change with what changed and when, not a bare event kind', async () => {
+    const h = fixture();
+    h.tx.researchPortfolioEvent.findMany.mockResolvedValue([
+      {
+        id: 'bill-event',
+        eventKind: 'bill_changed',
+        occurredAt: new Date('2026-09-10T12:00:00.000Z'),
+        payload: {
+          targetKind: 'federal_bill',
+          targetId: '119-hr-8800',
+          changeType: 'status',
+          label: 'Status changed',
+          actionDate: '2026-09-10',
+          sourceLabel: 'Congress.gov',
+        },
+      },
+    ]);
+    const { payload } = await h.service.prepare(ctx, 'portfolio', input, h.tx);
+
+    // The kind must be admitted at all, or the recipient's Changes widget hides it.
+    expect(h.tx.researchPortfolioEvent.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          eventKind: expect.objectContaining({ in: expect.arrayContaining(['bill_changed']) }),
+        }),
+      }),
+    );
+    expect((payload.dashboard.data as any).changes).toEqual([
+      {
+        id: 'bill-event',
+        eventKind: 'bill_changed',
+        occurredAt: '2026-09-10T12:00:00.000Z',
+        summary: 'bill changed: Status changed (2026-09-10) — Congress.gov',
+      },
+    ]);
+  });
+
+  it('keeps ordinary change summaries and never invents bill detail', () => {
+    expect(changeSummary('member_added', { clientName: 'Do not expose' })).toBe('member added');
+    expect(changeSummary('bill_changed', null)).toBe('bill changed: legislative change');
+    expect(changeSummary('bill_changed', { changeType: 'status' })).toBe(
+      'bill changed: status',
+    );
+    // A non-string field cannot leak into the recipient line.
+    expect(changeSummary('bill_changed', { label: { nested: 'x' }, actionDate: 7 })).toBe(
+      'bill changed: legislative change',
+    );
+    expect(changeSummary('bill_changed', ['status'])).toBe('bill changed: legislative change');
+  });
+
   it('does not admit a selector from an excluded contribution that is absent from the recipient ledger', async () => {
     const h = fixture();
     h.snapshot.projection.contributions.push({

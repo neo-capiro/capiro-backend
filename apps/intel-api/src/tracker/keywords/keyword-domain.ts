@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { compileKeywordQuery, type QueryCompilation } from './keyword-query.js';
 import { keywordScope, type KeywordScope } from '../../sourcedata/keyword-source.repository.js';
-import { object } from '../reports/report-domain.js';
+import { object } from '../delivery/delivery-domain.js';
 export type KeywordDefinition = {
   id: string;
   raw: string;

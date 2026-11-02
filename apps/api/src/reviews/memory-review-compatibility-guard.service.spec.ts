@@ -1,3 +1,6 @@
+// Real transaction/RLS behavior is covered by conversation-serving PostgreSQL tests.
+jest.mock('../memory/conversation-serving/transaction.js', () =>
+  jest.requireActual('../memory/conversation-serving/unit-boundary.fixture.js'));
 import { describe, expect, it, jest } from '@jest/globals';
 import { NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';

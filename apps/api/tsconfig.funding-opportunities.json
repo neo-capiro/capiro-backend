@@ -28,6 +28,7 @@
     "scripts/funding-cli.spec.ts",
     "src/external/tango/funding-catalog.db.spec.ts",
     "scripts/embed-funding-catalog.ts",
+    "scripts/embed-funding-catalog.spec.ts",
     "scripts/test-tango-funding-postgres.ts",
     "src/types/word-extractor.d.ts",
     "scripts/process-funding-opportunity-lifecycle.ts",

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { StrategyController } from './strategy.controller.js';
 import { StrategyService } from './strategy.service.js';
+import { PlannerLinksService } from '../planner/planner-links.service.js';
 import { NodeService } from './node.service.js';
 import { VersionService } from './version.service.js';
 import { VersioningService } from './versioning.service.js';
@@ -21,11 +22,14 @@ import { ReportSnapshotService } from '../reports/report-snapshot.service.js';
 import { StrategyReportService } from '../reports/strategy-report.service.js';
 import { StrategyAiCredentialResolver } from '../meri/strategy-ai-credential.resolver.js';
 import { StrategyOrchestratorClient } from '../meri/strategy-orchestrator.client.js';
+import { StrategyContextPlaneClient } from '../meri/strategy-context-plane.client.js';
 
 @Module({
   controllers: [StrategyController],
   providers: [
     StrategyService,
+    StrategyContextPlaneClient,
+    PlannerLinksService,
     NodeService,
     VersionService,
     VersioningService,

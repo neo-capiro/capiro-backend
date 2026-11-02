@@ -1,3 +1,4 @@
+import { withMemoryConversationRetention } from './conversation-serving/transaction.js';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext, TenantRole } from '@capiro/shared';
@@ -50,7 +51,7 @@ export class MemoryAuthorizationService {
     operation: MemoryOperation,
     options: MemoryAuthorizationOptions = {},
   ): Promise<GovernedMemorySubjectRow> {
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const row = await this.loadItemInTx(tx, ctx.tenantId, itemId);
       if (!row) throw new NotFoundException('Memory item not found');
       const decision = await this.evaluateInTx(tx, ctx, row, operation, options);
@@ -67,7 +68,7 @@ export class MemoryAuthorizationService {
     operation: MemoryOperation,
     options: MemoryAuthorizationOptions = {},
   ): Promise<GovernedMemorySubjectRow> {
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const row = await this.loadCandidateInTx(tx, ctx.tenantId, candidateId);
       if (!row) throw new NotFoundException('Memory candidate not found');
       const decision = await this.evaluateInTx(tx, ctx, row, operation, options);

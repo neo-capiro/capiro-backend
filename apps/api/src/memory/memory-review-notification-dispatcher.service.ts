@@ -1,3 +1,4 @@
+import { withMemoryConversationRetention } from './conversation-serving/transaction.js';
 import { randomUUID } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
@@ -153,7 +154,7 @@ export class MemoryReviewNotificationDispatcherService {
     row: ClaimedNotificationRow,
     eventType: MemoryReviewNotificationEvent,
   ): Promise<boolean> {
-    return this.prisma.withTenantUser(
+    return withMemoryConversationRetention(this.prisma,
       row.tenantId,
       row.recipientUserId,
       async (tx): Promise<boolean> => {
@@ -251,7 +252,7 @@ export class MemoryReviewNotificationDispatcherService {
   }
 
   private async complete(row: ClaimedNotificationRow): Promise<void> {
-    await this.prisma.withTenantUser(row.tenantId, row.recipientUserId, async (tx) => {
+    await withMemoryConversationRetention(this.prisma, row.tenantId, row.recipientUserId, async (tx) => {
       const updated = await tx.$executeRaw(Prisma.sql`
         UPDATE memory_review_notification_outbox
         SET delivered_at = now(),

@@ -84,7 +84,7 @@ export interface CongressGovAdapterOptions {
   apiKey: string;
   /** Congress numbers to scan. Defaults to the current Congress only. */
   congresses?: number[];
-  /** Hard page bound per congress, so a run is always finite. */
+  /** Optional operator cap; otherwise the publisher's total bounds the pass. */
   maxPages?: number;
   listLimit?: number;
   /** systemCode → display name, normally served from our own congress_committee. */
@@ -96,7 +96,18 @@ export class CongressGovAdapter implements CommitteeSourceAdapter {
   readonly parserVersion = 'congress-gov/2026-10-06-completeness';
   discoveryErrors: string[] = [];
 
-  constructor(private readonly options: CongressGovAdapterOptions) {}
+  constructor(private readonly options: CongressGovAdapterOptions) {
+    if (
+      options.maxPages != null &&
+      (!Number.isSafeInteger(options.maxPages) || options.maxPages < 1)
+    )
+      throw new Error('Congress discovery maxPages must be a positive integer');
+    if (
+      options.listLimit != null &&
+      (!Number.isSafeInteger(options.listLimit) || options.listLimit < 1 || options.listLimit > 250)
+    )
+      throw new Error('Congress discovery listLimit must be an integer from 1 to 250');
+  }
 
   async discoverEvents(source: SourceDescriptor, ctx: DiscoveryContext): Promise<SourceEvent[]> {
     this.discoveryErrors = [];
@@ -105,7 +116,6 @@ export class CongressGovAdapter implements CommitteeSourceAdapter {
     }
     const congresses = this.options.congresses ?? [currentCongress()];
     const listLimit = this.options.listLimit ?? 250;
-    const maxPages = this.options.maxPages ?? 8;
     const events: SourceEvent[] = [];
     // One retry budget for the entire pass, not one per page/detail. Never
     // retry HTTP refusals/rate limits or opaque fetch errors here.
@@ -128,6 +138,7 @@ export class CongressGovAdapter implements CommitteeSourceAdapter {
 
     for (const congress of congresses) {
       let offset = 0;
+      let maxPages = this.options.maxPages ?? 1;
       for (let page = 0; page < maxPages; page += 1) {
         await sleep(ctx.delayMs);
         const listUrl = this.listUrl(congress, listLimit, offset, ctx.since);
@@ -147,6 +158,16 @@ export class CongressGovAdapter implements CommitteeSourceAdapter {
         }
         const items = list.data.committeeMeetings;
         if (items.length === 0) break;
+        if (page === 0 && this.options.maxPages == null && items.length >= listLimit) {
+          const count = list.data.pagination?.count;
+          if (!Number.isSafeInteger(count) || count! < items.length) {
+            this.discoveryErrors.push('committee-meeting full page missing valid pagination count');
+          } else {
+            // A fixed eight-page default repeatedly reread the same prefix on
+            // cold starts. Complete the finite inventory the publisher reports.
+            maxPages = Math.ceil(count! / listLimit);
+          }
+        }
 
         for (const item of items) {
           if (!item.eventId || !item.url) {

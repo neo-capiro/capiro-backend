@@ -7,6 +7,7 @@ import {
   type TenantContext,
 } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { readTargetContext, type TargetContextQueryDto } from './client-target-context.js';
 import { DirectoryService } from '../directory/directory.service.js';
 import type { DirectoryStaffDetail } from '../directory/directory-detail.types.js';
 import { RepresentationResolverService } from './representation-resolver.service.js';
@@ -106,6 +107,10 @@ export class ClientTargetsService {
     private readonly directory: DirectoryService,
     private readonly representation: RepresentationResolverService,
   ) {}
+
+  context(ctx: TenantContext, clientId: string, targetId: string, query: TargetContextQueryDto) {
+    return readTargetContext(this.prisma, ctx, clientId, targetId, query);
+  }
 
   /** Observe a saved client target, not a current Directory entity or stored Objective link. */
   async objectiveDestination(

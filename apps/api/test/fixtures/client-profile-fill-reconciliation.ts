@@ -106,7 +106,7 @@ function query(state: State) {
     }
     if (operation === 'associations') {
       if (state.options.associationError) throw state.options.associationError;
-      return state.options.associations ?? [];
+      return (state.options.associations ?? []).filter((row) => row.status !== 'rejected');
     }
     const id = state.options.matterIds?.[String(args[2])];
     return id ? [{ id }] : [];

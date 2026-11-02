@@ -23,6 +23,7 @@ import type {
   TenantContext,
   UpdateResearchPortfolioBookmarkDto,
 } from '@capiro/shared';
+import { isResearchPortfolioBillKind } from '@capiro/shared';
 import { createHash } from 'node:crypto';
 import { scoreCapabilityPeDirect } from '../intelligence/client-pe-relevance.scoring.js';
 import { capabilityFitFingerprint } from '../clients/client-capability-fit.fingerprint.js';
@@ -100,7 +101,9 @@ export class ResearchPortfolioPhase11Service {
       .update(stableJson({ operation: 'bookmark.create', portfolioId, ...content }))
       .digest('hex');
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await tx.$queryRaw(
+      // $executeRaw: pg_advisory_xact_lock returns void; $queryRaw fails to deserialize void
+      // (Prisma P2010), the same defect confirmed on the snapshot lock.
+      await tx.$executeRaw(
         Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${ctx.tenantId + ':portfolio-event:' + key}, 0))`,
       );
       await tx.$queryRaw(
@@ -438,12 +441,18 @@ export class ResearchPortfolioPhase11Service {
     const targets: any[] = [];
     for (const member of members) {
       if (member.targetKind !== 'program_element') {
+        // A tracked bill is not a capability/PE subject at all: calling it "unsupported"
+        // would read as missing evidence. It is excluded from fit, not scored as zero.
         targets.push({
           member,
           facts: null,
           sources: [],
           supported: false,
-          reasons: ['target_kind_not_supported_by_direct_pe_basis'],
+          reasons: [
+            isResearchPortfolioBillKind(member.targetKind)
+              ? 'bill_has_no_capability_pe_basis'
+              : 'target_kind_not_supported_by_direct_pe_basis',
+          ],
         });
         continue;
       }
@@ -490,6 +499,10 @@ export class ResearchPortfolioPhase11Service {
             : ['canonical_pe_not_currently_qualified_with_hashed_source_and_locator'],
       });
     }
+    if (members.some((member: any) => isResearchPortfolioBillKind(member.targetKind)))
+      limitations.push(
+        'Tracked bills are legislative subjects with no capability/PE basis; they are excluded from the fit score rather than scored as zero.',
+      );
     const sourceBasis = targets.map(({ member, facts, sources, supported }: any) => ({
       memberId: member.id,
       revision: member.revision,

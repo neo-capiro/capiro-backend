@@ -1,5 +1,6 @@
 import { ClientProfileFillCompletionService } from './client-profile-fill-completion.service.js';
 import { ClientProfileFillWorkflowService } from './client-profile-fill-workflow.service.js';
+import * as actorOwner from './client-profile-fill-worker-actor.js';
 
 // These tests exercise task orchestration; no specialist, external API or apply
 // engine should initialize just to read task state.
@@ -119,6 +120,7 @@ describe('Fill specialist retry and completion (Q11)', () => {
   it.each(['resolve', 'recordRunContext'])(
     'times out stalled %s and does not start a late specialist',
     async (blockedStep) => {
+      const actor = jest.spyOn(actorOwner, 'resolveFillRunActor').mockResolvedValue({ tenantId: 'tenant-1', userId: 'user-1', role: 'standard_user', clerkUserId: 'current-clerk', tenantSlug: 'current-tenant' });
       jest.useFakeTimers();
       let release!: (value: unknown) => void;
       const stalled = new Promise((resolve) => {
@@ -151,6 +153,7 @@ describe('Fill specialist retry and completion (Q11)', () => {
         clientId: 'client-1',
         taskType: 'bill_tracker',
         createdByUserId: 'user-1',
+        deadlineAt: new Date(Date.now() + 30 * 60_000),
         input: {},
         attempt: 3,
         maxAttempts: 3,
@@ -161,8 +164,8 @@ describe('Fill specialist retry and completion (Q11)', () => {
         await execution;
         expect(service.failTask).toHaveBeenCalledWith(
           task,
-          'task_failed',
-          'Fill specialist exceeded its task budget. Retry this check.',
+          'task_timeout',
+          'Fill specialist exceeded its task budget; outstanding external outcomes remain unresolved',
           false,
         );
         expect(jest.getTimerCount()).toBe(0);
@@ -172,6 +175,7 @@ describe('Fill specialist retry and completion (Q11)', () => {
         expect(service.completeTask).not.toHaveBeenCalled();
         if (blockedStep === 'resolve') expect(contextPlane.recordRunContext).not.toHaveBeenCalled();
       } finally {
+        actor.mockRestore();
         jest.useRealTimers();
       }
     },
@@ -265,4 +269,27 @@ describe('Fill specialist retry and completion (Q11)', () => {
     expect([run, tenant, status]).toEqual(['run-1', 'tenant-1', 'partial']);
     expect(JSON.parse(summary)).toMatchObject({ total: 2, byStatus: { accepted: 2 } });
   });
+});
+
+
+it('bounds the core attempt by remaining run time and aborts its local signal without claiming provider cessation', async () => {
+  jest.useFakeTimers();
+  const service = new ClientProfileFillWorkflowService(
+    {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never,
+  ) as any;
+  const forbidden = jest.fn();
+  let signal: AbortSignal | undefined;
+  try {
+    await expect(service.withTaskTimeout(forbidden, new Date(Date.now()))).rejects.toThrow('deadline exceeded');
+    expect(forbidden).not.toHaveBeenCalled();
+    const pending = service.withTaskTimeout((value: AbortSignal) => {
+      signal = value;
+      return new Promise(() => undefined);
+    }, new Date(Date.now() + 25));
+    const assertion = expect(pending).rejects.toThrow('external outcomes remain unresolved');
+    await jest.advanceTimersByTimeAsync(25);
+    await assertion;
+    expect(signal!.aborted).toBe(true);
+    expect(jest.getTimerCount()).toBe(0);
+  } finally { jest.useRealTimers(); }
 });

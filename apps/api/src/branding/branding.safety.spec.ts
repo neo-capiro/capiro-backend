@@ -58,7 +58,10 @@ function fixture() {
     },
   };
   const service = new BrandingService(
-    { withTenant: async (_tenant: string, read: any) => read(tx) } as never,
+    {
+      withTenant: async (_tenant: string, read: any) => read(tx),
+      withSystem: async (read: any) => read(tx),
+    } as never,
     { get: (key: string) => (key === 'ASSETS_BUCKET' ? 'assets-test' : 'us-east-1') } as never,
   );
   const send = (service as any).s3.send;
@@ -172,7 +175,9 @@ describe('ST-01 branding object admission', () => {
         data: expect.objectContaining({ logoS3Key: key, logoContentType: 'image/png' }),
       }),
     );
-    expect((await h.service.getBranding(ctx))?.logoUrl).toBe('https://signed.invalid');
+    expect((await h.service.getBranding(ctx))?.logoUrl).toBe('/api/firm-logo');
+    // The signed-URL owner is now the no-session share path, not the settings payload.
+    expect(await h.service.signedLogoUrlForTenant(ctx.tenantId)).not.toBeNull();
     expect(jest.mocked(getSignedUrl).mock.calls.at(-1)?.[1]).toMatchObject({ input: { Key: key } });
   });
 
@@ -188,11 +193,13 @@ describe('ST-01 branding object admission', () => {
       const result = await h.service.getBranding(ctx);
       expect(result).toMatchObject({ logoUrl: null, logoS3Key: null, logoContentType: null });
     }
+    expect((await h.service.getBranding(ctx))?.logoUrl).toBeNull();
     expect(getSignedUrl).not.toHaveBeenCalled();
     Object.assign(h.row, {
       logoS3Key: 'tenants/tenant-a/branding/logo.png',
       logoContentType: 'image/png',
     });
-    expect((await h.service.getBranding(ctx))?.logoUrl).toBe('https://signed.invalid');
+    expect((await h.service.getBranding(ctx))?.logoUrl).toBe('/api/firm-logo');
+    expect(getSignedUrl).not.toHaveBeenCalled();
   });
 });

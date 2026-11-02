@@ -28,7 +28,7 @@ describe('Research Portfolio Phase 9 financial and output invariants', () => {
         basis: null, value: null, disposition: 'unavailable' as const, reason: 'No qualified reader',
         sourceObservationId: null, sourceRevisionIds: [], evidence: [], dedupKey: null, overlapsContributionId: null,
       }],
-      coverage: { eligibleMembers: 1, supportedMembers: 0, includedContributions: 0, excludedContributions: 0, overlapContributions: 0, unavailableMembers: 1 },
+      coverage: { eligibleMembers: 1, supportedMembers: 0, includedContributions: 0, excludedContributions: 0, overlapContributions: 0, unavailableMembers: 1, notApplicableMembers: 0 },
       limitations: ['missing is not zero'], observedAt: '2026-09-26T00:00:00.000Z', readAt: '2026-09-26T00:00:00.000Z',
     };
     const csv = researchPortfolioOutputInternals.projectionCsv(projection).toString('utf8');

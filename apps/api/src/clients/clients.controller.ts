@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Header, Param, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
 import {
   ArrayMaxSize,
   ArrayMinSize,
@@ -28,7 +28,6 @@ import { PreviewNativeReadService } from '../auth/preview-native-read.service.js
 import { CORE_ROSTER_PREVIEW_HOST } from '../auth/preview-native-read-mode.js';
 import { DURABLE_SET_ASIDE_CERTIFICATIONS } from '../funding-opportunities/set-aside.js';
 import { ClientsService } from './clients.service.js';
-import { PortfolioMetricsService } from './metrics/portfolio-metrics.service.js';
 import { CLIENT_ORGANIZATION_TYPES } from './client-funding-profile.validation.js';
 
 /**
@@ -331,17 +330,7 @@ export class ClientsController {
   constructor(
     private readonly service: ClientsService,
     private readonly preview: PreviewNativeReadService,
-    private readonly metrics: PortfolioMetricsService,
   ) {}
-
-  /**
-   * The portfolio pulse. Declared before `@Get(':id')` so the literal path is
-   * matched instead of being read as a client id.
-   */
-  @Get('metrics')
-  portfolioMetrics(@CurrentTenant() ctx: TenantContext) {
-    return this.metrics.getMetrics(ctx);
-  }
 
   @Get()
   list(
@@ -372,6 +361,30 @@ export class ClientsController {
       sectorTag: query.sectorTag,
       includeArchived: query.includeArchived === 'true',
     });
+  }
+
+  @Get('metrics')
+  @Header('Cache-Control', 'no-store')
+  metrics(@CurrentTenant() ctx: TenantContext) {
+    return this.service.metrics(ctx);
+  }
+
+  /**
+   * M1: stable, session-authenticated client-logo bytes. The app never receives a
+   * presigned S3 URL for a logo, so no payload carries X-Amz-Security-Token and the
+   * image does not expire after five minutes.
+   */
+  @Get(':id/logo')
+  async logo(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const logo = await this.service.readLogo(ctx, id);
+    res.setHeader('Content-Type', logo.contentType);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.send(logo.body);
   }
 
   @Get(':id')

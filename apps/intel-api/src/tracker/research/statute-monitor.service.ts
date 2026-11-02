@@ -10,7 +10,7 @@ import { legalTargetMatches, type LegalReference } from '@capiro/shared';
 import { ResearchService } from './research.service.js';
 import { checkedVersion } from '../keywords/keyword-rule.service.js';
 import { hash } from '../folders/folder-tracker.service.js';
-import { object } from '../reports/report-domain.js';
+import { object } from '../delivery/delivery-domain.js';
 
 type Config = {
   kind: 'statute_reference';

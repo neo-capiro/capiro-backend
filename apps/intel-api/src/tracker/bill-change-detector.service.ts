@@ -1,8 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { RecordRuleService } from './reports/record-rule.service.js';
-import { reportTenants } from './reports/report-runtime.js';
+import type { RecordRuleService } from './delivery/record-rule.service.js';
+import { monitoringTenants } from './delivery/monitoring-runtime.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { humanizeStateBillKey, computeStateDeadlineRisk, billStage, type BillStage } from '@capiro/shared';
+import {
+  humanizeStateBillKey,
+  computeStateDeadlineRisk,
+  billStage,
+  type BillStage,
+} from '@capiro/shared';
 import {
   SourceDataRepository,
   type SourceBill,
@@ -134,7 +139,9 @@ export class BillChangeDetectorService {
   ) {}
 
   async runDetectionCycle(folderRecords?: RecordRuleService): Promise<DetectionSummary> {
-    if (folderRecords) for (const scope of await reportTenants(this.prisma)) await folderRecords.detect(scope.tenantId);
+    if (folderRecords)
+      for (const scope of await monitoringTenants(this.prisma))
+        await folderRecords.detect(scope.tenantId);
     const scanHistory = ['true', '1', 'yes'].includes(
       (process.env.TRACKER_SCAN_ACTION_HISTORY ?? '').toLowerCase(),
     );

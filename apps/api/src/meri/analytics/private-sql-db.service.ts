@@ -1,27 +1,43 @@
+import { PRIVATE_SQL_ROLE_CHECK } from './private-sql-admission.js';
+import { privateSqlNormalizationRuntimeAdmitted } from './private-sql-normalization-runtime.js';
+import { describePrivateSqlDomains } from './private-sql-domain-metadata.js';
 import { ForbiddenException, Injectable } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
-import { PublicSqlError, type CompiledPublicSql } from './sql-query-compiler.js';
-import { normalizeSqlRow, type SqlResultRow } from './sql-query-output.js';
+import type { Pool } from 'pg';
+import {
+  createReaderPool,
+  executeGatedStatement,
+  readerConfigFromEnv,
+  readPublishedSurface,
+  translateDatabaseError,
+  withReadOnlyTransaction,
+  type PublishedRelation,
+  type SqlResultColumn,
+  type SqlResultRow,
+} from './sql-reader-connection.js';
+import {
+  PRIVATE_RELATION_NAMES,
+  SOURCE_RELATIONS,
+  SOURCE_SCHEMAS,
+  SqlQueryError,
+  type GatedSqlStatement,
+} from './sql-statement-gate.js';
 
-export const PRIVATE_SQL_VIEW_NAMES = Object.freeze([
-  'client_objectives',
-  'client_activity',
-  'client_team_roster',
-  'client_account_owners',
-  'client_targets',
-  'client_profiles',
-  'client_profile_codes',
-  'client_people',
-  'client_contacts',
-  'client_engagement_tasks',
-  'client_action_items',
-  'client_tracked_bills',
-  'client_outreach_campaigns',
-  'client_campaign_recipients',
-] as const);
+export const PRIVATE_SQL_VIEW_NAMES = PRIVATE_RELATION_NAMES;
+const READER_ROLE = 'capiro_private_query_ro';
+
 type Scope =
   | { readonly scopeKind: 'general'; readonly clientId: null }
-  | { readonly scopeKind: 'client'; readonly clientId: string };
+  | { readonly scopeKind: 'client'; readonly clientId: string }
+  | {
+      readonly scopeKind: 'research_portfolio';
+      readonly clientId: null;
+      readonly researchPortfolioId: string;
+    }
+  | {
+      readonly scopeKind: 'classic_outreach';
+      readonly clientId: string | null;
+      readonly classicOutreachIds: readonly string[];
+    };
 /** Internal input from the canonical current owner, never a model/HTTP authorization claim.
  * assertCurrent closes over that owner's admitted receipt and checks its current expect fields. */
 export type PrivateSqlExecutionContext = Readonly<{
@@ -33,9 +49,9 @@ export type PrivateSqlExecutionContext = Readonly<{
   Scope;
 
 const unavailable = () =>
-  new PublicSqlError('SOURCE_UNAVAILABLE', 'Private data is currently unavailable.');
+  new SqlQueryError('SOURCE_UNAVAILABLE', 'Private data is currently unavailable.');
 const timeout = () =>
-  new PublicSqlError(
+  new SqlQueryError(
     'QUERY_TIMEOUT',
     'The private query exceeded its execution time limit. Narrow the query.',
   );
@@ -45,110 +61,61 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export function capturePrivateSqlContext(
   context: PrivateSqlExecutionContext,
 ): PrivateSqlExecutionContext {
+  if (!context) throw new ForbiddenException('Private query access unavailable');
+  const { tenantId, actorId, deadlineMs, assertCurrent, scopeKind, clientId } = context;
+  const selectors = context as PrivateSqlExecutionContext & {
+    researchPortfolioId?: unknown;
+    classicOutreachIds?: unknown;
+  };
+  const portfolioId = selectors.researchPortfolioId;
+  const ids = selectors.classicOutreachIds;
+  const canonicalUuid = (value: unknown): value is string =>
+    typeof value === 'string' && uuid.test(value);
+  const validScope =
+    (scopeKind === 'general' &&
+      clientId === null &&
+      portfolioId === undefined &&
+      ids === undefined) ||
+    (scopeKind === 'client' &&
+      canonicalUuid(clientId) &&
+      portfolioId === undefined &&
+      ids === undefined) ||
+    (scopeKind === 'research_portfolio' &&
+      clientId === null &&
+      canonicalUuid(portfolioId) &&
+      ids === undefined) ||
+    (scopeKind === 'classic_outreach' &&
+      (clientId === null || canonicalUuid(clientId)) &&
+      portfolioId === undefined &&
+      Array.isArray(ids) &&
+      ids.length <= 100 &&
+      Array.from(ids).every(canonicalUuid) &&
+      new Set(ids).size === ids.length);
   if (
-    !context ||
-    !uuid.test(context.tenantId) ||
-    !uuid.test(context.actorId) ||
-    !Number.isSafeInteger(context.deadlineMs) ||
-    typeof context.assertCurrent !== 'function' ||
-    !(
-      (context.scopeKind === 'general' && context.clientId === null) ||
-      (context.scopeKind === 'client' &&
-        typeof context.clientId === 'string' &&
-        uuid.test(context.clientId))
-    )
+    !canonicalUuid(tenantId) ||
+    !canonicalUuid(actorId) ||
+    !Number.isSafeInteger(deadlineMs) ||
+    typeof assertCurrent !== 'function' ||
+    !validScope
   )
     throw new ForbiddenException('Private query access unavailable');
-  const { tenantId, actorId, deadlineMs, assertCurrent, scopeKind, clientId } = context;
-  return Object.freeze({
-    tenantId,
-    actorId,
-    deadlineMs,
-    assertCurrent,
-    scopeKind,
-    clientId,
-  }) as PrivateSqlExecutionContext;
+  const common = { tenantId, actorId, deadlineMs, assertCurrent };
+  if (scopeKind === 'research_portfolio')
+    return Object.freeze({
+      ...common,
+      scopeKind,
+      clientId: null,
+      researchPortfolioId: portfolioId as string,
+    });
+  if (scopeKind === 'classic_outreach')
+    return Object.freeze({
+      ...common,
+      scopeKind,
+      clientId,
+      classicOutreachIds: Object.freeze([...(ids as string[])]),
+    });
+  return Object.freeze({ ...common, scopeKind, clientId }) as PrivateSqlExecutionContext;
 }
-
-// Fixed DB admission, independent of model SQL. View definitions remain the schema owner's
-// reviewed migration; this checks their required owner/options and effective privilege boundary.
-const PRIVATE_SQL_ROLE_CHECK = `WITH reader AS (
-  SELECT * FROM pg_catalog.pg_roles WHERE rolname = 'capiro_private_query_ro'
-), owner AS (
-  SELECT * FROM pg_catalog.pg_roles WHERE rolname = 'capiro_private_projection_owner'
-), views AS (
-  SELECT c.* FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-  WHERE n.nspname = 'meri_private' AND c.relname IN ('visible_clients','client_objectives','client_activity','client_team_roster','client_account_owners','client_targets','client_profiles','client_profile_codes','client_people','client_contacts','client_engagement_tasks','client_action_items','client_tracked_bills','client_outreach_campaigns','client_campaign_recipients')
-), sources AS (
-  SELECT c.* FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-  WHERE n.nspname = 'public' AND c.relname IN
-    ('tenants','tenant_memberships','clients','client_memory_access','client_objectives','client_activity',
-     'client_ordered_owners','client_team_members','client_targets','client_people','engagement_contacts','engagement_tasks','action_recommendation','tracked_bill','engagement_campaigns','engagement_campaign_recipients')
-), identity_sources AS (
-  SELECT c.* FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-  WHERE n.nspname = 'public' AND c.relname = 'users'
-)
-SELECT (
-  current_user = reader.rolname AND session_user = reader.rolname
-  AND current_setting('transaction_read_only') = 'on'
-  AND current_setting('app.bypass_rls', true) = 'off'
-  AND reader.rolcanlogin AND NOT owner.rolcanlogin
-  AND NOT reader.rolsuper AND NOT reader.rolbypassrls AND NOT reader.rolcreaterole
-  AND NOT reader.rolcreatedb AND NOT reader.rolreplication AND NOT reader.rolinherit
-  AND NOT owner.rolsuper AND NOT owner.rolbypassrls AND NOT owner.rolcreaterole
-  AND NOT owner.rolcreatedb AND NOT owner.rolreplication AND NOT owner.rolinherit
-  AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_auth_members m WHERE m.member IN (reader.oid, owner.oid))
-  AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_database d WHERE d.datdba IN (reader.oid, owner.oid))
-  AND NOT pg_catalog.has_database_privilege(reader.oid, current_database(), 'CREATE')
-  AND NOT pg_catalog.has_database_privilege(owner.oid, current_database(), 'CREATE')
-  AND EXISTS (SELECT 1 FROM pg_catalog.pg_namespace n WHERE n.nspname = 'meri_private'
-    AND n.nspowner = owner.oid AND pg_catalog.has_schema_privilege(reader.oid, n.oid, 'USAGE'))
-  AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_namespace n
-    WHERE n.nspowner = reader.oid OR (n.nspowner = owner.oid AND n.nspname <> 'meri_private')
-      OR pg_catalog.has_schema_privilege(reader.oid, n.oid, 'CREATE')
-      OR (n.nspname <> 'meri_private' AND pg_catalog.has_schema_privilege(owner.oid, n.oid, 'CREATE')))
-  AND (SELECT count(*) FROM views) = 15
-  AND NOT EXISTS (SELECT 1 FROM views v WHERE v.relkind <> 'v' OR v.relowner <> owner.oid
-    OR NOT coalesce(v.reloptions @> ARRAY['security_barrier=true'], false)
-    OR coalesce(v.reloptions @> ARRAY['security_invoker=true'], false)
-    OR (v.relname <> 'visible_clients' AND NOT pg_catalog.has_table_privilege(reader.oid, v.oid, 'SELECT')))
-  AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_class c WHERE c.relowner = reader.oid
-    OR (c.relowner = owner.oid AND c.oid NOT IN (SELECT oid FROM views)))
-  AND (SELECT count(*) FROM sources) = 16
-  AND NOT EXISTS (SELECT 1 FROM sources s WHERE s.relkind NOT IN ('r','p')
-    OR NOT s.relrowsecurity OR NOT s.relforcerowsecurity OR s.relowner IN (reader.oid, owner.oid)
-    OR NOT pg_catalog.has_any_column_privilege(owner.oid, s.oid, 'SELECT'))
-  -- users is global, without tenant RLS. The view owner receives only the four
-  -- identity columns required by assigned-client roster/owner projections.
-  AND (SELECT count(*) FROM identity_sources) = 1
-  AND NOT EXISTS (SELECT 1 FROM identity_sources s WHERE s.relkind <> 'r'
-    OR s.relrowsecurity OR s.relowner IN (reader.oid, owner.oid)
-    OR pg_catalog.has_table_privilege(owner.oid, s.oid, 'SELECT')
-    OR (SELECT count(*) FROM pg_catalog.pg_attribute a WHERE a.attrelid = s.oid
-      AND a.attnum > 0 AND NOT a.attisdropped
-      AND a.attname IN ('id','email','first_name','last_name')
-      AND pg_catalog.has_column_privilege(owner.oid, s.oid, a.attnum, 'SELECT')) <> 4
-    OR EXISTS (SELECT 1 FROM pg_catalog.pg_attribute a WHERE a.attrelid = s.oid
-      AND a.attnum > 0 AND NOT a.attisdropped
-      AND a.attname NOT IN ('id','email','first_name','last_name')
-      AND pg_catalog.has_column_privilege(owner.oid, s.oid, a.attnum, 'SELECT')))
-  AND NOT EXISTS (
-    SELECT 1 FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-    WHERE c.relkind IN ('r','p','v','m','f') AND n.nspname NOT IN ('pg_catalog','information_schema')
-    AND n.nspname NOT LIKE 'pg_toast%' AND n.nspname NOT LIKE 'pg_temp%'
-    AND (pg_catalog.has_table_privilege(reader.oid, c.oid, 'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
-      OR pg_catalog.has_any_column_privilege(reader.oid, c.oid, 'INSERT,UPDATE,REFERENCES')
-      OR (c.oid NOT IN (SELECT oid FROM views) AND
-        (pg_catalog.has_table_privilege(owner.oid, c.oid, 'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
-          OR pg_catalog.has_any_column_privilege(owner.oid, c.oid, 'INSERT,UPDATE,REFERENCES')))
-      OR ((pg_catalog.has_table_privilege(reader.oid, c.oid, 'SELECT')
-        OR pg_catalog.has_any_column_privilege(reader.oid, c.oid, 'SELECT'))
-        AND c.oid NOT IN (SELECT oid FROM views WHERE relname <> 'visible_clients'))
-      OR ((pg_catalog.has_table_privilege(owner.oid, c.oid, 'SELECT')
-        OR pg_catalog.has_any_column_privilege(owner.oid, c.oid, 'SELECT'))
-        AND c.oid NOT IN (SELECT oid FROM views UNION ALL SELECT oid FROM sources UNION ALL SELECT oid FROM identity_sources)))
-  )
-) AS allowed FROM reader CROSS JOIN owner`;
 
 function remaining(context: PrivateSqlExecutionContext): number {
   const ms = context.deadlineMs - Date.now();
@@ -156,119 +123,103 @@ function remaining(context: PrivateSqlExecutionContext): number {
   return ms;
 }
 
-function databaseFailure(error: unknown): PublicSqlError {
-  if (error instanceof PublicSqlError)
-    return error.code === 'SOURCE_UNAVAILABLE' ? unavailable() : error;
-  const code = (error as { code?: unknown; meta?: { code?: unknown } } | null)?.code;
-  const dbCode = (error as { meta?: { code?: unknown } } | null)?.meta?.code;
-  if (code === 'P2028' || ['57014', '55P03'].includes(String(dbCode ?? code))) return timeout();
-  if (
-    ['42803', '42804', '42883', '42P08', '42P18', '22P02', '22003', '22007', '22008', '22023'].includes(
-      String(dbCode ?? code),
-    )
-  )
-    return new PublicSqlError(
-      'INVALID_QUERY',
-      'Check field and parameter types, supported aggregates, and GROUP BY fields.',
-    );
-  return unavailable();
-}
-
+/**
+ * The private-domain reader: `capiro_private_query_ro` over the meri_private
+ * security-barrier views. The views read the transaction-local context
+ * (app.current_tenant, app.current_user, app.meri_query_scope,
+ * app.meri_query_client, app.meri_query_portfolio, app.meri_query_classic_ids)
+ * that this service binds from the canonical current
+ * owner before the model's statement runs; the reader cannot select
+ * visible_clients or any base table. The gate refuses set_config in model SQL
+ * because PostgreSQL lets any role set a custom GUC (see the integration spec).
+ */
 @Injectable()
 export class PrivateSqlDbService {
-  private client: PrismaClient | null = null;
+  private pool: Pool | null = null;
 
-  private getClient(): PrismaClient {
-    if (this.client) return this.client;
-    const env = process.env;
-    const host = env.PRIVATE_QUERY_DB_HOST,
-      port = env.PRIVATE_QUERY_DB_PORT;
-    const user = env.PRIVATE_QUERY_DB_USER,
-      password = env.PRIVATE_QUERY_DB_PASSWORD,
-      name = env.PRIVATE_QUERY_DB_NAME;
-    const sslmode = env.PRIVATE_QUERY_DB_SSLMODE ?? 'require';
-    if (
-      !host ||
-      /[\s/?#@]/.test(host) ||
-      !port ||
-      !/^\d+$/.test(port) ||
-      Number(port) < 1 ||
-      Number(port) > 65535 ||
-      user !== 'capiro_private_query_ro' ||
-      !password ||
-      password === '***' ||
-      !name ||
-      !/^[a-zA-Z0-9_-]+$/.test(name) ||
-      !['disable', 'prefer', 'require', 'verify-ca', 'verify-full'].includes(sslmode)
-    )
-      throw unavailable();
+  private getPool(): Pool {
+    if (this.pool) return this.pool;
     // No app, public analytics or promoter credential fallback. No connection is created at import.
-    const url = `postgresql://${user}:${encodeURIComponent(password)}@${host}:${port}/${name}?schema=meri_private&sslmode=${sslmode}&connection_limit=3`;
-    this.client = new PrismaClient({ datasources: { db: { url } } });
-    return this.client;
+    this.pool = createReaderPool(
+      readerConfigFromEnv('PRIVATE_QUERY_DB', READER_ROLE, 'query_capiro_data'),
+    );
+    return this.pool;
   }
 
-  async assertAvailable(context: PrivateSqlExecutionContext): Promise<void> {
-    await this.runChecked(null, context);
+  /** The published source surface under an admitted context. */
+  async describe(context: PrivateSqlExecutionContext): Promise<PublishedRelation[]> {
+    return (await this.runChecked(null, context)).surface;
   }
 
-  /** Only the private compiler wrapper supplies SQL; context comes from the canonical current owner. */
+  /** Only gate-produced statements; context comes from the canonical current owner. */
   async runPrivateSql(
-    compiled: CompiledPublicSql,
+    gated: GatedSqlStatement,
     context: PrivateSqlExecutionContext,
-  ): Promise<SqlResultRow[]> {
-    if (
-      !compiled.relationsUsed.length ||
-      compiled.relationsUsed.some(
-        (name) => !PRIVATE_SQL_VIEW_NAMES.includes(name as (typeof PRIVATE_SQL_VIEW_NAMES)[number]),
-      )
-    )
-      throw unavailable();
-    return this.runChecked(compiled, context);
+  ): Promise<{ columns: SqlResultColumn[]; rows: SqlResultRow[]; surface: PublishedRelation[] }> {
+    return this.runChecked(gated, context);
   }
 
   private async runChecked(
-    compiled: CompiledPublicSql | null,
+    gated: GatedSqlStatement | null,
     supplied: PrivateSqlExecutionContext,
-  ): Promise<SqlResultRow[]> {
+  ): Promise<{ columns: SqlResultColumn[]; rows: SqlResultRow[]; surface: PublishedRelation[] }> {
     const context = capturePrivateSqlContext(supplied);
+    const source =
+      context.scopeKind === 'research_portfolio' || context.scopeKind === 'classic_outreach'
+        ? context.scopeKind
+        : 'client_records';
+    if (gated && gated.source !== source) throw unavailable();
+    remaining(context);
+    if (!privateSqlNormalizationRuntimeAdmitted()) throw unavailable();
     remaining(context);
     await context.assertCurrent();
-    const budget = remaining(context);
-    let result: SqlResultRow[];
+    let result: { columns: SqlResultColumn[]; rows: SqlResultRow[]; surface: PublishedRelation[] };
     try {
-      const rows = await this.getClient().$transaction(
-        async (tx) => {
-          await tx.$executeRawUnsafe('SET TRANSACTION READ ONLY');
-          await tx.$executeRawUnsafe('SET LOCAL search_path = pg_catalog');
-          await tx.$executeRawUnsafe(
-            `SET LOCAL statement_timeout = '${Math.min(8000, remaining(context))}ms'`,
-          );
-          await tx.$executeRawUnsafe("SET LOCAL lock_timeout = '1000ms'");
-          await tx.$executeRawUnsafe("SET LOCAL idle_in_transaction_session_timeout = '10000ms'");
-          await tx.$executeRawUnsafe("SET LOCAL timezone = 'UTC'");
-          await tx.$executeRawUnsafe("SET LOCAL app.bypass_rls = 'off'");
-          await tx.$executeRawUnsafe(
-            `SELECT pg_catalog.set_config('app.current_tenant', $1, true),
-          pg_catalog.set_config('app.current_user', $2, true), pg_catalog.set_config('app.meri_query_scope', $3, true),
-          pg_catalog.set_config('app.meri_query_client', $4, true)`,
-            context.tenantId,
-            context.actorId,
-            context.scopeKind,
-            context.clientId ?? '',
-          );
-          const admitted = await tx.$queryRawUnsafe<{ allowed: boolean }[]>(PRIVATE_SQL_ROLE_CHECK);
-          if (admitted.length !== 1 || admitted[0]?.allowed !== true) throw unavailable();
-          remaining(context);
-          return compiled
-            ? tx.$queryRawUnsafe<Record<string, unknown>[]>(compiled.sql, ...compiled.params)
-            : [];
+      result = await withReadOnlyTransaction(
+        this.getPool(),
+        {
+          role: READER_ROLE,
+          searchPath: SOURCE_SCHEMAS.client_records,
+          statementTimeoutMs: Math.min(8000, remaining(context)),
+          context: {
+            bypassRlsOff: true,
+            settings: {
+              'app.current_tenant': context.tenantId,
+              'app.current_user': context.actorId,
+              'app.meri_query_scope': context.scopeKind,
+              'app.meri_query_client': context.clientId ?? '',
+              'app.meri_query_portfolio':
+                context.scopeKind === 'research_portfolio' ? context.researchPortfolioId : '',
+              'app.meri_query_classic_ids':
+                context.scopeKind === 'classic_outreach'
+                  ? context.classicOutreachIds.join(',')
+                  : '',
+            },
+          },
         },
-        { timeout: Math.min(10000, budget), maxWait: Math.min(2000, budget) },
+        async (client) => {
+          const admission = await client.query<{ allowed: boolean }>(PRIVATE_SQL_ROLE_CHECK);
+          if (admission.rows.length !== 1 || admission.rows[0]?.allowed !== true)
+            throw unavailable();
+          const observed = await readPublishedSurface(
+            client,
+            SOURCE_SCHEMAS[source],
+            'authorized_' + source,
+            SOURCE_RELATIONS[source],
+          );
+          const scoped = observed.filter((relation) =>
+            SOURCE_RELATIONS[source].includes(relation.name),
+          );
+          if (scoped.length !== SOURCE_RELATIONS[source].length) throw unavailable();
+          const surface = describePrivateSqlDomains(scoped);
+          remaining(context);
+          return gated
+            ? { ...(await executeGatedStatement(client, gated)), surface }
+            : { columns: [], rows: [], surface };
+        },
       );
-      result = compiled ? rows.map((row) => normalizeSqlRow(row, compiled.columns)) : [];
     } catch (error) {
-      throw databaseFailure(error);
+      throw translateDatabaseError(error, gated, []);
     }
     // Fresh owner observation after the read transaction, never its older MVCC snapshot.
     remaining(context);
@@ -278,9 +229,9 @@ export class PrivateSqlDbService {
   }
 
   async onModuleDestroy(): Promise<void> {
-    if (this.client) {
-      await this.client.$disconnect();
-      this.client = null;
+    if (this.pool) {
+      await this.pool.end();
+      this.pool = null;
     }
   }
 }

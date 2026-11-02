@@ -295,3 +295,23 @@ test('whole private request/publication bounds refuse rather than truncate and o
   sealBasis(bad.basis); refused(() => create(bad), 'INPUT_INVALID');
   f.basis.snapshot.nodes[0].title = 'later caller mutation'; assert.notEqual(p.request.basis.snapshot.nodes[0].title, f.basis.snapshot.nodes[0].title);
 });
+
+
+test('shared intake regeneration pins the frozen Strategy type without rewriting original intake answers', () => {
+  const f = fixture();
+  const answers = { schemaVersion: 1, type: 'appropriations', goal: 'Updated saved goal', ownerUserId: 'user_fixture',
+    targetDate: null, meriContext: 'Updated saved context' };
+  f.context.intent = { kind: 'strategy-intake', strategyIntake: answers };
+  f.context.sourceDigest = applicationHash({ source: f.context.source, intent: f.context.intent });
+  f.dto = { clientId: f.dto.clientId, type: f.basis.snapshot.meta.type, goal: answers.goal,
+    ownerUserId: answers.ownerUserId, targetDate: null, meriContext: answers.meriContext };
+  const publication = create(f);
+  assert.equal(publication.request.input.typeHint, 'authorization');
+  assert.equal(publication.request.source.intent.strategyIntake.type, 'appropriations');
+  assert.deepEqual(check(publication, { admission: f.admission, dto: f.dto }), publication);
+  for (const field of ['type', 'goal', 'ownerUserId', 'targetDate', 'meriContext']) {
+    const changed = clone(f);
+    changed.dto[field] = field === 'type' ? 'appropriations' : field === 'targetDate' ? '2028-03-01' : 'changed';
+    refused(() => create(changed), 'REQUEST_CONFLICT');
+  }
+});

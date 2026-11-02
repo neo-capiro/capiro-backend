@@ -96,6 +96,22 @@ function schemaWithoutConnections(text, label) {
 }
 
 function composeSchema(coreText, workspaceText, extraModels = '') {
+  // Both native owners declare the same physical share-link table. Merge only
+  // its complementary relation fields after proving every stored field/index
+  // identical. Any other duplicate or schema drift still fails closed.
+  if (workspaceText) {
+    const pattern = /^model WsShareLink \{[\s\S]*?^\}/m;
+    const coreLink = coreText.match(pattern)?.[0], workspaceLink = workspaceText.match(pattern)?.[0];
+    if (coreLink && workspaceLink) {
+      const relation = /^\s*(?:portfolio|client|design|draft|guestComments)\s+(?:ResearchPortfolio\?|Client\?|ResearchPortfolioDashboardDesign\?|WsDraft\?|WsGuestComment\[\])(?:\s+@relation\([^\n]*\))?\s*$/;
+      const fields = text => text.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('//') && !relation.test(line));
+      if (JSON.stringify(fields(coreLink)) !== JSON.stringify(fields(workspaceLink)))
+        throw new Error('Shared WsShareLink fixture storage declarations differ.');
+      const added = workspaceLink.split('\n').filter(line => relation.test(line));
+      coreText = coreText.replace(coreLink, coreLink.replace(/\n\}$/, '\n' + added.join('\n') + '\n}'));
+      workspaceText = workspaceText.replace(workspaceLink, '');
+    }
+  }
   const datasource = [...coreText.matchAll(/^datasource\s+\w+\s*\{[\s\S]*?^\}/gm)];
   const generator = [...coreText.matchAll(/^generator\s+\w+\s*\{[\s\S]*?^\}/gm)];
   if (datasource.length !== 1 || generator.length !== 1

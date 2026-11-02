@@ -1,39 +1,25 @@
-/**
- * OutreachJobService — async outreach pipeline worker + API (plan W4 / §3.3).
- *
- * The wizard POSTs a job (generate or send); this service persists it + one item
- * per recipient and returns in ms. A claim-sweep worker (setInterval, notetaker
- * shape) then drives jobs to completion OFF the request path — past the ~175s ALB
- * idle ceiling that made large synchronous campaigns time out.
- *
- * Coordination is ITEM-LEVEL atomic claims (`FOR UPDATE SKIP LOCKED`), not a
- * job-level lock: that is pool-safe (advisory locks don't survive across pooled
- * transactions) AND multi-replica-correct — each item is claimed by exactly one
- * worker regardless of how many replicas pick the same job. Generation is
- * at-least-once (regenerating a draft is harmless); a stuck-claimed generation
- * item is reclaimed after OUTREACH_JOB_STALE_MS. (Send's at-most-once handling
- * lands in W4.3.)
- */
+/** Canonical Outreach job state. SDK execution is owned by Meri; send compatibility remains. */
 import {
   BadRequestException,
+  ConflictException,
+  NotFoundException,
+  HttpException,
   Injectable,
   Logger,
-  ServiceUnavailableException,
   type OnModuleInit,
   type OnModuleDestroy,
 } from '@nestjs/common';
+import { isDeepStrictEqual } from 'node:util';
 import { ConfigService } from '@nestjs/config';
 import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
+import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   EngagementService,
-  type GenerateBatchEmailInput,
   type OutreachRecipientInput,
   type SendBatchEmailInput,
 } from './engagement.service.js';
-import { GenerationGatewayService } from './generation/generation-gateway.service.js';
-import type { PinnedGenerationIdentity } from './generation/generation-gateway.types.js';
 import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 
 export type OutreachJobKind = 'generate' | 'send';
@@ -56,7 +42,7 @@ export interface SubmitOutreachJobInput {
  * edited version, and re-running generation would neither clear the finding nor
  * make the draft safe to auto-send.
  */
-const TERMINAL_ITEM = new Set(['done', 'sent', 'failed', 'skipped', 'held']);
+const TERMINAL_ITEM = new Set(['done', 'sent', 'failed', 'skipped', 'held', 'unknown']);
 
 interface RollupInput {
   status: string;
@@ -89,14 +75,14 @@ export function computeJobRollup(items: RollupInput[]): {
   let held = 0;
   for (const it of items) {
     if (
-      it.status === 'pending' ||
+      it.status === 'pending' || it.status.startsWith('sdk_') ||
       it.status === 'claimed' ||
       it.status === 'generating' ||
       it.status === 'sending'
     )
       queued++;
     else if (it.status === 'done' || it.status === 'sent') succeeded++;
-    else if (it.status === 'failed') failed++;
+    else if (it.status === 'failed' || it.status === 'unknown') failed++;
     else if (it.status === 'skipped') skipped++;
     else if (it.status === 'held') held++;
   }
@@ -205,36 +191,33 @@ export function outreachRecipientKey(recipient: Record<string, unknown>, index: 
   );
 }
 
-const GEN_CLAIM_BATCH = 25;
+
 
 @Injectable()
 export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(OutreachJobService.name);
   private timer?: ReturnType<typeof setInterval>;
   private sweeping = false;
-  private readonly asyncGen: boolean;
   private readonly asyncSend: boolean;
   private readonly sweepMs: number;
-  private readonly staleMs: number;
+  private readonly sdkConcurrency: number;
   private readonly versionedOutreach: boolean;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly engagement: EngagementService,
-    private readonly gateway: GenerationGatewayService,
     config: ConfigService<AppConfig, true>,
     private readonly runtimePolicy: EngagementRuntimePolicyService,
   ) {
-    this.asyncGen = config.get('OUTREACH_ASYNC_GEN', { infer: true });
     this.asyncSend = config.get('OUTREACH_ASYNC_SEND', { infer: true });
     this.sweepMs = config.get('OUTREACH_JOB_SWEEP_MS', { infer: true });
-    this.staleMs = config.get('OUTREACH_JOB_STALE_MS', { infer: true });
+    this.sdkConcurrency = config.get('OUTREACH_V3_GENERATION_CONCURRENCY', { infer: true });
     this.versionedOutreach = config.get('ENGAGEMENT_VERSIONED_OUTREACH', { infer: true });
   }
 
   /** Whether the async path is enabled for a given kind (controller gate). */
   asyncEnabled(kind: OutreachJobKind): boolean {
-    return kind === 'send' ? this.asyncSend : this.asyncGen;
+    return kind === 'send' ? this.asyncSend : false;
   }
 
   onModuleInit(): void {
@@ -248,7 +231,7 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
       return;
     }
     // Only spin the worker when at least one async path is enabled.
-    if (!this.asyncGen && !this.asyncSend) return;
+    if (!this.asyncSend) return;
     this.timer = setInterval(() => {
       if (this.sweeping) return; // overlap-skip: a slow job must not stack ticks
       this.sweeping = true;
@@ -260,7 +243,7 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
     }, this.sweepMs);
     this.timer.unref?.();
     this.logger.log(
-      `outreach job worker started (gen=${this.asyncGen} send=${this.asyncSend} every ${this.sweepMs}ms)`,
+      `outreach job worker started (send=${this.asyncSend} every ${this.sweepMs}ms)`,
     );
   }
 
@@ -290,40 +273,29 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
       return this.submitEmpty(ctx, input);
     }
 
-    // ── Phase 1 §3.k1 / Phase e §e1-e2 — resolve provider/model ONCE, at submit ──
-    //
-    // A generate job is claimed in chunks by a sweep that may run minutes apart
-    // and, after a restart, in a different process. Resolving credentials per
-    // chunk meant a provider that became unavailable (or a config change) midway
-    // silently switched the drafting model — so one campaign's recipients got
-    // messages in two different voices, with no record of which was which.
-    //
-    // Resolved OUTSIDE the transaction: it is an external call, and holding a row
-    // lock across one is the pool-starvation pattern this codebase has been bitten
-    // by. FAILS CLOSED under the gateway (§e1/e2): a pinning failure — including
-    // an ambiguous audience — used to be caught and queue an UNPINNED job, which
-    // is precisely the mid-campaign voice split this pin exists to prevent.
-    // resolveJobIdentity() now throws instead of returning null, and that throw
-    // is deliberately left uncaught here so the whole submission rejects before
-    // any job or item row exists.
-    // Phase 26 cutover: pinning is no longer flag-gated. With the flag off a
-    // generate job was queued UNPINNED, which is the mid-campaign voice split
-    // this pin exists to prevent.
-    let pinnedIdentity: PinnedGenerationIdentity | null = null;
-    if (input.kind === 'generate') {
-      pinnedIdentity = await this.resolveJobIdentity(ctx, input);
-    }
+    if (input.kind === 'generate' && input.params.executionOwner !== 'claude-agent-sdk') throw new BadRequestException('Use the saved Outreach campaign workflow');
 
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      if (input.kind === 'generate') {
+        if (!input.outreachRecordId) throw new BadRequestException('Saved campaign is required');
+        await tx.$queryRaw`SELECT id FROM outreach_records WHERE id=${input.outreachRecordId}::uuid AND tenant_id=${ctx.tenantId}::uuid FOR UPDATE`;
+        const campaign = await tx.outreachRecord.findFirst({ where: { id: input.outreachRecordId, tenantId: ctx.tenantId, createdByUserId: ctx.userId, deletedAt: null, status: 'draft' }, select: { metadata: true } });
+        const revision = ((campaign?.metadata as Record<string, unknown> | null)?.workflow as { revision?: number } | undefined)?.revision;
+        if (revision !== input.params.revision) throw new ConflictException('Campaign changed before generation was requested');
+      }
       // Phase 0 §3.c3: idempotency is per (tenant, USER, requestKey). Scoping it
       // to the tenant alone meant two users who minted the same client-side key
       // resolved to each other's job — a cross-user read of drafts and
       // recipients through a guessable token.
       const existing = await tx.outreachJob.findFirst({
         where: { tenantId: ctx.tenantId, userId: ctx.userId, requestKey: input.requestKey },
-        select: { id: true },
+        select: { id: true, kind: true, outreachRecordId: true, params: true },
       });
-      if (existing) return { jobId: existing.id, deduped: true };
+      if (existing) {
+        if (input.kind === 'generate' && (existing.kind !== input.kind || existing.outreachRecordId !== input.outreachRecordId || !isDeepStrictEqual(existing.params, input.params)))
+          throw new ConflictException('Generation request key is already bound to another saved request');
+        return { jobId: existing.id, deduped: true };
+      }
 
       const job = await tx.outreachJob.create({
         data: {
@@ -337,7 +309,6 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
           // cannot drift onto a second provider or model.
           params: {
             ...(input.params as object),
-            ...(pinnedIdentity ? { pinnedIdentity } : {}),
           } as object,
           status: 'queued',
           totals: {
@@ -360,6 +331,7 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
         jobId: string;
         recipientKey: string;
         payload: object;
+        status?: string;
       }> = [];
       input.recipients.forEach((r, i) => {
         const key = outreachRecipientKey(r, i);
@@ -372,44 +344,12 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
           jobId: job.id,
           recipientKey: key,
           payload: { ...r, id: key },
+          ...(input.params.executionOwner === 'claude-agent-sdk' ? { status: 'sdk_pending' } : {}),
         });
       });
       await tx.outreachJobItem.createMany({ data: rows });
       return { jobId: job.id, deduped: false };
     });
-  }
-
-  /**
-   * Resolve the provider/model this whole job will use (§3.k1), or throw.
-   *
-   * What is pinned here is the VOICE (provider + model + prompt spec), which is
-   * the thing that must not change partway through a single campaign.
-   *
-   * FAILS CLOSED (§e1/e2): an unavailable credential throws a client-facing
-   * error instead of resolving to null — a null here used to mean "queue the
-   * job unpinned", exactly the fail-open behavior this closes. Mirrors the sync
-   * gateway path's (generateBatchEmailsViaGateway) handling of the same failure
-   * mode, so a caller sees the same error shape whether generation runs sync or
-   * async.
-   */
-  private async resolveJobIdentity(
-    ctx: TenantContext,
-    input: SubmitOutreachJobInput,
-  ): Promise<PinnedGenerationIdentity> {
-    const first = input.recipients[0] as OutreachRecipientInput | undefined;
-    if (!first) {
-      // Unreachable in practice: submit() already routes an empty recipient
-      // list to submitEmpty() before this is ever called. Fails closed anyway
-      // rather than silently pinning nothing.
-      throw new BadRequestException('At least one recipient is required to start this campaign.');
-    }
-    const identity = await this.gateway.resolvePinnedIdentity(ctx, {});
-    if (!identity?.pinned) {
-      throw new ServiceUnavailableException(
-        'Outreach drafting is not configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY (or a tenant AI key).',
-      );
-    }
-    return identity.pinned;
   }
 
   private async submitEmpty(
@@ -449,11 +389,17 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
    * internals to the wizard.
    */
   async getJob(ctx: TenantContext, jobId: string) {
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const result = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const job = await tx.outreachJob.findFirst({
         where: { id: jobId, tenantId: ctx.tenantId, userId: ctx.userId },
       });
       if (!job) return null;
+      const params = job.params as Record<string, unknown>;
+      const savedClient = (params.state as { clientId?: string | null } | undefined)?.clientId;
+      if (params.executionOwner === 'claude-agent-sdk' && savedClient) {
+        const client = await tx.client.findFirst({ where: { id: savedClient, tenantId: ctx.tenantId, status: { not: 'archived' } }, select: { id: true } });
+        if (!client || !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, savedClient))) throw new NotFoundException('Outreach job not found');
+      }
       const items = await tx.outreachJobItem.findMany({
         where: { jobId, tenantId: ctx.tenantId },
         orderBy: { createdAt: 'asc' },
@@ -472,64 +418,65 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
         items: items.map((it) => (it.status === 'held' ? { ...it, error: null } : it)),
       };
     });
+    if (result?.job.outreachRecordId && (result.job.params as Record<string, unknown>).executionOwner === 'claude-agent-sdk') await this.engagement.getOutreachRecord(ctx, result.job.outreachRecordId);
+    return result;
   }
 
-  /**
-   * Retry ONE failed generation item (plan W4.4). Only 'generate' jobs and only
-   * items currently 'failed' are retryable: a 'send' item that reached 'sending'
-   * must never be auto-resent (at-most-once), and a 'sent'/'done' item is finished.
-   * Flips the item back to 'pending' (clearing its error) and, if the parent job
-   * had already finalized (complete|partial|failed), reopens it to 'running' and
-   * clears finishedAt so findRunnableJobId picks it up on the next sweep tick.
-   */
-  async retryItem(
-    ctx: TenantContext,
-    jobId: string,
-    itemId: string,
-  ): Promise<{ retried: boolean; reason?: string }> {
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const job = await tx.outreachJob.findFirst({
-        where: { id: jobId, tenantId: ctx.tenantId, userId: ctx.userId },
-        select: { id: true, kind: true, status: true },
-      });
-      if (!job) return { retried: false, reason: 'job not found' };
-      if (job.kind !== 'generate') {
-        return { retried: false, reason: 'only generation items can be retried' };
-      }
-      const item = await tx.outreachJobItem.findFirst({
-        where: { id: itemId, jobId, tenantId: ctx.tenantId },
-        select: { id: true, status: true },
-      });
-      if (!item) return { retried: false, reason: 'item not found' };
-      // 'held' is deliberately NOT retryable (§3.c3): regenerating would not
-      // resolve the grounding finding, and the held draft must go to a reviewer
-      // or be superseded by a new edited version instead.
-      if (item.status === 'held') {
-        return {
-          retried: false,
-          reason: 'this draft is held for review — approve it in Reviews or edit it to create a new version',
-        };
-      }
-      if (item.status !== 'failed') {
-        return { retried: false, reason: `item is ${item.status}, not failed` };
-      }
-      await tx.outreachJobItem.update({
-        where: { id: itemId },
-        data: { status: 'pending', error: null },
-      });
-      if (['complete', 'partial', 'failed'].includes(job.status)) {
-        await tx.outreachJob.update({
-          where: { id: jobId },
-          data: { status: 'running', finishedAt: null },
-        });
-      }
-      return { retried: true };
+  /** Existing job/items own SDK progress; the classic sweep never claims sdk_* items. */
+  async getSdkUnit(ctx: TenantContext, jobId: string, itemId: string) {
+    const unit = await this.prisma.withTenant(ctx.tenantId, async tx => {
+      const job = await tx.outreachJob.findFirst({ where: { id: jobId, tenantId: ctx.tenantId, userId: ctx.userId, kind: 'generate' } });
+      const item = job && await tx.outreachJobItem.findFirst({ where: { id: itemId, jobId, tenantId: ctx.tenantId } });
+      return job && item ? { job, item } : null;
     });
+    if (!unit || (unit.job.params as Record<string, unknown>).executionOwner !== 'claude-agent-sdk') throw new NotFoundException('Outreach unit not found');
+    if (unit.job.status === 'canceled') throw new ConflictException('Outreach generation was canceled');
+    return unit;
+  }
+
+  async bindSdkUnit(ctx: TenantContext, jobId: string, itemId: string, binding: Record<string, unknown>) {
+    await this.getSdkUnit(ctx, jobId, itemId);
+    return this.prisma.withTenant(ctx.tenantId, async tx => {
+      await tx.$queryRaw`SELECT id FROM tenants WHERE id=${ctx.tenantId}::uuid FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM outreach_jobs WHERE id=${jobId}::uuid AND tenant_id=${ctx.tenantId}::uuid FOR UPDATE`;
+      const job = await tx.outreachJob.findFirstOrThrow({ where: { id: jobId, tenantId: ctx.tenantId, userId: ctx.userId } });
+      if (job.status === 'canceled') throw new ConflictException('Outreach generation was canceled');
+      await tx.$queryRaw`SELECT id FROM outreach_job_items WHERE id=${itemId}::uuid AND tenant_id=${ctx.tenantId}::uuid FOR UPDATE`;
+      const item = await tx.outreachJobItem.findFirstOrThrow({ where: { id: itemId, jobId, tenantId: ctx.tenantId } });
+      const payload = item.payload as Record<string, unknown>;
+      if (TERMINAL_ITEM.has(item.status)) throw new ConflictException('Outreach unit is terminal');
+      if (payload.sdk) return payload.sdk as Record<string, unknown>;
+      const active = await tx.outreachJobItem.count({ where: { tenantId: ctx.tenantId, status: { in: ['sdk_running', 'sdk_completing'] }, job: { status: { not: 'canceled' } } } });
+      if (active >= this.sdkConcurrency) throw new HttpException('Outreach generation capacity is busy. Wait for active units to finish.', 429);
+      if (item.status !== 'sdk_pending') throw new ConflictException('Outreach unit is already terminal');
+      await tx.outreachJobItem.update({ where: { id: itemId }, data: { status: 'sdk_running', claimedAt: new Date(),
+        attempt: { increment: 1 }, payload: { ...payload, sdk: binding } as object } });
+      await tx.outreachJob.updateMany({ where: { id: jobId, tenantId: ctx.tenantId, userId: ctx.userId, status: { not: 'canceled' } }, data: { status: 'running', startedAt: new Date() } });
+      return binding;
+    });
+  }
+
+  async beginSdkCompletion(ctx: TenantContext, jobId: string, itemId: string): Promise<boolean> {
+    await this.getSdkUnit(ctx, jobId, itemId);
+    return this.prisma.withTenant(ctx.tenantId, async tx => {
+      const changed = await tx.outreachJobItem.updateMany({ where: { id: itemId, jobId, tenantId: ctx.tenantId, status: 'sdk_running' }, data: { status: 'sdk_completing' } });
+      return changed.count === 1;
+    });
+  }
+
+  async finishSdkUnit(ctx: TenantContext, jobId: string, itemId: string, status: 'done' | 'held' | 'failed' | 'unknown', result: object | null, error: string | null) {
+    await this.getSdkUnit(ctx, jobId, itemId);
+    await this.prisma.withTenant(ctx.tenantId, tx => tx.outreachJobItem.updateMany({
+      where: { id: itemId, jobId, tenantId: ctx.tenantId, status: { in: ['sdk_pending', 'sdk_running', 'sdk_completing'] } },
+      data: { status, result: result ?? undefined, error },
+    }));
+    await this.finalizeJob(jobId);
   }
 
   /** Cancel: unclaimed (pending) items → skipped; job → canceled if not terminal. */
   async cancelJob(ctx: TenantContext, jobId: string): Promise<{ canceled: boolean }> {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await tx.$queryRaw`SELECT id FROM outreach_jobs WHERE id=${jobId}::uuid AND tenant_id=${ctx.tenantId}::uuid FOR UPDATE`;
       const job = await tx.outreachJob.findFirst({
         where: { id: jobId, tenantId: ctx.tenantId, userId: ctx.userId },
         select: { id: true, status: true },
@@ -537,7 +484,7 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
       if (!job) return { canceled: false };
       if (['complete', 'failed', 'canceled'].includes(job.status)) return { canceled: false };
       await tx.outreachJobItem.updateMany({
-        where: { jobId, tenantId: ctx.tenantId, status: 'pending' },
+        where: { jobId, tenantId: ctx.tenantId, status: { in: ['pending', 'sdk_pending'] } },
         data: { status: 'skipped' },
       });
       await tx.outreachJob.update({
@@ -552,7 +499,6 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
 
   private async tick(): Promise<void> {
     this.runtimePolicy.assertBackgroundOwner('outreach-job-worker');
-    await this.reclaimStale();
     const jobId = await this.findRunnableJobId();
     if (jobId) await this.processJob(jobId);
   }
@@ -560,7 +506,6 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
   /** Oldest job that still has pending items in an async-enabled kind. */
   private async findRunnableJobId(): Promise<string | null> {
     const kinds: OutreachJobKind[] = [];
-    if (this.asyncGen) kinds.push('generate');
     if (this.asyncSend) kinds.push('send');
     if (!kinds.length) return null;
     return this.prisma.withSystem(async (tx) => {
@@ -598,14 +543,6 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
     const ctx = this.workerContext(job.tenantId, job.userId);
     if (job.kind === 'send') {
       await this.processSendItems(jobId, ctx, job.params as Record<string, unknown>);
-    } else {
-      // Generation: process pending items in claimed batches until none remain
-      // (or a claim yields nothing — another replica took them).
-      for (;;) {
-        const batch = await this.claimGenerationBatch(jobId, GEN_CLAIM_BATCH);
-        if (!batch.length) break;
-        await this.runGenerationBatch(ctx, job.params as Record<string, unknown>, batch);
-      }
     }
     await this.finalizeJob(jobId);
   }
@@ -684,77 +621,6 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
     return new Promise((r) => setTimeout(r, ms));
   }
 
-  /** Atomically claim a batch of pending generation items (pool + replica safe). */
-  private async claimGenerationBatch(
-    jobId: string,
-    limit: number,
-  ): Promise<Array<{ id: string; recipientKey: string; payload: Record<string, unknown> }>> {
-    return this.prisma.withSystem(async (tx) => {
-      const rows = await tx.$queryRawUnsafe<
-        Array<{ id: string; recipient_key: string; payload_jsonb: Record<string, unknown> }>
-      >(
-        `UPDATE outreach_job_items SET status='claimed', claimed_at=NOW(), attempt=attempt+1, updated_at=NOW()
-         WHERE id IN (
-           SELECT id FROM outreach_job_items
-           WHERE job_id=$1 AND status='pending'
-           ORDER BY created_at LIMIT $2 FOR UPDATE SKIP LOCKED
-         )
-         RETURNING id, recipient_key, payload_jsonb`,
-        jobId,
-        limit,
-      );
-      return rows.map((r) => ({
-        id: r.id,
-        recipientKey: r.recipient_key,
-        payload: r.payload_jsonb,
-      }));
-    });
-  }
-
-  private async runGenerationBatch(
-    ctx: TenantContext,
-    params: Record<string, unknown>,
-    batch: Array<{ id: string; recipientKey: string; payload: Record<string, unknown> }>,
-  ): Promise<void> {
-    // §3.k3/§3.k5 — every claimed chunk (including a RETRY) uses the identity
-    // pinned at submit. A retry that re-resolved credentials would be exactly the
-    // mid-campaign voice split this pins against; a user who wants a different
-    // provider creates a new job.
-    const pinnedIdentity = readPinnedIdentity(params);
-    const input: GenerateBatchEmailInput = {
-      ...(params as unknown as GenerateBatchEmailInput),
-      recipients: batch.map((b) => b.payload as unknown as OutreachRecipientInput),
-      ...(pinnedIdentity ? { pinnedIdentity } : {}),
-    };
-    try {
-      const { results } = await this.engagement.generateBatchEmails(ctx, input);
-      const byKey = new Map(results.map((r) => [r.recipientId, r]));
-      for (const item of batch) {
-        const r = byKey.get(item.recipientKey);
-        // Gate on the authoritative lifecycle the generator returns — NOT a
-        // subject/body emptiness heuristic. A missing result (dropped recipient)
-        // is a failure; a held/pending/unavailable audit is 'held', which is
-        // terminal and never auto-retried or auto-sent.
-        const status = classifyGenerationItem(r);
-        await this.setItem(
-          item.id,
-          status,
-          // Phase 0 §3.c3: a held item KEEPS its real content and carries the
-          // version metadata, so the wizard can show the draft (and link to its
-          // review) instead of a fabricated "generation failed" placeholder.
-          status === 'failed' ? null : buildItemResult(r),
-          // A hold is not an error: no auditor internals in the error column.
-          status === 'failed' ? (r?.error ?? 'generation returned no draft') : null,
-        );
-      }
-    } catch (err) {
-      // Whole-batch failure (e.g. budget hard-stop, provider outage): fail the
-      // claimed items with the reason; finalize will roll the job to partial.
-      const message = (err as Error).message ?? 'generation failed';
-      for (const item of batch) await this.setItem(item.id, 'failed', null, message);
-    }
-  }
-
   private async setItem(
     itemId: string,
     status: string,
@@ -803,24 +669,6 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /**
-   * Return generation items stuck 'claimed'/'generating' past the stale cutoff to
-   * 'pending' (a crashed worker). Safe because generation is at-least-once. Send
-   * items are intentionally left alone (W4.3 surfaces stuck sends for the user).
-   */
-  private async reclaimStale(): Promise<void> {
-    const cutoff = new Date(Date.now() - this.staleMs);
-    await this.prisma.withSystem((tx) =>
-      tx.$executeRawUnsafe(
-        `UPDATE outreach_job_items i SET status='pending', updated_at=NOW()
-         FROM outreach_jobs j
-         WHERE i.job_id=j.id AND j.kind='generate'
-           AND i.status IN ('claimed','generating') AND i.claimed_at < $1`,
-        cutoff,
-      ),
-    );
-  }
-
   private workerContext(tenantId: string, userId: string | null): TenantContext {
     // Minimal context for the tenant-scoped work the generator does (RLS +
     // own-user scoping). slug/clerkId aren't used on this path.
@@ -832,31 +680,4 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
       role: 'standard_user',
     } as TenantContext;
   }
-}
-
-/**
- * Read the pinned identity back out of a job's params (§3.k3).
- *
- * Validated rather than cast: params is a JSONB column, so a hand-edited or
- * partially-written row must not produce a half-formed identity that silently
- * pins nothing. A malformed value degrades to null, which restores per-chunk
- * resolution — the pre-Phase-1 behavior — rather than failing the job.
- */
-export function readPinnedIdentity(
-  params: Record<string, unknown>,
-): PinnedGenerationIdentity | null {
-  const raw = params.pinnedIdentity;
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
-  const o = raw as Record<string, unknown>;
-  const provider = typeof o.provider === 'string' ? o.provider : '';
-  const model = typeof o.model === 'string' ? o.model : '';
-  const promptSpecVersion = typeof o.promptSpecVersion === 'string' ? o.promptSpecVersion : '';
-  if (!provider || !model || !promptSpecVersion) return null;
-  return {
-    provider,
-    model,
-    planModel: typeof o.planModel === 'string' ? o.planModel : null,
-    promptSpecVersion,
-    ...(typeof o.contextPacketId === 'string' ? { contextPacketId: o.contextPacketId } : {}),
-  };
 }

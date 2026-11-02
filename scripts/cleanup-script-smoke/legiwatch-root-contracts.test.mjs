@@ -10,7 +10,7 @@ import { deriveContract, MISSING_DATABASE_URL_SMOKE_CONTEXT } from './contract.m
 const scriptsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const subjects = [
   ['assert-test-summary.mjs', 2],
-  ['legiwatch-phase2-runtime-plan.mjs', 1],
+  ['legiwatch-monitoring-runtime-plan.mjs', 1],
   ...[3, 4, 5, 6, 7, 8].map((phase) => [`legiwatch-phase${phase}-qualification.mjs`, 1]),
 ];
 const resourceProbe = `
@@ -91,7 +91,7 @@ test('qualification scripts refuse unexpected arguments before configured databa
 });
 
 test('runtime plan refuses unknown options before reading AWS snapshots', () => {
-  invoke('legiwatch-phase2-runtime-plan.mjs', ['--unknown'], 2);
+  invoke('legiwatch-monitoring-runtime-plan.mjs', ['--unknown'], 2);
 });
 
 test('summary gate rejects an invalid floor before reading a summary', () => {

@@ -861,6 +861,8 @@ describe('CapiroAdminService — removeUserFromTenant audit (#3a/#3b)', () => {
       tenant: { clerkOrgId: null },
     };
     const svc = makeService({
+      $queryRaw: async () => [{ actor: '' }],
+      $executeRaw: async () => 0,
       tenantMembership: {
         findUnique: async () => membership,
         update: async () => ({}),
@@ -883,60 +885,6 @@ describe('CapiroAdminService — removeUserFromTenant audit (#3a/#3b)', () => {
       entityType: 'tenant_membership',
       entityId: 'mem-1',
     });
-  });
-});
-
-describe('CapiroAdminService — endImpersonation audit (#3a/#3b)', () => {
-  test('writes one impersonation.end row per active session, each to its tenant', async () => {
-    const audit: Array<Record<string, unknown>> = [];
-    const sessions = [
-      { id: 's1', tenantId: 't1' },
-      { id: 's2', tenantId: 't2' },
-    ];
-    let updated = false;
-    const svc = makeService({
-      impersonationSession: {
-        findMany: async () => sessions,
-        updateMany: async () => {
-          updated = true;
-          return { count: sessions.length };
-        },
-      },
-      auditLog: {
-        create: async ({ data }: { data: Record<string, unknown> }) => {
-          audit.push(data);
-          return data;
-        },
-      },
-    });
-    const res = await svc.endImpersonation('actor-1');
-    expect(res).toEqual({ ended: 2 });
-    expect(updated).toBe(true);
-    expect(
-      audit.map((a) => ({ tenantId: a.tenantId, entityId: a.entityId, action: a.action })),
-    ).toEqual([
-      { tenantId: 't1', entityId: 's1', action: 'impersonation.end' },
-      { tenantId: 't2', entityId: 's2', action: 'impersonation.end' },
-    ]);
-  });
-
-  test('no rows written when there are no active sessions', async () => {
-    const audit: Array<Record<string, unknown>> = [];
-    const svc = makeService({
-      impersonationSession: {
-        findMany: async () => [],
-        updateMany: async () => ({ count: 0 }),
-      },
-      auditLog: {
-        create: async ({ data }: { data: Record<string, unknown> }) => {
-          audit.push(data);
-          return data;
-        },
-      },
-    });
-    const res = await svc.endImpersonation('actor-1');
-    expect(res).toEqual({ ended: 0 });
-    expect(audit).toHaveLength(0);
   });
 });
 

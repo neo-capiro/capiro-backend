@@ -1,3 +1,4 @@
+import { objectiveIntentFromSnapshot, objectiveIntentGoal, objectiveStrategyDraftInput } from '@capiro/shared/strategy-intake';
 import { randomUUID } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
 import { createObjectiveStrategyReservationWithinTx, type ObjectiveStrategyJobInventory } from './objective-strategy-job-reservation.js';
@@ -67,10 +68,19 @@ export async function insertObjectiveStrategySelectionWithinTx(tx: Tx, a: WorkAu
     key = objectiveStrategyRequestCodec.requestKey(a.tenantId, a.clerkUserId, draft.requestId),
     wrapper = objectiveStrategySelectionBody(request), wrapperSha256 = objectiveStrategySelectionDigest(request),
     intakeId = randomUUID(), generationJobId = randomUUID();
-  const roots = await tx.$queryRaw<Array<{ outcome: string }>>`SELECT snapshot->>'outcome' AS outcome FROM client_objective_revisions
+  const roots = await tx.$queryRaw<Array<{ snapshot: Record<string, any> }>>`SELECT snapshot FROM client_objective_revisions
     WHERE tenant_id=${a.tenantId}::uuid AND client_id=${a.clientId}::uuid AND objective_id=${a.objectiveId}::uuid
       AND id=${s.sourceRevisionId}::uuid AND version=${s.sourceObjectiveVersion}`;
-  if (roots.length !== 1 || typeof roots[0]?.outcome !== 'string' || !roots[0].outcome.trim()) workFailure('AUTHORITY_UNAVAILABLE');
+  if (roots.length !== 1 || !roots[0]?.snapshot) workFailure('AUTHORITY_UNAVAILABLE');
+  const intent = objectiveIntentFromSnapshot(roots[0]!.snapshot);
+  objectiveStrategyDraftInput(a.clientId, draft.type, intent);
+  if ('kind' in intent) {
+    const owners = await tx.$queryRaw<Array<{ userId: string }>>`
+      SELECT u.id::text AS "userId" FROM tenant_memberships tm JOIN users u ON u.id=tm.user_id
+      WHERE tm.tenant_id=${a.tenantId}::uuid AND tm.status::text='active'
+        AND u.clerk_user_id=${intent.strategyIntake.ownerUserId}`;
+    if (owners.length !== 1 || owners[0]!.userId !== roots[0]!.snapshot.ownerUserId) workFailure('AUTHORITY_UNAVAILABLE');
+  }
   const count = await tx.$executeRaw`INSERT INTO client_objective_strategy_intakes
     (id,tenant_id,client_id,objective_id,work_action,control_id,consent_id,command_receipt_id,command_request_id,control_version,
      actor_user_id,actor_membership_id,original_clerk_user_id,canonical_plan_id,canonical_epoch,canonical_strategy_id,canonical_project_id,
@@ -89,5 +99,5 @@ export async function insertObjectiveStrategySelectionWithinTx(tx: Tx, a: WorkAu
     commandReceiptId: r.receiptId, wrapperSha256, originalClerkUserId: a.clerkUserId, typedRequest: draft,
     requestFingerprint: fingerprint, jobRequestKey: key, source: { clientId: a.clientId, objectiveId: a.objectiveId,
       objectiveVersion: s.sourceObjectiveVersion, objectiveRevisionId: s.sourceRevisionId },
-    intentOutcome: roots[0]!.outcome, originalDeadlineAtMs: Date.parse(r.consent.expiresAt) });
+    intentOutcome: objectiveIntentGoal(intent), originalDeadlineAtMs: Date.parse(r.consent.expiresAt) });
 }

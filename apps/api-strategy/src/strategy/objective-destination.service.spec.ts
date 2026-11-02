@@ -111,6 +111,7 @@ function fixture() {
   const strategies = new StrategyService(
     prisma as unknown as PrismaService,
     {} as VersioningService,
+    {} as PlannerLinksService,
   );
   const planner = new PlannerService(prisma as unknown as PrismaService, {} as PlannerLinksService);
   return {

@@ -29,9 +29,9 @@ describe('SAM opportunity match persistence', () => {
 
   function client(rows: Stored[]) {
     const update = jest.fn(async ({ where, data }: any) => {
-      const row = rows.find((item) => item.id === where.id)!;
-      Object.assign(row, data);
-      return row;
+      const row = rows.find((item) => Object.entries(where).every(([key, value]) => item[key as keyof Stored] === value));
+      if (row) Object.assign(row, data);
+      return { count: row ? 1 : 0 };
     });
     const create = jest.fn(async ({ data }: any) => {
       const row = { id: `m-${rows.length + 1}`, ...data } as Stored;
@@ -48,7 +48,7 @@ describe('SAM opportunity match persistence', () => {
         ) ?? null,
     );
     return {
-      delegate: { samOpportunityMatch: { findFirst, update, create } },
+      delegate: { samOpportunityMatch: { findFirst, updateMany: update, create } },
       findFirst,
       update,
       create,
@@ -134,7 +134,7 @@ describe('SAM opportunity match persistence', () => {
       },
     ]);
     expect(mock.update).toHaveBeenCalledWith({
-      where: { id: 'm-1' },
+      where: { id: 'm-1', reviewStatus: 'candidate', matchBasis: 'program_alias', confidence: 0.6 },
       data: { confidence: 0.8 },
     });
     expect(rows[0]?.reviewStatus).toBe('candidate');

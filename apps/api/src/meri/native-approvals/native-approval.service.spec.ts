@@ -172,7 +172,7 @@ describe('P-INT-10 approval/record', () => {
     (tampered.command.arguments as Record<string, unknown>).title = 'changed after hashing';
     await expect(f.record({ proposal: tampered, decision: 'approved' })).rejects.toBeInstanceOf(BadRequestException);
     await expect(f.record({ proposal: proposal({}, { action: 'memory.propose' }), decision: 'approved' }))
-      .rejects.toBeInstanceOf(ConflictException);
+      .rejects.toBeInstanceOf(BadRequestException);
     const expired = proposal({ createdAt: new Date(Date.now() - 120_000).toISOString(), expiresAt: new Date(Date.now() - 1_000).toISOString() });
     await expect(f.record({ proposal: expired, decision: 'approved' })).rejects.toBeInstanceOf(ConflictException);
     await expect(f.record({ proposal: proposal({}, { scopes: [scope('policy-r1'), { ...scope('policy-r2'), resourceId: 'client-2' }] }), decision: 'approved' }))

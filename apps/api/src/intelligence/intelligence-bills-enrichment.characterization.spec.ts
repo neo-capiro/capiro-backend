@@ -134,13 +134,19 @@ it('getBillRegulationLinks deduplicates subjects in insertion order and preserve
   );
   const result = await h.service.getBillRegulationLinks(clientId, tenantId);
   const query = h.callsOf('regulations')[0]!.query!;
+  // One bounded regex alternation replaces the per-bill ILIKE lists; the
+  // malformed identifier contributes no pattern and the earliest tracked
+  // Congress (119th, seated 2025-01-03) bounds the identifier branch.
   expect(query.values).toEqual([
     ['Defense', 'defense'],
-    ['%HR 1234%', '%HR1234%'],
-    ['%HR 1234%', '%HR1234%'],
+    new Date('2025-01-03T00:00:00.000Z'),
+    '(HR ?1234)',
+    '(HR ?1234)',
   ]);
-  expect(query.values[1]).toBe(query.values[2]);
+  expect(query.values[2]).toBe(query.values[3]);
   expect(query.sql).toContain('topics &&');
+  expect(query.sql).toContain('publication_date >= ?::date');
+  expect(h.callsOf('statementTimeout')).toHaveLength(1);
   expect(result.links).toHaveLength(1);
   expect(result.links[0]!.regulations.map((r) => r.documentNumber)).toEqual(['2026-1']);
   expect(result.totalBills).toBe(2);
@@ -164,8 +170,9 @@ it('getBillRegulationLinks qualifies abstract text in SQL while projecting only 
   h.override('getTrackedBills', bundle([tracked([])]));
   const result = await h.service.getBillRegulationLinks(clientId, tenantId);
   const query = h.callsOf('regulations')[0]!.query!;
-  expect(query.sql).toContain('title ILIKE ANY');
-  expect(query.sql).toContain('abstract ILIKE ANY');
+  expect(query.sql).toContain('title ~* ?');
+  expect(query.sql).toContain('abstract ~* ?');
+  expect(query.sql).not.toContain('ILIKE');
   expect(result.links[0]!.regulations.map((r) => r.documentNumber)).toEqual(['title']);
   expect(result.links[0]!.regulations[0]!.matchedTopics).toEqual([]);
   expect(result.totalRegulations).toBe(2);
@@ -179,7 +186,9 @@ it('getBillRegulationLinks still queries for malformed identifiers and an empty 
     totalBills: 1,
     totalRegulations: 1,
   });
-  expect(h.callsOf('regulations')[0]!.query!.values).toEqual([[], [], []]);
+  // No parsable identifier: the topics branch alone runs, with no date bound.
+  expect(h.callsOf('regulations')[0]!.query!.values).toEqual([[]]);
+  expect(h.callsOf('regulations')[0]!.query!.sql).not.toContain('publication_date >=');
 });
 
 it('getBillRegulationLinks preserves the 200-row SQL bound and counts the catalog before each ten-row display cap', async () => {

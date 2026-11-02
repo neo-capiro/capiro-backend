@@ -119,6 +119,11 @@ class UpdateActivityDto {
 export class ClientActivityController {
   constructor(private readonly service: ClientActivityService) {}
 
+  @Get('metrics')
+  metrics(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
+    return this.service.metrics(ctx, clientId);
+  }
+
   @Get()
   list(
     @CurrentTenant() ctx: TenantContext,

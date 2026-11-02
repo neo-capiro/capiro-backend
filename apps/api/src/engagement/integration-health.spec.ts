@@ -143,3 +143,14 @@ test('held records degrade connected coverage even after a completed baseline', 
   } }, []);
   expect(projected.mailCoverage).toMatchObject({ sourceStatus: 'degraded', reason: 'mail_sync_incomplete', backfillComplete: true });
 });
+
+// B3: the calendar sync receiver proves ownership from this field. `engagement/integrations`
+// is already caller-scoped, but it did not echo the owner, so `calendarConnectionsSchema` and
+// the ownership guard rejected every account and Sync calendar was unusable on every client.
+test('integration projection echoes the connection owner so the sync receiver can check it', () => {
+  expect(
+    integrationStatusProjection({ ...row, createdByUserId: 'synthetic-user' }, []),
+  ).toMatchObject({ createdByUserId: 'synthetic-user' });
+  // A row that predates the owner column is "not stated", never another caller.
+  expect(integrationStatusProjection(row, [])).toMatchObject({ createdByUserId: null });
+});

@@ -1,3 +1,4 @@
+import { retryResearchTask, type ResearchRetryCommand } from './client-profile-fill-retry-command.js';
 import {
   Injectable,
   Logger,
@@ -34,6 +35,8 @@ import type {
   DiscoveryFinding,
 } from './client-profile-fill-advocacy-discovery.shared.js';
 import type { AdvancedFindingRow } from './client-profile-fill-finding-review.shared.js';
+import type { ReviewCommand } from './client-profile-fill-review-store.js';
+import { readReviewSnapshot } from './client-profile-fill-review-snapshot.js';
 import type { RegulatoryCommentDetail } from './client-profile-fill-regulatory-comment-source.js';
 import type { CompletionFindingInput } from './client-profile-fill-completion-persistence.js';
 import { createClientProfileFillCompletionOwners } from './client-profile-fill-completion.composition.js';
@@ -115,7 +118,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     clientId: string,
     input: StartClientProfileFillWorkflowInput,
   ): Promise<Record<string, unknown>> {
-    const activeCompletionRun = await this.owners.runReadModel.latestActiveCompletionRun(
+    const activeCompletionRun = input.requestId ? null : await this.owners.runReadModel.latestActiveCompletionRun(
       ctx.tenantId,
       clientId,
     );
@@ -127,7 +130,8 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     >;
     const runId = asString(core.id);
     if (!runId) throw new Error('Fill with Meri did not return a run id');
-    await this.ensureCompletionTasks(ctx, clientId, runId);
+    if (!input.requestId || (core.status === 'running' && core.stage === 'research'))
+      await this.ensureCompletionTasks(ctx, clientId, runId);
     this.requestTaskSweep();
     return this.getRun(ctx, clientId, runId);
   }
@@ -159,12 +163,21 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     return this.owners.runLifecycle.cancelRun(ctx, clientId, runId);
   }
 
-  async retryTask(ctx: TenantContext, clientId: string, runId: string, taskId: string) {
+  async retryTask(ctx: TenantContext, clientId: string, runId: string, taskId: string, command?: ResearchRetryCommand) {
+    if (command) {
+      const result = await retryResearchTask(this.prisma, ctx, clientId, runId, taskId, command);
+      if (result.status === 'queued' && !result.replayed) this.requestTaskSweep();
+      return result;
+    }
     return this.owners.runLifecycle.retryTask(ctx, clientId, runId, taskId);
   }
 
-  async applyFindings(ctx: TenantContext, clientId: string, runId: string, findingIds: string[]) {
-    return this.owners.findingReview.applyFindings(ctx, clientId, runId, findingIds);
+  getReview(ctx: TenantContext, clientId: string, runId: string) {
+    return readReviewSnapshot(this.prisma, ctx, clientId, runId);
+  }
+
+  async applyFindings(ctx: TenantContext, clientId: string, runId: string, command: ReviewCommand) {
+    return this.owners.findingReview.applyFindings(ctx, clientId, runId, command);
   }
 
   rejectFinding(ctx: TenantContext, clientId: string, findingId: string, reason?: string) {
@@ -361,13 +374,15 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     target:
       | { matterId: string }
       | { newMatter: { title: string; matterType?: string; summary?: string | null } },
-  ): Promise<{ findingId: string; matterId: string | null; alreadyApplied: boolean }> {
+    command: ReviewCommand,
+  ) {
     return this.owners.findingReview.applyAdvocacyFindingToMatter(
       ctx,
       clientId,
       runId,
       findingId,
       target,
+      command,
     );
   }
 

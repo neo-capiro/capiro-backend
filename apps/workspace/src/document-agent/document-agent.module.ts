@@ -18,6 +18,9 @@ import { WorkspaceReasoningModule } from '../workspace-reasoning/workspace-reaso
 import { GenerationModule } from '../generation/generation.module.js';
 import { CollaboratorsModule } from '../collaborators/collaborators.module.js';
 import { ChecksModule } from '../checks/checks.module.js';
+import { ProspectGenerationService } from './prospect-generation/prospect-generation.service.js';
+import { ProspectGenerationController } from './prospect-generation/prospect-generation.controller.js';
+import { ProspectGenerationBootstrapClient } from './prospect-generation/bootstrap.client.js';
 
 @Module({
   imports: [WorkspaceReasoningModule, GenerationModule, CollaboratorsModule, ChecksModule],
@@ -35,11 +38,14 @@ import { ChecksModule } from '../checks/checks.module.js';
     DocumentAgentOutlineService,
     DocumentAgentRevisionService,
     DocumentAgentQualityService,
+    ProspectGenerationService,
+    ProspectGenerationBootstrapClient,
   ],
   controllers: [
     DocumentAgentCatalogController,
     DocumentAgentController,
     AgentContextItemController,
+    ProspectGenerationController,
   ],
   exports: [DocumentAgentService, DocumentAgentQualityService],
 })

@@ -1,3 +1,7 @@
+import type { Prisma } from '@prisma/client';
+import { assertFillExecution } from './client-profile-fill-execution.js';
+import type { ReviewTransaction } from './client-profile-fill-review-store.js';
+import type { AdvancedFindingRow } from './client-profile-fill-finding-review.shared.js';
 import { prepareOpenAiResponsesRequest, prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 import { promises as dns } from 'node:dns';
 import {
@@ -15,7 +19,7 @@ import { buildWebSearchRequest, normalizeWebResults, type NormalizedWebResult } 
 import { SamEntityEnrichmentService } from '../intelligence/sam-entity.service.js';
 import { ClientPeRelevanceService } from '../intelligence/client-pe-relevance.service.js';
 import { IntelligenceService } from '../intelligence/intelligence.service.js';
-import { ClientPrepopulationService } from '../intelligence/client-prepopulation.service.js';
+import { clientIntelligenceReads } from '../intelligence/client-read-cache.js';
 import { fingerprintName, sharesDistinctiveToken } from '../intelligence/entity-resolution.service.js';
 import { ClientsService, type UpdateClientInput } from './clients.service.js';
 import { ClientPeopleService } from './client-people.service.js';
@@ -30,6 +34,7 @@ import {
 import { QualityTelemetryCaptureService } from '../quality-telemetry/quality-telemetry-capture.service.js';
 import { buildCrmFillFindingTelemetryEvent } from '../quality-telemetry/adapters/crm-fill-finding.telemetry-adapter.js';
 import { TrackerService } from '../tracker/tracker.service.js';
+import { researchWebsite, type ResearchLdaIdentity } from './client-profile-fill-research-inputs.js';
 import {
   CLIENT_PROFILE_FILL_SOURCES,
   asRecord,
@@ -181,7 +186,6 @@ export class ClientProfileFillService {
     private readonly sam: SamEntityEnrichmentService,
     private readonly peRelevance: ClientPeRelevanceService,
     private readonly intelligence: IntelligenceService,
-    private readonly prepopulation: ClientPrepopulationService,
     private readonly clients: ClientsService,
     private readonly people: ClientPeopleService,
     private readonly facilities: ClientFacilitiesService,
@@ -213,7 +217,8 @@ export class ClientProfileFillService {
     if (attachmentId && seedWebsite?.trim()) {
       throw new BadRequestException('Website seed applies only to connected enrichment sources');
     }
-    await this.maybeSeedWebsite(ctx, clientId, seedWebsite);
+    const website = researchWebsite(seedWebsite) ??
+      normalizeWebsite((await this.getClientSnapshot(ctx.tenantId, clientId)).website);
     const sources = attachmentId ? [] : this.normalizeSources(requestedSources);
 
     const existing = await this.latestRunning(ctx.tenantId, clientId);
@@ -242,10 +247,10 @@ export class ClientProfileFillService {
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.$queryRawUnsafe<FillRunRow[]>(
         `INSERT INTO client_profile_fill_run
-           (tenant_id, client_id, created_by_user_id, status, requested_sources, source_states_jsonb)
+           (tenant_id, client_id, created_by_user_id, status, requested_sources, source_states_jsonb, setup_jsonb)
          VALUES (
            $1::uuid, $2::uuid, $3::uuid, 'running',
-           ARRAY(SELECT jsonb_array_elements_text($4::jsonb)), $5::jsonb
+           ARRAY(SELECT jsonb_array_elements_text($4::jsonb)), $5::jsonb, $6::jsonb
          )
          RETURNING id,
                    client_id AS "clientId",
@@ -263,6 +268,7 @@ export class ClientProfileFillService {
         ctx.userId,
         JSON.stringify(sources),
         JSON.stringify(sourceStates),
+        JSON.stringify({ researchInputVersion: 1, website }),
       ),
     );
     const run = rows[0];
@@ -274,7 +280,7 @@ export class ClientProfileFillService {
     // rather than leaving an apparently-live run forever.
     void (attachmentId
       ? this.executeCapabilityDocumentRun({ ...ctx }, clientId, run.id, attachmentId)
-      : this.executeRun({ ...ctx }, clientId, run.id, sources)
+      : this.executeRun({ ...ctx }, clientId, run.id, sources, website)
     ).catch((error) => {
       this.logger.error(
         `Fill with Meri run ${run.id} crashed: ${error instanceof Error ? error.message : String(error)}`,
@@ -380,102 +386,11 @@ export class ClientProfileFillService {
     };
   }
 
-  async applyFindings(
-    ctx: TenantContext,
-    clientId: string,
-    runId: string,
-    findingIds: string[],
-  ) {
-    await this.assertClient(ctx.tenantId, clientId);
-    if (!findingIds.length) throw new BadRequestException('Select at least one finding to apply');
-    const ids = [...new Set(findingIds)];
-    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.$queryRawUnsafe<FillFindingRow[]>(
-        `SELECT id,
-                run_id AS "runId",
-                client_id AS "clientId",
-                kind,
-                target_key AS "targetKey",
-                source,
-                fact_kind AS "factKind",
-                current_value_jsonb AS "currentValue",
-                proposed_value_jsonb AS "proposedValue",
-                evidence_jsonb AS "evidence",
-                confidence,
-                status,
-                content_hash AS "contentHash",
-                reviewed_by AS "reviewedBy",
-                reviewed_at AS "reviewedAt",
-                rejection_reason AS "rejectionReason",
-                applied_at AS "appliedAt",
-                created_at AS "createdAt",
-                updated_at AS "updatedAt"
-           FROM client_profile_fill_finding
-          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND run_id = $3::uuid
-            AND id = ANY(ARRAY(SELECT jsonb_array_elements_text($4::jsonb))::uuid[])
-          ORDER BY CASE kind
-            WHEN 'profile_field' THEN 1
-            WHEN 'government_identity' THEN 2
-            WHEN 'person' THEN 3
-            WHEN 'facility' THEN 4
-            WHEN 'capability' THEN 5
-            WHEN 'lda_identity' THEN 6
-            ELSE 99 END,
-            created_at ASC`,
-        ctx.tenantId,
-        clientId,
-        runId,
-        JSON.stringify(ids),
-      ),
-    );
-    if (rows.length !== ids.length) {
-      throw new BadRequestException('One or more selected findings are unavailable for this run');
-    }
-
-    const applied: string[] = [];
-    const skipped: string[] = [];
-    const errors: Array<{ findingId: string; message: string }> = [];
-
-    for (const finding of rows) {
-      if (finding.status === 'accepted') {
-        skipped.push(finding.id);
-        continue;
-      }
-      if (finding.status !== 'pending') {
-        errors.push({ findingId: finding.id, message: `Finding is ${finding.status}, not pending` });
-        continue;
-      }
-      try {
-        await this.applyFinding(ctx, clientId, finding);
-        await this.markAccepted(ctx, clientId, finding.id);
-        applied.push(finding.id);
-        await this.captureFillFindingSignal(ctx, 'accepted', finding);
-      } catch (error) {
-        errors.push({
-          findingId: finding.id,
-          message: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-
-    if (applied.length) {
-      // Confirmed LDA mappings and newly accepted client facts/capabilities are
-      // canonical inputs to the existing Intel builders. Re-run the established
-      // prepopulation cascade once per batch rather than inventing a second silo.
-      await this.prepopulation.prepopulate(ctx.tenantId, clientId).catch((error) =>
-        this.logger.warn(
-          `Post-apply prepopulation failed for ${clientId}: ${error instanceof Error ? error.message : String(error)}`,
-        ),
-      );
-      await this.refreshSummary(ctx.tenantId, runId);
-    }
-
-    return {
-      applied,
-      skipped,
-      errors,
-      run: await this.getRun(ctx, clientId, runId),
-    };
+  async afterReviewedFindings(ctx: TenantContext, clientId: string, runId: string, findings: AdvancedFindingRow[]) {
+    for (const finding of findings) await this.captureFillFindingSignal(ctx, 'accepted', {
+      ...finding, clientId, runId,
+    });
+    await this.refreshSummary(ctx.tenantId, runId);
   }
 
   async rejectFinding(
@@ -520,8 +435,8 @@ export class ClientProfileFillService {
   /**
    * Phase 27A learning-signal capture for an accept/reject decision on a
    * Fill-with-Meri finding. Best-effort and non-blocking by design — same
-   * pattern as the `prepopulation.prepopulate(...).catch(...)` call above:
-   * a capture failure must never undo or fail the CRM action it is
+   * policy as other post-commit reporting: capture cannot reverse the accepted write.
+   * A capture failure must never undo or fail the CRM action it is
    * evidence of. Runs in its own transaction (the finding-status write it
    * follows has already committed by this point either way).
    */
@@ -608,6 +523,7 @@ export class ClientProfileFillService {
     clientId: string,
     runId: string,
     sources: ClientProfileFillSource[],
+    website?: string | null,
   ) {
     const states: Record<string, { status: string; count?: number; error?: string }> = {};
     for (const source of sources) {
@@ -616,7 +532,7 @@ export class ClientProfileFillService {
         let count = 0;
         switch (source) {
           case 'public_web':
-            count = await this.gatherPublicWeb(ctx, clientId, runId);
+            count = await this.gatherPublicWeb(ctx, clientId, runId, website);
             break;
           case 'synced_email':
             count = await this.gatherSyncedEmail(ctx, clientId, runId);
@@ -1066,7 +982,7 @@ export class ClientProfileFillService {
     return count;
   }
 
-  private async gatherLda(ctx: TenantContext, clientId: string, runId: string) {
+  private async gatherLda(ctx: TenantContext, clientId: string, runId: string, selections?: ResearchLdaIdentity[]) {
     const client = await this.getClientSnapshot(ctx.tenantId, clientId);
     const existing = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clientIntelMapping.findMany({
@@ -1075,6 +991,24 @@ export class ClientProfileFillService {
       }),
     );
     let count = 0;
+    if (selections !== undefined) {
+      for (const selection of selections) {
+        const externalId = String(selection.id);
+        if (!existing.some(mapping => mapping.externalId === externalId)) {
+          if (await this.addFinding(ctx.tenantId, clientId, runId, {
+            kind: 'lda_identity', targetKey: `lda:${externalId}`, source: 'lda',
+            factKind: 'recommendation', currentValue: null,
+            proposedValue: { externalId, externalName: selection.name, selectedForResearch: true },
+            confidence: selection.confidence,
+            evidence: [{ label: 'Identity selected from the offered research setup; not a confirmed client mapping',
+              source: 'research_setup', metadata: { ldaClientId: selection.id, runId } }],
+          })) count++;
+        }
+        if (await this.addLdaHistory(ctx.tenantId, clientId, runId, externalId, selection.name, selection.confidence))
+          count++;
+      }
+      return count;
+    }
     if (existing.length) {
       for (const mapping of existing) {
         if (await this.addLdaHistory(ctx.tenantId, clientId, runId, mapping.externalId, mapping.externalName, Number(mapping.confidence ?? 1))) {
@@ -1251,13 +1185,14 @@ export class ClientProfileFillService {
     return count;
   }
 
-  private async gatherPublicWeb(ctx: TenantContext, clientId: string, runId: string) {
+  private async gatherPublicWeb(ctx: TenantContext, clientId: string, runId: string, seedWebsite?: string | null) {
     const client = await this.getClientSnapshot(ctx.tenantId, clientId);
     // Public web is the fallback for thin internal data, but it also runs for
     // every public_web request so a client with weak/stale internal records is
     // not treated as a dead end.
-    const results = await this.searchCompany(client);
-    const website = normalizeWebsite(client.website);
+    const website = normalizeWebsite(seedWebsite === undefined ? client.website : seedWebsite);
+    const researchClient = { ...client, website };
+    const results = await this.searchCompany(researchClient);
     let homepage: { url: string; html: string; text: string; description: string | null } | null = null;
     let websiteFetchError: string | null = null;
     const pageCorpus: Array<{ url: string; text: string; description: string | null }> = [];
@@ -1323,7 +1258,7 @@ export class ClientProfileFillService {
       if (inserted) count++;
     }
 
-    const extraction = await this.extractPublicWeb(ctx, client, homepage, results, pageCorpus);
+    const extraction = await this.extractPublicWeb(ctx, researchClient, homepage, results, pageCorpus);
     if (!extraction) {
       if (websiteFetchError && count === 0 && results.length === 0) {
         throw new Error(`Website unavailable (${websiteFetchError}); no public search evidence`);
@@ -1510,27 +1445,6 @@ export class ClientProfileFillService {
       if (inserted) count++;
     }
     return count;
-  }
-
-  private async maybeSeedWebsite(
-    ctx: TenantContext,
-    clientId: string,
-    seedWebsite?: string | null,
-  ): Promise<void> {
-    const normalized = normalizeWebsite(seedWebsite);
-    if (!normalized) {
-      if (seedWebsite?.trim()) {
-        throw new BadRequestException('Website must be a valid http(s) URL');
-      }
-      return;
-    }
-    const client = await this.getClientSnapshot(ctx.tenantId, clientId);
-    const current = normalizeWebsite(client.website);
-    if (current && (normalizeComparableUrl(current) ?? current) === (normalizeComparableUrl(normalized) ?? normalized)) {
-      return;
-    }
-    // Drawer website is an explicit user seed for this enrichment pass.
-    await this.clients.update(ctx, clientId, { website: normalized });
   }
 
   private async fetchPublicPages(
@@ -2056,19 +1970,19 @@ export class ClientProfileFillService {
     });
   }
 
-  private async applyFinding(ctx: TenantContext, clientId: string, finding: FillFindingRow) {
+  async applyFindingInTransaction(scope: ReviewTransaction, ctx: TenantContext, clientId: string, finding: AdvancedFindingRow) {
     switch (finding.kind) {
       case 'profile_field':
       case 'government_identity':
-        return this.applyClientField(ctx, clientId, finding);
+        return this.applyClientField(scope, ctx, clientId, finding);
       case 'person':
-        return this.applyPerson(ctx, clientId, finding);
+        return this.applyPerson(scope, ctx, clientId, finding);
       case 'facility':
-        return this.applyFacility(ctx, clientId, finding);
+        return this.applyFacility(scope, ctx, clientId, finding);
       case 'capability':
-        return this.applyCapability(ctx, clientId, finding);
+        return this.applyCapability(scope, ctx, clientId, finding);
       case 'lda_identity':
-        return this.applyLdaIdentity(ctx, clientId, finding);
+        return this.applyLdaIdentity(scope, ctx, clientId, finding);
       case 'lda_history':
       case 'program_element':
       case 'bill_recommendation':
@@ -2078,13 +1992,14 @@ export class ClientProfileFillService {
     }
   }
 
-  private async applyClientField(ctx: TenantContext, clientId: string, finding: FillFindingRow) {
+  private async applyClientField(scope: ReviewTransaction, ctx: TenantContext, clientId: string, finding: AdvancedFindingRow) {
     const allowed = new Set([
       'website', 'description', 'productDescription', 'primaryContactName', 'primaryContactEmail',
       'primaryContactPhone', 'uei', 'cageCode', 'naicsCodes', 'pscCodes',
     ]);
     if (!allowed.has(finding.targetKey)) throw new BadRequestException('Unsupported client field');
-    const client = await this.getClientSnapshot(ctx.tenantId, clientId);
+    const client = await scope.tx.client.findFirst({ where: { id: clientId, tenantId: ctx.tenantId } });
+    if (!client) throw new NotFoundException('Client not found');
     const key = finding.targetKey as keyof ClientSnapshot;
     const live = client[key];
     const isArray = key === 'naicsCodes' || key === 'pscCodes';
@@ -2096,15 +2011,16 @@ export class ClientProfileFillService {
         `The live ${finding.targetKey} changed after this enrichment run. Refresh with Meri before applying it.`,
       );
     }
-    await this.clients.update(ctx, clientId, { [finding.targetKey]: proposed } as UpdateClientInput);
-    await this.audit(ctx, clientId, finding, live, proposed);
+    await this.clients.updateInTransaction(scope.tx, ctx, clientId, { [finding.targetKey]: proposed } as UpdateClientInput);
+    scope.afterCommit.push(() => this.clients.indexProfileAfterCommit(ctx, clientId));
+    await this.audit(scope.tx, ctx, clientId, finding, live, proposed);
   }
 
-  private async applyPerson(ctx: TenantContext, clientId: string, finding: FillFindingRow) {
+  private async applyPerson(scope: ReviewTransaction, ctx: TenantContext, clientId: string, finding: AdvancedFindingRow) {
     const proposed = asRecord(finding.proposedValue);
     const name = asString(proposed.name);
     if (!name) throw new BadRequestException('Person name is required');
-    const result = await this.people.upsertPersonForImport(ctx, clientId, {
+    const result = await this.people.upsertPersonForImportInTransaction(scope.tx, ctx, clientId, {
       name,
       title: asString(proposed.title) ?? undefined,
       email: asString(proposed.email) ?? undefined,
@@ -2113,39 +2029,41 @@ export class ClientProfileFillService {
       notes: asString(proposed.notes) ?? undefined,
       lastContact: asString(proposed.lastContact) ?? undefined,
     });
-    await this.audit(ctx, clientId, finding, null, result.person);
+    scope.afterCommit.push(() => this.people.afterPersonImport(ctx, result));
+    await this.audit(scope.tx, ctx, clientId, finding, null, result.person);
   }
 
-  private async applyFacility(ctx: TenantContext, clientId: string, finding: FillFindingRow) {
+  private async applyFacility(scope: ReviewTransaction, ctx: TenantContext, clientId: string, finding: AdvancedFindingRow) {
     const proposed = asRecord(finding.proposedValue);
     const name = asString(proposed.name);
     if (!name) throw new BadRequestException('Facility name is required');
-    const existing = await this.facilities.listFacilities(ctx, clientId);
+    const existing = await scope.tx.clientFacility.findMany({ where: { tenantId: ctx.tenantId, clientId } });
     if (this.matchesExistingFacility(existing, proposed)) {
-      await this.audit(ctx, clientId, finding, null, { deduplicated: true, name });
+      await this.audit(scope.tx, ctx, clientId, finding, null, { deduplicated: true, name });
       return;
     }
-    const created = await this.facilities.createFacility(ctx, clientId, {
+    const created = await this.facilities.createFacilityInTransaction(scope.tx, ctx, clientId, {
       name,
       addressLine: asString(proposed.addressLine) ?? undefined,
       city: asString(proposed.city) ?? undefined,
       state: asString(proposed.state) ?? undefined,
       zip: asString(proposed.zip) ?? undefined,
     });
-    await this.audit(ctx, clientId, finding, null, created);
+    scope.afterCommit.push(() => this.facilities.afterFacilityCreated(ctx, created));
+    await this.audit(scope.tx, ctx, clientId, finding, null, created);
   }
 
-  private async applyCapability(ctx: TenantContext, clientId: string, finding: FillFindingRow) {
+  private async applyCapability(scope: ReviewTransaction, ctx: TenantContext, clientId: string, finding: AdvancedFindingRow) {
     const proposed = asRecord(finding.proposedValue);
     const name = asString(proposed.name);
     if (!name) throw new BadRequestException('Capability name is required');
-    const existing = await this.capabilities.listCapabilities(ctx, clientId);
+    const existing = await scope.tx.clientCapability.findMany({ where: { tenantId: ctx.tenantId, clientId } });
     const match = existing.find((cap) => normalizedName(cap.name) === normalizedName(name));
     if (match) {
-      await this.audit(ctx, clientId, finding, null, { deduplicated: true, capabilityId: match.id, name });
+      await this.audit(scope.tx, ctx, clientId, finding, null, { deduplicated: true, capabilityId: match.id, name });
       return;
     }
-    const created = await this.capabilities.createCapability(ctx, clientId, {
+    const created = await this.capabilities.createCapabilityInTransaction(scope.tx, ctx, clientId, {
       name,
       type: this.safeCapabilityType(asString(proposed.type)) ?? undefined,
       description: asString(proposed.description) ?? undefined,
@@ -2153,51 +2071,35 @@ export class ClientProfileFillService {
       tags: asStringArray(proposed.tags),
       keywords: asStringArray(proposed.keywords),
     });
-    await this.audit(ctx, clientId, finding, null, created);
+    scope.afterCommit.push(() => this.capabilities.afterCapabilityCreated(ctx, created));
+    await this.audit(scope.tx, ctx, clientId, finding, null, created);
   }
 
-  private async applyLdaIdentity(ctx: TenantContext, clientId: string, finding: FillFindingRow) {
+  private async applyLdaIdentity(scope: ReviewTransaction, ctx: TenantContext, clientId: string, finding: AdvancedFindingRow) {
     const proposed = asRecord(finding.proposedValue);
     const externalId = asString(proposed.externalId);
     const externalName = asString(proposed.externalName);
     if (!externalId || !externalName) throw new BadRequestException('LDA identity is incomplete');
-    const mapping = await this.intelligence.createManualMapping(clientId, ctx.tenantId, {
+    const mapping = await this.intelligence.createManualMappingInTransaction(scope.tx, clientId, ctx.tenantId, {
       source: 'lda',
       externalId,
       externalName,
       actorUserId: ctx.userId,
     });
-    // createManualMapping owns mapping validation/confirmation and its LDA
-    // prepopulation side effect. Keep one additional audit event tying that
-    // canonical curation decision back to the enrichment finding.
-    await this.audit(ctx, clientId, finding, null, mapping);
-  }
-
-  private async markAccepted(ctx: TenantContext, clientId: string, findingId: string) {
-    await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.$executeRawUnsafe(
-        `UPDATE client_profile_fill_finding
-            SET status = 'accepted', reviewed_by = $4::uuid, reviewed_at = now(),
-                applied_at = now(), rejection_reason = NULL, updated_at = now()
-          WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid
-            AND status = 'pending'`,
-        findingId,
-        ctx.tenantId,
-        clientId,
-        ctx.userId,
-      ),
-    );
+    // Enrichment applies only the selected mapping; other generated facts still need review.
+    await this.audit(scope.tx, ctx, clientId, finding, null, mapping);
+    scope.afterCommit.push(() => clientIntelligenceReads(this.intelligence).invalidate(ctx.tenantId, clientId));
   }
 
   private async audit(
+    tx: Prisma.TransactionClient,
     ctx: TenantContext,
     clientId: string,
-    finding: FillFindingRow,
+    finding: AdvancedFindingRow,
     before: unknown,
     after: unknown,
   ) {
-    await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.auditLog.create({
+    await tx.auditLog.create({
         data: {
           tenantId: ctx.tenantId,
           actorUserId: ctx.userId,
@@ -2213,8 +2115,7 @@ export class ClientProfileFillService {
             value: this.jsonSafe(after),
           } as any,
         },
-      }),
-    );
+      });
   }
 
   private async addFinding(
@@ -2240,6 +2141,7 @@ export class ClientProfileFillService {
       proposedValue: input.proposedValue,
     });
     return this.prisma.withTenant(tenantId, async (tx) => {
+      await assertFillExecution(tx, tenantId, clientId, runId);
       // A human's accepted/rejected decision is durable across refreshes. Same
       // proposal hash is not resurrected by a later automated run. A materially
       // changed proposed value gets a new hash and can surface again for review.

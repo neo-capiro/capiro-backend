@@ -574,7 +574,7 @@ describe('P37 — Funding Opportunities does not import Meri', () => {
         readOnly: true,
         surfaces: ['full_chat'],
       });
-      expect(toolsText).toContain(`case '${tool}':`);
+      expect(toolsText).toContain(`${tool}: () => {`);
       expect(toolsText).toMatch(new RegExp(`\\b${tool}:\\s*(obj\\(|\\{)`));
     }
   });
@@ -659,6 +659,16 @@ describe('P37 — missing data is stated, never inferred into an absence', () =>
     // The gap travels with its own IMPACT sentence, not just a key: that is
     // what lets a model say "unassessable" instead of "poor fit".
     expect(MISSING_CERTIFICATIONS.impact.length).toBeGreaterThan(10);
+  });
+
+  it('explanation and comparison deadlines use the supplied instant rather than wall time', async () => {
+    const { adapter } = makeAdapter({ getOpportunity: async () => opportunity({ responseDeadline: '2026-11-01T12:00:00.000Z', responseDeadlineNote: null }) });
+    const observed = new Date('2026-10-29T12:00:00.000Z');
+    const request = { clientId: CLIENT, source: 'sam_gov', sourceRecordId: SAM_ID };
+    const explained = await adapter.explainOpportunityMatch(STANDARD, request, observed);
+    expect(explained.data!.facts.deadline).toMatchObject({ at: '2026-11-01T12:00:00.000Z', daysRemaining: 3, status: 'open' });
+    const compared = await adapter.compareFundingOpportunities(STANDARD, { clientId: CLIENT, opportunities: [request, request] }, new Date('2026-11-02T12:00:00.000Z'));
+    expect(compared.data!.rows[0]!.facts!.deadline).toMatchObject({ daysRemaining: -1, status: 'closed' });
   });
 
   it('grant funding and contract value are separate fields and no total is emitted', () => {
@@ -748,6 +758,10 @@ describe('P37 — missing data is stated, never inferred into an absence', () =>
     expect(result.explanation).toContain('PROPOSALS ONLY');
     expect(result.explanation).toContain('Nothing here is committed');
     expect(result.data!.acceptance.wired).toBe(true);
+    expect(result.data).toMatchObject({
+      clientId: CLIENT, ref: { source: 'sam_gov', sourceRecordId: SAM_ID },
+      generatedAt: AS_OF.toISOString(),
+    });
 
     // Structural, not just prose: no write verb anywhere in the file.
     const code = readFileSync(join(__dirname, 'meri-opportunity-tools.adapter.ts'), 'utf8')

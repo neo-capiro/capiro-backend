@@ -1,5 +1,33 @@
 # Architecture Decision: LegiWatch Live Hearings V2
 
+## Product simplification — 31 October 2026
+
+The current product scope removes Import review, Research import review, the
+Reports library and its Daily subscriptions, News evidence, Florida Budget, and
+Legacy digest. Their dedicated controllers, operations, jobs, and unused code
+are retired; these features must not be restored from older phase plans.
+
+Committee browsing, rooms, and follows belong in Directory > Committees, with
+Federal and State filters. Committee Staff remains a separate people directory.
+The current state committee room API covers Florida. Hearing and notification
+links open committee records in Directory; proceedings still open in LegiWatch.
+
+Hearing capture, transcripts, publications, analytics, remaining monitoring,
+research, and client briefings retain their canonical authorization and source
+provenance. Shared delivery and exact-source readers remain only where those
+retained workflows or other active modules use them. Research and briefing
+approval use the selected source and folder directly, without a Reports-library
+selection. Existing storage names and applied migrations remain historical data
+contracts; this source change does not drop records or change deployed services.
+
+Implementation boundaries are the frontend's typed operation registry and
+Directory components, Core's analytics controller, and Intel's folder, research,
+delivery, and editorial owners. Verification covers retired HTTP operations,
+retained scope/access checks, exact draft approval, Directory navigation and
+jurisdiction filters, plus affected typechecks and builds. The decisions below
+continue to govern public hearing capture; older references to removed product
+surfaces are superseded by this scope.
+
 **Status:** Accepted
 **Date:** 2026-08-21
 **Scope:** Master-plan Phases 0, 3, 4, 5, and 6

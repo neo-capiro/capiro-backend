@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { object } from '../tracker/reports/report-domain.js';
+import { object } from '../tracker/delivery/delivery-domain.js';
 import {
   sourcePassage,
   type PublishedRecord,

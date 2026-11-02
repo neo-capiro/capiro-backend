@@ -14,6 +14,7 @@ import type { ChangeTone } from './tracker.types.js';
 import { humanizeBillId } from './bill-stage.util.js';
 import { explainMatch, type WatchlistLike } from './tracker-relevance.util.js';
 import { TrackerSummaryService } from './notifications/tracker-summary.service.js';
+import { recordResearchPortfolioBillChanges } from '../research-portfolios/research-portfolio-bill-changes.js';
 
 interface ChangeClass {
   changeType: string;
@@ -67,6 +68,71 @@ export function selectMaterialEvents(
 }
 
 /**
+ * End of the source's UTC day. Legislative action dates are date-only, so a
+ * day-granular change must not be compared as midnight against a timestamp: a
+ * portfolio adopted earlier the same day would otherwise be treated as
+ * pre-existing history, silently dropping a genuinely new same-day move.
+ */
+export function endOfUtcDay(date: Date): Date {
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 23, 59, 59, 999),
+  );
+}
+
+/** Canonical facts recorded with a membership (research-portfolio-targets). */
+export function adoptionFacts(evidence: unknown): {
+  latestActionDate: string | null;
+  latestActionText: string | null;
+} | null {
+  const facts = (evidence as { facts?: Record<string, unknown> } | null)?.facts;
+  if (!facts || typeof facts !== 'object') return null;
+  const date = typeof facts.latestActionDate === 'string' ? facts.latestActionDate : null;
+  const text = typeof facts.latestActionText === 'string' ? facts.latestActionText : null;
+  return { latestActionDate: date, latestActionText: text };
+}
+
+/**
+ * The action-history boundary for one recipient: actions on or before this instant
+ * were already behind the state the portfolio adopted. With canonical facts that is
+ * the end of the adopted action's day, so earlier same-day history is not replayed;
+ * without them it is the membership's own creation time.
+ */
+export function adoptionBoundary(recipient: { createdAt: Date; evidence: unknown }): Date {
+  const facts = adoptionFacts(recipient.evidence);
+  if (facts?.latestActionDate) return endOfUtcDay(new Date(facts.latestActionDate));
+  return recipient.createdAt;
+}
+
+/**
+ * True when this recipient should receive the event — i.e. the change is NOT
+ * already covered by the canonical facts it adopted with.
+ *
+ * Same-day precision comes from those stored facts, never from a timestamp guess:
+ * an action identical to the adopted one is what the portfolio already knew; an
+ * action predating the adopted date is never news; and a same-day action with a
+ * different text only counts when it is the CURRENT latest rollup, because
+ * date-only history rows cannot prove they happened after adoption.
+ */
+export function recipientNeedsEvent(
+  recipient: { createdAt: Date; evidence: unknown },
+  event: { date: Date | null; text: string },
+  latest: { date: Date | null; text: string | null } | null,
+): boolean {
+  if (!event.date) return false;
+  const actionDate = event.date.toISOString().slice(0, 10);
+  const facts = adoptionFacts(recipient.evidence);
+  if (!facts) return recipient.createdAt.getTime() <= endOfUtcDay(event.date).getTime();
+  if (!facts.latestActionDate) return true;
+  if (actionDate > facts.latestActionDate) return true;
+  if (actionDate < facts.latestActionDate) return false;
+  const isCurrentLatest =
+    latest?.date != null &&
+    latest.date.getTime() === event.date.getTime() &&
+    (latest.text ?? '') === event.text;
+  return isCurrentLatest && (facts.latestActionText ?? '') !== event.text;
+}
+
+/**
  * Scans tracked bills for material legislative moves, snapshots each bill's
  * last-seen action so a move alerts exactly once, writes an IntelligenceChange
  * (for the in-app changes inbox + board change chip), and fans the alert out to
@@ -104,6 +170,9 @@ export class TrackerChangeDetectorService {
     const scanHistory = this.config.get('TRACKER_SCAN_ACTION_HISTORY', { infer: true });
     const enrich = this.config.get('TRACKER_ALERT_ENRICH', { infer: true });
     const singleSenderGuard = this.config.get('TRACKER_SINGLE_SENDER_GUARD', { infer: true });
+    // Cycle anchor: used as the "detected at" for portfolio bill-change fan-out so a
+    // portfolio added mid-cycle does not receive the change as a silent baseline.
+    const cycleStartedAt = new Date();
 
     // Cross-tenant read of the board-membership rows.
     const tracked = await this.prisma.withSystem((tx) =>
@@ -119,7 +188,27 @@ export class TrackerChangeDetectorService {
         },
       }),
     );
-    if (!tracked.length)
+    // Federal bills tracked only by a Research Portfolio have no legacy
+    // trackedBill row. Read those recipients here so the existing detection owner
+    // stays the single federal change path (no second scheduler, no fabricated
+    // client tracking). Each membership carries its own tenantId; the fan-out
+    // below scopes every call to that tenant and never exposes client context.
+    const portfolioMembers = await this.prisma.withSystem((tx) =>
+      tx.researchPortfolioMember.findMany({
+        where: { targetKind: 'federal_bill', disposition: 'included' },
+        select: {
+          tenantId: true,
+          portfolioId: true,
+          targetId: true,
+          createdAt: true,
+          // The canonical adoption facts recorded with the membership. They are
+          // the only per-portfolio evidence of what the portfolio already knew.
+          evidence: true,
+        },
+      }),
+    );
+
+    if (!tracked.length && !portfolioMembers.length)
       return { scanned: 0, baseline: 0, changed: 0, alerted: 0, suppressedOwned: 0, byType: {} };
 
     // Single-sender guard (Capiro Intelligence cutover, plan §8/Phase 8): the set
@@ -135,7 +224,9 @@ export class TrackerChangeDetectorService {
       );
     }
 
-    const billIds = Array.from(new Set(tracked.map((t) => t.billId)));
+    const billIds = Array.from(
+      new Set([...tracked.map((t) => t.billId), ...portfolioMembers.map((m) => m.targetId)]),
+    );
     const bills = await this.prisma.congressBill.findMany({
       where: { id: { in: billIds } },
       select: {
@@ -316,6 +407,25 @@ export class TrackerChangeDetectorService {
             summary,
           );
 
+          // Research Portfolio surface: the same material change reaches every
+          // portfolio of this tenant that already tracks the bill, deduped by the
+          // event idempotency key. Portfolio recipients are tenant-scoped, so this
+          // runs under system scope; no client identity is exposed to a portfolio.
+          await this.prisma.withSystem((tx) =>
+            recordResearchPortfolioBillChanges(tx as never, {
+              tenantId: row.tenantId,
+              targetKind: 'federal_bill',
+              targetId: row.billId,
+              changeType: ev.cls.changeType,
+              label: ev.cls.label,
+              detail,
+              actionDate,
+              sourceUrl: bill.url ?? null,
+              sourceLabel: 'Congress.gov',
+              detectedAt: cycleStartedAt,
+            }),
+          );
+
           const event: TrackerAlertEvent = {
             tenantId: row.tenantId,
             clientId: row.clientId,
@@ -357,8 +467,177 @@ export class TrackerChangeDetectorService {
       }
     }
 
-    return { scanned: tracked.length, baseline, changed, alerted, suppressedOwned, byType };
+    // Portfolio-only federal recipients: bills a Research Portfolio tracks with no
+    // legacy trackedBill row for that tenant. Runs after the legacy loop so the
+    // per-client path is untouched; a tenant+bill the legacy loop already covered
+    // is skipped (and the per-recipient event key makes a duplicate impossible).
+    const portfolio = await this.fanOutPortfolioOnlyFederal(
+      tracked,
+      portfolioMembers,
+      billById,
+      actionsByBill,
+      scanHistory,
+      cycleStartedAt,
+    );
+    for (const [changeType, count] of Object.entries(portfolio.byType)) {
+      byType[changeType] = (byType[changeType] ?? 0) + count;
+    }
+
+    return {
+      scanned: tracked.length + portfolio.considered,
+      baseline: baseline + portfolio.baseline,
+      changed: changed + portfolio.changed,
+      alerted,
+      suppressedOwned,
+      byType,
+    };
   }
+
+  /**
+   * Deliver federal material changes to Research Portfolios that track a bill
+   * with no legacy trackedBill row for that tenant.
+   *
+   * Silent baseline is the membership's `createdAt` — the moment the portfolio
+   * adopted the bill's state. A move already in that state at adoption is history
+   * (counted, never surfaced); a move dated after it is eligible. No trackedBill
+   * row is fabricated, no client context is read, and nothing is emailed or
+   * notified: the only effect is the portfolio's own `bill_changed` event, scoped
+   * to the membership's tenant.
+   */
+  private async fanOutPortfolioOnlyFederal(
+    tracked: ReadonlyArray<{ tenantId: string; billId: string }>,
+    members: ReadonlyArray<{
+      tenantId: string;
+      portfolioId: string;
+      targetId: string;
+      createdAt: Date;
+      evidence?: unknown;
+    }>,
+    billById: ReadonlyMap<
+      string,
+      {
+        id: string;
+        title: string;
+        latestActionText: string | null;
+        latestActionDate: Date | null;
+        url: string | null;
+      }
+    >,
+    actionsByBill: ReadonlyMap<string, ActionLike[]>,
+    scanHistory: boolean,
+    cycleStartedAt: Date,
+  ): Promise<{
+    considered: number;
+    baseline: number;
+    changed: number;
+    byType: Record<string, number>;
+  }> {
+    const legacyKeys = new Set(tracked.map((row) => `${row.tenantId}:${row.billId}`));
+    // Eligibility is decided per PORTFOLIO from the canonical facts recorded when
+    // that portfolio adopted the bill, never from the tenant's earliest membership
+    // and never from a timestamp guess. A same-day portfolio that already knew the
+    // action is silent; a genuinely different later action (same day included) is not.
+    const groups = new Map<
+      string,
+      {
+        tenantId: string;
+        billId: string;
+        recipients: Array<{ portfolioId: string; createdAt: Date; evidence: unknown }>;
+      }
+    >();
+    for (const member of members) {
+      const key = `${member.tenantId}:${member.targetId}`;
+      if (legacyKeys.has(key)) continue; // the legacy loop already fans this out
+      const existing = groups.get(key);
+      const recipient = {
+        portfolioId: member.portfolioId,
+        createdAt: member.createdAt,
+        evidence: (member as { evidence?: unknown }).evidence,
+      };
+      if (!existing) {
+        groups.set(key, {
+          tenantId: member.tenantId,
+          billId: member.targetId,
+          recipients: [recipient],
+        });
+      } else {
+        existing.recipients.push(recipient);
+      }
+    }
+
+    const byType: Record<string, number> = {};
+    let baseline = 0;
+    let changed = 0;
+    for (const group of groups.values()) {
+      const bill = billById.get(group.billId);
+      if (!bill) continue;
+      const latest: ActionLike | null =
+        bill.latestActionText != null || bill.latestActionDate != null
+          ? { date: bill.latestActionDate, text: bill.latestActionText }
+          : null;
+      // An undated action cannot be ordered against an adoption, so nothing is
+      // claimed about it.
+      if (latest?.date == null) {
+        baseline += 1;
+        continue;
+      }
+      const displayNum = humanizeBillId(bill.id);
+      let delivered = 0;
+      try {
+        for (const recipient of group.recipients) {
+          // Each recipient's own adopted-date boundary bounds the history it can be
+          // shown; the selector is never run against the tenant's earliest
+          // membership, so an earlier portfolio's baseline cannot suppress a later
+          // portfolio's eligible action through changeType de-duplication.
+          const boundary = adoptionBoundary(recipient);
+          const events: MaterialEvent[] = scanHistory
+            ? selectMaterialEvents(
+                (actionsByBill.get(group.billId) ?? []).filter(
+                  (action) => action.date != null && action.date.getTime() > boundary.getTime(),
+                ),
+                latest,
+              )
+            : (() => {
+                const cls = classifyChange(latest.text);
+                return cls ? [{ cls, text: latest.text ?? '', date: latest.date }] : [];
+              })();
+          for (const ev of events) {
+            if (!ev.date) continue;
+            if (!recipientNeedsEvent(recipient, { date: ev.date, text: ev.text }, latest)) continue;
+            const actionDate = ev.date.toISOString().slice(0, 10);
+            const written = await this.prisma.withSystem((tx) =>
+              recordResearchPortfolioBillChanges(tx as never, {
+                tenantId: group.tenantId,
+                targetKind: 'federal_bill',
+                targetId: group.billId,
+                changeType: ev.cls.changeType,
+                label: ev.cls.label,
+                detail: ev.text || `${displayNum} — ${bill.title}`,
+                actionDate,
+                sourceUrl: bill.url ?? null,
+                sourceLabel: 'Congress.gov',
+                // This cycle is when the change was detected for portfolio-only
+                // recipients; the adoption facts — not this timestamp — decide who
+                // may receive it.
+                detectedAt: cycleStartedAt,
+                eligiblePortfolioIds: [recipient.portfolioId],
+              }),
+            );
+            delivered += written;
+            if (written > 0) byType[ev.cls.changeType] = (byType[ev.cls.changeType] ?? 0) + written;
+          }
+        }
+      } catch (e) {
+        this.logger.error(
+          `Portfolio fan-out failed for ${group.billId} (tenant ${group.tenantId}); retried next cycle: ${(e as Error).message}`,
+        );
+      }
+      if (delivered > 0) changed += 1;
+      else baseline += 1;
+    }
+    return { considered: groups.size, baseline, changed, byType };
+  }
+
 
   /**
    * Tenants intel-api has taken DELIVERY ownership of for the tracker cutover:

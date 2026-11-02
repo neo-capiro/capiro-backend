@@ -101,6 +101,11 @@ describe('evaluateGovernedMemoryAuthorization', () => {
     ).toEqual({ allowed: false, reason: 'archived_client' });
   });
 
+  it.each(['read', 'export'] as const)('blocks %s after client closure', operation => {
+    expect(evaluateGovernedMemoryAuthorization(facts({ role: 'user_admin', operation, clientStatus: 'archived' })))
+      .toEqual({ allowed: false, reason: 'archived_client' });
+  });
+
   it('allows an admin to maintain an active unwalled client after the wall decision passes', () => {
     expect(
       evaluateGovernedMemoryAuthorization(facts({ role: 'user_admin', operation: 'approve' })),

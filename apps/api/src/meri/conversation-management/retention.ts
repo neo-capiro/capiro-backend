@@ -1,7 +1,11 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type { Prisma } from '@prisma/client';
+import { lockMemoryRetentionInTx } from '../../memory/memory-retention-selection.js';
+import { conversationMemoryCandidatesInTx, purgeConversationMemoryInTx } from '../../memory/memory-conversation-retention.js';
+import { eraseConversationOfficeDraftsInTx, hasConversationOfficeDraftsInTx } from '../office-drafts/retention.js';
 import { MANAGEMENT_VERSION, TRASH_MS, managementDigest, type ManagementReceipt } from './contract.js';
+import { consumedDeletionMatches } from './deletion-receipt.js';
 
 export type ConversationRetentionIdentity = {
   tenantId: string; conversationId: string; ownerActorId: string; bootstrapRequestId: string;
@@ -95,11 +99,7 @@ async function retentionState(tx: Prisma.TransactionClient,
       trashRequestId, checkedAtMs: clocks[0]!.now.getTime() };
 }
 
-/** Called by the existing trusted purger only after its version/row absence
- * checks. Core rechecks its own exact Trash generation and clock under the row
- * lock. The existing FK trigger erases receipt bodies but retains consumed keys.
- */
-export async function finalizeConversationRetention(prisma: PrismaService, raw: unknown) {
+function parseFinalization(raw: unknown) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new BadRequestException('Invalid retention finalization');
   const input = raw as Record<string, unknown>;
   if (Object.keys(input).sort().join() !== 'conversationId,ownerActorId,requestId,restoreUntilMs,revision,tenantId' ||
@@ -107,19 +107,58 @@ export async function finalizeConversationRetention(prisma: PrismaService, raw: 
       typeof input.revision !== 'string' || !/^[1-9][0-9]{0,17}$/.test(input.revision) ||
       !Number.isSafeInteger(input.restoreUntilMs) || (input.restoreUntilMs as number) < TRASH_MS)
     throw new BadRequestException('Invalid retention finalization');
-  const tenantId = input.tenantId, conversationId = input.conversationId, ownerActorId = input.ownerActorId;
-  const requestId = input.requestId, revision = input.revision;
+  return { tenantId: input.tenantId, conversationId: input.conversationId, ownerActorId: input.ownerActorId,
+    requestId: input.requestId, revision: input.revision, restoreUntilMs: input.restoreUntilMs as number };
+}
+
+async function verifyConsumedFinalization(tx: Prisma.TransactionClient, input: ReturnType<typeof parseFinalization>) {
+  const { tenantId, conversationId, ownerActorId, requestId, revision } = input;
   const requestSha256 = managementDigest({ version: MANAGEMENT_VERSION, operation: 'trash',
     requestId, conversationId, expectedRevision: (BigInt(revision) - 1n).toString() });
-  return prisma.withTenant(tenantId, async tx => {
+  const consumed = await tx.clioConversationManagementReceipt.findUnique({ where: {
+    tenantId_actorUserId_requestId: { tenantId, actorUserId: ownerActorId, requestId } } });
+  if (!consumed || consumed.conversationId !== null || consumed.requestSha256 !== requestSha256 ||
+      !consumedDeletionMatches(consumed, { conversationId, revision,
+        restoreUntil: new Date(input.restoreUntilMs as number).toISOString() })) throw unavailable();
+}
+
+/** Startup/recovery checks the current Core store, never a cached success.
+ * This port reads only: an old completion whose rows reappear is unresolved.
+ */
+export async function verifyConversationRetention(prisma: PrismaService, raw: unknown) {
+  const input = parseFinalization(raw), { tenantId, conversationId, requestId, revision } = input;
+  return prisma.withSystem(async tx => {
+    const exists = await tx.clioConversation.findFirst({ where: { tenantId, id: conversationId }, select: { id: true } });
+    if (exists) return { version: 'meri.conversation-retention.v1' as const, tenantId, conversationId, requestId, revision, erased: false };
+    await verifyConsumedFinalization(tx, input);
+    const candidates = await conversationMemoryCandidatesInTx(tx, tenantId, conversationId);
+    const drafts = await hasConversationOfficeDraftsInTx(tx, tenantId, conversationId);
+    return { version: 'meri.conversation-retention.v1' as const, tenantId, conversationId, requestId, revision,
+      erased: !drafts && !candidates.some(row => row.selected) };
+  });
+}
+
+/** Called by the existing trusted purger after its version/row absence checks.
+ * Rechecks Core's exact Trash generation and clock under the row lock, then
+ * disposes copied proposals and metadata atomically, retaining consumed keys.
+ */
+export async function finalizeConversationRetention(prisma: PrismaService, raw: unknown) {
+  const input = parseFinalization(raw);
+  const tenantId = input.tenantId, conversationId = input.conversationId, ownerActorId = input.ownerActorId;
+  const requestId = input.requestId, revision = input.revision;
+  return prisma.withSystem(async tx => {
+    // Match the existing memory purger's lock order before the conversation
+    // row. System scope can see suppressed/held copies; every query is tenant-bound.
+    await lockMemoryRetentionInTx(tx);
     await tx.$executeRaw`SELECT id FROM clio_conversations WHERE tenant_id=${tenantId}::uuid
       AND id=${conversationId}::uuid FOR UPDATE`;
     const exists = await tx.clioConversation.findFirst({ where: { tenantId, id: conversationId }, select: { id: true } });
     if (!exists) {
-      const consumed = await tx.clioConversationManagementReceipt.findUnique({ where: {
-        tenantId_actorUserId_requestId: { tenantId, actorUserId: ownerActorId, requestId } } });
-      if (!consumed || consumed.conversationId !== null || consumed.requestSha256 !== requestSha256 ||
-          JSON.stringify(consumed.receipt) !== '{"tombstone":true}') throw unavailable();
+      await verifyConsumedFinalization(tx, input);
+      // Repair restored copied proposals or orphaned Office rows. A consumed
+      // tombstone alone is not proof of the current store's erasure.
+      await purgeConversationMemoryInTx(tx, tenantId, conversationId);
+      await eraseConversationOfficeDraftsInTx(tx, tenantId, conversationId);
       return { version: 'meri.conversation-retention.v1' as const, tenantId, conversationId, requestId, revision, erased: true, replayed: true };
     }
     const current = await retentionState(tx, { tenantId, conversationId });
@@ -127,6 +166,9 @@ export async function finalizeConversationRetention(prisma: PrismaService, raw: 
         current.trashRequestId !== requestId || current.revision !== revision ||
         current.restoreUntil === null || Date.parse(current.restoreUntil) !== input.restoreUntilMs ||
         current.checkedAtMs < (input.restoreUntilMs as number)) throw new ConflictException('RETENTION_GENERATION_NOT_EXPIRED');
+    await purgeConversationMemoryInTx(tx, tenantId, conversationId);
+    // The Office FK cascades within this same transaction. No separate writer
+    // fence is needed: Office Open/Save lock and recheck the active chat.
     const deleted = await tx.clioConversation.deleteMany({ where: { tenantId, id: conversationId,
       userId: ownerActorId, status: 'trashed', metadataRevision: BigInt(revision), restoreUntil: new Date(input.restoreUntilMs as number) } });
     if (deleted.count !== 1) throw new ConflictException('RETENTION_GENERATION_CHANGED');

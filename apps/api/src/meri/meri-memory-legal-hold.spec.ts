@@ -63,7 +63,7 @@ function buildService(opts: {
       return [];
     }),
     $queryRawUnsafe: jest.fn(async () => [{ allowed: opts.wallAllowed ?? true }]),
-    $executeRaw: jest.fn(async () => 1),
+    $executeRaw: jest.fn(async (_strings: TemplateStringsArray, ..._values: unknown[]) => 1),
   };
   const prisma = {
     withTenant: jest.fn((_tenantId: string, fn: (tx: unknown) => unknown) => fn(tx)),

@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Prisma, PrismaClient } from '../../generated/prisma-client/index.js';
+import type { WorkspaceReadBudget } from './workspace-read-budget.js';
 import {
   assertContextPersistenceReleased,
   workspaceDraftWriteTarget,
@@ -33,10 +34,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
    * withSystem. Workspace's own ws_* tables have no RLS; this exists for shared
    * identity tables protected by FORCE ROW LEVEL SECURITY.
    */
-  async withSystem<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
-    return this.$transaction(async (tx) => {
+  async withSystem<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>, budget?: WorkspaceReadBudget): Promise<T> {
+    const read = async (tx: Prisma.TransactionClient) => {
       await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
-      return fn(tx as unknown as Prisma.TransactionClient);
-    });
+      return fn(tx);
+    };
+    return budget ? budget.transaction(this, read) : this.$transaction(read);
   }
 }

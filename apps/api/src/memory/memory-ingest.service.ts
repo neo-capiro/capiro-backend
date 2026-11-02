@@ -139,6 +139,7 @@ export class MemoryIngestService {
                key, value, source, metadata_jsonb AS metadata,
                created_at AS "createdAt", updated_at AS "updatedAt"
         FROM clio_memory WHERE tenant_id = ${ctx.tenantId}::uuid
+          AND memory_retention_visible(tenant_id, retention_subject_id)
       `,
       );
       for (const m of memories) {
@@ -460,6 +461,7 @@ export class MemoryIngestService {
                  created_at AS "createdAt", updated_at AS "updatedAt"
           FROM clio_memory
           WHERE id = ${clioMemoryId}::uuid AND tenant_id = ${tenantId}::uuid
+            AND memory_retention_visible(tenant_id, retention_subject_id)
         `,
       );
       const m = rows[0];

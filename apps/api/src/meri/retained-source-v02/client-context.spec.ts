@@ -18,6 +18,7 @@ const defs = profileSchema.$defs as Record<string, Record<string, any>>;
 /** Deterministic schema-derived filler; assertions below change literal facts. */
 function fields(schemaOrName: string | Record<string, any>): any {
   const schema = typeof schemaOrName === 'string' ? defs[schemaOrName] : schemaOrName;
+  if (!schema) throw new Error(`Missing schema definition: ${schemaOrName}`);
   if (schema.$ref) {
     if (schema.$ref.startsWith('#/$defs/')) return fields(schema.$ref.split('/').at(-1)!);
     return null; // data-search KnowledgeJsonValue

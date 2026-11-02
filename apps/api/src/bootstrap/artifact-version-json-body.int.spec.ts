@@ -49,6 +49,13 @@ class ParserProbeController {
   @Post('parser-probe/json')
   ordinary(@Req() req: Request) { return summary(req); }
 
+  @Post('clio/office-drafts/save')
+  @UseGuards(ParserProbeGuard)
+  officeSave(@Req() req: Request) {
+    const bytes = Buffer.from(req.body.bytesBase64, 'base64');
+    return { byteLength: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
+  }
+
   @Post('webhooks/clerk') clerk(@Req() req: Request) { return summary(req); }
   @Post('webhooks/recall') recall(@Req() req: Request) { return summary(req); }
   @Post('webhooks/tango') tango(@Req() req: Request) { return summary(req); }
@@ -189,6 +196,20 @@ describe('canonical artifact-version and import JSON parsers', () => {
     expect(refused.status).toBe(403);
   });
 
+  it('accepts the full private Office byte ceiling and refuses oversized JSON', async () => {
+    const bytes = Buffer.alloc(20 * 1024 * 1024, 9), path = '/api/clio/office-drafts/save';
+    const res = await post(JSON.stringify({ bytesBase64: bytes.toString('base64') }), path);
+    expect(res.status).toBe(201);
+    expect(res.body).toEqual({ byteLength: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') });
+    expect((await post(JSON.stringify({ bytesBase64: 'A'.repeat(28_000_000) }), path)).status).toBe(413);
+  });
+  it('keeps Office neighboring routes and methods bounded and retains the route guard', async () => {
+    const path = '/api/clio/office-drafts/save', body = JSON.stringify({ bytesBase64: 'A'.repeat(1_100_000) });
+    for (const neighbor of [path + '/', path + '/extra', path.replace('/save', '/open')])
+      expect((await post(body, neighbor)).status).toBe(413);
+    expect((await request(app.getHttpServer()).put(path).set('Content-Type', 'application/json').send(body)).status).toBe(413);
+    expect((await request(app.getHttpServer()).post(path).set('Content-Type', 'application/json').send(body)).status).toBe(403);
+  });
   it.each(['clerk', 'recall', 'tango'])('preserves exact raw %s webhook bytes and their 1 MiB bound', async (receiver) => {
     const body = '{ "bodyText" : "raw\\u0001" }\n';
     const res = await post(body, `/webhooks/${receiver}`);

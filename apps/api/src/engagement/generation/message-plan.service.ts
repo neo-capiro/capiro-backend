@@ -12,35 +12,14 @@
  * An invalid plan returns a reviewable structured error and NO drafting call is
  * made (§4.22).
  */
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import type { ProviderUsage, TenantContext } from '@capiro/shared';
-import type { AppConfig } from '../../config/config.schema.js';
-import {
-  LlmCompletionService,
-  LLM_LONG_GENERATION_TIMEOUT_MS,
-} from '../llm-completion.service.js';
-import type { ResolvedAiCredential } from '../ai-credential-resolver.service.js';
+import { Injectable } from '@nestjs/common';
 import { SPOTLIGHT_CLOSE, SPOTLIGHT_OPEN } from '../outreach-prompt/prompt-spec-v2.js';
 import {
-  MESSAGE_PLAN_JSON_SCHEMA,
   MessagePlanInvalidError,
-  messagePlanSchema,
   type MessagePlan,
   type PlanValidationIssue,
 } from './message-plan.schema.js';
 import type { EvidencePacketV2 } from './evidence-packet.types.js';
-import { extractJsonObject } from './json-extract.js';
-import type { ReasoningEffort } from './reasoning-effort.js';
-
-/**
- * Output-token ceiling for the message-plan pass. Exported for the spec and
- * pinned high deliberately: see the call-site comment in buildPlan(). gpt-5 at
- * max effort burns most of its budget on reasoning before emitting JSON; 16k
- * leaves headroom for the largest per-recipient plan in a 40–50-draft campaign.
- */
-export const MESSAGE_PLAN_MAX_OUTPUT_TOKENS = 16384;
-
 /**
  * Sentinel marking a citation variant that two distinct evidence refs both
  * normalize to. Such a variant must never resolve, or a claim could be silently
@@ -111,32 +90,9 @@ export function sourceIdVariants(sourceType: string, sourceId: string): string[]
   return [...out].filter((v) => v.trim().length >= 8);
 }
 
-/**
- * Models known to honor strict JSON schema output. The plan requires the fast
- * model be used "only when it supports strict JSON" — an unknown BYOK model id
- * is treated as NOT supporting it, so the draft model is used instead. Guessing
- * the other way would produce unparseable plans on tenant keys.
- */
-const STRICT_JSON_MODEL_PATTERNS = [
-  /^gpt-4\.1/i,
-  /^gpt-4o/i,
-  /^gpt-[56]/i,
-  /^o[1-9]/i,
-  /^claude-(haiku|sonnet|opus)-/i,
-  /^claude-3/i,
-];
-
-export function supportsStrictJson(model: string): boolean {
-  const m = model.trim();
-  if (!m) return false;
-  return STRICT_JSON_MODEL_PATTERNS.some((re) => re.test(m));
-}
-
 export interface BuildPlanRequest {
   runtimeAction?: 'outreach_generate' | 'outreach_v3_generate';
   packet: EvidencePacketV2;
-  /** The ordered, already-PINNED credential list for this operation. */
-  creds: ResolvedAiCredential[];
   /** The recipient brief (name/title/office), server-resolved. */
   recipientBrief: string | null;
   /** Current draft for a revision: data to preserve, never proof of new claims. */
@@ -158,236 +114,10 @@ export interface BuildPlanRequest {
    * instead of re-sent as one undifferentiated blob on every call.
    */
   recipientScopeKeys: string[];
-  /**
-   * Reasoning depth for the PLAN pass.
-   *
-   * Supplied by the caller rather than read from config here so the plan reasons
-   * at the same pinned depth as the draft it feeds. The plan decides which claims
-   * the draft is permitted to make, so under-reasoning here silently caps the
-   * quality of a deeply-reasoned draft — the writer can only express what the
-   * plan already approved.
-   */
-  reasoningEffort?: ReasoningEffort | null;
-}
-
-export interface BuildPlanResult {
-  plan: MessagePlan;
-  /** The model the PLAN ran on (may differ from the draft model). */
-  planModel: string;
-  provider: string;
-  /** Passed through verbatim so the plan pass is metered separately (§3.g1.11). */
-  usage: ProviderUsage;
 }
 
 @Injectable()
 export class MessagePlanService {
-  private readonly logger = new Logger(MessagePlanService.name);
-  private readonly fastModel: string;
-
-  constructor(
-    config: ConfigService<AppConfig, true>,
-    private readonly llm: LlmCompletionService,
-  ) {
-    this.fastModel = config.get('OUTREACH_FAST_MODEL', { infer: true });
-  }
-
-  /** Which model plans, given the pinned credential. */
-  resolvePlanModel(cred: ResolvedAiCredential): string {
-    // A tenant that explicitly chose a model keeps it — their choice governs.
-    if (cred.modelOverridden) return cred.model;
-    if (this.fastModel && supportsStrictJson(this.fastModel)) return this.fastModel;
-    return cred.model;
-  }
-
-  async buildPlan(_ctx: TenantContext, request: BuildPlanRequest): Promise<BuildPlanResult> {
-    const cred = request.creds[0];
-    if (!cred) {
-      throw new MessagePlanInvalidError([
-        { code: 'NO_AI_CREDENTIAL', message: 'No AI provider is configured for planning.' },
-      ]);
-    }
-
-    // §4.24 ordering note: the packet already exists and is persisted. If the
-    // provider fails from here on, the packet survives and the generation is
-    // recorded as error/unavailable — never as a sendable draft.
-    const planModel = this.resolvePlanModel(cred);
-    const { system, userStatic, userVolatile } = this.renderPlanPrompt(request);
-
-    const completePlan = (extraVolatile: string) =>
-      this.llm.complete({
-        runtimeAction: request.runtimeAction,
-        provider: cred.provider,
-        apiKey: cred.apiKey,
-        model: planModel,
-        system,
-        // Byte-identical shared prefix means the repair call inherits the same
-        // prompt-cache hit the original call paid for — only the tail differs.
-        userStatic,
-        userVolatile: extraVolatile ? `${userVolatile}\n\n${extraVolatile}` : userVolatile,
-        // The static prefix (policy, shared 'all'-scope evidence/directives) is
-        // byte-identical for every recipient in a campaign, same as the draft
-        // call below — see renderPlanPrompt's own comment for what stays out of
-        // it. Previously this whole prompt rode `userVolatile` with `userStatic`
-        // empty, so the plan call re-sent shared evidence in full on every
-        // recipient with no caching benefit despite the draft call caching the
-        // identical content right next to it.
-        cacheSystem: true,
-        cacheUserStatic: true,
-        jsonSchema: MESSAGE_PLAN_JSON_SCHEMA as unknown as Record<string, unknown>,
-        jsonSchemaName: 'message_plan',
-        // On the OpenAI Responses API, `max_output_tokens` counts REASONING tokens
-        // too, not just the emitted plan JSON. gpt-5 at the pinned `max` effort can
-        // spend ~2k–8k tokens thinking before it writes a single character, so a
-        // 2000 ceiling made every plan come back `incomplete / max_output_tokens`
-        // with empty text → MESSAGE_PLAN_INVALID and no draft call (§4.22). Sized
-        // so a ~50-recipient campaign's per-item plan always has room to both
-        // reason and emit; the per-item cost is still bounded by the schema's
-        // strict shape. Verified live 2026-08-23: high/2000 → incomplete, empty;
-        // high/8000 → completed valid plan.
-        maxTokens: MESSAGE_PLAN_MAX_OUTPUT_TOKENS,
-        // Runs at the same pinned reasoning effort as the draft, so it inherits the
-        // same long ceiling rather than LlmCompletionService's 90s interactive default.
-        timeoutMs: LLM_LONG_GENERATION_TIMEOUT_MS,
-        ...(request.reasoningEffort ? { reasoningEffort: request.reasoningEffort } : {}),
-        // RC8 (zero-trust Wave 1) pinned temperature: 0.2 here to cut sampling
-        // variance on figure-heavy plans. Removed: the pinned outreach planning
-        // model now rejects any non-default temperature outright ("temperature
-        // is deprecated for this model"), which made EVERY outreach generation
-        // fail at the planning step — see PLAN_GENERATION_FAILED in
-        // generation-gateway.service.ts. Omit until this is reworked as a
-        // model-aware, provider-verified capability rather than a flat constant.
-      });
-
-    const result = await completePlan('');
-
-    // The raw response, kept BEFORE any parsing: a size-bound repair must
-    // re-feed the provider its own invalid output as untrusted DATA (the
-    // spotlight markers in the repair prompt wrap it), never as instruction.
-    const rawText = result.text;
-
-    let plan: MessagePlan;
-    try {
-      plan = this.parsePlan(rawText);
-      this.validatePlan(plan, request);
-    } catch (e) {
-      if (!(e instanceof MessagePlanInvalidError)) throw e;
-      // One bounded, targeted repair — ONLY when size bounds are ALL that is
-      // wrong. Decided from a full fresh safeParse of the raw text (see
-      // analyzeSizeOnly), never from the exception's issue list, which
-      // parsePlan slices to 12 and could hide a non-size issue.
-      const sizeIssues = this.analyzeSizeOnly(rawText, request);
-      if (!sizeIssues) throw e;
-      const repaired = await completePlan(this.renderRepairPrompt(sizeIssues, rawText));
-      const combinedUsage = addUsage(result.usage, repaired.usage);
-      plan = this.parsePlan(repaired.text);
-      this.validatePlan(plan, request);
-      return {
-        plan,
-        planModel,
-        provider: cred.provider,
-        usage: combinedUsage,
-      };
-    }
-
-    return {
-      plan,
-      planModel,
-      provider: cred.provider,
-      usage: result.usage,
-    };
-  }
-
-  /**
-   * Eligibility for the ONE bounded repair: the raw text parses as JSON, the
-   * FULL strict-schema safeParse yields issues that are ALL string-overlength
-   * bounds (too_big on a string field), and the raw plan already passes
-   * every deterministic grounding check. Returns the size issues for the
-   * repair prompt, or null when the plan must stay a truthful error.
-   *
-   * Context: the provider schema communicates size bounds only as prose (raw
-   * Claude structured outputs reject minLength/maxLength/maxItems), so a
-   * substantively correct plan can arrive with a 410-char whyNow[0] and fail
-   * MESSAGE_PLAN_INVALID with no draft. Repair may only condense wording, so
-   * a plan with shape/type/citation/semantic problems — or one needing whole
-   * entries dropped to fit an array bound — has nothing to fix.
-   */
-  private analyzeSizeOnly(
-    rawText: string,
-    request: BuildPlanRequest,
-  ): PlanValidationIssue[] | null {
-    let raw: unknown;
-    try {
-      raw = JSON.parse(extractJsonObject(rawText) ?? rawText);
-    } catch {
-      return null;
-    }
-    const parsed = messagePlanSchema.safeParse(raw);
-    if (parsed.success) return null;
-    // STRING overlength only (the observed live failure shape). Array-max
-    // violations are deliberately NOT repairable: fitting a max-entries bound
-    // means dropping whole entries (claims, asks, reasons), which the repair
-    // prompt forbids — so an all-array or size+array violation stays an error.
-    const size = parsed.error.issues.filter(
-      (i) => i.code === 'too_big' && i.origin === 'string' && i.path.length > 0,
-    );
-    if (size.length !== parsed.error.issues.length) return null;
-    // Grounding must already hold on the raw object (cast schema-blind — the
-    // all-size check above proved the shape): condensing prose cannot fix a
-    // bad citation, a risky claim in the ask, a missing as-of, or a
-    // non-common group claim.
-    try {
-      this.validatePlan(raw as MessagePlan, request);
-    } catch {
-      return null;
-    }
-    return size.map((i) => ({
-      code: 'PLAN_SCHEMA_VIOLATION',
-      message: i.message,
-      subject: i.path.join('.'),
-    }));
-  }
-
-  /**
-   * One-shot repair instruction: the invalid plan rides inside the spotlight
-   * markers as untrusted DATA, with the exact paths and bounds. The model
-   * must keep every claim/ask/reason's MEANING and every sourceIds/claimTypes/
-   * asOf value EXACTLY, condensing only the over-length prose.
-   */
-  private renderRepairPrompt(sizeIssues: PlanValidationIssue[], rawText: string): string {
-    const bounds = sizeIssues.map((i) => `- ${i.subject}: ${i.message}`);
-    return [
-      'Your previous plan was rejected ONLY because some values exceeded their maximum length. Here is the exact list of fields and their bounds:',
-      ...bounds,
-      'Return the SAME plan with ONLY those values shortened to fit their bounds. Preserve the meaning of every claim, ask, and reason; keep every sourceIds, claimType, and asOf value exactly as it was; do not drop or add claims. Return ONLY the corrected JSON object.',
-      `${SPOTLIGHT_OPEN} source="invalid_plan" id="invalid_plan" trust="untrusted_data">>>`,
-      rawText,
-      SPOTLIGHT_CLOSE,
-      'Return the corrected plan as JSON.',
-    ].join('\n');
-  }
-
-  private parsePlan(text: string): MessagePlan {
-    let raw: unknown;
-    try {
-      raw = JSON.parse(extractJsonObject(text) ?? text);
-    } catch {
-      throw new MessagePlanInvalidError([
-        { code: 'PLAN_NOT_JSON', message: 'The planner did not return valid JSON.' },
-      ]);
-    }
-    const parsed = messagePlanSchema.safeParse(raw);
-    if (!parsed.success) {
-      throw new MessagePlanInvalidError(
-        parsed.error.issues.slice(0, 12).map((i) => ({
-          code: 'PLAN_SCHEMA_VIOLATION',
-          message: i.message,
-          subject: i.path.join('.'),
-        })),
-      );
-    }
-    return parsed.data;
-  }
-
   /**
    * Deterministic pre-draft checks (§3.f3). Every one of these can be decided
    * from the plan plus the packet, with no model in the loop.
@@ -545,9 +275,11 @@ export class MessagePlanService {
    * — but splitting it the same way as directives keeps both under one
    * consistent rule instead of one being scoped and the other not.
    */
-  private renderPlanPrompt(
-    request: BuildPlanRequest,
-  ): { system: string; userStatic: string; userVolatile: string } {
+  renderPlanPrompt(request: BuildPlanRequest): {
+    system: string;
+    userStatic: string;
+    userVolatile: string;
+  } {
     const { packet, recipientScopeKeys } = request;
     const isRevision = Boolean(request.existingBody?.trim());
 
@@ -614,15 +346,19 @@ export class MessagePlanService {
       .map((f) => `- [${f.severity}] ${f.sourceType}: ${f.userMessage}`);
 
     const userStatic = [
-      isRevision ? 'TASK: plan a targeted revision of the current draft.' : `TASK: plan ONE message. Tone: ${request.tone}.`,
+      isRevision
+        ? 'TASK: plan a targeted revision of the current draft.'
+        : `TASK: plan ONE message. Tone: ${request.tone}.`,
       request.audienceKind === 'group'
         ? `AUDIENCE SHAPE: ONE shared message to a GROUP of ${request.groupMemberCount ?? 'several'} recipients. Only facts common to EVERY member may be planned.`
         : 'AUDIENCE SHAPE: a single recipient.',
       request.clientName
         ? `CLIENT REPRESENTED: ${request.clientName}`
         : 'No client is represented.',
-      directiveBlock('USER DIRECTIVES (authoritative — these define the task):', sharedDirectives) ??
-        'USER DIRECTIVES: none beyond the objective above.',
+      directiveBlock(
+        'USER DIRECTIVES (authoritative — these define the task):',
+        sharedDirectives,
+      ) ?? 'USER DIRECTIVES: none beyond the objective above.',
       packet.standingMemory.length
         ? `STANDING MEMORY: ${packet.standingMemory.length} steering item(s) apply to STYLE and standing relationships only — they prove no events.`
         : '',
@@ -673,14 +409,4 @@ function normalize(s: string): string {
     .replace(/[^a-z0-9 ]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-}
-
-/** Sum token usage across the original and repair planning calls, keeping optional cache fields. */
-function addUsage(a: ProviderUsage, b: ProviderUsage): ProviderUsage {
-  return {
-    inputTokens: a.inputTokens + b.inputTokens,
-    outputTokens: a.outputTokens + b.outputTokens,
-    cacheReadTokens: (a.cacheReadTokens ?? 0) + (b.cacheReadTokens ?? 0),
-    cacheCreationTokens: (a.cacheCreationTokens ?? 0) + (b.cacheCreationTokens ?? 0),
-  };
 }

@@ -1,3 +1,4 @@
+import { clientIntelligenceReads } from './client-read-cache.js';
 import { IntelligenceClientProfileV1 } from './client-profile-v1.js';
 import { IntelligenceBillRelevanceInputs } from './intelligence-bill-relevance-inputs.js';
 import { IntelligenceRelevantBillDiscovery } from './intelligence-relevant-bill-discovery.js';
@@ -59,6 +60,7 @@ export function createTrackedBillDiscovery(
   embeddingFloor: (hasCapabilitySignal: boolean) => number,
 ): IntelligenceTrackedBillDiscovery {
   return new IntelligenceTrackedBillDiscovery(host['prisma'], {
+    clientReads: () => clientIntelligenceReads(host),
     getManualTrackedBillIds: (...args) => host['getManualTrackedBillIds'](...args),
     getClientRelevanceTerms: (...args) => host['getClientRelevanceTerms'](...args),
     fetchBillsByIds: (...args) => host['fetchBillsByIds'](...args),
@@ -73,12 +75,14 @@ export function createManualBillTracking(
   host: IntelligenceService,
 ): IntelligenceManualBillTracking {
   return new IntelligenceManualBillTracking(host['prisma'], {
+    clientReads: () => clientIntelligenceReads(host),
     fetchBillsByIds: (...args) => host['fetchBillsByIds'](...args),
   });
 }
 
 export function createBillEnrichment(host: IntelligenceService): IntelligenceBillEnrichment {
   return new IntelligenceBillEnrichment(host['prisma'], {
+    clientReads: () => clientIntelligenceReads(host),
     getTrackedBills: (...args) => host['getTrackedBills'](...args),
   });
 }

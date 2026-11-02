@@ -51,6 +51,14 @@ export function getMailSyncCoverage(input: MailSyncCoverageInput): MailSyncCover
   const mail = object(object(input.syncState).mail);
   const mailHealth = object(object(object(input.syncState).health).mail);
   const stats = object(mail.lastStats);
+  // Folders the provider cap excluded. Reported, never silently absorbed: their
+  // mail never lands and no later tick can recover it.
+  const foldersDropped =
+    typeof mail.mailFoldersDropped === 'number' &&
+    Number.isSafeInteger(mail.mailFoldersDropped) &&
+    mail.mailFoldersDropped > 0
+      ? mail.mailFoldersDropped
+      : 0;
   const knownProvider = ['microsoft_365', 'google_workspace'].includes(input.provider);
   const repairStarted =
     typeof mail.captureVersion === 'number' && mail.captureVersion >= MAIL_CAPTURE_VERSION;
@@ -124,6 +132,10 @@ export function getMailSyncCoverage(input: MailSyncCoverageInput): MailSyncCover
     coverage.reason = 'mail_messages_skipped_after_provider_errors';
   } else if (!folderEnumerationComplete) {
     coverage.reason = 'mail_folder_enumeration_incomplete';
+  } else if (foldersDropped > 0) {
+    // A permanent gap the provider cap created: those folders are not synced at
+    // all, so this outranks the temporary "still catching up" backlog below.
+    coverage.reason = 'mail_folders_not_synced';
   } else if (!backfillComplete || hasMore) {
     coverage.reason = 'mail_sync_incomplete';
   } else if (coverage.lastMailSyncAt.getTime() > (input.now?.getTime() ?? Date.now()) + 5 * 60 * 1000) {

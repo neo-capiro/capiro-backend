@@ -2,18 +2,19 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { clientMemoryAllowed } from '@capiro/shared';
 import type { Prisma } from '../../generated/prisma-client/index.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
+import type { WorkspaceReadBudget } from '../prisma/workspace-read-budget.js';
 
 /** Ordinary draft association is an explicit UUID, never a display-name match.
  * Bound drafts cannot be reassigned: create a reviewed new draft instead. Legacy
  * null rows may be explicitly associated by the owner; old snapshots stay null. */
-export async function requireDraftClient(identity: PrismaService, db: PrismaService | Prisma.TransactionClient, tenantId: string, actorId: string, clientId: string | null) {
+export async function requireDraftClient(identity: PrismaService, db: PrismaService | Prisma.TransactionClient, tenantId: string, actorId: string, clientId: string | null, budget?: WorkspaceReadBudget) {
   // Shared identity tables use the established scoped system reader; the
   // subsequent client read stays inside the caller's tenant transaction.
   const members = await identity.withSystem(tx => tx.$queryRaw<Array<{ id: string }>>`
     SELECT u.id::text AS id FROM users u JOIN tenant_memberships m ON m.user_id=u.id
     JOIN tenants t ON t.id=m.tenant_id
     WHERE m.tenant_id=${tenantId}::uuid AND m.status::text='active' AND t.status::text='active'
-      AND u.clerk_user_id=${actorId} AND m.role::text IN ('standard_user','user_admin','capiro_admin')`);
+      AND u.clerk_user_id=${actorId} AND m.role::text IN ('standard_user','user_admin','capiro_admin')`, budget);
   if (!members[0]) throw new NotFoundException('Draft not found');
   if (clientId === null) return;
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clientId))
@@ -47,7 +48,7 @@ export function withDraftClientAssociation<T extends DraftClientAssociation>(dra
   return { ...draft, ...(isHeldDraftClientAssociation(draft) ? { clientAssociation: 'held' as const } : {}) };
 }
 
-export async function draftClientSourceAccess(prisma: PrismaService, draft: DraftClientAssociation & { tenantId: string; ownerId?: string }, actorId: string) {
+export async function draftClientSourceAccess(prisma: PrismaService, draft: DraftClientAssociation & { tenantId: string; ownerId?: string }, actorId: string, budget?: WorkspaceReadBudget) {
   const clientId = draft.clientId ?? null;
   const config = (draft.config ?? {}) as Record<string, unknown>;
   // No implicit promotion of legacy JSON or names. Corrupted mismatches are held.
@@ -58,10 +59,12 @@ export async function draftClientSourceAccess(prisma: PrismaService, draft: Draf
   if (!draft.prospectId && clientId === null && !isHeldDraftClientAssociation(draft) &&
       typeof config.client === 'string' && config.client.trim()) return false;
   try {
-    await prisma.$transaction(async tx => {
+    const read = async (tx: Prisma.TransactionClient) => {
       await tx.$executeRaw`SELECT set_config('app.current_tenant',${draft.tenantId},true)`;
-      await requireDraftClient(prisma, tx, draft.tenantId, actorId, clientId);
-    });
+      await requireDraftClient(prisma, tx, draft.tenantId, actorId, clientId, budget);
+    };
+    if (budget) await budget.transaction(prisma, read);
+    else await prisma.$transaction(read);
     return true;
   } catch (error) {
     if (error instanceof NotFoundException) return false;

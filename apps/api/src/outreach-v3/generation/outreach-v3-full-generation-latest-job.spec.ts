@@ -1,28 +1,27 @@
+import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
-import type { OutreachResolvedTargetRefV1 } from '../../capabilities/targets/outreach-target.contract.js';
-import { createBlankCampaignSpecV1 } from '../state/outreach-campaign-spec.v1.js';
 import { OutreachV3FullGenerationService } from './outreach-v3-full-generation.service.js';
-import { buildOutreachV3GenerationPlan } from './outreach-v3-generation-plan.js';
-import { createOutreachV3ReviewPacketApprovalSnapshot } from './outreach-v3-generation-approach.js';
-import { buildOutreachV3FullGenerationJob } from './outreach-v3-full-generation-job.js';
 
-/**
- * Server-truth recovery (section 8): the most recent full-generation job for
- * a session must be resolvable directly from the database, scoped to the
- * exact (tenantId, userId, kind, outreachRecordId) tuple used by every other
- * lookup in this service, ordered so the newest job always wins, and must
- * return null (not throw/404) when no job has ever existed — a legitimate,
- * distinct state from "the specific job you asked about is missing".
- *
- * The durable JSONB payload is re-validated on every read by the strict
- * `parseOutreachV3FullGenerationJob()` parser (schemaVersion, 64-hex hashes,
- * and a self-verifying jobKey digest of the base payload — see
- * outreach-v3-full-generation-job.ts). Fixtures here MUST build a genuinely
- * valid descriptor via the real `buildOutreachV3FullGenerationJob()`
- * builder rather than hand-rolled placeholder strings like "plan-hash",
- * or the parser will correctly reject them and every hash/items assertion
- * will silently read back null.
- */
+// Existing stored descriptor shape; no retired producer is needed to read it.
+function historicalDescriptor() {
+  const base = {
+    schemaVersion: 'outreach_v3_full_generation_job_v1',
+    sessionId: SESSION_ID,
+    stateVersion: 5,
+    specHash: 'a'.repeat(64),
+    planHash: 'b'.repeat(64),
+    approachApprovalHash: 'c'.repeat(64),
+    pinned: {
+      provider: 'openai',
+      model: 'historical-model',
+      planModel: null,
+      promptSpecVersion: 'v1',
+    },
+    items: [{ generationKey: 'slot-a' }],
+    batchSize: 10,
+  };
+  return { ...base, jobKey: createHash('sha256').update(JSON.stringify(base)).digest('hex') };
+}
 
 const CTX = {
   tenantId: '11111111-1111-4111-8111-111111111111',
@@ -31,73 +30,8 @@ const CTX = {
 } as TenantContext;
 const SESSION_ID = '33333333-3333-4333-8333-333333333333';
 
-function target(): OutreachResolvedTargetRefV1 {
-  return {
-    targetKey: 'directory_member:alpha',
-    locator: { source: 'directory_member', id: 'alpha' },
-    displayName: 'Alpha',
-    email: 'alpha@example.test',
-    phone: null,
-    title: 'Policy Director',
-    organization: 'Office',
-    clientId: null,
-    jurisdiction: {
-      governmentLevel: 'federal',
-      chamber: 'house',
-      state: 'VA',
-      district: '01',
-      committees: [],
-      issueAreas: [],
-    },
-    roleStatus: 'current',
-    emailStatus: 'available',
-    profileStatus: 'complete',
-    sourceSnapshot: { system: 'directory', version: '1', lastVerifiedAt: null },
-    snapshotHash: 'a'.repeat(64),
-  } as OutreachResolvedTargetRefV1;
-}
-
-function buildValidPlan() {
-  const spec = createBlankCampaignSpecV1();
-  spec.targeting.selectedTargetRefs = [target()];
-  spec.delivery = { pattern: 'personalized_separate', personalization: 'high' };
-  return buildOutreachV3GenerationPlan({
-    sessionId: SESSION_ID,
-    stateVersion: 5,
-    specHash: 'b'.repeat(64),
-    spec,
-    readiness: {
-      goalReady: true,
-      sponsorResolved: true,
-      targetCriteriaReady: true,
-      targetsReady: true,
-      deliveryReady: true,
-      contextReady: true,
-      contextEvidenceReady: true,
-      strategyReady: true,
-      sampleGenerationEligible: true,
-      fullGenerationEligible: true,
-      sendReviewEligible: false,
-      blockers: [],
-    } as any,
-    pendingProposalCount: 0,
-  });
-}
-
 function jobRow(overrides: Record<string, unknown> = {}) {
-  const plan = buildValidPlan();
-  const approval = createOutreachV3ReviewPacketApprovalSnapshot(plan);
-  const descriptor = buildOutreachV3FullGenerationJob({
-    plan,
-    approachApproval: approval,
-    completedGenerationKeys: [],
-    pinned: {
-      provider: 'openai',
-      model: 'gpt-4.1',
-      planModel: null,
-      promptSpecVersion: 'v1',
-    },
-  });
+  const descriptor = historicalDescriptor();
   return {
     id: '44444444-4444-4444-8444-444444444444',
     status: 'running',
@@ -129,15 +63,7 @@ function harness() {
       .fn()
       .mockImplementation(async (_tenantId: string, fn: (value: unknown) => unknown) => fn(tx)),
   };
-  const service = new OutreachV3FullGenerationService(
-    prisma as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-  );
+  const service = new OutreachV3FullGenerationService(prisma as never);
   return { service, tx, prisma };
 }
 
@@ -237,7 +163,7 @@ describe('OutreachV3FullGenerationService.getLatestJob', () => {
     });
   });
 
-  it('never returns another tenant/user\'s job: relies on the same where-clause tuple as getJob', async () => {
+  it("never returns another tenant/user's job: relies on the same where-clause tuple as getJob", async () => {
     const h = harness();
     h.tx.outreachJob.findFirst.mockResolvedValue(null);
 
@@ -273,7 +199,7 @@ describe('OutreachV3FullGenerationService.getLatestJob', () => {
    * getJob/getLatestJob call, and the items lookup must run on the SAME
    * tx object the job row was read from.
    */
-  it('formats the job using the caller\'s open tx — does not open a nested transaction for job items', async () => {
+  it("formats the job using the caller's open tx — does not open a nested transaction for job items", async () => {
     const h = harness();
     h.tx.outreachJob.findFirst.mockResolvedValue(jobRow());
 
@@ -283,7 +209,7 @@ describe('OutreachV3FullGenerationService.getLatestJob', () => {
     expect(h.tx.outreachJobItem.findMany).toHaveBeenCalledTimes(1);
   });
 
-  it('getJob also formats using the caller\'s open tx — does not open a nested transaction', async () => {
+  it("getJob also formats using the caller's open tx — does not open a nested transaction", async () => {
     const h = harness();
     h.tx.outreachJob.findFirst.mockResolvedValue(jobRow());
 

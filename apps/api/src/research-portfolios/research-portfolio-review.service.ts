@@ -29,7 +29,7 @@ import type {
 } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { addResearchPortfolioReviewNote } from './research-portfolio-review-notes.js';
-import { readCanonicalResearchTarget } from './research-portfolio-targets.js';
+import { readCanonicalResearchTarget, RESEARCH_PORTFOLIO_MEMBER_KINDS } from './research-portfolio-targets.js';
 
 type Tx = Prisma.TransactionClient;
 type RequiredRole = 'viewer' | 'editor' | 'owner';
@@ -404,7 +404,7 @@ export class ResearchPortfolioReviewService {
       )
         throw new NotFoundException('Rule review target not found');
     } else if (
-      !['program', 'program_element', 'project', 'budget_line', 'award'].includes(targetKind) ||
+      !RESEARCH_PORTFOLIO_MEMBER_KINDS.has(targetKind) ||
       !(await readCanonicalResearchTarget(tx, targetKind as any, targetId))
     ) {
       throw new NotFoundException('Canonical review target not found');

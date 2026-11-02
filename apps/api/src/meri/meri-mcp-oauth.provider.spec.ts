@@ -4,7 +4,10 @@ import { decryptSecret } from '../common/secret-crypto.js';
 function make(managed = true) {
   const key = Buffer.alloc(32, 7);
   const tx = {
-    clioMcpServer: { updateMany: jest.fn(async () => ({ count: 1 })) },
+    clioMcpServer: {
+      findFirst: jest.fn(async (): Promise<{ updatedAt: Date } | null> => ({ updatedAt: new Date('2026-10-31T00:00:00Z') })),
+      updateMany: jest.fn(async () => ({ count: 1 })),
+    },
     clioMcpOAuthCredential: { updateMany: jest.fn(async () => ({ count: 1 })) },
   };
   const provider = new DbOAuthClientProvider({
@@ -24,9 +27,9 @@ function make(managed = true) {
   return { provider, tx, key };
 }
 
-describe('managed OAuth credential lifecycle', () => {
-  test('token storage is encrypted and leaves readiness pending until discovery', async () => {
-    const { provider, tx, key } = make();
+describe('OAuth credential lifecycle', () => {
+  test.each([true, false])('token storage is encrypted and does not promote readiness (managed=%s)', async (managed) => {
+    const { provider, tx, key } = make(managed);
     await provider.saveTokens({
       access_token: 'access-fixture',
       refresh_token: 'refresh-fixture',
@@ -71,8 +74,19 @@ describe('managed OAuth credential lifecycle', () => {
     expect(call[0].data.tokenExpiresAt).toBeInstanceOf(Date);
   });
 
-  test('an in-flight refresh cannot resurrect a disconnected server', async () => {
-    const { provider, tx } = make();
+  test.each([true, false])('token refresh keeps an already-connected row connected (managed=%s)', async (managed) => {
+    const { provider, tx } = make(managed);
+    const row = { connectionStatus: 'connected', lastError: null };
+    tx.clioMcpServer.updateMany.mockImplementation(async (...args: unknown[]) => {
+      Object.assign(row, (args[0] as { data: object }).data);
+      return { count: 1 };
+    });
+    await provider.saveTokens({ access_token: 'refreshed-fixture', token_type: 'Bearer' });
+    expect(row.connectionStatus).toBe('connected');
+  });
+
+  test.each([true, false])('an in-flight refresh cannot resurrect a disconnected server (managed=%s)', async (managed) => {
+    const { provider, tx } = make(managed);
     tx.clioMcpServer.updateMany.mockResolvedValue({ count: 0 });
     await expect(
       provider.saveTokens({ access_token: 'late', token_type: 'Bearer' }),

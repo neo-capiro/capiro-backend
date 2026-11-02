@@ -5,7 +5,6 @@ import { Module } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ClientsController } from './clients.controller.js';
 import { ClientsService } from './clients.service.js';
-import { PortfolioMetricsService } from './metrics/portfolio-metrics.service.js';
 import { ClientCapabilitiesController } from './client-capabilities.controller.js';
 import { ClientCapabilitiesService } from './client-capabilities.service.js';
 import { ClientPeopleController } from './client-people.controller.js';
@@ -108,7 +107,6 @@ import { ApplicationAuthorityModule } from '../auth/application-authority.module
   ],
   providers: [
     ClientsService,
-    PortfolioMetricsService,
     ClientCapabilitiesService,
     ClientPeopleService,
     ClientFacilitiesService,

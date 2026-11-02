@@ -2,7 +2,7 @@ import { Body, Controller, ForbiddenException, HttpCode, Post, Req, UseGuards } 
 import type { Request } from 'express';
 import { InternalServiceGuard, hasInternalServiceIdentity } from '../../auth/internal-service.guard.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { readConversationRetentionState, finalizeConversationRetention } from './retention.js';
+import { readConversationRetentionState, finalizeConversationRetention, verifyConversationRetention } from './retention.js';
 
 /** Fixed backend-only retention operations. The existing service identity is
  * required; an interactive bearer cannot read facts or finalize metadata. */
@@ -21,5 +21,11 @@ export class ConversationRetentionController {
   finalize(@Body() body: unknown, @Req() req: Request) {
     if (!hasInternalServiceIdentity(req)) throw new ForbiddenException('Verified service identity required');
     return finalizeConversationRetention(this.prisma, body);
+  }
+
+  @Post('verify') @HttpCode(200)
+  verify(@Body() body: unknown, @Req() req: Request) {
+    if (!hasInternalServiceIdentity(req)) throw new ForbiddenException('Verified service identity required');
+    return verifyConversationRetention(this.prisma, body);
   }
 }

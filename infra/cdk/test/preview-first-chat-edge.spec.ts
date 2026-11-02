@@ -10,8 +10,43 @@ import {
   previewFirstChatEdgeApplication,
 } from '../lib/preview/first-chat-preview-edge';
 import callers from './fixtures/first-chat-wave2-routes.json';
+import writes from '../lib/preview/first-chat-preview-writes.json';
 
 const host = 'first-chat-preview.app-dev.capiro.ai';
+
+test('personal Portfolio order uses the existing exact Core PUT rule without broadening admission', () =>
+  render(false, (edge) => {
+    const rule = edge.Resources.Wave2Writes31.Properties;
+    assert.equal(rule.Priority, 36);
+    assert.deepEqual(rule.ListenerArn, { Ref: 'PreviewHttps' });
+    assert.deepEqual(rule.Actions, [{ Type: 'forward', TargetGroupArn: { Ref: 'CoreTarget' } }]);
+    assert.deepEqual(rule.Conditions, [
+      { Field: 'host-header', HostHeaderConfig: { Values: [host] } },
+      { Field: 'http-request-method', HttpRequestMethodConfig: { Values: ['PUT'] } },
+      { Field: 'path-pattern', PathPatternConfig: { RegexValues: [
+        '^/api/tenant-admin/team/[A-Za-z0-9_-]+/billing-admin$',
+        '^/api/tenant-admin/team/[A-Za-z0-9_-]+/role$',
+        '^/api/me/portfolio-layout$',
+      ] } },
+    ]);
+    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule')
+      .map((resource) => resource.Properties).sort((a, b) => a.Priority - b.Priority);
+    assert.equal(rules.length, 95);
+    const pathname = '/api/me/portfolio-layout';
+    for (const method of ['PUT', 'GET', 'HEAD'])
+      assert.deepEqual(routeDestination(rules, method, pathname), { Ref: 'CoreTarget' });
+    for (const method of ['POST', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE'])
+      assert.equal(routeDestination(rules, method, pathname), null, method);
+    for (const hostname of ['app.capiro.ai', 'os.capiro.ai', 'arbitrary.invalid'])
+      assert.equal(routeDestination(rules, 'PUT', pathname, hostname), null, hostname);
+    for (const neighbor of [pathname + '/', pathname + '/extra', pathname + '.invalid',
+      '/api/me/portfolio-layouts', '/api/users/me/portfolio-layout', '/extra' + pathname])
+      assert.equal(routeDestination(rules, 'PUT', neighbor), null, neighbor);
+    for (const suffix of ['billing-admin', 'role'])
+      assert.deepEqual(routeDestination(rules, 'PUT', `/api/tenant-admin/team/synthetic-user_1/${suffix}`),
+        { Ref: 'CoreTarget' });
+  }));
+
 function render(includeDns: boolean, check: (edge: any, dns: any) => void) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'preview-edge-'));
   try {
@@ -471,7 +506,7 @@ test('finite method/path routes admit their owners and reject unintended cross-p
     const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map(
       (r) => r.Properties,
     );
-    assert.equal(rules.length, 87);
+    assert.equal(rules.length, 5 + writes.groups.length);
     for (const rule of rules) {
       assert.deepEqual(rule.ListenerArn, { Ref: 'PreviewHttps' });
       const conditions = rule.Conditions;
@@ -595,4 +630,214 @@ test('DNS is a separately rendered exact preview alias, with the wildcard left o
         EvaluateTargetHealth: false,
       },
     });
+  }));
+
+test('client capability create admits only the canonical lowercase-UUID POST route on the preview host', () =>
+  render(false, (edge) => {
+    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule')
+      .map((r) => r.Properties)
+      .sort((a, b) => Number(a.Priority) - Number(b.Priority));
+    const pathname = '/api/clients/11111111-1111-4111-8111-111111111111/capabilities';
+    // The canonical writer path (FE716 saveCapability) must reach Core and must not
+    // fall through to the listener's 404 default.
+    assert.deepEqual(routeDestination(rules, 'POST', pathname), { Ref: 'CoreTarget' });
+    for (const method of ['PUT', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE'])
+      assert.equal(routeDestination(rules, method, pathname), null, `${method} ${pathname}`);
+    for (const hostname of ['app.capiro.ai', 'arbitrary.invalid'])
+      assert.equal(routeDestination(rules, 'POST', pathname, hostname), null, hostname);
+    for (const neighbor of [
+      `${pathname}/`,
+      `${pathname}/extra`,
+      `${pathname}.invalid`,
+      `/extra${pathname}`,
+      '/api/clients//capabilities',
+      '/api/clients/not-a-uuid/capabilities',
+      '/api/clients/11111111111141118111111111111111/capabilities',
+      '/api/clients/11111111-1111-4111-8111-11111111111/capabilities',
+      '/api/clients/11111111-1111-4111-8111-1111111111111/capabilities',
+      '/api/clients/AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA/capabilities',
+      '/api/clients/11111111-1111-4111-8111-111111111111/capabilities/synthetic',
+    ])
+      assert.equal(routeDestination(rules, 'POST', neighbor), null, neighbor);
+    // Reads on the same path keep using the existing /api/* read rule.
+    for (const method of ['GET', 'HEAD'])
+      assert.deepEqual(routeDestination(rules, method, pathname), { Ref: 'CoreTarget' });
+    const added = edge.Resources.ClientCapabilityCreate.Properties;
+    assert.equal(added.Priority, 93);
+    assert.deepEqual(added.ListenerArn, { Ref: 'PreviewHttps' });
+    assert.deepEqual(added.Actions, [{ TargetGroupArn: { Ref: 'CoreTarget' }, Type: 'forward' }]);
+    assert.deepEqual(
+      added.Conditions.find((c: any) => c.Field === 'host-header').HostHeaderConfig.Values,
+      [host],
+    );
+    assert.deepEqual(
+      added.Conditions.find((c: any) => c.Field === 'http-request-method').HttpRequestMethodConfig
+        .Values,
+      ['POST'],
+    );
+    assert.deepEqual(
+      added.Conditions.find((c: any) => c.Field === 'path-pattern').PathPatternConfig.RegexValues,
+      ['^/api/clients/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/capabilities$'],
+    );
+    // Every earlier rule keeps its accepted priority.
+    assert.equal(edge.Resources.PublicNewsletterCapabilityPosts.Properties.Priority, 88);
+    assert.equal(edge.Resources.CoreInternalOnboardingTenants.Properties.Priority, 92);
+    assert.equal(Math.max(...rules.map((rule) => Number(rule.Priority))), 95);
+  }));
+
+test('Meri governed action proposals admit only the exact Core proposal POST routes on the preview host', () =>
+  render(false, (edge) => {
+    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule')
+      .map((r) => r.Properties)
+      .sort((a, b) => Number(a.Priority) - Number(b.Priority));
+    // Meri control prepares every governed write (Research Portfolio management, watch, LegiWatch, client record,
+    // business-development, legislative document and sharing proposals) with this one Core POST and decides it with
+    // the approve/dismiss POSTs. Until 2 Nov 2026 none of the three was forwarded: the listener's fixed 404
+    // answered, Core never saw the request, and every proposal card ended "Result uncertain" or "Failed".
+    const create = '/api/clio/action-proposals';
+    const proposal = `${create}/11111111-1111-4111-8111-111111111111`;
+    for (const pathname of [create, `${proposal}/approve`, `${proposal}/dismiss`]) {
+      assert.deepEqual(routeDestination(rules, 'POST', pathname), { Ref: 'CoreTarget' }, pathname);
+      for (const method of ['PUT', 'PATCH', 'DELETE', 'OPTIONS', 'TRACE'])
+        assert.equal(routeDestination(rules, method, pathname), null, `${method} ${pathname}`);
+      for (const hostname of ['app.capiro.ai', 'arbitrary.invalid'])
+        assert.equal(routeDestination(rules, 'POST', pathname, hostname), null, hostname);
+    }
+    // The existing read rule keeps serving the recovery list on the same path.
+    for (const method of ['GET', 'HEAD'])
+      assert.deepEqual(routeDestination(rules, method, create), { Ref: 'CoreTarget' });
+    for (const neighbor of [
+      `${create}/`,
+      `${create}/extra`,
+      `${create}.invalid`,
+      `/extra${create}`,
+      `${proposal}`,
+      `${proposal}/`,
+      `${proposal}/approve/`,
+      `${proposal}/execute`,
+      `${create}/not-a-uuid/approve`,
+      `${create}/11111111111141118111111111111111/approve`,
+      `${create}/AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA/dismiss`,
+    ])
+      assert.equal(routeDestination(rules, 'POST', neighbor), null, neighbor);
+    const added = edge.Resources.MeriActionProposals.Properties;
+    assert.equal(added.Priority, 95);
+    assert.deepEqual(added.ListenerArn, { Ref: 'PreviewHttps' });
+    assert.deepEqual(added.Actions, [{ TargetGroupArn: { Ref: 'CoreTarget' }, Type: 'forward' }]);
+    assert.deepEqual(
+      added.Conditions.find((c: any) => c.Field === 'host-header').HostHeaderConfig.Values,
+      [host],
+    );
+    assert.deepEqual(
+      added.Conditions.find((c: any) => c.Field === 'http-request-method').HttpRequestMethodConfig
+        .Values,
+      ['POST'],
+    );
+    assert.deepEqual(
+      added.Conditions.find((c: any) => c.Field === 'path-pattern').PathPatternConfig.RegexValues,
+      [
+        '^/api/clio/action-proposals$',
+        '^/api/clio/action-proposals/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/(approve|dismiss)$',
+      ],
+    );
+    // Every earlier rule keeps its accepted priority.
+    assert.equal(edge.Resources.ClientCapabilityCreate.Properties.Priority, 93);
+    assert.equal(edge.Resources.ClientCapabilityUpdate.Properties.Priority, 94);
+  }));
+
+test('client capability update admits only the canonical two-UUID PATCH route on the preview host', () =>
+  render(false, (edge) => {
+    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule')
+      .map((r) => r.Properties)
+      .sort((a, b) => Number(a.Priority) - Number(b.Priority));
+    const client = '11111111-1111-4111-8111-111111111111';
+    const capability = '22222222-2222-4222-8222-222222222222';
+    const pathname = `/api/clients/${client}/capabilities/${capability}`;
+    // The ordinary writer sends PATCH when the capability id already exists.
+    assert.deepEqual(routeDestination(rules, 'PATCH', pathname), { Ref: 'CoreTarget' });
+    for (const method of ['POST', 'PUT', 'DELETE', 'OPTIONS', 'TRACE'])
+      assert.equal(routeDestination(rules, method, pathname), null, `${method} ${pathname}`);
+    for (const hostname of ['app.capiro.ai', 'arbitrary.invalid'])
+      assert.equal(routeDestination(rules, 'PATCH', pathname, hostname), null, hostname);
+    for (const neighbor of [
+      `${pathname}/`,
+      `${pathname}/extra`,
+      `/extra${pathname}`,
+      `/api/clients/${client}/capabilities`,
+      `/api/clients//capabilities/${capability}`,
+      `/api/clients/not-a-uuid/capabilities/${capability}`,
+      `/api/clients/${client}/capabilities/not-a-uuid`,
+      '/api/clients/AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA/capabilities/' + capability,
+      `/api/clients/${client}/capabilities/BBBBBBBB-BBBB-4BBB-8BBB-BBBBBBBBBBBB`,
+      `/api/clients/${client.replace(/-/g, '')}/capabilities/${capability}`,
+      `/api/clients/${client}/capabilities/${capability.replace(/-/g, '')}`,
+    ])
+      assert.equal(routeDestination(rules, 'PATCH', neighbor), null, neighbor);
+    // The create route and its priority are untouched.
+    assert.deepEqual(routeDestination(rules, 'POST', `/api/clients/${client}/capabilities`), {
+      Ref: 'CoreTarget',
+    });
+    const added = edge.Resources.ClientCapabilityUpdate.Properties;
+    assert.equal(added.Priority, 94);
+    assert.deepEqual(added.ListenerArn, { Ref: 'PreviewHttps' });
+    assert.deepEqual(added.Actions, [{ TargetGroupArn: { Ref: 'CoreTarget' }, Type: 'forward' }]);
+    assert.deepEqual(
+      added.Conditions.find((c: any) => c.Field === 'host-header').HostHeaderConfig.Values,
+      [host],
+    );
+    assert.deepEqual(
+      added.Conditions.find((c: any) => c.Field === 'http-request-method').HttpRequestMethodConfig
+        .Values,
+      ['PATCH'],
+    );
+    const regexes = added.Conditions.find((c: any) => c.Field === 'path-pattern').PathPatternConfig
+      .RegexValues;
+    assert.deepEqual(regexes, [
+      '^/api/clients/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/capabilities/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$',
+    ]);
+    // ALB allows at most three path values and five condition values in total.
+    assert.ok(regexes[0].length <= 128, `${regexes[0].length} characters`);
+    assert.equal(edge.Resources.ClientCapabilityCreate.Properties.Priority, 93);
+    assert.equal(edge.Resources.CoreInternalOnboardingTenants.Properties.Priority, 92);
+  }));
+
+test('appending the newsletter capability group leaves every existing rule mapping intact', () =>
+  render(false, (edge) => {
+    const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule')
+      .map((r) => r.Properties)
+      .sort((a, b) => Number(a.Priority) - Number(b.Priority));
+    const pathsOf = (rule: any) =>
+      rule.Conditions.find((c: any) => c.Field === 'path-pattern').PathPatternConfig
+        .RegexValues;
+    // Five fixed routes precede the manifest; every manifest group keeps its accepted
+    // position, so no existing construct identity or priority shifts when one is appended.
+    assert.equal(rules.length, 5 + writes.groups.length);
+    assert.deepEqual(
+      rules.slice(0, 5).map((r) => Number(r.Priority)),
+      [1, 2, 3, 4, 5],
+    );
+    writes.groups.forEach((group: any, index: number) => {
+      const rule = rules[index + 5];
+      const label = group.id ?? `Wave2Writes${index + 1}`;
+      assert.equal(Number(rule.Priority), index + 6, label);
+      assert.deepEqual(pathsOf(rule), group.pathRegexes, label);
+    });
+    const newsletter = rules[82 + 5];
+    assert.equal(Number(newsletter.Priority), 88);
+    assert.deepEqual(pathsOf(newsletter), [
+      '^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/unsubscribe$',
+      '^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/preferences$',
+      '^/api/engagement/newsletter-public/[A-Za-z0-9_-]+/survey$',
+    ]);
+    // The onboarding admissions occupy group positions 83-86 (rule indices 88-91, priorities
+    // 89-92). The two capability routes are appended after them and have their own tests.
+    assert.deepEqual(
+      rules.slice(88, 92).map((rule) => [Number(rule.Priority), pathsOf(rule)[0]]),
+      [
+        [89, '^/onboard-api/public/config$'],
+        [90, '^/onboard-api/setup/tasks/[A-Za-z0-9_-]+/transition$'],
+        [91, '^/onboard-api/setup/it-invites/[A-Za-z0-9_-]+/resend$'],
+        [92, '^/api/internal/onboarding/tenants$'],
+      ],
+    );
   }));

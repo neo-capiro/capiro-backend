@@ -79,11 +79,13 @@ async function persistOneMatch(
     // preserving status is the only safe behavior for both human-accepted and machine
     // candidate rows.
     if (existing.matchBasis === match.matchBasis) {
-      await client.samOpportunityMatch.update({
-        where: { id: existing.id },
+      const result = await client.samOpportunityMatch.updateMany({
+        // A reviewer may have decided after the read. Never refresh terminal evidence.
+        where: { id: existing.id, reviewStatus: existing.reviewStatus,
+          matchBasis: existing.matchBasis, confidence: existing.confidence },
         data: { confidence: match.confidence },
       });
-      return 1;
+      return result.count;
     }
 
     // A changed machine basis must not rewrite an existing human-visible decision.

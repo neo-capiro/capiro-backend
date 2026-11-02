@@ -7,6 +7,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
+import { retireMemberOfficeDraftsInTx } from '../meri/office-drafts/member-retention.js';
 import { ConfigService } from '@nestjs/config';
 import type { OrganizationMembershipRole } from '@clerk/backend';
 import { ClerkProvisioningService } from '../auth/clerk-provisioning.service.js';
@@ -370,11 +371,13 @@ export class TenantAdminService {
       if (membership.role === 'capiro_admin') {
         throw new ForbiddenException('Capiro admin memberships are managed separately');
       }
-      if (membership.status === 'removed') return { jobId: null };
-      await tx.tenantMembership.update({
+      const alreadyRemoved = membership.status === 'removed';
+      if (!alreadyRemoved) await tx.tenantMembership.update({
         where: { id: membership.id },
         data: { status: 'removed' },
       });
+      await retireMemberOfficeDraftsInTx(tx, ctx.tenantId, userId);
+      if (alreadyRemoved) return { jobId: null };
 
       let queued: string | null = null;
       if (membership.tenant.clerkOrgId) {

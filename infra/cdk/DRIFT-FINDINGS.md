@@ -356,3 +356,67 @@ token, so the open web client resumes it (#2083). Neo approved it on 2026-10-06
 for after the first T5 pass. T5 run 12 (`a31f24a0`) passed at 00:57 UTC. Both
 replicas logged `meri_job_sweeper_enabled` at 00:59:32 UTC. Codified in
 `compute-stack.ts` (API environment) in the same PR as this entry.
+
+## WAF — SQLi_BODY and GenericLFI_BODY scoped down on live `capiro-dev-waf` (2026-11-01 UTC, Neo's OK; live only, not in CDK)
+
+Web ACL `capiro-dev-waf` took lock-token `e1e3f893…` to `e2443bde…` (capacity 1107 to 1145), then to `0c9b299d…` (capacity 1152) for the third carve-out below. It had blocked
+Meri's control gateway calling Core's SQL tool (`SQLi_BODY` on `POST /api/clio/tools/query_capiro_data`,
+shown to the model as ACCESS_DENIED) and user chat text on app.capiro.ai (`SQLi_BODY` on
+`/api/conversations/list`, `GenericLFI_BODY` on `/api/conversations/input/allocate` and `/input/admit`).
+Same shape as the `CrossSiteScripting_BODY` carve-out: the managed rule is excluded (Count, label still
+emitted) and a custom Block rule re-blocks the label except for the named requests.
+
+| Rule | Change |
+| --- | --- |
+| `AWS-AWSManagedRulesSQLiRuleSet` (3) | `ExcludedRules` = `SQLi_BODY` |
+| `AWS-AWSManagedRulesCommonRuleSet` (1) | `ExcludedRules` += `GenericLFI_BODY` |
+| `block-sqli-body-outside-sql-tool-and-chat` (5, new) | Block `SQLi_Body` label unless `POST` + `/api/clio/tools/query_capiro_data` + host `first-chat-preview.app-dev.capiro.ai`, or `POST` + host `app.capiro.ai` + `/api/conversations/input/allocate`, `/input/admit` or `/list` |
+| `block-lfi-body-outside-chat-routes` (6, new) | Block `GenericLFI_Body` label unless `POST` + host `app.capiro.ai` + the same three chat paths |
+| `AWS-AWSManagedRulesSQLiRuleSet` (3), later the same day | `ExcludedRules` = `SQLi_BODY`, `SQLiExtendedPatterns_BODY` |
+| `block-sqli-extended-body-outside-sql-tool` (7, new, later the same day) | Block `SQLiExtendedPatterns_Body` label unless `POST` + `/api/clio/tools/query_capiro_data` + host `first-chat-preview.app-dev.capiro.ai` |
+
+All other rules are unchanged. The three carve-outs are `SQLi_BODY` (SQL tool path and three chat routes),
+`GenericLFI_BODY` (three chat routes) and `SQLiExtendedPatterns_BODY` (SQL tool path only). The SQL tool
+path now reaches Core for every SELECT, tautology or UNION body (401 without auth); chat routes still
+block `SQLiExtendedPatterns_BODY` text such as a tautology with `UNION SELECT`. Core's statement gate and
+read-only database roles remain the SQL gate.
+Rollback: re-apply the previous rule list with `update-web-acl` and the current lock token.
+No CDK code changed: `compute-stack.ts` still codifies the ACL without the SQLi rule set, so the
+reconciliation above must also decide these two carve-outs deliberately.
+
+## WAF — Approvals inbox read excepted from the SQLi_BODY re-block on live `capiro-dev-waf` (2026-11-02 UTC, Neo's OK; live only, not in CDK)
+
+Web ACL `capiro-dev-waf` took lock-token `0c9b299d…` to `42f57b82…` (capacity 1152 to 1164). The Approvals
+page read "access was denied" because `POST /api/conversations/intents/inbox` with body `{"limit":50}` emits
+the `SQLi_Body` label and rule 5 re-blocked it (WAF 403, no JSON body, which the frontend maps to access lost).
+The frontend proxies the same body to Meri's control through the same ALB, so both hosts needed the exception.
+
+| Rule | Change |
+| --- | --- |
+| `block-sqli-body-outside-sql-tool-and-chat` (5) | Carve-out += `POST` + `/api/conversations/intents/inbox` + host `app.capiro.ai`, and the same on host `meri-preview.capiro.ai` |
+
+Nothing else changed. `inbox-count` (body `{}`) and `/api/data-access/read` (body `{clientId}`) already pass
+the WAF, so they were not added; `/api/conversations/other` with the same body still returns 403.
+Rollback: re-apply the previous rule list with `update-web-acl` and the current lock token.
+No CDK code changed: the ACL in `compute-stack.ts` still lacks the SQLi rule set, so the reconciliation
+must decide this exception deliberately along with the earlier carve-outs.
+
+## Preview Core api service desiredCount 2 and clone minimum capacity 2 ACU (2026-11-02 UTC, Neo's go via Root; live only, not in CDK)
+
+The X14 diagnosis found the preview Core api at 65-82% CPU on one 1-vCPU task under acceptance and the Aurora clone
+at 100% CPU with a 0.5 ACU floor. Two live changes, in this order:
+
+| Resource | Change |
+| --- | --- |
+| Aurora cluster `capiro-newstack-preview-clone` (not CloudFormation-managed) | `ServerlessV2ScalingConfiguration` MinCapacity 0.5 to 2, MaxCapacity 16 unchanged, `modify-db-cluster --apply-immediately`, no reboot |
+| ECS service `capiro-preview-first-chat-core` (stack `Capiro-Preview-First-Chat-Core`, resource `HeldCoreService`) | `update-service --desired-count 2` on the then-current task definition (`:48`); 03:01Z, 2/2 running and healthy on both target groups |
+
+The stack still declares one task: `infra/cdk/lib/preview/first-chat-core.ts` rejects any binding whose
+`deployment.desiredCount` is not 1. This is one property of drift on the service; a stack deploy would also reset
+the task definition to the stack's revision (task-definition revisions are already rolled out of band with
+`update-service`), so do not run `cdk deploy` for this stack without reconciling both. The deployment configuration is
+unchanged (ROLLING, minimumHealthyPercent 50, maximumPercent 200, circuit breaker on without rollback, 15-minute bake).
+`MERI_TOOL_ALLOWLIST` is not set on the preview Core task (profile `standard`), so the Meri semantic search receivers
+are reachable without an environment change.
+Rollback: `aws ecs update-service --desired-count 1` for the service (only on Neo's word) and
+`modify-db-cluster --serverless-v2-scaling-configuration MinCapacity=0.5,MaxCapacity=16` for the clone.

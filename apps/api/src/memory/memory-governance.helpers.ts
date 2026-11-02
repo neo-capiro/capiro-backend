@@ -1,9 +1,8 @@
 // Institutional Memory — Phase 4 governance helpers (plan §11.2, §6).
 //
-// Retention is NOT enforced in v1 (Neo: no regulation yet), but the metadata
-// hook IS enforced now so a future purge/redaction/e-discovery job can target
-// notes precisely. These pure selectors operate on item metadata only — the
-// service layer turns a selection into actual deletes/exports later.
+// Pure administrative selectors over item metadata. Approved ownership periods,
+// read suppression and automatic deadlines are enforced by the owner-retention
+// migration and memory-owner-retention.ts; these selectors are not that policy.
 //
 // Design: every selector is a pure predicate over MemoryItem metadata
 // (tenantId, clientId, ownerUserId, type, createdAt). That metadata is the only

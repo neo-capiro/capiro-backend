@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { withMemoryConversationRetention } from '../../memory/conversation-serving/transaction.js';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
@@ -102,7 +103,7 @@ export class TrustMetricsService {
     opts?: { from?: string; to?: string },
   ): Promise<TrustMetricsSummary> {
     const { from, to } = resolveRange(opts);
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    return withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
       const [audits, packets, outcomes, candidates] = await Promise.all([
         tx.meriAuditLedger.findMany({
           where: { tenantId: ctx.tenantId, createdAt: { gte: from, lte: to } },

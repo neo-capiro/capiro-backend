@@ -96,6 +96,61 @@ describe('GovInfoService', () => {
     });
     fetchMock = globalThis.fetch as jest.MockedFunction<typeof fetch>;
   });
+  test('federal XML captures exact response bytes and a typed receipt through the existing fetch owner', async () => {
+    const { svc } = makeService();
+    const raw = '\uFEFF<?xml version="1.0" encoding="UTF-8"?>\r\n<bill>€ 😀</bill>\r\n';
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({ download: { xmlLink: 'https://www.govinfo.gov/content/synthetic.xml' } }),
+      )
+      .mockResolvedValueOnce(
+        new Response(Buffer.from(raw), {
+          headers: { 'content-type': 'application/xml; charset=utf-8' },
+        }),
+      );
+    const result = await svc.getFederalPackageText('BILLS-119hr1ih');
+    expect(result.raw).toBe(raw);
+    expect(result.text).toBe(raw);
+    expect(result.capture).toMatchObject({
+      version: 'federal-source-capture/1',
+      format: 'xml',
+      byteLength: Buffer.byteLength(raw),
+      utf8RoundTrip: true,
+    });
+    expect(fetchMock.mock.calls[1]?.[1]?.redirect).toBe('error');
+  });
+  test('the deployed default still refuses unsupported encoding instead of opting into bill retention', async () => {
+    const { svc } = makeService();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ download: { xmlLink: 'https://www.govinfo.gov/content/synthetic.xml' } }))
+      .mockResolvedValueOnce(new Response(Buffer.from([255, 254, 253]), {
+        headers: { 'content-type': 'application/xml; charset=windows-1252' },
+      }));
+    await expect(svc.getFederalPackageText('BILLS-119hr1ih')).rejects.toThrow('FEDERAL_SOURCE_CAPTURE_INVALID');
+  });
+  test('the deployed default still treats PDF-only packages as lacking qualified text', async () => {
+    const { svc } = makeService();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ download: { pdfLink: 'https://www.govinfo.gov/content/synthetic.pdf' } }));
+    await expect(svc.getFederalPackageText('BILLS-119hr1ih')).rejects.toThrow('No qualified text available');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+  test('failed federal fetch cancels its body and releases no capture', async () => {
+    const { svc } = makeService();
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      cancel() {
+        cancelled = true;
+      },
+    });
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({ download: { xmlLink: 'https://www.govinfo.gov/content/synthetic.xml' } }),
+      )
+      .mockResolvedValueOnce(new Response(body, { status: 503 }));
+    await expect(svc.getFederalPackageText('BILLS-119hr1ih')).rejects.toThrow(
+      'GovInfo text fetch failed',
+    );
+    expect(cancelled).toBe(true);
+  });
   test('resumes CHRG beyond 100 with a frozen, credential-free source continuation', async () => {
     const { svc } = makeService();
     const since = '2026-01-01T00:00:00Z',
@@ -328,7 +383,7 @@ describe('GovInfoService', () => {
       .mockResolvedValueOnce(
         new Response(original, { headers: { 'content-type': 'application/xml; charset=utf-8' } }),
       );
-    const result = await svc.getFederalPackageText('BILLS-119hr1ih');
+    const result = await svc.getFederalPackageText('BILLS-119hr1ih', { retainOriginalBytes: true });
     expect(result.raw).toBe('<bill>Exact original</bill>');
     expect(Buffer.from(result.originalBytes!.base64, 'base64')).toEqual(original);
     expect(result.originalBytes!.sha256).toMatch(/^[a-f0-9]{64}$/);
@@ -348,7 +403,7 @@ describe('GovInfoService', () => {
           headers: { 'content-type': 'application/xml; charset=windows-1252' },
         }),
       );
-    const result = await svc.getFederalPackageText('BILLS-119hr2ih');
+    const result = await svc.getFederalPackageText('BILLS-119hr2ih', { retainOriginalBytes: true });
     expect(result.completeness).toBe('unreadable');
     expect(result.raw).toBe('');
     expect(result.text).toBe('');
@@ -369,7 +424,7 @@ describe('GovInfoService', () => {
       .mockResolvedValueOnce(
         new Response(original, { headers: { 'content-type': 'application/pdf' } }),
       );
-    const result = await svc.getFederalPackageText('BILLS-119hr3ih');
+    const result = await svc.getFederalPackageText('BILLS-119hr3ih', { retainOriginalBytes: true });
     expect(result.format).toBe('pdf');
     expect(result.completeness).toBe('unreadable');
     expect(result.originalBytes?.base64).toBe(original.toString('base64'));

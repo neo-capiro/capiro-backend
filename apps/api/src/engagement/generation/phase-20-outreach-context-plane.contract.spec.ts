@@ -19,7 +19,9 @@ const FORBIDDEN_RETRIEVAL = [
 describe('Knowledge Plane Phase 20 Outreach adoption contract', () => {
   test('Outreach product traffic enters through one API Context Plane adapter', () => {
     const module = read(join(API_ROOT, 'src/engagement/engagement.module.ts'));
-    const adapter = read(join(API_ROOT, 'src/engagement/generation/outreach-context-plane.service.ts'));
+    const adapter = read(
+      join(API_ROOT, 'src/engagement/generation/outreach-context-plane.service.ts'),
+    );
     const gateway = read(join(API_ROOT, 'src/engagement/generation/generation-gateway.service.ts'));
 
     expect(module).toContain('OutreachContextPlaneService');
@@ -42,30 +44,11 @@ describe('Knowledge Plane Phase 20 Outreach adoption contract', () => {
     expect(registry).not.toContain("'apps/api/src/engagement/outreach-job.service.ts'");
   });
 
-  test('Classic, V3, batch, async, and revision drafting all cross GenerationGateway.generate', () => {
-    const classic = read(join(API_ROOT, 'src/engagement/engagement.service.ts'));
-    const job = read(join(API_ROOT, 'src/engagement/outreach-job.service.ts'));
-    const samples = read(join(API_ROOT, 'src/outreach-v3/generation/outreach-v3-sample-generation.service.ts'));
-    const worker = read(
-      join(API_ROOT, 'src/engagement-workers/outreach-v3-full-generation-worker.service.ts'),
-    );
-    const gateway = read(join(API_ROOT, 'src/engagement/generation/generation-gateway.service.ts'));
-
-    expect(classic).toContain('this.gateway.generate');
-    expect(job).toContain('this.engagement.generateBatchEmails');
-    expect(samples).toContain('this.gateway.generate');
-    expect(worker).toContain('this.gateway.generate');
-    expect(gateway).toContain('existingBody');
-    expect(gateway).toContain('reviseInstruction');
-  });
-
   test('no live Outreach generation path starts its own retrieval or packet compiler', () => {
     const sources = [
       read(join(API_ROOT, 'src/engagement/generation/generation-gateway.service.ts')),
       read(join(API_ROOT, 'src/engagement/generation/outreach-context-plane.service.ts')),
       read(join(API_ROOT, 'src/engagement/outreach-job.service.ts')),
-      read(join(API_ROOT, 'src/outreach-v3/generation/outreach-v3-sample-generation.service.ts')),
-      read(join(API_ROOT, 'src/engagement-workers/outreach-v3-full-generation-worker.service.ts')),
     ];
 
     for (const source of sources) {
@@ -90,7 +73,9 @@ describe('Knowledge Plane Phase 20 Outreach adoption contract', () => {
   test('outbound send controls stay independent of Context Packet health', () => {
     const send = read(join(API_ROOT, 'src/engagement/outreach-send-intent.service.ts'));
     const gateway = read(join(API_ROOT, 'src/engagement/generation/generation-gateway.service.ts'));
-    const drafts = read(join(REPO_ROOT, 'apps/api/src/outreach-v3/drafts/outreach-v3-drafts-architecture.spec.ts'));
+    const drafts = read(
+      join(REPO_ROOT, 'apps/api/src/outreach-v3/drafts/outreach-v3-drafts-architecture.spec.ts'),
+    );
 
     expect(send).not.toContain('OutreachContextPlaneService');
     expect(send).not.toContain('retrievalCompleteness');
@@ -99,7 +84,9 @@ describe('Knowledge Plane Phase 20 Outreach adoption contract', () => {
   });
 
   test('Phase 20 introduces no Outreach-specific knowledge database or second packet', () => {
-    const adapter = read(join(API_ROOT, 'src/engagement/generation/outreach-context-plane.service.ts'));
+    const adapter = read(
+      join(API_ROOT, 'src/engagement/generation/outreach-context-plane.service.ts'),
+    );
     for (const forbidden of ['ContextPacketV3', 'outreach_knowledge', 'outreach_embeddings']) {
       expect(adapter).not.toContain(forbidden);
     }

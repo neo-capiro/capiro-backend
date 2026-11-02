@@ -4,6 +4,7 @@ jest.mock('../generation/generation.service.js', () => ({ GenerationService: cla
 import { CollaboratorsService } from '../collaborators/collaborators.service.js';
 import { DocumentsService } from '../documents/documents.service.js';
 import { VersionsService } from '../versions/versions.service.js';
+import { SavedSnapshotExportService } from '../export/saved-snapshot-export.service.js';
 import { CommentsService } from '../comments/comments.service.js';
 import {
   readWorkspaceSavedRecord,
@@ -151,7 +152,7 @@ function fixture() {
   } as WorkspaceSavedReadOwners;
   const run = (input: WorkspaceSavedRead, actor = 'user_viewer', tenant = tenantId) =>
     readWorkspaceSavedRecord(owners, { tenantId: tenant, clerkUserId: actor }, input);
-  return { state, prisma, reads, run, version };
+  return { state, prisma, reads, run, version, versions: owners.versions as VersionsService };
 }
 const reads: WorkspaceSavedRead[] = [
   { kind: 'documents', draftId },
@@ -160,6 +161,23 @@ const reads: WorkspaceSavedRead[] = [
   { kind: 'comments', documentId },
 ];
 describe('saved adapter through real Workspace authority owners', () => {
+  it('exports one exact saved snapshot through the real version/collaborator owner without reading live bodies', async () => {
+    const h = fixture();
+    const service = new SavedSnapshotExportService(h.versions);
+    const result = await service.read(tenantId, draftId, versionId, 'user_viewer');
+    expect(result.snapshot).toEqual(h.version.snapshot);
+    expect(result).toMatchObject({ schemaVersion: 1, tenantId, draftId, id: versionId });
+    expect(h.reads).toEqual(['version.exact']);
+    expect(h.prisma.wsDocVersion.findMany).not.toHaveBeenCalled();
+    expect(h.prisma.wsDocument.findMany).not.toHaveBeenCalled();
+    h.state.grant = false;
+    await expect(service.read(tenantId, draftId, versionId, 'user_viewer')).rejects.toMatchObject({ status: 403 });
+  });
+  it.each(['member', 'wall', 'active', 'exists'] as const)('snapshot export refuses current %s loss', async key => {
+    const h = fixture(); h.state[key] = false;
+    await expect(new SavedSnapshotExportService(h.versions).read(tenantId, draftId, versionId, 'user_viewer')).rejects.toMatchObject({ status: expect.any(Number) });
+    expect(h.reads).toEqual([]);
+  });
   it.each(reads)(
     'preserves viewer read for $kind and fresh admission after revocation',
     async (input) => {

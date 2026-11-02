@@ -126,6 +126,17 @@ describe('parseSenateCommitteePage (Intelligence WordPress shape)', () => {
 });
 
 describe('SenateCommitteeCalendarAdapter.discoverEvents', () => {
+  beforeEach(() => {
+    jest.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes('judiciary.senate.gov'))
+        return new Response(fixture('judiciary-hearings.sample.html'), { status: 200 });
+      if (url.includes('intelligence.senate.gov'))
+        return new Response(fixture('intelligence-hearings.sample.html'), { status: 200 });
+      return new Response('Publisher unavailable', { status: 503 });
+    });
+  });
+  afterEach(() => jest.restoreAllMocks());
   it('emits SourceEvents with committee code from the source row and slug as external id', async () => {
     const adapter = new SenateCommitteeCalendarAdapter({ congress: 119 });
     const events = await adapter.discoverEvents(
@@ -155,6 +166,16 @@ describe('SenateCommitteeCalendarAdapter.discoverEvents', () => {
     expect(health.observedEvents).toBe(0);
     expect(health.error).toMatch(/no verifiable dated/);
     fetchMock.mockRestore();
+  });
+
+  it('rejects unrecognized HTTP200 discovery markup using the same parser completeness rule', async () => {
+    jest.mocked(globalThis.fetch).mockResolvedValue(
+      new Response('<html><h1>Hearings</h1></html>', { status: 200 }),
+    );
+    await expect(
+      new SenateCommitteeCalendarAdapter({ congress: 119 }).discoverEvents(source(), ctx),
+    ).rejects.toThrow(/no verifiable dated/);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
   });
 
   it('throws on fetch failure so source health records it', async () => {

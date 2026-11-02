@@ -5,6 +5,7 @@ import {
   qualifyFederalOriginal,
   type FederalOriginalBytes,
 } from '../../ingestion/federal-document-bytes.js';
+import { assertFederalSourceCapture, FEDERAL_CAPTURE_VERSION, type FederalSourceCapture } from './capture.js';
 
 const PARSER_VERSION = 'federal-legislative-exact-code-v1';
 const PROGRAM_CODE_RE = /\b(?:[01]\d{6}[A-Z]|[0-9]{4}[A-Z]{1,2}[0-9A-Z]{2,14})\b/g;
@@ -44,6 +45,7 @@ export interface FederalEvidenceSnapshotInput {
   publishedAt?: Date | null;
   rawContent: string;
   originalBytes?: FederalOriginalBytes;
+  capture?: FederalSourceCapture;
   extractedText: string;
   completeness: 'complete' | 'partial' | 'unreadable';
   /** Frozen end of the fully enumerated provider window. */
@@ -80,6 +82,7 @@ interface CurrentRow {
   revisionId: string | null;
   billId: string | null;
   contentHash: string | null;
+  extractionHash: string | null;
   observationKey: string;
 }
 
@@ -184,8 +187,10 @@ async function currentRow(
            c.revision_id AS "revisionId",
            c.bill_id AS "billId",
            c.content_hash AS "contentHash",
+           r.extraction_hash AS "extractionHash",
            c.observation_key AS "observationKey"
       FROM federal_evidence_current c
+      LEFT JOIN federal_evidence_revision r ON r.id = c.revision_id
      WHERE c.source_key = ${sourceKey}
      LIMIT 1`;
   return rows[0] ?? null;
@@ -441,6 +446,11 @@ export async function persistFederalEvidenceSnapshot(
   input: FederalEvidenceSnapshotInput,
 ): Promise<FederalEvidencePersistResult> {
   validateSnapshot(input);
+  const capture = input.capture === undefined ? undefined : assertFederalSourceCapture(input.rawContent, input.capture);
+  // A qualified capture must not deduplicate to an old immutable row lacking its receipt.
+  const revisionParserVersion = capture ? `${PARSER_VERSION}+${FEDERAL_CAPTURE_VERSION}` : PARSER_VERSION;
+  if (Object.hasOwn(input.metadata ?? {}, 'capture')) throw new Error('FEDERAL_CAPTURE_METADATA_RESERVED');
+  const metadata = { ...input.metadata, ...(capture ? { capture } : {}) };
   const sourceKey = sourceKeyOf(input);
   const contentHash = sha256(input.rawContent);
   const extractionHash = sha256(input.extractedText);
@@ -451,8 +461,14 @@ export async function persistFederalEvidenceSnapshot(
         ...(input.collection === 'PLAW' && input.billId ? { billBinding: input.billId } : {}),
       })
     : null;
-  const snapshotParserVersion = original?.parserVersion ?? PARSER_VERSION;
-  const snapshotMetadata = { ...input.metadata, ...original?.metadata };
+  // Keep each existing immutable identity. A request carrying both qualified
+  // representations needs its own identity so neither receipt is lost on dedup.
+  const snapshotParserVersion = original && capture
+    ? `fed-capture-v1:${createHash('sha256')
+        .update(JSON.stringify([original.parserVersion, capture.version]))
+        .digest('base64url')}`
+    : original?.parserVersion ?? revisionParserVersion;
+  const snapshotMetadata = { ...metadata, ...original?.metadata };
   return prisma.$transaction(async (tx) => {
     if (input.collection === 'PLAW' && input.originalBytes && input.billId) {
       if (
@@ -578,7 +594,9 @@ export async function persistFederalEvidenceSnapshot(
     if (
       previousCurrent?.state === 'present' &&
       previousCurrent.revisionId &&
-      previousCurrent.revisionId !== revisionId
+      previousCurrent.revisionId !== revisionId &&
+      // A new provenance/parser identity can retain exactly the same source text.
+      (previousCurrent.contentHash !== contentHash || previousCurrent.extractionHash !== extractionHash)
     ) {
       events.push({
         eventType: 'text_changed',

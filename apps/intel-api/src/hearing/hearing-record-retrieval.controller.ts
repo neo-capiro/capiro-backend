@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { timingSafeEqual } from 'node:crypto';
 import { HearingRecordWorkflowService } from './hearing-record-workflow.service.js';
-import { object, text } from '../tracker/reports/report-domain.js';
+import { object, text } from '../tracker/delivery/delivery-domain.js';
 import { PublicHearingAudioAccessService } from './capture/public-hearing-audio-access.service.js';
 
 function requireOwnerService(supplied: string | undefined) {

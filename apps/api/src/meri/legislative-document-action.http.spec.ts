@@ -33,8 +33,10 @@ const briefingRequest = {
   cutoff: '2026-10-26T00:00:00.000Z',
   timezone: 'America/New_York',
   requestKey: 'synthetic-legislative-document',
-  sources: [{ kind: 'news', id: 'n1', revision }],
-  citations: [{ kind: 'news', id: 'n1', revision, locator: 'body', start: 0, end: 4, quote: 'text' }],
+  sources: [{ kind: 'research', id: 'n1', revision }],
+  citations: [
+    { kind: 'research', id: 'n1', revision, locator: 'body', start: 0, end: 4, quote: 'text' },
+  ],
 };
 const query = {
   version: 1,
@@ -50,9 +52,7 @@ const researchRequest = {
   analysis: 'Cited original analysis.',
   requestKey: 'synthetic-legislative-document',
   documents: [{ id: 'd1', revision }],
-  citations: [
-    { documentId: 'd1', revision, locator: 'sec-1', start: 0, end: 4, quote: 'text' },
-  ],
+  citations: [{ documentId: 'd1', revision, locator: 'sec-1', start: 0, end: 4, quote: 'text' }],
 };
 async function fixture() {
   const user = { id: actorId, clerkUserId: 'user_private_query' };
@@ -339,7 +339,12 @@ test('mounted prepare uses actual current General owner, then only the approval 
       surface: 'chat',
       conversationId,
     });
-    expect(f.proposals.create.mock.calls[0]!.slice(2, 6)).toEqual([undefined, undefined, undefined, undefined]);
+    expect(f.proposals.create.mock.calls[0]!.slice(2, 6)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]);
     expect(f.proposals.create.mock.calls[0]![6]).toHaveProperty('assertCurrent');
     expect(f.selections.every((s) => s.clientId === null)).toBe(true);
     expect(f.proposals.approveAndExecute).not.toHaveBeenCalled();
@@ -351,7 +356,11 @@ test('mounted prepare uses actual current General owner, then only the approval 
 test('mounted research uses the same single owner route and ledger', async () => {
   const f = await fixture();
   try {
-    const r = await f.send({ ...query, tool: 'save_legislative_research', request: researchRequest });
+    const r = await f.send({
+      ...query,
+      tool: 'save_legislative_research',
+      request: researchRequest,
+    });
     expect(r.status).toBe(200);
     expect(f.proposals.create.mock.calls[0]![1]).toMatchObject({
       tool: 'save_legislative_research',
@@ -362,6 +371,29 @@ test('mounted research uses the same single owner route and ledger', async () =>
     await f.close();
   }
 });
+
+test.each(['news', 'budget', 'personnel'])(
+  'retired %s source and citation kinds are refused before an approval is proposed',
+  async (kind) => {
+    const f = await fixture();
+    try {
+      for (const field of ['sources', 'citations'] as const) {
+        const response = await f.send({
+          ...query,
+          request: {
+            ...briefingRequest,
+            [field]: briefingRequest[field].map((reference) => ({ ...reference, kind })),
+          },
+        });
+        expect(response.status).toBe(400);
+      }
+      expect(f.proposals.create).not.toHaveBeenCalled();
+      expect(f.proposals.approveAndExecute).not.toHaveBeenCalled();
+    } finally {
+      await f.close();
+    }
+  },
+);
 
 test('mounted route refuses an effect that is not one of the two registered operations', async () => {
   const f = await fixture();

@@ -57,6 +57,9 @@ import { ObjectiveJobController } from './objective-job.controller.js';
 import { ConversationManagementController } from './conversation-management/controller.js';
 import { HearingMediaController } from './hearing-media/controller.js';
 import { ConversationRetentionController } from './conversation-management/retention.controller.js';
+import { SiteWorkflowAdminController, SiteWorkflowRuntimeController, SiteWorkflowCatalogController } from './site-workflows/controller.js';
+import { OfficeDraftController } from './office-drafts/controller.js';
+import { OfficeDraftRetentionController } from './office-drafts/retention.controller.js';
 import { ObjectiveJobService } from './objective-job.service.js';
 import { RetainedReadDispatcher } from './retained-read-dispatch.js';
 import { MeriRoutineReadController, MeriRoutinesModule } from './routines/meri-routines.controller.js';
@@ -135,6 +138,8 @@ import { ApplicationAuthorityModule } from '../auth/application-authority.module
 import { ContextSecurityScopeModule } from '../context/context-security-scope.module.js';
 import { ConnectedAppReadService } from './connected-app-read.service.js';
 import { ConnectedAppReadController } from './connected-app-read.controller.js';
+import { SemanticSearchController } from './semantic-search.controller.js';
+import { SemanticSearchService } from './semantic-search.service.js';
 import { SavedStrategyReadController } from './saved-strategy-read.controller.js';
 import { SavedStrategyReadService } from './saved-strategy-read.service.js';
 import { SavedRecordReadController } from './saved-record-read.controller.js';
@@ -182,10 +187,16 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     ConversationManagementController,
     HearingMediaController,
     ConversationRetentionController,
+    SiteWorkflowAdminController,
+    SiteWorkflowCatalogController,
+    SiteWorkflowRuntimeController,
+    OfficeDraftController,
+    OfficeDraftRetentionController,
     ObjectiveJobController,
     // Register the fixed signed callback before tools/:name in this module.
     MeriMemoryHelperController,
     ConnectedAppReadController,
+    SemanticSearchController,
     SavedRecordReadController,
     LegiwatchReviewController,
     LegiwatchRelevanceController,
@@ -218,6 +229,7 @@ import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-gra
     KeywordWatchAdapter,
     NoteActionService,
     ConnectedAppReadService,
+    SemanticSearchService,
     SavedRecordReadService,
     LegiwatchReviewService,
     LegiwatchRelevanceActionService,

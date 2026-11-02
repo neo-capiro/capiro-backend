@@ -9,6 +9,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { newsletterAssetOrigin } from './newsletter-asset-origin.js';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { isEmail } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -2153,7 +2154,7 @@ export class NewsletterService {
     return (await this.imageRevisions(ctx, [file!], sourceToken, original, documentId))[0];
   }
   private assetUrl(token: string) {
-    return `${(this.env.get<string>('WEB_PUBLIC_URL') || 'https://app.capiro.ai').replace(/\/$/, '')}/workspace-api/newsletters/assets/file/${token}`;
+    return `${newsletterAssetOrigin(this.env)}/workspace-api/newsletters/assets/file/${token}`;
   }
   async upload(ctx: Identity, file: { buffer: Buffer; originalname: string }, folderId?: string) {
     const data = {

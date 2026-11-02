@@ -172,8 +172,10 @@ export interface ObservedStreamCandidate {
   mediaType?: string | null;
   /** Lower sorts first. Official first-party media should always outrank embeds. */
   priority?: number;
-  /** Phase 3 only ever asserts REVIEW_REQUIRED / BROWSER_CAPTURE_ONLY / BLOCKED. */
+  /** Discovery may restrict capture, including LICENSE_REQUIRED, never grant it. */
   capturePolicy?: CapturePolicy;
+  /** Publisher's live-feed validity; a reused channel must not become a replay. */
+  expiresAt?: Date | null;
 }
 
 /** Additional facts a per-committee source can add to an already-known event. */

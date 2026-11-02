@@ -1,6 +1,8 @@
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
-import { normalizeMailReadFilters, queryMailMessages, type MailQueryOptions } from './mail-query.js';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { MAIL_ACTIVITY_AT, normalizeMailReadFilters, queryMailMessages, type MailQueryOptions } from './mail-query.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { NotFoundException } from '@nestjs/common';
 
@@ -158,7 +160,39 @@ describe('canonical mailbox query', () => {
     }
     const coverageSql = (h.queryRaw.mock.calls[2][0] as Prisma.Sql).sql;
     expect(coverageSql).toContain('t.id = m.thread_id AND t.tenant_id = m.tenant_id AND t.connection_id = m.connection_id');
-    expect(coverageSql.indexOf('t.client_id IS NULL OR EXISTS')).toBeLessThan(coverageSql.indexOf('GROUP BY'));
+    expect(coverageSql.indexOf('t.client_id IS NULL OR EXISTS')).toBeLessThan(coverageSql.indexOf(') stored ON TRUE'));
+  });
+
+  // 2 November 2026: "summarize emails from yesterday" spent Core's 10 s mail budget on a 37k-message mailbox
+  // (POST /api/clio/tools/:name 10012 ms, 03:37:04Z) because the window was a heap filter after the
+  // (tenant_id, connection_id) index and the coverage statement probed mail_threads once per stored message.
+  it('binds the time window on the expression the activity index carries and aggregates coverage once per mailbox', async () => {
+    const h = makeService({});
+    await h.searchEmails(CTX, { withinDays: 2, asOf: '2026-11-02T03:36:54Z' }, { authorizedMailboxIds: [clientId] });
+    const migration = readFileSync(join(__dirname, '../../prisma/migrations/20281102130000_mail_messages_owned_connection_activity/migration.sql'), 'utf8');
+    const indexExpression = /ON mail_messages \(tenant_id, connection_id, \((COALESCE\(received_at, sent_at\))\) DESC NULLS LAST\)\s+INCLUDE \(thread_id, received_at, sent_at\)\s+WHERE removed_at IS NULL/.exec(migration);
+    expect(indexExpression?.[1]).toBe(MAIL_ACTIVITY_AT.replaceAll('m.', ''));
+    const statement = migration.split('\n').filter(line => !line.startsWith('--')).join('\n').trim();
+    expect(statement.split(';').filter(part => part.trim())).toHaveLength(1);
+    expect(migration).toContain('CREATE INDEX CONCURRENTLY IF NOT EXISTS mail_messages_tenant_connection_activity_idx');
+    const [countSql, pageSql, coverageSql] = [0, 1, 2].map(call => (h.queryRaw.mock.calls[call]![0] as Prisma.Sql).sql);
+    for (const sql of [countSql, pageSql]) {
+      expect(sql).toContain(`${MAIL_ACTIVITY_AT} >= `);
+      expect(sql).toContain('m.removed_at IS NULL');
+      expect(sql).toContain('m.connection_id IN (');
+    }
+    expect(boundValues(h.queryRaw, 0)).toContainEqual(new Date('2026-10-31T03:36:54Z'));
+    expect(pageSql).toContain(`${MAIL_ACTIVITY_AT} DESC NULLS LAST, m.id DESC`);
+    // Coverage: one lateral aggregate over the owned mailbox joined to the owned-thread cover index.
+    expect(coverageSql).toContain('LEFT JOIN LATERAL (');
+    expect(coverageSql).toContain('count(*) AS synced_messages');
+    expect(coverageSql).toContain(`min(${MAIL_ACTIVITY_AT}) AS oldest_synced`);
+    expect(coverageSql).toContain(`max(${MAIL_ACTIVITY_AT}) AS newest_synced`);
+    expect(coverageSql).toContain('JOIN mail_threads t ON t.id = m.thread_id AND t.tenant_id = m.tenant_id AND t.connection_id = m.connection_id');
+    expect(coverageSql).toContain('WHERE m.tenant_id = c.tenant_id AND m.connection_id = c.id AND m.removed_at IS NULL');
+    expect(coverageSql).not.toContain('EXISTS (SELECT 1 FROM mail_threads');
+    expect(coverageSql).not.toContain('GROUP BY');
+    expect(coverageSql).toContain('COALESCE(stored.synced_messages, 0)::int AS synced_messages');
   });
 
   it('keeps normalized filters distinct from validation refusals', () => {

@@ -84,6 +84,8 @@ function fixture() {
   app.get('/api/memory/candidates/mine', reply);
   app.get('/api/memory/candidates/mine/:id/status', reply);
   app.get('/api/memory/owner/items', reply);
+  app.get('/api/memory/owner/items/:id/versions', reply);
+  app.get('/api/memory/owner/items/:id/evidence', reply);
   app.use((error: { getStatus?: () => number; status?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     res.status(error.getStatus?.() ?? error.status ?? 500).end();
   });
@@ -119,6 +121,36 @@ async function start(app: express.Express): Promise<Server> {
 }
 
 describe('preview native reads through real Node HTTP and Express routing', () => {
+  it('routes owner history/evidence through read-only native authentication and refuses host/flag mismatch', async () => {
+    process.env.PREVIEW_NATIVE_GETS_ENABLED = 'true';
+    const h = fixture();
+    const server = await start(h.app);
+    try {
+      for (const leaf of ['versions', 'evidence']) {
+        const path = `/api/memory/owner/items/11111111-1111-4111-8111-111111111111/${leaf}?limit=25`;
+        for (const method of ['GET', 'HEAD']) {
+          for (const target of [path, `http://${previewHost}${path}`]) {
+            const result = await send(server, method, target);
+            expect(result.status).toBe(200);
+            expect(result.headers['cache-control']).toBe('no-store');
+          }
+          expect((await send(server, method, path, `${previewHost}:443`)).status).toBe(503);
+          expect((await send(server, method, path, 'app.capiro.ai')).status).toBe(503);
+        }
+      }
+      expect(h.reached).toHaveBeenCalledTimes(8);
+      expect(h.assertActiveApplicationAuthoritySession).toHaveBeenCalledTimes(8);
+      process.env.PREVIEW_NATIVE_GETS_ENABLED = 'false';
+      for (const leaf of ['versions', 'evidence']) {
+        expect((await send(server, 'GET', `/api/memory/owner/items/11111111-1111-4111-8111-111111111111/${leaf}`)).status).toBe(503);
+      }
+      expect(h.verifySessionToken).toHaveBeenCalledTimes(8);
+      for (const mutation of h.mutations) expect(mutation).not.toHaveBeenCalled();
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  }, 15000);
   afterEach(() => {
     if (priorPreviewSetting === undefined) delete process.env.PREVIEW_NATIVE_GETS_ENABLED;
     else process.env.PREVIEW_NATIVE_GETS_ENABLED = priorPreviewSetting;

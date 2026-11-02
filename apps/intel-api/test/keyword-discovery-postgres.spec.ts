@@ -5,7 +5,7 @@ import { FolderSourceDataRepository } from '../src/sourcedata/folder-source-data
 import { SourceDataRepository } from '../src/sourcedata/source-data.repository.js';
 import { KeywordSourceRepository } from '../src/sourcedata/keyword-source.repository.js';
 import { FolderTrackerService } from '../src/tracker/folders/folder-tracker.service.js';
-import { ReportService } from '../src/tracker/reports/report.service.js';
+import { DraftAccessService } from '../src/tracker/delivery/draft-access.service.js';
 import { KeywordRuleService } from '../src/tracker/keywords/keyword-rule.service.js';
 import { KeywordDiscoveryService } from '../src/tracker/keywords/keyword-discovery.service.js';
 import { FeatureFlagService } from '../src/feature-flags/feature-flag.service.js';
@@ -24,7 +24,7 @@ describe('Phase 6 real PostgreSQL decisions and paged discovery', () => {
       new FolderSourceDataRepository(p),
       new SourceDataRepository(p),
     );
-  const reports = new ReportService(folders, new FeatureFlagService(p, new ConfigService()));
+  const reports = new DraftAccessService(folders, new FeatureFlagService(p, new ConfigService()));
   const sources = new KeywordSourceRepository(p),
     rules = new KeywordRuleService(reports, sources),
     discovery = new KeywordDiscoveryService(rules);

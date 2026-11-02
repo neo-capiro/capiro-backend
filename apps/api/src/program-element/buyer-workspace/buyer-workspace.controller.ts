@@ -17,6 +17,14 @@ class BuyerWorkspaceQueryDto {
 
   @IsOptional()
   @IsString()
+  acquisitionCursor?: string;
+
+  @IsOptional()
+  @IsString()
+  fundingCursor?: string;
+
+  @IsOptional()
+  @IsString()
   mentionsCursor?: string;
 
   @IsOptional()
@@ -36,6 +44,8 @@ export class BuyerWorkspaceController {
       peCode,
       asOfFy: query.asOfFy,
       knownAt: query.knownAt,
+      acquisitionCursor: query.acquisitionCursor,
+      fundingCursor: query.fundingCursor,
       mentionsCursor: query.mentionsCursor,
       lifecycleCursor: query.lifecycleCursor,
     });

@@ -1,3 +1,4 @@
+import { ownerMemoryAccessSql } from './memory-owner-read-policy.js';
 import { createHash } from 'node:crypto';
 import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
@@ -35,6 +36,7 @@ export interface OwnerMemoryItem {
 
 export interface OwnerMemoryItemsPage {
   schemaVersion: 1;
+  ownerReadsVersion: 1;
   items: OwnerMemoryItem[];
   nextCursor: string | null;
 }
@@ -64,8 +66,6 @@ export class MemoryOwnerItemsService {
     if (!governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE)) {
       throw new ServiceUnavailableException('Governed memory owner items are unavailable.');
     }
-    const previewRoster =
-      input.visibleClientIds === undefined ? null : JSON.stringify(input.visibleClientIds);
 
     const rows = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
       tx.$queryRaw<OwnerItemRow[]>(Prisma.sql`
@@ -75,26 +75,7 @@ export class MemoryOwnerItemsService {
                to_char(mi.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "updatedAt"
         FROM memory_items mi
         LEFT JOIN clients c ON c.tenant_id = mi.tenant_id AND c.id = mi.client_id
-        WHERE mi.tenant_id = ${ctx.tenantId}::uuid
-          AND mi.owner_user_id = ${ctx.userId}::uuid
-          AND mi.memory_scope = 'user_private'
-          AND mi.visibility = 'user'
-          AND (${previewRoster}::jsonb IS NULL OR mi.client_id IS NULL OR EXISTS (
-            SELECT 1 FROM jsonb_array_elements_text(${previewRoster}::jsonb) AS preview_client(id)
-            WHERE preview_client.id = mi.client_id::text
-          ))
-          AND (
-            mi.client_id IS NULL OR (
-              c.id IS NOT NULL AND c.status::text = 'active'
-              AND (NOT c.memory_wall OR EXISTS (
-                SELECT 1 FROM client_memory_access wall_grant
-                WHERE wall_grant.tenant_id = c.tenant_id
-                  AND wall_grant.client_id = c.id
-                  AND wall_grant.user_id = ${ctx.userId}::uuid
-              ))
-            )
-          )
-          AND mi.legal_hold IS FALSE
+        WHERE ${ownerMemoryAccessSql(ctx, input.visibleClientIds)}
           AND (mi.controlling_item_id IS NULL OR mi.controlling_item_id = mi.id)
           AND ${Prisma.raw(governedRecallEligibilitySql('mi'))}
           ${
@@ -130,6 +111,7 @@ export class MemoryOwnerItemsService {
     const last = visible.at(-1);
     return {
       schemaVersion: 1,
+      ownerReadsVersion: 1,
       items,
       nextCursor: rows.length > limit && last ? encodeCursor(last, cursorBinding(ctx)) : null,
     };

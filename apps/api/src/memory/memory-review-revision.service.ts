@@ -1,3 +1,4 @@
+import { withMemoryConversationRetention } from './conversation-serving/transaction.js';
 import { createHash, randomUUID } from 'node:crypto';
 import {
   BadRequestException,
@@ -75,7 +76,7 @@ export class MemoryReviewRevisionService {
     const successorCandidateId = randomUUID();
 
     try {
-      return await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      return await withMemoryConversationRetention(this.prisma, ctx.tenantId, ctx.userId, async (tx) => {
         const source = await this.loadSourceInTx(tx, ctx.tenantId, predecessorCandidateId);
         if (!source) throw new NotFoundException('Memory proposal not found.');
         if (source.proposedBy !== ctx.userId) {

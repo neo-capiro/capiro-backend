@@ -52,6 +52,8 @@ export interface OutreachSessionListRow extends OutreachSessionRow {
   targetCount: number;
   recordStatus: string | null;
   sentAt: Date | null;
+  /** An imported session is listed by the canonical campaign owner, regardless of its loaded page. */
+  hasWorkflow: boolean;
 }
 
 export interface OutreachStateVersionRow {
@@ -230,7 +232,7 @@ export class OutreachStateRepository {
     // own campaigns.
     const rows = await tx.$queryRaw<
       Array<
-        Omit<OutreachSessionListRow, 'targetCount' | 'recordStatus' | 'sentAt'> & {
+        Omit<OutreachSessionListRow, 'targetCount' | 'recordStatus' | 'sentAt' | 'hasWorkflow'> & {
           targetCount: number | bigint | null;
         }
       >
@@ -296,6 +298,7 @@ export class OutreachStateRepository {
       targetCount: Number(row.targetCount ?? 0),
       recordStatus: sendState.get(row.id)?.status ?? null,
       sentAt: sendState.get(row.id)?.sentAt ?? null,
+      hasWorkflow: sendState.get(row.id)?.hasWorkflow ?? false,
     }));
   }
 
@@ -312,18 +315,30 @@ export class OutreachStateRepository {
     tx: Prisma.TransactionClient,
     ctx: TenantContext,
     sessionIds: string[],
-  ): Promise<Map<string, { status: string; sentAt: Date | null }>> {
+  ): Promise<Map<string, { status: string; sentAt: Date | null; hasWorkflow: boolean }>> {
     if (sessionIds.length === 0) return new Map();
     const roots = await tx.outreachRecord.findMany({
       where: {
         tenantId: ctx.tenantId,
+        createdByUserId: ctx.userId,
         id: { in: sessionIds },
-        type: OUTREACH_V3_ARTIFACT_ROOT_TYPE,
-        deletedAt: null,
+        // Reserved session roots and their canonical campaign imports retain
+        // the same owned record ID.
+        type: { in: [OUTREACH_V3_ARTIFACT_ROOT_TYPE, 'campaign'] },
       },
-      select: { id: true, status: true, sentAt: true },
+      select: { id: true, type: true, status: true, sentAt: true, metadata: true, deletedAt: true },
     });
-    return new Map(roots.map((root) => [root.id, { status: root.status, sentAt: root.sentAt }]));
+    return new Map(
+      roots.flatMap((root) => {
+        const metadata = root.metadata;
+        const hasWorkflow = Boolean(
+          metadata && typeof metadata === 'object' && !Array.isArray(metadata) && metadata.workflow,
+        );
+        if (!hasWorkflow && (root.type !== OUTREACH_V3_ARTIFACT_ROOT_TYPE || root.deletedAt))
+          return [];
+        return [[root.id, { status: root.status, sentAt: root.sentAt, hasWorkflow }] as const];
+      }),
+    );
   }
 
   async loadStateVersion(

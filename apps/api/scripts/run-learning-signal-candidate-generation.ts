@@ -3,7 +3,10 @@
  * Phase 27B — explicit, batch-triggered LearningSignal → candidate
  * generation worker.
  *
- *   pnpm --filter @capiro/api exec tsx scripts/run-learning-signal-candidate-generation.ts [--tenant <tenantId>]
+ *   pnpm --filter @capiro/api exec tsx scripts/run-learning-signal-candidate-generation.ts [--tenant <tenantId> [--signal <signalId>]]
+ *
+ * --signal selects exactly one existing signal in the explicit tenant. It
+ * never enumerates tenants or falls back to batch processing on refusal.
  *
  * Deliberately NOT wired to any cron/event trigger yet (handoff §18: prefer
  * explicit batch-triggering when nothing else fits, over inventing a new job
@@ -25,10 +28,18 @@
  */
 import { config as dotenvConfig } from 'dotenv';
 import { NestFactory } from '@nestjs/core';
+import {
+  parseLearningSignalSelection,
+  runLearningSignalSelection,
+} from './learning-signal-selection.js';
 
 dotenvConfig();
 
-async function loadNest(): Promise<{ AppModule: any; LearningSignalCandidateService: any; PrismaService: any }> {
+async function loadNest(): Promise<{
+  AppModule: any;
+  LearningSignalCandidateService: any;
+  PrismaService: any;
+}> {
   for (const base of ['../dist', '../src']) {
     try {
       const app = await import(`${base}/app.module.js`);
@@ -46,14 +57,13 @@ async function loadNest(): Promise<{ AppModule: any; LearningSignalCandidateServ
   throw new Error('Could not load AppModule from dist or src');
 }
 
-function parseTenantArg(): string | null {
-  const idx = process.argv.indexOf('--tenant');
-  return idx >= 0 ? (process.argv[idx + 1] ?? null) : null;
-}
-
 async function main() {
+  // Reject malformed selection before booting application/provider dependencies.
+  const selection = parseLearningSignalSelection(process.argv.slice(2));
   if (!process.env.DATABASE_URL) {
-    console.error('Usage: run-learning-signal-candidate-generation [--tenant <id>] (requires DATABASE_URL)');
+    console.error(
+      'Usage: run-learning-signal-candidate-generation [--tenant <id> [--signal <id>]] (requires DATABASE_URL)',
+    );
     process.exitCode = 2;
     return;
   }
@@ -63,28 +73,20 @@ async function main() {
     const candidateGeneration = app.get(LearningSignalCandidateService);
     const prisma = app.get(PrismaService);
 
-    const onlyTenant = parseTenantArg();
-    const tenantIds: string[] = onlyTenant
-      ? [onlyTenant]
-      : (await prisma.withSystem((tx: any) => tx.tenant.findMany({ select: { id: true } }))).map(
+    const { tenants, totalProcessed, byEligibility } = await runLearningSignalSelection(
+      selection,
+      candidateGeneration,
+      async () =>
+        (await prisma.withSystem((tx: any) => tx.tenant.findMany({ select: { id: true } }))).map(
           (t: { id: string }) => t.id,
-        );
-
-    let totalProcessed = 0;
-    const byEligibility: Record<string, number> = {};
-    for (const tenantId of tenantIds) {
-      const outcomes = await candidateGeneration.processBatch(tenantId, 200);
-      for (const outcome of outcomes) {
-        totalProcessed += 1;
-        byEligibility[outcome.eligibility] = (byEligibility[outcome.eligibility] ?? 0) + 1;
-      }
-    }
+        ),
+    );
 
     const breakdown = Object.entries(byEligibility)
       .map(([k, n]) => `${k}=${n}`)
       .join(' ');
     console.log(
-      `done. tenants=${tenantIds.length} processed=${totalProcessed}` +
+      `done. tenants=${tenants} processed=${totalProcessed}` +
         (breakdown ? ` | byEligibility: ${breakdown}` : ' | nothing new to process'),
     );
   } finally {

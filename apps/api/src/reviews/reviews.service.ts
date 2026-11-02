@@ -68,6 +68,7 @@ export class ReviewsService {
       tx.reviewRequest.findMany({
         where: {
           tenantId: ctx.tenantId,
+          surface: { not: 'memory' },
           ...(status ? { status } : {}),
           ...(isTenantAdmin(ctx.role)
             ? {}
@@ -145,7 +146,7 @@ export class ReviewsService {
   async detail(ctx: TenantContext, id: string) {
     const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.reviewRequest.findFirst({
-        where: { id, tenantId: ctx.tenantId },
+        where: { id, tenantId: ctx.tenantId, surface: { not: 'memory' } },
         select: {
           id: true,
           riskTier: true,
@@ -295,7 +296,7 @@ export class ReviewsService {
   private async getPendingOrThrow(tenantId: string, id: string) {
     const row = await this.prisma.withTenant(tenantId, (tx) =>
       tx.reviewRequest.findFirst({
-        where: { id, tenantId, status: 'pending' },
+        where: { id, tenantId, status: 'pending', surface: { not: 'memory' } },
         select: {
           id: true,
           surface: true,

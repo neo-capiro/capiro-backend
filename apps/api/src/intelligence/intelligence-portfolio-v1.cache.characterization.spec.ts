@@ -54,7 +54,7 @@ describe('Portfolio alert current cache map and expiry', () => {
 });
 
 describe('Portfolio alert in-flight promise and key identity', () => {
-  test('coalesces the stored compute chain while keeping independent HTTP budget promises', async () => {
+  test('coalesces concurrent callers onto the one budgeted in-flight answer', async () => {
     const pendingProfile = deferred<unknown>();
     const h = harness({
       rows: { clients: [client()], [`profile:${clientId}`]: pendingProfile.promise },
@@ -62,15 +62,13 @@ describe('Portfolio alert in-flight promise and key identity', () => {
     const compute = jest.spyOn(h.runtime, 'computePortfolioAlerts');
     const requestBudget = jest.spyOn(h.runtime, 'withPortfolioAlertsRequestBudget');
     const first = h.service.getPortfolioAlerts(tenantId, userId);
-    const underlying = h.runtime.portfolioAlertsInflight.get(key)!;
+    const inflight = h.runtime.portfolioAlertsInflight.get(key)!;
     const second = h.service.getPortfolioAlerts(tenantId, userId);
-    expect(first).not.toBe(second);
-    expect(underlying).not.toBe(first);
-    expect(underlying).not.toBe(compute.mock.results[0]!.value);
-    expect(h.runtime.portfolioAlertsInflight.get(key)).toBe(underlying);
-    expect(requestBudget.mock.calls[0]![1]).toBe(underlying);
-    expect(requestBudget.mock.calls[1]![1]).toBe(underlying);
+    expect(inflight).toBe(requestBudget.mock.results[0]!.value);
+    expect(inflight).not.toBe(compute.mock.results[0]!.value.result);
+    expect(h.runtime.portfolioAlertsInflight.get(key)).toBe(inflight);
     expect(compute).toHaveBeenCalledTimes(1);
+    expect(requestBudget).toHaveBeenCalledTimes(1);
     await h.started(`profile:${clientId}`);
     pendingProfile.resolve(profile([alert()]));
     const values = await Promise.all([first, second]);
@@ -148,6 +146,21 @@ describe('Portfolio alert failed computation cleanup', () => {
     );
     expect((await h.service.getPortfolioAlerts(tenantId, userId)).clientCount).toBe(1);
     expect(h.runtime.portfolioAlertsCache.has(key)).toBe(true);
+  });
+  test('a rejected computePortfolioAlerts run leaves both the cache and the in-flight map clean', async () => {
+    const h = harness();
+    const error = new Error('Run exploded');
+    jest.spyOn(h.runtime, 'computePortfolioAlerts').mockReturnValue({
+      result: Promise.reject(error),
+      abort: () => ({ ...emptyAlerts(), partial: true }),
+    });
+    expect(await h.service.getPortfolioAlerts(tenantId, userId)).toEqual(emptyAlerts());
+    expect(h.runtime.portfolioAlertsCache.size).toBe(0);
+    expect(h.runtime.portfolioAlertsInflight.size).toBe(0);
+    expect(h.warnings).toHaveBeenCalledWith(
+      `portfolio-alerts: compute failed for ${key}: Run exploded`,
+    );
+    expect(jest.getTimerCount()).toBe(0);
   });
   test('formats non-Error computation rejection without changing the fail-open payload', async () => {
     const h = harness({ errors: { clients: 'unavailable' } });
