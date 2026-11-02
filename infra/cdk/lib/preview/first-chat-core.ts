@@ -67,6 +67,8 @@ const live = {
   secretsKeyArn: `arn:aws:kms:${region}:${account}:key/f47b4c53-b9c0-4d91-ad57-4d882f87767e`,
   clerkIssuer: 'https://clerk.app.capiro.ai',
 } as const;
+/** The same inventory for sibling preview compositions (forecasts-operations.ts); one owner, re-checked together. */
+export const FIRST_CHAT_CORE_LIVE = live;
 
 /** Host and method restrictions remain independent of Core's canonical user,
  * tenant/member, conversation and client-wall authorization. */
