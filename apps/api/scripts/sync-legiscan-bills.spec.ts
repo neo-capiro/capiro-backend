@@ -99,6 +99,7 @@ function makeFakePrisma(opts: { pendingBills: number[]; billHashes?: Record<stri
       if (sql.includes('array_remove')) {
         const billId = Number(values[0]);
         cursorRow.pendingBills = cursorRow.pendingBills.filter((id) => id !== billId);
+        if (sql.includes('array_append')) cursorRow.pendingBills.push(billId);
         if (sql.includes('bill_hashes'))
           Object.assign(cursorRow.billHashes, JSON.parse(String(values[1])));
       }
@@ -134,6 +135,7 @@ function makeFakePrisma(opts: { pendingBills: number[]; billHashes?: Record<stri
 }
 
 beforeEach(() => {
+  process.env.LEGISCAN_DRAIN_CAP = '10';
   delete process.env.BILL_FISCAL_YEAR;
   jest.resetModules();
   getBillMock.mockReset();
@@ -162,7 +164,7 @@ afterEach(() => {
 describe('FY26 parent gate', () => {
   it('excludes old parents before metadata, documents, votes, or source status writes', async () => {
     process.env.BILL_FISCAL_YEAR = '2026';
-    fakePrisma = makeFakePrisma({ pendingBills: [42] });
+    fakePrisma = makeFakePrisma({ pendingBills: [42], billHashes: { '42': 'old-v1' } });
     getBillMock.mockResolvedValue({
       bill_id: 42,
       change_hash: 'old-v2',
@@ -177,9 +179,52 @@ describe('FY26 parent gate', () => {
     expect(fakePrisma.stateBillPublishedRecord.createMany).not.toHaveBeenCalled();
     expect(getBillTextMock).not.toHaveBeenCalled();
     expect(getRollCallMock).not.toHaveBeenCalled();
-    expect(fakePrisma.__cursorRow.pendingBills).toEqual([]);
-    expect(fakePrisma.__cursorRow.billHashes['42']).toBe('old-v2');
+    expect(fakePrisma.__cursorRow.pendingBills).toEqual([42]);
+    expect(fakePrisma.__cursorRow.billHashes['42']).toBe('old-v1');
     expect(fakePrisma.__cursorRow.queriesUsed).toBe(1);
+  });
+  it.each([{ ids: [42, 43] }, { ids: [43, 42] }])(
+    'retains excluded work across later cursor writes in order $ids',
+    async ({ ids }) => {
+      process.env.BILL_FISCAL_YEAR = '2026';
+      fakePrisma = makeFakePrisma({ pendingBills: ids, billHashes: { '42': 'old-v1' } });
+      getBillMock.mockImplementation(async (_key: string, id: number) => ({
+        bill_id: id,
+        change_hash: `new-${id}`,
+        votes: [],
+        history: [{ date: id === 42 ? '2025-09-30' : '2026-01-01', action: 'Introduced' }],
+      }));
+      const { main } = await import('./sync-legiscan-bills.js');
+      await main();
+      expect(getBillMock).toHaveBeenCalledTimes(2);
+      expect(fakePrisma.__cursorRow.pendingBills).toEqual([42]);
+      expect(fakePrisma.__cursorRow.billHashes).toEqual({ '42': 'old-v1', '43': 'new-43' });
+      for (const call of fakePrisma.__updateCalls)
+        if (call.data.pendingBills?.set) expect(call.data.pendingBills.set).toContain(42);
+      delete process.env.BILL_FISCAL_YEAR;
+      await main();
+      expect(fakePrisma.__cursorRow.pendingBills).toEqual([]);
+      expect(fakePrisma.__cursorRow.billHashes['42']).toBe('new-42');
+    },
+  );
+  it('rotates excluded work across a cap so the next run reaches eligible parents', async () => {
+    process.env.BILL_FISCAL_YEAR = '2026';
+    process.env.LEGISCAN_DRAIN_CAP = '1';
+    fakePrisma = makeFakePrisma({ pendingBills: [42, 43], billHashes: { '42': 'old-v1' } });
+    getBillMock.mockImplementation(async (_key: string, id: number) => ({
+      bill_id: id,
+      change_hash: `new-${id}`,
+      votes: [],
+      history: [{ date: id === 42 ? '2025-09-30' : '2026-01-01', action: 'Introduced' }],
+    }));
+    const { main } = await import('./sync-legiscan-bills.js');
+    await main();
+    expect(fakePrisma.__cursorRow.pendingBills).toEqual([43, 42]);
+    expect(fakePrisma.__cursorRow.billHashes['42']).toBe('old-v1');
+    await main();
+    expect(getBillMock.mock.calls.map((call) => call[1])).toEqual([42, 43]);
+    expect(fakePrisma.__cursorRow.pendingBills).toEqual([42]);
+    expect(fakePrisma.__cursorRow.billHashes).toEqual({ '42': 'old-v1', '43': 'new-43' });
   });
   it.each([null, new Error('provider failure')])(
     'does not change an unknown parent on fetch failure %p',

@@ -133,8 +133,11 @@ async function run(prisma: PrismaClient, FY26: FiscalYearMode): Promise<void> {
     const cursors = await prisma.stateSyncCursor.findMany({
       where: { state: { in: STATES }, pendingBills: { isEmpty: false } },
     });
-    const queues = new Map<string, { state: string; ids: number[] }>(
-      cursors.map((c) => [c.id, { state: c.state, ids: [...(c.pendingBills as number[])] }]),
+    const queues = new Map<string, { state: string; ids: number[]; retained: number[] }>(
+      cursors.map((c) => [
+        c.id,
+        { state: c.state, ids: [...(c.pendingBills as number[])], retained: [] },
+      ]),
     );
 
     let inserted = 0;
@@ -224,18 +227,20 @@ async function run(prisma: PrismaClient, FY26: FiscalYearMode): Promise<void> {
               });
             await prisma.stateSyncCursor.update({
               where: { id: cursorId },
-              data: { pendingBills: { set: queue.ids } },
+              data: { pendingBills: { set: [...queue.ids, ...queue.retained] } },
             });
             await bumpCursorQueries(prisma, cursorId, queriesForBill);
             continue;
           }
 
-          // FY26: after a successful getBill, an inadmissible parent is
-          // dropped from the durable queue by exactly its own billId and its
-          // provider cost is recorded. No metadata/published/document write,
-          // no older-row deletion, no false source-check state.
+          // Excluded parents remain pending with their previous hash for the
+          // ordinary all-session worker. Scan past them locally without marking
+          // unfetched metadata/documents current or dropping canonical work.
           if (!admitsRawBill(raw, FY26)) {
-            await prisma.$executeRaw`UPDATE state_sync_cursor SET pending_bills=array_remove(pending_bills,${billId}), bill_hashes=COALESCE(bill_hashes,'{}'::jsonb) || ${JSON.stringify({ [String(billId)]: raw.change_hash })}::jsonb WHERE id=${cursorId}`;
+            queue.retained.push(billId);
+            // Rotate retained work so a capped FY26 run reaches later eligible
+            // parents on its next invocation without consuming ordinary work.
+            await prisma.$executeRaw`UPDATE state_sync_cursor SET pending_bills=array_append(array_remove(pending_bills,${billId}),${billId}) WHERE id=${cursorId}`;
             await bumpCursorQueries(prisma, cursorId, queriesForBill);
             continue;
           }
@@ -256,7 +261,7 @@ async function run(prisma: PrismaClient, FY26: FiscalYearMode): Promise<void> {
             );
             await prisma.stateSyncCursor.update({
               where: { id: cursorId },
-              data: { pendingBills: { set: queue.ids } },
+              data: { pendingBills: { set: [...queue.ids, ...queue.retained] } },
             });
             await bumpCursorQueries(prisma, cursorId, queriesForBill);
             continue;
@@ -439,7 +444,7 @@ async function run(prisma: PrismaClient, FY26: FiscalYearMode): Promise<void> {
             });
             await prisma.stateSyncCursor.update({
               where: { id: cursorId },
-              data: { pendingBills: { set: queue.ids } },
+              data: { pendingBills: { set: [...queue.ids, ...queue.retained] } },
             });
             await bumpCursorQueries(prisma, cursorId, queriesForBill);
             continue;
@@ -459,7 +464,7 @@ async function run(prisma: PrismaClient, FY26: FiscalYearMode): Promise<void> {
           billHashes[String(billId)] = raw.change_hash;
           await prisma.stateSyncCursor.update({
             where: { id: cursorId },
-            data: { billHashes, pendingBills: { set: queue.ids } },
+            data: { billHashes, pendingBills: { set: [...queue.ids, ...queue.retained] } },
           });
           await bumpCursorQueries(prisma, cursorId, queriesForBill);
         } catch (err) {
@@ -475,7 +480,7 @@ async function run(prisma: PrismaClient, FY26: FiscalYearMode): Promise<void> {
           console.error(`[sync-legiscan-bills] ${queue.state} bill ${billId} failed:`, err);
           await prisma.stateSyncCursor.update({
             where: { id: cursorId },
-            data: { pendingBills: { set: queue.ids } },
+            data: { pendingBills: { set: [...queue.ids, ...queue.retained] } },
           });
           await bumpCursorQueries(prisma, cursorId, queriesForBill);
         }

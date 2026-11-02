@@ -8,6 +8,9 @@ describe('FY26 bill parent admission', () => {
     ['2026-09-30', true],
     ['2026-10-01', false],
     ['invalid', false],
+    ['2025-09-31', false],
+    ['2026-02-30', false],
+    ['2026-02-28T23:59:59Z', true],
   ])('%s => %s', (date, expected) => expect(inFY26(date as string)).toBe(expected));
   it('admits older introductions only with an in-window action', () => {
     expect(eligibleFY26('2025-01-03', ['2026-01-02'])).toBe(true);

@@ -4,6 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import { main as index } from './index-bill-passages.js';
 import { queueBillDocumentChecks } from '../src/ingestion/bill-document-queue.js';
 import assert from 'node:assert/strict';
+import { STATE_FY26_SQL } from '../src/ingestion/bill-text-scope.js';
 
 async function main() {
   assert(process.env.DATABASE_URL, 'DATABASE_URL_REQUIRED');
@@ -60,6 +61,30 @@ async function main() {
     assert.equal(rows[1].future, true); // Unchanged successful document keeps its schedule.
     assert.equal(rows[2].future, true); // Failed document keeps its retry backoff and attempt history.
     assert.equal(rows[2].attempts, 3);
+    // Stored progress is official parent admission evidence even without history.
+    await db.$executeRawUnsafe(
+      'CREATE TABLE state_bill(id text PRIMARY KEY,latest_action_date date,legiscan_progress jsonb)',
+    );
+    await db.$executeRawUnsafe('CREATE TABLE state_bill_action(bill_key text,date date)');
+    await db.$executeRawUnsafe(
+      'CREATE TABLE state_bill_published_record(bill_key text,kind text,event_date text)',
+    );
+    await db.$executeRawUnsafe(`INSERT INTO state_bill VALUES
+      ('progress-only','2025-02-01','[{"date":"2026-02-01"}]'),
+      ('progress-start',NULL,'[{"date":"2025-10-01"}]'),
+      ('progress-end',NULL,'[{"date":"2026-10-01"}]'),
+      ('invalid-calendar',NULL,'[{"date":"2026-02-30"}]'),
+      ('invalid-boundary',NULL,'[{"date":"2025-09-31"}]'),
+      ('invalid-format',NULL,'[{"date":"not-a-date"}]'),
+      ('non-array',NULL,'{"date":"2026-01-01"}'),
+      ('absent',NULL,NULL)`);
+    const eligible = await db.$queryRawUnsafe<Array<{ id: string }>>(
+      `SELECT b.id FROM state_bill b WHERE ${STATE_FY26_SQL} ORDER BY b.id`,
+    );
+    assert.deepEqual(
+      eligible.map((row) => row.id),
+      ['progress-only', 'progress-start'],
+    );
     console.log('BILL_POSTGRES_SMOKE_PASS');
   } finally {
     await db.$disconnect();

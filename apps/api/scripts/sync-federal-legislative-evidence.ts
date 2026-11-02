@@ -157,7 +157,8 @@ export async function syncCollection(args: {
       WHERE federal_evidence_checkpoint.lease_until IS NULL
          OR federal_evidence_checkpoint.lease_until < clock_timestamp()
     RETURNING cursor_jsonb AS cursor, status, completed_at AS "completedAt"`;
-  if (!claimed[0])
+  if (!claimed[0]) {
+    if (fy26 !== null) throw Error('FY26_FEDERAL_TEXT_LEASE_NOT_ACQUIRED');
     return {
       inserted: 0,
       updated: 0,
@@ -167,6 +168,7 @@ export async function syncCollection(args: {
       coverageGaps: 0,
       pendingUnknown: 0,
     };
+  }
 
   const old = claimed[0];
   const priorCursorWasComplete = Boolean(

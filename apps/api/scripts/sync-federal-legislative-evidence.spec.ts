@@ -96,3 +96,11 @@ it('retains the failed version position for retry and releases the lease', async
   expect(JSON.parse(String(failure.values[0]))).toMatchObject({ offset: 0, full: true });
   expect(h.writes.at(-1)?.sql).toContain('SET lease_token = NULL, lease_until = NULL');
 });
+
+it('refuses a FY26 run that did not acquire its checkpoint lease', async () => {
+  const h = fixture([{ packageId: 'BILLS-119hr1ih', congress: 119 }]);
+  h.prisma.$queryRaw.mockResolvedValueOnce([]);
+  await expect(h.run()).rejects.toThrow('FY26_FEDERAL_TEXT_LEASE_NOT_ACQUIRED');
+  expect(h.gov.listFederalEvidencePage).not.toHaveBeenCalled();
+  expect(h.prisma.$executeRaw).not.toHaveBeenCalled();
+});

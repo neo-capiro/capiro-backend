@@ -124,7 +124,7 @@ export function nextQueriesUsed(
     : queriesForThisCursor;
 }
 
-async function backfillState(
+export async function backfillState(
   prisma: PrismaClient,
   state: string,
   FY26: FiscalYearMode,
@@ -228,14 +228,9 @@ async function backfillState(
       const billHashes: Record<string, string> = {};
       const billIdToKey = new Map<number, string>();
       for (const raw of parsed.bills) {
-        // FY26: the parent's own history/progress dates decide admission. An
-        // excluded parent is skipped before normalize/upsert/persist/crosswalk,
-        // but its change hash is retained so the masterlist does not re-enqueue
-        // the full excluded corpus on every run.
-        if (!admitsRawBill(raw, FY26)) {
-          billHashes[String(raw.bill_id)] = raw.change_hash;
-          continue;
-        }
+        // Only admitted and persisted parents may advance the shared hash.
+        // Existing excluded hashes/pending work remain owned by ordinary sync.
+        if (!admitsRawBill(raw, FY26)) continue;
         try {
           const normalized = normalizeLegiscanBill(raw, state);
           if (!normalized) {
