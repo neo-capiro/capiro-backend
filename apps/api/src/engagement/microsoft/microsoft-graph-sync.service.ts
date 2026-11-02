@@ -43,6 +43,8 @@ import {
   type IntegrationSyncHealth,
 } from '../integration-health.js';
 import {
+  MailboxBusyError,
+  MailboxClaimLostError,
   assertMailboxSyncCurrent,
   mailboxState,
   mergeMailboxSyncState,
@@ -1049,6 +1051,16 @@ export class MicrosoftGraphSyncService {
           if (task.admission && !task.admission.disposition.hasReport()) {
             // A no-report throw is a known no-effect failure, not an unknown effect.
             task.admission.settle('failed');
+          }
+          // The database claim in mailbox-sync-claim.ts is the single-flight guard across
+          // API tasks: losing it means another task (or the scheduler) holds this mailbox,
+          // and that run plus the scheduled follow-up cover the notification. Expected, not
+          // an error, exactly as the scheduler treats it.
+          if (err instanceof MailboxBusyError || err instanceof MailboxClaimLostError) {
+            this.logger.warn(
+              `Graph notification sync for connection ${task.connectionId} skipped: ${err.message}`,
+            );
+            return;
           }
           this.logger.error(
             `Graph notification sync failed for connection ${task.connectionId}: ${
