@@ -117,11 +117,49 @@ describe('statement gate', () => {
     (view) => {
       expect(refusal(`SELECT s.most_common_vals FROM ${view} s WHERE s.tablename = 'sam_opportunity'`)).toMatchObject({
         code: 'UNKNOWN_RELATION',
-        message: `${view} is a catalog statistics view, not a relation of this source; name the relations describe_capiro_data lists.`,
+        message: `${view} is a server statistics or activity catalog, not a relation of this source; name the relations describe_capiro_data lists.`,
       });
       expect(refusal(`SELECT 1 FROM "${view}"`).code).toBe('UNKNOWN_RELATION');
     },
   );
+  it.each([
+    'SELECT a.query FROM pg_stat_activity a',
+    'SELECT a.query FROM "pg_stat_activity" a',
+    'SELECT pg_stat_get_backend_activity(1) AS q',
+    'SELECT pg_stat_get_activity(NULL) AS q',
+    'SELECT * FROM pg_stat_get_backend_idset() AS id',
+    'SELECT s.query FROM pg_stat_statements s',
+    'SELECT * FROM pg_stat_statements(true)',
+    'SELECT c.calls FROM pg_stat_statements_info c',
+    'SELECT * FROM pg_stat_user_tables',
+  ])('refuses server activity and statistics catalogs that expose other sessions or sampled values: %s', (sql) => {
+    const error = refusal(sql);
+    expect(error.code).toBe('UNKNOWN_RELATION');
+    expect(error.message).toMatch(/^pg_stat\w* is a server statistics or activity catalog, not a relation of this source; name the relations describe_capiro_data lists\.$/);
+  });
+  it('refuses ts_rewrite, which executes its text argument as a query', () => {
+    expect(refusal("SELECT ts_rewrite('a'::tsquery, 'SELECT t, s FROM public.sam_opportunity')")).toMatchObject({
+      code: 'UNSUPPORTED_SQL', message: 'ts_rewrite is not available to query_capiro_data.',
+    });
+  });
+  it.each([
+    // A carriage return ends a line comment in PostgreSQL, so the rest of the line is SQL.
+    ['SELECT n.notice_id --x\r, (SELECT count(s.poc_email) FROM public.sam_opportunity s) AS leak FROM sam_opportunities n', 'UNKNOWN_RELATION'],
+    ["SELECT 1 AS a --x\r, query_to_xml('SELECT poc_email FROM public.sam_opportunity', true, false, '') AS leak", 'UNSUPPORTED_SQL'],
+    ['SELECT 1 AS a --x\r, (SELECT count(*) FROM pg_stats) AS leak', 'UNKNOWN_RELATION'],
+    // Non-ASCII dollar-quote tags are valid PostgreSQL; the quote boundaries must not drift.
+    ["SELECT $é$'$é$ AS a, (SELECT count(s.poc_email) FROM public.sam_opportunity s) AS leak, $é$'$é$ AS b", 'UNKNOWN_RELATION'],
+    ["SELECT $é1$'$é1$ AS a, query_to_xml('SELECT 1', true, false, '') AS leak, $é1$'$é1$ AS b", 'UNSUPPORTED_SQL'],
+  ])('reads comments and dollar quotes as PostgreSQL does: %j', (sql, code) => {
+    expect(refusal(sql).code).toBe(code);
+  });
+  it('still treats a dollar-quoted body and a newline-terminated comment as inert', () => {
+    expect(gate("SELECT $é$ public.sam_opportunity query_to_xml( $é$ AS t, b.id FROM congress_bills b").relationsUsed).toEqual(['congress_bills']);
+    expect(gate('SELECT b.id -- public.sam_opportunity pg_stats\nFROM congress_bills b').relationsUsed).toEqual(['congress_bills']);
+    expect(gate('SELECT b.id -- public.sam_opportunity pg_stats\r\nFROM congress_bills b').relationsUsed).toEqual(['congress_bills']);
+    // A no-break space is an identifier character to PostgreSQL, not whitespace, so it cannot split a name the gate reads.
+    expect(refusal('SELECT 1 FROM pg_stats\u00a0x').code).toBe('UNKNOWN_RELATION');
+  });
   it('admits aliases, relation names, CTE names and this source\'s own schema as qualifiers', () => {
     expect(gate('SELECT g.title, g.close_date FROM federal_grants g WHERE g.status = $1', ['posted']).relationsUsed).toEqual(['federal_grants']);
     expect(gate('SELECT federal_grants.title FROM federal_grants').relationsUsed).toEqual(['federal_grants']);

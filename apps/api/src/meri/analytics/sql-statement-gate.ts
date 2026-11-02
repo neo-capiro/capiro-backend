@@ -192,13 +192,19 @@ const BLOCKED_FUNCTIONS = new Set([
   'cursor_to_xml',
   'cursor_to_xmlschema',
   'ts_stat',
+  // ts_rewrite(query tsquery, select text) executes its text argument as a query.
+  'ts_rewrite',
 ]);
 /**
- * Catalog statistics views. They list sampled column values (most_common_vals, histogram_bounds) for every column
- * the role can SELECT, including base-table columns the published views leave out, and they resolve unqualified
- * through pg_catalog, so the schema-prefix rule alone does not reach them.
+ * Server statistics and activity catalogs: every view or function whose name starts with pg_stat (pg_stats,
+ * pg_statistic*, pg_stat_activity, pg_stat_statements, pg_stat_get_backend_activity, ...). The statistics views list
+ * sampled values of every column the role can SELECT, including base-table columns the published views leave out;
+ * the activity views and functions show the query text of other sessions of the same role, and every Meri reader
+ * shares capiro_analytics_ro, so one tenant's reader would see another tenant's concurrent SQL. They resolve
+ * unqualified through pg_catalog, so the schema-prefix rule alone does not reach them. A prefix rule, not exact
+ * names, because new pg_stat_* names arrive with PostgreSQL versions and extensions.
  */
-const CATALOG_STATISTICS = new Set(['pg_stats', 'pg_stats_ext', 'pg_stats_ext_exprs', 'pg_statistic', 'pg_statistic_ext', 'pg_statistic_ext_data']);
+const isServerStatistics = (name: string) => name.startsWith('pg_stat');
 
 /** Describe the same restrictions used below; no second policy list. */
 export function sqlGrammarDescriptor() {
@@ -239,6 +245,8 @@ interface Token {
 
 const WORD_START = /[A-Za-z_\u0080-￿]/;
 const WORD_PART = /[A-Za-z0-9_$\u0080-￿]/;
+/** PostgreSQL's whitespace (scan.l space: [ \t\n\r\f\v]); JavaScript's \s also matches Unicode spaces PostgreSQL does not. */
+const PG_WHITESPACE = /[ \t\n\r\f\v]/;
 
 function fail(code: SqlQueryErrorCode, message: string): never {
   throw new SqlQueryError(code, message);
@@ -255,8 +263,9 @@ function scan(sql: string): { tokens: Token[]; statements: number; trailingSemic
     const c = sql[i]!,
       next = sql[i + 1];
     if (c === '-' && next === '-') {
-      const end = sql.indexOf('\n', i);
-      i = end < 0 ? sql.length : end + 1;
+      // PostgreSQL ends a line comment at a newline or a carriage return (scan.l non_newline is [^\n\r]).
+      const end = sql.slice(i).search(/[\n\r]/);
+      i = end < 0 ? sql.length : i + end + 1;
       continue;
     }
     if (c === '/' && next === '*') {
@@ -274,7 +283,8 @@ function scan(sql: string): { tokens: Token[]; statements: number; trailingSemic
       if (level > 0) fail('UNSUPPORTED_SQL', 'Unterminated block comment.');
       continue;
     }
-    if (/\s/.test(c)) {
+    // PostgreSQL whitespace only; other Unicode spaces are identifier characters to PostgreSQL, as to WORD_PART.
+    if (PG_WHITESPACE.test(c)) {
       i++;
       continue;
     }
@@ -312,7 +322,8 @@ function scan(sql: string): { tokens: Token[]; statements: number; trailingSemic
         trailingSemicolon = null;
         continue;
       }
-      const tag = /^\$([A-Za-z_][A-Za-z0-9_]*)?\$/.exec(sql.slice(i));
+      // scan.l: dolq_start [A-Za-z\200-\377_], dolq_cont [A-Za-z\200-\377_0-9]; every non-ASCII character qualifies.
+      const tag = /^\$([A-Za-z_\u0080-\uffff][A-Za-z0-9_\u0080-\uffff]*)?\$/.exec(sql.slice(i));
       if (tag) {
         const end = sql.indexOf(tag[0], i + tag[0].length);
         if (end < 0) fail('UNSUPPORTED_SQL', 'Unterminated dollar-quoted string.');
@@ -481,9 +492,9 @@ export function gateSqlStatement(input: unknown, source: SqlSource): GatedSqlSta
       .filter((token, i) => isName(token) && !isDot(tokens[i + 1]) && (!isDot(tokens[i - 1]) || tokens[i - 2]?.value === ownSchema))
       .map((token) => token.value),
   );
-  const statistics = tokens.find((token) => isName(token) && CATALOG_STATISTICS.has(token.value));
+  const statistics = tokens.find((token) => isName(token) && isServerStatistics(token.value));
   if (statistics)
-    fail('UNKNOWN_RELATION', `${statistics.value} is a catalog statistics view, not a relation of this source; name the relations describe_capiro_data lists.`);
+    fail('UNKNOWN_RELATION', `${statistics.value} is a server statistics or activity catalog, not a relation of this source; name the relations describe_capiro_data lists.`);
   for (let i = 0; i < tokens.length; i++) {
     const qualifier = tokens[i]!;
     if (!isName(qualifier) || !isDot(tokens[i + 1]) || qualifier.value === ownSchema) continue;

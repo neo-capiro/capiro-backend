@@ -4,7 +4,7 @@ import { queryCapiroData } from './public-sql-query.js';
 import { gateSqlStatement, SqlQueryError, type SqlQueryErrorCode } from './sql-statement-gate.js';
 
 /**
- * The 62-statement audit corpus. Every statement records which layer decides
+ * The 67-statement audit corpus. Every statement records which layer decides
  * it: `gate` (the statement gate's own refusal, with its code), `postgres`
  * (admitted by the gate, refused by PostgreSQL under the reader role, with the
  * SQLSTATE) or `executes` (admitted and runs). The gate column always runs;
@@ -86,14 +86,20 @@ export const AUDIT_CORPUS: readonly Case[] = [
   { sql: 'SELECT s.poc_email FROM U&"\\0070ublic"."sam_opportunity" s JOIN sam_opportunities "\\0070ublic" ON true', outcome: gate('UNSUPPORTED_SQL') },
   { sql: "SELECT query_to_xml('SELECT poc_email FROM public.sam_opportunity', true, false, '')", outcome: gate('UNSUPPORTED_SQL') },
   { sql: "SELECT s.most_common_vals FROM pg_stats s WHERE s.tablename = 'sam_opportunity'", outcome: gate('UNKNOWN_RELATION') },
+  // Round 2: a carriage-return comment end, a non-ASCII dollar tag, ts_rewrite and other sessions' query text.
+  { sql: 'SELECT n.notice_id --x\r, (SELECT count(s.poc_email) FROM public.sam_opportunity s) AS leak FROM sam_opportunities n', outcome: gate('UNKNOWN_RELATION') },
+  { sql: "SELECT $é$'$é$ AS a, (SELECT count(s.poc_email) FROM public.sam_opportunity s) AS leak, $é$'$é$ AS b", outcome: gate('UNKNOWN_RELATION') },
+  { sql: "SELECT ts_rewrite('a'::tsquery, 'SELECT t, s FROM public.sam_opportunity')", outcome: gate('UNSUPPORTED_SQL') },
+  { sql: 'SELECT a.query FROM pg_stat_activity a', outcome: gate('UNKNOWN_RELATION') },
+  { sql: 'SELECT pg_stat_get_backend_activity(1) AS q', outcome: gate('UNKNOWN_RELATION') },
   { sql: 'SELECT p.metadata_jsonb FROM program_elements p', outcome: postgres('42703') },
   { sql: 'SELECT c.relname FROM pg_catalog.pg_class c WHERE c.relname = $1', parameters: ['congress_bills'], outcome: gate('UNKNOWN_RELATION') },
   { sql: 'SELECT a.id FROM meri_private.client_activity a', outcome: gate('UNKNOWN_RELATION') },
 ];
 
 describe('query_capiro_data audit corpus (statement gate)', () => {
-  it('holds 62 statements', () => {
-    expect(AUDIT_CORPUS).toHaveLength(62);
+  it('holds 67 statements', () => {
+    expect(AUDIT_CORPUS).toHaveLength(67);
   });
   it.each(AUDIT_CORPUS.map((entry) => [entry.outcome.layer === 'gate' ? `gate:${entry.outcome.code}` : entry.outcome.layer, entry] as const))(
     '%s <- %j',
