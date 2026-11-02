@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Client } from 'pg';
+import { performance } from 'node:perf_hooks';
 import { BILL_EXTRACTION_VERSION, structureText } from '../ingestion/bill-document-structure.js';
 import { CHUNKER_VERSION } from '../ingestion/bill-text-passages.js';
 import { BillTextService } from './bill-text.service.js';
@@ -13,6 +14,9 @@ import {
   billTextSearchQuery,
   validateBillTextSearch,
 } from './bill-text-query.js';
+import { STATE_BILL_COVERAGE_SQL, FEDERAL_BILL_COVERAGE_SQL } from './bill-text-coverage.js';
+import { loadPinnedStateInventory } from '../ingestion/state-bill-inventory-read.js';
+import { loadPinnedFederalInventory } from '../ingestion/federal-bill-inventory-read.js';
 
 // Root supplies a disposable synthetic database. This test never uses DATABASE_URL implicitly.
 const url = process.env.BILL_TEXT_SEARCH_TEST_DATABASE_URL;
@@ -101,7 +105,11 @@ pg('bill text PostgreSQL contract', () => {
       }
       await db.query(`ANALYZE context_embeddings;
         GRANT USAGE ON SCHEMA ${schema} TO ${role}; GRANT SELECT ON ALL TABLES IN SCHEMA ${schema} TO ${role};
-        SET LOCAL ROLE ${role}; SET LOCAL app.bypass_rls='off'; SET LOCAL app.current_tenant=''; SET LOCAL app.current_user='';`);
+        SET LOCAL ROLE ${role};`);
+      await db.query(
+        'SELECT set_config($1,$2,true),set_config($3,$4,true),set_config($5,$6,true)',
+        ['app.bypass_rls', 'off', 'app.current_tenant', '', 'app.current_user', ''],
+      );
       expect(
         (await db.query(`SELECT rolsuper,rolbypassrls FROM pg_roles WHERE rolname=current_user`))
           .rows,
@@ -176,27 +184,127 @@ pg('bill text PostgreSQL contract', () => {
     const parsed = new URL(url!);
     if (!/bill[_-]text[_-]test/.test(parsed.pathname))
       throw Error('DEDICATED_BILL_TEXT_TEST_DATABASE_REQUIRED');
-    const db = new PrismaClient({ datasources: { db: { url: url! } } });
+    const diagnostics = process.env.BILL_TEXT_PG_DIAGNOSTICS === '1';
+    let phase = 'seed';
+    const started = performance.now();
+    const timings = new Map<string, { count: number; totalMs: number; maxMs: number }>();
+    const db = new PrismaClient({
+      datasources: { db: { url: url! } },
+      log: [{ level: 'query', emit: 'event' }],
+    });
+    db.$on('query', (event) => {
+      if (!diagnostics) return;
+      const kind =
+        event.query === STATE_BILL_COVERAGE_SQL
+          ? 'state_coverage'
+          : event.query === FEDERAL_BILL_COVERAGE_SQL
+            ? 'federal_coverage'
+            : event.query.includes('semantic_candidates AS MATERIALIZED')
+              ? 'semantic'
+              : 'fixture_and_inventory';
+      const key = `${phase}:${kind}`;
+      const item = timings.get(key) ?? { count: 0, totalMs: 0, maxMs: 0 };
+      item.count++;
+      item.totalMs += event.duration;
+      item.maxMs = Math.max(item.maxMs, event.duration);
+      timings.set(key, item);
+    });
     try {
       await db.$transaction(
         async (tx) => {
           // Temporary tables shadow canonical names for this connection and disappear at transaction end.
           for (const ddl of [
-            `CREATE TEMP TABLE congress_bill(id text,congress int,bill_type text,bill_number text,title text,status text,introduced_date date) ON COMMIT DROP`,
+            `CREATE TEMP TABLE congress_bill(id text PRIMARY KEY,congress int,bill_type text,bill_number text,title text,status text,introduced_date date) ON COMMIT DROP`,
             `CREATE TEMP TABLE congress_bill_action(bill_id text,date date) ON COMMIT DROP`,
-            `CREATE TEMP TABLE federal_evidence_revision(id uuid,bill_id text,collection text,version_code text,package_id text,extraction_hash text,content_hash text,source_url text,published_at timestamptz,metadata_jsonb jsonb,raw_content text,fetched_at timestamptz DEFAULT now()) ON COMMIT DROP`,
+            `CREATE TEMP TABLE federal_evidence_revision(id uuid PRIMARY KEY,bill_id text,collection text,version_code text,package_id text,extraction_hash text,content_hash text,source_url text,published_at timestamptz,metadata_jsonb jsonb,raw_content text,fetched_at timestamptz DEFAULT now()) ON COMMIT DROP`,
             `CREATE TEMP TABLE federal_evidence_observation(revision_id uuid,state text,metadata_jsonb jsonb) ON COMMIT DROP`,
-            `CREATE TEMP TABLE state_bill(id text,state text,session_key text,bill_number text,title text,status text,legiscan_progress jsonb,latest_action_date date,legiscan_bill_id int) ON COMMIT DROP`,
+            `CREATE TEMP TABLE state_bill(id text PRIMARY KEY,state text,session_key text,bill_number text,title text,status text,legiscan_progress jsonb,latest_action_date date,legiscan_bill_id int) ON COMMIT DROP`,
             `CREATE TEMP TABLE state_bill_action(bill_key text,date date,text text) ON COMMIT DROP`,
-            `CREATE TEMP TABLE state_bill_published_record(id uuid,bill_key text,kind text,source_identity text,revision_hash text,event_date text,evidence jsonb,first_observed_at timestamptz) ON COMMIT DROP`,
-            `CREATE TEMP TABLE bill_text_extraction(id uuid,source_kind text,revision_id uuid,parser_version text,document_hash text,text_hash text,structure_hash text,extracted_text text,structure_jsonb jsonb,completeness text,warnings_jsonb jsonb,created_at timestamptz) ON COMMIT DROP`,
-            `CREATE TEMP TABLE bill_text_passage(extraction_id uuid,chunker_version text,ordinal int,start_offset int,end_offset int,content_text text,metadata_jsonb jsonb DEFAULT '{"semanticAvailable":true}',search_vector tsvector GENERATED ALWAYS AS(to_tsvector('english',content_text)) STORED) ON COMMIT DROP`,
+            `CREATE TEMP TABLE state_bill_published_record(id uuid PRIMARY KEY,bill_key text,kind text,source_identity text,revision_hash text,event_date text,evidence jsonb,first_observed_at timestamptz) ON COMMIT DROP`,
+            `CREATE TEMP TABLE bill_text_extraction(id uuid PRIMARY KEY,source_kind text,revision_id uuid,parser_version text,document_hash text,text_hash text,structure_hash text,extracted_text text,structure_jsonb jsonb,completeness text,warnings_jsonb jsonb,created_at timestamptz) ON COMMIT DROP`,
+            `CREATE TEMP TABLE bill_text_passage(extraction_id uuid,chunker_version text,ordinal int,start_offset int,end_offset int,content_text text,metadata_jsonb jsonb DEFAULT '{"semanticAvailable":true}',search_vector tsvector GENERATED ALWAYS AS(to_tsvector('english',content_text)) STORED,PRIMARY KEY(extraction_id,chunker_version,ordinal)) ON COMMIT DROP`,
             `CREATE INDEX ON bill_text_passage USING GIN(search_vector)`,
             `CREATE TEMP TABLE context_embeddings(tenant_id uuid,client_id uuid,owner_user_id uuid,source_type text,source_id text,model text,metadata_jsonb jsonb,embedding vector(1024),content_text text,content_hash text) ON COMMIT DROP`,
-            `CREATE TEMP TABLE legal_source_receipt(id text,source text,scope jsonb,manifest jsonb,complete boolean,observed_at timestamptz DEFAULT now()) ON COMMIT DROP`,
-            `CREATE TEMP TABLE legal_dataset_archive(content_hash text) ON COMMIT DROP`,
+            `CREATE TEMP TABLE legal_source_receipt(id text PRIMARY KEY,source text,scope jsonb,manifest jsonb,complete boolean,observed_at timestamptz DEFAULT now()) ON COMMIT DROP`,
+            `CREATE TEMP TABLE legal_dataset_archive(content_hash text PRIMARY KEY) ON COMMIT DROP`,
+            // Mirror canonical keys/indexes on fixture columns, rather than
+            // benchmarking unindexed temporary copies of the production owners.
+            `CREATE INDEX ON congress_bill_action(bill_id,date)`,
+            `CREATE INDEX ON state_bill_action(bill_key,date)`,
+            `CREATE INDEX ON state_bill_published_record(bill_key,first_observed_at)`,
+            `CREATE UNIQUE INDEX ON state_bill_published_record(bill_key,kind,source_identity,revision_hash)`,
+            `CREATE INDEX ON federal_evidence_revision(bill_id,fetched_at DESC)`,
+            `CREATE INDEX ON federal_evidence_revision(package_id,fetched_at DESC)`,
+            `CREATE INDEX ON bill_text_extraction(source_kind,revision_id,parser_version,created_at DESC)`,
+            `CREATE INDEX ON context_embeddings(source_type,source_id)`,
+            `CREATE INDEX ON context_embeddings(tenant_id,client_id)`,
+            `CREATE INDEX ON context_embeddings(model,content_hash) WHERE tenant_id IS NULL AND client_id IS NULL AND owner_user_id IS NULL AND source_type IN ('bill_passage','state_bill_passage')`,
           ])
             await tx.$executeRawUnsafe(ddl);
+          const fixtureTables = [
+            'congress_bill',
+            'congress_bill_action',
+            'federal_evidence_revision',
+            'federal_evidence_observation',
+            'state_bill',
+            'state_bill_action',
+            'state_bill_published_record',
+            'bill_text_extraction',
+            'bill_text_passage',
+            'context_embeddings',
+            'legal_source_receipt',
+            'legal_dataset_archive',
+          ];
+          // Autovacuum cannot analyze these transaction-local tables. Refresh
+          // estimates after each seed/population change; keep planner/JIT defaults.
+          const analyze = async (tables = fixtureTables) => {
+            for (const table of tables) await tx.$executeRawUnsafe(`ANALYZE pg_temp.${table}`);
+          };
+          const explainCoverage = async () => {
+            if (!diagnostics) return;
+            const state = await loadPinnedStateInventory(tx),
+              federal = await loadPinnedFederalInventory(tx);
+            for (const [kind, sql, inventory] of [
+              ['state', STATE_BILL_COVERAGE_SQL, state.qualifiedReceiptIds],
+              ['federal', FEDERAL_BILL_COVERAGE_SQL, JSON.stringify(federal.versions)],
+            ] as const) {
+              const rows = await tx.$queryRawUnsafe<Array<Record<string, unknown>>>(
+                `EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) ${sql}`,
+                BILL_EXTRACTION_VERSION,
+                CHUNKER_VERSION,
+                'test-model',
+                inventory,
+              );
+              const plans = rows[0]?.['QUERY PLAN'];
+              if (!Array.isArray(plans) || !plans[0])
+                throw Error('COVERAGE_DIAGNOSTIC_PLAN_MISSING');
+              const plan = plans[0] as Record<string, unknown>;
+              const indexes = new Set<string>();
+              let maxLoops = 0;
+              const walk = (node: unknown) => {
+                if (!node || typeof node !== 'object') return;
+                const value = node as Record<string, unknown>;
+                if (typeof value['Index Name'] === 'string') indexes.add(value['Index Name']);
+                if (typeof value['Actual Loops'] === 'number')
+                  maxLoops = Math.max(maxLoops, value['Actual Loops']);
+                if (Array.isArray(value.Plans)) value.Plans.forEach(walk);
+              };
+              walk(plan.Plan);
+              console.info(
+                JSON.stringify({
+                  billTextPgCoveragePlan: {
+                    phase,
+                    kind,
+                    planningMs: plan['Planning Time'],
+                    executionMs: plan['Execution Time'],
+                    jit: plan.JIT,
+                    indexes: [...indexes],
+                    maxLoops,
+                  },
+                }),
+              );
+            }
+          };
           const ids: Array<{
             billId: string;
             revisionId: string;
@@ -297,6 +405,8 @@ pg('bill text PostgreSQL contract', () => {
               );
             ids.push({ billId, revisionId, extractionId, structureHash });
           }
+          await analyze();
+          phase = 'search_contract';
           const provider = {
             metadata: { model: 'test-model', dimensions: 1024 },
             embed: jest.fn().mockResolvedValue(vector(0)),
@@ -387,6 +497,7 @@ pg('bill text PostgreSQL contract', () => {
           // More than the cap of strictly nearer vectors from each obsolete
           // generation/namespace or another state must not starve current FL
           // passages. Parser v1 and v2 deliberately share the same chunker.
+          phase = 'generation_candidates';
           await tx.$executeRawUnsafe(
             'UPDATE context_embeddings SET embedding=$1::vector',
             JSON.stringify(vector(1)),
@@ -403,6 +514,7 @@ pg('bill text PostgreSQL contract', () => {
             `${CHUNKER_VERSION}:${ids[0]!.extractionId}:0`,
             JSON.stringify(vector(0)),
           );
+          await analyze(['context_embeddings']);
           const scoped = await service.search({
             mode: 'semantic',
             query: 'housing',
@@ -422,6 +534,8 @@ pg('bill text PostgreSQL contract', () => {
             JSON.stringify(vector(0)),
             `${CHUNKER_VERSION}:${ids[0]!.extractionId}:0`,
           );
+          await analyze(['context_embeddings']);
+          phase = 'read_contract';
           // Malformed source identity is a rejected candidate, never a UUID
           // cast failure or a canonical document admitted from its metadata.
           await tx.$executeRawUnsafe(
@@ -581,6 +695,9 @@ pg('bill text PostgreSQL contract', () => {
               states: discoveryStates,
             }),
           );
+          await analyze();
+          phase = 'state_coverage';
+          await explainCoverage();
           const coverage = await service.coverage();
           const fl = coverage.jurisdictions.find((row) => row.jurisdiction === 'FL')!;
           expect(fl.versions[0]).toMatchObject({
@@ -599,6 +716,7 @@ pg('bill text PostgreSQL contract', () => {
             billId: string,
             jurisdiction: string,
           ) => {
+            phase = `${jurisdiction}_vector_tampering`;
             const [saved] = await tx.$queryRawUnsafe<
               Array<{ content_text: string; content_hash: string; metadata_jsonb: unknown }>
             >(
@@ -651,6 +769,7 @@ pg('bill text PostgreSQL contract', () => {
             ids[0]!.billId,
             'FL',
           );
+          phase = 'state_inventory_changes';
           expect(fl.status).toBe('unknown');
           expect(fl.missingSessions).toEqual(['2']);
           expect(coverage.jurisdictions.find((row) => row.jurisdiction === 'AK')).toMatchObject({
@@ -682,6 +801,7 @@ pg('bill text PostgreSQL contract', () => {
               bills: [],
             }),
           );
+          await analyze(['legal_source_receipt', 'legal_dataset_archive']);
           const qualified = await service.coverage();
           expect(qualified.jurisdictions.find((row) => row.jurisdiction === 'FL')).toMatchObject({
             status: 'partial',
@@ -787,6 +907,8 @@ pg('bill text PostgreSQL contract', () => {
               }),
             );
           }
+          await analyze();
+          phase = 'federal_inventory';
           const missingAmendmentInventory = await service.coverage();
           expect(
             missingAmendmentInventory.jurisdictions.find((row) => row.jurisdiction === 'US'),
@@ -845,11 +967,15 @@ pg('bill text PostgreSQL contract', () => {
             federalRevisionId,
             `${CHUNKER_VERSION}:${ids[0]!.extractionId}:0`,
           );
+          await analyze();
+          phase = 'federal_coverage';
+          await explainCoverage();
           expect(
             (await service.coverage()).jurisdictions.find((row) => row.jurisdiction === 'US')!
               .embeddedPassages,
           ).toBe(1);
           await rejectTamperedVector(federalPassageId, '119-hr-1', 'US');
+          phase = 'federal_freshness';
           const federal = (await service.coverage()).jurisdictions.find(
             (row) => row.jurisdiction === 'US',
           )!;
@@ -874,6 +1000,7 @@ pg('bill text PostgreSQL contract', () => {
           await tx.$executeRawUnsafe(
             `UPDATE federal_evidence_observation SET metadata_jsonb=jsonb_set(metadata_jsonb,'{sourceInventoryReceiptId}','"federal-old"')`,
           );
+          await analyze(['legal_source_receipt', 'federal_evidence_observation']);
           expect(
             (await service.coverage()).jurisdictions.find((row) => row.jurisdiction === 'US')!
               .downloadedDocuments,
@@ -889,6 +1016,16 @@ pg('bill text PostgreSQL contract', () => {
         { timeout: 60000 },
       );
     } finally {
+      if (diagnostics)
+        console.info(
+          JSON.stringify({
+            billTextPgTimings: {
+              elapsedMs: Math.round(performance.now() - started),
+              lastPhase: phase,
+              queries: Object.fromEntries(timings),
+            },
+          }),
+        );
       await db.$disconnect();
     }
   }, 90000);
