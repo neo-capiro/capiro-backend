@@ -126,7 +126,7 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
         VALUES (${tenant}::uuid, ${sourceType}, ${sourceId}, ${model}, ${text}, ${`hash-${index}`}, ${vector}::vector, ${metadata}::jsonb)`;
     }
     // Actual vectors, including stale lifecycle records, rather than completion markers alone.
-    for (let index=1;index<=6;index++) {
+    for (let index=1;index<=7;index++) {
       const id=catalogId(8,index), attachment=catalogId(9,index);
       const url=index===3?null:'https://dibbs2.bsm.dla.mil/Downloads/RFQ/synthetic.PDF';
       await admin.$executeRaw`INSERT INTO tango_dibbs_solicitation
@@ -142,7 +142,7 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
         (attachment_id,attachment_content_sha256,status,extraction_method,char_count,truncated,text,fetched_at)
         VALUES (${attachment}::uuid,${DOC_SHA},'available','local_parser',${CATALOG_TEXT.length}::int,${index===1},
           ${CATALOG_TEXT},now()-interval '90 minutes')`;
-      await catalogChunk('dibbs',index,0,5);
+      await catalogChunk('dibbs',index,0,index===7?-1:5);
     }
     await catalogChunk('dibbs',1,1,5); // two passages must still produce one canonical item
     for (let index=1;index<=6;index++) {
@@ -179,7 +179,8 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
       (tenant_id,client_id,owner_user_id,source_type,source_id,model,content_text,content_hash,embedding,metadata_jsonb,updated_at)
       VALUES (${scope==='tenant'?TENANT:null}::uuid,${scope==='client'?catalogId(1,7):null}::uuid,
         ${scope==='owner'?catalogId(1,8):null}::uuid,${dibbs?'funding_attachment_chunk':'funding_sbir_topic_chunk'},
-        ${`${parentId}:${chunkIndex}`},${scope==='old-model'?'old-model':MODEL},${text},${digest(text)},${axis(vectorAxis)}::vector,
+        ${`${parentId}:${chunkIndex}`},${scope==='old-model'?'old-model':MODEL},${text},${digest(text)},
+        ${vectorAxis<0?vectorLiteral(Array<number>(1024).fill(0)):axis(vectorAxis)}::vector,
         ${JSON.stringify(metadata)}::jsonb,now()-interval '1 hour')`;
   }
 
@@ -190,7 +191,10 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
 
   async function read(operation: SemanticSearchOperation, body: Record<string, unknown>, vector = axis(0)) {
     const input = parseSemanticSearchInput(operation, body);
-    return app!.$queryRaw<SemanticSearchRow[]>(semanticSearchSql(operation, input, vector, MODEL));
+    return app!.$transaction(async tx => {
+      await tx.$executeRaw`SELECT set_config('hnsw.ef_search',${String(SEMANTIC_SEARCH_LIMITS.candidateLimit)},true)`;
+      return tx.$queryRaw<SemanticSearchRow[]>(semanticSearchSql(operation, input, vector, MODEL));
+    });
   }
 
   it('DIBBS returns active line items once with exact current-document citations and partial coverage', async () => {
@@ -213,7 +217,7 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
   });
 
   it('active catalog coverage counts actual eligible vectors, including missing files or descriptions in the denominator', async () => {
-    for (const [operation,expected] of [['semantic_search_dibbs_solicitations',{indexed:2,total:3}],
+    for (const [operation,expected] of [['semantic_search_dibbs_solicitations',{indexed:2,total:4}],
       ['semantic_search_sbir_topics',{indexed:1,total:2}]] as const) {
       expect((await app!.$queryRaw<SemanticCoverageRow[]>(semanticCoverageSql(operation,MODEL)))[0]).toEqual(expected);
       expect((await app!.$queryRaw<SemanticCoverageRow[]>(semanticCoverageSql(operation,'absent-model')))[0])
@@ -224,6 +228,21 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
   it('new families exclude nearest private and wrong-model vectors', async () => {
     expect(await read('semantic_search_dibbs_solicitations',{query:'private'},axis(6))).toHaveLength(0);
     expect(await read('semantic_search_sbir_topics',{query:'private'},axis(8))).toHaveLength(0);
+  });
+
+  it('DIBBS passages do not consume the existing grant or SAM attachment candidate window', async () => {
+    const admin=qualification!.admin;
+    const prefix=`${catalogId(9,1)}:competing-`;
+    try {
+      await admin.$executeRaw`INSERT INTO context_embeddings
+        (source_type,source_id,model,content_text,content_hash,embedding,metadata_jsonb)
+        SELECT 'funding_attachment_chunk',${prefix} || n::text,${MODEL},'competing DIBBS passage','synthetic',
+          ${axis(3,4)}::vector,jsonb_build_object('parentId',${catalogId(9,1)})
+        FROM generate_series(1,${SEMANTIC_SEARCH_LIMITS.candidateLimit+1}::int) n`;
+      // A closer competing catalog cannot hide either family's attachment-only hit.
+      expect((await read('semantic_search_grants',{query:'eligibility'},axis(3,4))).map(row=>row.parent_id)).toContain('G-2');
+      expect((await read('semantic_search_contract_opportunities',{query:'requirements'},axis(3,4))).map(row=>row.parent_id)).toContain(SAM_B);
+    } finally { await admin.$executeRaw`DELETE FROM context_embeddings WHERE source_id LIKE ${prefix+'%'} AND model=${MODEL}`; }
   });
 
   it('current catalog reads keep unknown deadlines and reject mismatched passage parent or binding', async () => {

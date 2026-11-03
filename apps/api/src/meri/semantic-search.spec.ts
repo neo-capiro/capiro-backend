@@ -129,6 +129,9 @@ describe('semantic search statement (pgvector-free shape)', () => {
       expect(text).toContain('LEFT JOIN opportunity_attachment pa ON pa.id = best.attachment_id');
       expect(text).toContain(`FROM opportunity_attachment a LEFT JOIN LATERAL (SELECT t.char_count, t.truncated FROM opportunity_document_text t WHERE t.attachment_id = a.id AND t.attachment_content_sha256 = a.content_sha256 AND t.status = 'available' AND t.extraction_method = 'local_parser' LIMIT 1) t ON TRUE`);
       expect(text).toContain(`WHERE a.${parent} = ${operation === 'semantic_search_grants' ? 'g.id' : 'o.id'}) d`);
+      const attachment=text.slice(text.indexOf('), attachment AS ('),text.indexOf('), candidates AS ('));
+      expect(attachment).toContain(`family_attachment.${parent} IS NOT NULL`);
+      expect(attachment.indexOf('family_attachment.')).toBeLessThan(attachment.indexOf('LIMIT 200'));
     }
     expect(statement('semantic_search_grants', { query: 'water' }).text).toContain(
       "'openForApplications', (g.status = 'posted' AND (g.close_date IS NULL OR g.close_date >= CURRENT_DATE))",
@@ -171,6 +174,7 @@ describe('active DIBBS and SBIR semantic families', () => {
     expect(sql).toContain('ce.tenant_id IS NULL AND ce.client_id IS NULL AND ce.owner_user_id IS NULL');
     expect(sql).toContain("ce.content_hash = encode(sha256(convert_to(ce.content_text,'UTF8')),'hex')");
     expect(sql).toContain('octet_length(ce.content_text) <= 6000');
+    expect(sql).toContain('(ce.embedding <#> ce.embedding) < 0');
     expect(sql).toContain('ORDER BY embedding <=> ?::vector LIMIT 200');
     expect(sql).toContain('SELECT DISTINCT ON (parent_id)');
     expect(sql).toContain('left(content_text,400)');

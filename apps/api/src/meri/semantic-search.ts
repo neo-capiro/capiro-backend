@@ -122,6 +122,7 @@ function activeCatalogCandidates(operation: ActiveCatalogOperation, model: strin
   const source = dibbs ? 'funding_attachment_chunk' : 'funding_sbir_topic_chunk';
   const publicChunk = Prisma.sql`ce.source_type = ${Prisma.raw(`'${source}'`)} AND ce.model = ${model}
     AND ce.tenant_id IS NULL AND ce.client_id IS NULL AND ce.owner_user_id IS NULL AND ce.embedding IS NOT NULL
+    AND (ce.embedding <#> ce.embedding) < 0
     AND length(ce.content_text) > 0 AND octet_length(ce.content_text) <= 6000
     AND ce.content_hash = encode(sha256(convert_to(ce.content_text,'UTF8')),'hex')
     AND ce.metadata_jsonb->>'documentHash' ~ '^[a-f0-9]{64}$'
@@ -426,7 +427,7 @@ export function semanticSearchSql(
   // 1..maxLimit) is bound with an explicit ::int cast.
   const family = FAMILIES[operation];
   const limits = SEMANTIC_SEARCH_LIMITS;
-  const nearest = (sourceType: string, parent: Prisma.Sql) => Prisma.sql`
+  const nearest = (sourceType: string, parent: Prisma.Sql, eligibility = Prisma.empty) => Prisma.sql`
       SELECT ${parent} AS parent_id, ce.content_text, ce.metadata_jsonb AS meta, ce.updated_at AS embedded_at,
              (1 - (ce.embedding <=> ${vector}::vector))::float8 AS score
         FROM context_embeddings ce
@@ -434,12 +435,18 @@ export function semanticSearchSql(
          AND ce.tenant_id IS NULL AND ce.client_id IS NULL AND ce.owner_user_id IS NULL
          AND ce.model = ${model}
          AND ce.embedding IS NOT NULL
+         ${eligibility}
        ORDER BY ce.embedding <=> ${vector}::vector
        LIMIT ${Prisma.raw(String(limits.candidateLimit))}`;
   const parent = family.attachmentParent;
+  // A different catalog's attachments must not consume this family's window.
+  // In particular, DIBBS now shares funding_attachment_chunk with grants/SAM.
+  const attachmentFamily = parent ? Prisma.sql`AND EXISTS (SELECT 1 FROM opportunity_attachment family_attachment
+    WHERE family_attachment.id = CASE WHEN ce.metadata_jsonb->>'parentId' ~ ${Prisma.raw(`'${UUID_TEXT}'`)}
+      THEN (ce.metadata_jsonb->>'parentId')::uuid END AND family_attachment.${Prisma.raw(parent)} IS NOT NULL)` : Prisma.empty;
   const candidates = parent
     ? Prisma.sql`description AS (${nearest(family.sourceType, Prisma.sql`ce.metadata_jsonb->>'parentId'`)}
-    ), attachment AS (${nearest(ATTACHMENT_SOURCE_TYPE, Prisma.sql`ce.metadata_jsonb->>'parentId'`)}
+    ), attachment AS (${nearest(ATTACHMENT_SOURCE_TYPE, Prisma.sql`ce.metadata_jsonb->>'parentId'`, attachmentFamily)}
     ), candidates AS (
       SELECT parent_id, content_text, meta, embedded_at, NULL::uuid AS attachment_id, score FROM description
       UNION ALL
