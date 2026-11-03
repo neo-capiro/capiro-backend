@@ -3,7 +3,7 @@ import { asRole, FIXTURE, prepareReaderFixture, type ReaderFixture } from './cap
 import { PrivateSqlDbService, type PrivateSqlExecutionContext } from './private-sql-db.service.js';
 import { createPrivateSqlQueries } from './private-sql-query.js';
 import { describeCapiroData, queryCapiroData } from './public-sql-query.js';
-import { gateSqlStatement, PRIVATE_RELATION_NAMES, PUBLIC_RELATION_NAMES } from './sql-statement-gate.js';
+import { CLASSIC_RELATION_NAMES, gateSqlStatement, PRIVATE_RELATION_NAMES, PUBLIC_RELATION_NAMES, RESEARCH_RELATION_NAMES } from './sql-statement-gate.js';
 
 /**
  * Proof that the database, not application code, enforces the properties the
@@ -221,7 +221,9 @@ describeDatabase('capiro data reader roles: database-enforced properties', () =>
         PRIVATE,
         "SELECT c.relname AS name FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'meri_private' AND has_table_privilege(c.oid, 'SELECT') ORDER BY 1",
       );
-      expect('rows' in result && result.rows.map((row) => row.name).sort()).toEqual([...PRIVATE_RELATION_NAMES].sort());
+      expect('rows' in result && result.rows.map((row) => row.name).sort()).toEqual([
+        ...PRIVATE_RELATION_NAMES, ...RESEARCH_RELATION_NAMES, ...CLASSIC_RELATION_NAMES,
+      ].sort());
     });
     it('neither reader holds a write, reference or trigger privilege on any relation', async () => {
       const probe = `SELECT count(*)::int AS n FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace

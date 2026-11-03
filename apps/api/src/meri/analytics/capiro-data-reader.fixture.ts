@@ -38,6 +38,7 @@ export const READER_MIGRATIONS = [
   '20281101010000_capiro_data_published_surface',
   '20281101130000_research_canonical_contact_helper',
   '20281101140000_research_canonical_meeting16',
+  '20281101160000_research_classic_19',
   '20281101180000_capiro_data_public_column_meaning',
   '20281102100000_capiro_data_federal_awards_surface',
   '20281102120000_capiro_data_program_element_years_surface',
@@ -76,6 +77,10 @@ const BASE_TABLES = [
   'meetings',
   'engagement_connections',
   'meeting_attendees',
+  'research_portfolios',
+  'research_portfolio_grants',
+  'research_portfolio_members',
+  'outreach_records',
   'congress_bill',
   'congress_bill_subject',
   'congress_bill_cosponsor',
@@ -117,6 +122,10 @@ const TENANT_POLICY_TABLES = [
   'meetings',
   'engagement_connections',
   'meeting_attendees',
+  'research_portfolios',
+  'research_portfolio_grants',
+  'research_portfolio_members',
+  'outreach_records',
 ] as const;
 const ROLES = ['capiro_analytics_ro', 'capiro_private_query_ro', 'capiro_private_projection_owner', 'capiro_public_projection_owner'] as const;
 
