@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { verifyInstalledClosure, readPackage, readContract, walkRuntime, artifactOwner, lockedWasmEvidence, resolveDependency } = require('./runtime-closure-contract.cjs');
+const { verifyInstalledClosure, readPackage, readContract, walkRuntime, artifactOwner, lockedWasmEvidence, resolveDependency, classifyDependencyRelations } = require('./runtime-closure-contract.cjs');
 const { inspectArtifact } = require('./alpine-runtime-probe.cjs');
 const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 test('repository production contract is admitted by the default frozen pin', t => {
@@ -113,14 +113,21 @@ test('contract hash and new undeclared installed dependency are not accepted', t
   assert.throws(() => verifyInstalledClosure(next.options), /unlocked installed dependency/);
 });
 
-function removalFixture(t) {
-  const f = fixture(t), key = 'pptxgenjs@3.12.0', selector = `${key}>image-size`;
-  const owner = path.join(f.imageRoot, 'node_modules/.pnpm', key, 'node_modules/pptxgenjs');
-  write(path.join(owner, 'package.json'), { name: 'pptxgenjs', version: '3.12.0', dependencies: { 'image-size': '^1.0.0' } });
-  write(path.join(f.root, 'package.json'), { ...f.pkg, dependencies: { pptxgenjs: '3.12.0' } });
-  f.contract.nodes.push({ key, name: 'pptxgenjs', version: '3.12.0', os: null, cpu: null, libc: null, resolution: { integrity: 'sha512-fixture' } });
-  f.contract.edges.push({ from: f.contract.nodes[0].key, to: key, dependencyName: 'pptxgenjs', kind: 'dependencies' });
-  f.contract.removedDependencies = [{ from: key, dependencyName: 'image-size', selector }];
+function removalFixture(t, { optionalPeer = false } = {}) {
+  const f = fixture(t), name = optionalPeer ? 'unpdf' : 'pptxgenjs', version = optionalPeer ? '1.8.1' : '3.12.0';
+  const dependencyName = optionalPeer ? '@napi-rs/canvas' : 'image-size', key = `${name}@${version}`, selector = `${key}>${dependencyName}`;
+  const owner = path.join(f.imageRoot, 'node_modules/.pnpm', key, 'node_modules', name);
+  const metadata = { name, version, ...(optionalPeer ? {
+    peerDependencies: { [dependencyName]: '^0.1.69 || ^1.0.0' }, peerDependenciesMeta: { [dependencyName]: { optional: true } },
+  } : { dependencies: { [dependencyName]: '^1.0.0' } }) };
+  const frozen = { key, name, version, os: null, cpu: null, libc: null, resolution: { integrity: 'sha512-fixture' }, ...(optionalPeer ? {
+    peerDependencies: { [dependencyName]: '*' }, peerDependenciesMeta: { [dependencyName]: { optional: true } },
+  } : {}) };
+  write(path.join(owner, 'package.json'), metadata);
+  write(path.join(f.root, 'package.json'), { ...f.pkg, dependencies: { [name]: version } });
+  f.contract.nodes.push(frozen);
+  f.contract.edges.push({ from: f.contract.nodes[0].key, to: key, dependencyName: name, kind: 'dependencies' });
+  f.contract.removedDependencies = [{ from: key, dependencyName, selector }];
   const rootManifest = path.join(f.options.qualificationRoot, 'root-package.json');
   const setOverrides = overrides => {
     write(rootManifest, { private: true, pnpm: { overrides } });
@@ -128,9 +135,9 @@ function removalFixture(t) {
   };
   setOverrides({ [selector]: '-' });
   const originalResolve = f.options.resolve;
-  f.options.resolve = (parent, name, imageRoot, diagnostic) => name === 'pptxgenjs' ? readPackage(owner) :
-    name === 'image-size' ? resolveDependency(parent, name, imageRoot, diagnostic) : originalResolve(parent, name);
-  f.seal(); return { ...f, owner, key, selector, setOverrides };
+  f.options.resolve = (parent, dependency, imageRoot, diagnostic) => dependency === name ? readPackage(owner) :
+    dependency === dependencyName ? resolveDependency(parent, dependency, imageRoot, diagnostic) : originalResolve(parent, dependency);
+  f.seal(); return { ...f, owner, key, selector, dependencyName, metadata, frozen, setOverrides };
 }
 
 test('exact frozen PptxGenJS removal accepts its upstream declaration only when physically absent', t => {
@@ -164,6 +171,61 @@ test('missing, wrong, duplicate or graph-conflicting removal proof refuses', t =
   assert.throws(() => verifyInstalledClosure(extra.options), /unlocked installed dependency/);
   const stale = removalFixture(t); write(path.join(stale.owner, 'package.json'), { name: 'pptxgenjs', version: '3.12.0' });
   assert.throws(() => verifyInstalledClosure(stale.options), /removed dependency declaration missing/);
+});
+
+test('exact frozen optional-peer removal accepts the differing unpdf ranges only with physical absence', t => {
+  const f = removalFixture(t, { optionalPeer: true }), result = verifyInstalledClosure(f.options);
+  assert.notEqual(f.metadata.peerDependencies[f.dependencyName], f.frozen.peerDependencies[f.dependencyName]);
+  assert.deepEqual(result.removedDependencies, [{ from: f.key, dependencyName: f.dependencyName,
+    selector: f.selector, reason: 'EXACT_FROZEN_REMOVAL_AND_PHYSICAL_ABSENCE' }]);
+  assert.equal(result.owners.length, 2); assert.equal(result.edges.length, 2);
+});
+
+test('optional-peer removal rejects missing or nonoptional declarations on either owner', t => {
+  for (const side of ['metadata', 'frozen']) {
+    for (const change of ['missing-peer', 'empty-peer', 'blank-peer', 'missing-optionality', 'required-peer', 'string-optionality']) {
+      const f = removalFixture(t, { optionalPeer: true }), owner = f[side], name = f.dependencyName;
+      if (change === 'missing-peer') delete owner.peerDependencies[name];
+      if (change === 'empty-peer') owner.peerDependencies[name] = '';
+      if (change === 'blank-peer') owner.peerDependencies[name] = ' ';
+      if (change === 'missing-optionality') delete owner.peerDependenciesMeta[name];
+      if (change === 'required-peer') owner.peerDependenciesMeta[name].optional = false;
+      if (change === 'string-optionality') owner.peerDependenciesMeta[name].optional = 'true';
+      write(path.join(f.owner, 'package.json'), f.metadata); f.seal();
+      assert.throws(() => verifyInstalledClosure(f.options), /removed dependency declaration missing/, `${side}: ${change}`);
+    }
+  }
+});
+
+test('optional-peer removal rejects local and ancestor physical resolution', t => {
+  for (const location of ['local', 'ancestor']) {
+    const f = removalFixture(t, { optionalPeer: true });
+    const directory = path.join(location === 'local' ? f.owner : f.imageRoot, 'node_modules', f.dependencyName);
+    write(path.join(directory, 'package.json'), { name: f.dependencyName, version: '0.1.80' });
+    assert.throws(() => verifyInstalledClosure(f.options), /removed dependency physically resolves/, location);
+  }
+});
+
+test('optional-peer removal retains exact owner identity and frozen removal proof', t => {
+  const wrongOwner = removalFixture(t, { optionalPeer: true });
+  write(path.join(wrongOwner.owner, 'package.json'), { ...wrongOwner.metadata, version: '1.8.2' });
+  assert.throws(() => verifyInstalledClosure(wrongOwner.options), /resolved exact package mismatch/);
+  const noOverride = removalFixture(t, { optionalPeer: true }); noOverride.setOverrides({}); noOverride.seal();
+  assert.throws(() => verifyInstalledClosure(noOverride.options), /frozen exact removal/);
+  const withEdge = removalFixture(t, { optionalPeer: true });
+  withEdge.contract.edges.push({ from: withEdge.key, to: withEdge.contract.nodes[0].key,
+    dependencyName: withEdge.dependencyName, kind: 'optionalDependencies' }); withEdge.seal();
+  assert.throws(() => verifyInstalledClosure(withEdge.options), /also has graph edge/);
+});
+
+test('optional-peer removal does not change normal peers or required-direct precedence', () => {
+  const name = 'child', peer = { peerDependencies: { [name]: '^1' }, peerDependenciesMeta: { [name]: { optional: true } } };
+  const frozen = { key: 'parent@1.0.0', ...peer }, edge = { dependencyName: name, kind: 'optionalDependencies' };
+  assert.equal(classifyDependencyRelations(peer, frozen, [edge]).size, 0);
+  assert.equal(classifyDependencyRelations(peer, frozen, []).size, 0);
+  const direct = classifyDependencyRelations({ dependencies: { [name]: '^1' }, ...peer }, frozen, [edge]).get(name);
+  assert.equal(direct.physicalRequired, true); assert.equal(direct.declaredKind, 'dependencies');
+  assert.equal(direct.basis, 'FROZEN_OPTIONAL_PEER_PLACEMENT_WITH_REQUIRED_DIRECT_DEPENDENCY');
 });
 test('mocked contained symlinks deduplicate and external symlinks hold without creating junctions', t => {
   const f = fixture(t), alias = path.join(f.imageRoot, 'alias'); fs.mkdirSync(alias);
