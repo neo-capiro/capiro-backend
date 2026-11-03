@@ -61,6 +61,16 @@ const FORBIDDEN_MIGRATION_HISTORY_PATTERNS: Array<{ code: string; re: RegExp; la
  * preamble (including pool cap) are unchanged; see the recovery runbook.
  * Forecast successor 877b3863 adds only two explicit, exec-terminated jobs that
  * preserve supplied DATABASE_URL; existing startup, recovery and defaults remain exact.
+ * Bills successor (PR447, merge b165a9d4) adds only two more explicit,
+ * exec-terminated command arms ahead of the legacy default:
+ *   index-bill-passages | embed-bill-passages | sync-state-text-drain |
+ *   import-state-dataset-cache | import-state-discovery        (help bypasses URL composition)
+ *   record-legiscan-capacity-hold | import-federal-billstatus-cache |
+ *   sync-federal-bill-inventory                                (always composes the URL)
+ * Both arms forward to tsx and exist only as dispatch; the two operator recovery
+ * arms, migrate deploy/status, startup controls, the legacy refusal and the
+ * dispatcher/protocol text are byte-identical to the 877b3863 envelope, so the
+ * only change in this file's attested bytes is those 14 added lines.
  * These are RAW UTF-8 source hashes after CRLF -> LF only, including comments.
  * A caller must not pre-strip comments: text inside multiline shell strings can
  * begin with # without being a shell comment. No runtime/operator authorization
@@ -68,7 +78,7 @@ const FORBIDDEN_MIGRATION_HISTORY_PATTERNS: Array<{ code: string; re: RegExp; la
  * Any source-envelope change needs an explicit review of this protocol.
  */
 const MANUAL_RECOVERY_SOURCE_SHA256 = {
-  'scripts/entrypoint.sh': '5b4b1669a0ff24478c8d941a8b1580b6e0da6386189a6b4fe77a294f6834934d',
+  'scripts/entrypoint.sh': 'dd8a942a7c375603c17ff4f52c45f50833d5930893ff9ef831b27bb138db8874',
   'scripts/entrypoint-legacy.sh': '4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a',
   'scripts/entrypoint-dispatcher.inc': '2aded7b73ac289a92adcf37b7285032a713f74ed5317851654f4f6c9a900d54e',
 } as const;
