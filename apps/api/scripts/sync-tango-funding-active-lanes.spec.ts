@@ -42,7 +42,7 @@ function harness(rows: RecordData[], overrides: { failWriteOn?: number; quota?: 
       return { count: rows.length, next: null, results: rows };
     },
   };
-  const endpoint = ACTIVE_SOURCE_LANES.dibbs.endpoints[0];
+  const endpoint = ACTIVE_SOURCE_LANES.dibbs.endpoints[0]!;
   const map = (raw: RecordData) => {
     if (overrides.mapNullOn != null && JSON.stringify(raw).includes(`"${overrides.mapNullOn}"`)) return null;
     return endpoint.map(raw);
@@ -99,7 +99,7 @@ describe('active endpoint walk', () => {
 
   test('a topic page maps through the SBIR rail into its own store method', async () => {
     const h = harness([topic('sbir-topic-1')]);
-    const endpoint = ACTIVE_SOURCE_LANES.sbir.endpoints[0];
+    const endpoint = ACTIVE_SOURCE_LANES.sbir.endpoints[0]!;
     const summary = await walkActiveEndpoint(endpoint, 'sync-tango-sbir', {
       client: h.client as never, store: h.store as never, commit: true, maxPages: 5,
     });
@@ -110,7 +110,7 @@ describe('active endpoint walk', () => {
 });
 
 describe('closure re-check (exact ids, never absence)', () => {
-  const endpoint = ACTIVE_SOURCE_LANES.dibbs.endpoints[0];
+  const endpoint = ACTIVE_SOURCE_LANES.dibbs.endpoints[0]!;
   const epoch = '2026-11-01T00:00:00.000Z';
 
   function adapters(rows: Array<{ localId: string; providerId: string }>, detail: (id: string) => Promise<RecordData | null>) {
@@ -150,6 +150,9 @@ describe('closure re-check (exact ids, never absence)', () => {
     expect(result.unconfirmed).toBe(0);
     expect(h.confirmed).toHaveLength(0);
     expect(h.unconfirmed).toHaveLength(0);
+    // A mismatch proves nothing about the row, so it must not be reported as
+    // covered either.
+    expect(result.complete).toBe(false);
   });
 
   test('an unmappable detail is not treated as a closure', async () => {
@@ -157,6 +160,8 @@ describe('closure re-check (exact ids, never absence)', () => {
     const result = await reconcileUnconfirmedActive(endpoint, epoch, h.deps as never, { persist: h.persist });
     expect(result.confirmed).toBe(0);
     expect(result.unconfirmed).toBe(0);
+    // An unmappable detail is not closure and not coverage.
+    expect(result.complete).toBe(false);
   });
 
   test('a quota pause stops the pass incomplete and leaves the rest unchecked', async () => {

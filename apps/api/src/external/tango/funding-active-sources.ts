@@ -15,6 +15,7 @@
  * is covered without inferring activity from an issue date. DIBBS awards are
  * deliberately absent: an award is a historical award fact, not an opportunity.
  */
+import { CatalogQuotaPause } from './funding-catalog.client.js';
 import type { RecordData } from './funding-catalog.mapper.js';
 import type { FundingCatalogResource, TangoCheckpointResourceType } from './tango.types.js';
 import { mapDibbsRfp, mapDibbsRfq, type TangoDibbsSolicitationRow } from './tango-dibbs.mapper.js';
@@ -182,12 +183,7 @@ export async function reconcileUnconfirmedActive(
     } catch (error) {
       // Budget/reserve reached: stop and let the next invocation continue. Any
       // other failure is a real error and must not be read as a closure.
-      // Duck-typed on purpose: the quota class lives in the catalog client and
-      // importing it here would couple this module to the transport.
-      const quota = (error as { constructor?: { name?: string }; name?: string });
-      if (quota.constructor?.name === 'CatalogQuotaPause' || quota.name === 'CatalogQuotaPause') {
-        return { checked, confirmed, unconfirmed, complete: false };
-      }
+      if (error instanceof CatalogQuotaPause) return { checked, confirmed, unconfirmed, complete: false };
       throw error;
     }
     if (detail == null) {
@@ -196,12 +192,13 @@ export async function reconcileUnconfirmedActive(
       continue;
     }
     const mapped = endpoint.map(detail);
-    if (mapped == null) continue;
+    // A detail we cannot map, or one whose identity is not the row we asked for,
+    // means this pass could NOT establish coverage. Report incomplete instead of
+    // counting it as checked-and-fine.
+    if (mapped == null) return { checked, confirmed, unconfirmed, complete: false };
     const identity = (mapped as { tangoDibbsId?: string; tangoSbirId?: string }).tangoDibbsId
       ?? (mapped as { tangoSbirId?: string }).tangoSbirId;
-    // The detail must be the row we asked for; anything else is a mismatch, not
-    // a closure.
-    if (identity !== row.providerId) continue;
+    if (identity !== row.providerId) return { checked, confirmed, unconfirmed, complete: false };
     await options.persist(mapped);
     confirmed += 1;
   }

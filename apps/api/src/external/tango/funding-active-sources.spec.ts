@@ -1,5 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
 import { ACTIVE_SOURCE_LANES, ACTIVE_SOURCE_PAGE_SIZE, SBIR_TOPIC_SHAPE } from './funding-active-sources.js';
+import { CatalogQuotaPause } from './funding-catalog.client.js';
 import type { RecordData } from './funding-catalog.mapper.js';
 
 const rfq = (uuid: string): RecordData => ({
@@ -39,7 +40,7 @@ function harness(rows: RecordData[], overrides: { failWriteOn?: number; quota?: 
       return { count: rows.length, next: null, results: rows };
     },
   };
-  const endpoint = ACTIVE_SOURCE_LANES.dibbs.endpoints[0];
+  const endpoint = ACTIVE_SOURCE_LANES.dibbs.endpoints[0]!;
   const map = (raw: RecordData) => {
     if (overrides.mapNullOn != null && JSON.stringify(raw).includes(`"${overrides.mapNullOn}"`)) return null;
     return endpoint.map(raw);
@@ -62,7 +63,8 @@ describe('active source descriptors', () => {
   });
 
   test('DIBBS shapes are split per endpoint — the provider rejects an unknown field', () => {
-    const [rfqEndpoint, rfpEndpoint] = ACTIVE_SOURCE_LANES.dibbs.endpoints;
+    const rfqEndpoint = ACTIVE_SOURCE_LANES.dibbs.endpoints[0]!;
+    const rfpEndpoint = ACTIVE_SOURCE_LANES.dibbs.endpoints[1]!;
     const rfqShape = String(rfqEndpoint.filter.shape);
     const rfpShape = String(rfpEndpoint.filter.shape);
     expect(rfqShape).toContain('quantity');
@@ -76,7 +78,7 @@ describe('active source descriptors', () => {
     for (const field of ['description', 'year', 'release_date', 'solicitation_status', 'activity']) {
       expect(SBIR_TOPIC_SHAPE.split(',')).toContain(field);
     }
-    expect(ACTIVE_SOURCE_LANES.sbir.endpoints[0].filter.shape).toBe(SBIR_TOPIC_SHAPE);
+    expect(ACTIVE_SOURCE_LANES.sbir.endpoints[0]!.filter.shape).toBe(SBIR_TOPIC_SHAPE);
   });
 
   test('both DIBBS endpoints share one table checkpoint; SBIR rails stay separate', () => {

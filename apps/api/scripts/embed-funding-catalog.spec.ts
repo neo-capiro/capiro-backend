@@ -1,6 +1,7 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import type { PrismaClient } from '@prisma/client';
-import { EMBEDDING_SCOPES, main, pendingDocumentsSql, readPendingDocuments } from './embed-funding-catalog.js';
+import { EMBEDDING_SCOPES, embedDocument, main, pendingDocumentsSql, readPendingDocuments } from './embed-funding-catalog.js';
+import type { RecordData } from '../src/external/tango/funding-catalog.mapper.js';
 
 const squash = (sql: string) => sql.replace(/\s+/g, ' ').trim();
 
@@ -65,6 +66,41 @@ describe('embed-funding-catalog pending selection', () => {
 });
 
 describe('active SBIR topic embeddings', () => {
+  test('topic chunks retain provider identity and reuse vectors when text is unchanged', async () => {
+    const row: RecordData = { id: 'synthetic-topic', provider_topic_id: 'provider-topic',
+      body: 'Synthetic quantum sensing research description.', source_url: 'https://example.invalid/topic',
+      changed: '2026-11-03T00:00:00Z', embedded_content_hash: null };
+    let stored: Array<{ source_id: string; content_hash: string; vector: string; metadata: RecordData }> = [];
+    let marker: unknown;
+    const mutations: string[] = [];
+    const tx = {
+      $queryRawUnsafe: async () => [{ body: row.body, changed: row.changed }],
+      $executeRawUnsafe: async (sql: string, ...args: unknown[]) => {
+        mutations.push(sql);
+        if (sql.startsWith('INSERT INTO context_embeddings')) {
+          expect(args[0]).toBe('funding_sbir_topic_chunk');
+          stored = JSON.parse(String(args[2])) as typeof stored;
+        }
+        if (sql.startsWith('UPDATE tango_sbir_topic')) marker = args[0];
+        return 1;
+      },
+    };
+    const prisma = {
+      $queryRawUnsafe: async () => stored,
+      $transaction: async (fn: (value: typeof tx) => Promise<void>) => fn(tx),
+    } as unknown as PrismaClient;
+    const invoke = jest.fn(async () => Array<number>(1024).fill(0.1));
+    expect(await embedDocument(prisma, 'sbir_topic', row, invoke)).toBe(1);
+    expect(stored[0]?.metadata).toMatchObject({ sourceTable: 'tango_sbir_topic',
+      providerTopicId: 'provider-topic', binding: 'provider_topic_id', parentId: 'synthetic-topic',
+      sourceUrl: row.source_url });
+    row.embedded_content_hash = marker;
+    mutations.length = 0;
+    expect(await embedDocument(prisma, 'sbir_topic', row, invoke)).toBe(0);
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(mutations.some((sql) => sql.startsWith('DELETE') || sql.startsWith('INSERT'))).toBe(false);
+  });
+
   test('the active scope selects only topics the read path calls open', () => {
     const sql = pendingDocumentsSql('sbir_topic', 'active');
     expect(sql).toContain('FROM tango_sbir_topic');

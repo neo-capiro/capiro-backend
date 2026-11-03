@@ -10,7 +10,7 @@ import { fillGrantDocumentGaps } from '../src/external/tango/funding-grant-docum
 import { computeFilterFingerprint } from '../src/external/tango/tango-store.service.js';
 import { runWithSyncRun, emptyCounts } from '../src/ingestion/sync-run.helper.js';
 import { object, type RecordData } from '../src/external/tango/funding-catalog.mapper.js';
-import { redact, redactWithKnownSecret } from '../src/external/tango/tango.errors.js';
+import { redact, redactWithKnownSecret, TangoError } from '../src/external/tango/tango.errors.js';
 // Active DIBBS/SBIR descriptors only. Paging, quota, retry and the durable
 // cursor stay in THIS file's walk() and FundingCatalogClient — the new lanes add
 // endpoints, not a second pipeline.
@@ -126,12 +126,14 @@ export async function walkActiveEndpoint(
     batchSize: ACTIVE_SOURCE_PAGE_SIZE,
   });
   let written = 0;
-  // The sweep epoch: a RESUMED walk keeps the window its early pages were
-  // written under; only a fresh sweep uses this invocation's clock.
+  // The sweep epoch. A RESUMED walk (a parked cursor) keeps the window its early
+  // pages were written under. A fresh sweep uses ONE clock value that is also
+  // handed to walk(), so the epoch and the persisted window cannot differ by a
+  // few milliseconds and leave a just-written row looking "unseen".
   const saved = await ctx.store.observations.readCheckpoint(syncSource, endpoint.checkpointResource, fingerprint);
-  const epoch = saved?.completeness === 'in_progress' && saved.windowEnd
-    ? saved.windowEnd.toISOString()
-    : new Date().toISOString();
+  const sweepNow = new Date();
+  const resumedFrom = saved?.cursor != null ? saved?.windowEnd : null;
+  const epoch = (resumedFrom ?? sweepNow).toISOString();
   const summary = await walk({
     read: async () => (saved ? { cursor: saved.cursor, windowStart: saved.windowStart, windowEnd: saved.windowEnd } : null),
     // Fixed page size: the batch never shrinks to fit the remaining budget.
@@ -154,7 +156,7 @@ export async function walkActiveEndpoint(
       rowsProcessed: rows,
       completeness: page === null ? 'complete' : 'in_progress',
     }).then(() => undefined),
-  }, { commit: ctx.commit, maxPages: ctx.maxPages, incremental: true });
+  }, { commit: ctx.commit, maxPages: ctx.maxPages, incremental: true, now: sweepNow });
   return { processed: summary.processed, written, complete: summary.complete, epoch };
 }
 
@@ -168,16 +170,19 @@ async function reconcileEndpoint(
   ctx: { client: FundingCatalogClient; store: FundingCatalogStore; commit: boolean; prisma: PrismaClient },
 ): Promise<ClosureResult> {
   if (!ctx.commit) return { checked: 0, confirmed: 0, unconfirmed: 0, complete: true };
-  const now = new Date();
-  const since = new Date(epoch);
-  const notExpired = { OR: [{ closeDate: null }, { closeDate: { gte: now } }] };
+  // DATE columns compare against the start of the sweep's UTC day: a row closing
+  // TODAY is still open, and comparing to a mid-day instant would silently
+  // exclude it from the re-check.
+  const today = new Date(`${epoch.slice(0, 10)}T00:00:00.000Z`);
+  const openActivity = { activity: { equals: 'open', mode: 'insensitive' as const } };
+  const notExpired = { OR: [{ closeDate: null }, { closeDate: { gte: today } }] };
   const adapters: ClosureAdapters = {
     unseen: async (epochIso, limit) => {
       const where = { lastSyncedAt: { lt: new Date(epochIso) } };
       if (endpoint.checkpointResource === 'dibbs_solicitation') {
         const rows = await ctx.prisma.tangoDibbsSolicitation.findMany({
           where: { ...where, documentType: endpoint.endpoint, isOpen: true,
-            OR: [{ closesDate: null }, { closesDate: { gte: now } }] },
+            OR: [{ closesDate: null }, { closesDate: { gte: today } }] },
           take: limit, orderBy: { lastSyncedAt: 'asc' },
           select: { id: true, tangoDibbsId: true },
         });
@@ -185,14 +190,14 @@ async function reconcileEndpoint(
       }
       if (endpoint.checkpointResource === 'sbir_topic') {
         const rows = await ctx.prisma.tangoSbirTopic.findMany({
-          where: { ...where, activity: 'open', ...notExpired },
+          where: { ...where, ...openActivity, ...notExpired },
           take: limit, orderBy: { lastSyncedAt: 'asc' },
           select: { id: true, tangoSbirId: true },
         });
         return rows.map((row) => ({ localId: row.id, providerId: row.tangoSbirId }));
       }
       const rows = await ctx.prisma.tangoSbirSolicitation.findMany({
-        where: { ...where, activity: 'open', OR: [{ endDate: null }, { endDate: { gte: now } }] },
+        where: { ...where, ...openActivity, OR: [{ endDate: null }, { endDate: { gte: today } }] },
         take: limit, orderBy: { lastSyncedAt: 'asc' },
         select: { id: true, tangoSbirId: true },
       });
@@ -200,27 +205,28 @@ async function reconcileEndpoint(
     },
     detail: async (providerId) => {
       try {
-        return await ctx.client.get(endpoint.resource, {}, providerId);
+        // SHAPE ONLY: the active filter must not be applied to a detail read, or
+        // a topic that just closed could never be observed as closed. Passing the
+        // shape keeps the description projection on the update path too, so an
+        // omitted description is not silently dropped.
+        return await ctx.client.get(endpoint.resource, { shape: endpoint.filter.shape }, providerId);
       } catch (error) {
-        // Only a confirmed "gone" is evidence. Every other failure is left to
-        // throw so the lane reports partial instead of closing anything.
-        const status = (error as { status?: number; statusCode?: number }).status
-          ?? (error as { statusCode?: number }).statusCode;
-        if (status === 404) return null;
+        // Only a CONFIRMED not-found is evidence. Every other failure propagates
+        // so the lane reports partial instead of closing anything.
+        if (error instanceof TangoError && (error.statusCode === 404 || error.kind === 'not_found')) return null;
         throw error;
       }
     },
     markUnconfirmed: async (localId) => {
       if (endpoint.checkpointResource === 'dibbs_solicitation') {
-        await ctx.prisma.tangoDibbsSolicitation.update({ where: { id: localId }, data: { isOpen: null, lastSyncedAt: now } });
+        await ctx.prisma.tangoDibbsSolicitation.update({ where: { id: localId }, data: { isOpen: null, lastSyncedAt: new Date() } });
       } else if (endpoint.checkpointResource === 'sbir_topic') {
-        await ctx.prisma.tangoSbirTopic.update({ where: { id: localId }, data: { activity: 'unknown', lastSyncedAt: now } });
+        await ctx.prisma.tangoSbirTopic.update({ where: { id: localId }, data: { activity: 'unknown', lastSyncedAt: new Date() } });
       } else {
-        await ctx.prisma.tangoSbirSolicitation.update({ where: { id: localId }, data: { activity: 'unknown', lastSyncedAt: now } });
+        await ctx.prisma.tangoSbirSolicitation.update({ where: { id: localId }, data: { activity: 'unknown', lastSyncedAt: new Date() } });
       }
     },
   };
-  void since;
   return reconcileUnconfirmedActive(endpoint, epoch, adapters, {
     persist: (row) => persistActive(endpoint, ctx.store, row, true),
   });
@@ -268,18 +274,27 @@ export async function main(argv = process.argv.slice(2)) {
         const run = async () => {
           let complete = true;
           let written = 0;
+          const walked: Array<{ endpoint: ActiveSourceEndpoint; swept: boolean; epoch: string }> = [];
+          // PHASE 1 — every active walk first. Reconciliation must never consume
+          // the shared quota that today's active coverage still needs.
           for (const endpoint of definition.endpoints) {
             const summary = await walkActiveEndpoint(endpoint, definition.syncSource, { client, store, commit, maxPages });
             written += summary.written;
-            // Closure re-check runs ONLY for an endpoint whose sweep completed.
-            const closure = summary.complete
-              ? await reconcileEndpoint(endpoint, summary.epoch, { client, store, commit, prisma })
-              : { checked: 0, confirmed: 0, unconfirmed: 0, complete: true };
-            complete = complete && summary.complete && closure.complete;
+            complete = complete && summary.complete;
+            walked.push({ endpoint, swept: summary.complete, epoch: summary.epoch });
             console.log(JSON.stringify({
               event: 'FUNDING_ACTIVE_ENDPOINT', lane, endpoint: endpoint.endpoint,
-              processed: summary.processed, written: summary.written, complete: summary.complete, closure,
+              processed: summary.processed, written: summary.written, complete: summary.complete,
             }));
+          }
+          // PHASE 2 — closure only for endpoints whose sweep completed, using
+          // whatever budget remains, and never for a partial feed.
+          for (const { endpoint, swept, epoch } of walked) {
+            const closure = swept
+              ? await reconcileEndpoint(endpoint, epoch, { client, store, commit, prisma })
+              : { checked: 0, confirmed: 0, unconfirmed: 0, complete: true };
+            complete = complete && closure.complete;
+            console.log(JSON.stringify({ event: 'FUNDING_ACTIVE_CLOSURE', lane, endpoint: endpoint.endpoint, ...closure }));
           }
           return { ...emptyCounts(), updated: written, complete,
             incompleteReason: complete ? undefined : `Active ${lane} catalog not fully traversed; cursor retained for the next bounded pass` };

@@ -50,7 +50,7 @@ export async function readDocument(prisma: PrismaClient, kind: Kind, id: string)
   return (await prisma.$queryRawUnsafe<RecordData[]>(`SELECT id::text,${source.body} AS body,${source.url} AS source_url,
     ${source.changed} AS changed,embedded_content_hash
     ${kind === 'attachment' ? `,provider_attachment_id,jsonb_build_object('extraction_status',provider_data->'extraction_status',
-      'doc_role',provider_data->'doc_role') AS provider_data,sam_opportunity_id::text,federal_grant_id,${ATTACHMENT_TEXT_METADATA_SQL}` : ''}
+      'doc_role',provider_data->'doc_role') AS provider_data,sam_opportunity_id::text,federal_grant_id,${ATTACHMENT_TEXT_METADATA_SQL}` : kind === 'sbir_topic' ? ',tango_sbir_id AS provider_topic_id' : ''}
     FROM ${source.table} WHERE id=$1::${source.idType}`, id))[0];
 }
 export function documentPlan(id: string, body: string, metadata: RecordData) {
@@ -68,7 +68,7 @@ export async function embedDocument(prisma: PrismaClient, kind: Kind, row: Recor
     ...(kind === 'attachment' ? { providerAttachmentId: row.provider_attachment_id, binding: row.text_method === 'local_parser' ? 'archived_content_sha256' : 'provider_attachment_id', samOpportunityId: row.sam_opportunity_id, federalGrantId: row.federal_grant_id,
       extractionStatus: row.text_method === 'local_parser' ? 'available' : object(row.provider_data).extraction_status,
       extractionMethod: row.text_method ?? 'provider', ...(row.text_method === 'local_parser' ? { attachmentContentSha256: row.content_sha256, truncated: row.text_truncated ?? false } : {}),
-      documentRole: object(row.provider_data).doc_role ?? null } : kind === 'sbir_topic' ? { binding: 'provider_topic_id' } : { binding: 'government_record_id' }) };
+      documentRole: object(row.provider_data).doc_role ?? null } : kind === 'sbir_topic' ? { binding: 'provider_topic_id', providerTopicId: row.provider_topic_id } : { binding: 'government_record_id' }) };
   const plan = documentPlan(String(row.id), row.body, metadata);
   let calls = 0;
   const previous = await prisma.$queryRawUnsafe<Array<{ source_id: string; content_hash: string; vector: string }>>(

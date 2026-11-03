@@ -8,15 +8,15 @@
 --    page cursor and window between bounded runs, instead of restarting at
 --    page 1 on every quota stop. Every existing value stays allowed, so applied
 --    checkpoints (entity, opportunity, notice, forecast, vehicle,
---    vehicle_awardee, grant) are unaffected. Four distinct types, one per
---    table, because SBIR topics and solicitations may share a provider key and
---    must never collapse onto one checkpoint.
+--    vehicle_awardee, grant) are unaffected. THREE distinct types, one per
+--    checkpointed table, because SBIR topics and solicitations may share a
+--    provider key and must never collapse onto one checkpoint. There is no
+--    dibbs_award type: awards are historical award facts with no active lane.
 --
 --    tango_resource_snapshot and tango_resource_link are deliberately NOT
 --    widened: neither DIBBS nor SBIR writes a snapshot or a link, and admitting
 --    a type there would let a walk begin writing a resource family this
 --    program does not model.
---
 -- 2) SBIR topic synopsis. The provider documents `description` on
 --    /api/sbir/topics/ (verified 2026-11-03 against docs.makegov.com); the
 --    earlier migration header claiming no documented description is stale.
