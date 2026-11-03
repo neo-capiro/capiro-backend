@@ -239,9 +239,18 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
         SELECT 'funding_attachment_chunk',${prefix} || n::text,${MODEL},'competing DIBBS passage','synthetic',
           ${axis(3,4)}::vector,jsonb_build_object('parentId',${catalogId(9,1)})
         FROM generate_series(1,${SEMANTIC_SEARCH_LIMITS.candidateLimit+1}::int) n`;
+      await admin.$executeRaw`INSERT INTO context_embeddings
+        (source_type,source_id,model,content_text,content_hash,embedding,metadata_jsonb)
+        VALUES ('funding_attachment_chunk',${prefix+'zero-grant'},${MODEL},'zero vector is not a match','synthetic',
+          ${vectorLiteral(Array<number>(1024).fill(0))}::vector,jsonb_build_object('parentId',${ATT_GRANT})),
+        ('funding_attachment_chunk',${prefix+'zero-notice'},${MODEL},'zero vector is not a match','synthetic',
+          ${vectorLiteral(Array<number>(1024).fill(0))}::vector,jsonb_build_object('parentId',${ATT_NOTICE_LOCAL}))`;
       // A closer competing catalog cannot hide either family's attachment-only hit.
-      expect((await read('semantic_search_grants',{query:'eligibility'},axis(3,4))).map(row=>row.parent_id)).toContain('G-2');
-      expect((await read('semantic_search_contract_opportunities',{query:'requirements'},axis(3,4))).map(row=>row.parent_id)).toContain(SAM_B);
+      const grants=await read('semantic_search_grants',{query:'eligibility'},axis(3,4));
+      const notices=await read('semantic_search_contract_opportunities',{query:'requirements'},axis(3,4));
+      expect(grants.map(row=>row.parent_id)).toContain('G-2');
+      expect(notices.map(row=>row.parent_id)).toContain(SAM_B);
+      expect([...grants,...notices].every(row=>Number.isFinite(row.score))).toBe(true);
     } finally { await admin.$executeRaw`DELETE FROM context_embeddings WHERE source_id LIKE ${prefix+'%'} AND model=${MODEL}`; }
   });
 

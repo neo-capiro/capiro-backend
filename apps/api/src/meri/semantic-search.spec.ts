@@ -96,7 +96,7 @@ describe('semantic search statement (pgvector-free shape)', () => {
     expect(values).not.toContain(SEMANTIC_SEARCH_LIMITS.similarityFloor);
     expect(values.filter((value) => typeof value === 'number')).toEqual([SEMANTIC_SEARCH_LIMITS.defaultLimit]);
     // One nearest-neighbour scan per passage family: bills rank one, the funding reads description and attachment passages.
-    expect(values.filter((value) => value === vector)).toHaveLength(operation === 'semantic_search_bills' ? 2 : 4);
+    expect(values.filter((value) => value === vector)).toHaveLength(operation === 'semantic_search_bills' ? 2 : 3);
     expect(values.filter((value) => value === model)).toHaveLength(operation === 'semantic_search_bills' ? 1 : 2);
     // The query text itself is never part of the statement.
     expect(values).not.toContain('coastal resilience');
@@ -132,6 +132,9 @@ describe('semantic search statement (pgvector-free shape)', () => {
       const attachment=text.slice(text.indexOf('), attachment AS ('),text.indexOf('), candidates AS ('));
       expect(attachment).toContain(`family_attachment.${parent} IS NOT NULL`);
       expect(attachment.indexOf('family_attachment.')).toBeLessThan(attachment.indexOf('LIMIT 200'));
+      expect(attachment).toContain('ORDER BY score DESC LIMIT 200');
+      expect(attachment).toContain('(ce.embedding <#> ce.embedding) < 0');
+      expect(attachment).not.toContain('ORDER BY ce.embedding');
     }
     expect(statement('semantic_search_grants', { query: 'water' }).text).toContain(
       "'openForApplications', (g.status = 'posted' AND (g.close_date IS NULL OR g.close_date >= CURRENT_DATE))",
@@ -175,12 +178,13 @@ describe('active DIBBS and SBIR semantic families', () => {
     expect(sql).toContain("ce.content_hash = encode(sha256(convert_to(ce.content_text,'UTF8')),'hex')");
     expect(sql).toContain('octet_length(ce.content_text) <= 6000');
     expect(sql).toContain('(ce.embedding <#> ce.embedding) < 0');
-    expect(sql).toContain('ORDER BY embedding <=> ?::vector LIMIT 200');
+    expect(sql).toContain('ORDER BY score DESC LIMIT 200');
+    expect(sql).not.toContain('ORDER BY embedding');
     expect(sql).toContain('SELECT DISTINCT ON (parent_id)');
     expect(sql).toContain('left(content_text,400)');
     expect(sql).toContain('score>=0.35::float8');
     expect(statement.values).toEqual(expect.arrayContaining([model,vector,'%Navy%','2026-11-03',25]));
-    expect(statement.values.filter(v=>v===vector)).toHaveLength(2);
+    expect(statement.values.filter(v=>v===vector)).toHaveLength(1);
     const coverage=semanticCoverageSql(operation,model);
     expect(coverage.sql).toContain('count(DISTINCT parent_id)');
     expect(coverage.values).toEqual([model]);
@@ -203,7 +207,7 @@ describe('active DIBBS and SBIR semantic families', () => {
   });
   test.each(operations)('%s preserves exact passage provenance and truthful active coverage', operation => {
     const dibbs=operation===operations[0], id='synthetic-canonical';
-    const result=projectSemanticSearch(operation,{query:'water',limit:10},[{
+    const result=projectSemanticSearch(operation,{query:'water',limit:10,agency:'Navy'},[{
       parent_id:id,score:0.8,snippet:'Actual normalized source quotation.',record:{id},
       passage:{sourceTable:dibbs?'opportunity_attachment':'tango_sbir_topic',sourceUrl:'https://example.test/source',
         binding:dibbs?'archived_content_sha256':'provider_topic_id',canonicalRecordId:id,providerRecordId:'synthetic-provider',
@@ -218,6 +222,8 @@ describe('active DIBBS and SBIR semantic families', () => {
     expect(result.coverage).toEqual({indexedRecords:1,totalRecords:3});
     expect(result.notes.join(' ')).toContain('stored active');
     expect(result.notes.join(' ')).toContain('not page numbers');
+    expect(result.notes[0]).toContain('with agency filters applied before candidate selection');
+    expect(result.notes[0]).not.toContain(', then');
     if(dibbs) expect(result.results[0]?.documents?.truncated).toBe(1);
     else expect(result.results[0]).not.toHaveProperty('documents');
   });

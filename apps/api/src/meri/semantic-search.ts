@@ -186,7 +186,7 @@ function activeCatalogSearchSql(operation: ActiveCatalogOperation, input: Semant
   if (input.agency !== undefined) filters.push(Prisma.sql`agency ILIKE ${`%${input.agency}%`}`);
   return Prisma.sql`WITH eligible AS (${activeCatalogCandidates(operation, model)}), nearest AS (
       SELECT *, (1-(embedding <=> ${vector}::vector))::float8 AS score FROM eligible ${where(filters)}
-      ORDER BY embedding <=> ${vector}::vector LIMIT ${Prisma.raw(String(SEMANTIC_SEARCH_LIMITS.candidateLimit))}
+      ORDER BY score DESC LIMIT ${Prisma.raw(String(SEMANTIC_SEARCH_LIMITS.candidateLimit))}
     ), best AS (
       SELECT DISTINCT ON (parent_id) * FROM nearest WHERE score>=${Prisma.raw(String(SEMANTIC_SEARCH_LIMITS.similarityFloor))}::float8
       ORDER BY parent_id,score DESC,meta->>'chunkIndex'
@@ -436,12 +436,15 @@ export function semanticSearchSql(
          AND ce.model = ${model}
          AND ce.embedding IS NOT NULL
          ${eligibility}
-       ORDER BY ce.embedding <=> ${vector}::vector
+       ORDER BY ${sourceType === ATTACHMENT_SOURCE_TYPE ? Prisma.sql`score DESC` : Prisma.sql`ce.embedding <=> ${vector}::vector`}
        LIMIT ${Prisma.raw(String(limits.candidateLimit))}`;
   const parent = family.attachmentParent;
   // A different catalog's attachments must not consume this family's window.
   // In particular, DIBBS now shares funding_attachment_chunk with grants/SAM.
-  const attachmentFamily = parent ? Prisma.sql`AND EXISTS (SELECT 1 FROM opportunity_attachment family_attachment
+  // Exact score ordering keeps HNSW's pre-filter window from consuming this
+  // family's candidates. The existing statement deadline remains unchanged.
+  const attachmentFamily = parent ? Prisma.sql`AND (ce.embedding <#> ce.embedding) < 0
+    AND EXISTS (SELECT 1 FROM opportunity_attachment family_attachment
     WHERE family_attachment.id = CASE WHEN ce.metadata_jsonb->>'parentId' ~ ${Prisma.raw(`'${UUID_TEXT}'`)}
       THEN (ce.metadata_jsonb->>'parentId')::uuid END AND family_attachment.${Prisma.raw(parent)} IS NOT NULL)` : Prisma.empty;
   const candidates = parent
@@ -662,7 +665,7 @@ export function projectSemanticSearch(
     total: results.length,
     coverage,
     notes: [
-      `Nearest-meaning ${kind} records by embedding similarity: ${ranked}${filters.length ? `, then ${filters.join(', ')} filters` : ''}; similarity is not relevance. Date filters apply to the ${family.dateField}.`,
+      `Nearest-meaning ${kind} records by embedding similarity: ${ranked}${filters.length ? activeCatalog ? `, with ${filters.join(', ')} filters applied before candidate selection` : `, then ${filters.join(', ')} filters` : ''}; similarity is not relevance. Date filters apply to the ${family.dateField}.`,
       `${coverage.indexedRecords} of ${coverage.totalRecords} stored ${activeCatalog ? 'active ' : ''}${kind} records are indexed for this read; a record without an index entry cannot be found here, so an empty page means no close match among the indexed records, never that none exists${unindexed > 0 ? ` (${unindexed} records are not indexed yet)` : ''}.`,
       ...(results.length
         ? []
