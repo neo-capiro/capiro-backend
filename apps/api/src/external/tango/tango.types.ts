@@ -56,6 +56,48 @@ export const TANGO_RESOURCE_TYPES = [
 ] as const;
 export type TangoResourceType = (typeof TANGO_RESOURCE_TYPES)[number];
 
+/**
+ * Resource types a durable walk checkpoint may be keyed on.
+ *
+ * Deliberately WIDER than `TANGO_RESOURCE_TYPES`: DIBBS and SBIR publish
+ * date-windowed catalogs with no modification filter and can be cut short by a
+ * shared account quota, so each of the four of their tables owns a resumable
+ * cursor. They do NOT write `tango_resource_snapshot` or `tango_resource_link`
+ * rows, so admitting them to the snapshot vocabulary would permit a resource
+ * family this program does not model. The two lists are kept separate for that
+ * reason, and the database CHECKs mirror them one-for-one
+ * (`20281103120000_tango_dibbs_sbir_checkpoint_resource_types`).
+ */
+export const TANGO_CHECKPOINT_RESOURCE_TYPES = [
+  ...TANGO_RESOURCE_TYPES,
+  // Only the types a walk actually checkpoints. Awards are historical award
+  // facts and have no active lane, so they get no cursor.
+  'dibbs_solicitation',
+  'sbir_topic',
+  'sbir_solicitation',
+] as const;
+export type TangoCheckpointResourceType = (typeof TANGO_CHECKPOINT_RESOURCE_TYPES)[number];
+
+/**
+ * Funding-catalog resources reachable through the generic catalog transport.
+ *
+ * These are PROVIDER paths (`/api/<resource>/`), not local table names, which is
+ * why the DIBBS and SBIR entries carry their own endpoint segment. Widening this
+ * union is what lets the consolidated `sync-tango-funding` walker page them with
+ * the same quota accounting, retry policy and durable checkpoint as grants and
+ * notices, instead of a second pipeline in a separate 700-line script.
+ */
+export const FUNDING_CATALOG_RESOURCES = [
+  'grants',
+  'notices',
+  'opportunities',
+  'dibbs/rfqs',
+  'dibbs/rfps',
+  'sbir/topics',
+  'sbir/solicitations',
+] as const;
+export type FundingCatalogResource = (typeof FUNDING_CATALOG_RESOURCES)[number];
+
 export interface TangoAddress {
   line1: string | null;
   city: string | null;

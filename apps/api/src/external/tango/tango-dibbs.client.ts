@@ -108,11 +108,17 @@ export interface TangoDibbsListOptions {
 /** `/api/dibbs/rfqs/` — the provider's own spelling is `issue_date`. */
 export interface TangoDibbsRfqListOptions extends TangoDibbsListOptions {
   issueDateAfter?: string;
+  /** The provider's documented open/closed lifecycle filter. `true` is the
+   * active priority: it selects currently open solicitations regardless of how
+   * long ago they were issued, so it replaces issue-date inference for active
+   * coverage. */
+  open?: boolean;
 }
 
 /** `/api/dibbs/rfps/` — the provider's own spelling is `issued_date`. */
 export interface TangoDibbsRfpListOptions extends TangoDibbsListOptions {
   issuedDateAfter?: string;
+  open?: boolean;
 }
 
 /** `/api/dibbs/awards/` — the provider's own spelling is `posted_date`. */
@@ -153,12 +159,16 @@ export class TangoDibbsClient implements TangoDibbsGateway {
   listRfqs(options: TangoDibbsRfqListOptions = {}): Promise<TangoDibbsPage> {
     return this.list('/api/dibbs/rfqs/', 'listRfqs', options, (params) => {
       if (options.issueDateAfter) params.set('issue_date_after', options.issueDateAfter);
+      if (options.open != null) params.set('open', String(options.open));
     });
   }
 
   listRfps(options: TangoDibbsRfpListOptions = {}): Promise<TangoDibbsPage> {
     return this.list('/api/dibbs/rfps/', 'listRfps', options, (params) => {
       if (options.issuedDateAfter) params.set('issued_date_after', options.issuedDateAfter);
+      // Same documented lifecycle filter as RFQ: without this line an `open`
+      // request was silently ignored and the walk returned the whole catalog.
+      if (options.open != null) params.set('open', String(options.open));
     });
   }
 
