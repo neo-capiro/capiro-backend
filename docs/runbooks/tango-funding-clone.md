@@ -51,69 +51,74 @@ The backend has no `.github` workflow tree, so the old monorepo CI was not copie
 
 ## DIBBS and SBIR/STTR active-source integration (SCRUM-250)
 
-Source only. Nothing below has been applied, scheduled or deployed.
+Source only: the migration, worker deployment, schedule cutover and active backfill have not been applied by this change.
 
-### What changed in source
+### Canonical writer and storage
 
-- `sync-tango-dibbs` and `sync-tango-sbir` now own a durable walk position in `tango_sync_checkpoint`. A page is checkpointed only after every mapped write on it succeeded; quota stops, page caps and write failures retain the cursor and the window, so the next run replays the interrupted page rather than restarting at page 1. The filter fingerprint includes endpoint, batch size and window mode, so RFQ and RFP (one table) and topic and solicitation (two tables, possibly overlapping provider keys) never share a cursor.
-- Both walks gained an explicit active mode: `--active` sends the provider's own documented lifecycle filter — `open=true` on DIBBS RFQ/RFP, `activity=open` on SBIR topics and solicitations — instead of inferring activity from an issue/publication date. Active mode excludes DIBBS awards (historical award facts, not opportunity coverage) and does not require an award walk to report completeness.
-- The SBIR topic list now requests an explicit field shape including `description`; the provider's default projection omits it, so mapping alone would store null while looking correct. `tango_sbir_topic.description` is additive and nullable, and an absent description never overwrites stored text.
-- Both standalone CLIs take the existing `capiro:tango-funding` advisory lock, so there is no lock-free writer path to these tables.
+`sync-tango-funding --lane=dibbs` walks RFQs and RFPs with `open=true`;
+`--lane=sbir` walks topics and solicitation cycles with `activity=open`.
+These explicit lanes reuse the existing client, shared request budget, advisory
+lock, page writer and durable checkpoints. The default eight lanes are unchanged.
+There is no `--active` flag. DIBBS awards remain historical records and are not
+part of active opportunity coverage.
 
-### Forward migration (author only — not applied)
+Canonical tables remain `public.tango_dibbs_solicitation`,
+`public.tango_sbir_topic` and `public.tango_sbir_solicitation` in database `capiro`
+on `capiro-newstack-preview-clone`. Upserts preserve local IDs using verified
+provider IDs. Topic descriptions are explicitly requested; absent text preserves
+richer stored text. SBIR search exposes that description as the summary and
+requires explicit open activity, an unexpired deadline and no closed raw status.
+Raw lifecycle facts remain available in `source_facts`.
 
-`20281103120000_tango_dibbs_sbir_source_integration`: widens only `tango_sync_checkpoint_resource_type_chk` with `dibbs_solicitation`, `dibbs_award`, `sbir_topic`, `sbir_solicitation` (all existing values preserved), and adds nullable `tango_sbir_topic.description`. Snapshot the clone, then apply; both changes are additive and safe to leave in place on rollback.
+Checkpoints retain a separate fingerprint per endpoint and fixed page size.
+They advance only after all page writes succeed. Partial runs resume the saved
+cursor/window, and health continues to use `sync-tango-dibbs`/`sync-tango-sbir`
+SyncRun names. The old standalone CLIs are unchanged and do **not** share this
+lock. Disabling their schedules is required before the new writer starts.
 
-### Schedule cutover (Release owns; not performed here)
+### Forward migration and cutover
 
-`--lane=dibbs` and `--lane=sbir` ARE the active-only lanes: the lane sends the provider's own `open` filter. There is no separate `--active` flag on `sync-tango-funding`; a command using it is rejected.
+Snapshot the clone before applying
+`20281103120000_tango_dibbs_sbir_source_integration`. It preserves existing
+checkpoint types and adds exactly `dibbs_solicitation`, `sbir_topic` and
+`sbir_solicitation`; adds nullable topic `description`, `embedded_content_hash`
+and `embedded_at`; and permits a null cycle public number while retaining the
+constraint against empty strings. It rewrites or deletes no existing rows.
 
-Retarget the two existing daily rule IDs to the qualified dedicated clone funding worker, keeping their IDs and crons, and using the existing funding-worker IAM role and network configuration with command overrides — not the old `capiro-dev-api-sync-jobs` task, which still points at the pre-clone database:
+Release must disable and drain these four old writers first:
+`fo-dev-sync-tango-dibbs`, `fo-dev-sync-tango-sbir`,
+`fo-dev-reconcile-tango-dibbs-full`, `fo-dev-reconcile-tango-sbir-full`.
+The verified daily targets point at the old database, not the clone. Preserve
+all four original targets and states for rollback. After snapshot, migration,
+qualified ARM64 worker deployment, bounded canaries and database read-back,
+retarget and enable only the two daily rules using the existing clone funding
+worker's IAM role and network configuration:
 
-- `fo-dev-sync-tango-dibbs` → `sync-tango-funding --commit --lane=dibbs --max-requests=140` (daily 00:05 UTC)
-- `fo-dev-sync-tango-sbir` → `sync-tango-funding --commit --lane=sbir --max-requests=20` (daily 01:20 UTC)
+- `fo-dev-sync-tango-dibbs`: `sync-tango-funding --commit --lane=dibbs --max-requests=140`, daily 00:05 UTC.
+- `fo-dev-sync-tango-sbir`: `sync-tango-funding --commit --lane=sbir --max-requests=20`, daily 01:20 UTC.
 
-Both budgets are finite and shared with the existing daily reserve; the current active catalogs are roughly 88 pages at 100 rows, so a lane may legitimately end partial and resume from its cursor the next day. `ingestion-schedule.ts` marks both entries `managedOutOfBand` so a Compute-stack deploy cannot recreate the old target.
+The weekly full rules stay disabled. The checked-in schedule entries are managed
+out of band; generic CDK deployment does not perform this cutover. Validate both
+canonical reads and the app before declaring the source current. Rollback stops
+the new writer and restores recorded targets; retain additive schema and data.
 
-FOUR existing out-of-band rules must be DISABLED before the qualified worker starts writing: `fo-dev-sync-tango-dibbs`, `fo-dev-sync-tango-sbir`, `fo-dev-reconcile-tango-dibbs-full`, `fo-dev-reconcile-tango-sbir-full`. The two weekly `--full` entries are removed from the schedule declaration, but deleting a declaration does not delete an out-of-band EventBridge rule — disable them explicitly. The unbounded weekly history walk is not needed for active coverage and must not alternate with the consolidated writer. The legacy `sync-tango-dibbs` / `sync-tango-sbir` scripts do NOT take the consolidated `capiro:tango-funding` advisory lock, so a leftover enabled rule is a genuine concurrent writer — not a harmless no-op. That is why disabling those four rules is a cutover requirement rather than tidiness. Do not create competing schedules. Grants and SAM schedules are unchanged.
+### Closures and embeddings
 
-Sequence: snapshot the preview clone → apply the forward migration → start the qualified dedicated clone funding worker with bounded dry-runs, then commit canaries → verify source health read-back → only then retarget the daily rules. Preserve the old data, existing local IDs and the pre-cutover rule targets as the rollback.
+All active endpoint walks run before closure checks. Only a completed endpoint
+sweep permits exact detail reads for up to 100 previously-open, unexpired rows
+not refreshed since its persisted sweep epoch. These calls share the same budget.
+Confirmed closed details use the normal mapper; confirmed 404s clear only the
+derived flag (`is_open=NULL` or `activity='unknown'`) and observation time.
+Identity mismatch, unmappable detail or quota exhaustion leaves the pass partial.
+An incomplete active sweep does not reconcile its endpoint. Absence from an
+active list alone never closes a row. Unknown SBIR activity is not pursuable.
 
-### Closure semantics and known limitations
-
-- Partial or failed runs never close, expire or erase a row. Existing read-path date expiry is unchanged.
-- On a COMPLETED DIBBS open traversal, a previously-open row not refreshed during that traversal has its derived `is_open` cleared to NULL (never false, never deleted) and stops being pursuable. The read path still renders such a row in the `closed` lifecycle bucket; the frontend stage must surface "not confirmed open" from `source_facts.providerOpen` rather than claiming closure.
-- SBIR closure is NOT applied yet: `sourceBase` currently derives `active` from a null/unrecognised status and a future close date, so writing an `unknown` marker would advertise those rows as active rather than retire them. Correcting that read semantics and adding the reconciliation is the follow-up.
-- Paid BAA solicitation PDFs are not exposed as extracted text by the current SBIR API; no claim is made that those documents are embedded.
-
-### Deferred
-
-### Active SBIR topic embeddings
-
-`embed-funding-catalog` gained a fourth source kind, `sbir_topic`, over
-`tango_sbir_topic`: body `title || agency || description`, url
-`coalesce(topic_url, official_solicitation_url)`, source_type
-`funding_sbir_topic_chunk`, changed column `last_synced_at`, with the same
-chunker, hash, vector reuse and atomic publication as grants and notices. The
-scheduled active scope requires `lower(activity) = 'open'`, an unexpired
-`close_date` and a raw status that is not closed/expired/complete; historical
-topics are reachable only through an explicit `--scope=all`. Metadata records
-`sourceTable=tango_sbir_topic`, the source URL, and `binding=provider_topic_id`
-(the provider topic id, not a government identifier). No DIBBS title-only and no
-SBIR cycle title-only embeddings exist, and no claim is made that paid BAA
-solicitation PDFs are embedded — the SBIR API does not expose that extracted
-text, so the original source URLs are preserved.
-
-### Closure of previously-active rows
-
-A partial or failed sweep never closes, expires or retires anything. After an
-endpoint's active walk COMPLETES, the writer re-reads the provider detail for
-locally-open, not-yet-expired rows of THAT endpoint whose `last_synced_at`
-precedes the sweep epoch (the persisted checkpoint window of a resumed sweep;
-the current clock only for a fresh one), bounded to 100 rows and metered by the
-same request budget. A confirmed 404 clears only the derived flag
-(`is_open = NULL` / `activity = 'unknown'`) and bumps `last_synced_at`, keeping
-ids and content; a confirmed closed detail is written through the normal mapper;
-an identity mismatch or an unmappable detail writes nothing; a quota stop makes
-the pass partial and the remaining rows are retried by the next bounded run.
-Absence from the active list is never treated as evidence of closure.
+The existing `embed-funding-catalog` writer includes `sbir_topic`, requiring useful
+description text and active scope by default. It reuses existing chunking,
+content hashes, vectors and atomic replacement. Chunks use
+`source_type=funding_sbir_topic_chunk`, `sourceTable=tango_sbir_topic`, local
+`parentId`, `providerTopicId`, `binding=provider_topic_id`, and the topic or
+original solicitation URL. This is a provider ID, not a government crosswalk.
+Only an explicit `--scope=all` requests historical topics. DIBBS and SBIR cycles
+have no title-only embeddings. Original document links are retained; SBIR BAA
+PDF extracted-text coverage is not claimed.
