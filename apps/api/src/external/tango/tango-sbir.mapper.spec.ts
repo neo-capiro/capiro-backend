@@ -76,18 +76,29 @@ describe('mapSbirSolicitation', () => {
   });
 
   /**
-   * The upsert key and the join key. Without either, the row cannot be stored
-   * without inventing a value — `solicitation_number` is NOT NULL and is the
-   * ONLY key a topic carries back to its cycle, so a cycle without one would be
-   * stored unreachable.
+   * The provider id is the ONLY identity. A cycle's public number is documented
+   * as possibly absent for some DoD cycles, so it is nullable in the schema and
+   * the mapper keeps such a cycle with a null number instead of dropping it —
+   * and never synthesises a number from cycle_name, which would invent a join
+   * key no topic can match.
    */
   it.each([
     ['no solicitation_id', { ...SOLICITATION, solicitation_id: undefined }],
     ['blank solicitation_id', { ...SOLICITATION, solicitation_id: '   ' }],
+  ])('drops a cycle with %s rather than half-mapping it', (_label, raw) => {
+    expect(mapSbirSolicitation(raw as Record<string, unknown>)).toBeNull();
+  });
+
+  it.each([
     ['no solicitation_number', { ...SOLICITATION, solicitation_number: undefined }],
     ['blank solicitation_number', { ...SOLICITATION, solicitation_number: '' }],
-  ])('drops a record with %s rather than half-mapping it', (_label, raw) => {
-    expect(mapSbirSolicitation(raw as Record<string, unknown>)).toBeNull();
+  ])('keeps an identified cycle with %s and stores a null number', (_label, raw) => {
+    const row = mapSbirSolicitation(raw as Record<string, unknown>);
+    expect(row).not.toBeNull();
+    expect(row!.tangoSbirId).toBe(SOLICITATION.solicitation_id);
+    expect(row!.solicitationNumber).toBeNull();
+    // Never borrowed from cycle_name to fill the gap.
+    expect(row!.solicitationNumber).not.toBe(SOLICITATION.cycle_name);
   });
 
   it('never reaches for `uuid`, which is the DIBBS key and not this one', () => {
@@ -301,7 +312,9 @@ describe('the mapper does not invent what the provider does not publish', () => 
   // "never calls the provider" test hit against its own header.
   const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
-  it.each([['phase'], ['description'], ['dsip'], ['grant_link'], ['component']])(
+  // `description` is documented on /api/sbir/topics/ and is now mapped, so it
+  // is no longer in this list; the rest remain genuinely unpublished.
+  it.each([['phase'], ['dsip'], ['grant_link'], ['component']])(
     'maps no `%s` field',
     (concept) => {
       expect(code.toLowerCase()).not.toContain(`${concept}:`);
@@ -312,6 +325,7 @@ describe('the mapper does not invent what the provider does not publish', () => 
     const documented = new Set([
       'topic_id',
       'title',
+      'description',
       'agency',
       'year',
       'topic_number',

@@ -3,10 +3,50 @@ import { TangoStoreService } from './tango-store.service.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import { catalogEmbeddingState, attachmentEmbeddingState } from './funding-embedding-state.js';
 import { compact, date, grantFields, hash, noticeFields, noticeKey, numeric, object, samFileUrlAliases, samUrlKey, stable, text, type RecordData } from './funding-catalog.mapper.js';
+import type { TangoDibbsSolicitationRow } from './tango-dibbs.mapper.js';
+import type { TangoSbirSolicitationRow, TangoSbirTopicRow } from './tango-sbir.mapper.js';
 
 export class FundingCatalogStore {
   readonly observations: TangoStoreService;
   constructor(readonly prisma: PrismaClient) { this.observations = new TangoStoreService(prisma as PrismaService); }
+  /**
+   * DIBBS solicitation upsert. Provider `uuid` is the identity; the mapper has
+   * already rejected a record without one, so nothing here invents a key.
+   * `commit: false` performs no write.
+   */
+  async dibbsSolicitation(row: TangoDibbsSolicitationRow, commit: boolean): Promise<void> {
+    if (!commit) return;
+    await this.prisma.tangoDibbsSolicitation.upsert({
+      where: { tangoDibbsId: row.tangoDibbsId },
+      create: row,
+      update: { ...row, lastSyncedAt: new Date() },
+    });
+  }
+
+  /** SBIR topic upsert, keyed on the provider's own `topic_id`. */
+  async sbirTopic(row: TangoSbirTopicRow, commit: boolean): Promise<void> {
+    if (!commit) return;
+    await this.prisma.tangoSbirTopic.upsert({
+      where: { tangoSbirId: row.tangoSbirId },
+      create: row,
+      update: { ...row, lastSyncedAt: new Date() },
+    });
+  }
+
+  /**
+   * SBIR cycle upsert, keyed on `solicitation_id`. A cycle may carry an empty
+   * public number (the provider documents this); the provider id is the
+   * identity, so an absent number never costs the row.
+   */
+  async sbirSolicitation(row: TangoSbirSolicitationRow, commit: boolean): Promise<void> {
+    if (!commit) return;
+    await this.prisma.tangoSbirSolicitation.upsert({
+      where: { tangoSbirId: row.tangoSbirId },
+      create: row,
+      update: { ...row, lastSyncedAt: new Date() },
+    });
+  }
+
   async grant(payload: RecordData, commit: boolean): Promise<void> {
     const fields = grantFields(payload), id = String(payload.grant_id);
     const existing = await this.prisma.federalGrant.findUnique({ where: { id } });

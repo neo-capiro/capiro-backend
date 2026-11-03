@@ -2,7 +2,12 @@ import { createHash } from 'node:crypto';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { TANGO_ERROR_KINDS } from './tango.errors.js';
-import { TANGO_RESOURCE_TYPES, type TangoResourceType } from './tango.types.js';
+import {
+  TANGO_CHECKPOINT_RESOURCE_TYPES,
+  TANGO_RESOURCE_TYPES,
+  type TangoCheckpointResourceType,
+  type TangoResourceType,
+} from './tango.types.js';
 
 /**
  * Provider-owned persistence for MakeGov/Tango — snapshots, crosswalk links,
@@ -196,7 +201,8 @@ export interface ReviewLinkInput {
 
 export interface WriteCheckpointInput {
   syncVerb: string;
-  resourceType: TangoResourceType;
+  /** Wider than a snapshot's vocabulary — see TANGO_CHECKPOINT_RESOURCE_TYPES. */
+  resourceType: TangoCheckpointResourceType;
   filterFingerprint: string;
   cursor?: string | null;
   windowStart?: string | null;
@@ -237,6 +243,21 @@ function assertKnownResourceType(value: string): TangoResourceType {
     );
   }
   return value as TangoResourceType;
+}
+
+/**
+ * Checkpoint writes accept a WIDER vocabulary than snapshot writes — see
+ * TANGO_CHECKPOINT_RESOURCE_TYPES. `writeSnapshot` keeps the narrow guard, so a
+ * DIBBS/SBIR walk can own a resume cursor without being able to claim a
+ * snapshot family the provider substrate does not define.
+ */
+function assertKnownCheckpointResourceType(value: string): TangoCheckpointResourceType {
+  if (!(TANGO_CHECKPOINT_RESOURCE_TYPES as readonly string[]).includes(value)) {
+    throw new BadRequestException(
+      `Unknown Tango checkpoint resource type "${value}". Known types: ${TANGO_CHECKPOINT_RESOURCE_TYPES.join(', ')}`,
+    );
+  }
+  return value as TangoCheckpointResourceType;
 }
 
 function assertKnownLocalType(value: string): LocalLinkResourceType {
@@ -413,7 +434,7 @@ export class TangoStoreService {
 
   // ── Checkpoints ──────────────────────────────────────────────────────────
 
-  async readCheckpoint(syncVerb: string, resourceType: TangoResourceType, filterFingerprint: string) {
+  async readCheckpoint(syncVerb: string, resourceType: TangoCheckpointResourceType, filterFingerprint: string) {
     return this.prisma.tangoSyncCheckpoint.findUnique({
       where: { syncVerb_resourceType_filterFingerprint: { syncVerb, resourceType, filterFingerprint } },
     });
@@ -427,7 +448,7 @@ export class TangoStoreService {
    * page's row count, not the running total.
    */
   async writeCheckpoint(input: WriteCheckpointInput) {
-    assertKnownResourceType(input.resourceType);
+    assertKnownCheckpointResourceType(input.resourceType);
     const now = new Date();
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.tangoSyncCheckpoint.findUnique({

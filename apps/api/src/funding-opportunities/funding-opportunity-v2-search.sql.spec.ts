@@ -6,7 +6,7 @@ import {
   normalizeOpportunitySearchCriteria,
   type OpportunitySourceV2,
 } from '@capiro/shared';
-import { healthSql, readExactSourceSql, searchSourceSql } from './funding-opportunity-v2-search.sql.js';
+import { healthSql, readExactSourceSql, searchSourceSql, sourceBase } from './funding-opportunity-v2-search.sql.js';
 
 const TEST_DATABASE_URL = process.env.FUNDING_OPPORTUNITIES_TEST_DATABASE_URL;
 const parsedUrl = TEST_DATABASE_URL ? new URL(TEST_DATABASE_URL) : null;
@@ -487,5 +487,32 @@ describe('funding opportunity source health SQL shape and semantics', () => {
       state: 'initial_partial', recordCount: 8, activeRecordCount: 2,
       lastSyncedAt: null, latestAttemptAt: '2026-09-17T12:00:00.000Z', lastSuccessAt: null,
     });
+  });
+});
+
+describe('sbir_sttr active semantics', () => {
+  // Active is the provider's OWN word. A missing or unrecognized activity must
+  // never be treated as open, and an explicit unknown/withdrawn value must not
+  // become a confident closure either: it lands in the coarsest non-pursuable
+  // bucket while source_facts keeps the raw provider activity.
+  const sql = sourceBase('sbir_sttr');
+  const text = sql.strings.join(' ? ') + JSON.stringify(sql.values ?? []);
+
+  test('requires an explicit provider activity of open', () => {
+    expect(text).toContain("lower(coalesce(t.activity, '')) = 'open'");
+    expect(text).toContain("lower(coalesce(s.activity, '')) = 'open'");
+    // A NOT IN list would treat a missing value as active.
+    expect(text).not.toContain("lower(coalesce(t.activity, '')) NOT IN");
+    expect(text).not.toContain("lower(coalesce(s.activity, '')) NOT IN");
+  });
+
+  test('an expired or explicitly closed rail is never active', () => {
+    expect(text).toContain("t.close_date IS NOT NULL AND t.close_date < CURRENT_DATE");
+    expect(text).toContain("s.end_date IS NOT NULL AND s.end_date < CURRENT_DATE");
+    expect(text).toContain("'closed','withdrawn','unknown','expired'");
+  });
+
+  test('the stored topic description is the sbir_sttr summary', () => {
+    expect(text).toContain('t.description summary');
   });
 });

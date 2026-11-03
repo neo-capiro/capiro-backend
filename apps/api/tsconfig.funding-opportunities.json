@@ -25,6 +25,8 @@
   "include": [
     "scripts/sync-tango-funding.ts",
     "scripts/sync-tango-funding.spec.ts",
+    "scripts/sync-tango-funding-active-lanes.spec.ts",
+    "src/external/tango/funding-active-sources.spec.ts",
     "scripts/funding-cli.spec.ts",
     "src/external/tango/funding-catalog.db.spec.ts",
     "scripts/embed-funding-catalog.ts",
