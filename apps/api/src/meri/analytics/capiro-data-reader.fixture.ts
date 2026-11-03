@@ -36,6 +36,8 @@ export const READER_MIGRATIONS = [
   '20281027100000_private_saved_business_policies',
   '20281027101000_private_saved_business_projections',
   '20281101010000_capiro_data_published_surface',
+  '20281101130000_research_canonical_contact_helper',
+  '20281101140000_research_canonical_meeting16',
   '20281101180000_capiro_data_public_column_meaning',
   '20281102100000_capiro_data_federal_awards_surface',
   '20281102120000_capiro_data_program_element_years_surface',
@@ -71,6 +73,9 @@ const BASE_TABLES = [
   'tracked_bill',
   'engagement_campaigns',
   'engagement_campaign_recipients',
+  'meetings',
+  'engagement_connections',
+  'meeting_attendees',
   'congress_bill',
   'congress_bill_subject',
   'congress_bill_cosponsor',
@@ -109,6 +114,9 @@ const TENANT_POLICY_TABLES = [
   'engagement_tasks',
   'action_recommendation',
   'tracked_bill',
+  'meetings',
+  'engagement_connections',
+  'meeting_attendees',
 ] as const;
 const ROLES = ['capiro_analytics_ro', 'capiro_private_query_ro', 'capiro_private_projection_owner', 'capiro_public_projection_owner'] as const;
 

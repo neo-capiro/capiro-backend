@@ -40,7 +40,10 @@ function unwrap<T>(json: unknown, wrapperKeys: string[], requiredField: string):
 }
 
 /** Parse a LegiScan bulk dataset ZIP (already base64-decoded to a Buffer). */
-export async function parseDatasetZip(zipBuffer: Buffer): Promise<ParsedDataset> {
+export async function parseDatasetZip(
+  zipBuffer: Buffer,
+  deadline?: number,
+): Promise<ParsedDataset> {
   if (zipBuffer.length > 120_000_000) throw Error('DATASET_COMPRESSED_SIZE_LIMIT');
   const { default: JSZip } = await import('jszip');
   const zip = await JSZip.loadAsync(zipBuffer);
@@ -66,6 +69,7 @@ export async function parseDatasetZip(zipBuffer: Buffer): Promise<ParsedDataset>
   }
   let expanded = 0;
   for (const entry of entries) {
+    if (deadline !== undefined && Date.now() >= deadline) throw Error('DATASET_SLICE_DEADLINE');
     const lowerPath = entry.name.toLowerCase();
     const bytes = await new Promise<Buffer>((resolve, reject) => {
       const chunks: Buffer[] = [];
@@ -77,10 +81,14 @@ export async function parseDatasetZip(zipBuffer: Buffer): Promise<ParsedDataset>
           if (failed) return;
           size += chunk.length;
           expanded += chunk.length;
-          if (size > 10_000_000 || expanded > 512_000_000) {
+          if (
+            size > 10_000_000 ||
+            expanded > 512_000_000 ||
+            (deadline !== undefined && Date.now() >= deadline)
+          ) {
             failed = true;
             stream.destroy();
-            reject(Error('DATASET_EXPANSION_LIMIT'));
+            reject(Error(deadline!==undefined&&Date.now()>=deadline?'DATASET_SLICE_DEADLINE':'DATASET_EXPANSION_LIMIT'));
             return;
           }
           chunks.push(chunk);
