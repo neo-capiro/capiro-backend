@@ -63,3 +63,25 @@ describe('embed-funding-catalog pending selection', () => {
     await expect(main(['--scope=all', '--max-chunks=20001'])).rejects.toThrow('Invalid embedding limits');
   });
 });
+
+describe('active SBIR topic embeddings', () => {
+  test('the active scope selects only topics the read path calls open', () => {
+    const sql = pendingDocumentsSql('sbir_topic', 'active');
+    expect(sql).toContain('FROM tango_sbir_topic');
+    expect(sql).toContain("lower(coalesce(activity,'')) = 'open'");
+    expect(sql).toContain('close_date IS NULL OR close_date >= CURRENT_DATE');
+    expect(sql).toContain('embedded_at IS NULL OR embedded_at < last_synced_at');
+    // Description is the only prose source; a null one is not embeddable.
+    expect(sql).toContain('length(description)>10');
+  });
+
+  test('the historical scope drops the activity filter but keeps its own type', () => {
+    const active = pendingDocumentsSql('sbir_topic', 'active');
+    const all = pendingDocumentsSql('sbir_topic', 'all');
+    expect(all).not.toContain("= 'open'");
+    expect(active).not.toBe(all);
+    // No DIBBS or SBIR-cycle title-only kind exists.
+    expect(() => pendingDocumentsSql('dibbs_solicitation' as never, 'active')).toThrow();
+    expect(() => pendingDocumentsSql('sbir_solicitation' as never, 'active')).toThrow();
+  });
+});

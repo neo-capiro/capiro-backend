@@ -259,6 +259,28 @@ describe('FundingOpportunityV2SearchService', () => {
     expect(result.freshness).toEqual([expect.objectContaining({ source: 'grants_gov', state: 'stale', lastSyncedAt: '2026-01-01T00:00:00.000Z' })]);
   });
 
+  test('passes the success and latest-attempt instants through to freshness', async () => {
+    // DIBBS/SBIR can have a failed latest attempt on top of an older success.
+    // Collapsing both into lastSyncedAt made "up to date" indistinguishable
+    // from "the newest run failed".
+    const service = makeService([adapter('dibbs', [record('dibbs', 'd1')], {
+      health: async () => ({
+        recordCount: 1, activeRecordCount: 1,
+        lastSyncedAt: '2026-10-22T01:21:16.466Z',
+        lastSuccessAt: '2026-10-22T01:21:16.466Z',
+        latestAttemptAt: '2026-11-03T10:45:56.992Z',
+        state: 'error_cached',
+      }),
+    })]);
+    const result = await service.search(context, criteria({ sources: ['dibbs'] }));
+    expect(result.freshness).toEqual([expect.objectContaining({
+      source: 'dibbs', state: 'error_cached',
+      lastSyncedAt: '2026-10-22T01:21:16.466Z',
+      lastSuccessAt: '2026-10-22T01:21:16.466Z',
+      latestAttemptAt: '2026-11-03T10:45:56.992Z',
+    })]);
+  });
+
   test('preserves a comma in query text and accepts current singular URL aliases', async () => {
     const service = makeService([adapter('grants_gov', [record('grants_gov', 'comma', { summary: 'radar, antenna', grantPrerequisites: ['registration'] })], {
       search: async (requested) => ({ records: requested.grantPrerequisites.length ? [record('grants_gov', 'comma', { summary: 'radar, antenna', grantPrerequisites: ['registration'] })] : [], count: requested.grantPrerequisites.length ? 1 : 0 }),

@@ -52,12 +52,24 @@ describe('Funding Opportunities production ingestion schedules', () => {
     expect(embed.cron).toMatchObject({ minute: '20', hour: '4,10,16,22' });
     expect(embed.enabled).toBe(true);
 
+    // Desired cutover only: same stable ids and crons, consolidated active
+    // lanes with fixed budgets, and marked out-of-band so ComputeStack cannot
+    // recreate the old api-sync-jobs target against the pre-clone database.
     const dibbs = INGESTION_JOBS.find((job) => job.id === 'SyncTangoDibbs')!;
+    expect(dibbs.command).toEqual(['sync-tango-funding', '--commit', '--lane=dibbs', '--max-requests=140']);
     expect(dibbs.cron).toMatchObject({ minute: '5', hour: '0' });
     expect(dibbs.enabled).toBe(true);
+    expect(dibbs.managedOutOfBand).toBe(true);
     const sbir = INGESTION_JOBS.find((job) => job.id === 'SyncTangoSbir')!;
+    expect(sbir.command).toEqual(['sync-tango-funding', '--commit', '--lane=sbir', '--max-requests=20']);
     expect(sbir.cron).toMatchObject({ minute: '20', hour: '1' });
     expect(sbir.enabled).toBe(true);
+    expect(sbir.managedOutOfBand).toBe(true);
+    // The old unbounded weekly history writers are superseded by the resumable
+    // daily active walk. Their out-of-band rules still exist and are disabled
+    // at cutover; deleting these declarations does not delete the rules.
+    expect(INGESTION_JOBS.some((job) => job.id === 'ReconcileTangoDibbsFull')).toBe(false);
+    expect(INGESTION_JOBS.some((job) => job.id === 'ReconcileTangoSbirFull')).toBe(false);
 
     // The dedicated fo-dev rule is the single forecast owner. A generic
     // Compute-stack deploy must not recreate the retired duplicate.

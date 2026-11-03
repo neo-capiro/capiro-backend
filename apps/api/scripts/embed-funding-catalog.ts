@@ -11,6 +11,11 @@ import { ATTACHMENT_BODY_SQL, ATTACHMENT_TEXT_METADATA_SQL, CURRENT_FUNDING_ATTA
 const SOURCES = {
   grant: { table: 'federal_grant', idType: 'text', changed: 'synced_at', type: 'funding_grant_chunk', body: "concat_ws(E'\n',title,agency,description,eligibility_text,array_to_string(eligibility,', '))", url: 'url', priority: "status IN ('posted','forecasted') AND (close_date IS NULL OR close_date >= CURRENT_DATE)", newest: 'close_date DESC NULLS LAST' },
   notice: { table: 'sam_opportunity', idType: 'uuid', changed: 'last_synced_at', type: 'funding_notice_chunk', body: "concat_ws(E'\n',title,agency,description,set_aside,naics_code,psc_code)", url: 'source_url', priority: 'active AND (response_deadline IS NULL OR response_deadline >= NOW())', newest: 'posted_date DESC NULLS LAST' },
+  // Active SBIR topic synopsis. Description is the only real prose this program
+  // holds for SBIR; a cycle has none, and a DIBBS row is a title, so neither is
+  // embedded. The provider activity filter is explicit, and date expiry plus a
+  // closed raw status are excluded, matching the read path.
+  sbir_topic: { table: 'tango_sbir_topic', idType: 'uuid', changed: 'last_synced_at', type: 'funding_sbir_topic_chunk', body: "concat_ws(E'\n',title,agency,description)", url: 'coalesce(topic_url,official_solicitation_url)', priority: "lower(coalesce(activity,'')) = 'open' AND (close_date IS NULL OR close_date >= CURRENT_DATE) AND lower(coalesce(solicitation_status,'')) NOT IN ('closed','expired','complete')", newest: 'close_date DESC NULLS LAST' },
   attachment: { table: 'opportunity_attachment', idType: 'uuid', changed: 'provider_observed_at', type: 'funding_attachment_chunk', body: ATTACHMENT_BODY_SQL, url: 'source_url', priority: CURRENT_FUNDING_ATTACHMENT_SQL, newest: 'provider_observed_at DESC NULLS LAST' },
 } as const;
 type Kind = keyof typeof SOURCES;
@@ -63,7 +68,7 @@ export async function embedDocument(prisma: PrismaClient, kind: Kind, row: Recor
     ...(kind === 'attachment' ? { providerAttachmentId: row.provider_attachment_id, binding: row.text_method === 'local_parser' ? 'archived_content_sha256' : 'provider_attachment_id', samOpportunityId: row.sam_opportunity_id, federalGrantId: row.federal_grant_id,
       extractionStatus: row.text_method === 'local_parser' ? 'available' : object(row.provider_data).extraction_status,
       extractionMethod: row.text_method ?? 'provider', ...(row.text_method === 'local_parser' ? { attachmentContentSha256: row.content_sha256, truncated: row.text_truncated ?? false } : {}),
-      documentRole: object(row.provider_data).doc_role ?? null } : { binding: 'government_record_id' }) };
+      documentRole: object(row.provider_data).doc_role ?? null } : kind === 'sbir_topic' ? { binding: 'provider_topic_id' } : { binding: 'government_record_id' }) };
   const plan = documentPlan(String(row.id), row.body, metadata);
   let calls = 0;
   const previous = await prisma.$queryRawUnsafe<Array<{ source_id: string; content_hash: string; vector: string }>>(
@@ -133,7 +138,7 @@ export async function main(argv = process.argv.slice(2)) {
       let planned = 0, processed = 0, calls = 0, complete = true;
       // The scheduled active scope never spends budget on historical records;
       // only an explicit --scope=all run works through them, newest first.
-      for (const kind of ['grant', 'notice', 'attachment'] as const) {
+      for (const kind of ['grant', 'notice', 'sbir_topic', 'attachment'] as const) {
         if (planned >= budget) { complete = false; continue; }
         const rows = await readPendingDocuments(prisma, kind, limit, scope);
         if (rows.length === limit) complete = false;
