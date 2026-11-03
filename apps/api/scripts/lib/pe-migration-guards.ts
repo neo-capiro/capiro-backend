@@ -61,8 +61,10 @@ const FORBIDDEN_MIGRATION_HISTORY_PATTERNS: Array<{ code: string; re: RegExp; la
  * preamble (including pool cap) are unchanged; see the recovery runbook.
  * Forecast successor 877b3863 adds only two explicit, exec-terminated jobs that
  * preserve supplied DATABASE_URL; existing startup, recovery and defaults remain exact.
- * Bills successor (PR447, merge b165a9d4) adds only two more explicit,
- * exec-terminated command arms ahead of the legacy default:
+ * Inherited FY26 bill dispatch, present at b165a9d4 and unrelated to the funding
+ * merge: 3c50826fd ported the bill ingestion/passages arm and 2a133af47 added
+ * the capacity-hold/cache arm. Both are explicit, exec-terminated command arms
+ * ahead of the legacy default:
  *   index-bill-passages | embed-bill-passages | sync-state-text-drain |
  *   import-state-dataset-cache | import-state-discovery        (help bypasses URL composition)
  *   record-legiscan-capacity-hold | import-federal-billstatus-cache |
