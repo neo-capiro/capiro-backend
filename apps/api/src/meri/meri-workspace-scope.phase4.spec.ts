@@ -23,6 +23,9 @@ function setup() {
     { id: 'chat-general', ...ctx, clientId: null, workspaceId: null, archivedAt: null, metadataRevision: 0n, title: 'General chat' },
   ];
   const tx = {
+    clioConversationBootstrapReceipt: {
+      findFirst: jest.fn(async (): Promise<{ requestId: string } | null> => null),
+    },
     client: { findFirst: jest.fn(async ({ where }: { where: Where }) =>
       where.tenantId === ctx.tenantId && [clientA, clientB].includes(String(where.id)) ? { id: where.id } : null) },
     meriWorkspace: {
@@ -199,8 +202,24 @@ describe('Phase 4 canonical workspace membership and client scope', () => {
   });
 
   it('permits a title change and unchanged client within a bound workspace', async () => {
-    const { meri, conversations } = setup(); conversations[0]!.workspaceId = 'workspace-a';
-    await expect(meri.updateConversation(ctx, 'chat-a', { title: 'New title', clientId: clientA })).resolves.toMatchObject({ title: 'New title', clientId: clientA });
+    const { meri, conversations, tx } = setup(); conversations[0]!.workspaceId = 'workspace-a';
+    const updated = await meri.updateConversation(ctx, 'chat-a', { title: 'New title', clientId: clientA });
+    expect(updated).toMatchObject({ title: 'New title', clientId: clientA });
+    expect(JSON.parse(JSON.stringify(updated))).toMatchObject({ metadataRevision: '0' });
+    expect(conversations[0]!.metadataRevision).toBe(0n);
+    expect(tx.clioConversationBootstrapReceipt.findFirst).toHaveBeenCalledWith({
+      where: { tenantId: ctx.tenantId, conversationId: 'chat-a' }, select: { requestId: true },
+    });
+  });
+
+  it('requires versioned management for a bootstrap-bound conversation before locking or updating it', async () => {
+    const { meri, tx } = setup();
+    tx.clioConversationBootstrapReceipt.findFirst.mockResolvedValueOnce({ requestId: 'bootstrap-request' });
+    await expect(meri.updateConversation(ctx, 'chat-a', { clientId: clientB })).rejects.toThrow('VERSIONED_CONVERSATION_MANAGEMENT_REQUIRED');
+    expect(tx.clioConversation.updateMany).not.toHaveBeenCalled();
+    expect(tx.clioConversation.update).not.toHaveBeenCalled();
+    expect(tx.clioMessage.updateMany).not.toHaveBeenCalled();
+    expect(tx.clioArtifact.updateMany).not.toHaveBeenCalled();
   });
 
   it('fails closed when conversation ownership disappears before the client update lock', async () => {

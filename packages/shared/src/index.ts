@@ -954,7 +954,11 @@ const PATTERNS: Record<CanonicalIdType, RegExp> = {
   piid: /^[A-Z0-9]{4,17}$/,
   naics: /^[0-9]{2,6}$/,
   peCode: /^[0-9]{7}[A-Z]{1,2}$/,
-  stateBillKey: /^[a-z]{2}-\d{4}(x\d+)?-[a-z]+\d+[a-z]?$/,
+  // MI joint resolutions use one/two-letter designations (HJR A / HJR AA);
+  // Nebraska constitutional resolutions retain their CA suffix (LR5CA).
+  // Keep both exceptions jurisdiction-specific and preserve every numeric ID.
+  stateBillKey:
+    /^(?:[a-z]{2}-\d{4}(?:x\d+)?-[a-z]+\d+[a-z]?|mi-\d{4}(?:x\d+)?-(?:hjr|sjr)[a-z]{1,2}|ne-\d{4}(?:x\d+)?-lr\d+ca)$/,
 };
 
 /** True iff `value` (after normalizeCanonicalId) is a well-formed id of `type`. */
@@ -1035,7 +1039,7 @@ export function parseStateBillDesignation(
   sessionKey?: string | null,
 ): ParsedStateBillDesignation | null {
   const cleaned = (text ?? '').trim();
-  const billNumberFrom = (body: string): string | null => {
+  const billNumberFrom = (body: string, resolvedState: string): string | null => {
     // Strip periods before matching ("H.B. 1234" -> "HB 1234") — punctuation
     // carries no meaning in a bill designation, same tolerance as the federal
     // parseBillDesignation's per-letter optional dots. The number group also
@@ -1044,24 +1048,28 @@ export function parseStateBillDesignation(
     // human lookup and the ingested key must resolve to the same DD1 id.
     const stripped = body.trim().replace(/\./g, '');
     const m = stripped.match(/^([A-Za-z]+)\s*([0-9]+(?:-[0-9]+)*)([A-Za-z]?)$/);
-    if (!m || !m[1] || !m[2]) return null;
-    return `${m[1].toLowerCase()}${m[2].replace(/-/g, '')}${(m[3] ?? '').toLowerCase()}`;
+    if (m?.[1] && m[2])
+      return `${m[1].toLowerCase()}${m[2].replace(/-/g, '')}${(m[3] ?? '').toLowerCase()}`;
+    const special = stripped.replace(/\s+/g, '').toLowerCase();
+    if (resolvedState === 'MI' && /^(?:hjr|sjr)[a-z]{1,2}$/.test(special)) return special;
+    if (resolvedState === 'NE' && /^lr\d+ca$/.test(special)) return special;
+    return null;
   };
-  const build = (resolvedState: string, billNumber: string): ParsedStateBillDesignation => ({
-    state: resolvedState,
-    billNumber,
-    key: sessionKey ? `${resolvedState.toLowerCase()}-${sessionKey}-${billNumber}` : null,
-  });
+  const build = (resolvedState: string, billNumber: string): ParsedStateBillDesignation | null => {
+    const key = sessionKey ? `${resolvedState.toLowerCase()}-${sessionKey}-${billNumber}` : null;
+    if (key && !isStateBillKey(key)) return null;
+    return { state: resolvedState, billNumber, key };
+  };
 
   const hinted = (state ?? '').toUpperCase();
   if (/^[A-Z]{2}$/.test(hinted)) {
-    const billNumber = billNumberFrom(cleaned);
+    const billNumber = billNumberFrom(cleaned, hinted);
     if (billNumber) return build(hinted, billNumber);
   }
 
   const leadingState = cleaned.match(/^([A-Za-z]{2})\s+(.+)$/);
   if (leadingState?.[1] && leadingState[2]) {
-    const billNumber = billNumberFrom(leadingState[2]);
+    const billNumber = billNumberFrom(leadingState[2], leadingState[1].toUpperCase());
     if (billNumber) return build(leadingState[1].toUpperCase(), billNumber);
   }
 
@@ -4284,7 +4292,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'search_congress_bills',
     description:
-      'Search congressional bills in the Capiro database (118th and 119th Congress). Filter by keyword, policy area, congress number, or recent activity date. Accepts a bill designation or id ("H.R. 8800", "119-hr-8800") as the query for a direct lookup. Returns bill title, sponsor, latest action, canonical STATUS (e.g. rule_failed, passed_chamber), policy area, and cosponsors count. With textQuery it searches inside stored bill TEXT instead (119th Congress) and returns matching bills with passages; use it to find which bills mention a program, term, or phrase.',
+      'Search congressional bill metadata; existing query/textQuery behavior is unchanged. For retained full text use mode=exact (billId or billNumber+session), keyword (query with literal quoted phrases), or semantic (concept query). These modes are US-only and accept session, dateFrom/dateBefore, dateBasis, status, version, kind, fiscalYear=2026, page/limit and exact section filters; return immutable bill/version/extraction identity, UTF-16 quotes and context. Use read_bill_text mode=retained with the returned identity. mode=coverage alone returns global federal/all-state frozen FY26 inventory and per-version stage coverage. Search misses do not prove source absence.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat', 'in_editor'],
@@ -4300,7 +4308,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'read_bill_text',
     description:
-      'Read the exact current canonical full-text revision for one federal bill and version code from the immutable federal evidence owner. Returns bill/version/package identity, source locator, content and extraction hashes, bounded text, and continuation coverage. To answer a question about part of a long bill, pass query (words or "an exact phrase") to get the best matching passages with their section headings, then read on with a passage readCursor; do not page through a long bill from the start. This is bill text, not amendment text or procedural status; use get_bill_status separately for status.',
+      'Read bill text. Existing default reads the current federal bill/versionCode and accepts query or its cursor. For retained state/federal text, amendments or supplements use mode=retained, exact billId/jurisdiction/session/revisionId/extractionId returned by full-text search, plus optional section, offset, length and contextChars. Continue with mode=retained, the same billId and returned cursor. Returns immutable identities/hashes/source URL, exact UTF-16 text and bounded definitions/references with explicit incomplete context. No procedural status inference; use bill status tools separately.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
@@ -4444,7 +4452,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'search_state_bills',
     description:
-      'Search state legislature bills (LegiScan is the source of record; OpenStates cross-checks). Filter by state (2-letter code), keyword, subject, session, or canonical STATUS. Returns identifier, title, sponsor, latest action, canonical status, sponsor count, and links. Explicitly reports when NO bill matches.',
+      'Search state bill metadata by query/state/session/status by default. For retained full text use mode=exact (billId or billNumber+state+session), keyword (query with literal quoted phrases), or semantic (concept query). Full-text modes exclude US and accept state or jurisdictions, session, dateFrom/dateBefore, dateBasis, status, version, kind, fiscalYear=2026, page/limit and exact section filters. Return immutable bill/version/extraction identity, UTF-16 quotes and context; read onward with read_bill_text mode=retained. mode=coverage alone returns global federal/all-state frozen FY26 inventory and per-version stages. Missing text is not evidence of absence.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],

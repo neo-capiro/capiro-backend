@@ -49,7 +49,8 @@ export async function queueEventRecordRefresh(prisma: PrismaClient, states: stri
       JOIN state_sync_cursor c ON upper(c.state)=upper(b.state) AND c.session_key=b.session_key
       WHERE b.legiscan_bill_id IS NOT NULL AND upper(b.state)=ANY(${states}::text[]) AND
       (EXISTS(SELECT 1 FROM legislative_agenda_item a WHERE a.state_bill_key=b.id AND a.active AND a.hearing_id=ANY(${ids}::text[]))
-       OR EXISTS(SELECT 1 FROM state_bill_record_check d WHERE d.bill_key=b.id AND d.next_check_at<=now() AND d.attempts<10))
+       OR EXISTS(SELECT 1 FROM state_bill_record_check d WHERE d.bill_key=b.id AND d.next_check_at<=now() AND d.attempts<10
+         AND NOT(d.kind='document' AND d.source_identity ~ '^(text|amendment|supplement):[0-9]+:')))
       ORDER BY "cursorId","billId" LIMIT 100`;
       // Exact per-cursor admission provenance, computed INSIDE the same
       // cursor-lock transaction: an id is an admission of this run iff it was

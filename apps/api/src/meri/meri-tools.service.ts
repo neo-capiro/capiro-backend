@@ -2,6 +2,8 @@ import { readMeriGraph } from './meri-graph-source.js';
 import { readMeriPaths } from './meri-graph-paths.js';
 import { readFederalDraftSource } from './federal-draft-source.js';
 import { MeriFederalLegislationTools } from './meri-federal-legislation-tools.js';
+import { BillTextService } from '../retrieval/bill-text.service.js';
+import { retainedBillTool, retainedBillReadProperties, retainedBillSearchProperties } from './meri-retained-bill-tools.js';
 import { UUID_V4_RE, requiredString, optionalString, clampInt } from './meri-tool-input.helpers.js';
 import { executeMeriLocalDispatch, type MeriLocalDispatchRegistry } from './meri-local-dispatch.js';
 import { assertTextArtifactCurrentProposal, type TextArtifactCurrentAction } from './meri-text-artifact-current-proposal.js';
@@ -420,6 +422,7 @@ export class MeriToolsService {
     @Optional() private readonly federalMarket?: FederalMarketService,
     @Optional() private readonly governedMemoryCandidates?: GovernedMemoryCandidateService,
     @Optional() private readonly watchActionRegistry?: WatchActionRegistry,
+    @Optional() private readonly billText?: BillTextService,
   ) {}
 
   manifest() {
@@ -1257,6 +1260,7 @@ export class MeriToolsService {
         ['memoryItemId'],
       ),
       search_congress_bills: obj({
+        ...retainedBillSearchProperties,
         query: str('Keyword search, or a bill designation/id ("H.R. 8800", "119-hr-8800")'),
         textQuery: str(
           'Search inside stored bill TEXT (119th Congress) instead of titles: words, "an exact phrase", or, -exclude. Returns up to 8 matching bills per page (limit 1-10), best first, with passages, a readCursor for read_bill_text, the exact totalBills, and nextPage when more bills match.',
@@ -1264,7 +1268,7 @@ export class MeriToolsService {
         policyArea: str('Policy area filter'),
         congress: int('Congress number, e.g. 118 or 119'),
         activeSince: str('ISO date; only bills with action since then'),
-        limit: int('Max results (1-50)'),
+        limit: int('Max results (1-50 for metadata; 1-20 for explicit full-text modes)'),
         page: int('Page number'),
       }),
       get_bill_status: obj(
@@ -1275,13 +1279,14 @@ export class MeriToolsService {
       ),
       read_bill_text: obj(
         {
+          ...retainedBillReadProperties,
           billId: str(
-            'Exact canonical federal bill ID or designation, including Congress when needed.',
+            'Exact canonical state/federal bill ID for mode=retained; federal ID or designation for the default current reader.',
           ),
           versionCode: str(
             'Optional exact publisher bill version code. Omit to read the current canonical revision.',
           ),
-          cursor: str('Opaque continuation from the prior read of this exact current revision.'),
+          cursor: str('Opaque continuation from the prior read. For mode=retained pass only mode, billId, cursor and optional length/contextChars.'),
           query: str(
             'Words or "an exact phrase" to locate in this bill version. Returns the best matching passages with section headings and a readCursor for each, instead of the first page. Not with cursor.',
           ),
@@ -1444,13 +1449,14 @@ export class MeriToolsService {
         limit: int('Max results (1-50)'),
       }),
       search_state_bills: obj({
+        ...retainedBillSearchProperties,
         query: str('Keyword search'),
         state: str('Two-letter state code'),
         session: str('Legislative session'),
         status: str(
           'Canonical status filter: introduced | committee | reported | floor | passed_chamber | resolving | to_governor | enacted | vetoed | veto_overridden | failed | dead_by_deadline',
         ),
-        limit: int('Max results (1-50)'),
+        limit: int('Max results (1-50 for metadata; 1-20 for explicit full-text modes)'),
       }),
       get_state_bill_status: obj(
         {
@@ -3642,6 +3648,7 @@ export class MeriToolsService {
   }
 
   private async searchCongressBills(input: Record<string, unknown>) {
+    if (input.mode !== undefined) return retainedBillTool(this.billText, 'search_congress_bills', input);
     return new MeriFederalLegislationTools(this.prisma, this.ldaIntel).searchCongressBills(input);
   }
 
@@ -3712,6 +3719,7 @@ export class MeriToolsService {
   }
 
   private async readBillText(input: Record<string, unknown>) {
+    if (input.mode !== undefined) return retainedBillTool(this.billText, 'read_bill_text', input);
     return new MeriFederalLegislationTools(this.prisma, this.ldaIntel).readBillText(input);
   }
 
@@ -4857,6 +4865,7 @@ export class MeriToolsService {
   }
 
   private async searchStateBills(input: Record<string, unknown>) {
+    if (input.mode !== undefined) return retainedBillTool(this.billText, 'search_state_bills', input);
     const query = optionalString(input, 'query', 240);
     const state = optionalString(input, 'state', 2);
     const session = optionalString(input, 'session', 60);

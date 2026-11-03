@@ -287,7 +287,7 @@ describeDatabase('capiro data reader roles: database-enforced properties', () =>
     });
     it('returns the PostgreSQL error with position, hint and nearest names', async () => {
       const unknownColumn = await queryCapiroData({ sql: 'SELECT b.titel FROM congress_bills b', parameters: [] }, analytics);
-      expect(unknownColumn).toMatchObject({ ok: false, error: { code: 'UNKNOWN_FIELD', sqlstate: '42703', position: 8, candidates: ['title', 'quantity'] } });
+      expect(unknownColumn).toMatchObject({ ok: false, error: { code: 'UNKNOWN_FIELD', sqlstate: '42703', position: 8, candidates: ['title', 'edition', 'quantity'] } });
       if (unknownColumn.ok) throw new Error('expected refusal');
       expect(unknownColumn.error.message).toBe('column b.titel does not exist');
       const unknownRelation = await queryCapiroData({ sql: 'SELECT 1 FROM congress_bill', parameters: [] }, analytics);
