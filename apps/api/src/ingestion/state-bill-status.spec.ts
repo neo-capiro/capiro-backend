@@ -294,4 +294,28 @@ describe('parseStateBillDesignation', () => {
     expect(r?.state).toBe('DC');
     expect(r?.billNumber).toBe('pr260001');
   });
+  it.each([
+    ['MI H.J.R. AA', null, '2025', 'mi-2025-hjraa'],
+    ['SJR O', 'MI', '2025', 'mi-2025-sjro'],
+    ['HJR A', 'MI', '2025x2183', 'mi-2025x2183-hjra'],
+    ['NE LR 5 CA', null, '2025', 'ne-2025-lr5ca'],
+    ['LR5', 'NE', '2025', 'ne-2025-lr5'],
+  ])(
+    'resolves qualified official resolution %s to its canonical ID',
+    (text, state, session, key) => {
+      expect(parseStateBillDesignation(text, state, session)?.key).toBe(key);
+    },
+  );
+  it.each([
+    ['HJR A', null, '2025'],
+    ['HJRA', 'TX', '2025'],
+    ['HJRAAA', 'MI', '2025'],
+    ['HBA', 'MI', '2025'],
+    ['LR5CA', 'TX', '2025'],
+    ['HB5CA', 'NE', '2025'],
+    ['HJRA', 'MI', '2025invalid'],
+    ['LR5CA', 'NE', 'invalid'],
+  ])('refuses unresolved or malformed special resolution %s', (text, state, session) => {
+    expect(parseStateBillDesignation(text, state, session)).toBeNull();
+  });
 });
