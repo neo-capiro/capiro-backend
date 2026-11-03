@@ -132,11 +132,21 @@ export interface TangoSbirListOptions {
   limit?: number;
 }
 
-/** `/api/sbir/topics/` — the documented date filters are open/close/release. */
+/** `/api/sbir/topics/` — the documented date filters are open/close/release.
+ * `activity` is the documented lifecycle filter (e.g. `open`), available on
+ * both SBIR endpoints; it is a caller-supplied provider value, not a locally
+ * derived open/closed inference. */
 export interface TangoSbirTopicListOptions extends TangoSbirListOptions {
   openDateAfter?: string;
   closeDateAfter?: string;
   releaseDateAfter?: string;
+  activity?: string;
+  /**
+   * Comma-separated field list. The provider's DEFAULT topic projection omits
+   * `description`, so a caller that needs it must ask for it; an omitted shape
+   * is passed through as-is (default projection) rather than fabricated.
+   */
+  shape?: string;
   /** The provider's own `solicitation_number`, for topic-to-cycle joins. */
   solicitationNumber?: string;
 }
@@ -145,6 +155,7 @@ export interface TangoSbirTopicListOptions extends TangoSbirListOptions {
 export interface TangoSbirSolicitationListOptions extends TangoSbirListOptions {
   startDateAfter?: string;
   endDateAfter?: string;
+  activity?: string;
   /**
    * `'SBIR' | 'STTR'` as the provider spells it. NOT narrowed to a union here:
    * this is the discriminator between the two programs and the contract doc
@@ -188,6 +199,8 @@ export class TangoSbirClient implements TangoSbirGateway {
       if (options.openDateAfter) params.set('open_date_after', options.openDateAfter);
       if (options.closeDateAfter) params.set('close_date_after', options.closeDateAfter);
       if (options.releaseDateAfter) params.set('release_date_after', options.releaseDateAfter);
+      if (options.activity) params.set('activity', options.activity);
+      if (options.shape) params.set('shape', options.shape);
       if (options.solicitationNumber) params.set('solicitation_number', options.solicitationNumber);
     });
   }
@@ -196,6 +209,7 @@ export class TangoSbirClient implements TangoSbirGateway {
     return this.list('/api/sbir/solicitations/', 'listSolicitations', options, (params) => {
       if (options.startDateAfter) params.set('start_date_after', options.startDateAfter);
       if (options.endDateAfter) params.set('end_date_after', options.endDateAfter);
+      if (options.activity) params.set('activity', options.activity);
       if (options.program) params.set('program', options.program);
     });
   }

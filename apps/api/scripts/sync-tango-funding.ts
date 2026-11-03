@@ -10,9 +10,31 @@ import { fillGrantDocumentGaps } from '../src/external/tango/funding-grant-docum
 import { computeFilterFingerprint } from '../src/external/tango/tango-store.service.js';
 import { runWithSyncRun, emptyCounts } from '../src/ingestion/sync-run.helper.js';
 import { object, type RecordData } from '../src/external/tango/funding-catalog.mapper.js';
-import { redact, redactWithKnownSecret } from '../src/external/tango/tango.errors.js';
+import { redact, redactWithKnownSecret, TangoError } from '../src/external/tango/tango.errors.js';
+// Active DIBBS/SBIR descriptors only. Paging, quota, retry and the durable
+// cursor stay in THIS file's walk() and FundingCatalogClient — the new lanes add
+// endpoints, not a second pipeline.
+import {
+  ACTIVE_SOURCE_LANES,
+  ACTIVE_SOURCE_PAGE_SIZE,
+  reconcileUnconfirmedActive,
+  type ActiveSourceEndpoint,
+  type ActiveSourceRow,
+  type ClosureAdapters,
+  type ClosureResult,
+} from '../src/external/tango/funding-active-sources.js';
+import type { TangoDibbsSolicitationRow } from '../src/external/tango/tango-dibbs.mapper.js';
+import type { TangoSbirSolicitationRow, TangoSbirTopicRow } from '../src/external/tango/tango-sbir.mapper.js';
 
 export type Lane = 'grants' | 'active-notices' | 'recent-notices' | 'recent-documents' | 'documents' | 'reconcile-notices' | 'reconcile-grants' | 'grant-documents';
+/**
+ * DIBBS and SBIR/STTR lanes. Deliberately NOT part of the default LANES order:
+ * they share the account's daily quota with grants/SAM, so which day they run
+ * and with what budget is a deliberate allocation, not an accident of `all`.
+ * Each is ACTIVE-ONLY (the provider's own `open` filter) and bounded.
+ */
+export type SpecialLane = 'dibbs' | 'sbir';
+export type SelectedLane = Lane | SpecialLane;
 // Refresh current catalogs and their documents before the reconciliation
 // lanes, which can resume historical local records under the same quota.
 const LANES: Lane[] = ['grants', 'recent-notices', 'recent-documents', 'active-notices', 'documents', 'grant-documents', 'reconcile-notices', 'reconcile-grants'];
@@ -72,13 +94,151 @@ function numberArg(argv: string[], name: string, fallback: number, max: number):
   if (!Number.isSafeInteger(value) || value < 1 || value > max) throw new Error(`Invalid --${name}`);
   return value;
 }
-export const FUNDING_USAGE = 'Usage: sync-tango-funding [--commit] [--lane=all|grants|active-notices|recent-notices|recent-documents|documents|reconcile-notices|reconcile-grants|grant-documents] [--max-requests=N] [--max-pages=N] [--reserve-requests=N] [--grant-extract=s3://BUCKET/KEY] [--extract-limit=N] [--original-grant-limit=N]. Requires DATABASE_URL and TANGO_API_KEY; commits require FUNDING_ALLOWED_DB_HOST. Exit 0: bounded pass; 1: failure.';
+export const FUNDING_USAGE = 'Usage: sync-tango-funding [--commit] [--lane=all|grants|active-notices|recent-notices|recent-documents|documents|reconcile-notices|reconcile-grants|grant-documents|dibbs|sbir] [--max-requests=N] [--max-pages=N] [--reserve-requests=N] [--grant-extract=s3://BUCKET/KEY] [--extract-limit=N] [--original-grant-limit=N]. The dibbs and sbir lanes are active-only, bounded, resumable walks sharing --max-requests/--max-pages/--reserve-requests, and are never part of --lane=all. Requires DATABASE_URL and TANGO_API_KEY; commits require FUNDING_ALLOWED_DB_HOST. Exit 0: bounded pass; 1: failure.';
+/** Write one mapped provider row through its own table's upsert. */
+async function persistActive(endpoint: ActiveSourceEndpoint, store: FundingCatalogStore, row: ActiveSourceRow, commit: boolean): Promise<void> {
+  switch (endpoint.checkpointResource) {
+    case 'dibbs_solicitation': return store.dibbsSolicitation(row as TangoDibbsSolicitationRow, commit);
+    case 'sbir_topic': return store.sbirTopic(row as TangoSbirTopicRow, commit);
+    case 'sbir_solicitation': return store.sbirSolicitation(row as TangoSbirSolicitationRow, commit);
+    default: throw new Error(`Unsupported active source checkpoint ${endpoint.checkpointResource}`);
+  }
+}
+
+/**
+ * One active endpoint, walked by the SAME paging/checkpoint/quota machinery the
+ * grants and notices lanes use.
+ *
+ * The page is committed to the checkpoint only after every mapped write on it
+ * succeeded — `walk` writes the checkpoint after the row loop, and a failed or
+ * unmappable row throws out of that loop, so the cursor stays on the page that
+ * needs replaying. `commit: false` writes nothing anywhere.
+ */
+export async function walkActiveEndpoint(
+  endpoint: ActiveSourceEndpoint,
+  syncSource: string,
+  ctx: { client: FundingCatalogClient; store: FundingCatalogStore; commit: boolean; maxPages: number },
+): Promise<{ processed: number; written: number; complete: boolean; epoch: string }> {
+  const fingerprint = computeFilterFingerprint({
+    version: 1,
+    endpoint: endpoint.endpoint,
+    active: true,
+    batchSize: ACTIVE_SOURCE_PAGE_SIZE,
+  });
+  let written = 0;
+  // The sweep epoch. A RESUMED walk (a parked cursor) keeps the window its early
+  // pages were written under. A fresh sweep uses ONE clock value that is also
+  // handed to walk(), so the epoch and the persisted window cannot differ by a
+  // few milliseconds and leave a just-written row looking "unseen".
+  const saved = await ctx.store.observations.readCheckpoint(syncSource, endpoint.checkpointResource, fingerprint);
+  const sweepNow = new Date();
+  const resumedFrom = saved?.cursor != null ? saved?.windowEnd : null;
+  const epoch = (resumedFrom ?? sweepNow).toISOString();
+  const summary = await walk({
+    read: async () => (saved ? { cursor: saved.cursor, windowStart: saved.windowStart, windowEnd: saved.windowEnd } : null),
+    // Fixed page size: the batch never shrinks to fit the remaining budget.
+    // FundingCatalogClient stops issuing requests when the budget or reserve is
+    // reached, which surfaces as CatalogQuotaPause -> complete:false.
+    page: (page) => ctx.client.get(endpoint.resource, { page, limit: ACTIVE_SOURCE_PAGE_SIZE, ...endpoint.filter }),
+    write: async (raw) => {
+      const mapped = endpoint.map(raw);
+      if (mapped == null) throw new Error(`Active ${endpoint.endpoint} record has no provider identity; page not committed`);
+      written += 1;
+      await persistActive(endpoint, ctx.store, mapped, ctx.commit);
+    },
+    checkpoint: (page, start, end, rows) => ctx.store.observations.writeCheckpoint({
+      syncVerb: syncSource,
+      resourceType: endpoint.checkpointResource,
+      filterFingerprint: fingerprint,
+      cursor: page === null ? null : String(page),
+      windowStart: start.toISOString(),
+      windowEnd: end.toISOString(),
+      rowsProcessed: rows,
+      completeness: page === null ? 'complete' : 'in_progress',
+    }).then(() => undefined),
+  }, { commit: ctx.commit, maxPages: ctx.maxPages, incremental: true, now: sweepNow });
+  return { processed: summary.processed, written, complete: summary.complete, epoch };
+}
+
+/**
+ * Exact closure re-check for one endpoint after its active walk completed.
+ * Never retires by absence — see reconcileUnconfirmedActive.
+ */
+async function reconcileEndpoint(
+  endpoint: ActiveSourceEndpoint,
+  epoch: string,
+  ctx: { client: FundingCatalogClient; store: FundingCatalogStore; commit: boolean; prisma: PrismaClient },
+): Promise<ClosureResult> {
+  if (!ctx.commit) return { checked: 0, confirmed: 0, unconfirmed: 0, complete: true };
+  // DATE columns compare against the start of the sweep's UTC day: a row closing
+  // TODAY is still open, and comparing to a mid-day instant would silently
+  // exclude it from the re-check.
+  const today = new Date(`${epoch.slice(0, 10)}T00:00:00.000Z`);
+  const openActivity = { activity: { equals: 'open', mode: 'insensitive' as const } };
+  const notExpired = { OR: [{ closeDate: null }, { closeDate: { gte: today } }] };
+  const adapters: ClosureAdapters = {
+    unseen: async (epochIso, limit) => {
+      const where = { lastSyncedAt: { lt: new Date(epochIso) } };
+      if (endpoint.checkpointResource === 'dibbs_solicitation') {
+        const rows = await ctx.prisma.tangoDibbsSolicitation.findMany({
+          where: { ...where, documentType: endpoint.endpoint, isOpen: true,
+            OR: [{ closesDate: null }, { closesDate: { gte: today } }] },
+          take: limit, orderBy: { lastSyncedAt: 'asc' },
+          select: { id: true, tangoDibbsId: true },
+        });
+        return rows.map((row) => ({ localId: row.id, providerId: row.tangoDibbsId }));
+      }
+      if (endpoint.checkpointResource === 'sbir_topic') {
+        const rows = await ctx.prisma.tangoSbirTopic.findMany({
+          where: { ...where, ...openActivity, ...notExpired },
+          take: limit, orderBy: { lastSyncedAt: 'asc' },
+          select: { id: true, tangoSbirId: true },
+        });
+        return rows.map((row) => ({ localId: row.id, providerId: row.tangoSbirId }));
+      }
+      const rows = await ctx.prisma.tangoSbirSolicitation.findMany({
+        where: { ...where, ...openActivity, OR: [{ endDate: null }, { endDate: { gte: today } }] },
+        take: limit, orderBy: { lastSyncedAt: 'asc' },
+        select: { id: true, tangoSbirId: true },
+      });
+      return rows.map((row) => ({ localId: row.id, providerId: row.tangoSbirId }));
+    },
+    detail: async (providerId) => {
+      try {
+        // SHAPE ONLY: the active filter must not be applied to a detail read, or
+        // a topic that just closed could never be observed as closed. Passing the
+        // shape keeps the description projection on the update path too, so an
+        // omitted description is not silently dropped.
+        return await ctx.client.get(endpoint.resource, { shape: endpoint.filter.shape }, providerId);
+      } catch (error) {
+        // Only a CONFIRMED not-found is evidence. Every other failure propagates
+        // so the lane reports partial instead of closing anything.
+        if (error instanceof TangoError && (error.statusCode === 404 || error.kind === 'not_found')) return null;
+        throw error;
+      }
+    },
+    markUnconfirmed: async (localId) => {
+      if (endpoint.checkpointResource === 'dibbs_solicitation') {
+        await ctx.prisma.tangoDibbsSolicitation.update({ where: { id: localId }, data: { isOpen: null, lastSyncedAt: new Date() } });
+      } else if (endpoint.checkpointResource === 'sbir_topic') {
+        await ctx.prisma.tangoSbirTopic.update({ where: { id: localId }, data: { activity: 'unknown', lastSyncedAt: new Date() } });
+      } else {
+        await ctx.prisma.tangoSbirSolicitation.update({ where: { id: localId }, data: { activity: 'unknown', lastSyncedAt: new Date() } });
+      }
+    },
+  };
+  return reconcileUnconfirmedActive(endpoint, epoch, adapters, {
+    persist: (row) => persistActive(endpoint, ctx.store, row, true),
+  });
+}
+
 export async function main(argv = process.argv.slice(2)) {
   if (argv.length === 1 && ['--help', '-h'].includes(argv[0] ?? '')) { console.log(FUNDING_USAGE); return; }
   if (argv.some(arg => !/^--(?:commit|(?:lane|max-requests|max-pages|reserve-requests|grant-extract|extract-limit|original-grant-limit)=.+)$/.test(arg))) throw new Error(FUNDING_USAGE);
   const commit = argv.includes('--commit');
   const selected = argv.find(x => x.startsWith('--lane='))?.slice(7) ?? 'all';
-  if (selected !== 'all' && !LANES.includes(selected as Lane)) throw new Error('Invalid funding lane');
+  const special = selected === 'dibbs' || selected === 'sbir';
+  if (selected !== 'all' && !special && !LANES.includes(selected as Lane)) throw new Error('Invalid funding lane');
   const maxRequests = numberArg(argv, 'max-requests', commit ? 1100 : 4, 1300);
   const maxPages = numberArg(argv, 'max-pages', commit ? 700 : 1, 1000);
   const reserve = numberArg(argv, 'reserve-requests', 150, 1500);
@@ -104,7 +264,45 @@ export async function main(argv = process.argv.slice(2)) {
       return;
     }
     const client = new FundingCatalogClient(store.observations, { maxRequests, reserve, commit, apiKey: process.env.TANGO_API_KEY });
-    for (const lane of selected === 'all' ? LANES : [selected as Lane]) {
+    for (const lane of selected === 'all' ? LANES : [selected as SelectedLane]) {
+      if (lane === 'dibbs' || lane === 'sbir') {
+        // Active-only lane. ONE SyncRun for the lane, reported under the legacy
+        // source verb so freshness/health reads exactly what it always has.
+        // Complete only when every endpoint of the lane completed; a quota stop
+        // or a failed page leaves the run partial and its cursor parked.
+        const definition = ACTIVE_SOURCE_LANES[lane];
+        const run = async () => {
+          let complete = true;
+          let written = 0;
+          const walked: Array<{ endpoint: ActiveSourceEndpoint; swept: boolean; epoch: string }> = [];
+          // PHASE 1 — every active walk first. Reconciliation must never consume
+          // the shared quota that today's active coverage still needs.
+          for (const endpoint of definition.endpoints) {
+            const summary = await walkActiveEndpoint(endpoint, definition.syncSource, { client, store, commit, maxPages });
+            written += summary.written;
+            complete = complete && summary.complete;
+            walked.push({ endpoint, swept: summary.complete, epoch: summary.epoch });
+            console.log(JSON.stringify({
+              event: 'FUNDING_ACTIVE_ENDPOINT', lane, endpoint: endpoint.endpoint,
+              processed: summary.processed, written: summary.written, complete: summary.complete,
+            }));
+          }
+          // PHASE 2 — closure only for endpoints whose sweep completed, using
+          // whatever budget remains, and never for a partial feed.
+          for (const { endpoint, swept, epoch } of walked) {
+            const closure = swept
+              ? await reconcileEndpoint(endpoint, epoch, { client, store, commit, prisma })
+              : { checked: 0, confirmed: 0, unconfirmed: 0, complete: true };
+            complete = complete && closure.complete;
+            console.log(JSON.stringify({ event: 'FUNDING_ACTIVE_CLOSURE', lane, endpoint: endpoint.endpoint, ...closure }));
+          }
+          return { ...emptyCounts(), updated: written, complete,
+            incompleteReason: complete ? undefined : `Active ${lane} catalog not fully traversed; cursor retained for the next bounded pass` };
+        };
+        if (commit) await runWithSyncRun(prisma, definition.syncSource, run, { metricFormat: 'json' });
+        else await run();
+        continue;
+      }
       if (lane === 'grant-documents') {
         const run = async () => {
           const summary = await fillGrantDocumentGaps(store, { commit, limit: numberArg(argv, 'original-grant-limit', commit ? 1000 : 1, 5000) });

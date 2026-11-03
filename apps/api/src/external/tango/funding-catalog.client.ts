@@ -2,6 +2,7 @@ import { TangoGatewayService } from './tango.client.js';
 import { TangoError } from './tango.errors.js';
 import type { TangoStoreService } from './tango-store.service.js';
 import type { RecordData } from './funding-catalog.mapper.js';
+import type { FundingCatalogResource } from './tango.types.js';
 
 export class CatalogQuotaPause extends Error {}
 export const OPPORTUNITY_SHAPE = 'opportunity_id,title,solicitation_number,description,active,response_deadline,first_notice_date,last_notice_date,sam_url,office,naics_code,psc_code,set_aside,place_of_performance,primary_contact,meta,latest_notice_id,latest_notice,notice_history,attachments(attachment_id,resource_id,name,type,url,file_size,mime_type,posted_date,doc_role,extraction_status,extracted_text)';
@@ -25,7 +26,7 @@ export class FundingCatalogClient {
       },
     });
   }
-  async get(resource: 'grants' | 'notices' | 'opportunities', query: RecordData, id?: string): Promise<RecordData> {
+  async get(resource: FundingCatalogResource, query: RecordData, id?: string): Promise<RecordData> {
     if (this.issued >= this.options.maxRequests || this.remaining <= this.options.reserve) throw new CatalogQuotaPause('Request budget reached; checkpoint retained');
     const delay = Math.max(0, 750 - (Date.now() - this.lastCallAt));
     if (delay) await new Promise(resolve => setTimeout(resolve, delay));

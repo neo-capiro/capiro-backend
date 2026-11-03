@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import type { FundingCatalogResource } from './tango.types.js';
 
 /**
  * Pages of webhook endpoints/alerts this adapter will read before refusing.
@@ -506,7 +507,7 @@ export class TangoGatewayService implements TangoGateway {
   /** Ingestion-only transport for the current provider schema. Like forecasts,
    * bypass the old SDK shape validator, retaining its auth/error handling.
    * Caller owns paging, quota accounting and validation before canonical writes. */
-  async fundingCatalogGet(resource: 'grants' | 'notices' | 'opportunities', query: Record<string, unknown>, id?: string): Promise<Record<string, any>> {
+  async fundingCatalogGet(resource: FundingCatalogResource, query: Record<string, unknown>, id?: string): Promise<Record<string, any>> {
     if (id && !/^[a-zA-Z0-9-]+$/.test(id)) throw new Error('Invalid Tango resource identifier');
     return this.call(`fundingCatalog:${resource}`, client => (
       client as unknown as { http: { get<T>(path: string, query: Record<string, unknown>): Promise<T> } }

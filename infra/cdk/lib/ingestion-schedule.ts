@@ -759,41 +759,29 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
   },
   // ── Funding Opportunities — DIBBS bid board ───────────────────────────────
   {
+    // Desired cutover, NOT a live-activation claim. Same stable rule id and
+    // cron; the command now goes through the consolidated writer's active lane,
+    // and managedOutOfBand keeps ComputeStack from recreating the old
+    // api-sync-jobs target against the pre-clone database.
     id: 'SyncTangoDibbs',
-    command: ['sync-tango-dibbs', '--commit'],
+    command: ['sync-tango-funding', '--commit', '--lane=dibbs', '--max-requests=140'],
     cron: { minute: '5', hour: '0' },
     tier: 'daily',
     description:
-      'Funding Opportunities: DIBBS bid-board incremental sync (daily 00:05 UTC, issue-date window + 7d overlap)',
+      'Funding Opportunities: DIBBS active bid board via the consolidated writer (daily 00:05 UTC, provider open filter, bounded and resumable)',
     enabled: true,
-  },
-  {
-    id: 'ReconcileTangoDibbsFull',
-    command: ['sync-tango-dibbs', '--commit', '--full'],
-    cron: { minute: '10', hour: '13', weekDay: 'SUN' },
-    tier: 'weekly',
-    description:
-      'Funding Opportunities: DIBBS full reconciliation (Sun 13:10 UTC) — catches amendments the issue-date window cannot',
-    enabled: false,
+    managedOutOfBand: true,
   },
   // ── Funding Opportunities — SBIR/STTR ─────────────────────────────────────
   {
     id: 'SyncTangoSbir',
-    command: ['sync-tango-sbir', '--commit'],
+    command: ['sync-tango-funding', '--commit', '--lane=sbir', '--max-requests=20'],
     cron: { minute: '20', hour: '1' },
     tier: 'daily',
     description:
-      'Funding Opportunities: SBIR/STTR incremental sync (daily 01:20 UTC, publication-date window + 7d overlap)',
+      'Funding Opportunities: SBIR/STTR active topics and cycles via the consolidated writer (daily 01:20 UTC, provider open filter, bounded and resumable)',
     enabled: true,
-  },
-  {
-    id: 'ReconcileTangoSbirFull',
-    command: ['sync-tango-sbir', '--commit', '--full'],
-    cron: { minute: '30', hour: '13', weekDay: 'SUN' },
-    tier: 'weekly',
-    description:
-      'Funding Opportunities: SBIR/STTR full reconciliation (Sun 13:30 UTC) — catches topic amendments the publication-date window cannot',
-    enabled: false,
+    managedOutOfBand: true,
   },
   // Knowledge Plane Phase 4: Mailbox ingestion out-of-band drain.
   // Enqueues bodies from Gmail/Microsoft webhooks, drains slowly to limit LLM burst.

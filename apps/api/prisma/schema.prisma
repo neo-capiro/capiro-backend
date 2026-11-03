@@ -10491,7 +10491,7 @@ model TangoSbirSolicitation {
   /// The cycle's public number, and the ONLY key a topic carries back here.
   /// NOT NULL because a cycle nothing can be joined to is not usable; the
   /// mapper drops such a record rather than storing it unreachable.
-  solicitationNumber String  @map("solicitation_number")
+  solicitationNumber String? @map("solicitation_number")
   title              String?
 
   /// 'SBIR' | 'STTR' as the provider spells it. NOT constrained by a CHECK:
@@ -10569,6 +10569,15 @@ model TangoSbirTopic {
   /// `tangoSbirId`: the provider's row id is not the number a human cites.
   topicNumber String? @map("topic_number")
   title       String?
+  /// The provider's own topic synopsis (`description`, documented on
+  /// docs.makegov.com for `/api/sbir/topics/`). Nullable because the provider
+  /// does not guarantee it; absence is preserved as absence, never backfilled
+  /// from the title. Public source text only — no tenant data.
+  description String? @db.Text
+  /// Content marker + completion instant for the active topic synopsis, owned by
+  /// embed-funding-catalog. Nullable so an unembedded topic is representable.
+  embeddedContentHash String? @map("embedded_content_hash")
+  embeddedAt          DateTime? @map("embedded_at") @db.Timestamptz(6)
 
   /// The provider's single `agency` field. There is no separate component
   /// field on this resource, so nothing here is split into one.

@@ -15705,6 +15705,11 @@
       "from": "pptxgenjs@3.12.0",
       "dependencyName": "image-size",
       "selector": "pptxgenjs@3.12.0>image-size"
+    },
+    {
+      "from": "unpdf@1.8.1",
+      "dependencyName": "@napi-rs/canvas",
+      "selector": "unpdf@1.8.1>@napi-rs/canvas"
     }
   ],
   "unresolvedEdges": []

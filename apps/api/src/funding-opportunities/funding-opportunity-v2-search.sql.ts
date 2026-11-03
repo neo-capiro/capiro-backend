@@ -479,10 +479,17 @@ export function sourceBase(source: OpportunitySourceV2): Prisma.Sql {
     case 'sbir_sttr':
       return Prisma.sql`SELECT 'sbir_sttr'::text source, t.tango_sbir_id source_record_id, 'sbir_sttr:' || t.tango_sbir_id id,
         coalesce(t.title, t.topic_number, t.tango_sbir_id) title, t.agency, coalesce(t.topic_url, t.official_solicitation_url) source_url,
-        'solicitation' type, CASE WHEN t.close_date IS NOT NULL AND t.close_date < CURRENT_DATE OR lower(coalesce(t.solicitation_status, '')) IN ('closed','expired','complete') THEN 'closed' ELSE 'active' END lifecycle,
+        'solicitation' type,
+        CASE WHEN lower(coalesce(t.activity, '')) IN ('closed','withdrawn','unknown','expired')
+          OR lower(coalesce(t.solicitation_status, '')) IN ('closed','expired','complete')
+          OR (t.close_date IS NOT NULL AND t.close_date < CURRENT_DATE) THEN 'closed'
+          WHEN lower(coalesce(t.activity, '')) = 'open' AND (t.close_date IS NULL OR t.close_date >= CURRENT_DATE) THEN 'active'
+          ELSE 'closed' END lifecycle,
         coalesce(t.release_date, t.open_date) posted_date, t.close_date deadline, t.close_date close_date,
-        (t.close_date IS NULL OR t.close_date >= CURRENT_DATE) AND lower(coalesce(t.solicitation_status, '')) NOT IN ('closed','expired','complete') is_pursuable,
-        NULL::text summary, ARRAY[]::text[] naics_codes, ARRAY[]::text[] psc_codes, NULL::text set_aside, ARRAY[]::text[] applicant_types,
+        lower(coalesce(t.activity, '')) = 'open'
+          AND lower(coalesce(t.solicitation_status, '')) NOT IN ('closed','expired','complete')
+          AND (t.close_date IS NULL OR t.close_date >= CURRENT_DATE) is_pursuable,
+        t.description summary, ARRAY[]::text[] naics_codes, ARRAY[]::text[] psc_codes, NULL::text set_aside, ARRAY[]::text[] applicant_types,
         ARRAY[]::text[] geography, NULL::double precision value, 'not_stated_by_source' value_basis, ARRAY[]::text[] sectors,
         ARRAY_REMOVE(ARRAY[t.solicitation_number], NULL) funding, ARRAY[]::text[] cost_share, ARRAY[]::text[] methods,
         ARRAY[]::text[] disbursement, ARRAY[]::text[] grant_prerequisites, ARRAY_REMOVE(ARRAY[t.topic_number, t.solicitation_number], NULL) codes,
@@ -492,8 +499,16 @@ export function sourceBase(source: OpportunitySourceV2): Prisma.Sql {
         FROM tango_sbir_topic t
         UNION ALL
         SELECT 'sbir_sttr', s.tango_sbir_id, 'sbir_sttr:' || s.tango_sbir_id, coalesce(s.title, s.tango_sbir_id), NULL::text,
-          s.sol_download_url, 'solicitation', CASE WHEN s.end_date IS NOT NULL AND s.end_date < CURRENT_DATE OR lower(coalesce(s.solicitation_status, '')) IN ('closed','expired','complete') THEN 'closed' ELSE 'active' END,
-          s.start_date, s.end_date, s.end_date, (s.end_date IS NULL OR s.end_date >= CURRENT_DATE) AND lower(coalesce(s.solicitation_status, '')) NOT IN ('closed','expired','complete'),
+          s.sol_download_url, 'solicitation',
+          CASE WHEN lower(coalesce(s.activity, '')) IN ('closed','withdrawn','unknown','expired')
+            OR lower(coalesce(s.solicitation_status, '')) IN ('closed','expired','complete')
+            OR (s.end_date IS NOT NULL AND s.end_date < CURRENT_DATE) THEN 'closed'
+            WHEN lower(coalesce(s.activity, '')) = 'open' AND (s.end_date IS NULL OR s.end_date >= CURRENT_DATE) THEN 'active'
+            ELSE 'closed' END,
+          s.start_date, s.end_date, s.end_date,
+          lower(coalesce(s.activity, '')) = 'open'
+            AND lower(coalesce(s.solicitation_status, '')) NOT IN ('closed','expired','complete')
+            AND (s.end_date IS NULL OR s.end_date >= CURRENT_DATE),
           NULL::text, ARRAY[]::text[], ARRAY[]::text[], NULL::text, ARRAY[]::text[], ARRAY[]::text[], NULL::double precision,
           'not_stated_by_source', ARRAY[]::text[], ARRAY[]::text[], ARRAY[]::text[], ARRAY[]::text[], ARRAY[]::text[], ARRAY[]::text[],
           ARRAY_REMOVE(ARRAY[s.solicitation_number, s.program], NULL), s.last_synced_at, NULL::timestamptz,

@@ -229,8 +229,11 @@ export class FundingOpportunityV2SearchService {
     const start = (criteria.page - 1) * criteria.pageSize;
     const freshness: OpportunitySourceFreshnessV2[] = requestedSources.map((source) => {
       const item = settled.find((candidate) => candidate.adapter.source === source);
-      if (!enabledSources.has(source)) return { source, state: 'not_enabled', recordCount: null, activeRecordCount: null, lastSyncedAt: null };
-      return { source, state: item?.error ? 'unavailable' : item?.health?.state ?? 'unavailable', recordCount: item?.health?.recordCount ?? null, activeRecordCount: item?.health?.activeRecordCount ?? null, lastSyncedAt: item?.health?.lastSyncedAt ?? null };
+      if (!enabledSources.has(source)) return { source, state: 'not_enabled', recordCount: null, activeRecordCount: null, lastSyncedAt: null, lastSuccessAt: null, latestAttemptAt: null };
+      // The success instant and the latest attempt are distinct facts the health
+      // reader already returns; dropping them here left the UI unable to tell
+      // "up to date" from "latest attempt failed" for DIBBS/SBIR.
+      return { source, state: item?.error ? 'unavailable' : item?.health?.state ?? 'unavailable', recordCount: item?.health?.recordCount ?? null, activeRecordCount: item?.health?.activeRecordCount ?? null, lastSyncedAt: item?.health?.lastSyncedAt ?? null, lastSuccessAt: item?.health?.lastSuccessAt ?? null, latestAttemptAt: item?.health?.latestAttemptAt ?? null };
     });
     return {
       criteria, opportunities: await this.decorator.decorate(sorted.slice(start, start + criteria.pageSize).map(toPublicRecord), { tenantId: context.tenantId, actorUserId: context.userId, clientId: criteria.clientId }), page: criteria.page, pageSize: criteria.pageSize,

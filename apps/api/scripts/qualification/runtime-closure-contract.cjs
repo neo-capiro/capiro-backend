@@ -5,12 +5,12 @@ const path = require('node:path');
 const { createRequire, isBuiltin } = require('node:module');
 const { createHash } = require('node:crypto');
 const { selectedPlatform } = require('./qualification-platform.cjs');
-const CONTRACT_SHA256 = 'f2f3c023ce5e36ff94a1b7659ef2c5728aa084625f3c6ddbfe1baa946f3a5e3e';
+const CONTRACT_SHA256 = '5075889c74fde835d1e189a32e1f42d7eb0835e7dcaa9783402d88e680d340c4';
 // SHA-256 of the pinned Git-archive schema after only the image-local generator
 // target rewrite. A Windows CRLF checkout is not the admitted build input.
 const IMAGE_LOCAL_PRISMA_SCHEMA_SHA256 = Object.freeze({
-  arm64: '28e85a935e5b5d07f73f0b755b6283d886c52e5775f3d6b1795dfbbb0af2dd32',
-  x64: 'fcdfcfafdfd8235f4b2c4be2b1de8299a692e272dd6dc2d504adf51dbafb7037',
+  arm64: '8afdc5a4daba8d0b14c19b3613bc0928e4012dae7835f4ad49834f3498a9723d',
+  x64: 'e43488c1dcfd95c5649a3cb2f581fb980323b7beed74e8340df95457267c48e5',
 });
 const vendorWasm = {
   'pdfjs-dist@5.4.296': {

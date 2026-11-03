@@ -115,8 +115,12 @@ export function reconcileSolicitationDates(
  */
 export function mapSbirSolicitation(raw: Record<string, unknown>): TangoSbirSolicitationRow | null {
   const tangoSbirId = str(raw['solicitation_id']);
+  // The provider id is the identity and the ONLY requirement. The public number
+  // is documented as possibly absent for some DoD cycles, so such a cycle is
+  // stored with a null number instead of being dropped, and the number is never
+  // synthesised from cycle_name (that would invent a join key).
   const solicitationNumber = str(raw['solicitation_number']);
-  if (tangoSbirId == null || solicitationNumber == null) return null;
+  if (tangoSbirId == null) return null;
   const { startDate, endDate } = reconcileSolicitationDates(
     dateOnly(raw['start_date']),
     dateOnly(raw['end_date']),
@@ -160,6 +164,16 @@ export function mapSbirTopic(raw: Record<string, unknown>): TangoSbirTopicRow | 
     tangoSbirId,
     topicNumber: str(raw['topic_number']),
     title: str(raw['title']),
+    // The provider's own topic synopsis. The data dictionary documents a
+    // `description` on topics (verified 2026-11-03 against docs.makegov.com);
+    // the earlier "no documented description" note in the migration header was
+    // written from the pre-capture field list and is stale.
+    //
+    // OMITTED, not set to null, when absent: the upsert spreads this row into
+    // `update`, so writing null for a projection that simply did not include the
+    // field would erase richer stored text. Absence preserves; only real text
+    // writes.
+    ...(str(raw['description']) != null ? { description: str(raw['description']) } : {}),
     // The provider's single `agency` field. NOT split into agency/component:
     // the resource publishes one value, and deriving a component from it would
     // be parsing a guess out of a name.
