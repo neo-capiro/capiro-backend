@@ -321,6 +321,19 @@ function classifyDependencyRelations(metadata, node, expectedEdges, removed = []
     }
     relations.set(name, { declaredKind, snapshotKind: edge.kind, physicalRequired: declaredKind === 'dependencies', basis });
   }
+  // readContract already binds each removal to an exact frozen override and
+  // forbids a graph edge. Peer-only removals also need corroborated optional
+  // declarations; an override can normalize the frozen peer range to '*'.
+  // Physical absence is still required by the caller, including ancestor lookup.
+  for (const { dependencyName: name } of removed) {
+    if (declarations.has(name) || expectedEdges.some(edge => edge.dependencyName === name)) continue;
+    const installedRange = metadata.peerDependencies?.[name], frozenRange = node.peerDependencies?.[name];
+    if (typeof installedRange === 'string' && installedRange.trim().length > 0 &&
+        typeof frozenRange === 'string' && frozenRange.trim().length > 0 &&
+        metadata.peerDependenciesMeta?.[name]?.optional === true && node.peerDependenciesMeta?.[name]?.optional === true) {
+      relations.set(name, { declaredKind: 'peerDependencies', snapshotKind: null, physicalRequired: false, basis: 'EXACT_FROZEN_REMOVAL_OVERRIDE' });
+    }
+  }
   return relations;
 }
 function verifyInstalledClosure(options = {}) {
