@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "inputSHA256": {
-    "package.json": "6f85df616500c5c42b1ab1f95fc85f26911c25bdfbfe0ae5b7a1bd9d286bc2b3",
-    "pnpm-lock.yaml": "29cfe5471779d337daea3d02ce1267d7b5fda34ec937017b418accf19d99168f",
+    "package.json": "ff24ad7d00842e4f8dd0b9777d31731161ef9829e0273bbbb183c8fbc4eb2b05",
+    "pnpm-lock.yaml": "5d75ca660dfe42788840d27c619b34dcf7cb39eb8871527c5927b35e0b1272f0",
     "apps/api/package.json": "9b52145b0befca420269e68aae3f3ce842c6497f8c0a02d8be3055d78baa651b",
     "packages/shared/package.json": "7f1d16e1b95581d86ec763caf9620df9385628428e3d935ae91d25980c8bdc24",
     "packages/meriv2-core/package.json": "d124c8cac43b05a1f43ba3f0f7223d328188881463c5378c60724a26f43f515a",
@@ -9074,10 +9074,10 @@
       "peerDependenciesMeta": {}
     },
     {
-      "key": "unpdf@1.8.1",
+      "key": "unpdf@1.8.1(@napi-rs/canvas@0.1.80)",
       "name": "unpdf",
       "version": "1.8.1",
-      "peerContext": "",
+      "peerContext": "(@napi-rs/canvas@0.1.80)",
       "resolution": {
         "integrity": "sha512-xkURhy2SoGpOIH0a1gLHNkASPIQYonadDJs2AQwPEfUakafeD9EA1WTWWsaR++gfTCXJpV27W7tU1nXuk82UKQ=="
       },
@@ -9090,7 +9090,7 @@
         "node": ">=22"
       },
       "peerDependencies": {
-        "@napi-rs/canvas": "*"
+        "@napi-rs/canvas": "0.1.80"
       },
       "peerDependenciesMeta": {
         "@napi-rs/canvas": {
@@ -9913,7 +9913,7 @@
       "from": "importer:apps/api",
       "dependencyName": "unpdf",
       "kind": "dependencies",
-      "to": "unpdf@1.8.1"
+      "to": "unpdf@1.8.1(@napi-rs/canvas@0.1.80)"
     },
     {
       "from": "importer:apps/api",
@@ -11498,6 +11498,12 @@
       "dependencyName": "fsevents",
       "kind": "optionalDependencies",
       "to": "fsevents@2.3.3"
+    },
+    {
+      "from": "unpdf@1.8.1(@napi-rs/canvas@0.1.80)",
+      "dependencyName": "@napi-rs/canvas",
+      "kind": "optionalDependencies",
+      "to": "@napi-rs/canvas@0.1.80"
     },
     {
       "from": "word-extractor@1.0.4",
@@ -15705,11 +15711,6 @@
       "from": "pptxgenjs@3.12.0",
       "dependencyName": "image-size",
       "selector": "pptxgenjs@3.12.0>image-size"
-    },
-    {
-      "from": "unpdf@1.8.1",
-      "dependencyName": "@napi-rs/canvas",
-      "selector": "unpdf@1.8.1>@napi-rs/canvas"
     }
   ],
   "unresolvedEdges": []
