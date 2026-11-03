@@ -32,7 +32,7 @@ import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { fundingLockClient } from '../src/external/tango/funding-catalog.db.js';
 import { SAM_FILE_URL_PATTERN, samFileUrlAliases } from '../src/external/tango/funding-catalog.mapper.js';
-import { CURRENT_FUNDING_ATTACHMENT_SQL, extractArchivedFundingPdfs } from '../src/external/tango/funding-document-text.js';
+import { CURRENT_FUNDING_ATTACHMENT_SQL, ELIGIBLE_DIBBS_ATTACHMENT_SQL, extractArchivedFundingPdfs } from '../src/external/tango/funding-document-text.js';
 import {
   DEFAULT_ATTACHMENT_POLICY,
   fetchAndArchiveAttachment,
@@ -79,11 +79,21 @@ export function parseArgs(argv: string[]): ParsedArgs {
 // ── Discovery ────────────────────────────────────────────────────────────────
 
 export interface DiscoveredLink {
-  samOpportunityId: string;
+  samOpportunityId?: string;
+  dibbsSolicitationId?: string;
+  providerDibbsId?: string;
   sourceUrl: string;
   fileName: string | null;
   declaredMimeType: string | null;
   declaredSizeBytes: number | null;
+}
+
+export interface AttachmentDiscoveryRow {
+  id: string;
+  raw: unknown;
+  source?: 'sam' | 'dibbs';
+  documentUrl?: string | null;
+  providerDibbsId?: string | null;
 }
 
 export interface DiscoveryResult {
@@ -109,7 +119,7 @@ export interface DiscoveryResult {
  * produce `download` or a uuid presented as the document's name.
  */
 export function discoverAttachmentLinks(
-  rows: ReadonlyArray<{ id: string; raw: unknown }>,
+  rows: ReadonlyArray<AttachmentDiscoveryRow>,
 ): DiscoveryResult {
   const links: DiscoveredLink[] = [];
   let noLinksField = 0;
@@ -118,6 +128,16 @@ export function discoverAttachmentLinks(
   const seen = new Set<string>();
 
   for (const row of rows) {
+    if (row.source === 'dibbs') {
+      if (!row.documentUrl?.trim()) { noLinksField++; continue; }
+      if (!row.providerDibbsId?.trim()) { malformed++; continue; }
+      const key = `dibbs:${row.id}\u0000${row.documentUrl}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      links.push({ dibbsSolicitationId: row.id, providerDibbsId: row.providerDibbsId,
+        sourceUrl: row.documentUrl, fileName: null, declaredMimeType: null, declaredSizeBytes: null });
+      continue;
+    }
     const raw = row.raw;
     if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) {
       noLinksField += 1;
@@ -175,8 +195,8 @@ export function discoverAttachmentLinks(
 // ── The run ──────────────────────────────────────────────────────────────────
 
 export interface AttachmentSyncDeps {
-  /** Notices to look for links on. */
-  readOpportunities: (limit: number) => Promise<Array<{ id: string; raw: unknown }>>;
+  /** Stored notices and active DIBBS rows to look for links on. */
+  readOpportunities: (limit: number) => Promise<AttachmentDiscoveryRow[]>;
   /** Insert-if-absent. Archival reads its pending candidates separately. */
   upsertMetadata: (links: DiscoveredLink[]) => Promise<AttachmentCandidate[]>;
   /** Rows in `metadata_only` or a RETRYABLE `failed` state. Never `refused`. */
@@ -274,8 +294,11 @@ export async function runAttachmentSync(
  */
 export function realReadOpportunities(prisma: PrismaClient): AttachmentSyncDeps['readOpportunities'] {
   return async (limit) =>
-    prisma.$queryRawUnsafe<Array<{ id: string; raw: unknown }>>(`SELECT s.id::text,
-      jsonb_build_object('resourceLinks',s.raw_jsonb->'resourceLinks') AS raw
+    prisma.$queryRawUnsafe<AttachmentDiscoveryRow[]>(`SELECT id,raw,source,"documentUrl","providerDibbsId" FROM (
+      SELECT s.id::text,'sam'::text AS source,NULL::text AS "documentUrl",NULL::text AS "providerDibbsId",
+      jsonb_build_object('resourceLinks',s.raw_jsonb->'resourceLinks') AS raw,
+      coalesce(s.active AND (s.response_deadline IS NULL OR s.response_deadline>=now()),false) AS priority,
+      s.posted_date AS posted
       FROM sam_opportunity s WHERE EXISTS (
         SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(s.raw_jsonb->'resourceLinks')='array'
           THEN s.raw_jsonb->'resourceLinks' ELSE '[]'::jsonb END) entry(value)
@@ -284,14 +307,25 @@ export function realReadOpportunities(prisma: PrismaClient): AttachmentSyncDeps[
         WHERE length(link.url)>0 AND NOT EXISTS (SELECT 1 FROM opportunity_attachment a
           WHERE a.sam_opportunity_id=s.id AND a.source_url=ANY(CASE WHEN link.url ~ $2 THEN
             ARRAY[split_part(link.url,'?',1),split_part(link.url,'?',1)||'?&token='] ELSE ARRAY[link.url] END)))
-      ORDER BY coalesce(s.active AND (s.response_deadline IS NULL OR s.response_deadline>=now()),false) DESC,
-        s.posted_date DESC NULLS LAST,s.id LIMIT $1`, limit, SAM_FILE_URL_PATTERN);
+      UNION ALL
+      SELECT d.id::text,'dibbs',d.document_url,d.tango_dibbs_id,NULL::jsonb,true,d.issued_date::timestamptz
+      FROM tango_dibbs_solicitation d WHERE d.is_open IS TRUE
+        AND (d.closes_date IS NULL OR d.closes_date>=CURRENT_DATE)
+        AND length(btrim(d.document_url))>0
+        AND NOT EXISTS (SELECT 1 FROM opportunity_attachment a
+          WHERE a.dibbs_solicitation_id=d.id AND a.source_url=d.document_url)
+      ) candidates ORDER BY priority DESC,posted DESC NULLS LAST,source,id LIMIT $1`, limit, SAM_FILE_URL_PATTERN);
 }
 
 export function realUpsertMetadata(prisma: PrismaClient): AttachmentSyncDeps['upsertMetadata'] {
   return async (links) => {
-    for (let offset = 0; offset < links.length; offset += 200) {
-      const batch = links.slice(offset, offset + 200);
+    for (const link of links) {
+      if (Boolean(link.samOpportunityId) === Boolean(link.dibbsSolicitationId) ||
+          (link.dibbsSolicitationId && !link.providerDibbsId)) throw new Error('Invalid attachment parent identity');
+    }
+    const samLinks = links.filter(link => link.samOpportunityId);
+    for (let offset = 0; offset < samLinks.length; offset += 200) {
+      const batch = samLinks.slice(offset, offset + 200);
       const existing = await prisma.opportunityAttachment.findMany({
         where: { OR: batch.map(link => ({ samOpportunityId: link.samOpportunityId, sourceUrl: { in: samFileUrlAliases(link.sourceUrl) } })) },
         select: { samOpportunityId: true, sourceUrl: true },
@@ -313,6 +347,21 @@ export function realUpsertMetadata(prisma: PrismaClient): AttachmentSyncDeps['up
       }));
       if (data.length) await prisma.opportunityAttachment.createMany({ data, skipDuplicates: true });
     }
+    const dibbsLinks = links.filter(link => link.dibbsSolicitationId);
+    for (let offset = 0; offset < dibbsLinks.length; offset += 200) {
+      // Recheck identity, activity and the exact current URL at publication.
+      // The original URL is evidence, not a fabricated provider attachment ID.
+      await prisma.$executeRawUnsafe(`INSERT INTO opportunity_attachment
+        (dibbs_solicitation_id,source_url,provider_data,provider_observed_at,status)
+        SELECT d.id,x."sourceUrl",
+          jsonb_build_object('dibbs_id',d.tango_dibbs_id,'binding','provider_document_url',
+            'doc_role','solicitation','extraction_status','not_provided'),now(),'metadata_only'
+        FROM jsonb_to_recordset($1::jsonb) AS x("dibbsSolicitationId" uuid,"providerDibbsId" text,"sourceUrl" text)
+        JOIN tango_dibbs_solicitation d ON d.id=x."dibbsSolicitationId" AND d.tango_dibbs_id=x."providerDibbsId"
+        WHERE d.is_open IS TRUE AND (d.closes_date IS NULL OR d.closes_date>=CURRENT_DATE)
+          AND d.document_url=x."sourceUrl" AND length(btrim(x."sourceUrl"))>0
+        ON CONFLICT DO NOTHING`, JSON.stringify(dibbsLinks.slice(offset, offset + 200)));
+    }
     // Archival independently reads pending metadata, including previous runs.
     return [];
   };
@@ -331,6 +380,7 @@ export function realReadFetchable(prisma: PrismaClient): AttachmentSyncDeps['rea
     }>>(`SELECT id::text,source_url AS "sourceUrl",file_name AS "fileName",declared_mime_type AS "declaredMimeType",
       declared_size_bytes AS "declaredSizeBytes",encode(sha256(convert_to(provider_data::text,'UTF8')),'hex') AS "sourceVersion"
       FROM opportunity_attachment WHERE status IN ('metadata_only','failed')
+      AND ${ELIGIBLE_DIBBS_ATTACHMENT_SQL}
       AND (last_attempt_at IS NULL OR last_attempt_at<now()-interval '1 day')
       ORDER BY ${CURRENT_FUNDING_ATTACHMENT_SQL} DESC,last_attempt_at ASC NULLS FIRST,first_seen_at,id LIMIT $1`, limit);
     return rows.map((r) => ({
@@ -344,10 +394,28 @@ export function realReadFetchable(prisma: PrismaClient): AttachmentSyncDeps['rea
   };
 }
 
+/** Coverage of active records, not a claim that every source publishes a file. */
+export async function readDibbsDocumentCoverage(prisma: PrismaClient) {
+  return (await prisma.$queryRawUnsafe<Array<Record<string, number>>>(`SELECT
+    count(*)::int AS "activeRecords",
+    count(*) FILTER (WHERE d.document_url IS NULL OR length(btrim(d.document_url))=0)::int AS "missingDocumentUrl",
+    count(*) FILTER (WHERE a.status='archived')::int AS "documentsArchived",
+    count(*) FILTER (WHERE length(a.provider_data->>'extracted_text')>10 OR length(t.text)>10)::int AS "documentsWithText",
+    count(*) FILTER (WHERE coalesce(length(a.provider_data->>'extracted_text'),0)<=10 AND t.truncated IS TRUE)::int AS "partialTextDocuments",
+    count(*) FILTER (WHERE a.embedded_content_hash IS NOT NULL AND a.embedded_at>=a.provider_observed_at
+      AND (length(a.provider_data->>'extracted_text')>10 OR length(t.text)>10))::int AS "embeddingMarkedCurrent"
+    FROM tango_dibbs_solicitation d
+    LEFT JOIN opportunity_attachment a ON a.dibbs_solicitation_id=d.id AND a.source_url=d.document_url
+    LEFT JOIN opportunity_document_text t ON t.attachment_id=a.id AND t.attachment_content_sha256=a.content_sha256
+      AND t.extraction_method='local_parser' AND t.status='available'
+    WHERE d.is_open IS TRUE AND (d.closes_date IS NULL OR d.closes_date>=CURRENT_DATE)`))[0];
+}
+
 export function realRecordOutcome(prisma: PrismaClient): AttachmentSyncDeps['recordOutcome'] {
   return async (id, outcome, candidate) => prisma.$transaction(async tx => {
     const rows = await tx.$queryRawUnsafe<Array<{ source_url: string; source_version: string }>>(
-      "SELECT source_url,encode(sha256(convert_to(provider_data::text,'UTF8')),'hex') AS source_version FROM opportunity_attachment WHERE id=$1::uuid FOR UPDATE", id);
+      `SELECT source_url,encode(sha256(convert_to(provider_data::text,'UTF8')),'hex') AS source_version FROM opportunity_attachment
+        WHERE id=$1::uuid AND ${ELIGIBLE_DIBBS_ATTACHMENT_SQL} FOR UPDATE`, id);
     const current = rows[0];
     if (!current || current.source_url !== candidate.sourceUrl || candidate.sourceVersion !== current.source_version) return false;
     const now = new Date();
@@ -444,6 +512,7 @@ async function main(argv = process.argv.slice(2)): Promise<void> {
     console.log(`FO_ATTACHMENT_SYNC_DONE ${JSON.stringify({ ...summary, commit: args.commit })}`);
     if (args.commit && !args.discoverOnly) console.log(JSON.stringify({ event: 'FUNDING_PDF_TEXT',
       ...await extractArchivedFundingPdfs(prisma, bucket, args.limit) }));
+    console.log(JSON.stringify({ event: 'DIBBS_DOCUMENT_COVERAGE', ...await readDibbsDocumentCoverage(prisma) }));
   } finally {
     await lock.end();
     await prisma.$disconnect();
