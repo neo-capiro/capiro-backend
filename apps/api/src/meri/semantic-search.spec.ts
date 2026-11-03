@@ -75,7 +75,7 @@ describe('semantic search statement (pgvector-free shape)', () => {
     return { text: flat(sql.sql), values: sql.values };
   };
 
-  test.each(SEMANTIC_SEARCH_OPERATIONS)('%s ranks only its public family under the stored model', (operation) => {
+  test.each(['semantic_search_bills', 'semantic_search_grants', 'semantic_search_contract_opportunities'] as const)('%s ranks only its public family under the stored model', (operation) => {
     const { text, values } = statement(operation, { query: 'coastal resilience' });
     expect(text).toContain('FROM context_embeddings ce');
     expect(text).toContain(`ce.source_type = '${SEMANTIC_SEARCH_SOURCE_TYPES[operation]}'`);
@@ -157,6 +157,65 @@ describe('semantic search statement (pgvector-free shape)', () => {
     expect(all.text).not.toContain('o.active = TRUE');
     expect(all.text).toContain('(o.agency ILIKE ? OR o.sub_agency ILIKE ?) AND o.naics_code LIKE ? AND o.response_deadline::date >= ?::date');
     expect(all.values).toEqual(expect.arrayContaining(['%Navy%', '3364%', '2026-11-02']));
+  });
+});
+
+describe('active DIBBS and SBIR semantic families', () => {
+  const operations = ['semantic_search_dibbs_solicitations', 'semantic_search_sbir_topics'] as const;
+  test.each(operations)('%s preserves bounds, exact model/public scope and rejects unsupported filters', operation => {
+    for (const filter of ['naics','status','includeInactive','congress']) {
+      expect(() => parseSemanticSearchInput(operation,{query:'water',[filter]:'unsupported'})).toThrow(/does not accept/);
+    }
+    const input = parseSemanticSearchInput(operation,{query:'water',agency:'Navy',dateFrom:'2026-11-03',limit:25});
+    const statement = semanticSearchSql(operation,input,vector,model), sql=flat(statement.sql);
+    expect(sql).toContain('ce.tenant_id IS NULL AND ce.client_id IS NULL AND ce.owner_user_id IS NULL');
+    expect(sql).toContain("ce.content_hash = encode(sha256(convert_to(ce.content_text,'UTF8')),'hex')");
+    expect(sql).toContain('octet_length(ce.content_text) <= 6000');
+    expect(sql).toContain('ORDER BY embedding <=> ?::vector LIMIT 200');
+    expect(sql).toContain('SELECT DISTINCT ON (parent_id)');
+    expect(sql).toContain('left(content_text,400)');
+    expect(sql).toContain('score>=0.35::float8');
+    expect(statement.values).toEqual(expect.arrayContaining([model,vector,'%Navy%','2026-11-03',25]));
+    expect(statement.values.filter(v=>v===vector)).toHaveLength(2);
+    const coverage=semanticCoverageSql(operation,model);
+    expect(coverage.sql).toContain('count(DISTINCT parent_id)');
+    expect(coverage.values).toEqual([model]);
+  });
+  test('DIBBS requires the current parent URL, provider identity and archived/extracted hash through actual vectors', () => {
+    const sql=flat(semanticSearchSql(operations[0],{query:'water',limit:10},vector,model).sql);
+    for (const clause of ['d.is_open IS TRUE','d.closes_date >= CURRENT_DATE','a.source_url=d.document_url',
+      "ce.metadata_jsonb->>'providerDibbsId'=d.tango_dibbs_id", "ce.metadata_jsonb->>'dibbsSolicitationId'=d.id::text",
+      "ce.metadata_jsonb->>'attachmentContentSha256'=a.content_sha256", 't.attachment_content_sha256=a.content_sha256',
+      'a.embedded_at>=a.provider_observed_at','a.embedded_at>=x.fetched_at','t.text IS NOT NULL AND t.char_count>10',
+      "ce.metadata_jsonb->'truncated'=to_jsonb(x.truncated)","ce.metadata_jsonb->>'binding'='archived_content_sha256'"]) expect(sql).toContain(clause);
+    expect(sql).not.toContain('tech_docs_url');
+  });
+  test('SBIR requires topic prose and its active provider identity, never cycle or grant identity', () => {
+    const sql=flat(semanticSearchSql(operations[1],{query:'water',limit:10},vector,model).sql);
+    for (const clause of ["ce.source_type = 'funding_sbir_topic_chunk'","lower(coalesce(t.activity,'')) = 'open'",
+      't.close_date >= CURRENT_DATE',"NOT IN ('closed','expired','complete')",'length(t.description)>10',
+      "ce.metadata_jsonb->>'providerTopicId'=t.tango_sbir_id",'t.embedded_at>=t.last_synced_at']) expect(sql).toContain(clause);
+    expect(sql).not.toContain('FROM federal_grant'); expect(sql).not.toContain('JOIN tango_sbir_solicitation');
+  });
+  test.each(operations)('%s preserves exact passage provenance and truthful active coverage', operation => {
+    const dibbs=operation===operations[0], id='synthetic-canonical';
+    const result=projectSemanticSearch(operation,{query:'water',limit:10},[{
+      parent_id:id,score:0.8,snippet:'Actual normalized source quotation.',record:{id},
+      passage:{sourceTable:dibbs?'opportunity_attachment':'tango_sbir_topic',sourceUrl:'https://example.test/source',
+        binding:dibbs?'archived_content_sha256':'provider_topic_id',canonicalRecordId:id,providerRecordId:'synthetic-provider',
+        documentHash:'a'.repeat(64),attachmentContentSha256:dibbs?'b'.repeat(64):null,chunkIndex:0,start:0,end:35,
+        offsetBasis:'plain_text_normalized_utf16',extractionMethod:dibbs?'local_parser':null,truncated:dibbs?true:null,
+        archivedAt:dibbs?'2026-11-03T00:00:00Z':null,textFetchedAt:'2026-11-03T00:01:00Z',embeddedAt:'2026-11-03T00:02:00Z'},
+      documents:dibbs?{attachments:1,withText:1,indexed:1,truncated:1}:null,
+    }],{indexed:1,total:3},model,'2026-11-03T00:03:00Z');
+    expect(result.results[0]?.reference).toBe(`${dibbs?'tango_dibbs_solicitation':'tango_sbir_topic'}:${id}`);
+    expect(result.results[0]?.passage).toMatchObject({canonicalRecordId:id,providerRecordId:'synthetic-provider',
+      textFetchedAt:'2026-11-03T00:01:00.000Z',offsetBasis:'plain_text_normalized_utf16'});
+    expect(result.coverage).toEqual({indexedRecords:1,totalRecords:3});
+    expect(result.notes.join(' ')).toContain('stored active');
+    expect(result.notes.join(' ')).toContain('not page numbers');
+    if(dibbs) expect(result.results[0]?.documents?.truncated).toBe(1);
+    else expect(result.results[0]).not.toHaveProperty('documents');
   });
 });
 

@@ -87,6 +87,31 @@ test('ranks grants and contract opportunities under their own source types', asy
   expect(statementOf(tx, 3).sql).toContain('FROM sam_opportunity WHERE embedded_at IS NOT NULL');
 });
 
+test.each(['semantic_search_dibbs_solicitations', 'semantic_search_sbir_topics'] as const)(
+  '%s uses one bounded query embedding and the existing member transaction', async operation => {
+    const { tx, prisma, service } = fixture([], { indexed: 0, total: 2 });
+    await service.read(ctx, operation, { query: '  water   sensors ', agency: 'Defense' });
+    expect(port().embed).toHaveBeenCalledTimes(1);
+    expect(port().embed).toHaveBeenCalledWith('water sensors');
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(2);
+    expect(statementOf(tx,0).values).toContain(port().metadata.model);
+    expect(statementOf(tx,1).values).toEqual([port().metadata.model]);
+    expect(prisma.withTenantUser).toHaveBeenCalledWith(ctx.tenantId,ctx.userId,expect.any(Function),
+      { timeoutMs: SEMANTIC_SEARCH_LIMITS.statementTimeoutMs });
+  },
+);
+
+test.each(['semantic_search_dibbs_solicitations', 'semantic_search_sbir_topics'] as const)(
+  '%s rejects revoked membership and unsupported history without ranking', async operation => {
+    const { data,tx,service } = fixture(); data.active=false;
+    await expect(service.read(ctx,operation,{query:'water'})).rejects.toThrow(ForbiddenException);
+    expect(tx.$queryRaw).not.toHaveBeenCalled();
+    port().embed.mockClear();
+    await expect(service.read(ctx,operation,{query:'water',includeInactive:true})).rejects.toThrow(/does not accept/);
+    expect(port().embed).not.toHaveBeenCalled();
+  },
+);
+
 test('refuses invalid input before the provider or database is touched', async () => {
   const { tx, prisma, service } = fixture();
   await expect(service.read(ctx, 'semantic_search_grants', { query: 'water', congress: 119 })).rejects.toThrow(/does not accept/);
