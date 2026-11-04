@@ -28,7 +28,7 @@ test('rejects unknown stages at every input boundary', async () => {
     expect((await validate(dto)).some((error) => error.property === 'stage')).toBe(true);
   }
 });
-test('advertises the approved Figma vocabulary and blocks inferred legacy migration', () => {
+test('allows explicit previous-stage transitions without inferring a migration mapping', () => {
   const catalog = prospectStageCatalog();
   expect(catalog.stages.map((stage) => stage.label)).toEqual([
     'Identified',
@@ -40,14 +40,14 @@ test('advertises the approved Figma vocabulary and blocks inferred legacy migrat
     'Closed lost',
   ]);
   expect(catalog.createStage).toBe('identified');
-  expect(catalog.allowLegacyTransitions).toBe(false);
+  expect(catalog.allowLegacyTransitions).toBe(true);
   expect(catalog.legacyMapping).toBe('pending');
 });
-test('candidate SQL supports the full accepted vocabulary without updating rows/defaults/policies', () => {
+test('forward migration supports the full accepted vocabulary without updating rows/defaults/policies', () => {
   const sql = readFileSync(
     join(
       __dirname,
-      '../../prisma/reserved-migrations/20281011020000_portfolio_prospect_stages/migration.sql',
+      '../../prisma/migrations/20281104010000_portfolio_prospect_stages/migration.sql',
     ),
     'utf8',
   );

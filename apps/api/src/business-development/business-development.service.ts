@@ -23,8 +23,6 @@ import {
 } from './prospect-conversion-receipts.js';
 import { parseProspectConversion } from './prospect-conversion.types.js';
 import {
-  isPortfolioProspectStage,
-  LEGACY_PROSPECT_STAGES,
   prospectStageCatalog,
 } from './prospect-stages.js';
 
@@ -585,13 +583,6 @@ export class BusinessDevelopmentService {
       // Stage Won alone NEVER converts (invariant 6): the stage column moves,
       // linkedClientId/convertedAt are untouched here.
       if (input.stage !== undefined && input.stage !== before.stage) {
-        if (
-          !isPortfolioProspectStage(before.stage) &&
-          isPortfolioProspectStage(input.stage) &&
-          !LEGACY_PROSPECT_STAGES.some((stage) => stage === input.stage)
-        ) {
-          throw new ConflictException('Legacy prospect stage mapping is pending');
-        }
         data.stage = input.stage;
       }
 
@@ -1073,9 +1064,11 @@ export class BusinessDevelopmentService {
     if (current.linkedClientId && current.convertedAt) {
       const linked = await tx.client.findFirst({
         where: { id: current.linkedClientId, tenantId: ctx.tenantId },
-        select: { id: true, name: true },
+        select: { id: true, name: true, status: true },
       });
       if (linked) {
+        if (linked.status === 'archived')
+          throw new ConflictException('The linked client is archived. Restore the client before continuing conversion recovery.');
         return {
           clientId: linked.id,
           clientName: linked.name,
@@ -1113,9 +1106,11 @@ export class BusinessDevelopmentService {
       // Exact confirmed canonical client for this tenant → link it.
       const confirmed = await tx.client.findFirst({
         where: { tenantId: ctx.tenantId, canonicalEntityId: current.canonicalEntityId },
-        select: { id: true, name: true },
+        select: { id: true, name: true, status: true },
       });
       if (confirmed) {
+        if (confirmed.status === 'archived')
+          throw new ConflictException('The matching client is archived. Restore the client before linking this prospect.');
         // New-client commands already hold current membership locks. Refuse
         // here, before the existing-client row lock/link/write branch, whose
         // owner acquires client before membership. Legacy linking stays intact.
@@ -1172,6 +1167,15 @@ export class BusinessDevelopmentService {
     await tx.$queryRaw`SELECT "id" FROM "clients"
       WHERE "id" = ${clientId}::uuid AND "tenant_id" = ${ctx.tenantId}::uuid
       FOR UPDATE`;
+
+    // Archiving may have committed while conversion waited for the client lock.
+    // A successful link must remain eligible for the catalog and carry-over APIs.
+    const lockedClient = await tx.client.findFirst({
+      where: { id: clientId, tenantId: ctx.tenantId }, select: { status: true },
+    });
+    if (!lockedClient) throw new NotFoundException('Client not found');
+    if (lockedClient.status === 'archived')
+      throw new ConflictException('The selected client is archived. Restore the client before linking this prospect.');
 
     // An explicit existing-client selection is also an explicit identity
     // decision when the prospect is confirmed. Never link it to a client

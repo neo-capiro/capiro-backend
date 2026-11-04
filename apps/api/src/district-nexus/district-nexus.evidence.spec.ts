@@ -167,6 +167,14 @@ describe('assistanceRowToEvidence', () => {
 });
 
 describe('facilityRowToEvidence', () => {
+  test('legacy DC delegate facilities share the map key without changing raw award attribution', () => {
+    const out = facilityRowToEvidence(facilityRow({ state: 'DC', districtCode: '98' }));
+    expect(out?.districtKey).toBe('DC-00');
+    expect(out?.facility.verificationStatus).toBe('geocode_verified');
+    expect(contractRowToEvidence(contractRow({ state: 'DC', district: '98' }))).toBeNull();
+    expect(facilityRowToEvidence(facilityRow({ state: 'TX', districtCode: '98' }))).toBeNull();
+  });
+
   test('a geocoded facility is geocode_verified with full confidence, on both slots', () => {
     const out = facilityRowToEvidence(facilityRow());
     expect(out?.districtKey).toBe('TX-23');

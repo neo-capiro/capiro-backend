@@ -910,6 +910,7 @@ model TenantUsageMeter {
 }
 
 model Client {
+  fileFolders ClientFileFolder[]
   fileBatchMoveReceipts ClientFileBatchMoveReceipt[]
   prospectConversionReceipts ProspectConversionReceipt[]
   engagementPlans EngagementPlan[]
@@ -1835,6 +1836,17 @@ model EngagementAttachment {
 }
 
 /// Immutable metadata-only batch result. Current access is checked again on read/replay.
+/// Named client file locations can exist before their first upload. File ACLs remain independent.
+model ClientFileFolder {
+  tenantId String @map("tenant_id") @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+  name String @db.VarChar(120)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  client Client @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade, onUpdate: NoAction, map: "client_file_folders_client_fk")
+  @@id([tenantId, clientId, name])
+  @@map("client_file_folders")
+}
+
 model ClientFileBatchMoveReceipt {
   id String @id @default(uuid()) @db.Uuid
   tenantId String @map("tenant_id") @db.Uuid

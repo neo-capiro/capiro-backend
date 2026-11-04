@@ -41,10 +41,25 @@ export const AT_LARGE_FACILITY = '00';
  * EXPORTED because two of the three ('90', '98') are indistinguishable from real
  * districts by shape — they are two-digit numbers. Any caller that needs to leave
  * a sentinel alone must test membership here; a `/^\d{2}$/`-style guard silently
- * treats them as districts, which is how a first draft of
- * `normalizeDistrictForStorage` collapsed DC's '98' delegate code into '00'.
+ * treats them as ordinary districts. Known Census delegate facilities use the
+ * explicit state-aware normalizeFacilityDistrictCode bridge below instead.
  */
 export const UNRESOLVABLE_HOUSE_SENTINELS: ReadonlySet<string> = new Set(['98', '90', 'ZZ']);
+
+/** Census uses 98 for the single non-voting district in these jurisdictions.
+ * Facility and map keys use 00 for that same seat. This is facility-specific:
+ * do not apply it to raw award geography, whose sentinels retain their meaning.
+ */
+const NON_VOTING_JURISDICTIONS = new Set(['DC', 'AS', 'GU', 'MP', 'PR', 'VI']);
+
+export function normalizeFacilityDistrictCode(
+  state: string | null | undefined,
+  district: string | null,
+): string | null {
+  return district?.trim() === '98' && NON_VOTING_JURISDICTIONS.has(state?.trim().toUpperCase() ?? '')
+    ? AT_LARGE_FACILITY
+    : district;
+}
 
 /**
  * Strip cosmetic variation ("HD-3", "003", " 3 ") down to a bare digit

@@ -362,6 +362,7 @@ export interface AttachmentUploadInput {
 }
 
 export interface ConfirmAttachmentInput {
+  folder?: string | null;
   prospectId?: string;
   clientId?: string;
   meetingId?: string;
@@ -7491,6 +7492,11 @@ export class EngagementService {
   }
 
   async confirmAttachment(ctx: TenantContext, input: ConfirmAttachmentInput) {
+    if (input.folder != null && (typeof input.folder !== 'string' || input.folder.length > 120))
+      throw new BadRequestException('Folder name must be at most 120 characters');
+    const folder = input.folder?.trim() || null;
+    if (folder && (!input.clientId || input.prospectId))
+      throw new BadRequestException('Select a client before choosing an upload folder');
     if (!this.bucket) throw new ServiceUnavailableException('ASSETS_BUCKET is not configured');
     if (input.s3Key.startsWith(prospectCopyPrefix(ctx.tenantId)))
       throw new BadRequestException('A recorded prospect copy must finish through its copy request');
@@ -7585,7 +7591,8 @@ export class EngagementService {
           replay.meetingId === (input.meetingId ?? null) &&
           replay.mailMessageId === (input.mailMessageId ?? null) &&
           replay.fileName === input.fileName &&
-          replay.contentType === input.contentType;
+          replay.contentType === input.contentType &&
+          (replay.folder ?? null) === folder;
         if (!exactReplay) {
           throw new HttpException(
             {
@@ -7607,6 +7614,7 @@ export class EngagementService {
           meetingId: input.meetingId ?? null,
           mailMessageId: input.mailMessageId ?? null,
           fileName: input.fileName,
+          folder,
           contentType: input.contentType,
           byteSize: head.ContentLength ? Number(head.ContentLength) : null,
           bucket: this.bucket!,
@@ -7954,9 +7962,13 @@ export class EngagementService {
       signal?: AbortSignal;
       /** Trusted source-owner option. Never populated from tool arguments. */
       allowPaidExtraction?: boolean;
+      /** A repeatable local text read; never starts paid extraction or updates metadata. */
+      readOnly?: boolean;
     } = {},
   ) {
     options.signal?.throwIfAborted();
+    if (options.readOnly && (options.allowPaidExtraction !== false || options.contextImport || options.contextSourceOnly || options.section !== undefined))
+      throw new BadRequestException('Read-only extraction requires a provider-free whole-document read');
     if (options.allowPaidExtraction === false && options.contextImport) {
       throw new ServiceUnavailableException('Provider extraction is disabled for this document read');
     }
@@ -8158,12 +8170,12 @@ export class EngagementService {
     // wall clock), with truncation reported rather than silent.
     const extraction = await this.attachmentContent.extractBounded(bytes, fileName, contentType);
     if (extraction.status === 'empty') {
-      await this.recordExtractionOutcome(ctx, attachment.id, 'empty', extraction.metadata);
+      if (!options.readOnly) await this.recordExtractionOutcome(ctx, attachment.id, 'empty', extraction.metadata);
       throw new BadRequestException(
         'No readable text could be extracted from this attachment (it may be password-protected or a scanned image).',
       );
     }
-    await this.recordExtractionOutcome(ctx, attachment.id, extraction.status, extraction.metadata);
+    if (!options.readOnly) await this.recordExtractionOutcome(ctx, attachment.id, extraction.status, extraction.metadata);
 
     return {
       attachmentId: attachment.id,

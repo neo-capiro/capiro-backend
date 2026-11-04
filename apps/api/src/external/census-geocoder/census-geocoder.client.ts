@@ -38,6 +38,9 @@
  *     already uses ("12"/"00", not "012").
  */
 
+import { normalizeFacilityDistrictCode } from '../../common/district-code.util.js';
+import { US_STATE_FIPS_TO_USPS } from '../../common/us-congressional-districts.js';
+
 const GEOCODER_BASE = 'https://geocoding.geo.census.gov/geocoder';
 const ARCGIS_GEOCODER_BASE = 'https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer';
 const BENCHMARK = 'Public_AR_Current';
@@ -177,8 +180,10 @@ export function extractDistricts(match: CensusAddressMatch): {
   const upperRow = upperKey ? geos[upperKey]?.[0] : undefined;
   const lowerRow = lowerKey ? geos[lowerKey]?.[0] : undefined;
   const cdFieldKey = cdRow ? Object.keys(cdRow).find((k) => /^CD\d+$/.test(k)) : undefined;
-  const congressionalDistrict =
-    cdRow && cdFieldKey ? String(cdRow[cdFieldKey] ?? '').trim() || null : null;
+  const state = match.addressComponents?.state
+    ?? US_STATE_FIPS_TO_USPS[String(cdRow?.STATE ?? '')];
+  const congressionalDistrict = normalizeFacilityDistrictCode(state,
+    cdRow && cdFieldKey ? String(cdRow[cdFieldKey] ?? '').trim() || null : null);
   // Parsed from the SAME field key the district code itself comes from, so
   // "which district" and "which Congress" can never disagree about vintage.
   const congressMatch = cdFieldKey ? /^CD(\d+)$/.exec(cdFieldKey) : null;

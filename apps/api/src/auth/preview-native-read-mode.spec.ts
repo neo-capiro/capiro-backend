@@ -97,6 +97,9 @@ describe('first-chat client records exact native admission', () => {
     // ClientsController declares `metrics` before `:id`, so the exact word is a
     // canonical current-session read and not a malformed client id.
     ['GET', '/api/clients/metrics'], ['HEAD', '/api/clients/metrics'],
+    ['GET', '/api/clients/metrics?trackerBackend=core'],
+    ['GET', '/api/clients/metrics?trackerBackend=intelligence'],
+    ['HEAD', '/api/clients/metrics?trackerBackend=intelligence'],
   ])('admits only the allocated method and route %s %s', (method, path) => {
     expect(firstChatClientPreviewDecision(req(method, path), true)).toBe('preview');
   });
@@ -114,6 +117,10 @@ describe('first-chat client records exact native admission', () => {
     ['GET', '/api/clients/metrics-extra'], ['GET', '/api/clients/metrics/account-owners'],
     ['GET', '/api/clients/%6detRICS'], ['GET', '/api/clients/metrics/../metrics'],
     ['GET', '/api/clients/metrics?limit=1'], ['GET', '/api/clients/metrics?includeArchived=true'],
+    ['GET', '/api/clients/metrics?trackerBackend=other'],
+    ['GET', '/api/clients/metrics?trackerBackend=core&trackerBackend=intelligence'],
+    ['GET', '/api/clients/metrics?trackerBackend=intelligence&tenantId=other'],
+    ['GET', '/api/clients/metrics?trackerBackend=intelligence#ignored'],
     ['PUT', '/api/clients/metrics'], ['DELETE', '/api/clients/metrics'],
   ])('keeps the metrics near miss held %s %s', (method, path) => {
     expect(firstChatClientPreviewDecision(req(method, path), true)).toBe('not-found');
