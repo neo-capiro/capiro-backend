@@ -151,8 +151,9 @@ export class StrategyContextPlaneClient {
           typeof admission.context.packetId !== 'string' || !admission.context.packetId.trim() ||
           typeof admission.context.compiledAt !== 'string' || !Number.isFinite(Date.parse(admission.context.compiledAt)) ||
           admission.context.packetId !== governed.contextPacket.packetId || admission.context.compiledAt !== governed.contextPacket.compiledAt ||
-          !governed.contextPacket.persisted || governed.contextPacket.degraded || !governed.retrieval.coverage.complete ||
-          !governed.retrieval.coverage.paginationComplete || governed.retrieval.coverage.truncated ||
+          // Supplementary retrieval may be degraded/partial/truncated: Core states it in
+          // the prompt's COVERAGE block and binds it into coverageDigest (checked below).
+          !governed.contextPacket.persisted ||
           ![admission.localDigest, admission.externalDigest, admission.historyDigest, admission.context.sourceDigest, admission.context.coverageDigest, admission.context.inputDigest]
             .every(d => typeof d === 'string' && SHA256.test(d)) ||
           !Array.isArray(admission.contactIds) || !admission.contactIds.every(id => typeof id === 'string' && id.length <= 128) ||

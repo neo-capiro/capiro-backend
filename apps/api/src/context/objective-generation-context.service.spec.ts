@@ -222,12 +222,13 @@ describe('Objective required context observation and budget coverage', () => {
       expect(withoutSavedEin.context.coverageDigest).toBe(admission.context.coverageDigest);
     },
   );
-  test.each(['missing-page', 'record-budget', 'total-budget', 'missing-key', 'directory-error'])(
+  // Supplementary retrieval pagination is no longer a refusal (see the partial
+  // coverage test below); required groups and observation issues still refuse.
+  test.each(['record-budget', 'total-budget', 'missing-key', 'directory-error'])(
     'refuses %s without dispatch',
     async (which) => {
       const f = fixture();
       const observed = await f.service.observe(f.input);
-      if (which === 'missing-page') f.bundle.coverage.paginationComplete = false;
       if (which === 'record-budget') observed.sources.member_notes[0]!.body = 'x'.repeat(1601);
       if (which === 'total-budget')
         observed.sources.member_notes = Array.from({ length: 25 }, (_, i) => ({
@@ -246,6 +247,36 @@ describe('Objective required context observation and budget coverage', () => {
       expect(() => f.service.bind(f.input, observed, f.bundle, 'a'.repeat(64), [], f.prompt)).toThrow();
     },
   );
+  test('partial, degraded or rollback supplementary retrieval is disclosed and bound, not refused', async () => {
+    const f = fixture();
+    const observed = await f.service.observe(f.input);
+    f.bundle.kind = 'release_switch_rollback';
+    f.bundle.coverage = { complete: false, paginationComplete: false, truncated: true };
+    f.bundle.governedContext.contextPacket.degraded = true;
+    f.bundle.governedContext.retrieval.coverage = { complete: false, paginationComplete: false, truncated: true,
+      partialDomains: ['meetings', 'mail'] };
+    const admission = f.service.bind(f.input, observed, f.bundle, 'a'.repeat(64), [], f.prompt);
+    expect(admission.context.state).toBe('complete');
+    const complete = fixture(), again = await complete.service.observe(complete.input);
+    const full = complete.service.bind(complete.input, again, complete.bundle, 'a'.repeat(64), [], complete.prompt);
+    // The actual partial coverage changes the bound coverage digest.
+    expect(admission.context.coverageDigest).not.toBe(full.context.coverageDigest);
+  });
+  test('an unpersisted packet or unknown bundle kind still refuses', async () => {
+    for (const mutate of [(b: any) => { b.governedContext.contextPacket.persisted = false; },
+      (b: any) => { b.kind = 'something_else'; }]) {
+      const f = fixture(), observed = await f.service.observe(f.input);
+      mutate(f.bundle);
+      expect(() => f.service.bind(f.input, observed, f.bundle, 'a'.repeat(64), [], f.prompt)).toThrow();
+    }
+  });
+  test('House representation uses the directory display district, not NaN', async () => {
+    const f = fixture();
+    f.directory.getAllContacts.mockResolvedValue([{ id: 'member-1', state: 'CA', chamber: 'House', district: 'CA-40' }]);
+    await f.service.observe(f.input);
+    const calls = f.representation.facilitiesForMember.mock.calls as any[];
+    expect(calls.some(c => c[2]?.type === 'federal' && c[2]?.district === 40)).toBe(true);
+  });
   test('Directory failure is distinct from legitimate absent field and refuses complete context', async () => {
     const f = fixture();
     f.directory.getStaffDetail.mockRejectedValueOnce(new Error('private upstream'));
