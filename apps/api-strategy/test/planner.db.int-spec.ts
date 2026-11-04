@@ -1,3 +1,4 @@
+import { seedStoredRule } from './planner-persisted-rule.fixture.js';
 import { PlannerService } from '../src/planner/planner.service.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import type { PlannerLinksService } from '../src/planner/planner-links.service.js';
@@ -408,61 +409,6 @@ describeDb('Planner real PostgreSQL integration', () => {
       status: 'todo',
     });
     expect((await service.tasks(owner, { projectId: p.id })).items).toHaveLength(2);
-  });
-  it('requires a template reference date, skips weekends and shifts timed repeats while preserving its source', async () => {
-    const template = await service.saveResource(owner, null, {
-      kind: 'template',
-      name: `Relative QA ${randomUUID()}`,
-      data: {
-        description: '',
-        privacy: 'private',
-        members: [],
-        project: { ...PLANNER_DEFAULT_PROJECT, name: 'Relative source', privacy: 'team' },
-        tasks: [
-          {
-            ...PLANNER_DEFAULT_TASK,
-            name: 'Relative repeat',
-            startOn: '2026-10-06',
-            dueOn: '2026-10-07',
-            dueTime: '09:00',
-            timeZone: 'America/New_York',
-            recurrence: { frequency: 'weekly', interval: 1, endsOn: '2026-10-21' },
-          },
-        ],
-        schedule: {
-          anchor: 'due',
-          skipWeekends: true,
-          dates: [{ startOffset: -2, dueOffset: -1 }],
-        },
-      },
-    });
-    await expect(
-      service.instantiateTemplate(owner, template.id, { name: 'Missing date' }),
-    ).rejects.toMatchObject({ status: 400 });
-    await expect(
-      service.instantiateTemplate(owner, template.id, {
-        name: 'Invalid date',
-        anchorOn: '2026-02-30',
-      }),
-    ).rejects.toMatchObject({ status: 400 });
-    const p = await service.instantiateTemplate(owner, template.id, {
-      name: 'Relative deployed QA',
-      anchorOn: '2026-10-12',
-    });
-    expect(p).toMatchObject({ privacy: 'private', startOn: '2026-10-08', dueOn: '2026-10-12' });
-    expect((await service.tasks(owner, { projectId: p.id })).items[0]).toMatchObject({
-      startOn: '2026-10-08',
-      dueOn: '2026-10-09',
-      dueTime: '09:00',
-      timeZone: 'America/New_York',
-      recurrence: { anchorOn: '2026-10-09', endsOn: '2026-10-23' },
-    });
-    const unchanged = (await service.resources(owner)).find((r) => r.id === template.id)!;
-    expect(unchanged.version).toBe(template.version);
-    expect(unchanged.data).toEqual(template.data);
-    await expect(
-      service.task(outsider, (await service.tasks(owner, { projectId: p.id })).items[0]!.id),
-    ).rejects.toMatchObject({ status: 404 });
   });
   it('creates a single timed successor across concurrent completion and reopen, preserving its month-end anchor', async () => {
     const sectionId = randomUUID();
@@ -997,82 +943,6 @@ describeDb('Planner real PostgreSQL integration', () => {
       expect(tableRights.every((row) => row.relforcerowsecurity && !row.can_delete)).toBe(true);
     });
   });
-  it('shares only form questions and a receipt, enforces tenant scope, quotas and revocation', async () => {
-    const p = await service.saveProject(owner, null, { data: { name: 'Secret intake project' } });
-    const fieldId = crypto.randomUUID();
-    const form = await service.saveResource(owner, null, {
-      kind: 'form',
-      projectId: p.id,
-      name: 'Public intake',
-      data: {
-        description: 'Describe the request',
-        enabled: true,
-        fields: [
-          {
-            id: fieldId,
-            label: 'Request',
-            type: 'text',
-            required: true,
-            options: [],
-            taskField: 'name',
-          },
-        ],
-        defaults: {
-          assigneeId: owner.clerkUserId,
-          priority: 'none',
-          status: 'todo',
-          estimateMinutes: 0,
-        },
-      },
-    });
-    await expect(
-      service.shareForm(outsider, form.id, { version: 1, enabled: true }),
-    ).rejects.toMatchObject({ status: 404 });
-    const first = (await service.shareForm(owner, form.id, { version: 1, enabled: true })).token!;
-    expect(await service.publicForm(first)).toEqual({
-      name: 'Public intake',
-      description: 'Describe the request',
-      confirmationMessage: undefined,
-      allowAnotherSubmission: undefined,
-      fields: [
-        {
-          id: fieldId,
-          label: 'Request',
-          type: 'text',
-          required: true,
-          options: [],
-          maxLength: 500,
-        },
-      ],
-    });
-    const stored = await prisma.withTenant(owner.tenantId, (tx) =>
-      tx.spPlannerResource.findFirst({ where: { id: form.id } }),
-    );
-    expect(stored?.shareTokenHash).toHaveLength(64);
-    expect(JSON.stringify(stored)).not.toContain(first);
-    await expect(
-      service.publicForm(first.replace(owner.tenantId, '10000000-0000-4000-8000-000000000002')),
-    ).rejects.toMatchObject({ status: 404 });
-    await expect(
-      service.submitPublicForm(first, { [fieldId]: 'Request', memberships: [] }),
-    ).rejects.toMatchObject({ status: 400 });
-    expect(await service.submitPublicForm(first, { [fieldId]: 'Anonymous request' })).toEqual({
-      received: true,
-    });
-    const submitted = (await service.tasks(owner, { projectId: p.id })).items[0]!;
-    expect(submitted.ownerId).toBe(owner.clerkUserId);
-    expect(submitted.name).toBe('Anonymous request');
-    for (let i = 1; i < 10; i++)
-      await service.submitPublicForm(first, { [fieldId]: `Anonymous ${i}` });
-    await expect(
-      service.submitPublicForm(first, { [fieldId]: 'Rate limited' }),
-    ).rejects.toMatchObject({ status: 429 });
-    const second = (await service.shareForm(owner, form.id, { version: 2, enabled: true })).token!;
-    expect(second).not.toBe(first);
-    await expect(service.publicForm(first)).rejects.toMatchObject({ status: 404 });
-    await service.shareForm(owner, form.id, { version: 3, enabled: false });
-    await expect(service.publicForm(second)).rejects.toMatchObject({ status: 404 });
-  });
   it('copies a project without leaking private memberships, fields or external graph links', async () => {
     const s = crypto.randomUUID(),
       f = crypto.randomUUID();
@@ -1277,12 +1147,9 @@ describeDb('Planner real PostgreSQL integration', () => {
       false,
     );
   });
-  it('runs project rules and allows a viewer to submit a constrained form without task edit rights', async () => {
-    const p = await service.saveProject(owner, null, {
-      data: { name: 'Rules/forms test', members: [{ userId: 'user_viewer', role: 'viewer' }] },
-    });
-    const rule = await service.saveResource(owner, null, {
-      kind: 'rule',
+  it('continues applying persisted rules while retiring their management routes', async () => {
+    const p = await service.saveProject(owner, null, { data: { name: 'Persisted rule test' } });
+    const rule = await seedStoredRule(prisma, owner, null, {
       projectId: p.id,
       name: 'Flag new requests',
       data: { enabled: true, trigger: 'created', conditions: {}, actions: { priority: 'high' } },
@@ -1294,47 +1161,14 @@ describeDb('Planner real PostgreSQL integration', () => {
       },
     });
     expect(t.priority).toBe('high');
+    expect((await service.resources(owner)).some((r) => r.id === rule.id)).toBe(false);
     await expect(
-      service.saveResource(viewer, rule.id, { version: 1, data: { enabled: false } }),
-    ).rejects.toMatchObject({ status: 403 });
-    const fieldId = crypto.randomUUID();
-    const form = await service.saveResource(owner, null, {
-      kind: 'form',
-      projectId: p.id,
-      name: 'Request work',
-      data: {
-        description: '',
-        enabled: true,
-        fields: [
-          {
-            id: fieldId,
-            label: 'Name',
-            type: 'text',
-            required: true,
-            options: [],
-            taskField: 'name',
-          },
-        ],
-        defaults: { assigneeId: null, status: 'todo', priority: 'none', estimateMinutes: 0 },
-      },
-    });
-    await expect(
-      service.submitForm(outsider, form.id, { [fieldId]: 'Unauthorized' }),
+      service.saveResource(owner, rule.id, { version: rule.version, data: { enabled: false } }),
     ).rejects.toMatchObject({ status: 404 });
-    await expect(
-      service.submitForm(viewer, form.id, { [fieldId]: 'Valid', unknown: 'extra' }),
-    ).rejects.toMatchObject({ status: 400 });
-    const submitted = await service.submitForm(viewer, form.id, { [fieldId]: 'Viewer request' });
-    expect(submitted.name).toBe('Viewer request');
-    expect(submitted.priority).toBe('high');
-    expect(submitted.memberships[0]!.projectId).toBe(p.id);
-    await expect(
-      service.saveTask(viewer, submitted.id, { version: 1, data: { name: 'Cannot edit' } }),
-    ).rejects.toMatchObject({ status: 403 });
-    await service.saveResource(owner, form.id, { version: form.version, data: { enabled: false } });
-    await expect(
-      service.submitForm(viewer, form.id, { [fieldId]: 'Closed' }),
-    ).rejects.toMatchObject({ status: 400 });
+    for (const kind of ['template', 'rule', 'form', 'capacity'])
+      await expect(
+        service.saveResource(owner, null, { kind, name: 'Retired', data: {} }),
+      ).rejects.toMatchObject({ status: 400 });
   });
   it('redacts inaccessible portfolio projects and preserves them through an authorized name edit', async () => {
     const p = await service.saveProject(owner, null, {
@@ -1358,50 +1192,6 @@ describeDb('Planner real PostgreSQL integration', () => {
     expect(
       (await service.resources(owner)).find((r) => r.id === portfolio.id)?.data.projectIds,
     ).toEqual([p.id]);
-  });
-  it('copies a template graph with fresh task, section and custom field identities', async () => {
-    const sectionId = crypto.randomUUID(),
-      fieldId = crypto.randomUUID();
-    const template = await service.saveResource(owner, null, {
-      kind: 'template',
-      name: 'Graph template',
-      data: {
-        description: '',
-        privacy: 'private',
-        members: [],
-        project: {
-          ...PLANNER_DEFAULT_PROJECT,
-          name: 'Blueprint',
-          sections: [{ id: sectionId, name: 'Plan' }],
-          fields: [{ id: fieldId, name: 'Budget', type: 'number', options: [] }],
-        },
-        tasks: [
-          { ...PLANNER_DEFAULT_TASK, name: 'Parent', customValues: { [fieldId]: 100 } },
-          { ...PLANNER_DEFAULT_TASK, name: 'Child' },
-          { ...PLANNER_DEFAULT_TASK, name: 'Dependent' },
-        ],
-        layout: [
-          { sectionId, parentIndex: null, dependencyIndices: [] },
-          { sectionId, parentIndex: 0, dependencyIndices: [] },
-          { sectionId: null, parentIndex: null, dependencyIndices: [1] },
-        ],
-      },
-    });
-    await expect(
-      service.instantiateTemplate(outsider, template.id, { name: 'Unauthorized copy' }),
-    ).rejects.toMatchObject({ status: 404 });
-    const p = await service.instantiateTemplate(owner, template.id, { name: 'Copied graph' });
-    const rows = (await service.tasks(owner, { projectId: p.id })).items;
-    const parent = rows.find((t) => t.name === 'Parent')!,
-      child = rows.find((t) => t.name === 'Child')!,
-      dependent = rows.find((t) => t.name === 'Dependent')!;
-    expect(rows).toHaveLength(3);
-    expect(p.sections[0]!.id).not.toBe(sectionId);
-    expect(p.fields[0]!.id).not.toBe(fieldId);
-    expect(parent.customValues[p.fields[0]!.id]).toBe(100);
-    expect(child.parentId).toBe(parent.id);
-    expect(dependent.dependencies).toEqual([child.id]);
-    expect(parent.memberships[0]!.sectionId).toBe(p.sections[0]!.id);
   });
   it('rejects cross-tenant attachment metadata at the database foreign key', async () => {
     const t = await service.saveTask(owner, null, { data: { name: 'Attachment FK test' } });

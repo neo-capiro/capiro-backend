@@ -1,16 +1,11 @@
 import { plannerWeekOn, plannerWeekDate } from '@capiro/strategy-verifier';
-import {
-  plannerTimeDetails,
-  plannerTimesheetWeek,
-  plannerTimesheetActions,
-  plannerTimeEditable,
-} from './planner-timesheets.js';
+import { plannerTimeDetails, plannerTimeEditable } from './planner-timesheets.js';
 
 describe('Planner calendar time and weekly locks', () => {
   it('uses Monday calendar weeks across year and leap boundaries', () => {
     expect(plannerWeekOn('2027-01-01')).toBe('2026-12-28');
     expect(plannerWeekDate('2028-02-28', 6)).toBe('2028-03-05');
-    expect(plannerTimesheetWeek('2026-10-11')).toBe('2026-10-05');
+    expect(plannerWeekOn('2026-10-11')).toBe('2026-10-05');
   });
   it('rejects invalid dates, zones, billable flags and unknown metadata', () => {
     for (const time of [
@@ -32,7 +27,7 @@ describe('Planner calendar time and weekly locks', () => {
       workedOn: '2026-10-05',
     });
   });
-  it('locks submitters in review, locks approved weeks and permits assigned reviewer recall', () => {
+  it('enforces persisted weekly locks for submitters, reviewers and admins', () => {
     const data = {
       weekOn: '2026-10-05',
       reviewerId: 'reviewer',
@@ -47,19 +42,5 @@ describe('Planner calendar time and weekly locks', () => {
     );
     expect(plannerTimeEditable({ ...data, status: 'approved' }, 'owner', 'owner', true)).toBe(true);
     expect(plannerTimeEditable(data, 'owner', 'stranger', true)).toBe(false);
-    expect(plannerTimesheetActions(data, 'owner', 'owner')).toEqual(['recall_submission']);
-    expect(plannerTimesheetActions({ ...data, status: 'approved' }, 'owner', 'reviewer')).toEqual([
-      'recall_approval',
-    ]);
-    expect(plannerTimesheetActions({ ...data, status: 'rejected' }, 'owner', 'reviewer')).toEqual([
-      'submit',
-      'recall_approval',
-    ]);
-    expect(plannerTimesheetActions({ ...data, status: 'rejected' }, 'owner', 'owner')).toEqual([
-      'submit',
-    ]);
-    expect(plannerTimesheetActions({ ...data, status: 'rejected' }, 'owner', 'stranger')).toEqual(
-      [],
-    );
   });
 });

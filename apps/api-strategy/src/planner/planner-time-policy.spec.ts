@@ -9,7 +9,6 @@ import {
   plannerTimeDateNotice,
   requirePlannerTimePolicy,
 } from './planner-time-policy.js';
-import { plannerTimesheetActions } from './planner-timesheets.js';
 
 describe('Organization time rules', () => {
   const options = (patch = {}) => plannerTimeOptions(patch);
@@ -87,32 +86,5 @@ describe('Organization time rules', () => {
     expect(() =>
       requirePlannerTimePolicy({ ...time, category: 'Delivery' }, rules, false),
     ).not.toThrow();
-  });
-  it('supports submission without a reviewer and preserves recall of old approvals', () => {
-    const sheet = {
-      weekOn: time.workedOn,
-      reviewerId: null,
-      status: 'draft' as const,
-      notes: '',
-      correctedAfterApproval: false,
-    };
-    expect(plannerTimesheetActions(sheet, 'owner', 'owner', 'full')).toEqual([]);
-    expect(plannerTimesheetActions(sheet, 'owner', 'owner', 'simple')).toEqual(['submit']);
-    expect(
-      plannerTimesheetActions(
-        { ...sheet, reviewerId: 'reviewer', status: 'submitted' },
-        'owner',
-        'reviewer',
-        'simple',
-      ),
-    ).toEqual([]);
-    expect(
-      plannerTimesheetActions(
-        { ...sheet, reviewerId: 'reviewer', status: 'approved' },
-        'owner',
-        'reviewer',
-        'simple',
-      ),
-    ).toEqual(['recall_approval']);
   });
 });

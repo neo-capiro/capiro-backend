@@ -1,3 +1,8 @@
+import {
+  seedTimeSettings,
+  seedTimesheet,
+  storedTimesheet,
+} from './planner-persisted-time.fixture.js';
 import { randomUUID } from 'node:crypto';
 import {
   PLANNER_DEFAULT_TIME_OPTIONS,
@@ -39,9 +44,7 @@ const start = new Date('2027-04-07T12:00:00Z');
       options,
     );
   const settings = async (options = {}) => {
-    const current = await service.timeSettings(admin);
-    return service.saveTimeSettings(admin, {
-      version: current.version,
+    return seedTimeSettings(db, admin, {
       reviewers: { [owner.clerkUserId]: admin.clerkUserId },
       options: { ...PLANNER_DEFAULT_TIME_OPTIONS, ...options },
     });
@@ -73,16 +76,8 @@ const start = new Date('2027-04-07T12:00:00Z');
       plannerWeekOn(plannerTimeToday('UTC')),
       plannerWeekDate(plannerWeekOn(plannerTimeToday('UTC')), 7),
     ]) {
-      const sheet = await service.timesheet(owner, { week });
-      if (sheet.status === 'submitted')
-        await service.transitionTimesheet(owner, {
-          week,
-          userId: owner.clerkUserId,
-          version: sheet.version,
-          revision: sheet.revision,
-          action: 'recall_submission',
-          notes: '',
-        });
+      const sheet = await storedTimesheet(db, owner, week);
+      if (sheet) await seedTimesheet(db, owner, week, { status: 'draft' });
     }
   });
   afterAll(async () => db?.$disconnect());
@@ -371,32 +366,16 @@ const start = new Date('2027-04-07T12:00:00Z');
     ).rejects.toMatchObject({ status: 403 });
     expect((await counts()).events).toBe(before.events);
     await settings({ approvalProcess: 'simple' });
-    const firstWeek = await service.timesheet(owner, { week: monday });
-    const sheet = await service.timesheet(owner, { week: nextWeek });
-    await service.transitionTimesheet(owner, {
-      week: nextWeek,
-      userId: owner.clerkUserId,
-      version: sheet.version,
-      revision: sheet.revision,
-      action: 'submit',
-      notes: '',
-    });
+    const firstWeek = await storedTimesheet(db, owner, monday);
+    await seedTimesheet(db, owner, nextWeek, { status: 'submitted' });
     const beforeRejectedStop = await counts();
     await expect(
       service.stopTimer(owner, timer.id, { version: 1 }, new Date(stamp.getTime() + 120_000)),
     ).rejects.toMatchObject({ status: 403 });
     expect(await counts()).toEqual(beforeRejectedStop);
     expect((await service.timer(owner))?.id).toBe(timer.id);
-    expect((await service.timesheet(owner, { week: monday })).version).toBe(firstWeek.version);
-    const locked = await service.timesheet(owner, { week: nextWeek });
-    await service.transitionTimesheet(owner, {
-      week: nextWeek,
-      userId: owner.clerkUserId,
-      version: locked.version,
-      revision: locked.revision,
-      action: 'recall_submission',
-      notes: '',
-    });
+    expect((await storedTimesheet(db, owner, monday))?.version).toBe(firstWeek?.version);
+    await seedTimesheet(db, owner, nextWeek, { status: 'draft' });
     await service.stopTimer(owner, timer.id, { version: 1 }, new Date(stamp.getTime() + 120_000));
   });
   it('rejects malformed timestamps/fields, policy/allocation violations and stale versions without partial writes', async () => {

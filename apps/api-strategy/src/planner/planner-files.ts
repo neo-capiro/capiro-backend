@@ -12,4 +12,3 @@ export function plannerAttachmentName(name: unknown): string {
   return name;
 }
 export type PlannerUpload = { buffer: Buffer; originalname: string; size: number };
-export type PlannerFormUpload = PlannerUpload & { fieldname: string };
