@@ -1,9 +1,13 @@
+import { randomUUID } from 'node:crypto';
+import { carryProspectProfile } from '../clients/profile-conversion.js';
+import { ProfileProjectionService } from '../clients/profile-projection.service.js';
 import {
   BadRequestException,
   ConflictException,
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { Prisma } from '@prisma/client';
@@ -193,6 +197,7 @@ export class BusinessDevelopmentService {
     @Optional()
     @Inject(BIZDEV_JEV_REVIEW_HOOK)
     private readonly jevReview?: BizDevJevReviewHook,
+    private readonly profileProjection?: ProfileProjectionService,
   ) {}
 
   // ── reads ────────────────────────────────────────────────────────────────
@@ -967,8 +972,9 @@ export class BusinessDevelopmentService {
   }
 
   private scheduleConversionEnrichment(ctx: TenantContext, outcome: {
-    created: boolean; clientId: string; clientName: string; ldaRegistrantId: number | null;
+    created: boolean; clientId: string; clientName: string; ldaRegistrantId: number | null; profileCarryover?: Awaited<ReturnType<typeof carryProspectProfile>>;
   }) {
+    for(const effect of outcome.profileCarryover?.effects??[])void Promise.resolve().then(effect).catch(()=>undefined);
     // AFTER commit: schedule enrichment, only for a CREATED client — never for
     // link-existing. The real ldaRegistrantId from the transaction outcome is
     // passed to the resolution call (registrant-anchored matching), matching
@@ -999,7 +1005,7 @@ export class BusinessDevelopmentService {
   /** Both reviewed modes share canonical capacity admission and the conversion transaction. */
   async convertCommand(ctx: TenantContext, prospectId: string, input: unknown) {
     const command = parseProspectConversion(prospectId, input);
-    let created: { created: boolean; clientId: string; clientName: string; ldaRegistrantId: number | null } | undefined;
+    let created: { created: boolean; clientId: string; clientName: string; ldaRegistrantId: number | null; profileCarryover?: Awaited<ReturnType<typeof carryProspectProfile>> } | undefined;
     const receipt = await withNewClientRefusal(command, (confirmNoReceipt) =>
       this.prisma.withTenant(ctx.tenantId, (tx) =>
         commitProspectConversion(
@@ -1236,6 +1242,9 @@ export class BusinessDevelopmentService {
       });
     }
 
+    if(!this.profileProjection)throw new ServiceUnavailableException('Profile conversion is unavailable');
+    const profileCarryover=await carryProspectProfile(tx,ctx,id,clientId,this.profileProjection);
+
     // 6. Claim the locked row: the FOR UPDATE lock means at most ONE caller
     //    can be here per prospect at a time, so this plain update is safe.
     await tx.businessDevelopmentProspect.update({
@@ -1264,7 +1273,7 @@ export class BusinessDevelopmentService {
       { linkedClientId: clientId, created },
     );
 
-    return { clientId, clientName, created, ldaRegistrantId, alreadyLinked: false as const };
+    return { clientId, clientName, created, ldaRegistrantId, alreadyLinked: false as const, profileCarryover };
   }
 
   // ── identity resolution for an unresolved prospect ──────────────────────

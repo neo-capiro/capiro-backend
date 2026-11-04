@@ -170,7 +170,7 @@ export class ClientProfileFillRunLifecycle {
                   summary_jsonb = $4::jsonb,
                   completed_at = now(),
                   last_progress_at = now(), updated_at = now(),
-                  error = CASE WHEN $3 = 'failed' THEN 'All Fill with Meri tasks failed' ELSE NULL END
+                  error = CASE WHEN $3 = 'failed' THEN 'All Profile research tasks failed' ELSE NULL END
             WHERE id = $1::uuid AND tenant_id = $2::uuid AND status <> 'cancelled'`,
           run.runId,
           run.tenantId,

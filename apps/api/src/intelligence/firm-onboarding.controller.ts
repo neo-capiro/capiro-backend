@@ -16,6 +16,7 @@ import {
   IsArray,
   IsInt,
   IsOptional,
+  IsObject,
   IsString,
   IsUUID,
   Length,
@@ -60,6 +61,10 @@ class ImportClientsDto {
   @IsOptional()
   @IsUUID()
   requestId?: string;
+
+  @IsOptional()
+  @IsObject()
+  websites?: Record<string, string>;
 }
 
 class ListImportJobsQueryDto {
@@ -115,7 +120,7 @@ export class FirmOnboardingController {
   @Post('import')
   @Roles('user_admin')
   importClients(@CurrentTenant() ctx: TenantContext, @Body() body: ImportClientsDto) {
-    return this.svc.importClients(ctx, body.ldaClientIds, { requestId: body.requestId });
+    return this.svc.importClients(ctx, body.ldaClientIds, { requestId: body.requestId, websites: body.websites });
   }
 
   /**

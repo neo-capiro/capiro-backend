@@ -1,3 +1,4 @@
+import { subjectColumn, type ProfileSubject } from './profile-subject.js';
 import { fillRunBeforeDeadline } from './client-profile-fill-run-deadline.js';
 import type { Prisma } from '@prisma/client';
 
@@ -11,6 +12,7 @@ export function queueFailedFillTask(
   runId: string,
   taskId: string,
   expected?: { expectedAttempt: number; expectedTaskType: string },
+  subject: ProfileSubject = {kind: 'client', id: clientId},
 ) {
   const table =
     family === 'core' ? 'client_profile_fill_task' : 'client_profile_fill_extension_task';
@@ -21,9 +23,9 @@ export function queueFailedFillTask(
             heartbeat_at = NULL, worker_id = NULL,
             max_attempts = GREATEST(max_attempts, attempt + 3), updated_at = now()
       WHERE id = $1::uuid AND run_id = $2::uuid AND tenant_id = $3::uuid
-        AND client_id = $4::uuid AND status = 'failed'
+        AND ${subjectColumn(subject)} = $4::uuid AND status = 'failed'
         AND EXISTS (SELECT 1 FROM client_profile_fill_run r
-          WHERE r.id = $2::uuid AND r.tenant_id = $3::uuid AND r.client_id = $4::uuid
+          WHERE r.id = $2::uuid AND r.tenant_id = $3::uuid AND r.${subjectColumn(subject)} = $4::uuid
             AND r.status <> 'cancelled' AND ${fillRunBeforeDeadline('r')})
         ${expected ? 'AND attempt = $5 AND task_type = $6' : ''}`,
     taskId,

@@ -80,6 +80,10 @@ function raw(state: State, scope: string) {
         record(state, 'run', args, scope, sql);
         return [{ id: 'new-run' }];
       }
+      if (sql.includes('SELECT r.id, r.tenant_id AS "tenantId"') && sql.includes('clock_timestamp()') && sql.includes('FOR UPDATE OF r SKIP LOCKED')) {
+        record(state, 'empty-deadline-query', args, scope, sql);
+        return [];
+      }
       if (sql.includes('WITH candidates AS') || sql.includes('SELECT r.id AS "runId"')) {
         record(state, 'empty-worker-query', args, scope, sql);
         return [];

@@ -1,7 +1,9 @@
 # Client Portfolio onboarding: backend implementation plan
 
-Status: proposed implementation plan; no migrations, routes, jobs or model calls
-are executed by this PR. Implement only in `neo-capiro/capiro-backend` with UI in
+Status: accepted design baseline, now under implementation. See the
+[implementation and validation record](portfolio-onboarding-implementation-validation.md)
+for completed paths, exact official-fact acceptance, remaining integration gates
+and release limitations. Implement only in `neo-capiro/capiro-backend` with UI in
 `neo-capiro/capiro-frontend`; do not use `capirov2`.
 
 Reviewed backend baseline: `backend-import` at
@@ -211,12 +213,15 @@ Test rollback on capacity refusal and conversion receipts after lost responses.
 
 ## Relationships, capabilities and migration
 
-Extend ClientTarget rather than replace it. Its current uniqueness on
-`(clientId, memberId)` must be checked against congress/state/staff directory
-namespaces and term identity; migrate to a collision-safe office key before
-mixing these domains. Child capability-support links require tenant/client
-matching with both the parent and capability. An approved recommendation
-upserts the parent and child atomically; a client-only link remains valid.
+Extend ClientTarget rather than replace it. The implemented office identity is
+`(clientId, sourceDirectory, memberId, officeTerm)`; an unknown historic term is
+not silently relabeled as the current term. Child capability-support links
+require tenant/client matching with both the parent and capability. An approved
+recommendation creates the parent and capability association atomically, subject
+to the existing version guards; a client-only link remains valid. Generated fit
+recommendations carry `stance: unknown`: approval can create a Planned parent
+and an unknown-stance capability association without asserting office interest.
+Existing person-reviewed stances and relationship status remain authoritative.
 
 Keep existing client-level tracking. Add capability-specific associations only
 when the target is known; do not assign every historical item to every
@@ -225,6 +230,18 @@ approval separate from tags. NAICS/PSC remain classification data. Dismissals
 are capability-scoped; rejection/restore and refreshed recommendation versions
 are durable. Exact source statements and licensed excerpts are stored under
 the existing ingestion controls, not copied wholesale by a model.
+
+Phase 7 now reuses stored member press, the existing office ranker, canonical
+bill/committee/hearing records, verified current facility boundaries and the
+immutable bill-text reader. Public statement embeddings use the existing
+`EmbeddingsService` / `context_embeddings` owner. A new corpus revision can
+schedule an idempotent `bill_tracker` run from the existing profile worker sweep;
+there is no new timer, queue or page-read mutation. Current actor, client-wall
+and task checks guard cache and proposal writes, and source refresh preserves
+approved, rejected and person-edited proposals. The
+[implementation record](portfolio-onboarding-implementation-validation.md#phase-7-statements-and-recommendations)
+describes eligibility, evidence bounds, neutral stance and remaining release
+gates; fit is not a prediction of political support.
 
 Typed sector anchors support defense PE, health agency account/program and
 agriculture program/Farm Bill title. Keep proposed reference rows unconfirmed
@@ -249,7 +266,7 @@ included; do not fabricate them or ship placeholder company/member records.
    impact/sector phases with the frontend acceptance matrix. Remove the rollout
    flag and unreachable alternate branch once adopted.
 
-Implementation gates (all pending; this plan does not assert test passes):
+Design acceptance gates (current evidence is tracked in the implementation record):
 
 - Tenant isolation and authorization on start, get, retry, review, refresh and
   resumed workers; no restricted-client disclosure through duplicate detection.
@@ -291,6 +308,7 @@ References reviewed for the proposed SDK and geographic design:
 - [Census Geocoding Services API](https://geocoding.geo.census.gov/geocoder/Geocoding_Services_API.html).
 - [Official TIGERweb legislative layers](https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Legislative/MapServer).
 
-This documentation review used current source and schema from the two specified
-repos. No runtime code was changed, no deployed routes were removed, and no
-production research or database mutation was performed by this PR.
+The original planning review used source and schema from the two specified
+repositories and did not change runtime code or deployed state. Subsequent
+implementation and its validation are tracked separately in the linked record;
+this design document is not evidence of production qualification.

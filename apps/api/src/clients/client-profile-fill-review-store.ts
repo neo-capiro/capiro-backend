@@ -1,3 +1,4 @@
+import { requireProfileSubject, subjectColumn, type ProfileSubject } from './profile-subject.js';
 import {
   BadRequestException,
   ConflictException,
@@ -8,7 +9,6 @@ import type { Prisma } from '@prisma/client';
 import { isUUID } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
-import { requireOwnerClient } from './client-ordered-owner.access.js';
 import type { AdvancedFindingRow } from './client-profile-fill-finding-review.shared.js';
 import {
   currentReviewRevision,
@@ -45,6 +45,7 @@ export async function commitReviewedFindings(
   apply: (scope: ReviewTransaction, finding: AdvancedFindingRow) => Promise<unknown>,
   options: {
     target?: unknown;
+    subject?: ProfileSubject;
     warn(message: string): void;
     afterApplied?(findings: AdvancedFindingRow[]): Promise<void>;
   },
@@ -61,12 +62,13 @@ export async function commitReviewedFindings(
     throw new BadRequestException(
       'A current review snapshot and a unique application request are required',
     );
+  const subject = options.subject ?? {kind:'client' as const,id:clientId};
   const requestId = command.requestId.toLowerCase();
   const digest = reviewHash({
     schemaVersion: 1,
     tenantId: ctx.tenantId,
     actorId: ctx.userId,
-    clientId,
+    clientId, ...(subject.kind === 'prospect' ? {subject} : {}),
     runId,
     revision: command.expectedClientRevision,
     findings: [...command.findings].sort((a, b) => a.id.localeCompare(b.id)),
@@ -78,7 +80,7 @@ export async function commitReviewedFindings(
     ctx.tenantId,
     ctx.userId,
     async (tx) => {
-      await requireOwnerClient(tx, ctx, clientId, true);
+      await requireProfileSubject(tx, ctx, subject, true, true);
       const receipt = await tx.auditLog.findFirst({
         where: { id: requestId, tenantId: ctx.tenantId },
       });
@@ -109,12 +111,12 @@ export async function commitReviewedFindings(
       let selected: AdvancedFindingRow[] = [];
       try {
         if (
-          (await currentReviewRevision(tx, ctx, clientId, true)) !== command.expectedClientRevision
+          (await currentReviewRevision(tx, ctx, clientId, true, subject)) !== command.expectedClientRevision
         )
           throw new ConflictException(
             'The client changed after this review. Reload and review the current data before applying.',
           );
-        const all = await loadReviewFindings(tx, ctx, clientId, runId, true);
+        const all = await loadReviewFindings(tx, ctx, clientId, runId, true, subject);
         selected = command.findings
           .map((expected) => {
             const finding = all.find((f) => f.id === expected.id);
@@ -147,11 +149,16 @@ export async function commitReviewedFindings(
         try {
           if (finding.status !== 'pending')
             throw new BadRequestException('Only pending findings can be applied');
-          await apply(scope, finding);
+          const outcome=await apply(scope, finding);
+          if(outcome && typeof outcome==='object' && 'conflict' in outcome && outcome.conflict){
+            await tx.$executeRawUnsafe('RELEASE SAVEPOINT reviewed_finding');
+            result.errors.push({findingId:finding.id,message:'This proposal conflicts with a person-entered value. Resolve its fact conflict before applying.'});
+            continue;
+          }
           const changed = await tx.$executeRawUnsafe(
             `UPDATE client_profile_fill_finding SET status='accepted', reviewed_by=$4::uuid, reviewed_at=now(),
              applied_at=now(), rejection_reason=NULL, updated_at=now()
-           WHERE id=$1::uuid AND tenant_id=$2::uuid AND client_id=$3::uuid AND status='pending'`,
+           WHERE id=$1::uuid AND tenant_id=$2::uuid AND ${subjectColumn(subject)}=$3::uuid AND status='pending'`,
             finding.id,
             ctx.tenantId,
             clientId,

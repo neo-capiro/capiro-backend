@@ -1,5 +1,6 @@
+import { governProfileExtraction } from './profile-extraction-context.js';
 import type { TenantContext } from '@capiro/shared';
-import { createGovernedClientProfileFillService } from './governed-client-profile-fill.factory.js';
+import { createGovernedClientProfileFillService, runWithGovernedCrmFillBundle } from './governed-client-profile-fill.factory.js';
 import type { ClientProfileFillGovernedContext } from './client-profile-fill-context-plane.service.js';
 import type { ClientProfileFillService } from './client-profile-fill.service.js';
 
@@ -58,209 +59,46 @@ function bundle(): ClientProfileFillGovernedContext {
   };
 }
 
-/**
- * Explicit `this` shape for the legacy-seam fakes below. A concrete interface
- * (rather than an index signature) keeps these calls type-safe under
- * noUncheckedIndexedAccess, which reports indexed access as possibly undefined.
- */
-interface RawFillSeams {
-  executeRun: (...args: unknown[]) => Promise<unknown>;
-  executeCapabilityDocumentRun: (...args: unknown[]) => Promise<unknown>;
-  gatherSyncedEmail: (...args: unknown[]) => Promise<unknown>;
-  callOpenAiJson: (...args: unknown[]) => Promise<unknown>;
-  callAnthropicJson: (...args: unknown[]) => Promise<unknown>;
-}
-
-function fakeRaw() {
-  const events: string[] = [];
-  const prompts: string[] = [];
+function fixture(existingPeople: Array<{name: string; email: string}> = []) {
   const addFinding = jest.fn().mockResolvedValue(true);
-  const raw = {
-    startRun: jest.fn(async function (
-      this: RawFillSeams,
-      value: TenantContext,
-      id: string,
-      sources?: string[],
-      attachmentId?: string,
-    ) {
-      events.push('raw-start');
-      if (attachmentId) {
-        await this.executeCapabilityDocumentRun(value, id, 'run-1', attachmentId);
-      } else {
-        await this.executeRun(value, id, 'run-1', sources ?? ['synced_email']);
-      }
-      return { id: 'run-1', clientId: id };
-    }),
-    executeRun: async function (
-      this: RawFillSeams,
-      value: TenantContext,
-      id: string,
-      runId: string,
-    ) {
-      events.push('raw-execute');
-      await this.gatherSyncedEmail(value, id, runId);
-      await this.callOpenAiJson('key', 'model', 'SYSTEM', 'PUBLIC EVIDENCE', {});
-    },
-    executeCapabilityDocumentRun: async function (
-      this: RawFillSeams,
-    ) {
-      events.push('raw-document-execute');
-      await this.callAnthropicJson('key', 'model', 'SYSTEM', 'UNTRUSTED DOCUMENT', {});
-    },
-    gatherSyncedEmail: async () => {
-      throw new Error('legacy direct contact lookup must be replaced');
-    },
-    addFinding,
-    callOpenAiJson: async (
-      _apiKey: string,
-      _model: string,
-      system: string,
-      prompt: string,
-    ) => {
-      prompts.push(`${system}\n${prompt}`);
-      return '{}';
-    },
-    callAnthropicJson: async (
-      _apiKey: string,
-      _model: string,
-      system: string,
-      prompt: string,
-    ) => {
-      prompts.push(`${system}\n${prompt}`);
-      return '{}';
-    },
-  };
-  return { raw, events, prompts, addFinding };
+  const raw = {gatherSyncedEmail: async (_ctx: TenantContext, _clientId: string, _runId: string) => 0, addFinding};
+  createGovernedClientProfileFillService(raw as unknown as ClientProfileFillService,
+    {listPeople: jest.fn().mockResolvedValue(existingPeople)} as never);
+  return {raw, addFinding};
 }
 
-describe('Phase 23 governed ClientProfileFillService wrapper', () => {
-  test('one governed bundle is resolved before run execution and reused by contact + model seams', async () => {
-    const f = fakeRaw();
-    const contextPlane = {
-      resolve: jest.fn().mockImplementation(async () => {
-        f.events.push('context-resolved');
-        return bundle();
-      }),
-      recordRunContext: jest.fn().mockImplementation(async () => {
-        f.events.push('context-recorded');
-      }),
-      failRun: jest.fn(),
-    };
-    const people = { listPeople: jest.fn().mockResolvedValue([]) };
-    const service = createGovernedClientProfileFillService(
-      f.raw as unknown as ClientProfileFillService,
-      contextPlane as never,
-      people as never,
-    );
-
-    await service.startRun(ctx, clientId, ['synced_email']);
-
-    expect(contextPlane.resolve).toHaveBeenCalledTimes(1);
-    expect(contextPlane.resolve).toHaveBeenCalledWith(ctx, {
-      clientId,
-      requestedSources: ['synced_email'],
-      attachmentId: null,
-    });
-    expect(f.events.indexOf('context-resolved')).toBeLessThan(f.events.indexOf('raw-start'));
-    expect(f.events.indexOf('context-recorded')).toBeLessThan(f.events.indexOf('raw-execute'));
-    expect(f.addFinding).toHaveBeenCalledWith(
-      'tenant-1',
-      clientId,
-      'run-1',
-      expect.objectContaining({
-        kind: 'person',
-        source: 'synced_email',
-        confidence: 0.97,
-        proposedValue: expect.objectContaining({
-          name: 'Jamie Contact',
-          email: 'jamie@acme.example',
-        }),
-      }),
-    );
-    expect(f.prompts).toHaveLength(1);
-    expect(f.prompts[0]).toContain('<capiro_crm_context_plane>');
-    expect(f.prompts[0]).toContain('It is not evidence');
-    expect(f.prompts[0]).toContain('PUBLIC EVIDENCE');
+describe('governed portfolio source adapter', () => {
+  test('the worker bundle supplies explicitly linked contact proposals and provenance', async () => {
+    const f = fixture();
+    await runWithGovernedCrmFillBundle(bundle(), () => f.raw.gatherSyncedEmail(ctx, clientId, 'run-1'));
+    expect(f.addFinding).toHaveBeenCalledTimes(1);
+    expect(f.addFinding).toHaveBeenCalledWith('tenant-1', clientId, 'run-1', expect.objectContaining({
+      kind: 'person', source: 'synced_email',
+      proposedValue: expect.objectContaining({name: 'Jamie Contact', email: 'jamie@acme.example'}),
+      evidence: [expect.objectContaining({metadata: expect.objectContaining({packetId: 'packet-1', association: 'explicit_client_link'})})],
+    }));
   });
-
-  test('capability-document extraction receives the same governed non-evidentiary context', async () => {
-    const f = fakeRaw();
-    const contextPlane = {
-      resolve: jest.fn().mockResolvedValue(bundle()),
-      recordRunContext: jest.fn(),
-      failRun: jest.fn(),
-    };
-    const service = createGovernedClientProfileFillService(
-      f.raw as unknown as ClientProfileFillService,
-      contextPlane as never,
-      { listPeople: jest.fn().mockResolvedValue([]) } as never,
-    );
-
-    await service.startRun(ctx, clientId, undefined, 'attachment-1');
-
-    expect(contextPlane.recordRunContext).toHaveBeenCalledTimes(1);
-    expect(f.prompts[0]).toContain('<capiro_crm_context_plane>');
-    expect(f.prompts[0]).toContain('UNTRUSTED DOCUMENT');
-  });
-
-  test('Context Plane failure blocks the durable raw run and provider work', async () => {
-    const f = fakeRaw();
-    const contextPlane = {
-      resolve: jest.fn().mockRejectedValue(new Error('context_plane_unavailable')),
-      recordRunContext: jest.fn(),
-      failRun: jest.fn(),
-    };
-    const service = createGovernedClientProfileFillService(
-      f.raw as unknown as ClientProfileFillService,
-      contextPlane as never,
-      { listPeople: jest.fn().mockResolvedValue([]) } as never,
-    );
-
-    await expect(service.startRun(ctx, clientId, ['public_web'])).rejects.toThrow(
-      'context_plane_unavailable',
-    );
-    expect(f.events).not.toContain('raw-start');
-    expect(f.prompts).toHaveLength(0);
-  });
-
-  test('invalid document-plus-source request is rejected before packet persistence', async () => {
-    const f = fakeRaw();
-    const contextPlane = {
-      resolve: jest.fn().mockResolvedValue(bundle()),
-      recordRunContext: jest.fn(),
-      failRun: jest.fn(),
-    };
-    const service = createGovernedClientProfileFillService(
-      f.raw as unknown as ClientProfileFillService,
-      contextPlane as never,
-      { listPeople: jest.fn().mockResolvedValue([]) } as never,
-    );
-
-    await expect(
-      service.startRun(ctx, clientId, ['public_web'], 'attachment-1'),
-    ).rejects.toMatchObject({ status: 400 });
-    expect(contextPlane.resolve).not.toHaveBeenCalled();
-    expect(f.events).not.toContain('raw-start');
-  });
-
-  test('existing CRM people are never resurrected as automatic proposals', async () => {
-    const f = fakeRaw();
-    const contextPlane = {
-      resolve: jest.fn().mockResolvedValue(bundle()),
-      recordRunContext: jest.fn(),
-      failRun: jest.fn(),
-    };
-    const service = createGovernedClientProfileFillService(
-      f.raw as unknown as ClientProfileFillService,
-      contextPlane as never,
-      {
-        listPeople: jest.fn().mockResolvedValue([
-          { name: 'Jamie Contact', email: 'jamie@acme.example' },
-        ]),
-      } as never,
-    );
-
-    await service.startRun(ctx, clientId, ['synced_email']);
+  test('missing governed context refuses source work before any finding is written', async () => {
+    const f = fixture();
+    await expect(f.raw.gatherSyncedEmail(ctx, clientId, 'run-1')).rejects.toThrow('phase23_crm_context_plane_bundle_required');
     expect(f.addFinding).not.toHaveBeenCalled();
+  });
+  test('a different client cannot consume another profile bundle', async () => {
+    const f = fixture();
+    await expect(runWithGovernedCrmFillBundle(bundle(), () => f.raw.gatherSyncedEmail(ctx, 'other-client', 'run-1')))
+      .rejects.toThrow('phase23_crm_context_plane_client_mismatch');
+    expect(f.addFinding).not.toHaveBeenCalled();
+  });
+  test('existing people are not resurrected as proposals', async () => {
+    const f = fixture([{name: 'Jamie Contact', email: 'jamie@acme.example'}]);
+    await runWithGovernedCrmFillBundle(bundle(), () => f.raw.gatherSyncedEmail(ctx, clientId, 'run-1'));
+    expect(f.addFinding).not.toHaveBeenCalled();
+  });
+  test('governed private context remains separate from untrusted source evidence', async () => {
+    const governed = await runWithGovernedCrmFillBundle(bundle(), async () =>
+      governProfileExtraction({kind: 'client', id: clientId}, 'SYSTEM', 'UNTRUSTED DOCUMENT'));
+    expect(governed.instructions).toContain('It is not evidence');
+    expect(governed.prompt).toContain('UNTRUSTED DOCUMENT');
+    expect(governed.prompt).toContain('<capiro_crm_context_plane>');
   });
 });

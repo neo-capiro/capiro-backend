@@ -132,7 +132,7 @@ describe('RepresentationResolverService.representativesForFacility', () => {
   // resolve using whichever district(s) were hand-typed — the old gate
   // (`geocodeStatus !== 'matched' && !congressionalDistrict`) silently treated
   // ANY non-matched facility with only a state district as fully unresolved.
-  it('a manually-entered facility (not geocoded) with only a hand-typed state house district resolves the state legislator, not federal', async () => {
+  it('a manual state district retains current directory role separately from unverified term assignment', async () => {
     const svc = new RepresentationResolverService(
       fakePrisma({ stateLower: [STATE_LOWER] }),
     );
@@ -145,7 +145,9 @@ describe('RepresentationResolverService.representativesForFacility', () => {
     });
     expect(out.unresolved).toBe(false);
     if (out.unresolved) throw new Error('expected resolved');
-    expect(out.state.lower?.id).toBe('ocd-1');
+    expect(out.stateCurrentRole?.lower?.id).toBe('ocd-1');
+    expect(out.state.lower).toBeNull();
+    expect(out.stateOfficeTermStatus).toBe('unverified');
     expect(out.federal.house).toBeNull(); // no congressionalDistrict supplied -> correctly null, not a guess
   });
 
@@ -165,7 +167,7 @@ describe('RepresentationResolverService.representativesForFacility', () => {
     expect(out.federal.house?.bioguideId).toBe('D000001');
   });
 
-  it('resolves federal House + both senators + state upper/lower for a fixtured facility (M1-D)', async () => {
+  it('resolves federal House and senators and preserves state current roles without inventing term assignments', async () => {
     const svc = new RepresentationResolverService(
       fakePrisma({
         houseMembers: [HOUSE_MEMBER],
@@ -179,8 +181,10 @@ describe('RepresentationResolverService.representativesForFacility', () => {
     if (out.unresolved) throw new Error('expected resolved');
     expect(out.federal.house?.bioguideId).toBe('D000001');
     expect(out.federal.senate.map((s) => s.bioguideId).sort()).toEqual(['S000001', 'S000002']);
-    expect(out.state.lower?.id).toBe('ocd-1');
-    expect(out.state.upper?.id).toBe('ocd-2');
+    expect(out.stateCurrentRole?.lower?.id).toBe('ocd-1');
+    expect(out.state.lower).toBeNull();
+    expect(out.stateOfficeTermStatus).toBe('unverified');
+    expect(out.stateCurrentRole?.upper?.id).toBe('ocd-2');
   });
 
   it('at-large facility ("00") matches a House member stored with district=NULL (PD1.3/M1.3)', async () => {
@@ -217,7 +221,9 @@ describe('RepresentationResolverService.representativesForFacility', () => {
     });
     expect(out.unresolved).toBe(false);
     if (out.unresolved) throw new Error('expected resolved');
-    expect(out.state.lower?.id).toBe('ocd-1');
+    expect(out.stateCurrentRole?.lower?.id).toBe('ocd-1');
+    expect(out.state.lower).toBeNull();
+    expect(out.stateOfficeTermStatus).toBe('unverified');
   });
 
   it('no state-chamber match (e.g. district mismatch) resolves to null, never a guess', async () => {
@@ -257,7 +263,7 @@ describe('RepresentationResolverService.facilitiesForMember (inverse)', () => {
     expect(out).toEqual([{ id: 'fac-1', name: 'HQ' }]);
   });
 
-  it('state chamber: matches on normalized district', async () => {
+  it('state chamber inverse remains unresolved without source-backed office terms', async () => {
     const prisma = {
       withTenant: jest.fn(async (_t: string, fn: (tx: unknown) => unknown) =>
         fn({
@@ -277,7 +283,7 @@ describe('RepresentationResolverService.facilitiesForMember (inverse)', () => {
       state: 'FL',
       district: '009',
     });
-    expect(out).toEqual([{ id: 'fac-1', name: 'HQ' }]);
+    expect(out).toEqual([]);
   });
 
   // REGRESSION (2026-07-10, Wave-2 closure): all THREE facilitiesForMember
@@ -302,6 +308,10 @@ describe('RepresentationResolverService.facilitiesForMember (inverse)', () => {
     const svc = new RepresentationResolverService(prisma);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await svc.facilitiesForMember('t1', 'c1', member as any);
+    if (member.type === 'state') {
+      expect(findMany).not.toHaveBeenCalled(); // No current-role-only office assignment.
+      return;
+    }
     const call = findMany.mock.calls[0];
     if (!call) throw new Error('expected clientFacility.findMany to have been called');
     const where = call[0].where;

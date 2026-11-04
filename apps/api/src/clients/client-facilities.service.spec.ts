@@ -1,3 +1,4 @@
+jest.mock('./client-ordered-owner.access.js', () => ({ requireOwnerClient: jest.fn(async () => ({})) }));
 import 'reflect-metadata';
 import { isDeepStrictEqual } from 'node:util';
 import { Prisma } from '@prisma/client';
@@ -6,6 +7,7 @@ import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ClientFacilitiesService } from './client-facilities.service.js';
+import { requireOwnerClient } from './client-ordered-owner.access.js';
 import * as facilityGeocode from './facility-geocode.util.js';
 import { CreateFacilityDto, UpdateFacilityDto } from './client-facilities.controller.js';
 
@@ -119,6 +121,7 @@ function makePrisma(seed: { clients?: Row[]; facilities?: Row[] }) {
 
   const prisma = {
     __store: store,
+    withTenantUser: async <T>(tenantId: string, _userId: string, fn: (t: typeof tx) => Promise<T>): Promise<T> => prisma.withTenant(tenantId, fn),
     withTenant: async <T>(tenantId: string, fn: (t: typeof tx) => Promise<T>): Promise<T> => {
       currentTenant = tenantId;
       try {
@@ -362,6 +365,33 @@ describe('ClientFacilitiesService — CRUD', () => {
     await expect(
       svc.createFacility(ctx(TENANT_A), 'client-1', { name: 'X' }),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  test('transactional profile location edits invalidate old geography before post-commit resolution', async () => {
+    const priorResolution = { status: 'resolved', requiresReview: false, version: { congress: 119 }, districts: [] };
+    const prisma = makePrisma({ clients: [seedClient(TENANT_A)], facilities: [{
+      id: 'f1', tenantId: TENANT_A, clientId: 'client-1', name: 'HQ',
+      addressLine: '1 Main St', city: 'Austin', state: 'TX', zip: '78701',
+      districtSource: 'geocoded', congressionalDistrict: '12', congressionalDistrictCongress: 119,
+      stateHouseDistrict: '1', stateSenateDistrict: '2', latitude: 30, longitude: -97,
+      geocodeInputHash: 'old', geocodeStatus: 'matched', geographicResolution: priorResolution,
+      geographicHistory: [], verifiedPoint: { latitude: 30, longitude: -97, verifiedAt: '2026-11-04' },
+    }] });
+    const indexed = jest.fn();
+    const svc = new ClientFacilitiesService(prisma as never, { indexFacilityFireAndForget: indexed } as never);
+    const schedule = jest.spyOn(svc as any, 'geocodeFacilityFireAndForget').mockImplementation(() => undefined);
+    const result = await prisma.withTenant(TENANT_A, async (tx: any) => {
+      const changed = await svc.updateFacilityInTransaction(tx, ctx(TENANT_A), 'client-1', 'f1', { addressLine: '50 New St' });
+      expect(changed.addressChanged).toBe(true);
+      expect(changed.facility).toMatchObject({ congressionalDistrict: null, congressionalDistrictCongress: null,
+        latitude: null, longitude: null, geocodeInputHash: null, geocodeStatus: 'pending',
+        geographicResolution: { status: 'stale_boundary', requiresReview: true }, geographicHistory: [priorResolution] });
+      expect(indexed).not.toHaveBeenCalled(); expect(schedule).not.toHaveBeenCalled();
+      return changed;
+    });
+    svc.afterFacilityUpdated(ctx(TENANT_A), result);
+    expect(indexed).toHaveBeenCalledTimes(1); expect(schedule).toHaveBeenCalledTimes(1);
+    schedule.mockRestore();
   });
 
   test('updateFacility never accepts forged geocoded provenance', async () => {
@@ -1030,4 +1060,42 @@ describe('facility QA verification guards', () => {
       geocodedAt: null,
     });
   });
+});
+
+
+describe('facility user routes use current canonical client authority', () => {
+  afterEach(() => jest.mocked(requireOwnerClient).mockResolvedValue({ version: 1, primary: null }));
+  test('rechecks authority after the geographic provider completes', async () => {
+    const row = { id: 'site', tenantId: TENANT_A, clientId: 'client-1', name: 'Site', state: 'TX' };
+    const prisma = makePrisma({ clients: [seedClient(TENANT_A)], facilities: [row] });
+    const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
+    const provider = jest.spyOn(facilityGeocode, 'computeFacilityGeocode').mockImplementation(async () => {
+      jest.mocked(requireOwnerClient).mockRejectedValueOnce(new NotFoundException('Client not found'));
+      return { status: 'no_match', update: null, matchedAddress: null, candidates: null, discrepancy: null };
+    });
+    try {
+      await expect(svc.previewFacilityDistrict(ctx(TENANT_A), 'client-1', 'site')).rejects.toBeInstanceOf(NotFoundException);
+      expect(provider).toHaveBeenCalledTimes(1);
+      expect(prisma.__store.facilities).toEqual([row]);
+    } finally { provider.mockRestore(); }
+  });
+  test.each(['list', 'create', 'update', 'delete', 'preview', 'resolve', 'retry', 'candidate'])(
+    '%s refuses a client hidden by the canonical owner', async (operation) => {
+      const prisma = makePrisma({ clients: [seedClient(TENANT_A)], facilities: [] });
+      const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
+      jest.mocked(requireOwnerClient).mockRejectedValueOnce(new NotFoundException('Client not found'));
+      const calls: Record<string, () => Promise<unknown>> = {
+        list: () => svc.listFacilities(ctx(TENANT_A), 'client-1'),
+        create: () => svc.createFacility(ctx(TENANT_A), 'client-1', { name: 'Site' }),
+        update: () => svc.updateFacility(ctx(TENANT_A), 'client-1', 'site', {}),
+        delete: () => svc.deleteFacility(ctx(TENANT_A), 'client-1', 'site'),
+        preview: () => svc.previewFacilityDistrict(ctx(TENANT_A), 'client-1', 'site'),
+        resolve: () => svc.resolveFacilityDistrict(ctx(TENANT_A), 'client-1', 'site'),
+        retry: () => svc.retryGeocode(ctx(TENANT_A), 'client-1', 'site'),
+        candidate: () => svc.chooseGeocodeCandidate(ctx(TENANT_A), 'client-1', 'site', 0),
+      };
+      await expect(calls[operation]!()).rejects.toBeInstanceOf(NotFoundException);
+      expect(prisma.__store.facilities).toEqual([]);
+    },
+  );
 });

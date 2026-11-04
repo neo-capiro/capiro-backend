@@ -101,6 +101,10 @@ export const configSchema = z.object({
     )
     .default('https://api.legistorm.com/v2.023.07/legislative_districts'),
   AWS_REGION_DEFAULT: z.string().default('us-east-1'),
+  PORTFOLIO_AGENT_MODEL: z.preprocess(blankToUndefined, z.string().trim().min(1).optional()),
+  CENSUS_SERVING_CONGRESS: z.coerce.number().int().positive().default(119),
+  CENSUS_STATE_LEGISLATIVE_YEAR: z.coerce.number().int().min(2000).default(2024),
+  CENSUS_GEOMETRY_VERSION: z.string().trim().min(1).default('BAS 2026'),
 
   // Census ACS 5-year demographics sync (District Nexus). Secret already
   // provisioned out-of-band as capiro/<env>/census_api_key. Used only by the

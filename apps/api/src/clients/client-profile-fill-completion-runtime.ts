@@ -52,7 +52,7 @@ export class ClientProfileFillCompletionRuntime {
       this.ports.requestTaskSweep();
       this.ports.requestScheduleSweep();
     });
-    this.ports.log(`Fill with Meri completion worker started (${this.workerId})`);
+    this.ports.log(`Profile research completion worker started (${this.workerId})`);
   }
 
   onModuleDestroy(): void {

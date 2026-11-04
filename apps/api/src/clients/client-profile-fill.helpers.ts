@@ -179,7 +179,7 @@ export function buildCompanySearchQueries(input: {
 
 /** Prefer about/product/contact paths on the company's own host for multi-page crawl. */
 const SAME_ORIGIN_PATH_HINT =
-  /(about|company|leadership|team|contact|locations?|facilit|product|capabilit|service|solution|platform|technolog|vehicle|defense|manufactur|isv|isr)/i;
+  /(about|company|leadership|team|contact|locations?|facilit|product|capabilit|service|solution|platform|technolog|vehicle|defense|manufactur|isv|isr|vessel|system|annual|report|investor|segment)/i;
 
 export function discoverSameOriginPageCandidates(
   baseUrl: string,

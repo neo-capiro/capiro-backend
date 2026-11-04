@@ -1,50 +1,10 @@
-/**
- * Census Bureau Geocoder client (District Impact Engine, Phase 1 M1.2).
- *
- * `benchmark=Public_AR_Current&vintage=Current_Current`, no key required.
- *
- * CORRECTED DISCOVERY vs the plan's original assumption (live-verified
- * 2026-07-10): the plan expected the batch endpoint
- * (`/geographies/addressbatch`, multipart CSV upload) to return district
- * geography columns in one call for up to 10k addresses. Live testing showed
- * `/geographies/addressbatch` ALWAYS returns only the 12 base match/TIGER
- * columns (id, input address, match indicator/type, matched address,
- * lon/lat, tigerLineId, side, state/county/tract/block FIPS) — it never
- * appends geography-layer data, with or without an explicit `layers` param.
- * The single-address `/geographies/onelineaddress` JSON endpoint, by
- * contrast, returns EVERY geography layer by default (no `layers` param
- * needed) including the Congressional District and both State Legislative
- * District chambers. So "one geocode call yields both rails" (the plan's
- * PD1) is still exactly true — it's one call PER FACILITY, not one call for
- * an entire batch file. Facility counts are small (tens–low-thousands
- * platform-wide), so sequential single-address calls with a short
- * courtesy delay is the correct, honest implementation — not a paid
- * geocoder, not a batch file that silently can't deliver the district data.
- *
- * Verified field shapes (live, 2026-07-10):
- *   - Layer keys end in " - Upper" / " - Lower" (state chambers) or
- *     "Congressional Districts" — match by SUFFIX, never the leading year
- *     (e.g. "2024 State Legislative Districts - Upper"), since the year
- *     prefix drifts with each vintage refresh.
- *   - The congressional-district row carries a field named `CD<congress>`
- *     (e.g. `CD119`) — matched dynamically by `/^CD\d+$/` so a future
- *     Congress doesn't require a code change. Value is always 2-digit
- *     zero-padded, "00" for an at-large seat (verified live: Wyoming ->
- *     `CD119: "00"`, `BASENAME: "Congressional District (at Large)"` — so
- *     BASENAME is NOT usable for the federal district; CD<n> is).
- *   - The state-chamber rows carry `SLDU`/`SLDL` (zero-padded) and
- *     `BASENAME` (bare number, e.g. "3", "11"). We store BASENAME — it
- *     matches the bare-number convention `ClientFacility.congressionalDistrict`
- *     already uses ("12"/"00", not "012").
- */
-
 import { normalizeFacilityDistrictCode } from '../../common/district-code.util.js';
 import { US_STATE_FIPS_TO_USPS } from '../../common/us-congressional-districts.js';
+import { physicalAddressEligibility, servingBoundaryVersion, type GeographicBoundaryVersion, type GeographicResolution, type VerifiedFacilityPoint } from './geographic-boundary.js';
+import { resolveOfficialBoundaries } from './tigerweb-boundary.client.js';
 
 const GEOCODER_BASE = 'https://geocoding.geo.census.gov/geocoder';
 const ARCGIS_GEOCODER_BASE = 'https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer';
-const BENCHMARK = 'Public_AR_Current';
-const VINTAGE = 'Current_Current';
 const ARCGIS_MIN_SCORE = 90;
 // One budget for matching, fallback, geography lookup, retries AND body reads.
 // Explicit resolution must finish before the browser's 30-second deadline.
@@ -65,6 +25,7 @@ export type GeocodeStatus = 'matched' | 'no_match' | 'ambiguous' | 'error';
 
 /** A complete Census hit that can be shown as a safe address recommendation. */
 export interface CensusGeocodeCandidate {
+  resolution?: GeographicResolution;
   matchedAddress: string | null;
   addressLine: string | null;
   city: string | null;
@@ -79,6 +40,7 @@ export interface CensusGeocodeCandidate {
 }
 
 export interface CensusGeocodeResult {
+  resolution?: GeographicResolution;
   status: GeocodeStatus;
   latitude: number | null;
   longitude: number | null;
@@ -123,7 +85,7 @@ export interface CensusAddressMatch {
   geographies?: Record<string, CensusGeographyRow[]>;
 }
 export interface CensusGeographiesResponse {
-  result?: { addressMatches?: CensusAddressMatch[] };
+  result?: { addressMatches?: CensusAddressMatch[]; input?: { benchmark?: unknown; vintage?: unknown } };
 }
 
 const NO_MATCH_RESULT: CensusGeocodeResult = {
@@ -239,6 +201,8 @@ async function geocodeWithArcGis(
   latitude: number;
   longitude: number;
   matchedAddress: string;
+  precision: 'address_point' | 'street_interpolated';
+  score: number;
 } | null> {
   const url =
     `${ARCGIS_GEOCODER_BASE}/findAddressCandidates?SingleLine=${encodeURIComponent(oneLine)}` +
@@ -257,83 +221,109 @@ async function geocodeWithArcGis(
     latitude: Number(candidate.location!.y),
     longitude: Number(candidate.location!.x),
     matchedAddress: candidate.address ?? oneLine,
+    precision: candidate.attributes?.Addr_type === 'PointAddress' ? 'address_point' : 'street_interpolated',
+    score: Number(candidate.score),
   };
 }
 
-async function censusDistrictsAtCoordinates(
-  latitude: number,
-  longitude: number,
-  signal: AbortSignal,
-): Promise<ReturnType<typeof extractDistricts>> {
-  const url =
-    `${GEOCODER_BASE}/geographies/coordinates?x=${encodeURIComponent(String(longitude))}` +
-    `&y=${encodeURIComponent(String(latitude))}&benchmark=${BENCHMARK}&vintage=${VINTAGE}&format=json`;
-  const json = await fetchJson<{ result?: { geographies?: Record<string, CensusGeographyRow[]> } }>(
-    url,
-    signal,
-  );
-  return extractDistricts({ geographies: json.result?.geographies });
+export interface GeocodeRequestOptions {
+  boundary?: GeographicBoundaryVersion;
+  country?: string | null;
+  verifiedPoint?: VerifiedFacilityPoint;
 }
 
-/**
- * Single-address geocode -> federal CD + both state legislative chambers.
- * Census is authoritative for the district; ArcGIS supplies a physical point
- * for valid addresses Census's address-range dataset does not contain, then
- * Census coordinate geography resolves the district rails.
- */
-export async function geocodeAddress(
-  street: string,
-  city: string,
-  state: string,
-  zip: string,
+/** Validate moving geocoder labels against the requested term, then resolve official polygons. */
+async function resolvePoint(
+  result: CensusGeocodeResult, version: GeographicBoundaryVersion, precision: GeographicResolution['precision'],
+  source: GeographicResolution['source'], signal: AbortSignal, providerEvidence: Record<string, unknown>,
 ): Promise<CensusGeocodeResult> {
-  const signal = AbortSignal.timeout(GEOCODE_TIMEOUT_MS);
-  const oneLine = [street, city, `${state} ${zip}`.trim()].filter(Boolean).join(', ');
-  const url =
-    `${GEOCODER_BASE}/geographies/onelineaddress?address=${encodeURIComponent(oneLine)}` +
-    `&benchmark=${BENCHMARK}&vintage=${VINTAGE}&format=json`;
-  let json: CensusGeographiesResponse;
+  const base: GeographicResolution = { status: 'resolved', precision, source, version,
+    requiresReview: precision === 'street_interpolated', stateFips: null, districts: [],
+    resolvedAt: new Date().toISOString(), providerEvidence };
+  if (!Number.isFinite(result.latitude) || !Number.isFinite(result.longitude) || result.latitude == null || result.longitude == null) {
+    return { ...result, status: 'no_match', resolution: { ...base, status: 'needs_address', requiresReview: true } };
+  }
   try {
-    json = await fetchJson<CensusGeographiesResponse>(url, signal);
-  } catch (err) {
-    console.error(`[census-geocoder] geocode failed for "${oneLine}":`, (err as Error).message);
-    return { ...NO_MATCH_RESULT, status: 'error' };
+    const official = await resolveOfficialBoundaries(result.latitude, result.longitude, version, signal, fetchJson);
+    if (!official) return { ...result, congressionalDistrict: null, congressionalDistrictCongress: null,
+      stateHouseDistrict: null, stateSenateDistrict: null,
+      resolution: { ...base, status: 'stale_boundary', requiresReview: true, reason: 'Requested official boundary version is unavailable' } };
+    const house = official.districts.find((d) => d.chamber === 'house');
+    const lower = official.districts.find((d) => d.chamber === 'state_lower');
+    const upper = official.districts.find((d) => d.chamber === 'state_upper');
+    return { ...result, status: official.ambiguous ? 'ambiguous' : 'matched',
+      congressionalDistrict: official.ambiguous ? null : house?.code ?? null,
+      congressionalDistrictCongress: official.ambiguous ? null : version.congress,
+      stateHouseDistrict: official.ambiguous ? null : lower?.code ?? null,
+      stateSenateDistrict: official.ambiguous ? null : upper?.code ?? null,
+      resolution: { ...base, source: source === 'arcgis_census' ? source : 'census_tigerweb',
+        status: official.ambiguous ? 'ambiguous' : 'resolved',
+        stateFips: house?.stateFips ?? null, districts: official.districts,
+        boundaryAdjacent: official.adjacent, requiresReview: base.requiresReview || official.adjacent || official.ambiguous } };
+  } catch {
+    return { ...result, congressionalDistrict: null, congressionalDistrictCongress: null,
+      stateHouseDistrict: null, stateSenateDistrict: null,
+      resolution: { ...base, status: 'source_unavailable', requiresReview: true, reason: 'Official boundary source unavailable' } };
   }
-  const matches = json.result?.addressMatches ?? [];
-  if (matches.length === 1) {
-    return {
-      status: 'matched',
-      ...parseGeocodeMatch(matches[0]!),
-    };
-  }
-  if (matches.length > 1) {
-    return {
-      ...NO_MATCH_RESULT,
-      status: 'ambiguous',
-      candidates: matches.map(parseGeocodeMatch),
-    };
-  }
+}
 
+/** Census owns geographies; ArcGIS supplies only a sufficiently precise address point. */
+export async function geocodeAddress(
+  street: string, city: string, state: string, zip: string, options: GeocodeRequestOptions = {},
+): Promise<CensusGeocodeResult> {
+  const version = options.boundary ?? servingBoundaryVersion();
+  const signal = AbortSignal.timeout(GEOCODE_TIMEOUT_MS);
+  const eligibility = physicalAddressEligibility(street, city, state, zip, options.country);
+  const emptyResolution = (status: GeographicResolution['status']): GeographicResolution => ({
+    status, precision: 'unknown', requiresReview: status !== 'not_applicable', source: null, version,
+    stateFips: null, districts: [], resolvedAt: new Date().toISOString(),
+  });
+  if (eligibility === 'not_applicable' || (!options.verifiedPoint && eligibility === 'needs_address')) {
+    return { ...NO_MATCH_RESULT, resolution: emptyResolution(eligibility === 'not_applicable' ? eligibility : 'needs_address') };
+  }
+  const query = `benchmark=${encodeURIComponent(version.benchmark)}&vintage=${encodeURIComponent(version.vintage)}&format=json`;
+  if (options.verifiedPoint) {
+    const point = options.verifiedPoint;
+    try {
+      const response = await fetchJson<{ result?: { geographies?: Record<string, CensusGeographyRow[]>; input?: unknown } }>(
+        `${GEOCODER_BASE}/geographies/coordinates?x=${point.longitude}&y=${point.latitude}&${query}`, signal);
+      return resolvePoint({ ...NO_MATCH_RESULT, status: 'matched', latitude: point.latitude, longitude: point.longitude,
+        ...extractDistricts({ geographies: response.result?.geographies }) }, version, 'verified_point', 'census', signal,
+        { input: response.result?.input ?? null, verifiedAt: point.verifiedAt });
+    } catch { return { ...NO_MATCH_RESULT, status: 'error', resolution: emptyResolution('source_unavailable') }; }
+  }
+  const oneLine = [street, city, `${state} ${zip}`.trim()].filter(Boolean).join(', ');
   try {
+    const json = await fetchJson<CensusGeographiesResponse>(
+      `${GEOCODER_BASE}/geographies/onelineaddress?address=${encodeURIComponent(oneLine)}&${query}`, signal);
+    const matches = json.result?.addressMatches ?? [];
+    if (matches.length > 1) {
+      const candidates = await Promise.all(matches.slice(0, 5).map(async (match) => {
+        const candidate = parseGeocodeMatch(match);
+        const resolved = await resolvePoint({ status: 'matched', ...candidate }, version, 'street_interpolated', 'census', signal,
+          { input: json.result?.input ?? null, matchedAddress: match.matchedAddress ?? null, geographies: match.geographies ?? {} });
+        return { ...candidate, ...resolved };
+      }));
+      return { ...NO_MATCH_RESULT, status: 'ambiguous', candidates, resolution: emptyResolution('ambiguous') };
+    }
+    if (matches.length === 1) {
+      const matched = await resolvePoint({ status: 'matched', ...parseGeocodeMatch(matches[0]!) }, version,
+        'street_interpolated', 'census', signal, { input: json.result?.input ?? null,
+          matchedAddress: matches[0]!.matchedAddress ?? null, geographies: matches[0]!.geographies ?? {} });
+      // Address-range coordinates are interpolated, never a verified rooftop point.
+      return { ...matched, candidates: matched.resolution?.requiresReview ? [{ ...parseGeocodeMatch(matches[0]!), ...matched }] : undefined };
+    }
     const fallback = await geocodeWithArcGis(oneLine, signal);
-    if (!fallback) return NO_MATCH_RESULT;
-    const districts = await censusDistrictsAtCoordinates(
-      fallback.latitude,
-      fallback.longitude,
-      signal,
-    );
-    return {
-      status: 'matched',
-      latitude: fallback.latitude,
-      longitude: fallback.longitude,
-      matchedAddress: fallback.matchedAddress,
-      ...districts,
-    };
-  } catch (err) {
-    console.warn(
-      `[census-geocoder] ArcGIS fallback failed for "${oneLine}":`,
-      (err as Error).message,
-    );
-    return { ...NO_MATCH_RESULT, status: 'error' };
+    if (!fallback) return { ...NO_MATCH_RESULT, resolution: emptyResolution('needs_address') };
+    const geo = await fetchJson<{ result?: { geographies?: Record<string, CensusGeographyRow[]>; input?: unknown } }>(
+      `${GEOCODER_BASE}/geographies/coordinates?x=${fallback.longitude}&y=${fallback.latitude}&${query}`, signal);
+    const resolved = await resolvePoint({ status: 'matched', latitude: fallback.latitude, longitude: fallback.longitude,
+      matchedAddress: fallback.matchedAddress, ...extractDistricts({ geographies: geo.result?.geographies }) },
+      version, fallback.precision, 'arcgis_census', signal,
+      { vendorScore: fallback.score, vendorScoreIsProbability: false, input: geo.result?.input ?? null,
+        matchedAddress: fallback.matchedAddress, geographies: geo.result?.geographies ?? {} });
+    return { ...resolved, candidates: resolved.resolution?.requiresReview ? [{ ...resolved, addressLine: street, city, state, zip }] : undefined };
+  } catch {
+    return { ...NO_MATCH_RESULT, status: 'error', resolution: emptyResolution('source_unavailable') };
   }
 }
