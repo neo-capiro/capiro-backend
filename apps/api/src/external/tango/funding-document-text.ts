@@ -3,13 +3,22 @@ import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import type { PrismaClient } from '@prisma/client';
 import { object, type RecordData } from './funding-catalog.mapper.js';
 
+// An old URL stays in history but cannot be treated as the current solicitation.
+export const CURRENT_DIBBS_ATTACHMENT_SQL = `EXISTS (SELECT 1 FROM tango_dibbs_solicitation d
+  WHERE d.id=opportunity_attachment.dibbs_solicitation_id AND d.is_open IS TRUE
+    AND (d.closes_date IS NULL OR d.closes_date>=CURRENT_DATE)
+    AND d.document_url=opportunity_attachment.source_url)`;
+// New DIBBS work is active-only even when a legacy caller requests all history.
+export const ELIGIBLE_DIBBS_ATTACHMENT_SQL = `(dibbs_solicitation_id IS NULL OR ${CURRENT_DIBBS_ATTACHMENT_SQL})`;
+
 // A document inherits priority from its opportunity, not its role or catalog.
 // Use the same stored status/deadline rules as description embeddings.
 export const CURRENT_FUNDING_ATTACHMENT_SQL = `(EXISTS (SELECT 1 FROM federal_grant g
   WHERE g.id=opportunity_attachment.federal_grant_id AND g.status IN ('posted','forecasted')
     AND (g.close_date IS NULL OR g.close_date>=CURRENT_DATE))
   OR EXISTS (SELECT 1 FROM sam_opportunity s WHERE s.id=opportunity_attachment.sam_opportunity_id
-    AND s.active AND (s.response_deadline IS NULL OR s.response_deadline>=now())))`;
+    AND s.active AND (s.response_deadline IS NULL OR s.response_deadline>=now()))
+  OR ${CURRENT_DIBBS_ATTACHMENT_SQL})`;
 
 // Paid provider text always wins. Local text is usable only for the exact
 // currently archived bytes. No new text table or extraction service is needed.
@@ -53,7 +62,8 @@ export async function publishLocalFundingText(prisma: PrismaClient, row: RecordD
     result = { text, truncated: result.truncated || text !== result.text };
   }
   return prisma.$transaction(async tx => {
-    const current = (await tx.$queryRawUnsafe<RecordData[]>('SELECT content_sha256,provider_data FROM opportunity_attachment WHERE id=$1::uuid FOR UPDATE', row.id))[0];
+    const current = (await tx.$queryRawUnsafe<RecordData[]>(`SELECT content_sha256,provider_data FROM opportunity_attachment
+      WHERE id=$1::uuid AND ${ELIGIBLE_DIBBS_ATTACHMENT_SQL} FOR UPDATE`, row.id))[0];
     if (!current || current.content_sha256 !== row.content_sha256 || String(object(current.provider_data).extracted_text ?? '').length>10) return false;
     const available = 'text' in result && result.text.trim().length > 10;
     const data = { attachmentId: row.id, attachmentContentSha256: row.content_sha256, extractionMethod: 'local_parser',
@@ -75,7 +85,9 @@ export async function readNativePdfCandidates(prisma: PrismaClient, bucket: stri
     WHERE (federal_grant_id IS NOT NULL OR source_url LIKE 'https://sws.gsa.gov/sws-search/viewSolDocument.do?%'
       OR (source_url LIKE 'https://sam.gov/api/prod/opps/v3/opportunities/resources/files/%'
         AND (provider_data->>'extraction_status' IN ('failed','completed')
-          OR (provider_attachment_id IS NULL AND coalesce(provider_data->>'extraction_status','') NOT IN ('pending','extracting')))))
+          OR (provider_attachment_id IS NULL AND coalesce(provider_data->>'extraction_status','') NOT IN ('pending','extracting'))))
+      OR ${CURRENT_DIBBS_ATTACHMENT_SQL})
+    AND ${ELIGIBLE_DIBBS_ATTACHMENT_SQL}
     AND status='archived' AND archive_bucket=$1 AND archive_key LIKE 'funding-source-documents/%'
     AND observed_mime_type='application/pdf' AND coalesce(length(provider_data->>'extracted_text'),0)<=10
     AND NOT EXISTS(SELECT 1 FROM opportunity_document_text t WHERE t.attachment_id=opportunity_attachment.id AND t.extraction_method='local_parser'
