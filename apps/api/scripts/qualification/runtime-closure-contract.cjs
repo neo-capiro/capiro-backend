@@ -107,8 +107,27 @@ const archivePlatforms = Object.freeze({
     "os": ["linux"], "cpu": ["x64"], "libc": ["musl"]
   }
 });
+// pnpm 9's frozen lock omits libc for these SDK variants. The retained build110
+// manifest observations are pinned independently of archive-derived evidence.
+// These pins admit metadata only; they do not authorize a native artifact/load.
+const retainedBuildPlatforms = Object.freeze({
+  '@anthropic-ai/claude-agent-sdk-linux-arm64@0.3.318': {
+    integrity: 'sha512-mBm4su17aMitLBBCQj3bHdejyUDY6z/ormGih+HG24N689RSbdKECjGjkT87tDBIR/4jyoqmuSeHqM1DI8TJlg==',
+    manifestSHA256: 'a341210933888b7305d518dd52ca1fe9b060a88f66d493559b5217c539a7e5c2',
+    os: ['linux'], cpu: ['arm64'], libc: ['glibc'],
+    basis: 'EXACT_LOCK_AND_RETAINED_BUILD_MANIFEST',
+    buildLogSHA256: '73aac8a22d47fffd794edbbf4dce4168405dd111b14daab9cde6b554c2f4c5eb',
+  },
+  '@anthropic-ai/claude-agent-sdk-linux-arm64-musl@0.3.318': {
+    integrity: 'sha512-l4LSYFOrvlYCrUImGfxMTQ0wg+T3s9CBhrBvPF/0oJGKZg+QnxHHU8jUVm9e9/xYmDRTtqFIrr4id/5AfH4XGw==',
+    manifestSHA256: '32ecd14d02faddb449e14be5b4d485a637d5353c0363c9019db7bd7d1d257e66',
+    os: ['linux'], cpu: ['arm64'], libc: ['musl'],
+    basis: 'EXACT_LOCK_AND_RETAINED_BUILD_MANIFEST',
+    buildLogSHA256: '73aac8a22d47fffd794edbbf4dce4168405dd111b14daab9cde6b554c2f4c5eb',
+  },
+});
 function reconciledPlatform(node, owner) {
-  const proof = archivePlatforms[`${node.name}@${node.version}`];
+  const proof = archivePlatforms[`${node.name}@${node.version}`] || retainedBuildPlatforms[`${node.name}@${node.version}`];
   const platform = Object.fromEntries(['os', 'cpu', 'libc'].map(k => [k, node[k] ?? null]));
   if (proof) {
     assert.equal(node.resolution?.integrity, proof.integrity, 'platform archive lock integrity differs');
@@ -118,11 +137,12 @@ function reconciledPlatform(node, owner) {
     if (owner) assert.equal(owner.manifestSHA256, proof.manifestSHA256, 'platform archive manifest bytes differ');
   }
   if (owner) for (const field of ['os', 'cpu', 'libc']) assert.deepEqual(owner.metadata[field] ?? null, platform[field], `installed ${field} metadata differs`);
-  return { platform, evidence: proof ? { basis: 'EXACT_LOCKED_ARCHIVE_MANIFEST', integrity: proof.integrity, manifestSHA256: proof.manifestSHA256 } : null };
+  return { platform, evidence: proof ? { basis: proof.basis || 'EXACT_LOCKED_ARCHIVE_MANIFEST', integrity: proof.integrity, manifestSHA256: proof.manifestSHA256,
+    ...(proof.buildLogSHA256 ? { buildLogSHA256: proof.buildLogSHA256 } : {}) } : null };
 }
 function ownerPlatformAdmission(node, owner, target, relation) {
   const reconciled = reconciledPlatform(node, owner), active = compatible(reconciled.platform, target);
-  // Only these exact archive-proven variants can be physically retained inactive.
+  // Only these exact evidence-bound variants can be physically retained inactive.
   // Every incoming edge is checked, including revisits of an assigned owner.
   assert(active || reconciled.evidence && relation?.dependencyKind === 'optionalDependencies' && relation.physicalRequired === false,
     `physically installed package is incompatible with target: ${node.key}`);
@@ -405,7 +425,9 @@ function verifyInstalledClosureWithDiagnostics({ imageRoot = '/app', target = { 
       diagnostic.payload.expectedPlatformCompatible = compatible(expectedPlatform, target);
       if (!next) {
         assert(edge.kind === 'optionalDependencies' && !relations.get(edge.dependencyName)?.physicalRequired && !compatible(expectedPlatform, target), `required or unproven missing dependency: ${key} ${edge.dependencyName}`);
-        missingOptional.push({ ...edge, reason: expectedReconciliation.evidence ? 'ARCHIVE_BOUND_PLATFORM_INCOMPATIBLE' : 'LOCK_DECLARED_PLATFORM_INCOMPATIBLE', platform: expectedPlatform, ...(expectedReconciliation.evidence ? { platformEvidence: expectedReconciliation.evidence } : {}) });
+        missingOptional.push({ ...edge, reason: expectedReconciliation.evidence
+          ? expectedReconciliation.evidence.basis === 'EXACT_LOCK_AND_RETAINED_BUILD_MANIFEST' ? 'RETAINED_BUILD_BOUND_PLATFORM_INCOMPATIBLE' : 'ARCHIVE_BOUND_PLATFORM_INCOMPATIBLE'
+          : 'LOCK_DECLARED_PLATFORM_INCOMPATIBLE', platform: expectedPlatform, ...(expectedReconciliation.evidence ? { platformEvidence: expectedReconciliation.evidence } : {}) });
       } else {
         links.push({ ...edge, physicalOwner: next.root, ...(next.dependencyResolution ? { dependencyResolution: next.dependencyResolution } : {}) });
         queue.push({ key: edge.to, owner: next, relation: { parentSnapshot: diagnosticText(key, 768), dependencyName: diagnosticText(edge.dependencyName), dependencyKind: edge.kind, physicalRequired: edge.kind !== 'optionalDependencies' || relations.get(edge.dependencyName)?.physicalRequired === true, dependencyMissing: false } });
