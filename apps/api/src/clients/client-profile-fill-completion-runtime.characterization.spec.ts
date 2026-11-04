@@ -17,12 +17,14 @@ const environment = {
   CLIENT_PROFILE_FILL_COMPLETION_WORKER_ENABLED:
     process.env.CLIENT_PROFILE_FILL_COMPLETION_WORKER_ENABLED,
   CLIENT_PROFILE_FILL_WORKER_ENABLED: process.env.CLIENT_PROFILE_FILL_WORKER_ENABLED,
+  CLIENT_PROFILE_FILL_AUTOMATIC_REFRESH_ENABLED: process.env.CLIENT_PROFILE_FILL_AUTOMATIC_REFRESH_ENABLED,
 };
 beforeEach(() => {
   process.env.NODE_ENV = 'production';
   process.env.HOSTNAME = 'runtime-worker';
   delete process.env.CLIENT_PROFILE_FILL_COMPLETION_WORKER_ENABLED;
   delete process.env.CLIENT_PROFILE_FILL_WORKER_ENABLED;
+  delete process.env.CLIENT_PROFILE_FILL_AUTOMATIC_REFRESH_ENABLED;
   timers.splice(0);
   microtasks.splice(0);
   timerEvents.splice(0);
@@ -183,6 +185,23 @@ describe('Completion automatic worker guards', () => {
 });
 
 describe('Completion timers and initial dispatch', () => {
+  it('runs completion tasks with automatic refresh off while preserving explicit schedule execution', async () => {
+    process.env.CLIENT_PROFILE_FILL_AUTOMATIC_REFRESH_ENABLED = 'false';
+    const h = fixture();
+    h.service.onModuleInit();
+    expect(timers.map(timer => timer.delay)).toEqual([1_500]);
+    expect(microtasks).toHaveLength(1);
+    microtasks[0]!();
+    await settle();
+    expect(h.operations).toContain('task-claim');
+    expect(h.operations).not.toContain('schedule-claim');
+    timers[0]!.callback();
+    await settle();
+    expect(h.operations).not.toContain('schedule-claim');
+    await h.service.sweepSchedulesOnce();
+    expect(h.operations).toContain('schedule-claim');
+    h.service.onModuleDestroy();
+  });
   it('registers exactly task then schedule intervals, unreferences both and queues one initial kick', () => {
     const h = fixture();
     h.service.onModuleInit();

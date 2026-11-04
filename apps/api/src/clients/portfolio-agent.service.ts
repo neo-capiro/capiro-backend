@@ -82,6 +82,21 @@ export function portfolioAgentEnvironment(
   ]) {
     if (env[key]) out[key] = env[key];
   }
+  // Deployment limits must reach the native SDK child. Reject malformed limits
+  // rather than letting SDK parsing silently fall back to a larger default.
+  for (const [key, minimum] of [
+    ['CLAUDE_CODE_MAX_OUTPUT_TOKENS', 1],
+    ['CLAUDE_CODE_MAX_RETRIES', 0],
+    ['CLAUDE_CODE_NONSTREAMING_TIMEOUT_RETRIES', 0],
+    ['AWS_MAX_ATTEMPTS', 1],
+  ] as const) {
+    const raw = env[key];
+    if (raw === undefined) continue;
+    const value = Number(raw);
+    if (!/^\d+$/.test(raw) || !Number.isSafeInteger(value) || value < minimum)
+      throw new Error('Invalid Portfolio SDK limit configuration');
+    out[key] = String(value);
+  }
   return {
     ...out,
     AWS_REGION: env.AWS_REGION || env.AWS_DEFAULT_REGION || env.AWS_REGION_DEFAULT || 'us-east-1',

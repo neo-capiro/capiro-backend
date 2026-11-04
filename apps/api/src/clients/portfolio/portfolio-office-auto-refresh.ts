@@ -39,6 +39,8 @@ export class PortfolioOfficeAutoRefresh {
     ) => Promise<unknown>,
     report: (message: string) => void,
   ) {
+    // Task processing can run without admitting new automatic source refreshes.
+    if (process.env.CLIENT_PROFILE_FILL_AUTOMATIC_REFRESH_ENABLED === 'false') return;
     if (Date.now() < this.nextCheckAt) return;
     this.nextCheckAt = Date.now() + 60_000;
     const sourceRevision = await this.sourceRevision();

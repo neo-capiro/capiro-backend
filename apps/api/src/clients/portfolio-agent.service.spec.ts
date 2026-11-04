@@ -186,4 +186,30 @@ describe('bounded Portfolio Claude Agent SDK task', () => {
     expect(env).not.toHaveProperty('ANTHROPIC_API_KEY');
     expect(env).not.toHaveProperty('ANTHROPIC_BASE_URL');
   });
+  it('passes configured SDK output and retry limits to the actual query child', async () => {
+    Object.assign(process.env, {
+      CLAUDE_CODE_MAX_OUTPUT_TOKENS: '4096',
+      CLAUDE_CODE_MAX_RETRIES: '0',
+      CLAUDE_CODE_NONSTREAMING_TIMEOUT_RETRIES: '0',
+      AWS_MAX_ATTEMPTS: '1',
+    });
+    const { service, query } = fixture();
+    await service.extract(request);
+    const options = (query.mock.calls[0] as unknown as [{ options: Record<string, any> }])[0].options;
+    expect(options.env).toMatchObject({
+      CLAUDE_CODE_MAX_OUTPUT_TOKENS: '4096', CLAUDE_CODE_MAX_RETRIES: '0',
+      CLAUDE_CODE_NONSTREAMING_TIMEOUT_RETRIES: '0', AWS_MAX_ATTEMPTS: '1',
+    });
+  });
+  it.each([
+    ['CLAUDE_CODE_MAX_OUTPUT_TOKENS', '0'], ['AWS_MAX_ATTEMPTS', '0'],
+    ['CLAUDE_CODE_MAX_RETRIES', '-1'], ['CLAUDE_CODE_MAX_RETRIES', '1.5'],
+    ['CLAUDE_CODE_NONSTREAMING_TIMEOUT_RETRIES', '2oops'],
+    ['CLAUDE_CODE_MAX_OUTPUT_TOKENS', '9007199254740992'],
+  ])('refuses invalid %s=%s before query invocation', async (key, value) => {
+    process.env[key] = value;
+    const { service, query } = fixture();
+    await expect(service.extract(request)).rejects.toMatchObject({ code: 'source_unavailable' });
+    expect(query).not.toHaveBeenCalled();
+  });
 });

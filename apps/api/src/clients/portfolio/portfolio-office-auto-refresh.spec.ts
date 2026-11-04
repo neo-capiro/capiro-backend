@@ -34,8 +34,24 @@ function fixture() {
   return { worker, start, report, raw, exists };
 }
 describe('office updates reuse the durable worker', () => {
+  const originalRefresh = process.env.CLIENT_PROFILE_FILL_AUTOMATIC_REFRESH_ENABLED;
   beforeEach(() => jest.useFakeTimers().setSystemTime(new Date('2026-11-04T12:00:00Z')));
-  afterEach(() => jest.useRealTimers());
+  afterEach(() => {
+    jest.useRealTimers();
+    if (originalRefresh === undefined) delete process.env.CLIENT_PROFILE_FILL_AUTOMATIC_REFRESH_ENABLED;
+    else process.env.CLIENT_PROFILE_FILL_AUTOMATIC_REFRESH_ENABLED = originalRefresh;
+  });
+  it('disables automatic admission before any reads without consuming the refresh cursor', async () => {
+    process.env.CLIENT_PROFILE_FILL_AUTOMATIC_REFRESH_ENABLED = 'false';
+    const f = fixture();
+    await f.worker.enqueue(f.start, f.report);
+    expect(f.raw).not.toHaveBeenCalled();
+    expect(f.exists).not.toHaveBeenCalled();
+    expect(f.start).not.toHaveBeenCalled();
+    delete process.env.CLIENT_PROFILE_FILL_AUTOMATIC_REFRESH_ENABLED;
+    await f.worker.enqueue(f.start, f.report);
+    expect(f.start).toHaveBeenCalledTimes(1);
+  });
   it('enqueues with actual actor, bounded existing task, and stable source replay key', async () => {
     const f = fixture();
     await f.worker.enqueue(f.start, f.report);
