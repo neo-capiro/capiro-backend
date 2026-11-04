@@ -4,6 +4,10 @@ import {
   discoverAttachmentLinks,
   parseArgs,
   realUpsertMetadata,
+  realReadOpportunities,
+  realReadFetchable,
+  realRecordOutcome,
+  readDibbsDocumentCoverage,
   runAttachmentSync,
   type AttachmentSyncDeps,
 } from './sync-tango-opportunity-attachments.js';
@@ -11,6 +15,7 @@ import type {
   ArchiveOutcome,
   AttachmentCandidate,
 } from '../src/funding-opportunities/opportunity-attachment.service.js';
+import { ELIGIBLE_DIBBS_ATTACHMENT_SQL } from '../src/external/tango/funding-document-text.js';
 
 /**
  * Attachment discovery and the archive run (P29).
@@ -21,6 +26,68 @@ import type {
  */
 
 const BODY = new TextEncoder().encode('%PDF-1.7 synthetic');
+
+describe('DIBBS document discovery', () => {
+  const row = { id: '00000000-0000-4000-8000-000000000001', source: 'dibbs' as const,
+    providerDibbsId: 'synthetic-dibbs', documentUrl: 'https://dibbs2.bsm.dla.mil/Downloads/RFQ/test.PDF', raw: null };
+
+  test('keeps canonical line-item identity and verbatim URLs without guessed file metadata', () => {
+    const result = discoverAttachmentLinks([row, row, { ...row, id: '00000000-0000-4000-8000-000000000002' },
+      { ...row, documentUrl: null }, { ...row, providerDibbsId: null }]);
+    expect(result.links).toHaveLength(2);
+    expect(result.links[0]).toEqual({ dibbsSolicitationId: row.id, providerDibbsId: row.providerDibbsId,
+      sourceUrl: row.documentUrl, fileName: null, declaredMimeType: null, declaredSizeBytes: null });
+    expect(result.noLinksField).toBe(1); expect(result.malformed).toBe(1);
+  });
+
+  test('shares one discovery limit and admits only active current URLs missing from storage', async () => {
+    const query = jest.fn(async () => []);
+    await realReadOpportunities({ $queryRawUnsafe: query } as any)(7);
+    const [sql, limit] = query.mock.calls[0] as unknown as [string, number];
+    const dibbs = sql.slice(sql.indexOf('UNION ALL'));
+    expect(limit).toBe(7); expect(sql.match(/LIMIT \$1/g)).toHaveLength(1);
+    expect(dibbs).toContain('d.is_open IS TRUE');
+    expect(dibbs).toContain('d.closes_date IS NULL OR d.closes_date>=CURRENT_DATE');
+    expect(dibbs).toContain('a.dibbs_solicitation_id=d.id AND a.source_url=d.document_url');
+    expect(dibbs).not.toContain('tech_docs_url');
+  });
+
+  test('metadata publication rechecks identity and current activity and preserves existing outcomes', async () => {
+    const execute = jest.fn(async () => 1), prisma = { $executeRawUnsafe: execute };
+    await realUpsertMetadata(prisma as any)(discoverAttachmentLinks([row]).links);
+    const [sql, json] = execute.mock.calls[0] as unknown as [string, string];
+    expect(JSON.parse(json)[0]).toMatchObject({ dibbsSolicitationId: row.id, providerDibbsId: row.providerDibbsId });
+    expect(sql).toContain('d.tango_dibbs_id=x."providerDibbsId"');
+    expect(sql).toContain('d.document_url=x."sourceUrl"'); expect(sql).toContain('d.is_open IS TRUE');
+    expect(sql).toContain('ON CONFLICT DO NOTHING'); expect(sql).not.toContain('DO UPDATE');
+    expect(sql).not.toContain('provider_attachment_id');
+    await expect(realUpsertMetadata(prisma as any)([{ ...discoverAttachmentLinks([row]).links[0]!, samOpportunityId: 'sam' }]))
+      .rejects.toThrow('Invalid attachment parent');
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
+  test('archive selection and publication reject closed or superseded DIBBS documents', async () => {
+    const query = jest.fn(async () => []), update = jest.fn();
+    await realReadFetchable({ $queryRawUnsafe: query } as any)(3);
+    expect((query.mock.calls[0] as unknown as [string])[0]).toContain(ELIGIBLE_DIBBS_ATTACHMENT_SQL);
+    const tx = { $queryRawUnsafe: query, opportunityAttachment: { update } };
+    const result = await realRecordOutcome({ $transaction: async (fn: any) => fn(tx) } as any)
+      ('attachment', {} as ArchiveOutcome, { sourceUrl: row.documentUrl, sourceVersion: 'old' } as AttachmentCandidate);
+    expect((query.mock.calls[1] as unknown as [string])[0]).toContain(ELIGIBLE_DIBBS_ATTACHMENT_SQL);
+    expect(result).toBe(false); expect(update).not.toHaveBeenCalled();
+  });
+
+  test('coverage distinguishes missing files and partial text from current embedding markers', async () => {
+    const counts = { activeRecords: 4, missingDocumentUrl: 1, documentsArchived: 2,
+      documentsWithText: 2, partialTextDocuments: 1, embeddingMarkedCurrent: 1 };
+    const query = jest.fn(async () => [counts]);
+    expect(await readDibbsDocumentCoverage({ $queryRawUnsafe: query } as any)).toEqual(counts);
+    const sql = (query.mock.calls[0] as unknown as [string])[0];
+    expect(sql).toContain('t.attachment_content_sha256=a.content_sha256');
+    expect(sql).toContain('a.source_url=d.document_url'); expect(sql).toContain('d.is_open IS TRUE');
+    expect(sql).toContain('t.truncated IS TRUE'); expect(sql).not.toContain('tech_docs_url');
+  });
+});
 
 function makeDeps(
   over: {

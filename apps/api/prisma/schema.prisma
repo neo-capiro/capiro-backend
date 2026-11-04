@@ -10779,6 +10779,8 @@ model OpportunityAttachment {
   tangoNoticeId    String? @map("tango_notice_id")
 
   federalGrantId String? @map("federal_grant_id")
+  /// Canonical DIBBS line item. Its current document URL controls active use.
+  dibbsSolicitationId String? @map("dibbs_solicitation_id") @db.Uuid
   /// Provider extraction is bound to this identity, never fabricated archive bytes.
   providerAttachmentId String? @map("provider_attachment_id")
   providerData Json? @map("provider_data")
@@ -10825,6 +10827,7 @@ model OpportunityAttachment {
   @@index([status, firstSeenAt], map: "opportunity_attachment_status_idx")
   @@index([contentSha256], map: "opportunity_attachment_hash_idx")
   @@index([federalGrantId], map: "opportunity_attachment_grant_idx")
+  @@index([dibbsSolicitationId, status], map: "opportunity_attachment_dibbs_idx")
   @@map("opportunity_attachment")
 }
 

@@ -86,6 +86,27 @@ test('SAM file redirects allow the observed bucket without allowing arbitrary S3
   expect(checkAttachmentUrl('https://unreviewed.s3.amazonaws.com/file.pdf', POLICY).ok).toBe(false);
 });
 
+test('DIBBS permits only the observed DLA host and preserves URL and redirect guards', async () => {
+  const sourceUrl = 'https://dibbs2.bsm.dla.mil/Downloads/RFQ/test.PDF';
+  expect(checkAttachmentUrl(sourceUrl, POLICY).ok).toBe(true);
+  for (const url of ['http://dibbs2.bsm.dla.mil/file.PDF',
+    'https://dibbs2.bsm.dla.mil.attacker.test/file.PDF', 'https://sub.dibbs2.bsm.dla.mil/file.PDF',
+    'https://dibbs.bsm.dla.mil/file.PDF', 'https://user:password@dibbs2.bsm.dla.mil/file.PDF']) {
+    expect(checkAttachmentUrl(url, POLICY).ok).toBe(false);
+  }
+  const doc = candidate({ sourceUrl, fileName: null, declaredMimeType: null, declaredSizeBytes: null });
+  const good = makeDeps({ response: response({ finalUrl: sourceUrl, contentType: 'application/octet-stream' }) });
+  expect(await fetchAndArchiveAttachment(doc, good.deps)).toMatchObject({ status: 'archived', observedMimeType: 'application/pdf' });
+  for (const hop of ['https://169.254.169.254/latest/meta-data/', 'https://unreviewed.dla.mil/file.PDF']) {
+    const bad = makeDeps({ hops: [hop] });
+    expect(await fetchAndArchiveAttachment(doc, bad.deps)).toMatchObject({ status: 'refused' });
+    expect(bad.puts).toHaveLength(0);
+  }
+  const html = makeDeps({ response: response({ finalUrl: sourceUrl, contentType: 'text/html', body: new TextEncoder().encode('<html>login</html>') }) });
+  expect(await fetchAndArchiveAttachment(doc, html.deps)).toMatchObject({ status: 'refused' });
+  expect(html.puts).toHaveLength(0);
+});
+
 test('GSA allows only its verified document endpoint and standard HTTPS port', () => {
   expect(checkAttachmentUrl('https://sws.gsa.gov/sws-search/viewSolDocument.do?id=fixture', POLICY).ok).toBe(true);
   for (const url of ['https://sws.gsa.gov/admin','https://sws.gsa.gov:8443/sws-search/viewSolDocument.do',

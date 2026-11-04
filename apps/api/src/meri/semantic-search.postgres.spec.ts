@@ -1,8 +1,12 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { Client } from 'pg';
 import {
   createQualificationDatabase,
   qualificationAdminUrl,
+  QUALIFICATION_SCHEMA,
   type QualificationDatabase,
 } from '../../test/memory-postgres-qualification/harness.js';
 import { vectorLiteral } from '../embeddings/embedder.js';
@@ -52,6 +56,8 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
   jest.setTimeout(120_000);
   let qualification: QualificationDatabase | undefined;
   let app: PrismaClient | undefined;
+  let beforeMigration: unknown;
+  let afterMigration: unknown;
   const longText = 'water infrastructure resilience '.repeat(40); // 1,280 characters, above the 400-character snippet
 
   beforeAll(async () => {
@@ -62,17 +68,28 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
       `CREATE TABLE congress_bill ( id text PRIMARY KEY, congress integer NOT NULL, bill_type text NOT NULL, bill_number text NOT NULL, title text NOT NULL, introduced_date date, sponsor_name text, sponsor_state text, sponsor_party text, latest_action_text text, latest_action_date date, policy_area text, subjects text[] NOT NULL DEFAULT '{}', status text, url text)`,
       `CREATE TABLE federal_grant ( id text PRIMARY KEY, title text NOT NULL, agency text NOT NULL, sub_agency text, opportunity_number text, category text, funding_instrument text, award_ceiling double precision, award_floor double precision, estimated_funding double precision, open_date date, close_date date, response_date_desc text, status text, url text, embedded_at timestamptz(6))`,
       `CREATE TABLE sam_opportunity ( id uuid PRIMARY KEY, notice_id text NOT NULL UNIQUE, solicitation_number text, title text NOT NULL, notice_type varchar(32) NOT NULL, agency text, sub_agency text, office text, set_aside text, psc_code varchar(8), naics_code varchar(8), posted_date timestamptz(6), response_deadline timestamptz(6), source_url text, active boolean NOT NULL DEFAULT true, embedded_at timestamptz(6))`,
-      `CREATE TABLE opportunity_attachment ( id uuid PRIMARY KEY, sam_opportunity_id uuid, federal_grant_id text, source_url text NOT NULL, file_name text, content_sha256 text, provider_data jsonb, embedded_at timestamptz(6))`,
+      // Minimal pre-migration catalog fixtures. The two changed migrations below
+      // must create their own columns, checks and indexes; no post-migration DDL.
+      `CREATE TABLE opportunity_attachment ( id uuid PRIMARY KEY, sam_opportunity_id uuid, tango_notice_id text,
+        federal_grant_id text, source_url text NOT NULL, file_name text, content_sha256 text, provider_data jsonb,
+        embedded_at timestamptz(6), status text, archived_at timestamptz, provider_observed_at timestamptz,
+        embedded_content_hash text, CONSTRAINT opportunity_attachment_parent_chk
+        CHECK (sam_opportunity_id IS NOT NULL OR tango_notice_id IS NOT NULL OR federal_grant_id IS NOT NULL))`,
+      `CREATE UNIQUE INDEX opportunity_attachment_parent_url_uniq ON opportunity_attachment
+        (COALESCE(sam_opportunity_id::text,''), COALESCE(tango_notice_id,''), COALESCE(federal_grant_id,''), source_url)`,
       `CREATE TABLE opportunity_document_text ( id uuid PRIMARY KEY DEFAULT gen_random_uuid(), attachment_id uuid NOT NULL, attachment_content_sha256 text NOT NULL, status text NOT NULL, extraction_method text, char_count integer, truncated boolean NOT NULL DEFAULT false)`,
-      `ALTER TABLE opportunity_attachment ADD COLUMN dibbs_solicitation_id uuid, ADD COLUMN status text,
-        ADD COLUMN archived_at timestamptz, ADD COLUMN provider_observed_at timestamptz, ADD COLUMN embedded_content_hash text`,
       `ALTER TABLE opportunity_document_text ADD COLUMN text text, ADD COLUMN fetched_at timestamptz`,
       `CREATE TABLE tango_dibbs_solicitation (id uuid PRIMARY KEY,tango_dibbs_id text UNIQUE,solicitation text,
         document_type text,nomenclature text,nsn text,part_number text,quantity numeric,unit_of_issue text,set_aside text,
         closes_date date,is_open boolean,document_url text,last_synced_at timestamptz)`,
       `CREATE TABLE tango_sbir_topic (id uuid PRIMARY KEY,tango_sbir_id text UNIQUE,topic_number text,solicitation_number text,
-        title text,agency text,year integer,description text,activity text,solicitation_status text,close_date date,
-        topic_url text,official_solicitation_url text,last_synced_at timestamptz,embedded_at timestamptz,embedded_content_hash text)`,
+        title text,agency text,year integer,activity text,solicitation_status text,close_date date,
+        topic_url text,official_solicitation_url text,last_synced_at timestamptz)`,
+      `CREATE TABLE tango_sbir_solicitation (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tango_sbir_id text UNIQUE NOT NULL,
+        solicitation_number text NOT NULL, CONSTRAINT tango_sbir_solicitation_number_chk CHECK (btrim(solicitation_number) <> ''))`,
+      `CREATE TABLE tango_sync_checkpoint (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), resource_type varchar(32) NOT NULL,
+        cursor text, CONSTRAINT tango_sync_checkpoint_resource_type_chk
+        CHECK (resource_type IN ('entity','opportunity','notice','forecast','vehicle','vehicle_awardee','grant')))`,
       `GRANT SELECT ON tango_dibbs_solicitation,tango_sbir_topic TO "${qualification.appRole}"`,
       `GRANT SELECT ON congress_bill, federal_grant, sam_opportunity, opportunity_attachment, opportunity_document_text TO "${qualification.appRole}"`,
       `INSERT INTO tenants (id) VALUES ('${TENANT}')`,
@@ -100,6 +117,40 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
     await admin.$executeRaw`INSERT INTO opportunity_document_text (attachment_id, attachment_content_sha256, status, extraction_method, char_count, truncated)
       VALUES (${ATT_NOTICE_LOCAL}::uuid, 'sha-n2', 'available', 'local_parser', 5000, true),
              (${ATT_NOTICE_EMPTY}::uuid, 'sha-old', 'available', 'local_parser', 900, false)`;
+    await admin.$executeRaw`INSERT INTO tango_sync_checkpoint (resource_type,cursor)
+      SELECT resource_type,'preserved-cursor' FROM unnest(ARRAY['entity','opportunity','notice','forecast','vehicle','vehicle_awardee','grant']) resource_type`;
+    await admin.$executeRaw`INSERT INTO tango_sbir_solicitation (tango_sbir_id,solicitation_number)
+      VALUES ('migration-existing-cycle','EXISTING-CYCLE')`;
+    await admin.$executeRaw`INSERT INTO tango_sbir_topic (id,tango_sbir_id,title,activity)
+      VALUES (${catalogId(4,90)}::uuid,'migration-existing-topic','Preserved title','closed')`;
+    const preservedRows = async (migrated: boolean) => ({
+      attachments: await admin.$queryRawUnsafe(`SELECT to_jsonb(a)${migrated ? " - 'dibbs_solicitation_id'" : ''} AS row
+        FROM opportunity_attachment a ORDER BY id`),
+      checkpoints: await admin.$queryRaw`SELECT to_jsonb(c) AS row FROM tango_sync_checkpoint c ORDER BY id`,
+      cycles: await admin.$queryRaw`SELECT to_jsonb(s) AS row FROM tango_sbir_solicitation s ORDER BY id`,
+      topics: await admin.$queryRawUnsafe(`SELECT to_jsonb(t)${migrated ? " - 'description' - 'embedded_at' - 'embedded_content_hash'" : ''} AS row
+        FROM tango_sbir_topic t ORDER BY id`),
+    });
+    beforeMigration = await preservedRows(false);
+    // pg's simple-query protocol executes the unchanged BEGIN/COMMIT scripts on
+    // one connection. Prisma raw queries cannot execute multi-statement scripts.
+    // This URL is derived only from the harness's validated disposable database.
+    const migrationUrl = new URL(adminUrl!);
+    migrationUrl.pathname = `/${qualification.databaseName}`;
+    migrationUrl.searchParams.delete('schema');
+    const migrator = new Client({ connectionString: migrationUrl.toString(), connectionTimeoutMillis: 5000,
+      statement_timeout: SEMANTIC_SEARCH_LIMITS.statementTimeoutMs });
+    try {
+      await migrator.connect();
+      await migrator.query("SELECT set_config('search_path',$1,false)", [QUALIFICATION_SCHEMA]);
+      for (const name of ['20281103120000_tango_dibbs_sbir_source_integration', '20281103200000_dibbs_funding_documents']) {
+        await migrator.query(readFileSync(path.resolve(__dirname, '../../prisma/migrations', name, 'migration.sql'), 'utf8'));
+      }
+    } finally { await migrator.end(); }
+    afterMigration = await preservedRows(true);
+    expect(await admin.$queryRaw`SELECT description,embedded_content_hash,embedded_at FROM tango_sbir_topic
+      WHERE id=${catalogId(4,90)}::uuid`).toEqual([{ description: null, embedded_content_hash: null, embedded_at: null }]);
+    await admin.$executeRaw`DELETE FROM tango_sbir_topic WHERE id=${catalogId(4,90)}::uuid`;
     const attachmentMeta = (parentId: string, method: string) =>
       JSON.stringify({ parentId, sourceTable: 'opportunity_attachment', sourceUrl: 'https://example.test/file.pdf', documentHash: `doc-${parentId.slice(-1)}`, chunkIndex: 1, start: 5600, end: 11600, offsetBasis: 'plain_text_normalized_utf16', extractionMethod: method, ...(method === 'local_parser' ? { truncated: true } : {}) });
     const rows: Array<[string | null, string, string, string, string, string]> = [
@@ -192,10 +243,100 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
   async function read(operation: SemanticSearchOperation, body: Record<string, unknown>, vector = axis(0)) {
     const input = parseSemanticSearchInput(operation, body);
     return app!.$transaction(async tx => {
+      await tx.$executeRaw`SELECT set_config('statement_timeout',${String(SEMANTIC_SEARCH_LIMITS.statementTimeoutMs)},true)`;
       await tx.$executeRaw`SELECT set_config('hnsw.ef_search',${String(SEMANTIC_SEARCH_LIMITS.candidateLimit)},true)`;
       return tx.$queryRaw<SemanticSearchRow[]>(semanticSearchSql(operation, input, vector, MODEL));
-    });
+    }, { timeout: SEMANTIC_SEARCH_LIMITS.statementTimeoutMs });
   }
+
+  async function coverage(operation: SemanticSearchOperation, model = MODEL) {
+    return app!.$transaction(async tx => {
+      await tx.$executeRaw`SELECT set_config('statement_timeout',${String(SEMANTIC_SEARCH_LIMITS.statementTimeoutMs)},true)`;
+      return (await tx.$queryRaw<SemanticCoverageRow[]>(semanticCoverageSql(operation,model)))[0];
+    }, { timeout: SEMANTIC_SEARCH_LIMITS.statementTimeoutMs });
+  }
+
+  it('applies the actual source and document migrations without changing existing IDs, relationships or values', async () => {
+    expect(afterMigration).toEqual(beforeMigration);
+    const columns = await qualification!.admin.$queryRaw<Array<{ table_name: string; column_name: string; data_type: string; is_nullable: string }>>`
+      SELECT table_name,column_name,data_type,is_nullable FROM information_schema.columns
+      WHERE table_schema=${QUALIFICATION_SCHEMA} AND
+        ((table_name='opportunity_attachment' AND column_name='dibbs_solicitation_id') OR
+         (table_name='tango_sbir_topic' AND column_name IN ('description','embedded_at','embedded_content_hash')) OR
+         (table_name='tango_sbir_solicitation' AND column_name='solicitation_number'))
+      ORDER BY table_name,column_name`;
+    expect(columns).toEqual([
+      { table_name: 'opportunity_attachment', column_name: 'dibbs_solicitation_id', data_type: 'uuid', is_nullable: 'YES' },
+      { table_name: 'tango_sbir_solicitation', column_name: 'solicitation_number', data_type: 'text', is_nullable: 'YES' },
+      { table_name: 'tango_sbir_topic', column_name: 'description', data_type: 'text', is_nullable: 'YES' },
+      { table_name: 'tango_sbir_topic', column_name: 'embedded_at', data_type: 'timestamp with time zone', is_nullable: 'YES' },
+      { table_name: 'tango_sbir_topic', column_name: 'embedded_content_hash', data_type: 'text', is_nullable: 'YES' },
+    ]);
+  });
+
+  it('widens only the checkpoint families and permits an unknown SBIR cycle number without accepting an empty one', async () => {
+    const admin = qualification!.admin;
+    for (const resource of ['dibbs_solicitation','sbir_topic','sbir_solicitation']) {
+      await admin.$executeRaw`INSERT INTO tango_sync_checkpoint (resource_type) VALUES (${resource})`;
+    }
+    expect(await admin.$queryRaw`SELECT resource_type FROM tango_sync_checkpoint ORDER BY resource_type`).toEqual(
+      ['dibbs_solicitation','entity','forecast','grant','notice','opportunity','sbir_solicitation','sbir_topic','vehicle','vehicle_awardee']
+        .map(resource_type => ({ resource_type })),
+    );
+    await expect(admin.$executeRaw`INSERT INTO tango_sync_checkpoint (resource_type) VALUES ('dibbs_award')`)
+      .rejects.toMatchObject({ code: 'P2010', meta: { code: '23514' } });
+    await admin.$executeRaw`INSERT INTO tango_sbir_solicitation (tango_sbir_id,solicitation_number) VALUES ('migration-unknown-cycle',NULL)`;
+    await expect(admin.$executeRaw`INSERT INTO tango_sbir_solicitation (tango_sbir_id,solicitation_number) VALUES ('migration-empty-cycle',' ')`)
+      .rejects.toMatchObject({ code: 'P2010', meta: { code: '23514' } });
+  });
+
+  it('enforces migrated attachment parents and parent-URL uniqueness while preserving soft cross-catalog references', async () => {
+    const admin = qualification!.admin;
+    const url = 'https://example.test/migration-parent.pdf';
+    try {
+      // The same URL belongs independently to each canonical parent and family.
+      await admin.$executeRaw`INSERT INTO opportunity_attachment (id,dibbs_solicitation_id,sam_opportunity_id,tango_notice_id,federal_grant_id,source_url)
+        VALUES (${catalogId(9,91)}::uuid,${catalogId(8,1)}::uuid,NULL,NULL,NULL,${url}),
+               (${catalogId(9,92)}::uuid,${catalogId(8,2)}::uuid,NULL,NULL,NULL,${url}),
+               (${catalogId(9,93)}::uuid,NULL,${SAM_A}::uuid,NULL,NULL,${url}),
+               (${catalogId(9,94)}::uuid,NULL,NULL,'migration-tango-notice',NULL,${url}),
+               (${catalogId(9,95)}::uuid,NULL,NULL,NULL,'G-1',${url}),
+               (${catalogId(9,96)}::uuid,NULL,${SAM_A}::uuid,'migration-tango-notice',NULL,${url})`;
+      for (const id of [91,92,93,94,95,96]) {
+        await expect(admin.$executeRaw`INSERT INTO opportunity_attachment
+          (id,dibbs_solicitation_id,sam_opportunity_id,tango_notice_id,federal_grant_id,source_url)
+          SELECT ${catalogId(9,99)}::uuid,dibbs_solicitation_id,sam_opportunity_id,tango_notice_id,federal_grant_id,source_url
+          FROM opportunity_attachment WHERE id=${catalogId(9,id)}::uuid`)
+          .rejects.toMatchObject({ code: 'P2010', meta: { code: '23505' } });
+      }
+      await expect(admin.$executeRaw`INSERT INTO opportunity_attachment (id,source_url) VALUES (${catalogId(9,99)}::uuid,${url})`)
+        .rejects.toMatchObject({ code: 'P2010', meta: { code: '23514' } });
+      for (const [sam,tango,grant] of [[SAM_A,null,null],[null,'migration-tango-notice',null],[null,null,'G-1']]) {
+        await expect(admin.$executeRaw`INSERT INTO opportunity_attachment
+          (id,dibbs_solicitation_id,sam_opportunity_id,tango_notice_id,federal_grant_id,source_url)
+          VALUES (${catalogId(9,99)}::uuid,${catalogId(8,1)}::uuid,${sam}::uuid,${tango},${grant},${url})`)
+          .rejects.toMatchObject({ code: 'P2010', meta: { code: '23514' } });
+      }
+      const constraints = await admin.$queryRaw<Array<{ conname: string; contype: string }>>`
+        SELECT conname,contype::text FROM pg_constraint WHERE conrelid='opportunity_attachment'::regclass ORDER BY conname`;
+      expect(constraints.filter(row => row.contype === 'c').map(row => row.conname))
+        .toEqual(['opportunity_attachment_dibbs_parent_chk','opportunity_attachment_parent_chk']);
+      // These migrations deliberately add no catalog FK. Do not invent one in the fixture.
+      expect(constraints.filter(row => row.contype === 'f')).toEqual([]);
+      const indexes = await admin.$queryRaw<Array<{ name: string; indisunique: boolean; indisvalid: boolean; definition: string }>>`
+        SELECT c.relname AS name,i.indisunique,i.indisvalid,pg_get_indexdef(i.indexrelid) AS definition
+        FROM pg_index i JOIN pg_class c ON c.oid=i.indexrelid
+        WHERE i.indrelid='opportunity_attachment'::regclass AND c.relname IN
+          ('opportunity_attachment_parent_url_uniq','opportunity_attachment_dibbs_idx') ORDER BY c.relname`;
+      expect(indexes).toHaveLength(2);
+      expect(indexes[0]).toMatchObject({ name: 'opportunity_attachment_dibbs_idx', indisunique: false, indisvalid: true });
+      expect(indexes[0]!.definition).toContain('(dibbs_solicitation_id, status)');
+      expect(indexes[1]).toMatchObject({ name: 'opportunity_attachment_parent_url_uniq', indisunique: true, indisvalid: true });
+      for (const column of ['sam_opportunity_id','tango_notice_id','federal_grant_id','dibbs_solicitation_id','source_url']) {
+        expect(indexes[1]!.definition).toContain(column);
+      }
+    } finally { await admin.$executeRaw`DELETE FROM opportunity_attachment WHERE source_url=${url}`; }
+  });
 
   it('DIBBS returns active line items once with exact current-document citations and partial coverage', async () => {
     const rows=await read('semantic_search_dibbs_solicitations',{query:'water sensor'},axis(5));
@@ -219,8 +360,8 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
   it('active catalog coverage counts actual eligible vectors, including missing files or descriptions in the denominator', async () => {
     for (const [operation,expected] of [['semantic_search_dibbs_solicitations',{indexed:2,total:4}],
       ['semantic_search_sbir_topics',{indexed:1,total:2}]] as const) {
-      expect((await app!.$queryRaw<SemanticCoverageRow[]>(semanticCoverageSql(operation,MODEL)))[0]).toEqual(expected);
-      expect((await app!.$queryRaw<SemanticCoverageRow[]>(semanticCoverageSql(operation,'absent-model')))[0])
+      expect(await coverage(operation)).toEqual(expected);
+      expect(await coverage(operation,'absent-model'))
         .toEqual({...expected,indexed:0});
     }
   });
@@ -375,8 +516,6 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
   });
 
   it('reads coverage as exact integer counts per family', async () => {
-    const coverage = async (operation: SemanticSearchOperation) =>
-      (await app!.$queryRaw<SemanticCoverageRow[]>(semanticCoverageSql(operation, MODEL)))[0];
     expect(await coverage('semantic_search_bills')).toEqual({ indexed: 3, total: 3 });
     expect(await coverage('semantic_search_grants')).toEqual({ indexed: 2, total: 3 });
     expect(await coverage('semantic_search_contract_opportunities')).toEqual({ indexed: 3, total: 3 });
