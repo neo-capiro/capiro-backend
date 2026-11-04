@@ -1,4 +1,5 @@
 import { Prisma, PrismaClient } from '@prisma/client';
+import { createHash } from 'node:crypto';
 import {
   createQualificationDatabase,
   qualificationAdminUrl,
@@ -35,6 +36,10 @@ const ATT_GRANT = '70000000-0000-4000-8000-000000000001';
 const ATT_NOTICE_LOCAL = '70000000-0000-4000-8000-000000000002';
 const ATT_NOTICE_EMPTY = '70000000-0000-4000-8000-000000000003';
 const ATT_MISSING = '70000000-0000-4000-8000-000000000009';
+const catalogId = (family: number, index: number) => `${family}0000000-0000-4000-8000-${String(index).padStart(12,'0')}`;
+const DOC_SHA = 'a'.repeat(64);
+const CATALOG_TEXT = 'Synthetic water sensor requirements and delivery terms.';
+const digest = (text: string) => createHash('sha256').update(text).digest('hex');
 
 function axis(index: number, second?: number): string {
   const vector = Array<number>(1024).fill(0);
@@ -59,8 +64,19 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
       `CREATE TABLE sam_opportunity ( id uuid PRIMARY KEY, notice_id text NOT NULL UNIQUE, solicitation_number text, title text NOT NULL, notice_type varchar(32) NOT NULL, agency text, sub_agency text, office text, set_aside text, psc_code varchar(8), naics_code varchar(8), posted_date timestamptz(6), response_deadline timestamptz(6), source_url text, active boolean NOT NULL DEFAULT true, embedded_at timestamptz(6))`,
       `CREATE TABLE opportunity_attachment ( id uuid PRIMARY KEY, sam_opportunity_id uuid, federal_grant_id text, source_url text NOT NULL, file_name text, content_sha256 text, provider_data jsonb, embedded_at timestamptz(6))`,
       `CREATE TABLE opportunity_document_text ( id uuid PRIMARY KEY DEFAULT gen_random_uuid(), attachment_id uuid NOT NULL, attachment_content_sha256 text NOT NULL, status text NOT NULL, extraction_method text, char_count integer, truncated boolean NOT NULL DEFAULT false)`,
+      `ALTER TABLE opportunity_attachment ADD COLUMN dibbs_solicitation_id uuid, ADD COLUMN status text,
+        ADD COLUMN archived_at timestamptz, ADD COLUMN provider_observed_at timestamptz, ADD COLUMN embedded_content_hash text`,
+      `ALTER TABLE opportunity_document_text ADD COLUMN text text, ADD COLUMN fetched_at timestamptz`,
+      `CREATE TABLE tango_dibbs_solicitation (id uuid PRIMARY KEY,tango_dibbs_id text UNIQUE,solicitation text,
+        document_type text,nomenclature text,nsn text,part_number text,quantity numeric,unit_of_issue text,set_aside text,
+        closes_date date,is_open boolean,document_url text,last_synced_at timestamptz)`,
+      `CREATE TABLE tango_sbir_topic (id uuid PRIMARY KEY,tango_sbir_id text UNIQUE,topic_number text,solicitation_number text,
+        title text,agency text,year integer,description text,activity text,solicitation_status text,close_date date,
+        topic_url text,official_solicitation_url text,last_synced_at timestamptz,embedded_at timestamptz,embedded_content_hash text)`,
+      `GRANT SELECT ON tango_dibbs_solicitation,tango_sbir_topic TO "${qualification.appRole}"`,
       `GRANT SELECT ON congress_bill, federal_grant, sam_opportunity, opportunity_attachment, opportunity_document_text TO "${qualification.appRole}"`,
       `INSERT INTO tenants (id) VALUES ('${TENANT}')`,
+      `INSERT INTO clients (id,tenant_id) VALUES ('${catalogId(1,7)}','${TENANT}')`,
     ];
     for (const statement of ddl) await admin.$executeRawUnsafe(statement);
     await admin.$executeRaw`INSERT INTO congress_bill (id, congress, bill_type, bill_number, title, status, latest_action_date, sponsor_name)
@@ -109,9 +125,64 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
       await admin.$executeRaw`INSERT INTO context_embeddings (tenant_id, source_type, source_id, model, content_text, content_hash, embedding, metadata_jsonb)
         VALUES (${tenant}::uuid, ${sourceType}, ${sourceId}, ${model}, ${text}, ${`hash-${index}`}, ${vector}::vector, ${metadata}::jsonb)`;
     }
+    // Actual vectors, including stale lifecycle records, rather than completion markers alone.
+    for (let index=1;index<=7;index++) {
+      const id=catalogId(8,index), attachment=catalogId(9,index);
+      const url=index===3?null:'https://dibbs2.bsm.dla.mil/Downloads/RFQ/synthetic.PDF';
+      await admin.$executeRaw`INSERT INTO tango_dibbs_solicitation
+        (id,tango_dibbs_id,solicitation,document_type,nomenclature,is_open,closes_date,document_url,last_synced_at)
+        VALUES (${id}::uuid,${`dibbs-fixture-${index}`},'shared-solicitation','rfq','Water sensor',
+          ${index===4?false:index===5?null:true},CURRENT_DATE+${index===6?-1:7}::int,${url},now()-interval '2 hours')`;
+      if (!url) continue;
+      await admin.$executeRaw`INSERT INTO opportunity_attachment
+        (id,dibbs_solicitation_id,source_url,content_sha256,provider_data,status,archived_at,provider_observed_at,embedded_at,embedded_content_hash)
+        VALUES (${attachment}::uuid,${id}::uuid,${url},${DOC_SHA},'{}','archived',now()-interval '2 hours',
+          now()-interval '90 minutes',now()-interval '30 minutes','current-marker')`;
+      await admin.$executeRaw`INSERT INTO opportunity_document_text
+        (attachment_id,attachment_content_sha256,status,extraction_method,char_count,truncated,text,fetched_at)
+        VALUES (${attachment}::uuid,${DOC_SHA},'available','local_parser',${CATALOG_TEXT.length}::int,${index===1},
+          ${CATALOG_TEXT},now()-interval '90 minutes')`;
+      await catalogChunk('dibbs',index,0,index===7?-1:5);
+    }
+    await catalogChunk('dibbs',1,1,5); // two passages must still produce one canonical item
+    for (let index=1;index<=6;index++) {
+      await admin.$executeRaw`INSERT INTO tango_sbir_topic
+        (id,tango_sbir_id,topic_number,solicitation_number,title,agency,description,activity,solicitation_status,
+          close_date,topic_url,last_synced_at,embedded_at,embedded_content_hash)
+        VALUES (${catalogId(4,index)}::uuid,${`sbir-fixture-${index}`},${`TOPIC-${index}`},'shared-cycle','Water','Navy',
+          ${index===2?null:CATALOG_TEXT},${index===3?'closed':index===4?null:'open'},${index===6?'complete':'open'},
+          CURRENT_DATE+${index===5?-1:7}::int,'https://example.test/topic',now()-interval '2 hours',
+          now()-interval '30 minutes','current-marker')`;
+      await catalogChunk('sbir',index,0,7);
+    }
+    await catalogChunk('sbir',1,1,7);
+    for (const family of ['dibbs','sbir'] as const) {
+      // A nearest wrong-model/private row must not crowd out the real public family.
+      for (const [index, scope] of ['old-model','tenant','client','owner'].entries()) {
+        await catalogChunk(family,1,index+2,family==='dibbs'?6:8,scope);
+      }
+    }
     app = new PrismaClient({ datasources: { db: { url: qualification.appUrl } } });
     await app.$connect();
   });
+
+  async function catalogChunk(family: 'dibbs'|'sbir', index: number, chunkIndex: number, vectorAxis: number, scope='public') {
+    const dibbs=family==='dibbs', parentId=catalogId(dibbs?9:4,index), canonical=catalogId(dibbs?8:4,index);
+    const text=dibbs?CATALOG_TEXT:`Water Navy ${CATALOG_TEXT}`;
+    const metadata={parentId,sourceTable:dibbs?'opportunity_attachment':'tango_sbir_topic',
+      sourceUrl:dibbs?'https://dibbs2.bsm.dla.mil/Downloads/RFQ/synthetic.PDF':'https://example.test/topic',
+      documentHash:digest(text),chunkIndex,start:0,end:text.length,offsetBasis:'plain_text_normalized_utf16',
+      ...(dibbs?{binding:'archived_content_sha256',dibbsSolicitationId:canonical,providerDibbsId:`dibbs-fixture-${index}`,
+        attachmentContentSha256:DOC_SHA,extractionMethod:'local_parser',truncated:index===1}
+        :{binding:'provider_topic_id',providerTopicId:`sbir-fixture-${index}`})};
+    await qualification!.admin.$executeRaw`INSERT INTO context_embeddings
+      (tenant_id,client_id,owner_user_id,source_type,source_id,model,content_text,content_hash,embedding,metadata_jsonb,updated_at)
+      VALUES (${scope==='tenant'?TENANT:null}::uuid,${scope==='client'?catalogId(1,7):null}::uuid,
+        ${scope==='owner'?catalogId(1,8):null}::uuid,${dibbs?'funding_attachment_chunk':'funding_sbir_topic_chunk'},
+        ${`${parentId}:${chunkIndex}`},${scope==='old-model'?'old-model':MODEL},${text},${digest(text)},
+        ${vectorAxis<0?vectorLiteral(Array<number>(1024).fill(0)):axis(vectorAxis)}::vector,
+        ${JSON.stringify(metadata)}::jsonb,now()-interval '1 hour')`;
+  }
 
   afterAll(async () => {
     await app?.$disconnect();
@@ -120,8 +191,124 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
 
   async function read(operation: SemanticSearchOperation, body: Record<string, unknown>, vector = axis(0)) {
     const input = parseSemanticSearchInput(operation, body);
-    return app!.$queryRaw<SemanticSearchRow[]>(semanticSearchSql(operation, input, vector, MODEL));
+    return app!.$transaction(async tx => {
+      await tx.$executeRaw`SELECT set_config('hnsw.ef_search',${String(SEMANTIC_SEARCH_LIMITS.candidateLimit)},true)`;
+      return tx.$queryRaw<SemanticSearchRow[]>(semanticSearchSql(operation, input, vector, MODEL));
+    });
   }
+
+  it('DIBBS returns active line items once with exact current-document citations and partial coverage', async () => {
+    const rows=await read('semantic_search_dibbs_solicitations',{query:'water sensor'},axis(5));
+    expect(rows.map(row=>row.parent_id)).toEqual([catalogId(8,1),catalogId(8,2)]);
+    expect(rows[0]!.passage).toMatchObject({binding:'archived_content_sha256',canonicalRecordId:catalogId(8,1),
+      providerRecordId:'dibbs-fixture-1',attachmentContentSha256:DOC_SHA,extractionMethod:'local_parser',truncated:true});
+    expect(rows[0]!.documents).toEqual({attachments:1,withText:1,indexed:1,truncated:1});
+    expect(rows[0]!.record).toMatchObject({solicitationNumber:'shared-solicitation',currentSolicitation:true});
+    expect(await read('semantic_search_dibbs_solicitations',{query:'water',agency:'Navy'},axis(5))).toHaveLength(0);
+    expect(await read('semantic_search_dibbs_solicitations',{query:'water',limit:1},axis(5))).toHaveLength(1);
+  });
+
+  it('SBIR returns only active topics with real descriptions, current identity and one result per topic', async () => {
+    const rows=await read('semantic_search_sbir_topics',{query:'water sensor',agency:'navy'},axis(7));
+    expect(rows.map(row=>row.parent_id)).toEqual([catalogId(4,1)]);
+    expect(rows[0]!.passage).toMatchObject({sourceTable:'tango_sbir_topic',binding:'provider_topic_id',
+      canonicalRecordId:catalogId(4,1),providerRecordId:'sbir-fixture-1'});
+    expect(rows[0]!.documents).toBeNull();
+  });
+
+  it('active catalog coverage counts actual eligible vectors, including missing files or descriptions in the denominator', async () => {
+    for (const [operation,expected] of [['semantic_search_dibbs_solicitations',{indexed:2,total:4}],
+      ['semantic_search_sbir_topics',{indexed:1,total:2}]] as const) {
+      expect((await app!.$queryRaw<SemanticCoverageRow[]>(semanticCoverageSql(operation,MODEL)))[0]).toEqual(expected);
+      expect((await app!.$queryRaw<SemanticCoverageRow[]>(semanticCoverageSql(operation,'absent-model')))[0])
+        .toEqual({...expected,indexed:0});
+    }
+  });
+
+  it('new families exclude nearest private and wrong-model vectors', async () => {
+    expect(await read('semantic_search_dibbs_solicitations',{query:'private'},axis(6))).toHaveLength(0);
+    expect(await read('semantic_search_sbir_topics',{query:'private'},axis(8))).toHaveLength(0);
+  });
+
+  it('DIBBS passages do not consume the existing grant or SAM attachment candidate window', async () => {
+    const admin=qualification!.admin;
+    const prefix=`${catalogId(9,1)}:competing-`;
+    try {
+      await admin.$executeRaw`INSERT INTO context_embeddings
+        (source_type,source_id,model,content_text,content_hash,embedding,metadata_jsonb)
+        SELECT 'funding_attachment_chunk',${prefix} || n::text,${MODEL},'competing DIBBS passage','synthetic',
+          ${axis(3,4)}::vector,jsonb_build_object('parentId',${catalogId(9,1)})
+        FROM generate_series(1,${SEMANTIC_SEARCH_LIMITS.candidateLimit+1}::int) n`;
+      await admin.$executeRaw`INSERT INTO context_embeddings
+        (source_type,source_id,model,content_text,content_hash,embedding,metadata_jsonb)
+        VALUES ('funding_attachment_chunk',${prefix+'zero-grant'},${MODEL},'zero vector is not a match','synthetic',
+          ${vectorLiteral(Array<number>(1024).fill(0))}::vector,jsonb_build_object('parentId',${ATT_GRANT})),
+        ('funding_attachment_chunk',${prefix+'zero-notice'},${MODEL},'zero vector is not a match','synthetic',
+          ${vectorLiteral(Array<number>(1024).fill(0))}::vector,jsonb_build_object('parentId',${ATT_NOTICE_LOCAL}))`;
+      // A closer competing catalog cannot hide either family's attachment-only hit.
+      const grants=await read('semantic_search_grants',{query:'eligibility'},axis(3,4));
+      const notices=await read('semantic_search_contract_opportunities',{query:'requirements'},axis(3,4));
+      expect(grants.map(row=>row.parent_id)).toContain('G-2');
+      expect(notices.map(row=>row.parent_id)).toContain(SAM_B);
+      expect([...grants,...notices].every(row=>Number.isFinite(row.score))).toBe(true);
+    } finally { await admin.$executeRaw`DELETE FROM context_embeddings WHERE source_id LIKE ${prefix+'%'} AND model=${MODEL}`; }
+  });
+
+  it('current catalog reads keep unknown deadlines and reject mismatched passage parent or binding', async () => {
+    const admin=qualification!.admin;
+    for (const [operation,id,sourceId,vectorAxis,table,deadline] of [
+      ['semantic_search_dibbs_solicitations',catalogId(8,2),`${catalogId(9,2)}:0`,5,'tango_dibbs_solicitation','closes_date'],
+      ['semantic_search_sbir_topics',catalogId(4,1),`${catalogId(4,1)}:0`,7,'tango_sbir_topic','close_date'],
+    ] as const) {
+      // Table/column literals are from this closed fixture, never caller input.
+      try {
+        await admin.$executeRawUnsafe(`UPDATE ${table} SET ${deadline}=NULL WHERE id=$1::uuid`,id);
+        expect((await read(operation,{query:'water'},axis(vectorAxis))).map(row=>row.parent_id)).toContain(id);
+      } finally { await admin.$executeRawUnsafe(`UPDATE ${table} SET ${deadline}=CURRENT_DATE+7 WHERE id=$1::uuid`,id); }
+      const saved=await admin.$queryRaw<Array<{id:string;metadata_jsonb:unknown}>>`SELECT id::text,metadata_jsonb FROM context_embeddings
+        WHERE source_id LIKE ${sourceId.slice(0,-1)+'%'} AND tenant_id IS NULL AND model=${MODEL}`;
+      for (const patch of [{parentId:'not-a-uuid'},{binding:'unverified'},
+        {providerDibbsId:'wrong-provider',providerTopicId:'wrong-provider'},{sourceUrl:'https://example.test/old'}]) {
+        try {
+          for(const row of saved) await admin.$executeRaw`UPDATE context_embeddings
+            SET metadata_jsonb=metadata_jsonb || ${JSON.stringify(patch)}::jsonb WHERE id=${row.id}::uuid`;
+          expect((await read(operation,{query:'water'},axis(vectorAxis))).map(row=>row.parent_id)).not.toContain(id);
+        } finally {
+          for(const row of saved) await admin.$executeRaw`UPDATE context_embeddings
+            SET metadata_jsonb=${JSON.stringify(row.metadata_jsonb)}::jsonb WHERE id=${row.id}::uuid`;
+        }
+      }
+    }
+  });
+
+  it('DIBBS read rechecks changed URL, archive hash, provider identity and newer extraction after vector publication', async () => {
+    const admin=qualification!.admin,id=catalogId(8,1),attachment=catalogId(9,1);
+    const mutations: Array<[Prisma.Sql,Prisma.Sql]> = [
+      [Prisma.sql`UPDATE tango_dibbs_solicitation SET document_url='https://example.test/replaced' WHERE id=${id}::uuid`,
+        Prisma.sql`UPDATE tango_dibbs_solicitation SET document_url='https://dibbs2.bsm.dla.mil/Downloads/RFQ/synthetic.PDF' WHERE id=${id}::uuid`],
+      [Prisma.sql`UPDATE opportunity_attachment SET content_sha256='changed-bytes' WHERE id=${attachment}::uuid`,
+        Prisma.sql`UPDATE opportunity_attachment SET content_sha256=${DOC_SHA} WHERE id=${attachment}::uuid`],
+      [Prisma.sql`UPDATE tango_dibbs_solicitation SET tango_dibbs_id='changed-provider' WHERE id=${id}::uuid`,
+        Prisma.sql`UPDATE tango_dibbs_solicitation SET tango_dibbs_id='dibbs-fixture-1' WHERE id=${id}::uuid`],
+      [Prisma.sql`UPDATE opportunity_document_text SET fetched_at=now() WHERE attachment_id=${attachment}::uuid`,
+        Prisma.sql`UPDATE opportunity_document_text SET fetched_at=now()-interval '90 minutes' WHERE attachment_id=${attachment}::uuid`],
+    ];
+    for (const [change,restore] of mutations) {
+      try { await admin.$executeRaw(change);
+        expect((await read('semantic_search_dibbs_solicitations',{query:'water'},axis(5))).map(row=>row.parent_id)).not.toContain(id);
+      } finally { await admin.$executeRaw(restore); }
+    }
+  });
+
+  it('SBIR read rejects a source update or closure after embedding without waiting for vector cleanup', async () => {
+    const admin=qualification!.admin,id=catalogId(4,1);
+    try {
+      await admin.$executeRaw`UPDATE tango_sbir_topic SET last_synced_at=now() WHERE id=${id}::uuid`;
+      expect(await read('semantic_search_sbir_topics',{query:'water'},axis(7))).toHaveLength(0);
+      await admin.$executeRaw`UPDATE tango_sbir_topic SET last_synced_at=now()-interval '2 hours',activity='closed' WHERE id=${id}::uuid`;
+      expect(await read('semantic_search_sbir_topics',{query:'water'},axis(7))).toHaveLength(0);
+    } finally { await admin.$executeRaw`UPDATE tango_sbir_topic SET last_synced_at=now()-interval '2 hours',activity='open' WHERE id=${id}::uuid`; }
+  });
 
   it('executes the bill statement with Prisma-bound parameters and truncates the snippet to the limit', async () => {
     const rows = await read('semantic_search_bills', { query: 'water' });

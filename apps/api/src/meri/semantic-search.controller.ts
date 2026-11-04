@@ -70,4 +70,18 @@ export class SemanticSearchController {
   ) {
     return this.receive(ctx, 'semantic_search_contract_opportunities', body, req);
   }
+
+  @Post('semantic_search_dibbs_solicitations')
+  @HttpCode(200)
+  @Header('Cache-Control', 'private, no-store')
+  dibbsSolicitations(@CurrentTenant() ctx: TenantContext, @Body() body: unknown, @Req() req: Request) {
+    return this.receive(ctx, 'semantic_search_dibbs_solicitations', body, req);
+  }
+
+  @Post('semantic_search_sbir_topics')
+  @HttpCode(200)
+  @Header('Cache-Control', 'private, no-store')
+  sbirTopics(@CurrentTenant() ctx: TenantContext, @Body() body: unknown, @Req() req: Request) {
+    return this.receive(ctx, 'semantic_search_sbir_topics', body, req);
+  }
 }
