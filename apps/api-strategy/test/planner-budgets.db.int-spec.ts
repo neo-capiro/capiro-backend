@@ -1,3 +1,4 @@
+import { seedTimeSettings } from './planner-persisted-time.fixture.js';
 import { randomUUID } from 'node:crypto';
 import { PLANNER_DEFAULT_PROJECT, plannerDefaultBudget } from '@capiro/strategy-verifier';
 import { PlannerService } from '../src/planner/planner.service.js';
@@ -56,10 +57,7 @@ describeDb('Private project budgets under the restricted runtime role', () => {
         data: { archived: true },
       });
     });
-    const settings = await service.timeSettings(admin);
-    await service.saveTimeSettings(admin, {
-      version: settings.version,
-      reviewers: settings.reviewers,
+    await seedTimeSettings(db, admin, {
       options: { budgetCurrency: 'USD', pastLockWeeks: null, futureWeeks: null },
     });
   });
@@ -288,10 +286,7 @@ describeDb('Private project budgets under the restricted runtime role', () => {
     expect(
       (attempts.find((r) => r.status === 'rejected') as PromiseRejectedResult).reason.status,
     ).toBe(409);
-    const settings = await service.timeSettings(admin);
-    await service.saveTimeSettings(admin, {
-      version: settings.version,
-      reviewers: settings.reviewers,
+    await seedTimeSettings(db, admin, {
       options: { budgetCurrency: 'EUR' },
     });
     expect((await service.projectBudget(owner, p.id)).data.currency).toBe('USD');
@@ -303,10 +298,7 @@ describeDb('Private project budgets under the restricted runtime role', () => {
       b = await project(other, [{ userId: owner.clerkUserId, role: 'viewer' }]);
     await task(a.id);
     await rate(a.id);
-    const settings = await service.timeSettings(admin);
-    await service.saveTimeSettings(admin, {
-      version: settings.version,
-      reviewers: settings.reviewers,
+    await seedTimeSettings(db, admin, {
       options: { budgetCurrency: 'EUR' },
     });
     const c = await project();

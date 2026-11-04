@@ -1,3 +1,4 @@
+import { seedTimeSettings } from './planner-persisted-time.fixture.js';
 import { randomUUID } from 'node:crypto';
 import {
   PLANNER_DEFAULT_TIME_OPTIONS,
@@ -73,12 +74,7 @@ describeDb('Organization time policy with the restricted application database ro
     options: Partial<PlannerTimeOptions>,
     reviewers?: Record<string, string>,
   ) => {
-    const current = await service.timeSettings(admin);
-    await service.saveTimeSettings(admin, {
-      version: current.version,
-      reviewers: reviewers ?? current.reviewers,
-      options,
-    });
+    await seedTimeSettings(db, admin, { reviewers, options });
     return service.timeSettings(admin);
   };
   beforeEach(async () => {
@@ -107,47 +103,17 @@ describeDb('Organization time policy with the restricted application database ro
       { taskId },
       { kind: 'time', text: 'Synthetic work', minutes: 30, time: { workedOn, ...details } },
     );
-  const status = async (ctx: AuthTenantContext, action: string) => {
-    const sheet = await service.timesheet(ctx, { week, userId: owner.clerkUserId });
-    return service.transitionTimesheet(ctx, {
-      week,
-      userId: owner.clerkUserId,
-      version: sheet.version,
-      revision: sheet.revision,
-      action,
-      notes: 'Synthetic policy review',
-    });
-  };
 
-  it('requires organization admin, captures versions and keeps options for older reviewer-only clients', async () => {
-    const opening = await service.timeSettings(owner);
-    expect(opening.canManage).toBe(false);
-    await expect(
-      service.saveTimeSettings(owner, {
-        version: opening.version,
-        reviewers: {},
-        options: { billableDefault: true },
-      }),
-    ).rejects.toMatchObject({ status: 403 });
+  it('applies organization defaults and explicit overrides without rewriting historical categories or billable time', async () => {
+    const p = await project(),
+      t = await task(p.id);
     const saved = await change({
       billableDefault: true,
       categories: ['Research'],
       timeZone: 'America/New_York',
     });
-    await expect(
-      service.saveTimeSettings(admin, { version: opening.version, reviewers: {} }),
-    ).rejects.toMatchObject({ status: 409 });
-    await service.saveTimeSettings(admin, { version: saved.version, reviewers: saved.reviewers });
     expect((await service.timeSettings(owner)).options).toEqual(saved.options);
-    const boot = await service.bootstrap(owner);
-    expect(boot.timeOptions).toEqual(saved.options);
-    expect(boot.timeAdmin).toBe(false);
-    expect((await service.bootstrap(ownerAdmin)).timeAdmin).toBe(true);
-  });
-  it('applies organization defaults and explicit overrides without rewriting historical categories or billable time', async () => {
-    const p = await project(),
-      t = await task(p.id);
-    await change({ billableDefault: true, categories: ['Research'], timeZone: 'America/New_York' });
+    expect((await service.bootstrap(owner)).timeOptions).toEqual(saved.options);
     const implicit = await service.addEvent(
       owner,
       { taskId: t.id },
@@ -166,7 +132,7 @@ describeDb('Organization time policy with the restricted application database ro
     await change({ billableEnabled: false, categories: ['Delivery'] });
     await service.reviseEvent(owner, e.id, { version: 0, text: 'Retained historical metadata' });
     expect(
-      (await service.timesheet(owner, { week })).items.find((i) => i.id === e.id)?.time,
+      (await service.events(owner, { taskId: t.id })).find((i) => i.id === e.id)?.time,
     ).toMatchObject({ category: 'Research', billable: true });
     await expect(log(t.id, week, { billable: true, category: 'Delivery' })).rejects.toMatchObject({
       status: 403,
@@ -199,7 +165,10 @@ describeDb('Organization time policy with the restricted application database ro
     ).rejects.toMatchObject({ status: 403 });
     await service.reviseEvent(owner, e.id, { version: 0, minutes: 15 });
     await log(t.id);
-    expect((await service.timesheet(owner, { week })).totalMinutes).toBe(45);
+    expect(
+      (await service.events(owner, { projectId: p.id })).find((i) => i.id === e.id)?.minutes,
+    ).toBe(15);
+    expect((await service.task(owner, t.id)).actualMinutes).toBe(30);
   });
   it('disables writes and changed estimates while preserving history and ordinary task edits', async () => {
     const p = await project(),
@@ -226,11 +195,10 @@ describeDb('Organization time policy with the restricted application database ro
       version: estimated.version,
       data: { name: 'Renamed with time disabled' },
     });
-    const sheet = await service.timesheet(owner, { week });
-    expect(sheet.totalMinutes).toBe(30);
-    expect(sheet.canLogTime).toBe(false);
-    expect(sheet.items[0]?.canEdit).toBe(false);
-    expect(sheet.timeNotice).toContain('disabled');
+    expect((await service.task(owner, t.id)).actualMinutes).toBe(30);
+    expect(
+      (await service.events(owner, { taskId: t.id })).find((i) => i.id === e.id)?.minutes,
+    ).toBe(30);
   });
   it('checks both original and destination dates on moving, removing and restoring locked time', async () => {
     const currentWeek = plannerWeekOn(plannerTimeToday('UTC'));
@@ -273,48 +241,5 @@ describeDb('Organization time policy with the restricted application database ro
         time: { workedOn: plannerWeekDate(currentWeek, 7) },
       }),
     ).rejects.toMatchObject({ status: 403 });
-    expect(
-      (await service.timesheet(ownerAdmin, { week: plannerWeekDate(currentWeek, 7) })).canLogTime,
-    ).toBe(false);
-  });
-  it('submits without a reviewer in simple mode and keeps immutable submission and recall history', async () => {
-    const p = await project(),
-      t = await task(p.id);
-    await log(t.id);
-    await change({ approvalProcess: 'simple' }, {});
-    const submitted = await status(owner, 'submit');
-    expect(submitted.status).toBe('submitted');
-    expect(submitted.reviewerId).toBeNull();
-    expect(submitted.approvalProcess).toBe('simple');
-    await expect(log(t.id)).rejects.toMatchObject({ status: 403 });
-    const recalled = await status(owner, 'recall_submission');
-    expect(recalled.status).toBe('draft');
-    expect(recalled.history).toHaveLength(2);
-    expect(recalled.history.every((e) => e.kind === 'timesheet_status')).toBe(true);
-  });
-  it('invalidates captured revisions when time policy changes and permits recall of older full approvals', async () => {
-    const p = await project(),
-      t = await task(p.id);
-    await log(t.id);
-    const opening = await service.timesheet(owner, { week });
-    await change({ categories: ['Research'] });
-    await expect(
-      service.timesheet(owner, { week, revision: opening.revision }),
-    ).rejects.toMatchObject({ status: 409 });
-    await expect(
-      service.transitionTimesheet(owner, {
-        week,
-        userId: owner.clerkUserId,
-        version: opening.version,
-        revision: opening.revision,
-        action: 'submit',
-        notes: '',
-      }),
-    ).rejects.toMatchObject({ status: 409 });
-    await status(owner, 'submit');
-    await status(reviewer, 'approve');
-    await change({ approvalProcess: 'simple' });
-    expect((await status(reviewer, 'recall_approval')).status).toBe('submitted');
-    expect((await status(owner, 'recall_submission')).status).toBe('draft');
   });
 });

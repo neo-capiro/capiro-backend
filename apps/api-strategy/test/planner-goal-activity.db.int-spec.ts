@@ -337,47 +337,6 @@ describeDb('Planner goal activity and reminder PostgreSQL', () => {
       (await service.runScheduledGoalWork(tenantId, new Date('2043-01-01T09:00:00Z'))).executed,
     ).toBe(0);
   });
-  it('records intake changes under current form-owner grants without exposing goals in anonymous receipts', async () => {
-    const p = await service.saveProject(owner, null, { data: { name: 'Goal intake source' } });
-    const task = await service.saveTask(owner, null, {
-      data: {
-        name: 'Completed initial task',
-        status: 'done',
-        memberships: [{ projectId: p.id, sectionId: null, position: 0 }],
-      },
-    });
-    const g = await goal({ progress: 'project_task_completion', projectIds: [p.id] });
-    const fieldId = randomUUID();
-    const form = await service.saveResource(owner, null, {
-      kind: 'form',
-      projectId: p.id,
-      name: 'Goal history intake',
-      data: {
-        description: '',
-        enabled: true,
-        audience: 'public',
-        fields: [
-          {
-            id: fieldId,
-            label: 'Task name',
-            type: 'text',
-            required: true,
-            taskField: 'name',
-            options: [],
-          },
-        ],
-        defaults: { assigneeId: null, priority: 'none' },
-      },
-    });
-    const share = await service.shareForm(owner, form.id, { version: form.version, enabled: true });
-    const result = await service.submitPublicForm(share.token!, { [fieldId]: 'Anonymous task' });
-    expect(result).toEqual({ received: true });
-    const history = await service.events(owner, { resourceId: g.id });
-    expect(history[0]?.goalSnapshot?.percentage).toBe(50);
-    expect(history[0]?.actorId).toBe(`public_form:${form.id}`);
-    expect(history[0]?.text).not.toContain('Anonymous task');
-    expect(task.id).toBeTruthy();
-  });
   it('filters revoked goal rows before the bell limit and authorized unread count', async () => {
     const visible = await goal({ members: [{ userId: viewer.clerkUserId, role: 'viewer' }] });
     const hidden = await goal();

@@ -1,3 +1,8 @@
+import {
+  seedTimeSettings,
+  seedTimesheet,
+  storedTimesheet,
+} from './planner-persisted-time.fixture.js';
 import { randomUUID } from 'node:crypto';
 import {
   PLANNER_DEFAULT_TIME_OPTIONS,
@@ -55,9 +60,7 @@ describeDb('Reviewed time CSV imports under restricted database privileges', () 
     );
   });
   const settings = async (options = {}) => {
-    const old = await service.timeSettings(admin);
-    return service.saveTimeSettings(admin, {
-      version: old.version,
+    return seedTimeSettings(db, admin, {
       reviewers: { [owner.clerkUserId]: other.clerkUserId },
       options: { ...PLANNER_DEFAULT_TIME_OPTIONS, ...options },
     });
@@ -68,16 +71,8 @@ describeDb('Reviewed time CSV imports under restricted database privileges', () 
     // The default-date assertion uses today's real week; recover any lock from
     // an earlier interrupted run in this dedicated fixture before exercising it.
     const currentWeek = plannerWeekOn(plannerTimeToday('UTC'));
-    const current = await service.timesheet(owner, { week: currentWeek });
-    if (current.status === 'submitted')
-      await service.transitionTimesheet(owner, {
-        week: currentWeek,
-        userId: owner.clerkUserId,
-        version: current.version,
-        revision: current.revision,
-        action: 'recall_submission',
-        notes: '',
-      });
+    const current = await storedTimesheet(db, owner, currentWeek);
+    if (current) await seedTimesheet(db, owner, currentWeek, { status: 'draft' });
   });
   afterAll(async () => db?.$disconnect());
   const project = () =>
@@ -249,16 +244,8 @@ describeDb('Reviewed time CSV imports under restricted database privileges', () 
   it('rejects a locked timesheet atomically and allows zero-time imports without tracking', async () => {
     await settings({ approvalProcess: 'simple' });
     const t = await service.importTask(owner, input());
-    const sheet = await service.timesheet(owner, { week });
-    await service.transitionTimesheet(owner, {
-      week,
-      userId: owner.clerkUserId,
-      version: sheet.version,
-      revision: sheet.revision,
-      action: 'submit',
-      notes: '',
-    });
-    expect((await service.timesheet(owner, { week })).status).toBe('submitted');
+    await seedTimesheet(db, owner, week, { status: 'submitted' });
+    expect((await storedTimesheet(db, owner, week))?.data).toMatchObject({ status: 'submitted' });
     const before = await counts();
     await expect(service.importTask(owner, input())).rejects.toMatchObject({ status: 403 });
     expect(await counts()).toEqual(before);

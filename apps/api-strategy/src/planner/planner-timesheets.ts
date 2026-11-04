@@ -1,11 +1,9 @@
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { ForbiddenException } from '@nestjs/common';
 import {
   plannerCalendarDate,
   plannerTimeZone,
-  plannerWeekOn,
   type PlannerTimeDetails,
   type PlannerTimesheetData,
-  type PlannerTimesheetAction,
 } from '@capiro/strategy-verifier';
 import { fail, keys, object, uuid } from './planner.validation.js';
 
@@ -32,27 +30,6 @@ export function plannerTimeDetails(
     fail('Invalid time category');
   return result;
 }
-export function plannerTimesheetWeek(value: unknown): string {
-  if (!plannerCalendarDate(value)) fail('A valid timesheet week is required');
-  return plannerWeekOn(value as string);
-}
-export function plannerTimesheetActions(
-  data: PlannerTimesheetData,
-  userId: string,
-  viewerId: string,
-  process: 'simple' | 'full' = 'full',
-): PlannerTimesheetAction[] {
-  const owner = userId === viewerId,
-    reviewer = data.reviewerId === viewerId;
-  if (data.status === 'submitted')
-    return [
-      ...(owner ? ['recall_submission' as const] : []),
-      ...(reviewer && process === 'full' ? ['approve' as const, 'reject' as const] : []),
-    ];
-  if (data.status === 'approved') return reviewer ? ['recall_approval'] : [];
-  if (data.status === 'rejected' && reviewer) return ['submit', 'recall_approval'];
-  return (owner || reviewer) && (data.reviewerId || process === 'simple') ? ['submit'] : [];
-}
 export function plannerTimeEditable(
   data: PlannerTimesheetData | null,
   userId: string,
@@ -72,10 +49,4 @@ export function requirePlannerTimeEditable(
 ) {
   if (!plannerTimeEditable(data, userId, viewerId, admin))
     throw new ForbiddenException('This timesheet is locked. Recall it before changing time.');
-}
-export function requirePlannerTimesheetVersion(version: unknown, actual: number) {
-  if (!Number.isInteger(version) || Number(version) < 0)
-    fail('An expected timesheet version is required');
-  if (version !== actual)
-    throw new ConflictException('This timesheet changed. Refresh before saving again.');
 }
