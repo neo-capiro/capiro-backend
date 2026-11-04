@@ -216,6 +216,26 @@ describe('Objective Context Plane receiving validation', () => {
     await expect(f.client.compile(f.request,onAdmission)).resolves.toBe(f.g);
     expect(onAdmission).toHaveBeenCalledWith(f.admission);
   });
+  test('accepts digest-bound partial supplementary retrieval and a rollback packet', async () => {
+    const f = fixture();
+    f.g.contextPacket.degraded = true;
+    Object.assign(f.g.retrieval.coverage, { complete: false, paginationComplete: false, truncated: true });
+    // Core binds the actual partial coverage into coverageDigest/inputDigest.
+    f.admission.context.coverageDigest = digest({ manifest: f.admission.coverage, history: f.g.retrieval.coverage, policy: 'objective-v1-required-lossless' });
+    f.admission.context.inputDigest = digest({ sourceDigest: f.admission.context.sourceDigest, coverageDigest: f.admission.context.coverageDigest,
+      packetId: f.admission.context.packetId, requestId: f.admission.requestId, type: f.admission.type,
+      localDigest: f.admission.localDigest, externalDigest: f.admission.externalDigest, historyDigest: f.admission.historyDigest,
+      promptDigest: digest(f.g.prompt) });
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ kind: 'release_switch_rollback', governedContext: f.g, objectiveAdmission: f.admission }) }) as any;
+    await expect(f.client.compile(f.request, jest.fn(async () => undefined))).resolves.toBe(f.g);
+  });
+  test('rejects partial coverage whose digest does not bind it, and an unpersisted packet', async () => {
+    for (const mutate of [(f: any) => { f.g.retrieval.coverage.truncated = true; }, (f: any) => { f.g.contextPacket.persisted = false; }]) {
+      const f = fixture(); mutate(f);
+      global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ kind: 'governed_packet', governedContext: f.g, objectiveAdmission: f.admission }) }) as any;
+      await expect(f.client.compile(f.request, jest.fn(async () => undefined))).rejects.toMatchObject({ status: 503 });
+    }
+  });
   test.each(['actor','source','coverage','input','packet','prompt','time'])('rejects mismatched %s', async which => {
     const f = fixture();
     if (which === 'actor') f.admission.clerkUserId = 'foreign';

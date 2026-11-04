@@ -25,8 +25,7 @@ import { membershipsForPerson, projectMemberDetail, projectRosterOnlyStaffDetail
 import { buildCommitteeIndex } from './directory-committee-index.js';
 import { uniqueSorted } from './directory-collection.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { matchFacilityDistrictCode, UNRESOLVABLE_HOUSE_SENTINELS } from '../common/district-code.util.js';
-import { US_HOUSE_SEATS } from '../common/us-congressional-districts.js';
+import { houseDistrictNoFromDirectoryContact, matchFacilityDistrictCode } from '../common/district-code.util.js';
 import { manifestKey, artifactKey, type BoundaryManifest } from './boundary-artifact.util.js';
 import { FEC_DISCLAIMER } from '../intelligence/fec-disclaimer.js';
 import { RepresentationResolverService } from '../clients/representation-resolver.service.js';
@@ -1038,24 +1037,7 @@ export class DirectoryService implements OnModuleInit {
     state: string;
     district: string;
   }): number | null {
-    if (contact.chamber !== 'House') return null;
-    const state = (contact.state ?? '').trim().toUpperCase();
-    if (US_HOUSE_SEATS[state] === 1) return null;
-    const raw = (contact.district ?? '').trim().toUpperCase();
-    // Strictly the observed display forms: a bare integer ('8' / '08') or the
-    // state-prefixed 'FL-8' built by formatDistrict. A state prefix must match
-    // the contact's own state; anything else (junk prefix, 3+ digits, sentinel
-    // codes) is not a House seat we can assert — stay null, never guess.
-    const parse = (digits: string): number | null => {
-      if (UNRESOLVABLE_HOUSE_SENTINELS.has(digits.padStart(2, '0'))) return null;
-      const districtNo = Number(digits);
-      return districtNo > 0 ? districtNo : null;
-    };
-    const bare = /^(\d{1,2})$/.exec(raw);
-    if (bare) return parse(bare[1]!);
-    const prefixed = /^([A-Z]{2})-(\d{1,2})$/.exec(raw);
-    if (prefixed && prefixed[1] === state) return parse(prefixed[2]!);
-    return null;
+    return houseDistrictNoFromDirectoryContact(contact);
   }
 
   /**
@@ -1646,3 +1628,4 @@ function normalizeEmailAddress(value: string | null | undefined): string | null 
  * for existing importers and specs.
  */
 export { matchFacilityDistrictCode };
+

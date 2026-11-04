@@ -94,11 +94,16 @@ test('fact/recommendation classification never changes the explicit historical r
   assert.equal(project(input).evidence[0].reviewState, 'accepted');
   input.findings[0].status = 'active'; refused(() => project(input));
 });
-test('all five actual packet/coverage completion flags are exact fail-closed booleans', () => {
-  for (const [key, wrong] of [['packetPersisted', false], ['packetDegraded', true], ['coverageComplete', false],
-    ['paginationComplete', false], ['truncated', true], ['packetPersisted', 'true'], ['packetDegraded', 0]]) {
+test('packet must be persisted and all five flags must be exact booleans', () => {
+  for (const [key, wrong] of [['packetPersisted', false], ['packetPersisted', 'true'], ['packetDegraded', 0],
+    ['coverageComplete', 'false'], ['paginationComplete', null], ['truncated', undefined]]) {
     const { input } = fixture(); input[key] = wrong; refused(() => project(input));
   }
+});
+test('disclosed partial supplementary coverage does not refuse the typed projection', () => {
+  const { input } = fixture();
+  Object.assign(input, { packetDegraded: true, coverageComplete: false, paginationComplete: false, truncated: true });
+  assert.equal(project(input).source.objectiveId, fixture().input.source.objectiveId);
 });
 test('exactly 256 evidence refs survive; the 257th refuses instead of slicing', () => {
   const { input } = fixture(); input.findings = Array.from({ length: 256 }, (_, i) => finding(1000 + i, i % 2 ? 'pending' : 'accepted'));

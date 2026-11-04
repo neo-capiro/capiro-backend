@@ -12,6 +12,7 @@ import { visiblePortfolioHistory } from './portfolio/portfolio-source-access.js'
 import { PrismaService } from '../prisma/prisma.service.js';
 import { readTargetContext, type TargetContextQueryDto } from './client-target-context.js';
 import { DirectoryService } from '../directory/directory.service.js';
+import { houseDistrictNoFromDirectoryContact } from '../common/district-code.util.js';
 import type { DirectoryStaffDetail } from '../directory/directory-detail.types.js';
 import { RepresentationResolverService } from './representation-resolver.service.js';
 import {
@@ -301,17 +302,14 @@ export class ClientTargetsService {
           result.set(t.id, null);
           return;
         }
-        // Mirrors getMemberRepresentationSummary's exact at-large convention
-        // for this SAME directory-snapshot field (directory.service.ts):
-        // district > 0 ? district : null. Not a guess — this is the
-        // already-shipped, working convention for this specific data source.
-        const districtNo = Number(contact.district);
+        // Same parser getMemberRepresentationSummary uses: the directory's display
+        // district is 'FL-28', which Number() turns into NaN (House -> at-large).
         try {
           const facilities = await this.representation.facilitiesForMember(tenantId, clientId, {
             type: 'federal',
             chamber: contact.chamber === 'Senate' ? 'senate' : 'house',
             state: contact.state,
-            district: Number.isFinite(districtNo) && districtNo > 0 ? districtNo : null,
+            district: houseDistrictNoFromDirectoryContact(contact),
           });
           result.set(t.id, facilities);
         } catch {

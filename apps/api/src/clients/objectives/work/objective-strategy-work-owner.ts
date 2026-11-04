@@ -10,9 +10,21 @@ import { objectiveStrategyRequestCodec, objectiveStrategySelectionBody, parseObj
   type ObjectiveStrategySelectionRequest } from './objective-strategy-selection.js';
 import { workDigest, workFailure, workUuid, type StoredWorkReceipt, type WorkAction, type WorkAuthority, type WorkPolicyFacts,
   type WorkReadRequest, type WorkReconciliation, type WorkRequest, type WorkState } from './objective-work-command.js';
+import { objectiveRevisionSnapshotHash as applicationHash } from '../objective-work-intent.js';
 
 type Tx = Prisma.TransactionClient;
 const ACTION = 'objective.strategy.draft';
+/** API-Strategy's private per-job generation evidence kinds. Only the admission
+ * (`data.canonical`) and producer (`data.sourceAdmission.canonical`) rows carry
+ * the canonical token; the others are bound to it through their job's ledger ID. */
+const GENERATION_ADMISSION = 'objective_canonical_generation_admission';
+const GENERATION_LINKED_KINDS = ['objective_canonical_generation_acceptance',
+  'objective_canonical_generation_normalization', 'objective_canonical_generation_request'] as const;
+/** Same deterministic ID API-Strategy's generationLedgerId assigns to each per-job ledger row. */
+export function objectiveGenerationLedgerId(kind: string, tenantId: string, clerkUserId: string, jobId: string): string {
+  const h = applicationHash([kind, tenantId, clerkUserId, jobId]);
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-8${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
+}
 const MAX_DURATION = 1_800_000;
 type Gate = { tenantId: string; actorUserId: string; actorRole: string; strategyId: string; inventory: ObjectiveStrategyJobInventory };
 const positive = (v: unknown, max = MAX_DURATION): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v > 0 && v <= max;
@@ -136,8 +148,9 @@ export class ObjectiveStrategyWorkOwner implements ObjectiveWorkOwnerPort {
         return observations[0]!.occupied;
       }, { timeoutMs: 3000 });
       if (occupied) return base;
-      const jobs = await tx.$queryRaw<Array<{ id: string; clientId: string; strategyId: string | null; input: any }>>`
-        SELECT id::text AS id,client_id::text AS "clientId",strategy_id::text AS "strategyId",input FROM sp_draft_job
+      const jobs = await tx.$queryRaw<Array<{ id: string; clientId: string; ownerUserId: string; strategyId: string | null; input: any }>>`
+        SELECT id::text AS id,client_id::text AS "clientId",owner_user_id AS "ownerUserId",
+          strategy_id::text AS "strategyId",input FROM sp_draft_job
         WHERE tenant_id=${a.tenantId}::uuid ORDER BY id LIMIT 129`;
       if (jobs.length > 128) return base;
       for (const job of jobs) {
@@ -173,13 +186,25 @@ export class ObjectiveStrategyWorkOwner implements ObjectiveWorkOwnerPort {
       // kinds and foreign owner/archive metadata. Existing same-canonical
       // Planner evidence is conservatively uncertain, never Strategy-applied.
       // No kind filter proves absence.
-      const resources = await tx.$queryRaw<Array<{ kind: string; data: any }>>`SELECT kind,data FROM sp_planner_resources
-        WHERE tenant_id=${a.tenantId}::uuid ORDER BY id LIMIT 257`;
+      const resources = await tx.$queryRaw<Array<{ id: string; kind: string; data: any }>>`SELECT id::text AS id,kind,data
+        FROM sp_planner_resources WHERE tenant_id=${a.tenantId}::uuid ORDER BY id LIMIT 257`;
       if (resources.length > 256) return base;
+      // A linked ledger row inherits the canonical token of its own job's admission
+      // row, found by exact deterministic IDs over this tenant's bounded job set.
+      const linkedJob = new Map<string, string>(), admissionOfJob = new Map<string, string>();
+      for (const job of jobs) {
+        if (typeof job.ownerUserId !== 'string' || !job.ownerUserId) continue;
+        admissionOfJob.set(job.id, objectiveGenerationLedgerId(GENERATION_ADMISSION, a.tenantId, job.ownerUserId, job.id));
+        for (const kind of GENERATION_LINKED_KINDS)
+          linkedJob.set(`${kind}:${objectiveGenerationLedgerId(kind, a.tenantId, job.ownerUserId, job.id)}`, job.id);
+      }
+      const admissionCanonical = new Map(resources.filter(r => r.kind === GENERATION_ADMISSION).map(r => [r.id, r.data?.canonical]));
       for (const row of resources) {
         json(row.data);
         const d = row.data, candidates = [d?.canonical, d?.sourceAdmission?.canonical, d?.request?.canonical,
           d?.binding?.canonical, d?.work?.canonical];
+        const job = linkedJob.get(`${row.kind}:${row.id}`);
+        if (job) candidates.push(admissionCanonical.get(admissionOfJob.get(job)!));
         if (candidates.some(canonical => canonical && (canonical.canonicalPlanId === s.canonicalPlanId ||
             canonical.objectiveId === a.objectiveId || canonical.canonicalStrategyId === s.canonicalStrategyId ||
             canonical.canonicalProjectId === s.canonicalProjectId))) return base;

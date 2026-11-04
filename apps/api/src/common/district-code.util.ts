@@ -239,3 +239,35 @@ export function toUsaSpendingDistrictCode(raw: string | null | undefined): strin
   if (!/^\d{1,2}$/.test(trimmed)) return null;
   return trimmed.padStart(2, '0');
 }
+
+/**
+ * Bare House district number from a directory contact's DISPLAY `district`
+ * ('FL-8' for a real seat, bare 'FL' for Senate/at-large/unresolvable).
+ * `Number(contact.district)` is NaN for the 'FL-8' form and must not be used.
+ * At-large single-seat states map to null (the resolver's '00' <-> null rule);
+ * anything unparseable stays null rather than guessing a seat.
+ */
+export function houseDistrictNoFromDirectoryContact(contact: {
+  chamber: string;
+  state: string | null | undefined;
+  district: string | null | undefined;
+}): number | null {
+  if (contact.chamber !== 'House') return null;
+  const state = (contact.state ?? '').trim().toUpperCase();
+  if (US_HOUSE_SEATS[state] === 1) return null;
+  const raw = (contact.district ?? '').trim().toUpperCase();
+  // Strictly the observed display forms: a bare integer ('8' / '08') or the
+  // state-prefixed 'FL-8' built by formatDistrict. A state prefix must match
+  // the contact's own state; anything else (junk prefix, 3+ digits, sentinel
+  // codes) is not a House seat we can assert — stay null, never guess.
+  const parse = (digits: string): number | null => {
+    if (UNRESOLVABLE_HOUSE_SENTINELS.has(digits.padStart(2, '0'))) return null;
+    const districtNo = Number(digits);
+    return districtNo > 0 ? districtNo : null;
+  };
+  const bare = /^(\d{1,2})$/.exec(raw);
+  if (bare) return parse(bare[1]!);
+  const prefixed = /^([A-Z]{2})-(\d{1,2})$/.exec(raw);
+  if (prefixed && prefixed[1] === state) return parse(prefixed[2]!);
+  return null;
+}
