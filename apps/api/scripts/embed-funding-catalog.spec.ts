@@ -1,7 +1,8 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import type { PrismaClient } from '@prisma/client';
-import { EMBEDDING_SCOPES, embedDocument, main, pendingDocumentsSql, readPendingDocuments } from './embed-funding-catalog.js';
+import { EMBEDDING_SCOPES, embedDocument, main, pendingDocumentsSql, readPendingDocuments, readDocument } from './embed-funding-catalog.js';
 import type { RecordData } from '../src/external/tango/funding-catalog.mapper.js';
+import { ELIGIBLE_DIBBS_ATTACHMENT_SQL } from '../src/external/tango/funding-document-text.js';
 
 const squash = (sql: string) => sql.replace(/\s+/g, ' ').trim();
 
@@ -116,8 +117,63 @@ describe('active SBIR topic embeddings', () => {
     const all = pendingDocumentsSql('sbir_topic', 'all');
     expect(all).not.toContain("= 'open'");
     expect(active).not.toBe(all);
-    // No DIBBS or SBIR-cycle title-only kind exists.
+    // DIBBS uses actual attachment text; no DIBBS or SBIR-cycle title-only kind exists.
     expect(() => pendingDocumentsSql('dibbs_solicitation' as never, 'active')).toThrow();
     expect(() => pendingDocumentsSql('sbir_solicitation' as never, 'active')).toThrow();
+  });
+});
+
+describe('DIBBS attachment embeddings', () => {
+  test('both scopes exclude inactive or superseded DIBBS and read actual text only', async () => {
+    for (const scope of EMBEDDING_SCOPES) {
+      expect(pendingDocumentsSql('attachment', scope)).toContain(ELIGIBLE_DIBBS_ATTACHMENT_SQL);
+    }
+    const calls: string[] = [];
+    await readDocument({ $queryRawUnsafe: async (sql: string) => { calls.push(sql); return []; } } as any, 'attachment', 'synthetic-attachment');
+    expect(calls[0]).toContain(ELIGIBLE_DIBBS_ATTACHMENT_SQL);
+    expect(calls[0]).toContain('dibbs_solicitation_id::text');
+    expect(calls[0]).toContain('t.attachment_content_sha256=opportunity_attachment.content_sha256');
+    expect(calls[0]).not.toContain('nomenclature');
+  });
+
+  test('preserves canonical identity, archived hash and partial-text provenance and reuses unchanged vectors', async () => {
+    const row: RecordData = { id: 'synthetic-attachment', dibbs_solicitation_id: 'synthetic-dibbs-row',
+      provider_dibbs_id: 'synthetic-provider-row', source_url: 'https://dibbs2.bsm.dla.mil/Downloads/RFQ/test.PDF',
+      body: 'Actual synthetic solicitation requirements and delivery terms.', changed: '2026-11-03T00:00:00Z',
+      text_method: 'local_parser', text_truncated: true, content_sha256: 'synthetic-sha256', embedded_content_hash: null,
+      provider_data: { doc_role: 'solicitation' } };
+    let stored: Array<{ source_id: string; content_hash: string; vector: string; metadata: RecordData }> = [];
+    let marker: unknown;
+    const mutations: string[] = [];
+    const tx = { $queryRawUnsafe: async (sql: string) => {
+      expect(sql).toContain(ELIGIBLE_DIBBS_ATTACHMENT_SQL); return [{ body: row.body, changed: row.changed }];
+    }, $executeRawUnsafe: async (sql: string, ...args: unknown[]) => {
+      mutations.push(sql);
+      if (sql.startsWith('INSERT INTO context_embeddings')) { expect(args[0]).toBe('funding_attachment_chunk'); stored = JSON.parse(String(args[2])); }
+      if (sql.startsWith('UPDATE opportunity_attachment')) marker = args[0];
+      return 1;
+    } };
+    const prisma = { $queryRawUnsafe: async () => stored, $transaction: async (fn: any) => fn(tx) } as any;
+    const invoke = jest.fn(async () => Array<number>(1024).fill(0.1));
+    expect(await embedDocument(prisma, 'attachment', row, invoke)).toBe(1);
+    expect(stored[0]?.metadata).toMatchObject({ dibbsSolicitationId: row.dibbs_solicitation_id,
+      providerDibbsId: row.provider_dibbs_id, sourceTable: 'opportunity_attachment', sourceUrl: row.source_url,
+      binding: 'archived_content_sha256', attachmentContentSha256: row.content_sha256, truncated: true, extractionMethod: 'local_parser' });
+    row.embedded_content_hash = marker; mutations.length = 0;
+    expect(await embedDocument(prisma, 'attachment', row, invoke)).toBe(0);
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(mutations.some(sql => sql.startsWith('DELETE') || sql.startsWith('INSERT'))).toBe(false);
+  });
+
+  test('does not publish vectors when the active/current attachment recheck no longer returns a row', async () => {
+    const write = jest.fn();
+    const prisma = { $queryRawUnsafe: async () => [], $transaction: async (fn: any) => fn({
+      $executeRawUnsafe: write, $queryRawUnsafe: async () => [],
+    }) } as any;
+    await embedDocument(prisma, 'attachment', { id: 'synthetic', body: 'Synthetic requirements text.',
+      changed: 'synthetic-version', dibbs_solicitation_id: 'synthetic-parent', provider_data: {} },
+    jest.fn(async () => Array<number>(1024).fill(0.1)));
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(write).toHaveBeenCalledWith("SET LOCAL app.bypass_rls = 'on'");
   });
 });
