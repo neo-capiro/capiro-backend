@@ -278,6 +278,7 @@ describe('bounded repair delivers the last renderable briefing', () => {
     complete: jest.Mock,
     execution: Partial<MeetingPrepExecution> = {},
     evidenceSources: PrepEvidenceSource[] = [evidence],
+    partialCoverage = false,
   ) {
     return runWithMeetingGovernedContext(
       {
@@ -289,15 +290,15 @@ describe('bounded repair delivers the last renderable briefing', () => {
         traceHash: 'trace',
         modelContextBlock: '',
         coverage: {
-          complete: true,
-          requestedDomains: ['mail'],
+          complete: !partialCoverage,
+          requestedDomains: partialCoverage ? ['mail', 'calendar'] : ['mail'],
           searchedDomains: ['mail'],
-          missingDomains: [],
+          missingDomains: partialCoverage ? ['calendar'] : [],
           partialDomains: [],
           recordsReturned: 1,
           paginationComplete: true,
           truncated: false,
-          stopReason: 'complete',
+          stopReason: partialCoverage ? 'source_unavailable' : 'complete',
         },
       },
       () =>
@@ -455,6 +456,26 @@ describe('bounded repair delivers the last renderable briefing', () => {
     expect(result.briefing?.limitations.join(' ')).toContain(
       'still flagged 1 item(s) after 2 repair passes',
     );
+  });
+
+  test('final composition keeps reconciled caveats without re-appending superseded extraction claims', async () => {
+    const extracted = parseBriefingFacts([extractionFact], [evidence]);
+    const blanket = 'All sources contain only meeting metadata; none of the briefing sections can be populated.';
+    const corrected = 'Commitments are supported by the email; no decision evidence was found.';
+    let reviews = 0;
+    const complete = jest.fn(async (request) => {
+      if (request.jsonSchemaName.endsWith('extracting')) return reply({ facts: [extractionFact], limitations: [blanket] });
+      if (request.jsonSchemaName.endsWith('checking_coverage')) return reply({ omittedFactIds: reviews++ === 0 ? [extracted[0]!.id] : [] });
+      expect(JSON.parse(request.userVolatile).limitations).toContain(blanket);
+      return reply({ ...renderable([extracted[0]!.id]), limitations: [request.jsonSchemaName.endsWith('repairing') ? corrected : blanket] });
+    });
+    const result = await run(complete, {}, [evidence], true);
+    expect(result.briefing?.limitations).toContain(corrected);
+    expect(result.briefing?.limitations).not.toContain(blanket);
+    expect(result.briefing?.limitations.join(' ')).toContain('Source coverage is partial');
+    expect(result.briefing?.limitations.join(' ')).toContain('calendar');
+    expect(result.grounding?.limitations).not.toContain(blanket);
+    expect(result.briefing?.sections.commitments.items).toHaveLength(1);
   });
 
   test('deep preparation keeps high reasoning for its repair', async () => {

@@ -1,3 +1,4 @@
+import type { PrismaTransactionDeadline, PrismaTransactionOptions } from '../prisma/prisma-transaction-deadline.js';
 import { Prisma } from '@prisma/client';
 import {
   applicantTypeKey,
@@ -625,12 +626,13 @@ function orderBy(criteria: OpportunitySearchCriteriaV2): Prisma.Sql {
 }
 
 export async function searchSourceSql(
-  prisma: { withSystem<T>(fn: (tx: { $queryRaw: <T>(query: Prisma.Sql) => Promise<T> }) => Promise<T>, opts?: { timeoutMs?: number }): Promise<T> },
+  prisma: { withSystem<T>(fn: (tx: { $queryRaw: <T>(query: Prisma.Sql) => Promise<T> }) => Promise<T>, opts?: PrismaTransactionOptions): Promise<T> },
   source: OpportunitySourceV2,
   criteria: OpportunitySearchCriteriaV2,
   profile: OpportunityClientProfile | null,
   exactSourceRecordId?: string | readonly string[],
   explicitLimit?: number,
+  deadline: PrismaTransactionDeadline = { at: Date.now() + 20_000 },
 ): Promise<OpportunityCatalogSearchResult> {
   const exactCapacity = Array.isArray(exactSourceRecordId)
     ? exactSourceRecordId.length * (source === 'sbir_sttr' ? 2 : 1)
@@ -666,7 +668,7 @@ export async function searchSourceSql(
       FROM filtered
     )
     SELECT keyed.*, stats.* FROM (SELECT filtered.*, lower(filtered.title) AS sort_title_key, lower(coalesce(filtered.agency, '')) AS sort_agency_key FROM filtered) keyed CROSS JOIN stats ORDER BY ${orderBy(criteria)} LIMIT ${limit}`;
-  const rows = await prisma.withSystem((tx) => tx.$queryRaw<SqlRow[]>(query), { timeoutMs: 20_000 });
+  const rows = await prisma.withSystem((tx) => tx.$queryRaw<SqlRow[]>(query), { timeoutMs: 20_000, deadline });
   const first = rows[0];
   return {
     records: rows.map((row) => mapSqlSearchRow(row, criteria)),
@@ -680,7 +682,7 @@ export async function searchSourceSql(
 }
 
 export async function readSourceSql(
-  prisma: { withSystem<T>(fn: (tx: { $queryRaw: <T>(query: Prisma.Sql) => Promise<T> }) => Promise<T>, opts?: { timeoutMs?: number }): Promise<T> },
+  prisma: { withSystem<T>(fn: (tx: { $queryRaw: <T>(query: Prisma.Sql) => Promise<T> }) => Promise<T>, opts?: PrismaTransactionOptions): Promise<T> },
   source: OpportunitySourceV2,
   criteria: OpportunitySearchCriteriaV2,
   profile: OpportunityClientProfile | null,
@@ -696,7 +698,7 @@ export async function readSourceSql(
  * provider's opaque sourceRecordId and sourceFacts provenance.
  */
 export async function readExactSourceSql(
-  prisma: { withSystem<T>(fn: (tx: { $queryRaw: <T>(query: Prisma.Sql) => Promise<T> }) => Promise<T>, opts?: { timeoutMs?: number }): Promise<T> },
+  prisma: { withSystem<T>(fn: (tx: { $queryRaw: <T>(query: Prisma.Sql) => Promise<T> }) => Promise<T>, opts?: PrismaTransactionOptions): Promise<T> },
   source: OpportunitySourceV2,
   criteria: OpportunitySearchCriteriaV2,
   profile: OpportunityClientProfile | null,
@@ -716,8 +718,9 @@ export async function readExactSourceSql(
 }
 
 export async function healthSql(
-  prisma: { withSystem<T>(fn: (tx: { $queryRaw: <T>(query: Prisma.Sql) => Promise<T> }) => Promise<T>, opts?: { timeoutMs?: number }): Promise<T> },
+  prisma: { withSystem<T>(fn: (tx: { $queryRaw: <T>(query: Prisma.Sql) => Promise<T> }) => Promise<T>, opts?: PrismaTransactionOptions): Promise<T> },
   source: OpportunitySourceV2,
+  deadline: PrismaTransactionDeadline = { at: Date.now() + 10_000 },
 ): Promise<OpportunityCatalogHealth> {
   const verb = SOURCE_VERBS[source];
   const rows = await prisma.withSystem((tx) => tx.$queryRaw<Array<{ record_count: bigint; active_count: bigint; status: string | null; error_count: number; latest_attempt_at: Date | null; last_success_at: Date | null }>>(Prisma.sql`
@@ -728,7 +731,7 @@ export async function healthSql(
     SELECT counts.record_count, counts.active_count,
       (SELECT status FROM latest) status, (SELECT error_count FROM latest) error_count,
       (SELECT coalesce(finished_at, started_at) FROM sync_run WHERE source = ${verb} ORDER BY started_at DESC LIMIT 1) latest_attempt_at,
-      successful.last_success_at FROM counts CROSS JOIN successful`), { timeoutMs: 10_000 });
+      successful.last_success_at FROM counts CROSS JOIN successful`), { timeoutMs: 10_000, deadline });
   const row = rows[0];
   if (!row) return { state: 'never_synced', recordCount: 0, activeRecordCount: 0, lastSyncedAt: null };
   const state = !row.status

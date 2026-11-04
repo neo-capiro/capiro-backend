@@ -8,6 +8,8 @@ import {
   Param,
   ParseUUIDPipe,
   Patch,
+  Post,
+  HttpCode,
   UseGuards,
 } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
@@ -24,6 +26,7 @@ import {
   FILE_ACCESS_TRANSACTION_TIMEOUT_MS,
 } from './client-file-access-command.js';
 import { parseFileAccessCommand } from './client-file-access-input.js';
+import { z } from 'zod';
 
 type StorageUsage = {
   clientId: string;
@@ -108,14 +111,40 @@ export class ClientFilesService {
           prospectId: null,
           tenantId: ctx.tenantId,
           clientId,
+          supersededByAttachmentId: null,
           // A restricted file the caller cannot view is not "in" the folder for them.
           OR: this.visibleWhere(ctx.userId),
         },
         _count: { _all: true },
       });
-      return rows
-        .map((row) => ({ folder: row.folder, count: row._count._all }))
+      const named = await tx.clientFileFolder.findMany({
+        where: { tenantId: ctx.tenantId, clientId },
+        select: { name: true },
+      });
+      const counts = new Map<string | null, number>(named.map((row) => [row.name, 0]));
+      for (const row of rows) counts.set(row.folder, row._count._all);
+      return [...counts]
+        .map(([folder, count]) => ({ folder, count }))
         .sort((a, b) => (a.folder ?? '').localeCompare(b.folder ?? ''));
+    });
+  }
+
+  /** An exact name is an idempotent location; it never creates or shares files. */
+  async createFolder(ctx: TenantContext, clientId: string, raw: unknown) {
+    const parsed = z
+      .object({ folder: z.string().trim().min(1).max(120) })
+      .strict()
+      .safeParse(raw);
+    if (!parsed.success)
+      throw new BadRequestException('Provide a folder name of 1 to 120 characters');
+    const folder = parsed.data.folder;
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await requireOwnerClient(tx, ctx, clientId, false, false, 'share');
+      await tx.clientFileFolder.createMany({
+        data: [{ tenantId: ctx.tenantId, clientId, name: folder }],
+        skipDuplicates: true,
+      });
+      return { folder };
     });
   }
 
@@ -185,6 +214,17 @@ export class ClientFilesController {
   @Header('Cache-Control', 'no-store')
   folders(@CurrentTenant() ctx: TenantContext, @Param('clientId', ParseUUIDPipe) clientId: string) {
     return this.service.folders(ctx, clientId);
+  }
+
+  @Post('folders')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  createFolder(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId', ParseUUIDPipe) clientId: string,
+    @Body() body: unknown,
+  ) {
+    return this.service.createFolder(ctx, clientId, body);
   }
 
   @Get('access/commands/:requestId')

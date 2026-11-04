@@ -219,4 +219,26 @@ describe('canonical document extraction access', () => {
       allowPaidExtraction: false })).rejects.toThrow('Provider extraction is disabled');
     expect(m.findFirst).not.toHaveBeenCalled();
   });
+
+  it('can safely reread searchable and pending documents without starting processing or changing status', async () => {
+    for (const extractionStatus of ['extracted', 'pending']) {
+      const m = harness();
+      m.findFirst.mockResolvedValue({ id: 'doc-1', clientId: 'client-1', meetingId: null,
+        fileName: 'Evidence.txt', contentType: 'text/plain', lifecycleStatus: 'active',
+        scanStatus: null, s3Key: 'file-key', extractionStatus });
+      const options = { readOnly: true, allowPaidExtraction: false };
+      const first = await m.service.extractAttachmentText(ctx, 'doc-1', options);
+      const recheck = await m.service.extractAttachmentText(ctx, 'doc-1', options);
+      expect(first).toMatchObject({ attachmentId: 'doc-1', text: 'Evidence', truncated: false });
+      expect(recheck).toEqual(first);
+      expect(m.updateMany).not.toHaveBeenCalled();
+    }
+  });
+
+  it('refuses read-only options that could start provider work', async () => {
+    const m = harness();
+    await expect(m.service.extractAttachmentText(ctx, 'doc-1', { readOnly: true }))
+      .rejects.toThrow('Read-only extraction requires');
+    expect(m.findFirst).not.toHaveBeenCalled();
+  });
 });

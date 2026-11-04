@@ -23,8 +23,8 @@ describe('ClientCapabilityFitController', () => {
       getFit: jest.fn<() => Promise<any>>().mockResolvedValue({
         matches: [],
         computedAt: null,
-        status: 'empty',
-        sources: { pe: true, bill: false, fo: false },
+        status: 'not_computed',
+        sources: { pe: false, bill: false, fo: false },
       }),
     } as unknown as ClientCapabilityFitService;
     return { controller: new ClientCapabilityFitController(service), service };

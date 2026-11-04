@@ -81,6 +81,7 @@ async function fixture() {
     if (options.authorization !== null) stored.authorization = options.authorization ?? 'Bearer synthetic-session';
     const req: any = {
       method, path, originalUrl: target, url: target, baseUrl: '',
+      query: app.getHttpAdapter().getInstance().get('query parser fn')(target.split('?')[1] ?? ''),
       headers: stored, rawHeaders: rawHosts.flatMap((value) => ['Host', value]),
       hostname: host, params: { id: path.split('/')[3] ?? CLIENT },
       header: (key: string) => stored[key.toLowerCase()],
@@ -150,6 +151,12 @@ describe('first-chat metrics read through the native current-session admission',
   beforeEach(async () => { f = await fixture(); jest.clearAllMocks(); });
   afterEach(async () => { await f.app.close(); });
 
+  it.each(['core', 'intelligence'])('admits the closed %s tracker selector through native authentication', async (backend) => {
+    const res = await f.invoke({ target: `${ROUTE}?trackerBackend=${backend}` });
+    expect(res.statusCode).toBe(200);
+    expect(f.metrics).toHaveBeenCalledWith(expect.objectContaining({ tenantId: T, userId: U }), backend);
+  });
+
   it('admits GET /api/clients/metrics on the exact preview Host and propagates current tenant/member data', async () => {
     const res = await f.invoke();
     expect(res.statusCode).toBe(200);
@@ -157,7 +164,7 @@ describe('first-chat metrics read through the native current-session admission',
     expect(f.metrics).toHaveBeenCalledTimes(1);
     expect(f.metrics).toHaveBeenCalledWith(expect.objectContaining({
       tenantId: T, userId: U, tenantSlug: 'tenant', clerkUserId: 'user_native', role: 'standard_user',
-    }));
+    }), 'core');
     expect(f.service.list).not.toHaveBeenCalled();
     expect(f.service.get).not.toHaveBeenCalled();
     expect(f.service.getPreviewVisible).not.toHaveBeenCalled();
@@ -244,6 +251,9 @@ describe('first-chat metrics read through the native current-session admission',
     ['a dot-segment target', '/api/clients/metrics/../metrics'],
     ['a bounded query', '/api/clients/metrics?limit=1'],
     ['an unknown query', '/api/clients/metrics?includeArchived=true'],
+    ['an unknown tracker owner', '/api/clients/metrics?trackerBackend=other'],
+    ['repeated tracker owners', '/api/clients/metrics?trackerBackend=core&trackerBackend=intelligence'],
+    ['an extra authority field', '/api/clients/metrics?trackerBackend=intelligence&tenantId=other'],
   ])('holds the malformed metrics spelling and refuses %s', async (_label, target) => {
     const res = await f.invoke({ target });
     expect(res.statusCode).toBe(404);

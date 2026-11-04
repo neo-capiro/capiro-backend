@@ -23,7 +23,7 @@ import { capabilityFitFingerprint } from './client-capability-fit.fingerprint.js
 
 /** Why the card has nothing to show — distinct causes get distinct UI copy. */
 export type CapabilityFitStatus =
-  'ready' | 'empty' | 'profile_too_thin' | 'stale' | 'partial' | 'unavailable';
+  'not_computed' | 'ready' | 'empty' | 'profile_too_thin' | 'stale' | 'partial' | 'unavailable';
 
 export interface CapabilityFitResult {
   matches: CapabilityFitMatch[];
@@ -170,7 +170,7 @@ export class ClientCapabilityFitService {
       return {
         matches: [],
         computedAt: null,
-        status: 'empty',
+        status: 'not_computed',
         emptyReason: REASON.notComputed,
         sources: SOURCES.none,
       };

@@ -4,6 +4,7 @@ import {
   districtMatchesHouse,
   matchFacilityDistrictCode,
   normalizeDistrictCode,
+  normalizeFacilityDistrictCode,
   normalizeDistrictForCensus,
   normalizeDistrictForPeopleMatch,
   toFacilityDistrictCode,
@@ -204,5 +205,26 @@ describe('toUsaSpendingDistrictCode — Explorer filter form (WS-I)', () => {
     expect(toUsaSpendingDistrictCode('   ')).toBeNull();
     expect(toUsaSpendingDistrictCode(null)).toBeNull();
     expect(toUsaSpendingDistrictCode(undefined)).toBeNull();
+  });
+});
+
+
+describe('facility-only non-voting district normalization', () => {
+  test.each(['DC', 'AS', 'GU', 'MP', 'PR', 'VI'])('joins %s Census delegate geography to the map at-large seat', (state) => {
+    expect(normalizeFacilityDistrictCode(state, '98')).toBe('00');
+    expect(normalizeFacilityDistrictCode(state.toLowerCase(), ' 98 ')).toBe('00');
+  });
+
+  test('does not invent a seat for missing jurisdictions, states, or ambiguous sentinels', () => {
+    expect(normalizeFacilityDistrictCode(null, '98')).toBe('98');
+    expect(normalizeFacilityDistrictCode('TX', '98')).toBe('98');
+    expect(normalizeFacilityDistrictCode('WY', '98')).toBe('98');
+    expect(normalizeFacilityDistrictCode('DC', '90')).toBe('90');
+    expect(normalizeFacilityDistrictCode('DC', 'ZZ')).toBe('ZZ');
+    expect(normalizeFacilityDistrictCode('WY', '00')).toBe('00');
+    expect(normalizeFacilityDistrictCode('TX', '07')).toBe('07');
+    expect(normalizeFacilityDistrictCode('DC', null)).toBeNull();
+    expect(districtCodeForHouseMatch('98')).toBeNull();
+    expect(toUsaSpendingDistrictCode('98')).toBe('98');
   });
 });

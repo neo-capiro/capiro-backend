@@ -11,7 +11,7 @@ import { ClientCapabilityFitService } from './client-capability-fit.service.js';
  *   GET  /api/clients/:clientId/capability-fit          → cached rows only. Unlike
  *        target-recommendations this deliberately does NOT lazily compute: the PE
  *        fan-out runs with a 30s transaction budget and must never block a tab
- *        paint. A cold client returns an honest `status: 'empty'` with
+ *        paint. A cold client returns an explicit `status: 'not_computed'` with
  *        `computedAt: null`, and the UI offers Refresh.
  *   POST /api/clients/:clientId/capability-fit/refresh  → recompute + persist.
  *

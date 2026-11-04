@@ -1119,8 +1119,8 @@ export class ClientsService {
     return this.withLogoUrls(clients);
   }
 
-  metrics(ctx: TenantContext) {
-    return readPortfolioMetrics(this.prisma, ctx);
+  metrics(ctx: TenantContext, trackerBackend: 'core' | 'intelligence' = 'core') {
+    return readPortfolioMetrics(this.prisma, ctx, undefined, trackerBackend);
   }
 
   /** Preview-only native roster: narrow the database read before logo signing. */
