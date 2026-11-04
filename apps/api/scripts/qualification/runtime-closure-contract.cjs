@@ -551,4 +551,18 @@ function artifactOwner(file, closure) {
     relative, fixture, platformAdmission: owner.platformAdmission || null, generatedBy: owner.generatedBy || null, integrity: owner.integrity || null,
     ...(sdkNativeEvidence ? { sdkNativeEvidence } : {}) };
 }
-module.exports = { reconciledPlatform, ownerPlatformAdmission, classifyDependencyRelations, CONTRACT_SHA256, IMAGE_LOCAL_PRISMA_SCHEMA_SHA256, lockedWasmEvidence, inside, platformAllows, readPackage, readContract, walkRuntime, physicalStoreOwners, physicalDependencyLookup, resolveDependency, verifyInstalledClosure, artifactOwner, portfolioSdkNativeEvidence };
+// Required members must be admitted even when magic-based inventory would skip
+// their contents, and even when the incompatible glibc sibling is absent.
+// The offline SDK probe must use this returned path before importing/executing.
+function requiredPortfolioSdkMember(closure) {
+  const owners = closure.owners.filter(owner => owner.metadata.name === '@anthropic-ai/claude-agent-sdk-linux-arm64-musl' && owner.metadata.version === '0.3.318');
+  assert.equal(owners.length, 1, 'Portfolio SDK compatible musl owner required');
+  const owner = owners[0], file = fs.realpathSync(path.join(owner.root, 'claude'));
+  assert(inside(owner.root, file) && fs.statSync(file).isFile(), 'Portfolio SDK musl member containment/type');
+  const productionOwner = artifactOwner(file, closure);
+  assert.equal(productionOwner.root, owner.root, 'Portfolio SDK required member physical owner');
+  assert.equal(productionOwner.name, owner.metadata.name, 'Portfolio SDK required member package');
+  assert.equal(productionOwner.sdkNativeEvidence?.executionAllowed, true, 'Portfolio SDK required member byte admission');
+  return { file, productionOwner };
+}
+module.exports = { reconciledPlatform, ownerPlatformAdmission, classifyDependencyRelations, CONTRACT_SHA256, IMAGE_LOCAL_PRISMA_SCHEMA_SHA256, lockedWasmEvidence, inside, platformAllows, readPackage, readContract, walkRuntime, physicalStoreOwners, physicalDependencyLookup, resolveDependency, verifyInstalledClosure, artifactOwner, portfolioSdkNativeEvidence, requiredPortfolioSdkMember };
