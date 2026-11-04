@@ -178,16 +178,7 @@ export interface PlannerTaskPage {
   nextCursor: string | null;
 }
 export type PlannerResourceKind =
-  | 'portfolio'
-  | 'goal'
-  | 'template'
-  | 'rule'
-  | 'form'
-  | 'saved_view'
-  | 'view_preferences'
-  | 'capacity'
-  | 'my_tasks'
-  | 'dashboard';
+  'portfolio' | 'goal' | 'rule' | 'saved_view' | 'view_preferences' | 'my_tasks' | 'dashboard';
 export interface PlannerMyTasksData {
   sections: PlannerSection[];
   placements: { taskId: string; sectionId: string | null; position: number }[];
@@ -222,17 +213,9 @@ export interface PlannerResource {
   version: number;
   archived: boolean;
   access: PlannerRole;
-  publicShared?: boolean;
   goalProgress?: PlannerGoalProgress;
   parentGoalIds?: string[];
   reportWarnings?: { widgetId: string; unavailableSources: boolean; unavailableFields: boolean }[];
-}
-export interface PlannerPublicForm {
-  name: string;
-  description: string;
-  fields: PlannerFormQuestion[];
-  confirmationMessage?: string;
-  allowAnotherSubmission?: boolean;
 }
 export interface PlannerResourceSharing {
   description: string;
@@ -303,15 +286,11 @@ export interface PlannerGoalProgress {
     weight: number;
   }[];
 }
-export interface PlannerTemplateData extends PlannerResourceSharing {
+/** Payload shared by project duplication and its graph-copy implementation. */
+export interface PlannerProjectCopyData {
   project: PlannerProjectData;
   tasks: PlannerTaskData[];
   layout?: { sectionId: string | null; parentIndex: number | null; dependencyIndices: number[] }[];
-  schedule?: {
-    anchor: 'start' | 'due';
-    skipWeekends: boolean;
-    dates: { startOffset: number | null; dueOffset: number | null }[];
-  };
 }
 export interface PlannerRuleData {
   enabled: boolean;
@@ -335,45 +314,6 @@ export interface PlannerRuleData {
     notify?: boolean;
   };
 }
-export interface PlannerFormQuestion {
-  id: string;
-  label: string;
-  description?: string;
-  type:
-    'text' | 'paragraph' | 'email' | 'date' | 'number' | 'select' | 'multi_select' | 'attachment';
-  required: boolean;
-  options: string[];
-  /** A branch is visible if its visible parent contains any selected response. */
-  showWhen?: { questionId: string; values: string[] };
-  multiple?: boolean;
-  maxLength?: number;
-}
-export interface PlannerFormField extends PlannerFormQuestion {
-  taskField:
-    | 'name'
-    | 'description'
-    | 'startOn'
-    | 'dueOn'
-    | 'priority'
-    | 'estimateMinutes'
-    | 'custom'
-    | 'attachments'
-    | null;
-  customFieldId?: string;
-}
-export interface PlannerFormData {
-  description: string;
-  enabled: boolean;
-  fields: PlannerFormField[];
-  defaults: Pick<PlannerTaskData, 'assigneeId' | 'priority' | 'status' | 'estimateMinutes'>;
-  sectionId?: string | null;
-  titleFieldId?: string | null;
-  copyAnswersToDescription?: boolean;
-  confirmationMessage?: string;
-  allowAnotherSubmission?: boolean;
-  addSubmitterAsCollaborator?: boolean;
-  audience?: 'organization' | 'public';
-}
 export interface PlannerSavedViewData {
   scope: 'mine' | 'project';
   projectId: string | null;
@@ -393,10 +333,6 @@ export interface PlannerViewPreferencesData {
   expandedTaskIds: string[];
   collapsedGroupIds: string[];
   hideUnscheduled: boolean;
-}
-export interface PlannerCapacityData {
-  userId: string;
-  weeklyMinutes: number;
 }
 export const PLANNER_DEFAULT_PROJECT: PlannerProjectData = {
   name: '',

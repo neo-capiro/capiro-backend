@@ -4,35 +4,17 @@ import type {
   PlannerRuleData,
   PlannerGoalData,
 } from '@capiro/strategy-verifier';
-import {
-  PLANNER_DEFAULT_TASK,
-  plannerCalendarDate,
-  plannerTime,
-  plannerTimeZone,
-  plannerDependencyCycle,
-} from '@capiro/strategy-verifier';
-import {
-  fail,
-  keys,
-  object,
-  uuid,
-  validateProject,
-  validateTask,
-  validatePlannerFieldValue,
-} from './planner.validation.js';
-import { validatePlannerForm } from './planner-form.js';
+import { plannerCalendarDate, plannerTime, plannerTimeZone } from '@capiro/strategy-verifier';
+import { fail, keys, object, uuid } from './planner.validation.js';
+
 import { validatePlannerReportWidgets } from './planner-reporting.validation.js';
 import { plannerGoalSourceIds, PLANNER_WEIGHTED_GOAL_MODES } from './planner-goals.js';
 
 export const RESOURCE_KINDS: PlannerResourceKind[] = [
   'portfolio',
   'goal',
-  'template',
-  'rule',
-  'form',
   'saved_view',
   'view_preferences',
-  'capacity',
   'my_tasks',
   'dashboard',
 ];
@@ -208,89 +190,6 @@ export function validateResource(
           fail('Goal weights must add up to 100%');
       } else if (weights.length) fail('Custom weights require custom weight mode');
     }
-  } else if (kind === 'template') {
-    keys(d, ['description', 'privacy', 'members', 'project', 'tasks', 'layout', 'schedule']);
-    sharing(d);
-    const project = validateProject(d.project);
-    for (const raw of array(d.tasks, 1000)) {
-      const task = validateTask(raw);
-      if (
-        task.memberships.length ||
-        task.parentId ||
-        task.dependencies.length ||
-        task.clientId ||
-        task.meetingId
-      )
-        fail('Templates cannot contain live record links');
-      if (Object.keys(task.customValues).some((id) => !project.fields.some((f) => f.id === id)))
-        fail('Template has an unknown field');
-      for (const [id, value] of Object.entries(task.customValues))
-        validatePlannerFieldValue(
-          project.fields.find((f) => f.id === id)!,
-          value,
-        );
-    }
-    if (project.clientId) fail('Templates cannot contain a client link');
-    if (d.schedule !== undefined) {
-      const schedule = object(d.schedule);
-      keys(schedule, ['anchor', 'skipWeekends', 'dates']);
-      enumValue(schedule.anchor, ['start', 'due']);
-      bool(schedule.skipWeekends);
-      const dates = array(schedule.dates, 1000);
-      if (dates.length !== array(d.tasks, 1000).length) fail('Template dates must match its tasks');
-      for (const raw of dates) {
-        const date = object(raw);
-        keys(date, ['startOffset', 'dueOffset']);
-        for (const value of [date.startOffset, date.dueOffset])
-          if (value !== null && (!Number.isInteger(value) || Math.abs(Number(value)) > 3650))
-            fail('Relative dates must be whole days within ten years');
-        if (
-          date.startOffset !== null &&
-          date.dueOffset !== null &&
-          Number(date.startOffset) > Number(date.dueOffset)
-        )
-          fail('Template start date must precede its due date');
-      }
-    }
-    if (d.layout !== undefined) {
-      const layout = array(d.layout, 1000);
-      if (layout.length !== array(d.tasks, 1000).length)
-        fail('Template layout must match its tasks');
-      for (const raw of layout) {
-        const item = object(raw);
-        keys(item, ['sectionId', 'parentIndex', 'dependencyIndices']);
-        if (item.sectionId !== null && !project.sections.some((s) => s.id === item.sectionId))
-          fail('Unknown template section');
-        if (
-          item.parentIndex !== null &&
-          (!Number.isInteger(item.parentIndex) ||
-            Number(item.parentIndex) < 0 ||
-            Number(item.parentIndex) >= layout.length)
-        )
-          fail('Invalid template parent');
-        const indices = array(item.dependencyIndices);
-        for (const index of indices)
-          if (!Number.isInteger(index) || Number(index) < 0 || Number(index) >= layout.length)
-            fail('Invalid template dependency');
-        distinct(indices);
-      }
-      if (
-        plannerDependencyCycle(
-          layout.map((item, i) => ({
-            id: String(i),
-            dependencies: (object(item).dependencyIndices as number[]).map(String),
-          })),
-        ) ||
-        plannerDependencyCycle(
-          layout.map((item, i) => ({
-            id: String(i),
-            dependencies:
-              object(item).parentIndex === null ? [] : [String(object(item).parentIndex)],
-          })),
-        )
-      )
-        fail('Template graph cannot form a cycle');
-    }
   } else if (kind === 'rule') {
     keys(d, ['enabled', 'trigger', 'conditions', 'actions', 'schedule']);
     bool(d.enabled);
@@ -328,8 +227,6 @@ export function validateResource(
       object(d.actions).notify !== undefined
     )
       fail('Explicit reminders require a date rule');
-  } else if (kind === 'form') {
-    return validatePlannerForm(d) as unknown as Record<string, unknown>;
   } else if (kind === 'view_preferences') {
     keys(d, [
       'scope',
@@ -415,11 +312,6 @@ export function validateResource(
       }
       distinct(rules.map((r) => object(r).id));
     }
-  } else if (kind === 'capacity') {
-    keys(d, ['userId', 'weeklyMinutes']);
-    string(d.userId, 200, true);
-    number(d.weeklyMinutes, 10080);
-    if (!Number.isInteger(d.weeklyMinutes)) fail('Capacity must use whole minutes');
   } else fail('Unknown resource kind');
   return d;
 }

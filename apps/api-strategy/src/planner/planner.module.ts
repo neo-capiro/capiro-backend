@@ -5,12 +5,7 @@ import { PlannerLinksService } from './planner-links.service.js';
 import { PlannerAttachmentsService } from './planner-attachments.service.js';
 import { PlannerAttachmentsController } from './planner-attachments.controller.js';
 import { PlannerContextGuard } from './planner-context.guard.js';
-import { PlannerPublicController } from './planner-public.controller.js';
 import { PlannerSchedulerService } from './planner-scheduler.service.js';
-import { PlannerFormFilesService } from './planner-form-files.service.js';
-import { PlannerPublicFormGuard } from './planner-public-form.guard.js';
-import { PlannerCapacityController } from './planner-capacity.controller.js';
-import { PlannerCapacityService } from './planner-capacity.service.js';
 import { ObjectiveCanonicalApplicationService } from './objective-canonical-application.service.js';
 import { ObjectiveCanonicalWorkloadAuthority } from './objective-canonical-authority.js';
 import { ObjectiveCanonicalProducerController } from '../meri/objective-canonical-producer.controller.js';
@@ -33,14 +28,24 @@ import { InternalServiceGuard } from '../auth/internal-service.guard.js';
 @Module({
   exports: [PlannerService, PlannerLinksService],
   imports: [MeriModule],
-  controllers: [PlannerController, PlannerAttachmentsController, PlannerPublicController, PlannerCapacityController, ObjectiveCanonicalProducerController, ObjectiveCanonicalRequestController, ObjectiveCanonicalCompletionController, ObjectiveCanonicalTerminalController],
+  controllers: [
+    PlannerController,
+    PlannerAttachmentsController,
+    ObjectiveCanonicalProducerController,
+    ObjectiveCanonicalRequestController,
+    ObjectiveCanonicalCompletionController,
+    ObjectiveCanonicalTerminalController,
+  ],
   providers: [
     ObjectiveCanonicalCompletionService,
     ObjectiveCanonicalTerminalService,
     InternalServiceGuard,
     ObjectiveNativeReader,
-    { provide: ObjectiveCanonicalResultOwner, inject: [ObjectiveNativeReader],
-      useFactory: (reader: ObjectiveNativeReader) => new ObjectiveCanonicalResultOwner(reader) },
+    {
+      provide: ObjectiveCanonicalResultOwner,
+      inject: [ObjectiveNativeReader],
+      useFactory: (reader: ObjectiveNativeReader) => new ObjectiveCanonicalResultOwner(reader),
+    },
     ObjectiveCanonicalWorkloadAuthority,
     ObjectiveCanonicalApplicationService,
     ObjectivePlannerContinuationRuntime,
@@ -49,14 +54,11 @@ import { InternalServiceGuard } from '../auth/internal-service.guard.js';
     ObjectiveCanonicalRequestService,
     ObjectiveCanonicalOwnerDirectory,
     StrategyContextPlaneClient,
-    PlannerCapacityService,
     PlannerService,
     PlannerLinksService,
     PlannerAttachmentsService,
     PlannerContextGuard,
     PlannerSchedulerService,
-    PlannerFormFilesService,
-    PlannerPublicFormGuard,
   ],
 })
 export class PlannerModule {}

@@ -63,7 +63,9 @@ export function parseStrategyIntake(raw: unknown, options: { requireComplete?: b
       value.ownerUserId.length > 120)) return fail('ownerUserId', 'Select an owner');
   if (value.targetDate !== null) {
     const date = typeof value.targetDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.targetDate) ? new Date(value.targetDate) : null;
-    if (!date || !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== value.targetDate)
+    // Year 0000 is a valid ECMAScript date but not a PostgreSQL date; the saved answer is read as SQL.
+    if (!date || !Number.isFinite(date.getTime()) || date.getUTCFullYear() < 1 ||
+        date.toISOString().slice(0, 10) !== value.targetDate)
       return fail('targetDate', 'Enter a valid target outcome date');
   }
   const parsed = value as StrategyIntakeDraft;

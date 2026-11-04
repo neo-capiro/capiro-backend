@@ -6,21 +6,15 @@ import {
   NotFoundException,
   HttpException,
   Logger,
-  Optional,
-  ServiceUnavailableException,
 } from '@nestjs/common';
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   PLANNER_DEFAULT_PROJECT,
   PLANNER_DEFAULT_TASK,
   nextPlannerSchedule,
-  plannerCalendarDate,
   PLANNER_GOAL_GRADING_DAYS,
   plannerWeekOn,
-  plannerWeekDate,
   plannerTimeToday,
-  plannerTimeWorkKey,
-  plannerTemplateSchedule,
   plannerDependencyCycle,
   plannerDefaultBudget,
   PLANNER_DEFAULT_BUDGET_ALERT,
@@ -47,21 +41,12 @@ import {
   type PlannerGoalData,
   type PlannerMyTasksData,
   type PlannerPersonalRule,
-  type PlannerFormData,
-  type PlannerTemplateData,
-  type PlannerPublicForm,
+  type PlannerProjectCopyData,
   type PlannerReportWidget,
   type PlannerReportResponse,
   type PlannerTimeDetails,
-  type PlannerTimesheet,
   type PlannerTimesheetData,
   type PlannerTimeSettings,
-  type PlannerTimeEntry,
-  type PlannerTimePreferences,
-  type PlannerTimesheetWorkRef,
-  type PlannerTimeReviewPage,
-  type PlannerTimeExportPage,
-  type PlannerTimeExportEntry,
   type PlannerTimer,
   type PlannerTimeTreePage,
   type PlannerTimeTreeNode,
@@ -123,7 +108,11 @@ import {
   type CanonicalMaterializationResult,
   type StoredCanonicalMaterializationV3,
 } from './strategy-materialization.js';
-import { planCanonicalRegeneration, CanonicalRegenerationError, type CanonicalRegenerationInput } from './canonical-regeneration-plan.js';
+import {
+  planCanonicalRegeneration,
+  CanonicalRegenerationError,
+  type CanonicalRegenerationInput,
+} from './canonical-regeneration-plan.js';
 import { digest } from '../meri/objective-generation.types.js';
 import {
   normalizeObjectiveDestination,
@@ -159,19 +148,15 @@ import {
 } from './planner-activity.js';
 import {
   plannerTimeDetails,
-  plannerTimesheetWeek,
-  plannerTimesheetActions,
   plannerTimeEditable,
   requirePlannerTimeEditable,
-  requirePlannerTimesheetVersion,
 } from './planner-timesheets.js';
 import {
   plannerTimeOptions,
   plannerTimeDateNotice,
   requirePlannerTimePolicy,
 } from './planner-time-policy.js';
-import { plannerTimesheetWorkRows, type PlannerTimeWorkSource } from './planner-timesheet-work.js';
-import { plannerTimeExportQuery, type PlannerTimeExportQuery } from './planner-time-export.js';
+
 import { plannerTimerDays, type PlannerTimerData } from './planner-timers.js';
 import {
   plannerBudgetData,
@@ -179,11 +164,7 @@ import {
   plannerBudgetSummary,
   plannerBudgetAlertDue,
 } from './planner-budgets.js';
-import {
-  plannerTimeReviewView,
-  plannerTimeReviewRows,
-  plannerTimeSubmissionDue,
-} from './planner-time-review.js';
+import { plannerTimeSubmissionDue } from './planner-time-review.js';
 import { plannerDateRuleReady, plannerScheduleHash } from './planner-date-rules.js';
 import {
   plannerGoalCycle,
@@ -210,17 +191,6 @@ import {
   plannerReportValue,
 } from './planner-reporting.js';
 import { plannerReportRecords, type PlannerReportTaskRecord } from './planner-reporting-data.js';
-import {
-  plannerPublicForm,
-  plannerFormTaskValues,
-  validatePlannerFormProject,
-} from './planner-form.js';
-import { plannerFormAnswers, plannerFormFiles } from './planner-form-upload.js';
-import { plannerAttachmentName, type PlannerFormUpload } from './planner-files.js';
-import {
-  PlannerFormFilesService,
-  type PlannerPreparedFormFile,
-} from './planner-form-files.service.js';
 
 type Tx = Prisma.TransactionClient;
 type GoalTaskRecord = Pick<
@@ -228,16 +198,6 @@ type GoalTaskRecord = Pick<
   'id' | 'ownerId' | 'assigneeId' | 'projectIds' | 'archived' | 'data'
 >;
 type ActivityQuery = { paged?: string; cursor?: string; archived?: string };
-type TimeReviewQuery = {
-  week?: string;
-  people?: string;
-  statuses?: string;
-  sort?: string;
-  direction?: string;
-  paged?: string;
-  cursor?: string;
-  revision?: string;
-};
 function activityQuery(query: ActivityQuery, inbox = false) {
   keys(query, inbox ? ['paged', 'cursor', 'archived'] : ['paged', 'cursor']);
   if (query.paged !== undefined && !['true', 'false'].includes(query.paged))
@@ -312,7 +272,6 @@ export class PlannerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly links: PlannerLinksService,
-    @Optional() private readonly formFiles?: PlannerFormFilesService,
   ) {}
 
   private scope<T>(ctx: AuthTenantContext, run: (tx: Tx) => Promise<T>, write = false): Promise<T> {
@@ -3306,12 +3265,25 @@ export class PlannerService {
     projects: SpPlannerProject[],
     ctx: AuthTenantContext,
   ): PlannerRole | null {
-    if (row.kind.startsWith('capacity_')) return null;
-    if ([STRATEGY_MATERIALIZATION_RECEIPT, CANONICAL_MATERIALIZATION_RECEIPT,
-      'objective_canonical_application_receipt', 'objective_canonical_application_head',
-      'objective_canonical_generation_admission', 'objective_canonical_generation_acceptance',
-      'objective_canonical_generation_producer', 'objective_canonical_generation_normalization',
-      'objective_canonical_generation_request', 'objective_planner_continuation_operation'].includes(row.kind))
+    if (
+      ['template', 'rule', 'form', 'capacity'].includes(row.kind) ||
+      row.kind.startsWith('capacity_')
+    )
+      return null;
+    if (
+      [
+        STRATEGY_MATERIALIZATION_RECEIPT,
+        CANONICAL_MATERIALIZATION_RECEIPT,
+        'objective_canonical_application_receipt',
+        'objective_canonical_application_head',
+        'objective_canonical_generation_admission',
+        'objective_canonical_generation_acceptance',
+        'objective_canonical_generation_producer',
+        'objective_canonical_generation_normalization',
+        'objective_canonical_generation_request',
+        'objective_planner_continuation_operation',
+      ].includes(row.kind)
+    )
       return null;
     if (['task_import_receipt', TASK_CREATE_RECEIPT, 'timer_session'].includes(row.kind))
       return null;
@@ -3340,17 +3312,11 @@ export class PlannerService {
     }
     if (row.kind === 'my_tasks' || row.kind === 'saved_view')
       return row.ownerId === ctx.clerkUserId ? 'admin' : null;
-    if (row.kind === 'capacity' && !row.projectId)
-      return (row.data as unknown as { userId: string }).userId === ctx.clerkUserId ||
-        ctx.role === 'org:admin'
-        ? 'admin'
-        : 'viewer';
     if (row.projectId) {
       const project = projects.find((p) => p.id === row.projectId);
       return project ? plannerProjectAccess(project, ctx.clerkUserId) : null;
     }
     if (row.ownerId === ctx.clerkUserId) return 'admin';
-    if (row.kind === 'capacity') return ctx.role === 'org:admin' ? 'admin' : 'viewer';
     const data = row.data as {
       privacy?: string;
       members?: { userId: string; role: PlannerRole }[];
@@ -3879,7 +3845,6 @@ export class PlannerService {
       version: row.version,
       archived: row.archived,
       access: access!,
-      ...(row.kind === 'form' ? { publicShared: Boolean(row.shareTokenHash) } : {}),
       ...(report ? { reportWarnings: report.warnings } : {}),
     };
   }
@@ -4339,67 +4304,6 @@ export class PlannerService {
       where: { tenantId: ctx.tenantId, kind: 'time_settings' },
     });
   }
-  private timePreferencesRecord(tx: Tx, ctx: AuthTenantContext, userId = ctx.clerkUserId) {
-    return tx.spPlannerResource.findFirst({
-      where: { tenantId: ctx.tenantId, ownerId: userId, kind: 'time_preferences' },
-    });
-  }
-  async timePreferences(ctx: AuthTenantContext): Promise<PlannerTimePreferences> {
-    return this.scope(ctx, async (tx) => {
-      if (!(await this.people(tx, ctx)).some((p) => p.id === ctx.clerkUserId)) throw missing();
-      const row = await this.timePreferencesRecord(tx, ctx);
-      const stored = row?.data as { autoAddDueTasks?: boolean; reviewView?: unknown } | undefined;
-      return {
-        version: row?.version ?? 0,
-        autoAddDueTasks: stored?.autoAddDueTasks === true,
-        ...(stored?.reviewView === undefined
-          ? {}
-          : { reviewView: plannerTimeReviewView(stored.reviewView) }),
-      };
-    });
-  }
-  async saveTimePreferences(ctx: AuthTenantContext, raw: unknown) {
-    const dto = object(raw);
-    keys(dto, ['version', 'autoAddDueTasks', 'reviewView']);
-    if (dto.autoAddDueTasks === undefined && dto.reviewView === undefined)
-      fail('Choose a personal timesheet setting');
-    if (dto.autoAddDueTasks !== undefined && typeof dto.autoAddDueTasks !== 'boolean')
-      fail('Choose whether to auto-add due tasks');
-    const reviewView =
-      dto.reviewView === undefined ? undefined : plannerTimeReviewView(dto.reviewView);
-    return this.scope(
-      ctx,
-      async (tx) => {
-        if (!(await this.people(tx, ctx)).some((p) => p.id === ctx.clerkUserId)) throw missing();
-        const row = await this.timePreferencesRecord(tx, ctx);
-        requirePlannerTimesheetVersion(dto.version, row?.version ?? 0);
-        const previous = row?.data as
-          { autoAddDueTasks?: boolean; reviewView?: unknown } | undefined;
-        const data = json({
-          autoAddDueTasks: dto.autoAddDueTasks ?? previous?.autoAddDueTasks ?? false,
-          ...(previous?.reviewView === undefined ? {} : { reviewView: previous.reviewView }),
-          ...(reviewView === undefined ? {} : { reviewView }),
-        });
-        if (row)
-          await tx.spPlannerResource.update({
-            where: { tenantId: ctx.tenantId, id: row.id },
-            data: { data, version: { increment: 1 } },
-          });
-        else
-          await tx.spPlannerResource.create({
-            data: {
-              tenantId: ctx.tenantId,
-              ownerId: ctx.clerkUserId,
-              kind: 'time_preferences',
-              name: 'Personal timesheet settings',
-              data,
-            },
-          });
-        return { ok: true, version: (row?.version ?? 0) + 1 };
-      },
-      true,
-    );
-  }
   private storedTimeOptions(row: SpPlannerResource | null) {
     return plannerTimeOptions((row?.data as { options?: unknown } | undefined)?.options);
   }
@@ -4421,62 +4325,6 @@ export class PlannerService {
         ),
       };
     });
-  }
-  async saveTimeSettings(ctx: AuthTenantContext, raw: unknown) {
-    const dto = object(raw);
-    keys(dto, ['version', 'reviewers', 'options']);
-    const reviewers = object(dto.reviewers);
-    if (Object.keys(reviewers).length > 1000) fail('Too many reviewer assignments');
-    return this.scope(
-      ctx,
-      async (tx) => {
-        if (ctx.role !== 'org:admin')
-          throw new ForbiddenException('Organization admin access is required');
-        const people = new Set((await this.people(tx, ctx)).map((p) => p.id));
-        if (!people.has(ctx.clerkUserId)) throw missing();
-        for (const [user, reviewer] of Object.entries(reviewers))
-          if (
-            !people.has(user) ||
-            typeof reviewer !== 'string' ||
-            !people.has(reviewer) ||
-            user === reviewer
-          )
-            fail('Choose an active reviewer other than the submitter');
-        const old = await this.timeSettingsRecord(tx, ctx);
-        requirePlannerTimesheetVersion(dto.version, old?.version ?? 0);
-        const options = plannerTimeOptions(dto.options, this.storedTimeOptions(old));
-        const data = json({ reviewers, options });
-        if (old)
-          await tx.spPlannerResource.update({
-            where: { id: old.id, tenantId: ctx.tenantId },
-            data: { data, version: { increment: 1 } },
-          });
-        else
-          await tx.spPlannerResource.create({
-            data: {
-              tenantId: ctx.tenantId,
-              ownerId: ctx.clerkUserId,
-              kind: 'time_settings',
-              name: 'Time reviewers',
-              data,
-            },
-          });
-        const sheets = await tx.spPlannerResource.findMany({
-          where: { tenantId: ctx.tenantId, kind: 'timesheet' },
-        });
-        for (const sheet of sheets) {
-          const d = sheet.data as unknown as PlannerTimesheetData;
-          const reviewerId = (reviewers[sheet.ownerId] as string | undefined) ?? null;
-          if (reviewerId !== d.reviewerId)
-            await tx.spPlannerResource.update({
-              where: { tenantId: ctx.tenantId, id: sheet.id },
-              data: { data: json({ ...d, reviewerId }), version: { increment: 1 } },
-            });
-        }
-        return { ok: true };
-      },
-      true,
-    );
   }
   private timeSheetRecord(tx: Tx, ctx: AuthTenantContext, userId: string, weekOn: string) {
     return tx.spPlannerResource.findFirst({
@@ -4567,709 +4415,6 @@ export class PlannerService {
       const project = projects.find((p) => p.id === time.projectId);
       requireRole(project ? plannerProjectAccess(project, ctx.clerkUserId) : null, 'editor');
     }
-  }
-  private timeWorkSource(
-    ref: PlannerTimesheetWorkRef,
-    tasks: SpPlannerTask[],
-    projects: SpPlannerProject[],
-    ctx: AuthTenantContext,
-  ): PlannerTimeWorkSource | null {
-    const task = ref.taskId ? tasks.find((t) => t.id === ref.taskId) : null;
-    const project = ref.projectId ? projects.find((p) => p.id === ref.projectId) : null;
-    if ((ref.taskId && !task) || (ref.projectId && !project) || (!task && !project)) return null;
-    const taskRole = task ? plannerTaskAccess(task, projects, ctx.clerkUserId) : null;
-    const projectRole = project ? plannerProjectAccess(project, ctx.clerkUserId) : null;
-    if ((task && !taskRole) || (project && !projectRole)) return null;
-    const editable = (role: PlannerRole | null) => role === 'editor' || role === 'admin';
-    return {
-      ...ref,
-      taskName: task ? taskData(task).name : null,
-      projectName: project ? projectData(project).name : null,
-      canLogTime:
-        (!task || (!task.archived && editable(taskRole))) &&
-        (!project || (!project.archived && editable(projectRole))) &&
-        (!task ||
-          (ref.projectId
-            ? task.projectIds.includes(ref.projectId)
-            : !task.projectIds.length ||
-              task.projectIds.some((id) => {
-                const p = projects.find((p) => p.id === id);
-                return p && !p.archived && editable(plannerProjectAccess(p, ctx.clerkUserId));
-              }))),
-    };
-  }
-  private async timesheetView(
-    tx: Tx,
-    ctx: AuthTenantContext,
-    userId: string,
-    weekOn: string,
-    query: {
-      cursor?: string;
-      workCursor?: string;
-      historyCursor?: string;
-      revision?: string;
-      allWork?: boolean;
-    } = {},
-  ): Promise<PlannerTimesheet> {
-    const row = await this.timeSheetRecord(tx, ctx, userId, weekOn);
-    const data = await this.timeSheetData(tx, ctx, userId, weekOn, row);
-    await this.timeSheetReadable(tx, ctx, userId, data);
-    const config = await this.timeSettingsRecord(tx, ctx);
-    const timeOptions = this.storedTimeOptions(config);
-    const preferences = await this.timePreferencesRecord(tx, ctx, userId);
-    const autoAddDueTasks =
-      (preferences?.data as { autoAddDueTasks?: boolean } | undefined)?.autoAddDueTasks === true;
-    const throughOn = plannerWeekDate(weekOn, 6),
-      nextOn = plannerWeekDate(weekOn, 7);
-    // Working dates come from the latest immutable snapshot, never a task's due date.
-    const events = await tx.$queryRaw<SpPlannerEvent[]>`
-      SELECT e.id,e.tenant_id AS "tenantId",e.actor_id AS "actorId",e.task_id AS "taskId",e.project_id AS "projectId",
-        e.resource_id AS "resourceId",e.details,e.kind,e.text,e.minutes,e.created_at AS "createdAt"
-      FROM sp_planner_events e LEFT JOIN LATERAL (
-        SELECT details,removed FROM sp_planner_event_revisions WHERE tenant_id=${ctx.tenantId}::uuid AND event_id=e.id ORDER BY version DESC LIMIT 1
-      ) r ON true WHERE e.tenant_id=${ctx.tenantId}::uuid AND e.actor_id=${userId} AND e.kind='time' AND NOT COALESCE(r.removed,false)
-      AND COALESCE(r.details->'time'->>'workedOn',e.details->'time'->>'workedOn',to_char(e.created_at AT TIME ZONE 'UTC','YYYY-MM-DD')) >= ${weekOn}
-      AND COALESCE(r.details->'time'->>'workedOn',e.details->'time'->>'workedOn',to_char(e.created_at AT TIME ZONE 'UTC','YYYY-MM-DD')) < ${nextOn}`;
-    const views = await plannerReadActivity(tx, ctx, events),
-      projects = await this.projects(tx, ctx);
-    const tasks = await tx.spPlannerTask.findMany({
-      where: {
-        tenantId: ctx.tenantId,
-        OR: [
-          {
-            id: {
-              in: [
-                ...events.flatMap((e) => (e.taskId ? [e.taskId] : [])),
-                ...(data.work ?? []).flatMap((w) => (w.taskId ? [w.taskId] : [])),
-              ],
-            },
-          },
-          ...(autoAddDueTasks
-            ? [
-                {
-                  assigneeId: userId,
-                  archived: false,
-                  AND: [
-                    { data: { path: ['dueOn'], gte: weekOn } },
-                    { data: { path: ['dueOn'], lte: throughOn } },
-                  ],
-                },
-              ]
-            : []),
-        ],
-      },
-    });
-    const days = Array.from({ length: 7 }, (_, i) => ({
-      date: plannerWeekDate(weekOn, i),
-      totalMinutes: 0,
-      billableMinutes: 0,
-    }));
-    let unavailableEntries = false;
-    const items: PlannerTimeEntry[] = [];
-    for (const e of views) {
-      const time = e.time!,
-        task = tasks.find((t) => t.id === e.taskId),
-        project = projects.find((p) => p.id === (time.projectId ?? e.projectId));
-      const role = task
-        ? plannerTaskAccess(task, projects, ctx.clerkUserId)
-        : project
-          ? plannerProjectAccess(project, ctx.clerkUserId)
-          : null;
-      if (
-        !role ||
-        (time.projectId && (!project || !plannerProjectAccess(project, ctx.clerkUserId)))
-      ) {
-        unavailableEntries = true;
-        continue;
-      }
-      items.push({
-        ...e,
-        time,
-        taskName: task ? taskData(task).name : null,
-        projectName: project ? projectData(project).name : null,
-        canEdit:
-          ['editor', 'admin'].includes(role) &&
-          (!project ||
-            ['editor', 'admin'].includes(plannerProjectAccess(project, ctx.clerkUserId) ?? '')) &&
-          plannerTimeEditable(data, userId, ctx.clerkUserId, ctx.role === 'org:admin') &&
-          !plannerTimeDateNotice(time.workedOn, timeOptions, ctx.role === 'org:admin'),
-      });
-      const day = days.find((d) => d.date === time.workedOn)!;
-      day.totalMinutes += e.minutes ?? 0;
-      if (time.billable) day.billableMinutes += e.minutes ?? 0;
-    }
-    items.sort(
-      (a, b) => a.time.workedOn.localeCompare(b.time.workedOn) || a.id.localeCompare(b.id),
-    );
-    const canEditWeek =
-      plannerTimeEditable(data, userId, ctx.clerkUserId, ctx.role === 'org:admin') &&
-      !plannerTimeDateNotice(weekOn, timeOptions, ctx.role === 'org:admin');
-    const manual = (data.work ?? [])
-      .map((w) => this.timeWorkSource(w, tasks, projects, ctx))
-      .filter((w): w is PlannerTimeWorkSource => !!w);
-    const automatic = autoAddDueTasks
-      ? tasks
-          .filter(
-            (t) =>
-              !t.archived &&
-              t.assigneeId === userId &&
-              taskData(t).dueOn &&
-              taskData(t).dueOn! >= weekOn &&
-              taskData(t).dueOn! <= throughOn,
-          )
-          .map((t) => {
-            const projectIds = t.projectIds.filter((id) =>
-              projects.some(
-                (p) => p.id === id && !p.archived && plannerProjectAccess(p, ctx.clerkUserId),
-              ),
-            );
-            return this.timeWorkSource(
-              { taskId: t.id, projectId: projectIds.length === 1 ? projectIds[0]! : null },
-              tasks,
-              projects,
-              ctx,
-            );
-          })
-          .filter((w): w is PlannerTimeWorkSource => !!w)
-      : [];
-    const workRows = plannerTimesheetWorkRows(
-      days.map((d) => d.date),
-      items,
-      manual,
-      automatic,
-      data.excludedTasks ?? [],
-      canEditWeek,
-      (e) =>
-        this.timeWorkSource(
-          { taskId: e.taskId, projectId: e.time.projectId },
-          tasks,
-          projects,
-          ctx,
-        )!,
-    );
-    for (const work of workRows)
-      if (!work.taskId && !timeOptions.generalWorkEnabled) work.canLogTime = false;
-    const revision = createHash('sha256')
-      .update(
-        JSON.stringify({
-          version: row?.version ?? 0,
-          timeSettingsVersion: config?.version ?? 0,
-          timePreferencesVersion: preferences?.version ?? 0,
-          data,
-          items,
-          workRows,
-        }),
-      )
-      .digest('hex');
-    if (query.revision && query.revision !== revision)
-      throw new ConflictException('Time or access changed. Refresh this timesheet.');
-    const start = query.cursor ? items.findIndex((e) => e.id === query.cursor) + 1 : 0;
-    if (query.cursor && !start) fail('Timesheet cursor is no longer available');
-    const workStart = query.workCursor
-      ? workRows.findIndex((w) => w.key === query.workCursor) + 1
-      : 0;
-    if (query.workCursor && !workStart) fail('Timesheet work cursor is no longer available');
-    if (query.historyCursor) {
-      const cursorEvent =
-        row &&
-        (await tx.spPlannerEvent.findFirst({
-          where: {
-            tenantId: ctx.tenantId,
-            id: query.historyCursor,
-            resourceId: row.id,
-            kind: 'timesheet_status',
-          },
-        }));
-      if (!cursorEvent) fail('Timesheet history cursor is no longer available');
-    }
-    const history = row
-      ? await tx.spPlannerEvent.findMany({
-          where: { tenantId: ctx.tenantId, resourceId: row.id, kind: 'timesheet_status' },
-          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-          ...(query.historyCursor
-            ? {
-                cursor: { tenantId_id: { tenantId: ctx.tenantId, id: query.historyCursor } },
-                skip: 1,
-              }
-            : {}),
-          take: 101,
-        })
-      : [];
-    const reviewerActive =
-      data.reviewerId && (await this.people(tx, ctx)).some((p) => p.id === data.reviewerId);
-    const actions = plannerTimesheetActions(
-      data,
-      userId,
-      ctx.clerkUserId,
-      timeOptions.approvalProcess,
-    ).filter(
-      (action) =>
-        !['submit', 'approve'].includes(action) ||
-        ((reviewerActive || (action === 'submit' && timeOptions.approvalProcess === 'simple')) &&
-          !unavailableEntries &&
-          items.length > 0),
-    );
-    return {
-      id: row?.id ?? null,
-      userId,
-      weekOn,
-      throughOn,
-      reviewerId: data.reviewerId,
-      status: data.status,
-      version: row?.version ?? 0,
-      revision,
-      notes: data.notes,
-      correctedAfterApproval: data.correctedAfterApproval,
-      totalMinutes: days.reduce((n, d) => n + d.totalMinutes, 0),
-      billableMinutes: days.reduce((n, d) => n + d.billableMinutes, 0),
-      days,
-      matched: items.length,
-      unavailableEntries,
-      items: items.slice(start, start + 100),
-      nextCursor: items.length > start + 100 ? items[start + 99]!.id : null,
-      actions,
-      history: history.slice(0, 100).map((e) => plannerEventView(e)),
-      nextHistoryCursor: history.length > 100 ? history[99]!.id : null,
-      canLogTime: canEditWeek,
-      timeNotice: plannerTimeDateNotice(weekOn, timeOptions, ctx.role === 'org:admin'),
-      approvalProcess: timeOptions.approvalProcess,
-      workRows: query.allWork ? workRows : workRows.slice(workStart, workStart + 100),
-      matchedWork: workRows.length,
-      nextWorkCursor: workRows.length > workStart + 100 ? workRows[workStart + 99]!.key : null,
-    };
-  }
-  async timesheet(
-    ctx: AuthTenantContext,
-    query: {
-      week?: string;
-      userId?: string;
-      cursor?: string;
-      workCursor?: string;
-      historyCursor?: string;
-      revision?: string;
-    },
-  ) {
-    keys(query, ['week', 'userId', 'cursor', 'workCursor', 'historyCursor', 'revision']);
-    const weekOn = plannerTimesheetWeek(query.week),
-      userId = query.userId ?? ctx.clerkUserId;
-    if (typeof userId !== 'string' || userId.length > 200) fail('Invalid time submitter');
-    if (query.cursor) {
-      uuid(query.cursor);
-      if (!query.revision) fail('Timesheet paging requires its data revision');
-    }
-    if (query.workCursor && (query.workCursor.length > 80 || !query.revision))
-      fail('Work paging requires a cursor and data revision');
-    if (query.historyCursor) {
-      uuid(query.historyCursor);
-      if (!query.revision) fail('Status history paging requires its data revision');
-    }
-    if (query.revision && !/^[a-f0-9]{64}$/.test(query.revision))
-      fail('Invalid timesheet revision');
-    return this.scope(ctx, (tx) => this.timesheetView(tx, ctx, userId, weekOn, query));
-  }
-  async saveTimesheetWork(ctx: AuthTenantContext, raw: unknown) {
-    const dto = object(raw);
-    keys(dto, ['week', 'userId', 'version', 'revision', 'action', 'work']);
-    const weekOn = plannerTimesheetWeek(dto.week),
-      userId = dto.userId ?? ctx.clerkUserId;
-    if (typeof userId !== 'string' || !userId || userId.length > 200)
-      fail('Invalid time submitter');
-    if (typeof dto.revision !== 'string' || !/^[a-f0-9]{64}$/.test(dto.revision))
-      fail('A current timesheet revision is required');
-    if (!['add', 'remove'].includes(String(dto.action)))
-      fail('Choose whether to add or remove work');
-    const rawWork = object(dto.work);
-    keys(rawWork, ['taskId', 'projectId']);
-    const work: PlannerTimesheetWorkRef = {
-      taskId: rawWork.taskId === null ? null : uuid(rawWork.taskId),
-      projectId: rawWork.projectId === null ? null : uuid(rawWork.projectId),
-    };
-    if (!work.taskId && !work.projectId) fail('Choose a task or project');
-    return this.scope(
-      ctx,
-      async (tx) => {
-        const view = await this.timesheetView(tx, ctx, userId, weekOn, {
-          revision: dto.revision as string,
-          allWork: true,
-        });
-        requirePlannerTimesheetVersion(dto.version, view.version);
-        if (!view.canLogTime) throw new ForbiddenException('This week is locked for time changes');
-        const row = await this.timeSheetRecord(tx, ctx, userId, weekOn),
-          data = await this.timeSheetData(tx, ctx, userId, weekOn, row);
-        const storedWork = data.work ?? [],
-          key = plannerTimeWorkKey(work);
-        let selected: PlannerTimesheetWorkRef[],
-          excluded = data.excludedTasks ?? [];
-        if (dto.action === 'remove') {
-          const found = view.workRows!.find((w) => w.key === key);
-          if (!found) throw missing();
-          if (!found.canRemove)
-            throw new ForbiddenException(
-              'Remove all time entries for this work before removing its row',
-            );
-          selected = storedWork.filter((w) => plannerTimeWorkKey(w) !== key);
-          if (work.taskId) excluded = [...new Set([...excluded, work.taskId])];
-        } else {
-          const projects = await this.projects(tx, ctx);
-          const tasks = work.taskId
-            ? await tx.spPlannerTask.findMany({
-                where: { tenantId: ctx.tenantId, id: work.taskId },
-              })
-            : [];
-          const source = this.timeWorkSource(work, tasks, projects, ctx);
-          if (!source) throw missing();
-          if (!source.canLogTime) throw new ForbiddenException('This work cannot accept time');
-          const task = tasks[0];
-          if (task && task.projectIds.length && !work.projectId)
-            fail('Choose a project for this task');
-          if (
-            !task &&
-            !this.storedTimeOptions(await this.timeSettingsRecord(tx, ctx)).generalWorkEnabled
-          )
-            throw new ForbiddenException('General project time is disabled for this organization');
-          selected = storedWork.some((w) => plannerTimeWorkKey(w) === key)
-            ? storedWork
-            : [...storedWork, work];
-          if (work.taskId) excluded = excluded.filter((id) => id !== work.taskId);
-        }
-        if (selected.length > 500 || excluded.length > 2000)
-          fail('Too many weekly work selections');
-        const next = json({ ...data, work: selected, excludedTasks: excluded });
-        if (row)
-          await tx.spPlannerResource.update({
-            where: { tenantId: ctx.tenantId, id: row.id },
-            data: { data: next, version: { increment: 1 } },
-          });
-        else
-          await tx.spPlannerResource.create({
-            data: {
-              tenantId: ctx.tenantId,
-              ownerId: userId,
-              kind: 'timesheet',
-              name: `Timesheet · ${weekOn}`,
-              data: next,
-            },
-          });
-        return this.timesheetView(tx, ctx, userId, weekOn);
-      },
-      true,
-    );
-  }
-  async timeExport(
-    ctx: AuthTenantContext,
-    raw: PlannerTimeExportQuery,
-  ): Promise<PlannerTimeExportPage> {
-    const query = plannerTimeExportQuery(raw);
-    // Every query in a page sees the same entries, corrections and source grants.
-    return this.prisma.withTenant(
-      ctx.tenantId,
-      async (tx) => {
-        const people = await this.people(tx, ctx),
-          names = new Map(people.map((p) => [p.id, p.name]));
-        if (!names.has(ctx.clerkUserId)) throw missing();
-        const config = await this.timeSettingsRecord(tx, ctx);
-        const reviewers =
-          (config?.data as { reviewers?: Record<string, string> } | undefined)?.reviewers ?? {};
-        const assigned = Object.keys(reviewers)
-          .filter((id) => reviewers[id] === ctx.clerkUserId && names.has(id))
-          .sort();
-        const projects = await this.projects(tx, ctx);
-        const selected = projects.find((p) => p.id === query.projectId);
-        let users: string[];
-        if (query.scope === 'project') {
-          requireRole(selected ? plannerProjectAccess(selected, ctx.clerkUserId) : null, 'viewer');
-          users = []; // Project grants permit its time history, including departed submitters.
-        } else if (query.scope === 'organization') {
-          if (ctx.role !== 'org:admin')
-            throw new ForbiddenException('Organization admin access is required');
-          users = [];
-        } else if (query.scope === 'review') users = assigned;
-        else {
-          const userId = query.userId ?? ctx.clerkUserId;
-          if (!names.has(userId) || (userId !== ctx.clerkUserId && !assigned.includes(userId)))
-            throw missing();
-          users = [userId];
-        }
-        const events =
-          !['project', 'organization'].includes(query.scope) && !users.length
-            ? []
-            : await tx.$queryRaw<SpPlannerEvent[]>`
-        SELECT e.id,e.tenant_id AS "tenantId",e.actor_id AS "actorId",e.task_id AS "taskId",e.project_id AS "projectId",
-          e.resource_id AS "resourceId",e.details,e.kind,e.text,e.minutes,e.created_at AS "createdAt"
-        FROM sp_planner_events e LEFT JOIN LATERAL (
-          SELECT details,removed FROM sp_planner_event_revisions WHERE tenant_id=${ctx.tenantId}::uuid AND event_id=e.id ORDER BY version DESC LIMIT 1
-        ) r ON true
-        WHERE e.tenant_id=${ctx.tenantId}::uuid AND e.kind='time' AND NOT COALESCE(r.removed,false)
-        AND COALESCE(r.details->'time'->>'workedOn',e.details->'time'->>'workedOn',to_char(e.created_at AT TIME ZONE 'UTC','YYYY-MM-DD')) >= ${query.fromOn}
-        AND COALESCE(r.details->'time'->>'workedOn',e.details->'time'->>'workedOn',to_char(e.created_at AT TIME ZONE 'UTC','YYYY-MM-DD')) <= ${query.throughOn}
-        ${
-          query.scope === 'project'
-            ? Prisma.sql`AND COALESCE(r.details->'time'->>'projectId',e.details->'time'->>'projectId',e.project_id::text) = ${query.projectId}`
-            : query.scope === 'organization'
-              ? Prisma.empty
-              : Prisma.sql`AND e.actor_id IN (${Prisma.join(users)})`
-        }`;
-        const views = await plannerReadActivity(tx, ctx, events);
-        const tasks = await tx.spPlannerTask.findMany({
-          where: {
-            tenantId: ctx.tenantId,
-            id: { in: events.flatMap((e) => (e.taskId ? [e.taskId] : [])) },
-          },
-        });
-        const taskById = new Map(tasks.map((t) => [t.id, t])),
-          projectById = new Map(projects.map((p) => [p.id, p]));
-        const items: PlannerTimeExportEntry[] = [];
-        let unavailableEntries = false;
-        for (const e of views) {
-          const time = e.time!,
-            task = taskById.get(e.taskId ?? ''),
-            project = projectById.get(time.projectId ?? e.projectId ?? '');
-          const readable = task
-            ? plannerTaskAccess(task, projects, ctx.clerkUserId)
-            : project
-              ? plannerProjectAccess(project, ctx.clerkUserId)
-              : null;
-          if (
-            !readable ||
-            (time.projectId && (!project || !plannerProjectAccess(project, ctx.clerkUserId)))
-          ) {
-            // Organization export reveals only readable work, without counts
-            // or existence indicators for unrelated private entries.
-            if (query.scope !== 'organization') unavailableEntries = true;
-            continue;
-          }
-          items.push({
-            ...e,
-            time,
-            taskName: task ? taskData(task).name : null,
-            projectName: project ? projectData(project).name : null,
-            canEdit: false,
-            submitterName: names.get(e.actorId) ?? 'Former member',
-            taskStatus: task ? (taskData(task).status === 'done' ? 'Completed' : 'Open') : null,
-          });
-        }
-        items.sort(
-          (a, b) => a.time.workedOn.localeCompare(b.time.workedOn) || a.id.localeCompare(b.id),
-        );
-        const revision = createHash('sha256')
-          .update(
-            JSON.stringify({
-              scope: query.scope,
-              fromOn: query.fromOn,
-              throughOn: query.throughOn,
-              users,
-              projectId: query.projectId,
-              items,
-              unavailableEntries,
-            }),
-          )
-          .digest('hex');
-        if (query.revision && query.revision !== revision)
-          throw new ConflictException('Time or access changed during export. Start a new export.');
-        const start = query.cursor ? items.findIndex((e) => e.id === query.cursor) + 1 : 0;
-        if (query.cursor && !start) fail('Export cursor is no longer available');
-        return {
-          fromOn: query.fromOn,
-          throughOn: query.throughOn,
-          revision,
-          matched: items.length,
-          unavailableEntries,
-          totalMinutes: items.reduce((n, e) => n + (e.minutes ?? 0), 0),
-          billableMinutes: items.reduce((n, e) => n + (e.time.billable ? (e.minutes ?? 0) : 0), 0),
-          items: items.slice(start, start + 100),
-          nextCursor: items.length > start + 100 ? items[start + 99]!.id : null,
-        };
-      },
-      { timeoutMs: 15_000, isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
-    );
-  }
-  async timeReview(
-    ctx: AuthTenantContext,
-    query: TimeReviewQuery & { paged: 'true' },
-  ): Promise<PlannerTimeReviewPage>;
-  async timeReview(
-    ctx: AuthTenantContext,
-    query: TimeReviewQuery & { paged?: 'false' },
-  ): Promise<PlannerTimesheet[]>;
-  async timeReview(
-    ctx: AuthTenantContext,
-    query: TimeReviewQuery,
-  ): Promise<PlannerTimeReviewPage | PlannerTimesheet[]>;
-  async timeReview(
-    ctx: AuthTenantContext,
-    query: TimeReviewQuery,
-  ): Promise<PlannerTimeReviewPage | PlannerTimesheet[]> {
-    keys(query, ['week', 'people', 'statuses', 'sort', 'direction', 'paged', 'cursor', 'revision']);
-    const weekOn = plannerTimesheetWeek(query.week);
-    if (query.paged !== undefined && !['true', 'false'].includes(query.paged))
-      fail('Choose whether to page time review');
-    for (const key of ['people', 'statuses', 'sort', 'direction', 'cursor', 'revision'] as const)
-      if (
-        query[key] !== undefined &&
-        (typeof query[key] !== 'string' || query[key]!.length > 20100)
-      )
-        fail('Invalid time review filter');
-    if (query.cursor && (query.cursor.length > 200 || query.paged !== 'true' || !query.revision))
-      fail('Review paging requires its data revision');
-    if (query.revision && !/^[a-f0-9]{64}$/.test(query.revision))
-      fail('Invalid time review revision');
-    const view = plannerTimeReviewView({
-      ...(query.people === undefined
-        ? {}
-        : { people: query.people ? query.people.split(',') : [] }),
-      ...(query.statuses === undefined
-        ? {}
-        : { statuses: query.statuses ? query.statuses.split(',') : [] }),
-      ...(query.sort === undefined ? {} : { sort: query.sort }),
-      ...(query.direction === undefined ? {} : { direction: query.direction }),
-    });
-    return this.scope(ctx, async (tx) => {
-      const config = await this.timeSettingsRecord(tx, ctx);
-      const reviewers =
-        (config?.data as { reviewers?: Record<string, string> } | undefined)?.reviewers ?? {};
-      const members = await this.people(tx, ctx);
-      const active = new Set(members.map((p) => p.id));
-      if (!active.has(ctx.clerkUserId)) throw missing();
-      const users = Object.keys(reviewers).filter(
-        (id) => reviewers[id] === ctx.clerkUserId && active.has(id),
-      );
-      const result: PlannerTimesheet[] = [];
-      for (const user of users) {
-        const sheet = await this.timesheetView(tx, ctx, user, weekOn);
-        result.push({
-          ...sheet,
-          items: [],
-          history: [],
-          workRows: [],
-          nextCursor: null,
-          nextWorkCursor: null,
-          nextHistoryCursor: null,
-        });
-      }
-      const people = members
-        .filter((p) => users.includes(p.id))
-        .map(({ id, name }) => ({ id, name }));
-      people.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
-      const items = plannerTimeReviewRows(result, view, new Map(people.map((p) => [p.id, p.name])));
-      if (query.paged !== 'true') return items;
-      const revision = createHash('sha256')
-        .update(
-          JSON.stringify({
-            weekOn,
-            view,
-            settingsVersion: config?.version ?? 0,
-            people,
-            items,
-          }),
-        )
-        .digest('hex');
-      if (query.revision && query.revision !== revision)
-        throw new ConflictException('Reviewed time or access changed. Refresh time review.');
-      const start = query.cursor ? items.findIndex((s) => s.userId === query.cursor) + 1 : 0;
-      if (query.cursor && !start) fail('Review cursor is no longer available');
-      return {
-        weekOn,
-        revision,
-        people,
-        matched: items.length,
-        items: items.slice(start, start + 100),
-        nextCursor: items.length > start + 100 ? items[start + 99]!.userId : null,
-        totalMinutes: items.reduce((n, s) => n + s.totalMinutes, 0),
-        billableMinutes: items.reduce((n, s) => n + s.billableMinutes, 0),
-      } satisfies PlannerTimeReviewPage;
-    });
-  }
-  async transitionTimesheet(ctx: AuthTenantContext, raw: unknown) {
-    const dto = object(raw);
-    keys(dto, ['week', 'userId', 'version', 'revision', 'action', 'notes']);
-    const weekOn = plannerTimesheetWeek(dto.week),
-      userId = dto.userId ?? ctx.clerkUserId;
-    if (typeof userId !== 'string' || userId.length > 200) fail('Invalid time submitter');
-    if (typeof dto.notes !== 'string' || dto.notes.length > 20000) fail('Invalid timesheet notes');
-    const notes = dto.notes as string;
-    if (typeof dto.revision !== 'string' || !/^[a-f0-9]{64}$/.test(dto.revision))
-      fail('A current timesheet revision is required');
-    return this.scope(
-      ctx,
-      async (tx) => {
-        const view = await this.timesheetView(tx, ctx, userId, weekOn, {
-          revision: dto.revision as string,
-        });
-        requirePlannerTimesheetVersion(dto.version, view.version);
-        if (!view.actions.includes(dto.action as never))
-          throw new ForbiddenException('This timesheet action is unavailable');
-        const status = (
-          {
-            submit: 'submitted',
-            recall_submission: 'draft',
-            approve: 'approved',
-            reject: 'rejected',
-            recall_approval: 'submitted',
-          } as Record<string, PlannerTimesheetData['status']>
-        )[String(dto.action)]!;
-        const previous = await this.timeSheetData(
-          tx,
-          ctx,
-          userId,
-          weekOn,
-          await this.timeSheetRecord(tx, ctx, userId, weekOn),
-        );
-        const data: PlannerTimesheetData = {
-          ...previous,
-          weekOn,
-          reviewerId: view.reviewerId,
-          status,
-          notes,
-          correctedAfterApproval: status === 'approved' ? false : view.correctedAfterApproval,
-        };
-        const row = view.id
-          ? await tx.spPlannerResource.update({
-              where: { tenantId: ctx.tenantId, id: view.id },
-              data: { data: json(data), version: { increment: 1 } },
-            })
-          : await tx.spPlannerResource.create({
-              data: {
-                tenantId: ctx.tenantId,
-                ownerId: userId,
-                kind: 'timesheet',
-                name: `Timesheet · ${weekOn}`,
-                data: json(data),
-              },
-            });
-        const label = (
-          {
-            submit: 'Submitted',
-            recall_submission: 'Recalled submission for',
-            approve: 'Approved',
-            reject: 'Rejected',
-            recall_approval:
-              view.status === 'rejected' ? 'Recalled rejection for' : 'Recalled approval for',
-          } as Record<string, string>
-        )[String(dto.action)];
-        await this.event(
-          tx,
-          ctx,
-          {
-            resourceId: row.id,
-            kind: 'timesheet_status',
-            text: `${label} timesheet · ${weekOn}${notes.trim() ? '\n' + notes.trim() : ''}`,
-            details: {
-              timesheet: { weekOn, userId },
-              timesheetStatus: {
-                from: view.status,
-                to: status,
-                totalMinutes: view.totalMinutes,
-                billableMinutes: view.billableMinutes,
-                revision: view.revision,
-              },
-            },
-          },
-          [userId, view.reviewerId].filter((id): id is string => !!id),
-        );
-        return this.timesheetView(tx, ctx, userId, weekOn);
-      },
-      true,
-    );
   }
   private prepareGoalData(
     old: SpPlannerResource | null,
@@ -5602,8 +4747,6 @@ export class PlannerService {
           )
             throw new ConflictException('My tasks settings already exist. Refresh before saving.');
         }
-        if (['rule', 'form'].includes(kind) && !projectId)
-          fail('Rules and forms require a project');
         if (projectId) {
           const p = projects.find((p) => p.id === projectId && !p.archived);
           requireRole(p ? plannerProjectAccess(p, ctx.clerkUserId) : null, 'editor');
@@ -5740,27 +4883,6 @@ export class PlannerService {
           const p = projects.find((p) => p.id === data.projectId);
           requireRole(p ? plannerProjectAccess(p, ctx.clerkUserId) : null, 'viewer');
         }
-        if (kind === 'capacity') {
-          if (projectId) fail('Weekly capacity is an organization setting');
-          if (old && (old.data as unknown as { userId: string }).userId !== data.userId)
-            fail('A weekly capacity setting remains with its original person');
-          if (!people.has(String(data.userId))) fail('Capacity belongs to an active team member');
-          if (data.userId !== ctx.clerkUserId && ctx.role !== 'org:admin')
-            throw new ForbiddenException('Only team admins can set another person’s capacity');
-          if (
-            !old &&
-            (await tx.spPlannerResource.findFirst({
-              where: {
-                tenantId: ctx.tenantId,
-                kind: 'capacity',
-                projectId: null,
-                archived: false,
-                data: { path: ['userId'], equals: String(data.userId) },
-              },
-            }))
-          )
-            throw new ConflictException('Weekly capacity already exists. Refresh before saving.');
-        }
         if (kind === 'my_tasks') {
           const placements = data.placements as { taskId: string }[];
           const assigned = await tx.spPlannerTask.findMany({
@@ -5842,30 +4964,6 @@ export class PlannerService {
               }
           }
         }
-        if (kind === 'rule' || kind === 'form') {
-          const p = projects.find((p) => p.id === projectId)!;
-          if (kind === 'form' && dto.archived !== true)
-            validatePlannerFormProject(data as unknown as PlannerFormData, projectData(p));
-          const config = kind === 'rule' ? object(data.actions) : object(data.defaults);
-          if (config.assigneeId && !people.has(String(config.assigneeId)))
-            fail('Assignee must be an active team member');
-          for (const sectionId of [
-            config.sectionId,
-            kind === 'rule' ? object(data.conditions).sectionId : undefined,
-          ])
-            if (sectionId && !projectData(p).sections.some((s) => s.id === sectionId))
-              fail('Rule section must belong to the project');
-        }
-        if (kind === 'template') {
-          const template = data as unknown as PlannerTemplateData;
-          for (const principal of [
-            ...template.project.members.map((m) => m.userId),
-            ...template.tasks
-              .flatMap((t) => [t.assigneeId, ...t.collaborators])
-              .filter((p): p is string => !!p),
-          ])
-            if (!people.has(principal)) fail('Template members must be active');
-        }
         const row = old
           ? await tx.spPlannerResource.update({
               where: { id: old.id, tenantId: ctx.tenantId },
@@ -5874,9 +4972,6 @@ export class PlannerService {
                 data: json(data),
                 version: { increment: 1 },
                 ...(dto.archived === undefined ? {} : { archived: dto.archived as boolean }),
-                ...(kind === 'form' && data.audience === 'organization'
-                  ? { shareTokenHash: null }
-                  : {}),
               },
             })
           : await tx.spPlannerResource.create({
@@ -5919,41 +5014,6 @@ export class PlannerService {
       true,
     );
   }
-  async instantiateTemplate(ctx: AuthTenantContext, id: string, raw: unknown) {
-    uuid(id);
-    const dto = object(raw);
-    keys(dto, ['name', 'anchorOn']);
-    if (typeof dto.name !== 'string' || !dto.name.trim() || dto.name.length > 500)
-      fail('Project name is required');
-    if (dto.anchorOn !== undefined && !plannerCalendarDate(dto.anchorOn))
-      fail('Invalid project reference date');
-    return this.scope(
-      ctx,
-      async (tx) => {
-        const projects = await this.projects(tx, ctx);
-        const template = await tx.spPlannerResource.findFirst({
-          where: { id, tenantId: ctx.tenantId, kind: 'template', archived: false },
-        });
-        if (!template) throw missing();
-        requireRole(this.resourceAccess(template, projects, ctx), 'viewer');
-        let config = validateResource('template', template.data) as unknown as PlannerTemplateData;
-        if (config.schedule) {
-          if (!plannerCalendarDate(dto.anchorOn))
-            fail('Choose a project reference date for this template');
-          config = plannerTemplateSchedule(config, dto.anchorOn);
-          validateResource('template', config);
-        } else if (dto.anchorOn !== undefined) fail('This template uses fixed dates');
-        return this.copyProject(
-          tx,
-          ctx,
-          config,
-          dto.name as string,
-          `Created project from ${template.name}`,
-        );
-      },
-      true,
-    );
-  }
   async duplicateProject(ctx: AuthTenantContext, id: string, raw: unknown) {
     uuid(id);
     const dto = object(raw);
@@ -5983,10 +5043,7 @@ export class PlannerService {
         );
         const indices = new Map(rows.map((t, i) => [t.id, i]));
         const fieldIds = new Set(projectData(source).fields.map((f) => f.id));
-        const config: PlannerTemplateData = {
-          description: '',
-          privacy: 'private',
-          members: [],
+        const config: PlannerProjectCopyData = {
           project: { ...projectData(source), privacy: 'private', members: [], clientId: null },
           tasks: rows.map((t) => ({
             ...taskData(t),
@@ -6080,7 +5137,7 @@ export class PlannerService {
   private async copyProject(
     tx: Tx,
     ctx: AuthTenantContext,
-    config: PlannerTemplateData,
+    config: PlannerProjectCopyData,
     name: string,
     activity: string,
   ) {
@@ -6140,358 +5197,5 @@ export class PlannerService {
     if (taskRows.length) await tx.spPlannerTask.createMany({ data: taskRows });
     await this.event(tx, ctx, { projectId: project.id, kind: 'created', text: activity }, []);
     return this.projectView(project, ctx);
-  }
-  /** Publishing is explicit and rotates the capability. The raw token is never persisted. */
-  async shareForm(ctx: AuthTenantContext, id: string, raw: unknown) {
-    uuid(id);
-    const dto = object(raw);
-    keys(dto, ['version', 'enabled']);
-    if (typeof dto.enabled !== 'boolean') fail('Invalid sharing flag');
-    return this.scope(
-      ctx,
-      async (tx) => {
-        const projects = await this.projects(tx, ctx);
-        const form = await tx.spPlannerResource.findFirst({
-          where: { id, tenantId: ctx.tenantId, kind: 'form', archived: false },
-        });
-        if (!form) throw missing();
-        requireRole(this.resourceAccess(form, projects, ctx), 'editor');
-        version(form.version, dto.version as number | undefined);
-        if (dto.enabled) {
-          const config = validateResource('form', form.data) as unknown as PlannerFormData;
-          if (config.audience === 'organization')
-            fail('Change form access to Anyone with the link before publishing');
-          const project = projects.find(
-            (candidate) => candidate.id === form.projectId && !candidate.archived,
-          );
-          if (!project) throw missing();
-          validatePlannerFormProject(config, projectData(project));
-        }
-        const token = dto.enabled ? `${ctx.tenantId}.${randomBytes(32).toString('hex')}` : null;
-        await tx.spPlannerResource.update({
-          where: { id, tenantId: ctx.tenantId },
-          data: {
-            shareTokenHash: token ? createHash('sha256').update(token).digest('hex') : null,
-            version: { increment: 1 },
-          },
-        });
-        return { token };
-      },
-      true,
-    );
-  }
-  private publicFormScope(token: string) {
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.[0-9a-f]{64}$/.test(token))
-      throw missing();
-    const tenantId = token.slice(0, 36);
-    uuid(tenantId);
-    return {
-      ctx: { tenantId, clerkUserId: 'public_form', role: null } as AuthTenantContext,
-      hash: createHash('sha256').update(token).digest('hex'),
-    };
-  }
-  private async publicFormRecord(
-    tx: Tx,
-    ctx: AuthTenantContext,
-    hash: string,
-    projects: SpPlannerProject[],
-  ) {
-    const form = await tx.spPlannerResource.findFirst({
-      where: { tenantId: ctx.tenantId, kind: 'form', archived: false, shareTokenHash: hash },
-    });
-    const project = projects.find((p) => p.id === form?.projectId && !p.archived);
-    const people = new Set((await this.people(tx, ctx)).map((p) => p.id));
-    if (
-      !form ||
-      !project ||
-      !people.has(form.ownerId) ||
-      !['admin', 'editor'].includes(plannerProjectAccess(project, form.ownerId) ?? '') ||
-      !(form.data as unknown as PlannerFormData).enabled ||
-      (form.data as unknown as PlannerFormData).audience === 'organization'
-    )
-      throw missing();
-    try {
-      validatePlannerFormProject(
-        validateResource('form', form.data) as unknown as PlannerFormData,
-        projectData(project),
-      );
-    } catch {
-      throw missing();
-    }
-    return form;
-  }
-  async publicForm(token: string): Promise<PlannerPublicForm> {
-    const { ctx, hash } = this.publicFormScope(token);
-    return this.scope(ctx, async (tx) => {
-      const form = await this.publicFormRecord(tx, ctx, hash, await this.projects(tx, ctx));
-      const config = validateResource('form', form.data) as unknown as PlannerFormData;
-      // Public reads contain only the intake questions. No project or person identity.
-      return plannerPublicForm(form.name, config);
-    });
-  }
-  async submitPublicForm(token: string, raw: unknown, files: PlannerFormUpload[] = []) {
-    const { ctx, hash } = this.publicFormScope(token);
-    const answers = plannerFormAnswers(raw);
-    if (files.length)
-      return this.uploadedFormSubmission(ctx, answers, files, true, (tx, projects) =>
-        this.publicFormRecord(tx, ctx, hash, projects),
-      );
-    return this.scope(
-      ctx,
-      async (tx) => {
-        const projects = await this.projects(tx, ctx);
-        const form = await this.publicFormRecord(tx, ctx, hash, projects);
-        const actorId = `public_form:${form.id}`;
-        // A durable per-form quota works across all ECS instances. Private request
-        // payloads and client IPs are not retained for rate limiting.
-        const recent = await tx.spPlannerEvent.count({
-          where: {
-            tenantId: ctx.tenantId,
-            actorId,
-            createdAt: { gte: new Date(Date.now() - 60_000) },
-          },
-        });
-        if (recent >= 10)
-          throw new HttpException('This form is receiving many requests. Try again shortly.', 429);
-        await this.createFormTask(
-          tx,
-          { ...ctx, clerkUserId: actorId },
-          form,
-          projects,
-          answers,
-          true,
-        );
-        return { received: true };
-      },
-      true,
-    );
-  }
-  async submitForm(
-    ctx: AuthTenantContext,
-    id: string,
-    raw: unknown,
-    files: PlannerFormUpload[] = [],
-  ) {
-    uuid(id);
-    const answers = plannerFormAnswers(raw);
-    if (files.length)
-      return this.uploadedFormSubmission(ctx, answers, files, false, async (tx, projects) => {
-        const form = await tx.spPlannerResource.findFirst({
-          where: { id, tenantId: ctx.tenantId, kind: 'form', archived: false },
-        });
-        if (!form) throw missing();
-        requireRole(this.resourceAccess(form, projects, ctx), 'viewer');
-        return form;
-      });
-    return this.scope(
-      ctx,
-      async (tx) => {
-        const projects = await this.projects(tx, ctx);
-        const form = await tx.spPlannerResource.findFirst({
-          where: { id, tenantId: ctx.tenantId, kind: 'form', archived: false },
-        });
-        if (!form) throw missing();
-        requireRole(this.resourceAccess(form, projects, ctx), 'viewer');
-        const row = await this.createFormTask(tx, ctx, form, projects, answers, false);
-        return this.taskView(tx, row, projects, ctx);
-      },
-      true,
-    );
-  }
-  private uploadedFormSubmission(
-    ctx: AuthTenantContext,
-    answers: Record<string, unknown>,
-    files: PlannerFormUpload[],
-    isPublic: true,
-    findForm: (tx: Tx, projects: SpPlannerProject[]) => Promise<SpPlannerResource>,
-  ): Promise<{ received: boolean }>;
-  private uploadedFormSubmission(
-    ctx: AuthTenantContext,
-    answers: Record<string, unknown>,
-    files: PlannerFormUpload[],
-    isPublic: false,
-    findForm: (tx: Tx, projects: SpPlannerProject[]) => Promise<SpPlannerResource>,
-  ): Promise<PlannerTask>;
-  private async uploadedFormSubmission(
-    ctx: AuthTenantContext,
-    answers: Record<string, unknown>,
-    files: PlannerFormUpload[],
-    isPublic: boolean,
-    findForm: (tx: Tx, projects: SpPlannerProject[]) => Promise<SpPlannerResource>,
-  ) {
-    if (!this.formFiles)
-      throw new ServiceUnavailableException('Planner attachment storage is not configured');
-    const preflight = await this.scope(ctx, async (tx) => {
-      const projects = await this.projects(tx, ctx);
-      const form = await findForm(tx, projects);
-      const config = validateResource('form', form.data) as unknown as PlannerFormData;
-      const selected = plannerFormFiles(config, answers, files);
-      await this.formTaskData(
-        tx,
-        ctx,
-        form,
-        projects,
-        answers,
-        isPublic,
-        selected.map((file) => ({
-          fieldId: file.fieldname,
-          fileName: plannerAttachmentName(file.originalname),
-        })),
-      );
-      if (isPublic) await this.publicFormQuota(tx, ctx, form.id);
-      return { id: form.id, version: form.version, selected };
-    });
-    const taskId = randomUUID();
-    const prepared = preflight.selected.length
-      ? await this.formFiles.prepare(ctx.tenantId, taskId, preflight.selected)
-      : [];
-    try {
-      return await this.scope(
-        ctx,
-        async (tx) => {
-          const projects = await this.projects(tx, ctx);
-          const form = await findForm(tx, projects);
-          if (form.id !== preflight.id) throw missing();
-          version(form.version, preflight.version);
-          if (isPublic) await this.publicFormQuota(tx, ctx, form.id);
-          const actor = isPublic ? { ...ctx, clerkUserId: `public_form:${form.id}` } : ctx;
-          const row = await this.createFormTask(
-            tx,
-            actor,
-            form,
-            projects,
-            answers,
-            isPublic,
-            prepared,
-            taskId,
-          );
-          return isPublic ? { received: true } : this.taskView(tx, row, projects, ctx);
-        },
-        true,
-      );
-    } catch (error) {
-      await this.formFiles.remove(prepared);
-      throw error;
-    }
-  }
-  private async publicFormQuota(tx: Tx, ctx: AuthTenantContext, formId: string) {
-    const recent = await tx.spPlannerEvent.count({
-      where: {
-        tenantId: ctx.tenantId,
-        actorId: `public_form:${formId}`,
-        createdAt: { gte: new Date(Date.now() - 60_000) },
-      },
-    });
-    if (recent >= 10)
-      throw new HttpException('This form is receiving many requests. Try again shortly.', 429);
-  }
-  private async formTaskData(
-    tx: Tx,
-    ctx: AuthTenantContext,
-    form: SpPlannerResource,
-    projects: SpPlannerProject[],
-    answers: Record<string, unknown>,
-    isPublic: boolean,
-    files: { fieldId: string; fileName: string }[] = [],
-  ) {
-    const config = validateResource('form', form.data) as unknown as PlannerFormData;
-    if (!config.enabled) fail('This form is closed');
-    keys(
-      answers,
-      config.fields.map((f) => f.id),
-    );
-    const project = projects.find((p) => p.id === form.projectId && !p.archived);
-    if (!project) throw missing();
-    requireRole(plannerProjectAccess(project, form.ownerId), 'editor');
-    const people = new Set((await this.people(tx, ctx)).map((p) => p.id));
-    if (!people.has(form.ownerId) || (!isPublic && !people.has(ctx.clerkUserId)))
-      throw new ForbiddenException('Active membership is required');
-    if (config.defaults.assigneeId && !people.has(config.defaults.assigneeId))
-      fail('The form’s default assignee is no longer active');
-    const fileNames: Record<string, string[]> = {};
-    for (const file of files) (fileNames[file.fieldId] ??= []).push(file.fileName);
-    const values = plannerFormTaskValues(
-      config,
-      projectData(project),
-      form.name,
-      answers,
-      Object.fromEntries(Object.entries(fileNames).map(([id, names]) => [id, names.length])),
-      fileNames,
-    );
-    let data = validateTask({
-      ...PLANNER_DEFAULT_TASK,
-      ...config.defaults,
-      ...values,
-      collaborators: !isPublic && config.addSubmitterAsCollaborator ? [ctx.clerkUserId] : [],
-      memberships: [
-        {
-          projectId: project.id,
-          sectionId:
-            config.sectionId === undefined
-              ? (projectData(project).sections[0]?.id ?? null)
-              : config.sectionId,
-          position: 0,
-        },
-      ],
-    });
-    data = await this.runRules(tx, ctx, data, null, projects, people);
-    return data;
-  }
-  private async createFormTask(
-    tx: Tx,
-    ctx: AuthTenantContext,
-    form: SpPlannerResource,
-    projects: SpPlannerProject[],
-    answers: Record<string, unknown>,
-    isPublic: boolean,
-    files: PlannerPreparedFormFile[] = [],
-    taskId?: string,
-  ) {
-    const data = await this.formTaskData(tx, ctx, form, projects, answers, isPublic, files);
-    // The already-authorized form owner supplies the automation's rollup grants.
-    // Anonymous submissions still return only their receipt, never goal contents.
-    const historyContext = isPublic ? { ...ctx, clerkUserId: form.ownerId } : ctx;
-    const beforeGoals = await this.captureGoalViews(tx, historyContext, projects);
-    const project = projects.find(
-      (candidate) => candidate.id === form.projectId && !candidate.archived,
-    )!;
-    const row = await tx.spPlannerTask.create({
-      data: {
-        ...(taskId ? { id: taskId } : {}),
-        tenantId: ctx.tenantId,
-        ownerId: isPublic ? form.ownerId : ctx.clerkUserId,
-        assigneeId: data.assigneeId,
-        projectIds: [project.id],
-        data: storedTaskData(data),
-        completedAt: data.status === 'done' ? new Date() : null,
-      },
-    });
-    if (files.length)
-      await tx.spPlannerAttachment.createMany({
-        data: files.map((file) => ({
-          id: file.id,
-          tenantId: ctx.tenantId,
-          taskId: row.id,
-          uploadedBy: ctx.clerkUserId,
-          fileName: file.fileName,
-          sizeBytes: file.sizeBytes,
-          objectKey: file.objectKey,
-        })),
-      });
-    await this.event(tx, ctx, { taskId: row.id, kind: 'created', text: `Submitted ${form.name}` }, [
-      project.ownerId,
-      ...(data.assigneeId ? [data.assigneeId] : []),
-    ]);
-    if (beforeGoals.length)
-      await this.recordGoalChanges(
-        tx,
-        historyContext,
-        beforeGoals,
-        await this.captureGoalViews(tx, historyContext, projects),
-        projects,
-        new Set(),
-        ctx.clerkUserId,
-      );
-    return row;
   }
 }

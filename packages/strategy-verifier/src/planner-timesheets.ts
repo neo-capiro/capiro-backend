@@ -1,5 +1,3 @@
-import type { PlannerEvent } from './planner.js';
-
 export interface PlannerTimeDetails {
   workedOn: string;
   timeZone: string;
@@ -8,8 +6,6 @@ export interface PlannerTimeDetails {
   category: string;
 }
 export type PlannerTimesheetStatus = 'draft' | 'submitted' | 'approved' | 'rejected';
-export type PlannerTimesheetAction =
-  'submit' | 'recall_submission' | 'approve' | 'reject' | 'recall_approval';
 export interface PlannerTimesheetData {
   weekOn: string;
   reviewerId: string | null;
@@ -22,74 +18,6 @@ export interface PlannerTimesheetData {
 export interface PlannerTimesheetWorkRef {
   taskId: string | null;
   projectId: string | null;
-}
-export interface PlannerTimesheetWorkRow extends PlannerTimesheetWorkRef {
-  key: string;
-  taskName: string | null;
-  projectName: string | null;
-  origin: 'tracked' | 'added' | 'automatic';
-  totalMinutes: number;
-  billableMinutes: number;
-  days: { date: string; totalMinutes: number; billableMinutes: number }[];
-  canLogTime: boolean;
-  canRemove: boolean;
-}
-export interface PlannerTimePreferences {
-  version: number;
-  autoAddDueTasks: boolean;
-  reviewView?: PlannerTimeReviewView;
-}
-export function plannerTimeWorkKey(work: PlannerTimesheetWorkRef): string {
-  return `${work.taskId ?? 'project'}:${work.projectId ?? 'personal'}`;
-}
-export interface PlannerTimeEntry extends PlannerEvent {
-  time: PlannerTimeDetails;
-  taskName: string | null;
-  projectName: string | null;
-  canEdit: boolean;
-}
-export interface PlannerTimeExportEntry extends PlannerTimeEntry {
-  submitterName: string;
-  taskStatus: 'Open' | 'Completed' | null;
-}
-export interface PlannerTimeExportPage {
-  fromOn: string;
-  throughOn: string;
-  revision: string;
-  matched: number;
-  totalMinutes: number;
-  billableMinutes: number;
-  unavailableEntries: boolean;
-  items: PlannerTimeExportEntry[];
-  nextCursor: string | null;
-}
-export interface PlannerTimesheet {
-  id: string | null;
-  userId: string;
-  weekOn: string;
-  throughOn: string;
-  reviewerId: string | null;
-  status: PlannerTimesheetStatus;
-  version: number;
-  revision: string;
-  notes: string;
-  correctedAfterApproval: boolean;
-  totalMinutes: number;
-  billableMinutes: number;
-  days: { date: string; totalMinutes: number; billableMinutes: number }[];
-  matched: number;
-  unavailableEntries: boolean;
-  items: PlannerTimeEntry[];
-  nextCursor: string | null;
-  actions: PlannerTimesheetAction[];
-  history: PlannerEvent[];
-  nextHistoryCursor?: string | null;
-  canLogTime?: boolean;
-  timeNotice?: string | null;
-  approvalProcess?: 'simple' | 'full';
-  workRows?: PlannerTimesheetWorkRow[];
-  matchedWork?: number;
-  nextWorkCursor?: string | null;
 }
 export interface PlannerTimeOptions {
   /** Default currency for newly configured project budgets. Existing budgets keep their currency. */
@@ -110,28 +38,6 @@ export interface PlannerTimeSubmissionReminder {
   weekday: number;
   time: string;
   week: 'current' | 'previous';
-}
-export interface PlannerTimeReviewView {
-  people: string[];
-  statuses: PlannerTimesheetStatus[];
-  sort: 'name' | 'total' | 'billable';
-  direction: 'asc' | 'desc';
-}
-export const PLANNER_DEFAULT_TIME_REVIEW: PlannerTimeReviewView = {
-  people: [],
-  statuses: [],
-  sort: 'name',
-  direction: 'asc',
-};
-export interface PlannerTimeReviewPage {
-  weekOn: string;
-  revision: string;
-  matched: number;
-  people: { id: string; name: string }[];
-  items: PlannerTimesheet[];
-  nextCursor: string | null;
-  totalMinutes: number;
-  billableMinutes: number;
 }
 export const PLANNER_DEFAULT_TIME_OPTIONS: PlannerTimeOptions = {
   budgetCurrency: 'USD',

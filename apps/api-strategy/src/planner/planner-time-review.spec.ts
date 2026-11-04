@@ -1,32 +1,8 @@
 import { PLANNER_DEFAULT_TIME_OPTIONS } from '@capiro/strategy-verifier';
 import { plannerTimeOptions } from './planner-time-policy.js';
-import {
-  plannerTimeReviewView,
-  plannerTimeReviewRows,
-  plannerTimeSubmissionDue,
-} from './planner-time-review.js';
-import type { PlannerTimesheet } from '@capiro/strategy-verifier';
+import { plannerTimeSubmissionDue } from './planner-time-review.js';
 
-describe('Time review filters and calendar submission reminders', () => {
-  it('validates distinct private filters and orders visible totals with deterministic ties', () => {
-    const view = plannerTimeReviewView({
-      people: ['b', 'a'],
-      statuses: ['draft'],
-      sort: 'total',
-      direction: 'desc',
-    });
-    const rows = [
-      { userId: 'c', status: 'draft', totalMinutes: 900 },
-      { userId: 'b', status: 'draft', totalMinutes: 60 },
-      { userId: 'a', status: 'draft', totalMinutes: 60 },
-      { userId: 'd', status: 'approved', totalMinutes: 1000 },
-    ] as PlannerTimesheet[];
-    expect(plannerTimeReviewRows(rows, view, new Map()).map((r) => r.userId)).toEqual(['a', 'b']);
-    expect(rows[0]!.userId).toBe('c');
-    expect(() => plannerTimeReviewView({ people: ['a', 'a'] })).toThrow();
-    expect(() => plannerTimeReviewView({ statuses: ['hidden'] })).toThrow();
-    expect(() => plannerTimeReviewView({ ownerId: 'another-person' })).toThrow();
-  });
+describe('Calendar submission reminders', () => {
   it('keeps reminders off by default and validates their exact calendar settings', () => {
     expect(plannerTimeSubmissionDue(PLANNER_DEFAULT_TIME_OPTIONS)).toBeNull();
     for (const reminder of [

@@ -1,3 +1,4 @@
+import { seedStoredRule } from './planner-persisted-rule.fixture.js';
 import { randomUUID } from 'node:crypto';
 import { PlannerService } from '../src/planner/planner.service.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
@@ -88,8 +89,7 @@ describeDb('Planner reminder and bell real PostgreSQL', () => {
         memberships: [{ projectId: project.id, sectionId: null, position: 0 }],
       },
     });
-    await service.saveResource(owner, null, {
-      kind: 'rule',
+    await seedStoredRule(prisma, owner, null, {
       projectId: project.id,
       name: 'Due now',
       data: {
@@ -241,8 +241,7 @@ describeDb('Planner reminder and bell real PostgreSQL', () => {
         assigneeId: owner.clerkUserId,
       },
     });
-    const rule = await service.saveResource(viewer, null, {
-      kind: 'rule',
+    const rule = await seedStoredRule(prisma, viewer, null, {
       projectId: p.id,
       name: 'Overdue escalation',
       data: {
@@ -258,15 +257,9 @@ describeDb('Planner reminder and bell real PostgreSQL', () => {
     expect((await service.task(owner, t.id)).priority).toBe('high');
     expect((await service.task(owner, child.id)).priority).toBe('none');
     const next = await dueTask(p.id);
-    const paused = await service.saveResource(viewer, rule.id, {
-      version: rule.version,
-      data: { enabled: false },
-    });
+    const paused = await seedStoredRule(prisma, viewer, rule.id, { data: { enabled: false } });
     expect((await service.runScheduledWork(tenantId, later)).executed).toBe(0);
-    await service.saveResource(viewer, paused.id, {
-      version: paused.version,
-      data: { enabled: true },
-    });
+    await seedStoredRule(prisma, viewer, paused.id, { data: { enabled: true } });
     await service.saveProject(owner, p.id, { version: p.version, data: { members: [] } });
     expect((await service.runScheduledWork(tenantId, later)).executed).toBe(0);
     expect((await service.task(owner, next.id)).priority).toBe('none');
@@ -320,8 +313,7 @@ describeDb('Planner reminder and bell real PostgreSQL', () => {
       version: child.version,
       data: { memberships: [{ projectId: hidden.id, sectionId: null, position: 0 }] },
     });
-    await service.saveResource(viewer, null, {
-      kind: 'rule',
+    await seedStoredRule(prisma, viewer, null, {
       name: 'Finish overdue work',
       projectId: p.id,
       data: {
@@ -414,8 +406,7 @@ describeDb('Planner reminder and bell real PostgreSQL', () => {
         memberships: [{ projectId: p.id, sectionId: null, position: 0 }],
       },
     });
-    await service.saveResource(owner, null, {
-      kind: 'rule',
+    await seedStoredRule(prisma, owner, null, {
       projectId: p.id,
       name: 'Complete approaching work',
       data: {

@@ -11,8 +11,6 @@ import {
   Query,
   Req,
   UseGuards,
-  UseInterceptors,
-  UploadedFiles,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { TenantGuard } from '../auth/tenant.guard.js';
@@ -21,8 +19,7 @@ import type { AuthTenantContext } from '../auth/tenant-context.js';
 import { PlannerService } from './planner.service.js';
 import { ObjectiveDestinationQueryDto } from '../strategy/objective-destination.js';
 import { PlannerContextGuard } from './planner-context.guard.js';
-import { PlannerFormUploadInterceptor } from './planner-form-upload.js';
-import type { PlannerFormUpload } from './planner-files.js';
+
 import { StrategyPlannerGuard } from '../flags/strategy-planner.guard.js';
 import { aggregateRequest, type DomainAggregateQuery } from '../strategy/domain-aggregate.js';
 
@@ -99,51 +96,6 @@ export class PlannerController {
   ) {
     return this.planner.discardTimer(ctx, id, dto);
   }
-  @Get('time/preferences') timePreferences(@CurrentTenant() ctx: AuthTenantContext) {
-    return this.planner.timePreferences(ctx);
-  }
-  @Patch('time/preferences') saveTimePreferences(
-    @CurrentTenant() ctx: AuthTenantContext,
-    @Body() dto: unknown,
-  ) {
-    return this.planner.saveTimePreferences(ctx, dto);
-  }
-  @Patch('time/settings') saveTimeSettings(
-    @CurrentTenant() ctx: AuthTenantContext,
-    @Body() dto: unknown,
-  ) {
-    return this.planner.saveTimeSettings(ctx, dto);
-  }
-  @Get('time/entries') timeExport(
-    @CurrentTenant() ctx: AuthTenantContext,
-    @Query() query: Record<string, string>,
-  ) {
-    return this.planner.timeExport(ctx, query);
-  }
-  @Get('timesheets/review') timeReview(
-    @CurrentTenant() ctx: AuthTenantContext,
-    @Query() query: Record<string, string>,
-  ) {
-    return this.planner.timeReview(ctx, query);
-  }
-  @Get('timesheets') timesheet(
-    @CurrentTenant() ctx: AuthTenantContext,
-    @Query() query: Record<string, string>,
-  ) {
-    return this.planner.timesheet(ctx, query);
-  }
-  @Post('timesheets/status') transitionTimesheet(
-    @CurrentTenant() ctx: AuthTenantContext,
-    @Body() dto: unknown,
-  ) {
-    return this.planner.transitionTimesheet(ctx, dto);
-  }
-  @Post('timesheets/work') saveTimesheetWork(
-    @CurrentTenant() ctx: AuthTenantContext,
-    @Body() dto: unknown,
-  ) {
-    return this.planner.saveTimesheetWork(ctx, dto);
-  }
   @Get('reports/:id/widgets/:widgetId') reportWidget(
     @CurrentTenant() ctx: AuthTenantContext,
     @Param('id') id: string,
@@ -151,13 +103,6 @@ export class PlannerController {
     @Query() query: Record<string, string>,
   ) {
     return this.planner.reportWidget(ctx, id, widgetId, query);
-  }
-  @Post('forms/:id/share') shareForm(
-    @CurrentTenant() ctx: AuthTenantContext,
-    @Param('id') id: string,
-    @Body() dto: unknown,
-  ) {
-    return this.planner.shareForm(ctx, id, dto);
   }
   @Post('projects') createProject(
     @CurrentTenant() ctx: AuthTenantContext,
@@ -373,22 +318,5 @@ export class PlannerController {
     @Body() dto: unknown,
   ) {
     return this.planner.saveResource(ctx, id, dto);
-  }
-  @Post('templates/:id/instantiate') instantiate(
-    @CurrentTenant() ctx: AuthTenantContext,
-    @Param('id') id: string,
-    @Body() dto: unknown,
-  ) {
-    return this.planner.instantiateTemplate(ctx, id, dto);
-  }
-  @Post('forms/:id/submit')
-  @UseInterceptors(PlannerFormUploadInterceptor)
-  submit(
-    @CurrentTenant() ctx: AuthTenantContext,
-    @Param('id') id: string,
-    @Body() dto: unknown,
-    @UploadedFiles() files: PlannerFormUpload[] = [],
-  ) {
-    return this.planner.submitForm(ctx, id, dto, files);
   }
 }
