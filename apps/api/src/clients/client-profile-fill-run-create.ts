@@ -1,10 +1,10 @@
+import { requireProfileSubject, subjectColumn, type ProfileSubject } from './profile-subject.js';
 import { randomUUID } from 'node:crypto';
 import { seedCompletionTasks } from './client-profile-fill-completion-plan-store.js';
 import { ConflictException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
-import { requireOwnerClient } from './client-ordered-owner.access.js';
 import { matchingResearchStart, type ResearchStartRequest } from './client-profile-fill-start-request.js';
 import type { ClientProfileFillTaskPlanSpec } from './client-profile-fill-workflow.service.js';
 
@@ -15,16 +15,16 @@ type RunCreation = {
 };
 
 /** The existing client lock serializes explicit starts with current access changes. */
-async function admitStart(tx: Prisma.TransactionClient, ctx: TenantContext, clientId: string, request: ResearchStartRequest) {
-  await requireOwnerClient(tx, ctx, clientId);
-  const replay = await matchingResearchStart(tx, ctx, clientId, request);
+async function admitStart(tx: Prisma.TransactionClient, ctx: TenantContext, clientId: string, request: ResearchStartRequest, subject: ProfileSubject) {
+  await requireProfileSubject(tx, ctx, subject, false, true, true);
+  const replay = await matchingResearchStart(tx, ctx, clientId, request, subject);
   if (replay) return replay;
   const active = await tx.$queryRawUnsafe<Array<{ id: string }>>(
     `SELECT r.id FROM client_profile_fill_run r
-      WHERE r.tenant_id=$1::uuid AND r.client_id=$2::uuid AND r.status<>'cancelled'
+      WHERE r.tenant_id=$1::uuid AND r.${subjectColumn(subject)}=$2::uuid AND r.status<>'cancelled'
        AND (r.status='running' OR EXISTS (
          SELECT 1 FROM client_profile_fill_extension_task t
-          WHERE t.tenant_id=r.tenant_id AND t.client_id=r.client_id AND t.run_id=r.id
+          WHERE t.tenant_id=r.tenant_id AND t.client_id IS NOT DISTINCT FROM r.client_id AND t.prospect_id IS NOT DISTINCT FROM r.prospect_id AND t.run_id=r.id
             AND t.status IN ('queued','running'))) LIMIT 1`,
     ctx.tenantId, clientId,
   );
@@ -33,20 +33,20 @@ async function admitStart(tx: Prisma.TransactionClient, ctx: TenantContext, clie
 }
 
 export function createResearchRun(
-  prisma: PrismaService, ctx: TenantContext, clientId: string, input: RunCreation,
+  prisma: PrismaService, ctx: TenantContext, clientId: string, input: RunCreation, subject: ProfileSubject = {kind: 'client', id: clientId},
 ): Promise<{ runId: string; created: boolean }> {
   const persist = async (tx: Prisma.TransactionClient) => {
     if (input.request) {
-      const replay = await admitStart(tx, ctx, clientId, input.request);
+      const replay = await admitStart(tx, ctx, clientId, input.request, subject);
       if (replay) return { runId: replay, created: false };
     }
     const rows = await tx.$queryRawUnsafe<Array<{ id: string }>>(
       `INSERT INTO client_profile_fill_run
-         (tenant_id, client_id, created_by_user_id, status, requested_sources,
+         (tenant_id, ${subjectColumn(subject)}, created_by_user_id, status, requested_sources,
           source_states_jsonb, workflow_version, stage, setup_jsonb,
           selected_lda_ids, attachment_ids, last_progress_at, id)
        VALUES ($1::uuid,$2::uuid,$3::uuid,'running',
-         ARRAY(SELECT jsonb_array_elements_text($4::jsonb)),$5::jsonb,2,'preparing',$6::jsonb,
+         ARRAY(SELECT jsonb_array_elements_text($4::jsonb)),$5::jsonb,2,${subject.kind === 'prospect' ? "'research'" : "'preparing'"},$6::jsonb,
          ARRAY(SELECT jsonb_array_elements_text($7::jsonb)::int),
          ARRAY(SELECT jsonb_array_elements_text($8::jsonb)::uuid),now(),
          COALESCE($9::uuid,gen_random_uuid()))
@@ -61,14 +61,14 @@ export function createResearchRun(
     for (const task of input.plan) {
       await tx.$executeRawUnsafe(
         `INSERT INTO client_profile_fill_task
-           (id,run_id,tenant_id,client_id,task_type,task_key,status,depends_on,input_jsonb,max_attempts)
+           (id,run_id,tenant_id,${subjectColumn(subject)},task_type,task_key,status,depends_on,input_jsonb,max_attempts)
          VALUES ($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,$6,'queued',
            ARRAY(SELECT jsonb_array_elements_text($7::jsonb)::uuid),$8::jsonb,3)`,
         idByKey.get(task.taskKey), runId, ctx.tenantId, clientId, task.taskType, task.taskKey,
         JSON.stringify(task.dependsOnKeys.map(key => idByKey.get(key)!)), JSON.stringify(task.input),
       );
     }
-    await seedCompletionTasks(tx, ctx.tenantId, clientId, runId);
+    if (subject.kind === 'client') await seedCompletionTasks(tx, ctx.tenantId, clientId, runId);
     return { runId, created: true };
   };
   return input.request

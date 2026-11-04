@@ -2,7 +2,7 @@ import { ClientProfileFillWorkflowService } from './client-profile-fill-workflow
 import { ClientProfileFillCompletionService } from './client-profile-fill-completion.service.js';
 
 /**
- * Regression: neither Fill with Meri sweep service may start its
+ * Regression: neither Profile research sweep service may start its
  * setInterval/queueMicrotask loop in a process that has no HTTP adapter —
  * i.e. a `NestFactory.createApplicationContext(AppModule, ...)` one-shot CLI
  * bootstrap (LegiWatch Phase 9's `run-legiwatch-phase9-job.ts` /
@@ -19,7 +19,7 @@ import { ClientProfileFillCompletionService } from './client-profile-fill-comple
  * `HttpAdapterHost.httpAdapter` is populated there and the guard must let
  * the sweep start normally.
  */
-describe('Fill with Meri sweep services — CLI/one-shot bootstrap guard', () => {
+describe('Profile research sweep services — CLI/one-shot bootstrap guard', () => {
   const originalNodeEnv = process.env.NODE_ENV;
   const originalWorkerFlag = process.env.CLIENT_PROFILE_FILL_WORKER_ENABLED;
   const originalCompletionFlag = process.env.CLIENT_PROFILE_FILL_COMPLETION_WORKER_ENABLED;

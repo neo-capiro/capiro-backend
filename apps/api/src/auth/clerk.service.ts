@@ -66,6 +66,9 @@ export interface ActiveApplicationAuthoritySession {
   abandonAt: number;
   actor: Record<string, unknown> | null;
   expiresAtMs: number;
+  /** Native sessions only: the verified Clerk session lifetime, min(expireAt, abandonAt). Request
+   * authentication keeps expiresAtMs (bounded by the ~60 s token); this never extends a request. */
+  sessionExpiresAtMs?: number;
 }
 
 const APPLICATION_SESSION_CACHE_TTL_MS = 5000;
@@ -216,7 +219,7 @@ export class ClerkService {
         return {
           id: session.id, userId: session.userId, status: 'active',
           createdAt: session.createdAt, expireAt: session.expireAt, abandonAt: session.abandonAt,
-          actor: session.actor, expiresAtMs,
+          actor: session.actor, expiresAtMs, sessionExpiresAtMs: Math.min(session.expireAt, session.abandonAt),
         };
       } catch (error) {
         // Clerk did not answer: retryable 503. Every other failure stays a refusal.

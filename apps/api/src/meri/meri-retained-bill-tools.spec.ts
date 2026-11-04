@@ -159,6 +159,22 @@ function survivesPromptTransport(value: unknown) {
 }
 
 describe('retained bill text through the existing authenticated tool gateway', () => {
+  it('fails explicit modes closed when the text owner is absent while preserving legacy state search', async () => {
+    const f = fixture();
+    Object.assign(f.tools, { billText: undefined });
+    for (const [name, input] of [
+      ['search_congress_bills', { mode: 'keyword', query: 'housing' }],
+      ['search_state_bills', { mode: 'keyword', query: 'housing' }],
+      ['read_bill_text', identity(document())],
+    ] as const)
+      await expect(f.route(name, input)).rejects.toMatchObject({ status: 503 });
+    expect(f.query).not.toHaveBeenCalled();
+    expect(f.embed).not.toHaveBeenCalled();
+    expect(f.legacyFind).not.toHaveBeenCalled();
+    await f.route('search_state_bills', { query: 'housing' });
+    expect(f.legacyFind).toHaveBeenCalledTimes(1);
+  });
+
   it('uses the mounted user/service guards and refuses absent user or service identity before a read', async () => {
     expect(Reflect.getMetadata(GUARDS_METADATA, MeriController)).toContain(RolesGuard);
     expect(Reflect.getMetadata(GUARDS_METADATA, MeriController.prototype.executeTool)).toContain(

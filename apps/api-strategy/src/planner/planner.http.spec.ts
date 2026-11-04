@@ -3,7 +3,7 @@ import type { INestApplication, ExecutionContext } from '@nestjs/common';
 import request from 'supertest';
 import { PlannerController } from './planner.controller.js';
 import { PlannerAttachmentsController } from './planner-attachments.controller.js';
-import { PlannerPublicController } from './planner-public.controller.js';
+
 import { PlannerService } from './planner.service.js';
 import { PlannerAttachmentsService } from './planner-attachments.service.js';
 import { TenantGuard } from '../auth/tenant.guard.js';
@@ -33,11 +33,6 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     resources: jest.fn(async () => []),
     reportWidget: jest.fn(async () => ({ buckets: [], total: 0, matched: 0, dashboardVersion: 1 })),
     saveResource: jest.fn(async () => ({ id: ID })),
-    instantiateTemplate: jest.fn(async () => ({ id: ID })),
-    submitForm: jest.fn(async () => ({ id: ID })),
-    shareForm: jest.fn(async () => ({ token: null })),
-    publicForm: jest.fn(async () => ({ name: 'Intake', description: '', fields: [] })),
-    submitPublicForm: jest.fn(async () => ({ received: true })),
     duplicateProject: jest.fn(async () => ({ id: ID })),
     queue: jest.fn(async () => []),
     reorderTasks: jest.fn(async () => ({ ok: true })),
@@ -50,7 +45,12 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     notifications: jest.fn(async () => ({ items: [], unread: 0 })),
     readAllNotifications: jest.fn(async () => ({ read: 0 })),
     updateInbox: jest.fn(async () => ({ ok: true })),
-    timeSettings: jest.fn(async () => ({ version: 0, canManage: false, reviewers: {} })),
+    timeSettings: jest.fn(async () => ({
+      version: 0,
+      canManage: false,
+      reviewers: {},
+      options: { timeZone: 'America/New_York' },
+    })),
     timer: jest.fn(async () => ({ id: ID, version: 1 })),
     timeTree: jest.fn(async () => ({
       nodes: [],
@@ -61,14 +61,6 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     startTimer: jest.fn(async () => ({ id: ID, version: 1 })),
     stopTimer: jest.fn(async () => ({ id: ID, version: 2 })),
     discardTimer: jest.fn(async () => ({ id: ID, version: 2 })),
-    saveTimeSettings: jest.fn(async () => ({ ok: true })),
-    timePreferences: jest.fn(async () => ({ version: 0, autoAddDueTasks: false })),
-    saveTimePreferences: jest.fn(async () => ({ ok: true })),
-    timesheet: jest.fn(async () => ({ items: [], matched: 0 })),
-    timeReview: jest.fn(async () => []),
-    timeExport: jest.fn(async () => ({ items: [], matched: 0, nextCursor: null })),
-    transitionTimesheet: jest.fn(async () => ({ status: 'submitted' })),
-    saveTimesheetWork: jest.fn(async () => ({ workRows: [] })),
     projectBudget: jest.fn(async () => ({ version: 0 })),
     saveProjectBudget: jest.fn(async () => ({ version: 1 })),
     saveBudgetAlert: jest.fn(async () => ({ alert: { version: 1 } })),
@@ -82,7 +74,7 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
   };
   beforeAll(async () => {
     const module = await Test.createTestingModule({
-      controllers: [PlannerController, PlannerAttachmentsController, PlannerPublicController],
+      controllers: [PlannerController, PlannerAttachmentsController],
       providers: [
         { provide: PlannerService, useValue: planner },
         { provide: PlannerAttachmentsService, useValue: attachments },
@@ -105,6 +97,28 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
   });
   afterAll(async () => {
     await app?.close();
+  });
+  it('retains task time entry, its organization time zone and project duplication', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/strategy-api/planner/time/settings')
+      .set('x-planner-qa', 'allowed')
+      .expect(200);
+    expect(response.body.options.timeZone).toBe('America/New_York');
+    expect(planner.timeSettings).toHaveBeenCalledWith(ctx);
+    const time = { kind: 'time', text: 'Task work', minutes: 30, time: { workedOn: '2026-11-02' } };
+    await request(app.getHttpServer())
+      .post('/strategy-api/planner/tasks/' + ID + '/events')
+      .set('x-planner-qa', 'allowed')
+      .send(time)
+      .expect(201);
+    expect(planner.addEvent).toHaveBeenCalledWith(ctx, { taskId: ID }, time);
+    const duplicate = { version: 1, name: 'Copy' };
+    await request(app.getHttpServer())
+      .post('/strategy-api/planner/projects/' + ID + '/duplicate')
+      .set('x-planner-qa', 'allowed')
+      .send(duplicate)
+      .expect(201);
+    expect(planner.duplicateProject).toHaveBeenCalledWith(ctx, ID, duplicate);
   });
   it.each([
     ['post', 'x-capiro-expected-tenant-id'],
@@ -155,15 +169,6 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     ['get', `task-create-commands/${ID}`],
     ['get', 'queue'],
     ['get', 'time/settings'],
-    ['patch', 'time/settings'],
-    ['get', 'time/preferences'],
-    ['patch', 'time/preferences'],
-    ['get', 'timesheets'],
-    ['get', 'time/entries'],
-    ['get', 'timesheets/review'],
-    ['post', 'timesheets/status'],
-    ['post', 'timesheets/work'],
-    ['post', `forms/${ID}/share`],
     ['post', `projects/${ID}/duplicate`],
     ['post', `projects/${ID}/reorder`],
     ['get', 'tasks'],
@@ -194,8 +199,6 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     ['get', `reports/${ID}/widgets/${ID}`],
     ['post', 'resources'],
     ['patch', `resources/${ID}`],
-    ['post', `templates/${ID}/instantiate`],
-    ['post', `forms/${ID}/submit`],
     ['get', `tasks/${ID}/attachments`],
     ['post', `tasks/${ID}/attachments`],
     ['patch', `tasks/${ID}/attachments/${ID}`],
@@ -280,22 +283,6 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     expect(planner.saveBudgetAlert).toHaveBeenCalledWith(ctx, ID, body);
     expect(planner.portfolioBudgets).toHaveBeenCalledWith(ctx, ID);
   });
-  it('forwards date ranges and revision-bound time export pages through the signed-in context', async () => {
-    const query = {
-      scope: 'project',
-      projectId: ID,
-      fromOn: '2026-10-01',
-      throughOn: '2026-10-31',
-      cursor: ID,
-      revision: 'a'.repeat(64),
-    };
-    await request(app.getHttpServer())
-      .get('/strategy-api/planner/time/entries')
-      .query(query)
-      .set('x-planner-qa', 'allowed')
-      .expect(200);
-    expect(planner.timeExport).toHaveBeenCalledWith(ctx, query);
-  });
   it('forwards complete time-tree scope and revision paging through the signed-in context', async () => {
     const query = {
       projectId: ID,
@@ -311,31 +298,6 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
       .set('x-planner-qa', 'allowed')
       .expect(200);
     expect(planner.timeTree).toHaveBeenLastCalledWith(ctx, query);
-  });
-  it('routes weekly time and guarded status actions through the signed-in context', async () => {
-    await request(app.getHttpServer())
-      .get('/strategy-api/planner/timesheets')
-      .query({ week: '2026-10-05', userId: 'submitter' })
-      .set('x-planner-qa', 'allowed')
-      .expect(200);
-    expect(planner.timesheet).toHaveBeenCalledWith(ctx, {
-      week: '2026-10-05',
-      userId: 'submitter',
-    });
-    const dto = {
-      week: '2026-10-05',
-      userId: 'submitter',
-      version: 1,
-      revision: 'a'.repeat(64),
-      action: 'submit',
-      notes: '',
-    };
-    await request(app.getHttpServer())
-      .post('/strategy-api/planner/timesheets/status')
-      .set('x-planner-qa', 'allowed')
-      .send(dto)
-      .expect(201);
-    expect(planner.transitionTimesheet).toHaveBeenCalledWith(ctx, dto);
   });
   it('forwards reporting drill-down cursors, category and expected version through the signed-in tenant guard', async () => {
     await request(app.getHttpServer())
@@ -386,52 +348,39 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
       .expect(200);
     expect(planner.tasks).toHaveBeenCalledWith(ctx, { mine: 'true', cursor: ID });
   });
+
+  it.each([
+    ['patch', 'time/settings'],
+    ['get', 'time/preferences'],
+    ['patch', 'time/preferences'],
+    ['get', 'timesheets'],
+    ['get', 'time/entries'],
+    ['get', 'timesheets/review'],
+    ['post', 'timesheets/status'],
+    ['post', 'timesheets/work'],
+    ['post', 'forms/ID/share'],
+    ['post', 'templates/ID/instantiate'],
+    ['post', 'forms/ID/submit'],
+    ['get', 'public/forms/token'],
+    ['post', 'public/forms/token'],
+    ['get', 'capacity'],
+    ['get', 'capacity/plans/ID'],
+    ['post', 'capacity/plans'],
+    ['post', 'capacity/teams'],
+    ['post', 'capacity/placeholders'],
+    ['post', 'capacity/allocations'],
+    ['post', 'capacity/weekly-capacities'],
+  ])('does not expose retired %s /planner/%s', async (method, path) => {
+    const agent = request(app.getHttpServer());
+    await agent[method as 'get']('/strategy-api/planner/' + path.replace('ID', ID))
+      .set('x-planner-qa', 'allowed')
+      .expect(404);
+  });
   it('does not expose Planner at the canonical API prefix', async () => {
     await request(app.getHttpServer())
       .get('/api/planner/bootstrap')
       .set('x-planner-qa', 'allowed')
       .expect(404);
-  });
-  it('forwards reviewer filters, history cursors and private saved views through guarded routes', async () => {
-    const revision = 'a'.repeat(64);
-    const review = {
-      week: '2026-10-05',
-      people: 'user_submitter',
-      statuses: 'submitted',
-      sort: 'total',
-      direction: 'desc',
-      paged: 'true',
-      cursor: 'user_cursor',
-      revision,
-    };
-    await request(app.getHttpServer())
-      .get('/strategy-api/planner/timesheets/review')
-      .query(review)
-      .set('x-planner-qa', 'allowed')
-      .expect(200);
-    expect(planner.timeReview).toHaveBeenLastCalledWith(ctx, review);
-    const history = { week: '2026-10-05', userId: 'user_submitter', historyCursor: ID, revision };
-    await request(app.getHttpServer())
-      .get('/strategy-api/planner/timesheets')
-      .query(history)
-      .set('x-planner-qa', 'allowed')
-      .expect(200);
-    expect(planner.timesheet).toHaveBeenLastCalledWith(ctx, history);
-    const preferences = {
-      version: 4,
-      reviewView: {
-        people: ['user_submitter'],
-        statuses: ['submitted'],
-        sort: 'billable',
-        direction: 'desc',
-      },
-    };
-    await request(app.getHttpServer())
-      .patch('/strategy-api/planner/time/preferences')
-      .set('x-planner-qa', 'allowed')
-      .send(preferences)
-      .expect(200);
-    expect(planner.saveTimePreferences).toHaveBeenLastCalledWith(ctx, preferences);
   });
   it('forwards activity cursors and the archived inbox filter through guarded routes', async () => {
     await request(app.getHttpServer())
@@ -466,72 +415,5 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
       .set('x-capiro-impersonate-tenant', 'other-tenant')
       .expect(403);
     expect(planner.bootstrap).not.toHaveBeenCalled();
-  });
-  it('allows only the explicit anonymous form routes without the signed-in tenant guard', async () => {
-    await request(app.getHttpServer())
-      .get('/strategy-api/planner/public/forms/synthetic-capability')
-      .expect(200);
-    expect(planner.publicForm).toHaveBeenCalledWith('synthetic-capability');
-    await request(app.getHttpServer())
-      .post('/strategy-api/planner/public/forms/synthetic-capability')
-      .send({ answer: 'Request' })
-      .expect(201);
-    expect(planner.submitPublicForm).toHaveBeenCalledWith(
-      'synthetic-capability',
-      {
-        answer: 'Request',
-      },
-      [],
-    );
-  });
-  it('passes multipart answers and attachment question identities through signed-in and public intake', async () => {
-    for (const path of [`forms/${ID}/submit`, 'public/forms/synthetic-capability']) {
-      const call = request(app.getHttpServer()).post(`/strategy-api/planner/${path}`);
-      if (!path.startsWith('public')) call.set('x-planner-qa', 'allowed');
-      await call
-        .field('answers', JSON.stringify({ answer: 'Synthetic request' }))
-        .attach(ID, Buffer.from('synthetic'), 'example.txt')
-        .expect(201);
-    }
-    const files = expect.arrayContaining([
-      expect.objectContaining({
-        fieldname: ID,
-        originalname: 'example.txt',
-        size: 9,
-        buffer: Buffer.from('synthetic'),
-      }),
-    ]);
-    expect(planner.submitForm).toHaveBeenLastCalledWith(
-      ctx,
-      ID,
-      { answers: '{"answer":"Synthetic request"}' },
-      files,
-    );
-    expect(planner.submitPublicForm).toHaveBeenLastCalledWith(
-      'synthetic-capability',
-      { answers: '{"answer":"Synthetic request"}' },
-      files,
-    );
-  });
-  it('rejects excess files and fields, and checks a revoked capability before accepting uploads', async () => {
-    const files = request(app.getHttpServer())
-      .post('/strategy-api/planner/public/forms/synthetic-capability')
-      .field('answers', '{}');
-    for (let index = 0; index < 11; index++) files.attach(ID, Buffer.from('one'), `${index}.txt`);
-    await files.expect(400);
-    await request(app.getHttpServer())
-      .post('/strategy-api/planner/public/forms/synthetic-capability')
-      .field('answers', '{}')
-      .field('unexpected', 'extra')
-      .expect(400);
-    planner.publicForm.mockRejectedValueOnce(
-      new (await import('@nestjs/common')).NotFoundException(),
-    );
-    planner.submitPublicForm.mockClear();
-    await request(app.getHttpServer())
-      .post('/strategy-api/planner/public/forms/revoked')
-      .attach(ID, Buffer.from('one'), 'one.txt')
-      .expect(404);
-    expect(planner.submitPublicForm).not.toHaveBeenCalled();
   });
 });

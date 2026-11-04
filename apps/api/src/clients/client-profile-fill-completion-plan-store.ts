@@ -20,7 +20,7 @@ export async function seedCompletionTasks(
     tenantId,
     clientId,
   );
-  if (!run.length) throw new NotFoundException('Agentic Fill with Meri run not found');
+  if (!run.length) throw new NotFoundException('Profile research run not found');
   for (const task of buildClientProfileFillCompletionPlan()) {
     await tx.$executeRawUnsafe(
       `INSERT INTO client_profile_fill_extension_task

@@ -17,12 +17,14 @@ const environment = {
   CLIENT_PROFILE_FILL_COMPLETION_WORKER_ENABLED:
     process.env.CLIENT_PROFILE_FILL_COMPLETION_WORKER_ENABLED,
   CLIENT_PROFILE_FILL_WORKER_ENABLED: process.env.CLIENT_PROFILE_FILL_WORKER_ENABLED,
+  CLIENT_PROFILE_FILL_AUTOMATIC_REFRESH_ENABLED: process.env.CLIENT_PROFILE_FILL_AUTOMATIC_REFRESH_ENABLED,
 };
 beforeEach(() => {
   process.env.NODE_ENV = 'production';
   process.env.HOSTNAME = 'runtime-worker';
   delete process.env.CLIENT_PROFILE_FILL_COMPLETION_WORKER_ENABLED;
   delete process.env.CLIENT_PROFILE_FILL_WORKER_ENABLED;
+  delete process.env.CLIENT_PROFILE_FILL_AUTOMATIC_REFRESH_ENABLED;
   timers.splice(0);
   microtasks.splice(0);
   timerEvents.splice(0);
@@ -79,6 +81,10 @@ function fixture(options: Options = {}) {
       if (sql.includes('WITH candidates AS')) {
         operations.push('task-claim');
         claimArgs.push(args);
+        return [];
+      }
+      if (sql.includes('SELECT r.id, r.tenant_id AS "tenantId"') && sql.includes('clock_timestamp()') && sql.includes('FOR UPDATE OF r SKIP LOCKED')) {
+        operations.push('task-expiry');
         return [];
       }
       if (sql.includes('FROM client_profile_fill_run r')) {
@@ -179,6 +185,23 @@ describe('Completion automatic worker guards', () => {
 });
 
 describe('Completion timers and initial dispatch', () => {
+  it('runs completion tasks with automatic refresh off while preserving explicit schedule execution', async () => {
+    process.env.CLIENT_PROFILE_FILL_AUTOMATIC_REFRESH_ENABLED = 'false';
+    const h = fixture();
+    h.service.onModuleInit();
+    expect(timers.map(timer => timer.delay)).toEqual([1_500]);
+    expect(microtasks).toHaveLength(1);
+    microtasks[0]!();
+    await settle();
+    expect(h.operations).toContain('task-claim');
+    expect(h.operations).not.toContain('schedule-claim');
+    timers[0]!.callback();
+    await settle();
+    expect(h.operations).not.toContain('schedule-claim');
+    await h.service.sweepSchedulesOnce();
+    expect(h.operations).toContain('schedule-claim');
+    h.service.onModuleDestroy();
+  });
   it('registers exactly task then schedule intervals, unreferences both and queues one initial kick', () => {
     const h = fixture();
     h.service.onModuleInit();
@@ -193,7 +216,7 @@ describe('Completion timers and initial dispatch', () => {
     expect(microtasks).toHaveLength(1);
     expect(h.operations).toEqual([]);
     expect(h.logs).toEqual([
-      { level: 'log', message: 'Fill with Meri completion worker started (runtime-worker)' },
+      { level: 'log', message: 'Profile research completion worker started (runtime-worker)' },
     ]);
     h.service.onModuleDestroy();
   });
@@ -208,11 +231,12 @@ describe('Completion timers and initial dispatch', () => {
     const h = fixture();
     h.service.onModuleInit();
     microtasks[0]!();
-    expect(h.operations).toEqual(['task-recovery', 'schedule-claim']);
+    expect(h.operations).toEqual(['task-expiry', 'schedule-claim']);
     await settle();
     expect(h.operations).toEqual([
-      'task-recovery',
+      'task-expiry',
       'schedule-claim',
+      'task-recovery',
       'task-claim',
       'task-finalize',
     ]);
@@ -228,10 +252,12 @@ describe('Completion timers and initial dispatch', () => {
     timers[0]!.callback();
     await settle();
     expect(h.operations).toEqual([
+      'task-expiry',
       'task-recovery',
       'task-claim',
       'task-finalize',
       'schedule-claim',
+      'task-expiry',
       'task-recovery',
       'task-claim',
       'task-finalize',
@@ -263,7 +289,7 @@ describe('Runtime sweep rejection boundaries', () => {
     h.service.onModuleInit();
     expect(microtasks[0]!()).toBeUndefined();
     await settle();
-    expect(h.operations).toEqual(['task-recovery', 'schedule-claim']);
+    expect(h.operations).toEqual(['task-expiry', 'schedule-claim', 'task-recovery']);
     expect(h.logs.filter((entry) => entry.level === 'error')).toEqual([
       {
         level: 'error',
@@ -279,8 +305,9 @@ describe('Runtime sweep rejection boundaries', () => {
     microtasks[0]!();
     await settle();
     expect(h.operations).toEqual([
-      'task-recovery',
+      'task-expiry',
       'schedule-claim',
+      'task-recovery',
       'task-claim',
       'task-finalize',
     ]);
@@ -311,7 +338,7 @@ describe('Runtime sweep rejection boundaries', () => {
     h.service.onModuleInit();
     microtasks[0]!();
     await settle();
-    expect(h.operations).toEqual(['task-recovery', 'schedule-claim']);
+    expect(h.operations).toEqual(['task-expiry', 'schedule-claim', 'task-recovery']);
     timers[1]!.callback();
     await settle();
     expect(h.operations.filter((operation) => operation === 'schedule-claim')).toHaveLength(2);
@@ -347,8 +374,9 @@ describe('Completion runtime destruction preserves existing lifecycle behavior',
     microtasks[0]!();
     await settle();
     expect(h.operations).toEqual([
-      'task-recovery',
+      'task-expiry',
       'schedule-claim',
+      'task-recovery',
       'task-claim',
       'task-finalize',
     ]);

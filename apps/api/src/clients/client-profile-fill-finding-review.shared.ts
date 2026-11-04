@@ -4,6 +4,7 @@ import { asString } from './client-profile-fill.helpers.js';
 
 export interface AdvancedFindingRow {
   id: string;
+  runId?: string;
   kind: string;
   targetKey: string;
   source: string;

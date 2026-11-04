@@ -33,8 +33,12 @@ describe('shared Strategy questionnaire contract', () => {
   test.each([
     { goal: 'x'.repeat(4001) }, { meriContext: 'x'.repeat(8001) }, { targetDate: '2027-02-29' },
     { targetDate: '2027-02-28\n' }, { ownerUserId: '' }, { type: 'invented' }, { schemaVersion: 2 },
-    { extra: true },
+    { extra: true }, { targetDate: '0000-01-01' }, { targetDate: '0000-02-29' }, { targetDate: '2026-02-30' },
   ])('refuses invalid answer %j', changes => expect(() => parseStrategyIntake({ ...answers(), ...changes })).toThrow());
+  test('accepts every target date PostgreSQL can store as a date, from year 0001', () => {
+    for (const targetDate of ['0001-01-01', '2028-02-29', '9999-12-31'])
+      expect(parseStrategyIntake({ ...answers(), targetDate }).targetDate).toBe(targetDate);
+  });
   test('old snapshots stay old and an invalid present intake never falls back to legacy fields', () => {
     const legacy = { outcome: 'O', governmentProblem: 'P', askType: 'funding', minimumWin: 'M', limits: '' };
     expect(objectiveIntentFromSnapshot(legacy)).toEqual(legacy);

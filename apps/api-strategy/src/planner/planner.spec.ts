@@ -14,7 +14,11 @@ import { plannerProjectAccess, plannerTaskAccess, PlannerService } from './plann
 import { validateProject, validateTask } from './planner.validation.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { PlannerLinksService } from './planner-links.service.js';
-import type { SpPlannerProject, SpPlannerTask } from '../../generated/prisma-client/index.js';
+import type {
+  SpPlannerProject,
+  SpPlannerTask,
+  SpPlannerResource,
+} from '../../generated/prisma-client/index.js';
 import type { AuthTenantContext } from '../auth/tenant-context.js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -130,7 +134,12 @@ function fixture(projects = [project()], tasks = [task()]) {
     },
     spPlannerInbox: { create: jest.fn(async () => ({})), findMany: jest.fn(async () => []) },
     spPlannerAttachment: { findMany: jest.fn(async () => []) },
-    spPlannerResource: { findMany: jest.fn(async () => []) },
+    spPlannerResource: {
+      findMany: jest.fn(async (): Promise<SpPlannerResource[]> => []),
+      findFirst: jest.fn(async (): Promise<SpPlannerResource | null> => null),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
   };
   const prisma = {
     withTenant: jest.fn(async (tenantId, fn) => {
@@ -259,6 +268,51 @@ describe('Planner input and calendar validation', () => {
   });
 });
 describe('Planner service mutation boundaries', () => {
+  it.each([
+    'template',
+    'rule',
+    'form',
+    'capacity',
+    'capacity_plan',
+    'capacity_team',
+    'capacity_placeholder',
+    'capacity_allocation',
+  ])(
+    'does not expose or mutate persisted retired %s resources through generic routes',
+    async (kind) => {
+      const f = fixture();
+      const row = {
+        id: OTHER,
+        tenantId: TENANT,
+        ownerId: ctx.clerkUserId,
+        projectId: PROJECT,
+        name: 'Historical fixture',
+        kind,
+        data: {},
+        version: 1,
+        archived: false,
+        createdAt: now,
+        updatedAt: now,
+        shareTokenHash: null,
+      } as SpPlannerResource;
+      f.tx.spPlannerResource.findMany.mockResolvedValue([row]);
+      f.tx.spPlannerResource.findFirst.mockResolvedValue(row);
+      await expect(f.service.resources(ctx)).resolves.toEqual([]);
+      await expect(
+        f.service.saveResource(ctx, null, { kind, name: 'Retired', data: {} }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        f.service.saveResource(ctx, row.id, { version: 1, archived: true }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      await expect(f.service.events(ctx, { resourceId: row.id })).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(f.tx.spPlannerResource.create).not.toHaveBeenCalled();
+      expect(f.tx.spPlannerResource.update).not.toHaveBeenCalled();
+      expect(row.version).toBe(1);
+      expect(row.archived).toBe(false);
+    },
+  );
   it('rejects an expected-version conflict before writing', async () => {
     const f = fixture();
     await expect(

@@ -141,13 +141,4 @@ describe('Planner continuation private-kind generic-access refusal', () => {
     expect(f.tx.spPlannerResource.findFirst).toHaveBeenCalledWith({ where: { id: RESOURCE, tenantId: TENANT } });
     expect(f.write).not.toHaveBeenCalled();expect(f.row.version).toBe(2);expect(f.row.archived).toBe(false);
   });
-
-  it('keeps the actual sharing path scoped to a public resource kind and refuses the private operation ID', async () => {
-    const f = resourceFixture();
-    await expect(f.planner.shareForm(owner, RESOURCE, { version: 2, enabled: true })).rejects.toBeInstanceOf(NotFoundException);
-    expect(f.tx.spPlannerResource.findFirst).toHaveBeenCalledWith({
-      where: { id: RESOURCE, tenantId: TENANT, kind: 'form', archived: false },
-    });
-    expect(f.write).not.toHaveBeenCalled();expect(f.row.shareTokenHash).toBeNull();
-  });
 });

@@ -465,23 +465,24 @@ export async function extractPdfBounded(
   buffer: Buffer,
   maxPages: number,
 ): Promise<{ text: string; pageLimitHit: boolean }> {
+  if (!Number.isSafeInteger(maxPages) || maxPages < 1)
+    throw new BadRequestException('PDF extraction requires a positive page limit');
   const { PDFParse } = await import('pdf-parse');
   const parser = new PDFParse({ data: buffer });
   try {
-    const parsed = await parser.getText();
+    const info = await parser.getInfo();
+    if (!Number.isSafeInteger(info.total) || info.total < 0)
+      throw new BadRequestException('PDF page count is unavailable');
+    const pageLimitHit = info.total > maxPages;
+    const count = Math.min(info.total, maxPages);
+    if (!count) return { text: '', pageLimitHit: false };
+    // Limit parser work itself. Slicing after getText() still parses a full 4,000-page filing.
+    const parsed = await parser.getText({ partial: Array.from({ length: count }, (_, i) => i + 1) });
     const pages = (parsed as { pages?: Array<{ text?: string }> }).pages;
-    if (Array.isArray(pages) && pages.length) {
-      const pageLimitHit = pages.length > maxPages;
-      const text = pages
-        .slice(0, maxPages)
-        .map((p) => (p.text ?? '').trim())
-        .filter(Boolean)
-        .join('\n\n');
-      return { text, pageLimitHit };
-    }
-    // No per-page breakdown available: fall back to the flat text. The character
-    // bound in extractBounded still applies.
-    return { text: (parsed.text ?? '').trim(), pageLimitHit: false };
+    const text = Array.isArray(pages) && pages.length
+      ? pages.slice(0, count).map(page => (page.text ?? '').trim()).filter(Boolean).join('\n\n')
+      : (parsed.text ?? '').trim();
+    return { text, pageLimitHit };
   } finally {
     await parser.destroy().catch(() => {});
   }

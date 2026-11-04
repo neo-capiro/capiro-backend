@@ -1,3 +1,10 @@
+import { portfolioResearchScope, authorizePortfolioResearchScope, type PortfolioResearchScope, type PortfolioResearchPurpose } from './portfolio-research-scope.js';
+import { PortfolioRelationshipsService } from './portfolio/portfolio-relationships.service.js';
+import { PortfolioOfficeAutoRefresh } from './portfolio/portfolio-office-auto-refresh.js';
+import { requireProfileSubject } from './profile-subject.js';
+import { assertSharedProfileEvidence, visibleProfileFindings } from './profile-shared-evidence.js';
+import { readApprovedResearchBusinessUnit, type ResearchBusinessUnit } from './profile-capability-discovery-input.js';
+import { requireOwnerClient } from './client-ordered-owner.access.js';
 import { expireFillRuns, fillRunBeforeDeadline, fillTaskRunAdmissible, fillTaskBudget, FillRunDeadlineError, FillTaskTimeoutError, FILL_RUN_DEADLINE_SQL } from './client-profile-fill-run-deadline.js';
 import { queueFailedFillTask } from './client-profile-fill-retry.js';
 import { seedCompletionTasks } from './client-profile-fill-completion-plan-store.js';
@@ -7,6 +14,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   type OnModuleDestroy,
   type OnModuleInit,
 } from '@nestjs/common';
@@ -32,6 +40,7 @@ import { runWithFillTask } from './client-profile-fill-execution.js';
 import { readResearchInputs, researchTaskInput, researchWebsite, type ResearchLdaIdentity } from './client-profile-fill-research-inputs.js';
 import { readResearchStart, researchStartRequest } from './client-profile-fill-start-request.js';
 import { createResearchRun } from './client-profile-fill-run-create.js';
+import type { ProfileSubject } from './profile-subject.js';
 
 export const CLIENT_PROFILE_FILL_TASK_TYPES = [
   'public_web',
@@ -61,6 +70,9 @@ export interface ClientProfileFillTaskPlanSpec {
 
 export interface StartClientProfileFillWorkflowInput {
   requestId?: string;
+  businessUnitId?: string;
+  purpose?: PortfolioResearchPurpose;
+  capabilityId?: string;
   sources?: ClientProfileFillSource[];
   attachmentIds?: string[];
   ldaClientIds?: number[];
@@ -79,7 +91,7 @@ export interface ClientProfileFillIdentityOption {
 }
 
 interface FillEngineInternals {
-  gatherPublicWeb(ctx: TenantContext, clientId: string, runId: string, website?: string | null): Promise<number>;
+  gatherPublicWeb(ctx: TenantContext, clientId: string, runId: string, website?: string | null, subject?: ProfileSubject, signal?: AbortSignal, businessUnit?: ResearchBusinessUnit, scope?: PortfolioResearchScope): Promise<number>;
   gatherSyncedEmail(ctx: TenantContext, clientId: string, runId: string): Promise<number>;
   gatherSam(ctx: TenantContext, clientId: string, runId: string): Promise<number>;
   gatherLda(ctx: TenantContext, clientId: string, runId: string, identities?: ResearchLdaIdentity[]): Promise<number>;
@@ -91,6 +103,11 @@ interface FillEngineInternals {
     runId: string,
     attachmentId: string,
     documentText: string,
+    subject?: ProfileSubject,
+    signal?: AbortSignal,
+    sourceProspectId?: string,
+    businessUnit?: ResearchBusinessUnit,
+    scope?: PortfolioResearchScope,
   ): Promise<number>;
 }
 
@@ -116,6 +133,7 @@ interface WorkflowRunRow {
 }
 
 export interface WorkflowTaskRow {
+  prospectId?: string | null;
   id: string;
   runId: string;
   tenantId: string;
@@ -264,6 +282,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
   private readonly workerId = process.env.HOSTNAME ?? `api-${process.pid}`;
   private timer?: ReturnType<typeof setInterval>;
   private sweeping = false;
+  private readonly officeRefresh: PortfolioOfficeAutoRefresh;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -273,8 +292,10 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
     private readonly intelligence: IntelligenceService,
     private readonly prepopulation: ClientPrepopulationService,
     private readonly httpAdapterHost: HttpAdapterHost,
+    @Optional() private readonly relationships?: PortfolioRelationshipsService,
   ) {
     this.engine = this.fill as unknown as FillEngineInternals;
+    this.officeRefresh = new PortfolioOfficeAutoRefresh(prisma);
   }
 
   onModuleInit(): void {
@@ -299,7 +320,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
     this.timer = setInterval(() => this.requestSweep(), TASK_SWEEP_MS);
     this.timer.unref?.();
     queueMicrotask(() => this.requestSweep());
-    this.logger.log(`Fill with Meri task worker started (${this.workerId})`);
+    this.logger.log(`Profile research task worker started (${this.workerId})`);
   }
 
   onModuleDestroy(): void {
@@ -437,6 +458,8 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
     if (input.sources !== undefined && input.sources.length === 0 && preAttachmentIds.length === 0) {
       throw new BadRequestException('An empty sources list requires at least one capability document');
     }
+    const requestedScope = portfolioResearchScope(input);
+    if (requestedScope && input.sources?.some(source => source !== 'public_web')) throw new BadRequestException('Portfolio research uses website and selected documents only');
     const request = researchStartRequest(ctx, clientId, input);
     if (request) {
       const replay = await readResearchStart(this.prisma, ctx, clientId, request);
@@ -447,7 +470,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
     }
 
     const setup = await this.getSetup(ctx, clientId);
-    const sources = this.normalizeSources(input.sources);
+    const sources = this.normalizeSources(input.sources ?? (requestedScope ? ['public_web'] : undefined));
     const attachmentIds = preAttachmentIds;
     const requestedLdaIds = this.normalizeLdaIds(input.ldaClientIds);
     const allowedIdentities = new Map(
@@ -467,6 +490,15 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
     const attachmentRows = await this.validateAttachments(ctx, clientId, attachmentIds);
 
     const website = researchWebsite(input.website) ?? researchWebsite(setup.website);
+    const businessUnit = input.businessUnitId ? await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async tx => {
+      await requireOwnerClient(tx, ctx, clientId, false, false, 'share');
+      return readApprovedResearchBusinessUnit(tx, ctx, clientId, input.businessUnitId!);
+    }) : undefined;
+
+    const portfolioScope = requestedScope ? await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async tx => {
+      await requireOwnerClient(tx, ctx, clientId, false, false, 'share');
+      return authorizePortfolioResearchScope(tx, ctx, clientId, requestedScope);
+    }) : undefined;
 
     const currentLdaIds = new Set(setup.selectedIdentities.map((identity) => identity.id));
     const appendedLdaIds = selectedLdaIds.filter((id) => !currentLdaIds.has(id));
@@ -481,9 +513,9 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
       attachmentId: attachmentIds[0] ?? null,
     });
     const plan = buildClientProfileFillTaskPlan({ sources, attachmentIds }).map(task => ({
-      ...task, input: { ...task.input, ...researchTaskInput(task.taskType, website, researchIdentities) },
+      ...task, input: { ...task.input, ...researchTaskInput(task.taskType, website, researchIdentities, businessUnit, portfolioScope) },
     }));
-    if (!plan.length) throw new BadRequestException('No Fill with Meri tasks were selected');
+    if (!plan.length) throw new BadRequestException('No Profile research tasks were selected');
     const sourceStates: Record<string, unknown> = Object.fromEntries(
       sources.map((source) => [source, { status: 'queued', count: 0 }]),
     );
@@ -496,6 +528,8 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
       };
     }
     const setupSnapshot = {
+      ...(portfolioScope ? {portfolioScope, purpose: portfolioScope.purpose, capabilityId: portfolioScope.capabilityId ?? null} : {}),
+      ...(businessUnit ? {businessUnit} : {}),
       researchInputVersion: 1,
       website,
       selectedLdaIds,
@@ -662,7 +696,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
         ctx.tenantId,
         clientId,
       );
-      return [findings, tasks] as const;
+      return [await visibleProfileFindings(tx,ctx,{kind:'client',id:clientId},findings), tasks] as const;
     });
     const progress = this.progress(tasks);
     return {
@@ -703,7 +737,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
       }
       return Number(count);
     });
-    if (changed !== 1) throw new BadRequestException('This Fill with Meri run cannot be cancelled');
+    if (changed !== 1) throw new BadRequestException('This Profile research run cannot be cancelled');
     return this.getRun(ctx, clientId, runId);
   }
 
@@ -754,6 +788,8 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
       const tasks = await this.claimTasks();
       await Promise.all(tasks.map((task) => this.executeClaimedTask(task)));
       await this.finalizeReadyRuns();
+      if (this.relationships) await this.officeRefresh.enqueue(
+        (ctx, clientId, input) => this.startRun(ctx, clientId, input), message => this.logger.warn(message));
     } finally {
       this.sweeping = false;
     }
@@ -761,7 +797,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
 
   private requestSweep(): void {
     void this.sweepOnce().catch((error) =>
-      this.logger.error(`Fill with Meri task sweep failed: ${this.safeError(error)}`),
+      this.logger.error(`Profile research task sweep failed: ${this.safeError(error)}`),
     );
   }
 
@@ -812,7 +848,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
            FROM client_profile_fill_run
           WHERE workflow_version >= 2
             AND status = 'running'
-            AND stage = 'preparing'
+            AND stage = 'preparing' AND client_id IS NOT NULL
             AND ${fillRunBeforeDeadline()}
             AND created_by_user_id IS NOT NULL
             AND updated_at < $1
@@ -913,7 +949,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
            SELECT t.id
              FROM client_profile_fill_task t
              JOIN client_profile_fill_run r
-               ON r.id = t.run_id AND r.tenant_id = t.tenant_id AND r.client_id = t.client_id
+               ON r.id = t.run_id AND r.tenant_id = t.tenant_id AND r.client_id IS NOT DISTINCT FROM t.client_id AND r.prospect_id IS NOT DISTINCT FROM t.prospect_id
             WHERE t.status = 'queued'
               AND t.next_attempt_at <= now()
               AND r.status = 'running' AND ${fillRunBeforeDeadline('r')}
@@ -934,11 +970,12 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
                 error_code = NULL, error_message = NULL, updated_at = now()
            FROM candidates c, client_profile_fill_run r
           WHERE t.id = c.id
-            AND r.id = t.run_id AND r.tenant_id = t.tenant_id AND r.client_id = t.client_id
+            AND r.id = t.run_id AND r.tenant_id = t.tenant_id AND r.client_id IS NOT DISTINCT FROM t.client_id AND r.prospect_id IS NOT DISTINCT FROM t.prospect_id
          RETURNING t.id,
                    t.run_id AS "runId",
                    t.tenant_id AS "tenantId",
                    t.client_id AS "clientId",
+                   t.prospect_id AS "prospectId",
                    t.task_type AS "taskType",
                    t.task_key AS "taskKey",
                    t.status,
@@ -973,8 +1010,9 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
       return;
     }
     const attachmentId = this.stringValue(task.input.attachmentId);
+    const taskAbort = new AbortController();
     const heartbeat = setInterval(() => {
-      void this.heartbeat(task).catch((error) =>
+      void this.heartbeat(task, taskAbort).catch((error) =>
         this.logger.warn(`Fill task heartbeat failed for ${task.id}: ${this.safeError(error)}`),
       );
     }, TASK_HEARTBEAT_MS);
@@ -982,19 +1020,20 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
 
     try {
       fillTaskBudget(task.deadlineAt!, TASK_TIMEOUT_MS);
-      const ctx = await resolveFillRunActor(this.prisma, task.tenantId, task.clientId, task.runId);
+      const ctx = await resolveFillRunActor(this.prisma, task.tenantId, task.prospectId??task.clientId, task.runId, {kind:task.prospectId?'prospect':'client',id:task.prospectId??task.clientId});
       const source = task.taskType === 'client_document' ? undefined : task.taskType;
       const count = await runWithFillTask(ctx, task, 'core', () => this.withTaskTimeout<number>(async (signal) => {
+        if(task.prospectId) return this.fill.gatherProspectTask(ctx,task,signal);
         const bundle = await this.contextPlane.resolve(ctx, {
           clientId: task.clientId,
           requestedSources: source ? [source] : undefined,
-          attachmentId,
+          attachmentId:task.input.sourceProspectId?null:attachmentId,
         });
         signal.throwIfAborted();
         await this.contextPlane.recordRunContext(ctx, task.runId, bundle);
         signal.throwIfAborted();
-        return runWithGovernedCrmFillBundle(bundle, () => this.executeTask(ctx, task, bundle));
-      }, task.deadlineAt));
+        return runWithGovernedCrmFillBundle(bundle, () => this.executeTask(ctx, task, bundle, signal));
+      }, task.deadlineAt, taskAbort));
       await this.completeTask(task, count);
     } catch (error) {
       await this.failTask(
@@ -1015,11 +1054,13 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
     ctx: TenantContext,
     task: WorkflowTaskRow,
     _bundle: ClientProfileFillGovernedContext,
+    signal?: AbortSignal,
   ): Promise<number> {
+    signal?.throwIfAborted();
     const research = readResearchInputs(task.input, task.taskType);
     switch (task.taskType) {
       case 'public_web':
-        return this.engine.gatherPublicWeb(ctx, task.clientId, task.runId, research.website);
+        return this.engine.gatherPublicWeb(ctx, task.clientId, task.runId, research.website, undefined, signal, research.businessUnit, research.portfolioScope);
       case 'synced_email':
         return this.engine.gatherSyncedEmail(ctx, task.clientId, task.runId);
       case 'sam_gov':
@@ -1028,35 +1069,44 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
         return this.engine.gatherLda(ctx, task.clientId, task.runId, research.ldaIdentities);
       case 'program_elements':
         return this.engine.gatherProgramElements(ctx, task.clientId, task.runId);
-      case 'bill_tracker':
-        return this.engine.gatherBillRecommendations(ctx, task.clientId, task.runId);
+      case 'bill_tracker': {
+        const findings = await this.engine.gatherBillRecommendations(ctx, task.clientId, task.runId);
+        if (this.relationships) await this.relationships.refreshAutomatically(ctx, task.clientId);
+        return findings;
+      }
       case 'client_document': {
         const attachmentId = this.stringValue(task.input.attachmentId);
         if (!attachmentId)
           throw new BadRequestException('Capability document task is missing attachmentId');
-        const attachment = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-          tx.engagementAttachment.findFirst({
-            where: { prospectId: null, id: attachmentId, tenantId: ctx.tenantId, clientId: task.clientId },
-            select: { id: true, clientId: true },
-          }),
-        );
-        if (!attachment || attachment.clientId !== task.clientId) {
+        const sourceProspectId=this.stringValue(task.input.sourceProspectId);
+        const attachment = await this.prisma.withTenant(ctx.tenantId, async tx => {
+          if(sourceProspectId)await requireProfileSubject(tx,ctx,{kind:'prospect',id:sourceProspectId});
+          await assertSharedProfileEvidence(tx,ctx.tenantId,{kind:'client',id:task.clientId},[{attachmentId}]);
+          return tx.engagementAttachment.findFirst({where:{id:attachmentId,tenantId:ctx.tenantId,viewerMode:'all',...(sourceProspectId?{prospectId:sourceProspectId,clientId:null}:{prospectId:null,clientId:task.clientId})},select:{id:true,clientId:true}});
+        });
+        if (!attachment) {
           throw new NotFoundException('Capability document not found for this client');
         }
-        const text = await this.attachments.extractAttachmentText(ctx, attachment.id);
+        const text = await this.attachments.extractAttachmentText(ctx, attachment.id, {...(sourceProspectId?{prospectId:sourceProspectId}:{clientId:task.clientId}),allowPaidExtraction:false,readOnly:true,signal});
+        signal?.throwIfAborted();
         return this.engine.gatherCapabilityDocument(
           ctx,
           task.clientId,
           task.runId,
           attachment.id,
           text.text,
+          undefined,
+          signal,
+          sourceProspectId??undefined,
+          research.businessUnit,
+          research.portfolioScope,
         );
       }
     }
-    throw new BadRequestException(`Unsupported Fill with Meri task: ${String(task.taskType)}`);
+    throw new BadRequestException(`Unsupported Profile research task: ${String(task.taskType)}`);
   }
 
-  private async heartbeat(task: WorkflowTaskRow): Promise<void> {
+  private async heartbeat(task: WorkflowTaskRow, taskAbort?: AbortController): Promise<void> {
     await this.prisma.withSystem(async (tx) => {
       const changed = await tx.$executeRawUnsafe(
         `UPDATE client_profile_fill_task
@@ -1066,7 +1116,10 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
         task.id,
         task.workerId,
       );
-      if (Number(changed) !== 1) return;
+      if (Number(changed) !== 1) {
+        taskAbort?.abort(new Error('Research attempt is no longer active'));
+        return;
+      }
       await tx.$executeRawUnsafe(
         `UPDATE client_profile_fill_run
             SET last_progress_at = now(), updated_at = now()
@@ -1133,7 +1186,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
     );
     if (Number(changed) !== 1) return;
     this.logger.warn(
-      `Fill with Meri ${task.taskKey} ${retry ? 'will retry' : 'failed'} for ${task.clientId}: ${message}`,
+      `Profile research ${task.taskKey} ${retry ? 'will retry' : 'failed'} for ${task.clientId}: ${message}`,
     );
   }
 
@@ -1282,7 +1335,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
     if (!attachmentIds.length) return [];
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.engagementAttachment.findMany({
-        where: { prospectId: null, id: { in: attachmentIds }, tenantId: ctx.tenantId, clientId },
+        where: { prospectId: null, id: { in: attachmentIds }, tenantId: ctx.tenantId, clientId,viewerMode:'all' },
         select: { id: true, fileName: true },
         orderBy: { createdAt: 'asc' },
       }),
@@ -1352,14 +1405,18 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
     };
   }
 
-  private async withTaskTimeout<T>(operation: (signal: AbortSignal) => Promise<T>, deadlineAt?: Date): Promise<T> {
+  private async withTaskTimeout<T>(operation: (signal: AbortSignal) => Promise<T>, deadlineAt?: Date, controller = new AbortController()): Promise<T> {
     const budget = deadlineAt ? fillTaskBudget(deadlineAt, TASK_TIMEOUT_MS) : TASK_TIMEOUT_MS;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const controller = new AbortController();
+    let onAbort: (() => void) | undefined;
+    controller.signal.throwIfAborted();
     try {
       return await Promise.race([
         operation(controller.signal),
         new Promise<T>((_resolve, reject) => {
+          onAbort = () => reject(controller.signal.reason ?? new Error('Research aborted'));
+          controller.signal.addEventListener('abort', onAbort, { once: true });
+          if (controller.signal.aborted) onAbort();
           timer = setTimeout(() => {
             const error = budget < TASK_TIMEOUT_MS ? new FillRunDeadlineError() :
               new FillTaskTimeoutError('Fill specialist');
@@ -1371,6 +1428,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
       ]);
     } finally {
       if (timer) clearTimeout(timer);
+      if (onAbort) controller.signal.removeEventListener('abort', onAbort);
     }
   }
 

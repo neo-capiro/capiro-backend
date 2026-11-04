@@ -157,7 +157,7 @@ entrypoint verbs use Node directly, and their local Prisma CLI remains installed
 | Prisma musl | Existing helper changes only copied generator target to host image architecture; fresh production generation | Probe loads exact `.so.node` engine; real isolated PG16 checks still required |
 | Production graph | Empty frozen `--prod` workspace, generated Prisma and pnpm workspace links retained | Runtime import probes + scanner inventory |
 | Intel hearing tools | Pinned ffmpeg 8.1.2-r0 includes ffmpeg and ffprobe | Existing hearing/audio suites plus actual synthetic WebM/PCM probe |
-| Strategy PDF | Chromium 155.0.8059.84-r0, Liberation 2.1.5-r2, existing configured executable path; writable image HOME at `/app/tmp` | Probe performs real canonical-driver render and disabled-export control; fresh image result still required |
+| Strategy PDF | Chromium 156.0.8078.79-r0, Liberation 2.1.5-r2, existing configured executable path; writable image HOME at `/app/tmp` | Probe performs real canonical-driver render and disabled-export control; fresh image result still required |
 | amd64 | Exact Core-qualified image manifest default | All four builds/tests/scans |
 | arm64 | Explicit known Core ARM64 pin supported; musl selection follows actual Node arch | Not built; never claim cross-architecture acceptance |
 | 0 HIGH / 0 CRITICAL | Required threshold unchanged; first gate failed | Fresh scans of repaired exact images required |

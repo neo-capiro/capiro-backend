@@ -41,6 +41,13 @@ export function normalizeObjectiveFields(
   };
 }
 
+/**
+ * The one readiness rule. Every revision snapshot stores its result as
+ * `readiness`. meri_private.client_objectives (migration
+ * 20281102202000_private_objective_intake_readiness_view) reads the stored
+ * intake checklist keys type/goal/ownerUserId instead of restating them, and
+ * mirrors the four-field branch in SQL with the same trim. Change both together.
+ */
 export function objectiveReadiness(fields: ObjectiveFields) {
   if (fields.strategyIntake !== undefined) return strategyIntakeReadiness(parseStrategyIntake(fields.strategyIntake));
   const checklist = {

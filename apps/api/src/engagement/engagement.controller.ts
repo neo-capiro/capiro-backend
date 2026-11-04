@@ -2970,6 +2970,11 @@ export class EngagementController {
     return this.service.confirmAttachment(ctx, body);
   }
 
+  @Post('attachments/:id/profile-link')
+  linkProfileIdentityUpload(@CurrentTenant() ctx: TenantContext, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    return this.service.linkProfileIdentityUpload(ctx, id, body);
+  }
+
   @Get('attachments')
   attachments(
     @CurrentTenant() ctx: TenantContext,

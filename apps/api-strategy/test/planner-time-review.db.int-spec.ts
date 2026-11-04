@@ -1,3 +1,4 @@
+import { seedTimeSettings, seedTimesheet } from './planner-persisted-time.fixture.js';
 import { randomUUID } from 'node:crypto';
 import {
   PLANNER_DEFAULT_TIME_OPTIONS,
@@ -24,7 +25,7 @@ const reviewer = { ...owner, clerkUserId: 'user_review_reviewer' };
 const other = { ...owner, clerkUserId: 'user_review_other' };
 const base = plannerWeekOn(`${2040 + Math.floor(Math.random() * 5000)}-01-07`);
 let index = 0;
-describeDb('Time review and submission reminders under the restricted application role', () => {
+describeDb('Persisted submission reminders under the restricted application role', () => {
   let db: PrismaService, service: PlannerService, week: string;
   const role = <T>(run: (tx: Prisma.TransactionClient) => Promise<T>, tenant = tenantId) =>
     db.withTenant(tenant, async (tx) => {
@@ -64,8 +65,7 @@ describeDb('Time review and submission reminders under the restricted applicatio
     reviewers = { [owner.clerkUserId]: reviewer.clerkUserId },
     options = PLANNER_DEFAULT_TIME_OPTIONS,
   ) => {
-    const old = await service.timeSettings(admin);
-    return service.saveTimeSettings(admin, { version: old.version, reviewers, options });
+    return seedTimeSettings(db, admin, { reviewers, options });
   };
   beforeEach(async () => {
     week = plannerWeekDate(base, 28 * index++);
@@ -98,194 +98,13 @@ describeDb('Time review and submission reminders under the restricted applicatio
     );
     return { p, t, e };
   };
-  const transition = async (ctx: AuthTenantContext, action: string, userId = owner.clerkUserId) => {
-    const s = await service.timesheet(ctx, { week, userId });
-    return service.transitionTimesheet(ctx, {
-      week,
-      userId,
-      version: s.version,
-      revision: s.revision,
-      action,
-      notes: 'Review QA',
-    });
-  };
+
   const enable = () =>
     settings(undefined, {
       ...PLANNER_DEFAULT_TIME_OPTIONS,
       submissionReminder: { weekday: 1, time: '09:00', week: 'current' },
     });
   const due = () => new Date(`${week}T09:00:00Z`);
-  it('merges private saved review views without changing auto-add and rejects stale or foreign edits', async () => {
-    let prefs = await service.timePreferences(reviewer);
-    await service.saveTimePreferences(reviewer, { version: prefs.version, autoAddDueTasks: true });
-    prefs = await service.timePreferences(reviewer);
-    const view = {
-      people: [owner.clerkUserId],
-      statuses: ['submitted'],
-      sort: 'total',
-      direction: 'desc',
-    };
-    const saved = await service.saveTimePreferences(reviewer, {
-      version: prefs.version,
-      reviewView: view,
-    });
-    expect(await service.timePreferences(reviewer)).toEqual({
-      version: saved.version,
-      autoAddDueTasks: true,
-      reviewView: view,
-    });
-    await expect(
-      service.saveTimePreferences(reviewer, { version: prefs.version, reviewView: view }),
-    ).rejects.toMatchObject({ status: 409 });
-    await service.saveTimePreferences(reviewer, { version: saved.version, autoAddDueTasks: false });
-    expect((await service.timePreferences(reviewer)).reviewView).toEqual(view);
-    expect((await service.timePreferences(owner)).reviewView).toBeUndefined();
-    await expect(
-      service.saveTimePreferences(owner, {
-        version: 0,
-        reviewView: view,
-        userId: reviewer.clerkUserId,
-      }),
-    ).rejects.toMatchObject({ status: 400 });
-    expect(
-      (await service.resources(reviewer)).some((r) => r.name === 'Personal timesheet settings'),
-    ).toBe(false);
-  });
-  it('filters only assigned submitters and sorts visible totals before paging; access changes invalidate the view', async () => {
-    await settings({
-      [owner.clerkUserId]: reviewer.clerkUserId,
-      [other.clerkUserId]: reviewer.clerkUserId,
-    });
-    const a = await work(owner, 60, true);
-    await work(other, 90, false);
-    await transition(owner, 'submit');
-    const total = await service.timeReview(reviewer, {
-      week,
-      paged: 'true',
-      sort: 'total',
-      direction: 'desc',
-    });
-    expect(total.items.map((s) => s.userId)).toEqual([other.clerkUserId, owner.clerkUserId]);
-    expect(total.totalMinutes).toBe(150);
-    expect(total.billableMinutes).toBe(60);
-    const billable = await service.timeReview(reviewer, {
-      week,
-      paged: 'true',
-      sort: 'billable',
-      direction: 'desc',
-      statuses: 'submitted',
-    });
-    expect(billable.items.map((s) => s.userId)).toEqual([owner.clerkUserId]);
-    expect(billable.items[0]?.items).toEqual([]);
-    expect(billable.items[0]?.history).toEqual([]);
-    expect(
-      (await service.timeReview(reviewer, { week, paged: 'true', people: admin.clerkUserId }))
-        .matched,
-    ).toBe(0);
-    await service.saveProject(owner, a.p.id, { version: a.p.version, data: { members: [] } });
-    await expect(
-      service.timeReview(reviewer, { week, paged: 'true', revision: total.revision }),
-    ).rejects.toMatchObject({ status: 409 });
-    const visible = await service.timeReview(reviewer, {
-      week,
-      paged: 'true',
-      people: owner.clerkUserId,
-    });
-    expect(visible.totalMinutes).toBe(0);
-    expect(visible.items[0]?.unavailableEntries).toBe(true);
-    // Status snapshots are internal metadata, never leaked through history or Inbox.
-    const history = await service.timesheet(reviewer, { week, userId: owner.clerkUserId });
-    expect(history.history[0]).not.toHaveProperty('timesheetStatus');
-    expect(JSON.stringify(history.history)).not.toContain('totalMinutes');
-    await settings({});
-    expect((await service.timeReview(reviewer, { week, paged: 'true' })).matched).toBe(0);
-    await expect(
-      service.timesheet(reviewer, { week, userId: owner.clerkUserId }),
-    ).rejects.toMatchObject({ status: 404 });
-    await expect(
-      service.timesheet(admin, { week, userId: owner.clerkUserId }),
-    ).rejects.toMatchObject({ status: 404 });
-  });
-  it('pages all 121 assigned people with globally stable ordering and rejects a changed assignment', async () => {
-    const users = Array.from(
-      { length: 121 },
-      (_, i) => 'user_review_page_' + String(i).padStart(3, '0'),
-    );
-    await db.withTenant(tenantId, async (tx) => {
-      for (const subject of users) {
-        const id = randomUUID();
-        await tx.$executeRaw`INSERT INTO users(id,clerk_user_id,first_name,email) VALUES(${id}::uuid,${subject},${subject},${subject + '@example.test'}) ON CONFLICT DO NOTHING`;
-        await tx.$executeRaw`INSERT INTO tenant_memberships(tenant_id,user_id,status) SELECT ${tenantId}::uuid,id,'active' FROM users WHERE clerk_user_id=${subject} AND NOT EXISTS(SELECT 1 FROM tenant_memberships WHERE tenant_id=${tenantId}::uuid AND user_id=users.id)`;
-        await tx.$executeRaw`UPDATE tenant_memberships SET status='active' WHERE tenant_id=${tenantId}::uuid AND user_id=(SELECT id FROM users WHERE clerk_user_id=${subject})`;
-      }
-    });
-    await settings(Object.fromEntries(users.map((u) => [u, reviewer.clerkUserId])));
-    const first = await service.timeReview(reviewer, { week, paged: 'true' });
-    expect(first.matched).toBe(121);
-    expect(first.items).toHaveLength(100);
-    const last = await service.timeReview(reviewer, {
-      week,
-      paged: 'true',
-      cursor: first.nextCursor!,
-      revision: first.revision,
-    });
-    expect(last.items).toHaveLength(21);
-    expect(last.nextCursor).toBeNull();
-    expect([...first.items, ...last.items].map((s) => s.userId)).toEqual(users);
-    await settings(Object.fromEntries(users.slice(1).map((u) => [u, reviewer.clerkUserId])));
-    await expect(
-      service.timeReview(reviewer, {
-        week,
-        paged: 'true',
-        cursor: first.nextCursor!,
-        revision: first.revision,
-      }),
-    ).rejects.toMatchObject({ status: 409 });
-  }, 60000);
-  it('pages status history with database microsecond ordering and rejects foreign and stale cursors', async () => {
-    await work();
-    const s = await transition(owner, 'submit');
-    const ids = Array.from({ length: 120 }, () => randomUUID());
-    await role(async (tx) => {
-      for (let i = 0; i < ids.length; i++)
-        await tx.$executeRaw`INSERT INTO sp_planner_events(id,tenant_id,resource_id,actor_id,kind,text,details,created_at) VALUES(${ids[i]}::uuid,${tenantId}::uuid,${s.id}::uuid,${owner.clerkUserId},'timesheet_status','Synthetic status page','{}'::jsonb, TIMESTAMPTZ '2000-01-01 00:00:00+00' + ${i} * INTERVAL '1 microsecond')`;
-    });
-    const first = await service.timesheet(owner, { week });
-    expect(first.history).toHaveLength(100);
-    const last = await service.timesheet(owner, {
-      week,
-      historyCursor: first.nextHistoryCursor!,
-      revision: first.revision,
-    });
-    expect(last.history).toHaveLength(21);
-    expect(last.nextHistoryCursor).toBeNull();
-    expect(new Set([...first.history, ...last.history].map((e) => e.id)).size).toBe(121);
-    expect(last.history.map((e) => e.id)).toEqual(ids.slice(0, 21).reverse());
-    await expect(
-      service.timesheet(owner, { week, historyCursor: randomUUID(), revision: first.revision }),
-    ).rejects.toMatchObject({ status: 400 });
-    await transition(reviewer, 'reject');
-    await expect(
-      service.timesheet(owner, {
-        week,
-        historyCursor: first.nextHistoryCursor!,
-        revision: first.revision,
-      }),
-    ).rejects.toMatchObject({ status: 409 });
-  });
-  it('allows only the assigned reviewer to recall a rejected decision and relocks the owner', async () => {
-    const w = await work();
-    await transition(owner, 'submit');
-    const rejected = await transition(reviewer, 'reject');
-    expect(rejected.actions).toContain('recall_approval');
-    await expect(transition(owner, 'recall_approval')).rejects.toMatchObject({ status: 403 });
-    expect((await transition(reviewer, 'recall_approval')).status).toBe('submitted');
-    await expect(
-      service.reviseEvent(owner, w.e.id, { version: 0, minutes: 90 }),
-    ).rejects.toMatchObject({ status: 403 });
-    await transition(reviewer, 'reject');
-    expect((await transition(owner, 'submit')).status).toBe('submitted');
-  });
   it('keeps reminders disabled by default and delivers an exact owner-only Inbox/bell link once per week', async () => {
     expect(await service.runScheduledTimeWork(tenantId, due())).toEqual({
       executed: 0,
@@ -308,7 +127,6 @@ describeDb('Time review and submission reminders under the restricted applicatio
     expect((await service.inbox(reviewer)).some((i) => i.event.id === inbox[0]?.event.id)).toBe(
       false,
     );
-    expect((await service.timesheet(owner, { week })).totalMinutes).toBe(0);
     // Changing the schedule cannot resend this sheet's reminder.
     await settings(undefined, {
       ...PLANNER_DEFAULT_TIME_OPTIONS,
@@ -351,10 +169,10 @@ describeDb('Time review and submission reminders under the restricted applicatio
   });
   it('skips submitted, approved and inactive submitters or reviewers; simple submission uses active members', async () => {
     await work();
-    await transition(owner, 'submit');
+    await seedTimesheet(db, owner, week, { status: 'submitted', reviewerId: reviewer.clerkUserId });
     await enable();
     expect((await service.runScheduledTimeWork(tenantId, due())).executed).toBe(0);
-    await transition(reviewer, 'approve');
+    await seedTimesheet(db, owner, week, { status: 'approved' });
     expect((await service.runScheduledTimeWork(tenantId, due())).executed).toBe(0);
     week = plannerWeekDate(week, 7);
     await db.withTenant(

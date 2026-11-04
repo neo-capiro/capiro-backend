@@ -27,15 +27,39 @@ class AddTargetDto {
   @IsOptional()
   @IsIn(['congress', 'state', 'staff'])
   sourceDirectory?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(180)
+  officeTerm?: string;
 }
 
 class SetTierDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(180)
+  officeTerm?: string;
+  @IsOptional()
+  @IsIn(['congress', 'state', 'staff'])
+  sourceDirectory?: string;
+
   @IsString()
   @MinLength(1)
   @MaxLength(128)
   memberId!: string;
 
   // 1..3, or null to clear the tier. null passes (ValidateIf skips the range check).
+  @IsOptional()
+  @ValidateIf((o) => o.tier !== null)
+  @IsInt()
+  @Min(1)
+  @Max(3)
+  tier?: number | null;
+}
+
+class ExactTargetTierDto {
   @IsOptional()
   @ValidateIf((o) => o.tier !== null)
   @IsInt()
@@ -94,7 +118,7 @@ export class ClientTargetsController {
     @Param('clientId') clientId: string,
     @Body() body: SetTierDto,
   ) {
-    return this.service.setTargetTier(ctx, clientId, body.memberId, body.tier ?? null);
+    return this.service.setTargetTier(ctx, clientId, body.memberId, body.tier ?? null, body.sourceDirectory, body.officeTerm);
   }
 
   // Remove by member id (not row id) — the UI only knows the member it added.
@@ -105,8 +129,21 @@ export class ClientTargetsController {
     @CurrentTenant() ctx: TenantContext,
     @Param('clientId') clientId: string,
     @Query('memberId') memberId?: string,
+    @Query('sourceDirectory') sourceDirectory?: string,
+    @Query('officeTerm') officeTerm?: string,
   ) {
     if (!memberId || !memberId.trim()) throw new BadRequestException('memberId is required');
-    return this.service.removeTarget(ctx, clientId, memberId.trim());
+    return this.service.removeTarget(ctx, clientId, memberId.trim(), sourceDirectory, officeTerm);
   }
+
+  @Patch(':targetId/tier')
+  setExactTier(@CurrentTenant() ctx: TenantContext, @Param('clientId', ParseUUIDPipe) clientId: string, @Param('targetId', ParseUUIDPipe) targetId: string, @Body() body: ExactTargetTierDto) {
+    return this.service.setTargetTierById(ctx, clientId, targetId, body.tier ?? null);
+  }
+
+  @Delete(':targetId')
+  removeExactTarget(@CurrentTenant() ctx: TenantContext, @Param('clientId', ParseUUIDPipe) clientId: string, @Param('targetId', ParseUUIDPipe) targetId: string) {
+    return this.service.removeTargetById(ctx, clientId, targetId);
+  }
+
 }

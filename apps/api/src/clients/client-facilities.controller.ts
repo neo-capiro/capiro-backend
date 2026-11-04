@@ -1,6 +1,11 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import {
   IsIn,
+  IsObject,
+  IsArray,
+  IsISO8601,
+  IsUUID,
+  ArrayMaxSize,
   IsInt,
   IsOptional,
   IsString,
@@ -18,6 +23,8 @@ import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { ClientFacilitiesService } from './client-facilities.service.js';
+import type { VerifiedFacilityPoint } from '../external/census-geocoder/geographic-boundary.js';
+import type { FacilityProfileFields } from './facility-profile-fields.js';
 import { US_STATE_CODES, isValidDistrictForState } from '../common/us-congressional-districts.js';
 
 // Bare district number ("12") or the at-large sentinel "00"; the state is
@@ -70,7 +77,19 @@ const STATE_DISTRICT_MESSAGE =
 const upperState = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.toUpperCase() : value;
 
-export class CreateFacilityDto {
+class FacilityProfileDto implements FacilityProfileFields {
+  @IsOptional() @IsString() @Matches(/^[A-Za-z]{2}$/) country?: string;
+  @IsOptional() @IsIn(['headquarters', 'manufacturing', 'research', 'engineering', 'testing', 'office', 'other']) siteRole?: FacilityProfileFields['siteRole'];
+  @IsOptional() @IsIn(['operating', 'announced', 'under_construction', 'proposed', 'closed', 'unknown']) siteStatus?: FacilityProfileFields['siteStatus'];
+  @IsOptional() @IsIn(['unverified', 'verified', 'proposed', 'closed']) siteVerificationStatus?: FacilityProfileFields['siteVerificationStatus'];
+  @IsOptional() @IsArray() @ArrayMaxSize(30) sourceEvidence?: FacilityProfileFields['sourceEvidence'];
+  @IsOptional() @IsISO8601() sourceObservedAt?: string;
+  @IsOptional() @IsObject() verifiedPoint?: VerifiedFacilityPoint | null;
+  @IsOptional() @IsObject() economicImpact?: Record<string, unknown> | null;
+  @IsOptional() @IsArray() @ArrayMaxSize(100) @IsUUID('all', { each: true }) capabilityIds?: string[];
+}
+
+export class CreateFacilityDto extends FacilityProfileDto {
   @IsString()
   name!: string;
 
@@ -143,7 +162,7 @@ export class ReviewedChooseGeocodeCandidateDto extends ChooseGeocodeCandidateDto
   expectedRevision!: string;
 }
 
-export class UpdateFacilityDto {
+export class UpdateFacilityDto extends FacilityProfileDto {
   @IsOptional()
   @IsString()
   name?: string;

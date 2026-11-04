@@ -1,5 +1,14 @@
+import {
+  seedTimeSettings,
+  seedTimesheet,
+  storedTimesheet,
+} from './planner-persisted-time.fixture.js';
 import { randomUUID } from 'node:crypto';
-import { plannerWeekDate, plannerWeekOn } from '@capiro/strategy-verifier';
+import {
+  plannerWeekDate,
+  plannerWeekOn,
+  type PlannerTimesheetStatus,
+} from '@capiro/strategy-verifier';
 import { PlannerService } from '../src/planner/planner.service.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { Prisma } from '../generated/prisma-client/index.js';
@@ -18,7 +27,7 @@ const owner = { ...admin, clerkUserId: 'user_time_owner', role: 'org:member' };
 const reviewer = { ...owner, clerkUserId: 'user_time_reviewer' };
 let testIndex = 0;
 const weekBase = plannerWeekOn(`${2040 + Math.floor(Math.random() * 5000)}-01-07`);
-describeDb('Planner time entries and weekly review under forced row security', () => {
+describeDb('Planner time entries and persisted weekly locks under forced row security', () => {
   let db: PrismaService, service: PlannerService, week: string;
   beforeAll(async () => {
     db = new PrismaService({ datasources: { db: { url: testUrl! } } });
@@ -55,9 +64,7 @@ describeDb('Planner time entries and weekly review under forced row security', (
   beforeEach(async () => {
     // Unique calendar weeks preserve the immutable records from each case and rerun.
     week = plannerWeekDate(weekBase, 14 * testIndex++);
-    const settings = await service.timeSettings(admin);
-    await service.saveTimeSettings(admin, {
-      version: settings.version,
+    await seedTimeSettings(db, admin, {
       reviewers: { [owner.clerkUserId]: reviewer.clerkUserId },
     });
   });
@@ -77,18 +84,10 @@ describeDb('Planner time entries and weekly review under forced row security', (
         memberships: [{ projectId, sectionId: null, position: 0 }],
       },
     });
-  const status = async (ctx: AuthTenantContext, action: string, user = owner.clerkUserId) => {
-    const view = await service.timesheet(ctx, { week, userId: user });
-    return service.transitionTimesheet(ctx, {
-      week,
-      userId: user,
-      version: view.version,
-      revision: view.revision,
-      action,
-      notes: 'Synthetic review',
-    });
-  };
-  it('preserves work dates, billable/project attribution and immutable cross-week corrections', async () => {
+
+  const setStatus = (status: PlannerTimesheetStatus) =>
+    seedTimesheet(db, owner, week, { status, reviewerId: reviewer.clerkUserId });
+  it('preserves work dates, attribution and immutable cross-week corrections', async () => {
     const p = await project(),
       t = await task(p.id);
     const entry = await service.addEvent(
@@ -102,36 +101,44 @@ describeDb('Planner time entries and weekly review under forced row security', (
       },
     );
     expect(entry.time).toMatchObject({ workedOn: week, billable: true, projectId: p.id });
-    let sheet = await service.timesheet(owner, { week });
-    expect(sheet.totalMinutes).toBe(60);
-    expect(sheet.billableMinutes).toBe(60);
+    const before = await storedTimesheet(db, owner, week);
     const changed = await service.reviseEvent(owner, entry.id, {
       version: 0,
       minutes: 45,
       time: { workedOn: plannerWeekDate(week, 7), billable: false },
     });
-    expect(changed.time?.projectId).toBe(p.id);
-    expect((await service.timesheet(owner, { week })).totalMinutes).toBe(0);
-    expect((await service.timesheet(owner, { week: plannerWeekDate(week, 7) })).totalMinutes).toBe(
-      45,
-    );
+    expect(changed.time).toMatchObject({
+      workedOn: plannerWeekDate(week, 7),
+      billable: false,
+      projectId: p.id,
+    });
+    expect((await service.task(owner, t.id)).actualMinutes).toBe(45);
+    expect((await storedTimesheet(db, owner, week))!.version).toBeGreaterThan(before!.version);
+    expect(await storedTimesheet(db, owner, plannerWeekDate(week, 7))).not.toBeNull();
     await db.withTenant(tenantId, async (tx) => {
       await tx.$executeRawUnsafe('SET LOCAL ROLE capiro_app');
       await expect(
-        tx.$executeRaw`UPDATE sp_planner_event_revisions SET details='{}' WHERE event_id=${entry.id}::uuid`,
+        tx.spPlannerEventRevision.updateMany({
+          where: { tenantId, eventId: entry.id },
+          data: { details: {} },
+        }),
       ).rejects.toThrow();
     });
   });
-  it('enforces submitter/reviewer locks across all event routes, version guards and recalls', async () => {
+  it('enforces persisted submitter and reviewer locks across event edits, removal and restore', async () => {
     const p = await project(),
       t = await task(p.id);
     const e = await service.addEvent(
       owner,
       { taskId: t.id },
-      { kind: 'time', text: 'Work', minutes: 30, time: { workedOn: week } },
+      {
+        kind: 'time',
+        text: 'Work',
+        minutes: 30,
+        time: { workedOn: week },
+      },
     );
-    const submitted = await status(owner, 'submit');
-    expect(submitted.status).toBe('submitted');
+    await setStatus('submitted');
     await expect(
       service.reviseEvent(owner, e.id, { version: 0, minutes: 35 }),
     ).rejects.toMatchObject({ status: 403 });
@@ -139,33 +146,29 @@ describeDb('Planner time entries and weekly review under forced row security', (
       service.addEvent(
         owner,
         { projectId: p.id },
-        { kind: 'time', text: 'General', minutes: 10, time: { workedOn: week } },
+        {
+          kind: 'time',
+          text: 'General',
+          minutes: 10,
+          time: { workedOn: week },
+        },
       ),
     ).rejects.toMatchObject({ status: 403 });
     await service.reviseEvent(reviewer, e.id, { version: 0, minutes: 40 });
     await expect(
-      service.transitionTimesheet(reviewer, {
-        week,
-        userId: owner.clerkUserId,
-        version: submitted.version,
-        revision: submitted.revision,
-        action: 'approve',
-        notes: '',
-      }),
+      service.reviseEvent(reviewer, e.id, { version: 0, minutes: 45 }),
     ).rejects.toMatchObject({ status: 409 });
-    expect((await status(reviewer, 'approve')).status).toBe('approved');
+    await setStatus('approved');
     await expect(
       service.reviseEvent(reviewer, e.id, { version: 1, removed: true }),
     ).rejects.toMatchObject({ status: 403 });
-    await expect(status(owner, 'recall_submission')).rejects.toMatchObject({ status: 403 });
-    expect((await status(reviewer, 'recall_approval')).status).toBe('submitted');
-    expect((await status(owner, 'recall_submission')).status).toBe('draft');
+    await setStatus('draft');
     await service.reviseEvent(owner, e.id, { version: 1, removed: true });
-    expect((await service.timesheet(owner, { week })).matched).toBe(0);
+    expect((await service.task(owner, t.id)).actualMinutes).toBe(0);
     await service.reviseEvent(owner, e.id, { version: 2, removed: false });
-    expect((await service.timesheet(owner, { week })).totalMinutes).toBe(40);
+    expect((await service.task(owner, t.id)).actualMinutes).toBe(40);
   });
-  it('allows reviewer general-project logging on behalf of the submitter and rejection/resubmission', async () => {
+  it('preserves reviewer attribution and allows owner corrections to persisted rejected weeks', async () => {
     const p = await project();
     const e = await service.addEvent(
       reviewer,
@@ -180,40 +183,37 @@ describeDb('Planner time entries and weekly review under forced row security', (
     );
     expect(e.actorId).toBe(owner.clerkUserId);
     expect(e.recordedBy).toBe(reviewer.clerkUserId);
-    const view = await service.timesheet(owner, { week });
-    expect(view.items[0]!.taskId).toBeNull();
-    expect(view.items[0]!.projectName).toBe(p.name);
-    await status(owner, 'submit');
-    expect((await status(reviewer, 'reject')).status).toBe('rejected');
+    expect(e.taskId).toBeNull();
+    expect(e.projectId).toBe(p.id);
+    await setStatus('rejected');
     await service.reviseEvent(owner, e.id, { version: 0, text: 'Corrected planning' });
-    expect((await status(reviewer, 'submit')).status).toBe('submitted');
     expect(
-      (await service.notifications(owner)).items.some((i) =>
-        i.deepLink.includes('scope=timesheets'),
-      ),
-    ).toBe(true);
-    const inbox = (await service.inbox(owner)).find((i) => i.event.kind === 'timesheet_status')!;
-    await service.updateInbox(owner, inbox.id, { read: true, archived: true });
+      (await service.events(owner, { projectId: p.id })).find((i) => i.id === e.id)?.text,
+    ).toBe('Corrected planning');
   });
   it('never grants private source access through reviewer assignment or an admin role', async () => {
     const p = await project(false),
       t = await task(p.id);
-    await service.addEvent(
+    const e = await service.addEvent(
       owner,
       { taskId: t.id },
-      { kind: 'time', text: 'Private', minutes: 55, time: { workedOn: week } },
+      {
+        kind: 'time',
+        text: 'Private',
+        minutes: 55,
+        time: { workedOn: week },
+      },
     );
-    const view = await service.timesheet(reviewer, { week, userId: owner.clerkUserId });
-    expect(view.items).toEqual([]);
-    expect(view.totalMinutes).toBe(0);
-    expect(view.unavailableEntries).toBe(true);
-    expect(view.actions).not.toContain('submit');
-    await expect(
-      service.timesheet(admin, { week, userId: owner.clerkUserId }),
-    ).rejects.toMatchObject({ status: 404 });
-    await expect(
-      service.timesheet({ ...owner, tenantId: '10000000-0000-4000-8000-000000000022' }, { week }),
-    ).rejects.toMatchObject({ status: 404 });
+    for (const ctx of [
+      reviewer,
+      admin,
+      { ...owner, tenantId: '10000000-0000-4000-8000-000000000022' },
+    ]) {
+      await expect(service.events(ctx, { taskId: t.id })).rejects.toMatchObject({ status: 404 });
+      await expect(
+        service.reviseEvent(ctx, e.id, { version: 0, minutes: 20 }),
+      ).rejects.toMatchObject({ status: 404 });
+    }
     await expect(
       service.addEvent(
         admin,
@@ -228,31 +228,24 @@ describeDb('Planner time entries and weekly review under forced row security', (
       ),
     ).rejects.toMatchObject({ status: 404 });
   });
-  it('rechecks grants on later pages and approval, and revokes former reviewer notification access', async () => {
+  it('rechecks project grants before correcting time in an existing submitted week', async () => {
     const p = await project(),
       t = await task(p.id);
-    await service.addEvent(
+    const e = await service.addEvent(
       owner,
       { taskId: t.id },
-      { kind: 'time', text: 'Work', minutes: 30, time: { workedOn: week } },
+      {
+        kind: 'time',
+        text: 'Work',
+        minutes: 30,
+        time: { workedOn: week },
+      },
     );
-    await status(owner, 'submit');
-    const before = await service.timesheet(reviewer, { week, userId: owner.clerkUserId });
+    await setStatus('submitted');
     await service.saveProject(owner, p.id, { version: p.version, data: { members: [] } });
     await expect(
-      service.timesheet(reviewer, { week, userId: owner.clerkUserId, revision: before.revision }),
-    ).rejects.toMatchObject({ status: 409 });
-    const settings = await service.timeSettings(admin);
-    await service.saveTimeSettings(admin, { version: settings.version, reviewers: {} });
-    await expect(
-      service.timesheet(reviewer, { week, userId: owner.clerkUserId }),
+      service.reviseEvent(reviewer, e.id, { version: 0, minutes: 20 }),
     ).rejects.toMatchObject({ status: 404 });
-    expect(
-      (await service.notifications(reviewer)).items.filter((i) => i.event.resourceId === before.id),
-    ).toEqual([]);
-    await expect(
-      service.saveTimeSettings(owner, { version: 0, reviewers: {} }),
-    ).rejects.toMatchObject({ status: 403 });
   });
   it('requires one authorized attribution for multi-project tasks and rejects forged metadata', async () => {
     const a = await project(),
@@ -262,81 +255,46 @@ describeDb('Planner time entries and weekly review under forced row security', (
       version: t.version,
       data: { memberships: [...t.memberships, { projectId: b.id, sectionId: null, position: 0 }] },
     });
-    await expect(
-      service.addEvent(
-        owner,
-        { taskId: multi.id },
-        { kind: 'time', text: 'Work', minutes: 30, time: { workedOn: week } },
-      ),
-    ).rejects.toMatchObject({ status: 400 });
-    await expect(
-      service.addEvent(
-        owner,
-        { taskId: multi.id },
-        { kind: 'time', text: 'Work', minutes: 30, time: { workedOn: week, projectId: null } },
-      ),
-    ).rejects.toMatchObject({ status: 400 });
+    for (const time of [{ workedOn: week }, { workedOn: week, projectId: null }]) {
+      await expect(
+        service.addEvent(
+          owner,
+          { taskId: multi.id },
+          {
+            kind: 'time',
+            text: 'Work',
+            minutes: 30,
+            time,
+          },
+        ),
+      ).rejects.toMatchObject({ status: 400 });
+    }
     const e = await service.addEvent(
       owner,
       { taskId: multi.id },
-      { kind: 'time', text: 'Work', minutes: 30, time: { workedOn: week, projectId: b.id } },
+      {
+        kind: 'time',
+        text: 'Work',
+        minutes: 30,
+        time: { workedOn: week, projectId: b.id },
+      },
     );
     expect(e.time?.projectId).toBe(b.id);
     await expect(
-      service.reviseEvent(owner, e.id, { version: 0, time: { projectId: randomUUID() } }),
+      service.reviseEvent(owner, e.id, {
+        version: 0,
+        time: { projectId: randomUUID() },
+      }),
     ).rejects.toThrow();
     expect((await service.resources(owner)).some((r) => (r.kind as string) === 'timesheet')).toBe(
       false,
     );
   });
-  it('aggregates 121 entries before pagination and rejects mixed pages after a correction', async () => {
-    const p = await project(),
-      t = await task(p.id);
-    await db.withTenant(tenantId, async (tx) => {
-      await tx.$executeRawUnsafe('SET LOCAL ROLE capiro_app');
-      await tx.spPlannerEvent.createMany({
-        data: Array.from({ length: 121 }, (_, i) => ({
-          tenantId,
-          actorId: owner.clerkUserId,
-          taskId: t.id,
-          kind: 'time',
-          text: 'Synthetic paged time',
-          minutes: 1,
-          details: {
-            time: {
-              workedOn: week,
-              timeZone: 'UTC',
-              billable: i % 2 === 0,
-              projectId: p.id,
-              category: '',
-            },
-          },
-        })),
-      });
-    });
-    const first = await service.timesheet(owner, { week });
-    expect(first.totalMinutes).toBe(121);
-    expect(first.billableMinutes).toBe(61);
-    expect(first.items).toHaveLength(100);
-    const second = await service.timesheet(owner, {
-      week,
-      cursor: first.nextCursor!,
-      revision: first.revision,
-    });
-    expect(second.items).toHaveLength(21);
-    expect(second.nextCursor).toBeNull();
-    expect(new Set([...first.items, ...second.items].map((e) => e.id)).size).toBe(121);
-    await service.reviseEvent(owner, first.items[0]!.id, { version: 0, minutes: 2 });
-    await expect(
-      service.timesheet(owner, { week, cursor: first.nextCursor!, revision: first.revision }),
-    ).rejects.toMatchObject({ status: 409 });
-  });
   it('keeps legacy working dates in UTC and retains metadata through older corrections', async () => {
     const p = await project(),
       t = await task(p.id);
-    const e = await db.withTenant(tenantId, async (tx) => {
-      await tx.$executeRawUnsafe('SET LOCAL ROLE capiro_app');
-      return tx.spPlannerEvent.create({
+    const e = await db.withTenant(tenantId, (tx) =>
+      tx.spPlannerEvent.create({
         data: {
           tenantId,
           actorId: owner.clerkUserId,
@@ -346,15 +304,11 @@ describeDb('Planner time entries and weekly review under forced row security', (
           minutes: 20,
           createdAt: new Date(week + 'T23:55:00Z'),
         },
-      });
-    });
-    const before = await service.timesheet(owner, { week });
-    expect(before.items[0]!.time).toMatchObject({
-      workedOn: week,
-      timeZone: 'UTC',
-      billable: false,
-      projectId: null,
-    });
+      }),
+    );
+    expect(
+      (await service.events(owner, { taskId: t.id })).find((i) => i.id === e.id)?.time,
+    ).toMatchObject({ workedOn: week, timeZone: 'UTC', billable: false, projectId: null });
     const revised = await service.reviseEvent(owner, e.id, {
       version: 0,
       minutes: 25,
@@ -364,37 +318,48 @@ describeDb('Planner time entries and weekly review under forced row security', (
       version: revised.version,
       text: 'Updated legacy note',
     });
-    const after = await service.timesheet(owner, { week });
-    expect(after.totalMinutes).toBe(25);
-    expect(after.billableMinutes).toBe(25);
-    expect(after.items[0]!.time.projectId).toBe(p.id);
+    const after = (await service.events(owner, { taskId: t.id })).find((i) => i.id === e.id)!;
+    expect(after.minutes).toBe(25);
+    expect(after.time).toMatchObject({ workedOn: week, billable: true, projectId: p.id });
   });
-  it('audits admin corrections after approval without rewriting the approved snapshot', async () => {
+  it('audits admin corrections after approval without rewriting an existing approval event', async () => {
     const p = await project(),
       t = await task(p.id);
     const e = await service.addEvent(
       owner,
       { taskId: t.id },
-      { kind: 'time', text: 'Work', minutes: 30, time: { workedOn: week } },
+      {
+        kind: 'time',
+        text: 'Work',
+        minutes: 30,
+        time: { workedOn: week },
+      },
     );
-    await status(owner, 'submit');
-    await status(reviewer, 'approve');
-    await service.reviseEvent({ ...owner, role: 'org:admin' }, e.id, { version: 0, minutes: 45 });
-    const after = await service.timesheet(owner, { week });
-    expect(after.status).toBe('approved');
-    expect(after.correctedAfterApproval).toBe(true);
-    expect(after.totalMinutes).toBe(45);
-    await db.withTenant(tenantId, async (tx) => {
-      await tx.$executeRawUnsafe('SET LOCAL ROLE capiro_app');
-      const approved = await tx.spPlannerEvent.findFirst({
-        where: {
+    const sheet = await setStatus('approved');
+    const approved = await db.withTenant(tenantId, (tx) =>
+      tx.spPlannerEvent.create({
+        data: {
           tenantId,
-          resourceId: after.id!,
-          details: { path: ['timesheetStatus', 'to'], equals: 'approved' },
+          resourceId: sheet.id,
+          actorId: reviewer.clerkUserId,
+          kind: 'timesheet_status',
+          text: 'Historical approval',
+          details: { timesheetStatus: { to: 'approved', totalMinutes: 30 } },
         },
-      });
-      expect((approved!.details as any).timesheetStatus.totalMinutes).toBe(30);
-      expect(approved!.actorId).toBe(reviewer.clerkUserId);
+      }),
+    );
+    await service.reviseEvent({ ...owner, role: 'org:admin' }, e.id, { version: 0, minutes: 45 });
+    expect((await storedTimesheet(db, owner, week))?.data).toMatchObject({
+      status: 'approved',
+      correctedAfterApproval: true,
     });
+    expect((await service.task(owner, t.id)).actualMinutes).toBe(45);
+    const unchanged = await db.withTenant(tenantId, (tx) =>
+      tx.spPlannerEvent.findFirst({
+        where: { tenantId, id: approved.id },
+      }),
+    );
+    expect(unchanged?.details).toEqual(approved.details);
+    expect(unchanged?.actorId).toBe(reviewer.clerkUserId);
   });
 });

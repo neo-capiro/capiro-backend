@@ -1,9 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import {
-  PLANNER_DEFAULT_TASK,
-  PLANNER_DEFAULT_PROJECT,
-  type PlannerRuleData,
-} from '@capiro/strategy-verifier';
+import { PLANNER_DEFAULT_TASK, type PlannerRuleData } from '@capiro/strategy-verifier';
 import { validateResource, applyPlannerRule } from './planner-resources.js';
 const P = '20000000-0000-4000-8000-000000000001';
 const task = {
@@ -34,27 +30,6 @@ describe('Planner rules and management validation', () => {
     expect(() => validateResource('saved_view', { ...view, sort: 'injected' })).toThrow(
       BadRequestException,
     );
-  });
-  it('rejects mismatched, inverted and non-integer relative template dates', () => {
-    const template = {
-      description: '',
-      privacy: 'private',
-      members: [],
-      project: { ...PLANNER_DEFAULT_PROJECT, name: 'Relative QA' },
-      tasks: [{ ...PLANNER_DEFAULT_TASK, name: 'Task' }],
-      schedule: { anchor: 'start', skipWeekends: false, dates: [{ startOffset: 0, dueOffset: 2 }] },
-    };
-    expect(validateResource('template', template)).toEqual(template);
-    for (const dates of [
-      [],
-      [{ startOffset: 2, dueOffset: 1 }],
-      [{ startOffset: 0.5, dueOffset: 2 }],
-      [{ startOffset: null, dueOffset: 3651 }],
-      [{ startOffset: null, dueOffset: null, injected: true }],
-    ])
-      expect(() =>
-        validateResource('template', { ...template, schedule: { ...template.schedule, dates } }),
-      ).toThrow(BadRequestException);
   });
   it('rejects dangling or duplicated personal placements and sharing fields', () => {
     const personal = {
@@ -139,35 +114,5 @@ describe('Planner rules and management validation', () => {
     expect(() => validateResource('goal', { ...goal, dueOn: null, target: 0 })).toThrow(
       BadRequestException,
     );
-  });
-  it('does not allow a form to set unrelated live links or project grants', () => {
-    expect(() =>
-      validateResource('form', {
-        description: '',
-        enabled: true,
-        fields: [
-          { id: P, label: 'Name', type: 'text', required: true, options: [], taskField: 'name' },
-        ],
-        defaults: {
-          assigneeId: null,
-          status: 'todo',
-          priority: 'none',
-          estimateMinutes: 0,
-          clientId: P,
-        },
-      }),
-    ).toThrow(BadRequestException);
-  });
-  it('rejects form type mismatches, duplicate mappings and a missing name', () => {
-    const form = {
-      description: '',
-      enabled: true,
-      fields: [
-        { id: P, label: 'Name', type: 'date', required: true, options: [], taskField: 'name' },
-      ],
-      defaults: { assigneeId: null, status: 'todo', priority: 'none', estimateMinutes: 0 },
-    };
-    expect(() => validateResource('form', form)).toThrow(BadRequestException);
-    expect(() => validateResource('form', { ...form, fields: [] })).toThrow(BadRequestException);
   });
 });

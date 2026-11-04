@@ -237,7 +237,7 @@ export class FirmOnboardingService {
   async importClients(
     ctx: TenantContext,
     ldaClientIds: number[],
-    options: { requestId?: string } = {},
+    options: { requestId?: string; websites?: Record<string, string> } = {},
   ): Promise<{
     created: number;
     items: Array<{ id: string; name: string; ldaClientId: number }>;
@@ -252,17 +252,13 @@ export class FirmOnboardingService {
       throw new BadRequestException('Set your firm (LDA registrant) before importing clients');
     }
 
-    // Client-slot cap (mirrors ClientsService.create): already at/over the
-    // limit → 402 up front. Mid-batch cap hits are reported per-row instead
-    // (see the in-transaction check below) so partial imports stay usable.
-    await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      requireClientCapacity(tx, ctx.tenantId, this.billingEnforced),
-    );
-
+    // Resolve durable request replay before admission. Capacity is checked below
+    // only for each actual new Client; a replay never needs a spare slot.
     const { job, created: started } = await this.importJobs.createOrReconcile(ctx, {
       requestKey: options.requestId ?? randomUUID(),
       ldaRegistrantId,
       ids,
+      websites: options.websites,
     });
     // Same request identity + same exact selection reconciles the existing job.
     // An interrupted response is read back from durable outcomes, never re-run.

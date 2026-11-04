@@ -1,14 +1,8 @@
+import type { Prisma } from '@prisma/client';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import {
-  buildCapabilityText,
-  embedAndUpsert,
-  type EmbedOutcome,
-} from './embedder.js';
-import {
-  EMBEDDING_PROVIDER,
-  type EmbeddingProvider,
-} from './embedding-provider.js';
+import { buildCapabilityText, normalize, embedAndUpsert, type EmbedOutcome } from './embedder.js';
+import { EMBEDDING_PROVIDER, type EmbeddingProvider } from './embedding-provider.js';
 import { getDefaultEmbeddingProvider } from './embedding-provider.factory.js';
 
 /**
@@ -87,6 +81,62 @@ export class EmbeddingsService {
     );
   }
 
+  /** Canonical dated public statements reuse context_embeddings and its content hash. */
+  async embedMemberStatementImmediate(
+    pressItemId: string,
+    beforeWrite: (tx: Prisma.TransactionClient) => Promise<void>,
+  ): Promise<EmbedOutcome> {
+    const item = await this.prisma.memberPressItem.findUnique({ where: { id: pressItemId } });
+    if (!item?.publishedAt || item.publishedAt > new Date()) return 'skipped';
+    let official = false;
+    try {
+      const url = new URL(item.link);
+      official =
+        url.protocol === 'https:' &&
+        /(^|\.)gov$/i.test(url.hostname) &&
+        !url.username &&
+        !url.password;
+    } catch {
+      /* Canonical source is unavailable. */
+    }
+    if (!official) return 'skipped';
+    const sourceIdentity = (row: NonNullable<typeof item>) =>
+      JSON.stringify([
+        row.bioguideId,
+        row.publishedAt?.toISOString(),
+        row.title,
+        row.link,
+        row.summary,
+      ]);
+    const revision = sourceIdentity(item);
+    const text = normalize(
+      [item.bioguideId, item.publishedAt.toISOString(), item.title, item.link, item.summary]
+        .filter(Boolean)
+        .join('\n'),
+    );
+    return embedAndUpsert(
+      this.prisma,
+      {
+        tenantId: null,
+        sourceType: 'member_statement',
+        sourceId: item.id,
+        text,
+        bypassRls: true,
+        beforeWrite: async (tx) => {
+          await beforeWrite(tx);
+          const locked = await tx.$queryRawUnsafe<Array<{ id: string }>>(
+            'SELECT id FROM member_press_item WHERE id=$1::uuid FOR SHARE',
+            item.id,
+          );
+          if (!locked.length) return false;
+          const current = await tx.memberPressItem.findUnique({ where: { id: item.id } });
+          return !!current && sourceIdentity(current) === revision;
+        },
+      },
+      this.embeddingProvider,
+    );
+  }
+
   /** Fire-and-forget, schedules on the event loop, never throws to caller.
    *  Use from create/update mutations so a provider outage doesn't fail the
    *  user's write. */
@@ -94,9 +144,7 @@ export class EmbeddingsService {
     // setImmediate decouples the embed from the request's response cycle.
     setImmediate(() => {
       this.embedCapabilityImmediate(capabilityId).catch((err) => {
-        this.logger.warn(
-          `embedCapability ${capabilityId} failed: ${(err as Error).message}`,
-        );
+        this.logger.warn(`embedCapability ${capabilityId} failed: ${(err as Error).message}`);
       });
     });
   }

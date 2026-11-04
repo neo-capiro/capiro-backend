@@ -22,7 +22,7 @@ import { ClientFileBatchController } from './client-file-batch.controller.js';
 import { ClientFileBatchService } from './client-file-batch.service.js';
 import { ClientActivityController } from './client-activity.controller.js';
 import { ClientActivityService } from './client-activity.service.js';
-import { ClientProfileFillController } from './client-profile-fill.controller.js';
+import { ClientProfileFillController, ProfileBuildEntryController } from './client-profile-fill.controller.js';
 import { ClientProfileFillService } from './client-profile-fill.service.js';
 import { ClientProfileFillContextPlaneService } from './client-profile-fill-context-plane.service.js';
 import { ClientProfileFillWorkflowService } from './client-profile-fill-workflow.service.js';
@@ -58,6 +58,28 @@ import { CrmFillEvaluationRunner } from './crm-fill-evaluation.runner.js';
 import { TrackerModule } from '../tracker/tracker.module.js';
 import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opportunities.module.js';
 import { ApplicationAuthorityModule } from '../auth/application-authority.module.js';
+import { KnowledgeModule } from '../knowledge/knowledge.module.js';
+import { VendorReferenceModule } from '../vendor-reference/vendor-reference.module.js';
+import { BizDevDossierService } from '../business-development/bizdev-dossier.service.js';
+import { ProfileBuildService } from './profile-build.service.js';
+import { ProfileIdentityDiscoveryService } from './profile-identity-discovery.service.js';
+import { ProfileIdentitySourcesService } from './profile-identity-sources.service.js';
+import { ProfileIdentityWebService } from './profile-identity-web.service.js';
+import { ProfileIdentityClaimsService } from './profile-identity-claims.service.js';
+import { ProfileProjectionService } from './profile-projection.service.js';
+import { PortfolioAgentService } from './portfolio-agent.service.js';
+import { ProfileRegistrationSuggestionsController } from './profile-registration-suggestions.controller.js';
+import { ProfileRegistrationSuggestionsService } from './profile-registration-suggestions.service.js';
+import { ProfileSuggestionSourcesService } from './profile-suggestion-sources.service.js';
+import { PortfolioCapabilitiesController } from './portfolio/portfolio-capabilities.controller.js';
+import { PortfolioRelationshipsController } from './portfolio/portfolio-relationships.controller.js';
+import { PortfolioCaseController } from './portfolio/portfolio-case.controller.js';
+import { PortfolioProposalStore } from './portfolio/portfolio-proposal.store.js';
+import { PortfolioCapabilitiesReviewService } from './portfolio/portfolio-capabilities-review.service.js';
+import { PortfolioDiscoveryService } from './portfolio/portfolio-discovery.service.js';
+import { PortfolioTrackingService } from './portfolio/portfolio-tracking.service.js';
+import { PortfolioRelationshipsService } from './portfolio/portfolio-relationships.service.js';
+import { PortfolioCaseService } from './portfolio/portfolio-case.service.js';
 
 @Module({
   // RepresentationModule (not folded in here) so DirectoryModule can ALSO
@@ -73,6 +95,8 @@ import { ApplicationAuthorityModule } from '../auth/application-authority.module
     ObjectiveWorkModule,
     EmbeddingsModule,
     IntelligenceModule,
+    KnowledgeModule,
+    VendorReferenceModule,
     DirectoryModule,
     RepresentationModule,
     ContextModule,
@@ -81,12 +105,17 @@ import { ApplicationAuthorityModule } from '../auth/application-authority.module
     EvaluationModule,
     // G3: OutcomeService for the submission-outcome mirror.
     EngagementModule,
-    // Bill recommendations for Fill with Meri (getRecommendations).
+    // Canonical bill recommendations for the portfolio profile workflow.
     TrackerModule,
     FundingOpportunitiesModule,
   ],
   controllers: [
+    ProfileRegistrationSuggestionsController,
+    ProfileBuildEntryController,
     ClientsController,
+    PortfolioCapabilitiesController,
+    PortfolioRelationshipsController,
+    PortfolioCaseController,
     ClientCapabilitiesController,
     ClientPeopleController,
     ClientFacilitiesController,
@@ -107,6 +136,23 @@ import { ApplicationAuthorityModule } from '../auth/application-authority.module
   ],
   providers: [
     ClientsService,
+    ProfileBuildService,
+    ProfileIdentityDiscoveryService,
+    ProfileIdentitySourcesService,
+    ProfileIdentityWebService,
+    ProfileIdentityClaimsService,
+
+    BizDevDossierService,
+    ProfileProjectionService,
+    PortfolioAgentService,
+    ProfileRegistrationSuggestionsService,
+    ProfileSuggestionSourcesService,
+    PortfolioProposalStore,
+    PortfolioCapabilitiesReviewService,
+    PortfolioDiscoveryService,
+    PortfolioTrackingService,
+    PortfolioRelationshipsService,
+    PortfolioCaseService,
     ClientCapabilitiesService,
     ClientPeopleService,
     ClientFacilitiesService,
@@ -125,7 +171,6 @@ import { ApplicationAuthorityModule } from '../auth/application-authority.module
       useFactory: createGovernedClientProfileFillService,
       inject: [
         RAW_CLIENT_PROFILE_FILL_SERVICE,
-        ClientProfileFillContextPlaneService,
         ClientPeopleService,
         CrmFillEvaluationRunner,
         ClientProfileFillRelationshipHistoryService,
@@ -172,6 +217,9 @@ import { ApplicationAuthorityModule } from '../auth/application-authority.module
   // and update_client_profile can write approved values back.
   exports: [
     ClientsService,
+    ProfileBuildService,
+    ProfileProjectionService,
+    PortfolioAgentService,
     ClientCapabilitiesService,
     ClientPeopleService,
     ClientFacilitiesService,

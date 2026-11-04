@@ -1,10 +1,10 @@
+import { requireProfileSubject, subjectColumn, type ProfileSubject } from './profile-subject.js';
 import { fillRunBeforeDeadline } from './client-profile-fill-run-deadline.js';
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { isUUID } from 'class-validator';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
-import { requireOwnerClient } from './client-ordered-owner.access.js';
 import { reviewHash } from './client-profile-fill-review-snapshot.js';
 import { queueFailedFillTask, requeueFillReviewChecks } from './client-profile-fill-retry.js';
 
@@ -32,6 +32,7 @@ export async function retryResearchTask(
   runId: string,
   taskId: string,
   command: ResearchRetryCommand,
+  subject: ProfileSubject = {kind: 'client', id: clientId},
 ) {
   if (
     !command ||
@@ -49,14 +50,14 @@ export async function retryResearchTask(
   const digest = reviewHash({
     tenantId: ctx.tenantId,
     actorId: ctx.userId,
-    clientId,
+    clientId, ...(subject.kind === 'prospect' ? {subject} : {}),
     runId,
     taskId,
     expectedAttempt: command.expectedAttempt,
     expectedTaskType: command.expectedTaskType,
   });
   return prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-    await requireOwnerClient(tx, ctx, clientId);
+    await requireProfileSubject(tx, ctx, subject, false, true);
     const receipt = await tx.auditLog.findFirst({
       where: { id: requestId, tenantId: ctx.tenantId },
     });
@@ -88,7 +89,7 @@ export async function retryResearchTask(
     };
     const runs = await tx.$queryRawUnsafe<Array<{ id: string }>>(
       `SELECT id FROM client_profile_fill_run WHERE id=$1::uuid AND tenant_id=$2::uuid
-        AND client_id=$3::uuid AND workflow_version>=2 AND status<>'cancelled'
+        AND ${subjectColumn(subject)}=$3::uuid AND workflow_version>=2 AND status<>'cancelled'
         AND ${fillRunBeforeDeadline()} FOR UPDATE`,
       runId,
       ctx.tenantId,
@@ -102,7 +103,7 @@ export async function retryResearchTask(
         clientId,
         runId,
         taskId,
-        command,
+        command, subject,
       );
       if (!changed)
         changed = await queueFailedFillTask(
@@ -112,14 +113,14 @@ export async function retryResearchTask(
           clientId,
           runId,
           taskId,
-          command,
+          command, subject,
         );
       if (changed === 1) {
         await requeueFillReviewChecks(tx, runId, ctx.tenantId);
         await tx.$executeRawUnsafe(
           `UPDATE client_profile_fill_run SET status='running', stage='research', completed_at=NULL,
             error=NULL, last_progress_at=now(), updated_at=now()
-            WHERE id=$1::uuid AND tenant_id=$2::uuid AND client_id=$3::uuid`,
+            WHERE id=$1::uuid AND tenant_id=$2::uuid AND ${subjectColumn(subject)}=$3::uuid`,
           runId,
           ctx.tenantId,
           clientId,

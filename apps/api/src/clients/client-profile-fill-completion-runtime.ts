@@ -46,13 +46,16 @@ export class ClientProfileFillCompletionRuntime {
     }
     this.taskTimer = setInterval(() => this.ports.requestTaskSweep(), TASK_SWEEP_MS);
     this.taskTimer.unref?.();
-    this.scheduleTimer = setInterval(() => this.ports.requestScheduleSweep(), SCHEDULE_SWEEP_MS);
-    this.scheduleTimer.unref?.();
+    const automaticRefreshEnabled = process.env.CLIENT_PROFILE_FILL_AUTOMATIC_REFRESH_ENABLED !== 'false';
+    if (automaticRefreshEnabled) {
+      this.scheduleTimer = setInterval(() => this.ports.requestScheduleSweep(), SCHEDULE_SWEEP_MS);
+      this.scheduleTimer.unref?.();
+    }
     queueMicrotask(() => {
       this.ports.requestTaskSweep();
-      this.ports.requestScheduleSweep();
+      if (automaticRefreshEnabled) this.ports.requestScheduleSweep();
     });
-    this.ports.log(`Fill with Meri completion worker started (${this.workerId})`);
+    this.ports.log(`Profile research completion worker started (${this.workerId})`);
   }
 
   onModuleDestroy(): void {

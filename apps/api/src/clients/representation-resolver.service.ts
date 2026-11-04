@@ -13,10 +13,15 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { normalizeDistrictCode } from './district-code.util.js';
 import { districtMatchesHouse, normalizeFacilityDistrictCode } from '../common/district-code.util.js';
+import { boundaryVersionKey, servingBoundaryVersion, type GeographicResolution } from '../external/census-geocoder/geographic-boundary.js';
 import { resolveStateName } from '../common/us-states.js';
 
 export interface ResolvedRepresentation {
   unresolved: false;
+  officeStatus?: 'resolved' | 'unresolved_office';
+  stateOfficeTermStatus?: 'unverified';
+  /** Current directory roles are context, not verified term-to-boundary assignments. */
+  stateCurrentRole?: { lower: StateLegislatorSummary | null; upper: StateLegislatorSummary | null };
   federal: {
     house: FederalMemberSummary | null;
     senate: FederalMemberSummary[];
@@ -28,7 +33,7 @@ export interface ResolvedRepresentation {
 }
 export interface UnresolvedRepresentation {
   unresolved: true;
-  reason: 'no_geocode' | 'no_state';
+  reason: 'no_geocode' | 'no_state' | 'stale_boundary' | 'needs_review' | 'not_applicable';
 }
 export type RepresentationResult = ResolvedRepresentation | UnresolvedRepresentation;
 
@@ -52,11 +57,26 @@ export interface StateLegislatorSummary {
 }
 
 export interface FacilityDistrictInput {
+  congressionalDistrictCongress?: number | null;
+  geographicResolution?: unknown;
+  country?: string | null;
+  districtSource?: string | null;
   state: string | null;
   congressionalDistrict: string | null;
   stateHouseDistrict: string | null;
   stateSenateDistrict: string | null;
   geocodeStatus: string | null;
+}
+
+/** An office join may only consume the requested serving term and a reviewed point. */
+export function facilityRepresentationBlock(f: Pick<FacilityDistrictInput, 'congressionalDistrictCongress' | 'geographicResolution' | 'country' | 'districtSource'>): UnresolvedRepresentation['reason'] | null {
+  if (f.country && !['US', 'PR', 'GU', 'VI', 'AS', 'MP'].includes(f.country.toUpperCase())) return 'not_applicable';
+  const serving = servingBoundaryVersion();
+  if (f.congressionalDistrictCongress != null && f.congressionalDistrictCongress !== serving.congress) return 'stale_boundary';
+  const resolution = f.geographicResolution as GeographicResolution | null | undefined;
+  if (resolution?.version && boundaryVersionKey(resolution.version) !== boundaryVersionKey(serving)) return 'stale_boundary';
+  if (resolution && (resolution.status !== 'resolved' || resolution.requiresReview) && f.districtSource !== 'user') return 'needs_review';
+  return null;
 }
 
 /**
@@ -103,6 +123,8 @@ export class RepresentationResolverService {
    * PD2/M1.3.
    */
   async representativesForFacility(facility: FacilityDistrictInput): Promise<RepresentationResult> {
+    const blocked = facilityRepresentationBlock(facility);
+    if (blocked) return { unresolved: true, reason: blocked };
     if (!facility.state) return { unresolved: true, reason: 'no_state' };
     if (!isResolvableFacility(facility)) {
       return { unresolved: true, reason: 'no_geocode' };
@@ -117,8 +139,11 @@ export class RepresentationResolverService {
 
     return {
       unresolved: false,
+      officeStatus: house || senate.length ? 'resolved' : 'unresolved_office',
       federal: { house, senate },
-      state: { lower, upper },
+      state: { lower: null, upper: null },
+      stateCurrentRole: { lower, upper },
+      stateOfficeTermStatus: 'unverified',
     };
   }
 
@@ -174,13 +199,13 @@ export class RepresentationResolverService {
     const [houseRows, senateRows, lowerRows, upperRows] = await Promise.all([
       stateNames.length
         ? this.prisma.congressMember.findMany({
-            where: { chamber: 'house', state: { in: stateNames }, isCurrent: true },
+            where: { chamber: 'house', state: { in: stateNames }, isCurrent: true, congresses: { has: servingBoundaryVersion().congress } },
             select: memberSelect,
           })
         : Promise.resolve([]),
       stateNames.length
         ? this.prisma.congressMember.findMany({
-            where: { chamber: 'senate', state: { in: stateNames }, isCurrent: true },
+            where: { chamber: 'senate', state: { in: stateNames }, isCurrent: true, congresses: { has: servingBoundaryVersion().congress } },
             select: memberSelect,
           })
         : Promise.resolve([]),
@@ -216,6 +241,8 @@ export class RepresentationResolverService {
     const upperByState = groupBy(upperRows, (l) => l.state);
 
     return facilities.map((facility) => {
+      const blocked = facilityRepresentationBlock(facility);
+      if (blocked) return { unresolved: true, reason: blocked };
       if (!facility.state) return { unresolved: true, reason: 'no_state' };
       if (!isResolvableFacility(facility)) return { unresolved: true, reason: 'no_geocode' };
 
@@ -244,11 +271,14 @@ export class RepresentationResolverService {
 
       return {
         unresolved: false,
+        officeStatus: house || senate.length ? 'resolved' : 'unresolved_office',
         federal: { house, senate },
-        state: {
+        state: { lower: null, upper: null },
+        stateCurrentRole: {
           lower: pickChamber(lowerByState.get(facility.state) ?? [], facility.stateHouseDistrict),
           upper: pickChamber(upperByState.get(facility.state) ?? [], facility.stateSenateDistrict),
         },
+        stateOfficeTermStatus: 'unverified',
       };
     });
   }
@@ -300,14 +330,15 @@ export class RepresentationResolverService {
           id: true,
           name: true,
           congressionalDistrict: true,
+          congressionalDistrictCongress: true, geographicResolution: true, country: true, districtSource: true,
           clientId: true,
           client: { select: { id: true, name: true } },
         },
       });
       const matched =
         member.chamber === 'senate'
-          ? facilities
-          : facilities.filter((f) => districtMatchesHouse(normalizeFacilityDistrictCode(member.state, f.congressionalDistrict), member.district));
+          ? facilities.filter((f) => !facilityRepresentationBlock(f))
+          : facilities.filter((f) => !facilityRepresentationBlock(f) && districtMatchesHouse(normalizeFacilityDistrictCode(member.state, f.congressionalDistrict), member.district));
       const byClient = new Map<string, { clientId: string; clientName: string; facilities: Array<{ id: string; name: string }> }>();
       for (const f of matched) {
         const entry = byClient.get(f.clientId) ?? {
@@ -344,35 +375,24 @@ export class RepresentationResolverService {
       if (member.type === 'federal') {
         if (!member.state) return [];
         if (member.chamber === 'senate') {
-          return tx.clientFacility.findMany({
+          const facilities = await tx.clientFacility.findMany({
             where: { tenantId, clientId, state: member.state, OR: RESOLVABLE_FACILITY_OR },
-            select: { id: true, name: true },
+            select: { id: true, name: true, congressionalDistrictCongress: true, geographicResolution: true, country: true, districtSource: true },
           });
+          return facilities.filter((f) => !facilityRepresentationBlock(f)).map((f) => ({ id: f.id, name: f.name }));
         }
         // House: at-large ("00") <-> stored district NULL, per the same
         // sentinel rule the resolver uses for the forward direction.
         const facilities = await tx.clientFacility.findMany({
           where: { tenantId, clientId, state: member.state, OR: RESOLVABLE_FACILITY_OR },
-          select: { id: true, name: true, congressionalDistrict: true },
+          select: { id: true, name: true, congressionalDistrict: true, congressionalDistrictCongress: true, geographicResolution: true, country: true, districtSource: true },
         });
         return facilities
-          .filter((f) => districtMatchesHouse(normalizeFacilityDistrictCode(member.state, f.congressionalDistrict), member.district ?? null))
+          .filter((f) => !facilityRepresentationBlock(f) && districtMatchesHouse(normalizeFacilityDistrictCode(member.state, f.congressionalDistrict), member.district ?? null))
           .map((f) => ({ id: f.id, name: f.name }));
       }
-      const facilities = await tx.clientFacility.findMany({
-        where: { tenantId, clientId, state: member.state, OR: RESOLVABLE_FACILITY_OR },
-        select: {
-          id: true,
-          name: true,
-          stateHouseDistrict: true,
-          stateSenateDistrict: true,
-        },
-      });
-      const targetDistrict = normalizeDistrictCode(member.district);
-      const column = member.chamber === 'lower' ? 'stateHouseDistrict' : 'stateSenateDistrict';
-      return facilities
-        .filter((f) => normalizeDistrictCode(f[column]) === targetDistrict)
-        .map((f) => ({ id: f.id, name: f.name }));
+      // Current OpenStates roles have no authoritative term dates; do not derive an office-term relation.
+      return [];
     });
   }
 
@@ -387,7 +407,7 @@ export class RepresentationResolverService {
     const stateName = resolveStateName(state);
     if (!stateName) return null;
     const members = await this.prisma.congressMember.findMany({
-      where: { chamber: 'house', state: stateName, isCurrent: true },
+      where: { chamber: 'house', state: stateName, isCurrent: true, congresses: { has: servingBoundaryVersion().congress } },
       select: {
         bioguideId: true,
         fullName: true,
@@ -405,7 +425,7 @@ export class RepresentationResolverService {
     const stateName = resolveStateName(state);
     if (!stateName) return [];
     return this.prisma.congressMember.findMany({
-      where: { chamber: 'senate', state: stateName, isCurrent: true },
+      where: { chamber: 'senate', state: stateName, isCurrent: true, congresses: { has: servingBoundaryVersion().congress } },
       select: {
         bioguideId: true,
         fullName: true,

@@ -910,6 +910,7 @@ model TenantUsageMeter {
 }
 
 model Client {
+  capabilityDocuments ClientCapabilityDocument[]
   fileFolders ClientFileFolder[]
   fileBatchMoveReceipts ClientFileBatchMoveReceipt[]
   prospectConversionReceipts ProspectConversionReceipt[]
@@ -1072,6 +1073,10 @@ model Client {
   @@index([tenantId, name], map: "clients_tenant_name_idx")
   @@map("clients")
   researchPortfolioClientFilingJobs ResearchPortfolioClientFilingJob[]
+  portfolioProposals ClientPortfolioProposal[]
+  capabilityTerms ClientCapabilityTerm[]
+  capabilityTracking ClientCapabilityTracking[]
+  targetSupports ClientTargetSupport[]
 }
 
 /// Ethical-wall grant (master plan Phase 1): membership row allowing one user
@@ -1706,6 +1711,7 @@ model MobileDeviceToken {
 }
 
 model EngagementAttachment {
+  capabilityDocuments ClientCapabilityDocument[]
   id                String    @id @default(uuid()) @db.Uuid
   tenantId          String    @map("tenant_id") @db.Uuid
   prospectId        String?   @map("prospect_id") @db.Uuid
@@ -1833,6 +1839,8 @@ model EngagementAttachment {
   // MG-06: bounded due-attachment discovery for the indexing worker.
   @@index([indexNextAttemptAt], map: "engagement_attachments_index_next_attempt_idx")
   @@map("engagement_attachments")
+  @@unique([tenantId,id], map:"profile_attachment_tenant_id_key")
+  @@unique([tenantId,prospectId,id], map:"profile_attachment_prospect_scope_key")
 }
 
 /// Immutable metadata-only batch result. Current access is checked again on read/replay.
@@ -4102,6 +4110,7 @@ model AuditLog {
 }
 
 model ClientCapability {
+  documents ClientCapabilityDocument[]
   id                   String   @id @default(uuid()) @db.Uuid
   tenantId             String   @map("tenant_id") @db.Uuid
   clientId             String   @map("client_id") @db.Uuid
@@ -4136,6 +4145,16 @@ model ClientCapability {
 
   @@index([tenantId, clientId], map: "client_capabilities_tenant_client_idx")
   @@map("client_capabilities")
+  lifecycle String @default("unspecified")
+  reviewStatus String @default("legacy") @map("review_status")
+  provenance Json @default("[]")
+  version Int @default(1)
+  portfolioProposals ClientPortfolioProposal[]
+  approvedTerms ClientCapabilityTerm[]
+  trackingItems ClientCapabilityTracking[]
+  officeSupports ClientTargetSupport[]
+  facilityLinks ClientFacilityCapability[]
+  @@unique([tenantId, clientId, id], map: "client_capabilities_tenant_client_id_key")
 }
 
 model ClientSubmissionHistory {
@@ -4419,6 +4438,18 @@ model ClientFacility {
   @@index([state, stateHouseDistrict], map: "client_facilities_state_house_idx")
   @@index([state, stateSenateDistrict], map: "client_facilities_state_senate_idx")
   @@map("client_facilities")
+  country String? @db.VarChar(2)
+  siteRole String? @map("site_role")
+  siteStatus String? @map("site_status")
+  siteVerificationStatus String @default("unverified") @map("site_verification_status")
+  sourceEvidence Json? @map("source_evidence_jsonb")
+  sourceObservedAt DateTime? @map("source_observed_at") @db.Timestamptz(6)
+  geographicResolution Json? @map("geographic_resolution_jsonb")
+  geographicHistory Json? @map("geographic_history_jsonb")
+  verifiedPoint Json? @map("verified_point_jsonb")
+  economicImpact Json? @map("economic_impact_jsonb")
+  capabilityLinks ClientFacilityCapability[]
+  @@unique([tenantId, clientId, id])
 }
 
 /// Client Targets — a congressional office (member) a lobbying team intends to
@@ -4466,9 +4497,19 @@ model ClientTarget {
   client  Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
   addedBy User?  @relation("ClientTargetAuthor", fields: [addedByUserId], references: [id], onDelete: SetNull)
 
-  @@unique([clientId, memberId], map: "client_targets_client_member_key")
+  @@unique([clientId, sourceDirectory, memberId, officeTerm], map: "client_targets_client_directory_member_term_key")
   @@index([tenantId, clientId], map: "client_targets_tenant_client_idx")
   @@map("client_targets")
+  relationshipStatus String @default("uncontacted") @map("relationship_status")
+  ownerUserId String? @map("owner_user_id") @db.Uuid
+  lastContactAt DateTime? @map("last_contact_at") @db.Timestamptz(6)
+  nextStep String? @map("next_step") @db.Text
+  stance String @default("unknown")
+  officeTerm String @default("unknown") @map("office_term")
+  version Int @default(1)
+  history Json @default("[]")
+  capabilitySupports ClientTargetSupport[]
+  @@unique([tenantId, clientId, id], map: "client_targets_tenant_client_id_key")
 }
 
 /// Persisted Office Recommender ("Suggested by Meri") output for a client's
@@ -18267,6 +18308,8 @@ model FirmImportJob {
   @@index([tenantId, createdAt(sort: Desc), id(sort: Desc)], map: "firm_import_jobs_page_idx")
   @@index([tenantId, status, createdAt(sort: Desc), id(sort: Desc)], map: "firm_import_jobs_status_idx")
   @@map("firm_import_jobs")
+  requestJson Json? @map("request_jsonb")
+
 }
 
 model FirmImportJobItem {
@@ -18286,4 +18329,112 @@ model FirmImportJobItem {
 
   @@unique([tenantId, jobId, ldaClientId], map: "firm_import_job_items_identity_key")
   @@map("firm_import_job_items")
+}
+
+model ClientPortfolioProposal {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+  capabilityId String? @map("capability_id") @db.Uuid
+  kind String
+  dedupeKey String @map("dedupe_key")
+  status String @default("proposed")
+  payload Json
+  evidence Json
+  version Int @default(1)
+  reviewHistory Json @default("[]") @map("review_history")
+  reviewedByUserId String? @map("reviewed_by_user_id") @db.Uuid
+  reviewedAt DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  client Client @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade)
+  capability ClientCapability? @relation(fields: [tenantId, clientId, capabilityId], references: [tenantId, clientId, id], onDelete: Cascade)
+  @@unique([tenantId, clientId, kind, dedupeKey], map: "portfolio_proposals_subject_dedupe_key")
+  @@index([tenantId, clientId, status], map: "portfolio_proposals_subject_status_idx")
+  @@map("client_portfolio_proposals")
+}
+
+model ClientCapabilityTerm {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+  capabilityId String @map("capability_id") @db.Uuid
+  kind String
+  value String
+  evidence Json
+  approvedByUserId String @map("approved_by_user_id") @db.Uuid
+  approvedAt DateTime @map("approved_at") @db.Timestamptz(6)
+  client Client @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade)
+  capability ClientCapability @relation(fields: [tenantId, clientId, capabilityId], references: [tenantId, clientId, id], onDelete: Cascade)
+  @@unique([tenantId, clientId, capabilityId, kind, value], map: "capability_terms_value_key")
+  @@index([tenantId, clientId], map: "capability_terms_subject_idx")
+  @@map("client_capability_terms")
+}
+
+model ClientCapabilityTracking {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+  capabilityId String @map("capability_id") @db.Uuid
+  itemKind String @map("item_kind")
+  itemId String @map("item_id")
+  status String @default("active")
+  termIds Json @default("[]") @map("term_ids")
+  history Json @default("[]")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  client Client @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade)
+  capability ClientCapability @relation(fields: [tenantId, clientId, capabilityId], references: [tenantId, clientId, id], onDelete: Cascade)
+  @@unique([tenantId, clientId, capabilityId, itemKind, itemId], map: "capability_tracking_item_key")
+  @@index([tenantId, clientId], map: "capability_tracking_subject_idx")
+  @@map("client_capability_tracking")
+}
+
+model ClientTargetSupport {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+  targetId String @map("target_id") @db.Uuid
+  capabilityId String @map("capability_id") @db.Uuid
+  stance String @default("unknown")
+  evidence Json
+  history Json @default("[]")
+  approvedByUserId String @map("approved_by_user_id") @db.Uuid
+  approvedAt DateTime @map("approved_at") @db.Timestamptz(6)
+  version Int @default(1)
+  client Client @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade)
+  capability ClientCapability @relation(fields: [tenantId, clientId, capabilityId], references: [tenantId, clientId, id], onDelete: Cascade)
+  target ClientTarget @relation(fields: [tenantId, clientId, targetId], references: [tenantId, clientId, id], onDelete: Cascade)
+  @@unique([targetId, capabilityId], map: "target_support_capability_key")
+  @@index([tenantId, clientId], map: "target_support_subject_idx")
+  @@map("client_target_supports")
+}
+
+model ClientFacilityCapability {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+  facilityId String @map("facility_id") @db.Uuid
+  capabilityId String @map("capability_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  facility ClientFacility @relation(fields:[tenantId,clientId,facilityId],references:[tenantId,clientId,id],onDelete:Cascade)
+  capability ClientCapability @relation(fields:[tenantId,clientId,capabilityId],references:[tenantId,clientId,id],onDelete:Cascade)
+  @@unique([facilityId,capabilityId])
+  @@index([tenantId,clientId])
+  @@map("client_facility_capabilities")
+}
+
+model ClientCapabilityDocument {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+  capabilityId String @map("capability_id") @db.Uuid
+  attachmentId String @map("attachment_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  client Client @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade)
+  capability ClientCapability @relation(fields: [tenantId, clientId, capabilityId], references: [tenantId, clientId, id], onDelete: Cascade)
+  attachment EngagementAttachment @relation(fields: [tenantId, attachmentId], references: [tenantId, id], onDelete: Cascade)
+  @@unique([tenantId, capabilityId, attachmentId], map: "capability_documents_identity_key")
+  @@index([tenantId, clientId], map: "capability_documents_subject_idx")
+  @@map("client_capability_documents")
 }

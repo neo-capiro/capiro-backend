@@ -215,7 +215,7 @@ describeDatabase('capiro data reader roles: database-enforced properties', () =>
       expect(await asRole(pub, PUBLIC, 'SELECT count(*)::int AS n FROM government_forecasts')).toEqual({ rows: [{ n: 2 }] });
       expect(await asRole(pub, PUBLIC, 'SELECT count(*) FROM public.government_forecast_revision')).toMatchObject({ code: '42501' });
     });
-    it('private reader sees exactly all three private source vocabularies in meri_private; visible_clients is excluded', async () => {
+    it('private reader sees exactly the gate vocabulary in meri_private; visible_clients is excluded', async () => {
       const result = await asRole(
         priv,
         PRIVATE,

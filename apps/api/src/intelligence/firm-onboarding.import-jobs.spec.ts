@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
 import { Prisma } from '@prisma/client';
@@ -64,6 +64,7 @@ interface JobRow {
   requestedByUserId: string;
   requestKey: string;
   requestSha256: string;
+  requestJson: unknown;
   ldaRegistrantId: number;
   requestedIds: number[];
   status: string;
@@ -302,6 +303,7 @@ const makeHarness = () => {
                 requestedByUserId: data.requestedByUserId as string,
                 requestKey: data.requestKey as string,
                 requestSha256: state.raceWinnerSha ?? (data.requestSha256 as string),
+                requestJson: data.requestJson ?? null,
                 ldaRegistrantId: data.ldaRegistrantId as number,
                 requestedIds: data.requestedIds as number[],
                 status: 'queued',
@@ -337,6 +339,7 @@ const makeHarness = () => {
             requestedByUserId: data.requestedByUserId as string,
             requestKey: data.requestKey as string,
             requestSha256: data.requestSha256 as string,
+            requestJson: data.requestJson ?? null,
             ldaRegistrantId: data.ldaRegistrantId as number,
             requestedIds: data.requestedIds as number[],
             status: (data.status as string) ?? 'queued',
@@ -617,6 +620,59 @@ describe('firm LDA importer durable job view', () => {
     expect(replay.job.counts).toEqual(first.job.counts);
     expect(harness.rows.jobs).toHaveLength(1);
     expect(harness.rows.clients).toHaveLength(2);
+  });
+
+  it('recovers the selected website from a fresh durable read and reconciles normalized retries exactly', async () => {
+    const harness = makeHarness();
+    const { service } = makeService(harness);
+    const requestId = randomUUID();
+    const first = await service.importClients(ctxA, [10, 11], {requestId, websites: {'10': ' Company.example/#research'}});
+    expect(harness.rows.jobs[0]!.requestJson).toEqual({schemaVersion: 1, websites: {'10': 'https://company.example/'}});
+    const reloaded = makeService(harness);
+    const saved = await reloaded.service.getImportJob(ctxA, first.job.id);
+    expect(saved.items.find(item => item.ldaClientId === 10)?.website).toBe('https://company.example/');
+    expect(saved.items.find(item => item.ldaClientId === 11)).not.toHaveProperty('website');
+    const listed = await reloaded.service.listImportJobs(ctxA, {requestKey: requestId});
+    expect(listed.jobs[0]!.items).toEqual(saved.items);
+    expect(reloaded.prepopulation.prepopulate).not.toHaveBeenCalled();
+    expect(reloaded.samEntity.enrichGovIds).not.toHaveBeenCalled();
+    const replay = await reloaded.service.importClients(ctxA, [11, 10], {requestId, websites: {'10': 'https://company.example/'}});
+    expect(replay).toEqual(first);
+    expect(harness.rows.clients).toHaveLength(2);
+    expect(reloaded.prepopulation.prepopulate).not.toHaveBeenCalled();
+  });
+
+  it('recovers a website while an interrupted import still has pending items', async () => {
+    const harness = makeHarness();
+    const { store } = makeService(harness);
+    const requestId = randomUUID();
+    await store.createOrReconcile(ctxA, {requestKey: requestId, ldaRegistrantId: 7001, ids: [10], websites: {'10': 'https://pending.example/'}});
+    const reloaded = makeService(harness);
+    const saved = await reloaded.store.getJobByRequest(ctxA, requestId);
+    expect(saved).toMatchObject({status: 'queued', terminal: false, outstanding: 1, items: [{ldaClientId: 10, outcome: 'pending', website: 'https://pending.example/'}]});
+    expect(harness.rows.clients).toEqual([]);
+    expect(reloaded.prepopulation.prepopulate).not.toHaveBeenCalled();
+    expect(reloaded.samEntity.enrichGovIds).not.toHaveBeenCalled();
+  });
+
+  it('refuses changed or removed websites under the same request identity without importing again', async () => {
+    const harness = makeHarness();
+    const { service } = makeService(harness);
+    const requestId = randomUUID();
+    await service.importClients(ctxA, [10], {requestId, websites: {'10': 'https://first.example/'}});
+    await expect(service.importClients(ctxA, [10], {requestId, websites: {'10': 'https://changed.example/'}})).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.importClients(ctxA, [10], {requestId})).rejects.toBeInstanceOf(ConflictException);
+    expect(harness.rows.jobs).toHaveLength(1);
+    expect(harness.rows.clients).toHaveLength(1);
+    expect(harness.rows.jobs[0]!.requestJson).toEqual({schemaVersion: 1, websites: {'10': 'https://first.example/'}});
+  });
+
+  it('rejects an unselected website key before persisting a job or creating clients', async () => {
+    const harness = makeHarness();
+    const { service } = makeService(harness);
+    await expect(service.importClients(ctxA, [10], {requestId: randomUUID(), websites: {'11': 'https://unselected.example/'}})).rejects.toBeInstanceOf(BadRequestException);
+    expect(harness.rows.jobs).toEqual([]);
+    expect(harness.rows.clients).toEqual([]);
   });
 
   it('conflicts when the same identity is reused for a changed selection', async () => {

@@ -9,9 +9,12 @@
  * actually differs from what's stored.
  */
 import { createHash } from 'node:crypto';
+import { Prisma } from '@prisma/client';
+import { boundaryVersionKey, servingBoundaryVersion, physicalAddressEligibility, isVerifiedFacilityPoint, type GeographicBoundaryVersion, type GeographicResolution } from '../external/census-geocoder/geographic-boundary.js';
 import {
   geocodeAddress,
   type CensusGeocodeCandidate,
+  type CensusGeocodeResult,
   type GeocodeStatus,
 } from '../external/census-geocoder/census-geocoder.client.js';
 import { normalizeDistrictCode } from './district-code.util.js';
@@ -34,9 +37,13 @@ export function normalizedFacilityAddress(
 }
 
 export function facilityAddressHash(
-  f: Pick<FacilityGeocodeInput, 'addressLine' | 'city' | 'state' | 'zip'>,
+  f: Pick<FacilityGeocodeInput, 'addressLine' | 'city' | 'state' | 'zip' | 'country' | 'verifiedPoint'>,
+  boundary: GeographicBoundaryVersion = servingBoundaryVersion(),
 ): string {
-  return createHash('md5').update(normalizedFacilityAddress(f)).digest('hex');
+  const point = isVerifiedFacilityPoint(f.verifiedPoint) ? f.verifiedPoint : null;
+  const identity = [normalizedFacilityAddress(f), (f.country ?? 'US').trim().toLowerCase(), point?.latitude ?? '',
+    point?.longitude ?? '', point?.verifiedAt ?? '', boundaryVersionKey(boundary)].join('|');
+  return createHash('md5').update(identity).digest('hex');
 }
 
 /**
@@ -63,6 +70,10 @@ function clampStateDistrict(raw: string | null): string | null {
 
 export interface FacilityGeocodeInput {
   id: string;
+  country?: string | null;
+  verifiedPoint?: unknown;
+  geographicResolution?: unknown;
+  geographicHistory?: unknown;
   addressLine: string | null;
   city: string | null;
   state: string | null;
@@ -80,6 +91,8 @@ export interface FacilityGeocodeInput {
 }
 
 export interface FacilityGeocodeUpdate {
+  geographicResolution?: Prisma.InputJsonValue;
+  geographicHistory?: Prisma.InputJsonValue;
   latitude: number | null;
   longitude: number | null;
   congressionalDistrict?: string;
@@ -94,6 +107,7 @@ export interface FacilityGeocodeUpdate {
 }
 
 export interface FacilityGeocodeOutcome {
+  resolution?: GeographicResolution;
   update: FacilityGeocodeUpdate | null;
   status: GeocodeStatus;
   /** Census' canonical address, retained even when the row is otherwise unchanged. */
@@ -102,11 +116,6 @@ export interface FacilityGeocodeOutcome {
   candidates: CensusGeocodeCandidate[] | null;
   /** A hand-typed congressionalDistrict disagreed with the geocoded one (data-quality signal for M5's QA surface). */
   discrepancy: { handEntered: string; geocoded: string } | null;
-}
-
-/** A facility with no usable street/city/state has nothing to geocode. */
-function hasGeocodableAddress(f: FacilityGeocodeInput): boolean {
-  return Boolean(f.addressLine?.trim() && f.city?.trim() && f.state?.trim());
 }
 
 /**
@@ -118,40 +127,49 @@ function hasGeocodableAddress(f: FacilityGeocodeInput): boolean {
 export async function computeFacilityGeocode(
   f: FacilityGeocodeInput,
 ): Promise<FacilityGeocodeOutcome> {
-  const geocodeInputHash = facilityAddressHash(f);
-  if (!hasGeocodableAddress(f)) {
-    return {
-      update:
-        f.geocodeInputHash === geocodeInputHash
-          ? null
-          : {
-              latitude: f.latitude,
-              longitude: f.longitude,
-              stateHouseDistrict: f.stateHouseDistrict,
-              stateSenateDistrict: f.stateSenateDistrict,
-              geocodedAt: new Date(),
-              geocodeStatus: 'no_match',
-              geocodeInputHash,
-            },
-      status: 'no_match',
-      matchedAddress: null,
-      candidates: null,
-      discrepancy: null,
-    };
-  }
-  const geocoded = await geocodeAddress(f.addressLine!, f.city!, f.state!, f.zip ?? '');
+  const boundary = servingBoundaryVersion();
+  const geocodeInputHash = facilityAddressHash(f, boundary);
+  const eligibility = physicalAddressEligibility(f.addressLine, f.city, f.state, f.zip, f.country);
+  const verifiedPoint = isVerifiedFacilityPoint(f.verifiedPoint) ? f.verifiedPoint : undefined;
+  const geocoded: CensusGeocodeResult = eligibility !== 'eligible' && !verifiedPoint || eligibility === 'not_applicable'
+    ? { status: 'no_match' as const, latitude: null, longitude: null, congressionalDistrict: null,
+        congressionalDistrictCongress: null, stateHouseDistrict: null, stateSenateDistrict: null, matchedAddress: null,
+        resolution: { status: eligibility === 'not_applicable' ? 'not_applicable' as const : 'needs_address' as const,
+          requiresReview: eligibility !== 'not_applicable', precision: 'unknown' as const, source: null,
+          version: boundary, stateFips: null, districts: [], resolvedAt: new Date().toISOString() } }
+    : await geocodeAddress(f.addressLine ?? '', f.city ?? '', f.state ?? '', f.zip ?? '', { boundary, country: f.country, verifiedPoint });
+  const discrepancy =
+    f.congressionalDistrict &&
+    geocoded.congressionalDistrict &&
+    f.districtSource !== 'geocoded' &&
+    normalizeDistrictCode(normalizeFacilityDistrictCode(f.state, f.congressionalDistrict)) !==
+      normalizeDistrictCode(normalizeFacilityDistrictCode(f.state, geocoded.congressionalDistrict))
+      ? { handEntered: f.congressionalDistrict, geocoded: geocoded.congressionalDistrict }
+      : null;
+  if (discrepancy && geocoded.resolution) geocoded.resolution.overrideConflict = discrepancy;
+  const metadata = geocoded.resolution ? {
+    geographicResolution: geocoded.resolution as unknown as Prisma.InputJsonValue,
+    geographicHistory: [
+      ...(Array.isArray(f.geographicHistory) ? f.geographicHistory : []),
+      ...(f.geographicResolution ? [f.geographicResolution] : []),
+    ] as Prisma.InputJsonValue,
+  } : {};
   const result = { ...geocoded,
+    status: (geocoded.resolution?.status === 'source_unavailable' ? 'error' : geocoded.resolution?.status === 'stale_boundary' ? 'no_match' : geocoded.status) as GeocodeStatus,
     congressionalDistrict: normalizeFacilityDistrictCode(f.state, geocoded.congressionalDistrict),
   };
-  if (result.status !== 'matched') {
+  if (result.status !== 'matched' || result.resolution?.requiresReview ||
+      (result.resolution && result.resolution.status !== 'resolved')) {
     // Record the attempt (status) but never clobber a previously-good
     // district/lat-lng with nulls on a transient no_match/ambiguous/error —
     // only write status + timestamp so the UI can show "last attempt failed".
     const statusChanged =
-      f.geocodeStatus !== result.status || f.geocodeInputHash !== geocodeInputHash;
+      f.geocodeStatus !== result.status || f.geocodeInputHash !== geocodeInputHash || Boolean(result.resolution);
     return {
+      resolution: result.resolution,
       update: statusChanged
         ? {
+            ...metadata,
             latitude: f.latitude,
             longitude: f.longitude,
             stateHouseDistrict: f.stateHouseDistrict,
@@ -164,7 +182,7 @@ export async function computeFacilityGeocode(
       status: result.status,
       matchedAddress: result.matchedAddress,
       candidates: result.candidates ?? null,
-      discrepancy: null,
+      discrepancy,
     };
   }
 
@@ -173,14 +191,7 @@ export async function computeFacilityGeocode(
   // the raw strings (the pre-fix behavior) false-flagged every single-digit
   // district that happened to agree, which is the common case for any state
   // whose districts run 1-9.
-  const discrepancy =
-    f.congressionalDistrict &&
-    result.congressionalDistrict &&
-    f.districtSource !== 'geocoded' &&
-    normalizeDistrictCode(normalizeFacilityDistrictCode(f.state, f.congressionalDistrict)) !==
-      normalizeDistrictCode(result.congressionalDistrict)
-      ? { handEntered: f.congressionalDistrict, geocoded: result.congressionalDistrict }
-      : null;
+
 
   // Clamp BEFORE the idempotency comparison, not just before the write — the
   // stored value is the clamped one, so comparing against the raw BASENAME
@@ -194,7 +205,8 @@ export async function computeFacilityGeocode(
     f.stateHouseDistrict === stateHouseDistrict &&
     f.stateSenateDistrict === stateSenateDistrict &&
     f.geocodeStatus === 'matched' &&
-    (f.geocodeInputHash == null || f.geocodeInputHash === geocodeInputHash) &&
+    (!result.resolution || JSON.stringify(f.geographicResolution) === JSON.stringify(result.resolution)) &&
+    f.geocodeInputHash === geocodeInputHash &&
     (f.congressionalDistrict === result.congressionalDistrict || f.districtSource !== 'geocoded') &&
     // A row backfilled for §11 (geocoded district, Congress still null) must
     // NOT read as unchanged just because its district/coords already match —
@@ -204,6 +216,7 @@ export async function computeFacilityGeocode(
   if (unchanged) {
     return {
       update: null,
+      resolution: result.resolution,
       status: 'matched',
       matchedAddress: result.matchedAddress,
       candidates: null,
@@ -212,7 +225,9 @@ export async function computeFacilityGeocode(
   }
 
   return {
+    resolution: result.resolution,
     update: {
+      ...metadata,
       latitude: result.latitude,
       longitude: result.longitude,
       // Preserve an explicit manual congressional-district correction. The
@@ -237,7 +252,7 @@ export async function computeFacilityGeocode(
     },
     status: 'matched',
     matchedAddress: result.matchedAddress,
-    candidates: null,
+    candidates: result.candidates ?? null,
     discrepancy,
   };
 }
