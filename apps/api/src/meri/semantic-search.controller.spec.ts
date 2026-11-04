@@ -25,9 +25,11 @@ const routes = [
   ['bills', 'semantic_search_bills'],
   ['grants', 'semantic_search_grants'],
   ['contractOpportunities', 'semantic_search_contract_opportunities'],
+  ['dibbsSolicitations', 'semantic_search_dibbs_solicitations'],
+  ['sbirTopics', 'semantic_search_sbir_topics'],
 ] as const;
 
-test('the three fixed semantic receivers require actual service proof, not a header alone', async () => {
+test('the fixed semantic receivers require actual service proof, not a header alone', async () => {
   const owner = { read: jest.fn(async () => ({ tool: 'x', results: [] })) };
   const controller = new SemanticSearchController(owner as never);
   for (const [method] of routes)
@@ -48,6 +50,8 @@ test('deployment allowlist still refuses an unallocated semantic read', () => {
     const owner = { read: jest.fn(async () => ({})) };
     const controller = new SemanticSearchController(owner as never);
     expect(() => controller.grants(ctx, { query: 'water' }, request() as never)).toThrow();
+    expect(() => controller.dibbsSolicitations(ctx, { query: 'water' }, request() as never)).toThrow();
+    expect(() => controller.sbirTopics(ctx, { query: 'water' }, request() as never)).toThrow();
     expect(owner.read).not.toHaveBeenCalled();
     expect(() => controller.bills(ctx, { query: 'water' }, request() as never)).not.toThrow();
   } finally {
