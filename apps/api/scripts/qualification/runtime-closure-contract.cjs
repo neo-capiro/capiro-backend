@@ -107,8 +107,27 @@ const archivePlatforms = Object.freeze({
     "os": ["linux"], "cpu": ["x64"], "libc": ["musl"]
   }
 });
+// pnpm 9's frozen lock omits libc for these SDK variants. The retained build110
+// manifest observations are pinned independently of archive-derived evidence.
+// These pins admit metadata only; they do not authorize a native artifact/load.
+const retainedBuildPlatforms = Object.freeze({
+  '@anthropic-ai/claude-agent-sdk-linux-arm64@0.3.318': {
+    integrity: 'sha512-mBm4su17aMitLBBCQj3bHdejyUDY6z/ormGih+HG24N689RSbdKECjGjkT87tDBIR/4jyoqmuSeHqM1DI8TJlg==',
+    manifestSHA256: 'a341210933888b7305d518dd52ca1fe9b060a88f66d493559b5217c539a7e5c2',
+    os: ['linux'], cpu: ['arm64'], libc: ['glibc'],
+    basis: 'EXACT_LOCK_AND_RETAINED_BUILD_MANIFEST',
+    buildLogSHA256: '73aac8a22d47fffd794edbbf4dce4168405dd111b14daab9cde6b554c2f4c5eb',
+  },
+  '@anthropic-ai/claude-agent-sdk-linux-arm64-musl@0.3.318': {
+    integrity: 'sha512-l4LSYFOrvlYCrUImGfxMTQ0wg+T3s9CBhrBvPF/0oJGKZg+QnxHHU8jUVm9e9/xYmDRTtqFIrr4id/5AfH4XGw==',
+    manifestSHA256: '32ecd14d02faddb449e14be5b4d485a637d5353c0363c9019db7bd7d1d257e66',
+    os: ['linux'], cpu: ['arm64'], libc: ['musl'],
+    basis: 'EXACT_LOCK_AND_RETAINED_BUILD_MANIFEST',
+    buildLogSHA256: '73aac8a22d47fffd794edbbf4dce4168405dd111b14daab9cde6b554c2f4c5eb',
+  },
+});
 function reconciledPlatform(node, owner) {
-  const proof = archivePlatforms[`${node.name}@${node.version}`];
+  const proof = archivePlatforms[`${node.name}@${node.version}`] || retainedBuildPlatforms[`${node.name}@${node.version}`];
   const platform = Object.fromEntries(['os', 'cpu', 'libc'].map(k => [k, node[k] ?? null]));
   if (proof) {
     assert.equal(node.resolution?.integrity, proof.integrity, 'platform archive lock integrity differs');
@@ -118,11 +137,12 @@ function reconciledPlatform(node, owner) {
     if (owner) assert.equal(owner.manifestSHA256, proof.manifestSHA256, 'platform archive manifest bytes differ');
   }
   if (owner) for (const field of ['os', 'cpu', 'libc']) assert.deepEqual(owner.metadata[field] ?? null, platform[field], `installed ${field} metadata differs`);
-  return { platform, evidence: proof ? { basis: 'EXACT_LOCKED_ARCHIVE_MANIFEST', integrity: proof.integrity, manifestSHA256: proof.manifestSHA256 } : null };
+  return { platform, evidence: proof ? { basis: proof.basis || 'EXACT_LOCKED_ARCHIVE_MANIFEST', integrity: proof.integrity, manifestSHA256: proof.manifestSHA256,
+    ...(proof.buildLogSHA256 ? { buildLogSHA256: proof.buildLogSHA256 } : {}) } : null };
 }
 function ownerPlatformAdmission(node, owner, target, relation) {
   const reconciled = reconciledPlatform(node, owner), active = compatible(reconciled.platform, target);
-  // Only these exact archive-proven variants can be physically retained inactive.
+  // Only these exact evidence-bound variants can be physically retained inactive.
   // Every incoming edge is checked, including revisits of an assigned owner.
   assert(active || reconciled.evidence && relation?.dependencyKind === 'optionalDependencies' && relation.physicalRequired === false,
     `physically installed package is incompatible with target: ${node.key}`);
@@ -405,7 +425,9 @@ function verifyInstalledClosureWithDiagnostics({ imageRoot = '/app', target = { 
       diagnostic.payload.expectedPlatformCompatible = compatible(expectedPlatform, target);
       if (!next) {
         assert(edge.kind === 'optionalDependencies' && !relations.get(edge.dependencyName)?.physicalRequired && !compatible(expectedPlatform, target), `required or unproven missing dependency: ${key} ${edge.dependencyName}`);
-        missingOptional.push({ ...edge, reason: expectedReconciliation.evidence ? 'ARCHIVE_BOUND_PLATFORM_INCOMPATIBLE' : 'LOCK_DECLARED_PLATFORM_INCOMPATIBLE', platform: expectedPlatform, ...(expectedReconciliation.evidence ? { platformEvidence: expectedReconciliation.evidence } : {}) });
+        missingOptional.push({ ...edge, reason: expectedReconciliation.evidence
+          ? expectedReconciliation.evidence.basis === 'EXACT_LOCK_AND_RETAINED_BUILD_MANIFEST' ? 'RETAINED_BUILD_BOUND_PLATFORM_INCOMPATIBLE' : 'ARCHIVE_BOUND_PLATFORM_INCOMPATIBLE'
+          : 'LOCK_DECLARED_PLATFORM_INCOMPATIBLE', platform: expectedPlatform, ...(expectedReconciliation.evidence ? { platformEvidence: expectedReconciliation.evidence } : {}) });
       } else {
         links.push({ ...edge, physicalOwner: next.root, ...(next.dependencyResolution ? { dependencyResolution: next.dependencyResolution } : {}) });
         queue.push({ key: edge.to, owner: next, relation: { parentSnapshot: diagnosticText(key, 768), dependencyName: diagnosticText(edge.dependencyName), dependencyKind: edge.kind, physicalRequired: edge.kind !== 'optionalDependencies' || relations.get(edge.dependencyName)?.physicalRequired === true, dependencyMissing: false } });
@@ -432,11 +454,68 @@ function verifyInstalledClosureWithDiagnostics({ imageRoot = '/app', target = { 
     traversal,
     integrityScope: 'LOCK_INTEGRITY_AND_FROZEN_INPUT_BINDING; installed vendor byte integrity still requires sealed build/install evidence' };
 }
+// Source/byte admission only. The SDK's retained distribution manifest identifies
+// these members; offline version, selected executable and runtime libc remain gates.
+function portfolioSdkNativeEvidence(owner, relative, target, distribution, payload) {
+  const key = `${owner.metadata.name}@${owner.metadata.version}`, proof = retainedBuildPlatforms[key];
+  assert(proof, 'unreviewed Portfolio SDK native owner/version');
+  assert.equal(relative, 'claude', 'unexpected Portfolio SDK native member');
+  assert.deepEqual(target, { os: 'linux', cpu: 'arm64', libc: 'musl' }, 'Portfolio SDK qualification target');
+  assert.equal(owner.integrity, proof.integrity, 'Portfolio SDK native archive integrity');
+  assert.equal(owner.manifestSHA256, proof.manifestSHA256, 'Portfolio SDK native manifest bytes');
+  for (const field of ['os', 'cpu', 'libc']) assert.deepEqual(owner.metadata[field], proof[field], 'Portfolio SDK native platform metadata');
+  const active = proof.libc[0] === 'musl';
+  assert.equal(owner.platformAdmission?.state, active ? 'TARGET_COMPATIBLE' : 'INACTIVE_INCOMPATIBLE_OPTIONAL', 'Portfolio SDK platform admission state');
+  assert.equal(owner.platformAdmission?.executionAllowed, active, 'Portfolio SDK execution eligibility');
+  assert.deepEqual(owner.platformAdmission?.platform, { os: proof.os, cpu: proof.cpu, libc: proof.libc }, 'Portfolio SDK admitted platform');
+  const parent = distribution.owner;
+  assert.equal(parent.metadata.name, '@anthropic-ai/claude-agent-sdk', 'Portfolio SDK distribution owner');
+  assert.equal(parent.metadata.version, '0.3.318', 'Portfolio SDK distribution version');
+  assert.equal(parent.manifestSHA256, 'f2799dd9c43f751e052bd4d410af96274fdc36f514a2d6666fe148c266a0e990', 'Portfolio SDK distribution package bytes');
+  assert.equal(parent.integrity, 'sha512-z5WHCUeW52SKQ3rnvI3zt8X5h2QQ5o3Cgg5xarO5Rimfe67f3pOJt2aOh00S8t/nRzqfs+8nCb9o1EoXe+yccA==', 'Portfolio SDK distribution archive integrity');
+  const manifestSHA256 = '608425e4ad6b6513a43c281c170d0bdd71b2d30bbf0df09df9b1a2e8c448df07';
+  assert(Buffer.isBuffer(distribution.manifestBytes) && hash(distribution.manifestBytes) === manifestSHA256, 'Portfolio SDK distribution manifest bytes');
+  const manifest = JSON.parse(distribution.manifestBytes.toString('utf8'));
+  const expected = manifest.platforms[active ? 'linux-arm64-musl' : 'linux-arm64'];
+  assert.equal(expected.binary, relative, 'Portfolio SDK distribution member');
+  assert.equal(payload.bytes, expected.size, 'Portfolio SDK native byte length');
+  assert.equal(payload.sha256, expected.checksum, 'Portfolio SDK native byte digest');
+  assert.equal(payload.binary.format, 'ELF', 'Portfolio SDK native format');
+  assert.equal(payload.binary.elf?.class, 64, 'Portfolio SDK ELF class');
+  assert.equal(payload.binary.elf?.machine, 183, 'Portfolio SDK ELF machine');
+  assert(payload.binary.elf.libc === null || payload.binary.elf.libc === proof.libc[0], 'Portfolio SDK package/ELF libc disagreement');
+  return { basis: 'PINNED_SDK_DISTRIBUTION_MANIFEST', manifestSHA256, relative, bytes: expected.size, sha256: expected.checksum,
+    sdkVersion: '0.3.318', declaredCliVersion: manifest.version, executionAllowed: active, runtimeQualification: 'UNRUN',
+    fixture: active ? 'CLAUDE_SDK_OFFLINE_VERSION_AND_MUSL_RUNTIME' : 'CLAUDE_SDK_INACTIVE_OPTIONAL_NEVER_EXECUTED' };
+}
 function artifactOwner(file, closure) {
   const real = fs.realpathSync(file), owners = [...closure.owners, ...closure.generated].filter(o => inside(o.root, real)).sort((a, b) => b.root.length - a.root.length);
   assert(owners.length > 0, 'unexpected native artifact outside validated package owners');
   const owner = owners[0], relative = path.relative(owner.root, real).split(path.sep).join('/'), name = owner.metadata.name;
-  let fixture = null, expected;
+  let fixture = null, expected, sdkNativeEvidence;
+  if (retainedBuildPlatforms[`${name}@${owner.metadata.version}`]) {
+    assert.equal(relative, 'claude', 'unexpected Portfolio SDK native member');
+    const parents = closure.owners.filter(row => row.metadata.name === '@anthropic-ai/claude-agent-sdk' && row.metadata.version === '0.3.318');
+    assert.equal(parents.length, 1, 'unreviewed native artifact owner/path: Portfolio SDK distribution owner missing or ambiguous');
+    const parent = parents[0];
+    assert(closure.edges.some(edge => edge.from === parent.snapshot && edge.to === owner.snapshot &&
+      edge.dependencyName === name && edge.kind === 'optionalDependencies' && edge.physicalOwner === owner.root), 'Portfolio SDK physical optional owner edge');
+    // The SDK selector falls back to glibc when a musl member is absent. Such a
+    // fallback is not eligible on this target, even if its package is optional.
+    const muslOwners = closure.owners.filter(row => row.metadata.name === '@anthropic-ai/claude-agent-sdk-linux-arm64-musl' && row.metadata.version === '0.3.318');
+    assert.equal(muslOwners.length, 1, 'Portfolio SDK compatible musl owner required');
+    const muslOwner = muslOwners[0];
+    assert(muslOwner.platformAdmission?.state === 'TARGET_COMPATIBLE' && muslOwner.platformAdmission.executionAllowed === true, 'Portfolio SDK musl execution eligibility');
+    assert(closure.edges.some(edge => edge.from === parent.snapshot && edge.to === muslOwner.snapshot &&
+      edge.dependencyName === muslOwner.metadata.name && edge.kind === 'optionalDependencies' && edge.physicalOwner === muslOwner.root), 'Portfolio SDK musl physical optional owner edge');
+    const muslMember = fs.realpathSync(path.join(muslOwner.root, 'claude'));
+    assert(inside(muslOwner.root, muslMember) && fs.statSync(muslMember).isFile(), 'Portfolio SDK musl member containment/type');
+    const manifestBytes = readBounded(path.join(parent.root, 'manifest.json'), parent.root, 64 * 1024);
+    const data = readBounded(real, owner.root, 512 * 1024 * 1024);
+    sdkNativeEvidence = portfolioSdkNativeEvidence(owner, relative, closure.target, { owner: parent, manifestBytes },
+      { bytes: data.length, sha256: hash(data), binary: require('./alpine-runtime-probe.cjs').binaryFormat(data) });
+    expected = 'claude'; fixture = sdkNativeEvidence.fixture;
+  }
   if (vendorWasm[`${name}@${owner.metadata.version}`]?.files[relative]) {
     const data = readBounded(real, owner.root, 4 * 1024 * 1024), proof = lockedWasmEvidence(owner.metadata, relative, data.length, hash(data));
     assert(proof.verified && owner.integrity === proof.archiveIntegrity, 'unreviewed WASM bytes or lock integrity');
@@ -469,6 +548,21 @@ function artifactOwner(file, closure) {
   }
   assert(expected && relative === expected && fixture, `unreviewed native artifact owner/path: ${name} ${relative}`);
   return { root: owner.root, name, version: owner.metadata.version, snapshot: owner.snapshot, manifestSHA256: owner.manifestSHA256,
-    relative, fixture, platformAdmission: owner.platformAdmission || null, generatedBy: owner.generatedBy || null, integrity: owner.integrity || null };
+    relative, fixture, platformAdmission: owner.platformAdmission || null, generatedBy: owner.generatedBy || null, integrity: owner.integrity || null,
+    ...(sdkNativeEvidence ? { sdkNativeEvidence } : {}) };
 }
-module.exports = { reconciledPlatform, ownerPlatformAdmission, classifyDependencyRelations, CONTRACT_SHA256, IMAGE_LOCAL_PRISMA_SCHEMA_SHA256, lockedWasmEvidence, inside, platformAllows, readPackage, readContract, walkRuntime, physicalStoreOwners, physicalDependencyLookup, resolveDependency, verifyInstalledClosure, artifactOwner };
+// Required members must be admitted even when magic-based inventory would skip
+// their contents, and even when the incompatible glibc sibling is absent.
+// The offline SDK probe must use this returned path before importing/executing.
+function requiredPortfolioSdkMember(closure) {
+  const owners = closure.owners.filter(owner => owner.metadata.name === '@anthropic-ai/claude-agent-sdk-linux-arm64-musl' && owner.metadata.version === '0.3.318');
+  assert.equal(owners.length, 1, 'Portfolio SDK compatible musl owner required');
+  const owner = owners[0], file = fs.realpathSync(path.join(owner.root, 'claude'));
+  assert(inside(owner.root, file) && fs.statSync(file).isFile(), 'Portfolio SDK musl member containment/type');
+  const productionOwner = artifactOwner(file, closure);
+  assert.equal(productionOwner.root, owner.root, 'Portfolio SDK required member physical owner');
+  assert.equal(productionOwner.name, owner.metadata.name, 'Portfolio SDK required member package');
+  assert.equal(productionOwner.sdkNativeEvidence?.executionAllowed, true, 'Portfolio SDK required member byte admission');
+  return { file, productionOwner };
+}
+module.exports = { reconciledPlatform, ownerPlatformAdmission, classifyDependencyRelations, CONTRACT_SHA256, IMAGE_LOCAL_PRISMA_SCHEMA_SHA256, lockedWasmEvidence, inside, platformAllows, readPackage, readContract, walkRuntime, physicalStoreOwners, physicalDependencyLookup, resolveDependency, verifyInstalledClosure, artifactOwner, portfolioSdkNativeEvidence, requiredPortfolioSdkMember };
