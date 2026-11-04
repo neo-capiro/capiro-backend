@@ -454,11 +454,68 @@ function verifyInstalledClosureWithDiagnostics({ imageRoot = '/app', target = { 
     traversal,
     integrityScope: 'LOCK_INTEGRITY_AND_FROZEN_INPUT_BINDING; installed vendor byte integrity still requires sealed build/install evidence' };
 }
+// Source/byte admission only. The SDK's retained distribution manifest identifies
+// these members; offline version, selected executable and runtime libc remain gates.
+function portfolioSdkNativeEvidence(owner, relative, target, distribution, payload) {
+  const key = `${owner.metadata.name}@${owner.metadata.version}`, proof = retainedBuildPlatforms[key];
+  assert(proof, 'unreviewed Portfolio SDK native owner/version');
+  assert.equal(relative, 'claude', 'unexpected Portfolio SDK native member');
+  assert.deepEqual(target, { os: 'linux', cpu: 'arm64', libc: 'musl' }, 'Portfolio SDK qualification target');
+  assert.equal(owner.integrity, proof.integrity, 'Portfolio SDK native archive integrity');
+  assert.equal(owner.manifestSHA256, proof.manifestSHA256, 'Portfolio SDK native manifest bytes');
+  for (const field of ['os', 'cpu', 'libc']) assert.deepEqual(owner.metadata[field], proof[field], 'Portfolio SDK native platform metadata');
+  const active = proof.libc[0] === 'musl';
+  assert.equal(owner.platformAdmission?.state, active ? 'TARGET_COMPATIBLE' : 'INACTIVE_INCOMPATIBLE_OPTIONAL', 'Portfolio SDK platform admission state');
+  assert.equal(owner.platformAdmission?.executionAllowed, active, 'Portfolio SDK execution eligibility');
+  assert.deepEqual(owner.platformAdmission?.platform, { os: proof.os, cpu: proof.cpu, libc: proof.libc }, 'Portfolio SDK admitted platform');
+  const parent = distribution.owner;
+  assert.equal(parent.metadata.name, '@anthropic-ai/claude-agent-sdk', 'Portfolio SDK distribution owner');
+  assert.equal(parent.metadata.version, '0.3.318', 'Portfolio SDK distribution version');
+  assert.equal(parent.manifestSHA256, 'f2799dd9c43f751e052bd4d410af96274fdc36f514a2d6666fe148c266a0e990', 'Portfolio SDK distribution package bytes');
+  assert.equal(parent.integrity, 'sha512-z5WHCUeW52SKQ3rnvI3zt8X5h2QQ5o3Cgg5xarO5Rimfe67f3pOJt2aOh00S8t/nRzqfs+8nCb9o1EoXe+yccA==', 'Portfolio SDK distribution archive integrity');
+  const manifestSHA256 = '608425e4ad6b6513a43c281c170d0bdd71b2d30bbf0df09df9b1a2e8c448df07';
+  assert(Buffer.isBuffer(distribution.manifestBytes) && hash(distribution.manifestBytes) === manifestSHA256, 'Portfolio SDK distribution manifest bytes');
+  const manifest = JSON.parse(distribution.manifestBytes.toString('utf8'));
+  const expected = manifest.platforms[active ? 'linux-arm64-musl' : 'linux-arm64'];
+  assert.equal(expected.binary, relative, 'Portfolio SDK distribution member');
+  assert.equal(payload.bytes, expected.size, 'Portfolio SDK native byte length');
+  assert.equal(payload.sha256, expected.checksum, 'Portfolio SDK native byte digest');
+  assert.equal(payload.binary.format, 'ELF', 'Portfolio SDK native format');
+  assert.equal(payload.binary.elf?.class, 64, 'Portfolio SDK ELF class');
+  assert.equal(payload.binary.elf?.machine, 183, 'Portfolio SDK ELF machine');
+  assert(payload.binary.elf.libc === null || payload.binary.elf.libc === proof.libc[0], 'Portfolio SDK package/ELF libc disagreement');
+  return { basis: 'PINNED_SDK_DISTRIBUTION_MANIFEST', manifestSHA256, relative, bytes: expected.size, sha256: expected.checksum,
+    sdkVersion: '0.3.318', declaredCliVersion: manifest.version, executionAllowed: active, runtimeQualification: 'UNRUN',
+    fixture: active ? 'CLAUDE_SDK_OFFLINE_VERSION_AND_MUSL_RUNTIME' : 'CLAUDE_SDK_INACTIVE_OPTIONAL_NEVER_EXECUTED' };
+}
 function artifactOwner(file, closure) {
   const real = fs.realpathSync(file), owners = [...closure.owners, ...closure.generated].filter(o => inside(o.root, real)).sort((a, b) => b.root.length - a.root.length);
   assert(owners.length > 0, 'unexpected native artifact outside validated package owners');
   const owner = owners[0], relative = path.relative(owner.root, real).split(path.sep).join('/'), name = owner.metadata.name;
-  let fixture = null, expected;
+  let fixture = null, expected, sdkNativeEvidence;
+  if (retainedBuildPlatforms[`${name}@${owner.metadata.version}`]) {
+    assert.equal(relative, 'claude', 'unexpected Portfolio SDK native member');
+    const parents = closure.owners.filter(row => row.metadata.name === '@anthropic-ai/claude-agent-sdk' && row.metadata.version === '0.3.318');
+    assert.equal(parents.length, 1, 'unreviewed native artifact owner/path: Portfolio SDK distribution owner missing or ambiguous');
+    const parent = parents[0];
+    assert(closure.edges.some(edge => edge.from === parent.snapshot && edge.to === owner.snapshot &&
+      edge.dependencyName === name && edge.kind === 'optionalDependencies' && edge.physicalOwner === owner.root), 'Portfolio SDK physical optional owner edge');
+    // The SDK selector falls back to glibc when a musl member is absent. Such a
+    // fallback is not eligible on this target, even if its package is optional.
+    const muslOwners = closure.owners.filter(row => row.metadata.name === '@anthropic-ai/claude-agent-sdk-linux-arm64-musl' && row.metadata.version === '0.3.318');
+    assert.equal(muslOwners.length, 1, 'Portfolio SDK compatible musl owner required');
+    const muslOwner = muslOwners[0];
+    assert(muslOwner.platformAdmission?.state === 'TARGET_COMPATIBLE' && muslOwner.platformAdmission.executionAllowed === true, 'Portfolio SDK musl execution eligibility');
+    assert(closure.edges.some(edge => edge.from === parent.snapshot && edge.to === muslOwner.snapshot &&
+      edge.dependencyName === muslOwner.metadata.name && edge.kind === 'optionalDependencies' && edge.physicalOwner === muslOwner.root), 'Portfolio SDK musl physical optional owner edge');
+    const muslMember = fs.realpathSync(path.join(muslOwner.root, 'claude'));
+    assert(inside(muslOwner.root, muslMember) && fs.statSync(muslMember).isFile(), 'Portfolio SDK musl member containment/type');
+    const manifestBytes = readBounded(path.join(parent.root, 'manifest.json'), parent.root, 64 * 1024);
+    const data = readBounded(real, owner.root, 512 * 1024 * 1024);
+    sdkNativeEvidence = portfolioSdkNativeEvidence(owner, relative, closure.target, { owner: parent, manifestBytes },
+      { bytes: data.length, sha256: hash(data), binary: require('./alpine-runtime-probe.cjs').binaryFormat(data) });
+    expected = 'claude'; fixture = sdkNativeEvidence.fixture;
+  }
   if (vendorWasm[`${name}@${owner.metadata.version}`]?.files[relative]) {
     const data = readBounded(real, owner.root, 4 * 1024 * 1024), proof = lockedWasmEvidence(owner.metadata, relative, data.length, hash(data));
     assert(proof.verified && owner.integrity === proof.archiveIntegrity, 'unreviewed WASM bytes or lock integrity');
@@ -491,6 +548,7 @@ function artifactOwner(file, closure) {
   }
   assert(expected && relative === expected && fixture, `unreviewed native artifact owner/path: ${name} ${relative}`);
   return { root: owner.root, name, version: owner.metadata.version, snapshot: owner.snapshot, manifestSHA256: owner.manifestSHA256,
-    relative, fixture, platformAdmission: owner.platformAdmission || null, generatedBy: owner.generatedBy || null, integrity: owner.integrity || null };
+    relative, fixture, platformAdmission: owner.platformAdmission || null, generatedBy: owner.generatedBy || null, integrity: owner.integrity || null,
+    ...(sdkNativeEvidence ? { sdkNativeEvidence } : {}) };
 }
-module.exports = { reconciledPlatform, ownerPlatformAdmission, classifyDependencyRelations, CONTRACT_SHA256, IMAGE_LOCAL_PRISMA_SCHEMA_SHA256, lockedWasmEvidence, inside, platformAllows, readPackage, readContract, walkRuntime, physicalStoreOwners, physicalDependencyLookup, resolveDependency, verifyInstalledClosure, artifactOwner };
+module.exports = { reconciledPlatform, ownerPlatformAdmission, classifyDependencyRelations, CONTRACT_SHA256, IMAGE_LOCAL_PRISMA_SCHEMA_SHA256, lockedWasmEvidence, inside, platformAllows, readPackage, readContract, walkRuntime, physicalStoreOwners, physicalDependencyLookup, resolveDependency, verifyInstalledClosure, artifactOwner, portfolioSdkNativeEvidence };
