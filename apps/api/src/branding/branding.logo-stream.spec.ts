@@ -57,7 +57,10 @@ function fixture(
     tenant: { findUnique: jest.fn(async () => row) },
   };
   const service = new BrandingService(
-    { withTenant: async (_tenant: string, read: any) => read(tx) } as never,
+    {
+      withTenant: async (_tenant: string, read: any) => read(tx),
+      withSystem: async (read: any) => read(tx),
+    } as never,
     { get: (key: string) => (key === 'ASSETS_BUCKET' ? 'assets-test' : 'us-east-1') } as never,
   );
   const send: any = (service as any).s3.send;
@@ -139,12 +142,13 @@ describe('firm logo stream — M1 stable, session-authenticated bytes', () => {
     await expect(failing.service.readLogo(ctx as never)).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('keeps the branding payload’s own behaviour: the DTO switch is a separate change', async () => {
+  it('reports the app’s own firm-logo path instead of a presigned URL (DTO switch)', async () => {
     const { service } = fixture();
     const branding = await service.getBranding(ctx as never);
-    // Until the accepted DTO switch ships, `getBranding` still reports a signed URL and the
-    // new bytes route is additive, so a release can deploy this endpoint in either order.
-    expect(branding?.logoUrl).toBe('https://signed.invalid');
+    // The payload now names the app route; the bytes still come from readLogo above.
+    expect(branding?.logoUrl).toBe('/api/firm-logo');
+    // Share links with no signed-in context keep their short-lived signed address.
+    expect(await service.signedLogoUrlForTenant(ctx.tenantId)).toBe('https://signed.invalid');
   });
 
   it.each([
