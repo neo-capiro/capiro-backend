@@ -162,6 +162,8 @@ describe('sourced office refresh', () => {
     expect(geographicSignal(member as never, facility as never)?.evidence.sourceType).toBe(
       'official',
     );
+    for (const state of [null, '', 'unrecognized'])
+      expect(geographicSignal({ ...member, state } as never, facility as never)).toBeNull();
     for (const delta of [
       { siteVerificationStatus: 'unverified' },
       { siteStatus: 'unknown' },

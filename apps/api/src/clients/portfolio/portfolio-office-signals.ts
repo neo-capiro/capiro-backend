@@ -29,7 +29,7 @@ export function geographicSignal(
   facility: ClientFacility,
 ): OfficeSignal | null {
   const resolution = facility.geographicResolution as unknown as GeographicResolution | null;
-  const memberState = resolveStateName(member.state);
+  const memberState = resolveStateName(member.state ?? '');
   if (!['house', 'senate'].includes(member.chamber.toLowerCase())) return null;
   if (
     !['US', 'PR', 'GU', 'VI', 'AS', 'MP'].includes(facility.country ?? '') ||
