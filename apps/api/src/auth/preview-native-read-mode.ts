@@ -20,7 +20,8 @@ const CLIENT_RECORD_PATHS: Readonly<Record<string, RegExp>> = {
 /** Bare nested GETs that ClientsController declares before its `:id` route, so
  * the exact word is a canonical current-session read rather than a malformed
  * client id. Admitted at this exact path and method only: every other bare
- * segment still fails the client-id guard and a query is still refused. */
+ * segment still fails the client-id guard. Metrics accepts only its closed
+ * tracker owner selector; other query keys remain refused. */
 const NATIVE_BARE_GET_PATHS: ReadonlySet<string> = new Set(['/api/clients/metrics']);
 
 /** Native client records share the existing first-chat session owner. Canonical
@@ -57,8 +58,14 @@ export function firstChatClientPreviewDecision(req: Request, enabled: boolean): 
       /^\/api\/clients\/[^/]+(?:\/account-owners)?$/.test(rawPath);
     return nativePath || nativeClient ? 'not-found' : 'unrelated';
   }
-  if (queryStart !== -1 && (method !== 'GET' || rawPath !== '/api/clients' ||
-      !boundedRosterQuery(target.slice(queryStart + 1)))) return 'not-found';
+  if (queryStart !== -1) {
+    const query = target.slice(queryStart + 1);
+    const allowed = method === 'GET' && (
+      rawPath === '/api/clients' && boundedRosterQuery(query) ||
+      rawPath === '/api/clients/metrics' && /^trackerBackend=(core|intelligence)$/.test(query)
+    );
+    if (!allowed) return 'not-found';
+  }
   return 'preview';
 }
 

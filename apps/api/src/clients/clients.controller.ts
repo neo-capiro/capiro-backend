@@ -365,8 +365,12 @@ export class ClientsController {
 
   @Get('metrics')
   @Header('Cache-Control', 'no-store')
-  metrics(@CurrentTenant() ctx: TenantContext) {
-    return this.service.metrics(ctx);
+  metrics(@CurrentTenant() ctx: TenantContext, @Query() query: Record<string, unknown> = {}) {
+    if (Object.keys(query).some((key) => key !== 'trackerBackend') ||
+        query.trackerBackend !== undefined && !['core', 'intelligence'].includes(query.trackerBackend as string)) {
+      throw new BadRequestException('Invalid metrics tracker backend');
+    }
+    return this.service.metrics(ctx, (query.trackerBackend ?? 'core') as 'core' | 'intelligence');
   }
 
   /**

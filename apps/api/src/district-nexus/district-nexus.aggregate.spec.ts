@@ -33,6 +33,16 @@ function inputs(partial: Partial<ClientNexusInputs> = {}): ClientNexusInputs {
 }
 
 describe('explicit rail folds preserve the foldDistricts contract', () => {
+  test('legacy delegate facilities join the canonical map while award sentinels remain unmapped', () => {
+    const result = buildClientNexusResponse(inputs({
+      facilities: [{ state: 'DC', districtCode: '98', employeeCount: 8, districtSource: 'geocoded' }],
+      contracts: [{ state: 'DC', district: '98', awardCount: 1, totalAmount: 100 }],
+    }));
+    expect(result.districts).toEqual([expect.objectContaining({ districtKey: 'DC-00' })]);
+    expect(result.facilityFootprint.facilitiesWithoutDistrict).toBe(0);
+    expect(districtKeyFor('DC', '98')).toBeNull();
+  });
+
   test('all five rail helpers share state without collapsing rail-specific semantics', () => {
     const mixed = inputs({
       contracts: [

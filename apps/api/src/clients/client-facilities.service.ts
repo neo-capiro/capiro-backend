@@ -12,6 +12,7 @@ import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { US_HOUSE_SEATS, isValidDistrictForState } from '../common/us-congressional-districts.js';
 import {
   AT_LARGE_FACILITY,
+  normalizeFacilityDistrictCode,
   UNRESOLVABLE_HOUSE_SENTINELS,
   toUsaSpendingDistrictCode,
 } from '../common/district-code.util.js';
@@ -78,9 +79,9 @@ export function normalizeDistrictForStorage(
   // must survive verbatim — the geocoder does write '98', observed in production.
   //
   // Tested by SET MEMBERSHIP, not by shape. '90' and '98' are two-digit numbers, so
-  // a `/^\d{2}$/` guard passes them straight through to the at-large collapse below
-  // — which is exactly what a first draft of this function did, turning DC's '98'
-  // delegate code into '00' and inventing a seat. Its spec caught it.
+  // a `/^\d{2}$/` guard would pass ambiguous values to the at-large collapse.
+  // Census geocodes use the explicit state-aware normalizeFacilityDistrictCode
+  // bridge before reaching storage; a generic imported sentinel stays raw.
   if (UNRESOLVABLE_HOUSE_SENTINELS.has(canonical)) return canonical;
 
   const seats = state ? US_HOUSE_SEATS[state.trim().toUpperCase()] : undefined;
@@ -500,7 +501,7 @@ export class ClientFacilitiesService {
             typeof candidate.congressionalDistrict === 'string'
               ? (normalizeDistrictForStorage(
                   typeof candidate.state === 'string' ? candidate.state : existing.state,
-                  candidate.congressionalDistrict,
+                  normalizeFacilityDistrictCode(address.state, candidate.congressionalDistrict),
                 ) ?? null)
               : null,
           congressionalDistrictCongress:

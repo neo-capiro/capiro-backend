@@ -56,6 +56,15 @@ describe('facility address identity', () => {
 describe('computeFacilityGeocode', () => {
   beforeEach(() => geocodeAddress.mockReset());
 
+  it('writes the canonical DC district and keeps a matching manual correction without a false discrepancy', async () => {
+    geocodeAddress.mockResolvedValue({ ...MATCHED, congressionalDistrict: '98' });
+    const out = await computeFacilityGeocode({ ...BASE, state: 'DC' });
+    expect(out.update).toMatchObject({ congressionalDistrict: '00', congressionalDistrictCongress: 119, districtSource: 'geocoded' });
+    const manual = await computeFacilityGeocode({ ...BASE, state: 'DC', congressionalDistrict: '00', districtSource: 'user' });
+    expect(manual.discrepancy).toBeNull();
+    expect(manual.update).not.toHaveProperty('congressionalDistrict');
+  });
+
   it('a never-geocoded facility with a matched address writes lat/lng + districts + geocoded provenance', async () => {
     geocodeAddress.mockResolvedValue(MATCHED);
     const out = await computeFacilityGeocode(BASE);

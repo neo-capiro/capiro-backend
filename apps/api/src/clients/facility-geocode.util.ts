@@ -15,6 +15,7 @@ import {
   type GeocodeStatus,
 } from '../external/census-geocoder/census-geocoder.client.js';
 import { normalizeDistrictCode } from './district-code.util.js';
+import { normalizeFacilityDistrictCode } from '../common/district-code.util.js';
 
 /**
  * Width of `client_facilities.state_house_district` / `.state_senate_district`
@@ -138,7 +139,10 @@ export async function computeFacilityGeocode(
       discrepancy: null,
     };
   }
-  const result = await geocodeAddress(f.addressLine!, f.city!, f.state!, f.zip ?? '');
+  const geocoded = await geocodeAddress(f.addressLine!, f.city!, f.state!, f.zip ?? '');
+  const result = { ...geocoded,
+    congressionalDistrict: normalizeFacilityDistrictCode(f.state, geocoded.congressionalDistrict),
+  };
   if (result.status !== 'matched') {
     // Record the attempt (status) but never clobber a previously-good
     // district/lat-lng with nulls on a transient no_match/ambiguous/error —
@@ -173,7 +177,7 @@ export async function computeFacilityGeocode(
     f.congressionalDistrict &&
     result.congressionalDistrict &&
     f.districtSource !== 'geocoded' &&
-    normalizeDistrictCode(f.congressionalDistrict) !==
+    normalizeDistrictCode(normalizeFacilityDistrictCode(f.state, f.congressionalDistrict)) !==
       normalizeDistrictCode(result.congressionalDistrict)
       ? { handEntered: f.congressionalDistrict, geocoded: result.congressionalDistrict }
       : null;

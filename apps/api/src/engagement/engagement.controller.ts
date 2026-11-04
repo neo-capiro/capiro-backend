@@ -745,6 +745,11 @@ class AttachmentUploadDto {
 
 class ConfirmAttachmentDto {
   @IsOptional()
+  @IsString()
+  @Length(0, 120)
+  folder?: string | null;
+
+  @IsOptional()
   @IsUUID()
   prospectId?: string;
   @IsOptional()
@@ -3004,6 +3009,13 @@ export class EngagementController {
       // General (client-free) outreach library: files with no parent entity.
       unlinked: unlinked === 'true' || unlinked === '1',
     });
+  }
+
+  @Get('attachments/:id/extract-text')
+  @Header('Cache-Control', 'private, no-store')
+  @EngagementRuntimeAction('attachment_external_read')
+  readAttachmentText(@CurrentTenant() ctx: TenantContext, @Param('id', ParseUUIDPipe) id: string) {
+    return this.service.extractAttachmentText(ctx, id, { readOnly: true, allowPaidExtraction: false });
   }
 
   @Post('attachments/:id/extract-text')

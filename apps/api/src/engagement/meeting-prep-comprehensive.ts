@@ -472,7 +472,12 @@ export async function generateComprehensiveMeetingPrep(
     used += size;
   }
   const sourceCoverage = currentMeetingGovernedContext()?.coverage;
-  const limitations = [...new Set(extraction.flatMap((batch) => batch.limitations))];
+  // Batch caveats are inputs for reconciliation, not immutable final prose.
+  // Re-appending them after synthesis used to resurrect superseded blanket
+  // claims even when the accepted draft had already corrected them.
+  const extractionLimitations = [...new Set(extraction.flatMap((batch) => batch.limitations))];
+  // Operational coverage limits are authoritative and must survive synthesis.
+  const limitations: string[] = [];
   if (!sourceCoverage?.complete)
     limitations.push(
       `Source coverage is partial: ${sourceCoverage?.stopReason ?? 'unknown coverage'}. Missing: ${sourceCoverage?.missingDomains.join(', ') || 'none reported'}. Partial: ${sourceCoverage?.partialDomains.join(', ') || 'none reported'}.`,
@@ -578,7 +583,7 @@ export async function generateComprehensiveMeetingPrep(
         attendees: prepAttendees(input),
         focus: input.additionalContext,
         sourceCoverage,
-        limitations,
+        limitations: [...extractionLimitations, ...limitations],
         previousDraft: draft,
         reviewFeedback: feedback,
       });

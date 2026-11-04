@@ -12,7 +12,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { normalizeDistrictCode } from './district-code.util.js';
-import { districtMatchesHouse } from '../common/district-code.util.js';
+import { districtMatchesHouse, normalizeFacilityDistrictCode } from '../common/district-code.util.js';
 import { resolveStateName } from '../common/us-states.js';
 
 export interface ResolvedRepresentation {
@@ -109,7 +109,7 @@ export class RepresentationResolverService {
     }
 
     const [house, senate, lower, upper] = await Promise.all([
-      this.resolveHouse(facility.state, facility.congressionalDistrict),
+      this.resolveHouse(facility.state, normalizeFacilityDistrictCode(facility.state, facility.congressionalDistrict)),
       this.resolveSenate(facility.state),
       this.resolveStateChamber(facility.state, 'lower', facility.stateHouseDistrict),
       this.resolveStateChamber(facility.state, 'upper', facility.stateSenateDistrict),
@@ -226,7 +226,7 @@ export class RepresentationResolverService {
       const house =
         facility.congressionalDistrict && stateName
           ? ((houseByStateName.get(stateName) ?? []).find((m) =>
-              districtMatchesHouse(facility.congressionalDistrict, m.district),
+              districtMatchesHouse(normalizeFacilityDistrictCode(facility.state, facility.congressionalDistrict), m.district),
             ) ?? null)
           : null;
 
@@ -307,7 +307,7 @@ export class RepresentationResolverService {
       const matched =
         member.chamber === 'senate'
           ? facilities
-          : facilities.filter((f) => districtMatchesHouse(f.congressionalDistrict, member.district));
+          : facilities.filter((f) => districtMatchesHouse(normalizeFacilityDistrictCode(member.state, f.congressionalDistrict), member.district));
       const byClient = new Map<string, { clientId: string; clientName: string; facilities: Array<{ id: string; name: string }> }>();
       for (const f of matched) {
         const entry = byClient.get(f.clientId) ?? {
@@ -356,7 +356,7 @@ export class RepresentationResolverService {
           select: { id: true, name: true, congressionalDistrict: true },
         });
         return facilities
-          .filter((f) => districtMatchesHouse(f.congressionalDistrict, member.district ?? null))
+          .filter((f) => districtMatchesHouse(normalizeFacilityDistrictCode(member.state, f.congressionalDistrict), member.district ?? null))
           .map((f) => ({ id: f.id, name: f.name }));
       }
       const facilities = await tx.clientFacility.findMany({

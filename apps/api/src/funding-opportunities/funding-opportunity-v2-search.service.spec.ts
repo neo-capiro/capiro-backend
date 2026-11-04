@@ -6,6 +6,7 @@ import {
 } from '@capiro/shared';
 import {
   FundingOpportunityV2SearchService,
+  OPPORTUNITY_SOURCE_BUDGET_MS,
   type CatalogOpportunityRecord,
   type OpportunityCatalogAdapter,
   type OpportunityClientProfile,
@@ -215,6 +216,27 @@ describe('FundingOpportunityV2SearchService', () => {
     expect(pscMatch.opportunities.map((row) => row.sourceRecordId)).toEqual(['strong']);
   });
 
+  test('source queries and optional freshness share a deadline, and failed freshness preserves usable rows', async () => {
+    const started = Date.now();
+    let searchDeadline: unknown;
+    const service = makeService([adapter('grants_gov', [], {
+      search: async (_criteria, _profile, deadline) => {
+        searchDeadline = deadline;
+        expect(deadline?.at).toBeGreaterThanOrEqual(started + OPPORTUNITY_SOURCE_BUDGET_MS);
+        return { records: [record('grants_gov', 'g1')], count: 1 };
+      },
+      health: async (deadline) => {
+        expect(deadline).toBe(searchDeadline);
+        throw new Error('freshness work exceeded the remaining source budget');
+      },
+    })]);
+    const result = await service.search(context, criteria());
+    expect(result.opportunities.map((row) => row.sourceRecordId)).toEqual(['g1']);
+    expect(result.total).toBe(1);
+    expect(result.catalogComplete).toBe(false);
+    expect(result.freshness[0]?.state).toBe('unavailable');
+  });
+
   test('returns partial source failures with honest null totals and errors when every source fails', async () => {
     const failed = new Error('sam database unavailable');
     const partial = makeService([
@@ -230,7 +252,7 @@ describe('FundingOpportunityV2SearchService', () => {
       adapter('grants_gov', [], { search: async () => { throw failed; }, health: async () => { throw failed; } }),
       adapter('sam_gov', [], { search: async () => { throw failed; }, health: async () => { throw failed; } }),
     ]);
-    await expect(allFailed.search(context, criteria())).rejects.toMatchObject({ status: 503 });
+    await expect(allFailed.search(context, criteria())).rejects.toMatchObject({ status: 503, response: { code: 'OPPORTUNITY_SOURCES_UNAVAILABLE', sources: ['grants_gov', 'sam_gov'] } });
   });
 
   test('does not query a tenant-disabled source and keeps enabled-source totals exact', async () => {

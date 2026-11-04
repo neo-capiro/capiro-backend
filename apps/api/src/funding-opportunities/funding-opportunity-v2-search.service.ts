@@ -15,6 +15,7 @@ import {
   type OpportunitySourceV2,
 } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
+import type { PrismaTransactionDeadline } from '../prisma/prisma-transaction-deadline.js';
 import { readEnabledFundingSources } from './funding-opportunity-source-access.js';
 import { readVisibleClientIds } from './funding-opportunity-access.js';
 import {
@@ -81,8 +82,8 @@ export type OpportunityCatalogHealth = {
 
 export interface OpportunityCatalogAdapter {
   source: OpportunitySourceV2;
-  search(criteria: OpportunitySearchCriteriaV2, profile?: OpportunityClientProfile | null): Promise<OpportunityCatalogSearchResult>;
-  health(): Promise<OpportunityCatalogHealth>;
+  search(criteria: OpportunitySearchCriteriaV2, profile?: OpportunityClientProfile | null, deadline?: PrismaTransactionDeadline): Promise<OpportunityCatalogSearchResult>;
+  health(deadline?: PrismaTransactionDeadline): Promise<OpportunityCatalogHealth>;
 }
 
 export interface OpportunityClientProfileReader {
@@ -93,6 +94,9 @@ export interface OpportunityClientProfileReader {
 export const FUNDING_OPPORTUNITY_V2_CATALOG_ADAPTERS = Symbol('FUNDING_OPPORTUNITY_V2_CATALOG_ADAPTERS');
 export const FUNDING_OPPORTUNITY_V2_CLIENT_PROFILE_READER = Symbol('FUNDING_OPPORTUNITY_V2_CLIENT_PROFILE_READER');
 const SOURCE_ORDER = [...OPPORTUNITY_SOURCES_V2] as OpportunitySourceV2[];
+// Shared by source queries and optional freshness reads; freshness cannot renew
+// a slow catalog query's allowance. Prisma owns cancellation and cleanup.
+export const OPPORTUNITY_SOURCE_BUDGET_MS = 20_000;
 
 function date(value: string | null): number | null {
   const parsed = value ? Date.parse(value) : NaN;
@@ -203,17 +207,22 @@ export class FundingOpportunityV2SearchService {
       if (!client) throw new NotFoundException('Client not found.');
     }
     if (criteria.mode === 'matched' && !criteria.clientId) throw new BadRequestException('Matched search requires clientId.');
+    const deadline = { at: Date.now() + OPPORTUNITY_SOURCE_BUDGET_MS };
     const settled = await Promise.all(requestedAdapters.map(async (adapter) => {
       try {
-        const result = await adapter.search(criteria, client);
+        const result = await adapter.search(criteria, client, deadline);
         let health: OpportunityCatalogHealth | null = null;
-        try { health = await adapter.health(); } catch { /* rows remain usable; freshness is unavailable */ }
+        try { health = await adapter.health(deadline); } catch { /* rows remain usable; freshness is unavailable */ }
         return { adapter, result, health, error: null as Error | null };
       } catch (error) {
         return { adapter, result: null, health: null, error: error instanceof Error ? error : new Error(String(error)) };
       }
     }));
-    if (querySources.length > 0 && !settled.some((item) => item.result)) throw new ServiceUnavailableException('All requested opportunity sources are unavailable.');
+    if (querySources.length > 0 && !settled.some((item) => item.result)) throw new ServiceUnavailableException({
+      code: 'OPPORTUNITY_SOURCES_UNAVAILABLE',
+      message: 'The selected opportunity sources could not finish loading. Retry or choose a different source.',
+      sources: querySources,
+    });
     const rows: CatalogOpportunityRecord[] = [];
     for (const item of settled) {
       if (!item.result) continue;
@@ -253,12 +262,13 @@ export class FundingOpportunityV2SearchService {
   /** Shell/header health read; intentionally independent of selected search sources. */
   async readSourceHealth(context: OpportunitySearchContext): Promise<OpportunitySourceHealthResponseV2> {
     const enabled = new Set(await readEnabledFundingSources(this.prisma, context.tenantId));
+    const deadline = { at: Date.now() + OPPORTUNITY_SOURCE_BUDGET_MS };
     const sources = await Promise.all(SOURCE_ORDER.map(async (source) => {
       if (!enabled.has(source)) return { source, state: 'not_enabled', recordCount: null, activeRecordCount: null, lastSyncedAt: null, latestAttemptAt: null, lastSuccessAt: null } as OpportunitySourceFreshnessV2;
       const adapter = this.adapters.find((item) => item.source === source);
       if (!adapter) return { source, state: 'unavailable', recordCount: null, activeRecordCount: null, lastSyncedAt: null, latestAttemptAt: null, lastSuccessAt: null } as OpportunitySourceFreshnessV2;
       try {
-        const health = await adapter.health();
+        const health = await adapter.health(deadline);
         return { source, ...health, lastSuccessAt: health.lastSuccessAt ?? health.lastSyncedAt } as OpportunitySourceFreshnessV2;
       } catch {
         return { source, state: 'unavailable', recordCount: null, activeRecordCount: null, lastSyncedAt: null, latestAttemptAt: null, lastSuccessAt: null } as OpportunitySourceFreshnessV2;
@@ -303,11 +313,16 @@ export async function readCanonicalOpportunityProfile(
   );
   if (!facts) return null;
 
-  const contractorUeis = await resolveContractorUeis(prisma, contractorIdsToResolve([facts]));
-  const identity = buildAwardHistoryIdentity(facts, contractorUeis);
   let history = emptyAwardHistory();
   try {
-    history = await readAwardHistoryByBasis(prisma, identity);
+    // Optional public history must not hold client-scoped search open on an
+    // unbounded global query. Both identity lookup and history share one native
+    // transaction deadline; tenant facts above retain their own authorization.
+    history = await prisma.withSystem(async (tx) => {
+      const contractorUeis = await resolveContractorUeis(tx, contractorIdsToResolve([facts]));
+      const identity = buildAwardHistoryIdentity(facts, contractorUeis);
+      return readAwardHistoryByBasis(tx, identity);
+    }, { timeoutMs: 5_000, deadline: { at: Date.now() + 5_000 } });
   } catch {
     // Search/detail remain usable when the optional global history rail is
     // unavailable. The profile still contains all tenant-owned facts.
@@ -329,8 +344,8 @@ export async function readCanonicalOpportunityProfile(
 export function createPrismaOpportunityCatalogAdapters(prisma: PrismaService): OpportunityCatalogAdapter[] {
   return OPPORTUNITY_SOURCES_V2.map((source) => ({
     source,
-    search: (criteria: OpportunitySearchCriteriaV2, profile?: OpportunityClientProfile | null) => searchSourceSql(prisma, source, criteria, profile ?? null),
-    health: () => healthSql(prisma, source),
+    search: (criteria, profile, deadline) => searchSourceSql(prisma, source, criteria, profile ?? null, undefined, undefined, deadline),
+    health: (deadline) => healthSql(prisma, source, deadline),
   }));
 }
 

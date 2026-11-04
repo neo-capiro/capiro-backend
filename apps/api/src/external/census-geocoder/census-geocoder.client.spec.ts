@@ -53,6 +53,17 @@ const WY_AT_LARGE_MATCH: CensusAddressMatch = {
 };
 
 describe('extractDistricts', () => {
+  it.each([['11', 'DC'], ['72', 'PR'], ['66', 'GU']])('normalizes Census delegate district 98 for state FIPS %s', (fips, state) => {
+    const geographies = { '119th Congressional Districts': [{ STATE: fips, CD119: '98' }] };
+    expect(extractDistricts({ geographies })).toMatchObject({ congressionalDistrict: '00', congressionalDistrictCongress: 119 });
+    expect(parseGeocodeMatch({ addressComponents: { state }, geographies })).toMatchObject({ state, congressionalDistrict: '00' });
+  });
+
+  it('does not resolve an unlocated or multi-state sentinel to an at-large seat', () => {
+    expect(extractDistricts({ geographies: { '119th Congressional Districts': [{ CD119: '98' }] } }).congressionalDistrict).toBe('98');
+    expect(extractDistricts({ geographies: { '119th Congressional Districts': [{ STATE: '48', CD119: '98' }] } }).congressionalDistrict).toBe('98');
+  });
+
   it('parses a normal bicameral-state match (FL)', () => {
     const r = extractDistricts(FL_MATCH);
     expect(r).toEqual({

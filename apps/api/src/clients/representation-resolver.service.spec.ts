@@ -73,6 +73,15 @@ const MATCHED_FACILITY: FacilityDistrictInput = {
 };
 
 describe('RepresentationResolverService.representativesForFacility', () => {
+  it('resolves a saved DC Census delegate code through both single and batched facility readers', async () => {
+    const delegate = { ...AT_LARGE_MEMBER, state: 'District of Columbia', fullName: 'Synthetic Delegate' };
+    const svc = new RepresentationResolverService(fakePrisma({ houseMembers: [delegate] }));
+    const facility = { ...MATCHED_FACILITY, state: 'DC', congressionalDistrict: '98' };
+    for (const out of [await svc.representativesForFacility(facility), ...(await svc.representationForFacilities([facility]))]) {
+      expect(out).toMatchObject({ unresolved: false, federal: { house: delegate, senate: [] } });
+    }
+  });
+
   it('unresolved (no_state) when the facility has no state', async () => {
     const svc = new RepresentationResolverService(fakePrisma({}));
     const out = await svc.representativesForFacility({ ...MATCHED_FACILITY, state: null });

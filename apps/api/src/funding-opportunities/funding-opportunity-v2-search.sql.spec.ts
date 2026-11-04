@@ -516,3 +516,20 @@ describe('sbir_sttr active semantics', () => {
     expect(text).toContain('t.description summary');
   });
 });
+
+
+describe('source work uses native database deadlines', () => {
+  test('catalog and freshness pass the same deadline to the database owner without renewing it', async () => {
+    const deadline = { at: Date.now() + 20_000 };
+    const calls: unknown[] = [];
+    const prisma = {
+      withSystem: async <T>(fn: (tx: { $queryRaw: <R>(query: unknown) => Promise<R> }) => Promise<T>, options?: unknown) => {
+        calls.push(options);
+        return fn({ $queryRaw: async <R>() => [] as R });
+      },
+    };
+    await searchSourceSql(prisma, 'grants_gov', criteria(), null, undefined, undefined, deadline);
+    await healthSql(prisma, 'grants_gov', deadline);
+    expect(calls).toEqual([{ timeoutMs: 20_000, deadline }, { timeoutMs: 10_000, deadline }]);
+  });
+});

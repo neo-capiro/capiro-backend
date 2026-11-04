@@ -37,6 +37,7 @@ export const ENGAGEMENT_RUNTIME_ROUTE_POLICY = {
     sendCampaign: { action: 'outreach_send' },
     prepPdfAttachment: { action: 'attachment_external_write' },
     extractAttachmentText: { action: 'attachment_external_read' },
+    readAttachmentText: { action: 'attachment_external_read' },
     extractAttachmentContext: { action: 'attachment_external_read' },
     attachmentContextSource: { action: 'attachment_external_read' },
     copyProspectAttachment: { action: 'attachment_external_write' },

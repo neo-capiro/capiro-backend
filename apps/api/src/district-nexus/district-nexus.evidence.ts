@@ -1,3 +1,4 @@
+import { normalizeFacilityDistrictCode } from '../common/district-code.util.js';
 /**
  * District Nexus — record-level evidence rows (Rev 2 plan, WS-E Step E4).
  *
@@ -188,7 +189,7 @@ export function assistanceRowToEvidence(
 export function facilityRowToEvidence(
   row: FacilityEvidenceSourceRow,
 ): { districtKey: DistrictKey; facility: NexusEvidence; employees: NexusEvidence | null } | null {
-  const districtKey = districtKeyFor(row.state, row.districtCode);
+  const districtKey = districtKeyFor(row.state, normalizeFacilityDistrictCode(row.state, row.districtCode));
   if (!districtKey) return null;
   const { status, confidence } = facilityTier(row);
 

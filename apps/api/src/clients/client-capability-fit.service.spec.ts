@@ -21,7 +21,7 @@ import type { FoCapabilityFitInput } from './client-capability-fit.normalize.js'
  *  3. Only capability-grounded PE rows reach the card — facility/award/ecosystem
  *     relevance is real, but it is not "capabilities created this fit".
  *  4. A GET never pays for the ~30s PE fan-out: cache hit serves cache, cache
- *     miss returns an honest not-computed empty.
+ *     miss returns an explicit not-computed state.
  *  5. Refresh always recomputes and upserts the cache.
  *  6. A cache computed against different capability signals reads back `stale`.
  *  7. Phase B: tracker bills join PE rows; tracker failure degrades, not blanks.
@@ -318,7 +318,7 @@ describe('ClientCapabilityFitService', () => {
     expect(result.status).toBe('partial');
   });
 
-  test('a GET with a cache miss returns an honest not-computed empty, not a slow compute', async () => {
+  test('a GET with a cache miss returns an explicit not-computed state, not a slow compute', async () => {
     const { service, peRelevance, tracker, fundingOpportunities, tx } = makeService({
       capabilities: [CAP_ROBOTICS],
       cached: null,
@@ -330,7 +330,7 @@ describe('ClientCapabilityFitService', () => {
     expect(tracker.getRecommendations).not.toHaveBeenCalled();
     expect(fundingOpportunities.search).not.toHaveBeenCalled();
     expect(tx.clientCapabilityFitRecommendation.upsert).not.toHaveBeenCalled();
-    expect(result).toMatchObject({ matches: [], computedAt: null, status: 'empty' });
+    expect(result).toMatchObject({ matches: [], computedAt: null, status: 'not_computed' });
     expect(result.emptyReason).toMatch(/not computed/i);
   });
 
