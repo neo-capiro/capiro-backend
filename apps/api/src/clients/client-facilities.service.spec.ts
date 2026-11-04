@@ -286,6 +286,15 @@ describe('ClientFacilitiesService — CRUD', () => {
     expect(result.map((f) => (f as Row).name)).toEqual(['HQ', 'Plant 2']);
   });
 
+  test('listFacilities exposes saved delegate facilities under the canonical map district', async () => {
+    const saved = { id: 'f1', tenantId: TENANT_A, clientId: 'client-1', name: 'HQ', state: 'DC', congressionalDistrict: '98', districtSource: 'geocoded' };
+    const prisma = makePrisma({ clients: [seedClient(TENANT_A)], facilities: [saved] });
+    const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
+    const [result] = await svc.listFacilities(ctx(TENANT_A), 'client-1');
+    expect(result).toMatchObject({ state: 'DC', congressionalDistrict: '00', districtSource: 'geocoded' });
+    expect(saved.congressionalDistrict).toBe('98');
+  });
+
   test('listFacilities throws NotFound when the client is missing', async () => {
     const prisma = makePrisma({ clients: [], facilities: [] });
     const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
@@ -967,9 +976,7 @@ describe('congressional district is normalized to storage form on write', () => 
     expect(clearedByNull.congressionalDistrict).toBeNull();
   });
 
-  test('the geocoder’s non-voting-delegate sentinel survives verbatim', async () => {
-    // '98' is a two-digit NUMBER, so a shape-based guard would pass it to the
-    // at-large collapse and invent a seat. Observed on a real geocoded row.
+  test('raw imported sentinels survive storage while known delegate facilities expose the canonical map code', async () => {
     const prisma = makePrisma({ clients: [seedClient(TENANT_A)] });
     const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
     for (const sentinel of ['90', '98', 'ZZ']) {
@@ -979,7 +986,8 @@ describe('congressional district is normalized to storage form on write', () => 
         congressionalDistrict: sentinel,
         districtSource: 'geocoded',
       })) as Row;
-      expect(created.congressionalDistrict).toBe(sentinel);
+      expect(prisma.__store.facilities.find((row) => row.id === created.id)?.congressionalDistrict).toBe(sentinel);
+      expect(created.congressionalDistrict).toBe(sentinel === '98' ? '00' : sentinel);
     }
   });
 });

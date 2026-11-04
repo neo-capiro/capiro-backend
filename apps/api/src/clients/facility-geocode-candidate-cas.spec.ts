@@ -24,6 +24,7 @@ import {
 } from './client-facilities.controller.js';
 import {
   facilityGeocodeCandidateRevision,
+  facilityWithCandidateRevision,
   persistFacilityGeocodeSnapshot,
   type FacilityCandidateSnapshot,
 } from './facility-geocode-candidate-revision.js';
@@ -546,6 +547,14 @@ describe('reviewed facility candidate contract and CAS', () => {
     expect(
       Reflect.getMetadata('path', ClientFacilitiesController.prototype.chooseGeocodeCandidate),
     ).toBe(':id/geocode-candidate');
+  });
+
+  test('canonical delegate display keeps the revision of the saved raw snapshot', () => {
+    const raw = { ...snapshot, state: 'DC', congressionalDistrict: '98' };
+    const presented = facilityWithCandidateRevision(raw);
+    expect(presented.congressionalDistrict).toBe('00');
+    expect(presented.geocodeCandidateRevision).toBe(facilityGeocodeCandidateRevision(raw));
+    expect(raw.congressionalDistrict).toBe('98');
   });
 
   test('public list emits the server revision without requiring callers to reconstruct internal fields', async () => {

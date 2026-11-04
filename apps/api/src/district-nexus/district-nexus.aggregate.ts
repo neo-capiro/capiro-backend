@@ -11,7 +11,7 @@
  * geography), which together decide which district a dollar is attributed to
  * and how much that attribution is worth.
  */
-import { districtCodeForHouseMatch, normalizeDistrictCode } from '../common/district-code.util.js';
+import { districtCodeForHouseMatch, normalizeDistrictCode, normalizeFacilityDistrictCode } from '../common/district-code.util.js';
 import {
   scoreNexus,
   weakerStrength,
@@ -394,7 +394,7 @@ export function foldFacilities(
   currentCongress?: number,
 ): void {
   for (const row of rows) {
-    const key = districtKeyFor(row.state, row.districtCode);
+    const key = districtKeyFor(row.state, normalizeFacilityDistrictCode(row.state, row.districtCode));
     if (!key) continue;
     // A future boundary is excluded from current representation; an unknown
     // boundary vintage remains eligible exactly as before.
@@ -666,7 +666,7 @@ function facilityFootprintOf(facilities: FacilityRow[]): ClientFacilityFootprint
   for (const f of facilities) {
     if (f.employeeCount == null) facilitiesMissingEmployeeCount += 1;
     else employeeCount = (employeeCount ?? 0) + f.employeeCount;
-    if (districtKeyFor(f.state, f.districtCode) === null) facilitiesWithoutDistrict += 1;
+    if (districtKeyFor(f.state, normalizeFacilityDistrictCode(f.state, f.districtCode)) === null) facilitiesWithoutDistrict += 1;
   }
   return {
     facilityCount: facilities.length,

@@ -243,6 +243,8 @@ describe('meeting client reassignment', () => {
     });
     const input = {
       meetingId: 'm1',
+      clientId: 'selected-client',
+      folder: ' Hearings ',
       fileName: 'notes.txt',
       contentType: 'text/plain',
       s3Key: `tenants/${ctx.tenantId}/engagement/file/retry.txt`,
@@ -250,9 +252,13 @@ describe('meeting client reassignment', () => {
     const first = await h.service.confirmAttachment(ctx, input);
     const replay = await h.service.confirmAttachment(ctx, input);
     expect(replay.id).toBe(first.id);
+    expect(first.folder).toBe('Hearings');
     expect(h.state.engagementAttachment.filter((row: Row) => row.s3Key === input.s3Key)).toHaveLength(1);
     await expect(
       h.service.confirmAttachment(ctx, { ...input, fileName: 'different.txt' }),
+    ).rejects.toMatchObject({ status: 409, response: expect.objectContaining({ code: 'attachment_confirm_conflict' }) });
+    await expect(
+      h.service.confirmAttachment(ctx, { ...input, folder: 'Another folder' }),
     ).rejects.toMatchObject({ status: 409, response: expect.objectContaining({ code: 'attachment_confirm_conflict' }) });
   });
 });

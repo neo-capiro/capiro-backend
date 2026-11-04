@@ -36,6 +36,7 @@ import {
   districtCodeForHouseMatch,
   matchFacilityDistrictCode,
   normalizeDistrictForCensus,
+  normalizeFacilityDistrictCode,
 } from '../common/district-code.util.js';
 import { currentCongressNumber } from '../common/congress.util.js';
 import { federalAwardDates } from '../common/federal-award-date-serialization.js';
@@ -356,7 +357,7 @@ export class DistrictNexusService {
           facilities: rows.map(
             (f): FacilityRow => ({
               state: f.state,
-              districtCode: f.congressionalDistrict,
+              districtCode: normalizeFacilityDistrictCode(f.state, f.congressionalDistrict),
               employeeCount: f.employeeCount,
               geocodeStatus: f.geocodeStatus,
               districtSource: f.districtSource,
@@ -453,7 +454,7 @@ export class DistrictNexusService {
         id: f.id,
         name: f.name,
         state: f.state,
-        districtCode: f.congressionalDistrict,
+        districtCode: normalizeFacilityDistrictCode(f.state, f.congressionalDistrict),
         employeeCount: f.employeeCount,
         geocodeStatus: f.geocodeStatus,
         districtSource: f.districtSource,
@@ -609,7 +610,7 @@ export class DistrictNexusService {
         const bucket = facilitiesByClient.get(f.clientId);
         const row: FacilityRow = {
           state: f.state,
-          districtCode: f.congressionalDistrict,
+          districtCode: normalizeFacilityDistrictCode(f.state, f.congressionalDistrict),
           employeeCount: f.employeeCount,
           geocodeStatus: f.geocodeStatus,
           districtSource: f.districtSource,
@@ -1232,7 +1233,7 @@ export class DistrictNexusService {
     for (const l of links) {
       if (!l.grantOpportunityId) continue;
       const facility = l.facilityId ? facilityById.get(l.facilityId) : undefined;
-      const key = facility ? districtKeyFor(facility.state, facility.congressionalDistrict) : null;
+      const key = facility ? districtKeyFor(facility.state, normalizeFacilityDistrictCode(facility.state, facility.congressionalDistrict)) : null;
       // First non-null wins; a second site does not overwrite a resolved one.
       if (!districtByOpportunity.get(l.grantOpportunityId)) {
         districtByOpportunity.set(l.grantOpportunityId, key);
@@ -1422,7 +1423,7 @@ export class DistrictNexusService {
       let geographyBasis: GeographyBasis = 'unknown';
       if (facility?.state) {
         state = facility.state;
-        district = facility.congressionalDistrict;
+        district = normalizeFacilityDistrictCode(facility.state, facility.congressionalDistrict);
         geographyBasis = 'project_site';
       } else if (award?.popState) {
         state = award.popState;
@@ -1738,7 +1739,7 @@ export class DistrictNexusService {
       }),
     );
     const inDistrict = facilityRows.filter(
-      (f) => districtCodeForHouseMatch(f.congressionalDistrict) === districtCode,
+      (f) => districtCodeForHouseMatch(normalizeFacilityDistrictCode(f.state, f.congressionalDistrict)) === districtCode,
     );
 
     // The SAME identifier resolution getFirmDistrictNexusMap used to produce
@@ -1821,7 +1822,7 @@ export class DistrictNexusService {
       relationships: relationshipRows,
       facilities: inDistrict.map((f) => ({
         state: f.state,
-        districtCode: f.congressionalDistrict,
+        districtCode: normalizeFacilityDistrictCode(f.state, f.congressionalDistrict),
         employeeCount: f.employeeCount,
         geocodeStatus: f.geocodeStatus,
         districtSource: f.districtSource,
@@ -1856,7 +1857,7 @@ export class DistrictNexusService {
         id: f.id,
         name: f.name,
         state: f.state,
-        districtCode: f.congressionalDistrict,
+        districtCode: normalizeFacilityDistrictCode(f.state, f.congressionalDistrict),
         employeeCount: f.employeeCount,
         geocodeStatus: f.geocodeStatus,
         districtSource: f.districtSource,

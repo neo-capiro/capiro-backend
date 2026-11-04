@@ -41,6 +41,16 @@ describe('portfolio metrics HTTP boundary', () => {
     expect(service.metrics).toHaveBeenCalledTimes(1);
     expect(service.get).not.toHaveBeenCalled();
   });
+  it.each(['core', 'intelligence'])('passes the selected %s tracker owner to the metrics reader', async (backend) => {
+    await request(app.getHttpServer()).get(`/api/clients/metrics?trackerBackend=${backend}`).set('x-synthetic-role', 'standard_user').expect(200);
+    expect(service.metrics).toHaveBeenCalledWith(expect.any(Object), backend);
+  });
+  it.each(['trackerBackend=other', 'trackerBackend=core&trackerBackend=intelligence', 'clientId=untrusted'])(
+    'rejects an invalid tracker selection: %s', async (query) => {
+      await request(app.getHttpServer()).get(`/api/clients/metrics?${query}`).set('x-synthetic-role', 'standard_user').expect(400);
+      expect(service.metrics).not.toHaveBeenCalled();
+    },
+  );
   it.each([undefined, 'client_portal_user', 'unknown'])(
     'rejects unauthorized role %s',
     async (role) => {

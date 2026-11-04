@@ -24,6 +24,7 @@ let context: unknown;
 const service = {
   listAttachments: jest.fn(async () => [{ id: anchor }]),
   listAttachmentHistory: jest.fn(async () => ({ attachmentId: anchor, versions: [] })),
+  extractAttachmentText: jest.fn(async () => ({ attachmentId: anchor, text: 'Readable evidence' })),
 };
 
 beforeAll(async () => {
@@ -103,4 +104,25 @@ test('the existing role guard denies untrusted context before dispatch', async (
   context = { ...ctx, role: 'unknown' };
   await request(app.getHttpServer()).get(`${route}?historyOf=${anchor}`).expect(403);
   expect(service.listAttachmentHistory).not.toHaveBeenCalled();
+});
+
+test('text GET is repeatable, private and binds provider-free read-only options server-side', async () => {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const response = await request(app.getHttpServer())
+      .get(`${route}/${anchor}/extract-text?allowPaidExtraction=true`)
+      .expect(200);
+    expect(response.body).toEqual({ attachmentId: anchor, text: 'Readable evidence' });
+    expect(response.headers['cache-control']).toBe('private, no-store');
+  }
+  expect(service.extractAttachmentText).toHaveBeenCalledTimes(2);
+  expect(service.extractAttachmentText).toHaveBeenLastCalledWith(ctx, anchor, {
+    readOnly: true, allowPaidExtraction: false,
+  });
+});
+
+test('text GET rejects invalid IDs and unauthorized roles before reading bytes', async () => {
+  await request(app.getHttpServer()).get(`${route}/invalid/extract-text`).expect(400);
+  context = { ...ctx, role: 'unknown' };
+  await request(app.getHttpServer()).get(`${route}/${anchor}/extract-text`).expect(403);
+  expect(service.extractAttachmentText).not.toHaveBeenCalled();
 });

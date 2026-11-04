@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { Prisma, type ClientFacility } from '@prisma/client';
+import { normalizeFacilityDistrictCode } from '../common/district-code.util.js';
 
 /** Every semantic field protected by chooseGeocodeCandidate's database CAS. */
 export type FacilityCandidateSnapshot = Pick<
@@ -71,7 +72,12 @@ export function isFacilityCandidateRevision(value: unknown): value is string {
 export function facilityWithCandidateRevision<T extends FacilityCandidateSnapshot>(
   facility: T,
 ): T & { geocodeCandidateRevision: string } {
-  return { ...facility, geocodeCandidateRevision: facilityGeocodeCandidateRevision(facility) };
+  return {
+    ...facility,
+    congressionalDistrict: normalizeFacilityDistrictCode(facility.state, facility.congressionalDistrict),
+    // The precondition still describes the raw saved record, not its display code.
+    geocodeCandidateRevision: facilityGeocodeCandidateRevision(facility),
+  };
 }
 
 /** Shared by interactive selection and both asynchronous geocode writers. */

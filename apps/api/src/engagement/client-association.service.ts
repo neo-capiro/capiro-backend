@@ -116,7 +116,7 @@ export class ClientAssociationService {
 
     const knownProfileContacts = emails.length
       ? await tx.clientPerson.findMany({
-          where: { tenantId, email: { in: emails } },
+          where: { tenantId, email: { in: emails, mode: 'insensitive' } },
           select: { email: true, clientId: true },
         })
       : [];
@@ -130,9 +130,14 @@ export class ClientAssociationService {
       : [];
 
     // Client profile contacts are the source of truth for routing meetings to clients.
-    const authoritativeContacts = [...knownProfileContacts, ...primaryProfileContacts].filter(
-      (contact) => Boolean(contact.clientId),
-    );
+    const activeClientIds = new Set(clients.map((client) => client.id));
+    const contactsByClientEmail = new Map<string, { clientId: string; email: string }>();
+    for (const contact of [...knownProfileContacts, ...primaryProfileContacts]) {
+      const email = contact.email?.trim().toLowerCase();
+      if (!contact.clientId || !activeClientIds.has(contact.clientId) || !email || !emails.includes(email)) continue;
+      contactsByClientEmail.set(JSON.stringify([contact.clientId, email]), { clientId: contact.clientId, email });
+    }
+    const authoritativeContacts = [...contactsByClientEmail.values()];
     const clientIdFromContacts = findPrimaryClientFromContacts(authoritativeContacts);
     if (clientIdFromContacts) {
       const primaryClient = clients.find((c) => c.id === clientIdFromContacts);
@@ -152,6 +157,18 @@ export class ClientAssociationService {
           },
         };
       }
+    }
+
+    if (authoritativeContacts.length > 0) {
+      // A shared contact/tied attendee count is ambiguous. Falling through to
+      // scoreClient would reintroduce the same contact at 0.95 and pick the
+      // first database row again, even with a tie-aware primary lookup.
+      return {
+        clientId: null,
+        score: 0,
+        reason: 'Known attendee contacts match multiple clients equally. Select the client explicitly.',
+        signals: { emails, contactSource: 'client_profile', ambiguousClientContacts: true },
+      };
     }
 
     const historicalMeetings = emails.length
@@ -379,7 +396,7 @@ function roundScore(value: number): number {
  * Determines the primary client from known attendee contacts.
  * If multiple attendees belong to the same client, return that client.
  * If attendees belong to different clients, return the client with the most attendees.
- * If no known contacts, return null.
+ * If no known contacts or a tied highest attendee count, return null.
  */
 function findPrimaryClientFromContacts(
   knownContacts: Array<{ email: string | null; clientId: string | null }>,
@@ -404,12 +421,16 @@ function findPrimaryClientFromContacts(
   // If multiple clients, return the one with the most attendees
   let maxClientId: string | null = null;
   let maxCount = 0;
+  let tied = false;
   for (const [clientId, count] of clientCounts) {
     if (count > maxCount) {
       maxCount = count;
       maxClientId = clientId;
+      tied = false;
+    } else if (count === maxCount) {
+      tied = true;
     }
   }
 
-  return maxClientId;
+  return tied ? null : maxClientId;
 }

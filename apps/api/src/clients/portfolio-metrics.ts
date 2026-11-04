@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import type { TenantContext } from '@capiro/shared';
+import type { TenantContext, TrackerMetricsBackend } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { requireOwnerActor } from './client-ordered-owner.access.js';
 
@@ -26,6 +26,7 @@ export async function readPortfolioMetrics(
   prisma: PrismaService,
   ctx: TenantContext,
   clock: () => Date = () => new Date(),
+  trackerBackend: TrackerMetricsBackend = 'core',
 ) {
   const current = () =>
     prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
@@ -50,6 +51,14 @@ export async function readPortfolioMetrics(
       return { status: 'unavailable' };
     }
   };
+  // The selected tracker owns its curated membership. Do not union the old
+  // Core board with the Intelligence board or silently fall back after a read
+  // failure. Intel identifiers are TEXT; Core identifiers are UUID.
+  const watches = trackerBackend === 'intelligence'
+    ? Prisma.sql`SELECT client_id, bill_id FROM intel_tracked_bill
+        WHERE tenant_id=${ctx.tenantId} AND client_id IN (SELECT id::text FROM visible)`
+    : Prisma.sql`SELECT client_id, bill_id FROM tracked_bill
+        WHERE tenant_id=${ctx.tenantId}::uuid AND client_id IN (SELECT id FROM visible)`;
   const [clients, objectives, activity, billWatch] = await Promise.all([
     group<ClientCounts>(
       Prisma.sql`WITH visible AS (${visible}) SELECT count(*)::int AS "activeClients" FROM visible`,
@@ -64,15 +73,16 @@ export async function readPortfolioMetrics(
       (count(*) FILTER (WHERE kind='request' AND settled_at IS NULL AND due_at<${now}))::int AS "overdueRequests",
       (count(*) FILTER (WHERE kind='commitment' AND settled_at IS NULL AND due_at<${now}))::int AS "overdueCommitments"
       FROM client_activity WHERE tenant_id=${ctx.tenantId}::uuid AND client_id IN (SELECT id FROM visible)`),
-    group<WatchCounts>(Prisma.sql`WITH visible AS (${visible}) SELECT
+    group<WatchCounts>(Prisma.sql`WITH visible AS (${visible}), watches AS (${watches}) SELECT
       (SELECT count(*)::int FROM visible) AS "activeClients", count(DISTINCT client_id)::int AS "clientsWithWatches",
       count(DISTINCT (client_id,bill_id))::int AS "clientBillWatches", count(DISTINCT bill_id)::int AS "distinctBills"
-      FROM tracked_bill WHERE tenant_id=${ctx.tenantId}::uuid AND client_id IN (SELECT id FROM visible)`),
+      FROM watches`),
   ]);
   // Do not release even aggregates after the original account loses authority.
   await current();
   return {
     definition: 'portfolio-recorded-baseline-v1' as const,
+    trackerBackend,
     tenantId: ctx.tenantId,
     observedAt: now.toISOString(),
     activityWindow: {

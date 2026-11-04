@@ -1,5 +1,5 @@
-/** Business Development owns this vocabulary. Legacy values remain readable
- * and writable by legacy callers until the human supplies a migration mapping. */
+/** Business Development owns this vocabulary. Previous stages remain readable;
+ * the user explicitly chooses a current stage without rewriting past history. */
 export const LEGACY_PROSPECT_STAGES = [
   'researching',
   'qualified',
@@ -31,7 +31,7 @@ export function prospectStageCatalog() {
     version: 'portfolio-3.1',
     createStage: 'identified',
     legacyMapping: 'pending',
-    allowLegacyTransitions: false,
+    allowLegacyTransitions: true,
     stages: PORTFOLIO_PROSPECT_STAGES,
   } as const;
 }

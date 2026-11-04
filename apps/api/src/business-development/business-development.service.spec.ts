@@ -599,21 +599,22 @@ describe('update', () => {
     },
   );
 
-  test('legacy migration is rejected atomically while ordinary edits and legacy transitions still work', async () => {
+  test.each(['identified', 'initiated', 'engaged', 'proposal', 'negotiation', 'closed_won', 'closed_lost'] as const)('explicit previous-stage transition to %s preserves history and does not convert', async (stage) => {
     const row = prospect();
     const h = makeHarness(baseFx(row));
-    await expect(
-      h.service.update(ctx, row.id as string, { stage: 'identified', displayName: 'Changed' }),
-    ).rejects.toThrow(ConflictException);
-    expect(h.fx.rows.get(row.id as string)?.stage).toBe('researching');
-    expect(h.fx.rows.get(row.id as string)?.displayName).toBe('Acme');
-    expect(h.fx.activities).toHaveLength(0);
-    expect(h.fx.audits).toHaveLength(0);
     const edited = await h.service.update(ctx, row.id as string, { displayName: 'Changed' });
     expect(edited.displayName).toBe('Changed');
     expect(edited.stage).toBe('researching');
-    const oldTransition = await h.service.update(ctx, row.id as string, { stage: 'proposal' });
-    expect(oldTransition.stage).toBe('proposal');
+    const transitioned = await h.service.update(ctx, row.id as string, { stage });
+    expect(transitioned.stage).toBe(stage);
+    expect(transitioned.linkedClientId).toBeNull();
+    expect(transitioned.convertedAt).toBeNull();
+    expect(h.fx.activities).toEqual(expect.arrayContaining([expect.objectContaining({
+      kind: 'stage', beforeJsonb: { stage: 'researching' }, afterJsonb: { stage },
+    })]));
+    expect(h.fx.audits).toEqual(expect.arrayContaining([expect.objectContaining({
+      action: 'bizdev.prospect.stage', before: { stage: 'researching' }, after: { stage },
+    })]));
   });
 
   test('nextActionDueAt sets ISO date; explicit null clears', async () => {
@@ -1313,6 +1314,21 @@ describe('convert', () => {
     expect(h.fx.activities).toEqual([]);
     expect(h.fx.audits).toEqual([]);
     expect(h.fx.rows.get(row.id as string)?.linkedClientId).toBeNull();
+  });
+
+  test.each([false, true])('archived canonical client is not linked or reported recovered (already linked: %s)', async (linked) => {
+    const clientId = randomUUID();
+    const row = prospect({ canonicalEntityId: 'canon-public',
+      ...(linked ? { linkedClientId: clientId, convertedAt: new Date() } : {}),
+    });
+    const h = makeHarness(baseFx(row));
+    h.fx.clients.set(clientId, { id: clientId, name: 'Archived synthetic client', tenantId,
+      canonicalEntityId: 'canon-public', status: 'archived' });
+    await expect(h.service.convert(ctx, row.id as string)).rejects.toThrow('Restore the client');
+    expect(h.clients.createInTransaction).not.toHaveBeenCalled();
+    expect(h.tx.businessDevelopmentProspect.update).not.toHaveBeenCalled();
+    expect(h.fx.activities).toEqual([]);
+    expect(h.fx.rows.get(row.id as string)?.linkedClientId).toBe(linked ? clientId : null);
   });
 });
 
