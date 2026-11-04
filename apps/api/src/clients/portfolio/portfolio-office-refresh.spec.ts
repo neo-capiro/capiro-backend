@@ -19,7 +19,7 @@ const member = {
   isCurrent: true,
   congresses: [119],
   chamber: 'house',
-  state: 'VA',
+  state: 'Virginia',
   district: 1,
 };
 function fixture() {
@@ -176,6 +176,37 @@ describe('sourced office refresh', () => {
       expect(geographicSignal(member as never, { ...facility, ...delta } as never)).toBeNull();
     expect(officeFit([{ kind: 'sponsor' }, { kind: 'sponsor' }] as never)).toBe('limited');
   });
+  it.each([
+    ['Virginia', 'VA', '51', '01', 'house', 1],
+    ['Virginia', 'VA', '51', '01', 'senate', null],
+    ['Wyoming', 'WY', '56', '00', 'house', null],
+    ['Wyoming', 'WY', '56', '00', 'house', 0],
+    ['District of Columbia', 'DC', '11', '98', 'house', null],
+  ] as const)('matches canonical %s state and district %s/%s/%s for %s/%s',
+    (stateName, state, stateFips, code, chamber, district) => {
+      const office = { ...member, state: stateName, chamber, district };
+      const facility = {
+        name: 'Synthetic constituency fixture', country: 'US', state,
+        siteStatus: 'operating', siteVerificationStatus: 'verified',
+        geographicResolution: {
+          status: 'resolved', requiresReview: false, source: 'census_tigerweb',
+          version: servingBoundaryVersion(), resolvedAt: now.toISOString(),
+          districts: [{ chamber: 'house', code, congress: 119, stateFips }],
+        },
+      };
+      expect(geographicSignal(office as never, facility as never)?.kind).toBe('geography');
+      expect(geographicSignal({ ...office, state: 'Maryland' } as never, facility as never)).toBeNull();
+      expect(geographicSignal(office as never, {
+        ...facility,
+        geographicResolution: { ...facility.geographicResolution,
+          districts: [{ chamber: 'house', code, congress: 119, stateFips: '24' }] },
+      } as never)).toBeNull();
+      if (chamber === 'house')
+        expect(geographicSignal({ ...office, district: 7 } as never, facility as never)).toBeNull();
+      expect(geographicSignal(office as never, {
+        ...facility, geographicResolution: { ...facility.geographicResolution, boundaryAdjacent: true },
+      } as never)).toBeNull();
+    });
 });
 describe('automatic proposals preserve human review', () => {
   const raw = {

@@ -1,4 +1,6 @@
 import { US_STATE_FIPS_TO_USPS } from '../../common/us-congressional-districts.js';
+import { resolveStateName } from '../../common/us-states.js';
+import { districtMatchesHouse, normalizeFacilityDistrictCode } from '../../common/district-code.util.js';
 import { defenseTextSignals } from './portfolio-office-bill-text.js';
 import { TIGERWEB_LEGISLATIVE_URL } from '../../external/census-geocoder/tigerweb-boundary.client.js';
 import type { CongressMember, ClientFacility } from '@prisma/client';
@@ -27,6 +29,7 @@ export function geographicSignal(
   facility: ClientFacility,
 ): OfficeSignal | null {
   const resolution = facility.geographicResolution as unknown as GeographicResolution | null;
+  const memberState = resolveStateName(member.state);
   if (!['house', 'senate'].includes(member.chamber.toLowerCase())) return null;
   if (
     !['US', 'PR', 'GU', 'VI', 'AS', 'MP'].includes(facility.country ?? '') ||
@@ -40,8 +43,8 @@ export function geographicSignal(
     !resolution.version ||
     boundaryVersionKey(resolution.version) !== boundaryVersionKey(servingBoundaryVersion()) ||
     resolution.version.congress !== currentCongress() ||
-    !facility.state ||
-    facility.state !== member.state
+    !memberState ||
+    resolveStateName(facility.state ?? '') !== memberState
   )
     return null;
   const district = resolution.districts.find(
@@ -49,8 +52,9 @@ export function geographicSignal(
   );
   if (
     !district ||
-    US_STATE_FIPS_TO_USPS[district.stateFips ?? resolution.stateFips ?? ''] !== member.state ||
-    (member.chamber.toLowerCase() === 'house' && Number(district.code) !== member.district)
+    resolveStateName(US_STATE_FIPS_TO_USPS[district.stateFips ?? resolution.stateFips ?? ''] ?? '') !== memberState ||
+    (member.chamber.toLowerCase() === 'house' &&
+      !districtMatchesHouse(normalizeFacilityDistrictCode(facility.state, district.code), member.district))
   )
     return null;
   // The official boundary response is retained on the canonical facility. An explanatory
