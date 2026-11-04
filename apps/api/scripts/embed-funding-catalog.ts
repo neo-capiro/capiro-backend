@@ -6,14 +6,14 @@ import { embedText, EMBEDDING_MODEL } from '../src/embeddings/embedder.js';
 import { EmbeddingProviderError } from '../src/embeddings/embedding-provider.js';
 import { chunks, hash, object, searchText, stable, type RecordData } from '../src/external/tango/funding-catalog.mapper.js';
 import { runWithSyncRun, emptyCounts } from '../src/ingestion/sync-run.helper.js';
-import { ATTACHMENT_BODY_SQL, ATTACHMENT_TEXT_METADATA_SQL, CURRENT_FUNDING_ATTACHMENT_SQL, LOCAL_TEXT_SQL } from '../src/external/tango/funding-document-text.js';
+import { ATTACHMENT_BODY_SQL, ATTACHMENT_TEXT_METADATA_SQL, CURRENT_FUNDING_ATTACHMENT_SQL, ELIGIBLE_DIBBS_ATTACHMENT_SQL, LOCAL_TEXT_SQL } from '../src/external/tango/funding-document-text.js';
 
 const SOURCES = {
   grant: { table: 'federal_grant', idType: 'text', changed: 'synced_at', type: 'funding_grant_chunk', body: "concat_ws(E'\n',title,agency,description,eligibility_text,array_to_string(eligibility,', '))", url: 'url', priority: "status IN ('posted','forecasted') AND (close_date IS NULL OR close_date >= CURRENT_DATE)", newest: 'close_date DESC NULLS LAST' },
   notice: { table: 'sam_opportunity', idType: 'uuid', changed: 'last_synced_at', type: 'funding_notice_chunk', body: "concat_ws(E'\n',title,agency,description,set_aside,naics_code,psc_code)", url: 'source_url', priority: 'active AND (response_deadline IS NULL OR response_deadline >= NOW())', newest: 'posted_date DESC NULLS LAST' },
   // Active SBIR topic synopsis. Description is the only real prose this program
-  // holds for SBIR; a cycle has none, and a DIBBS row is a title, so neither is
-  // embedded. The provider activity filter is explicit, and date expiry plus a
+  // holds for SBIR; a cycle has none. DIBBS uses real attachment text instead
+  // of its item name. The provider activity filter is explicit, and date expiry plus a
   // closed raw status are excluded, matching the read path.
   sbir_topic: { table: 'tango_sbir_topic', idType: 'uuid', changed: 'last_synced_at', type: 'funding_sbir_topic_chunk', body: "concat_ws(E'\n',title,agency,description)", url: 'coalesce(topic_url,official_solicitation_url)', priority: "lower(coalesce(activity,'')) = 'open' AND (close_date IS NULL OR close_date >= CURRENT_DATE) AND lower(coalesce(solicitation_status,'')) NOT IN ('closed','expired','complete')", newest: 'close_date DESC NULLS LAST' },
   attachment: { table: 'opportunity_attachment', idType: 'uuid', changed: 'provider_observed_at', type: 'funding_attachment_chunk', body: ATTACHMENT_BODY_SQL, url: 'source_url', priority: CURRENT_FUNDING_ATTACHMENT_SQL, newest: 'provider_observed_at DESC NULLS LAST' },
@@ -21,7 +21,8 @@ const SOURCES = {
 type Kind = keyof typeof SOURCES;
 /** `active`: the scheduled scope, open opportunities and their documents, oldest
  * embedding first. `all`: the one-off historical backfill, every pending record
- * regardless of activity, newest first so the most useful history lands first. */
+ * regardless of activity, newest first so the most useful history lands first.
+ * DIBBS attachments always require an active parent and its current URL. */
 export const EMBEDDING_SCOPES = ['active', 'all'] as const;
 export type Scope = (typeof EMBEDDING_SCOPES)[number];
 const isScope = (value: string): value is Scope => (EMBEDDING_SCOPES as readonly string[]).includes(value);
@@ -37,6 +38,7 @@ export function pendingDocumentsSql(kind: Kind, scope: Scope) {
   return `SELECT id::text
     FROM ${source.table} WHERE (embedded_at IS NULL OR embedded_at < ${source.changed})
     AND ${kind === 'attachment' ? `(length(provider_data->>'extracted_text')>10 OR length(${LOCAL_TEXT_SQL})>10 OR embedded_content_hash IS NOT NULL)` : 'length(description)>10'}
+    ${kind === 'attachment' ? `AND ${ELIGIBLE_DIBBS_ATTACHMENT_SQL}` : ''}
     ${scope === 'active' ? `AND (${source.priority})` : ''}
     ORDER BY ${scope === 'active' ? 'embedded_at ASC NULLS FIRST' : source.newest},id LIMIT $1`;
 }
@@ -50,8 +52,10 @@ export async function readDocument(prisma: PrismaClient, kind: Kind, id: string)
   return (await prisma.$queryRawUnsafe<RecordData[]>(`SELECT id::text,${source.body} AS body,${source.url} AS source_url,
     ${source.changed} AS changed,embedded_content_hash
     ${kind === 'attachment' ? `,provider_attachment_id,jsonb_build_object('extraction_status',provider_data->'extraction_status',
-      'doc_role',provider_data->'doc_role') AS provider_data,sam_opportunity_id::text,federal_grant_id,${ATTACHMENT_TEXT_METADATA_SQL}` : kind === 'sbir_topic' ? ',tango_sbir_id AS provider_topic_id' : ''}
-    FROM ${source.table} WHERE id=$1::${source.idType}`, id))[0];
+      'doc_role',provider_data->'doc_role') AS provider_data,sam_opportunity_id::text,federal_grant_id,
+      dibbs_solicitation_id::text,provider_data->>'dibbs_id' AS provider_dibbs_id,${ATTACHMENT_TEXT_METADATA_SQL}` : kind === 'sbir_topic' ? ',tango_sbir_id AS provider_topic_id' : ''}
+    FROM ${source.table} WHERE id=$1::${source.idType}
+    ${kind === 'attachment' ? `AND ${ELIGIBLE_DIBBS_ATTACHMENT_SQL}` : ''}`, id))[0];
 }
 export function documentPlan(id: string, body: string, metadata: RecordData) {
   const normalized = searchText(body);
@@ -68,7 +72,8 @@ export async function embedDocument(prisma: PrismaClient, kind: Kind, row: Recor
     ...(kind === 'attachment' ? { providerAttachmentId: row.provider_attachment_id, binding: row.text_method === 'local_parser' ? 'archived_content_sha256' : 'provider_attachment_id', samOpportunityId: row.sam_opportunity_id, federalGrantId: row.federal_grant_id,
       extractionStatus: row.text_method === 'local_parser' ? 'available' : object(row.provider_data).extraction_status,
       extractionMethod: row.text_method ?? 'provider', ...(row.text_method === 'local_parser' ? { attachmentContentSha256: row.content_sha256, truncated: row.text_truncated ?? false } : {}),
-      documentRole: object(row.provider_data).doc_role ?? null } : kind === 'sbir_topic' ? { binding: 'provider_topic_id', providerTopicId: row.provider_topic_id } : { binding: 'government_record_id' }) };
+      documentRole: object(row.provider_data).doc_role ?? null,
+      ...(row.dibbs_solicitation_id ? { dibbsSolicitationId: row.dibbs_solicitation_id, providerDibbsId: row.provider_dibbs_id } : {}) } : kind === 'sbir_topic' ? { binding: 'provider_topic_id', providerTopicId: row.provider_topic_id } : { binding: 'government_record_id' }) };
   const plan = documentPlan(String(row.id), row.body, metadata);
   let calls = 0;
   const previous = await prisma.$queryRawUnsafe<Array<{ source_id: string; content_hash: string; vector: string }>>(
@@ -97,7 +102,8 @@ export async function embedDocument(prisma: PrismaClient, kind: Kind, row: Recor
     await tx.$executeRawUnsafe("SET LOCAL app.bypass_rls = 'on'");
     // Re-read and lock after the slow model calls. An ingestion update cannot
     // race this publication and give stale text a current completion marker.
-    const current = await tx.$queryRawUnsafe<RecordData[]>(`SELECT ${source.body} AS body, ${source.changed} AS changed FROM ${source.table} WHERE id=$1::${source.idType} FOR UPDATE`, String(row.id));
+    const current = await tx.$queryRawUnsafe<RecordData[]>(`SELECT ${source.body} AS body, ${source.changed} AS changed FROM ${source.table}
+      WHERE id=$1::${source.idType} ${kind === 'attachment' ? `AND ${ELIGIBLE_DIBBS_ATTACHMENT_SQL}` : ''} FOR UPDATE`, String(row.id));
     if (!current[0] || current[0].body !== row.body || String(current[0].changed) !== String(row.changed)) return;
     if (row.embedded_content_hash !== plan.marker) {
       // Replace the entire document's chunk set atomically, including removing
@@ -113,7 +119,7 @@ export async function embedDocument(prisma: PrismaClient, kind: Kind, row: Recor
   }, { timeout: 120_000 });
   return calls;
 }
-export const EMBEDDING_USAGE = 'Usage: embed-funding-catalog [--commit] [--limit=N] [--max-chunks=N] [--scope=active|all]. Default scope active: open documents only; all: every pending record, newest first. Requires DATABASE_URL; commits require FUNDING_ALLOWED_DB_HOST and task IAM for Titan v2. Exit 0: bounded pass; 1: failure.';
+export const EMBEDDING_USAGE = 'Usage: embed-funding-catalog [--commit] [--limit=N] [--max-chunks=N] [--scope=active|all]. Default scope active: open documents only; all: pending history, newest first. DIBBS documents remain active-only in both scopes. Requires DATABASE_URL; commits require FUNDING_ALLOWED_DB_HOST and task IAM for Titan v2. Exit 0: bounded pass; 1: failure.';
 export async function main(argv = process.argv.slice(2)) {
   if (argv.length === 1 && ['--help', '-h'].includes(argv[0] ?? '')) { console.log(EMBEDDING_USAGE); return; }
   if (argv.some(arg => !/^--(?:commit|(?:limit|max-chunks|scope)=.+)$/.test(arg))) throw new Error(EMBEDDING_USAGE);

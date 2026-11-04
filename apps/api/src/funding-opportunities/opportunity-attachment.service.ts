@@ -158,7 +158,7 @@ export const DEFAULT_ATTACHMENT_POLICY: AttachmentPolicy = Object.freeze({
   // not for opening the fetch to the internet.
   // Exact SAM file redirect bucket observed in the dev archive canary; this
   // deliberately does not permit arbitrary S3 buckets.
-  allowedHosts: new Set(['sam.gov', 'www.sam.gov', 'api.sam.gov', 'iae-fbo-attachments.s3.amazonaws.com', 'tango.makegov.com', 'tango.dev', 'www.grants.gov', 'api.grants.gov', 'apply07.grants.gov', 'sws.gsa.gov']),
+  allowedHosts: new Set(['sam.gov', 'www.sam.gov', 'api.sam.gov', 'iae-fbo-attachments.s3.amazonaws.com', 'tango.makegov.com', 'tango.dev', 'www.grants.gov', 'api.grants.gov', 'apply07.grants.gov', 'sws.gsa.gov', 'dibbs2.bsm.dla.mil']),
 });
 
 // ── URL safety ───────────────────────────────────────────────────────────────
