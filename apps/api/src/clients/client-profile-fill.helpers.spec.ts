@@ -6,12 +6,25 @@ import {
   extractSyncedMailParticipants,
   fillFindingHash,
   isPrivateOrLocalIp,
+  metaDescription,
   normalizeWebsite,
   provisionalPeScore,
   resolveEvidenceUrl,
 } from './client-profile-fill.helpers.js';
 
 describe('client-profile-fill helpers', () => {
+  it.each([
+    `<meta name="description" content="At Synthetic, we're building safer tools.">`,
+    `<meta content="At Synthetic, we're building safer tools." name="description">`,
+    `<meta property="og:description" content="At Synthetic, we're building safer tools.">`,
+    `<meta content="At Synthetic, we're building safer tools." property="og:description">`,
+  ])('preserves apostrophes inside double-quoted meta descriptions: %s', (html) => {
+    expect(metaDescription(html)).toBe("At Synthetic, we're building safer tools.");
+  });
+  it('preserves double quotes inside single-quoted meta descriptions', () => {
+    expect(metaDescription(`<meta name='description' content='Our "Atlas" software &amp; services'>`))
+      .toBe('Our "Atlas" software & services');
+  });
   it('builds layered company searches from thin internal profiles', () => {
     const queries = buildCompanySearchQueries({
       name: 'Kiley Associates',

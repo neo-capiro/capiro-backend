@@ -1264,23 +1264,12 @@ export class ClientProfileFillService {
     signal?.throwIfAborted();
     if (!this.portfolioAgent) throw new BadRequestException('Profile research is unavailable');
 
-    const sources: string[] = [];
     const pages = pageCorpus.length
       ? pageCorpus
       : homepage
         ? [{ url: homepage.url, text: homepage.text, description: homepage.description }]
         : [];
-    for (const page of pages.slice(0, MAX_SITE_PAGES)) {
-      sources.push(
-        `<untrusted_source url=${JSON.stringify(page.url)}>\n${this.escapeUntrusted(page.text.slice(0, 7000))}\n</untrusted_source>`,
-      );
-    }
-    for (const result of results.slice(0, MAX_WEB_RESULTS)) {
-      sources.push(
-        `<untrusted_source url=${JSON.stringify(result.url)}>\nTITLE: ${this.escapeUntrusted(result.title)}\nSNIPPET: ${this.escapeUntrusted(result.snippet ?? '')}\nPUBLISHED: ${this.escapeUntrusted(result.publishedAt ?? 'unknown')}\n</untrusted_source>`,
-      );
-    }
-    if (!sources.length) return null;
+    if (!pages.length && !results.length) return null;
 
     const schema = this.publicWebSchema();
     const system = [
@@ -1297,10 +1286,12 @@ export class ClientProfileFillService {
       ...(businessUnit?[`Only propose capabilities explicitly belonging to the approved business unit ${businessUnit.name}. The unit name is private scoping context, not evidence. Omit unrelated corporate capabilities.`]:[]),
       'Return only JSON matching the schema.',
     ].join(' ');
-    const prompt = `CLIENT: ${client.name}\nKNOWN WEBSITE: ${client.website ?? 'none'}\n\nPUBLIC EVIDENCE:\n${sources.join('\n\n')}`;
+    // The SDK exposes the complete approved corpus through read_source. Do not
+    // duplicate up to forty page excerpts into every model turn's context.
+    const prompt = `CLIENT: ${client.name}\nKNOWN WEBSITE: ${client.website ?? 'none'}\nRead the approved public evidence with read_source.`;
 
     try {
-      const {data:parsed}=await this.portfolioAgent.extract<Record<string,unknown>>({subject,signal,task:'public_web',...governProfileExtraction(subject,system,prompt),schema,schemaVersion:'v1',onAudit:audit=>recordFillInferenceAudit(this.prisma,audit),sources:[...pages.map((p,i)=>({id:`page-${i}`,url:p.url,text:p.text})),...results.map((r,i)=>({id:`result-${i}`,url:r.url,text:[r.title,r.snippet,r.publishedAt].filter(Boolean).join('\n')}))]});
+      const {data:parsed}=await this.portfolioAgent.extract<Record<string,unknown>>({subject,signal,task:'public_web',timeoutMs:180_000,...governProfileExtraction(subject,system,prompt),schema,schemaVersion:'v1',onAudit:audit=>recordFillInferenceAudit(this.prisma,audit),sources:[...pages.map((p,i)=>({id:`page-${i}`,url:p.url,text:p.text})),...results.map((r,i)=>({id:`result-${i}`,url:r.url,text:[r.title,r.snippet,r.publishedAt].filter(Boolean).join('\n')}))]});
       if (!parsed) throw new BadRequestException('Profile research returned no structured result');
       return this.normalizePublicWebExtraction(parsed);
     } catch (error) {
