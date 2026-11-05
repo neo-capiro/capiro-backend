@@ -45,6 +45,32 @@ describe('client creation confirmed identity admission', () => {
       response: { message: ['property tenantOverride should not exist'] },
     });
   });
+  test('preserves valid CSV bulk import without identity bindings', async () => {
+    const bulkDto = Reflect.getMetadata(
+      'design:paramtypes',
+      ClientsController.prototype,
+      'bulkImport',
+    )[1];
+    const body = { rows: [{ name: 'Synthetic Client', website: 'https://example.test' }] };
+    await expect(pipe.transform(body, { type: 'body', metatype: bulkDto })).resolves.toMatchObject(
+      body,
+    );
+  });
+  test('does not silently admit canonical identities through CSV bulk import', async () => {
+    const bulkDto = Reflect.getMetadata(
+      'design:paramtypes',
+      ClientsController.prototype,
+      'bulkImport',
+    )[1];
+    await expect(
+      pipe.transform(
+        { rows: [{ name: 'Synthetic Client', canonicalEntityId }] },
+        { type: 'body', metatype: bulkDto },
+      ),
+    ).rejects.toMatchObject({
+      response: { message: ['rows.0.property canonicalEntityId should not exist'] },
+    });
+  });
   test('does not permit canonical identity reassignment through ordinary updates', async () => {
     await expect(
       pipe.transform(
