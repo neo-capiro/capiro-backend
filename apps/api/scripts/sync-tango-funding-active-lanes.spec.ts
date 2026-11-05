@@ -173,6 +173,19 @@ describe('closure re-check (exact ids, never absence)', () => {
     expect(result.complete).toBe(false);
   });
 
+  test.each([
+    ['different DIBBS UUID', endpoint, 'ab150000-0000-4000-8000-000000000123', rfq('AB150000-0000-4000-8000-000000000124')],
+    ['case-distinct opaque DIBBS key', endpoint, 'opaque-A', rfq('opaque-a')],
+    ['case-distinct UUID-shaped SBIR key', ACTIVE_SOURCE_LANES.sbir.endpoints[0]!,
+      'ab150000-0000-4000-8000-000000000123', topic('AB150000-0000-4000-8000-000000000123')],
+  ] satisfies Array<[string, typeof endpoint, string, RecordData]>)('rejects %s before any detail write', async (_name, target, stored, detail) => {
+    const h = adapters([{ localId: 'L1', providerId: stored }], async () => detail);
+    const result = await reconcileUnconfirmedActive(target, epoch, h.deps, { persist: h.persist });
+    expect(result).toEqual({ checked: 1, confirmed: 0, unconfirmed: 0, complete: false });
+    expect(h.confirmed).toHaveLength(0);
+    expect(h.unconfirmed).toHaveLength(0);
+  });
+
   test('an unmappable detail is not treated as a closure', async () => {
     const h = adapters([{ localId: 'L1', providerId: 'a' }], async () => ({ nomenclature: 'no uuid' }));
     const result = await reconcileUnconfirmedActive(endpoint, epoch, h.deps as never, { persist: h.persist });

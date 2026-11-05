@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { realUpsertSolicitation } from '../../../scripts/sync-tango-dibbs.js';
 import { FundingCatalogStore } from './funding-catalog.store.js';
+import { ACTIVE_SOURCE_LANES, reconcileUnconfirmedActive } from './funding-active-sources.js';
 import { mapDibbsRfp } from './tango-dibbs.mapper.js';
 
 const url = process.env.TANGO_DIBBS_TEST_DATABASE_URL;
@@ -23,6 +24,28 @@ suite('DIBBS provider UUID identity on PostgreSQL', () => {
   const rows = (id: string) => db!.tangoDibbsSolicitation.findMany({
     where: { tangoDibbsId: { equals: id, mode: 'insensitive' } },
     select: { id: true, tangoDibbsId: true, solicitation: true }, orderBy: { id: 'asc' },
+  });
+
+  test('a DIBBS detail confirms the differently cased provider UUID and updates the same public record', async () => {
+    const providerId = uuid().toUpperCase();
+    const store = new FundingCatalogStore(db!);
+    await active(providerId, null);
+    const [original] = await rows(providerId);
+    const endpoint = ACTIVE_SOURCE_LANES.dibbs.endpoints.find(item => item.endpoint === 'rfp')!;
+    const detail = jest.fn(async () => ({ uuid: providerId, is_open: false, solicitation: 'RFP-CLOSED' }));
+    const markUnconfirmed = jest.fn();
+    const result = await reconcileUnconfirmedActive(endpoint, new Date().toISOString(), {
+      unseen: async () => [{ localId: original!.id, providerId: original!.tangoDibbsId }],
+      detail, markUnconfirmed,
+    }, { persist: async mapped => {
+      if (!('tangoDibbsId' in mapped)) throw new Error('Expected a DIBBS row');
+      await store.dibbsSolicitation(mapped, true);
+    } });
+    expect(detail).toHaveBeenCalledWith(original!.tangoDibbsId);
+    expect(result).toEqual({ checked: 1, confirmed: 1, unconfirmed: 0, complete: true });
+    expect(markUnconfirmed).not.toHaveBeenCalled();
+    expect(await rows(providerId)).toEqual([{ ...original, solicitation: 'RFP-CLOSED' }]);
+    expect((await db!.tangoDibbsSolicitation.findUniqueOrThrow({ where: { id: original!.id } })).isOpen).toBe(false);
   });
 
   test.each([['active', active], ['legacy', legacy]] as const)('%s preserves one row across the reviewer’s mixed-case sequence', async (_name, write) => {
