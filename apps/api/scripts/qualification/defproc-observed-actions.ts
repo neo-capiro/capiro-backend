@@ -96,7 +96,7 @@ async function main(){
    for(const group of third.groups)assert(!('latestSourceRevision' in group));
    const {actionDetails,...summary}=third;assert.deepEqual(await read(c,clock(3),false),summary);
    writeFileSync(`${OUT}/observed-native-payload.json`,JSON.stringify(third,null,2));
-   writeFileSync('C:/dev/defproc-release1-frontend/apps/web/tests/fixtures/procurement-observed-native.json',JSON.stringify(third,null,2));
+   if(process.env.DEFPROC_EXPORT_OBSERVED_FIXTURE==='1') writeFileSync('C:/dev/defproc-release1-frontend/apps/web/tests/fixtures/procurement-observed-native.json',JSON.stringify(third,null,2));
    checks.push('repeated observation conserves totals; summary/detail agree; no publisher-clock fields; native payload exported');
    const old=(await c.query('SELECT public.defproc_money_flow_scope_v2($1,$2,NULL) result',[[key],clock(3)])).rows[0].result;
    assert.equal(old.totals,null);checks.push('old publisher-qualified reader does not reinterpret observed-contract rows');
