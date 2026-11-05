@@ -16,7 +16,8 @@ test('a pending RFP acquires its number on the same provider UUID across repeate
   const pending = mapDibbsRfp({ uuid, is_open: true, solicitation: null })!;
   const numbered = mapDibbsRfp({ uuid, is_open: true, solicitation: 'RFP-123' })!;
   const upsert = jest.fn().mockResolvedValue({});
-  const store = new FundingCatalogStore({ tangoDibbsSolicitation: { upsert } } as never);
+  const tx = { tangoDibbsSolicitation: { upsert }, $queryRaw: jest.fn().mockResolvedValue([]) };
+  const store = new FundingCatalogStore({ $transaction: (work: (client: typeof tx) => unknown) => work(tx) } as never);
   for (const row of [pending, numbered, numbered, pending]) await store.dibbsSolicitation(row, true);
 
   const calls = upsert.mock.calls.map(([args]) => args);

@@ -45,21 +45,7 @@ export type TangoDibbsSolicitationRow = Omit<
   'id' | 'firstSyncedAt' | 'lastSyncedAt' | 'createdAt' | 'updatedAt'
 >;
 
-/** Replaying a pending observation must preserve a number assigned since it was read. */
-export function dibbsSolicitationUpsert(
-  row: TangoDibbsSolicitationRow,
-): Prisma.TangoDibbsSolicitationUpsertArgs {
-  const { solicitation, ...fields } = row;
-  return {
-    where: { tangoDibbsId: row.tangoDibbsId },
-    create: row,
-    update: {
-      ...fields,
-      ...(solicitation == null ? {} : { solicitation }),
-      lastSyncedAt: new Date(),
-    },
-  };
-}
+export const DIBBS_PROVIDER_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type TangoDibbsAwardRow = Omit<
   Prisma.TangoDibbsAwardCreateInput,
@@ -205,8 +191,7 @@ export function mapDibbsRfp(raw: Record<string, unknown>): TangoDibbsSolicitatio
   if (tangoDibbsId == null) return null;
   if (common.solicitation == null) {
     // Tango can publish a NEW posting keyed by UUID before assigning a number.
-    const providerUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (raw['solicitation'] != null || !providerUuid.test(uuid)) return null;
+    if (raw['solicitation'] != null || !DIBBS_PROVIDER_UUID.test(uuid)) return null;
   }
 
   return {

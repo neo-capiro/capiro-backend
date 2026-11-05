@@ -78,7 +78,6 @@ import {
 } from '../src/external/tango/tango-dibbs.client.js';
 import {
   decimalString,
-  dibbsSolicitationUpsert,
   mapDibbsAward,
   mapDibbsRfp,
   mapDibbsRfq,
@@ -87,6 +86,7 @@ import {
   type TangoDibbsSolicitationRow,
 } from '../src/external/tango/tango-dibbs.mapper.js';
 import { str } from '../src/external/tango/tango.mappers.js';
+import { upsertDibbsSolicitation } from '../src/external/tango/tango-dibbs.store.js';
 import { redact, redactWithKnownSecret } from '../src/external/tango/tango.errors.js';
 
 dotenvConfig();
@@ -616,10 +616,8 @@ export async function runDibbsSyncJob(
 
 // ── Real wiring ──────────────────────────────────────────────────────────────
 
-function realUpsertSolicitation(prisma: PrismaClient): DibbsSyncDeps['upsertSolicitation'] {
-  return async (row) => {
-    await prisma.tangoDibbsSolicitation.upsert(dibbsSolicitationUpsert(row));
-  };
+export function realUpsertSolicitation(prisma: PrismaClient): DibbsSyncDeps['upsertSolicitation'] {
+  return row => upsertDibbsSolicitation(prisma, row);
 }
 
 function realUpsertAward(prisma: PrismaClient): DibbsSyncDeps['upsertAward'] {

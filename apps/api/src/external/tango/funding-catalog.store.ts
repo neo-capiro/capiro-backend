@@ -3,7 +3,8 @@ import { TangoStoreService } from './tango-store.service.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import { catalogEmbeddingState, attachmentEmbeddingState } from './funding-embedding-state.js';
 import { compact, date, grantFields, hash, noticeFields, noticeKey, numeric, object, samFileUrlAliases, samUrlKey, stable, text, type RecordData } from './funding-catalog.mapper.js';
-import { dibbsSolicitationUpsert, type TangoDibbsSolicitationRow } from './tango-dibbs.mapper.js';
+import type { TangoDibbsSolicitationRow } from './tango-dibbs.mapper.js';
+import { upsertDibbsSolicitation } from './tango-dibbs.store.js';
 import type { TangoSbirSolicitationRow, TangoSbirTopicRow } from './tango-sbir.mapper.js';
 
 export class FundingCatalogStore {
@@ -16,7 +17,7 @@ export class FundingCatalogStore {
    */
   async dibbsSolicitation(row: TangoDibbsSolicitationRow, commit: boolean): Promise<void> {
     if (!commit) return;
-    await this.prisma.tangoDibbsSolicitation.upsert(dibbsSolicitationUpsert(row));
+    await upsertDibbsSolicitation(this.prisma, row);
   }
 
   /** SBIR topic upsert, keyed on the provider's own `topic_id`. */
