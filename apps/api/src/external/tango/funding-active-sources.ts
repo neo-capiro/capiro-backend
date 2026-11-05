@@ -18,7 +18,7 @@
 import { CatalogQuotaPause } from './funding-catalog.client.js';
 import type { RecordData } from './funding-catalog.mapper.js';
 import type { FundingCatalogResource, TangoCheckpointResourceType } from './tango.types.js';
-import { mapDibbsRfp, mapDibbsRfq, type TangoDibbsSolicitationRow } from './tango-dibbs.mapper.js';
+import { DIBBS_PROVIDER_UUID, mapDibbsRfp, mapDibbsRfq, type TangoDibbsSolicitationRow } from './tango-dibbs.mapper.js';
 import { mapSbirSolicitation, mapSbirTopic, type TangoSbirSolicitationRow, type TangoSbirTopicRow } from './tango-sbir.mapper.js';
 
 /** The exact row each mapper produces — no `RecordData`, no `as never`. */
@@ -147,6 +147,14 @@ export interface ClosureResult {
   complete: boolean;
 }
 
+function matchesStoredProviderId(mapped: ActiveSourceRow, storedId: string): boolean {
+  if (!('tangoDibbsId' in mapped)) return mapped.tangoSbirId === storedId;
+  const detailId = mapped.tangoDibbsId;
+  if (detailId === storedId) return true;
+  return DIBBS_PROVIDER_UUID.test(detailId) && DIBBS_PROVIDER_UUID.test(storedId)
+    && detailId.toLowerCase() === storedId.toLowerCase();
+}
+
 /**
  * Exact re-check of previously-active rows, after an endpoint's active walk
  * COMPLETED.
@@ -195,10 +203,9 @@ export async function reconcileUnconfirmedActive(
     // A detail we cannot map, or one whose identity is not the row we asked for,
     // means this pass could NOT establish coverage. Report incomplete instead of
     // counting it as checked-and-fine.
-    if (mapped == null) return { checked, confirmed, unconfirmed, complete: false };
-    const identity = (mapped as { tangoDibbsId?: string; tangoSbirId?: string }).tangoDibbsId
-      ?? (mapped as { tangoSbirId?: string }).tangoSbirId;
-    if (identity !== row.providerId) return { checked, confirmed, unconfirmed, complete: false };
+    if (mapped == null || !matchesStoredProviderId(mapped, row.providerId)) {
+      return { checked, confirmed, unconfirmed, complete: false };
+    }
     await options.persist(mapped);
     confirmed += 1;
   }

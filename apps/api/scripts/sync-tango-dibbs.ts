@@ -86,6 +86,7 @@ import {
   type TangoDibbsSolicitationRow,
 } from '../src/external/tango/tango-dibbs.mapper.js';
 import { str } from '../src/external/tango/tango.mappers.js';
+import { upsertDibbsSolicitation } from '../src/external/tango/tango-dibbs.store.js';
 import { redact, redactWithKnownSecret } from '../src/external/tango/tango.errors.js';
 
 dotenvConfig();
@@ -249,7 +250,7 @@ export interface DibbsEndpointSummary {
   written: number;
   /** No provider `uuid`. Cannot be upserted without inventing an identity. */
   droppedNoUuid: number;
-  /** Had a `uuid` but lacked the endpoint's other NOT NULL field (`solicitation`, or `award_number`). */
+  /** Supplied an ID but failed an endpoint-specific mapper requirement. */
   droppedNoRequiredField: number;
   errored: number;
   /** The `*_date_after` value actually sent, or null for a full/first walk. */
@@ -615,14 +616,8 @@ export async function runDibbsSyncJob(
 
 // ── Real wiring ──────────────────────────────────────────────────────────────
 
-function realUpsertSolicitation(prisma: PrismaClient): DibbsSyncDeps['upsertSolicitation'] {
-  return async (row) => {
-    await prisma.tangoDibbsSolicitation.upsert({
-      where: { tangoDibbsId: row.tangoDibbsId },
-      create: row,
-      update: { ...row, lastSyncedAt: new Date() },
-    });
-  };
+export function realUpsertSolicitation(prisma: PrismaClient): DibbsSyncDeps['upsertSolicitation'] {
+  return row => upsertDibbsSolicitation(prisma, row);
 }
 
 function realUpsertAward(prisma: PrismaClient): DibbsSyncDeps['upsertAward'] {
