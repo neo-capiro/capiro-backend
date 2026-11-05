@@ -130,3 +130,26 @@ export interface ProcurementAccountReports {
   coverage: 'source_reported_rows_only';
   reports: readonly ProcurementAccountReport[];
 }
+
+/** Explicit observed-revision contract; never interprets a publisher timestamp as UTC. */
+export interface ProcurementObservedScopeRequest {
+  awardIdentityKeys: readonly string[];
+  knownAt?: string;
+  revisionBasis: 'latest_observed';
+  includeActionDetails?: boolean;
+}
+export type ProcurementObservedFlowGroup = Omit<ProcurementFlowGroup, 'latestSourceRevision'>;
+export type ProcurementObservedActionDetail = Omit<ProcurementActionDetail, 'sourceRevisionOrder'> & {
+  /** Verbatim publisher value, nullable and uninterpreted; not a chronological cutoff. */
+  sourceRevisionLabel: string | null;
+};
+export type ProcurementObservedMoneyFlow = Omit<ProcurementMoneyFlow,
+  'contract' | 'measure' | 'sourceThrough' | 'groups' | 'actionDetails'> & {
+  contract: 'defproc-observed-money-flow/v1';
+  measure: 'latest_observed_actions';
+  revisionBasis: 'latest_observed';
+  sourceThrough: null;
+  groups: readonly ProcurementObservedFlowGroup[];
+  actionDetails?: readonly ProcurementObservedActionDetail[];
+};
+export type ProcurementMoneyFlowResult = ProcurementMoneyFlow | ProcurementObservedMoneyFlow;
