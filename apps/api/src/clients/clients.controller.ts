@@ -53,6 +53,10 @@ import { CLIENT_ORGANIZATION_TYPES } from './client-funding-profile.validation.j
 const FEDERAL_SET_ASIDE_CERTIFICATION_CODES = DURABLE_SET_ASIDE_CERTIFICATIONS;
 
 class CreateClientDto {
+  @IsOptional()
+  @IsUUID()
+  canonicalEntityId?: string;
+
   @IsString()
   @Length(1, 200)
   name!: string;
