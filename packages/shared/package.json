@@ -1,6 +1,6 @@
 {
   "name": "@capiro/shared",
-  "version": "0.0.3-defproc-release1.0",
+  "version": "0.0.4-defproc-release1.0",
   "private": true,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

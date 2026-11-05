@@ -153,3 +153,4 @@ export type ProcurementObservedMoneyFlow = Omit<ProcurementMoneyFlow,
   actionDetails?: readonly ProcurementObservedActionDetail[];
 };
 export type ProcurementMoneyFlowResult = ProcurementMoneyFlow | ProcurementObservedMoneyFlow;
+
